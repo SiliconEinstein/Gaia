@@ -2,12 +2,12 @@
 
 | 文档属性 | 值 |
 |---------|---|
-| 版本 | 1.1 |
+| 版本 | 1.4 |
 | 日期 | 2026-03-02 |
 | 状态 | 设计完成 |
 | 前置文档 | `docs/plans/2026-03-02-lkm-api-design-v2.md`, `docs/plans/2026-03-02-storage-layer-design.md` |
 | 目标 | 定义 Commit Engine 模块的结构、接口和工作流 |
-| 变更记录 | v1.0: 初始设计; v1.1: 统一命名 (Node/HyperEdge) |
+| 变更记录 | v1.0: 初始设计; v1.1: 统一命名 (Node/HyperEdge); v1.2: Node 模型变更——text→content, confidence→prior, 新增 title/metadata 字段; v1.3: HyperEdge.reasoning 改为 list = []; v1.4: Node 移除 notations/assumptions (改用 extra)，content 类型改为 str\|dict\|list，type 改为 str；Node/HyperEdge 新增 extra: dict |
 
 ---
 
@@ -77,7 +77,7 @@ merge 时有未解决重合则拒绝，用户需修改后重新提交：
 3. merge → 拒绝: "有未解决的重合"
 4. 用户重新 submit（二选一）:
    a. tail[1] 改为引用已有节点: {"node_id": 102}
-   b. 修改 text 使其不再重合
+   b. 修改 content 使其不再重合
 5. 新 commit → review → merge ✓
 ```
 
@@ -93,18 +93,18 @@ tail/head 中的节点支持两种写法：
 {
   "op": "add_edge",
   "tail": [
-    {"text": "DFT预测fcc YH10稳定", "notations": "...", "keywords": "..."},
+    {"content": "DFT预测fcc YH10稳定", "keywords": "...", "extra": {"notations": "..."}},
     {"node_id": 102}
   ],
   "head": [
-    {"text": "YH10在400GPa下Tc≈303K", "notations": "...", "keywords": "..."}
+    {"content": "YH10在400GPa下Tc≈303K", "keywords": "...", "extra": {"notations": "T_c \\approx 303\\,K"}}
   ],
   "type": "paper-extract",
-  "reasoning": "基于 DFT 和 Eliashberg 方程的理论预测"
+  "reasoning": ["基于 DFT 和 Eliashberg 方程的理论预测"]
 }
 ```
 
-- 新节点：提供 `text` 等字段，需要去重检查
+- 新节点：提供 `content` 等字段，需要去重检查
 - 引用已有节点：只提供 `node_id`，不需要去重
 
 ### 4.2 modify_edge — 修改超边
@@ -123,7 +123,7 @@ tail/head 中的节点支持两种写法：
 {
   "op": "modify_node",
   "node_id": 789,
-  "changes": {"text": "修正后的文本", "notations": "修正后的符号"}
+  "changes": {"content": "修正后的文本", "extra": {"notations": "修正后的符号"}}
 }
 ```
 
@@ -298,10 +298,10 @@ class Operation(BaseModel):
 
 class AddEdgeOp(Operation):
     op: Literal["add_edge"] = "add_edge"
-    tail: list[NewNode | NodeRef]          # {"text": ...} 或 {"node_id": 102}
+    tail: list[NewNode | NodeRef]          # {"content": ...} 或 {"node_id": 102}
     head: list[NewNode | NodeRef]
     type: str                               # paper-extract | join | meet | contradiction
-    reasoning: str
+    reasoning: list
 
 class ModifyEdgeOp(Operation):
     op: Literal["modify_edge"] = "modify_edge"
@@ -314,10 +314,11 @@ class ModifyNodeOp(Operation):
     changes: dict
 
 class NewNode(BaseModel):
-    text: str
-    notations: str | None = None
+    title: str | None = None
+    content: str | dict | list
     keywords: list[str] = []
-    assumptions: list[str] = []
+    metadata: dict | None = None
+    extra: dict = {}
 
 class NodeRef(BaseModel):
     node_id: int

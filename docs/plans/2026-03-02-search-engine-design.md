@@ -2,12 +2,12 @@
 
 | 文档属性 | 值 |
 |---------|---|
-| 版本 | 1.1 |
+| 版本 | 1.4 |
 | 日期 | 2026-03-02 |
 | 状态 | 设计完成 |
 | 前置文档 | `docs/plans/2026-03-02-storage-layer-design.md` |
 | 目标 | 定义 Search Engine 模块的结构、接口和召回策略 |
-| 变更记录 | v1.0: 初始设计; v1.1: 统一命名 (Node/HyperEdge), API 路径 /search/nodes, /search/hyperedges |
+| 变更记录 | v1.0: 初始设计; v1.1: 统一命名 (Node/HyperEdge), API 路径 /search/nodes, /search/hyperedges; v1.2: Node 模型变更——text→content, confidence→prior, 新增 title/metadata 字段 (ScoredNode 内嵌 Node，无需额外修改); v1.3: HyperEdge.reasoning 改为 list = []; v1.4: Node 移除 notations/assumptions (改用 extra)，content 类型改为 str\|dict\|list，type 改为 str；Node/HyperEdge 新增 extra: dict |
 
 ---
 

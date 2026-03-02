@@ -2,12 +2,12 @@
 
 | 文档属性 | 值 |
 |---------|---|
-| 版本 | 1.1 |
+| 版本 | 1.4 |
 | 日期 | 2026-03-02 |
 | 状态 | 设计完成 |
 | 前置文档 | `docs/lkm_system_design/phase1_billion_scale.md` (v1.2, §4 存储层) |
 | 目标 | 定义 `libs/storage` 模块的目录结构、接口清单和设计决策 |
-| 变更记录 | v1.0: 初始设计; v1.1: 统一命名 (Node/HyperEdge)，get_subgraph 加 edge_types |
+| 变更记录 | v1.0: 初始设计; v1.1: 统一命名 (Node/HyperEdge)，get_subgraph 加 edge_types; v1.2: Node 增加 title/metadata 字段，text→content，confidence→prior; v1.3: HyperEdge.reasoning 改为 list = []; v1.4: Node 移除 notations/assumptions (改用 extra)，content 类型改为 str\|dict\|list，type 改为 str；Node/HyperEdge 新增 extra: dict |
 
 ---
 
@@ -15,7 +15,7 @@
 
 - **基本逻辑单元是节点 (Node) 和超边 (HyperEdge)**——存储层不涉及论文等上游概念
 - **命名约定**：对外接口和数据模型统一用 `Node`（= 命题）和 `HyperEdge`（= 推理超边）。Neo4j 内部用 `:Proposition` 和 `:Hyperedge` 标签是实现细节，不暴露给上层
-- **三层存储**：LanceDB（节点文本+metadata+belief）、Neo4j（图拓扑）、ByteHouse/LanceDB（向量检索）
+- **三层存储**：LanceDB（节点内容+metadata+belief）、Neo4j（图拓扑）、ByteHouse/LanceDB（向量检索）
 - **无 Redis**：BP 消息在推理引擎进程内存完成，belief 值写回 LanceDB
 - **StorageManager 是容器，不是门面**：不做组合业务逻辑，上层服务直接调用各 store
 - **接口最小化**：只暴露真正需要的原子操作，组合逻辑由上层负责
@@ -29,7 +29,7 @@ libs/storage/
 ├── __init__.py              # 导出 StorageManager, StorageConfig
 ├── config.py                # StorageConfig — 部署模式与连接配置
 ├── manager.py               # StorageManager — 容器 + 生命周期管理
-├── lance_store.py           # LanceStore — 节点文本 + metadata + belief
+├── lance_store.py           # LanceStore — 节点内容 + metadata + belief
 ├── neo4j_store.py           # Neo4jGraphStore — 图拓扑 (Cypher)
 ├── vector_search/
 │   ├── __init__.py          # 工厂: create_vector_client(config)
@@ -80,7 +80,7 @@ class StorageConfig(BaseModel):
 
 ### 4.1 LanceStore — 节点主存储 (7 个方法)
 
-存储节点文本、元数据和 belief 值。不存 embedding（由 VectorSearchClient 负责）。
+存储节点内容、元数据和 belief 值。不存 embedding（由 VectorSearchClient 负责）。
 
 ```python
 # libs/storage/lance_store.py
@@ -101,7 +101,7 @@ class LanceStore:
         """批量读取节点"""
 
     async def update_node(self, node_id: int, **fields) -> None:
-        """更新节点字段（如 status, confidence 等）"""
+        """更新节点字段（如 status, prior 等）"""
 
     # ── Belief 读写（BP 引擎计算后写回）──
     async def update_beliefs(self, beliefs: dict[int, float]) -> None:
@@ -122,15 +122,16 @@ class LanceStore:
 ```python
 class Node(BaseModel):
     id: int
-    type: Literal["paper-extract", "join", "deduction", "conjecture"]
+    type: str                                # paper-extract | join | deduction | conjecture | ...
     subtype: str | None = None
-    text: str
-    notations: str | None = None
-    assumptions: list[str] = []
+    title: str | None = None
+    content: str | dict | list
     keywords: list[str] = []
-    confidence: float = 1.0
+    prior: float = 1.0                   # BP 先验输入
     belief: float | None = None          # BP 引擎写回
     status: Literal["active", "deleted"] = "active"
+    metadata: dict = {}
+    extra: dict = {}
     created_at: datetime | None = None
 ```
 
@@ -186,12 +187,15 @@ class HyperEdge(BaseModel):
     head: list[int]                        # 结论 node IDs
     probability: float | None = None
     verified: bool = False
-    reasoning: str | None = None
+    reasoning: list = []
     metadata: dict = {}
+    extra: dict = {}
     created_at: datetime | None = None
 ```
 
 **Neo4j 内部 Cypher 建模**（实现细节）：
+
+> **注意**：`reasoning` 字段是 `list` 类型，Neo4j 中存储为 JSON 字符串（`json.dumps`），读取时用 `json.loads` 解析。
 
 ```cypher
 -- Neo4j 标签: :Proposition (对应 Node), :Hyperedge (对应 HyperEdge)
@@ -367,7 +371,7 @@ async def merge_commit(manager: StorageManager, commit: Commit):
     node_ids = await manager.ids.alloc_node_ids_bulk(len(commit.new_nodes))
     edge_ids = await manager.ids.alloc_hyperedge_ids_bulk(len(commit.new_edges))
 
-    # 2. 写 LanceDB（节点文本 + metadata）
+    # 2. 写 LanceDB（节点内容 + metadata）
     await manager.lance.save_nodes(commit.new_nodes)
 
     # 3. 写 Neo4j（图拓扑）

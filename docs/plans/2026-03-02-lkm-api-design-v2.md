@@ -1,13 +1,13 @@
-# LKM API 设计 v2
+# LKM API 设计 v2.2
 
 | 文档属性 | 值 |
 |---------|---|
-| 版本 | 2.1 |
+| 版本 | 2.4 |
 | 日期 | 2026-03-02 |
 | 状态 | 设计完成 |
 | 前置文档 | `docs/plans/2026-03-02-lkm-api-design.md` (v1, 已被本文档取代) |
 | 相关文档 | `docs/plans/2026-03-02-phase1-module-architecture-design.md` |
-| 变更记录 | v2.0: 初始设计; v2.1: 移除 resolve 步骤和 merge_propositions 操作，统一命名 (/nodes, /hyperedges, /search/nodes, /search/hyperedges)，存储层更新为 Neo4j+LanceDB+ByteHouse |
+| 变更记录 | v2.0: 初始设计; v2.1: 移除 resolve 步骤和 merge_propositions 操作，统一命名 (/nodes, /hyperedges, /search/nodes, /search/hyperedges)，存储层更新为 Neo4j+LanceDB+ByteHouse; v2.2: Node 模型更新——新增 title/metadata，text→content，confidence→prior; v2.3: HyperEdge.reasoning 改为 list = []; v2.4: Node 移除 notations/assumptions (改用 extra)，content 类型改为 str\|dict\|list，type 改为 str；Node/HyperEdge 新增 extra: dict |
 
 ---
 
@@ -176,14 +176,14 @@ LKM（知识库）                      External Agent（研究代理）
     {
       "op": "add_edge",
       "tail": [
-        {"text": "DFT 计算预测 fcc YH10 相稳定", "notations": "...", "keywords": "..."},
-        {"text": "声子谱无虚频", "notations": "...", "keywords": "..."}
+        {"title": "DFT 预测 fcc YH10 相稳定", "content": "DFT 计算预测 fcc YH10 相稳定", "keywords": "...", "extra": {}},
+        {"title": "声子谱无虚频", "content": "声子谱无虚频", "keywords": "...", "extra": {}}
       ],
       "head": [
-        {"text": "YH10 在 400GPa 下 Tc≈303K", "notations": "T_c \\approx 303\\,K", "keywords": "..."}
+        {"title": "YH10 高压超导 Tc≈303K", "content": "YH10 在 400GPa 下 Tc≈303K", "keywords": "...", "extra": {"notations": "T_c \\approx 303\\,K"}}
       ],
       "type": "paper-extract",
-      "reasoning": "基于 DFT 和 Eliashberg 方程的理论预测",
+      "reasoning": ["基于 DFT 和 Eliashberg 方程的理论预测"],
       "source": {"paper_id": "arxiv:2301.12345", "section": "3.2"}
     },
     {
@@ -198,8 +198,8 @@ LKM（知识库）                      External Agent（研究代理）
       "op": "modify_node",
       "node_id": 789,
       "changes": {
-        "text": "修正后的命题文本",
-        "notations": "修正后的符号"
+        "content": "修正后的命题文本",
+        "extra": {"notations": "修正后的符号"}
       }
     }
   ]
@@ -237,15 +237,15 @@ LKM（知识库）                      External Agent（研究代理）
         "structural_valid": true,
         "dedup": {
           "tail": [
-            {"text": "DFT 计算预测...", "matched_node_id": null, "is_new": true},
-            {"text": "声子谱无虚频", "matched_node_id": 102, "is_new": false, "similarity": 0.97}
+            {"content": "DFT 计算预测...", "matched_node_id": null, "is_new": true},
+            {"content": "声子谱无虚频", "matched_node_id": 102, "is_new": false, "similarity": 0.97}
           ],
           "head": [
-            {"text": "YH10 在 400GPa...", "matched_node_id": null, "is_new": true}
+            {"content": "YH10 在 400GPa...", "matched_node_id": null, "is_new": true}
           ]
         },
         "candidate_contradictions": [
-          {"node_id": 269, "text": "YH10 在实验中未能合成", "similarity": 0.82}
+          {"node_id": 269, "content": "YH10 在实验中未能合成", "similarity": 0.82}
         ]
       },
       {
@@ -347,19 +347,19 @@ LKM（知识库）                      External Agent（研究代理）
         "overlaps": [
           {
             "position": "tail[1]",
-            "submitted_text": "声子谱无虚频",
+            "submitted_content": "声子谱无虚频",
             "matched_node_id": 102,
-            "matched_text": "fcc YH10 的声子谱计算显示无虚频模",
+            "matched_content": "fcc YH10 的声子谱计算显示无虚频模",
             "llm_judgment": "semantically_equivalent",
-            "confidence": 0.95
+            "prior": 0.95
           },
           {
             "position": "head[0]",
-            "submitted_text": "YH10 在 400GPa 下 Tc≈303K",
+            "submitted_content": "YH10 在 400GPa 下 Tc≈303K",
             "matched_node_id": 5010,
-            "matched_text": "YH10 超导临界温度约 303K (400GPa)",
+            "matched_content": "YH10 超导临界温度约 303K (400GPa)",
             "llm_judgment": "semantically_equivalent",
-            "confidence": 0.91
+            "prior": 0.91
           }
         ],
         "belief_preview": {
@@ -539,12 +539,14 @@ LKM（知识库）                      External Agent（研究代理）
 ```json
 {
   "id": 251,
-  "text": "fcc YH10 相在 400GPa 下超导，Tc≈303K",
-  "notations": "T_c \\approx 303\\,K",
+  "title": "YH10 高压超导 Tc≈303K",
+  "content": "fcc YH10 相在 400GPa 下超导，Tc≈303K",
   "keywords": ["YH10", "超导", "高压氢化物"],
   "type": "paper-extract",
   "status": "active",
   "belief": 0.65,
+  "metadata": {},
+  "extra": {"notations": "T_c \\approx 303\\,K"},
   "created_at": "2026-03-01T..."
 }
 ```
@@ -558,7 +560,7 @@ LKM（知识库）                      External Agent（研究代理）
   "subtype": null,
   "tail": [102, 5001],
   "head": [5002],
-  "reasoning": "基于 DFT 和 Eliashberg 方程的理论预测",
+  "reasoning": ["基于 DFT 和 Eliashberg 方程的理论预测"],
   "probability": null,
   "verified": true,
   "quality": {
@@ -589,8 +591,8 @@ LKM（知识库）                      External Agent（研究代理）
 {
   "center_node_id": 251,
   "nodes": [
-    {"id": 251, "text": "...", "belief": 0.65, "type": "paper-extract"},
-    {"id": 269, "text": "...", "belief": 0.71, "type": "paper-extract"}
+    {"id": 251, "title": "...", "content": "...", "belief": 0.65, "type": "paper-extract"},
+    {"id": 269, "title": "...", "content": "...", "belief": 0.71, "type": "paper-extract"}
   ],
   "edges": [
     {"id": 1234, "type": "paper-extract", "tail": [102, 5001], "head": [251]},
@@ -641,7 +643,8 @@ LKM（知识库）                      External Agent（研究代理）
   "results": [
     {
       "node_id": 251,
-      "text": "fcc YH10 相在 400GPa 下超导，Tc≈303K",
+      "title": "YH10 高压超导 Tc≈303K",
+      "content": "fcc YH10 相在 400GPa 下超导，Tc≈303K",
       "similarity": 0.89,
       "belief": 0.65,
       "source": "ann",
@@ -649,7 +652,8 @@ LKM（知识库）                      External Agent（研究代理）
     },
     {
       "node_id": 300,
-      "text": "LaH10 在 170GPa 下 Tc≈250K",
+      "title": "LaH10 高压超导 Tc≈250K",
+      "content": "LaH10 在 170GPa 下 Tc≈250K",
       "similarity": 0.84,
       "belief": 0.92,
       "source": "bm25",
@@ -686,7 +690,7 @@ LKM（知识库）                      External Agent（研究代理）
     {
       "edge_id": 1234,
       "type": "paper-extract",
-      "reasoning": "基于 DFT 和 Eliashberg 方程的理论预测",
+      "reasoning": ["基于 DFT 和 Eliashberg 方程的理论预测"],
       "tail_summary": ["DFT 计算", "晶格动力学"],
       "head_summary": ["YH10 Tc≈303K"],
       "similarity": 0.87,

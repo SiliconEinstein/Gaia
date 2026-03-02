@@ -2,11 +2,12 @@
 
 | 文档属性 | 值 |
 |---------|---|
-| 版本 | 1.0 |
+| 版本 | 1.3 |
 | 日期 | 2026-03-02 |
 | 状态 | 设计完成 |
 | 前置文档 | `docs/plans/2026-03-02-commit-engine-design.md`, `docs/plans/2026-03-02-search-engine-design.md`, `docs/plans/2026-03-02-storage-layer-design.md` |
 | 目标 | 定义 API Gateway 的路由结构和端点设计 |
+| 变更记录 | v1.0: 初始设计; v1.1: Node 模型变更——text→content, confidence→prior, 新增 title/metadata 字段 (端点无 raw node 字段引用，无需额外修改); v1.2: HyperEdge.reasoning 改为 list = []; v1.3: Node 移除 notations/assumptions (改用 extra)，content 类型改为 str\|dict\|list，type 改为 str；Node/HyperEdge 新增 extra: dict |
 
 ---
 
