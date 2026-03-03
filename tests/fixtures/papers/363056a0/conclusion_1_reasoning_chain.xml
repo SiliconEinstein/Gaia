@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<premises>
+<premise id="1" title="Superconductivity in Hg-1201">
+The compound $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) exhibits superconductivity below a transition temperature $T_{c}$ of 94 K.
+<ref>[1]</ref>
+</premise>
+<premise id="2" title="Structural analogy with Tl-based copper oxides">
+The compound $HgBa_{2}CuO_{4+\delta}$ is structurally similar to the thallium-containing copper oxide $TlBa_{2}CuO_{5}$ (Tl-1201), suggesting the existence of a mercury-based homologous series with the general composition $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$.
+<ref>[1]</ref>
+</premise>
+<premise id="3" title="Tc scaling in Tl-based systems">
+In the thallium-containing analogues defined by $TlBa_{2}Ca_{n-1}Cu_{n}O_{2n+3}$, the transition temperatures range from less than 10 K for $n=1$ to approximately 110 K for $n=3$.
+<ref>[4, 5]</ref>
+</premise>
+<premise id="4" title="Previous record transition temperature">
+The previously established record for superconducting transition temperature is 125–127 K, observed in the compound $Tl_{2}Ba_{2}Ca_{2}Cu_{3}O_{10}$.
+<ref>[2, 3]</ref>
+</premise>
+<premise id="5" title="Absence of superconductivity in Hg-1212 rare-earth variants">
+Although the synthesis of $HgBa_{2}RCu_{2}O_{6+x}$ (Hg-1212) where $R$ is (Eu, Ca) has been reported, no superconductivity was found in that specific system.
+<ref>[6]</ref>
+</premise>
+<assumption id="6" title="Sample density for susceptibility calculation">
+For the estimate of the superconducting volume fraction from magnetic susceptibility measurements, the average density of the Hg-Ba-Ca-Cu-O sample is assumed to be $\rho \approx 6 \text{ g cm}^{-3}$.
+</assumption>
+</premises>
+<reasoning>
+<step title="Hypothesis formulation">
+Based on the structural similarity to Tl-1201 [@premise-2] and the trend of increasing $T_c$ with the number of $CuO_2$ layers observed in thallium and bismuth compounds [@premise-3], the authors conjecture that transition temperatures exceeding 100 K can be achieved in the Hg-Ba-Ca-Cu-O system by synthesizing members with more than one $CuO_2$ layer ($n &gt; 1$).
+</step>
+<step title="Synthesis of multi-layer Hg-Ba-Ca-Cu-O phases">
+Samples are prepared using a precursor $Ba_{2}CaCu_{2}O_{5}$ mixed with $HgO$, heated at $800^{\circ}C$, and annealed in oxygen. The goal is to produce phases with $n=2$ (Hg-1212) and $n=3$ (Hg-1223).
+</step>
+<step title="Structural characterization">
+Using SAED and HRTEM, the authors confirm that the synthesized material contains grains of $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223), $HgBa_{2}CaCuO_{6+x}$ (Hg-1212), and ordered superstructures. The lattice constants are determined as $c=12.7(2)\mathring{A}$ for Hg-1212 and $c=16.1(3)\mathring{A}$ for Hg-1223, with $a=3.93(7)\mathring{A}$.
+</step>
+<step title="Magnetic susceptibility measurement">
+Magnetic susceptibility $\chi(T)$ is measured using a SQUID magnetometer.
+The authors observe an onset of diamagnetism at $T_{c} \approx 133.5 \text{ K}$ in both Field Cooling (FC) and Zero-Field Cooling (ZFC) experiments.
+</step>
+<step title="Assessment of bulk superconductivity">
+Using the assumed density [@assumption-6], the ZFC susceptibility at 6 K corresponds to $\sim 100\%$ screening ($1/4\pi$). The FC susceptibility reaches $\sim 10\%$ of the maximum possible value. The authors interpret this FC value as a lower bound for the superconducting volume fraction, indicating bulk superconductivity.
+</step>
+<step title="Resistivity measurement">
+Electrical resistivity $R(T)$ is measured. The authors observe a sharp drop in resistivity at $T \approx 132.5 \text{ K}$ (maximum in $dR/dT$) and zero resistance at $T = 95 \text{ K}$.
+</step>
+<step title="Comparison with previous records">
+The observed onset temperature of $\sim 133.5 \text{ K}$ is compared to the previous record of 125–127 K found in the Tl-system [@premise-4], establishing the new result as distinctly higher.
+</step>
+<step title="Phase attribution">
+The FC susceptibility reaches $\sim 60\%$ of its full low-temperature value at 125 K. The authors argue this indicates the phase with $T_{c} \approx 133.5 \text{ K}$ dominates the superconducting volume.
+Based on the microscopic observation that Hg-1223 is the dominant phase in the grains investigated, and the analogy that $T_c$ increases with layer number [@premise-3], the authors conclude that Hg-1223 is responsible for the superconductivity at $\sim 133$ K.
+</step>
+</reasoning>
+<conclusion title="Discovery of superconductivity with record transition temperature in Hg-Ba-Ca-Cu-O">
+The Hg-Ba-Ca-Cu-O system exhibits superconductivity with an onset transition temperature of $T_{c} \approx 133.5$ K, which surpasses the previous record of $\sim 127$ K observed in the Tl-system. This result is established through magnetic susceptibility measurements (showing diamagnetism onset at 133.5 K and strong screening at 125 K) and electrical resistivity measurements (showing a sharp drop at $132.5$ K and zero resistance at $95$ K).
+</conclusion>
+</inference_unit>

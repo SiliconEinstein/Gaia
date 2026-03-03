@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<premises>
+<premise id="1" title="Superconductivity of Tl-Ba-Cu-O">
+Tl-Ba-Cu-O samples exhibit zero resistance just above liquid-nitrogen temperature.
+<ref>8, 9</ref>
+</premise>
+<premise id="2" title="Effect of Annealing on Tl-Ba-Cu-O">
+Annealing at $450^{\circ}\text{C}$ in flowing oxygen depresses or destroys the superconducting transition of Tl-Ba-Cu-O samples.
+</premise>
+<premise id="3" title="Effect of Annealing on Tl-Ca/Ba-Cu-O">
+Annealing at $450^{\circ}\text{C}$ in flowing oxygen slightly improves the superconductivity of Tl-Ca/Ba-Cu-O samples.
+</premise>
+<premise id="4" title="Conductivity of Tl-Ca-Cu-O">
+Tl-Ca-Cu-O samples prepared under conditions similar to those for Tl-Ca/Ba-Cu-O samples exhibit semiconductor-like behavior down to liquid-nitrogen temperature.
+</premise>
+</premises>
+<reasoning>
+<step title="Compare annealing effects">
+The authors contrast the effect of annealing at $450^{\circ}\text{C}$ in flowing oxygen on Tl-Ba-Cu-O samples versus Tl-Ca/Ba-Cu-O samples.
+</step>
+<step title="State effect on Tl-Ba-Cu-O">
+Relying on [@premise-2], the authors identify that this annealing process depresses or destroys the superconducting transition in Tl-Ba-Cu-O samples (which otherwise have zero resistance above liquid nitrogen temperatures as noted in [@premise-1]).
+</step>
+<step title="State effect on Tl-Ca/Ba-Cu-O">
+Relying on [@premise-3], the authors identify that the same annealing process slightly improves the superconductivity of Tl-Ca/Ba-Cu-O samples.
+</step>
+<step title="Infer stabilization by Calcium">
+Based on the contrast between the instability of the Tl-Ba-Cu-O samples [@premise-2] and the stability/improvement of the Tl-Ca/Ba-Cu-O samples [@premise-3], the authors infer that the addition of calcium to the Tl-Ba-Cu-O system stabilizes the superconducting phase against annealing.
+</step>
+<step title="Characterize Tl-Ca-Cu-O">
+Relying on [@premise-4], the authors note that Tl-Ca-Cu-O samples (without barium) exhibit semiconductor-like behavior down to liquid-nitrogen temperatures, contrasting with the superconducting behavior of the Ba-containing systems.
+</step>
+<step title="Synthesize final conclusion">
+The authors combine the inferred stabilization effect of calcium, the specific annealing outcomes for both systems, and the non-superconducting nature of the barium-free Tl-Ca-Cu-O system to form the final conclusion.
+</step>
+</reasoning>
+<conclusion title="Compositional and Thermal Stability Characteristics">
+The addition of calcium to the Tl-Ba-Cu-O system stabilizes the superconducting phase against annealing; annealing at $450^{\circ}C$ in flowing oxygen slightly improves the superconductivity of Tl–Ca/Ba–Cu–O samples, whereas it depresses or destroys the transition in Tl–Ba–Cu–O samples, and Tl–Ca–Cu–O samples without barium exhibit semiconductor-like behavior down to liquid-nitrogen temperatures.
+</conclusion>
+</inference_unit>

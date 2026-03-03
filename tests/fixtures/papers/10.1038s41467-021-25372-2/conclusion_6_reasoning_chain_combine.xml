@@ -1,0 +1,48 @@
+<inference_unit>
+<notations>
+- $H_{c2}$: upper critical field of a superconductor
+- $\xi$: coherence length of the superconducting order parameter
+- $\phi_{0}$: magnetic flux quantum
+- $v_{F}$: Fermi velocity
+- $T_{c}$: superconducting critical temperature
+- $h$: Planck constant
+- $k_{\mathrm{B}}$: Boltzmann constant
+- WHH: Werthamer–Helfand–Hohenberg model
+- GL: Ginzburg–Landau equation
+</notations>
+<premises>
+<premise id="1" title="Relation between coherence length and upper critical field">
+The coherence length of the superconducting order parameter, denoted by $\xi$, is determined from the upper critical field $H_{c2}$ using the relation $\xi = \sqrt{\frac{\phi_{0}}{3\pi^{2}H_{c2}}}$, where $\phi_{0}$ is the magnetic flux quantum.
+</premise>
+<premise id="2" title="BCS relation for Fermi velocity">
+The Fermi velocity $v_{F}$ of charge carriers in a superconductor is related to the coherence length $\xi$ and the critical temperature $T_{c}$ via the Bardeen–Cooper–Schrieffer (BCS) relation $\xi = 0.18 \frac{h v_{F}}{k_{\mathrm{B}} T_{c}}$, where $h$ is the Planck constant and $k_{\mathrm{B}}$ is the Boltzmann constant.
+</premise>
+<assumption id="3" title="Validity of WHH model for upper critical field estimation">
+The temperature dependence of the upper critical field $H_{c2}(T)$ for a superconductor can be approximated by the Werthamer–Helfand–Hohenberg (WHH) model across the entire temperature range to provide an estimate of the upper critical field at zero temperature, $H_{c2}(0\text{ K})$.
+<ref>[45]</ref>
+</assumption>
+</premises>
+<reasoning>
+<step title="Experimental determination of critical temperature and field">
+The authors measure the superconducting transition temperature $T_c$ and the dependence of $T_c$ on the applied external magnetic field for $YH_6$ and $YD_9$ samples.
+</step>
+<step title="Estimation of Hc2(0) using WHH model">
+The authors fit the experimental values of $H_{c2}(T)$ to the Werthamer–Helfand–Hohenberg (WHH) model [@assumption-3]. These fits yield $H_{c2}^{\mathrm{WHH}}(0\mathrm{K})=157\mathrm{T}$ for $hcc-YH_{6}$ and $H_{c2}^{\mathrm{WHH}}(0\mathrm{K})=60\mathrm{T}$ for $hcp-YD_{9}$.
+</step>
+<step title="Calculation of Coherence Length">
+Using the estimated $H_{c2}(0\mathrm{K})$ values, the authors calculate the coherence length $\xi(0\mathrm{K})$ for each phase using the relation $\xi = \sqrt{\frac{\phi_{0}}{3\pi^{2}H_{c2}}}$ [@premise-1].
+</step>
+<step title="Calculation of Fermi Velocity">
+The authors calculate the Fermi velocities $v_{F}$ using the BCS relation $\xi = 0.18 \frac{h v_{F}}{k_{\mathrm{B}} T_{c}}$ [@premise-2], substituting the calculated $\xi$ and measured $T_c$.
+</step>
+<step title="Comparison of Fermi Velocities">
+The calculation yields $v_F = 2.3 \times 10^{5}$ m/s for $YH_{6}$ and $v_F = 2.85 \times 10^{5}$ m/s for $YD_{9}$. The authors observe that despite the substantial difference in $H_{c2}$ (157 T vs 60 T), the Fermi velocities are quite similar.
+</step>
+<step title="Inference on Charge Carrier Dispersion">
+Based on the similarity of the calculated Fermi velocities, the authors infer that the dispersion of the charge carriers contributing to superconductivity does not significantly change between these different superconducting hydride phases.
+</step>
+</reasoning>
+<conclusion title="Fermi Velocities in Yttrium Superhydrides">
+The authors calculate the Fermi velocities $v_{F}$ for the superconducting phases using the BCS relation $\xi = 0.18 \frac{\hbar v_{F}}{k_{\mathrm{B}} T_{c}}$. The estimated values are $2.3 \times 10^{5}$ m/s for $YH_{6}$ and $2.85 \times 10^{5}$ m/s for $YD_{9}$, indicating that the dispersion of charge carriers is similar across these hydride phases despite differences in $H_{c2}$.
+</conclusion>
+</inference_unit>

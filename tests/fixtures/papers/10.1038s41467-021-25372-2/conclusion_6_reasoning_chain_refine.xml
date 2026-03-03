@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<notations>
+- $H_{c2}$: upper critical field of a superconductor
+- $\xi$: coherence length of the superconducting order parameter
+- $\phi_{0}$: magnetic flux quantum
+- $v_{F}$: Fermi velocity
+- $T_{c}$: superconducting critical temperature
+- $h$: Planck constant
+- $k_{\mathrm{B}}$: Boltzmann constant
+- WHH: Werthamer–Helfand–Hohenberg model
+- GL: Ginzburg–Landau equation
+</notations>
+<premises>
+<premise id="1" title="Relation between coherence length and upper critical field">
+The coherence length of the superconducting order parameter, denoted by $\xi$, is determined from the upper critical field $H_{c2}$ using the relation $\xi = \sqrt{\frac{\phi_{0}}{3\pi^{2}H_{c2}}}$, where $\phi_{0}$ is the magnetic flux quantum.
+</premise>
+<premise id="2" title="BCS relation for Fermi velocity">
+The Fermi velocity $v_{F}$ of charge carriers in a superconductor is related to the coherence length $\xi$ and the critical temperature $T_{c}$ via the Bardeen–Cooper–Schrieffer (BCS) relation $\xi = 0.18 \frac{h v_{F}}{k_{\mathrm{B}} T_{c}}$, where $h$ is the Planck constant and $k_{\mathrm{B}}$ is the Boltzmann constant.
+</premise>
+<assumption id="3" title="Validity of WHH model for upper critical field estimation">
+The temperature dependence of the upper critical field $H_{c2}(T)$ for a superconductor can be approximated by the Werthamer–Helfand–Hohenberg (WHH) model across the entire temperature range to provide an estimate of the upper critical field at zero temperature, $H_{c2}(0\text{ K})$.
+<ref>[45]</ref>
+</assumption>
+</premises>
+</inference_unit>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<notations>
+- $T_c$: Superconducting transition temperature
+- a.c. susceptibility: Alternating current magnetic susceptibility
+- $Tl_{2}Ca_{x}Ba_{y}Cu_{z}O_{8+w}$: Thallium-Calcium-Barium-Copper-Oxide chemical system
+</notations>
+<premises>
+<premise id="1" title="Indicator of Bulk Superconductivity">
+The presence of strong diamagnetic repulsion in a material is a physical property that serves as an experimental indicator of the existence of bulk superconductivity within that material.
+</premise>
+<premise id="2" title="Manifestation of Diamagnetism">
+The stable levitation of a material sample over a magnetic field (such as a field of approximately $5,000$ G) is a qualitative physical manifestation of strong diamagnetic repulsion, which is associated with the Meissner effect in superconductors.
+</premise>
+<premise id="3" title="Measurement of AC Susceptibility">
+The technique of Norton is an experimental method used to determine the temperature dependence of the alternating current (a.c.) susceptibility of a material sample to identify its superconducting transition characteristics.
+<ref>[15]</ref>
+</premise>
+</premises>
+</inference_unit>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+  <conclusions>
+    <conclusion id="1" title="Superconductivity in hcp-YH9">
+      The authors report the synthesis and discovery of superconductivity in the hexagonal close-packed (hcp) $P6_3/mmc$ phase of yttrium nonahydride ($YH_{9}$). This phase exhibits a maximum superconducting critical temperature $T_{c}$ of $\sim 243$ K at a pressure of 201 GPa, which represents the highest $T_{c}$ observed in the yttrium-hydrogen system in this study. The pressure dependence of $T_{c}$ forms a dome-like shape, with a sharp drop in $T_{c}$ below $\sim 195$ GPa attributed to structural instability.
+    </conclusion>
+    <conclusion id="2" title="Superconductivity in bcc-YH6">
+      The authors report the synthesis and superconductivity of the body-centered cubic (bcc) $Im\text{-}3m$ phase of yttrium hexahydride ($YH_{6}$). This phase demonstrates a maximum measured $T_{c}$ of 224 K at 166 GPa. The superconducting transition temperature decreases with increasing pressure above this maximum, and a sharp drop in $T_{c}$ is observed below $\sim 165$ GPa.
+    </conclusion>
+    <conclusion id="3" title="Absence of predicted fcc-YH10 phase">
+      Contrary to theoretical predictions suggesting the stability of a high-$T_{c}$ face-centered cubic (fcc) $YH_{10}$ phase, the authors conclude that $YH_{10}$ does not form in the pressure-temperature range up to 410 GPa and 2250 K. Instead, the authors establish that the $P6_3/mmc$ $YH_{9}$ phase remains the hydrogen-richest yttrium hydride stable under these conditions.
+    </conclusion>
+    <conclusion id="4" title="Isotope effect in Yttrium Hydrides">
+      The authors observe a pronounced isotope effect upon substituting hydrogen with deuterium, supporting a conventional phonon-mediated superconductivity mechanism. Specifically:
+      - For $Im\text{-}3m$ $YD_{6}$, $T_{c}$ shifts to $\sim 168$ K at 173 GPa (compared to $\sim 220$ K for $YH_{6}$).
+      - For $P6_3/mmc$ $YD_{9}$, $T_{c}$ shifts to $\sim 172$ K at 202–205 GPa (compared to $\sim 243$ K for $YH_{9}$).
+      The calculated isotope effect coefficients $\alpha = -\frac{d \ln T_{c}}{d \ln M}$ are 0.39 for the $YH_{6}/YD_{6}$ system and 0.50 for the $YH_{9}/YD_{9}$ system.
+    </conclusion>
+    <conclusion id="5" title="Upper Critical Fields and Coherence Lengths">
+      Based on electrical resistance measurements under magnetic fields up to 9 T, the authors derive the upper critical fields $H_{c2}(0)$ using the Werthamer–Helfand–Hohenberg (WHH) model:
+      - $H_{c2}^{\mathrm{WHH}}(0\mathrm{K}) \approx 157$ T for $Im\text{-}3m$ $YH_{6}$.
+      - $H_{c2}^{\mathrm{WHH}}(0\mathrm{K}) \approx 60$ T for $P6_3/mmc$ $YD_{9}$.
+      - $H_{c2}^{\mathrm{WHH}}(0\mathrm{K})$ is estimated at 120 T for $YH_{9}$ (assuming similar Fermi velocities to $YD_9$).
+      The corresponding Ginzburg-Landau coherence lengths $\xi(0\mathrm{K})$ are calculated to be 1.45–1.75 nm for $YH_{6}$ and 2.3–2.7 nm for $YD_{9}$.
+    </conclusion>
+    <conclusion id="6" title="Fermi Velocities in Yttrium Superhydrides">
+      The authors calculate the Fermi velocities $v_{F}$ for the superconducting phases using the BCS relation $\xi = 0.18 \frac{\hbar v_{F}}{k_{\mathrm{B}} T_{c}}$. The estimated values are $2.3 \times 10^{5}$ m/s for $YH_{6}$ and $2.85 \times 10^{5}$ m/s for $YD_{9}$, indicating that the dispersion of charge carriers is similar across these hydride phases despite differences in $H_{c2}$.
+    </conclusion>
+    <conclusion id="7" title="Synthesis Conditions and Stoichiometry Estimation">
+      The authors experimentally determined synthesis pathways for higher yttrium hydrides:
+      - $bct\text{-}YH_{4}$ and $bcc\text{-}YH_{6}$ form at 160–175 GPa via laser heating ($\sim 1500$ K) or at 200–244 GPa at room temperature.
+      - $hcp\text{-}YH_{9}$ forms by laser heating $YH_{6}$ with excess hydrogen above 185 GPa.
+      Based on the hydrogen-induced volume expansion ($V_H \approx 1.7-1.8$ Å$^3$/H atom), the experimental compositions are estimated as $YH_{5.7(3)}$ for the bcc phase and $YH_{8.5(5)}$ for the hcp phase.
+    </conclusion>
+  </conclusions>
+</inference_unit>

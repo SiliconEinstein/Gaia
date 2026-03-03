@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<conclusion title="Fermi Velocities in Yttrium Superhydrides">
+    The authors calculate the Fermi velocities $v_{F}$ for the superconducting phases using the BCS relation $\xi = 0.18 \frac{\hbar v_{F}}{k_{\mathrm{B}} T_{c}}$. The estimated values are $2.3 \times 10^{5}$ m/s for $YH_{6}$ and $2.85 \times 10^{5}$ m/s for $YD_{9}$, indicating that the dispersion of charge carriers is similar across these hydride phases despite differences in $H_{c2}$.
+</conclusion>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+  <conclusions>
+    <conclusion id="1" title="Discovery of High-Tc Superconductivity in the Tl–Ca/Ba–Cu–O System">
+      Stable and reproducible bulk superconductivity is established in the Tl–Ca/Ba–Cu–O system, characterized by an onset temperature of 120 K (determined by the rapid change in curvature of the resistance-temperature plot) and zero resistance achieved above 100 K.
+    </conclusion>
+    <conclusion id="2" title="Superconducting Transition Properties of Tl2Ca1.5BaCu3O8.5+x">
+      A furnace-cooled sample with the nominal composition $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$ exhibits a superconducting transition midpoint at 112 K and a zero-resistance temperature at 103 K, which are the highest values recorded among the prepared Tl–Ca/Ba–Cu–O samples.
+    </conclusion>
+    <conclusion id="3" title="Verification of Bulk Superconductivity via Magnetic Response">
+      The Tl–Ca/Ba–Cu–O samples display strong diamagnetic repulsion indicative of bulk superconductivity, demonstrated by the levitation of a sample with nominal composition $Tl_{2}Ca_{2}BaCu_{3}O_{9+x}$ over a $\sim 5,000$ G magnetic field and confirmed by AC susceptibility measurements.
+    </conclusion>
+    <conclusion id="4" title="Compositional and Thermal Stability Characteristics">
+      The addition of calcium to the Tl-Ba-Cu-O system stabilizes the superconducting phase against annealing; annealing at $450^{\circ}C$ in flowing oxygen slightly improves the superconductivity of Tl–Ca/Ba–Cu–O samples, whereas it depresses or destroys the transition in Tl–Ba–Cu–O samples, and Tl–Ca–Cu–O samples without barium exhibit semiconductor-like behavior down to liquid-nitrogen temperatures.
+    </conclusion>
+  </conclusions>
+</inference_unit>

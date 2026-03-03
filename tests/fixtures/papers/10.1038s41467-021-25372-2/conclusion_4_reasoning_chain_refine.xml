@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<notations>
+- $T_{c}$: superconducting critical temperature
+- $M$: atomic mass
+- $\alpha$: isotope effect coefficient
+- BCS: Bardeen–Cooper–Schrieffer theory of superconductivity
+</notations>
+<premises>
+<premise id="1" title="Isotope Effect Coefficient Definition">
+The isotope effect coefficient $\alpha$ is defined as the negative derivative of the natural logarithm of the superconducting critical temperature $T_{c}$ with respect to the natural logarithm of the atomic mass $M$, expressed by the relation $\alpha = -\frac{d \ln T_{c}}{d \ln M}$.
+</premise>
+<premise id="2" title="Significance of Isotope Effect">
+In the study of superconducting materials, a pronounced shift in the superconducting transition temperature $T_{c}$ upon the substitution of one isotope for another (the isotope effect) provides evidence supporting a conventional phonon-assisted mechanism of superconductivity.
+</premise>
+<premise id="3" title="BCS Isotope Coefficient Limit">
+According to the Bardeen–Cooper–Schrieffer (BCS) theory of superconductivity, the maximal expected value for the isotope effect coefficient $\alpha$ in a purely harmonic lattice system is 0.5.
+</premise>
+</premises>
+</inference_unit>

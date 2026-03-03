@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<premises>
+<premise id="1" title="Theoretical Prediction of YH9 Structure">
+Theoretical calculations predict the existence of a hexagonal close-packed (hcp) $YH_{9}$ phase with space group $P6_3/mmc$, which is stable at high pressures (e.g., 200 GPa).
+<ref>[22, 23, 24]</ref>
+</premise>
+<premise id="2" title="Theoretical Prediction of YH10">
+Theoretical calculations predict a face-centred cubic (fcc) $YH_{10}$ phase with a superconducting critical temperature $T_{c}$ as high as 303 K at 400 GPa or 305–326 K at 250 GPa.
+<ref>[22, 23]</ref>
+</premise>
+<premise id="3" title="Vinet Equation of State">
+The Vinet equation of state is a standard mathematical model used to approximate the relationship between the volume of a crystal lattice and the applied pressure in solids.
+<ref>[30]</ref>
+</premise>
+<premise id="4" title="Isotope Effect Coefficient">
+The isotope effect coefficient $\alpha$ is defined as $\alpha = -\frac{d\ln T_{c}}{d\ln M}$, where $M$ is the atomic mass.
+</premise>
+<premise id="5" title="Coherence Length Definition">
+The coherence length of the superconducting order parameter $\xi$ is defined by the relation $\xi = \sqrt{\frac{\phi_{0}}{3\pi^{2}H_{c2}}}$, where $\phi_{0}$ is the magnetic flux quantum and $H_{c2}$ is the upper critical field.
+</premise>
+<premise id="6" title="Ginzburg–Landau and WHH Models">
+The temperature dependence of the upper critical field $H_{c2}$ can be approximated by the Ginzburg–Landau (GL) equation for temperatures near $T_c$ ($\frac{T_{c}-T}{T_{c}}\ll1$) and by the Werthamer–Helfand–Hohenberg (WHH) model for the entire temperature range.
+<ref>[44, 45]</ref>
+</premise>
+<premise id="7" title="Vibron Scale for Pressure Estimation">
+The pressure in diamond anvil cells can be estimated using the $H_{2}$ ($D_{2}$) vibron scale based on Raman spectroscopy of the hydrogen/deuterium medium.
+<ref>[54]</ref>
+</premise>
+<premise id="8" title="Diamond Scale for Pressure Estimation">
+The pressure in diamond anvil cells can be estimated based on the shift of the high-frequency edge of the Raman line from the stressed diamond anvil.
+<ref>[55]</ref>
+</premise>
+</premises>
+<reasoning>
+<step title="Synthesis of Yttrium Hydrides">
+The authors synthesized yttrium hydrides in a diamond anvil cell (DAC) by compressing yttrium metal or $YH_{3}$ in a hydrogen ($H_2$) medium to high pressures (160–395 GPa) and heating with a pulsed laser.
+</step>
+<step title="Identification of hcp-YH9 Phase">
+Using X-ray powder diffraction, the authors identified a hexagonal close-packed (hcp) phase with space group $P6_3/mmc$ formed after laser heating at pressures above 185 GPa. The lattice parameters and volume-pressure dependence fitted with the Vinet equation of state [@premise-3] match theoretical predictions for $YH_{9}$ [@premise-1].
+</step>
+<step title="Determination of Hydrogen Content">
+The composition of the hcp phase was independently estimated as $YH_{8.5(5)}$ by analyzing the hydrogen-induced volume expansion $V_{H}$, consistent with the assigned $YH_9$ stoichiometry.
+</step>
+<step title="Superconductivity Measurement in YH9">
+Electrical resistance measurements were performed on Sample 2. Before laser heating, the sample contained bcc-$YH_{6}$ and showed a superconducting transition at $T_{c} \sim 211$ K at 201 GPa. After laser heating at 2000(10) K, the phase transformed to hcp-$YH_{9}$, and the superconducting transition shifted to a higher temperature of $T_{c} \sim 243$ K.
+</step>
+<step title="Verification of Superconductivity via Isotope Effect">
+The authors substituted hydrogen with deuterium and observed a shift in $T_{c}$ from $\sim 243$ K (hydride) to $\sim 172$ K (deuteride) in the hcp phase. The calculated isotope coefficient $\alpha$ is 0.50 [@premise-4], supporting a conventional phonon-mediated mechanism.
+</step>
+<step title="Verification of Superconductivity via Magnetic Field">
+The resistance drop was measured under external magnetic fields. $T_{c}$ decreased as the magnetic field increased. The upper critical field $H_{c2}(0K)$ was estimated using WHH and GL models [@premise-6], confirming the superconducting nature of the transition.
+</step>
+<step title="Establishing Pressure Dependence of Tc">
+The authors measured $T_c$ for hcp-$YH_9$ at various pressures. The data reveal a &quot;dome-like&quot; shape with a maximum $T_c$ of 243 K at 201 GPa.
+</step>
+<step title="Identifying Structural Instability">
+A sharp drop in $T_c$ was observed for $YH_9$ at pressures below $\sim 195$ GPa. This is attributed to structural instability, supported by the experimental observation that decreasing pressure in Sample 2 resulted in the decomposition of $YH_9$ into $bcc-YH_6$ at 159 GPa.
+</step>
+<step title="Comparison with YH10 Prediction">
+Despite theoretical predictions that fcc-$YH_{10}$ would have a higher $T_c$ ($&gt;300$ K) [@premise-2], the authors could not synthesize this phase even at pressures up to 410 GPa and temperatures up to 2250 K.
+</step>
+<step title="Conclusion on Highest Tc">
+Since $fcc-YH_{10}$ was not observed and the measured $T_c$ of $bcc-YH_6$ (max $\sim 224$ K) is lower than that of $hcp-YH_9$, the authors conclude that $hcp-YH_9$ with $T_c \sim 243$ K represents the highest critical temperature observed in the yttrium-hydrogen system in this study.
+</step>
+</reasoning>
+<conclusion title="Superconductivity in hcp-YH9">
+The authors report the synthesis and discovery of superconductivity in the hexagonal close-packed (hcp) $P6_3/mmc$ phase of yttrium nonahydride ($YH_{9}$). This phase exhibits a maximum superconducting critical temperature $T_{c}$ of $\sim 243$ K at a pressure of 201 GPa, which represents the highest $T_{c}$ observed in the yttrium-hydrogen system in this study. The pressure dependence of $T_{c}$ forms a dome-like shape, with a sharp drop in $T_{c}$ below $\sim 195$ GPa attributed to structural instability.
+</conclusion>
+</inference_unit>

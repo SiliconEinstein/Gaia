@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<notations>
+- $HgBa_{2}CuO_{4+\delta}$: Mercury-based copper oxide superconductor (Hg-1201)
+- $TlBa_{2}CuO_{5}$: Thallium-based copper oxide compound (Tl-1201)
+- $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$: General chemical formula for the mercury-based cuprate family
+- $TlBa_{2}Ca_{n-1}Cu_{n}O_{2n+3}$: General chemical formula for the thallium-based cuprate family
+- $n$: Number of $CuO_{2}$ layers per unit cell
+- EDS: Energy-dispersive X-ray spectrometry
+- SAED: Selected-area electron diffraction
+- HRTEM: High-resolution transmission electron microscopy
+- $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$: Mercury-based superconductor with three $CuO_{2}$ layers (Hg-1223)
+- $HgBa_{2}CaCu_{2}O_{6+x}$: Mercury-based superconductor with two $CuO_{2}$ layers (Hg-1212)
+- $c$: Lattice parameter along the vertical axis of the unit cell
+- $\AA$: Angstrom ($10^{-10}$ meters)
+</notations>
+<premises>
+<premise id="1" title="General composition hypothesis">
+The structural similarity of the mercury-based compound $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) to the thallium-containing compound $TlBa_{2}CuO_{5}$ (Tl-1201) suggests the existence of a mercury-based homologous series with the general composition $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$, which is structurally analogous to the thallium family $TlBa_{2}Ca_{n-1}Cu_{n}O_{2n+3}$, where $n$ denotes the number of $CuO_{2}$ layers per unit cell.
+<ref>[1, 4, 5]</ref>
+</premise>
+<premise id="2" title="Sample preparation">
+A sample material was synthesized by mixing a precursor of nominal composition $Ba_{2}CaCu_{2}O_{5}$ with powdered $HgO$, sealing the mixture in evacuated quartz tubes, heating at $800^{\circ}C$ for 5 hours (resulting in the breaking of the tubes), and finally annealing the product for 5 hours at $300^{\circ}C$ in flowing oxygen.
+</premise>
+<premise id="3" title="EDS composition analysis">
+Energy-dispersive X-ray spectrometry (EDS) analysis of the synthesized sample indicates a composite material containing isolated grains of $BaCuO_{2}$ ($\sim30\%$ volume fraction), $CuO$ ($\approx30\%$ volume fraction), unidentified oxides containing Calcium (Ca) and Copper (Cu), various impurities, and approximately $15\%$ of the total sample volume consisting of plate-like grains containing Mercury (Hg), Barium (Ba), Calcium (Ca), and Copper (Cu).
+</premise>
+<premise id="4" title="Microscopic structural identification">
+Selected-area electron-diffraction (SAED) and high-resolution transmission electron microscopy (HRTEM) characterization of the plate-like grains within the $Hg-Ba-Ca-Cu-O$ sample reveal that these grains consist of the phase $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223), disordered mixtures of Hg-1223 and $HgBa_{2}CaCu_{2}O_{6+x}$ (Hg-1212), and periodic stacking sequences of these respective unit cells.
+</premise>
+<premise id="5" title="XRD limitation">
+The volume fraction of the superconducting phases (Hg-1212 and Hg-1223) within the synthesized composite sample is too small to permit precise measurement of their lattice parameters using the X-ray Guinier technique.
+</premise>
+<premise id="6" title="Superstructure observation">
+High-resolution transmission electron microscopy (HRTEM) imaging of the $Hg-Ba-Ca-Cu-O$ sample reveals specific stacking sequences containing both $HgBa_{2}CaCu_{2}O_{6+x}$ (Hg-1212) and $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223) layers; specifically, a sequence of 1223/1223/1212/1212/1223/1212 unit cells forms a supercell with a c-axis lattice parameter of $c \approx 86.4 \AA$.
+</premise>
+</premises>
+</inference_unit>

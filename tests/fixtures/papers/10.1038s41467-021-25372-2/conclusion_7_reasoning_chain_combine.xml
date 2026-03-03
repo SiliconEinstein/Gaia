@@ -1,0 +1,54 @@
+<inference_unit>
+<notations>
+- $bct$: body-centered tetragonal crystal structure
+- $bcc$: body-centered cubic crystal structure
+- $hcp$: hexagonal close packed crystal structure
+- $fcc$: face-centered cubic crystal structure
+- $YH_{x}$: yttrium hydride with hydrogen-to-yttrium ratio $x$
+- $V_{H}$: hydrogen-induced volume expansion per hydrogen (or deuterium) atom
+- $\AA^{3}/H(D)$: cubic Angstroms per hydrogen or deuterium atom
+</notations>
+<premises>
+<premise id="1" title="Theoretical Predictions of Yttrium Hydrides">
+Theoretical ab initio calculations predict the stability, crystal structures, and lattice parameters of several yttrium hydride phases under high pressure, specifically identifying a body-centered tetragonal ($bct$) $YH_{4}$ phase ($I4/mmm$ space group), a body-centered cubic ($bcc$) $YH_{6}$ phase ($Im-3m$ space group), and a hexagonal close packed ($hcp$) $YH_{9}$ phase ($P6_{3}/mmc$ space group).
+<ref>[22, 23, 24, 26, 31, 32]</ref>
+</premise>
+<premise id="2" title="Hydrogen-Induced Volume Expansion in Hydrides">
+In hydrogen-rich metal hydrides under high pressure, the hydrogen-induced volume expansion ($V_{H}$), defined as the total volume increase of the crystal lattice per hydrogen (or deuterium) atom added to the metal lattice site, is empirically observed to be approximately $1.7-1.8\ \AA^{3}/H(D)$ atom.
+<ref>[12, 34, 35, 36, 37]</ref>
+</premise>
+<premise id="3" title="Equation of State for Pure Yttrium">
+The equation of state for pure yttrium metal defines the relationship between pressure and the atomic volume of yttrium, which serves as a baseline for calculating the volume expansion $V_{H}$ in yttrium-hydrogen compounds when extrapolated to high pressures.
+<ref>[33]</ref>
+</premise>
+</premises>
+<reasoning>
+<step title="Synthesis of bct-YH4 and bcc-YH6">
+The authors synthesized body-centred tetragonal ($bct$) $YH_{4}/YD_{4}$ and body-centred cubic ($bcc$) $YH_{6}/YD_{6}$ by compressing $YH_{3}/YD_{3}$ in $H_{2}/D_{2}$ to 160–175 GPa and heating to $\sim$ 1500 K with a pulsed laser.
+</step>
+<step title="Alternative Room Temperature Synthesis">
+The authors observed that both $bct\text{-}YH_{4}$ and $bcc\text{-}YH_{6}$ also form by exposing the reactants to higher pressures of $\sim$ 200–244 GPa at room temperature for several weeks.
+</step>
+<step title="Synthesis of hcp-YH9">
+The authors synthesized the $hcp\text{-}YH_{9}/YD_{9}$ phase by laser heating the previously formed $YH_{4}$ or $YH_{6}$ phases with excess $H_{2}/D_{2}$ at pressures above 185 GPa.
+</step>
+<step title="Crystal Structure Identification">
+The authors determined the lattice volumes of the synthesized phases ($bct\text{-}YH_{4}$, $bcc\text{-}YH_{6}$, $hcp\text{-}YH_{9}$) via X-ray diffraction and found them to agree well with theoretical predictions [@premise-1], justifying the assignment of the phases.
+</step>
+<step title="Calculation of Hydrogen Volume Expansion for YH4">
+Using the extrapolated equation of state for pure yttrium [@premise-3] to isolate the volume of the yttrium sublattice, the authors calculated the hydrogen-induced volume expansion ($V_{H}$) in $bct\text{-}YH_{4}(YD_{4})$ to be $\sim 1.7-1.8\ \AA^{3}/H(D)$ atom at 180–200 GPa.
+</step>
+<step title="Validation of VH Value">
+The authors noted that the calculated $V_{H}$ for $YH_{4}$ ($\sim 1.7-1.8\ \AA^{3}/H(D)$) is comparable to values measured in other hydrogen-rich metal hydrides [@premise-2], unlike $YH_{3}$ which shows an anomalously large expansion.
+</step>
+<step title="Stoichiometry Estimation for bcc and hcp Phases">
+Applying the derived hydrogen-induced volume expansion value ($V_{H} \approx 1.7-1.8\ \AA^{3}/H$ atom) to the measured lattice volumes of the new phases, the authors estimated the compositions as $YH_{5.7(3)}$ for the bcc phase and $YH_{8.5(5)}$ for the hcp phase.
+</step>
+</reasoning>
+<conclusion title="Synthesis Conditions and Stoichiometry Estimation">
+The authors experimentally determined synthesis pathways for higher yttrium hydrides:
+      - $bct\text{-}YH_{4}$ and $bcc\text{-}YH_{6}$ form at 160–175 GPa via laser heating ($\sim 1500$ K) or at 200–244 GPa at room temperature.
+      - $hcp\text{-}YH_{9}$ forms by laser heating $YH_{6}$ with excess hydrogen above 185 GPa.
+      Based on the hydrogen-induced volume expansion ($V_H \approx 1.7-1.8$ Å$^3$/H atom), the experimental compositions are estimated as $YH_{5.7(3)}$ for the bcc phase and $YH_{8.5(5)}$ for the hcp phase.
+</conclusion>
+</inference_unit>

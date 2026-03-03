@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<notations>
+- $bct$: body-centered tetragonal crystal structure
+- $bcc$: body-centered cubic crystal structure
+- $hcp$: hexagonal close packed crystal structure
+- $fcc$: face-centered cubic crystal structure
+- $YH_{x}$: yttrium hydride with hydrogen-to-yttrium ratio $x$
+- $V_{H}$: hydrogen-induced volume expansion per hydrogen (or deuterium) atom
+- $\AA^{3}/H(D)$: cubic Angstroms per hydrogen or deuterium atom
+</notations>
+<premises>
+<premise id="1" title="Theoretical Predictions of Yttrium Hydrides">
+Theoretical ab initio calculations predict the stability, crystal structures, and lattice parameters of several yttrium hydride phases under high pressure, specifically identifying a body-centered tetragonal ($bct$) $YH_{4}$ phase ($I4/mmm$ space group), a body-centered cubic ($bcc$) $YH_{6}$ phase ($Im-3m$ space group), and a hexagonal close packed ($hcp$) $YH_{9}$ phase ($P6_{3}/mmc$ space group).
+<ref>[22, 23, 24, 26, 31, 32]</ref>
+</premise>
+<premise id="2" title="Hydrogen-Induced Volume Expansion in Hydrides">
+In hydrogen-rich metal hydrides under high pressure, the hydrogen-induced volume expansion ($V_{H}$), defined as the total volume increase of the crystal lattice per hydrogen (or deuterium) atom added to the metal lattice site, is empirically observed to be approximately $1.7-1.8\ \AA^{3}/H(D)$ atom.
+<ref>[12, 34, 35, 36, 37]</ref>
+</premise>
+<premise id="3" title="Equation of State for Pure Yttrium">
+The equation of state for pure yttrium metal defines the relationship between pressure and the atomic volume of yttrium, which serves as a baseline for calculating the volume expansion $V_{H}$ in yttrium-hydrogen compounds when extrapolated to high pressures.
+<ref>[33]</ref>
+</premise>
+</premises>
+</inference_unit>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<premises>
+<premise id="1" title="Indicator of Bulk Superconductivity">
+Strong diamagnetic repulsion is a physical property indicative of bulk superconductivity.
+</premise>
+<premise id="2" title="Manifestation of Diamagnetism">
+Levitation of a material over a magnetic field is a qualitative manifestation of strong diamagnetic repulsion.
+</premise>
+<premise id="3" title="Measurement of AC Susceptibility">
+The technique of Norton is a method used to determine the temperature dependence of a.c. susceptibility.
+<ref>[15]</ref>
+</premise>
+</premises>
+<reasoning>
+<step title="Experimental Observation of Levitation">
+A sample with nominal composition $Tl_{2}Ca_{2}BaCu_{3}O_{9+x}$ is immersed in liquid nitrogen and observed to levitate over a magnetic field of $\sim 5,000$ G.
+</step>
+<step title="Inference of Diamagnetism">
+The authors interpret the observed levitation as a demonstration of strong diamagnetic repulsion [@premise-2].
+</step>
+<step title="Link to Bulk Superconductivity">
+The authors assert that this strong diamagnetic repulsion is indicative of bulk superconductivity in the samples [@premise-1].
+</step>
+<step title="Experimental Measurement of AC Susceptibility">
+The temperature dependence of the a.c. susceptibility is measured for a sample of nominal composition $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$ using the technique of Norton [@premise-3].
+</step>
+<step title="Confirmation by Susceptibility Data">
+The a.c. susceptibility measurements (showing deviation from zero slope) are used to confirm the superconducting nature of the samples.
+</step>
+</reasoning>
+<conclusion title="Verification of Bulk Superconductivity via Magnetic Response">
+The Tl–Ca/Ba–Cu–O samples display strong diamagnetic repulsion indicative of bulk superconductivity, demonstrated by the levitation of a sample with nominal composition $Tl_{2}Ca_{2}BaCu_{3}O_{9+x}$ over a $\sim 5,000$ G magnetic field and confirmed by AC susceptibility measurements.
+</conclusion>
+</inference_unit>

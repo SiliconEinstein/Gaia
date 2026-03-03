@@ -1,0 +1,73 @@
+<inference_unit>
+<notations>
+- $\xi$: Ginzburg-Landau coherence length of the superconducting order parameter
+- $\phi_{0}$: magnetic flux quantum, $\phi_{0} = h / (2e)$
+- $H_{c2}$: upper critical field
+- $T_{c}$: superconducting critical temperature
+- $T$: temperature
+- $v_{F}$: Fermi velocity
+- $h$: Planck constant
+- $k_{\mathrm{B}}$: Boltzmann constant
+- $YH_{9}$: yttrium hydride with a stoichiometric ratio of 1:9
+- $YD_{9}$: yttrium deuteride with a stoichiometric ratio of 1:9
+- GL: Ginzburg–Landau theory
+- WHH: Werthamer–Helfand–Hohenberg model
+- BCS: Bardeen–Cooper–Schrieffer theory
+</notations>
+<premises>
+<premise id="1" title="Definition of Coherence Length">
+The Ginzburg-Landau coherence length $\xi$ of the superconducting order parameter is defined by the relation $\xi = \sqrt{\frac{\phi_{0}}{3\pi^{2}H_{c2}}}$, where $\phi_{0}$ is the magnetic flux quantum and $H_{c2}$ is the upper critical field of the superconductor.
+</premise>
+<premise id="2" title="Ginzburg-Landau Equation Validity">
+The Ginzburg–Landau (GL) equation provides a valid approximation for the temperature dependence of the upper critical field $H_{c2}(T)$ of a superconductor in the temperature regime close to the critical temperature $T_{c}$, specifically defined by the condition $\frac{T_{c}-T}{T_{c}} \ll 1$.
+<ref>[44]</ref>
+</premise>
+<premise id="3" title="Werthamer-Helfand-Hohenberg Model Validity">
+The Werthamer–Helfand–Hohenberg (WHH) model serves as a theoretical framework to approximate the temperature dependence of the upper critical field $H_{c2}(T)$ across the entire temperature range from $0$ K to the critical temperature $T_{c}$.
+<ref>[45]</ref>
+</premise>
+<premise id="4" title="BCS Relation for Coherence Length">
+In the context of the Bardeen–Cooper–Schrieffer (BCS) theory of superconductivity, the coherence length $\xi$ is related to the Fermi velocity $v_{F}$ and the superconducting critical temperature $T_{c}$ by the expression $\xi = 0.18 \frac{h v_{F}}{k_{\mathrm{B}} T_{c}}$, where $h$ is the Planck constant and $k_{\mathrm{B}}$ is the Boltzmann constant.
+</premise>
+<premise id="5" title="Scaling Relation for Upper Critical Field">
+For the yttrium hydride systems $YH_{9}$ and $YD_{9}$ under high pressure, the zero-temperature upper critical field $H_{c2}(0\text{ K})$ is assumed to follow a scaling relation $H_{c2} \sim (T_{c}/v_{F})^{2}$, which, for constant Fermi velocity $v_{F}$, implies that $H_{c2}$ scales with the square of the critical temperature $T_{c}$.
+</premise>
+<assumption id="6" title="Measurement Criterion for Tc">
+The onset of the superconducting state (defined as the critical temperature $T_{c}$) in yttrium-hydrogen and yttrium-deuterium samples under an applied external magnetic field is determined experimentally using the criterion of 90% of the electrical resistance observed in the normal metallic state.
+</assumption>
+<assumption id="7" title="Isotopic Invariance of Fermi Velocity">
+For the purpose of comparing the superconducting properties of yttrium hydride ($YH_{9}$) and its deuterated counterpart yttrium deuteride ($YD_{9}$), the Fermi velocity $v_{F}$ is assumed to remain invariant under isotopic substitution of hydrogen with deuterium.
+</assumption>
+</premises>
+<reasoning>
+<step title="Experimental Data Collection">
+The authors perform DC resistance measurements on sample 5 (containing $Im\text{-}3m$ $YH_{6}$ at $P_H = 160$ GPa) and sample 6 (containing $P6_{3}/mmc$ $YD_{9}$ at $P_H = 205$ GPa) under external magnetic fields up to 9 T.
+</step>
+<step title="Determination of Tc(H)">
+Using the criterion of 90% of the resistance in the metallic state [@assumption-6], the authors determine the dependence of the critical temperature $T_c$ on the applied external magnetic field.
+</step>
+<step title="Fitting Hc2(T)">
+The authors fit the experimental $H_{c2}(T)$ data using the Ginzburg–Landau (GL) equation [@premise-2] and the Werthamer–Helfand–Hohenberg (WHH) model [@premise-3] to extrapolate the upper critical fields at zero temperature, $H_{c2}(0\mathrm{K})$.
+</step>
+<step title="Calculation of Hc2(0) for YH6 and YD9">
+From the fits, the authors derive:
+For $hcp-YD_{9}$: $H_{c2}^{\mathrm{WHH}}(0\mathrm{K})=60\mathrm{T}$ and $H_{c2}^{\mathrm{GL}}(0\mathrm{K})=46\mathrm{T}$.
+For $bcc-YH_{6}$: $H_{c2}^{\mathrm{WHH}}(0\mathrm{K})=157\mathrm{T}$ and $H_{c2}^{\mathrm{GL}}(0\mathrm{K})=107\mathrm{T}$.
+</step>
+<step title="Calculation of Coherence Lengths">
+Using the derived $H_{c2}$ values and the definition $\xi = \sqrt{\frac{\phi_{0}}{3\pi^{2}H_{c2}}}$ [@premise-1], the authors calculate the zero-temperature coherence lengths $\xi(0\mathrm{K})$:
+For $bcc-YH_{6}$: 1.45–1.75 nm.
+For $hcp-YD_{9}$: 2.3–2.7 nm.
+</step>
+<step title="Estimation of Hc2(0) for YH9">
+To estimate the upper critical field for $hcp-YH_{9}$, the authors use the relation $H_{c2} \sim \left(\frac{T_{c}}{T_{2}}\right)^{2}$ [@premise-5], combined with the assumption that $YH_{9}$ and $YD_{9}$ share the same Fermi velocities $v_F$ [@assumption-7], to yield an estimated $H_{c2}^{WHH}(0\mathrm{K}) = 120$ T (and $H_{c2}^{GL}(0\mathrm{K}) = 92$ T).
+</step>
+</reasoning>
+<conclusion title="Upper Critical Fields and Coherence Lengths">
+Based on electrical resistance measurements under magnetic fields up to 9 T, the authors derive the upper critical fields $H_{c2}(0)$ using the Werthamer–Helfand–Hohenberg (WHH) model:
+- $H_{c2}^{\mathrm{WHH}}(0\mathrm{K}) \approx 157$ T for $Im\text{-}3m$ $YH_{6}$.
+- $H_{c2}^{\mathrm{WHH}}(0\mathrm{K}) \approx 60$ T for $P6_3/mmc$ $YD_{9}$.
+- $H_{c2}^{\mathrm{WHH}}(0\mathrm{K})$ is estimated at 120 T for $YH_{9}$ (assuming similar Fermi velocities to $YD_9$).
+The corresponding Ginzburg-Landau coherence lengths $\xi(0\mathrm{K})$ are calculated to be 1.45–1.75 nm for $YH_{6}$ and 2.3–2.7 nm for $YD_{9}$.
+</conclusion>
+</inference_unit>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<notations>
+- $fcc$: face-centred cubic
+- $hcp$: hexagonal close packed
+- $YH_{x}$: yttrium hydride with hydrogen-to-yttrium ratio $x$
+- $P6_{3}/mmc$: space group symmetry identifier for a specific hexagonal crystal structure
+- $G$: Gibbs free energy
+- $T$: temperature
+- $P$: pressure
+</notations>
+<premises>
+<premise id="1" title="Predicted Stability of fcc-YH10 at High Pressure">
+Theoretical $ab$ $initio$ calculations predict that the face-centred cubic ($fcc$) phase of yttrium decahydride ($YH_{10}$) reaches thermodynamic stability at an applied pressure of 250 GPa.
+<ref>[23]</ref>
+</premise>
+<premise id="2" title="Predicted High-Temperature Stability of fcc-YH10">
+Theoretical $ab$ $initio$ calculations suggest that although yttrium decahydride ($YH_{10}$) may be thermodynamically unstable at 0 K, the difference in Gibbs free energies ($\Delta G$) between the face-centred cubic ($fcc$) $YH_{10}$ phase and the hexagonal close packed ($hcp$) $YH_{9}$ phase decreases as temperature increases, such that $fcc-YH_{10}$ is predicted to become more thermodynamically favourable than $hcp-YH_{9}$ at temperatures exceeding 1500 K at a pressure of 375 GPa, or at temperatures exceeding 1100 K at a pressure of 400 GPa.
+<ref>[22]</ref>
+</premise>
+<premise id="3" title="Criterion for Excess Hydrogen Availability">
+In high-pressure chemical synthesis experiments using ammonia borane ($NH_{3}BH_{3}$) as a hydrogen source and yttrium trihydride ($YH_{3}$) as a reactant, the successful realization of an excess hydrogen ($H_2$) environment is verified if the initial $YH_{3}$ phase undergoes a complete structural transformation into a hydrogen-rich, single-phase $YH_{9}$ with $P6_{3}/mmc$ symmetry following laser heating.
+</premise>
+<premise id="4" title="Identification of Crystal Phases via Diffraction">
+The identification of specific yttrium hydride phases, such as the $P6_{3}/mmc$ $YH_{9}$ phase, is established by demonstrating structural agreement between experimental X-ray powder diffraction patterns and calculated diffraction peak positions derived from theoretical crystal structure models.
+<ref>[22]</ref>
+</premise>
+</premises>
+</inference_unit>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<conclusion title="Isotope effect in Yttrium Hydrides">
+    The authors observe a pronounced isotope effect upon substituting hydrogen with deuterium, supporting a conventional phonon-mediated superconductivity mechanism. Specifically:
+      - For $Im\text{-}3m$ $YD_{6}$, $T_{c}$ shifts to $\sim 168$ K at 173 GPa (compared to $\sim 220$ K for $YH_{6}$).
+      - For $P6_3/mmc$ $YD_{9}$, $T_{c}$ shifts to $\sim 172$ K at 202–205 GPa (compared to $\sim 243$ K for $YH_{9}$).
+      The calculated isotope effect coefficients $\alpha = -\frac{d \ln T_{c}}{d \ln M}$ are 0.39 for the $YH_{6}/YD_{6}$ system and 0.50 for the $YH_{9}/YD_{9}$ system.
+</conclusion>

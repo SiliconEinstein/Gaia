@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<premises>
+<premise id="1" title="Synthesis precursors">
+The starting materials for the sample preparation are $Tl_{2}O_{3}$, CaO, and $BaCu_{3}O_{4}$.
+</premise>
+<premise id="2" title="Properties of BaCu3O4 precursor">
+$BaCu_{3}O_{4}$ has the lowest melting point among the Ba-Cu oxides, and molten $BaCu_{3}O_{4}$ is extremely fluid, which facilitates complete melt-solid reactions compared to typical solid-state reactions.
+<ref>[12]</ref>
+</premise>
+<premise id="3" title="Synthesis procedure">
+The preparation procedure involves mixing appropriate amounts of precursors, grinding and pressing them into a pellet, heating the pellet to 880–910 °C for 3–5 min in flowing oxygen, and quenching to room temperature in air.
+</premise>
+<premise id="4" title="Measurement technique">
+Electrical resistance is measured using the standard four-probe technique with silver paste contacts on rectangular bars cut from the pellets.
+</premise>
+<premise id="5" title="Definition of onset temperature">
+The superconducting onset temperature is estimated as the temperature at which the curvature in the resistance versus temperature plot changes most rapidly.
+<ref>[13]</ref>
+</premise>
+<premise id="6" title="Magnetic indicators of superconductivity">
+Superconductivity is indicated qualitatively by strong diamagnetic repulsion (levitation over a magnetic field) and characterized by the temperature dependence of a.c. susceptibility.
+<ref>[15]</ref>
+</premise>
+</premises>
+<reasoning>
+<step title="Sample Preparation">
+The authors prepared Tl-Ca/Ba-Cu-O samples, specifically with nominal compositions such as $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$, using the melt-solid reaction method facilitated by the fluidity of molten $BaCu_{3}O_{4}$ [@premise-1, @premise-2, @premise-3].
+</step>
+<step title="Resistance Measurement">
+The resistance of the prepared samples was measured as a function of temperature using the four-probe technique [@premise-4].
+</step>
+<step title="Observation of Resistive Transition">
+The authors observed that the resistance of the Tl–Ca/Ba–Cu–O samples starts to drop sharply at $\sim 120$ K and reaches zero at $\sim 100$ K.
+</step>
+<step title="Determination of Onset Temperature">
+Applying the definition of onset temperature based on the rapid change in curvature [@premise-5], the authors determined the onset temperature to be 120 K.
+</step>
+<step title="Specific Sample Performance">
+For a furnace-cooled sample with nominal composition $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$, the authors measured a transition midpoint of 112 K and a zero-resistance temperature of 103 K.
+</step>
+<step title="Confirmation of Bulk Superconductivity">
+The authors confirmed the bulk nature of the superconductivity through magnetic examinations, observing a sample levitating over a magnetic field (diamagnetic repulsion) and measuring the onset of a.c. susceptibility deviation [@premise-6].
+</step>
+<step title="Assessment of Stability">
+The authors assert that the observed superconductivity is stable and reproducible, distinguishing it from unstable high-temperature transitions reported in other systems.
+</step>
+</reasoning>
+<conclusion title="Discovery of High-Tc Superconductivity in the Tl–Ca/Ba–Cu–O System">
+Stable and reproducible bulk superconductivity is established in the Tl–Ca/Ba–Cu–O system, characterized by an onset temperature of 120 K (determined by the rapid change in curvature of the resistance-temperature plot) and zero resistance achieved above 100 K.
+</conclusion>
+</inference_unit>

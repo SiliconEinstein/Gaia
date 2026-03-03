@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<notations>
+- $T_{c}$: Superconducting transition temperature
+- Hg-1201: The chemical compound $HgBa_{2}CuO_{4+\delta}$
+- Tl-1201: The chemical compound $TlBa_{2}CuO_{5}$
+- Tl-2223: The chemical compound $Tl_{2}Ba_{2}Ca_{2}Cu_{3}O_{10}$
+- Hg-1212: The chemical compound $HgBa_{2}CaCu_{2}O_{6+x}$ (or $HgBa_{2}RCu_{2}O_{6+x}$ where $R$ is a rare-earth element or Calcium)
+- Hg-1223: The chemical compound $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$
+- $n$: The number of $CuO_{2}$ layers per unit cell in homologous series of copper-oxide superconductors
+- $\rho$: Mass density
+- $\delta, x$: Non-stoichiometric oxygen content
+- $R$: A rare-earth element
+- HBCCO: The mercury-barium-calcium-copper-oxide system
+</notations>
+
+<premises>
+<premise id="1" title="Superconductivity in Hg-1201">
+The copper-oxide compound $HgBa_{2}CuO_{4+\delta}$ (referred to as Hg-1201) exhibits superconductivity characterized by a transition temperature $T_{c}$ of 94 K.
+<ref>[1]</ref>
+</premise>
+
+<premise id="2" title="Structural analogy with Tl-based copper oxides">
+The crystal structure of $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) is similar to that of the thallium-based copper oxide $TlBa_{2}CuO_{5}$ (Tl-1201), which suggests that mercury-based copper oxides form a homologous series with the general chemical formula $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$, where $n$ is the number of $CuO_{2}$ layers.
+<ref>[1]</ref>
+</premise>
+
+<premise id="3" title="Tc scaling in Tl-based systems">
+In the thallium-based superconducting homologous series defined by the formula $TlBa_{2}Ca_{n-1}Cu_{n}O_{2n+3}$, the superconducting transition temperatures $T_{c}$ vary with the number of $CuO_{2}$ layers $n$, ranging from $T_{c} &lt; 10$ K for $n=1$ to approximately $T_{c} \approx 110$ K for $n=3$.
+<ref>[4, 5]</ref>
+</premise>
+
+<premise id="4" title="Previous record transition temperature">
+The established record for the highest superconducting transition temperature $T_{c}$ prior to the study of the $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$ system was 125–127 K, observed in the thallium-based compound $Tl_{2}Ba_{2}Ca_{2}Cu_{3}O_{10}$ (Tl-2223).
+<ref>[2, 3]</ref>
+</premise>
+
+<premise id="5" title="Absence of superconductivity in Hg-1212 rare-earth variants">
+In the compound $HgBa_{2}RCu_{2}O_{6+x}$ (referred to as Hg-1212), where $R$ represents a rare-earth element such as Europium (Eu) or Calcium (Ca), experimental synthesis has been reported but no superconducting transition was detected in that specific material system.
+<ref>[6]</ref>
+</premise>
+
+<assumption id="6" title="Sample density for susceptibility calculation">
+For the purpose of calculating the superconducting volume fraction from experimental magnetic susceptibility measurements in the Hg-Ba-Ca-Cu-O (HBCCO) system, the average mass density of the sample is assumed to be $\rho \approx 6 \text{ g cm}^{-3}$.
+</assumption>
+</premises>
+</inference_unit>

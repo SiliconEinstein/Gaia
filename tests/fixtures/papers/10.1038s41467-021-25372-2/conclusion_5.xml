@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<conclusion title="Upper Critical Fields and Coherence Lengths">
+    Based on electrical resistance measurements under magnetic fields up to 9 T, the authors derive the upper critical fields $H_{c2}(0)$ using the Werthamer–Helfand–Hohenberg (WHH) model:
+      - $H_{c2}^{\mathrm{WHH}}(0\mathrm{K}) \approx 157$ T for $Im\text{-}3m$ $YH_{6}$.
+      - $H_{c2}^{\mathrm{WHH}}(0\mathrm{K}) \approx 60$ T for $P6_3/mmc$ $YD_{9}$.
+      - $H_{c2}^{\mathrm{WHH}}(0\mathrm{K})$ is estimated at 120 T for $YH_{9}$ (assuming similar Fermi velocities to $YD_9$).
+      The corresponding Ginzburg-Landau coherence lengths $\xi(0\mathrm{K})$ are calculated to be 1.45–1.75 nm for $YH_{6}$ and 2.3–2.7 nm for $YD_{9}$.
+</conclusion>

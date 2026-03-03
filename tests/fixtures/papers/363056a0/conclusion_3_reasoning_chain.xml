@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<premises>
+<premise id="1" title="Superconducting properties of Hg-1201">
+The compound $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) contains one $CuO_{2}$ layer per unit cell and exhibits a superconducting transition temperature $T_{c}$ of 94 K.
+<ref>[1]</ref>
+</premise>
+<premise id="2" title="Empirical trend in Tl and Bi copper oxides">
+In high-$T_{c}$ superconductors containing bismuth and thallium, the transition temperature $T_{c}$ increases with the number of $CuO_{2}$ planes per unit cell.
+<ref>[5]</ref>
+</premise>
+<premise id="3" title="Properties of Tl-based analogues">
+The thallium-containing analogues of the general composition $TlBa_{2}Ca_{n-1}Cu_{n}O_{2n+3}$ show transition temperatures ranging from $&lt; 10$ K for the $n=1$ phase to $\sim 110$ K for the $n=3$ phase.
+<ref>[4, 5]</ref>
+</premise>
+<premise id="4" title="Structural similarity between Hg-1201 and Tl-1201">
+The structure of $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) is similar to that of $TlBa_{2}CuO_{5}$ (Tl-1201), suggesting the existence of a homologous series of mercury-based compounds with the general composition $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$.
+<ref>[1]</ref>
+</premise>
+</premises>
+<reasoning>
+<step title="Experimental measurement of Tc">
+Measurements of magnetic susceptibility and resistivity in the synthesized Hg-Ba-Ca-Cu-O samples reveal a superconducting transition with an onset temperature $T_{c} \approx 133.5$ K.
+</step>
+<step title="Observation of signal dominance">
+The field-cooling (FC) susceptibility at 125 K reaches $\sim 60\%$ of its full low-temperature value, indicating that the phase responsible for the $T_{c} \approx 133.5$ K transition is volumetrically dominant among the superconducting phases present.
+</step>
+<step title="Structural identification of phases">
+Structural characterization using SAED and HRTEM identifies grains consisting of $HgBa_{2}CaCu_{2}O_{6+x}$ (Hg-1212, $n=2$) and $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223, $n=3$), as well as ordered superstructures, within the sample.
+</step>
+<step title="Microscopic phase abundance">
+Microscopic analysis determines that the identified grains containing Hg, Ba, Ca, and Cu consist mostly of the Hg-1223 phase.
+</step>
+<step title="Application of empirical trend">
+Based on the trend observed in thallium and bismuth systems [@premise-2], and given that the $n=1$ phase (Hg-1201) has a $T_{c}$ of 94 K [@premise-1], the authors infer that the transition temperatures in the Hg-system should increase with the number of $CuO_{2}$ layers ($n$).
+</step>
+<step title="Correlation and attribution">
+The authors correlate the dominance of the Hg-1223 phase observed in microscopy with the dominance of the high-$T_{c}$ signal ($\sim 133$ K) in susceptibility measurements. Combining this with the expectation that the $n=3$ phase (Hg-1223) should have a higher $T_{c}$ than the $n=1$ phase (94 K) or $n=2$ phase, they attribute the $\sim 133$ K transition to Hg-1223.
+</step>
+</reasoning>
+<conclusion title="Attribution of highest Tc to the three-layer Hg-1223 phase">
+The superconducting transition at $\sim 133$ K is attributed to the $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223) phase. This conclusion is supported by the correlation between the high volume fraction of Hg-1223 observed in microscopic analysis and the large field-cooling susceptibility signal, and reinforces the empirical trend that $T_{c}$ increases with the number of $CuO_{2}$ planes per unit cell in layered copper oxide systems.
+</conclusion>
+</inference_unit>

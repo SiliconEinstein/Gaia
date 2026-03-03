@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<notations>
+- $BaCu_{3}O_{4}$: Barium copper oxide with a 1:3:4 stoichiometry.
+- $T_{c}$: Superconducting transition temperature.
+- $R$: Electrical resistance.
+- $T$: Temperature.
+- $YBa_{2}Cu_{3}O_{7-x}$: Yttrium barium copper oxide, a high-temperature superconductor.
+- $LaBa_{2}Cu_{3}O_{7-x}$: Lanthanum barium copper oxide, a high-temperature superconductor.
+</notations>
+<premises>
+<premise id="1" title="Melting point of BaCu3O4">
+The compound $BaCu_{3}O_{4}$ possesses the lowest melting point among all barium-copper oxide (Ba-Cu-O) phases.
+<ref>[12]</ref>
+</premise>
+<premise id="2" title="Fluidity of molten BaCu3O4">
+In its liquid state, $BaCu_{3}O_{4}$ exhibits extremely high fluidity (low viscosity).
+<ref>[12]</ref>
+</premise>
+<assumption id="3" title="Melt-solid reaction efficiency">
+Chemical reactions occurring between a melt phase and a solid phase proceed more completely and efficiently toward equilibrium than typical solid-state sintering reactions between purely solid precursors.
+</assumption>
+<premise id="4" title="Definition of superconducting onset temperature">
+The onset temperature of a superconducting transition is defined as the temperature at which the rate of change of the curvature (the second derivative) in the electrical resistance ($R$) versus temperature ($T$) plot, $d^{2}R/dT^{2}$, is maximal.
+<ref>[13]</ref>
+</premise>
+<premise id="5" title="Effect of Calcium substitution in Y- and La-based superconductors">
+The substitution of 50% of barium atoms with calcium atoms in the superconducting compound $YBa_{2}Cu_{3}O_{7-x}$ results in a depression of the superconducting transition temperature, whereas an equivalent 50% substitution of calcium for barium in the compound $LaBa_{2}Cu_{3}O_{7-x}$ results in an increase in the superconducting transition temperature.
+<ref>[13]</ref>
+</premise>
+</premises>
+</inference_unit>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<notations>
+- $Tl_{2}O_{3}$: Thallium(III) oxide
+- $CaO$: Calcium oxide
+- $BaCu_{3}O_{4}$: Barium copper oxide precursor
+- $T_{c}$: Superconducting transition temperature
+</notations>
+<premises>
+<premise id="1" title="Synthesis precursors">
+The starting materials used for the preparation of superconducting samples in the Tl–Ca/Ba–Cu–O system are thallium(III) oxide ($Tl_{2}O_{3}$), calcium oxide ($CaO$), and a barium copper oxide precursor ($BaCu_{3}O_{4}$).
+</premise>
+
+<premise id="2" title="Properties of BaCu3O4 precursor">
+In the synthesis of Tl-based superconductors, $BaCu_{3}O_{4}$ is utilized as a precursor because it possesses the lowest melting point among the various barium-copper oxides ($Ba$-$Cu$-$O$); furthermore, molten $BaCu_{3}O_{4}$ exhibits high fluidity, which promotes more complete melt-solid reactions during synthesis compared to standard solid-state reactions.
+<ref>[12]</ref>
+</premise>
+
+<premise id="3" title="Synthesis procedure">
+The procedure for synthesizing bulk Tl-Ca/Ba-Cu-O superconductors involves mixing stoichiometric amounts of $Tl_{2}O_{3}$, $CaO$, and $BaCu_{3}O_{4}$ precursors, grinding and pressing the mixture into a pellet, heating said pellet to a temperature between 880 °C and 910 °C for a duration of 3 to 5 minutes in a flowing oxygen environment, and subsequently quenching the sample to room temperature in air.
+</premise>
+
+<premise id="4" title="Measurement technique">
+The electrical resistance of the synthesized Tl-Ca/Ba-Cu-O superconducting samples is measured as a function of temperature using the standard four-probe technique applied to rectangular bars cut from the prepared pellets, with electrical contacts established using silver paste.
+</premise>
+
+<premise id="5" title="Definition of onset temperature">
+The superconducting onset temperature, denoted as the temperature at which the transition to superconductivity begins, is defined and estimated as the specific temperature at which the curvature in the electrical resistance versus temperature ($R$ vs. $T$) plot exhibits the most rapid change.
+<ref>[13]</ref>
+</premise>
+
+<premise id="6" title="Magnetic indicators of superconductivity">
+In the Tl-Ca/Ba-Cu-O system, the presence of superconductivity is verified qualitatively by observing strong diamagnetic repulsion, characterized by the levitation of the sample over a magnetic field (Meissner effect), and is quantitatively characterized by measuring the temperature dependence of the alternating current (a.c.) magnetic susceptibility.
+<ref>[15]</ref>
+</premise>
+</premises>
+</inference_unit>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<notations>
+- $T_{c}$: Superconducting critical temperature
+- $Im\text{-}3m$: Space group for a body-centered cubic (bcc) crystal structure
+- $\alpha$: Isotope effect coefficient
+- $M$: Atomic mass
+- $V_{H}$: Hydrogen-induced volume expansion
+- $H_{c2}$: Upper critical magnetic field
+- $\xi$: Superconducting coherence length
+- $\phi_{0}$: Magnetic flux quantum, approximately equal to $2.0678 \times 10^{-15}\text{ Wb}$
+</notations>
+<premises>
+<premise id="1" title="Theoretical Prediction of YH6 Structure and Stability">
+Theoretical ab initio calculations predict that an yttrium hydride phase with the composition $YH_{6}$ and a body-centered cubic (bcc) crystal structure (space group $Im\text{-}3m$) is thermodynamically stable at a pressure of 110 GPa and possesses a predicted superconducting critical temperature ($T_{c}$) in the range of 251–264 K.
+<ref>[24, 26]</ref>
+</premise>
+<premise id="2" title="Isotope Effect Coefficient Definition">
+The isotope effect coefficient $\alpha$ is defined by the relation $\alpha = -\frac{d\ln T_{c}}{d\ln M}$, where $T_{c}$ is the superconducting critical temperature and $M$ is the average atomic mass of the oscillating species in the lattice.
+</premise>
+<premise id="3" title="Vinet Equation of State">
+The Vinet equation of state is a phenomenological mathematical model used to describe the compression of solids by approximating the relationship between the volume ($V$) of a crystal lattice and the applied hydrostatic pressure ($P$) based on interatomic potentials.
+<ref>[30]</ref>
+</premise>
+<premise id="4" title="Hydrogen-Induced Volume Expansion">
+The hydrogen content in a metal hydride can be estimated by calculating the hydrogen-induced volume expansion ($V_{H}$), defined as the difference between the measured unit cell volume of the hydride and the volume of the pure host metal lattice extrapolated to the same pressure using an established equation of state.
+</premise>
+<premise id="5" title="Upper Critical Field and Coherence Length Relationships">
+In a superconductor, the upper critical magnetic field at zero temperature, $H_{c2}(0)$, and the Ginzburg–Landau coherence length, $\xi(0)$, are related by the expression $\xi = \sqrt{\frac{\phi_{0}}{3\pi^{2}H_{c2}}}$, where $\phi_{0}$ is the magnetic flux quantum; the temperature-dependent behavior of $H_{c2}(T)$ is typically modeled using either the Ginzburg–Landau (GL) equation near $T_{c}$ or the Werthamer–Helfand–Hohenberg (WHH) model across the superconducting temperature range.
+<ref>[44, 45]</ref>
+</premise>
+</premises>
+</inference_unit>

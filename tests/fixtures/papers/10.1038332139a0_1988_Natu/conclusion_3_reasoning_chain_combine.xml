@@ -1,0 +1,39 @@
+<inference_unit>
+<notations>
+- $T_c$: Superconducting transition temperature
+- a.c. susceptibility: Alternating current magnetic susceptibility
+- $Tl_{2}Ca_{x}Ba_{y}Cu_{z}O_{8+w}$: Thallium-Calcium-Barium-Copper-Oxide chemical system
+</notations>
+<premises>
+<premise id="1" title="Indicator of Bulk Superconductivity">
+The presence of strong diamagnetic repulsion in a material is a physical property that serves as an experimental indicator of the existence of bulk superconductivity within that material.
+</premise>
+<premise id="2" title="Manifestation of Diamagnetism">
+The stable levitation of a material sample over a magnetic field (such as a field of approximately $5,000$ G) is a qualitative physical manifestation of strong diamagnetic repulsion, which is associated with the Meissner effect in superconductors.
+</premise>
+<premise id="3" title="Measurement of AC Susceptibility">
+The technique of Norton is an experimental method used to determine the temperature dependence of the alternating current (a.c.) susceptibility of a material sample to identify its superconducting transition characteristics.
+<ref>[15]</ref>
+</premise>
+</premises>
+<reasoning>
+<step title="Experimental Observation of Levitation">
+A sample with nominal composition $Tl_{2}Ca_{2}BaCu_{3}O_{9+x}$ is immersed in liquid nitrogen and observed to levitate over a magnetic field of $\sim 5,000$ G.
+</step>
+<step title="Inference of Diamagnetism">
+The authors interpret the observed levitation as a demonstration of strong diamagnetic repulsion [@premise-2].
+</step>
+<step title="Link to Bulk Superconductivity">
+The authors assert that this strong diamagnetic repulsion is indicative of bulk superconductivity in the samples [@premise-1].
+</step>
+<step title="Experimental Measurement of AC Susceptibility">
+The temperature dependence of the a.c. susceptibility is measured for a sample of nominal composition $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$ using the technique of Norton [@premise-3].
+</step>
+<step title="Confirmation by Susceptibility Data">
+The a.c. susceptibility measurements (showing deviation from zero slope) are used to confirm the superconducting nature of the samples.
+</step>
+</reasoning>
+<conclusion title="Verification of Bulk Superconductivity via Magnetic Response">
+The Tl–Ca/Ba–Cu–O samples display strong diamagnetic repulsion indicative of bulk superconductivity, demonstrated by the levitation of a sample with nominal composition $Tl_{2}Ca_{2}BaCu_{3}O_{9+x}$ over a $\sim 5,000$ G magnetic field and confirmed by AC susceptibility measurements.
+</conclusion>
+</inference_unit>

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<premises>
+<premise id="1" title="Isotope Effect Coefficient Definition">
+The isotope effect coefficient $\alpha$ is defined as $\alpha = -\frac{d \ln T_{c}}{d \ln M}$, where $T_c$ is the critical temperature and $M$ is the atomic mass.
+</premise>
+<premise id="2" title="Significance of Isotope Effect">
+A pronounced shift in the superconducting transition temperature $T_c$ upon isotopic substitution (the isotope effect) supports a conventional phonon-assisted mechanism of superconductivity.
+</premise>
+<premise id="3" title="BCS Isotope Coefficient Limit">
+The maximal expected value of the isotope coefficient $\alpha$ in the Bardeen–Cooper–Schrieffer (BCS) theory for a harmonic case is 0.5.
+</premise>
+</premises>
+<reasoning>
+<step>
+The authors synthesized yttrium hydrides ($YH_{6}$, $YH_{9}$) and yttrium deuterides ($YD_{6}$, $YD_{9}$) in a diamond anvil cell and identified their crystal structures using X-ray diffraction: $YH_{6}/YD_{6}$ as body-centered cubic ($Im\text{-}3m$) and $YH_{9}/YD_{9}$ as hexagonal close-packed ($P6_{3}/mmc$).
+</step>
+<step>
+Using electrical resistance measurements, the authors determined the critical temperatures ($T_c$) for the hydride phases, observing a maximum $T_c$ of $\sim 220$ K for $Im\text{-}3m$ $YH_{6}$ at 183 GPa and $\sim 243$ K for $P6_3/mmc$ $YH_{9}$ at 201 GPa.
+</step>
+<step>
+The authors performed isotopic substitution experiments by replacing hydrogen with deuterium and measured the resulting $T_c$ values for the deuteride phases.
+</step>
+<step>
+For the $Im\text{-}3m$ phase, the authors observed that $T_c$ shifted to $\sim 168$ K for $YD_{6}$ (Sample 7) at 173 GPa.
+</step>
+<step>
+For the $P6_3/mmc$ phase, the authors observed that $T_c$ shifted to $\sim 172$ K for $YD_{9}$ (Sample 6) at 205 GPa.
+</step>
+<step>
+Comparing the hydride and deuteride transition temperatures, the authors identified a pronounced shift to lower temperatures upon substitution with the heavier isotope (deuterium).
+</step>
+<step>
+Invoking the premise regarding the significance of the isotope effect [@premise-2], the authors assert that this observed shift supports the conventional phonon-assisted mechanism of superconductivity in these materials.
+</step>
+<step>
+Using the measured $T_c$ values for the $YH_{6}/YD_{6}$ and $YH_{9}/YD_{9}$ systems within the pressure range of 183–205 GPa and the definition of the isotope coefficient [@premise-1], the authors calculated $\alpha$.
+</step>
+<step>
+The calculation yielded $\alpha = 0.39$ for the $Im\text{-}3m$ $YH_{6}/YD_{6}$ system and $\alpha = 0.50$ for the $P6_3/mmc$ $YH_{9}/YD_{9}$ system.
+</step>
+<step>
+The authors compared the calculated $\alpha$ for $YH_{6}/YD_{6}$ (0.39) to the maximal expected BCS harmonic value of 0.5 [@premise-3], attributing the lower value to anharmonic effects and acoustic phonon contributions.
+</step>
+</reasoning>
+<conclusion title="Isotope effect in Yttrium Hydrides">
+The authors observe a pronounced isotope effect upon substituting hydrogen with deuterium, supporting a conventional phonon-mediated superconductivity mechanism. Specifically:
+- For $Im\text{-}3m$ $YD_{6}$, $T_{c}$ shifts to $\sim 168$ K at 173 GPa (compared to $\sim 220$ K for $YH_{6}$).
+- For $P6_3/mmc$ $YD_{9}$, $T_{c}$ shifts to $\sim 172$ K at 202–205 GPa (compared to $\sim 243$ K for $YH_{9}$).
+The calculated isotope effect coefficients $\alpha = -\frac{d \ln T_{c}}{d \ln M}$ are 0.39 for the $YH_{6}/YD_{6}$ system and 0.50 for the $YH_{9}/YD_{9}$ system.
+</conclusion>
+</inference_unit>

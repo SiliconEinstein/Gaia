@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<premises>
+<premise id="1" title="Melting point of BaCu3O4">
+$BaCu_{3}O_{4}$ has the lowest melting point among the Ba-Cu oxides.
+<ref>12</ref>
+</premise>
+<premise id="2" title="Fluidity of molten BaCu3O4">
+Molten $BaCu_{3}O_{4}$ is extremely fluid.
+<ref>12</ref>
+</premise>
+<assumption id="3" title="Melt-solid reaction efficiency">
+Melt-solid reactions take place more completely than typical solid-state reactions.
+</assumption>
+<premise id="4" title="Definition of superconducting onset temperature">
+The onset temperature of a superconducting transition is estimated as the temperature at which the curvature in the resistance versus temperature plot changes most rapidly.
+<ref>13</ref>
+</premise>
+<premise id="5" title="Effect of Calcium substitution in Y- and La-based superconductors">
+A 50% substitution of calcium for barium in $YBa_{2}Cu_{3}O_{7-x}$ depresses the superconducting transition temperature, whereas a similar substitution in the $LaBa_{2}Cu_{3}O_{7-x}$ compound increases the superconducting transition temperature.
+<ref>13</ref>
+</premise>
+</premises>
+<reasoning>
+<step title="Selection of starting materials">
+The authors select $Tl_{2}O_{3}$, CaO, and $BaCu_{3}O_{4}$ as starting materials. $BaCu_{3}O_{4}$ is specifically chosen based on its properties of having the lowest melting point among Ba-Cu oxides [@premise-1] and high fluidity in the molten state [@premise-2], under the assumption that melt-solid reactions take place more completely than typical solid-state reactions [@assumption-3].
+</step>
+<step title="Sample synthesis">
+A sample with the nominal composition $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$ is prepared by mixing the starting materials, pressing them into a pellet, heating to 880–910 °C for 3–5 minutes in flowing oxygen, and subsequently furnace-cooling to room temperature.
+</step>
+<step title="Resistance measurement methodology">
+The resistance of the sample is measured using the standard four-probe technique with silver paste contacts on a rectangular bar cut from the pellet.
+</step>
+<step title="Analysis of resistance data">
+The resistance versus temperature plot for the furnace-cooled $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$ sample (shown in Fig. 1) indicates that resistance starts to drop sharply at $\sim 120$ K and reaches zero at $\sim 100$ K.
+</step>
+<step title="Determination of transition parameters">
+From the resistance data, the authors determine the midpoint of the superconducting transition to be 112 K and the zero-resistance temperature to be 103 K.
+</step>
+<step title="Comparison with other samples">
+The transition temperatures of the $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$ sample (112 K midpoint, 103 K zero resistance) are compared with a $Tl_{1.86}CaBaCu_{3}O_{7.8+x}$ sample annealed at 450 °C and a $EuBa_{2}Cu_{3}O_{7-x}$ sample. The authors observe that these values are the highest among the Tl–Ca/Ba–Cu–O samples prepared in the study and exceed those of high-quality rare-earth-containing samples.
+</step>
+</reasoning>
+<conclusion title="Superconducting Transition Properties of Tl2Ca1.5BaCu3O8.5+x">
+A furnace-cooled sample with the nominal composition $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$ exhibits a superconducting transition midpoint at 112 K and a zero-resistance temperature at 103 K, which are the highest values recorded among the prepared Tl–Ca/Ba–Cu–O samples.
+</conclusion>
+</inference_unit>

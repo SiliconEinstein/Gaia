@@ -1,16 +1,6 @@
 [
   {
     "nodes": [
-      676,
-      1282
-    ],
-    "reason": "Proposition 1282 asserts a general statement for underdoped Bi2212 that the superconducting phase transition at Tc is not characterized by an opening of an energy gap (the gap remains smooth across Tc and vanishes only at T*), and that the transition is signaled primarily by the emergence of phase coherence manifested as sharpening of spectral linewidths. Proposition 676 reports momentum-resolved ARPES in underdoped Bi2212 showing that the gap evolution is strongly momentum-dependent: near the antinode the gap \"fills in\" (consistent with a nonvanishing Δ across Tc), but near the d-wave node the gap is strongly temperature-dependent and drops smoothly to zero above Tc (i.e., the gap closes near the node at or near Tc). These two claims are logically incompatible when both are taken as universal statements about the same material regime: 1282 declares that the energy gap remains smooth across Tc everywhere and vanishes only at T*, whereas 676 asserts that at certain parts of the Fermi surface (near the node) the gap closes at or above Tc. Therefore they cannot both be true as universal descriptions of the same underdoped phase diagram.",
-    "round": 0,
-    "source": "join",
-    "join_node": 1542
-  },
-  {
-    "nodes": [
       86,
       85
     ],
@@ -28,15 +18,5 @@
     "round": 0,
     "source": "join",
     "join_node": 1576
-  },
-  {
-    "nodes": [
-      1575,
-      1576
-    ],
-    "reason": "Proposition 1575 asserts that the hydrogen-rich yttrium hydride phase YH9 (space group P6_3/mmc) is the hydrogen-richest thermodynamically favored yttrium hydride at high static pressures on the order of 10^2 GPa (hundreds of GPa). Proposition 1576, by contrast, reports theoretical predictions that an even more hydrogen-rich composition, YH10 in an fcc structure, is thermodynamically favored at static pressures of several hundred GPa. These two claims are logically incompatible if both are intended as claims about which stoichiometry is the thermodynamically favored hydrogen-rich Y–H phase under overlapping high-pressure conditions (they cannot both be the uniquely thermodynamically favored hydrogen-rich phase at the same P–T range).",
-    "round": 0,
-    "source": "join",
-    "join_node": 1677
   }
 ]

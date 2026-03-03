@@ -26,4 +26,4 @@ htmlcov/
 .coverage
 
 # Data (large files, keep out of repo)
-tests/fixtures/embeddings.json
+data/

@@ -1,0 +1,54 @@
+<inference_unit>
+<notations>
+- $fcc$: face-centred cubic
+- $hcp$: hexagonal close packed
+- $YH_{x}$: yttrium hydride with hydrogen-to-yttrium ratio $x$
+- $P6_{3}/mmc$: space group symmetry identifier for a specific hexagonal crystal structure
+- $G$: Gibbs free energy
+- $T$: temperature
+- $P$: pressure
+</notations>
+<premises>
+<premise id="1" title="Predicted Stability of fcc-YH10 at High Pressure">
+Theoretical $ab$ $initio$ calculations predict that the face-centred cubic ($fcc$) phase of yttrium decahydride ($YH_{10}$) reaches thermodynamic stability at an applied pressure of 250 GPa.
+<ref>[23]</ref>
+</premise>
+<premise id="2" title="Predicted High-Temperature Stability of fcc-YH10">
+Theoretical $ab$ $initio$ calculations suggest that although yttrium decahydride ($YH_{10}$) may be thermodynamically unstable at 0 K, the difference in Gibbs free energies ($\Delta G$) between the face-centred cubic ($fcc$) $YH_{10}$ phase and the hexagonal close packed ($hcp$) $YH_{9}$ phase decreases as temperature increases, such that $fcc-YH_{10}$ is predicted to become more thermodynamically favourable than $hcp-YH_{9}$ at temperatures exceeding 1500 K at a pressure of 375 GPa, or at temperatures exceeding 1100 K at a pressure of 400 GPa.
+<ref>[22]</ref>
+</premise>
+<premise id="3" title="Criterion for Excess Hydrogen Availability">
+In high-pressure chemical synthesis experiments using ammonia borane ($NH_{3}BH_{3}$) as a hydrogen source and yttrium trihydride ($YH_{3}$) as a reactant, the successful realization of an excess hydrogen ($H_2$) environment is verified if the initial $YH_{3}$ phase undergoes a complete structural transformation into a hydrogen-rich, single-phase $YH_{9}$ with $P6_{3}/mmc$ symmetry following laser heating.
+</premise>
+<premise id="4" title="Identification of Crystal Phases via Diffraction">
+The identification of specific yttrium hydride phases, such as the $P6_{3}/mmc$ $YH_{9}$ phase, is established by demonstrating structural agreement between experimental X-ray powder diffraction patterns and calculated diffraction peak positions derived from theoretical crystal structure models.
+<ref>[22]</ref>
+</premise>
+</premises>
+<reasoning>
+<step title="Review of Theoretical Predictions">
+The authors note that theoretical predictions suggest the stability of a high-$T_{c}$ $fcc-YH_{10}$ phase at pressures above 250 GPa [@premise-1] or at high temperatures and pressures, specifically above 1100 K at 400 GPa [@premise-2].
+</step>
+<step title="Experimental Design">
+Guided by these calculations, the authors performed experiments to synthesize yttrium hydrides using $YH_{3}$ and $NH_{3}BH_{3}$ at conditions covering the predicted stability range of $YH_{10}$, reaching pressures up to 410 GPa and temperatures up to 2250 K.
+</step>
+<step title="In Situ Observation">
+During pulsed laser heating of the samples at 410 GPa and temperatures up to 2250 K, the authors collected in situ X-ray diffraction data.
+</step>
+<step title="Phase Identification">
+The authors analyzed the diffraction patterns and identified the formation of the $P6_{3}/mmc$ $YH_{9}$ phase, observing agreement with calculated peak positions for this structure [@premise-4], while detecting only thermal expansion of the lattice.
+</step>
+<step title="Verification of Excess Hydrogen">
+The authors verified that the synthesis conditions allowed for the formation of the highest possible hydride by observing the complete transformation of the initial $YH_{3}$ into single-phase $YH_{9}$ [@premise-3], indicating that excess hydrogen was present.
+</step>
+<step title="Observation of Absence">
+Despite achieving conditions where $YH_{10}$ was predicted to be favorable [@premise-1, @premise-2] and ensuring excess hydrogen availability [@premise-3], the authors observed no diffraction peaks corresponding to the $fcc-YH_{10}$ phase in the final quenched products or during heating.
+</step>
+<step title="Deduction of Stability Limit">
+Based on the persistence of the $YH_{9}$ phase and the absence of $YH_{10}$ under these extreme conditions, the authors deduce that $P6_{3}/mmc$ $YH_{9}$ is the hydrogen-richest yttrium hydride stable in the studied range.
+</step>
+</reasoning>
+<conclusion title="Absence of predicted fcc-YH10 phase">
+Contrary to theoretical predictions suggesting the stability of a high-$T_{c}$ face-centered cubic (fcc) $YH_{10}$ phase, the authors conclude that $YH_{10}$ does not form in the pressure-temperature range up to 410 GPa and 2250 K. Instead, the authors establish that the $P6_3/mmc$ $YH_{9}$ phase remains the hydrogen-richest yttrium hydride stable under these conditions.
+</conclusion>
+</inference_unit>

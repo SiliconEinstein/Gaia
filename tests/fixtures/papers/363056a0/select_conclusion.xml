@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+  <conclusions>
+    <conclusion id="1" title="Discovery of superconductivity with record transition temperature in Hg-Ba-Ca-Cu-O">
+      The Hg-Ba-Ca-Cu-O system exhibits superconductivity with an onset transition temperature of $T_{c} \approx 133.5$ K, which surpasses the previous record of $\sim 127$ K observed in the Tl-system. This result is established through magnetic susceptibility measurements (showing diamagnetism onset at 133.5 K and strong screening at 125 K) and electrical resistivity measurements (showing a sharp drop at $132.5$ K and zero resistance at $95$ K).
+    </conclusion>
+    <conclusion id="2" title="Identification of Hg-1212 and Hg-1223 phases and lattice parameters">
+      The synthesized material contains two distinct high-temperature superconducting phases: $HgBa_{2}CaCu_{2}O_{6+x}$ (Hg-1212, with two $CuO_{2}$ layers) and $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223, with three $CuO_{2}$ layers), as well as ordered superstructures (e.g., a supercell with $c \approx 86.4 \AA$). The tetragonal lattice parameters derived from selected-area electron diffraction (SAED) are $a=3.93(7)\AA$ for both phases, with $c=12.7(2)\AA$ for Hg-1212 and $c=16.1(3)\AA$ for Hg-1223.
+    </conclusion>
+    <conclusion id="3" title="Attribution of highest Tc to the three-layer Hg-1223 phase">
+      The superconducting transition at $\sim 133$ K is attributed to the $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223) phase. This conclusion is supported by the correlation between the high volume fraction of Hg-1223 observed in microscopic analysis and the large field-cooling susceptibility signal, and reinforces the empirical trend that $T_{c}$ increases with the number of $CuO_{2}$ planes per unit cell in layered copper oxide systems.
+    </conclusion>
+    <conclusion id="4" title="Critical role of oxygen annealing">
+      Post-synthesis annealing in flowing oxygen at $300^{\circ}C$ is required to maximize the transition temperature in the Hg-Ba-Ca-Cu-O system; as-sintered samples exhibit a significantly lower maximum $T_{c}$ of $\sim 117$ K compared to the $\sim 133$ K achieved after annealing.
+    </conclusion>
+  </conclusions>
+</inference_unit>

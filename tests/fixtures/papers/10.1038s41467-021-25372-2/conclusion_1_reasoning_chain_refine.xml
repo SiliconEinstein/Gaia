@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<notations>
+- $T_{c}$: superconducting critical temperature
+- $P$: pressure
+- $M$: atomic mass
+- $\alpha$: isotope effect coefficient
+- $\xi$: coherence length of the superconducting order parameter
+- $\phi_{0}$: magnetic flux quantum
+- $H_{c2}$: upper critical field
+- hcp: hexagonal close-packed crystal structure
+- fcc: face-centred cubic crystal structure
+- bcc: body-centred cubic crystal structure
+- $P6_{3}/mmc$: space group identifier for a hexagonal crystal system
+- $Im\bar{3}m$: space group identifier for a body-centred cubic crystal system
+</notations>
+<premises>
+<premise id="1" title="Theoretical Prediction of YH9 Structure">
+Theoretical calculations predict the existence of a hexagonal close-packed (hcp) yttrium hydride phase with the composition $YH_{9}$ and space group $P6_{3}/mmc$, which is predicted to be stable at high pressures such as 200 GPa.
+<ref>[22, 23, 24]</ref>
+</premise>
+<premise id="2" title="Theoretical Prediction of YH10">
+Theoretical calculations predict a face-centred cubic (fcc) yttrium hydride phase with the composition $YH_{10}$ that possesses a superconducting critical temperature $T_{c}$ estimated to be 303 K at a pressure of 400 GPa or between 305 K and 326 K at a pressure of 250 GPa.
+<ref>[22, 23]</ref>
+</premise>
+<premise id="3" title="Vinet Equation of State">
+The Vinet equation of state is a mathematical model used to approximate the relationship between the volume of a crystal lattice and the applied external pressure in solid materials.
+<ref>[30]</ref>
+</premise>
+<premise id="4" title="Isotope Effect Coefficient">
+The isotope effect coefficient $\alpha$ in a superconductor is defined by the relation $\alpha = -\frac{d\ln T_{c}}{d\ln M}$, where $T_{c}$ is the superconducting critical temperature and $M$ is the atomic mass of the isotope.
+</premise>
+<premise id="5" title="Coherence Length Definition">
+The coherence length $\xi$ of the superconducting order parameter is related to the upper critical field $H_{c2}$ by the expression $\xi = \sqrt{\frac{\phi_{0}}{3\pi^{2}H_{c2}}}$, where $\phi_{0}$ is the magnetic flux quantum.
+</premise>
+<premise id="6" title="Ginzburg–Landau and WHH Models">
+The temperature dependence of the superconducting upper critical field $H_{c2}$ can be approximated using the Ginzburg–Landau (GL) equation for the temperature regime near the critical temperature $T_{c}$ (defined by the condition $\frac{T_{c}-T}{T_{c}}\ll1$) and by the Werthamer–Helfand–Hohenberg (WHH) model across the entire temperature range.
+<ref>[44, 45]</ref>
+</premise>
+<premise id="7" title="Vibron Scale for Pressure Estimation">
+The pressure within a diamond anvil cell can be determined using the $H_{2}$ (or $D_{2}$) vibron scale, which is based on the Raman spectroscopy of the hydrogen (or deuterium) medium contained within the cell.
+<ref>[54]</ref>
+</premise>
+<premise id="8" title="Diamond Scale for Pressure Estimation">
+The pressure within a diamond anvil cell can be estimated by measuring the Raman shift of the high-frequency edge of the Raman line emitted by the stressed diamond anvil.
+<ref>[55]</ref>
+</premise>
+</premises>
+</inference_unit>

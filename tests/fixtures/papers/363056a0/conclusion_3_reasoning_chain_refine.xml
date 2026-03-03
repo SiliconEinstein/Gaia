@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<notations>
+- $Hg-1201$: The mercury-based cuprate compound $HgBa_{2}CuO_{4+\delta}$.
+- $Tl-1201$: The thallium-based cuprate compound $TlBa_{2}CuO_{5}$.
+- $T_{c}$: Superconducting transition temperature.
+- $\delta$: Oxygen non-stoichiometry coefficient.
+- $n$: The number of $CuO_{2}$ layers per unit cell in a homologous series.
+- $Hg-1223$: The mercury-based cuprate compound $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (where $n=3$).
+- $Hg-1212$: The mercury-based cuprate compound $HgBa_{2}CaCu_{2}O_{6+x}$ (where $n=2$).
+</notations>
+<premises>
+<premise id="1" title="Superconducting properties of Hg-1201">
+The mercury-based copper-oxide compound $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) possesses a crystalline structure containing exactly one $CuO_{2}$ layer per unit cell ($n=1$) and exhibits a superconducting transition temperature $T_{c}$ of approximately 94 K.
+<ref>[1]</ref>
+</premise>
+<premise id="2" title="Empirical trend in Tl and Bi copper oxides">
+In high-$T_{c}$ superconducting copper oxides containing bismuth (Bi) or thallium (Tl), the superconducting transition temperature $T_{c}$ is empirically observed to increase as the number of $CuO_{2}$ planes per unit cell increases.
+<ref>[5]</ref>
+</premise>
+<premise id="3" title="Properties of Tl-based analogues">
+For the homologous series of thallium-containing copper oxides with the general chemical composition $TlBa_{2}Ca_{n-1}Cu_{n}O_{2n+3}$, the superconducting transition temperatures range from $T_{c} &lt; 10$ K for the $n=1$ phase to $T_{c} \approx 110$ K for the $n=3$ phase.
+<ref>[4, 5]</ref>
+</premise>
+<premise id="4" title="Structural similarity between Hg-1201 and Tl-1201">
+The crystalline structure of $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) is structurally similar to that of the thallium-based compound $TlBa_{2}CuO_{5}$ (Tl-1201), suggesting that mercury-based compounds can form a homologous series with the general chemical composition $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$, where $n$ represents the number of $CuO_{2}$ layers.
+<ref>[1]</ref>
+</premise>
+</premises>
+</inference_unit>

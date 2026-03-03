@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- render-config: show-attrs="title,tag" -->
+<inference_unit>
+<notations>
+- $T_c$: Superconducting transition temperature (critical temperature).
+- Tl-Ba-Cu-O: Thallium-Barium-Copper-Oxygen chemical system.
+- Tl-Ca/Ba-Cu-O: Thallium-Calcium/Barium-Copper-Oxygen chemical system.
+- Tl-Ca-Cu-O: Thallium-Calcium-Copper-Oxygen chemical system.
+</notations>
+<premises>
+<premise id="1" title="Superconductivity of Tl-Ba-Cu-O">
+Samples in the Tl-Ba-Cu-O chemical system exhibit bulk superconductivity characterized by zero electrical resistance at temperatures just above the boiling point of liquid nitrogen ($77$ K).
+<ref>[8, 9]</ref>
+</premise>
+<premise id="2" title="Effect of Annealing on Tl-Ba-Cu-O">
+In the Tl-Ba-Cu-O superconducting system, the process of annealing samples at $450^{\circ}\text{C}$ in an environment of flowing oxygen results in the depression or complete destruction of the superconducting transition.
+</premise>
+<premise id="3" title="Effect of Annealing on Tl-Ca/Ba-Cu-O">
+In the Tl-Ca/Ba-Cu-O superconducting system, the process of annealing samples at $450^{\circ}\text{C}$ in an environment of flowing oxygen results in a slight improvement of the superconducting properties, such as the transition temperature or resistance profile.
+</premise>
+<premise id="4" title="Conductivity of Tl-Ca-Cu-O">
+Samples in the Tl-Ca-Cu-O chemical system, when prepared using thermal and atmospheric conditions similar to those used for the Tl-Ca/Ba-Cu-O system (such as heating to $880$–$910^{\circ}\text{C}$ in flowing oxygen), exhibit semiconductor-like electrical resistivity behavior down to the temperature of liquid nitrogen ($77$ K) rather than metallic or superconducting behavior.
+</premise>
+</premises>
+</inference_unit>
