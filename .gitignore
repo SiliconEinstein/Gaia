@@ -25,6 +25,9 @@ Thumbs.db
 htmlcov/
 .coverage
 
+# Worktrees
+.worktrees/
+
 # Data (local databases, large files)
 data/
 
