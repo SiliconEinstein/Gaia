@@ -1,9 +1,8 @@
 """Tests for DedupChecker — duplicate detection when submitting new nodes."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from libs.models import Node, DedupCandidate
+from libs.models import Node
 from services.commit_engine.dedup import DedupChecker
 from services.search_engine.models import ScoredNode
 
@@ -60,10 +59,16 @@ async def test_check_filters_below_threshold():
 
 async def test_check_multiple_contents():
     engine = MagicMock()
-    engine.search_nodes = AsyncMock(side_effect=[
-        [ScoredNode(node=Node(id=1, type="t", content="match1"), score=0.9, sources=["vector"])],
-        [],  # no matches for second content
-    ])
+    engine.search_nodes = AsyncMock(
+        side_effect=[
+            [
+                ScoredNode(
+                    node=Node(id=1, type="t", content="match1"), score=0.9, sources=["vector"]
+                )
+            ],
+            [],  # no matches for second content
+        ]
+    )
     checker = DedupChecker(engine)
     candidates = await checker.check(
         contents=["content A", "content B"],

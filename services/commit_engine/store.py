@@ -42,6 +42,15 @@ class CommitStore:
         data = path.read_text(encoding="utf-8")
         return Commit.model_validate_json(data)
 
+    async def list_commits(self) -> list[Commit]:
+        """List all commits, sorted by created_at descending."""
+        commits = []
+        for path in self._root.glob("*.json"):
+            data = path.read_text(encoding="utf-8")
+            commits.append(Commit.model_validate_json(data))
+        commits.sort(key=lambda c: c.created_at or "", reverse=True)
+        return commits
+
     async def update(self, commit_id: str, **fields) -> None:
         """Update specific fields of an existing commit.
 

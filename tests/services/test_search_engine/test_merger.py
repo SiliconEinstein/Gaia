@@ -1,5 +1,3 @@
-import pytest
-
 from services.search_engine.merger import ResultMerger
 
 

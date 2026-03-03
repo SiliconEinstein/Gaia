@@ -1,6 +1,6 @@
 # tests/services/test_commit_engine/test_validator.py
 import pytest
-from libs.models import AddEdgeOp, ModifyEdgeOp, ModifyNodeOp, NewNode, NodeRef, ValidationResult
+from libs.models import AddEdgeOp, ModifyEdgeOp, ModifyNodeOp, NewNode, NodeRef
 from services.commit_engine.validator import Validator
 
 
@@ -36,7 +36,9 @@ async def test_add_edge_empty_head(validator):
 
 
 async def test_add_edge_empty_reasoning(validator):
-    op = AddEdgeOp(tail=[NewNode(content="p")], head=[NodeRef(node_id=1)], type="meet", reasoning=[])
+    op = AddEdgeOp(
+        tail=[NewNode(content="p")], head=[NodeRef(node_id=1)], type="meet", reasoning=[]
+    )
     results = await validator.validate([op])
     assert results[0].valid is False
     assert any("reasoning" in e.lower() for e in results[0].errors)
@@ -68,7 +70,9 @@ async def test_modify_node_empty_changes(validator):
 
 async def test_multiple_operations(validator):
     ops = [
-        AddEdgeOp(tail=[NewNode(content="p")], head=[NodeRef(node_id=1)], type="meet", reasoning=["x"]),
+        AddEdgeOp(
+            tail=[NewNode(content="p")], head=[NodeRef(node_id=1)], type="meet", reasoning=["x"]
+        ),
         ModifyEdgeOp(edge_id=42, changes={}),  # invalid
         ModifyNodeOp(node_id=10, changes={"content": "y"}),
     ]

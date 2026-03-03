@@ -31,11 +31,15 @@ pytest -m "not neo4j"
 ruff check .
 ruff format .
 
-# Run the API server
-uvicorn services.gateway.app:create_app --factory --reload --host 0.0.0.0 --port 8000
+# Run the API server (Neo4j auth is disabled locally)
+GAIA_LANCEDB_PATH=./data/lancedb/gaia \
+  uvicorn services.gateway.app:create_app --factory --reload --host 0.0.0.0 --port 8000
 
-# Seed databases with fixture data
-python scripts/seed_database.py --fixtures-dir tests/fixtures --db-path /data/lancedb/gaia --neo4j-password testpassword
+# Seed databases with fixture data (run once after clone)
+python scripts/seed_database.py --fixtures-dir tests/fixtures --db-path ./data/lancedb/gaia
+
+# Run frontend dev server
+cd frontend && npm install && npm run dev
 ```
 
 All async tests run automatically via `asyncio_mode = "auto"`.
@@ -97,7 +101,7 @@ Neo4j is optional — the system degrades gracefully without it. All writes go t
 ## Testing
 
 - Tests live in `tests/` mirroring the source structure
-- Neo4j tests are marked `@pytest.mark.neo4j` and auto-skipped if Neo4j is unreachable (checked in `conftest.py`)
+- Neo4j tests (`tests/libs/storage/test_neo4j_store.py`) require a running Neo4j instance; CI provides one via service container
 - E2E integration tests (`tests/integration/test_e2e.py`) run without Neo4j using `tmp_path` for ephemeral LanceDB
 - Test fixtures in `tests/fixtures/` — note `embeddings.json` is git-ignored (large file)
 

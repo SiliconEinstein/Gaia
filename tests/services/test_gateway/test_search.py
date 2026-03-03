@@ -17,6 +17,7 @@ def client(tmp_path):
 
 async def _seed_data(dep):
     import numpy as np
+
     nodes = [
         Node(id=1, type="paper-extract", content="YH10 superconductivity at high pressure"),
         Node(id=2, type="paper-extract", content="LaH10 experiment under pressure"),
@@ -29,22 +30,29 @@ async def _seed_data(dep):
 
 def test_search_nodes(client):
     c, dep = client
-    import asyncio, numpy as np
+    import asyncio
+    import numpy as np
+
     asyncio.get_event_loop().run_until_complete(_seed_data(dep))
     embedding = np.random.randn(1024).astype(np.float32).tolist()
-    resp = c.post("/search/nodes", json={
-        "query": "superconductivity",
-        "embedding": embedding,
-        "k": 10,
-        "paths": ["vector", "bm25"],
-    })
+    resp = c.post(
+        "/search/nodes",
+        json={
+            "query": "superconductivity",
+            "embedding": embedding,
+            "k": 10,
+            "paths": ["vector", "bm25"],
+        },
+    )
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
 
 
 def test_search_nodes_empty():
     """Search with no data should return empty list."""
-    import tempfile, numpy as np
+    import tempfile
+    import numpy as np
+
     with tempfile.TemporaryDirectory() as tmp:
         config = StorageConfig(lancedb_path=tmp + "/lance")
         dep = Dependencies(config)
@@ -52,10 +60,13 @@ def test_search_nodes_empty():
         app = create_app(dependencies=dep)
         c = TestClient(app)
         embedding = np.random.randn(1024).astype(np.float32).tolist()
-        resp = c.post("/search/nodes", json={
-            "query": "test",
-            "embedding": embedding,
-            "k": 10,
-            "paths": ["bm25"],
-        })
+        resp = c.post(
+            "/search/nodes",
+            json={
+                "query": "test",
+                "embedding": embedding,
+                "k": 10,
+                "paths": ["bm25"],
+            },
+        )
         assert resp.status_code == 200

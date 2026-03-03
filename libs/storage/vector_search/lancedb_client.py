@@ -10,6 +10,7 @@ import pyarrow as pa
 
 from .base import VectorSearchClient
 
+
 def _make_schema(dim: int) -> pa.Schema:
     """Build a PyArrow schema with a fixed-size vector column."""
     return pa.schema(
@@ -59,9 +60,7 @@ class LanceDBVectorClient(VectorSearchClient):
     # Public API
     # ------------------------------------------------------------------
 
-    async def insert_batch(
-        self, node_ids: list[int], embeddings: list[list[float]]
-    ) -> None:
+    async def insert_batch(self, node_ids: list[int], embeddings: list[list[float]]) -> None:
         if len(node_ids) != len(embeddings):
             raise ValueError(
                 f"node_ids length ({len(node_ids)}) != embeddings length ({len(embeddings)})"
@@ -70,10 +69,7 @@ class LanceDBVectorClient(VectorSearchClient):
             return
 
         dim = len(embeddings[0])
-        records = [
-            {"node_id": nid, "vector": emb}
-            for nid, emb in zip(node_ids, embeddings)
-        ]
+        records = [{"node_id": nid, "vector": emb} for nid, emb in zip(node_ids, embeddings)]
 
         def _insert() -> None:
             table = self._ensure_table(dim)
@@ -81,18 +77,12 @@ class LanceDBVectorClient(VectorSearchClient):
 
         await asyncio.to_thread(_insert)
 
-    async def search(
-        self, query: list[float], k: int = 50
-    ) -> list[tuple[int, float]]:
+    async def search(self, query: list[float], k: int = 50) -> list[tuple[int, float]]:
         def _search() -> list[tuple[int, float]]:
             table = self._get_table()
             if table is None:
                 return []
-            results = (
-                table.search(query, vector_column_name="vector")
-                .limit(k)
-                .to_list()
-            )
+            results = table.search(query, vector_column_name="vector").limit(k).to_list()
             return [(row["node_id"], row["_distance"]) for row in results]
 
         return await asyncio.to_thread(_search)

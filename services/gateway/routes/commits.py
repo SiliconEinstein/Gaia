@@ -14,6 +14,12 @@ class MergeRequest(BaseModel):
     force: bool = False
 
 
+@router.get("")
+async def list_commits():
+    commits = await deps.commit_engine.list_commits()
+    return [c.model_dump() for c in commits]
+
+
 @router.post("", response_model=CommitResponse)
 async def submit_commit(request: CommitRequest):
     return await deps.commit_engine.submit(request)

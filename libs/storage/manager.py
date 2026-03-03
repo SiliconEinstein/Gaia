@@ -25,9 +25,11 @@ class StorageManager:
         self.graph = None
         try:
             import neo4j
+
+            auth = (config.neo4j_user, config.neo4j_password) if config.neo4j_password else None
             self._driver = neo4j.AsyncGraphDatabase.driver(
                 config.neo4j_uri,
-                auth=(config.neo4j_user, config.neo4j_password),
+                auth=auth,
             )
             self.graph = Neo4jGraphStore(
                 driver=self._driver,

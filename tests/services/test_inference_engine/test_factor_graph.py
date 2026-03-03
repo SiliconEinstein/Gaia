@@ -1,4 +1,3 @@
-import pytest
 from libs.models import Node, HyperEdge
 from services.inference_engine.factor_graph import FactorGraph
 

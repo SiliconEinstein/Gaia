@@ -13,23 +13,26 @@ from services.inference_engine.engine import InferenceEngine
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _mock_storage():
     storage = MagicMock()
 
     # Mock graph store
     storage.graph = MagicMock()
     storage.graph.get_subgraph = AsyncMock(return_value=({1, 2, 3}, {100}))
-    storage.graph.get_hyperedge = AsyncMock(return_value=HyperEdge(
-        id=100, type="meet", tail=[1, 2], head=[3], probability=0.8
-    ))
+    storage.graph.get_hyperedge = AsyncMock(
+        return_value=HyperEdge(id=100, type="meet", tail=[1, 2], head=[3], probability=0.8)
+    )
 
     # Mock lance store
     storage.lance = MagicMock()
-    storage.lance.load_nodes_bulk = AsyncMock(return_value=[
-        Node(id=1, type="paper-extract", content="premise 1", prior=0.9),
-        Node(id=2, type="paper-extract", content="premise 2", prior=0.85),
-        Node(id=3, type="paper-extract", content="conclusion", prior=1.0),
-    ])
+    storage.lance.load_nodes_bulk = AsyncMock(
+        return_value=[
+            Node(id=1, type="paper-extract", content="premise 1", prior=0.9),
+            Node(id=2, type="paper-extract", content="premise 2", prior=0.85),
+            Node(id=3, type="paper-extract", content="conclusion", prior=1.0),
+        ]
+    )
     storage.lance.update_beliefs = AsyncMock()
 
     return storage
@@ -38,6 +41,7 @@ def _mock_storage():
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 async def test_compute_local_bp():
     storage = _mock_storage()

@@ -5,19 +5,16 @@ from libs.models import HyperEdge
 from libs.storage.neo4j_store import Neo4jGraphStore
 
 NEO4J_URI = os.environ.get("NEO4J_TEST_URI", "bolt://localhost:7687")
-NEO4J_USER = os.environ.get("NEO4J_TEST_USER", "neo4j")
-NEO4J_PASSWORD = os.environ.get("NEO4J_TEST_PASSWORD", "testpassword")
+NEO4J_PASSWORD = os.environ.get("NEO4J_TEST_PASSWORD", "")
 NEO4J_DB = os.environ.get("NEO4J_TEST_DB", "neo4j")
-
-pytestmark = pytest.mark.neo4j
 
 
 @pytest.fixture
 async def store():
     import neo4j
-    driver = neo4j.AsyncGraphDatabase.driver(
-        NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD)
-    )
+
+    auth = ("neo4j", NEO4J_PASSWORD) if NEO4J_PASSWORD else None
+    driver = neo4j.AsyncGraphDatabase.driver(NEO4J_URI, auth=auth)
     s = Neo4jGraphStore(driver=driver, database=NEO4J_DB)
     await s.initialize_schema()
     yield s

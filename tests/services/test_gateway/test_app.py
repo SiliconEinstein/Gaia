@@ -7,6 +7,7 @@ from services.gateway.deps import Dependencies
 @pytest.fixture
 def client(tmp_path):
     from libs.storage import StorageConfig
+
     config = StorageConfig(lancedb_path=str(tmp_path / "lance"))
     deps = Dependencies(config)
     deps.initialize(config)

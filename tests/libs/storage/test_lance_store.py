@@ -61,11 +61,13 @@ async def test_update_beliefs(store):
 
 
 async def test_fts_search(store):
-    await store.save_nodes([
-        _make_node(1, "YH10 superconductivity at high pressure 400GPa"),
-        _make_node(2, "LaH10 high pressure experiment results"),
-        _make_node(3, "Copper oxide cuprate superconductor mechanism"),
-    ])
+    await store.save_nodes(
+        [
+            _make_node(1, "YH10 superconductivity at high pressure 400GPa"),
+            _make_node(2, "LaH10 high pressure experiment results"),
+            _make_node(3, "Copper oxide cuprate superconductor mechanism"),
+        ]
+    )
     results = await store.fts_search("superconductivity", k=10)
     assert len(results) >= 1
     node_ids = [r[0] for r in results]

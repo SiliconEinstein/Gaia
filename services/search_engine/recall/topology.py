@@ -19,9 +19,7 @@ class TopologyRecall:
     def __init__(self, graph_store: Neo4jGraphStore) -> None:
         self._store = graph_store
 
-    async def recall(
-        self, seed_node_ids: list[int], hops: int = 3
-    ) -> list[tuple[int, float]]:
+    async def recall(self, seed_node_ids: list[int], hops: int = 3) -> list[tuple[int, float]]:
         """Traverse Join tree from seeds.
 
         Returns ``[(node_id, score), ...]`` where score is inversely
@@ -31,9 +29,7 @@ class TopologyRecall:
         if not seed_node_ids:
             return []
 
-        node_ids, _ = await self._store.get_subgraph(
-            seed_node_ids, hops=hops, edge_types=["join"]
-        )
+        node_ids, _ = await self._store.get_subgraph(seed_node_ids, hops=hops, edge_types=["join"])
 
         seed_set = set(seed_node_ids)
         results: list[tuple[int, float]] = []

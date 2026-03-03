@@ -1,5 +1,4 @@
 # tests/libs/storage/test_manager.py
-import pytest
 from libs.storage import StorageManager, StorageConfig
 from libs.storage.lance_store import LanceStore
 from libs.storage.id_generator import IDGenerator
@@ -27,6 +26,7 @@ async def test_manager_ids_work(tmp_path):
 
 async def test_manager_lance_works(tmp_path):
     from libs.models import Node
+
     config = StorageConfig(lancedb_path=str(tmp_path / "lance"))
     manager = StorageManager(config)
     node = Node(id=1, type="paper-extract", content="test")

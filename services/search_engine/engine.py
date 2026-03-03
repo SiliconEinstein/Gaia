@@ -29,9 +29,7 @@ class SearchEngine:
         self._storage = storage
         self._vector_recall = VectorRecall(storage.vector)
         self._bm25_recall = BM25Recall(storage.lance)
-        self._topology_recall = (
-            TopologyRecall(storage.graph) if storage.graph else None
-        )
+        self._topology_recall = TopologyRecall(storage.graph) if storage.graph else None
         self._merger = ResultMerger()
 
     # ── Node search ───────────────────────────────────────────────────────
@@ -64,9 +62,7 @@ class SearchEngine:
         if "topology" in active_paths and self._topology_recall:
             seeds = [nid for nid, _ in raw_results.get("vector", [])[:10]]
             if seeds:
-                raw_results["topology"] = await self._topology_recall.recall(
-                    seeds, hops=3
-                )
+                raw_results["topology"] = await self._topology_recall.recall(seeds, hops=3)
 
         # 3. Merge
         merged = await self._merger.merge(raw_results, k=k)
@@ -106,9 +102,7 @@ class SearchEngine:
             return []
 
         # 1. Find relevant nodes
-        scored_nodes = await self.search_nodes(
-            query=query, embedding=embedding, k=k, paths=paths
-        )
+        scored_nodes = await self.search_nodes(query=query, embedding=embedding, k=k, paths=paths)
         if not scored_nodes:
             return []
 
@@ -119,17 +113,13 @@ class SearchEngine:
         node_ids = list(node_score_map.keys())
 
         # 2. Get connected edge IDs via subgraph traversal
-        _, edge_ids = await self._storage.graph.get_subgraph(
-            node_ids, hops=1
-        )
+        _, edge_ids = await self._storage.graph.get_subgraph(node_ids, hops=1)
 
         if not edge_ids:
             return []
 
         # 3. Load edge details
-        edges = await asyncio.gather(
-            *(self._storage.graph.get_hyperedge(eid) for eid in edge_ids)
-        )
+        edges = await asyncio.gather(*(self._storage.graph.get_hyperedge(eid) for eid in edge_ids))
 
         # 4. Filter and rank
         results: list[ScoredHyperEdge] = []

@@ -1,5 +1,4 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from libs.models import HyperEdge, Node
 from services.search_engine.engine import SearchEngine
@@ -13,11 +12,13 @@ def _make_mock_storage(tmp_path):
     # Mock lance store
     storage.lance = MagicMock()
     storage.lance.fts_search = AsyncMock(return_value=[(1, 5.0), (2, 3.0)])
-    storage.lance.load_nodes_bulk = AsyncMock(return_value=[
-        Node(id=1, type="paper-extract", content="YH10 superconductivity", status="active"),
-        Node(id=2, type="paper-extract", content="LaH10 experiment", status="active"),
-        Node(id=3, type="join", content="merged proposition", status="active"),
-    ])
+    storage.lance.load_nodes_bulk = AsyncMock(
+        return_value=[
+            Node(id=1, type="paper-extract", content="YH10 superconductivity", status="active"),
+            Node(id=2, type="paper-extract", content="LaH10 experiment", status="active"),
+            Node(id=3, type="join", content="merged proposition", status="active"),
+        ]
+    )
 
     # Mock vector
     storage.vector = MagicMock()
@@ -90,11 +91,13 @@ async def test_search_nodes_min_belief_filter():
     """Nodes below min_belief should be filtered out."""
     storage = _make_mock_storage(None)
     # Give nodes different belief values
-    storage.lance.load_nodes_bulk = AsyncMock(return_value=[
-        Node(id=1, type="paper-extract", content="high belief", status="active", belief=0.9),
-        Node(id=2, type="paper-extract", content="low belief", status="active", belief=0.2),
-        Node(id=3, type="join", content="no belief", status="active", belief=None),
-    ])
+    storage.lance.load_nodes_bulk = AsyncMock(
+        return_value=[
+            Node(id=1, type="paper-extract", content="high belief", status="active", belief=0.9),
+            Node(id=2, type="paper-extract", content="low belief", status="active", belief=0.2),
+            Node(id=3, type="join", content="no belief", status="active", belief=None),
+        ]
+    )
     engine = SearchEngine(storage)
     filters = NodeFilters(min_belief=0.5)
     results = await engine.search_nodes(
@@ -110,10 +113,12 @@ async def test_search_nodes_min_belief_filter():
 async def test_search_nodes_status_filter():
     """Deleted nodes should be filtered out by default."""
     storage = _make_mock_storage(None)
-    storage.lance.load_nodes_bulk = AsyncMock(return_value=[
-        Node(id=1, type="paper-extract", content="active one", status="active"),
-        Node(id=2, type="paper-extract", content="deleted one", status="deleted"),
-    ])
+    storage.lance.load_nodes_bulk = AsyncMock(
+        return_value=[
+            Node(id=1, type="paper-extract", content="active one", status="active"),
+            Node(id=2, type="paper-extract", content="deleted one", status="deleted"),
+        ]
+    )
     engine = SearchEngine(storage)
     # Default filters have status=["active"]
     results = await engine.search_nodes(
@@ -132,17 +137,21 @@ async def test_search_edges_with_graph():
 
     # Provide a mock graph
     storage.graph = MagicMock()
-    storage.graph.get_subgraph = AsyncMock(return_value=(
-        {1, 2, 3},  # node_ids
-        {100, 101},  # edge_ids
-    ))
-    storage.graph.get_hyperedge = AsyncMock(side_effect=lambda eid: HyperEdge(
-        id=eid,
-        type="join",
-        tail=[1],
-        head=[2],
-        verified=False,
-    ))
+    storage.graph.get_subgraph = AsyncMock(
+        return_value=(
+            {1, 2, 3},  # node_ids
+            {100, 101},  # edge_ids
+        )
+    )
+    storage.graph.get_hyperedge = AsyncMock(
+        side_effect=lambda eid: HyperEdge(
+            id=eid,
+            type="join",
+            tail=[1],
+            head=[2],
+            verified=False,
+        )
+    )
 
     engine = SearchEngine(storage)
     results = await engine.search_edges(
@@ -162,14 +171,18 @@ async def test_search_edges_with_filters():
     storage = _make_mock_storage(None)
 
     storage.graph = MagicMock()
-    storage.graph.get_subgraph = AsyncMock(return_value=(
-        {1, 2},
-        {100, 101},
-    ))
-    storage.graph.get_hyperedge = AsyncMock(side_effect=[
-        HyperEdge(id=100, type="join", tail=[1], head=[2], verified=True),
-        HyperEdge(id=101, type="contradiction", tail=[1], head=[2], verified=False),
-    ])
+    storage.graph.get_subgraph = AsyncMock(
+        return_value=(
+            {1, 2},
+            {100, 101},
+        )
+    )
+    storage.graph.get_hyperedge = AsyncMock(
+        side_effect=[
+            HyperEdge(id=100, type="join", tail=[1], head=[2], verified=True),
+            HyperEdge(id=101, type="contradiction", tail=[1], head=[2], verified=False),
+        ]
+    )
 
     engine = SearchEngine(storage)
     filters = EdgeFilters(type=["join"])

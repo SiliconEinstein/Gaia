@@ -28,9 +28,7 @@ class InferenceEngine:
         params = bp_params or {}
         self._bp = BeliefPropagation(**params)
 
-    async def compute_local_bp(
-        self, center_node_ids: list[int], hops: int = 3
-    ) -> dict[int, float]:
+    async def compute_local_bp(self, center_node_ids: list[int], hops: int = 3) -> dict[int, float]:
         """Run local BP around given nodes.
 
         Steps:
@@ -51,9 +49,7 @@ class InferenceEngine:
             return {}
 
         # 1. Get subgraph topology
-        node_ids, edge_ids = await self._storage.graph.get_subgraph(
-            center_node_ids, hops=hops
-        )
+        node_ids, edge_ids = await self._storage.graph.get_subgraph(center_node_ids, hops=hops)
 
         if not edge_ids:
             return {}

@@ -2,8 +2,10 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from libs.models import (
-    CommitRequest, AddEdgeOp, ModifyNodeOp, NewNode, NodeRef,
-    MergeResult, ReviewResult,
+    CommitRequest,
+    AddEdgeOp,
+    NewNode,
+    NodeRef,
 )
 from services.commit_engine.engine import CommitEngine
 
@@ -28,6 +30,7 @@ def _mock_storage():
 def engine(tmp_path):
     storage = _mock_storage()
     from services.commit_engine.store import CommitStore
+
     commit_store = CommitStore(storage_path=str(tmp_path / "commits"))
     return CommitEngine(
         storage=storage,

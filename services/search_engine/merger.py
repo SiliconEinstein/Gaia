@@ -63,15 +63,10 @@ class ResultMerger:
         # Sort by score descending, then node_id ascending for determinism
         ranked = sorted(merged.items(), key=lambda x: (-x[1][0], x[0]))
 
-        return [
-            (node_id, score, sorted(sources))
-            for node_id, (score, sources) in ranked[:k]
-        ]
+        return [(node_id, score, sorted(sources)) for node_id, (score, sources) in ranked[:k]]
 
     @staticmethod
-    def _normalize(
-        pairs: list[tuple[int, float]], *, invert: bool
-    ) -> list[tuple[int, float]]:
+    def _normalize(pairs: list[tuple[int, float]], *, invert: bool) -> list[tuple[int, float]]:
         """Min-max normalize scores to [0, 1].
 
         If *invert* is True, the result is ``1 - normalized`` so that lower

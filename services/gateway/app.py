@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from .deps import deps, Dependencies
 from .routes.commits import router as commits_router
@@ -13,6 +14,14 @@ from .routes.search import router as search_router
 def create_app(dependencies: Dependencies | None = None) -> FastAPI:
     """Create FastAPI application."""
     app = FastAPI(title="Gaia", version="0.1.0", description="Large Knowledge Model API")
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     active_deps = dependencies or deps
 

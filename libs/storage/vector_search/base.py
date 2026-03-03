@@ -7,9 +7,7 @@ class VectorSearchClient(ABC):
     """Interface for vector similarity search backends."""
 
     @abstractmethod
-    async def insert_batch(
-        self, node_ids: list[int], embeddings: list[list[float]]
-    ) -> None:
+    async def insert_batch(self, node_ids: list[int], embeddings: list[list[float]]) -> None:
         """Insert a batch of node embeddings into the vector index.
 
         Args:
@@ -19,9 +17,7 @@ class VectorSearchClient(ABC):
         ...
 
     @abstractmethod
-    async def search(
-        self, query: list[float], k: int = 50
-    ) -> list[tuple[int, float]]:
+    async def search(self, query: list[float], k: int = 50) -> list[tuple[int, float]]:
         """Find the k nearest neighbours to *query*.
 
         Args:

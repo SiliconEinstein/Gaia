@@ -6,7 +6,6 @@ from pathlib import Path
 
 
 class IDGenerator:
-
     def __init__(self, storage_path: str):
         self._path = Path(storage_path)
         self._path.mkdir(parents=True, exist_ok=True)

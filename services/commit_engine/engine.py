@@ -1,8 +1,8 @@
 """CommitEngine: orchestrates the 3-step commit workflow.
 
-    submit  -> validate + dedup + save as pending_review
-    review  -> LLM review -> mark reviewed/rejected
-    merge   -> apply operations to storage -> mark merged
+submit  -> validate + dedup + save as pending_review
+review  -> LLM review -> mark reviewed/rejected
+merge   -> apply operations to storage -> mark merged
 """
 
 from __future__ import annotations
@@ -128,3 +128,7 @@ class CommitEngine:
     async def get_commit(self, commit_id: str) -> Commit | None:
         """Retrieve a commit by its ID."""
         return await self._store.get(commit_id)
+
+    async def list_commits(self) -> list[Commit]:
+        """List all commits."""
+        return await self._store.list_commits()

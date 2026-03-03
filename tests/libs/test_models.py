@@ -1,5 +1,20 @@
 # tests/libs/test_models.py
-from libs.models import Node, HyperEdge, AddEdgeOp, ModifyEdgeOp, ModifyNodeOp, NewNode, NodeRef
+from libs.models import (
+    Node,
+    HyperEdge,
+    AddEdgeOp,
+    ModifyEdgeOp,
+    ModifyNodeOp,
+    NewNode,
+    NodeRef,
+    Commit,
+    CommitRequest,
+    CommitResponse,
+    ValidationResult,
+    DedupCandidate,
+    ReviewResult,
+    MergeResult,
+)
 
 
 def test_node_defaults():
@@ -81,11 +96,6 @@ def test_modify_node_op():
 
 # ── Commit Workflow Tests ──
 
-from libs.models import (
-    Commit, CommitRequest, CommitResponse,
-    ValidationResult, DedupCandidate, ReviewResult, MergeResult,
-)
-
 
 def test_commit_request():
     req = CommitRequest(
@@ -104,7 +114,6 @@ def test_commit_request():
 
 
 def test_commit_defaults():
-    from datetime import datetime
     commit = Commit(
         commit_id="abc123",
         message="test commit",

@@ -1,6 +1,5 @@
 """Tests for the Reviewer with pluggable LLM interface."""
 
-import pytest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 

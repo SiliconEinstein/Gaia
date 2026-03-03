@@ -55,7 +55,9 @@ def main() -> None:
     all_edges = json.loads((FULL_DATA_DIR / "edges.json").read_text())
     all_nodes = json.loads((FULL_DATA_DIR / "nodes.json").read_text())
     all_contradictions = json.loads((FULL_DATA_DIR / "contradictions.json").read_text())
-    print(f"  {len(all_nodes)} nodes, {len(all_edges)} edges, {len(all_contradictions)} contradictions")
+    print(
+        f"  {len(all_nodes)} nodes, {len(all_edges)} edges, {len(all_contradictions)} contradictions"
+    )
 
     # ── Filter edges ──
     edges_by_id = {e["id"]: e for e in all_edges}

@@ -157,8 +157,15 @@ def convert_edge(old: dict, topology: dict) -> dict:
         extra["reliability"] = meta["reliability"]
 
     # Build clean metadata (remove fields that map to typed fields or extra)
-    skip_keys = {"type", "conclusion_type", "probability", "verified",
-                 "quality", "reliability", "reliability_reasoning"}
+    skip_keys = {
+        "type",
+        "conclusion_type",
+        "probability",
+        "verified",
+        "quality",
+        "reliability",
+        "reliability_reasoning",
+    }
     new_metadata = {k: v for k, v in meta.items() if k not in skip_keys}
 
     return {
@@ -204,7 +211,11 @@ def main():
 
     print("Loading embeddings...")
     embeddings = load_embeddings(graph_dir)
-    print(f"  Found {len(embeddings)} embeddings (dim={len(next(iter(embeddings.values())))})" if embeddings else "  No embeddings")
+    print(
+        f"  Found {len(embeddings)} embeddings (dim={len(next(iter(embeddings.values())))})"
+        if embeddings
+        else "  No embeddings"
+    )
 
     print("Loading contradictions...")
     contradictions = load_contradictions(graph_dir)
@@ -255,7 +266,7 @@ def main():
         json.dump({str(k): v for k, v in embeddings.items()}, f)
 
     # Summary
-    print(f"\nDone! Output files:")
+    print("\nDone! Output files:")
     print(f"  {output_dir / 'nodes.json'}: {len(new_nodes)} nodes")
     print(f"  {output_dir / 'edges.json'}: {len(new_edges)} edges")
     print(f"  {output_dir / 'embeddings.json'}: {len(embeddings)} vectors")

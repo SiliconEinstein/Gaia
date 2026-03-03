@@ -23,6 +23,7 @@ async def _seed_node(dep, node_id=1, content="test node"):
 def test_get_node(client):
     c, dep = client
     import asyncio
+
     asyncio.get_event_loop().run_until_complete(_seed_node(dep))
     resp = c.get("/nodes/1")
     assert resp.status_code == 200

@@ -12,11 +12,12 @@ from services.inference_engine.factor_graph import FactorGraph
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _simple_chain() -> FactorGraph:
     """A -> B with probability 0.8"""
     fg = FactorGraph()
-    fg.add_variable(1, 0.9)   # A: high prior
-    fg.add_variable(2, 1.0)   # B: default prior
+    fg.add_variable(1, 0.9)  # A: high prior
+    fg.add_variable(2, 1.0)  # B: default prior
     fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.8)
     return fg
 
@@ -35,6 +36,7 @@ def _two_step_chain() -> FactorGraph:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def test_simple_chain():
     fg = _simple_chain()
@@ -100,9 +102,9 @@ def test_low_probability_edge():
 def test_multi_tail_factor():
     """Multiple premises needed for conclusion."""
     fg = FactorGraph()
-    fg.add_variable(1, 0.9)   # premise 1
-    fg.add_variable(2, 0.8)   # premise 2
-    fg.add_variable(3, 1.0)   # conclusion
+    fg.add_variable(1, 0.9)  # premise 1
+    fg.add_variable(2, 0.8)  # premise 2
+    fg.add_variable(3, 1.0)  # conclusion
     fg.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.9)
     bp = BeliefPropagation(damping=0.5, max_iterations=50)
     beliefs = bp.run(fg)

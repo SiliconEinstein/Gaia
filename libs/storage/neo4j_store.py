@@ -35,12 +35,10 @@ class Neo4jGraphStore:
         """Create uniqueness constraints (idempotent)."""
         async with self._driver.session(database=self._db) as session:
             await session.run(
-                "CREATE CONSTRAINT prop_id IF NOT EXISTS "
-                "FOR (p:Proposition) REQUIRE p.id IS UNIQUE"
+                "CREATE CONSTRAINT prop_id IF NOT EXISTS FOR (p:Proposition) REQUIRE p.id IS UNIQUE"
             )
             await session.run(
-                "CREATE CONSTRAINT he_id IF NOT EXISTS "
-                "FOR (h:Hyperedge) REQUIRE h.id IS UNIQUE"
+                "CREATE CONSTRAINT he_id IF NOT EXISTS FOR (h:Hyperedge) REQUIRE h.id IS UNIQUE"
             )
 
     # ── Create ───────────────────────────────────────────────────────────
@@ -110,9 +108,7 @@ class Neo4jGraphStore:
     ) -> HyperEdge | None:
         """Transaction function: read one hyperedge with tail/head."""
         # Fetch the hyperedge properties
-        res = await tx.run(
-            "MATCH (h:Hyperedge {id: $eid}) RETURN h", eid=edge_id
-        )
+        res = await tx.run("MATCH (h:Hyperedge {id: $eid}) RETURN h", eid=edge_id)
         record = await res.single()
         if record is None:
             return None
@@ -180,9 +176,7 @@ class Neo4jGraphStore:
         is applied at every step.
         """
         async with self._driver.session(database=self._db) as session:
-            result = await session.execute_read(
-                self._tx_get_subgraph, node_ids, hops, edge_types
-            )
+            result = await session.execute_read(self._tx_get_subgraph, node_ids, hops, edge_types)
         return result
 
     @staticmethod
@@ -229,9 +223,7 @@ class Neo4jGraphStore:
                     "WHERE p.id IN $frontier AND h.type IN $etypes "
                     "RETURN DISTINCT h.id AS hid"
                 )
-                he_rev_res = await tx.run(
-                    he_rev_query, frontier=list(frontier), etypes=edge_types
-                )
+                he_rev_res = await tx.run(he_rev_query, frontier=list(frontier), etypes=edge_types)
             else:
                 he_rev_query = (
                     "MATCH (h:Hyperedge)-[:HEAD]->(p:Proposition) "

@@ -58,9 +58,7 @@ class FactorGraph:
     def get_neighbors(self, node_id: int) -> list[int]:
         """Get factor indices that involve this node."""
         return [
-            i
-            for i, f in enumerate(self.factors)
-            if node_id in f["tail"] or node_id in f["head"]
+            i for i, f in enumerate(self.factors) if node_id in f["tail"] or node_id in f["head"]
         ]
 
     def get_variable_ids(self) -> list[int]:

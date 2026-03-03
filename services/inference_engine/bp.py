@@ -90,15 +90,12 @@ class BeliefPropagation:
                     # Clamp to [0, 1]
                     new_belief = min(max(new_belief, 0.0), 1.0)
                     # Damping: blend new value with old belief
-                    beliefs[h] = (
-                        self._damping * new_belief
-                        + (1 - self._damping) * old_beliefs.get(h, prior)
+                    beliefs[h] = self._damping * new_belief + (1 - self._damping) * old_beliefs.get(
+                        h, prior
                     )
 
             # Check convergence
-            max_change = max(
-                abs(beliefs[nid] - old_beliefs[nid]) for nid in beliefs
-            )
+            max_change = max(abs(beliefs[nid] - old_beliefs[nid]) for nid in beliefs)
             if max_change < self._threshold:
                 break
 

@@ -128,10 +128,9 @@ class LanceStore:
         """Lazily open or create the nodes table."""
         if self._table is not None:
             return self._table
-        tables = self._db.list_tables()
-        if self.TABLE_NAME in tables:
+        try:
             self._table = self._db.open_table(self.TABLE_NAME)
-        else:
+        except Exception:
             self._table = self._db.create_table(self.TABLE_NAME, schema=_NODE_SCHEMA)
         return self._table
 
@@ -210,6 +209,28 @@ class LanceStore:
         )
         return {r["id"]: r["belief"] for r in results}
 
+    async def list_nodes(
+        self,
+        page: int = 1,
+        size: int = 50,
+        node_type: str | None = None,
+    ) -> list[Node]:
+        """List nodes with pagination and optional type filter."""
+        table = self._get_or_create_table()
+        query_builder = table.search()
+        if node_type:
+            query_builder = query_builder.where(f"type = '{node_type}'")
+        offset = (page - 1) * size
+        results = query_builder.limit(offset + size).to_list()
+        return [_row_to_node(r) for r in results[offset:]]
+
+    async def count_nodes(self, node_type: str | None = None) -> int:
+        """Count total nodes, optionally filtered by type."""
+        table = self._get_or_create_table()
+        if node_type:
+            return len(table.search().where(f"type = '{node_type}'").limit(1_000_000).to_list())
+        return table.count_rows()
+
     async def fts_search(self, query: str, k: int = 100) -> list[tuple[int, float]]:
         """Full-text search over node content.
 
@@ -223,12 +244,7 @@ class LanceStore:
         if self._fts_dirty:
             table.create_fts_index("content", replace=True)
             self._fts_dirty = False
-        results = (
-            table.search(query, query_type="fts")
-            .select(["id"])
-            .limit(k)
-            .to_list()
-        )
+        results = table.search(query, query_type="fts").select(["id"]).limit(k).to_list()
         return [(r["id"], r["_score"]) for r in results]
 
     async def close(self) -> None:

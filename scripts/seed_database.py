@@ -25,9 +25,7 @@ def load_edges(fixtures_dir: Path) -> list[HyperEdge]:
 
 
 def load_embeddings(fixtures_dir: Path) -> tuple[list[int], list[list[float]]]:
-    raw: dict[str, list[float]] = json.loads(
-        (fixtures_dir / "embeddings.json").read_text()
-    )
+    raw: dict[str, list[float]] = json.loads((fixtures_dir / "embeddings.json").read_text())
     node_ids = [int(k) for k in raw]
     vectors = [raw[k] for k in raw]
     return node_ids, vectors
