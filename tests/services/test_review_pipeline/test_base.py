@@ -6,6 +6,7 @@ from libs.models import CommitRequest, ModifyNodeOp
 
 class IncrementOperator(Operator):
     """Test operator that appends its name to step_results."""
+
     def __init__(self, name: str):
         self.name = name
 
@@ -36,9 +37,11 @@ async def test_pipeline_sequential(empty_context):
 
 
 async def test_pipeline_parallel_step(empty_context):
-    pipeline = Pipeline(steps=[
-        ParallelStep(IncrementOperator("x"), IncrementOperator("y")),
-    ])
+    pipeline = Pipeline(
+        steps=[
+            ParallelStep(IncrementOperator("x"), IncrementOperator("y")),
+        ]
+    )
     result = await pipeline.execute(empty_context)
     assert "x" in result.step_results
     assert "y" in result.step_results

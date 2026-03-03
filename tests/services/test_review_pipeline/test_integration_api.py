@@ -98,9 +98,9 @@ async def test_embedding_real_api(embedding_model):
     assert len(vec) > 0
     assert all(isinstance(v, float) for v in vec)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"EMBEDDING: dim={len(vec)}, first 5 values={vec[:5]}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
 
 @skip_no_embed
@@ -134,9 +134,9 @@ async def test_llm_client_basic(llm_client):
     assert len(response) > 0
     assert "4" in response
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"LLM BASIC RESPONSE:\n{response}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
 
 # ---------------------------------------------------------------------------
@@ -155,12 +155,12 @@ async def test_join_real_api(join_client):
     ]
     trees = await join_client.find_joins(anchor, candidates)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"JOIN RESULTS ({len(trees)} trees):")
     for t in trees:
         print(f"  target={t.target_node_id} relation={t.relation}")
         print(f"    reasoning: {t.reasoning[:200]}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     assert isinstance(trees, list)
     for tree in trees:
@@ -197,11 +197,11 @@ async def test_verify_real_api(verify_client):
     ]
     result = await verify_client.verify(trees)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("VERIFY RESULT:")
     print(f"  verified={result[0].verified}")
     print(f"  reasoning: {result[0].reasoning}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     assert len(result) == 1
     assert isinstance(result[0].verified, bool)
@@ -230,9 +230,9 @@ async def test_e2e_embed_join_verify(embedding_model, join_client, verify_client
     assert len(vectors) == 2
     assert len(vectors[0]) > 0
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("E2E PIPELINE")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Step 1 — Embed: 2 vectors, dim={len(vectors[0])}")
 
     # Step 2: Join — use first text as anchor, second as candidate
@@ -253,4 +253,4 @@ async def test_e2e_embed_join_verify(embedding_model, join_client, verify_client
             assert t.reasoning != ""
             print(f"Step 3 — Verify: verified={t.verified}")
             print(f"  {t.reasoning}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")

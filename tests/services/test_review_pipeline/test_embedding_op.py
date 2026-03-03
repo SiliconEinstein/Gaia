@@ -41,6 +41,7 @@ async def test_embedding_operator_generates_vectors(context_with_new_nodes):
 
 async def test_embedding_operator_skips_if_no_new_nodes():
     from libs.models import ModifyNodeOp
+
     req = CommitRequest(
         message="test",
         operations=[ModifyNodeOp(node_id=1, changes={"status": "deleted"})],

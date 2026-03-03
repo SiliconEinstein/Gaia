@@ -40,6 +40,7 @@ async def test_nn_search_returns_neighbors(context_with_embeddings):
 
 async def test_nn_search_skips_if_no_embeddings():
     from libs.models import ModifyNodeOp
+
     req = CommitRequest(
         message="t",
         operations=[ModifyNodeOp(node_id=1, changes={"x": 1})],
