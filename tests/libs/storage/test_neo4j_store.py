@@ -7,7 +7,7 @@ from libs.storage.neo4j_store import Neo4jGraphStore
 NEO4J_URI = os.environ.get("NEO4J_TEST_URI", "bolt://localhost:7687")
 NEO4J_USER = os.environ.get("NEO4J_TEST_USER", "neo4j")
 NEO4J_PASSWORD = os.environ.get("NEO4J_TEST_PASSWORD", "testpassword")
-NEO4J_DB = os.environ.get("NEO4J_TEST_DB", "gaiatest")
+NEO4J_DB = os.environ.get("NEO4J_TEST_DB", "neo4j")
 
 pytestmark = pytest.mark.neo4j
 
