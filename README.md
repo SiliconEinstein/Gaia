@@ -15,11 +15,10 @@ pip install -e ".[dev]"
 # Seed local databases (requires Neo4j running)
 python scripts/seed_database.py \
   --fixtures-dir tests/fixtures \
-  --db-path ./data/lancedb/gaia \
-  --neo4j-database neo4j
+  --db-path ./data/lancedb/gaia
 
 # Run API server
-GAIA_LANCEDB_PATH=./data/lancedb/gaia GAIA_NEO4J_DATABASE=neo4j \
+GAIA_LANCEDB_PATH=./data/lancedb/gaia \
   uvicorn services.gateway.app:create_app --factory --reload --port 8000
 
 # Run frontend dashboard

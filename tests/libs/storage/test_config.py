@@ -6,7 +6,7 @@ def test_default_config():
     assert config.deployment_mode == "local"
     assert config.lancedb_path == "/data/lancedb/gaia"
     assert config.neo4j_uri == "bolt://localhost:7687"
-    assert config.neo4j_database == "gaia"
+    assert config.neo4j_database == "neo4j"
 
 
 def test_production_config():

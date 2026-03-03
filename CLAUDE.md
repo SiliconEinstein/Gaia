@@ -32,11 +32,11 @@ ruff check .
 ruff format .
 
 # Run the API server (Neo4j auth is disabled locally)
-GAIA_LANCEDB_PATH=./data/lancedb/gaia GAIA_NEO4J_DATABASE=neo4j \
+GAIA_LANCEDB_PATH=./data/lancedb/gaia \
   uvicorn services.gateway.app:create_app --factory --reload --host 0.0.0.0 --port 8000
 
 # Seed databases with fixture data (run once after clone)
-python scripts/seed_database.py --fixtures-dir tests/fixtures --db-path ./data/lancedb/gaia --neo4j-database neo4j
+python scripts/seed_database.py --fixtures-dir tests/fixtures --db-path ./data/lancedb/gaia
 
 # Run frontend dev server
 cd frontend && npm install && npm run dev

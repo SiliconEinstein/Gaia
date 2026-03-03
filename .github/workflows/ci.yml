@@ -40,8 +40,6 @@ jobs:
           ruff format --check .
 
       - name: Run tests
-        env:
-          GAIA_NEO4J_DATABASE: neo4j
         run: pytest --cov=libs --cov=services tests -v
 
       - name: Upload coverage
