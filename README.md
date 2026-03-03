@@ -28,14 +28,42 @@ cd frontend && npm install && npm run dev
 
 ## Architecture
 
-```
-services/gateway/         → FastAPI HTTP API (routes, dependency injection)
-services/search_engine/   → Multi-path recall (vector + BM25 + topology)
-services/commit_engine/   → 3-step commit workflow (submit → review → merge)
-services/inference_engine/ → Loopy belief propagation on factor graphs
-libs/models.py            → Core Pydantic models (Node, HyperEdge, Commit)
-libs/storage/             → Storage backends (LanceDB, Neo4j, Vector Index)
-frontend/                 → React + TypeScript visualization dashboard
+```mermaid
+graph TB
+    subgraph Frontend
+        UI[React Dashboard<br><i>vis-network + KaTeX</i>]
+    end
+
+    subgraph Gateway["services/gateway — FastAPI"]
+        Routes[Routes<br>/commits /nodes /search]
+        DI[Dependency Injection]
+    end
+
+    subgraph Engines["Service Engines"]
+        CE[Commit Engine<br><i>submit → review → merge</i>]
+        SE[Search Engine<br><i>vector + BM25 + topology</i>]
+        IE[Inference Engine<br><i>loopy belief propagation</i>]
+    end
+
+    subgraph Storage["libs/storage — StorageManager"]
+        Lance[(LanceDB<br>nodes, FTS)]
+        Neo4j[(Neo4j<br>graph topology)]
+        Vec[(Vector Index<br>embeddings)]
+    end
+
+    subgraph Models["libs/models"]
+        M[Node · HyperEdge · Commit]
+    end
+
+    UI -- HTTP --> Routes
+    Routes --> DI
+    DI --> CE & SE & IE
+    CE -- triple write --> Lance & Neo4j & Vec
+    SE -- multi-path recall --> Lance & Neo4j & Vec
+    IE -- factor graph --> Neo4j
+    IE -- beliefs --> Lance
+    CE & SE & IE -.-> M
+    Storage -.-> M
 ```
 
 ### Storage
