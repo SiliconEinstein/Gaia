@@ -4,54 +4,62 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Gaia is a Large Knowledge Model (LKM) for billion-scale reasoning over academic knowledge. It stores propositions as nodes and reasoning relationships as hyperedges in a hypergraph, with a Git-like commit workflow (submit → review → merge) and probabilistic inference via loopy belief propagation.
+Gaia is a Large Knowledge Model (LKM) — a billion-scale reasoning hypergraph for knowledge representation and inference. It stores propositions as nodes and reasoning relationships as hyperedges, with a Git-like commit workflow (submit → review → merge) and probabilistic inference via loopy belief propagation.
 
-## Commands
+**Stack:** Python 3.12+, FastAPI, Pydantic v2, LanceDB, Neo4j, NumPy/PyArrow
 
-### Install
+## Common Commands
+
 ```bash
+# Install dependencies
 pip install -e ".[dev]"
-```
 
-### Run Tests
-```bash
-pytest tests                                          # all tests
-pytest tests/libs/test_models.py                      # single file
-pytest tests/libs/test_models.py::test_node_defaults  # single test
-pytest -m "not neo4j" tests                           # skip Neo4j tests
-pytest --cov=libs --cov=services tests                # with coverage
-```
+# Run all tests (auto-skips Neo4j tests if unavailable)
+pytest
 
-Neo4j tests are auto-skipped when Neo4j is unavailable (detected in `tests/conftest.py`). All async tests run automatically via `asyncio_mode = "auto"`.
+# Run tests with coverage
+pytest --cov=libs --cov=services tests
 
-### Lint & Format
-```bash
-ruff check .     # lint
-ruff format .    # format
-```
+# Run a single test file / single test
+pytest tests/libs/storage/test_lance_store.py
+pytest tests/libs/test_models.py::test_node_defaults
 
-Style: 100-char line length, Python 3.12 target.
+# Run only non-Neo4j tests
+pytest -m "not neo4j"
 
-### Run Server
-```bash
-uvicorn services.gateway.app:create_app --reload --host 0.0.0.0 --port 8000
-```
+# Lint and format
+ruff check .
+ruff format .
 
-### Seed Database
-```bash
+# Run the API server
+uvicorn services.gateway.app:create_app --factory --reload --host 0.0.0.0 --port 8000
+
+# Seed databases with fixture data
 python scripts/seed_database.py --fixtures-dir tests/fixtures --db-path /data/lancedb/gaia --neo4j-password testpassword
 ```
 
+All async tests run automatically via `asyncio_mode = "auto"`.
+
 ## Architecture
 
-### Two-Package Monorepo
+### Layer Structure
 
-- **`libs/`** — Shared models and storage abstractions (no business logic)
-- **`services/`** — Four service modules, each with its own engine
+```
+services/gateway/        → FastAPI HTTP API (routes, dependency injection)
+    ↓ uses
+services/search_engine/  → Multi-path recall (vector + BM25 + topology) + score merging
+services/commit_engine/  → 3-step commit workflow (submit → review → merge)
+services/inference_engine/→ Loopy belief propagation on factor graphs
+    ↓ uses
+libs/models.py           → Core Pydantic models (Node, HyperEdge, Commit, Operations)
+libs/storage/            → Storage backends (LanceDB, Neo4j, Vector Index)
+```
+
+Dependencies flow downward only. `libs` has no service dependencies. Services depend on `libs` but not on each other (except gateway depends on all services).
 
 ### Storage Layer (`libs/storage/`)
 
-Three complementary backends managed by `StorageManager` (a thin container, no business logic):
+Three complementary backends managed by `StorageManager`:
 
 | Backend | Store Class | Purpose |
 |---------|------------|---------|
@@ -59,22 +67,22 @@ Three complementary backends managed by `StorageManager` (a thin container, no b
 | **Neo4j** | `Neo4jGraphStore` | Graph topology, hyperedge relationships (`:TAIL`/`:HEAD`) |
 | **Vector** | `VectorSearchClient` (ABC) | Embedding similarity search; local impl uses LanceDB |
 
-Neo4j is optional — the system degrades gracefully without it. Configuration lives in `libs/storage/config.py` (`StorageConfig`).
-
-### Service Engines (`services/`)
-
-| Engine | Path | Responsibility |
-|--------|------|----------------|
-| **CommitEngine** | `services/commit_engine/` | 3-step workflow: validate → LLM review (stub in Phase 1) → merge to storage |
-| **SearchEngine** | `services/search_engine/` | Multi-path recall (vector + BM25 + topology) with score normalization and merging |
-| **InferenceEngine** | `services/inference_engine/` | Loopy belief propagation on factor graphs extracted from Neo4j |
-| **Gateway** | `services/gateway/` | FastAPI app factory, dependency injection (`deps.py`), route handlers |
+Neo4j is optional — the system degrades gracefully without it. All writes go through triple-write in the commit engine merger: LanceDB nodes → Neo4j edges → Vector embeddings.
 
 ### Core Data Models (`libs/models.py`)
 
 - **Node** — A proposition with `content`, `prior`, `belief`, `keywords`, `type` (paper-extract, join, deduction, conjecture)
 - **HyperEdge** — A reasoning link with `tail[]` → `head[]`, `probability`, `reasoning` steps, `type` (paper-extract, join, meet, contradiction, retraction)
 - **Commit** — A batch of operations with status state machine: `pending_review` → `reviewed` → `merged` (or `rejected`)
+
+### Key Patterns
+
+- **Fully async** — all I/O is `async def`, tests use `asyncio_mode = "auto"`
+- **Dependency injection** — `services/gateway/deps.py` holds a global `Dependencies` singleton initialized at startup; tests inject custom instances via `create_app(dependencies=...)`
+- **Graceful degradation** — Neo4j, vector search, and LLM review are all optional; topology recall is skipped when graph is unavailable
+- **Commit workflow** — operations (AddEdge, ModifyNode, ModifyEdge) are validated, reviewed (stub LLM auto-approves in Phase 1), then merged to all backends
+- **Search merging** — three recall paths run in parallel, scores are min-max normalized, weighted (vector=0.5, bm25=0.3, topology=0.2), deduped, and top-k filtered
+- **ID generation** — file-based with asyncio lock (`libs/storage/id_generator.py`), single-process safe
 
 ### API Routes (`services/gateway/routes/`)
 
@@ -85,6 +93,20 @@ Neo4j is optional — the system degrades gracefully without it. Configuration l
 ### Dependency Injection
 
 `services/gateway/deps.py` holds a global `Dependencies` singleton initialized during FastAPI startup. All engines receive `StorageManager` and are wired together there.
+
+## Testing
+
+- Tests live in `tests/` mirroring the source structure
+- Neo4j tests are marked `@pytest.mark.neo4j` and auto-skipped if Neo4j is unreachable (checked in `conftest.py`)
+- E2E integration tests (`tests/integration/test_e2e.py`) run without Neo4j using `tmp_path` for ephemeral LanceDB
+- Test fixtures in `tests/fixtures/` — note `embeddings.json` is git-ignored (large file)
+
+## Code Style
+
+- Ruff for linting/formatting, line length 100, target Python 3.12
+- Type hints use PEP 604 union syntax (`X | None` not `Optional[X]`)
+- Google-style docstrings
+- Pydantic v2 API: `.model_dump()`, `.model_validate()`, `.model_validate_json()`
 
 ## Design Documents
 
