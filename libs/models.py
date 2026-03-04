@@ -183,6 +183,7 @@ class Commit(BaseModel):
     check_results: dict | None = None
     review_results: dict | None = None
     merge_results: dict | None = None
+    review_job_id: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

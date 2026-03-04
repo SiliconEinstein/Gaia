@@ -280,3 +280,24 @@ def test_merge_result_backward_compat():
     assert result.bp_results is None
     assert result.join_edges_created == []
     assert result.beliefs_persisted == {}
+
+
+def test_commit_review_job_id():
+    commit = Commit(
+        commit_id="c1",
+        status="pending_review",
+        message="test",
+        operations=[],
+        review_job_id="job-123",
+    )
+    assert commit.review_job_id == "job-123"
+
+
+def test_commit_review_job_id_default_none():
+    commit = Commit(
+        commit_id="c1",
+        status="pending_review",
+        message="test",
+        operations=[],
+    )
+    assert commit.review_job_id is None
