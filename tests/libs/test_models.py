@@ -248,3 +248,35 @@ def test_detailed_review_result_no_bp():
         operations=[],
     )
     assert result.bp_results is None
+
+
+def test_merge_result_with_bp_details():
+    result = MergeResult(
+        success=True,
+        new_node_ids=["1", "2"],
+        new_edge_ids=["10"],
+        errors=[],
+        bp_results=BPResults(
+            belief_updates={"1": 0.9},
+            iterations=5,
+            converged=True,
+            affected_nodes=["1"],
+        ),
+        join_edges_created=["10"],
+        beliefs_persisted={"1": 0.9},
+    )
+    assert result.bp_results.converged is True
+    assert result.join_edges_created == ["10"]
+    assert result.beliefs_persisted == {"1": 0.9}
+
+
+def test_merge_result_backward_compat():
+    result = MergeResult(
+        success=True,
+        new_node_ids=[],
+        new_edge_ids=[],
+        errors=[],
+    )
+    assert result.bp_results is None
+    assert result.join_edges_created == []
+    assert result.beliefs_persisted == {}

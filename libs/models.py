@@ -168,6 +168,9 @@ class MergeResult(BaseModel):
     new_node_ids: list[int] = []
     new_edge_ids: list[int] = []
     errors: list[str] = []
+    bp_results: BPResults | None = None
+    join_edges_created: list[str] = []
+    beliefs_persisted: dict[str, float] = {}
 
 
 class Commit(BaseModel):
