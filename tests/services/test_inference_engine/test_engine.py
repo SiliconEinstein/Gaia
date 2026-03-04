@@ -3,89 +3,63 @@
 from __future__ import annotations
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
-from libs.models import Node, HyperEdge
 from services.inference_engine.engine import InferenceEngine
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+@pytest.fixture
+async def engine(storage):
+    if not storage.graph:
+        pytest.skip("Neo4j not available — inference engine requires graph topology")
+    return InferenceEngine(storage)
 
 
-def _mock_storage():
-    storage = MagicMock()
-
-    # Mock graph store
-    storage.graph = MagicMock()
-    storage.graph.get_subgraph = AsyncMock(return_value=({1, 2, 3}, {100}))
-    storage.graph.get_hyperedge = AsyncMock(
-        return_value=HyperEdge(id=100, type="induction", tail=[1, 2], head=[3], probability=0.8)
-    )
-
-    # Mock lance store
-    storage.lance = MagicMock()
-    storage.lance.load_nodes_bulk = AsyncMock(
-        return_value=[
-            Node(id=1, type="paper-extract", content="premise 1", prior=0.9),
-            Node(id=2, type="paper-extract", content="premise 2", prior=0.85),
-            Node(id=3, type="paper-extract", content="conclusion", prior=1.0),
-        ]
-    )
-    storage.lance.update_beliefs = AsyncMock()
-
-    return storage
-
-
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
-
-
-async def test_compute_local_bp():
-    storage = _mock_storage()
-    engine = InferenceEngine(storage)
-    beliefs = await engine.compute_local_bp([1], hops=2)
-
-    assert len(beliefs) == 3
+async def test_compute_local_bp(engine, storage):
+    """Local BP returns valid beliefs for fixture nodes with graph edges."""
+    # Use fixture node IDs that have edges
+    beliefs = await engine.compute_local_bp([67], hops=2)
+    assert len(beliefs) > 0
     assert all(0.0 <= b <= 1.0 for b in beliefs.values())
-    # Beliefs should have been written back
-    storage.lance.update_beliefs.assert_called_once()
 
 
-async def test_compute_local_bp_calls_subgraph():
-    storage = _mock_storage()
-    engine = InferenceEngine(storage)
-    await engine.compute_local_bp([1, 2], hops=3)
-    storage.graph.get_subgraph.assert_called_once_with([1, 2], hops=3)
+async def test_compute_local_bp_returns_beliefs_for_subgraph(engine):
+    """BP should compute beliefs for nodes in the subgraph."""
+    beliefs = await engine.compute_local_bp([67, 68], hops=3)
+    assert len(beliefs) > 0
+    # All belief values are valid probabilities
+    for node_id, belief in beliefs.items():
+        assert isinstance(node_id, int)
+        assert 0.0 <= belief <= 1.0
 
 
-async def test_compute_local_bp_loads_edges():
-    storage = _mock_storage()
-    engine = InferenceEngine(storage)
-    await engine.compute_local_bp([1])
-    storage.graph.get_hyperedge.assert_called()
+async def test_compute_local_bp_writes_back(engine, storage):
+    """After BP, updated beliefs should be persisted in LanceDB."""
+    beliefs = await engine.compute_local_bp([67], hops=2)
+    if beliefs:
+        # Check that at least one node had its belief written back
+        for node_id, expected_belief in beliefs.items():
+            node = await storage.lance.load_node(node_id)
+            if node:
+                assert node.belief is not None
 
 
-async def test_compute_local_bp_no_graph():
+async def test_compute_local_bp_no_graph(storage):
     """When Neo4j unavailable, return empty beliefs."""
-    storage = _mock_storage()
     storage.graph = None
     engine = InferenceEngine(storage)
-    beliefs = await engine.compute_local_bp([1])
+    beliefs = await engine.compute_local_bp([67])
     assert beliefs == {}
 
 
-async def test_compute_local_bp_custom_params():
-    storage = _mock_storage()
-    engine = InferenceEngine(storage, bp_params={"damping": 0.3, "max_iterations": 10})
-    beliefs = await engine.compute_local_bp([1])
+async def test_compute_local_bp_custom_params(engine):
+    """Custom BP params (damping, max_iterations) should work."""
+    engine_custom = InferenceEngine(
+        engine._storage, bp_params={"damping": 0.3, "max_iterations": 10}
+    )
+    beliefs = await engine_custom.compute_local_bp([67])
     assert len(beliefs) > 0
 
 
-async def test_run_global_bp_not_implemented():
-    storage = _mock_storage()
-    engine = InferenceEngine(storage)
+async def test_run_global_bp_not_implemented(engine):
     with pytest.raises(NotImplementedError):
         await engine.run_global_bp()

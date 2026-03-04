@@ -1,31 +1,31 @@
 # tests/services/test_search_engine/test_bm25_recall.py
+"""BM25Recall tests — real LanceDB FTS instead of mocks."""
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+
 from services.search_engine.recall.bm25 import BM25Recall
 
 
 @pytest.fixture
-def mock_lance_store():
-    store = MagicMock()
-    store.fts_search = AsyncMock(return_value=[(1, 5.2), (3, 3.1), (7, 1.0)])
-    return store
+async def bm25(storage):
+    return BM25Recall(storage.lance)
 
 
-async def test_recall_delegates_to_fts(mock_lance_store):
-    recall = BM25Recall(mock_lance_store)
-    results = await recall.recall("superconductivity", k=50)
-    assert results == [(1, 5.2), (3, 3.1), (7, 1.0)]
-    mock_lance_store.fts_search.assert_called_once_with("superconductivity", k=50)
+async def test_recall_finds_matching_content(bm25):
+    """BM25 should find fixture nodes containing 'thallium'."""
+    results = await bm25.recall("thallium oxide", k=50)
+    assert len(results) > 0
+    # Results are (node_id, score) tuples
+    for node_id, score in results:
+        assert isinstance(node_id, int)
+        assert score > 0
 
 
-async def test_recall_empty(mock_lance_store):
-    mock_lance_store.fts_search.return_value = []
-    recall = BM25Recall(mock_lance_store)
-    results = await recall.recall("nonexistent query")
+async def test_recall_empty_for_nonsense(bm25):
+    results = await bm25.recall("xyzzy9999nonsense", k=50)
     assert results == []
 
 
-async def test_recall_default_k(mock_lance_store):
-    recall = BM25Recall(mock_lance_store)
-    await recall.recall("test query")
-    mock_lance_store.fts_search.assert_called_once_with("test query", k=100)
+async def test_recall_respects_k(bm25):
+    results = await bm25.recall("superconductor", k=3)
+    assert len(results) <= 3
