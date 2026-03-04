@@ -38,10 +38,9 @@ class Dependencies:
         """Create all services. Call once at startup."""
         config = storage_config or self.config
         self.storage = StorageManager(config)
-        self.search_engine = SearchEngine(self.storage)
-        commit_store = CommitStore(storage_path=config.lancedb_path + "/commits")
-
         embedding_model = StubEmbeddingModel()
+        self.search_engine = SearchEngine(self.storage, embedding_model=embedding_model)
+        commit_store = CommitStore(storage_path=config.lancedb_path + "/commits")
         pipeline = Pipeline(
             steps=[
                 EmbeddingOperator(embedding_model),

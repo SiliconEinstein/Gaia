@@ -3,13 +3,14 @@
 
 import pytest
 
+from libs.embedding import StubEmbeddingModel
 from services.commit_engine.dedup import DedupChecker
 from services.search_engine.engine import SearchEngine
 
 
 @pytest.fixture
 async def checker(storage):
-    search = SearchEngine(storage)
+    search = SearchEngine(storage, embedding_model=StubEmbeddingModel())
     return DedupChecker(search_engine=search)
 
 
@@ -18,7 +19,6 @@ async def test_check_finds_duplicates_via_bm25(checker):
     # Use content from fixture node 67 about "thallium oxide" synthesis
     candidates = await checker.check(
         contents=["thallium oxide Tl2O3 synthesis precursors superconducting"],
-        embeddings=[[0.0] * 512],  # dummy embedding (512-dim matches fixture index)
         threshold=0.01,  # low threshold since BM25 scores may be modest
     )
     assert len(candidates) == 1  # one input
@@ -32,7 +32,6 @@ async def test_check_filters_below_threshold(checker):
     """High threshold filters out low-score matches."""
     candidates = await checker.check(
         contents=["something completely unrelated xyz123"],
-        embeddings=[[0.0] * 512],
         threshold=0.99,  # very high threshold
     )
     assert len(candidates) == 1
@@ -42,12 +41,11 @@ async def test_check_filters_below_threshold(checker):
 async def test_check_multiple_contents(checker):
     candidates = await checker.check(
         contents=["thallium oxide superconductor", "completely unrelated xyz"],
-        embeddings=[[0.0] * 512, [0.0] * 512],
         threshold=0.01,
     )
     assert len(candidates) == 2
 
 
 async def test_check_empty_input(checker):
-    candidates = await checker.check(contents=[], embeddings=[])
+    candidates = await checker.check(contents=[])
     assert candidates == []

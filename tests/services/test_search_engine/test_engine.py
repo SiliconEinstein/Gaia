@@ -3,19 +3,19 @@
 
 import pytest
 
+from libs.embedding import StubEmbeddingModel
 from services.search_engine.engine import SearchEngine
 from services.search_engine.models import EdgeFilters, NodeFilters
 
 
 @pytest.fixture
 async def search(storage):
-    return SearchEngine(storage)
+    return SearchEngine(storage, embedding_model=StubEmbeddingModel())
 
 
 async def test_search_nodes_basic(search):
     results = await search.search_nodes(
-        query="superconductivity",
-        embedding=[0.0] * 512,
+        text="superconductivity",
         k=10,
     )
     assert len(results) > 0
@@ -28,8 +28,7 @@ async def test_search_nodes_basic(search):
 async def test_search_nodes_with_type_filter(search):
     filters = NodeFilters(type=["paper-extract"])
     results = await search.search_nodes(
-        query="superconductor",
-        embedding=[0.0] * 512,
+        text="superconductor",
         k=10,
         filters=filters,
     )
@@ -39,8 +38,7 @@ async def test_search_nodes_with_type_filter(search):
 
 async def test_search_nodes_bm25_only(search):
     results = await search.search_nodes(
-        query="thallium oxide",
-        embedding=[0.0] * 512,
+        text="thallium oxide",
         k=10,
         paths=["bm25"],
     )
@@ -51,8 +49,7 @@ async def test_search_nodes_bm25_only(search):
 
 async def test_search_nodes_vector_only(search):
     results = await search.search_nodes(
-        query="test",
-        embedding=[0.0] * 512,
+        text="test",
         k=10,
         paths=["vector"],
     )
@@ -64,10 +61,9 @@ async def test_search_nodes_vector_only(search):
 async def test_search_edges_no_graph(storage_empty):
     """When graph is None, search_edges returns empty."""
     storage_empty.graph = None
-    engine = SearchEngine(storage_empty)
+    engine = SearchEngine(storage_empty, embedding_model=StubEmbeddingModel())
     results = await engine.search_edges(
-        query="test",
-        embedding=[0.0] * 512,
+        text="test",
         k=10,
     )
     assert results == []
@@ -77,8 +73,7 @@ async def test_search_nodes_min_belief_filter(search):
     """Only nodes with belief >= threshold should pass."""
     filters = NodeFilters(min_belief=0.5)
     results = await search.search_nodes(
-        query="superconductor",
-        embedding=[0.0] * 512,
+        text="superconductor",
         k=10,
         filters=filters,
     )
@@ -90,8 +85,7 @@ async def test_search_nodes_status_filter(search):
     """Default status filter is ['active']."""
     filters = NodeFilters()  # defaults to status=["active"]
     results = await search.search_nodes(
-        query="superconductor",
-        embedding=[0.0] * 512,
+        text="superconductor",
         k=10,
         filters=filters,
     )
@@ -104,8 +98,7 @@ async def test_search_edges_with_graph(search, storage):
     if not storage.graph:
         pytest.skip("Neo4j not available")
     results = await search.search_edges(
-        query="superconductor",
-        embedding=[0.0] * 512,
+        text="superconductor",
         k=10,
     )
     assert len(results) > 0
@@ -120,8 +113,7 @@ async def test_search_edges_with_type_filter(search, storage):
         pytest.skip("Neo4j not available")
     filters = EdgeFilters(type=["abstraction"])
     results = await search.search_edges(
-        query="superconductor",
-        embedding=[0.0] * 512,
+        text="superconductor",
         k=10,
         filters=filters,
     )

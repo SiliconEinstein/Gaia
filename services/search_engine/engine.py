@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
+from libs.embedding import EmbeddingModel
 from libs.storage.manager import StorageManager
 from services.search_engine.merger import ResultMerger
 from services.search_engine.models import (
@@ -25,8 +26,11 @@ class SearchEngine:
     and applies caller-supplied filters.
     """
 
-    def __init__(self, storage: StorageManager) -> None:
+    def __init__(
+        self, storage: StorageManager, embedding_model: EmbeddingModel | None = None
+    ) -> None:
         self._storage = storage
+        self._embedding_model = embedding_model
         self._vector_recall = VectorRecall(storage.vector)
         self._bm25_recall = BM25Recall(storage.lance)
         self._topology_recall = TopologyRecall(storage.graph) if storage.graph else None
@@ -36,13 +40,16 @@ class SearchEngine:
 
     async def search_nodes(
         self,
-        query: str,
-        embedding: list[float],
+        text: str,
         k: int = 50,
         filters: NodeFilters | None = None,
         paths: list[str] | None = None,
     ) -> list[ScoredNode]:
         """Run multi-path recall, merge, load nodes, filter, and return scored results."""
+        if not self._embedding_model:
+            raise ValueError("No embedding model configured")
+        embedding = (await self._embedding_model.embed([text]))[0]
+
         active_paths = paths or ["vector", "bm25", "topology"]
         raw_results: dict[str, list[tuple[int, float]]] = {}
 
@@ -51,7 +58,7 @@ class SearchEngine:
         if "vector" in active_paths:
             coros.append(("vector", self._vector_recall.recall(embedding, k=100)))
         if "bm25" in active_paths:
-            coros.append(("bm25", self._bm25_recall.recall(query, k=100)))
+            coros.append(("bm25", self._bm25_recall.recall(text, k=100)))
 
         if coros:
             gathered = await asyncio.gather(*(coro for _, coro in coros))
@@ -88,8 +95,7 @@ class SearchEngine:
 
     async def search_edges(
         self,
-        query: str,
-        embedding: list[float],
+        text: str,
         k: int = 50,
         filters: EdgeFilters | None = None,
         paths: list[str] | None = None,
@@ -102,7 +108,7 @@ class SearchEngine:
             return []
 
         # 1. Find relevant nodes
-        scored_nodes = await self.search_nodes(query=query, embedding=embedding, k=k, paths=paths)
+        scored_nodes = await self.search_nodes(text=text, k=k, paths=paths)
         if not scored_nodes:
             return []
 

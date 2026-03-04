@@ -8,13 +8,15 @@ Graph operations are gracefully skipped when graph=None.
 import asyncio
 
 import pytest
-import numpy as np
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 from services.gateway.app import create_app
 from services.gateway.deps import Dependencies
 from libs.storage import StorageConfig
+from libs.embedding import StubEmbeddingModel
 from libs.models import Node
+
+_stub_emb = StubEmbeddingModel()
 
 
 @pytest.fixture
@@ -43,10 +45,9 @@ async def async_app_client(tmp_path):
         yield client, dep
 
 
-def _embedding(dim=1024):
-    """Generate a random unit-norm embedding vector."""
-    vec = np.random.randn(dim).astype(np.float32)
-    return (vec / np.linalg.norm(vec)).tolist()
+async def _embed(text: str) -> list[float]:
+    """Generate a deterministic embedding for test seeding."""
+    return (await _stub_emb.embed([text]))[0]
 
 
 class TestHealthCheck:
@@ -291,16 +292,17 @@ class TestSearchWorkflow:
         ]
         asyncio.get_event_loop().run_until_complete(dep.storage.lance.save_nodes(nodes))
 
-        # Seed vectors
-        embs = [_embedding() for _ in range(2)]
+        # Seed vectors using the same stub model the search engine uses
+        embs = asyncio.get_event_loop().run_until_complete(
+            _stub_emb.embed([n.content for n in nodes])
+        )
         asyncio.get_event_loop().run_until_complete(dep.storage.vector.insert_batch([1, 2], embs))
 
         # Search via the API
         resp = client.post(
             "/search/nodes",
             json={
-                "query": "superconductivity",
-                "embedding": _embedding(),
+                "text": "superconductivity",
                 "k": 10,
                 "paths": ["vector", "bm25"],
             },
@@ -315,8 +317,7 @@ class TestSearchWorkflow:
         resp = client.post(
             "/search/nodes",
             json={
-                "query": "nothing",
-                "embedding": _embedding(),
+                "text": "nothing",
                 "k": 10,
                 "paths": ["bm25"],
             },
@@ -330,18 +331,18 @@ class TestSearchWorkflow:
         client, dep = app_client
         import asyncio
 
-        # Seed a node + its embedding
+        # Seed a node + its embedding using the stub model
         node = Node(id=1, type="paper-extract", content="hydrogen sulfide")
         asyncio.get_event_loop().run_until_complete(dep.storage.lance.save_nodes([node]))
-        emb = _embedding()
+        emb = asyncio.get_event_loop().run_until_complete(_embed("hydrogen sulfide"))
         asyncio.get_event_loop().run_until_complete(dep.storage.vector.insert_batch([1], [emb]))
 
-        # Search using only vector path
+        # Search using only vector path — "hydrogen sulfide" query will produce
+        # the same embedding as the seeded vector, guaranteeing a hit
         resp = client.post(
             "/search/nodes",
             json={
-                "query": "hydrogen",
-                "embedding": emb,  # use same embedding to guarantee a hit
+                "text": "hydrogen sulfide",
                 "k": 10,
                 "paths": ["vector"],
             },
@@ -349,7 +350,7 @@ class TestSearchWorkflow:
         assert resp.status_code == 200
         results = resp.json()
         assert isinstance(results, list)
-        # With the same embedding, we should find the node
+        # With the same text, we should find the node
         assert len(results) >= 1
 
     def test_search_bm25_only(self, app_client):
@@ -363,8 +364,7 @@ class TestSearchWorkflow:
         resp = client.post(
             "/search/nodes",
             json={
-                "query": "superconductor",
-                "embedding": _embedding(),
+                "text": "superconductor",
                 "k": 10,
                 "paths": ["bm25"],
             },
@@ -382,15 +382,15 @@ class TestSearchWorkflow:
 
         node = Node(id=1, type="paper-extract", content="structure test node")
         asyncio.get_event_loop().run_until_complete(dep.storage.lance.save_nodes([node]))
+        emb = asyncio.get_event_loop().run_until_complete(_embed("structure test node"))
         asyncio.get_event_loop().run_until_complete(
-            dep.storage.vector.insert_batch([1], [_embedding()])
+            dep.storage.vector.insert_batch([1], [emb])
         )
 
         resp = client.post(
             "/search/nodes",
             json={
-                "query": "structure",
-                "embedding": _embedding(),
+                "text": "structure",
                 "k": 10,
                 "paths": ["bm25"],
             },
@@ -442,8 +442,7 @@ class TestFullPipeline:
         resp = client.post(
             "/search/nodes",
             json={
-                "query": "LaH10",
-                "embedding": _embedding(),
+                "text": "LaH10",
                 "k": 10,
                 "paths": ["bm25"],
             },
@@ -483,8 +482,7 @@ class TestFullPipeline:
         resp = client.post(
             "/search/nodes",
             json={
-                "query": "ambient pressure",
-                "embedding": _embedding(),
+                "text": "ambient pressure",
                 "k": 10,
                 "paths": ["bm25"],
             },

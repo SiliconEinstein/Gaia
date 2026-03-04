@@ -19,7 +19,6 @@ class DedupChecker:
     async def check(
         self,
         contents: list[str],
-        embeddings: list[list[float]],
         threshold: float = 0.8,
     ) -> list[list[DedupCandidate]]:
         """For each content string, find potential duplicates.
@@ -29,10 +28,9 @@ class DedupChecker:
         """
         results: list[list[DedupCandidate]] = []
 
-        for content, embedding in zip(contents, embeddings):
+        for content in contents:
             scored_nodes = await self._search_engine.search_nodes(
-                query=content,
-                embedding=embedding,
+                text=content,
                 k=10,
                 paths=["vector", "bm25"],
             )
