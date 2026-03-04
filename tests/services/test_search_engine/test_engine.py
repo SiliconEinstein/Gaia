@@ -16,7 +16,7 @@ def _make_mock_storage(tmp_path):
         return_value=[
             Node(id=1, type="paper-extract", content="YH10 superconductivity", status="active"),
             Node(id=2, type="paper-extract", content="LaH10 experiment", status="active"),
-            Node(id=3, type="join", content="merged proposition", status="active"),
+            Node(id=3, type="abstraction", content="merged proposition", status="active"),
         ]
     )
 
@@ -95,7 +95,7 @@ async def test_search_nodes_min_belief_filter():
         return_value=[
             Node(id=1, type="paper-extract", content="high belief", status="active", belief=0.9),
             Node(id=2, type="paper-extract", content="low belief", status="active", belief=0.2),
-            Node(id=3, type="join", content="no belief", status="active", belief=None),
+            Node(id=3, type="abstraction", content="no belief", status="active", belief=None),
         ]
     )
     engine = SearchEngine(storage)
@@ -146,7 +146,7 @@ async def test_search_edges_with_graph():
     storage.graph.get_hyperedge = AsyncMock(
         side_effect=lambda eid: HyperEdge(
             id=eid,
-            type="join",
+            type="abstraction",
             tail=[1],
             head=[2],
             verified=False,
@@ -179,13 +179,13 @@ async def test_search_edges_with_filters():
     )
     storage.graph.get_hyperedge = AsyncMock(
         side_effect=[
-            HyperEdge(id=100, type="join", tail=[1], head=[2], verified=True),
+            HyperEdge(id=100, type="abstraction", tail=[1], head=[2], verified=True),
             HyperEdge(id=101, type="contradiction", tail=[1], head=[2], verified=False),
         ]
     )
 
     engine = SearchEngine(storage)
-    filters = EdgeFilters(type=["join"])
+    filters = EdgeFilters(type=["abstraction"])
     results = await engine.search_edges(
         query="test",
         embedding=[0.1] * 1024,
@@ -193,4 +193,4 @@ async def test_search_edges_with_filters():
         filters=filters,
     )
     for r in results:
-        assert r.edge.type == "join"
+        assert r.edge.type == "abstraction"

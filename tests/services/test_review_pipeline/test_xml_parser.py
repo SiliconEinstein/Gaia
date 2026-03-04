@@ -75,7 +75,7 @@ def test_parse_join_output_special_chars_in_reason():
 # ---------------------------------------------------------------------------
 
 SAMPLE_VERIFY_XML = """\
-<verification edge_id="10" type="join">
+<verification edge_id="10" type="abstraction">
   <result>pass</result>
   <checks>
     <check child="5" entails_parent="true">
@@ -112,7 +112,7 @@ def test_parse_verify_output_pass():
 
 def test_parse_verify_output_fail():
     xml = """\
-<verification edge_id="20" type="join">
+<verification edge_id="20" type="abstraction">
   <result>fail</result>
   <checks>
     <check child="7" entails_parent="false">

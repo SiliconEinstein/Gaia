@@ -75,8 +75,8 @@ Neo4j is optional — the system degrades gracefully without it. All writes go t
 
 ### Core Data Models (`libs/models.py`)
 
-- **Node** — A proposition with `content`, `prior`, `belief`, `keywords`, `type` (paper-extract, join, deduction, conjecture)
-- **HyperEdge** — A reasoning link with `tail[]` → `head[]`, `probability`, `reasoning` steps, `type` (paper-extract, join, meet, contradiction, retraction)
+- **Node** — A proposition with `content`, `prior`, `belief`, `keywords`, `type` (paper-extract, abstraction, deduction, conjecture)
+- **HyperEdge** — A reasoning link with `tail[]` → `head[]`, `probability`, `reasoning` steps, `type` (paper-extract, abstraction, induction, contradiction, retraction)
 - **Commit** — A batch of operations with status state machine: `pending_review` → `reviewed` → `merged` (or `rejected`)
 
 ### Key Patterns

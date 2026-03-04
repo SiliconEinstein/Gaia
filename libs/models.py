@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 class Node(BaseModel):
     id: int
-    type: str  # paper-extract | join | deduction | conjecture | ...
+    type: str  # paper-extract | abstraction | deduction | conjecture | ...
     subtype: str | None = None
     title: str | None = None
     content: str | dict | list
@@ -26,7 +26,7 @@ class Node(BaseModel):
 
 class HyperEdge(BaseModel):
     id: int
-    type: str  # paper-extract | join | meet | contradiction | retraction
+    type: str  # paper-extract | abstraction | induction | contradiction | retraction
     subtype: str | None = None
     tail: list[int]
     head: list[int]

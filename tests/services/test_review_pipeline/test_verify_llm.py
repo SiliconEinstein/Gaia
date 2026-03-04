@@ -9,7 +9,7 @@ from services.review_pipeline.operators.verify import LiteLLMVerifyClient
 
 
 SAMPLE_PASS_RESPONSE = """\
-<verification edge_id="1" type="join">
+<verification edge_id="1" type="abstraction">
   <result>pass</result>
   <checks>
     <check child="42" entails_parent="true">
@@ -28,7 +28,7 @@ SAMPLE_PASS_RESPONSE = """\
 """
 
 SAMPLE_FAIL_RESPONSE = """\
-<verification edge_id="2" type="join">
+<verification edge_id="2" type="abstraction">
   <result>fail</result>
   <checks>
     <check child="99" entails_parent="false">

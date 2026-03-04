@@ -29,7 +29,7 @@ def test_node_defaults():
 
 
 def test_node_all_types():
-    for t in ("paper-extract", "join", "deduction", "conjecture"):
+    for t in ("paper-extract", "abstraction", "deduction", "conjecture"):
         node = Node(id=1, type=t, content="x")
         assert node.type == t
 
@@ -59,7 +59,7 @@ def test_hyperedge_defaults():
 
 
 def test_hyperedge_types():
-    for t in ("paper-extract", "join", "meet", "contradiction", "retraction"):
+    for t in ("paper-extract", "abstraction", "induction", "contradiction", "retraction"):
         edge = HyperEdge(id=1, type=t, tail=[1], head=[2])
         assert edge.type == t
 
@@ -76,7 +76,7 @@ def test_add_edge_op():
     op = AddEdgeOp(
         tail=[NewNode(content="premise")],
         head=[NodeRef(node_id=42)],
-        type="meet",
+        type="induction",
         reasoning=["logical deduction"],
     )
     assert op.op == "add_edge"
@@ -104,7 +104,7 @@ def test_commit_request():
             AddEdgeOp(
                 tail=[NewNode(content="premise A")],
                 head=[NodeRef(node_id=42)],
-                type="meet",
+                type="induction",
                 reasoning=["deduction"],
             )
         ],

@@ -13,7 +13,7 @@ async def test_valid_add_edge(validator):
     op = AddEdgeOp(
         tail=[NewNode(content="p1")],
         head=[NodeRef(node_id=1)],
-        type="meet",
+        type="induction",
         reasoning=["deduction"],
     )
     results = await validator.validate([op])
@@ -22,14 +22,14 @@ async def test_valid_add_edge(validator):
 
 
 async def test_add_edge_empty_tail(validator):
-    op = AddEdgeOp(tail=[], head=[NodeRef(node_id=1)], type="meet", reasoning=["x"])
+    op = AddEdgeOp(tail=[], head=[NodeRef(node_id=1)], type="induction", reasoning=["x"])
     results = await validator.validate([op])
     assert results[0].valid is False
     assert any("tail" in e.lower() for e in results[0].errors)
 
 
 async def test_add_edge_empty_head(validator):
-    op = AddEdgeOp(tail=[NewNode(content="p")], head=[], type="meet", reasoning=["x"])
+    op = AddEdgeOp(tail=[NewNode(content="p")], head=[], type="induction", reasoning=["x"])
     results = await validator.validate([op])
     assert results[0].valid is False
     assert any("head" in e.lower() for e in results[0].errors)
@@ -37,7 +37,7 @@ async def test_add_edge_empty_head(validator):
 
 async def test_add_edge_empty_reasoning(validator):
     op = AddEdgeOp(
-        tail=[NewNode(content="p")], head=[NodeRef(node_id=1)], type="meet", reasoning=[]
+        tail=[NewNode(content="p")], head=[NodeRef(node_id=1)], type="induction", reasoning=[]
     )
     results = await validator.validate([op])
     assert results[0].valid is False
@@ -71,7 +71,10 @@ async def test_modify_node_empty_changes(validator):
 async def test_multiple_operations(validator):
     ops = [
         AddEdgeOp(
-            tail=[NewNode(content="p")], head=[NodeRef(node_id=1)], type="meet", reasoning=["x"]
+            tail=[NewNode(content="p")],
+            head=[NodeRef(node_id=1)],
+            type="induction",
+            reasoning=["x"],
         ),
         ModifyEdgeOp(edge_id=42, changes={}),  # invalid
         ModifyNodeOp(node_id=10, changes={"content": "y"}),

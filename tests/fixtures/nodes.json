@@ -358,8 +358,8 @@
   },
   {
     "id": 1556,
-    "type": "join",
-    "subtype": "join",
+    "type": "abstraction",
+    "subtype": "abstraction",
     "title": "Oxygen annealing modifies Tc in Hg- and Tl-based cuprates",
     "content": "Post‑synthesis annealing in a flowing oxygen atmosphere can modify the superconducting transition temperature $T_{c}$ and related resistive transition properties in layered copper‑oxide (cuprate) superconductors. Here \"post‑synthesis annealing\" denotes heating a synthesized cuprate sample in a continuous oxygen (O$_2$) gas flow at an elevated temperature for a finite time; \"modifies\" means the treatment changes the measured $T_{c}$ or the shape/width of the resistive superconducting transition, without specifying the direction (increase or decrease), which depends on the particular compound, annealing temperature, and processing history.",
     "keywords": [
@@ -385,8 +385,8 @@
   },
   {
     "id": 1557,
-    "type": "join",
-    "subtype": "join",
+    "type": "abstraction",
+    "subtype": "abstraction",
     "title": "Annealing at 450°C in O₂ alters superconducting transitions in Tl cuprates",
     "content": "Annealing Tl‑containing layered cuprate samples (Tl‑Ba‑Cu‑O / Tl‑Ca/Ba‑Cu‑O) at 450°C in a flowing oxygen atmosphere alters their superconducting transition temperature $T_{c}$ and/or the resistive transition.",
     "keywords": [
@@ -420,8 +420,8 @@
   },
   {
     "id": 1576,
-    "type": "join",
-    "subtype": "join",
+    "type": "abstraction",
+    "subtype": "abstraction",
     "title": "Theoretical prediction of a high‑Tc fcc YH10 phase",
     "content": "Theoretical calculations predict a face-centered cubic (fcc) yttrium hydride with composition YH10 that is expected to have a high superconducting critical temperature.",
     "keywords": [
@@ -455,7 +455,7 @@
   },
   {
     "id": 1816,
-    "type": "join",
+    "type": "abstraction",
     "subtype": "deduction",
     "title": "Optimal annealing temperature for Tc is compound‑dependent",
     "content": "The annealing temperature required to produce a beneficial modification of the superconducting transition is not universal across the cited cuprates: Hg‑based Hg‑1223 (and related Hg‑Ba‑Ca‑Cu‑O compounds) require post‑synthesis oxygen annealing at about $300^{\\circ}$C to reach their reported maximum $T_{c}$, whereas Tl‑containing layered cuprates (Tl‑Ba‑Cu‑O / Tl‑Ca/Ba‑Cu‑O) are reported to show improvements after annealing at $450^{\\circ}$C. Therefore, the temperature that produces the desired modification of $T_{c}$ depends on the specific cuprate compound/family.",
@@ -484,7 +484,7 @@
   },
   {
     "id": 1817,
-    "type": "join",
+    "type": "abstraction",
     "subtype": "conjecture",
     "title": "Oxygen uptake during annealing likely adjusts hole concentration and thereby alters Tc",
     "content": "Post‑synthesis annealing in flowing O$_2$ plausibly changes the oxygen non‑stoichiometry (denoted $x$ in formulas like HgBa$_{2}$Ca$_{2}$Cu$_{3}$O$_{8+x}$), which in turn modifies the hole concentration in the CuO$_2$ planes; changes in hole concentration commonly move cuprates along the superconducting dome and therefore alter the measured $T_{c}$ and the resistive transition shape/width. Thus the observed modifications of $T_{c}$ upon oxygen annealing are likely mediated by changes in oxygen content and resultant carrier (hole) doping.",

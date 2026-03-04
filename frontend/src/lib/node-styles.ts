@@ -25,7 +25,7 @@ export const NODE_STYLES: Record<string, NodeStyle> = {
     shape: "ellipse",
     color: { background: "#FECACA", border: "#EF4444" },
   },
-  join: {
+  abstraction: {
     shape: "dot",
     color: { background: "#FED7AA", border: "#FB923C" },
   },
@@ -49,10 +49,10 @@ export const FACTOR_STYLES: Record<string, FactorStyle> = {
   "paper-extract": {
     color: { background: "#D1FAE5", border: "#10B981" },
   },
-  join: {
+  abstraction: {
     color: { background: "#FED7AA", border: "#FB923C" },
   },
-  meet: {
+  induction: {
     color: { background: "#E9D5FF", border: "#A855F7" },
   },
   contradiction: {

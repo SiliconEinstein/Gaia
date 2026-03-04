@@ -69,7 +69,7 @@ def map_node_type(old_metadata_type: str) -> str:
     """Map old metadata.type to new Gaia Node.type."""
     mapping = {
         "paper-extract": "paper-extract",
-        "merged proposition": "join",
+        "merged proposition": "abstraction",
     }
     return mapping.get(old_metadata_type, old_metadata_type)
 

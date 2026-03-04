@@ -61,7 +61,7 @@ class TestCommitWorkflow:
                         "op": "add_edge",
                         "tail": [{"content": "YH10 is predicted stable at 400GPa"}],
                         "head": [{"node_id": 1}],
-                        "type": "meet",
+                        "type": "induction",
                         "reasoning": ["DFT calculation shows stability"],
                     }
                 ],
@@ -98,7 +98,7 @@ class TestCommitWorkflow:
                         "op": "add_edge",
                         "tail": [],
                         "head": [],
-                        "type": "meet",
+                        "type": "induction",
                         "reasoning": [],
                     }
                 ],
@@ -119,7 +119,7 @@ class TestCommitWorkflow:
                         "op": "add_edge",
                         "tail": [{"content": "premise"}],
                         "head": [{"node_id": 1}],
-                        "type": "meet",
+                        "type": "induction",
                         "reasoning": ["reasoning"],
                     }
                 ],
@@ -145,7 +145,7 @@ class TestCommitWorkflow:
                         "op": "add_edge",
                         "tail": [{"content": "data point"}],
                         "head": [{"node_id": 1}],
-                        "type": "meet",
+                        "type": "induction",
                         "reasoning": ["evidence"],
                     }
                 ],
@@ -518,7 +518,7 @@ class TestFullPipeline:
                         "head": [
                             {"content": "Conclusion: novel superconductor phase"},
                         ],
-                        "type": "meet",
+                        "type": "induction",
                         "reasoning": ["combined analysis of A and B"],
                     }
                 ],

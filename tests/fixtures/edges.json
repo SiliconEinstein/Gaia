@@ -158,7 +158,7 @@
   },
   {
     "id": 325,
-    "type": "join",
+    "type": "abstraction",
     "subtype": null,
     "tail": [
       1557
@@ -206,7 +206,7 @@
   },
   {
     "id": 365,
-    "type": "join",
+    "type": "abstraction",
     "subtype": null,
     "tail": [
       1576
@@ -254,7 +254,7 @@
   },
   {
     "id": 529,
-    "type": "join",
+    "type": "abstraction",
     "subtype": null,
     "tail": [
       1556
@@ -308,7 +308,7 @@
       "Proposition 251 asserts that a face-centred cubic YH₁₀ phase exists and is superconducting with $T_{c}\\approx303\\,$K at $P=400\\,$GPa (or $305\\!-\\!326\\,$K at $P=250\\,$GPa). Proposition 269 asserts that YH₁₀ \"does not form\" in the pressure–temperature range up to $410\\,$GPa and $2250\\,$K and that the hydrogen-richest stable phase there is $P6_3/mmc$ YH₉. Both statements make mutually exclusive claims about the formation/stability of YH₁₀ under overlapping pressure conditions (250–410 GPa). Therefore the two propositions are logically incompatible."
     ],
     "metadata": {
-      "source": "meet",
+      "source": "induction",
       "round": 0,
       "parent": 1576,
       "confirmed": true,
@@ -331,7 +331,7 @@
   },
   {
     "id": 806,
-    "type": "meet",
+    "type": "induction",
     "subtype": "deduction",
     "tail": [
       86,
@@ -363,7 +363,7 @@
   },
   {
     "id": 807,
-    "type": "meet",
+    "type": "induction",
     "subtype": "conjecture",
     "tail": [
       1356,

@@ -29,7 +29,9 @@ class TopologyRecall:
         if not seed_node_ids:
             return []
 
-        node_ids, _ = await self._store.get_subgraph(seed_node_ids, hops=hops, edge_types=["join"])
+        node_ids, _ = await self._store.get_subgraph(
+            seed_node_ids, hops=hops, edge_types=["abstraction"]
+        )
 
         seed_set = set(seed_node_ids)
         results: list[tuple[int, float]] = []

@@ -24,7 +24,7 @@ def test_from_subgraph():
         Node(id=3, type="paper-extract", content="p3", prior=1.0),
     ]
     edges = [
-        HyperEdge(id=100, type="meet", tail=[1, 2], head=[3], probability=0.85),
+        HyperEdge(id=100, type="induction", tail=[1, 2], head=[3], probability=0.85),
     ]
     fg = FactorGraph.from_subgraph(nodes, edges)
     assert len(fg.variables) == 3
@@ -35,7 +35,7 @@ def test_from_subgraph():
 
 def test_from_subgraph_default_probability():
     nodes = [Node(id=1, type="t", content="c", prior=1.0)]
-    edges = [HyperEdge(id=100, type="meet", tail=[1], head=[2], probability=None)]
+    edges = [HyperEdge(id=100, type="induction", tail=[1], head=[2], probability=None)]
     fg = FactorGraph.from_subgraph(nodes, edges)
     assert fg.factors[0]["probability"] == 1.0
 

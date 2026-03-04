@@ -32,8 +32,8 @@ LKM 是知识库（Large Knowledge Model）。所有知识以**超边**（hypere
 | 类型 | 说明 |
 |------|------|
 | `paper-extract` | 从论文中提取的推理链 |
-| `join` | 发现已有命题之间的关系（等价、包含、部分重叠） |
-| `meet` | 从已有关系推导新知识（子类型见下） |
+| `abstraction` | 发现已有命题之间的关系（等价、包含、部分重叠） |
+| `induction` | 从已有关系推导新知识（子类型见下） |
 | `contradiction` | 发现矛盾 |
 | `retraction` | 撤回已有知识 |
 

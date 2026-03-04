@@ -46,7 +46,7 @@ async def test_merge_add_edge_with_new_nodes():
             AddEdgeOp(
                 tail=[NewNode(content="premise A"), NewNode(content="premise B")],
                 head=[NodeRef(node_id=42)],
-                type="meet",
+                type="induction",
                 reasoning=["deduction from A and B"],
             )
         ]
@@ -67,7 +67,7 @@ async def test_merge_add_edge_with_existing_nodes_only():
             AddEdgeOp(
                 tail=[NodeRef(node_id=10)],
                 head=[NodeRef(node_id=20)],
-                type="join",
+                type="abstraction",
                 reasoning=["merge join"],
             )
         ]
@@ -112,7 +112,7 @@ async def test_merge_no_graph_still_works():
             AddEdgeOp(
                 tail=[NewNode(content="p")],
                 head=[NodeRef(node_id=1)],
-                type="meet",
+                type="induction",
                 reasoning=["test"],
             )
         ]
@@ -129,7 +129,7 @@ async def test_merge_multiple_operations():
             AddEdgeOp(
                 tail=[NewNode(content="new node")],
                 head=[NodeRef(node_id=1)],
-                type="meet",
+                type="induction",
                 reasoning=["reasoning"],
             ),
             ModifyNodeOp(node_id=1, changes={"status": "deleted"}),

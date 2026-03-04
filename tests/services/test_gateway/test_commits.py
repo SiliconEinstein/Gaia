@@ -24,7 +24,7 @@ def _valid_commit_payload():
                 "op": "add_edge",
                 "tail": [{"content": "premise A"}],
                 "head": [{"node_id": 42}],
-                "type": "meet",
+                "type": "induction",
                 "reasoning": ["deduction from A"],
             }
         ],

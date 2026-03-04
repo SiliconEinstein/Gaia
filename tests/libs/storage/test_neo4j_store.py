@@ -76,8 +76,8 @@ async def test_get_subgraph_hops_limit(store):
 
 
 async def test_get_subgraph_edge_type_filter(store):
-    await store.create_hyperedge(_edge(1, [10], [11], type="join"))
-    await store.create_hyperedge(_edge(2, [11], [12], type="meet"))
-    node_ids, edge_ids = await store.get_subgraph([10], hops=2, edge_types=["join"])
+    await store.create_hyperedge(_edge(1, [10], [11], type="abstraction"))
+    await store.create_hyperedge(_edge(2, [11], [12], type="induction"))
+    node_ids, edge_ids = await store.get_subgraph([10], hops=2, edge_types=["abstraction"])
     assert 11 in node_ids
     assert 12 not in node_ids

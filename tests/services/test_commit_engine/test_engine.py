@@ -45,7 +45,7 @@ async def test_submit_creates_commit(engine):
             AddEdgeOp(
                 tail=[NewNode(content="premise")],
                 head=[NodeRef(node_id=1)],
-                type="meet",
+                type="induction",
                 reasoning=["deduction"],
             )
         ],
@@ -59,7 +59,7 @@ async def test_submit_rejects_invalid(engine):
     req = CommitRequest(
         message="invalid",
         operations=[
-            AddEdgeOp(tail=[], head=[], type="meet", reasoning=[]),
+            AddEdgeOp(tail=[], head=[], type="induction", reasoning=[]),
         ],
     )
     resp = await engine.submit(req)
@@ -73,7 +73,7 @@ async def test_review_approves(engine):
             AddEdgeOp(
                 tail=[NewNode(content="p")],
                 head=[NodeRef(node_id=1)],
-                type="meet",
+                type="induction",
                 reasoning=["r"],
             )
         ],
@@ -93,7 +93,7 @@ async def test_merge_after_review(engine):
             AddEdgeOp(
                 tail=[NewNode(content="p")],
                 head=[NodeRef(node_id=1)],
-                type="meet",
+                type="induction",
                 reasoning=["r"],
             )
         ],
@@ -113,7 +113,7 @@ async def test_merge_without_review_fails(engine):
             AddEdgeOp(
                 tail=[NewNode(content="p")],
                 head=[NodeRef(node_id=1)],
-                type="meet",
+                type="induction",
                 reasoning=["r"],
             )
         ],
@@ -131,7 +131,7 @@ async def test_merge_force_skips_review(engine):
             AddEdgeOp(
                 tail=[NewNode(content="p")],
                 head=[NodeRef(node_id=1)],
-                type="meet",
+                type="induction",
                 reasoning=["r"],
             )
         ],
@@ -148,7 +148,7 @@ async def test_get_commit(engine):
             AddEdgeOp(
                 tail=[NewNode(content="p")],
                 head=[NodeRef(node_id=1)],
-                type="meet",
+                type="induction",
                 reasoning=["r"],
             )
         ],

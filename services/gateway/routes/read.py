@@ -140,7 +140,7 @@ async def get_stats():
             stats["edge_count"] = record["total"] if record else 0
 
     # Count nodes by type
-    for ntype in ["paper-extract", "join", "deduction", "conjecture"]:
+    for ntype in ["paper-extract", "abstraction", "deduction", "conjecture"]:
         count = await deps.storage.lance.count_nodes(node_type=ntype)
         if count > 0:
             stats["node_types"][ntype] = count

@@ -15,7 +15,7 @@ def _make_commit() -> Commit:
             AddEdgeOp(
                 tail=[NewNode(content="p")],
                 head=[NodeRef(node_id=1)],
-                type="meet",
+                type="induction",
                 reasoning=["test"],
             )
         ],

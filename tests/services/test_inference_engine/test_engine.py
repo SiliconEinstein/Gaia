@@ -21,7 +21,7 @@ def _mock_storage():
     storage.graph = MagicMock()
     storage.graph.get_subgraph = AsyncMock(return_value=({1, 2, 3}, {100}))
     storage.graph.get_hyperedge = AsyncMock(
-        return_value=HyperEdge(id=100, type="meet", tail=[1, 2], head=[3], probability=0.8)
+        return_value=HyperEdge(id=100, type="induction", tail=[1, 2], head=[3], probability=0.8)
     )
 
     # Mock lance store
