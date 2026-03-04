@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from libs.embedding import StubEmbeddingModel
+import logging
+import os
+
+from libs.embedding import EmbeddingModel, StubEmbeddingModel
 from libs.storage import StorageConfig, StorageManager
 from services.commit_engine.engine import CommitEngine
 from services.commit_engine.store import CommitStore
@@ -12,15 +15,60 @@ from services.job_manager.store import InMemoryJobStore
 from services.review_pipeline.base import Pipeline
 from services.review_pipeline.operators.bp import BPOperator
 from services.review_pipeline.operators.embedding import EmbeddingOperator
-from services.review_pipeline.operators.join import CCJoinOperator, CPJoinOperator, StubJoinLLM
+from services.review_pipeline.operators.join import (
+    CCJoinOperator,
+    CPJoinOperator,
+    JoinLLM,
+    LiteLLMJoinClient,
+    StubJoinLLM,
+)
 from services.review_pipeline.operators.nn_search import NNSearchOperator
 from services.review_pipeline.operators.verify import (
     JoinTreeVerifyOperator,
+    LiteLLMVerifyClient,
     RefineOperator,
     StubVerifyLLM,
     VerifyAgainOperator,
+    VerifyLLM,
 )
 from services.search_engine.engine import SearchEngine
+
+log = logging.getLogger(__name__)
+
+
+def _build_embedding_model() -> EmbeddingModel:
+    """Build embedding model based on environment variables."""
+    api_url = os.environ.get("GAIA_EMBEDDING_API_URL")
+    access_key = os.environ.get("GAIA_EMBEDDING_ACCESS_KEY")
+    if api_url and access_key:
+        from services.review_pipeline.operators.embedding_dashscope import (
+            DashScopeEmbeddingModel,
+        )
+
+        log.info("Using DashScope embedding model (url=%s)", api_url)
+        return DashScopeEmbeddingModel(
+            api_url=api_url,
+            access_key=access_key,
+            provider=os.environ.get("GAIA_EMBEDDING_PROVIDER", "dashscope"),
+        )
+    log.info("No embedding API configured, using StubEmbeddingModel")
+    return StubEmbeddingModel()
+
+
+def _build_llm_clients() -> tuple[JoinLLM, VerifyLLM]:
+    """Build join/verify LLM clients based on environment variables."""
+    provider = os.environ.get("GAIA_LLM_PROVIDER")
+    model_name = os.environ.get("GAIA_LLM_MODEL")
+    if provider and model_name:
+        from services.review_pipeline.config import LLMModelConfig
+        from services.review_pipeline.llm_client import LLMClient
+
+        config = LLMModelConfig(provider=provider, name=model_name)
+        llm_client = LLMClient(config)
+        log.info("Using real LLM for join/verify (provider=%s, model=%s)", provider, model_name)
+        return LiteLLMJoinClient(llm_client), LiteLLMVerifyClient(llm_client)
+    log.info("No LLM configured, using stub join/verify")
+    return StubJoinLLM(), StubVerifyLLM()
 
 
 class Dependencies:
@@ -38,18 +86,21 @@ class Dependencies:
         """Create all services. Call once at startup."""
         config = storage_config or self.config
         self.storage = StorageManager(config)
-        embedding_model = StubEmbeddingModel()
+
+        embedding_model = _build_embedding_model()
+        join_llm, verify_llm = _build_llm_clients()
+
         self.search_engine = SearchEngine(self.storage, embedding_model=embedding_model)
         commit_store = CommitStore(storage_path=config.lancedb_path + "/commits")
         pipeline = Pipeline(
             steps=[
                 EmbeddingOperator(embedding_model),
                 NNSearchOperator(self.storage.vector, k=20),
-                CCJoinOperator(StubJoinLLM(), self.storage),
-                CPJoinOperator(StubJoinLLM(), self.storage),
-                JoinTreeVerifyOperator(StubVerifyLLM()),
+                CCJoinOperator(join_llm, self.storage),
+                CPJoinOperator(join_llm, self.storage),
+                JoinTreeVerifyOperator(verify_llm),
                 RefineOperator(),
-                VerifyAgainOperator(StubVerifyLLM()),
+                VerifyAgainOperator(verify_llm),
                 BPOperator(self.storage),
             ]
         )
