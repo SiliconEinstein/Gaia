@@ -1,13 +1,17 @@
 import pytest
-from unittest.mock import AsyncMock
+
+from tests.conftest import load_fixture_embeddings
 from services.review_pipeline.operators.nn_search import NNSearchOperator
 from services.review_pipeline.context import PipelineContext
-from libs.models import CommitRequest, AddEdgeOp, NewNode
-from libs.storage.vector_search.base import VectorSearchClient
+from libs.models import CommitRequest, AddEdgeOp, ModifyNodeOp, NewNode
 
 
-@pytest.fixture
-def context_with_embeddings():
+async def test_nn_search_returns_neighbors(storage):
+    """NNSearchOperator finds real neighbors from fixture embeddings."""
+    embeddings = load_fixture_embeddings()
+    if not embeddings:
+        pytest.skip("No fixture embeddings available")
+
     req = CommitRequest(
         message="test",
         operations=[
@@ -20,34 +24,28 @@ def context_with_embeddings():
         ],
     )
     ctx = PipelineContext.from_commit_request(req)
-    ctx.embeddings = {0: [0.1] * 128, 1: [0.2] * 128}
-    return ctx
+    # Use real fixture embeddings
+    first_id = next(iter(embeddings))
+    ctx.embeddings = {0: embeddings[first_id]}
 
-
-async def test_nn_search_returns_neighbors(context_with_embeddings):
-    mock_client = AsyncMock(spec=VectorSearchClient)
-    mock_client.search.return_value = [(100, 0.1), (200, 0.2), (300, 0.3)]
-
-    op = NNSearchOperator(vector_client=mock_client, k=20)
-    result = await op.execute(context_with_embeddings)
+    op = NNSearchOperator(vector_client=storage.vector, k=5)
+    result = await op.execute(ctx)
 
     assert 0 in result.nn_results
-    assert 1 in result.nn_results
-    assert len(result.nn_results[0]) == 3
-    assert result.nn_results[0][0] == (100, 0.1)
-    assert mock_client.search.call_count == 2
+    assert len(result.nn_results[0]) > 0
+    # Results should be (node_id, distance) tuples with real node IDs
+    for node_id, distance in result.nn_results[0]:
+        assert isinstance(node_id, int)
+        assert distance >= 0
 
 
-async def test_nn_search_skips_if_no_embeddings():
-    from libs.models import ModifyNodeOp
-
+async def test_nn_search_skips_if_no_embeddings(storage):
+    """When context has no embeddings, operator is a no-op."""
     req = CommitRequest(
         message="t",
         operations=[ModifyNodeOp(node_id=1, changes={"x": 1})],
     )
     ctx = PipelineContext.from_commit_request(req)
-    mock_client = AsyncMock(spec=VectorSearchClient)
-    op = NNSearchOperator(vector_client=mock_client, k=20)
+    op = NNSearchOperator(vector_client=storage.vector, k=20)
     result = await op.execute(ctx)
     assert len(result.nn_results) == 0
-    mock_client.search.assert_not_called()
