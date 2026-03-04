@@ -1,6 +1,8 @@
 # tests/services/test_commit_engine/test_engine.py
 """CommitEngine tests — real storage instead of mocks."""
 
+import asyncio
+
 import pytest
 
 from libs.models import (
@@ -11,6 +13,7 @@ from libs.models import (
 )
 from services.commit_engine.engine import CommitEngine
 from services.commit_engine.store import CommitStore
+from services.job_manager.models import JobStatus
 
 
 @pytest.fixture
@@ -115,3 +118,99 @@ async def test_get_commit(engine):
 async def test_get_nonexistent_commit(engine):
     commit = await engine.get_commit("nonexistent")
     assert commit is None
+
+
+# ------------------------------------------------------------------
+# Pipeline / async review tests
+# ------------------------------------------------------------------
+
+
+async def test_submit_review_returns_job(engine):
+    req = CommitRequest(
+        message="test",
+        operations=[
+            AddEdgeOp(
+                tail=[NewNode(content="premise")],
+                head=[NodeRef(node_id=1)],
+                type="induction",
+                reasoning=["r"],
+            )
+        ],
+    )
+    resp = await engine.submit(req)
+    job = await engine.submit_review(resp.commit_id)
+    assert job.job_id is not None
+    assert job.job_type.value == "review"
+    assert job.reference_id == resp.commit_id
+
+
+async def test_submit_review_stores_job_id_on_commit(engine):
+    req = CommitRequest(
+        message="test",
+        operations=[
+            AddEdgeOp(
+                tail=[NewNode(content="p")],
+                head=[NodeRef(node_id=1)],
+                type="induction",
+                reasoning=["r"],
+            )
+        ],
+    )
+    resp = await engine.submit(req)
+    job = await engine.submit_review(resp.commit_id)
+
+    commit = await engine.get_commit(resp.commit_id)
+    assert commit.review_job_id == job.job_id
+
+
+async def test_review_job_completes_with_result(engine):
+    req = CommitRequest(
+        message="test",
+        operations=[
+            AddEdgeOp(
+                tail=[NewNode(content="p")],
+                head=[NodeRef(node_id=1)],
+                type="induction",
+                reasoning=["r"],
+            )
+        ],
+    )
+    resp = await engine.submit(req)
+    job = await engine.submit_review(resp.commit_id)
+
+    for _ in range(100):
+        status = await engine.job_manager.get_status(job.job_id)
+        if status.status in (JobStatus.COMPLETED, JobStatus.FAILED):
+            break
+        await asyncio.sleep(0.01)
+
+    assert status.status == JobStatus.COMPLETED
+    result = await engine.job_manager.get_result(job.job_id)
+    assert "overall_verdict" in result
+    assert result["overall_verdict"] == "pass"
+
+
+async def test_submit_review_rejects_non_pending(engine):
+    """submit_review raises ValueError if commit is not pending_review."""
+    req = CommitRequest(
+        message="test",
+        operations=[
+            AddEdgeOp(
+                tail=[NewNode(content="p")],
+                head=[NodeRef(node_id=1)],
+                type="induction",
+                reasoning=["r"],
+            )
+        ],
+    )
+    resp = await engine.submit(req)
+    # Review it first so status becomes "reviewed"
+    await engine.review(resp.commit_id)
+    with pytest.raises(ValueError, match="not pending review"):
+        await engine.submit_review(resp.commit_id)
+
+
+async def test_submit_review_not_found(engine):
+    """submit_review raises ValueError for non-existent commit."""
+    with pytest.raises(ValueError, match="not found"):
+        await engine.submit_review("nonexistent")
