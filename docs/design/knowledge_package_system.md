@@ -36,7 +36,7 @@ Cargo:  管理代码包的版本、依赖、发布、隔离环境
 Gaia:   管理知识包的版本、依赖、发布、隔离环境
 ```
 
-唯一的本质差异是**依赖解析算法**：Cargo 用 SAT solver（布尔兼容性），Gaia 用 Belief Propagation（概率推断）。
+本质差异不是算法层面的（SAT vs BP），而是**依赖语义**的：Cargo 的依赖是硬接口调用（类型必须匹配，版本必须排他），Gaia 的依赖是软知识引用（节点不可变，引用永不断，多版本可共存）。这意味着 Gaia 在 package 层**不需要 SAT resolver**——BP 本身就是 resolver。详见 [theoretical_foundations.md](theoretical_foundations.md) §7.5。
 
 这不是一个松散的比喻。下面逐层对照说明。
 
@@ -114,7 +114,7 @@ anderson-rvb-1987 = ">=1.0"
 | **cargo update** | 更新依赖 | **gaia update** | 更新包版本 | **CLI 体验相同** |
 | **cargo outdated** | 检测过期依赖 | **gaia outdated** | 检测过期依赖 | **CLI 体验相同** |
 | **cargo tree** | 依赖树 | **gaia graph** | 推理链可视化 | 概念复用 |
-| **SAT resolver** | 布尔约束求解 | **Belief Propagation** | 概率推断 | **不能复用** |
+| **SAT resolver** | 布尔约束求解 | **不需要** | 节点不可变，引用永不断，BP 即 resolver | **不适用** |
 | **text merge** | 行级文本合并 | **BP-based merge** | 概率信念合并 | **不能复用** |
 | **features** | 条件编译 | — | 无直接对应 | — |
 
@@ -259,7 +259,7 @@ Julia 读取一个包时逐层向上查找（temp → project → base）。Gaia
 
 | 层面 | Cargo/Julia 的做法 | Gaia 的适配 |
 |------|-------------------|------------|
-| **依赖解析** | SAT solver | BP（概率推断替代布尔约束） |
+| **依赖解析** | SAT solver（硬接口约束） | 不需要 SAT——节点不可变消除了接口断裂，BP 处理 belief 冲突 |
 | **Merge** | 不涉及（registry 不做 merge） | BP-based merge（概率冲突解决） |
 | **版本兼容性判断** | semver 规则（纯语法） | embedding distance + LLM（语义判断） |
 | **发布审核** | crates.io 做基本检查 | commit review（LLM 深度审核） |
@@ -279,26 +279,29 @@ Julia 读取一个包时逐层向上查找（temp → project → base）。Gaia
 
 ## 6. 什么必须重新设计
 
-### 6.1 依赖解析：SAT → BP
+### 6.1 依赖解析：Gaia 不需要 SAT
 
-Cargo：
+Cargo 需要 SAT solver 是因为**代码有硬接口**——函数签名改了，调用方编译失败，同一编译单元只能有一个版本。钻石依赖冲突必须用 CDCL 回溯搜索来找全局兼容的版本集。
 
-```
-约束: A ≥1.0, B ≥2.0, A 1.x 需要 B <3.0
-→ SAT solver → A=1.5, B=2.3 ✓
-→ 或报错: 无解
-```
-
-Gaia：
+Gaia 的情况根本不同：
 
 ```
-知识: node 42 (belief=0.7), node 17 (belief=0.9)
-     edge: [42, 17] → [99] (probability=0.8)
-→ BP → node 99 belief = f(0.7, 0.9, 0.8) = 0.73
-→ 不会"报错"，只会给出概率
+Cargo:
+  crate B v1.0: pub fn process(x: u32)
+  crate B v2.0: pub fn process(x: String)  ← 签名变了，调用方断了
+  → 必须 SAT 求解，选择唯一兼容版本
+
+Gaia:
+  KP_B v1.0: 导出 node_42 "X材料300K超导"
+  KP_B v2.0: node_42 仍然存在（不可变），
+             新增 node_99 + retraction edge
+  → node_42 的引用永远不断，belief 通过 BP 自然更新
+  → 不需要 SAT，不会"报错"
 ```
 
-Cargo 的世界是离散的（兼容 / 不兼容）。Gaia 的世界是连续的（可信度 0~1）。这决定了核心算法无法共享。
+**节点不可变**消除了接口断裂。**BP**消除了版本排他性。Gaia 在 package 层只需要轻量的 registry lookup + 偏好排序 + staleness 检测，不需要 PubGrub 级别的约束求解。
+
+详见 [theoretical_foundations.md](theoretical_foundations.md) §7.5。
 
 ### 6.2 Merge：文本合并 → 信念合并
 
@@ -467,22 +470,23 @@ anderson-rvb-1987 = { version = ">=1.0", min_belief = 0.6 }  # 只要 belief > 0
 
 ### 8.3 依赖解析
 
-Cargo 的解析：找一组满足所有版本约束的精确版本。
+Cargo 的解析：用 SAT solver（PubGrub）找一组满足所有版本约束的精确版本，冲突时报错。
 
-Gaia 的解析分两步：
+Gaia 的解析**不需要 SAT**，因为节点不可变、引用永不断、多版本可共存：
 
 ```
-Step 1（和 Cargo 一样）: 版本约束解析
-  bednorz-mueller-1986 >=1.0 → 选择 1.0.3
+Step 1: 版本偏好解析（轻量，非 SAT）
+  bednorz-mueller-1986 >=1.0 → 偏好最新版 1.0.3
   bcs-theory =2.1.0 → 选择 2.1.0
-  检查传递依赖无版本冲突
+  无版本冲突问题——多版本天然共存
 
-Step 2（Gaia 特有）: Belief Propagation
+Step 2: Belief Propagation
   把所有包的节点和边合并进图
   跑 BP 计算全局一致的 belief
+  新旧版本的矛盾通过 contradiction/retraction edge 自动处理
 ```
 
-Step 1 可以复用 Cargo/Julia 的解析算法。Step 2 是 Gaia 独有的。
+Step 1 只需要简单的 registry lookup + 偏好排序（类似 `pip`），不需要 PubGrub 级别的回溯搜索。Step 2 是 Gaia 的核心——BP 既是推理引擎，也是冲突解析器。
 
 ### 8.4 循环依赖
 
@@ -609,13 +613,17 @@ Cargo 的包内部是源代码（文本文件，树形模块结构）。Gaia 的
 
 ```
 Cargo: A depends on B 的意思是"A 的代码调用了 B 的函数"
-       运行时 B 必须存在，否则 A 不能工作
+       B 改了接口签名 → A 编译失败
+       同一编译单元只能有一个 B 的版本 → 必须 SAT 求解
 
 Gaia:  A depends on B 的意思是"A 的推理引用了 B 的结论"
-       即使 B 的结论 belief 很低，A 仍然可以工作——只是推理结果也会 belief 较低
+       B 更新了结论 → 旧节点不可变，引用永不断
+       多版本可共存 → 不需要 SAT，BP 自然处理 belief 变化
 ```
 
-Cargo 的依赖是硬性的（没有就编译不过）。Gaia 的依赖是软性的（belief 随依赖的可信度变化）。这是概率系统的根本特征。
+Cargo 的依赖是硬性的（没有就编译不过，版本冲突必须解决）。Gaia 的依赖是软性的（belief 随依赖的可信度连续变化，系统永远不会"失败"）。
+
+**这一差异的根源是节点不可变性。** 在 Cargo 中，函数签名可以变化，导致接口断裂。在 Gaia 中，节点一旦提交就是 content-addressed 的，其内容和 hash 永远不变。"更新"不是修改旧节点，而是创建新节点并通过 retraction/contradiction edge 与旧节点建立关系。因此引用永远不会断裂，SAT 的前提条件（版本排他性）不成立。
 
 ### 11.3 "编译"是全局的
 
@@ -671,7 +679,7 @@ Gaia:  gaia propagate 运行 BP 在整个图上
 | P1 | Gaia.lock 生成与解析 | Cargo.lock 格式 |
 | P1 | `gaia init` / `gaia add` CLI | Cargo CLI 体验 |
 | P2 | Registry API（publish, download, search） | Cargo registry 协议 |
-| P2 | 版本约束解析 | 可以用 packaging 库 |
+| P2 | 版本偏好解析 + staleness 检测 | 简单 lookup，不需要 SAT/PubGrub |
 | P3 | 环境栈 | Julia Pkg 设计 |
 
 ### 13.2 后做什么

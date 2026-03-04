@@ -68,9 +68,9 @@ Package A (v1.2.0)
 | 约束类型 | 布尔（兼容/不兼容） | 概率（0~1 连续值） |
 | 图结构 | 必须 DAG | 允许有环（loopy BP） |
 | 冲突处理 | 报错，必须解决 | 量化为低 belief，BP 自动传播 |
-| 解析算法 | SAT solver | Belief Propagation |
+| 解析算法 | SAT solver（硬接口约束） | BP（节点不可变，不需要 SAT） |
 
-Gaia 本质上是一个 **probabilistic dependency resolver** — 它不 reject 不一致的状态，而是把不一致量化为低 belief。这意味着 Gaia 可以极大地复用 Cargo 的架构模式，同时在冲突解析层用 BP 替代 SAT solver。
+Gaia 本质上是一个 **probabilistic dependency resolver** — 它不 reject 不一致的状态，而是把不一致量化为低 belief。更深层地，由于 Gaia 的节点是**不可变的**（content-addressed），跨包引用永远不会断裂，因此 Gaia 在 package 层**不需要 SAT resolver**——Cargo 需要 SAT 的根本原因（硬接口约束 + 版本排他性）在 Gaia 中不存在。Gaia 只需要轻量的版本偏好解析 + staleness 检测，BP 本身就是冲突解析器。详见 [theoretical_foundations.md](theoretical_foundations.md) §7.5。
 
 ---
 
@@ -195,16 +195,18 @@ nodes = [
 
 ```
 Cargo:
-  依赖冲突 → SAT solver → 有解或无解（布尔）
-  无解 → 编译失败，必须人工解决
+  依赖 = 硬接口调用 → 签名不兼容则编译失败
+  冲突 → SAT solver → 有解或无解（布尔）
+  无解 → 必须人工解决
 
 Gaia:
-  依赖冲突 → BP → 所有节点都有 belief（连续值）
+  依赖 = 软知识引用 → 节点不可变，引用永不断
+  冲突 → BP → 所有节点都有 belief（连续值）
   矛盾 → belief 被拉低，但系统不崩溃
-  矛盾的程度被量化，可以排序处理
+  不需要 SAT — BP 即是 resolver
 ```
 
-这意味着 Gaia 天然支持 "不一致但可用" 的状态 — 现实世界的科学知识本来就是这样。
+这意味着 Gaia 天然支持 "不一致但可用" 的状态 — 现实世界的科学知识本来就是这样。而且由于节点不可变性，Gaia 永远不会出现 Cargo 式的"版本不可满足"错误——多版本天然共存，BP 自动裁决。
 
 ---
 
