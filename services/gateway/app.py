@@ -24,6 +24,12 @@ def create_app(dependencies: Dependencies | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Load .env for production/local dev (not in tests where deps are injected)
+    if dependencies is None:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+
     active_deps = dependencies or deps
 
     # When custom dependencies are injected (e.g. in tests), propagate
