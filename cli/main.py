@@ -83,5 +83,16 @@ def review(
     review_command(claim_ids)
 
 
+@app.command()
+def publish(
+    server: bool = typer.Option(False, "--server", help="Publish to Server directly"),
+    git: bool = typer.Option(False, "--git", help="Publish via git push"),
+):
+    """Publish knowledge package to remote."""
+    from cli.commands.publish import publish_command
+
+    publish_command(server, git)
+
+
 if __name__ == "__main__":
     app()
