@@ -2,10 +2,10 @@
 
 | 属性 | 值 |
 |------|---|
-| 日期 | 2026-03-05 |
+| 日期 | 2026-03-06 |
 | 状态 | Approved (brainstorm) |
-| 基于 | v2 + 6 section brainstorm |
-| 关联 | `docs/examples/galileo_tied_balls.md`, `docs/examples/einstein_elevator.md` |
+| 基于 | v2 + 6 section brainstorm + review 系统讨论 |
+| 关联 | `docs/examples/galileo_tied_balls.md`, `docs/examples/einstein_elevator.md`, `docs/plans/2026-03-06-review-system-design.md` |
 
 ---
 
@@ -91,31 +91,54 @@ claims:
   - id: 5005
     type: deduction
     content: "推导 A: 轻球拖拽重球 → 组合体 HL 比 H 慢"
-    cite: [5003, 5004]
+    cite: [5003, 5004]             # 强引用：前提错则结论错，参与 BP
     why: "按 v∝W 定律，L 慢于 H，L 会拖拽 H"
 
   - id: 5006
     type: deduction
     content: "推导 B: 组合体更重 → 组合体 HL 比 H 快"
-    cite: [5003, 5004]
+    cite: [5003, 5004]             # 强引用
     why: "按 v∝W 定律，HL 总重量 > H，应更快"
 
   - id: 5007
     type: deduction
     content: "同一物体不可能既比 H 快又比 H 慢 — 矛盾"
-    cite: [5005, 5006]
+    cite: [5005, 5006]             # 强引用
+    context: []                     # 弱引用：背景知识，折入 prior
     why: "两个有效推导从同一前提得出互相矛盾的结论"
 ```
 
-### 2.4 跨包强引用
+### 2.4 强引用（cite）与弱引用（context）
+
+```yaml
+  - id: 6009
+    content: "光在引力场弯曲"
+    cite: [6008, 6005]                  # 强引用：错则结论错，参与 BP
+    context: [6003]                     # 弱引用：背景知识，折入 prior
+    why: "等效原理 + Maxwell 电磁理论 → 光必须沿弯曲路径传播"
+```
+
+| 类型 | 字段 | 数学处理 | BP 参与 |
+|------|------|---------|--------|
+| 强引用 | `cite` | hyperedge tail，P(C\|premises) | 是 |
+| 弱引用 | `context` | 折入 claim prior | 否 |
+| 无关 | — | 删除 | 否 |
+
+**判断标准：** 如果这个 premise 是错的，conclusion 还能成立吗？不能 → `cite`，能 → `context`。
+
+### 2.5 跨包引用
+
+强引用和弱引用均支持跨包格式 `pkg:claim_id@commit`：
 
 ```yaml
   - id: 5012
     content: "真空中所有物体等速下落"
-    why: "空气阻力是混淆因素，去除后速度与质量无关"
     cite:
-      - 5008                           # 本包内引用
-      - galileo:5011@a1b2c3            # 跨包: pkg:claim_id@commit
+      - 5008                           # 本包内强引用
+      - galileo:5011@a1b2c3            # 跨包强引用
+    context:
+      - newton:F_eq@b2c3d4             # 跨包弱引用
+    why: "空气阻力是混淆因素，去除后速度与质量无关"
 ```
 
 ### 2.5 `gaia.lock`（自动生成）
@@ -148,9 +171,9 @@ claims = []                        # 弱引用，无具体 claim
 
 ```
 gaia init [name]              # 初始化 knowledge package
-gaia claim "结论" --why "推理" --cite id1,id2
+gaia claim "结论" --why "推理" --cite id1,id2 [--context id3]
                               # 添加一条命题（自动创建 node + edge）
-gaia build                    # 结构校验 + 本地 BP 推理
+gaia build [--review]         # 结构校验 + 本地 BP [+ 本地 review]
 gaia show <id>                # 查看命题详情（belief, 引用链）
 gaia search "query"           # 语义搜索（向量 + BM25）
 gaia subgraph <id>            # 查看以某命题为中心的子图
@@ -176,6 +199,12 @@ $ gaia claim "v ∝ W 定律" \
 # 矛盾声明
 $ gaia claim "v∝W 自相矛盾" --type contradiction --cite 5005,5006
   Created claim 5007
+
+# 带弱引用（背景知识）
+$ gaia claim "光在引力场弯曲" \
+    --cite 6008,6005 --context 6003 \
+    --why "等效原理 + Maxwell → 光沿弯曲路径传播"
+  Created claim 6009
 ```
 
 **claim type 参考：**
@@ -347,7 +376,81 @@ claims = []                        # 弱引用
 
 ---
 
-## 7. Canonical Example: Galileo Workflow
+## 7. Review System — 推理质量评审
+
+> 详细设计见 `docs/plans/2026-03-06-review-system-design.md`
+
+### 7.1 Review 的核心目标
+
+评估一条推理链的条件概率 **P(conclusion | premises)**：假设所有强引用（`cite`）都成立，这步推理有多可靠？
+
+### 7.2 Review Skill（公开协议）
+
+Review 是一个版本化的 prompt（skill），定义标准化的输入输出：
+
+**输入：**
+```yaml
+claim:
+  content: "同一物体不可能既比 H 快又比 H 慢 — 矛盾"
+  type: deduction
+  why: "两个有效推导从同一前提得出互相矛盾的结论"
+premises:                          # cite[] 中的强引用
+  - { id: 5005, content: "推导 A: HL 比 H 慢" }
+  - { id: 5006, content: "推导 B: HL 比 H 快" }
+context:                           # context[] 中的弱引用
+  - { id: ..., content: "..." }
+```
+
+**输出：**
+```yaml
+score: 0.95                        # P(conclusion | premises)
+justification: "纯逻辑演绎，无跳步"
+confirmed_cites: [5005, 5006]      # 确认的强引用 → 参与 BP
+downgraded_cites: []               # 应降级为 context
+upgraded_context: []               # 应升级为 cite
+irrelevant: []                     # 建议删除
+```
+
+**评估标准：**
+
+1. **相关性** — 每个强引用是否真的是强依赖（错了结论就不成立）？
+2. **逻辑有效性** — 推理是否有效？有无跳步？
+3. **充分性** — 前提是否足够？是否缺少隐含前提？
+4. **推理类型匹配** — 声称的 type 是否与实际推理一致？
+
+### 7.3 三种 Review 场景
+
+| 场景 | 执行者 | 可信度 | 激励 |
+|------|--------|--------|------|
+| **本地** `gaia build --review` | 用户自选模型 | 自用，无需信任 | 自己要用准确结果 |
+| **Server 直连** `gaia publish` | Server 控制的模型 | 高，Server 可控 | 维护知识图谱质量 |
+| **GitHub 模式** PR 到 registry | Server bot 自动评审 | 高，Server 可控 | 发布与评审分离 |
+
+### 7.4 GitHub Review Bot 流程
+
+```
+用户 PR 到 registry repo
+  → Server webhook 触发
+  → Server clone 包，用自己的 model 跑 review skill
+  → Server 在 PR 下评论 review 结果
+  → 通过 → auto-merge；不通过 → request changes
+```
+
+**关键设计：发布与评审分离。** GitHub 是发布平台（类似 arXiv），Server 是独立审稿方（类似期刊）。用户没有动机也没有机会篡改 review 结果。
+
+### 7.5 用户激励
+
+```
+用 gaia 格式发布到 GitHub
+  → 自动获得免费 AI peer review
+  → Review 结果公开，增加可信度
+  → 被 Server 索引，进入全局知识图谱
+  → 被更多人 cite，扩大影响力
+```
+
+---
+
+## 8. Canonical Example: Galileo Workflow (updated)
 
 ```bash
 # 初始化
@@ -384,7 +487,7 @@ $ gaia publish
 
 ---
 
-## 8. 技术选型
+## 9. 技术选型
 
 | 层面 | 选择 | 理由 |
 |------|------|------|
@@ -399,7 +502,7 @@ $ gaia publish
 
 ---
 
-## 9. 与 v2 的主要变化
+## 10. 与 v2 的主要变化
 
 | v2 | v3 | 理由 |
 |----|-----|------|
@@ -410,3 +513,6 @@ $ gaia publish
 | 无 lock file | `gaia.lock` 自动生成 | 可复现性 |
 | 无弱引用 | `[related]` in gaia.toml | 包发现 |
 | 无不可变性规则 | claim 一经发布不可修改 | 知识可靠性 |
+| cite 不分强弱 | `cite`（强）+ `context`（弱） | 强引用参与 BP，弱引用折入 prior |
+| 无 review 系统 | Review Skill 公开协议 + Server bot | 透明、可复现的推理质量评审 |
+| Server 做所有 review | 发布与评审分离（GitHub=arXiv, Server=期刊） | 解决激励问题 |
