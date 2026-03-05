@@ -17,8 +17,7 @@
 **设计原则：**
 - **透明** — Review 的 prompt（skill）公开、版本化，任何人可审查
 - **可复现** — 同样的 (input, skill, model) 应产生统计上一致的结果
-- **发布与评审分离** — 发布者不能审自己的稿，解决激励冲突
-- **渐进式** — MVP 从 Server 自动评审开始，未来扩展到社区评审
+- **发布与评审分离** — GitHub 发布时，Server 独立评审，用户无法篡改
 
 ---
 
@@ -190,21 +189,13 @@ missing_premises: ["<description>", ...]
 
 ### 4.1 三种执行场景
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Review 执行场景                            │
-├──────────────┬────────────────────┬─────────────────────────┤
-│  本地 Review  │  Server 直连 Review │  GitHub Bot Review      │
-│              │                    │                         │
-│  用户自选模型  │  Server 控制模型    │  Server 控制模型         │
-│  gaia build  │  gaia publish      │  PR → webhook → Server  │
-│   --review   │                    │   → PR comment          │
-│              │                    │                         │
-│  自用，可信   │  权威，可信        │  公开，可信              │
-│  不上报      │  存入 Server DB    │  存入 Server DB          │
-│              │                    │  + GitHub PR 评论        │
-└──────────────┴────────────────────┴─────────────────────────┘
-```
+| 场景 | 触发方式 | 执行者 | 结果存储 |
+|------|---------|--------|---------|
+| **本地 Review** | `gaia build --review` | 用户自选模型 | 仅本地，用于本地 BP |
+| **GitHub 模式** | PR 到 registry repo | Server（webhook 触发） | Server DB + GitHub PR 评论 |
+| **Server 直连** | `gaia publish` | Server | Server DB |
+
+三种场景的共同点：都使用同一套 review skill 协议。区别在于谁执行、结果存哪里。
 
 ### 4.2 本地 Review
 
@@ -225,8 +216,9 @@ $ gaia build --review
 ```
 
 - 用户自选模型（通过 `~/.gaia/config.toml` 配置）
-- 结果仅供本地 BP 使用，不上报
-- 适合 Agent 快速探索
+- Review score 作为本地 BP 的 hyperedge probability
+- 结果仅供本地使用，不上报 Server
+- 适合 Agent 快速探索、迭代
 
 ### 4.3 Server 直连 Review
 
@@ -241,10 +233,12 @@ $ gaia publish
 ```
 
 - Server 用自己控制的模型和 skill 版本
-- Review 结果存入 Server 数据库，作为 hyperedge probability
-- 对用户透明：可查看每条 claim 的 review 详情
+- Review score 存入 Server DB，作为全局 BP 的 hyperedge probability
+- 用户可查看每条 claim 的 review 详情
 
 ### 4.4 GitHub Bot Review
+
+**流程：**
 
 ```
 用户: git push → PR 到 registry repo
@@ -252,39 +246,40 @@ $ gaia publish
 Server: webhook 触发
   → clone 包
   → 用 Server 模型跑 review skill
-  → 在 PR 下发表评论:
-
-    ┌────────────────────────────────────────────┐
-    │ 🤖 Gaia Review Bot                         │
-    │                                            │
-    │ Package: galileo_tied_balls v1.0.0         │
-    │ Reviewer: claude-opus-4-6                  │
-    │ Skill: claim-review-v1.0                   │
-    │                                            │
-    │ | Claim | Score | Issue |                  │
-    │ |-------|-------|-------|                   │
-    │ | 5005 "推导A" | 0.95 | — |               │
-    │ | 5006 "推导B" | 0.95 | — |               │
-    │ | 5007 "矛盾"  | 0.92 | — |               │
-    │ | 5012 "真空等速"| 0.78 | ⚠ cite 5009     │
-    │ |       | → downgrade to context |         │
-    │ |                                          │
-    │ | Overall: ✓ Pass (avg 0.90)               │
-    │ |                                          │
-    │ | Auto-merging into registry...            │
-    └────────────────────────────────────────────┘
+  → 在 PR 下发表评论
+  → 通过 → auto-merge；不通过 → request changes
 ```
 
-**关键：发布与评审分离。**
-- GitHub = 发布平台（类似 arXiv，谁都可以发）
+**GitHub PR 评论示例：**
+
+```
+🤖 Gaia Review Bot
+
+Package: galileo_tied_balls v1.0.0
+Reviewer: claude-opus-4-6
+Skill: claim-review-v1.0
+
+| Claim | Score | Issue |
+|-------|-------|-------|
+| 5005 "推导A: HL更慢" | 0.95 | — |
+| 5006 "推导B: HL更快" | 0.95 | — |
+| 5007 "矛盾" | 0.92 | — |
+| 5012 "真空等速" | 0.78 | ⚠ cite 5009 建议降级为 context |
+
+Overall: ✓ Pass (avg 0.90)
+
+Auto-merging into registry...
+```
+
+**关键设计：发布与评审分离。**
+- GitHub = 发布平台（类似 arXiv，谁都可以发布 claims）
 - Server = 独立审稿方（类似期刊，给出质量评价）
 - 用户没有动机也没有机会篡改 review 结果
+- 所有 review 过程公开在 GitHub PR 评论中（open peer review）
 
 ---
 
 ## 5. Review 记录数据结构
-
-面向未来的完整 review 记录，预留社区评审扩展字段：
 
 ```yaml
 review:
@@ -304,35 +299,17 @@ review:
     irrelevant: []
     missing_premises: []
 
-  # 来源证明（可审计）
+  # 来源证明
   provenance:
-    method: "server"               # "server" | "api" | "self-hosted"
+    method: "server"               # "server" | "local"
     model: "claude-opus-4-6"
     skill: "claim-review-v1.0"
-    api_request_id: "req_abc123"   # API 调用 ID，可审计
     timestamp: "2026-03-06T10:30:00Z"
-
-  # Reviewer 身份（未来扩展）
-  identity:
-    id: "gaia-server-official"
-    type: "server"                 # "server" | "github" | "api-key" | "anonymous"
-
-  # 校准信息（Server 计算，非 reviewer 提交）
-  calibration:
-    score: 0.85                    # 历史校准分
-    reviews_count: 142
-    domain_scores:
-      physics: 0.90
-      biology: 0.72
 ```
-
-**MVP 阶段：** 只实现 `target` + `result` + `provenance`（method="server"）。`identity` 和 `calibration` 字段预留，未来开放社区评审时启用。
 
 ---
 
-## 6. 社区激励机制
-
-### 6.1 用户激励
+## 6. 用户激励
 
 ```
 用 gaia 格式上传到 GitHub
@@ -350,103 +327,33 @@ review:
 | 公开可信度背书 | 更大的知识图谱 |
 | 被全局引用的机会 | 更多跨包引用和矛盾发现 |
 
-### 6.2 Review 质量生态
-
-Review skill 本身是开源的：
-
-- **任何人可以 fork 改进** — 提交 PR 到 review-skills repo
-- **领域特化** — 物理学 review skill、生物学 review skill
-- **竞争改进** — 不同 skill 的校准分数公开可比较
-- **Open peer review** — 所有 review 结果公开在 GitHub PR 中
-
 ---
 
-## 7. Reviewer 校准体系（未来扩展）
+## 7. Review Skill 演进
 
-> MVP 不实现，但数据结构预留。
+Review skill 本身是版本化的 prompt，可以持续迭代改进：
 
-### 7.1 Reviewer ID
+- **v1.0** — 基础版：强引用验证 + 逻辑有效性 + 打分
+- **v1.1+** — 根据实际使用反馈调整评估标准和打分区间
+- **领域特化** — 未来可能出现物理学、生物学等领域特化的 review skill
+- **多模型对比** — Server 可以用多个模型跑同一 skill，取共识结果
 
-```
-reviewer_id = model + skill_version
-例: claude-opus-4-6::claim-review-v1.0
-例: gpt-4o::claim-review-v1.0
-例: llama-3-70b::claim-review-v1.2
-```
-
-### 7.2 校准信号
-
-| 信号 | 说明 |
-|------|------|
-| **事后验证** | Reviewer 给了 0.9，后来被强证据推翻 → 校准偏高 |
-| **Reviewer 间一致性** | 与其他高校准 reviewer 的偏差 |
-| **领域表现** | 同一 reviewer 在不同领域的准确度差异 |
-| **BP 一致性** | Review score 与全局 BP 结果是否矛盾 |
-
-### 7.3 聚合机制
-
-当同一 claim 有多个 review 时：
-
-```
-final_score = Σ(score_i × calibration_i) / Σ(calibration_i)
-```
-
-低校准 reviewer 的分数权重自动降低。
-
-### 7.4 冷启动
-
-新 reviewer 处理方式：
-1. 给予默认权重（如 0.3）
-2. 跑标准 benchmark 测试集（已知答案的 claims）
-3. 根据 benchmark 表现给初始校准分
-4. 之后随着更多 review 持续更新
-
-### 7.5 可复现验证
-
-```
-挑战机制:
-  任何人可以用同样的 (model, skill, input) 重跑 review
-  如果结果统计上显著不同 → reviewer 信誉扣分
-```
-
-LLM 输出有随机性，但同一 (model, skill) 在同一输入上的分数分布应该稳定。
-
-### 7.6 可信执行验证
-
-| 方式 | 可信度 | 说明 |
-|------|--------|------|
-| **Server 执行** | 最高 | Server 控制全流程 |
-| **API 调用证明** | 高 | API provider 签发 request_id，可审计 |
-| **自报** | 低 | 靠校准因子淘汰 |
+Skill 的改进由 Gaia 团队维护，版本化管理，每次更新有明确的 changelog。
 
 ---
 
 ## 8. 实现路线
 
-### Phase 1: MVP — Server 自动评审
+### Phase 1: MVP
 
 - 实现 claim-review-v1.0 skill prompt
-- Server 端 review 流程（同步/异步）
+- `gaia build --review` 本地评审（用户配置模型）
+- Server 端 review 流程（`gaia publish` 触发）
 - Review 结果存储
-- `gaia build --review` 本地评审
-- GitHub webhook + bot 评论
+- GitHub webhook + bot PR 评论
 
-### Phase 2: 多模型支持
+### Phase 2: 改进
 
-- 支持配置不同模型跑同一 skill
-- 多 review 结果存储和展示
-- 基础聚合（取平均/中位数）
-
-### Phase 3: 校准体系
-
-- Benchmark 测试集构建
-- 校准分数计算
-- 加权聚合
-- 公开校准排行榜
-
-### Phase 4: 社区评审
-
-- 开放第三方 reviewer 注册
-- 可复现验证机制
-- 领域特化 review skill
-- 去中心化 review 网络
+- 根据实际使用调优 skill prompt 和打分区间
+- Server 支持多模型 review（取共识）
+- Review 结果与 BP 集成优化
