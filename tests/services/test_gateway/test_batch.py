@@ -35,12 +35,8 @@ def deps():
     )
     d.commit_engine.submit_review = AsyncMock(return_value=MagicMock(job_id="rj1"))
     d.commit_engine.job_manager = MagicMock()
-    d.commit_engine.job_manager.get_status = AsyncMock(
-        return_value=_make_completed_review_job()
-    )
-    d.commit_engine.job_manager.get_result = AsyncMock(
-        return_value={"overall_verdict": "pass"}
-    )
+    d.commit_engine.job_manager.get_status = AsyncMock(return_value=_make_completed_review_job())
+    d.commit_engine.job_manager.get_result = AsyncMock(return_value={"overall_verdict": "pass"})
     d.commit_engine.merge = AsyncMock(
         return_value=MergeResult(success=True, new_node_ids=[1], new_edge_ids=[10])
     )

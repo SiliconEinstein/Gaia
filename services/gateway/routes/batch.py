@@ -46,9 +46,7 @@ async def batch_commit(request: BatchCommitRequest):
                         break
                     await asyncio.sleep(0.05)
 
-                review_result = await deps.commit_engine.job_manager.get_result(
-                    job.job_id
-                )
+                review_result = await deps.commit_engine.job_manager.get_result(job.job_id)
                 approved = (
                     review_result.get("overall_verdict") == "pass"
                     if isinstance(review_result, dict)
@@ -58,9 +56,7 @@ async def batch_commit(request: BatchCommitRequest):
 
                 if approved and request.auto_merge:
                     merge_result = await deps.commit_engine.merge(commit_resp.commit_id)
-                    entry["status"] = (
-                        "merged" if merge_result.success else "merge_failed"
-                    )
+                    entry["status"] = "merged" if merge_result.success else "merge_failed"
                     entry["merge_result"] = merge_result.model_dump()
 
             results.append(entry)
