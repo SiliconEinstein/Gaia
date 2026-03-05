@@ -35,10 +35,14 @@ def review_command(claim_ids: list[int] | None = None):
 
     typer.echo(f"Reviewing {len(to_review)} claim(s) with {model}...")
 
-    # Run reviews
-    results = asyncio.run(
-        _review_batch(to_review, all_claims_map, model, skill_version, concurrency)
-    )
+    # Run reviews in a fresh event loop to avoid interfering with existing loops
+    loop = asyncio.new_event_loop()
+    try:
+        results = loop.run_until_complete(
+            _review_batch(to_review, all_claims_map, model, skill_version, concurrency)
+        )
+    finally:
+        loop.close()
 
     # Print results table
     typer.echo(f"\n{'Claim':>6} | {'Score':>5} | Issue")
