@@ -411,7 +411,7 @@ downgraded_premises: []            # 应降级为 context
 upgraded_context: []               # 应升级为 premise
 irrelevant: []                     # 建议删除
 suggested_premise: []              # 从 why 中提取的隐含强依赖
-suggested_context: []              # 从 why 中提取的隐含背景知识
+suggested_context: []              # 可能相关的引文，建议作为弱引用
 ```
 
 **评估标准：**
