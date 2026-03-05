@@ -5,9 +5,15 @@ import typer
 app = typer.Typer(name="gaia", help="Gaia Knowledge Package Manager")
 
 
+# Module-level state for --json flag
+_json_output: bool = False
+
+
 @app.callback()
-def main():
+def main(json_output: bool = typer.Option(False, "--json", help="Output as JSON")):
     """Gaia Knowledge Package Manager."""
+    global _json_output
+    _json_output = json_output
 
 
 @app.command()
