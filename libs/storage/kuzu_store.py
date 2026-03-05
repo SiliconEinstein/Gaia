@@ -36,9 +36,7 @@ class KuzuGraphStore(GraphStore):
 
     async def initialize_schema(self) -> None:
         """Create node/rel tables (idempotent)."""
-        self._conn.execute(
-            "CREATE NODE TABLE IF NOT EXISTS Proposition(id INT64, PRIMARY KEY(id))"
-        )
+        self._conn.execute("CREATE NODE TABLE IF NOT EXISTS Proposition(id INT64, PRIMARY KEY(id))")
         self._conn.execute(
             "CREATE NODE TABLE IF NOT EXISTS Hyperedge("
             "id INT64, type STRING, subtype STRING, "
@@ -233,9 +231,7 @@ class KuzuGraphStore(GraphStore):
 
     def _get_edge_type(self, edge_id: int) -> str | None:
         """Helper: fetch the type of a hyperedge by id."""
-        res = self._conn.execute(
-            "MATCH (h:Hyperedge {id: $eid}) RETURN h.type", {"eid": edge_id}
-        )
+        res = self._conn.execute("MATCH (h:Hyperedge {id: $eid}) RETURN h.type", {"eid": edge_id})
         if res.has_next():
             return res.get_next()[0]
         return None

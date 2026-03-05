@@ -85,12 +85,8 @@ async def test_subgraph_one_hop(kuzu_store):
 
 async def test_subgraph_hops_limit(kuzu_store):
     """1 hop from node 10 should reach 11 but not 12."""
-    await kuzu_store.create_hyperedge(
-        HyperEdge(id=1, type="paper-extract", tail=[10], head=[11])
-    )
-    await kuzu_store.create_hyperedge(
-        HyperEdge(id=2, type="paper-extract", tail=[11], head=[12])
-    )
+    await kuzu_store.create_hyperedge(HyperEdge(id=1, type="paper-extract", tail=[10], head=[11]))
+    await kuzu_store.create_hyperedge(HyperEdge(id=2, type="paper-extract", tail=[11], head=[12]))
     node_ids, edge_ids = await kuzu_store.get_subgraph([10], hops=1)
     assert 11 in node_ids
     assert 12 not in node_ids
@@ -98,27 +94,17 @@ async def test_subgraph_hops_limit(kuzu_store):
 
 async def test_subgraph_edge_type_filter(kuzu_store):
     """Edge type filter should restrict traversal."""
-    await kuzu_store.create_hyperedge(
-        HyperEdge(id=1, type="abstraction", tail=[10], head=[11])
-    )
-    await kuzu_store.create_hyperedge(
-        HyperEdge(id=2, type="induction", tail=[11], head=[12])
-    )
-    node_ids, edge_ids = await kuzu_store.get_subgraph(
-        [10], hops=2, edge_types=["abstraction"]
-    )
+    await kuzu_store.create_hyperedge(HyperEdge(id=1, type="abstraction", tail=[10], head=[11]))
+    await kuzu_store.create_hyperedge(HyperEdge(id=2, type="induction", tail=[11], head=[12]))
+    node_ids, edge_ids = await kuzu_store.get_subgraph([10], hops=2, edge_types=["abstraction"])
     assert 11 in node_ids
     assert 12 not in node_ids
 
 
 async def test_subgraph_direction_downstream(kuzu_store):
     """Downstream-only traversal from node 1 should follow tail->head."""
-    await kuzu_store.create_hyperedge(
-        HyperEdge(id=1, type="deduction", tail=[1], head=[2])
-    )
-    await kuzu_store.create_hyperedge(
-        HyperEdge(id=2, type="deduction", tail=[3], head=[1])
-    )
+    await kuzu_store.create_hyperedge(HyperEdge(id=1, type="deduction", tail=[1], head=[2]))
+    await kuzu_store.create_hyperedge(HyperEdge(id=2, type="deduction", tail=[3], head=[1]))
     node_ids, edge_ids = await kuzu_store.get_subgraph([1], hops=1, direction="downstream")
     assert 2 in node_ids
     # Node 3 is upstream, should not be reached
@@ -127,12 +113,8 @@ async def test_subgraph_direction_downstream(kuzu_store):
 
 async def test_subgraph_direction_upstream(kuzu_store):
     """Upstream-only traversal from node 2 should follow head->tail."""
-    await kuzu_store.create_hyperedge(
-        HyperEdge(id=1, type="deduction", tail=[1], head=[2])
-    )
-    await kuzu_store.create_hyperedge(
-        HyperEdge(id=2, type="deduction", tail=[2], head=[3])
-    )
+    await kuzu_store.create_hyperedge(HyperEdge(id=1, type="deduction", tail=[1], head=[2]))
+    await kuzu_store.create_hyperedge(HyperEdge(id=2, type="deduction", tail=[2], head=[3]))
     node_ids, edge_ids = await kuzu_store.get_subgraph([2], hops=1, direction="upstream")
     assert 1 in node_ids
     # Node 3 is downstream, should not be reached
@@ -143,9 +125,7 @@ async def test_subgraph_max_nodes(kuzu_store):
     """max_nodes cap should limit the total number of nodes returned."""
     # Create a chain: 1->2->3->4->5
     for i in range(1, 5):
-        await kuzu_store.create_hyperedge(
-            HyperEdge(id=i, type="deduction", tail=[i], head=[i + 1])
-        )
+        await kuzu_store.create_hyperedge(HyperEdge(id=i, type="deduction", tail=[i], head=[i + 1]))
     node_ids, edge_ids = await kuzu_store.get_subgraph([1], hops=4, max_nodes=3)
     assert len(node_ids) <= 4  # max_nodes is a cap, may include seed + discovered
 
