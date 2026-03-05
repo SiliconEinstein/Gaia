@@ -137,3 +137,37 @@ def test_retraction_edge():
     beliefs = bp.run(fg)
     # Retraction should lower A's belief
     assert beliefs[1] < 0.9
+
+
+def test_contradiction_inhibits_both_sides():
+    """Contradiction edge: if one side is strong, the other should drop.
+
+    A (prior=0.9) contradicts B (prior=0.9). After BP, the contradiction
+    should cause mutual inhibition.
+    """
+    fg = FactorGraph()
+    fg.add_variable(1, 0.9)  # A
+    fg.add_variable(2, 0.9)  # B
+    # Contradiction: A and B in tail, both in head (mutual exclusion)
+    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.9, edge_type="contradiction")
+    fg.add_factor(edge_id=101, tail=[2], head=[1], probability=0.9, edge_type="contradiction")
+    bp = BeliefPropagation(damping=0.5, max_iterations=50)
+    beliefs = bp.run(fg)
+    # At least one should drop significantly
+    assert beliefs[1] < 0.9 or beliefs[2] < 0.9
+
+
+def test_contradiction_asymmetric():
+    """Stronger side wins in contradiction.
+
+    A (prior=0.95) contradicts B (prior=0.3). A should stay high, B should drop.
+    """
+    fg = FactorGraph()
+    fg.add_variable(1, 0.95)  # A: strong
+    fg.add_variable(2, 0.3)  # B: weak
+    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.9, edge_type="contradiction")
+    fg.add_factor(edge_id=101, tail=[2], head=[1], probability=0.9, edge_type="contradiction")
+    bp = BeliefPropagation(damping=0.5, max_iterations=50)
+    beliefs = bp.run(fg)
+    assert beliefs[1] > beliefs[2]
+    assert beliefs[2] < 0.3  # B should drop
