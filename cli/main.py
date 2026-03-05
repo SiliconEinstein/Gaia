@@ -51,5 +51,15 @@ def contradictions():
     contradictions_command()
 
 
+@app.command()
+def search(
+    query: str = typer.Argument(..., help="Search query"),
+    limit: int = typer.Option(10, "--limit", "-n", help="Max results"),
+):
+    """Search claims in the knowledge package."""
+    from cli.commands.search import search_command
+    search_command(query, limit)
+
+
 if __name__ == "__main__":
     app()
