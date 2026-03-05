@@ -122,3 +122,18 @@ def test_damping_effect():
     # This is a rough test -- just verify both produce valid results
     assert 0.0 <= beliefs_low[2] <= 1.0
     assert 0.0 <= beliefs_high[2] <= 1.0
+
+
+def test_retraction_edge():
+    """Retraction edge should lower the belief of its target.
+
+    A has high prior. B retracts A. After BP, A's belief should drop.
+    """
+    fg = FactorGraph()
+    fg.add_variable(1, 0.9)  # A: high prior
+    fg.add_variable(2, 0.95)  # B: evidence against A
+    fg.add_factor(edge_id=100, tail=[2], head=[1], probability=0.9, edge_type="retraction")
+    bp = BeliefPropagation(damping=0.5, max_iterations=50)
+    beliefs = bp.run(fg)
+    # Retraction should lower A's belief
+    assert beliefs[1] < 0.9
