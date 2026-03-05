@@ -74,5 +74,14 @@ def build():
     build_command()
 
 
+@app.command()
+def review(
+    claim_ids: list[int] = typer.Argument(None, help="Claim IDs to review (default: all with premises)"),
+):
+    """Review claims using LLM evaluation."""
+    from cli.commands.review import review_command
+    review_command(claim_ids)
+
+
 if __name__ == "__main__":
     app()
