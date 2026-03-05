@@ -3,6 +3,7 @@ import os
 import pytest
 from libs.models import HyperEdge
 from libs.storage.neo4j_store import Neo4jGraphStore
+from tests.conftest import load_fixture_edges
 
 NEO4J_URI = os.environ.get("NEO4J_TEST_URI", "bolt://localhost:7687")
 NEO4J_PASSWORD = os.environ.get("NEO4J_TEST_PASSWORD", "")
@@ -81,3 +82,31 @@ async def test_get_subgraph_edge_type_filter(store):
     node_ids, edge_ids = await store.get_subgraph([10], hops=2, edge_types=["abstraction"])
     assert 11 in node_ids
     assert 12 not in node_ids
+
+
+# -- Fixture-data tests -------------------------------------------------------
+
+
+async def test_create_fixture_edges(store):
+    """Create real fixture edges and verify topology."""
+    edges = load_fixture_edges()
+    for edge in edges:
+        await store.create_hyperedge(edge)
+
+    loaded = await store.get_hyperedge(edges[0].id)
+    assert loaded is not None
+    assert set(loaded.tail) == set(edges[0].tail)
+    assert set(loaded.head) == set(edges[0].head)
+
+
+async def test_subgraph_with_fixture_topology(store):
+    """Subgraph traversal over real fixture edge topology."""
+    edges = load_fixture_edges()
+    for edge in edges:
+        await store.create_hyperedge(edge)
+
+    seed = edges[0].tail[0]
+    node_ids, edge_ids = await store.get_subgraph([seed], hops=2)
+    assert seed in node_ids
+    assert edges[0].id in edge_ids
+    assert len(node_ids) > 1
