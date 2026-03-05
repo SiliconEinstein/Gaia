@@ -61,5 +61,12 @@ def search(
     search_command(query, limit)
 
 
+@app.command()
+def build():
+    """Validate and build the knowledge package."""
+    from cli.commands.build import build_command
+    build_command()
+
+
 if __name__ == "__main__":
     app()
