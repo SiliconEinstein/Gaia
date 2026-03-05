@@ -1,6 +1,7 @@
 """StorageManager: container for all storage backends."""
 
 from .config import StorageConfig
+from .graph_store import GraphStore
 from .lance_store import LanceStore
 from .neo4j_store import Neo4jGraphStore
 from .vector_search import create_vector_client, VectorSearchClient
@@ -11,7 +12,7 @@ class StorageManager:
     """Creates all stores from a single config. No composite business logic."""
 
     lance: LanceStore
-    graph: Neo4jGraphStore | None
+    graph: GraphStore | None
     vector: VectorSearchClient
     ids: IDGenerator
 
