@@ -91,3 +91,122 @@ async def test_batch_commit_result(client):
     assert resp.status_code == 200
     result = resp.json()["result"]
     assert "commits" in result
+
+
+# -- Batch Read (#10) ---------------------------------------------------------
+
+
+async def test_batch_read_nodes(client):
+    resp = await client.post("/nodes/batch", json={"node_ids": [1, 2, 3]})
+    assert resp.status_code == 200
+    assert "job_id" in resp.json()
+
+
+async def test_batch_read_edges(client):
+    resp = await client.post("/hyperedges/batch", json={"edge_ids": [10, 20]})
+    assert resp.status_code == 200
+    assert "job_id" in resp.json()
+
+
+async def test_batch_subgraph(client):
+    resp = await client.post(
+        "/nodes/subgraph/batch",
+        json={
+            "queries": [
+                {"node_id": 1, "hops": 2},
+                {"node_id": 2, "hops": 3, "direction": "upstream"},
+            ]
+        },
+    )
+    assert resp.status_code == 200
+    assert "job_id" in resp.json()
+
+
+async def test_batch_read_nodes_result(client, deps):
+    from libs.models import Node
+
+    deps.storage.lance.load_nodes_bulk = AsyncMock(
+        return_value=[Node(id=1, type="paper-extract", content="test")]
+    )
+    resp = await client.post("/nodes/batch", json={"node_ids": [1]})
+    job_id = resp.json()["job_id"]
+    await asyncio.sleep(0.3)
+    resp = await client.get(f"/jobs/{job_id}/result")
+    assert resp.status_code == 200
+    assert "nodes" in resp.json()["result"]
+
+
+# -- Batch Search (#11) -------------------------------------------------------
+
+
+async def test_batch_search_nodes(client, deps):
+    deps.search_engine.search_nodes = AsyncMock(return_value=[])
+    resp = await client.post(
+        "/search/nodes/batch",
+        json={
+            "queries": [
+                {"text": "superconductor", "top_k": 10},
+                {"text": "hydride", "top_k": 5},
+            ]
+        },
+    )
+    assert resp.status_code == 200
+    assert "job_id" in resp.json()
+
+
+async def test_batch_search_edges(client, deps):
+    deps.search_engine.search_edges = AsyncMock(return_value=[])
+    resp = await client.post(
+        "/search/hyperedges/batch",
+        json={"queries": [{"text": "synthesis route"}]},
+    )
+    assert resp.status_code == 200
+    assert "job_id" in resp.json()
+
+
+async def test_batch_search_nodes_result(client, deps):
+    deps.search_engine.search_nodes = AsyncMock(return_value=[])
+    resp = await client.post(
+        "/search/nodes/batch",
+        json={"queries": [{"text": "q1"}]},
+    )
+    job_id = resp.json()["job_id"]
+    await asyncio.sleep(0.3)
+    resp = await client.get(f"/jobs/{job_id}/result")
+    assert resp.status_code == 200
+    assert "results" in resp.json()["result"]
+
+
+# -- Batch Progress & Cancel --------------------------------------------------
+
+
+async def test_get_batch_commit_progress(client):
+    resp = await client.post(
+        "/commits/batch",
+        json={
+            "commits": [
+                {"message": "p1", "operations": []},
+                {"message": "p2", "operations": []},
+            ],
+            "auto_review": True,
+            "auto_merge": True,
+        },
+    )
+    job_id = resp.json()["job_id"]
+    await asyncio.sleep(0.3)
+
+    resp = await client.get(f"/commits/batch/{job_id}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "status" in data
+    assert "total_commits" in data
+
+
+async def test_cancel_batch(client):
+    resp = await client.post(
+        "/commits/batch",
+        json={"commits": [{"message": "p1", "operations": []}]},
+    )
+    job_id = resp.json()["job_id"]
+    resp = await client.delete(f"/commits/batch/{job_id}")
+    assert resp.status_code == 200
