@@ -1,5 +1,3 @@
-import pytest
-
 from services.review_pipeline.operators.bp import BPOperator
 from services.review_pipeline.context import PipelineContext
 from libs.models import CommitRequest, AddEdgeOp, NewNode
