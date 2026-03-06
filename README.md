@@ -8,6 +8,8 @@ Large Knowledge Model (LKM) — a billion-scale reasoning hypergraph for knowled
 
 Gaia stores propositions as **nodes** and reasoning relationships as **hyperedges**, with a Git-like commit workflow (submit → review → merge) and probabilistic inference via loopy belief propagation.
 
+For the current repo/module layout, start with [docs/module-map.md](docs/module-map.md). For the full documentation index, see [docs/README.md](docs/README.md).
+
 ## Quick Start
 
 ```bash
@@ -36,7 +38,7 @@ graph TB
     end
 
     subgraph Gateway["services/gateway — FastAPI"]
-        Routes[Routes<br>/commits /nodes /search]
+        Routes[Routes<br>/commits /nodes /search /jobs /batch]
         DI[Dependency Injection]
     end
 
@@ -44,6 +46,8 @@ graph TB
         CE[Commit Engine<br><i>submit → review → merge</i>]
         SE[Search Engine<br><i>vector + BM25 + topology</i>]
         IE[Inference Engine<br><i>loopy belief propagation</i>]
+        RP[Review Pipeline<br><i>embedding + join + verify + BP</i>]
+        JM[Job Manager<br><i>async review and batch jobs</i>]
     end
 
     subgraph Storage["libs/storage — StorageManager"]
@@ -58,14 +62,28 @@ graph TB
 
     UI -- HTTP --> Routes
     Routes --> DI
-    DI --> CE & SE & IE
+    DI --> CE & SE & IE & JM
+    CE --> RP
+    CE --> JM
     CE -- triple write --> Lance & Neo4j & Vec
     SE -- multi-path recall --> Lance & Neo4j & Vec
     IE -- factor graph --> Neo4j
     IE -- beliefs --> Lance
-    CE & SE & IE -.-> M
+    RP --> Lance & Vec
+    CE & SE & IE & RP -.-> M
     Storage -.-> M
 ```
+
+## Project Layout
+
+| Path | Responsibility |
+|------|----------------|
+| `libs/` | shared models, embeddings, storage backends, vector search abstraction |
+| `services/` | backend runtime modules: gateway, commit, search, inference, review pipeline, jobs |
+| `frontend/` | React dashboard |
+| `scripts/` | seeding and migration utilities |
+| `tests/` | unit and integration coverage |
+| `docs/` | current module map, design references, examples, archived plans |
 
 ### Storage
 
@@ -77,16 +95,24 @@ graph TB
 
 ### API
 
-| Endpoint | Description |
-|----------|-------------|
-| `POST /commits` | Submit a batch of operations |
-| `POST /commits/{id}/review` | Run review on a commit |
-| `POST /commits/{id}/merge` | Merge commit to storage |
-| `GET /nodes/{id}` | Read a node |
-| `GET /nodes/{id}/subgraph/hydrated` | Fetch k-hop subgraph with full data |
-| `POST /search/nodes` | Multi-path search (vector + BM25 + topology) |
-| `POST /search/text` | BM25 text search |
-| `GET /stats` | Database statistics |
+| Area | Endpoints |
+|------|-----------|
+| Commits | `GET/POST /commits`, `POST /commits/{id}/review`, `GET /commits/{id}/review`, `POST /commits/{id}/merge` |
+| Read | `GET /nodes/{id}`, `GET /hyperedges/{id}`, `GET /nodes/{id}/subgraph`, `GET /nodes/{id}/subgraph/hydrated`, `GET /stats` |
+| Search | `POST /search/nodes`, `POST /search/hyperedges` |
+| Batch | `POST /commits/batch`, `POST /nodes/batch`, `POST /hyperedges/batch`, `POST /nodes/subgraph/batch`, `POST /search/nodes/batch`, `POST /search/hyperedges/batch` |
+| Jobs | `GET /jobs/{job_id}`, `GET /jobs/{job_id}/result`, `DELETE /jobs/{job_id}` |
+
+## Documentation
+
+| Path | Purpose |
+|------|---------|
+| [docs/module-map.md](docs/module-map.md) | current repo structure and module boundaries |
+| [docs/architecture-rebaseline.md](docs/architecture-rebaseline.md) | structural issues exposed by implementation and recommended cleanup direction |
+| [docs/foundations/README.md](docs/foundations/README.md) | foundation-first planning area for reworking product scope, graph/schema, modules, and APIs |
+| [docs/design/](docs/design/) | design and theory references |
+| [docs/examples/](docs/examples/) | reasoning examples |
+| [docs/plans/](docs/plans/) | historical implementation plans and API drafts |
 
 ## Testing
 

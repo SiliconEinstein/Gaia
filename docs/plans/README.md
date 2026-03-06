@@ -1,6 +1,10 @@
-# Gaia Development Plans
+# Gaia Historical Plans
 
-## Roadmap
+This directory contains planning snapshots, API drafts, and implementation notes from the initial build-out of Gaia.
+
+These files are still useful for historical context, but they are not the current source of truth for repo structure. For the current layout, start with [../module-map.md](../module-map.md).
+
+## Historical Roadmap Snapshot
 
 ```
 Phase 1 (v2) ✅ Done
@@ -34,9 +38,11 @@ Future
   └─ Knowledge Package Manager (#35, #37, #38)
 ```
 
+The roadmap above reflects how the project was planned in early March 2026. Some items marked "Active" in those snapshots may already be implemented, changed, or superseded by later work.
+
 ## Plan Documents
 
-### Active
+### Historical planning threads
 
 | Document | Scope | Issues |
 |----------|-------|--------|
