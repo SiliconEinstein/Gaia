@@ -20,9 +20,10 @@ from typing import Any
 import neo4j
 
 from libs.models import HyperEdge
+from libs.storage.graph_store import GraphStore
 
 
-class Neo4jGraphStore:
+class Neo4jGraphStore(GraphStore):
     """Async Neo4j store for the Gaia hypergraph."""
 
     def __init__(self, driver: neo4j.AsyncDriver, database: str = "gaia") -> None:

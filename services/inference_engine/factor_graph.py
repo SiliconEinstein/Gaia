@@ -28,6 +28,7 @@ class FactorGraph:
         tail: list[int],
         head: list[int],
         probability: float,
+        edge_type: str = "deduction",
     ) -> None:
         """Add a factor (hyperedge) connecting variables."""
         self.factors.append(
@@ -36,6 +37,7 @@ class FactorGraph:
                 "tail": tail,
                 "head": head,
                 "probability": probability,
+                "edge_type": edge_type,
             }
         )
 
@@ -52,7 +54,7 @@ class FactorGraph:
             graph.add_variable(node.id, node.prior)
         for edge in edges:
             prob = edge.probability if edge.probability is not None else 1.0
-            graph.add_factor(edge.id, edge.tail, edge.head, prob)
+            graph.add_factor(edge.id, edge.tail, edge.head, prob, edge_type=edge.type)
         return graph
 
     def get_neighbors(self, node_id: int) -> list[int]:

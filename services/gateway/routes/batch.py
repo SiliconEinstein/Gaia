@@ -40,19 +40,25 @@ async def batch_commit(request: BatchCommitRequest):
 
             if request.auto_review:
                 job = await deps.commit_engine.submit_review(commit_resp.commit_id)
+                timed_out = True
                 for _ in range(100):
                     status = await deps.commit_engine.job_manager.get_status(job.job_id)
                     if status.status.value in ("completed", "failed"):
+                        timed_out = False
                         break
                     await asyncio.sleep(0.05)
 
-                review_result = await deps.commit_engine.job_manager.get_result(job.job_id)
-                approved = (
-                    review_result.get("overall_verdict") == "pass"
-                    if isinstance(review_result, dict)
-                    else False
-                )
-                entry["status"] = "reviewed" if approved else "rejected"
+                approved = False
+                if timed_out:
+                    entry["status"] = "review_timeout"
+                else:
+                    review_result = await deps.commit_engine.job_manager.get_result(job.job_id)
+                    approved = (
+                        review_result.get("overall_verdict") == "pass"
+                        if isinstance(review_result, dict)
+                        else False
+                    )
+                    entry["status"] = "reviewed" if approved else "rejected"
 
                 if approved and request.auto_merge:
                     merge_result = await deps.commit_engine.merge(commit_resp.commit_id)

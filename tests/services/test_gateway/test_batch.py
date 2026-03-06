@@ -206,3 +206,52 @@ async def test_cancel_batch(client):
     job_id = resp.json()["job_id"]
     resp = await client.delete(f"/commits/batch/{job_id}")
     assert resp.status_code == 200
+
+
+async def test_batch_commit_review_timeout():
+    """When review polling times out, commit status should be 'review_timeout', not 'rejected'."""
+    running_job = Job(job_type=JobType.REVIEW, reference_id="c1")
+    running_job.status = JobStatus.RUNNING
+
+    d = Dependencies()
+    d.storage = MagicMock()
+    d.storage.graph = None
+    d.storage.lance = MagicMock()
+    d.storage.vector = AsyncMock()
+    d.search_engine = MagicMock()
+    d.commit_engine = MagicMock()
+    d.commit_engine.submit = AsyncMock(
+        return_value=CommitResponse(commit_id="c1", status="pending_review")
+    )
+    d.commit_engine.submit_review = AsyncMock(return_value=MagicMock(job_id="rj1"))
+    # Always return RUNNING — review never completes
+    d.commit_engine.job_manager = MagicMock()
+    d.commit_engine.job_manager.get_status = AsyncMock(return_value=running_job)
+    d.commit_engine.merge = AsyncMock()
+    d.job_manager = JobManager(store=InMemoryJobStore())
+    d.inference_engine = MagicMock()
+
+    app = create_app(dependencies=d)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/commits/batch",
+            json={
+                "commits": [{"message": "timeout paper", "operations": []}],
+                "auto_review": True,
+                "auto_merge": True,
+            },
+        )
+        job_id = resp.json()["job_id"]
+        # Wait for the batch job to complete (polling loop ~100*0.05s = 5s)
+        await asyncio.sleep(6)
+
+        resp = await client.get(f"/jobs/{job_id}/result")
+        assert resp.status_code == 200
+        result = resp.json()["result"]
+        commit = result["commits"][0]
+        assert commit["status"] == "review_timeout", (
+            f"Expected 'review_timeout', got '{commit['status']}'"
+        )
+        # Merge should NOT have been called
+        d.commit_engine.merge.assert_not_called()

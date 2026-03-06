@@ -14,6 +14,8 @@ dependencies = [
     "litellm>=1.40",
     "httpx>=0.27",
     "lxml>=5.0",
+    "kuzu>=0.4",
+    "pandas>=2.0",
 ]
 
 [project.optional-dependencies]

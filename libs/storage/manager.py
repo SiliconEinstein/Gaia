@@ -1,9 +1,9 @@
 """StorageManager: container for all storage backends."""
 
 from .config import StorageConfig
+from .graph_store import GraphStore
 from .lance_store import LanceStore
-from .neo4j_store import Neo4jGraphStore
-from .vector_search import create_vector_client, VectorSearchClient
+from .vector_search import VectorSearchClient, create_vector_client
 from .id_generator import IDGenerator
 
 
@@ -11,7 +11,7 @@ class StorageManager:
     """Creates all stores from a single config. No composite business logic."""
 
     lance: LanceStore
-    graph: Neo4jGraphStore | None
+    graph: GraphStore | None
     vector: VectorSearchClient
     ids: IDGenerator
 
@@ -20,9 +20,15 @@ class StorageManager:
         self.vector = create_vector_client(config)
         self.ids = IDGenerator(storage_path=config.lancedb_path + "/ids")
 
-        # Neo4j: create lazily or handle missing connection gracefully
         self._driver = None
         self.graph = None
+
+        if config.graph_backend == "neo4j":
+            self._init_neo4j(config)
+        elif config.graph_backend == "kuzu":
+            self._init_kuzu(config)
+
+    def _init_neo4j(self, config: StorageConfig) -> None:
         try:
             import neo4j
 
@@ -31,12 +37,22 @@ class StorageManager:
                 config.neo4j_uri,
                 auth=auth,
             )
+            from .neo4j_store import Neo4jGraphStore
+
             self.graph = Neo4jGraphStore(
                 driver=self._driver,
                 database=config.neo4j_database,
             )
         except Exception:
             pass
+
+    def _init_kuzu(self, config: StorageConfig) -> None:
+        from .kuzu_store import KuzuGraphStore
+
+        kuzu_path = config.kuzu_path or (config.lancedb_path + "/kuzu")
+        store = KuzuGraphStore(db_path=kuzu_path)
+        store._ensure_schema()
+        self.graph = store
 
     async def close(self) -> None:
         await self.lance.close()
