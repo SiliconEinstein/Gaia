@@ -156,9 +156,7 @@ def test_contradiction_confirms_conclusion():
     fg.add_variable(1, 0.9)  # premise A
     fg.add_variable(2, 0.85)  # premise B
     fg.add_variable(3, 1.0)  # conclusion C — default prior
-    fg.add_factor(
-        edge_id=100, tail=[1, 2], head=[3], probability=0.8, edge_type="contradiction"
-    )
+    fg.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.8, edge_type="contradiction")
     bp = BeliefPropagation(damping=1.0, max_iterations=1)
     beliefs = bp.run(fg)
     # factor_msg = 0.9 * 0.85 * 0.8 = 0.612
@@ -172,9 +170,7 @@ def test_contradiction_inhibits_premises():
     fg.add_variable(1, 0.9)  # premise A
     fg.add_variable(2, 0.85)  # premise B
     fg.add_variable(3, 1.0)  # conclusion C
-    fg.add_factor(
-        edge_id=100, tail=[1, 2], head=[3], probability=0.8, edge_type="contradiction"
-    )
+    fg.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.8, edge_type="contradiction")
     bp = BeliefPropagation(damping=1.0, max_iterations=1)
     beliefs = bp.run(fg)
     assert beliefs[1] < 0.9, f"Premise A should be inhibited, got {beliefs[1]}"
@@ -191,9 +187,7 @@ def test_contradiction_uses_old_beliefs_for_stability():
     fg.add_variable(1, 0.9)  # premise A
     fg.add_variable(2, 0.85)  # premise B
     fg.add_variable(3, 1.0)  # conclusion C
-    fg.add_factor(
-        edge_id=100, tail=[1, 2], head=[3], probability=0.8, edge_type="contradiction"
-    )
+    fg.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.8, edge_type="contradiction")
     bp = BeliefPropagation(damping=1.0, max_iterations=1)
     beliefs = bp.run(fg)
     # Backward message uses old_beliefs[3]=1.0 (snapshot), not live beliefs[3]
