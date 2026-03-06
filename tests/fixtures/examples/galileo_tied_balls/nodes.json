@@ -1,0 +1,342 @@
+[
+  {
+    "id": 5001,
+    "type": "paper-extract",
+    "subtype": "premise",
+    "title": "Aristotle's natural motion doctrine",
+    "content": "In Aristotle's physics (De Caelo, Book I; Physics, Book IV), every terrestrial body possesses a natural tendency to seek its natural place. Heavy bodies (those dominated by the element earth) move downward more vigorously than light ones. Aristotle holds that the speed of natural downward motion is directly related to the body's weight (or more precisely, its heaviness): a body twice as heavy will fall twice as fast through the same medium. This doctrine stood essentially unchallenged for nearly two millennia in Western natural philosophy.",
+    "keywords": ["Aristotle", "natural motion", "De Caelo", "Physics", "heaviness", "fall speed", "natural place", "terrestrial mechanics"],
+    "prior": 0.7,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "aristotle_physics",
+      "source": "Aristotle, De Caelo (~350 BCE); Physics IV.8, 215a-216a"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5002,
+    "type": "paper-extract",
+    "subtype": "premise",
+    "title": "Empirical observation: stones fall faster than leaves",
+    "content": "Everyday experience appears to confirm Aristotle's doctrine: a heavy stone dropped from a height reaches the ground noticeably sooner than a light leaf or feather released from the same height at the same instant. Similarly, a cannonball falls much faster than a sheet of paper, and a gold coin falls faster than a wood chip. These commonplace observations provided the empirical foundation that sustained belief in Aristotle's weight-speed proportionality for nearly two thousand years.",
+    "keywords": ["empirical observation", "stone", "leaf", "feather", "fall speed", "everyday experience", "Aristotelian evidence"],
+    "prior": 0.9,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "aristotle_physics",
+      "source": "common empirical observation cited in Aristotelian tradition"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5003,
+    "type": "abstraction",
+    "subtype": null,
+    "title": "Aristotle's law: fall speed proportional to weight",
+    "content": "Aristotle's law of falling bodies asserts that the natural speed of fall v of a body is directly proportional to its weight W: v = k * W (for some constant k depending on the medium). Equivalently, if body A weighs twice as much as body B, then A falls twice as fast as B through the same medium. This is a specific quantitative claim extracted from Aristotle's qualitative doctrine and the supporting empirical observations.",
+    "keywords": ["Aristotle's law", "speed proportional to weight", "v proportional to W", "quantitative claim", "falling bodies"],
+    "prior": 0.7,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "aristotle_physics",
+      "source": "abstraction from Aristotle's Physics IV.8"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5004,
+    "type": "deduction",
+    "subtype": null,
+    "title": "Thought experiment: tie a heavy ball to a light ball",
+    "content": "Galileo (Discorsi e Dimostrazioni Matematiche, 1638) proposes the following thought experiment: take a heavy cannonball (weight W_H) and a light musket ball (weight W_L, where W_L < W_H). Now tie them together with a cord to form a single combined system. Assume Aristotle's law holds: the heavy ball falls at speed v_H and the light ball at speed v_L, with v_H > v_L because W_H > W_L. What happens when we drop the combined system?",
+    "keywords": ["Galileo", "thought experiment", "tied balls", "cannonball", "musket ball", "Discorsi", "1638", "reductio ad absurdum"],
+    "prior": 1.0,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "galileo1638_tied_balls",
+      "source": "Galileo Galilei, Discorsi e Dimostrazioni Matematiche, First Day (1638)"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5005,
+    "type": "deduction",
+    "subtype": null,
+    "title": "Deduction A: light ball should slow heavy ball, so combined falls SLOWER",
+    "content": "If Aristotle's law holds, the light ball (natural speed v_L) acts as a drag on the heavy ball (natural speed v_H). Since the light ball 'wants' to fall more slowly, it retards the heavy ball when they are tied together. Therefore the combined system should fall at some intermediate speed v_combined, where v_L < v_combined < v_H. In particular, the combined system falls SLOWER than the heavy ball alone.",
+    "keywords": ["deduction", "retardation", "drag", "slower", "combined system", "intermediate speed", "Aristotle's law applied"],
+    "prior": 1.0,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "galileo1638_tied_balls",
+      "source": "Galileo, Discorsi (1638), First Day — Salviati's first deduction"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5006,
+    "type": "deduction",
+    "subtype": null,
+    "title": "Deduction B: combined system is heavier, so combined falls FASTER",
+    "content": "If Aristotle's law holds, the combined weight of the tied system is W_H + W_L, which is strictly greater than W_H alone. Since speed is proportional to weight, the combined system should fall at speed v(W_H + W_L) > v(W_H) = v_H. Therefore the combined system falls FASTER than the heavy ball alone.",
+    "keywords": ["deduction", "combined weight", "faster", "weight addition", "Aristotle's law applied", "heavier system"],
+    "prior": 1.0,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "galileo1638_tied_balls",
+      "source": "Galileo, Discorsi (1638), First Day — Salviati's second deduction"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5007,
+    "type": "deduction",
+    "subtype": null,
+    "title": "Contradiction: same system cannot fall both faster and slower",
+    "content": "Deductions A and B, both derived from Aristotle's law applied to the same physical setup, yield mutually exclusive predictions. Deduction A concludes: v_combined < v_H (the tied system falls slower than the heavy ball). Deduction B concludes: v_combined > v_H (the tied system falls faster than the heavy ball). Both v_combined < v_H and v_combined > v_H cannot hold simultaneously. This is a logical contradiction derived purely from the assumption that Aristotle's law is correct.",
+    "keywords": ["contradiction", "paradox", "reductio ad absurdum", "mutual exclusion", "logical inconsistency", "Galileo's paradox"],
+    "prior": 1.0,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "galileo1638_tied_balls",
+      "source": "Galileo, Discorsi (1638), First Day — the central paradox"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5008,
+    "type": "deduction",
+    "subtype": null,
+    "title": "Therefore Aristotle's law is self-contradictory",
+    "content": "Since Aristotle's law (v proportional to W) leads to a logical contradiction when applied to the simple case of two bodies tied together, the law must be false by reductio ad absurdum. The only assumption that can be dropped to resolve the paradox is the proportionality v = k * W itself. Galileo concludes that the premise 'heavier bodies fall faster in proportion to their weight' is internally inconsistent and must be rejected on purely logical grounds, independent of any experiment.",
+    "keywords": ["reductio ad absurdum", "Aristotle refuted", "self-contradictory", "logical refutation", "Galileo's conclusion", "law falsified"],
+    "prior": 1.0,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "galileo1638_tied_balls",
+      "source": "Galileo, Discorsi (1638), First Day — Salviati's conclusion"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5009,
+    "type": "paper-extract",
+    "subtype": "premise",
+    "title": "Observation: objects fall at different speeds in water vs air",
+    "content": "Galileo observes that the difference in fall speeds between heavy and light objects is much more pronounced in dense media (such as water or honey) than in thin media (such as air). A gold ball and a lead ball released in water show a noticeable speed difference, but the same pair released in air shows a much smaller difference. Furthermore, a gold ball and an inflated bladder differ enormously in water but only moderately in air.",
+    "keywords": ["medium density", "water", "air", "fall speed difference", "dense media", "thin media", "Galileo observation"],
+    "prior": 0.9,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "galileo1638_medium_density",
+      "source": "Galileo, Discorsi (1638), First Day — discussion of media effects"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5010,
+    "type": "paper-extract",
+    "subtype": "premise",
+    "title": "Observation: speed difference decreases in less dense media",
+    "content": "As the density of the medium decreases, the difference in fall speeds between heavy and light objects of similar size systematically diminishes. Galileo notes that a lead ball and a wooden ball show a larger speed difference in water than in air. Extrapolating this trend to its logical limit, in a medium of zero density (i.e., a vacuum), the speed difference should vanish entirely. This is a crucial empirical pattern that Aristotle's theory cannot explain, since Aristotle's law predicts the same speed ratio regardless of the medium.",
+    "keywords": ["medium density", "extrapolation", "vacuum", "speed convergence", "decreasing difference", "Galileo observation", "trend"],
+    "prior": 0.9,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "galileo1638_medium_density",
+      "source": "Galileo, Discorsi (1638), First Day — extrapolation to void"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5011,
+    "type": "conjecture",
+    "subtype": null,
+    "title": "Hypothesis: air resistance is the confounding variable, not weight",
+    "content": "The observed differences in fall speed between objects of different weight are caused primarily by the resistance of the medium (air, water, etc.) rather than by any intrinsic relationship between weight and natural speed. In a vacuum, where medium resistance is absent, all objects would fall at the same speed regardless of weight. The medium acts as the confounding variable that produces the illusion of weight-dependent fall speed: denser objects have a more favorable ratio of gravitational pull to drag, giving them a speed advantage that disappears as medium density approaches zero.",
+    "keywords": ["air resistance", "confounding variable", "medium resistance", "drag", "buoyancy", "vacuum hypothesis", "Galileo conjecture"],
+    "prior": 0.8,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "galileo1638_medium_density",
+      "source": "Galileo, Discorsi (1638), First Day — Salviati's hypothesis"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5012,
+    "type": "conjecture",
+    "subtype": null,
+    "title": "Prediction: in vacuum, all objects fall at the same rate",
+    "content": "Combining the logical refutation of Aristotle's law (from the tied balls paradox) with the hypothesis that air resistance is the confounding variable, Galileo arrives at a specific prediction: in a true vacuum, all objects regardless of their weight, size, shape, or material composition will fall with exactly the same acceleration and reach the ground at the same time when dropped from the same height. This is the universality of free fall.",
+    "keywords": ["vacuum", "equal fall rate", "universality of free fall", "prediction", "Galileo", "weight-independent acceleration"],
+    "prior": 0.85,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "galileo1638_vacuum_prediction",
+      "source": "Galileo, Discorsi (1638), First Day — the vacuum prediction"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5013,
+    "type": "paper-extract",
+    "subtype": "premise",
+    "title": "Inclined plane experiments: different weights arrive at same time",
+    "content": "Galileo reports experiments using inclined planes (which slow down the effective acceleration, making timing feasible with water clocks). Bronze balls of different weights are rolled down smooth inclined planes of various angles. The key finding: balls of different weight released simultaneously from the top of the same inclined plane consistently arrive at the bottom at the same time, within experimental precision. The ratio of distances traversed follows the square of the ratio of elapsed times (d proportional to t^2), independent of the ball's weight.",
+    "keywords": ["inclined plane", "experiment", "bronze balls", "equal arrival time", "d proportional to t squared", "Galileo experiment", "weight-independent"],
+    "prior": 0.9,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "galileo1638_vacuum_prediction",
+      "source": "Galileo, Discorsi (1638), Third Day — inclined plane experiments"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5014,
+    "type": "deduction",
+    "subtype": null,
+    "title": "Equal fall rate (in vacuum) confirmed by inclined plane",
+    "content": "The inclined plane experiments demonstrate that different weights traverse the same distance in the same time when air resistance is minimized (dense bronze balls on smooth planes). Since an inclined plane is geometrically equivalent to reducing the effective gravitational component while preserving the ratio of gravitational to inertial effects, these results provide direct experimental evidence that the acceleration of falling bodies is independent of their weight. This confirms Galileo's vacuum prediction within the experimental limits imposed by residual air resistance and friction.",
+    "keywords": ["inclined plane", "experimental confirmation", "equal acceleration", "weight-independent", "Galileo confirmed", "residual friction"],
+    "prior": 0.9,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "galileo1638_vacuum_prediction",
+      "source": "Galileo, Discorsi (1638), Third Day — interpretation of inclined plane results"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5015,
+    "type": "paper-extract",
+    "subtype": "premise",
+    "title": "Newton's 2nd law: F = ma",
+    "content": "Newton's second law of motion (Principia Mathematica, 1687) states that the net force F acting on a body equals the product of its inertial mass m and its acceleration a: F = ma. This law is universal and applies to all bodies regardless of their composition, weight, or size. It establishes the concept of inertial mass as the quantity that resists changes in motion, fundamentally distinct from weight (which is a force).",
+    "keywords": ["Newton", "second law", "F = ma", "inertial mass", "acceleration", "Principia", "1687", "force"],
+    "prior": 0.95,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "newton1687_principia",
+      "source": "Isaac Newton, Philosophiae Naturalis Principia Mathematica (1687), Book I, Axioms"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5016,
+    "type": "paper-extract",
+    "subtype": "premise",
+    "title": "Gravitational force: F = mg",
+    "content": "Near the surface of a massive body (such as Earth), the gravitational force on an object of mass m is F = mg, where g is the local gravitational acceleration (approximately 9.8 m/s^2 on Earth's surface). Crucially, the same quantity m that appears in F = ma (inertial mass) also appears in F = mg (gravitational mass). This equivalence of inertial and gravitational mass was noted by Newton and later elevated to a fundamental principle by Einstein in the equivalence principle of general relativity.",
+    "keywords": ["gravitational force", "F = mg", "gravitational mass", "inertial mass equivalence", "g", "weight", "Newton", "equivalence principle"],
+    "prior": 0.95,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "newton1687_principia",
+      "source": "Newton, Principia (1687), Book III; confirmed by Eotvos experiments"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5017,
+    "type": "deduction",
+    "subtype": null,
+    "title": "Derivation: a = g (acceleration independent of mass)",
+    "content": "From Newton's second law F = ma and the gravitational force law F = mg, we can derive the acceleration of a freely falling body: ma = mg, therefore a = g. The mass m cancels completely from both sides. This means every object in free fall (ignoring air resistance) accelerates at exactly the same rate g, regardless of its mass, weight, composition, or any other property. This is a rigorous theoretical derivation of Galileo's empirical observation, grounded in the equivalence of inertial and gravitational mass.",
+    "keywords": ["derivation", "a = g", "mass cancellation", "universal free fall", "Newton derivation", "mass-independent acceleration", "equivalence principle"],
+    "prior": 0.95,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "newton1687_principia",
+      "source": "derived from Newton's Principia (1687), combining Laws II and III with universal gravitation"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5018,
+    "type": "paper-extract",
+    "subtype": "premise",
+    "title": "Apollo 15: hammer and feather dropped on Moon (vacuum)",
+    "content": "On August 2, 1971, during the Apollo 15 mission, astronaut David Scott performed a live televised experiment on the lunar surface. Standing at the Hadley-Apennine landing site, he held a 1.32 kg aluminum geological hammer in one hand and a 0.03 kg falcon feather in the other, both at the same height (approximately 1.6 m above the lunar surface). He released them simultaneously. The Moon has no atmosphere (surface pressure < 3 x 10^-15 atm), providing a natural vacuum environment.",
+    "keywords": ["Apollo 15", "David Scott", "hammer", "feather", "Moon", "lunar surface", "vacuum", "1971", "Hadley-Apennine"],
+    "prior": 0.99,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "apollo15_1971_feather_drop",
+      "source": "NASA Apollo 15 mission, EVA-3, August 2, 1971; televised broadcast"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5019,
+    "type": "paper-extract",
+    "subtype": "premise",
+    "title": "Observation: hammer and feather hit lunar surface simultaneously",
+    "content": "When David Scott simultaneously released the 1.32 kg hammer and the 0.03 kg feather on the lunar surface (a factor of 44 difference in mass), both objects were observed to fall side by side and strike the lunar soil at the same instant. Scott declared: 'How about that! ... This proves that Mr. Galileo was correct in his findings.' The experiment was recorded on the rover's television camera and witnessed live by a worldwide audience, providing unambiguous visual confirmation.",
+    "keywords": ["simultaneous impact", "hammer and feather", "Apollo 15", "visual confirmation", "David Scott", "Galileo confirmed", "lunar experiment"],
+    "prior": 0.99,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "apollo15_1971_feather_drop",
+      "source": "NASA Apollo 15 mission, EVA-3 transcript and television footage, August 2, 1971"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 5020,
+    "type": "deduction",
+    "subtype": null,
+    "title": "Equal fall rate in vacuum confirmed experimentally",
+    "content": "The Apollo 15 hammer-and-feather experiment provides definitive experimental confirmation that objects of vastly different masses (44:1 ratio) fall at exactly the same rate in a true vacuum. Unlike Galileo's inclined plane experiments, which could only approximate vacuum conditions, the lunar experiment was conducted in a natural near-perfect vacuum. This result simultaneously confirms Galileo's 1638 prediction, Newton's 1687 derivation (a = g, independent of mass), and the equivalence of inertial and gravitational mass to high precision.",
+    "keywords": ["experimental confirmation", "vacuum", "equal fall rate", "Apollo 15", "Galileo confirmed", "Newton confirmed", "equivalence principle confirmed", "definitive test"],
+    "prior": 0.99,
+    "belief": null,
+    "status": "active",
+    "metadata": {
+      "package": "apollo15_1971_feather_drop",
+      "source": "confirmed by Apollo 15 lunar experiment (1971)"
+    },
+    "extra": {},
+    "created_at": null
+  }
+]

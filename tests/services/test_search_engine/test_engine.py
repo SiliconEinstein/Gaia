@@ -94,9 +94,7 @@ async def test_search_nodes_status_filter(search):
 
 
 async def test_search_edges_with_graph(search, storage):
-    """When graph is available, search_edges should return edges."""
-    if not storage.graph:
-        pytest.skip("Neo4j not available")
+    """search_edges should return edges."""
     results = await search.search_edges(
         text="superconductor",
         k=10,
@@ -109,8 +107,6 @@ async def test_search_edges_with_graph(search, storage):
 
 async def test_search_edges_with_type_filter(search, storage):
     """EdgeFilters type filter should be applied."""
-    if not storage.graph:
-        pytest.skip("Neo4j not available")
     filters = EdgeFilters(type=["abstraction"])
     results = await search.search_edges(
         text="superconductor",

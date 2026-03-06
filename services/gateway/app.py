@@ -9,6 +9,7 @@ from .deps import deps, Dependencies
 from .routes.commits import router as commits_router
 from .routes.read import router as read_router
 from .routes.search import router as search_router
+from .routes.batch import router as batch_router
 from .routes.jobs import router as jobs_router
 
 
@@ -54,6 +55,7 @@ def create_app(dependencies: Dependencies | None = None) -> FastAPI:
     async def health():
         return {"status": "ok", "version": "0.1.0"}
 
+    app.include_router(batch_router)
     app.include_router(commits_router)
     app.include_router(read_router)
     app.include_router(search_router)

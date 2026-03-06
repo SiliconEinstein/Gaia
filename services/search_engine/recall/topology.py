@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from libs.storage.neo4j_store import Neo4jGraphStore
+from libs.storage.graph_store import GraphStore
 
 
 class TopologyRecall:
@@ -16,7 +16,7 @@ class TopologyRecall:
     :class:`ResultMerger` combines topology scores with vector and BM25 scores.
     """
 
-    def __init__(self, graph_store: Neo4jGraphStore) -> None:
+    def __init__(self, graph_store: GraphStore) -> None:
         self._store = graph_store
 
     async def recall(self, seed_node_ids: list[int], hops: int = 3) -> list[tuple[int, float]]:

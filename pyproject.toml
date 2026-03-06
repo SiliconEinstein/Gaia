@@ -14,6 +14,9 @@ dependencies = [
     "litellm>=1.40",
     "httpx>=0.27",
     "lxml>=5.0",
+    "typer>=0.12",
+    "pyyaml>=6.0",
+    "kuzu>=0.4",
 ]
 
 [project.optional-dependencies]
@@ -26,12 +29,15 @@ dev = [
     "python-dotenv>=1.0",
 ]
 
+[project.scripts]
+gaia = "cli.main:app"
+
 [build-system]
 requires = ["setuptools>=69.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["libs*", "services*"]
+include = ["libs*", "services*", "cli*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

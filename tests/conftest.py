@@ -32,26 +32,27 @@ def load_fixture_edges() -> list[HyperEdge]:
 
 @pytest.fixture
 async def storage(tmp_path: Path) -> StorageManager:
-    """Real StorageManager seeded with fixture data (LanceDB + vector, no Neo4j)."""
+    """Real StorageManager seeded with fixture data (LanceDB + vector + Neo4j)."""
     config = StorageConfig(
         deployment_mode="local",
         lancedb_path=str(tmp_path / "lance"),
         neo4j_password="",
     )
     manager = StorageManager(config)
+    assert manager.graph is not None, "Neo4j must be available — check that it's running"
+
+    # Clean Neo4j before seeding to avoid constraint violations from other tests
+    async with manager.graph._driver.session(database=manager.graph._db) as session:
+        await session.run("MATCH (n) DETACH DELETE n")
 
     # Seed nodes
     nodes = load_fixture_nodes()
     await manager.lance.save_nodes(nodes)
 
-    # Seed edges (Neo4j only if available and reachable)
-    if manager.graph:
-        try:
-            edges = load_fixture_edges()
-            for edge in edges:
-                await manager.graph.create_hyperedge(edge)
-        except Exception:
-            manager.graph = None  # degrade gracefully
+    # Seed edges into Neo4j
+    edges = load_fixture_edges()
+    for edge in edges:
+        await manager.graph.create_hyperedge(edge)
 
     # Seed embeddings via StubEmbeddingModel (matches search-time dimensions)
     texts = [n.content if isinstance(n.content, str) else str(n.content) for n in nodes]
@@ -60,6 +61,11 @@ async def storage(tmp_path: Path) -> StorageManager:
     await manager.vector.insert_batch(node_ids, vectors)
 
     yield manager
+
+    # Teardown: clean Neo4j data so tests are isolated
+    if manager.graph:
+        async with manager.graph._driver.session(database=manager.graph._db) as session:
+            await session.run("MATCH (n) DETACH DELETE n")
     await manager.close()
 
 

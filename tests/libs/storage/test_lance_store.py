@@ -2,6 +2,7 @@
 import pytest
 from libs.models import Node
 from libs.storage.lance_store import LanceStore
+from tests.conftest import load_fixture_nodes
 
 
 @pytest.fixture
@@ -72,3 +73,53 @@ async def test_fts_search(store):
     assert len(results) >= 1
     node_ids = [r[0] for r in results]
     assert 1 in node_ids
+
+
+# -- Fixture-data tests -------------------------------------------------------
+
+
+@pytest.fixture
+async def seeded_store(tmp_path):
+    """LanceStore pre-seeded with fixture nodes."""
+    s = LanceStore(db_path=str(tmp_path / "lance"))
+    nodes = load_fixture_nodes()
+    await s.save_nodes(nodes)
+    yield s
+    await s.close()
+
+
+async def test_load_fixture_node(seeded_store):
+    """Load a real fixture node and verify content."""
+    nodes = load_fixture_nodes()
+    first = nodes[0]
+    loaded = await seeded_store.load_node(first.id)
+    assert loaded is not None
+    assert loaded.content == first.content
+    assert loaded.type == first.type
+
+
+async def test_bulk_load_fixture_nodes(seeded_store):
+    """Bulk load fixture nodes and verify count."""
+    nodes = load_fixture_nodes()
+    ids = [n.id for n in nodes]
+    loaded = await seeded_store.load_nodes_bulk(ids)
+    assert len(loaded) == len(nodes)
+
+
+async def test_fts_search_fixture_content(seeded_store):
+    """FTS search should find fixture nodes by real content keywords."""
+    results = await seeded_store.fts_search("superconductor", k=10)
+    assert len(results) >= 1
+    node_ids = [r[0] for r in results]
+    fixture_ids = {n.id for n in load_fixture_nodes()}
+    assert all(nid in fixture_ids for nid in node_ids)
+
+
+async def test_update_beliefs_fixture_nodes(seeded_store):
+    """Update beliefs on fixture nodes and verify persistence."""
+    nodes = load_fixture_nodes()
+    belief_map = {nodes[0].id: 0.95, nodes[1].id: 0.3}
+    await seeded_store.update_beliefs(belief_map)
+    beliefs = await seeded_store.get_beliefs_bulk(list(belief_map.keys()))
+    for nid, expected in belief_map.items():
+        assert beliefs[nid] == pytest.approx(expected)

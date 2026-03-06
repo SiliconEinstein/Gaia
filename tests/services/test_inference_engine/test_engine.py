@@ -9,8 +9,6 @@ from services.inference_engine.engine import InferenceEngine
 
 @pytest.fixture
 async def engine(storage):
-    if not storage.graph:
-        pytest.skip("Neo4j not available — inference engine requires graph topology")
     return InferenceEngine(storage)
 
 

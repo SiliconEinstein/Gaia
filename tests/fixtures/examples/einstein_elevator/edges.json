@@ -1,0 +1,402 @@
+[
+  {
+    "id": 6001,
+    "type": "deduction",
+    "subtype": null,
+    "tail": [6001, 6002, 6003],
+    "head": [6004],
+    "probability": 0.6,
+    "verified": false,
+    "reasoning": [
+      {
+        "title": "Newtonian framework for light corpuscles",
+        "content": "Under Newton's mechanics ($F = m_i a$, node 6001) and Newton's gravitational law ($F = GMm_g/r^2$, node 6002), any particle with mass follows a trajectory determined by the gravitational field. The corpuscular theory of light (node 6003) assigns an effective gravitational mass to light particles, making them subject to the same laws."
+      },
+      {
+        "title": "Hyperbolic orbit calculation",
+        "content": "Treating a light corpuscle as a particle moving at speed $c$ in the gravitational field of the Sun, the trajectory is a hyperbolic orbit. The deflection angle for a hyperbolic orbit with closest approach $r$ (the solar radius) is $\\alpha = 2GM/(rc^2)$."
+      },
+      {
+        "title": "Soldner's numerical result",
+        "content": "Soldner (1801) evaluated this expression for the Sun's mass and radius, obtaining a deflection of approximately 0.87 arcseconds for a light ray grazing the solar limb. This was the first published prediction of gravitational light bending."
+      }
+    ],
+    "metadata": {
+      "package": "prior_knowledge"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 6002,
+    "type": "deduction",
+    "subtype": null,
+    "tail": [6006, 6007],
+    "head": [6008],
+    "probability": 0.85,
+    "verified": false,
+    "reasoning": [
+      {
+        "title": "Empirical foundation from Eotvos",
+        "content": "The Eotvos experiment (node 6006) established that inertial mass equals gravitational mass to extraordinary precision ($1$ part in $10^8$). This empirical equality means that all bodies, regardless of composition, fall identically in a gravitational field."
+      },
+      {
+        "title": "Conceptual leap via the elevator",
+        "content": "Einstein's elevator thought experiment (node 6007) provides the conceptual bridge: if all objects (and the observer) accelerate identically in gravity, then no local experiment can distinguish gravity from acceleration. The universality of free fall (Eotvos) is the empirical fact; the elevator is the thought experiment that reveals its deeper meaning."
+      },
+      {
+        "title": "Elevation to fundamental principle",
+        "content": "Einstein elevated this from empirical coincidence to fundamental principle: gravitational and inertial effects are locally indistinguishable (the equivalence principle, node 6008). This is not merely a statement about mass equality but a constraint on all physics — no local experiment of any kind can distinguish the two situations."
+      }
+    ],
+    "metadata": {
+      "package": "einstein1907_equivalence_principle"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 6003,
+    "type": "deduction",
+    "subtype": null,
+    "tail": [6008, 6005],
+    "head": [6009],
+    "probability": 0.85,
+    "verified": false,
+    "reasoning": [
+      {
+        "title": "Light in an accelerating frame",
+        "content": "By the equivalence principle (node 6008), we can analyze gravity by switching to an equivalent accelerating frame. In an upward-accelerating elevator, a horizontal light beam (an electromagnetic wave per Maxwell, node 6005) enters one wall and hits the opposite wall lower, because the elevator has accelerated upward during the light's transit. The observer sees the light path curve downward."
+      },
+      {
+        "title": "Application of the equivalence principle",
+        "content": "Since the equivalence principle asserts that an accelerating frame is locally indistinguishable from a gravitational field, the downward curving of light observed in the accelerating elevator must also occur in a gravitational field. This argument requires no assumption about the mass of light — it applies directly to electromagnetic waves."
+      },
+      {
+        "title": "Conclusion: light bends in gravity",
+        "content": "Therefore, light must bend in a gravitational field (node 6009). This is a direct consequence of combining the equivalence principle with Maxwell's theory of electromagnetic waves, independent of any corpuscular hypothesis."
+      }
+    ],
+    "metadata": {
+      "package": "einstein1907_equivalence_principle"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 6004,
+    "type": "deduction",
+    "subtype": null,
+    "tail": [6009],
+    "head": [6010],
+    "probability": 0.8,
+    "verified": false,
+    "reasoning": [
+      {
+        "title": "Quantitative prediction from equivalence principle",
+        "content": "Having established that light bends in a gravitational field (node 6009), Einstein calculated the magnitude of the effect for a light ray passing near the Sun. Using the equivalence principle in flat spacetime (treating gravity as equivalent to uniform acceleration), the deflection angle is $\\alpha = 2GM/(rc^2)$."
+      },
+      {
+        "title": "Numerical evaluation",
+        "content": "Substituting the Sun's mass ($M \\approx 2 \\times 10^{30}$ kg) and radius ($r \\approx 7 \\times 10^8$ m), Einstein obtained $\\alpha \\approx 0.87$ arcseconds for a ray grazing the solar limb. This result was published in his 1911 paper."
+      },
+      {
+        "title": "Limitation of the calculation",
+        "content": "This calculation used only the equivalence principle and did not account for the curvature of space itself. It captured the effect of gravitational time dilation on light propagation but missed the spatial curvature contribution, yielding only half the full general-relativistic result."
+      }
+    ],
+    "metadata": {
+      "package": "einstein1911_light_deflection"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 6005,
+    "type": "deduction",
+    "subtype": null,
+    "tail": [6010, 6004],
+    "head": [6011],
+    "probability": 0.9,
+    "verified": false,
+    "reasoning": [
+      {
+        "title": "Two independent calculations",
+        "content": "Soldner (1801) used Newtonian mechanics applied to light corpuscles (node 6004) and obtained 0.87 arcseconds. Einstein (1911) used the equivalence principle applied to electromagnetic waves (node 6010) and obtained 0.87 arcseconds. The two calculations rest on entirely different physical theories."
+      },
+      {
+        "title": "Mathematical equivalence",
+        "content": "Despite the different theoretical foundations, both calculations yield the same formula $\\alpha = 2GM/(rc^2)$ and the same numerical result. The Newtonian calculation treats light as a massive particle in a gravitational potential; the Einstein calculation treats light as a massless wave in an equivalent accelerating frame. Both capture only the temporal component of the gravitational effect."
+      },
+      {
+        "title": "Significance of the coincidence",
+        "content": "The numerical agreement (node 6011) is not a deeper physical equivalence but a mathematical coincidence arising from the fact that both approaches account for the same single component (gravitational time dilation / Newtonian potential) while missing the spatial curvature contribution. This coincidence meant that the 1911 prediction could not distinguish Einstein's new approach from Newtonian physics."
+      }
+    ],
+    "metadata": {
+      "package": "einstein1911_light_deflection"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 6006,
+    "type": "deduction",
+    "subtype": null,
+    "tail": [6012, 6008],
+    "head": [6013],
+    "probability": 0.85,
+    "verified": false,
+    "reasoning": [
+      {
+        "title": "From equivalence to geometry",
+        "content": "The equivalence principle (node 6008) requires that gravity be locally indistinguishable from acceleration, which implies that freely falling observers follow the straightest possible paths through spacetime. In general relativity (node 6012), spacetime is curved by mass-energy, and these straightest paths are geodesics of the curved metric."
+      },
+      {
+        "title": "Light on null geodesics",
+        "content": "For massless particles such as photons, the straightest paths are null geodesics — paths along which the spacetime interval $ds^2 = 0$. In the Schwarzschild metric describing the spacetime around a spherical mass, these null geodesics are deflected by the curvature of spacetime."
+      },
+      {
+        "title": "Both temporal and spatial curvature",
+        "content": "Unlike the equivalence-principle-only calculation (which captures only the $g_{00}$ temporal metric component), the full geodesic equation in GR includes contributions from both the temporal curvature (time dilation) and the spatial curvature ($g_{rr}$ component), yielding a total deflection that differs from the equivalence-principle prediction."
+      }
+    ],
+    "metadata": {
+      "package": "einstein1915_general_relativity"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 6007,
+    "type": "deduction",
+    "subtype": null,
+    "tail": [6013],
+    "head": [6014],
+    "probability": 0.85,
+    "verified": false,
+    "reasoning": [
+      {
+        "title": "Solving the geodesic equation",
+        "content": "Computing the null geodesic in the Schwarzschild metric for a light ray passing near a spherical mass at closest approach distance $r$, the total deflection angle is $\\alpha = 4GM/(rc^2)$. The factor of 4 (rather than 2 in the Newtonian/equivalence-principle result) arises from equal contributions of temporal and spatial metric components."
+      },
+      {
+        "title": "Numerical result for the Sun",
+        "content": "For a ray grazing the solar limb ($r = R_{\\odot}$), this yields $\\alpha \\approx 1.75$ arcseconds (node 6014), exactly twice the 0.87 arcseconds predicted by Newton/Soldner and Einstein's 1911 calculation."
+      },
+      {
+        "title": "A genuinely new prediction",
+        "content": "The factor-of-two difference between 1.75 arcseconds (GR) and 0.87 arcseconds (Newton/equivalence principle) provided a clear observational test that could distinguish general relativity from all previous theories of gravity and light."
+      }
+    ],
+    "metadata": {
+      "package": "einstein1915_general_relativity"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 6008,
+    "type": "contradiction",
+    "subtype": null,
+    "tail": [6014, 6004],
+    "head": [],
+    "probability": null,
+    "verified": false,
+    "reasoning": [
+      {
+        "title": "Quantitative contradiction between GR and Newtonian predictions",
+        "content": "General relativity predicts a light deflection of 1.75 arcseconds at the solar limb (node 6014), while the Newtonian corpuscular calculation by Soldner predicts 0.87 arcseconds (node 6004). These predictions differ by exactly a factor of two and are mutually exclusive: if observations match one value, they cannot match the other within reasonable experimental uncertainty. The disagreement arises because the Newtonian calculation accounts only for the gravitational potential (equivalent to time dilation), whereas GR adds an equal contribution from the curvature of space itself."
+      }
+    ],
+    "metadata": {
+      "package": "einstein1915_general_relativity"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 6009,
+    "type": "deduction",
+    "subtype": null,
+    "tail": [6012],
+    "head": [6015],
+    "probability": 0.9,
+    "verified": false,
+    "reasoning": [
+      {
+        "title": "Mercury's anomalous precession",
+        "content": "Newtonian celestial mechanics, accounting for perturbations from all known planets, predicted Mercury's orbital precession but left an unexplained residual of approximately 43 arcseconds per century. This anomaly had been known since Le Verrier's analysis in 1859 and resisted all Newtonian explanations."
+      },
+      {
+        "title": "GR calculation",
+        "content": "Einstein applied the general-relativistic equations of motion in the Schwarzschild metric to Mercury's orbit (node 6012). The additional precession due to spacetime curvature is $\\Delta\\phi = 6\\pi GM/(a(1-e^2)c^2)$ per orbit, which sums to approximately 43 arcseconds per century for Mercury's orbital parameters."
+      },
+      {
+        "title": "Resolution without free parameters",
+        "content": "This exact agreement between GR's prediction and the observed anomaly, achieved without any adjustable parameters, provided the first empirical confirmation of general relativity (node 6015). Einstein later described this calculation as giving him heart palpitations."
+      }
+    ],
+    "metadata": {
+      "package": "einstein1915_general_relativity"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 6010,
+    "type": "abstraction",
+    "subtype": null,
+    "tail": [6008, 6015, 6016],
+    "head": [6012],
+    "probability": 0.9,
+    "verified": false,
+    "reasoning": [
+      {
+        "title": "Multiple independent successes strengthen GR",
+        "content": "General relativity (node 6012) is supported by multiple independent lines of evidence: it correctly explains Mercury's anomalous perihelion precession of 43 arcsec/century (node 6015), it subsumes the equivalence principle as a rigorous local limit (node 6016), and the contradiction between its 1.75-arcsecond prediction and the Newtonian 0.87-arcsecond prediction (node 6008) provides a decisive experimental test."
+      },
+      {
+        "title": "Convergent validation",
+        "content": "These successes span different physical regimes: Mercury's precession tests GR in the slow-motion, weak-field orbital regime; light deflection tests it in the massless, relativistic-speed regime; and the equivalence principle correspondence confirms the theory's internal consistency. This convergence across independent phenomena greatly strengthens confidence in the general-relativistic framework."
+      }
+    ],
+    "metadata": {
+      "package": "einstein1915_general_relativity"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 6011,
+    "type": "paper-extract",
+    "subtype": null,
+    "tail": [6017, 6018],
+    "head": [6019],
+    "probability": 0.9,
+    "verified": false,
+    "reasoning": [
+      {
+        "title": "Eclipse observation design",
+        "content": "Eddington's expedition (node 6017) was specifically designed to distinguish between the GR prediction (1.75 arcseconds) and the Newtonian prediction (0.87 arcseconds) by measuring the apparent displacement of stars near the solar limb during totality."
+      },
+      {
+        "title": "Comparison with predictions",
+        "content": "The measured deflections (node 6018) — $1.61 \\pm 0.30''$ at Sobral and $1.98 \\pm 0.16''$ at Principe — were compared against both theoretical predictions. The GR prediction of 1.75 arcseconds lies within the error bars of both measurements. The Newtonian prediction of 0.87 arcseconds lies well outside the error bars of both measurements."
+      },
+      {
+        "title": "Statistical assessment",
+        "content": "The observations are statistically consistent with GR and statistically inconsistent with the Newtonian value (node 6019), providing a clear discriminating test between the two theories."
+      }
+    ],
+    "metadata": {
+      "package": "eddington1919_solar_eclipse"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 6012,
+    "type": "deduction",
+    "subtype": null,
+    "tail": [6019, 6014],
+    "head": [6020],
+    "probability": 0.9,
+    "verified": false,
+    "reasoning": [
+      {
+        "title": "Observation matches GR prediction",
+        "content": "The observed deflection values (node 6019) are consistent with the general-relativistic prediction of 1.75 arcseconds (node 6014). Both independent measurements (Sobral and Principe) agree with the GR value within their stated uncertainties."
+      },
+      {
+        "title": "Combined with prior success",
+        "content": "The eclipse confirmation adds to GR's prior success with Mercury's perihelion precession. Two independent, quantitative predictions of general relativity — in different physical regimes — have now been confirmed observationally."
+      },
+      {
+        "title": "Conclusion: GR confirmed",
+        "content": "The agreement between observation and prediction, combined with the simultaneous falsification of the competing Newtonian prediction, establishes general relativity as the confirmed, superior theory of gravity (node 6020)."
+      }
+    ],
+    "metadata": {
+      "package": "eddington1919_solar_eclipse"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 6013,
+    "type": "deduction",
+    "subtype": null,
+    "tail": [6019, 6004],
+    "head": [6021],
+    "probability": 0.9,
+    "verified": false,
+    "reasoning": [
+      {
+        "title": "Observation contradicts Newtonian prediction",
+        "content": "The observed deflection values (node 6019) are inconsistent with Soldner's Newtonian prediction of 0.87 arcseconds (node 6004). The Sobral measurement exceeds the Newtonian value by 2.5 sigma, and the Principe measurement exceeds it by nearly 7 sigma."
+      },
+      {
+        "title": "Newtonian gravity is incomplete",
+        "content": "The failure of the Newtonian prediction demonstrates that Newton's $F = GMm/r^2$ does not give the correct description of how light propagates in a gravitational field. The missing spatial curvature contribution shows that Newtonian gravity is fundamentally incomplete, even though it remains an excellent approximation in many regimes."
+      },
+      {
+        "title": "Demotion to approximate theory",
+        "content": "Newtonian gravity is thus demoted from a candidate fundamental theory to an approximate limit of general relativity (node 6021), valid in the weak-field, low-velocity regime but quantitatively wrong when spatial curvature effects are significant."
+      }
+    ],
+    "metadata": {
+      "package": "eddington1919_solar_eclipse"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 6014,
+    "type": "contradiction",
+    "subtype": null,
+    "tail": [6019, 6004],
+    "head": [],
+    "probability": null,
+    "verified": false,
+    "reasoning": [
+      {
+        "title": "Observational refutation of Newtonian prediction",
+        "content": "The 1919 eclipse observations (node 6019) measured deflections of $1.61 \\pm 0.30''$ (Sobral) and $1.98 \\pm 0.16''$ (Principe), while Soldner's Newtonian prediction (node 6004) was 0.87 arcseconds. The observed values are approximately twice the Newtonian prediction and inconsistent with it at high statistical significance. This constitutes an empirical contradiction between observation and the Newtonian theoretical prediction."
+      }
+    ],
+    "metadata": {
+      "package": "eddington1919_solar_eclipse"
+    },
+    "extra": {},
+    "created_at": null
+  },
+  {
+    "id": 6015,
+    "type": "deduction",
+    "subtype": null,
+    "tail": [6021, 6020],
+    "head": [6022],
+    "probability": 0.9,
+    "verified": false,
+    "reasoning": [
+      {
+        "title": "Combining the two conclusions",
+        "content": "General relativity has been confirmed as the superior theory of gravity (node 6020), and Newtonian gravity has been demoted to an approximate theory (node 6021). Together, these imply that any prediction based solely on Newtonian mechanics — or on the equivalence principle alone without full spacetime curvature — is inadequate for quantitative predictions of light deflection."
+      },
+      {
+        "title": "Specific invalidation",
+        "content": "The 0.87-arcsecond prediction shared by Soldner (1801) and Einstein (1911) is definitively ruled out by the 1919 observations (node 6022). The Soldner calculation is invalidated because the corpuscular theory gives only half the correct answer; the Einstein 1911 calculation is invalidated because the equivalence principle alone, without spacetime curvature, also gives only half the correct answer."
+      },
+      {
+        "title": "Retrospective significance",
+        "content": "The fact that both the Newtonian and the early Einsteinian calculation gave the same wrong answer (0.87 arcseconds) highlights that only the full general-relativistic framework — incorporating spatial curvature in addition to temporal curvature — yields the correct prediction."
+      }
+    ],
+    "metadata": {
+      "package": "eddington1919_solar_eclipse"
+    },
+    "extra": {},
+    "created_at": null
+  }
+]

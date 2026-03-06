@@ -1,0 +1,77 @@
+{
+  "name": "einstein_elevator",
+  "title": "Einstein's Elevator Thought Experiment",
+  "description": "Models the reasoning chain from Einstein's 1907 elevator thought experiment through the development of general relativity to its 1919 observational confirmation. The hypergraph traces how established Newtonian physics and the empirical equality of inertial and gravitational mass (Eotvos) led Einstein to the equivalence principle, which predicted light bending in gravitational fields. The chain follows Einstein's initial 1911 prediction (which matched Soldner's earlier Newtonian result), through the full general-relativistic prediction of double the deflection (1.75 vs 0.87 arcseconds), to Eddington's decisive 1919 solar eclipse observations that confirmed GR and demoted Newtonian gravity to an approximate theory. Key features include a quantitative contradiction between GR and Newtonian predictions, an observational contradiction that resolves in GR's favor, and the progressive belief update from prior knowledge through theory development to experimental confirmation.",
+  "packages": [
+    {
+      "name": "prior_knowledge",
+      "order": 1,
+      "description": "Established physics before Einstein: Newton's mechanics and gravitation, the corpuscular theory of light, Soldner's Newtonian light deflection calculation, Maxwell's electromagnetism, and the Eotvos experiment establishing the equality of inertial and gravitational mass.",
+      "node_ids": [6001, 6002, 6003, 6004, 6005, 6006],
+      "edge_ids": [6001],
+      "depends_on": []
+    },
+    {
+      "name": "einstein1907_equivalence_principle",
+      "order": 2,
+      "description": "Einstein's 1907 elevator thought experiment and its consequences: the equivalence principle (gravitational and inertial effects are locally indistinguishable) and the deduction that light must bend in a gravitational field.",
+      "node_ids": [6007, 6008, 6009],
+      "edge_ids": [6002, 6003],
+      "depends_on": ["prior_knowledge"]
+    },
+    {
+      "name": "einstein1911_light_deflection",
+      "order": 3,
+      "description": "Einstein's first quantitative prediction of light deflection (1911): 0.87 arcseconds at the solar limb, derived from the equivalence principle alone. Notable for matching Soldner's 1801 Newtonian result exactly, despite completely different theoretical foundations.",
+      "node_ids": [6010, 6011],
+      "edge_ids": [6004, 6005],
+      "depends_on": ["einstein1907_equivalence_principle"]
+    },
+    {
+      "name": "einstein1915_general_relativity",
+      "order": 4,
+      "description": "Full general relativity (1915) predicts light follows geodesics in curved spacetime, yielding 1.75 arcseconds — exactly double the Newtonian/equivalence-principle value. Introduces a quantitative contradiction between GR and Newton, explains Mercury's perihelion precession, and subsumes the equivalence principle as a local limit.",
+      "node_ids": [6012, 6013, 6014, 6015, 6016],
+      "edge_ids": [6006, 6007, 6008, 6009, 6010],
+      "depends_on": ["einstein1911_light_deflection"]
+    },
+    {
+      "name": "eddington1919_solar_eclipse",
+      "order": 5,
+      "description": "Eddington's 1919 solar eclipse expedition provides the decisive observational test. Measurements of 1.61 and 1.98 arcseconds confirm GR's 1.75-arcsecond prediction, rule out the Newtonian 0.87-arcsecond prediction, and establish general relativity as the superior theory of gravity.",
+      "node_ids": [6017, 6018, 6019, 6020, 6021, 6022],
+      "edge_ids": [6011, 6012, 6013, 6014, 6015],
+      "depends_on": ["einstein1915_general_relativity"]
+    }
+  ],
+  "expected_beliefs": {
+    "after_package": {
+      "prior_knowledge": {
+        "6004": [0.5, 0.7]
+      },
+      "einstein1907_equivalence_principle": {
+        "6008": [0.7, 0.9]
+      },
+      "einstein1911_light_deflection": {
+        "6010": [0.7, 0.85],
+        "6011": [0.8, 0.95]
+      },
+      "einstein1915_general_relativity": {
+        "6014": [0.7, 0.9],
+        "6004": [0.3, 0.6]
+      },
+      "eddington1919_solar_eclipse": {
+        "6020": [0.85, 0.98],
+        "6004": [0.05, 0.25],
+        "6014": [0.85, 0.98]
+      }
+    },
+    "final": {
+      "6004": [0.05, 0.25],
+      "6012": [0.85, 0.98],
+      "6014": [0.85, 0.98],
+      "6020": [0.85, 0.98],
+      "6002": [0.7, 0.9]
+    }
+  }
+}
