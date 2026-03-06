@@ -41,12 +41,11 @@ jobs:
           ruff format --check .
 
       - name: Run tests
-        run: pytest --cov=libs --cov=services tests -v
+        run: pytest --cov=libs --cov=services --cov-report=xml tests -v
 
-      - name: Upload coverage
+      - name: Upload coverage to Codecov
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: codecov/codecov-action@v5
         with:
-          name: coverage-report
-          path: .coverage
-          if-no-files-found: ignore
+          files: coverage.xml
+          fail_ci_if_error: false
