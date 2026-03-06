@@ -18,9 +18,7 @@ irrelevant: []
 suggested_premise: []
 suggested_context: []"""
 
-    with patch(
-        "cli.llm_client._call_llm", new_callable=AsyncMock, return_value=mock_response
-    ):
+    with patch("cli.llm_client._call_llm", new_callable=AsyncMock, return_value=mock_response):
         result = await review_claim(
             claim={
                 "id": 3,

@@ -11,10 +11,15 @@ def test_claim_basic(tmp_path, monkeypatch):
     """Add a simple claim with no premises."""
     monkeypatch.chdir(tmp_path)
     runner.invoke(app, ["init"])
-    result = runner.invoke(app, [
-        "claim", "石头比树叶落得快",
-        "--type", "observation",
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "claim",
+            "石头比树叶落得快",
+            "--type",
+            "observation",
+        ],
+    )
     assert result.exit_code == 0
     assert "Created claim" in result.output
 
@@ -34,12 +39,19 @@ def test_claim_with_premise(tmp_path, monkeypatch):
     # First claim
     runner.invoke(app, ["claim", "前提A", "--type", "axiom"])
     # Second claim referencing first
-    result = runner.invoke(app, [
-        "claim", "结论B",
-        "--premise", "1",
-        "--why", "从A推导出B",
-        "--type", "deduction",
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "claim",
+            "结论B",
+            "--premise",
+            "1",
+            "--why",
+            "从A推导出B",
+            "--type",
+            "deduction",
+        ],
+    )
     assert result.exit_code == 0
     assert "Created claim" in result.output
 
@@ -53,6 +65,7 @@ def test_claim_increments_id(tmp_path, monkeypatch):
     runner.invoke(app, ["claim", "C", "--type", "axiom"])
 
     from cli.package import load_all_claims
+
     claims = load_all_claims(tmp_path)
     ids = [c["id"] for c in claims]
     assert ids == [1, 2, 3]

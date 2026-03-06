@@ -41,13 +41,14 @@ suggested_context: []
 
 def test_parse_review_output_with_yaml_fence():
     """LLM may wrap output in ```yaml``` fences."""
-    raw = "```yaml\nscore: 0.80\njustification: \"test\"\nconfirmed_premises: []\ndowngraded_premises: []\nupgraded_context: []\nirrelevant: []\nsuggested_premise: []\nsuggested_context: []\n```"
+    raw = '```yaml\nscore: 0.80\njustification: "test"\nconfirmed_premises: []\ndowngraded_premises: []\nupgraded_context: []\nirrelevant: []\nsuggested_premise: []\nsuggested_context: []\n```'
     result = parse_review_output(raw)
     assert result["score"] == 0.80
 
 
 def test_load_skill_prompt():
     from cli.review_skill import load_skill_prompt
+
     prompt = load_skill_prompt("v1.0")
     assert "科学推理评审员" in prompt
     assert "score" in prompt

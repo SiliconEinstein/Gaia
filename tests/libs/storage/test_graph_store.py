@@ -63,8 +63,12 @@ async def test_create_and_get(graph_store):
 
 async def test_create_with_probability(graph_store):
     edge = HyperEdge(
-        id=100, type="deduction", tail=[1, 2], head=[3],
-        probability=0.9, reasoning=[{"content": "test"}],
+        id=100,
+        type="deduction",
+        tail=[1, 2],
+        head=[3],
+        probability=0.9,
+        reasoning=[{"content": "test"}],
     )
     await graph_store.create_hyperedge(edge)
     loaded = await graph_store.get_hyperedge(100)

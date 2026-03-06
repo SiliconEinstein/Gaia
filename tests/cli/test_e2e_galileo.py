@@ -16,13 +16,41 @@ def test_galileo_full_workflow(tmp_path, monkeypatch):
     # Aristotle's observations
     runner.invoke(app, ["claim", "石头比树叶落得快", "--type", "observation"])
     runner.invoke(app, ["claim", "铁比木头落得快", "--type", "observation"])
-    runner.invoke(app, ["claim", "v ∝ W 定律", "--premise", "1,2", "--why", "归纳观察", "--type", "theory"])
+    runner.invoke(
+        app, ["claim", "v ∝ W 定律", "--premise", "1,2", "--why", "归纳观察", "--type", "theory"]
+    )
 
     # Tied balls thought experiment
     runner.invoke(app, ["claim", "绑球设定", "--type", "axiom"])
-    runner.invoke(app, ["claim", "推导A: HL更慢", "--premise", "3,4", "--why", "轻球拖拽重球", "--type", "deduction"])
-    runner.invoke(app, ["claim", "推导B: HL更快", "--premise", "3,4", "--why", "总重量更大", "--type", "deduction"])
-    runner.invoke(app, ["claim", "矛盾: 不可能既快又慢", "--premise", "5,6", "--type", "contradiction"])
+    runner.invoke(
+        app,
+        [
+            "claim",
+            "推导A: HL更慢",
+            "--premise",
+            "3,4",
+            "--why",
+            "轻球拖拽重球",
+            "--type",
+            "deduction",
+        ],
+    )
+    runner.invoke(
+        app,
+        [
+            "claim",
+            "推导B: HL更快",
+            "--premise",
+            "3,4",
+            "--why",
+            "总重量更大",
+            "--type",
+            "deduction",
+        ],
+    )
+    runner.invoke(
+        app, ["claim", "矛盾: 不可能既快又慢", "--premise", "5,6", "--type", "contradiction"]
+    )
 
     # Build and verify
     result = runner.invoke(app, ["build"])
@@ -61,18 +89,16 @@ def test_galileo_with_review(tmp_path, monkeypatch):
 
     # Mock review
     mock_review = (
-        'score: 0.95\n'
+        "score: 0.95\n"
         'justification: "valid"\n'
-        'confirmed_premises: [1, 2]\n'
-        'downgraded_premises: []\n'
-        'upgraded_context: []\n'
-        'irrelevant: []\n'
-        'suggested_premise: []\n'
-        'suggested_context: []'
+        "confirmed_premises: [1, 2]\n"
+        "downgraded_premises: []\n"
+        "upgraded_context: []\n"
+        "irrelevant: []\n"
+        "suggested_premise: []\n"
+        "suggested_context: []"
     )
-    with patch(
-        "cli.commands.review._call_llm", new_callable=AsyncMock, return_value=mock_review
-    ):
+    with patch("cli.commands.review._call_llm", new_callable=AsyncMock, return_value=mock_review):
         result = runner.invoke(app, ["review"])
     assert result.exit_code == 0
 

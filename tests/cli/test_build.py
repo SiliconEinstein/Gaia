@@ -20,7 +20,9 @@ def test_build_invalid_premise_ref(tmp_path, monkeypatch):
     """Build should fail if premise references nonexistent claim."""
     monkeypatch.chdir(tmp_path)
     runner.invoke(app, ["init"])
-    runner.invoke(app, ["claim", "结论B", "--premise", "999", "--why", "推导", "--type", "deduction"])
+    runner.invoke(
+        app, ["claim", "结论B", "--premise", "999", "--why", "推导", "--type", "deduction"]
+    )
     result = runner.invoke(app, ["build"])
     assert result.exit_code != 0 or "error" in result.output.lower()
 
@@ -31,7 +33,9 @@ def test_build_runs_bp(tmp_path, monkeypatch):
     runner.invoke(app, ["init"])
     runner.invoke(app, ["claim", "公理A", "--type", "axiom"])
     runner.invoke(app, ["claim", "公理B", "--type", "axiom"])
-    runner.invoke(app, ["claim", "推论C", "--premise", "1,2", "--why", "A+B推C", "--type", "deduction"])
+    runner.invoke(
+        app, ["claim", "推论C", "--premise", "1,2", "--why", "A+B推C", "--type", "deduction"]
+    )
     result = runner.invoke(app, ["build"])
     assert result.exit_code == 0
     assert "BP" in result.output or "belief" in result.output.lower()

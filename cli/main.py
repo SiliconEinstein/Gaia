@@ -20,6 +20,7 @@ def main(json_output: bool = typer.Option(False, "--json", help="Output as JSON"
 def init(name: str = typer.Argument(None, help="Package name (default: current dir name)")):
     """Initialize a new knowledge package."""
     from cli.package import init_package
+
     init_package(name)
 
 
@@ -33,6 +34,7 @@ def claim(
 ):
     """Add a new claim to the knowledge package."""
     from cli.commands.claim import claim_command
+
     claim_command(content, type_, premise, context, why)
 
 
@@ -40,6 +42,7 @@ def claim(
 def show(claim_id: int = typer.Argument(..., help="Claim ID to show")):
     """Show details of a specific claim."""
     from cli.commands.show import show_command
+
     show_command(claim_id)
 
 
@@ -47,6 +50,7 @@ def show(claim_id: int = typer.Argument(..., help="Claim ID to show")):
 def stats():
     """Show package statistics."""
     from cli.commands.stats import stats_command
+
     stats_command()
 
 
@@ -54,6 +58,7 @@ def stats():
 def contradictions():
     """List all contradiction claims."""
     from cli.commands.contradictions import contradictions_command
+
     contradictions_command()
 
 
@@ -64,6 +69,7 @@ def search(
 ):
     """Search claims in the knowledge package."""
     from cli.commands.search import search_command
+
     search_command(query, limit)
 
 
@@ -71,15 +77,19 @@ def search(
 def build():
     """Validate and build the knowledge package."""
     from cli.commands.build import build_command
+
     build_command()
 
 
 @app.command()
 def review(
-    claim_ids: list[int] = typer.Argument(None, help="Claim IDs to review (default: all with premises)"),
+    claim_ids: list[int] = typer.Argument(
+        None, help="Claim IDs to review (default: all with premises)"
+    ),
 ):
     """Review claims using LLM evaluation."""
     from cli.commands.review import review_command
+
     review_command(claim_ids)
 
 

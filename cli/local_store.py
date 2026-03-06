@@ -20,19 +20,23 @@ class LocalStore:
             return
         records = []
         for c in claims:
-            records.append({
-                "id": c["id"],
-                "content": c.get("content", ""),
-                "type": c.get("type", ""),
-                "why": c.get("why", ""),
-            })
+            records.append(
+                {
+                    "id": c["id"],
+                    "content": c.get("content", ""),
+                    "type": c.get("type", ""),
+                    "why": c.get("why", ""),
+                }
+            )
 
-        schema = pa.schema([
-            ("id", pa.int64()),
-            ("content", pa.utf8()),
-            ("type", pa.utf8()),
-            ("why", pa.utf8()),
-        ])
+        schema = pa.schema(
+            [
+                ("id", pa.int64()),
+                ("content", pa.utf8()),
+                ("type", pa.utf8()),
+                ("why", pa.utf8()),
+            ]
+        )
         table_data = pa.table(
             {col: [r[col] for r in records] for col in ["id", "content", "type", "why"]},
             schema=schema,

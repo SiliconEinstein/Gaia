@@ -43,6 +43,7 @@ def load_all_claims(pkg_dir: Path | None = None) -> list[dict]:
     """Load all claims from claims/*.yaml, sorted by ID."""
     if pkg_dir is None:
         from cli.commands.claim import find_package_dir
+
         pkg_dir = find_package_dir()
     claims_dir = pkg_dir / "claims"
     if not claims_dir.exists():
@@ -62,5 +63,6 @@ def load_package_config(pkg_dir: Path) -> dict:
     if not toml_path.exists():
         return {}
     import tomllib
+
     with open(toml_path, "rb") as f:
         return tomllib.load(f)
