@@ -7,8 +7,6 @@ from libs.models import CommitRequest, AddEdgeOp, NewNode
 
 async def test_bp_operator_computes_beliefs(storage):
     """BPOperator computes real beliefs from fixture graph topology."""
-    if not storage.graph:
-        pytest.skip("Neo4j not available")
 
     req = CommitRequest(
         message="test",

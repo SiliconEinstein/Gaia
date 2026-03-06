@@ -1,6 +1,6 @@
 """Unified GraphStore ABC compliance tests — parametrized over Kuzu and Neo4j.
 
-Every test runs against both backends. Neo4j tests auto-skip when unavailable.
+Every test runs against both backends. Both MUST be available.
 """
 
 import os
@@ -17,27 +17,9 @@ NEO4J_PASSWORD = os.environ.get("NEO4J_TEST_PASSWORD", "")
 NEO4J_DB = os.environ.get("NEO4J_TEST_DB", "neo4j")
 
 
-def _neo4j_available() -> bool:
-    """Check if Neo4j is reachable."""
-    try:
-        import neo4j
-
-        driver = neo4j.GraphDatabase.driver(
-            NEO4J_URI, auth=("neo4j", NEO4J_PASSWORD) if NEO4J_PASSWORD else None
-        )
-        driver.verify_connectivity()
-        driver.close()
-        return True
-    except Exception:
-        return False
-
-
-_HAS_NEO4J = _neo4j_available()
-
-
 @pytest.fixture(params=["kuzu", "neo4j"])
 async def graph_store(request, tmp_path) -> GraphStore:
-    """Yield a GraphStore instance — Kuzu (always) or Neo4j (if available)."""
+    """Yield a GraphStore instance — both backends required."""
     if request.param == "kuzu":
         store = KuzuGraphStore(db_path=str(tmp_path / "kuzu_db"))
         await store.initialize_schema()
@@ -45,16 +27,12 @@ async def graph_store(request, tmp_path) -> GraphStore:
         await store.close()
 
     elif request.param == "neo4j":
-        if not _HAS_NEO4J:
-            pytest.skip("Neo4j not available")
-
         import neo4j
+        from libs.storage.neo4j_store import Neo4jGraphStore
 
         auth = ("neo4j", NEO4J_PASSWORD) if NEO4J_PASSWORD else None
         driver = neo4j.AsyncGraphDatabase.driver(NEO4J_URI, auth=auth)
-        store = __import__(
-            "libs.storage.neo4j_store", fromlist=["Neo4jGraphStore"]
-        ).Neo4jGraphStore(driver=driver, database=NEO4J_DB)
+        store = Neo4jGraphStore(driver=driver, database=NEO4J_DB)
         await store.initialize_schema()
         yield store
         # Clean up all data

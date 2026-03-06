@@ -106,9 +106,6 @@ async def test_merge_modify_node(merger, storage):
 
 
 async def test_merge_modify_edge(merger, storage):
-    """ModifyEdgeOp requires graph; skip if unavailable."""
-    if not storage.graph:
-        pytest.skip("Neo4j not available")
     commit = _make_commit(
         [ModifyEdgeOp(edge_id=100, changes={"verified": True, "probability": 0.95})]
     )
