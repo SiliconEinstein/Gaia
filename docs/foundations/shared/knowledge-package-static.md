@@ -28,6 +28,45 @@ Those belong to later documents:
 - V2: global Gaia graph integration
 - V3: probabilistic semantics and propagation
 
+## Design Rationale
+
+### Why a package/module system for knowledge?
+
+Gaia's knowledge package model borrows its structural design from programming language module systems. The core insight is that **structured knowledge and structured code face the same organizational problems**: namespacing, dependency declaration, encapsulation, and reuse across contexts.
+
+A research paper, like a software library, needs to:
+
+- declare what it depends on (imports)
+- expose a public interface (exports)
+- organize internal logic into coherent units (modules)
+- be distributed as a self-contained package
+
+### Comparison with programming language module systems
+
+| Aspect | Rust/Cargo | Julia/Pkg | Python | Gaia |
+|--------|-----------|-----------|--------|------|
+| **Package** | crate | package | package (PyPI) | knowledge package |
+| **Module** | `mod` (1:1 with files) | `module` (decoupled from files) | `.py` file or directory | module (with role) |
+| **Public interface** | `pub` items | `export` symbols | `__all__` / convention | `exports[]` closure_ids |
+| **Dependencies** | `use` + `Cargo.toml` | `using`/`import` + `Project.toml` | `import` + `requirements.txt` | `imports[]` with strength |
+| **Internal structure** | expressions + items | expressions + functions | statements | chain (closure ↔ inference) |
+| **Manifest** | `Cargo.toml` | `Project.toml` | `pyproject.toml` | `Gaia.toml` |
+| **Lock file** | `Cargo.lock` | `Manifest.toml` | `requirements.lock` | `Gaia.lock` (deferred) |
+
+### Key design choices and their origins
+
+**From Rust: module = file, exports are explicit.** Rust binds modules to files 1:1 (`mod foo` → `foo.rs`). Gaia follows this spirit: each module is a self-contained unit with an explicit `exports[]` list. This makes the structure navigable for both humans and AI agents — you can find a module's public interface without reading its internals. Julia, by contrast, decouples modules from files (`include()` is textual insertion), which makes structure harder to discover mechanically.
+
+**From Julia: first-class dependency declarations.** Julia's `Project.toml` declares package-level dependencies explicitly. Gaia extends this idea to the module level: each module declares its `imports[]` with provenance (`from` which module) and dependency strength (`strong` / `weak`). This is more granular than any programming language module system, because knowledge dependencies carry epistemic semantics — whether an import is load-bearing or merely contextual matters for later probabilistic evaluation.
+
+**From FP: closure as the universal currency.** In functional programming, a closure captures its free variables and can be passed around independently of its creation context. Gaia's `closure` plays the same role for knowledge: it is a self-contained object that can be exported, imported, and referenced without knowing which module or chain created it. This is why closures (not modules, not inferences) are the unit of import/export.
+
+**Unique to Gaia: the state-action chain model.** Programming languages use expressions and statements; Gaia uses an alternating `closure → inference → closure` chain. This is a state-action model where closures are the **states** (self-contained, exportable) and inferences are the **actions** (local, context-dependent, not exportable). No programming language has this — it comes from the need to make reasoning steps explicit and auditable while keeping the reusable knowledge objects cleanly separated.
+
+**Unique to Gaia: dependency strength.** No programming language distinguishes between strong and weak imports. In code, a dependency either compiles or it doesn't. In knowledge, the distinction matters: a strong dependency means "if this is wrong, my conclusion is likely wrong too," while a weak dependency means "this is relevant context, but my conclusion can stand on its own." This distinction feeds directly into later probabilistic evaluation (V3).
+
+**Unique to Gaia: module roles.** Programming language modules don't declare their purpose. Gaia modules carry an optional `role` (reasoning, setting, motivation, follow_up_question, other) that replaces the need for separate editorial fields on packages. A `motivation` module replaces a "motivation" text field; a `follow_up_question` module replaces a "future work" section. The structure itself carries the editorial intent.
+
 ## Design Boundary
 
 This document defines only the shared static knowledge package schema.
