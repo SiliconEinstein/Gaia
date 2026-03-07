@@ -635,12 +635,11 @@ package {
 
 Interpretation:
 
-- `m_motivation` (role=motivation) exports the motivating question `q1`
-- `m_env` (role=setting) exports the shared definition `s1`
-- `m_main` (role=reasoning) exports the main conclusion `c1`
-- `m_follow` (role=follow_up_question) exports the open question `q2`
-- package exports `s_conclusion` and `s_followup` — the key results this package offers to the outside world
-- module roles replace separate editorial fields; the structure itself carries the editorial intent
+- each module has its own `exports` — its public interface within the package
+- the package's `exports = [s_conclusion, s_followup]` is a curated subset: only the main conclusion and follow-up question are published to the outside world
+- `m_env`'s exported setting `s_def` is used by `m_main` (via cross-module reference) but not re-exported by the package — it is internal shared context
+- `m_motivation`'s exported question `s_q1` motivates the work but is also not in the package exports
+- module roles (`motivation`, `setting`, `reasoning`, `follow_up_question`) replace the need for separate editorial fields on the package; the structure itself carries the editorial intent
 
 ## Deferred Topics
 
