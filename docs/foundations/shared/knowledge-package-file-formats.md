@@ -148,8 +148,9 @@ package_id: pkg_...
 
 modules:
   - module_id: mod_...
+    role: reasoning
     summary: "Short description of what this module establishes"
-    conclusion_artifact_id: ka_...
+    exports: [s_...]
     steps:
       - step_id: s_...
         artifact_id: ka_...
@@ -163,10 +164,7 @@ knowledge_artifacts:
     content_mode: nl
     content: "Current methods do not explain X."
 
-motivation_artifact_ids: []
-key_claim_ids: []
-follow_up_question_ids: []
-shared_setting_ids: []
+exports: [s_...]
 
 metadata: {}
 ```
@@ -180,10 +178,7 @@ metadata: {}
 ### Optional top-level fields
 
 - `knowledge_artifacts` (artifacts may also be defined externally and referenced by `artifact_id`)
-- `motivation_artifact_ids`
-- `key_claim_ids`
-- `follow_up_question_ids`
-- `shared_setting_ids`
+- `exports`
 - `metadata`
 
 ### Serialization rule
@@ -217,15 +212,15 @@ package_id: pkg_...
 
 module_reviews:
   - module_id: mod_...
-    conclusion_artifact_id: ka_...
-    conclusion_artifact_kind: claim
+    exported_step_id: s_...
+    exported_artifact_kind: claim
     conditional_prior: 0.72
     weak_points:
       - target_step_id: s_...
         proposed_artifact_kind: setting
         proposed_content: "Assume near-vacuum conditions."
         dependency_strength: strong
-        rationale: "Without this setting, the module does not support the conclusion claim."
+        rationale: "Without this setting, the module does not support the exported claim."
 
 notes: "Optional package-level notes."
 metadata: {}
@@ -243,8 +238,8 @@ metadata: {}
 Each `module_review` should contain:
 
 - `module_id`
-- `conclusion_artifact_id`
-- `conclusion_artifact_kind`
+- `exported_step_id`
+- `exported_artifact_kind`
 
 Optional fields:
 
@@ -270,11 +265,11 @@ The review report is a sidecar artifact.
 
 #### 2. `conditional_prior` is local
 
-If present, `conditional_prior` is a local module-level score. It is not a future global belief score.
+If present, `conditional_prior` is a local score for one exported step. It is not a future global belief score.
 
-#### 3. `conditional_prior` is mainly for claim-conclusion modules
+#### 3. `conditional_prior` is mainly for claim exports
 
-For question-conclusion modules, `conditional_prior` is usually omitted.
+For question exports, `conditional_prior` is usually omitted.
 
 #### 4. Multiple reports are allowed
 

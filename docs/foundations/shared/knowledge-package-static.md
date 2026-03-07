@@ -35,8 +35,9 @@ The key split is:
 
 - `knowledge_artifact` is global and reusable
 - `step` is a local occurrence of one knowledge artifact, with explicit logical dependencies
-- `module` groups related steps into a single reasoning unit with one conclusion
-- `package` is a reusable container of modules
+- `step` belongs to exactly one module; the same artifact can appear in steps across different modules
+- `module` groups related steps into a coherent unit and exports selected steps
+- `package` is a reusable container of modules and exports selected steps from its modules
 
 The document intentionally does not define where any object is stored. It defines only the logical structure.
 
@@ -53,8 +54,9 @@ The main idea is:
 
 - reusable content and reusable actions are global `knowledge_artifact`s
 - a `step` is one use of a knowledge artifact, with explicit `input` dependencies (strong or weak)
-- a `module` groups related steps into a coherent reasoning thread that establishes exactly one conclusion claim — analogous to a module in a codebase
-- a `package` contains one or more modules, analogous to a paper or research bundle
+- a `module` groups related steps into a coherent unit and exports selected steps — analogous to a module in a codebase
+- a `package` contains one or more modules and exports selected steps from its modules, analogous to a paper or research bundle
+- each step belongs to exactly one module; the same artifact can appear as steps in different modules
 - logical dependencies are fully captured by `input` declarations on steps, not by narrative ordering
 - the logical structure of a module is a hypergraph: each step's strong inputs jointly form the premises of a reasoning link to that step's conclusion
 
@@ -77,11 +79,11 @@ More detailed epistemic distinctions such as `observation` and `assumption` are 
 
 ### 2. Step
 
-A `step` is one local occurrence of a `knowledge_artifact` inside a module.
+A `step` is one local occurrence of a `knowledge_artifact` inside a module. Each step belongs to exactly one module.
 
 Steps are needed because:
 
-- the same global knowledge artifact may appear in multiple modules and packages
+- the same global knowledge artifact may appear in multiple modules and packages (as different steps)
 - the same knowledge artifact may have different logical dependencies in different contexts
 - logical dependencies (strong/weak) belong to the step, not to the global knowledge artifact
 
@@ -89,9 +91,15 @@ Each step declares its own `input` dependencies explicitly. There are no implici
 
 ### 3. Module
 
-A `module` groups related steps into a single reasoning unit.
+A `module` groups related steps into a coherent unit and exports selected steps. This is analogous to a module in a codebase — it groups related logic and has clear outputs.
 
-Each module establishes exactly one conclusion (a `claim` artifact). This is analogous to a module in a codebase — it groups related logic and has a clear output.
+Modules serve different roles within a package:
+
+- **reasoning** — the primary type; establishes conclusions through a chain of premises, actions, and inferences
+- **setting** — establishes shared context (definitions, environment, assumptions) used by other modules
+- **motivation** — establishes why the research was undertaken (typically exports questions)
+- **follow_up_question** — establishes open questions for future work
+- **other** — any module that does not fit the above roles
 
 The logical structure within a module is a **hypergraph**: each step with strong inputs implicitly defines a reasoning link where the strong input artifacts are the **premises** and the step's own artifact is the **conclusion**. This hypergraph is not declared as a separate object — it is derived from the step `input` declarations.
 
@@ -333,7 +341,7 @@ Package-specific execution details such as concrete inputs, outputs, runtime con
 
 ## Step
 
-A `step` is one local occurrence of a global knowledge artifact inside a module.
+A `step` is one local occurrence of a global knowledge artifact inside a module. Each step belongs to exactly one module. The same artifact can appear as different steps in different modules.
 
 ### Step Schema
 
@@ -398,16 +406,17 @@ This is the right place for package-specific details such as:
 
 ## Module
 
-A `module` groups related steps into a single reasoning unit that establishes one conclusion.
+A `module` groups related steps into a coherent unit and exports selected steps.
 
 ### Module Schema
 
 ```text
 module {
   module_id
+  role?             # reasoning | setting | motivation | follow_up_question | other
   summary?
   keywords[]?
-  conclusion_artifact_id
+  exports[]         # step_ids
   steps[]
   metadata?
 }
@@ -417,6 +426,18 @@ module {
 
 Stable identifier for the module within the package.
 
+### `role`
+
+Optional module role. Recommended values:
+
+- `reasoning` — establishes conclusions through premises, actions, and inferences
+- `setting` — establishes shared context (definitions, environment, assumptions)
+- `motivation` — establishes why the research was undertaken
+- `follow_up_question` — establishes open questions for future work
+- `other`
+
+When omitted, `reasoning` is assumed by convention.
+
 ### `summary`
 
 Optional short human-readable summary of what this module establishes.
@@ -425,11 +446,11 @@ Optional short human-readable summary of what this module establishes.
 
 Optional keywords for search and discovery.
 
-### `conclusion_artifact_id`
+### `exports[]`
 
-The single `claim` artifact that this module establishes. Every module must have exactly one conclusion, and it must be a `claim`.
+The steps this module makes available to the outside world. Analogous to `export` in Julia modules.
 
-If a reasoning thread naturally has multiple conclusions, split it into multiple modules.
+Exported steps are the module's public interface — they are what other modules, packages, or the global graph should reference and build upon. Non-exported steps are internal reasoning structure.
 
 ### `steps[]`
 
@@ -462,7 +483,7 @@ This hypergraph is not declared as a separate schema object. It is always derive
 
 ## Package
 
-A `package` is a container of modules.
+A `package` is a container of modules. It exports selected steps from its modules as the package's public interface.
 
 It is the closest V1 analog of a paper, research bundle, or structured project unit.
 
@@ -474,10 +495,7 @@ package {
   summary?
   keywords[]?
   modules[]
-  motivation_artifact_ids[]?
-  key_claim_ids[]?
-  follow_up_question_ids[]?
-  shared_setting_ids[]?
+  exports[]?        # step_ids from any module
   metadata?
 }
 ```
@@ -496,25 +514,17 @@ Optional keywords for search and discovery.
 
 ### `modules[]`
 
-One or more modules included in the package. A package with multiple modules is like a paper with multiple theorems or arguments.
+One or more modules included in the package. The list order defines the recommended reading order for the package (narrative ordering), analogous to how a module's `steps[]` order defines its internal narrative.
 
 Modules within the same package can reference each other's steps (via `step_id`) or artifacts (via `artifact_id`).
 
-### `motivation_artifact_ids[]`
+Different module roles serve different structural purposes: `reasoning` modules establish conclusions, `setting` modules provide shared context, `motivation` modules explain why the work was done, and `follow_up_question` modules capture open questions. This replaces the need for separate editorial fields — the structure itself carries the editorial intent.
 
-Optional references to knowledge artifacts that motivate the package. These capture editorial intent — "why this research was done" — which is not derivable from graph structure alone.
+### `exports[]`
 
-### `key_claim_ids[]`
+Optional list of step_ids from any module in the package. These are the package's public interface — the steps (and their underlying artifacts) that the package offers to the outside world.
 
-Optional references to the package's most important conclusion claims. Not all module conclusions are equally important; this field captures editorial judgment about which conclusions matter most.
-
-### `follow_up_question_ids[]`
-
-Optional references to questions that this package opens for future work.
-
-### `shared_setting_ids[]`
-
-Optional references to settings shared across multiple modules in the package.
+Package exports are typically a curated subset of module exports. For example, a package might export only its key conclusions and follow-up questions, not every intermediate result.
 
 ### `metadata`
 
@@ -527,9 +537,10 @@ V1 static schema assumes:
 1. logical dependencies are fully captured by explicit `input` declarations on steps, not by narrative ordering
 2. dependency strength (`strong` / `weak`) determines whether a reference participates in later probabilistic evaluation
 3. local reasoning structure belongs to steps, not to global knowledge artifacts
-4. each module establishes exactly one conclusion claim
-5. the implicit logical structure within a module is a hypergraph: each step's strong inputs jointly form the premises of a reasoning link
-6. knowledge artifacts are global objects referenced by steps; they are not "owned" by any package
+4. each step belongs to exactly one module; the same artifact can appear as steps in different modules
+5. modules export selected steps as their public interface; packages export selected steps from their modules
+6. the implicit logical structure within a module is a hypergraph: each step's strong inputs jointly form the premises of a reasoning link
+7. knowledge artifacts are global objects referenced by steps; they are not "owned" by any package
 
 ## Example
 
@@ -543,34 +554,65 @@ c1 = claim("The observed difference in air is better explained by drag than by m
 q2 = question("How can drag be modeled quantitatively for different shapes?")
 ```
 
-### Module
+### Modules
 
 ```text
 module {
-  module_id = m1
+  module_id = m_motivation
+  role = motivation
+  summary = "Motivating question about differential fall rates"
+  exports = [s_q1]
+
+  steps = [
+    s_q1(artifact_id=q1, input=[])
+  ]
+}
+
+module {
+  module_id = m_env
+  role = setting
+  summary = "Air resistance definitions"
+  exports = [s_def]
+
+  steps = [
+    s_def(artifact_id=s1, input=[])
+  ]
+}
+
+module {
+  module_id = m_main
+  role = reasoning
   summary = "Air resistance, not mass, explains differential fall rates"
   keywords = ["air resistance", "drag", "falling bodies"]
-  conclusion_artifact_id = c1
+  exports = [s_conclusion]
 
-  steps = [                        # narrative order
-    s01(artifact_id=q1, input=[]),
-    s02(artifact_id=s1, input=[]),
-    s03(artifact_id=a1, input=[
-      {ref=s01, strength=weak},    # question motivates the action, but action is valid without it
-      {ref=s02, strength=strong}   # setting is required for the action to make sense
+  steps = [                            # narrative order
+    s_action(artifact_id=a1, input=[
+      {ref=s_q1, strength=weak},       # question motivates the action, but action is valid without it
+      {ref=s_def, strength=strong}     # setting is required for the action to make sense
     ]),
-    s04(artifact_id=c1, input=[
-      {ref=s02, strength=strong},  # definition is a logical premise
-      {ref=s03, strength=strong}   # action result is a logical premise
-    ]),
-    s05(artifact_id=q2, input=[
-      {ref=s04, strength=weak}     # conclusion motivates the follow-up, but question stands on its own
+    s_conclusion(artifact_id=c1, input=[
+      {ref=s_def, strength=strong},    # definition is a logical premise
+      {ref=s_action, strength=strong}  # action result is a logical premise
+    ])
+  ]
+}
+
+module {
+  module_id = m_follow
+  role = follow_up_question
+  summary = "Open questions on drag modeling"
+  exports = [s_followup]
+
+  steps = [
+    s_followup(artifact_id=q2, input=[
+      {ref=s_conclusion, strength=weak}  # conclusion motivates the follow-up, but question stands on its own
     ])
   ]
 }
 ```
 
-Implicit hypergraph (derived from strong inputs):
+Implicit hypergraph for `m_main` (derived from strong inputs):
 
 ```text
 premises: [s1]           → conclusion: a1    (setting enables the inferential action)
@@ -585,22 +627,20 @@ package {
   summary = "Why feathers and stones fall differently in air"
   keywords = ["falling bodies", "air resistance", "drag"]
 
-  modules = [m1]
+  modules = [m_motivation, m_env, m_main, m_follow]   # narrative order
 
-  motivation_artifact_ids = [q1]
-  key_claim_ids = [c1]
-  follow_up_question_ids = [q2]
-  shared_setting_ids = [s1]
+  exports = [s_conclusion, s_followup]                 # package public interface
 }
 ```
 
 Interpretation:
 
-- `m1` is the sole module; its conclusion is `c1`
-- `motivation_artifact_ids = [q1]` — editorial: this question motivated the research
-- `key_claim_ids = [c1]` — editorial: this is the main takeaway
-- `follow_up_question_ids = [q2]` — editorial: this question opens future work
-- `shared_setting_ids = [s1]` — this setting applies across the package
+- `m_motivation` (role=motivation) exports the motivating question `q1`
+- `m_env` (role=setting) exports the shared definition `s1`
+- `m_main` (role=reasoning) exports the main conclusion `c1`
+- `m_follow` (role=follow_up_question) exports the open question `q2`
+- package exports `s_conclusion` and `s_followup` — the key results this package offers to the outside world
+- module roles replace separate editorial fields; the structure itself carries the editorial intent
 
 ## Deferred Topics
 

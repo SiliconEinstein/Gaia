@@ -28,8 +28,8 @@ Gaia currently uses four conceptual layers:
 
 1. reusable global knowledge objects
 2. local reasoning steps with explicit dependencies
-3. modules — coherent reasoning units, each establishing one conclusion
-4. packages — collections of modules
+3. modules — coherent units that group steps and export selected steps
+4. packages — collections of modules that export selected steps
 
 The corresponding V1 terms are:
 
@@ -104,9 +104,9 @@ Examples:
 
 ### `step`
 
-A `step` is one local occurrence of a `knowledge_artifact` inside a `module`.
+A `step` is one local occurrence of a `knowledge_artifact` inside a `module`. Each step belongs to exactly one module.
 
-It exists because the same global artifact can be reused in multiple modules and packages, in different local roles.
+It exists because the same global artifact can be reused in multiple modules and packages, as different steps in different local roles.
 
 Each step declares its logical dependencies explicitly via `input`, with dependency strength:
 
@@ -133,13 +133,21 @@ The logical structure within a module is a hypergraph, derived from step `input`
 
 ### `module`
 
-A `module` groups related steps into a single reasoning unit that establishes exactly one conclusion claim.
+A `module` groups related steps into a coherent unit and exports selected steps as its public interface. This is analogous to a module in a codebase: it groups related logic and has clear outputs via `export`.
 
-This is analogous to a module in a codebase: it groups related logic and has a clear output. If a reasoning thread has multiple conclusions, it should be split into multiple modules.
+Modules have an optional `role` that describes their purpose within the package:
+
+- `reasoning` — establishes conclusions through premises, actions, and inferences
+- `setting` — establishes shared context (definitions, environment, assumptions)
+- `motivation` — establishes why the research was undertaken
+- `follow_up_question` — establishes open questions for future work
+- `other`
+
+Module roles replace the need for separate editorial fields on packages. The motivation for a research effort is expressed as a `motivation` module; shared definitions become a `setting` module; open questions become a `follow_up_question` module. The structure itself carries the editorial intent.
 
 ### `package`
 
-A `package` is a reusable container of modules.
+A `package` is a reusable container of modules. It exports selected steps from its modules as the package's public interface.
 
 Typical examples include:
 
@@ -148,14 +156,7 @@ Typical examples include:
 - a structured note
 - a project unit
 
-A package also carries editorial annotations that capture the author's intent:
-
-- `motivation_artifact_ids` — what motivated this research
-- `key_claim_ids` — the most important conclusions
-- `follow_up_question_ids` — questions opened for future work
-- `shared_setting_ids` — settings shared across modules
-
-These are editorial judgments, not derivable from graph structure alone.
+The package's `modules[]` list order defines the recommended reading order for the package (narrative ordering). The package's `exports[]` list is a curated subset of step_ids from its modules — the key results this package offers to the outside world.
 
 ## Important Non-Equivalences
 
