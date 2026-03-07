@@ -41,31 +41,56 @@ A research paper, like a software library, needs to:
 - organize internal logic into coherent units (modules)
 - be distributed as a self-contained package
 
-### Comparison with programming language module systems
+### Design influences
 
-| Aspect | Rust/Cargo | Julia/Pkg | Python | Gaia |
-|--------|-----------|-----------|--------|------|
-| **Package** | crate | package | package (PyPI) | knowledge package |
-| **Module** | `mod` (1:1 with files) | `module` (decoupled from files) | `.py` file or directory | module (with role) |
-| **Public interface** | `pub` items | `export` symbols | `__all__` / convention | `exports[]` closure_ids |
-| **Dependencies** | `use` + `Cargo.toml` | `using`/`import` + `Project.toml` | `import` + `requirements.txt` | `imports[]` with strength |
-| **Internal structure** | expressions + items | expressions + functions | statements | chain (closure ↔ inference) |
-| **Manifest** | `Cargo.toml` | `Project.toml` | `pyproject.toml` | `Gaia.toml` |
-| **Lock file** | `Cargo.lock` | `Manifest.toml` | `requirements.lock` | `Gaia.lock` (deferred) |
+Gaia's design draws from two layers of programming language tradition:
+
+- **Semantic model** — from functional programming (Haskell, OCaml): immutable values, closures as the universal currency, explicit interfaces, referential transparency
+- **Packaging discipline** — from systems languages (Rust/Cargo): module = file, explicit exports, manifest-driven dependency management
+
+The table below compares the semantic model (Haskell, OCaml) and the packaging model (Rust) with Gaia. Python is included as a familiar baseline.
+
+| Aspect | Haskell | OCaml | Rust/Cargo | Python | Gaia |
+|--------|---------|-------|------------|--------|------|
+| **Core unit** | value (immutable) | value (immutable by default) | item (owned) | object (mutable) | closure (immutable) |
+| **Composition** | function composition | function composition | expressions + items | statements | chain (closure ↔ inference) |
+| **Package** | `.cabal` package | opam package | crate | PyPI package | knowledge package |
+| **Module** | `module` (1:1 with files) | `module` (1:1 with files, or inline) | `mod` (1:1 with files) | `.py` file | module (with role) |
+| **Public interface** | export list in `module Foo (...)` | `.mli` signature file | `pub` items | `__all__` / convention | `exports[]` closure_ids |
+| **Interface contract** | type classes (value-level) | module signatures (module-level) | traits (value-level) | duck typing | imports[] + exports[] (module-level) |
+| **Dependencies** | `import` + `.cabal` `build-depends` | `open` + opam `depends` | `use` + `Cargo.toml` | `import` + `requirements.txt` | `imports[]` with strength |
+| **Internal modules** | `other-modules` in `.cabal` | `private_modules` in dune | `pub(crate)` | `_` prefix convention | non-exported closures in chain |
+| **Parameterized modules** | — (type classes instead) | functors | — (traits instead) | — | — (deferred to V2) |
+| **Manifest** | `package.cabal` | `opam` + `dune` | `Cargo.toml` | `pyproject.toml` | `Gaia.toml` |
+| **Lock file** | `cabal.project.freeze` | `opam.locked` | `Cargo.lock` | `requirements.lock` | `Gaia.lock` (deferred) |
 
 ### Key design choices and their origins
 
-**From Rust: module = file, exports are explicit.** Rust binds modules to files 1:1 (`mod foo` → `foo.rs`). Gaia follows this spirit: each module is a self-contained unit with an explicit `exports[]` list. This makes the structure navigable for both humans and AI agents — you can find a module's public interface without reading its internals. Julia, by contrast, decouples modules from files (`include()` is textual insertion), which makes structure harder to discover mechanically.
+**From Haskell/FP: immutable values as the universal currency.** In Haskell, values are immutable and referentially transparent — a name always refers to the same thing. Gaia's `closure` follows the same principle: a `closure_id` always refers to the same content, closures are never mutated in place, and they can be freely shared across modules and packages. This is why closures (not modules, not inferences) are the unit of import/export — they are the "values" of the knowledge system.
 
-**From Julia: first-class dependency declarations.** Julia's `Project.toml` declares package-level dependencies explicitly. Gaia extends this idea to the module level: each module declares its `imports[]` with provenance (`from` which module) and dependency strength (`strong` / `weak`). This is more granular than any programming language module system, because knowledge dependencies carry epistemic semantics — whether an import is load-bearing or merely contextual matters for later probabilistic evaluation.
+**From Haskell: explicit export lists.** Haskell modules declare exactly what they export via `module Foo (bar, baz) where`. Items not listed are internal. Gaia follows this directly: a module's `exports[]` lists the closure_ids that form its public interface, while other closures in the chain remain internal. At the package level, Haskell's `.cabal` distinguishes `exposed-modules` (public API) from `other-modules` (internal); Gaia's package `exports[]` plays the same role — a curated subset of module exports.
 
-**From FP: closure as the universal currency.** In functional programming, a closure captures its free variables and can be passed around independently of its creation context. Gaia's `closure` plays the same role for knowledge: it is a self-contained object that can be exported, imported, and referenced without knowing which module or chain created it. This is why closures (not modules, not inferences) are the unit of import/export.
+**From OCaml: module signatures as contracts.** OCaml separates interface (`.mli`) from implementation (`.ml`). The `.mli` file declares what a module provides without revealing how. In Gaia, a module's "signature" is its `imports[]` + `exports[]` + `role` — this is the contract other modules see. The `chain[]` is the "implementation" — the internal reasoning that produces the exported closures. This separation is structural in our schema: you can read a module's interface without reading its chain.
 
-**Unique to Gaia: the state-action chain model.** Programming languages use expressions and statements; Gaia uses an alternating `closure → inference → closure` chain. This is a state-action model where closures are the **states** (self-contained, exportable) and inferences are the **actions** (local, context-dependent, not exportable). No programming language has this — it comes from the need to make reasoning steps explicit and auditable while keeping the reusable knowledge objects cleanly separated.
+**From Rust: module = file, packaging discipline.** Rust binds modules to files 1:1 (`mod foo` → `foo.rs`) and uses `Cargo.toml` for manifest-driven dependency management. Gaia follows this packaging spirit: each module is a self-contained unit, `Gaia.toml` declares package-level metadata and dependencies, and the structure is mechanically navigable for both humans and AI agents.
 
-**Unique to Gaia: dependency strength.** No programming language distinguishes between strong and weak imports. In code, a dependency either compiles or it doesn't. In knowledge, the distinction matters: a strong dependency means "if this is wrong, my conclusion is likely wrong too," while a weak dependency means "this is relevant context, but my conclusion can stand on its own." This distinction feeds directly into later probabilistic evaluation (V3).
+**From FP: the state-action chain model.** Haskell programs are built by composing pure functions: `value → function → value → function → value`. Gaia's chain follows the same pattern: `closure → inference → closure → inference → closure`. Closures are the **states** (immutable, self-contained, exportable) and inferences are the **actions** (local transformations, context-dependent, not exportable). This makes reasoning steps explicit and auditable while keeping the reusable knowledge objects cleanly separated.
+
+**Unique to Gaia: dependency strength.** No programming language distinguishes between strong and weak imports. In code, a dependency either compiles or it doesn't. In knowledge, the distinction matters: a `strong` dependency means "if this is wrong, my conclusion is likely wrong too," while a `weak` dependency means "this is relevant context, but my conclusion can stand on its own." This feeds directly into probabilistic evaluation (V3).
 
 **Unique to Gaia: module roles.** Programming language modules don't declare their purpose. Gaia modules carry an optional `role` (reasoning, setting, motivation, follow_up_question, other) that replaces the need for separate editorial fields on packages. A `motivation` module replaces a "motivation" text field; a `follow_up_question` module replaces a "future work" section. The structure itself carries the editorial intent.
+
+### Future directions inspired by Haskell and OCaml
+
+The following features are intentionally deferred from V1 but identified as valuable for later versions:
+
+**OCaml functors → parameterized modules (V2).** OCaml's functors are "functions from modules to modules" — they take a module satisfying a signature and produce a new module. For Gaia, this could enable **reasoning templates**: a parameterized module that takes a `setting` module as input and produces a `reasoning` module as output. For example, the same deductive chain could be instantiated with different experimental assumptions to produce different conclusions. This is deferred because V1 focuses on static packages, not module-level computation.
+
+**OCaml `.mli` → standalone module signatures (V2).** OCaml allows defining a module signature independently of any implementation. For Gaia, this could enable **knowledge interfaces**: a module that declares "I need a closure of kind `claim` about topic X" without providing one. Other packages could then provide implementations that satisfy the interface. This is analogous to dune's virtual libraries and would support a registry of "open problems" that packages can claim to solve.
+
+**Haskell re-exports → facade modules (V1-compatible).** Haskell allows `module Data.Map (module Data.Map.Lazy)` to re-export everything from a sub-module. Gaia can already express this: a module with an empty chain that imports closures from other modules and re-exports them. This pattern is useful for creating aggregation packages (e.g., a "Physics" package that curates exports from "Mechanics", "Thermodynamics", and "Electromagnetism" sub-packages). No schema change is needed — it is already expressible in V1.
+
+**Haskell abstract types → opaque closures (V2).** Haskell can export a type without its constructors, making it abstract — users can use it but not inspect or construct it. For Gaia, an analogous concept would be closures that are exported with their `closure_id` and `summary` but without full `content` — useful for packages that want to declare their conclusions without revealing the supporting evidence, or for packages behind access control.
 
 ## Design Boundary
 
