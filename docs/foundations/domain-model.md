@@ -27,14 +27,13 @@ It does not define:
 Gaia currently uses three conceptual layers:
 
 1. reusable global knowledge objects
-2. local reasoning-chain structure
+2. local reasoning steps with explicit dependencies
 3. package-level organization
 
 The corresponding V1 terms are:
 
 - `knowledge_artifact`
-- `chain_step`
-- `reasoning_chain`
+- `step`
 - `package`
 
 ## Shared Knowledge Objects
@@ -101,41 +100,35 @@ Examples:
 
 ## Local Reasoning Structure
 
-### `chain_step`
+### `step`
 
-A `chain_step` is one local occurrence of a `knowledge_artifact` inside one `reasoning_chain`.
+A `step` is one local occurrence of a `knowledge_artifact` inside a `package`.
 
-It exists because the same global artifact can be reused in multiple chains and in different local roles.
+It exists because the same global artifact can be reused in multiple packages and in different local roles.
 
-### `reasoning_chain`
+Each step declares its logical dependencies explicitly via `input`, with dependency strength:
 
-A `reasoning_chain` is a local reasoning path.
+- **strong** — if the referenced artifact is wrong, this step is likely wrong too
+- **weak** — the referenced artifact is relevant context, but this step can stand on its own
 
-It is represented as one ordered main path of `chain_step`s.
+These are local step relations, not global artifact properties. The same artifact can be a strong dependency in one step and a weak dependency in another.
+
+### Narrative ordering
+
+A package's `reasoning_steps` list defines a narrative reading order. This ordering carries no implicit logical dependency — all dependencies are declared via `input` on each step.
 
 V1 does not impose a rigid formal grammar on which artifact kinds may follow which others. The governing rule is:
 
-- the chain should make logical sense as a local reasoning path
+- the narrative should make sense as a reading order
 - if there is a nontrivial reasoning gap, it should be made explicit via an `action`
 
-This means `claim -> claim` transitions are allowed when the transition is trivial or locally obvious.
-
-### `extra_inputs`
-
-`extra_inputs` are local dependencies attached to a `chain_step` in addition to the main path order.
-
-They use local dependency strength:
-
-- `strong`
-- `weak`
-
-These are local chain relations, not global artifact properties.
+This means direct artifact → artifact transitions are allowed when the reasoning is trivial or locally obvious.
 
 ## Package Organization
 
 ### `package`
 
-A `package` is a reusable container of reasoning chains.
+A `package` is a reusable container of knowledge artifacts and reasoning steps.
 
 Typical examples include:
 
@@ -144,14 +137,7 @@ Typical examples include:
 - a structured note
 - a project unit
 
-V1 package-level roles currently include:
-
-- `motivation_artifact_ids`
-- `key_claim_ids`
-- `follow_up_question_ids`
-- `shared_setting_ids`
-
-These are package roles, not artifact kinds.
+A package contains `reasoning_steps` in narrative order. Starting points (leaves with no `input`) and conclusions (artifacts with no downstream strong dependents) are derived from the dependency graph, not declared separately.
 
 ## Important Non-Equivalences
 
@@ -160,14 +146,14 @@ The following should not be treated as equivalent:
 - `claim` and `question`
 - `claim` and `setting`
 - `action` and `claim`
-- global `knowledge_artifact` identity and local `chain_step` occurrence
-- package role and artifact kind
+- global `knowledge_artifact` identity and local `step` occurrence
+- narrative ordering and logical dependency
 
 Examples:
 
 - a statement-form gap is a `claim`, not a `question`
 - a definition is a `setting`, not a generic `claim`
-- a motivating artifact is not a separate artifact kind; it is a package-level role
+- adjacent steps in `reasoning_steps` do not imply logical dependency — all dependencies are explicit via `input`
 
 ## Deferred Distinctions
 
@@ -188,12 +174,14 @@ For now:
 
 - [shared/knowledge-package-static.md](shared/knowledge-package-static.md) instantiates this vocabulary as the V1 static package schema
 - [shared/knowledge-package-file-formats.md](shared/knowledge-package-file-formats.md) defines the corresponding package and review-report file formats
-- later graph docs may introduce additional graph-native vocabulary, but they should build on rather than silently replace the terms defined here
+- V2 (graph integration) will define how packages map to the global graph
+- V3 (probabilistic semantics) will define prior, belief, and BP on top of the dependency graph
+- later docs should build on rather than silently replace the terms defined here
 
 ## Current Rule
 
 When a new design needs a new noun, prefer to:
 
 1. reuse `claim`, `question`, `setting`, or `action` if one already fits
-2. place local role semantics on `package` or `reasoning_chain`, not on the global artifact kind
+2. place local dependency semantics on `step`, not on the global artifact kind
 3. defer finer epistemic distinctions until they are required by graph or probabilistic semantics

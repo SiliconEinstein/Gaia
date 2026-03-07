@@ -9,7 +9,7 @@ It instantiates the shared vocabulary defined in [../domain-model.md](../domain-
 It covers:
 
 1. the core object layers used in shared Gaia knowledge packages
-2. the static schema for `knowledge_artifact`, `chain_step`, `reasoning_chain`, and `package`
+2. the static schema for `knowledge_artifact`, `step`, and `package`
 3. the minimal subtype schemas for `claim`, `question`, `setting`, and `action`
 4. the static relationships between package structure and global reusable artifacts
 
@@ -34,26 +34,25 @@ This document defines only the shared static knowledge package schema.
 The key split is:
 
 - `knowledge_artifact` is global and reusable
-- `chain_step` is a local occurrence of one knowledge artifact inside one reasoning chain
-- `reasoning_chain` is a local reasoning chain
-- `package` is a reusable container of reasoning chains
+- `step` is a local occurrence of one knowledge artifact inside a package, with explicit logical dependencies
+- `package` is a reusable container of steps in narrative order
 
 The document intentionally does not define where any object is stored. It defines only the logical structure.
 
 ## Core Model
 
-Gaia V1 static structure has four layers:
+Gaia V1 static structure has three layers:
 
 1. global `knowledge_artifact`
-2. local `chain_step`
-3. local `reasoning_chain`
-4. local `package`
+2. local `step`
+3. local `package`
 
 The main idea is:
 
 - reusable content and reusable actions are global `knowledge_artifact`s
-- a `reasoning_chain` is a single ordered chain of `chain_step` occurrences
-- a `package` is a collection of related reasoning chains, similar to a paper or research bundle
+- a `step` is one use of a knowledge artifact, with explicit `input` dependencies (strong or weak)
+- a `package` contains an ordered list of steps representing the narrative flow, plus the artifacts they reference
+- logical dependencies are fully captured by `input` declarations on steps, not by narrative ordering
 
 ## Object Overview
 
@@ -72,33 +71,25 @@ V1 keeps this artifact set intentionally minimal.
 
 More detailed epistemic distinctions such as `observation` and `assumption` are deferred to later graph and probabilistic layers. In V1 they are represented through `claim` or `setting` plus provenance and review context.
 
-### 2. Chain Step
+### 2. Step
 
-A `chain_step` is one local occurrence of a `knowledge_artifact` inside a single `reasoning_chain`.
+A `step` is one local occurrence of a `knowledge_artifact` inside a package.
 
-Chain steps are needed because:
+Steps are needed because:
 
-- the same global knowledge artifact may appear in multiple reasoning chains
-- the same knowledge artifact may be used differently in different reasoning chains
-- local extra dependencies belong to the chain occurrence, not to the global knowledge artifact
+- the same global knowledge artifact may appear in multiple packages
+- the same knowledge artifact may have different logical dependencies in different contexts
+- logical dependencies (strong/weak) belong to the step, not to the global knowledge artifact
 
-### 3. Reasoning Chain
+Each step declares its own `input` dependencies explicitly. There are no implicit dependencies from narrative ordering.
 
-A `reasoning_chain` is the basic local reasoning unit.
+### 3. Package
 
-It is represented as one ordered main path:
-
-```text
-step_1 -> step_2 -> ... -> step_n
-```
-
-The last step is the output of the reasoning chain.
-
-### 4. Package
-
-A `package` is a reusable container of reasoning chains.
+A `package` is a reusable container of steps.
 
 It corresponds to a paper, research bundle, project unit, structured note, or another portable knowledge package.
+
+The package's `reasoning_steps` list defines a narrative ordering — the recommended reading order for understanding the reasoning. This ordering is not a logical dependency chain; adjacent steps may be unrelated, but the ordering should not reverse the logical flow (conclusions should not precede their premises in the narrative).
 
 ## Common Knowledge Artifact Schema
 
@@ -296,7 +287,7 @@ An `action` is a reusable atomic process object.
 
 It represents a process such as inference, tool use, or another canonicalized local step.
 
-The action itself is global; a specific use of the action inside a reasoning chain is represented by a `chain_step`.
+The action itself is global; a specific use of the action inside a package is represented by a `step`.
 
 ### Action Schema
 
@@ -326,112 +317,76 @@ Recommended initial values:
 
 Optional stable tool identifier for `tool_call` actions.
 
-Reasoning-chain-specific execution details such as concrete inputs, outputs, runtime context, and artifacts should not be placed on the global action object. They belong to the local chain-step occurrence.
+Package-specific execution details such as concrete inputs, outputs, runtime context, and artifacts should not be placed on the global action object. They belong to the local step occurrence.
 
-## Chain Step
+## Step
 
-A `chain_step` is one local occurrence of a global knowledge artifact inside a reasoning chain.
+A `step` is one local occurrence of a global knowledge artifact inside a package.
 
-### Chain Step Schema
+### Step Schema
 
 ```text
-chain_step {
+step {
   step_id
   artifact_id
-  extra_inputs[]?
+  input[]?
   metadata?
 }
 ```
 
 ### `step_id`
 
-Stable local identifier inside the reasoning chain.
+Stable local identifier inside the package.
 
 ### `artifact_id`
 
 Reference to a global knowledge artifact.
 
-### `extra_inputs[]`
+### `input[]`
 
-Optional extra dependencies beyond the ordered main path.
-
-Suggested minimal shape:
+Explicit logical dependencies of this step.
 
 ```text
-extra_inputs: [
+input: [
   {
-    step_id,
-    strength,   # strong | weak
+    ref,          # step_id or artifact_id
+    strength,     # strong | weak
     note?
   }
 ]
 ```
 
-Rules:
+**Dependency semantics:**
 
-- `extra_inputs[]` should point only to earlier chain steps in the same reasoning chain
-- the main predecessor in the ordered chain is not repeated here
-- use `extra_inputs[]` only for non-main-path dependencies
+- **strong** — if the referenced artifact is wrong, this step is likely wrong too. This is a logical dependency that affects truth value.
+- **weak** — the referenced artifact is relevant context, but this step can stand on its own even if the reference is wrong.
+
+**Reference types:**
+
+- `ref` may be a `step_id` (local to the same package) or an `artifact_id` (global, including cross-package references)
+- a `step_id` reference can always be resolved to its underlying `artifact_id`
+- cross-package references must use `artifact_id`
+
+**Rules:**
+
+- all logical dependencies must be declared explicitly via `input`
+- the narrative ordering of `reasoning_steps` does NOT imply any dependency
+- a step with no `input` is a leaf (starting point of the reasoning)
 
 ### `metadata`
 
 Optional local occurrence metadata.
 
-This is the right place for reasoning-chain-specific details such as:
+This is the right place for package-specific details such as:
 
 - local notes
 - concrete tool invocation details
 - local execution context
-- chain-local artifact references
-
-## Reasoning Chain
-
-A `reasoning_chain` is the basic local reasoning chain.
-
-### Reasoning Chain Schema
-
-```text
-reasoning_chain {
-  chain_id
-  chain_steps[]
-  metadata?
-}
-```
-
-### `chain_steps[]`
-
-Ordered main path of the reasoning chain.
-
-Rules:
-
-- `chain_steps[]` is the canonical representation of the main chain
-- the last chain step is the output of the reasoning chain
-- if a reasoning thread naturally has multiple outputs, split it into multiple reasoning chains
-
-V1 does not impose a rigid formal grammar such as:
-
-- claim must always be followed by action
-- question must always appear only at the beginning
-- setting must appear only as background
-
-Instead, a reasoning chain is valid when:
-
-- the ordered path makes local logical sense
-- each transition is understandable in context
-- any materially nontrivial reasoning gap is made explicit with an `action`
-
-This means:
-
-- direct transitions such as `claim -> claim` are allowed when the step is trivial or locally obvious
-- `action` is required when the transition would otherwise hide a meaningful reasoning jump
-
-### `metadata`
-
-Optional reasoning-chain-level metadata.
+- local artifact references
 
 ## Package
 
-A `package` is a local container of related reasoning chains.
+A `package` is a container of knowledge artifacts and reasoning steps.
 
 It is the closest V1 analog of a paper, research bundle, or structured project unit.
 
@@ -440,11 +395,8 @@ It is the closest V1 analog of a paper, research bundle, or structured project u
 ```text
 package {
   package_id
-  reasoning_chains[]
-  motivation_artifact_ids[]?
-  key_claim_ids[]?
-  follow_up_question_ids[]?
-  shared_setting_ids[]?
+  knowledge_artifacts[]
+  reasoning_steps[]
   metadata?
 }
 ```
@@ -453,29 +405,37 @@ package {
 
 Stable identifier for the package.
 
-### `reasoning_chains[]`
+### `knowledge_artifacts[]`
 
-Ordered list of reasoning chains included in the package.
+All knowledge artifacts defined or referenced by this package.
 
-V1 does not constrain all reasoning chains to form a single global chain. A package may contain multiple related reasoning chains.
+### `reasoning_steps[]`
 
-### `motivation_artifact_ids[]`
+Ordered list of steps representing the narrative flow of the package.
 
-Optional references to knowledge artifacts that motivate the package.
+**Narrative ordering:**
 
-These are intentionally typed as generic knowledge artifact references rather than split into claims and questions. Motivation may later expand beyond the current artifact kinds without changing package structure.
+- the list defines the recommended reading order for understanding the reasoning
+- adjacent steps may be logically unrelated (the narrative can have "breaks")
+- the ordering should not reverse the logical flow: conclusions should not precede their premises in the narrative
+- this ordering carries no implicit logical dependency; all dependencies are declared via `input` on each step
 
-### `key_claim_ids[]`
+**No explicit input/output declarations:**
 
-Optional references to the package's most important claims.
+- starting points (main inputs) are derived: steps with no `input` are leaves
+- conclusions (outputs) are derived: artifacts that no other step in the package strongly depends on
 
-### `follow_up_question_ids[]`
+V1 does not impose a rigid formal grammar such as:
 
-Optional references to the package's follow-up questions.
+- claim must always be followed by action
+- question must always appear only at the beginning
+- setting must appear only as background
 
-### `shared_setting_ids[]`
+Instead, the step sequence is valid when:
 
-Optional references to settings shared across multiple reasoning chains in the package.
+- the narrative makes sense as a reading order
+- any materially nontrivial reasoning gap is made explicit with an `action` artifact
+- direct transitions such as artifact → artifact are allowed when the reasoning is trivial or locally obvious
 
 ### `metadata`
 
@@ -485,11 +445,11 @@ Optional package-level metadata.
 
 V1 static schema assumes:
 
-1. a reasoning chain is a single ordered main path
-2. the last chain step of a reasoning chain is its output
-3. extra dependencies are explicit and local to chain-step occurrences
-4. local reasoning structure belongs to reasoning chains, not to global knowledge artifacts
-5. package roles such as motivation, key claims, and follow-up questions belong to the package, not to knowledge artifact identity
+1. logical dependencies are fully captured by explicit `input` declarations on steps, not by narrative ordering
+2. dependency strength (`strong` / `weak`) determines whether a reference participates in later probabilistic evaluation
+3. local reasoning structure belongs to steps, not to global knowledge artifacts
+4. `reasoning_steps` ordering is narrative (recommended reading order), not logical
+5. starting points and conclusions are derived from the dependency graph, not declared separately
 
 ## Example
 
@@ -503,45 +463,48 @@ c1 = claim("The observed difference in air is better explained by drag than by m
 q2 = question("How can drag be modeled quantitatively for different shapes?")
 ```
 
-### Reasoning chain
-
-```text
-t1.chain_steps = [
-  s01(artifact_id=q1),
-  s02(artifact_id=s1),
-  s03(artifact_id=a1),
-  s04(artifact_id=c1, extra_inputs=[{step_id=s02, strength=strong}]),
-  s05(artifact_id=q2)
-]
-```
-
-Interpretation:
-
-- the main path is the ordered sequence
-- `q2` is the output of the reasoning chain because it is the last chain step
-- `s04` additionally depends on `s02` beyond the immediate main-path predecessor
-
 ### Package
 
 ```text
 package {
   package_id = p1
-  reasoning_chains = [t1]
-  motivation_artifact_ids = [q1]
-  key_claim_ids = [c1]
-  follow_up_question_ids = [q2]
-  shared_setting_ids = [s1]
+
+  knowledge_artifacts = [q1, s1, a1, c1, q2]
+
+  reasoning_steps = [             # narrative order
+    s01(artifact_id=q1, input=[]),
+    s02(artifact_id=s1, input=[]),
+    s03(artifact_id=a1, input=[
+      {ref=s01, strength=weak},   # question motivates the action, but action is valid without it
+      {ref=s02, strength=strong}  # setting is required for the action to make sense
+    ]),
+    s04(artifact_id=c1, input=[
+      {ref=s02, strength=strong}, # definition is a logical premise
+      {ref=s03, strength=strong}  # action result is a logical premise
+    ]),
+    s05(artifact_id=q2, input=[
+      {ref=s04, strength=weak}    # conclusion motivates the follow-up, but question stands on its own
+    ])
+  ]
 }
 ```
+
+Interpretation:
+
+- `reasoning_steps` defines the narrative reading order
+- `s01` and `s02` have no inputs — they are the starting points (derived, not declared)
+- `c1` (at `s04`) has no downstream strong dependents — it is the main conclusion (derived, not declared)
+- `s03` strongly depends on `s02` but only weakly on `s01` — the question motivates but is not a logical premise
+- `s05` weakly depends on `s04` — the follow-up question is inspired by the conclusion but does not depend on its truth
 
 ## Deferred Topics
 
 The following topics are intentionally deferred:
 
-- how raw material is canonicalized into knowledge artifacts, chain steps, reasoning chains, and packages
+- how raw material is canonicalized into knowledge artifacts, steps, and packages
 - how review works
 - how optional revised packages are materialized
-- how packages integrate into the global Gaia graph
-- how support, contradiction, retraction, prior, belief, or BP should be defined
+- how packages integrate into the global Gaia graph (V2)
+- how prior, belief, and BP are defined on top of the dependency graph (V3)
 
 Those belong to later documents.
