@@ -107,14 +107,20 @@ An `inference` is a local reasoning step within a module's chain. It connects cl
 
 Unlike closures, inferences are **not** self-contained — they depend on their surrounding context in the chain. They are never exported or referenced from outside the module.
 
-In the state-action model: closures are the **states**, inferences are the **actions**.
+In the FP analogy: closures are **values**, inferences are **lambdas**. An inference can be:
+
+- **anonymous** — plain text describing the reasoning (like a lambda)
+- **named** — references a reusable `action` closure (like a named function application)
+
+This connects `action` closures (function definitions) to `inference` entries (function calls). An action describes **what** a process is; a named inference describes **how** that process was applied in a specific context.
 
 ### Chain model
 
-A module's `chain` defines the narrative reading order: an alternation of closures and inferences.
+A module's `chain` defines the narrative reading order: a sequential composition of lambdas applied to values.
 
 ```text
 closure → inference → closure → inference → closure
+  v₀    →    λ₁    →   v₁    →    λ₂    →   v₂
 ```
 
 When the logical transition between two closures is trivial or locally obvious, the inference may be omitted — two adjacent closures in the chain imply a trivial transition.

@@ -150,6 +150,10 @@ closures:
     closure_kind: claim
     content_mode: nl
     content: "Current methods do not explain X."
+  - closure_id: cl_action_...
+    closure_kind: action
+    action_type: infer
+    content: "Contrast behavior under two different conditions."
 
 modules:
   - module_id: mod_...
@@ -162,7 +166,11 @@ modules:
     exports: [cl_...]
     chain:
       - closure: cl_...
-      - inference: "Applying the definition to contrast behaviors"
+      - inference: "Applying the definition to contrast behaviors"     # anonymous
+      - closure: cl_...
+      - inference:                                                      # named (function application)
+          content: "Applying contrastive analysis"
+          action: cl_action_...
       - closure: cl_...
 
 exports: [cl_...]

@@ -74,23 +74,77 @@ The table below compares the semantic model (Haskell, OCaml) and the packaging m
 
 **From Rust: module = file, packaging discipline.** Rust binds modules to files 1:1 (`mod foo` → `foo.rs`) and uses `Cargo.toml` for manifest-driven dependency management. Gaia follows this packaging spirit: each module is a self-contained unit, `Gaia.toml` declares package-level metadata and dependencies, and the structure is mechanically navigable for both humans and AI agents.
 
-**From FP: the state-action chain model.** Haskell programs are built by composing pure functions: `value → function → value → function → value`. Gaia's chain follows the same pattern: `closure → inference → closure → inference → closure`. Closures are the **states** (immutable, self-contained, exportable) and inferences are the **actions** (local transformations, context-dependent, not exportable). This makes reasoning steps explicit and auditable while keeping the reusable knowledge objects cleanly separated.
+**From FP: the chain as lambda composition.** Haskell programs are built by composing pure functions: `value → function → value → function → value`. Gaia's chain follows the same pattern: `closure → inference → closure → inference → closure`. Closures are the **states** (immutable, self-contained, exportable) and inferences are the **actions** (local transformations, context-dependent, not exportable). A chain is therefore a sequential composition of lambdas applied to values — `v₀ |> λ₁ |> v₁ |> λ₂ |> v₂`. An inference can be anonymous (plain text, like a lambda) or it can reference a named `action` closure (like a named function application). This connects the two: an `action` closure is a **function definition**, an `inference` with an `action` reference is a **function call**.
 
 **Unique to Gaia: dependency strength.** No programming language distinguishes between strong and weak imports. In code, a dependency either compiles or it doesn't. In knowledge, the distinction matters: a `strong` dependency means "if this is wrong, my conclusion is likely wrong too," while a `weak` dependency means "this is relevant context, but my conclusion can stand on its own." This feeds directly into probabilistic evaluation (V3).
 
 **Unique to Gaia: module roles.** Programming language modules don't declare their purpose. Gaia modules carry an optional `role` (reasoning, setting, motivation, follow_up_question, other) that replaces the need for separate editorial fields on packages. A `motivation` module replaces a "motivation" text field; a `follow_up_question` module replaces a "future work" section. The structure itself carries the editorial intent.
 
-### Future directions inspired by Haskell and OCaml
+### Logical foundations and evolution roadmap
 
-The following features are intentionally deferred from V1 but identified as valuable for later versions:
+The Gaia package model has a precise correspondence to formal logic. Each version level raises the logical expressiveness:
 
-**OCaml functors → parameterized modules (V2).** OCaml's functors are "functions from modules to modules" — they take a module satisfying a signature and produce a new module. For Gaia, this could enable **reasoning templates**: a parameterized module that takes a `setting` module as input and produces a `reasoning` module as output. For example, the same deductive chain could be instantiated with different experimental assumptions to produce different conclusions. This is deferred because V1 focuses on static packages, not module-level computation.
+| Logic level | Key capability | PL analogy | Gaia version |
+|------------|---------------|-----------|-------------|
+| **Propositional** | Concrete propositions, fixed connectives | values + lambdas | **V1**: closures + anonymous inferences |
+| **Many-sorted first-order** | Variables, quantification over typed domains, named functions | Haskell/Lean type signatures | **V1**: action closures + named inferences (function application) |
+| **Higher-order** | Functions over functions, parameterized modules | OCaml functors | **V2**: parameterized modules |
+| **Dependent types** | Output type depends on input value | Lean/Coq | **Future**: formal verification of reasoning chains |
 
-**OCaml `.mli` → standalone module signatures (V2).** OCaml allows defining a module signature independently of any implementation. For Gaia, this could enable **knowledge interfaces**: a module that declares "I need a closure of kind `claim` about topic X" without providing one. Other packages could then provide implementations that satisfy the interface. This is analogous to dune's virtual libraries and would support a registry of "open problems" that packages can claim to solve.
+**V1 = propositional + first-order bridge.** Most V1 content operates at the propositional level: concrete closures connected by inferences. But the `action` closure with named inference references introduces first-order elements — an action like `contrastive_analysis` is implicitly universally quantified ("for any setting and claim, this analysis produces a claim"). V1 does not formalize this with explicit type signatures, but the structure is already there.
 
-**Haskell re-exports → facade modules (V1-compatible).** Haskell allows `module Data.Map (module Data.Map.Lazy)` to re-export everything from a sub-module. Gaia can already express this: a module with an empty chain that imports closures from other modules and re-exports them. This pattern is useful for creating aggregation packages (e.g., a "Physics" package that curates exports from "Mechanics", "Thermodynamics", and "Electromagnetism" sub-packages). No schema change is needed — it is already expressible in V1.
+**Curry-Howard correspondence.** The connection to typed lambda calculus is not accidental:
 
-**Haskell abstract types → opaque closures (V2).** Haskell can export a type without its constructors, making it abstract — users can use it but not inspect or construct it. For Gaia, an analogous concept would be closures that are exported with their `closure_id` and `summary` but without full `content` — useful for packages that want to declare their conclusions without revealing the supporting evidence, or for packages behind access control.
+| Curry-Howard | Gaia |
+|-------------|------|
+| **Type** (proposition) | **Claim** closure (a statement to be supported) |
+| **Term** (proof/program) | **Chain** (the reasoning from imports to exported claim) |
+| **Function type** `A → B` | **Action** (maps input closures to output closures) |
+| **Function application** | **Named inference** (`inference: { action: closure_id }`) |
+| **Type checking** | Dependency strength + BP (V3) |
+
+A module's chain from imported premises to exported conclusion is, in this view, a **proof term** that inhabits the **type** declared by its exports. This connection becomes actionable in V2+ when formal verification of reasoning chains becomes possible.
+
+### Future directions
+
+The following features are identified as valuable for later versions, organized by the logical level they introduce:
+
+#### Already expressible in V1
+
+**Facade modules (Haskell re-exports).** A module with an empty chain that imports closures from other modules and re-exports them. Useful for aggregation packages (e.g., a "Physics" package curating exports from "Mechanics" and "Thermodynamics" sub-packages). No schema change needed.
+
+#### V2: first-order and higher-order extensions
+
+**Action type signatures (Lean/Haskell function types).** Formalize action closures with explicit input/output signatures:
+
+```text
+action {
+  closure_id: cl_contrastive_analysis
+  closure_kind: action
+  action_type: infer
+  inputs:  [setting, claim]     # formal parameter kinds
+  outputs: [claim]              # return kind
+  content: "Contrast behavior under two different conditions..."
+}
+```
+
+This enables **type checking** of named inferences: when an inference references `cl_contrastive_analysis`, the surrounding closures in the chain should match the declared `inputs` and `outputs`. This is the step from propositional to fully formalized many-sorted first-order logic.
+
+**Parameterized modules (OCaml functors).** Functors are "functions from modules to modules." For Gaia, this enables **reasoning templates**: a parameterized module that takes a `setting` module as input and produces a `reasoning` module as output. The same deductive chain instantiated with different assumptions yields different conclusions. This is higher-order logic — functions that operate on modules (which are themselves compositions of functions).
+
+**Standalone module signatures (OCaml `.mli`).** A module signature declares "I need a closure of kind `claim` about topic X" without providing one. Other packages provide implementations satisfying the interface. This supports a registry of "open problems" that packages can claim to solve — analogous to dune's virtual libraries.
+
+**Opaque closures (Haskell abstract types).** Closures exported with `closure_id` and `summary` but without full `content`. Useful for packages behind access control, or for declaring conclusions without revealing supporting evidence.
+
+#### V3: probabilistic semantics
+
+**Dependency strength as soft type checking.** Where V2 type checking is structural ("do the closure kinds match?"), V3 adds probabilistic type checking: `strong` dependencies propagate belief, `weak` dependencies contribute to priors. This is a form of **graded type theory** where the "type" of a dependency carries a continuous weight rather than a binary pass/fail.
+
+#### Future: dependent types and formal verification
+
+**Dependent action signatures.** Output closure kind or content constraints that depend on input values — e.g., "if the input setting is `logical_setup`, the output claim must be a deductive conclusion." This requires dependent type theory and connects Gaia to formal proof assistants like Lean.
+
+**Chain verification.** Formal verification that a module's chain is a valid proof term for its declared exports, given its imports. This is the ultimate Curry-Howard realization: the chain IS the proof, the exports ARE the theorem, and verification checks that the proof is valid.
 
 ## Design Boundary
 
@@ -388,11 +442,13 @@ An `inference` is a local reasoning step within a module's chain. It connects cl
 
 Unlike closures, inferences are **not** self-contained — they depend on their surrounding context in the chain. They are never exported or referenced from outside the module.
 
-In the state-action model: closures are the **states**, inferences are the **actions**.
+In the FP analogy: closures are **values**, inferences are **lambdas** (anonymous functions). A chain is a sequential composition of lambdas applied to values.
 
-### Inference in chain
+### Inference forms
 
-An inference appears as an inline entry between closures in the chain:
+V1 supports two inference forms:
+
+**Anonymous inference (lambda)** — plain text describing the reasoning step:
 
 ```text
 chain:
@@ -401,9 +457,29 @@ chain:
   - closure: cl_result
 ```
 
-When the logical transition between two closures is trivial or locally obvious, the inference may be omitted — two adjacent closures in the chain imply a trivial transition.
+**Named inference (function application)** — references a reusable `action` closure:
 
-V1 represents inferences as plain text content. Later versions may add structure (type, tool reference, etc.) if needed.
+```text
+chain:
+  - closure: cl_premise
+  - inference:
+      content: "Applying contrastive analysis to vacuum vs air"
+      action: cl_contrastive_analysis    # references an action closure
+  - closure: cl_result
+```
+
+The two forms correspond to the FP distinction between anonymous lambdas and named function calls:
+
+| FP concept | Gaia inference form |
+|------------|-------------------|
+| `λx. x + 1` (anonymous lambda) | `inference: "reasoning text"` |
+| `f(x)` (named function application) | `inference: { content, action: closure_id }` |
+
+The `action` field is optional. When present, it must reference a closure of kind `action`. The `content` field provides a human-readable description of how the action was applied in this specific context.
+
+### Omitting inferences
+
+When the logical transition between two closures is trivial or locally obvious, the inference may be omitted — two adjacent closures in the chain imply a trivial transition.
 
 ## Module
 
@@ -484,7 +560,9 @@ The module's narrative — an ordered list of closures and inferences.
 ```text
 chain: [
   { closure: closure_id },
-  { inference: "reasoning text" },
+  { inference: "reasoning text" },                          # anonymous lambda
+  { closure: closure_id },
+  { inference: { content: "text", action: closure_id } },   # named function application
   { closure: closure_id },
   ...
 ]
@@ -611,9 +689,10 @@ module {
 
   chain = [
     {closure: cl_s1},                                                   # imported: establish context
-    {inference: "Contrasting vacuum vs air behavior using the definition"},
-    {closure: cl_a1},                                                   # reusable analysis method
-    {inference: "The analysis shows drag, not mass, explains the difference"},
+    {inference: {                                                        # named: references action closure
+        content: "Contrasting vacuum vs air behavior using the definition",
+        action: cl_a1
+    }},
     {closure: cl_c1}                                                    # conclusion
   ]
 }
@@ -652,7 +731,7 @@ package {
 
 - `m_motivation` (role=motivation) exports the motivating question `cl_q1`
 - `m_env` (role=setting) exports the shared definition `cl_s1`
-- `m_main` (role=reasoning) imports `cl_s1` (strong) and `cl_q1` (weak), exports the conclusion `cl_c1`
+- `m_main` (role=reasoning) imports `cl_s1` (strong) and `cl_q1` (weak), exports the conclusion `cl_c1`. Its chain uses a named inference referencing the `cl_a1` action closure (function application)
 - `m_follow` (role=follow_up_question) imports `cl_c1` (weak), exports the open question `cl_q2`
 - the package exports `cl_c1` and `cl_q2` — only the main conclusion and follow-up question are published
 - `cl_s1` is used internally (imported by `m_main`) but not re-exported by the package
