@@ -9,9 +9,10 @@ It instantiates the shared vocabulary defined in [../domain-model.md](../domain-
 It covers:
 
 1. the core object layers used in shared Gaia knowledge packages
-2. the static schema for `knowledge_artifact`, `step`, `module`, and `package`
-3. the minimal subtype schemas for `claim`, `question`, `setting`, and `action`
-4. the static relationships between package structure and global reusable artifacts
+2. the static schema for `closure`, `module`, and `package`
+3. the closure kind schemas for `claim`, `question`, `setting`, and `action`
+4. the chain model: `closure ↔ inference` alternation within modules
+5. the import/export model for cross-module dependencies
 
 It does not cover:
 
@@ -33,119 +34,103 @@ This document defines only the shared static knowledge package schema.
 
 The key split is:
 
-- `knowledge_artifact` is global and reusable
-- `step` is a local occurrence of one knowledge artifact, with explicit logical dependencies
-- `step` belongs to exactly one module; the same artifact can appear in steps across different modules
-- `module` groups related steps into a coherent unit and exports selected steps
-- `package` is a reusable container of modules and exports selected steps from its modules
+- `closure` is a self-contained, globally reusable knowledge object
+- `module` groups closures into a coherent unit via a chain, imports closures from other modules, and exports closures
+- `package` is a reusable container of modules and exports closures from its modules
 
 The document intentionally does not define where any object is stored. It defines only the logical structure.
 
 ## Core Model
 
-Gaia V1 static structure has four layers:
+Gaia V1 static structure has three layers:
 
-1. global `knowledge_artifact`
-2. local `step`
-3. local `module`
-4. local `package`
+1. global `closure`
+2. local `module`
+3. local `package`
 
-The main idea is:
+The design follows a **state-action model** inspired by functional programming:
 
-- reusable content and reusable actions are global `knowledge_artifact`s
-- a `step` is one use of a knowledge artifact, with explicit `input` dependencies (strong or weak)
-- a `module` groups related steps into a coherent unit and exports selected steps — analogous to a module in a codebase
-- a `package` contains one or more modules and exports selected steps from its modules, analogous to a paper or research bundle
-- each step belongs to exactly one module; the same artifact can appear as steps in different modules
-- logical dependencies are fully captured by `input` declarations on steps, not by narrative ordering
-- the logical structure of a module is a hypergraph: each step's strong inputs jointly form the premises of a reasoning link to that step's conclusion
+- a `closure` is a self-contained knowledge object — the **state**. Like a closure in FP, it captures everything it needs and can be passed around (exported, imported, referenced) independently of its creation context
+- an `inference` is a local reasoning step that connects closures — the **action**. Unlike a closure, it depends on its surrounding context in the chain and is not exportable
+- a module's `chain` alternates closures and inferences: `closure → inference → closure → inference → closure`
+- closure kinds are: `claim`, `question`, `setting`, `action`
+- modules declare cross-module dependencies via `imports` (with strong/weak strength) and make closures available via `exports`
+- a `package` contains one or more modules and exports closures from its modules
 
 ## Object Overview
 
-### 1. Knowledge Artifact
+### 1. Closure
 
-A `knowledge_artifact` is a globally reusable object.
+A `closure` is a self-contained, globally reusable knowledge object.
 
-Current artifact kinds are:
+The name comes from functional programming: like an FP closure that captures its free variables and can be passed around independently, a knowledge closure carries its content and metadata and can be exported, imported, and referenced without knowing the chain it was created in.
 
-- `claim`
-- `question`
-- `setting`
-- `action`
+Current closure kinds are:
 
-V1 keeps this artifact set intentionally minimal.
+- `claim` — a truth-apt statement or result
+- `question` — an inquiry
+- `setting` — context or environment
+- `action` — a reusable process description
 
-More detailed epistemic distinctions such as `observation` and `assumption` are deferred to later graph and probabilistic layers. In V1 they are represented through `claim` or `setting` plus provenance and review context.
+V1 keeps this set intentionally minimal. More detailed epistemic distinctions such as `observation` and `assumption` are deferred to later layers.
 
-### 2. Step
+### 2. Module
 
-A `step` is one local occurrence of a `knowledge_artifact` inside a module. Each step belongs to exactly one module.
+A `module` groups closures into a coherent unit. It imports closures from other modules, arranges closures and inferences into a chain (the narrative), and exports selected closures.
 
-Steps are needed because:
-
-- the same global knowledge artifact may appear in multiple modules and packages (as different steps)
-- the same knowledge artifact may have different logical dependencies in different contexts
-- logical dependencies (strong/weak) belong to the step, not to the global knowledge artifact
-
-Each step declares its own `input` dependencies explicitly. There are no implicit dependencies from narrative ordering.
-
-### 3. Module
-
-A `module` groups related steps into a coherent unit and exports selected steps. This is analogous to a module in a codebase — it groups related logic and has clear outputs.
+This is analogous to a module in Rust or Julia: it groups related logic, declares its dependencies (`imports`), and exposes a public interface (`exports`).
 
 Modules serve different roles within a package:
 
-- **reasoning** — the primary type; establishes conclusions through a chain of premises, actions, and inferences
-- **setting** — establishes shared context (definitions, environment, assumptions) used by other modules
-- **motivation** — establishes why the research was undertaken (typically exports questions)
+- **reasoning** — establishes conclusions through a chain of premises, inferences, and results
+- **setting** — establishes shared context (definitions, environment, assumptions)
+- **motivation** — establishes why the research was undertaken
 - **follow_up_question** — establishes open questions for future work
 - **other** — any module that does not fit the above roles
 
-The logical structure within a module is a **hypergraph**: each step with strong inputs implicitly defines a reasoning link where the strong input artifacts are the **premises** and the step's own artifact is the **conclusion**. This hypergraph is not declared as a separate object — it is derived from the step `input` declarations.
+### 3. Package
 
-Modules within the same package can reference each other's steps or artifacts.
-
-### 4. Package
-
-A `package` is a reusable container of modules.
+A `package` is a reusable container of modules. It exports selected closures from its modules as the package's public interface.
 
 It corresponds to a paper, research bundle, project unit, structured note, or another portable knowledge package.
 
-## Common Knowledge Artifact Schema
+## Closure Schema
 
-All knowledge artifacts share the following minimal structure:
+All closures share the following minimal structure:
 
 ```text
-artifact_id
-artifact_kind
-content
-content_mode = nl (default)
-summary?
-metadata?
-embedding?
+closure {
+  closure_id
+  closure_kind        # claim | question | setting | action
+  content
+  content_mode = nl (default)
+  summary?
+  metadata?
+  embedding?
+}
 ```
 
-### `artifact_id`
+### `closure_id`
 
 Stable global identifier.
 
-V1 should treat `artifact_id` as globally unique even when artifacts are first created locally.
+V1 should treat `closure_id` as globally unique even when closures are first created locally.
 
 Recommended shape:
 
 ```text
-ka_<uuidv7>
+cl_<uuidv7>
 ```
 
 The recommended rule is:
 
-- use an opaque globally unique id as the primary artifact identity
+- use an opaque globally unique id as the primary closure identity
 - generate it locally at creation time
 - do not use content hash as the primary id
 
-If later layers need semantic deduplication or merge suggestions, they should use separate fingerprints rather than rewriting `artifact_id`.
+If later layers need semantic deduplication or merge suggestions, they should use separate fingerprints rather than rewriting `closure_id`.
 
-### `artifact_kind`
+### `closure_kind`
 
 Exactly one of:
 
@@ -156,7 +141,7 @@ Exactly one of:
 
 ### `content`
 
-The canonical primary payload of the knowledge artifact.
+The canonical primary payload of the closure.
 
 ### `content_mode`
 
@@ -172,7 +157,7 @@ Common explicit values:
 - `lean`
 - `config`
 
-V1 keeps exactly one canonical primary representation per knowledge artifact.
+V1 keeps exactly one canonical primary representation per closure.
 
 ### `summary`
 
@@ -210,8 +195,8 @@ Examples:
 
 ```text
 claim {
-  artifact_id
-  artifact_kind = claim
+  closure_id
+  closure_kind = claim
   content
   content_mode = nl (default)
   summary?
@@ -223,9 +208,7 @@ claim {
 ### Modeling rule
 
 - if the content is a statement-like result, model it as a `claim`
-- do not put local roles such as `premise`, `context`, or `conclusion` on the claim itself
-
-Those roles, when needed, belong to later local reasoning or review layers, not to the global claim object.
+- do not put local roles such as `premise`, `context`, or `conclusion` on the claim itself — those are determined by the module's chain and imports
 
 ## Question
 
@@ -240,8 +223,8 @@ Examples:
 
 ```text
 question {
-  artifact_id
-  artifact_kind = question
+  closure_id
+  closure_kind = question
   content
   content_mode = nl (default)
   summary?
@@ -257,7 +240,7 @@ question {
 
 ## Setting
 
-A `setting` is a context-setting object. It specifies the background under which later reasoning should be interpreted or executed.
+A `setting` is a context-setting closure. It specifies the background under which later reasoning should be interpreted or executed.
 
 Examples include:
 
@@ -270,8 +253,8 @@ Examples include:
 
 ```text
 setting {
-  artifact_id
-  artifact_kind = setting
+  closure_id
+  closure_kind = setting
   setting_type
   content
   content_mode = nl (default)
@@ -303,18 +286,16 @@ Example:
 
 ## Action
 
-An `action` is a reusable atomic process object.
+An `action` is a self-contained, reusable process description.
 
-It represents a process such as inference, tool use, or another canonicalized local step.
-
-The action itself is global; a specific use of the action inside a package is represented by a `step`.
+It represents a process such as an inference method, a tool, or another canonicalized procedure. The action closure describes **what** the process is; the `inference` entries in a module's chain describe **how** it was applied in a specific context.
 
 ### Action Schema
 
 ```text
 action {
-  artifact_id
-  artifact_kind = action
+  closure_id
+  closure_kind = action
   action_type
   content
   content_mode = nl (default)
@@ -337,76 +318,32 @@ Recommended initial values:
 
 Optional stable tool identifier for `tool_call` actions.
 
-Package-specific execution details such as concrete inputs, outputs, runtime context, and artifacts should not be placed on the global action object. They belong to the local step occurrence.
+## Inference
 
-## Step
+An `inference` is a local reasoning step within a module's chain. It connects closures by filling logical gaps, providing explanations, or describing how an action was applied.
 
-A `step` is one local occurrence of a global knowledge artifact inside a module. Each step belongs to exactly one module. The same artifact can appear as different steps in different modules.
+Unlike closures, inferences are **not** self-contained — they depend on their surrounding context in the chain. They are never exported or referenced from outside the module.
 
-### Step Schema
+In the state-action model: closures are the **states**, inferences are the **actions**.
 
-```text
-step {
-  step_id
-  artifact_id
-  input[]?
-  metadata?
-}
-```
+### Inference in chain
 
-### `step_id`
-
-Stable local identifier inside the module.
-
-### `artifact_id`
-
-Reference to a global knowledge artifact.
-
-### `input[]`
-
-Explicit logical dependencies of this step.
+An inference appears as an inline entry between closures in the chain:
 
 ```text
-input: [
-  {
-    ref,          # step_id or artifact_id
-    strength,     # strong | weak
-    note?
-  }
-]
+chain:
+  - closure: cl_premise
+  - inference: "Applying the definition to contrast vacuum and air behavior"
+  - closure: cl_result
 ```
 
-**Dependency semantics:**
+When the logical transition between two closures is trivial or locally obvious, the inference may be omitted — two adjacent closures in the chain imply a trivial transition.
 
-- **strong** — if the referenced artifact is wrong, this step is likely wrong too. This is a logical dependency that affects truth value.
-- **weak** — the referenced artifact is relevant context, but this step can stand on its own even if the reference is wrong.
-
-**Reference types:**
-
-- `ref` may be a `step_id` (local to the same package) or an `artifact_id` (global, including cross-package references)
-- a `step_id` reference can always be resolved to its underlying `artifact_id`
-- cross-package references must use `artifact_id`
-
-**Rules:**
-
-- all logical dependencies must be declared explicitly via `input`
-- the narrative ordering of steps does NOT imply any dependency
-- a step with no `input` is a leaf (starting point of the reasoning)
-
-### `metadata`
-
-Optional local occurrence metadata.
-
-This is the right place for package-specific details such as:
-
-- local notes
-- concrete tool invocation details
-- local execution context
-- local artifact references
+V1 represents inferences as plain text content. Later versions may add structure (type, tool reference, etc.) if needed.
 
 ## Module
 
-A `module` groups related steps into a coherent unit and exports selected steps.
+A `module` groups closures into a coherent unit via a chain of closures and inferences.
 
 ### Module Schema
 
@@ -416,8 +353,9 @@ module {
   role?             # reasoning | setting | motivation | follow_up_question | other
   summary?
   keywords[]?
-  exports[]         # step_ids
-  steps[]
+  imports[]?        # closure dependencies from other modules
+  exports[]         # closure_ids
+  chain[]           # alternating closures and inferences
   metadata?
 }
 ```
@@ -430,7 +368,7 @@ Stable identifier for the module within the package.
 
 Optional module role. Recommended values:
 
-- `reasoning` — establishes conclusions through premises, actions, and inferences
+- `reasoning` — establishes conclusions through premises, inferences, and results
 - `setting` — establishes shared context (definitions, environment, assumptions)
 - `motivation` — establishes why the research was undertaken
 - `follow_up_question` — establishes open questions for future work
@@ -446,46 +384,63 @@ Optional short human-readable summary of what this module establishes.
 
 Optional keywords for search and discovery.
 
+### `imports[]`
+
+Cross-module dependencies. Each import declares a closure this module depends on from another module, with provenance and dependency strength.
+
+```text
+imports: [
+  {
+    closure,        # closure_id
+    from,           # module_id (provenance)
+    strength        # strong | weak
+  }
+]
+```
+
+**Dependency semantics:**
+
+- **strong** — if the imported closure is wrong, this module's conclusions are likely wrong too. This is a logical dependency that affects truth value.
+- **weak** — the imported closure is relevant context, but this module's conclusions can stand on their own.
+
+**Cross-package imports** use `closure_id` alone (which is globally unique). The `from` field may reference a module in the same package or identify an external source.
+
 ### `exports[]`
 
-The steps this module makes available to the outside world. Analogous to `export` in Julia modules.
+The closures this module makes available to the outside world. Analogous to `pub` in Rust or `export` in Julia.
 
-Exported steps are the module's public interface — they are what other modules, packages, or the global graph should reference and build upon. Non-exported steps are internal reasoning structure.
+Exported closures are the module's public interface. Non-exported closures that appear in the chain are internal to the module.
 
-### `steps[]`
+For single-file modules (simple chains), the last closure in the chain is the implicit export by convention. Explicit `exports[]` overrides this default.
 
-Ordered list of steps representing the narrative flow of this module.
+### `chain[]`
 
-**Narrative ordering:**
+The module's narrative — an ordered list of closures and inferences.
 
-- the list defines the recommended reading order for understanding the reasoning
-- adjacent steps may be logically unrelated (the narrative can have "breaks")
-- the ordering should not reverse the logical flow: conclusions should not precede their premises in the narrative
-- this ordering carries no implicit logical dependency; all dependencies are declared via `input` on each step
+```text
+chain: [
+  { closure: closure_id },
+  { inference: "reasoning text" },
+  { closure: closure_id },
+  ...
+]
+```
 
-**Starting points are derived:** steps with no `input` are leaves (premises, observations, questions that begin the reasoning).
+**Chain rules:**
 
-**Reasoning gap rule:** if there is a nontrivial logical gap between two artifacts in the reasoning, it should be made explicit with an `action` step. If the reasoning is trivial or locally obvious, the `action` may be omitted.
+- the chain defines the recommended reading order for understanding the module's reasoning
+- closures and inferences alternate: `closure → inference → closure → ...`
+- adjacent closures (no inference between them) imply a trivial or obvious transition
+- the chain may include imported closures for narrative context — their dependency semantics are declared in `imports`, not inferred from chain position
+- the chain should not reverse the logical flow: conclusions should not precede their premises
 
 ### `metadata`
 
 Optional module-level metadata.
 
-### Implicit hypergraph structure
-
-The logical structure of a module is a hypergraph, derived from step `input` declarations:
-
-- for each step with strong inputs, the strong input artifacts are the **premises** and the step's own artifact is the **conclusion** of one reasoning link
-- weak inputs are relevant context but do not form reasoning links
-- steps with no inputs are leaves (no incoming reasoning link)
-
-This hypergraph is not declared as a separate schema object. It is always derived from the step `input` declarations, avoiding redundancy and inconsistency.
-
 ## Package
 
-A `package` is a container of modules. It exports selected steps from its modules as the package's public interface.
-
-It is the closest V1 analog of a paper, research bundle, or structured project unit.
+A `package` is a container of modules. It exports selected closures from its modules as the package's public interface.
 
 ### Package Schema
 
@@ -495,7 +450,7 @@ package {
   summary?
   keywords[]?
   modules[]
-  exports[]?        # step_ids from any module
+  exports[]?        # closure_ids from any module
   metadata?
 }
 ```
@@ -514,15 +469,15 @@ Optional keywords for search and discovery.
 
 ### `modules[]`
 
-One or more modules included in the package. The list order defines the recommended reading order for the package (narrative ordering), analogous to how a module's `steps[]` order defines its internal narrative.
+One or more modules included in the package. The list order defines the recommended reading order for the package (narrative ordering).
 
-Modules within the same package can reference each other's steps (via `step_id`) or artifacts (via `artifact_id`).
+Modules within the same package can import each other's exported closures.
 
 Different module roles serve different structural purposes: `reasoning` modules establish conclusions, `setting` modules provide shared context, `motivation` modules explain why the work was done, and `follow_up_question` modules capture open questions. This replaces the need for separate editorial fields — the structure itself carries the editorial intent.
 
 ### `exports[]`
 
-Optional list of step_ids from any module in the package. These are the package's public interface — the steps (and their underlying artifacts) that the package offers to the outside world.
+Optional list of closure_ids from any module in the package. These are the package's public interface — the closures that the package offers to the outside world.
 
 Package exports are typically a curated subset of module exports. For example, a package might export only its key conclusions and follow-up questions, not every intermediate result.
 
@@ -534,24 +489,23 @@ Optional package-level metadata.
 
 V1 static schema assumes:
 
-1. logical dependencies are fully captured by explicit `input` declarations on steps, not by narrative ordering
-2. dependency strength (`strong` / `weak`) determines whether a reference participates in later probabilistic evaluation
-3. local reasoning structure belongs to steps, not to global knowledge artifacts
-4. each step belongs to exactly one module; the same artifact can appear as steps in different modules
-5. modules export selected steps as their public interface; packages export selected steps from their modules
-6. the implicit logical structure within a module is a hypergraph: each step's strong inputs jointly form the premises of a reasoning link
-7. knowledge artifacts are global objects referenced by steps; they are not "owned" by any package
+1. closures are self-contained, globally reusable objects; inferences are local and context-dependent
+2. modules declare cross-module dependencies via `imports` with dependency strength (`strong` / `weak`)
+3. dependency strength determines whether a reference participates in later probabilistic evaluation
+4. modules export closures, not inferences — the public interface is always self-contained objects
+5. a module's chain alternates closures and inferences; closures are the states, inferences are the transitions
+6. knowledge closures are global objects; they are not "owned" by any module or package
 
 ## Example
 
-### Knowledge artifacts
+### Closures
 
 ```text
-q1 = question("Why do a feather and a stone fall at different rates in air?")
-s1 = setting(definition, "Air resistance depends on drag and shape.")
-a1 = action(infer, "Contrast vacuum behavior with air-mediated behavior.")
-c1 = claim("The observed difference in air is better explained by drag than by mass-dependent gravity.")
-q2 = question("How can drag be modeled quantitatively for different shapes?")
+cl_q1 = question("Why do a feather and a stone fall at different rates in air?")
+cl_s1 = setting(definition, "Air resistance depends on drag and shape.")
+cl_a1 = action(infer, "Contrast vacuum behavior with air-mediated behavior.")
+cl_c1 = claim("The observed difference in air is better explained by drag than by mass-dependent gravity.")
+cl_q2 = question("How can drag be modeled quantitatively for different shapes?")
 ```
 
 ### Modules
@@ -561,10 +515,10 @@ module {
   module_id = m_motivation
   role = motivation
   summary = "Motivating question about differential fall rates"
-  exports = [s_q1]
+  exports = [cl_q1]
 
-  steps = [
-    s_q1(artifact_id=q1, input=[])
+  chain = [
+    {closure: cl_q1}
   ]
 }
 
@@ -572,10 +526,10 @@ module {
   module_id = m_env
   role = setting
   summary = "Air resistance definitions"
-  exports = [s_def]
+  exports = [cl_s1]
 
-  steps = [
-    s_def(artifact_id=s1, input=[])
+  chain = [
+    {closure: cl_s1}
   ]
 }
 
@@ -584,17 +538,19 @@ module {
   role = reasoning
   summary = "Air resistance, not mass, explains differential fall rates"
   keywords = ["air resistance", "drag", "falling bodies"]
-  exports = [s_conclusion]
 
-  steps = [                            # narrative order
-    s_action(artifact_id=a1, input=[
-      {ref=s_q1, strength=weak},       # question motivates the action, but action is valid without it
-      {ref=s_def, strength=strong}     # setting is required for the action to make sense
-    ]),
-    s_conclusion(artifact_id=c1, input=[
-      {ref=s_def, strength=strong},    # definition is a logical premise
-      {ref=s_action, strength=strong}  # action result is a logical premise
-    ])
+  imports = [
+    {closure: cl_s1, from: m_env, strength: strong},
+    {closure: cl_q1, from: m_motivation, strength: weak}
+  ]
+  exports = [cl_c1]
+
+  chain = [
+    {closure: cl_s1},                                                   # imported: establish context
+    {inference: "Contrasting vacuum vs air behavior using the definition"},
+    {closure: cl_a1},                                                   # reusable analysis method
+    {inference: "The analysis shows drag, not mass, explains the difference"},
+    {closure: cl_c1}                                                    # conclusion
   ]
 }
 
@@ -602,21 +558,16 @@ module {
   module_id = m_follow
   role = follow_up_question
   summary = "Open questions on drag modeling"
-  exports = [s_followup]
 
-  steps = [
-    s_followup(artifact_id=q2, input=[
-      {ref=s_conclusion, strength=weak}  # conclusion motivates the follow-up, but question stands on its own
-    ])
+  imports = [
+    {closure: cl_c1, from: m_main, strength: weak}
+  ]
+  exports = [cl_q2]
+
+  chain = [
+    {closure: cl_q2}
   ]
 }
-```
-
-Implicit hypergraph for `m_main` (derived from strong inputs):
-
-```text
-premises: [s1]           → conclusion: a1    (setting enables the inferential action)
-premises: [s1, a1]       → conclusion: c1    (definition + action result jointly establish the claim)
 ```
 
 ### Package
@@ -629,23 +580,25 @@ package {
 
   modules = [m_motivation, m_env, m_main, m_follow]   # narrative order
 
-  exports = [s_conclusion, s_followup]                 # package public interface
+  exports = [cl_c1, cl_q2]                             # package public interface
 }
 ```
 
-Interpretation:
+### Interpretation
 
-- each module has its own `exports` — its public interface within the package
-- the package's `exports = [s_conclusion, s_followup]` is a curated subset: only the main conclusion and follow-up question are published to the outside world
-- `m_env`'s exported setting `s_def` is used by `m_main` (via cross-module reference) but not re-exported by the package — it is internal shared context
-- `m_motivation`'s exported question `s_q1` motivates the work but is also not in the package exports
-- module roles (`motivation`, `setting`, `reasoning`, `follow_up_question`) replace the need for separate editorial fields on the package; the structure itself carries the editorial intent
+- `m_motivation` (role=motivation) exports the motivating question `cl_q1`
+- `m_env` (role=setting) exports the shared definition `cl_s1`
+- `m_main` (role=reasoning) imports `cl_s1` (strong) and `cl_q1` (weak), exports the conclusion `cl_c1`
+- `m_follow` (role=follow_up_question) imports `cl_c1` (weak), exports the open question `cl_q2`
+- the package exports `cl_c1` and `cl_q2` — only the main conclusion and follow-up question are published
+- `cl_s1` is used internally (imported by `m_main`) but not re-exported by the package
+- module roles replace separate editorial fields; the structure itself carries the editorial intent
 
 ## Deferred Topics
 
 The following topics are intentionally deferred:
 
-- how raw material is canonicalized into knowledge artifacts, steps, modules, and packages
+- how raw material is canonicalized into closures, modules, and packages
 - how review works
 - how optional revised packages are materialized
 - how packages integrate into the global Gaia graph (V2)
