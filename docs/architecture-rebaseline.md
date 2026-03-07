@@ -21,8 +21,8 @@ Today, `main` is best understood as a server-first reasoning graph system with a
 What is not on `main` yet:
 
 - no shipped `cli/` package
-- no merged Kuzu/GraphStore abstraction
 - no stable local-package-manager product surface
+- no fully documented product-level contract for backend capability parity
 
 That matters because recent feature branches tried to extend Gaia in all three directions at once: storage backend abstraction, local CLI workflows, and richer reasoning semantics.
 
@@ -96,12 +96,12 @@ This works, but it means the HTTP layer doubles as the composition root for the 
 Current `main` is clear in practice:
 
 - nodes and metadata live in LanceDB
-- graph topology lives in Neo4j
+- graph topology can live behind `GraphStore`, with Neo4j and Kuzu implementations now present on `main`
 - vector search is abstracted, but local LanceDB is the only implemented backend
 
 But the surrounding documentation and config already hint at a bigger matrix:
 
-- optional graph backend work
+- backend capability parity is not yet clearly specified
 - local versus production deployment modes
 - ByteHouse-oriented production config that is not actually implemented
 
@@ -210,7 +210,7 @@ The gateway should expose HTTP. It should not remain the only place where the ap
 
 ### 6. Introduce explicit storage capability boundaries
 
-Before reviving GraphStore/Kuzu work, define which capabilities are required by each backend:
+Before expanding backend abstraction work further, define which capabilities are required by each backend:
 
 - edge CRUD
 - subgraph traversal
@@ -288,7 +288,7 @@ The order matters.
 
 Only after Phases 1 and 2:
 
-1. revive GraphStore/Kuzu work
+1. continue GraphStore/Kuzu capability and parity work
 2. revive CLI/package work
 3. extend review semantics and edge-type semantics
 
