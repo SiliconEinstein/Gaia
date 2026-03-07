@@ -4,6 +4,8 @@
 
 This document defines the V1 static shared knowledge package schema used by both Gaia local/CLI and Gaia server.
 
+It instantiates the shared vocabulary defined in [../domain-model.md](../domain-model.md).
+
 It covers:
 
 1. the core object layers used in shared Gaia knowledge packages
@@ -21,7 +23,7 @@ It does not cover:
 
 Those belong to later documents:
 
-- V1 dynamic: shared knowledge package construction, review, and optional revision contracts
+- V1 file formats: shared package file formats and review-report contracts
 - V2: global Gaia graph integration
 - V3: probabilistic semantics and propagation
 
@@ -65,6 +67,10 @@ Current artifact kinds are:
 - `question`
 - `setting`
 - `action`
+
+V1 keeps this artifact set intentionally minimal.
+
+More detailed epistemic distinctions such as `observation` and `assumption` are deferred to later graph and probabilistic layers. In V1 they are represented through `claim` or `setting` plus provenance and review context.
 
 ### 2. Chain Step
 

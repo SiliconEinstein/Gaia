@@ -19,8 +19,9 @@ The execution plan for that reset lives here:
 
 - [Foundation Reset Plan](foundation-reset-plan.md)
 - [Product Scope](product-scope.md)
+- [Domain Model](domain-model.md)
 - [Shared Knowledge Package V1 Static](shared/knowledge-package-static.md)
-- [Shared Knowledge Package V1 Dynamic](shared/knowledge-package-dynamic.md)
+- [Shared Knowledge Package V1 File Formats](shared/knowledge-package-file-formats.md)
 - [Gaia CLI Runtime Boundaries](cli/boundaries.md)
 
 ## Intended outputs
@@ -28,10 +29,10 @@ The execution plan for that reset lives here:
 The plan is to establish a small set of durable foundation docs before major code restructuring resumes:
 
 1. `product-scope.md`
-2. `shared/knowledge-package-static.md` (shared V1 knowledge_artifact/chain_step/reasoning_chain/package schema)
-3. `shared/knowledge-package-dynamic.md` (shared V1 canonical/review/revision contracts)
-4. `cli/boundaries.md` (Gaia CLI runtime layering on top of shared contracts)
-5. `domain-model.md`
+2. `domain-model.md`
+3. `shared/knowledge-package-static.md` (shared V1 knowledge_artifact/chain_step/reasoning_chain/package schema)
+4. `shared/knowledge-package-file-formats.md` (shared V1 package file formats and review-report format)
+5. `cli/boundaries.md` (Gaia CLI runtime layering on top of shared contracts)
 6. `graph-spec.md`
 7. `storage-schema.md`
 8. `module-boundaries.md`
@@ -44,7 +45,7 @@ Those files do not all exist yet. This directory is the place where they should 
 Reasoning design is now intentionally split by layer:
 
 - V1 static: shared `knowledge_artifact / chain_step / reasoning_chain / package` structure
-- V1 dynamic: shared canonicalization / review / revision contracts
+- V1 file formats: shared package file formats and review-report exchange format
 - V2: global Gaia graph integration
 - V3: probabilistic semantics, prior/belief, and BP
 

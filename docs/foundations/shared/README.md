@@ -4,7 +4,8 @@ This directory contains reasoning artifact contracts intended to be shared by Ga
 
 Current docs:
 
+- [Shared Domain Vocabulary](../domain-model.md)
 - [V1 Static Shared Knowledge Package Schema](knowledge-package-static.md)
-- [V1 Dynamic Shared Knowledge Package Contracts](knowledge-package-dynamic.md)
+- [V1 Shared Knowledge Package File Formats](knowledge-package-file-formats.md)
 
-These docs define shared reasoning artifacts and shared contracts, not runtime-specific implementation boundaries.
+These docs define shared package structure and shared file formats, not runtime-specific implementation boundaries.

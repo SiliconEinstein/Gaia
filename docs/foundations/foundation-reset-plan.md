@@ -6,6 +6,7 @@ Before making more structural code changes, Gaia needs a documented foundation p
 
 - what the current product actually is
 - what the core domain model is
+- how shared knowledge packages are defined
 - how the graph is defined
 - which storage contracts are real
 - how modules are supposed to depend on each other
@@ -26,14 +27,15 @@ The goal of this plan is to fix that by making the foundational layer explicit f
 
 ## Scope
 
-This plan covers six foundation areas:
+This plan covers seven foundation areas:
 
 1. Product scope
 2. Domain model and terminology
-3. Graph specification
-4. Storage schema and backend capability model
-5. Module boundaries and runtime composition
-6. API contract
+3. Shared knowledge package contracts
+4. Graph specification
+5. Storage schema and backend capability model
+6. Module boundaries and runtime composition
+7. API contract
 
 This plan does not include:
 
@@ -83,7 +85,24 @@ Key decisions:
 - canonical reasoning type names
 - difference between `prior`, `belief`, `probability`, and review-derived scores
 
-### Phase 2: Lock the graph semantics
+### Phase 2: Lock the shared knowledge package contracts
+
+Objective:
+
+- define the shared package-level representation used by both local tooling and later server ingestion
+
+Deliverables:
+
+- `shared/knowledge-package-static.md`
+- `shared/knowledge-package-file-formats.md`
+
+Key decisions:
+
+- `knowledge_artifact` / `chain_step` / `reasoning_chain` / `package`
+- how package-local roles relate to globally reusable artifacts
+- the standard package manifest, package content file, and review-report sidecar formats
+
+### Phase 3: Lock the graph semantics
 
 Objective:
 
@@ -100,7 +119,7 @@ Key decisions:
 - contradiction and retraction semantics
 - traversal semantics, hop definition, and filtering rules
 
-### Phase 3: Lock the storage model
+### Phase 4: Lock the storage model
 
 Objective:
 
@@ -117,7 +136,7 @@ Key decisions:
 - backend capability matrix
 - handling of unimplemented production-oriented config such as ByteHouse-related fields
 
-### Phase 4: Lock module boundaries
+### Phase 5: Lock module boundaries
 
 Objective:
 
@@ -134,7 +153,7 @@ Key decisions:
 - where runtime wiring should live
 - how shared models should be split
 
-### Phase 5: Lock the API contract
+### Phase 6: Lock the API contract
 
 Objective:
 
@@ -151,7 +170,7 @@ Key decisions:
 - batch API semantics
 - review/merge/timeout/cancel behavior
 
-### Phase 6: Convert the foundation into implementation work
+### Phase 7: Convert the foundation into implementation work
 
 Objective:
 
@@ -174,10 +193,12 @@ To keep the work reviewable, build the foundation docs in this order:
 
 1. `product-scope.md`
 2. `domain-model.md`
-3. `graph-spec.md`
-4. `storage-schema.md`
-5. `module-boundaries.md`
-6. `api-contract.md`
+3. `shared/knowledge-package-static.md`
+4. `shared/knowledge-package-file-formats.md`
+5. `graph-spec.md`
+6. `storage-schema.md`
+7. `module-boundaries.md`
+8. `api-contract.md`
 
 Each later document should depend on decisions already made in earlier ones.
 
@@ -187,8 +208,9 @@ Do not start major code restructuring until the following are explicit:
 
 1. the current product baseline
 2. the canonical domain vocabulary
-3. the graph/storage contract
-4. the ownership of review pipeline and runtime wiring
+3. the shared knowledge package contract
+4. the graph/storage contract
+5. the ownership of review pipeline and runtime wiring
 
 If those are still ambiguous, code changes should remain narrow and local.
 
@@ -206,6 +228,7 @@ When working on the repo:
 This plan is successful when:
 
 - the current architecture can be explained without relying on old planning docs
+- local/server-shared knowledge package contracts are documented explicitly
 - module ownership questions have explicit answers
 - storage and graph semantics are documented at contract level
 - API behavior is specified independently of route implementations

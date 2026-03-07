@@ -21,6 +21,17 @@ Gaia on `main` is currently:
 
 It is not yet a general local package manager or a fully defined multi-surface platform spanning server, CLI, Git workflows, and community review.
 
+## Shared Foundation Direction
+
+In parallel with the current shipped product baseline, Gaia foundation work is now standardizing a shared knowledge-package contract intended to be usable by both:
+
+- future local / CLI package workflows
+- future server-side package ingestion and graph integration
+
+Important boundary:
+
+This shared foundation work defines future-facing common contracts. It does not by itself mean that Gaia already ships a supported CLI product surface on `main`.
+
 ## Current Supported Product Surfaces
 
 ### 1. HTTP server
@@ -133,6 +144,7 @@ The correct way to describe Gaia today is:
 - API-driven
 - dashboard-backed
 - graph-reasoning focused
+- currently shipping a server product while standardizing shared future package contracts
 
 The incorrect way to describe Gaia today is:
 
@@ -152,7 +164,7 @@ Until this scope changes, large new work should be framed in one of three ways:
 That means:
 
 - architecture work should optimize for the current server baseline first
-- foundation docs should describe current capability before roadmap capability
+- foundation docs should distinguish current shipped capability from future shared contracts
 - CLI and broader backend work should build on explicit contracts, not implied ones
 
 ## PR And Documentation Rules
