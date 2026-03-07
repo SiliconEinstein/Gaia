@@ -2,41 +2,49 @@
 
 ## Purpose
 
-This document defines the current product baseline for Gaia on `main`.
+This document defines Gaia's product positioning and current baseline on `main`.
 
 Its job is simple:
 
-- state what Gaia currently is
-- state what it currently supports
-- state what is not yet part of the supported product surface
+- state the decided product direction
+- state what is currently shipped on `main`
+- state what is not yet shipped but is on the roadmap
 
-If a proposal, PR, or design doc goes beyond this baseline, it should be described as future work rather than current capability.
+## Product Direction (Decided)
 
-## Current Product Baseline
+Gaia is **CLI-first, Server-enhanced**.
 
-Gaia on `main` is currently:
+- **CLI is the primary product** — AI agents and researchers interact with Gaia through the CLI, working locally with zero server dependency
+- **Server provides four optional enhancement services:**
+  1. Knowledge integration — merge packages into the global Large Knowledge Model
+  2. Global search — cross-package vector + BM25 + topology search
+  3. LLM Review Engine — server-side automated review triggered by webhook
+  4. Large-scale BP — billion-node belief propagation on GPU cluster
 
-- a backend reasoning-graph service
-- plus a dashboard frontend for browsing, graph exploration, and commit workflows
+The primary interaction path is: **CLI → git push → PR → Server webhook → auto review → merge/reject** (similar to Julia Pkg Registry).
 
-It is not yet a general local package manager or a fully defined multi-surface platform spanning server, CLI, Git workflows, and community review.
+Users can work entirely offline with the CLI. The server is an optional registry and compute backend, not a prerequisite.
 
-## Shared Foundation Direction
+## Current Baseline on `main`
 
-In parallel with the current shipped product baseline, Gaia foundation work is now standardizing a shared knowledge-package contract intended to be usable by both:
+What is currently shipped on `main`:
 
-- future local / CLI package workflows
-- future server-side package ingestion and graph integration
+- a backend reasoning-graph service (FastAPI) — this is the server side
+- a dashboard frontend for browsing, graph exploration, and commit workflows
+- GraphStore ABC with Neo4j and Kuzu implementations
+- type-aware belief propagation (contradiction, retraction edges)
 
-Important boundary:
+What is not yet shipped but is on the roadmap:
 
-This shared foundation work defines future-facing common contracts. It does not by itself mean that Gaia already ships a supported CLI product surface on `main`.
+- `cli/` package (the primary product surface — in design, not yet on `main`)
+- Git-backed package workflows and webhook integration
+- shared knowledge-package contracts (being standardized in this foundation work)
 
 ## Current Supported Product Surfaces
 
 ### 1. HTTP server
 
-The primary product surface is the FastAPI service exposed from `services/gateway/`.
+The currently shipped server surface is the FastAPI service exposed from `services/gateway/`.
 
 Current API areas:
 
@@ -46,7 +54,7 @@ Current API areas:
 - batch APIs for commit, read, subgraph, and search flows
 - job APIs for async status and result retrieval
 
-This is the main externally addressable product surface today.
+This is the main externally addressable surface today. Under CLI-first positioning, the server becomes a registry and compute backend that the CLI publishes to.
 
 ### 2. Dashboard frontend
 
@@ -136,36 +144,29 @@ Gaia does not currently ship a complete product story for:
 
 These remain design directions, not current baseline capability.
 
-## Current Product Positioning
+## Product Positioning Summary
 
-The correct way to describe Gaia today is:
+Gaia is a **CLI-first, Server-enhanced** Large Knowledge Model platform.
 
-- server-first
-- API-driven
-- dashboard-backed
-- graph-reasoning focused
-- currently shipping a server product while standardizing shared future package contracts
+- **CLI** — the primary product surface for creating, building, reviewing, and publishing knowledge packages
+- **Server** — an optional registry that provides knowledge integration, global search, LLM review, and large-scale BP
+- **Dashboard** — a browser UI for exploring the server-side knowledge graph
 
-The incorrect way to describe Gaia today is:
-
-- CLI-first
-- package-manager-first
-- fully backend-agnostic at product contract level
-- already shipping all documented future workflows
+The current `main` ships the server and dashboard. The CLI is the next major deliverable.
 
 ## Implications For Future Work
 
-Until this scope changes, large new work should be framed in one of three ways:
+Large new work should be framed in one of these ways:
 
-1. extend the current server and dashboard product
-2. tighten the foundations under the current server and dashboard product
-3. propose a new product surface explicitly as future work
+1. build out the CLI product surface (the primary product)
+2. extend the server as a registry and compute backend for the CLI
+3. tighten shared foundations that both CLI and server depend on
 
 That means:
 
-- architecture work should optimize for the current server baseline first
-- foundation docs should distinguish current shipped capability from future shared contracts
-- CLI and broader backend work should build on explicit contracts, not implied ones
+- shared contracts (knowledge package schema, domain vocabulary) are the highest priority foundation work
+- CLI architecture should drive design decisions, not be an afterthought
+- server work should focus on the four enhancement services, not on being the sole product surface
 
 ## PR And Documentation Rules
 
@@ -176,13 +177,18 @@ When writing docs or reviewing PRs:
 3. If it is only planned, label it as proposal, roadmap, or future work.
 4. Do not let design docs silently redefine the current product baseline.
 
+## Decided Questions
+
+These have been resolved and should not be reopened:
+
+1. **CLI-first or server-first?** → CLI-first, Server-enhanced.
+2. **Primary interaction path?** → CLI → git push → PR → Server webhook → auto review → merge/reject.
+3. **Kuzu role?** → CLI's embedded graph backend (local, zero-config). Neo4j is the server-side backend.
+
 ## Open Product Decisions
 
-These decisions remain open for later foundation phases:
+These remain open for later foundation phases:
 
-1. Should Gaia eventually become a dual-surface product: server plus CLI?
-2. Should Kuzu be treated as a first-class supported graph backend or primarily as a local/development backend?
-3. Should degraded graph-free operation be part of the supported product story, or only an internal fallback mode?
-4. Which future workflows, if any, should become official product surfaces beyond server plus dashboard?
-
-Until those questions are answered, the baseline in this document should be treated as authoritative.
+1. Should degraded graph-free operation be part of the supported product story, or only an internal fallback mode?
+2. What is the review output format? (deferred)
+3. What is the direct publish (`gaia publish --server`) contract? (deferred)
