@@ -16,6 +16,7 @@ dependencies = [
     "lxml>=5.0",
     "kuzu>=0.4",
     "pandas>=2.0",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
