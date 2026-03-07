@@ -17,11 +17,14 @@ declarations:
   - type: chain_expr
     name: next_steps
     steps:
-      - ref: vacuum_prediction
-      - lambda: >
+      - step: 1
+        ref: vacuum_prediction
+      - step: 2
+        lambda: >
           关于所有物体在真空中以相同速率下落的预测，
           需要在真正的真空环境中进行直接的实验验证。
-      - ref: follow_up_question
+      - step: 3
+        ref: follow_up_question
 
 export:
   - follow_up_question

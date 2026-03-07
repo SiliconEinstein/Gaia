@@ -26,12 +26,15 @@ declarations:
   - type: chain_expr
     name: inductive_support
     steps:
-      - ref: everyday_observation
-      - lambda: >
+      - step: 1
+        ref: everyday_observation
+      - step: 2
+        lambda: >
           日常经验一致表明较重的物体总是先落地，
           这支持了重量决定下落速度的一般规律。
         prior: 0.8
-      - ref: heavier_falls_faster
+      - step: 3
+        ref: heavier_falls_faster
 
 export:
   - heavier_falls_faster

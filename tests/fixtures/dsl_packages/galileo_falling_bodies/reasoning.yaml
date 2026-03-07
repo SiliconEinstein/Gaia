@@ -83,34 +83,42 @@ declarations:
   - type: chain_expr
     name: refutation_chain
     steps:
-      - ref: heavier_falls_faster
-      - apply: tied_balls_reductio
+      - step: 1
+        ref: heavier_falls_faster
+      - step: 2
+        apply: tied_balls_reductio
         args:
           - ref: heavier_falls_faster
             dependency: direct
           - ref: thought_experiment_env
             dependency: indirect
         prior: 0.9
-      - ref: aristotle_contradicted
+      - step: 3
+        ref: aristotle_contradicted
 
   # 链2：识别空气阻力为混淆因素
   - type: chain_expr
     name: confound_chain
     steps:
-      - ref: heavier_falls_faster
-      - apply: identify_confound
+      - step: 1
+        ref: heavier_falls_faster
+      - step: 2
+        apply: identify_confound
         args:
           - ref: heavier_falls_faster
             dependency: direct
         prior: 0.85
-      - ref: air_resistance_is_confound
+      - step: 3
+        ref: air_resistance_is_confound
 
   # 链3：综合最终预测
   - type: chain_expr
     name: synthesis_chain
     steps:
-      - ref: aristotle_contradicted
-      - apply: synthesize_conclusion
+      - step: 1
+        ref: aristotle_contradicted
+      - step: 2
+        apply: synthesize_conclusion
         args:
           - ref: aristotle_contradicted
             dependency: direct
@@ -119,7 +127,8 @@ declarations:
           - ref: vacuum_env
             dependency: indirect
         prior: 0.9
-      - ref: vacuum_prediction
+      - step: 3
+        ref: vacuum_prediction
 
 export:
   - vacuum_prediction
