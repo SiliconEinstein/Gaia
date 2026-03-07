@@ -1,0 +1,14 @@
+# 动机模块 — 为什么要做这项研究
+
+type: motivation_module
+name: motivation
+
+declarations:
+  - type: question
+    name: main_question
+    content: >
+      下落的速率是否取决于物体的重量？
+      亚里士多德的这一学说统治了近两千年，它是正确的吗？
+
+export:
+  - main_question

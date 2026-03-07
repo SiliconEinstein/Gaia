@@ -1,0 +1,23 @@
+# 背景模块 — 上下文和定义
+
+type: setting_module
+name: setting
+
+declarations:
+  - type: setting
+    name: thought_experiment_env
+    content: >
+      想象两个不同重量的物体从同一高度落下。
+      考虑一下：如果用绳子把它们绑在一起，会发生什么？
+    prior: 1.0
+
+  - type: setting
+    name: vacuum_env
+    content: >
+      一个理想化的无空气阻力环境，
+      只有重力作用于下落物体。
+    prior: 1.0
+
+export:
+  - thought_experiment_env
+  - vacuum_env

@@ -1,0 +1,127 @@
+# 推理模块 — 伽利略的核心论证
+
+type: reasoning_module
+name: reasoning
+
+declarations:
+  # === 引用外部知识 ===
+  - type: ref
+    name: heavier_falls_faster
+    target: aristotle.heavier_falls_faster
+
+  - type: ref
+    name: thought_experiment_env
+    target: setting.thought_experiment_env
+
+  - type: ref
+    name: vacuum_env
+    target: setting.vacuum_env
+
+  # === 动作（函数） ===
+  - type: infer_action
+    name: tied_balls_reductio
+    params:
+      - name: doctrine
+        type: claim
+      - name: env
+        type: setting
+    return_type: claim
+    content: >
+      运用归谬法：如果重的物体下落更快，那么把一个重球
+      和一个轻球绑在一起就会产生矛盾。组合体更重（应该
+      下落更快），但轻球会拖慢重球（应该下落更慢）。
+      亚里士多德的定律自相矛盾。
+    prior: 0.9
+
+  - type: infer_action
+    name: identify_confound
+    params:
+      - name: observation
+        type: claim
+    return_type: claim
+    content: >
+      识别出空气阻力才是造成下落速度差异的真正原因，
+      而非重量。在密度越大的介质中，速度差异越小；
+      推及真空，差异将完全消失。
+    prior: 0.85
+
+  - type: infer_action
+    name: synthesize_conclusion
+    params:
+      - name: refutation
+        type: claim
+      - name: confound
+        type: claim
+      - name: env
+        type: setting
+    return_type: claim
+    content: >
+      综合对亚里士多德的逻辑反驳和空气阻力作为混淆因素
+      的识别，得出预测：在真空中，所有物体无论轻重都以
+      相同速率下落。
+    prior: 0.9
+
+  # === 中间结论和最终结论 ===
+  - type: claim
+    name: aristotle_contradicted
+    content: ""
+    prior: 0.5
+
+  - type: claim
+    name: air_resistance_is_confound
+    content: ""
+    prior: 0.5
+
+  - type: claim
+    name: vacuum_prediction
+    content: ""
+    prior: 0.5
+
+  # === 推理链 ===
+
+  # 链1：绑球归谬法
+  - type: chain_expr
+    name: refutation_chain
+    steps:
+      - ref: heavier_falls_faster
+      - apply: tied_balls_reductio
+        args:
+          - ref: heavier_falls_faster
+            dependency: direct
+          - ref: thought_experiment_env
+            dependency: indirect
+        prior: 0.9
+      - ref: aristotle_contradicted
+
+  # 链2：识别空气阻力为混淆因素
+  - type: chain_expr
+    name: confound_chain
+    steps:
+      - ref: heavier_falls_faster
+      - apply: identify_confound
+        args:
+          - ref: heavier_falls_faster
+            dependency: direct
+        prior: 0.85
+      - ref: air_resistance_is_confound
+
+  # 链3：综合最终预测
+  - type: chain_expr
+    name: synthesis_chain
+    steps:
+      - ref: aristotle_contradicted
+      - apply: synthesize_conclusion
+        args:
+          - ref: aristotle_contradicted
+            dependency: direct
+          - ref: air_resistance_is_confound
+            dependency: direct
+          - ref: vacuum_env
+            dependency: indirect
+        prior: 0.9
+      - ref: vacuum_prediction
+
+export:
+  - vacuum_prediction
+  - aristotle_contradicted
+  - air_resistance_is_confound
