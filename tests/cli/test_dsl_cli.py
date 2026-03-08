@@ -65,3 +65,21 @@ async def test_load_cmd_invalid_path():
     """load_cmd with a nonexistent path raises FileNotFoundError."""
     with pytest.raises(FileNotFoundError):
         await load_cmd("/nonexistent/dsl/package/path")
+
+
+async def test_run_cmd_invalid_path():
+    """run_cmd with a nonexistent path raises FileNotFoundError."""
+    with pytest.raises(FileNotFoundError):
+        await run_cmd("/nonexistent/dsl/package/path")
+
+
+async def test_execute_cmd_invalid_path():
+    """execute_cmd with a nonexistent path raises FileNotFoundError."""
+    with pytest.raises(FileNotFoundError):
+        await execute_cmd("/nonexistent/dsl/package/path")
+
+
+async def test_inspect_cmd_invalid_path():
+    """inspect_cmd with a nonexistent path raises FileNotFoundError."""
+    with pytest.raises(FileNotFoundError):
+        await inspect_cmd("/nonexistent/dsl/package/path")

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.inference_engine.bp import BeliefPropagation
+from services.inference_engine.bp import BeliefPropagation, _evaluate_potential
 from services.inference_engine.factor_graph import FactorGraph
 
 
@@ -367,3 +367,278 @@ def test_retraction_with_backward_flow():
     assert beliefs[3] < beliefs_no_retract[3], (
         f"C with retraction ({beliefs[3]}) should be lower than without ({beliefs_no_retract[3]})"
     )
+
+
+# ---------------------------------------------------------------------------
+# Direct unit tests for _evaluate_potential
+# ---------------------------------------------------------------------------
+
+
+class TestEvaluatePotential:
+    """Direct tests for the factor potential function — the mathematical core of BP."""
+
+    def test_not_all_tails_true_returns_one(self):
+        """When any tail is 0, the factor is unconstrained (potential = 1)."""
+        result = _evaluate_potential(
+            "deduction", tail_ids=[1, 2], head_ids=[3],
+            assignment={1: 1, 2: 0, 3: 1}, prob=0.8,
+        )
+        assert result == 1.0
+
+    def test_deduction_head_true(self):
+        """Deduction: all tails true, head=1 → potential = p."""
+        result = _evaluate_potential(
+            "deduction", tail_ids=[1], head_ids=[2],
+            assignment={1: 1, 2: 1}, prob=0.8,
+        )
+        assert result == pytest.approx(0.8)
+
+    def test_deduction_head_false(self):
+        """Deduction: all tails true, head=0 → potential = 1-p."""
+        result = _evaluate_potential(
+            "deduction", tail_ids=[1], head_ids=[2],
+            assignment={1: 1, 2: 0}, prob=0.8,
+        )
+        assert result == pytest.approx(0.2)
+
+    def test_retraction_head_true(self):
+        """Retraction: all tails true, head=1 → potential = 1-p (inverted)."""
+        result = _evaluate_potential(
+            "retraction", tail_ids=[1], head_ids=[2],
+            assignment={1: 1, 2: 1}, prob=0.8,
+        )
+        assert result == pytest.approx(0.2)
+
+    def test_retraction_head_false(self):
+        """Retraction: all tails true, head=0 → potential = p."""
+        result = _evaluate_potential(
+            "retraction", tail_ids=[1], head_ids=[2],
+            assignment={1: 1, 2: 0}, prob=0.8,
+        )
+        assert result == pytest.approx(0.8)
+
+    def test_contradiction_no_head(self):
+        """Contradiction with no head: all tails true → penalty = 1-p."""
+        result = _evaluate_potential(
+            "contradiction", tail_ids=[1, 2], head_ids=[],
+            assignment={1: 1, 2: 1}, prob=0.9,
+        )
+        assert result == pytest.approx(0.1)
+
+    def test_contradiction_with_head_true(self):
+        """Contradiction with head=1: penalty * 0.9 (head=1 favored within penalty)."""
+        result = _evaluate_potential(
+            "contradiction", tail_ids=[1], head_ids=[2],
+            assignment={1: 1, 2: 1}, prob=0.8,
+        )
+        # penalty = 1-0.8 = 0.2, head=1 factor = 0.9 → 0.2 * 0.9 = 0.18
+        assert result == pytest.approx(0.18)
+
+    def test_contradiction_with_head_false(self):
+        """Contradiction with head=0: penalty * 0.1 (head=0 disfavored)."""
+        result = _evaluate_potential(
+            "contradiction", tail_ids=[1], head_ids=[2],
+            assignment={1: 1, 2: 0}, prob=0.8,
+        )
+        # penalty = 0.2, head=0 factor = 0.1 → 0.2 * 0.1 = 0.02
+        assert result == pytest.approx(0.02)
+
+    def test_induction_same_as_deduction(self):
+        """Induction uses the same potential as deduction."""
+        for h_val in (0, 1):
+            deduct = _evaluate_potential(
+                "deduction", [1], [2], {1: 1, 2: h_val}, 0.7,
+            )
+            induct = _evaluate_potential(
+                "induction", [1], [2], {1: 1, 2: h_val}, 0.7,
+            )
+            assert deduct == pytest.approx(induct)
+
+    def test_unknown_edge_type_defaults_to_deduction(self):
+        """Unknown edge types (paper-extract, abstraction, etc.) use deduction potential."""
+        for edge_type in ("paper-extract", "abstraction", "unknown-type"):
+            result = _evaluate_potential(
+                edge_type, [1], [2], {1: 1, 2: 1}, 0.75,
+            )
+            assert result == pytest.approx(0.75)
+
+    def test_multi_head_deduction(self):
+        """Multiple heads: potential is product of per-head potentials."""
+        result = _evaluate_potential(
+            "deduction", tail_ids=[1], head_ids=[2, 3],
+            assignment={1: 1, 2: 1, 3: 0}, prob=0.8,
+        )
+        # head 2 = 1 → 0.8, head 3 = 0 → 0.2, product = 0.16
+        assert result == pytest.approx(0.16)
+
+    def test_multi_tail_one_false(self):
+        """With multiple tails, if any is false, potential = 1 regardless of edge type."""
+        for edge_type in ("deduction", "retraction", "contradiction"):
+            result = _evaluate_potential(
+                edge_type, tail_ids=[1, 2, 3], head_ids=[4],
+                assignment={1: 1, 2: 1, 3: 0, 4: 1}, prob=0.9,
+            )
+            assert result == 1.0, f"{edge_type}: should be 1.0 when tail is false"
+
+    def test_prob_zero_deduction(self):
+        """probability=0: deduction head=1 gets potential 0, head=0 gets 1."""
+        assert _evaluate_potential("deduction", [1], [2], {1: 1, 2: 1}, 0.0) == pytest.approx(0.0)
+        assert _evaluate_potential("deduction", [1], [2], {1: 1, 2: 0}, 0.0) == pytest.approx(1.0)
+
+    def test_prob_one_deduction(self):
+        """probability=1: deterministic implication — head=1 gets 1, head=0 gets 0."""
+        assert _evaluate_potential("deduction", [1], [2], {1: 1, 2: 1}, 1.0) == pytest.approx(1.0)
+        assert _evaluate_potential("deduction", [1], [2], {1: 1, 2: 0}, 1.0) == pytest.approx(0.0)
+
+    def test_prob_zero_contradiction(self):
+        """probability=0 contradiction: penalty = 1.0 (no penalty), factor is unconstrained."""
+        result = _evaluate_potential(
+            "contradiction", [1, 2], [], {1: 1, 2: 1}, 0.0,
+        )
+        assert result == pytest.approx(1.0)
+
+    def test_prob_one_contradiction(self):
+        """probability=1 contradiction: penalty = 0, maximum inhibition."""
+        result = _evaluate_potential(
+            "contradiction", [1, 2], [], {1: 1, 2: 1}, 1.0,
+        )
+        assert result == pytest.approx(0.0)
+
+
+# ---------------------------------------------------------------------------
+# Cyclic graph tests (loopy BP's core use case)
+# ---------------------------------------------------------------------------
+
+
+def test_cycle_two_nodes():
+    """A→B→A cycle should converge to valid beliefs."""
+    fg = FactorGraph()
+    fg.add_variable(1, 0.9)
+    fg.add_variable(2, 0.5)
+    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.8)
+    fg.add_factor(edge_id=101, tail=[2], head=[1], probability=0.7)
+
+    bp = BeliefPropagation(damping=0.5, max_iterations=100)
+    beliefs = bp.run(fg)
+
+    for vid, b in beliefs.items():
+        assert 0.0 <= b <= 1.0, f"Node {vid} belief {b} out of range"
+    # Mutual reinforcement: both should be above 0.5
+    assert beliefs[1] > 0.5
+    assert beliefs[2] > 0.5
+
+
+def test_cycle_three_nodes():
+    """A→B→C→A triangle should converge to valid beliefs."""
+    fg = FactorGraph()
+    fg.add_variable(1, 0.8)
+    fg.add_variable(2, 0.5)
+    fg.add_variable(3, 0.5)
+    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.8)
+    fg.add_factor(edge_id=101, tail=[2], head=[3], probability=0.7)
+    fg.add_factor(edge_id=102, tail=[3], head=[1], probability=0.6)
+
+    bp = BeliefPropagation(damping=0.5, max_iterations=100)
+    beliefs = bp.run(fg)
+
+    for vid, b in beliefs.items():
+        assert 0.0 <= b <= 1.0, f"Node {vid} belief {b} out of range"
+
+
+def test_cycle_with_contradiction():
+    """Contradiction in a cycle: A→B with deduction, A+B→C with contradiction.
+    The contradiction should inhibit premises even in a cyclic structure."""
+    fg = FactorGraph()
+    fg.add_variable(1, 0.9)
+    fg.add_variable(2, 0.8)
+    fg.add_variable(3, 0.5)
+    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.8)
+    fg.add_factor(edge_id=101, tail=[1, 2], head=[3], probability=0.8, edge_type="contradiction")
+
+    bp = BeliefPropagation(damping=0.5, max_iterations=100)
+    beliefs = bp.run(fg)
+
+    for vid, b in beliefs.items():
+        assert 0.0 <= b <= 1.0, f"Node {vid} belief {b} out of range"
+    # Contradiction should inhibit at least one premise
+    assert beliefs[1] < 0.9 or beliefs[2] < 0.8
+
+
+# ---------------------------------------------------------------------------
+# Boundary value tests
+# ---------------------------------------------------------------------------
+
+
+def test_prior_zero():
+    """A node with prior=0.0 should stay near zero even with supporting evidence."""
+    fg = FactorGraph()
+    fg.add_variable(1, 0.9)  # strong tail
+    fg.add_variable(2, 0.0)  # prior = 0 (known false)
+    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.9)
+
+    bp = BeliefPropagation(damping=1.0, max_iterations=50)
+    beliefs = bp.run(fg)
+
+    assert 0.0 <= beliefs[2] <= 1.0
+    # Prior=0 is very strong evidence of falsehood; belief should stay low
+    assert beliefs[2] < 0.3, f"Prior=0 node should resist, got {beliefs[2]}"
+
+
+def test_prior_one():
+    """A node with prior=1.0 should stay near one even with opposing evidence."""
+    fg = FactorGraph()
+    fg.add_variable(1, 0.9)
+    fg.add_variable(2, 1.0)  # prior = 1 (known true)
+    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.9, edge_type="retraction")
+
+    bp = BeliefPropagation(damping=1.0, max_iterations=50)
+    beliefs = bp.run(fg)
+
+    assert 0.0 <= beliefs[2] <= 1.0
+    # Prior=1 is very strong evidence; retraction should have limited effect
+    assert beliefs[2] > 0.7, f"Prior=1 node should resist retraction, got {beliefs[2]}"
+
+
+def test_probability_zero_edge():
+    """An edge with probability=0 should not propagate any evidence."""
+    fg = FactorGraph()
+    fg.add_variable(1, 0.9)
+    fg.add_variable(2, 0.5)
+    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.0)
+
+    bp = BeliefPropagation(damping=1.0, max_iterations=50)
+    beliefs = bp.run(fg)
+
+    assert 0.0 <= beliefs[2] <= 1.0
+    # prob=0 means "if tail true, head is definitely false"
+    # This should push head BELOW 0.5
+    assert beliefs[2] < 0.5, f"prob=0 edge should push head below 0.5, got {beliefs[2]}"
+
+
+def test_probability_one_edge():
+    """An edge with probability=1.0 is a deterministic implication."""
+    fg = FactorGraph()
+    fg.add_variable(1, 0.9)
+    fg.add_variable(2, 0.5)
+    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=1.0)
+
+    bp = BeliefPropagation(damping=1.0, max_iterations=50)
+    beliefs = bp.run(fg)
+
+    assert 0.0 <= beliefs[2] <= 1.0
+    # Deterministic: head belief should be very close to tail belief
+    assert beliefs[2] > 0.8, f"prob=1 edge should strongly propagate, got {beliefs[2]}"
+
+
+def test_all_priors_zero():
+    """All nodes with prior=0 should produce valid (near-zero) beliefs."""
+    fg = FactorGraph()
+    fg.add_variable(1, 0.0)
+    fg.add_variable(2, 0.0)
+    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.8)
+
+    bp = BeliefPropagation(damping=1.0, max_iterations=50)
+    beliefs = bp.run(fg)
+
+    for vid, b in beliefs.items():
+        assert 0.0 <= b <= 1.0, f"Node {vid} belief {b} out of range"
