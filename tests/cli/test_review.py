@@ -56,6 +56,25 @@ def test_review_errors_without_build(tmp_path):
     assert "build" in result.output.lower()
 
 
+def test_review_shows_progress(tmp_path):
+    """gaia review should show progress like [1/N] Reviewing chain_name..."""
+    pkg_dir = _setup_build(tmp_path)
+    result = runner.invoke(app, ["review", str(pkg_dir), "--mock"])
+    assert result.exit_code == 0
+    assert "[1/" in result.output
+    assert "Reviewing" in result.output
+
+
+def test_review_with_concurrency_flag(tmp_path):
+    """gaia review --concurrency 2 should work."""
+    pkg_dir = _setup_build(tmp_path)
+    result = runner.invoke(app, ["review", str(pkg_dir), "--mock", "--concurrency", "2"])
+    assert result.exit_code == 0
+    reviews_dir = pkg_dir / ".gaia" / "reviews"
+    yamls = list(reviews_dir.glob("review_*.yaml"))
+    assert len(yamls) == 1
+
+
 def test_review_then_infer_pipeline(tmp_path):
     """Full pipeline: build -> review -> infer should work end-to-end."""
     pkg_dir = _setup_build(tmp_path)

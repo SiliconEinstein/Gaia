@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 import typer
@@ -48,6 +49,7 @@ def review(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     mock: bool = typer.Option(False, "--mock", help="Use mock reviewer (no LLM calls)"),
     model: str = typer.Option("claude-sonnet-4-20250514", "--model", help="LLM model for review"),
+    concurrency: int = typer.Option(5, "--concurrency", "-j", help="Max parallel reviews"),
 ) -> None:
     """LLM reviews chains -> sidecar report (.gaia/reviews/)."""
     from datetime import datetime, timezone
@@ -68,11 +70,12 @@ def review(
         typer.echo(f"Error: no build artifacts.\nRun 'gaia build {path}' first.", err=True)
         raise typer.Exit(1)
 
-    # 2. Read elaborated prompts
+    # 2. Read elaborated prompts + chain contexts
     import yaml as _yaml
 
     elab_data = _yaml.safe_load(elab_file.read_text())
     prompts = elab_data.get("prompts", [])
+    chain_contexts = elab_data.get("chain_contexts", {})
 
     # 3. Load package to get step priors
     pkg = load_package(pkg_path)
@@ -91,7 +94,7 @@ def review(
     # 4. Create reviewer
     client = MockReviewClient() if mock else ReviewClient(model=model)
 
-    # 5. Group prompts by chain and review each
+    # 5. Group prompts by chain and build chain_data list
     prompts_by_chain: dict[str, list[dict]] = {}
     for p in prompts:
         chain_name = p["chain"]
@@ -99,9 +102,9 @@ def review(
             prompts_by_chain[chain_name] = []
         prompts_by_chain[chain_name].append(p)
 
-    chain_reviews = []
+    all_chain_data = []
     for chain_name, chain_prompts in prompts_by_chain.items():
-        chain_data = {
+        chain_data: dict = {
             "name": chain_name,
             "steps": [
                 {
@@ -114,10 +117,17 @@ def review(
                 for p in chain_prompts
             ],
         }
-        result = client.review_chain(chain_data)
-        chain_reviews.append(result)
+        ctx = chain_contexts.get(chain_name)
+        if ctx:
+            chain_data["context"] = ctx
+        all_chain_data.append(chain_data)
 
-    # 6. Write sidecar
+    # 6. Review chains in parallel
+    chain_reviews = asyncio.run(
+        _review_chains_parallel(client, all_chain_data, concurrency)
+    )
+
+    # 7. Write sidecar
     now = datetime.now(timezone.utc)
     review_data = {
         "package": pkg.name,
@@ -130,6 +140,28 @@ def review(
     n_chains = len(chain_reviews)
     typer.echo(f"Reviewed {n_chains} chains for {pkg.name}")
     typer.echo(f"Report: {review_path}")
+
+
+async def _review_chains_parallel(
+    client: "ReviewClient | MockReviewClient",  # noqa: F821
+    chain_data_list: list[dict],
+    concurrency: int,
+) -> list[dict]:
+    """Review chains concurrently with bounded parallelism."""
+    semaphore = asyncio.Semaphore(concurrency)
+    total = len(chain_data_list)
+    results: list[dict] = [{}] * total
+    started = 0
+
+    async def review_one(index: int, chain_data: dict) -> None:
+        nonlocal started
+        async with semaphore:
+            started += 1
+            typer.echo(f"  [{started}/{total}] Reviewing {chain_data['name']}...")
+            results[index] = await client.areview_chain(chain_data)
+
+    await asyncio.gather(*(review_one(i, cd) for i, cd in enumerate(chain_data_list)))
+    return results
 
 
 @app.command()

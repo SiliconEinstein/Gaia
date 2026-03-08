@@ -20,22 +20,74 @@ class ReviewClient:
         )
         return self._parse_response(chain_data, response.choices[0].message.content)
 
+    async def areview_chain(self, chain_data: dict) -> dict:
+        """Async review a single chain and return assessment."""
+        import litellm
+
+        prompt = self._build_prompt(chain_data)
+        response = await litellm.acompletion(
+            model=self._model,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return self._parse_response(chain_data, response.choices[0].message.content)
+
     def _build_prompt(self, chain_data: dict) -> str:
-        steps_desc = []
+        context = chain_data.get("context")
+        parts = [f"Review this reasoning chain: {chain_data['name']}"]
+
+        # Chain type from context
+        if context:
+            parts.append(f"Chain type: {context.get('edge_type', 'deduction')}")
+
+            # Premises
+            premises = context.get("premise_refs", [])
+            if premises:
+                parts.append("\nPremises:")
+                for p in premises:
+                    snippet = (p.get("content") or "").strip()[:80]
+                    prior_str = f", prior={p['prior']}" if p.get("prior") is not None else ""
+                    parts.append(f"  - {p['name']} ({p.get('type', '?')}{prior_str}): \"{snippet}\"")
+
+        # Steps
+        parts.append("\nSteps:")
         for step in chain_data["steps"]:
             rendered = step.get("rendered", step.get("action", ""))
-            args_desc = ", ".join(
-                f"{a['ref']}({a.get('dependency', '?')})" for a in step.get("args", [])
-            )
-            steps_desc.append(
-                f"Step {step['step']}: {rendered}\n  Args: {args_desc}\n  Prior: {step.get('prior', '?')}"
-            )
-        steps_text = "\n".join(steps_desc)
+            parts.append(f"  Step {step['step']}: {rendered}")
 
-        return (
-            f"Review this reasoning chain: {chain_data['name']}\n\n"
-            f"Steps:\n{steps_text}\n\n"
-            "For each step, assess whether the reasoning is logically valid.\n"
+            # Split args into direct (Evidence) and indirect (Context)
+            direct_args = [a for a in step.get("args", []) if a.get("dependency") == "direct"]
+            indirect_args = [a for a in step.get("args", []) if a.get("dependency") != "direct"]
+
+            if direct_args:
+                parts.append("    Evidence (direct):")
+                for a in direct_args:
+                    snippet = (a.get("content") or "").strip()[:60]
+                    dtype = a.get("decl_type", "?")
+                    prior_str = f", prior={a['prior']}" if a.get("prior") is not None else ""
+                    parts.append(f"      - {a['ref']} ({dtype}{prior_str}): \"{snippet}\"")
+            if indirect_args:
+                parts.append("    Context (indirect):")
+                for a in indirect_args:
+                    snippet = (a.get("content") or "").strip()[:60]
+                    dtype = a.get("decl_type", "?")
+                    parts.append(f"      - {a['ref']} ({dtype}): \"{snippet}\"")
+
+            prior = step.get("prior")
+            if prior is not None:
+                parts.append(f"    Step prior: {prior}")
+
+        # Conclusions from context
+        if context:
+            conclusions = context.get("conclusion_refs", [])
+            if conclusions:
+                parts.append("\nConclusion:")
+                for c in conclusions:
+                    prior_str = f", prior={c['prior']}" if c.get("prior") is not None else ""
+                    parts.append(f"  - {c['name']} ({c.get('type', '?')}{prior_str})")
+
+        # Assessment instructions
+        parts.append(
+            "\nFor each step, assess whether the reasoning is logically valid.\n"
             "For each dependency, decide if it is 'direct' (conclusion depends on it) "
             "or 'indirect' (conclusion may still hold without it).\n\n"
             "Reply with ONLY a YAML document (no markdown fences, no extra text) "
@@ -47,8 +99,10 @@ class ReviewClient:
             "    rewrite: null\n"
             "    dependencies:\n"
             "      - ref: <arg_name>\n"
-            "        suggested: direct  # or indirect\n"
+            "        suggested: direct  # or indirect"
         )
+
+        return "\n".join(parts)
 
     def _parse_response(self, chain_data: dict, response: str) -> dict:
         """Parse LLM response into review dict. Falls back to passthrough on failure."""
@@ -67,6 +121,10 @@ class ReviewClient:
 
 class MockReviewClient:
     """Mock reviewer that echoes existing priors and dependencies (no LLM calls)."""
+
+    async def areview_chain(self, chain_data: dict) -> dict:
+        """Async version — delegates to sync (no I/O)."""
+        return self.review_chain(chain_data)
 
     def review_chain(self, chain_data: dict) -> dict:
         """Return a review that preserves all existing values."""

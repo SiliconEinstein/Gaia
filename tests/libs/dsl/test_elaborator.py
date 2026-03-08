@@ -82,3 +82,54 @@ def test_elaborate_covers_all_apply_and_lambda_steps():
     pkg = resolve_refs(pkg)
     result = elaborate_package(pkg)
     assert len(result.prompts) >= 11
+
+
+def test_chain_contexts_populated():
+    """chain_contexts should have an entry for each chain in the package."""
+    pkg = load_package(FIXTURE_PATH)
+    pkg = resolve_refs(pkg)
+    result = elaborate_package(pkg)
+    assert "drag_prediction_chain" in result.chain_contexts
+    assert "contradiction_chain" in result.chain_contexts
+    assert "synthesis_chain" in result.chain_contexts
+
+
+def test_chain_context_edge_type():
+    """contradiction_chain should have edge_type='contradiction'."""
+    pkg = load_package(FIXTURE_PATH)
+    pkg = resolve_refs(pkg)
+    result = elaborate_package(pkg)
+    ctx = result.chain_contexts["contradiction_chain"]
+    assert ctx["edge_type"] == "contradiction"
+    # Default edge_type should be 'deduction'
+    ctx_drag = result.chain_contexts["drag_prediction_chain"]
+    assert ctx_drag["edge_type"] == "deduction"
+
+
+def test_chain_context_premise_and_conclusion():
+    """drag_prediction_chain should have correct premise and conclusion refs."""
+    pkg = load_package(FIXTURE_PATH)
+    pkg = resolve_refs(pkg)
+    result = elaborate_package(pkg)
+    ctx = result.chain_contexts["drag_prediction_chain"]
+    # Step 1 is StepRef (premise), Step 3 is StepRef (conclusion)
+    assert len(ctx["premise_refs"]) == 1
+    assert ctx["premise_refs"][0]["name"] == "heavier_falls_faster"
+    assert ctx["premise_refs"][0]["type"] == "claim"
+    assert ctx["premise_refs"][0]["prior"] == 0.7
+    assert len(ctx["conclusion_refs"]) == 1
+    assert ctx["conclusion_refs"][0]["name"] == "tied_pair_slower_than_heavy"
+
+
+def test_args_include_decl_type_and_prior():
+    """Step args should include decl_type and prior from the referenced declaration."""
+    pkg = load_package(FIXTURE_PATH)
+    pkg = resolve_refs(pkg)
+    result = elaborate_package(pkg)
+    prompts = {(p["chain"], p["step"]): p for p in result.prompts}
+    prompt = prompts[("drag_prediction_chain", 2)]
+    arg0 = prompt["args"][0]
+    assert arg0["decl_type"] == "claim"
+    assert arg0["prior"] == 0.7
+    arg1 = prompt["args"][1]
+    assert arg1["decl_type"] == "setting"

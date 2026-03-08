@@ -51,6 +51,20 @@ def test_build_output_contains_module_count(tmp_path):
     assert "5 modules" in result.output
 
 
+def test_build_elaborated_yaml_has_chain_contexts(tmp_path):
+    """elaborated.yaml should include chain_contexts dict."""
+    import shutil
+
+    pkg_dir = tmp_path / "galileo"
+    shutil.copytree(FIXTURE_PATH, pkg_dir)
+    runner.invoke(app, ["build", str(pkg_dir)])
+    elab_file = pkg_dir / ".gaia" / "build" / "elaborated.yaml"
+    data = yaml.safe_load(elab_file.read_text())
+    assert "chain_contexts" in data
+    assert "drag_prediction_chain" in data["chain_contexts"]
+    assert data["chain_contexts"]["contradiction_chain"]["edge_type"] == "contradiction"
+
+
 def test_build_invalid_path():
     result = runner.invoke(app, ["build", "/nonexistent/path"])
     assert result.exit_code != 0

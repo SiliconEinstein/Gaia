@@ -43,6 +43,7 @@ def save_build(elaborated: ElaboratedPackage, build_dir: Path) -> Path:
     data = {
         "package": pkg_data,
         "prompts": elaborated.prompts,
+        "chain_contexts": elaborated.chain_contexts,
     }
     out_path.write_text(yaml.dump(data, allow_unicode=True, sort_keys=False))
     return out_path

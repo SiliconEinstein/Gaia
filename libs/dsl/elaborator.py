@@ -17,6 +17,7 @@ from .models import (
     Ref,
     StepApply,
     StepLambda,
+    StepRef,
 )
 
 
@@ -26,6 +27,7 @@ class ElaboratedPackage:
 
     package: Package
     prompts: list[dict] = field(default_factory=list)
+    chain_contexts: dict[str, dict] = field(default_factory=dict)
 
 
 def elaborate_package(pkg: Package) -> ElaboratedPackage:
@@ -46,13 +48,53 @@ def elaborate_package(pkg: Package) -> ElaboratedPackage:
 
     # Walk chains and elaborate
     prompts: list[dict] = []
+    chain_contexts: dict[str, dict] = {}
     for mod in pkg_copy.loaded_modules:
         for decl in mod.declarations:
             if isinstance(decl, ChainExpr):
                 chain_prompts = _elaborate_chain(decl, decls_by_name)
                 prompts.extend(chain_prompts)
+                chain_contexts[decl.name] = _build_chain_context(decl, decls_by_name)
 
-    return ElaboratedPackage(package=pkg_copy, prompts=prompts)
+    return ElaboratedPackage(package=pkg_copy, prompts=prompts, chain_contexts=chain_contexts)
+
+
+def _build_chain_context(
+    chain: ChainExpr, decls: dict[str, Declaration]
+) -> dict:
+    """Extract chain-level context: edge_type, premise_refs, conclusion_refs."""
+    # Find the index boundaries of StepApply/StepLambda steps
+    first_apply_idx = None
+    last_apply_idx = None
+    for i, step in enumerate(chain.steps):
+        if isinstance(step, (StepApply, StepLambda)):
+            if first_apply_idx is None:
+                first_apply_idx = i
+            last_apply_idx = i
+
+    # StepRef steps before first apply are premises, after last apply are conclusions
+    premise_refs = []
+    conclusion_refs = []
+    for i, step in enumerate(chain.steps):
+        if not isinstance(step, StepRef):
+            continue
+        target = decls.get(step.ref)
+        ref_info = {
+            "name": step.ref,
+            "type": target.type if target else None,
+            "prior": target.prior if target else None,
+            "content": getattr(target, "content", "") if target else "",
+        }
+        if first_apply_idx is not None and i < first_apply_idx:
+            premise_refs.append(ref_info)
+        elif last_apply_idx is not None and i > last_apply_idx:
+            conclusion_refs.append(ref_info)
+
+    return {
+        "edge_type": chain.edge_type or "deduction",
+        "premise_refs": premise_refs,
+        "conclusion_refs": conclusion_refs,
+    }
 
 
 def _elaborate_chain(
@@ -78,6 +120,8 @@ def _elaborate_chain(
                     "ref": arg.ref,
                     "dependency": arg.dependency,
                     "content": content,
+                    "decl_type": target.type if target else None,
+                    "prior": target.prior if target else None,
                 })
 
             # Substitute {param} templates
@@ -85,13 +129,16 @@ def _elaborate_chain(
             for param, content in zip(action.params, resolved_contents):
                 rendered = rendered.replace(f"{{{param.name}}}", content)
 
-            prompts.append({
+            prompt_dict: dict = {
                 "chain": chain.name,
                 "step": step.step,
                 "action": step.apply,
                 "rendered": rendered,
                 "args": arg_records,
-            })
+            }
+            if action.return_type:
+                prompt_dict["return_type"] = action.return_type
+            prompts.append(prompt_dict)
 
         elif isinstance(step, StepLambda):
             prompts.append({
