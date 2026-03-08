@@ -46,10 +46,90 @@ def build(
 @app.command()
 def review(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
+    mock: bool = typer.Option(False, "--mock", help="Use mock reviewer (no LLM calls)"),
+    model: str = typer.Option("claude-sonnet-4-20250514", "--model", help="LLM model for review"),
 ) -> None:
     """LLM reviews chains -> sidecar report (.gaia/reviews/)."""
-    typer.echo(f"gaia review {path} — not yet implemented")
-    raise typer.Exit(1)
+    from datetime import datetime, timezone
+
+    from cli.llm_client import MockReviewClient, ReviewClient
+    from cli.review_store import write_review
+    from libs.dsl.loader import load_package
+    from libs.dsl.models import ChainExpr
+    from libs.dsl.resolver import resolve_refs
+
+    pkg_path = Path(path)
+    build_dir = pkg_path / ".gaia" / "build"
+    reviews_dir = pkg_path / ".gaia" / "reviews"
+
+    # 1. Check build exists
+    elab_file = build_dir / "elaborated.yaml"
+    if not elab_file.exists():
+        typer.echo(f"Error: no build artifacts.\nRun 'gaia build {path}' first.", err=True)
+        raise typer.Exit(1)
+
+    # 2. Read elaborated prompts
+    import yaml as _yaml
+
+    elab_data = _yaml.safe_load(elab_file.read_text())
+    prompts = elab_data.get("prompts", [])
+
+    # 3. Load package to get step priors
+    pkg = load_package(pkg_path)
+    pkg = resolve_refs(pkg)
+
+    # Build chain->step->prior index from the package
+    chain_step_priors: dict[str, dict[int, float]] = {}
+    for mod in pkg.loaded_modules:
+        for decl in mod.declarations:
+            if isinstance(decl, ChainExpr):
+                chain_step_priors[decl.name] = {}
+                for step in decl.steps:
+                    if hasattr(step, "prior") and step.prior is not None:
+                        chain_step_priors[decl.name][step.step] = step.prior
+
+    # 4. Create reviewer
+    client = MockReviewClient() if mock else ReviewClient(model=model)
+
+    # 5. Group prompts by chain and review each
+    prompts_by_chain: dict[str, list[dict]] = {}
+    for p in prompts:
+        chain_name = p["chain"]
+        if chain_name not in prompts_by_chain:
+            prompts_by_chain[chain_name] = []
+        prompts_by_chain[chain_name].append(p)
+
+    chain_reviews = []
+    for chain_name, chain_prompts in prompts_by_chain.items():
+        chain_data = {
+            "name": chain_name,
+            "steps": [
+                {
+                    "step": p["step"],
+                    "action": p["action"],
+                    "rendered": p["rendered"],
+                    "prior": chain_step_priors.get(chain_name, {}).get(p["step"]),
+                    "args": p["args"],
+                }
+                for p in chain_prompts
+            ],
+        }
+        result = client.review_chain(chain_data)
+        chain_reviews.append(result)
+
+    # 6. Write sidecar
+    now = datetime.now(timezone.utc)
+    review_data = {
+        "package": pkg.name,
+        "model": "mock" if mock else model,
+        "timestamp": now.isoformat(),
+        "chains": chain_reviews,
+    }
+    review_path = write_review(review_data, reviews_dir)
+
+    n_chains = len(chain_reviews)
+    typer.echo(f"Reviewed {n_chains} chains for {pkg.name}")
+    typer.echo(f"Report: {review_path}")
 
 
 @app.command()
