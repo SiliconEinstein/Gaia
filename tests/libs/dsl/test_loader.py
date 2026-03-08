@@ -39,8 +39,18 @@ def test_module_types():
 def test_declarations_parsed():
     pkg = load_package(FIXTURE_DIR)
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
-    # Should have: 3 refs + 2 infer_actions + 3 claims + 3 chain_exprs = 11
-    assert len(reasoning.declarations) == 11
+    counts: dict[str, int] = {}
+    for decl in reasoning.declarations:
+        counts[decl.type] = counts.get(decl.type, 0) + 1
+
+    # The richer Galileo fixture should contain:
+    # 4 refs, 4 reusable infer actions, 10 explicit claims, 9 chain expressions.
+    assert counts == {
+        "ref": 4,
+        "infer_action": 4,
+        "claim": 10,
+        "chain_expr": 9,
+    }
 
 
 def test_claim_with_prior():
@@ -55,27 +65,29 @@ def test_claim_with_prior():
 def test_infer_action_with_params():
     pkg = load_package(FIXTURE_DIR)
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
-    reductio = next(d for d in reasoning.declarations if d.name == "reductio_ad_absurdum")
-    assert isinstance(reductio, InferAction)
-    assert len(reductio.params) == 2
-    assert reductio.params[0].name == "hypothesis"
-    assert reductio.return_type == "claim"
-    assert "{hypothesis}" in reductio.content
+    synthesize = next(d for d in reasoning.declarations if d.name == "synthesize_equal_fall_prediction")
+    assert isinstance(synthesize, InferAction)
+    assert len(synthesize.params) == 4
+    assert [p.name for p in synthesize.params] == ["verdict", "confound", "support", "env"]
+    assert synthesize.return_type == "claim"
+    assert "{env}" in synthesize.content
 
 
 def test_chain_expr_steps():
     pkg = load_package(FIXTURE_DIR)
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
-    chain = next(d for d in reasoning.declarations if d.name == "refutation_chain")
+    chain = next(d for d in reasoning.declarations if d.name == "contradiction_chain")
     assert isinstance(chain, ChainExpr)
     assert len(chain.steps) == 3
+    assert chain.edge_type == "contradiction"
     # Step 1: ref
-    assert chain.steps[0].ref == "heavier_falls_faster"
+    assert chain.steps[0].ref == "tied_pair_slower_than_heavy"
     # Step 2: apply with args
-    assert chain.steps[1].apply == "reductio_ad_absurdum"
+    assert chain.steps[1].apply == "expose_mutual_exclusion"
     assert chain.steps[1].args[0].dependency == "direct"
+    assert chain.steps[1].args[1].dependency == "direct"
     # Step 3: ref
-    assert chain.steps[2].ref == "aristotle_contradicted"
+    assert chain.steps[2].ref == "tied_balls_contradiction"
 
 
 def test_ref_declaration():
@@ -89,18 +101,24 @@ def test_ref_declaration():
 def test_lambda_step():
     pkg = load_package(FIXTURE_DIR)
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
-    confound = next(d for d in reasoning.declarations if d.name == "confound_chain")
-    assert isinstance(confound, ChainExpr)
+    combined = next(d for d in reasoning.declarations if d.name == "combined_weight_chain")
+    assert isinstance(combined, ChainExpr)
     # Step 2 should be a lambda
-    step2 = confound.steps[1]
+    step2 = combined.steps[1]
     assert hasattr(step2, "lambda_")
-    assert "空气阻力" in step2.lambda_
+    assert "复合体 HL 总重量大于单独的重球 H" in step2.lambda_
 
 
 def test_exports():
     pkg = load_package(FIXTURE_DIR)
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
-    assert "vacuum_prediction" in reasoning.export
+    assert {
+        "tied_balls_contradiction",
+        "aristotle_contradicted",
+        "air_resistance_is_confound",
+        "inclined_plane_supports_equal_fall",
+        "vacuum_prediction",
+    }.issubset(set(reasoning.export))
 
 
 def test_load_nonexistent_raises():

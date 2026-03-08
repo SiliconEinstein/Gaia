@@ -29,10 +29,22 @@ async def test_execute_fills_empty_claims():
     executor = MockExecutor()
     await execute_package(pkg, executor)
 
-    # aristotle_contradicted was empty, should now have content
+    # The fixture should now fill a full chain of intermediate conclusions,
+    # not just the final verdict.
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
-    ac = next(d for d in reasoning.declarations if d.name == "aristotle_contradicted")
-    assert ac.content.startswith("[推理结果]")
+    filled_names = {
+        "tied_pair_slower_than_heavy",
+        "tied_pair_faster_than_heavy",
+        "tied_balls_contradiction",
+        "aristotle_contradicted",
+        "medium_difference_shrinks",
+        "air_resistance_is_confound",
+        "inclined_plane_supports_equal_fall",
+        "vacuum_prediction",
+    }
+    for decl in reasoning.declarations:
+        if hasattr(decl, "content") and decl.name in filled_names:
+            assert decl.content.strip() != "", f"{decl.name} should be filled"
 
 
 async def test_execute_calls_infer_action():
@@ -41,9 +53,16 @@ async def test_execute_calls_infer_action():
     executor = MockExecutor()
     await execute_package(pkg, executor)
 
-    # Should have called execute_infer for reductio_ad_absurdum and synthesize
+    # The richer story uses 4 reusable infer actions:
+    # drag-effect deduction, contradiction exposure, confound explanation,
+    # and final vacuum synthesis.
     infer_calls = [c for c in executor.calls if c["type"] == "infer"]
-    assert len(infer_calls) == 2
+    assert len(infer_calls) == 4
+    prompts = "\n".join(c["prompt"] for c in infer_calls)
+    assert "轻球应当拖慢重球" in prompts
+    assert "不能同时为真" in prompts
+    assert "介质阻力造成的表象" in prompts
+    assert "不同重量的物体应以相同速率下落" in prompts
 
 
 async def test_execute_calls_lambda():
@@ -52,9 +71,17 @@ async def test_execute_calls_lambda():
     executor = MockExecutor()
     await execute_package(pkg, executor)
 
-    # Should have called execute_lambda for confound_chain lambda
+    # The Galileo story also uses 7 one-off lambda steps for narrative pivots.
     lambda_calls = [c for c in executor.calls if c["type"] == "lambda"]
-    assert len(lambda_calls) == 3  # confound_chain, inductive_support, next_steps
+    assert len(lambda_calls) == 7
+    contents = "\n".join(c["content"] for c in lambda_calls)
+    assert "归纳成一条普遍规律" in contents
+    assert "复合体 HL 总重量大于单独的重球 H" in contents
+    assert "降低“重者下落更快”的可信度" in contents
+    assert "自由落体的普遍真理" in contents
+    assert "外部阻力效应" in contents
+    assert "斜面实验把自由落体减慢到可测量尺度后" in contents
+    assert "寻找足够接近真空的直接实验" in contents
 
 
 async def test_execute_preserves_existing_content():
@@ -70,17 +97,20 @@ async def test_execute_preserves_existing_content():
 
 
 async def test_execute_chain_order():
-    """Chains are executed in step order, earlier chains before later ones."""
+    """Producer chains should run before the final synthesis chain."""
     pkg = load_package(FIXTURE_DIR)
     pkg = resolve_refs(pkg)
     executor = MockExecutor()
     await execute_package(pkg, executor)
 
-    # vacuum_prediction (output of synthesis_chain) should have content
-    # because refutation_chain and confound_chain ran first
+    # vacuum_prediction should reflect upstream contradiction, confound,
+    # and inclined-plane support, so the producers must have run first.
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
     vp = next(d for d in reasoning.declarations if d.name == "vacuum_prediction")
     assert vp.content.startswith("[推理结果]")
+    assert "互斥结论" in vp.content
+    assert "介质阻力" in vp.content
+    assert "斜面实验" in vp.content
 
 
 # ── Inline tests (no galileo fixture) ─────────────────────────

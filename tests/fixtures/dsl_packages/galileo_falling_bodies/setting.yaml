@@ -7,15 +7,16 @@ declarations:
   - type: setting
     name: thought_experiment_env
     content: >
-      想象两个不同重量的物体从同一高度落下。
-      考虑一下：如果用绳子把它们绑在一起，会发生什么？
+      想象一个重球 H 和一个轻球 L 从同一高度落下。
+      先分别考虑它们各自的“自然下落速度”，再考虑把二者用细绳绑成
+      复合体 HL 后一起下落，会得到什么结果。
     prior: 1.0
 
   - type: setting
     name: vacuum_env
     content: >
       一个理想化的无空气阻力环境，
-      只有重力作用于下落物体。
+      只保留重力作用，不让介质阻力参与落体过程。
     prior: 1.0
 
 export:

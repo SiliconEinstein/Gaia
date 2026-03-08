@@ -20,24 +20,32 @@ def test_compile_produces_factor_graph():
     pkg = load_package(FIXTURE_DIR)
     pkg = resolve_refs(pkg)
     fg = compile_factor_graph(pkg)
-    assert len(fg.variables) == 7
-    assert len(fg.factors) == 5
+    assert len(fg.variables) == 14
+    assert len(fg.factors) == 11
 
 
 def test_variable_nodes_are_claims_and_settings():
     pkg = load_package(FIXTURE_DIR)
     pkg = resolve_refs(pkg)
     fg = compile_factor_graph(pkg)
-    # Variable nodes should include knowledge objects with priors
-    # heavier_falls_faster (prior=0.7), everyday_observation (prior=0.95),
-    # thought_experiment_env (prior=1.0), vacuum_env (prior=1.0),
-    # aristotle_contradicted (prior=0.5), air_resistance_is_confound (prior=0.5),
-    # vacuum_prediction (prior=0.5)
-    assert len(fg.variables) == 7
+    # Variable nodes should cover the full narrated story:
+    # prior theory, tied-balls predictions, contradiction, confound analysis,
+    # inclined-plane support, and final vacuum prediction.
+    assert len(fg.variables) == 14
     assert set(fg.variables.keys()) == {
-        "heavier_falls_faster", "everyday_observation",
-        "thought_experiment_env", "vacuum_env",
-        "aristotle_contradicted", "air_resistance_is_confound",
+        "heavier_falls_faster",
+        "everyday_observation",
+        "thought_experiment_env",
+        "vacuum_env",
+        "tied_pair_slower_than_heavy",
+        "tied_pair_faster_than_heavy",
+        "tied_balls_contradiction",
+        "aristotle_contradicted",
+        "medium_density_observation",
+        "medium_difference_shrinks",
+        "air_resistance_is_confound",
+        "inclined_plane_observation",
+        "inclined_plane_supports_equal_fall",
         "vacuum_prediction",
     }
 
@@ -46,22 +54,21 @@ def test_factor_nodes_from_chain_steps():
     pkg = load_package(FIXTURE_DIR)
     pkg = resolve_refs(pkg)
     fg = compile_factor_graph(pkg)
-    # Factors from: refutation_chain step2, confound_chain step2 (lambda),
-    # synthesis_chain step2, inductive_support step2 (lambda), next_steps step2 (lambda)
-    assert len(fg.factors) == 5
+    # One factor for each reasoning step that should matter in the story graph:
+    # inductive support, tied-balls predictions, contradiction, retraction, verdict,
+    # medium trend, confound explanation, inclined-plane support, synthesis, and follow-up.
+    assert len(fg.factors) == 11
 
 
 def test_direct_dependency_creates_edge():
     pkg = load_package(FIXTURE_DIR)
     pkg = resolve_refs(pkg)
     fg = compile_factor_graph(pkg)
-    # refutation_chain: heavier_falls_faster --direct--> aristotle_contradicted
-    # Find a factor connecting these two variables
-    # Find the refutation factor and check its tail/head
-    refutation = next(f for f in fg.factors if f["name"] == "refutation_chain.step_2")
-    assert "heavier_falls_faster" in refutation["tail"]
-    assert "aristotle_contradicted" in refutation["head"]
-    assert refutation["probability"] == 0.9
+    drag = next(f for f in fg.factors if f["name"] == "drag_prediction_chain.step_2")
+    assert drag["tail"] == ["heavier_falls_faster"]
+    assert drag["head"] == ["tied_pair_slower_than_heavy"]
+    assert drag["probability"] == 0.93
+    assert drag["edge_type"] == "deduction"
 
 
 def test_indirect_dependency_excluded_from_edges():
@@ -69,12 +76,37 @@ def test_indirect_dependency_excluded_from_edges():
     pkg = load_package(FIXTURE_DIR)
     pkg = resolve_refs(pkg)
     fg = compile_factor_graph(pkg)
-    # thought_experiment_env is used as indirect in refutation_chain
+    # thought_experiment_env is used as indirect in drag_prediction_chain
     # It should NOT appear as a tail in that factor
-    refutation_factors = [f for f in fg.factors if f.get("name") == "refutation_chain.step_2"]
-    assert len(refutation_factors) == 1, "Expected exactly one refutation_chain.step_2 factor"
-    factor = refutation_factors[0]
+    drag_factors = [f for f in fg.factors if f.get("name") == "drag_prediction_chain.step_2"]
+    assert len(drag_factors) == 1, "Expected exactly one drag_prediction_chain.step_2 factor"
+    factor = drag_factors[0]
     assert "thought_experiment_env" not in factor.get("tail", [])
+
+
+def test_contradiction_edge_captures_two_mutually_exclusive_predictions():
+    pkg = load_package(FIXTURE_DIR)
+    pkg = resolve_refs(pkg)
+    fg = compile_factor_graph(pkg)
+
+    contradiction = next(f for f in fg.factors if f["name"] == "contradiction_chain.step_2")
+    assert contradiction["edge_type"] == "contradiction"
+    assert set(contradiction["tail"]) == {
+        "tied_pair_slower_than_heavy",
+        "tied_pair_faster_than_heavy",
+    }
+    assert contradiction["head"] == ["tied_balls_contradiction"]
+
+
+def test_retraction_edge_pushes_back_on_aristotle_law():
+    pkg = load_package(FIXTURE_DIR)
+    pkg = resolve_refs(pkg)
+    fg = compile_factor_graph(pkg)
+
+    retraction = next(f for f in fg.factors if f["name"] == "retraction_chain.step_2")
+    assert retraction["edge_type"] == "retraction"
+    assert retraction["tail"] == ["tied_balls_contradiction"]
+    assert retraction["head"] == ["heavier_falls_faster"]
 
 
 def test_question_excluded_from_factor_graph():

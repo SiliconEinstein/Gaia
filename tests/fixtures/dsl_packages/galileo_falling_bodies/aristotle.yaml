@@ -17,7 +17,8 @@ declarations:
   - type: claim
     name: everyday_observation
     content: >
-      从同一高度落下时，石头比羽毛下落得更快。
+      在日常空气环境中，从同一高度落下时，石头通常比羽毛更早落地；
+      重物看起来往往比轻物下落得更快。
     prior: 0.95
     metadata:
       source: "日常观察"
@@ -30,8 +31,9 @@ declarations:
         ref: everyday_observation
       - step: 2
         lambda: >
-          日常经验一致表明较重的物体总是先落地，
-          这支持了重量决定下落速度的一般规律。
+          日常经验反复呈现“重物先落地、轻物后落地”的现象，
+          如果不区分空气阻力等外在因素，人们很自然会把这种表象
+          归纳成一条普遍规律：重量越大，下落越快。
         prior: 0.8
       - step: 3
         ref: heavier_falls_faster

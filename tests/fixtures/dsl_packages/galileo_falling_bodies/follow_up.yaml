@@ -11,8 +11,8 @@ declarations:
   - type: question
     name: follow_up_question
     content: >
-      能否通过实验验证真空中的预测？
-      伽利略使用斜面作为近似，但真正的真空实验才是决定性的。
+      能否在足够接近真空的条件下直接比较重球与轻球的下落时间？
+      如果日常差异确实来自空气阻力，那么真正决定性的实验应当在几乎无介质的环境中完成。
 
   - type: chain_expr
     name: next_steps
@@ -21,8 +21,9 @@ declarations:
         ref: vacuum_prediction
       - step: 2
         lambda: >
-          关于所有物体在真空中以相同速率下落的预测，
-          需要在真正的真空环境中进行直接的实验验证。
+          既然该 package 已经从思想实验、介质分析和斜面实验三条线索
+          汇聚到“真空中等速下落”的预测，
+          下一步就应当寻找足够接近真空的直接实验来验证这一点。
       - step: 3
         ref: follow_up_question
 

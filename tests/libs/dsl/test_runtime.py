@@ -15,18 +15,21 @@ async def test_runtime_full_pipeline():
 
     assert isinstance(result, RuntimeResult)
     assert result.package.name == "galileo_falling_bodies"
-    assert len(result.beliefs) == 7
+    assert len(result.beliefs) == 14
     assert result.factor_graph is not None
+    edge_types = {f["edge_type"] for f in result.factor_graph.factors}
+    assert {"deduction", "contradiction", "retraction"}.issubset(edge_types)
 
 
 async def test_runtime_beliefs_computed():
     runtime = DSLRuntime(executor=MockExecutor())
     result = await runtime.run(FIXTURE_DIR)
 
-    # heavier_falls_faster has prior=0.7, after BP it should change
+    # Key theory nodes should move away from their priors after BP.
     assert "heavier_falls_faster" in result.beliefs
     assert result.beliefs["heavier_falls_faster"] != 0.7
-    # vacuum_prediction has prior=0.5
+    assert "tied_balls_contradiction" in result.beliefs
+    assert result.beliefs["tied_balls_contradiction"] != 0.6
     assert "vacuum_prediction" in result.beliefs
     assert result.beliefs["vacuum_prediction"] != 0.5
 
@@ -71,10 +74,12 @@ async def test_runtime_execute_only():
     result = await runtime.load(FIXTURE_DIR)
     result = await runtime.execute(result)
 
-    # Claims should be filled
+    # Claims should be filled with a coherent story, not just placeholders.
     reasoning = next(m for m in result.package.loaded_modules if m.name == "reasoning")
     ac = next(d for d in reasoning.declarations if d.name == "aristotle_contradicted")
     assert ac.content != ""
+    vp = next(d for d in reasoning.declarations if d.name == "vacuum_prediction")
+    assert "相同速率下落" in vp.content
 
     # But no factor graph or beliefs
     assert result.factor_graph is None
@@ -89,10 +94,10 @@ async def test_runtime_infer_only():
 
     # Factor graph should exist
     assert result.factor_graph is not None
-    assert len(result.factor_graph.variables) == 7
+    assert len(result.factor_graph.variables) == 14
 
     # Beliefs should be computed (from priors only)
-    assert len(result.beliefs) == 7
+    assert len(result.beliefs) == 14
 
 
 async def test_runtime_inspect():
@@ -102,6 +107,6 @@ async def test_runtime_inspect():
 
     assert summary["package"] == "galileo_falling_bodies"
     assert summary["modules"] == 5
-    assert summary["variables"] == 7
-    assert summary["factors"] == 5
-    assert len(summary["beliefs"]) == 7
+    assert summary["variables"] == 14
+    assert summary["factors"] == 11
+    assert len(summary["beliefs"]) == 14
