@@ -444,22 +444,22 @@ class TestEvaluatePotential:
         assert result == pytest.approx(0.1)
 
     def test_contradiction_with_head_true(self):
-        """Contradiction with head=1: penalty * 0.9 (head=1 favored within penalty)."""
+        """Contradiction with head=1: penalty * prob (head confirmed by p)."""
         result = _evaluate_potential(
             "contradiction", tail_ids=[1], head_ids=[2],
             assignment={1: 1, 2: 1}, prob=0.8,
         )
-        # penalty = 1-0.8 = 0.2, head=1 factor = 0.9 → 0.2 * 0.9 = 0.18
-        assert result == pytest.approx(0.18)
+        # penalty = 1-0.8 = 0.2, head=1 factor = 0.8 → 0.2 * 0.8 = 0.16
+        assert result == pytest.approx(0.16)
 
     def test_contradiction_with_head_false(self):
-        """Contradiction with head=0: penalty * 0.1 (head=0 disfavored)."""
+        """Contradiction with head=0: penalty * (1-prob) (head denied)."""
         result = _evaluate_potential(
             "contradiction", tail_ids=[1], head_ids=[2],
             assignment={1: 1, 2: 0}, prob=0.8,
         )
-        # penalty = 0.2, head=0 factor = 0.1 → 0.2 * 0.1 = 0.02
-        assert result == pytest.approx(0.02)
+        # penalty = 0.2, head=0 factor = 0.2 → 0.2 * 0.2 = 0.04
+        assert result == pytest.approx(0.04)
 
     def test_induction_same_as_deduction(self):
         """Induction uses the same potential as deduction."""

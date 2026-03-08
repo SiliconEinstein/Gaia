@@ -67,12 +67,14 @@ def _evaluate_potential(
         if not head_ids:
             # Pure mutual exclusion constraint (no head variable)
             return penalty
-        # Head variables: acknowledge contradiction exists (head=1 favored over head=0)
+        # Head variables: P(C=1 | premises contradict with strength p) = p.
+        # Premise penalty (1-p) and head confirmation (p) are independent:
+        # marginalizing over head: (1-p)*p + (1-p)*(1-p) = (1-p), so tail
+        # inhibition is unchanged.
         pot = penalty
         for h in head_ids:
             h_val = assignment[h]
-            # Within the penalized config, head=1 is more consistent than head=0
-            pot *= 0.9 if h_val == 1 else 0.1
+            pot *= prob if h_val == 1 else (1.0 - prob)
         return pot
 
     # All tails true — compute gated potential for heads
