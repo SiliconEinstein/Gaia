@@ -57,11 +57,14 @@ class FactorGraph:
             graph.add_factor(edge.id, edge.tail, edge.head, prob, edge_type=edge.type)
         return graph
 
-    def get_neighbors(self, node_id: int) -> list[int]:
-        """Get factor indices that involve this node."""
-        return [
-            i for i, f in enumerate(self.factors) if node_id in f["tail"] or node_id in f["head"]
-        ]
+    def get_var_factors(self) -> dict[int, list[int]]:
+        """Build reverse index: variable id -> list of factor indices involving it."""
+        var_factors: dict[int, list[int]] = {vid: [] for vid in self.variables}
+        for fi, f in enumerate(self.factors):
+            for vid in f["tail"] + f["head"]:
+                if vid in var_factors:
+                    var_factors[vid].append(fi)
+        return var_factors
 
     def get_variable_ids(self) -> list[int]:
         """Get all variable (node) IDs."""

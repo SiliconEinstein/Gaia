@@ -1,35 +1,144 @@
-"""Loopy Belief Propagation for knowledge hypergraphs.
+"""Sum-product loopy Belief Propagation for knowledge hypergraphs.
 
-Implements a simplified BP algorithm where:
-- Each variable (node) has a prior probability representing initial trust.
-- Each factor (hyperedge) connects tail nodes to head nodes with a probability.
-- Factor semantics: "if all tail nodes are true AND the edge probability holds,
-  then head nodes are likely true."
-
-The algorithm iterates, sending messages from factors to head variables,
-until beliefs converge or the iteration budget is exhausted.
+Implements proper loopy BP on binary variables with:
+- 2-vector messages [p(x=0), p(x=1)] per message, always normalized
+- Explicit message storage for both var→factor and factor→var directions
+- Synchronous schedule: all new messages computed from old, then swapped + damped
+- Factor potentials encoding edge-type semantics (deduction, retraction, contradiction)
 """
 
 from __future__ import annotations
 
+from itertools import product as cartesian_product
 from typing import TYPE_CHECKING
 
 import numpy as np
+from numpy.typing import NDArray
 
 if TYPE_CHECKING:
     from services.inference_engine.factor_graph import FactorGraph
 
 __all__ = ["BeliefPropagation"]
 
+Msg = NDArray[np.float64]  # shape (2,): [p(x=0), p(x=1)]
+
+
+def _normalize(msg: Msg) -> Msg:
+    """Normalize a 2-vector to sum to 1, guarding against all-zero."""
+    s = msg[0] + msg[1]
+    if s < 1e-30:
+        return np.array([0.5, 0.5])
+    return msg / s
+
+
+def _prior_msg(prior: float) -> Msg:
+    """Convert scalar prior p(x=1) to 2-vector [p(x=0), p(x=1)]."""
+    return np.array([1.0 - prior, prior])
+
+
+def _evaluate_potential(
+    edge_type: str,
+    tail_ids: list[int],
+    head_ids: list[int],
+    assignment: dict[int, int],
+    prob: float,
+) -> float:
+    """Evaluate factor potential for a full variable assignment.
+
+    Gated structure: if ALL tails are 1, each head independently:
+    - deduction/contradiction: p(h=1) = prob
+    - retraction: p(h=1) = 1-prob (inverted)
+    Otherwise (not all tails true): unconstrained (potential = 1).
+    """
+    all_tails_true = all(assignment[t] == 1 for t in tail_ids)
+
+    if not all_tails_true:
+        return 1.0
+
+    # All tails true — compute gated potential for heads
+    pot = 1.0
+    for h in head_ids:
+        h_val = assignment[h]
+        if edge_type == "retraction":
+            # Retraction inverts: strong tails → heads should be false
+            pot *= (1.0 - prob) if h_val == 1 else prob
+        else:
+            # deduction, contradiction, induction, etc.
+            pot *= prob if h_val == 1 else (1.0 - prob)
+    return pot
+
+
+def _compute_var_to_factor(
+    var: int,
+    factor_idx: int,
+    prior: Msg,
+    var_factors: dict[int, list[int]],
+    f2v_msgs: dict[tuple[int, int], Msg],
+) -> Msg:
+    """Compute variable→factor message: prior * product of all incoming f2v except this factor."""
+    msg = prior.copy()
+    for fi in var_factors[var]:
+        if fi != factor_idx:
+            incoming = f2v_msgs.get((fi, var))
+            if incoming is not None:
+                msg = msg * incoming
+    return _normalize(msg)
+
+
+def _compute_factor_to_var(
+    factor_idx: int,
+    target_var: int,
+    factor: dict,
+    v2f_msgs: dict[tuple[int, int], Msg],
+) -> Msg:
+    """Compute factor→variable message by marginalizing over all other variables.
+
+    Enumerates 2^(n-1) assignments of other variables, weights by potential and
+    incoming v2f messages, then marginalizes to get message for target_var.
+    """
+    tail_ids: list[int] = factor["tail"]
+    head_ids: list[int] = factor["head"]
+    prob: float = factor["probability"]
+    edge_type: str = factor.get("edge_type", "deduction")
+
+    all_vars = tail_ids + head_ids
+    other_vars = [v for v in all_vars if v != target_var]
+
+    msg = np.zeros(2)
+
+    # Enumerate target_var ∈ {0, 1}
+    for target_val in (0, 1):
+        total = 0.0
+        # Enumerate all assignments of other variables
+        for other_vals in cartesian_product([0, 1], repeat=len(other_vars)):
+            assignment = {v: val for v, val in zip(other_vars, other_vals)}
+            assignment[target_var] = target_val
+
+            # Factor potential
+            pot = _evaluate_potential(edge_type, tail_ids, head_ids, assignment, prob)
+
+            # Product of incoming v2f messages from other variables
+            weight = 1.0
+            for v, val in zip(other_vars, other_vals):
+                v2f = v2f_msgs.get((v, factor_idx))
+                if v2f is not None:
+                    weight *= v2f[val]
+                else:
+                    weight *= 0.5  # uniform if no message yet
+            total += pot * weight
+        msg[target_val] = total
+
+    return _normalize(msg)
+
 
 class BeliefPropagation:
-    """Loopy Belief Propagation on a :class:`FactorGraph`.
+    """Sum-product loopy Belief Propagation on a :class:`FactorGraph`.
 
     Parameters
     ----------
     damping:
-        Controls how aggressively beliefs are updated each iteration.
-        ``1.0`` means fully replace old belief; ``0.0`` means keep old belief.
+        Controls how aggressively messages are updated each iteration.
+        ``1.0`` means fully replace old message; ``0.0`` means keep old message.
     max_iterations:
         Upper bound on the number of message-passing sweeps.
     convergence_threshold:
@@ -47,10 +156,6 @@ class BeliefPropagation:
         self._max_iter = max_iterations
         self._threshold = convergence_threshold
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
     def run(self, graph: FactorGraph) -> dict[int, float]:
         """Run loopy BP on *graph* and return posterior beliefs.
 
@@ -62,66 +167,61 @@ class BeliefPropagation:
         if not graph.variables:
             return {}
 
-        # Initialize beliefs to priors
-        beliefs: dict[int, float] = dict(graph.variables)
+        if not graph.factors:
+            return dict(graph.variables)
+
+        var_factors = graph.get_var_factors()
+        priors = {vid: _prior_msg(p) for vid, p in graph.variables.items()}
+
+        # Initialize messages to uniform
+        f2v_msgs: dict[tuple[int, int], Msg] = {}
+        v2f_msgs: dict[tuple[int, int], Msg] = {}
+        uniform = np.array([0.5, 0.5])
+
+        for fi, factor in enumerate(graph.factors):
+            for vid in factor["tail"] + factor["head"]:
+                if vid in graph.variables:
+                    f2v_msgs[(fi, vid)] = uniform.copy()
+                    v2f_msgs[(vid, fi)] = uniform.copy()
+
+        prev_beliefs = {vid: p for vid, p in graph.variables.items()}
 
         for _iteration in range(self._max_iter):
-            old_beliefs = dict(beliefs)
+            # 1. Compute all var→factor messages
+            new_v2f: dict[tuple[int, int], Msg] = {}
+            for (vid, fi), _ in v2f_msgs.items():
+                new_v2f[(vid, fi)] = _compute_var_to_factor(
+                    vid, fi, priors[vid], var_factors, f2v_msgs
+                )
 
-            # For each factor, compute messages to head nodes
-            for factor in graph.factors:
-                tail_ids: list[int] = factor["tail"]
-                head_ids: list[int] = factor["head"]
-                prob: float = factor["probability"]
-                edge_type: str = factor.get("edge_type", "deduction")
+            # 2. Compute all factor→var messages
+            new_f2v: dict[tuple[int, int], Msg] = {}
+            for (fi, vid), _ in f2v_msgs.items():
+                new_f2v[(fi, vid)] = _compute_factor_to_var(fi, vid, graph.factors[fi], new_v2f)
 
-                # Factor message: product of tail beliefs * edge probability
-                if tail_ids:
-                    tail_belief = float(np.prod([beliefs.get(t, 1.0) for t in tail_ids]))
-                else:
-                    tail_belief = 1.0
+            # 3. Damp and normalize
+            for key in f2v_msgs:
+                f2v_msgs[key] = _normalize(
+                    self._damping * new_f2v[key] + (1 - self._damping) * f2v_msgs[key]
+                )
+            for key in v2f_msgs:
+                v2f_msgs[key] = _normalize(
+                    self._damping * new_v2f[key] + (1 - self._damping) * v2f_msgs[key]
+                )
 
-                factor_msg = tail_belief * prob
+            # 4. Compute beliefs
+            beliefs: dict[int, float] = {}
+            for vid in graph.variables:
+                b = priors[vid].copy()
+                for fi in var_factors[vid]:
+                    b = b * f2v_msgs[(fi, vid)]
+                b = _normalize(b)
+                beliefs[vid] = float(b[1])  # p(x=1)
 
-                # Type-aware message transformation
-                if edge_type == "retraction":
-                    # Retraction: strong tail evidence *decreases* head belief
-                    factor_msg = 1.0 - factor_msg
-                elif edge_type == "contradiction":
-                    # Contradiction: tail=[A,B] (conflicting premises), head=[C] (conclusion)
-                    # Forward to head C: standard message (confirm the contradiction)
-                    # factor_msg stays as tail_belief * prob — no inversion
-
-                    # Backward to tail: inhibit premises using old_beliefs for stability
-                    for t in tail_ids:
-                        head_belief_avg = (
-                            float(np.mean([old_beliefs.get(h, 1.0) for h in head_ids]))
-                            if head_ids
-                            else 0.0
-                        )
-                        contra_msg = 1.0 - head_belief_avg * prob
-                        prior_t = graph.variables.get(t, 1.0)
-                        new_t = prior_t * contra_msg
-                        new_t = min(max(new_t, 0.0), 1.0)
-                        beliefs[t] = self._damping * new_t + (1 - self._damping) * old_beliefs.get(
-                            t, prior_t
-                        )
-
-                # Update head nodes: combine prior with incoming factor message
-                for h in head_ids:
-                    prior = graph.variables.get(h, 1.0)
-                    # Weighted combination of prior and factor evidence
-                    new_belief = prior * factor_msg
-                    # Clamp to [0, 1]
-                    new_belief = min(max(new_belief, 0.0), 1.0)
-                    # Damping: blend new value with old belief
-                    beliefs[h] = self._damping * new_belief + (1 - self._damping) * old_beliefs.get(
-                        h, prior
-                    )
-
-            # Check convergence
-            max_change = max(abs(beliefs[nid] - old_beliefs[nid]) for nid in beliefs)
+            # 5. Check convergence
+            max_change = max(abs(beliefs[vid] - prev_beliefs[vid]) for vid in beliefs)
             if max_change < self._threshold:
-                break
+                return beliefs
+            prev_beliefs = beliefs
 
         return beliefs

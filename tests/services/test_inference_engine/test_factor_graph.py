@@ -40,16 +40,21 @@ def test_from_subgraph_default_probability():
     assert fg.factors[0]["probability"] == 1.0
 
 
-def test_get_neighbors():
+def test_get_var_factors():
     fg = FactorGraph()
+    fg.add_variable(10, 0.5)
+    fg.add_variable(11, 0.5)
+    fg.add_variable(12, 0.5)
+    fg.add_variable(13, 0.5)
     fg.add_factor(edge_id=1, tail=[10, 11], head=[12], probability=0.9)
     fg.add_factor(edge_id=2, tail=[12], head=[13], probability=0.8)
+    vf = fg.get_var_factors()
     # Node 12 is in factor 0 (head) and factor 1 (tail)
-    neighbors = fg.get_neighbors(12)
-    assert 0 in neighbors
-    assert 1 in neighbors
+    assert set(vf[12]) == {0, 1}
     # Node 10 is only in factor 0
-    assert fg.get_neighbors(10) == [0]
+    assert vf[10] == [0]
+    # Node 13 is only in factor 1
+    assert vf[13] == [1]
 
 
 def test_get_variable_ids():
