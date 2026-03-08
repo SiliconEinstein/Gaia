@@ -33,6 +33,24 @@ def _two_step_chain() -> FactorGraph:
     return fg
 
 
+def _hard_deduction_inconsistent_graph() -> FactorGraph:
+    """A is certainly true, B is certainly false, but A -> B with p=1."""
+    fg = FactorGraph()
+    fg.add_variable(1, 1.0)
+    fg.add_variable(2, 0.0)
+    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=1.0, edge_type="deduction")
+    return fg
+
+
+def _hard_contradiction_inconsistent_graph() -> FactorGraph:
+    """A and B are both certainly true, but a hard contradiction forbids that."""
+    fg = FactorGraph()
+    fg.add_variable(1, 1.0)
+    fg.add_variable(2, 1.0)
+    fg.add_factor(edge_id=100, tail=[1, 2], head=[], probability=1.0, edge_type="contradiction")
+    return fg
+
+
 # ---------------------------------------------------------------------------
 # Basic tests
 # ---------------------------------------------------------------------------
@@ -244,6 +262,62 @@ def test_contradiction_no_head_still_inhibits():
 
     assert beliefs[1] < 0.9, f"A should be inhibited, got {beliefs[1]}"
     assert beliefs[2] < 0.8, f"B should be inhibited, got {beliefs[2]}"
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for PR #59 review findings
+# ---------------------------------------------------------------------------
+
+
+def test_contradiction_head_strength_increases_with_probability():
+    """A stronger contradiction edge should make the contradiction head *more* credible.
+
+    The tail inhibition may get stronger as p increases, but the explicit
+    contradiction conclusion should not become *less* believable when the
+    contradiction factor itself is more certain.
+    """
+    fg_weak = FactorGraph()
+    fg_weak.add_variable(1, 0.9)
+    fg_weak.add_variable(2, 0.85)
+    fg_weak.add_variable(3, 0.5)
+    fg_weak.add_factor(
+        edge_id=100, tail=[1, 2], head=[3], probability=0.1, edge_type="contradiction"
+    )
+
+    fg_strong = FactorGraph()
+    fg_strong.add_variable(1, 0.9)
+    fg_strong.add_variable(2, 0.85)
+    fg_strong.add_variable(3, 0.5)
+    fg_strong.add_factor(
+        edge_id=100, tail=[1, 2], head=[3], probability=0.9, edge_type="contradiction"
+    )
+
+    bp = BeliefPropagation(damping=1.0, max_iterations=50)
+    weak_beliefs = bp.run(fg_weak)
+    strong_beliefs = bp.run(fg_strong)
+
+    assert strong_beliefs[3] > weak_beliefs[3], (
+        "A stronger contradiction factor should confirm the contradiction conclusion more, "
+        f"not less: weak={weak_beliefs[3]:.4f}, strong={strong_beliefs[3]:.4f}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("build_graph", "label"),
+    [
+        (_hard_deduction_inconsistent_graph, "hard deduction inconsistency"),
+        (_hard_contradiction_inconsistent_graph, "hard contradiction inconsistency"),
+    ],
+)
+def test_zero_partition_graph_raises_instead_of_falling_back_to_uniform(build_graph, label):
+    """Impossible evidence should surface as an inconsistency, not become 0.5/0.5.
+
+    Returning uniform beliefs for every involved variable silently erases the fact
+    that the model has zero total probability mass.
+    """
+    bp = BeliefPropagation(damping=1.0, max_iterations=50)
+    with pytest.raises(ValueError, match="zero partition|inconsistent|no valid assignment"):
+        bp.run(build_graph())
 
 
 # ---------------------------------------------------------------------------
