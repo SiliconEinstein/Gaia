@@ -398,56 +398,77 @@ class TestEvaluatePotential:
     def test_not_all_tails_true_returns_one(self):
         """When any tail is 0, the factor is unconstrained (potential = 1)."""
         result = _evaluate_potential(
-            "deduction", tail_ids=[1, 2], head_ids=[3],
-            assignment={1: 1, 2: 0, 3: 1}, prob=0.8,
+            "deduction",
+            tail_ids=[1, 2],
+            head_ids=[3],
+            assignment={1: 1, 2: 0, 3: 1},
+            prob=0.8,
         )
         assert result == 1.0
 
     def test_deduction_head_true(self):
         """Deduction: all tails true, head=1 → potential = p."""
         result = _evaluate_potential(
-            "deduction", tail_ids=[1], head_ids=[2],
-            assignment={1: 1, 2: 1}, prob=0.8,
+            "deduction",
+            tail_ids=[1],
+            head_ids=[2],
+            assignment={1: 1, 2: 1},
+            prob=0.8,
         )
         assert result == pytest.approx(0.8)
 
     def test_deduction_head_false(self):
         """Deduction: all tails true, head=0 → potential = 1-p."""
         result = _evaluate_potential(
-            "deduction", tail_ids=[1], head_ids=[2],
-            assignment={1: 1, 2: 0}, prob=0.8,
+            "deduction",
+            tail_ids=[1],
+            head_ids=[2],
+            assignment={1: 1, 2: 0},
+            prob=0.8,
         )
         assert result == pytest.approx(0.2)
 
     def test_retraction_head_true(self):
         """Retraction: all tails true, head=1 → potential = 1-p (inverted)."""
         result = _evaluate_potential(
-            "retraction", tail_ids=[1], head_ids=[2],
-            assignment={1: 1, 2: 1}, prob=0.8,
+            "retraction",
+            tail_ids=[1],
+            head_ids=[2],
+            assignment={1: 1, 2: 1},
+            prob=0.8,
         )
         assert result == pytest.approx(0.2)
 
     def test_retraction_head_false(self):
         """Retraction: all tails true, head=0 → potential = p."""
         result = _evaluate_potential(
-            "retraction", tail_ids=[1], head_ids=[2],
-            assignment={1: 1, 2: 0}, prob=0.8,
+            "retraction",
+            tail_ids=[1],
+            head_ids=[2],
+            assignment={1: 1, 2: 0},
+            prob=0.8,
         )
         assert result == pytest.approx(0.8)
 
     def test_contradiction_no_head(self):
         """Contradiction with no head: all tails true → penalty = 1-p."""
         result = _evaluate_potential(
-            "contradiction", tail_ids=[1, 2], head_ids=[],
-            assignment={1: 1, 2: 1}, prob=0.9,
+            "contradiction",
+            tail_ids=[1, 2],
+            head_ids=[],
+            assignment={1: 1, 2: 1},
+            prob=0.9,
         )
         assert result == pytest.approx(0.1)
 
     def test_contradiction_with_head_true(self):
         """Contradiction with head=1: penalty * prob (head confirmed by p)."""
         result = _evaluate_potential(
-            "contradiction", tail_ids=[1], head_ids=[2],
-            assignment={1: 1, 2: 1}, prob=0.8,
+            "contradiction",
+            tail_ids=[1],
+            head_ids=[2],
+            assignment={1: 1, 2: 1},
+            prob=0.8,
         )
         # penalty = 1-0.8 = 0.2, head=1 factor = 0.8 → 0.2 * 0.8 = 0.16
         assert result == pytest.approx(0.16)
@@ -455,8 +476,11 @@ class TestEvaluatePotential:
     def test_contradiction_with_head_false(self):
         """Contradiction with head=0: penalty * (1-prob) (head denied)."""
         result = _evaluate_potential(
-            "contradiction", tail_ids=[1], head_ids=[2],
-            assignment={1: 1, 2: 0}, prob=0.8,
+            "contradiction",
+            tail_ids=[1],
+            head_ids=[2],
+            assignment={1: 1, 2: 0},
+            prob=0.8,
         )
         # penalty = 0.2, head=0 factor = 0.2 → 0.2 * 0.2 = 0.04
         assert result == pytest.approx(0.04)
@@ -465,10 +489,18 @@ class TestEvaluatePotential:
         """Induction uses the same potential as deduction."""
         for h_val in (0, 1):
             deduct = _evaluate_potential(
-                "deduction", [1], [2], {1: 1, 2: h_val}, 0.7,
+                "deduction",
+                [1],
+                [2],
+                {1: 1, 2: h_val},
+                0.7,
             )
             induct = _evaluate_potential(
-                "induction", [1], [2], {1: 1, 2: h_val}, 0.7,
+                "induction",
+                [1],
+                [2],
+                {1: 1, 2: h_val},
+                0.7,
             )
             assert deduct == pytest.approx(induct)
 
@@ -476,15 +508,22 @@ class TestEvaluatePotential:
         """Unknown edge types (paper-extract, abstraction, etc.) use deduction potential."""
         for edge_type in ("paper-extract", "abstraction", "unknown-type"):
             result = _evaluate_potential(
-                edge_type, [1], [2], {1: 1, 2: 1}, 0.75,
+                edge_type,
+                [1],
+                [2],
+                {1: 1, 2: 1},
+                0.75,
             )
             assert result == pytest.approx(0.75)
 
     def test_multi_head_deduction(self):
         """Multiple heads: potential is product of per-head potentials."""
         result = _evaluate_potential(
-            "deduction", tail_ids=[1], head_ids=[2, 3],
-            assignment={1: 1, 2: 1, 3: 0}, prob=0.8,
+            "deduction",
+            tail_ids=[1],
+            head_ids=[2, 3],
+            assignment={1: 1, 2: 1, 3: 0},
+            prob=0.8,
         )
         # head 2 = 1 → 0.8, head 3 = 0 → 0.2, product = 0.16
         assert result == pytest.approx(0.16)
@@ -493,34 +532,49 @@ class TestEvaluatePotential:
         """With multiple tails, if any is false, potential = 1 regardless of edge type."""
         for edge_type in ("deduction", "retraction", "contradiction"):
             result = _evaluate_potential(
-                edge_type, tail_ids=[1, 2, 3], head_ids=[4],
-                assignment={1: 1, 2: 1, 3: 0, 4: 1}, prob=0.9,
+                edge_type,
+                tail_ids=[1, 2, 3],
+                head_ids=[4],
+                assignment={1: 1, 2: 1, 3: 0, 4: 1},
+                prob=0.9,
             )
             assert result == 1.0, f"{edge_type}: should be 1.0 when tail is false"
 
     def test_prob_zero_deduction(self):
-        """probability=0: deduction head=1 gets potential 0, head=0 gets 1."""
-        assert _evaluate_potential("deduction", [1], [2], {1: 1, 2: 1}, 0.0) == pytest.approx(0.0)
-        assert _evaluate_potential("deduction", [1], [2], {1: 1, 2: 0}, 0.0) == pytest.approx(1.0)
+        """probability=0: Cromwell clamps to ε, so head=1 ≈ ε, head=0 ≈ 1-ε."""
+        h1 = _evaluate_potential("deduction", [1], [2], {1: 1, 2: 1}, 0.0)
+        h0 = _evaluate_potential("deduction", [1], [2], {1: 1, 2: 0}, 0.0)
+        assert h1 == pytest.approx(1e-3, abs=1e-6)  # clamped to ε
+        assert h0 == pytest.approx(1.0 - 1e-3, abs=1e-6)
 
     def test_prob_one_deduction(self):
-        """probability=1: deterministic implication — head=1 gets 1, head=0 gets 0."""
-        assert _evaluate_potential("deduction", [1], [2], {1: 1, 2: 1}, 1.0) == pytest.approx(1.0)
-        assert _evaluate_potential("deduction", [1], [2], {1: 1, 2: 0}, 1.0) == pytest.approx(0.0)
+        """probability=1: Cromwell clamps to 1-ε, so head=1 ≈ 1-ε, head=0 ≈ ε."""
+        h1 = _evaluate_potential("deduction", [1], [2], {1: 1, 2: 1}, 1.0)
+        h0 = _evaluate_potential("deduction", [1], [2], {1: 1, 2: 0}, 1.0)
+        assert h1 == pytest.approx(1.0 - 1e-3, abs=1e-6)  # clamped to 1-ε
+        assert h0 == pytest.approx(1e-3, abs=1e-6)
 
     def test_prob_zero_contradiction(self):
-        """probability=0 contradiction: penalty = 1.0 (no penalty), factor is unconstrained."""
+        """probability=0 contradiction: Cromwell clamps to ε, penalty ≈ 1-ε."""
         result = _evaluate_potential(
-            "contradiction", [1, 2], [], {1: 1, 2: 1}, 0.0,
+            "contradiction",
+            [1, 2],
+            [],
+            {1: 1, 2: 1},
+            0.0,
         )
-        assert result == pytest.approx(1.0)
+        assert result == pytest.approx(1.0 - 1e-3, abs=1e-6)
 
     def test_prob_one_contradiction(self):
-        """probability=1 contradiction: penalty = 0, maximum inhibition."""
+        """probability=1 contradiction: Cromwell clamps to 1-ε, penalty ≈ ε."""
         result = _evaluate_potential(
-            "contradiction", [1, 2], [], {1: 1, 2: 1}, 1.0,
+            "contradiction",
+            [1, 2],
+            [],
+            {1: 1, 2: 1},
+            1.0,
         )
-        assert result == pytest.approx(0.0)
+        assert result == pytest.approx(1e-3, abs=1e-6)
 
 
 # ---------------------------------------------------------------------------
@@ -684,9 +738,9 @@ def test_damping_zero_preserves_priors():
 @pytest.mark.parametrize(
     "edge_type, prior_head, prob, expect_above_prior",
     [
-        ("deduction", 0.5, 0.8, True),   # deduction pulls head UP
+        ("deduction", 0.5, 0.8, True),  # deduction pulls head UP
         ("retraction", 0.7, 0.8, False),  # retraction pulls head DOWN
-        ("induction", 0.5, 0.8, True),    # induction = deduction semantics
+        ("induction", 0.5, 0.8, True),  # induction = deduction semantics
     ],
 )
 def test_edge_type_direction(edge_type, prior_head, prob, expect_above_prior):

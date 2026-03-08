@@ -58,11 +58,31 @@ def _evaluate_potential(
     - **deduction/induction**: head=1 with prob p (standard conditional)
     - **retraction**: head=1 with prob 1-p (inverted)
     - **contradiction** (Jaynes): the all-tails-true configuration is penalized.
-      pot = (1-p) overall, with head=1 slightly favored over head=0 to
-      acknowledge the contradiction exists. This encodes P(A∧B|I) ≈ 0.
+      pot = (1-p) overall, with head=1 favored over head=0 to acknowledge
+      the contradiction exists. This encodes P(A∧B|I) ≈ 0.
 
     Otherwise (not all tails true): unconstrained (potential = 1).
+
+    Cromwell's rule is applied to ``prob``: values are clamped to
+    [ε, 1-ε] to prevent degenerate all-zero potentials (same principle
+    as prior clamping in :func:`_prior_msg`).
+
+    .. note:: **Contradiction head non-monotonicity**
+
+       For contradiction factors with heads, the head belief peaks near
+       p ≈ 0.75 and decreases for larger p. This is inherent to the
+       multiplicative coupling ``(1-p) * head_factor``: as p → 1, the
+       premise penalty (1-p) drives the entire potential toward zero,
+       drowning the head signal in the uniform background. Premise
+       inhibition remains monotonically increasing. For practical
+       contradiction strengths (p ∈ [0.5, 0.9]) the head IS confirmed
+       (belief > prior). If strictly monotone head behavior is needed,
+       a two-factor decomposition (separate premise-mutex and
+       head-detector factors) is the path forward.
     """
+    # Cromwell: clamp prob away from 0 and 1 for numerical robustness
+    prob = max(_CROMWELL_EPS, min(1.0 - _CROMWELL_EPS, prob))
+
     all_tails_true = all(assignment[t] == 1 for t in tail_ids)
 
     if not all_tails_true:
