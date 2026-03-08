@@ -137,5 +137,6 @@ The orchestrator manages when those services are applied and how their outputs a
 
 - [../shared/knowledge-package-static.md](../shared/knowledge-package-static.md) defines the shared V1 static package schema consumed by the CLI
 - [../shared/knowledge-package-file-formats.md](../shared/knowledge-package-file-formats.md) defines the shared V1 package file formats and review-report format consumed by CLI formalization services
+- [command-lifecycle.md](command-lifecycle.md) defines the intended semantics of the core CLI commands: build, review, verify, and publish
 
 Gaia server architecture remains intentionally undefined here and should be designed separately later.

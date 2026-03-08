@@ -21,10 +21,12 @@ The execution plan for that reset lives here:
 - [System Overview](system-overview.md)
 - [Product Scope](product-scope.md)
 - [Domain Model](domain-model.md)
+- [Gaia DSL Framework](DSL/gaia-dsl-framework.md)
 - [Shared Knowledge Package V1 Static](shared/knowledge-package-static.md)
 - [Shared Knowledge Package V1 File Formats](shared/knowledge-package-file-formats.md)
 - [V3 Probabilistic Semantics](shared/probabilistic-semantics.md)
 - [Gaia CLI Runtime Boundaries](cli/boundaries.md)
+- [Gaia CLI Command Lifecycle](cli/command-lifecycle.md)
 
 ## Intended outputs
 
@@ -54,6 +56,7 @@ Reasoning design is now intentionally split by layer:
 
 ## Folder Layout
 
+- `DSL/`: Gaia DSL framework and detailed language design docs
 - `shared/`: contracts intended to be shared by Gaia local/CLI and Gaia server
 - `cli/`: Gaia CLI runtime boundaries and future CLI-specific docs
 

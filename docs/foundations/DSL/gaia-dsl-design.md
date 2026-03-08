@@ -10,6 +10,9 @@ It is the top-level language blueprint. The V1/V2/V3 documents define specific l
 - **V2** — Package management system (Gaia.toml, dependency resolution, registry, publish)
 - **V3** — Probabilistic layer (prior, posterior, belief propagation)
 
+For Gaia DSL's system role, lifecycle stages, and layer boundaries, see
+[gaia-dsl-framework.md](gaia-dsl-framework.md).
+
 ## Design Approach
 
 **Layered language kernel.** Gaia follows the same architecture as Church (extending Scheme) and Pyro (extending Python): a deterministic host language with a probabilistic layer on top. Each version layer adds primitives to the kernel:
