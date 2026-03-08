@@ -346,10 +346,43 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
         if storage.graph and storage_result.edges:
             edge_ids = await storage.graph.create_hyperedges_bulk(storage_result.edges)
 
+        # 10. Embeddings (optional — requires OPENAI_API_KEY)
+        n_embeddings = 0
+        try:
+            import litellm
+
+            # Build (node_id, content) pairs, skipping empty content
+            pairs = []
+            for n in storage_result.nodes:
+                c = n.content if isinstance(n.content, str) else str(n.content)
+                c = c.strip()
+                if c:
+                    pairs.append((n.id, c))
+
+            if pairs:
+                emb_ids, emb_texts = zip(*pairs)
+                response = litellm.embedding(
+                    model="text-embedding-3-small", input=list(emb_texts)
+                )
+                embeddings = [d["embedding"] for d in response.data]
+                await storage.vector.insert_batch(list(emb_ids), embeddings)
+                n_embeddings = len(embeddings)
+        except Exception as e:
+            typer.echo(f"  Skipped embeddings: {e}")
+
+        # 11. Write beliefs back to LanceDB
+        belief_map = {
+            n.id: n.belief for n in storage_result.nodes if n.belief is not None
+        }
+        if belief_map:
+            await storage.lance.update_beliefs(belief_map)
+
+        emb_str = f"\n  Embeddings: {n_embeddings} written" if n_embeddings else ""
         typer.echo(
             f"Published {pkg.name} to local databases:\n"
             f"  Nodes: {len(saved_ids)} written to LanceDB ({db_path})\n"
             f"  Edges: {len(edge_ids)} written to Kuzu ({db_path}/kuzu)"
+            f"{emb_str}"
         )
     finally:
         await storage.close()

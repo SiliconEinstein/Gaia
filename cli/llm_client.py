@@ -35,13 +35,19 @@ class ReviewClient:
         return (
             f"Review this reasoning chain: {chain_data['name']}\n\n"
             f"Steps:\n{steps_text}\n\n"
-            "For each step, provide:\n"
-            "1. assessment: 'valid' or 'questionable'\n"
-            "2. suggested_prior: float 0-1\n"
-            "3. For each dependency, whether it should be 'direct' or 'indirect'\n"
-            "4. If the step has significant uncertainty, suggest a rewrite that "
-            "extracts the uncertainty into a new Claim with its own prior.\n\n"
-            "Reply in YAML format."
+            "For each step, assess whether the reasoning is logically valid.\n"
+            "For each dependency, decide if it is 'direct' (conclusion depends on it) "
+            "or 'indirect' (conclusion may still hold without it).\n\n"
+            "Reply with ONLY a YAML document (no markdown fences, no extra text) "
+            "in this exact format:\n\n"
+            "steps:\n"
+            "  - step: <number>\n"
+            "    assessment: valid  # or questionable\n"
+            "    suggested_prior: <float 0-1>\n"
+            "    rewrite: null\n"
+            "    dependencies:\n"
+            "      - ref: <arg_name>\n"
+            "        suggested: direct  # or indirect\n"
         )
 
     def _parse_response(self, chain_data: dict, response: str) -> dict:
