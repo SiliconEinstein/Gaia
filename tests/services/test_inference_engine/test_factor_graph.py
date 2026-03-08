@@ -11,10 +11,13 @@ def test_add_variable():
 
 def test_add_factor():
     fg = FactorGraph()
-    fg.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.8)
+    fg.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.8, edge_type="induction")
     assert len(fg.factors) == 1
     assert fg.factors[0]["probability"] == 0.8
     assert fg.factors[0]["tail"] == [1, 2]
+    assert fg.factors[0]["head"] == [3]
+    assert fg.factors[0]["edge_id"] == 100
+    assert fg.factors[0]["edge_type"] == "induction"
 
 
 def test_from_subgraph():
@@ -31,6 +34,10 @@ def test_from_subgraph():
     assert len(fg.factors) == 1
     assert fg.variables[1] == 0.9
     assert fg.factors[0]["probability"] == 0.85
+    assert fg.factors[0]["tail"] == [1, 2]
+    assert fg.factors[0]["head"] == [3]
+    # edge_type should propagate from HyperEdge.type
+    assert fg.factors[0]["edge_type"] == "induction"
 
 
 def test_from_subgraph_default_probability():
@@ -71,3 +78,38 @@ def test_empty_graph():
     assert fg.variables == {}
     assert fg.factors == []
     assert fg.get_variable_ids() == []
+    assert fg.get_var_factors() == {}
+
+
+def test_from_subgraph_empty():
+    """from_subgraph with empty inputs returns an empty factor graph."""
+    fg = FactorGraph.from_subgraph([], [])
+    assert fg.variables == {}
+    assert fg.factors == []
+
+
+def test_add_variable_overwrite():
+    """Adding a variable with the same ID overwrites the prior."""
+    fg = FactorGraph()
+    fg.add_variable(1, 0.9)
+    fg.add_variable(1, 0.3)
+    assert fg.variables[1] == 0.3
+    assert len(fg.variables) == 1
+
+
+def test_get_var_factors_isolated_variable():
+    """A variable with no factors should have an empty factor list."""
+    fg = FactorGraph()
+    fg.add_variable(1, 0.5)
+    fg.add_variable(2, 0.5)
+    fg.add_factor(edge_id=1, tail=[1], head=[], probability=0.9)
+    vf = fg.get_var_factors()
+    assert vf[1] == [0]
+    assert vf[2] == []  # isolated: no factors reference it
+
+
+def test_add_factor_default_edge_type():
+    """add_factor without edge_type should default to 'deduction'."""
+    fg = FactorGraph()
+    fg.add_factor(edge_id=1, tail=[1], head=[2], probability=0.8)
+    assert fg.factors[0]["edge_type"] == "deduction"

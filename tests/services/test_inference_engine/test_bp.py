@@ -59,8 +59,11 @@ def test_simple_chain():
     beliefs = bp.run(fg)
     assert 1 in beliefs
     assert 2 in beliefs
-    # B's belief should be pulled up from 0.5 by A's high prior + edge prob 0.8
-    assert beliefs[2] > 0.5
+    # B's belief should be pulled up significantly from 0.5 by A's high prior + edge prob 0.8
+    # Converged value is ~0.745
+    assert beliefs[2] > 0.7, f"B should be well above 0.5, got {beliefs[2]}"
+    # A's belief should decrease from 0.9 due to backward messages from B's weaker prior
+    assert beliefs[1] < 0.9, f"A should be pulled down from 0.9, got {beliefs[1]}"
 
 
 def test_chain_propagation():
@@ -68,12 +71,15 @@ def test_chain_propagation():
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
     # Source node with high prior should have highest belief
-    # End-of-chain node should have lowest (evidence attenuates)
     assert beliefs[1] >= beliefs[3], f"Source should >= end: {beliefs[1]} vs {beliefs[3]}"
+    # Evidence should attenuate: A > C > 0.5
+    assert beliefs[3] > 0.55, f"End of chain should be above 0.55, got {beliefs[3]}"
+    # Middle node B should also be above 0.5 (receives evidence from A)
+    assert beliefs[2] > 0.55, f"Middle node should be above 0.55, got {beliefs[2]}"
 
 
 def test_convergence():
-    """BP should converge within max_iterations."""
+    """BP should converge to stable beliefs within max_iterations."""
     fg = FactorGraph()
     for i in range(1, 6):
         fg.add_variable(i, 0.8)
@@ -85,6 +91,15 @@ def test_convergence():
     beliefs = bp.run(fg)
     for b in beliefs.values():
         assert 0.0 <= b <= 1.0
+    # Re-run should produce identical results (idempotent convergence)
+    beliefs2 = bp.run(fg)
+    for vid in beliefs:
+        assert beliefs[vid] == pytest.approx(beliefs2[vid], abs=1e-10), (
+            f"Re-run should give same result for var {vid}"
+        )
+    # All beliefs should be meaningfully above 0.5 (chain of supportive edges)
+    for vid, b in beliefs.items():
+        assert b > 0.7, f"Node {vid} should be > 0.7, got {b}"
 
 
 def test_low_probability_edge():
@@ -107,9 +122,12 @@ def test_multi_tail_factor():
     fg.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.9)
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
-    assert 0.0 <= beliefs[3] <= 1.0
-    # Conclusion should be pulled up from 0.5 by strong premises
-    assert beliefs[3] > 0.5
+    # Conclusion should be pulled up significantly from 0.5 by strong premises
+    # Converged value is ~0.725
+    assert beliefs[3] > 0.65, f"Conclusion should be well above 0.5, got {beliefs[3]}"
+    # Premises should be pulled down slightly from their priors (backward messages)
+    assert beliefs[1] < 0.9, f"Premise 1 should decrease from 0.9, got {beliefs[1]}"
+    assert beliefs[2] < 0.8, f"Premise 2 should decrease from 0.8, got {beliefs[2]}"
 
 
 def test_damping_effect():
@@ -642,3 +660,50 @@ def test_all_priors_zero():
 
     for vid, b in beliefs.items():
         assert 0.0 <= b <= 1.0, f"Node {vid} belief {b} out of range"
+
+
+def test_damping_zero_preserves_priors():
+    """With damping=0, messages never update, so beliefs should equal priors."""
+    fg = FactorGraph()
+    fg.add_variable(1, 0.9)
+    fg.add_variable(2, 0.3)
+    fg.add_variable(3, 0.7)
+    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.8)
+    fg.add_factor(edge_id=101, tail=[2], head=[3], probability=0.9)
+
+    bp = BeliefPropagation(damping=0.0, max_iterations=50)
+    beliefs = bp.run(fg)
+
+    # damping=0 means msg = 0*new + 1*old = old (uniform forever)
+    # Beliefs = prior * uniform^n = prior (normalized)
+    assert beliefs[1] == pytest.approx(0.9, abs=1e-10)
+    assert beliefs[2] == pytest.approx(0.3, abs=1e-10)
+    assert beliefs[3] == pytest.approx(0.7, abs=1e-10)
+
+
+@pytest.mark.parametrize(
+    "edge_type, prior_head, prob, expect_above_prior",
+    [
+        ("deduction", 0.5, 0.8, True),   # deduction pulls head UP
+        ("retraction", 0.7, 0.8, False),  # retraction pulls head DOWN
+        ("induction", 0.5, 0.8, True),    # induction = deduction semantics
+    ],
+)
+def test_edge_type_direction(edge_type, prior_head, prob, expect_above_prior):
+    """Parametrized test: edge type determines direction of belief change."""
+    fg = FactorGraph()
+    fg.add_variable(1, 0.9)  # strong tail
+    fg.add_variable(2, prior_head)
+    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=prob, edge_type=edge_type)
+
+    bp = BeliefPropagation(damping=1.0, max_iterations=50)
+    beliefs = bp.run(fg)
+
+    if expect_above_prior:
+        assert beliefs[2] > prior_head, (
+            f"{edge_type}: expected head above {prior_head}, got {beliefs[2]}"
+        )
+    else:
+        assert beliefs[2] < prior_head, (
+            f"{edge_type}: expected head below {prior_head}, got {beliefs[2]}"
+        )
