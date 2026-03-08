@@ -471,11 +471,83 @@ def show(
 @app.command()
 def search(
     query: str = typer.Argument(..., help="Search query text"),
-    path: str = typer.Option(".", "--path", "-p", help="Package directory"),
+    db_path: str = typer.Option(
+        None,
+        "--db-path",
+        help="LanceDB path (default: GAIA_LANCEDB_PATH or ./data/lancedb/gaia)",
+    ),
+    limit: int = typer.Option(10, "--limit", "-k", help="Max results"),
 ) -> None:
-    """Search declarations within the package."""
-    typer.echo(f"gaia search '{query}' — not yet implemented")
-    raise typer.Exit(1)
+    """Search published nodes in local LanceDB."""
+    import asyncio
+    import os
+
+    if db_path is None:
+        db_path = os.environ.get("GAIA_LANCEDB_PATH", "./data/lancedb/gaia")
+
+    asyncio.run(_search_db(query, db_path, limit))
+
+
+async def _search_db(query: str, db_path: str, limit: int) -> None:
+    """Full-text search over published nodes in LanceDB.
+
+    Uses FTS index first; falls back to SQL LIKE filter for queries the
+    default tokenizer cannot handle (e.g. CJK text without spaces).
+    """
+    from libs.storage.lance_store import LanceStore
+
+    store = LanceStore(db_path)
+    try:
+        # Try FTS index first (works well for Latin-script text)
+        fts_results = await store.fts_search(query, k=limit)
+        if fts_results:
+            node_ids = [nid for nid, _ in fts_results]
+            nodes = await store.load_nodes_bulk(node_ids)
+            scores = {nid: score for nid, score in fts_results}
+        else:
+            # Fallback: SQL LIKE filter for CJK / unsegmented text
+            nodes = await _content_like_search(store, query, limit)
+            scores = {}
+
+        if not nodes:
+            typer.echo("No results found.")
+            return
+
+        for node in nodes:
+            score = scores.get(node.id, 0)
+            belief_str = f" belief={node.belief:.4f}" if node.belief else ""
+            score_str = f"  score={score:.3f}" if score else ""
+            typer.echo(
+                f"  [{node.id}] {node.title or '?'} ({node.type}) "
+                f"prior={node.prior}{belief_str}{score_str}"
+            )
+            content = node.content if isinstance(node.content, str) else str(node.content)
+            if content.strip():
+                snippet = content.strip()[:100]
+                typer.echo(f"    {snippet}...")
+    finally:
+        await store.close()
+
+
+async def _content_like_search(
+    store: "LanceStore",  # noqa: F821
+    query: str,
+    limit: int,
+) -> list:
+    """Fallback substring search using SQL LIKE on the content column."""
+    from libs.storage.lance_store import _row_to_node
+
+    table = store._get_or_create_table()
+    if table.count_rows() == 0:
+        return []
+    escaped = query.replace("'", "''")
+    rows = (
+        table.search()
+        .where(f"content LIKE '%{escaped}%'")
+        .limit(limit)
+        .to_list()
+    )
+    return [_row_to_node(r) for r in rows]
 
 
 @app.command()
