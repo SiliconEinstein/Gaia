@@ -626,6 +626,8 @@ Gaia 真正有意义的两种操作占据了对角线：**abstraction (保真弱
 
 ### 7.2 Contradiction 的语义（Jaynes 理论）
 
+更完整的设计讨论，见 [../foundations/shared/contradiction-handling.md](../foundations/shared/contradiction-handling.md)。
+
 Contradiction 表示"前提不能同时为真"。按照 Jaynes 的理论（§2.5），发现矛盾等价于学到新信息 P(A∧B|I) ≈ 0。
 
 **Factor potential 设计：**

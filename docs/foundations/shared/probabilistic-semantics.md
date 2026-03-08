@@ -229,6 +229,8 @@ BP forward message: `belief(conclusion) ↑` as `belief(premises) ↑`
 
 Two closures conflict. The factor connects conflicting premises to a contradiction conclusion.
 
+For a fuller discussion of exclusion-factor semantics, review findings, and retraction candidates, see [contradiction-handling.md](contradiction-handling.md).
+
 ```
 [A, B] → C  where A and B conflict
 ```
