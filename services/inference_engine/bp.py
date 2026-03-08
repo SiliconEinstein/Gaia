@@ -45,9 +45,14 @@ def _evaluate_potential(
 ) -> float:
     """Evaluate factor potential for a full variable assignment.
 
-    Gated structure: if ALL tails are 1, each head independently:
-    - deduction/contradiction: p(h=1) = prob
-    - retraction: p(h=1) = 1-prob (inverted)
+    Gated structure: if ALL tails are 1, behavior depends on edge type:
+
+    - **deduction/induction**: head=1 with prob p (standard conditional)
+    - **retraction**: head=1 with prob 1-p (inverted)
+    - **contradiction** (Jaynes): the all-tails-true configuration is penalized.
+      pot = (1-p) overall, with head=1 slightly favored over head=0 to
+      acknowledge the contradiction exists. This encodes P(A∧B|I) ≈ 0.
+
     Otherwise (not all tails true): unconstrained (potential = 1).
     """
     all_tails_true = all(assignment[t] == 1 for t in tail_ids)
@@ -55,15 +60,29 @@ def _evaluate_potential(
     if not all_tails_true:
         return 1.0
 
+    if edge_type == "contradiction":
+        # Jaynes: all-tails-true is implausible. Penalize the entire configuration.
+        # Base penalty: (1-p). Strong contradiction (high p) → stronger penalty.
+        penalty = 1.0 - prob
+        if not head_ids:
+            # Pure mutual exclusion constraint (no head variable)
+            return penalty
+        # Head variables: acknowledge contradiction exists (head=1 favored over head=0)
+        pot = penalty
+        for h in head_ids:
+            h_val = assignment[h]
+            # Within the penalized config, head=1 is more consistent than head=0
+            pot *= 0.9 if h_val == 1 else 0.1
+        return pot
+
     # All tails true — compute gated potential for heads
     pot = 1.0
     for h in head_ids:
         h_val = assignment[h]
         if edge_type == "retraction":
-            # Retraction inverts: strong tails → heads should be false
             pot *= (1.0 - prob) if h_val == 1 else prob
         else:
-            # deduction, contradiction, induction, etc.
+            # deduction, induction, paper-extract, abstraction, etc.
             pot *= prob if h_val == 1 else (1.0 - prob)
     return pot
 

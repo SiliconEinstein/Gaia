@@ -146,7 +146,7 @@ def test_retraction_edge():
 
 
 def test_contradiction_confirms_conclusion():
-    """Contradiction head C gets standard forward message (confirming the contradiction)."""
+    """Contradiction head should still be confirmed (contradiction exists)."""
     fg = FactorGraph()
     fg.add_variable(1, 0.9)  # premise A
     fg.add_variable(2, 0.85)  # premise B
@@ -154,16 +154,14 @@ def test_contradiction_confirms_conclusion():
     fg.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.8, edge_type="contradiction")
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
-    # Strong premises should push conclusion up
+    # Head should still rise above 0.5: the contradiction IS confirmed
+    # (Jaynes potential: when tails true, head=1 gets (1-p)=0.2, head=0 gets ~0,
+    #  so head=1 is still favored over head=0 in the all-tails-true config)
     assert beliefs[3] > 0.5, f"Contradiction should confirm conclusion, got {beliefs[3]}"
 
 
 def test_contradiction_inhibits_premises():
-    """Contradiction tail nodes (premises A, B) should decrease from their priors.
-
-    In proper BP, backward messages from a contradiction factor naturally inhibit
-    premises — no ad-hoc code needed.
-    """
+    """Contradiction tail nodes should decrease from priors (Jaynes backward inhibition)."""
     fg = FactorGraph()
     fg.add_variable(1, 0.9)  # premise A
     fg.add_variable(2, 0.85)  # premise B
@@ -171,9 +169,81 @@ def test_contradiction_inhibits_premises():
     fg.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.8, edge_type="contradiction")
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
-    # BP backward messages should inhibit premises via the contradiction factor
+    # Jaynes: contradiction penalizes all-tails-true → strong backward inhibition
     assert beliefs[1] < 0.9, f"Premise A should be inhibited, got {beliefs[1]}"
     assert beliefs[2] < 0.85, f"Premise B should be inhibited, got {beliefs[2]}"
+
+
+def test_contradiction_stronger_than_deduction_inhibition():
+    """Contradiction should inhibit premises MUCH more strongly than deduction.
+
+    Jaynes: contradiction means P(A∧B) ≈ 0, which is a fundamentally different
+    constraint from deduction's "A∧B → C with probability p".
+    """
+    fg_contra = FactorGraph()
+    fg_contra.add_variable(1, 0.9)
+    fg_contra.add_variable(2, 0.85)
+    fg_contra.add_variable(3, 0.5)
+    fg_contra.add_factor(
+        edge_id=100, tail=[1, 2], head=[3], probability=0.8, edge_type="contradiction"
+    )
+
+    fg_deduct = FactorGraph()
+    fg_deduct.add_variable(1, 0.9)
+    fg_deduct.add_variable(2, 0.85)
+    fg_deduct.add_variable(3, 0.5)
+    fg_deduct.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.8, edge_type="deduction")
+
+    bp = BeliefPropagation(damping=1.0, max_iterations=50)
+    beliefs_contra = bp.run(fg_contra)
+    beliefs_deduct = bp.run(fg_deduct)
+
+    # Contradiction should inhibit A more than deduction does
+    contra_drop_a = 0.9 - beliefs_contra[1]
+    deduct_drop_a = 0.9 - beliefs_deduct[1]
+    assert contra_drop_a > deduct_drop_a * 2, (
+        f"Contradiction should inhibit A much more: contra drop={contra_drop_a:.4f}, "
+        f"deduct drop={deduct_drop_a:.4f}"
+    )
+
+
+def test_contradiction_weaker_evidence_yields_first():
+    """Jaynes: the weaker premise should be inhibited more by contradiction.
+
+    When A(0.9) and B(0.6) are contradictory, B should drop more because
+    it has weaker prior support.
+    """
+    fg = FactorGraph()
+    fg.add_variable(1, 0.9)  # A: strong
+    fg.add_variable(2, 0.6)  # B: weak
+    fg.add_variable(3, 0.5)  # conclusion
+    fg.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.9, edge_type="contradiction")
+
+    bp = BeliefPropagation(damping=1.0, max_iterations=50)
+    beliefs = bp.run(fg)
+
+    drop_a = 0.9 - beliefs[1]
+    drop_b = 0.6 - beliefs[2]
+    assert drop_b > drop_a, (
+        f"Weaker premise B should drop more: A drop={drop_a:.4f}, B drop={drop_b:.4f}"
+    )
+
+
+def test_contradiction_no_head_still_inhibits():
+    """Contradiction with empty head should still penalize premises.
+
+    Pure mutual exclusion constraint: A and B can't both be true.
+    """
+    fg = FactorGraph()
+    fg.add_variable(1, 0.9)
+    fg.add_variable(2, 0.8)
+    fg.add_factor(edge_id=100, tail=[1, 2], head=[], probability=0.9, edge_type="contradiction")
+
+    bp = BeliefPropagation(damping=1.0, max_iterations=50)
+    beliefs = bp.run(fg)
+
+    assert beliefs[1] < 0.9, f"A should be inhibited, got {beliefs[1]}"
+    assert beliefs[2] < 0.8, f"B should be inhibited, got {beliefs[2]}"
 
 
 # ---------------------------------------------------------------------------

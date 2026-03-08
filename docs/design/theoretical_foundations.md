@@ -899,17 +899,16 @@ Gaia:    T_bp(当前 belief 向量) = 当前 belief 向量 ⊕ BP 消息更新
 2. ~~多因子消息顺序覆盖~~：现使用 2-vector 消息 + 乘法聚合，多条入边的消息正确合并
 3. ~~无反向传播~~：现有完整的 var→factor 和 factor→var 双向消息，backward 抑制自然涌现
 4. ~~因子顺序影响结果~~：现使用同步 schedule，所有消息从旧值计算后同时更新
+5. ~~Contradiction 无独立语义~~：现使用 Jaynes 惩罚性 potential（§7.2），contradiction 自带强力 backward inhibition，遵循 "weaker evidence yields first"
 
 ### 9.2 当前局限
 
 1. **纯拓扑推理**：BP 完全不看节点内容，无法利用语义相似性
-2. **Contradiction 的 Jaynes 语义**：当前 contradiction 仍使用 deduction potential，尚未实现 §7.2 描述的惩罚性 potential（待实现）
 
 ### 9.3 可能的演进方向
 
 | 方向 | 说明 | 优先级 |
 |------|------|--------|
-| Jaynes contradiction potential | §7.2 的惩罚性 potential，使 contradiction 自带 backward inhibition | 高 |
 | GPU 加速 BP | 用 PGMax (JAX) 替代自研 NumPy 实现 | 中 |
 | 嵌入辅助 BP | 用 embedding 相似度调节消息权重 | 低 |
 | 局部精确推理 | 树结构子图用精确 BP，环结构用 Loopy BP | 低 |
