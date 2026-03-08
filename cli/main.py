@@ -58,8 +58,79 @@ def infer(
     review_file: str | None = typer.Option(None, "--review", help="Path to review sidecar file"),
 ) -> None:
     """Compile FG (from review) + BP -> beliefs."""
-    typer.echo(f"gaia infer {path} — not yet implemented")
-    raise typer.Exit(1)
+    from cli.review_store import find_latest_review, merge_review, read_review
+    from libs.dsl.compiler import compile_factor_graph
+    from libs.dsl.loader import load_package
+    from libs.dsl.resolver import resolve_refs
+    from libs.inference.bp import BeliefPropagation
+    from libs.inference.factor_graph import FactorGraph
+
+    pkg_path = Path(path)
+    build_dir = pkg_path / ".gaia" / "build"
+    reviews_dir = pkg_path / ".gaia" / "reviews"
+
+    # 1. Check build exists
+    if not build_dir.exists():
+        typer.echo(f"Error: no build artifacts found.\nRun 'gaia build {path}' first.", err=True)
+        raise typer.Exit(1)
+
+    # 2. Read review file
+    try:
+        if review_file:
+            review = read_review(Path(review_file))
+        else:
+            latest = find_latest_review(reviews_dir)
+            review = read_review(latest)
+    except FileNotFoundError:
+        typer.echo(
+            f"Error: no review file found.\n"
+            f"Run 'gaia review {path}' first, or specify --review <path>.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    # 3. Load package from source YAML, resolve refs, merge review
+    pkg = load_package(pkg_path)
+    pkg = resolve_refs(pkg)
+    pkg = merge_review(pkg, review)
+
+    # 4. Compile factor graph
+    dsl_fg = compile_factor_graph(pkg)
+
+    # 5. Convert to inference engine FactorGraph and run BP
+    bp_fg = FactorGraph()
+    name_to_id: dict[str, int] = {}
+    for i, (name, prior) in enumerate(dsl_fg.variables.items()):
+        node_id = i + 1
+        name_to_id[name] = node_id
+        bp_fg.add_variable(node_id, prior)
+
+    for j, factor in enumerate(dsl_fg.factors):
+        tail_ids = [name_to_id[n] for n in factor["tail"] if n in name_to_id]
+        head_ids = [name_to_id[n] for n in factor["head"] if n in name_to_id]
+        bp_fg.add_factor(
+            edge_id=j + 1,
+            tail=tail_ids,
+            head=head_ids,
+            probability=factor["probability"],
+            edge_type=factor.get("edge_type", "deduction"),
+        )
+
+    bp = BeliefPropagation()
+    beliefs = bp.run(bp_fg)
+
+    # 6. Map back to names and output
+    id_to_name = {v: k for k, v in name_to_id.items()}
+    named_beliefs = {id_to_name[nid]: belief for nid, belief in beliefs.items()}
+
+    typer.echo(f"Package: {pkg.name}")
+    typer.echo(f"Variables: {len(dsl_fg.variables)}")
+    typer.echo(f"Factors: {len(dsl_fg.factors)}")
+    typer.echo()
+    typer.echo("Beliefs after BP:")
+    for name, belief in sorted(named_beliefs.items()):
+        prior = dsl_fg.variables.get(name, "?")
+        typer.echo(f"  {name}: prior={prior} -> belief={belief:.4f}")
 
 
 @app.command()
