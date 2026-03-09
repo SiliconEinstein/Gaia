@@ -40,7 +40,7 @@ The plan is to establish a small set of durable foundation docs before major cod
 5. `language/gaia-language-spec.md` (Gaia Language spec)
 6. `cli/boundaries.md` (Gaia CLI runtime layering)
 7. `graph-spec.md`
-8. `storage-schema.md`
+8. `server/storage-schema.md` (Server storage schema)
 9. `module-boundaries.md`
 10. `api-contract.md`
 
