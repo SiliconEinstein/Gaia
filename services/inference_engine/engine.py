@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .bp import BeliefPropagation
-from .factor_graph import FactorGraph
+from libs.inference.bp import BeliefPropagation
+from libs.inference.factor_graph import FactorGraph
 
 if TYPE_CHECKING:
     from libs.storage.manager import StorageManager

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from services.inference_engine.bp import BeliefPropagation
-from services.inference_engine.factor_graph import FactorGraph
+from libs.inference.bp import BeliefPropagation
+from libs.inference.factor_graph import FactorGraph
 from services.review_pipeline.base import Operator
 from services.review_pipeline.context import PipelineContext
 

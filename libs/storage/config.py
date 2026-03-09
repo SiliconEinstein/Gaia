@@ -10,7 +10,9 @@ class StorageConfig(BaseModel):
     deployment_mode: Literal["production", "local"] = "local"
 
     # Graph backend
-    graph_backend: Literal["neo4j", "kuzu", "none"] = "neo4j"
+    graph_backend: Literal["neo4j", "kuzu", "none"] = os.environ.get(
+        "GAIA_GRAPH_BACKEND", "neo4j"
+    )
 
     # LanceDB
     lancedb_path: str = os.environ.get("GAIA_LANCEDB_PATH", "/data/lancedb/gaia")

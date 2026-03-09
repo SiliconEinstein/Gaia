@@ -46,8 +46,8 @@ async def test_galileo_full_pipeline():
     assert summary["factors"] == 11
 
 
-async def test_galileo_empty_claims_filled():
-    """Execute phase should fill in empty claims."""
+async def test_galileo_claims_have_content():
+    """All derived claims should have meaningful content."""
     runtime = DSLRuntime(executor=PassthroughExecutor())
     result = await runtime.run(FIXTURE_DIR)
 
@@ -63,7 +63,7 @@ async def test_galileo_empty_claims_filled():
             "inclined_plane_supports_equal_fall",
             "vacuum_prediction",
         ]:
-            assert decl.content != "", f"{decl.name} should have content after execution"
+            assert decl.content != "", f"{decl.name} should have content"
 
     tied_contradiction = next(
         d for d in reasoning.declarations if d.name == "tied_balls_contradiction"
@@ -72,8 +72,8 @@ async def test_galileo_empty_claims_filled():
         d for d in reasoning.declarations if d.name == "air_resistance_is_confound"
     )
     vacuum_prediction = next(d for d in reasoning.declarations if d.name == "vacuum_prediction")
-    assert "不能同时为真" in tied_contradiction.content
-    assert "介质阻力" in air_resistance.content
+    assert "自相矛盾" in tied_contradiction.content
+    assert "空气阻力" in air_resistance.content
     assert "相同速率下落" in vacuum_prediction.content
 
 
@@ -116,6 +116,6 @@ async def test_galileo_story_arc_is_complete():
     follow_up_question = next(d for d in follow_up.declarations if d.name == "follow_up_question")
 
     assert "是否真正取决于物体的重量" in main_question.content
-    assert "不能同时为真" in contradiction.content
+    assert "自相矛盾" in contradiction.content
     assert "相同速率下落" in prediction.content
     assert "真空" in follow_up_question.content

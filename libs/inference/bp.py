@@ -16,7 +16,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 if TYPE_CHECKING:
-    from services.inference_engine.factor_graph import FactorGraph
+    from libs.inference.factor_graph import FactorGraph
 
 __all__ = ["BeliefPropagation", "InconsistentGraphError"]
 

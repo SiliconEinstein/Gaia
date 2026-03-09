@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from services.inference_engine.bp import BeliefPropagation
-from services.inference_engine.factor_graph import FactorGraph
+from libs.inference.bp import BeliefPropagation
+from libs.inference.factor_graph import FactorGraph
 
 from .compiler import DSLFactorGraph, compile_factor_graph
 from .executor import ActionExecutor, execute_package
