@@ -124,27 +124,56 @@ galileo_tied_balls/              # = 1 git repo = 1 knowledge package
     └── ...
 ```
 
-Module YAML with declarations and chains:
+Module YAML with declarations, including `chain_expr` reasoning:
 
 ```yaml
+type: reasoning_module
+name: reasoning
+
 declarations:
-  - id: aristotle_natural_motion
-    type: claim
-    content: "Heavy objects fall faster than light objects"
+  - type: ref
+    name: heavier_falls_fast
+    target: aristotle.heavier_falls_faster
+
+  - type: setting
+    name: thought_experiment_env
+    content: "Consider the tied-bodies thought experiment in still air."
+
+  - type: claim
+    name: combined_slower
+    content: "The tied pair should fall slower than the heavy body alone."
     prior: 0.3
 
-chains:
-  - id: tied_bodies_contradiction
-    type: deduction
-    conclusions: [combined_slower]
+  - type: infer_action
+    name: tied_bodies_analysis
+    params:
+      - name: premise
+        type: claim
+      - name: env
+        type: setting
+    return_type: claim
+    content: "Analyze the tied-bodies scenario under the given premise and environment."
+
+  - type: chain_expr
+    name: tied_bodies_contradiction
+    edge_type: deduction
     steps:
-      - premise: [heavy_falls_fast, light_falls_slow]
-        reasoning: "Light body drags heavy body"
-        conclusion: combined_slower
+      - step: 1
+        ref: heavier_falls_fast
+      - step: 2
+        apply: tied_bodies_analysis
+        args:
+          - ref: heavier_falls_fast
+            dependency: direct
+          - ref: thought_experiment_env
+            dependency: indirect
+        prior: 0.85
+      - step: 3
+        ref: combined_slower
 ```
 
-- **Strong reference (premise in chain steps):** if this is wrong, the conclusion cannot stand. Modeled as hyperedge premises, participates in belief propagation.
-- **Weak reference (context):** provides background. Conclusion can stand without it. Folded into declaration's prior, no BP edge.
+- **Strong reference (`args[].dependency: direct`):** if this is wrong, the conclusion cannot stand. Modeled as a load-bearing BP dependency.
+- **Weak reference (`args[].dependency: indirect`):** provides background. Conclusion can stand without it. Used as context rather than a load-bearing BP edge.
 
 For the language spec, see [language/gaia-language-spec.md](language/gaia-language-spec.md).
 

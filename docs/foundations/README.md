@@ -17,17 +17,32 @@ Gaia now has a documented re-baselining diagnosis in [../architecture-rebaseline
 
 The execution plan for that reset lives here:
 
+**Global (cross-subsystem):**
+
 - [Foundation Reset Plan](foundation-reset-plan.md)
-- [System Overview](system-overview.md)
 - [Product Scope](product-scope.md)
+- [System Overview](system-overview.md)
 - [Domain Model](domain-model.md)
+
+**Theory:**
+
+- [Theoretical Foundation](theory/theoretical-foundation.md) — Jaynes 纲领
+- [Inference Theory](theory/inference-theory.md) — BP 算法理论
+
+**Language:**
+
 - [Gaia Language Spec](language/gaia-language-spec.md)
 - [Gaia Language Design](language/gaia-language-design.md)
 - [Language Design Rationale](language/design-rationale.md)
-- [Theoretical Foundation](theoretical-foundation.md)
-- [Inference Theory](inference-theory.md)
+
+**CLI:**
+
 - [Gaia CLI Runtime Boundaries](cli/boundaries.md)
 - [Gaia CLI Command Lifecycle](cli/command-lifecycle.md)
+
+**Server:**
+
+- [Server Architecture](server/architecture.md)
 
 ## Intended outputs
 
@@ -35,21 +50,23 @@ The plan is to establish a small set of durable foundation docs before major cod
 
 1. `product-scope.md`
 2. `domain-model.md`
-3. `theoretical-foundation.md` (Jaynes-centered theoretical foundation)
-4. `inference-theory.md` (BP algorithm and inference theory)
+3. `theory/theoretical-foundation.md` (Jaynes-centered theoretical foundation)
+4. `theory/inference-theory.md` (BP algorithm and inference theory)
 5. `language/gaia-language-spec.md` (Gaia Language spec)
 6. `cli/boundaries.md` (Gaia CLI runtime layering)
-7. `graph-spec.md`
-8. `storage-schema.md`
-9. `module-boundaries.md`
-10. `api-contract.md`
+7. `server/architecture.md` (Server architecture)
+8. `server/graph-spec.md`
+9. `server/storage-schema.md`
+10. `server/api-contract.md`
 
 Those files do not all exist yet. This directory is the place where they should be created and kept current.
 
 ## Folder Layout
 
+- `theory/`: Theoretical foundations (Jaynes, BP algorithm) — shared mathematical basis
 - `language/`: Gaia formal language spec, design, and design rationale
 - `cli/`: Gaia CLI runtime boundaries and future CLI-specific docs
+- `server/`: Server architecture, storage schema, API contracts
 
 ## Historical docs
 

@@ -7,10 +7,11 @@ The canonical specifications for Gaia live in [`foundations/`](foundations/READM
 - [Product Scope](foundations/product-scope.md) — what Gaia is and is not
 - [System Overview](foundations/system-overview.md) — architecture layers and runtime flow
 - [Domain Model](foundations/domain-model.md) — nodes, hyperedges, commits, and vocabulary
-- [Language Spec](foundations/language/gaia-language-spec.md) — the Gaia formal language specification
+- [Language Spec](foundations/language/gaia-language-spec.md) — Gaia Language semantics, package surface, and conformance rules
 - [CLI Command Lifecycle](foundations/cli/command-lifecycle.md) — build / review / infer / publish pipeline
-- [Theoretical Foundation](foundations/theoretical-foundation.md) — Jaynes framework, Gaia identity, plausible reasoning
-- [Inference Theory](foundations/inference-theory.md) — BP algorithm, lattice theory, edge semantics
+- [Theoretical Foundation](foundations/theory/theoretical-foundation.md) — Jaynes framework, Gaia identity, plausible reasoning
+- [Inference Theory](foundations/theory/inference-theory.md) — BP algorithm, lattice theory, edge semantics
+- [Server Architecture](foundations/server/architecture.md) — registry-based server design
 
 Start there for any question about current architecture, contracts, or semantics.
 

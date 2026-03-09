@@ -7,7 +7,7 @@ This document defines the language design of Gaia — a formal language for know
 It is the top-level language blueprint. The V1/V2/V3 documents define specific layer implementations of this language:
 
 - **V1** — FP language core (types, values, functions, expressions, modules)
-- **V2** — Package management system (Gaia.toml, dependency resolution, registry, publish)
+- **V2** — Package metadata and dependency layer (`version`, `manifest`, `dependencies` on current main; future package-management extraction, registry, publish)
 - **V3** — Probabilistic layer (prior, posterior, belief propagation)
 
 For Gaia Language's system role, lifecycle stages, and layer boundaries, see
@@ -328,7 +328,7 @@ package falling_bodies:
   export conclusion, follow_up_question
 ```
 
-V2 adds: version, manifest (Gaia.toml), dependency resolution across packages, registry and publish protocol, global identity assignment at publish time.
+V2 adds: version, manifest, dependency declarations, cross-package resolution, registry/publish protocol, and global identity assignment at publish time. On current `main`, those metadata fields still live in `package.yaml`; a separate package-management manifest remains deferred.
 
 ## Abstract Syntax (Layered BNF)
 

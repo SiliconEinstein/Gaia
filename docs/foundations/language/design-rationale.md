@@ -1,6 +1,6 @@
 # Gaia Language Design Rationale
 
-> **Related documents:** For the underlying Jaynes/probability foundations, see [../theoretical-foundation.md](../theoretical-foundation.md). For BP algorithm details, see [../inference-theory.md](../inference-theory.md).
+> **Related documents:** For the underlying Jaynes/probability foundations, see [../theory/theoretical-foundation.md](../theory/theoretical-foundation.md). For BP algorithm details, see [../theory/inference-theory.md](../theory/inference-theory.md).
 >
 > This document derives Gaia's CLI architecture from the Lean proof assistant analogy. It covers the tactic model, BeliefState, proof search, and command semantics.
 

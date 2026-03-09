@@ -4,7 +4,7 @@
 
 This document defines the role of Gaia Language in the overall Gaia system.
 
-It is not the detailed grammar spec. Instead, it answers the higher-level questions that the grammar depends on:
+It is not the detailed grammar listing. Instead, it defines the semantic and architectural contract that the grammar depends on:
 
 - what Gaia Language is for
 - which lifecycle stages it must support
@@ -12,6 +12,22 @@ It is not the detailed grammar spec. Instead, it answers the higher-level questi
 - which architectural direction should guide V1
 
 For the detailed language design, see [gaia-language-design.md](gaia-language-design.md).
+
+## Status and Normative Scope
+
+This document is the normative spec for:
+
+- Gaia Language's lifecycle model
+- the boundary between source package, local runtime artifacts, and server/LKM integration
+- the current V1 package surface on `main`
+- language-level conformance rules for well-formed packages
+- versioning and extension policy
+
+This document is not the sole source of concrete syntax examples.
+
+- [gaia-language-design.md](gaia-language-design.md) is normative for the current abstract syntax and YAML surface where this document references them.
+- [design-rationale.md](design-rationale.md) is explanatory, not normative.
+- When surrounding docs give simplified examples, this document and the detailed language design take precedence for the language surface.
 
 ## Problem
 
@@ -240,6 +256,181 @@ Gaia should distinguish four artifact surfaces.
 
 The published package is the most important author-facing artifact.
 
+## Current V1 Package Surface
+
+The current Gaia Language surface on `main` is file-based YAML, not a single monolithic package blob.
+
+### Package layout
+
+A conforming package on `main` consists of:
+
+- one `package.yaml` manifest at the package root
+- one module file `<module>.yaml` for each entry in `package.yaml.modules`
+- optional runtime artifacts under `.gaia/`, which are not part of the normative package surface
+
+The current language surface does not require:
+
+- `Gaia.toml`
+- `gaia.lock`
+- a separate package-management manifest
+
+Those remain deferred package-management concerns rather than part of the current language contract.
+
+### Package manifest surface
+
+`package.yaml` is the normative package manifest on current `main`.
+
+Required fields:
+
+- `name`
+
+Optional fields currently supported on `main`:
+
+- `modules` (defaults to empty; a package with no modules is structurally valid)
+- `version`
+- `manifest`
+- `dependencies`
+- `export`
+
+### Module surface
+
+Each module file is a YAML document with:
+
+- required `type`
+- required `name`
+- optional `declarations` (defaults to empty; a module with no declarations is structurally valid)
+- optional `export`
+
+Reasoning is expressed inside `declarations` via `chain_expr`.
+
+Gaia Language does not currently use a top-level module `chains:` key. Any simplified example that suggests otherwise should be treated as explanatory shorthand rather than normative syntax.
+
+### Declaration surface
+
+The current declaration kinds on `main` are:
+
+- `claim`
+- `question`
+- `setting`
+- `infer_action`
+- `toolcall_action`
+- `chain_expr`
+- `ref`
+
+`chain_expr.steps` currently admit exactly three step forms:
+
+- `ref`
+- `apply`
+- `lambda`
+
+These are the shapes consumed by the current loader and runtime. The loader also accepts declaration types not in this list — unknown types are loaded as generic `Declaration` objects so the LLM runtime can interpret their semantics during build and review.
+
+## Conformance and Well-Formedness
+
+Gaia uses an LLM as its runtime CPU. This means conformance should be **structurally strict but semantically permissive**: the loader enforces file-level and graph-compilation constraints that an LLM cannot self-heal, while semantic interpretation of declaration content and unknown types is intentionally left to the LLM runtime.
+
+### Runtime-enforced conformance on current `main`
+
+A package is ill-formed for the current runtime if any of the following hold:
+
+- `package.yaml` is missing
+- a module listed in `package.yaml.modules` does not have a matching `<module>.yaml` file
+- a `chain_expr` step is not one of `ref`, `apply`, or `lambda` (these are compiled into a factor graph for BP)
+- a `ref.target` cannot be resolved to a non-`ref` declaration using `module_name.declaration_name`
+
+These are structural constraints — they block loading or factor-graph compilation and cannot be recovered by LLM interpretation.
+
+### Semantically permissive by design
+
+The following are intentionally accepted by the current runtime:
+
+- declaration types not in `DECLARATION_TYPE_MAP` — loaded as generic `Declaration` objects and interpreted by the LLM during build/review
+- packages with an empty `modules` list
+- modules with an empty `declarations` list
+
+This permissiveness is a design choice: since the LLM runtime can understand author intent from content and context, the loader should not reject valid-looking YAML that simply uses unfamiliar type names.
+
+### Recommended lint rules
+
+The following should be treated as language-level quality rules even where the current runtime does not reject them:
+
+- declaration names should be unique within a module
+- exported names should refer to declarations that actually exist in the package
+- package/module naming should avoid ambiguity between local aliases and resolved targets
+- package examples in docs should use the same surface as the real loader
+- unknown declaration types should be documented in the module or package manifest when used intentionally
+
+## Operational Semantics Boundary
+
+Gaia Language source files define the package artifact. CLI commands operate on that artifact but also produce non-language runtime outputs.
+
+### `build`
+
+`build` is a normalization and elaboration stage.
+
+It currently:
+
+- loads `package.yaml` and module files
+- resolves refs
+- elaborates `chain_expr` steps into rendered prompts
+- writes per-module Markdown under `.gaia/build/`
+
+It does not make `.gaia/build/` part of the language surface, and it does not define the package's long-term canonical representation.
+
+### `review`
+
+`review` consumes build artifacts and emits sidecar review reports under `.gaia/reviews/`.
+
+Review outputs are runtime artifacts, not source syntax. They must not silently redefine the meaning of the source package.
+
+### `infer`
+
+`infer` compiles a factor graph from the source package plus review sidecars and then runs local belief propagation.
+
+Belief scores are derived runtime outputs. They are semantically downstream of the language, not part of the authored source syntax.
+
+### `publish`
+
+`publish` hands the package to git, local storage backends, or future server integration paths.
+
+Publish-time storage records, canonical IDs, and merged graph state are outside the normative author-facing language surface.
+
+## Versioning and Extension Policy
+
+The current implementation uses a layered language story without an explicit in-file `schema_version` marker.
+
+Current practical rule on `main`:
+
+- V1 core covers the typed declaration system, modules, `ref`, and `chain_expr`
+- current optional package metadata (`version`, `manifest`, `dependencies`) live in `package.yaml`
+- current optional probabilistic annotations (`prior`, dependency strength, `edge_type`) extend the same YAML surface rather than a separate file format
+
+Deferred items include:
+
+- `Gaia.toml`
+- `gaia.lock`
+- explicit schema negotiation and migration metadata
+- stable backward-compatibility policy across future grammar revisions
+
+Until an explicit schema marker exists, breaking surface changes should be treated as repo-level design changes that require synchronized updates to the spec, examples, and loader/runtime.
+
+## Provenance and Evidence Hooks
+
+Gaia's goals require traceability even before first-class evidence/object kinds are added.
+
+Current rule:
+
+- authored knowledge lives in declarations and `chain_expr`
+- review and belief outputs stay in sidecars or runtime outputs
+- provenance, citations, and external resources may be attached via declaration `metadata`
+
+Deferred for later language versions:
+
+- first-class `observation`
+- first-class `experiment`
+- first-class `dataset`
+- richer evidence schemas and reproducibility records
+
 ## Major Architecture Directions
 
 There are several possible ways to center the Gaia Language design.
@@ -393,13 +584,13 @@ V1 should stay intentionally narrow.
 
 ### What V1 should include only in minimal form
 
-- control layer metadata for local execution
+- package-level control metadata for local execution
 
-Examples of minimal acceptable V1 control:
+Current status on `main`:
 
-- `entry`
-- `depends_on`
-- explicit staged execution metadata
+- package-level control metadata is not yet standardized in source YAML
+- runtime command staging (`build -> review -> infer -> publish`) exists, but is not itself a language grammar
+- future fields such as `entry` or `depends_on` should not be treated as part of the current source surface until they are specified in concrete syntax and supported by the runtime
 
 ### What V1 should defer
 
@@ -454,27 +645,27 @@ The current detailed language draft already establishes several important pieces
 - module types can encode editorial intent such as motivation, setting, reasoning, and follow-up
 - probabilistic semantics are recognized as part of the language rather than an afterthought
 
-However, the current draft still needs framework-level clarification in these areas:
+This spec resolves several framework-level questions for the current draft:
 
 ### 1. Package artifact vs runtime artifact
 
-The current draft mixes a publishable package surface with an executable local runtime surface, but the boundary is not yet explicit.
+Source YAML is the normative package artifact. `.gaia/` build products, review sidecars, local DB state, and BP results are runtime artifacts layered on top.
 
 ### 2. Control layer
 
-The draft defines `chain_expr`, but package-level execution semantics are still underspecified.
+`chain_expr` is part of the language. Package-level control metadata remains deferred until concrete syntax and runtime behavior are specified together.
 
 ### 3. Package-to-LKM integration
 
-The draft defines local names and refs, but not yet the full canonicalization path into the global LKM.
+Local names and refs are authoring conveniences. Canonical IDs, cross-package merge policy, and global provenance remain integration-layer concerns.
 
 ### 4. Review and publish lifecycle
 
-The draft focuses on language structure, but Gaia's product flow also depends on git, PR review, sidecar reports, and publish-time integration.
+Review reports remain sidecars, and publish-time integration remains downstream of the source package.
 
 ### 5. Scientific evidence modeling
 
-The current type system is a good kernel, but scientific knowledge may later need richer first-class forms such as observations, experiments, datasets, or protocol-like resources.
+The current type system is intentionally minimal; richer first-class evidence kinds remain future extensions rather than hidden assumptions in V1.
 
 ## Practical Guidance
 

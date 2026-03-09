@@ -4,7 +4,7 @@
 |---------|---|
 | 版本 | 2.0 |
 | 日期 | 2026-03-09 |
-| 关联文档 | [inference-theory.md](inference-theory.md) — 推理引擎数学细节, [language/design-rationale.md](language/design-rationale.md) — Lean 类比与 CLI 语义 |
+| 关联文档 | [inference-theory.md](inference-theory.md) — 推理引擎数学细节, [../language/design-rationale.md](../language/design-rationale.md) — Lean 类比与 CLI 语义 |
 
 ---
 
