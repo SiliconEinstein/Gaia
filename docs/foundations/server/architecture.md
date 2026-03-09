@@ -4,7 +4,10 @@
 |---------|---|
 | 版本 | 1.0 |
 | 日期 | 2026-03-09 |
+| 状态 | **Draft — 目标架构设计，非当前实现描述** |
 | 关联文档 | [../product-scope.md](../product-scope.md), [../domain-model.md](../domain-model.md), [../system-overview.md](../system-overview.md) |
+
+> **注意：** 本文档定义的是 server 端的**目标架构**，用于指导后续重构。当前 `main` 上的 server 仍然使用 `/commits/*`、`/jobs/*` 等旧 API，基于 Node/HyperEdge 模型。本文档中的 API 路由（`/packages`、`/bp/*` 等）和数据模型（closure/chain/module/package）是重构后的目标状态。
 
 ---
 
@@ -122,9 +125,21 @@ class StorageManager:
     async def search_topology(self, seed_ids: list[str], hops: int) -> list[ScoredNode]
 ```
 
-### 3.4 三写一致性
+### 3.4 三写一致性与降级模式
 
 Package 入库是 server 唯一的写入路径。不存在单独写某个后端的场景。
+
+写入行为取决于后端在 **提交时** 的可用状态：
+
+**后端在提交前已知不可用（降级模式）：**
+
+| 状态 | 行为 |
+|------|------|
+| Neo4j 不可用 | 入库只写 LanceDB + Vector，图查询返回空，拓扑搜索跳过 |
+| VectorStore 不可用 | 入库只写 LanceDB + Neo4j，向量搜索跳过 |
+| LanceDB 不可用 | **系统不可用**（核心 source of truth） |
+
+**后端在写入过程中失败（mid-flight failure → 回滚）：**
 
 ```
 ingest_package(pkg):
@@ -132,19 +147,12 @@ ingest_package(pkg):
     2. Neo4j.write(topology)           ← 图拓扑
     3. VectorStore.write(embeddings)   ← 向量索引
 
-    失败策略：
-    - 步骤 2 失败 → 删除步骤 1 写入的记录
-    - 步骤 3 失败 → 删除步骤 1、2 写入的记录
-    - LanceDB 优先：它是 source of truth，最先写入
+    Mid-flight 失败策略：
+    - 步骤 2 失败 → 删除步骤 1 写入的记录，返回错误
+    - 步骤 3 失败 → 删除步骤 1、2 写入的记录，返回错误
 ```
 
-### 3.5 降级模式
-
-| 状态 | 影响 |
-|------|------|
-| Neo4j 不可用 | 图查询返回空，拓扑搜索跳过，入库只写 LanceDB + Vector |
-| VectorStore 不可用 | 向量搜索跳过，入库只写 LanceDB + Neo4j |
-| LanceDB 不可用 | **系统不可用**（核心 source of truth） |
+关键区别：降级模式是**启动时已知**的能力缺失，允许部分写入；mid-flight failure 是**运行时意外**，必须回滚以保证一致性。
 
 ---
 
@@ -319,18 +327,41 @@ async def github_webhook(request: Request, deps: Deps):
         )
     )
 
-    result = await deps.ingestion.submit(request)
-    await post_review_comment(event, result)
+    submission = await deps.ingestion.submit(request)
+
+    # 立即回复 GitHub 一个 pending comment
+    await post_pending_comment(event, submission.id)
 ```
 
-### 5.4 结果输出适配
+`submit()` 立即返回 `submission_id`（非阻塞）。Review 完成后通过回调投递结果：
 
-IngestionService 返回统一的 `SubmissionResult`，transport 层负责适配输出：
+```python
+# IngestionService 内部，review 完成时的回调
+async def _on_review_complete(self, submission_id: str, result: ReviewResult):
+    ...
+    await self._result_adapter.deliver(submission_id, result)
+```
 
-| 路径 | 输出方式 |
-|------|---------|
-| Direct (HTTP) | JSON response |
-| Webhook | 调用 GitHub API 写 PR comment |
+```python
+# ResultAdapter 根据来源投递结果
+class ResultAdapter:
+    async def deliver(self, submission_id: str, result: SubmissionResult):
+        request = self._get_request(submission_id)
+        if request.source == "webhook":
+            await self.github.post_pr_comment(
+                repo=request.metadata.repo_url,
+                pr=request.metadata.pr_number,
+                body=format_review_comment(result),
+            )
+        # direct publish: 客户端通过 GET /packages/{id}/status 轮询
+```
+
+### 5.4 结果投递流程
+
+| 路径 | 提交响应 | 结果投递 |
+|------|---------|---------|
+| Direct (HTTP) | 立即返回 `submission_id` | 客户端轮询 `GET /packages/{id}/status` |
+| Webhook | 立即回复 GitHub 200 + pending comment | Review 完成后回调写 PR comment |
 
 ### 5.5 Application Bootstrap
 
@@ -395,11 +426,11 @@ def create_app() -> FastAPI:
 
 ## 8. 与 Foundation Reset Plan 的关系
 
-本文档覆盖了 foundation-reset-plan 中的部分内容：
+本文档是目标架构设计，为 foundation-reset-plan 中以下阶段提供方向：
 
-- Phase 4 (storage-schema): §3 定义了存储层职责和接口
-- Phase 5 (module-boundaries): §2-5 定义了模块划分和依赖方向
-- Phase 6 (api-contract): §5.2 定义了 HTTP API 路由
+- Phase 4 (storage-schema): §3 给出了存储层职责和接口的目标设计，详细 schema 见 `server/storage-schema.md`
+- Phase 5 (module-boundaries): §2-5 给出了模块划分和依赖方向的目标设计
+- Phase 6 (api-contract): §5.2 给出了目标 API 路由（非当前 API 描述）
 
 以下仍需独立完成：
 

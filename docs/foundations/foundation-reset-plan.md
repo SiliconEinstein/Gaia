@@ -118,7 +118,7 @@ Objective:
 
 Deliverable:
 
-- `graph-spec.md`
+- `server/graph-spec.md`
 
 Key decisions:
 
@@ -135,7 +135,7 @@ Objective:
 
 Deliverable:
 
-- `storage-schema.md`
+- `server/storage-schema.md`
 
 Key decisions:
 
@@ -152,7 +152,7 @@ Objective:
 
 Deliverable:
 
-- `module-boundaries.md`
+- `server/module-boundaries.md`
 
 Key decisions:
 
@@ -165,11 +165,11 @@ Key decisions:
 
 Objective:
 
-- define the stable external behavior of the current server
+- define the stable external behavior of the redesigned server
 
 Deliverable:
 
-- `api-contract.md`
+- `server/api-contract.md`
 
 Key decisions:
 
@@ -203,10 +203,10 @@ To keep the work reviewable, build the foundation docs in this order:
 2. `domain-model.md`
 3. `shared/knowledge-package-static.md`
 4. `shared/knowledge-package-file-formats.md`
-5. `graph-spec.md`
-6. `storage-schema.md`
-7. `module-boundaries.md`
-8. `api-contract.md`
+5. `server/graph-spec.md`
+6. `server/storage-schema.md`
+7. `server/module-boundaries.md`
+8. `server/api-contract.md`
 
 Each later document should depend on decisions already made in earlier ones.
 
