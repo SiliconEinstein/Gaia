@@ -86,6 +86,29 @@ def test_review_sidecar_has_fingerprint(tmp_path):
     assert len(data["source_fingerprint"]) == 16
 
 
+def test_review_ignores_markdown_headers_in_content(tmp_path):
+    """## in claim content should NOT be treated as chain boundaries."""
+    pkg_dir = _setup_build(tmp_path)
+    # Inject a fake ## header into a build .md file
+    md_file = pkg_dir / ".gaia" / "build" / "reasoning.md"
+    original = md_file.read_text()
+    # Insert a line with "## 小标题" inside an existing section
+    poisoned = original.replace(
+        "**Conclusion:**",
+        "Some text before\n## 小标题\nSome text after\n\n**Conclusion:**",
+        1,
+    )
+    md_file.write_text(poisoned)
+    result = runner.invoke(app, ["review", str(pkg_dir), "--mock"])
+    assert result.exit_code == 0
+    reviews_dir = pkg_dir / ".gaia" / "reviews"
+    review_file = list(reviews_dir.glob("review_*.yaml"))[0]
+    data = yaml.safe_load(review_file.read_text())
+    chain_names = [c["chain"] for c in data["chains"]]
+    # "小标题" should NOT appear as a chain name
+    assert "小标题" not in chain_names
+
+
 def test_review_then_infer_pipeline(tmp_path):
     """Full pipeline: build -> review -> infer should work end-to-end."""
     pkg_dir = _setup_build(tmp_path)

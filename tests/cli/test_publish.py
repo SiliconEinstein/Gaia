@@ -65,6 +65,26 @@ def test_publish_local_writes_to_kuzu(tmp_path):
     assert kuzu_dir.exists()
 
 
+def test_publish_local_idempotent(tmp_path):
+    """gaia publish --local twice should succeed (idempotent)."""
+    pkg_dir = _setup_full_pipeline(tmp_path)
+    db_path = str(tmp_path / "testdb")
+    result1 = runner.invoke(app, ["publish", str(pkg_dir), "--local", "--db-path", db_path])
+    assert result1.exit_code == 0
+    result2 = runner.invoke(app, ["publish", str(pkg_dir), "--local", "--db-path", db_path])
+    assert result2.exit_code == 0
+    # Verify no duplicate nodes — count should be same as first run
+    import lancedb
+
+    db = lancedb.connect(db_path)
+    table = db.open_table("nodes")
+    assert table.count_rows() > 0
+    # Each node id should appear exactly once
+    rows = table.search().limit(1000).to_list()
+    ids = [r["id"] for r in rows]
+    assert len(ids) == len(set(ids)), f"Duplicate node IDs found: {ids}"
+
+
 def test_publish_local_errors_without_build(tmp_path):
     pkg_dir = tmp_path / "galileo"
     shutil.copytree(FIXTURE_PATH, pkg_dir)

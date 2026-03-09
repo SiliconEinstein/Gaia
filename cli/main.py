@@ -69,21 +69,22 @@ def review(
         raise typer.Exit(1)
 
     # 2. Parse chain sections from all .md files
+    import re
+
+    chain_header_re = re.compile(r"^## (\w+) \(\w+\)$", re.MULTILINE)
     all_chain_data = []
     for md_file in md_files:
         content = md_file.read_text()
-        sections = content.split("\n## ")
-        for i, section in enumerate(sections):
-            if i == 0:
-                continue  # skip module header
-            # Re-add the ## prefix stripped by split
-            chain_section = "## " + section
-            # Extract chain name from "## chain_name (edge_type)"
-            header_line = section.split("\n")[0]
-            chain_name = header_line.split(" (")[0].strip()
+        # Find all valid chain header positions
+        matches = list(chain_header_re.finditer(content))
+        for j, m in enumerate(matches):
+            chain_name = m.group(1)
+            start = m.start()
+            end = matches[j + 1].start() if j + 1 < len(matches) else len(content)
+            chain_section = content[start:end].strip()
             all_chain_data.append({
                 "name": chain_name,
-                "markdown": chain_section.strip(),
+                "markdown": chain_section,
             })
 
     # 3. Load package for metadata + compute fingerprint
@@ -354,15 +355,31 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     storage = StorageManager(config)
 
     try:
-        # 8. Triple-write: LanceDB nodes
+        # 8. Delete existing data for idempotent re-publish
+        node_ids = [n.id for n in storage_result.nodes]
+        edge_ids = [e.id for e in storage_result.edges]
+        if node_ids:
+            table = storage.lance._get_or_create_table()
+            id_list = ", ".join(str(i) for i in node_ids)
+            try:
+                table.delete(f"id IN ({id_list})")
+            except Exception:
+                pass  # Table may be empty or IDs don't exist yet
+        if edge_ids and storage.graph:
+            for eid in edge_ids:
+                storage.graph._conn.execute(
+                    "MATCH (h:Hyperedge {id: $eid}) DETACH DELETE h", {"eid": eid}
+                )
+
+        # 9. Triple-write: LanceDB nodes
         saved_ids = await storage.lance.save_nodes(storage_result.nodes)
 
-        # 9. Kuzu edges
+        # 10. Kuzu edges
         edge_ids: list[int] = []
         if storage.graph and storage_result.edges:
             edge_ids = await storage.graph.create_hyperedges_bulk(storage_result.edges)
 
-        # 10. Embeddings (optional — requires OPENAI_API_KEY)
+        # 11. Embeddings (optional — requires OPENAI_API_KEY)
         n_embeddings = 0
         try:
             import litellm
@@ -386,7 +403,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
         except Exception as e:
             typer.echo(f"  Skipped embeddings: {e}")
 
-        # 11. Write beliefs back to LanceDB
+        # 12. Write beliefs back to LanceDB
         belief_map = {
             n.id: n.belief for n in storage_result.nodes if n.belief is not None
         }
