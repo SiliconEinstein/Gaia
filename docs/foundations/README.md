@@ -26,9 +26,6 @@ The execution plan for that reset lives here:
 - [Language Design Rationale](language/design-rationale.md)
 - [Theoretical Foundation](theoretical-foundation.md)
 - [Inference Theory](inference-theory.md)
-- [Shared Knowledge Package V1 Static](shared/knowledge-package-static.md)
-- [Shared Knowledge Package V1 File Formats](shared/knowledge-package-file-formats.md)
-- [V3 Probabilistic Semantics](shared/probabilistic-semantics.md)
 - [Gaia CLI Runtime Boundaries](cli/boundaries.md)
 - [Gaia CLI Command Lifecycle](cli/command-lifecycle.md)
 
@@ -38,10 +35,10 @@ The plan is to establish a small set of durable foundation docs before major cod
 
 1. `product-scope.md`
 2. `domain-model.md`
-3. `shared/knowledge-package-static.md` (shared V1 closure/module/package schema)
-4. `shared/knowledge-package-file-formats.md` (shared V1 package file formats and review-report format)
-5. `shared/probabilistic-semantics.md` (V3 probabilistic FP semantics, priors, BP)
-6. `cli/boundaries.md` (Gaia CLI runtime layering on top of shared contracts)
+3. `theoretical-foundation.md` (Jaynes-centered theoretical foundation)
+4. `inference-theory.md` (BP algorithm and inference theory)
+5. `language/gaia-language-spec.md` (Gaia Language spec)
+6. `cli/boundaries.md` (Gaia CLI runtime layering)
 7. `graph-spec.md`
 8. `storage-schema.md`
 9. `module-boundaries.md`
@@ -49,19 +46,9 @@ The plan is to establish a small set of durable foundation docs before major cod
 
 Those files do not all exist yet. This directory is the place where they should be created and kept current.
 
-## Staging
-
-Reasoning design is now intentionally split by layer:
-
-- V1 static: shared `closure / module / package` structure
-- V1 file formats: shared package file formats and review-report exchange format
-- V2: global Gaia graph integration
-- V3: probabilistic semantics, prior/belief, and BP
-
 ## Folder Layout
 
 - `language/`: Gaia formal language spec, design, and design rationale
-- `shared/`: contracts intended to be shared by Gaia local/CLI and Gaia server
 - `cli/`: Gaia CLI runtime boundaries and future CLI-specific docs
 
 ## Historical docs

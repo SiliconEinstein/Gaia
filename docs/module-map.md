@@ -60,7 +60,7 @@ The Gaia CLI is a Typer-based command-line tool for the local knowledge-authorin
 | `build` | Parse language source, resolve refs, elaborate prompts → `.gaia/build/` per-module Markdown |
 | `review` | LLM-review reasoning chains → `.gaia/reviews/` sidecar YAML |
 | `infer` | Compile factor graph from review + run loopy BP → per-variable beliefs |
-| `publish` | Triple-write to LanceDB + Kuzu (--local), git commit (--git), or server API (--server) |
+| `publish` | Triple-write to LanceDB + Kuzu (--local) or git commit (--git). Server mode deferred. |
 | `show` | Inspect a declaration and its connected chains |
 | `search` | Full-text search over published nodes in local LanceDB |
 | `clean` | Remove build artifacts (.gaia/) |

@@ -40,11 +40,11 @@ Core commands:
 | Command | Purpose |
 |---------|---------|
 | `gaia init [name]` | Initialize a knowledge package |
-| `gaia build` | Parse YAML, resolve refs, compile factor graph, produce per-module Markdown |
-| `gaia review [id...]` | LLM review of chains → YAML sidecar reports |
+| `gaia build` | Parse YAML, resolve refs, elaborate templates → per-module Markdown |
+| `gaia review [PATH]` | LLM review of chains → YAML sidecar reports |
 | `gaia infer` | Compile factor graph + run local belief propagation |
 | `gaia publish` | Publish to git or local databases (LanceDB + Kuzu) |
-| `gaia show <id>` | Display a declaration + connected chains |
+| `gaia show <name>` | Display a declaration + connected chains |
 | `gaia search "query"` | Search published nodes in local LanceDB |
 | `gaia clean` | Remove build artifacts (`.gaia/` directory) |
 
@@ -146,7 +146,7 @@ chains:
 - **Strong reference (premise in chain steps):** if this is wrong, the conclusion cannot stand. Modeled as hyperedge tail, participates in belief propagation.
 - **Weak reference (context):** provides background. Conclusion can stand without it. Folded into declaration's prior, no BP edge.
 
-For full schema details, see [shared/knowledge-package-static.md](shared/knowledge-package-static.md) and [shared/knowledge-package-file-formats.md](shared/knowledge-package-file-formats.md).
+For the language spec, see [language/gaia-language-spec.md](language/gaia-language-spec.md).
 
 ## Technology Stack
 

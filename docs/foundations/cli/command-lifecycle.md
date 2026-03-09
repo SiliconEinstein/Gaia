@@ -145,8 +145,7 @@ Its job is to take a package in authoring form and produce a grounded core form 
 - instantiation of statically known parameters
 - elaboration of templates or meta-level authoring sugar
 - explicit lowering into a grounded local core
-- factor graph compilation
-- optional local BP precomputation
+- per-module Markdown output for downstream review
 
 ### What `build` should not do
 
@@ -369,7 +368,7 @@ For the target agentic research use case, the current shipped flow is:
 
 1. work privately in local workspace
 2. author YAML modules (declarations + chains)
-3. run `gaia build` — structural validation, factor graph compilation, per-module Markdown
+3. run `gaia build` — structural validation, ref resolution, per-module Markdown
 4. run `gaia review` — LLM critique of reasoning chains
 5. run `gaia infer` — local belief propagation over the factor graph
 6. revise the package based on the results

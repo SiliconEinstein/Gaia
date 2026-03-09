@@ -106,7 +106,7 @@ What is currently shipped on `main`:
 - **CLI with 8 commands** (`init`, `build`, `review`, `infer`, `publish`, `show`, `search`, `clean`) — shipped in PR #63
 - **Gaia Language** — per-module YAML with declarations, chains, and strong/weak references
 - **Inference engine moved to `libs/inference/`** — local belief propagation decoupled from server
-- **Build output** — per-module Markdown for LLM review, factor graph compilation
+- **Build output** — per-module Markdown for LLM review
 
 What is not yet shipped but is on the roadmap:
 
@@ -187,7 +187,7 @@ The CLI is shipped on `main` with 8 commands:
 | Command | Purpose |
 |---------|---------|
 | `gaia init` | Initialize a knowledge package |
-| `gaia build` | Parse YAML, resolve refs, compile factor graph, produce per-module Markdown |
+| `gaia build` | Parse YAML, resolve refs, elaborate templates → per-module Markdown |
 | `gaia review` | LLM review of chains → YAML sidecar reports |
 | `gaia infer` | Compile factor graph + run local belief propagation |
 | `gaia publish` | Publish to git or local databases (LanceDB + Kuzu) |
