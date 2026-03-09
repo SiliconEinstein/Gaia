@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from libs.dsl.models import RetractAction
 from libs.dsl.runtime import DSLRuntime, RuntimeResult
 
 from .conftest import MockExecutor
@@ -64,6 +65,23 @@ async def test_runtime_beliefs_written_back_to_declarations():
     thought_env = next(d for d in setting_mod.declarations if d.name == "thought_experiment_env")
     assert thought_env.belief is not None
     assert thought_env.belief == result.beliefs["thought_experiment_env"]
+
+
+async def test_runtime_preserves_retract_action_provenance_contract():
+    """RetractAction should remain provenance-only while pointing to belief-bearing nodes."""
+    runtime = DSLRuntime(executor=MockExecutor())
+    result = await runtime.run(FIXTURE_DIR)
+
+    reasoning = next(m for m in result.package.loaded_modules if m.name == "reasoning")
+    retract = next(d for d in reasoning.declarations if d.name == "retract_aristotle")
+
+    assert isinstance(retract, RetractAction)
+    assert retract.target == "heavier_falls_faster"
+    assert retract.reason == "tied_balls_contradiction"
+    assert retract.name not in result.beliefs
+    assert retract.target in result.beliefs
+    assert retract.reason in result.beliefs
+    assert not any(f["name"].startswith("retract_aristotle") for f in result.factor_graph.factors)
 
 
 async def test_runtime_execute_only():
