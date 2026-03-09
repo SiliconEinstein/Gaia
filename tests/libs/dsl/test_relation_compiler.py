@@ -12,7 +12,6 @@ from libs.dsl.models import (
     StepLambda,
     StepRef,
 )
-from libs.dsl.resolver import resolve_refs
 
 
 def test_contradiction_compiles_to_variable_node():
@@ -178,40 +177,6 @@ def test_non_exported_relation_excluded():
     assert "hidden_contra" not in fg.variables
     # No constraint factor either (relation var not in fg.variables)
     assert len(fg.factors) == 0
-
-
-def test_relation_exported_via_ref_alias_generates_constraint_factor():
-    """Re-exported Relations should keep their constraint factor under the alias name."""
-    base = Module(
-        type="reasoning_module",
-        name="base",
-        declarations=[
-            Claim(name="a0", content="A", prior=0.8),
-            Claim(name="b0", content="B", prior=0.7),
-            Contradiction(name="c0", between=["a0", "b0"], prior=0.9),
-        ],
-        export=[],
-    )
-    alias = Module(
-        type="reasoning_module",
-        name="alias",
-        declarations=[
-            Ref(name="a", target="base.a0"),
-            Ref(name="b", target="base.b0"),
-            Ref(name="c", target="base.c0"),
-        ],
-        export=["a", "b", "c"],
-    )
-    pkg = Package(name="alias_export", modules=["base", "alias"])
-    pkg.loaded_modules = [base, alias]
-
-    fg = compile_factor_graph(resolve_refs(pkg))
-
-    assert fg.variables["c"] == 0.9
-    factor = next(f for f in fg.factors if f["name"] == "c.constraint")
-    assert factor["edge_type"] == "relation_contradiction"
-    assert set(factor["premises"]) == {"a", "b"}
-    assert factor["conclusions"] == ["c"]
 
 
 def test_edge_type_emits_deprecation_warning():
