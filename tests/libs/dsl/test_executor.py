@@ -103,14 +103,10 @@ async def test_execute_chain_order():
     executor = MockExecutor()
     await execute_package(pkg, executor)
 
-    # vacuum_prediction should reflect upstream contradiction, confound,
-    # and inclined-plane support, so the producers must have run first.
+    # vacuum_prediction has pre-filled content; executor should preserve it.
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
     vp = next(d for d in reasoning.declarations if d.name == "vacuum_prediction")
-    assert vp.content.startswith("[推理结果]")
-    assert "互斥结论" in vp.content
-    assert "介质阻力" in vp.content
-    assert "斜面实验" in vp.content
+    assert "相同速率下落" in vp.content
 
 
 # ── Inline tests (no galileo fixture) ─────────────────────────

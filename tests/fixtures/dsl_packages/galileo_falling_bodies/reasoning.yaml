@@ -92,22 +92,26 @@ declarations:
   # === 中间结论和最终结论 ===
   - type: claim
     name: tied_pair_slower_than_heavy
-    content: ""
+    content: >
+      复合体 HL 因轻球拖拽，下落速度应慢于单独的重球 H。
     prior: 0.5
 
   - type: claim
     name: tied_pair_faster_than_heavy
-    content: ""
+    content: >
+      复合体 HL 总重量大于单独的重球 H，下落速度应快于 H。
     prior: 0.5
 
   - type: claim
     name: tied_balls_contradiction
-    content: ""
+    content: >
+      同一定律对同一绑球系统同时预测"更慢"和"更快"，自相矛盾。
     prior: 0.6
 
   - type: claim
     name: aristotle_contradicted
-    content: ""
+    content: >
+      亚里士多德"重者下落更快"的定律因绑球矛盾而不能成立。
     prior: 0.5
 
   - type: claim
@@ -119,12 +123,14 @@ declarations:
 
   - type: claim
     name: medium_difference_shrinks
-    content: ""
+    content: >
+      介质越稀薄，轻重物体的下落速度差异越小。
     prior: 0.6
 
   - type: claim
     name: air_resistance_is_confound
-    content: ""
+    content: >
+      日常观察到的速度差异来自空气阻力，而非重量本身。
     prior: 0.5
 
   - type: claim
@@ -137,12 +143,14 @@ declarations:
 
   - type: claim
     name: inclined_plane_supports_equal_fall
-    content: ""
+    content: >
+      斜面实验支持"重量不是决定落体速度的首要因素"。
     prior: 0.55
 
   - type: claim
     name: vacuum_prediction
-    content: ""
+    content: >
+      在真空中，不同重量的物体应以相同速率下落。
     prior: 0.5
 
   # === 推理链 ===
