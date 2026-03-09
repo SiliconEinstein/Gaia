@@ -34,6 +34,7 @@ The execution plan for that reset lives here:
 - [Gaia Language Spec](language/gaia-language-spec.md)
 - [Gaia Language Design](language/gaia-language-design.md)
 - [Language Design Rationale](language/design-rationale.md)
+- [Type System Direction](language/type-system-direction.md)
 
 **CLI:**
 
