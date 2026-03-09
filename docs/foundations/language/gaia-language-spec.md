@@ -283,10 +283,10 @@ Those remain deferred package-management concerns rather than part of the curren
 Required fields:
 
 - `name`
-- `modules`
 
 Optional fields currently supported on `main`:
 
+- `modules` (defaults to empty; a package with no modules is structurally valid)
 - `version`
 - `manifest`
 - `dependencies`
@@ -298,7 +298,7 @@ Each module file is a YAML document with:
 
 - required `type`
 - required `name`
-- required `declarations`
+- optional `declarations` (defaults to empty; a module with no declarations is structurally valid)
 - optional `export`
 
 Reasoning is expressed inside `declarations` via `chain_expr`.
@@ -323,11 +323,11 @@ The current declaration kinds on `main` are:
 - `apply`
 - `lambda`
 
-These are the shapes consumed by the current loader and runtime.
+These are the shapes consumed by the current loader and runtime. The loader also accepts declaration types not in this list — unknown types are loaded as generic `Declaration` objects so the LLM runtime can interpret their semantics during build and review.
 
 ## Conformance and Well-Formedness
 
-The language spec needs two levels of conformance: rules required by the current runtime, and stricter lint rules that should eventually be enforced everywhere.
+Gaia uses an LLM as its runtime CPU. This means conformance should be **structurally strict but semantically permissive**: the loader enforces file-level and graph-compilation constraints that an LLM cannot self-heal, while semantic interpretation of declaration content and unknown types is intentionally left to the LLM runtime.
 
 ### Runtime-enforced conformance on current `main`
 
@@ -335,18 +335,30 @@ A package is ill-formed for the current runtime if any of the following hold:
 
 - `package.yaml` is missing
 - a module listed in `package.yaml.modules` does not have a matching `<module>.yaml` file
-- a declaration has an unknown required shape for its declared `type`
-- a `chain_expr` step is not one of `ref`, `apply`, or `lambda`
+- a `chain_expr` step is not one of `ref`, `apply`, or `lambda` (these are compiled into a factor graph for BP)
 - a `ref.target` cannot be resolved to a non-`ref` declaration using `module_name.declaration_name`
+
+These are structural constraints — they block loading or factor-graph compilation and cannot be recovered by LLM interpretation.
+
+### Semantically permissive by design
+
+The following are intentionally accepted by the current runtime:
+
+- declaration types not in `DECLARATION_TYPE_MAP` — loaded as generic `Declaration` objects and interpreted by the LLM during build/review
+- packages with an empty `modules` list
+- modules with an empty `declarations` list
+
+This permissiveness is a design choice: since the LLM runtime can understand author intent from content and context, the loader should not reject valid-looking YAML that simply uses unfamiliar type names.
 
 ### Recommended lint rules
 
-The following should be treated as language-level quality rules even where the current runtime does not yet reject them:
+The following should be treated as language-level quality rules even where the current runtime does not reject them:
 
 - declaration names should be unique within a module
 - exported names should refer to declarations that actually exist in the package
 - package/module naming should avoid ambiguity between local aliases and resolved targets
 - package examples in docs should use the same surface as the real loader
+- unknown declaration types should be documented in the module or package manifest when used intentionally
 
 ## Operational Semantics Boundary
 
