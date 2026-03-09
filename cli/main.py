@@ -57,77 +57,47 @@ def review(
     from cli.llm_client import MockReviewClient, ReviewClient
     from cli.review_store import write_review
     from libs.dsl.loader import load_package
-    from libs.dsl.models import ChainExpr
-    from libs.dsl.resolver import resolve_refs
 
     pkg_path = Path(path)
     build_dir = pkg_path / ".gaia" / "build"
     reviews_dir = pkg_path / ".gaia" / "reviews"
 
-    # 1. Check build exists
-    elab_file = build_dir / "elaborated.yaml"
-    if not elab_file.exists():
+    # 1. Check build exists — look for .md files
+    md_files = sorted(build_dir.glob("*.md")) if build_dir.exists() else []
+    if not md_files:
         typer.echo(f"Error: no build artifacts.\nRun 'gaia build {path}' first.", err=True)
         raise typer.Exit(1)
 
-    # 2. Read elaborated prompts + chain contexts
-    import yaml as _yaml
+    # 2. Parse chain sections from all .md files
+    all_chain_data = []
+    for md_file in md_files:
+        content = md_file.read_text()
+        sections = content.split("\n## ")
+        for i, section in enumerate(sections):
+            if i == 0:
+                continue  # skip module header
+            # Re-add the ## prefix stripped by split
+            chain_section = "## " + section
+            # Extract chain name from "## chain_name (edge_type)"
+            header_line = section.split("\n")[0]
+            chain_name = header_line.split(" (")[0].strip()
+            all_chain_data.append({
+                "name": chain_name,
+                "markdown": chain_section.strip(),
+            })
 
-    elab_data = _yaml.safe_load(elab_file.read_text())
-    prompts = elab_data.get("prompts", [])
-    chain_contexts = elab_data.get("chain_contexts", {})
-
-    # 3. Load package to get step priors
+    # 3. Load package for metadata
     pkg = load_package(pkg_path)
-    pkg = resolve_refs(pkg)
-
-    # Build chain->step->prior index from the package
-    chain_step_priors: dict[str, dict[int, float]] = {}
-    for mod in pkg.loaded_modules:
-        for decl in mod.declarations:
-            if isinstance(decl, ChainExpr):
-                chain_step_priors[decl.name] = {}
-                for step in decl.steps:
-                    if hasattr(step, "prior") and step.prior is not None:
-                        chain_step_priors[decl.name][step.step] = step.prior
 
     # 4. Create reviewer
     client = MockReviewClient() if mock else ReviewClient(model=model)
 
-    # 5. Group prompts by chain and build chain_data list
-    prompts_by_chain: dict[str, list[dict]] = {}
-    for p in prompts:
-        chain_name = p["chain"]
-        if chain_name not in prompts_by_chain:
-            prompts_by_chain[chain_name] = []
-        prompts_by_chain[chain_name].append(p)
-
-    all_chain_data = []
-    for chain_name, chain_prompts in prompts_by_chain.items():
-        chain_data: dict = {
-            "name": chain_name,
-            "steps": [
-                {
-                    "step": p["step"],
-                    "action": p["action"],
-                    "rendered": p["rendered"],
-                    "prior": chain_step_priors.get(chain_name, {}).get(p["step"]),
-                    "args": p["args"],
-                }
-                for p in chain_prompts
-            ],
-        }
-        ctx = chain_contexts.get(chain_name)
-        if ctx:
-            chain_data["context"] = ctx
-        all_chain_data.append(chain_data)
-
-    # 6. Review chains in parallel
+    # 5. Review chains in parallel
     chain_reviews = asyncio.run(
         _review_chains_parallel(client, all_chain_data, concurrency)
     )
 
-    # 7. Write sidecar
+    # 6. Write sidecar
     now = datetime.now(timezone.utc)
     review_data = {
         "package": pkg.name,
