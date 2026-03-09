@@ -24,6 +24,7 @@ The execution plan for that reset lives here:
 - [Gaia Language Spec](language/gaia-language-spec.md)
 - [Gaia Language Design](language/gaia-language-design.md)
 - [Language Design Rationale](language/design-rationale.md)
+- [Type System Direction](language/type-system-direction.md)
 - [Theoretical Foundation](theoretical-foundation.md)
 - [Inference Theory](inference-theory.md)
 - [Gaia CLI Runtime Boundaries](cli/boundaries.md)
