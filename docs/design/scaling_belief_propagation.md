@@ -4,7 +4,7 @@
 |---------|---|
 | 版本 | 1.1 |
 | 日期 | 2026-03-04 |
-| 关联文档 | [phase1_billion_scale.md](../archive/design/phase1_billion_scale.md) §6, [inference-theory.md](../foundations/inference-theory.md) §1 |
+| 关联文档 | [phase1_billion_scale.md](../archive/design/phase1_billion_scale.md) §6, [inference-theory.md](../foundations/theory/inference-theory.md) §1 |
 | 状态 | Draft |
 
 ---
@@ -152,7 +152,7 @@ libs/inference/
 └── bp.py             ← loopy BP（v2f/f2v 消息传递）
 ```
 
-**关键局限（详见 [inference-theory.md](../foundations/inference-theory.md) §4）**：
+**关键局限（详见 [inference-theory.md](../foundations/theory/inference-theory.md) §4）**：
 
 | 局限 | 影响 |
 |------|------|
