@@ -43,6 +43,8 @@ This plan does not include:
 - merging alternate graph backends
 - changing user-facing reasoning semantics without first updating the foundation docs
 
+> **Note (2025):** The CLI and Kuzu graph backend have since been merged (PR #63). The foundation docs are being updated to reflect current reality.
+
 ## Guiding Principles
 
 1. Document current reality before designing extensions.
@@ -53,7 +55,9 @@ This plan does not include:
 
 ## Work Sequence
 
-### Phase 0: Freeze the baseline
+### Phase 0: Freeze the baseline — ✅ DONE
+
+> `product-scope.md` is written and updated to reflect PR #63 (CLI, language, inference move).
 
 Objective:
 
@@ -68,7 +72,9 @@ Key decisions:
 - Is Gaia currently server-first, or are server and CLI equal first-class products?
 - Which roadmap items are explicitly not current capability?
 
-### Phase 1: Lock the vocabulary and entities
+### Phase 1: Lock the vocabulary and entities — ✅ DONE
+
+> `domain-model.md` is written. Canonical terms established: declaration, chain, module, package.
 
 Objective:
 
@@ -85,7 +91,9 @@ Key decisions:
 - canonical reasoning type names
 - difference between `prior`, `belief`, `probability`, and review-derived scores
 
-### Phase 2: Lock the shared knowledge package contracts
+### Phase 2: Lock the shared knowledge package contracts — ✅ DONE
+
+> The Gaia Language (PR #63) implements the package model. Actual format uses per-module YAML with `package.yaml` manifest, declaration/chain structure, and `.gaia/` build artifacts. Review output uses YAML sidecar format with per-chain steps.
 
 Objective:
 
@@ -102,7 +110,7 @@ Key decisions:
 - how package-local roles relate to globally reusable artifacts
 - the standard package manifest, package content file, and review-report sidecar formats
 
-### Phase 3: Lock the graph semantics
+### Phase 3: Lock the graph semantics — ⬜ NOT STARTED
 
 Objective:
 
@@ -119,7 +127,7 @@ Key decisions:
 - contradiction and retraction semantics
 - traversal semantics, hop definition, and filtering rules
 
-### Phase 4: Lock the storage model
+### Phase 4: Lock the storage model — ⬜ NOT STARTED
 
 Objective:
 
@@ -136,7 +144,7 @@ Key decisions:
 - backend capability matrix
 - handling of unimplemented production-oriented config such as ByteHouse-related fields
 
-### Phase 5: Lock module boundaries
+### Phase 5: Lock module boundaries — ⬜ NOT STARTED
 
 Objective:
 
@@ -153,7 +161,7 @@ Key decisions:
 - where runtime wiring should live
 - how shared models should be split
 
-### Phase 6: Lock the API contract
+### Phase 6: Lock the API contract — ⬜ NOT STARTED
 
 Objective:
 

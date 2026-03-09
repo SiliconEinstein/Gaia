@@ -114,4 +114,4 @@ Neo4j is optional — the system degrades gracefully without it. All writes go t
 
 ## Design Documents
 
-Detailed design specs live in `docs/plans/` covering API design, storage layer, commit engine, search engine, inference engine, and gateway. The system-level design overview is at `docs/design/phase1_billion_scale.md`.
+Current specs live in `docs/foundations/` (product scope, system overview, domain model, language spec, CLI). Historical design and planning docs are archived in `docs/archive/`.

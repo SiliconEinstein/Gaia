@@ -1,8 +1,8 @@
-# Gaia DSL Design
+# Gaia Language Design
 
 ## Purpose
 
-This document defines the language design of Gaia — a probabilistic functional programming language for knowledge representation and epistemic inference.
+This document defines the language design of Gaia — a formal language for knowledge representation and epistemic inference based on plausible reasoning.
 
 It is the top-level language blueprint. The V1/V2/V3 documents define specific layer implementations of this language:
 
@@ -10,8 +10,8 @@ It is the top-level language blueprint. The V1/V2/V3 documents define specific l
 - **V2** — Package management system (Gaia.toml, dependency resolution, registry, publish)
 - **V3** — Probabilistic layer (prior, posterior, belief propagation)
 
-For Gaia DSL's system role, lifecycle stages, and layer boundaries, see
-[gaia-dsl-framework.md](gaia-dsl-framework.md).
+For Gaia Language's system role, lifecycle stages, and layer boundaries, see
+[gaia-language-spec.md](gaia-language-spec.md).
 
 ## Design Approach
 

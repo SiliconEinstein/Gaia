@@ -4,7 +4,7 @@
 |---------|---|
 | 版本 | 1.1 |
 | 日期 | 2026-03-04 |
-| 关联文档 | [phase1_billion_scale.md](phase1_billion_scale.md) §6, [theoretical_foundations.md](theoretical_foundations.md) §2 |
+| 关联文档 | [phase1_billion_scale.md](../archive/design/phase1_billion_scale.md) §6, [inference-theory.md](../foundations/inference-theory.md) §1 |
 | 状态 | Draft |
 
 ---
@@ -147,13 +147,12 @@ Gaia 和 LLM 都是 "large model"，但参数的性质完全不同：
 ### 3.1 当前实现
 
 ```
-services/inference_engine/
+libs/inference/
 ├── factor_graph.py   ← 内存因子图（dict + list）
-├── bp.py             ← 简化版 loopy BP（无 v2f/f2v 消息分离）
-└── engine.py         ← 编排：加载子图 → 跑 BP → 写回 belief
+└── bp.py             ← loopy BP（v2f/f2v 消息传递）
 ```
 
-**关键局限（详见 [theoretical_foundations.md](theoretical_foundations.md) §7.1）**：
+**关键局限（详见 [inference-theory.md](../foundations/inference-theory.md) §4）**：
 
 | 局限 | 影响 |
 |------|------|
@@ -164,7 +163,7 @@ services/inference_engine/
 
 ### 3.2 设计文档已规划但未实现的目标
 
-来自 [phase1_billion_scale.md](phase1_billion_scale.md) §6 和推理引擎设计文档：
+来自 [phase1_billion_scale.md](../archive/design/phase1_billion_scale.md) §6 和推理引擎设计文档：
 
 - 分区大小 ~10^4 节点，32 并行 worker
 - 每次全局扫描 ~30 分钟

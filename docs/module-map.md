@@ -2,14 +2,15 @@
 
 This document describes the current module structure in the repository. It is the best starting point if you want to understand how the codebase is organized today.
 
-For historical planning documents, see [plans/README.md](plans/README.md). For a higher-level assessment of the current structure and where it should be cleaned up next, see [architecture-rebaseline.md](architecture-rebaseline.md).
+For historical planning documents, see [archive/plans/README.md](archive/plans/README.md). For a higher-level assessment of the current structure and where it should be cleaned up next, see [architecture-rebaseline.md](architecture-rebaseline.md).
 
 ## Top-Level Layout
 
 | Path | Role | Notes |
 |------|------|-------|
-| `libs/` | Shared library layer | Data models, embeddings, storage adapters, vector search abstraction |
-| `services/` | Runtime backend modules | Commit, search, inference, review pipeline, job manager, FastAPI gateway |
+| `libs/` | Shared library layer | Data models, language runtime, inference, embeddings, storage adapters, vector search abstraction |
+| `cli/` | Gaia CLI | Typer-based commands: init, build, review, infer, publish, show, search, clean |
+| `services/` | Runtime backend modules | Commit, search, review pipeline, job manager, FastAPI gateway |
 | `frontend/` | React dashboard | Browsing, search, graph exploration, commit flows |
 | `scripts/` | One-off operational scripts | Seeding, migration, data extraction |
 | `tests/` | Test suite | Mirrors `libs/` and `services/`, plus integration coverage |
@@ -30,6 +31,7 @@ For historical planning documents, see [plans/README.md](plans/README.md). For a
 | `libs/storage/manager.py` | Composition root for storage backends |
 | `libs/storage/lance_store.py` | Node and metadata persistence in LanceDB |
 | `libs/storage/neo4j_store.py` | Graph topology persistence in Neo4j |
+| `libs/storage/kuzu_store.py` | Graph topology persistence in Kuzu (local default) |
 | `libs/storage/vector_search/` | Vector search abstraction and LanceDB-backed implementation |
 | `libs/storage/id_generator.py` | ID allocation |
 
@@ -43,10 +45,27 @@ For historical planning documents, see [plans/README.md](plans/README.md). For a
 |--------|----------------|-------------------|
 | `services/search_engine/` | Multi-path node and edge search | `libs/storage`, `libs/embedding` |
 | `services/commit_engine/` | Submit, validate, review, and merge commit workflow | `libs/storage`, `services/search_engine`, `services/review_pipeline`, `services/job_manager` |
-| `services/inference_engine/` | Factor graph construction and loopy belief propagation | `libs/storage` |
+| `libs/inference/` | Factor graph construction and loopy belief propagation | Pure library, no service dependencies |
 | `services/review_pipeline/` | Operator pipeline for embeddings, NN search, join, verify, and BP scoring | `libs/storage`, `libs/embedding` |
 | `services/job_manager/` | Async job tracking used by review and batch APIs | internal service dependency |
 | `services/gateway/` | FastAPI app, dependency wiring, and HTTP routes | all service modules |
+
+### `cli/`
+
+The Gaia CLI is a Typer-based command-line tool for the local knowledge-authoring workflow.
+
+| Command | Responsibility |
+|---------|----------------|
+| `init` | Scaffold a new knowledge package (package.yaml + starter module) |
+| `build` | Parse language source, resolve refs, elaborate prompts → `.gaia/build/` per-module Markdown |
+| `review` | LLM-review reasoning chains → `.gaia/reviews/` sidecar YAML |
+| `infer` | Compile factor graph from review + run loopy BP → per-variable beliefs |
+| `publish` | Triple-write to LanceDB + Kuzu (--local) or git commit (--git). Server mode deferred. |
+| `show` | Inspect a declaration and its connected chains |
+| `search` | Full-text search over published nodes in local LanceDB |
+| `clean` | Remove build artifacts (.gaia/) |
+
+CLI source lives in `cli/`, with language parsing and inference in `libs/dsl/` and `libs/inference/`. Build output is per-module Markdown under `.gaia/build/`, and review output is YAML sidecars under `.gaia/reviews/`.
 
 ### `services/gateway/routes/`
 
@@ -81,26 +100,28 @@ The gateway has five route groups:
 The current intended dependency direction is:
 
 ```text
-libs/models + libs/storage + libs/embedding
+libs/models + libs/storage + libs/embedding + libs/inference + libs/dsl
     -> services/search_engine
     -> services/review_pipeline
     -> services/commit_engine
-    -> services/inference_engine
-    -> services/gateway
+    -> services/gateway          (HTTP product surface)
+
+libs/models + libs/storage + libs/inference + libs/dsl
+    -> cli/                      (CLI product surface)
 
 frontend -> services/gateway
 scripts -> libs/ and services/ as needed
 tests -> mirror all layers
 ```
 
-The exact runtime flow is not strictly linear because `commit_engine` calls into `review_pipeline`, and gateway wiring composes all services through `services/gateway/deps.py`.
+The gateway and CLI are independent product surfaces. Both depend on `libs/` but not on each other. The gateway additionally uses `services/` for commit, search, and review workflows. The CLI uses `libs/dsl/` for language parsing and `libs/inference/` for belief propagation directly.
 
 ## What Was Unclear Or Conflicting
 
 These are the main documentation and structure mismatches visible today:
 
 1. The repository `README.md` described the system at a high level, but it did not map the real module boundaries. `review_pipeline`, `job_manager`, batch APIs, and job APIs were effectively hidden.
-2. `docs/plans/README.md` mixed active and historical language. Several documents were labeled as active even though the codebase has already moved past them.
+2. `docs/plans/README.md` (now `docs/archive/plans/README.md`) mixed active and historical language. Several documents were labeled as active even though the codebase has already moved past them.
 3. The repo had no single "current architecture" document. Readers had to infer structure from source layout plus old planning docs.
 4. `docs/plans/` and `docs/design/` serve different purposes, but that distinction was not stated clearly.
 5. Storage terminology is slightly ahead of implementation. The config still contains production-oriented ByteHouse fields, while the current code path is primarily LanceDB + Neo4j + vector search.
@@ -112,5 +133,5 @@ The most useful next cleanup steps are:
 1. Add short README files inside major service modules such as `services/commit_engine/`, `services/review_pipeline/`, and `services/gateway/` so the module boundaries are documented where people work.
 2. Decide whether `review_pipeline` is a stable top-level service or a private dependency of `commit_engine`. Right now it behaves like a first-class backend module but is barely documented outside the code.
 3. Clarify the intended production storage story. The code exposes ByteHouse-related config, but the current repo structure centers on LanceDB, Neo4j, and the local vector search abstraction.
-4. Keep `docs/plans/` explicitly historical and move current operational guidance into `README.md`, `docs/README.md`, or per-module READMEs.
+4. Historical plans are now archived in `docs/archive/plans/`. Current operational guidance belongs in `README.md`, `docs/README.md`, or per-module READMEs.
 5. Consider a small naming pass across docs so "node", "proposition", and "claim" are used more consistently where they refer to the same domain object.

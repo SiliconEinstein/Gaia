@@ -35,9 +35,7 @@ def save_build(elaborated: ElaboratedPackage, build_dir: Path) -> Path:
             for pref in ctx.get("premise_refs", []):
                 snippet = (pref.get("content") or "").strip()
                 prior_str = f", prior={pref['prior']}" if pref.get("prior") is not None else ""
-                lines.append(
-                    f"**Premise:** {pref['name']} ({pref.get('type', '?')}{prior_str})"
-                )
+                lines.append(f"**Premise:** {pref['name']} ({pref.get('type', '?')}{prior_str})")
                 if snippet:
                     lines.append(f"> {snippet}\n")
                 else:
@@ -77,9 +75,7 @@ def save_build(elaborated: ElaboratedPackage, build_dir: Path) -> Path:
 
             # Conclusions
             for cref in ctx.get("conclusion_refs", []):
-                prior_str = (
-                    f", prior={cref['prior']}" if cref.get("prior") is not None else ""
-                )
+                prior_str = f", prior={cref['prior']}" if cref.get("prior") is not None else ""
                 lines.append(
                     f"**Conclusion:** {cref['name']} ({cref.get('type', '?')}{prior_str})\n"
                 )

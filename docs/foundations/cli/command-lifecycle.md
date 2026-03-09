@@ -1,22 +1,23 @@
 # Gaia CLI Command Lifecycle
 
-> **Status: RFC (Request for Comments).** This document proposes a target CLI command model. The current implementation uses `load/run/execute/inspect/validate`. This proposal should be discussed and validated before being adopted as normative.
+> **Status: Partially implemented.** `build`, `review`, `publish` are shipped (PR #63). `infer` was added during implementation (not in original RFC) and is also shipped. `verify` remains future. `clean`, `init`, `show`, `search` are shipped utility commands not covered by this lifecycle doc.
 
 ## Purpose
 
-This document defines the intended semantic boundary of the four core Gaia CLI commands:
+This document defines the intended semantic boundary of the core Gaia CLI lifecycle commands:
 
-- `gaia build`
-- `gaia review`
-- `gaia verify`
-- `gaia publish`
+- `gaia build` — shipped
+- `gaia review` — shipped
+- `gaia infer` — shipped (added during implementation, not in original RFC)
+- `gaia verify` — future
+- `gaia publish` — shipped
 
 It answers a product question rather than a grammar question:
 
 > What is the lifecycle of a Gaia package from local research snapshot to published knowledge integrated into the Large Knowledge Model?
 
-This document assumes the higher-level DSL framework from
-[../DSL/gaia-dsl-framework.md](../DSL/gaia-dsl-framework.md)
+This document assumes the higher-level language spec from
+[../language/gaia-language-spec.md](../language/gaia-language-spec.md)
 and the CLI layering from
 [boundaries.md](boundaries.md).
 
@@ -44,8 +45,11 @@ Therefore the core command set should be:
 
 1. build the package into a grounded, auditable form
 2. review the reasoning quality
-3. verify reproducible or executable claims
-4. publish the stable package for independent server review and integration
+3. infer beliefs via local belief propagation
+4. verify reproducible or executable claims (future)
+5. publish the stable package for independent server review and integration
+
+> **Implementation note — `infer` vs `verify`:** `infer` computes beliefs from the package's factor graph structure using loopy belief propagation. It is a deterministic computation over the graph. `verify` (future) would check claims via external execution or replay — e.g., rerunning a computation to confirm its output. They are complementary: `infer` answers "what should we believe given the reasoning structure?", `verify` answers "does this executable claim actually hold?"
 
 ## The Lifecycle
 
@@ -96,7 +100,15 @@ This stage adds assessment artifacts rather than redefining the package's normat
 
 Its outputs should be review sidecars and local audit results.
 
+### Stage 3.5: Inferred Package
+
+`gaia infer` compiles the factor graph from build/review outputs and runs local belief propagation to compute self-consistent belief scores across all declarations.
+
+This stage is shipped. It sits between review and verify in the lifecycle.
+
 ### Stage 4: Verified Package
+
+> **Not yet implemented.** Local belief propagation is handled by `gaia infer`. `gaia verify` remains a future command for external execution checks.
 
 `gaia verify` checks reproducible or executable claims whose truth depends on external execution rather than purely textual reasoning review.
 
@@ -133,8 +145,7 @@ Its job is to take a package in authoring form and produce a grounded core form 
 - instantiation of statically known parameters
 - elaboration of templates or meta-level authoring sugar
 - explicit lowering into a grounded local core
-- factor graph compilation
-- optional local BP precomputation
+- per-module Markdown output for downstream review
 
 ### What `build` should not do
 
@@ -343,26 +354,29 @@ Gaia's intended model is instead:
 
 ## The Command Contract Table
 
-| Command | Main mode | Determinism | Primary output | Primary question |
-|---|---|---|---|---|
-| `build` | normalization | deterministic | grounded local core | "Is the package structurally valid and explicit?" |
-| `review` | audit | model-dependent | review sidecars and scores | "How credible is the reasoning?" |
-| `verify` | reproduction | execution-dependent | verification evidence | "Does the executable/reproducible claim actually hold?" |
-| `publish` | handoff | protocol-driven | shared package submission | "Is this package ready for independent shared review?" |
+| Command | Main mode | Determinism | Primary output | Primary question | Status |
+|---|---|---|---|---|---|
+| `build` | normalization | deterministic | grounded local core | "Is the package structurally valid and explicit?" | shipped |
+| `review` | audit | model-dependent | review sidecars and scores | "How credible is the reasoning?" | shipped |
+| `infer` | belief propagation | deterministic | belief scores on declarations | "What should we believe given the reasoning structure?" | shipped |
+| `verify` | reproduction | execution-dependent | verification evidence | "Does the executable/reproducible claim actually hold?" | future |
+| `publish` | handoff | protocol-driven | shared package submission | "Is this package ready for independent shared review?" | shipped |
 
 ## Recommended Agent Workflow
 
-For the target agentic research use case, the intended flow is:
+For the target agentic research use case, the current shipped flow is:
 
 1. work privately in local workspace
-2. periodically write a draft package snapshot or report
-3. run `gaia build`
-4. run `gaia review`
-5. run `gaia verify` for executable or reproducible claims when needed
+2. author YAML modules (declarations + chains)
+3. run `gaia build` — structural validation, ref resolution, per-module Markdown
+4. run `gaia review` — LLM critique of reasoning chains
+5. run `gaia infer` — local belief propagation over the factor graph
 6. revise the package based on the results
 7. repeat until stable
-8. run `gaia publish`
+8. run `gaia publish` — publish to git or local databases
 9. let server-side review decide whether the package enters the LKM
+
+> **Note:** `gaia verify` (future) would be an optional step between `infer` and `publish` for executable/reproducible claims. The current flow is `build → review → infer → publish`.
 
 This preserves the critical boundary:
 
@@ -396,17 +410,18 @@ Local build, review, and verify are preparation steps. The shared system still n
 ## Relationship to Other Docs
 
 - [boundaries.md](boundaries.md) defines the CLI architectural layering
-- [../DSL/gaia-dsl-framework.md](../DSL/gaia-dsl-framework.md) defines Gaia DSL's lifecycle and layer model
+- [../language/gaia-language-spec.md](../language/gaia-language-spec.md) defines Gaia Language's lifecycle and layer model
 - Package and review sidecar exchange formats (planned, not yet documented)
 
 ## Summary
 
-Gaia CLI should center on four commands:
+Gaia CLI should center on five lifecycle commands:
 
-- `build`
-- `review`
-- `verify`
-- `publish`
+- `build` — shipped
+- `review` — shipped
+- `infer` — shipped
+- `verify` — future
+- `publish` — shipped
 
 Together they define a package lifecycle oriented around:
 

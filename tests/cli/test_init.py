@@ -1,6 +1,5 @@
 """Tests for gaia init command."""
 
-
 import yaml
 from typer.testing import CliRunner
 

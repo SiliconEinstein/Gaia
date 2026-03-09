@@ -1,5 +1,7 @@
 # Gaia Architecture Re-baseline
 
+> **Note:** Written pre-PR #63. CLI and Kuzu have since shipped. The diagnosis of structural issues in §3 remains relevant.
+
 This document resets the discussion around Gaia's structure based on two inputs:
 
 1. what exists on `main` today

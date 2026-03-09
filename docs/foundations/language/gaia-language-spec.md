@@ -1,21 +1,21 @@
-# Gaia DSL Framework
+# Gaia Language Spec
 
 ## Purpose
 
-This document defines the role of Gaia DSL in the overall Gaia system.
+This document defines the role of Gaia Language in the overall Gaia system.
 
 It is not the detailed grammar spec. Instead, it answers the higher-level questions that the grammar depends on:
 
-- what Gaia DSL is for
+- what Gaia Language is for
 - which lifecycle stages it must support
-- which responsibilities belong to the DSL, the local runtime, and the server
+- which responsibilities belong to the language, the local runtime, and the server
 - which architectural direction should guide V1
 
-For the detailed language design, see [gaia-dsl-design.md](gaia-dsl-design.md).
+For the detailed language design, see [gaia-language-design.md](gaia-language-design.md).
 
 ## Problem
 
-Gaia DSL is currently being asked to serve several different goals at once:
+Gaia Language is currently being asked to serve several different goals at once:
 
 1. agent-verifiable long-term memory
 2. formalized scientific knowledge representation
@@ -25,7 +25,7 @@ Gaia DSL is currently being asked to serve several different goals at once:
 
 Those goals are related, but they are not the same layer.
 
-If Gaia DSL is treated as only one of the following, the design becomes distorted:
+If Gaia Language is treated as only one of the following, the design becomes distorted:
 
 - only a package exchange format
 - only an agent execution script
@@ -36,7 +36,7 @@ The framework therefore needs explicit layering.
 
 ## Design Goals
 
-Gaia DSL should support the following product goals:
+Gaia Language should support the following product goals:
 
 ### 1. Verifiable Agent Memory
 
@@ -93,7 +93,7 @@ Gaia packages must eventually map into a global knowledge graph with:
 
 ## Non-Goals
 
-The DSL framework should explicitly avoid these confusions:
+The language framework should explicitly avoid these confusions:
 
 ### 1. Gaia is not the agent's entire workspace
 
@@ -144,7 +144,7 @@ It should be:
 - readable by humans and agents
 - stable enough to serve as a research artifact
 
-This is the primary DSL exchange surface.
+This is the primary language exchange surface.
 
 ### Stage C: Canonical LKM Integration
 
@@ -242,11 +242,11 @@ The published package is the most important author-facing artifact.
 
 ## Major Architecture Directions
 
-There are several possible ways to center the Gaia DSL design.
+There are several possible ways to center the Gaia Language design.
 
-### Option 1: Package-First DSL
+### Option 1: Package-First Language
 
-The DSL is primarily a stable package and publication format.
+The language is primarily a stable package and publication format.
 
 Pros:
 
@@ -261,9 +261,9 @@ Cons:
 - local agent execution may rely on convention rather than explicit control
 - harder to support replay, checkpointing, and local tool orchestration
 
-### Option 2: Runtime-First DSL
+### Option 2: Runtime-First Language
 
-The DSL is primarily an executable instruction language for agents.
+The language is primarily an executable instruction language for agents.
 
 Pros:
 
@@ -278,9 +278,9 @@ Cons:
 - review target becomes "program plus environment plus run result"
 - weaker fit for paper-like long-term knowledge sharing
 
-### Option 3: Graph-First DSL
+### Option 3: Graph-First Language
 
-The DSL is primarily a direct authoring surface for the global graph model.
+The language is primarily a direct authoring surface for the global graph model.
 
 Pros:
 
@@ -297,7 +297,7 @@ Cons:
 
 ### Option 4: Layered Split
 
-The DSL framework explicitly separates:
+The language framework explicitly separates:
 
 - local runtime execution
 - published package representation
@@ -409,9 +409,9 @@ Examples of minimal acceptable V1 control:
 - rich theorem-proving or dependent typing
 - complete cross-package graph canonicalization in author-facing syntax
 
-## Design Rules for the Detailed DSL
+## Design Rules for the Detailed Language
 
-The detailed DSL design should follow these rules.
+The detailed language design should follow these rules.
 
 ### 1. Keep the published package as the normative author-facing artifact
 
@@ -444,9 +444,9 @@ Review reports should remain sidecar artifacts rather than mutating package cont
 
 The local workspace may be richer, messier, and more executable than the published package.
 
-## Relationship to the Current DSL Draft
+## Relationship to the Current Language Draft
 
-The current detailed DSL draft already establishes several important pieces correctly:
+The current detailed language draft already establishes several important pieces correctly:
 
 - Gaia is treated as a language, not merely an API payload
 - the core knowledge object set is small and coherent
@@ -478,7 +478,7 @@ The current type system is a good kernel, but scientific knowledge may later nee
 
 ## Practical Guidance
 
-When extending Gaia DSL, ask these questions first:
+When extending Gaia Language, ask these questions first:
 
 1. Is this feature for local runtime, published package, or global integration?
 2. Does this belong in the normative package surface, or only in the interpreter/runtime?
@@ -486,13 +486,13 @@ When extending Gaia DSL, ask these questions first:
 4. Does this make the package easier to review and share, or does it merely make local execution easier?
 5. Can this be deferred to a later layer without weakening V1?
 
-If those questions are answered explicitly, the detailed DSL grammar becomes much easier to design coherently.
+If those questions are answered explicitly, the detailed language grammar becomes much easier to design coherently.
 
 ## Theoretical Foundation
 
 Gaia is a **proof assistant for probabilistic defeasible reasoning** — borrowing Lean's architecture, Bayesian networks' semantics, and belief revision's knowledge model.
 
-The full theoretical analysis is in [theoretical-foundation.md](theoretical-foundation.md). Key findings:
+The full theoretical analysis is in [design-rationale.md](design-rationale.md). Key findings:
 
 - **InferAction is a Tactic, not a function call.** The LLM constructs reasoning content (untrusted); BP independently computes beliefs from formal structure.
 - **Gaia has two kernels.** BP checks structure (graph topology, probabilities). Review checks content (reasoning text quality). Both are required for complete verification.
@@ -502,7 +502,7 @@ The full theoretical analysis is in [theoretical-foundation.md](theoretical-foun
 
 ## Summary
 
-Gaia DSL should be treated as a layered language system with three lifecycle stages:
+Gaia Language should be treated as a layered language system with three lifecycle stages:
 
 1. local workspace execution
 2. published package exchange

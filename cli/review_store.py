@@ -10,9 +10,7 @@ import yaml
 from libs.dsl.models import ChainExpr, Package, StepApply
 
 
-def write_review(
-    review: dict, reviews_dir: Path, filename: str | None = None
-) -> Path:
+def write_review(review: dict, reviews_dir: Path, filename: str | None = None) -> Path:
     """Write review sidecar YAML to reviews_dir."""
     reviews_dir.mkdir(parents=True, exist_ok=True)
     if filename is None:
@@ -41,9 +39,7 @@ def find_latest_review(reviews_dir: Path) -> Path:
     return yamls[-1]
 
 
-def merge_review(
-    pkg: Package, review: dict, source_fingerprint: str | None = None
-) -> Package:
+def merge_review(pkg: Package, review: dict, source_fingerprint: str | None = None) -> Package:
     """Merge review suggestions into package (deep copy -- original untouched).
 
     Updates step priors and arg dependency types based on review.
@@ -79,9 +75,7 @@ def merge_review(
                 step.prior = step_review["suggested_prior"]
             if "dependencies" in step_review and isinstance(step, StepApply):
                 for dep_review in step_review["dependencies"]:
-                    arg = next(
-                        (a for a in step.args if a.ref == dep_review["ref"]), None
-                    )
+                    arg = next((a for a in step.args if a.ref == dep_review["ref"]), None)
                     if arg and "suggested" in dep_review:
                         arg.dependency = dep_review["suggested"]
 

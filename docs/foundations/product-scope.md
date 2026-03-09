@@ -103,11 +103,16 @@ What is currently shipped on `main`:
 - a dashboard frontend for browsing, graph exploration, and commit workflows
 - GraphStore ABC with Neo4j and Kuzu implementations
 - type-aware belief propagation (contradiction, retraction edges)
+- **CLI with 8 commands** (`init`, `build`, `review`, `infer`, `publish`, `show`, `search`, `clean`) — shipped in PR #63
+- **Gaia Language** — per-module YAML with declarations, chains, and strong/weak references
+- **Inference engine moved to `libs/inference/`** — local belief propagation decoupled from server
+- **Build output** — per-module Markdown for LLM review
 
 What is not yet shipped but is on the roadmap:
 
-- `cli/` package (the primary product surface — in design, not yet on `main`)
-- Git-backed package workflows and webhook integration
+- `gaia publish --server` (direct server publish without git)
+- GitHub webhook integration for server-side auto review
+- cross-package dependency resolution and `gaia.lock`
 - shared knowledge-package contracts (being standardized in this foundation work)
 
 ## Current Supported Product Surfaces
@@ -175,21 +180,28 @@ This is a development and validation workflow, not the same thing as a formal en
 
 The following should not be described as current Gaia product capability on `main` unless they are actually merged and documented separately.
 
-### 1. CLI/package-manager product
+### 1. CLI/package-manager product — NOW SHIPPED (PR #63)
 
-Gaia does not currently ship a supported `cli/` package or command-line product surface on `main`.
+The CLI is shipped on `main` with 8 commands:
 
-That means the following are out of current scope:
+| Command | Purpose |
+|---------|---------|
+| `gaia init` | Initialize a knowledge package |
+| `gaia build` | Parse YAML, resolve refs, elaborate templates → per-module Markdown |
+| `gaia review` | LLM review of chains → YAML sidecar reports |
+| `gaia infer` | Compile factor graph + run local belief propagation |
+| `gaia publish` | Publish to git or local databases (LanceDB + Kuzu) |
+| `gaia show` | Display declaration details + connected chains |
+| `gaia search` | Search published nodes in local LanceDB |
+| `gaia clean` | Remove build artifacts (`.gaia/` directory) |
 
-- `gaia init`
-- `gaia claim`
-- `gaia build`
-- `gaia review`
-- `gaia publish`
-- Git-backed package workflows
-- lockfile-based local knowledge package management
+Note: the original RFC included `gaia claim` — this was replaced by declarative YAML authoring (per-module YAML files with declarations and chains). `gaia.lock` and cross-package dependency resolution remain deferred.
 
-Related design work may exist, but it is not the current product baseline.
+Still not shipped:
+
+- `gaia publish --server` (direct server publish)
+- GitHub webhook integration
+- `gaia.lock` / cross-package dependency resolution
 
 ### 2. Production ByteHouse-backed deployment
 
@@ -222,7 +234,7 @@ Gaia is a **CLI-first, Server-enhanced** Large Knowledge Model platform.
 - **Server** — an optional registry that provides knowledge integration, global search, LLM review, and large-scale BP
 - **Dashboard** — a browser UI for exploring the server-side knowledge graph
 
-The current `main` ships the server and dashboard. The CLI is the next major deliverable.
+The current `main` ships the server, dashboard, and CLI.
 
 ## Implications For Future Work
 
@@ -260,5 +272,4 @@ These have been resolved and should not be reopened:
 These remain open for later foundation phases:
 
 1. Should degraded graph-free operation be part of the supported product story, or only an internal fallback mode?
-2. What is the review output format? (deferred)
-3. What is the direct publish (`gaia publish --server`) contract? (deferred)
+2. What is the direct publish (`gaia publish --server`) contract? (deferred)

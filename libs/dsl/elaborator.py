@@ -59,9 +59,7 @@ def elaborate_package(pkg: Package) -> ElaboratedPackage:
     return ElaboratedPackage(package=pkg_copy, prompts=prompts, chain_contexts=chain_contexts)
 
 
-def _build_chain_context(
-    chain: ChainExpr, decls: dict[str, Declaration]
-) -> dict:
+def _build_chain_context(chain: ChainExpr, decls: dict[str, Declaration]) -> dict:
     """Extract chain-level context: edge_type, premise_refs, conclusion_refs."""
     # Find the index boundaries of StepApply/StepLambda steps
     first_apply_idx = None
@@ -97,9 +95,7 @@ def _build_chain_context(
     }
 
 
-def _elaborate_chain(
-    chain: ChainExpr, decls: dict[str, Declaration]
-) -> list[dict]:
+def _elaborate_chain(chain: ChainExpr, decls: dict[str, Declaration]) -> list[dict]:
     """Elaborate a single chain's steps, returning rendered prompt dicts."""
     prompts = []
 
@@ -116,13 +112,15 @@ def _elaborate_chain(
                 target = decls.get(arg.ref)
                 content = getattr(target, "content", "") if target else ""
                 resolved_contents.append(content)
-                arg_records.append({
-                    "ref": arg.ref,
-                    "dependency": arg.dependency,
-                    "content": content,
-                    "decl_type": target.type if target else None,
-                    "prior": target.prior if target else None,
-                })
+                arg_records.append(
+                    {
+                        "ref": arg.ref,
+                        "dependency": arg.dependency,
+                        "content": content,
+                        "decl_type": target.type if target else None,
+                        "prior": target.prior if target else None,
+                    }
+                )
 
             # Substitute {param} templates
             rendered = action.content
@@ -141,12 +139,14 @@ def _elaborate_chain(
             prompts.append(prompt_dict)
 
         elif isinstance(step, StepLambda):
-            prompts.append({
-                "chain": chain.name,
-                "step": step.step,
-                "action": "__lambda__",
-                "rendered": step.lambda_,
-                "args": [],
-            })
+            prompts.append(
+                {
+                    "chain": chain.name,
+                    "step": step.step,
+                    "action": "__lambda__",
+                    "rendered": step.lambda_,
+                    "args": [],
+                }
+            )
 
     return prompts

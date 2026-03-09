@@ -1,6 +1,5 @@
 """Tests for gaia clean command."""
 
-
 from typer.testing import CliRunner
 
 from cli.main import app

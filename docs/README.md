@@ -1,40 +1,30 @@
 # Gaia Documentation
 
-This directory mixes three different kinds of material:
+## Source of Truth
 
-1. Current architecture and repo navigation
-2. Design and theory notes
-3. Historical planning documents from the initial build-out
+The canonical specifications for Gaia live in [`foundations/`](foundations/README.md):
 
-The main source of confusion in the current docs is that those categories are not clearly separated. Start with the files below.
+- [Product Scope](foundations/product-scope.md) — what Gaia is and is not
+- [System Overview](foundations/system-overview.md) — architecture layers and runtime flow
+- [Domain Model](foundations/domain-model.md) — nodes, hyperedges, commits, and vocabulary
+- [Language Spec](foundations/language/gaia-language-spec.md) — the Gaia formal language specification
+- [CLI Command Lifecycle](foundations/cli/command-lifecycle.md) — build / review / infer / publish pipeline
+- [Theoretical Foundation](foundations/theoretical-foundation.md) — Jaynes framework, Gaia identity, plausible reasoning
+- [Inference Theory](foundations/inference-theory.md) — BP algorithm, lattice theory, edge semantics
 
-## Start Here
+Start there for any question about current architecture, contracts, or semantics.
 
-- [Module Map](module-map.md): current repo structure, module boundaries, and known areas that still need cleanup
-- [Repository README](../README.md): quick start, runtime overview, and API entry points
+## Directory Map
 
-## Documentation Map
+| Directory | Contents | Status |
+|-----------|----------|--------|
+| `foundations/` | Product scope, system overview, domain model, language spec, CLI specs | **Current** — canonical specs |
+| `design/` | Scaling belief propagation, related work | **Reference** — evergreen design notes |
+| `examples/` | Einstein elevator, Galileo tied-balls worked examples | **Reference** — evergreen examples |
+| `archive/` | Historical design docs and implementation plans from the initial build-out | **Historical** — preserved for context |
 
-### Current structure
+## Other Entry Points
 
-- [Module Map](module-map.md): current top-level directories, service boundaries, and dependency flow
-- [Architecture Re-baseline](architecture-rebaseline.md): current structural problems and the recommended cleanup path
-- [Foundations](foundations/README.md): foundation-first planning area for architecture, schema, module, and API reset work
-
-### Design references
-
-- [Theoretical Foundations](design/theoretical_foundations.md): belief graph model and reasoning semantics
-- [Scaling Belief Propagation](design/scaling_belief_propagation.md): scaling ideas for inference
-- [Billion-Scale Phase 1](design/phase1_billion_scale.md): system-level design direction
-- [Related Work](design/related_work.md): external context
-
-### Examples
-
-- [Einstein Elevator](examples/einstein_elevator.md)
-- [Galileo Tied Balls](examples/galileo_tied_balls.md)
-
-### Historical plans
-
-- [Plans README](plans/README.md): archived implementation plans, API drafts, and execution notes
-
-`docs/plans/` is useful for understanding why the code looks the way it does, but it should not be treated as the current architecture spec.
+- [Module Map](module-map.md) — current repo structure, module boundaries, and dependency flow
+- [Architecture Re-baseline](architecture-rebaseline.md) — diagnosis of structural issues and recommended cleanup path
+- [Repository README](../README.md) — quick start, runtime overview, and API entry points

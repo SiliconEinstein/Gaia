@@ -87,11 +87,13 @@ class MockReviewClient:
             after = md[match.end() : match.end() + 50]
             prior_match = re.search(r"prior=([\d.]+)", after)
             prior = float(prior_match.group(1)) if prior_match else 0.9
-            steps.append({
-                "step": step_num,
-                "assessment": "valid",
-                "suggested_prior": prior,
-                "rewrite": None,
-                "dependencies": [],
-            })
+            steps.append(
+                {
+                    "step": step_num,
+                    "assessment": "valid",
+                    "suggested_prior": prior,
+                    "rewrite": None,
+                    "dependencies": [],
+                }
+            )
         return {"chain": chain_data["name"], "steps": steps}

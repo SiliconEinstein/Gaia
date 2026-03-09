@@ -2,7 +2,7 @@
 
 This directory contains planning snapshots, API drafts, and implementation notes from the initial build-out of Gaia.
 
-These files are still useful for historical context, but they are not the current source of truth for repo structure. For the current layout, start with [../module-map.md](../module-map.md).
+These files are still useful for historical context, but they are not the current source of truth for repo structure. For the current layout, start with [../../module-map.md](../../module-map.md).
 
 ## Historical Roadmap Snapshot
 
