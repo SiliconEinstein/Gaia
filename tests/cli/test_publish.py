@@ -23,7 +23,9 @@ def test_publish_requires_mode():
 def test_publish_git_runs_commands(tmp_path):
     """gaia publish --git should run git add + commit + push."""
     subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmp_path, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@test.com"], cwd=tmp_path, capture_output=True
+    )
     subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, capture_output=True)
     (tmp_path / "package.yaml").write_text("name: test\nmodules: []\nexport: []")
     subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)

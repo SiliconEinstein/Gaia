@@ -82,10 +82,12 @@ def review(
             start = m.start()
             end = matches[j + 1].start() if j + 1 < len(matches) else len(content)
             chain_section = content[start:end].strip()
-            all_chain_data.append({
-                "name": chain_name,
-                "markdown": chain_section,
-            })
+            all_chain_data.append(
+                {
+                    "name": chain_name,
+                    "markdown": chain_section,
+                }
+            )
 
     # 3. Load package for metadata + compute fingerprint
     pkg = load_package(pkg_path)
@@ -95,9 +97,7 @@ def review(
     client = MockReviewClient() if mock else ReviewClient(model=model)
 
     # 5. Review chains in parallel
-    chain_reviews = asyncio.run(
-        _review_chains_parallel(client, all_chain_data, concurrency)
-    )
+    chain_reviews = asyncio.run(_review_chains_parallel(client, all_chain_data, concurrency))
 
     # 6. Write sidecar
     now = datetime.now(timezone.utc)
@@ -236,7 +236,9 @@ def publish(
     local: bool = typer.Option(False, "--local", help="Import to local databases (LanceDB + Kuzu)"),
     server: bool = typer.Option(False, "--server", help="Publish to Gaia server API"),
     db_path: str = typer.Option(
-        None, "--db-path", help="LanceDB path (default: GAIA_LANCEDB_PATH or ./data/lancedb/gaia)",
+        None,
+        "--db-path",
+        help="LanceDB path (default: GAIA_LANCEDB_PATH or ./data/lancedb/gaia)",
     ),
 ) -> None:
     """Publish to git, local databases, or server."""
@@ -255,7 +257,9 @@ def publish(
             subprocess.run(["git", "add", "."], cwd=pkg_path, check=True, capture_output=True)
             subprocess.run(
                 ["git", "commit", "-m", "gaia: publish package"],
-                cwd=pkg_path, check=True, capture_output=True,
+                cwd=pkg_path,
+                check=True,
+                capture_output=True,
             )
             subprocess.run(["git", "push"], cwd=pkg_path, check=True, capture_output=True)
             typer.echo(f"Published {pkg_path} via git")
@@ -264,9 +268,7 @@ def publish(
             raise typer.Exit(1)
 
     if local:
-        resolved_db_path = db_path or os.environ.get(
-            "GAIA_LANCEDB_PATH", "./data/lancedb/gaia"
-        )
+        resolved_db_path = db_path or os.environ.get("GAIA_LANCEDB_PATH", "./data/lancedb/gaia")
         asyncio.run(_publish_local(pkg_path, resolved_db_path))
 
     if server:
@@ -303,8 +305,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
         review = read_review(latest)
     except FileNotFoundError:
         typer.echo(
-            f"Error: no review file found.\n"
-            f"Run 'gaia review {pkg_path}' first.",
+            f"Error: no review file found.\nRun 'gaia review {pkg_path}' first.",
             err=True,
         )
         raise typer.Exit(1)
@@ -394,9 +395,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
 
             if pairs:
                 emb_ids, emb_texts = zip(*pairs)
-                response = litellm.embedding(
-                    model="text-embedding-3-small", input=list(emb_texts)
-                )
+                response = litellm.embedding(model="text-embedding-3-small", input=list(emb_texts))
                 embeddings = [d["embedding"] for d in response.data]
                 await storage.vector.insert_batch(list(emb_ids), embeddings)
                 n_embeddings = len(embeddings)
@@ -404,9 +403,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
             typer.echo(f"  Skipped embeddings: {e}")
 
         # 12. Write beliefs back to LanceDB
-        belief_map = {
-            n.id: n.belief for n in storage_result.nodes if n.belief is not None
-        }
+        belief_map = {n.id: n.belief for n in storage_result.nodes if n.belief is not None}
         if belief_map:
             await storage.lance.update_beliefs(belief_map)
 
@@ -445,9 +442,7 @@ def init_cmd(
         "modules": ["motivation"],
         "export": [],
     }
-    (pkg_dir / "package.yaml").write_text(
-        yaml.dump(pkg_data, allow_unicode=True, sort_keys=False)
-    )
+    (pkg_dir / "package.yaml").write_text(yaml.dump(pkg_data, allow_unicode=True, sort_keys=False))
 
     # motivation.yaml
     mod_data = {
@@ -637,12 +632,7 @@ async def _content_like_search(
     if table.count_rows() == 0:
         return []
     escaped = query.replace("'", "''")
-    rows = (
-        table.search()
-        .where(f"content LIKE '%{escaped}%'")
-        .limit(limit)
-        .to_list()
-    )
+    rows = table.search().where(f"content LIKE '%{escaped}%'").limit(limit).to_list()
     return [_row_to_node(r) for r in rows]
 
 
