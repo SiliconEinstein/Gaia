@@ -264,9 +264,13 @@ The kernel should establish these judgments:
 - `Γ ⊢ chain lowers_to fg_fragment`
 - `Γ ⊢ fg well_formed`
 
-**Export and belief participation:**
-- `Γ ⊢ x exportable`
+**Belief participation (type-level):**
 - `Γ ⊢ x belief_bearing`
+
+**Export (module-level):**
+- `Γ, M ⊢ x exportable`
+
+Note the distinction: `belief_bearing` is an intrinsic property of a declaration's type (Claim and Setting are belief-bearing, Question is not). `exportable` is a module boundary property — it depends on whether `x` appears in module `M`'s export list, not on `x`'s type. Any declaration type can be exported or not.
 
 These are intentionally modest — they define the structural kernel without overcommitting to future machinery.
 
@@ -301,39 +305,34 @@ instance : TruthApt Setting
 -- Question has no TruthApt instance → cannot have belief
 ```
 
-Type classes replace the current ad-hoc conventions (scattered if-else checks for "is this type truth-apt?") with explicit, checkable declarations. The `belief_bearing` and `exportable` judgments from V1 become derived from type class instances rather than hardcoded rules.
+Type classes replace the current ad-hoc conventions (scattered if-else checks for "is this type truth-apt?") with explicit, checkable declarations. The `belief_bearing` judgment from V1 becomes derived from type class instances rather than hardcoded rules. Note that `exportable` remains a module-level judgment — it depends on the module's export list, not on type class membership.
 
-### Phase 4: Inductive type definitions
+### Phase 4: User-extensible knowledge types
 
-Allow users to define new knowledge types within the language:
+Move type definitions from the Python implementation layer into the language itself, with a clear distinction between closed and open layers.
 
-```
-inductive Knowledge where
-  | Claim
-  | Question
-  | Setting
-  | Action
-  | Expr
-  | Ref
-  | Module
+**Root types are closed.** The base knowledge categories (Claim, Question, Setting, Action, Expr, Ref, Module) define the grammar of the language. They determine what kernel judgments apply, how declarations participate in BP, and what structural rules hold. These are fixed by the language definition, just as Lean's core type formers (inductive, structure, class) are fixed.
 
-inductive Action <: Knowledge where
-  | InferAction
-  | ToolCallAction
-```
-
-Users can extend the hierarchy for domain-specific needs:
+**Subtypes are open.** Users can extend any root type with domain-specific subtypes without modifying the root definition:
 
 ```
-inductive MedicalClaim <: Claim where
-  | SideEffect
-  | DrugInteraction
-  | Contraindication
+-- User-defined subtypes of Claim
+extend Claim where
+  | Observation      -- direct empirical data
+  | Conjecture       -- unverified hypothesis
+  | Theorem          -- highly verified
+
+-- User-defined subtypes of Action
+extend Action where
+  | PythonAction     -- executes Python code
+  | LeanProofAction  -- calls Lean prover
 ```
 
-This moves type definitions from the Python implementation layer into the language itself. Combined with type classes, new types automatically inherit or override behavior.
+New subtypes inherit the kernel rules of their parent (a `Conjecture` is a `Claim`, so it is `belief_bearing` and participates in BP). Type class instances can be overridden for subtypes where needed (e.g., `Observation` might have a higher default prior than `Conjecture`).
 
-**Important scope limitation:** Inductive types define the **structural** taxonomy of knowledge (what form it takes, what operations are valid). They do not define **content** classification (what topic it covers) — that remains the job of keywords, embeddings, and graph topology.
+The exact syntax (`extend`, `open inductive`, or another mechanism) is deferred. The design commitment is: **closed root types for language integrity, open subtypes for domain extensibility.**
+
+**Important scope limitation:** This extensibility defines the **structural** taxonomy of knowledge (what form it takes, what operations are valid). It does not define **content** classification (what topic it covers) — that remains the job of keywords, embeddings, and graph topology.
 
 ### Phase 5: Effect and capability typing
 
@@ -393,7 +392,7 @@ The expansion path is:
 | **V1** | Typed structural kernel with judgments | Ad hoc validation → formal checking |
 | **2** | BeliefState + hole-driven reasoning | Opaque reasoning → observable progress |
 | **3** | Type classes | Implicit conventions → explicit interfaces |
-| **4** | Inductive type definitions | Hardcoded types → user-extensible taxonomy |
+| **4** | User-extensible knowledge types | Hardcoded types → open subtype taxonomy |
 | **5** | Effect and capability typing | Undifferentiated actions → typed capabilities |
 | **6** | Restricted refinement typing | Stringly-typed constraints → value-level type safety |
 | **7** | Formal proof sublanguage | Probabilistic-only → formal proof as evidence source |
