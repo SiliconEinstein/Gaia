@@ -4,7 +4,7 @@
 |---------|---|
 | 版本 | 1.0 |
 | 日期 | 2026-03-09 |
-| 关联文档 | [theoretical-foundation.md](theoretical-foundation.md) — Jaynes 纲领与 Gaia 定位, [language/design-rationale.md](language/design-rationale.md) — CLI 架构与 Lean 类比 |
+| 关联文档 | [theoretical-foundation.md](theoretical-foundation.md) — Jaynes 纲领与 Gaia 定位, [../language/design-rationale.md](../language/design-rationale.md) — CLI 架构与 Lean 类比 |
 
 ---
 

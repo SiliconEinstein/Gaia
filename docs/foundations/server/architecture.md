@@ -4,7 +4,7 @@
 |---------|---|
 | 版本 | 1.0 |
 | 日期 | 2026-03-09 |
-| 关联文档 | [product-scope.md](product-scope.md), [domain-model.md](domain-model.md), [system-overview.md](system-overview.md) |
+| 关联文档 | [../product-scope.md](../product-scope.md), [../domain-model.md](../domain-model.md), [../system-overview.md](../system-overview.md) |
 
 ---
 
