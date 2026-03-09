@@ -58,31 +58,33 @@ async def graph_store(request, tmp_path) -> GraphStore:
 
 
 def _edge(
-    id: int, tail: list[int], head: list[int], type: str = "paper-extract", **kw
+    id: int, premises: list[int], conclusions: list[int], type: str = "paper-extract", **kw
 ) -> HyperEdge:
-    return HyperEdge(id=id, type=type, tail=tail, head=head, reasoning=["test"], **kw)
+    return HyperEdge(
+        id=id, type=type, premises=premises, conclusions=conclusions, reasoning=["test"], **kw
+    )
 
 
 # ── CRUD ────────────────────────────────────────────────────────────────
 
 
 async def test_create_and_get(graph_store):
-    edge = _edge(1, tail=[10, 11], head=[12])
+    edge = _edge(1, premises=[10, 11], conclusions=[12])
     eid = await graph_store.create_hyperedge(edge)
     assert eid == 1
 
     loaded = await graph_store.get_hyperedge(1)
     assert loaded is not None
-    assert set(loaded.tail) == {10, 11}
-    assert loaded.head == [12]
+    assert set(loaded.premises) == {10, 11}
+    assert loaded.conclusions == [12]
 
 
 async def test_create_with_probability(graph_store):
     edge = HyperEdge(
         id=100,
         type="deduction",
-        tail=[1, 2],
-        head=[3],
+        premises=[1, 2],
+        conclusions=[3],
         probability=0.9,
         reasoning=[{"content": "test"}],
     )
@@ -93,7 +95,10 @@ async def test_create_with_probability(graph_store):
 
 
 async def test_bulk_create(graph_store):
-    edges = [_edge(1, [10], [11]), _edge(2, [11], [12])]
+    edges = [
+        _edge(1, premises=[10], conclusions=[11]),
+        _edge(2, premises=[11], conclusions=[12]),
+    ]
     ids = await graph_store.create_hyperedges_bulk(edges)
     assert ids == [1, 2]
     assert await graph_store.get_hyperedge(1) is not None
@@ -105,14 +110,14 @@ async def test_get_nonexistent_returns_none(graph_store):
 
 
 async def test_update_probability(graph_store):
-    await graph_store.create_hyperedge(_edge(1, [10], [11]))
+    await graph_store.create_hyperedge(_edge(1, premises=[10], conclusions=[11]))
     await graph_store.update_hyperedge(1, probability=0.9)
     loaded = await graph_store.get_hyperedge(1)
     assert loaded.probability == pytest.approx(0.9)
 
 
 async def test_update_verified(graph_store):
-    await graph_store.create_hyperedge(_edge(1, [10], [11]))
+    await graph_store.create_hyperedge(_edge(1, premises=[10], conclusions=[11]))
     await graph_store.update_hyperedge(1, probability=0.9, verified=True)
     loaded = await graph_store.get_hyperedge(1)
     assert loaded.probability == pytest.approx(0.9)
@@ -125,7 +130,7 @@ async def test_reasoning_round_trip(graph_store):
         {"content": "step 1", "detail": {"key": "value"}},
         {"content": "step 2"},
     ]
-    edge = HyperEdge(id=42, type="deduction", tail=[1], head=[2], reasoning=reasoning)
+    edge = HyperEdge(id=42, type="deduction", premises=[1], conclusions=[2], reasoning=reasoning)
     await graph_store.create_hyperedge(edge)
     loaded = await graph_store.get_hyperedge(42)
     assert loaded is not None
@@ -137,8 +142,8 @@ async def test_reasoning_round_trip(graph_store):
 
 async def test_subgraph_basic_2hop(graph_store):
     """10→11→12 chain, 2 hops from 10 should reach all three."""
-    await graph_store.create_hyperedge(_edge(1, [10], [11]))
-    await graph_store.create_hyperedge(_edge(2, [11], [12]))
+    await graph_store.create_hyperedge(_edge(1, premises=[10], conclusions=[11]))
+    await graph_store.create_hyperedge(_edge(2, premises=[11], conclusions=[12]))
     node_ids, edge_ids = await graph_store.get_subgraph([10], hops=2)
     assert {10, 11, 12}.issubset(node_ids)
     assert {1, 2}.issubset(edge_ids)
@@ -146,8 +151,8 @@ async def test_subgraph_basic_2hop(graph_store):
 
 async def test_subgraph_hops_limit(graph_store):
     """1 hop from 10 should reach 11 but NOT 12."""
-    await graph_store.create_hyperedge(_edge(1, [10], [11]))
-    await graph_store.create_hyperedge(_edge(2, [11], [12]))
+    await graph_store.create_hyperedge(_edge(1, premises=[10], conclusions=[11]))
+    await graph_store.create_hyperedge(_edge(2, premises=[11], conclusions=[12]))
     node_ids, _ = await graph_store.get_subgraph([10], hops=1)
     assert 11 in node_ids
     assert 12 not in node_ids
@@ -155,26 +160,32 @@ async def test_subgraph_hops_limit(graph_store):
 
 async def test_subgraph_edge_type_filter(graph_store):
     """Filter by edge type should restrict traversal."""
-    await graph_store.create_hyperedge(_edge(1, [10], [11], type="abstraction"))
-    await graph_store.create_hyperedge(_edge(2, [11], [12], type="induction"))
+    await graph_store.create_hyperedge(
+        _edge(1, premises=[10], conclusions=[11], type="abstraction")
+    )
+    await graph_store.create_hyperedge(_edge(2, premises=[11], conclusions=[12], type="induction"))
     node_ids, _ = await graph_store.get_subgraph([10], hops=2, edge_types=["abstraction"])
     assert 11 in node_ids
     assert 12 not in node_ids
 
 
 async def test_subgraph_direction_downstream(graph_store):
-    """Downstream-only from node 1 should follow tail→head, not find upstream."""
-    await graph_store.create_hyperedge(_edge(1, [1], [2]))
-    await graph_store.create_hyperedge(_edge(2, [3], [1]))  # 3→1 is upstream of 1
+    """Downstream-only from node 1 should follow premises→conclusions, not find upstream."""
+    await graph_store.create_hyperedge(_edge(1, premises=[1], conclusions=[2]))
+    await graph_store.create_hyperedge(
+        _edge(2, premises=[3], conclusions=[1])
+    )  # 3→1 is upstream of 1
     node_ids, _ = await graph_store.get_subgraph([1], hops=1, direction="downstream")
     assert 2 in node_ids
     assert 3 not in node_ids
 
 
 async def test_subgraph_direction_upstream(graph_store):
-    """Upstream-only from node 2 should follow head→tail, not find downstream."""
-    await graph_store.create_hyperedge(_edge(1, [1], [2]))
-    await graph_store.create_hyperedge(_edge(2, [2], [3]))  # 2→3 is downstream of 2
+    """Upstream-only from node 2 should follow conclusions→premises, not find downstream."""
+    await graph_store.create_hyperedge(_edge(1, premises=[1], conclusions=[2]))
+    await graph_store.create_hyperedge(
+        _edge(2, premises=[2], conclusions=[3])
+    )  # 2→3 is downstream of 2
     node_ids, _ = await graph_store.get_subgraph([2], hops=1, direction="upstream")
     assert 1 in node_ids
     assert 3 not in node_ids
@@ -183,7 +194,7 @@ async def test_subgraph_direction_upstream(graph_store):
 async def test_subgraph_max_nodes(graph_store):
     """max_nodes cap should limit traversal."""
     for i in range(1, 6):
-        await graph_store.create_hyperedge(_edge(i, [i], [i + 1]))
+        await graph_store.create_hyperedge(_edge(i, premises=[i], conclusions=[i + 1]))
     node_ids, _ = await graph_store.get_subgraph([1], hops=5, max_nodes=3)
     assert len(node_ids) <= 4  # seed + discovered, capped
 
@@ -199,8 +210,8 @@ async def test_fixture_edges_create_and_read(graph_store):
 
     loaded = await graph_store.get_hyperedge(edges[0].id)
     assert loaded is not None
-    assert set(loaded.tail) == set(edges[0].tail)
-    assert set(loaded.head) == set(edges[0].head)
+    assert set(loaded.premises) == set(edges[0].premises)
+    assert set(loaded.conclusions) == set(edges[0].conclusions)
 
 
 async def test_fixture_subgraph_traversal(graph_store):
@@ -209,7 +220,7 @@ async def test_fixture_subgraph_traversal(graph_store):
     for edge in edges:
         await graph_store.create_hyperedge(edge)
 
-    seed = edges[0].tail[0]
+    seed = edges[0].premises[0]
     node_ids, edge_ids = await graph_store.get_subgraph([seed], hops=2)
     assert seed in node_ids
     assert edges[0].id in edge_ids

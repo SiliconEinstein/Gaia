@@ -23,7 +23,7 @@ def _simple_chain() -> FactorGraph:
     fg = FactorGraph()
     fg.add_variable(1, 0.9)  # A: high prior
     fg.add_variable(2, 0.5)  # B: neutral prior
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.8)
+    fg.add_factor(edge_id=100, premises=[1], conclusions=[2], probability=0.8)
     return fg
 
 
@@ -33,8 +33,8 @@ def _two_step_chain() -> FactorGraph:
     fg.add_variable(1, 0.9)
     fg.add_variable(2, 0.5)
     fg.add_variable(3, 0.5)
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.8)
-    fg.add_factor(edge_id=101, tail=[2], head=[3], probability=0.7)
+    fg.add_factor(edge_id=100, premises=[1], conclusions=[2], probability=0.8)
+    fg.add_factor(edge_id=101, premises=[2], conclusions=[3], probability=0.7)
     return fg
 
 
@@ -111,7 +111,7 @@ def test_low_probability_edge():
     fg = FactorGraph()
     fg.add_variable(1, 0.9)
     fg.add_variable(2, 0.5)
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.1)
+    fg.add_factor(edge_id=100, premises=[1], conclusions=[2], probability=0.1)
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
     # With low edge probability, B should not get high belief
@@ -124,7 +124,7 @@ def test_multi_tail_factor():
     fg.add_variable(1, 0.9)  # premise 1
     fg.add_variable(2, 0.8)  # premise 2
     fg.add_variable(3, 0.5)  # conclusion
-    fg.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.9)
+    fg.add_factor(edge_id=100, premises=[1, 2], conclusions=[3], probability=0.9)
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
     # Conclusion should be pulled up significantly from 0.5 by strong premises
@@ -157,43 +157,49 @@ def test_damping_effect():
 
 
 def test_retraction_edge():
-    """A retraction edge should decrease the head node's belief."""
+    """A retraction edge should decrease the conclusion node's belief."""
     fg = FactorGraph()
-    fg.add_variable(1, 0.9)  # Strong tail evidence
-    fg.add_variable(2, 0.7)  # Moderate prior on head
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.8, edge_type="retraction")
+    fg.add_variable(1, 0.9)  # Strong premise evidence
+    fg.add_variable(2, 0.7)  # Moderate prior on conclusion
+    fg.add_factor(
+        edge_id=100, premises=[1], conclusions=[2], probability=0.8, edge_type="retraction"
+    )
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
-    # Retraction: strong tail + high prob → head should decrease from prior
-    assert beliefs[2] < 0.7, f"Retraction should reduce head belief, got {beliefs[2]}"
+    # Retraction: strong premise + high prob → conclusion should decrease from prior
+    assert beliefs[2] < 0.7, f"Retraction should reduce conclusion belief, got {beliefs[2]}"
 
 
 def test_contradiction_head_stays_at_prior():
-    """Contradiction head is non-participating: belief should stay at prior."""
+    """Contradiction conclusion is non-participating: belief should stay at prior."""
     fg = FactorGraph()
     fg.add_variable(1, 0.9)  # premise A
     fg.add_variable(2, 0.85)  # premise B
     fg.add_variable(3, 0.5)  # conclusion C — neutral prior
-    fg.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.8, edge_type="contradiction")
+    fg.add_factor(
+        edge_id=100, premises=[1, 2], conclusions=[3], probability=0.8, edge_type="contradiction"
+    )
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
-    # Head is non-participating: potential is independent of head value,
-    # so f2v messages are uniform and head stays at prior.
+    # Conclusion is non-participating: potential is independent of conclusion value,
+    # so f2v messages are uniform and conclusion stays at prior.
     assert beliefs[3] == pytest.approx(0.5, abs=0.01), (
-        f"Contradiction head should stay at prior 0.5, got {beliefs[3]}"
+        f"Contradiction conclusion should stay at prior 0.5, got {beliefs[3]}"
     )
 
 
 def test_contradiction_inhibits_premises():
-    """Contradiction tail nodes should decrease from priors (Jaynes backward inhibition)."""
+    """Contradiction premise nodes should decrease from priors (Jaynes backward inhibition)."""
     fg = FactorGraph()
     fg.add_variable(1, 0.9)  # premise A
     fg.add_variable(2, 0.85)  # premise B
     fg.add_variable(3, 0.5)  # conclusion C
-    fg.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.8, edge_type="contradiction")
+    fg.add_factor(
+        edge_id=100, premises=[1, 2], conclusions=[3], probability=0.8, edge_type="contradiction"
+    )
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
-    # Jaynes: contradiction penalizes all-tails-true → strong backward inhibition
+    # Jaynes: contradiction penalizes all-premises-true → strong backward inhibition
     assert beliefs[1] < 0.9, f"Premise A should be inhibited, got {beliefs[1]}"
     assert beliefs[2] < 0.85, f"Premise B should be inhibited, got {beliefs[2]}"
 
@@ -209,14 +215,16 @@ def test_contradiction_stronger_than_deduction_inhibition():
     fg_contra.add_variable(2, 0.85)
     fg_contra.add_variable(3, 0.5)
     fg_contra.add_factor(
-        edge_id=100, tail=[1, 2], head=[3], probability=0.8, edge_type="contradiction"
+        edge_id=100, premises=[1, 2], conclusions=[3], probability=0.8, edge_type="contradiction"
     )
 
     fg_deduct = FactorGraph()
     fg_deduct.add_variable(1, 0.9)
     fg_deduct.add_variable(2, 0.85)
     fg_deduct.add_variable(3, 0.5)
-    fg_deduct.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.8, edge_type="deduction")
+    fg_deduct.add_factor(
+        edge_id=100, premises=[1, 2], conclusions=[3], probability=0.8, edge_type="deduction"
+    )
 
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs_contra = bp.run(fg_contra)
@@ -241,7 +249,9 @@ def test_contradiction_weaker_evidence_yields_first():
     fg.add_variable(1, 0.9)  # A: strong
     fg.add_variable(2, 0.6)  # B: weak
     fg.add_variable(3, 0.5)  # conclusion
-    fg.add_factor(edge_id=100, tail=[1, 2], head=[3], probability=0.9, edge_type="contradiction")
+    fg.add_factor(
+        edge_id=100, premises=[1, 2], conclusions=[3], probability=0.9, edge_type="contradiction"
+    )
 
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
@@ -254,14 +264,16 @@ def test_contradiction_weaker_evidence_yields_first():
 
 
 def test_contradiction_no_head_still_inhibits():
-    """Contradiction with empty head should still penalize premises.
+    """Contradiction with empty conclusions should still penalize premises.
 
     Pure mutual exclusion constraint: A and B can't both be true.
     """
     fg = FactorGraph()
     fg.add_variable(1, 0.9)
     fg.add_variable(2, 0.8)
-    fg.add_factor(edge_id=100, tail=[1, 2], head=[], probability=0.9, edge_type="contradiction")
+    fg.add_factor(
+        edge_id=100, premises=[1, 2], conclusions=[], probability=0.9, edge_type="contradiction"
+    )
 
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
@@ -276,13 +288,13 @@ def test_contradiction_no_head_still_inhibits():
 
 
 def test_multiple_factors_to_same_head():
-    """Two factors pointing to the same head should combine, not overwrite."""
+    """Two factors pointing to the same conclusion should combine, not overwrite."""
     fg = FactorGraph()
     fg.add_variable(1, 0.9)
     fg.add_variable(2, 0.8)
     fg.add_variable(3, 0.5)
-    fg.add_factor(edge_id=100, tail=[1], head=[3], probability=0.8)
-    fg.add_factor(edge_id=101, tail=[2], head=[3], probability=0.7)
+    fg.add_factor(edge_id=100, premises=[1], conclusions=[3], probability=0.8)
+    fg.add_factor(edge_id=101, premises=[2], conclusions=[3], probability=0.7)
 
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
@@ -291,7 +303,7 @@ def test_multiple_factors_to_same_head():
     fg_single = FactorGraph()
     fg_single.add_variable(1, 0.9)
     fg_single.add_variable(3, 0.5)
-    fg_single.add_factor(edge_id=100, tail=[1], head=[3], probability=0.8)
+    fg_single.add_factor(edge_id=100, premises=[1], conclusions=[3], probability=0.8)
     beliefs_single = bp.run(fg_single)
 
     assert beliefs[3] > beliefs_single[3], (
@@ -300,17 +312,17 @@ def test_multiple_factors_to_same_head():
 
 
 def test_backward_message_through_deduction():
-    """Low-belief head should weaken tail belief through backward messages."""
+    """Low-belief conclusion should weaken premise belief through backward messages."""
     fg = FactorGraph()
-    fg.add_variable(1, 0.5)  # tail with uncertain prior
-    fg.add_variable(2, 0.1)  # head with very low prior
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.9)
+    fg.add_variable(1, 0.5)  # premise with uncertain prior
+    fg.add_variable(2, 0.1)  # conclusion with very low prior
+    fg.add_factor(edge_id=100, premises=[1], conclusions=[2], probability=0.9)
 
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
 
-    # Backward message: low head belief should pull tail down from 0.5
-    assert beliefs[1] < 0.5, f"Low head should weaken tail, got {beliefs[1]}"
+    # Backward message: low conclusion belief should pull premise down from 0.5
+    assert beliefs[1] < 0.5, f"Low conclusion should weaken premise, got {beliefs[1]}"
 
 
 def test_factor_ordering_invariance():
@@ -319,16 +331,16 @@ def test_factor_ordering_invariance():
     fg1.add_variable(1, 0.9)
     fg1.add_variable(2, 0.8)
     fg1.add_variable(3, 0.5)
-    fg1.add_factor(edge_id=100, tail=[1], head=[3], probability=0.8)
-    fg1.add_factor(edge_id=101, tail=[2], head=[3], probability=0.7)
+    fg1.add_factor(edge_id=100, premises=[1], conclusions=[3], probability=0.8)
+    fg1.add_factor(edge_id=101, premises=[2], conclusions=[3], probability=0.7)
 
     fg2 = FactorGraph()
     fg2.add_variable(1, 0.9)
     fg2.add_variable(2, 0.8)
     fg2.add_variable(3, 0.5)
     # Reversed order
-    fg2.add_factor(edge_id=101, tail=[2], head=[3], probability=0.7)
-    fg2.add_factor(edge_id=100, tail=[1], head=[3], probability=0.8)
+    fg2.add_factor(edge_id=101, premises=[2], conclusions=[3], probability=0.7)
+    fg2.add_factor(edge_id=100, premises=[1], conclusions=[3], probability=0.8)
 
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs1 = bp.run(fg1)
@@ -348,7 +360,7 @@ def test_message_normalization_long_chain():
     for i in range(2, n + 1):
         fg.add_variable(i, 0.5)
     for i in range(1, n):
-        fg.add_factor(edge_id=i, tail=[i], head=[i + 1], probability=0.9)
+        fg.add_factor(edge_id=i, premises=[i], conclusions=[i + 1], probability=0.9)
 
     bp = BeliefPropagation(damping=1.0, max_iterations=100, convergence_threshold=1e-8)
     beliefs = bp.run(fg)
@@ -370,8 +382,12 @@ def test_retraction_with_backward_flow():
     fg.add_variable(1, 0.9)  # A: strong evidence
     fg.add_variable(2, 0.7)  # B: moderate prior
     fg.add_variable(3, 0.5)  # C: neutral
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.8, edge_type="retraction")
-    fg.add_factor(edge_id=101, tail=[2], head=[3], probability=0.8, edge_type="deduction")
+    fg.add_factor(
+        edge_id=100, premises=[1], conclusions=[2], probability=0.8, edge_type="retraction"
+    )
+    fg.add_factor(
+        edge_id=101, premises=[2], conclusions=[3], probability=0.8, edge_type="deduction"
+    )
 
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
@@ -384,7 +400,7 @@ def test_retraction_with_backward_flow():
     fg_no_retract.add_variable(2, 0.7)
     fg_no_retract.add_variable(3, 0.5)
     fg_no_retract.add_factor(
-        edge_id=101, tail=[2], head=[3], probability=0.8, edge_type="deduction"
+        edge_id=101, premises=[2], conclusions=[3], probability=0.8, edge_type="deduction"
     )
     beliefs_no_retract = bp.run(fg_no_retract)
 
@@ -401,89 +417,89 @@ def test_retraction_with_backward_flow():
 class TestEvaluatePotential:
     """Direct tests for the factor potential function — the mathematical core of BP."""
 
-    def test_not_all_tails_true_returns_one(self):
-        """When any tail is 0, the factor is unconstrained (potential = 1)."""
+    def test_not_all_premises_true_returns_one(self):
+        """When any premise is 0, the factor is unconstrained (potential = 1)."""
         result = _evaluate_potential(
             "deduction",
-            tail_ids=[1, 2],
-            head_ids=[3],
+            premise_ids=[1, 2],
+            conclusion_ids=[3],
             assignment={1: 1, 2: 0, 3: 1},
             prob=0.8,
         )
         assert result == 1.0
 
-    def test_deduction_head_true(self):
-        """Deduction: all tails true, head=1 → potential = p."""
+    def test_deduction_conclusion_true(self):
+        """Deduction: all premises true, conclusion=1 → potential = p."""
         result = _evaluate_potential(
             "deduction",
-            tail_ids=[1],
-            head_ids=[2],
+            premise_ids=[1],
+            conclusion_ids=[2],
             assignment={1: 1, 2: 1},
             prob=0.8,
         )
         assert result == pytest.approx(0.8)
 
-    def test_deduction_head_false(self):
-        """Deduction: all tails true, head=0 → potential = 1-p."""
+    def test_deduction_conclusion_false(self):
+        """Deduction: all premises true, conclusion=0 → potential = 1-p."""
         result = _evaluate_potential(
             "deduction",
-            tail_ids=[1],
-            head_ids=[2],
+            premise_ids=[1],
+            conclusion_ids=[2],
             assignment={1: 1, 2: 0},
             prob=0.8,
         )
         assert result == pytest.approx(0.2)
 
-    def test_retraction_head_true(self):
-        """Retraction: all tails true, head=1 → potential = 1-p (inverted)."""
+    def test_retraction_conclusion_true(self):
+        """Retraction: all premises true, conclusion=1 → potential = 1-p (inverted)."""
         result = _evaluate_potential(
             "retraction",
-            tail_ids=[1],
-            head_ids=[2],
+            premise_ids=[1],
+            conclusion_ids=[2],
             assignment={1: 1, 2: 1},
             prob=0.8,
         )
         assert result == pytest.approx(0.2)
 
-    def test_retraction_head_false(self):
-        """Retraction: all tails true, head=0 → potential = p."""
+    def test_retraction_conclusion_false(self):
+        """Retraction: all premises true, conclusion=0 → potential = p."""
         result = _evaluate_potential(
             "retraction",
-            tail_ids=[1],
-            head_ids=[2],
+            premise_ids=[1],
+            conclusion_ids=[2],
             assignment={1: 1, 2: 0},
             prob=0.8,
         )
         assert result == pytest.approx(0.8)
 
-    def test_contradiction_no_head(self):
-        """Contradiction with no head: all tails true → penalty = 1-p."""
+    def test_contradiction_no_conclusions(self):
+        """Contradiction with no conclusions: all premises true → penalty = 1-p."""
         result = _evaluate_potential(
             "contradiction",
-            tail_ids=[1, 2],
-            head_ids=[],
+            premise_ids=[1, 2],
+            conclusion_ids=[],
             assignment={1: 1, 2: 1},
             prob=0.9,
         )
         assert result == pytest.approx(0.1)
 
-    def test_contradiction_with_head_ignores_head_value(self):
-        """Contradiction potential is independent of head value (head non-participating)."""
+    def test_contradiction_with_conclusion_ignores_conclusion_value(self):
+        """Contradiction potential is independent of conclusion value (conclusion non-participating)."""
         pot_h1 = _evaluate_potential(
             "contradiction",
-            tail_ids=[1],
-            head_ids=[2],
+            premise_ids=[1],
+            conclusion_ids=[2],
             assignment={1: 1, 2: 1},
             prob=0.8,
         )
         pot_h0 = _evaluate_potential(
             "contradiction",
-            tail_ids=[1],
-            head_ids=[2],
+            premise_ids=[1],
+            conclusion_ids=[2],
             assignment={1: 1, 2: 0},
             prob=0.8,
         )
-        # Both should equal penalty = 1-0.8 = 0.2, regardless of head value
+        # Both should equal penalty = 1-0.8 = 0.2, regardless of conclusion value
         assert pot_h1 == pytest.approx(0.2)
         assert pot_h0 == pytest.approx(0.2)
 
@@ -518,42 +534,42 @@ class TestEvaluatePotential:
             )
             assert result == pytest.approx(0.75)
 
-    def test_multi_head_deduction(self):
-        """Multiple heads: potential is product of per-head potentials."""
+    def test_multi_conclusion_deduction(self):
+        """Multiple conclusions: potential is product of per-conclusion potentials."""
         result = _evaluate_potential(
             "deduction",
-            tail_ids=[1],
-            head_ids=[2, 3],
+            premise_ids=[1],
+            conclusion_ids=[2, 3],
             assignment={1: 1, 2: 1, 3: 0},
             prob=0.8,
         )
-        # head 2 = 1 → 0.8, head 3 = 0 → 0.2, product = 0.16
+        # conclusion 2 = 1 → 0.8, conclusion 3 = 0 → 0.2, product = 0.16
         assert result == pytest.approx(0.16)
 
-    def test_multi_tail_one_false(self):
-        """With multiple tails, if any is false, potential = 1 regardless of edge type."""
+    def test_multi_premise_one_false(self):
+        """With multiple premises, if any is false, potential = 1 regardless of edge type."""
         for edge_type in ("deduction", "retraction", "contradiction"):
             result = _evaluate_potential(
                 edge_type,
-                tail_ids=[1, 2, 3],
-                head_ids=[4],
+                premise_ids=[1, 2, 3],
+                conclusion_ids=[4],
                 assignment={1: 1, 2: 1, 3: 0, 4: 1},
                 prob=0.9,
             )
-            assert result == 1.0, f"{edge_type}: should be 1.0 when tail is false"
+            assert result == 1.0, f"{edge_type}: should be 1.0 when premise is false"
 
     def test_prob_zero_deduction(self):
-        """probability=0: head=1 gets 0, head=0 gets 1 (raw potential, no clamping)."""
+        """probability=0: conclusion=1 gets 0, conclusion=0 gets 1 (raw potential, no clamping)."""
         assert _evaluate_potential("deduction", [1], [2], {1: 1, 2: 1}, 0.0) == pytest.approx(0.0)
         assert _evaluate_potential("deduction", [1], [2], {1: 1, 2: 0}, 0.0) == pytest.approx(1.0)
 
     def test_prob_one_deduction(self):
-        """probability=1: deterministic — head=1 gets 1, head=0 gets 0."""
+        """probability=1: deterministic — conclusion=1 gets 1, conclusion=0 gets 0."""
         assert _evaluate_potential("deduction", [1], [2], {1: 1, 2: 1}, 1.0) == pytest.approx(1.0)
         assert _evaluate_potential("deduction", [1], [2], {1: 1, 2: 0}, 1.0) == pytest.approx(0.0)
 
     def test_prob_zero_contradiction(self):
-        """probability=0 contradiction: penalty = 1 (no inhibition)."""
+        """probability=0 contradiction: all premises true → penalty = 1 (no inhibition)."""
         result = _evaluate_potential(
             "contradiction",
             [1, 2],
@@ -564,7 +580,7 @@ class TestEvaluatePotential:
         assert result == pytest.approx(1.0)
 
     def test_prob_one_contradiction(self):
-        """probability=1 contradiction: penalty = 0 (maximum inhibition)."""
+        """probability=1 contradiction: all premises true → penalty = 0 (maximum inhibition)."""
         result = _evaluate_potential(
             "contradiction",
             [1, 2],
@@ -585,8 +601,8 @@ def test_cycle_two_nodes():
     fg = FactorGraph()
     fg.add_variable(1, 0.9)
     fg.add_variable(2, 0.5)
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.8)
-    fg.add_factor(edge_id=101, tail=[2], head=[1], probability=0.7)
+    fg.add_factor(edge_id=100, premises=[1], conclusions=[2], probability=0.8)
+    fg.add_factor(edge_id=101, premises=[2], conclusions=[1], probability=0.7)
 
     bp = BeliefPropagation(damping=0.5, max_iterations=100)
     beliefs = bp.run(fg)
@@ -604,9 +620,9 @@ def test_cycle_three_nodes():
     fg.add_variable(1, 0.8)
     fg.add_variable(2, 0.5)
     fg.add_variable(3, 0.5)
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.8)
-    fg.add_factor(edge_id=101, tail=[2], head=[3], probability=0.7)
-    fg.add_factor(edge_id=102, tail=[3], head=[1], probability=0.6)
+    fg.add_factor(edge_id=100, premises=[1], conclusions=[2], probability=0.8)
+    fg.add_factor(edge_id=101, premises=[2], conclusions=[3], probability=0.7)
+    fg.add_factor(edge_id=102, premises=[3], conclusions=[1], probability=0.6)
 
     bp = BeliefPropagation(damping=0.5, max_iterations=100)
     beliefs = bp.run(fg)
@@ -622,8 +638,10 @@ def test_cycle_with_contradiction():
     fg.add_variable(1, 0.9)
     fg.add_variable(2, 0.8)
     fg.add_variable(3, 0.5)
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.8)
-    fg.add_factor(edge_id=101, tail=[1, 2], head=[3], probability=0.8, edge_type="contradiction")
+    fg.add_factor(edge_id=100, premises=[1], conclusions=[2], probability=0.8)
+    fg.add_factor(
+        edge_id=101, premises=[1, 2], conclusions=[3], probability=0.8, edge_type="contradiction"
+    )
 
     bp = BeliefPropagation(damping=0.5, max_iterations=100)
     beliefs = bp.run(fg)
@@ -642,9 +660,9 @@ def test_cycle_with_contradiction():
 def test_prior_zero():
     """A node with prior=0.0 should stay near zero even with supporting evidence."""
     fg = FactorGraph()
-    fg.add_variable(1, 0.9)  # strong tail
+    fg.add_variable(1, 0.9)  # strong premise
     fg.add_variable(2, 0.0)  # prior = 0 (known false)
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.9)
+    fg.add_factor(edge_id=100, premises=[1], conclusions=[2], probability=0.9)
 
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
@@ -659,7 +677,9 @@ def test_prior_one():
     fg = FactorGraph()
     fg.add_variable(1, 0.9)
     fg.add_variable(2, 1.0)  # prior = 1 (known true)
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.9, edge_type="retraction")
+    fg.add_factor(
+        edge_id=100, premises=[1], conclusions=[2], probability=0.9, edge_type="retraction"
+    )
 
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
@@ -674,7 +694,7 @@ def test_probability_zero_edge():
     fg = FactorGraph()
     fg.add_variable(1, 0.9)
     fg.add_variable(2, 0.5)
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.0)
+    fg.add_factor(edge_id=100, premises=[1], conclusions=[2], probability=0.0)
 
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
@@ -690,7 +710,7 @@ def test_probability_one_edge():
     fg = FactorGraph()
     fg.add_variable(1, 0.9)
     fg.add_variable(2, 0.5)
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=1.0)
+    fg.add_factor(edge_id=100, premises=[1], conclusions=[2], probability=1.0)
 
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
@@ -705,7 +725,7 @@ def test_all_priors_zero():
     fg = FactorGraph()
     fg.add_variable(1, 0.0)
     fg.add_variable(2, 0.0)
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.8)
+    fg.add_factor(edge_id=100, premises=[1], conclusions=[2], probability=0.8)
 
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)
@@ -728,8 +748,8 @@ def test_damping_zero_preserves_priors():
     fg.add_variable(1, 0.9)
     fg.add_variable(2, 0.3)
     fg.add_variable(3, 0.7)
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=0.8)
-    fg.add_factor(edge_id=101, tail=[2], head=[3], probability=0.9)
+    fg.add_factor(edge_id=100, premises=[1], conclusions=[2], probability=0.8)
+    fg.add_factor(edge_id=101, premises=[2], conclusions=[3], probability=0.9)
 
     bp = BeliefPropagation(damping=0.0, max_iterations=50)
     beliefs = bp.run(fg)
@@ -752,9 +772,9 @@ def test_damping_zero_preserves_priors():
 def test_edge_type_direction(edge_type, prior_head, prob, expect_above_prior):
     """Parametrized test: edge type determines direction of belief change."""
     fg = FactorGraph()
-    fg.add_variable(1, 0.9)  # strong tail
+    fg.add_variable(1, 0.9)  # strong premise
     fg.add_variable(2, prior_head)
-    fg.add_factor(edge_id=100, tail=[1], head=[2], probability=prob, edge_type=edge_type)
+    fg.add_factor(edge_id=100, premises=[1], conclusions=[2], probability=prob, edge_type=edge_type)
 
     bp = BeliefPropagation(damping=1.0, max_iterations=50)
     beliefs = bp.run(fg)

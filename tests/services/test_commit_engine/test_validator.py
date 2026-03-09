@@ -11,8 +11,8 @@ def validator():
 
 async def test_valid_add_edge(validator):
     op = AddEdgeOp(
-        tail=[NewNode(content="p1")],
-        head=[NodeRef(node_id=1)],
+        premises=[NewNode(content="p1")],
+        conclusions=[NodeRef(node_id=1)],
         type="induction",
         reasoning=["deduction"],
     )
@@ -21,23 +21,28 @@ async def test_valid_add_edge(validator):
     assert results[0].valid is True
 
 
-async def test_add_edge_empty_tail(validator):
-    op = AddEdgeOp(tail=[], head=[NodeRef(node_id=1)], type="induction", reasoning=["x"])
+async def test_add_edge_empty_premises(validator):
+    op = AddEdgeOp(premises=[], conclusions=[NodeRef(node_id=1)], type="induction", reasoning=["x"])
     results = await validator.validate([op])
     assert results[0].valid is False
-    assert any("tail" in e.lower() for e in results[0].errors)
+    assert any("premises" in e.lower() for e in results[0].errors)
 
 
-async def test_add_edge_empty_head(validator):
-    op = AddEdgeOp(tail=[NewNode(content="p")], head=[], type="induction", reasoning=["x"])
+async def test_add_edge_empty_conclusions(validator):
+    op = AddEdgeOp(
+        premises=[NewNode(content="p")], conclusions=[], type="induction", reasoning=["x"]
+    )
     results = await validator.validate([op])
     assert results[0].valid is False
-    assert any("head" in e.lower() for e in results[0].errors)
+    assert any("conclusions" in e.lower() for e in results[0].errors)
 
 
 async def test_add_edge_empty_reasoning(validator):
     op = AddEdgeOp(
-        tail=[NewNode(content="p")], head=[NodeRef(node_id=1)], type="induction", reasoning=[]
+        premises=[NewNode(content="p")],
+        conclusions=[NodeRef(node_id=1)],
+        type="induction",
+        reasoning=[],
     )
     results = await validator.validate([op])
     assert results[0].valid is False
@@ -71,8 +76,8 @@ async def test_modify_node_empty_changes(validator):
 async def test_multiple_operations(validator):
     ops = [
         AddEdgeOp(
-            tail=[NewNode(content="p")],
-            head=[NodeRef(node_id=1)],
+            premises=[NewNode(content="p")],
+            conclusions=[NodeRef(node_id=1)],
             type="induction",
             reasoning=["x"],
         ),

@@ -85,7 +85,7 @@ async def test_galileo_branching_structure():
     fg = result.factor_graph
 
     # Aristotle's law should feed exactly the two tied-balls prediction branches.
-    hff_factors = [f for f in fg.factors if "heavier_falls_faster" in f["tail"]]
+    hff_factors = [f for f in fg.factors if "heavier_falls_faster" in f["premises"]]
     assert len(hff_factors) == 2, "heavier_falls_faster should feed into exactly 2 chains"
     assert {f["name"] for f in hff_factors} == {
         "drag_prediction_chain.step_2",
@@ -93,12 +93,12 @@ async def test_galileo_branching_structure():
     }
 
     synthesis = next(f for f in fg.factors if f["name"] == "synthesis_chain.step_2")
-    assert set(synthesis["tail"]) == {
+    assert set(synthesis["premises"]) == {
         "aristotle_contradicted",
         "air_resistance_is_confound",
         "inclined_plane_supports_equal_fall",
     }
-    assert synthesis["head"] == ["vacuum_prediction"]
+    assert synthesis["conclusions"] == ["vacuum_prediction"]
 
 
 async def test_galileo_story_arc_is_complete():

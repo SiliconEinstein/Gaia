@@ -48,15 +48,15 @@ def test_convert_node_ids_are_unique():
     assert len(ids) == len(set(ids))
 
 
-def test_convert_edge_tail_head_are_valid_node_ids():
+def test_convert_edge_premises_conclusions_are_valid_node_ids():
     pkg, fg, beliefs = _load_galileo()
     result = convert_package_to_storage(pkg, fg, beliefs)
     node_ids = {n.id for n in result.nodes}
     for edge in result.edges:
-        for tid in edge.tail:
-            assert tid in node_ids, f"tail id {tid} not in node_ids"
-        for hid in edge.head:
-            assert hid in node_ids, f"head id {hid} not in node_ids"
+        for tid in edge.premises:
+            assert tid in node_ids, f"premise id {tid} not in node_ids"
+        for hid in edge.conclusions:
+            assert hid in node_ids, f"conclusion id {hid} not in node_ids"
 
 
 def test_convert_edge_has_probability_and_type():

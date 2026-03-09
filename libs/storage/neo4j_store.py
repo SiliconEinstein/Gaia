@@ -5,8 +5,8 @@ Graph model
 - `:Proposition` nodes with ``{id: int}`` represent graph nodes (propositions).
 - `:Hyperedge` nodes with ``{id, type, subtype, probability, verified, reasoning}``
   represent hyperedges.
-- ``(:Proposition)-[:TAIL]->(:Hyperedge)`` — tail relationship.
-- ``(:Hyperedge)-[:HEAD]->(:Proposition)`` — head relationship.
+- ``(:Proposition)-[:PREMISE]->(:Hyperedge)`` — premise relationship.
+- ``(:Hyperedge)-[:CONCLUSION]->(:Proposition)`` — conclusion relationship.
 
 One *knowledge hop* (proposition -> hyperedge -> proposition) equals **two**
 Neo4j hops.
@@ -74,23 +74,23 @@ class Neo4jGraphStore(GraphStore):
             verified=edge.verified,
             reasoning=json.dumps(edge.reasoning),
         )
-        # 2. MERGE tail Proposition nodes and create TAIL relationships
-        for nid in edge.tail:
+        # 2. MERGE premise Proposition nodes and create PREMISE relationships
+        for nid in edge.premises:
             await tx.run(
                 "MERGE (p:Proposition {id: $nid}) "
                 "WITH p "
                 "MATCH (h:Hyperedge {id: $eid}) "
-                "CREATE (p)-[:TAIL]->(h)",
+                "CREATE (p)-[:PREMISE]->(h)",
                 nid=nid,
                 eid=edge.id,
             )
-        # 3. MERGE head Proposition nodes and create HEAD relationships
-        for nid in edge.head:
+        # 3. MERGE conclusion Proposition nodes and create CONCLUSION relationships
+        for nid in edge.conclusions:
             await tx.run(
                 "MERGE (p:Proposition {id: $nid}) "
                 "WITH p "
                 "MATCH (h:Hyperedge {id: $eid}) "
-                "CREATE (h)-[:HEAD]->(p)",
+                "CREATE (h)-[:CONCLUSION]->(p)",
                 nid=nid,
                 eid=edge.id,
             )
@@ -107,7 +107,7 @@ class Neo4jGraphStore(GraphStore):
     async def _tx_get_hyperedge(
         tx: neo4j.AsyncManagedTransaction, edge_id: int
     ) -> HyperEdge | None:
-        """Transaction function: read one hyperedge with tail/head."""
+        """Transaction function: read one hyperedge with premises/conclusions."""
         # Fetch the hyperedge properties
         res = await tx.run("MATCH (h:Hyperedge {id: $eid}) RETURN h", eid=edge_id)
         record = await res.single()
@@ -115,28 +115,28 @@ class Neo4jGraphStore(GraphStore):
             return None
         h = record["h"]
 
-        # Fetch tail node ids
-        tail_res = await tx.run(
-            "MATCH (p:Proposition)-[:TAIL]->(h:Hyperedge {id: $eid}) RETURN p.id AS nid",
+        # Fetch premise node ids
+        premise_res = await tx.run(
+            "MATCH (p:Proposition)-[:PREMISE]->(h:Hyperedge {id: $eid}) RETURN p.id AS nid",
             eid=edge_id,
         )
-        tail_records = await tail_res.values()
-        tail_ids = [r[0] for r in tail_records]
+        premise_records = await premise_res.values()
+        premise_ids = [r[0] for r in premise_records]
 
-        # Fetch head node ids
-        head_res = await tx.run(
-            "MATCH (h:Hyperedge {id: $eid})-[:HEAD]->(p:Proposition) RETURN p.id AS nid",
+        # Fetch conclusion node ids
+        conclusion_res = await tx.run(
+            "MATCH (h:Hyperedge {id: $eid})-[:CONCLUSION]->(p:Proposition) RETURN p.id AS nid",
             eid=edge_id,
         )
-        head_records = await head_res.values()
-        head_ids = [r[0] for r in head_records]
+        conclusion_records = await conclusion_res.values()
+        conclusion_ids = [r[0] for r in conclusion_records]
 
         return HyperEdge(
             id=h["id"],
             type=h["type"],
             subtype=h["subtype"] if h["subtype"] else None,
-            tail=tail_ids,
-            head=head_ids,
+            premises=premise_ids,
+            conclusions=conclusion_ids,
             probability=h["probability"] if h["probability"] != 0.0 else None,
             verified=h["verified"],
             reasoning=json.loads(h["reasoning"]),
@@ -183,9 +183,9 @@ class Neo4jGraphStore(GraphStore):
             hops: Number of knowledge hops to expand.
             edge_types: Optional list of edge types to include.
             direction: Traversal direction — ``"both"`` (default), ``"upstream"``
-                (follow edges where node is in head, going backward to tails),
-                or ``"downstream"`` (follow edges where node is in tail, going
-                forward to heads).
+                (follow edges where node is in conclusions, going backward to premises),
+                or ``"downstream"`` (follow edges where node is in premises, going
+                forward to conclusions).
             max_nodes: Maximum total nodes in the returned subgraph.
         """
         async with self._driver.session(database=self._db) as session:
@@ -206,8 +206,8 @@ class Neo4jGraphStore(GraphStore):
         """Iteratively expand the subgraph one knowledge hop at a time.
 
         Direction controls which edges are discovered from frontier nodes:
-        - ``"downstream"``: only edges where frontier nodes are tails (forward).
-        - ``"upstream"``: only edges where frontier nodes are heads (backward).
+        - ``"downstream"``: only edges where frontier nodes are premises (forward).
+        - ``"upstream"``: only edges where frontier nodes are conclusions (backward).
         - ``"both"``: edges in either direction (default, original behaviour).
         """
         visited_nodes: set[int] = set(seed_ids)
@@ -222,18 +222,18 @@ class Neo4jGraphStore(GraphStore):
 
             new_edge_ids: set[int] = set()
 
-            # --- Downstream: frontier nodes appear as TAIL -----------------
+            # --- Downstream: frontier nodes appear as PREMISE ----------------
             if direction in ("both", "downstream"):
                 if edge_types is not None:
                     he_query = (
-                        "MATCH (p:Proposition)-[:TAIL]->(h:Hyperedge) "
+                        "MATCH (p:Proposition)-[:PREMISE]->(h:Hyperedge) "
                         "WHERE p.id IN $frontier AND h.type IN $etypes "
                         "RETURN DISTINCT h.id AS hid"
                     )
                     he_res = await tx.run(he_query, frontier=list(frontier), etypes=edge_types)
                 else:
                     he_query = (
-                        "MATCH (p:Proposition)-[:TAIL]->(h:Hyperedge) "
+                        "MATCH (p:Proposition)-[:PREMISE]->(h:Hyperedge) "
                         "WHERE p.id IN $frontier "
                         "RETURN DISTINCT h.id AS hid"
                     )
@@ -242,11 +242,11 @@ class Neo4jGraphStore(GraphStore):
                 async for record in he_res:
                     new_edge_ids.add(record["hid"])
 
-            # --- Upstream: frontier nodes appear as HEAD -------------------
+            # --- Upstream: frontier nodes appear as CONCLUSION ----------------
             if direction in ("both", "upstream"):
                 if edge_types is not None:
                     he_rev_query = (
-                        "MATCH (h:Hyperedge)-[:HEAD]->(p:Proposition) "
+                        "MATCH (h:Hyperedge)-[:CONCLUSION]->(p:Proposition) "
                         "WHERE p.id IN $frontier AND h.type IN $etypes "
                         "RETURN DISTINCT h.id AS hid"
                     )
@@ -255,7 +255,7 @@ class Neo4jGraphStore(GraphStore):
                     )
                 else:
                     he_rev_query = (
-                        "MATCH (h:Hyperedge)-[:HEAD]->(p:Proposition) "
+                        "MATCH (h:Hyperedge)-[:CONCLUSION]->(p:Proposition) "
                         "WHERE p.id IN $frontier "
                         "RETURN DISTINCT h.id AS hid"
                     )
@@ -272,30 +272,30 @@ class Neo4jGraphStore(GraphStore):
 
             # Collect propositions from the discovered edges.
             # Direction determines which side of the edge we follow into:
-            # - downstream: collect HEAD propositions (the outputs)
-            # - upstream: collect TAIL propositions (the inputs)
+            # - downstream: collect CONCLUSION propositions (the outputs)
+            # - upstream: collect PREMISE propositions (the inputs)
             # - both: collect from both sides
             node_query_parts: list[str] = []
             if direction in ("both", "downstream"):
                 node_query_parts.append(
-                    "MATCH (h:Hyperedge)-[:HEAD]->(p:Proposition) "
+                    "MATCH (h:Hyperedge)-[:CONCLUSION]->(p:Proposition) "
                     "WHERE h.id IN $eids "
                     "RETURN DISTINCT p.id AS nid"
                 )
             if direction in ("both", "upstream"):
                 node_query_parts.append(
-                    "MATCH (p:Proposition)-[:TAIL]->(h:Hyperedge) "
+                    "MATCH (p:Proposition)-[:PREMISE]->(h:Hyperedge) "
                     "WHERE h.id IN $eids "
                     "RETURN DISTINCT p.id AS nid"
                 )
             # For "both" we also need the other sides so full context is kept
             if direction == "both":
                 node_query = (
-                    "MATCH (p:Proposition)-[:TAIL]->(h:Hyperedge) "
+                    "MATCH (p:Proposition)-[:PREMISE]->(h:Hyperedge) "
                     "WHERE h.id IN $eids "
                     "RETURN DISTINCT p.id AS nid "
                     "UNION "
-                    "MATCH (h:Hyperedge)-[:HEAD]->(p:Proposition) "
+                    "MATCH (h:Hyperedge)-[:CONCLUSION]->(p:Proposition) "
                     "WHERE h.id IN $eids "
                     "RETURN DISTINCT p.id AS nid"
                 )

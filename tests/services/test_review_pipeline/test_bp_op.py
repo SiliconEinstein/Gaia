@@ -14,8 +14,8 @@ async def test_bp_operator_computes_beliefs(storage):
         message="test",
         operations=[
             AddEdgeOp(
-                tail=[NewNode(content="p")],
-                head=[NewNode(content="c")],
+                premises=[NewNode(content="p")],
+                conclusions=[NewNode(content="c")],
                 type="paper-extract",
                 reasoning=[{"title": "r", "content": "x"}],
             )

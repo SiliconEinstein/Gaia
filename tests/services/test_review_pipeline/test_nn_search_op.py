@@ -12,8 +12,8 @@ async def test_nn_search_returns_neighbors(storage):
         message="test",
         operations=[
             AddEdgeOp(
-                tail=[NewNode(content="premise")],
-                head=[NewNode(content="conclusion")],
+                premises=[NewNode(content="premise")],
+                conclusions=[NewNode(content="conclusion")],
                 type="paper-extract",
                 reasoning=[{"title": "r", "content": "because"}],
             )

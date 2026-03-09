@@ -28,8 +28,8 @@ class HyperEdge(BaseModel):
     id: int
     type: str  # paper-extract | abstraction | induction | contradiction | retraction
     subtype: str | None = None
-    tail: list[int]
-    head: list[int]
+    premises: list[int]
+    conclusions: list[int]
     probability: float | None = None
     verified: bool = False
     reasoning: list = []
@@ -53,8 +53,8 @@ class NodeRef(BaseModel):
 
 class AddEdgeOp(BaseModel):
     op: Literal["add_edge"] = "add_edge"
-    tail: list[NewNode | NodeRef]
-    head: list[NewNode | NodeRef]
+    premises: list[NewNode | NodeRef]
+    conclusions: list[NewNode | NodeRef]
     type: str
     reasoning: list
 

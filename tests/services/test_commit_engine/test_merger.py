@@ -54,8 +54,8 @@ async def test_merge_add_edge_with_new_nodes(merger, storage):
     commit = _make_commit(
         [
             AddEdgeOp(
-                tail=[NewNode(content="premise A"), NewNode(content="premise B")],
-                head=[NodeRef(node_id=67)],  # fixture node
+                premises=[NewNode(content="premise A"), NewNode(content="premise B")],
+                conclusions=[NodeRef(node_id=67)],  # fixture node
                 type="induction",
                 reasoning=["deduction from A and B"],
             )
@@ -78,8 +78,8 @@ async def test_merge_add_edge_with_existing_nodes_only(merger, storage):
     commit = _make_commit(
         [
             AddEdgeOp(
-                tail=[NodeRef(node_id=67)],
-                head=[NodeRef(node_id=68)],
+                premises=[NodeRef(node_id=67)],
+                conclusions=[NodeRef(node_id=68)],
                 type="abstraction",
                 reasoning=["merge abstraction"],
             )
@@ -123,8 +123,8 @@ async def test_merge_no_graph_still_works(storage_empty):
     commit = _make_commit(
         [
             AddEdgeOp(
-                tail=[NewNode(content="p")],
-                head=[NodeRef(node_id=1)],
+                premises=[NewNode(content="p")],
+                conclusions=[NodeRef(node_id=1)],
                 type="induction",
                 reasoning=["test"],
             )
@@ -142,8 +142,8 @@ async def test_merge_multiple_operations(merger, storage):
     commit = _make_commit(
         [
             AddEdgeOp(
-                tail=[NewNode(content="new node")],
-                head=[NodeRef(node_id=67)],
+                premises=[NewNode(content="new node")],
+                conclusions=[NodeRef(node_id=67)],
                 type="induction",
                 reasoning=["reasoning"],
             ),

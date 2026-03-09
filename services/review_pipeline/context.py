@@ -20,7 +20,7 @@ class NewNodeInfo(BaseModel):
     keywords: list[str] = []
     extra: dict = {}
     op_index: int
-    position: str  # e.g. "tail[0]", "head[1]"
+    position: str  # e.g. "premises[0]", "conclusions[1]"
 
 
 class AbstractionTree(BaseModel):
@@ -57,7 +57,7 @@ class PipelineContext:
         ctx.request = request
         for op_idx, op in enumerate(request.operations):
             if isinstance(op, AddEdgeOp):
-                for i, item in enumerate(op.tail):
+                for i, item in enumerate(op.premises):
                     if isinstance(item, NewNode):
                         ctx.new_nodes.append(
                             NewNodeInfo(
@@ -67,10 +67,10 @@ class PipelineContext:
                                 keywords=item.keywords,
                                 extra=item.extra,
                                 op_index=op_idx,
-                                position=f"tail[{i}]",
+                                position=f"premises[{i}]",
                             )
                         )
-                for i, item in enumerate(op.head):
+                for i, item in enumerate(op.conclusions):
                     if isinstance(item, NewNode):
                         ctx.new_nodes.append(
                             NewNodeInfo(
@@ -80,7 +80,7 @@ class PipelineContext:
                                 keywords=item.keywords,
                                 extra=item.extra,
                                 op_index=op_idx,
-                                position=f"head[{i}]",
+                                position=f"conclusions[{i}]",
                             )
                         )
             elif isinstance(op, ModifyNodeOp):

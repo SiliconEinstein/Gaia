@@ -80,8 +80,8 @@ class TestCommitWorkflow:
                 "operations": [
                     {
                         "op": "add_edge",
-                        "tail": [{"content": "YH10 is predicted stable at 400GPa"}],
-                        "head": [{"node_id": 1}],
+                        "premises": [{"content": "YH10 is predicted stable at 400GPa"}],
+                        "conclusions": [{"node_id": 1}],
                         "type": "induction",
                         "reasoning": ["DFT calculation shows stability"],
                     }
@@ -115,7 +115,7 @@ class TestCommitWorkflow:
         assert resp.json()["status"] == "merged"
 
     def test_submit_invalid_rejected(self, app_client):
-        """A commit with empty tail/head/reasoning should be rejected at submit time."""
+        """A commit with empty premises/conclusions/reasoning should be rejected at submit time."""
         client, dep = app_client
         resp = client.post(
             "/commits",
@@ -124,8 +124,8 @@ class TestCommitWorkflow:
                 "operations": [
                     {
                         "op": "add_edge",
-                        "tail": [],
-                        "head": [],
+                        "premises": [],
+                        "conclusions": [],
                         "type": "induction",
                         "reasoning": [],
                     }
@@ -145,8 +145,8 @@ class TestCommitWorkflow:
                 "operations": [
                     {
                         "op": "add_edge",
-                        "tail": [{"content": "premise"}],
-                        "head": [{"node_id": 1}],
+                        "premises": [{"content": "premise"}],
+                        "conclusions": [{"node_id": 1}],
                         "type": "induction",
                         "reasoning": ["reasoning"],
                     }
@@ -171,8 +171,8 @@ class TestCommitWorkflow:
                 "operations": [
                     {
                         "op": "add_edge",
-                        "tail": [{"content": "data point"}],
-                        "head": [{"node_id": 1}],
+                        "premises": [{"content": "data point"}],
+                        "conclusions": [{"node_id": 1}],
                         "type": "induction",
                         "reasoning": ["evidence"],
                     }
@@ -256,8 +256,8 @@ class TestNodeOperations:
                 "operations": [
                     {
                         "op": "add_edge",
-                        "tail": [{"content": "node created by merge"}],
-                        "head": [{"node_id": 1}],
+                        "premises": [{"content": "node created by merge"}],
+                        "conclusions": [{"node_id": 1}],
                         "type": "paper-extract",
                         "reasoning": ["test reasoning"],
                     }
@@ -417,8 +417,8 @@ class TestFullPipeline:
                 "operations": [
                     {
                         "op": "add_edge",
-                        "tail": [{"content": "LaH10 shows Tc=250K at 170GPa"}],
-                        "head": [{"node_id": 1}],
+                        "premises": [{"content": "LaH10 shows Tc=250K at 170GPa"}],
+                        "conclusions": [{"node_id": 1}],
                         "type": "paper-extract",
                         "reasoning": ["experimental observation"],
                     }
@@ -466,8 +466,8 @@ class TestFullPipeline:
                     "operations": [
                         {
                             "op": "add_edge",
-                            "tail": [{"content": content}],
-                            "head": [{"node_id": 1}],
+                            "premises": [{"content": content}],
+                            "conclusions": [{"node_id": 1}],
                             "type": "paper-extract",
                             "reasoning": ["literature review"],
                         }
@@ -502,8 +502,8 @@ class TestFullPipeline:
                 "operations": [
                     {
                         "op": "add_edge",
-                        "tail": [{"content": "H3S superconductor at 200GPa"}],
-                        "head": [{"node_id": 1}],
+                        "premises": [{"content": "H3S superconductor at 200GPa"}],
+                        "conclusions": [{"node_id": 1}],
                         "type": "paper-extract",
                         "reasoning": ["experiment"],
                     }
@@ -522,7 +522,7 @@ class TestFullPipeline:
             assert resp.json()["id"] == nid
 
     def test_commit_with_multiple_new_nodes(self, app_client):
-        """A commit with multiple new nodes in tail and head should create them all."""
+        """A commit with multiple new nodes in premises and conclusions should create them all."""
         client, dep = app_client
 
         resp = client.post(
@@ -532,11 +532,11 @@ class TestFullPipeline:
                 "operations": [
                     {
                         "op": "add_edge",
-                        "tail": [
+                        "premises": [
                             {"content": "Premise A: high pressure synthesis"},
                             {"content": "Premise B: crystal structure analysis"},
                         ],
-                        "head": [
+                        "conclusions": [
                             {"content": "Conclusion: novel superconductor phase"},
                         ],
                         "type": "induction",
@@ -551,7 +551,7 @@ class TestFullPipeline:
         merge_resp = client.post(f"/commits/{commit_id}/merge", json={"force": True})
         merge_data = merge_resp.json()
         assert merge_data["success"] is True
-        # Should have created 3 new nodes (2 tail + 1 head)
+        # Should have created 3 new nodes (2 premises + 1 conclusion)
         assert len(merge_data["new_node_ids"]) == 3
         # Should have created 1 new hyperedge
         assert len(merge_data["new_edge_ids"]) == 1
@@ -572,8 +572,8 @@ class TestAsyncReviewPipeline:
                 "operations": [
                     {
                         "op": "add_edge",
-                        "tail": [{"content": "New proposition for review"}],
-                        "head": [{"node_id": 1}],
+                        "premises": [{"content": "New proposition for review"}],
+                        "conclusions": [{"node_id": 1}],
                         "type": "induction",
                         "reasoning": ["test reasoning"],
                     }
@@ -615,8 +615,8 @@ class TestAsyncReviewPipeline:
                 "operations": [
                     {
                         "op": "add_edge",
-                        "tail": [{"content": "Cancel me"}],
-                        "head": [{"node_id": 1}],
+                        "premises": [{"content": "Cancel me"}],
+                        "conclusions": [{"node_id": 1}],
                         "type": "induction",
                         "reasoning": ["r"],
                     }
@@ -645,8 +645,8 @@ class TestAsyncReviewPipeline:
                 "operations": [
                     {
                         "op": "add_edge",
-                        "tail": [{"content": "p"}],
-                        "head": [{"node_id": 1}],
+                        "premises": [{"content": "p"}],
+                        "conclusions": [{"node_id": 1}],
                         "type": "induction",
                         "reasoning": ["r"],
                     }
@@ -671,8 +671,8 @@ class TestAsyncReviewPipeline:
                 "operations": [
                     {
                         "op": "add_edge",
-                        "tail": [{"content": "Graphene has high thermal conductivity"}],
-                        "head": [{"node_id": 1}],
+                        "premises": [{"content": "Graphene has high thermal conductivity"}],
+                        "conclusions": [{"node_id": 1}],
                         "type": "paper-extract",
                         "reasoning": ["measurement result"],
                     }

@@ -23,8 +23,8 @@ class FactorGraph:
 
     A factor graph is a bipartite graph between variable nodes and factor nodes.
     Each Node in the hypergraph becomes a variable with its prior belief, and
-    each HyperEdge becomes a factor connecting its tail and head variables with
-    an associated probability.
+    each HyperEdge becomes a factor connecting its premise and conclusion
+    variables with an associated probability.
 
     **Cromwell's rule** is enforced at construction: priors and edge
     probabilities are clamped to ``[ε, 1-ε]`` (ε = 1e-3). This prevents
@@ -35,7 +35,7 @@ class FactorGraph:
 
     def __init__(self) -> None:
         self.variables: dict[int, float] = {}  # node_id -> prior
-        self.factors: list[dict] = []  # [{edge_id, tail, head, probability}]
+        self.factors: list[dict] = []  # [{edge_id, premises, conclusions, probability}]
 
     def add_variable(self, node_id: int, prior: float) -> None:
         """Add a variable node with its prior belief.
@@ -50,8 +50,8 @@ class FactorGraph:
     def add_factor(
         self,
         edge_id: int,
-        tail: list[int],
-        head: list[int],
+        premises: list[int],
+        conclusions: list[int],
         probability: float,
         edge_type: str = "deduction",
     ) -> None:
@@ -70,8 +70,8 @@ class FactorGraph:
         self.factors.append(
             {
                 "edge_id": edge_id,
-                "tail": tail,
-                "head": head,
+                "premises": premises,
+                "conclusions": conclusions,
                 "probability": clamped,
                 "edge_type": edge_type,
             }
@@ -90,14 +90,14 @@ class FactorGraph:
             graph.add_variable(node.id, node.prior)
         for edge in edges:
             prob = edge.probability if edge.probability is not None else 1.0
-            graph.add_factor(edge.id, edge.tail, edge.head, prob, edge_type=edge.type)
+            graph.add_factor(edge.id, edge.premises, edge.conclusions, prob, edge_type=edge.type)
         return graph
 
     def get_var_factors(self) -> dict[int, list[int]]:
         """Build reverse index: variable id -> list of factor indices involving it."""
         var_factors: dict[int, list[int]] = {vid: [] for vid in self.variables}
         for fi, f in enumerate(self.factors):
-            for vid in f["tail"] + f["head"]:
+            for vid in f["premises"] + f["conclusions"]:
                 if vid in var_factors:
                     var_factors[vid].append(fi)
         return var_factors

@@ -83,10 +83,10 @@ async def inspect_cmd(path: str) -> None:
     print()
     print("Factor Graph:")
     for factor in result.factor_graph.factors:
-        tail = ", ".join(factor["tail"])
-        head = ", ".join(factor["head"])
+        premises = ", ".join(factor["premises"])
+        conclusions = ", ".join(factor["conclusions"])
         print(
-            f"  {factor['name']}: [{tail}] -> [{head}] "
+            f"  {factor['name']}: [{premises}] -> [{conclusions}] "
             f"(p={factor['probability']}, type={factor.get('edge_type', 'deduction')})"
         )
     print()

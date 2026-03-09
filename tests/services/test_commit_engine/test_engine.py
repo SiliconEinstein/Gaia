@@ -32,8 +32,8 @@ def _add_edge_request(message="test", content="premise"):
         message=message,
         operations=[
             AddEdgeOp(
-                tail=[NewNode(content=content)],
-                head=[NodeRef(node_id=67)],  # fixture node
+                premises=[NewNode(content=content)],
+                conclusions=[NodeRef(node_id=67)],  # fixture node
                 type="induction",
                 reasoning=["deduction"],
             )
@@ -57,7 +57,7 @@ async def test_submit_rejects_invalid(engine):
     req = CommitRequest(
         message="invalid",
         operations=[
-            AddEdgeOp(tail=[], head=[], type="induction", reasoning=[]),
+            AddEdgeOp(premises=[], conclusions=[], type="induction", reasoning=[]),
         ],
     )
     resp = await engine.submit(req)
@@ -130,8 +130,8 @@ async def test_submit_review_returns_job(engine):
         message="test",
         operations=[
             AddEdgeOp(
-                tail=[NewNode(content="premise")],
-                head=[NodeRef(node_id=1)],
+                premises=[NewNode(content="premise")],
+                conclusions=[NodeRef(node_id=1)],
                 type="induction",
                 reasoning=["r"],
             )
@@ -149,8 +149,8 @@ async def test_submit_review_stores_job_id_on_commit(engine):
         message="test",
         operations=[
             AddEdgeOp(
-                tail=[NewNode(content="p")],
-                head=[NodeRef(node_id=1)],
+                premises=[NewNode(content="p")],
+                conclusions=[NodeRef(node_id=1)],
                 type="induction",
                 reasoning=["r"],
             )
@@ -168,8 +168,8 @@ async def test_review_job_completes_with_result(engine):
         message="test",
         operations=[
             AddEdgeOp(
-                tail=[NewNode(content="p")],
-                head=[NodeRef(node_id=1)],
+                premises=[NewNode(content="p")],
+                conclusions=[NodeRef(node_id=1)],
                 type="induction",
                 reasoning=["r"],
             )
@@ -196,8 +196,8 @@ async def test_submit_review_rejects_non_pending(engine):
         message="test",
         operations=[
             AddEdgeOp(
-                tail=[NewNode(content="p")],
-                head=[NodeRef(node_id=1)],
+                premises=[NewNode(content="p")],
+                conclusions=[NodeRef(node_id=1)],
                 type="induction",
                 reasoning=["r"],
             )

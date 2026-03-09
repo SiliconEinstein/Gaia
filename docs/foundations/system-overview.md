@@ -136,14 +136,14 @@ declarations:
 chains:
   - id: tied_bodies_contradiction
     type: deduction
-    head: [combined_slower]
+    conclusions: [combined_slower]
     steps:
       - premise: [heavy_falls_fast, light_falls_slow]
         reasoning: "Light body drags heavy body"
         conclusion: combined_slower
 ```
 
-- **Strong reference (premise in chain steps):** if this is wrong, the conclusion cannot stand. Modeled as hyperedge tail, participates in belief propagation.
+- **Strong reference (premise in chain steps):** if this is wrong, the conclusion cannot stand. Modeled as hyperedge premises, participates in belief propagation.
 - **Weak reference (context):** provides background. Conclusion can stand without it. Folded into declaration's prior, no BP edge.
 
 For the language spec, see [language/gaia-language-spec.md](language/gaia-language-spec.md).

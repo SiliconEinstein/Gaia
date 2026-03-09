@@ -65,10 +65,10 @@ class LiteLLMVerifyClient(VerifyLLM):
     @staticmethod
     def _build_input(tree: AbstractionTree) -> str:
         lines = [
-            "## PARENT (tail):",
+            "## PARENT (premises):",
             f"Content: {tree.source_content}",
             "",
-            "## CHILDREN (head):",
+            "## CHILDREN (conclusions):",
             f"### Child {tree.target_node_id}:",
             f"Content: {tree.target_content}",
             f"Relation: {tree.relation}",

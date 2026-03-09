@@ -9,8 +9,8 @@ def test_context_init_from_add_edge_ops():
         message="test",
         operations=[
             AddEdgeOp(
-                tail=[NewNode(content="premise A"), NodeRef(node_id=100)],
-                head=[NewNode(content="conclusion B")],
+                premises=[NewNode(content="premise A"), NodeRef(node_id=100)],
+                conclusions=[NewNode(content="conclusion B")],
                 type="paper-extract",
                 reasoning=[{"title": "step1", "content": "because"}],
             )
@@ -20,9 +20,9 @@ def test_context_init_from_add_edge_ops():
     assert len(ctx.new_nodes) == 2
     assert ctx.new_nodes[0].content == "premise A"
     assert ctx.new_nodes[0].op_index == 0
-    assert ctx.new_nodes[0].position == "tail[0]"
+    assert ctx.new_nodes[0].position == "premises[0]"
     assert ctx.new_nodes[1].content == "conclusion B"
-    assert ctx.new_nodes[1].position == "head[0]"
+    assert ctx.new_nodes[1].position == "conclusions[0]"
     assert ctx.cancelled is False
 
 

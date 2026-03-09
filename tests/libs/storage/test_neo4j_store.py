@@ -24,22 +24,26 @@ async def store():
     await driver.close()
 
 
-def _edge(id: int, tail: list[int], head: list[int], type: str = "paper-extract") -> HyperEdge:
-    return HyperEdge(id=id, type=type, tail=tail, head=head, reasoning=["test"])
+def _edge(
+    id: int, premises: list[int], conclusions: list[int], type: str = "paper-extract"
+) -> HyperEdge:
+    return HyperEdge(
+        id=id, type=type, premises=premises, conclusions=conclusions, reasoning=["test"]
+    )
 
 
 async def test_create_and_get_hyperedge(store):
-    edge = _edge(1, tail=[10, 11], head=[12])
+    edge = _edge(1, premises=[10, 11], conclusions=[12])
     eid = await store.create_hyperedge(edge)
     assert eid == 1
     loaded = await store.get_hyperedge(1)
     assert loaded is not None
-    assert set(loaded.tail) == {10, 11}
-    assert loaded.head == [12]
+    assert set(loaded.premises) == {10, 11}
+    assert loaded.conclusions == [12]
 
 
 async def test_create_hyperedges_bulk(store):
-    edges = [_edge(1, [10], [11]), _edge(2, [11], [12])]
+    edges = [_edge(1, premises=[10], conclusions=[11]), _edge(2, premises=[11], conclusions=[12])]
     ids = await store.create_hyperedges_bulk(edges)
     assert ids == [1, 2]
 
@@ -50,7 +54,7 @@ async def test_get_nonexistent_hyperedge(store):
 
 
 async def test_update_hyperedge(store):
-    await store.create_hyperedge(_edge(1, [10], [11]))
+    await store.create_hyperedge(_edge(1, premises=[10], conclusions=[11]))
     await store.update_hyperedge(1, probability=0.9, verified=True)
     loaded = await store.get_hyperedge(1)
     assert loaded.probability == pytest.approx(0.9)
@@ -58,8 +62,8 @@ async def test_update_hyperedge(store):
 
 
 async def test_get_subgraph_basic(store):
-    await store.create_hyperedge(_edge(1, [10], [11]))
-    await store.create_hyperedge(_edge(2, [11], [12]))
+    await store.create_hyperedge(_edge(1, premises=[10], conclusions=[11]))
+    await store.create_hyperedge(_edge(2, premises=[11], conclusions=[12]))
     node_ids, edge_ids = await store.get_subgraph([10], hops=2)
     assert 10 in node_ids
     assert 11 in node_ids
@@ -69,16 +73,16 @@ async def test_get_subgraph_basic(store):
 
 
 async def test_get_subgraph_hops_limit(store):
-    await store.create_hyperedge(_edge(1, [10], [11]))
-    await store.create_hyperedge(_edge(2, [11], [12]))
+    await store.create_hyperedge(_edge(1, premises=[10], conclusions=[11]))
+    await store.create_hyperedge(_edge(2, premises=[11], conclusions=[12]))
     node_ids, edge_ids = await store.get_subgraph([10], hops=1)
     assert 11 in node_ids
     assert 12 not in node_ids
 
 
 async def test_get_subgraph_edge_type_filter(store):
-    await store.create_hyperedge(_edge(1, [10], [11], type="abstraction"))
-    await store.create_hyperedge(_edge(2, [11], [12], type="induction"))
+    await store.create_hyperedge(_edge(1, premises=[10], conclusions=[11], type="abstraction"))
+    await store.create_hyperedge(_edge(2, premises=[11], conclusions=[12], type="induction"))
     node_ids, edge_ids = await store.get_subgraph([10], hops=2, edge_types=["abstraction"])
     assert 11 in node_ids
     assert 12 not in node_ids
@@ -95,8 +99,8 @@ async def test_create_fixture_edges(store):
 
     loaded = await store.get_hyperedge(edges[0].id)
     assert loaded is not None
-    assert set(loaded.tail) == set(edges[0].tail)
-    assert set(loaded.head) == set(edges[0].head)
+    assert set(loaded.premises) == set(edges[0].premises)
+    assert set(loaded.conclusions) == set(edges[0].conclusions)
 
 
 async def test_subgraph_with_fixture_topology(store):
@@ -105,7 +109,7 @@ async def test_subgraph_with_fixture_topology(store):
     for edge in edges:
         await store.create_hyperedge(edge)
 
-    seed = edges[0].tail[0]
+    seed = edges[0].premises[0]
     node_ids, edge_ids = await store.get_subgraph([seed], hops=2)
     assert seed in node_ids
     assert edges[0].id in edge_ids

@@ -40,12 +40,14 @@ async def test_manager_kuzu_auto_schema_init(tmp_path):
     manager = StorageManager(config)
 
     # Should work immediately without calling initialize_schema()
-    edge = HyperEdge(id=1, type="deduction", tail=[10], head=[20], probability=0.8, reasoning=[])
+    edge = HyperEdge(
+        id=1, type="deduction", premises=[10], conclusions=[20], probability=0.8, reasoning=[]
+    )
     await manager.graph.create_hyperedge(edge)
     loaded = await manager.graph.get_hyperedge(1)
     assert loaded is not None
-    assert loaded.tail == [10]
-    assert loaded.head == [20]
+    assert loaded.premises == [10]
+    assert loaded.conclusions == [20]
 
     await manager.close()
 

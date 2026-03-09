@@ -16,8 +16,8 @@ def _make_commit(commit_id: str = "test-001") -> Commit:
         message="test commit",
         operations=[
             AddEdgeOp(
-                tail=[NewNode(content="premise")],
-                head=[NodeRef(node_id=1)],
+                premises=[NewNode(content="premise")],
+                conclusions=[NodeRef(node_id=1)],
                 type="induction",
                 reasoning=["test reasoning"],
             )

@@ -87,17 +87,17 @@ def convert_package_to_storage(
     # Create a HyperEdge for each factor in the factor graph
     edge_id = start_edge_id
     for factor in fg.factors:
-        tail_ids = [name_to_id[n] for n in factor["tail"] if n in name_to_id]
-        head_ids = [name_to_id[n] for n in factor["head"] if n in name_to_id]
+        premise_ids = [name_to_id[n] for n in factor["premises"] if n in name_to_id]
+        conclusion_ids = [name_to_id[n] for n in factor["conclusions"] if n in name_to_id]
 
-        if not tail_ids and not head_ids:
+        if not premise_ids and not conclusion_ids:
             continue
 
         edge = HyperEdge(
             id=edge_id,
             type=factor.get("edge_type", "deduction"),
-            tail=tail_ids,
-            head=head_ids,
+            premises=premise_ids,
+            conclusions=conclusion_ids,
             probability=factor.get("probability"),
             reasoning=[{"title": factor["name"], "content": ""}],
             metadata={"source": "dsl", "package": pkg.name},

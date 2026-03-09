@@ -58,7 +58,7 @@ def test_node_flexible_content():
 
 
 def test_hyperedge_defaults():
-    edge = HyperEdge(id=1, type="paper-extract", tail=[1], head=[2])
+    edge = HyperEdge(id=1, type="paper-extract", premises=[1], conclusions=[2])
     assert edge.verified is False
     assert edge.probability is None
     assert edge.metadata == {}
@@ -68,28 +68,30 @@ def test_hyperedge_defaults():
 
 def test_hyperedge_types():
     for t in ("paper-extract", "abstraction", "induction", "contradiction", "retraction"):
-        edge = HyperEdge(id=1, type=t, tail=[1], head=[2])
+        edge = HyperEdge(id=1, type=t, premises=[1], conclusions=[2])
         assert edge.type == t
 
 
 def test_hyperedge_flexible_reasoning():
     """reasoning is list (untyped elements)."""
-    e1 = HyperEdge(id=1, type="t", tail=[1], head=[2], reasoning=["step1", "step2"])
+    e1 = HyperEdge(id=1, type="t", premises=[1], conclusions=[2], reasoning=["step1", "step2"])
     assert e1.reasoning == ["step1", "step2"]
-    e2 = HyperEdge(id=2, type="t", tail=[1], head=[2], reasoning=[{"title": "x", "content": "y"}])
+    e2 = HyperEdge(
+        id=2, type="t", premises=[1], conclusions=[2], reasoning=[{"title": "x", "content": "y"}]
+    )
     assert e2.reasoning[0]["title"] == "x"
 
 
 def test_add_edge_op():
     op = AddEdgeOp(
-        tail=[NewNode(content="premise")],
-        head=[NodeRef(node_id=42)],
+        premises=[NewNode(content="premise")],
+        conclusions=[NodeRef(node_id=42)],
         type="induction",
         reasoning=["logical deduction"],
     )
     assert op.op == "add_edge"
-    assert len(op.tail) == 1
-    assert len(op.head) == 1
+    assert len(op.premises) == 1
+    assert len(op.conclusions) == 1
 
 
 def test_modify_edge_op():
@@ -110,8 +112,8 @@ def test_commit_request():
         message="Add new finding",
         operations=[
             AddEdgeOp(
-                tail=[NewNode(content="premise A")],
-                head=[NodeRef(node_id=42)],
+                premises=[NewNode(content="premise A")],
+                conclusions=[NodeRef(node_id=42)],
                 type="induction",
                 reasoning=["deduction"],
             )

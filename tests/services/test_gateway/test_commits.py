@@ -31,8 +31,8 @@ def _valid_commit_payload():
         "operations": [
             {
                 "op": "add_edge",
-                "tail": [{"content": "premise A"}],
-                "head": [{"node_id": 42}],
+                "premises": [{"content": "premise A"}],
+                "conclusions": [{"node_id": 42}],
                 "type": "induction",
                 "reasoning": ["deduction from A"],
             }
@@ -164,8 +164,8 @@ async def test_list_commits(client):
             "operations": [
                 {
                     "op": "add_edge",
-                    "tail": [{"content": "p"}],
-                    "head": [{"node_id": 1}],
+                    "premises": [{"content": "p"}],
+                    "conclusions": [{"node_id": 1}],
                     "type": "induction",
                     "reasoning": ["test"],
                 }

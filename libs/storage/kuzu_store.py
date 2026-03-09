@@ -6,8 +6,8 @@ Identical to Neo4jGraphStore:
 - ``Proposition`` nodes with ``{id: int}`` represent graph nodes (propositions).
 - ``Hyperedge`` nodes with ``{id, type, subtype, probability, verified, reasoning}``
   represent hyperedges.
-- ``(Proposition)-[TAIL]->(Hyperedge)`` — tail relationship.
-- ``(Hyperedge)-[HEAD]->(Proposition)`` — head relationship.
+- ``(Proposition)-[PREMISE]->(Hyperedge)`` — premise relationship.
+- ``(Hyperedge)-[CONCLUSION]->(Proposition)`` — conclusion relationship.
 
 Kuzu is an embedded graph database (like SQLite for graphs). Zero-config:
 ``pip install kuzu``. Its Python API is synchronous; we wrap in async methods
@@ -47,8 +47,10 @@ class KuzuGraphStore(GraphStore):
             "probability DOUBLE, verified BOOLEAN, reasoning STRING, "
             "PRIMARY KEY(id))"
         )
-        self._conn.execute("CREATE REL TABLE IF NOT EXISTS TAIL(FROM Proposition TO Hyperedge)")
-        self._conn.execute("CREATE REL TABLE IF NOT EXISTS HEAD(FROM Hyperedge TO Proposition)")
+        self._conn.execute("CREATE REL TABLE IF NOT EXISTS PREMISE(FROM Proposition TO Hyperedge)")
+        self._conn.execute(
+            "CREATE REL TABLE IF NOT EXISTS CONCLUSION(FROM Hyperedge TO Proposition)"
+        )
 
     async def initialize_schema(self) -> None:
         """Create node/rel tables (idempotent)."""
@@ -58,7 +60,7 @@ class KuzuGraphStore(GraphStore):
 
     async def create_hyperedge(self, edge: HyperEdge) -> int:
         """Persist a single hyperedge and return its id."""
-        for nid in set(edge.tail + edge.head):
+        for nid in set(edge.premises + edge.conclusions):
             self._conn.execute("MERGE (p:Proposition {id: $id})", {"id": nid})
 
         self._conn.execute(
@@ -74,17 +76,17 @@ class KuzuGraphStore(GraphStore):
             },
         )
 
-        for nid in edge.tail:
+        for nid in edge.premises:
             self._conn.execute(
                 "MATCH (p:Proposition {id: $nid}), (h:Hyperedge {id: $eid}) "
-                "CREATE (p)-[:TAIL]->(h)",
+                "CREATE (p)-[:PREMISE]->(h)",
                 {"nid": nid, "eid": edge.id},
             )
 
-        for nid in edge.head:
+        for nid in edge.conclusions:
             self._conn.execute(
                 "MATCH (h:Hyperedge {id: $eid}), (p:Proposition {id: $nid}) "
-                "CREATE (h)-[:HEAD]->(p)",
+                "CREATE (h)-[:CONCLUSION]->(p)",
                 {"eid": edge.id, "nid": nid},
             )
 
@@ -109,24 +111,24 @@ class KuzuGraphStore(GraphStore):
             return None
         row = result.get_next()
 
-        tail_result = self._conn.execute(
-            "MATCH (p:Proposition)-[:TAIL]->(h:Hyperedge {id: $eid}) RETURN p.id",
+        premise_result = self._conn.execute(
+            "MATCH (p:Proposition)-[:PREMISE]->(h:Hyperedge {id: $eid}) RETURN p.id",
             {"eid": edge_id},
         )
-        tail_ids = [r[0] for r in tail_result.get_as_df().values]
+        premise_ids = [r[0] for r in premise_result.get_as_df().values]
 
-        head_result = self._conn.execute(
-            "MATCH (h:Hyperedge {id: $eid})-[:HEAD]->(p:Proposition) RETURN p.id",
+        conclusion_result = self._conn.execute(
+            "MATCH (h:Hyperedge {id: $eid})-[:CONCLUSION]->(p:Proposition) RETURN p.id",
             {"eid": edge_id},
         )
-        head_ids = [r[0] for r in head_result.get_as_df().values]
+        conclusion_ids = [r[0] for r in conclusion_result.get_as_df().values]
 
         return HyperEdge(
             id=row[0],
             type=row[1],
             subtype=row[2] if row[2] else None,
-            tail=tail_ids,
-            head=head_ids,
+            premises=premise_ids,
+            conclusions=conclusion_ids,
             probability=row[3] if row[3] != 0.0 else None,
             verified=row[4],
             reasoning=json.loads(row[5]),
@@ -174,7 +176,7 @@ class KuzuGraphStore(GraphStore):
             if direction in ("both", "downstream"):
                 for nid in frontier:
                     res = self._conn.execute(
-                        "MATCH (p:Proposition {id: $nid})-[:TAIL]->(h:Hyperedge) RETURN h.id",
+                        "MATCH (p:Proposition {id: $nid})-[:PREMISE]->(h:Hyperedge) RETURN h.id",
                         {"nid": nid},
                     )
                     for row in res.get_as_df().values:
@@ -185,7 +187,7 @@ class KuzuGraphStore(GraphStore):
             if direction in ("both", "upstream"):
                 for nid in frontier:
                     res = self._conn.execute(
-                        "MATCH (h:Hyperedge)-[:HEAD]->(p:Proposition {id: $nid}) RETURN h.id",
+                        "MATCH (h:Hyperedge)-[:CONCLUSION]->(p:Proposition {id: $nid}) RETURN h.id",
                         {"nid": nid},
                     )
                     for row in res.get_as_df().values:
@@ -202,14 +204,14 @@ class KuzuGraphStore(GraphStore):
             for eid in new_edge_ids:
                 if direction in ("both", "downstream"):
                     res = self._conn.execute(
-                        "MATCH (h:Hyperedge {id: $eid})-[:HEAD]->(p:Proposition) RETURN p.id",
+                        "MATCH (h:Hyperedge {id: $eid})-[:CONCLUSION]->(p:Proposition) RETURN p.id",
                         {"eid": eid},
                     )
                     for row in res.get_as_df().values:
                         new_nodes.add(int(row[0]))
                 if direction in ("both", "upstream"):
                     res = self._conn.execute(
-                        "MATCH (p:Proposition)-[:TAIL]->(h:Hyperedge {id: $eid}) RETURN p.id",
+                        "MATCH (p:Proposition)-[:PREMISE]->(h:Hyperedge {id: $eid}) RETURN p.id",
                         {"eid": eid},
                     )
                     for row in res.get_as_df().values:

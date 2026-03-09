@@ -14,8 +14,8 @@ def context_with_nn():
         message="test",
         operations=[
             AddEdgeOp(
-                tail=[NewNode(content="premise")],
-                head=[NewNode(content="conclusion")],
+                premises=[NewNode(content="premise")],
+                conclusions=[NewNode(content="conclusion")],
                 type="paper-extract",
                 reasoning=[{"title": "r", "content": "because"}],
             )

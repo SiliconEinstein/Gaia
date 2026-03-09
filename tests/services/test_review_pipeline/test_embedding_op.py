@@ -13,8 +13,8 @@ def context_with_new_nodes():
         message="test",
         operations=[
             AddEdgeOp(
-                tail=[NewNode(content="premise A")],
-                head=[NewNode(content="conclusion B")],
+                premises=[NewNode(content="premise A")],
+                conclusions=[NewNode(content="conclusion B")],
                 type="paper-extract",
                 reasoning=[{"title": "r", "content": "because"}],
             )

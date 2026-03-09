@@ -9,10 +9,10 @@ class Validator:
         for i, op in enumerate(operations):
             errors = []
             if isinstance(op, AddEdgeOp):
-                if not op.tail:
-                    errors.append("tail must not be empty")
-                if not op.head:
-                    errors.append("head must not be empty")
+                if not op.premises:
+                    errors.append("premises must not be empty")
+                if not op.conclusions:
+                    errors.append("conclusions must not be empty")
                 if not op.type:
                     errors.append("type must not be empty")
                 if not op.reasoning:

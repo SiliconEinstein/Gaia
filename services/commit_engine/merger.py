@@ -80,34 +80,34 @@ class Merger:
     async def _apply_add_edge(self, op: AddEdgeOp) -> tuple[list[int], int]:
         """Create new nodes, then wire them into a new hyperedge."""
         new_node_ids: list[int] = []
-        tail_ids: list[int] = []
-        head_ids: list[int] = []
+        premise_ids: list[int] = []
+        conclusion_ids: list[int] = []
 
-        # Process tail members
-        for item in op.tail:
+        # Process premise members
+        for item in op.premises:
             if isinstance(item, NewNode):
                 nid = await self._create_node(item)
                 new_node_ids.append(nid)
-                tail_ids.append(nid)
+                premise_ids.append(nid)
             elif isinstance(item, NodeRef):
-                tail_ids.append(item.node_id)
+                premise_ids.append(item.node_id)
 
-        # Process head members
-        for item in op.head:
+        # Process conclusion members
+        for item in op.conclusions:
             if isinstance(item, NewNode):
                 nid = await self._create_node(item)
                 new_node_ids.append(nid)
-                head_ids.append(nid)
+                conclusion_ids.append(nid)
             elif isinstance(item, NodeRef):
-                head_ids.append(item.node_id)
+                conclusion_ids.append(item.node_id)
 
         # Create the hyperedge
         eid = await self._storage.ids.alloc_hyperedge_id()
         edge = HyperEdge(
             id=eid,
             type=op.type,
-            tail=tail_ids,
-            head=head_ids,
+            premises=premise_ids,
+            conclusions=conclusion_ids,
             reasoning=op.reasoning,
         )
         if self._storage.graph:

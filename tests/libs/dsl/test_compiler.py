@@ -65,8 +65,8 @@ def test_direct_dependency_creates_edge():
     pkg = resolve_refs(pkg)
     fg = compile_factor_graph(pkg)
     drag = next(f for f in fg.factors if f["name"] == "drag_prediction_chain.step_2")
-    assert drag["tail"] == ["heavier_falls_faster"]
-    assert drag["head"] == ["tied_pair_slower_than_heavy"]
+    assert drag["premises"] == ["heavier_falls_faster"]
+    assert drag["conclusions"] == ["tied_pair_slower_than_heavy"]
     assert drag["probability"] == 0.93
     assert drag["edge_type"] == "deduction"
 
@@ -81,7 +81,7 @@ def test_indirect_dependency_excluded_from_edges():
     drag_factors = [f for f in fg.factors if f.get("name") == "drag_prediction_chain.step_2"]
     assert len(drag_factors) == 1, "Expected exactly one drag_prediction_chain.step_2 factor"
     factor = drag_factors[0]
-    assert "thought_experiment_env" not in factor.get("tail", [])
+    assert "thought_experiment_env" not in factor.get("premises", [])
 
 
 def test_contradiction_edge_captures_two_mutually_exclusive_predictions():
@@ -91,11 +91,11 @@ def test_contradiction_edge_captures_two_mutually_exclusive_predictions():
 
     contradiction = next(f for f in fg.factors if f["name"] == "contradiction_chain.step_2")
     assert contradiction["edge_type"] == "contradiction"
-    assert set(contradiction["tail"]) == {
+    assert set(contradiction["premises"]) == {
         "tied_pair_slower_than_heavy",
         "tied_pair_faster_than_heavy",
     }
-    assert contradiction["head"] == ["tied_balls_contradiction"]
+    assert contradiction["conclusions"] == ["tied_balls_contradiction"]
 
 
 def test_retraction_edge_pushes_back_on_aristotle_law():
@@ -105,8 +105,8 @@ def test_retraction_edge_pushes_back_on_aristotle_law():
 
     retraction = next(f for f in fg.factors if f["name"] == "retraction_chain.step_2")
     assert retraction["edge_type"] == "retraction"
-    assert retraction["tail"] == ["tied_balls_contradiction"]
-    assert retraction["head"] == ["heavier_falls_faster"]
+    assert retraction["premises"] == ["tied_balls_contradiction"]
+    assert retraction["conclusions"] == ["heavier_falls_faster"]
 
 
 def test_question_excluded_from_factor_graph():
@@ -164,8 +164,8 @@ def test_compile_single_chain_inline():
     assert len(fg.factors) == 1
     factor = fg.factors[0]
     assert factor["name"] == "my_chain.step_2"
-    assert factor["tail"] == ["a"]
-    assert factor["head"] == ["b"]
+    assert factor["premises"] == ["a"]
+    assert factor["conclusions"] == ["b"]
     assert factor["probability"] == 0.8
 
 

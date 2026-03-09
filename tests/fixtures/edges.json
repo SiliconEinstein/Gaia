@@ -3,7 +3,7 @@
     "id": 10,
     "type": "paper-extract",
     "subtype": null,
-    "tail": [
+    "premises": [
       67,
       68,
       69,
@@ -11,7 +11,7 @@
       71,
       72
     ],
-    "head": [
+    "conclusions": [
       73
     ],
     "probability": null,
@@ -58,13 +58,13 @@
     "id": 13,
     "type": "paper-extract",
     "subtype": null,
-    "tail": [
+    "premises": [
       84,
       85,
       86,
       87
     ],
-    "head": [
+    "conclusions": [
       88
     ],
     "probability": null,
@@ -107,13 +107,13 @@
     "id": 40,
     "type": "paper-extract",
     "subtype": null,
-    "tail": [
+    "premises": [
       265,
       266,
       267,
       268
     ],
-    "head": [
+    "conclusions": [
       269
     ],
     "probability": null,
@@ -160,10 +160,10 @@
     "id": 325,
     "type": "abstraction",
     "subtype": null,
-    "tail": [
+    "premises": [
       1557
     ],
-    "head": [
+    "conclusions": [
       86,
       85
     ],
@@ -208,10 +208,10 @@
     "id": 365,
     "type": "abstraction",
     "subtype": null,
-    "tail": [
+    "premises": [
       1576
     ],
-    "head": [
+    "conclusions": [
       269,
       251
     ],
@@ -256,10 +256,10 @@
     "id": 529,
     "type": "abstraction",
     "subtype": null,
-    "tail": [
+    "premises": [
       1556
     ],
-    "head": [
+    "conclusions": [
       1557
     ],
     "probability": null,
@@ -297,11 +297,11 @@
     "id": 734,
     "type": "contradiction",
     "subtype": null,
-    "tail": [
+    "premises": [
       251,
       269
     ],
-    "head": [],
+    "conclusions": [],
     "probability": null,
     "verified": false,
     "reasoning": [
@@ -333,12 +333,12 @@
     "id": 806,
     "type": "induction",
     "subtype": "deduction",
-    "tail": [
+    "premises": [
       86,
       1356,
       1557
     ],
-    "head": [
+    "conclusions": [
       1816
     ],
     "probability": 1.0,
@@ -365,12 +365,12 @@
     "id": 807,
     "type": "induction",
     "subtype": "conjecture",
-    "tail": [
+    "premises": [
       1356,
       86,
       1557
     ],
-    "head": [
+    "conclusions": [
       1817
     ],
     "probability": 0.9,

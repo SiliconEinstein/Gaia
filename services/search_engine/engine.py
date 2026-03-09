@@ -136,7 +136,7 @@ class SearchEngine:
                 continue
 
             # Score = max score of connected nodes
-            connected_ids = set(edge.tail) | set(edge.head)
+            connected_ids = set(edge.premises) | set(edge.conclusions)
             best_score = 0.0
             all_sources: set[str] = set()
             for cid in connected_ids:

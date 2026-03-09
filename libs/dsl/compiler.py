@@ -24,11 +24,13 @@ class DSLFactorGraph:
     """Factor graph built from DSL package structure.
 
     variables: name -> prior
-    factors: list of {name, tail: [name], head: [name], probability}
+    factors: list of {name, premises: [name], conclusions: [name], probability}
     """
 
     variables: dict[str, float] = field(default_factory=dict)
-    factors: list[dict] = field(default_factory=list)
+    factors: list[dict] = field(
+        default_factory=list
+    )  # [{name, premises, conclusions, probability}]
 
 
 def compile_factor_graph(pkg: Package) -> DSLFactorGraph:
@@ -86,10 +88,10 @@ def _compile_chain(
             factor_name = f"{chain.name}.step_{step.step}"
             probability = step.prior if step.prior is not None else 1.0
 
-            # Tail: direct dependencies from args (for Apply)
+            # Premises: direct dependencies from args (for Apply)
             # or the previous ref step (for Lambda)
-            tail = []
-            head = []
+            premises = []
+            conclusions = []
 
             if isinstance(step, StepApply):
                 for arg in step.args:
@@ -97,26 +99,26 @@ def _compile_chain(
                         # Resolve arg ref name
                         ref_name = arg.ref
                         if ref_name in fg.variables:
-                            tail.append(ref_name)
+                            premises.append(ref_name)
             elif isinstance(step, StepLambda):
                 # Lambda: previous step is the implicit input
                 if i > 0:
                     prev = steps[i - 1]
                     if isinstance(prev, StepRef) and prev.ref in fg.variables:
-                        tail.append(prev.ref)
+                        premises.append(prev.ref)
 
-            # Head: next ref step is the output
+            # Conclusions: next ref step is the output
             if i + 1 < len(steps):
                 next_step = steps[i + 1]
                 if isinstance(next_step, StepRef) and next_step.ref in fg.variables:
-                    head.append(next_step.ref)
+                    conclusions.append(next_step.ref)
 
-            if tail or head:
+            if premises or conclusions:
                 fg.factors.append(
                     {
                         "name": factor_name,
-                        "tail": tail,
-                        "head": head,
+                        "premises": premises,
+                        "conclusions": conclusions,
                         "probability": probability,
                         "edge_type": chain.edge_type or "deduction",
                     }

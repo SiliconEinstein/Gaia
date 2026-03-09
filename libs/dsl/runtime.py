@@ -67,12 +67,12 @@ class DSLRuntime:
             bp_fg.add_variable(node_id, prior)
 
         for j, factor in enumerate(dsl_fg.factors):
-            tail_ids = [name_to_id[n] for n in factor["tail"] if n in name_to_id]
-            head_ids = [name_to_id[n] for n in factor["head"] if n in name_to_id]
+            premise_ids = [name_to_id[n] for n in factor["premises"] if n in name_to_id]
+            conclusion_ids = [name_to_id[n] for n in factor["conclusions"] if n in name_to_id]
             bp_fg.add_factor(
                 edge_id=j + 1,
-                tail=tail_ids,
-                head=head_ids,
+                premises=premise_ids,
+                conclusions=conclusion_ids,
                 probability=factor["probability"],
                 edge_type=factor.get("edge_type", "deduction"),
             )

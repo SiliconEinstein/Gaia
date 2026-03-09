@@ -53,49 +53,50 @@ def _prior_msg(prior: float) -> Msg:
 
 def _evaluate_potential(
     edge_type: str,
-    tail_ids: list[int],
-    head_ids: list[int],
+    premise_ids: list[int],
+    conclusion_ids: list[int],
     assignment: dict[int, int],
     prob: float,
 ) -> float:
     """Evaluate factor potential for a full variable assignment.
 
-    Gated structure: if ALL tails are 1, behavior depends on edge type:
+    Gated structure: if ALL premises are 1, behavior depends on edge type:
 
-    - **deduction/induction**: head=1 with prob p (standard conditional)
-    - **retraction**: head=1 with prob 1-p (inverted)
-    - **contradiction** (Jaynes): the all-tails-true configuration is penalized.
-      pot = (1-p) overall, with head=1 favored over head=0 to acknowledge
-      the contradiction exists. This encodes P(A∧B|I) ≈ 0.
+    - **deduction/induction**: conclusion=1 with prob p (standard conditional)
+    - **retraction**: conclusion=1 with prob 1-p (inverted)
+    - **contradiction** (Jaynes): the all-premises-true configuration is penalized.
+      pot = (1-p) overall, with conclusion=1 favored over conclusion=0 to
+      acknowledge the contradiction exists. This encodes P(A∧B|I) ≈ 0.
 
-    Otherwise (not all tails true): unconstrained (potential = 1).
+    Otherwise (not all premises true): unconstrained (potential = 1).
 
     Assumes *prob* is already Cromwell-clamped by :class:`FactorGraph`.
 
-    .. note:: **Contradiction heads are non-participating**
+    .. note:: **Contradiction conclusions are non-participating**
 
-       Head variables in a contradiction factor exist for structural and
+       Conclusion variables in a contradiction factor exist for structural and
        review purposes only — they do not participate in BP inference.
-       The potential is independent of head values, so the factor-to-head
-       message is uniform and head beliefs stay at their priors.
-       This avoids the non-monotonicity that arises when premise
-       inhibition and head confirmation share the same potential.
+       The potential is independent of conclusion values, so the
+       factor-to-conclusion message is uniform and conclusion beliefs stay
+       at their priors. This avoids the non-monotonicity that arises when
+       premise inhibition and conclusion confirmation share the same
+       potential.
     """
-    all_tails_true = all(assignment[t] == 1 for t in tail_ids)
+    all_premises_true = all(assignment[t] == 1 for t in premise_ids)
 
-    if not all_tails_true:
+    if not all_premises_true:
         return 1.0
 
     if edge_type == "contradiction":
-        # Jaynes: all-tails-true is implausible. Penalize the entire configuration.
+        # Jaynes: all-premises-true is implausible. Penalize the entire configuration.
         # Base penalty: (1-p). Strong contradiction (high p) → stronger penalty.
-        # Head variables are ignored — potential depends only on tails.
-        # This makes f2v messages to heads uniform, so heads stay at prior.
+        # Conclusion variables are ignored — potential depends only on premises.
+        # This makes f2v messages to conclusions uniform, so conclusions stay at prior.
         return 1.0 - prob
 
-    # All tails true — compute gated potential for heads
+    # All premises true — compute gated potential for conclusions
     pot = 1.0
-    for h in head_ids:
+    for h in conclusion_ids:
         h_val = assignment[h]
         if edge_type == "retraction":
             pot *= (1.0 - prob) if h_val == 1 else prob
@@ -133,12 +134,12 @@ def _compute_factor_to_var(
     Enumerates 2^(n-1) assignments of other variables, weights by potential and
     incoming v2f messages, then marginalizes to get message for target_var.
     """
-    tail_ids: list[int] = factor["tail"]
-    head_ids: list[int] = factor["head"]
+    premise_ids: list[int] = factor["premises"]
+    conclusion_ids: list[int] = factor["conclusions"]
     prob: float = factor["probability"]
     edge_type: str = factor.get("edge_type", "deduction")
 
-    all_vars = tail_ids + head_ids
+    all_vars = premise_ids + conclusion_ids
     other_vars = [v for v in all_vars if v != target_var]
 
     msg = np.zeros(2)
@@ -152,7 +153,7 @@ def _compute_factor_to_var(
             assignment[target_var] = target_val
 
             # Factor potential
-            pot = _evaluate_potential(edge_type, tail_ids, head_ids, assignment, prob)
+            pot = _evaluate_potential(edge_type, premise_ids, conclusion_ids, assignment, prob)
 
             # Product of incoming v2f messages from other variables
             weight = 1.0
@@ -216,7 +217,7 @@ class BeliefPropagation:
         uniform = np.array([0.5, 0.5])
 
         for fi, factor in enumerate(graph.factors):
-            for vid in factor["tail"] + factor["head"]:
+            for vid in factor["premises"] + factor["conclusions"]:
                 if vid in graph.variables:
                     f2v_msgs[(fi, vid)] = uniform.copy()
                     v2f_msgs[(vid, fi)] = uniform.copy()

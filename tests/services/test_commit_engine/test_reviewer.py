@@ -13,8 +13,8 @@ def _make_commit() -> Commit:
         message="test",
         operations=[
             AddEdgeOp(
-                tail=[NewNode(content="p")],
-                head=[NodeRef(node_id=1)],
+                premises=[NewNode(content="p")],
+                conclusions=[NodeRef(node_id=1)],
                 type="induction",
                 reasoning=["test"],
             )
