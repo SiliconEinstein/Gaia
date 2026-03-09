@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Einstein's Reasoning Chain in Gaia</title>
+<style>
+  body {
+    font-family: "SF Mono", "Fira Code", "Menlo", monospace;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 60px 72px;
+    font-size: 22px;
+    line-height: 1.8;
+  }
+  .title { color: #569cd6; font-size: 28px; font-weight: bold; margin-bottom: 6px; }
+  .subtitle { color: #6a9955; font-size: 20px; margin-bottom: 48px; }
+  .section { color: #c586c0; font-weight: bold; margin-top: 44px; margin-bottom: 16px; font-size: 24px; }
+  .comment { color: #6a9955; }
+  .keyword { color: #569cd6; }
+  .node-id { color: #4ec9b0; }
+  .string { color: #ce9178; }
+  .number { color: #b5cea8; }
+  .operator { color: #d4d4d4; }
+  .contradiction { color: #f44747; font-weight: bold; }
+  .question { color: #dcdcaa; }
+  .bp { color: #c586c0; font-weight: bold; }
+  .bp-up { color: #4ec9b0; }
+  .bp-down { color: #f44747; }
+  .bp-same { color: #6a9955; }
+  .divider { color: #444; margin: 28px 0; }
+</style>
+</head>
+<body>
+
+<div class="title">Einstein's Elevator Thought Experiment in Gaia</div>
+<div class="subtitle"># 完整推理链：从已有知识到广义相对论，全部通过添加新 node 和 edge 实现</div>
+
+<div class="section">## 已有知识 — 已发布的 packages</div>
+
+<span class="node-id">node_1</span>  <span class="string">"万有引力：F=GMm/r²，作用在有质量的物体上"</span>  <span class="comment">belief=</span><span class="number">0.95</span>
+<br><span class="node-id">node_2</span>  <span class="string">"光的微粒说：光是有质量的粒子"</span>  <span class="comment">belief=</span><span class="number">0.70</span>
+<br><span class="node-id">node_3</span>  <span class="string">"牛顿框架下光的引力偏折角 = 0.87 角秒"</span>  <span class="comment">belief=</span><span class="number">0.70</span>
+<br><span class="comment">  └─ edge: [node_1, node_2] → [node_3]  # Soldner 1801 年计算</span>
+<br><span class="node-id">node_4</span>  <span class="string">"光是电磁波，速度 c 在所有参考系中恒定"</span>  <span class="comment">belief=</span><span class="number">0.90</span>
+<br><span class="node-id">node_5</span>  <span class="string">"惯性质量 = 引力质量（Eötvös 实验精度 10⁻⁸）"</span>  <span class="comment">belief=</span><span class="number">0.99</span>
+
+<div class="divider">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+<div class="section">## Package: einstein1907_equivalence_principle</div>
+
+<span class="node-id">E1</span>  <span class="string">"封闭电梯在太空中匀加速上升"</span>  <span class="comment"># 思想实验设定</span>
+<br>
+<br><span class="keyword">edge</span>: [<span class="node-id">E1</span>] → [<span class="node-id">E2</span>]
+<br><span class="comment">  # 物体保持原速，电梯地板加速迎上来</span>
+<br><span class="question">  ? 加速电梯中释放物体会怎样？</span>
+<br><span class="node-id">E2</span>  <span class="string">"电梯中释放的物体会'落'向地板"</span>
+<br>
+<br><span class="keyword">edge</span>: [<span class="node-id">E2</span>, <span class="node-id">node_5</span>] → [<span class="node-id">E3</span>]
+<br><span class="comment">  # 惯性质量=引力质量 → 所有物体加速度相同 → 与引力场不可区分</span>
+<br><span class="node-id">E3</span>  <span class="string">"电梯中的力学实验与引力场中完全不可区分"</span>
+<br>
+<br><span class="keyword">edge</span>: [<span class="node-id">E3</span>, <span class="string">"物理定律不应依赖参考系选择"</span>] → [<span class="node-id">E4</span>]
+<br><span class="comment">  # 如果只有力学不能区分，区分本身就是参考系依赖——不自洽，必须推广到所有物理</span>
+<br><span class="question">  ? 等效性是否应推广到所有物理现象？</span>
+<br><span class="node-id">E4</span>  <span class="string">"等效原理：任何物理实验都无法区分匀加速和引力场"</span>
+<br>
+<br><span class="bp">gaia propagate</span>
+<br><span class="bp-same">  # 此时没有矛盾产生，已有知识 belief 不变</span>
+
+<div class="divider">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+<div class="section">## Package: einstein1911_light_deflection</div>
+
+<span class="node-id">E5</span>  <span class="string">"一束光水平穿过加速上升的电梯"</span>
+<br>
+<br><span class="keyword">edge</span>: [<span class="node-id">E5</span>] → [<span class="node-id">E6</span>]
+<br><span class="comment">  # 纯运动学：光穿越电梯需 Δt=L/c，此间电梯上移 ½aΔt²，落点偏下</span>
+<br><span class="question">  ? 光穿过加速电梯时路径会怎样？</span>
+<br><span class="node-id">E6</span>  <span class="string">"光在加速电梯中的路径相对电梯弯曲"</span>
+<br>
+<br><span class="keyword">edge</span>: [<span class="node-id">E4</span>, <span class="node-id">E6</span>] → [<span class="node-id">E7</span>]
+<br><span class="comment">  # 等效原理：加速中光弯曲 → 引力中光也必须弯曲</span>
+<br><span class="question">  ? 引力能不能弯曲光？</span>
+<br><span class="node-id">E7</span>  <span class="string">"光在引力场中也必须弯曲"</span>
+<br>
+<br><span class="keyword">edge</span>: [<span class="node-id">E7</span>, <span class="string">"等效原理 + 牛顿引力势运动学计算"</span>] → [<span class="node-id">E8</span>]
+<br><span class="comment">  # 等效原理给出的偏折角 = 0.87″，恰好等于 Soldner 的牛顿计算</span>
+<br><span class="question">  ? 等效原理预测的偏折角是多少？</span>
+<br><span class="node-id">E8</span>  <span class="string">"仅用等效原理计算，光偏折角 = 0.87 角秒"</span>
+<br>
+<br><span class="bp">gaia propagate</span>
+<br><span class="bp-same">  # E8 (0.87″) = node_3 (0.87″)，两个理论预测一致，仍无法区分</span>
+
+<div class="divider">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+<div class="section">## Package: einstein1915_general_relativity</div>
+
+<span class="node-id">E9</span>  <span class="string">"光走测地线（最短路径）"</span>
+<br>
+<br><span class="keyword">edge</span>: [<span class="node-id">E7</span>, <span class="node-id">E9</span>] → [<span class="node-id">E10</span>]
+<br><span class="comment">  # 在平直空间中最短路径是直线；光路弯曲 → 空间不平直</span>
+<br><span class="question">  ? 光路弯曲对空间结构意味着什么？</span>
+<br><span class="node-id">E10</span>  <span class="string">"如果光的最短路径是弯的，空间本身是弯曲的"</span>
+<br>
+<br><span class="keyword">edge</span>: [<span class="node-id">E10</span>] → [<span class="node-id">E11</span>]
+<br><span class="comment">  # 物体沿弯曲时空的测地线自由运动，不需要"引力"这个力的概念</span>
+<br><span class="node-id">E11</span>  <span class="string">"引力不是力，而是时空弯曲的几何效应"</span>
+<br>
+<br><span class="keyword">edge</span>: [<span class="node-id">E11</span>, <span class="string">"爱因斯坦场方程 + Schwarzschild 度规"</span>] → [<span class="node-id">E12</span>]
+<br><span class="comment">  # 等效原理只考虑时间弯曲(0.87″)，GR 额外考虑空间弯曲(+0.87″)，总计 1.75″</span>
+<br><span class="question">  ? 完整的广义相对论预测偏折角是多少？</span>
+<br><span class="node-id">E12</span>  <span class="string">"完整 GR 计算：光偏折角 = 1.75 角秒（牛顿值的两倍）"</span>
+<br>
+<br><span class="contradiction">edge [CONTRADICTION]</span>: [<span class="node-id">E12</span> <span class="string">"1.75″"</span>, <span class="node-id">node_3</span> <span class="string">"0.87″"</span>] → [<span class="node-id">E13</span>]
+<br><span class="contradiction">  # 同一物理现象，两个理论给出不同定量预测——可通过实验判决</span>
+<br><span class="node-id">E13</span>  <span class="string">"GR 预测 1.75″ 与牛顿预测 0.87″ 定量矛盾"</span>
+<br>
+<br><span class="bp">gaia propagate</span>
+<br><span class="bp-down">  node_3  (牛顿 0.87″):  0.70 → 0.55 ↓  定量矛盾拉低</span>
+<br><span class="bp-same">  E12    (GR 1.75″):    belief = 0.72    新理论，有推理链但尚无实验</span>
+<br><span class="bp-same">  # 两个理论共存，等待实验判决</span>
+
+<div class="divider">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+<div class="section">## Package: eddington1919_solar_eclipse</div>
+
+<span class="node-id">Ed1</span>  <span class="string">"1919年5月29日日全食，在巴西 Sobral 和西非 Príncipe 岛同时观测"</span>
+<br>
+<br><span class="keyword">edge</span>: [<span class="node-id">Ed1</span>] → [<span class="node-id">Ed2</span>]
+<br><span class="comment">  # 对比日食前后同一星域照片，测量恒星位置偏移</span>
+<br><span class="question">  ? 日食观测中星光偏折了多少？</span>
+<br><span class="node-id">Ed2</span>  <span class="string">"观测到恒星光经过太阳附近时偏折 1.61″ ± 0.30″"</span>
+<br>
+<br><span class="keyword">edge</span>: [<span class="node-id">Ed2</span>, <span class="node-id">E12</span>] → [<span class="node-id">Ed3</span>]
+<br><span class="comment">  # GR 预测 1.75″，观测 1.61±0.30″，差值 0.14″ < 1σ</span>
+<br><span class="question">  ? 观测结果是否支持广义相对论？</span>
+<br><span class="node-id">Ed3</span>  <span class="string">"观测值与 GR 预测 1.75″ 在误差范围内一致"</span>
+<br>
+<br><span class="contradiction">edge [CONTRADICTION]</span>: [<span class="node-id">Ed2</span>, <span class="node-id">node_3</span>] → [<span class="node-id">Ed4</span>]
+<br><span class="contradiction">  # 牛顿预测 0.87″，观测 1.61±0.30″，差值 0.74″ > 2σ，实验排除</span>
+<br><span class="question">  ? 观测结果是否排除牛顿预测？</span>
+<br><span class="node-id">Ed4</span>  <span class="string">"观测值与牛顿预测 0.87″ 不一致（偏差超过 2σ）"</span>
+<br>
+<br><span class="bp">gaia propagate — 最终 belief 分布</span>
+<br><span class="bp-up">  E12    (GR 1.75″):       0.72 → 0.91 ↑  实验验证</span>
+<br><span class="bp-up">  E11    (引力=时空弯曲):    0.68 → 0.87 ↑  下游上升</span>
+<br><span class="bp-down">  node_3 (牛顿 0.87″):     0.55 → 0.21 ↓  实验反驳</span>
+<br><span class="bp-down">  node_1 (牛顿万有引力):    0.95 → 0.72 ↓  仍有价值，但不再完整</span>
+
+<div class="divider">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+<div class="comment" style="text-align:center; margin-top:16px;">
+# 全程只有添加新 node 和 edge。没有删除，没有覆盖，没有 overlay。<br>
+# 矛盾通过 contradiction edge 建模，BP 根据证据强度自动分配 belief。<br>
+# 牛顿力学不是被"推翻"——belief 下降但仍然存在，作为近似理论仍有价值。
+</div>
+
+</body>
+</html>

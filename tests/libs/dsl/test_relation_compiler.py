@@ -13,7 +13,6 @@ from libs.dsl.models import (
     StepRef,
 )
 
-
 def test_contradiction_compiles_to_variable_node():
     claim_a = Claim(name="a", content="A", prior=0.8)
     claim_b = Claim(name="b", content="B", prior=0.7)
