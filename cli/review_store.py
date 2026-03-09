@@ -41,11 +41,23 @@ def find_latest_review(reviews_dir: Path) -> Path:
     return yamls[-1]
 
 
-def merge_review(pkg: Package, review: dict) -> Package:
+def merge_review(
+    pkg: Package, review: dict, source_fingerprint: str | None = None
+) -> Package:
     """Merge review suggestions into package (deep copy -- original untouched).
 
     Updates step priors and arg dependency types based on review.
     """
+    import warnings
+
+    review_fp = review.get("source_fingerprint")
+    if source_fingerprint and review_fp and source_fingerprint != review_fp:
+        warnings.warn(
+            f"Review fingerprint mismatch: review was produced against {review_fp}, "
+            f"but current source is {source_fingerprint}. Results may be stale.",
+            stacklevel=2,
+        )
+
     merged = copy.deepcopy(pkg)
 
     chains_by_name: dict[str, ChainExpr] = {}

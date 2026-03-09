@@ -86,8 +86,9 @@ def review(
                 "markdown": chain_section.strip(),
             })
 
-    # 3. Load package for metadata
+    # 3. Load package for metadata + compute fingerprint
     pkg = load_package(pkg_path)
+    fingerprint = _compute_source_fingerprint(pkg_path)
 
     # 4. Create reviewer
     client = MockReviewClient() if mock else ReviewClient(model=model)
@@ -103,6 +104,7 @@ def review(
         "package": pkg.name,
         "model": "mock" if mock else model,
         "timestamp": now.isoformat(),
+        "source_fingerprint": fingerprint,
         "chains": chain_reviews,
     }
     review_path = write_review(review_data, reviews_dir)
@@ -110,6 +112,16 @@ def review(
     n_chains = len(chain_reviews)
     typer.echo(f"Reviewed {n_chains} chains for {pkg.name}")
     typer.echo(f"Report: {review_path}")
+
+
+def _compute_source_fingerprint(pkg_path: Path) -> str:
+    """SHA-256 of all YAML source files sorted by name."""
+    import hashlib
+
+    h = hashlib.sha256()
+    for yaml_file in sorted(pkg_path.glob("*.yaml")):
+        h.update(yaml_file.read_bytes())
+    return h.hexdigest()[:16]
 
 
 async def _review_chains_parallel(
@@ -174,7 +186,8 @@ def infer(
     # 3. Load package from source YAML, resolve refs, merge review
     pkg = load_package(pkg_path)
     pkg = resolve_refs(pkg)
-    pkg = merge_review(pkg, review)
+    fp = _compute_source_fingerprint(pkg_path)
+    pkg = merge_review(pkg, review, source_fingerprint=fp)
 
     # 4. Compile factor graph
     dsl_fg = compile_factor_graph(pkg)
@@ -298,7 +311,8 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     # 3. Load package, resolve refs, merge review
     pkg = load_package(pkg_path)
     pkg = resolve_refs(pkg)
-    pkg = merge_review(pkg, review)
+    fp = _compute_source_fingerprint(pkg_path)
+    pkg = merge_review(pkg, review, source_fingerprint=fp)
 
     # 4. Compile factor graph and run BP
     dsl_fg = compile_factor_graph(pkg)

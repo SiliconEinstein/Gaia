@@ -97,6 +97,35 @@ def test_merge_review_updates_dependency():
                 break
 
 
+def test_merge_review_warns_on_fingerprint_mismatch():
+    """merge_review should warn when source fingerprint doesn't match."""
+    import warnings
+
+    pkg = load_package(FIXTURE_PATH)
+    pkg = resolve_refs(pkg)
+    review = _sample_review()
+    review["source_fingerprint"] = "0000000000000000"
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        merge_review(pkg, review, source_fingerprint="aaaaaaaaaaaaaaaa")
+        assert len(w) == 1
+        assert "fingerprint mismatch" in str(w[0].message).lower()
+
+
+def test_merge_review_no_warning_when_fingerprint_matches():
+    """merge_review should not warn when fingerprints match."""
+    import warnings
+
+    pkg = load_package(FIXTURE_PATH)
+    pkg = resolve_refs(pkg)
+    review = _sample_review()
+    review["source_fingerprint"] = "abcdef1234567890"
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        merge_review(pkg, review, source_fingerprint="abcdef1234567890")
+        assert len(w) == 0
+
+
 def test_merge_review_does_not_modify_original():
     pkg = load_package(FIXTURE_PATH)
     pkg = resolve_refs(pkg)

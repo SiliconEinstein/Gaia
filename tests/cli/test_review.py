@@ -75,6 +75,17 @@ def test_review_with_concurrency_flag(tmp_path):
     assert len(yamls) == 1
 
 
+def test_review_sidecar_has_fingerprint(tmp_path):
+    """Review sidecar should contain source_fingerprint key."""
+    pkg_dir = _setup_build(tmp_path)
+    runner.invoke(app, ["review", str(pkg_dir), "--mock"])
+    reviews_dir = pkg_dir / ".gaia" / "reviews"
+    review_file = list(reviews_dir.glob("review_*.yaml"))[0]
+    data = yaml.safe_load(review_file.read_text())
+    assert "source_fingerprint" in data
+    assert len(data["source_fingerprint"]) == 16
+
+
 def test_review_then_infer_pipeline(tmp_path):
     """Full pipeline: build -> review -> infer should work end-to-end."""
     pkg_dir = _setup_build(tmp_path)
