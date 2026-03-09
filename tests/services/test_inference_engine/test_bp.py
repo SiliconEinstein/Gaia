@@ -590,6 +590,79 @@ class TestEvaluatePotential:
         )
         assert result == pytest.approx(0.0)
 
+    # --- relation_contradiction direct tests ---
+
+    def test_relation_contradiction_e1_both_true_penalty(self):
+        """relation_contradiction: E=1, A=1, B=1 → penalty (1-prob)."""
+        result = _evaluate_potential(
+            "relation_contradiction",
+            premise_ids=[1, 2],
+            conclusion_ids=[3],
+            assignment={1: 1, 2: 1, 3: 1},
+            prob=0.99,
+        )
+        assert result == pytest.approx(0.01)
+
+    def test_relation_contradiction_e1_one_false_unconstrained(self):
+        """relation_contradiction: E=1, A=0 → unconstrained."""
+        result = _evaluate_potential(
+            "relation_contradiction",
+            premise_ids=[1, 2],
+            conclusion_ids=[3],
+            assignment={1: 0, 2: 1, 3: 1},
+            prob=0.99,
+        )
+        assert result == 1.0
+
+    def test_relation_contradiction_e0_unconstrained(self):
+        """relation_contradiction: E=0 → unconstrained regardless of claims."""
+        result = _evaluate_potential(
+            "relation_contradiction",
+            premise_ids=[1, 2],
+            conclusion_ids=[3],
+            assignment={1: 1, 2: 1, 3: 0},
+            prob=0.99,
+        )
+        assert result == 1.0
+
+    # --- relation_equivalence direct tests ---
+
+    def test_relation_equivalence_e1_agree_rewarded(self):
+        """relation_equivalence: E=1, A==B → prob (reward)."""
+        for a, b in [(1, 1), (0, 0)]:
+            result = _evaluate_potential(
+                "relation_equivalence",
+                premise_ids=[1, 2],
+                conclusion_ids=[3],
+                assignment={1: a, 2: b, 3: 1},
+                prob=0.99,
+            )
+            assert result == pytest.approx(0.99)
+
+    def test_relation_equivalence_e1_disagree_penalized(self):
+        """relation_equivalence: E=1, A!=B → 1-prob (penalty)."""
+        for a, b in [(1, 0), (0, 1)]:
+            result = _evaluate_potential(
+                "relation_equivalence",
+                premise_ids=[1, 2],
+                conclusion_ids=[3],
+                assignment={1: a, 2: b, 3: 1},
+                prob=0.99,
+            )
+            assert result == pytest.approx(0.01)
+
+    def test_relation_equivalence_e0_unconstrained(self):
+        """relation_equivalence: E=0 → unconstrained."""
+        for a, b in [(0, 0), (0, 1), (1, 0), (1, 1)]:
+            result = _evaluate_potential(
+                "relation_equivalence",
+                premise_ids=[1, 2],
+                conclusion_ids=[3],
+                assignment={1: a, 2: b, 3: 0},
+                prob=0.99,
+            )
+            assert result == 1.0
+
 
 # ---------------------------------------------------------------------------
 # Cyclic graph tests (loopy BP's core use case)

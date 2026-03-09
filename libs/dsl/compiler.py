@@ -151,7 +151,7 @@ def _compile_relation(
         {
             "name": f"{rel.name}.constraint",
             "premises": related_vars,
-            "conclusions": [rel.name] if rel.name in fg.variables else [],
+            "conclusions": [rel.name],
             "probability": 0.99,
             "edge_type": edge_type,
         }
