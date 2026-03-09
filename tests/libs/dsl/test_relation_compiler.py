@@ -1,3 +1,5 @@
+import warnings
+
 from libs.dsl.compiler import compile_factor_graph
 from libs.dsl.models import (
     Claim,
@@ -174,3 +176,34 @@ def test_non_exported_relation_excluded():
     assert "hidden_contra" not in fg.variables
     # No constraint factor either (relation var not in fg.variables)
     assert len(fg.factors) == 0
+
+
+def test_edge_type_emits_deprecation_warning():
+    """Using edge_type on ChainExpr should emit a deprecation warning."""
+    claim_a = Claim(name="a", content="x", prior=0.8)
+    claim_b = Claim(name="b", content="", prior=0.5)
+    chain = ChainExpr(
+        name="old_chain",
+        edge_type="contradiction",
+        steps=[
+            StepRef(step=1, ref="a"),
+            StepLambda(step=2, **{"lambda": "reason"}, prior=0.9),
+            StepRef(step=3, ref="b"),
+        ],
+    )
+    mod = Module(
+        type="reasoning_module",
+        name="m",
+        declarations=[claim_a, claim_b, chain],
+        export=["a", "b"],
+    )
+    pkg = Package(name="test_deprecated", modules=["m"])
+    pkg.loaded_modules = [mod]
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        compile_factor_graph(pkg)
+        deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
+        assert len(deprecation_warnings) >= 1
+        assert "deprecated" in str(deprecation_warnings[0].message).lower()
+        assert "old_chain" in str(deprecation_warnings[0].message)

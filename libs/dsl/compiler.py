@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 
 from .models import (
@@ -88,6 +89,13 @@ def _compile_chain(
     fg: DSLFactorGraph,
 ) -> None:
     """Compile a ChainExpr into factor nodes connecting variable nodes."""
+    if chain.edge_type is not None:
+        warnings.warn(
+            f"ChainExpr.edge_type is deprecated. Use Relation declarations instead. "
+            f"Chain '{chain.name}' uses edge_type='{chain.edge_type}'.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
     steps = chain.steps
     for i, step in enumerate(steps):
         if isinstance(step, (StepApply, StepLambda)):
