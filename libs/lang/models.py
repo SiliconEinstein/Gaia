@@ -2,15 +2,26 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr, field_validator
 
 
 # ── Terminals ──────────────────────────────────────────────
 
 
+# Knowledge types that can appear as InferAction parameter types.
+PARAM_TYPES = {"claim", "setting", "question", "contradiction", "equivalence", "subsumption"}
+
+
 class Param(BaseModel):
     name: str
     type: str
+
+    @field_validator("type")
+    @classmethod
+    def _validate_type(cls, v: str) -> str:
+        if v not in PARAM_TYPES:
+            raise ValueError(f"Invalid param type '{v}', must be one of {sorted(PARAM_TYPES)}")
+        return v
 
 
 class Arg(BaseModel):
@@ -95,6 +106,15 @@ class Equivalence(Relation):
     type: str = "equivalence"
 
 
+class Subsumption(Relation):
+    """A subsumes B: A is the more general theory, B is a special case.
+
+    Annotative metadata only — does not participate in BP.
+    """
+
+    type: str = "subsumption"
+
+
 class Action(Knowledge):
     """Base for executable actions (InferAction, ToolCallAction)."""
 
@@ -144,6 +164,7 @@ KNOWLEDGE_TYPE_MAP: dict[str, type[Knowledge]] = {
     "setting": Setting,
     "contradiction": Contradiction,
     "equivalence": Equivalence,
+    "subsumption": Subsumption,
     "infer_action": InferAction,
     "toolcall_action": ToolCallAction,
     "retract_action": RetractAction,

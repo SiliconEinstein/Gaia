@@ -1,5 +1,5 @@
 from libs.lang.loader import _parse_knowledge
-from libs.lang.models import Contradiction, Equivalence, RetractAction
+from libs.lang.models import Contradiction, Equivalence, RetractAction, Subsumption
 
 
 def test_retract_action_model():
@@ -45,6 +45,25 @@ def test_parse_equivalence_from_yaml_dict():
     decl = _parse_knowledge(data)
     assert isinstance(decl, Equivalence)
     assert decl.between == ["claim_x", "claim_y"]
+
+
+def test_parse_subsumption_from_yaml_dict():
+    data = {
+        "type": "subsumption",
+        "name": "gr_subsumes_newton",
+        "between": ["einstein_field_equations", "newton_gravity"],
+        "content": "GR subsumes Newton in the weak-field limit.",
+    }
+    decl = _parse_knowledge(data)
+    assert isinstance(decl, Subsumption)
+    assert decl.between == ["einstein_field_equations", "newton_gravity"]
+    assert decl.type == "subsumption"
+
+
+def test_subsumption_not_in_bp_variable_types():
+    from libs.lang.compiler import BP_VARIABLE_TYPES
+
+    assert "subsumption" not in BP_VARIABLE_TYPES
 
 
 def test_parse_retract_action_from_yaml_dict():

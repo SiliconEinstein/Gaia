@@ -40,6 +40,17 @@ def test_infer_action_with_params():
     assert "{hyp}" in a.content
 
 
+def test_param_type_validation():
+    """Param.type must be a known knowledge type."""
+    import pytest
+
+    Param(name="x", type="claim")  # OK
+    Param(name="x", type="contradiction")  # OK
+    Param(name="x", type="subsumption")  # OK
+    with pytest.raises(Exception, match="Invalid param type"):
+        Param(name="x", type="invalid_type")
+
+
 def test_chain_expr_steps():
     chain = ChainExpr(
         name="my_chain",

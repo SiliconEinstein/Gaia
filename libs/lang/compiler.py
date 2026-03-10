@@ -19,7 +19,8 @@ from .models import (
 )
 
 
-# Types that participate in BP as variable nodes
+# Types that participate in BP as variable nodes.
+# Note: "subsumption" is intentionally excluded — it is annotative metadata only.
 BP_VARIABLE_TYPES = {"claim", "setting", "contradiction", "equivalence"}
 
 
