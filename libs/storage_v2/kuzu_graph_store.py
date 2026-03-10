@@ -213,10 +213,17 @@ class KuzuGraphStore(GraphStore):
                 continue
 
             if att.target_type == "closure":
+                # Resolve to latest version of this closure in the graph
+                res = c.execute(
+                    "MATCH (cl:Closure) WHERE cl.closure_id = $cid "
+                    "RETURN cl.closure_vid ORDER BY cl.version DESC LIMIT 1",
+                    {"cid": att.target_id},
+                )
+                if not res.has_next():
+                    continue  # closure not in graph; skip
                 dest_label = "Closure"
                 dest_key = "closure_vid"
-                # closure target_id is just closure_id; use latest version (v1 default)
-                dest_id = _vid(att.target_id, 1)
+                dest_id = res.get_next()[0]
                 step_idx = -1
             elif att.target_type == "chain":
                 dest_label = "Chain"

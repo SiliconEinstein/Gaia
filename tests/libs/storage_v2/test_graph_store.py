@@ -248,6 +248,53 @@ class TestWriteResourceLinks:
             steps.append(result.get_next()[0])
         assert steps == [0, 1]
 
+    async def test_closure_attachment_resolves_latest_version(self, graph_store):
+        """PR #100 follow-up: closure attachments must resolve to latest version,
+        not hardcode @1. If only v2 exists, attachment should still succeed."""
+        closures_v2 = [
+            Closure(
+                closure_id="x",
+                version=2,
+                type="claim",
+                content="v2 only",
+                prior=0.5,
+                source_package_id="p",
+                source_module_id="m",
+                created_at=datetime(2026, 1, 1),
+            )
+        ]
+        await graph_store.write_topology(closures_v2, [])
+
+        att = ResourceAttachment(
+            resource_id="res_v2",
+            target_type="closure",
+            target_id="x",
+            role="evidence",
+        )
+        await graph_store.write_resource_links([att])
+
+        result = graph_store._conn.execute(
+            "MATCH (r:Resource)-[a:ATTACHED_TO]->(c:Closure) RETURN c.closure_vid"
+        )
+        assert result.has_next()
+        assert result.get_next()[0] == "x@2"
+
+    async def test_closure_attachment_skips_nonexistent(self, graph_store):
+        """Attachment to a closure not in the graph should be silently skipped."""
+        await graph_store.write_topology([], [])
+        att = ResourceAttachment(
+            resource_id="res_ghost",
+            target_type="closure",
+            target_id="ghost",
+            role="evidence",
+        )
+        await graph_store.write_resource_links([att])
+
+        result = graph_store._conn.execute(
+            "MATCH (r:Resource)-[a:ATTACHED_TO]->(c:Closure) RETURN COUNT(a)"
+        )
+        assert result.get_next()[0] == 0
+
 
 # ── update_beliefs ──
 
