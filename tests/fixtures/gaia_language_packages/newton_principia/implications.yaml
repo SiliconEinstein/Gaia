@@ -23,10 +23,6 @@ knowledge:
     name: aristotle_law
     target: galileo_falling_bodies.aristotle.heavier_falls_faster
 
-  - type: ref
-    name: inclined_plane_supports
-    target: galileo_falling_bodies.reasoning.inclined_plane_supports_equal_fall
-
   # === 等价关系：牛顿的 a=g 与伽利略的真空预测 ===
 
   - type: equivalence
@@ -49,6 +45,15 @@ knowledge:
       牛顿的 a=g 推导从理论上排除了"下落速度与重量成正比"的可能：
       如果加速度不依赖质量，那么亚里士多德的 v∝W 就不是自然界的规律。
       这与伽利略的归谬法反驳独立，提供了第二条反驳路径。
+    prior: 0.5
+
+  - type: claim
+    name: two_path_rejection_of_aristotle
+    content: >
+      亚里士多德落体学说同时遭到两条方法上不同的反驳路径削弱：
+      伽利略通过绑球归谬法暴露其内在矛盾，
+      牛顿则从更基本的力学定律推导出与之不相容的结果。
+      两条路径相互独立地汇聚到同一结论。
     prior: 0.5
 
   - type: contradiction
@@ -78,6 +83,21 @@ knowledge:
       因此应当接受前者、拒绝后者。
     prior: 0.95
 
+  - type: infer_action
+    name: synthesize_independent_refutations
+    params:
+      - name: galileo_result
+        type: claim
+      - name: newton_result
+        type: claim
+    return_type: claim
+    content: >
+      {galileo_result} 来自思想实验中的归谬法，
+      {newton_result} 来自基本力学定律的演绎推导。
+      二者在方法上不同，却都指向同一个判断：
+      亚里士多德的落体规律不能作为普遍定律保留。
+    prior: 0.94
+
   - type: chain_expr
     name: theoretical_contradiction_chain
     steps:
@@ -105,7 +125,24 @@ knowledge:
       两条独立路径汇聚，进一步降低亚里士多德定律的可信度。
     prior: 0.95
 
+  - type: chain_expr
+    name: two_path_rejection_chain
+    steps:
+      - step: 1
+        ref: galileo_aristotle_contradicted
+      - step: 2
+        apply: synthesize_independent_refutations
+        args:
+          - ref: galileo_aristotle_contradicted
+            dependency: direct
+          - ref: newton_contradicts_aristotle
+            dependency: direct
+        prior: 0.94
+      - step: 3
+        ref: two_path_rejection_of_aristotle
+
 export:
   - galileo_equivalence
   - newton_contradicts_aristotle
   - newton_vs_aristotle
+  - two_path_rejection_of_aristotle

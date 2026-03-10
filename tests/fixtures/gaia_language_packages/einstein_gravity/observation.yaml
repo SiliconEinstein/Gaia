@@ -1,5 +1,5 @@
 # 观测验证模块 — Eddington 1919 日食 + Apollo 15 月面实验
-# 演示三条独立路径的汇聚
+# 演示三条方法不同路径的汇聚
 
 type: reasoning_module
 name: observation
@@ -13,6 +13,10 @@ knowledge:
   - type: ref
     name: soldner_deflection
     target: prior_knowledge.soldner_deflection
+
+  - type: ref
+    name: deflection_contradiction
+    target: general_relativity.deflection_contradiction
 
   - type: ref
     name: galileo_vacuum_prediction
@@ -51,6 +55,14 @@ knowledge:
       GR 被确认为比牛顿引力更准确的理论。
     prior: 0.5
 
+  - type: claim
+    name: soldner_prediction_disfavored
+    content: >
+      在爱丁顿 1919 年观测之后，
+      Soldner/牛顿的 0.87 角秒预测不再是与数据相容的最佳解释，
+      至少在太阳边缘光偏折问题上应被显著削弱。
+    prior: 0.5
+
   # === Apollo 15 月面实验 ===
 
   - type: claim
@@ -71,13 +83,13 @@ knowledge:
       这是人类首次在自然真空中进行该实验。
     prior: 0.5
 
-  # === 三条独立路径的汇聚 ===
+  # === 三条不同路径的汇聚 ===
 
   - type: claim
     name: three_path_convergence
     content: >
       "所有物体在引力场中等速下落"这一结论
-      被三条完全独立的认识路径所支持：
+      被三条方法上彼此不同、相对独立的认识路径所支持：
       （1）逻辑路径：伽利略 1638 绑球归谬法
       （2）理论路径：牛顿 1687 F=ma+F=mg 推导
       （3）观测路径：Apollo 15 月面直接实验
@@ -114,12 +126,26 @@ knowledge:
     return_type: claim
     content: >
       {logical_path}、{theoretical_path} 和 {observational_path}
-      是三条完全独立的认识路径。
+      是三条方法上彼此不同、关键假设上相对独立的认识路径。
       逻辑路径不依赖于任何力学定律（纯归谬法），
       理论路径不依赖于任何具体实验（纯演绎），
-      观测路径不依赖于任何理论假设（直接测量）。
-      三者独立汇聚到同一结论，构成最强形式的认识论支持。
+      观测路径则提供了接近直接测量的经验检验。
+      三者从不同方向汇聚到同一结论，显著提升其可信度。
     prior: 0.96
+
+  - type: infer_action
+    name: disfavor_conflicting_prediction
+    params:
+      - name: supporting_evidence
+        type: claim
+      - name: quantified_conflict
+        type: contradiction
+    return_type: claim
+    content: >
+      {supporting_evidence} 支持了与观测相符的一侧预测，
+      而 {quantified_conflict} 指出另一侧预测与之不能同时成立。
+      因而相冲突的旧预测应当被显著削弱，而不是继续与新证据并列保留。
+    prior: 0.93
 
   # === 推理链 ===
 
@@ -136,7 +162,7 @@ knowledge:
           - ref: eddington_principe
             dependency: direct
           - ref: gr_light_deflection
-            dependency: indirect
+            dependency: direct
         prior: 0.93
       - step: 3
         ref: eddington_confirms_gr
@@ -150,11 +176,27 @@ knowledge:
         lambda: >
           月球表面没有大气，提供了真正的真空条件。
           在 44:1 的极端质量比下，两个物体仍然同时落地，
-          直接验证了"自由落体加速度与质量无关"的预测。
-          这回答了伽利略 package 中提出的 follow_up_question。
+          直接验证了"自由落体加速度与质量无关"的预测，
+          并为“真空中不同重量物体等速下落”提供了近乎理想条件下的经验支持。
         prior: 0.97
       - step: 3
         ref: apollo15_confirms_equal_fall
+
+  - type: chain_expr
+    name: soldner_rejection_chain
+    steps:
+      - step: 1
+        ref: eddington_confirms_gr
+      - step: 2
+        apply: disfavor_conflicting_prediction
+        args:
+          - ref: eddington_confirms_gr
+            dependency: direct
+          - ref: deflection_contradiction
+            dependency: direct
+        prior: 0.93
+      - step: 3
+        ref: soldner_prediction_disfavored
 
   - type: chain_expr
     name: convergence_chain
@@ -188,6 +230,7 @@ knowledge:
 
 export:
   - eddington_confirms_gr
+  - soldner_prediction_disfavored
   - apollo15_feather_drop
   - apollo15_confirms_equal_fall
   - three_path_convergence
