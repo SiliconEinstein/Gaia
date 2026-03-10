@@ -15,6 +15,26 @@ app = typer.Typer(
 )
 
 
+def _load_with_deps(pkg_path: Path) -> "Package":
+    """Load a package and recursively resolve its declared dependencies."""
+    from libs.lang.loader import load_package
+    from libs.lang.resolver import resolve_refs
+
+    pkg = load_package(pkg_path)
+
+    deps: dict[str, "Package"] = {}
+    for dep in pkg.dependencies:
+        dep_path = pkg_path.parent / dep.package
+        if not dep_path.exists():
+            typer.echo(
+                f"Error: dependency '{dep.package}' not found at {dep_path}", err=True
+            )
+            raise typer.Exit(1)
+        deps[dep.package] = _load_with_deps(dep_path)
+
+    return resolve_refs(pkg, deps=deps or None)
+
+
 @app.command()
 def build(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
@@ -22,17 +42,14 @@ def build(
     """Elaborate: parse + resolve + instantiate params."""
     from libs.lang.build_store import save_build
     from libs.lang.elaborator import elaborate_package
-    from libs.lang.loader import load_package
-    from libs.lang.resolver import resolve_refs
 
     pkg_path = Path(path)
     try:
-        pkg = load_package(pkg_path)
+        pkg = _load_with_deps(pkg_path)
     except FileNotFoundError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
 
-    pkg = resolve_refs(pkg)
     elaborated = elaborate_package(pkg)
 
     build_dir = pkg_path / ".gaia" / "build"
@@ -155,8 +172,6 @@ def infer(
     """Compile a factor graph (from review) and run BP to compute beliefs."""
     from cli.review_store import find_latest_review, merge_review, read_review
     from libs.lang.compiler import compile_factor_graph
-    from libs.lang.loader import load_package
-    from libs.lang.resolver import resolve_refs
     from libs.inference.bp import BeliefPropagation
     from libs.inference.factor_graph import FactorGraph
 
@@ -185,8 +200,7 @@ def infer(
         raise typer.Exit(1)
 
     # 3. Load package from source YAML, resolve refs, merge review
-    pkg = load_package(pkg_path)
-    pkg = resolve_refs(pkg)
+    pkg = _load_with_deps(pkg_path)
     fp = _compute_source_fingerprint(pkg_path)
     pkg = merge_review(pkg, review, source_fingerprint=fp)
 
@@ -281,8 +295,6 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     from cli.lang_to_storage import convert_package_to_storage
     from cli.review_store import find_latest_review, merge_review, read_review
     from libs.lang.compiler import compile_factor_graph
-    from libs.lang.loader import load_package
-    from libs.lang.resolver import resolve_refs
     from libs.inference.bp import BeliefPropagation
     from libs.inference.factor_graph import FactorGraph
     from libs.storage.config import StorageConfig
@@ -311,8 +323,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
         raise typer.Exit(1)
 
     # 3. Load package, resolve refs, merge review
-    pkg = load_package(pkg_path)
-    pkg = resolve_refs(pkg)
+    pkg = _load_with_deps(pkg_path)
     fp = _compute_source_fingerprint(pkg_path)
     pkg = merge_review(pkg, review, source_fingerprint=fp)
 
