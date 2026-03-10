@@ -885,6 +885,50 @@ class TestRelationContradiction:
         # Stronger prob should cause more drop
         assert beliefs_strong[1] < beliefs_weak[1]
 
+    def test_gate_var_strengthens_constraint_when_relation_belief_rises(self):
+        """A supported Relation belief should dynamically strengthen the constraint."""
+        fg = FactorGraph()
+        fg.add_variable(1, 0.8)  # Claim A
+        fg.add_variable(2, 0.7)  # Claim B
+        fg.add_variable(3, 0.1)  # Relation node E starts weak
+        fg.add_variable(4, 0.95)  # Support for the Relation
+        fg.add_factor(
+            edge_id=1,
+            premises=[4],
+            conclusions=[3],
+            probability=0.99,
+            edge_type="deduction",
+        )
+        fg.add_factor(
+            edge_id=2,
+            premises=[1, 2],
+            conclusions=[],
+            probability=0.1,  # fallback if gate belief is unavailable
+            edge_type="relation_contradiction",
+            gate_var=3,
+        )
+
+        control = FactorGraph()
+        control.add_variable(1, 0.8)
+        control.add_variable(2, 0.7)
+        control.add_variable(3, 0.1)
+        control.add_factor(
+            edge_id=1,
+            premises=[1, 2],
+            conclusions=[],
+            probability=0.1,
+            edge_type="relation_contradiction",
+            gate_var=3,
+        )
+
+        bp = BeliefPropagation(damping=1.0, max_iterations=50)
+        beliefs = bp.run(fg)
+        control_beliefs = bp.run(control)
+
+        assert beliefs[3] > control_beliefs[3]
+        assert beliefs[1] < control_beliefs[1]
+        assert beliefs[2] < control_beliefs[2]
+
 
 class TestRelationEquivalence:
     """Tests for the relation_equivalence factor (no gate variable)."""

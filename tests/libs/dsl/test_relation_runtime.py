@@ -1,12 +1,14 @@
 """Runtime integration tests for Relation types."""
 
 from libs.dsl.models import (
+    Arg,
     ChainExpr,
     Claim,
     Contradiction,
     Equivalence,
     Module,
     Package,
+    StepApply,
     StepLambda,
     StepRef,
 )
@@ -43,7 +45,9 @@ def _build_equivalence_package(
     return pkg, relation
 
 
-def _build_shared_premise_package(include_contradiction: bool) -> tuple[Package, Contradiction | None]:
+def _build_shared_premise_package(
+    include_contradiction: bool,
+) -> tuple[Package, Contradiction | None]:
     premise = Claim(name="premise", content="Shared premise", prior=0.8)
     claim_a = Claim(name="a", content="Prediction A", prior=0.5)
     claim_b = Claim(name="b", content="Prediction B", prior=0.5)
@@ -84,6 +88,47 @@ def _build_shared_premise_package(include_contradiction: bool) -> tuple[Package,
         export=export,
     )
     pkg = Package(name="test_integration", modules=["m"])
+    pkg.loaded_modules = [mod]
+    return pkg, contra
+
+
+def _build_relation_gate_package(include_support_chain: bool) -> tuple[Package, Contradiction]:
+    claim_a = Claim(name="a", content="A", prior=0.8)
+    claim_b = Claim(name="b", content="B", prior=0.7)
+    contra = Contradiction(
+        name="a_vs_b",
+        between=["a", "b"],
+        prior=0.1,
+    )
+
+    declarations = [claim_a, claim_b, contra]
+    if include_support_chain:
+        declarations.append(
+            ChainExpr(
+                name="establish_contradiction",
+                steps=[
+                    StepRef(step=1, ref="a"),
+                    StepApply(
+                        step=2,
+                        apply="support_contradiction",
+                        args=[
+                            Arg(ref="a", dependency="direct"),
+                            Arg(ref="b", dependency="direct"),
+                        ],
+                        prior=0.95,
+                    ),
+                    StepRef(step=3, ref="a_vs_b"),
+                ],
+            )
+        )
+
+    mod = Module(
+        type="reasoning_module",
+        name="m",
+        declarations=declarations,
+        export=["a", "b", "a_vs_b"],
+    )
+    pkg = Package(name="relation_gate_pkg", modules=["m"])
     pkg.loaded_modules = [mod]
     return pkg, contra
 
@@ -190,3 +235,18 @@ async def test_nary_equivalence_pulls_all_members_toward_group():
         control.beliefs[name] for name in ("a", "b", "c")
     )
     assert result_spread < control_spread
+
+
+async def test_relation_support_chain_strengthens_constraint_via_gate_belief():
+    """Supporting evidence for a Relation should increase its constraint effect."""
+    pkg, contra = _build_relation_gate_package(include_support_chain=True)
+    control_pkg, _ = _build_relation_gate_package(include_support_chain=False)
+
+    runtime = DSLRuntime()
+    result = await runtime.infer(RuntimeResult(package=pkg))
+    control = await runtime.infer(RuntimeResult(package=control_pkg))
+
+    assert contra.belief is not None
+    assert result.beliefs["a_vs_b"] > control.beliefs["a_vs_b"]
+    assert result.beliefs["a"] < control.beliefs["a"]
+    assert result.beliefs["b"] < control.beliefs["b"]

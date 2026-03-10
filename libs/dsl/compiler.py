@@ -28,7 +28,7 @@ class DSLFactorGraph:
     """Factor graph built from DSL package structure.
 
     variables: name -> prior
-    factors: list of {name, premises: [name], conclusions: [name], probability}
+    factors: list of {name, premises: [name], conclusions: [name], probability, gate_var?}
     """
 
     variables: dict[str, float] = field(default_factory=dict)
@@ -169,11 +169,11 @@ def _compile_relation(
     edge_type = f"relation_{rel.type}"
     prob = rel.prior if rel.prior is not None else 0.5
 
-    # Relation variable is NOT included in the constraint factor (no gate variable).
-    # This avoids a feedback loop where the constraint's f2v message to E favors E=0
-    # (unconstrained state is always "cheaper"), pulling Relation belief down.
-    # Constraint strength comes from the Relation's prior via the probability parameter.
-    # The edge_type carries the semantic information for BP potential computation.
+    # Relation variable is NOT included in the constraint factor.
+    # Instead, the factor stores a read-only gate_var reference so BP can use the
+    # Relation's current belief as the effective constraint strength without sending
+    # messages back into the gate.
+    # probability stores the initial / fallback strength (the Relation prior).
 
     if isinstance(rel, Equivalence) and len(related_vars) > 2:
         # Decompose n-ary equivalence into pairwise constraints.
@@ -186,6 +186,7 @@ def _compile_relation(
                     "conclusions": [],
                     "probability": prob,
                     "edge_type": edge_type,
+                    "gate_var": var_name,
                 }
             )
     else:
@@ -196,5 +197,6 @@ def _compile_relation(
                 "conclusions": [],
                 "probability": prob,
                 "edge_type": edge_type,
+                "gate_var": var_name,
             }
         )
