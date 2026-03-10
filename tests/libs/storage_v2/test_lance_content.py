@@ -189,3 +189,23 @@ class TestBM25Search:
     async def test_search_empty_table(self, content_store):
         results = await content_store.search_bm25("anything", top_k=5)
         assert results == []
+
+
+class TestBPBulkLoad:
+    async def test_list_closures(self, content_store, closures):
+        await content_store.write_closures(closures)
+        result = await content_store.list_closures()
+        assert len(result) == 6
+
+    async def test_list_chains(self, content_store, chains):
+        await content_store.write_chains(chains)
+        result = await content_store.list_chains()
+        assert len(result) == 2
+
+    async def test_list_closures_empty(self, content_store):
+        result = await content_store.list_closures()
+        assert result == []
+
+    async def test_list_chains_empty(self, content_store):
+        result = await content_store.list_chains()
+        assert result == []

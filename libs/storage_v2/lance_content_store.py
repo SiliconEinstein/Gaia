@@ -510,7 +510,15 @@ class LanceContentStore(ContentStore):
     # ── BP bulk load ──
 
     async def list_closures(self) -> list[Closure]:
-        raise NotImplementedError
+        table = self._db.open_table("closures")
+        if table.count_rows() == 0:
+            return []
+        results = table.search().limit(table.count_rows()).to_list()
+        return [_row_to_closure(r) for r in results]
 
     async def list_chains(self) -> list[Chain]:
-        raise NotImplementedError
+        table = self._db.open_table("chains")
+        if table.count_rows() == 0:
+            return []
+        results = table.search().limit(table.count_rows()).to_list()
+        return [_row_to_chain(r) for r in results]
