@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-from libs.dsl.elaborator import ElaboratedPackage, elaborate_package
-from libs.dsl.loader import load_package
-from libs.dsl.resolver import resolve_refs
+from libs.lang.elaborator import ElaboratedPackage, elaborate_package
+from libs.lang.loader import load_package
+from libs.lang.resolver import resolve_refs
 
 
 FIXTURE_PATH = Path("tests/fixtures/dsl_packages/galileo_falling_bodies")

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from libs.dsl.runtime import DSLRuntime
+from libs.lang.runtime import GaiaRuntime
 
 from .conftest import PassthroughExecutor
 
@@ -11,7 +11,7 @@ FIXTURE_DIR = Path(__file__).parents[2] / "fixtures" / "dsl_packages" / "galileo
 
 async def test_galileo_full_pipeline():
     """Full pipeline: load -> execute -> infer -> inspect."""
-    runtime = DSLRuntime(executor=PassthroughExecutor())
+    runtime = GaiaRuntime(executor=PassthroughExecutor())
     result = await runtime.run(FIXTURE_DIR)
 
     # Package loaded correctly
@@ -48,7 +48,7 @@ async def test_galileo_full_pipeline():
 
 async def test_galileo_claims_have_content():
     """All derived claims should have meaningful content."""
-    runtime = DSLRuntime(executor=PassthroughExecutor())
+    runtime = GaiaRuntime(executor=PassthroughExecutor())
     result = await runtime.run(FIXTURE_DIR)
 
     reasoning = next(m for m in result.package.loaded_modules if m.name == "reasoning")
@@ -79,7 +79,7 @@ async def test_galileo_claims_have_content():
 
 async def test_galileo_branching_structure():
     """The story should branch from Aristotle's law and later merge into one prediction."""
-    runtime = DSLRuntime(executor=PassthroughExecutor())
+    runtime = GaiaRuntime(executor=PassthroughExecutor())
     result = await runtime.run(FIXTURE_DIR)
 
     fg = result.factor_graph
@@ -103,7 +103,7 @@ async def test_galileo_branching_structure():
 
 async def test_galileo_story_arc_is_complete():
     """The fixture should tell a full story: question -> contradiction -> explanation -> prediction -> follow-up."""
-    runtime = DSLRuntime(executor=PassthroughExecutor())
+    runtime = GaiaRuntime(executor=PassthroughExecutor())
     result = await runtime.run(FIXTURE_DIR)
 
     motivation = next(m for m in result.package.loaded_modules if m.name == "motivation")

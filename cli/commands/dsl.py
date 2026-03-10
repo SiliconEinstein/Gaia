@@ -6,8 +6,8 @@ import argparse
 import asyncio
 from pathlib import Path
 
-from libs.dsl.executor import ActionExecutor
-from libs.dsl.runtime import DSLRuntime
+from libs.lang.executor import ActionExecutor
+from libs.lang.runtime import GaiaRuntime
 
 
 class StubExecutor(ActionExecutor):
@@ -25,7 +25,7 @@ class StubExecutor(ActionExecutor):
 
 async def load_cmd(path: str) -> None:
     """Load and validate a DSL package."""
-    runtime = DSLRuntime()
+    runtime = GaiaRuntime()
     result = await runtime.load(Path(path))
     pkg = result.package
 
@@ -42,7 +42,7 @@ async def load_cmd(path: str) -> None:
 
 async def run_cmd(path: str) -> None:
     """Load, execute, and run BP on a DSL package."""
-    runtime = DSLRuntime(executor=StubExecutor())
+    runtime = GaiaRuntime(executor=StubExecutor())
     result = await runtime.run(Path(path))
 
     print(f"Package: {result.package.name}")
@@ -59,7 +59,7 @@ async def run_cmd(path: str) -> None:
 
 async def execute_cmd(path: str) -> None:
     """Execute a DSL package (fill claims via executor, no inference)."""
-    runtime = DSLRuntime(executor=StubExecutor())
+    runtime = GaiaRuntime(executor=StubExecutor())
     result = await runtime.load(path)
     await runtime.execute(result)
     print(f"Package: {result.package.name}")
@@ -73,7 +73,7 @@ async def execute_cmd(path: str) -> None:
 
 async def inspect_cmd(path: str) -> None:
     """Inspect the factor graph structure of a DSL package."""
-    runtime = DSLRuntime(executor=StubExecutor())
+    runtime = GaiaRuntime(executor=StubExecutor())
     result = await runtime.run(path)
     summary = result.inspect()
     print(f"Package: {summary['package']}")
@@ -98,8 +98,8 @@ async def inspect_cmd(path: str) -> None:
 
 async def validate_cmd(path: str) -> None:
     """Validate a DSL package (check YAML, refs, types)."""
-    from libs.dsl.loader import load_package
-    from libs.dsl.resolver import resolve_refs
+    from libs.lang.loader import load_package
+    from libs.lang.resolver import resolve_refs
 
     try:
         pkg = load_package(Path(path))

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from libs.dsl.compiler import DSLFactorGraph
-from libs.dsl.models import (
+from libs.lang.compiler import CompiledFactorGraph
+from libs.lang.models import (
     Declaration,
     Package,
     Question,
@@ -24,7 +24,7 @@ class StorageConversionResult:
 
 def convert_package_to_storage(
     pkg: Package,
-    fg: DSLFactorGraph,
+    fg: CompiledFactorGraph,
     beliefs: dict[str, float],
     start_node_id: int = 1,
     start_edge_id: int = 1,

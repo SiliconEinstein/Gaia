@@ -1,9 +1,9 @@
-# tests/libs/dsl/test_executor.py
+# tests/libs/lang/test_executor.py
 from pathlib import Path
 
-from libs.dsl.executor import execute_package
-from libs.dsl.loader import load_package
-from libs.dsl.models import (
+from libs.lang.executor import execute_package
+from libs.lang.loader import load_package
+from libs.lang.models import (
     Arg,
     Claim,
     ChainExpr,
@@ -16,7 +16,7 @@ from libs.dsl.models import (
     StepRef,
     ToolCallAction,
 )
-from libs.dsl.resolver import resolve_refs
+from libs.lang.resolver import resolve_refs
 
 from .conftest import MockExecutor
 

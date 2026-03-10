@@ -1,4 +1,4 @@
-from libs.dsl.models import (
+from libs.lang.models import (
     Claim,
     Question,  # noqa: F401 — import-smoke-test
     Setting,  # noqa: F401 — import-smoke-test

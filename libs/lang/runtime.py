@@ -1,4 +1,4 @@
-"""Gaia DSL Runtime — Load -> Execute -> Infer -> Inspect."""
+"""Gaia Language Runtime — Load -> Execute -> Infer -> Inspect."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 from libs.inference.bp import BeliefPropagation
 from libs.inference.factor_graph import FactorGraph
 
-from .compiler import DSLFactorGraph, compile_factor_graph
+from .compiler import CompiledFactorGraph, compile_factor_graph
 from .executor import ActionExecutor, execute_package
 from .loader import load_package
 from .models import Declaration, Package, Ref
@@ -17,10 +17,10 @@ from .resolver import resolve_refs
 
 @dataclass
 class RuntimeResult:
-    """Result of running the DSL pipeline."""
+    """Result of running the Gaia Language pipeline."""
 
     package: Package
-    factor_graph: DSLFactorGraph | None = None
+    factor_graph: CompiledFactorGraph | None = None
     beliefs: dict[str, float] = field(default_factory=dict)
 
     def inspect(self) -> dict:
@@ -34,7 +34,7 @@ class RuntimeResult:
         }
 
 
-class DSLRuntime:
+class GaiaRuntime:
     """Main runtime: Load -> Execute -> Infer -> Inspect."""
 
     def __init__(self, executor: ActionExecutor | None = None):
@@ -54,11 +54,11 @@ class DSLRuntime:
 
     async def infer(self, result: RuntimeResult) -> RuntimeResult:
         """Build factor graph and run BP on a loaded package."""
-        # Compile DSL factor graph
+        # Compile language factor graph
         dsl_fg = compile_factor_graph(result.package)
         result.factor_graph = dsl_fg
 
-        # Convert DSLFactorGraph to inference engine FactorGraph
+        # Convert CompiledFactorGraph to inference engine FactorGraph
         bp_fg = FactorGraph()
         name_to_id: dict[str, int] = {}
         for i, (name, prior) in enumerate(dsl_fg.variables.items()):

@@ -34,6 +34,8 @@ For historical planning documents, see [archive/plans/README.md](archive/plans/R
 | `libs/storage/kuzu_store.py` | Graph topology persistence in Kuzu (local default) |
 | `libs/storage/vector_search/` | Vector search abstraction and LanceDB-backed implementation |
 | `libs/storage/id_generator.py` | ID allocation |
+| `libs/lang/` | Gaia Language: models, loader, resolver, elaborator, compiler, runtime |
+| `libs/inference/` | Factor graph construction and loopy belief propagation |
 
 `libs/` should not accumulate workflow-heavy logic. If a module coordinates search, review, inference, or commit workflows, it belongs in `services/`.
 
@@ -65,7 +67,7 @@ The Gaia CLI is a Typer-based command-line tool for the local knowledge-authorin
 | `search` | Full-text search over published nodes in local LanceDB |
 | `clean` | Remove build artifacts (.gaia/) |
 
-CLI source lives in `cli/`, with language parsing and inference in `libs/dsl/` and `libs/inference/`. Build output is per-module Markdown under `.gaia/build/`, and review output is YAML sidecars under `.gaia/reviews/`.
+CLI source lives in `cli/`, with language parsing and inference in `libs/lang/` and `libs/inference/`. Build output is per-module Markdown under `.gaia/build/`, and review output is YAML sidecars under `.gaia/reviews/`.
 
 ### `services/gateway/routes/`
 
@@ -100,13 +102,13 @@ The gateway has five route groups:
 The current intended dependency direction is:
 
 ```text
-libs/models + libs/storage + libs/embedding + libs/inference + libs/dsl
+libs/models + libs/storage + libs/embedding + libs/inference + libs/lang
     -> services/search_engine
     -> services/review_pipeline
     -> services/commit_engine
     -> services/gateway          (HTTP product surface)
 
-libs/models + libs/storage + libs/inference + libs/dsl
+libs/models + libs/storage + libs/inference + libs/lang
     -> cli/                      (CLI product surface)
 
 frontend -> services/gateway
@@ -114,7 +116,7 @@ scripts -> libs/ and services/ as needed
 tests -> mirror all layers
 ```
 
-The gateway and CLI are independent product surfaces. Both depend on `libs/` but not on each other. The gateway additionally uses `services/` for commit, search, and review workflows. The CLI uses `libs/dsl/` for language parsing and `libs/inference/` for belief propagation directly.
+The gateway and CLI are independent product surfaces. Both depend on `libs/` but not on each other. The gateway additionally uses `services/` for commit, search, and review workflows. The CLI uses `libs/lang/` for language parsing and `libs/inference/` for belief propagation directly.
 
 ## What Was Unclear Or Conflicting
 

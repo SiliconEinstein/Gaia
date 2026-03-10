@@ -1,4 +1,5 @@
-from libs.dsl.models import RetractAction
+from libs.lang.loader import _parse_declaration
+from libs.lang.models import Contradiction, Equivalence, RetractAction
 
 
 def test_retract_action_model():
@@ -15,13 +16,9 @@ def test_retract_action_model():
 
 
 def test_retract_action_in_declaration_map():
-    from libs.dsl.models import DECLARATION_TYPE_MAP
+    from libs.lang.models import DECLARATION_TYPE_MAP
     assert "retract_action" in DECLARATION_TYPE_MAP
     assert DECLARATION_TYPE_MAP["retract_action"] is RetractAction
-
-
-from libs.dsl.loader import _parse_declaration
-from libs.dsl.models import Contradiction, Equivalence
 
 
 def test_parse_contradiction_from_yaml_dict():

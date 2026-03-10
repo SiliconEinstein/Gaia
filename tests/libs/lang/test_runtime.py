@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from libs.dsl.models import RetractAction
-from libs.dsl.runtime import DSLRuntime, RuntimeResult
+from libs.lang.models import RetractAction
+from libs.lang.runtime import GaiaRuntime, RuntimeResult
 
 from .conftest import MockExecutor
 
@@ -11,7 +11,7 @@ FIXTURE_DIR = Path(__file__).parents[2] / "fixtures" / "dsl_packages" / "galileo
 
 
 async def test_runtime_full_pipeline():
-    runtime = DSLRuntime(executor=MockExecutor())
+    runtime = GaiaRuntime(executor=MockExecutor())
     result = await runtime.run(FIXTURE_DIR)
 
     assert isinstance(result, RuntimeResult)
@@ -23,7 +23,7 @@ async def test_runtime_full_pipeline():
 
 
 async def test_runtime_beliefs_computed():
-    runtime = DSLRuntime(executor=MockExecutor())
+    runtime = GaiaRuntime(executor=MockExecutor())
     result = await runtime.run(FIXTURE_DIR)
 
     # Key theory nodes should move away from their priors after BP.
@@ -36,7 +36,7 @@ async def test_runtime_beliefs_computed():
 
 
 async def test_runtime_load_only():
-    runtime = DSLRuntime(executor=MockExecutor())
+    runtime = GaiaRuntime(executor=MockExecutor())
     result = await runtime.load(FIXTURE_DIR)
 
     assert result.package.name == "galileo_falling_bodies"
@@ -47,7 +47,7 @@ async def test_runtime_load_only():
 
 async def test_runtime_beliefs_written_back_to_declarations():
     """After run(), Claim.belief should reflect BP posteriors."""
-    runtime = DSLRuntime(executor=MockExecutor())
+    runtime = GaiaRuntime(executor=MockExecutor())
     result = await runtime.run(FIXTURE_DIR)
 
     # Find heavier_falls_faster claim via the package
@@ -69,7 +69,7 @@ async def test_runtime_beliefs_written_back_to_declarations():
 
 async def test_runtime_preserves_retract_action_provenance_contract():
     """RetractAction should remain provenance-only while pointing to belief-bearing nodes."""
-    runtime = DSLRuntime(executor=MockExecutor())
+    runtime = GaiaRuntime(executor=MockExecutor())
     result = await runtime.run(FIXTURE_DIR)
 
     reasoning = next(m for m in result.package.loaded_modules if m.name == "reasoning")
@@ -86,7 +86,7 @@ async def test_runtime_preserves_retract_action_provenance_contract():
 
 async def test_runtime_execute_only():
     """Execute fills claims but no BP."""
-    runtime = DSLRuntime(executor=MockExecutor())
+    runtime = GaiaRuntime(executor=MockExecutor())
     result = await runtime.load(FIXTURE_DIR)
     result = await runtime.execute(result)
 
@@ -104,7 +104,7 @@ async def test_runtime_execute_only():
 
 async def test_runtime_infer_only():
     """Infer without execute — BP runs on priors alone."""
-    runtime = DSLRuntime()  # no executor
+    runtime = GaiaRuntime()  # no executor
     result = await runtime.load(FIXTURE_DIR)
     result = await runtime.infer(result)
 
@@ -117,7 +117,7 @@ async def test_runtime_infer_only():
 
 
 async def test_runtime_inspect():
-    runtime = DSLRuntime(executor=MockExecutor())
+    runtime = GaiaRuntime(executor=MockExecutor())
     result = await runtime.run(FIXTURE_DIR)
     summary = result.inspect()
 

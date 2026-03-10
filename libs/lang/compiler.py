@@ -1,4 +1,4 @@
-"""Compile a resolved DSL package into a factor graph for BP."""
+"""Compile a resolved Gaia Language package into a factor graph for BP."""
 
 from __future__ import annotations
 
@@ -24,8 +24,8 @@ BP_VARIABLE_TYPES = {"claim", "setting", "contradiction", "equivalence"}
 
 
 @dataclass
-class DSLFactorGraph:
-    """Factor graph built from DSL package structure.
+class CompiledFactorGraph:
+    """Factor graph built from Gaia Language package structure.
 
     variables: name -> prior
     factors: list of {name, premises: [name], conclusions: [name], probability, gate_var?}
@@ -37,14 +37,14 @@ class DSLFactorGraph:
     )  # [{name, premises, conclusions, probability}]
 
 
-def compile_factor_graph(pkg: Package) -> DSLFactorGraph:
+def compile_factor_graph(pkg: Package) -> CompiledFactorGraph:
     """Compile a resolved package into a factor graph.
 
     Variable nodes: Claims and Settings with priors.
     Factor nodes: Applications and Lambdas from ChainExpr steps.
     Edges: determined by direct dependencies (indirect excluded).
     """
-    fg = DSLFactorGraph()
+    fg = CompiledFactorGraph()
 
     # Collect all declarations across modules (resolving refs)
     all_decls: dict[str, Declaration] = {}
@@ -89,7 +89,7 @@ def compile_factor_graph(pkg: Package) -> DSLFactorGraph:
 def _compile_chain(
     chain: ChainExpr,
     all_decls: dict[str, Declaration],
-    fg: DSLFactorGraph,
+    fg: CompiledFactorGraph,
 ) -> None:
     """Compile a ChainExpr into factor nodes connecting variable nodes."""
     if chain.edge_type is not None:
@@ -147,7 +147,7 @@ def _compile_relation(
     var_name: str,
     rel: Relation,
     all_decls: dict[str, Declaration],
-    fg: DSLFactorGraph,
+    fg: CompiledFactorGraph,
 ) -> None:
     """Compile a Relation into constraint factor(s) connecting related claims.
 

@@ -20,10 +20,10 @@ def build(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
 ) -> None:
     """Elaborate: parse + resolve + instantiate params."""
-    from libs.dsl.build_store import save_build
-    from libs.dsl.elaborator import elaborate_package
-    from libs.dsl.loader import load_package
-    from libs.dsl.resolver import resolve_refs
+    from libs.lang.build_store import save_build
+    from libs.lang.elaborator import elaborate_package
+    from libs.lang.loader import load_package
+    from libs.lang.resolver import resolve_refs
 
     pkg_path = Path(path)
     try:
@@ -56,7 +56,7 @@ def review(
 
     from cli.llm_client import MockReviewClient, ReviewClient
     from cli.review_store import write_review
-    from libs.dsl.loader import load_package
+    from libs.lang.loader import load_package
 
     pkg_path = Path(path)
     build_dir = pkg_path / ".gaia" / "build"
@@ -154,9 +154,9 @@ def infer(
 ) -> None:
     """Compile FG (from review) + BP -> beliefs."""
     from cli.review_store import find_latest_review, merge_review, read_review
-    from libs.dsl.compiler import compile_factor_graph
-    from libs.dsl.loader import load_package
-    from libs.dsl.resolver import resolve_refs
+    from libs.lang.compiler import compile_factor_graph
+    from libs.lang.loader import load_package
+    from libs.lang.resolver import resolve_refs
     from libs.inference.bp import BeliefPropagation
     from libs.inference.factor_graph import FactorGraph
 
@@ -280,9 +280,9 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     """Run full pipeline and triple-write to LanceDB + Kuzu."""
     from cli.dsl_to_storage import convert_package_to_storage
     from cli.review_store import find_latest_review, merge_review, read_review
-    from libs.dsl.compiler import compile_factor_graph
-    from libs.dsl.loader import load_package
-    from libs.dsl.resolver import resolve_refs
+    from libs.lang.compiler import compile_factor_graph
+    from libs.lang.loader import load_package
+    from libs.lang.resolver import resolve_refs
     from libs.inference.bp import BeliefPropagation
     from libs.inference.factor_graph import FactorGraph
     from libs.storage.config import StorageConfig
@@ -470,13 +470,13 @@ def show(
     path: str = typer.Option(".", "--path", "-p", help="Package directory"),
 ) -> None:
     """Show declaration details + connected chains."""
-    from libs.dsl.loader import load_package
-    from libs.dsl.models import ChainExpr, Ref, StepApply, StepRef
+    from libs.lang.loader import load_package
+    from libs.lang.models import ChainExpr, Ref, StepApply, StepRef
 
     pkg_path = Path(path)
     try:
         pkg = load_package(pkg_path)
-        from libs.dsl.resolver import resolve_refs
+        from libs.lang.resolver import resolve_refs
 
         pkg = resolve_refs(pkg)
     except FileNotFoundError as e:

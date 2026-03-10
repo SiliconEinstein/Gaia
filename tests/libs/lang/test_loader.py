@@ -1,8 +1,8 @@
-# tests/libs/dsl/test_loader.py
+# tests/libs/lang/test_loader.py
 from pathlib import Path
 
-from libs.dsl.loader import load_package
-from libs.dsl.models import (
+from libs.lang.loader import load_package
+from libs.lang.models import (
     Claim,
     InferAction,
     ChainExpr,

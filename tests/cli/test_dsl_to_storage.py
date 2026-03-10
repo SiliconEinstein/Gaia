@@ -3,9 +3,9 @@
 from pathlib import Path
 
 from cli.dsl_to_storage import convert_package_to_storage
-from libs.dsl.compiler import compile_factor_graph
-from libs.dsl.loader import load_package
-from libs.dsl.resolver import resolve_refs
+from libs.lang.compiler import compile_factor_graph
+from libs.lang.loader import load_package
+from libs.lang.resolver import resolve_refs
 from libs.models import HyperEdge, Node
 
 

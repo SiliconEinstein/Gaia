@@ -1,6 +1,6 @@
 """Runtime integration tests for Relation types."""
 
-from libs.dsl.models import (
+from libs.lang.models import (
     Arg,
     ChainExpr,
     Claim,
@@ -12,7 +12,7 @@ from libs.dsl.models import (
     StepLambda,
     StepRef,
 )
-from libs.dsl.runtime import DSLRuntime, RuntimeResult
+from libs.lang.runtime import GaiaRuntime, RuntimeResult
 
 
 def _build_equivalence_package(
@@ -151,7 +151,7 @@ async def test_contradiction_gets_belief_after_inference():
     pkg = Package(name="test_relation_bp", modules=["m"])
     pkg.loaded_modules = [mod]
 
-    runtime = DSLRuntime()
+    runtime = GaiaRuntime()
     result = RuntimeResult(package=pkg)
     result = await runtime.infer(result)
 
@@ -175,7 +175,7 @@ async def test_equivalence_gets_belief_after_inference():
         include_equivalence=False,
         relation_name="x_equiv_y",
     )
-    runtime = DSLRuntime()
+    runtime = GaiaRuntime()
     result = await runtime.infer(RuntimeResult(package=pkg))
     control = await runtime.infer(RuntimeResult(package=control_pkg))
 
@@ -194,7 +194,7 @@ async def test_contradiction_weakens_shared_premises():
     """Contradiction should lower the shared premise and both branches vs control."""
     pkg, contra = _build_shared_premise_package(include_contradiction=True)
     control_pkg, _ = _build_shared_premise_package(include_contradiction=False)
-    runtime = DSLRuntime()
+    runtime = GaiaRuntime()
     result = await runtime.infer(RuntimeResult(package=pkg))
     control = await runtime.infer(RuntimeResult(package=control_pkg))
 
@@ -219,7 +219,7 @@ async def test_nary_equivalence_pulls_all_members_toward_group():
         include_equivalence=False,
         relation_name="abc_equiv",
     )
-    runtime = DSLRuntime()
+    runtime = GaiaRuntime()
     result = await runtime.infer(RuntimeResult(package=pkg))
     control = await runtime.infer(RuntimeResult(package=control_pkg))
 
@@ -242,7 +242,7 @@ async def test_relation_support_chain_strengthens_constraint_via_gate_belief():
     pkg, contra = _build_relation_gate_package(include_support_chain=True)
     control_pkg, _ = _build_relation_gate_package(include_support_chain=False)
 
-    runtime = DSLRuntime()
+    runtime = GaiaRuntime()
     result = await runtime.infer(RuntimeResult(package=pkg))
     control = await runtime.infer(RuntimeResult(package=control_pkg))
 

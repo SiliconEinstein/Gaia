@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from libs.dsl.loader import load_package
-from libs.dsl.models import Claim, Module, Package, Ref
-from libs.dsl.resolver import resolve_refs, ResolveError
+from libs.lang.loader import load_package
+from libs.lang.models import Claim, Module, Package, Ref
+from libs.lang.resolver import resolve_refs, ResolveError
 
 FIXTURE_DIR = Path(__file__).parents[2] / "fixtures" / "dsl_packages" / "galileo_falling_bodies"
 
@@ -45,7 +45,7 @@ def test_resolve_cross_module():
 def test_resolve_undefined_ref_raises():
     pkg = load_package(FIXTURE_DIR)
     # Add a bad ref
-    from libs.dsl.models import Ref
+    from libs.lang.models import Ref
 
     bad_module = next(m for m in pkg.loaded_modules if m.name == "reasoning")
     bad_module.declarations.append(Ref(name="nonexistent", target="fake_module.fake_name"))

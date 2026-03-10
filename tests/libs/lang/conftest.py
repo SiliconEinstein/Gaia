@@ -1,6 +1,6 @@
 """Shared test fixtures for DSL tests."""
 
-from libs.dsl.executor import ActionExecutor
+from libs.lang.executor import ActionExecutor
 
 
 class MockExecutor(ActionExecutor):

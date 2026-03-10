@@ -7,7 +7,7 @@ from pathlib import Path
 
 import yaml
 
-from libs.dsl.models import ChainExpr, Package, StepApply
+from libs.lang.models import ChainExpr, Package, StepApply
 
 
 def write_review(review: dict, reviews_dir: Path, filename: str | None = None) -> Path:

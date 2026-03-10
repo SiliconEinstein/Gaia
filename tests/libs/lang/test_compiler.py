@@ -1,9 +1,9 @@
-# tests/libs/dsl/test_compiler.py
+# tests/libs/lang/test_compiler.py
 from pathlib import Path
 
-from libs.dsl.compiler import compile_factor_graph
-from libs.dsl.loader import load_package
-from libs.dsl.models import (
+from libs.lang.compiler import compile_factor_graph
+from libs.lang.loader import load_package
+from libs.lang.models import (
     Claim,
     ChainExpr,
     Module,
@@ -11,7 +11,7 @@ from libs.dsl.models import (
     StepRef,
     StepLambda,
 )
-from libs.dsl.resolver import resolve_refs
+from libs.lang.resolver import resolve_refs
 
 FIXTURE_DIR = Path(__file__).parents[2] / "fixtures" / "dsl_packages" / "galileo_falling_bodies"
 

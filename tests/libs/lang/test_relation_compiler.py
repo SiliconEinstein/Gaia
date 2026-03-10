@@ -1,7 +1,7 @@
 import warnings
 
-from libs.dsl.compiler import compile_factor_graph
-from libs.dsl.models import (
+from libs.lang.compiler import compile_factor_graph
+from libs.lang.models import (
     Claim,
     ChainExpr,
     Contradiction,
