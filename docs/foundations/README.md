@@ -57,8 +57,9 @@ The plan is to establish a small set of durable foundation docs before major cod
 6. `cli/boundaries.md` (Gaia CLI runtime layering)
 7. `server/architecture.md` (Server architecture)
 8. `server/graph-spec.md`
-9. `server/storage-schema.md`
-10. `server/api-contract.md`
+9. `server/storage-schema.md` (Server storage schema)
+10. `server/module-boundaries.md`
+11. `server/api-contract.md`
 
 Those files do not all exist yet. This directory is the place where they should be created and kept current.
 
