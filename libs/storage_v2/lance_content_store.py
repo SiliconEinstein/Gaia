@@ -348,7 +348,7 @@ class LanceContentStore(ContentStore):
 
     async def initialize(self) -> None:
         """Create all required tables if they don't already exist."""
-        existing = set(self._db.table_names())
+        existing = set(self._db.list_tables().tables)
         for table_name, schema in _TABLE_SCHEMAS.items():
             if table_name not in existing:
                 self._db.create_table(table_name, schema=schema)
@@ -494,7 +494,18 @@ class LanceContentStore(ContentStore):
     # ── Search ──
 
     async def search_bm25(self, text: str, top_k: int) -> list[ScoredClosure]:
-        raise NotImplementedError
+        table = self._db.open_table("closures")
+        if table.count_rows() == 0:
+            return []
+        if self._fts_dirty:
+            table.create_fts_index("content", replace=True)
+            self._fts_dirty = False
+        results = table.search(text, query_type="fts").limit(top_k).to_list()
+        scored = []
+        for row in results:
+            closure = _row_to_closure(row)
+            scored.append(ScoredClosure(closure=closure, score=row["_score"]))
+        return scored
 
     # ── BP bulk load ──
 

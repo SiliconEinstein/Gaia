@@ -6,7 +6,7 @@ import pytest
 class TestInitialize:
     async def test_initialize_creates_tables(self, content_store):
         db = content_store._db
-        tables = db.table_names()
+        tables = db.list_tables().tables
         expected = {
             "packages",
             "modules",
@@ -165,3 +165,27 @@ class TestResources:
     async def test_get_resources_empty(self, content_store):
         result = await content_store.get_resources_for("closure", "nonexistent")
         assert result == []
+
+
+class TestBM25Search:
+    async def test_search_finds_relevant_closure(self, content_store, closures):
+        await content_store.write_closures(closures)
+        results = await content_store.search_bm25("heavier objects fall faster", top_k=5)
+        assert len(results) >= 1
+        ids = [r.closure.closure_id for r in results]
+        assert any("heavier" in cid for cid in ids)
+
+    async def test_search_respects_top_k(self, content_store, closures):
+        await content_store.write_closures(closures)
+        results = await content_store.search_bm25("falls", top_k=2)
+        assert len(results) <= 2
+
+    async def test_search_returns_scores(self, content_store, closures):
+        await content_store.write_closures(closures)
+        results = await content_store.search_bm25("experiment", top_k=5)
+        if results:
+            assert all(r.score > 0 for r in results)
+
+    async def test_search_empty_table(self, content_store):
+        results = await content_store.search_bm25("anything", top_k=5)
+        assert results == []
