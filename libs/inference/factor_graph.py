@@ -54,6 +54,7 @@ class FactorGraph:
         conclusions: list[int],
         probability: float,
         edge_type: str = "deduction",
+        gate_var: int | None = None,
     ) -> None:
         """Add a factor (hyperedge) connecting variables.
 
@@ -67,15 +68,16 @@ class FactorGraph:
                 probability,
                 clamped,
             )
-        self.factors.append(
-            {
-                "edge_id": edge_id,
-                "premises": premises,
-                "conclusions": conclusions,
-                "probability": clamped,
-                "edge_type": edge_type,
-            }
-        )
+        factor = {
+            "edge_id": edge_id,
+            "premises": premises,
+            "conclusions": conclusions,
+            "probability": clamped,
+            "edge_type": edge_type,
+        }
+        if gate_var is not None:
+            factor["gate_var"] = gate_var
+        self.factors.append(factor)
 
     @classmethod
     def from_subgraph(cls, nodes: list[Node], edges: list[HyperEdge]) -> FactorGraph:

@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 
+from libs.inference.factor_graph import CROMWELL_EPS
+
 if TYPE_CHECKING:
     from libs.inference.factor_graph import FactorGraph
 
@@ -61,12 +63,14 @@ def _evaluate_potential(
 ) -> float:
     """Evaluate factor potential for a full variable assignment.
 
-    **Relation types** (custom gating via conclusion variable E):
+    **Relation types**:
 
-    - **relation_contradiction**: When E=1 (believe the contradiction),
-      penalize A=1 ∧ B=1. When E=0, no constraint.
-    - **relation_equivalence**: When E=1 (believe the equivalence),
-      reward A==B and penalize A≠B. When E=0, no constraint.
+    - **relation_contradiction**: penalize A=1 ∧ B=1.
+    - **relation_equivalence**: reward A==B and penalize A≠B.
+
+    For Relation constraints, any dynamic gating is handled outside this function:
+    `_compute_factor_to_var()` may replace ``prob`` with the current belief of a
+    read-only ``gate_var`` associated with the factor.
 
     **Standard types** (gated on "all premises true"):
 
@@ -90,9 +94,9 @@ def _evaluate_potential(
        premise inhibition and conclusion confirmation share the same
        potential.
     """
-    # --- Relation types: no gate variable, edge_type carries semantics ---
-    # Constraint strength is encoded in `prob` (from Relation's prior).
-    # Relation variable is excluded from the factor to avoid feedback loops.
+    # --- Relation types: edge_type carries semantics ---
+    # Constraint strength is passed in via `prob`. When a factor has a read-only
+    # gate_var, `_compute_factor_to_var()` substitutes the gate's current belief.
     if edge_type == "relation_contradiction":
         all_claims_true = all(assignment[p] == 1 for p in premise_ids)
         return (1.0 - prob) if all_claims_true else 1.0
@@ -154,6 +158,7 @@ def _compute_factor_to_var(
     target_var: int,
     factor: dict,
     v2f_msgs: dict[tuple[int, int], Msg],
+    gate_beliefs: dict[int, float],
 ) -> Msg:
     """Compute factor→variable message by marginalizing over all other variables.
 
@@ -164,6 +169,15 @@ def _compute_factor_to_var(
     conclusion_ids: list[int] = factor["conclusions"]
     prob: float = factor["probability"]
     edge_type: str = factor.get("edge_type", "deduction")
+    gate_var: int | None = factor.get("gate_var")
+
+    # Optional read-only gate: use the previous iteration's marginal belief for the
+    # Relation variable as the effective constraint strength. The gate variable is
+    # intentionally not part of the factor's participant set, so the factor never
+    # sends messages back into the gate and cannot create a feedback loop.
+    if gate_var is not None:
+        prob = gate_beliefs.get(gate_var, prob)
+        prob = max(CROMWELL_EPS, min(1.0 - CROMWELL_EPS, prob))
 
     all_vars = premise_ids + conclusion_ids
     other_vars = [v for v in all_vars if v != target_var]
@@ -261,7 +275,13 @@ class BeliefPropagation:
             # 2. Compute all factor→var messages
             new_f2v: dict[tuple[int, int], Msg] = {}
             for (fi, vid), _ in f2v_msgs.items():
-                new_f2v[(fi, vid)] = _compute_factor_to_var(fi, vid, graph.factors[fi], new_v2f)
+                new_f2v[(fi, vid)] = _compute_factor_to_var(
+                    fi,
+                    vid,
+                    graph.factors[fi],
+                    new_v2f,
+                    prev_beliefs,
+                )
 
             # 3. Damp and normalize
             for key in f2v_msgs:

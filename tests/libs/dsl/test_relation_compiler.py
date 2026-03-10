@@ -13,6 +13,7 @@ from libs.dsl.models import (
     StepRef,
 )
 
+
 def test_contradiction_compiles_to_variable_node():
     claim_a = Claim(name="a", content="A", prior=0.8)
     claim_b = Claim(name="b", content="B", prior=0.7)
@@ -86,6 +87,7 @@ def test_contradiction_generates_constraint_factor():
     assert set(factor["premises"]) == {"a", "b"}
     assert factor["conclusions"] == []  # Relation excluded to avoid feedback loop
     assert factor["probability"] == 0.95  # Uses Relation's prior as strength
+    assert factor["gate_var"] == "a_contradicts_b"
     assert factor["name"] == "a_contradicts_b.constraint"
 
 
@@ -113,6 +115,7 @@ def test_equivalence_generates_constraint_factor():
     assert factor["edge_type"] == "relation_equivalence"
     assert set(factor["premises"]) == {"x", "y"}
     assert factor["conclusions"] == []  # Relation excluded to avoid feedback loop
+    assert factor["gate_var"] == "x_equiv_y"
 
 
 def test_relation_with_chain_produces_both_factors():
@@ -241,6 +244,7 @@ def test_ref_alias_relation_gets_constraint():
     assert factor["edge_type"] == "relation_contradiction"
     assert set(factor["premises"]) == {"a", "b"}
     assert factor["name"] == "c.constraint"
+    assert factor["gate_var"] == "c"
 
 
 def test_equivalence_nary_decomposes_to_pairwise():
@@ -272,6 +276,7 @@ def test_equivalence_nary_decomposes_to_pairwise():
         assert len(f["premises"]) == 2
         assert f["edge_type"] == "relation_equivalence"
         assert f["conclusions"] == []
+        assert f["gate_var"] == "abc_equiv"
     # All pairs covered
     pairs = {tuple(sorted(f["premises"])) for f in constraint_factors}
     assert pairs == {("a", "b"), ("a", "c"), ("b", "c")}
@@ -300,3 +305,4 @@ def test_equivalence_binary_no_decomposition():
     constraint_factors = [f for f in fg.factors if "xy_equiv" in f["name"]]
     assert len(constraint_factors) == 1
     assert constraint_factors[0]["name"] == "xy_equiv.constraint"
+    assert constraint_factors[0]["gate_var"] == "xy_equiv"
