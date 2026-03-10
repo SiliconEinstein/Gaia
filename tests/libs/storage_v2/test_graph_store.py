@@ -3,7 +3,7 @@
 import pytest
 
 from libs.storage_v2.kuzu_graph_store import KuzuGraphStore
-from libs.storage_v2.models import Chain, Closure
+from libs.storage_v2.models import BeliefSnapshot, Chain, Closure, ResourceAttachment
 
 
 @pytest.fixture
@@ -130,3 +130,115 @@ class TestWriteTopology:
         assert _count_nodes(graph_store, "Chain") == chain_count_1
         assert _count_rels(graph_store, "PREMISE") == premise_count_1
         assert _count_rels(graph_store, "CONCLUSION") == conclusion_count_1
+
+
+class TestWriteResourceLinks:
+    """Verify that write_resource_links creates Resource nodes and ATTACHED_TO rels."""
+
+    async def test_write_resource_links_to_closure(
+        self,
+        graph_store: KuzuGraphStore,
+        closures: list[Closure],
+        chains: list[Chain],
+        attachments: list[ResourceAttachment],
+    ):
+        """Resource links to closures should create ATTACHED_TO relationships."""
+        await graph_store.write_topology(closures, chains)
+        await graph_store.write_resource_links(attachments)
+
+        result = graph_store._execute(
+            "MATCH (r:Resource)-[a:ATTACHED_TO]->(c:Closure) RETURN COUNT(a)"
+        )
+        count = result.get_next()[0]
+        # Count expected: attachments targeting closures
+        expected = sum(1 for a in attachments if a.target_type == "closure")
+        assert count == expected
+
+    async def test_write_resource_links_to_chain(
+        self,
+        graph_store: KuzuGraphStore,
+        closures: list[Closure],
+        chains: list[Chain],
+        attachments: list[ResourceAttachment],
+    ):
+        """Resource links to chains (including chain_step) should target Chain nodes."""
+        await graph_store.write_topology(closures, chains)
+        await graph_store.write_resource_links(attachments)
+
+        result = graph_store._execute(
+            "MATCH (r:Resource)-[a:ATTACHED_TO]->(ch:Chain) RETURN COUNT(a)"
+        )
+        count = result.get_next()[0]
+        # chain and chain_step both target Chain nodes
+        expected = sum(1 for a in attachments if a.target_type in ("chain", "chain_step"))
+        assert count == expected
+
+    async def test_write_resource_links_idempotent(
+        self,
+        graph_store: KuzuGraphStore,
+        closures: list[Closure],
+        chains: list[Chain],
+        attachments: list[ResourceAttachment],
+    ):
+        """Writing resource links twice should not double the count."""
+        await graph_store.write_topology(closures, chains)
+        await graph_store.write_resource_links(attachments)
+        count_1 = _count_rels(graph_store, "ATTACHED_TO")
+
+        await graph_store.write_resource_links(attachments)
+        assert _count_rels(graph_store, "ATTACHED_TO") == count_1
+
+
+class TestUpdateBeliefs:
+    """Verify that update_beliefs sets belief values on Closure nodes."""
+
+    async def test_update_beliefs_sets_value(
+        self,
+        graph_store: KuzuGraphStore,
+        closures: list[Closure],
+        chains: list[Chain],
+        beliefs: list[BeliefSnapshot],
+    ):
+        await graph_store.write_topology(closures, chains)
+        await graph_store.update_beliefs(beliefs)
+
+        # Check the last belief written for each closure_id
+        for snap in beliefs:
+            result = graph_store._execute(
+                f"MATCH (cl:Closure {{closure_id: '{snap.closure_id}'}}) RETURN cl.belief"
+            )
+            row = result.get_next()
+            assert row[0] is not None
+
+    async def test_update_beliefs_nonexistent_closure(
+        self,
+        graph_store: KuzuGraphStore,
+    ):
+        """Updating beliefs for a non-existent closure should not raise."""
+        snap = BeliefSnapshot(
+            closure_id="nonexistent.closure",
+            version=1,
+            belief=0.5,
+            bp_run_id="bp_test",
+            computed_at="2026-01-01T00:00:00Z",
+        )
+        await graph_store.update_beliefs([snap])
+
+
+class TestUpdateProbability:
+    """Verify that update_probability sets probability on Chain nodes."""
+
+    async def test_update_probability_sets_value(
+        self,
+        graph_store: KuzuGraphStore,
+        closures: list[Closure],
+        chains: list[Chain],
+    ):
+        await graph_store.write_topology(closures, chains)
+        chain = chains[0]
+        await graph_store.update_probability(chain.chain_id, 0, 0.95)
+
+        result = graph_store._execute(
+            f"MATCH (ch:Chain {{chain_id: '{chain.chain_id}'}}) RETURN ch.probability"
+        )
+        assert result.get_next()[0] == pytest.approx(0.95)

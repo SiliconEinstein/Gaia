@@ -30,6 +30,15 @@ _SCHEMA_STATEMENTS = [
     ),
     "CREATE REL TABLE IF NOT EXISTS PREMISE(FROM Closure TO Chain, step_index INT64)",
     "CREATE REL TABLE IF NOT EXISTS CONCLUSION(FROM Chain TO Closure, step_index INT64)",
+    (
+        "CREATE NODE TABLE IF NOT EXISTS Resource("
+        "resource_id STRING, type STRING, format STRING, "
+        "PRIMARY KEY(resource_id))"
+    ),
+    (
+        "CREATE REL TABLE GROUP IF NOT EXISTS ATTACHED_TO("
+        "FROM Resource TO Closure, FROM Resource TO Chain, role STRING)"
+    ),
 ]
 
 
@@ -160,13 +169,94 @@ class KuzuGraphStore(GraphStore):
             self._conn.execute(create_q, {"fv": from_val, "tv": to_val, "si": step_index})
 
     async def write_resource_links(self, attachments: list[ResourceAttachment]) -> None:
-        raise NotImplementedError
+        """Write Resource nodes and ATTACHED_TO relationships.
+
+        Only ``closure``, ``chain``, and ``chain_step`` target types map to
+        graph nodes.  For ``chain_step``, the chain_id is extracted from the
+        target_id (format ``chain_id:step_index``) and the link points to the
+        parent Chain node.  ``module`` and ``package`` targets are skipped.
+        """
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, partial(self._write_resource_links_sync, attachments))
+
+    def _write_resource_links_sync(self, attachments: list[ResourceAttachment]) -> None:
+        """Synchronous implementation of write_resource_links."""
+        for att in attachments:
+            if att.target_type in ("module", "package"):
+                continue
+
+            # Determine destination label and id
+            if att.target_type == "closure":
+                dest_label = "Closure"
+                dest_key = "closure_id"
+                dest_id = att.target_id
+            elif att.target_type == "chain":
+                dest_label = "Chain"
+                dest_key = "chain_id"
+                dest_id = att.target_id
+            elif att.target_type == "chain_step":
+                # Extract chain_id from "chain_id:step_index"
+                dest_label = "Chain"
+                dest_key = "chain_id"
+                dest_id = att.target_id.rsplit(":", 1)[0]
+            else:
+                continue
+
+            # MERGE the Resource node
+            self._conn.execute(
+                "MERGE (r:Resource {resource_id: $rid})",
+                {"rid": att.resource_id},
+            )
+
+            # Check-then-create the ATTACHED_TO relationship
+            check_q = (
+                f"MATCH (r:Resource {{resource_id: $rid}})"
+                f"-[a:ATTACHED_TO]->"
+                f"(t:{dest_label} {{{dest_key}: $tid}}) "
+                f"WHERE a.role = $role RETURN COUNT(a)"
+            )
+            result = self._conn.execute(
+                check_q,
+                {"rid": att.resource_id, "tid": dest_id, "role": att.role},
+            )
+            if result.get_next()[0] == 0:
+                create_q = (
+                    f"MATCH (r:Resource {{resource_id: $rid}}), "
+                    f"(t:{dest_label} {{{dest_key}: $tid}}) "
+                    f"CREATE (r)-[:ATTACHED_TO {{role: $role}}]->(t)"
+                )
+                self._conn.execute(
+                    create_q,
+                    {"rid": att.resource_id, "tid": dest_id, "role": att.role},
+                )
 
     async def update_beliefs(self, snapshots: list[BeliefSnapshot]) -> None:
-        raise NotImplementedError
+        """Set belief values on Closure nodes.
+
+        Non-existent closures are silently ignored.
+        """
+        loop = asyncio.get_running_loop()
+        for snap in snapshots:
+            await loop.run_in_executor(
+                None,
+                partial(
+                    self._conn.execute,
+                    "MATCH (cl:Closure {closure_id: $cid}) SET cl.belief = $belief",
+                    {"cid": snap.closure_id, "belief": snap.belief},
+                ),
+            )
 
     async def update_probability(self, chain_id: str, step_index: int, value: float) -> None:
-        raise NotImplementedError
+        """Set probability on a Chain node."""
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None,
+            partial(
+                self._conn.execute,
+                "MATCH (ch:Chain {chain_id: $chid}) SET ch.probability = $val",
+                {"chid": chain_id, "val": value},
+            ),
+        )
 
     # ── Query (stubs) ──
 
