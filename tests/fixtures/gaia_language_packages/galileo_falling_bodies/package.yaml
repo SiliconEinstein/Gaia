@@ -24,4 +24,5 @@ modules:
 
 export:
   - vacuum_prediction
+  - aristotle_contradicted
   - follow_up_question

@@ -1,5 +1,5 @@
 # 牛顿力学 — 从运动定律推导出落体加速度与质量无关
-# 覆盖: 跨 package 依赖, ref 到外部 package, equivalence/subsumption 关系
+# 覆盖: 跨 package 依赖, ref 到外部 package, equivalence/contradiction/retraction
 
 name: newton_principia
 version: 1.0.0
@@ -8,7 +8,7 @@ manifest:
   description: >
     建模牛顿如何从三大运动定律和万有引力定律出发，
     通过纯理论推导得出"自由落体加速度与质量无关"(a=g)，
-    从而在理论层面 subsume 了伽利略的经验预测，
+    从而为伽利略的经验预测提供理论根基，
     并独立于伽利略的思想实验反驳了亚里士多德。
   authors:
     - 艾萨克·牛顿
@@ -27,4 +27,5 @@ modules:
 export:
   - acceleration_independent_of_mass
   - newton_contradicts_aristotle
+  - two_path_rejection_of_aristotle
   - galileo_equivalence

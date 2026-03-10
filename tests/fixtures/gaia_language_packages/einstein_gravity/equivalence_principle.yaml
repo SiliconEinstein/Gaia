@@ -10,10 +10,6 @@ knowledge:
     target: prior_knowledge.eotvos_experiment
 
   - type: ref
-    name: newton_mass_equivalence
-    target: prior_knowledge.newton_mass_equivalence
-
-  - type: ref
     name: maxwell_electromagnetism
     target: prior_knowledge.maxwell_electromagnetism
 
@@ -94,7 +90,7 @@ knowledge:
           - ref: eotvos_experiment
             dependency: direct
           - ref: elevator_env
-            dependency: indirect
+            dependency: direct
         prior: 0.92
       - step: 3
         ref: equivalence_principle

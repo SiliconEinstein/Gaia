@@ -6,16 +6,8 @@ name: prior_knowledge
 knowledge:
   # === 引用 Newton package ===
   - type: ref
-    name: newton_second_law
-    target: newton_principia.laws.second_law
-
-  - type: ref
     name: newton_gravity
     target: newton_principia.laws.law_of_gravity
-
-  - type: ref
-    name: newton_mass_equivalence
-    target: newton_principia.laws.mass_equivalence
 
   - type: ref
     name: newton_a_equals_g

@@ -6,10 +6,6 @@ name: general_relativity
 knowledge:
   # === 引用 ===
   - type: ref
-    name: equivalence_principle
-    target: equivalence_principle.equivalence_principle
-
-  - type: ref
     name: light_must_bend_in_gravity
     target: equivalence_principle.light_must_bend_in_gravity
 
@@ -65,6 +61,14 @@ knowledge:
       GR 不否定牛顿，而是将其包含为特殊情况。
     prior: 0.5
 
+  - type: claim
+    name: newton_subsumed_by_gr
+    content: >
+      牛顿引力并不是被广义相对论简单否定，
+      而是在弱场、低速、低曲率条件下被重新解释为其有效近似。
+      旧理论在适用范围内仍然成立，但不再是最基本的描述。
+    prior: 0.5
+
   # === 定量矛盾：1.75 vs 0.87 角秒 ===
 
   - type: contradiction
@@ -87,13 +91,31 @@ knowledge:
         type: claim
       - name: special_case
         type: claim
+      - name: weak_field_result
+        type: claim
     return_type: claim
     content: >
       {general_theory} 在弱场低速极限下的数学形式
-      精确还原为 {special_case}。
+      精确还原为 {special_case}，并继续给出 {weak_field_result}
+      这类熟悉的牛顿式结果。
       这意味着后者不是被"推翻"，而是被包含为前者的近似。
       旧理论在其有效范围内仍然正确，但不再是最基本的描述。
     prior: 0.93
+
+  - type: infer_action
+    name: quantify_light_bending
+    params:
+      - name: qualitative_prediction
+        type: claim
+      - name: field_equations
+        type: claim
+    return_type: claim
+    content: >
+      {qualitative_prediction} 只告诉我们光必须弯曲；
+      {field_equations} 则给出如何从时空几何定量计算这种弯曲。
+      在 Schwarzschild 度规下求解光的零测地线，
+      可得太阳边缘处的偏折角约为 1.75 角秒。
+    prior: 0.92
 
   # === 推理链 ===
 
@@ -101,13 +123,14 @@ knowledge:
     name: light_deflection_chain
     steps:
       - step: 1
-        ref: einstein_field_equations
+        ref: light_must_bend_in_gravity
       - step: 2
-        lambda: >
-          在 Schwarzschild 度规下求解光的零测地线方程，
-          可以严格计算出光线掠过太阳时的偏折角。
-          GR 的计算同时包含时间分量 (g_00) 和空间分量 (g_rr) 的贡献，
-          给出 1.75 角秒，恰好是只考虑时间分量 (牛顿近似) 的两倍。
+        apply: quantify_light_bending
+        args:
+          - ref: light_must_bend_in_gravity
+            dependency: direct
+          - ref: einstein_field_equations
+            dependency: direct
         prior: 0.92
       - step: 3
         ref: gr_light_deflection
@@ -124,21 +147,25 @@ knowledge:
             dependency: direct
           - ref: newton_gravity
             dependency: direct
+          - ref: newton_a_equals_g
+            dependency: direct
         prior: 0.93
       - step: 3
         ref: gr_subsumes_newton_weak_field
 
-  # === Newton subsumed by GR ===
-
-  - type: equivalence
-    name: newton_subsumed_by_gr
-    between:
-      - newton_gravity
-      - gr_subsumes_newton_weak_field
-    content: >
-      牛顿引力定律 F=GMm/r² 在弱场近似下与 GR 等价。
-      GR 是更一般的理论，牛顿是其弱场极限。
-      这是理论继承而非理论否定。
+  - type: chain_expr
+    name: weak_field_summary_chain
+    steps:
+      - step: 1
+        ref: gr_subsumes_newton_weak_field
+      - step: 2
+        lambda: >
+          因而更准确的结论不是“GR 推翻了牛顿”，
+          而是：牛顿引力被纳入一个更一般的几何理论之中，
+          在弱场范围内继续作为有效描述保留下来。
+        prior: 0.92
+      - step: 3
+        ref: newton_subsumed_by_gr
 
 export:
   - einstein_field_equations
