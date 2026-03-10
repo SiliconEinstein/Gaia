@@ -1,6 +1,7 @@
 """KuzuGraphStore — embedded graph backend using Kùzu."""
 
 import asyncio
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 
@@ -258,7 +259,7 @@ class KuzuGraphStore(GraphStore):
             ),
         )
 
-    # ── Query (stubs) ──
+    # ── Query ──
 
     async def get_neighbors(
         self,
@@ -267,13 +268,306 @@ class KuzuGraphStore(GraphStore):
         chain_types: list[str] | None = None,
         max_hops: int = 1,
     ) -> Subgraph:
-        raise NotImplementedError
+        """BFS expansion from a closure through chains, returning discovered IDs.
+
+        One "knowledge hop" = Closure → Chain → Closure (two graph hops).
+        ``direction`` controls which relationships to follow:
+          - ``"downstream"``: closure is a premise (PREMISE edge out), then
+            follow CONCLUSION edges to find resulting closures.
+          - ``"upstream"``: closure is a conclusion (CONCLUSION edge in), then
+            follow PREMISE edges back to find premise closures.
+          - ``"both"``: both directions.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            partial(
+                self._get_neighbors_sync,
+                closure_id,
+                direction,
+                chain_types,
+                max_hops,
+            ),
+        )
+
+    def _get_neighbors_sync(
+        self,
+        closure_id: str,
+        direction: str,
+        chain_types: list[str] | None,
+        max_hops: int,
+    ) -> Subgraph:
+        """Synchronous BFS implementation for get_neighbors."""
+        # Verify seed exists
+        result = self._conn.execute(
+            "MATCH (c:Closure {closure_id: $id}) RETURN c.closure_id",
+            {"id": closure_id},
+        )
+        if not result.has_next():
+            return Subgraph()
+
+        all_closure_ids: set[str] = set()
+        all_chain_ids: set[str] = set()
+        frontier: set[str] = {closure_id}
+        visited_closures: set[str] = {closure_id}
+
+        for _ in range(max_hops):
+            if not frontier:
+                break
+
+            new_chains: set[str] = set()
+
+            # Step A: from frontier closures, find connected chains
+            for cid in frontier:
+                if direction in ("downstream", "both"):
+                    # Closure -[:PREMISE]-> Chain
+                    res = self._conn.execute(
+                        "MATCH (c:Closure {closure_id: $cid})-[:PREMISE]->(ch:Chain) "
+                        "RETURN ch.chain_id, ch.type",
+                        {"cid": cid},
+                    )
+                    while res.has_next():
+                        row = res.get_next()
+                        ch_id, ch_type = row[0], row[1]
+                        if chain_types is None or ch_type in chain_types:
+                            new_chains.add(ch_id)
+
+                if direction in ("upstream", "both"):
+                    # Chain -[:CONCLUSION]-> Closure  (closure is the conclusion)
+                    res = self._conn.execute(
+                        "MATCH (ch:Chain)-[:CONCLUSION]->(c:Closure {closure_id: $cid}) "
+                        "RETURN ch.chain_id, ch.type",
+                        {"cid": cid},
+                    )
+                    while res.has_next():
+                        row = res.get_next()
+                        ch_id, ch_type = row[0], row[1]
+                        if chain_types is None or ch_type in chain_types:
+                            new_chains.add(ch_id)
+
+            all_chain_ids.update(new_chains)
+
+            # Step B: from discovered chains, find closures on the other side
+            next_frontier: set[str] = set()
+            for ch_id in new_chains:
+                if direction in ("downstream", "both"):
+                    # Chain -[:CONCLUSION]-> Closure
+                    res = self._conn.execute(
+                        "MATCH (ch:Chain {chain_id: $chid})-[:CONCLUSION]->(c:Closure) "
+                        "RETURN c.closure_id",
+                        {"chid": ch_id},
+                    )
+                    while res.has_next():
+                        found = res.get_next()[0]
+                        if found not in visited_closures:
+                            next_frontier.add(found)
+
+                if direction in ("upstream", "both"):
+                    # Closure -[:PREMISE]-> Chain
+                    res = self._conn.execute(
+                        "MATCH (c:Closure)-[:PREMISE]->(ch:Chain {chain_id: $chid}) "
+                        "RETURN c.closure_id",
+                        {"chid": ch_id},
+                    )
+                    while res.has_next():
+                        found = res.get_next()[0]
+                        if found not in visited_closures:
+                            next_frontier.add(found)
+
+            all_closure_ids.update(next_frontier)
+            visited_closures.update(next_frontier)
+            frontier = next_frontier
+
+        return Subgraph(closure_ids=all_closure_ids, chain_ids=all_chain_ids)
 
     async def get_subgraph(self, closure_id: str, max_closures: int = 500) -> Subgraph:
-        raise NotImplementedError
+        """BFS from root closure in both directions, up to max_closures.
+
+        The seed closure is included in the result. Expands until no more
+        nodes are reachable or the closure count reaches ``max_closures``.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            partial(self._get_subgraph_sync, closure_id, max_closures),
+        )
+
+    def _get_subgraph_sync(self, closure_id: str, max_closures: int) -> Subgraph:
+        """Synchronous BFS implementation for get_subgraph."""
+        # Verify seed exists
+        result = self._conn.execute(
+            "MATCH (c:Closure {closure_id: $id}) RETURN c.closure_id",
+            {"id": closure_id},
+        )
+        if not result.has_next():
+            return Subgraph()
+
+        all_closure_ids: set[str] = {closure_id}
+        all_chain_ids: set[str] = set()
+        frontier: set[str] = {closure_id}
+
+        while frontier and len(all_closure_ids) < max_closures:
+            new_chains: set[str] = set()
+
+            for cid in frontier:
+                # Downstream: Closure -[:PREMISE]-> Chain
+                res = self._conn.execute(
+                    "MATCH (c:Closure {closure_id: $cid})-[:PREMISE]->(ch:Chain) "
+                    "RETURN ch.chain_id",
+                    {"cid": cid},
+                )
+                while res.has_next():
+                    new_chains.add(res.get_next()[0])
+
+                # Upstream: Chain -[:CONCLUSION]-> Closure
+                res = self._conn.execute(
+                    "MATCH (ch:Chain)-[:CONCLUSION]->(c:Closure {closure_id: $cid}) "
+                    "RETURN ch.chain_id",
+                    {"cid": cid},
+                )
+                while res.has_next():
+                    new_chains.add(res.get_next()[0])
+
+            all_chain_ids.update(new_chains)
+
+            next_frontier: set[str] = set()
+            for ch_id in new_chains:
+                # Conclusions
+                res = self._conn.execute(
+                    "MATCH (ch:Chain {chain_id: $chid})-[:CONCLUSION]->(c:Closure) "
+                    "RETURN c.closure_id",
+                    {"chid": ch_id},
+                )
+                while res.has_next():
+                    found = res.get_next()[0]
+                    if found not in all_closure_ids:
+                        next_frontier.add(found)
+
+                # Premises
+                res = self._conn.execute(
+                    "MATCH (c:Closure)-[:PREMISE]->(ch:Chain {chain_id: $chid}) "
+                    "RETURN c.closure_id",
+                    {"chid": ch_id},
+                )
+                while res.has_next():
+                    found = res.get_next()[0]
+                    if found not in all_closure_ids:
+                        next_frontier.add(found)
+
+            # Respect max_closures limit
+            remaining = max_closures - len(all_closure_ids)
+            if len(next_frontier) > remaining:
+                next_frontier = set(list(next_frontier)[:remaining])
+
+            all_closure_ids.update(next_frontier)
+            frontier = next_frontier
+
+        return Subgraph(closure_ids=all_closure_ids, chain_ids=all_chain_ids)
 
     async def search_topology(self, seed_ids: list[str], hops: int = 1) -> list[ScoredClosure]:
-        raise NotImplementedError
+        """BFS from seed closures, scoring by distance.
+
+        Score = 1.0 / (hop + 2). Seed closures are excluded from results.
+        Returns minimal Closure objects (content not stored in graph).
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, partial(self._search_topology_sync, seed_ids, hops))
+
+    def _search_topology_sync(self, seed_ids: list[str], hops: int) -> list[ScoredClosure]:
+        """Synchronous BFS implementation for search_topology."""
+        if not seed_ids:
+            return []
+
+        seed_set = set(seed_ids)
+        # Map closure_id -> best (lowest) hop distance
+        discovered: dict[str, int] = {}
+        frontier: set[str] = set(seed_ids)
+        visited: set[str] = set(seed_ids)
+
+        for hop in range(hops):
+            if not frontier:
+                break
+
+            new_chains: set[str] = set()
+            for cid in frontier:
+                # Both directions
+                res = self._conn.execute(
+                    "MATCH (c:Closure {closure_id: $cid})-[:PREMISE]->(ch:Chain) "
+                    "RETURN ch.chain_id",
+                    {"cid": cid},
+                )
+                while res.has_next():
+                    new_chains.add(res.get_next()[0])
+
+                res = self._conn.execute(
+                    "MATCH (ch:Chain)-[:CONCLUSION]->(c:Closure {closure_id: $cid}) "
+                    "RETURN ch.chain_id",
+                    {"cid": cid},
+                )
+                while res.has_next():
+                    new_chains.add(res.get_next()[0])
+
+            next_frontier: set[str] = set()
+            for ch_id in new_chains:
+                res = self._conn.execute(
+                    "MATCH (ch:Chain {chain_id: $chid})-[:CONCLUSION]->(c:Closure) "
+                    "RETURN c.closure_id",
+                    {"chid": ch_id},
+                )
+                while res.has_next():
+                    found = res.get_next()[0]
+                    if found not in visited:
+                        next_frontier.add(found)
+                        if found not in discovered:
+                            discovered[found] = hop
+
+                res = self._conn.execute(
+                    "MATCH (c:Closure)-[:PREMISE]->(ch:Chain {chain_id: $chid}) "
+                    "RETURN c.closure_id",
+                    {"chid": ch_id},
+                )
+                while res.has_next():
+                    found = res.get_next()[0]
+                    if found not in visited:
+                        next_frontier.add(found)
+                        if found not in discovered:
+                            discovered[found] = hop
+
+            visited.update(next_frontier)
+            frontier = next_frontier
+
+        # Build scored results, excluding seeds
+        results: list[ScoredClosure] = []
+        for cid, hop_dist in discovered.items():
+            if cid in seed_set:
+                continue
+
+            # Fetch node properties from graph
+            res = self._conn.execute(
+                "MATCH (c:Closure {closure_id: $cid}) RETURN c.version, c.type, c.prior",
+                {"cid": cid},
+            )
+            if not res.has_next():
+                continue
+            row = res.get_next()
+            version, ctype, prior = row[0], row[1], row[2]
+
+            closure = Closure(
+                closure_id=cid,
+                version=version,
+                type=ctype,
+                content="",
+                prior=prior,
+                source_package_id="",
+                source_module_id="",
+                created_at=datetime(2026, 1, 1),
+            )
+            score = 1.0 / (hop_dist + 2)
+            results.append(ScoredClosure(closure=closure, score=score))
+
+        # Sort by score descending
+        results.sort(key=lambda sc: sc.score, reverse=True)
+        return results
 
     # ── Lifecycle ──
 
