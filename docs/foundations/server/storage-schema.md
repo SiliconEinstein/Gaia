@@ -2,8 +2,9 @@
 
 | 文档属性 | 值 |
 |---------|---|
-| 版本 | 1.0 |
-| 日期 | 2026-03-09 |
+| 版本 | 1.1 |
+| 日期 | 2026-03-10 |
+| 状态 | Draft — §3.2 Neo4j 图拓扑部分为 provisional，依赖 Phase 3 graph-spec.md 确认 |
 | 关联文档 | [architecture.md](architecture.md) — Server 整体架构, [../domain-model.md](../domain-model.md) — 领域模型, [../theory/inference-theory.md](../theory/inference-theory.md) — BP 理论 |
 
 ---
@@ -97,25 +98,33 @@ Chain:
     steps:         list[ChainStep]
 
 ChainStep:
-    premise_ids:   list[str]     # 引用的 closure_id
+    step_index:    int           # 步骤序号（从 0 开始），作为步骤的稳定标识
+    premises:      list[ClosureRef]  # 引用的 closure（含版本）
     reasoning:     str           # inference 文本（局部，不导出）
-    conclusion_id: str           # 结论 closure_id
+    conclusion:    ClosureRef    # 结论 closure（含版本）
+
+ClosureRef:
+    closure_id:    str
+    version:       int           # 锁定引用的 closure 版本
 ```
 
 ### 2.5 ProbabilityRecord
 
-Chain 的推理可靠性，独立于 Chain 存储，支持多来源动态调整。
+推理步骤的可靠性，按 `(chain_id, step_index)` 粒度存储，支持多来源动态调整。
 
 ```
 ProbabilityRecord:
     chain_id:      str
+    step_index:    int           # 对应 ChainStep.step_index
     value:         float         # ∈ (0, 1]，induction 必须 < 1.0
     source:        str           # author | llm_review | lean_verify | code_verify
     source_detail: str | None    # model name, verifier version 等
     recorded_at:   datetime
 ```
 
-**多来源策略：** 同一个 chain 可有多条 ProbabilityRecord。BP 使用当前生效值，默认取最新一条。未来可支持多来源加权。
+**步骤粒度：** Gaia Language 的 chain_expr 是多步推理，每步有独立的 probability。Review sidecar 也按步调整 `suggested_prior`。因此 probability 绑定到 `(chain_id, step_index)` 而非整个 chain。Chain 的整体可靠性可由各步概率推导（如连乘）。
+
+**多来源策略：** 同一个 step 可有多条 ProbabilityRecord。BP 使用当前生效值，默认取最新一条。未来可支持多来源加权。
 
 **可能的 source 来源：**
 - `author` — package 作者在 YAML 中设定
@@ -184,21 +193,23 @@ Resource 和 closure/chain/module/package 的多对多关联。
 ResourceAttachment:
     resource_id:   str
     target_type:   str           # closure | chain | chain_step | module | package
-    target_id:     str           # 对应实体的 id
+    target_id:     str           # 对应实体的 id（chain_step 使用 "chain_id:step_index" 复合键）
     role:          str           # evidence | visualization | implementation | reproduction | supplement
     description:   str | None    # 这个资源在此处的作用说明
 ```
 
 一个 resource 可关联多个实体。例如一张实验图同时支撑两个 claim。
 
+**chain_step 寻址：** `ChainStep` 通过 `step_index` 获得稳定标识。当 `target_type = "chain_step"` 时，`target_id` 使用 `"chain_id:step_index"` 复合键（如 `"mod1.chain1:2"`）。
+
 ### 2.9 FactorGraph（BP 运行时，不持久存储）
 
 ```
-Variable:   closure_id → prior, current_belief
-Factor:     chain_id → type, current_probability, premise_ids, conclusion_ids
+Variable:   (closure_id, version) → prior, current_belief
+Factor:     (chain_id, step_index) → type, current_probability, premise_ids, conclusion_id
 ```
 
-每次 BP 运行时从 Closure + Chain + ProbabilityRecord 动态构建。
+每次 BP 运行时从 Closure + Chain + ProbabilityRecord 动态构建。每个 ChainStep 对应一个 Factor。
 
 ---
 
@@ -214,12 +225,14 @@ LanceDB 是核心 source of truth。
 | `modules` | Module 全部字段（含 imports） | 按 package_id 查询 |
 | `closures` | Closure 全部字段 + embedding | BM25 搜索、向量搜索、按 (id, version) 精确查 |
 | `chains` | Chain 全部字段（含 steps） | 按 module_id/package_id 查询 |
-| `probabilities` | ProbabilityRecord | 按 chain_id 查询历史 |
+| `probabilities` | ProbabilityRecord | 按 (chain_id, step_index) 查询历史 |
 | `belief_history` | BeliefSnapshot | 按 closure_id 查询演化 |
 | `resources` | Resource 元信息 | 按 type/package_id 查询 |
 | `resource_attachments` | ResourceAttachment | 按 target_type + target_id 查询 |
 
 ### 3.2 Neo4j — 图拓扑，支持遍历和 BP 构建
+
+> **Provisional:** 本节定义的图模型（节点类型、关系类型、属性）依赖 Phase 3 `graph-spec.md` 最终确认。在 graph-spec 完成前，此处的设计可能调整。
 
 ```
 节点:
@@ -293,15 +306,18 @@ class StorageManager:
     async def get_module(self, module_id: str) -> Module | None
     async def get_chains_by_module(self, module_id: str) -> list[Chain]
 
-    # ── Probability（动态多来源）──
+    # ── Probability（按步粒度，动态多来源）──
     async def add_probability(self, record: ProbabilityRecord) -> None
-    async def get_probability(self, chain_id: str) -> float
-    async def get_probability_history(self, chain_id: str) -> list[ProbabilityRecord]
+    async def get_probability(self, chain_id: str, step_index: int) -> float
+    async def get_probability_history(self, chain_id: str,
+                                      step_index: int | None = None) -> list[ProbabilityRecord]
 
-    # ── Belief（BP 结果）──
-    async def write_beliefs(self, bp_run_id: str, beliefs: dict[str, float]) -> None
-    async def get_current_belief(self, closure_id: str) -> float | None
-    async def get_belief_history(self, closure_id: str) -> list[BeliefSnapshot]
+    # ── Belief（BP 结果，按版本化 closure）──
+    async def write_beliefs(self, bp_run_id: str,
+                            beliefs: dict[tuple[str, int], float]) -> None  # key=(closure_id, version)
+    async def get_current_belief(self, closure_id: str, version: int | None = None) -> float | None
+    async def get_belief_history(self, closure_id: str,
+                                 version: int | None = None) -> list[BeliefSnapshot]
 
     # ── Resource ──
     async def write_resources(self, resources: list[Resource],
@@ -323,7 +339,7 @@ class StorageManager:
     # ── BP 用 ──
     async def load_all_closures(self) -> list[Closure]
     async def load_all_chains(self) -> list[Chain]
-    async def load_all_probabilities(self) -> dict[str, float]
+    async def load_all_probabilities(self) -> dict[tuple[str, int], float]  # key=(chain_id, step_index)
 ```
 
 ---
@@ -349,7 +365,8 @@ class ContentStore(ABC):
     async def get_package(self, package_id: str) -> Package | None
     async def get_module(self, module_id: str) -> Module | None
     async def get_chains_by_module(self, module_id: str) -> list[Chain]
-    async def get_probability_history(self, chain_id: str) -> list[ProbabilityRecord]
+    async def get_probability_history(self, chain_id: str,
+                                      step_index: int | None = None) -> list[ProbabilityRecord]
     async def get_belief_history(self, closure_id: str) -> list[BeliefSnapshot]
     async def get_resources_for(self, target_type: str, target_id: str) -> list[Resource]
 
@@ -368,7 +385,7 @@ class GraphStore(ABC):
     async def write_topology(self, closures: list[Closure], chains: list[Chain]) -> None
     async def write_resource_links(self, attachments: list[ResourceAttachment]) -> None
     async def update_beliefs(self, beliefs: dict[str, float]) -> None
-    async def update_probability(self, chain_id: str, value: float) -> None
+    async def update_probability(self, chain_id: str, step_index: int, value: float) -> None
 
     # 查询
     async def get_neighbors(self, closure_id: str, direction: str,
@@ -403,8 +420,8 @@ ingest_package(pkg):
 ```
 
 其他写入路径（非 package 入库）：
-- `add_probability()` → 写 LanceDB + 同步 Neo4j 属性
-- `write_beliefs()` → 写 LanceDB belief_history + 同步 Neo4j 属性
+- `add_probability()` → 写 LanceDB（按 chain_id + step_index）+ 同步 Neo4j 属性
+- `write_beliefs()` → 写 LanceDB belief_history（按 closure_id + version）+ 同步 Neo4j 属性
 
 ---
 
@@ -414,10 +431,12 @@ ingest_package(pkg):
 |------|------|------|
 | 数据模型基础 | Gaia Language 概念（closure/chain/module/package） | 直接对齐领域模型，不引入中间抽象 |
 | Closure 版本 | 显式版本号，`(closure_id, version)` 唯一 | 支持 track 用户多次提交修订 |
-| Probability | 独立表，多来源动态调整 | 支持 author / LLM / Lean / code 多来源 |
+| 版本化引用 | ChainStep 通过 ClosureRef 锁定 `(closure_id, version)` | 避免多版本歧义，chain 始终引用确定的 closure 版本 |
+| Probability 粒度 | 按 `(chain_id, step_index)` 而非整个 chain | 对齐 Gaia Language 多步推理和 review sidecar 按步调整 |
+| ChainStep 标识 | `step_index` 作为稳定标识，复合键 `chain_id:step_index` | 支持 ResourceAttachment 和 ProbabilityRecord 的步骤级引用 |
 | Belief | 保留完整演化历史 | 可追踪命题可信度随时间变化 |
 | 因子图 | 不持久存储，每次 BP 运行时构建 | 因子图是派生数据，不是 source of truth |
 | 多模态资源 | Resource + ResourceAttachment + TOS | 灵活关联，文件存 TOS |
-| Neo4j 超边建模 | Chain 作为中间节点 | 保留"多前提联合支持结论"的超边语义 |
+| Neo4j 超边建模 | Chain 作为中间节点（provisional，依赖 graph-spec） | 保留"多前提联合支持结论"的超边语义 |
 | Neo4j belief/probability | 冗余存储最新值在节点属性 | 方便遍历时直接读取 |
 | 术语 | premises/conclusions（不用 head/tail） | 对齐 Gaia Language 领域词汇 |
