@@ -31,7 +31,7 @@ def resolve_refs(pkg: Package, deps: dict[str, Package] | None = None) -> Packag
             return resolved_index[target]
         if target in local_decls:
             return resolve_local(target)
-        return dep_index.get(target)
+        return None
 
     def resolve_local(path: str) -> Knowledge:
         if path in resolved_index:
@@ -94,12 +94,20 @@ def _build_dependency_index(deps: dict[str, Package]) -> dict[str, Knowledge]:
                 if target is None:
                     module_name, _ = local_path.split(".", 1)
                     decl = next(
-                        d
-                        for m in dep_pkg.loaded_modules
-                        if m.name == module_name
-                        for d in m.knowledge
-                        if d.name == export_name
+                        (
+                            d
+                            for m in dep_pkg.loaded_modules
+                            if m.name == module_name
+                            for d in m.knowledge
+                            if d.name == export_name
+                        ),
+                        None,
                     )
+                    if decl is None:
+                        raise ResolveError(
+                            f"Dependency package '{dep_name}' export "
+                            f"'{export_name}' not found in module '{module_name}'"
+                        )
                     target = decl._resolved if isinstance(decl, Ref) else decl
 
                 if target is None:
