@@ -8,6 +8,8 @@
 | 关联文档 | [../README.md](../README.md), [../cli/command-lifecycle.md](../cli/command-lifecycle.md), [../server/architecture.md](../server/architecture.md), [../language/gaia-language-spec.md](../language/gaia-language-spec.md) |
 
 > **Note:** This document defines the target architecture shared by Gaia CLI and Gaia Server. It does not describe the current implementation on `main` literally. Current code still has a simpler `gaia build`, a local chain-review path, and a legacy server-side `review_pipeline` attached to `/commits/*`.
+>
+> The file remains under `review/architecture.md` because this directory is the shared home for package-environment, alignment, and review semantics. The broader path rename, if any, is deferred; the architectural scope is defined by this document's title and contents.
 
 ---
 
@@ -164,6 +166,11 @@ gaia build context --frozen
 gaia build context --refresh
 ```
 
+Flag intent:
+
+- `--frozen` means reuse the currently locked package environment and fail if the required lock/runtime artifacts are missing
+- `--refresh` means ignore the currently locked package environment and rebuild context from the chosen source under the current policy
+
 Recommended default:
 
 - bare `gaia build` runs `compile -> context -> align`
@@ -252,6 +259,8 @@ class ReviewPolicy:
                                     #      alignment_consistency, publish_readiness
     thresholds: ReviewThresholds
 ```
+
+`ReviewPolicy` does not discover external relations itself. It consumes the `AlignmentReport` produced by `align_package(...)` and judges whether those discovered relations are credible, acceptable, and compatible with the package's final readiness verdict.
 
 ### 4.5 Mapping to current pipeline operators
 
@@ -580,6 +589,8 @@ It should lock:
 - retrieval policy
 - model identities used for alignment and review
 - policy versions and key thresholds
+
+This is intentionally stronger than a typical package-manager lock. Gaia's lockfile is not only a dependency-resolution record; it is also a reproducibility record for the materialized package environment used in local preview. Locking selected external context is therefore deliberate: it makes `context -> align -> review -> infer` reproducible against a concrete working set rather than only against a coarse registry revision.
 
 Illustrative shape:
 

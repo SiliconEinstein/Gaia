@@ -182,6 +182,8 @@ compiled → building_context → context_ready → aligning → aligned → rev
 ```
 
 > `building_context` materializes the package environment. `aligning` covers open-world relation discovery against the shared registry. `reviewing` is the final package judgment in that aligned context. See [../review/architecture.md](../review/architecture.md).
+>
+> This granularity is primarily the internal domain model. External API status surfaces may collapse it into fewer user-facing phases such as `preparing`, `reviewing`, `integrating`, and `merged`.
 
 #### 接口
 
