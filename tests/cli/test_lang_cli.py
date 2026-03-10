@@ -5,7 +5,9 @@ import pytest
 
 from cli.commands.lang import execute_cmd, inspect_cmd, load_cmd, run_cmd, validate_cmd
 
-FIXTURE_DIR = Path(__file__).parents[1] / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies"
+FIXTURE_DIR = (
+    Path(__file__).parents[1] / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies"
+)
 
 
 async def test_load_cmd(capsys):

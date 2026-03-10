@@ -13,7 +13,9 @@ from libs.lang.models import (
 )
 from libs.lang.resolver import resolve_refs
 
-FIXTURE_DIR = Path(__file__).parents[2] / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies"
+FIXTURE_DIR = (
+    Path(__file__).parents[2] / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies"
+)
 
 
 def test_compile_produces_factor_graph():

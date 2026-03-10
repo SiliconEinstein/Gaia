@@ -156,7 +156,7 @@ def delete_slide(prs, index):
     sldIdLst.remove(el)
 
     # Also remove the relationship
-    rId = el.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id')
+    rId = el.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id")
     if rId:
         try:
             prs.part.drop_rel(rId)
@@ -191,7 +191,7 @@ EINSTEIN_PKG13_CODE = [
     '$ gaia node add "Maxwell EM" --prior 0.90    → 6005',
     '$ gaia node add "Eötvös mᵢ=mᵍ" --prior 0.95 → 6006',
     "$ gaia edge add --tail 6001,6002,6003 \\",
-    '    --head 6004 --type deduction  P=0.60',
+    "    --head 6004 --type deduction  P=0.60",
     '  → 6004 "Soldner: 0.87″" prior=0.60',
     "",
     "# ═══ Pkg 2: equivalence_principle ═══",
@@ -261,9 +261,9 @@ def main():
             if "Part 3" in text:
                 shape.text_frame.paragraphs[0].runs[0].text = "Part 4 · 爱因斯坦思想实验"
             break
-    slide_ein_pkg13.shapes[1].text_frame.paragraphs[0].runs[0].text = (
-        "Pkg 1-3: 先验知识 → 等效原理 → 1911 预测"
-    )
+    slide_ein_pkg13.shapes[1].text_frame.paragraphs[0].runs[
+        0
+    ].text = "Pkg 1-3: 先验知识 → 等效原理 → 1911 预测"
     set_colored_text(slide_ein_pkg13.shapes[3].text_frame, EINSTEIN_PKG13_CODE)
     clear_right_shapes(slide_ein_pkg13)
 
@@ -275,15 +275,15 @@ def main():
     print(f"\nFinal slide count: {len(prs2.slides)}")
     for i in range(len(prs2.slides)):
         slide = prs2.slides[i]
-        header = ''
-        subtitle = ''
+        header = ""
+        subtitle = ""
         for j, shape in enumerate(slide.shapes):
             if shape.has_text_frame:
                 if j == 0:
                     header = shape.text_frame.text[:30]
                 if j == 1:
                     subtitle = shape.text_frame.text[:50]
-        print(f"  {i+1}. [{header}] {subtitle}")
+        print(f"  {i + 1}. [{header}] {subtitle}")
 
 
 def clear_right_shapes(slide, x_threshold=5400000):
