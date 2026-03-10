@@ -41,6 +41,10 @@ The execution plan for that reset lives here:
 - [Gaia CLI Runtime Boundaries](cli/boundaries.md)
 - [Gaia CLI Command Lifecycle](cli/command-lifecycle.md)
 
+**Review:**
+
+- [Review Architecture](review/architecture.md)
+
 **Server:**
 
 - [Server Architecture](server/architecture.md)
@@ -55,11 +59,12 @@ The plan is to establish a small set of durable foundation docs before major cod
 4. `theory/inference-theory.md` (BP algorithm and inference theory)
 5. `language/gaia-language-spec.md` (Gaia Language spec)
 6. `cli/boundaries.md` (Gaia CLI runtime layering)
-7. `server/architecture.md` (Server architecture)
-8. `server/graph-spec.md`
-9. `server/storage-schema.md` (Server storage schema)
-10. `server/module-boundaries.md`
-11. `server/api-contract.md`
+7. `review/architecture.md` (shared review architecture across CLI and server)
+8. `server/architecture.md` (Server architecture)
+9. `server/graph-spec.md`
+10. `server/storage-schema.md` (Server storage schema)
+11. `server/module-boundaries.md`
+12. `server/api-contract.md`
 
 Those files do not all exist yet. This directory is the place where they should be created and kept current.
 
@@ -68,6 +73,7 @@ Those files do not all exist yet. This directory is the place where they should 
 - `theory/`: Theoretical foundations (Jaynes, BP algorithm) — shared mathematical basis
 - `language/`: Gaia formal language spec, design, and design rationale
 - `cli/`: Gaia CLI runtime boundaries and future CLI-specific docs
+- `review/`: Shared review architecture and review/environment semantics
 - `server/`: Server architecture, storage schema, API contracts
 
 ## Historical docs
