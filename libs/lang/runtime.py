@@ -55,18 +55,18 @@ class GaiaRuntime:
     async def infer(self, result: RuntimeResult) -> RuntimeResult:
         """Build factor graph and run BP on a loaded package."""
         # Compile language factor graph
-        dsl_fg = compile_factor_graph(result.package)
-        result.factor_graph = dsl_fg
+        compiled_fg = compile_factor_graph(result.package)
+        result.factor_graph = compiled_fg
 
         # Convert CompiledFactorGraph to inference engine FactorGraph
         bp_fg = FactorGraph()
         name_to_id: dict[str, int] = {}
-        for i, (name, prior) in enumerate(dsl_fg.variables.items()):
+        for i, (name, prior) in enumerate(compiled_fg.variables.items()):
             node_id = i + 1
             name_to_id[name] = node_id
             bp_fg.add_variable(node_id, prior)
 
-        for j, factor in enumerate(dsl_fg.factors):
+        for j, factor in enumerate(compiled_fg.factors):
             premise_ids = [name_to_id[n] for n in factor["premises"] if n in name_to_id]
             conclusion_ids = [name_to_id[n] for n in factor["conclusions"] if n in name_to_id]
             gate_var_id = None

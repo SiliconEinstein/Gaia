@@ -1,4 +1,4 @@
-"""Gaia DSL Elaborator — deterministic template expansion.
+"""Gaia Language Elaborator — deterministic template expansion.
 
 Walks ChainExprs and produces rendered prompts for each StepApply/StepLambda.
 Does NOT call any LLM — purely deterministic.

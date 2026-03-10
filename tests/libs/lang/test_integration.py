@@ -6,7 +6,7 @@ from libs.lang.runtime import GaiaRuntime
 
 from .conftest import PassthroughExecutor
 
-FIXTURE_DIR = Path(__file__).parents[2] / "fixtures" / "dsl_packages" / "galileo_falling_bodies"
+FIXTURE_DIR = Path(__file__).parents[2] / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies"
 
 
 async def test_galileo_full_pipeline():

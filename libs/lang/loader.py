@@ -1,4 +1,4 @@
-"""Load a Gaia DSL package from YAML files."""
+"""Load a Gaia Language package from YAML files."""
 
 from __future__ import annotations
 

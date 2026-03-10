@@ -1,4 +1,4 @@
-# 伽利略落体问题 — Gaia DSL 测试 package
+# 伽利略落体问题 — Gaia Language 测试 package
 # 覆盖: V1 (类型, 声明, chain_expr, ref, module)
 #       V2 (版本, manifest)
 #       V3 (prior, dependency direct/indirect)

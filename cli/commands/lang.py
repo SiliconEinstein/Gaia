@@ -1,4 +1,4 @@
-"""Gaia DSL CLI commands."""
+"""Gaia Language CLI commands."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ class StubExecutor(ActionExecutor):
 
 
 async def load_cmd(path: str) -> None:
-    """Load and validate a DSL package."""
+    """Load and validate a Gaia Language package."""
     runtime = GaiaRuntime()
     result = await runtime.load(Path(path))
     pkg = result.package
@@ -41,7 +41,7 @@ async def load_cmd(path: str) -> None:
 
 
 async def run_cmd(path: str) -> None:
-    """Load, execute, and run BP on a DSL package."""
+    """Load, execute, and run BP on a Gaia Language package."""
     runtime = GaiaRuntime(executor=StubExecutor())
     result = await runtime.run(Path(path))
 
@@ -58,7 +58,7 @@ async def run_cmd(path: str) -> None:
 
 
 async def execute_cmd(path: str) -> None:
-    """Execute a DSL package (fill claims via executor, no inference)."""
+    """Execute a Gaia Language package (fill claims via executor, no inference)."""
     runtime = GaiaRuntime(executor=StubExecutor())
     result = await runtime.load(path)
     await runtime.execute(result)
@@ -72,7 +72,7 @@ async def execute_cmd(path: str) -> None:
 
 
 async def inspect_cmd(path: str) -> None:
-    """Inspect the factor graph structure of a DSL package."""
+    """Inspect the factor graph structure of a Gaia Language package."""
     runtime = GaiaRuntime(executor=StubExecutor())
     result = await runtime.run(path)
     summary = result.inspect()
@@ -97,7 +97,7 @@ async def inspect_cmd(path: str) -> None:
 
 
 async def validate_cmd(path: str) -> None:
-    """Validate a DSL package (check YAML, refs, types)."""
+    """Validate a Gaia Language package (check YAML, refs, types)."""
     from libs.lang.loader import load_package
     from libs.lang.resolver import resolve_refs
 
@@ -119,29 +119,29 @@ async def validate_cmd(path: str) -> None:
 
 
 def main() -> None:
-    """CLI entry point for gaia-dsl commands."""
-    parser = argparse.ArgumentParser(prog="gaia-dsl", description="Gaia DSL Runtime CLI")
+    """CLI entry point for gaia-lang commands."""
+    parser = argparse.ArgumentParser(prog="gaia-lang", description="Gaia Language Runtime CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # load
-    p_load = subparsers.add_parser("load", help="Load and validate a DSL package")
-    p_load.add_argument("path", help="Path to the DSL package directory")
+    p_load = subparsers.add_parser("load", help="Load and validate a Gaia Language package")
+    p_load.add_argument("path", help="Path to the Gaia Language package directory")
 
     # run
     p_run = subparsers.add_parser("run", help="Run full pipeline: load -> execute -> infer")
-    p_run.add_argument("path", help="Path to the DSL package directory")
+    p_run.add_argument("path", help="Path to the Gaia Language package directory")
 
     # execute
     p_exec = subparsers.add_parser("execute", help="Execute chains (no inference)")
-    p_exec.add_argument("path", help="Path to the DSL package directory")
+    p_exec.add_argument("path", help="Path to the Gaia Language package directory")
 
     # inspect
     p_insp = subparsers.add_parser("inspect", help="Inspect factor graph structure")
-    p_insp.add_argument("path", help="Path to the DSL package directory")
+    p_insp.add_argument("path", help="Path to the Gaia Language package directory")
 
     # validate
     p_val = subparsers.add_parser("validate", help="Validate package YAML")
-    p_val.add_argument("path", help="Path to the DSL package directory")
+    p_val.add_argument("path", help="Path to the Gaia Language package directory")
 
     args = parser.parse_args()
 

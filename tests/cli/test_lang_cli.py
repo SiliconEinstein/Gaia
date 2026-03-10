@@ -1,11 +1,11 @@
-# tests/cli/test_dsl_cli.py
+# tests/cli/test_lang_cli.py
 from pathlib import Path
 
 import pytest
 
-from cli.commands.dsl import execute_cmd, inspect_cmd, load_cmd, run_cmd, validate_cmd
+from cli.commands.lang import execute_cmd, inspect_cmd, load_cmd, run_cmd, validate_cmd
 
-FIXTURE_DIR = Path(__file__).parents[1] / "fixtures" / "dsl_packages" / "galileo_falling_bodies"
+FIXTURE_DIR = Path(__file__).parents[1] / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies"
 
 
 async def test_load_cmd(capsys):
@@ -64,22 +64,22 @@ async def test_validate_cmd_invalid_path(capsys):
 async def test_load_cmd_invalid_path():
     """load_cmd with a nonexistent path raises FileNotFoundError."""
     with pytest.raises(FileNotFoundError):
-        await load_cmd("/nonexistent/dsl/package/path")
+        await load_cmd("/nonexistent/lang/package/path")
 
 
 async def test_run_cmd_invalid_path():
     """run_cmd with a nonexistent path raises FileNotFoundError."""
     with pytest.raises(FileNotFoundError):
-        await run_cmd("/nonexistent/dsl/package/path")
+        await run_cmd("/nonexistent/lang/package/path")
 
 
 async def test_execute_cmd_invalid_path():
     """execute_cmd with a nonexistent path raises FileNotFoundError."""
     with pytest.raises(FileNotFoundError):
-        await execute_cmd("/nonexistent/dsl/package/path")
+        await execute_cmd("/nonexistent/lang/package/path")
 
 
 async def test_inspect_cmd_invalid_path():
     """inspect_cmd with a nonexistent path raises FileNotFoundError."""
     with pytest.raises(FileNotFoundError):
-        await inspect_cmd("/nonexistent/dsl/package/path")
+        await inspect_cmd("/nonexistent/lang/package/path")

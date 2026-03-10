@@ -1,15 +1,15 @@
-"""Tests for DSL → Storage model conversion."""
+"""Tests for Gaia Language → Storage model conversion."""
 
 from pathlib import Path
 
-from cli.dsl_to_storage import convert_package_to_storage
+from cli.lang_to_storage import convert_package_to_storage
 from libs.lang.compiler import compile_factor_graph
 from libs.lang.loader import load_package
 from libs.lang.resolver import resolve_refs
 from libs.models import HyperEdge, Node
 
 
-FIXTURE_PATH = Path("tests/fixtures/dsl_packages/galileo_falling_bodies")
+FIXTURE_PATH = Path("tests/fixtures/gaia_language_packages/galileo_falling_bodies")
 
 
 def _load_galileo():
@@ -38,6 +38,7 @@ def test_convert_node_has_correct_fields():
     assert hff.type == "claim"
     assert hff.prior == 0.7
     assert hff.belief == 0.30
+    assert hff.metadata["source"] == "gaia_language"
     assert "重的物体" in str(hff.content)
 
 
@@ -65,6 +66,7 @@ def test_convert_edge_has_probability_and_type():
     edge_types = {e.type for e in result.edges}
     assert "deduction" in edge_types
     assert any(e.probability is not None for e in result.edges)
+    assert all(e.metadata["source"] == "gaia_language" for e in result.edges)
 
 
 def test_convert_name_to_id_mapping():
