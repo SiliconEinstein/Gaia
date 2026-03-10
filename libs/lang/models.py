@@ -155,10 +155,8 @@ KNOWLEDGE_TYPE_MAP: dict[str, type[Knowledge]] = {
 class Module(BaseModel):
     type: str  # reasoning_module, setting_module, etc.
     name: str
-    knowledge: list[Knowledge] = Field(default_factory=list, alias="declarations")
+    knowledge: list[Knowledge] = Field(default_factory=list)
     export: list[str] = Field(default_factory=list)
-
-    model_config = {"populate_by_name": True}
 
 
 # ── Package ───────────────────────────────────────────────

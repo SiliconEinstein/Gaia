@@ -27,17 +27,17 @@ def _build_equivalence_package(
         for name, prior in zip(member_names, priors, strict=True)
     ]
     relation = None
-    declarations = list(claims)
+    knowledge = list(claims)
     export = list(member_names)
     if include_equivalence:
         relation = Equivalence(name=relation_name, between=list(member_names), prior=0.85)
-        declarations.append(relation)
+        knowledge.append(relation)
         export.append(relation_name)
 
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=declarations,
+        knowledge=knowledge,
         export=export,
     )
     pkg = Package(name=f"{relation_name}_pkg", modules=["m"])
@@ -69,7 +69,7 @@ def _build_shared_premise_package(
         ],
     )
 
-    declarations = [premise, claim_a, claim_b, chain_a, chain_b]
+    knowledge = [premise, claim_a, claim_b, chain_a, chain_b]
     export = ["premise", "a", "b"]
     contra = None
     if include_contradiction:
@@ -78,13 +78,13 @@ def _build_shared_premise_package(
             between=["a", "b"],
             prior=0.95,
         )
-        declarations.append(contra)
+        knowledge.append(contra)
         export.append("a_vs_b")
 
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=declarations,
+        knowledge=knowledge,
         export=export,
     )
     pkg = Package(name="test_integration", modules=["m"])
@@ -101,9 +101,9 @@ def _build_relation_gate_package(include_support_chain: bool) -> tuple[Package, 
         prior=0.1,
     )
 
-    declarations = [claim_a, claim_b, contra]
+    knowledge = [claim_a, claim_b, contra]
     if include_support_chain:
-        declarations.append(
+        knowledge.append(
             ChainExpr(
                 name="establish_contradiction",
                 steps=[
@@ -125,7 +125,7 @@ def _build_relation_gate_package(include_support_chain: bool) -> tuple[Package, 
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=declarations,
+        knowledge=knowledge,
         export=["a", "b", "a_vs_b"],
     )
     pkg = Package(name="relation_gate_pkg", modules=["m"])
@@ -134,7 +134,7 @@ def _build_relation_gate_package(include_support_chain: bool) -> tuple[Package, 
 
 
 async def test_contradiction_gets_belief_after_inference():
-    """Relation declarations should have .belief set after BP."""
+    """Relation knowledge objects should have .belief set after BP."""
     claim_a = Claim(name="a", content="A", prior=0.8)
     claim_b = Claim(name="b", content="B", prior=0.7)
     contra = Contradiction(
@@ -145,7 +145,7 @@ async def test_contradiction_gets_belief_after_inference():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_a, claim_b, contra],
+        knowledge=[claim_a, claim_b, contra],
         export=["a", "b", "a_contradicts_b"],
     )
     pkg = Package(name="test_relation_bp", modules=["m"])

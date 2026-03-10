@@ -47,7 +47,7 @@ def load_package(path: Path) -> Package:
 
 def _parse_module(data: dict) -> Module:
     """Parse a module YAML dict into a Module with typed knowledge items."""
-    knowledge = [_parse_knowledge(d) for d in data.get("declarations", [])]
+    knowledge = [_parse_knowledge(d) for d in data.get("knowledge", [])]
     return Module(
         type=data["type"],
         name=data["name"],

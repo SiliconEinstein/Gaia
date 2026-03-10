@@ -32,7 +32,7 @@ def test_init_creates_motivation_module(tmp_path, monkeypatch):
     data = yaml.safe_load(mod_file.read_text())
     assert data["type"] == "motivation_module"
     assert data["name"] == "motivation"
-    assert len(data["declarations"]) >= 1
+    assert len(data["knowledge"]) >= 1
 
 
 def test_init_refuses_existing_directory(tmp_path, monkeypatch):

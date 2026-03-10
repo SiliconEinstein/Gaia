@@ -171,7 +171,7 @@ def test_compile_single_chain_inline():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_a, claim_b, chain],
+        knowledge=[claim_a, claim_b, chain],
         export=["a", "b"],
     )
     pkg = Package(name="inline_test", modules=["m"])
@@ -209,7 +209,7 @@ def test_edge_type_passed_to_factor():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_a, claim_b, chain],
+        knowledge=[claim_a, claim_b, chain],
         export=["a", "b"],
     )
     pkg = Package(name="test_edge_type", modules=["m"])
@@ -235,7 +235,7 @@ def test_edge_type_defaults_to_deduction():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_a, claim_b, chain],
+        knowledge=[claim_a, claim_b, chain],
         export=["a", "b"],
     )
     pkg = Package(name="test_default_edge", modules=["m"])
@@ -253,7 +253,7 @@ def test_non_exported_claim_excluded():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[exported_claim, private_claim],
+        knowledge=[exported_claim, private_claim],
         export=["public"],  # only 'public' is exported
     )
     pkg = Package(name="export_test", modules=["m"])

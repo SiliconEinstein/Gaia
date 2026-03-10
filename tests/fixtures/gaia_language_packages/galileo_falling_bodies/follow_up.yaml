@@ -3,7 +3,7 @@
 type: follow_up_module
 name: follow_up
 
-declarations:
+knowledge:
   - type: ref
     name: vacuum_prediction
     target: reasoning.vacuum_prediction

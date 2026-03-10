@@ -1,7 +1,7 @@
 # tests/libs/lang/test_loader.py
 from pathlib import Path
 
-from libs.lang.loader import load_package
+from libs.lang.loader import _parse_module, load_package
 from libs.lang.models import (
     Claim,
     InferAction,
@@ -38,7 +38,7 @@ def test_module_types():
     assert type_map["follow_up"] == "follow_up_module"
 
 
-def test_declarations_parsed():
+def test_knowledge_parsed():
     pkg = load_package(FIXTURE_DIR)
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
     counts: dict[str, int] = {}
@@ -161,7 +161,7 @@ def test_unknown_step_format_raises(tmp_path):
     mod_yaml.write_text(
         "type: reasoning_module\n"
         "name: m\n"
-        "declarations:\n"
+        "knowledge:\n"
         "  - type: chain_expr\n"
         "    name: bad_chain\n"
         "    steps:\n"
@@ -175,7 +175,7 @@ def test_unknown_step_format_raises(tmp_path):
 
 
 def test_unknown_type_falls_back_to_knowledge(tmp_path):
-    """A declaration with an unrecognized type falls back to base Knowledge."""
+    """A knowledge object with an unrecognized type falls back to base Knowledge."""
     pkg_yaml = tmp_path / "package.yaml"
     pkg_yaml.write_text("name: test_pkg\nmodules:\n  - m\n")
 
@@ -183,7 +183,7 @@ def test_unknown_type_falls_back_to_knowledge(tmp_path):
     mod_yaml.write_text(
         "type: reasoning_module\n"
         "name: m\n"
-        "declarations:\n"
+        "knowledge:\n"
         "  - type: custom_type\n"
         "    name: my_custom\n"
         "export: []\n"
@@ -205,7 +205,7 @@ def test_load_minimal_package(tmp_path):
     pkg_yaml.write_text("name: minimal\nmodules:\n  - m\n")
 
     mod_yaml = tmp_path / "m.yaml"
-    mod_yaml.write_text("type: reasoning_module\nname: m\ndeclarations: []\nexport: []\n")
+    mod_yaml.write_text("type: reasoning_module\nname: m\nknowledge: []\nexport: []\n")
 
     pkg = load_package(tmp_path)
     assert pkg.name == "minimal"
@@ -213,6 +213,22 @@ def test_load_minimal_package(tmp_path):
     assert pkg.loaded_modules[0].name == "m"
     assert pkg.loaded_modules[0].knowledge == []
     assert pkg.loaded_modules[0].export == []
+
+
+def test_parse_module_round_trips_model_dump_surface():
+    module = _parse_module(
+        {
+            "type": "reasoning_module",
+            "name": "m",
+            "knowledge": [{"type": "claim", "name": "x", "content": "hello"}],
+            "export": ["x"],
+        }
+    )
+
+    parsed = _parse_module(module.model_dump())
+
+    assert len(parsed.knowledge) == 1
+    assert parsed.knowledge[0].name == "x"
 
 
 def test_load_package_with_dependencies(tmp_path):

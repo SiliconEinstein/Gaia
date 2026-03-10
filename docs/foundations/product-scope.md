@@ -104,7 +104,7 @@ What is currently shipped on `main`:
 - GraphStore ABC with Neo4j and Kuzu implementations
 - type-aware belief propagation (contradiction, retraction edges)
 - **CLI with 8 commands** (`init`, `build`, `review`, `infer`, `publish`, `show`, `search`, `clean`) — shipped in PR #63
-- **Gaia Language** — per-module YAML with declarations, chains, and strong/weak references
+- **Gaia Language** — per-module YAML with knowledge objects, chains, and strong/weak references
 - **Inference engine moved to `libs/inference/`** — local belief propagation decoupled from server
 - **Build output** — per-module Markdown for LLM review
 
@@ -191,11 +191,11 @@ The CLI is shipped on `main` with 8 commands:
 | `gaia review` | LLM review of chains → YAML sidecar reports |
 | `gaia infer` | Compile factor graph + run local belief propagation |
 | `gaia publish` | Publish to git or local databases (LanceDB + Kuzu) |
-| `gaia show` | Display declaration details + connected chains |
+| `gaia show` | Display knowledge object details + connected chains |
 | `gaia search` | Search published nodes in local LanceDB |
 | `gaia clean` | Remove build artifacts (`.gaia/` directory) |
 
-Note: the original RFC included `gaia claim` — this was replaced by declarative YAML authoring (per-module YAML files with declarations and chains). `gaia.lock` and cross-package dependency resolution remain deferred.
+Note: the original RFC included `gaia claim` — this was replaced by declarative YAML authoring (per-module YAML files with knowledge objects and chains). `gaia.lock` and cross-package dependency resolution remain deferred.
 
 Still not shipped:
 

@@ -1,3 +1,4 @@
+from libs.lang.loader import _parse_module
 from libs.lang.models import (
     Claim,
     Question,  # noqa: F401 — import-smoke-test
@@ -69,11 +70,11 @@ def test_ref_declaration():
     assert r.target == "other_module.premise"
 
 
-def test_module_with_declarations():
+def test_module_with_knowledge():
     m = Module(
         type="reasoning_module",
         name="reasoning",
-        declarations=[
+        knowledge=[
             Claim(name="c1", content="test"),
         ],
         export=["c1"],
@@ -83,6 +84,20 @@ def test_module_with_declarations():
     assert len(m.knowledge) == 1
     assert m.knowledge[0].name == "c1"
     assert m.export == ["c1"]
+
+
+def test_module_dump_round_trips_through_loader_surface():
+    m = Module(
+        type="reasoning_module",
+        name="reasoning",
+        knowledge=[Claim(name="c1", content="test")],
+        export=["c1"],
+    )
+
+    parsed = _parse_module(m.model_dump())
+
+    assert len(parsed.knowledge) == 1
+    assert parsed.knowledge[0].name == "c1"
 
 
 def test_package():
