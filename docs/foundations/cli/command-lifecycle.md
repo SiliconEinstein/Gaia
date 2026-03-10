@@ -96,7 +96,7 @@ This is the first stage where Gaia CLI should treat the package as structurally 
 
 `gaia review` performs model-based critique of the built package.
 
-By default this means **package review**. A future scoped form of the command should also support **integration review** against a materialized integration environment. See [../review/architecture.md](../review/architecture.md).
+By default this runs both **package review** and **integration review** (`--scope all`). Package review is a closed-world audit of reasoning quality. Integration review is an open-world check against the package environment. See [../review/architecture.md](../review/architecture.md).
 
 This stage adds assessment artifacts rather than redefining the package's normative content.
 
@@ -195,7 +195,7 @@ Architecturally, `gaia review` should become a scoped command:
 - `gaia review --scope integration` for open-world integration review
 - `gaia review --scope all` for the ordered combination of both
 
-The default local meaning remains package review.
+The default scope is `all` — run both package review and integration review in order.
 
 ### Responsibilities
 
