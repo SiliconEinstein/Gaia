@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 
 from libs.storage_v2.models import (
+    BeliefSnapshot,
     Chain,
     Closure,
     ResourceAttachment,
@@ -31,8 +32,8 @@ class GraphStore(ABC):
         """Write ATTACHED_TO relationships for resources."""
 
     @abstractmethod
-    async def update_beliefs(self, beliefs: dict[str, float]) -> None:
-        """Sync latest belief values onto Closure nodes (closure_id -> belief)."""
+    async def update_beliefs(self, snapshots: list[BeliefSnapshot]) -> None:
+        """Sync latest belief values onto Closure nodes, keyed by (closure_id, version)."""
 
     @abstractmethod
     async def update_probability(self, chain_id: str, step_index: int, value: float) -> None:

@@ -7,7 +7,7 @@ See docs/foundations/server/storage-schema.md for the authoritative schema defin
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # ── References ──
@@ -38,7 +38,7 @@ class Closure(BaseModel):
     version: int
     type: Literal["claim", "question", "setting", "action"]
     content: str
-    prior: float
+    prior: float = Field(gt=0, le=1)
     keywords: list[str] = []
     source_package_id: str
     source_module_id: str
@@ -99,7 +99,7 @@ class ProbabilityRecord(BaseModel):
 
     chain_id: str
     step_index: int
-    value: float
+    value: float = Field(gt=0, le=1)
     source: Literal["author", "llm_review", "lean_verify", "code_verify"]
     source_detail: str | None = None
     recorded_at: datetime
@@ -110,7 +110,7 @@ class BeliefSnapshot(BaseModel):
 
     closure_id: str
     version: int
-    belief: float
+    belief: float = Field(ge=0, le=1)
     bp_run_id: str
     computed_at: datetime
 

@@ -3,6 +3,9 @@
 import json
 from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
+
 from libs.storage_v2.models import (
     BeliefSnapshot,
     Chain,
@@ -125,6 +128,41 @@ class TestClosurePrior:
         closures = [Closure.model_validate(r) for r in load_fixture("closures")]
         claim = next(c for c in closures if c.closure_id.endswith("heavier_falls_faster"))
         assert 0 < claim.prior < 1
+
+    @pytest.mark.parametrize("bad_prior", [0.0, -0.5, 1.7, 2.0])
+    def test_prior_rejects_out_of_range(self, bad_prior):
+        """prior must be in (0, 1]."""
+        base = load_fixture("closures")[0]
+        base["prior"] = bad_prior
+        with pytest.raises(ValidationError):
+            Closure.model_validate(base)
+
+
+class TestProbabilityValidation:
+    @pytest.mark.parametrize("bad_value", [0.0, -0.2, 1.5])
+    def test_probability_rejects_out_of_range(self, bad_value):
+        """value must be in (0, 1]."""
+        base = load_fixture("probabilities")[0]
+        base["value"] = bad_value
+        with pytest.raises(ValidationError):
+            ProbabilityRecord.model_validate(base)
+
+
+class TestBeliefValidation:
+    @pytest.mark.parametrize("bad_belief", [-0.1, 1.8, 2.0])
+    def test_belief_rejects_out_of_range(self, bad_belief):
+        """belief must be in [0, 1]."""
+        base = load_fixture("beliefs")[0]
+        base["belief"] = bad_belief
+        with pytest.raises(ValidationError):
+            BeliefSnapshot.model_validate(base)
+
+    def test_belief_allows_zero(self):
+        """belief=0.0 is valid (completely disbelieved)."""
+        base = load_fixture("beliefs")[0]
+        base["belief"] = 0.0
+        snapshot = BeliefSnapshot.model_validate(base)
+        assert snapshot.belief == 0.0
 
 
 class TestResourceAttachmentCompositeKey:
