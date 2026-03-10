@@ -23,6 +23,7 @@ modules:
   - follow_up
 
 export:
+  - heavier_falls_faster
   - vacuum_prediction
   - aristotle_contradicted
   - follow_up_question

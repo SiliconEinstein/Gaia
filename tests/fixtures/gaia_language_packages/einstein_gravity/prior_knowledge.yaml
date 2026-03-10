@@ -7,16 +7,16 @@ knowledge:
   # === 引用 Newton package ===
   - type: ref
     name: newton_gravity
-    target: newton_principia.laws.law_of_gravity
+    target: newton_principia.law_of_gravity
 
   - type: ref
     name: newton_a_equals_g
-    target: newton_principia.derivation.acceleration_independent_of_mass
+    target: newton_principia.acceleration_independent_of_mass
 
   # === 引用 Galileo package ===
   - type: ref
     name: galileo_vacuum_prediction
-    target: galileo_falling_bodies.reasoning.vacuum_prediction
+    target: galileo_falling_bodies.vacuum_prediction
 
   # === 本 package 的先验知识 ===
 

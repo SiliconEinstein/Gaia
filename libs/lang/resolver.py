@@ -12,59 +12,113 @@ class ResolveError(Exception):
 def resolve_refs(pkg: Package, deps: dict[str, Package] | None = None) -> Package:
     """Resolve all Ref knowledge objects in the package.
 
-    Builds a knowledge index (module.name -> Knowledge),
-    then links each Ref._resolved to its target Knowledge object.
-
-    Args:
-        pkg: The package whose Refs should be resolved.
-        deps: Optional mapping of dependency package names to their resolved
-            Package objects. Cross-package refs use 3-part paths
-            (``pkg_name.module_name.decl_name``) and are resolved against the
-            module-level exports of these dependency packages.
+    Intra-package refs use ``module.name`` and can point to any declaration in the
+    same package. Cross-package refs are resolved against dependency package exports,
+    exposed under the stable ``pkg.export_name`` surface. For compatibility, exported
+    names are also indexed under ``pkg.module.export_name``.
     """
-    # Build intra-package index: "module_name.decl_name" -> Knowledge
-    index: dict[str, Knowledge] = {}
+    local_decls: dict[str, Knowledge] = {}
     for module in pkg.loaded_modules:
         for decl in module.knowledge:
-            if decl.type != "ref":
-                key = f"{module.name}.{decl.name}"
-                index[key] = decl
+            local_decls[f"{module.name}.{decl.name}"] = decl
 
-    # Add cross-package index: "pkg_name.module_name.decl_name" -> Knowledge
-    # Only module-exported declarations are visible to dependents.
-    if deps:
-        for dep_name, dep_pkg in deps.items():
-            for module in dep_pkg.loaded_modules:
-                exported = set(module.export)
-                for decl in module.knowledge:
-                    if decl.type != "ref" and decl.name in exported:
-                        key = f"{dep_name}.{module.name}.{decl.name}"
-                        index[key] = decl
+    dep_index = _build_dependency_index(deps or {})
+    resolved_index: dict[str, Knowledge] = dict(dep_index)
+    resolving: set[str] = set()
 
-    # Resolve Refs in two passes.
-    # Pass 1: resolve refs whose targets are already in the index (non-ref
-    # declarations and cross-package entries).  After resolving, add the ref's
-    # own "module.name" key to the index so that other refs within the same
-    # package can chain through it in pass 2.
-    unresolved: list[tuple[str, Ref]] = []
-    for module in pkg.loaded_modules:
-        for decl in module.knowledge:
-            if isinstance(decl, Ref):
-                target = index.get(decl.target)
-                if target is not None:
-                    decl._resolved = target
-                    index[f"{module.name}.{decl.name}"] = target
-                else:
-                    unresolved.append((module.name, decl))
+    def resolve_target(target: str) -> Knowledge | None:
+        if target in resolved_index:
+            return resolved_index[target]
+        if target in local_decls:
+            return resolve_local(target)
+        return dep_index.get(target)
 
-    # Pass 2: resolve remaining refs (they may depend on refs resolved in pass 1).
-    for mod_name, decl in unresolved:
-        target = index.get(decl.target)
-        if target is None:
-            raise ResolveError(
-                f"Cannot resolve ref '{mod_name}.{decl.name}' -> '{decl.target}': target not found"
-            )
-        decl._resolved = target
+    def resolve_local(path: str) -> Knowledge:
+        if path in resolved_index:
+            return resolved_index[path]
 
-    pkg._index = index
+        decl = local_decls.get(path)
+        if decl is None:
+            raise ResolveError(f"Cannot resolve '{path}': declaration not found")
+
+        if not isinstance(decl, Ref):
+            resolved_index[path] = decl
+            return decl
+
+        if path in resolving:
+            raise ResolveError(f"Circular ref detected while resolving '{path}'")
+
+        resolving.add(path)
+        try:
+            target = resolve_target(decl.target)
+            if target is None:
+                raise ResolveError(
+                    f"Cannot resolve ref '{path}' -> '{decl.target}': target not found"
+                )
+            decl._resolved = target
+            resolved_index[path] = target
+            return target
+        finally:
+            resolving.remove(path)
+
+    for path in local_decls:
+        resolve_local(path)
+
+    pkg._index = {path: resolved_index[path] for path in local_decls}
     return pkg
+
+
+def _build_dependency_index(deps: dict[str, Package]) -> dict[str, Knowledge]:
+    """Build the cross-package public index from dependency package exports."""
+    dep_index: dict[str, Knowledge] = {}
+
+    for dep_name, dep_pkg in deps.items():
+        exported_names = set(dep_pkg.export)
+        if not exported_names:
+            continue
+
+        export_paths: dict[str, list[str]] = {name: [] for name in exported_names}
+        for module in dep_pkg.loaded_modules:
+            for decl in module.knowledge:
+                if decl.name in exported_names:
+                    export_paths[decl.name].append(f"{module.name}.{decl.name}")
+
+        for export_name, candidates in export_paths.items():
+            if not candidates:
+                continue
+
+            resolved_candidates: list[tuple[str, Knowledge]] = []
+            unique_targets: dict[int, Knowledge] = {}
+            for local_path in candidates:
+                target = dep_pkg._index.get(local_path)
+                if target is None:
+                    module_name, _ = local_path.split(".", 1)
+                    decl = next(
+                        d
+                        for m in dep_pkg.loaded_modules
+                        if m.name == module_name
+                        for d in m.knowledge
+                        if d.name == export_name
+                    )
+                    target = decl._resolved if isinstance(decl, Ref) else decl
+
+                if target is None:
+                    raise ResolveError(
+                        f"Dependency package '{dep_name}' export '{export_name}' is unresolved"
+                    )
+
+                resolved_candidates.append((local_path, target))
+                unique_targets[id(target)] = target
+
+            if len(unique_targets) > 1:
+                raise ResolveError(
+                    f"Dependency package '{dep_name}' exports ambiguous name '{export_name}'"
+                )
+
+            _, public_target = resolved_candidates[0]
+            dep_index[f"{dep_name}.{export_name}"] = public_target
+            for candidate_path, candidate_target in resolved_candidates:
+                if candidate_target is public_target:
+                    dep_index[f"{dep_name}.{candidate_path}"] = public_target
+
+    return dep_index

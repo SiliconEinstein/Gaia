@@ -13,15 +13,15 @@ knowledge:
   # === 引用 Galileo package 的结论 ===
   - type: ref
     name: galileo_vacuum_prediction
-    target: galileo_falling_bodies.reasoning.vacuum_prediction
+    target: galileo_falling_bodies.vacuum_prediction
 
   - type: ref
     name: galileo_aristotle_contradicted
-    target: galileo_falling_bodies.reasoning.aristotle_contradicted
+    target: galileo_falling_bodies.aristotle_contradicted
 
   - type: ref
     name: aristotle_law
-    target: galileo_falling_bodies.aristotle.heavier_falls_faster
+    target: galileo_falling_bodies.heavier_falls_faster
 
   # === 等价关系：牛顿的 a=g 与伽利略的真空预测 ===
 

@@ -25,6 +25,7 @@ modules:
   - implications
 
 export:
+  - law_of_gravity
   - acceleration_independent_of_mass
   - newton_contradicts_aristotle
   - two_path_rejection_of_aristotle

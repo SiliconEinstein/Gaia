@@ -84,10 +84,7 @@ def test_resolve_empty_package():
 
 
 def test_resolve_ref_to_ref_raises():
-    """A Ref targeting another Ref's path should raise ResolveError.
-
-    Because Refs are skipped during index building, the target won't be found.
-    """
+    """Circular ref chains should raise a clear ResolveError."""
     mod_a = Module(
         type="reasoning_module",
         name="a",
@@ -103,5 +100,5 @@ def test_resolve_ref_to_ref_raises():
     pkg = Package(name="circular_refs", modules=["a", "b"])
     pkg.loaded_modules = [mod_a, mod_b]
 
-    with pytest.raises(ResolveError, match="target not found"):
+    with pytest.raises(ResolveError, match="Circular ref detected"):
         resolve_refs(pkg)
