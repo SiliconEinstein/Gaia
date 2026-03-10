@@ -1,4 +1,4 @@
-"""Execute a DSL package — walk chains, call actions."""
+"""Execute a Gaia Language package — walk chains, call actions."""
 
 from __future__ import annotations
 

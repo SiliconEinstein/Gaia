@@ -267,7 +267,7 @@ Provenance relationships use existing Ref mechanism. `RetractAction.reason` is a
 
 | Component | Change |
 |---|---|
-| `libs/dsl/models.py` | Add Relation, Contradiction, Equivalence, RetractAction classes |
+| `libs/lang/models.py` | Add Relation, Contradiction, Equivalence, RetractAction classes |
 | `libs/models.py` | HyperEdge.type adds relation-related types |
 | ChainExpr | Remove `edge_type` field, add `produces` field pointing to Relation |
 | Factor graph compiler | Add Relation → variable node + constraint factor compilation rules |

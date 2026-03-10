@@ -10,7 +10,7 @@ from cli.main import app
 
 runner = CliRunner()
 
-FIXTURE_PATH = "tests/fixtures/dsl_packages/galileo_falling_bodies"
+FIXTURE_PATH = "tests/fixtures/gaia_language_packages/galileo_falling_bodies"
 
 
 def _setup_build_and_review(tmp_path: Path) -> Path:

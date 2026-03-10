@@ -15,14 +15,14 @@
 ### Task 1: Add Relation, Contradiction, Equivalence Models
 
 **Files:**
-- Modify: `libs/dsl/models.py:56-127`
-- Create: `tests/libs/dsl/test_relation_models.py`
+- Modify: `libs/lang/models.py:56-127`
+- Create: `tests/libs/lang/test_relation_models.py`
 
 **Step 1: Write the failing test**
 
 ```python
-# tests/libs/dsl/test_relation_models.py
-from libs.dsl.models import (
+# tests/libs/lang/test_relation_models.py
+from libs.lang.models import (
     Contradiction,
     Declaration,
     DECLARATION_TYPE_MAP,
@@ -70,12 +70,12 @@ def test_relation_types_in_declaration_map():
 
 **Step 2: Run test to verify it fails**
 
-Run: `pytest tests/libs/dsl/test_relation_models.py -v`
+Run: `pytest tests/libs/lang/test_relation_models.py -v`
 Expected: FAIL with ImportError (Relation/Contradiction/Equivalence not defined)
 
 **Step 3: Write minimal implementation**
 
-Add to `libs/dsl/models.py` after the `Setting` class (around line 80):
+Add to `libs/lang/models.py` after the `Setting` class (around line 80):
 
 ```python
 class Relation(Declaration):
@@ -101,18 +101,18 @@ Update `DECLARATION_TYPE_MAP` to include:
 
 **Step 4: Run test to verify it passes**
 
-Run: `pytest tests/libs/dsl/test_relation_models.py -v`
+Run: `pytest tests/libs/lang/test_relation_models.py -v`
 Expected: PASS
 
 **Step 5: Run full test suite**
 
-Run: `pytest tests/libs/dsl/ -v`
+Run: `pytest tests/libs/lang/ -v`
 Expected: All existing tests still pass
 
 **Step 6: Commit**
 
 ```bash
-git add libs/dsl/models.py tests/libs/dsl/test_relation_models.py
+git add libs/lang/models.py tests/libs/lang/test_relation_models.py
 git commit -m "feat: add Relation, Contradiction, Equivalence model classes"
 ```
 
@@ -121,15 +121,15 @@ git commit -m "feat: add Relation, Contradiction, Equivalence model classes"
 ### Task 2: Add RetractAction Model
 
 **Files:**
-- Modify: `libs/dsl/models.py:82-97`
-- Modify: `tests/libs/dsl/test_relation_models.py`
+- Modify: `libs/lang/models.py:82-97`
+- Modify: `tests/libs/lang/test_relation_models.py`
 
 **Step 1: Write the failing test**
 
-Append to `tests/libs/dsl/test_relation_models.py`:
+Append to `tests/libs/lang/test_relation_models.py`:
 
 ```python
-from libs.dsl.models import RetractAction
+from libs.lang.models import RetractAction
 
 
 def test_retract_action_model():
@@ -152,12 +152,12 @@ def test_retract_action_in_declaration_map():
 
 **Step 2: Run test to verify it fails**
 
-Run: `pytest tests/libs/dsl/test_relation_models.py::test_retract_action_model -v`
+Run: `pytest tests/libs/lang/test_relation_models.py::test_retract_action_model -v`
 Expected: FAIL with ImportError
 
 **Step 3: Write minimal implementation**
 
-Add to `libs/dsl/models.py` after `ToolCallAction`:
+Add to `libs/lang/models.py` after `ToolCallAction`:
 
 ```python
 class RetractAction(Action):
@@ -173,13 +173,13 @@ Update `DECLARATION_TYPE_MAP`:
 
 **Step 4: Run test to verify it passes**
 
-Run: `pytest tests/libs/dsl/test_relation_models.py -v`
+Run: `pytest tests/libs/lang/test_relation_models.py -v`
 Expected: All PASS
 
 **Step 5: Commit**
 
 ```bash
-git add libs/dsl/models.py tests/libs/dsl/test_relation_models.py
+git add libs/lang/models.py tests/libs/lang/test_relation_models.py
 git commit -m "feat: add RetractAction model class"
 ```
 
@@ -188,15 +188,15 @@ git commit -m "feat: add RetractAction model class"
 ### Task 3: Update Loader to Parse Relation and RetractAction
 
 **Files:**
-- Modify: `libs/dsl/loader.py:59-80`
-- Modify: `tests/libs/dsl/test_relation_models.py`
+- Modify: `libs/lang/loader.py:59-80`
+- Modify: `tests/libs/lang/test_relation_models.py`
 
 **Step 1: Write the failing test**
 
-Append to `tests/libs/dsl/test_relation_models.py`:
+Append to `tests/libs/lang/test_relation_models.py`:
 
 ```python
-from libs.dsl.loader import _parse_declaration
+from libs.lang.loader import _parse_declaration
 
 
 def test_parse_contradiction_from_yaml_dict():
@@ -240,20 +240,20 @@ def test_parse_retract_action_from_yaml_dict():
 
 **Step 2: Run test to verify it fails**
 
-Run: `pytest tests/libs/dsl/test_relation_models.py::test_parse_contradiction_from_yaml_dict -v`
+Run: `pytest tests/libs/lang/test_relation_models.py::test_parse_contradiction_from_yaml_dict -v`
 Expected: Likely passes already since `_parse_declaration` uses `DECLARATION_TYPE_MAP` and falls through to `cls.model_validate(data)`. If so, this test just confirms loader handles new types.
 
 **Step 3: Verify and commit**
 
 If tests pass, the loader already handles the new types via `DECLARATION_TYPE_MAP`. No code change needed.
 
-Run: `pytest tests/libs/dsl/test_relation_models.py -v`
+Run: `pytest tests/libs/lang/test_relation_models.py -v`
 Expected: All PASS
 
 **Step 4: Commit**
 
 ```bash
-git add tests/libs/dsl/test_relation_models.py
+git add tests/libs/lang/test_relation_models.py
 git commit -m "test: verify loader handles Relation and RetractAction parsing"
 ```
 
@@ -262,15 +262,15 @@ git commit -m "test: verify loader handles Relation and RetractAction parsing"
 ### Task 4: Update Compiler — Relation as Variable Node
 
 **Files:**
-- Modify: `libs/dsl/compiler.py:19`
-- Create: `tests/libs/dsl/test_relation_compiler.py`
+- Modify: `libs/lang/compiler.py:19`
+- Create: `tests/libs/lang/test_relation_compiler.py`
 
 **Step 1: Write the failing test**
 
 ```python
-# tests/libs/dsl/test_relation_compiler.py
-from libs.dsl.compiler import compile_factor_graph
-from libs.dsl.models import (
+# tests/libs/lang/test_relation_compiler.py
+from libs.lang.compiler import compile_factor_graph
+from libs.lang.models import (
     Claim,
     Contradiction,
     Equivalence,
@@ -329,12 +329,12 @@ def test_equivalence_compiles_to_variable_node():
 
 **Step 2: Run test to verify it fails**
 
-Run: `pytest tests/libs/dsl/test_relation_compiler.py::test_contradiction_compiles_to_variable_node -v`
+Run: `pytest tests/libs/lang/test_relation_compiler.py::test_contradiction_compiles_to_variable_node -v`
 Expected: FAIL — `a_contradicts_b` not in `fg.variables` (BP_VARIABLE_TYPES doesn't include "contradiction")
 
 **Step 3: Write minimal implementation**
 
-In `libs/dsl/compiler.py`, update line 19:
+In `libs/lang/compiler.py`, update line 19:
 
 ```python
 BP_VARIABLE_TYPES = {"claim", "setting", "contradiction", "equivalence"}
@@ -342,18 +342,18 @@ BP_VARIABLE_TYPES = {"claim", "setting", "contradiction", "equivalence"}
 
 **Step 4: Run test to verify it passes**
 
-Run: `pytest tests/libs/dsl/test_relation_compiler.py -v`
+Run: `pytest tests/libs/lang/test_relation_compiler.py -v`
 Expected: PASS
 
 **Step 5: Run full test suite**
 
-Run: `pytest tests/libs/dsl/ -v`
+Run: `pytest tests/libs/lang/ -v`
 Expected: All existing tests still pass
 
 **Step 6: Commit**
 
 ```bash
-git add libs/dsl/compiler.py tests/libs/dsl/test_relation_compiler.py
+git add libs/lang/compiler.py tests/libs/lang/test_relation_compiler.py
 git commit -m "feat: compile Relation declarations to variable nodes"
 ```
 
@@ -362,12 +362,12 @@ git commit -m "feat: compile Relation declarations to variable nodes"
 ### Task 5: Update Compiler — Relation Constraint Factor
 
 **Files:**
-- Modify: `libs/dsl/compiler.py:36-75`
-- Modify: `tests/libs/dsl/test_relation_compiler.py`
+- Modify: `libs/lang/compiler.py:36-75`
+- Modify: `tests/libs/lang/test_relation_compiler.py`
 
 **Step 1: Write the failing test**
 
-Append to `tests/libs/dsl/test_relation_compiler.py`:
+Append to `tests/libs/lang/test_relation_compiler.py`:
 
 ```python
 def test_contradiction_generates_constraint_factor():
@@ -425,12 +425,12 @@ def test_equivalence_generates_constraint_factor():
 
 **Step 2: Run test to verify it fails**
 
-Run: `pytest tests/libs/dsl/test_relation_compiler.py::test_contradiction_generates_constraint_factor -v`
+Run: `pytest tests/libs/lang/test_relation_compiler.py::test_contradiction_generates_constraint_factor -v`
 Expected: FAIL — `len(fg.factors) == 0` (compiler doesn't generate factors from Relations)
 
 **Step 3: Write minimal implementation**
 
-In `libs/dsl/compiler.py`, add import and compilation function:
+In `libs/lang/compiler.py`, add import and compilation function:
 
 ```python
 from .models import (
@@ -453,7 +453,7 @@ Add a `_compile_relation` function and call it from `compile_factor_graph`:
 def _compile_relation(
     rel: Relation,
     all_decls: dict[str, Declaration],
-    fg: DSLFactorGraph,
+    fg: CompiledFactorGraph,
 ) -> None:
     """Compile a Relation into a constraint factor connecting related claims."""
     # Only include claims that are variable nodes
@@ -485,18 +485,18 @@ In `compile_factor_graph`, after the ChainExpr loop (after line 74), add:
 
 **Step 4: Run test to verify it passes**
 
-Run: `pytest tests/libs/dsl/test_relation_compiler.py -v`
+Run: `pytest tests/libs/lang/test_relation_compiler.py -v`
 Expected: PASS
 
 **Step 5: Run full test suite**
 
-Run: `pytest tests/libs/dsl/ -v`
+Run: `pytest tests/libs/lang/ -v`
 Expected: All existing tests still pass
 
 **Step 6: Commit**
 
 ```bash
-git add libs/dsl/compiler.py tests/libs/dsl/test_relation_compiler.py
+git add libs/lang/compiler.py tests/libs/lang/test_relation_compiler.py
 git commit -m "feat: compile Relation declarations to constraint factors"
 ```
 
@@ -711,23 +711,23 @@ git commit -m "feat: add relation_equivalence factor potential to BP"
 ### Task 8: Update Runtime — Relation Belief Writeback
 
 **Files:**
-- Modify: `libs/dsl/runtime.py:88-100`
-- Create: `tests/libs/dsl/test_relation_runtime.py`
+- Modify: `libs/lang/runtime.py:88-100`
+- Create: `tests/libs/lang/test_relation_runtime.py`
 
 **Step 1: Write the failing test**
 
 ```python
-# tests/libs/dsl/test_relation_runtime.py
+# tests/libs/lang/test_relation_runtime.py
 from pathlib import Path
 
-from libs.dsl.compiler import compile_factor_graph
-from libs.dsl.models import (
+from libs.lang.compiler import compile_factor_graph
+from libs.lang.models import (
     Claim,
     Contradiction,
     Module,
     Package,
 )
-from libs.dsl.runtime import DSLRuntime
+from libs.lang.runtime import GaiaRuntime
 
 
 async def test_contradiction_gets_belief_after_inference():
@@ -748,12 +748,12 @@ async def test_contradiction_gets_belief_after_inference():
     pkg = Package(name="test_relation_bp", modules=["m"])
     pkg.loaded_modules = [mod]
 
-    runtime = DSLRuntime()
+    runtime = GaiaRuntime()
     result = await runtime.infer(
         type(runtime).load.__func__.__class__.__new__(type(None))  # skip this
     )
     # Actually, build the result manually:
-    from libs.dsl.runtime import RuntimeResult
+    from libs.lang.runtime import RuntimeResult
     result = RuntimeResult(package=pkg)
     result = await runtime.infer(result)
 
@@ -765,7 +765,7 @@ async def test_contradiction_gets_belief_after_inference():
 
 **Step 2: Run test to verify behavior**
 
-Run: `pytest tests/libs/dsl/test_relation_runtime.py -v`
+Run: `pytest tests/libs/lang/test_relation_runtime.py -v`
 Expected: This may already pass since `runtime.infer()` writes back belief to any declaration with a `.belief` attribute, and Relation has `.belief`. If it passes, the runtime already handles Relation correctly.
 
 **Step 3: If needed, update runtime**
@@ -783,7 +783,7 @@ Since `Relation` has a `.belief` field, this should work without changes. Verify
 **Step 4: Commit**
 
 ```bash
-git add tests/libs/dsl/test_relation_runtime.py
+git add tests/libs/lang/test_relation_runtime.py
 git commit -m "test: verify runtime handles Relation belief writeback"
 ```
 
@@ -792,9 +792,9 @@ git commit -m "test: verify runtime handles Relation belief writeback"
 ### Task 9: Refactor Galileo Example — Add Relation Declarations
 
 **Files:**
-- Modify: `tests/fixtures/dsl_packages/galileo_falling_bodies/reasoning.yaml`
-- Modify: `tests/libs/dsl/test_compiler.py`
-- Modify: `tests/libs/dsl/test_integration.py`
+- Modify: `tests/fixtures/gaia_language_packages/galileo_falling_bodies/reasoning.yaml`
+- Modify: `tests/libs/lang/test_compiler.py`
+- Modify: `tests/libs/lang/test_integration.py`
 
 This is the most involved task. The Galileo example currently models contradiction/retraction via ChainExpr `edge_type`. We refactor to use Relation + RetractAction declarations.
 
@@ -865,7 +865,7 @@ Replace `retraction_chain` with a RetractAction:
 
 **Step 2: Update test assertions**
 
-In `tests/libs/dsl/test_compiler.py`:
+In `tests/libs/lang/test_compiler.py`:
 
 - `test_compile_produces_factor_graph`: Update variable count (14 → 14, `tied_balls_contradiction` is still a variable but now as Relation type). Factor count changes: 11 → 11 (contradiction_chain loses its contradiction edge_type but gains a constraint factor from the Relation; retraction_chain is removed but RetractAction adds nothing to factors). Recalculate exact counts after running.
 
@@ -873,27 +873,27 @@ In `tests/libs/dsl/test_compiler.py`:
 
 - `test_retraction_edge_pushes_back_on_aristotle_law`: Remove this test (retraction_chain no longer exists).
 
-In `tests/libs/dsl/test_integration.py`:
+In `tests/libs/lang/test_integration.py`:
 
 - `test_galileo_full_pipeline`: Update `edge_types` assertion — "retraction" no longer in edge types, "relation_contradiction" is new. Update variable/factor counts if changed.
 
 **Step 3: Run tests iteratively**
 
-Run: `pytest tests/libs/dsl/test_compiler.py -v`
+Run: `pytest tests/libs/lang/test_compiler.py -v`
 Fix assertion counts until all pass.
 
-Run: `pytest tests/libs/dsl/test_integration.py -v`
+Run: `pytest tests/libs/lang/test_integration.py -v`
 Fix assertion counts until all pass.
 
-Run: `pytest tests/libs/dsl/ -v`
+Run: `pytest tests/libs/lang/ -v`
 All must pass.
 
 **Step 4: Commit**
 
 ```bash
-git add tests/fixtures/dsl_packages/galileo_falling_bodies/reasoning.yaml \
-        tests/libs/dsl/test_compiler.py \
-        tests/libs/dsl/test_integration.py
+git add tests/fixtures/gaia_language_packages/galileo_falling_bodies/reasoning.yaml \
+        tests/libs/lang/test_compiler.py \
+        tests/libs/lang/test_integration.py
 git commit -m "refactor: Galileo example uses Relation + RetractAction instead of edge_type"
 ```
 
@@ -902,13 +902,13 @@ git commit -m "refactor: Galileo example uses Relation + RetractAction instead o
 ### Task 10: Deprecate edge_type on ChainExpr
 
 **Files:**
-- Modify: `libs/dsl/models.py` (ChainExpr class)
-- Modify: `libs/dsl/compiler.py` (_compile_chain)
-- Modify: `libs/dsl/loader.py` (_parse_declaration)
+- Modify: `libs/lang/models.py` (ChainExpr class)
+- Modify: `libs/lang/compiler.py` (_compile_chain)
+- Modify: `libs/lang/loader.py` (_parse_declaration)
 
 **Step 1: Add deprecation warning**
 
-In `libs/dsl/compiler.py`, `_compile_chain` function, add a warning when `edge_type` is used:
+In `libs/lang/compiler.py`, `_compile_chain` function, add a warning when `edge_type` is used:
 
 ```python
 import warnings
@@ -925,7 +925,7 @@ def _compile_chain(...) -> None:
 
 **Step 2: Write test for deprecation warning**
 
-Add to `tests/libs/dsl/test_relation_compiler.py`:
+Add to `tests/libs/lang/test_relation_compiler.py`:
 
 ```python
 import warnings
@@ -959,14 +959,14 @@ def test_edge_type_emits_deprecation_warning():
 
 **Step 3: Run tests**
 
-Run: `pytest tests/libs/dsl/ -v`
+Run: `pytest tests/libs/lang/ -v`
 Expected: All PASS
 
 **Step 4: Commit**
 
 ```bash
-git add libs/dsl/models.py libs/dsl/compiler.py libs/dsl/loader.py \
-        tests/libs/dsl/test_relation_compiler.py
+git add libs/lang/models.py libs/lang/compiler.py libs/lang/loader.py \
+        tests/libs/lang/test_relation_compiler.py
 git commit -m "deprecate: ChainExpr.edge_type in favor of Relation declarations"
 ```
 
@@ -975,7 +975,7 @@ git commit -m "deprecate: ChainExpr.edge_type in favor of Relation declarations"
 ### Task 11: Final Integration Test
 
 **Files:**
-- Modify: `tests/libs/dsl/test_relation_runtime.py`
+- Modify: `tests/libs/lang/test_relation_runtime.py`
 
 **Step 1: Write integration test**
 
@@ -983,11 +983,11 @@ git commit -m "deprecate: ChainExpr.edge_type in favor of Relation declarations"
 async def test_contradiction_weakens_shared_premises():
     """Full pipeline: Contradiction relation should weaken beliefs of claims
     that are premises of both contradicting claims."""
-    from libs.dsl.models import (
+    from libs.lang.models import (
         Claim, Contradiction, ChainExpr, InferAction,
         Module, Package, StepRef, StepLambda,
     )
-    from libs.dsl.runtime import DSLRuntime, RuntimeResult
+    from libs.lang.runtime import GaiaRuntime, RuntimeResult
 
     # Setup: shared premise → two contradicting conclusions
     premise = Claim(name="premise", content="Shared premise", prior=0.8)
@@ -1025,7 +1025,7 @@ async def test_contradiction_weakens_shared_premises():
     pkg = Package(name="test_integration", modules=["m"])
     pkg.loaded_modules = [mod]
 
-    runtime = DSLRuntime()
+    runtime = GaiaRuntime()
     result = RuntimeResult(package=pkg)
     result = await runtime.infer(result)
 
@@ -1040,7 +1040,7 @@ async def test_contradiction_weakens_shared_premises():
 
 **Step 2: Run tests**
 
-Run: `pytest tests/libs/dsl/test_relation_runtime.py -v`
+Run: `pytest tests/libs/lang/test_relation_runtime.py -v`
 Expected: PASS
 
 **Step 3: Full suite**
@@ -1051,7 +1051,7 @@ Expected: All PASS
 **Step 4: Final commit**
 
 ```bash
-git add tests/libs/dsl/test_relation_runtime.py
+git add tests/libs/lang/test_relation_runtime.py
 git commit -m "test: add integration test for Contradiction belief propagation"
 ```
 
