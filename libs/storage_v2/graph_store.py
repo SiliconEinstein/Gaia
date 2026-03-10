@@ -1,0 +1,66 @@
+"""GraphStore ABC — graph topology backend contract (Neo4j / Kùzu)."""
+
+from abc import ABC, abstractmethod
+
+from libs.storage_v2.models import (
+    BeliefSnapshot,
+    Chain,
+    Closure,
+    ResourceAttachment,
+    ScoredClosure,
+    Subgraph,
+)
+
+
+class GraphStore(ABC):
+    """Graph backend — topology storage, traversal, and BP-related updates."""
+
+    # ── Schema setup ──
+
+    @abstractmethod
+    async def initialize_schema(self) -> None:
+        """Create indexes, constraints, and node labels."""
+
+    # ── Write ──
+
+    @abstractmethod
+    async def write_topology(self, closures: list[Closure], chains: list[Chain]) -> None:
+        """Write closure nodes, chain nodes, and PREMISE/CONCLUSION relationships."""
+
+    @abstractmethod
+    async def write_resource_links(self, attachments: list[ResourceAttachment]) -> None:
+        """Write ATTACHED_TO relationships for resources."""
+
+    @abstractmethod
+    async def update_beliefs(self, snapshots: list[BeliefSnapshot]) -> None:
+        """Sync latest belief values onto Closure nodes, keyed by (closure_id, version)."""
+
+    @abstractmethod
+    async def update_probability(self, chain_id: str, step_index: int, value: float) -> None:
+        """Sync a probability value onto a Chain node."""
+
+    # ── Query ──
+
+    @abstractmethod
+    async def get_neighbors(
+        self,
+        closure_id: str,
+        direction: str = "both",
+        chain_types: list[str] | None = None,
+        max_hops: int = 1,
+    ) -> Subgraph:
+        """Get neighboring closures and chains within max_hops."""
+
+    @abstractmethod
+    async def get_subgraph(self, closure_id: str, max_closures: int = 500) -> Subgraph:
+        """Get a subgraph rooted at a closure, up to max_closures."""
+
+    @abstractmethod
+    async def search_topology(self, seed_ids: list[str], hops: int = 1) -> list[ScoredClosure]:
+        """Expand from seed closures by graph traversal, returning scored results."""
+
+    # ── Lifecycle ──
+
+    @abstractmethod
+    async def close(self) -> None:
+        """Release connections and resources."""

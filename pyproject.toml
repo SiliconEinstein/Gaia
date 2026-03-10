@@ -5,6 +5,7 @@ description = "Large Knowledge Model — billion-scale reasoning hypergraph"
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.0",
+    "pydantic-settings>=2.0",
     "lancedb>=0.6",
     "neo4j>=5.0",
     "fastapi>=0.110",
