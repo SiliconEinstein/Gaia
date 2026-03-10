@@ -61,13 +61,15 @@ knowledge:
       GR 不否定牛顿，而是将其包含为特殊情况。
     prior: 0.5
 
-  - type: claim
+  - type: subsumption
     name: newton_subsumed_by_gr
+    between:
+      - einstein_field_equations
+      - newton_gravity
     content: >
-      牛顿引力并不是被广义相对论简单否定，
-      而是在弱场、低速、低曲率条件下被重新解释为其有效近似。
-      旧理论在适用范围内仍然成立，但不再是最基本的描述。
-    prior: 0.5
+      牛顿引力定律 F=GMm/r² 是广义相对论在弱场低速极限下的近似。
+      GR 是更一般的理论，牛顿是其特殊情况。
+      这是理论继承而非理论否定。
 
   # === 定量矛盾：1.75 vs 0.87 角秒 ===
 
