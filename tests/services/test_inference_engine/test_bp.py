@@ -590,6 +590,67 @@ class TestEvaluatePotential:
         )
         assert result == pytest.approx(0.0)
 
+    # --- relation_contradiction direct tests ---
+
+    def test_relation_contradiction_both_true_penalty(self):
+        """relation_contradiction: A=1, B=1 → penalty (1-prob). No gate variable."""
+        result = _evaluate_potential(
+            "relation_contradiction",
+            premise_ids=[1, 2],
+            conclusion_ids=[],
+            assignment={1: 1, 2: 1},
+            prob=0.99,
+        )
+        assert result == pytest.approx(0.01)
+
+    def test_relation_contradiction_one_false_unconstrained(self):
+        """relation_contradiction: A=0 → unconstrained."""
+        result = _evaluate_potential(
+            "relation_contradiction",
+            premise_ids=[1, 2],
+            conclusion_ids=[],
+            assignment={1: 0, 2: 1},
+            prob=0.99,
+        )
+        assert result == 1.0
+
+    def test_relation_contradiction_both_false_unconstrained(self):
+        """relation_contradiction: both false → unconstrained."""
+        result = _evaluate_potential(
+            "relation_contradiction",
+            premise_ids=[1, 2],
+            conclusion_ids=[],
+            assignment={1: 0, 2: 0},
+            prob=0.99,
+        )
+        assert result == 1.0
+
+    # --- relation_equivalence direct tests ---
+
+    def test_relation_equivalence_agree_rewarded(self):
+        """relation_equivalence: A==B → prob (reward). No gate variable."""
+        for a, b in [(1, 1), (0, 0)]:
+            result = _evaluate_potential(
+                "relation_equivalence",
+                premise_ids=[1, 2],
+                conclusion_ids=[],
+                assignment={1: a, 2: b},
+                prob=0.99,
+            )
+            assert result == pytest.approx(0.99)
+
+    def test_relation_equivalence_disagree_penalized(self):
+        """relation_equivalence: A!=B → 1-prob (penalty)."""
+        for a, b in [(1, 0), (0, 1)]:
+            result = _evaluate_potential(
+                "relation_equivalence",
+                premise_ids=[1, 2],
+                conclusion_ids=[],
+                assignment={1: a, 2: b},
+                prob=0.99,
+            )
+            assert result == pytest.approx(0.01)
+
 
 # ---------------------------------------------------------------------------
 # Cyclic graph tests (loopy BP's core use case)
@@ -759,6 +820,175 @@ def test_damping_zero_preserves_priors():
     assert beliefs[1] == pytest.approx(0.9, abs=1e-10)
     assert beliefs[2] == pytest.approx(0.3, abs=1e-10)
     assert beliefs[3] == pytest.approx(0.7, abs=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# Relation type tests: relation_contradiction and relation_equivalence
+# ---------------------------------------------------------------------------
+
+
+class TestRelationContradiction:
+    """Tests for the relation_contradiction factor (no gate variable)."""
+
+    def test_mutex_penalizes_both_true(self):
+        """Strong contradiction constraint should penalize A=1 and B=1."""
+        fg = FactorGraph()
+        fg.add_variable(1, 0.8)  # Claim A
+        fg.add_variable(2, 0.7)  # Claim B
+        fg.add_factor(
+            edge_id=1,
+            premises=[1, 2],
+            conclusions=[],
+            probability=0.99,
+            edge_type="relation_contradiction",
+        )
+        bp = BeliefPropagation()
+        beliefs = bp.run(fg)
+        # Both claims should drop (can't both be true)
+        assert beliefs[1] < 0.8
+        assert beliefs[2] < 0.7
+
+    def test_mutex_weak_constraint_minimal_effect(self):
+        """Low probability = weak constraint, minimal effect on claims."""
+        fg = FactorGraph()
+        fg.add_variable(1, 0.8)  # Claim A
+        fg.add_variable(2, 0.7)  # Claim B
+        fg.add_factor(
+            edge_id=1,
+            premises=[1, 2],
+            conclusions=[],
+            probability=0.1,  # Weak constraint
+            edge_type="relation_contradiction",
+        )
+        bp = BeliefPropagation()
+        beliefs = bp.run(fg)
+        # Claims should be minimally affected
+        assert abs(beliefs[1] - 0.8) < 0.15
+        assert abs(beliefs[2] - 0.7) < 0.15
+
+    def test_mutex_stronger_penalty_with_higher_prob(self):
+        """Higher probability = stronger contradiction constraint."""
+        fg_strong = FactorGraph()
+        fg_strong.add_variable(1, 0.8)
+        fg_strong.add_variable(2, 0.7)
+        fg_strong.add_factor(1, [1, 2], [], 0.99, edge_type="relation_contradiction")
+
+        fg_weak = FactorGraph()
+        fg_weak.add_variable(1, 0.8)
+        fg_weak.add_variable(2, 0.7)
+        fg_weak.add_factor(1, [1, 2], [], 0.5, edge_type="relation_contradiction")
+
+        bp = BeliefPropagation()
+        beliefs_strong = bp.run(fg_strong)
+        beliefs_weak = bp.run(fg_weak)
+
+        # Stronger prob should cause more drop
+        assert beliefs_strong[1] < beliefs_weak[1]
+
+    def test_gate_var_strengthens_constraint_when_relation_belief_rises(self):
+        """A supported Relation belief should dynamically strengthen the constraint."""
+        fg = FactorGraph()
+        fg.add_variable(1, 0.8)  # Claim A
+        fg.add_variable(2, 0.7)  # Claim B
+        fg.add_variable(3, 0.1)  # Relation node E starts weak
+        fg.add_variable(4, 0.95)  # Support for the Relation
+        fg.add_factor(
+            edge_id=1,
+            premises=[4],
+            conclusions=[3],
+            probability=0.99,
+            edge_type="deduction",
+        )
+        fg.add_factor(
+            edge_id=2,
+            premises=[1, 2],
+            conclusions=[],
+            probability=0.1,  # fallback if gate belief is unavailable
+            edge_type="relation_contradiction",
+            gate_var=3,
+        )
+
+        control = FactorGraph()
+        control.add_variable(1, 0.8)
+        control.add_variable(2, 0.7)
+        control.add_variable(3, 0.1)
+        control.add_factor(
+            edge_id=1,
+            premises=[1, 2],
+            conclusions=[],
+            probability=0.1,
+            edge_type="relation_contradiction",
+            gate_var=3,
+        )
+
+        bp = BeliefPropagation(damping=1.0, max_iterations=50)
+        beliefs = bp.run(fg)
+        control_beliefs = bp.run(control)
+
+        assert beliefs[3] > control_beliefs[3]
+        assert beliefs[1] < control_beliefs[1]
+        assert beliefs[2] < control_beliefs[2]
+
+
+class TestRelationEquivalence:
+    """Tests for the relation_equivalence factor (no gate variable)."""
+
+    def test_equiv_pulls_beliefs_together(self):
+        """Strong equivalence constraint should pull A and B beliefs together."""
+        fg = FactorGraph()
+        fg.add_variable(1, 0.6)  # Claim A (lower evidence)
+        fg.add_variable(2, 0.9)  # Claim B (higher evidence)
+        fg.add_factor(
+            edge_id=1,
+            premises=[1, 2],
+            conclusions=[],
+            probability=0.99,
+            edge_type="relation_equivalence",
+        )
+        bp = BeliefPropagation()
+        beliefs = bp.run(fg)
+        # Beliefs should be closer together than priors
+        prior_gap = abs(0.9 - 0.6)
+        posterior_gap = abs(beliefs[2] - beliefs[1])
+        assert posterior_gap < prior_gap
+        # A should be pulled up by B's evidence
+        assert beliefs[1] > 0.6
+
+    def test_equiv_weak_constraint_minimal_effect(self):
+        """prob=0.5 = neutral equivalence (agree and disagree equally likely), minimal effect."""
+        fg = FactorGraph()
+        fg.add_variable(1, 0.6)
+        fg.add_variable(2, 0.9)
+        fg.add_factor(
+            edge_id=1,
+            premises=[1, 2],
+            conclusions=[],
+            probability=0.5,  # Neutral: agree=0.5, disagree=0.5
+            edge_type="relation_equivalence",
+        )
+        bp = BeliefPropagation()
+        beliefs = bp.run(fg)
+        assert abs(beliefs[1] - 0.6) < 0.15
+        assert abs(beliefs[2] - 0.9) < 0.15
+
+    def test_equiv_symmetric(self):
+        """Equivalence should have same effect regardless of premise order."""
+        fg1 = FactorGraph()
+        fg1.add_variable(1, 0.6)
+        fg1.add_variable(2, 0.9)
+        fg1.add_factor(1, [1, 2], [], 0.99, edge_type="relation_equivalence")
+
+        fg2 = FactorGraph()
+        fg2.add_variable(1, 0.6)
+        fg2.add_variable(2, 0.9)
+        fg2.add_factor(1, [2, 1], [], 0.99, edge_type="relation_equivalence")
+
+        bp = BeliefPropagation()
+        b1 = bp.run(fg1)
+        b2 = bp.run(fg2)
+
+        assert abs(b1[1] - b2[1]) < 0.01
+        assert abs(b1[2] - b2[2]) < 0.01
 
 
 @pytest.mark.parametrize(

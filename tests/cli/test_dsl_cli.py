@@ -42,7 +42,7 @@ async def test_inspect_cmd(capsys):
     assert "Variables: 14" in captured.out
     assert "Factors: 11" in captured.out
     assert "contradiction_chain.step_2" in captured.out
-    assert "retraction_chain.step_2" in captured.out
+    assert "tied_balls_contradiction.constraint" in captured.out
 
 
 async def test_validate_cmd(capsys):

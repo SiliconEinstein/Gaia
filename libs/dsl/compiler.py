@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
+from itertools import combinations
 
 from .models import (
     ChainExpr,
     Declaration,
+    Equivalence,
     Package,
     Ref,
+    Relation,
     StepApply,
     StepLambda,
     StepRef,
@@ -16,7 +20,7 @@ from .models import (
 
 
 # Types that participate in BP as variable nodes
-BP_VARIABLE_TYPES = {"claim", "setting"}
+BP_VARIABLE_TYPES = {"claim", "setting", "contradiction", "equivalence"}
 
 
 @dataclass
@@ -24,7 +28,7 @@ class DSLFactorGraph:
     """Factor graph built from DSL package structure.
 
     variables: name -> prior
-    factors: list of {name, premises: [name], conclusions: [name], probability}
+    factors: list of {name, premises: [name], conclusions: [name], probability, gate_var?}
     """
 
     variables: dict[str, float] = field(default_factory=dict)
@@ -72,6 +76,13 @@ def compile_factor_graph(pkg: Package) -> DSLFactorGraph:
                 continue
             _compile_chain(decl, all_decls, fg)
 
+    # Add constraint factors from Relation declarations.
+    # Iterate all_decls (not module.declarations) so that Ref aliases are handled:
+    # a Relation re-exported via Ref appears under the alias name in all_decls.
+    for name, decl in all_decls.items():
+        if isinstance(decl, Relation):
+            _compile_relation(name, decl, all_decls, fg)
+
     return fg
 
 
@@ -81,6 +92,13 @@ def _compile_chain(
     fg: DSLFactorGraph,
 ) -> None:
     """Compile a ChainExpr into factor nodes connecting variable nodes."""
+    if chain.edge_type is not None:
+        warnings.warn(
+            f"ChainExpr.edge_type is deprecated. Use Relation declarations instead. "
+            f"Chain '{chain.name}' uses edge_type='{chain.edge_type}'.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
     steps = chain.steps
     for i, step in enumerate(steps):
         if isinstance(step, (StepApply, StepLambda)):
@@ -123,3 +141,62 @@ def _compile_chain(
                         "edge_type": chain.edge_type or "deduction",
                     }
                 )
+
+
+def _compile_relation(
+    var_name: str,
+    rel: Relation,
+    all_decls: dict[str, Declaration],
+    fg: DSLFactorGraph,
+) -> None:
+    """Compile a Relation into constraint factor(s) connecting related claims.
+
+    Uses *var_name* (which may be a Ref alias) instead of ``rel.name``
+    so that re-exported Relations are matched correctly against ``fg.variables``.
+
+    Equivalence relations with 3+ members are decomposed into pairwise
+    constraint factors (one per pair), since the BP potential is binary.
+    Contradiction uses an n-ary all-true penalty and needs no decomposition.
+    """
+    # Only create constraint if the Relation itself is a variable node (exported)
+    if var_name not in fg.variables:
+        return
+
+    related_vars = [name for name in rel.between if name in fg.variables]
+    if len(related_vars) < 2:
+        return
+
+    edge_type = f"relation_{rel.type}"
+    prob = rel.prior if rel.prior is not None else 0.5
+
+    # Relation variable is NOT included in the constraint factor.
+    # Instead, the factor stores a read-only gate_var reference so BP can use the
+    # Relation's current belief as the effective constraint strength without sending
+    # messages back into the gate.
+    # probability stores the initial / fallback strength (the Relation prior).
+
+    if isinstance(rel, Equivalence) and len(related_vars) > 2:
+        # Decompose n-ary equivalence into pairwise constraints.
+        # equiv(a,b,c) → factors for (a,b), (a,c), (b,c).
+        for i, (v1, v2) in enumerate(combinations(related_vars, 2)):
+            fg.factors.append(
+                {
+                    "name": f"{var_name}.constraint.{i}",
+                    "premises": [v1, v2],
+                    "conclusions": [],
+                    "probability": prob,
+                    "edge_type": edge_type,
+                    "gate_var": var_name,
+                }
+            )
+    else:
+        fg.factors.append(
+            {
+                "name": f"{var_name}.constraint",
+                "premises": related_vars,
+                "conclusions": [],
+                "probability": prob,
+                "edge_type": edge_type,
+                "gate_var": var_name,
+            }
+        )

@@ -84,29 +84,51 @@ def test_indirect_dependency_excluded_from_edges():
     assert "thought_experiment_env" not in factor.get("premises", [])
 
 
-def test_contradiction_edge_captures_two_mutually_exclusive_predictions():
+def test_contradiction_relation_creates_constraint_factor():
+    """The Contradiction relation on tied_balls_contradiction should produce
+    a relation_contradiction constraint factor linking the two predictions."""
     pkg = load_package(FIXTURE_DIR)
     pkg = resolve_refs(pkg)
     fg = compile_factor_graph(pkg)
 
-    contradiction = next(f for f in fg.factors if f["name"] == "contradiction_chain.step_2")
-    assert contradiction["edge_type"] == "contradiction"
-    assert set(contradiction["premises"]) == {
+    constraint = next(f for f in fg.factors if f["name"] == "tied_balls_contradiction.constraint")
+    assert constraint["edge_type"] == "relation_contradiction"
+    assert set(constraint["premises"]) == {
         "tied_pair_slower_than_heavy",
         "tied_pair_faster_than_heavy",
     }
-    assert contradiction["conclusions"] == ["tied_balls_contradiction"]
+    # Relation variable excluded from constraint to avoid feedback loop
+    assert constraint["conclusions"] == []
+    assert constraint["probability"] == 0.6  # Uses Relation's prior as strength
 
 
-def test_retraction_edge_pushes_back_on_aristotle_law():
+def test_contradiction_chain_is_now_deduction():
+    """After refactoring, the contradiction_chain no longer has edge_type;
+    it should default to deduction."""
     pkg = load_package(FIXTURE_DIR)
     pkg = resolve_refs(pkg)
     fg = compile_factor_graph(pkg)
 
-    retraction = next(f for f in fg.factors if f["name"] == "retraction_chain.step_2")
-    assert retraction["edge_type"] == "retraction"
-    assert retraction["premises"] == ["tied_balls_contradiction"]
-    assert retraction["conclusions"] == ["heavier_falls_faster"]
+    chain_factor = next(f for f in fg.factors if f["name"] == "contradiction_chain.step_2")
+    assert chain_factor["edge_type"] == "deduction"
+    assert set(chain_factor["premises"]) == {
+        "tied_pair_slower_than_heavy",
+        "tied_pair_faster_than_heavy",
+    }
+    assert chain_factor["conclusions"] == ["tied_balls_contradiction"]
+
+
+def test_retract_action_replaces_retraction_chain():
+    """The old retraction_chain should no longer exist; retract_aristotle
+    is a RetractAction declaration (not a ChainExpr), so it produces no factor."""
+    pkg = load_package(FIXTURE_DIR)
+    pkg = resolve_refs(pkg)
+    fg = compile_factor_graph(pkg)
+
+    factor_names = {f["name"] for f in fg.factors}
+    assert "retraction_chain.step_2" not in factor_names
+    # The retract_action is a declaration, not a chain — no factor produced
+    assert not any(n.startswith("retract_aristotle") for n in factor_names)
 
 
 def test_question_excluded_from_factor_graph():

@@ -102,8 +102,11 @@ declarations:
       复合体 HL 总重量大于单独的重球 H，下落速度应快于 H。
     prior: 0.5
 
-  - type: claim
+  - type: contradiction
     name: tied_balls_contradiction
+    between:
+      - tied_pair_slower_than_heavy
+      - tied_pair_faster_than_heavy
     content: >
       同一定律对同一绑球系统同时预测"更慢"和"更快"，自相矛盾。
     prior: 0.6
@@ -187,7 +190,6 @@ declarations:
 
   - type: chain_expr
     name: contradiction_chain
-    edge_type: contradiction
     steps:
       - step: 1
         ref: tied_pair_slower_than_heavy
@@ -202,20 +204,15 @@ declarations:
       - step: 3
         ref: tied_balls_contradiction
 
-  - type: chain_expr
-    name: retraction_chain
-    edge_type: retraction
-    steps:
-      - step: 1
-        ref: tied_balls_contradiction
-      - step: 2
-        lambda: >
-          既然同一条亚里士多德定律在同一个绑球设定中推出了互不相容的结果，
-          那么应当被削弱的是原定律本身，而不是这个思想实验。
-          该矛盾直接回传，降低“重者下落更快”的可信度。
-        prior: 0.96
-      - step: 3
-        ref: heavier_falls_faster
+  - type: retract_action
+    name: retract_aristotle
+    target: heavier_falls_faster
+    reason: tied_balls_contradiction
+    content: >
+      既然同一条亚里士多德定律在同一个绑球设定中推出了互不相容的结果，
+      那么应当被削弱的是原定律本身，而不是这个思想实验。
+      该矛盾直接回传，降低”重者下落更快”的可信度。
+    prior: 0.96
 
   - type: chain_expr
     name: verdict_chain

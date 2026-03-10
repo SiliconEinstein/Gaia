@@ -24,6 +24,19 @@ def test_add_factor():
     assert fg.factors[0]["edge_type"] == "induction"
 
 
+def test_add_factor_with_gate_var():
+    fg = FactorGraph()
+    fg.add_factor(
+        edge_id=100,
+        premises=[1, 2],
+        conclusions=[],
+        probability=0.8,
+        edge_type="relation_contradiction",
+        gate_var=3,
+    )
+    assert fg.factors[0]["gate_var"] == 3
+
+
 def test_from_subgraph():
     nodes = [
         Node(id=1, type="paper-extract", content="p1", prior=0.9),

@@ -71,13 +71,13 @@ async def test_execute_calls_lambda():
     executor = MockExecutor()
     await execute_package(pkg, executor)
 
-    # The Galileo story also uses 7 one-off lambda steps for narrative pivots.
+    # The Galileo story uses 6 one-off lambda steps for narrative pivots
+    # (retraction_chain was replaced by a RetractAction, removing one lambda).
     lambda_calls = [c for c in executor.calls if c["type"] == "lambda"]
-    assert len(lambda_calls) == 7
+    assert len(lambda_calls) == 6
     contents = "\n".join(c["content"] for c in lambda_calls)
     assert "归纳成一条普遍规律" in contents
     assert "复合体 HL 总重量大于单独的重球 H" in contents
-    assert "降低“重者下落更快”的可信度" in contents
     assert "自由落体的普遍真理" in contents
     assert "外部阻力效应" in contents
     assert "斜面实验把自由落体减慢到可测量尺度后" in contents

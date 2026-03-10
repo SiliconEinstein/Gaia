@@ -81,7 +81,8 @@ def test_elaborate_covers_all_apply_and_lambda_steps():
     pkg = load_package(FIXTURE_PATH)
     pkg = resolve_refs(pkg)
     result = elaborate_package(pkg)
-    assert len(result.prompts) >= 11
+    # After refactoring: retraction_chain removed (-1 lambda), so 10 prompts total
+    assert len(result.prompts) >= 10
 
 
 def test_chain_contexts_populated():
@@ -95,13 +96,14 @@ def test_chain_contexts_populated():
 
 
 def test_chain_context_edge_type():
-    """contradiction_chain should have edge_type='contradiction'."""
+    """After refactoring, contradiction_chain has no edge_type (defaults to deduction).
+    Contradiction semantics now come from the Relation constraint factor."""
     pkg = load_package(FIXTURE_PATH)
     pkg = resolve_refs(pkg)
     result = elaborate_package(pkg)
     ctx = result.chain_contexts["contradiction_chain"]
-    assert ctx["edge_type"] == "contradiction"
-    # Default edge_type should be 'deduction'
+    assert ctx["edge_type"] == "deduction"
+    # drag_prediction_chain should also default to 'deduction'
     ctx_drag = result.chain_contexts["drag_prediction_chain"]
     assert ctx_drag["edge_type"] == "deduction"
 

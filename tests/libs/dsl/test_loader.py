@@ -44,12 +44,15 @@ def test_declarations_parsed():
         counts[decl.type] = counts.get(decl.type, 0) + 1
 
     # The richer Galileo fixture should contain:
-    # 4 refs, 4 reusable infer actions, 10 explicit claims, 9 chain expressions.
+    # 4 refs, 4 reusable infer actions, 9 explicit claims, 8 chain expressions,
+    # 1 contradiction relation, 1 retract_action.
     assert counts == {
         "ref": 4,
         "infer_action": 4,
-        "claim": 10,
-        "chain_expr": 9,
+        "claim": 9,
+        "chain_expr": 8,
+        "contradiction": 1,
+        "retract_action": 1,
     }
 
 
@@ -81,7 +84,8 @@ def test_chain_expr_steps():
     chain = next(d for d in reasoning.declarations if d.name == "contradiction_chain")
     assert isinstance(chain, ChainExpr)
     assert len(chain.steps) == 3
-    assert chain.edge_type == "contradiction"
+    # After refactoring, contradiction_chain has no edge_type (defaults to deduction)
+    assert chain.edge_type is None
     # Step 1: ref
     assert chain.steps[0].ref == "tied_pair_slower_than_heavy"
     # Step 2: apply with args

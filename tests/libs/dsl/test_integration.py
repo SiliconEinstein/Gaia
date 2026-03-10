@@ -34,9 +34,9 @@ async def test_galileo_full_pipeline():
         "Final prediction should be updated from prior"
     )
 
-    # The graph should explicitly contain contradiction and retraction semantics.
+    # The graph should contain deduction chains and a relation_contradiction constraint.
     edge_types = {f["edge_type"] for f in result.factor_graph.factors}
-    assert {"deduction", "contradiction", "retraction"} <= edge_types
+    assert {"deduction", "relation_contradiction"} <= edge_types
 
     # Summary
     summary = result.inspect()
