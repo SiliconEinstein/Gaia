@@ -237,14 +237,14 @@ class KuzuGraphStore(GraphStore):
         Non-existent closures are silently ignored.
         """
         loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, partial(self._update_beliefs_sync, snapshots))
+
+    def _update_beliefs_sync(self, snapshots: list[BeliefSnapshot]) -> None:
+        """Synchronous implementation of update_beliefs."""
         for snap in snapshots:
-            await loop.run_in_executor(
-                None,
-                partial(
-                    self._conn.execute,
-                    "MATCH (cl:Closure {closure_id: $cid}) SET cl.belief = $belief",
-                    {"cid": snap.closure_id, "belief": snap.belief},
-                ),
+            self._conn.execute(
+                "MATCH (cl:Closure {closure_id: $cid}) SET cl.belief = $belief",
+                {"cid": snap.closure_id, "belief": snap.belief},
             )
 
     async def update_probability(self, chain_id: str, step_index: int, value: float) -> None:
@@ -572,5 +572,7 @@ class KuzuGraphStore(GraphStore):
     # ── Lifecycle ──
 
     async def close(self) -> None:
-        """Release the Kùzu connection."""
-        self._conn.close()
+        """Release the Kùzu connection (idempotent)."""
+        if self._conn is not None:
+            self._conn.close()
+            self._conn = None

@@ -209,13 +209,18 @@ class TestUpdateBeliefs:
         await graph_store.write_topology(closures, chains)
         await graph_store.update_beliefs(beliefs)
 
-        # Check the last belief written for each closure_id
+        # Last write wins for each closure_id
+        expected: dict[str, float] = {}
         for snap in beliefs:
-            result = graph_store._execute(
-                f"MATCH (cl:Closure {{closure_id: '{snap.closure_id}'}}) RETURN cl.belief"
+            expected[snap.closure_id] = snap.belief
+
+        for cid, expected_belief in expected.items():
+            result = graph_store._conn.execute(
+                "MATCH (cl:Closure {closure_id: $cid}) RETURN cl.belief",
+                {"cid": cid},
             )
-            row = result.get_next()
-            assert row[0] is not None
+            if result.has_next():
+                assert result.get_next()[0] == pytest.approx(expected_belief)
 
     async def test_update_beliefs_nonexistent_closure(
         self,
