@@ -191,19 +191,13 @@ Recommended default:
 
 ### 3.3 Server surface
 
-The server should use the same conceptual phases internally:
+The server should use the same conceptual phases internally, but the concrete lifecycle, transport shape, and externally visible status model are defined in [../server/architecture.md](../server/architecture.md).
 
-```text
-validate
--> compile package
--> construct package environment
--> align package against shared knowledge
--> review package in aligned context
--> integrate
--> authoritative BP/update
-```
+From the perspective of this document, the only server requirement is semantic reuse:
 
-External API design may expose that as one submit endpoint or multiple status endpoints, but the domain model should keep those phases distinct.
+- server-side preparation still follows `compile -> context -> align -> review`
+- server-side integration happens only after those phases
+- server-side authoritative BP remains downstream of integration
 
 ---
 
@@ -435,15 +429,14 @@ Bare `gaia build` is a shortcut over steps 1-3.
 
 ### 6.4 Server runner
 
-The server runner should:
+Server-specific orchestration is defined in [../server/architecture.md](../server/architecture.md).
 
-1. accept submitted packages
-2. compile the submitted package
-3. construct the package environment against shared registry state
-4. align the package in that environment
-5. review the package in aligned context
-6. persist build/review outputs
-7. gate integration and downstream workflows
+At the contract level, the server runner must:
+
+1. reuse the same `compile_package`, `build_context`, `align_package`, and `review_package` semantics
+2. run those phases against shared registry state rather than local preview state
+3. persist the resulting artifacts or summaries as part of server-side ingestion
+4. gate integration and downstream workflows based on those outputs
 
 ### 6.5 Legacy server pipeline mapping
 
@@ -706,19 +699,14 @@ workspace
 
 ### 10.2 Server publish loop
 
-The target server loop is:
+The target server publish loop is intentionally specified in [../server/architecture.md](../server/architecture.md), not duplicated here.
 
-```text
-submit package
--> validate
--> compile package
--> construct package environment
--> align package against shared knowledge
--> review package in aligned context
--> integrate
--> authoritative BP/update
--> result
-```
+From the review architecture perspective, publish only requires that the server:
+
+- rebuild preparation against shared state
+- run authoritative alignment and review
+- integrate only after those phases succeed
+- run larger-scope BP after integration
 
 ---
 
