@@ -209,3 +209,61 @@ class TestBPBulkLoad:
     async def test_list_chains_empty(self, content_store):
         result = await content_store.list_chains()
         assert result == []
+
+
+class TestFullFixtureRoundtrip:
+    async def test_full_roundtrip(
+        self,
+        content_store,
+        packages,
+        modules,
+        closures,
+        chains,
+        probabilities,
+        beliefs,
+        resources,
+        attachments,
+    ):
+        # Write all fixture data
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_closures(closures)
+        await content_store.write_chains(chains)
+        await content_store.write_probabilities(probabilities)
+        await content_store.write_belief_snapshots(beliefs)
+        await content_store.write_resources(resources, attachments)
+
+        # Verify counts
+        all_closures = await content_store.list_closures()
+        assert len(all_closures) == 6
+        all_chains = await content_store.list_chains()
+        assert len(all_chains) == 2
+
+        # Verify cross-references
+        pkg = await content_store.get_package("galileo_falling_bodies")
+        assert pkg is not None
+        mod = await content_store.get_module("galileo_falling_bodies.reasoning")
+        assert mod is not None
+        chains_for_mod = await content_store.get_chains_by_module(mod.module_id)
+        assert len(chains_for_mod) == 2
+
+        # Verify probability history
+        prob_history = await content_store.get_probability_history(
+            "galileo_falling_bodies.reasoning.verdict_chain"
+        )
+        assert len(prob_history) == 3
+
+        # Verify belief history
+        belief_history = await content_store.get_belief_history(
+            "galileo_falling_bodies.reasoning.heavier_falls_faster"
+        )
+        assert len(belief_history) >= 1
+
+        # Verify BM25 search
+        search_results = await content_store.search_bm25("heavier objects fall faster", top_k=10)
+        assert len(search_results) >= 1
+
+        # Verify resources
+        res = await content_store.get_resources_for(
+            "closure", "galileo_falling_bodies.reasoning.contradiction_result"
+        )
+        assert len(res) == 1
