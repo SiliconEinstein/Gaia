@@ -25,7 +25,7 @@ def test_contradiction_compiles_to_variable_node():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_a, claim_b, contra],
+        knowledge=[claim_a, claim_b, contra],
         export=["a", "b", "a_contradicts_b"],
     )
     pkg = Package(name="test", modules=["m"])
@@ -50,7 +50,7 @@ def test_equivalence_compiles_to_variable_node():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_x, claim_y, equiv],
+        knowledge=[claim_x, claim_y, equiv],
         export=["x", "y", "x_equiv_y"],
     )
     pkg = Package(name="test", modules=["m"])
@@ -73,7 +73,7 @@ def test_contradiction_generates_constraint_factor():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_a, claim_b, contra],
+        knowledge=[claim_a, claim_b, contra],
         export=["a", "b", "a_contradicts_b"],
     )
     pkg = Package(name="test", modules=["m"])
@@ -102,7 +102,7 @@ def test_equivalence_generates_constraint_factor():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_x, claim_y, equiv],
+        knowledge=[claim_x, claim_y, equiv],
         export=["x", "y", "x_equiv_y"],
     )
     pkg = Package(name="test", modules=["m"])
@@ -138,7 +138,7 @@ def test_relation_with_chain_produces_both_factors():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_a, claim_b, contra, chain],
+        knowledge=[claim_a, claim_b, contra, chain],
         export=["a", "b", "contra"],
     )
     pkg = Package(name="test", modules=["m"])
@@ -168,7 +168,7 @@ def test_non_exported_relation_excluded():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_a, claim_b, contra],
+        knowledge=[claim_a, claim_b, contra],
         export=["a", "b"],  # contra NOT exported
     )
     pkg = Package(name="test", modules=["m"])
@@ -197,7 +197,7 @@ def test_edge_type_emits_deprecation_warning():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_a, claim_b, chain],
+        knowledge=[claim_a, claim_b, chain],
         export=["a", "b"],
     )
     pkg = Package(name="test_deprecated", modules=["m"])
@@ -227,7 +227,7 @@ def test_ref_alias_relation_gets_constraint():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_a, claim_b, contra, ref_alias],
+        knowledge=[claim_a, claim_b, contra, ref_alias],
         export=["a", "b", "c"],  # Only alias exported, not c0
     )
     pkg = Package(name="test", modules=["m"])
@@ -260,7 +260,7 @@ def test_equivalence_nary_decomposes_to_pairwise():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_a, claim_b, claim_c, equiv],
+        knowledge=[claim_a, claim_b, claim_c, equiv],
         export=["a", "b", "c", "abc_equiv"],
     )
     pkg = Package(name="test", modules=["m"])
@@ -294,7 +294,7 @@ def test_equivalence_binary_no_decomposition():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_x, claim_y, equiv],
+        knowledge=[claim_x, claim_y, equiv],
         export=["x", "y", "xy_equiv"],
     )
     pkg = Package(name="test", modules=["m"])

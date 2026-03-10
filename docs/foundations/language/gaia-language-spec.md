@@ -298,16 +298,16 @@ Each module file is a YAML document with:
 
 - required `type`
 - required `name`
-- optional `declarations` (defaults to empty; a module with no declarations is structurally valid)
+- optional `knowledge` (defaults to empty; a module with no knowledge objects is structurally valid)
 - optional `export`
 
-Reasoning is expressed inside `declarations` via `chain_expr`.
+Reasoning is expressed inside `knowledge` via `chain_expr`.
 
 Gaia Language does not currently use a top-level module `chains:` key. Any simplified example that suggests otherwise should be treated as explanatory shorthand rather than normative syntax.
 
-### Declaration surface
+### Knowledge surface
 
-The current declaration kinds on `main` are:
+The current knowledge kinds on `main` are:
 
 - `claim`
 - `question`
@@ -323,11 +323,11 @@ The current declaration kinds on `main` are:
 - `apply`
 - `lambda`
 
-These are the shapes consumed by the current loader and runtime. The loader also accepts declaration types not in this list — unknown types are loaded as generic `Knowledge` objects so the LLM runtime can interpret their semantics during build and review.
+These are the shapes consumed by the current loader and runtime. The loader also accepts knowledge types not in this list — unknown types are loaded as generic `Knowledge` objects so the LLM runtime can interpret their semantics during build and review.
 
 ## Conformance and Well-Formedness
 
-Gaia uses an LLM as its runtime CPU. This means conformance should be **structurally strict but semantically permissive**: the loader enforces file-level and graph-compilation constraints that an LLM cannot self-heal, while semantic interpretation of declaration content and unknown types is intentionally left to the LLM runtime.
+Gaia uses an LLM as its runtime CPU. This means conformance should be **structurally strict but semantically permissive**: the loader enforces file-level and graph-compilation constraints that an LLM cannot self-heal, while semantic interpretation of knowledge content and unknown types is intentionally left to the LLM runtime.
 
 ### Runtime-enforced conformance on current `main`
 
@@ -336,7 +336,7 @@ A package is ill-formed for the current runtime if any of the following hold:
 - `package.yaml` is missing
 - a module listed in `package.yaml.modules` does not have a matching `<module>.yaml` file
 - a `chain_expr` step is not one of `ref`, `apply`, or `lambda` (these are compiled into a factor graph for BP)
-- a `ref.target` cannot be resolved to a non-`ref` declaration using `module_name.declaration_name`
+- a `ref.target` cannot be resolved to a non-`ref` knowledge object using `module_name.knowledge_name`
 
 These are structural constraints — they block loading or factor-graph compilation and cannot be recovered by LLM interpretation.
 
@@ -344,9 +344,9 @@ These are structural constraints — they block loading or factor-graph compilat
 
 The following are intentionally accepted by the current runtime:
 
-- declaration types not in `KNOWLEDGE_TYPE_MAP` — loaded as generic `Knowledge` objects and interpreted by the LLM during build/review
+- knowledge types not in `KNOWLEDGE_TYPE_MAP` — loaded as generic `Knowledge` objects and interpreted by the LLM during build/review
 - packages with an empty `modules` list
-- modules with an empty `declarations` list
+- modules with an empty `knowledge` list
 
 This permissiveness is a design choice: since the LLM runtime can understand author intent from content and context, the loader should not reject valid-looking YAML that simply uses unfamiliar type names.
 
@@ -354,11 +354,11 @@ This permissiveness is a design choice: since the LLM runtime can understand aut
 
 The following should be treated as language-level quality rules even where the current runtime does not reject them:
 
-- declaration names should be unique within a module
-- exported names should refer to declarations that actually exist in the package
+- knowledge object names should be unique within a module
+- exported names should refer to knowledge objects that actually exist in the package
 - package/module naming should avoid ambiguity between local aliases and resolved targets
 - package examples in docs should use the same surface as the real loader
-- unknown declaration types should be documented in the module or package manifest when used intentionally
+- unknown knowledge types should be documented in the module or package manifest when used intentionally
 
 ## Operational Semantics Boundary
 
@@ -420,9 +420,9 @@ Gaia's goals require traceability even before first-class evidence/object kinds 
 
 Current rule:
 
-- authored knowledge lives in declarations and `chain_expr`
+- authored knowledge lives in `knowledge` and `chain_expr`
 - review and belief outputs stay in sidecars or runtime outputs
-- provenance, citations, and external resources may be attached via declaration `metadata`
+- provenance, citations, and external resources may be attached via knowledge-object `metadata`
 
 Deferred for later language versions:
 

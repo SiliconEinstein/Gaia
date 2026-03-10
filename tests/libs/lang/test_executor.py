@@ -133,7 +133,7 @@ async def test_execute_missing_action_skips():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_in, claim_out, chain],
+        knowledge=[claim_in, claim_out, chain],
         export=[],
     )
     pkg = Package(name="test_missing_action", modules=["m"])
@@ -163,7 +163,7 @@ async def test_execute_preserves_nonempty_target():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_in, claim_out, chain],
+        knowledge=[claim_in, claim_out, chain],
         export=[],
     )
     pkg = Package(name="test_preserve", modules=["m"])
@@ -200,7 +200,7 @@ async def test_execute_dispatches_toolcall_to_execute_tool():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[tool_action, claim_in, claim_out, chain],
+        knowledge=[tool_action, claim_in, claim_out, chain],
         export=["ball", "measurement"],
     )
     pkg = Package(name="test_tool", modules=["m"])
@@ -243,7 +243,7 @@ async def test_execute_toolcall_uses_action_name_when_tool_is_none():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[tool_action, claim_in, claim_out, chain],
+        knowledge=[tool_action, claim_in, claim_out, chain],
         export=["material", "density_result"],
     )
     pkg = Package(name="test_tool_fallback", modules=["m"])
@@ -288,7 +288,7 @@ async def test_execute_topo_sorts_chains():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[claim_a, claim_b, claim_c, chain_2, chain_1],
+        knowledge=[claim_a, claim_b, claim_c, chain_2, chain_1],
         export=["a", "b", "c"],
     )
     pkg = Package(name="test_topo", modules=["m"])
@@ -325,7 +325,7 @@ async def test_infer_action_still_uses_execute_infer():
     mod = Module(
         type="reasoning_module",
         name="m",
-        declarations=[infer_action, claim_in, claim_out, chain],
+        knowledge=[infer_action, claim_in, claim_out, chain],
         export=["premise", "conclusion"],
     )
     pkg = Package(name="test_infer_regression", modules=["m"])

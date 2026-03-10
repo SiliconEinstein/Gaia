@@ -115,7 +115,7 @@ Each package is a git repo with this structure:
 galileo_tied_balls/              # = 1 git repo = 1 knowledge package
 ├── package.yaml                 # manifest (name, version, modules list)
 ├── gaia.lock                    # (deferred) cross-package dependency lock
-├── aristotle_physics.yaml       # per-module YAML — declarations + chains
+├── aristotle_physics.yaml       # per-module YAML — knowledge objects + chains
 ├── thought_experiment.yaml
 ├── ...
 └── .gaia/                       # build artifacts (git-ignored)
@@ -124,13 +124,13 @@ galileo_tied_balls/              # = 1 git repo = 1 knowledge package
     └── ...
 ```
 
-Module YAML with declarations, including `chain_expr` reasoning:
+Module YAML with knowledge objects, including `chain_expr` reasoning:
 
 ```yaml
 type: reasoning_module
 name: reasoning
 
-declarations:
+knowledge:
   - type: ref
     name: heavier_falls_fast
     target: aristotle.heavier_falls_faster

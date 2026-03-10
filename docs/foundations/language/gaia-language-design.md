@@ -86,9 +86,9 @@ Knowledge                              (root type)
 - **ChainExpr**: linear pipeline connected by `=>`. The simplest form of composition.
 - Future subtypes may include BranchExpr, DAGExpr, etc. for more complex reasoning structures.
 
-**Ref** — a reference to knowledge declared in another module. Replaces the traditional `import` statement. Since Ref is a Knowledge type, imports are just declarations like any other knowledge object.
+**Ref** — a reference to knowledge declared in another module. Replaces the traditional `import` statement. Since Ref is a Knowledge type, imports are just knowledge objects like any other entry.
 
-**Module** — a composite knowledge unit that groups declarations and exports. Modules have a type describing their purpose (ReasoningModule, SettingModule, etc.) rather than a separate "role" field.
+**Module** — a composite knowledge unit that groups knowledge objects and exports. Modules have a type describing their purpose (ReasoningModule, SettingModule, etc.) rather than a separate "role" field.
 
 ### Key type distinctions
 
@@ -97,7 +97,7 @@ Knowledge                              (root type)
 | Truth-apt? | Yes | **No** | Yes | No | No | No | No |
 | Participates in BP? | Yes | No | Yes | Via application | Via steps | Via dependency | Via exports |
 | Can be "called"? | No | No | No | **Yes** | **Yes** | No | Deferred |
-| Has internal structure? | No | No | No | No | **Yes** (steps) | No | **Yes** (declarations) |
+| Has internal structure? | No | No | No | No | **Yes** (steps) | No | **Yes** (knowledge objects) |
 
 ### Subtyping rules
 
@@ -134,7 +134,7 @@ chain_expr main_derivation := premise => contrastive_analysis(premise) => conclu
 
 ref premise := env_module.premise
 
-reasoning_module main := <declarations...> export conclusion
+reasoning_module main := <knowledge...> export conclusion
 ```
 
 ### Immutability
@@ -276,7 +276,7 @@ Future Expr subtypes (BranchExpr, DAGExpr) may provide explicit branching syntax
 
 ### Definition
 
-A Module is a Knowledge type (subtype of Knowledge) that groups declarations, manages references, and provides scoping. Its "type" describes its purpose (replacing the earlier "role" concept):
+A Module is a Knowledge type (subtype of Knowledge) that groups knowledge objects, manages references, and provides scoping. Its "type" describes its purpose (replacing the earlier "role" concept):
 
 ```
 reasoning_module main:
@@ -291,9 +291,9 @@ reasoning_module main:
   export conclusion
 ```
 
-### Imports as Ref declarations
+### Imports as Ref knowledge objects
 
-There is no separate import syntax. Imports are `ref` type declarations within a module:
+There is no separate import syntax. Imports are `ref` knowledge objects within a module:
 
 ```
 ref premise := env_module.premise           -- reference to external knowledge
@@ -475,7 +475,7 @@ dependencies:
 type: reasoning_module
 name: reasoning
 
-declarations:
+knowledge:
   # Ref — reference to external knowledge
   - type: ref
     name: premise
@@ -550,7 +550,7 @@ steps:
 
 | Abstract Syntax | YAML representation |
 |----------------|---------------------|
-| `Type Name Body` | `type: xxx`, `name: xxx`, `content/steps/target/declarations: ...` |
+| `Type Name Body` | `type: xxx`, `name: xxx`, `content/steps/target/knowledge: ...` |
 | `KnowledgeRef` | `ref: name` |
 | `Application` | `apply: name`, `args: [...]` |
 | `Lambda` | `lambda: "text"` |
@@ -636,7 +636,7 @@ The following questions have been resolved:
 2. **Declaration unified or split?** -> Unified. One Knowledge form, Body distinguishes types.
 3. **Module role or type?** -> Type. Module is a Knowledge type (ReasoningModule, SettingModule, etc.).
 4. **Expression: structural element or type?** -> Type. Expr is a Knowledge base type, ChainExpr is a subtype of Expr under Action's sibling.
-5. **Import: separate syntax or Ref type?** -> Ref type. Imports are `ref` declarations, not a separate syntactic construct.
+5. **Import: separate syntax or Ref type?** -> Ref type. Imports are `ref` knowledge objects, not a separate syntactic construct.
 6. **Lambda: traditional or pipe-implicit?** -> Pipe-implicit single-parameter anonymous function.
 7. **Strong/weak: on Ref or on usage?** -> On usage. `dependency: direct/indirect` annotated at the point of use (in Application args).
 8. **Strong/weak naming?** -> `direct` / `indirect`. More descriptive than strong/weak.

@@ -3,7 +3,7 @@
 type: setting_module
 name: setting
 
-declarations:
+knowledge:
   - type: setting
     name: thought_experiment_env
     content: >

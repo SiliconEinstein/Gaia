@@ -102,7 +102,7 @@ Its outputs should be review sidecars and local audit results.
 
 ### Stage 3.5: Inferred Package
 
-`gaia infer` compiles the factor graph from build/review outputs and runs local belief propagation to compute self-consistent belief scores across all declarations.
+`gaia infer` compiles the factor graph from build/review outputs and runs local belief propagation to compute self-consistent belief scores across all knowledge objects.
 
 This stage is shipped. It sits between review and verify in the lifecycle.
 
@@ -358,7 +358,7 @@ Gaia's intended model is instead:
 |---|---|---|---|---|---|
 | `build` | normalization | deterministic | grounded local core | "Is the package structurally valid and explicit?" | shipped |
 | `review` | audit | model-dependent | review sidecars and scores | "How credible is the reasoning?" | shipped |
-| `infer` | belief propagation | deterministic | belief scores on declarations | "What should we believe given the reasoning structure?" | shipped |
+| `infer` | belief propagation | deterministic | belief scores on knowledge objects | "What should we believe given the reasoning structure?" | shipped |
 | `verify` | reproduction | execution-dependent | verification evidence | "Does the executable/reproducible claim actually hold?" | future |
 | `publish` | handoff | protocol-driven | shared package submission | "Is this package ready for independent shared review?" | shipped |
 
@@ -367,7 +367,7 @@ Gaia's intended model is instead:
 For the target agentic research use case, the current shipped flow is:
 
 1. work privately in local workspace
-2. author YAML modules (declarations + chains)
+2. author YAML modules (knowledge objects + chains)
 3. run `gaia build` — structural validation, ref resolution, per-module Markdown
 4. run `gaia review` — LLM critique of reasoning chains
 5. run `gaia infer` — local belief propagation over the factor graph

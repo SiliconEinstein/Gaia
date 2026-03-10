@@ -1,4 +1,4 @@
-"""Resolve Ref declarations to their target knowledge objects."""
+"""Resolve Ref knowledge objects to their target knowledge objects."""
 
 from __future__ import annotations
 
@@ -10,12 +10,12 @@ class ResolveError(Exception):
 
 
 def resolve_refs(pkg: Package) -> Package:
-    """Resolve all Ref declarations in the package.
+    """Resolve all Ref knowledge objects in the package.
 
     Builds a knowledge index (module.name -> Knowledge),
     then links each Ref._resolved to its target Knowledge object.
     """
-    # Build index: "module_name.decl_name" -> Knowledge
+    # Build index: "module_name.knowledge_name" -> Knowledge
     index: dict[str, Knowledge] = {}
     for module in pkg.loaded_modules:
         for decl in module.knowledge:
