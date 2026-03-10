@@ -8,7 +8,7 @@
 type: reasoning_module
 name: reasoning
 
-declarations:
+knowledge:
   # === 引用外部知识 ===
   - type: ref
     name: heavier_falls_faster

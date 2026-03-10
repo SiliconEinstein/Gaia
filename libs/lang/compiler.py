@@ -76,7 +76,7 @@ def compile_factor_graph(pkg: Package) -> CompiledFactorGraph:
                 continue
             _compile_chain(decl, all_decls, fg)
 
-    # Add constraint factors from Relation declarations.
+    # Add constraint factors from Relation knowledge objects.
     # Iterate all_decls (not module.knowledge) so that Ref aliases are handled:
     # a Relation re-exported via Ref appears under the alias name in all_decls.
     for name, decl in all_decls.items():
@@ -94,7 +94,7 @@ def _compile_chain(
     """Compile a ChainExpr into factor nodes connecting variable nodes."""
     if chain.edge_type is not None:
         warnings.warn(
-            f"ChainExpr.edge_type is deprecated. Use Relation declarations instead. "
+            f"ChainExpr.edge_type is deprecated. Use Relation knowledge objects instead. "
             f"Chain '{chain.name}' uses edge_type='{chain.edge_type}'.",
             DeprecationWarning,
             stacklevel=2,

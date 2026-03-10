@@ -3,7 +3,7 @@
 type: reasoning_module
 name: aristotle
 
-declarations:
+knowledge:
   - type: claim
     name: heavier_falls_faster
     content: >

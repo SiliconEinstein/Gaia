@@ -448,7 +448,7 @@ def init_cmd(
     mod_data = {
         "type": "motivation_module",
         "name": "motivation",
-        "declarations": [
+        "knowledge": [
             {
                 "type": "question",
                 "name": "main_question",

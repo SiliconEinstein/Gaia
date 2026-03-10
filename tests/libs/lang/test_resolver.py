@@ -55,8 +55,8 @@ def test_resolve_undefined_ref_raises():
         resolve_refs(pkg)
 
 
-def test_build_declaration_index():
-    """All declarations should be findable by module.name path."""
+def test_build_knowledge_index():
+    """All knowledge objects should be findable by module.name path."""
     pkg = load_package(FIXTURE_DIR)
     resolved = resolve_refs(pkg)
     # Check that we can look up any exported declaration
@@ -91,13 +91,13 @@ def test_resolve_ref_to_ref_raises():
     mod_a = Module(
         type="reasoning_module",
         name="a",
-        declarations=[Ref(name="x", target="b.y")],
+        knowledge=[Ref(name="x", target="b.y")],
         export=["x"],
     )
     mod_b = Module(
         type="reasoning_module",
         name="b",
-        declarations=[Ref(name="y", target="a.x")],
+        knowledge=[Ref(name="y", target="a.x")],
         export=["y"],
     )
     pkg = Package(name="circular_refs", modules=["a", "b"])

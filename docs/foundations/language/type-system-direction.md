@@ -141,7 +141,7 @@ Lean checks terms relative to an environment `Γ`. Gaia also needs this:
 
 - a `Ref` is valid relative to a module/package environment
 - an `apply` step is valid relative to the available action signature
-- a `chain_expr` is valid relative to the declarations it mentions
+- a `chain_expr` is valid relative to the knowledge objects it mentions
 
 ### 6. Goal-state thinking
 
@@ -163,7 +163,7 @@ Gaia should formalize:
 - how local names are introduced
 - how module-local names are resolved
 - how refs preserve type
-- which declarations are visible vs exported into BP
+- which knowledge objects are visible vs exported into BP
 
 ## What Gaia Should Not Borrow From Lean
 
@@ -219,7 +219,7 @@ V1 should make the following explicit:
 - a core set of knowledge kinds with formal rules
 - action signatures as first-class checked structure
 - typed chain connectivity
-- the distinction between visible and belief-bearing declarations
+- the distinction between visible and belief-bearing knowledge objects
 - the boundary between surface syntax and checked core IR
 
 ### V1 core categories
@@ -234,7 +234,7 @@ The current categories are the right starting point:
 | `Action` | Procedural (InferAction, ToolCallAction) | No | Via application (factor node) |
 | `Expr` | Compositional (ChainExpr) | No | Via steps |
 | `Ref` | Reference to external knowledge | No | Via resolved target |
-| `Module` | Organizational | No | Via exported declarations |
+| `Module` | Organizational | No | Via exported knowledge objects |
 
 V1 should strengthen the internal representation of these types — stop treating parameter types and return types as bare strings, use explicit type expressions and signatures.
 
@@ -305,13 +305,13 @@ instance : TruthApt Setting
 -- Question has no TruthApt instance → cannot have belief
 ```
 
-Type classes replace the current ad-hoc conventions (scattered if-else checks for "is this type truth-apt?") with explicit, checkable declarations. The `belief_bearing` judgment from V1 becomes derived from type class instances rather than hardcoded rules. Note that `exportable` remains a module-level judgment — it depends on the module's export list, not on type class membership.
+Type classes replace the current ad-hoc conventions (scattered if-else checks for "is this type truth-apt?") with explicit, checkable judgments. The `belief_bearing` judgment from V1 becomes derived from type class instances rather than hardcoded rules. Note that `exportable` remains a module-level judgment — it depends on the module's export list, not on type class membership.
 
 ### Phase 4: User-extensible knowledge types
 
 Move type definitions from the Python implementation layer into the language itself, with a clear distinction between closed and open layers.
 
-**Root types are closed.** The base knowledge categories (Claim, Question, Setting, Action, Expr, Ref, Module) define the grammar of the language. They determine what kernel judgments apply, how declarations participate in BP, and what structural rules hold. These are fixed by the language definition, just as Lean's core type formers (inductive, structure, class) are fixed.
+**Root types are closed.** The base knowledge categories (Claim, Question, Setting, Action, Expr, Ref, Module) define the grammar of the language. They determine what kernel judgments apply, how knowledge objects participate in BP, and what structural rules hold. These are fixed by the language definition, just as Lean's core type formers (inductive, structure, class) are fixed.
 
 **Subtypes are open.** Users can extend any root type with domain-specific subtypes without modifying the root definition:
 
