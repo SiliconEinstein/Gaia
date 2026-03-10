@@ -1,0 +1,34 @@
+# 爱因斯坦引力理论 — 从等价原理到广义相对论
+# 覆盖: 多层跨 package 依赖, 理论继承(subsumption), 定量矛盾, 观测验证
+
+name: einstein_gravity
+version: 1.0.0
+
+manifest:
+  description: >
+    建模爱因斯坦如何从电梯思想实验出发提出等价原理，
+    进而发展广义相对论，预测光线偏折 1.75 角秒
+    （与牛顿理论的 0.87 角秒形成定量矛盾），
+    最终由爱丁顿 1919 日食观测和阿波罗 15 号月面实验验证。
+    同时展示理论继承关系：GR subsumes 牛顿引力为弱场近似，
+    三个 package (Galileo → Newton → Einstein) 构成完整的落体理论演进。
+  authors:
+    - 阿尔伯特·爱因斯坦
+  license: CC-BY-4.0
+
+dependencies:
+  - package: newton_principia
+    version: ">=1.0.0"
+  - package: galileo_falling_bodies
+    version: ">=1.0.0"
+
+modules:
+  - prior_knowledge
+  - equivalence_principle
+  - general_relativity
+  - observation
+
+export:
+  - gr_light_deflection
+  - newton_subsumed_by_gr
+  - three_path_convergence

@@ -1,0 +1,149 @@
+# 广义相对论模块 — 1915 场方程、光线偏折预测、与牛顿的关系
+
+type: reasoning_module
+name: general_relativity
+
+knowledge:
+  # === 引用 ===
+  - type: ref
+    name: equivalence_principle
+    target: equivalence_principle.equivalence_principle
+
+  - type: ref
+    name: light_must_bend_in_gravity
+    target: equivalence_principle.light_must_bend_in_gravity
+
+  - type: ref
+    name: soldner_deflection
+    target: prior_knowledge.soldner_deflection
+
+  - type: ref
+    name: newton_gravity
+    target: prior_knowledge.newton_gravity
+
+  - type: ref
+    name: newton_a_equals_g
+    target: prior_knowledge.newton_a_equals_g
+
+  # === 广义相对论核心内容 ===
+
+  - type: claim
+    name: einstein_field_equations
+    content: >
+      爱因斯坦场方程 (1915)：G_μν + Λg_μν = (8πG/c⁴)T_μν。
+      引力不是力，而是时空弯曲的几何效应。
+      物质告诉时空如何弯曲，时空告诉物质如何运动。
+    prior: 0.9
+    metadata:
+      source: "爱因斯坦, Sitzungsberichte der Preussischen Akademie, 1915"
+
+  - type: claim
+    name: gr_light_deflection
+    content: >
+      广义相对论预测：光线掠过太阳表面时偏折 1.75 角秒。
+      这是 Soldner/牛顿预测 (0.87 角秒) 的恰好两倍，
+      因为 GR 同时包含时间弯曲和空间弯曲的贡献，
+      而牛顿框架只捕获了时间弯曲部分。
+    prior: 0.85
+    metadata:
+      source: "爱因斯坦, Annalen der Physik, 1916"
+
+  - type: claim
+    name: mercury_perihelion
+    content: >
+      广义相对论精确预测了水星近日点每世纪 43 角秒的异常进动，
+      这是牛顿引力无法解释的天文观测。
+    prior: 0.92
+    metadata:
+      source: "爱因斯坦, Sitzungsberichte, 1915; Le Verrier 1859 观测"
+
+  - type: claim
+    name: gr_subsumes_newton_weak_field
+    content: >
+      在弱引力场和低速条件下，广义相对论退化为牛顿引力。
+      牛顿的 F=GMm/r² 和 a=g 都是 GR 的弱场近似。
+      GR 不否定牛顿，而是将其包含为特殊情况。
+    prior: 0.5
+
+  # === 定量矛盾：1.75 vs 0.87 角秒 ===
+
+  - type: contradiction
+    name: deflection_contradiction
+    between:
+      - gr_light_deflection
+      - soldner_deflection
+    content: >
+      GR 预测光线偏折 1.75 角秒，牛顿微粒说预测 0.87 角秒。
+      两个预测不能同时正确——它们之间恰好差两倍，
+      差异来源是 GR 的空间弯曲贡献。
+      这是一个可以通过观测判决的定量矛盾。
+
+  # === 推理方法 ===
+
+  - type: infer_action
+    name: derive_subsumption
+    params:
+      - name: general_theory
+        type: claim
+      - name: special_case
+        type: claim
+    return_type: claim
+    content: >
+      {general_theory} 在弱场低速极限下的数学形式
+      精确还原为 {special_case}。
+      这意味着后者不是被"推翻"，而是被包含为前者的近似。
+      旧理论在其有效范围内仍然正确，但不再是最基本的描述。
+    prior: 0.93
+
+  # === 推理链 ===
+
+  - type: chain_expr
+    name: light_deflection_chain
+    steps:
+      - step: 1
+        ref: einstein_field_equations
+      - step: 2
+        lambda: >
+          在 Schwarzschild 度规下求解光的零测地线方程，
+          可以严格计算出光线掠过太阳时的偏折角。
+          GR 的计算同时包含时间分量 (g_00) 和空间分量 (g_rr) 的贡献，
+          给出 1.75 角秒，恰好是只考虑时间分量 (牛顿近似) 的两倍。
+        prior: 0.92
+      - step: 3
+        ref: gr_light_deflection
+
+  - type: chain_expr
+    name: subsumption_chain
+    steps:
+      - step: 1
+        ref: einstein_field_equations
+      - step: 2
+        apply: derive_subsumption
+        args:
+          - ref: einstein_field_equations
+            dependency: direct
+          - ref: newton_gravity
+            dependency: direct
+        prior: 0.93
+      - step: 3
+        ref: gr_subsumes_newton_weak_field
+
+  # === Newton subsumed by GR ===
+
+  - type: equivalence
+    name: newton_subsumed_by_gr
+    between:
+      - newton_gravity
+      - gr_subsumes_newton_weak_field
+    content: >
+      牛顿引力定律 F=GMm/r² 在弱场近似下与 GR 等价。
+      GR 是更一般的理论，牛顿是其弱场极限。
+      这是理论继承而非理论否定。
+
+export:
+  - einstein_field_equations
+  - gr_light_deflection
+  - mercury_perihelion
+  - gr_subsumes_newton_weak_field
+  - deflection_contradiction
+  - newton_subsumed_by_gr

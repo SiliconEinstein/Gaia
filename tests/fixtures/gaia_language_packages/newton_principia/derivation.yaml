@@ -1,0 +1,108 @@
+# 推导模块 — 从牛顿定律推导出 a = g
+# 核心链：F=ma + F=mg → ma=mg → a=g（与质量无关）
+
+type: reasoning_module
+name: derivation
+
+knowledge:
+  # === 引用本 package 的定律 ===
+  - type: ref
+    name: second_law
+    target: laws.second_law
+
+  - type: ref
+    name: law_of_gravity
+    target: laws.law_of_gravity
+
+  - type: ref
+    name: mass_equivalence
+    target: laws.mass_equivalence
+
+  - type: ref
+    name: near_earth_surface
+    target: laws.near_earth_surface
+
+  # === 推理方法 ===
+
+  - type: infer_action
+    name: equate_forces
+    params:
+      - name: dynamic_law
+        type: claim
+      - name: gravity_law
+        type: claim
+      - name: equivalence
+        type: claim
+    return_type: claim
+    content: >
+      由 {dynamic_law} 得 F = m_i × a；由 {gravity_law} 得 F = m_g × g。
+      因为作用在同一物体上的合力相等，所以 m_i × a = m_g × g。
+      又由 {equivalence} 知 m_i = m_g，两边约去质量，得 a = g。
+      加速度只取决于引力场强度 g，与物体质量完全无关。
+    prior: 0.97
+
+  - type: infer_action
+    name: interpret_mass_independence
+    params:
+      - name: derivation_result
+        type: claim
+    return_type: claim
+    content: >
+      {derivation_result} 意味着在同一引力场中，无论物体质量多大，
+      其自由落体加速度都相同。这不是经验归纳，而是从基本定律出发的
+      纯理论推导。
+    prior: 0.95
+
+  # === 中间结论和最终结论 ===
+
+  - type: claim
+    name: force_equation_result
+    content: >
+      对地表附近的自由落体：m × a = m × g，约去质量得 a = g。
+      自由落体加速度等于引力场强度，与物体的质量无关。
+    prior: 0.5
+
+  - type: claim
+    name: acceleration_independent_of_mass
+    content: >
+      在同一引力场中，所有物体的自由落体加速度相同，与质量无关。
+      这是牛顿力学的理论推论，不依赖于任何具体实验。
+    prior: 0.5
+
+  # === 推理链 ===
+
+  - type: chain_expr
+    name: force_equating_chain
+    steps:
+      - step: 1
+        ref: second_law
+      - step: 2
+        apply: equate_forces
+        args:
+          - ref: second_law
+            dependency: direct
+          - ref: law_of_gravity
+            dependency: direct
+          - ref: mass_equivalence
+            dependency: direct
+        prior: 0.97
+      - step: 3
+        ref: force_equation_result
+
+  - type: chain_expr
+    name: mass_independence_chain
+    steps:
+      - step: 1
+        ref: force_equation_result
+      - step: 2
+        apply: interpret_mass_independence
+        args:
+          - ref: force_equation_result
+            dependency: direct
+        prior: 0.95
+      - step: 3
+        ref: acceleration_independent_of_mass
+
+export:
+  - force_equation_result
+  - acceleration_independent_of_mass

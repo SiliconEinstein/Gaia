@@ -1,0 +1,193 @@
+# 观测验证模块 — Eddington 1919 日食 + Apollo 15 月面实验
+# 演示三条独立路径的汇聚
+
+type: reasoning_module
+name: observation
+
+knowledge:
+  # === 引用 ===
+  - type: ref
+    name: gr_light_deflection
+    target: general_relativity.gr_light_deflection
+
+  - type: ref
+    name: soldner_deflection
+    target: prior_knowledge.soldner_deflection
+
+  - type: ref
+    name: galileo_vacuum_prediction
+    target: prior_knowledge.galileo_vacuum_prediction
+
+  - type: ref
+    name: newton_a_equals_g
+    target: prior_knowledge.newton_a_equals_g
+
+  # === Eddington 1919 日食观测 ===
+
+  - type: claim
+    name: eddington_sobral
+    content: >
+      1919 年 5 月 29 日日全食，Sobral (巴西) 观测站测得
+      恒星光线偏折 1.98 ± 0.16 角秒。
+      与 GR 预测 (1.75) 一致，与牛顿预测 (0.87) 偏离 7σ。
+    prior: 0.92
+    metadata:
+      source: "Dyson, Eddington & Davidson, Phil. Trans. Roy. Soc., 1920"
+
+  - type: claim
+    name: eddington_principe
+    content: >
+      同一日食，Príncipe (西非) 观测站测得偏折 1.61 ± 0.30 角秒。
+      与 GR 预测一致，与牛顿预测偏离约 2.5σ。
+    prior: 0.85
+    metadata:
+      source: "Dyson, Eddington & Davidson, Phil. Trans. Roy. Soc., 1920"
+
+  - type: claim
+    name: eddington_confirms_gr
+    content: >
+      爱丁顿日食观测支持广义相对论的 1.75 角秒预测，
+      排除了牛顿框架的 0.87 角秒预测。
+      GR 被确认为比牛顿引力更准确的理论。
+    prior: 0.5
+
+  # === Apollo 15 月面实验 ===
+
+  - type: claim
+    name: apollo15_feather_drop
+    content: >
+      1971 年 Apollo 15 宇航员 David Scott 在月球表面
+      同时释放一把锤子 (1.32 kg) 和一根羽毛 (0.03 g)，
+      质量比 44:1。两者在月球真空中同时落地。
+    prior: 0.99
+    metadata:
+      source: "NASA Apollo 15 mission, 1971-08-02; 现场视频记录"
+
+  - type: claim
+    name: apollo15_confirms_equal_fall
+    content: >
+      Apollo 15 月面实验在真正的真空环境中直接验证了
+      "不同质量物体自由落体速度相同"这一预测。
+      这是人类首次在自然真空中进行该实验。
+    prior: 0.5
+
+  # === 三条独立路径的汇聚 ===
+
+  - type: claim
+    name: three_path_convergence
+    content: >
+      "所有物体在引力场中等速下落"这一结论
+      被三条完全独立的认识路径所支持：
+      （1）逻辑路径：伽利略 1638 绑球归谬法
+      （2）理论路径：牛顿 1687 F=ma+F=mg 推导
+      （3）观测路径：Apollo 15 月面直接实验
+      三条路径从不同方向到达同一结论，大幅提升可信度。
+    prior: 0.5
+
+  # === 推理方法 ===
+
+  - type: infer_action
+    name: evaluate_observations
+    params:
+      - name: obs_a
+        type: claim
+      - name: obs_b
+        type: claim
+      - name: prediction
+        type: claim
+    return_type: claim
+    content: >
+      {obs_a} 和 {obs_b} 是两个独立观测站的测量结果，
+      两者都与 {prediction} 一致。独立观测的一致性
+      大幅降低了系统误差的可能性，增强了结论的可信度。
+    prior: 0.93
+
+  - type: infer_action
+    name: synthesize_convergence
+    params:
+      - name: logical_path
+        type: claim
+      - name: theoretical_path
+        type: claim
+      - name: observational_path
+        type: claim
+    return_type: claim
+    content: >
+      {logical_path}、{theoretical_path} 和 {observational_path}
+      是三条完全独立的认识路径。
+      逻辑路径不依赖于任何力学定律（纯归谬法），
+      理论路径不依赖于任何具体实验（纯演绎），
+      观测路径不依赖于任何理论假设（直接测量）。
+      三者独立汇聚到同一结论，构成最强形式的认识论支持。
+    prior: 0.96
+
+  # === 推理链 ===
+
+  - type: chain_expr
+    name: eddington_chain
+    steps:
+      - step: 1
+        ref: eddington_sobral
+      - step: 2
+        apply: evaluate_observations
+        args:
+          - ref: eddington_sobral
+            dependency: direct
+          - ref: eddington_principe
+            dependency: direct
+          - ref: gr_light_deflection
+            dependency: indirect
+        prior: 0.93
+      - step: 3
+        ref: eddington_confirms_gr
+
+  - type: chain_expr
+    name: apollo_chain
+    steps:
+      - step: 1
+        ref: apollo15_feather_drop
+      - step: 2
+        lambda: >
+          月球表面没有大气，提供了真正的真空条件。
+          在 44:1 的极端质量比下，两个物体仍然同时落地，
+          直接验证了"自由落体加速度与质量无关"的预测。
+          这回答了伽利略 package 中提出的 follow_up_question。
+        prior: 0.97
+      - step: 3
+        ref: apollo15_confirms_equal_fall
+
+  - type: chain_expr
+    name: convergence_chain
+    steps:
+      - step: 1
+        ref: galileo_vacuum_prediction
+      - step: 2
+        apply: synthesize_convergence
+        args:
+          - ref: galileo_vacuum_prediction
+            dependency: direct
+          - ref: newton_a_equals_g
+            dependency: direct
+          - ref: apollo15_confirms_equal_fall
+            dependency: direct
+        prior: 0.96
+      - step: 3
+        ref: three_path_convergence
+
+  # === Retraction：Soldner/牛顿的 0.87 预测被排除 ===
+
+  - type: retract_action
+    name: retract_soldner
+    target: soldner_deflection
+    reason: deflection_contradiction
+    content: >
+      爱丁顿日食观测（1.98 和 1.61 角秒）与 GR 预测（1.75）一致，
+      与 Soldner/牛顿预测（0.87）偏离显著。
+      0.87 角秒的预测应当被大幅削弱。
+    prior: 0.93
+
+export:
+  - eddington_confirms_gr
+  - apollo15_feather_drop
+  - apollo15_confirms_equal_fall
+  - three_path_convergence
