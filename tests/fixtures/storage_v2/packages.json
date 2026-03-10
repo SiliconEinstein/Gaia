@@ -1,0 +1,18 @@
+[
+  {
+    "package_id": "galileo_falling_bodies",
+    "name": "galileo_falling_bodies",
+    "version": "1.0.0",
+    "description": "Galileo's thought experiment refuting Aristotle's claim that heavier objects fall faster, leading to the prediction that all objects fall at the same rate in a vacuum.",
+    "modules": [
+      "galileo_falling_bodies.setting",
+      "galileo_falling_bodies.reasoning"
+    ],
+    "exports": [
+      "galileo_falling_bodies.reasoning.vacuum_prediction"
+    ],
+    "submitter": "galileo",
+    "submitted_at": "2026-01-15T10:00:00Z",
+    "status": "merged"
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "chain_id": "galileo_falling_bodies.reasoning.contradiction_chain",
+    "step_index": 0,
+    "value": 0.97,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-01-15T10:05:00Z"
+  },
+  {
+    "chain_id": "galileo_falling_bodies.reasoning.verdict_chain",
+    "step_index": 0,
+    "value": 0.93,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-01-15T10:05:00Z"
+  },
+  {
+    "chain_id": "galileo_falling_bodies.reasoning.verdict_chain",
+    "step_index": 0,
+    "value": 0.91,
+    "source": "llm_review",
+    "source_detail": "claude-opus-4-20250514",
+    "recorded_at": "2026-01-16T08:00:00Z"
+  }
+]

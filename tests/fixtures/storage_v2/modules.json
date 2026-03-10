@@ -1,0 +1,34 @@
+[
+  {
+    "module_id": "galileo_falling_bodies.setting",
+    "package_id": "galileo_falling_bodies",
+    "name": "setting",
+    "role": "setting",
+    "imports": [],
+    "chain_ids": [],
+    "export_ids": [
+      "galileo_falling_bodies.setting.thought_experiment_env"
+    ]
+  },
+  {
+    "module_id": "galileo_falling_bodies.reasoning",
+    "package_id": "galileo_falling_bodies",
+    "name": "reasoning",
+    "role": "reasoning",
+    "imports": [
+      {
+        "closure_id": "galileo_falling_bodies.setting.thought_experiment_env",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "galileo_falling_bodies.reasoning.contradiction_chain",
+      "galileo_falling_bodies.reasoning.verdict_chain"
+    ],
+    "export_ids": [
+      "galileo_falling_bodies.reasoning.vacuum_prediction",
+      "galileo_falling_bodies.reasoning.contradiction_result"
+    ]
+  }
+]
