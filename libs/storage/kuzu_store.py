@@ -35,7 +35,7 @@ class KuzuGraphStore(GraphStore):
     # ── Schema ───────────────────────────────────────────────────────────
 
     def _ensure_schema(self) -> None:
-        """Synchronously create node/rel tables (idempotent).
+        """Synchronously create node/rel tables and migrate legacy names (idempotent).
 
         Called by StorageManager._init_kuzu() so the schema is ready
         before any async operations.
@@ -47,10 +47,60 @@ class KuzuGraphStore(GraphStore):
             "probability DOUBLE, verified BOOLEAN, reasoning STRING, "
             "PRIMARY KEY(id))"
         )
+        # Migrate legacy TAIL→PREMISE and HEAD→CONCLUSION relationship tables
+        self._migrate_legacy_relationships()
         self._conn.execute("CREATE REL TABLE IF NOT EXISTS PREMISE(FROM Proposition TO Hyperedge)")
         self._conn.execute(
             "CREATE REL TABLE IF NOT EXISTS CONCLUSION(FROM Hyperedge TO Proposition)"
         )
+
+    def _migrate_legacy_relationships(self) -> None:
+        """Migrate old TAIL/HEAD relationship tables to PREMISE/CONCLUSION."""
+        for old_name, new_name in [("TAIL", "PREMISE"), ("HEAD", "CONCLUSION")]:
+            if not self._table_exists(old_name):
+                continue
+            # Create new table if it doesn't exist yet
+            if old_name == "TAIL":
+                self._conn.execute(
+                    "CREATE REL TABLE IF NOT EXISTS PREMISE(FROM Proposition TO Hyperedge)"
+                )
+            else:
+                self._conn.execute(
+                    "CREATE REL TABLE IF NOT EXISTS CONCLUSION(FROM Hyperedge TO Proposition)"
+                )
+            # Copy relationships from old table to new table
+            if old_name == "TAIL":
+                result = self._conn.execute(
+                    "MATCH (p:Proposition)-[r:TAIL]->(h:Hyperedge) RETURN p.id, h.id"
+                )
+                for row in result.get_as_df().values:
+                    self._conn.execute(
+                        "MATCH (p:Proposition {id: $pid}), (h:Hyperedge {id: $hid}) "
+                        "CREATE (p)-[:PREMISE]->(h)",
+                        {"pid": int(row[0]), "hid": int(row[1])},
+                    )
+            else:
+                result = self._conn.execute(
+                    "MATCH (h:Hyperedge)-[r:HEAD]->(p:Proposition) RETURN h.id, p.id"
+                )
+                for row in result.get_as_df().values:
+                    self._conn.execute(
+                        "MATCH (h:Hyperedge {id: $hid}), (p:Proposition {id: $pid}) "
+                        "CREATE (h)-[:CONCLUSION]->(p)",
+                        {"hid": int(row[0]), "pid": int(row[1])},
+                    )
+            self._conn.execute(f"DROP TABLE {old_name}")
+
+    def _table_exists(self, table_name: str) -> bool:
+        """Check whether a table exists in the Kuzu database."""
+        try:
+            result = self._conn.execute("CALL show_tables() RETURN *")
+            for row in result.get_as_df().values:
+                if row[1] == table_name:
+                    return True
+        except Exception:
+            pass
+        return False
 
     async def initialize_schema(self) -> None:
         """Create node/rel tables (idempotent)."""

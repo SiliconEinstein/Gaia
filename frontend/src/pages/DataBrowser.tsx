@@ -22,9 +22,9 @@ function ContradictionTable() {
       render: (id: number) => <Link to={`/edges/${id}`}>{id}</Link>,
     },
     {
-      title: "Tail (Side A)",
-      dataIndex: "tail",
-      key: "tail",
+      title: "Premises (Side A)",
+      dataIndex: "premises",
+      key: "premises",
       render: (ids: number[]) =>
         ids.map((id) => (
           <Tag key={id} color="blue">
@@ -33,9 +33,9 @@ function ContradictionTable() {
         )),
     },
     {
-      title: "Head (Side B)",
-      dataIndex: "head",
-      key: "head",
+      title: "Conclusions (Side B)",
+      dataIndex: "conclusions",
+      key: "conclusions",
       render: (ids: number[]) =>
         ids.map((id) => (
           <Tag key={id} color="red">
@@ -55,7 +55,7 @@ function ContradictionTable() {
       key: "graph",
       width: 80,
       render: (_: unknown, record: HyperEdge) => (
-        <Link to={`/graph?node=${record.tail[0]}&hops=1`}>View</Link>
+        <Link to={`/graph?node=${record.premises[0]}&hops=1`}>View</Link>
       ),
     },
   ];

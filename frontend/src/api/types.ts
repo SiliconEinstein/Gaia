@@ -17,8 +17,8 @@ export interface HyperEdge {
   id: number;
   type: string;
   subtype: string | null;
-  tail: number[];
-  head: number[];
+  premises: number[];
+  conclusions: number[];
   probability: number | null;
   verified: boolean;
   reasoning: unknown[];

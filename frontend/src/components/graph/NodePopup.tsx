@@ -87,13 +87,13 @@ function EdgeDetail({ edge }: { edge: HyperEdge }) {
         {edge.subtype && (
           <Descriptions.Item label="Subtype">{edge.subtype}</Descriptions.Item>
         )}
-        <Descriptions.Item label="Tail">
-          {edge.tail.map((id) => (
+        <Descriptions.Item label="Premises">
+          {edge.premises.map((id) => (
             <Tag key={id}>Node {id}</Tag>
           ))}
         </Descriptions.Item>
-        <Descriptions.Item label="Head">
-          {edge.head.map((id) => (
+        <Descriptions.Item label="Conclusions">
+          {edge.conclusions.map((id) => (
             <Tag key={id}>Node {id}</Tag>
           ))}
         </Descriptions.Item>

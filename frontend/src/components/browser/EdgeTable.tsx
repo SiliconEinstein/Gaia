@@ -30,9 +30,9 @@ export function EdgeTable() {
       render: (type: string) => <Tag>{type}</Tag>,
     },
     {
-      title: "Tail",
-      dataIndex: "tail",
-      key: "tail",
+      title: "Premises",
+      dataIndex: "premises",
+      key: "premises",
       width: 150,
       render: (ids: number[]) =>
         ids.map((id) => (
@@ -42,9 +42,9 @@ export function EdgeTable() {
         )),
     },
     {
-      title: "Head",
-      dataIndex: "head",
-      key: "head",
+      title: "Conclusions",
+      dataIndex: "conclusions",
+      key: "conclusions",
       width: 150,
       render: (ids: number[]) =>
         ids.map((id) => (

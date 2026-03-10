@@ -33,13 +33,22 @@ class Neo4jGraphStore(GraphStore):
     # ── Schema ───────────────────────────────────────────────────────────
 
     async def initialize_schema(self) -> None:
-        """Create uniqueness constraints (idempotent)."""
+        """Create uniqueness constraints and migrate legacy relationships (idempotent)."""
         async with self._driver.session(database=self._db) as session:
             await session.run(
                 "CREATE CONSTRAINT prop_id IF NOT EXISTS FOR (p:Proposition) REQUIRE p.id IS UNIQUE"
             )
             await session.run(
                 "CREATE CONSTRAINT he_id IF NOT EXISTS FOR (h:Hyperedge) REQUIRE h.id IS UNIQUE"
+            )
+            # Migrate legacy TAIL→PREMISE and HEAD→CONCLUSION relationships
+            await session.run(
+                "MATCH (p:Proposition)-[r:TAIL]->(h:Hyperedge) CREATE (p)-[:PREMISE]->(h) DELETE r"
+            )
+            await session.run(
+                "MATCH (h:Hyperedge)-[r:HEAD]->(p:Proposition) "
+                "CREATE (h)-[:CONCLUSION]->(p) "
+                "DELETE r"
             )
 
     # ── Create ───────────────────────────────────────────────────────────

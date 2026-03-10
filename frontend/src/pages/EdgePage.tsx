@@ -35,15 +35,15 @@ export function EdgePage() {
           {edge.subtype && (
             <Descriptions.Item label="Subtype">{edge.subtype}</Descriptions.Item>
           )}
-          <Descriptions.Item label="Tail">
-            {edge.tail.map((id) => (
+          <Descriptions.Item label="Premises">
+            {edge.premises.map((id) => (
               <Link key={id} to={`/nodes/${id}`}>
                 <Tag color="blue">Node {id}</Tag>
               </Link>
             ))}
           </Descriptions.Item>
-          <Descriptions.Item label="Head">
-            {edge.head.map((id) => (
+          <Descriptions.Item label="Conclusions">
+            {edge.conclusions.map((id) => (
               <Link key={id} to={`/nodes/${id}`}>
                 <Tag color="green">Node {id}</Tag>
               </Link>
@@ -66,7 +66,7 @@ export function EdgePage() {
       </Card>
 
       <div style={{ marginTop: 16 }}>
-        <Link to={`/graph?node=${edge.tail[0] ?? edge.head[0]}&hops=1`}>
+        <Link to={`/graph?node=${edge.premises[0] ?? edge.conclusions[0]}&hops=1`}>
           View in Graph
         </Link>
       </div>

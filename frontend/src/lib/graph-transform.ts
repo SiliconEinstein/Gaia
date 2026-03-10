@@ -4,8 +4,8 @@
  * Uses a bipartite "factor graph" representation:
  * - Proposition nodes → ellipses/circles/diamonds
  * - HyperEdge → square factor node (F_{edge_id})
- * - tail nodes → factor (directed edge)
- * - factor → head nodes (directed edge)
+ * - premise nodes → factor (directed edge)
+ * - factor → conclusion nodes (directed edge)
  */
 import type { Node as GaiaNode, HyperEdge } from "../api/types";
 import { getNodeStyle, getFactorStyle } from "./node-styles";
@@ -86,9 +86,9 @@ export function transformSubgraph(
     const fStyle = getFactorStyle(e.type);
 
     // Contradiction edges: direct red dashed line between nodes, no factor node
-    if (e.type === "contradiction" && e.tail.length > 0 && e.head.length > 0) {
-      for (const t of e.tail) {
-        for (const h of e.head) {
+    if (e.type === "contradiction" && e.premises.length > 0 && e.conclusions.length > 0) {
+      for (const t of e.premises) {
+        for (const h of e.conclusions) {
           visEdges.push({
             id: `ce_${e.id}_${t}_${h}`,
             from: `n_${t}`,
@@ -130,8 +130,8 @@ export function transformSubgraph(
       isFactorNode: true,
     });
 
-    // tail → factor
-    for (const t of e.tail) {
+    // premises → factor
+    for (const t of e.premises) {
       visEdges.push({
         id: `te_${e.id}_${t}`,
         from: `n_${t}`,
@@ -142,8 +142,8 @@ export function transformSubgraph(
       });
     }
 
-    // factor → head
-    for (const h of e.head) {
+    // factor → conclusions
+    for (const h of e.conclusions) {
       visEdges.push({
         id: `he_${e.id}_${h}`,
         from: factorId,
