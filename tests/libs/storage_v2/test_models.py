@@ -48,7 +48,7 @@ class TestFixtureValidation:
     def test_closures_fixture(self):
         records = load_fixture("closures")
         closures = [Closure.model_validate(r) for r in records]
-        assert len(closures) == 5
+        assert len(closures) == 6
 
     def test_chains_fixture(self):
         records = load_fixture("chains")
@@ -58,7 +58,7 @@ class TestFixtureValidation:
     def test_probabilities_fixture(self):
         records = load_fixture("probabilities")
         probs = [ProbabilityRecord.model_validate(r) for r in records]
-        assert len(probs) == 3
+        assert len(probs) == 4
 
     def test_beliefs_fixture(self):
         records = load_fixture("beliefs")

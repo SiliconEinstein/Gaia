@@ -22,5 +22,13 @@
     "source": "llm_review",
     "source_detail": "claude-opus-4-20250514",
     "recorded_at": "2026-01-16T08:00:00Z"
+  },
+  {
+    "chain_id": "galileo_falling_bodies.reasoning.verdict_chain",
+    "step_index": 1,
+    "value": 0.95,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-01-15T10:05:00Z"
   }
 ]

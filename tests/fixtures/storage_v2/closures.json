@@ -58,5 +58,17 @@
     "source_module_id": "galileo_falling_bodies.reasoning",
     "created_at": "2026-01-15T10:02:00Z",
     "embedding": null
+  },
+  {
+    "closure_id": "galileo_falling_bodies.reasoning.vacuum_prediction",
+    "version": 1,
+    "type": "claim",
+    "content": "In a vacuum, all objects fall at the same rate regardless of weight — the Aristotelian law is false.",
+    "prior": 0.7,
+    "keywords": ["vacuum", "equal fall rate", "galileo", "prediction"],
+    "source_package_id": "galileo_falling_bodies",
+    "source_module_id": "galileo_falling_bodies.reasoning",
+    "created_at": "2026-01-15T10:03:00Z",
+    "embedding": null
   }
 ]
