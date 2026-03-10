@@ -21,7 +21,7 @@ Server 提供四个增强服务：
 |------|------|
 | Knowledge integration | 把 packages 合并到全局 LKM |
 | Global search | 跨 package 的 vector + BM25 + topology 搜索 |
-| LLM Review Engine | 自动审查推理链质量 |
+| Review Engine | 执行 package review 与 integration review |
 | Large-scale BP | 全局图上的信念传播 |
 
 Server **不修改 package**——它是 package 的只读消费者。
@@ -50,7 +50,8 @@ Server **不修改 package**——它是 package 的只读消费者。
 │  ┌─────────────────────────────────────────────┐     │
 │  │ IngestionService                             │     │
 │  │                                              │     │
-│  │ submit(pkg) → validate → review → integrate  │     │
+│  │ submit(pkg) → validate → package_review      │     │
+│  │             → integration_review → integrate │     │
 │  │                                              │     │
 │  │ 拥有 package 生命周期状态机                    │     │
 │  │ 内部组合 Validator + ReviewEngine + Integrator│     │
@@ -175,6 +176,8 @@ submitted → validating → validated → reviewing → reviewed
                                           merged
 ```
 
+> `reviewing` is a composite phase: package review first, then integration review. See [../review/architecture.md](../review/architecture.md).
+
 #### 接口
 
 ```python
@@ -195,7 +198,7 @@ class IngestionService:
 | 组件 | 职责 | 输入 → 输出 |
 |------|------|------------|
 | **Validator** | schema 校验、引用完整性、prior 范围检查、边类型约束 | PackageData → ValidationResult |
-| **ReviewEngine** | LLM 审查推理链质量 | PackageData → ReviewReport |
+| **ReviewEngine** | 执行 package review 与 integration review | PackageData + ReviewContext → ReviewReport |
 | **Integrator** | 把 package 映射到全局图结构，调用 StorageManager 写入 | PackageData → IngestResult |
 
 #### Validator 职责
@@ -208,12 +211,19 @@ class IngestionService:
 
 #### ReviewEngine 职责
 
-对每个 module 的每条 chain：
+ReviewEngine 分成两个逻辑阶段：
+
+1. **Package Review**：对 package 内部 chain、dependency、prior、relation 候选做闭世界审查
+2. **Integration Review**：结合 shared registry context 做重复检测、join/canonicalization 候选、cross-package relation 候选和 integration-time BP preview
+
+对 package review 而言，典型职责是：
 
 1. 推理步骤是否逻辑连贯
 2. 结论是否被前提支持
 3. 推理类型是否正确标注（deduction vs induction vs abstraction）
 4. 输出 per-chain 评分 + 总体 accept/reject 建议
+
+Integration review 的更详细边界见 [../review/architecture.md](../review/architecture.md).
 
 ### 4.2 BPService
 
