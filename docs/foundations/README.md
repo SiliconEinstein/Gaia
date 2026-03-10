@@ -43,7 +43,7 @@ The execution plan for that reset lives here:
 
 **Review:**
 
-- [Review Architecture](review/architecture.md)
+- [Review and Alignment Architecture](review/architecture.md)
 
 **Server:**
 
@@ -73,7 +73,7 @@ Those files do not all exist yet. This directory is the place where they should 
 - `theory/`: Theoretical foundations (Jaynes, BP algorithm) — shared mathematical basis
 - `language/`: Gaia formal language spec, design, and design rationale
 - `cli/`: Gaia CLI runtime boundaries and future CLI-specific docs
-- `review/`: Shared review architecture, review policies, and package environment semantics
+- `review/`: Shared review, alignment, and package environment semantics
 - `server/`: Server architecture, storage schema, API contracts
 
 ## Historical docs

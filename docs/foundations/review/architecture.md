@@ -1,48 +1,49 @@
-# Gaia Review Architecture
+# Gaia Review and Alignment Architecture
 
 | 文档属性 | 值 |
 |---------|---|
-| 版本 | 2.0 |
+| 版本 | 3.0 |
 | 日期 | 2026-03-10 |
 | 状态 | **Draft — foundation design** |
 | 关联文档 | [../README.md](../README.md), [../cli/command-lifecycle.md](../cli/command-lifecycle.md), [../server/architecture.md](../server/architecture.md), [../language/gaia-language-spec.md](../language/gaia-language-spec.md) |
 
-> **Note:** This document defines the target review architecture shared by Gaia CLI and Gaia Server. It does not describe the current implementation on `main` literally. Current code still contains a local CLI chain review path and a legacy server-side `review_pipeline` attached to `/commits/*`.
+> **Note:** This document defines the target architecture shared by Gaia CLI and Gaia Server. It does not describe the current implementation on `main` literally. Current code still contains a local CLI chain review path and a legacy server-side `review_pipeline` attached to `/commits/*`.
 
 ---
 
 ## 1. Problem
 
-Gaia currently has two things called "review":
+Gaia currently has two different activities partly living under the name "review":
 
 - local `gaia review`, which audits package reasoning and writes sidecar reports
-- server-side review jobs, which already mix package critique with global search, join, verify, and BP-style integration analysis
+- server-side review jobs, which already mix package critique with global search, join, verify, and relation discovery against existing knowledge
 
-Those are related, but they are not the same layer.
+Those are related, but they are not the same operation.
 
 The result is architectural drift:
 
-- local and server review do not share a stable request/response contract
-- package-internal review and global knowledge integration are blurred together
-- old server operators such as `join-cc` and `join-cp` appear under "review" even though they are really integration-time reasoning
-- it is unclear whether local review should attempt whole-graph BP or only preview its likely integration effects
+- package-internal critique and open-world knowledge alignment are blurred together
+- local and server review do not share a stable request/report contract
+- old server operators such as `join-cc` and `join-cp` appear under "review" even though they are really alignment-time relation discovery
+- the package environment contract is not yet explicit enough to make local preview reproducible
+- review, alignment, and inference are too easy to mix together conceptually
 
 This document fixes that boundary.
 
 ## 2. Core Judgments
 
-### 2.1 One review architecture, two review scopes
+### 2.1 Gaia has two adjacent phases, not one overloaded review
 
-Gaia should define a single review architecture with two explicit scopes:
+Gaia should define two explicit phases after `build`:
 
 1. **Package Review**
-2. **Integration Review**
+2. **Package Alignment**
 
-`gaia review` is the umbrella command. Scope selects which phase is run.
+They are adjacent in workflow, but they are not the same operation.
 
-### 2.2 Package review is closed-world
+### 2.2 `gaia review` is closed-world
 
-Package review inspects a package using only package-local artifacts plus deterministic build output.
+`gaia review` inspects a package using only package-local artifacts plus deterministic build output.
 
 It answers:
 
@@ -51,53 +52,61 @@ It answers:
 - are dependency labels and priors reasonable?
 - are there package-internal contradiction or equivalence candidates?
 
-### 2.3 Integration review is open-world
+### 2.3 `gaia align` is open-world
 
-Integration review inspects how a package would interact with the shared knowledge system.
+`gaia align` inspects how a package relates to existing shared knowledge.
 
 It answers:
 
 - does this package duplicate existing knowledge?
 - should new declarations be merged, canonicalized, or linked?
-- what cross-package contradiction or equivalence candidates appear?
-- what subsumption relationships exist between new and existing declarations?
+- what cross-package contradiction, equivalence, or subsumption candidates appear?
+- what package environment is relevant enough for local preview and later inference?
 
-### 2.4 Review and inference are separate phases
+This is not just "review with more context". It is automated relation discovery and context construction.
 
-Review discovers relations and audits reasoning quality. It does **not** compute beliefs.
+### 2.4 `gaia align` constructs or refreshes the package environment
 
-Belief propagation belongs to the **inference** phase (`gaia infer` locally, `BPService` on server), which runs after review. This separation is already reflected in the CLI lifecycle: `build → review → infer → publish`.
+Alignment is the natural boundary where Gaia materializes a **package environment**:
 
-### 2.5 Local review is preview, server review is authoritative
+- a package-scoped working set
+- derived from the package plus relevant external context
+- reusable by `gaia align`, `gaia infer`, and future environment-aware operations
 
-Local integration review is a preview run against a materialized package environment.
+### 2.5 Review, alignment, and inference are separate phases
 
-Server review is authoritative because it can use:
+Review audits package-internal reasoning quality.
+
+Alignment discovers open-world relations and constructs the package environment.
+
+Inference computes beliefs from build outputs plus review/alignment results.
+
+Belief propagation belongs to **inference** (`gaia infer` locally, `BPService` on server), not to review or alignment.
+
+### 2.6 Local review/alignment are preview, server review/alignment are authoritative
+
+Local review and alignment are preview runs.
+
+Server-side review/alignment are authoritative because they can use:
 
 - the current shared registry state
-- stronger retrieval and search context
-- managed model policy
-- final integration path
+- managed retrieval and model policy
+- the final integration path
+- final larger-scope inference
 
 The two sides must still share the same core contracts and semantics.
 
-### 2.6 Review never rewrites package source
+### 2.7 Review and alignment never rewrite package source
 
-Review produces reports, scores, and suggestions.
+Review and alignment produce reports, scores, discovered relations, and environment materialization.
 
-Review does **not** silently mutate the package's normative source.
+They do **not** silently mutate the package's normative source.
 
-Package source remains the canonical artifact. Review output remains sidecar/runtime data.
+Package source remains the canonical artifact. Review/alignment outputs remain sidecar/runtime data.
 
 ---
 
-## 3. Review Scopes
-
-| Scope | Inputs | Context model | Main output | Typical caller |
-|------|--------|---------------|-------------|----------------|
-| `package` | built package | closed-world | `PackageReviewReport` | CLI, server |
-| `integration` | built package + package environment | open-world | `IntegrationReviewReport` | CLI preview, server |
-| `all` | same as above | package first, then integration | combined report | CLI, server |
+## 3. Command Surfaces
 
 ### 3.1 CLI surface
 
@@ -105,34 +114,46 @@ The target command surface is:
 
 ```text
 gaia review [PATH]
-gaia review [PATH] --scope package
-gaia review [PATH] --scope integration
-gaia review [PATH] --scope all
+gaia align [PATH]
+gaia infer [PATH]
+gaia publish [PATH]
 ```
 
-Default scope is `all`. This runs package review first, then integration review. The user should see the full picture by default.
+With optional alignment controls:
 
-`--scope package` or `--scope integration` can be used to run a single phase when iterating on a specific concern.
+```text
+gaia align [PATH] --frozen
+gaia align [PATH] --refresh-env
+```
+
+The command roles are:
+
+| Command | Scope | Main output |
+|---|---|---|
+| `gaia review` | closed-world package audit | `PackageReviewReport` |
+| `gaia align` | open-world relation discovery + environment materialization | `AlignmentReport` + `PackageEnvironment` |
+| `gaia infer` | belief propagation over local graph inputs | belief outputs |
+| `gaia publish` | handoff to shared system | publish submission |
 
 ### 3.2 Server surface
 
-The server should use the same scope model internally:
+The server should use the same conceptual phases internally:
 
 ```text
 validate
 -> package review
--> integration review
+-> align package against shared knowledge
 -> integrate
 -> authoritative BP/update
 ```
 
-External API design may expose that as one submit endpoint or multiple review endpoints, but the domain model should keep the two review phases distinct.
+External API design may expose that as one submit endpoint or multiple status endpoints, but the domain model should keep those phases distinct.
 
 ---
 
-## 4. Review Policies
+## 4. Policies
 
-Package review and integration review are fundamentally different processes. Their policies are separate.
+Package review and package alignment are fundamentally different processes. Their policies are separate.
 
 ### 4.1 PackageReviewPolicy
 
@@ -141,45 +162,36 @@ Package review is a closed-world LLM audit. It needs one model and package-local
 ```python
 @dataclass
 class PackageReviewPolicy:
-    """Closed-world audit — only needs an LLM for chain critique."""
+    """Closed-world audit — package-internal reasoning critique only."""
 
-    model: LLMModelConfig           # LLM for chain-level reasoning critique
+    model: LLMModelConfig
     checks: list[str]               # e.g. chain_coherence, prior_reasonableness,
                                     #      dependency_label_validation
-    thresholds: PackageThresholds   # min_chain_score, min_prior_range
+    thresholds: PackageThresholds
 ```
 
-### 4.2 IntegrationReviewPolicy
+### 4.2 AlignmentPolicy
 
-Integration review is an open-world process. It needs embedding, retrieval, and multiple LLM models for different stages.
+Alignment is an open-world process. It needs embedding, retrieval, and multiple LLM models for discovery and verification.
 
 ```python
 @dataclass
-class IntegrationReviewPolicy:
-    """Open-world integration — needs embedding, retrieval, and LLMs."""
+class AlignmentPolicy:
+    """Open-world alignment — environment construction plus relation discovery."""
 
-    # ── Embedding ──
-    embedding: EmbeddingConfig      # provider, api_url, access_key, dim
-
-    # ── Retrieval (builds the package environment) ──
+    embedding: EmbeddingConfig
     retrieval: RetrievalConfig      # semantic_top_k, structural_max_hops,
                                     # max_environment_nodes
-
-    # ── Abstraction discovery (join-cc, join-cp) ──
     abstraction_model: LLMModelConfig
-
-    # ── Verification (two-pass) ──
     verify_model: LLMModelConfig
-
-    # ── Checks & thresholds ──
     checks: list[str]               # e.g. duplicate_detection, contradiction_scan,
                                     #      subsumption_detection
-    thresholds: IntegrationThresholds  # max_overlap_similarity, ...
+    thresholds: AlignmentThresholds
 ```
 
 ### 4.3 Mapping to current pipeline operators
 
-The existing `review_pipeline` operators map to `IntegrationReviewPolicy` fields:
+The existing `review_pipeline` operators map to **alignment**, not to package review:
 
 | Policy field | Current operator | Current default |
 |---|---|---|
@@ -189,23 +201,23 @@ The existing `review_pipeline` operators map to `IntegrationReviewPolicy` fields
 | `abstraction_model` | `CCAbstractionOperator` + `CPAbstractionOperator` (shared) | dptech_internal/gpt-5-mini |
 | `verify_model` | `AbstractionTreeVerifyOperator` + `VerifyAgainOperator` (shared) | same as above |
 
-The current `BPOperator` in the pipeline does **not** belong to review. It should be moved to the inference phase (see §8).
+The current `BPOperator` in the pipeline does **not** belong to review or alignment. It belongs to inference.
 
 ### 4.4 Policy differences between local and server
 
 | Dimension | Local (CLI) | Server |
 |---|---|---|
 | Package review model | user-configured, may be lightweight | managed, may be stronger |
-| Integration embedding | same provider | same provider |
-| Integration retrieval | against package environment (snapshot) | against live registry |
-| Integration LLMs | user-configured | managed |
-| Gate authority | advisory only | can reject/block integration |
+| Alignment embedding | user/local profile | managed profile |
+| Alignment retrieval | against frozen or refreshed package environment | against live registry |
+| Alignment LLMs | user-configured | managed |
+| Gate authority | advisory only | can reject or block integration |
 
 ---
 
-## 5. Shared Review Contracts
+## 5. Shared Contracts
 
-CLI and server should call the same review core, but with scope-specific signatures:
+CLI and server should call the same core subsystem, but with separate review and alignment entry points:
 
 ```python
 # Package review
@@ -214,23 +226,29 @@ package_review(
     policy: PackageReviewPolicy,
 ) -> PackageReviewReport
 
-# Integration review
-integration_review(
-    request: ReviewRequest,
-    environment: PackageEnvironment,
-    policy: IntegrationReviewPolicy,
-) -> IntegrationReviewReport
+# Package alignment
+align_package(
+    request: AlignmentRequest,
+    policy: AlignmentPolicy,
+    environment_lock: EnvironmentLock | None = None,
+) -> AlignmentResult
+
+@dataclass
+class AlignmentResult:
+    environment: PackageEnvironment
+    report: AlignmentReport
 ```
 
 ### 5.1 Contract invariants
 
 These are hard requirements:
 
-- local and server review must use the same request and report schema
-- the same request, environment, and policy should produce the same class of result locally and on server
+- local and server must use the same request and report schema for the same phase
+- the same request, environment lock, and policy should produce the same class of result locally and on server
 - server may add richer context, stronger models, and stricter policy, but must not invent a different report language
 - `PackageReviewReport` is package-scoped and can be stored as a local sidecar
-- `IntegrationReviewReport` is environment-scoped and must be treated as time/version dependent
+- `AlignmentReport` and `PackageEnvironment` are environment-scoped and must be treated as time/version dependent
+- if `gaia infer` consumes an environment, that environment must be identifiable and reproducible
 
 ### 5.2 Package review report
 
@@ -246,17 +264,17 @@ It may contain:
 
 It should be suitable for local storage under `.gaia/reviews/`.
 
-### 5.3 Integration review report
+### 5.3 Alignment report
 
-An integration review report depends on a concrete package environment.
+An alignment report depends on a concrete package environment.
 
 It may contain:
 
-- duplicate or canonicalization candidates (from join-cc, join-cp)
-- cross-package contradiction/equivalence/subsumption candidates
+- duplicate or canonicalization candidates
+- cross-package contradiction, equivalence, or subsumption candidates
 - join/merge suggestions
-- verification results with quality metrics (tightness, substantiveness, union error)
-- integration-specific verdicts
+- verification results with quality metrics
+- alignment-specific verdicts
 
 It is not a stable part of the package source. It should be labeled with its environment identity.
 
@@ -264,9 +282,9 @@ It is not a stable part of the package source. It should be labeled with its env
 
 ## 6. Review Core and Runners
 
-### 6.1 Review Core
+### 6.1 Shared core
 
-Gaia should have one shared review module, conceptually:
+Gaia should have one shared subsystem, conceptually:
 
 ```text
 libs/review_core/
@@ -275,11 +293,11 @@ libs/review_core/
 This module owns:
 
 - shared request/report types
-- review operators
+- package review logic
+- alignment logic
+- environment materialization logic
 - policy application
 - LLM/model adapters
-- package review logic
-- integration review logic
 
 It does **not** own:
 
@@ -287,49 +305,47 @@ It does **not** own:
 - HTTP routing
 - job lifecycle
 - package persistence
-- belief propagation (that belongs to inference)
+- belief propagation
 
 ### 6.2 CLI runner
 
 The CLI runner should:
 
 1. load the local package and build artifacts
-2. create `ReviewRequest`
-3. create package-only or environment-aware `ReviewContext`
-4. call the shared review core
+2. run `package_review(...)`
+3. optionally resolve or refresh the package environment
+4. run `align_package(...)`
 5. write sidecar artifacts locally
+6. update `gaia.lock` when the package environment changes
 
-CLI review remains advisory and preview-oriented.
+CLI review and alignment remain advisory and preview-oriented.
 
 ### 6.3 Server runner
 
 The server runner should:
 
 1. accept submitted packages
-2. enrich context with shared registry state
-3. call the same review core
-4. persist review results
+2. run package review against shared server policy
+3. align the package against the current registry state
+4. persist review and alignment results
 5. gate integration and downstream workflows
-
-The server wrapper may live as a worker/service, but it should not fork review semantics from the CLI.
 
 ### 6.4 Legacy server pipeline mapping
 
-The existing `review_pipeline` operators belong to **Integration Review**:
+The existing `review_pipeline` operators belong to **alignment**:
 
-| Current operator | Integration review role |
+| Current operator | Alignment role |
 |---|---|
-| `EmbeddingOperator` | Generate embeddings for new declarations |
-| `NNSearchOperator` | Retrieve semantic neighbors (build package environment) |
-| `CCAbstractionOperator` (join-cc) | Discover conclusion-conclusion relations |
-| `CPAbstractionOperator` (join-cp) | Discover conclusion-premise relations |
-| `AbstractionTreeVerifyOperator` | First-pass verification of discovered relations |
-| `RefineOperator` | Placeholder (Phase 2) |
-| `VerifyAgainOperator` | Second-pass verification, collect verified relations |
+| `EmbeddingOperator` | generate embeddings for new declarations |
+| `NNSearchOperator` | retrieve semantic neighbors for environment construction |
+| `CCAbstractionOperator` (`join-cc`) | discover conclusion-conclusion relations |
+| `CPAbstractionOperator` (`join-cp`) | discover conclusion-premise relations |
+| `AbstractionTreeVerifyOperator` | first-pass verification of discovered relations |
+| `VerifyAgainOperator` | second-pass verification and filtering |
 
-The current `BPOperator` should be removed from the review pipeline and handled by the inference phase.
+The current `BPOperator` should be removed from the review pipeline and handled by inference.
 
-No existing operator corresponds to **Package Review**. The CLI's current chain-level LLM review (`cli/llm_client.py` → `ReviewClient`) is the closest to package review logic and should be extracted into `review_core`.
+No existing operator corresponds cleanly to package review. The CLI's current chain-level LLM review (`cli/llm_client.py` → `ReviewClient`) is the closest existing package-review logic and should be extracted into the shared core.
 
 ---
 
@@ -337,13 +353,13 @@ No existing operator corresponds to **Package Review**. The CLI's current chain-
 
 ### 7.1 Purpose
 
-Integration review needs external context beyond the package itself. That context is the **package environment**.
+Alignment needs external context beyond the package itself. That context is the **package environment**.
 
-A package environment is not limited to integration review — it is the general context a package exists in. It may be used by:
+A package environment is not limited to alignment. It is the general environment a package exists in and may later be used by:
 
-- `gaia review --scope integration` — open-world relation discovery
-- `gaia infer` — more accurate local BP with external context
-- future operations that need awareness of the shared knowledge system
+- `gaia align`
+- `gaia infer`
+- future environment-aware operations
 
 ### 7.2 What it contains
 
@@ -351,24 +367,27 @@ A package environment should include:
 
 - the candidate package under review
 - a snapshot/revision identifier for the shared registry state
-- retrieved semantic neighbors (via embedding similarity)
-- retrieved structural neighbors (via graph topology)
+- retrieved semantic neighbors
+- retrieved structural neighbors
 - candidate duplicate/canonicalization targets
 - an environment fingerprint
 
 Internally this may be implemented by pulling a related subgraph, but the user-facing concept should be **environment**, not "graph snapshot".
 
-### 7.3 Retrieval strategy
+### 7.3 Retrieval and materialization strategy
 
 Building a package environment requires retrieving relevant external context. The retrieval process is:
 
-1. **Embed** all declarations in the package (claims, conclusions of chains) using the configured embedding model.
-2. **Semantic retrieval**: for each embedding, find the top-k nearest neighbors from the shared registry (default k=20). This surfaces potentially duplicate, equivalent, or related declarations.
-3. **Structural retrieval** (when graph is available): starting from any declarations that reference existing registry nodes, traverse up to N hops (default 2) to pull in structurally connected context.
-4. **Dedup and cap**: merge semantic and structural results, deduplicate by node ID, cap at `max_environment_nodes` (default 200).
-5. **Load content**: fetch full content and metadata for all retrieved nodes from the content store.
+1. **Embed** all declarations in the package that should participate in open-world matching.
+2. **Semantic retrieval**: for each embedding, find the top-k nearest neighbors from the shared registry.
+3. **Structural retrieval**: expand from both:
+   - explicit package references to existing registry objects
+   - semantic retrieval hits from step 2
+4. **Dedup and cap**: merge semantic and structural results, deduplicate by node ID, and cap at `max_environment_nodes`.
+5. **Load content**: fetch full content and metadata for all selected nodes.
+6. **Materialize**: write environment identity, selected nodes, and retrieval metadata into the lock/runtime artifacts.
 
-The result is a self-contained working set sufficient for integration review without loading the entire registry.
+The result is a self-contained working set sufficient for local alignment and later local inference preview without loading the entire registry.
 
 ### 7.4 Why environment terminology matters
 
@@ -391,13 +410,13 @@ Those remain implementation details.
 
 ### 7.5 Local preview semantics
 
-Local integration review over the package environment is preview-only.
+Local alignment over the package environment is preview-only.
 
-It is useful because it lets the author answer:
+It helps the author answer:
 
-- what would likely happen if I publish this package now?
-- what existing knowledge will this collide with?
-- what relations (equivalence, contradiction, subsumption) are likely?
+- what existing knowledge will this package collide with?
+- what relations are likely?
+- what local environment should `gaia infer` use?
 
 It is not an authoritative global result.
 
@@ -405,8 +424,9 @@ It is not an authoritative global result.
 
 After publish, the server may run:
 
-- the same integration review against fresher shared state
+- the same alignment logic against fresher shared state
 - final merge/canonicalization decisions
+- larger-scope inference after integration
 
 Differences between local preview and server outcome are acceptable. They should be explainable through environment identity, policy version, and current shared state.
 
@@ -439,10 +459,16 @@ Gaia should have a package-level lockfile, tentatively:
 gaia.lock
 ```
 
-It should lock both:
+The lock must be complete enough to reproduce local alignment and environment-aware local inference.
+
+It should lock:
 
 - dependency resolution
 - package environment identity
+- selected external context
+- retrieval policy
+- model identities used to construct or verify alignment
+- policy versions and key thresholds
 
 Illustrative shape:
 
@@ -452,12 +478,28 @@ dependencies:
 
 environment:
   registry_revision: ...
+  selected_node_ids:
+    - ...
+  content_snapshot_ids:
+    - ...
   retrieval_policy:
     semantic_top_k: 20
     structural_max_hops: 2
     max_environment_nodes: 200
+  model_profile:
+    embedding_model: text-embedding-3-large
+    alignment_model: gpt-5-mini
+    verify_model: gpt-5-mini
+  policy_versions:
+    package_review_policy: review-v1
+    alignment_policy: align-v1
+  thresholds:
+    duplicate_similarity: 0.92
+    subsumption_min_score: 0.75
   fingerprint: ...
 ```
+
+Review and alignment sidecars should also record the policy/model identifiers they were produced with.
 
 ### 8.3 Runtime artifacts
 
@@ -467,6 +509,7 @@ Examples:
 
 - build outputs
 - review sidecars
+- alignment sidecars
 - materialized package environment contents
 - cached inference outputs
 
@@ -476,27 +519,29 @@ These are useful for iteration, but they are not the package's normative source 
 
 ## 9. Inference Relationship
 
-Review and inference are related, but they are not the same phase.
+Review, alignment, and inference are related, but they are not the same phase.
 
 ### 9.1 Package review and inference
 
-Package review may suggest priors, dependency labels, or relation candidates that later affect BP.
+Package review may suggest priors, dependency labels, or package-internal relation candidates that later affect inference.
 
 But package review itself is still an audit step, not inference execution.
 
-### 9.2 Integration review and inference
+### 9.2 Alignment and inference
 
-Integration review discovers relations (equivalence, contradiction, subsumption) between the package and existing knowledge. It does **not** run BP.
+Alignment discovers open-world relations and constructs the package environment.
 
-The discovered relations become inputs to inference: once integrated, they form new edges in the factor graph that BP uses to compute beliefs.
+Those relations and that environment become inputs to inference.
 
 ### 9.3 Local inference (`gaia infer`)
 
-`gaia infer` compiles the factor graph from build/review outputs and runs local belief propagation. If a package environment is available, it may include environment context for more accurate local BP.
+`gaia infer` compiles the factor graph from build outputs plus available review/alignment artifacts and runs local belief propagation.
+
+If a package environment is available, it may incorporate that environment for more accurate local preview.
 
 ### 9.4 Server inference (`BPService`)
 
-The server remains responsible for authoritative larger-scope computation after review and integration.
+The server remains responsible for authoritative larger-scope computation after alignment and integration.
 
 This may include:
 
@@ -515,7 +560,8 @@ The target local loop is:
 ```text
 workspace
 -> gaia build
--> gaia review                  (default: --scope all)
+-> gaia review
+-> gaia align
 -> gaia infer
 -> edit package
 -> repeat
@@ -530,7 +576,7 @@ The target server loop is:
 submit package
 -> validate
 -> package review
--> integration review
+-> align package against shared knowledge
 -> integrate
 -> authoritative BP/update
 -> result
@@ -544,10 +590,10 @@ The server may expose that as one asynchronous job or several endpoints, but tho
 
 This document does not yet define:
 
-- the final YAML/JSON schema for review reports
+- the final YAML/JSON schema for review and alignment reports
 - the final server API route layout
-- the final local command set for environment management
-- whether package review and integration review should use one combined file or multiple sidecar files
+- the final local command set for environment inspection
+- the exact storage format for materialized package environments
 
 Those are follow-up design tasks.
 
@@ -555,8 +601,8 @@ Those are follow-up design tasks.
 
 The next architectural follow-ups should be:
 
-1. define the structured review report schema (unifying CLI and server report formats)
-2. extract or define a shared `review_core` module (from CLI chain review + server pipeline operators)
-3. design the package environment lockfile format (coordinate with Issue #68 package management)
-4. align CLI command semantics with review scopes (`--scope` flag)
-5. align server ingestion architecture with package review plus integration review
+1. define the structured report schemas for package review and alignment
+2. extract or define a shared `review_core` module for both package review and alignment
+3. design the package environment lockfile and sidecar layout
+4. align CLI command semantics around `review`, `align`, `infer`, and `publish`
+5. align server ingestion architecture around `review -> align -> integrate`

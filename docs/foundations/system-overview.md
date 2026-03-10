@@ -20,7 +20,7 @@ For product positioning rationale, see [product-scope.md](product-scope.md).
 ├──────────────┴──────────────────────────────────────┤
 │  Gaia Server — Large Knowledge Model (LKM)          │
 │  Neo4j + LanceDB + ByteHouse + GPU BP               │
-│  知识整合 · 全局搜索 · LLM Review · 大尺度 BP          │
+│  知识整合 · 全局搜索 · Review/Align · 大尺度 BP      │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -41,7 +41,8 @@ Core commands:
 |---------|---------|
 | `gaia init [name]` | Initialize a knowledge package |
 | `gaia build` | Parse YAML, resolve refs, elaborate templates → per-module Markdown |
-| `gaia review [PATH]` | LLM review of chains → YAML sidecar reports |
+| `gaia review [PATH]` | Package-internal review of chains → YAML sidecar reports |
+| `gaia align [PATH]` | Build/refresh package environment + discover external relations (target command) |
 | `gaia infer` | Compile factor graph + run local belief propagation |
 | `gaia publish` | Publish to git or local databases (LanceDB + Kuzu) |
 | `gaia show <name>` | Display a declaration + connected chains |
@@ -66,7 +67,7 @@ An optional registry and compute backend. Provides four enhancement services:
 |---------|---------|
 | **Knowledge integration** | Merge packages into the global knowledge graph |
 | **Global search** | Cross-package vector + BM25 + topology search |
-| **LLM Review Engine** | Automated review triggered by webhook |
+| **Review and Alignment** | Automated package review and package alignment triggered by webhook |
 | **Large-scale BP** | Billion-node belief propagation on GPU cluster |
 
 The server is analogous to Julia's General Registry or crates.io — it consumes packages read-only and provides centralized services.
@@ -82,17 +83,18 @@ Agent (local)            Git / GitHub             Gaia Server
 gaia init
 (author YAML modules)
 gaia build
-gaia review (optional)
+gaia review
+gaia align (future, optional)
 
 git add + commit
 git push ──────────→  PR to registry repo
-                      webhook notify ─────────→  auto review
+                      webhook notify ─────────→  auto review + align
                                                  │
                                                  ├─ pass → merge into LKM
                                                  │         PR comment: ✅
                                                  │
                                                  └─ fail → PR comment: ❌
-                                                           + review report
+                                                           + review/alignment report
 
 Agent reads result ←── PR comments
 ├─ pass: done
@@ -103,8 +105,8 @@ Agent reads result ←── PR comments
 Key properties of this flow:
 
 - **Server never modifies the package** — it is a read-only consumer
-- **Review results appear as PR comments** — standard GitHub collaboration model
-- **Agent autonomy** — agents can read review reports and self-correct without human intervention
+- **Review and alignment results appear as PR comments** — standard GitHub collaboration model
+- **Agent autonomy** — agents can read review/alignment reports and self-correct without human intervention
 - **Fully async** — push triggers webhook, agent polls or watches for results
 
 ## Knowledge Package Format
@@ -120,7 +122,8 @@ galileo_tied_balls/              # = 1 git repo = 1 knowledge package
 ├── ...
 └── .gaia/                       # build artifacts (git-ignored)
     ├── build/                   # per-module Markdown for LLM review
-    ├── reviews/                 # YAML sidecar review reports
+    ├── reviews/                 # YAML sidecar package-review reports
+    ├── alignment/               # YAML sidecar alignment reports + environment cache
     └── ...
 ```
 

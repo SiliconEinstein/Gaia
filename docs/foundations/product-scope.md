@@ -88,10 +88,10 @@ Gaia is **CLI-first, Server-enhanced**.
 - **Server provides four optional enhancement services:**
   1. Knowledge integration — merge packages into the global Large Knowledge Model
   2. Global search — cross-package vector + BM25 + topology search
-  3. LLM Review Engine — server-side automated review triggered by webhook
+  3. Review and alignment — server-side package review plus package alignment triggered by webhook
   4. Large-scale BP — billion-node belief propagation on GPU cluster
 
-The primary interaction path is: **CLI → git push → PR → Server webhook → auto review → merge/reject** (similar to Julia Pkg Registry).
+The primary interaction path is: **CLI → git push → PR → Server webhook → auto review/alignment → merge/reject** (similar to Julia Pkg Registry).
 
 Users can work entirely offline with the CLI. The server is an optional registry and compute backend, not a prerequisite.
 
@@ -111,7 +111,7 @@ What is currently shipped on `main`:
 What is not yet shipped but is on the roadmap:
 
 - `gaia publish --server` (direct server publish without git)
-- GitHub webhook integration for server-side auto review
+- GitHub webhook integration for server-side auto review and alignment
 - cross-package dependency resolution and `gaia.lock`
 - shared knowledge-package contracts (being standardized in this foundation work)
 
@@ -199,6 +199,7 @@ Note: the original RFC included `gaia claim` — this was replaced by declarativ
 
 Still not shipped:
 
+- `gaia align` (package-environment construction + external knowledge alignment)
 - `gaia publish --server` (direct server publish)
 - GitHub webhook integration
 - `gaia.lock` / cross-package dependency resolution
@@ -264,7 +265,7 @@ When writing docs or reviewing PRs:
 These have been resolved and should not be reopened:
 
 1. **CLI-first or server-first?** → CLI-first, Server-enhanced.
-2. **Primary interaction path?** → CLI → git push → PR → Server webhook → auto review → merge/reject.
+2. **Primary interaction path?** → CLI → git push → PR → Server webhook → auto review/alignment → merge/reject.
 3. **Kuzu role?** → CLI's embedded graph backend (local, zero-config). Neo4j is the server-side backend.
 
 ## Open Product Decisions

@@ -21,7 +21,7 @@ Server 提供四个增强服务：
 |------|------|
 | Knowledge integration | 把 packages 合并到全局 LKM |
 | Global search | 跨 package 的 vector + BM25 + topology 搜索 |
-| Review Engine | 执行 package review 与 integration review |
+| Review and Alignment | 执行 package review 与 package alignment |
 | Large-scale BP | 全局图上的信念传播 |
 
 Server **不修改 package**——它是 package 的只读消费者。
@@ -50,11 +50,12 @@ Server **不修改 package**——它是 package 的只读消费者。
 │  ┌─────────────────────────────────────────────┐     │
 │  │ IngestionService                             │     │
 │  │                                              │     │
-│  │ submit(pkg) → validate → package_review      │     │
-│  │             → integration_review → integrate │     │
+│  │ submit(pkg) → validate → review              │     │
+│  │             → align → integrate              │     │
 │  │                                              │     │
 │  │ 拥有 package 生命周期状态机                    │     │
-│  │ 内部组合 Validator + ReviewEngine + Integrator│     │
+│  │ 内部组合 Validator + ReviewEngine +          │     │
+│  │            Aligner + Integrator              │     │
 │  └─────────────────────────────────────────────┘     │
 │                                                      │
 │  ┌──────────────┐  ┌──────────────┐                  │
@@ -167,16 +168,15 @@ ingest_package(pkg):
 
 ```
 submitted → validating → validated → reviewing → reviewed
-                ↓                                    ↓
-             invalid                          ┌─────┴─────┐
-             (rejected)                   approved     rejected
-                                             ↓
-                                        integrating
-                                             ↓
-                                          merged
+                ↓                    ↓             ↓
+             invalid              rejected     aligning → aligned
+             (rejected)                               ↓        ↓
+                                                   rejected integrating
+                                                                ↓
+                                                              merged
 ```
 
-> `reviewing` is a composite phase: package review first, then integration review. See [../review/architecture.md](../review/architecture.md).
+> `reviewing` covers package-internal audit. `aligning` covers open-world package alignment against the shared registry. See [../review/architecture.md](../review/architecture.md).
 
 #### 接口
 
@@ -184,6 +184,7 @@ submitted → validating → validated → reviewing → reviewed
 class IngestionService:
     def __init__(self, validator: Validator,
                  review_engine: ReviewEngine,
+                 aligner: Aligner,
                  storage: StorageManager):
         ...
 
@@ -198,7 +199,8 @@ class IngestionService:
 | 组件 | 职责 | 输入 → 输出 |
 |------|------|------------|
 | **Validator** | schema 校验、引用完整性、prior 范围检查、边类型约束 | PackageData → ValidationResult |
-| **ReviewEngine** | 执行 package review（PackageReviewPolicy）与 integration review（IntegrationReviewPolicy） | PackageData + PackageEnvironment + Policies → ReviewReport |
+| **ReviewEngine** | 执行 package review（PackageReviewPolicy） | PackageData + PackageReviewPolicy → PackageReviewReport |
+| **Aligner** | 构建 package environment 并执行 open-world alignment（AlignmentPolicy） | PackageData + EnvironmentLock + AlignmentPolicy → AlignmentResult |
 | **Integrator** | 把 package 映射到全局图结构，调用 StorageManager 写入 | PackageData → IngestResult |
 
 #### Validator 职责
@@ -211,23 +213,26 @@ class IngestionService:
 
 #### ReviewEngine 职责
 
-ReviewEngine 分成两个逻辑阶段，各自有独立的 policy：
+`ReviewEngine` 只负责 **Package Review**（`PackageReviewPolicy`）：
 
-1. **Package Review**（`PackageReviewPolicy`）：闭世界审查，只需要一个 LLM
-   - 推理步骤是否逻辑连贯
-   - 结论是否被前提支持
-   - 推理类型是否正确标注（deduction vs induction vs abstraction）
-   - prior 和 dependency label 是否合理
-   - 输出 per-chain 评分 + 总体 accept/reject 建议
+1. 推理步骤是否逻辑连贯
+2. 结论是否被前提支持
+3. 推理类型是否正确标注（deduction vs induction vs abstraction）
+4. prior 和 dependency label 是否合理
+5. 输出 per-chain 评分 + 总体 accept/reject 建议
 
-2. **Integration Review**（`IntegrationReviewPolicy`）：开世界审查，需要 embedding + retrieval + LLM
-   - 生成 embedding，检索语义和结构邻居（构建 package environment）
-   - 发现 conclusion-conclusion 关系（join-cc）
-   - 发现 conclusion-premise 关系（join-cp）
-   - 两轮 verification（验证发现的关系质量）
-   - 输出 relation 候选（equivalence, contradiction, subsumption）+ integration verdict
+#### Aligner 职责
 
-Review 不包含 BP。BP 属于 inference 阶段，由 `BPService` 在 integration 之后执行。
+`Aligner` 负责 **Package Alignment**（`AlignmentPolicy`）：
+
+1. 生成 embedding，检索语义邻居
+2. 从显式引用和语义命中继续扩展结构邻居，构建 package environment
+3. 发现 conclusion-conclusion 关系（join-cc）
+4. 发现 conclusion-premise 关系（join-cp）
+5. 两轮 verification（验证发现关系的质量）
+6. 输出 relation 候选（equivalence, contradiction, subsumption）+ alignment verdict
+
+Review 和 alignment 都不包含 BP。BP 属于 inference 阶段，由 `BPService` 在 integration 之后执行。
 
 详细边界见 [../review/architecture.md](../review/architecture.md).
 
@@ -395,7 +400,11 @@ def create_dependencies() -> Dependencies:
     # Domain Services
     validator = Validator()
     review_engine = ReviewEngine(llm_client=create_llm_client())
-    ingestion = IngestionService(validator, review_engine, storage)
+    aligner = Aligner(
+        embedding=create_embedding_client(),
+        llm_client=create_llm_client(),
+    )
+    ingestion = IngestionService(validator, review_engine, aligner, storage)
     bp = BPService(storage)
     query = QueryService(storage)
 
@@ -418,7 +427,7 @@ def create_app() -> FastAPI:
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
 | Storage Layer | 高 | 一切的基础 |
-| IngestionService (Validator + ReviewEngine + Integrator) | 高 | 核心写入路径 |
+| IngestionService (Validator + ReviewEngine + Aligner + Integrator) | 高 | 核心写入路径 |
 | QueryService (读取 + 搜索) | 中 | 搜索策略后续细化 |
 | BPService | 中 | 先复用 libs/inference/ CPU 实现 |
 | Transport Layer | 高 | HTTP routes + webhook handler |
