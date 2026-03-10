@@ -348,10 +348,10 @@ Type           ::= 'knowledge'
 Package        ::= Name Module+
 
 (* ====== Module ====== *)
-Module         ::= Type Name Declaration* Export
+Module         ::= Type Name Knowledge* Export
 
-(* ====== Declaration (unified — everything is Knowledge) ====== *)
-Declaration    ::= Type Name Params? ReturnType? Body Metadata?
+(* ====== Knowledge (unified — everything is Knowledge) ====== *)
+Knowledge      ::= Type Name Params? ReturnType? Body Metadata?
 
 Params         ::= '(' Param (',' Param)* ')'
 Param          ::= Name ':' Type
@@ -360,7 +360,7 @@ ReturnType     ::= '->' Type
 Body           ::= ContentBody | ChainBody | ModuleBody | RefBody
 ContentBody    ::= Content                       (* Claim, Question, Setting, Action *)
 ChainBody      ::= Step ('=>' Step)*             (* ChainExpr *)
-ModuleBody     ::= Declaration* Export           (* Module — recursive *)
+ModuleBody     ::= Knowledge* Export             (* Module — recursive *)
 RefBody        ::= ModuleRef                     (* Ref — points to external knowledge *)
 
 (* ====== Steps in a Chain ====== *)
@@ -411,8 +411,8 @@ Source          ::= PackageRef Version
 ### V3 — Probabilistic Layer Extension
 
 ```bnf
-(* Extends Declaration with prior *)
-Declaration    ::= Type Name Params? ReturnType? Body Metadata? ProbAnnot?
+(* Extends Knowledge with prior *)
+Knowledge      ::= Type Name Params? ReturnType? Body Metadata? ProbAnnot?
 ProbAnnot      ::= '(' 'prior' '=' Float ')'
 
 (* Extends Application and Lambda with prior *)
@@ -623,7 +623,7 @@ The factor graph is derived from the ChainExpr structure:
 
 | Layer | What it adds | PL analogy |
 |-------|-------------|------------|
-| **V1 -- FP Core** | Knowledge types, Action, Expr, Ref, Module, unified Declaration | Haskell values, functions, composition, modules |
+| **V1 -- FP Core** | Knowledge types, Action, Expr, Ref, Module, unified Knowledge | Haskell values, functions, composition, modules |
 | **V2 -- Package Management** | Version, manifest, dependency resolution, registry, publish, global identity | Cargo, Cabal, npm |
 | **V3 -- Probabilistic Layer** | Prior, posterior, dependency type (direct/indirect), BP | Church's flip/observe, Pyro's sample/observe |
 | **Future** | Action type signatures, Module-as-callable-value, dependent types, formal verification | Lean, OCaml functors, Coq |
@@ -633,7 +633,7 @@ The factor graph is derived from the ChainExpr structure:
 The following questions have been resolved:
 
 1. **Abstract vs concrete syntax separation?** -> Yes. Abstract = BNF, concrete = YAML. No custom parser needed.
-2. **Declaration unified or split?** -> Unified. One Declaration form, Body distinguishes types.
+2. **Declaration unified or split?** -> Unified. One Knowledge form, Body distinguishes types.
 3. **Module role or type?** -> Type. Module is a Knowledge type (ReasoningModule, SettingModule, etc.).
 4. **Expression: structural element or type?** -> Type. Expr is a Knowledge base type, ChainExpr is a subtype of Expr under Action's sibling.
 5. **Import: separate syntax or Ref type?** -> Ref type. Imports are `ref` declarations, not a separate syntactic construct.

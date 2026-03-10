@@ -20,7 +20,7 @@ def save_build(elaborated: ElaboratedPackage, build_dir: Path) -> Path:
         prompts_by_chain.setdefault(p["chain"], []).append(p)
 
     for mod in pkg.loaded_modules:
-        chains = [d for d in mod.declarations if isinstance(d, ChainExpr)]
+        chains = [d for d in mod.knowledge if isinstance(d, ChainExpr)]
         if not chains:
             continue
 

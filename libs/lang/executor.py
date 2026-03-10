@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from .models import (
     Action,
     ChainExpr,
-    Declaration,
+    Knowledge,
     Package,
     Ref,
     StepApply,
@@ -33,7 +33,7 @@ class ActionExecutor(ABC):
         """Execute a ToolCallAction. Returns the tool output text."""
 
 
-def _topo_sort_chains(chains: list[ChainExpr], decls: dict[str, Declaration]) -> list[ChainExpr]:
+def _topo_sort_chains(chains: list[ChainExpr], decls: dict[str, Knowledge]) -> list[ChainExpr]:
     """Sort chains by data dependency: producers before consumers."""
     # Map: chain_name -> set of claim names it writes
     writes: dict[str, set[str]] = {}
@@ -93,12 +93,12 @@ async def execute_package(pkg: Package, executor: ActionExecutor) -> None:
     Chains are topologically sorted by data dependencies so that
     producers execute before consumers.
     """
-    # Build lookup: name -> Declaration (across all modules, resolving refs)
-    decls: dict[str, Declaration] = {}
+    # Build lookup: name -> Knowledge (across all modules, resolving refs)
+    decls: dict[str, Knowledge] = {}
     actions: dict[str, Action] = {}
 
     for module in pkg.loaded_modules:
-        for decl in module.declarations:
+        for decl in module.knowledge:
             if isinstance(decl, Ref):
                 if decl._resolved is not None:
                     decls[decl.name] = decl._resolved
@@ -110,7 +110,7 @@ async def execute_package(pkg: Package, executor: ActionExecutor) -> None:
     # Collect all chains across modules
     all_chains: list[ChainExpr] = []
     for module in pkg.loaded_modules:
-        for decl in module.declarations:
+        for decl in module.knowledge:
             if isinstance(decl, ChainExpr):
                 all_chains.append(decl)
 
@@ -124,7 +124,7 @@ async def execute_package(pkg: Package, executor: ActionExecutor) -> None:
 
 async def _execute_chain(
     chain: ChainExpr,
-    decls: dict[str, Declaration],
+    decls: dict[str, Knowledge],
     actions: dict[str, Action],
     executor: ActionExecutor,
 ) -> None:

@@ -54,7 +54,7 @@ async def test_runtime_beliefs_written_back_to_declarations():
 
     # Find heavier_falls_faster claim via the package
     aristotle = next(m for m in result.package.loaded_modules if m.name == "aristotle")
-    hff = next(d for d in aristotle.declarations if d.name == "heavier_falls_faster")
+    hff = next(d for d in aristotle.knowledge if d.name == "heavier_falls_faster")
 
     # belief field should be set and match result.beliefs
     assert hff.belief is not None
@@ -64,7 +64,7 @@ async def test_runtime_beliefs_written_back_to_declarations():
 
     # Also check a Setting gets its belief written back
     setting_mod = next(m for m in result.package.loaded_modules if m.name == "setting")
-    thought_env = next(d for d in setting_mod.declarations if d.name == "thought_experiment_env")
+    thought_env = next(d for d in setting_mod.knowledge if d.name == "thought_experiment_env")
     assert thought_env.belief is not None
     assert thought_env.belief == result.beliefs["thought_experiment_env"]
 
@@ -75,7 +75,7 @@ async def test_runtime_preserves_retract_action_provenance_contract():
     result = await runtime.run(FIXTURE_DIR)
 
     reasoning = next(m for m in result.package.loaded_modules if m.name == "reasoning")
-    retract = next(d for d in reasoning.declarations if d.name == "retract_aristotle")
+    retract = next(d for d in reasoning.knowledge if d.name == "retract_aristotle")
 
     assert isinstance(retract, RetractAction)
     assert retract.target == "heavier_falls_faster"
@@ -94,9 +94,9 @@ async def test_runtime_execute_only():
 
     # Claims should be filled with a coherent story, not just placeholders.
     reasoning = next(m for m in result.package.loaded_modules if m.name == "reasoning")
-    ac = next(d for d in reasoning.declarations if d.name == "aristotle_contradicted")
+    ac = next(d for d in reasoning.knowledge if d.name == "aristotle_contradicted")
     assert ac.content != ""
-    vp = next(d for d in reasoning.declarations if d.name == "vacuum_prediction")
+    vp = next(d for d in reasoning.knowledge if d.name == "vacuum_prediction")
     assert "相同速率下落" in vp.content
 
     # But no factor graph or beliefs

@@ -1,4 +1,4 @@
-from libs.lang.loader import _parse_declaration
+from libs.lang.loader import _parse_knowledge
 from libs.lang.models import Contradiction, Equivalence, RetractAction
 
 
@@ -15,11 +15,11 @@ def test_retract_action_model():
     assert r.prior == 0.96
 
 
-def test_retract_action_in_declaration_map():
-    from libs.lang.models import DECLARATION_TYPE_MAP
+def test_retract_action_in_knowledge_map():
+    from libs.lang.models import KNOWLEDGE_TYPE_MAP
 
-    assert "retract_action" in DECLARATION_TYPE_MAP
-    assert DECLARATION_TYPE_MAP["retract_action"] is RetractAction
+    assert "retract_action" in KNOWLEDGE_TYPE_MAP
+    assert KNOWLEDGE_TYPE_MAP["retract_action"] is RetractAction
 
 
 def test_parse_contradiction_from_yaml_dict():
@@ -29,7 +29,7 @@ def test_parse_contradiction_from_yaml_dict():
         "between": ["claim_a", "claim_b"],
         "prior": 0.95,
     }
-    decl = _parse_declaration(data)
+    decl = _parse_knowledge(data)
     assert isinstance(decl, Contradiction)
     assert decl.between == ["claim_a", "claim_b"]
     assert decl.prior == 0.95
@@ -42,7 +42,7 @@ def test_parse_equivalence_from_yaml_dict():
         "between": ["claim_x", "claim_y"],
         "prior": 0.90,
     }
-    decl = _parse_declaration(data)
+    decl = _parse_knowledge(data)
     assert isinstance(decl, Equivalence)
     assert decl.between == ["claim_x", "claim_y"]
 
@@ -55,7 +55,7 @@ def test_parse_retract_action_from_yaml_dict():
         "reason": "some_contradiction",
         "prior": 0.96,
     }
-    decl = _parse_declaration(data)
+    decl = _parse_knowledge(data)
     assert isinstance(decl, RetractAction)
     assert decl.target == "some_claim"
     assert decl.reason == "some_contradiction"

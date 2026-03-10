@@ -7,10 +7,10 @@ from pathlib import Path
 import yaml
 
 from .models import (
-    DECLARATION_TYPE_MAP,
+    KNOWLEDGE_TYPE_MAP,
     Arg,
     ChainExpr,
-    Declaration,
+    Knowledge,
     Module,
     Package,
     Step,
@@ -46,24 +46,24 @@ def load_package(path: Path) -> Package:
 
 
 def _parse_module(data: dict) -> Module:
-    """Parse a module YAML dict into a Module with typed declarations."""
-    declarations = [_parse_declaration(d) for d in data.get("declarations", [])]
+    """Parse a module YAML dict into a Module with typed knowledge items."""
+    knowledge = [_parse_knowledge(d) for d in data.get("declarations", [])]
     return Module(
         type=data["type"],
         name=data["name"],
-        declarations=declarations,
+        knowledge=knowledge,
         export=data.get("export", []),
     )
 
 
-def _parse_declaration(data: dict) -> Declaration:
-    """Parse a single declaration dict into the correct Declaration subclass."""
+def _parse_knowledge(data: dict) -> Knowledge:
+    """Parse a single knowledge dict into the correct Knowledge subclass."""
     decl_type = data.get("type", "")
-    cls = DECLARATION_TYPE_MAP.get(decl_type)
+    cls = KNOWLEDGE_TYPE_MAP.get(decl_type)
 
     if cls is None:
-        # Unknown type — return base Declaration
-        return Declaration.model_validate(data)
+        # Unknown type — return base Knowledge
+        return Knowledge.model_validate(data)
 
     if cls is ChainExpr:
         # Parse steps specially

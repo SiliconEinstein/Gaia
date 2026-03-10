@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from libs.lang.compiler import CompiledFactorGraph
 from libs.lang.models import (
-    Declaration,
+    Knowledge,
     Package,
     Question,
     Ref,
@@ -43,10 +43,10 @@ def convert_package_to_storage(
     """
     result = StorageConversionResult()
 
-    # Build declaration index: name -> resolved Declaration
-    decls_by_name: dict[str, Declaration] = {}
+    # Build knowledge index: name -> resolved Knowledge
+    decls_by_name: dict[str, Knowledge] = {}
     for mod in pkg.loaded_modules:
-        for decl in mod.declarations:
+        for decl in mod.knowledge:
             if isinstance(decl, Ref) and decl._resolved is not None:
                 decls_by_name[decl.name] = decl._resolved
             else:
@@ -60,7 +60,7 @@ def convert_package_to_storage(
         if decl is None:
             continue
 
-        # Map language declaration type to storage node type
+        # Map language knowledge type to storage node type
         node_type = "claim"
         if isinstance(decl, Setting):
             node_type = "setting"

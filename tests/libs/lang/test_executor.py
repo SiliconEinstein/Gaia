@@ -44,7 +44,7 @@ async def test_execute_fills_empty_claims():
         "inclined_plane_supports_equal_fall",
         "vacuum_prediction",
     }
-    for decl in reasoning.declarations:
+    for decl in reasoning.knowledge:
         if hasattr(decl, "content") and decl.name in filled_names:
             assert decl.content.strip() != "", f"{decl.name} should be filled"
 
@@ -94,7 +94,7 @@ async def test_execute_preserves_existing_content():
 
     # heavier_falls_faster already had content, should not be overwritten
     aristotle = next(m for m in pkg.loaded_modules if m.name == "aristotle")
-    hff = next(d for d in aristotle.declarations if d.name == "heavier_falls_faster")
+    hff = next(d for d in aristotle.knowledge if d.name == "heavier_falls_faster")
     assert "重的物体" in hff.content
 
 
@@ -107,7 +107,7 @@ async def test_execute_chain_order():
 
     # vacuum_prediction has pre-filled content; executor should preserve it.
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
-    vp = next(d for d in reasoning.declarations if d.name == "vacuum_prediction")
+    vp = next(d for d in reasoning.knowledge if d.name == "vacuum_prediction")
     assert "相同速率下落" in vp.content
 
 

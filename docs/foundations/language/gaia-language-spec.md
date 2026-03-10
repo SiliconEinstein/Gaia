@@ -323,7 +323,7 @@ The current declaration kinds on `main` are:
 - `apply`
 - `lambda`
 
-These are the shapes consumed by the current loader and runtime. The loader also accepts declaration types not in this list — unknown types are loaded as generic `Declaration` objects so the LLM runtime can interpret their semantics during build and review.
+These are the shapes consumed by the current loader and runtime. The loader also accepts declaration types not in this list — unknown types are loaded as generic `Knowledge` objects so the LLM runtime can interpret their semantics during build and review.
 
 ## Conformance and Well-Formedness
 
@@ -344,7 +344,7 @@ These are structural constraints — they block loading or factor-graph compilat
 
 The following are intentionally accepted by the current runtime:
 
-- declaration types not in `DECLARATION_TYPE_MAP` — loaded as generic `Declaration` objects and interpreted by the LLM during build/review
+- declaration types not in `KNOWLEDGE_TYPE_MAP` — loaded as generic `Knowledge` objects and interpreted by the LLM during build/review
 - packages with an empty `modules` list
 - modules with an empty `declarations` list
 

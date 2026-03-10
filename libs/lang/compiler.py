@@ -8,8 +8,8 @@ from itertools import combinations
 
 from .models import (
     ChainExpr,
-    Declaration,
     Equivalence,
+    Knowledge,
     Package,
     Ref,
     Relation,
@@ -46,11 +46,11 @@ def compile_factor_graph(pkg: Package) -> CompiledFactorGraph:
     """
     fg = CompiledFactorGraph()
 
-    # Collect all declarations across modules (resolving refs)
-    all_decls: dict[str, Declaration] = {}
+    # Collect all knowledge across modules (resolving refs)
+    all_decls: dict[str, Knowledge] = {}
 
     for module in pkg.loaded_modules:
-        for decl in module.declarations:
+        for decl in module.knowledge:
             if isinstance(decl, Ref):
                 # Use the resolved target
                 if decl._resolved is not None:
@@ -71,13 +71,13 @@ def compile_factor_graph(pkg: Package) -> CompiledFactorGraph:
 
     # Add factor nodes from ChainExpr steps
     for module in pkg.loaded_modules:
-        for decl in module.declarations:
+        for decl in module.knowledge:
             if not isinstance(decl, ChainExpr):
                 continue
             _compile_chain(decl, all_decls, fg)
 
     # Add constraint factors from Relation declarations.
-    # Iterate all_decls (not module.declarations) so that Ref aliases are handled:
+    # Iterate all_decls (not module.knowledge) so that Ref aliases are handled:
     # a Relation re-exported via Ref appears under the alias name in all_decls.
     for name, decl in all_decls.items():
         if isinstance(decl, Relation):
@@ -88,7 +88,7 @@ def compile_factor_graph(pkg: Package) -> CompiledFactorGraph:
 
 def _compile_chain(
     chain: ChainExpr,
-    all_decls: dict[str, Declaration],
+    all_decls: dict[str, Knowledge],
     fg: CompiledFactorGraph,
 ) -> None:
     """Compile a ChainExpr into factor nodes connecting variable nodes."""
@@ -146,7 +146,7 @@ def _compile_chain(
 def _compile_relation(
     var_name: str,
     rel: Relation,
-    all_decls: dict[str, Declaration],
+    all_decls: dict[str, Knowledge],
     fg: CompiledFactorGraph,
 ) -> None:
     """Compile a Relation into constraint factor(s) connecting related claims.

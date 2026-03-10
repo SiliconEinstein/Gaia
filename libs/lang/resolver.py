@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .models import Declaration, Package, Ref
+from .models import Knowledge, Package, Ref
 
 
 class ResolveError(Exception):
@@ -12,20 +12,20 @@ class ResolveError(Exception):
 def resolve_refs(pkg: Package) -> Package:
     """Resolve all Ref declarations in the package.
 
-    Builds a declaration index (module.name -> Declaration),
-    then links each Ref._resolved to its target Declaration.
+    Builds a knowledge index (module.name -> Knowledge),
+    then links each Ref._resolved to its target Knowledge object.
     """
-    # Build index: "module_name.decl_name" -> Declaration
-    index: dict[str, Declaration] = {}
+    # Build index: "module_name.decl_name" -> Knowledge
+    index: dict[str, Knowledge] = {}
     for module in pkg.loaded_modules:
-        for decl in module.declarations:
+        for decl in module.knowledge:
             if decl.type != "ref":
                 key = f"{module.name}.{decl.name}"
                 index[key] = decl
 
     # Resolve each Ref
     for module in pkg.loaded_modules:
-        for decl in module.declarations:
+        for decl in module.knowledge:
             if isinstance(decl, Ref):
                 target = index.get(decl.target)
                 if target is None:

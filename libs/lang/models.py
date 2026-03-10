@@ -50,11 +50,11 @@ class StepLambda(BaseModel):
 Step = StepRef | StepApply | StepLambda
 
 
-# ── Declarations (unified — everything is Knowledge) ──────
+# ── Knowledge (unified root type — everything is Knowledge) ──────
 
 
-class Declaration(BaseModel):
-    """Base for all declarations. Subclasses set type as a literal."""
+class Knowledge(BaseModel):
+    """Base for all knowledge objects. Subclasses set type as a literal."""
 
     type: str
     name: str
@@ -62,24 +62,24 @@ class Declaration(BaseModel):
     prior: float | None = None
 
 
-class Claim(Declaration):
+class Claim(Knowledge):
     type: str = "claim"
     content: str = ""
     belief: float | None = None  # posterior after BP
 
 
-class Question(Declaration):
+class Question(Knowledge):
     type: str = "question"
     content: str = ""
 
 
-class Setting(Declaration):
+class Setting(Knowledge):
     type: str = "setting"
     content: str = ""
     belief: float | None = None  # posterior after BP
 
 
-class Relation(Declaration):
+class Relation(Knowledge):
     """Base for logical relations between knowledge objects."""
 
     between: list[str] = Field(default_factory=list)
@@ -95,7 +95,7 @@ class Equivalence(Relation):
     type: str = "equivalence"
 
 
-class Action(Declaration):
+class Action(Knowledge):
     """Base for executable actions (InferAction, ToolCallAction)."""
 
     params: list[Param] = Field(default_factory=list)
@@ -118,7 +118,7 @@ class RetractAction(Action):
     reason: str = ""  # ref to a Contradiction Relation
 
 
-class Expr(Declaration):
+class Expr(Knowledge):
     """Base for compound expressions (ChainExpr, future BranchExpr/DAGExpr)."""
 
     pass
@@ -130,15 +130,15 @@ class ChainExpr(Expr):
     edge_type: str | None = None  # "deduction" | "retraction" | "contradiction"
 
 
-class Ref(Declaration):
+class Ref(Knowledge):
     type: str = "ref"
     target: str = ""
-    _resolved: Declaration | None = PrivateAttr(default=None)  # populated by resolver
+    _resolved: Knowledge | None = PrivateAttr(default=None)  # populated by resolver
 
 
 # ── Module ────────────────────────────────────────────────
 
-DECLARATION_TYPE_MAP: dict[str, type[Declaration]] = {
+KNOWLEDGE_TYPE_MAP: dict[str, type[Knowledge]] = {
     "claim": Claim,
     "question": Question,
     "setting": Setting,
@@ -155,8 +155,10 @@ DECLARATION_TYPE_MAP: dict[str, type[Declaration]] = {
 class Module(BaseModel):
     type: str  # reasoning_module, setting_module, etc.
     name: str
-    declarations: list[Declaration] = Field(default_factory=list)
+    knowledge: list[Knowledge] = Field(default_factory=list, alias="declarations")
     export: list[str] = Field(default_factory=list)
+
+    model_config = {"populate_by_name": True}
 
 
 # ── Package ───────────────────────────────────────────────
@@ -176,6 +178,6 @@ class Package(BaseModel):
     export: list[str] = Field(default_factory=list)
     # Populated after loading module files:
     loaded_modules: list[Module] = Field(default_factory=list, exclude=True)
-    _index: dict[str, Declaration] = PrivateAttr(default_factory=dict)  # populated by resolver
+    _index: dict[str, Knowledge] = PrivateAttr(default_factory=dict)  # populated by resolver
 
     model_config = {"populate_by_name": True}

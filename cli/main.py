@@ -466,10 +466,10 @@ def init_cmd(
 
 @app.command()
 def show(
-    name: str = typer.Argument(..., help="Declaration name to inspect"),
+    name: str = typer.Argument(..., help="Knowledge object name to inspect"),
     path: str = typer.Option(".", "--path", "-p", help="Package directory"),
 ) -> None:
-    """Show declaration details + connected chains."""
+    """Show knowledge object details + connected chains."""
     from libs.lang.loader import load_package
     from libs.lang.models import ChainExpr, Ref, StepApply, StepRef
 
@@ -483,20 +483,20 @@ def show(
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
 
-    # Find declaration
+    # Find knowledge object
     target = None
     for mod in pkg.loaded_modules:
-        for decl in mod.declarations:
+        for decl in mod.knowledge:
             actual = decl._resolved if isinstance(decl, Ref) and decl._resolved else decl
             if actual.name == name:
                 target = actual
                 break
 
     if target is None:
-        typer.echo(f"Error: declaration '{name}' not found", err=True)
+        typer.echo(f"Error: knowledge object '{name}' not found", err=True)
         raise typer.Exit(1)
 
-    # Display declaration
+    # Display knowledge object
     prior_str = f" | prior: {target.prior}" if target.prior is not None else ""
     typer.echo(f"{target.name} ({target.type}){prior_str}")
     if hasattr(target, "content") and target.content:
@@ -510,7 +510,7 @@ def show(
     typer.echo("  Referenced in chains:")
     found_any = False
     for mod in pkg.loaded_modules:
-        for decl in mod.declarations:
+        for decl in mod.knowledge:
             if not isinstance(decl, ChainExpr):
                 continue
             for step in decl.steps:

@@ -65,13 +65,13 @@ def test_elaborate_does_not_modify_original():
     pkg = resolve_refs(pkg)
     original_content = None
     for mod in pkg.loaded_modules:
-        for decl in mod.declarations:
+        for decl in mod.knowledge:
             if decl.name == "deduce_drag_effect":
                 original_content = decl.content
                 break
     elaborate_package(pkg)
     for mod in pkg.loaded_modules:
-        for decl in mod.declarations:
+        for decl in mod.knowledge:
             if decl.name == "deduce_drag_effect":
                 assert decl.content == original_content
 

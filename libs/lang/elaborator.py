@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from .models import (
     Action,
     ChainExpr,
-    Declaration,
+    Knowledge,
     Package,
     Ref,
     StepApply,
@@ -38,9 +38,9 @@ def elaborate_package(pkg: Package) -> ElaboratedPackage:
     pkg_copy = copy.deepcopy(pkg)
 
     # Build name->declaration index, resolving Refs to their targets
-    decls_by_name: dict[str, Declaration] = {}
+    decls_by_name: dict[str, Knowledge] = {}
     for mod in pkg_copy.loaded_modules:
-        for decl in mod.declarations:
+        for decl in mod.knowledge:
             if isinstance(decl, Ref) and decl._resolved is not None:
                 decls_by_name[decl.name] = decl._resolved
             else:
@@ -50,7 +50,7 @@ def elaborate_package(pkg: Package) -> ElaboratedPackage:
     prompts: list[dict] = []
     chain_contexts: dict[str, dict] = {}
     for mod in pkg_copy.loaded_modules:
-        for decl in mod.declarations:
+        for decl in mod.knowledge:
             if isinstance(decl, ChainExpr):
                 chain_prompts = _elaborate_chain(decl, decls_by_name)
                 prompts.extend(chain_prompts)
@@ -59,7 +59,7 @@ def elaborate_package(pkg: Package) -> ElaboratedPackage:
     return ElaboratedPackage(package=pkg_copy, prompts=prompts, chain_contexts=chain_contexts)
 
 
-def _build_chain_context(chain: ChainExpr, decls: dict[str, Declaration]) -> dict:
+def _build_chain_context(chain: ChainExpr, decls: dict[str, Knowledge]) -> dict:
     """Extract chain-level context: edge_type, premise_refs, conclusion_refs."""
     # Find the index boundaries of StepApply/StepLambda steps
     first_apply_idx = None
@@ -95,7 +95,7 @@ def _build_chain_context(chain: ChainExpr, decls: dict[str, Declaration]) -> dic
     }
 
 
-def _elaborate_chain(chain: ChainExpr, decls: dict[str, Declaration]) -> list[dict]:
+def _elaborate_chain(chain: ChainExpr, decls: dict[str, Knowledge]) -> list[dict]:
     """Elaborate a single chain's steps, returning rendered prompt dicts."""
     prompts = []
 

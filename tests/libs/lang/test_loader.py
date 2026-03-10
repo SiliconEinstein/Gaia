@@ -42,7 +42,7 @@ def test_declarations_parsed():
     pkg = load_package(FIXTURE_DIR)
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
     counts: dict[str, int] = {}
-    for decl in reasoning.declarations:
+    for decl in reasoning.knowledge:
         counts[decl.type] = counts.get(decl.type, 0) + 1
 
     # The richer Galileo fixture should contain:
@@ -61,7 +61,7 @@ def test_declarations_parsed():
 def test_claim_with_prior():
     pkg = load_package(FIXTURE_DIR)
     aristotle = next(m for m in pkg.loaded_modules if m.name == "aristotle")
-    heavier = next(d for d in aristotle.declarations if d.name == "heavier_falls_faster")
+    heavier = next(d for d in aristotle.knowledge if d.name == "heavier_falls_faster")
     assert isinstance(heavier, Claim)
     assert heavier.prior == 0.7
     assert "重的物体" in heavier.content
@@ -71,7 +71,7 @@ def test_infer_action_with_params():
     pkg = load_package(FIXTURE_DIR)
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
     synthesize = next(
-        d for d in reasoning.declarations if d.name == "synthesize_equal_fall_prediction"
+        d for d in reasoning.knowledge if d.name == "synthesize_equal_fall_prediction"
     )
     assert isinstance(synthesize, InferAction)
     assert len(synthesize.params) == 4
@@ -83,7 +83,7 @@ def test_infer_action_with_params():
 def test_chain_expr_steps():
     pkg = load_package(FIXTURE_DIR)
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
-    chain = next(d for d in reasoning.declarations if d.name == "contradiction_chain")
+    chain = next(d for d in reasoning.knowledge if d.name == "contradiction_chain")
     assert isinstance(chain, ChainExpr)
     assert len(chain.steps) == 3
     # After refactoring, contradiction_chain has no edge_type (defaults to deduction)
@@ -101,7 +101,7 @@ def test_chain_expr_steps():
 def test_ref_declaration():
     pkg = load_package(FIXTURE_DIR)
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
-    ref = next(d for d in reasoning.declarations if d.name == "heavier_falls_faster")
+    ref = next(d for d in reasoning.knowledge if d.name == "heavier_falls_faster")
     assert isinstance(ref, Ref)
     assert ref.target == "aristotle.heavier_falls_faster"
 
@@ -109,7 +109,7 @@ def test_ref_declaration():
 def test_lambda_step():
     pkg = load_package(FIXTURE_DIR)
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
-    combined = next(d for d in reasoning.declarations if d.name == "combined_weight_chain")
+    combined = next(d for d in reasoning.knowledge if d.name == "combined_weight_chain")
     assert isinstance(combined, ChainExpr)
     # Step 2 should be a lambda
     step2 = combined.steps[1]
@@ -174,8 +174,8 @@ def test_unknown_step_format_raises(tmp_path):
         load_package(tmp_path)
 
 
-def test_unknown_type_falls_back_to_declaration(tmp_path):
-    """A declaration with an unrecognized type falls back to base Declaration."""
+def test_unknown_type_falls_back_to_knowledge(tmp_path):
+    """A declaration with an unrecognized type falls back to base Knowledge."""
     pkg_yaml = tmp_path / "package.yaml"
     pkg_yaml.write_text("name: test_pkg\nmodules:\n  - m\n")
 
@@ -191,10 +191,10 @@ def test_unknown_type_falls_back_to_declaration(tmp_path):
 
     pkg = load_package(tmp_path)
     mod = pkg.loaded_modules[0]
-    assert len(mod.declarations) == 1
-    decl = mod.declarations[0]
-    # Should be a base Declaration (not a specific subclass like Claim)
-    assert type(decl).__name__ == "Declaration"
+    assert len(mod.knowledge) == 1
+    decl = mod.knowledge[0]
+    # Should be a base Knowledge (not a specific subclass like Claim)
+    assert type(decl).__name__ == "Knowledge"
     assert decl.type == "custom_type"
     assert decl.name == "my_custom"
 
@@ -211,7 +211,7 @@ def test_load_minimal_package(tmp_path):
     assert pkg.name == "minimal"
     assert len(pkg.loaded_modules) == 1
     assert pkg.loaded_modules[0].name == "m"
-    assert pkg.loaded_modules[0].declarations == []
+    assert pkg.loaded_modules[0].knowledge == []
     assert pkg.loaded_modules[0].export == []
 
 

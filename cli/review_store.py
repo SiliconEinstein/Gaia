@@ -58,7 +58,7 @@ def merge_review(pkg: Package, review: dict, source_fingerprint: str | None = No
 
     chains_by_name: dict[str, ChainExpr] = {}
     for mod in merged.loaded_modules:
-        for decl in mod.declarations:
+        for decl in mod.knowledge:
             if isinstance(decl, ChainExpr):
                 chains_by_name[decl.name] = decl
 

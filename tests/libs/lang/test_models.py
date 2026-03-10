@@ -80,8 +80,8 @@ def test_module_with_declarations():
     )
     assert m.type == "reasoning_module"
     assert m.name == "reasoning"
-    assert len(m.declarations) == 1
-    assert m.declarations[0].name == "c1"
+    assert len(m.knowledge) == 1
+    assert m.knowledge[0].name == "c1"
     assert m.export == ["c1"]
 
 

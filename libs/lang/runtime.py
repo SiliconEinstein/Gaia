@@ -11,7 +11,7 @@ from libs.inference.factor_graph import FactorGraph
 from .compiler import CompiledFactorGraph, compile_factor_graph
 from .executor import ActionExecutor, execute_package
 from .loader import load_package
-from .models import Declaration, Package, Ref
+from .models import Knowledge, Package, Ref
 from .resolver import resolve_refs
 
 
@@ -90,9 +90,9 @@ class GaiaRuntime:
         result.beliefs = {id_to_name[nid]: belief for nid, belief in beliefs.items()}
 
         # Write posteriors back to declaration objects
-        all_decls_by_name: dict[str, Declaration] = {}
+        all_decls_by_name: dict[str, Knowledge] = {}
         for module in result.package.loaded_modules:
-            for decl in module.declarations:
+            for decl in module.knowledge:
                 if isinstance(decl, Ref) and decl._resolved is not None:
                     all_decls_by_name[decl.name] = decl._resolved
                 else:

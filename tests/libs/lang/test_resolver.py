@@ -17,7 +17,7 @@ def test_resolve_simple_ref():
     # reasoning module refs heavier_falls_faster from aristotle
     reasoning = next(m for m in resolved.loaded_modules if m.name == "reasoning")
     ref = next(
-        d for d in reasoning.declarations if d.type == "ref" and d.name == "heavier_falls_faster"
+        d for d in reasoning.knowledge if d.type == "ref" and d.name == "heavier_falls_faster"
     )
     assert ref._resolved is not None
     assert isinstance(ref._resolved, Claim)
@@ -29,7 +29,7 @@ def test_resolve_all_refs():
     resolved = resolve_refs(pkg)
     # All refs should be resolved
     for module in resolved.loaded_modules:
-        for decl in module.declarations:
+        for decl in module.knowledge:
             if decl.type == "ref":
                 assert decl._resolved is not None, f"Unresolved ref: {module.name}.{decl.name}"
 
@@ -38,7 +38,7 @@ def test_resolve_cross_module():
     pkg = load_package(FIXTURE_DIR)
     resolved = resolve_refs(pkg)
     follow_up = next(m for m in resolved.loaded_modules if m.name == "follow_up")
-    vp_ref = next(d for d in follow_up.declarations if d.name == "vacuum_prediction")
+    vp_ref = next(d for d in follow_up.knowledge if d.name == "vacuum_prediction")
     assert vp_ref._resolved is not None
     assert vp_ref._resolved.name == "vacuum_prediction"
     assert vp_ref._resolved.type == "claim"
@@ -50,7 +50,7 @@ def test_resolve_undefined_ref_raises():
     from libs.lang.models import Ref
 
     bad_module = next(m for m in pkg.loaded_modules if m.name == "reasoning")
-    bad_module.declarations.append(Ref(name="nonexistent", target="fake_module.fake_name"))
+    bad_module.knowledge.append(Ref(name="nonexistent", target="fake_module.fake_name"))
     with pytest.raises(ResolveError, match="fake_module"):
         resolve_refs(pkg)
 

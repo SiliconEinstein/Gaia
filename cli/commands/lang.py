@@ -34,9 +34,9 @@ async def load_cmd(path: str) -> None:
         print(f"Version: {pkg.version}")
     print(f"Loaded: {len(pkg.loaded_modules)} modules")
     for mod in pkg.loaded_modules:
-        decl_count = len(mod.declarations)
+        decl_count = len(mod.knowledge)
         export_count = len(mod.export)
-        print(f"  {mod.type} {mod.name}: {decl_count} declarations, {export_count} exports")
+        print(f"  {mod.type} {mod.name}: {decl_count} knowledge objects, {export_count} exports")
     print(f"Package exports: {', '.join(pkg.export)}")
 
 
@@ -66,7 +66,7 @@ async def execute_cmd(path: str) -> None:
     print(f"Executed with {len(result.package.loaded_modules)} modules")
     # Show filled claims
     for module in result.package.loaded_modules:
-        for decl in module.declarations:
+        for decl in module.knowledge:
             if hasattr(decl, "content") and decl.content:
                 print(f"  {decl.name}: {decl.content[:80]}...")
 
@@ -106,10 +106,10 @@ async def validate_cmd(path: str) -> None:
         print(f"Package '{pkg.name}' loaded: {len(pkg.loaded_modules)} modules")
         pkg = resolve_refs(pkg)
         print("All references resolved")
-        # Count declarations by type
+        # Count knowledge objects by type
         type_counts: dict[str, int] = {}
         for mod in pkg.loaded_modules:
-            for decl in mod.declarations:
+            for decl in mod.knowledge:
                 type_counts[decl.type] = type_counts.get(decl.type, 0) + 1
         for t, c in sorted(type_counts.items()):
             print(f"  {t}: {c}")

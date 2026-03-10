@@ -54,7 +54,7 @@ async def test_galileo_claims_have_content():
     result = await runtime.run(FIXTURE_DIR)
 
     reasoning = next(m for m in result.package.loaded_modules if m.name == "reasoning")
-    for decl in reasoning.declarations:
+    for decl in reasoning.knowledge:
         if hasattr(decl, "content") and decl.name in [
             "tied_pair_slower_than_heavy",
             "tied_pair_faster_than_heavy",
@@ -68,12 +68,10 @@ async def test_galileo_claims_have_content():
             assert decl.content != "", f"{decl.name} should have content"
 
     tied_contradiction = next(
-        d for d in reasoning.declarations if d.name == "tied_balls_contradiction"
+        d for d in reasoning.knowledge if d.name == "tied_balls_contradiction"
     )
-    air_resistance = next(
-        d for d in reasoning.declarations if d.name == "air_resistance_is_confound"
-    )
-    vacuum_prediction = next(d for d in reasoning.declarations if d.name == "vacuum_prediction")
+    air_resistance = next(d for d in reasoning.knowledge if d.name == "air_resistance_is_confound")
+    vacuum_prediction = next(d for d in reasoning.knowledge if d.name == "vacuum_prediction")
     assert "自相矛盾" in tied_contradiction.content
     assert "空气阻力" in air_resistance.content
     assert "相同速率下落" in vacuum_prediction.content
@@ -112,10 +110,10 @@ async def test_galileo_story_arc_is_complete():
     reasoning = next(m for m in result.package.loaded_modules if m.name == "reasoning")
     follow_up = next(m for m in result.package.loaded_modules if m.name == "follow_up")
 
-    main_question = next(d for d in motivation.declarations if d.name == "main_question")
-    contradiction = next(d for d in reasoning.declarations if d.name == "tied_balls_contradiction")
-    prediction = next(d for d in reasoning.declarations if d.name == "vacuum_prediction")
-    follow_up_question = next(d for d in follow_up.declarations if d.name == "follow_up_question")
+    main_question = next(d for d in motivation.knowledge if d.name == "main_question")
+    contradiction = next(d for d in reasoning.knowledge if d.name == "tied_balls_contradiction")
+    prediction = next(d for d in reasoning.knowledge if d.name == "vacuum_prediction")
+    follow_up_question = next(d for d in follow_up.knowledge if d.name == "follow_up_question")
 
     assert "是否真正取决于物体的重量" in main_question.content
     assert "自相矛盾" in contradiction.content
