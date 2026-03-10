@@ -1,93 +1,121 @@
-# Gaia Review and Alignment Architecture
+# Gaia Build, Alignment, and Review Architecture
 
 | 文档属性 | 值 |
 |---------|---|
-| 版本 | 3.0 |
+| 版本 | 4.0 |
 | 日期 | 2026-03-10 |
 | 状态 | **Draft — foundation design** |
 | 关联文档 | [../README.md](../README.md), [../cli/command-lifecycle.md](../cli/command-lifecycle.md), [../server/architecture.md](../server/architecture.md), [../language/gaia-language-spec.md](../language/gaia-language-spec.md) |
 
-> **Note:** This document defines the target architecture shared by Gaia CLI and Gaia Server. It does not describe the current implementation on `main` literally. Current code still contains a local CLI chain review path and a legacy server-side `review_pipeline` attached to `/commits/*`.
+> **Note:** This document defines the target architecture shared by Gaia CLI and Gaia Server. It does not describe the current implementation on `main` literally. Current code still has a simpler `gaia build`, a local chain-review path, and a legacy server-side `review_pipeline` attached to `/commits/*`.
 
 ---
 
 ## 1. Problem
 
-Gaia currently has two different activities partly living under the name "review":
+Gaia currently blurs four different concerns:
 
-- local `gaia review`, which audits package reasoning and writes sidecar reports
-- server-side review jobs, which already mix package critique with global search, join, verify, and relation discovery against existing knowledge
+- deterministic package lowering
+- candidate context retrieval from existing knowledge
+- open-world relation discovery against that context
+- final package judgment
 
-Those are related, but they are not the same operation.
+Those should not live under one overloaded word such as "review".
 
-The result is architectural drift:
+The result today is architectural drift:
 
-- package-internal critique and open-world knowledge alignment are blurred together
-- local and server review do not share a stable request/report contract
-- old server operators such as `join-cc` and `join-cp` appear under "review" even though they are really alignment-time relation discovery
-- the package environment contract is not yet explicit enough to make local preview reproducible
-- review, alignment, and inference are too easy to mix together conceptually
+- package-internal critique and open-world knowledge alignment are mixed together
+- local and server review do not share a stable contract
+- old server operators such as `join-cc` and `join-cp` appear under "review" even though they are alignment-time relation discovery
+- the package environment contract is not explicit enough to make local preview reproducible
+- `build`, `review`, and `infer` do not yet form a clean staged pipeline
 
 This document fixes that boundary.
 
 ## 2. Core Judgments
 
-### 2.1 Gaia has two adjacent phases, not one overloaded review
+### 2.1 Gaia has a three-stage build pipeline before review
 
-Gaia should define two explicit phases after `build`:
+Before final package review, Gaia should prepare the package through three stages:
 
-1. **Package Review**
-2. **Package Alignment**
+1. **Compile**
+2. **Context**
+3. **Align**
 
-They are adjacent in workflow, but they are not the same operation.
+The user-facing shortcut for that preparation pipeline is:
 
-### 2.2 `gaia review` is closed-world
+```text
+gaia build
+```
 
-`gaia review` inspects a package using only package-local artifacts plus deterministic build output.
+Advanced users may run the stages separately as build subcommands.
 
-It answers:
+### 2.2 `gaia build compile` is deterministic
 
-- is the package internally well-formed and auditable?
-- are chain steps coherent?
-- are dependency labels and priors reasonable?
-- are there package-internal contradiction or equivalence candidates?
+`gaia build compile` is the fast, local, non-LLM step.
 
-### 2.3 `gaia align` is open-world
+It performs:
 
-`gaia align` inspects how a package relates to existing shared knowledge.
+- parse
+- elaboration
+- local ref resolution
+- deterministic lowering into explicit internal form
 
-It answers:
+This is the part of "build" closest to the old shipped meaning.
+
+### 2.3 `gaia build context` constructs the package environment
+
+`gaia build context` retrieves candidate external context from local, remote, or combined knowledge sources and materializes the **package environment**.
+
+It is a high-recall step.
+
+Its job is not to make final judgments. Its job is to gather the working set that later stages need.
+
+### 2.4 `gaia build align` performs open-world relation discovery
+
+`gaia build align` operates over:
+
+- the compiled package
+- the current package environment
+
+It uses model-assisted clustering, verification, and relation discovery to answer:
 
 - does this package duplicate existing knowledge?
 - should new declarations be merged, canonicalized, or linked?
-- what cross-package contradiction, equivalence, or subsumption candidates appear?
-- what package environment is relevant enough for local preview and later inference?
+- what contradiction, equivalence, or subsumption candidates appear?
 
-This is not just "review with more context". It is automated relation discovery and context construction.
+This is not a final package judgment. It is open-world alignment.
 
-### 2.4 `gaia align` constructs or refreshes the package environment
+### 2.5 `gaia review` is the final package assessment boundary
 
-Alignment is the natural boundary where Gaia materializes a **package environment**:
+`gaia review` should run **after** build has already produced:
 
-- a package-scoped working set
-- derived from the package plus relevant external context
-- reusable by `gaia align`, `gaia infer`, and future environment-aware operations
+- compiled package artifacts
+- the current package environment
+- alignment results
 
-### 2.5 Review, alignment, and inference are separate phases
+It answers:
 
-Review audits package-internal reasoning quality.
+- given the discovered context, how credible is this package?
+- are the package's chains and priors still reasonable in context?
+- are the discovered duplicates, contradictions, equivalences, or subsumptions acceptable?
+- is the package ready for local inference or later publish?
 
-Alignment discovers open-world relations and constructs the package environment.
+### 2.6 Build, review, and inference are separate phases
 
-Inference computes beliefs from build outputs plus review/alignment results.
+Build prepares the package and its context.
 
-Belief propagation belongs to **inference** (`gaia infer` locally, `BPService` on server), not to review or alignment.
+Review judges the prepared package.
 
-### 2.6 Local review/alignment are preview, server review/alignment are authoritative
+Inference computes beliefs from build and review outputs.
 
-Local review and alignment are preview runs.
+Belief propagation belongs to **inference** (`gaia infer` locally, `BPService` on server), not to build or review.
 
-Server-side review/alignment are authoritative because they can use:
+### 2.7 Local build/review are preview, server build/review are authoritative
+
+Local build and review are preview runs.
+
+Server-side context construction, alignment, and review are authoritative because they can use:
 
 - the current shared registry state
 - managed retrieval and model policy
@@ -96,13 +124,18 @@ Server-side review/alignment are authoritative because they can use:
 
 The two sides must still share the same core contracts and semantics.
 
-### 2.7 Review and alignment never rewrite package source
+### 2.8 Build and review never rewrite package source
 
-Review and alignment produce reports, scores, discovered relations, and environment materialization.
+Build and review produce:
+
+- compiled artifacts
+- package environments
+- alignment results
+- review reports
 
 They do **not** silently mutate the package's normative source.
 
-Package source remains the canonical artifact. Review/alignment outputs remain sidecar/runtime data.
+Package source remains the canonical artifact.
 
 ---
 
@@ -113,36 +146,52 @@ Package source remains the canonical artifact. Review/alignment outputs remain s
 The target command surface is:
 
 ```text
+gaia build [PATH]
+gaia build compile [PATH]
+gaia build context [PATH]
+gaia build align [PATH]
 gaia review [PATH]
-gaia align [PATH]
 gaia infer [PATH]
 gaia publish [PATH]
 ```
 
-With optional alignment controls:
+Build context selection should use one source flag, not multiple booleans:
 
 ```text
-gaia align [PATH] --frozen
-gaia align [PATH] --refresh-env
+gaia build --source local|remote|both
+gaia build context --source local|remote|both
+gaia build context --frozen
+gaia build context --refresh
 ```
 
-The command roles are:
+Recommended default:
 
-| Command | Scope | Main output |
+- bare `gaia build` runs `compile -> context -> align`
+- default `--source` is `local`
+- `remote` and `both` are explicit opt-ins
+
+### 3.2 CLI command roles
+
+| Command | Role | Main output |
 |---|---|---|
-| `gaia review` | closed-world package audit | `PackageReviewReport` |
-| `gaia align` | open-world relation discovery + environment materialization | `AlignmentReport` + `PackageEnvironment` |
-| `gaia infer` | belief propagation over local graph inputs | belief outputs |
+| `gaia build` | preparation shortcut over compile/context/align | compiled package + environment + alignment sidecars |
+| `gaia build compile` | deterministic lowering | compiled package artifacts |
+| `gaia build context` | candidate retrieval and environment construction | package environment |
+| `gaia build align` | open-world relation discovery | alignment report |
+| `gaia review` | final package assessment in context | review report |
+| `gaia infer` | belief propagation | belief outputs |
 | `gaia publish` | handoff to shared system | publish submission |
 
-### 3.2 Server surface
+### 3.3 Server surface
 
 The server should use the same conceptual phases internally:
 
 ```text
 validate
--> package review
+-> compile package
+-> construct package environment
 -> align package against shared knowledge
+-> review package in aligned context
 -> integrate
 -> authoritative BP/update
 ```
@@ -151,37 +200,39 @@ External API design may expose that as one submit endpoint or multiple status en
 
 ---
 
-## 4. Policies
+## 4. Policies and Configs
 
-Package review and package alignment are fundamentally different processes. Their policies are separate.
+### 4.1 CompileConfig
 
-### 4.1 PackageReviewPolicy
-
-Package review is a closed-world LLM audit. It needs one model and package-local thresholds.
+Compile is deterministic and does not need an LLM policy, but it may still have a config:
 
 ```python
 @dataclass
-class PackageReviewPolicy:
-    """Closed-world audit — package-internal reasoning critique only."""
-
-    model: LLMModelConfig
-    checks: list[str]               # e.g. chain_coherence, prior_reasonableness,
-                                    #      dependency_label_validation
-    thresholds: PackageThresholds
+class CompileConfig:
+    elaborate: bool = True
+    resolve_local_refs: bool = True
 ```
 
-### 4.2 AlignmentPolicy
+### 4.2 ContextPolicy
 
-Alignment is an open-world process. It needs embedding, retrieval, and multiple LLM models for discovery and verification.
+Context construction needs retrieval policy and source selection:
+
+```python
+@dataclass
+class ContextPolicy:
+    source: Literal["local", "remote", "both"] = "local"
+    embedding: EmbeddingConfig
+    retrieval: RetrievalConfig      # semantic_top_k, structural_max_hops,
+                                    # max_environment_nodes
+```
+
+### 4.3 AlignmentPolicy
+
+Alignment needs models for clustering, abstraction judgment, and verification:
 
 ```python
 @dataclass
 class AlignmentPolicy:
-    """Open-world alignment — environment construction plus relation discovery."""
-
-    embedding: EmbeddingConfig
-    retrieval: RetrievalConfig      # semantic_top_k, structural_max_hops,
-                                    # max_environment_nodes
     abstraction_model: LLMModelConfig
     verify_model: LLMModelConfig
     checks: list[str]               # e.g. duplicate_detection, contradiction_scan,
@@ -189,117 +240,170 @@ class AlignmentPolicy:
     thresholds: AlignmentThresholds
 ```
 
-### 4.3 Mapping to current pipeline operators
+### 4.4 ReviewPolicy
 
-The existing `review_pipeline` operators map to **alignment**, not to package review:
+Review is a final model-based package assessment over aligned context:
 
-| Policy field | Current operator | Current default |
+```python
+@dataclass
+class ReviewPolicy:
+    model: LLMModelConfig
+    checks: list[str]               # e.g. chain_coherence, prior_reasonableness,
+                                    #      alignment_consistency, publish_readiness
+    thresholds: ReviewThresholds
+```
+
+### 4.5 Mapping to current pipeline operators
+
+The existing `review_pipeline` operators map to build context/alignment, not to final review:
+
+| Phase | Current operator | Current role |
 |---|---|---|
-| `embedding` | `EmbeddingOperator(DashScopeEmbeddingModel)` | dim=512, max_rps=600 |
-| `retrieval.semantic_top_k` | `NNSearchOperator(k=)` | k=20 |
-| `retrieval.structural_max_hops` | not yet implemented | — |
-| `abstraction_model` | `CCAbstractionOperator` + `CPAbstractionOperator` (shared) | dptech_internal/gpt-5-mini |
-| `verify_model` | `AbstractionTreeVerifyOperator` + `VerifyAgainOperator` (shared) | same as above |
+| `build context` | `EmbeddingOperator` | embed package declarations |
+| `build context` | `NNSearchOperator` | retrieve semantic neighbors |
+| `build align` | `CCAbstractionOperator` | discover conclusion-conclusion relations |
+| `build align` | `CPAbstractionOperator` | discover conclusion-premise relations |
+| `build align` | `AbstractionTreeVerifyOperator` | first-pass verification |
+| `build align` | `VerifyAgainOperator` | second-pass verification |
 
-The current `BPOperator` in the pipeline does **not** belong to review or alignment. It belongs to inference.
+The current `BPOperator` does **not** belong to build or review. It belongs to inference.
 
-### 4.4 Policy differences between local and server
+### 4.6 Local vs server differences
 
 | Dimension | Local (CLI) | Server |
 |---|---|---|
-| Package review model | user-configured, may be lightweight | managed, may be stronger |
-| Alignment embedding | user/local profile | managed profile |
-| Alignment retrieval | against frozen or refreshed package environment | against live registry |
-| Alignment LLMs | user-configured | managed |
+| Context source | local by default; remote/both optional | live shared registry |
+| Context embedding | user/local profile | managed profile |
+| Alignment models | user-configured | managed |
+| Review model | user-configured, may be lightweight | managed, may be stronger |
 | Gate authority | advisory only | can reject or block integration |
 
 ---
 
 ## 5. Shared Contracts
 
-CLI and server should call the same core subsystem, but with separate review and alignment entry points:
+CLI and server should use the same conceptual contracts:
 
 ```python
-# Package review
-package_review(
-    request: ReviewRequest,
-    policy: PackageReviewPolicy,
-) -> PackageReviewReport
+compile_package(
+    source: PackageSource,
+    config: CompileConfig,
+) -> CompiledPackage
 
-# Package alignment
-align_package(
-    request: AlignmentRequest,
-    policy: AlignmentPolicy,
+build_context(
+    compiled: CompiledPackage,
+    policy: ContextPolicy,
     environment_lock: EnvironmentLock | None = None,
-) -> AlignmentResult
+) -> PackageEnvironment
+
+align_package(
+    compiled: CompiledPackage,
+    environment: PackageEnvironment,
+    policy: AlignmentPolicy,
+) -> AlignmentReport
+
+review_package(
+    compiled: CompiledPackage,
+    environment: PackageEnvironment,
+    alignment: AlignmentReport,
+    policy: ReviewPolicy,
+) -> ReviewReport
 
 @dataclass
-class AlignmentResult:
+class BuildResult:
+    compiled: CompiledPackage
     environment: PackageEnvironment
-    report: AlignmentReport
+    alignment: AlignmentReport
 ```
 
 ### 5.1 Contract invariants
 
 These are hard requirements:
 
-- local and server must use the same request and report schema for the same phase
-- the same request, environment lock, and policy should produce the same class of result locally and on server
-- server may add richer context, stronger models, and stricter policy, but must not invent a different report language
-- `PackageReviewReport` is package-scoped and can be stored as a local sidecar
-- `AlignmentReport` and `PackageEnvironment` are environment-scoped and must be treated as time/version dependent
+- the same phase must use the same request/report schema locally and on server
+- the same compiled package, environment lock, and policy should produce the same class of result locally and on server
+- server may add richer context and stricter policy, but must not invent a different report language
+- `CompiledPackage` is deterministic and package-scoped
+- `PackageEnvironment`, `AlignmentReport`, and `ReviewReport` are environment-scoped whenever they depend on external context
 - if `gaia infer` consumes an environment, that environment must be identifiable and reproducible
 
-### 5.2 Package review report
+### 5.2 Compiled package artifact
 
-A package review report is stable with respect to package content and build artifacts.
+A compiled package artifact is stable with respect to package source and compile config.
 
-It may contain:
+It should contain:
 
-- per-chain findings
-- step-level dependency assessments
-- suggested priors
-- local package verdicts
-- package-internal relation candidates
+- explicit lowered declarations
+- elaborated forms
+- resolved local refs
+- deterministic structural artifacts for downstream phases
 
-It should be suitable for local storage under `.gaia/reviews/`.
+### 5.3 Package environment
 
-### 5.3 Alignment report
+A package environment depends on:
+
+- compiled package contents
+- context source selection
+- retrieval policy
+- current local or remote registry state
+
+It should be labeled with environment identity and source metadata.
+
+### 5.4 Alignment report
 
 An alignment report depends on a concrete package environment.
 
 It may contain:
 
 - duplicate or canonicalization candidates
-- cross-package contradiction, equivalence, or subsumption candidates
+- contradiction, equivalence, or subsumption candidates
 - join/merge suggestions
 - verification results with quality metrics
 - alignment-specific verdicts
 
-It is not a stable part of the package source. It should be labeled with its environment identity.
+### 5.5 Review report
+
+A review report depends on:
+
+- compiled package artifacts
+- the current package environment
+- the latest alignment results
+
+It may contain:
+
+- per-chain findings
+- step-level dependency assessments
+- context-aware issues
+- assessments of discovered relations
+- final readiness verdicts for infer/publish
 
 ---
 
-## 6. Review Core and Runners
+## 6. Build and Review Core
 
-### 6.1 Shared core
+### 6.1 Compile belongs to the language/build layer
 
-Gaia should have one shared subsystem, conceptually:
+Deterministic compile should remain in the Gaia Language build layer, not in `review_core`.
+
+Conceptually:
 
 ```text
-libs/review_core/
+libs/lang/        # parse, elaborate, local ref resolution, lowering
+libs/review_core/ # context, align, review
 ```
 
-This module owns:
+### 6.2 `review_core` responsibilities
 
-- shared request/report types
-- package review logic
+The shared review subsystem should own:
+
+- package-environment construction
 - alignment logic
-- environment materialization logic
+- final review logic
+- shared request/report types
 - policy application
 - LLM/model adapters
 
-It does **not** own:
+It should **not** own:
 
 - CLI command parsing
 - HTTP routing
@@ -307,45 +411,39 @@ It does **not** own:
 - package persistence
 - belief propagation
 
-### 6.2 CLI runner
+### 6.3 CLI runner
 
 The CLI runner should:
 
-1. load the local package and build artifacts
-2. run `package_review(...)`
-3. optionally resolve or refresh the package environment
-4. run `align_package(...)`
+1. run `gaia build compile`
+2. run `gaia build context`
+3. run `gaia build align`
+4. run `gaia review`
 5. write sidecar artifacts locally
 6. update `gaia.lock` when the package environment changes
 
-CLI review and alignment remain advisory and preview-oriented.
+Bare `gaia build` is a shortcut over steps 1-3.
 
-### 6.3 Server runner
+### 6.4 Server runner
 
 The server runner should:
 
 1. accept submitted packages
-2. run package review against shared server policy
-3. align the package against the current registry state
-4. persist review and alignment results
-5. gate integration and downstream workflows
+2. compile the submitted package
+3. construct the package environment against shared registry state
+4. align the package in that environment
+5. review the package in aligned context
+6. persist build/review outputs
+7. gate integration and downstream workflows
 
-### 6.4 Legacy server pipeline mapping
+### 6.5 Legacy server pipeline mapping
 
-The existing `review_pipeline` operators belong to **alignment**:
+The existing `review_pipeline` mainly corresponds to:
 
-| Current operator | Alignment role |
-|---|---|
-| `EmbeddingOperator` | generate embeddings for new declarations |
-| `NNSearchOperator` | retrieve semantic neighbors for environment construction |
-| `CCAbstractionOperator` (`join-cc`) | discover conclusion-conclusion relations |
-| `CPAbstractionOperator` (`join-cp`) | discover conclusion-premise relations |
-| `AbstractionTreeVerifyOperator` | first-pass verification of discovered relations |
-| `VerifyAgainOperator` | second-pass verification and filtering |
+- `build context`
+- `build align`
 
-The current `BPOperator` should be removed from the review pipeline and handled by inference.
-
-No existing operator corresponds cleanly to package review. The CLI's current chain-level LLM review (`cli/llm_client.py` → `ReviewClient`) is the closest existing package-review logic and should be extracted into the shared core.
+No existing operator corresponds cleanly to final context-aware review. The CLI's current chain-level review (`cli/llm_client.py` → `ReviewClient`) is the closest precursor and should evolve into `review_package(...)`.
 
 ---
 
@@ -353,43 +451,54 @@ No existing operator corresponds cleanly to package review. The CLI's current ch
 
 ### 7.1 Purpose
 
-Alignment needs external context beyond the package itself. That context is the **package environment**.
+Context construction needs external knowledge beyond the package itself. That external working set is the **package environment**.
 
-A package environment is not limited to alignment. It is the general environment a package exists in and may later be used by:
+A package environment may later be used by:
 
-- `gaia align`
+- `gaia build align`
+- `gaia review`
 - `gaia infer`
-- future environment-aware operations
 
 ### 7.2 What it contains
 
 A package environment should include:
 
-- the candidate package under review
-- a snapshot/revision identifier for the shared registry state
+- a snapshot/revision identifier for the underlying knowledge source
+- the selected external nodes/documents used as context
 - retrieved semantic neighbors
 - retrieved structural neighbors
 - candidate duplicate/canonicalization targets
 - an environment fingerprint
+- the source mode: `local`, `remote`, or `both`
 
-Internally this may be implemented by pulling a related subgraph, but the user-facing concept should be **environment**, not "graph snapshot".
+### 7.3 Source selection
 
-### 7.3 Retrieval and materialization strategy
+Context construction should support:
 
-Building a package environment requires retrieving relevant external context. The retrieval process is:
+- `local`: local embedded database only
+- `remote`: remote shared registry only
+- `both`: merge local and remote candidates
 
-1. **Embed** all declarations in the package that should participate in open-world matching.
-2. **Semantic retrieval**: for each embedding, find the top-k nearest neighbors from the shared registry.
-3. **Structural retrieval**: expand from both:
-   - explicit package references to existing registry objects
-   - semantic retrieval hits from step 2
-4. **Dedup and cap**: merge semantic and structural results, deduplicate by node ID, and cap at `max_environment_nodes`.
-5. **Load content**: fetch full content and metadata for all selected nodes.
-6. **Materialize**: write environment identity, selected nodes, and retrieval metadata into the lock/runtime artifacts.
+Default should be `local` to preserve offline CLI usability.
 
-The result is a self-contained working set sufficient for local alignment and later local inference preview without loading the entire registry.
+### 7.4 Retrieval and materialization strategy
 
-### 7.4 Why environment terminology matters
+Building a package environment should proceed roughly as:
+
+1. **Compile first** so retrieval works over explicit declarations.
+2. **Choose source**: local, remote, or both.
+3. **Embed** the package declarations that should participate in open-world matching.
+4. **Retrieve semantic candidates** from the chosen source(s).
+5. **Expand structurally** from both:
+   - explicit refs to known external objects
+   - semantic hits from the previous step
+6. **Dedup and cap** the working set.
+7. **Load content and metadata** for all selected items.
+8. **Materialize** environment identity, selected nodes, and retrieval metadata into lock/runtime artifacts.
+
+The result should be sufficient for local alignment and later local inference preview without loading the entire registry.
+
+### 7.5 Why environment terminology matters
 
 For local UX, Gaia should feel closer to package managers such as Cargo than to a raw graph tool.
 
@@ -408,27 +517,26 @@ Not:
 
 Those remain implementation details.
 
-### 7.5 Local preview semantics
+### 7.6 Local preview semantics
 
-Local alignment over the package environment is preview-only.
+Local package environments are preview-only.
 
-It helps the author answer:
+They help the author answer:
 
 - what existing knowledge will this package collide with?
 - what relations are likely?
-- what local environment should `gaia infer` use?
+- what environment should later review and inference consume?
 
-It is not an authoritative global result.
+### 7.7 Authoritative server semantics
 
-### 7.6 Authoritative server semantics
+After publish, the server may rebuild context against fresher shared state and therefore produce a different package environment than the author's local preview.
 
-After publish, the server may run:
+That is acceptable as long as the difference is explainable through:
 
-- the same alignment logic against fresher shared state
-- final merge/canonicalization decisions
-- larger-scope inference after integration
-
-Differences between local preview and server outcome are acceptable. They should be explainable through environment identity, policy version, and current shared state.
+- source mode
+- registry revision
+- retrieval policy
+- policy/model versions
 
 ---
 
@@ -449,8 +557,6 @@ Today that is centered on:
 - `package.yaml`
 - module YAML files
 
-A future `Gaia.toml` may replace or wrap parts of that manifest story, but the architectural split remains the same.
-
 ### 8.2 Environment lock
 
 Gaia should have a package-level lockfile, tentatively:
@@ -459,15 +565,20 @@ Gaia should have a package-level lockfile, tentatively:
 gaia.lock
 ```
 
-The lock must be complete enough to reproduce local alignment and environment-aware local inference.
+The lock must be complete enough to reproduce:
+
+- local context construction
+- local alignment
+- environment-aware local review and inference
 
 It should lock:
 
 - dependency resolution
+- source mode
 - package environment identity
 - selected external context
 - retrieval policy
-- model identities used to construct or verify alignment
+- model identities used for alignment and review
 - policy versions and key thresholds
 
 Illustrative shape:
@@ -477,6 +588,7 @@ dependencies:
   ...
 
 environment:
+  source: local
   registry_revision: ...
   selected_node_ids:
     - ...
@@ -490,16 +602,18 @@ environment:
     embedding_model: text-embedding-3-large
     alignment_model: gpt-5-mini
     verify_model: gpt-5-mini
+    review_model: gpt-5-mini
   policy_versions:
-    package_review_policy: review-v1
+    context_policy: context-v1
     alignment_policy: align-v1
+    review_policy: review-v2
   thresholds:
     duplicate_similarity: 0.92
     subsumption_min_score: 0.75
   fingerprint: ...
 ```
 
-Review and alignment sidecars should also record the policy/model identifiers they were produced with.
+Alignment and review sidecars should also record the policy/model identifiers they were produced with.
 
 ### 8.3 Runtime artifacts
 
@@ -507,41 +621,41 @@ Runtime and cache artifacts belong under `.gaia/`.
 
 Examples:
 
-- build outputs
-- review sidecars
+- compile outputs
+- context cache / materialized package environment
 - alignment sidecars
-- materialized package environment contents
+- review sidecars
 - cached inference outputs
-
-These are useful for iteration, but they are not the package's normative source definition.
 
 ---
 
 ## 9. Inference Relationship
 
-Review, alignment, and inference are related, but they are not the same phase.
+Build, review, and inference are related, but they are not the same phase.
 
-### 9.1 Package review and inference
+### 9.1 Build and review
 
-Package review may suggest priors, dependency labels, or package-internal relation candidates that later affect inference.
+Build prepares:
 
-But package review itself is still an audit step, not inference execution.
+- compiled package artifacts
+- the package environment
+- alignment results
 
-### 9.2 Alignment and inference
+Review then judges the package in that prepared context.
 
-Alignment discovers open-world relations and constructs the package environment.
+### 9.2 Review and inference
 
-Those relations and that environment become inputs to inference.
+Review may accept, reject, or contextualize alignment findings before inference consumes them.
 
 ### 9.3 Local inference (`gaia infer`)
 
-`gaia infer` compiles the factor graph from build outputs plus available review/alignment artifacts and runs local belief propagation.
+`gaia infer` compiles the factor graph from build outputs plus available review artifacts and runs local belief propagation.
 
-If a package environment is available, it may incorporate that environment for more accurate local preview.
+If a package environment is available, inference may incorporate it for a more accurate local preview.
 
 ### 9.4 Server inference (`BPService`)
 
-The server remains responsible for authoritative larger-scope computation after alignment and integration.
+The server remains responsible for authoritative larger-scope computation after integration.
 
 This may include:
 
@@ -561,10 +675,21 @@ The target local loop is:
 workspace
 -> gaia build
 -> gaia review
--> gaia align
 -> gaia infer
 -> edit package
 -> repeat
+-> gaia publish
+```
+
+Advanced equivalent:
+
+```text
+workspace
+-> gaia build compile
+-> gaia build context --source local|remote|both
+-> gaia build align
+-> gaia review
+-> gaia infer
 -> gaia publish
 ```
 
@@ -575,14 +700,14 @@ The target server loop is:
 ```text
 submit package
 -> validate
--> package review
+-> compile package
+-> construct package environment
 -> align package against shared knowledge
+-> review package in aligned context
 -> integrate
 -> authoritative BP/update
 -> result
 ```
-
-The server may expose that as one asynchronous job or several endpoints, but those phases should remain explicit in the domain model.
 
 ---
 
@@ -590,9 +715,9 @@ The server may expose that as one asynchronous job or several endpoints, but tho
 
 This document does not yet define:
 
-- the final YAML/JSON schema for review and alignment reports
-- the final server API route layout
-- the final local command set for environment inspection
+- the final YAML/JSON schema for compiled package artifacts
+- the final YAML/JSON schema for alignment and review reports
+- the exact server API route layout
 - the exact storage format for materialized package environments
 
 Those are follow-up design tasks.
@@ -601,8 +726,8 @@ Those are follow-up design tasks.
 
 The next architectural follow-ups should be:
 
-1. define the structured report schemas for package review and alignment
-2. extract or define a shared `review_core` module for both package review and alignment
+1. define the artifact schemas for compile/context/alignment/review
+2. extract or define a shared `review_core` module for context, alignment, and review
 3. design the package environment lockfile and sidecar layout
-4. align CLI command semantics around `review`, `align`, `infer`, and `publish`
-5. align server ingestion architecture around `review -> align -> integrate`
+4. align CLI command semantics around `build`, `build compile/context/align`, `review`, `infer`, and `publish`
+5. align server ingestion architecture around `compile -> context -> align -> review -> integrate`

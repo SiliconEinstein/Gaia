@@ -2,8 +2,8 @@
 
 | 文档属性 | 值 |
 |---------|---|
-| 版本 | 1.0 |
-| 日期 | 2026-03-09 |
+| 版本 | 1.1 |
+| 日期 | 2026-03-10 |
 | 状态 | **Draft — 目标架构设计，非当前实现描述** |
 | 关联文档 | [../product-scope.md](../product-scope.md), [../domain-model.md](../domain-model.md), [../system-overview.md](../system-overview.md) |
 
@@ -21,7 +21,7 @@ Server 提供四个增强服务：
 |------|------|
 | Knowledge integration | 把 packages 合并到全局 LKM |
 | Global search | 跨 package 的 vector + BM25 + topology 搜索 |
-| Review and Alignment | 执行 package review 与 package alignment |
+| Package preparation and review | 执行 compile、package environment construction、alignment、review |
 | Large-scale BP | 全局图上的信念传播 |
 
 Server **不修改 package**——它是 package 的只读消费者。
@@ -50,12 +50,14 @@ Server **不修改 package**——它是 package 的只读消费者。
 │  ┌─────────────────────────────────────────────┐     │
 │  │ IngestionService                             │     │
 │  │                                              │     │
-│  │ submit(pkg) → validate → review              │     │
-│  │             → align → integrate              │     │
+│  │ submit(pkg) → validate → compile             │     │
+│  │             → context → align                │     │
+│  │             → review → integrate             │     │
 │  │                                              │     │
 │  │ 拥有 package 生命周期状态机                    │     │
-│  │ 内部组合 Validator + ReviewEngine +          │     │
-│  │            Aligner + Integrator              │     │
+│  │ 内部组合 Validator + Compiler +              │     │
+│  │ ContextBuilder + Aligner +                   │     │
+│  │ ReviewEngine + Integrator                    │     │
 │  └─────────────────────────────────────────────┘     │
 │                                                      │
 │  ┌──────────────┐  ┌──────────────┐                  │
@@ -167,22 +169,27 @@ ingest_package(pkg):
 #### 状态机
 
 ```
-submitted → validating → validated → reviewing → reviewed
-                ↓                    ↓             ↓
-             invalid              rejected     aligning → aligned
-             (rejected)                               ↓        ↓
-                                                   rejected integrating
-                                                                ↓
-                                                              merged
+submitted → validating → validated → compiling → compiled
+                ↓
+             invalid
+             (rejected)
+
+compiled → building_context → context_ready → aligning → aligned → reviewing → reviewed
+                                                                ↓             ↓
+                                                             rejected      rejected
+                                                                               ↓
+                                                                         integrating → merged
 ```
 
-> `reviewing` covers package-internal audit. `aligning` covers open-world package alignment against the shared registry. See [../review/architecture.md](../review/architecture.md).
+> `building_context` materializes the package environment. `aligning` covers open-world relation discovery against the shared registry. `reviewing` is the final package judgment in that aligned context. See [../review/architecture.md](../review/architecture.md).
 
 #### 接口
 
 ```python
 class IngestionService:
     def __init__(self, validator: Validator,
+                 compiler: Compiler,
+                 context_builder: ContextBuilder,
                  review_engine: ReviewEngine,
                  aligner: Aligner,
                  storage: StorageManager):
@@ -199,8 +206,10 @@ class IngestionService:
 | 组件 | 职责 | 输入 → 输出 |
 |------|------|------------|
 | **Validator** | schema 校验、引用完整性、prior 范围检查、边类型约束 | PackageData → ValidationResult |
-| **ReviewEngine** | 执行 package review（PackageReviewPolicy） | PackageData + PackageReviewPolicy → PackageReviewReport |
-| **Aligner** | 构建 package environment 并执行 open-world alignment（AlignmentPolicy） | PackageData + EnvironmentLock + AlignmentPolicy → AlignmentResult |
+| **Compiler** | 执行 deterministic compile/elaboration，产出显式 package 结构 | PackageData → CompiledPackage |
+| **ContextBuilder** | 基于 compiled package 构建 package environment | CompiledPackage + ContextPolicy + EnvironmentLock? → PackageEnvironment |
+| **Aligner** | 在 package environment 上执行 open-world alignment（AlignmentPolicy） | CompiledPackage + PackageEnvironment + AlignmentPolicy → AlignmentResult |
+| **ReviewEngine** | 在 aligned context 中执行 final package review（ReviewPolicy） | CompiledPackage + PackageEnvironment + AlignmentResult + ReviewPolicy → PackageReviewReport |
 | **Integrator** | 把 package 映射到全局图结构，调用 StorageManager 写入 | PackageData → IngestResult |
 
 #### Validator 职责
@@ -211,28 +220,45 @@ class IngestionService:
 4. 边类型约束（induction 的 probability 必须 < 1.0）
 5. Export 的 closure_id 存在于某个 module 中
 
-#### ReviewEngine 职责
+#### Compiler 职责
 
-`ReviewEngine` 只负责 **Package Review**（`PackageReviewPolicy`）：
+`Compiler` 负责 deterministic package lowering：
 
-1. 推理步骤是否逻辑连贯
-2. 结论是否被前提支持
-3. 推理类型是否正确标注（deduction vs induction vs abstraction）
-4. prior 和 dependency label 是否合理
-5. 输出 per-chain 评分 + 总体 accept/reject 建议
+1. parse 后的 package 结构检查
+2. elaboration
+3. local ref resolution
+4. 生成供 context/alignment/review/integration 共用的 compiled package
+
+#### ContextBuilder 职责
+
+`ContextBuilder` 负责 **Package Environment**：
+
+1. 对 compiled package 里的候选 declaration 生成 embedding
+2. 从 local / remote / both source 检索语义邻居
+3. 从显式外部引用和语义命中继续扩展结构邻居
+4. materialize package environment 和 environment identity
 
 #### Aligner 职责
 
 `Aligner` 负责 **Package Alignment**（`AlignmentPolicy`）：
 
-1. 生成 embedding，检索语义邻居
-2. 从显式引用和语义命中继续扩展结构邻居，构建 package environment
-3. 发现 conclusion-conclusion 关系（join-cc）
-4. 发现 conclusion-premise 关系（join-cp）
-5. 两轮 verification（验证发现关系的质量）
-6. 输出 relation 候选（equivalence, contradiction, subsumption）+ alignment verdict
+1. 在 package environment 上发现 duplicate / canonicalization 候选
+2. 发现 conclusion-conclusion 关系（join-cc）
+3. 发现 conclusion-premise 关系（join-cp）
+4. 两轮 verification（验证发现关系的质量）
+5. 输出 relation 候选（equivalence, contradiction, subsumption）+ alignment verdict
 
-Review 和 alignment 都不包含 BP。BP 属于 inference 阶段，由 `BPService` 在 integration 之后执行。
+#### ReviewEngine 职责
+
+`ReviewEngine` 只负责 **Package Review**（`ReviewPolicy`）：
+
+1. 推理步骤是否逻辑连贯
+2. 结论是否被前提支持
+3. 推理类型是否正确标注（deduction vs induction vs abstraction）
+4. prior、dependency label 与 alignment 发现是否一致
+5. 输出 per-chain 评分 + 总体 accept/reject 建议
+
+Compile、context、alignment、review 都不包含 BP。BP 属于 inference 阶段，由 `BPService` 在 integration 之后执行。
 
 详细边界见 [../review/architecture.md](../review/architecture.md).
 
@@ -399,12 +425,22 @@ def create_dependencies() -> Dependencies:
 
     # Domain Services
     validator = Validator()
+    compiler = Compiler()
+    context_builder = ContextBuilder(
+        embedding=create_embedding_client(),
+    )
     review_engine = ReviewEngine(llm_client=create_llm_client())
     aligner = Aligner(
-        embedding=create_embedding_client(),
         llm_client=create_llm_client(),
     )
-    ingestion = IngestionService(validator, review_engine, aligner, storage)
+    ingestion = IngestionService(
+        validator,
+        compiler,
+        context_builder,
+        review_engine,
+        aligner,
+        storage,
+    )
     bp = BPService(storage)
     query = QueryService(storage)
 
@@ -427,7 +463,7 @@ def create_app() -> FastAPI:
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
 | Storage Layer | 高 | 一切的基础 |
-| IngestionService (Validator + ReviewEngine + Aligner + Integrator) | 高 | 核心写入路径 |
+| IngestionService (Validator + Compiler + ContextBuilder + Aligner + ReviewEngine + Integrator) | 高 | 核心写入路径 |
 | QueryService (读取 + 搜索) | 中 | 搜索策略后续细化 |
 | BPService | 中 | 先复用 libs/inference/ CPU 实现 |
 | Transport Layer | 高 | HTTP routes + webhook handler |

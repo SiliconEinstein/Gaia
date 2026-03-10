@@ -20,7 +20,7 @@ For product positioning rationale, see [product-scope.md](product-scope.md).
 ├──────────────┴──────────────────────────────────────┤
 │  Gaia Server — Large Knowledge Model (LKM)          │
 │  Neo4j + LanceDB + ByteHouse + GPU BP               │
-│  知识整合 · 全局搜索 · Review/Align · 大尺度 BP      │
+│  知识整合 · 全局搜索 · Context/Align/Review · 大尺度 BP │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -37,12 +37,13 @@ Key properties:
 
 Core commands:
 
+> **Note:** `gaia build` and `gaia review` are shipped today, but their target semantics are broader than the current implementation. On `main`, shipped `build` is still closer to deterministic parse/elaboration, and shipped `review` is still closer to package-internal chain audit. The target architecture expands `build` into `gaia build compile`, `gaia build context`, and `gaia build align`, then lets `review` become the final context-aware assessment step.
+
 | Command | Purpose |
 |---------|---------|
 | `gaia init [name]` | Initialize a knowledge package |
-| `gaia build` | Parse YAML, resolve refs, elaborate templates → per-module Markdown |
-| `gaia review [PATH]` | Package-internal review of chains → YAML sidecar reports |
-| `gaia align [PATH]` | Build/refresh package environment + discover external relations (target command) |
+| `gaia build` | Prepare the package for downstream review and inference; target shortcut over `compile + context + align` |
+| `gaia review [PATH]` | Review the package and emit YAML sidecar reports; target semantics expand to final context-aware assessment |
 | `gaia infer` | Compile factor graph + run local belief propagation |
 | `gaia publish` | Publish to git or local databases (LanceDB + Kuzu) |
 | `gaia show <name>` | Display a declaration + connected chains |
@@ -67,7 +68,7 @@ An optional registry and compute backend. Provides four enhancement services:
 |---------|---------|
 | **Knowledge integration** | Merge packages into the global knowledge graph |
 | **Global search** | Cross-package vector + BM25 + topology search |
-| **Review and Alignment** | Automated package review and package alignment triggered by webhook |
+| **Package preparation and review** | Server-side compile, package-environment construction, alignment, and review |
 | **Large-scale BP** | Billion-node belief propagation on GPU cluster |
 
 The server is analogous to Julia's General Registry or crates.io — it consumes packages read-only and provides centralized services.
@@ -84,17 +85,16 @@ gaia init
 (author YAML modules)
 gaia build
 gaia review
-gaia align (future, optional)
 
 git add + commit
 git push ──────────→  PR to registry repo
-                      webhook notify ─────────→  auto review + align
+                      webhook notify ─────────→  auto compile + context + align + review
                                                  │
                                                  ├─ pass → merge into LKM
                                                  │         PR comment: ✅
                                                  │
                                                  └─ fail → PR comment: ❌
-                                                           + review/alignment report
+                                                           + alignment/review report
 
 Agent reads result ←── PR comments
 ├─ pass: done
@@ -105,8 +105,8 @@ Agent reads result ←── PR comments
 Key properties of this flow:
 
 - **Server never modifies the package** — it is a read-only consumer
-- **Review and alignment results appear as PR comments** — standard GitHub collaboration model
-- **Agent autonomy** — agents can read review/alignment reports and self-correct without human intervention
+- **Alignment and review results appear as PR comments** — standard GitHub collaboration model
+- **Agent autonomy** — agents can read alignment/review reports and self-correct without human intervention
 - **Fully async** — push triggers webhook, agent polls or watches for results
 
 ## Knowledge Package Format
@@ -122,8 +122,9 @@ galileo_tied_balls/              # = 1 git repo = 1 knowledge package
 ├── ...
 └── .gaia/                       # build artifacts (git-ignored)
     ├── build/                   # per-module Markdown for LLM review
+    ├── context/                 # materialized package environment + retrieval metadata
     ├── reviews/                 # YAML sidecar package-review reports
-    ├── alignment/               # YAML sidecar alignment reports + environment cache
+    ├── alignment/               # YAML sidecar alignment reports
     └── ...
 ```
 
@@ -188,7 +189,7 @@ For the language spec, see [language/gaia-language-spec.md](language/gaia-langua
 | Content store | LanceDB (embedded) | LanceDB (distributed) |
 | Vector search | LanceDB | ByteHouse (planned) |
 | BP engine | Local (single-machine) | GPU cluster |
-| LLM review | User-chosen model via API key | Server-managed model |
+| LLM alignment/review | User-chosen model via API key | Server-managed model |
 
 Both CLI and server share the same core libraries (`libs/`) and inference engine (`libs/inference/`). The `GraphStore` ABC abstracts the graph backend difference.
 
@@ -198,7 +199,7 @@ Both CLI and server share the same core libraries (`libs/`) and inference engine
 |------|----------|---------|
 | **gaia-core** | Shared models, BP algorithm, storage ABCs, serialization | Rust stdlib |
 | **gaia-cli** | CLI + embedded LanceDB/Kuzu + local BP | cargo |
-| **gaia-server** | FastAPI registry + Neo4j + distributed storage + LLM review | crates.io |
+| **gaia-server** | FastAPI registry + Neo4j + distributed storage + LLM alignment/review | crates.io |
 
 Current monorepo mapping:
 
