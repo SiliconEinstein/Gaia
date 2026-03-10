@@ -1,4 +1,4 @@
-"""Convert DSL Package + beliefs into Node[] + HyperEdge[] for storage."""
+"""Convert a Gaia Language package and beliefs into Node[] + HyperEdge[] for storage."""
 
 from __future__ import annotations
 
@@ -29,10 +29,10 @@ def convert_package_to_storage(
     start_node_id: int = 1,
     start_edge_id: int = 1,
 ) -> StorageConversionResult:
-    """Convert a compiled DSL package into storage-layer Node and HyperEdge objects.
+    """Convert a compiled Gaia Language package into storage-layer Node and HyperEdge objects.
 
     Args:
-        pkg: A loaded and resolved DSL Package.
+        pkg: A loaded and resolved Gaia Language package.
         fg: The compiled factor graph (variables + factors).
         beliefs: Variable name -> posterior belief from BP inference.
         start_node_id: Starting ID for generated nodes.
@@ -60,7 +60,7 @@ def convert_package_to_storage(
         if decl is None:
             continue
 
-        # Map DSL type to storage node type
+        # Map language declaration type to storage node type
         node_type = "claim"
         if isinstance(decl, Setting):
             node_type = "setting"
@@ -76,7 +76,7 @@ def convert_package_to_storage(
             content=content.strip(),
             prior=prior,
             belief=beliefs.get(var_name),
-            metadata={"source": "dsl", "package": pkg.name},
+            metadata={"source": "gaia_language", "package": pkg.name},
         )
         result.nodes.append(node)
         name_to_id[var_name] = node_id
@@ -100,7 +100,7 @@ def convert_package_to_storage(
             conclusions=conclusion_ids,
             probability=factor.get("probability"),
             reasoning=[{"title": factor["name"], "content": ""}],
-            metadata={"source": "dsl", "package": pkg.name},
+            metadata={"source": "gaia_language", "package": pkg.name},
         )
         result.edges.append(edge)
         edge_id += 1

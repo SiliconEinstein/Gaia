@@ -1,4 +1,4 @@
-"""Shared test fixtures for DSL tests."""
+"""Shared test fixtures for Gaia Language tests."""
 
 from libs.lang.executor import ActionExecutor
 

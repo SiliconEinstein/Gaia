@@ -20,7 +20,7 @@ from libs.lang.resolver import resolve_refs
 
 from .conftest import MockExecutor
 
-FIXTURE_DIR = Path(__file__).parents[2] / "fixtures" / "dsl_packages" / "galileo_falling_bodies"
+FIXTURE_DIR = Path(__file__).parents[2] / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies"
 
 
 async def test_execute_fills_empty_claims():

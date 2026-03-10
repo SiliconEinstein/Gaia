@@ -152,7 +152,7 @@ def infer(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     review_file: str | None = typer.Option(None, "--review", help="Path to review sidecar file"),
 ) -> None:
-    """Compile FG (from review) + BP -> beliefs."""
+    """Compile a factor graph (from review) and run BP to compute beliefs."""
     from cli.review_store import find_latest_review, merge_review, read_review
     from libs.lang.compiler import compile_factor_graph
     from libs.lang.loader import load_package
@@ -191,17 +191,17 @@ def infer(
     pkg = merge_review(pkg, review, source_fingerprint=fp)
 
     # 4. Compile factor graph
-    dsl_fg = compile_factor_graph(pkg)
+    compiled_fg = compile_factor_graph(pkg)
 
     # 5. Convert to inference engine FactorGraph and run BP
     bp_fg = FactorGraph()
     name_to_id: dict[str, int] = {}
-    for i, (name, prior) in enumerate(dsl_fg.variables.items()):
+    for i, (name, prior) in enumerate(compiled_fg.variables.items()):
         node_id = i + 1
         name_to_id[name] = node_id
         bp_fg.add_variable(node_id, prior)
 
-    for j, factor in enumerate(dsl_fg.factors):
+    for j, factor in enumerate(compiled_fg.factors):
         premise_ids = [name_to_id[n] for n in factor["premises"] if n in name_to_id]
         conclusion_ids = [name_to_id[n] for n in factor["conclusions"] if n in name_to_id]
         bp_fg.add_factor(
@@ -220,12 +220,12 @@ def infer(
     named_beliefs = {id_to_name[nid]: belief for nid, belief in beliefs.items()}
 
     typer.echo(f"Package: {pkg.name}")
-    typer.echo(f"Variables: {len(dsl_fg.variables)}")
-    typer.echo(f"Factors: {len(dsl_fg.factors)}")
+    typer.echo(f"Variables: {len(compiled_fg.variables)}")
+    typer.echo(f"Factors: {len(compiled_fg.factors)}")
     typer.echo()
     typer.echo("Beliefs after BP:")
     for name, belief in sorted(named_beliefs.items()):
-        prior = dsl_fg.variables.get(name, "?")
+        prior = compiled_fg.variables.get(name, "?")
         typer.echo(f"  {name}: prior={prior} -> belief={belief:.4f}")
 
 
@@ -278,7 +278,7 @@ def publish(
 
 async def _publish_local(pkg_path: Path, db_path: str) -> None:
     """Run full pipeline and triple-write to LanceDB + Kuzu."""
-    from cli.dsl_to_storage import convert_package_to_storage
+    from cli.lang_to_storage import convert_package_to_storage
     from cli.review_store import find_latest_review, merge_review, read_review
     from libs.lang.compiler import compile_factor_graph
     from libs.lang.loader import load_package
@@ -317,16 +317,16 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     pkg = merge_review(pkg, review, source_fingerprint=fp)
 
     # 4. Compile factor graph and run BP
-    dsl_fg = compile_factor_graph(pkg)
+    compiled_fg = compile_factor_graph(pkg)
 
     bp_fg = FactorGraph()
     name_to_id: dict[str, int] = {}
-    for i, (name, prior) in enumerate(dsl_fg.variables.items()):
+    for i, (name, prior) in enumerate(compiled_fg.variables.items()):
         node_id = i + 1
         name_to_id[name] = node_id
         bp_fg.add_variable(node_id, prior)
 
-    for j, factor in enumerate(dsl_fg.factors):
+    for j, factor in enumerate(compiled_fg.factors):
         premise_ids = [name_to_id[n] for n in factor["premises"] if n in name_to_id]
         conclusion_ids = [name_to_id[n] for n in factor["conclusions"] if n in name_to_id]
         bp_fg.add_factor(
@@ -345,7 +345,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     named_beliefs = {id_to_name[nid]: belief for nid, belief in beliefs.items()}
 
     # 6. Convert to storage models
-    storage_result = convert_package_to_storage(pkg, dsl_fg, named_beliefs)
+    storage_result = convert_package_to_storage(pkg, compiled_fg, named_beliefs)
 
     # 7. Initialize StorageManager with Kuzu backend
     config = StorageConfig(

@@ -1,4 +1,4 @@
-"""Gaia DSL Pydantic models — the type system as Python classes."""
+"""Gaia Language Pydantic models — the type system as Python classes."""
 
 from __future__ import annotations
 
