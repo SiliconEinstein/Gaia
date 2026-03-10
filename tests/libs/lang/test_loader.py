@@ -9,7 +9,9 @@ from libs.lang.models import (
     Ref,
 )
 
-FIXTURE_DIR = Path(__file__).parents[2] / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies"
+FIXTURE_DIR = (
+    Path(__file__).parents[2] / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies"
+)
 
 
 def test_load_package_metadata():

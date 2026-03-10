@@ -17,6 +17,7 @@ def test_retract_action_model():
 
 def test_retract_action_in_declaration_map():
     from libs.lang.models import DECLARATION_TYPE_MAP
+
     assert "retract_action" in DECLARATION_TYPE_MAP
     assert DECLARATION_TYPE_MAP["retract_action"] is RetractAction
 

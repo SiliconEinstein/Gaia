@@ -25,14 +25,14 @@ ORANGE = "FFAB40"
 HEADER = "FFFFFF"
 
 # Node fill colors
-NODE_GRAY = RGBColor(0x66, 0x66, 0x66)      # neutral nodes
-NODE_RED = RGBColor(0xD3, 0x2F, 0x2F)       # declining belief
-NODE_BLUE = RGBColor(0x1B, 0x5E, 0x9F)      # deduction nodes
-NODE_GREEN = RGBColor(0x2E, 0x7D, 0x32)     # conclusion / confirmed
-NODE_ORANGE = RGBColor(0xE6, 0x51, 0x00)    # contradiction
-NODE_GOLD = RGBColor(0xF9, 0xA8, 0x25)      # key conclusions (★)
+NODE_GRAY = RGBColor(0x66, 0x66, 0x66)  # neutral nodes
+NODE_RED = RGBColor(0xD3, 0x2F, 0x2F)  # declining belief
+NODE_BLUE = RGBColor(0x1B, 0x5E, 0x9F)  # deduction nodes
+NODE_GREEN = RGBColor(0x2E, 0x7D, 0x32)  # conclusion / confirmed
+NODE_ORANGE = RGBColor(0xE6, 0x51, 0x00)  # contradiction
+NODE_GOLD = RGBColor(0xF9, 0xA8, 0x25)  # key conclusions (★)
 LINE_GRAY = RGBColor(0x99, 0x99, 0x99)
-LINE_RED = RGBColor(0xF4, 0x43, 0x36)       # contradiction line
+LINE_RED = RGBColor(0xF4, 0x43, 0x36)  # contradiction line
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -207,12 +207,19 @@ def clear_right_shapes(slide, x_threshold=5400000):
 # ═══════════════════════════════════════════════════════════════
 # Diagram shape builders
 # ═══════════════════════════════════════════════════════════════
-def add_node_box(slide, left, top, width, height, lines, fill_color,
-                 font_size=Pt(9), font_color=RGBColor(0xFF, 0xFF, 0xFF)):
+def add_node_box(
+    slide,
+    left,
+    top,
+    width,
+    height,
+    lines,
+    fill_color,
+    font_size=Pt(9),
+    font_color=RGBColor(0xFF, 0xFF, 0xFF),
+):
     """Add a rounded rectangle node with multi-line text."""
-    shape = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height
-    )
+    shape = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height)
     shape.fill.solid()
     shape.fill.fore_color.rgb = fill_color
     shape.line.color.rgb = fill_color
@@ -229,11 +236,12 @@ def add_node_box(slide, left, top, width, height, lines, fill_color,
         p.text = line_text
         p.font.size = font_size
         p.font.color.rgb = font_color
-        p.font.bold = (i == 0)  # First line bold
+        p.font.bold = i == 0  # First line bold
         p.space_after = Pt(0)
         p.space_before = Pt(0)
     # Center text vertically
     from pptx.enum.text import PP_ALIGN
+
     for p in tf.paragraphs:
         p.alignment = PP_ALIGN.CENTER
     tf.paragraphs[0].alignment = PP_ALIGN.CENTER
@@ -241,9 +249,17 @@ def add_node_box(slide, left, top, width, height, lines, fill_color,
     return shape
 
 
-def add_label(slide, left, top, width, height, text,
-              font_size=Pt(9), font_color=RGBColor(0xFF, 0xFF, 0xFF),
-              bold=False):
+def add_label(
+    slide,
+    left,
+    top,
+    width,
+    height,
+    text,
+    font_size=Pt(9),
+    font_color=RGBColor(0xFF, 0xFF, 0xFF),
+    bold=False,
+):
     """Add a text label (no fill)."""
     txBox = slide.shapes.add_textbox(left, top, width, height)
     tf = txBox.text_frame
@@ -255,6 +271,7 @@ def add_label(slide, left, top, width, height, text,
     p.font.bold = bold
     p.space_after = Pt(0)
     from pptx.enum.text import PP_ALIGN
+
     p.alignment = PP_ALIGN.CENTER
     return txBox
 
@@ -263,7 +280,10 @@ def add_line(slide, x1, y1, x2, y2, color=LINE_GRAY, width=Emu(12700), dashed=Fa
     """Add a connector line."""
     connector = slide.shapes.add_connector(
         1,  # cxnSp type (straight)
-        x1, y1, x2, y2
+        x1,
+        y1,
+        x2,
+        y2,
     )
     connector.line.color.rgb = color
     connector.line.width = width
@@ -332,7 +352,7 @@ PKG1_CODE = [
     "    --head 5003 --type abstraction",
     '  → 5003 "v ∝ W: 越重越快" prior=0.70',
     "",
-    "$ gaia commit -m \"aristotle_physics\"",
+    '$ gaia commit -m "aristotle_physics"',
     "$ gaia propagate",
     "  5003 (v ∝ W): belief = 0.70",
     "# ✓ 这就是 2000 年间公认的物理学常识",
@@ -368,7 +388,7 @@ PKG2_CODE = [
 # Slide 13 (Pkg 3-4): Medium + Vacuum
 PKG34_CODE = [
     "# ═══ Pkg 3: medium_density ═══",
-    "# 伽利略的下一步: 解释为何亚里士多德\"看起来\"对",
+    '# 伽利略的下一步: 解释为何亚里士多德"看起来"对',
     "",
     '$ gaia node add "观察: 水中落速差异 > 空气中" \\',
     "    --prior 0.90                       → 5009",
@@ -376,7 +396,7 @@ PKG34_CODE = [
     "    --prior 0.85                       → 5010",
     "$ gaia edge add --tail 5009,5010 \\",
     "    --head 5011 --type deduction",
-    "  → 5011 \"★ 空气阻力才是混淆因素\"",
+    '  → 5011 "★ 空气阻力才是混淆因素"',
     "  # 石头快于叶子不是因为更重，而是空气阻力不同!",
     "",
     "# ═══ Pkg 4: vacuum_prediction ═══",
@@ -384,7 +404,7 @@ PKG34_CODE = [
     "",
     "$ gaia edge add --tail 5008,5011 \\",
     "    --head 5012 --type deduction",
-    "  → 5012 \"★ 真空中所有物体等速下落\"",
+    '  → 5012 "★ 真空中所有物体等速下落"',
     '$ gaia node add "斜面实验: 不同球同时到底" \\',
     "    --prior 0.90  # 部分验证            → 5013",
     "",
@@ -436,7 +456,7 @@ PKG6_CODE = [
     "$ gaia edge add --tail 5018,5019 \\",
     "    --head 5020 --type deduction",
     "",
-    "$ gaia commit -m \"apollo15\"",
+    '$ gaia commit -m "apollo15"',
     "$ gaia propagate",
     "  5003 (v∝W): 0.12→0.05 ↓  几乎归零",
     "  5012 (真空等速): 0.87→0.95 ↑  三线汇聚",
@@ -466,19 +486,41 @@ def build_diagram_pkg1(slide):
     clear_right_shapes(slide)
 
     # Title
-    add_label(slide, RX, E(1500000), E(RW), E(360000),
-              "亚里士多德先验知识图", Pt(14),
-              RGBColor(0xFF, 0xFF, 0xFF), bold=True)
+    add_label(
+        slide,
+        RX,
+        E(1500000),
+        E(RW),
+        E(360000),
+        "亚里士多德先验知识图",
+        Pt(14),
+        RGBColor(0xFF, 0xFF, 0xFF),
+        bold=True,
+    )
 
     # Node 5001
-    add_node_box(slide, E(5940000), E(2160000), E(2340000), E(720000),
-                      ["5001", "自然运动学说: 重物趋下"],
-                      NODE_GRAY, Pt(9))
+    add_node_box(
+        slide,
+        E(5940000),
+        E(2160000),
+        E(2340000),
+        E(720000),
+        ["5001", "自然运动学说: 重物趋下"],
+        NODE_GRAY,
+        Pt(9),
+    )
 
     # Node 5002
-    add_node_box(slide, E(8820000), E(2160000), E(2340000), E(720000),
-                      ["5002", "日常观察: 石头>叶子"],
-                      NODE_GRAY, Pt(9))
+    add_node_box(
+        slide,
+        E(8820000),
+        E(2160000),
+        E(2340000),
+        E(720000),
+        ["5002", "日常观察: 石头>叶子"],
+        NODE_GRAY,
+        Pt(9),
+    )
 
     # Arrow 5001 → 5003
     add_arrow(slide, E(7110000), E(2880000), E(7920000), E(3600000))
@@ -486,19 +528,40 @@ def build_diagram_pkg1(slide):
     add_arrow(slide, E(9990000), E(2880000), E(9360000), E(3600000))
 
     # Edge label
-    add_label(slide, E(8100000), E(3060000), E(1800000), E(360000),
-              "abstraction", Pt(8), RGBColor(0x99, 0x99, 0x99))
+    add_label(
+        slide,
+        E(8100000),
+        E(3060000),
+        E(1800000),
+        E(360000),
+        "abstraction",
+        Pt(8),
+        RGBColor(0x99, 0x99, 0x99),
+    )
 
     # Node 5003 — the key node
-    add_node_box(slide, E(7200000), E(3600000), E(2880000), E(900000),
-                      ["5003: v ∝ W 定律", "越重越快", "belief = 0.70"],
-                      NODE_RED, Pt(10))
+    add_node_box(
+        slide,
+        E(7200000),
+        E(3600000),
+        E(2880000),
+        E(900000),
+        ["5003: v ∝ W 定律", "越重越快", "belief = 0.70"],
+        NODE_RED,
+        Pt(10),
+    )
 
     # Summary text at bottom
-    add_label(slide, RX, E(5040000), E(RW), E(720000),
-              "这是 2000 年间被广泛接受的\"常识\"\n"
-              "接下来伽利略将用纯推理推翻它",
-              Pt(10), RGBColor(0xBB, 0xBB, 0xBB))
+    add_label(
+        slide,
+        RX,
+        E(5040000),
+        E(RW),
+        E(720000),
+        '这是 2000 年间被广泛接受的"常识"\n接下来伽利略将用纯推理推翻它',
+        Pt(10),
+        RGBColor(0xBB, 0xBB, 0xBB),
+    )
 
 
 def build_diagram_pkg2(slide):
@@ -506,18 +569,40 @@ def build_diagram_pkg2(slide):
     clear_right_shapes(slide)
 
     # Title
-    add_label(slide, RX, E(1500000), E(RW), E(360000),
-              "绑球悖论: 同一前提推出矛盾结论", Pt(13),
-              RGBColor(0xFF, 0xFF, 0xFF), bold=True)
+    add_label(
+        slide,
+        RX,
+        E(1500000),
+        E(RW),
+        E(360000),
+        "绑球悖论: 同一前提推出矛盾结论",
+        Pt(13),
+        RGBColor(0xFF, 0xFF, 0xFF),
+        bold=True,
+    )
 
     # Top row: 5003 (v∝W) + 5004 (绑球设定)
-    add_node_box(slide, E(5940000), E(2016000), E(1980000), E(648000),
-                 ["5003: v∝W", "belief=0.70"],
-                 NODE_RED, Pt(9))
+    add_node_box(
+        slide,
+        E(5940000),
+        E(2016000),
+        E(1980000),
+        E(648000),
+        ["5003: v∝W", "belief=0.70"],
+        NODE_RED,
+        Pt(9),
+    )
 
-    add_node_box(slide, E(9180000), E(2016000), E(1980000), E(648000),
-                 ["5004: 设定", "重球H绑轻球L"],
-                 NODE_GRAY, Pt(9))
+    add_node_box(
+        slide,
+        E(9180000),
+        E(2016000),
+        E(1980000),
+        E(648000),
+        ["5004: 设定", "重球H绑轻球L"],
+        NODE_GRAY,
+        Pt(9),
+    )
 
     # Arrows down to deductions
     add_arrow(slide, E(6930000), E(2664000), E(6570000), E(3240000))  # →5005
@@ -526,36 +611,73 @@ def build_diagram_pkg2(slide):
     add_arrow(slide, E(10170000), E(2664000), E(10170000), E(3240000))  # →5006
 
     # Deduction A: 5005
-    add_node_box(slide, E(5580000), E(3240000), E(2340000), E(756000),
-                 ["5005: 推导A", "L拖慢H → HL更慢"],
-                 NODE_BLUE, Pt(9))
+    add_node_box(
+        slide,
+        E(5580000),
+        E(3240000),
+        E(2340000),
+        E(756000),
+        ["5005: 推导A", "L拖慢H → HL更慢"],
+        NODE_BLUE,
+        Pt(9),
+    )
 
     # Deduction B: 5006
-    add_node_box(slide, E(9000000), E(3240000), E(2340000), E(756000),
-                 ["5006: 推导B", "HL更重 → HL更快"],
-                 NODE_BLUE, Pt(9))
+    add_node_box(
+        slide,
+        E(9000000),
+        E(3240000),
+        E(2340000),
+        E(756000),
+        ["5006: 推导B", "HL更重 → HL更快"],
+        NODE_BLUE,
+        Pt(9),
+    )
 
     # Contradiction line between 5005 and 5006
-    add_line(slide, E(7920000), E(3618000), E(9000000), E(3618000),
-             LINE_RED, Emu(25400), dashed=True)
+    add_line(
+        slide, E(7920000), E(3618000), E(9000000), E(3618000), LINE_RED, Emu(25400), dashed=True
+    )
 
     # Contradiction label
-    add_label(slide, E(7740000), E(3996000), E(1800000), E(432000),
-              "CONTRADICTION ①\n同一物体不可能\n既更快又更慢!",
-              Pt(9), RGBColor(0xF4, 0x43, 0x36), bold=True)
+    add_label(
+        slide,
+        E(7740000),
+        E(3996000),
+        E(1800000),
+        E(432000),
+        "CONTRADICTION ①\n同一物体不可能\n既更快又更慢!",
+        Pt(9),
+        RGBColor(0xF4, 0x43, 0x36),
+        bold=True,
+    )
 
     # Arrow down to conclusion
     add_arrow(slide, E(8280000), E(4428000), E(8280000), E(4860000))
 
     # Node 5008: conclusion
-    add_node_box(slide, E(6840000), E(4860000), E(3240000), E(756000),
-                 ["5008: v∝W 必然错误!", "两条推导都合法，前提必须有错"],
-                 NODE_GREEN, Pt(9))
+    add_node_box(
+        slide,
+        E(6840000),
+        E(4860000),
+        E(3240000),
+        E(756000),
+        ["5008: v∝W 必然错误!", "两条推导都合法，前提必须有错"],
+        NODE_GREEN,
+        Pt(9),
+    )
 
     # Result annotation
-    add_label(slide, RX, E(5760000), E(RW), E(432000),
-              "5003 (v∝W): 0.70 → 0.35 ↓   矛盾回传到共享前提",
-              Pt(10), RGBColor(0xFF, 0x8A, 0x80))
+    add_label(
+        slide,
+        RX,
+        E(5760000),
+        E(RW),
+        E(432000),
+        "5003 (v∝W): 0.70 → 0.35 ↓   矛盾回传到共享前提",
+        Pt(10),
+        RGBColor(0xFF, 0x8A, 0x80),
+    )
 
 
 def build_diagram_pkg34(slide):
@@ -563,65 +685,136 @@ def build_diagram_pkg34(slide):
     clear_right_shapes(slide)
 
     # Title
-    add_label(slide, RX, E(1500000), E(RW), E(360000),
-              "找到真正原因 → 做出可验证的预测", Pt(13),
-              RGBColor(0xFF, 0xFF, 0xFF), bold=True)
+    add_label(
+        slide,
+        RX,
+        E(1500000),
+        E(RW),
+        E(360000),
+        "找到真正原因 → 做出可验证的预测",
+        Pt(13),
+        RGBColor(0xFF, 0xFF, 0xFF),
+        bold=True,
+    )
 
     # --- Pkg 3 section ---
-    add_label(slide, E(5940000), E(1908000), E(1800000), E(288000),
-              "Pkg 3: 密度观察", Pt(10),
-              RGBColor(0x99, 0x99, 0x99), bold=True)
+    add_label(
+        slide,
+        E(5940000),
+        E(1908000),
+        E(1800000),
+        E(288000),
+        "Pkg 3: 密度观察",
+        Pt(10),
+        RGBColor(0x99, 0x99, 0x99),
+        bold=True,
+    )
 
     # Nodes 5009 + 5010
-    add_node_box(slide, E(5940000), E(2196000), E(2160000), E(576000),
-                 ["5009: 水中差异更大", "5010: 介质越稀差异越小"],
-                 NODE_GRAY, Pt(8))
+    add_node_box(
+        slide,
+        E(5940000),
+        E(2196000),
+        E(2160000),
+        E(576000),
+        ["5009: 水中差异更大", "5010: 介质越稀差异越小"],
+        NODE_GRAY,
+        Pt(8),
+    )
 
     # Arrow to 5011
     add_arrow(slide, E(7020000), E(2772000), E(7020000), E(3132000))
 
     # Node 5011 — ★ key conclusion 1
-    add_node_box(slide, E(5940000), E(3132000), E(2520000), E(648000),
-                 ["★ 5011: 空气阻力", "才是混淆因素"],
-                 NODE_GOLD, Pt(9))
+    add_node_box(
+        slide,
+        E(5940000),
+        E(3132000),
+        E(2520000),
+        E(648000),
+        ["★ 5011: 空气阻力", "才是混淆因素"],
+        NODE_GOLD,
+        Pt(9),
+    )
 
     # --- Pkg 4 section ---
-    add_label(slide, E(8820000), E(1908000), E(2520000), E(288000),
-              "Pkg 4: 真空预测", Pt(10),
-              RGBColor(0x99, 0x99, 0x99), bold=True)
+    add_label(
+        slide,
+        E(8820000),
+        E(1908000),
+        E(2520000),
+        E(288000),
+        "Pkg 4: 真空预测",
+        Pt(10),
+        RGBColor(0x99, 0x99, 0x99),
+        bold=True,
+    )
 
     # Node 5008 (from Pkg 2)
-    add_node_box(slide, E(9000000), E(2196000), E(2160000), E(576000),
-                 ["5008: v∝W 错误", "(来自 Pkg 2)"],
-                 NODE_GREEN, Pt(8))
+    add_node_box(
+        slide,
+        E(9000000),
+        E(2196000),
+        E(2160000),
+        E(576000),
+        ["5008: v∝W 错误", "(来自 Pkg 2)"],
+        NODE_GREEN,
+        Pt(8),
+    )
 
     # Arrows to 5012
     add_arrow(slide, E(7560000), E(3456000), E(8280000), E(4032000))
     add_arrow(slide, E(10080000), E(2772000), E(9360000), E(4032000))
 
     # Edge label
-    add_label(slide, E(8280000), E(3528000), E(1800000), E(360000),
-              "v∝W错 + 空气阻力\n→ 去掉空气 = 等速",
-              Pt(8), RGBColor(0x99, 0x99, 0x99))
+    add_label(
+        slide,
+        E(8280000),
+        E(3528000),
+        E(1800000),
+        E(360000),
+        "v∝W错 + 空气阻力\n→ 去掉空气 = 等速",
+        Pt(8),
+        RGBColor(0x99, 0x99, 0x99),
+    )
 
     # Node 5012 — ★ key conclusion 2
-    add_node_box(slide, E(7560000), E(4032000), E(3060000), E(648000),
-                 ["★ 5012: 真空等速预测", "真空中所有物体等速下落"],
-                 NODE_GOLD, Pt(9))
+    add_node_box(
+        slide,
+        E(7560000),
+        E(4032000),
+        E(3060000),
+        E(648000),
+        ["★ 5012: 真空等速预测", "真空中所有物体等速下落"],
+        NODE_GOLD,
+        Pt(9),
+    )
 
     # Node 5013 — inclined plane
-    add_node_box(slide, E(7560000), E(4968000), E(2340000), E(576000),
-                 ["5013: 斜面实验", "部分验证 ✓"],
-                 NODE_GRAY, Pt(8))
+    add_node_box(
+        slide,
+        E(7560000),
+        E(4968000),
+        E(2340000),
+        E(576000),
+        ["5013: 斜面实验", "部分验证 ✓"],
+        NODE_GRAY,
+        Pt(8),
+    )
 
     add_arrow(slide, E(8730000), E(4680000), E(8730000), E(4968000))
 
     # Result annotation
-    add_label(slide, RX, E(5688000), E(RW), E(504000),
-              "伽利略两大结论:\n"
-              "① 石头快于叶子是因为空气阻力，不是因为更重\n"
-              "② 在真空中，所有物体等速下落",
-              Pt(10), RGBColor(0xFF, 0xD5, 0x4F))
+    add_label(
+        slide,
+        RX,
+        E(5688000),
+        E(RW),
+        E(504000),
+        "伽利略两大结论:\n① 石头快于叶子是因为空气阻力，不是因为更重\n② 在真空中，所有物体等速下落",
+        Pt(10),
+        RGBColor(0xFF, 0xD5, 0x4F),
+    )
 
 
 def build_diagram_pkg5(slide):
@@ -629,63 +822,136 @@ def build_diagram_pkg5(slide):
     clear_right_shapes(slide)
 
     # Title
-    add_label(slide, RX, E(1500000), E(RW), E(360000),
-              "独立的理论推导: 第二条矛盾线", Pt(13),
-              RGBColor(0xFF, 0xFF, 0xFF), bold=True)
+    add_label(
+        slide,
+        RX,
+        E(1500000),
+        E(RW),
+        E(360000),
+        "独立的理论推导: 第二条矛盾线",
+        Pt(13),
+        RGBColor(0xFF, 0xFF, 0xFF),
+        bold=True,
+    )
 
     # F=ma
-    add_node_box(slide, E(6120000), E(2088000), E(1800000), E(576000),
-                 ["5015: F = ma", "牛顿第二定律"],
-                 NODE_GRAY, Pt(9))
+    add_node_box(
+        slide,
+        E(6120000),
+        E(2088000),
+        E(1800000),
+        E(576000),
+        ["5015: F = ma", "牛顿第二定律"],
+        NODE_GRAY,
+        Pt(9),
+    )
 
     # F=mg
-    add_node_box(slide, E(9180000), E(2088000), E(1800000), E(576000),
-                 ["5016: F = mg", "万有引力"],
-                 NODE_GRAY, Pt(9))
+    add_node_box(
+        slide,
+        E(9180000),
+        E(2088000),
+        E(1800000),
+        E(576000),
+        ["5016: F = mg", "万有引力"],
+        NODE_GRAY,
+        Pt(9),
+    )
 
     # Arrows to a=g
     add_arrow(slide, E(7020000), E(2664000), E(7920000), E(3168000))
     add_arrow(slide, E(10080000), E(2664000), E(9360000), E(3168000))
 
     # Label: cancellation
-    add_label(slide, E(7740000), E(2700000), E(1800000), E(360000),
-              "ma = mg → a = g\n质量约掉了!",
-              Pt(9), RGBColor(0x69, 0xF0, 0xAE))
+    add_label(
+        slide,
+        E(7740000),
+        E(2700000),
+        E(1800000),
+        E(360000),
+        "ma = mg → a = g\n质量约掉了!",
+        Pt(9),
+        RGBColor(0x69, 0xF0, 0xAE),
+    )
 
     # Node 5017: a=g
-    add_node_box(slide, E(7200000), E(3168000), E(2880000), E(720000),
-                 ["5017: a = g", "加速度与质量无关!"],
-                 NODE_GREEN, Pt(10))
+    add_node_box(
+        slide,
+        E(7200000),
+        E(3168000),
+        E(2880000),
+        E(720000),
+        ["5017: a = g", "加速度与质量无关!"],
+        NODE_GREEN,
+        Pt(10),
+    )
 
     # Contradiction with 5003
-    add_node_box(slide, E(5940000), E(4392000), E(1980000), E(648000),
-                 ["5003: v∝W", "0.28 → 0.12 ↓↓"],
-                 NODE_RED, Pt(9))
+    add_node_box(
+        slide,
+        E(5940000),
+        E(4392000),
+        E(1980000),
+        E(648000),
+        ["5003: v∝W", "0.28 → 0.12 ↓↓"],
+        NODE_RED,
+        Pt(9),
+    )
 
-    add_line(slide, E(7920000), E(4716000), E(7920000), E(3888000),
-             LINE_RED, Emu(25400), dashed=True)
+    add_line(
+        slide, E(7920000), E(4716000), E(7920000), E(3888000), LINE_RED, Emu(25400), dashed=True
+    )
 
-    add_label(slide, E(7740000), E(4032000), E(2160000), E(432000),
-              "CONTRADICTION ②\nNewton a=g vs\nAristotle v∝W",
-              Pt(9), RGBColor(0xF4, 0x43, 0x36), bold=True)
+    add_label(
+        slide,
+        E(7740000),
+        E(4032000),
+        E(2160000),
+        E(432000),
+        "CONTRADICTION ②\nNewton a=g vs\nAristotle v∝W",
+        Pt(9),
+        RGBColor(0xF4, 0x43, 0x36),
+        bold=True,
+    )
 
     # Arrow to 5012 (confirm vacuum prediction)
-    add_node_box(slide, E(9180000), E(4392000), E(2160000), E(648000),
-                 ["5012: 真空等速", "0.78 → 0.87 ↑"],
-                 NODE_GOLD, Pt(9))
+    add_node_box(
+        slide,
+        E(9180000),
+        E(4392000),
+        E(2160000),
+        E(648000),
+        ["5012: 真空等速", "0.78 → 0.87 ↑"],
+        NODE_GOLD,
+        Pt(9),
+    )
 
     add_arrow(slide, E(9360000), E(3888000), E(10260000), E(4392000))
 
-    add_label(slide, E(9360000), E(3888000), E(1800000), E(360000),
-              "独立理论确认",
-              Pt(8), RGBColor(0x99, 0x99, 0x99))
+    add_label(
+        slide,
+        E(9360000),
+        E(3888000),
+        E(1800000),
+        E(360000),
+        "独立理论确认",
+        Pt(8),
+        RGBColor(0x99, 0x99, 0x99),
+    )
 
     # Summary
-    add_label(slide, RX, E(5400000), E(RW), E(720000),
-              "牛顿力学从 F=ma, F=mg 独立推导出 a=g\n"
-              "这是第二条完全独立的矛盾线\n"
-              "同时从理论上确认了伽利略的真空等速预测",
-              Pt(10), RGBColor(0xBB, 0xBB, 0xBB))
+    add_label(
+        slide,
+        RX,
+        E(5400000),
+        E(RW),
+        E(720000),
+        "牛顿力学从 F=ma, F=mg 独立推导出 a=g\n"
+        "这是第二条完全独立的矛盾线\n"
+        "同时从理论上确认了伽利略的真空等速预测",
+        Pt(10),
+        RGBColor(0xBB, 0xBB, 0xBB),
+    )
 
 
 def build_diagram_pkg6(slide):
@@ -693,33 +959,83 @@ def build_diagram_pkg6(slide):
     clear_right_shapes(slide)
 
     # Title
-    add_label(slide, RX, E(1500000), E(RW), E(360000),
-              "三条独立证据线汇聚", Pt(14),
-              RGBColor(0xFF, 0xFF, 0xFF), bold=True)
+    add_label(
+        slide,
+        RX,
+        E(1500000),
+        E(RW),
+        E(360000),
+        "三条独立证据线汇聚",
+        Pt(14),
+        RGBColor(0xFF, 0xFF, 0xFF),
+        bold=True,
+    )
 
     # Evidence line 1: Logical
-    add_node_box(slide, E(6120000), E(2088000), E(1620000), E(648000),
-                 ["① 逻辑矛盾", "绑球悖论"],
-                 NODE_ORANGE, Pt(9))
-    add_label(slide, E(7920000), E(2088000), E(2700000), E(648000),
-              "Pkg 2: 纯推理\n从v∝W自身推出矛盾\nContradiction Edge ①",
-              Pt(8), RGBColor(0xBB, 0xBB, 0xBB))
+    add_node_box(
+        slide,
+        E(6120000),
+        E(2088000),
+        E(1620000),
+        E(648000),
+        ["① 逻辑矛盾", "绑球悖论"],
+        NODE_ORANGE,
+        Pt(9),
+    )
+    add_label(
+        slide,
+        E(7920000),
+        E(2088000),
+        E(2700000),
+        E(648000),
+        "Pkg 2: 纯推理\n从v∝W自身推出矛盾\nContradiction Edge ①",
+        Pt(8),
+        RGBColor(0xBB, 0xBB, 0xBB),
+    )
 
     # Evidence line 2: Theoretical
-    add_node_box(slide, E(6120000), E(3060000), E(1620000), E(648000),
-                 ["② 理论推导", "Newton a=g"],
-                 NODE_ORANGE, Pt(9))
-    add_label(slide, E(7920000), E(3060000), E(2700000), E(648000),
-              "Pkg 5: F=ma, F=mg → a=g\n从第一性原理独立推导\nContradiction Edge ②",
-              Pt(8), RGBColor(0xBB, 0xBB, 0xBB))
+    add_node_box(
+        slide,
+        E(6120000),
+        E(3060000),
+        E(1620000),
+        E(648000),
+        ["② 理论推导", "Newton a=g"],
+        NODE_ORANGE,
+        Pt(9),
+    )
+    add_label(
+        slide,
+        E(7920000),
+        E(3060000),
+        E(2700000),
+        E(648000),
+        "Pkg 5: F=ma, F=mg → a=g\n从第一性原理独立推导\nContradiction Edge ②",
+        Pt(8),
+        RGBColor(0xBB, 0xBB, 0xBB),
+    )
 
     # Evidence line 3: Experimental
-    add_node_box(slide, E(6120000), E(4032000), E(1620000), E(648000),
-                 ["③ 直接实验", "Apollo 15"],
-                 NODE_ORANGE, Pt(9))
-    add_label(slide, E(7920000), E(4032000), E(2700000), E(648000),
-              "Pkg 6: 月球真空中\n锤子=羽毛 (质量比44:1)\n直接实验证实",
-              Pt(8), RGBColor(0xBB, 0xBB, 0xBB))
+    add_node_box(
+        slide,
+        E(6120000),
+        E(4032000),
+        E(1620000),
+        E(648000),
+        ["③ 直接实验", "Apollo 15"],
+        NODE_ORANGE,
+        Pt(9),
+    )
+    add_label(
+        slide,
+        E(7920000),
+        E(4032000),
+        E(2700000),
+        E(648000),
+        "Pkg 6: 月球真空中\n锤子=羽毛 (质量比44:1)\n直接实验证实",
+        Pt(8),
+        RGBColor(0xBB, 0xBB, 0xBB),
+    )
 
     # Arrows converging
     add_arrow(slide, E(6930000), E(2736000), E(8640000), E(5040000))
@@ -727,14 +1043,28 @@ def build_diagram_pkg6(slide):
     add_arrow(slide, E(6930000), E(4680000), E(8640000), E(5040000))
 
     # Central conclusion node
-    add_node_box(slide, E(7740000), E(5040000), E(3240000), E(900000),
-                 ["5012: 真空等速", "belief = 0.95+", "三线汇聚 → 高确信度"],
-                 NODE_GREEN, Pt(10))
+    add_node_box(
+        slide,
+        E(7740000),
+        E(5040000),
+        E(3240000),
+        E(900000),
+        ["5012: 真空等速", "belief = 0.95+", "三线汇聚 → 高确信度"],
+        NODE_GREEN,
+        Pt(10),
+    )
 
     # Bottom note
-    add_label(slide, RX, E(6048000), E(RW), E(360000),
-              "旧理论不删除，belief 自然下降；全程只 add node+edge",
-              Pt(9), RGBColor(0x99, 0x99, 0x99))
+    add_label(
+        slide,
+        RX,
+        E(6048000),
+        E(RW),
+        E(360000),
+        "旧理论不删除，belief 自然下降；全程只 add node+edge",
+        Pt(9),
+        RGBColor(0x99, 0x99, 0x99),
+    )
 
 
 # ═══════════════════════════════════════════════════════════════

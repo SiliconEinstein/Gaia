@@ -55,12 +55,20 @@ def move_slide(prs, from_idx, to_idx):
         slides[to_idx].addprevious(el)
 
 
-def add_box(slide, left, top, width, height, lines, fill_color,
-            font_size=Pt(11), font_color=LABEL_WHITE, first_bold=True):
+def add_box(
+    slide,
+    left,
+    top,
+    width,
+    height,
+    lines,
+    fill_color,
+    font_size=Pt(11),
+    font_color=LABEL_WHITE,
+    first_bold=True,
+):
     """Add a rounded rectangle with multi-line text."""
-    shape = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height
-    )
+    shape = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height)
     shape.fill.solid()
     shape.fill.fore_color.rgb = fill_color
     shape.line.color.rgb = fill_color
@@ -84,8 +92,9 @@ def add_box(slide, left, top, width, height, lines, fill_color,
     return shape
 
 
-def add_label(slide, left, top, width, height, text,
-              font_size=Pt(10), font_color=LABEL_LIGHT, bold=False):
+def add_label(
+    slide, left, top, width, height, text, font_size=Pt(10), font_color=LABEL_LIGHT, bold=False
+):
     """Add a text label (no fill)."""
     txBox = slide.shapes.add_textbox(left, top, width, height)
     tf = txBox.text_frame
@@ -110,9 +119,7 @@ def add_arrow_line(slide, x1, y1, x2, y2, color=ARROW_COLOR):
 
 def add_output_pill(slide, left, top, width, height, text, fill_color):
     """Add a small rounded rectangle for output types."""
-    shape = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height
-    )
+    shape = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height)
     shape.fill.solid()
     shape.fill.fore_color.rgb = fill_color
     shape.line.color.rgb = fill_color
@@ -159,15 +166,14 @@ def main():
     # ═══════════════════════════════════════════════════════════════
 
     # Title area
-    add_label(slide, 720000, 180000, 3600000, 360000,
-              "Overview", Pt(13), LABEL_LIGHT, bold=False)
-    add_label(slide, 720000, 420000, 10440000, 600000,
-              "Gaia 全景架构", Pt(28), LABEL_WHITE, bold=True)
+    add_label(slide, 720000, 180000, 3600000, 360000, "Overview", Pt(13), LABEL_LIGHT, bold=False)
+    add_label(
+        slide, 720000, 420000, 10440000, 600000, "Gaia 全景架构", Pt(28), LABEL_WHITE, bold=True
+    )
 
     # Separator line
-    slide.shapes.add_connector(1,
-        Emu(720000), Emu(1100000),
-        Emu(11160000), Emu(1100000)
+    slide.shapes.add_connector(
+        1, Emu(720000), Emu(1100000), Emu(11160000), Emu(1100000)
     ).line.color.rgb = RGBColor(0x55, 0x55, 0x55)
 
     # ═══════════════════════════════════════════════════════════════
@@ -187,19 +193,15 @@ def main():
     x3 = start_x + 2 * (BOX_W + GAP)
 
     # Box 1: Research Agent
-    add_box(slide, x1, BOX_Y, BOX_W, BOX_H,
-            ["Research Agent", "(AI 科研助手)"],
-            BOX_PURPLE, Pt(14))
+    add_box(slide, x1, BOX_Y, BOX_W, BOX_H, ["Research Agent", "(AI 科研助手)"], BOX_PURPLE, Pt(14))
 
     # Box 2: Gaia CLI
-    add_box(slide, x2, BOX_Y, BOX_W, BOX_H,
-            ["Gaia CLI", "(local)"],
-            BOX_TEAL, Pt(14))
+    add_box(slide, x2, BOX_Y, BOX_W, BOX_H, ["Gaia CLI", "(local)"], BOX_TEAL, Pt(14))
 
     # Box 3: Gaia Server
-    add_box(slide, x3, BOX_Y, BOX_W, BOX_H,
-            ["Gaia Server", "(Large Knowledge Model)"],
-            BOX_BLUE, Pt(14))
+    add_box(
+        slide, x3, BOX_Y, BOX_W, BOX_H, ["Gaia Server", "(Large Knowledge Model)"], BOX_BLUE, Pt(14)
+    )
 
     # ═══════════════════════════════════════════════════════════════
     # Arrows between boxes (bidirectional, using two lines with gap)
@@ -207,16 +209,12 @@ def main():
     arrow_y = BOX_Y + BOX_H // 2
 
     # Arrow 1: Agent ←→ CLI
-    add_arrow_line(slide, x1 + BOX_W, arrow_y - 20000,
-                   x2, arrow_y - 20000, ARROW_COLOR)
-    add_arrow_line(slide, x2, arrow_y + 20000,
-                   x1 + BOX_W, arrow_y + 20000, ARROW_COLOR)
+    add_arrow_line(slide, x1 + BOX_W, arrow_y - 20000, x2, arrow_y - 20000, ARROW_COLOR)
+    add_arrow_line(slide, x2, arrow_y + 20000, x1 + BOX_W, arrow_y + 20000, ARROW_COLOR)
 
     # Arrow 2: CLI ←→ Server
-    add_arrow_line(slide, x2 + BOX_W, arrow_y - 20000,
-                   x3, arrow_y - 20000, ARROW_COLOR)
-    add_arrow_line(slide, x3, arrow_y + 20000,
-                   x2 + BOX_W, arrow_y + 20000, ARROW_COLOR)
+    add_arrow_line(slide, x2 + BOX_W, arrow_y - 20000, x3, arrow_y - 20000, ARROW_COLOR)
+    add_arrow_line(slide, x3, arrow_y + 20000, x2 + BOX_W, arrow_y + 20000, ARROW_COLOR)
 
     # ═══════════════════════════════════════════════════════════════
     # Annotation labels between boxes
@@ -225,31 +223,71 @@ def main():
     label_y = BOX_Y + BOX_H + 60000
 
     # Between Agent and CLI
-    add_label(slide, x1 + BOX_W - 100000, label_y - 80000, label_w, 400000,
-              "external memory\nfor agents",
-              Pt(9), LABEL_CYAN, bold=False)
+    add_label(
+        slide,
+        x1 + BOX_W - 100000,
+        label_y - 80000,
+        label_w,
+        400000,
+        "external memory\nfor agents",
+        Pt(9),
+        LABEL_CYAN,
+        bold=False,
+    )
 
     # Between CLI and Server
-    add_label(slide, x2 + BOX_W - 100000, label_y - 80000, label_w, 400000,
-              "commit → review\n→ merge",
-              Pt(9), LABEL_CYAN, bold=False)
+    add_label(
+        slide,
+        x2 + BOX_W - 100000,
+        label_y - 80000,
+        label_w,
+        400000,
+        "commit → review\n→ merge",
+        Pt(9),
+        LABEL_CYAN,
+        bold=False,
+    )
 
     # ═══════════════════════════════════════════════════════════════
     # Description labels below each box
     # ═══════════════════════════════════════════════════════════════
     desc_y = BOX_Y + BOX_H + 420000
 
-    add_label(slide, x1 - 100000, desc_y, BOX_W + 200000, 500000,
-              "Agent 读写知识\n作为 external memory",
-              Pt(9), LABEL_LIGHT, bold=False)
+    add_label(
+        slide,
+        x1 - 100000,
+        desc_y,
+        BOX_W + 200000,
+        500000,
+        "Agent 读写知识\n作为 external memory",
+        Pt(9),
+        LABEL_LIGHT,
+        bold=False,
+    )
 
-    add_label(slide, x2 - 100000, desc_y, BOX_W + 200000, 500000,
-              "knowledge packages\ninit / commit / publish",
-              Pt(9), LABEL_LIGHT, bold=False)
+    add_label(
+        slide,
+        x2 - 100000,
+        desc_y,
+        BOX_W + 200000,
+        500000,
+        "knowledge packages\ninit / commit / publish",
+        Pt(9),
+        LABEL_LIGHT,
+        bold=False,
+    )
 
-    add_label(slide, x3 - 100000, desc_y, BOX_W + 200000, 500000,
-              "十亿级推理超图\nBP · Contradiction",
-              Pt(9), LABEL_LIGHT, bold=False)
+    add_label(
+        slide,
+        x3 - 100000,
+        desc_y,
+        BOX_W + 200000,
+        500000,
+        "十亿级推理超图\nBP · Contradiction",
+        Pt(9),
+        LABEL_LIGHT,
+        bold=False,
+    )
 
     # ═══════════════════════════════════════════════════════════════
     # Output section: arrow down from Server → output types
@@ -259,12 +297,20 @@ def main():
     arrow_bottom = arrow_top + 500000
 
     # Vertical arrow from server area down
-    add_arrow_line(slide, server_center_x, arrow_top,
-                   server_center_x, arrow_bottom, ARROW_COLOR)
+    add_arrow_line(slide, server_center_x, arrow_top, server_center_x, arrow_bottom, ARROW_COLOR)
 
     # "知识输出" label
-    add_label(slide, server_center_x + 40000, arrow_top + 100000, 1200000, 300000,
-              "知识输出 ↓", Pt(10), LABEL_GOLD, bold=True)
+    add_label(
+        slide,
+        server_center_x + 40000,
+        arrow_top + 100000,
+        1200000,
+        300000,
+        "知识输出 ↓",
+        Pt(10),
+        LABEL_GOLD,
+        bold=True,
+    )
 
     # Output pills (2 rows of 3)
     outputs = ["论文", "百科", "综述", "科普", "教材", "FAQ"]
@@ -308,7 +354,7 @@ def main():
                 if t.strip():
                     texts.append(t)
         first = texts[0] if texts else "(empty)"
-        print(f"  {i+1}. {first}")
+        print(f"  {i + 1}. {first}")
 
 
 if __name__ == "__main__":

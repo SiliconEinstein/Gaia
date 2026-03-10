@@ -57,9 +57,20 @@ def set_slide_bg(slide, color=WHITE):
     fill.fore_color.rgb = color
 
 
-def add_text_box(slide, left, top, width, height, text, font_size=18,
-                 color=DARK_GRAY, bold=False, font_name=FONT_BODY,
-                 alignment=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP):
+def add_text_box(
+    slide,
+    left,
+    top,
+    width,
+    height,
+    text,
+    font_size=18,
+    color=DARK_GRAY,
+    bold=False,
+    font_name=FONT_BODY,
+    alignment=PP_ALIGN.LEFT,
+    anchor=MSO_ANCHOR.TOP,
+):
     txBox = slide.shapes.add_textbox(left, top, width, height)
     tf = txBox.text_frame
     tf.word_wrap = True
@@ -75,8 +86,9 @@ def add_text_box(slide, left, top, width, height, text, font_size=18,
     return txBox
 
 
-def add_bullet_slide_text(tf, items, font_size=20, color=DARK_GRAY,
-                          bullet_color=ACCENT_BLUE, spacing=Pt(8)):
+def add_bullet_slide_text(
+    tf, items, font_size=20, color=DARK_GRAY, bullet_color=ACCENT_BLUE, spacing=Pt(8)
+):
     """Add bulleted items to an existing text frame."""
     for i, item in enumerate(items):
         if i == 0:
@@ -93,13 +105,16 @@ def add_bullet_slide_text(tf, items, font_size=20, color=DARK_GRAY,
         pPr = p._pPr
         if pPr is None:
             from pptx.oxml.ns import qn
+
             pPr = p._p.get_or_add_pPr()
         from pptx.oxml.ns import qn
+
         buNone = pPr.findall(qn("a:buNone"))
         for bn in buNone:
             pPr.remove(bn)
         # Add bullet
         from lxml import etree
+
         buChar = etree.SubElement(pPr, qn("a:buChar"))
         buChar.set("char", "●")
         buClr = etree.SubElement(pPr, qn("a:buClr"))
@@ -110,11 +125,21 @@ def add_bullet_slide_text(tf, items, font_size=20, color=DARK_GRAY,
 def add_section_header(slide, section_tag, slide_title):
     """Standard slide header with section indicator and title."""
     # Section tag
-    add_text_box(slide, Cm(2), Cm(0.5), Cm(10), Cm(1),
-                 section_tag, font_size=12, color=ACCENT_BLUE, bold=True)
+    add_text_box(
+        slide,
+        Cm(2),
+        Cm(0.5),
+        Cm(10),
+        Cm(1),
+        section_tag,
+        font_size=12,
+        color=ACCENT_BLUE,
+        bold=True,
+    )
     # Title
-    add_text_box(slide, Cm(2), Cm(1.3), Cm(29), Cm(2),
-                 slide_title, font_size=32, color=BLACK, bold=True)
+    add_text_box(
+        slide, Cm(2), Cm(1.3), Cm(29), Cm(2), slide_title, font_size=32, color=BLACK, bold=True
+    )
     # Divider line
     line = slide.shapes.add_connector(1, Cm(2), Cm(3.5), Cm(31), Cm(3.5))
     line.line.color.rgb = LIGHT_GRAY
@@ -176,6 +201,7 @@ def make_table(slide, left, top, width, rows_data, col_widths=None, font_size=14
 def draw_node(slide, cx, cy, w, h, text, color=ACCENT_BLUE, font_size=11, text_color=WHITE):
     """Draw a rounded rectangle node."""
     from pptx.enum.shapes import MSO_SHAPE
+
     shape = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx, cy, w, h)
     shape.fill.solid()
     shape.fill.fore_color.rgb = color
@@ -206,10 +232,10 @@ def draw_arrow(slide, x1, y1, x2, y2, color=MID_GRAY, width=Pt(2)):
     connector.line.color.rgb = color
     connector.line.width = width
     # Add arrowhead
-    connector.line._ln.set("{http://schemas.openxmlformats.org/drawingml/2006/main}tailEnd",
-                           "")
+    connector.line._ln.set("{http://schemas.openxmlformats.org/drawingml/2006/main}tailEnd", "")
     from lxml import etree
     from pptx.oxml.ns import qn
+
     tailEnd = etree.SubElement(connector.line._ln, qn("a:tailEnd"))
     tailEnd.set("type", "triangle")
     tailEnd.set("w", "med")
@@ -232,8 +258,8 @@ def add_command_box(slide, left, top, width, height, lines):
     lines: list of (text, color) tuples.
     """
     from pptx.enum.shapes import MSO_SHAPE
-    box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
-                                  left, top, width, height)
+
+    box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height)
     box.fill.solid()
     box.fill.fore_color.rgb = CODE_BG
     box.line.color.rgb = CODE_BORDER
@@ -264,6 +290,7 @@ def add_command_box(slide, left, top, width, height, lines):
 # SLIDE BUILDERS
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def slide_01_cover(prs):
     """Slide 1: Title slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])  # blank
@@ -271,23 +298,49 @@ def slide_01_cover(prs):
 
     # Accent bar at top
     from pptx.enum.shapes import MSO_SHAPE
+
     bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_WIDTH, Cm(0.6))
     bar.fill.solid()
     bar.fill.fore_color.rgb = ACCENT_BLUE
     bar.line.fill.background()
 
     # Title
-    add_text_box(slide, Cm(3), Cm(5), Cm(28), Cm(4),
-                 "Gaia", font_size=60, color=BLACK, bold=True,
-                 alignment=PP_ALIGN.CENTER)
+    add_text_box(
+        slide,
+        Cm(3),
+        Cm(5),
+        Cm(28),
+        Cm(4),
+        "Gaia",
+        font_size=60,
+        color=BLACK,
+        bold=True,
+        alignment=PP_ALIGN.CENTER,
+    )
 
-    add_text_box(slide, Cm(3), Cm(8.5), Cm(28), Cm(3),
-                 "面向 Agentic Science at Scale 的\n知识包管理系统与 Large Knowledge Model",
-                 font_size=26, color=MID_GRAY, alignment=PP_ALIGN.CENTER)
+    add_text_box(
+        slide,
+        Cm(3),
+        Cm(8.5),
+        Cm(28),
+        Cm(3),
+        "面向 Agentic Science at Scale 的\n知识包管理系统与 Large Knowledge Model",
+        font_size=26,
+        color=MID_GRAY,
+        alignment=PP_ALIGN.CENTER,
+    )
 
-    add_text_box(slide, Cm(3), Cm(13), Cm(28), Cm(2),
-                 "[演讲者]  ·  [日期]",
-                 font_size=18, color=MID_GRAY, alignment=PP_ALIGN.CENTER)
+    add_text_box(
+        slide,
+        Cm(3),
+        Cm(13),
+        Cm(28),
+        Cm(2),
+        "[演讲者]  ·  [日期]",
+        font_size=18,
+        color=MID_GRAY,
+        alignment=PP_ALIGN.CENTER,
+    )
 
 
 def slide_02_agent_science(prs):
@@ -299,18 +352,22 @@ def slide_02_agent_science(prs):
     txBox = slide.shapes.add_textbox(Cm(2), Cm(4.5), Cm(18), Cm(12))
     tf = txBox.text_frame
     tf.word_wrap = True
-    add_bullet_slide_text(tf, [
-        "AlphaFold 2: 预测 2 亿蛋白质结构 → Nature 方法学年度突破",
-        "GNoME: 发现 220 万新晶体结构，通过实验验证",
-        "AlphaProof / AlphaGeometry: IMO 级别数学推理",
-        "自动化实验室：Agent 设计-执行-分析闭环",
-        "趋势：Agent 不再只是工具，而是 co-researcher",
-    ], font_size=20)
+    add_bullet_slide_text(
+        tf,
+        [
+            "AlphaFold 2: 预测 2 亿蛋白质结构 → Nature 方法学年度突破",
+            "GNoME: 发现 220 万新晶体结构，通过实验验证",
+            "AlphaProof / AlphaGeometry: IMO 级别数学推理",
+            "自动化实验室：Agent 设计-执行-分析闭环",
+            "趋势：Agent 不再只是工具，而是 co-researcher",
+        ],
+        font_size=20,
+    )
 
     # Right side callout
     from pptx.enum.shapes import MSO_SHAPE
-    box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
-                                  Cm(22), Cm(5), Cm(10), Cm(8))
+
+    box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Cm(22), Cm(5), Cm(10), Cm(8))
     box.fill.solid()
     box.fill.fore_color.rgb = RGBColor(0xE3, 0xF2, 0xFD)
     box.line.color.rgb = ACCENT_BLUE
@@ -338,12 +395,16 @@ def slide_03_bottleneck1(prs):
     txBox = slide.shapes.add_textbox(Cm(2), Cm(4.5), Cm(18), Cm(12))
     tf = txBox.text_frame
     tf.word_wrap = True
-    add_bullet_slide_text(tf, [
-        "论文间矛盾无法系统追踪",
-        "撤稿 (retraction) 的连锁影响无法传播",
-        "结论的可信度无法量化",
-        "引用 ≠ 认同，但现有系统无法区分",
-    ], font_size=22)
+    add_bullet_slide_text(
+        tf,
+        [
+            "论文间矛盾无法系统追踪",
+            "撤稿 (retraction) 的连锁影响无法传播",
+            "结论的可信度无法量化",
+            "引用 ≠ 认同，但现有系统无法区分",
+        ],
+        font_size=22,
+    )
 
     # Diagram: retracted paper impact
     draw_node(slide, Cm(22), Cm(5), Cm(4.5), Cm(1.6), "Paper A", ACCENT_BLUE, 12)
@@ -358,9 +419,17 @@ def slide_03_bottleneck1(prs):
     draw_arrow(slide, Cm(26.5), Cm(8.5), Cm(27.5), Cm(7.8), MID_GRAY)
     draw_arrow(slide, Cm(26.5), Cm(9), Cm(27.5), Cm(9.8), MID_GRAY)
 
-    add_text_box(slide, Cm(22), Cm(13.5), Cm(10), Cm(1.5),
-                 "↑ 撤稿影响无法自动传播到 D, E",
-                 font_size=13, color=RED, alignment=PP_ALIGN.CENTER)
+    add_text_box(
+        slide,
+        Cm(22),
+        Cm(13.5),
+        Cm(10),
+        Cm(1.5),
+        "↑ 撤稿影响无法自动传播到 D, E",
+        font_size=13,
+        color=RED,
+        alignment=PP_ALIGN.CENTER,
+    )
 
 
 def slide_04_bottleneck2(prs):
@@ -372,17 +441,21 @@ def slide_04_bottleneck2(prs):
     txBox = slide.shapes.add_textbox(Cm(2), Cm(4.5), Cm(20), Cm(12))
     tf = txBox.text_frame
     tf.word_wrap = True
-    add_bullet_slide_text(tf, [
-        "Agent 产出速度 >> 人类审稿能力",
-        "当前同行评审：周期数月、人力瓶颈",
-        "需要：机器可操作的知识管理与质量保障机制",
-        "不是替代人类审稿，而是让机器+人类协同审稿",
-    ], font_size=22)
+    add_bullet_slide_text(
+        tf,
+        [
+            "Agent 产出速度 >> 人类审稿能力",
+            "当前同行评审：周期数月、人力瓶颈",
+            "需要：机器可操作的知识管理与质量保障机制",
+            "不是替代人类审稿，而是让机器+人类协同审稿",
+        ],
+        font_size=22,
+    )
 
     # Callout: introducing Gaia
     from pptx.enum.shapes import MSO_SHAPE
-    box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
-                                  Cm(22), Cm(7), Cm(10), Cm(5))
+
+    box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Cm(22), Cm(7), Cm(10), Cm(5))
     box.fill.solid()
     box.fill.fore_color.rgb = ACCENT_BLUE
     box.line.fill.background()
@@ -407,12 +480,16 @@ def slide_05_core_idea(prs):
     txBox = slide.shapes.add_textbox(Cm(2), Cm(4.5), Cm(14), Cm(10))
     tf = txBox.text_frame
     tf.word_wrap = True
-    add_bullet_slide_text(tf, [
-        "每条知识 = 一个命题节点 (Node)，带可信度 (belief)",
-        "推理关系 = 超边 (HyperEdge)，连接前提与结论",
-        "新证据加入 → Belief Propagation 沿推理链自动传播",
-        "矛盾 = 一等公民，用 contradiction edge 显式建模",
-    ], font_size=20)
+    add_bullet_slide_text(
+        tf,
+        [
+            "每条知识 = 一个命题节点 (Node)，带可信度 (belief)",
+            "推理关系 = 超边 (HyperEdge)，连接前提与结论",
+            "新证据加入 → Belief Propagation 沿推理链自动传播",
+            "矛盾 = 一等公民，用 contradiction edge 显式建模",
+        ],
+        font_size=20,
+    )
 
     # Simple 3-node diagram
     draw_node(slide, Cm(19), Cm(5), Cm(5.5), Cm(2), "前提 A\nbelief=0.9", ACCENT_BLUE, 13)
@@ -421,8 +498,8 @@ def slide_05_core_idea(prs):
 
     # Reasoning edge box
     from pptx.enum.shapes import MSO_SHAPE
-    ebox = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE,
-                                   Cm(22), Cm(8.2), Cm(6.5), Cm(1.5))
+
+    ebox = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Cm(22), Cm(8.2), Cm(6.5), Cm(1.5))
     ebox.fill.solid()
     ebox.fill.fore_color.rgb = ORANGE
     ebox.line.fill.background()
@@ -456,8 +533,9 @@ def slide_06_paradigm_shift(prs):
         ["推理传播", "无", "Belief Propagation 自动传播"],
     ]
 
-    make_table(slide, Cm(2), Cm(4.5), Cm(30), rows,
-               col_widths=[Cm(4.5), Cm(12), Cm(13.5)], font_size=15)
+    make_table(
+        slide, Cm(2), Cm(4.5), Cm(30), rows, col_widths=[Cm(4.5), Cm(12), Cm(13.5)], font_size=15
+    )
 
 
 def slide_07_contradiction(prs):
@@ -469,66 +547,96 @@ def slide_07_contradiction(prs):
     txBox = slide.shapes.add_textbox(Cm(2), Cm(4.5), Cm(16), Cm(10))
     tf = txBox.text_frame
     tf.word_wrap = True
-    add_bullet_slide_text(tf, [
-        "在 Gaia 中，矛盾不是 bug，是 feature",
-        "两个理论做出不同预测 → contradiction edge 连接",
-        "Belief Propagation 根据证据自动分配可信度",
-        "旧理论不删除，belief 下降 — 保留历史完整性",
-    ], font_size=20)
+    add_bullet_slide_text(
+        tf,
+        [
+            "在 Gaia 中，矛盾不是 bug，是 feature",
+            "两个理论做出不同预测 → contradiction edge 连接",
+            "Belief Propagation 根据证据自动分配可信度",
+            "旧理论不删除，belief 下降 — 保留历史完整性",
+        ],
+        font_size=20,
+    )
 
     # A ↔ B contradiction diagram
-    draw_node(slide, Cm(21), Cm(5.5), Cm(5), Cm(2.5),
-                   "理论 A\n预测: 1.75\"", ACCENT_BLUE, 14)
-    draw_node(slide, Cm(28), Cm(5.5), Cm(5), Cm(2.5),
-                   "理论 B\n预测: 0.87\"", ACCENT_BLUE, 14)
+    draw_node(slide, Cm(21), Cm(5.5), Cm(5), Cm(2.5), '理论 A\n预测: 1.75"', ACCENT_BLUE, 14)
+    draw_node(slide, Cm(28), Cm(5.5), Cm(5), Cm(2.5), '理论 B\n预测: 0.87"', ACCENT_BLUE, 14)
 
     # Contradiction line
     draw_contradiction(slide, Cm(26), Cm(6.75), Cm(28), Cm(6.75))
 
-    add_text_box(slide, Cm(23.5), Cm(8.5), Cm(7), Cm(1.5),
-                 "← Contradiction Edge →",
-                 font_size=14, color=RED, bold=True, alignment=PP_ALIGN.CENTER)
+    add_text_box(
+        slide,
+        Cm(23.5),
+        Cm(8.5),
+        Cm(7),
+        Cm(1.5),
+        "← Contradiction Edge →",
+        font_size=14,
+        color=RED,
+        bold=True,
+        alignment=PP_ALIGN.CENTER,
+    )
 
     # Result
-    draw_node(slide, Cm(21), Cm(11), Cm(5), Cm(2),
-                    "belief ↑ 0.85", GREEN, 14)
-    draw_node(slide, Cm(28), Cm(11), Cm(5), Cm(2),
-                    "belief ↓ 0.15", RED, 14, WHITE)
+    draw_node(slide, Cm(21), Cm(11), Cm(5), Cm(2), "belief ↑ 0.85", GREEN, 14)
+    draw_node(slide, Cm(28), Cm(11), Cm(5), Cm(2), "belief ↓ 0.15", RED, 14, WHITE)
 
-    add_text_box(slide, Cm(23.5), Cm(10), Cm(7), Cm(1),
-                 "观测支持 A 后：",
-                 font_size=14, color=MID_GRAY, alignment=PP_ALIGN.CENTER)
+    add_text_box(
+        slide,
+        Cm(23.5),
+        Cm(10),
+        Cm(7),
+        Cm(1),
+        "观测支持 A 后：",
+        font_size=14,
+        color=MID_GRAY,
+        alignment=PP_ALIGN.CENTER,
+    )
 
 
 def slide_08_bp(prs):
     """Slide 8: Factor Graph + BP."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide)
-    add_section_header(slide, "Part 2 · Gaia 是什么",
-                       "Factor Graph + Belief Propagation")
+    add_section_header(slide, "Part 2 · Gaia 是什么", "Factor Graph + Belief Propagation")
 
     # Formula
-    add_text_box(slide, Cm(2), Cm(4.5), Cm(30), Cm(2),
-                 "belief(结论) ∝ ∏ belief(前提ᵢ) × P(推理)",
-                 font_size=28, color=BLACK, bold=True,
-                 font_name=FONT_MONO, alignment=PP_ALIGN.CENTER)
+    add_text_box(
+        slide,
+        Cm(2),
+        Cm(4.5),
+        Cm(30),
+        Cm(2),
+        "belief(结论) ∝ ∏ belief(前提ᵢ) × P(推理)",
+        font_size=28,
+        color=BLACK,
+        bold=True,
+        font_name=FONT_MONO,
+        alignment=PP_ALIGN.CENTER,
+    )
 
     # Intuition
     txBox = slide.shapes.add_textbox(Cm(2), Cm(7), Cm(15), Cm(8))
     tf = txBox.text_frame
     tf.word_wrap = True
-    add_bullet_slide_text(tf, [
-        "消息传递：前提可信度 × 推理可靠度 → 结论可信度",
-        "多条证据汇聚 → 结论更可靠 (corroboration)",
-        "矛盾证据 → 双方 belief 下降 (competition)",
-        "Loopy BP：大规模图上近似推断",
-    ], font_size=20)
+    add_bullet_slide_text(
+        tf,
+        [
+            "消息传递：前提可信度 × 推理可靠度 → 结论可信度",
+            "多条证据汇聚 → 结论更可靠 (corroboration)",
+            "矛盾证据 → 双方 belief 下降 (competition)",
+            "Loopy BP：大规模图上近似推断",
+        ],
+        font_size=20,
+    )
 
     # Message passing diagram
     draw_node(slide, Cm(20), Cm(7.5), Cm(4), Cm(1.6), "前提₁ 0.9", ACCENT_BLUE, 12)
     draw_node(slide, Cm(20), Cm(10), Cm(4), Cm(1.6), "前提₂ 0.8", ACCENT_BLUE, 12)
 
     from pptx.enum.shapes import MSO_SHAPE
+
     f = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Cm(25.5), Cm(8.5), Cm(2.5), Cm(2))
     f.fill.solid()
     f.fill.fore_color.rgb = ORANGE
@@ -548,8 +656,17 @@ def slide_08_bp(prs):
     draw_arrow(slide, Cm(24), Cm(10.8), Cm(25.5), Cm(10), ACCENT_BLUE)
     draw_arrow(slide, Cm(28), Cm(9.5), Cm(29.5), Cm(9.5), ORANGE, Pt(2.5))
 
-    add_text_box(slide, Cm(24.5), Cm(12), Cm(4), Cm(1),
-                 "msg →", font_size=11, color=ORANGE, alignment=PP_ALIGN.CENTER)
+    add_text_box(
+        slide,
+        Cm(24.5),
+        Cm(12),
+        Cm(4),
+        Cm(1),
+        "msg →",
+        font_size=11,
+        color=ORANGE,
+        alignment=PP_ALIGN.CENTER,
+    )
 
 
 def slide_09_git_workflow(prs):
@@ -561,20 +678,26 @@ def slide_09_git_workflow(prs):
     txBox = slide.shapes.add_textbox(Cm(2), Cm(4.5), Cm(15), Cm(10))
     tf = txBox.text_frame
     tf.word_wrap = True
-    add_bullet_slide_text(tf, [
-        "Submit: 提交新知识（节点 + 超边）",
-        "Review: 自动/人工质量检查",
-        "Merge: 写入存储 + 触发 BP 传播",
-        "每一步都有质量门控",
-    ], font_size=20)
+    add_bullet_slide_text(
+        tf,
+        [
+            "Submit: 提交新知识（节点 + 超边）",
+            "Review: 自动/人工质量检查",
+            "Merge: 写入存储 + 触发 BP 传播",
+            "每一步都有质量门控",
+        ],
+        font_size=20,
+    )
 
     # Pipeline diagram
     from pptx.enum.shapes import MSO_SHAPE
+
     steps = [("Submit", ACCENT_BLUE), ("Review", ORANGE), ("Merge", GREEN)]
     x_start = Cm(19)
     for i, (label, color) in enumerate(steps):
-        box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
-                                      x_start + Cm(i * 5), Cm(6), Cm(4), Cm(2.5))
+        box = slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE, x_start + Cm(i * 5), Cm(6), Cm(4), Cm(2.5)
+        )
         box.fill.solid()
         box.fill.fore_color.rgb = color
         box.line.fill.background()
@@ -588,14 +711,30 @@ def slide_09_git_workflow(prs):
         tf.vertical_anchor = MSO_ANCHOR.MIDDLE
 
         if i < 2:
-            draw_arrow(slide, x_start + Cm(i * 5 + 4), Cm(7.25),
-                       x_start + Cm((i + 1) * 5), Cm(7.25), MID_GRAY, Pt(3))
+            draw_arrow(
+                slide,
+                x_start + Cm(i * 5 + 4),
+                Cm(7.25),
+                x_start + Cm((i + 1) * 5),
+                Cm(7.25),
+                MID_GRAY,
+                Pt(3),
+            )
 
     # Sub-labels
     sub_labels = ["AddNode\nAddEdge", "LLM 审查\n一致性检查", "Triple-Write\nBP 传播"]
     for i, label in enumerate(sub_labels):
-        add_text_box(slide, x_start + Cm(i * 5), Cm(9), Cm(4), Cm(2),
-                     label, font_size=12, color=MID_GRAY, alignment=PP_ALIGN.CENTER)
+        add_text_box(
+            slide,
+            x_start + Cm(i * 5),
+            Cm(9),
+            Cm(4),
+            Cm(2),
+            label,
+            font_size=12,
+            color=MID_GRAY,
+            alignment=PP_ALIGN.CENTER,
+        )
 
 
 def slide_10_galileo_overview(prs):
@@ -607,15 +746,20 @@ def slide_10_galileo_overview(prs):
     txBox = slide.shapes.add_textbox(Cm(2), Cm(4.5), Cm(20), Cm(10))
     tf = txBox.text_frame
     tf.word_wrap = True
-    add_bullet_slide_text(tf, [
-        "1638 年《Discorsi》: 一个思想实验推翻 2000 年学说",
-        "6 个 knowledge package，跨越 2300 年",
-        "演示 Gaia 的核心机制：contradiction edge 驱动 belief 修正",
-        "全程只添加 node 和 edge，从不修改或删除历史",
-    ], font_size=22)
+    add_bullet_slide_text(
+        tf,
+        [
+            "1638 年《Discorsi》: 一个思想实验推翻 2000 年学说",
+            "6 个 knowledge package，跨越 2300 年",
+            "演示 Gaia 的核心机制：contradiction edge 驱动 belief 修正",
+            "全程只添加 node 和 edge，从不修改或删除历史",
+        ],
+        font_size=22,
+    )
 
     # Timeline
     from pptx.enum.shapes import MSO_SHAPE
+
     line = slide.shapes.add_connector(1, Cm(2), Cm(14.5), Cm(31), Cm(14.5))
     line.line.color.rgb = ACCENT_BLUE
     line.line.width = Pt(2)
@@ -633,13 +777,30 @@ def slide_10_galileo_overview(prs):
         dot.fill.solid()
         dot.fill.fore_color.rgb = ACCENT_BLUE
         dot.line.fill.background()
-        add_text_box(slide, x - Cm(0.5), Cm(15.5), Cm(4), Cm(2.5),
-                     f"{tag}\n{label}", font_size=10, color=MID_GRAY,
-                     alignment=PP_ALIGN.CENTER)
+        add_text_box(
+            slide,
+            x - Cm(0.5),
+            Cm(15.5),
+            Cm(4),
+            Cm(2.5),
+            f"{tag}\n{label}",
+            font_size=10,
+            color=MID_GRAY,
+            alignment=PP_ALIGN.CENTER,
+        )
 
     # Right: belief trajectory preview
-    add_text_box(slide, Cm(22), Cm(5), Cm(10), Cm(1.5),
-                 "v ∝ W belief 轨迹", font_size=16, color=ACCENT_BLUE, bold=True)
+    add_text_box(
+        slide,
+        Cm(22),
+        Cm(5),
+        Cm(10),
+        Cm(1.5),
+        "v ∝ W belief 轨迹",
+        font_size=16,
+        color=ACCENT_BLUE,
+        bold=True,
+    )
     trajectory = [
         ("Pkg 1  先验", "0.70", MID_GRAY),
         ("Pkg 2  绑球矛盾", "0.35 ↓", ORANGE),
@@ -649,69 +810,67 @@ def slide_10_galileo_overview(prs):
     ]
     for i, (stage, belief, color) in enumerate(trajectory):
         y = Cm(6.5 + i * 1.5)
-        add_text_box(slide, Cm(22), y, Cm(6), Cm(1.2),
-                     stage, font_size=13, color=DARK_GRAY)
-        add_text_box(slide, Cm(29), y, Cm(3), Cm(1.2),
-                     belief, font_size=14, color=color, bold=True)
+        add_text_box(slide, Cm(22), y, Cm(6), Cm(1.2), stage, font_size=13, color=DARK_GRAY)
+        add_text_box(slide, Cm(29), y, Cm(3), Cm(1.2), belief, font_size=14, color=color, bold=True)
 
 
 def slide_11_galileo_pkg12(prs):
     """Slide 11: Galileo Pkg 1+2 — Aristotle + Tied Balls contradiction."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide)
-    add_section_header(slide, "Part 3 · 伽利略思想实验",
-                       "Pkg 1-2: 亚里士多德先验 + 绑球悖论")
+    add_section_header(slide, "Part 3 · 伽利略思想实验", "Pkg 1-2: 亚里士多德先验 + 绑球悖论")
 
     # ── Left: command box ──
-    add_command_box(slide, Cm(1.5), Cm(4.2), Cm(13.5), Cm(14), [
-        ("# Pkg 1: aristotle_physics", CODE_COMMENT),
-        ('POST /commits {', CODE_KEYWORD),
-        (' message: "aristotle_physics",', CODE_DEFAULT),
-        (' operations: [', CODE_DEFAULT),
-        ('  {op:"add_edge", type:"abstraction",', CODE_DEFAULT),
-        ('   tail: ["自然运动学说","石头快于叶子"],', CODE_DEFAULT),
-        ('   head: ["v ∝ W 定律"]}', CODE_DEFAULT),
-        (' ]}', CODE_DEFAULT),
-        ("", CODE_DEFAULT),
-        ("# Pkg 2: galileo1638_tied_balls", CODE_COMMENT),
-        ('POST /commits {', CODE_KEYWORD),
-        (' message: "galileo1638_tied_balls",', CODE_DEFAULT),
-        (' operations: [', CODE_DEFAULT),
-        ('  {op:"add_edge", type:"deduction",', CODE_DEFAULT),
-        ('   tail: [#5003"v∝W", "绑球设定 H+L"],', CODE_DEFAULT),
-        ('   head: ["推导A: L拖慢H → 更慢"]},', CODE_DEFAULT),
-        ('  {op:"add_edge", type:"deduction",', CODE_DEFAULT),
-        ('   tail: [#5003, #5004],', CODE_DEFAULT),
-        ('   head: ["推导B: 组合更重 → 更快"]},', CODE_DEFAULT),
-        ('  {op:"add_edge", type:"contradiction",', CODE_RED),
-        ('   tail: [#5005"推导A", #5006"推导B"],', CODE_RED),
-        ('   head: []}', CODE_RED),
-        (' ]}', CODE_DEFAULT),
-        ("# → BP: 5003 belief 0.70 → 0.35 ↓", CODE_WARN),
-    ])
+    add_command_box(
+        slide,
+        Cm(1.5),
+        Cm(4.2),
+        Cm(13.5),
+        Cm(14),
+        [
+            ("# Pkg 1: aristotle_physics", CODE_COMMENT),
+            ("POST /commits {", CODE_KEYWORD),
+            (' message: "aristotle_physics",', CODE_DEFAULT),
+            (" operations: [", CODE_DEFAULT),
+            ('  {op:"add_edge", type:"abstraction",', CODE_DEFAULT),
+            ('   tail: ["自然运动学说","石头快于叶子"],', CODE_DEFAULT),
+            ('   head: ["v ∝ W 定律"]}', CODE_DEFAULT),
+            (" ]}", CODE_DEFAULT),
+            ("", CODE_DEFAULT),
+            ("# Pkg 2: galileo1638_tied_balls", CODE_COMMENT),
+            ("POST /commits {", CODE_KEYWORD),
+            (' message: "galileo1638_tied_balls",', CODE_DEFAULT),
+            (" operations: [", CODE_DEFAULT),
+            ('  {op:"add_edge", type:"deduction",', CODE_DEFAULT),
+            ('   tail: [#5003"v∝W", "绑球设定 H+L"],', CODE_DEFAULT),
+            ('   head: ["推导A: L拖慢H → 更慢"]},', CODE_DEFAULT),
+            ('  {op:"add_edge", type:"deduction",', CODE_DEFAULT),
+            ("   tail: [#5003, #5004],", CODE_DEFAULT),
+            ('   head: ["推导B: 组合更重 → 更快"]},', CODE_DEFAULT),
+            ('  {op:"add_edge", type:"contradiction",', CODE_RED),
+            ('   tail: [#5005"推导A", #5006"推导B"],', CODE_RED),
+            ("   head: []}", CODE_RED),
+            (" ]}", CODE_DEFAULT),
+            ("# → BP: 5003 belief 0.70 → 0.35 ↓", CODE_WARN),
+        ],
+    )
 
     # ── Right: graph ──
     # Row 1: premises
-    draw_node(slide, Cm(17), Cm(4.3), Cm(4.5), Cm(1.6),
-              "5001\n自然运动", MID_GRAY, 10)
-    draw_node(slide, Cm(22.5), Cm(4.3), Cm(4.5), Cm(1.6),
-              "5002\n石头>叶子", MID_GRAY, 10)
+    draw_node(slide, Cm(17), Cm(4.3), Cm(4.5), Cm(1.6), "5001\n自然运动", MID_GRAY, 10)
+    draw_node(slide, Cm(22.5), Cm(4.3), Cm(4.5), Cm(1.6), "5002\n石头>叶子", MID_GRAY, 10)
 
     # Row 2: Aristotle's law + setup
-    draw_node(slide, Cm(16), Cm(7.2), Cm(5.5), Cm(2),
-              "5003 v ∝ W\n0.70 → 0.35 ↓", RED, 12, WHITE)
-    draw_node(slide, Cm(23), Cm(7.2), Cm(4.5), Cm(2),
-              "5004\n绑球设定", MID_GRAY, 11)
+    draw_node(slide, Cm(16), Cm(7.2), Cm(5.5), Cm(2), "5003 v ∝ W\n0.70 → 0.35 ↓", RED, 12, WHITE)
+    draw_node(slide, Cm(23), Cm(7.2), Cm(4.5), Cm(2), "5004\n绑球设定", MID_GRAY, 11)
 
     # Arrows: 5001,5002 → 5003
     draw_arrow(slide, Cm(19.25), Cm(5.9), Cm(18.75), Cm(7.2), MID_GRAY)
     draw_arrow(slide, Cm(24.75), Cm(5.9), Cm(19.5), Cm(7.2), MID_GRAY)
 
     # Row 3: deductions A and B
-    draw_node(slide, Cm(16), Cm(11), Cm(5), Cm(2),
-              "5005\n推导A: 更慢", ACCENT_BLUE, 11)
-    draw_node(slide, Cm(23), Cm(11), Cm(5), Cm(2),
-              "5006\n推导B: 更快", ACCENT_BLUE, 11)
+    draw_node(slide, Cm(16), Cm(11), Cm(5), Cm(2), "5005\n推导A: 更慢", ACCENT_BLUE, 11)
+    draw_node(slide, Cm(23), Cm(11), Cm(5), Cm(2), "5006\n推导B: 更快", ACCENT_BLUE, 11)
 
     # Arrows: 5003+5004 → 5005, 5003+5004 → 5006
     draw_arrow(slide, Cm(18.75), Cm(9.2), Cm(18.5), Cm(11), MID_GRAY)
@@ -720,85 +879,101 @@ def slide_11_galileo_pkg12(prs):
 
     # Contradiction edge between 5005 and 5006
     draw_contradiction(slide, Cm(21), Cm(12), Cm(23), Cm(12))
-    add_text_box(slide, Cm(20.5), Cm(13.2), Cm(3.5), Cm(1),
-                 "CONTRADICTION", font_size=10, color=RED, bold=True,
-                 alignment=PP_ALIGN.CENTER)
+    add_text_box(
+        slide,
+        Cm(20.5),
+        Cm(13.2),
+        Cm(3.5),
+        Cm(1),
+        "CONTRADICTION",
+        font_size=10,
+        color=RED,
+        bold=True,
+        alignment=PP_ALIGN.CENTER,
+    )
 
     # Row 4: result
-    draw_node(slide, Cm(18.5), Cm(15), Cm(8), Cm(2),
-              "5008: v∝W 自相矛盾  belief=0.85", GREEN, 12)
+    draw_node(slide, Cm(18.5), Cm(15), Cm(8), Cm(2), "5008: v∝W 自相矛盾  belief=0.85", GREEN, 12)
     draw_arrow(slide, Cm(21), Cm(13.5), Cm(22.5), Cm(15), MID_GRAY)
 
     # Legend
-    add_text_box(slide, Cm(28), Cm(7), Cm(5), Cm(5),
-                 "图例\n● Node\n— 推理边\n- - 矛盾边",
-                 font_size=10, color=MID_GRAY)
+    add_text_box(
+        slide,
+        Cm(28),
+        Cm(7),
+        Cm(5),
+        Cm(5),
+        "图例\n● Node\n— 推理边\n- - 矛盾边",
+        font_size=10,
+        color=MID_GRAY,
+    )
 
 
 def slide_12_galileo_pkg345(prs):
     """Slide 12: Galileo Pkg 3+4+5 — evidence accumulation."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide)
-    add_section_header(slide, "Part 3 · 伽利略思想实验",
-                       "Pkg 3-5: 密度观察 + 真空预测 + 牛顿推导")
+    add_section_header(slide, "Part 3 · 伽利略思想实验", "Pkg 3-5: 密度观察 + 真空预测 + 牛顿推导")
 
     # ── Left: command box ──
-    add_command_box(slide, Cm(1.5), Cm(4.2), Cm(13.5), Cm(14), [
-        ("# Pkg 3: galileo1638_medium_density", CODE_COMMENT),
-        ('POST /commits {', CODE_KEYWORD),
-        (' operations: [{op:"add_edge",', CODE_DEFAULT),
-        ('  type:"deduction",', CODE_DEFAULT),
-        ('  tail:["密度递减观察","速差随密度↓"],', CODE_DEFAULT),
-        ('  head:["空气阻力是混淆变量"]}]}', CODE_DEFAULT),
-        ("", CODE_DEFAULT),
-        ("# Pkg 4: galileo1638_vacuum_prediction", CODE_COMMENT),
-        ('POST /commits {', CODE_KEYWORD),
-        (' operations: [{op:"add_edge",', CODE_DEFAULT),
-        ('  type:"deduction",', CODE_DEFAULT),
-        ('  tail:[#5008"v∝W矛盾",#5011"空气阻力"],', CODE_DEFAULT),
-        ('  head:["真空中所有物体等速下落"]}]}', CODE_DEFAULT),
-        ("", CODE_DEFAULT),
-        ("# Pkg 5: newton1687_principia", CODE_COMMENT),
-        ('POST /commits {', CODE_KEYWORD),
-        (' operations: [', CODE_DEFAULT),
-        ('  {op:"add_edge", type:"deduction",', CODE_DEFAULT),
-        ('   tail:["F=ma","F=mg"],', CODE_DEFAULT),
-        ('   head:["∴ a=g 加速度与质量无关"]},', CODE_DEFAULT),
-        ('  {op:"add_edge", type:"contradiction",', CODE_RED),
-        ('   tail:[#5003"v∝W", #5017"a=g"],', CODE_RED),
-        ('   head:[]}]}', CODE_RED),
-        ("# → BP: 5003→0.08↓  5017→0.93↑", CODE_WARN),
-    ])
+    add_command_box(
+        slide,
+        Cm(1.5),
+        Cm(4.2),
+        Cm(13.5),
+        Cm(14),
+        [
+            ("# Pkg 3: galileo1638_medium_density", CODE_COMMENT),
+            ("POST /commits {", CODE_KEYWORD),
+            (' operations: [{op:"add_edge",', CODE_DEFAULT),
+            ('  type:"deduction",', CODE_DEFAULT),
+            ('  tail:["密度递减观察","速差随密度↓"],', CODE_DEFAULT),
+            ('  head:["空气阻力是混淆变量"]}]}', CODE_DEFAULT),
+            ("", CODE_DEFAULT),
+            ("# Pkg 4: galileo1638_vacuum_prediction", CODE_COMMENT),
+            ("POST /commits {", CODE_KEYWORD),
+            (' operations: [{op:"add_edge",', CODE_DEFAULT),
+            ('  type:"deduction",', CODE_DEFAULT),
+            ('  tail:[#5008"v∝W矛盾",#5011"空气阻力"],', CODE_DEFAULT),
+            ('  head:["真空中所有物体等速下落"]}]}', CODE_DEFAULT),
+            ("", CODE_DEFAULT),
+            ("# Pkg 5: newton1687_principia", CODE_COMMENT),
+            ("POST /commits {", CODE_KEYWORD),
+            (" operations: [", CODE_DEFAULT),
+            ('  {op:"add_edge", type:"deduction",', CODE_DEFAULT),
+            ('   tail:["F=ma","F=mg"],', CODE_DEFAULT),
+            ('   head:["∴ a=g 加速度与质量无关"]},', CODE_DEFAULT),
+            ('  {op:"add_edge", type:"contradiction",', CODE_RED),
+            ('   tail:[#5003"v∝W", #5017"a=g"],', CODE_RED),
+            ("   head:[]}]}", CODE_RED),
+            ("# → BP: 5003→0.08↓  5017→0.93↑", CODE_WARN),
+        ],
+    )
 
     # ── Right: graph — show key nodes and connections ──
     # Top: 5003 (Aristotle, dropping)
-    draw_node(slide, Cm(17), Cm(4.5), Cm(5), Cm(1.8),
-              "5003 v∝W\n0.35 → 0.08 ↓↓", RED, 11, WHITE)
+    draw_node(slide, Cm(17), Cm(4.5), Cm(5), Cm(1.8), "5003 v∝W\n0.35 → 0.08 ↓↓", RED, 11, WHITE)
 
     # Middle-left: 5011 (air resistance)
-    draw_node(slide, Cm(16), Cm(8), Cm(5), Cm(1.8),
-              "5011 空气阻力\nbelief=0.80", ACCENT_BLUE, 11)
+    draw_node(slide, Cm(16), Cm(8), Cm(5), Cm(1.8), "5011 空气阻力\nbelief=0.80", ACCENT_BLUE, 11)
 
     # Middle-right: 5017 (a=g)
-    draw_node(slide, Cm(24), Cm(8), Cm(5), Cm(1.8),
-              "5017 a=g\nbelief=0.93", GREEN, 11)
+    draw_node(slide, Cm(24), Cm(8), Cm(5), Cm(1.8), "5017 a=g\nbelief=0.93", GREEN, 11)
 
     # Contradiction between 5003 and 5017
     draw_contradiction(slide, Cm(22), Cm(5.4), Cm(25.5), Cm(8))
-    add_text_box(slide, Cm(24), Cm(6), Cm(5), Cm(1),
-                 "CONTRADICTION②", font_size=10, color=RED, bold=True)
+    add_text_box(
+        slide, Cm(24), Cm(6), Cm(5), Cm(1), "CONTRADICTION②", font_size=10, color=RED, bold=True
+    )
 
     # Arrow from 5015,5016 to 5017
-    draw_node(slide, Cm(24), Cm(4.5), Cm(2), Cm(1.2),
-              "F=ma", MID_GRAY, 9)
-    draw_node(slide, Cm(27), Cm(4.5), Cm(2), Cm(1.2),
-              "F=mg", MID_GRAY, 9)
+    draw_node(slide, Cm(24), Cm(4.5), Cm(2), Cm(1.2), "F=ma", MID_GRAY, 9)
+    draw_node(slide, Cm(27), Cm(4.5), Cm(2), Cm(1.2), "F=mg", MID_GRAY, 9)
     draw_arrow(slide, Cm(25), Cm(5.7), Cm(26), Cm(8), MID_GRAY)
     draw_arrow(slide, Cm(28), Cm(5.7), Cm(27), Cm(8), MID_GRAY)
 
     # Bottom: 5012 (vacuum prediction, rising)
-    draw_node(slide, Cm(19), Cm(12), Cm(6.5), Cm(2),
-              "5012 真空等速预测\n0.85 → 0.88 ↑", GREEN, 12)
+    draw_node(slide, Cm(19), Cm(12), Cm(6.5), Cm(2), "5012 真空等速预测\n0.85 → 0.88 ↑", GREEN, 12)
 
     # Arrows: 5008+5011 → 5012
     draw_arrow(slide, Cm(18.5), Cm(9.8), Cm(21), Cm(12), MID_GRAY)
@@ -806,40 +981,63 @@ def slide_12_galileo_pkg345(prs):
     draw_arrow(slide, Cm(26.5), Cm(9.8), Cm(24), Cm(12), ACCENT_BLUE)
 
     # Annotation
-    add_text_box(slide, Cm(26), Cm(12), Cm(7), Cm(2),
-                 "Newton 从 F=ma, F=mg\n独立推导出 a=g\n→ 第二条矛盾线",
-                 font_size=12, color=MID_GRAY)
+    add_text_box(
+        slide,
+        Cm(26),
+        Cm(12),
+        Cm(7),
+        Cm(2),
+        "Newton 从 F=ma, F=mg\n独立推导出 a=g\n→ 第二条矛盾线",
+        font_size=12,
+        color=MID_GRAY,
+    )
 
     # Bottom belief summary
     from pptx.enum.shapes import MSO_SHAPE
-    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE,
-                                  Cm(16), Cm(15.5), Cm(17), Cm(2.5))
+
+    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Cm(16), Cm(15.5), Cm(17), Cm(2.5))
     bar.fill.solid()
     bar.fill.fore_color.rgb = RGBColor(0xF5, 0xF5, 0xF5)
     bar.line.fill.background()
-    add_text_box(slide, Cm(16.5), Cm(15.7), Cm(16), Cm(2),
-                 "两条独立矛盾线 + 空气阻力替代解释 → v∝W 从 0.35 降至 0.08",
-                 font_size=13, color=DARK_GRAY, bold=True)
+    add_text_box(
+        slide,
+        Cm(16.5),
+        Cm(15.7),
+        Cm(16),
+        Cm(2),
+        "两条独立矛盾线 + 空气阻力替代解释 → v∝W 从 0.35 降至 0.08",
+        font_size=13,
+        color=DARK_GRAY,
+        bold=True,
+    )
 
 
 def slide_13_galileo_pkg6(prs):
     """Slide 13: Galileo Pkg 6 — Apollo + final beliefs."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide)
-    add_section_header(slide, "Part 3 · 伽利略思想实验",
-                       "Pkg 6: Apollo 15 — 决定性实验 + Belief 全景")
+    add_section_header(
+        slide, "Part 3 · 伽利略思想实验", "Pkg 6: Apollo 15 — 决定性实验 + Belief 全景"
+    )
 
     # ── Left: command box ──
-    add_command_box(slide, Cm(1.5), Cm(4.2), Cm(13.5), Cm(5.5), [
-        ("# Pkg 6: apollo15_1971_feather_drop", CODE_COMMENT),
-        ('POST /commits {', CODE_KEYWORD),
-        (' operations: [', CODE_DEFAULT),
-        ('  {op:"add_edge", type:"deduction",', CODE_DEFAULT),
-        ('   tail:["月球真空环境","锤=羽同时落"],', CODE_DEFAULT),
-        ('   head:["等速落体实验确认"]},', CODE_DEFAULT),
-        ('  {op:"add_edge", type:"deduction",', CODE_DEFAULT),
-        ('   tail:[#5020], head:[#5012]}]}', CODE_DEFAULT),
-    ])
+    add_command_box(
+        slide,
+        Cm(1.5),
+        Cm(4.2),
+        Cm(13.5),
+        Cm(5.5),
+        [
+            ("# Pkg 6: apollo15_1971_feather_drop", CODE_COMMENT),
+            ("POST /commits {", CODE_KEYWORD),
+            (" operations: [", CODE_DEFAULT),
+            ('  {op:"add_edge", type:"deduction",', CODE_DEFAULT),
+            ('   tail:["月球真空环境","锤=羽同时落"],', CODE_DEFAULT),
+            ('   head:["等速落体实验确认"]},', CODE_DEFAULT),
+            ('  {op:"add_edge", type:"deduction",', CODE_DEFAULT),
+            ("   tail:[#5020], head:[#5012]}]}", CODE_DEFAULT),
+        ],
+    )
 
     # ── Left: belief evolution table ──
     rows = [
@@ -850,14 +1048,31 @@ def slide_13_galileo_pkg6(prs):
         ["Pkg 5 Newton", "0.08 ↓", "0.93 ↑", "理论 + Contradiction ②"],
         ["Pkg 6 Apollo", "0.05 ↓", "0.98 ↑", "月球真空实验"],
     ]
-    make_table(slide, Cm(1.5), Cm(10.5), Cm(13.5), rows,
-               col_widths=[Cm(4), Cm(2.5), Cm(2.5), Cm(4.5)], font_size=12)
+    make_table(
+        slide,
+        Cm(1.5),
+        Cm(10.5),
+        Cm(13.5),
+        rows,
+        col_widths=[Cm(4), Cm(2.5), Cm(2.5), Cm(4.5)],
+        font_size=12,
+    )
 
     # ── Right: convergence diagram ──
-    add_text_box(slide, Cm(17), Cm(4.2), Cm(15), Cm(1.2),
-                 "三条独立证据线汇聚:", font_size=16, color=BLACK, bold=True)
+    add_text_box(
+        slide,
+        Cm(17),
+        Cm(4.2),
+        Cm(15),
+        Cm(1.2),
+        "三条独立证据线汇聚:",
+        font_size=16,
+        color=BLACK,
+        bold=True,
+    )
 
     from pptx.enum.shapes import MSO_SHAPE
+
     lines_data = [
         ("① 逻辑矛盾", "绑球悖论\nContradiction Edge", RED),
         ("② 理论推导", "Newton: F=ma, F=mg\n→ a=g + Contradiction", ACCENT_BLUE),
@@ -866,8 +1081,7 @@ def slide_13_galileo_pkg6(prs):
 
     for i, (tag, desc, color) in enumerate(lines_data):
         y = Cm(5.8 + i * 3)
-        box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
-                                      Cm(17), y, Cm(3.5), Cm(2))
+        box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Cm(17), y, Cm(3.5), Cm(2))
         box.fill.solid()
         box.fill.fore_color.rgb = color
         box.line.fill.background()
@@ -880,51 +1094,69 @@ def slide_13_galileo_pkg6(prs):
         p.alignment = PP_ALIGN.CENTER
         tf.vertical_anchor = MSO_ANCHOR.MIDDLE
 
-        add_text_box(slide, Cm(21), y, Cm(6), Cm(2),
-                     desc, font_size=11, color=DARK_GRAY,
-                     anchor=MSO_ANCHOR.MIDDLE)
+        add_text_box(
+            slide,
+            Cm(21),
+            y,
+            Cm(6),
+            Cm(2),
+            desc,
+            font_size=11,
+            color=DARK_GRAY,
+            anchor=MSO_ANCHOR.MIDDLE,
+        )
 
         draw_arrow(slide, Cm(27), y + Cm(1), Cm(28), y + Cm(1), color, Pt(2))
 
     # Convergence target
-    draw_node(slide, Cm(28.5), Cm(7.5), Cm(4.5), Cm(4),
-                       "5012\n真空等速\nbelief\n0.98", GREEN, 13)
+    draw_node(slide, Cm(28.5), Cm(7.5), Cm(4.5), Cm(4), "5012\n真空等速\nbelief\n0.98", GREEN, 13)
 
     # Bottom: key takeaway
-    add_text_box(slide, Cm(17), Cm(15.5), Cm(16), Cm(2),
-                 "旧理论不删除，belief 下降；全程只添加 node+edge，从不修改历史",
-                 font_size=14, color=ACCENT_BLUE, bold=True)
+    add_text_box(
+        slide,
+        Cm(17),
+        Cm(15.5),
+        Cm(16),
+        Cm(2),
+        "旧理论不删除，belief 下降；全程只添加 node+edge，从不修改历史",
+        font_size=14,
+        color=ACCENT_BLUE,
+        bold=True,
+    )
 
 
 def slide_14_einstein_overview(prs):
     """Slide 14: Einstein elevator overview."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide)
-    add_section_header(slide, "Part 4 · 爱因斯坦思想实验",
-                       "爱因斯坦电梯 — 概述")
+    add_section_header(slide, "Part 4 · 爱因斯坦思想实验", "爱因斯坦电梯 — 概述")
 
     txBox = slide.shapes.add_textbox(Cm(2), Cm(4.5), Cm(18), Cm(8))
     tf = txBox.text_frame
     tf.word_wrap = True
-    add_bullet_slide_text(tf, [
-        "5 个 package (1801–1919)：从牛顿到广义相对论",
-        "核心叙事：0.87\" → 0.87\" → 1.75\" → 观测 ~1.7\"",
-        "牛顿和爱因斯坦最初预测一致 → 无矛盾",
-        "GR 预测翻倍 → 矛盾出现 → Eddington 判决",
-    ], font_size=22)
+    add_bullet_slide_text(
+        tf,
+        [
+            "5 个 package (1801–1919)：从牛顿到广义相对论",
+            '核心叙事：0.87" → 0.87" → 1.75" → 观测 ~1.7"',
+            "牛顿和爱因斯坦最初预测一致 → 无矛盾",
+            "GR 预测翻倍 → 矛盾出现 → Eddington 判决",
+        ],
+        font_size=22,
+    )
 
     # Visual: prediction journey
     from pptx.enum.shapes import MSO_SHAPE
+
     entries = [
-        ("Pkg 1\n1801 Soldner", "0.87\"", ACCENT_BLUE, "Newton 粒子引力"),
-        ("Pkg 2-3\n1907-1911", "0.87\"", ACCENT_BLUE, "等效原理\n(和 Newton 一样!)"),
-        ("Pkg 4\n1915 GR", "1.75\"", ORANGE, "时空弯曲\n(精确 2×!)"),
-        ("Pkg 5\n1919 观测", "~1.7\"", GREEN, "Eddington\n日食观测"),
+        ("Pkg 1\n1801 Soldner", '0.87"', ACCENT_BLUE, "Newton 粒子引力"),
+        ("Pkg 2-3\n1907-1911", '0.87"', ACCENT_BLUE, "等效原理\n(和 Newton 一样!)"),
+        ("Pkg 4\n1915 GR", '1.75"', ORANGE, "时空弯曲\n(精确 2×!)"),
+        ("Pkg 5\n1919 观测", '~1.7"', GREEN, "Eddington\n日食观测"),
     ]
     for i, (label, val, color, note) in enumerate(entries):
         x = Cm(2 + i * 8)
-        box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
-                                      x, Cm(12.5), Cm(6.5), Cm(2.2))
+        box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, Cm(12.5), Cm(6.5), Cm(2.2))
         box.fill.solid()
         box.fill.fore_color.rgb = color
         box.line.fill.background()
@@ -938,81 +1170,100 @@ def slide_14_einstein_overview(prs):
         p.alignment = PP_ALIGN.CENTER
         tf.vertical_anchor = MSO_ANCHOR.MIDDLE
 
-        add_text_box(slide, x, Cm(15), Cm(6.5), Cm(2),
-                     note, font_size=11, color=MID_GRAY,
-                     alignment=PP_ALIGN.CENTER)
+        add_text_box(
+            slide,
+            x,
+            Cm(15),
+            Cm(6.5),
+            Cm(2),
+            note,
+            font_size=11,
+            color=MID_GRAY,
+            alignment=PP_ALIGN.CENTER,
+        )
 
         if i < 3:
-            draw_arrow(slide, x + Cm(6.5), Cm(13.6), x + Cm(8), Cm(13.6),
-                       MID_GRAY, Pt(2))
+            draw_arrow(slide, x + Cm(6.5), Cm(13.6), x + Cm(8), Cm(13.6), MID_GRAY, Pt(2))
 
 
 def slide_15_einstein_pkg123(prs):
     """Slide 15: Einstein Pkg 1+2+3 — prior + equivalence + 1911."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide)
-    add_section_header(slide, "Part 4 · 爱因斯坦思想实验",
-                       "Pkg 1-3: 先验知识 → 等效原理 → 1911 预测")
+    add_section_header(
+        slide, "Part 4 · 爱因斯坦思想实验", "Pkg 1-3: 先验知识 → 等效原理 → 1911 预测"
+    )
 
     # ── Left: command box ──
-    add_command_box(slide, Cm(1.5), Cm(4.2), Cm(14), Cm(14), [
-        ("# Pkg 1: prior_knowledge", CODE_COMMENT),
-        ('AddNode 6001 "F = m_i·a"     prior=0.95', CODE_DEFAULT),
-        ('AddNode 6002 "F = GMm/r²"    prior=0.95', CODE_DEFAULT),
-        ('AddNode 6003 "光的微粒说"      prior=0.5', CODE_DEFAULT),
-        ('AddNode 6004 "Soldner: 0.87″" prior=0.6', CODE_KEYWORD),
-        ('AddNode 6005 "Maxwell EM"     prior=0.9', CODE_DEFAULT),
-        ('AddNode 6006 "Eötvös m_i=m_g" prior=0.95', CODE_DEFAULT),
-        ('AddEdge 6001 deduction', CODE_DEFAULT),
-        ('  [6001,6002,6003] → [6004]  P=0.6', CODE_DEFAULT),
-        ("", CODE_DEFAULT),
-        ("# Pkg 2: einstein1907_equivalence", CODE_COMMENT),
-        ('AddNode 6007 "电梯思想实验"    prior=1.0', CODE_DEFAULT),
-        ('AddNode 6008 "等效原理"        prior=0.85', CODE_KEYWORD),
-        ('AddNode 6009 "光在引力场弯曲"  prior=0.85', CODE_DEFAULT),
-        ('AddEdge 6002 deduction', CODE_DEFAULT),
-        ('  [6006,6007] → [6008]  P=0.85', CODE_DEFAULT),
-        ('AddEdge 6003 deduction', CODE_DEFAULT),
-        ('  [6008,6005] → [6009]  P=0.85', CODE_DEFAULT),
-        ("", CODE_DEFAULT),
-        ("# Pkg 3: einstein1911_light_deflection", CODE_COMMENT),
-        ('AddNode 6010 "Einstein: 0.87″" prior=0.8', CODE_KEYWORD),
-        ('AddEdge 6004 deduction', CODE_DEFAULT),
-        ('  [6009] → [6010]  P=0.8', CODE_DEFAULT),
-        ("", CODE_DEFAULT),
-        ("# ⚠ 6004 = 6010 = 0.87″  此时无矛盾!", CODE_WARN),
-    ])
+    add_command_box(
+        slide,
+        Cm(1.5),
+        Cm(4.2),
+        Cm(14),
+        Cm(14),
+        [
+            ("# Pkg 1: prior_knowledge", CODE_COMMENT),
+            ('AddNode 6001 "F = m_i·a"     prior=0.95', CODE_DEFAULT),
+            ('AddNode 6002 "F = GMm/r²"    prior=0.95', CODE_DEFAULT),
+            ('AddNode 6003 "光的微粒说"      prior=0.5', CODE_DEFAULT),
+            ('AddNode 6004 "Soldner: 0.87″" prior=0.6', CODE_KEYWORD),
+            ('AddNode 6005 "Maxwell EM"     prior=0.9', CODE_DEFAULT),
+            ('AddNode 6006 "Eötvös m_i=m_g" prior=0.95', CODE_DEFAULT),
+            ("AddEdge 6001 deduction", CODE_DEFAULT),
+            ("  [6001,6002,6003] → [6004]  P=0.6", CODE_DEFAULT),
+            ("", CODE_DEFAULT),
+            ("# Pkg 2: einstein1907_equivalence", CODE_COMMENT),
+            ('AddNode 6007 "电梯思想实验"    prior=1.0', CODE_DEFAULT),
+            ('AddNode 6008 "等效原理"        prior=0.85', CODE_KEYWORD),
+            ('AddNode 6009 "光在引力场弯曲"  prior=0.85', CODE_DEFAULT),
+            ("AddEdge 6002 deduction", CODE_DEFAULT),
+            ("  [6006,6007] → [6008]  P=0.85", CODE_DEFAULT),
+            ("AddEdge 6003 deduction", CODE_DEFAULT),
+            ("  [6008,6005] → [6009]  P=0.85", CODE_DEFAULT),
+            ("", CODE_DEFAULT),
+            ("# Pkg 3: einstein1911_light_deflection", CODE_COMMENT),
+            ('AddNode 6010 "Einstein: 0.87″" prior=0.8', CODE_KEYWORD),
+            ("AddEdge 6004 deduction", CODE_DEFAULT),
+            ("  [6009] → [6010]  P=0.8", CODE_DEFAULT),
+            ("", CODE_DEFAULT),
+            ("# ⚠ 6004 = 6010 = 0.87″  此时无矛盾!", CODE_WARN),
+        ],
+    )
 
     # ── Right: graph ──
     # Newton path
-    draw_node(slide, Cm(17), Cm(4.5), Cm(3.5), Cm(1.4),
-              "6001\nF=m·a", MID_GRAY, 9)
-    draw_node(slide, Cm(21), Cm(4.5), Cm(3.5), Cm(1.4),
-              "6002\nF=GMm/r²", MID_GRAY, 9)
-    draw_node(slide, Cm(25), Cm(4.5), Cm(3.5), Cm(1.4),
-              "6003\n微粒说", MID_GRAY, 9)
+    draw_node(slide, Cm(17), Cm(4.5), Cm(3.5), Cm(1.4), "6001\nF=m·a", MID_GRAY, 9)
+    draw_node(slide, Cm(21), Cm(4.5), Cm(3.5), Cm(1.4), "6002\nF=GMm/r²", MID_GRAY, 9)
+    draw_node(slide, Cm(25), Cm(4.5), Cm(3.5), Cm(1.4), "6003\n微粒说", MID_GRAY, 9)
 
-    draw_node(slide, Cm(20.5), Cm(7.5), Cm(5), Cm(1.8),
-              "6004 Soldner\n0.87\" belief≈0.6", ACCENT_BLUE, 11)
+    draw_node(
+        slide, Cm(20.5), Cm(7.5), Cm(5), Cm(1.8), '6004 Soldner\n0.87" belief≈0.6', ACCENT_BLUE, 11
+    )
 
     draw_arrow(slide, Cm(18.75), Cm(5.9), Cm(22), Cm(7.5), MID_GRAY)
     draw_arrow(slide, Cm(22.75), Cm(5.9), Cm(23), Cm(7.5), MID_GRAY)
     draw_arrow(slide, Cm(26.75), Cm(5.9), Cm(24), Cm(7.5), MID_GRAY)
 
     # Einstein path
-    draw_node(slide, Cm(17), Cm(10.5), Cm(3.5), Cm(1.4),
-              "6006\nEötvös", MID_GRAY, 9)
-    draw_node(slide, Cm(21), Cm(10.5), Cm(3.5), Cm(1.4),
-              "6007\n电梯实验", MID_GRAY, 9)
+    draw_node(slide, Cm(17), Cm(10.5), Cm(3.5), Cm(1.4), "6006\nEötvös", MID_GRAY, 9)
+    draw_node(slide, Cm(21), Cm(10.5), Cm(3.5), Cm(1.4), "6007\n电梯实验", MID_GRAY, 9)
 
-    draw_node(slide, Cm(17), Cm(13), Cm(4.5), Cm(1.6),
-              "6008 等效原理\nbelief≈0.85", ACCENT_BLUE, 10)
+    draw_node(
+        slide, Cm(17), Cm(13), Cm(4.5), Cm(1.6), "6008 等效原理\nbelief≈0.85", ACCENT_BLUE, 10
+    )
 
-    draw_node(slide, Cm(22.5), Cm(13), Cm(4), Cm(1.6),
-              "6009\n光必须弯曲", ACCENT_BLUE, 10)
+    draw_node(slide, Cm(22.5), Cm(13), Cm(4), Cm(1.6), "6009\n光必须弯曲", ACCENT_BLUE, 10)
 
-    draw_node(slide, Cm(20.5), Cm(15.5), Cm(5), Cm(1.8),
-              "6010 Einstein\n0.87\" belief≈0.8", ACCENT_BLUE, 11)
+    draw_node(
+        slide,
+        Cm(20.5),
+        Cm(15.5),
+        Cm(5),
+        Cm(1.8),
+        '6010 Einstein\n0.87" belief≈0.8',
+        ACCENT_BLUE,
+        11,
+    )
 
     draw_arrow(slide, Cm(18.75), Cm(11.9), Cm(19.25), Cm(13), MID_GRAY)
     draw_arrow(slide, Cm(22.75), Cm(11.9), Cm(20), Cm(13), MID_GRAY)
@@ -1021,8 +1272,8 @@ def slide_15_einstein_pkg123(prs):
 
     # Highlight: same prediction, no contradiction
     from pptx.enum.shapes import MSO_SHAPE
-    box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
-                                  Cm(27.5), Cm(9), Cm(5.5), Cm(4.5))
+
+    box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Cm(27.5), Cm(9), Cm(5.5), Cm(4.5))
     box.fill.solid()
     box.fill.fore_color.rgb = RGBColor(0xFD, 0xF0, 0xE0)
     box.line.color.rgb = ORANGE
@@ -1032,7 +1283,7 @@ def slide_15_einstein_pkg123(prs):
     tf.margin_left = Cm(0.3)
     tf.margin_top = Cm(0.3)
     p = tf.paragraphs[0]
-    p.text = "两条路径\n→ 相同预测\n0.87\"\n\n无 Contradiction\nEdge！"
+    p.text = '两条路径\n→ 相同预测\n0.87"\n\n无 Contradiction\nEdge！'
     p.font.size = Pt(13)
     p.font.color.rgb = ORANGE
     p.font.bold = True
@@ -1045,69 +1296,91 @@ def slide_16_einstein_pkg4(prs):
     """Slide 16: Einstein Pkg 4 — GR divergence."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide)
-    add_section_header(slide, "Part 4 · 爱因斯坦思想实验",
-                       "Pkg 4: 广义相对论 — 定量矛盾出现")
+    add_section_header(slide, "Part 4 · 爱因斯坦思想实验", "Pkg 4: 广义相对论 — 定量矛盾出现")
 
     # ── Left: command box ──
-    add_command_box(slide, Cm(1.5), Cm(4.2), Cm(14), Cm(14), [
-        ("# Pkg 4: einstein1915_general_relativity", CODE_COMMENT),
-        ('AddNode 6012 "GR: G_μν=8πGT_μν"  prior=0.85', CODE_KEYWORD),
-        ('AddNode 6013 "光沿零测地线"        prior=0.85', CODE_DEFAULT),
-        ('  (时间弯曲 + 空间弯曲 = 2个分量)', CODE_COMMENT),
-        ('AddNode 6014 "GR预测: 1.75″"      prior=0.85', CODE_KEYWORD),
-        ('  (= 2 × 0.87″, 空间弯曲贡献一半)', CODE_COMMENT),
-        ('AddNode 6015 "水星进动 43″/世纪"    prior=0.9', CODE_DEFAULT),
-        ("", CODE_DEFAULT),
-        ('AddEdge 6006 deduction', CODE_DEFAULT),
-        ('  [6012,6008] → [6013]  P=0.85', CODE_DEFAULT),
-        ('AddEdge 6007 deduction', CODE_DEFAULT),
-        ('  [6013] → [6014]       P=0.85', CODE_DEFAULT),
-        ("", CODE_DEFAULT),
-        ('AddEdge 6008 contradiction', CODE_RED),
-        ('  [6014: 1.75″] ↔ [6004: 0.87″]', CODE_RED),
-        ('  # 精确 2× 差异!', CODE_RED),
-        ("", CODE_DEFAULT),
-        ('AddEdge 6009 deduction', CODE_DEFAULT),
-        ('  [6012] → [6015]       P=0.9', CODE_DEFAULT),
-        ("", CODE_DEFAULT),
-        ("# BP: 6014→0.85↑  6004→0.40↓  矛盾传播!", CODE_WARN),
-    ])
+    add_command_box(
+        slide,
+        Cm(1.5),
+        Cm(4.2),
+        Cm(14),
+        Cm(14),
+        [
+            ("# Pkg 4: einstein1915_general_relativity", CODE_COMMENT),
+            ('AddNode 6012 "GR: G_μν=8πGT_μν"  prior=0.85', CODE_KEYWORD),
+            ('AddNode 6013 "光沿零测地线"        prior=0.85', CODE_DEFAULT),
+            ("  (时间弯曲 + 空间弯曲 = 2个分量)", CODE_COMMENT),
+            ('AddNode 6014 "GR预测: 1.75″"      prior=0.85', CODE_KEYWORD),
+            ("  (= 2 × 0.87″, 空间弯曲贡献一半)", CODE_COMMENT),
+            ('AddNode 6015 "水星进动 43″/世纪"    prior=0.9', CODE_DEFAULT),
+            ("", CODE_DEFAULT),
+            ("AddEdge 6006 deduction", CODE_DEFAULT),
+            ("  [6012,6008] → [6013]  P=0.85", CODE_DEFAULT),
+            ("AddEdge 6007 deduction", CODE_DEFAULT),
+            ("  [6013] → [6014]       P=0.85", CODE_DEFAULT),
+            ("", CODE_DEFAULT),
+            ("AddEdge 6008 contradiction", CODE_RED),
+            ("  [6014: 1.75″] ↔ [6004: 0.87″]", CODE_RED),
+            ("  # 精确 2× 差异!", CODE_RED),
+            ("", CODE_DEFAULT),
+            ("AddEdge 6009 deduction", CODE_DEFAULT),
+            ("  [6012] → [6015]       P=0.9", CODE_DEFAULT),
+            ("", CODE_DEFAULT),
+            ("# BP: 6014→0.85↑  6004→0.40↓  矛盾传播!", CODE_WARN),
+        ],
+    )
 
     # ── Right: graph ──
     # GR framework
-    draw_node(slide, Cm(17.5), Cm(4.5), Cm(5), Cm(1.8),
-              "6012 广义相对论\nbelief=0.85", ACCENT_BLUE, 11)
-    draw_node(slide, Cm(24), Cm(4.5), Cm(4.5), Cm(1.8),
-              "6008 等效原理\nbelief=0.85", MID_GRAY, 10)
+    draw_node(
+        slide, Cm(17.5), Cm(4.5), Cm(5), Cm(1.8), "6012 广义相对论\nbelief=0.85", ACCENT_BLUE, 11
+    )
+    draw_node(slide, Cm(24), Cm(4.5), Cm(4.5), Cm(1.8), "6008 等效原理\nbelief=0.85", MID_GRAY, 10)
 
     # Geodesics
-    draw_node(slide, Cm(19), Cm(7.5), Cm(6), Cm(1.8),
-              "6013 零测地线 (时间+空间)\nbelief=0.85", ACCENT_BLUE, 10)
+    draw_node(
+        slide,
+        Cm(19),
+        Cm(7.5),
+        Cm(6),
+        Cm(1.8),
+        "6013 零测地线 (时间+空间)\nbelief=0.85",
+        ACCENT_BLUE,
+        10,
+    )
     draw_arrow(slide, Cm(20), Cm(6.3), Cm(21), Cm(7.5), MID_GRAY)
     draw_arrow(slide, Cm(26.25), Cm(6.3), Cm(23), Cm(7.5), MID_GRAY)
 
     # GR prediction
-    draw_node(slide, Cm(17), Cm(10.5), Cm(5.5), Cm(2.2),
-              "6014\nGR: 1.75\"\nbelief 0.85", GREEN, 13)
+    draw_node(slide, Cm(17), Cm(10.5), Cm(5.5), Cm(2.2), '6014\nGR: 1.75"\nbelief 0.85', GREEN, 13)
     draw_arrow(slide, Cm(22), Cm(9.3), Cm(20), Cm(10.5), MID_GRAY)
 
     # Newton prediction
-    draw_node(slide, Cm(25.5), Cm(10.5), Cm(5.5), Cm(2.2),
-              "6004\nNewton: 0.87\"\nbelief 0.60→0.40↓", RED, 12, WHITE)
+    draw_node(
+        slide,
+        Cm(25.5),
+        Cm(10.5),
+        Cm(5.5),
+        Cm(2.2),
+        '6004\nNewton: 0.87"\nbelief 0.60→0.40↓',
+        RED,
+        12,
+        WHITE,
+    )
 
     # CONTRADICTION between 6014 and 6004
     draw_contradiction(slide, Cm(22.5), Cm(11.6), Cm(25.5), Cm(11.6))
 
     from pptx.enum.shapes import MSO_SHAPE
-    cbox = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
-                                   Cm(22.8), Cm(13), Cm(5.5), Cm(1.8))
+
+    cbox = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Cm(22.8), Cm(13), Cm(5.5), Cm(1.8))
     cbox.fill.solid()
     cbox.fill.fore_color.rgb = RGBColor(0xFD, 0xE0, 0xE0)
     cbox.line.color.rgb = RED
     cbox.line.width = Pt(1)
     tf = cbox.text_frame
     p = tf.paragraphs[0]
-    p.text = "CONTRADICTION\n1.75\" vs 0.87\" (2×)"
+    p.text = 'CONTRADICTION\n1.75" vs 0.87" (2×)'
     p.font.size = Pt(11)
     p.font.color.rgb = RED
     p.font.bold = True
@@ -1115,96 +1388,152 @@ def slide_16_einstein_pkg4(prs):
     tf.vertical_anchor = MSO_ANCHOR.MIDDLE
 
     # Mercury bonus
-    draw_node(slide, Cm(17.5), Cm(15), Cm(5), Cm(1.8),
-              "6015 水星进动\n43\"/century  ✓", GREEN, 10)
+    draw_node(slide, Cm(17.5), Cm(15), Cm(5), Cm(1.8), '6015 水星进动\n43"/century  ✓', GREEN, 10)
     draw_arrow(slide, Cm(20), Cm(6.3), Cm(20), Cm(15), LIGHT_GRAY)
 
-    add_text_box(slide, Cm(24), Cm(15.5), Cm(9), Cm(1.5),
-                 "GR 两个独立预测成功 → 6012 belief 强化",
-                 font_size=12, color=MID_GRAY)
+    add_text_box(
+        slide,
+        Cm(24),
+        Cm(15.5),
+        Cm(9),
+        Cm(1.5),
+        "GR 两个独立预测成功 → 6012 belief 强化",
+        font_size=12,
+        color=MID_GRAY,
+    )
 
 
 def slide_17_einstein_pkg5(prs):
     """Slide 17: Einstein Pkg 5 — Eddington observation + final beliefs."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide)
-    add_section_header(slide, "Part 4 · 爱因斯坦思想实验",
-                       "Pkg 5: Eddington 1919 — 判决 + Belief 全景")
+    add_section_header(
+        slide, "Part 4 · 爱因斯坦思想实验", "Pkg 5: Eddington 1919 — 判决 + Belief 全景"
+    )
 
     # ── Left: command box ──
-    add_command_box(slide, Cm(1.5), Cm(4.2), Cm(14), Cm(8), [
-        ("# Pkg 5: eddington1919_solar_eclipse", CODE_COMMENT),
-        ('AddNode 6017 "日食远征(两支队伍)"  prior=0.95', CODE_DEFAULT),
-        ('AddNode 6018 "观测 1.61±0.30″ /  prior=0.9', CODE_DEFAULT),
-        ('         1.98±0.16″"', CODE_DEFAULT),
-        ('AddNode 6019 "观测支持GR排除Newton" prior=0.9', CODE_KEYWORD),
-        ('AddNode 6020 "GR确认为优越理论"    prior=0.9', CODE_KEYWORD),
-        ('AddNode 6021 "Newton降级为近似"    prior=0.9', CODE_DEFAULT),
-        ("", CODE_DEFAULT),
-        ('AddEdge 6011 deduction', CODE_DEFAULT),
-        ('  [6017,6018] → [6019]  P=0.9', CODE_DEFAULT),
-        ('AddEdge 6014 contradiction', CODE_RED),
-        ('  [6019: ~1.7″] ↔ [6004: 0.87″]', CODE_RED),
-        ("", CODE_DEFAULT),
-        ("# BP: 6004→0.10↓↓  6014→0.95↑  6002→0.80(降级)", CODE_WARN),
-    ])
+    add_command_box(
+        slide,
+        Cm(1.5),
+        Cm(4.2),
+        Cm(14),
+        Cm(8),
+        [
+            ("# Pkg 5: eddington1919_solar_eclipse", CODE_COMMENT),
+            ('AddNode 6017 "日食远征(两支队伍)"  prior=0.95', CODE_DEFAULT),
+            ('AddNode 6018 "观测 1.61±0.30″ /  prior=0.9', CODE_DEFAULT),
+            ('         1.98±0.16″"', CODE_DEFAULT),
+            ('AddNode 6019 "观测支持GR排除Newton" prior=0.9', CODE_KEYWORD),
+            ('AddNode 6020 "GR确认为优越理论"    prior=0.9', CODE_KEYWORD),
+            ('AddNode 6021 "Newton降级为近似"    prior=0.9', CODE_DEFAULT),
+            ("", CODE_DEFAULT),
+            ("AddEdge 6011 deduction", CODE_DEFAULT),
+            ("  [6017,6018] → [6019]  P=0.9", CODE_DEFAULT),
+            ("AddEdge 6014 contradiction", CODE_RED),
+            ("  [6019: ~1.7″] ↔ [6004: 0.87″]", CODE_RED),
+            ("", CODE_DEFAULT),
+            ("# BP: 6004→0.10↓↓  6014→0.95↑  6002→0.80(降级)", CODE_WARN),
+        ],
+    )
 
     # ── Left: final belief table ──
     rows = [
         ["节点", "含义", "初始", "最终"],
-        ["6004", "Soldner 0.87\"", "0.60", "0.10 ↓↓"],
-        ["6014", "GR 1.75\"", "0.85", "0.95 ↑↑"],
+        ["6004", 'Soldner 0.87"', "0.60", "0.10 ↓↓"],
+        ["6014", 'GR 1.75"', "0.85", "0.95 ↑↑"],
         ["6012", "广义相对论", "0.85", "0.95 ↑"],
         ["6002", "Newton 引力", "0.95", "0.80 (降级)"],
         ["6020", "GR confirmed", "0.90", "0.95 ↑"],
     ]
-    make_table(slide, Cm(1.5), Cm(13), Cm(14), rows,
-               col_widths=[Cm(2.5), Cm(5), Cm(2.5), Cm(4)], font_size=12)
+    make_table(
+        slide,
+        Cm(1.5),
+        Cm(13),
+        Cm(14),
+        rows,
+        col_widths=[Cm(2.5), Cm(5), Cm(2.5), Cm(4)],
+        font_size=12,
+    )
 
     # ── Right: final graph ──
-    add_text_box(slide, Cm(17), Cm(4.2), Cm(10), Cm(1.2),
-                 "观测判决后的最终图:", font_size=16, color=BLACK, bold=True)
+    add_text_box(
+        slide,
+        Cm(17),
+        Cm(4.2),
+        Cm(10),
+        Cm(1.2),
+        "观测判决后的最终图:",
+        font_size=16,
+        color=BLACK,
+        bold=True,
+    )
 
     # Eddington observation
-    draw_node(slide, Cm(18), Cm(5.5), Cm(6), Cm(1.8),
-              "6018 观测: 1.61\"/1.98\"\n(≈1.7\")", ACCENT_BLUE, 11)
+    draw_node(
+        slide, Cm(18), Cm(5.5), Cm(6), Cm(1.8), '6018 观测: 1.61"/1.98"\n(≈1.7")', ACCENT_BLUE, 11
+    )
 
     # GR prediction — confirmed
-    draw_node(slide, Cm(17), Cm(9), Cm(5.5), Cm(2.2),
-              "6014 GR: 1.75\"\nbelief → 0.95 ↑↑", GREEN, 12)
+    draw_node(slide, Cm(17), Cm(9), Cm(5.5), Cm(2.2), '6014 GR: 1.75"\nbelief → 0.95 ↑↑', GREEN, 12)
 
     # Newton prediction — refuted
-    draw_node(slide, Cm(25.5), Cm(9), Cm(5.5), Cm(2.2),
-              "6004 Newton: 0.87\"\nbelief → 0.10 ↓↓", RED, 12, WHITE)
+    draw_node(
+        slide,
+        Cm(25.5),
+        Cm(9),
+        Cm(5.5),
+        Cm(2.2),
+        '6004 Newton: 0.87"\nbelief → 0.10 ↓↓',
+        RED,
+        12,
+        WHITE,
+    )
 
     # Observation supports GR
     draw_arrow(slide, Cm(20), Cm(7.3), Cm(19.75), Cm(9), GREEN, Pt(2.5))
-    add_text_box(slide, Cm(16.5), Cm(7.8), Cm(3), Cm(1),
-                 "✓ 吻合", font_size=11, color=GREEN, bold=True)
+    add_text_box(
+        slide, Cm(16.5), Cm(7.8), Cm(3), Cm(1), "✓ 吻合", font_size=11, color=GREEN, bold=True
+    )
 
     # Observation contradicts Newton
     draw_contradiction(slide, Cm(24), Cm(7.3), Cm(28.25), Cm(9))
-    add_text_box(slide, Cm(26), Cm(7.5), Cm(4), Cm(1),
-                 "✕ 2σ+ 偏离", font_size=11, color=RED, bold=True)
+    add_text_box(
+        slide, Cm(26), Cm(7.5), Cm(4), Cm(1), "✕ 2σ+ 偏离", font_size=11, color=RED, bold=True
+    )
 
     # Contradiction edge between predictions
     draw_contradiction(slide, Cm(22.5), Cm(10.1), Cm(25.5), Cm(10.1))
 
     # GR framework
-    draw_node(slide, Cm(17), Cm(13), Cm(5.5), Cm(1.8),
-              "6012 广义相对论\nbelief → 0.95", GREEN, 11)
+    draw_node(slide, Cm(17), Cm(13), Cm(5.5), Cm(1.8), "6012 广义相对论\nbelief → 0.95", GREEN, 11)
 
     # Newton framework (demoted)
-    draw_node(slide, Cm(25.5), Cm(13), Cm(5.5), Cm(1.8),
-              "6002 Newton 引力\nbelief → 0.80 (降级)", ORANGE, 10)
+    draw_node(
+        slide,
+        Cm(25.5),
+        Cm(13),
+        Cm(5.5),
+        Cm(1.8),
+        "6002 Newton 引力\nbelief → 0.80 (降级)",
+        ORANGE,
+        10,
+    )
 
     draw_arrow(slide, Cm(19.75), Cm(11.2), Cm(19.75), Cm(13), MID_GRAY)
     draw_arrow(slide, Cm(28.25), Cm(11.2), Cm(28.25), Cm(13), MID_GRAY)
 
     # Key insight
-    add_text_box(slide, Cm(17), Cm(15.5), Cm(16), Cm(2),
-                 "理论演替而非覆盖: Newton 降级为弱场近似，不删除",
-                 font_size=14, color=ACCENT_BLUE, bold=True)
+    add_text_box(
+        slide,
+        Cm(17),
+        Cm(15.5),
+        Cm(16),
+        Cm(2),
+        "理论演替而非覆盖: Newton 降级为弱场近似，不删除",
+        font_size=14,
+        color=ACCENT_BLUE,
+        bold=True,
+    )
 
 
 def slide_18_knowledge_package(prs):
@@ -1216,12 +1545,16 @@ def slide_18_knowledge_package(prs):
     txBox = slide.shapes.add_textbox(Cm(2), Cm(4.5), Cm(16), Cm(10))
     tf = txBox.text_frame
     tf.word_wrap = True
-    add_bullet_slide_text(tf, [
-        "类比 Cargo / Julia Pkg：论文 = crate / package",
-        "可版本化：同一知识可被新证据更新",
-        "可声明依赖：推理链 = 依赖图",
-        "可追踪变更：每次提交有完整历史",
-    ], font_size=20)
+    add_bullet_slide_text(
+        tf,
+        [
+            "类比 Cargo / Julia Pkg：论文 = crate / package",
+            "可版本化：同一知识可被新证据更新",
+            "可声明依赖：推理链 = 依赖图",
+            "可追踪变更：每次提交有完整历史",
+        ],
+        font_size=20,
+    )
 
     # Package dependency diagram
     pkgs = [
@@ -1246,8 +1579,7 @@ def slide_19_isomorphism(prs):
     """Slide 19: Why package management and Gaia are isomorphic."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide)
-    add_section_header(slide, "Part 5 · 知识包管理",
-                       "为什么包管理和 Gaia 同构")
+    add_section_header(slide, "Part 5 · 知识包管理", "为什么包管理和 Gaia 同构")
 
     rows = [
         ["", "Cargo / npm", "Gaia"],
@@ -1259,31 +1591,43 @@ def slide_19_isomorphism(prs):
         ["共同基础", "Horn clause 上的依赖传播", "Horn clause 上的依赖传播"],
     ]
 
-    make_table(slide, Cm(2), Cm(4.5), Cm(30), rows,
-               col_widths=[Cm(4.5), Cm(12), Cm(13.5)], font_size=15)
+    make_table(
+        slide, Cm(2), Cm(4.5), Cm(30), rows, col_widths=[Cm(4.5), Cm(12), Cm(13.5)], font_size=15
+    )
 
-    add_text_box(slide, Cm(2), Cm(14.5), Cm(30), Cm(2),
-                 "包层面用 Cargo 拓扑算法 · 推理层面用 BP 算法 · 底层结构同构",
-                 font_size=18, color=ACCENT_BLUE, bold=True,
-                 alignment=PP_ALIGN.CENTER)
+    add_text_box(
+        slide,
+        Cm(2),
+        Cm(14.5),
+        Cm(30),
+        Cm(2),
+        "包层面用 Cargo 拓扑算法 · 推理层面用 BP 算法 · 底层结构同构",
+        font_size=18,
+        color=ACCENT_BLUE,
+        bold=True,
+        alignment=PP_ALIGN.CENTER,
+    )
 
 
 def slide_20_environment(prs):
     """Slide 20: Environment = lightweight branch."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide)
-    add_section_header(slide, "Part 5 · 知识包管理",
-                       "Environment = 轻量分支")
+    add_section_header(slide, "Part 5 · 知识包管理", "Environment = 轻量分支")
 
     txBox = slide.shapes.add_textbox(Cm(2), Cm(4.5), Cm(16), Cm(10))
     tf = txBox.text_frame
     tf.word_wrap = True
-    add_bullet_slide_text(tf, [
-        "创建分支做思想实验（base snapshot + sparse overlay）",
-        "伽利略例子 = 6 个 package 按序提交",
-        "爱因斯坦例子 = 5 个 package 按序提交",
-        "合并回主分支 = merge commit",
-    ], font_size=20)
+    add_bullet_slide_text(
+        tf,
+        [
+            "创建分支做思想实验（base snapshot + sparse overlay）",
+            "伽利略例子 = 6 个 package 按序提交",
+            "爱因斯坦例子 = 5 个 package 按序提交",
+            "合并回主分支 = merge commit",
+        ],
+        font_size=20,
+    )
 
     # Branch diagram
     from pptx.enum.shapes import MSO_SHAPE
@@ -1293,8 +1637,9 @@ def slide_20_environment(prs):
     line.line.color.rgb = ACCENT_BLUE
     line.line.width = Pt(3)
 
-    add_text_box(slide, Cm(18), Cm(5.5), Cm(3), Cm(1),
-                 "main", font_size=14, color=ACCENT_BLUE, bold=True)
+    add_text_box(
+        slide, Cm(18), Cm(5.5), Cm(3), Cm(1), "main", font_size=14, color=ACCENT_BLUE, bold=True
+    )
 
     # Branch off
     line2 = slide.shapes.add_connector(1, Cm(21), Cm(7), Cm(23), Cm(10))
@@ -1304,8 +1649,17 @@ def slide_20_environment(prs):
     line3.line.color.rgb = GREEN
     line3.line.width = Pt(2)
 
-    add_text_box(slide, Cm(23), Cm(10.5), Cm(8), Cm(1),
-                 "experiment branch", font_size=13, color=GREEN, bold=True)
+    add_text_box(
+        slide,
+        Cm(23),
+        Cm(10.5),
+        Cm(8),
+        Cm(1),
+        "experiment branch",
+        font_size=13,
+        color=GREEN,
+        bold=True,
+    )
 
     # Merge back
     line4 = slide.shapes.add_connector(1, Cm(30), Cm(10), Cm(32), Cm(7))
@@ -1333,8 +1687,7 @@ def slide_21_lkm_vision(prs):
     """Slide 21: Large Knowledge Model vision."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide)
-    add_section_header(slide, "Part 6 · 远景与总结",
-                       "Large Knowledge Model — 远景")
+    add_section_header(slide, "Part 6 · 远景与总结", "Large Knowledge Model — 远景")
 
     rows = [
         ["", "Large Language Model", "Large Knowledge Model"],
@@ -1346,8 +1699,9 @@ def slide_21_lkm_vision(prs):
         ["规模", "~10¹² 参数", "10⁹ 节点, 5×10⁹ 超边"],
     ]
 
-    make_table(slide, Cm(2), Cm(4.5), Cm(30), rows,
-               col_widths=[Cm(4.5), Cm(12), Cm(13.5)], font_size=15)
+    make_table(
+        slide, Cm(2), Cm(4.5), Cm(30), rows, col_widths=[Cm(4.5), Cm(12), Cm(13.5)], font_size=15
+    )
 
 
 def slide_22_scale(prs):
@@ -1367,8 +1721,7 @@ def slide_22_scale(prs):
 
     for i, (name, desc, color) in enumerate(layers):
         x = Cm(2 + i * 10.5)
-        box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
-                                      x, Cm(4.5), Cm(9), Cm(3))
+        box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, Cm(4.5), Cm(9), Cm(3))
         box.fill.solid()
         box.fill.fore_color.rgb = color
         box.line.fill.background()
@@ -1382,19 +1735,31 @@ def slide_22_scale(prs):
         p.alignment = PP_ALIGN.CENTER
         tf.vertical_anchor = MSO_ANCHOR.MIDDLE
 
-    add_text_box(slide, Cm(2), Cm(8), Cm(30), Cm(1),
-                 "三层存储：每一层负责一种查询模式，互为补充",
-                 font_size=16, color=MID_GRAY, alignment=PP_ALIGN.CENTER)
+    add_text_box(
+        slide,
+        Cm(2),
+        Cm(8),
+        Cm(30),
+        Cm(1),
+        "三层存储：每一层负责一种查询模式，互为补充",
+        font_size=16,
+        color=MID_GRAY,
+        alignment=PP_ALIGN.CENTER,
+    )
 
     txBox = slide.shapes.add_textbox(Cm(2), Cm(9.5), Cm(15), Cm(8))
     tf = txBox.text_frame
     tf.word_wrap = True
-    add_bullet_slide_text(tf, [
-        "分布式 BP: 图分区 + 残差调度 + 层次化",
-        "预接地 (Pre-grounding): 避免 MLN 组合爆炸",
-        "增量 BP: 只传播受影响的子图",
-        "近似推断: Loopy BP 收敛性保证",
-    ], font_size=20)
+    add_bullet_slide_text(
+        tf,
+        [
+            "分布式 BP: 图分区 + 残差调度 + 层次化",
+            "预接地 (Pre-grounding): 避免 MLN 组合爆炸",
+            "增量 BP: 只传播受影响的子图",
+            "近似推断: Loopy BP 收敛性保证",
+        ],
+        font_size=20,
+    )
 
 
 def slide_23_usage(prs):
@@ -1419,8 +1784,7 @@ def slide_23_usage(prs):
         x = Cm(2 + col * 16)
         y = Cm(5 + row * 5.5)
 
-        box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
-                                      x, y, Cm(14), Cm(4))
+        box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, Cm(14), Cm(4))
         box.fill.solid()
         box.fill.fore_color.rgb = RGBColor(0xF5, 0xF5, 0xF5)
         box.line.color.rgb = color
@@ -1469,22 +1833,48 @@ def slide_25_thankyou(prs):
     set_slide_bg(slide)
 
     from pptx.enum.shapes import MSO_SHAPE
+
     bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_WIDTH, Cm(0.6))
     bar.fill.solid()
     bar.fill.fore_color.rgb = ACCENT_BLUE
     bar.line.fill.background()
 
-    add_text_box(slide, Cm(3), Cm(5), Cm(28), Cm(3),
-                 "Thank You", font_size=60, color=BLACK, bold=True,
-                 alignment=PP_ALIGN.CENTER)
+    add_text_box(
+        slide,
+        Cm(3),
+        Cm(5),
+        Cm(28),
+        Cm(3),
+        "Thank You",
+        font_size=60,
+        color=BLACK,
+        bold=True,
+        alignment=PP_ALIGN.CENTER,
+    )
 
-    add_text_box(slide, Cm(3), Cm(9), Cm(28), Cm(2),
-                 "Questions & Discussion",
-                 font_size=30, color=MID_GRAY, alignment=PP_ALIGN.CENTER)
+    add_text_box(
+        slide,
+        Cm(3),
+        Cm(9),
+        Cm(28),
+        Cm(2),
+        "Questions & Discussion",
+        font_size=30,
+        color=MID_GRAY,
+        alignment=PP_ALIGN.CENTER,
+    )
 
-    add_text_box(slide, Cm(3), Cm(13), Cm(28), Cm(2),
-                 "github.com/SiliconEinstein/Gaia",
-                 font_size=18, color=ACCENT_BLUE, alignment=PP_ALIGN.CENTER)
+    add_text_box(
+        slide,
+        Cm(3),
+        Cm(13),
+        Cm(28),
+        Cm(2),
+        "github.com/SiliconEinstein/Gaia",
+        font_size=18,
+        color=ACCENT_BLUE,
+        alignment=PP_ALIGN.CENTER,
+    )
 
 
 def main():
