@@ -15,7 +15,7 @@ def resolve_refs(pkg: Package) -> Package:
     Builds a knowledge index (module.name -> Knowledge),
     then links each Ref._resolved to its target Knowledge object.
     """
-    # Build index: "module_name.knowledge_name" -> Knowledge
+    # Build index: "module_name.name" -> Knowledge
     index: dict[str, Knowledge] = {}
     for module in pkg.loaded_modules:
         for decl in module.knowledge:
