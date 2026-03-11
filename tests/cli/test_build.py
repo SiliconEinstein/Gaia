@@ -20,39 +20,38 @@ def test_build_creates_gaia_dir(tmp_path):
     assert (pkg_dir / ".gaia" / "build").exists()
 
 
-def test_build_creates_module_markdown_files(tmp_path):
-    """gaia build should write per-module .md files for modules with chains."""
+def test_build_creates_single_package_md(tmp_path):
+    """gaia build should write a single package.md with all modules."""
     pkg_dir = tmp_path / "galileo"
     shutil.copytree(FIXTURE_PATH, pkg_dir)
     result = runner.invoke(app, ["build", str(pkg_dir)])
     assert result.exit_code == 0
     build_dir = pkg_dir / ".gaia" / "build"
-    assert (build_dir / "reasoning.md").exists()
-    assert (build_dir / "aristotle.md").exists()
-    assert (build_dir / "follow_up.md").exists()
-    # Modules without chains should NOT have .md files
-    assert not (build_dir / "motivation.md").exists()
-    assert not (build_dir / "setting.md").exists()
+    package_md = build_dir / "package.md"
+    assert package_md.exists()
+    content = package_md.read_text()
+    assert "[module:motivation]" in content
+    assert "[module:reasoning]" in content
+    assert "[module:follow_up]" in content
 
 
 def test_build_markdown_contains_chain_sections(tmp_path):
-    """Module .md files should contain ## sections for each chain."""
+    """package.md should contain chain anchors for each chain."""
     pkg_dir = tmp_path / "galileo"
     shutil.copytree(FIXTURE_PATH, pkg_dir)
     runner.invoke(app, ["build", str(pkg_dir)])
-    reasoning_md = (pkg_dir / ".gaia" / "build" / "reasoning.md").read_text()
-    assert "## drag_prediction_chain" in reasoning_md
-    assert "## contradiction_chain (deduction)" in reasoning_md
+    content = (pkg_dir / ".gaia" / "build" / "package.md").read_text()
+    assert "[chain:drag_prediction_chain]" in content
+    assert "[chain:contradiction_chain]" in content
 
 
-def test_build_markdown_has_premise_and_conclusion(tmp_path):
-    """Module .md files should contain premise and conclusion markers."""
+def test_build_markdown_has_conclusion(tmp_path):
+    """package.md should contain conclusion markers."""
     pkg_dir = tmp_path / "galileo"
     shutil.copytree(FIXTURE_PATH, pkg_dir)
     runner.invoke(app, ["build", str(pkg_dir)])
-    reasoning_md = (pkg_dir / ".gaia" / "build" / "reasoning.md").read_text()
-    assert "**Premise:**" in reasoning_md
-    assert "**Conclusion:**" in reasoning_md
+    content = (pkg_dir / ".gaia" / "build" / "package.md").read_text()
+    assert "**Conclusion:**" in content
 
 
 def test_build_output_contains_module_count(tmp_path):

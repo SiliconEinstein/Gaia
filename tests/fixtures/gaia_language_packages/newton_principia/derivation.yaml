@@ -3,6 +3,7 @@
 
 type: reasoning_module
 name: derivation
+title: "推导 — 从牛顿定律推导出 a = g"
 
 knowledge:
   # === 引用本 package 的定律 ===

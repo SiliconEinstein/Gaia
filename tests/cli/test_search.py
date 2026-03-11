@@ -13,12 +13,13 @@ FIXTURE_PATH = "tests/fixtures/gaia_language_packages/galileo_falling_bodies"
 
 
 def _publish_galileo(tmp_path: Path) -> tuple[Path, str]:
-    """Build + review + publish --local, return (pkg_dir, db_path)."""
+    """Build + review + infer + publish --local, return (pkg_dir, db_path)."""
     pkg_dir = tmp_path / "galileo"
     shutil.copytree(FIXTURE_PATH, pkg_dir)
     db_path = str(tmp_path / "testdb")
     runner.invoke(app, ["build", str(pkg_dir)])
     runner.invoke(app, ["review", str(pkg_dir), "--mock"])
+    runner.invoke(app, ["infer", str(pkg_dir)])
     result = runner.invoke(app, ["publish", str(pkg_dir), "--local", "--db-path", db_path])
     assert result.exit_code == 0
     return pkg_dir, db_path

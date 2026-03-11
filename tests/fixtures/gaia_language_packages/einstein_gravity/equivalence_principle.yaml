@@ -2,6 +2,7 @@
 
 type: reasoning_module
 name: equivalence_principle
+title: "等价原理 — 爱因斯坦 1907 电梯思想实验"
 
 knowledge:
   # === 引用 ===

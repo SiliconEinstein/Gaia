@@ -2,6 +2,7 @@
 
 type: follow_up_module
 name: follow_up
+title: "后续问题 — 未来研究"
 
 knowledge:
   - type: ref

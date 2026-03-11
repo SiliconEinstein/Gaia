@@ -605,6 +605,45 @@ class TestSearchTopology:
         assert a_results[0].closure.version == 2
 
 
+# ── delete_package ──
+
+
+class TestDeletePackage:
+    async def test_delete_package_removes_topology(self, graph_store, closures, chains):
+        """delete_package should remove all closures and chains for a package."""
+        await graph_store.write_topology(closures, chains)
+
+        pkg_id = closures[0].source_package_id
+        await graph_store.delete_package(pkg_id)
+
+        # Verify closure nodes are gone
+        assert _count_nodes(graph_store, "Closure") == 0
+
+        # Verify chain nodes are gone
+        assert _count_nodes(graph_store, "Chain") == 0
+
+        # Verify relationships are gone
+        assert _count_rels(graph_store, "PREMISE") == 0
+        assert _count_rels(graph_store, "CONCLUSION") == 0
+
+    async def test_delete_package_neighbor_query_returns_empty(self, graph_store, closures, chains):
+        """After delete_package, neighbor queries should return empty results."""
+        await graph_store.write_topology(closures, chains)
+
+        pkg_id = closures[0].source_package_id
+        await graph_store.delete_package(pkg_id)
+
+        result = await graph_store.get_neighbors(
+            closures[0].closure_id, direction="both", chain_types=None, max_hops=1
+        )
+        assert len(result.closure_ids) == 0
+        assert len(result.chain_ids) == 0
+
+    async def test_delete_package_is_idempotent(self, graph_store):
+        """Deleting a non-existent package should not raise."""
+        await graph_store.delete_package("nonexistent_pkg")  # should not raise
+
+
 # ── close ──
 
 

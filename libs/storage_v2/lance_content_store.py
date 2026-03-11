@@ -363,6 +363,49 @@ class LanceContentStore(ContentStore):
             if table_name not in existing:
                 self._db.create_table(table_name, schema=schema)
 
+    # ── Delete ──
+
+    async def delete_package(self, package_id: str) -> None:
+        """Delete all data belonging to a package (idempotent re-publish)."""
+        escaped = _q(package_id)
+        # Direct column matches
+        direct_pairs = [
+            ("packages", "package_id"),
+            ("modules", "package_id"),
+            ("closures", "source_package_id"),
+            ("chains", "package_id"),
+            ("resources", "source_package_id"),
+        ]
+        for table_name, col in direct_pairs:
+            try:
+                tbl = self._db.open_table(table_name)
+                tbl.delete(f"{col} = '{escaped}'")
+            except Exception:
+                pass  # Table may not exist yet
+
+        # Probabilities: chain_id starts with "package_id."
+        try:
+            tbl = self._db.open_table("probabilities")
+            tbl.delete(f"chain_id LIKE '{escaped}.%'")
+        except Exception:
+            pass
+
+        # Belief history: closure_id starts with "package_id."
+        try:
+            tbl = self._db.open_table("belief_history")
+            tbl.delete(f"closure_id LIKE '{escaped}.%'")
+        except Exception:
+            pass
+
+        # Resource attachments: resource_id starts with "package_id."
+        try:
+            tbl = self._db.open_table("resource_attachments")
+            tbl.delete(f"resource_id LIKE '{escaped}.%'")
+        except Exception:
+            pass
+
+        self._fts_dirty = True
+
     # ── Write ──
 
     async def write_package(self, package: Package, modules: list[Module]) -> None:

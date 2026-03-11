@@ -97,6 +97,33 @@ class KuzuGraphStore(GraphStore):
         for stmt in _SCHEMA_STATEMENTS:
             await loop.run_in_executor(None, partial(self._execute, stmt))
 
+    # ── Delete ──
+
+    async def delete_package(self, package_id: str) -> None:
+        """Delete all Closure, Chain, and Resource nodes (and their rels) for a package."""
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, partial(self._delete_package_sync, package_id))
+
+    def _delete_package_sync(self, package_id: str) -> None:
+        c = self._conn
+        prefix = f"{package_id}."
+        # Delete chains (chain_id starts with "package_id.")
+        c.execute(
+            "MATCH (ch:Chain) WHERE starts_with(ch.chain_id, $prefix) DETACH DELETE ch",
+            {"prefix": prefix},
+        )
+        # Delete closures (closure_vid starts with "package_id." since
+        # closure_vid = closure_id@version and closure_id starts with package_id.)
+        c.execute(
+            "MATCH (cl:Closure) WHERE starts_with(cl.closure_vid, $prefix) DETACH DELETE cl",
+            {"prefix": prefix},
+        )
+        # Delete resources (resource_id starts with "package_id.")
+        c.execute(
+            "MATCH (r:Resource) WHERE starts_with(r.resource_id, $prefix) DETACH DELETE r",
+            {"prefix": prefix},
+        )
+
     # ── Write ──
 
     async def write_topology(self, closures: list[Closure], chains: list[Chain]) -> None:

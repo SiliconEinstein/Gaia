@@ -15,28 +15,45 @@ app = typer.Typer(
 )
 
 
+def _load_with_deps(pkg_path: Path):
+    """Load a package and recursively resolve its declared dependencies."""
+    from libs.lang.loader import load_package
+    from libs.lang.resolver import resolve_refs
+
+    pkg = load_package(pkg_path)
+
+    deps: dict[str, object] = {}
+    for dep in pkg.dependencies:
+        dep_path = pkg_path.parent / dep.package
+        if not dep_path.exists():
+            typer.echo(f"Error: dependency '{dep.package}' not found at {dep_path}", err=True)
+            raise typer.Exit(1)
+        deps[dep.package] = _load_with_deps(dep_path)
+
+    return resolve_refs(pkg, deps=deps or None)
+
+
 @app.command()
 def build(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
 ) -> None:
     """Elaborate: parse + resolve + instantiate params."""
+    from cli.manifest import save_manifest
     from libs.lang.build_store import save_build
     from libs.lang.elaborator import elaborate_package
-    from libs.lang.loader import load_package
-    from libs.lang.resolver import resolve_refs
 
     pkg_path = Path(path)
     try:
-        pkg = load_package(pkg_path)
+        pkg = _load_with_deps(pkg_path)
     except FileNotFoundError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
 
-    pkg = resolve_refs(pkg)
     elaborated = elaborate_package(pkg)
 
     build_dir = pkg_path / ".gaia" / "build"
     save_build(elaborated, build_dir)
+    save_manifest(pkg, build_dir, pkg_path=pkg_path)
 
     n_mods = len(pkg.loaded_modules)
     n_prompts = len(elaborated.prompts)
@@ -49,68 +66,60 @@ def review(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     mock: bool = typer.Option(False, "--mock", help="Use mock reviewer (no LLM calls)"),
     model: str = typer.Option("claude-sonnet-4-20250514", "--model", help="LLM model for review"),
-    concurrency: int = typer.Option(5, "--concurrency", "-j", help="Max parallel reviews"),
 ) -> None:
     """LLM reviews chains -> sidecar report (.gaia/reviews/)."""
     from datetime import datetime, timezone
 
     from cli.llm_client import MockReviewClient, ReviewClient
+    from cli.manifest import deserialize_package
     from cli.review_store import write_review
-    from libs.lang.loader import load_package
 
     pkg_path = Path(path)
     build_dir = pkg_path / ".gaia" / "build"
     reviews_dir = pkg_path / ".gaia" / "reviews"
 
-    # 1. Check build exists — look for .md files
-    md_files = sorted(build_dir.glob("*.md")) if build_dir.exists() else []
-    if not md_files:
+    # 1. Check build exists — require package.md
+    package_md = build_dir / "package.md"
+    if not package_md.exists():
         typer.echo(f"Error: no build artifacts.\nRun 'gaia build {path}' first.", err=True)
         raise typer.Exit(1)
 
-    # 2. Parse chain sections from all .md files
-    import re
+    md_content = package_md.read_text()
 
-    chain_header_re = re.compile(r"^## (\w+) \(\w+\)$", re.MULTILINE)
-    all_chain_data = []
-    for md_file in md_files:
-        content = md_file.read_text()
-        # Find all valid chain header positions
-        matches = list(chain_header_re.finditer(content))
-        for j, m in enumerate(matches):
-            chain_name = m.group(1)
-            start = m.start()
-            end = matches[j + 1].start() if j + 1 < len(matches) else len(content)
-            chain_section = content[start:end].strip()
-            all_chain_data.append(
-                {
-                    "name": chain_name,
-                    "markdown": chain_section,
-                }
-            )
+    # 2. Load package metadata from manifest
+    manifest_path = build_dir / "manifest.json"
+    if manifest_path.exists():
+        pkg = deserialize_package(manifest_path)
+    else:
+        from libs.lang.loader import load_package
 
-    # 3. Load package for metadata + compute fingerprint
-    pkg = load_package(pkg_path)
+        pkg = load_package(pkg_path)
+
     fingerprint = _compute_source_fingerprint(pkg_path)
 
-    # 4. Create reviewer
+    # 3. Create reviewer
     client = MockReviewClient() if mock else ReviewClient(model=model)
 
-    # 5. Review chains in parallel
-    chain_reviews = asyncio.run(_review_chains_parallel(client, all_chain_data, concurrency))
+    # 4. Review entire package in one call
+    typer.echo(f"Reviewing {pkg.name}...")
+    if mock:
+        result = client.review_package({"package": pkg.name, "markdown": md_content})
+    else:
+        result = asyncio.run(client.areview_package({"package": pkg.name, "markdown": md_content}))
 
-    # 6. Write sidecar
+    # 5. Write sidecar
     now = datetime.now(timezone.utc)
     review_data = {
         "package": pkg.name,
         "model": "mock" if mock else model,
         "timestamp": now.isoformat(),
         "source_fingerprint": fingerprint,
-        "chains": chain_reviews,
+        "summary": result.get("summary", ""),
+        "chains": result.get("chains", []),
     }
     review_path = write_review(review_data, reviews_dir)
 
-    n_chains = len(chain_reviews)
+    n_chains = len(review_data["chains"])
     typer.echo(f"Reviewed {n_chains} chains for {pkg.name}")
     typer.echo(f"Report: {review_path}")
 
@@ -125,57 +134,48 @@ def _compute_source_fingerprint(pkg_path: Path) -> str:
     return h.hexdigest()[:16]
 
 
-async def _review_chains_parallel(
-    client: "ReviewClient | MockReviewClient",  # noqa: F821
-    chain_data_list: list[dict],
-    concurrency: int,
-) -> list[dict]:
-    """Review chains concurrently with bounded parallelism."""
-    semaphore = asyncio.Semaphore(concurrency)
-    total = len(chain_data_list)
-    results: list[dict] = [{}] * total
-    started = 0
-
-    async def review_one(index: int, chain_data: dict) -> None:
-        nonlocal started
-        async with semaphore:
-            started += 1
-            typer.echo(f"  [{started}/{total}] Reviewing {chain_data['name']}...")
-            results[index] = await client.areview_chain(chain_data)
-
-    await asyncio.gather(*(review_one(i, cd) for i, cd in enumerate(chain_data_list)))
-    return results
-
-
 @app.command()
 def infer(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     review_file: str | None = typer.Option(None, "--review", help="Path to review sidecar file"),
 ) -> None:
     """Compile a factor graph (from review) and run BP to compute beliefs."""
+    import uuid
+
+    from cli.infer_store import save_infer_result
+    from cli.manifest import deserialize_package
     from cli.review_store import find_latest_review, merge_review, read_review
-    from libs.lang.compiler import compile_factor_graph
-    from libs.lang.loader import load_package
-    from libs.lang.resolver import resolve_refs
     from libs.inference.bp import BeliefPropagation
     from libs.inference.factor_graph import FactorGraph
+    from libs.lang.compiler import compile_factor_graph
 
     pkg_path = Path(path)
     build_dir = pkg_path / ".gaia" / "build"
     reviews_dir = pkg_path / ".gaia" / "reviews"
+    infer_dir = pkg_path / ".gaia" / "infer"
 
     # 1. Check build exists
     if not build_dir.exists():
         typer.echo(f"Error: no build artifacts found.\nRun 'gaia build {path}' first.", err=True)
         raise typer.Exit(1)
 
-    # 2. Read review file
+    # 2. Load package from manifest.json (falls back to source YAML)
+    manifest_path = build_dir / "manifest.json"
+    if manifest_path.exists():
+        pkg = deserialize_package(manifest_path)
+    else:
+        pkg = _load_with_deps(pkg_path)
+
+    # 3. Read review file
+    resolved_review_file: str | None = None
     try:
         if review_file:
             review = read_review(Path(review_file))
+            resolved_review_file = review_file
         else:
             latest = find_latest_review(reviews_dir)
             review = read_review(latest)
+            resolved_review_file = str(latest)
     except FileNotFoundError:
         typer.echo(
             f"Error: no review file found.\n"
@@ -184,16 +184,14 @@ def infer(
         )
         raise typer.Exit(1)
 
-    # 3. Load package from source YAML, resolve refs, merge review
-    pkg = load_package(pkg_path)
-    pkg = resolve_refs(pkg)
+    # 4. Merge review into package
     fp = _compute_source_fingerprint(pkg_path)
     pkg = merge_review(pkg, review, source_fingerprint=fp)
 
-    # 4. Compile factor graph
+    # 5. Compile factor graph
     compiled_fg = compile_factor_graph(pkg)
 
-    # 5. Convert to inference engine FactorGraph and run BP
+    # 6. Convert to inference engine FactorGraph and run BP
     bp_fg = FactorGraph()
     name_to_id: dict[str, int] = {}
     for i, (name, prior) in enumerate(compiled_fg.variables.items()):
@@ -215,10 +213,27 @@ def infer(
     bp = BeliefPropagation()
     beliefs = bp.run(bp_fg)
 
-    # 6. Map back to names and output
+    # 7. Map back to names
     id_to_name = {v: k for k, v in name_to_id.items()}
     named_beliefs = {id_to_name[nid]: belief for nid, belief in beliefs.items()}
 
+    # 8. Save infer_result.json
+    bp_run_id = str(uuid.uuid4())
+    variables_out = {
+        name: {"prior": compiled_fg.variables[name], "belief": named_beliefs.get(name)}
+        for name in compiled_fg.variables
+    }
+    save_infer_result(
+        pkg_name=pkg.name,
+        variables=variables_out,
+        factors=compiled_fg.factors,
+        bp_run_id=bp_run_id,
+        review_file=resolved_review_file,
+        source_fingerprint=fp,
+        infer_dir=infer_dir,
+    )
+
+    # 9. Print results
     typer.echo(f"Package: {pkg.name}")
     typer.echo(f"Variables: {len(compiled_fg.variables)}")
     typer.echo(f"Factors: {len(compiled_fg.factors)}")
@@ -227,6 +242,7 @@ def infer(
     for name, belief in sorted(named_beliefs.items()):
         prior = compiled_fg.variables.get(name, "?")
         typer.echo(f"  {name}: prior={prior} -> belief={belief:.4f}")
+    typer.echo(f"\nResults: {infer_dir / 'infer_result.json'}")
 
 
 @app.command()
@@ -277,145 +293,106 @@ def publish(
 
 
 async def _publish_local(pkg_path: Path, db_path: str) -> None:
-    """Run full pipeline and triple-write to LanceDB + Kuzu."""
-    from cli.lang_to_storage import convert_package_to_storage
-    from cli.review_store import find_latest_review, merge_review, read_review
-    from libs.lang.compiler import compile_factor_graph
-    from libs.lang.loader import load_package
-    from libs.lang.resolver import resolve_refs
-    from libs.inference.bp import BeliefPropagation
-    from libs.inference.factor_graph import FactorGraph
-    from libs.storage.config import StorageConfig
-    from libs.storage.manager import StorageManager
+    """Convert artifacts to v2 models and write to LanceDB + Kuzu."""
+    from cli.infer_store import load_infer_result
+    from cli.lang_to_v2 import convert_to_v2
+    from cli.manifest import deserialize_package
+    from cli.review_store import find_latest_review, read_review
+    from libs.storage_v2.kuzu_graph_store import KuzuGraphStore
+    from libs.storage_v2.lance_content_store import LanceContentStore
 
     build_dir = pkg_path / ".gaia" / "build"
     reviews_dir = pkg_path / ".gaia" / "reviews"
+    infer_dir = pkg_path / ".gaia" / "infer"
+    publish_dir = pkg_path / ".gaia" / "publish"
 
-    # 1. Check build exists
-    if not build_dir.exists():
-        typer.echo(
-            f"Error: no build artifacts found.\nRun 'gaia build {pkg_path}' first.",
-            err=True,
-        )
+    # 1. Read artifacts
+    manifest_path = build_dir / "manifest.json"
+    infer_path = infer_dir / "infer_result.json"
+
+    if not manifest_path.exists():
+        typer.echo("Error: no manifest.json. Run 'gaia build' first.", err=True)
+        raise typer.Exit(1)
+    if not infer_path.exists():
+        typer.echo("Error: no infer_result.json. Run 'gaia infer' first.", err=True)
         raise typer.Exit(1)
 
-    # 2. Read review file
+    pkg = deserialize_package(manifest_path)
+    infer_result = load_infer_result(infer_path)
+
     try:
-        latest = find_latest_review(reviews_dir)
-        review = read_review(latest)
+        review = read_review(find_latest_review(reviews_dir))
     except FileNotFoundError:
-        typer.echo(
-            f"Error: no review file found.\nRun 'gaia review {pkg_path}' first.",
-            err=True,
-        )
+        typer.echo("Error: no review file. Run 'gaia review' first.", err=True)
         raise typer.Exit(1)
 
-    # 3. Load package, resolve refs, merge review
-    pkg = load_package(pkg_path)
-    pkg = resolve_refs(pkg)
-    fp = _compute_source_fingerprint(pkg_path)
-    pkg = merge_review(pkg, review, source_fingerprint=fp)
+    # 2. Extract beliefs from infer result
+    beliefs = {
+        name: var_data["belief"]
+        for name, var_data in infer_result["variables"].items()
+        if var_data.get("belief") is not None
+    }
 
-    # 4. Compile factor graph and run BP
-    compiled_fg = compile_factor_graph(pkg)
-
-    bp_fg = FactorGraph()
-    name_to_id: dict[str, int] = {}
-    for i, (name, prior) in enumerate(compiled_fg.variables.items()):
-        node_id = i + 1
-        name_to_id[name] = node_id
-        bp_fg.add_variable(node_id, prior)
-
-    for j, factor in enumerate(compiled_fg.factors):
-        premise_ids = [name_to_id[n] for n in factor["premises"] if n in name_to_id]
-        conclusion_ids = [name_to_id[n] for n in factor["conclusions"] if n in name_to_id]
-        bp_fg.add_factor(
-            edge_id=j + 1,
-            premises=premise_ids,
-            conclusions=conclusion_ids,
-            probability=factor["probability"],
-            edge_type=factor.get("edge_type", "deduction"),
-        )
-
-    bp = BeliefPropagation()
-    beliefs = bp.run(bp_fg)
-
-    # 5. Map beliefs back to names
-    id_to_name = {v: k for k, v in name_to_id.items()}
-    named_beliefs = {id_to_name[nid]: belief for nid, belief in beliefs.items()}
-
-    # 6. Convert to storage models
-    storage_result = convert_package_to_storage(pkg, compiled_fg, named_beliefs)
-
-    # 7. Initialize StorageManager with Kuzu backend
-    config = StorageConfig(
-        lancedb_path=db_path,
-        graph_backend="kuzu",
-        deployment_mode="local",
+    # 3. Convert to v2 models
+    data = convert_to_v2(
+        pkg=pkg,
+        review=review,
+        beliefs=beliefs,
+        bp_run_id=infer_result.get("bp_run_id", "unknown"),
     )
-    storage = StorageManager(config)
 
-    try:
-        # 8. Delete existing data for idempotent re-publish
-        node_ids = [n.id for n in storage_result.nodes]
-        edge_ids = [e.id for e in storage_result.edges]
-        if node_ids:
-            table = storage.lance._get_or_create_table()
-            id_list = ", ".join(str(i) for i in node_ids)
-            try:
-                table.delete(f"id IN ({id_list})")
-            except Exception:
-                pass  # Table may be empty or IDs don't exist yet
-        if edge_ids and storage.graph:
-            for eid in edge_ids:
-                storage.graph._conn.execute(
-                    "MATCH (h:Hyperedge {id: $eid}) DETACH DELETE h", {"eid": eid}
-                )
+    # 4. Initialize v2 stores
+    content = LanceContentStore(db_path)
+    await content.initialize()
+    graph = KuzuGraphStore(f"{db_path}/kuzu")
+    await graph.initialize_schema()
 
-        # 9. Triple-write: LanceDB nodes
-        saved_ids = await storage.lance.save_nodes(storage_result.nodes)
+    # 5. Idempotent cleanup
+    await content.delete_package(data.package.package_id)
+    await graph.delete_package(data.package.package_id)
 
-        # 10. Kuzu edges
-        edge_ids: list[int] = []
-        if storage.graph and storage_result.edges:
-            edge_ids = await storage.graph.create_hyperedges_bulk(storage_result.edges)
+    # 6. Write to LanceDB
+    await content.write_closures(data.closures)
+    await content.write_chains(data.chains)
+    await content.write_package(data.package, data.modules)
+    if data.probabilities:
+        await content.write_probabilities(data.probabilities)
+    if data.belief_snapshots:
+        await content.write_belief_snapshots(data.belief_snapshots)
 
-        # 11. Embeddings (optional — requires OPENAI_API_KEY)
-        n_embeddings = 0
-        try:
-            import litellm
+    # 7. Write to Kuzu
+    await graph.write_topology(data.closures, data.chains)
+    if data.belief_snapshots:
+        await graph.update_beliefs(data.belief_snapshots)
 
-            # Build (node_id, content) pairs, skipping empty content
-            pairs = []
-            for n in storage_result.nodes:
-                c = n.content if isinstance(n.content, str) else str(n.content)
-                c = c.strip()
-                if c:
-                    pairs.append((n.id, c))
+    # 8. Write receipt
+    import json
+    from datetime import datetime, timezone
 
-            if pairs:
-                emb_ids, emb_texts = zip(*pairs)
-                response = litellm.embedding(model="text-embedding-3-small", input=list(emb_texts))
-                embeddings = [d["embedding"] for d in response.data]
-                await storage.vector.insert_batch(list(emb_ids), embeddings)
-                n_embeddings = len(embeddings)
-        except Exception as e:
-            typer.echo(f"  Skipped embeddings: {e}")
+    publish_dir.mkdir(parents=True, exist_ok=True)
+    receipt = {
+        "version": 1,
+        "package_id": data.package.package_id,
+        "published_at": datetime.now(timezone.utc).isoformat(),
+        "db_path": db_path,
+        "stats": {
+            "closures": len(data.closures),
+            "chains": len(data.chains),
+            "probabilities": len(data.probabilities),
+            "belief_snapshots": len(data.belief_snapshots),
+        },
+        "closure_ids": [c.closure_id for c in data.closures],
+        "chain_ids": [ch.chain_id for ch in data.chains],
+    }
+    (publish_dir / "receipt.json").write_text(json.dumps(receipt, ensure_ascii=False, indent=2))
 
-        # 12. Write beliefs back to LanceDB
-        belief_map = {n.id: n.belief for n in storage_result.nodes if n.belief is not None}
-        if belief_map:
-            await storage.lance.update_beliefs(belief_map)
+    typer.echo(
+        f"Published {pkg.name} to v2 storage:\n"
+        f"  Closures: {len(data.closures)} written to LanceDB ({db_path})\n"
+        f"  Chains: {len(data.chains)} written to LanceDB + Kuzu"
+    )
 
-        emb_str = f"\n  Embeddings: {n_embeddings} written" if n_embeddings else ""
-        typer.echo(
-            f"Published {pkg.name} to local databases:\n"
-            f"  Nodes: {len(saved_ids)} written to LanceDB ({db_path})\n"
-            f"  Edges: {len(edge_ids)} written to Kuzu ({db_path}/kuzu)"
-            f"{emb_str}"
-        )
-    finally:
-        await storage.close()
+    await graph.close()
 
 
 @app.command("init")
@@ -538,102 +515,127 @@ def search(
         help="LanceDB path (default: GAIA_LANCEDB_PATH or ./data/lancedb/gaia)",
     ),
     limit: int = typer.Option(10, "--limit", "-k", help="Max results"),
-    node_id: int = typer.Option(None, "--id", help="Look up a node by ID"),
+    closure_id: str = typer.Option(None, "--id", help="Look up a closure by ID"),
 ) -> None:
-    """Search published nodes in local LanceDB."""
+    """Search published closures in local LanceDB (v2 storage)."""
     import asyncio
     import os
 
-    if query is None and node_id is None:
-        typer.echo("Error: provide either a QUERY or --id <id>", err=True)
+    if query is None and closure_id is None:
+        typer.echo("Error: provide either a QUERY or --id <closure_id>", err=True)
         raise typer.Exit(1)
 
     if db_path is None:
         db_path = os.environ.get("GAIA_LANCEDB_PATH", "./data/lancedb/gaia")
 
-    if node_id is not None:
-        asyncio.run(_lookup_node(node_id, db_path))
+    if closure_id is not None:
+        asyncio.run(_lookup_closure(closure_id, db_path))
     else:
-        asyncio.run(_search_db(query, db_path, limit))
+        asyncio.run(_search_closures(query, db_path, limit))
 
 
-async def _lookup_node(node_id: int, db_path: str) -> None:
-    """Look up a single node by ID."""
-    from libs.storage.lance_store import LanceStore
+async def _lookup_closure(closure_id: str, db_path: str) -> None:
+    """Look up a single closure by ID, including latest belief if available."""
+    from libs.storage_v2.lance_content_store import LanceContentStore
 
-    store = LanceStore(db_path)
-    try:
-        nodes = await store.load_nodes_bulk([node_id])
-        if not nodes:
-            typer.echo(f"Node {node_id} not found.")
-            return
-        n = nodes[0]
-        typer.echo(f"[{n.id}] {n.title or '?'} ({n.type})")
-        typer.echo(f"  prior: {n.prior}  belief: {n.belief}")
-        content = n.content if isinstance(n.content, str) else str(n.content)
-        if content.strip():
-            typer.echo(f"  content: {content.strip()}")
-        if n.keywords:
-            typer.echo(f"  keywords: {', '.join(n.keywords)}")
-    finally:
-        await store.close()
+    store = LanceContentStore(db_path)
+    await store.initialize()
+    closure = await store.get_closure(closure_id)
+    if closure is None:
+        typer.echo(f"Closure '{closure_id}' not found.")
+        return
+
+    # Try to get belief from belief_history
+    belief = None
+    snapshots = await store.get_belief_history(closure_id)
+    if snapshots:
+        belief = snapshots[-1].belief
+
+    belief_str = f"  belief: {belief:.4f}" if belief is not None else ""
+    typer.echo(f"[{closure.closure_id}] ({closure.type})")
+    typer.echo(f"  prior: {closure.prior}{belief_str}")
+    content = closure.content.strip()
+    if content:
+        typer.echo(f"  content: {content}")
+    if closure.keywords:
+        typer.echo(f"  keywords: {', '.join(closure.keywords)}")
 
 
-async def _search_db(query: str, db_path: str, limit: int) -> None:
-    """Full-text search over published nodes in LanceDB.
+async def _search_closures(query: str, db_path: str, limit: int) -> None:
+    """Full-text BM25 search over published closures in LanceDB v2.
 
     Uses FTS index first; falls back to SQL LIKE filter for queries the
     default tokenizer cannot handle (e.g. CJK text without spaces).
     """
-    from libs.storage.lance_store import LanceStore
+    from libs.storage_v2.lance_content_store import LanceContentStore
 
-    store = LanceStore(db_path)
-    try:
-        # Try FTS index first (works well for Latin-script text)
-        fts_results = await store.fts_search(query, k=limit)
-        if fts_results:
-            node_ids = [nid for nid, _ in fts_results]
-            nodes = await store.load_nodes_bulk(node_ids)
-            scores = {nid: score for nid, score in fts_results}
-        else:
-            # Fallback: SQL LIKE filter for CJK / unsegmented text
-            nodes = await _content_like_search(store, query, limit)
-            scores = {}
+    store = LanceContentStore(db_path)
+    await store.initialize()
 
-        if not nodes:
-            typer.echo("No results found.")
-            return
+    # Try BM25 FTS search first (works well for Latin-script text)
+    scored_closures = await store.search_bm25(query, top_k=limit)
 
-        for node in nodes:
-            score = scores.get(node.id, 0)
-            belief_str = f" belief={node.belief:.4f}" if node.belief else ""
-            score_str = f"  score={score:.3f}" if score else ""
+    if scored_closures:
+        # Get belief snapshots for all matched closures
+        belief_map: dict[str, float] = {}
+        for sc in scored_closures:
+            snapshots = await store.get_belief_history(sc.closure.closure_id)
+            if snapshots:
+                belief_map[sc.closure.closure_id] = snapshots[-1].belief
+
+        for sc in scored_closures:
+            belief = belief_map.get(sc.closure.closure_id)
+            belief_str = f" belief={belief:.4f}" if belief is not None else ""
             typer.echo(
-                f"  [{node.id}] {node.title or '?'} ({node.type}) "
-                f"prior={node.prior}{belief_str}{score_str}"
+                f"  [{sc.closure.closure_id}] ({sc.closure.type}) "
+                f"prior={sc.closure.prior}{belief_str}  score={sc.score:.3f}"
             )
-            content = node.content if isinstance(node.content, str) else str(node.content)
-            if content.strip():
-                snippet = content.strip()[:100]
+            content = sc.closure.content.strip()
+            if content:
+                snippet = content[:100]
                 typer.echo(f"    {snippet}...")
-    finally:
-        await store.close()
+        return
+
+    # Fallback: SQL LIKE filter for CJK / unsegmented text
+    results = await _content_like_search_v2(store, query, limit)
+    if not results:
+        typer.echo("No results found.")
+        return
+
+    # Get belief snapshots for fallback results
+    belief_map_fb: dict[str, float] = {}
+    for closure in results:
+        snapshots = await store.get_belief_history(closure.closure_id)
+        if snapshots:
+            belief_map_fb[closure.closure_id] = snapshots[-1].belief
+
+    for closure in results:
+        belief = belief_map_fb.get(closure.closure_id)
+        belief_str = f" belief={belief:.4f}" if belief is not None else ""
+        typer.echo(f"  [{closure.closure_id}] ({closure.type}) prior={closure.prior}{belief_str}")
+        content = closure.content.strip()
+        if content:
+            snippet = content[:100]
+            typer.echo(f"    {snippet}...")
 
 
-async def _content_like_search(
-    store: "LanceStore",  # noqa: F821
+async def _content_like_search_v2(
+    store: "LanceContentStore",  # noqa: F821
     query: str,
     limit: int,
 ) -> list:
-    """Fallback substring search using SQL LIKE on the content column."""
-    from libs.storage.lance_store import _row_to_node
+    """Fallback substring search using SQL LIKE on the closures content column."""
+    from libs.storage_v2.lance_content_store import _row_to_closure
 
-    table = store._get_or_create_table()
+    try:
+        table = store._db.open_table("closures")
+    except Exception:
+        return []
     if table.count_rows() == 0:
         return []
     escaped = query.replace("'", "''")
     rows = table.search().where(f"content LIKE '%{escaped}%'").limit(limit).to_list()
-    return [_row_to_node(r) for r in rows]
+    return [_row_to_closure(r) for r in rows]
 
 
 @app.command()

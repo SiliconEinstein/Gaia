@@ -40,10 +40,10 @@ class GaiaRuntime:
     def __init__(self, executor: ActionExecutor | None = None):
         self._executor = executor
 
-    async def load(self, path: Path | str) -> RuntimeResult:
+    async def load(self, path: Path | str, deps: dict[str, Package] | None = None) -> RuntimeResult:
         """Load and validate a package (no execution or inference)."""
         pkg = load_package(Path(path))
-        pkg = resolve_refs(pkg)
+        pkg = resolve_refs(pkg, deps=deps)
         return RuntimeResult(package=pkg)
 
     async def execute(self, result: RuntimeResult) -> RuntimeResult:
@@ -105,9 +105,9 @@ class GaiaRuntime:
 
         return result
 
-    async def run(self, path: Path | str) -> RuntimeResult:
+    async def run(self, path: Path | str, deps: dict[str, Package] | None = None) -> RuntimeResult:
         """Full pipeline: Load -> Execute -> Infer."""
-        result = await self.load(path)
+        result = await self.load(path, deps=deps)
         await self.execute(result)
         await self.infer(result)
         return result

@@ -2,6 +2,7 @@
 
 type: motivation_module
 name: motivation
+title: "研究动机 — 为什么需要力学定律"
 
 knowledge:
   - type: question

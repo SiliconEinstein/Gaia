@@ -2,6 +2,7 @@
 
 type: reasoning_module
 name: aristotle
+title: "亚里士多德学说 — 即将被挑战的先验知识"
 
 knowledge:
   - type: claim

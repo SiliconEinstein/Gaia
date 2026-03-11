@@ -9,9 +9,10 @@ from libs.lang.models import (
     Ref,
 )
 
-FIXTURE_DIR = (
+GALILEO_DIR = (
     Path(__file__).parents[2] / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies"
 )
+FIXTURE_DIR = GALILEO_DIR  # backward compat alias
 
 
 def test_load_package_metadata():
@@ -248,3 +249,11 @@ def test_load_package_with_dependencies(tmp_path):
     assert pkg.dependencies[0].version == ">=1.0.0"
     assert pkg.dependencies[1].package == "math_utils"
     assert pkg.dependencies[1].version is None
+
+
+def test_module_title_loaded():
+    """Module title field should be loaded from YAML."""
+    pkg = load_package(GALILEO_DIR)
+    aristotle = next(m for m in pkg.loaded_modules if m.name == "aristotle")
+    assert aristotle.title is not None
+    assert "亚里士多德" in aristotle.title

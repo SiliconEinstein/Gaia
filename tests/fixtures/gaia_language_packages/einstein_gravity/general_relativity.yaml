@@ -2,6 +2,7 @@
 
 type: reasoning_module
 name: general_relativity
+title: "广义相对论 — 1915 场方程、光线偏折预测、与牛顿的关系"
 
 knowledge:
   # === 引用 ===

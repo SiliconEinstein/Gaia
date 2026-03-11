@@ -7,6 +7,7 @@
 
 type: reasoning_module
 name: reasoning
+title: "核心推理 — 伽利略的论证"
 
 knowledge:
   # === 引用外部知识 ===

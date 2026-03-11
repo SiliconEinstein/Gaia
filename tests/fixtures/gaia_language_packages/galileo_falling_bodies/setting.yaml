@@ -2,6 +2,7 @@
 
 type: setting_module
 name: setting
+title: "背景与假设"
 
 knowledge:
   - type: setting

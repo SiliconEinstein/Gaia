@@ -21,6 +21,12 @@ class GraphStore(ABC):
     async def initialize_schema(self) -> None:
         """Create indexes, constraints, and node labels."""
 
+    # ── Delete ──
+
+    @abstractmethod
+    async def delete_package(self, package_id: str) -> None:
+        """Delete all nodes and relationships belonging to a package."""
+
     # ── Write ──
 
     @abstractmethod

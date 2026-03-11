@@ -3,6 +3,7 @@
 
 type: reasoning_module
 name: observation
+title: "观测验证 — Eddington 1919 日食与 Apollo 15 月面实验"
 
 knowledge:
   # === 引用 ===

@@ -2,6 +2,7 @@
 
 type: reasoning_module
 name: laws
+title: "牛顿定律 — 力学基本定律"
 
 knowledge:
   # === 牛顿三大运动定律 ===

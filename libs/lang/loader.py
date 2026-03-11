@@ -51,6 +51,7 @@ def _parse_module(data: dict) -> Module:
     return Module(
         type=data["type"],
         name=data["name"],
+        title=data.get("title"),
         knowledge=knowledge,
         export=data.get("export", []),
     )

@@ -24,6 +24,12 @@ class ContentStore(ABC):
     async def initialize(self) -> None:
         """Create or verify all required tables/schemas."""
 
+    # ── Delete ──
+
+    @abstractmethod
+    async def delete_package(self, package_id: str) -> None:
+        """Delete all data belonging to a package (idempotent re-publish)."""
+
     # ── Write ──
 
     @abstractmethod

@@ -205,6 +205,43 @@ class TestResources:
         assert result[0].size_bytes == 0
 
 
+class TestDeletePackage:
+    async def test_delete_package_removes_all_data(self, content_store, closures, chains):
+        """delete_package should remove closures, chains, and related records."""
+        await content_store.write_closures(closures)
+        await content_store.write_chains(chains)
+
+        pkg_id = closures[0].source_package_id
+        await content_store.delete_package(pkg_id)
+
+        # All closures gone
+        for c in closures:
+            assert await content_store.get_closure(c.closure_id) is None
+
+        # All chains gone
+        result = await content_store.get_chains_by_module(chains[0].module_id)
+        assert len(result) == 0
+
+    async def test_delete_package_removes_packages_and_modules(
+        self, content_store, packages, modules, closures, chains
+    ):
+        """delete_package should also remove the package and module records."""
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_closures(closures)
+        await content_store.write_chains(chains)
+
+        pkg_id = packages[0].package_id
+        await content_store.delete_package(pkg_id)
+
+        assert await content_store.get_package(pkg_id) is None
+        for m in modules:
+            assert await content_store.get_module(m.module_id) is None
+
+    async def test_delete_package_is_idempotent(self, content_store):
+        """Deleting a non-existent package should not raise."""
+        await content_store.delete_package("nonexistent_pkg")  # should not raise
+
+
 class TestBM25Search:
     async def test_search_finds_relevant_closure(self, content_store, closures):
         await content_store.write_closures(closures)

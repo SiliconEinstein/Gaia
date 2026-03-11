@@ -1,99 +1,117 @@
-"""LLM client for chain review."""
+"""LLM client for package review."""
 
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 
 class ReviewClient:
-    """LLM-based chain reviewer using litellm."""
+    """LLM-based package reviewer using litellm."""
 
     def __init__(self, model: str = "claude-sonnet-4-20250514"):
         self._model = model
+        self._system_prompt = self._load_system_prompt()
 
-    def review_chain(self, chain_data: dict) -> dict:
-        """Review a single chain and return assessment."""
+    def _load_system_prompt(self) -> str:
+        prompt_path = Path(__file__).parent / "prompts" / "review_system.md"
+        return prompt_path.read_text()
+
+    def review_package(self, package_data: dict) -> dict:
+        """Review entire package in one LLM call."""
         import litellm
 
-        prompt = self._build_prompt(chain_data)
+        md = package_data.get("markdown", "")
         response = litellm.completion(
             model=self._model,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": self._system_prompt},
+                {"role": "user", "content": f"Review the following knowledge package:\n\n{md}"},
+            ],
         )
-        return self._parse_response(chain_data, response.choices[0].message.content)
+        return self._parse_response(response.choices[0].message.content)
 
-    async def areview_chain(self, chain_data: dict) -> dict:
-        """Async review a single chain and return assessment."""
+    async def areview_package(self, package_data: dict) -> dict:
+        """Async version of review_package."""
         import litellm
 
-        prompt = self._build_prompt(chain_data)
+        md = package_data.get("markdown", "")
         response = await litellm.acompletion(
             model=self._model,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": self._system_prompt},
+                {"role": "user", "content": f"Review the following knowledge package:\n\n{md}"},
+            ],
         )
-        return self._parse_response(chain_data, response.choices[0].message.content)
+        return self._parse_response(response.choices[0].message.content)
 
-    def _build_prompt(self, chain_data: dict) -> str:
-        md = chain_data.get("markdown", "")
-        if md:
-            return (
-                f"Review this reasoning chain:\n\n{md}\n\n"
-                "For each step, assess whether the reasoning is logically valid.\n"
-                "For each dependency, decide if it is 'direct' (conclusion depends on it) "
-                "or 'indirect' (conclusion may still hold without it).\n\n"
-                "Reply with ONLY a YAML document (no markdown fences, no extra text) "
-                "in this exact format:\n\n"
-                "steps:\n"
-                "  - step: <number>\n"
-                "    assessment: valid  # or questionable\n"
-                "    suggested_prior: <float 0-1>\n"
-                "    rewrite: null\n"
-                "    dependencies:\n"
-                "      - ref: <arg_name>\n"
-                "        suggested: direct  # or indirect"
-            )
-        # Fallback for old-format chain_data (backward compat)
-        return f"Review: {chain_data.get('name', '?')}"
-
-    def _parse_response(self, chain_data: dict, response: str) -> dict:
-        """Parse LLM response into review dict. Falls back to passthrough on failure."""
+    def _parse_response(self, response: str) -> dict:
+        """Parse LLM YAML response."""
         import yaml
 
         try:
             parsed = yaml.safe_load(response)
-            if isinstance(parsed, dict) and "steps" in parsed:
-                parsed["chain"] = chain_data["name"]
+            if isinstance(parsed, dict) and "chains" in parsed:
                 return parsed
         except Exception:
             pass
+        return {"summary": "Parse error — falling back to defaults.", "chains": []}
 
+    # Backward compat
+    def review_chain(self, chain_data: dict) -> dict:
+        """Review a single chain (backward compat — delegates to MockReviewClient)."""
+        return MockReviewClient().review_chain(chain_data)
+
+    async def areview_chain(self, chain_data: dict) -> dict:
+        """Async review a single chain (backward compat)."""
         return MockReviewClient().review_chain(chain_data)
 
 
 class MockReviewClient:
     """Mock reviewer that parses step info from Markdown (no LLM calls)."""
 
+    _STEP_RE = re.compile(r"\*\*\[step:([\w.]+\.(\d+))\]\*\*\s*\(prior=([\d.]+)\)")
+
+    def review_package(self, package_data: dict) -> dict:
+        """Parse all chains from package markdown."""
+        md = package_data.get("markdown", "")
+        chains = self._extract_chains(md)
+        return {
+            "summary": "Mock review — all steps accepted at author priors.",
+            "chains": chains,
+        }
+
+    async def areview_package(self, package_data: dict) -> dict:
+        """Async version — delegates to sync (no I/O)."""
+        return self.review_package(package_data)
+
+    def review_chain(self, chain_data: dict) -> dict:
+        """Review a single chain (backward compat)."""
+        md = chain_data.get("markdown", "")
+        chains = self._extract_chains(md)
+        if chains:
+            return chains[0]
+        return {"chain": chain_data.get("name", "?"), "steps": []}
+
     async def areview_chain(self, chain_data: dict) -> dict:
         """Async version — delegates to sync (no I/O)."""
         return self.review_chain(chain_data)
 
-    def review_chain(self, chain_data: dict) -> dict:
-        """Return a review that preserves all existing values from Markdown."""
-        steps = []
-        md = chain_data.get("markdown", "")
-        for match in re.finditer(r"\*\*Step (\d+)", md):
-            step_num = int(match.group(1))
-            # Extract prior if present: (prior=0.93)
-            after = md[match.end() : match.end() + 50]
-            prior_match = re.search(r"prior=([\d.]+)", after)
-            prior = float(prior_match.group(1)) if prior_match else 0.9
-            steps.append(
+    def _extract_chains(self, md: str) -> list[dict]:
+        """Extract chain reviews from markdown using [step:] anchors."""
+        chain_steps: dict[str, list[dict]] = {}
+        for match in self._STEP_RE.finditer(md):
+            full_id = match.group(1)  # e.g. "synthesis_chain.2"
+            prior = float(match.group(3))  # e.g. 0.94
+            chain_name = full_id.rsplit(".", 1)[0]  # e.g. "synthesis_chain"
+
+            chain_steps.setdefault(chain_name, []).append(
                 {
-                    "step": step_num,
-                    "assessment": "valid",
-                    "suggested_prior": prior,
-                    "rewrite": None,
-                    "dependencies": [],
+                    "step": full_id,
+                    "weak_points": [],
+                    "conditional_prior": prior,
+                    "explanation": "",
                 }
             )
-        return {"chain": chain_data["name"], "steps": steps}
+
+        return [{"chain": name, "steps": steps} for name, steps in chain_steps.items()]
