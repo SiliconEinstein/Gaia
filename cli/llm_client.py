@@ -169,9 +169,9 @@ class ReviewClient:
         normalized = []
         for chain_name, steps in grouped.items():
             steps.sort(
-                key=lambda step: int(str(step["step"]).rsplit(".", 1)[1])
-                if "." in str(step["step"])
-                else 0
+                key=lambda step: (
+                    int(str(step["step"]).rsplit(".", 1)[1]) if "." in str(step["step"]) else 0
+                )
             )
             normalized.append({"chain": chain_name, "steps": steps})
         return normalized

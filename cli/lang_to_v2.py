@@ -191,10 +191,7 @@ def _is_closure_type(k: Knowledge) -> bool:
 
 def _build_module_decl_index(pkg: Package) -> dict[str, dict[str, Knowledge]]:
     """Index declarations by module and local name for ref provenance tracing."""
-    return {
-        mod.name: {decl.name: decl for decl in mod.knowledge}
-        for mod in pkg.loaded_modules
-    }
+    return {mod.name: {decl.name: decl for decl in mod.knowledge} for mod in pkg.loaded_modules}
 
 
 def _resolve_decl_origin(
