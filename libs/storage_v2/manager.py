@@ -7,7 +7,14 @@ import logging
 from libs.storage_v2.config import StorageConfig
 from libs.storage_v2.content_store import ContentStore
 from libs.storage_v2.graph_store import GraphStore
-from libs.storage_v2.models import Subgraph
+from libs.storage_v2.models import (
+    Chain,
+    Closure,
+    ClosureEmbedding,
+    Module,
+    Package,
+    Subgraph,
+)
 from libs.storage_v2.vector_store import VectorStore
 
 logger = logging.getLogger(__name__)
@@ -52,6 +59,48 @@ class StorageManager:
         """Release connections held by stores."""
         if self.graph_store is not None:
             await self.graph_store.close()
+
+    # ── Three-Write: ingest_package ──
+
+    async def ingest_package(
+        self,
+        package: Package,
+        modules: list[Module],
+        closures: list[Closure],
+        chains: list[Chain],
+        embeddings: list[ClosureEmbedding] | None = None,
+    ) -> None:
+        """Write a complete package to all stores with compensating rollback.
+
+        Write order: ContentStore → GraphStore → VectorStore.
+        On failure, previously-written stores are cleaned up via delete_package.
+        """
+        package_id = package.package_id
+
+        # Step 1: ContentStore (source of truth)
+        await self.content_store.write_package(package, modules)
+        await self.content_store.write_closures(closures)
+        await self.content_store.write_chains(chains)
+
+        # Step 2: GraphStore (optional)
+        if self.graph_store is not None:
+            try:
+                await self.graph_store.write_topology(closures, chains)
+            except Exception:
+                logger.error("GraphStore write failed; rolling back ContentStore")
+                await self.content_store.delete_package(package_id)
+                raise
+
+        # Step 3: VectorStore (optional)
+        if self.vector_store is not None and embeddings:
+            try:
+                await self.vector_store.write_embeddings(embeddings)
+            except Exception:
+                logger.error("VectorStore write failed; rolling back ContentStore + GraphStore")
+                if self.graph_store is not None:
+                    await self.graph_store.delete_package(package_id)
+                await self.content_store.delete_package(package_id)
+                raise
 
     # ── Read delegation (ContentStore) ──
 
