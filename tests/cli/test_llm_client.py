@@ -120,3 +120,46 @@ async def test_mock_areview_package():
     assert "summary" in result
     assert "chains" in result
     assert len(result["chains"]) == 1
+
+
+def test_review_client_parses_flat_step_map_response():
+    """Real-model flat YAML keyed by step ID should normalize into chain entries."""
+    client = ReviewClient(model="test")
+    raw = """
+summary: Overall package review.
+drag_prediction_chain.2:
+  weak_points:
+    - proposition: The tethered system must fall more slowly.
+      classification: direct
+  conditional_prior: 0.6
+verdict_chain.2:
+  weak_points:
+    - proposition: The contradiction really refutes the doctrine.
+      classification: direct
+  conditional_prior: 0.7
+"""
+    result = client._parse_response(raw)
+    assert result["summary"] == "Overall package review."
+    assert len(result["chains"]) == 2
+    by_name = {chain["chain"]: chain for chain in result["chains"]}
+    assert by_name["drag_prediction_chain"]["steps"][0]["step"] == "drag_prediction_chain.2"
+    assert by_name["drag_prediction_chain"]["steps"][0]["conditional_prior"] == 0.6
+    assert by_name["verdict_chain"]["steps"][0]["step"] == "verdict_chain.2"
+
+
+def test_review_client_parses_fenced_yaml():
+    """Responses wrapped in ```yaml fences should still be parsed."""
+    client = ReviewClient(model="test")
+    raw = """```yaml
+chains:
+  - chain: synthesis_chain
+    steps:
+      - step: synthesis_chain.2
+        conditional_prior: 0.85
+        weak_points: []
+        explanation: ok
+```"""
+    result = client._parse_response(raw)
+    assert len(result["chains"]) == 1
+    assert result["chains"][0]["chain"] == "synthesis_chain"
+    assert result["chains"][0]["steps"][0]["step"] == "synthesis_chain.2"
