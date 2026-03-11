@@ -8,11 +8,15 @@ from libs.storage_v2.config import StorageConfig
 from libs.storage_v2.content_store import ContentStore
 from libs.storage_v2.graph_store import GraphStore
 from libs.storage_v2.models import (
+    BeliefSnapshot,
     Chain,
     Closure,
     ClosureEmbedding,
     Module,
     Package,
+    ProbabilityRecord,
+    Resource,
+    ResourceAttachment,
     Subgraph,
 )
 from libs.storage_v2.vector_store import VectorStore
@@ -101,6 +105,29 @@ class StorageManager:
                     await self.graph_store.delete_package(package_id)
                 await self.content_store.delete_package(package_id)
                 raise
+
+    # ── Passthrough writes ──
+
+    async def add_probabilities(self, records: list[ProbabilityRecord]) -> None:
+        """Write probabilities to ContentStore + sync to GraphStore."""
+        await self.content_store.write_probabilities(records)
+        if self.graph_store is not None:
+            for r in records:
+                await self.graph_store.update_probability(r.chain_id, r.step_index, r.value)
+
+    async def write_beliefs(self, snapshots: list[BeliefSnapshot]) -> None:
+        """Write belief snapshots to ContentStore + sync to GraphStore."""
+        await self.content_store.write_belief_snapshots(snapshots)
+        if self.graph_store is not None:
+            await self.graph_store.update_beliefs(snapshots)
+
+    async def write_resources(
+        self, resources: list[Resource], attachments: list[ResourceAttachment]
+    ) -> None:
+        """Write resources to ContentStore + link in GraphStore."""
+        await self.content_store.write_resources(resources, attachments)
+        if self.graph_store is not None:
+            await self.graph_store.write_resource_links(attachments)
 
     # ── Read delegation (ContentStore) ──
 

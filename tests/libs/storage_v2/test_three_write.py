@@ -158,3 +158,61 @@ class TestIngestRollback:
         # Content should be rolled back
         p = await manager.content_store.get_package(pkg.package_id)
         assert p is None
+
+
+class TestPassthroughWrites:
+    async def test_add_probabilities(
+        self, manager, packages, modules, closures, chains, probabilities
+    ):
+        pkg = packages[0]
+        pkg_modules = [m for m in modules if m.package_id == pkg.package_id]
+        pkg_closures = [c for c in closures if c.source_package_id == pkg.package_id]
+        pkg_chains = [ch for ch in chains if ch.package_id == pkg.package_id]
+
+        await manager.ingest_package(
+            package=pkg, modules=pkg_modules, closures=pkg_closures, chains=pkg_chains
+        )
+
+        pkg_probs = [p for p in probabilities if p.chain_id in {ch.chain_id for ch in pkg_chains}]
+        if pkg_probs:
+            await manager.add_probabilities(pkg_probs)
+            history = await manager.content_store.get_probability_history(pkg_probs[0].chain_id)
+            assert len(history) > 0
+
+    async def test_write_beliefs(self, manager, packages, modules, closures, chains, beliefs):
+        pkg = packages[0]
+        pkg_modules = [m for m in modules if m.package_id == pkg.package_id]
+        pkg_closures = [c for c in closures if c.source_package_id == pkg.package_id]
+        pkg_chains = [ch for ch in chains if ch.package_id == pkg.package_id]
+
+        await manager.ingest_package(
+            package=pkg, modules=pkg_modules, closures=pkg_closures, chains=pkg_chains
+        )
+
+        pkg_beliefs = [b for b in beliefs if b.closure_id in {c.closure_id for c in pkg_closures}]
+        if pkg_beliefs:
+            await manager.write_beliefs(pkg_beliefs)
+            history = await manager.content_store.get_belief_history(pkg_beliefs[0].closure_id)
+            assert len(history) > 0
+
+    async def test_write_resources(
+        self, manager, packages, modules, closures, chains, resources, attachments
+    ):
+        pkg = packages[0]
+        pkg_modules = [m for m in modules if m.package_id == pkg.package_id]
+        pkg_closures = [c for c in closures if c.source_package_id == pkg.package_id]
+        pkg_chains = [ch for ch in chains if ch.package_id == pkg.package_id]
+
+        await manager.ingest_package(
+            package=pkg, modules=pkg_modules, closures=pkg_closures, chains=pkg_chains
+        )
+
+        pkg_resources = [r for r in resources if r.source_package_id == pkg.package_id]
+        pkg_attachments = [
+            a for a in attachments if a.resource_id in {r.resource_id for r in pkg_resources}
+        ]
+        if pkg_resources:
+            await manager.write_resources(pkg_resources, pkg_attachments)
+            for a in pkg_attachments:
+                found = await manager.content_store.get_resources_for(a.target_type, a.target_id)
+                assert isinstance(found, list)
