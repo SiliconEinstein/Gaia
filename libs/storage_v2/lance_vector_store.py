@@ -88,20 +88,6 @@ class LanceVectorStore(VectorStore):
         unique_items = list(deduped.values())
 
         table = self._ensure_table(dim)
-
-        # Delete existing rows for the deduped keys
-        for item in unique_items:
-            existing = (
-                table.search()
-                .where(f"knowledge_id = '{_q(item.knowledge_id)}' AND version = {item.version}")
-                .limit(1)
-                .to_list()
-            )
-            if existing:
-                table.delete(
-                    f"knowledge_id = '{_q(item.knowledge_id)}' AND version = {item.version}"
-                )
-
         rows = [
             {
                 "knowledge_id": item.knowledge_id,
@@ -110,7 +96,12 @@ class LanceVectorStore(VectorStore):
             }
             for item in unique_items
         ]
-        table.add(rows)
+        (
+            table.merge_insert(["knowledge_id", "version"])
+            .when_matched_update_all()
+            .when_not_matched_insert_all()
+            .execute(rows)
+        )
 
     async def search(self, embedding: list[float], top_k: int) -> list[ScoredKnowledge]:
         dim = self._validate_embedding(embedding, "search query")
