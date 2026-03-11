@@ -74,6 +74,48 @@ class TestWriteEmbeddings:
         table = vector_store._db.open_table("closure_vectors")
         assert table.count_rows() == 4
 
+    async def test_write_upsert_deduplicates_same_batch(self, vector_store):
+        """Duplicate (closure_id, version) in one batch — last occurrence wins."""
+        items = [
+            ClosureEmbedding(
+                closure_id="pkg.mod.dup",
+                version=1,
+                embedding=_make_embedding(8, 0.1),
+            ),
+            ClosureEmbedding(
+                closure_id="pkg.mod.dup",
+                version=1,
+                embedding=_make_embedding(8, 9.0),
+            ),
+        ]
+        await vector_store.write_embeddings(items)
+        table = vector_store._db.open_table("closure_vectors")
+        assert table.count_rows() == 1
+        results = await vector_store.search(_make_embedding(8, 9.0), top_k=2)
+        assert len(results) == 1
+        assert results[0].closure.closure_id == "pkg.mod.dup"
+
+    async def test_write_rejects_empty_embedding(self, vector_store):
+        items = [ClosureEmbedding(closure_id="pkg.mod.x", version=1, embedding=[])]
+        with pytest.raises(ValueError, match="must not be empty"):
+            await vector_store.write_embeddings(items)
+
+    async def test_write_rejects_inconsistent_batch_dimensions(self, vector_store):
+        items = [
+            ClosureEmbedding(closure_id="a", version=1, embedding=_make_embedding(8, 0.1)),
+            ClosureEmbedding(closure_id="b", version=1, embedding=_make_embedding(4, 0.1)),
+        ]
+        with pytest.raises(ValueError, match="inconsistent embedding dimensions"):
+            await vector_store.write_embeddings(items)
+
+    async def test_write_rejects_dimension_mismatch_with_existing_table(self, vector_store):
+        await vector_store.write_embeddings(_make_items(dim=8))
+        mismatched = [
+            ClosureEmbedding(closure_id="new", version=1, embedding=_make_embedding(4, 0.1))
+        ]
+        with pytest.raises(ValueError, match="does not match stored dimension"):
+            await vector_store.write_embeddings(mismatched)
+
 
 class TestSearch:
     async def test_search_returns_scored_closures(self, vector_store):
@@ -117,3 +159,13 @@ class TestSearch:
         assert c.version == 1
         assert c.content == ""
         assert c.keywords == []
+
+    async def test_search_rejects_empty_query(self, vector_store):
+        await vector_store.write_embeddings(_make_items())
+        with pytest.raises(ValueError, match="must not be empty"):
+            await vector_store.search([], top_k=5)
+
+    async def test_search_rejects_dimension_mismatch(self, vector_store):
+        await vector_store.write_embeddings(_make_items(dim=8))
+        with pytest.raises(ValueError, match="does not match stored dimension"):
+            await vector_store.search(_make_embedding(4, 0.1), top_k=5)
