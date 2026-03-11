@@ -203,6 +203,46 @@ class TestIngestPartialFailure:
         assert p.status == "merged"
 
 
+class TestVersionedRePublish:
+    async def test_v1_survives_failed_v2_publish(
+        self, manager, packages, modules, knowledge_items, chains
+    ):
+        """Publishing v1 successfully then failing v2 must leave v1 visible."""
+        pkg_v1 = packages[0]
+        pkg_modules = [m for m in modules if m.package_id == pkg_v1.package_id]
+        pkg_knowledge = [c for c in knowledge_items if c.source_package_id == pkg_v1.package_id]
+        pkg_chains = [ch for ch in chains if ch.package_id == pkg_v1.package_id]
+
+        # Publish v1 successfully
+        await manager.ingest_package(
+            package=pkg_v1,
+            modules=pkg_modules,
+            knowledge_items=pkg_knowledge,
+            chains=pkg_chains,
+        )
+        p = await manager.get_package(pkg_v1.package_id)
+        assert p is not None
+        assert p.version == pkg_v1.version
+
+        # Try to publish v2 but fail at graph
+        pkg_v2 = pkg_v1.model_copy(update={"version": "2.0.0"})
+        manager.graph_store.write_topology = AsyncMock(
+            side_effect=RuntimeError("graph write failed")
+        )
+        with pytest.raises(RuntimeError, match="graph write failed"):
+            await manager.ingest_package(
+                package=pkg_v2,
+                modules=pkg_modules,
+                knowledge_items=pkg_knowledge,
+                chains=pkg_chains,
+            )
+
+        # v1 must still be visible
+        p = await manager.get_package(pkg_v1.package_id)
+        assert p is not None, "v1 should still be visible after v2 failure"
+        assert p.version == pkg_v1.version
+
+
 class TestPartialWriteVisibility:
     """Reproduce the exact scenarios from PR review:
     partial writes to GraphStore/VectorStore must be invisible through manager reads.

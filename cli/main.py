@@ -341,7 +341,23 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
         bp_run_id=infer_result.get("bp_run_id", "unknown"),
     )
 
-    # 4. Initialize v2 stores via StorageManager
+    # 4. Generate embeddings for knowledge items
+    from libs.embedding import StubEmbeddingModel
+    from libs.storage_v2.models import KnowledgeEmbedding
+
+    embed_model = StubEmbeddingModel(dim=512)
+    texts = [k.content for k in data.knowledge_items]
+    vectors = await embed_model.embed(texts) if texts else []
+    embeddings = [
+        KnowledgeEmbedding(
+            knowledge_id=k.knowledge_id,
+            version=k.version,
+            embedding=vec,
+        )
+        for k, vec in zip(data.knowledge_items, vectors)
+    ]
+
+    # 5. Initialize v2 stores via StorageManager
     config = StorageConfig(
         lancedb_path=db_path,
         graph_backend="kuzu",
@@ -351,15 +367,16 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     await mgr.initialize()
 
     try:
-        # 5. Ingest (state machine handles preparing → committed)
+        # 6. Ingest (state machine handles preparing → committed)
         await mgr.ingest_package(
             package=data.package,
             modules=data.modules,
             knowledge_items=data.knowledge_items,
             chains=data.chains,
+            embeddings=embeddings,
         )
 
-        # 6. Write supplementary data
+        # 7. Write supplementary data
         if data.probabilities:
             await mgr.add_probabilities(data.probabilities)
         if data.belief_snapshots:
@@ -367,7 +384,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     finally:
         await mgr.close()
 
-    # 7. Write receipt
+    # 8. Write receipt
     import json
     from datetime import datetime, timezone
 

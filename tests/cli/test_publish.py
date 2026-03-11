@@ -166,6 +166,22 @@ def test_publish_local_writes_mapped_probabilities_and_syncs_graph(tmp_path):
     assert abs(query.get_next()[0] - 0.93) < 1e-9
 
 
+def test_publish_local_writes_embeddings(tmp_path):
+    """gaia publish --local should write knowledge_vectors table with embeddings."""
+    pkg_dir = _setup_full_pipeline(tmp_path)
+    db_path = str(tmp_path / "testdb")
+    result = runner.invoke(app, ["publish", str(pkg_dir), "--local", "--db-path", db_path])
+    assert result.exit_code == 0, f"publish failed: {result.output}"
+
+    import lancedb
+
+    db = lancedb.connect(db_path)
+    tables = db.list_tables().tables
+    assert "knowledge_vectors" in tables, f"knowledge_vectors table missing; tables: {tables}"
+    table = db.open_table("knowledge_vectors")
+    assert table.count_rows() > 0, "knowledge_vectors table is empty"
+
+
 def test_publish_local_errors_without_build(tmp_path):
     """publish --local should error when no manifest.json exists."""
     pkg_dir = tmp_path / "galileo"

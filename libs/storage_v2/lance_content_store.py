@@ -415,7 +415,7 @@ class LanceContentStore(ContentStore):
         """Flip a package's status from 'preparing' to 'merged'."""
         table = self._db.open_table("packages")
         table.update(
-            where=f"package_id = '{_q(package_id)}'",
+            where=f"package_id = '{_q(package_id)}' AND status = 'preparing'",
             values={"status": "merged"},
         )
         self._committed_ids = None
@@ -437,7 +437,7 @@ class LanceContentStore(ContentStore):
     async def write_package(self, package: Package, modules: list[Module]) -> None:
         pkg_table = self._db.open_table("packages")
         (
-            pkg_table.merge_insert("package_id")
+            pkg_table.merge_insert(["package_id", "version"])
             .when_matched_update_all()
             .when_not_matched_insert_all()
             .execute([_package_to_row(package)])
@@ -545,12 +545,14 @@ class LanceContentStore(ContentStore):
         results = (
             table.search()
             .where(f"package_id = '{_q(package_id)}' AND status = 'merged'")
-            .limit(1)
+            .limit(_MAX_SCAN)
             .to_list()
         )
         if not results:
             return None
-        return _row_to_package(results[0])
+        # Return the latest version
+        latest = max(results, key=lambda r: r["version"])
+        return _row_to_package(latest)
 
     async def get_module(self, module_id: str) -> Module | None:
         table = self._db.open_table("modules")
