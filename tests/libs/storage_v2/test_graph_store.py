@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from libs.storage_v2.kuzu_graph_store import KuzuGraphStore, _vid
+from libs.storage_v2.kuzu_graph_store import KuzuGraphStore, _knowledge_vid as _vid
 from libs.storage_v2.models import (
     BeliefSnapshot,
     Chain,
@@ -63,12 +63,12 @@ class TestInitializeSchema:
 
 
 class TestWriteTopology:
-    async def test_write_creates_knowledge_nodes(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_write_creates_knowledge_nodes(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         # Each (knowledge_id, version) gets its own node
         count = _count_nodes(graph_store, "Knowledge")
-        # knowledges from fixtures + any extra refs from chain steps
-        expected_vids = {_vid(c.knowledge_id, c.version) for c in knowledges}
+        # knowledge from fixtures + any extra refs from chain steps
+        expected_vids = {_vid(c.knowledge_id, c.version) for c in knowledge_items}
         result = graph_store._execute("MATCH (n:Knowledge) RETURN n.knowledge_vid")
         stored_vids: set[str] = set()
         while result.has_next():
@@ -76,32 +76,34 @@ class TestWriteTopology:
         assert expected_vids.issubset(stored_vids)
         assert count >= len(expected_vids)
 
-    async def test_write_creates_chain_nodes(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_write_creates_chain_nodes(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         result = graph_store._execute("MATCH (n:Chain) RETURN n.chain_id")
         stored = set()
         while result.has_next():
             stored.add(result.get_next()[0])
         assert stored == {ch.chain_id for ch in chains}
 
-    async def test_write_creates_premise_relationships(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_write_creates_premise_relationships(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         expected = sum(len(step.premises) for ch in chains for step in ch.steps)
         assert _count_rels(graph_store, "PREMISE") == expected
 
-    async def test_write_creates_conclusion_relationships(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_write_creates_conclusion_relationships(
+        self, graph_store, knowledge_items, chains
+    ):
+        await graph_store.write_topology(knowledge_items, chains)
         expected = sum(len(ch.steps) for ch in chains)
         assert _count_rels(graph_store, "CONCLUSION") == expected
 
-    async def test_write_topology_idempotent(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_write_topology_idempotent(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         c1 = _count_nodes(graph_store, "Knowledge")
         ch1 = _count_nodes(graph_store, "Chain")
         p1 = _count_rels(graph_store, "PREMISE")
         co1 = _count_rels(graph_store, "CONCLUSION")
 
-        await graph_store.write_topology(knowledges, chains)
+        await graph_store.write_topology(knowledge_items, chains)
         assert _count_nodes(graph_store, "Knowledge") == c1
         assert _count_nodes(graph_store, "Chain") == ch1
         assert _count_rels(graph_store, "PREMISE") == p1
@@ -158,9 +160,9 @@ class TestWriteTopology:
 
 class TestWriteResourceLinks:
     async def test_write_resource_links_to_knowledge(
-        self, graph_store, knowledges, chains, attachments
+        self, graph_store, knowledge_items, chains, attachments
     ):
-        await graph_store.write_topology(knowledges, chains)
+        await graph_store.write_topology(knowledge_items, chains)
         await graph_store.write_resource_links(attachments)
         result = graph_store._execute(
             "MATCH (r:Resource)-[a:ATTACHED_TO]->(c:Knowledge) RETURN COUNT(a)"
@@ -169,9 +171,9 @@ class TestWriteResourceLinks:
         assert result.get_next()[0] == expected
 
     async def test_write_resource_links_to_chain(
-        self, graph_store, knowledges, chains, attachments
+        self, graph_store, knowledge_items, chains, attachments
     ):
-        await graph_store.write_topology(knowledges, chains)
+        await graph_store.write_topology(knowledge_items, chains)
         await graph_store.write_resource_links(attachments)
         result = graph_store._execute(
             "MATCH (r:Resource)-[a:ATTACHED_TO]->(ch:Chain) RETURN COUNT(a)"
@@ -180,9 +182,9 @@ class TestWriteResourceLinks:
         assert result.get_next()[0] == expected
 
     async def test_write_resource_links_idempotent(
-        self, graph_store, knowledges, chains, attachments
+        self, graph_store, knowledge_items, chains, attachments
     ):
-        await graph_store.write_topology(knowledges, chains)
+        await graph_store.write_topology(knowledge_items, chains)
         await graph_store.write_resource_links(attachments)
         count_1 = _count_rels(graph_store, "ATTACHED_TO")
         await graph_store.write_resource_links(attachments)
@@ -210,9 +212,9 @@ class TestWriteResourceLinks:
                 ),
             ],
         )
-        knowledges_local = [
+        knowledge_local = [
             Knowledge(
-                knowledge_id=cid,
+                knowledge_id=kid,
                 version=1,
                 type="claim",
                 content="",
@@ -221,9 +223,9 @@ class TestWriteResourceLinks:
                 source_module_id="m",
                 created_at=datetime(2026, 1, 1),
             )
-            for cid in ("a", "b", "c")
+            for kid in ("a", "b", "c")
         ]
-        await graph_store.write_topology(knowledges_local, [chain])
+        await graph_store.write_topology(knowledge_local, [chain])
 
         # Two attachments to same chain, same resource, same role, different steps
         att0 = ResourceAttachment(
@@ -253,7 +255,7 @@ class TestWriteResourceLinks:
     async def test_knowledge_attachment_resolves_latest_version(self, graph_store):
         """PR #100 follow-up: knowledge attachments must resolve to latest version,
         not hardcode @1. If only v2 exists, attachment should still succeed."""
-        knowledges_v2 = [
+        knowledge_v2 = [
             Knowledge(
                 knowledge_id="x",
                 version=2,
@@ -265,7 +267,7 @@ class TestWriteResourceLinks:
                 created_at=datetime(2026, 1, 1),
             )
         ]
-        await graph_store.write_topology(knowledges_v2, [])
+        await graph_store.write_topology(knowledge_v2, [])
 
         att = ResourceAttachment(
             resource_id="res_v2",
@@ -282,7 +284,7 @@ class TestWriteResourceLinks:
         assert result.get_next()[0] == "x@2"
 
     async def test_knowledge_attachment_skips_nonexistent(self, graph_store):
-        """Attachment to a knowledge not in the graph should be silently skipped."""
+        """Attachment to a knowledge node not in the graph should be silently skipped."""
         await graph_store.write_topology([], [])
         att = ResourceAttachment(
             resource_id="res_ghost",
@@ -297,9 +299,11 @@ class TestWriteResourceLinks:
         )
         assert result.get_next()[0] == 0
 
-    async def test_module_and_package_attachments_skipped(self, graph_store, knowledges, chains):
+    async def test_module_and_package_attachments_skipped(
+        self, graph_store, knowledge_items, chains
+    ):
         """Attachments with target_type 'module' or 'package' should be silently skipped."""
-        await graph_store.write_topology(knowledges, chains)
+        await graph_store.write_topology(knowledge_items, chains)
         atts = [
             ResourceAttachment(
                 resource_id="res_mod",
@@ -319,9 +323,9 @@ class TestWriteResourceLinks:
         result = graph_store._execute("MATCH (r:Resource) RETURN COUNT(r)")
         assert result.get_next()[0] == 0
 
-    async def test_chain_attachment_direct(self, graph_store, knowledges, chains):
+    async def test_chain_attachment_direct(self, graph_store, knowledge_items, chains):
         """Attachment with target_type='chain' creates link to chain node."""
-        await graph_store.write_topology(knowledges, chains)
+        await graph_store.write_topology(knowledge_items, chains)
         att = ResourceAttachment(
             resource_id="res_chain",
             target_type="chain",
@@ -339,8 +343,8 @@ class TestWriteResourceLinks:
 
 
 class TestUpdateBeliefs:
-    async def test_update_beliefs_sets_value(self, graph_store, knowledges, chains, beliefs):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_update_beliefs_sets_value(self, graph_store, knowledge_items, chains, beliefs):
+        await graph_store.write_topology(knowledge_items, chains)
         await graph_store.update_beliefs(beliefs)
 
         # Last write per (knowledge_id, version) wins
@@ -415,8 +419,8 @@ class TestUpdateBeliefs:
 
 
 class TestUpdateProbability:
-    async def test_update_probability_sets_value(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_update_probability_sets_value(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         chain = chains[0]
         await graph_store.update_probability(chain.chain_id, 0, 0.95)
 
@@ -429,9 +433,9 @@ class TestUpdateProbability:
 
     async def test_update_probability_per_step(self, graph_store):
         """PR #100 comment 3: probability must be per (chain_id, step_index)."""
-        knowledges_local = [
+        knowledge_local = [
             Knowledge(
-                knowledge_id=cid,
+                knowledge_id=kid,
                 version=1,
                 type="claim",
                 content="",
@@ -440,7 +444,7 @@ class TestUpdateProbability:
                 source_module_id="m",
                 created_at=datetime(2026, 1, 1),
             )
-            for cid in ("a", "b", "c")
+            for kid in ("a", "b", "c")
         ]
         chain = Chain(
             chain_id="ch",
@@ -462,7 +466,7 @@ class TestUpdateProbability:
                 ),
             ],
         )
-        await graph_store.write_topology(knowledges_local, [chain])
+        await graph_store.write_topology(knowledge_local, [chain])
 
         # Set different probabilities for each step
         await graph_store.update_probability("ch", 0, 0.2)
@@ -486,8 +490,8 @@ class TestUpdateProbability:
 
 
 class TestGetNeighbors:
-    async def test_get_neighbors_default(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_get_neighbors_default(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         result = await graph_store.get_neighbors(
             "galileo_falling_bodies.reasoning.heavier_falls_faster"
         )
@@ -495,37 +499,37 @@ class TestGetNeighbors:
         assert len(result.chain_ids) > 0
         assert len(result.knowledge_ids) > 0
 
-    async def test_get_neighbors_downstream(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_get_neighbors_downstream(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         result = await graph_store.get_neighbors(
             "galileo_falling_bodies.reasoning.heavier_falls_faster",
             direction="downstream",
         )
         assert "galileo_falling_bodies.reasoning.verdict_chain" in result.chain_ids
 
-    async def test_get_neighbors_upstream(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_get_neighbors_upstream(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         result = await graph_store.get_neighbors(
             "galileo_falling_bodies.reasoning.combined_slower",
             direction="upstream",
         )
         assert "galileo_falling_bodies.reasoning.verdict_chain" in result.chain_ids
 
-    async def test_get_neighbors_nonexistent(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_get_neighbors_nonexistent(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         result = await graph_store.get_neighbors("nonexistent.id")
         assert result == Subgraph()
 
-    async def test_get_neighbors_max_hops(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
-        cid = "galileo_falling_bodies.reasoning.heavier_falls_faster"
-        r1 = await graph_store.get_neighbors(cid, max_hops=1)
-        r2 = await graph_store.get_neighbors(cid, max_hops=2)
+    async def test_get_neighbors_max_hops(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
+        kid = "galileo_falling_bodies.reasoning.heavier_falls_faster"
+        r1 = await graph_store.get_neighbors(kid, max_hops=1)
+        r2 = await graph_store.get_neighbors(kid, max_hops=2)
         assert len(r2.knowledge_ids) >= len(r1.knowledge_ids)
         assert len(r2.chain_ids) >= len(r1.chain_ids)
 
-    async def test_get_neighbors_chain_type_filter(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_get_neighbors_chain_type_filter(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         result = await graph_store.get_neighbors(
             "galileo_falling_bodies.reasoning.combined_slower",
             chain_types=["contradiction"],
@@ -537,9 +541,9 @@ class TestGetNeighbors:
             )
             assert res.get_next()[0] == "contradiction"
 
-    async def test_get_neighbors_nonexistent_chain_type(self, graph_store, knowledges, chains):
+    async def test_get_neighbors_nonexistent_chain_type(self, graph_store, knowledge_items, chains):
         """Filter with non-matching type returns empty."""
-        await graph_store.write_topology(knowledges, chains)
+        await graph_store.write_topology(knowledge_items, chains)
         result = await graph_store.get_neighbors(
             "galileo_falling_bodies.reasoning.heavier_falls_faster",
             chain_types=["nonexistent_type"],
@@ -551,8 +555,8 @@ class TestGetNeighbors:
 
 
 class TestGetSubgraph:
-    async def test_get_subgraph_returns_connected(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_get_subgraph_returns_connected(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         result = await graph_store.get_subgraph(
             "galileo_falling_bodies.reasoning.heavier_falls_faster"
         )
@@ -560,16 +564,16 @@ class TestGetSubgraph:
         assert len(result.knowledge_ids) > 1
         assert len(result.chain_ids) > 0
 
-    async def test_get_subgraph_respects_max_knowledges(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_get_subgraph_respects_max_knowledge(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         result = await graph_store.get_subgraph(
             "galileo_falling_bodies.reasoning.heavier_falls_faster",
-            max_knowledges=2,
+            max_knowledge=2,
         )
         assert len(result.knowledge_ids) <= 2
 
-    async def test_get_subgraph_nonexistent(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_get_subgraph_nonexistent(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         result = await graph_store.get_subgraph("nonexistent.id")
         assert result == Subgraph()
 
@@ -578,8 +582,8 @@ class TestGetSubgraph:
 
 
 class TestSearchTopology:
-    async def test_search_topology_returns_scored(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_search_topology_returns_scored(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         results = await graph_store.search_topology(
             ["galileo_falling_bodies.reasoning.heavier_falls_faster"],
             hops=2,
@@ -590,18 +594,18 @@ class TestSearchTopology:
         scores = [r.score for r in results]
         assert scores == sorted(scores, reverse=True)
 
-    async def test_search_topology_excludes_seeds(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_search_topology_excludes_seeds(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         seed = "galileo_falling_bodies.reasoning.heavier_falls_faster"
         results = await graph_store.search_topology([seed], hops=1)
         assert seed not in {r.knowledge.knowledge_id for r in results}
 
-    async def test_search_topology_empty_seeds(self, graph_store, knowledges, chains):
-        await graph_store.write_topology(knowledges, chains)
+    async def test_search_topology_empty_seeds(self, graph_store, knowledge_items, chains):
+        await graph_store.write_topology(knowledge_items, chains)
         assert await graph_store.search_topology([], hops=1) == []
 
     async def test_search_topology_returns_latest_version(self, graph_store):
-        """search_topology should return the latest version of discovered knowledges."""
+        """search_topology should return the latest version of discovered knowledge."""
         c_v1 = Knowledge(
             knowledge_id="a",
             version=1,
@@ -648,11 +652,11 @@ class TestSearchTopology:
 
 
 class TestDeletePackage:
-    async def test_delete_package_removes_topology(self, graph_store, knowledges, chains):
-        """delete_package should remove all knowledges and chains for a package."""
-        await graph_store.write_topology(knowledges, chains)
+    async def test_delete_package_removes_topology(self, graph_store, knowledge_items, chains):
+        """delete_package should remove all knowledge and chains for a package."""
+        await graph_store.write_topology(knowledge_items, chains)
 
-        pkg_id = knowledges[0].source_package_id
+        pkg_id = knowledge_items[0].source_package_id
         await graph_store.delete_package(pkg_id)
 
         # Verify knowledge nodes are gone
@@ -666,16 +670,16 @@ class TestDeletePackage:
         assert _count_rels(graph_store, "CONCLUSION") == 0
 
     async def test_delete_package_neighbor_query_returns_empty(
-        self, graph_store, knowledges, chains
+        self, graph_store, knowledge_items, chains
     ):
         """After delete_package, neighbor queries should return empty results."""
-        await graph_store.write_topology(knowledges, chains)
+        await graph_store.write_topology(knowledge_items, chains)
 
-        pkg_id = knowledges[0].source_package_id
+        pkg_id = knowledge_items[0].source_package_id
         await graph_store.delete_package(pkg_id)
 
         result = await graph_store.get_neighbors(
-            knowledges[0].knowledge_id, direction="both", chain_types=None, max_hops=1
+            knowledge_items[0].knowledge_id, direction="both", chain_types=None, max_hops=1
         )
         assert len(result.knowledge_ids) == 0
         assert len(result.chain_ids) == 0
@@ -705,9 +709,9 @@ class TestClose:
 
 
 class TestFullRoundtrip:
-    async def test_full_roundtrip(self, graph_store, knowledges, chains, attachments, beliefs):
+    async def test_full_roundtrip(self, graph_store, knowledge_items, chains, attachments, beliefs):
         # 1. Write topology
-        await graph_store.write_topology(knowledges, chains)
+        await graph_store.write_topology(knowledge_items, chains)
 
         # 2. Write resource links
         await graph_store.write_resource_links(attachments)

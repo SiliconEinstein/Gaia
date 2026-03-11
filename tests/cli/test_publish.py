@@ -66,24 +66,24 @@ def test_publish_local_writes_receipt(tmp_path):
     assert "package_id" in receipt
     assert "published_at" in receipt
     assert receipt["db_path"] == db_path
-    assert receipt["stats"]["knowledges"] > 0
+    assert receipt["stats"]["knowledge_items"] > 0
     assert receipt["stats"]["chains"] > 0
-    assert len(receipt["knowledge_ids"]) == receipt["stats"]["knowledges"]
+    assert len(receipt["knowledge_ids"]) == receipt["stats"]["knowledge_items"]
     assert len(receipt["chain_ids"]) == receipt["stats"]["chains"]
 
 
-def test_publish_local_writes_v2_knowledges(tmp_path):
-    """gaia publish --local should write knowledges to LanceDB v2 knowledges table."""
+def test_publish_local_writes_v2_knowledge(tmp_path):
+    """gaia publish --local should write knowledge to LanceDB v2 knowledge table."""
     pkg_dir = _setup_full_pipeline(tmp_path)
     db_path = str(tmp_path / "testdb")
     result = runner.invoke(app, ["publish", str(pkg_dir), "--local", "--db-path", db_path])
     assert result.exit_code == 0, f"publish failed: {result.output}"
-    assert "knowledges" in result.output.lower()
+    assert "knowledge" in result.output.lower()
 
     import lancedb
 
     db = lancedb.connect(db_path)
-    table = db.open_table("knowledges")
+    table = db.open_table("knowledge")
     assert table.count_rows() > 0
     rows = table.search().limit(1000).to_list()
     # Each knowledge_id should appear exactly once (no duplicates)
@@ -125,11 +125,11 @@ def test_publish_local_idempotent(tmp_path):
     result2 = runner.invoke(app, ["publish", str(pkg_dir), "--local", "--db-path", db_path])
     assert result2.exit_code == 0, f"second publish failed: {result2.output}"
 
-    # Verify no duplicate knowledges
+    # Verify no duplicate knowledge items
     import lancedb
 
     db = lancedb.connect(db_path)
-    table = db.open_table("knowledges")
+    table = db.open_table("knowledge")
     assert table.count_rows() > 0
     rows = table.search().limit(1000).to_list()
     ids = [r["knowledge_id"] for r in rows]

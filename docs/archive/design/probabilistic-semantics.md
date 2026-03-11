@@ -7,7 +7,7 @@ This document defines the probabilistic layer of Gaia's knowledge system.
 It builds on:
 
 - [domain-model.md](../domain-model.md) — shared vocabulary
-- [knowledge-package-static.md](knowledge-package-static.md) — V1 deterministic FP core (closures, inferences, chains, modules, packages)
+- [knowledge-package-static.md](knowledge-package-static.md) — V1 deterministic FP core (knowledge objects, inferences, chains, modules, packages)
 
 It covers:
 
@@ -50,8 +50,8 @@ Gaia's design follows directly from this:
 
 | Deductive logic (FP) | Plausible reasoning (Gaia) |
 |-----------------------|---------------------------|
-| Proposition (true / false) | Closure (belief ∈ [0, 1]) |
-| Axiom (assumed true) | Closure with prior = 1.0 |
+| Proposition (true / false) | Knowledge (belief ∈ [0, 1]) |
+| Axiom (assumed true) | Knowledge with prior = 1.0 |
 | Theorem (proven) | Exported claim with high belief after BP |
 | Deductive proof | Chain (plausible inference) |
 | Logical entailment A ⊢ B | Strong dependency (A supports B with probability p) |
@@ -63,7 +63,7 @@ This also clarifies how Gaia differs from **statistical** probabilistic programm
 
 | | Deductive (FP) | Plausible (Gaia) | Statistical (Pyro/Stan) |
 |-|---------------|-----------------|----------------------|
-| **Objects** | Propositions | Knowledge closures | Random variables |
+| **Objects** | Propositions | Knowledge objects | Random variables |
 | **Probability means** | — (only true/false) | Degree of belief (epistemic) | Frequency / measure |
 | **Inference** | Type checking | Belief propagation | MCMC / variational inference |
 | **Goal** | Is the proof valid? | Are beliefs self-consistent? | What is the posterior distribution? |
@@ -77,7 +77,7 @@ Gaia follows the standard architecture of probabilistic programming languages: a
 
 | Layer | What it defines | PL analogy |
 |-------|----------------|------------|
-| **V1 — Deterministic FP core** | closures (values), inferences (lambdas), chains (composition), modules (with imports/exports), packages | Haskell, OCaml |
+| **V1 — Deterministic FP core** | knowledge objects (values), inferences (lambdas), chains (composition), modules (with imports/exports), packages | Haskell, OCaml |
 | **V3 — Probabilistic layer** | priors, dependency strength (conditioning), belief propagation (inference algorithm) | Church's `observe`/`query`, Hakaru's `measure` monad, Pyro's `sample`/`observe` |
 
 Together they form a complete system where:
@@ -89,13 +89,13 @@ Together they form a complete system where:
 
 | Aspect | Church | Hakaru | Pyro | Gaia |
 |--------|--------|--------|------|------|
-| **Host language** | Scheme (FP) | Haskell (FP) | Python + PyTorch | Closure/Inference FP (V1) |
-| **Values** | S-expressions | Haskell values | Tensors | Knowledge closures |
+| **Host language** | Scheme (FP) | Haskell (FP) | Python + PyTorch | Knowledge/Inference FP (V1) |
+| **Values** | S-expressions | Haskell values | Tensors | Knowledge objects |
 | **Probabilistic primitive** | `flip`, `observe` | `measure` monad | `sample`, `observe` | Prior, dependency strength |
 | **Conditioning** | `observe` on data | Disintegration | `obs=` in `sample` | `strong` / `weak` imports |
 | **Inference algorithm** | MCMC (MH) | Exact / MCMC | SVI, MCMC, NUTS | Loopy BP on hypergraphs |
 | **Program** | Generative model | Probabilistic program | Model + guide | Knowledge package |
-| **Prior** | Prior distribution | Prior measure | Prior over parameters | Prior on closure truth value |
+| **Prior** | Prior distribution | Prior measure | Prior over parameters | Prior on knowledge truth value |
 | **Posterior** | Posterior distribution | Posterior measure | Learned parameters | Belief scores after BP |
 
 ### Why not use an existing probabilistic PL?
@@ -104,7 +104,7 @@ Gaia's probability is **epistemic** (belief in truth of propositions), not **sta
 
 | Dimension | Statistical probability (Hakaru, Pyro, Stan) | Epistemic probability (Gaia) |
 |-----------|---------------------------------------------|------|
-| **What has probability** | Random variables (numerical) | Propositions (knowledge closures) |
+| **What has probability** | Random variables (numerical) | Propositions (knowledge objects) |
 | **Probability means** | Frequency / measure over outcomes | Degree of belief in truth |
 | **Conditioning on** | Observed data | Dependency strength (strong/weak) |
 | **Graph model** | DAG (Bayesian network) or factor graph | Hypergraph (multi-premise → conclusion) |
@@ -131,23 +131,23 @@ Gaia is therefore a **new probabilistic FP language** in the same family, but sp
 
 ### Prior
 
-Each closure has an optional `prior` — a scalar in [0, 1] representing the initial degree of belief in the closure's truth, before any evidence from the dependency graph is considered.
+Each knowledge object has an optional `prior` — a scalar in [0, 1] representing the initial degree of belief in the knowledge's truth, before any evidence from the dependency graph is considered.
 
-- For `claim` closures, the prior represents initial confidence
-- For `question` closures, the prior is typically omitted (questions are not truth-apt)
-- For `setting` closures, the prior represents confidence in the setting's validity
-- For `action` closures, the prior represents confidence in the action's reliability
+- For `claim` knowledge, the prior represents initial confidence
+- For `question` knowledge, the prior is typically omitted (questions are not truth-apt)
+- For `setting` knowledge, the prior represents confidence in the setting's validity
+- For `action` knowledge, the prior represents confidence in the action's reliability
 
 When omitted, the prior defaults to a system-level default (typically 1.0 — no initial doubt).
 
 ### Belief
 
-After belief propagation, each closure carries a `belief` score in [0, 1] — the posterior degree of belief given all evidence in the dependency graph.
+After belief propagation, each knowledge object carries a `belief` score in [0, 1] — the posterior degree of belief given all evidence in the dependency graph.
 
 The belief update rule:
 
 ```
-belief(closure) = f(prior(closure), messages from connected hyperedges)
+belief(knowledge) = f(prior(knowledge), messages from connected hyperedges)
 ```
 
 where `f` is the BP message-passing function.
@@ -156,8 +156,8 @@ where `f` is the BP message-passing function.
 
 Module-level `imports` declare dependency strength:
 
-- **strong** — if the imported closure is wrong, this module's conclusions are likely wrong too. Strong dependencies create **hyperedges** in the factor graph. They participate in BP message passing.
-- **weak** — the imported closure is relevant context, but this module's conclusions can stand on their own. Weak dependencies are folded into the closure's **prior** rather than creating BP edges.
+- **strong** — if the imported knowledge is wrong, this module's conclusions are likely wrong too. Strong dependencies create **hyperedges** in the factor graph. They participate in BP message passing.
+- **weak** — the imported knowledge is relevant context, but this module's conclusions can stand on their own. Weak dependencies are folded into the knowledge's **prior** rather than creating BP edges.
 
 This is Gaia's analog of `observe` in probabilistic PLs: strong dependencies condition the conclusion's belief on the premises' beliefs.
 
@@ -177,16 +177,16 @@ This is the "factor" in the factor graph.
 
 The BP factor graph is derived from the package structure:
 
-1. **Variable nodes**: one per closure that participates in any strong dependency
-2. **Factor nodes**: one per module that has strong imports — the factor connects the imported closures (tail) to the exported closures (head)
+1. **Variable nodes**: one per knowledge object that participates in any strong dependency
+2. **Factor nodes**: one per module that has strong imports — the factor connects the imported knowledge objects (tail) to the exported knowledge objects (head)
 3. **Factor function**: parameterized by the hyperedge probability
 
 ### Message passing
 
 Loopy BP proceeds by iterating:
 
-1. **Forward messages** (tail → head): beliefs from premise closures flow through factors to conclusion closures
-2. **Backward messages** (head → tail): beliefs from conclusion closures flow back to premise closures
+1. **Forward messages** (tail → head): beliefs from premise knowledge objects flow through factors to conclusion knowledge objects
+2. **Backward messages** (head → tail): beliefs from conclusion knowledge objects flow back to premise knowledge objects
 3. **Damping**: messages are damped to improve convergence on loopy graphs
 4. **Convergence**: iterate until belief changes fall below a threshold, or a maximum iteration count is reached
 
@@ -227,7 +227,7 @@ BP forward message: `belief(conclusion) ↑` as `belief(premises) ↑`
 
 ### Contradiction
 
-Two closures conflict. The factor connects conflicting premises to a contradiction conclusion.
+Two knowledge objects conflict. The factor connects conflicting premises to a contradiction conclusion.
 
 ```
 [A, B] → C  where A and B conflict

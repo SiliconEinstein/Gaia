@@ -70,7 +70,7 @@ class StorageManager:
         self,
         package: Package,
         modules: list[Module],
-        knowledges: list[Knowledge],
+        knowledge_items: list[Knowledge],
         chains: list[Chain],
         embeddings: list[KnowledgeEmbedding] | None = None,
     ) -> None:
@@ -83,13 +83,13 @@ class StorageManager:
 
         # Step 1: ContentStore (source of truth)
         await self.content_store.write_package(package, modules)
-        await self.content_store.write_knowledges(knowledges)
+        await self.content_store.write_knowledge(knowledge_items)
         await self.content_store.write_chains(chains)
 
         # Step 2: GraphStore (optional)
         if self.graph_store is not None:
             try:
-                await self.graph_store.write_topology(knowledges, chains)
+                await self.graph_store.write_topology(knowledge_items, chains)
             except Exception:
                 logger.error("GraphStore write failed; rolling back ContentStore")
                 await self.content_store.delete_package(package_id)
@@ -158,8 +158,8 @@ class StorageManager:
     async def search_bm25(self, text: str, top_k: int):
         return await self.content_store.search_bm25(text, top_k)
 
-    async def list_knowledges(self):
-        return await self.content_store.list_knowledges()
+    async def list_knowledge(self):
+        return await self.content_store.list_knowledge()
 
     async def list_chains(self):
         return await self.content_store.list_chains()
@@ -177,10 +177,10 @@ class StorageManager:
             return Subgraph()
         return await self.graph_store.get_neighbors(knowledge_id, direction, chain_types, max_hops)
 
-    async def get_subgraph(self, knowledge_id: str, max_knowledges: int = 500):
+    async def get_subgraph(self, knowledge_id: str, max_knowledge: int = 500):
         if self.graph_store is None:
             return Subgraph()
-        return await self.graph_store.get_subgraph(knowledge_id, max_knowledges)
+        return await self.graph_store.get_subgraph(knowledge_id, max_knowledge)
 
     async def search_topology(self, seed_ids: list[str], hops: int = 1):
         if self.graph_store is None:

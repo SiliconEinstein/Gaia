@@ -48,10 +48,10 @@ class TestFixtureValidation:
         names = {m.name for m in modules}
         assert names == {"setting", "reasoning"}
 
-    def test_knowledges_fixture(self):
-        records = load_fixture("knowledges")
-        knowledges = [Knowledge.model_validate(r) for r in records]
-        assert len(knowledges) == 6
+    def test_knowledge_fixture(self):
+        records = load_fixture("knowledge")
+        knowledge_items = [Knowledge.model_validate(r) for r in records]
+        assert len(knowledge_items) == 6
 
     def test_chains_fixture(self):
         records = load_fixture("chains")
@@ -120,19 +120,19 @@ class TestChainStep:
 class TestKnowledgePrior:
     def test_setting_allows_prior_one(self):
         """Settings may have prior=1.0 (certain context)."""
-        knowledges = [Knowledge.model_validate(r) for r in load_fixture("knowledges")]
-        setting = next(c for c in knowledges if c.type == "setting")
+        knowledge_items = [Knowledge.model_validate(r) for r in load_fixture("knowledge")]
+        setting = next(c for c in knowledge_items if c.type == "setting")
         assert setting.prior == 1.0
 
     def test_claim_has_fractional_prior(self):
-        knowledges = [Knowledge.model_validate(r) for r in load_fixture("knowledges")]
-        claim = next(c for c in knowledges if c.knowledge_id.endswith("heavier_falls_faster"))
+        knowledge_items = [Knowledge.model_validate(r) for r in load_fixture("knowledge")]
+        claim = next(c for c in knowledge_items if c.knowledge_id.endswith("heavier_falls_faster"))
         assert 0 < claim.prior < 1
 
     @pytest.mark.parametrize("bad_prior", [0.0, -0.5, 1.7, 2.0])
     def test_prior_rejects_out_of_range(self, bad_prior):
         """prior must be in (0, 1]."""
-        base = load_fixture("knowledges")[0]
+        base = load_fixture("knowledge")[0]
         base["prior"] = bad_prior
         with pytest.raises(ValidationError):
             Knowledge.model_validate(base)
@@ -186,7 +186,7 @@ class TestImportRef:
 
 class TestQueryModels:
     def test_scored_knowledge(self):
-        knowledge_data = load_fixture("knowledges")[0]
+        knowledge_data = load_fixture("knowledge")[0]
         knowledge = Knowledge.model_validate(knowledge_data)
         scored = ScoredKnowledge(knowledge=knowledge, score=0.95)
         assert scored.score == 0.95

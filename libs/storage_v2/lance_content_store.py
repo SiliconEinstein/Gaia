@@ -50,7 +50,7 @@ _MODULES_SCHEMA = pa.schema(
     ]
 )
 
-_KNOWLEDGES_SCHEMA = pa.schema(
+_KNOWLEDGE_SCHEMA = pa.schema(
     [
         pa.field("knowledge_id", pa.string()),
         pa.field("version", pa.int64()),
@@ -126,7 +126,7 @@ _RESOURCE_ATTACHMENTS_SCHEMA = pa.schema(
 _TABLE_SCHEMAS: dict[str, pa.Schema] = {
     "packages": _PACKAGES_SCHEMA,
     "modules": _MODULES_SCHEMA,
-    "knowledges": _KNOWLEDGES_SCHEMA,
+    "knowledge": _KNOWLEDGE_SCHEMA,
     "chains": _CHAINS_SCHEMA,
     "probabilities": _PROBABILITIES_SCHEMA,
     "belief_history": _BELIEF_HISTORY_SCHEMA,
@@ -199,18 +199,18 @@ def _row_to_module(row: dict[str, Any]) -> Module:
     )
 
 
-def _knowledge_to_row(c: Knowledge) -> dict[str, Any]:
+def _knowledge_to_row(k: Knowledge) -> dict[str, Any]:
     return {
-        "knowledge_id": c.knowledge_id,
-        "version": c.version,
-        "type": c.type,
-        "content": c.content,
-        "prior": c.prior,
-        "keywords": json.dumps(c.keywords),
-        "source_package_id": c.source_package_id,
-        "source_module_id": c.source_module_id,
-        "created_at": c.created_at.isoformat(),
-        "embedding": json.dumps(c.embedding) if c.embedding else "",
+        "knowledge_id": k.knowledge_id,
+        "version": k.version,
+        "type": k.type,
+        "content": k.content,
+        "prior": k.prior,
+        "keywords": json.dumps(k.keywords),
+        "source_package_id": k.source_package_id,
+        "source_module_id": k.source_module_id,
+        "created_at": k.created_at.isoformat(),
+        "embedding": json.dumps(k.embedding) if k.embedding else "",
     }
 
 
@@ -372,7 +372,7 @@ class LanceContentStore(ContentStore):
         direct_pairs = [
             ("packages", "package_id"),
             ("modules", "package_id"),
-            ("knowledges", "source_package_id"),
+            ("knowledge", "source_package_id"),
             ("chains", "package_id"),
             ("resources", "source_package_id"),
         ]
@@ -427,21 +427,21 @@ class LanceContentStore(ContentStore):
             if new_modules:
                 mod_table.add(new_modules)
 
-    async def write_knowledges(self, knowledges: list[Knowledge]) -> None:
-        if not knowledges:
+    async def write_knowledge(self, knowledge_items: list[Knowledge]) -> None:
+        if not knowledge_items:
             return
-        table = self._db.open_table("knowledges")
+        table = self._db.open_table("knowledge")
         # Filter out duplicates by (knowledge_id, version)
         new_rows = []
-        for c in knowledges:
+        for k in knowledge_items:
             existing = (
                 table.search()
-                .where(f"knowledge_id = '{_q(c.knowledge_id)}' AND version = {c.version}")
+                .where(f"knowledge_id = '{_q(k.knowledge_id)}' AND version = {k.version}")
                 .limit(1)
                 .to_list()
             )
             if not existing:
-                new_rows.append(_knowledge_to_row(c))
+                new_rows.append(_knowledge_to_row(k))
         if new_rows:
             table.add(new_rows)
             self._fts_dirty = True
@@ -479,7 +479,7 @@ class LanceContentStore(ContentStore):
     async def get_knowledge(
         self, knowledge_id: str, version: int | None = None
     ) -> Knowledge | None:
-        table = self._db.open_table("knowledges")
+        table = self._db.open_table("knowledge")
         if version is not None:
             results = (
                 table.search()
@@ -503,12 +503,12 @@ class LanceContentStore(ContentStore):
         return _row_to_knowledge(results[0])
 
     async def get_knowledge_versions(self, knowledge_id: str) -> list[Knowledge]:
-        table = self._db.open_table("knowledges")
+        table = self._db.open_table("knowledge")
         results = (
             table.search().where(f"knowledge_id = '{_q(knowledge_id)}'").limit(_MAX_SCAN).to_list()
         )
-        knowledges = [_row_to_knowledge(r) for r in results]
-        return sorted(knowledges, key=lambda c: c.version)
+        knowledge_items = [_row_to_knowledge(r) for r in results]
+        return sorted(knowledge_items, key=lambda k: k.version)
 
     async def get_package(self, package_id: str) -> Package | None:
         table = self._db.open_table("packages")
@@ -570,7 +570,7 @@ class LanceContentStore(ContentStore):
     # ── Search ──
 
     async def search_bm25(self, text: str, top_k: int) -> list[ScoredKnowledge]:
-        table = self._db.open_table("knowledges")
+        table = self._db.open_table("knowledge")
         if table.count_rows() == 0:
             return []
         if self._fts_dirty:
@@ -585,8 +585,8 @@ class LanceContentStore(ContentStore):
 
     # ── BP bulk load ──
 
-    async def list_knowledges(self) -> list[Knowledge]:
-        table = self._db.open_table("knowledges")
+    async def list_knowledge(self) -> list[Knowledge]:
+        table = self._db.open_table("knowledge")
         count = table.count_rows()
         if count == 0:
             return []

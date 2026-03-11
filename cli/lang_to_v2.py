@@ -31,7 +31,7 @@ class V2IngestData:
 
     package: v2.Package
     modules: list[v2.Module] = field(default_factory=list)
-    knowledges: list[v2.Knowledge] = field(default_factory=list)
+    knowledge_items: list[v2.Knowledge] = field(default_factory=list)
     chains: list[v2.Chain] = field(default_factory=list)
     probabilities: list[v2.ProbabilityRecord] = field(default_factory=list)
     belief_snapshots: list[v2.BeliefSnapshot] = field(default_factory=list)
@@ -52,7 +52,7 @@ def convert_to_v2(
         bp_run_id: BP run identifier.
 
     Returns:
-        V2IngestData with package, modules, knowledges, chains, probabilities,
+        V2IngestData with package, modules, knowledge_items, chains, probabilities,
         and belief snapshots.
     """
     now = datetime.now(timezone.utc)
@@ -76,7 +76,7 @@ def convert_to_v2(
 
     # 4. Knowledge -> v2.Knowledge[] (deduped)
     seen_knowledge_ids: set[str] = set()
-    v2_knowledges: list[v2.Knowledge] = []
+    v2_knowledge_items: list[v2.Knowledge] = []
 
     for mod in pkg.loaded_modules:
         for decl in mod.knowledge:
@@ -91,14 +91,14 @@ def convert_to_v2(
                 continue
             seen_knowledge_ids.add(knowledge_id)
 
-            knowledge = _convert_knowledge(
+            knowledge_item = _convert_knowledge(
                 actual=actual,
                 knowledge_id=knowledge_id,
                 package_id=pkg.name,
                 module_id=f"{pkg.name}.{mod.name}",
                 now=now,
             )
-            v2_knowledges.append(knowledge)
+            v2_knowledge_items.append(knowledge_item)
 
     # 5. ChainExpr -> v2.Chain[] + collect chain_ids per module
     v2_chains: list[v2.Chain] = []
@@ -137,7 +137,7 @@ def convert_to_v2(
     for v2_mod in v2_modules:
         mod_short_name = v2_mod.module_id.split(".", 1)[1] if "." in v2_mod.module_id else ""
         v2_mod.chain_ids = module_chain_ids.get(mod_short_name, [])
-        # Export IDs: knowledges from this module's exports
+        # Export IDs: knowledge items from this module's exports
         src_mod = next((m for m in pkg.loaded_modules if m.name == mod_short_name), None)
         if src_mod and src_mod.export:
             v2_mod.export_ids = [
@@ -155,7 +155,7 @@ def convert_to_v2(
     return V2IngestData(
         package=v2_package,
         modules=v2_modules,
-        knowledges=v2_knowledges,
+        knowledge_items=v2_knowledge_items,
         chains=v2_chains,
         probabilities=v2_probabilities,
         belief_snapshots=v2_snapshots,
@@ -337,9 +337,9 @@ def _convert_chain_expr(
             # Premises from args
             premises: list[v2.KnowledgeRef] = []
             for arg in step.args:
-                cref = _make_knowledge_ref(arg.ref, decls_by_name, pkg)
-                if cref is not None:
-                    premises.append(cref)
+                kref = _make_knowledge_ref(arg.ref, decls_by_name, pkg)
+                if kref is not None:
+                    premises.append(kref)
 
             # Reasoning text from the InferAction's content
             reasoning = ""
@@ -380,9 +380,9 @@ def _convert_chain_expr(
             if i > 0:
                 prev_step = chain.steps[i - 1]
                 if isinstance(prev_step, StepRef):
-                    cref = _make_knowledge_ref(prev_step.ref, decls_by_name, pkg)
-                    if cref is not None:
-                        premises.append(cref)
+                    kref = _make_knowledge_ref(prev_step.ref, decls_by_name, pkg)
+                    if kref is not None:
+                        premises.append(kref)
 
             reasoning = step.lambda_.strip() if step.lambda_ else ""
 
@@ -442,14 +442,14 @@ def _convert_relation_to_chain(
     # Members become premises
     premises: list[v2.KnowledgeRef] = []
     for member_name in rel.between:
-        cref = _make_knowledge_ref(member_name, decls_by_name, pkg)
-        if cref is not None:
-            premises.append(cref)
+        kref = _make_knowledge_ref(member_name, decls_by_name, pkg)
+        if kref is not None:
+            premises.append(kref)
 
     if not premises:
         return None
 
-    # The Relation itself is the conclusion (if it was created as a Knowledge)
+    # The Relation itself is the conclusion (if it was created as a Knowledge item)
     conclusion_id = f"{pkg.name}/{rel.name}"
     conclusion_ref = v2.KnowledgeRef(knowledge_id=conclusion_id, version=1)
 

@@ -52,14 +52,14 @@ class TestInitialization:
 
 class TestReadDelegation:
     async def test_get_knowledge_delegates(
-        self, full_manager, packages, modules, knowledges, chains
+        self, full_manager, packages, modules, knowledge_items, chains
     ):
         pkg, mods = packages[0], [m for m in modules if m.package_id == packages[0].package_id]
         await full_manager.content_store.write_package(pkg, mods)
-        await full_manager.content_store.write_knowledges(knowledges)
-        c = await full_manager.get_knowledge(knowledges[0].knowledge_id)
+        await full_manager.content_store.write_knowledge(knowledge_items)
+        c = await full_manager.get_knowledge(knowledge_items[0].knowledge_id)
         assert c is not None
-        assert c.knowledge_id == knowledges[0].knowledge_id
+        assert c.knowledge_id == knowledge_items[0].knowledge_id
 
     async def test_get_package_delegates(self, full_manager, packages, modules):
         pkg, mods = packages[0], [m for m in modules if m.package_id == packages[0].package_id]
@@ -68,10 +68,10 @@ class TestReadDelegation:
         assert p is not None
         assert p.package_id == pkg.package_id
 
-    async def test_search_bm25_delegates(self, full_manager, packages, modules, knowledges):
+    async def test_search_bm25_delegates(self, full_manager, packages, modules, knowledge_items):
         pkg, mods = packages[0], [m for m in modules if m.package_id == packages[0].package_id]
         await full_manager.content_store.write_package(pkg, mods)
-        await full_manager.content_store.write_knowledges(knowledges)
+        await full_manager.content_store.write_knowledge(knowledge_items)
         results = await full_manager.search_bm25("gravity", top_k=5)
         assert isinstance(results, list)
 
@@ -121,7 +121,7 @@ class TestReadDelegationFull:
         tmp_path,
         packages,
         modules,
-        knowledges,
+        knowledge_items,
         chains,
         probabilities,
         beliefs,
@@ -137,7 +137,7 @@ class TestReadDelegationFull:
         await mgr.initialize()
         pkg = packages[0]
         pkg_modules = [m for m in modules if m.package_id == pkg.package_id]
-        pkg_knowledges = [c for c in knowledges if c.source_package_id == pkg.package_id]
+        pkg_knowledge_items = [c for c in knowledge_items if c.source_package_id == pkg.package_id]
         pkg_chains = [ch for ch in chains if ch.package_id == pkg.package_id]
         from libs.storage_v2.models import KnowledgeEmbedding
 
@@ -147,12 +147,12 @@ class TestReadDelegationFull:
                 version=c.version,
                 embedding=[0.1 * i for i in range(8)],
             )
-            for c in pkg_knowledges
+            for c in pkg_knowledge_items
         ]
         await mgr.ingest_package(
             package=pkg,
             modules=pkg_modules,
-            knowledges=pkg_knowledges,
+            knowledge_items=pkg_knowledge_items,
             chains=pkg_chains,
             embeddings=embeddings,
         )
@@ -160,7 +160,7 @@ class TestReadDelegationFull:
         if pkg_probs:
             await mgr.add_probabilities(pkg_probs)
         pkg_beliefs = [
-            b for b in beliefs if b.knowledge_id in {c.knowledge_id for c in pkg_knowledges}
+            b for b in beliefs if b.knowledge_id in {c.knowledge_id for c in pkg_knowledge_items}
         ]
         if pkg_beliefs:
             await mgr.write_beliefs(pkg_beliefs)
@@ -174,7 +174,7 @@ class TestReadDelegationFull:
             mgr,
             pkg,
             pkg_modules,
-            pkg_knowledges,
+            pkg_knowledge_items,
             pkg_chains,
             pkg_probs,
             pkg_beliefs,
@@ -184,8 +184,8 @@ class TestReadDelegationFull:
         await mgr.close()
 
     async def test_get_knowledge_versions(self, seeded_manager):
-        mgr, _, _, knowledges, *_ = seeded_manager
-        versions = await mgr.get_knowledge_versions(knowledges[0].knowledge_id)
+        mgr, _, _, knowledge_items, *_ = seeded_manager
+        versions = await mgr.get_knowledge_versions(knowledge_items[0].knowledge_id)
         assert len(versions) >= 1
 
     async def test_get_module(self, seeded_manager):
@@ -206,7 +206,7 @@ class TestReadDelegationFull:
             assert len(result) > 0
 
     async def test_get_belief_history(self, seeded_manager):
-        mgr, _, _, knowledges, _, _, beliefs, *_ = seeded_manager
+        mgr, _, _, knowledge_items, _, _, beliefs, *_ = seeded_manager
         if beliefs:
             result = await mgr.get_belief_history(beliefs[0].knowledge_id)
             assert len(result) > 0
@@ -219,9 +219,9 @@ class TestReadDelegationFull:
             )
             assert isinstance(result, list)
 
-    async def test_list_knowledges(self, seeded_manager):
+    async def test_list_knowledge(self, seeded_manager):
         mgr, *_ = seeded_manager
-        result = await mgr.list_knowledges()
+        result = await mgr.list_knowledge()
         assert len(result) > 0
 
     async def test_list_chains(self, seeded_manager):
@@ -230,18 +230,18 @@ class TestReadDelegationFull:
         assert len(result) > 0
 
     async def test_get_neighbors_with_graph(self, seeded_manager):
-        mgr, _, _, knowledges, *_ = seeded_manager
-        result = await mgr.get_neighbors(knowledges[0].knowledge_id)
+        mgr, _, _, knowledge_items, *_ = seeded_manager
+        result = await mgr.get_neighbors(knowledge_items[0].knowledge_id)
         assert isinstance(result, Subgraph)
 
     async def test_get_subgraph_with_graph(self, seeded_manager):
-        mgr, _, _, knowledges, *_ = seeded_manager
-        result = await mgr.get_subgraph(knowledges[0].knowledge_id)
+        mgr, _, _, knowledge_items, *_ = seeded_manager
+        result = await mgr.get_subgraph(knowledge_items[0].knowledge_id)
         assert isinstance(result, Subgraph)
 
     async def test_search_topology_with_graph(self, seeded_manager):
-        mgr, _, _, knowledges, *_ = seeded_manager
-        result = await mgr.search_topology([knowledges[0].knowledge_id])
+        mgr, _, _, knowledge_items, *_ = seeded_manager
+        result = await mgr.search_topology([knowledge_items[0].knowledge_id])
         assert isinstance(result, list)
 
     async def test_search_vector_with_store(self, seeded_manager):

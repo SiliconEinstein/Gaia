@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 
 class KnowledgeRef(BaseModel):
-    """Versioned reference to a Knowledge."""
+    """Versioned reference to a Knowledge object."""
 
     knowledge_id: str
     version: int
@@ -56,7 +56,7 @@ class ChainStep(BaseModel):
 
 
 class Chain(BaseModel):
-    """Reasoning chain connecting knowledges within a module."""
+    """Reasoning chain connecting knowledge objects within a module."""
 
     chain_id: str
     module_id: str
@@ -66,7 +66,7 @@ class Chain(BaseModel):
 
 
 class Module(BaseModel):
-    """Cohesive knowledge unit grouping knowledges and chains."""
+    """Cohesive knowledge unit grouping knowledge objects and chains."""
 
     module_id: str
     package_id: str
@@ -106,7 +106,7 @@ class ProbabilityRecord(BaseModel):
 
 
 class BeliefSnapshot(BaseModel):
-    """BP computation result for a versioned knowledge."""
+    """BP computation result for a versioned knowledge object."""
 
     knowledge_id: str
     version: int
@@ -149,7 +149,7 @@ class ResourceAttachment(BaseModel):
 
 
 class ScoredKnowledge(BaseModel):
-    """Knowledge with a relevance score from search."""
+    """Knowledge object with a relevance score from search."""
 
     knowledge: Knowledge
     score: float
@@ -163,7 +163,7 @@ class Subgraph(BaseModel):
 
 
 class KnowledgeEmbedding(BaseModel):
-    """Embedding vector for a versioned knowledge, used by VectorStore."""
+    """Embedding vector for a versioned knowledge object, used by VectorStore."""
 
     knowledge_id: str
     version: int

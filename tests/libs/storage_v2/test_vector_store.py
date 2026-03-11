@@ -118,7 +118,7 @@ class TestWriteEmbeddings:
 
 
 class TestSearch:
-    async def test_search_returns_scored_knowledges(self, vector_store):
+    async def test_search_returns_scored_knowledge(self, vector_store):
         items = _make_items()
         await vector_store.write_embeddings(items)
         query = _make_embedding(8, 0.1)  # same as knowledge_a

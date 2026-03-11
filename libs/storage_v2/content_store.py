@@ -37,8 +37,8 @@ class ContentStore(ABC):
         """Write a package and its modules."""
 
     @abstractmethod
-    async def write_knowledges(self, knowledges: list[Knowledge]) -> None:
-        """Write knowledges (skip duplicates by (knowledge_id, version))."""
+    async def write_knowledge(self, knowledge_items: list[Knowledge]) -> None:
+        """Write knowledge items (skip duplicates by (knowledge_id, version))."""
 
     @abstractmethod
     async def write_chains(self, chains: list[Chain]) -> None:
@@ -64,11 +64,11 @@ class ContentStore(ABC):
     async def get_knowledge(
         self, knowledge_id: str, version: int | None = None
     ) -> Knowledge | None:
-        """Get a knowledge by id. If version is None, return the latest version."""
+        """Get a knowledge item by id. If version is None, return the latest version."""
 
     @abstractmethod
     async def get_knowledge_versions(self, knowledge_id: str) -> list[Knowledge]:
-        """Get all versions of a knowledge, ordered by version ascending."""
+        """Get all versions of a knowledge item, ordered by version ascending."""
 
     @abstractmethod
     async def get_package(self, package_id: str) -> Package | None:
@@ -90,7 +90,7 @@ class ContentStore(ABC):
 
     @abstractmethod
     async def get_belief_history(self, knowledge_id: str) -> list[BeliefSnapshot]:
-        """Get belief snapshots for a knowledge, ordered by computed_at."""
+        """Get belief snapshots for a knowledge item, ordered by computed_at."""
 
     @abstractmethod
     async def get_resources_for(self, target_type: str, target_id: str) -> list[Resource]:
@@ -105,8 +105,8 @@ class ContentStore(ABC):
     # ── BP bulk load ──
 
     @abstractmethod
-    async def list_knowledges(self) -> list[Knowledge]:
-        """Load all knowledges for BP factor graph construction."""
+    async def list_knowledge(self) -> list[Knowledge]:
+        """Load all knowledge items for BP factor graph construction."""
 
     @abstractmethod
     async def list_chains(self) -> list[Chain]:

@@ -23,11 +23,11 @@ def test_galileo_converts_to_v2():
     assert data.package.package_id == "galileo_falling_bodies"
     assert data.package.name == "galileo_falling_bodies"
     assert len(data.modules) == 5
-    assert len(data.knowledges) > 0
+    assert len(data.knowledge_items) > 0
     assert len(data.chains) > 0
 
     # Knowledge IDs should use / separator
-    for c in data.knowledges:
+    for c in data.knowledge_items:
         assert "/" in c.knowledge_id
         assert c.knowledge_id.startswith("galileo_falling_bodies/")
 
@@ -44,12 +44,12 @@ def test_knowledge_dedup():
     pkg = resolve_refs(pkg)
     data = convert_to_v2(pkg=pkg, review={}, beliefs={}, bp_run_id="test")
 
-    ids = [c.knowledge_id for c in data.knowledges]
+    ids = [c.knowledge_id for c in data.knowledge_items]
     assert len(ids) == len(set(ids)), f"Duplicate knowledge IDs: {ids}"
 
 
 def test_cross_package_refs_not_duplicated():
-    """Newton referencing Galileo knowledges should not re-create them."""
+    """Newton referencing Galileo knowledge should not re-create them."""
     from cli.lang_to_v2 import convert_to_v2
 
     galileo = load_package(GALILEO_DIR)
@@ -59,8 +59,8 @@ def test_cross_package_refs_not_duplicated():
 
     data = convert_to_v2(pkg=newton, review={}, beliefs={}, bp_run_id="test")
 
-    # Newton knowledges should only include Newton's own declarations
-    for c in data.knowledges:
+    # Newton knowledge should only include Newton's own declarations
+    for c in data.knowledge_items:
         assert c.source_package_id == "newton_principia"
 
 

@@ -1,4 +1,4 @@
-"""GraphStore ABC — graph topology backend contract (Neo4j / Kùzu)."""
+"""GraphStore ABC — graph topology backend contract (Neo4j / Kuzu)."""
 
 from abc import ABC, abstractmethod
 
@@ -30,7 +30,7 @@ class GraphStore(ABC):
     # ── Write ──
 
     @abstractmethod
-    async def write_topology(self, knowledges: list[Knowledge], chains: list[Chain]) -> None:
+    async def write_topology(self, knowledge_items: list[Knowledge], chains: list[Chain]) -> None:
         """Write knowledge nodes, chain nodes, and PREMISE/CONCLUSION relationships."""
 
     @abstractmethod
@@ -55,15 +55,15 @@ class GraphStore(ABC):
         chain_types: list[str] | None = None,
         max_hops: int = 1,
     ) -> Subgraph:
-        """Get neighboring knowledges and chains within max_hops."""
+        """Get neighboring knowledge items and chains within max_hops."""
 
     @abstractmethod
-    async def get_subgraph(self, knowledge_id: str, max_knowledges: int = 500) -> Subgraph:
-        """Get a subgraph rooted at a knowledge, up to max_knowledges."""
+    async def get_subgraph(self, knowledge_id: str, max_knowledge: int = 500) -> Subgraph:
+        """Get a subgraph rooted at a knowledge item, up to max_knowledge."""
 
     @abstractmethod
     async def search_topology(self, seed_ids: list[str], hops: int = 1) -> list[ScoredKnowledge]:
-        """Expand from seed knowledges by graph traversal, returning scored results."""
+        """Expand from seed knowledge items by graph traversal, returning scored results."""
 
     # ── Lifecycle ──
 
