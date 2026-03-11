@@ -17,7 +17,7 @@
     "role": "reasoning",
     "imports": [
       {
-        "closure_id": "galileo_falling_bodies.setting.thought_experiment_env",
+        "knowledge_id": "galileo_falling_bodies.setting.thought_experiment_env",
         "version": 1,
         "strength": "strong"
       }

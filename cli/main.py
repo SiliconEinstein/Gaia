@@ -352,7 +352,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     await graph.delete_package(data.package.package_id)
 
     # 6. Write to LanceDB
-    await content.write_closures(data.closures)
+    await content.write_knowledge(data.knowledge_items)
     await content.write_chains(data.chains)
     await content.write_package(data.package, data.modules)
     if data.probabilities:
@@ -361,7 +361,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
         await content.write_belief_snapshots(data.belief_snapshots)
 
     # 7. Write to Kuzu
-    await graph.write_topology(data.closures, data.chains)
+    await graph.write_topology(data.knowledge_items, data.chains)
     if data.probabilities:
         for record in data.probabilities:
             await graph.update_probability(record.chain_id, record.step_index, record.value)
@@ -379,19 +379,19 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
         "published_at": datetime.now(timezone.utc).isoformat(),
         "db_path": db_path,
         "stats": {
-            "closures": len(data.closures),
+            "knowledge_items": len(data.knowledge_items),
             "chains": len(data.chains),
             "probabilities": len(data.probabilities),
             "belief_snapshots": len(data.belief_snapshots),
         },
-        "closure_ids": [c.closure_id for c in data.closures],
+        "knowledge_ids": [k.knowledge_id for k in data.knowledge_items],
         "chain_ids": [ch.chain_id for ch in data.chains],
     }
     (publish_dir / "receipt.json").write_text(json.dumps(receipt, ensure_ascii=False, indent=2))
 
     typer.echo(
         f"Published {pkg.name} to v2 storage:\n"
-        f"  Closures: {len(data.closures)} written to LanceDB ({db_path})\n"
+        f"  Knowledge items: {len(data.knowledge_items)} written to LanceDB ({db_path})\n"
         f"  Chains: {len(data.chains)} written to LanceDB + Kuzu"
     )
 
@@ -518,54 +518,54 @@ def search(
         help="LanceDB path (default: GAIA_LANCEDB_PATH or ./data/lancedb/gaia)",
     ),
     limit: int = typer.Option(10, "--limit", "-k", help="Max results"),
-    closure_id: str = typer.Option(None, "--id", help="Look up a closure by ID"),
+    knowledge_id: str = typer.Option(None, "--id", help="Look up a knowledge item by ID"),
 ) -> None:
-    """Search published closures in local LanceDB (v2 storage)."""
+    """Search published knowledge items in local LanceDB (v2 storage)."""
     import asyncio
     import os
 
-    if query is None and closure_id is None:
-        typer.echo("Error: provide either a QUERY or --id <closure_id>", err=True)
+    if query is None and knowledge_id is None:
+        typer.echo("Error: provide either a QUERY or --id <knowledge_id>", err=True)
         raise typer.Exit(1)
 
     if db_path is None:
         db_path = os.environ.get("GAIA_LANCEDB_PATH", "./data/lancedb/gaia")
 
-    if closure_id is not None:
-        asyncio.run(_lookup_closure(closure_id, db_path))
+    if knowledge_id is not None:
+        asyncio.run(_lookup_knowledge(knowledge_id, db_path))
     else:
-        asyncio.run(_search_closures(query, db_path, limit))
+        asyncio.run(_search_knowledge(query, db_path, limit))
 
 
-async def _lookup_closure(closure_id: str, db_path: str) -> None:
-    """Look up a single closure by ID, including latest belief if available."""
+async def _lookup_knowledge(knowledge_id: str, db_path: str) -> None:
+    """Look up a single knowledge item by ID, including latest belief if available."""
     from libs.storage_v2.lance_content_store import LanceContentStore
 
     store = LanceContentStore(db_path)
     await store.initialize()
-    closure = await store.get_closure(closure_id)
-    if closure is None:
-        typer.echo(f"Closure '{closure_id}' not found.")
+    knowledge_item = await store.get_knowledge(knowledge_id)
+    if knowledge_item is None:
+        typer.echo(f"Knowledge item '{knowledge_id}' not found.")
         return
 
     # Try to get belief from belief_history
     belief = None
-    snapshots = await store.get_belief_history(closure_id)
+    snapshots = await store.get_belief_history(knowledge_id)
     if snapshots:
         belief = snapshots[-1].belief
 
     belief_str = f"  belief: {belief:.4f}" if belief is not None else ""
-    typer.echo(f"[{closure.closure_id}] ({closure.type})")
-    typer.echo(f"  prior: {closure.prior}{belief_str}")
-    content = closure.content.strip()
+    typer.echo(f"[{knowledge_item.knowledge_id}] ({knowledge_item.type})")
+    typer.echo(f"  prior: {knowledge_item.prior}{belief_str}")
+    content = knowledge_item.content.strip()
     if content:
         typer.echo(f"  content: {content}")
-    if closure.keywords:
-        typer.echo(f"  keywords: {', '.join(closure.keywords)}")
+    if knowledge_item.keywords:
+        typer.echo(f"  keywords: {', '.join(knowledge_item.keywords)}")
 
 
-async def _search_closures(query: str, db_path: str, limit: int) -> None:
-    """Full-text BM25 search over published closures in LanceDB v2.
+async def _search_knowledge(query: str, db_path: str, limit: int) -> None:
+    """Full-text BM25 search over published knowledge items in LanceDB v2.
 
     Uses FTS index first; falls back to SQL LIKE filter for queries the
     default tokenizer cannot handle (e.g. CJK text without spaces).
@@ -576,24 +576,24 @@ async def _search_closures(query: str, db_path: str, limit: int) -> None:
     await store.initialize()
 
     # Try BM25 FTS search first (works well for Latin-script text)
-    scored_closures = await store.search_bm25(query, top_k=limit)
+    scored_items = await store.search_bm25(query, top_k=limit)
 
-    if scored_closures:
-        # Get belief snapshots for all matched closures
+    if scored_items:
+        # Get belief snapshots for all matched knowledge items
         belief_map: dict[str, float] = {}
-        for sc in scored_closures:
-            snapshots = await store.get_belief_history(sc.closure.closure_id)
+        for sc in scored_items:
+            snapshots = await store.get_belief_history(sc.knowledge.knowledge_id)
             if snapshots:
-                belief_map[sc.closure.closure_id] = snapshots[-1].belief
+                belief_map[sc.knowledge.knowledge_id] = snapshots[-1].belief
 
-        for sc in scored_closures:
-            belief = belief_map.get(sc.closure.closure_id)
+        for sc in scored_items:
+            belief = belief_map.get(sc.knowledge.knowledge_id)
             belief_str = f" belief={belief:.4f}" if belief is not None else ""
             typer.echo(
-                f"  [{sc.closure.closure_id}] ({sc.closure.type}) "
-                f"prior={sc.closure.prior}{belief_str}  score={sc.score:.3f}"
+                f"  [{sc.knowledge.knowledge_id}] ({sc.knowledge.type}) "
+                f"prior={sc.knowledge.prior}{belief_str}  score={sc.score:.3f}"
             )
-            content = sc.closure.content.strip()
+            content = sc.knowledge.content.strip()
             if content:
                 snippet = content[:100]
                 typer.echo(f"    {snippet}...")
@@ -607,16 +607,19 @@ async def _search_closures(query: str, db_path: str, limit: int) -> None:
 
     # Get belief snapshots for fallback results
     belief_map_fb: dict[str, float] = {}
-    for closure in results:
-        snapshots = await store.get_belief_history(closure.closure_id)
+    for knowledge_item in results:
+        snapshots = await store.get_belief_history(knowledge_item.knowledge_id)
         if snapshots:
-            belief_map_fb[closure.closure_id] = snapshots[-1].belief
+            belief_map_fb[knowledge_item.knowledge_id] = snapshots[-1].belief
 
-    for closure in results:
-        belief = belief_map_fb.get(closure.closure_id)
+    for knowledge_item in results:
+        belief = belief_map_fb.get(knowledge_item.knowledge_id)
         belief_str = f" belief={belief:.4f}" if belief is not None else ""
-        typer.echo(f"  [{closure.closure_id}] ({closure.type}) prior={closure.prior}{belief_str}")
-        content = closure.content.strip()
+        typer.echo(
+            f"  [{knowledge_item.knowledge_id}] ({knowledge_item.type}) "
+            f"prior={knowledge_item.prior}{belief_str}"
+        )
+        content = knowledge_item.content.strip()
         if content:
             snippet = content[:100]
             typer.echo(f"    {snippet}...")
@@ -627,18 +630,18 @@ async def _content_like_search_v2(
     query: str,
     limit: int,
 ) -> list:
-    """Fallback substring search using SQL LIKE on the closures content column."""
-    from libs.storage_v2.lance_content_store import _row_to_closure
+    """Fallback substring search using SQL LIKE on the knowledge content column."""
+    from libs.storage_v2.lance_content_store import _row_to_knowledge
 
     try:
-        table = store._db.open_table("closures")
+        table = store._db.open_table("knowledge")
     except Exception:
         return []
     if table.count_rows() == 0:
         return []
     escaped = query.replace("'", "''")
     rows = table.search().where(f"content LIKE '%{escaped}%'").limit(limit).to_list()
-    return [_row_to_closure(r) for r in rows]
+    return [_row_to_knowledge(r) for r in rows]
 
 
 @app.command()

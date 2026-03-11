@@ -13,13 +13,13 @@ from libs.storage_v2.content_store import ContentStore
 from libs.storage_v2.models import (
     BeliefSnapshot,
     Chain,
-    Closure,
+    Knowledge,
     Module,
     Package,
     ProbabilityRecord,
     Resource,
     ResourceAttachment,
-    ScoredClosure,
+    ScoredKnowledge,
 )
 
 # ── PyArrow schemas ──
@@ -50,9 +50,9 @@ _MODULES_SCHEMA = pa.schema(
     ]
 )
 
-_CLOSURES_SCHEMA = pa.schema(
+_KNOWLEDGE_SCHEMA = pa.schema(
     [
-        pa.field("closure_id", pa.string()),
+        pa.field("knowledge_id", pa.string()),
         pa.field("version", pa.int64()),
         pa.field("type", pa.string()),
         pa.field("content", pa.string()),
@@ -88,7 +88,7 @@ _PROBABILITIES_SCHEMA = pa.schema(
 
 _BELIEF_HISTORY_SCHEMA = pa.schema(
     [
-        pa.field("closure_id", pa.string()),
+        pa.field("knowledge_id", pa.string()),
         pa.field("version", pa.int64()),
         pa.field("belief", pa.float64()),
         pa.field("bp_run_id", pa.string()),
@@ -126,7 +126,7 @@ _RESOURCE_ATTACHMENTS_SCHEMA = pa.schema(
 _TABLE_SCHEMAS: dict[str, pa.Schema] = {
     "packages": _PACKAGES_SCHEMA,
     "modules": _MODULES_SCHEMA,
-    "closures": _CLOSURES_SCHEMA,
+    "knowledge": _KNOWLEDGE_SCHEMA,
     "chains": _CHAINS_SCHEMA,
     "probabilities": _PROBABILITIES_SCHEMA,
     "belief_history": _BELIEF_HISTORY_SCHEMA,
@@ -199,25 +199,25 @@ def _row_to_module(row: dict[str, Any]) -> Module:
     )
 
 
-def _closure_to_row(c: Closure) -> dict[str, Any]:
+def _knowledge_to_row(k: Knowledge) -> dict[str, Any]:
     return {
-        "closure_id": c.closure_id,
-        "version": c.version,
-        "type": c.type,
-        "content": c.content,
-        "prior": c.prior,
-        "keywords": json.dumps(c.keywords),
-        "source_package_id": c.source_package_id,
-        "source_module_id": c.source_module_id,
-        "created_at": c.created_at.isoformat(),
-        "embedding": json.dumps(c.embedding) if c.embedding else "",
+        "knowledge_id": k.knowledge_id,
+        "version": k.version,
+        "type": k.type,
+        "content": k.content,
+        "prior": k.prior,
+        "keywords": json.dumps(k.keywords),
+        "source_package_id": k.source_package_id,
+        "source_module_id": k.source_module_id,
+        "created_at": k.created_at.isoformat(),
+        "embedding": json.dumps(k.embedding) if k.embedding else "",
     }
 
 
-def _row_to_closure(row: dict[str, Any]) -> Closure:
+def _row_to_knowledge(row: dict[str, Any]) -> Knowledge:
     emb_raw = row["embedding"]
-    return Closure(
-        closure_id=row["closure_id"],
+    return Knowledge(
+        knowledge_id=row["knowledge_id"],
         version=row["version"],
         type=row["type"],
         content=row["content"],
@@ -274,7 +274,7 @@ def _row_to_probability(row: dict[str, Any]) -> ProbabilityRecord:
 
 def _belief_to_row(s: BeliefSnapshot) -> dict[str, Any]:
     return {
-        "closure_id": s.closure_id,
+        "knowledge_id": s.knowledge_id,
         "version": s.version,
         "belief": s.belief,
         "bp_run_id": s.bp_run_id,
@@ -284,7 +284,7 @@ def _belief_to_row(s: BeliefSnapshot) -> dict[str, Any]:
 
 def _row_to_belief(row: dict[str, Any]) -> BeliefSnapshot:
     return BeliefSnapshot(
-        closure_id=row["closure_id"],
+        knowledge_id=row["knowledge_id"],
         version=row["version"],
         belief=row["belief"],
         bp_run_id=row["bp_run_id"],
@@ -372,7 +372,7 @@ class LanceContentStore(ContentStore):
         direct_pairs = [
             ("packages", "package_id"),
             ("modules", "package_id"),
-            ("closures", "source_package_id"),
+            ("knowledge", "source_package_id"),
             ("chains", "package_id"),
             ("resources", "source_package_id"),
         ]
@@ -390,10 +390,11 @@ class LanceContentStore(ContentStore):
         except Exception:
             pass
 
-        # Belief history: closure_id starts with "package_id/"
+        # Belief history: knowledge_id may use slash (CLI) or dot (fixture/legacy).
         try:
             tbl = self._db.open_table("belief_history")
-            tbl.delete(f"closure_id LIKE '{escaped}/%'")
+            tbl.delete(f"knowledge_id LIKE '{escaped}/%'")
+            tbl.delete(f"knowledge_id LIKE '{escaped}.%'")
         except Exception:
             pass
 
@@ -427,21 +428,21 @@ class LanceContentStore(ContentStore):
             if new_modules:
                 mod_table.add(new_modules)
 
-    async def write_closures(self, closures: list[Closure]) -> None:
-        if not closures:
+    async def write_knowledge(self, knowledge_items: list[Knowledge]) -> None:
+        if not knowledge_items:
             return
-        table = self._db.open_table("closures")
-        # Filter out duplicates by (closure_id, version)
+        table = self._db.open_table("knowledge")
+        # Filter out duplicates by (knowledge_id, version)
         new_rows = []
-        for c in closures:
+        for k in knowledge_items:
             existing = (
                 table.search()
-                .where(f"closure_id = '{_q(c.closure_id)}' AND version = {c.version}")
+                .where(f"knowledge_id = '{_q(k.knowledge_id)}' AND version = {k.version}")
                 .limit(1)
                 .to_list()
             )
             if not existing:
-                new_rows.append(_closure_to_row(c))
+                new_rows.append(_knowledge_to_row(k))
         if new_rows:
             table.add(new_rows)
             self._fts_dirty = True
@@ -476,34 +477,39 @@ class LanceContentStore(ContentStore):
 
     # ── Read ──
 
-    async def get_closure(self, closure_id: str, version: int | None = None) -> Closure | None:
-        table = self._db.open_table("closures")
+    async def get_knowledge(
+        self, knowledge_id: str, version: int | None = None
+    ) -> Knowledge | None:
+        table = self._db.open_table("knowledge")
         if version is not None:
             results = (
                 table.search()
-                .where(f"closure_id = '{_q(closure_id)}' AND version = {version}")
+                .where(f"knowledge_id = '{_q(knowledge_id)}' AND version = {version}")
                 .limit(1)
                 .to_list()
             )
         else:
             # Get all versions, return the latest
             results = (
-                table.search().where(f"closure_id = '{_q(closure_id)}'").limit(_MAX_SCAN).to_list()
+                table.search()
+                .where(f"knowledge_id = '{_q(knowledge_id)}'")
+                .limit(_MAX_SCAN)
+                .to_list()
             )
             if not results:
                 return None
             results = [max(results, key=lambda r: r["version"])]
         if not results:
             return None
-        return _row_to_closure(results[0])
+        return _row_to_knowledge(results[0])
 
-    async def get_closure_versions(self, closure_id: str) -> list[Closure]:
-        table = self._db.open_table("closures")
+    async def get_knowledge_versions(self, knowledge_id: str) -> list[Knowledge]:
+        table = self._db.open_table("knowledge")
         results = (
-            table.search().where(f"closure_id = '{_q(closure_id)}'").limit(_MAX_SCAN).to_list()
+            table.search().where(f"knowledge_id = '{_q(knowledge_id)}'").limit(_MAX_SCAN).to_list()
         )
-        closures = [_row_to_closure(r) for r in results]
-        return sorted(closures, key=lambda c: c.version)
+        knowledge_items = [_row_to_knowledge(r) for r in results]
+        return sorted(knowledge_items, key=lambda k: k.version)
 
     async def get_package(self, package_id: str) -> Package | None:
         table = self._db.open_table("packages")
@@ -535,10 +541,10 @@ class LanceContentStore(ContentStore):
         records = [_row_to_probability(r) for r in results]
         return sorted(records, key=lambda r: r.recorded_at)
 
-    async def get_belief_history(self, closure_id: str) -> list[BeliefSnapshot]:
+    async def get_belief_history(self, knowledge_id: str) -> list[BeliefSnapshot]:
         table = self._db.open_table("belief_history")
         results = (
-            table.search().where(f"closure_id = '{_q(closure_id)}'").limit(_MAX_SCAN).to_list()
+            table.search().where(f"knowledge_id = '{_q(knowledge_id)}'").limit(_MAX_SCAN).to_list()
         )
         snapshots = [_row_to_belief(r) for r in results]
         return sorted(snapshots, key=lambda s: s.computed_at)
@@ -564,8 +570,8 @@ class LanceContentStore(ContentStore):
 
     # ── Search ──
 
-    async def search_bm25(self, text: str, top_k: int) -> list[ScoredClosure]:
-        table = self._db.open_table("closures")
+    async def search_bm25(self, text: str, top_k: int) -> list[ScoredKnowledge]:
+        table = self._db.open_table("knowledge")
         if table.count_rows() == 0:
             return []
         if self._fts_dirty:
@@ -574,19 +580,19 @@ class LanceContentStore(ContentStore):
         results = table.search(text, query_type="fts").limit(top_k).to_list()
         scored = []
         for row in results:
-            closure = _row_to_closure(row)
-            scored.append(ScoredClosure(closure=closure, score=row["_score"]))
+            knowledge = _row_to_knowledge(row)
+            scored.append(ScoredKnowledge(knowledge=knowledge, score=row["_score"]))
         return scored
 
     # ── BP bulk load ──
 
-    async def list_closures(self) -> list[Closure]:
-        table = self._db.open_table("closures")
+    async def list_knowledge(self) -> list[Knowledge]:
+        table = self._db.open_table("knowledge")
         count = table.count_rows()
         if count == 0:
             return []
         results = table.search().limit(count).to_list()
-        return [_row_to_closure(r) for r in results]
+        return [_row_to_knowledge(r) for r in results]
 
     async def list_chains(self) -> list[Chain]:
         table = self._db.open_table("chains")

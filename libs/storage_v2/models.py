@@ -1,6 +1,6 @@
 """Pydantic v2 models for the storage v2 layer.
 
-These models map directly to Gaia Language concepts: Closure, Chain, Module, Package.
+These models map directly to Gaia Language concepts: Knowledge, Chain, Module, Package.
 See docs/foundations/server/storage-schema.md for the authoritative schema definition.
 """
 
@@ -13,17 +13,17 @@ from pydantic import BaseModel, Field
 # ── References ──
 
 
-class ClosureRef(BaseModel):
-    """Versioned reference to a Closure."""
+class KnowledgeRef(BaseModel):
+    """Versioned reference to a Knowledge object."""
 
-    closure_id: str
+    knowledge_id: str
     version: int
 
 
 class ImportRef(BaseModel):
     """Cross-module dependency reference."""
 
-    closure_id: str
+    knowledge_id: str
     version: int
     strength: Literal["strong", "weak"]
 
@@ -31,10 +31,10 @@ class ImportRef(BaseModel):
 # ── Core Entities ──
 
 
-class Closure(BaseModel):
-    """Versioned knowledge object. Identity is (closure_id, version)."""
+class Knowledge(BaseModel):
+    """Versioned knowledge object. Identity is (knowledge_id, version)."""
 
-    closure_id: str
+    knowledge_id: str
     version: int
     type: Literal["claim", "question", "setting", "action"]
     content: str
@@ -50,13 +50,13 @@ class ChainStep(BaseModel):
     """A single step within a Chain."""
 
     step_index: int
-    premises: list[ClosureRef]
+    premises: list[KnowledgeRef]
     reasoning: str
-    conclusion: ClosureRef
+    conclusion: KnowledgeRef
 
 
 class Chain(BaseModel):
-    """Reasoning chain connecting closures within a module."""
+    """Reasoning chain connecting knowledge objects within a module."""
 
     chain_id: str
     module_id: str
@@ -66,7 +66,7 @@ class Chain(BaseModel):
 
 
 class Module(BaseModel):
-    """Cohesive knowledge unit grouping closures and chains."""
+    """Cohesive knowledge unit grouping knowledge objects and chains."""
 
     module_id: str
     package_id: str
@@ -106,9 +106,9 @@ class ProbabilityRecord(BaseModel):
 
 
 class BeliefSnapshot(BaseModel):
-    """BP computation result for a versioned closure."""
+    """BP computation result for a versioned knowledge object."""
 
-    closure_id: str
+    knowledge_id: str
     version: int
     belief: float = Field(ge=0, le=1)
     bp_run_id: str
@@ -139,7 +139,7 @@ class ResourceAttachment(BaseModel):
     """Many-to-many link between a Resource and a target entity."""
 
     resource_id: str
-    target_type: Literal["closure", "chain", "chain_step", "module", "package"]
+    target_type: Literal["knowledge", "chain", "chain_step", "module", "package"]
     target_id: str
     role: Literal["evidence", "visualization", "implementation", "reproduction", "supplement"]
     description: str | None = None
@@ -148,23 +148,23 @@ class ResourceAttachment(BaseModel):
 # ── Query / Result Models ──
 
 
-class ScoredClosure(BaseModel):
-    """Closure with a relevance score from search."""
+class ScoredKnowledge(BaseModel):
+    """Knowledge object with a relevance score from search."""
 
-    closure: Closure
+    knowledge: Knowledge
     score: float
 
 
 class Subgraph(BaseModel):
     """A subset of the knowledge graph returned by traversal queries."""
 
-    closure_ids: set[str] = set()
+    knowledge_ids: set[str] = set()
     chain_ids: set[str] = set()
 
 
-class ClosureEmbedding(BaseModel):
-    """Embedding vector for a versioned closure, used by VectorStore."""
+class KnowledgeEmbedding(BaseModel):
+    """Embedding vector for a versioned knowledge object, used by VectorStore."""
 
-    closure_id: str
+    knowledge_id: str
     version: int
     embedding: list[float]

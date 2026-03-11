@@ -9,9 +9,9 @@ It instantiates the shared vocabulary defined in [../domain-model.md](../domain-
 It covers:
 
 1. the core object layers used in shared Gaia knowledge packages
-2. the static schema for `closure`, `module`, and `package`
-3. the closure kind schemas for `claim`, `question`, `setting`, and `action`
-4. the chain model: `closure ↔ inference` alternation within modules
+2. the static schema for `knowledge`, `module`, and `package`
+3. the knowledge kind schemas for `claim`, `question`, `setting`, and `action`
+4. the chain model: `knowledge ↔ inference` alternation within modules
 5. the import/export model for cross-module dependencies
 
 It does not cover:
@@ -34,7 +34,7 @@ Those belong to later documents:
 
 Gaia is **Curry-Howard for plausible reasoning**: a probabilistic functional programming language where writing a knowledge package is constructing a plausible argument, and running belief propagation is computing how much you should believe the conclusions given the premises.
 
-This document (V1) defines the **deterministic FP core** — closures (values), inferences (lambdas), chains (composition), modules, and packages. The **probabilistic layer** — priors, dependency strength as conditioning, and belief propagation as inference — is defined in [V3: Probabilistic Semantics](probabilistic-semantics.md). Together they extend the Curry-Howard correspondence from deductive proof to plausible reasoning, following Pólya, Jaynes, and Cox's theorem.
+This document (V1) defines the **deterministic FP core** — knowledge objects (values), inferences (lambdas), chains (composition), modules, and packages. The **probabilistic layer** — priors, dependency strength as conditioning, and belief propagation as inference — is defined in [V3: Probabilistic Semantics](probabilistic-semantics.md). Together they extend the Curry-Howard correspondence from deductive proof to plausible reasoning, following Pólya, Jaynes, and Cox's theorem.
 
 ### Why a package/module system for knowledge?
 
@@ -51,36 +51,36 @@ A research paper, like a software library, needs to:
 
 Gaia's design draws from two layers of programming language tradition:
 
-- **Semantic model** — from functional programming (Haskell, OCaml): immutable values, closures as the universal currency, explicit interfaces, referential transparency
+- **Semantic model** — from functional programming (Haskell, OCaml): immutable values, knowledge objects as the universal currency, explicit interfaces, referential transparency
 - **Packaging discipline** — from systems languages (Rust/Cargo): module = file, explicit exports, manifest-driven dependency management
 
 The table below compares the semantic model (Haskell, OCaml) and the packaging model (Rust) with Gaia. Python is included as a familiar baseline.
 
 | Aspect | Haskell | OCaml | Rust/Cargo | Python | Gaia |
 |--------|---------|-------|------------|--------|------|
-| **Core unit** | value (immutable) | value (immutable by default) | item (owned) | object (mutable) | closure (immutable) |
-| **Composition** | function composition | function composition | expressions + items | statements | chain (closure ↔ inference) |
+| **Core unit** | value (immutable) | value (immutable by default) | item (owned) | object (mutable) | knowledge (immutable) |
+| **Composition** | function composition | function composition | expressions + items | statements | chain (knowledge ↔ inference) |
 | **Package** | `.cabal` package | opam package | crate | PyPI package | knowledge package |
 | **Module** | `module` (1:1 with files) | `module` (1:1 with files, or inline) | `mod` (1:1 with files) | `.py` file | module (with role) |
-| **Public interface** | export list in `module Foo (...)` | `.mli` signature file | `pub` items | `__all__` / convention | `exports[]` closure_ids |
+| **Public interface** | export list in `module Foo (...)` | `.mli` signature file | `pub` items | `__all__` / convention | `exports[]` knowledge_ids |
 | **Interface contract** | type classes (value-level) | module signatures (module-level) | traits (value-level) | duck typing | imports[] + exports[] (module-level) |
 | **Dependencies** | `import` + `.cabal` `build-depends` | `open` + opam `depends` | `use` + `Cargo.toml` | `import` + `requirements.txt` | `imports[]` with strength |
-| **Internal modules** | `other-modules` in `.cabal` | `private_modules` in dune | `pub(crate)` | `_` prefix convention | non-exported closures in chain |
+| **Internal modules** | `other-modules` in `.cabal` | `private_modules` in dune | `pub(crate)` | `_` prefix convention | non-exported knowledge objects in chain |
 | **Parameterized modules** | — (type classes instead) | functors | — (traits instead) | — | — (deferred to V2) |
 | **Manifest** | `package.cabal` | `opam` + `dune` | `Cargo.toml` | `pyproject.toml` | `Gaia.toml` |
 | **Lock file** | `cabal.project.freeze` | `opam.locked` | `Cargo.lock` | `requirements.lock` | `Gaia.lock` (deferred) |
 
 ### Key design choices and their origins
 
-**From Haskell/FP: immutable values as the universal currency.** In Haskell, values are immutable and referentially transparent — a name always refers to the same thing. Gaia's `closure` follows the same principle: a `closure_id` always refers to the same content, closures are never mutated in place, and they can be freely shared across modules and packages. This is why closures (not modules, not inferences) are the unit of import/export — they are the "values" of the knowledge system.
+**From Haskell/FP: immutable values as the universal currency.** In Haskell, values are immutable and referentially transparent — a name always refers to the same thing. Gaia's `knowledge` follows the same principle: a `knowledge_id` always refers to the same content, knowledge objects are never mutated in place, and they can be freely shared across modules and packages. This is why knowledge objects (not modules, not inferences) are the unit of import/export — they are the "values" of the knowledge system.
 
-**From Haskell: explicit export lists.** Haskell modules declare exactly what they export via `module Foo (bar, baz) where`. Items not listed are internal. Gaia follows this directly: a module's `exports[]` lists the closure_ids that form its public interface, while other closures in the chain remain internal. At the package level, Haskell's `.cabal` distinguishes `exposed-modules` (public API) from `other-modules` (internal); Gaia's package `exports[]` plays the same role — a curated subset of module exports.
+**From Haskell: explicit export lists.** Haskell modules declare exactly what they export via `module Foo (bar, baz) where`. Items not listed are internal. Gaia follows this directly: a module's `exports[]` lists the knowledge_ids that form its public interface, while other knowledge objects in the chain remain internal. At the package level, Haskell's `.cabal` distinguishes `exposed-modules` (public API) from `other-modules` (internal); Gaia's package `exports[]` plays the same role — a curated subset of module exports.
 
-**From OCaml: module signatures as contracts.** OCaml separates interface (`.mli`) from implementation (`.ml`). The `.mli` file declares what a module provides without revealing how. In Gaia, a module's "signature" is its `imports[]` + `exports[]` + `role` — this is the contract other modules see. The `chain[]` is the "implementation" — the internal reasoning that produces the exported closures. This separation is structural in our schema: you can read a module's interface without reading its chain.
+**From OCaml: module signatures as contracts.** OCaml separates interface (`.mli`) from implementation (`.ml`). The `.mli` file declares what a module provides without revealing how. In Gaia, a module's "signature" is its `imports[]` + `exports[]` + `role` — this is the contract other modules see. The `chain[]` is the "implementation" — the internal reasoning that produces the exported knowledge objects. This separation is structural in our schema: you can read a module's interface without reading its chain.
 
 **From Rust: module = file, packaging discipline.** Rust binds modules to files 1:1 (`mod foo` → `foo.rs`) and uses `Cargo.toml` for manifest-driven dependency management. Gaia follows this packaging spirit: each module is a self-contained unit, `Gaia.toml` declares package-level metadata and dependencies, and the structure is mechanically navigable for both humans and AI agents.
 
-**From FP: the chain as lambda composition.** Haskell programs are built by composing pure functions: `value → function → value → function → value`. Gaia's chain follows the same pattern: `closure → inference → closure → inference → closure`. Closures are the **states** (immutable, self-contained, exportable) and inferences are the **actions** (local transformations, context-dependent, not exportable). A chain is therefore a sequential composition of lambdas applied to values — `v₀ |> λ₁ |> v₁ |> λ₂ |> v₂`. An inference can be anonymous (plain text, like a lambda) or it can reference a named `action` closure (like a named function application). This connects the two: an `action` closure is a **function definition**, an `inference` with an `action` reference is a **function call**.
+**From FP: the chain as lambda composition.** Haskell programs are built by composing pure functions: `value → function → value → function → value`. Gaia's chain follows the same pattern: `knowledge → inference → knowledge → inference → knowledge`. Knowledge objects are the **states** (immutable, self-contained, exportable) and inferences are the **actions** (local transformations, context-dependent, not exportable). A chain is therefore a sequential composition of lambdas applied to values — `v₀ |> λ₁ |> v₁ |> λ₂ |> v₂`. An inference can be anonymous (plain text, like a lambda) or it can reference a named `action` knowledge object (like a named function application). This connects the two: an `action` knowledge object is a **function definition**, an `inference` with an `action` reference is a **function call**.
 
 **Unique to Gaia: dependency strength.** No programming language distinguishes between strong and weak imports. In code, a dependency either compiles or it doesn't. In knowledge, the distinction matters: a `strong` dependency means "if this is wrong, my conclusion is likely wrong too," while a `weak` dependency means "this is relevant context, but my conclusion can stand on its own." This feeds directly into probabilistic evaluation (V3).
 
@@ -92,21 +92,21 @@ The Gaia package model has a precise correspondence to formal logic. Each versio
 
 | Logic level | Key capability | PL analogy | Gaia version |
 |------------|---------------|-----------|-------------|
-| **Propositional** | Concrete propositions, fixed connectives | values + lambdas | **V1**: closures + anonymous inferences |
-| **Many-sorted first-order** | Variables, quantification over typed domains, named functions | Haskell/Lean type signatures | **V1**: action closures + named inferences (function application) |
+| **Propositional** | Concrete propositions, fixed connectives | values + lambdas | **V1**: knowledge objects + anonymous inferences |
+| **Many-sorted first-order** | Variables, quantification over typed domains, named functions | Haskell/Lean type signatures | **V1**: action knowledge + named inferences (function application) |
 | **Higher-order** | Functions over functions, parameterized modules | OCaml functors | **V2**: parameterized modules |
 | **Dependent types** | Output type depends on input value | Lean/Coq | **Future**: formal verification of reasoning chains |
 
-**V1 = propositional + first-order bridge.** Most V1 content operates at the propositional level: concrete closures connected by inferences. But the `action` closure with named inference references introduces first-order elements — an action like `contrastive_analysis` is implicitly universally quantified ("for any setting and claim, this analysis produces a claim"). V1 does not formalize this with explicit type signatures, but the structure is already there.
+**V1 = propositional + first-order bridge.** Most V1 content operates at the propositional level: concrete knowledge objects connected by inferences. But the `action` knowledge with named inference references introduces first-order elements — an action like `contrastive_analysis` is implicitly universally quantified ("for any setting and claim, this analysis produces a claim"). V1 does not formalize this with explicit type signatures, but the structure is already there.
 
 **Curry-Howard correspondence.** The connection to typed lambda calculus is not accidental:
 
 | Curry-Howard | Gaia |
 |-------------|------|
-| **Type** (proposition) | **Claim** closure (a statement to be supported) |
+| **Type** (proposition) | **Claim** knowledge (a statement to be supported) |
 | **Term** (proof/program) | **Chain** (the reasoning from imports to exported claim) |
-| **Function type** `A → B` | **Action** (maps input closures to output closures) |
-| **Function application** | **Named inference** (`inference: { action: closure_id }`) |
+| **Function type** `A → B` | **Action** (maps input knowledge to output knowledge) |
+| **Function application** | **Named inference** (`inference: { action: knowledge_id }`) |
 | **Type checking** | Dependency strength + BP (V3) |
 
 A module's chain from imported premises to exported conclusion is, in this view, a **proof term** that inhabits the **type** declared by its exports. This connection becomes actionable in V2+ when formal verification of reasoning chains becomes possible.
@@ -117,16 +117,16 @@ The following features are identified as valuable for later versions, organized 
 
 #### Already expressible in V1
 
-**Facade modules (Haskell re-exports).** A module with an empty chain that imports closures from other modules and re-exports them. Useful for aggregation packages (e.g., a "Physics" package curating exports from "Mechanics" and "Thermodynamics" sub-packages). No schema change needed.
+**Facade modules (Haskell re-exports).** A module with an empty chain that imports knowledge objects from other modules and re-exports them. Useful for aggregation packages (e.g., a "Physics" package curating exports from "Mechanics" and "Thermodynamics" sub-packages). No schema change needed.
 
 #### V2: first-order and higher-order extensions
 
-**Action type signatures (Lean/Haskell function types).** Formalize action closures with explicit input/output signatures:
+**Action type signatures (Lean/Haskell function types).** Formalize action knowledge with explicit input/output signatures:
 
 ```text
 action {
-  closure_id: cl_contrastive_analysis
-  closure_kind: action
+  knowledge_id: cl_contrastive_analysis
+  knowledge_kind: action
   action_type: infer
   inputs:  [setting, claim]     # formal parameter kinds
   outputs: [claim]              # return kind
@@ -134,21 +134,21 @@ action {
 }
 ```
 
-This enables **type checking** of named inferences: when an inference references `cl_contrastive_analysis`, the surrounding closures in the chain should match the declared `inputs` and `outputs`. This is the step from propositional to fully formalized many-sorted first-order logic.
+This enables **type checking** of named inferences: when an inference references `cl_contrastive_analysis`, the surrounding knowledge objects in the chain should match the declared `inputs` and `outputs`. This is the step from propositional to fully formalized many-sorted first-order logic.
 
 **Parameterized modules (OCaml functors).** Functors are "functions from modules to modules." For Gaia, this enables **reasoning templates**: a parameterized module that takes a `setting` module as input and produces a `reasoning` module as output. The same deductive chain instantiated with different assumptions yields different conclusions. This is higher-order logic — functions that operate on modules (which are themselves compositions of functions).
 
-**Standalone module signatures (OCaml `.mli`).** A module signature declares "I need a closure of kind `claim` about topic X" without providing one. Other packages provide implementations satisfying the interface. This supports a registry of "open problems" that packages can claim to solve — analogous to dune's virtual libraries.
+**Standalone module signatures (OCaml `.mli`).** A module signature declares "I need a knowledge object of kind `claim` about topic X" without providing one. Other packages provide implementations satisfying the interface. This supports a registry of "open problems" that packages can claim to solve — analogous to dune's virtual libraries.
 
-**Opaque closures (Haskell abstract types).** Closures exported with `closure_id` and `summary` but without full `content`. Useful for packages behind access control, or for declaring conclusions without revealing supporting evidence.
+**Opaque knowledge (Haskell abstract types).** Knowledge objects exported with `knowledge_id` and `summary` but without full `content`. Useful for packages behind access control, or for declaring conclusions without revealing supporting evidence.
 
 #### V3: probabilistic semantics
 
-**Dependency strength as soft type checking.** Where V2 type checking is structural ("do the closure kinds match?"), V3 adds probabilistic type checking: `strong` dependencies propagate belief, `weak` dependencies contribute to priors. This is a form of **graded type theory** where the "type" of a dependency carries a continuous weight rather than a binary pass/fail.
+**Dependency strength as soft type checking.** Where V2 type checking is structural ("do the knowledge kinds match?"), V3 adds probabilistic type checking: `strong` dependencies propagate belief, `weak` dependencies contribute to priors. This is a form of **graded type theory** where the "type" of a dependency carries a continuous weight rather than a binary pass/fail.
 
 #### Future: dependent types and formal verification
 
-**Dependent action signatures.** Output closure kind or content constraints that depend on input values — e.g., "if the input setting is `logical_setup`, the output claim must be a deductive conclusion." This requires dependent type theory and connects Gaia to formal proof assistants like Lean.
+**Dependent action signatures.** Output knowledge kind or content constraints that depend on input values — e.g., "if the input setting is `logical_setup`, the output claim must be a deductive conclusion." This requires dependent type theory and connects Gaia to formal proof assistants like Lean.
 
 **Chain verification.** Formal verification that a module's chain is a valid proof term for its declared exports, given its imports. This is the ultimate Curry-Howard realization: the chain IS the proof, the exports ARE the theorem, and verification checks that the proof is valid.
 
@@ -158,9 +158,9 @@ This document defines only the shared static knowledge package schema.
 
 The key split is:
 
-- `closure` is a self-contained, globally reusable knowledge object
-- `module` groups closures into a coherent unit via a chain, imports closures from other modules, and exports closures
-- `package` is a reusable container of modules and exports closures from its modules
+- `knowledge` is a self-contained, globally reusable knowledge object
+- `module` groups knowledge objects into a coherent unit via a chain, imports knowledge objects from other modules, and exports knowledge objects
+- `package` is a reusable container of modules and exports knowledge objects from its modules
 
 The document intentionally does not define where any object is stored. It defines only the logical structure.
 
@@ -168,28 +168,28 @@ The document intentionally does not define where any object is stored. It define
 
 Gaia V1 static structure has three layers:
 
-1. global `closure`
+1. global `knowledge`
 2. local `module`
 3. local `package`
 
 The design follows a **state-action model** inspired by functional programming:
 
-- a `closure` is a self-contained knowledge object — the **state**. Like a closure in FP, it captures everything it needs and can be passed around (exported, imported, referenced) independently of its creation context
-- an `inference` is a local reasoning step that connects closures — the **action**. Unlike a closure, it depends on its surrounding context in the chain and is not exportable
-- a module's `chain` alternates closures and inferences: `closure → inference → closure → inference → closure`
-- closure kinds are: `claim`, `question`, `setting`, `action`
-- modules declare cross-module dependencies via `imports` (with strong/weak strength) and make closures available via `exports`
-- a `package` contains one or more modules and exports closures from its modules
+- a `knowledge` object is a self-contained knowledge object — the **state**. Like a closure in FP, it captures everything it needs and can be passed around (exported, imported, referenced) independently of its creation context
+- an `inference` is a local reasoning step that connects knowledge objects — the **action**. Unlike a knowledge object, it depends on its surrounding context in the chain and is not exportable
+- a module's `chain` alternates knowledge objects and inferences: `knowledge → inference → knowledge → inference → knowledge`
+- knowledge kinds are: `claim`, `question`, `setting`, `action`
+- modules declare cross-module dependencies via `imports` (with strong/weak strength) and make knowledge objects available via `exports`
+- a `package` contains one or more modules and exports knowledge objects from its modules
 
 ## Object Overview
 
-### 1. Closure
+### 1. Knowledge
 
-A `closure` is a self-contained, globally reusable knowledge object.
+A `knowledge` object is a self-contained, globally reusable knowledge object.
 
-The name comes from functional programming: like an FP closure that captures its free variables and can be passed around independently, a knowledge closure carries its content and metadata and can be exported, imported, and referenced without knowing the chain it was created in.
+The name comes from functional programming: like an FP closure that captures its free variables and can be passed around independently, a knowledge object carries its content and metadata and can be exported, imported, and referenced without knowing the chain it was created in.
 
-Current closure kinds are:
+Current knowledge kinds are:
 
 - `claim` — a truth-apt statement or result
 - `question` — an inquiry
@@ -200,7 +200,7 @@ V1 keeps this set intentionally minimal. More detailed epistemic distinctions su
 
 ### 2. Module
 
-A `module` groups closures into a coherent unit. It imports closures from other modules, arranges closures and inferences into a chain (the narrative), and exports selected closures.
+A `module` groups knowledge objects into a coherent unit. It imports knowledge objects from other modules, arranges knowledge objects and inferences into a chain (the narrative), and exports selected knowledge objects.
 
 This is analogous to a module in Rust or Julia: it groups related logic, declares its dependencies (`imports`), and exposes a public interface (`exports`).
 
@@ -214,18 +214,18 @@ Modules serve different roles within a package:
 
 ### 3. Package
 
-A `package` is a reusable container of modules. It exports selected closures from its modules as the package's public interface.
+A `package` is a reusable container of modules. It exports selected knowledge objects from its modules as the package's public interface.
 
 It corresponds to a paper, research bundle, project unit, structured note, or another portable knowledge package.
 
-## Closure Schema
+## Knowledge Schema
 
-All closures share the following minimal structure:
+All knowledge objects share the following minimal structure:
 
 ```text
-closure {
-  closure_id
-  closure_kind        # claim | question | setting | action
+knowledge {
+  knowledge_id
+  knowledge_kind      # claim | question | setting | action
   content
   content_mode = nl (default)
   summary?
@@ -234,27 +234,27 @@ closure {
 }
 ```
 
-### `closure_id`
+### `knowledge_id`
 
 Stable global identifier.
 
-V1 should treat `closure_id` as globally unique even when closures are first created locally.
+V1 should treat `knowledge_id` as globally unique even when knowledge objects are first created locally.
 
 Recommended shape:
 
 ```text
-cl_<uuidv7>
+kn_<uuidv7>
 ```
 
 The recommended rule is:
 
-- use an opaque globally unique id as the primary closure identity
+- use an opaque globally unique id as the primary knowledge identity
 - generate it locally at creation time
 - do not use content hash as the primary id
 
-If later layers need semantic deduplication or merge suggestions, they should use separate fingerprints rather than rewriting `closure_id`.
+If later layers need semantic deduplication or merge suggestions, they should use separate fingerprints rather than rewriting `knowledge_id`.
 
-### `closure_kind`
+### `knowledge_kind`
 
 Exactly one of:
 
@@ -265,7 +265,7 @@ Exactly one of:
 
 ### `content`
 
-The canonical primary payload of the closure.
+The canonical primary payload of the knowledge object.
 
 ### `content_mode`
 
@@ -281,7 +281,7 @@ Common explicit values:
 - `lean`
 - `config`
 
-V1 keeps exactly one canonical primary representation per closure.
+V1 keeps exactly one canonical primary representation per knowledge object.
 
 ### `summary`
 
@@ -319,8 +319,8 @@ Examples:
 
 ```text
 claim {
-  closure_id
-  closure_kind = claim
+  knowledge_id
+  knowledge_kind = claim
   content
   content_mode = nl (default)
   summary?
@@ -347,8 +347,8 @@ Examples:
 
 ```text
 question {
-  closure_id
-  closure_kind = question
+  knowledge_id
+  knowledge_kind = question
   content
   content_mode = nl (default)
   summary?
@@ -364,7 +364,7 @@ question {
 
 ## Setting
 
-A `setting` is a context-setting closure. It specifies the background under which later reasoning should be interpreted or executed.
+A `setting` is a context-setting knowledge object. It specifies the background under which later reasoning should be interpreted or executed.
 
 Examples include:
 
@@ -377,8 +377,8 @@ Examples include:
 
 ```text
 setting {
-  closure_id
-  closure_kind = setting
+  knowledge_id
+  knowledge_kind = setting
   setting_type
   content
   content_mode = nl (default)
@@ -412,14 +412,14 @@ Example:
 
 An `action` is a self-contained, reusable process description.
 
-It represents a process such as an inference method, a tool, or another canonicalized procedure. The action closure describes **what** the process is; the `inference` entries in a module's chain describe **how** it was applied in a specific context.
+It represents a process such as an inference method, a tool, or another canonicalized procedure. The action knowledge object describes **what** the process is; the `inference` entries in a module's chain describe **how** it was applied in a specific context.
 
 ### Action Schema
 
 ```text
 action {
-  closure_id
-  closure_kind = action
+  knowledge_id
+  knowledge_kind = action
   action_type
   content
   content_mode = nl (default)
@@ -444,11 +444,11 @@ Optional stable tool identifier for `tool_call` actions.
 
 ## Inference
 
-An `inference` is a local reasoning step within a module's chain. It connects closures by filling logical gaps, providing explanations, or describing how an action was applied.
+An `inference` is a local reasoning step within a module's chain. It connects knowledge objects by filling logical gaps, providing explanations, or describing how an action was applied.
 
-Unlike closures, inferences are **not** self-contained — they depend on their surrounding context in the chain. They are never exported or referenced from outside the module.
+Unlike knowledge objects, inferences are **not** self-contained — they depend on their surrounding context in the chain. They are never exported or referenced from outside the module.
 
-In the FP analogy: closures are **values**, inferences are **lambdas** (anonymous functions). A chain is a sequential composition of lambdas applied to values.
+In the FP analogy: knowledge objects are **values**, inferences are **lambdas** (anonymous functions). A chain is a sequential composition of lambdas applied to values.
 
 ### Inference forms
 
@@ -458,20 +458,20 @@ V1 supports two inference forms:
 
 ```text
 chain:
-  - closure: cl_premise
+  - knowledge: cl_premise
   - inference: "Applying the definition to contrast vacuum and air behavior"
-  - closure: cl_result
+  - knowledge: cl_result
 ```
 
-**Named inference (function application)** — references a reusable `action` closure:
+**Named inference (function application)** — references a reusable `action` knowledge object:
 
 ```text
 chain:
-  - closure: cl_premise
+  - knowledge: cl_premise
   - inference:
       content: "Applying contrastive analysis to vacuum vs air"
-      action: cl_contrastive_analysis    # references an action closure
-  - closure: cl_result
+      action: cl_contrastive_analysis    # references an action knowledge object
+  - knowledge: cl_result
 ```
 
 The two forms correspond to the FP distinction between anonymous lambdas and named function calls:
@@ -479,17 +479,17 @@ The two forms correspond to the FP distinction between anonymous lambdas and nam
 | FP concept | Gaia inference form |
 |------------|-------------------|
 | `λx. x + 1` (anonymous lambda) | `inference: "reasoning text"` |
-| `f(x)` (named function application) | `inference: { content, action: closure_id }` |
+| `f(x)` (named function application) | `inference: { content, action: knowledge_id }` |
 
-The `action` field is optional. When present, it must reference a closure of kind `action`. The `content` field provides a human-readable description of how the action was applied in this specific context.
+The `action` field is optional. When present, it must reference a knowledge object of kind `action`. The `content` field provides a human-readable description of how the action was applied in this specific context.
 
 ### Omitting inferences
 
-When the logical transition between two closures is trivial or locally obvious, the inference may be omitted — two adjacent closures in the chain imply a trivial transition.
+When the logical transition between two knowledge objects is trivial or locally obvious, the inference may be omitted — two adjacent knowledge objects in the chain imply a trivial transition.
 
 ## Module
 
-A `module` groups closures into a coherent unit via a chain of closures and inferences.
+A `module` groups knowledge objects into a coherent unit via a chain of knowledge objects and inferences.
 
 ### Module Schema
 
@@ -499,9 +499,9 @@ module {
   role?             # reasoning | setting | motivation | follow_up_question | other
   summary?
   keywords[]?
-  imports[]?        # closure dependencies from other modules
-  exports[]         # closure_ids
-  chain[]           # alternating closures and inferences
+  imports[]?        # knowledge dependencies from other modules
+  exports[]         # knowledge_ids
+  chain[]           # alternating knowledge objects and inferences
   metadata?
 }
 ```
@@ -532,12 +532,12 @@ Optional keywords for search and discovery.
 
 ### `imports[]`
 
-Cross-module dependencies. Each import declares a closure this module depends on from another module, with provenance and dependency strength.
+Cross-module dependencies. Each import declares a knowledge object this module depends on from another module, with provenance and dependency strength.
 
 ```text
 imports: [
   {
-    closure,        # closure_id
+    knowledge,      # knowledge_id
     from,           # module_id (provenance)
     strength        # strong | weak
   }
@@ -546,30 +546,30 @@ imports: [
 
 **Dependency semantics:**
 
-- **strong** — if the imported closure is wrong, this module's conclusions are likely wrong too. This is a logical dependency that affects truth value.
-- **weak** — the imported closure is relevant context, but this module's conclusions can stand on their own.
+- **strong** — if the imported knowledge is wrong, this module's conclusions are likely wrong too. This is a logical dependency that affects truth value.
+- **weak** — the imported knowledge is relevant context, but this module's conclusions can stand on their own.
 
-**Cross-package imports** use `closure_id` alone (which is globally unique). The `from` field may reference a module in the same package or identify an external source.
+**Cross-package imports** use `knowledge_id` alone (which is globally unique). The `from` field may reference a module in the same package or identify an external source.
 
 ### `exports[]`
 
-The closures this module makes available to the outside world. Analogous to `pub` in Rust or `export` in Julia.
+The knowledge objects this module makes available to the outside world. Analogous to `pub` in Rust or `export` in Julia.
 
-Exported closures are the module's public interface. Non-exported closures that appear in the chain are internal to the module.
+Exported knowledge objects are the module's public interface. Non-exported knowledge objects that appear in the chain are internal to the module.
 
-For single-file modules (simple chains), the last closure in the chain is the implicit export by convention. Explicit `exports[]` overrides this default.
+For single-file modules (simple chains), the last knowledge object in the chain is the implicit export by convention. Explicit `exports[]` overrides this default.
 
 ### `chain[]`
 
-The module's narrative — an ordered list of closures and inferences.
+The module's narrative — an ordered list of knowledge objects and inferences.
 
 ```text
 chain: [
-  { closure: closure_id },
-  { inference: "reasoning text" },                          # anonymous lambda
-  { closure: closure_id },
-  { inference: { content: "text", action: closure_id } },   # named function application
-  { closure: closure_id },
+  { knowledge: knowledge_id },
+  { inference: "reasoning text" },                              # anonymous lambda
+  { knowledge: knowledge_id },
+  { inference: { content: "text", action: knowledge_id } },    # named function application
+  { knowledge: knowledge_id },
   ...
 ]
 ```
@@ -577,9 +577,9 @@ chain: [
 **Chain rules:**
 
 - the chain defines the recommended reading order for understanding the module's reasoning
-- closures and inferences alternate: `closure → inference → closure → ...`
-- adjacent closures (no inference between them) imply a trivial or obvious transition
-- the chain may include imported closures for narrative context — their dependency semantics are declared in `imports`, not inferred from chain position
+- knowledge objects and inferences alternate: `knowledge → inference → knowledge → ...`
+- adjacent knowledge objects (no inference between them) imply a trivial or obvious transition
+- the chain may include imported knowledge objects for narrative context — their dependency semantics are declared in `imports`, not inferred from chain position
 - the chain should not reverse the logical flow: conclusions should not precede their premises
 
 ### `metadata`
@@ -588,7 +588,7 @@ Optional module-level metadata.
 
 ## Package
 
-A `package` is a container of modules. It exports selected closures from its modules as the package's public interface.
+A `package` is a container of modules. It exports selected knowledge objects from its modules as the package's public interface.
 
 ### Package Schema
 
@@ -598,7 +598,7 @@ package {
   summary?
   keywords[]?
   modules[]
-  exports[]?        # closure_ids from any module
+  exports[]?        # knowledge_ids from any module
   metadata?
 }
 ```
@@ -619,13 +619,13 @@ Optional keywords for search and discovery.
 
 One or more modules included in the package. The list order defines the recommended reading order for the package (narrative ordering).
 
-Modules within the same package can import each other's exported closures.
+Modules within the same package can import each other's exported knowledge objects.
 
 Different module roles serve different structural purposes: `reasoning` modules establish conclusions, `setting` modules provide shared context, `motivation` modules explain why the work was done, and `follow_up_question` modules capture open questions. This replaces the need for separate editorial fields — the structure itself carries the editorial intent.
 
 ### `exports[]`
 
-Optional list of closure_ids from any module in the package. These are the package's public interface — the closures that the package offers to the outside world.
+Optional list of knowledge_ids from any module in the package. These are the package's public interface — the knowledge objects that the package offers to the outside world.
 
 Package exports are typically a curated subset of module exports. For example, a package might export only its key conclusions and follow-up questions, not every intermediate result.
 
@@ -637,16 +637,16 @@ Optional package-level metadata.
 
 V1 static schema assumes:
 
-1. closures are self-contained, globally reusable objects; inferences are local and context-dependent
+1. knowledge objects are self-contained, globally reusable objects; inferences are local and context-dependent
 2. modules declare cross-module dependencies via `imports` with dependency strength (`strong` / `weak`)
 3. dependency strength determines whether a reference participates in later probabilistic evaluation
-4. modules export closures, not inferences — the public interface is always self-contained objects
-5. a module's chain alternates closures and inferences; closures are the states, inferences are the transitions
-6. knowledge closures are global objects; they are not "owned" by any module or package
+4. modules export knowledge objects, not inferences — the public interface is always self-contained objects
+5. a module's chain alternates knowledge objects and inferences; knowledge objects are the states, inferences are the transitions
+6. knowledge objects are global objects; they are not "owned" by any module or package
 
 ## Example
 
-### Closures
+### Knowledge Objects
 
 ```text
 cl_q1 = question("Why do a feather and a stone fall at different rates in air?")
@@ -666,7 +666,7 @@ module {
   exports = [cl_q1]
 
   chain = [
-    {closure: cl_q1}
+    {knowledge: cl_q1}
   ]
 }
 
@@ -677,7 +677,7 @@ module {
   exports = [cl_s1]
 
   chain = [
-    {closure: cl_s1}
+    {knowledge: cl_s1}
   ]
 }
 
@@ -688,18 +688,18 @@ module {
   keywords = ["air resistance", "drag", "falling bodies"]
 
   imports = [
-    {closure: cl_s1, from: m_env, strength: strong},
-    {closure: cl_q1, from: m_motivation, strength: weak}
+    {knowledge: cl_s1, from: m_env, strength: strong},
+    {knowledge: cl_q1, from: m_motivation, strength: weak}
   ]
   exports = [cl_c1]
 
   chain = [
-    {closure: cl_s1},                                                   # imported: establish context
-    {inference: {                                                        # named: references action closure
+    {knowledge: cl_s1},                                                     # imported: establish context
+    {inference: {                                                            # named: references action knowledge
         content: "Contrasting vacuum vs air behavior using the definition",
         action: cl_a1
     }},
-    {closure: cl_c1}                                                    # conclusion
+    {knowledge: cl_c1}                                                      # conclusion
   ]
 }
 
@@ -709,12 +709,12 @@ module {
   summary = "Open questions on drag modeling"
 
   imports = [
-    {closure: cl_c1, from: m_main, strength: weak}
+    {knowledge: cl_c1, from: m_main, strength: weak}
   ]
   exports = [cl_q2]
 
   chain = [
-    {closure: cl_q2}
+    {knowledge: cl_q2}
   ]
 }
 ```
@@ -737,7 +737,7 @@ package {
 
 - `m_motivation` (role=motivation) exports the motivating question `cl_q1`
 - `m_env` (role=setting) exports the shared definition `cl_s1`
-- `m_main` (role=reasoning) imports `cl_s1` (strong) and `cl_q1` (weak), exports the conclusion `cl_c1`. Its chain uses a named inference referencing the `cl_a1` action closure (function application)
+- `m_main` (role=reasoning) imports `cl_s1` (strong) and `cl_q1` (weak), exports the conclusion `cl_c1`. Its chain uses a named inference referencing the `cl_a1` action knowledge object (function application)
 - `m_follow` (role=follow_up_question) imports `cl_c1` (weak), exports the open question `cl_q2`
 - the package exports `cl_c1` and `cl_q2` — only the main conclusion and follow-up question are published
 - `cl_s1` is used internally (imported by `m_main`) but not re-exported by the package
@@ -747,7 +747,7 @@ package {
 
 The following topics are intentionally deferred:
 
-- how raw material is canonicalized into closures, modules, and packages
+- how raw material is canonicalized into knowledge objects, modules, and packages
 - how review works
 - how optional revised packages are materialized
 - how packages integrate into the global Gaia graph (V2)

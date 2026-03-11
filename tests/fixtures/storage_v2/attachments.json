@@ -1,7 +1,7 @@
 [
   {
     "resource_id": "galileo_falling_bodies.reasoning.tied_balls_diagram",
-    "target_type": "closure",
+    "target_type": "knowledge",
     "target_id": "galileo_falling_bodies.reasoning.contradiction_result",
     "role": "visualization",
     "description": "Diagram showing the contradictory predictions from the tied balls experiment."

@@ -1,6 +1,6 @@
 [
   {
-    "closure_id": "galileo_falling_bodies.reasoning.heavier_falls_faster",
+    "knowledge_id": "galileo_falling_bodies.reasoning.heavier_falls_faster",
     "version": 1,
     "type": "claim",
     "content": "Heavier objects fall faster than lighter ones — Aristotle's doctrine of natural motion.",
@@ -12,7 +12,7 @@
     "embedding": null
   },
   {
-    "closure_id": "galileo_falling_bodies.setting.thought_experiment_env",
+    "knowledge_id": "galileo_falling_bodies.setting.thought_experiment_env",
     "version": 1,
     "type": "setting",
     "content": "Imagine a heavy ball H and a light ball L dropped from the same height. Consider their individual 'natural fall speeds', then consider what happens when they are tied together as a composite body HL.",
@@ -24,7 +24,7 @@
     "embedding": null
   },
   {
-    "closure_id": "galileo_falling_bodies.reasoning.combined_slower",
+    "knowledge_id": "galileo_falling_bodies.reasoning.combined_slower",
     "version": 1,
     "type": "claim",
     "content": "The composite HL should fall slower than H alone, because the lighter ball L drags it back.",
@@ -36,7 +36,7 @@
     "embedding": null
   },
   {
-    "closure_id": "galileo_falling_bodies.reasoning.combined_faster",
+    "knowledge_id": "galileo_falling_bodies.reasoning.combined_faster",
     "version": 1,
     "type": "claim",
     "content": "The composite HL has greater total weight than H alone, so it should fall faster than H.",
@@ -48,7 +48,7 @@
     "embedding": null
   },
   {
-    "closure_id": "galileo_falling_bodies.reasoning.contradiction_result",
+    "knowledge_id": "galileo_falling_bodies.reasoning.contradiction_result",
     "version": 1,
     "type": "claim",
     "content": "The same Aristotelian law predicts both 'slower' and 'faster' for the tied-ball system, a self-contradiction that refutes the law.",
@@ -60,7 +60,7 @@
     "embedding": null
   },
   {
-    "closure_id": "galileo_falling_bodies.reasoning.vacuum_prediction",
+    "knowledge_id": "galileo_falling_bodies.reasoning.vacuum_prediction",
     "version": 1,
     "type": "claim",
     "content": "In a vacuum, all objects fall at the same rate regardless of weight — the Aristotelian law is false.",

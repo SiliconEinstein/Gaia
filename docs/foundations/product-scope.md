@@ -34,7 +34,7 @@ It follows the standard architecture of probabilistic PLs: a **deterministic hos
 
 | Layer | What it provides | PL analogy |
 |-------|-----------------|------------|
-| **V1 — Deterministic FP core** | Closures (values), inferences (lambdas), chains (composition), modules (with imports/exports), packages | Haskell, OCaml |
+| **V1 — Deterministic FP core** | Knowledge (values), inferences (lambdas), chains (composition), modules (with imports/exports), packages | Haskell, OCaml |
 | **V3 — Probabilistic layer** | Priors, dependency strength (conditioning), belief propagation (inference) | Church's `flip`/`observe`, Hakaru's `measure` monad, Pyro's `sample`/`observe` |
 
 The theoretical positioning:
@@ -53,7 +53,7 @@ These languages model **statistical probability** — distributions over random 
 
 | | Statistical probability (Pyro/Stan) | Epistemic probability (Gaia) |
 |---|---|---|
-| Probability of what | Random variables (numerical) | Propositions (knowledge closures) |
+| Probability of what | Random variables (numerical) | Propositions (knowledge objects) |
 | Probability means | Frequency / measure over outcomes | Degree of belief in truth |
 | Conditioning on | Observed data | Dependency strength (strong/weak) |
 | Graph model | DAG (Bayesian network) | Hypergraph (multi-premise → multi-conclusion) |
@@ -74,7 +74,7 @@ These provide graph storage and deterministic querying, but have no probabilisti
 
 Gaia combines three capabilities that no existing tool provides together:
 
-1. **Functional knowledge structure** (V1) — closures, inferences, chains, modules, packages — a typed, composable knowledge representation inspired by Haskell/OCaml module systems
+1. **Functional knowledge structure** (V1) — knowledge objects, inferences, chains, modules, packages — a typed, composable knowledge representation inspired by Haskell/OCaml module systems
 2. **Epistemic probabilistic reasoning** (V3) — priors, beliefs, dependency strength, contradiction/retraction semantics — grounded in Jaynes' probability-as-logic tradition
 3. **Hypergraph belief propagation** — loopy BP on factor graphs derived from the knowledge package structure, computing self-consistent beliefs across the entire LKM
 

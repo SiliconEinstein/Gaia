@@ -5,13 +5,13 @@ from abc import ABC, abstractmethod
 from libs.storage_v2.models import (
     BeliefSnapshot,
     Chain,
-    Closure,
+    Knowledge,
     Module,
     Package,
     ProbabilityRecord,
     Resource,
     ResourceAttachment,
-    ScoredClosure,
+    ScoredKnowledge,
 )
 
 
@@ -37,8 +37,8 @@ class ContentStore(ABC):
         """Write a package and its modules."""
 
     @abstractmethod
-    async def write_closures(self, closures: list[Closure]) -> None:
-        """Write closures (skip duplicates by (closure_id, version))."""
+    async def write_knowledge(self, knowledge_items: list[Knowledge]) -> None:
+        """Write knowledge items (skip duplicates by (knowledge_id, version))."""
 
     @abstractmethod
     async def write_chains(self, chains: list[Chain]) -> None:
@@ -61,12 +61,14 @@ class ContentStore(ABC):
     # ── Read ──
 
     @abstractmethod
-    async def get_closure(self, closure_id: str, version: int | None = None) -> Closure | None:
-        """Get a closure by id. If version is None, return the latest version."""
+    async def get_knowledge(
+        self, knowledge_id: str, version: int | None = None
+    ) -> Knowledge | None:
+        """Get a knowledge item by id. If version is None, return the latest version."""
 
     @abstractmethod
-    async def get_closure_versions(self, closure_id: str) -> list[Closure]:
-        """Get all versions of a closure, ordered by version ascending."""
+    async def get_knowledge_versions(self, knowledge_id: str) -> list[Knowledge]:
+        """Get all versions of a knowledge item, ordered by version ascending."""
 
     @abstractmethod
     async def get_package(self, package_id: str) -> Package | None:
@@ -87,8 +89,8 @@ class ContentStore(ABC):
         """Get probability records for a chain, optionally filtered by step_index."""
 
     @abstractmethod
-    async def get_belief_history(self, closure_id: str) -> list[BeliefSnapshot]:
-        """Get belief snapshots for a closure, ordered by computed_at."""
+    async def get_belief_history(self, knowledge_id: str) -> list[BeliefSnapshot]:
+        """Get belief snapshots for a knowledge item, ordered by computed_at."""
 
     @abstractmethod
     async def get_resources_for(self, target_type: str, target_id: str) -> list[Resource]:
@@ -97,14 +99,14 @@ class ContentStore(ABC):
     # ── Search ──
 
     @abstractmethod
-    async def search_bm25(self, text: str, top_k: int) -> list[ScoredClosure]:
-        """Full-text BM25 search over closure content."""
+    async def search_bm25(self, text: str, top_k: int) -> list[ScoredKnowledge]:
+        """Full-text BM25 search over knowledge content."""
 
     # ── BP bulk load ──
 
     @abstractmethod
-    async def list_closures(self) -> list[Closure]:
-        """Load all closures for BP factor graph construction."""
+    async def list_knowledge(self) -> list[Knowledge]:
+        """Load all knowledge items for BP factor graph construction."""
 
     @abstractmethod
     async def list_chains(self) -> list[Chain]:

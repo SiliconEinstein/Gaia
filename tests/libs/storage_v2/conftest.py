@@ -8,7 +8,7 @@ import pytest
 from libs.storage_v2.models import (
     BeliefSnapshot,
     Chain,
-    Closure,
+    Knowledge,
     Module,
     Package,
     ProbabilityRecord,
@@ -36,8 +36,8 @@ def modules() -> list[Module]:
 
 
 @pytest.fixture()
-def closures() -> list[Closure]:
-    return [Closure.model_validate(r) for r in load_fixture("closures")]
+def knowledge_items() -> list[Knowledge]:
+    return [Knowledge.model_validate(r) for r in load_fixture("knowledge")]
 
 
 @pytest.fixture()

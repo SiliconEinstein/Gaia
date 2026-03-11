@@ -1,4 +1,4 @@
-"""Storage v2 — Gaia Language-native storage layer (closure, chain, module, package)."""
+"""Storage v2 — Gaia Language-native storage layer (knowledge, chain, module, package)."""
 
 from libs.storage_v2.config import StorageConfig
 from libs.storage_v2.content_store import ContentStore

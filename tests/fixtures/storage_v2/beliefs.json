@@ -1,20 +1,20 @@
 [
   {
-    "closure_id": "galileo_falling_bodies.reasoning.heavier_falls_faster",
+    "knowledge_id": "galileo_falling_bodies.reasoning.heavier_falls_faster",
     "version": 1,
     "belief": 0.12,
     "bp_run_id": "bp_run_001",
     "computed_at": "2026-01-17T12:00:00Z"
   },
   {
-    "closure_id": "galileo_falling_bodies.reasoning.contradiction_result",
+    "knowledge_id": "galileo_falling_bodies.reasoning.contradiction_result",
     "version": 1,
     "belief": 0.88,
     "bp_run_id": "bp_run_001",
     "computed_at": "2026-01-17T12:00:00Z"
   },
   {
-    "closure_id": "galileo_falling_bodies.reasoning.heavier_falls_faster",
+    "knowledge_id": "galileo_falling_bodies.reasoning.heavier_falls_faster",
     "version": 1,
     "belief": 0.05,
     "bp_run_id": "bp_run_002",

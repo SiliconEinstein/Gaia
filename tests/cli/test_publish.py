@@ -66,29 +66,29 @@ def test_publish_local_writes_receipt(tmp_path):
     assert "package_id" in receipt
     assert "published_at" in receipt
     assert receipt["db_path"] == db_path
-    assert receipt["stats"]["closures"] > 0
+    assert receipt["stats"]["knowledge_items"] > 0
     assert receipt["stats"]["chains"] > 0
-    assert len(receipt["closure_ids"]) == receipt["stats"]["closures"]
+    assert len(receipt["knowledge_ids"]) == receipt["stats"]["knowledge_items"]
     assert len(receipt["chain_ids"]) == receipt["stats"]["chains"]
 
 
-def test_publish_local_writes_v2_closures(tmp_path):
-    """gaia publish --local should write closures to LanceDB v2 closures table."""
+def test_publish_local_writes_v2_knowledge(tmp_path):
+    """gaia publish --local should write knowledge to LanceDB v2 knowledge table."""
     pkg_dir = _setup_full_pipeline(tmp_path)
     db_path = str(tmp_path / "testdb")
     result = runner.invoke(app, ["publish", str(pkg_dir), "--local", "--db-path", db_path])
     assert result.exit_code == 0, f"publish failed: {result.output}"
-    assert "closures" in result.output.lower()
+    assert "knowledge" in result.output.lower()
 
     import lancedb
 
     db = lancedb.connect(db_path)
-    table = db.open_table("closures")
+    table = db.open_table("knowledge")
     assert table.count_rows() > 0
     rows = table.search().limit(1000).to_list()
-    # Each closure_id should appear exactly once (no duplicates)
-    ids = [r["closure_id"] for r in rows]
-    assert len(ids) == len(set(ids)), f"Duplicate closure IDs found: {ids}"
+    # Each knowledge_id should appear exactly once (no duplicates)
+    ids = [r["knowledge_id"] for r in rows]
+    assert len(ids) == len(set(ids)), f"Duplicate knowledge IDs found: {ids}"
 
 
 def test_publish_local_writes_to_kuzu(tmp_path):
@@ -125,15 +125,15 @@ def test_publish_local_idempotent(tmp_path):
     result2 = runner.invoke(app, ["publish", str(pkg_dir), "--local", "--db-path", db_path])
     assert result2.exit_code == 0, f"second publish failed: {result2.output}"
 
-    # Verify no duplicate closures
+    # Verify no duplicate knowledge items
     import lancedb
 
     db = lancedb.connect(db_path)
-    table = db.open_table("closures")
+    table = db.open_table("knowledge")
     assert table.count_rows() > 0
     rows = table.search().limit(1000).to_list()
-    ids = [r["closure_id"] for r in rows]
-    assert len(ids) == len(set(ids)), f"Duplicate closure IDs after re-publish: {ids}"
+    ids = [r["knowledge_id"] for r in rows]
+    assert len(ids) == len(set(ids)), f"Duplicate knowledge IDs after re-publish: {ids}"
 
 
 def test_publish_local_writes_mapped_probabilities_and_syncs_graph(tmp_path):
@@ -160,7 +160,7 @@ def test_publish_local_writes_mapped_probabilities_and_syncs_graph(tmp_path):
     conn = kuzu.Connection(kuzu.Database(str(Path(db_path) / "kuzu")))
     query = conn.execute(
         "MATCH (ch:Chain {chain_id: 'galileo_falling_bodies.reasoning.drag_prediction_chain'})"
-        "-[r:CONCLUSION]->(:Closure) "
+        "-[r:CONCLUSION]->(:Knowledge) "
         "WHERE r.step_index = 0 RETURN r.probability"
     )
     assert abs(query.get_next()[0] - 0.93) < 1e-9

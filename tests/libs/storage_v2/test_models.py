@@ -10,15 +10,15 @@ from libs.storage_v2.models import (
     BeliefSnapshot,
     Chain,
     ChainStep,
-    Closure,
-    ClosureEmbedding,
-    ClosureRef,
+    Knowledge,
+    KnowledgeEmbedding,
+    KnowledgeRef,
     Module,
     Package,
     ProbabilityRecord,
     Resource,
     ResourceAttachment,
-    ScoredClosure,
+    ScoredKnowledge,
     Subgraph,
 )
 
@@ -48,10 +48,10 @@ class TestFixtureValidation:
         names = {m.name for m in modules}
         assert names == {"setting", "reasoning"}
 
-    def test_closures_fixture(self):
-        records = load_fixture("closures")
-        closures = [Closure.model_validate(r) for r in records]
-        assert len(closures) == 6
+    def test_knowledge_fixture(self):
+        records = load_fixture("knowledge")
+        knowledge_items = [Knowledge.model_validate(r) for r in records]
+        assert len(knowledge_items) == 6
 
     def test_chains_fixture(self):
         records = load_fixture("chains")
@@ -83,22 +83,22 @@ class TestFixtureValidation:
 # ── Model behavior tests ──
 
 
-class TestClosureRef:
+class TestKnowledgeRef:
     def test_creation(self):
-        ref = ClosureRef(
-            closure_id="galileo_falling_bodies.reasoning.heavier_falls_faster", version=1
+        ref = KnowledgeRef(
+            knowledge_id="galileo_falling_bodies.reasoning.heavier_falls_faster", version=1
         )
-        assert ref.closure_id == "galileo_falling_bodies.reasoning.heavier_falls_faster"
+        assert ref.knowledge_id == "galileo_falling_bodies.reasoning.heavier_falls_faster"
         assert ref.version == 1
 
     def test_equality(self):
-        ref1 = ClosureRef(closure_id="a.b.c", version=1)
-        ref2 = ClosureRef(closure_id="a.b.c", version=1)
+        ref1 = KnowledgeRef(knowledge_id="a.b.c", version=1)
+        ref2 = KnowledgeRef(knowledge_id="a.b.c", version=1)
         assert ref1 == ref2
 
     def test_version_difference(self):
-        ref1 = ClosureRef(closure_id="a.b.c", version=1)
-        ref2 = ClosureRef(closure_id="a.b.c", version=2)
+        ref1 = KnowledgeRef(knowledge_id="a.b.c", version=1)
+        ref2 = KnowledgeRef(knowledge_id="a.b.c", version=2)
         assert ref1 != ref2
 
 
@@ -107,35 +107,35 @@ class TestChainStep:
         step = ChainStep(
             step_index=0,
             premises=[
-                ClosureRef(closure_id="a.b.premise1", version=1),
-                ClosureRef(closure_id="a.b.premise2", version=1),
+                KnowledgeRef(knowledge_id="a.b.premise1", version=1),
+                KnowledgeRef(knowledge_id="a.b.premise2", version=1),
             ],
             reasoning="From premise1 and premise2 we deduce the conclusion.",
-            conclusion=ClosureRef(closure_id="a.b.conclusion", version=1),
+            conclusion=KnowledgeRef(knowledge_id="a.b.conclusion", version=1),
         )
         assert len(step.premises) == 2
-        assert step.conclusion.closure_id == "a.b.conclusion"
+        assert step.conclusion.knowledge_id == "a.b.conclusion"
 
 
-class TestClosurePrior:
+class TestKnowledgePrior:
     def test_setting_allows_prior_one(self):
         """Settings may have prior=1.0 (certain context)."""
-        closures = [Closure.model_validate(r) for r in load_fixture("closures")]
-        setting = next(c for c in closures if c.type == "setting")
+        knowledge_items = [Knowledge.model_validate(r) for r in load_fixture("knowledge")]
+        setting = next(c for c in knowledge_items if c.type == "setting")
         assert setting.prior == 1.0
 
     def test_claim_has_fractional_prior(self):
-        closures = [Closure.model_validate(r) for r in load_fixture("closures")]
-        claim = next(c for c in closures if c.closure_id.endswith("heavier_falls_faster"))
+        knowledge_items = [Knowledge.model_validate(r) for r in load_fixture("knowledge")]
+        claim = next(c for c in knowledge_items if c.knowledge_id.endswith("heavier_falls_faster"))
         assert 0 < claim.prior < 1
 
     @pytest.mark.parametrize("bad_prior", [0.0, -0.5, 1.7, 2.0])
     def test_prior_rejects_out_of_range(self, bad_prior):
         """prior must be in (0, 1]."""
-        base = load_fixture("closures")[0]
+        base = load_fixture("knowledge")[0]
         base["prior"] = bad_prior
         with pytest.raises(ValidationError):
-            Closure.model_validate(base)
+            Knowledge.model_validate(base)
 
 
 class TestProbabilityValidation:
@@ -185,23 +185,23 @@ class TestImportRef:
 
 
 class TestQueryModels:
-    def test_scored_closure(self):
-        closure_data = load_fixture("closures")[0]
-        closure = Closure.model_validate(closure_data)
-        scored = ScoredClosure(closure=closure, score=0.95)
+    def test_scored_knowledge(self):
+        knowledge_data = load_fixture("knowledge")[0]
+        knowledge = Knowledge.model_validate(knowledge_data)
+        scored = ScoredKnowledge(knowledge=knowledge, score=0.95)
         assert scored.score == 0.95
-        assert scored.closure.closure_id == closure.closure_id
+        assert scored.knowledge.knowledge_id == knowledge.knowledge_id
 
     def test_subgraph(self):
-        sg = Subgraph(closure_ids={"a", "b"}, chain_ids={"c"})
-        assert len(sg.closure_ids) == 2
+        sg = Subgraph(knowledge_ids={"a", "b"}, chain_ids={"c"})
+        assert len(sg.knowledge_ids) == 2
         assert "c" in sg.chain_ids
 
     def test_subgraph_defaults_empty(self):
         sg = Subgraph()
-        assert sg.closure_ids == set()
+        assert sg.knowledge_ids == set()
         assert sg.chain_ids == set()
 
-    def test_closure_embedding(self):
-        emb = ClosureEmbedding(closure_id="a.b.c", version=1, embedding=[0.1, 0.2, 0.3])
+    def test_knowledge_embedding(self):
+        emb = KnowledgeEmbedding(knowledge_id="a.b.c", version=1, embedding=[0.1, 0.2, 0.3])
         assert len(emb.embedding) == 3

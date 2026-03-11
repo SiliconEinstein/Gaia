@@ -8,11 +8,11 @@
       {
         "step_index": 0,
         "premises": [
-          {"closure_id": "galileo_falling_bodies.reasoning.combined_slower", "version": 1},
-          {"closure_id": "galileo_falling_bodies.reasoning.combined_faster", "version": 1}
+          {"knowledge_id": "galileo_falling_bodies.reasoning.combined_slower", "version": 1},
+          {"knowledge_id": "galileo_falling_bodies.reasoning.combined_faster", "version": 1}
         ],
         "reasoning": "The two predictions — 'composite falls slower' and 'composite falls faster' — are mutually exclusive yet both derived from the same Aristotelian law applied to the same system.",
-        "conclusion": {"closure_id": "galileo_falling_bodies.reasoning.contradiction_result", "version": 1}
+        "conclusion": {"knowledge_id": "galileo_falling_bodies.reasoning.contradiction_result", "version": 1}
       }
     ]
   },
@@ -25,19 +25,19 @@
       {
         "step_index": 0,
         "premises": [
-          {"closure_id": "galileo_falling_bodies.reasoning.heavier_falls_faster", "version": 1},
-          {"closure_id": "galileo_falling_bodies.setting.thought_experiment_env", "version": 1}
+          {"knowledge_id": "galileo_falling_bodies.reasoning.heavier_falls_faster", "version": 1},
+          {"knowledge_id": "galileo_falling_bodies.setting.thought_experiment_env", "version": 1}
         ],
         "reasoning": "Accepting the Aristotelian law in the thought experiment setting: the lighter ball should drag the heavier one, making the composite slower.",
-        "conclusion": {"closure_id": "galileo_falling_bodies.reasoning.combined_slower", "version": 1}
+        "conclusion": {"knowledge_id": "galileo_falling_bodies.reasoning.combined_slower", "version": 1}
       },
       {
         "step_index": 1,
         "premises": [
-          {"closure_id": "galileo_falling_bodies.reasoning.heavier_falls_faster", "version": 1}
+          {"knowledge_id": "galileo_falling_bodies.reasoning.heavier_falls_faster", "version": 1}
         ],
         "reasoning": "By the same law, the composite HL weighs more than H alone, so it should fall faster.",
-        "conclusion": {"closure_id": "galileo_falling_bodies.reasoning.combined_faster", "version": 1}
+        "conclusion": {"knowledge_id": "galileo_falling_bodies.reasoning.combined_faster", "version": 1}
       }
     ]
   }

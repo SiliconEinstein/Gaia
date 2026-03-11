@@ -53,7 +53,7 @@ def test_galileo_full_pipeline(tmp_path):
     # Verify receipt exists
     receipt = json.loads((pkg_dir / ".gaia" / "publish" / "receipt.json").read_text())
     assert receipt["package_id"] == "galileo_falling_bodies"
-    assert receipt["stats"]["closures"] > 0
+    assert receipt["stats"]["knowledge_items"] > 0
     assert receipt["stats"]["chains"] > 0
 
 
@@ -85,9 +85,9 @@ def test_three_packages_no_id_collision(tmp_path):
     assert newton_receipt["db_path"] == db_path
     assert einstein_receipt["db_path"] == db_path
 
-    # Verify each package produced non-zero closures and chains
+    # Verify each package produced non-zero knowledge and chains
     for receipt in [galileo_receipt, newton_receipt, einstein_receipt]:
-        assert receipt["stats"]["closures"] > 0
+        assert receipt["stats"]["knowledge_items"] > 0
         assert receipt["stats"]["chains"] > 0
 
 
@@ -103,5 +103,5 @@ def test_idempotent_republish(tmp_path):
     _run_pipeline(pkg_dir, db_path)
 
     receipt = json.loads((pkg_dir / ".gaia" / "publish" / "receipt.json").read_text())
-    assert receipt["stats"]["closures"] > 0
+    assert receipt["stats"]["knowledge_items"] > 0
     assert receipt["stats"]["chains"] > 0
