@@ -1,90 +1,122 @@
-"""Tests for LLM client used in gaia review."""
+"""Tests for the review client."""
 
 from cli.llm_client import MockReviewClient, ReviewClient
 
 
-def test_mock_client_returns_valid_review():
-    """MockReviewClient should return a valid review dict from Markdown chain_data."""
+def test_mock_review_uses_chain_scoped_step_ids():
+    """Mock review should produce step IDs like 'chain_name.N'."""
+    md = """### Chain: test_chain [chain:test_chain] (deduction)
+
+**[step:test_chain.2]** (prior=0.9)
+
+**Direct references:**
+> **[claim] some_claim** (prior=0.8)
+> Some content.
+
+**Reasoning:**
+> Some reasoning text.
+
+**Conclusion:** [claim] result (prior=0.5)
+> Result content.
+"""
     client = MockReviewClient()
-    chain_data = {
-        "name": "drag_prediction_chain",
-        "markdown": (
-            "## drag_prediction_chain (deduction)\n\n"
-            "**Premise:** heavier_falls_faster (claim, prior=0.7)\n"
-            "> 重的物体比轻的物体下落更快。\n\n"
-            "**Step 2 — deduce_drag_effect** (prior=0.93)\n\n"
-            "在思想实验中...\n\n"
-            "- Evidence: heavier_falls_faster (claim, prior=0.7)\n"
-            "- Context: thought_experiment_env (setting)\n\n"
-            "**Conclusion:** tied_pair_slower_than_heavy (claim, prior=0.5)\n"
-        ),
-    }
-    result = client.review_chain(chain_data)
-    assert "chain" in result
-    assert result["chain"] == "drag_prediction_chain"
-    assert "steps" in result
-    assert len(result["steps"]) >= 1
-    step = result["steps"][0]
-    assert "step" in step
-    assert "assessment" in step
-    assert "suggested_prior" in step
+    result = client.review_chain({"name": "test_chain", "markdown": md})
+
+    assert result["chain"] == "test_chain"
+    assert len(result["steps"]) == 1
+    assert result["steps"][0]["step"] == "test_chain.2"
+    assert result["steps"][0]["conditional_prior"] == 0.9
+    assert result["steps"][0]["weak_points"] == []
 
 
-def test_mock_client_preserves_existing_priors():
-    """MockReviewClient should parse priors from Markdown step headers."""
+def test_mock_review_produces_summary():
+    """Mock review should include a summary field."""
+    md = """### Chain: c1 [chain:c1] (deduction)
+**[step:c1.2]** (prior=0.85)
+**Reasoning:**
+> text
+**Conclusion:** [claim] x (prior=0.5)
+"""
     client = MockReviewClient()
-    chain_data = {
-        "name": "test_chain",
-        "markdown": (
-            "## test_chain (deduction)\n\n"
-            "**Step 2 — some_action** (prior=0.85)\n\n"
-            "Some rendered text.\n"
-        ),
-    }
-    result = client.review_chain(chain_data)
-    step = result["steps"][0]
-    assert step["suggested_prior"] == 0.85
+    result = client.review_package({"package": "test_pkg", "markdown": md})
+
+    assert "summary" in result
+    assert "chains" in result
+
+
+def test_mock_review_extracts_multiple_chains():
+    """Mock review should extract steps from multiple chains."""
+    md = """### Chain: chain_a [chain:chain_a] (deduction)
+**[step:chain_a.2]** (prior=0.8)
+**Reasoning:** > text
+**Conclusion:** [claim] x (prior=0.5)
+
+### Chain: chain_b [chain:chain_b] (deduction)
+**[step:chain_b.2]** (prior=0.95)
+**[step:chain_b.3]** (prior=0.7)
+**Reasoning:** > text
+**Conclusion:** [claim] y (prior=0.5)
+"""
+    client = MockReviewClient()
+    result = client.review_package({"package": "test_pkg", "markdown": md})
+
+    assert len(result["chains"]) == 2
+    chain_names = {c["chain"] for c in result["chains"]}
+    assert chain_names == {"chain_a", "chain_b"}
+    chain_b = next(c for c in result["chains"] if c["chain"] == "chain_b")
+    assert len(chain_b["steps"]) == 2
+
+
+def test_mock_review_chain_returns_empty_for_old_format():
+    """Mock review_chain should return empty steps for old-format markdown."""
+    md = (
+        "## test_chain (deduction)\n\n"
+        "**Step 2 — some_action** (prior=0.85)\n\n"
+        "Some rendered text.\n"
+    )
+    client = MockReviewClient()
+    result = client.review_chain({"name": "test_chain", "markdown": md})
+    assert result["chain"] == "test_chain"
+    assert result["steps"] == []
 
 
 def test_review_client_interface():
-    """ReviewClient should have a review_chain method."""
+    """ReviewClient should have review_chain and review_package methods."""
     client = ReviewClient(model="test")
     assert hasattr(client, "review_chain")
+    assert hasattr(client, "review_package")
+
+
+def test_review_client_loads_system_prompt():
+    """ReviewClient should load the system prompt from file."""
+    client = ReviewClient(model="test")
+    assert "scientific reasoning reviewer" in client._system_prompt
 
 
 async def test_mock_areview_chain():
     """MockReviewClient.areview_chain should return same structure as sync."""
+    md = """### Chain: test_chain [chain:test_chain] (deduction)
+**[step:test_chain.2]** (prior=0.85)
+**Reasoning:**
+> Some rendered text.
+**Conclusion:** [claim] result (prior=0.5)
+"""
     client = MockReviewClient()
-    chain_data = {
-        "name": "test_chain",
-        "markdown": (
-            "## test_chain (deduction)\n\n"
-            "**Step 2 — some_action** (prior=0.85)\n\n"
-            "Some rendered text.\n"
-        ),
-    }
-    result = await client.areview_chain(chain_data)
+    result = await client.areview_chain({"name": "test_chain", "markdown": md})
     assert result["chain"] == "test_chain"
     assert len(result["steps"]) == 1
-    assert result["steps"][0]["suggested_prior"] == 0.85
+    assert result["steps"][0]["conditional_prior"] == 0.85
 
 
-def test_prompt_includes_markdown():
-    """Prompt should include the Markdown chain section."""
-    client = ReviewClient(model="test")
-    chain_data = {
-        "name": "contradiction_chain",
-        "markdown": "## contradiction_chain (contradiction)\n\n**Step 2** (prior=0.97)\n",
-    }
-    prompt = client._build_prompt(chain_data)
-    assert "## contradiction_chain (contradiction)" in prompt
-    assert "Review this reasoning chain:" in prompt
-    assert "YAML document" in prompt
-
-
-def test_prompt_fallback_without_markdown():
-    """Prompt should fall back gracefully when markdown key is absent."""
-    client = ReviewClient(model="test")
-    chain_data = {"name": "old_chain"}
-    prompt = client._build_prompt(chain_data)
-    assert "Review: old_chain" in prompt
+async def test_mock_areview_package():
+    """MockReviewClient.areview_package should return same structure as sync."""
+    md = """### Chain: c1 [chain:c1] (deduction)
+**[step:c1.2]** (prior=0.9)
+**Reasoning:** > text
+**Conclusion:** [claim] x (prior=0.5)
+"""
+    client = MockReviewClient()
+    result = await client.areview_package({"package": "test_pkg", "markdown": md})
+    assert "summary" in result
+    assert "chains" in result
+    assert len(result["chains"]) == 1
