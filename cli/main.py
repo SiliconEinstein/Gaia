@@ -65,7 +65,7 @@ def build(
 def review(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     mock: bool = typer.Option(False, "--mock", help="Use mock reviewer (no LLM calls)"),
-    model: str = typer.Option("claude-sonnet-4-20250514", "--model", help="LLM model for review"),
+    model: str = typer.Option("gpt-5-mini", "--model", help="LLM model for review"),
 ) -> None:
     """LLM reviews chains -> sidecar report (.gaia/reviews/)."""
     from datetime import datetime, timezone
@@ -362,6 +362,9 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
 
     # 7. Write to Kuzu
     await graph.write_topology(data.closures, data.chains)
+    if data.probabilities:
+        for record in data.probabilities:
+            await graph.update_probability(record.chain_id, record.step_index, record.value)
     if data.belief_snapshots:
         await graph.update_beliefs(data.belief_snapshots)
 

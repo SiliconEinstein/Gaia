@@ -390,10 +390,10 @@ class LanceContentStore(ContentStore):
         except Exception:
             pass
 
-        # Belief history: closure_id starts with "package_id."
+        # Belief history: closure_id starts with "package_id/"
         try:
             tbl = self._db.open_table("belief_history")
-            tbl.delete(f"closure_id LIKE '{escaped}.%'")
+            tbl.delete(f"closure_id LIKE '{escaped}/%'")
         except Exception:
             pass
 

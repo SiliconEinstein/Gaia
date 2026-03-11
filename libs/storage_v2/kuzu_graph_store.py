@@ -106,22 +106,23 @@ class KuzuGraphStore(GraphStore):
 
     def _delete_package_sync(self, package_id: str) -> None:
         c = self._conn
-        prefix = f"{package_id}."
+        chain_prefix = f"{package_id}."
+        closure_prefix = f"{package_id}/"
         # Delete chains (chain_id starts with "package_id.")
         c.execute(
             "MATCH (ch:Chain) WHERE starts_with(ch.chain_id, $prefix) DETACH DELETE ch",
-            {"prefix": prefix},
+            {"prefix": chain_prefix},
         )
-        # Delete closures (closure_vid starts with "package_id." since
-        # closure_vid = closure_id@version and closure_id starts with package_id.)
+        # Delete closures (closure_vid starts with "package_id/" since
+        # closure_vid = closure_id@version and closure_id is slash-qualified.)
         c.execute(
             "MATCH (cl:Closure) WHERE starts_with(cl.closure_vid, $prefix) DETACH DELETE cl",
-            {"prefix": prefix},
+            {"prefix": closure_prefix},
         )
         # Delete resources (resource_id starts with "package_id.")
         c.execute(
             "MATCH (r:Resource) WHERE starts_with(r.resource_id, $prefix) DETACH DELETE r",
-            {"prefix": prefix},
+            {"prefix": chain_prefix},
         )
 
     # ── Write ──
