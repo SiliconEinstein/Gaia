@@ -77,3 +77,75 @@ def test_beliefs_become_snapshots():
     snapshots_by_name = {s.knowledge_id.split("/")[1]: s for s in data.belief_snapshots}
     assert snapshots_by_name["vacuum_prediction"].belief == 0.82
     assert snapshots_by_name["heavier_falls_faster"].belief == 0.35
+
+
+def test_review_probabilities_use_full_chain_ids():
+    """Review sidecars should map chain names back to full v2 chain IDs."""
+    from cli.lang_to_v2 import convert_to_v2
+
+    pkg = load_package(GALILEO_DIR)
+    pkg = resolve_refs(pkg)
+
+    review = {
+        "chains": [
+            {
+                "chain": "drag_prediction_chain",
+                "steps": [
+                    {
+                        "step": "drag_prediction_chain.2",
+                        "conditional_prior": 0.93,
+                        "explanation": "Looks sound.",
+                    }
+                ],
+            }
+        ]
+    }
+    data = convert_to_v2(pkg=pkg, review=review, beliefs={}, bp_run_id="test")
+
+    assert len(data.probabilities) == 1
+    record = data.probabilities[0]
+    assert record.chain_id == "galileo_falling_bodies.reasoning.drag_prediction_chain"
+    assert record.step_index == 0
+    assert record.value == 0.93
+    assert record.source_detail == "Looks sound."
+
+
+def test_einstein_cross_package_aliases_keep_external_ids():
+    """Nested local refs to dependency exports should not become local knowledge items."""
+    from cli.main import _load_with_deps
+    from cli.lang_to_v2 import convert_to_v2
+
+    pkg = _load_with_deps(EINSTEIN_DIR)
+    data = convert_to_v2(pkg=pkg, review={}, beliefs={}, bp_run_id="test")
+
+    knowledge_ids = {c.knowledge_id for c in data.knowledge_items}
+    assert "einstein_gravity/law_of_gravity" not in knowledge_ids
+    assert "einstein_gravity/acceleration_independent_of_mass" not in knowledge_ids
+    assert "einstein_gravity/vacuum_prediction" not in knowledge_ids
+
+    chains = {c.chain_id: c for c in data.chains}
+    subsumption = chains["einstein_gravity.general_relativity.subsumption_chain"]
+    assert [prem.knowledge_id for prem in subsumption.steps[0].premises] == [
+        "einstein_gravity/einstein_field_equations",
+        "newton_principia/law_of_gravity",
+        "newton_principia/acceleration_independent_of_mass",
+    ]
+
+    convergence = chains["einstein_gravity.observation.convergence_chain"]
+    assert [prem.knowledge_id for prem in convergence.steps[0].premises] == [
+        "galileo_falling_bodies/vacuum_prediction",
+        "newton_principia/acceleration_independent_of_mass",
+        "einstein_gravity/apollo15_confirms_equal_fall",
+    ]
+
+
+def test_einstein_subsumption_export_is_materialized_for_publish():
+    """Exported subsumption declarations should become local knowledge items for storage."""
+    from cli.main import _load_with_deps
+    from cli.lang_to_v2 import convert_to_v2
+
+    pkg = _load_with_deps(EINSTEIN_DIR)
+    data = convert_to_v2(pkg=pkg, review={}, beliefs={}, bp_run_id="test")
+
+    knowledge_ids = {c.knowledge_id for c in data.knowledge_items}
+    assert "einstein_gravity/newton_subsumed_by_gr" in knowledge_ids

@@ -688,6 +688,39 @@ class TestDeletePackage:
         """Deleting a non-existent package should not raise."""
         await graph_store.delete_package("nonexistent_pkg")  # should not raise
 
+    async def test_delete_package_removes_slash_qualified_knowledge_nodes(self, graph_store):
+        """CLI-published knowledge IDs use `package/decl`, not `package.module.decl`."""
+        knowledge = Knowledge(
+            knowledge_id="galileo_falling_bodies/vacuum_prediction",
+            version=1,
+            type="claim",
+            content="In a vacuum, bodies fall equally.",
+            prior=0.7,
+            source_package_id="galileo_falling_bodies",
+            source_module_id="galileo_falling_bodies.reasoning",
+            created_at=datetime(2026, 1, 1),
+        )
+        chain = Chain(
+            chain_id="galileo_falling_bodies.reasoning.vacuum_chain",
+            module_id="galileo_falling_bodies.reasoning",
+            package_id="galileo_falling_bodies",
+            type="deduction",
+            steps=[
+                ChainStep(
+                    step_index=0,
+                    premises=[KnowledgeRef(knowledge_id=knowledge.knowledge_id, version=1)],
+                    reasoning="Reasoning text.",
+                    conclusion=KnowledgeRef(knowledge_id=knowledge.knowledge_id, version=1),
+                )
+            ],
+        )
+
+        await graph_store.write_topology([knowledge], [chain])
+        await graph_store.delete_package("galileo_falling_bodies")
+
+        assert _count_nodes(graph_store, "Knowledge") == 0
+        assert _count_nodes(graph_store, "Chain") == 0
+
 
 # ── close ──
 

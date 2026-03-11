@@ -1,6 +1,10 @@
 """Tests for LanceContentStore."""
 
+from datetime import datetime
+
 import pytest
+
+from libs.storage_v2.models import BeliefSnapshot, Knowledge
 
 
 class TestInitialize:
@@ -292,6 +296,33 @@ class TestDeletePackage:
     async def test_delete_package_is_idempotent(self, content_store):
         """Deleting a non-existent package should not raise."""
         await content_store.delete_package("nonexistent_pkg")  # should not raise
+
+    async def test_delete_package_removes_slash_qualified_belief_history(self, content_store):
+        """Current CLI knowledge IDs use `package/decl`, which must be deleted too."""
+        knowledge = Knowledge(
+            knowledge_id="galileo_falling_bodies/vacuum_prediction",
+            version=1,
+            type="claim",
+            content="In a vacuum, fall rates are equal.",
+            prior=0.7,
+            source_package_id="galileo_falling_bodies",
+            source_module_id="galileo_falling_bodies.reasoning",
+            created_at=datetime(2026, 1, 1),
+        )
+        belief = BeliefSnapshot(
+            knowledge_id=knowledge.knowledge_id,
+            version=1,
+            belief=0.9,
+            bp_run_id="bp-run",
+            computed_at=datetime(2026, 1, 2),
+        )
+
+        await content_store.write_knowledge([knowledge])
+        await content_store.write_belief_snapshots([belief])
+        await content_store.delete_package("galileo_falling_bodies")
+
+        assert await content_store.get_knowledge(knowledge.knowledge_id) is None
+        assert await content_store.get_belief_history(knowledge.knowledge_id) == []
 
 
 class TestBM25Search:

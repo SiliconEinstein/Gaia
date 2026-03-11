@@ -391,9 +391,10 @@ class LanceContentStore(ContentStore):
         except Exception:
             pass
 
-        # Belief history: knowledge_id starts with "package_id."
+        # Belief history: knowledge_id may use slash (CLI) or dot (fixture/legacy).
         try:
             tbl = self._db.open_table("belief_history")
+            tbl.delete(f"knowledge_id LIKE '{escaped}/%'")
             tbl.delete(f"knowledge_id LIKE '{escaped}.%'")
         except Exception:
             pass

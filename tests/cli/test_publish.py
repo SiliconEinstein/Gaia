@@ -136,6 +136,36 @@ def test_publish_local_idempotent(tmp_path):
     assert len(ids) == len(set(ids)), f"Duplicate knowledge IDs after re-publish: {ids}"
 
 
+def test_publish_local_writes_mapped_probabilities_and_syncs_graph(tmp_path):
+    """Published review probabilities should use full chain IDs and reach Kuzu edges."""
+    pkg_dir = _setup_full_pipeline(tmp_path)
+    db_path = str(tmp_path / "testdb")
+    result = runner.invoke(app, ["publish", str(pkg_dir), "--local", "--db-path", db_path])
+    assert result.exit_code == 0, f"publish failed: {result.output}"
+
+    import kuzu
+    import lancedb
+
+    db = lancedb.connect(db_path)
+    prob_rows = db.open_table("probabilities").search().limit(1000).to_list()
+    assert prob_rows, "No probability rows were written"
+    assert all(row["chain_id"] for row in prob_rows)
+    assert any(
+        row["chain_id"] == "galileo_falling_bodies.reasoning.drag_prediction_chain"
+        and row["step_index"] == 0
+        and row["value"] == 0.93
+        for row in prob_rows
+    )
+
+    conn = kuzu.Connection(kuzu.Database(str(Path(db_path) / "kuzu")))
+    query = conn.execute(
+        "MATCH (ch:Chain {chain_id: 'galileo_falling_bodies.reasoning.drag_prediction_chain'})"
+        "-[r:CONCLUSION]->(:Knowledge) "
+        "WHERE r.step_index = 0 RETURN r.probability"
+    )
+    assert abs(query.get_next()[0] - 0.93) < 1e-9
+
+
 def test_publish_local_errors_without_build(tmp_path):
     """publish --local should error when no manifest.json exists."""
     pkg_dir = tmp_path / "galileo"

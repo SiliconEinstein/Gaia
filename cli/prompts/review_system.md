@@ -34,3 +34,17 @@ reliability of reasoning chains in a knowledge package.
 
 Reply with ONLY a YAML document (no markdown fences, no extra text).
 Use step IDs exactly as they appear in the document (e.g., `synthesis_chain.2`).
+Use this exact schema:
+
+summary: Short overall assessment of the package.
+chains:
+  - chain: synthesis_chain
+    steps:
+      - step: synthesis_chain.2
+        weak_points:
+          - proposition: A complete standalone proposition.
+            classification: direct
+        conditional_prior: 0.85
+        explanation: Short explanation for the score.
+
+Do NOT use a flat top-level mapping keyed by step IDs.
