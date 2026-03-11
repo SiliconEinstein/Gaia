@@ -205,3 +205,19 @@ class TestQueryModels:
     def test_knowledge_embedding(self):
         emb = KnowledgeEmbedding(knowledge_id="a.b.c", version=1, embedding=[0.1, 0.2, 0.3])
         assert len(emb.embedding) == 3
+
+
+def test_package_preparing_status():
+    from datetime import datetime
+
+    pkg = Package(
+        package_id="test",
+        name="test",
+        version="1.0.0",
+        modules=[],
+        exports=[],
+        submitter="tester",
+        submitted_at=datetime(2026, 1, 1),
+        status="preparing",
+    )
+    assert pkg.status == "preparing"

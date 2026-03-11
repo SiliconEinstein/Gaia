@@ -88,7 +88,7 @@ class Package(BaseModel):
     exports: list[str] = []
     submitter: str
     submitted_at: datetime
-    status: Literal["submitted", "merged", "rejected"]
+    status: Literal["preparing", "submitted", "merged", "rejected"]
 
 
 # ── Probability & Belief ──
