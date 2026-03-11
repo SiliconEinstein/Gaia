@@ -42,7 +42,8 @@ def find_latest_review(reviews_dir: Path) -> Path:
 def merge_review(pkg: Package, review: dict, source_fingerprint: str | None = None) -> Package:
     """Merge review suggestions into package (deep copy -- original untouched).
 
-    Updates step priors and arg dependency types based on review.
+    Supports both old format (``suggested_prior``, bare step numbers) and new
+    format (``conditional_prior``, ``chain_name.N`` step IDs).
     """
     import warnings
 
@@ -67,12 +68,23 @@ def merge_review(pkg: Package, review: dict, source_fingerprint: str | None = No
         if not chain:
             continue
         for step_review in chain_review.get("steps", []):
-            step_num = step_review["step"]
+            # Parse step number from "chain_name.N" or bare N
+            step_id = step_review["step"]
+            if isinstance(step_id, str) and "." in step_id:
+                step_num = int(step_id.rsplit(".", 1)[1])
+            else:
+                step_num = int(step_id)
+
             step = next((s for s in chain.steps if s.step == step_num), None)
             if not step:
                 continue
-            if "suggested_prior" in step_review and hasattr(step, "prior"):
-                step.prior = step_review["suggested_prior"]
+
+            # Support both old and new format
+            prior = step_review.get("conditional_prior") or step_review.get("suggested_prior")
+            if prior is not None and hasattr(step, "prior"):
+                step.prior = prior
+
+            # Backward compat: dependency updates (old format only)
             if "dependencies" in step_review and isinstance(step, StepApply):
                 for dep_review in step_review["dependencies"]:
                     arg = next((a for a in step.args if a.ref == dep_review["ref"]), None)

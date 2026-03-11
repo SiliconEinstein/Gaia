@@ -57,22 +57,22 @@ def test_review_errors_without_build(tmp_path):
 
 
 def test_review_shows_progress(tmp_path):
-    """gaia review should show progress like [1/N] Reviewing chain_name..."""
+    """gaia review should show 'Reviewing <package>...' progress."""
     pkg_dir = _setup_build(tmp_path)
     result = runner.invoke(app, ["review", str(pkg_dir), "--mock"])
     assert result.exit_code == 0
-    assert "[1/" in result.output
-    assert "Reviewing" in result.output
+    assert "Reviewing galileo_falling_bodies..." in result.output
 
 
-def test_review_with_concurrency_flag(tmp_path):
-    """gaia review --concurrency 2 should work."""
+def test_review_sidecar_has_summary(tmp_path):
+    """Review sidecar should include a summary field."""
     pkg_dir = _setup_build(tmp_path)
-    result = runner.invoke(app, ["review", str(pkg_dir), "--mock", "--concurrency", "2"])
-    assert result.exit_code == 0
+    runner.invoke(app, ["review", str(pkg_dir), "--mock"])
     reviews_dir = pkg_dir / ".gaia" / "reviews"
-    yamls = list(reviews_dir.glob("review_*.yaml"))
-    assert len(yamls) == 1
+    review_file = list(reviews_dir.glob("review_*.yaml"))[0]
+    data = yaml.safe_load(review_file.read_text())
+    assert "summary" in data
+    assert isinstance(data["summary"], str)
 
 
 def test_review_sidecar_has_fingerprint(tmp_path):

@@ -66,75 +66,60 @@ def review(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     mock: bool = typer.Option(False, "--mock", help="Use mock reviewer (no LLM calls)"),
     model: str = typer.Option("claude-sonnet-4-20250514", "--model", help="LLM model for review"),
-    concurrency: int = typer.Option(5, "--concurrency", "-j", help="Max parallel reviews"),
 ) -> None:
     """LLM reviews chains -> sidecar report (.gaia/reviews/)."""
     from datetime import datetime, timezone
 
     from cli.llm_client import MockReviewClient, ReviewClient
+    from cli.manifest import deserialize_package
     from cli.review_store import write_review
-    from libs.lang.loader import load_package
 
     pkg_path = Path(path)
     build_dir = pkg_path / ".gaia" / "build"
     reviews_dir = pkg_path / ".gaia" / "reviews"
 
-    # 1. Check build exists — look for .md files
-    md_files = sorted(build_dir.glob("*.md")) if build_dir.exists() else []
-    if not md_files:
+    # 1. Check build exists — require package.md
+    package_md = build_dir / "package.md"
+    if not package_md.exists():
         typer.echo(f"Error: no build artifacts.\nRun 'gaia build {path}' first.", err=True)
         raise typer.Exit(1)
 
-    # 2. Parse chain sections from package.md
-    import re
+    md_content = package_md.read_text()
 
-    chain_header_re = re.compile(r"^### Chain: (\w+) \[chain:\w+\] \(\w+\)", re.MULTILINE)
-    # Section ends at next ### or ## or --- or EOF
-    section_end_re = re.compile(r"^(?:###\s|##\s|---)", re.MULTILINE)
-    all_chain_data = []
-    for md_file in md_files:
-        content = md_file.read_text()
-        matches = list(chain_header_re.finditer(content))
-        for j, m in enumerate(matches):
-            chain_name = m.group(1)
-            start = m.start()
-            # Find the end: next chain header, module header, or separator
-            rest = content[m.end() :]
-            end_match = section_end_re.search(rest)
-            if end_match:
-                end = m.end() + end_match.start()
-            else:
-                end = len(content)
-            chain_section = content[start:end].strip()
-            all_chain_data.append(
-                {
-                    "name": chain_name,
-                    "markdown": chain_section,
-                }
-            )
+    # 2. Load package metadata from manifest
+    manifest_path = build_dir / "manifest.json"
+    if manifest_path.exists():
+        pkg = deserialize_package(manifest_path)
+    else:
+        from libs.lang.loader import load_package
 
-    # 3. Load package for metadata + compute fingerprint
-    pkg = load_package(pkg_path)
+        pkg = load_package(pkg_path)
+
     fingerprint = _compute_source_fingerprint(pkg_path)
 
-    # 4. Create reviewer
+    # 3. Create reviewer
     client = MockReviewClient() if mock else ReviewClient(model=model)
 
-    # 5. Review chains in parallel
-    chain_reviews = asyncio.run(_review_chains_parallel(client, all_chain_data, concurrency))
+    # 4. Review entire package in one call
+    typer.echo(f"Reviewing {pkg.name}...")
+    if mock:
+        result = client.review_package({"package": pkg.name, "markdown": md_content})
+    else:
+        result = asyncio.run(client.areview_package({"package": pkg.name, "markdown": md_content}))
 
-    # 6. Write sidecar
+    # 5. Write sidecar
     now = datetime.now(timezone.utc)
     review_data = {
         "package": pkg.name,
         "model": "mock" if mock else model,
         "timestamp": now.isoformat(),
         "source_fingerprint": fingerprint,
-        "chains": chain_reviews,
+        "summary": result.get("summary", ""),
+        "chains": result.get("chains", []),
     }
     review_path = write_review(review_data, reviews_dir)
 
-    n_chains = len(chain_reviews)
+    n_chains = len(review_data["chains"])
     typer.echo(f"Reviewed {n_chains} chains for {pkg.name}")
     typer.echo(f"Report: {review_path}")
 
@@ -147,28 +132,6 @@ def _compute_source_fingerprint(pkg_path: Path) -> str:
     for yaml_file in sorted(pkg_path.glob("*.yaml")):
         h.update(yaml_file.read_bytes())
     return h.hexdigest()[:16]
-
-
-async def _review_chains_parallel(
-    client: "ReviewClient | MockReviewClient",  # noqa: F821
-    chain_data_list: list[dict],
-    concurrency: int,
-) -> list[dict]:
-    """Review chains concurrently with bounded parallelism."""
-    semaphore = asyncio.Semaphore(concurrency)
-    total = len(chain_data_list)
-    results: list[dict] = [{}] * total
-    started = 0
-
-    async def review_one(index: int, chain_data: dict) -> None:
-        nonlocal started
-        async with semaphore:
-            started += 1
-            typer.echo(f"  [{started}/{total}] Reviewing {chain_data['name']}...")
-            results[index] = await client.areview_chain(chain_data)
-
-    await asyncio.gather(*(review_one(i, cd) for i, cd in enumerate(chain_data_list)))
-    return results
 
 
 @app.command()
