@@ -24,10 +24,18 @@ The execution plan for that reset lives here:
 - [System Overview](system-overview.md)
 - [Domain Model](domain-model.md)
 
+**Graph IR:**
+
+- [Graph IR](graph-ir.md) — Canonical factor graph IR between Gaia Language and BP
+
 **Theory:**
 
 - [Theoretical Foundation](theory/theoretical-foundation.md) — Jaynes 纲领
 - [Inference Theory](theory/inference-theory.md) — BP 算法理论
+
+**BP on Graph IR:**
+
+- [BP on Graph IR](bp-on-graph-ir.md) — Factor functions, gate semantics, schema/ground BP interaction
 
 **Language:**
 
@@ -44,6 +52,7 @@ The execution plan for that reset lives here:
 **Review:**
 
 - [Build, Alignment, and Review Architecture](review/architecture.md)
+- [Review Pipeline & Publish Workflow](review/publish-pipeline.md)
 
 **Server:**
 
@@ -61,10 +70,11 @@ The plan is to establish a small set of durable foundation docs before major cod
 6. `cli/boundaries.md` (Gaia CLI runtime layering)
 7. `review/architecture.md` (shared build, alignment, and review architecture across CLI and server)
 8. `server/architecture.md` (Server architecture)
-9. `server/graph-spec.md`
-10. `server/storage-schema.md` (Server storage schema)
-11. `server/module-boundaries.md`
-12. `server/api-contract.md`
+9. `graph-ir.md` (Graph IR — canonical factor graph layer)
+10. `server/graph-spec.md`
+11. `server/storage-schema.md` (Server storage schema)
+12. `server/module-boundaries.md`
+13. `server/api-contract.md`
 
 Those files do not all exist yet. This directory is the place where they should be created and kept current.
 

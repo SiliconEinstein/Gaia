@@ -82,9 +82,9 @@ Knowledge (root)
 
 | Attribute | Relation | Claim | Action |
 |---|---|---|---|
-| truth-apt | Yes | Yes | No |
-| BP participation | Yes (variable node + factor) | Yes (variable node) | No |
-| prior/belief | Yes | Yes | No |
+| truth-apt | Yes | Yes | Yes (admissibility proposition) |
+| BP participation | Yes (variable node + factor) | Yes (variable node) | Yes (variable node; may also participate via application factors) |
+| prior/belief | Yes | Yes | Yes |
 | Can be produced by ChainExpr | Yes | Yes | N/A |
 
 ## YAML Surface Syntax
@@ -194,13 +194,19 @@ When P(A≡B) = 1.0, P(A) = P(B) — beliefs synchronize completely. When P(A≡
 
 ### RetractAction BP Semantics
 
-RetractAction does not directly participate in BP. Its role is:
+RetractAction participates in BP as an **Action proposition**:
 
-1. Create a retraction edge from the Contradiction to the target claim in the graph
-2. BP's message propagation through the contradiction factor **automatically** weakens the target's belief
-3. RetractAction provides **intent declaration** and **provenance record**
+1. `RetractAction = true` means the retraction is admissible or warranted in the current context
+2. It may appear as the conclusion of a reasoning chain that motivates the retraction
+3. It may appear as a premise in downstream reasoning about whether a target claim should be weakened or revised
 
-Without RetractAction, BP still weakens shared premises (via contradiction factor). With RetractAction, there is an explicit record of "which contradiction caused which claim to be weakened."
+However, RetractAction does **not** replace the contradiction factor itself:
+
+1. The contradiction relation still provides the structural mutex behavior in BP
+2. RetractAction records intent and provenance about how that contradiction should influence a target claim
+3. Action application / reasoning factors, not the bare action declaration alone, connect that intent to downstream belief updates
+
+Without RetractAction, BP still weakens shared premises via the contradiction factor. With RetractAction, there is an explicit, belief-bearing record of "which contradiction motivated which retraction move."
 
 ## Provenance DAG
 

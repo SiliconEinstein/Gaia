@@ -229,14 +229,38 @@ The current categories are the right starting point:
 | Type | Role | Truth-apt? | Participates in BP? |
 |---|---|---|---|
 | `Claim` | Assertive, revisable | Yes | Yes (variable node) |
-| `Question` | Interrogative | No | No |
+| `Question` | Interrogative, motivational | Yes (well-posedness proposition) | Yes (variable node, conclusion-only) |
 | `Setting` | Contextual (definitions, assumptions) | Yes | Yes (variable node) |
-| `Action` | Procedural (InferAction, ToolCallAction) | No | Via application (factor node) |
+| `Action` | Procedural (InferAction, ToolCallAction) | Yes (admissibility proposition) | Yes (variable node; premise or conclusion, plus via application factors) |
 | `Expr` | Compositional (ChainExpr) | No | Via steps |
 | `Ref` | Reference to external knowledge | No | Via resolved target |
 | `Module` | Organizational | No | Via exported knowledge objects |
 
 V1 should strengthen the internal representation of these types — stop treating parameter types and return types as bare strings, use explicit type expressions and signatures.
+
+### V1 type-specific belief semantics
+
+- `Claim = true` means the asserted proposition holds.
+- `Setting = true` means the contextual assumption/definition holds.
+- `Question = true` means the question is valid, well-posed, and sufficiently motivated in the current context.
+- `Action = true` means the action is admissible or appropriate in the current context.
+
+This means `Question` and `Action` can be belief-bearing without collapsing them into ordinary world-state claims.
+
+### V1 BP position constraints
+
+| Type | May appear as premise? | May appear as conclusion? |
+|---|---|---|
+| `Claim` | Yes | Yes |
+| `Setting` | Yes | Yes |
+| `Question` | No | Yes |
+| `Action` | Yes | Yes |
+
+### V1 relation constraints
+
+- `Equivalence` is type-preserving.
+- For `Question` and `Action`, `Equivalence` is only valid between declarations of the same root type and the same `kind`.
+- `Contradiction` is defined for truth-conflicting propositions (`Claim`, `Setting`, `Relation`) and is not defined for `Question` or `Action` in V1.
 
 ### V1 judgments
 
@@ -270,7 +294,7 @@ The kernel should establish these judgments:
 **Export (module-level):**
 - `Γ, M ⊢ x exportable`
 
-Note the distinction: `belief_bearing` is an intrinsic property of a declaration's type (Claim and Setting are belief-bearing, Question is not). `exportable` is a module boundary property — it depends on whether `x` appears in module `M`'s export list, not on `x`'s type. Any declaration type can be exported or not.
+Note the distinction: `belief_bearing` is an intrinsic property of a declaration's type. In V1, `Claim`, `Setting`, `Question`, and `Action` are belief-bearing, but with type-specific semantics. `exportable` is a module boundary property — it depends on whether `x` appears in module `M`'s export list, not on `x`'s type. Any declaration type can be exported or not.
 
 These are intentionally modest — they define the structural kernel without overcommitting to future machinery.
 
@@ -302,7 +326,12 @@ class BPNode (K : Knowledge) where
 
 instance : TruthApt Claim
 instance : TruthApt Setting
--- Question has no TruthApt instance → cannot have belief
+instance : TruthApt Question
+instance : TruthApt Action
+instance : BPNode Claim
+instance : BPNode Setting
+instance : BPNode Question
+instance : BPNode Action
 ```
 
 Type classes replace the current ad-hoc conventions (scattered if-else checks for "is this type truth-apt?") with explicit, checkable judgments. The `belief_bearing` judgment from V1 becomes derived from type class instances rather than hardcoded rules. Note that `exportable` remains a module-level judgment — it depends on the module's export list, not on type class membership.

@@ -47,11 +47,11 @@ V3 extension: Prior, Posterior, Dependency, Propagate  (probability: Church's sa
 Knowledge                              (root type)
 ├── Claim                              (assertive knowledge — truth-apt)
 │   ├── ...                            (future: Observation, Conjecture, Theorem...)
-├── Question                           (interrogative knowledge — not truth-apt)
+├── Question                           (interrogative knowledge — belief-bearing well-posedness proposition)
 │   ├── ...
 ├── Setting                            (contextual knowledge — conditions, definitions)
 │   ├── ...                            (future: Definition, Assumption, Environment...)
-├── Action                             (procedural knowledge — single callable function)
+├── Action                             (procedural knowledge — belief-bearing admissibility proposition)
 │   ├── InferAction                    (NL reasoning — inherently probabilistic)
 │   ├── ToolCallAction                 (executable code — deterministic given env)
 │   └── ...                            (future: PythonCallAction, LeanProofAction...)
@@ -72,11 +72,11 @@ Knowledge                              (root type)
 
 **Claim** — assertive, truth-apt knowledge. Statements, results, conclusions.
 
-**Question** — interrogative knowledge. Not truth-apt (has no truth value). Inquiries, open problems.
+**Question** — interrogative knowledge. Belief-bearing with type-specific semantics: its belief measures whether the question is valid, well-posed, and sufficiently motivated in context. Inquiries, open problems.
 
 **Setting** — contextual knowledge. Definitions, assumptions, execution environments, experimental conditions. Establishes the background under which reasoning is interpreted.
 
-**Action** — procedural knowledge. Describes a single process, method, or tool. Functions in the language — can be "called" in expressions. Two subtypes:
+**Action** — procedural knowledge. Belief-bearing with type-specific semantics: its belief measures whether the action is admissible or appropriate in context. Describes a single process, method, or tool. Functions in the language — can be "called" in expressions. Two subtypes:
 
 - **InferAction**: natural language method description. Executed by AI agents reading and applying the described method. Inherently probabilistic — NL reasoning has error space.
 - **ToolCallAction**: executable code in an external language (Python, Lean, etc.). Requires an execution environment (Setting). Deterministic given correct environment — uncertainty comes from the environment/inputs, not the code itself.

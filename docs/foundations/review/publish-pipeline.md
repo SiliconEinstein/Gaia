@@ -31,10 +31,10 @@ gaia build         compile (structural validation + elaboration)
                    agent skill: self-review (optional, recommended)
                          │
                          ▼
-                   agent skill: graph construction
+                   agent skill: graph construction / local parameterization
                          │
                          ▼
-gaia infer         local BP on constructed factor graph (optional, preview)
+                   gaia infer         local BP on canonical graph + local parameterization (optional, preview)
                          │
                          ▼
 gaia publish       submit package → triggers peer review cycle
@@ -54,8 +54,8 @@ gaia publish       submit package → triggers peer review cycle
 
 | Command | Responsibility |
 |---------|---------------|
-| `gaia build` | Compile: schema validation, ref resolution, elaboration. Produces `manifest.json` + `package.md` |
-| `gaia infer` | Read factor graph, run BP, produce belief outputs |
+| `gaia build` | Compile: schema validation, ref resolution, elaboration. Produces `manifest.json` + `package.md` + `raw_graph.json` |
+| `gaia infer` | Read canonical graph + local parameterization, run BP, produce belief outputs |
 | `gaia publish [--local \| --remote]` | Submit package to target DB. Triggers peer review cycle. Includes automatic re-compile on server side |
 
 ### Agent Skills (3 core)
@@ -63,7 +63,7 @@ gaia publish       submit package → triggers peer review cycle
 | Skill | Responsibility |
 |-------|---------------|
 | self-review | Two-round LLM evaluation of reasoning quality |
-| graph-construction | Cluster similar propositions, connect weak points, integrate external candidates, build factor graph |
+| graph-construction | Build package-local canonical graph and, optionally, local preview parameterization |
 | rebuttal | Process peer review findings: accept revisions or write rebuttals |
 
 ### Deferred
@@ -77,7 +77,7 @@ gaia publish       submit package → triggers peer review cycle
 
 ### Purpose
 
-Agent evaluates its own package's reasoning quality before submission. Produces weak point knowledge units and conditional priors. Optional but recommended — a well-reviewed package is more likely to pass peer review.
+Agent evaluates its own package's reasoning quality before submission. Produces weak point knowledge units and conditional priors for author-local use. Optional but recommended — a well-reviewed package is more likely to pass peer review.
 
 ### Two-Round LLM Protocol
 
@@ -120,39 +120,43 @@ These definitions are included in every report header for self-containedness:
 - **v1 is hidden from v2.** Prevents anchoring bias. Two independent assessments; the delta is a diagnostic signal (large delta = significant hidden dependencies).
 - **Weak points are structured as knowledge units**, not free-text comments. They can be connected to the factor graph and participate in BP.
 - **Unrelated ref detection in Round 1**, not Round 2. Reduces Round 2's input size and cognitive load.
+- **Author-local probabilities are not submitted.** Self-review priors and conditional priors support local preview inference but are hidden from peer review engines, which must make independent judgments.
 
 ## 4. Graph Construction Skill
 
 ### Purpose
 
-Agent builds a factor graph from all available knowledge: original package content, self-review weak points, and optionally external candidates from the server.
+Agent builds a package-local canonical graph from all available knowledge: original package content, self-review weak points, and optionally external candidates from the server. It may also derive a local preview parameterization, but that parameterization is not submitted.
 
 ### Workflow
 
 ```
 Inputs:
   - manifest.json (compiled package)
+  - raw_graph.json (deterministic structural graph from `gaia build`)
   - self-review report (weak points with classifications and priors)
   - (optional) similar knowledge from server (via search API)
 
 Steps:
   1. Collect all knowledge units (original + weak points)
-  2. Cluster semantically similar propositions → merge into single nodes
+  2. Cluster semantically similar propositions → local canonical nodes
   3. For each premise-classified weak point, connect to its chain's factor
   4. (If external candidates available) User/agent marks relationships:
      - equivalent    → merge nodes
      - supporting    → add positive factor
      - contradicting → add negative factor
      - unrelated     → skip
-  5. Produce factor_graph.json
+  5. Produce local_canonical_graph.json
+  6. Optionally derive local_parameterization.json for `gaia infer`
 
 Output:
-  .gaia/graph/factor_graph.json
+  .gaia/graph/local_canonical_graph.json
+  .gaia/inference/local_parameterization.json   -- local only, not submitted
 ```
 
 ### Key Property
 
-This is an **agent skill, not a CLI command**. The agent can iterate: build graph → run `gaia infer` → inspect beliefs → adjust graph → re-run. Different agents may have different graph construction strategies.
+This is an **agent skill, not a CLI command**. The agent can iterate: build graph → optionally parameterize locally → run `gaia infer` → inspect beliefs → adjust graph → re-run. Different agents may have different graph construction strategies. Only the structural graph is submitted.
 
 ## 5. Publish & Peer Review Cycle
 
@@ -175,9 +179,11 @@ Both modes follow the same pipeline. The only difference is the database target 
 The review engine performs a full independent assessment:
 
 1. **Re-compile** — do not trust client compilation
-2. **Internal review** — independent reasoning quality assessment (does not see author's self-review)
+2. **Internal review** — independent reasoning quality assessment (does not see author's self-review probabilities or local parameterization)
 3. **Global search** — check for duplicates, conflicts, missing refs, similar knowledge in target DB
-4. **Graph validation** — verify the submitted factor graph structure and relationship labels
+4. **Graph validation** — verify the submitted structural graph and relationship labels
+5. **Probability judgments** — if needed, record node-prior and reasoning-factor probability judgments directly in the peer review report without using author-local preview parameters
+6. **Identity assignment** — after approval, record `CanonicalBinding` from each submitted LocalCanonicalNode to its target GlobalCanonicalNode
 
 ### 5.3 Review → Rebuttal → Editor Cycle
 
@@ -207,9 +213,11 @@ gaia publish
               ├── resolved → Editor
               └── unresolved → loop (max 5 rounds)
                                   │
-                                  └── >5 rounds → under_debate
+                                      └── >5 rounds → under_debate
                                        escalate to human
 ```
+
+Once the package is approved, the registry writes `CanonicalBinding` records for the accepted local → global identity assignments and updates `GlobalInferenceState` using the approved review report plus the current global graph. These are review/registry metadata, not part of the submitted package artifacts.
 
 ### 5.4 Multi-Path Review as Gaia Knowledge Structure
 
@@ -295,6 +303,7 @@ peer_review_report:
   engine_version: "1.2.0"
   timestamp: "2026-03-11T10:00:00Z"
   round: 1
+  local_graph_hash: "sha256:abc123..."
 
   verdict: revision_required    # approved | revision_required | rejected
 
@@ -344,6 +353,16 @@ peer_review_report:
       related: "newton_principia.universal_law"
       description: "Aristotle's doctrine already refuted from another angle
                     by newton package, consider referencing"
+
+  # Optional probability judgments used by the registry after approval.
+  # Keys may be full local IDs or unambiguous local short prefixes.
+  node_prior_judgments:
+    "lcn_00af91": 0.82
+    "lcn_17c2b4": 0.61
+
+  factor_probability_judgments:
+    "f_0192aa":
+      conditional_probability: 0.78
 ```
 
 ### 6.2 Rebuttal Report
