@@ -1,0 +1,268 @@
+[
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/theoretical_prediction_of_yh9_structure",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/theoretical_prediction_of_yh10",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/vinet_equation_of_state",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/isotope_effect_coefficient",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/coherence_length_definition",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/ginzburglandau_and_whh_models",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/vibron_scale_for_pressure_estimation",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/diamond_scale_for_pressure_estimation",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/theoretical_prediction_of_yh6_structure_and_stability",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/isotope_effect_coefficient_definition",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/hydrogen_induced_volume_expansion",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/upper_critical_field_and_coherence_length_relationships",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/predicted_stability_of_fcc_yh10_at_high_pressure",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/predicted_high_temperature_stability_of_fcc_yh10",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/criterion_for_excess_hydrogen_availability",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/identification_of_crystal_phases_via_diffraction",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/significance_of_isotope_effect",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/bcs_isotope_coefficient_limit",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/definition_of_coherence_length",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/ginzburg_landau_equation_validity",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/werthamer_helfand_hohenberg_model_validity",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/bcs_relation_for_coherence_length",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/scaling_relation_for_upper_critical_field",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/measurement_criterion_for_tc",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/isotopic_invariance_of_fermi_velocity",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/relation_between_coherence_length_and_upper_critical_field",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/bcs_relation_for_fermi_velocity",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/validity_of_whh_model_for_upper_critical_field_estimation",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/theoretical_predictions_of_yttrium_hydrides",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/hydrogen_induced_volume_expansion_in_hydrides",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/equation_of_state_for_pure_yttrium",
+    "version": 1,
+    "belief": 0.7,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/superconductivity_in_hcp_yh9",
+    "version": 1,
+    "belief": 0.5,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/superconductivity_in_bcc_yh6",
+    "version": 1,
+    "belief": 0.5,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/absence_of_predicted_fcc_yh10_phase",
+    "version": 1,
+    "belief": 0.5,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/isotope_effect_in_yttrium_hydrides",
+    "version": 1,
+    "belief": 0.5,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/upper_critical_fields_and_coherence_lengths",
+    "version": 1,
+    "belief": 0.5,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/fermi_velocities_in_yttrium_superhydrides",
+    "version": 1,
+    "belief": 0.5,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  },
+  {
+    "knowledge_id": "paper_10_1038s41467_021_25372_2/synthesis_conditions_and_stoichiometry_estimation",
+    "version": 1,
+    "belief": 0.5,
+    "bp_run_id": "mock_bp_run",
+    "computed_at": "2026-03-12T00:00:00+00:00"
+  }
+]

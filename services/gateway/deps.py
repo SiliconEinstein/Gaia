@@ -4,9 +4,14 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import TYPE_CHECKING
 
 from libs.embedding import EmbeddingModel, StubEmbeddingModel
 from libs.storage import StorageConfig, StorageManager
+
+if TYPE_CHECKING:
+    from libs.storage_v2.config import StorageConfig as V2StorageConfig
+    from libs.storage_v2.manager import StorageManager as V2StorageManager
 from services.commit_engine.engine import CommitEngine
 from services.commit_engine.store import CommitStore
 from services.inference_engine.engine import InferenceEngine
@@ -76,9 +81,15 @@ def _build_llm_clients() -> tuple[AbstractionLLM, VerifyLLM]:
 class Dependencies:
     """Holds all service singletons."""
 
-    def __init__(self, config: StorageConfig | None = None):
+    def __init__(
+        self,
+        config: StorageConfig | None = None,
+        v2_config: "V2StorageConfig | None" = None,
+    ):
         self.config = config or StorageConfig()
+        self.v2_config = v2_config
         self.storage: StorageManager | None = None
+        self.storage_v2: "V2StorageManager | None" = None
         self.search_engine: SearchEngine | None = None
         self.commit_engine: CommitEngine | None = None
         self.inference_engine: InferenceEngine | None = None
@@ -116,10 +127,20 @@ class Dependencies:
         )
         self.inference_engine = InferenceEngine(self.storage)
 
+    async def initialize_v2(self):
+        """Initialize v2 storage (async). Call during FastAPI startup."""
+        if self.v2_config is not None and self.storage_v2 is None:
+            from libs.storage_v2.manager import StorageManager as _V2SM
+
+            self.storage_v2 = _V2SM(self.v2_config)
+            await self.storage_v2.initialize()
+
     async def cleanup(self):
         """Shut down services gracefully."""
         if self.storage:
             await self.storage.close()
+        if self.storage_v2:
+            await self.storage_v2.close()
 
 
 # Global instance

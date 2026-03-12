@@ -1,0 +1,21 @@
+{
+  "package_id": "paper_10_1038s41467_021_25372_2",
+  "name": "paper_10_1038s41467_021_25372_2",
+  "version": "1.0.0",
+  "description": "Reasoning chains extracted from paper 10.1038s41467-021-25372-2",
+  "modules": [
+    "paper_10_1038s41467_021_25372_2.reasoning"
+  ],
+  "exports": [
+    "paper_10_1038s41467_021_25372_2/superconductivity_in_hcp_yh9",
+    "paper_10_1038s41467_021_25372_2/superconductivity_in_bcc_yh6",
+    "paper_10_1038s41467_021_25372_2/absence_of_predicted_fcc_yh10_phase",
+    "paper_10_1038s41467_021_25372_2/isotope_effect_in_yttrium_hydrides",
+    "paper_10_1038s41467_021_25372_2/upper_critical_fields_and_coherence_lengths",
+    "paper_10_1038s41467_021_25372_2/fermi_velocities_in_yttrium_superhydrides",
+    "paper_10_1038s41467_021_25372_2/synthesis_conditions_and_stoichiometry_estimation"
+  ],
+  "submitter": "paper_extractor",
+  "submitted_at": "2026-03-12T00:00:00+00:00",
+  "status": "merged"
+}

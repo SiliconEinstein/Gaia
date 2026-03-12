@@ -1,0 +1,18 @@
+{
+  "package_id": "paper_10_1038332139a0_1988_natu",
+  "name": "paper_10_1038332139a0_1988_natu",
+  "version": "1.0.0",
+  "description": "Reasoning chains extracted from paper 10.1038332139a0_1988_Natu",
+  "modules": [
+    "paper_10_1038332139a0_1988_natu.reasoning"
+  ],
+  "exports": [
+    "paper_10_1038332139a0_1988_natu/discovery_of_high_tc_superconductivity_in_the_tlcabacuo_system",
+    "paper_10_1038332139a0_1988_natu/superconducting_transition_properties_of_tl2ca15bacu3o85x",
+    "paper_10_1038332139a0_1988_natu/verification_of_bulk_superconductivity_via_magnetic_response",
+    "paper_10_1038332139a0_1988_natu/compositional_and_thermal_stability_characteristics"
+  ],
+  "submitter": "paper_extractor",
+  "submitted_at": "2026-03-12T00:00:00+00:00",
+  "status": "merged"
+}

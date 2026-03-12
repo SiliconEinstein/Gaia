@@ -1,0 +1,28 @@
+[
+  {
+    "module_id": "paper_10_1038s41467_021_25372_2.reasoning",
+    "package_id": "paper_10_1038s41467_021_25372_2",
+    "package_version": "1.0.0",
+    "name": "reasoning",
+    "role": "reasoning",
+    "imports": [],
+    "chain_ids": [
+      "paper_10_1038s41467_021_25372_2.reasoning.chain_1",
+      "paper_10_1038s41467_021_25372_2.reasoning.chain_2",
+      "paper_10_1038s41467_021_25372_2.reasoning.chain_3",
+      "paper_10_1038s41467_021_25372_2.reasoning.chain_4",
+      "paper_10_1038s41467_021_25372_2.reasoning.chain_5",
+      "paper_10_1038s41467_021_25372_2.reasoning.chain_6",
+      "paper_10_1038s41467_021_25372_2.reasoning.chain_7"
+    ],
+    "export_ids": [
+      "paper_10_1038s41467_021_25372_2/superconductivity_in_hcp_yh9",
+      "paper_10_1038s41467_021_25372_2/superconductivity_in_bcc_yh6",
+      "paper_10_1038s41467_021_25372_2/absence_of_predicted_fcc_yh10_phase",
+      "paper_10_1038s41467_021_25372_2/isotope_effect_in_yttrium_hydrides",
+      "paper_10_1038s41467_021_25372_2/upper_critical_fields_and_coherence_lengths",
+      "paper_10_1038s41467_021_25372_2/fermi_velocities_in_yttrium_superhydrides",
+      "paper_10_1038s41467_021_25372_2/synthesis_conditions_and_stoichiometry_estimation"
+    ]
+  }
+]

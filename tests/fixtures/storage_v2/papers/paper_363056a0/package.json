@@ -1,0 +1,18 @@
+{
+  "package_id": "paper_363056a0",
+  "name": "paper_363056a0",
+  "version": "1.0.0",
+  "description": "Reasoning chains extracted from paper 363056a0",
+  "modules": [
+    "paper_363056a0.reasoning"
+  ],
+  "exports": [
+    "paper_363056a0/discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu",
+    "paper_363056a0/identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters",
+    "paper_363056a0/attribution_of_highest_tc_to_the_three_layer_hg_1223_phase",
+    "paper_363056a0/critical_role_of_oxygen_annealing"
+  ],
+  "submitter": "paper_extractor",
+  "submitted_at": "2026-03-12T00:00:00+00:00",
+  "status": "merged"
+}

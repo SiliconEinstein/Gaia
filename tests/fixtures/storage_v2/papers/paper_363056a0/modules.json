@@ -1,0 +1,22 @@
+[
+  {
+    "module_id": "paper_363056a0.reasoning",
+    "package_id": "paper_363056a0",
+    "package_version": "1.0.0",
+    "name": "reasoning",
+    "role": "reasoning",
+    "imports": [],
+    "chain_ids": [
+      "paper_363056a0.reasoning.chain_1",
+      "paper_363056a0.reasoning.chain_2",
+      "paper_363056a0.reasoning.chain_3",
+      "paper_363056a0.reasoning.chain_4"
+    ],
+    "export_ids": [
+      "paper_363056a0/discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu",
+      "paper_363056a0/identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters",
+      "paper_363056a0/attribution_of_highest_tc_to_the_three_layer_hg_1223_phase",
+      "paper_363056a0/critical_role_of_oxygen_annealing"
+    ]
+  }
+]

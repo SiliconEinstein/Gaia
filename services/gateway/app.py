@@ -11,6 +11,7 @@ from .routes.read import router as read_router
 from .routes.search import router as search_router
 from .routes.batch import router as batch_router
 from .routes.jobs import router as jobs_router
+from .routes.v2 import router as v2_router
 
 
 def create_app(dependencies: Dependencies | None = None) -> FastAPI:
@@ -41,11 +42,13 @@ def create_app(dependencies: Dependencies | None = None) -> FastAPI:
         deps.commit_engine = dependencies.commit_engine
         deps.inference_engine = dependencies.inference_engine
         deps.job_manager = dependencies.job_manager
+        deps.storage_v2 = dependencies.storage_v2
 
     @app.on_event("startup")
     async def startup():
         if active_deps.storage is None:
             active_deps.initialize()
+        await active_deps.initialize_v2()
 
     @app.on_event("shutdown")
     async def shutdown():
@@ -60,5 +63,6 @@ def create_app(dependencies: Dependencies | None = None) -> FastAPI:
     app.include_router(read_router)
     app.include_router(search_router)
     app.include_router(jobs_router)
+    app.include_router(v2_router)
 
     return app
