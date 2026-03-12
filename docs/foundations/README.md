@@ -32,7 +32,10 @@ The execution plan for that reset lives here:
 
 - [Theoretical Foundation](theory/theoretical-foundation.md) — Jaynes 纲领
 - [Inference Theory](theory/inference-theory.md) — BP 算法理论
-- [BP on Graph IR](theory/bp-on-graph-ir.md) — Factor functions, gate semantics, schema/ground BP interaction
+
+**BP on Graph IR:**
+
+- [BP on Graph IR](bp-on-graph-ir.md) — Factor functions, gate semantics, schema/ground BP interaction
 
 **Language:**
 

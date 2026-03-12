@@ -5,7 +5,7 @@
 | 版本 | 1.0 |
 | 日期 | 2026-03-12 |
 | 状态 | **Draft — foundation design** |
-| 关联文档 | [../graph-ir.md](../graph-ir.md) — Graph IR 结构定义, [inference-theory.md](inference-theory.md) — BP 算法理论, [theoretical-foundation.md](theoretical-foundation.md) — Jaynes 纲领 |
+| 关联文档 | [graph-ir.md](graph-ir.md) — Graph IR 结构定义, [theory/inference-theory.md](theory/inference-theory.md) — BP 算法理论, [theory/theoretical-foundation.md](theory/theoretical-foundation.md) — Jaynes 纲领 |
 
 ---
 
@@ -13,7 +13,7 @@
 
 This document defines how belief propagation runs on Graph IR. It covers factor functions, gate semantics for Relations, instantiation factor semantics, and the interaction between schema and ground nodes during BP.
 
-For the Graph IR structure itself (variable nodes, factor nodes, edges, canonicalization), see [graph-ir.md](../graph-ir.md). For general BP theory (sum-product algorithm, damping, convergence), see [inference-theory.md](inference-theory.md).
+For the Graph IR structure itself (variable nodes, factor nodes, edges, canonicalization), see [graph-ir.md](graph-ir.md). For general BP theory (sum-product algorithm, damping, convergence), see [theory/inference-theory.md](theory/inference-theory.md).
 
 ## 2. BP on the Factor Graph
 

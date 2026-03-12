@@ -5,7 +5,7 @@
 | 版本 | 1.0 |
 | 日期 | 2026-03-12 |
 | 状态 | **Draft — foundation design** |
-| 关联文档 | [language/gaia-language-spec.md](language/gaia-language-spec.md), [language/gaia-language-design.md](language/gaia-language-design.md), [review/publish-pipeline.md](review/publish-pipeline.md), [theory/inference-theory.md](theory/inference-theory.md), [theory/bp-on-graph-ir.md](theory/bp-on-graph-ir.md) — BP on Graph IR, [server/storage-schema.md](server/storage-schema.md) |
+| 关联文档 | [language/gaia-language-spec.md](language/gaia-language-spec.md), [language/gaia-language-design.md](language/gaia-language-design.md), [review/publish-pipeline.md](review/publish-pipeline.md), [theory/inference-theory.md](theory/inference-theory.md), [bp-on-graph-ir.md](bp-on-graph-ir.md) — BP on Graph IR, [server/storage-schema.md](server/storage-schema.md) |
 
 ---
 
@@ -139,7 +139,7 @@ Each factor type defines a potential function. Summary:
 | `mutex_constraint` | Penalizes all contradicted claims being simultaneously true |
 | `equiv_constraint` | Rewards agreement between equated claims |
 
-For detailed factor function definitions, BP behavior, and gate semantics for Relations, see [theory/bp-on-graph-ir.md](theory/bp-on-graph-ir.md).
+For detailed factor function definitions, BP behavior, and gate semantics for Relations, see [bp-on-graph-ir.md](bp-on-graph-ir.md).
 
 ## 5. Schema and Ground Nodes
 
@@ -310,7 +310,7 @@ The review engine uses canonical variable nodes to search the global graph for d
 
 BP runs on the canonicalized Graph IR using standard sum-product message passing on the bipartite factor graph. Cromwell's rule applies: all priors and probabilities are clamped to [ε, 1−ε] (ε = 1e-3) at Graph IR construction time.
 
-For full details on factor functions, gate semantics for Relations, schema/ground interaction during BP, and the relationship to the existing BP implementation, see [theory/bp-on-graph-ir.md](theory/bp-on-graph-ir.md).
+For full details on factor functions, gate semantics for Relations, schema/ground interaction during BP, and the relationship to the existing BP implementation, see [bp-on-graph-ir.md](bp-on-graph-ir.md).
 
 ## 10. Relationship to Existing System
 
@@ -372,4 +372,4 @@ After:
 5. **Graph IR schema versioning** — version marker for the IR format itself.
 6. **Incremental build** — can `gaia build` incrementally update Graph IR when only some modules change?
 7. **Global graph storage** — how the global graph (merged canonical nodes from all packages) is stored and indexed. Extends storage-schema.md.
-8. **Relation gate semantics** — resolved: read-only gate semantics adopted. See [theory/bp-on-graph-ir.md](theory/bp-on-graph-ir.md) §4.
+8. **Relation gate semantics** — resolved: read-only gate semantics adopted. See [bp-on-graph-ir.md](bp-on-graph-ir.md) §4.
