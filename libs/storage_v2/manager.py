@@ -208,9 +208,15 @@ class StorageManager:
         if self.graph_store is None:
             return []
         results = await self.graph_store.search_topology(seed_ids, hops)
-        committed = await self.content_store.get_committed_packages()
-        committed_pkg_ids = {pkg_id for pkg_id, _ver in committed}
-        return [r for r in results if r.knowledge.source_package_id in committed_pkg_ids]
+        # Hydrate stubs through ContentStore (visibility-gated)
+        filtered: list[ScoredKnowledge] = []
+        for r in results:
+            k = await self.content_store.get_knowledge(
+                r.knowledge.knowledge_id, r.knowledge.version
+            )
+            if k is not None:
+                filtered.append(ScoredKnowledge(knowledge=k, score=r.score))
+        return filtered
 
     # ── Read delegation (VectorStore — degraded-safe) ──
 
