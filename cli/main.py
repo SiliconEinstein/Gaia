@@ -284,7 +284,11 @@ def publish(
             raise typer.Exit(1)
 
     if local:
-        resolved_db_path = db_path or os.environ.get("GAIA_LANCEDB_PATH", "./data/lancedb/gaia")
+        if db_path:
+            resolved_db_path = db_path
+        else:
+            base = os.environ.get("GAIA_LANCEDB_PATH", "./data/lancedb/gaia")
+            resolved_db_path = f"{base}_v2"
         asyncio.run(_publish_local(pkg_path, resolved_db_path))
 
     if server:
@@ -529,7 +533,8 @@ def search(
         raise typer.Exit(1)
 
     if db_path is None:
-        db_path = os.environ.get("GAIA_LANCEDB_PATH", "./data/lancedb/gaia")
+        base = os.environ.get("GAIA_LANCEDB_PATH", "./data/lancedb/gaia")
+        db_path = f"{base}_v2"
 
     if knowledge_id is not None:
         asyncio.run(_lookup_knowledge(knowledge_id, db_path))
