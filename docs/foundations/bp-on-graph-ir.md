@@ -11,17 +11,64 @@
 
 ## 1. Purpose
 
-This document defines how belief propagation runs on Graph IR. It covers factor functions, gate semantics for Relations, instantiation factor semantics, and the interaction between schema and ground nodes during BP.
+This document defines how belief propagation runs on Graph IR. It covers local parameterization overlays, global inference state, factor functions, gate semantics for Relations, instantiation factor semantics, and the interaction between schema and ground nodes during BP.
 
-For the Graph IR structure itself (knowledge nodes, factor nodes, canonicalization), see [graph-ir.md](graph-ir.md). For general BP theory (sum-product algorithm, damping, convergence), see [theory/inference-theory.md](theory/inference-theory.md).
+For the Graph IR structure itself (raw nodes, local canonical nodes, global canonical nodes, factor nodes, canonicalization), see [graph-ir.md](graph-ir.md). For general BP theory (sum-product algorithm, damping, convergence), see [theory/inference-theory.md](theory/inference-theory.md).
 
 ## 2. BP on the Factor Graph
 
-Graph IR is a bipartite factor graph. BP runs standard sum-product message passing:
+BP does **not** run on raw Graph IR. Raw Graph IR is the deterministic audit artifact. BP runs on:
+
+- the **Local Canonical Graph + author-local parameterization overlay** for package-local inference (`gaia infer`)
+- the **Global Canonical Graph + registry-managed GlobalInferenceState** for server/global inference
+
+Both graphs share the same structural schema, so the BP mechanics below are identical once node references are resolved into the active graph layer and the corresponding probability input is supplied.
+
+Graph IR is a bipartite factor graph. BP runs standard sum-product message passing over the structural graph plus the active probability input:
 
 ```
 Knowledge nodes ←→ Factor nodes ←→ Knowledge nodes
 ```
+
+### 2.1 Local Parameterization Overlay
+
+Graph IR deliberately omits priors, posteriors, and reasoning probabilities. Local BP receives them through a separate overlay:
+
+```
+Parameterization:
+    schema_version: str
+    graph_scope: "local" | "global"
+    graph_hash: str
+    node_priors: dict[str, float]
+    factor_parameters: dict[str, FactorParams]
+    metadata: dict | None
+
+FactorParams:
+    conditional_probability: float          # reasoning factors only
+```
+
+This overlay exists only for author-local preview inference.
+
+Local overlay keys are resolved as follows:
+
+- local inference accepts full `local_canonical_id`s or unambiguous local ID prefixes
+
+`factor_parameters` is keyed by `factor_id`. Full IDs or unambiguous `factor_id` prefixes are allowed. A valid overlay must provide priors for every belief-bearing node in the active local graph and `conditional_probability` for every `reasoning` factor in that graph. Missing entries make the overlay invalid; BP does not fall back to hidden defaults.
+
+### 2.2 Global Inference State
+
+Global BP consumes a registry-managed runtime object rather than a submitted overlay:
+
+```
+GlobalInferenceState:
+    graph_hash: str
+    node_priors: dict[str, float]         # keyed by full global_canonical_id
+    factor_parameters: dict[str, FactorParams]
+    node_beliefs: dict[str, float]        # keyed by full global_canonical_id
+    updated_at: str
+```
+
+`GlobalInferenceState` may be seeded from approved review-report judgments, but the review report is not itself a BP input artifact. Registry/runtime code normalizes those judgments into the current global graph state before BP runs.
 
 Messages are 2-vectors `[p(x=0), p(x=1)]`, always normalized. The algorithm follows the same schedule as inference-theory.md §1.5:
 
@@ -31,11 +78,11 @@ Messages are 2-vectors `[p(x=0), p(x=1)]`, always normalized. The algorithm foll
 4. Compute beliefs
 5. Check convergence
 
-Cromwell's rule: all priors and probabilities are clamped to [ε, 1−ε] (ε = 1e-3) at Graph IR construction time, preventing degenerate potentials.
+Cromwell's rule: all priors and probabilities are clamped to [ε, 1−ε] (ε = 1e-3) when local overlays or global inference state are loaded, preventing degenerate potentials.
 
 ## 3. Factor Functions
 
-Each factor type defines a potential function that determines how messages propagate through it. Factor nodes reference their connected knowledge nodes via the `premises`, `contexts`, and `conclusion` fields defined in [graph-ir.md](graph-ir.md) §4.2.
+Each factor type defines a potential function that determines how messages propagate through it. Factor nodes reference their connected knowledge nodes via the `premises`, `contexts`, and `conclusion` fields defined in [graph-ir.md](graph-ir.md) §4; probability-like values come from the active local overlay or global inference state.
 
 ### 3.1 Reasoning Factor
 
@@ -46,15 +93,21 @@ Generated from ChainExpr — one reasoning factor per chain. Connects premise kn
 ```
 FactorNode:
     type:                    reasoning
-    premises:                [canonical_ids of direct-dep knowledge nodes]
-    contexts:                [canonical_ids of indirect-dep knowledge nodes]
-    conclusion:              canonical_id of conclusion knowledge node
-    conditional_probability: P(conclusion | all premises true)
+    premises:                [graph-layer node IDs of direct-dep knowledge nodes]
+    contexts:                [graph-layer node IDs of indirect-dep knowledge nodes]
+    conclusion:              graph-layer node ID of conclusion knowledge node
+```
+
+Parameterization input:
+
+```
+factor_parameters[factor_id].conditional_probability
 ```
 
 - `premises` are mapped from `dependency: direct` args in ChainExpr steps. They create BP edges — BP sends and receives messages along these connections.
-- `contexts` are mapped from `dependency: indirect` args. They do NOT create BP edges. Their influence is folded into `conditional_probability` at Graph IR construction time.
+- `contexts` are mapped from `dependency: indirect` args. They do NOT create BP edges. Their influence is folded into `conditional_probability` when local parameterization or registry global-state updates assign that factor's probability.
 - `conclusion` is the single conclusion knowledge node of the chain.
+- By Graph IR V1 constraints, `question` nodes may only appear as conclusions, not premises. `action` nodes may appear in either position.
 
 **Potential:**
 
@@ -88,10 +141,9 @@ Generated by elaboration when a schema node is instantiated into a ground node. 
 ```
 FactorNode:
     type:                    instantiation
-    premises:                [canonical_id of schema node]
+    premises:                [graph-layer node ID of schema node]
     contexts:                []
-    conclusion:              canonical_id of instance node
-    conditional_probability: None (deterministic)
+    conclusion:              graph-layer node ID of instance node
 ```
 
 Each instantiation factor is **binary** — exactly one premise (the schema) and one conclusion (the instance). The deductive direction is modeled by `premises=[schema], conclusion=instance`.
@@ -105,7 +157,7 @@ Each instantiation factor is **binary** — exactly one premise (the schema) and
 | 0 (∀x.P(x) fails) | 1 (P(a) holds) | `1.0` (instance can hold independently) |
 | 0 (∀x.P(x) fails) | 0 (P(a) fails) | `1.0` |
 
-This is a deterministic implication — no `conditional_probability` parameter. It enforces:
+This is a deterministic implication — no parameterized `conditional_probability` is needed. It enforces:
 
 - If schema is believed → instance must be believed (forward, deductive)
 - If instance is disbelieved → schema must be disbelieved (backward, counterexample)
@@ -136,13 +188,12 @@ Generated from Contradiction relation nodes. Penalizes the all-true configuratio
 ```
 FactorNode:
     type:                    mutex_constraint
-    premises:                [canonical_ids of constrained claim nodes]
+    premises:                [graph-layer node IDs of constrained claim nodes]
     contexts:                []
-    conclusion:              canonical_id of Contradiction node (read-only gate)
-    conditional_probability: None (uses gate belief)
+    conclusion:              graph-layer node ID of Contradiction node (read-only gate)
 ```
 
-The `conclusion` field holds the Contradiction knowledge node, which acts as a **read-only gate** — BP reads its belief to determine constraint strength but does not send messages back to it. See §4 for gate semantics.
+The `conclusion` field holds the Contradiction knowledge node, which acts as a **read-only gate** — BP reads its runtime belief to determine constraint strength but does not send messages back to it. See §4 for gate semantics. The gate node's initial prior comes from `node_priors[conclusion]`.
 
 **Potential:**
 
@@ -167,13 +218,14 @@ Generated from Equivalence relation nodes. Rewards agreement between equated cla
 ```
 FactorNode:
     type:                    equiv_constraint
-    premises:                [canonical_ids of equated claim nodes]
+    premises:                [graph-layer node IDs of equated claim nodes]
     contexts:                []
-    conclusion:              canonical_id of Equivalence node (read-only gate)
-    conditional_probability: None (uses gate belief)
+    conclusion:              graph-layer node ID of Equivalence node (read-only gate)
 ```
 
-Same gate pattern as mutex_constraint — the `conclusion` holds the Equivalence knowledge node as a read-only gate.
+Same gate pattern as mutex_constraint — the `conclusion` holds the Equivalence knowledge node as a read-only gate. The gate node's initial prior comes from `node_priors[conclusion]`.
+
+Graph IR V1 additionally constrains `question`/`action` equivalence to same-root-type, same-`kind` pairs; BP assumes those structural checks have already passed before the factor is built.
 
 **Potential:**
 
@@ -228,7 +280,7 @@ V_claim_B ───┤── F_mutex               │
 ```
 
 At each BP iteration, when computing factor→knowledge messages for a gated constraint factor:
-1. Read the gate node's (conclusion's) current belief (from prior × incoming messages from OTHER factors)
+1. Read the gate node's (conclusion's) current belief from runtime BP state
 2. Use that belief as `effective_prob` in the factor function
 3. Compute and send messages to the premise variables only
 
@@ -258,7 +310,7 @@ For `mutex_constraint` and `equiv_constraint` factors:
   ```
   effective_prob = belief(conclusion_var)    -- clamped to [ε, 1-ε]
   ```
-- If the gate node's belief is unavailable (e.g., not yet computed), fall back to the Relation node's prior
+- If the gate node's belief is unavailable (e.g., initial iteration), fall back to the gate node's parameterized prior from `node_priors`
 
 ### 4.5 Consequences
 
@@ -279,7 +331,12 @@ FactorNode:
     premises:   [V_retraction_evidence]
     contexts:   []
     conclusion: V_target_claim
-    conditional_probability: p (inverted in potential)
+```
+
+Parameterization input:
+
+```
+factor_parameters[factor_id].conditional_probability = p
 ```
 
 The inverted potential means: when premises are true, conclusion=1 has potential `1-p` (weakened) rather than `p` (supported).
@@ -292,7 +349,7 @@ Retraction differs from contradiction:
 
 ### 6.1 Local Package BP
 
-Within a single package's Graph IR, schema and ground nodes interact through binary instantiation factors. Each instantiation factor has `premises=[schema]` and `conclusion=instance`:
+Within a single package's **Local Canonical Graph**, schema and ground nodes interact through binary instantiation factors. Each instantiation factor has `premises=[schema]` and `conclusion=instance`:
 
 ```
 V_schema("在{X}条件下，{Y}是混淆变量")
@@ -302,11 +359,13 @@ V_schema("在{X}条件下，{Y}是混淆变量")
         V_ground_2("在天文观测条件下，大气折射是混淆变量")
 ```
 
-BP computes beliefs for all nodes simultaneously. Forward messages flow schema→instance (deductive support). Backward messages flow instance→schema (inductive evidence). The messages aggregate at V_schema, producing inductive strengthening or counterexample weakening.
+BP computes beliefs for all local canonical nodes simultaneously. Forward messages flow schema→instance (deductive support). Backward messages flow instance→schema (inductive evidence). The messages aggregate at V_schema, producing inductive strengthening or counterexample weakening.
+
+Local node priors and reasoning-factor probabilities are assumed to be provided by an author-local parameterization overlay generated after package-local canonicalization. This document does not define how the author tool chooses those values; it only defines how BP consumes them.
 
 ### 6.2 Global Graph BP
 
-After packages merge into the global graph, schema nodes from different packages may be matched and merged. Ground instances from different packages that share a schema node become connected through it:
+After packages are published, review/registry matching maps package-local nodes into the **Global Canonical Graph**. Schema nodes from different packages may then share one global canonical node. Ground instances from different packages that share a schema node become connected through it:
 
 ```
 Package A:  F_inst_a: premises=[V_schema], conclusion=V_ground_a
@@ -315,6 +374,8 @@ Package B:  F_inst_b: premises=[V_schema], conclusion=V_ground_b
 ```
 
 Evidence for V_ground_a (from Package A's reasoning chains) now indirectly supports V_ground_b (through the shared schema's aggregated belief), and vice versa. This is cross-package evidence propagation via shared abstract knowledge.
+
+The policy for generating review-report judgments and registry `GlobalInferenceState` is intentionally deferred. This document specifies BP once a global graph and its current inference state are already instantiated; it does not yet fix how those probabilities are produced.
 
 ## 7. Relationship to Existing Implementation
 
@@ -333,26 +394,28 @@ Evidence for V_ground_a (from Package A's reasoning chains) now indirectly suppo
 
 | Component | Current | Graph IR BP |
 |-----------|---------|-------------|
-| Variable IDs | `int` | `canonical_id: str` (internal mapping to int for performance) |
-| Factor structure | `premises[]`, `conclusions[]`, `probability`, `gate_var` | `premises[]`, `contexts[]`, `conclusion` (singular), `conditional_probability` |
+| Variable IDs | `int` | `local_canonical_id` / `global_canonical_id: str` (internal mapping to int for performance) |
+| Factor structure | `premises[]`, `conclusions[]`, `probability`, `gate_var` | Structural Graph IR (`premises[]`, `contexts[]`, `conclusion`) + local overlay / global inference state |
 | Factor types | deduction, induction, retraction, contradiction, relation_* | reasoning, instantiation, mutex_constraint, equiv_constraint |
 | Factor granularity | One factor per step (apply/lambda) | One factor per ChainExpr |
 | Instantiation factor | Does not exist | New: implication potential for schema→instance |
-| Input source | `FactorGraph.from_subgraph()` or `CompiledFactorGraph` | Graph IR JSON |
-| Output target | `dict[int, float]` | Updates `belief` field on Graph IR knowledge nodes |
+| Input source | `FactorGraph.from_subgraph()` or `CompiledFactorGraph` | Graph IR JSON + local overlay or `GlobalInferenceState` |
+| Output target | `dict[int, float]` | Runtime belief snapshot keyed by graph-layer node ID |
 
 ### 7.3 Migration Path
 
 The BP algorithm implementation (`libs/inference/bp.py`) requires these changes:
 
 1. Add `instantiation` case to `_evaluate_potential()`
-2. Add Graph IR → internal FactorGraph conversion (canonical_id → int mapping, `conclusion` singular → conclusions list internally)
-3. Map `conclusion` on constraint factors to existing `gate_var` mechanism
-4. Map `contexts` to non-BP metadata (contexts do not create BP edges)
-5. Add belief writeback to Graph IR knowledge nodes
+2. Add Graph IR → internal FactorGraph conversion (graph-layer node ID → int mapping, `conclusion` singular → conclusions list internally)
+3. Load local overlay or registry `GlobalInferenceState` and map it onto node priors / factor probabilities
+4. Map `conclusion` on constraint factors to existing `gate_var` mechanism
+5. Map `contexts` to non-BP metadata (contexts do not create BP edges)
+6. Write BP results to a runtime belief snapshot rather than mutating submitted Graph IR
 
 ## Open Questions
 
 1. **Lifted BP** — if many ground instances share the same schema and have identical local evidence, could lifted inference techniques (parfactors) avoid redundant message passing? Deferred optimization.
 2. **Incremental BP** — when a new package is published and merged, can BP be run incrementally on the affected subgraph rather than the entire global graph?
 3. **Equivalence decomposition** — for n-ary equivalence, pairwise decomposition is the current approach. Are there better n-ary factor functions?
+4. **Probability-state generation** — how should author-local overlays, review-report judgments, and registry `GlobalInferenceState` be generated and versioned?

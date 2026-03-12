@@ -31,88 +31,190 @@ Gaia Lang Source (authored YAML)
 gaia build (deterministic compile + elaborate + IR generation)
     │
     ▼
-Raw Graph IR (factor graph with 1:1 source mapping)
+Raw Graph IR
+(RawKnowledgeNode + FactorNode, 1:1 source mapping)
     │
     ▼
-Agent skill: canonicalization (semantic node merging)
+Agent skill: package-local canonicalization
     │
     ▼
-Canonicalized Graph IR (factor graph with merged equivalent nodes)
+Local Canonical Graph
+(LocalCanonicalNode + FactorNode, package-scoped semantic merge)
     │
     ▼
-gaia infer — BP runs on Graph IR
+author-local parameterization (non-submitted)
     │
     ▼
-gaia publish — submit (source + canonicalized Graph IR + canonicalization log)
+gaia infer — local BP runs on
+(Local Canonical Graph + local parameterization)
+    │
+    ▼
+gaia publish — submit
+(source + raw graph + local canonical graph + canonicalization log)
+    │
+    ▼
+Review Engine — verify raw rebuild, audit local canonicalization,
+                write review report judgments, global matching
+    │
+    ▼
+Global Canonical Graph
+(GlobalCanonicalNode + review/registry-managed CanonicalBinding records)
+    │
+    ▼
+registry GlobalInferenceState + global BP
 ```
 
-**Graph IR is a first-class submission artifact**, not an internal build byproduct. It is submitted alongside Gaia Lang source during `gaia publish` and independently verified by the review engine.
+**Graph IR is a first-class submission artifact**, not an internal build byproduct. The package submits both its deterministic raw graph and its package-local canonical graph during `gaia publish`; author-local probabilities are intentionally excluded, review writes any probability judgments into the review report, and the registry maintains the global inference state.
 
 ## Factor Graph Structure
 
-Graph IR is a factor graph — a bipartite graph with two kinds of nodes:
+Graph IR is a factor graph — a bipartite graph with knowledge-bearing nodes plus factor nodes. The key distinction is that knowledge identity exists at three layers:
 
-- **Variable nodes** — knowledge objects with belief (prior/posterior)
-- **Factor nodes** — constraints that define relationships between variable nodes
-- **Edges** — only connect variable nodes to factor nodes (bipartite property)
+1. **RawKnowledgeNode** — deterministic output of `gaia build`
+2. **LocalCanonicalNode** — package-scoped semantic identity produced by agent canonicalization
+3. **GlobalCanonicalNode** — review/registry-assigned global identity in the merged graph
 
-### Variable Nodes
+The factor schema is shared across all three layers. Only the node ID namespace changes.
 
-All knowledge objects that carry belief are variable nodes.
+### Raw Knowledge Nodes
 
 ```
-VariableNode = {
-  canonical_id: str
-  type: Claim | Setting | Question | Action | Relation | ...
+RawKnowledgeNode = {
+  raw_node_id: str
+  knowledge_type: str
+  kind: str | None
   content: str
-  free_variables: [Variable]      -- empty = ground, non-empty = schema (∀-quantified)
-  prior: float
-  belief: float?                  -- computed by BP
-  source_refs: [SourceRef]        -- traces back to Gaia Lang source objects
+  parameters: [Parameter]
+  source_refs: [SourceRef]
+  metadata: dict?
 }
 
-Variable = {
+Parameter = {
   name: str
-  type: str                       -- constraint type (Claim, Setting, ...)
+  constraint: str
 }
 
 SourceRef = {
   package: str
+  version: str
   module: str
   knowledge_name: str
 }
 ```
 
-This includes:
+Only byte-identical elaborated content is merged at this layer. Semantic equivalence is deferred.
 
-- **Knowledge nodes** — Claim, Setting, Question, Action (standard knowledge objects)
-- **Relation nodes** — Contradiction, Equivalence (structural assertions about logical relationships between knowledge objects, with their own belief)
+### Local Canonical Nodes
+
+```
+LocalCanonicalNode = {
+  local_canonical_id: str
+  package: str
+  knowledge_type: str
+  kind: str | None
+  representative_content: str
+  parameters: [Parameter]
+  member_raw_node_ids: [str]
+  source_refs: [SourceRef]
+  metadata: dict?
+}
+```
+
+`LocalCanonicalNode` is structural only. Local priors and reasoning probabilities live in a separate author-local parameterization overlay and are not submitted.
+
+### Global Canonical Nodes
+
+```
+GlobalCanonicalNode = {
+  global_canonical_id: str
+  knowledge_type: str
+  kind: str | None
+  representative_content: str
+  parameters: [Parameter]
+  member_local_nodes: [LocalCanonicalRef]
+  provenance: [PackageRef]
+  metadata: dict?
+}
+
+LocalCanonicalRef = {
+  package: str
+  version: str
+  local_canonical_id: str
+}
+
+PackageRef = {
+  package: str
+  version: str
+}
+```
+
+`GlobalCanonicalNode` is also structural only. Review/server-side priors and runtime beliefs are supplied by registry-managed `GlobalInferenceState`.
+
+`global_canonical_id` is registry-assigned and opaque. V1 recommends a stable non-semantic format such as `gcn_<ULID>`. New IDs are allocated only when the corresponding binding decision is `create_new`.
+
+### Canonical Bindings
+
+`CanonicalBinding` is review/registry-side metadata, not a Graph IR node or factor. It records which global identity a package-local canonical node maps to after review.
+
+```
+CanonicalBinding = {
+  package: str
+  version: str
+  local_graph_hash: str
+  local_canonical_id: str
+  decision: match_existing | create_new
+  global_canonical_id: str
+  decided_at: str
+  decided_by: str
+  reason: str?
+}
+```
+
+Constraints:
+
+- one approved binding per `(package, version, local_graph_hash, local_canonical_id)`
+- one binding points to exactly one `global_canonical_id`
+- multiple local nodes may bind to the same global node
+- for `question` and `action`, binding requires same root type and same `kind`
+- non-identity relations (`refines`, `contradicts`, `missing_ref`) are handled separately and are not part of `CanonicalBinding`
+
+### Global Inference State
+
+```
+GlobalInferenceState = {
+  graph_hash: str
+  node_priors: dict[str, float]
+  factor_parameters: dict[str, FactorParams]
+  node_beliefs: dict[str, float]
+  updated_at: str
+}
+```
+
+`GlobalInferenceState` is registry-managed runtime state derived from approved review reports, `CanonicalBinding`, and the current global graph.
 
 ### Factor Nodes
 
-Factors define constraints between variable nodes. They have no belief of their own.
+Factors define constraints between knowledge nodes. They carry no belief. Each factor is self-contained: it directly references its connected knowledge nodes.
 
 ```
 FactorNode = {
   factor_id: str
   type: reasoning | instantiation | mutex_constraint | equiv_constraint
-  probability: float?             -- reasoning factor reliability
-  bindings: {str: canonical_id}?  -- instantiation factor only
+  premises: [str]
+  contexts: [str]
+  conclusion: str
   source_ref: SourceRef?
+  metadata: dict?
 }
 ```
 
-### Edges
+Field semantics:
 
-Edges connect variable nodes to factor nodes with a role annotation.
+- `premises` — direct-dependency knowledge nodes
+- `contexts` — indirect-dependency knowledge nodes; no BP edges, influence folded into a separately generated reasoning-factor probability
+- `conclusion` — the single knowledge node produced or controlled by the factor
 
-```
-Edge = {
-  variable: canonical_id          -- points to VariableNode
-  factor: factor_id               -- points to FactorNode
-  role: premise | conclusion | schema | instance | relation | subject
-}
-```
+In a raw graph these IDs are `raw_node_id`s. In a local canonical graph they are `local_canonical_id`s. In the global graph they are `global_canonical_id`s.
 
 ### Factor Types
 
@@ -123,7 +225,23 @@ Edge = {
 | `mutex_constraint` | Contradiction variable node | Contradiction node ↔ contradicted nodes | `f(a,b,e) = e·(1-a·b) + (1-e)·1` |
 | `equiv_constraint` | Equivalence variable node | Equivalence node ↔ equated nodes | `f(a,b,e) = e·exp(-λ(a-b)²) + (1-e)·1` |
 
-**Relation nodes and their constraint factors always appear as pairs.** The Relation node's belief controls the constraint factor's strength.
+**Relation nodes and their constraint factors always appear as pairs.** The Relation node's runtime belief controls the constraint factor's strength; its prior comes from local overlay or registry `GlobalInferenceState`, depending on the active graph layer.
+
+### Type-Specific BP Semantics
+
+| Root type | `node = true` means | May appear as premise? | May appear as conclusion? |
+|-----------|---------------------|------------------------|---------------------------|
+| `claim` | the asserted proposition holds | Yes | Yes |
+| `setting` | the contextual assumption/definition holds | Yes | Yes |
+| `question` | the question is valid, well-posed, and sufficiently motivated | No | Yes |
+| `action` | the action is admissible or appropriate in context | Yes | Yes |
+| `contradiction` / `equivalence` | the relation itself holds | Yes | Yes |
+
+V1 relation constraints:
+
+- `Equivalence` is type-preserving.
+- For `question` and `action`, `Equivalence` is only valid between nodes with the same root type and the same `kind`.
+- `Contradiction` is only defined for `claim`, `setting`, and `relation` nodes in V1; it is not defined for `question` or `action`.
 
 ## Schema and Ground Nodes
 
@@ -131,15 +249,15 @@ After `gaia build` elaboration, some knowledge objects may still contain free va
 
 ### Definition
 
-- **Schema node**: `free_variables` is non-empty. Semantics: `∀x. P(x)` — for all valid substitutions, the proposition holds.
-- **Ground node**: `free_variables` is empty. Semantics: `P(a)` — a concrete proposition about specific objects.
+- **Schema node**: `parameters` is non-empty. Semantics: `∀x. P(x)` — for all valid substitutions, the proposition holds.
+- **Ground node**: `parameters` is empty. Semantics: `P(a)` — a concrete proposition about specific objects.
 
 ### Example
 
 ```
-Schema:          "对{A}和{B}进行对比分析"        free_variables: [A, B]
-Partial ground:  "对{A}和真空环境进行对比分析"     free_variables: [A]
-Full ground:     "对亚里士多德假说和真空环境进行对比分析"  free_variables: []
+Schema:          "对{A}和{B}进行对比分析"        parameters: [A, B]
+Partial ground:  "对{A}和真空环境进行对比分析"     parameters: [A]
+Full ground:     "对亚里士多德假说和真空环境进行对比分析"  parameters: []
 ```
 
 ### Instantiation Factor
@@ -173,7 +291,7 @@ BP naturally propagates:
 
 | Source construct | Variable node(s) | Factor node(s) |
 |-----------------|-------------------|-----------------|
-| Claim, Setting, Question, Action | One knowledge node per elaborated object | — |
+| Claim, Setting, Question, Action | One raw knowledge node per elaborated object | — |
 | Contradiction declaration | Contradiction variable node | mutex_constraint factor |
 | Equivalence declaration | Equivalence variable node | equiv_constraint factor |
 | chain_expr apply/lambda step | — | reasoning factor |
@@ -181,9 +299,11 @@ BP naturally propagates:
 
 ### Automatic Merge (build-time, deterministic)
 
-Only one case merges at build time: **content hash identity**. If two elaborated knowledge objects produce byte-identical content, they map to the same variable node. `source_refs` of both are combined.
+Only one case merges at build time: **content hash identity**. If two elaborated knowledge objects produce byte-identical content, they map to the same raw knowledge node. `source_refs` of both are combined.
 
-**Equivalence declarations are NOT merged at build time.** They become Equivalence variable nodes + equiv_constraint factors in the raw Graph IR. Whether to merge the equated nodes is an agent judgment (Layer 2) or review engine judgment (Layer 3).
+**Equivalence declarations are NOT merged at build time.** They become Equivalence knowledge nodes + equiv_constraint factors in the raw Graph IR. Whether to merge the equated nodes is an agent judgment (Layer 2) or review engine judgment (Layer 3).
+
+Question nodes may only appear as factor conclusions in V1. Action nodes may appear as either premises or conclusions.
 
 ### Build Output
 
@@ -193,21 +313,23 @@ Only one case merges at build time: **content hash identity**. If two elaborated
 
 ## Agent Canonicalization
 
-The agent skill receives raw Graph IR and performs semantic canonicalization — the only operation is merging semantically equivalent nodes.
+The agent skill receives raw Graph IR and performs **package-local semantic canonicalization**.
 
 ### What the Agent Does
 
-1. Examine variable nodes in the raw Graph IR
-2. Identify nodes that express the same proposition despite different content (e.g., different languages, editorial variants, synonymous phrasing)
-3. Merge identified equivalent nodes: combine `source_refs`, redirect all factor edges to the surviving node
-4. Record every merge judgment in a canonicalization log
+1. Examine raw knowledge nodes in the raw Graph IR
+2. Partition nodes that express the same proposition despite different content (e.g. different languages, editorial variants, synonymous phrasing)
+3. Create one `LocalCanonicalNode` per package-local equivalence group
+4. Redirect all factor references from `raw_node_id` to the new `local_canonical_id`
+5. Record the structural grouping decision in a canonicalization log
+
+For `question` and `action` nodes, semantic grouping and equivalence must remain within the same `kind`.
 
 ### What the Agent Does NOT Do
 
-- Create new nodes
-- Create new edges/factors
-- Modify factor graph topology beyond node merging
-- Change priors or beliefs
+- Modify raw graph contents
+- Rewrite raw node contents, IDs, or source refs
+- Attach submitted probability parameters to Graph IR
 
 ### Equivalence Node Handling
 
@@ -215,13 +337,13 @@ When the agent encounters an Equivalence variable node (from author declaration)
 
 | Agent judgment | Action |
 |----------------|--------|
-| Confident the equivalence holds | Merge the equated nodes, remove Equivalence node + equiv factor pair |
+| Confident the equivalence holds | Create a local canonical merge set, redirect factor refs to the `LocalCanonicalNode`, remove Equivalence node + equiv factor pair if no longer needed |
 | Uncertain | Leave Equivalence node + equiv factor in Graph IR for BP to reason about |
 
 ### Output
 
 ```
-.gaia/graph/canonical_graph.json     -- canonicalized Graph IR
+.gaia/graph/local_canonical_graph.json     -- package-local canonical Graph IR
 .gaia/graph/canonicalization_log.json -- merge decisions with reasons
 ```
 
@@ -229,17 +351,36 @@ Canonicalization log format:
 
 ```yaml
 canonicalization_log:
-  - merged: [vn_007, vn_012]
-    into: vn_007
+  - local_canonical_id: lcn_001
+    members: [rn_007, rn_012]
     reason: "Synonymous: both express 'air resistance is the confounding variable'"
-  - merged: [vn_003, vn_015]
-    into: vn_003
+  - local_canonical_id: lcn_002
+    members: [rn_003, rn_015]
     reason: "Same proposition in Chinese and English"
 ```
 
 ## BP Execution
 
-BP runs on the canonicalized Graph IR using standard sum-product message passing on the factor graph.
+`gaia infer` runs BP on the **package-local canonical graph** plus a non-submitted local parameterization overlay. Raw Graph IR is audit input, not the runtime inference graph.
+
+Minimal local overlay shape:
+
+```
+Parameterization = {
+  schema_version: str
+  graph_scope: "local"
+  graph_hash: str
+  node_priors: dict[str, float]        # keyed by local_canonical_id or unambiguous local ID prefix
+  factor_parameters: dict[str, FactorParams]
+  metadata: dict?
+}
+
+FactorParams = {
+  conditional_probability: float
+}
+```
+
+The loader resolves local ID prefixes against the active local graph before BP. Prefix lookup is namespace-local and must be unambiguous. Every belief-bearing LocalCanonicalNode and every `reasoning` FactorNode in the active local graph must be parameterized.
 
 Variable nodes send messages to their connected factor nodes. Factor nodes send messages back to their connected variable nodes. Messages iterate until convergence.
 
@@ -249,57 +390,64 @@ All factor types (reasoning, instantiation, mutex_constraint, equiv_constraint) 
 
 ### Submission
 
-`gaia publish` submits three artifacts:
+`gaia publish` submits four artifacts:
 
 1. **Gaia Lang source** — package.yaml + module YAMLs
-2. **Canonicalized Graph IR** — canonical_graph.json
-3. **Canonicalization log** — agent's merge decisions with reasons
+2. **Raw Graph IR** — raw_graph.json
+3. **Local canonical Graph IR** — local_canonical_graph.json
+4. **Canonicalization log** — agent's merge decisions with reasons
 
 ### Review Engine Verification
 
 The review engine performs three layers of verification:
 
-**Layer 1: Source ↔ Graph IR correspondence**
+**Layer 1: Source ↔ raw Graph IR correspondence**
 
-Review engine independently executes `gaia build` (re-compile + re-elaborate) to produce its own raw Graph IR. It diffs this against the submitted canonicalized Graph IR. The only expected differences are the agent's merge operations recorded in the canonicalization log. Any unexplained differences are a blocking finding.
+Review engine independently executes `gaia build` (re-compile + re-elaborate) to produce its own raw Graph IR. It diffs this against the submitted raw Graph IR. Any unexplained differences are a blocking finding.
 
 **Layer 2: Canonicalization audit**
 
-Review engine evaluates each merge in the canonicalization log:
-- Are the merged nodes truly semantically equivalent? (blocking if wrong)
+Review engine evaluates each local canonicalization decision:
+- Are the merged raw nodes truly semantically equivalent? (blocking if wrong)
 - Are there obvious equivalences the agent missed? (advisory)
+
+Review engine does not consume the author's local priors or reasoning probabilities. If it makes probability judgments, they are written directly into the review report under the submitted `local_graph_hash`.
 
 **Layer 3: Global matching**
 
-Review engine uses the canonicalized variable nodes to search the global graph:
+Review engine uses the submitted local canonical nodes to search the global graph:
 - Finds duplicate, conflicting, or related existing knowledge
 - Generates findings (duplicate, conflict, missing_ref, etc.)
 - Follows the standard review → rebuttal → editor cycle per publish-pipeline.md
+
+Identity assignment itself is recorded separately as `CanonicalBinding` on the review/registry side. The package does not submit bindings.
+
+For `question` and `action` nodes, global matching and equivalence must also remain within the same root type and the same `kind`.
 
 ### Verification Severity
 
 | Check | Failure meaning | Severity |
 |-------|----------------|----------|
-| Source → IR rebuild mismatch | Graph IR tampered or build version mismatch | blocking |
-| Unreasonable merge | Agent canonicalization error | blocking |
+| Source → raw IR rebuild mismatch | Raw Graph IR tampered or build version mismatch | blocking |
+| Unreasonable local merge | Agent canonicalization error | blocking |
 | Missed merge | Agent didn't discover a semantic equivalence | advisory |
 | Global duplicate/conflict | Must declare relationship with existing knowledge | blocking |
 
 ## Three-Layer Canonicalization Summary
 
 ```
-Layer 1 (structural)     gaia build        deterministic, no LLM      kernel-level
+Layer 1 (structural)     gaia build        deterministic, no LLM      raw-node layer
     ↓ can't catch →
-Layer 2 (semantic)       agent skill       judgment, auditable         package-level
+Layer 2 (semantic)       agent skill       judgment, auditable         package-local canonical layer
     ↓ can't catch →
-Layer 3 (global)         review engine     global search + review      global-level
+Layer 3 (global)         review engine     global search + review      global canonical layer
 ```
 
 | Layer | Trigger | Who decides | Scope |
 |-------|---------|-------------|-------|
-| 1. Structural | `gaia build` | Compiler (content hash, ref resolution) | Within package, deterministic |
-| 2. Semantic | Agent canonicalization skill | Agent judgment, review engine verifies | Within package, semantic |
-| 3. Global | `gaia publish` → review engine | Review engine + rebuttal cycle | Across all packages |
+| 1. Structural | `gaia build` | Compiler (content hash, ref resolution) | Within package, deterministic raw nodes |
+| 2. Semantic | Agent canonicalization skill | Agent judgment, review engine verifies | Within package, local canonical nodes |
+| 3. Global | `gaia publish` → review engine | Review engine + rebuttal cycle | Across all packages, global canonical nodes |
 
 Each layer handles only what it can reliably do, passing unresolved cases to the next layer.
 
@@ -309,19 +457,19 @@ Each layer handles only what it can reliably do, passing unresolved cases to the
 
 | Component | Before | After |
 |-----------|--------|-------|
-| BP input | Compiled directly from ChainExpr | Runs on Graph IR factor graph |
+| BP input | Compiled directly from ChainExpr | Local BP runs on canonical graph + local overlay; global BP runs on canonical graph + `GlobalInferenceState` |
 | Factor graph | Runtime artifact, no formal spec | First-class IR with defined schema |
-| Canonicalization | Not addressed | Three-layer: structural → semantic → global |
-| Publish artifact | Source only | Source + Graph IR + canonicalization log |
-| Review engine scope | Source review only | Source review + IR correspondence + canonicalization audit |
-| Schema/ground | Not distinguished | Explicit via free_variables + instantiation factors |
+| Canonicalization | Not addressed | Three-layer: raw → local canonical → global canonical |
+| Publish artifact | Source only | Source + raw graph + local canonical graph + canonicalization log (no author-local probabilities) |
+| Review engine scope | Source review only | Source review + IR correspondence + canonicalization audit + review-report probability judgments |
+| Schema/ground | Not distinguished | Explicit via parameters + instantiation factors |
 
 ### What Does NOT Change
 
 - Gaia Lang source syntax and semantics
 - Package structure (package.yaml + module YAMLs)
 - CLI commands (build, infer, publish)
-- Publish pipeline flow (self-review → graph construction → publish → peer review)
+- Publish pipeline flow (self-review → graph construction / optional local parameterization → publish → peer review)
 - Relation type design (Contradiction, Equivalence as root types)
 - Review → rebuttal → editor cycle
 
@@ -330,15 +478,15 @@ Each layer handles only what it can reliably do, passing unresolved cases to the
 The existing publish pipeline (publish-pipeline.md) is extended, not replaced:
 
 - `gaia build` now also produces raw Graph IR alongside elaborated artifacts
-- The "graph construction" agent skill is refined to "canonicalization" — agent merges equivalent nodes rather than building the graph from scratch (build already did that)
-- `gaia publish` submits Graph IR alongside source
-- Review engine adds correspondence verification and canonicalization audit to its existing responsibilities
+- The "graph construction" agent skill is refined to "package-local canonicalization" — build creates raw nodes, the agent creates local canonical nodes
+- `gaia publish` submits both raw and local canonical Graph IR artifacts alongside source
+- Review engine adds correspondence verification and canonicalization audit to its existing responsibilities while optionally writing probability judgments into the review report
 
 ## Open Questions
 
 1. **Graph IR serialization format** — YAML vs JSON vs binary. JSON is natural for factor graph structure; YAML for human readability during development.
-2. **Canonical ID generation** — content hash? UUID? Needs to be stable across re-builds for the same content.
-3. **Partial ground node representation** — how to represent free variable placeholders in `content` strings consistently across packages.
-4. **Factor function parameterization** — are the factor functions (mutex, equiv, implication) fixed, or should they be configurable per-package?
+2. **Local canonical ID generation** — stable within a package, but should it be deterministic or opaque?
+3. **Global canonical ID generation** — registry-assigned ID format and collision policy.
+4. **Partial ground node representation** — how to represent free variable placeholders in `content` strings consistently across packages.
 5. **Graph IR versioning** — schema version for the IR format itself, to support future extensions.
 6. **Incremental build** — can `gaia build` incrementally update Graph IR when only some modules change?
