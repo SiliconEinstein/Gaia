@@ -499,13 +499,25 @@ class LanceContentStore(ContentStore):
         if not records:
             return
         table = self._db.open_table("probabilities")
-        table.add([_probability_to_row(r) for r in records])
+        rows = [_probability_to_row(r) for r in records]
+        (
+            table.merge_insert(["chain_id", "step_index", "source"])
+            .when_matched_update_all()
+            .when_not_matched_insert_all()
+            .execute(rows)
+        )
 
     async def write_belief_snapshots(self, snapshots: list[BeliefSnapshot]) -> None:
         if not snapshots:
             return
         table = self._db.open_table("belief_history")
-        table.add([_belief_to_row(s) for s in snapshots])
+        rows = [_belief_to_row(s) for s in snapshots]
+        (
+            table.merge_insert(["knowledge_id", "version", "bp_run_id"])
+            .when_matched_update_all()
+            .when_not_matched_insert_all()
+            .execute(rows)
+        )
 
     async def write_resources(
         self, resources: list[Resource], attachments: list[ResourceAttachment]

@@ -1,0 +1,426 @@
+[
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952416.chain_499335",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952422.chain_499336",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952425.chain_499337",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952428.chain_499338",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952436.chain_499339",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952441.chain_499340",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952456.chain_499341",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952457.chain_499342",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952461.chain_499343",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952469.chain_499344",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952474.chain_499345",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952475.chain_499346",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952479.chain_499347",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952480.chain_499348",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952488.chain_499349",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "courant_friedrichs_lewy_condition.problem_3952491.chain_499350",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944132.chain_499304",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944135.chain_499305",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944136.chain_499306",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944145.chain_499307",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944154.chain_499308",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944158.chain_499309",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944160.chain_499310",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944171.chain_499311",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944173.chain_499312",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944179.chain_499313",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944188.chain_499314",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944192.chain_499315",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944195.chain_499316",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944200.chain_499317",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944204.chain_499318",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944211.chain_499319",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944214.chain_499320",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944222.chain_499321",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944225.chain_499322",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3952985.chain_499351",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3952992.chain_499352",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3952995.chain_499353",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3953001.chain_499354",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3953007.chain_499355",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3953010.chain_499356",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3953014.chain_499357",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3953016.chain_499358",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3953019.chain_499359",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3953029.chain_499360",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3953030.chain_499361",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3953039.chain_499362",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3953048.chain_499363",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3953049.chain_499364",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3953050.chain_499365",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3953054.chain_499366",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3953070.chain_499367",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  },
+  {
+    "chain_id": "delaunay_triangulation_for_mesh_generation.problem_3953072.chain_499368",
+    "step_index": 0,
+    "value": 0.9,
+    "source": "author",
+    "source_detail": null,
+    "recorded_at": "2026-03-12T00:00:00Z"
+  }
+]

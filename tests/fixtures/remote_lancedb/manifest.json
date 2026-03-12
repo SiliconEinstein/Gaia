@@ -1,0 +1,16 @@
+{
+  "source": "remote LanceDB (datainfra-prod/propositional_logic_analysis)",
+  "sampled_topics": [
+    "aerospace_cfd_graduate/Courant–Friedrichs–Lewy_condition",
+    "aerospace_cfd_graduate/Arrhenius_kinetics_and_reaction_mechanisms",
+    "aerospace_cfd_graduate/Delaunay_triangulation_for_mesh_generation"
+  ],
+  "counts": {
+    "nodes": 277,
+    "edges": 53,
+    "graph": 53,
+    "node_relation": 277,
+    "metadata": 10,
+    "embeddings": 277
+  }
+}

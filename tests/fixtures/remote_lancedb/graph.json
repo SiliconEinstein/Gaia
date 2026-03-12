@@ -1,0 +1,756 @@
+[
+  {
+    "edge_id": 499335,
+    "tail": [
+      1863202,
+      1863203,
+      1863204
+    ],
+    "head": [
+      1863201
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499336,
+    "tail": [
+      1863206,
+      1863207,
+      1863208
+    ],
+    "head": [
+      1863205
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499337,
+    "tail": [
+      1863210,
+      1863211,
+      1863212,
+      1863213,
+      1863214,
+      1863215,
+      1863216
+    ],
+    "head": [
+      1863209
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499338,
+    "tail": [
+      1863218,
+      1863219,
+      1863220,
+      1863221
+    ],
+    "head": [
+      1863217
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499339,
+    "tail": [
+      1863223,
+      1863224,
+      1863225,
+      1863226
+    ],
+    "head": [
+      1863222
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499340,
+    "tail": [
+      1863228,
+      1863229,
+      1863230
+    ],
+    "head": [
+      1863227
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499341,
+    "tail": [
+      1863232,
+      1863233,
+      1863234,
+      1863235,
+      1863236
+    ],
+    "head": [
+      1863231
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499342,
+    "tail": [
+      1863238,
+      1863239,
+      1863240,
+      1863241,
+      1863242
+    ],
+    "head": [
+      1863237
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499343,
+    "tail": [
+      1863244,
+      1863245,
+      1863246,
+      1863247,
+      1863248,
+      1863249,
+      1863250
+    ],
+    "head": [
+      1863243
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499344,
+    "tail": [
+      1863252,
+      1863253,
+      1863254,
+      1863255
+    ],
+    "head": [
+      1863251
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499345,
+    "tail": [
+      1863257,
+      1863258,
+      1863259,
+      1863260
+    ],
+    "head": [
+      1863256
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499346,
+    "tail": [
+      1863262,
+      1863263,
+      1863264,
+      1863265,
+      1863266
+    ],
+    "head": [
+      1863261
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499347,
+    "tail": [
+      1863268,
+      1863269,
+      1863270,
+      1863271
+    ],
+    "head": [
+      1863267
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499348,
+    "tail": [
+      1863273,
+      1863274,
+      1863275,
+      1863276,
+      1863277
+    ],
+    "head": [
+      1863272
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499349,
+    "tail": [
+      1863279,
+      1863280,
+      1863281,
+      1863282,
+      1863283
+    ],
+    "head": [
+      1863278
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499350,
+    "tail": [
+      1863285,
+      1863286
+    ],
+    "head": [
+      1863284
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499304,
+    "tail": [
+      1863042,
+      1863043,
+      1863044
+    ],
+    "head": [
+      1863041
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499305,
+    "tail": [
+      1863046,
+      1863047,
+      1863048
+    ],
+    "head": [
+      1863045
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499306,
+    "tail": [
+      1863050,
+      1863051
+    ],
+    "head": [
+      1863049
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499307,
+    "tail": [
+      1863053,
+      1863054,
+      1863055,
+      1863056
+    ],
+    "head": [
+      1863052
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499308,
+    "tail": [
+      1863058,
+      1863059,
+      1863060
+    ],
+    "head": [
+      1863057
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499309,
+    "tail": [
+      1863062,
+      1863063,
+      1863064,
+      1863065
+    ],
+    "head": [
+      1863061
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499310,
+    "tail": [
+      1863067,
+      1863068,
+      1863069,
+      1863070
+    ],
+    "head": [
+      1863066
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499311,
+    "tail": [
+      1863072,
+      1863073,
+      1863074,
+      1863075,
+      1863076
+    ],
+    "head": [
+      1863071
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499312,
+    "tail": [
+      1863078,
+      1863079
+    ],
+    "head": [
+      1863077
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499313,
+    "tail": [
+      1863081,
+      1863082,
+      1863083,
+      1863084
+    ],
+    "head": [
+      1863080
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499314,
+    "tail": [
+      1863086,
+      1863087,
+      1863088,
+      1863089
+    ],
+    "head": [
+      1863085
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499315,
+    "tail": [
+      1863091,
+      1863092,
+      1863093
+    ],
+    "head": [
+      1863090
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499316,
+    "tail": [
+      1863095,
+      1863096,
+      1863097,
+      1863098
+    ],
+    "head": [
+      1863094
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499317,
+    "tail": [
+      1863100,
+      1863101,
+      1863102,
+      1863103
+    ],
+    "head": [
+      1863099
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499318,
+    "tail": [
+      1863105,
+      1863106,
+      1863107,
+      1863108
+    ],
+    "head": [
+      1863104
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499319,
+    "tail": [
+      1863110,
+      1863111,
+      1863112,
+      1863113,
+      1863114,
+      1863115
+    ],
+    "head": [
+      1863109
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499320,
+    "tail": [
+      1863117,
+      1863118
+    ],
+    "head": [
+      1863116
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499321,
+    "tail": [
+      1863120,
+      1863121,
+      1863122,
+      1863123,
+      1863124
+    ],
+    "head": [
+      1863119
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499322,
+    "tail": [
+      1863126,
+      1863127,
+      1863128,
+      1863129,
+      1863130,
+      1863131
+    ],
+    "head": [
+      1863125
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499351,
+    "tail": [
+      1863288,
+      1863289,
+      1863290
+    ],
+    "head": [
+      1863287
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499352,
+    "tail": [
+      1863292,
+      1863293,
+      1863294,
+      1863295
+    ],
+    "head": [
+      1863291
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499353,
+    "tail": [
+      1863297,
+      1863298,
+      1863299,
+      1863300
+    ],
+    "head": [
+      1863296
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499354,
+    "tail": [
+      1863302,
+      1863303,
+      1863304
+    ],
+    "head": [
+      1863301
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499355,
+    "tail": [
+      1863306,
+      1863307,
+      1863308,
+      1863309,
+      1863310,
+      1863311
+    ],
+    "head": [
+      1863305
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499356,
+    "tail": [
+      1863313,
+      1863314,
+      1863315,
+      1863316,
+      1863317
+    ],
+    "head": [
+      1863312
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499357,
+    "tail": [
+      1863319,
+      1863320,
+      1863321,
+      1863322
+    ],
+    "head": [
+      1863318
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499358,
+    "tail": [
+      1863324,
+      1863325,
+      1863326,
+      1863327,
+      1863328
+    ],
+    "head": [
+      1863323
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499359,
+    "tail": [
+      1863330,
+      1863331,
+      1863332,
+      1863333,
+      1863334,
+      1863335,
+      1863336
+    ],
+    "head": [
+      1863329
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499360,
+    "tail": [
+      1863338,
+      1863339,
+      1863340,
+      1863341
+    ],
+    "head": [
+      1863337
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499361,
+    "tail": [
+      1863343,
+      1863344,
+      1863345,
+      1863346
+    ],
+    "head": [
+      1863342
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499362,
+    "tail": [
+      1863348,
+      1863349,
+      1863350,
+      1863351
+    ],
+    "head": [
+      1863347
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499363,
+    "tail": [
+      1863353,
+      1863354,
+      1863355,
+      1863356
+    ],
+    "head": [
+      1863352
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499364,
+    "tail": [
+      1863358,
+      1863359,
+      1863360,
+      1863361,
+      1863362
+    ],
+    "head": [
+      1863357
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499365,
+    "tail": [
+      1863364,
+      1863365,
+      1863366,
+      1863367,
+      1863368,
+      1863369
+    ],
+    "head": [
+      1863363
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499366,
+    "tail": [
+      1863371,
+      1863372,
+      1863373
+    ],
+    "head": [
+      1863370
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499367,
+    "tail": [
+      1863375,
+      1863376,
+      1863377,
+      1863378,
+      1863379,
+      1863380
+    ],
+    "head": [
+      1863374
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  },
+  {
+    "edge_id": 499368,
+    "tail": [
+      1863382,
+      1863383,
+      1863384,
+      1863385,
+      1863386
+    ],
+    "head": [
+      1863381
+    ],
+    "create_round": 9,
+    "come_from": "llm-generated problem"
+  }
+]

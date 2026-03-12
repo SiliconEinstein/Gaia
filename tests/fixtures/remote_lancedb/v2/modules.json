@@ -1,0 +1,1917 @@
+[
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952416",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952416",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952416.jensens_inequality_for_convex_functionals",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952416.independence_of_ssp_coefficient",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952416.ssp_coefficient_bound_for_explicit_methods",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952416.chain_499335"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952416.strong_stability_preservation_condition"
+    ]
+  },
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952422",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952422",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952422.structure_of_hyperbolic_conservation_laws",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952422.cfl_stability_condition_for_explicit_schemes",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952422.speed_of_sound_in_an_ideal_gas",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952422.chain_499336"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952422.explicit_stability_bound_for_1d_euler_equations"
+    ]
+  },
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952425",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952425",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952425.cfl_stability_condition_for_explicit_schemes",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952425.maximum_signal_speed_in_euler_equations",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952425.speed_of_sound_in_a_perfect_gas",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952425.adiabatic_flow_and_stagnation_temperature",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952425.relation_between_velocity_mach_number_and_temperature",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952425.normal_shock_properties",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952425.isentropic_expansion_properties",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952425.chain_499337"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952425.evolution_of_admissible_time_step_across_shock_and_expansion"
+    ]
+  },
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952428",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952428",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952428.stability_of_explicit_linear_systems",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952428.gershgorin_circle_theorem",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952428.geometric_relations_of_mesh_skewness",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952428.diffusive_flux_scaling",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952428.chain_499338"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952428.effect_of_mesh_skewness_on_cfl_stability"
+    ]
+  },
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952436",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952436",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952436.characteristic_propagation_in_hyperbolic_pdes",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952436.numerical_domain_of_dependence",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952436.the_cfl_condition_(necessity)",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952436.von_neumann_stability_criterion",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952436.chain_499339"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952436.relationship_between_cfl_condition_and_stability"
+    ]
+  },
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952441",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952441",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952441.stability_condition_for_explicit_euler",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952441.definition_of_spectral_radius",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952441.fourier_analysis_of_spatial_difference_operators",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952441.chain_499340"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952441.relation_between_time_step_spectral_radius_and_grid_spacing"
+    ]
+  },
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952456",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952456",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952456.sound_speed_in_ideal_gas",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952456.characteristic_speeds_of_1d_euler_equations",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952456.maximum_signal_speed_at_constant_mach_number",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952456.cfl_stability_condition",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952456.global_time_step_constraint",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952456.chain_499341"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952456.temperature_dependency_of_cfl_constraint"
+    ]
+  },
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952457",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952457",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952457.von_neumann_stability_analysis",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952457.fourier_transform_of_finite_differences",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952457.stability_limits_of_explicit_schemes",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952457.matrix_convergence_condition",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952457.navier-stokes_stability_components",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952457.chain_499342"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952457.analysis_of_semi-implicit_stability_and_properties"
+    ]
+  },
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952461",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952461",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952461.von_neumann_analysis_definition",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952461.properties_of_von_neumann_analysis",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952461.energy_method_definition",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952461.properties_of_the_energy_method",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952461.stability_of_non-normal_systems",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952461.analysis_of_diffusion",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952461.entropy_stability_for_conservation_laws",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952461.chain_499343"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952461.comparative_validity_of_stability_analysis_methods"
+    ]
+  },
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952469",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952469",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952469.characteristic_speeds_of_1d_euler_equations",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952469.speed_of_sound_in_a_perfect_gas",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952469.cfl_condition_for_explicit_fvm_stability",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952469.maximum_characteristic_speed_magnitude",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952469.chain_499344"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952469.valid_time_steps_under_cfl_constraint"
+    ]
+  },
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952474",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952474",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952474.hyperbolic_signal_propagation",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952474.cfl_causality_principle",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952474.characteristic_speeds_of_1d_euler_equations",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952474.explicit_finite_volume_geometric_constraint",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952474.chain_499345"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952474.valid_causality_constraints_for_explicit_euler_solvers"
+    ]
+  },
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952475",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952475",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952475.hyperbolic_domain_of_dependence",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952475.cfl_condition_principle",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952475.parabolic_stability_constraint",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952475.elliptic_equation_nature",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952475.implicit_scheme_trade-offs",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952475.chain_499346"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952475.stability_and_relevance_of_cfl_by_pde_type"
+    ]
+  },
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952479",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952479",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952479.integral_conservation_law_and_discrete_residual",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952479.definition_of_steady_state",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952479.discrete_conservation_property",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952479.explicit_local_time-stepping_update",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952479.chain_499347"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952479.correct_implementation_of_local_time-stepping"
+    ]
+  },
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952480",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952480",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952480.diffusion_equation_structure",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952480.spectral_radius_of_discrete_laplacian",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952480.explicit_stability_condition",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952480.computational_work_scaling",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952480.dimensional_refinement_geometry",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952480.chain_499348"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952480.explicit_diffusive_stability_and_complexity_scaling"
+    ]
+  },
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952488",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952488",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952488.explicit_stability_constraint",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952488.structure_of_the_dg_operator",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952488.polynomial_trace_inequality_scaling",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952488.dominance_of_boundary_lift_in_upwind_dg",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952488.linear_degree_scaling_of_upwind_dg_stability",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952488.chain_499349"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952488.cfl_condition_for_upwind_dg"
+    ]
+  },
+  {
+    "module_id": "courant_friedrichs_lewy_condition.problem_3952491",
+    "package_id": "courant_friedrichs_lewy_condition",
+    "package_version": "1.0.0",
+    "name": "problem_3952491",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952491.governing_equations_and_wave_speeds",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "courant_friedrichs_lewy_condition.problem_3952491.cfl_stability_condition_for_explicit_finite_volume_schemes",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952491.chain_499350"
+    ],
+    "export_ids": [
+      "courant_friedrichs_lewy_condition.problem_3952491.limiting_direction_for_time_step_stability"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944132",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944132",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944132.law_of_mass_action_for_elementary_reactions",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944132.species_conservation_in_homogeneous_systems",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944132.first_law_of_thermodynamics_for_isochoric_adiabatic_processe",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944132.chain_499304"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944132.governing_ode_system_for_the_reaction_substep"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944135",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944135",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944135.arrhenius_law_and_temperature_sensitivity",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944135.saddle-node_bifurcation_in_1d_systems",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944135.optically_thin_radiative_loss",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944135.chain_499305"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944135.criteria_for_extinction_and_sensitivity_in_radiative_arrheni"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944136",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944136",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944136.definition_of_mass-weighted_conditional_mean",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944136.averaging_of_non-linear_functions",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944136.chain_499306"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944136.formulation_of_conditional_mean_reaction_rate"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944145",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944145",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944145.law_of_mass_action_for_bimolecular_reactions",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944145.arrhenius_law",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944145.linear_stability_criterion",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944145.instability_condition_for_a_2x2_matrix_with_negative_trace",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944145.chain_499307"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944145.critical_ignition_temperature"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944154",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944154",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944154.law_of_mass_action",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944154.arrhenius_equation",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944154.exponential_growth_in_branched_chain_reactions",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944154.chain_499308"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944154.analytical_expression_for_ignition_delay"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944158",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944158",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944158.definition_of_elementary_reaction",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944158.law_of_mass_action_for_elementary_steps",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944158.net_rate_of_progress",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944158.species_production_rate",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944158.chain_499309"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944158.kinetic_formulation_for_the_reaction_h_+_o2_+_m_=_ho2_+_m"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944160",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944160",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944160.definition_of_the_local_state_vector_and_jacobian_dimension",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944160.coupling_in_arrhenius_mass-action_kinetics",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944160.coupling_in_the_temperature_energy_equation",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944160.numerical_strategies_for_stiff_chemical_kinetics",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944160.chain_499310"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944160.jacobian_structure_and_simulation_strategy_for_detailed_kine"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944171",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944171",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944171.conservation_of_species_mass",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944171.constitutive_model_for_diffusive_flux_with_soret_effect",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944171.law_of_mass_action_for_elementary_kinetics",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944171.modified_arrhenius_equation",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944171.dufour_effect_decoupling",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944171.chain_499311"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944171.governing_species_transport_equation"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944173",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944173",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944173.collision_theory_pre-factor_scaling",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944173.transition_state_theory_in_non-equilibrium",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944173.chain_499312"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944173.two-temperature_dissociation_rate_model"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944179",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944179",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944179.definition_of_effective_activation_energy",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944179.multiplicative_decomposition_of_tunneling_rates",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944179.wigner_tunneling_correction",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944179.physical_nature_of_tunneling",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944179.chain_499313"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944179.wigner_tunneling_correction_and_activation_energy_reduction"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944188",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944188",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944188.ideal_gas_molar_concentration",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944188.arrhenius_rate_law",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944188.law_of_mass_action",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944188.branching_fraction_definition",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944188.chain_499314"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944188.dominant_reaction_pathway_and_sensitivity"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944192",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944192",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944192.molecularity_of_third-body_reactions",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944192.net_production_coefficient_of_a_scalar_pool",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944192.atom_conservation_principle",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944192.chain_499315"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944192.mechanism_characteristics_and_conservation_properties"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944195",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944195",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944195.chain_rule_for_logarithmic_derivatives",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944195.forward_sensitivity_equation",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944195.adjoint_sensitivity_method_for_fixed-time_functionals",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944195.implicit_differentiation_of_event_times",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944195.chain_499316"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944195.valid_sensitivity_analysis_formulas_for_chemical_kinetics"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944200",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944200",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944200.mixture_enthalpy_definition",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944200.species_conservation_equation",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944200.energy_equation_formulation",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944200.arrhenius_law",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944200.chain_499317"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944200.chemical_heat_release_source_term"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944204",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944204",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944204.law_of_mass_action_for_elementary_reactions",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944204.rate_of_change_of_species_concentration",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944204.arrhenius_equation",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944204.quasi-steady-state_approximation_(qssa)",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944204.chain_499318"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944204.product_formation_rate_analysis"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944211",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944211",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944211.law_of_mass_action",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944211.steady-state_approximation_(ssa)",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944211.definition_of_effective_rate_coefficient",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944211.definition_of_reaction_order",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944211.ideal_gas_law_for_concentration",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944211.properties_of_the_troe_broadening_factor",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944211.chain_499319"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944211.characterization_of_lindemann_fall-off_kinetics"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944214",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944214",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944214.generalized_arrhenius_law",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944214.linearization_of_the_arrhenius_model",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944214.chain_499320"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944214.activation_energy_value"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944222",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944222",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944222.scaling_of_laminar_flame_speed",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944222.arrhenius_rate_calibration_for_flame_speed",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944222.governing_equation_for_homogeneous_ignition",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944222.physics_of_ignition_in_hydrogen-air_mixtures",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944222.limitations_of_single-step_global_mechanisms",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944222.chain_499321"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944222.inability_of_flame-tuned_global_mechanisms_to_predict_igniti"
+    ]
+  },
+  {
+    "module_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944225",
+    "package_id": "arrhenius_kinetics_and_reaction_mechanisms",
+    "package_version": "1.0.0",
+    "name": "problem_3944225",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944225.ideal_gas_chemical_potential",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944225.condition_for_thermodynamic_equilibrium",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944225.law_of_mass_action_for_elementary_kinetics",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944225.arrhenius_rate_law",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944225.definition_of_equilibrium_constant",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "arrhenius_kinetics_and_reaction_mechanisms.problem_3944225.principle_of_detailed_balance_(thermodynamic_consistency)",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944225.chain_499322"
+    ],
+    "export_ids": [
+      "arrhenius_kinetics_and_reaction_mechanisms.problem_3944225.fractional_error_in_equilibrium_constant_due_to_activation_e"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3952985",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3952985",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3952985.riemannian_length_functional",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3952985.well-posedness_of_anisotropic_duals",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3952985.eigenstructure_and_physical_length_scaling",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3952985.chain_499351"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3952985.valid_properties_of_anisotropic_mesh_generation"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3952992",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3952992",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3952992.truncation_error_scaling",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3952992.residual_as_error_proxy",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3952992.adjoint_error_representation",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3952992.principle_of_equidistribution",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3952992.chain_499352"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3952992.optimal_mesh_sizing_for_residual_and_adjoint_indicators"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3952995",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3952995",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3952995.definition_and_expansion_of_the_orientation_predicate",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3952995.algebraic_structure_of_the_incircle_predicate",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3952995.floating-point_error_bound_and_adaptive_filtering_condition",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3952995.exactness_via_expansion_arithmetic",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3952995.chain_499353"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3952995.robust_geometric_predicate_evaluation_strategy"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3953001",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3953001",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953001.integral_form_of_linear_advection",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953001.finite_volume_discretization_and_residual",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953001.local_lax-friedrichs_(rusanov)_flux_for_linear_advection",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953001.chain_499354"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953001.net_interior_residual_under_orientation_error"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3953007",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3953007",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953007.serial_computational_cost_model",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953007.parallel_local_computational_cost",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953007.interface_merge_cost_model",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953007.network_contention_model",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953007.communication_cost_model",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953007.total_parallel_time_and_metrics",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953007.chain_499355"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953007.modeled_speedup_and_efficiency_for_parallel_delaunay_triangu"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3953010",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3953010",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953010.definition_of_delaunay_triangulation",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953010.condition_for_planar_triangulation_existence",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953010.geometric_consequence_of_cocircularity",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953010.role_of_symbolic_perturbation",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953010.constraint_of_partial_collinearity",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953010.chain_499356"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953010.degeneracy_effects_on_delaunay_triangulation"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3953014",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3953014",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953014.lagrangian_mesh_motion",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953014.euclidean_distance_and_triangle_properties",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953014.circumradius_and_radius-edge_ratio",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953014.relation_between_radius-edge_ratio_and_minimum_angle",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953014.chain_499357"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953014.remeshing_trigger_time"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3953016",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3953016",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953016.definition_of_voronoi_cell",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953016.voronoi_features_definition",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953016.definition_of_delaunay_graph_via_duality",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953016.geometric_property_of_circumcenters",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953016.relation_between_voronoi_vertices_and_circumcircles",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953016.chain_499358"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953016.characterization_of_delaunay_triangulation"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3953019",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3953019",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953019.linear_interpolation_error_bound",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953019.equidistribution_principle",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953019.geometric_property_of_power_diagrams",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953019.empty_power_ball_property",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953019.scalar_vs._tensor_isotropy",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953019.weight_dependence_in_power_distance",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953019.affine_variance_of_euclidean_distance",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953019.chain_499359"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953019.correct_properties_of_regular_triangulation_in_mesh_adaptati"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3953029",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3953029",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953029.voronoi-delaunay_duality",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953029.empty_circumhypersphere_property",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953029.uniqueness_and_degeneracy_conditions",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953029.optimality_divergence_in_higher_dimensions",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953029.chain_499360"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953029.valid_properties_of_3d_delaunay_tetrahedralization"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3953030",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3953030",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953030.law_of_sines_and_geometric_ordering",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953030.condition_number_of_linear_element_stiffness_matrix",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953030.condition_number_of_triangular_jacobian",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953030.existence_of_sliver_tetrahedra",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953030.chain_499361"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953030.geometric_and_numerical_properties_of_radius-edge_ratio_in_m"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3953039",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3953039",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953039.constrained_projection_onto_implicit_surfaces",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953039.intersection_of_line_segment_and_implicit_surface",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953039.orthogonal_projection_onto_parametric_surfaces",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953039.intersection_of_line_segment_and_parametric_surface",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953039.chain_499362"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953039.necessary_operations_for_curved_mesh_conformity"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3953048",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3953048",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953048.turbulent_boundary_layer_scaling",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953048.geometric_property_of_euclidean_delaunay_triangulation",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953048.isotropy_of_euclidean_delaunay_meshing",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953048.hybrid_mesh_topology",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953048.chain_499363"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953048.feasibility_of_hybrid_delaunay_meshing_for_viscous_flows"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3953049",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3953049",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953049.definition_of_cdt_conformity",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953049.constrained_empty_circumsphere_property",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953049.algorithm_for_3d_facet_recovery",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953049.limitations_of_unconstrained_delaunay",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953049.termination_of_delaunay_refinement",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953049.chain_499364"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953049.valid_interface-fitted_cdt_construction"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3953050",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3953050",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953050.definition_of_power_distance",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953050.definition_of_power_diagram",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953050.duality_of_regular_triangulation",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953050.empty_orthosphere_condition",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953050.lifting_map_characterization",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953050.monotonicity_of_power_cell_size",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953050.chain_499365"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953050.characterization_of_weighted_delaunay_triangulations"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3953054",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3953054",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953054.eulers_formula_for_planar_graphs",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953054.triangulation_incidence_relations",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953054.edge-based_matrix_assembly_complexity",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953054.chain_499366"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953054.linear_complexity_of_2d_delaunay_fvm_assembly"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3953070",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3953070",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953070.local_max-min_angle_property",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953070.global_max-min_angle_theorem_(2d)",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953070.termination_of_lawsons_algorithm",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953070.optimality_of_constrained_delaunay_triangulation",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953070.failure_of_angle_maximization_in_3d",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953070.metric_discrepancy_in_regular_triangulations",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953070.chain_499367"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953070.synthesis_of_delaunay_angle_properties"
+    ]
+  },
+  {
+    "module_id": "delaunay_triangulation_for_mesh_generation.problem_3953072",
+    "package_id": "delaunay_triangulation_for_mesh_generation",
+    "package_version": "1.0.0",
+    "name": "problem_3953072",
+    "role": "reasoning",
+    "imports": [
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953072.hessian-based_error_control",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953072.metric-based_anisotropic_meshing",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953072.field_transport_via_material_derivative",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953072.courant_condition_for_remeshing",
+        "version": 1,
+        "strength": "strong"
+      },
+      {
+        "knowledge_id": "delaunay_triangulation_for_mesh_generation.problem_3953072.shock_propagation_dynamics",
+        "version": 1,
+        "strength": "strong"
+      }
+    ],
+    "chain_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953072.chain_499368"
+    ],
+    "export_ids": [
+      "delaunay_triangulation_for_mesh_generation.problem_3953072.valid_strategies_for_unsteady_metric-based_adaptation"
+    ]
+  }
+]
