@@ -38,7 +38,6 @@ def package_path(request):
 @pytest.fixture
 def clean_package(package_path):
     """Ensure .gaia/ is removed before and after the test."""
-    gaia_dir = package_path / ".gaia"
     _run_gaia("clean", str(package_path))
     yield package_path
     _run_gaia("clean", str(package_path))
