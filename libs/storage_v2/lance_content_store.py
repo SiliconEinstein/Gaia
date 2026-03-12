@@ -476,7 +476,7 @@ class LanceContentStore(ContentStore):
         table = self._db.open_table("knowledge")
         rows = [_knowledge_to_row(k) for k in knowledge_items]
         (
-            table.merge_insert(["knowledge_id", "version"])
+            table.merge_insert(["knowledge_id", "version", "source_package_version"])
             .when_matched_update_all()
             .when_not_matched_insert_all()
             .execute(rows)

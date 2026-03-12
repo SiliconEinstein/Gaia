@@ -237,10 +237,23 @@ class TestVersionedRePublish:
                 chains=pkg_chains,
             )
 
-        # v1 must still be visible
+        # v1 must still be visible — package, knowledge, modules, chains
         p = await manager.get_package(pkg_v1.package_id)
-        assert p is not None, "v1 should still be visible after v2 failure"
+        assert p is not None, "v1 package should still be visible after v2 failure"
         assert p.version == pkg_v1.version
+
+        k = await manager.get_knowledge(pkg_knowledge[0].knowledge_id)
+        assert k is not None, "v1 knowledge should still be visible after v2 failure"
+        assert k.source_package_version == pkg_v1.version
+
+        m = await manager.content_store.get_module(pkg_modules[0].module_id)
+        assert m is not None, "v1 module should still be visible after v2 failure"
+        assert m.package_version == pkg_v1.version
+
+        chain_module_id = pkg_chains[0].module_id
+        visible_chains = await manager.content_store.get_chains_by_module(chain_module_id)
+        assert len(visible_chains) > 0, "v1 chains should still be visible after v2 failure"
+        assert all(c.package_version == pkg_v1.version for c in visible_chains)
 
 
 class TestPartialWriteVisibility:
