@@ -53,7 +53,19 @@ class StorageManager:
             await gs.initialize_schema()
             self.graph_store = gs
         elif self._config.graph_backend == "neo4j":
-            logger.warning("Neo4j graph backend not yet implemented in v2; skipping")
+            import neo4j
+
+            from libs.storage_v2.neo4j_graph_store import Neo4jGraphStore
+
+            driver = neo4j.AsyncGraphDatabase.driver(
+                self._config.neo4j_uri,
+                auth=(self._config.neo4j_user, self._config.neo4j_password)
+                if self._config.neo4j_password
+                else None,
+            )
+            gs = Neo4jGraphStore(driver, self._config.neo4j_database)
+            await gs.initialize_schema()
+            self.graph_store = gs
         # else: "none" — graph_store stays None
 
         # VectorStore — always created (same LanceDB path, separate table)

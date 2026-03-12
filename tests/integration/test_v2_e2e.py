@@ -1,10 +1,12 @@
 """V2 storage end-to-end integration tests.
 
 Tests exercise the full v2 API through HTTP endpoints backed by real
-LanceDB + Kuzu storage (no mocks).
+LanceDB + Neo4j storage (no mocks). Tests are auto-skipped if Neo4j
+is not reachable.
 """
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -16,6 +18,24 @@ from services.gateway.app import create_app
 from services.gateway.deps import Dependencies
 
 PAPER_FIXTURES = Path("tests/fixtures/storage_v2/papers")
+
+NEO4J_URI = os.environ.get("NEO4J_TEST_URI", "bolt://localhost:7687")
+NEO4J_PASSWORD = os.environ.get("NEO4J_TEST_PASSWORD", "")
+NEO4J_DB = os.environ.get("NEO4J_TEST_DB", "neo4j")
+
+
+async def _neo4j_available() -> bool:
+    try:
+        import neo4j
+
+        auth = ("neo4j", NEO4J_PASSWORD) if NEO4J_PASSWORD else None
+        driver = neo4j.AsyncGraphDatabase.driver(NEO4J_URI, auth=auth)
+        async with driver.session(database=NEO4J_DB) as session:
+            await session.run("RETURN 1")
+        await driver.close()
+        return True
+    except Exception:
+        return False
 
 
 def _load_paper_fixture(slug: str) -> dict:
@@ -33,12 +53,22 @@ def _load_paper_fixture(slug: str) -> dict:
 
 @pytest.fixture
 async def v2_client(tmp_path):
-    """Create app with real v2 storage (LanceDB + Kuzu on disk)."""
+    """Create app with real v2 storage (LanceDB + Neo4j).
+
+    Auto-skips if Neo4j is not reachable. Each test gets a clean Neo4j
+    database by deleting all v2 nodes before and after the test.
+    """
+    if not await _neo4j_available():
+        pytest.skip("Neo4j not available")
+
     v1_config = V1StorageConfig(lancedb_path=str(tmp_path / "lance_v1"))
     v2_config = V2StorageConfig(
         lancedb_path=str(tmp_path / "lance_v2"),
-        graph_backend="kuzu",
-        kuzu_path=str(tmp_path / "kuzu_v2"),
+        graph_backend="neo4j",
+        neo4j_uri=NEO4J_URI,
+        neo4j_user="neo4j",
+        neo4j_password=NEO4J_PASSWORD,
+        neo4j_database=NEO4J_DB,
     )
     dep = Dependencies(config=v1_config, v2_config=v2_config)
     dep.initialize(v1_config)
@@ -47,11 +77,30 @@ async def v2_client(tmp_path):
     # Initialize v2 storage (async)
     await dep.initialize_v2()
 
+    # Clean Neo4j before test
+    await _clean_neo4j_v2(dep)
+
     app = create_app(dependencies=dep)
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
+
+    # Clean Neo4j after test
+    await _clean_neo4j_v2(dep)
     await dep.cleanup()
+
+
+async def _clean_neo4j_v2(dep: Dependencies) -> None:
+    """Delete all Knowledge, Chain, Resource nodes from Neo4j (test isolation)."""
+    import neo4j
+
+    auth = ("neo4j", NEO4J_PASSWORD) if NEO4J_PASSWORD else None
+    driver = neo4j.AsyncGraphDatabase.driver(NEO4J_URI, auth=auth)
+    async with driver.session(database=NEO4J_DB) as session:
+        await session.run("MATCH (n:Knowledge) DETACH DELETE n")
+        await session.run("MATCH (n:Chain) DETACH DELETE n")
+        await session.run("MATCH (n:Resource) DETACH DELETE n")
+    await driver.close()
 
 
 class TestV2Health:
