@@ -51,6 +51,9 @@ class TestCliPipeline:
         assert result.returncode == 0, f"build failed: {result.stderr}"
         assert (clean_package / ".gaia" / "build" / "manifest.json").exists()
         assert (clean_package / ".gaia" / "build" / "package.md").exists()
+        assert (clean_package / ".gaia" / "graph" / "raw_graph.json").exists()
+        assert (clean_package / ".gaia" / "graph" / "local_canonical_graph.json").exists()
+        assert (clean_package / ".gaia" / "graph" / "canonicalization_log.json").exists()
 
     def test_review_mock(self, clean_package):
         _run_gaia("build", str(clean_package))
@@ -72,6 +75,7 @@ class TestCliPipeline:
         assert result.returncode == 0, f"infer failed: {result.stderr}"
         infer_path = clean_package / ".gaia" / "infer" / "infer_result.json"
         assert infer_path.exists()
+        assert (clean_package / ".gaia" / "inference" / "local_parameterization.json").exists()
         infer_data = json.loads(infer_path.read_text())
         assert len(infer_data["variables"]) > 0
 

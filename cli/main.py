@@ -4,6 +4,12 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+import sys
+
+if __package__ in {None, ""}:
+    repo_root = Path(__file__).resolve().parents[1]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
 
 import typer
 import yaml
@@ -39,6 +45,13 @@ def build(
 ) -> None:
     """Elaborate: parse + resolve + instantiate params."""
     from cli.manifest import save_manifest
+    from libs.graph_ir import (
+        build_raw_graph,
+        build_singleton_local_graph,
+        save_canonicalization_log,
+        save_local_canonical_graph,
+        save_raw_graph,
+    )
     from libs.lang.build_store import save_build
     from libs.lang.elaborator import elaborate_package
 
@@ -52,8 +65,14 @@ def build(
     elaborated = elaborate_package(pkg)
 
     build_dir = pkg_path / ".gaia" / "build"
+    graph_dir = pkg_path / ".gaia" / "graph"
     save_build(elaborated, build_dir)
     save_manifest(pkg, build_dir, pkg_path=pkg_path)
+    raw_graph = build_raw_graph(pkg)
+    canonicalization = build_singleton_local_graph(raw_graph)
+    save_raw_graph(raw_graph, graph_dir)
+    save_local_canonical_graph(canonicalization.local_graph, graph_dir)
+    save_canonicalization_log(canonicalization.log, graph_dir)
 
     n_mods = len(pkg.loaded_modules)
     n_prompts = len(elaborated.prompts)
@@ -139,20 +158,26 @@ def infer(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     review_file: str | None = typer.Option(None, "--review", help="Path to review sidecar file"),
 ) -> None:
-    """Compile a factor graph (from review) and run BP to compute beliefs."""
+    """Build local Graph IR parameterization (from review) and run BP."""
     import uuid
 
     from cli.infer_store import save_infer_result
     from cli.manifest import deserialize_package
     from cli.review_store import find_latest_review, merge_review, read_review
+    from libs.graph_ir import (
+        adapt_local_graph_to_factor_graph,
+        derive_local_parameterization,
+        load_local_canonical_graph,
+        save_local_parameterization,
+    )
     from libs.inference.bp import BeliefPropagation
-    from libs.inference.factor_graph import FactorGraph
-    from libs.lang.compiler import compile_factor_graph
 
     pkg_path = Path(path)
     build_dir = pkg_path / ".gaia" / "build"
+    graph_dir = pkg_path / ".gaia" / "graph"
     reviews_dir = pkg_path / ".gaia" / "reviews"
     infer_dir = pkg_path / ".gaia" / "infer"
+    inference_dir = pkg_path / ".gaia" / "inference"
 
     # 1. Check build exists
     if not build_dir.exists():
@@ -188,45 +213,44 @@ def infer(
     fp = _compute_source_fingerprint(pkg_path)
     pkg = merge_review(pkg, review, source_fingerprint=fp)
 
-    # 5. Compile factor graph
-    compiled_fg = compile_factor_graph(pkg)
-
-    # 6. Convert to inference engine FactorGraph and run BP
-    bp_fg = FactorGraph()
-    name_to_id: dict[str, int] = {}
-    for i, (name, prior) in enumerate(compiled_fg.variables.items()):
-        node_id = i + 1
-        name_to_id[name] = node_id
-        bp_fg.add_variable(node_id, prior)
-
-    for j, factor in enumerate(compiled_fg.factors):
-        premise_ids = [name_to_id[n] for n in factor["premises"] if n in name_to_id]
-        conclusion_ids = [name_to_id[n] for n in factor["conclusions"] if n in name_to_id]
-        bp_fg.add_factor(
-            edge_id=j + 1,
-            premises=premise_ids,
-            conclusions=conclusion_ids,
-            probability=factor["probability"],
-            edge_type=factor.get("edge_type", "deduction"),
+    # 5. Load local canonical graph and derive local parameterization
+    local_graph_path = graph_dir / "local_canonical_graph.json"
+    if not local_graph_path.exists():
+        typer.echo(
+            f"Error: no local canonical graph found.\nRun 'gaia build {path}' first.",
+            err=True,
         )
+        raise typer.Exit(1)
+    local_graph = load_local_canonical_graph(local_graph_path)
+    local_parameterization = derive_local_parameterization(pkg, local_graph)
+    save_local_parameterization(local_parameterization, inference_dir)
 
+    adapted = adapt_local_graph_to_factor_graph(local_graph, local_parameterization)
+
+    # 6. Run BP
     bp = BeliefPropagation()
-    beliefs = bp.run(bp_fg)
+    beliefs = bp.run(adapted.factor_graph)
 
     # 7. Map back to names
-    id_to_name = {v: k for k, v in name_to_id.items()}
-    named_beliefs = {id_to_name[nid]: belief for nid, belief in beliefs.items()}
+    var_id_to_local = {var_id: local_id for local_id, var_id in adapted.local_id_to_var_id.items()}
+    named_beliefs = {
+        adapted.local_id_to_label[var_id_to_local[var_id]]: belief
+        for var_id, belief in beliefs.items()
+    }
 
     # 8. Save infer_result.json
     bp_run_id = str(uuid.uuid4())
     variables_out = {
-        name: {"prior": compiled_fg.variables[name], "belief": named_beliefs.get(name)}
-        for name in compiled_fg.variables
+        adapted.local_id_to_label[local_id]: {
+            "prior": local_parameterization.node_priors[local_id],
+            "belief": named_beliefs.get(adapted.local_id_to_label[local_id]),
+        }
+        for local_id in adapted.local_id_to_var_id
     }
     save_infer_result(
         pkg_name=pkg.name,
         variables=variables_out,
-        factors=compiled_fg.factors,
+        factors=adapted.factor_graph.factors,
         bp_run_id=bp_run_id,
         review_file=resolved_review_file,
         source_fingerprint=fp,
@@ -235,12 +259,15 @@ def infer(
 
     # 9. Print results
     typer.echo(f"Package: {pkg.name}")
-    typer.echo(f"Variables: {len(compiled_fg.variables)}")
-    typer.echo(f"Factors: {len(compiled_fg.factors)}")
+    typer.echo(f"Variables: {len(adapted.factor_graph.variables)}")
+    typer.echo(f"Factors: {len(adapted.factor_graph.factors)}")
     typer.echo()
     typer.echo("Beliefs after BP:")
     for name, belief in sorted(named_beliefs.items()):
-        prior = compiled_fg.variables.get(name, "?")
+        local_id = next(
+            local_id for local_id, label in adapted.local_id_to_label.items() if label == name
+        )
+        prior = local_parameterization.node_priors.get(local_id, "?")
         typer.echo(f"  {name}: prior={prior} -> belief={belief:.4f}")
     typer.echo(f"\nResults: {infer_dir / 'infer_result.json'}")
 

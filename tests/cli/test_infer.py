@@ -70,3 +70,10 @@ def test_infer_with_explicit_review(tmp_path):
     review_path = pkg_dir / ".gaia" / "reviews" / "review_2026-03-08_14-30-00.yaml"
     result = runner.invoke(app, ["infer", str(pkg_dir), "--review", str(review_path)])
     assert result.exit_code == 0
+
+
+def test_infer_writes_local_parameterization(tmp_path):
+    pkg_dir = _setup_build_and_review(tmp_path)
+    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    assert result.exit_code == 0
+    assert (pkg_dir / ".gaia" / "inference" / "local_parameterization.json").exists()

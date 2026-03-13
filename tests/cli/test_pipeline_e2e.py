@@ -31,12 +31,16 @@ def _run_pipeline(pkg_path: Path, db_path: str) -> None:
     """Run build -> review(mock) -> infer -> publish --local."""
     result = runner.invoke(app, ["build", str(pkg_path)])
     assert result.exit_code == 0, f"build failed: {result.output}"
+    assert (pkg_path / ".gaia" / "graph" / "raw_graph.json").exists()
+    assert (pkg_path / ".gaia" / "graph" / "local_canonical_graph.json").exists()
+    assert (pkg_path / ".gaia" / "graph" / "canonicalization_log.json").exists()
 
     result = runner.invoke(app, ["review", str(pkg_path), "--mock"])
     assert result.exit_code == 0, f"review failed: {result.output}"
 
     result = runner.invoke(app, ["infer", str(pkg_path)])
     assert result.exit_code == 0, f"infer failed: {result.output}"
+    assert (pkg_path / ".gaia" / "inference" / "local_parameterization.json").exists()
 
     result = runner.invoke(app, ["publish", str(pkg_path), "--local", "--db-path", db_path])
     assert result.exit_code == 0, f"publish failed: {result.output}"
