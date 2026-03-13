@@ -30,6 +30,7 @@ from libs.storage.models import (
     Module,
     Package,
     ProbabilityRecord,
+    factors_from_chains,
 )
 
 NOW = datetime(2026, 3, 12, tzinfo=timezone.utc).isoformat()
@@ -554,9 +555,19 @@ def save_package(pkg_data: V2PackageData, out_dir: Path) -> None:
             json.dumps(pkg_data.embeddings, ensure_ascii=False)
         )
 
+    # Derive and save factors from chains
+    chain_models = [Chain.model_validate(c) for c in pkg_data.chains]
+    factors = factors_from_chains(chain_models, pkg_data.package["package_id"])
+    if factors:
+        (pkg_dir / "factors.json").write_text(
+            json.dumps([f.model_dump() for f in factors], indent=2, ensure_ascii=False)
+        )
+
 
 def validate_package(pkg_dir: Path) -> None:
     """Validate a package directory against v2 Pydantic models."""
+    from libs.storage.models import FactorNode
+
     pkg = Package.model_validate_json((pkg_dir / "package.json").read_text())
     mods = [Module.model_validate(m) for m in json.loads((pkg_dir / "modules.json").read_text())]
     knowledge = [
@@ -570,10 +581,17 @@ def validate_package(pkg_dir: Path) -> None:
     beliefs = [
         BeliefSnapshot.model_validate(b) for b in json.loads((pkg_dir / "beliefs.json").read_text())
     ]
+    factors_path = pkg_dir / "factors.json"
+    factors = (
+        [FactorNode.model_validate(f) for f in json.loads(factors_path.read_text())]
+        if factors_path.exists()
+        else []
+    )
     print(
         f"  ✓ {pkg_dir.name}: {pkg.package_id} "
         f"({len(mods)} modules, {len(knowledge)} knowledge, "
-        f"{len(chains)} chains, {len(probs)} probs, {len(beliefs)} beliefs)"
+        f"{len(chains)} chains, {len(factors)} factors, "
+        f"{len(probs)} probs, {len(beliefs)} beliefs)"
     )
 
 

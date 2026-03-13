@@ -4,7 +4,10 @@ These models map directly to Gaia Language concepts: Knowledge, Chain, Module, P
 See docs/foundations/server/storage-schema.md for the authoritative schema definition.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
+from hashlib import sha256
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -298,3 +301,43 @@ class PackageSubmissionArtifact(BaseModel):
     local_canonical_graph: dict
     canonicalization_log: list[dict]
     submitted_at: datetime
+
+
+# ── Factor derivation ──
+
+
+def factors_from_chains(chains: list[Chain], package_id: str) -> list[FactorNode]:
+    """Derive reasoning factors from storage Chain objects.
+
+    Each chain produces one factor whose premises are the union of all step
+    premises and whose conclusion is the last step's conclusion.  This is the
+    storage-layer equivalent of Graph IR's ``_build_chain_factor`` and can be
+    used by any pipeline that has Chain data but no Graph IR artifacts.
+    """
+    factors: list[FactorNode] = []
+    for chain in chains:
+        if not chain.steps:
+            continue
+        seen: set[str] = set()
+        premises: list[str] = []
+        for step in chain.steps:
+            for prem in step.premises:
+                if prem.knowledge_id not in seen:
+                    seen.add(prem.knowledge_id)
+                    premises.append(prem.knowledge_id)
+        conclusion = chain.steps[-1].conclusion.knowledge_id
+        # Deterministic factor_id from chain_id
+        digest = sha256(chain.chain_id.encode()).hexdigest()[:16]
+        factor_id = f"f_{digest}"
+        factors.append(
+            FactorNode(
+                factor_id=factor_id,
+                type="reasoning",
+                premises=premises,
+                contexts=[],
+                conclusion=conclusion,
+                package_id=package_id,
+                metadata={"edge_type": chain.type, "derived_from": "chain"},
+            )
+        )
+    return factors

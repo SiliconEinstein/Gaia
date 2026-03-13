@@ -37,6 +37,7 @@ from libs.storage.models import (
     Module,
     Package,
     ProbabilityRecord,
+    factors_from_chains,
 )
 
 DEFAULT_FIXTURES_DIR = Path("tests/fixtures/storage/papers")
@@ -69,6 +70,16 @@ def load_fixture(fixtures_dir: Path, slug: str) -> dict:
         ]
     else:
         data["embeddings"] = []
+    # Optional: factors (load from file or derive from chains)
+    factors_path = d / "factors.json"
+    if factors_path.exists():
+        from libs.storage.models import FactorNode
+
+        data["factors"] = [
+            FactorNode.model_validate(f) for f in json.loads(factors_path.read_text())
+        ]
+    else:
+        data["factors"] = factors_from_chains(data["chains"], data["package"].package_id)
     return data
 
 
@@ -163,10 +174,13 @@ async def main() -> None:
         knowledge = data["knowledge"]
         chains = data["chains"]
 
+        factors = data["factors"]
+
         print(f"  Package : {pkg.package_id} v{pkg.version}")
         print(f"  Modules : {len(modules)}")
         print(f"  Knowledge: {len(knowledge)}")
         print(f"  Chains  : {len(chains)}")
+        print(f"  Factors : {len(factors)}")
         print(f"  Probs   : {len(data['probabilities'])}")
         print(f"  Beliefs : {len(data['beliefs'])}")
 
@@ -176,6 +190,7 @@ async def main() -> None:
             knowledge_items=knowledge,
             chains=chains,
             embeddings=data.get("embeddings") or None,
+            factors=factors or None,
         )
         if data["probabilities"]:
             await mgr.add_probabilities(data["probabilities"])
@@ -262,6 +277,7 @@ async def main() -> None:
             knowledge_items=data["knowledge"],
             chains=data["chains"],
             embeddings=data.get("embeddings") or None,
+            factors=data["factors"] or None,
         )
         if data["probabilities"]:
             await mgr.add_probabilities(data["probabilities"])

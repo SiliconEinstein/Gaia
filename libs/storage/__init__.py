@@ -28,6 +28,7 @@ from libs.storage.models import (
     ScoredKnowledge,
     SourceRef,
     Subgraph,
+    factors_from_chains,
 )
 from libs.storage.vector_store import VectorStore
 
@@ -60,4 +61,5 @@ __all__ = [
     "StorageManager",
     "Subgraph",
     "VectorStore",
+    "factors_from_chains",
 ]
