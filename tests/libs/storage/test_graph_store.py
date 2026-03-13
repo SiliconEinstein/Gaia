@@ -12,9 +12,11 @@ import pytest
 from libs.storage.graph_store import GraphStore
 from libs.storage.kuzu_graph_store import KuzuGraphStore, _knowledge_vid as _vid
 from libs.storage.models import (
-    BeliefSnapshot,
+    CanonicalBinding,
     Chain,
     ChainStep,
+    FactorNode,
+    GlobalCanonicalNode,
     Knowledge,
     KnowledgeRef,
     ResourceAttachment,
@@ -387,153 +389,112 @@ class TestWriteResourceLinks:
         assert rows[0][0] == 1
 
 
-# ── update_beliefs ──
+# ── write_factor_topology ──
 
 
-class TestUpdateBeliefs:
-    async def test_update_beliefs_sets_value(self, graph_store, knowledge_items, chains, beliefs):
-        await graph_store.write_topology(knowledge_items, chains)
-        await graph_store.update_beliefs(beliefs)
-
-        expected: dict[str, float] = {}
-        for snap in beliefs:
-            expected[_vid(snap.knowledge_id, snap.version)] = snap.belief
-
-        for vid, expected_belief in expected.items():
-            rows = await _run_query(
-                graph_store,
-                "MATCH (cl:Knowledge {knowledge_vid: $vid}) RETURN cl.belief",
-                {"vid": vid},
-            )
-            if rows:
-                assert rows[0][0] == pytest.approx(expected_belief)
-
-    async def test_update_beliefs_nonexistent_knowledge(self, graph_store):
-        snap = BeliefSnapshot(
-            knowledge_id="nonexistent",
-            version=1,
-            belief=0.5,
-            bp_run_id="bp_test",
-            computed_at="2026-01-01T00:00:00Z",
-        )
-        await graph_store.update_beliefs([snap])  # should not raise
-
-    async def test_update_beliefs_version_aware(self, graph_store):
-        """Beliefs for different versions are independent."""
-        c_v1 = Knowledge(
-            knowledge_id="x",
-            version=1,
-            type="claim",
-            content="",
-            prior=0.5,
-            source_package_id="p",
-            source_module_id="m",
-            created_at=datetime(2026, 1, 1),
-        )
-        c_v2 = c_v1.model_copy(update={"version": 2})
-        await graph_store.write_topology([c_v1, c_v2], [])
-
-        snap_v1 = BeliefSnapshot(
-            knowledge_id="x",
-            version=1,
-            belief=0.3,
-            bp_run_id="r1",
-            computed_at=datetime(2026, 1, 1),
-        )
-        snap_v2 = BeliefSnapshot(
-            knowledge_id="x",
-            version=2,
-            belief=0.9,
-            bp_run_id="r1",
-            computed_at=datetime(2026, 1, 1),
-        )
-        await graph_store.update_beliefs([snap_v1, snap_v2])
-
-        rows = await _run_query(
-            graph_store,
-            "MATCH (c:Knowledge {knowledge_vid: $vid}) RETURN c.belief",
-            {"vid": _vid("x", 1)},
-        )
-        assert rows[0][0] == pytest.approx(0.3)
-
-        rows = await _run_query(
-            graph_store,
-            "MATCH (c:Knowledge {knowledge_vid: $vid}) RETURN c.belief",
-            {"vid": _vid("x", 2)},
-        )
-        assert rows[0][0] == pytest.approx(0.9)
-
-
-# ── update_probability ──
-
-
-class TestUpdateProbability:
-    async def test_update_probability_sets_value(self, graph_store, knowledge_items, chains):
-        await graph_store.write_topology(knowledge_items, chains)
-        chain = chains[0]
-        await graph_store.update_probability(chain.chain_id, 0, 0.95)
-
-        rows = await _run_query(
-            graph_store,
-            "MATCH (ch:Chain {chain_id: $chid})-[r:CONCLUSION]->(:Knowledge) "
-            "WHERE r.step_index = 0 RETURN r.probability",
-            {"chid": chain.chain_id},
-        )
-        assert rows[0][0] == pytest.approx(0.95)
-
-    async def test_update_probability_per_step(self, graph_store):
-        """Probability must be per (chain_id, step_index)."""
-        knowledge_local = [
-            Knowledge(
-                knowledge_id=kid,
-                version=1,
-                type="claim",
-                content="",
-                prior=0.5,
-                source_package_id="p",
-                source_module_id="m",
-                created_at=datetime(2026, 1, 1),
-            )
-            for kid in ("a", "b", "c")
+class TestWriteFactorTopology:
+    async def test_write_factor_topology(self, graph_store):
+        factors = [
+            FactorNode(
+                factor_id="pkg.mod.f1",
+                type="reasoning",
+                premises=["pkg/k1", "pkg/k2"],
+                contexts=["pkg/k3"],
+                conclusion="pkg/k4",
+                package_id="pkg",
+            ),
+            FactorNode(
+                factor_id="pkg.mutex.1",
+                type="mutex_constraint",
+                premises=["pkg/k1", "pkg/k5"],
+                conclusion="pkg/contra1",
+                package_id="pkg",
+            ),
         ]
-        chain = Chain(
-            chain_id="ch",
-            module_id="m",
-            package_id="p",
-            type="deduction",
-            steps=[
-                ChainStep(
-                    step_index=0,
-                    premises=[KnowledgeRef(knowledge_id="a", version=1)],
-                    reasoning="r0",
-                    conclusion=KnowledgeRef(knowledge_id="b", version=1),
-                ),
-                ChainStep(
-                    step_index=1,
-                    premises=[KnowledgeRef(knowledge_id="b", version=1)],
-                    reasoning="r1",
-                    conclusion=KnowledgeRef(knowledge_id="c", version=1),
-                ),
-            ],
-        )
-        await graph_store.write_topology(knowledge_local, [chain])
+        await graph_store.write_factor_topology(factors)
+        # Verify Factor nodes created
+        count = await _count_nodes(graph_store, "Factor")
+        assert count == 2
+        # Verify rels created
+        fp_count = await _count_rels(graph_store, "FACTOR_PREMISE")
+        assert fp_count == 4  # 2 from f1, 2 from mutex
+        fc_count = await _count_rels(graph_store, "FACTOR_CONTEXT")
+        assert fc_count == 1  # 1 from f1
+        fcl_count = await _count_rels(graph_store, "FACTOR_CONCLUSION")
+        assert fcl_count == 2  # 1 each
 
-        await graph_store.update_probability("ch", 0, 0.2)
-        await graph_store.update_probability("ch", 1, 0.9)
+    async def test_factor_topology_idempotent(self, graph_store):
+        factors = [
+            FactorNode(
+                factor_id="pkg.f1",
+                type="reasoning",
+                premises=["pkg/k1"],
+                conclusion="pkg/k2",
+                package_id="pkg",
+            ),
+        ]
+        await graph_store.write_factor_topology(factors)
+        c1 = await _count_nodes(graph_store, "Factor")
+        r1 = await _count_rels(graph_store, "FACTOR_PREMISE")
+        await graph_store.write_factor_topology(factors)
+        assert await _count_nodes(graph_store, "Factor") == c1
+        assert await _count_rels(graph_store, "FACTOR_PREMISE") == r1
 
-        rows = await _run_query(
-            graph_store,
-            "MATCH (ch:Chain {chain_id: 'ch'})-[r:CONCLUSION]->(:Knowledge) "
-            "WHERE r.step_index = 0 RETURN r.probability",
-        )
-        assert rows[0][0] == pytest.approx(0.2)
 
-        rows = await _run_query(
-            graph_store,
-            "MATCH (ch:Chain {chain_id: 'ch'})-[r:CONCLUSION]->(:Knowledge) "
-            "WHERE r.step_index = 1 RETURN r.probability",
-        )
-        assert rows[0][0] == pytest.approx(0.9)
+# ── write_global_topology ──
+
+
+class TestWriteGlobalTopology:
+    async def test_write_global_topology(self, graph_store):
+        global_nodes = [
+            GlobalCanonicalNode(
+                global_canonical_id="gcn_01",
+                knowledge_type="claim",
+                representative_content="X is true",
+            ),
+        ]
+        bindings = [
+            CanonicalBinding(
+                package="pkg",
+                version="1.0.0",
+                local_graph_hash="sha256:abc",
+                local_canonical_id="pkg/k1",
+                decision="create_new",
+                global_canonical_id="gcn_01",
+                decided_at=datetime.now(),
+                decided_by="auto",
+            ),
+        ]
+        await graph_store.write_global_topology(bindings, global_nodes)
+        count = await _count_nodes(graph_store, "GlobalCanonicalNode")
+        assert count == 1
+        bind_count = await _count_rels(graph_store, "CANONICAL_BINDING")
+        assert bind_count == 1
+
+    async def test_global_topology_idempotent(self, graph_store):
+        global_nodes = [
+            GlobalCanonicalNode(
+                global_canonical_id="gcn_01",
+                knowledge_type="claim",
+                representative_content="X is true",
+            ),
+        ]
+        bindings = [
+            CanonicalBinding(
+                package="pkg",
+                version="1.0.0",
+                local_graph_hash="sha256:abc",
+                local_canonical_id="pkg/k1",
+                decision="create_new",
+                global_canonical_id="gcn_01",
+                decided_at=datetime.now(),
+                decided_by="auto",
+            ),
+        ]
+        await graph_store.write_global_topology(bindings, global_nodes)
+        await graph_store.write_global_topology(bindings, global_nodes)
+        assert await _count_nodes(graph_store, "GlobalCanonicalNode") == 1
+        assert await _count_rels(graph_store, "CANONICAL_BINDING") == 1
 
 
 # ── get_neighbors ──
@@ -801,49 +762,23 @@ class TestClose:
 
 
 class TestFullRoundtrip:
-    async def test_full_roundtrip(self, graph_store, knowledge_items, chains, attachments, beliefs):
+    async def test_full_roundtrip(self, graph_store, knowledge_items, chains, attachments):
         # 1. Write topology
         await graph_store.write_topology(knowledge_items, chains)
 
         # 2. Write resource links
         await graph_store.write_resource_links(attachments)
 
-        # 3. Update beliefs
-        await graph_store.update_beliefs(beliefs)
-
-        # 4. Update probability per step
+        # 3. Query neighbors
         chain = chains[0]
-        await graph_store.update_probability(chain.chain_id, 0, 0.9)
-
-        # 5. Query neighbors
         premise_id = chain.steps[0].premises[0].knowledge_id
         neighbors = await graph_store.get_neighbors(premise_id)
         assert len(neighbors.chain_ids) > 0
 
-        # 6. Query subgraph
+        # 4. Query subgraph
         subgraph = await graph_store.get_subgraph(premise_id)
         assert len(subgraph.knowledge_ids) > 0
 
-        # 7. Search topology
+        # 5. Search topology
         results = await graph_store.search_topology([premise_id], hops=2)
         assert len(results) >= 0
-
-        # 8. Verify belief was updated (version-aware)
-        last_belief = beliefs[-1]
-        vid = _vid(last_belief.knowledge_id, last_belief.version)
-        rows = await _run_query(
-            graph_store,
-            "MATCH (c:Knowledge {knowledge_vid: $vid}) RETURN c.belief",
-            {"vid": vid},
-        )
-        if rows:
-            assert rows[0][0] == pytest.approx(last_belief.belief)
-
-        # 9. Verify probability was updated per step
-        rows = await _run_query(
-            graph_store,
-            "MATCH (ch:Chain {chain_id: $chid})-[r:CONCLUSION]->(:Knowledge) "
-            "WHERE r.step_index = 0 RETURN r.probability",
-            {"chid": chain.chain_id},
-        )
-        assert rows[0][0] == pytest.approx(0.9)

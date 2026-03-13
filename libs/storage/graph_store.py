@@ -3,8 +3,10 @@
 from abc import ABC, abstractmethod
 
 from libs.storage.models import (
-    BeliefSnapshot,
+    CanonicalBinding,
     Chain,
+    FactorNode,
+    GlobalCanonicalNode,
     Knowledge,
     ResourceAttachment,
     ScoredKnowledge,
@@ -38,12 +40,16 @@ class GraphStore(ABC):
         """Write ATTACHED_TO relationships for resources."""
 
     @abstractmethod
-    async def update_beliefs(self, snapshots: list[BeliefSnapshot]) -> None:
-        """Sync latest belief values onto Knowledge nodes, keyed by (knowledge_id, version)."""
+    async def write_factor_topology(self, factors: list[FactorNode]) -> None:
+        """Write Factor nodes and FACTOR_PREMISE/FACTOR_CONTEXT/FACTOR_CONCLUSION relationships."""
 
     @abstractmethod
-    async def update_probability(self, chain_id: str, step_index: int, value: float) -> None:
-        """Sync a probability value onto a Chain node."""
+    async def write_global_topology(
+        self,
+        bindings: list[CanonicalBinding],
+        global_nodes: list[GlobalCanonicalNode],
+    ) -> None:
+        """Write GlobalCanonicalNode nodes and CANONICAL_BINDING relationships."""
 
     # ── Query ──
 

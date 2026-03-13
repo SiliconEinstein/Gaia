@@ -32,8 +32,10 @@ import kuzu
 
 from libs.storage.graph_store import GraphStore
 from libs.storage.models import (
-    BeliefSnapshot,
+    CanonicalBinding,
     Chain,
+    FactorNode,
+    GlobalCanonicalNode,
     Knowledge,
     ResourceAttachment,
     ScoredKnowledge,
@@ -63,6 +65,24 @@ _SCHEMA_STATEMENTS = [
         "CREATE REL TABLE GROUP IF NOT EXISTS ATTACHED_TO("
         "FROM Resource TO Knowledge, FROM Resource TO Chain, "
         "role STRING, step_index INT64)"
+    ),
+    (
+        "CREATE NODE TABLE IF NOT EXISTS Factor("
+        "factor_id STRING, type STRING, is_gate BOOLEAN, "
+        "PRIMARY KEY(factor_id))"
+    ),
+    "CREATE REL TABLE IF NOT EXISTS FACTOR_PREMISE(FROM Knowledge TO Factor)",
+    "CREATE REL TABLE IF NOT EXISTS FACTOR_CONTEXT(FROM Knowledge TO Factor)",
+    "CREATE REL TABLE IF NOT EXISTS FACTOR_CONCLUSION(FROM Factor TO Knowledge)",
+    (
+        "CREATE NODE TABLE IF NOT EXISTS GlobalCanonicalNode("
+        "global_canonical_id STRING, knowledge_type STRING, kind STRING, "
+        "representative_content STRING, PRIMARY KEY(global_canonical_id))"
+    ),
+    (
+        "CREATE REL TABLE IF NOT EXISTS CANONICAL_BINDING("
+        "FROM Knowledge TO GlobalCanonicalNode, "
+        "decision STRING, package STRING, version STRING)"
     ),
 ]
 
@@ -296,33 +316,148 @@ class KuzuGraphStore(GraphStore):
                     {"rid": att.resource_id, "tid": dest_id, "role": att.role, "si": step_idx},
                 )
 
-    async def update_beliefs(self, snapshots: list[BeliefSnapshot]) -> None:
-        """Set belief values on Knowledge nodes, keyed by (knowledge_id, version)."""
+    async def write_factor_topology(self, factors: list[FactorNode]) -> None:
+        """Write Factor nodes and FACTOR_PREMISE/FACTOR_CONTEXT/FACTOR_CONCLUSION rels."""
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, partial(self._update_beliefs_sync, snapshots))
+        await loop.run_in_executor(None, partial(self._write_factor_topology_sync, factors))
 
-    def _update_beliefs_sync(self, snapshots: list[BeliefSnapshot]) -> None:
-        for snap in snapshots:
-            vid = _knowledge_vid(snap.knowledge_id, snap.version)
-            self._conn.execute(
-                "MATCH (kn:Knowledge {knowledge_vid: $vid}) SET kn.belief = $belief",
-                {"vid": vid, "belief": snap.belief},
+    def _write_factor_topology_sync(self, factors: list[FactorNode]) -> None:
+        c = self._conn
+        for f in factors:
+            # MERGE Factor node
+            c.execute(
+                "MERGE (n:Factor {factor_id: $fid}) SET n.type = $type, n.is_gate = $gate",
+                {"fid": f.factor_id, "type": f.type, "gate": f.is_gate_factor},
             )
+            # Premises
+            for premise_id in f.premises:
+                c.execute(
+                    "MERGE (n:Knowledge {knowledge_vid: $vid}) "
+                    "ON CREATE SET n.knowledge_id = $vid, n.version = 1, "
+                    "n.type = 'claim', n.prior = 0.5, n.belief = 0.5",
+                    {"vid": premise_id},
+                )
+                check = c.execute(
+                    "MATCH (k:Knowledge {knowledge_vid: $kid})"
+                    "-[r:FACTOR_PREMISE]->"
+                    "(f:Factor {factor_id: $fid}) RETURN COUNT(r)",
+                    {"kid": premise_id, "fid": f.factor_id},
+                )
+                if check.get_next()[0] == 0:
+                    c.execute(
+                        "MATCH (k:Knowledge {knowledge_vid: $kid}), "
+                        "(f:Factor {factor_id: $fid}) "
+                        "CREATE (k)-[:FACTOR_PREMISE]->(f)",
+                        {"kid": premise_id, "fid": f.factor_id},
+                    )
+            # Contexts
+            for context_id in f.contexts:
+                c.execute(
+                    "MERGE (n:Knowledge {knowledge_vid: $vid}) "
+                    "ON CREATE SET n.knowledge_id = $vid, n.version = 1, "
+                    "n.type = 'claim', n.prior = 0.5, n.belief = 0.5",
+                    {"vid": context_id},
+                )
+                check = c.execute(
+                    "MATCH (k:Knowledge {knowledge_vid: $kid})"
+                    "-[r:FACTOR_CONTEXT]->"
+                    "(f:Factor {factor_id: $fid}) RETURN COUNT(r)",
+                    {"kid": context_id, "fid": f.factor_id},
+                )
+                if check.get_next()[0] == 0:
+                    c.execute(
+                        "MATCH (k:Knowledge {knowledge_vid: $kid}), "
+                        "(f:Factor {factor_id: $fid}) "
+                        "CREATE (k)-[:FACTOR_CONTEXT]->(f)",
+                        {"kid": context_id, "fid": f.factor_id},
+                    )
+            # Conclusion
+            conc_id = f.conclusion
+            c.execute(
+                "MERGE (n:Knowledge {knowledge_vid: $vid}) "
+                "ON CREATE SET n.knowledge_id = $vid, n.version = 1, "
+                "n.type = 'claim', n.prior = 0.5, n.belief = 0.5",
+                {"vid": conc_id},
+            )
+            check = c.execute(
+                "MATCH (f:Factor {factor_id: $fid})"
+                "-[r:FACTOR_CONCLUSION]->"
+                "(k:Knowledge {knowledge_vid: $kid}) RETURN COUNT(r)",
+                {"fid": f.factor_id, "kid": conc_id},
+            )
+            if check.get_next()[0] == 0:
+                c.execute(
+                    "MATCH (f:Factor {factor_id: $fid}), "
+                    "(k:Knowledge {knowledge_vid: $kid}) "
+                    "CREATE (f)-[:FACTOR_CONCLUSION]->(k)",
+                    {"fid": f.factor_id, "kid": conc_id},
+                )
 
-    async def update_probability(self, chain_id: str, step_index: int, value: float) -> None:
-        """Set probability on a CONCLUSION relationship for (chain_id, step_index)."""
+    async def write_global_topology(
+        self,
+        bindings: list[CanonicalBinding],
+        global_nodes: list[GlobalCanonicalNode],
+    ) -> None:
+        """Write GlobalCanonicalNode nodes and CANONICAL_BINDING relationships."""
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
-            None,
-            partial(self._update_probability_sync, chain_id, step_index, value),
+            None, partial(self._write_global_topology_sync, bindings, global_nodes)
         )
 
-    def _update_probability_sync(self, chain_id: str, step_index: int, value: float) -> None:
-        self._conn.execute(
-            "MATCH (ch:Chain {chain_id: $chid})-[r:CONCLUSION]->(:Knowledge) "
-            "WHERE r.step_index = $si SET r.probability = $val",
-            {"chid": chain_id, "si": step_index, "val": value},
-        )
+    def _write_global_topology_sync(
+        self,
+        bindings: list[CanonicalBinding],
+        global_nodes: list[GlobalCanonicalNode],
+    ) -> None:
+        c = self._conn
+        # MERGE global nodes
+        for gn in global_nodes:
+            c.execute(
+                "MERGE (n:GlobalCanonicalNode {global_canonical_id: $gid}) "
+                "SET n.knowledge_type = $kt, n.kind = $kind, "
+                "n.representative_content = $rc",
+                {
+                    "gid": gn.global_canonical_id,
+                    "kt": gn.knowledge_type,
+                    "kind": gn.kind or "",
+                    "rc": gn.representative_content,
+                },
+            )
+        # Create CANONICAL_BINDING rels
+        for b in bindings:
+            vid = f"{b.local_canonical_id}@1"
+            c.execute(
+                "MERGE (n:Knowledge {knowledge_vid: $vid}) "
+                "ON CREATE SET n.knowledge_id = $kid, n.version = 1, "
+                "n.type = 'claim', n.prior = 0.5, n.belief = 0.5",
+                {"vid": vid, "kid": b.local_canonical_id},
+            )
+            check = c.execute(
+                "MATCH (k:Knowledge {knowledge_vid: $kvid})"
+                "-[r:CANONICAL_BINDING]->"
+                "(g:GlobalCanonicalNode {global_canonical_id: $gid}) "
+                "WHERE r.package = $pkg AND r.version = $ver RETURN COUNT(r)",
+                {
+                    "kvid": vid,
+                    "gid": b.global_canonical_id,
+                    "pkg": b.package,
+                    "ver": b.version,
+                },
+            )
+            if check.get_next()[0] == 0:
+                c.execute(
+                    "MATCH (k:Knowledge {knowledge_vid: $kvid}), "
+                    "(g:GlobalCanonicalNode {global_canonical_id: $gid}) "
+                    "CREATE (k)-[:CANONICAL_BINDING "
+                    "{decision: $dec, package: $pkg, version: $ver}]->(g)",
+                    {
+                        "kvid": vid,
+                        "gid": b.global_canonical_id,
+                        "dec": b.decision,
+                        "pkg": b.package,
+                        "ver": b.version,
+                    },
+                )
 
     # ── Query ──
 

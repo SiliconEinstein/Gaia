@@ -23,8 +23,10 @@ import neo4j
 
 from libs.storage.graph_store import GraphStore
 from libs.storage.models import (
-    BeliefSnapshot,
+    CanonicalBinding,
     Chain,
+    FactorNode,
+    GlobalCanonicalNode,
     Knowledge,
     ResourceAttachment,
     ScoredKnowledge,
@@ -218,24 +220,117 @@ class Neo4jGraphStore(GraphStore):
                     si=step_idx,
                 )
 
-    async def update_beliefs(self, snapshots: list[BeliefSnapshot]) -> None:
+    async def write_factor_topology(self, factors: list[FactorNode]) -> None:
+        """Write Factor nodes and FACTOR_PREMISE/FACTOR_CONTEXT/FACTOR_CONCLUSION rels."""
         async with self._driver.session(database=self._db) as session:
-            for snap in snapshots:
-                vid = _knowledge_vid(snap.knowledge_id, snap.version)
-                await session.run(
-                    "MATCH (kn:Knowledge {knowledge_vid: $vid}) SET kn.belief = $belief",
-                    vid=vid,
-                    belief=snap.belief,
-                )
+            await session.execute_write(self._tx_write_factor_topology, factors)
 
-    async def update_probability(self, chain_id: str, step_index: int, value: float) -> None:
+    @staticmethod
+    async def _tx_write_factor_topology(
+        tx: neo4j.AsyncManagedTransaction,
+        factors: list[FactorNode],
+    ) -> None:
+        for f in factors:
+            await tx.run(
+                "MERGE (n:Factor {factor_id: $fid}) SET n.type = $type, n.is_gate = $gate",
+                fid=f.factor_id,
+                type=f.type,
+                gate=f.is_gate_factor,
+            )
+            for premise_id in f.premises:
+                await tx.run(
+                    "MERGE (n:Knowledge {knowledge_vid: $vid}) "
+                    "ON CREATE SET n.knowledge_id = $vid, n.version = 1, "
+                    "n.type = 'claim', n.prior = 0.5, n.belief = 0.5",
+                    vid=premise_id,
+                )
+                await tx.run(
+                    "MATCH (k:Knowledge {knowledge_vid: $kid}), "
+                    "(f:Factor {factor_id: $fid}) "
+                    "WHERE NOT EXISTS { MATCH (k)-[:FACTOR_PREMISE]->(f) } "
+                    "CREATE (k)-[:FACTOR_PREMISE]->(f)",
+                    kid=premise_id,
+                    fid=f.factor_id,
+                )
+            for context_id in f.contexts:
+                await tx.run(
+                    "MERGE (n:Knowledge {knowledge_vid: $vid}) "
+                    "ON CREATE SET n.knowledge_id = $vid, n.version = 1, "
+                    "n.type = 'claim', n.prior = 0.5, n.belief = 0.5",
+                    vid=context_id,
+                )
+                await tx.run(
+                    "MATCH (k:Knowledge {knowledge_vid: $kid}), "
+                    "(f:Factor {factor_id: $fid}) "
+                    "WHERE NOT EXISTS { MATCH (k)-[:FACTOR_CONTEXT]->(f) } "
+                    "CREATE (k)-[:FACTOR_CONTEXT]->(f)",
+                    kid=context_id,
+                    fid=f.factor_id,
+                )
+            conc_id = f.conclusion
+            await tx.run(
+                "MERGE (n:Knowledge {knowledge_vid: $vid}) "
+                "ON CREATE SET n.knowledge_id = $vid, n.version = 1, "
+                "n.type = 'claim', n.prior = 0.5, n.belief = 0.5",
+                vid=conc_id,
+            )
+            await tx.run(
+                "MATCH (f:Factor {factor_id: $fid}), "
+                "(k:Knowledge {knowledge_vid: $kid}) "
+                "WHERE NOT EXISTS { MATCH (f)-[:FACTOR_CONCLUSION]->(k) } "
+                "CREATE (f)-[:FACTOR_CONCLUSION]->(k)",
+                fid=f.factor_id,
+                kid=conc_id,
+            )
+
+    async def write_global_topology(
+        self,
+        bindings: list[CanonicalBinding],
+        global_nodes: list[GlobalCanonicalNode],
+    ) -> None:
+        """Write GlobalCanonicalNode nodes and CANONICAL_BINDING relationships."""
         async with self._driver.session(database=self._db) as session:
-            await session.run(
-                "MATCH (ch:Chain {chain_id: $chid})-[r:CONCLUSION]->(:Knowledge) "
-                "WHERE r.step_index = $si SET r.probability = $val",
-                chid=chain_id,
-                si=step_index,
-                val=value,
+            await session.execute_write(self._tx_write_global_topology, bindings, global_nodes)
+
+    @staticmethod
+    async def _tx_write_global_topology(
+        tx: neo4j.AsyncManagedTransaction,
+        bindings: list[CanonicalBinding],
+        global_nodes: list[GlobalCanonicalNode],
+    ) -> None:
+        for gn in global_nodes:
+            await tx.run(
+                "MERGE (n:GlobalCanonicalNode {global_canonical_id: $gid}) "
+                "SET n.knowledge_type = $kt, n.kind = $kind, "
+                "n.representative_content = $rc",
+                gid=gn.global_canonical_id,
+                kt=gn.knowledge_type,
+                kind=gn.kind or "",
+                rc=gn.representative_content,
+            )
+        for b in bindings:
+            vid = f"{b.local_canonical_id}@1"
+            await tx.run(
+                "MERGE (n:Knowledge {knowledge_vid: $vid}) "
+                "ON CREATE SET n.knowledge_id = $kid, n.version = 1, "
+                "n.type = 'claim', n.prior = 0.5, n.belief = 0.5",
+                vid=vid,
+                kid=b.local_canonical_id,
+            )
+            await tx.run(
+                "MATCH (k:Knowledge {knowledge_vid: $kvid}), "
+                "(g:GlobalCanonicalNode {global_canonical_id: $gid}) "
+                "WHERE NOT EXISTS { "
+                "  MATCH (k)-[r:CANONICAL_BINDING]->(g) "
+                "  WHERE r.package = $pkg AND r.version = $ver "
+                "} "
+                "CREATE (k)-[:CANONICAL_BINDING "
+                "{decision: $dec, package: $pkg, version: $ver}]->(g)",
+                kvid=vid,
+                gid=b.global_canonical_id,
+                dec=b.decision,
+                pkg=b.package,
+                ver=b.version,
             )
 
     # ── Query ──
