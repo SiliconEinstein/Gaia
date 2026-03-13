@@ -138,7 +138,6 @@ The orchestrator manages when those services are applied and how their outputs a
 - [../shared/knowledge-package-static.md](../shared/knowledge-package-static.md) defines the shared V1 static package schema consumed by the CLI
 - [../shared/knowledge-package-file-formats.md](../shared/knowledge-package-file-formats.md) defines the shared V1 package file formats and review-report format consumed by CLI formalization services
 - [command-lifecycle.md](command-lifecycle.md) defines the intended target lifecycle: core CLI commands `build`, `infer`, `publish`, plus agent skills such as self-review and graph-construction; the shipped `gaia review` command is documented there as a compatibility bridge
-- [formalization-skill.md](formalization-skill.md) defines the target architecture for turning arbitrary input into current Gaia authored source via local skills
-- [formalization-ir-schema.md](formalization-ir-schema.md) defines the intermediate representation used by those formalization skills
+- [formalization-workflow.md](formalization-workflow.md) defines the current direct-YAML, conclusion-first workflow for local article formalization skills
 
 Gaia server architecture remains intentionally undefined here and should be designed separately later.

@@ -48,8 +48,7 @@ The execution plan for that reset lives here:
 
 - [Gaia CLI Runtime Boundaries](cli/boundaries.md)
 - [Gaia CLI Command Lifecycle](cli/command-lifecycle.md)
-- [Gaia Formalization Skill Architecture](cli/formalization-skill.md)
-- [Gaia Formalization IR Schema](cli/formalization-ir-schema.md)
+- [Gaia Formalization Workflow](cli/formalization-workflow.md)
 
 **Review:**
 
