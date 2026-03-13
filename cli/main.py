@@ -315,7 +315,7 @@ def publish(
             resolved_db_path = db_path
         else:
             base = os.environ.get("GAIA_LANCEDB_PATH", "./data/lancedb/gaia")
-            resolved_db_path = f"{base}_v2"
+            resolved_db_path = base
         asyncio.run(_publish_local(pkg_path, resolved_db_path))
 
     if server:
@@ -326,11 +326,11 @@ def publish(
 async def _publish_local(pkg_path: Path, db_path: str) -> None:
     """Convert artifacts to v2 models and write to LanceDB + Kuzu."""
     from cli.infer_store import load_infer_result
-    from cli.lang_to_v2 import convert_to_v2
+    from cli.lang_to_storage import convert_to_storage
     from cli.manifest import deserialize_package
     from cli.review_store import find_latest_review, read_review
-    from libs.storage_v2.config import StorageConfig
-    from libs.storage_v2.manager import StorageManager
+    from libs.storage.config import StorageConfig
+    from libs.storage.manager import StorageManager
 
     build_dir = pkg_path / ".gaia" / "build"
     reviews_dir = pkg_path / ".gaia" / "reviews"
@@ -365,7 +365,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     }
 
     # 3. Convert to v2 models
-    data = convert_to_v2(
+    data = convert_to_storage(
         pkg=pkg,
         review=review,
         beliefs=beliefs,
@@ -374,7 +374,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
 
     # 4. Generate embeddings for knowledge items
     from libs.embedding import StubEmbeddingModel
-    from libs.storage_v2.models import KnowledgeEmbedding
+    from libs.storage.models import KnowledgeEmbedding
 
     embed_model = StubEmbeddingModel(dim=512)
     texts = [k.content for k in data.knowledge_items]
@@ -575,7 +575,7 @@ def search(
 
     if db_path is None:
         base = os.environ.get("GAIA_LANCEDB_PATH", "./data/lancedb/gaia")
-        db_path = f"{base}_v2"
+        db_path = base
 
     if knowledge_id is not None:
         asyncio.run(_lookup_knowledge(knowledge_id, db_path))
@@ -585,7 +585,7 @@ def search(
 
 async def _lookup_knowledge(knowledge_id: str, db_path: str) -> None:
     """Look up a single knowledge item by ID, including latest belief if available."""
-    from libs.storage_v2.lance_content_store import LanceContentStore
+    from libs.storage.lance_content_store import LanceContentStore
 
     store = LanceContentStore(db_path)
     await store.initialize()
@@ -616,7 +616,7 @@ async def _search_knowledge(query: str, db_path: str, limit: int) -> None:
     Uses FTS index first; falls back to SQL LIKE filter for queries the
     default tokenizer cannot handle (e.g. CJK text without spaces).
     """
-    from libs.storage_v2.lance_content_store import LanceContentStore
+    from libs.storage.lance_content_store import LanceContentStore
 
     store = LanceContentStore(db_path)
     await store.initialize()
@@ -646,7 +646,7 @@ async def _search_knowledge(query: str, db_path: str, limit: int) -> None:
         return
 
     # Fallback: SQL LIKE filter for CJK / unsegmented text
-    results = await _content_like_search_v2(store, query, limit)
+    results = await _content_like_search(store, query, limit)
     if not results:
         typer.echo("No results found.")
         return
@@ -671,13 +671,13 @@ async def _search_knowledge(query: str, db_path: str, limit: int) -> None:
             typer.echo(f"    {snippet}...")
 
 
-async def _content_like_search_v2(
+async def _content_like_search(
     store: "LanceContentStore",  # noqa: F821
     query: str,
     limit: int,
 ) -> list:
     """Fallback substring search using SQL LIKE on the knowledge content column."""
-    from libs.storage_v2.lance_content_store import _row_to_knowledge
+    from libs.storage.lance_content_store import _row_to_knowledge
 
     try:
         table = store._db.open_table("knowledge")

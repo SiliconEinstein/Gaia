@@ -1,52 +1,72 @@
-"""Abstract base class for hypergraph stores."""
+"""GraphStore ABC — graph topology backend contract (Neo4j / Kuzu)."""
 
-from __future__ import annotations
+from abc import ABC, abstractmethod
 
-import abc
-from typing import Any
+from libs.storage.models import (
+    BeliefSnapshot,
+    Chain,
+    Knowledge,
+    ResourceAttachment,
+    ScoredKnowledge,
+    Subgraph,
+)
 
-from libs.models import HyperEdge
 
+class GraphStore(ABC):
+    """Graph backend — topology storage, traversal, and BP-related updates."""
 
-class GraphStore(abc.ABC):
-    """Backend-agnostic interface for hypergraph storage.
+    # ── Schema setup ──
 
-    Every concrete implementation (Neo4j, Kuzu, ...) must implement
-    these seven methods so that the rest of the system can work with
-    any graph backend interchangeably.
-    """
-
-    @abc.abstractmethod
+    @abstractmethod
     async def initialize_schema(self) -> None:
-        """Create tables / constraints (idempotent)."""
+        """Create indexes, constraints, and node labels."""
 
-    @abc.abstractmethod
-    async def create_hyperedge(self, edge: HyperEdge) -> int:
-        """Persist a single hyperedge and return its id."""
+    # ── Delete ──
 
-    @abc.abstractmethod
-    async def create_hyperedges_bulk(self, edges: list[HyperEdge]) -> list[int]:
-        """Persist many hyperedges in one transaction and return their ids."""
+    @abstractmethod
+    async def delete_package(self, package_id: str) -> None:
+        """Delete all nodes and relationships belonging to a package."""
 
-    @abc.abstractmethod
-    async def get_hyperedge(self, edge_id: int) -> HyperEdge | None:
-        """Load a hyperedge by id, or return None."""
+    # ── Write ──
 
-    @abc.abstractmethod
-    async def update_hyperedge(self, edge_id: int, **fields: Any) -> None:
-        """Update scalar fields on an existing hyperedge."""
+    @abstractmethod
+    async def write_topology(self, knowledge_items: list[Knowledge], chains: list[Chain]) -> None:
+        """Write knowledge nodes, chain nodes, and PREMISE/CONCLUSION relationships."""
 
-    @abc.abstractmethod
-    async def get_subgraph(
+    @abstractmethod
+    async def write_resource_links(self, attachments: list[ResourceAttachment]) -> None:
+        """Write ATTACHED_TO relationships for resources."""
+
+    @abstractmethod
+    async def update_beliefs(self, snapshots: list[BeliefSnapshot]) -> None:
+        """Sync latest belief values onto Knowledge nodes, keyed by (knowledge_id, version)."""
+
+    @abstractmethod
+    async def update_probability(self, chain_id: str, step_index: int, value: float) -> None:
+        """Sync a probability value onto a Chain node."""
+
+    # ── Query ──
+
+    @abstractmethod
+    async def get_neighbors(
         self,
-        node_ids: list[int],
-        hops: int = 1,
-        edge_types: list[str] | None = None,
+        knowledge_id: str,
         direction: str = "both",
-        max_nodes: int = 500,
-    ) -> tuple[set[int], set[int]]:
-        """Return (node_ids, edge_ids) reachable within *hops* knowledge hops."""
+        chain_types: list[str] | None = None,
+        max_hops: int = 1,
+    ) -> Subgraph:
+        """Get neighboring knowledge items and chains within max_hops."""
 
-    @abc.abstractmethod
+    @abstractmethod
+    async def get_subgraph(self, knowledge_id: str, max_knowledge: int = 500) -> Subgraph:
+        """Get a subgraph rooted at a knowledge item, up to max_knowledge."""
+
+    @abstractmethod
+    async def search_topology(self, seed_ids: list[str], hops: int = 1) -> list[ScoredKnowledge]:
+        """Expand from seed knowledge items by graph traversal, returning scored results."""
+
+    # ── Lifecycle ──
+
+    @abstractmethod
     async def close(self) -> None:
-        """Release resources."""
+        """Release connections and resources."""

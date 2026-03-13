@@ -1,34 +1,20 @@
-"""Storage layer configuration."""
+"""Storage configuration."""
 
-import os
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic_settings import BaseSettings
 
 
-class StorageConfig(BaseModel):
-    deployment_mode: Literal["production", "local"] = "local"
+class StorageConfig(BaseSettings):
+    """Environment-driven storage configuration. Values read at instantiation time."""
 
-    # Graph backend
-    graph_backend: Literal["neo4j", "kuzu", "none"] = os.environ.get("GAIA_GRAPH_BACKEND", "neo4j")
-
-    # LanceDB
-    lancedb_path: str = os.environ.get("GAIA_LANCEDB_PATH", "/data/lancedb/gaia")
-
-    # Neo4j
-    neo4j_uri: str = os.environ.get("GAIA_NEO4J_URI", "bolt://localhost:7687")
-    neo4j_user: str = os.environ.get("GAIA_NEO4J_USER", "neo4j")
-    neo4j_password: str = os.environ.get("GAIA_NEO4J_PASSWORD", "")
-    neo4j_database: str = os.environ.get("GAIA_NEO4J_DATABASE", "neo4j")
-
-    # Kuzu
+    lancedb_path: str = "/data/lancedb/gaia"
+    graph_backend: Literal["neo4j", "kuzu", "none"] = "kuzu"
+    neo4j_uri: str = "bolt://localhost:7687"
+    neo4j_user: str = "neo4j"
+    neo4j_password: str = ""
+    neo4j_database: str = "neo4j"
     kuzu_path: str | None = None
+    vector_index_type: Literal["diskann", "ivf_pq"] = "diskann"
 
-    # ByteHouse (production only)
-    bytehouse_host: str | None = None
-    bytehouse_port: int = 19000
-    bytehouse_database: str = "gaia"
-    bytehouse_api_key: str | None = None
-
-    # Local fallback
-    local_vector_index_type: Literal["diskann", "ivf_pq"] = "diskann"
+    model_config = {"env_prefix": "GAIA_"}

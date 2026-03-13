@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Gaia is a Large Knowledge Model (LKM) — a billion-scale reasoning hypergraph for knowledge representation and inference. It stores propositions as nodes and reasoning relationships as hyperedges, with a Git-like commit workflow (submit → review → merge) and probabilistic inference via loopy belief propagation.
+Gaia is a Large Knowledge Model (LKM) — a billion-scale reasoning hypergraph for knowledge representation and inference. It stores knowledge as propositions and reasoning relationships via Graph IR (factor graphs), with a publish pipeline (build → canonicalize → publish → review → integrate) and probabilistic inference via loopy belief propagation.
 
-**Stack:** Python 3.12+, FastAPI, Pydantic v2, LanceDB, Neo4j, NumPy/PyArrow
+**Stack:** Python 3.12+, FastAPI, Pydantic v2, LanceDB, Neo4j/Kuzu, NumPy/PyArrow
 
 ## Common Commands
 
@@ -21,22 +21,16 @@ pytest
 pytest --cov=libs --cov=services tests
 
 # Run a single test file / single test
-pytest tests/libs/storage/test_lance_store.py
-pytest tests/libs/test_models.py::test_node_defaults
-
-# Run only non-Neo4j tests
-pytest -m "not neo4j"
+pytest tests/libs/storage/test_lance_content.py
+pytest tests/libs/storage/test_models.py::test_knowledge_defaults
 
 # Lint and format
 ruff check .
 ruff format .
 
-# Run the API server (Neo4j auth is disabled locally)
+# Run the API server
 GAIA_LANCEDB_PATH=./data/lancedb/gaia \
   uvicorn services.gateway.app:create_app --factory --reload --host 0.0.0.0 --port 8000
-
-# Seed databases with fixture data (run once after clone)
-python scripts/seed_database.py --fixtures-dir tests/fixtures --db-path ./data/lancedb/gaia
 
 # Run frontend dev server
 cd frontend && npm install && npm run dev
@@ -51,15 +45,13 @@ All async tests run automatically via `asyncio_mode = "auto"`.
 ```
 services/gateway/        → FastAPI HTTP API (routes, dependency injection)
     ↓ uses
-services/search_engine/  → Multi-path recall (vector + BM25 + topology) + score merging
-services/commit_engine/  → 3-step commit workflow (submit → review → merge)
-services/inference_engine/→ Loopy belief propagation on factor graphs
-    ↓ uses
-libs/models.py           → Core Pydantic models (Node, HyperEdge, Commit, Operations)
-libs/storage/            → Storage backends (LanceDB, Neo4j, Vector Index)
+libs/storage/            → Storage backends (LanceDB content, Neo4j/Kuzu graph, LanceDB vector)
+libs/storage/models.py   → Core Pydantic models (Knowledge, Chain, Module, Package, etc.)
+libs/inference/          → BP algorithm (factor graph, belief propagation)
+libs/lang/               → Gaia Language compiler and runtime
 ```
 
-Dependencies flow downward only. `libs` has no service dependencies. Services depend on `libs` but not on each other (except gateway depends on all services).
+Dependencies flow downward only. `libs` has no service dependencies.
 
 ### Storage Layer (`libs/storage/`)
 
@@ -67,43 +59,43 @@ Three complementary backends managed by `StorageManager`:
 
 | Backend | Store Class | Purpose |
 |---------|------------|---------|
-| **LanceDB** | `LanceStore` | Node content, metadata, BM25 full-text search |
-| **Neo4j** | `Neo4jGraphStore` | Graph topology, hyperedge relationships (`:PREMISE`/`:CONCLUSION`) |
-| **Vector** | `VectorSearchClient` (ABC) | Embedding similarity search; local impl uses LanceDB |
+| **LanceDB** | `LanceContentStore` | Knowledge content, metadata, BM25 full-text search |
+| **Neo4j/Kuzu** | `Neo4jGraphStore` / `KuzuGraphStore` | Graph topology (Knowledge→Chain relationships via `:PREMISE`/`:CONCLUSION`) |
+| **Vector** | `LanceVectorStore` | Embedding similarity search |
 
-Neo4j is optional — the system degrades gracefully without it. All writes go through triple-write in the commit engine merger: LanceDB nodes → Neo4j edges → Vector embeddings.
+Graph backend is optional — the system degrades gracefully without it. All writes go through three-write in `StorageManager.ingest_package()`: Content → Graph → Vector.
 
-### Core Data Models (`libs/models.py`)
+### Core Data Models (`libs/storage/models.py`)
 
-- **Node** — A proposition with `content`, `prior`, `belief`, `keywords`, `type` (paper-extract, abstraction, deduction, conjecture)
-- **HyperEdge** — A reasoning link with `premises[]` → `conclusions[]`, `probability`, `reasoning` steps, `type` (paper-extract, abstraction, induction, contradiction, retraction)
-- **Commit** — A batch of operations with status state machine: `pending_review` → `reviewed` → `merged` (or `rejected`)
+- **Knowledge** — A proposition with `content`, `prior`, `type` (claim/question/setting/action), `keywords`, versioned by `(knowledge_id, version)`
+- **Chain** — A reasoning link with `steps[]` (each step has `premises[]` → `conclusion`), `type` (deduction/induction/abstraction/contradiction/retraction)
+- **Module** — Groups knowledge + chains within a package
+- **Package** — A complete knowledge container (git repo)
+- **ProbabilityRecord** — Per-step probability with source tracking
+- **BeliefSnapshot** — BP result history
 
 ### Key Patterns
 
 - **Fully async** — all I/O is `async def`, tests use `asyncio_mode = "auto"`
 - **Dependency injection** — `services/gateway/deps.py` holds a global `Dependencies` singleton initialized at startup; tests inject custom instances via `create_app(dependencies=...)`
-- **Graceful degradation** — Neo4j, vector search, and LLM review are all optional; topology recall is skipped when graph is unavailable
-- **Commit workflow** — operations (AddEdge, ModifyNode, ModifyEdge) are validated, reviewed asynchronously via Pipeline + JobManager, then merged to all backends
-- **Search merging** — three recall paths run in parallel, scores are min-max normalized, weighted (vector=0.5, bm25=0.3, topology=0.2), deduped, and top-k filtered
-- **ID generation** — file-based with asyncio lock (`libs/storage/id_generator.py`), single-process safe
+- **Graceful degradation** — Graph and vector stores are optional
+- **Three-write atomicity** — `ingest_package()` writes Content (source of truth) → Graph → Vector with "preparing" → "committed" visibility gating
+- **Versioned identity** — Knowledge keyed by `(knowledge_id, version)`, graph nodes use composite `knowledge_id@version`
 
 ### API Routes (`services/gateway/routes/`)
 
-- **`commits.py`** — `POST /commits`, `GET /commits/{id}`, `POST /commits/{id}/review` (async job), `GET /commits/{id}/review` (status), `DELETE /commits/{id}/review` (cancel), `GET /commits/{id}/review/result`, `POST /commits/{id}/merge`
-- **`read.py`** — `GET /nodes/{id}`, `GET /hyperedges/{id}`, `GET /nodes/{id}/subgraph` (supports direction, max_nodes, edge_types)
-- **`search.py`** — `POST /search/nodes`, `POST /search/hyperedges` (both accept `text`, embedding generated server-side)
+- **`packages.py`** — `POST /packages/ingest`, `GET /packages/{id}`, `GET /knowledge/{id}`, `GET /knowledge/{id}/versions`, `GET /knowledge/{id}/beliefs`, `GET /modules/{id}`, `GET /modules/{id}/chains`, `GET /chains/{id}/probabilities`
 
 ### Dependency Injection
 
-`services/gateway/deps.py` holds a global `Dependencies` singleton initialized during FastAPI startup. All engines receive `StorageManager` and are wired together there.
+`services/gateway/deps.py` holds a global `Dependencies` singleton initialized during FastAPI startup with a `StorageManager`.
 
 ## Testing
 
 - Tests live in `tests/` mirroring the source structure
-- Neo4j tests (`tests/libs/storage/test_neo4j_store.py`) require a running Neo4j instance; CI provides one via service container
-- E2E integration tests (`tests/integration/test_e2e.py`) run without Neo4j using `tmp_path` for ephemeral LanceDB
-- Test fixtures in `tests/fixtures/` — note `embeddings.json` is git-ignored (large file)
+- Neo4j tests require a running Neo4j instance; CI provides one via service container
+- E2E integration tests in `tests/integration/` exercise HTTP endpoints with real storage
+- Test fixtures in `tests/fixtures/storage/` — paper fixtures for package ingest testing
 
 ## Code Style
 
@@ -135,4 +127,4 @@ git worktree add .worktrees/<name> -b feature/<name>
 
 ## Design Documents
 
-Current specs live in `docs/foundations/` (product scope, system overview, domain model, language spec, CLI). Historical design and planning docs are archived in `docs/archive/`.
+Current specs live in `docs/foundations/` (product scope, system overview, domain model, language spec, CLI, server architecture, storage schema). Historical design and planning docs are archived in `docs/archive/`.
