@@ -139,11 +139,7 @@ async def main() -> None:
             try:
                 import neo4j
 
-                auth = (
-                    (config.neo4j_user, config.neo4j_password)
-                    if config.neo4j_password
-                    else None
-                )
+                auth = (config.neo4j_user, config.neo4j_password) if config.neo4j_password else None
                 driver = neo4j.AsyncGraphDatabase.driver(config.neo4j_uri, auth=auth)
                 async with driver.session(database=config.neo4j_database) as session:
                     await session.run("MATCH (n) DETACH DELETE n")
