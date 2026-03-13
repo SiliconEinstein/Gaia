@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Upload v2 fixtures to LanceDB + graph store, then print what was stored.
+"""Upload fixtures to LanceDB + graph store, then print what was stored.
 
 Usage:
-    # Upload all paper fixtures (default)
+    # Upload all paper fixtures (default, cleans existing data first)
     python scripts/upload_fixtures.py
+
+    # Upload without cleaning (append mode)
+    python scripts/upload_fixtures.py --no-clean
 
     # Upload from a specific fixture directory
     python scripts/upload_fixtures.py --fixtures-dir tests/fixtures/remote_lancedb/v2
@@ -78,12 +81,17 @@ def print_section(title: str) -> None:
 async def main() -> None:
     import argparse
 
-    parser = argparse.ArgumentParser(description="Upload v2 fixtures to storage")
+    parser = argparse.ArgumentParser(description="Upload fixtures to storage")
     parser.add_argument(
         "--fixtures-dir",
         type=Path,
         default=DEFAULT_FIXTURES_DIR,
         help=f"Directory containing package subdirectories (default: {DEFAULT_FIXTURES_DIR})",
+    )
+    parser.add_argument(
+        "--no-clean",
+        action="store_true",
+        help="Skip cleaning existing data (append mode)",
     )
     parser.add_argument("slugs", nargs="*", help="Specific package slugs to upload (default: all)")
     args = parser.parse_args()
@@ -101,7 +109,6 @@ async def main() -> None:
     print(f"Fixtures dir : {fixtures_dir}")
     print(f"Packages     : {slugs}")
 
-    # Initialize StorageManager from env / defaults
     config = StorageConfig()
     print(f"LanceDB path : {config.lancedb_path}")
     print(f"Graph backend : {config.graph_backend}")
@@ -109,9 +116,47 @@ async def main() -> None:
         print(f"Neo4j URI     : {config.neo4j_uri}")
         print(f"Neo4j database: {config.neo4j_database}")
 
+    # ── Clean existing data (before initializing storage) ──
+    if not args.no_clean:
+        import shutil
+
+        lance_path = Path(config.lancedb_path)
+        if lance_path.exists():
+            shutil.rmtree(lance_path)
+            print(f"  Cleaned LanceDB: {lance_path}")
+        kuzu_path = (
+            Path(config.kuzu_path)
+            if config.kuzu_path
+            else lance_path.parent / (lance_path.name + "_kuzu")
+        )
+        if kuzu_path.exists():
+            if kuzu_path.is_dir():
+                shutil.rmtree(kuzu_path)
+            else:
+                kuzu_path.unlink()
+            print(f"  Cleaned Kuzu: {kuzu_path}")
+        if config.graph_backend == "neo4j":
+            try:
+                import neo4j
+
+                auth = (
+                    (config.neo4j_user, config.neo4j_password)
+                    if config.neo4j_password
+                    else None
+                )
+                driver = neo4j.AsyncGraphDatabase.driver(config.neo4j_uri, auth=auth)
+                async with driver.session(database=config.neo4j_database) as session:
+                    await session.run("MATCH (n) DETACH DELETE n")
+                await driver.close()
+                print(f"  Cleaned Neo4j: {config.neo4j_database}")
+            except Exception as e:
+                print(f"  Warning: could not clean Neo4j: {e}")
+        print()
+
+    # ── Initialize storage ──
     mgr = StorageManager(config)
     await mgr.initialize()
-    print("Storage initialized.\n")
+    print("Storage initialized.")
 
     # ── Upload ──
     for slug in slugs:
@@ -210,6 +255,46 @@ async def main() -> None:
             print(f"\n  [Beliefs] {len(beliefs)} records for {first_kid}:")
             for b in beliefs:
                 print(f"    v{b.version}: belief={b.belief} (run={b.bp_run_id})")
+
+    # ── Verify idempotency: re-upload and check counts are unchanged ──
+    print_section("Idempotency Check: re-uploading all packages")
+    for slug in slugs:
+        data = load_fixture(fixtures_dir, slug)
+        await mgr.ingest_package(
+            package=data["package"],
+            modules=data["modules"],
+            knowledge_items=data["knowledge"],
+            chains=data["chains"],
+            embeddings=data.get("embeddings") or None,
+        )
+        if data["probabilities"]:
+            await mgr.add_probabilities(data["probabilities"])
+        if data["beliefs"]:
+            await mgr.write_beliefs(data["beliefs"])
+
+    # Verify counts match (no duplicates created)
+    ok = True
+    for slug in slugs:
+        data = load_fixture(fixtures_dir, slug)
+        for k_data in data["knowledge"]:
+            versions = await mgr.get_knowledge_versions(k_data.knowledge_id)
+            if len(versions) != 1:
+                print(f"  ✗ DUPLICATE: {k_data.knowledge_id} has {len(versions)} versions")
+                ok = False
+        for m_data in data["modules"]:
+            chains_stored = await mgr.get_chains_by_module(m_data.module_id)
+            chains_expected = [c for c in data["chains"] if c.chain_id in m_data.chain_ids]
+            if len(chains_stored) != len(chains_expected):
+                print(
+                    f"  ✗ DUPLICATE: module {m_data.module_id} has"
+                    f" {len(chains_stored)} chains, expected {len(chains_expected)}"
+                )
+                ok = False
+    if ok:
+        print("  ✓ No duplicates — storage is idempotent")
+    else:
+        print("  ✗ Duplicates detected!")
+        sys.exit(1)
 
     # Graph topology sample (if available)
     if mgr.graph_store is not None:
