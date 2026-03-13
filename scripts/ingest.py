@@ -6,8 +6,8 @@ Supported sources:
   lancedb — Convert sampled remote LanceDB JSON from tests/fixtures/remote_lancedb/
 
 Usage:
-    python scripts/ingest_to_v2.py paper
-    python scripts/ingest_to_v2.py lancedb
+    python scripts/ingest.py paper
+    python scripts/ingest.py lancedb
 """
 
 from __future__ import annotations

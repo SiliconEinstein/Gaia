@@ -72,7 +72,7 @@ def test_publish_local_writes_receipt(tmp_path):
     assert len(receipt["chain_ids"]) == receipt["stats"]["chains"]
 
 
-def test_publish_local_writes_v2_knowledge(tmp_path):
+def test_publish_local_writes_knowledge(tmp_path):
     """gaia publish --local should write knowledge to LanceDB v2 knowledge table."""
     pkg_dir = _setup_full_pipeline(tmp_path)
     db_path = str(tmp_path / "testdb")

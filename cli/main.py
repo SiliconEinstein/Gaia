@@ -315,7 +315,7 @@ def publish(
             resolved_db_path = db_path
         else:
             base = os.environ.get("GAIA_LANCEDB_PATH", "./data/lancedb/gaia")
-            resolved_db_path = f"{base}_v2"
+            resolved_db_path = base
         asyncio.run(_publish_local(pkg_path, resolved_db_path))
 
     if server:
@@ -326,7 +326,7 @@ def publish(
 async def _publish_local(pkg_path: Path, db_path: str) -> None:
     """Convert artifacts to v2 models and write to LanceDB + Kuzu."""
     from cli.infer_store import load_infer_result
-    from cli.lang_to_v2 import convert_to_v2
+    from cli.lang_to_storage import convert_to_storage
     from cli.manifest import deserialize_package
     from cli.review_store import find_latest_review, read_review
     from libs.storage.config import StorageConfig
@@ -365,7 +365,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     }
 
     # 3. Convert to v2 models
-    data = convert_to_v2(
+    data = convert_to_storage(
         pkg=pkg,
         review=review,
         beliefs=beliefs,
@@ -575,7 +575,7 @@ def search(
 
     if db_path is None:
         base = os.environ.get("GAIA_LANCEDB_PATH", "./data/lancedb/gaia")
-        db_path = f"{base}_v2"
+        db_path = base
 
     if knowledge_id is not None:
         asyncio.run(_lookup_knowledge(knowledge_id, db_path))
@@ -646,7 +646,7 @@ async def _search_knowledge(query: str, db_path: str, limit: int) -> None:
         return
 
     # Fallback: SQL LIKE filter for CJK / unsegmented text
-    results = await _content_like_search_v2(store, query, limit)
+    results = await _content_like_search(store, query, limit)
     if not results:
         typer.echo("No results found.")
         return
@@ -671,7 +671,7 @@ async def _search_knowledge(query: str, db_path: str, limit: int) -> None:
             typer.echo(f"    {snippet}...")
 
 
-async def _content_like_search_v2(
+async def _content_like_search(
     store: "LanceContentStore",  # noqa: F821
     query: str,
     limit: int,

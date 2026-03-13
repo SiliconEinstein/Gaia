@@ -3,16 +3,16 @@
 
 Usage:
     # Upload all paper fixtures (default)
-    python scripts/upload_v2_fixtures.py
+    python scripts/upload_fixtures.py
 
     # Upload from a specific fixture directory
-    python scripts/upload_v2_fixtures.py --fixtures-dir tests/fixtures/remote_lancedb/v2
+    python scripts/upload_fixtures.py --fixtures-dir tests/fixtures/remote_lancedb/v2
 
     # Upload a single package slug
-    python scripts/upload_v2_fixtures.py paper_363056a0
+    python scripts/upload_fixtures.py paper_363056a0
 
     # Override storage config via env vars
-    GAIA_LANCEDB_PATH=./data/lancedb/gaia_v2 python scripts/upload_v2_fixtures.py
+    GAIA_LANCEDB_PATH=./data/lancedb/gaia python scripts/upload_fixtures.py
 """
 
 from __future__ import annotations
