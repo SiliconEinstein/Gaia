@@ -22,7 +22,7 @@ from libs.lang.models import (
     StepRef,
     Subsumption,
 )
-from libs.storage_v2 import models as v2
+from libs.storage import models as v2
 
 
 @dataclass

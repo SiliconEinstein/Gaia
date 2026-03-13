@@ -23,7 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from libs.storage_v2.models import (
+from libs.storage.models import (
     BeliefSnapshot,
     Chain,
     Knowledge,
@@ -527,7 +527,7 @@ class RemoteLanceDBSource(Source):
 # ── Output ──
 
 OUTPUT_DIRS = {
-    "paper": Path("tests/fixtures/storage_v2/papers"),
+    "paper": Path("tests/fixtures/storage/papers"),
     "lancedb": Path("tests/fixtures/remote_lancedb/v2"),
 }
 

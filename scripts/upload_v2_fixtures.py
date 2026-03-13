@@ -25,9 +25,9 @@ from pathlib import Path
 # Ensure project root is on sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from libs.storage_v2.config import StorageConfig
-from libs.storage_v2.manager import StorageManager
-from libs.storage_v2.models import (
+from libs.storage.config import StorageConfig
+from libs.storage.manager import StorageManager
+from libs.storage.models import (
     BeliefSnapshot,
     Chain,
     Knowledge,
@@ -36,7 +36,7 @@ from libs.storage_v2.models import (
     ProbabilityRecord,
 )
 
-DEFAULT_FIXTURES_DIR = Path("tests/fixtures/storage_v2/papers")
+DEFAULT_FIXTURES_DIR = Path("tests/fixtures/storage/papers")
 
 
 def load_fixture(fixtures_dir: Path, slug: str) -> dict:
@@ -59,7 +59,7 @@ def load_fixture(fixtures_dir: Path, slug: str) -> dict:
     # Optional: embeddings
     emb_path = d / "embeddings.json"
     if emb_path.exists():
-        from libs.storage_v2.models import KnowledgeEmbedding
+        from libs.storage.models import KnowledgeEmbedding
 
         data["embeddings"] = [
             KnowledgeEmbedding.model_validate(e) for e in json.loads(emb_path.read_text())

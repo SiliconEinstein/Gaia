@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import logging
 
-from libs.models import HyperEdge, Node
-
 logger = logging.getLogger(__name__)
 
 # Cromwell's rule (Jaynes): never assign P=0 or P=1 to any probability.
@@ -78,22 +76,6 @@ class FactorGraph:
         if gate_var is not None:
             factor["gate_var"] = gate_var
         self.factors.append(factor)
-
-    @classmethod
-    def from_subgraph(cls, nodes: list[Node], edges: list[HyperEdge]) -> FactorGraph:
-        """Build a factor graph from Node and HyperEdge lists.
-
-        - Each Node becomes a variable with its prior.
-        - Each HyperEdge becomes a factor with its probability (default 1.0
-          if None).
-        """
-        graph = cls()
-        for node in nodes:
-            graph.add_variable(node.id, node.prior)
-        for edge in edges:
-            prob = edge.probability if edge.probability is not None else 1.0
-            graph.add_factor(edge.id, edge.premises, edge.conclusions, prob, edge_type=edge.type)
-        return graph
 
     def get_var_factors(self) -> dict[int, list[int]]:
         """Build reverse index: variable id -> list of factor indices involving it."""

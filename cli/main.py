@@ -329,8 +329,8 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     from cli.lang_to_v2 import convert_to_v2
     from cli.manifest import deserialize_package
     from cli.review_store import find_latest_review, read_review
-    from libs.storage_v2.config import StorageConfig
-    from libs.storage_v2.manager import StorageManager
+    from libs.storage.config import StorageConfig
+    from libs.storage.manager import StorageManager
 
     build_dir = pkg_path / ".gaia" / "build"
     reviews_dir = pkg_path / ".gaia" / "reviews"
@@ -374,7 +374,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
 
     # 4. Generate embeddings for knowledge items
     from libs.embedding import StubEmbeddingModel
-    from libs.storage_v2.models import KnowledgeEmbedding
+    from libs.storage.models import KnowledgeEmbedding
 
     embed_model = StubEmbeddingModel(dim=512)
     texts = [k.content for k in data.knowledge_items]
@@ -585,7 +585,7 @@ def search(
 
 async def _lookup_knowledge(knowledge_id: str, db_path: str) -> None:
     """Look up a single knowledge item by ID, including latest belief if available."""
-    from libs.storage_v2.lance_content_store import LanceContentStore
+    from libs.storage.lance_content_store import LanceContentStore
 
     store = LanceContentStore(db_path)
     await store.initialize()
@@ -616,7 +616,7 @@ async def _search_knowledge(query: str, db_path: str, limit: int) -> None:
     Uses FTS index first; falls back to SQL LIKE filter for queries the
     default tokenizer cannot handle (e.g. CJK text without spaces).
     """
-    from libs.storage_v2.lance_content_store import LanceContentStore
+    from libs.storage.lance_content_store import LanceContentStore
 
     store = LanceContentStore(db_path)
     await store.initialize()
@@ -677,7 +677,7 @@ async def _content_like_search_v2(
     limit: int,
 ) -> list:
     """Fallback substring search using SQL LIKE on the knowledge content column."""
-    from libs.storage_v2.lance_content_store import _row_to_knowledge
+    from libs.storage.lance_content_store import _row_to_knowledge
 
     try:
         table = store._db.open_table("knowledge")
