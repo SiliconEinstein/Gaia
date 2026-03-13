@@ -323,6 +323,106 @@ def publish(
         raise typer.Exit(1)
 
 
+def _load_graph_ir_factors(graph_dir: Path, package_name: str) -> list:
+    """Load factors from local_canonical_graph.json, mapping lcn IDs to knowledge IDs."""
+    from libs.graph_ir.serialize import load_local_canonical_graph
+    from libs.storage import models as storage_models
+
+    lcg_path = graph_dir / "local_canonical_graph.json"
+    if not lcg_path.exists():
+        return []
+
+    local_graph = load_local_canonical_graph(lcg_path)
+
+    # Build lcn_id → knowledge_id mapping
+    lcn_to_kid: dict[str, str] = {}
+    for node in local_graph.knowledge_nodes:
+        if node.source_refs:
+            sr = node.source_refs[0]
+            lcn_to_kid[node.local_canonical_id] = f"{sr.package}/{sr.knowledge_name}"
+
+    factors: list[storage_models.FactorNode] = []
+    for f in local_graph.factor_nodes:
+        mapped_premises = [lcn_to_kid[p] for p in f.premises if p in lcn_to_kid]
+        mapped_contexts = [lcn_to_kid[c] for c in f.contexts if c in lcn_to_kid]
+        mapped_conclusion = lcn_to_kid.get(f.conclusion)
+        if mapped_conclusion is None:
+            continue
+
+        source_ref = None
+        if f.source_ref is not None:
+            source_ref = storage_models.SourceRef(
+                package=f.source_ref.package,
+                version=f.source_ref.version,
+                module=f.source_ref.module,
+                knowledge_name=f.source_ref.knowledge_name,
+            )
+
+        factors.append(
+            storage_models.FactorNode(
+                factor_id=f.factor_id,
+                type=f.type,
+                premises=mapped_premises,
+                contexts=mapped_contexts,
+                conclusion=mapped_conclusion,
+                package_id=package_name,
+                source_ref=source_ref,
+                metadata=f.metadata,
+            )
+        )
+
+    return factors
+
+
+def _build_submission_artifact(graph_dir: Path, pkg_path: Path, package_name: str) -> object | None:
+    """Assemble a PackageSubmissionArtifact from build artifacts."""
+    import json
+    import subprocess
+    from datetime import datetime, timezone
+
+    from libs.storage import models as storage_models
+
+    raw_graph_path = graph_dir / "raw_graph.json"
+    lcg_path = graph_dir / "local_canonical_graph.json"
+    log_path = graph_dir / "canonicalization_log.json"
+
+    if not raw_graph_path.exists() or not lcg_path.exists():
+        return None
+
+    raw_graph = json.loads(raw_graph_path.read_text())
+    local_canonical_graph = json.loads(lcg_path.read_text())
+    canon_log = (
+        json.loads(log_path.read_text()).get("canonicalization_log", [])
+        if log_path.exists()
+        else []
+    )
+
+    source_files = {p.name: p.read_text() for p in pkg_path.glob("*.yaml") if p.is_file()}
+
+    commit_hash = "unknown"
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=pkg_path,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            commit_hash = result.stdout.strip()
+    except FileNotFoundError:
+        pass
+
+    return storage_models.PackageSubmissionArtifact(
+        package_name=package_name,
+        commit_hash=commit_hash,
+        source_files=source_files,
+        raw_graph=raw_graph,
+        local_canonical_graph=local_canonical_graph,
+        canonicalization_log=canon_log,
+        submitted_at=datetime.now(timezone.utc),
+    )
+
+
 async def _publish_local(pkg_path: Path, db_path: str) -> None:
     """Convert artifacts to v2 models and write to LanceDB + Kuzu."""
     from cli.infer_store import load_infer_result
@@ -333,6 +433,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     from libs.storage.manager import StorageManager
 
     build_dir = pkg_path / ".gaia" / "build"
+    graph_dir = pkg_path / ".gaia" / "graph"
     reviews_dir = pkg_path / ".gaia" / "reviews"
     infer_dir = pkg_path / ".gaia" / "infer"
     publish_dir = pkg_path / ".gaia" / "publish"
@@ -372,7 +473,13 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
         bp_run_id=infer_result.get("bp_run_id", "unknown"),
     )
 
-    # 4. Generate embeddings for knowledge items
+    # 4. Load Graph IR factors (lcn IDs → knowledge IDs)
+    factors = _load_graph_ir_factors(graph_dir, pkg.name)
+
+    # 5. Build submission artifact
+    submission_artifact = _build_submission_artifact(graph_dir, pkg_path, pkg.name)
+
+    # 6. Generate embeddings for knowledge items
     from libs.embedding import StubEmbeddingModel
     from libs.storage.models import KnowledgeEmbedding
 
@@ -388,7 +495,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
         for k, vec in zip(data.knowledge_items, vectors)
     ]
 
-    # 5. Initialize v2 stores via StorageManager
+    # 7. Initialize v2 stores via StorageManager
     config = StorageConfig(
         lancedb_path=db_path,
         graph_backend="kuzu",
@@ -398,16 +505,18 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     await mgr.initialize()
 
     try:
-        # 6. Ingest (state machine handles preparing → committed)
+        # 8. Ingest (state machine handles preparing → committed)
         await mgr.ingest_package(
             package=data.package,
             modules=data.modules,
             knowledge_items=data.knowledge_items,
             chains=data.chains,
+            factors=factors or None,
+            submission_artifact=submission_artifact,
             embeddings=embeddings,
         )
 
-        # 7. Write supplementary data
+        # 9. Write supplementary data
         if data.probabilities:
             await mgr.add_probabilities(data.probabilities)
         if data.belief_snapshots:
@@ -415,7 +524,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     finally:
         await mgr.close()
 
-    # 8. Write receipt
+    # 10. Write receipt
     import json
     from datetime import datetime, timezone
 
@@ -428,6 +537,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
         "stats": {
             "knowledge_items": len(data.knowledge_items),
             "chains": len(data.chains),
+            "factors": len(factors),
             "probabilities": len(data.probabilities),
             "belief_snapshots": len(data.belief_snapshots),
         },
@@ -439,7 +549,8 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     typer.echo(
         f"Published {pkg.name} to v2 storage:\n"
         f"  Knowledge items: {len(data.knowledge_items)} written to LanceDB ({db_path})\n"
-        f"  Chains: {len(data.chains)} written to LanceDB + Kuzu"
+        f"  Chains: {len(data.chains)} written to LanceDB + Kuzu\n"
+        f"  Factors: {len(factors)} written to LanceDB + Kuzu"
     )
 
 
