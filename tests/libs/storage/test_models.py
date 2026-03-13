@@ -382,9 +382,7 @@ class TestGlobalIdentityModels:
             knowledge_type="claim",
             representative_content="X is true",
             member_local_nodes=[
-                LocalCanonicalRef(
-                    package="pkg", version="1.0.0", local_canonical_id="pkg/lc_k1"
-                ),
+                LocalCanonicalRef(package="pkg", version="1.0.0", local_canonical_id="pkg/lc_k1"),
             ],
             provenance=[PackageRef(package="pkg", version="1.0.0")],
         )
