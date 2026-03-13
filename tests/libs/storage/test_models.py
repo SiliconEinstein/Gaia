@@ -1,6 +1,7 @@
 """Tests for storage Pydantic models — validates fixture data and model behaviors."""
 
 import json
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -8,17 +9,27 @@ from pydantic import ValidationError
 
 from libs.storage.models import (
     BeliefSnapshot,
+    CanonicalBinding,
     Chain,
     ChainStep,
+    FactorNode,
+    FactorParams,
+    GlobalCanonicalNode,
+    GlobalInferenceState,
     Knowledge,
     KnowledgeEmbedding,
     KnowledgeRef,
+    LocalCanonicalRef,
     Module,
     Package,
+    PackageRef,
+    PackageSubmissionArtifact,
+    Parameter,
     ProbabilityRecord,
     Resource,
     ResourceAttachment,
     ScoredKnowledge,
+    SourceRef,
     Subgraph,
 )
 
@@ -205,6 +216,207 @@ class TestQueryModels:
     def test_knowledge_embedding(self):
         emb = KnowledgeEmbedding(knowledge_id="a.b.c", version=1, embedding=[0.1, 0.2, 0.3])
         assert len(emb.embedding) == 3
+
+
+# ── Knowledge extensions (Task 1) ──
+
+
+class TestKnowledgeExtensions:
+    def test_knowledge_kind_field(self):
+        k = Knowledge(
+            knowledge_id="test/q1",
+            version=1,
+            type="question",
+            kind="hypothesis",
+            content="Is X true?",
+            prior=0.5,
+            source_package_id="pkg",
+            source_module_id="pkg.mod",
+            created_at=datetime(2026, 1, 1),
+        )
+        assert k.kind == "hypothesis"
+
+    def test_knowledge_kind_defaults_none(self):
+        k = Knowledge(
+            knowledge_id="test/c1",
+            version=1,
+            type="claim",
+            content="X is true",
+            prior=0.7,
+            source_package_id="pkg",
+            source_module_id="pkg.mod",
+            created_at=datetime(2026, 1, 1),
+        )
+        assert k.kind is None
+
+    def test_knowledge_parameters_field(self):
+        k = Knowledge(
+            knowledge_id="test/schema1",
+            version=1,
+            type="claim",
+            content="For all A: P(A)",
+            prior=0.5,
+            parameters=[Parameter(name="A", constraint="any substance")],
+            source_package_id="pkg",
+            source_module_id="pkg.mod",
+            created_at=datetime(2026, 1, 1),
+        )
+        assert len(k.parameters) == 1
+        assert k.parameters[0].name == "A"
+        assert k.is_schema is True
+
+    def test_knowledge_is_schema_false_when_no_parameters(self):
+        k = Knowledge(
+            knowledge_id="test/ground1",
+            version=1,
+            type="claim",
+            content="X is true",
+            prior=0.7,
+            source_package_id="pkg",
+            source_module_id="pkg.mod",
+            created_at=datetime(2026, 1, 1),
+        )
+        assert k.is_schema is False
+
+    def test_knowledge_contradiction_type(self):
+        k = Knowledge(
+            knowledge_id="test/contra1",
+            version=1,
+            type="contradiction",
+            content="A contradicts B",
+            prior=0.5,
+            source_package_id="pkg",
+            source_module_id="pkg.mod",
+            created_at=datetime(2026, 1, 1),
+        )
+        assert k.type == "contradiction"
+
+    def test_knowledge_equivalence_type(self):
+        k = Knowledge(
+            knowledge_id="test/equiv1",
+            version=1,
+            type="equivalence",
+            content="A is equivalent to B",
+            prior=0.5,
+            source_package_id="pkg",
+            source_module_id="pkg.mod",
+            created_at=datetime(2026, 1, 1),
+        )
+        assert k.type == "equivalence"
+
+
+# ── FactorNode (Task 2) ──
+
+
+class TestFactorNode:
+    def test_factor_node_reasoning(self):
+        f = FactorNode(
+            factor_id="pkg.mod.chain1",
+            type="reasoning",
+            premises=["pkg/k1", "pkg/k2"],
+            contexts=["pkg/k3"],
+            conclusion="pkg/k4",
+            package_id="pkg",
+            source_ref=SourceRef(
+                package="pkg", version="1.0.0", module="pkg.mod", knowledge_name="k4"
+            ),
+        )
+        assert f.type == "reasoning"
+        assert f.is_gate_factor is False
+        assert set(f.bp_participant_ids) == {"pkg/k1", "pkg/k2", "pkg/k4"}
+
+    def test_factor_node_mutex_constraint(self):
+        f = FactorNode(
+            factor_id="pkg.mutex.1",
+            type="mutex_constraint",
+            premises=["pkg/k1", "pkg/k2"],
+            conclusion="pkg/contra1",
+            package_id="pkg",
+        )
+        assert f.is_gate_factor is True
+        assert f.bp_participant_ids == ["pkg/k1", "pkg/k2"]
+
+    def test_factor_node_equiv_constraint(self):
+        f = FactorNode(
+            factor_id="pkg.equiv.1",
+            type="equiv_constraint",
+            premises=["pkg/k1", "pkg/k2"],
+            conclusion="pkg/equiv1",
+            package_id="pkg",
+        )
+        assert f.is_gate_factor is True
+
+    def test_factor_node_instantiation(self):
+        f = FactorNode(
+            factor_id="pkg.inst.1",
+            type="instantiation",
+            premises=["pkg/schema1"],
+            conclusion="pkg/ground1",
+            package_id="pkg",
+        )
+        assert f.is_gate_factor is False
+        assert set(f.bp_participant_ids) == {"pkg/schema1", "pkg/ground1"}
+
+
+# ── Global Identity models (Task 3) ──
+
+
+class TestGlobalIdentityModels:
+    def test_canonical_binding(self):
+        b = CanonicalBinding(
+            package="pkg",
+            version="1.0.0",
+            local_graph_hash="sha256:abc123",
+            local_canonical_id="pkg/lc_k1",
+            decision="create_new",
+            global_canonical_id="gcn_01ABC",
+            decided_at=datetime(2026, 1, 1),
+            decided_by="auto_matcher",
+        )
+        assert b.decision == "create_new"
+        assert b.reason is None
+
+    def test_global_canonical_node(self):
+        node = GlobalCanonicalNode(
+            global_canonical_id="gcn_01ABC",
+            knowledge_type="claim",
+            representative_content="X is true",
+            member_local_nodes=[
+                LocalCanonicalRef(
+                    package="pkg", version="1.0.0", local_canonical_id="pkg/lc_k1"
+                ),
+            ],
+            provenance=[PackageRef(package="pkg", version="1.0.0")],
+        )
+        assert node.kind is None
+        assert len(node.member_local_nodes) == 1
+        assert node.parameters == []
+
+    def test_global_inference_state(self):
+        state = GlobalInferenceState(
+            graph_hash="sha256:xyz",
+            node_priors={"gcn_01": 0.7, "gcn_02": 0.5},
+            factor_parameters={"f1": FactorParams(conditional_probability=0.9)},
+            node_beliefs={"gcn_01": 0.8},
+            updated_at=datetime(2026, 1, 1),
+        )
+        assert state.node_priors["gcn_01"] == 0.7
+        assert state.factor_parameters["f1"].conditional_probability == 0.9
+
+    def test_package_submission_artifact(self):
+        art = PackageSubmissionArtifact(
+            package_name="pkg",
+            commit_hash="abc123def",
+            source_files={"main.gaia": "knowledge { ... }"},
+            raw_graph={"schema_version": "1.0", "knowledge_nodes": []},
+            local_canonical_graph={"schema_version": "1.0", "knowledge_nodes": []},
+            canonicalization_log=[
+                {"local_canonical_id": "lc1", "members": ["r1"], "reason": "unique"}
+            ],
+            submitted_at=datetime(2026, 1, 1),
+        )
+        assert art.package_name == "pkg"
+        assert len(art.source_files) == 1
 
 
 def test_package_preparing_status():
