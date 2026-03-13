@@ -1,10 +1,22 @@
 """Tests for StorageManager — unified storage facade."""
 
+from datetime import datetime
+
 import pytest
 
 from libs.storage.config import StorageConfig
 from libs.storage.manager import StorageManager
-from libs.storage.models import Subgraph
+from libs.storage.models import (
+    CanonicalBinding,
+    FactorNode,
+    FactorParams,
+    GlobalCanonicalNode,
+    GlobalInferenceState,
+    Knowledge,
+    Module,
+    Package,
+    Subgraph,
+)
 
 
 @pytest.fixture
@@ -253,3 +265,126 @@ class TestReadDelegationFull:
         mgr, *_ = seeded_manager
         result = await mgr.search_vector([0.1 * i for i in range(8)], top_k=5)
         assert isinstance(result, list)
+
+
+class TestCanonicalBindingsAndGlobalNodes:
+    async def test_write_and_read_canonical_bindings(self, tmp_path):
+        config = StorageConfig(
+            lancedb_path=str(tmp_path / "lance"),
+            graph_backend="kuzu",
+            kuzu_path=str(tmp_path / "kuzu"),
+        )
+        mgr = StorageManager(config)
+        await mgr.initialize()
+
+        bindings = [
+            CanonicalBinding(
+                package="pkg",
+                version="1.0.0",
+                local_graph_hash="sha256:abc",
+                local_canonical_id="pkg/lc1",
+                decision="create_new",
+                global_canonical_id="gcn_01",
+                decided_at=datetime.now(),
+                decided_by="auto",
+            ),
+        ]
+        global_nodes = [
+            GlobalCanonicalNode(
+                global_canonical_id="gcn_01",
+                knowledge_type="claim",
+                representative_content="X is true",
+            ),
+        ]
+
+        await mgr.write_canonical_bindings(bindings, global_nodes)
+
+        result_bindings = await mgr.get_bindings_for_package("pkg", "1.0.0")
+        assert len(result_bindings) == 1
+
+        result_node = await mgr.get_global_node("gcn_01")
+        assert result_node is not None
+
+        await mgr.close()
+
+
+class TestInferenceStateFacade:
+    async def test_inference_state_roundtrip(self, tmp_path):
+        config = StorageConfig(lancedb_path=str(tmp_path / "lance"), graph_backend="none")
+        mgr = StorageManager(config)
+        await mgr.initialize()
+
+        assert await mgr.get_inference_state() is None
+
+        state = GlobalInferenceState(
+            graph_hash="sha256:xyz",
+            node_priors={"gcn_01": 0.7},
+            factor_parameters={"f1": FactorParams(conditional_probability=0.9)},
+            updated_at=datetime.now(),
+        )
+        await mgr.update_inference_state(state)
+
+        result = await mgr.get_inference_state()
+        assert result is not None
+        assert result.graph_hash == "sha256:xyz"
+
+        await mgr.close()
+
+
+class TestLoadGlobalFactorGraph:
+    async def test_load_global_factor_graph(self, tmp_path):
+        """load_global_factor_graph returns all factors + current inference state."""
+        config = StorageConfig(lancedb_path=str(tmp_path / "lance"), graph_backend="none")
+        mgr = StorageManager(config)
+        await mgr.initialize()
+
+        pkg = Package(
+            package_id="pkg",
+            name="pkg",
+            version="1.0.0",
+            submitter="test",
+            submitted_at=datetime.now(),
+            status="merged",
+        )
+        k = Knowledge(
+            knowledge_id="pkg/k1",
+            version=1,
+            type="claim",
+            content="X",
+            prior=0.7,
+            source_package_id="pkg",
+            source_module_id="pkg.mod",
+            created_at=datetime.now(),
+        )
+        mod = Module(module_id="pkg.mod", package_id="pkg", name="mod", role="reasoning")
+        factors = [
+            FactorNode(
+                factor_id="pkg.f1",
+                type="reasoning",
+                premises=["pkg/k1"],
+                conclusion="pkg/k1",
+                package_id="pkg",
+            ),
+        ]
+        state = GlobalInferenceState(
+            graph_hash="sha256:abc",
+            node_priors={"gcn_01": 0.7},
+            factor_parameters={"pkg.f1": FactorParams(conditional_probability=0.9)},
+            updated_at=datetime.now(),
+        )
+
+        await mgr.ingest_package(
+            package=pkg,
+            modules=[mod],
+            knowledge_items=[k],
+            chains=[],
+            factors=factors,
+        )
+        await mgr.update_inference_state(state)
+
+        result_factors, result_state = await mgr.load_global_factor_graph()
+        assert len(result_factors) == 1
+        assert result_state is not None
+        assert result_state.graph_hash == "sha256:abc"
+
+        await mgr.close()

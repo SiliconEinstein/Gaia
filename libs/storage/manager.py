@@ -9,11 +9,16 @@ from libs.storage.content_store import ContentStore
 from libs.storage.graph_store import GraphStore
 from libs.storage.models import (
     BeliefSnapshot,
+    CanonicalBinding,
     Chain,
+    FactorNode,
+    GlobalCanonicalNode,
+    GlobalInferenceState,
     Knowledge,
     KnowledgeEmbedding,
     Module,
     Package,
+    PackageSubmissionArtifact,
     ProbabilityRecord,
     Resource,
     ResourceAttachment,
@@ -85,6 +90,8 @@ class StorageManager:
         modules: list[Module],
         knowledge_items: list[Knowledge],
         chains: list[Chain],
+        factors: list[FactorNode] | None = None,
+        submission_artifact: PackageSubmissionArtifact | None = None,
         embeddings: list[KnowledgeEmbedding] | None = None,
     ) -> None:
         """Write a complete package to all stores with publish state machine.
@@ -110,10 +117,16 @@ class StorageManager:
         await self.content_store.write_package(preparing_pkg, versioned_modules)
         await self.content_store.write_knowledge(versioned_knowledge)
         await self.content_store.write_chains(versioned_chains)
+        if factors:
+            await self.content_store.write_factors(factors)
+        if submission_artifact:
+            await self.content_store.write_submission_artifact(submission_artifact)
 
         # Step 2: GraphStore (optional, idempotent)
         if self.graph_store is not None:
             await self.graph_store.write_topology(versioned_knowledge, versioned_chains)
+            if factors:
+                await self.graph_store.write_factor_topology(factors)
 
         # Step 3: VectorStore (optional, idempotent)
         if self.vector_store is not None and embeddings:
@@ -139,6 +152,56 @@ class StorageManager:
         await self.content_store.write_resources(resources, attachments)
         if self.graph_store is not None:
             await self.graph_store.write_resource_links(attachments)
+
+    # ── Factor & Graph IR writes ──
+
+    async def list_factors(self) -> list[FactorNode]:
+        return await self.content_store.list_factors()
+
+    async def get_factors_by_package(self, package_id: str) -> list[FactorNode]:
+        return await self.content_store.get_factors_by_package(package_id)
+
+    async def get_submission_artifact(
+        self, package: str, commit_hash: str
+    ) -> PackageSubmissionArtifact | None:
+        return await self.content_store.get_submission_artifact(package, commit_hash)
+
+    # ── Canonical Bindings & Global Nodes ──
+
+    async def write_canonical_bindings(
+        self,
+        bindings: list[CanonicalBinding],
+        global_nodes: list[GlobalCanonicalNode],
+    ) -> None:
+        """Write canonical bindings and global nodes to ContentStore + GraphStore."""
+        await self.content_store.write_canonical_bindings(bindings)
+        await self.content_store.upsert_global_nodes(global_nodes)
+        if self.graph_store is not None:
+            await self.graph_store.write_global_topology(bindings, global_nodes)
+
+    async def get_bindings_for_package(self, package: str, version: str) -> list[CanonicalBinding]:
+        return await self.content_store.get_canonical_bindings(package, version)
+
+    async def get_global_node(self, global_id: str) -> GlobalCanonicalNode | None:
+        return await self.content_store.get_global_node(global_id)
+
+    # ── Global Inference State ──
+
+    async def get_inference_state(self) -> GlobalInferenceState | None:
+        return await self.content_store.get_inference_state()
+
+    async def update_inference_state(self, state: GlobalInferenceState) -> None:
+        await self.content_store.update_inference_state(state)
+
+    # ── BP Execution ──
+
+    async def load_global_factor_graph(
+        self,
+    ) -> tuple[list[FactorNode], GlobalInferenceState | None]:
+        """Load all factors and the current global inference state for BP execution."""
+        factors = await self.content_store.list_factors()
+        state = await self.content_store.get_inference_state()
+        return factors, state
 
     # ── Read delegation (ContentStore) ──
 
