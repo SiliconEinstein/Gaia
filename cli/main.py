@@ -46,37 +46,31 @@ def build(
     """Elaborate: parse + resolve + instantiate params."""
     from cli.manifest import save_manifest
     from libs.graph_ir import (
-        build_raw_graph,
-        build_singleton_local_graph,
         save_canonicalization_log,
         save_local_canonical_graph,
         save_raw_graph,
     )
     from libs.lang.build_store import save_build
-    from libs.lang.elaborator import elaborate_package
+    from libs.pipeline import pipeline_build
 
     pkg_path = Path(path)
     try:
-        pkg = _load_with_deps(pkg_path)
+        result = asyncio.run(pipeline_build(pkg_path))
     except FileNotFoundError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
 
-    elaborated = elaborate_package(pkg)
-
     build_dir = pkg_path / ".gaia" / "build"
     graph_dir = pkg_path / ".gaia" / "graph"
-    save_build(elaborated, build_dir)
-    save_manifest(pkg, build_dir, pkg_path=pkg_path)
-    raw_graph = build_raw_graph(pkg)
-    canonicalization = build_singleton_local_graph(raw_graph)
-    save_raw_graph(raw_graph, graph_dir)
-    save_local_canonical_graph(canonicalization.local_graph, graph_dir)
-    save_canonicalization_log(canonicalization.log, graph_dir)
+    save_build(result.elaborated, build_dir)
+    save_manifest(result.package, build_dir, pkg_path=pkg_path)
+    save_raw_graph(result.raw_graph, graph_dir)
+    save_local_canonical_graph(result.local_graph, graph_dir)
+    save_canonicalization_log(result.canonicalization_log, graph_dir)
 
-    n_mods = len(pkg.loaded_modules)
-    n_prompts = len(elaborated.prompts)
-    typer.echo(f"Built {pkg.name}: {n_mods} modules, {n_prompts} elaborated prompts")
+    n_mods = len(result.package.loaded_modules)
+    n_prompts = len(result.elaborated.prompts)
+    typer.echo(f"Built {result.package.name}: {n_mods} modules, {n_prompts} elaborated prompts")
     typer.echo(f"Artifacts: {build_dir}/")
 
 
@@ -326,52 +320,14 @@ def publish(
 def _load_graph_ir_factors(graph_dir: Path, package_name: str) -> list:
     """Load factors from local_canonical_graph.json, mapping lcn IDs to knowledge IDs."""
     from libs.graph_ir.serialize import load_local_canonical_graph
-    from libs.storage import models as storage_models
+    from libs.pipeline import _map_graph_ir_factors
 
     lcg_path = graph_dir / "local_canonical_graph.json"
     if not lcg_path.exists():
         return []
 
     local_graph = load_local_canonical_graph(lcg_path)
-
-    # Build lcn_id → knowledge_id mapping
-    lcn_to_kid: dict[str, str] = {}
-    for node in local_graph.knowledge_nodes:
-        if node.source_refs:
-            sr = node.source_refs[0]
-            lcn_to_kid[node.local_canonical_id] = f"{sr.package}/{sr.knowledge_name}"
-
-    factors: list[storage_models.FactorNode] = []
-    for f in local_graph.factor_nodes:
-        mapped_premises = [lcn_to_kid[p] for p in f.premises if p in lcn_to_kid]
-        mapped_contexts = [lcn_to_kid[c] for c in f.contexts if c in lcn_to_kid]
-        mapped_conclusion = lcn_to_kid.get(f.conclusion)
-        if mapped_conclusion is None:
-            continue
-
-        source_ref = None
-        if f.source_ref is not None:
-            source_ref = storage_models.SourceRef(
-                package=f.source_ref.package,
-                version=f.source_ref.version,
-                module=f.source_ref.module,
-                knowledge_name=f.source_ref.knowledge_name,
-            )
-
-        factors.append(
-            storage_models.FactorNode(
-                factor_id=f.factor_id,
-                type=f.type,
-                premises=mapped_premises,
-                contexts=mapped_contexts,
-                conclusion=mapped_conclusion,
-                package_id=package_name,
-                source_ref=source_ref,
-                metadata=f.metadata,
-            )
-        )
-
-    return factors
+    return _map_graph_ir_factors(local_graph, package_name)
 
 
 def _build_submission_artifact(graph_dir: Path, pkg_path: Path, package_name: str) -> object | None:

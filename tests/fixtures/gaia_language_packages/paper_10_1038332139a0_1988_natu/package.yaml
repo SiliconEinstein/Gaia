@@ -1,0 +1,14 @@
+name: paper_10_1038332139a0_1988_natu
+version: 1.0.0
+manifest:
+  description: Reasoning chains extracted from paper 10.1038332139a0_1988_Natu
+  authors: []
+  license: CC-BY-4.0
+modules:
+- setting
+- reasoning
+export:
+- discovery_of_high_tc_superconductivity_in_the_tlcabacuo_system
+- superconducting_transition_properties_of_tl2ca15bacu3o85x
+- verification_of_bulk_superconductivity_via_magnetic_response
+- compositional_and_thermal_stability_characteristics

@@ -1,0 +1,239 @@
+type: reasoning_module
+name: reasoning
+title: Reasoning — 10.1038332139a0_1988_Natu
+knowledge:
+- type: ref
+  name: synthesis_precursors
+  target: setting.synthesis_precursors
+- type: ref
+  name: properties_of_bacu3o4_precursor
+  target: setting.properties_of_bacu3o4_precursor
+- type: ref
+  name: synthesis_procedure
+  target: setting.synthesis_procedure
+- type: ref
+  name: measurement_technique
+  target: setting.measurement_technique
+- type: ref
+  name: definition_of_onset_temperature
+  target: setting.definition_of_onset_temperature
+- type: ref
+  name: magnetic_indicators_of_superconductivity
+  target: setting.magnetic_indicators_of_superconductivity
+- type: ref
+  name: melting_point_of_bacu3o4
+  target: setting.melting_point_of_bacu3o4
+- type: ref
+  name: fluidity_of_molten_bacu3o4
+  target: setting.fluidity_of_molten_bacu3o4
+- type: ref
+  name: definition_of_superconducting_onset_temperature
+  target: setting.definition_of_superconducting_onset_temperature
+- type: ref
+  name: effect_of_calcium_substitution_in_y_and_la_based_superconductors
+  target: setting.effect_of_calcium_substitution_in_y_and_la_based_superconductors
+- type: ref
+  name: melt_solid_reaction_efficiency
+  target: setting.melt_solid_reaction_efficiency
+- type: ref
+  name: indicator_of_bulk_superconductivity
+  target: setting.indicator_of_bulk_superconductivity
+- type: ref
+  name: manifestation_of_diamagnetism
+  target: setting.manifestation_of_diamagnetism
+- type: ref
+  name: measurement_of_ac_susceptibility
+  target: setting.measurement_of_ac_susceptibility
+- type: ref
+  name: superconductivity_of_tl_ba_cu_o
+  target: setting.superconductivity_of_tl_ba_cu_o
+- type: ref
+  name: effect_of_annealing_on_tl_ba_cu_o
+  target: setting.effect_of_annealing_on_tl_ba_cu_o
+- type: ref
+  name: effect_of_annealing_on_tl_caba_cu_o
+  target: setting.effect_of_annealing_on_tl_caba_cu_o
+- type: ref
+  name: conductivity_of_tl_ca_cu_o
+  target: setting.conductivity_of_tl_ca_cu_o
+- type: claim
+  name: discovery_of_high_tc_superconductivity_in_the_tlcabacuo_system
+  content: Stable and reproducible bulk superconductivity is established in the Tl–Ca/Ba–Cu–O system, characterized by an
+    onset temperature of 120 K (determined by the rapid change in curvature of the resistance-temperature plot) and zero resistance
+    achieved above 100 K.
+  prior: 0.5
+- type: claim
+  name: superconducting_transition_properties_of_tl2ca15bacu3o85x
+  content: A furnace-cooled sample with the nominal composition $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$ exhibits a superconducting
+    transition midpoint at 112 K and a zero-resistance temperature at 103 K, which are the highest values recorded among the
+    prepared Tl–Ca/Ba–Cu–O samples.
+  prior: 0.5
+- type: claim
+  name: verification_of_bulk_superconductivity_via_magnetic_response
+  content: The Tl–Ca/Ba–Cu–O samples display strong diamagnetic repulsion indicative of bulk superconductivity, demonstrated
+    by the levitation of a sample with nominal composition $Tl_{2}Ca_{2}BaCu_{3}O_{9+x}$ over a $\sim 5,000$ G magnetic field
+    and confirmed by AC susceptibility measurements.
+  prior: 0.5
+- type: claim
+  name: compositional_and_thermal_stability_characteristics
+  content: The addition of calcium to the Tl-Ba-Cu-O system stabilizes the superconducting phase against annealing; annealing
+    at $450^{\circ}C$ in flowing oxygen slightly improves the superconductivity of Tl–Ca/Ba–Cu–O samples, whereas it depresses
+    or destroys the transition in Tl–Ba–Cu–O samples, and Tl–Ca–Cu–O samples without barium exhibit semiconductor-like behavior
+    down to liquid-nitrogen temperatures.
+  prior: 0.5
+- type: chain_expr
+  name: chain_1
+  edge_type: deduction
+  steps:
+  - step: 1
+    ref: synthesis_precursors
+  - step: 2
+    lambda: The authors prepared Tl-Ca/Ba-Cu-O samples, specifically with nominal compositions such as $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$,
+      using the melt-solid reaction method facilitated by the fluidity of molten $BaCu_{3}O_{4}$ [@premise-1, @premise-2,
+      @premise-3].
+    prior: 0.7
+  - step: 3
+    ref: measurement_technique
+  - step: 4
+    lambda: The resistance of the prepared samples was measured as a function of temperature using the four-probe technique
+      [@premise-4].
+    prior: 0.7
+  - step: 5
+    lambda: The authors observed that the resistance of the Tl–Ca/Ba–Cu–O samples starts to drop sharply at $\sim 120$ K and
+      reaches zero at $\sim 100$ K.
+    prior: 0.7
+  - step: 6
+    ref: definition_of_onset_temperature
+  - step: 7
+    lambda: Applying the definition of onset temperature based on the rapid change in curvature [@premise-5], the authors
+      determined the onset temperature to be 120 K.
+    prior: 0.7
+  - step: 8
+    lambda: For a furnace-cooled sample with nominal composition $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$, the authors measured a
+      transition midpoint of 112 K and a zero-resistance temperature of 103 K.
+    prior: 0.7
+  - step: 9
+    ref: magnetic_indicators_of_superconductivity
+  - step: 10
+    lambda: The authors confirmed the bulk nature of the superconductivity through magnetic examinations, observing a sample
+      levitating over a magnetic field (diamagnetic repulsion) and measuring the onset of a.c. susceptibility deviation [@premise-6].
+    prior: 0.7
+  - step: 11
+    lambda: The authors assert that the observed superconductivity is stable and reproducible, distinguishing it from unstable
+      high-temperature transitions reported in other systems.
+    prior: 0.7
+  - step: 12
+    ref: discovery_of_high_tc_superconductivity_in_the_tlcabacuo_system
+- type: chain_expr
+  name: chain_2
+  edge_type: deduction
+  steps:
+  - step: 1
+    ref: melting_point_of_bacu3o4
+  - step: 2
+    lambda: The authors select $Tl_{2}O_{3}$, CaO, and $BaCu_{3}O_{4}$ as starting materials. $BaCu_{3}O_{4}$ is specifically
+      chosen based on its properties of having the lowest melting point among Ba-Cu oxides [@premise-1] and high fluidity
+      in the molten state [@premise-2], under the assumption that melt-solid reactions take place more completely than typical
+      solid-state reactions [@assumption-3].
+    prior: 0.7
+  - step: 3
+    lambda: A sample with the nominal composition $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$ is prepared by mixing the starting materials,
+      pressing them into a pellet, heating to 880–910 °C for 3–5 minutes in flowing oxygen, and subsequently furnace-cooling
+      to room temperature.
+    prior: 0.7
+  - step: 4
+    lambda: The resistance of the sample is measured using the standard four-probe technique with silver paste contacts on
+      a rectangular bar cut from the pellet.
+    prior: 0.7
+  - step: 5
+    lambda: The resistance versus temperature plot for the furnace-cooled $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$ sample (shown
+      in Fig. 1) indicates that resistance starts to drop sharply at $\sim 120$ K and reaches zero at $\sim 100$ K.
+    prior: 0.7
+  - step: 6
+    lambda: From the resistance data, the authors determine the midpoint of the superconducting transition to be 112 K and
+      the zero-resistance temperature to be 103 K.
+    prior: 0.7
+  - step: 7
+    lambda: The transition temperatures of the $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$ sample (112 K midpoint, 103 K zero resistance)
+      are compared with a $Tl_{1.86}CaBaCu_{3}O_{7.8+x}$ sample annealed at 450 °C and a $EuBa_{2}Cu_{3}O_{7-x}$ sample. The
+      authors observe that these values are the highest among the Tl–Ca/Ba–Cu–O samples prepared in the study and exceed those
+      of high-quality rare-earth-containing samples.
+    prior: 0.7
+  - step: 8
+    ref: superconducting_transition_properties_of_tl2ca15bacu3o85x
+- type: chain_expr
+  name: chain_3
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: A sample with nominal composition $Tl_{2}Ca_{2}BaCu_{3}O_{9+x}$ is immersed in liquid nitrogen and observed to
+      levitate over a magnetic field of $\sim 5,000$ G.
+    prior: 0.7
+  - step: 2
+    ref: manifestation_of_diamagnetism
+  - step: 3
+    lambda: The authors interpret the observed levitation as a demonstration of strong diamagnetic repulsion [@premise-2].
+    prior: 0.7
+  - step: 4
+    ref: indicator_of_bulk_superconductivity
+  - step: 5
+    lambda: The authors assert that this strong diamagnetic repulsion is indicative of bulk superconductivity in the samples
+      [@premise-1].
+    prior: 0.7
+  - step: 6
+    ref: measurement_of_ac_susceptibility
+  - step: 7
+    lambda: The temperature dependence of the a.c. susceptibility is measured for a sample of nominal composition $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$
+      using the technique of Norton [@premise-3].
+    prior: 0.7
+  - step: 8
+    lambda: The a.c. susceptibility measurements (showing deviation from zero slope) are used to confirm the superconducting
+      nature of the samples.
+    prior: 0.7
+  - step: 9
+    ref: verification_of_bulk_superconductivity_via_magnetic_response
+- type: chain_expr
+  name: chain_4
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: The authors contrast the effect of annealing at $450^{\circ}\text{C}$ in flowing oxygen on Tl-Ba-Cu-O samples
+      versus Tl-Ca/Ba-Cu-O samples.
+    prior: 0.7
+  - step: 2
+    ref: effect_of_annealing_on_tl_ba_cu_o
+  - step: 3
+    lambda: Relying on [@premise-2], the authors identify that this annealing process depresses or destroys the superconducting
+      transition in Tl-Ba-Cu-O samples (which otherwise have zero resistance above liquid nitrogen temperatures as noted in
+      [@premise-1]).
+    prior: 0.7
+  - step: 4
+    ref: effect_of_annealing_on_tl_caba_cu_o
+  - step: 5
+    lambda: Relying on [@premise-3], the authors identify that the same annealing process slightly improves the superconductivity
+      of Tl-Ca/Ba-Cu-O samples.
+    prior: 0.7
+  - step: 6
+    ref: effect_of_annealing_on_tl_ba_cu_o
+  - step: 7
+    lambda: Based on the contrast between the instability of the Tl-Ba-Cu-O samples [@premise-2] and the stability/improvement
+      of the Tl-Ca/Ba-Cu-O samples [@premise-3], the authors infer that the addition of calcium to the Tl-Ba-Cu-O system stabilizes
+      the superconducting phase against annealing.
+    prior: 0.7
+  - step: 8
+    ref: conductivity_of_tl_ca_cu_o
+  - step: 9
+    lambda: Relying on [@premise-4], the authors note that Tl-Ca-Cu-O samples (without barium) exhibit semiconductor-like
+      behavior down to liquid-nitrogen temperatures, contrasting with the superconducting behavior of the Ba-containing systems.
+    prior: 0.7
+  - step: 10
+    lambda: The authors combine the inferred stabilization effect of calcium, the specific annealing outcomes for both systems,
+      and the non-superconducting nature of the barium-free Tl-Ca-Cu-O system to form the final conclusion.
+    prior: 0.7
+  - step: 11
+    ref: compositional_and_thermal_stability_characteristics
+export:
+- discovery_of_high_tc_superconductivity_in_the_tlcabacuo_system
+- superconducting_transition_properties_of_tl2ca15bacu3o85x
+- verification_of_bulk_superconductivity_via_magnetic_response
+- compositional_and_thermal_stability_characteristics

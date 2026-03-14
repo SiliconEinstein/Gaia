@@ -1,0 +1,14 @@
+name: paper_363056a0
+version: 1.0.0
+manifest:
+  description: Reasoning chains extracted from paper 363056a0
+  authors: []
+  license: CC-BY-4.0
+modules:
+- setting
+- reasoning
+export:
+- discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu
+- identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters
+- attribution_of_highest_tc_to_the_three_layer_hg_1223_phase
+- critical_role_of_oxygen_annealing
