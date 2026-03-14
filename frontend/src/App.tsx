@@ -7,6 +7,7 @@ import { DataBrowser } from "./pages/DataBrowser";
 import { NodePage } from "./pages/NodePage";
 import { EdgePage } from "./pages/EdgePage";
 import { CommitPanel } from "./pages/CommitPanel";
+import { PaperViewer } from "./pages/PaperViewer";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="nodes/:id" element={<NodePage />} />
             <Route path="edges/:id" element={<EdgePage />} />
             <Route path="commits" element={<CommitPanel />} />
+            <Route path="papers" element={<PaperViewer />} />
           </Route>
         </Routes>
       </BrowserRouter>
