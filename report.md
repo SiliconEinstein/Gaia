@@ -1,389 +1,523 @@
-# Storage Layer 数据库报告
 
-> 基于 `upload_fixtures.py` 写入 3 篇论文后的数据快照
-> 日期: 2026-03-13 | 分支: feature/storage-graph-ir
+# Paper Report: paper_363056a0
+
+- **Package ID:** `paper_363056a0`
+- **Version:** 1.0.0
+- **Status:** merged
+- **Description:** Reasoning chains extracted from paper 363056a0
+- **Submitter:** paper_extractor
+- **Submitted at:** 2026-03-12 00:00:00+00:00
+- **Exports:** 4 items
+
+## Module: reasoning
+
+- **Module ID:** `paper_363056a0.reasoning`
+- **Role:** reasoning
+- **Chains:** 4
+- **Exports:** 4
+
+## Knowledge Items (21)
+
+
+### 1. absence_of_superconductivity_in_hg_1212_rare_earth_variants
+
+- **ID:** `paper_363056a0/absence_of_superconductivity_in_hg_1212_rare_earth_variants`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> In the compound $HgBa_{2}RCu_{2}O_{6+x}$ (referred to as Hg-1212), where $R$ represents a rare-earth element such as Europium (Eu) or Calcium (Ca), experimental synthesis has been reported but no superconducting transition was detected in that specific material system.
+
+
+### 2. attribution_of_highest_tc_to_the_three_layer_hg_1223_phase
+
+- **ID:** `paper_363056a0/attribution_of_highest_tc_to_the_three_layer_hg_1223_phase`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.5
+- **Belief:** 0.5 (run: mock_bp_run)
+
+> The superconducting transition at $\sim 133$ K is attributed to the $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223) phase. This conclusion is supported by the correlation between the high volume fraction of Hg-1223 observed in microscopic analysis and the large field-cooling susceptibility signal, and reinforces the empirical trend that $T_{c}$ increases with the number of $CuO_{2}$ planes per unit cell in layered copper oxide systems.
+
+
+### 3. critical_role_of_oxygen_annealing
+
+- **ID:** `paper_363056a0/critical_role_of_oxygen_annealing`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.5
+- **Belief:** 0.5 (run: mock_bp_run)
+
+> Post-synthesis annealing in flowing oxygen at $300^{\circ}C$ is required to maximize the transition temperature in the Hg-Ba-Ca-Cu-O system; as-sintered samples exhibit a significantly lower maximum $T_{c}$ of $\sim 117$ K compared to the $\sim 133$ K achieved after annealing.
+
+
+### 4. discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu
+
+- **ID:** `paper_363056a0/discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.5
+- **Belief:** 0.5 (run: mock_bp_run)
+
+> The Hg-Ba-Ca-Cu-O system exhibits superconductivity with an onset transition temperature of $T_{c} \approx 133.5$ K, which surpasses the previous record of $\sim 127$ K observed in the Tl-system. This result is established through magnetic susceptibility measurements (showing diamagnetism onset at 133.5 K and strong screening at 125 K) and electrical resistivity measurements (showing a sharp drop at $132.5$ K and zero resistance at $95$ K).
+
+
+### 5. eds_composition_analysis
+
+- **ID:** `paper_363056a0/eds_composition_analysis`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> Energy-dispersive X-ray spectrometry (EDS) analysis of the synthesized sample indicates a composite material containing isolated grains of $BaCuO_{2}$ ($\sim30\%$ volume fraction), $CuO$ ($\approx30\%$ volume fraction), unidentified oxides containing Calcium (Ca) and Copper (Cu), various impurities, and approximately $15\%$ of the total sample volume consisting of plate-like grains containing Mercury (Hg), Barium (Ba), Calcium (Ca), and Copper (Cu).
+
+
+### 6. empirical_trend_in_tl_and_bi_copper_oxides
+
+- **ID:** `paper_363056a0/empirical_trend_in_tl_and_bi_copper_oxides`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> In high-$T_{c}$ superconducting copper oxides containing bismuth (Bi) or thallium (Tl), the superconducting transition temperature $T_{c}$ is empirically observed to increase as the number of $CuO_{2}$ planes per unit cell increases.
+
+
+### 7. general_composition_hypothesis
+
+- **ID:** `paper_363056a0/general_composition_hypothesis`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> The structural similarity of the mercury-based compound $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) to the thallium-containing compound $TlBa_{2}CuO_{5}$ (Tl-1201) suggests the existence of a mercury-based homologous series with the general composition $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$, which is structurally analogous to the thallium family $TlBa_{2}Ca_{n-1}Cu_{n}O_{2n+3}$, where $n$ denotes the number of $CuO_{2}$ layers per unit cell.
+
+
+### 8. identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters
+
+- **ID:** `paper_363056a0/identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.5
+- **Belief:** 0.5 (run: mock_bp_run)
+
+> The synthesized material contains two distinct high-temperature superconducting phases: $HgBa_{2}CaCu_{2}O_{6+x}$ (Hg-1212, with two $CuO_{2}$ layers) and $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223, with three $CuO_{2}$ layers), as well as ordered superstructures (e.g., a supercell with $c \approx 86.4 \AA$). The tetragonal lattice parameters derived from selected-area electron diffraction (SAED) are $a=3.93(7)\AA$ for both phases, with $c=12.7(2)\AA$ for Hg-1212 and $c=16.1(3)\AA$ for Hg-1223.
+
+
+### 9. microscopic_structural_identification
+
+- **ID:** `paper_363056a0/microscopic_structural_identification`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> Selected-area electron-diffraction (SAED) and high-resolution transmission electron microscopy (HRTEM) characterization of the plate-like grains within the $Hg-Ba-Ca-Cu-O$ sample reveal that these grains consist of the phase $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223), disordered mixtures of Hg-1223 and $HgBa_{2}CaCu_{2}O_{6+x}$ (Hg-1212), and periodic stacking sequences of these respective unit cells.
+
+
+### 10. previous_record_transition_temperature
+
+- **ID:** `paper_363056a0/previous_record_transition_temperature`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> The established record for the highest superconducting transition temperature $T_{c}$ prior to the study of the $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$ system was 125–127 K, observed in the thallium-based compound $Tl_{2}Ba_{2}Ca_{2}Cu_{3}O_{10}$ (Tl-2223).
+
+
+### 11. properties_of_tl_based_analogues
+
+- **ID:** `paper_363056a0/properties_of_tl_based_analogues`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> For the homologous series of thallium-containing copper oxides with the general chemical composition $TlBa_{2}Ca_{n-1}Cu_{n}O_{2n+3}$, the superconducting transition temperatures range from $T_{c} < 10$ K for the $n=1$ phase to $T_{c} \approx 110$ K for the $n=3$ phase.
+
+
+### 12. sample_density_approximation
+
+- **ID:** `paper_363056a0/sample_density_approximation`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> For the purpose of estimating the superconducting volume fraction from magnetic screening (zero-field cooling susceptibility) data in Hg-Ba-Ca-Cu-O composite samples, the average mass density of the material is assumed to be $\rho \approx 6~g~cm^{-3}$.
+
+
+### 13. sample_density_for_susceptibility_calculation
+
+- **ID:** `paper_363056a0/sample_density_for_susceptibility_calculation`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> For the purpose of calculating the superconducting volume fraction from experimental magnetic susceptibility measurements in the Hg-Ba-Ca-Cu-O (HBCCO) system, the average mass density of the sample is assumed to be $\rho \approx 6 \text{ g cm}^{-3}$.
+
+
+### 14. sample_preparation
+
+- **ID:** `paper_363056a0/sample_preparation`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> A sample material was synthesized by mixing a precursor of nominal composition $Ba_{2}CaCu_{2}O_{5}$ with powdered $HgO$, sealing the mixture in evacuated quartz tubes, heating at $800^{\circ}C$ for 5 hours (resulting in the breaking of the tubes), and finally annealing the product for 5 hours at $300^{\circ}C$ in flowing oxygen.
+
+
+### 15. structural_analogy_with_tl_based_copper_oxides
+
+- **ID:** `paper_363056a0/structural_analogy_with_tl_based_copper_oxides`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> The crystal structure of $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) is similar to that of the thallium-based copper oxide $TlBa_{2}CuO_{5}$ (Tl-1201), which suggests that mercury-based copper oxides form a homologous series with the general chemical formula $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$, where $n$ is the number of $CuO_{2}$ layers.
+
+
+### 16. structural_similarity_between_hg_1201_and_tl_1201
+
+- **ID:** `paper_363056a0/structural_similarity_between_hg_1201_and_tl_1201`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> The crystalline structure of $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) is structurally similar to that of the thallium-based compound $TlBa_{2}CuO_{5}$ (Tl-1201), suggesting that mercury-based compounds can form a homologous series with the general chemical composition $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$, where $n$ represents the number of $CuO_{2}$ layers.
+
+
+### 17. superconducting_properties_of_hg_1201
+
+- **ID:** `paper_363056a0/superconducting_properties_of_hg_1201`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> The mercury-based copper-oxide compound $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) possesses a crystalline structure containing exactly one $CuO_{2}$ layer per unit cell ($n=1$) and exhibits a superconducting transition temperature $T_{c}$ of approximately 94 K.
+
+
+### 18. superconductivity_in_hg_1201
+
+- **ID:** `paper_363056a0/superconductivity_in_hg_1201`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> The copper-oxide compound $HgBa_{2}CuO_{4+\delta}$ (referred to as Hg-1201) exhibits superconductivity characterized by a transition temperature $T_{c}$ of 94 K.
+
+
+### 19. superstructure_observation
+
+- **ID:** `paper_363056a0/superstructure_observation`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> High-resolution transmission electron microscopy (HRTEM) imaging of the $Hg-Ba-Ca-Cu-O$ sample reveals specific stacking sequences containing both $HgBa_{2}CaCu_{2}O_{6+x}$ (Hg-1212) and $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223) layers; specifically, a sequence of 1223/1223/1212/1212/1223/1212 unit cells forms a supercell with a c-axis lattice parameter of $c \approx 86.4 \AA$.
+
+
+### 20. tc_scaling_in_tl_based_systems
+
+- **ID:** `paper_363056a0/tc_scaling_in_tl_based_systems`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> In the thallium-based superconducting homologous series defined by the formula $TlBa_{2}Ca_{n-1}Cu_{n}O_{2n+3}$, the superconducting transition temperatures $T_{c}$ vary with the number of $CuO_{2}$ layers $n$, ranging from $T_{c} < 10$ K for $n=1$ to approximately $T_{c} \approx 110$ K for $n=3$.
+
+
+### 21. xrd_limitation
+
+- **ID:** `paper_363056a0/xrd_limitation`
+- **Type:** claim
+- **Version:** 1
+- **Prior:** 0.7
+- **Belief:** 0.7 (run: mock_bp_run)
+
+> The volume fraction of the superconducting phases (Hg-1212 and Hg-1223) within the synthesized composite sample is too small to permit precise measurement of their lattice parameters using the X-ray Guinier technique.
+
+
+## Reasoning Chains (4)
+
+
+### Chain 1: chain_1
+
+- **ID:** `paper_363056a0.reasoning.chain_1`
+- **Type:** deduction
+- **Steps:** 8
+
+**Step 0:**
+  Premises: `structural_analogy_with_tl_based_copper_oxides`, `tc_scaling_in_tl_based_systems`
+  Conclusion: `discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu`
+
+> Based on the structural similarity to Tl-1201 [@premise-2] and the trend of increasing $T_c$ with the number of $CuO_2$ layers observed in thallium and bismuth compounds [@premise-3], the authors conjecture that transition temperatures exceeding 100 K can be achieved in the Hg-Ba-Ca-Cu-O system by synthesizing members with more than one $CuO_2$ layer ($n > 1$).
+
+  *Probability: 0.7 (source: author)*
+
+**Step 1:**
+  Conclusion: `discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu`
+
+> Samples are prepared using a precursor $Ba_{2}CaCu_{2}O_{5}$ mixed with $HgO$, heated at $800^{\circ}C$, and annealed in oxygen. The goal is to produce phases with $n=2$ (Hg-1212) and $n=3$ (Hg-1223).
+
+  *Probability: 0.7 (source: author)*
+
+**Step 2:**
+  Conclusion: `discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu`
+
+> Using SAED and HRTEM, the authors confirm that the synthesized material contains grains of $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223), $HgBa_{2}CaCuO_{6+x}$ (Hg-1212), and ordered superstructures. The lattice constants are determined as $c=12.7(2)\mathring{A}$ for Hg-1212 and $c=16.1(3)\mathring{A}$ for Hg-1223, with $a=3.93(7)\mathring{A}$.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 3:**
+  Conclusion: `discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu`
+
+> Magnetic susceptibility $\chi(T)$ is measured using a SQUID magnetometer.
+> The authors observe an onset of diamagnetism at $T_{c} \approx 133.5 \text{ K}$ in both Field Cooling (FC) and Zero-Field Cooling (ZFC) experiments.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 4:**
+  Conclusion: `discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu`
+
+> Using the assumed density [@assumption-6], the ZFC susceptibility at 6 K corresponds to $\sim 100\%$ screening ($1/4\pi$). The FC susceptibility reaches $\sim 10\%$ of the maximum possible value. The authors interpret this FC value as a lower bound for the superconducting volume fraction, indicating bulk superconductivity.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 5:**
+  Conclusion: `discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu`
+
+> Electrical resistivity $R(T)$ is measured. The authors observe a sharp drop in resistivity at $T \approx 132.5 \text{ K}$ (maximum in $dR/dT$) and zero resistance at $T = 95 \text{ K}$.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 6:**
+  Premises: `previous_record_transition_temperature`
+  Conclusion: `discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu`
+
+> The observed onset temperature of $\sim 133.5 \text{ K}$ is compared to the previous record of 125–127 K found in the Tl-system [@premise-4], establishing the new result as distinctly higher.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 7:**
+  Premises: `tc_scaling_in_tl_based_systems`
+  Conclusion: `discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu`
+
+> The FC susceptibility reaches $\sim 60\%$ of its full low-temperature value at 125 K. The authors argue this indicates the phase with $T_{c} \approx 133.5 \text{ K}$ dominates the superconducting volume.
+> Based on the microscopic observation that Hg-1223 is the dominant phase in the grains investigated, and the analogy that $T_c$ increases with layer number [@premise-3], the authors conclude that Hg-1223 is responsible for the superconductivity at $\sim 133$ K.
+
+  *Probability: 0.7 (source: author)*
+
+
+### Chain 2: chain_2
+
+- **ID:** `paper_363056a0.reasoning.chain_2`
+- **Type:** deduction
+- **Steps:** 7
+
+**Step 0:**
+  Conclusion: `identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters`
+
+> Based on the structural similarity to thallium-based copper oxides, the authors hypothesize the existence of the Hg-based homologous series $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$, specifically expecting phases corresponding to $n=2$ (Hg-1212) and $n=3$ (Hg-1223).
+
+  *Probability: 0.7 (source: author)*
+
+**Step 1:**
+  Premises: `sample_preparation`
+  Conclusion: `identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters`
+
+> The authors synthesized a black material using the precursor method described in [@premise-2].
+
+  *Probability: 0.7 (source: author)*
+
+**Step 2:**
+  Premises: `eds_composition_analysis`
+  Conclusion: `identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters`
+
+> Using EDS, the authors identified that ~15% of the synthesized material consists of plate-like grains containing the target elements Hg, Ba, Ca, and Cu [@premise-3].
+
+  *Probability: 0.7 (source: author)*
+
+**Step 3:**
+  Premises: `microscopic_structural_identification`
+  Conclusion: `identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters`
+
+> The authors investigated these specific grains using SAED and HRTEM, confirming the presence of distinct Hg-1223 and Hg-1212 phases, as well as disordered mixtures and periodic stackings [@premise-4].
+
+  *Probability: 0.7 (source: author)*
+
+**Step 4:**
+  Premises: `xrd_limitation`
+  Conclusion: `identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters`
+
+> Due to the insufficient volume fraction for precise X-ray diffraction analysis [@premise-5], the authors utilized SAED patterns to deduce the lattice constants.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 5:**
+  Conclusion: `identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters`
+
+> From the SAED patterns, the authors calculated the tetragonal lattice parameters to be $a=3.93(7)\AA$ for both phases, $c=12.7(2)\AA$ for the Hg-1212 units, and $c=16.1(3)\AA$ for the Hg-1223 units.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 6:**
+  Premises: `superstructure_observation`
+  Conclusion: `identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters`
+
+> The authors further confirmed the existence of ordered superstructures through HRTEM imaging, which displayed a periodic stacking of Hg-1212 and Hg-1223 units with a supercell c-axis of $c \approx 86.4 \AA$ [@premise-6].
+
+  *Probability: 0.7 (source: author)*
+
+
+### Chain 3: chain_3
+
+- **ID:** `paper_363056a0.reasoning.chain_3`
+- **Type:** deduction
+- **Steps:** 6
+
+**Step 0:**
+  Conclusion: `attribution_of_highest_tc_to_the_three_layer_hg_1223_phase`
+
+> Measurements of magnetic susceptibility and resistivity in the synthesized Hg-Ba-Ca-Cu-O samples reveal a superconducting transition with an onset temperature $T_{c} \approx 133.5$ K.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 1:**
+  Conclusion: `attribution_of_highest_tc_to_the_three_layer_hg_1223_phase`
+
+> The field-cooling (FC) susceptibility at 125 K reaches $\sim 60\%$ of its full low-temperature value, indicating that the phase responsible for the $T_{c} \approx 133.5$ K transition is volumetrically dominant among the superconducting phases present.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 2:**
+  Conclusion: `attribution_of_highest_tc_to_the_three_layer_hg_1223_phase`
+
+> Structural characterization using SAED and HRTEM identifies grains consisting of $HgBa_{2}CaCu_{2}O_{6+x}$ (Hg-1212, $n=2$) and $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223, $n=3$), as well as ordered superstructures, within the sample.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 3:**
+  Conclusion: `attribution_of_highest_tc_to_the_three_layer_hg_1223_phase`
+
+> Microscopic analysis determines that the identified grains containing Hg, Ba, Ca, and Cu consist mostly of the Hg-1223 phase.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 4:**
+  Premises: `empirical_trend_in_tl_and_bi_copper_oxides`, `superconducting_properties_of_hg_1201`
+  Conclusion: `attribution_of_highest_tc_to_the_three_layer_hg_1223_phase`
+
+> Based on the trend observed in thallium and bismuth systems [@premise-2], and given that the $n=1$ phase (Hg-1201) has a $T_{c}$ of 94 K [@premise-1], the authors infer that the transition temperatures in the Hg-system should increase with the number of $CuO_{2}$ layers ($n$).
+
+  *Probability: 0.7 (source: author)*
+
+**Step 5:**
+  Conclusion: `attribution_of_highest_tc_to_the_three_layer_hg_1223_phase`
+
+> The authors correlate the dominance of the Hg-1223 phase observed in microscopy with the dominance of the high-$T_{c}$ signal ($\sim 133$ K) in susceptibility measurements. Combining this with the expectation that the $n=3$ phase (Hg-1223) should have a higher $T_{c}$ than the $n=1$ phase (94 K) or $n=2$ phase, they attribute the $\sim 133$ K transition to Hg-1223.
+
+  *Probability: 0.7 (source: author)*
+
+
+### Chain 4: chain_4
+
+- **ID:** `paper_363056a0.reasoning.chain_4`
+- **Type:** deduction
+- **Steps:** 9
+
+**Step 0:**
+  Conclusion: `critical_role_of_oxygen_annealing`
+
+> The authors prepared samples by mixing a precursor material $Ba_{2}CaCu_{2}O_{5}$ (obtained from nitrates sintered at $900^{\circ}C$ in $O_{2}$) with powdered $HgO$. The mixture was pressed into pellets, sealed in evacuated quartz tubes, and heated at $800^{\circ}C$ for 5 hours.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 1:**
+  Conclusion: `critical_role_of_oxygen_annealing`
+
+> The authors noted that upon opening the steel containers, the quartz tubes were found to be broken, implying an uncontrolled atmosphere during the cooling or late heating stage.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 2:**
+  Conclusion: `critical_role_of_oxygen_annealing`
+
+> The authors characterized the samples in their "as-sintered" state (before any post-synthesis annealing) and observed a maximum superconducting transition temperature ($T_{c}$) of only $\sim 117$ K.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 3:**
+  Conclusion: `critical_role_of_oxygen_annealing`
+
+> A subset of the synthesized pellets was subjected to a specific post-synthesis annealing process: heating for 5 hours at $300^{\circ}C$ in flowing oxygen.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 4:**
+  Conclusion: `critical_role_of_oxygen_annealing`
+
+> Resistivity measurements on the oxygen-annealed samples showed a sharp drop in resistivity starting at a maximum temperature of $T \approx 132.5$ K, reaching zero resistance at 95 K.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 5:**
+  Conclusion: `critical_role_of_oxygen_annealing`
+
+> Magnetic susceptibility measurements (Zero-Field Cooling and Field Cooling) on the oxygen-annealed samples revealed an onset of diamagnetism at $T_{c} \approx 133.5$ K.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 6:**
+  Conclusion: `critical_role_of_oxygen_annealing`
+
+> Using the assumed density [@assumption-4], the authors calculated that the zero-field cooling susceptibility corresponded to $\sim 100\%$ screening, and field-cooling susceptibility reached $\sim 10\%$ (and $\sim 60\%$ of its low-T value at 125 K), confirming that the phase with $T_{c} \approx 133.5$ K is a dominant bulk phase.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 7:**
+  Conclusion: `critical_role_of_oxygen_annealing`
+
+> The authors compared the transition temperatures obtained from the two processing conditions: $\sim 133$ K for the oxygen-annealed samples versus $\sim 117$ K for the as-sintered samples.
+
+  *Probability: 0.7 (source: author)*
+
+**Step 8:**
+  Conclusion: `critical_role_of_oxygen_annealing`
+
+> Based on the significant increase in $T_{c}$ from $\sim 117$ K to $\sim 133$ K, the authors deduced that the final oxygen treatment at $300^{\circ}C$ was effective and necessary to achieve the higher transition temperature.
+
+  *Probability: 0.7 (source: author)*
+
+
+## Graph Topology
+
+Subgraph from most-connected node `eds_composition_analysis`:
+
+- **Knowledge nodes:** 6
+- **Chain nodes:** 1
+
+Connected knowledge:
+  - `eds_composition_analysis`
+  - `identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters`
+  - `microscopic_structural_identification`
+  - `sample_preparation`
+  - `superstructure_observation`
+  - `xrd_limitation`
 
 ---
 
-## 一、LanceDB (ContentStore) — 13 张表
-
-### 1. `packages` — 知识包注册表
-
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `package_id` | string | 包唯一标识 |
-| `name` | string | 包名称 |
-| `version` | string | 语义化版本号 |
-| `description` | string | 包描述 |
-| `modules` | JSON | 包含的模块 ID 列表 |
-| `exports` | JSON | 对外导出的 knowledge ID 列表 |
-| `submitter` | string | 提交者 |
-| `submitted_at` | datetime | 提交时间 |
-| `status` | string | 状态: `preparing` / `submitted` / `merged` / `rejected` |
-
-**示例** (共 3 行):
-```json
-{
-  "package_id": "paper_10_1038332139a0_1988_natu",
-  "name": "paper_10_1038332139a0_1988_natu",
-  "version": "1.0.0",
-  "description": "Reasoning chains extracted from paper 10.1038332139a0_1988_Natu",
-  "modules": ["paper_10_1038332139a0_1988_natu.reasoning"],
-  "exports": ["paper_.../discovery_of_high_tc_superconductivity_in_the_tlcabacuo_system", ...],
-  "submitter": "paper_extractor",
-  "submitted_at": "2026-03-12T00:00:00",
-  "status": "merged"
-}
-```
-
----
-
-### 2. `modules` — 模块（知识的逻辑分组）
-
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `module_id` | string | 模块唯一标识 (`package_id.name`) |
-| `package_id` | string | 所属包 |
-| `package_version` | string | 所属包版本 |
-| `name` | string | 模块名称 |
-| `role` | string | 角色: `reasoning` / `setting` / `motivation` / `follow_up_question` / `other` |
-| `imports` | JSON | 跨模块依赖引用列表 |
-| `chain_ids` | JSON | 模块内的推理链 ID 列表 |
-| `export_ids` | JSON | 模块导出的 knowledge ID 列表 |
-
-**示例** (共 3 行):
-```json
-{
-  "module_id": "paper_10_1038332139a0_1988_natu.reasoning",
-  "package_id": "paper_10_1038332139a0_1988_natu",
-  "package_version": "1.0.0",
-  "name": "reasoning",
-  "role": "reasoning",
-  "imports": [],
-  "chain_ids": ["...reasoning.chain_1", "...reasoning.chain_2", "...reasoning.chain_3", "...reasoning.chain_4"],
-  "export_ids": ["...discovery_of_high_tc_superconductivity_in_the_tlcabacuo_system", ...]
-}
-```
-
----
-
-### 3. `knowledge` — 知识节点（命题/设定/问题）
-
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `knowledge_id` | string | 知识唯一标识 (`package_id/name`) |
-| `version` | int | 版本号 |
-| `type` | string | 类型: `claim` / `question` / `setting` / `action` / `contradiction` / `equivalence` |
-| `kind` | string | 子类型（如 `hypothesis`），可为空 |
-| `parameters` | JSON | schema 参数列表（∀-量化变量），空 `[]` 表示非 schema |
-| `content` | string | 知识内容（自然语言命题） |
-| `prior` | float | 先验概率 (0, 1] |
-| `keywords` | JSON | 关键词列表 |
-| `source_package_id` | string | 来源包 |
-| `source_package_version` | string | 来源包版本 |
-| `source_module_id` | string | 来源模块 |
-| `created_at` | datetime | 创建时间 |
-| `embedding` | string | 嵌入向量（可为空） |
-
-**示例** (共 81 行):
-```json
-{
-  "knowledge_id": "paper_10_1038332139a0_1988_natu/synthesis_precursors",
-  "version": 1,
-  "type": "setting",
-  "kind": "",
-  "parameters": [],
-  "content": "The starting materials used for the preparation of superconducting samples in the Tl–Ca/Ba–Cu–O system are thallium(III) oxide, calcium oxide, and BaCu₃O₄...",
-  "prior": 0.7,
-  "keywords": [],
-  "source_package_id": "paper_10_1038332139a0_1988_natu",
-  "source_package_version": "1.0.0",
-  "source_module_id": "paper_10_1038332139a0_1988_natu.reasoning",
-  "created_at": "2026-03-12T00:00:00"
-}
-```
-
----
-
-### 4. `chains` — 推理链
-
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `chain_id` | string | 推理链唯一标识 (`package.module.chain_name`) |
-| `module_id` | string | 所属模块 |
-| `package_id` | string | 所属包 |
-| `package_version` | string | 所属包版本 |
-| `type` | string | 推理类型: `deduction` / `induction` / `abstraction` / `contradiction` / `retraction` |
-| `steps` | JSON | 推理步骤数组，每步含 `premises[]` → `conclusion` |
-
-**示例** (共 15 行):
-```json
-{
-  "chain_id": "paper_10_1038332139a0_1988_natu.reasoning.chain_1",
-  "module_id": "paper_10_1038332139a0_1988_natu.reasoning",
-  "package_id": "paper_10_1038332139a0_1988_natu",
-  "package_version": "1.0.0",
-  "type": "deduction",
-  "steps": [
-    {
-      "step_index": 0,
-      "premises": [
-        {"knowledge_id": ".../synthesis_precursors", "version": 1},
-        {"knowledge_id": ".../properties_of_bacu3o4_precursor", "version": 1},
-        {"knowledge_id": ".../synthesis_procedure", "version": 1}
-      ],
-      "reasoning": "The authors prepared Tl-Ca/Ba-Cu-O samples...",
-      "conclusion": {"knowledge_id": ".../discovery_of_high_tc_...", "version": 1}
-    }
-  ]
-}
-```
-
----
-
-### 5. `probabilities` — 推理步骤可靠性评分
-
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `chain_id` | string | 推理链 ID |
-| `step_index` | int | 步骤索引 |
-| `value` | float | 可靠性概率 (0, 1] |
-| `source` | string | 评分来源: `author` / `llm_review` / `lean_verify` / `code_verify` |
-| `source_detail` | string | 评分详情 |
-| `recorded_at` | datetime | 记录时间 |
-
-**示例** (共 109 行):
-```json
-{
-  "chain_id": "paper_10_1038332139a0_1988_natu.reasoning.chain_1",
-  "step_index": 0,
-  "value": 0.7,
-  "source": "author",
-  "source_detail": "",
-  "recorded_at": "2026-03-12T00:00:00"
-}
-```
-
----
-
-### 6. `belief_history` — BP 推理结果历史
-
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `knowledge_id` | string | 知识节点 ID |
-| `version` | int | 知识版本 |
-| `belief` | float | 信念概率 [0, 1] |
-| `bp_run_id` | string | BP 运行批次 ID |
-| `computed_at` | datetime | 计算时间 |
-
-**示例** (共 81 行):
-```json
-{
-  "knowledge_id": "paper_10_1038332139a0_1988_natu/synthesis_precursors",
-  "version": 1,
-  "belief": 0.7,
-  "bp_run_id": "mock_bp_run",
-  "computed_at": "2026-03-12T00:00:00"
-}
-```
-
----
-
-### 7. `resources` — 附件资源元数据
-
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `resource_id` | string | 资源唯一标识 |
-| `type` | string | 类型: `image` / `code` / `notebook` / `dataset` / `checkpoint` / `tool_output` / `other` |
-| `format` | string | 文件格式 |
-| `title` | string | 标题 |
-| `description` | string | 描述 |
-| `storage_backend` | string | 存储后端 |
-| `storage_path` | string | 存储路径 |
-| `size_bytes` | int | 文件大小 |
-| `checksum` | string | 校验和 |
-| `metadata` | JSON | 额外元数据 |
-| `created_at` | datetime | 创建时间 |
-| `source_package_id` | string | 来源包 |
-
-**当前为空**（论文 fixtures 不含附件资源）
-
----
-
-### 8. `resource_attachments` — 资源与实体的多对多关联
-
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `resource_id` | string | 资源 ID |
-| `target_type` | string | 目标类型: `knowledge` / `chain` / `chain_step` / `module` / `package` |
-| `target_id` | string | 目标实体 ID |
-| `role` | string | 关联角色: `evidence` / `visualization` / `implementation` / `reproduction` / `supplement` |
-| `description` | string | 关联描述 |
-
-**当前为空**
-
----
-
-### 9. `factors` — Graph IR 因子节点 🆕
-
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `factor_id` | string | 因子唯一标识 |
-| `type` | string | 因子类型: `reasoning` / `instantiation` / `mutex_constraint` / `equiv_constraint` |
-| `premises` | JSON | 前提 knowledge ID 列表 |
-| `contexts` | JSON | 上下文 knowledge ID 列表 |
-| `conclusion` | string | 结论 knowledge ID |
-| `package_id` | string | 所属包 |
-| `source_ref` | JSON | 来源引用 (`{package, version, module, knowledge_name}`) |
-| `metadata` | JSON | 额外元数据 |
-
-**当前为空**（论文 fixtures 不含 factor 数据，需由编译器生成）
-
----
-
-### 10. `canonical_bindings` — 局部→全局身份映射 🆕
-
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `package` | string | 包名 |
-| `version` | string | 包版本 |
-| `local_graph_hash` | string | 局部图哈希 |
-| `local_canonical_id` | string | 局部规范化 ID |
-| `decision` | string | 决策: `match_existing` / `create_new` |
-| `global_canonical_id` | string | 全局规范化 ID |
-| `decided_at` | datetime | 决策时间 |
-| `decided_by` | string | 决策者（人/自动匹配器） |
-| `reason` | string | 决策原因 |
-
-**当前为空**（需由 canonicalization pipeline 填充）
-
----
-
-### 11. `global_canonical_nodes` — 全局去重身份注册 🆕
-
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `global_canonical_id` | string | 全局唯一标识 |
-| `knowledge_type` | string | 知识类型 |
-| `kind` | string | 子类型 |
-| `representative_content` | string | 代表性内容 |
-| `parameters` | JSON | schema 参数列表 |
-| `member_local_nodes` | JSON | 成员局部节点引用列表 |
-| `provenance` | JSON | 来源包引用列表 |
-| `metadata` | JSON | 额外元数据 |
-
-**当前为空**（需由 canonicalization pipeline 填充）
-
----
-
-### 12. `global_inference_state` — 全局推理状态 🆕
-
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `graph_hash` | string | 当前图结构哈希（用于检测变更） |
-| `node_priors` | JSON | 节点先验概率 `{gcn_id: float}` |
-| `factor_parameters` | JSON | 因子运行时参数 `{factor_id: {conditional_probability: float}}` |
-| `node_beliefs` | JSON | BP 计算后的信念值 `{gcn_id: float}` |
-| `updated_at` | datetime | 最后更新时间 |
-
-**当前为空**（单行设计，由 BP 引擎写入）
-
----
-
-### 13. `submission_artifacts` — 提交审计快照 🆕
-
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `package_name` | string | 包名 |
-| `commit_hash` | string | Git commit 哈希 |
-| `source_files` | JSON | 源文件内容 `{filename: content}` |
-| `raw_graph` | JSON | 编译后的原始图 |
-| `local_canonical_graph` | JSON | 局部规范化后的图 |
-| `canonicalization_log` | JSON | 规范化日志 |
-| `submitted_at` | datetime | 提交时间 |
-
-**当前为空**（需由 publish pipeline 填充）
-
----
-
-## 二、Kuzu (GraphStore) — 图拓扑
-
-### 节点表
-
-| 节点表 | 主键 | 字段 | 行数 | 说明 |
-|--------|------|------|------|------|
-| **Knowledge** | `knowledge_vid` | `knowledge_id`, `version`, `type`, `prior`, `belief` | 81 | 知识节点，PK = `knowledge_id@version` |
-| **Chain** | `chain_id` | `type` | 15 | 推理链节点 |
-| **Resource** | `resource_id` | `type`, `format` | 0 | 附件资源节点 |
-| **Factor** 🆕 | `factor_id` | `type`, `is_gate` | 0 | Graph IR 因子节点 |
-| **GlobalCanonicalNode** 🆕 | `global_canonical_id` | `knowledge_type`, `kind`, `representative_content` | 0 | 全局规范化节点 |
-
-**Knowledge 示例:**
-```
-knowledge_vid: paper_10_1038332139a0_1988_natu/synthesis_precursors@1
-knowledge_id:  paper_10_1038332139a0_1988_natu/synthesis_precursors
-version:       1
-type:          setting
-prior:         0.7
-belief:        0.7
-```
-
-**Chain 示例:**
-```
-chain_id: paper_10_1038332139a0_1988_natu.reasoning.chain_1
-type:     deduction
-```
-
-### 关系表
-
-| 关系表 | 方向 | 属性 | 行数 | 说明 |
-|--------|------|------|------|------|
-| **PREMISE** | Knowledge → Chain | `step_index` | 56 | 前提→推理链（某步骤的前提） |
-| **CONCLUSION** | Chain → Knowledge | `step_index`, `probability` | 109 | 推理链→结论（某步骤的结论） |
-| **ATTACHED_TO** | Resource → Knowledge/Chain | `role`, `step_index` | 0 | 资源附件关联 |
-| **FACTOR_PREMISE** 🆕 | Knowledge → Factor | — | 0 | 因子的前提边 |
-| **FACTOR_CONTEXT** 🆕 | Knowledge → Factor | — | 0 | 因子的上下文边 |
-| **FACTOR_CONCLUSION** 🆕 | Factor → Knowledge | — | 0 | 因子的结论边 |
-| **CANONICAL_BINDING** 🆕 | Knowledge → GlobalCanonicalNode | `decision`, `package`, `version` | 0 | 局部→全局身份绑定 |
-
-**PREMISE 示例:**
-```
-(Knowledge: .../synthesis_precursors@1)
-  -[:PREMISE {step_index: 0}]->
-(Chain: ...reasoning.chain_1)
-```
-
-**CONCLUSION 示例:**
-```
-(Chain: ...reasoning.chain_1)
-  -[:CONCLUSION {step_index: 0, probability: 0.0}]->
-(Knowledge: .../discovery_of_high_tc_superconductivity...@1)
-```
-
----
-
-## 三、数据统计总览
-
-| 维度 | 数量 |
-|------|------|
-| 论文包 | 3 |
-| 模块 | 3 |
-| 知识节点 | 81 |
-| 推理链 | 15 |
-| 概率记录 | 109 |
-| 信念快照 | 81 |
-| 图节点 (Knowledge) | 81 |
-| 图节点 (Chain) | 15 |
-| 图边 (PREMISE) | 56 |
-| 图边 (CONCLUSION) | 109 |
-| Graph IR 新表 (factors, canonical_bindings, global_*, submission_artifacts) | 5 张表, 均为空 |
-
-### 🆕 新增表说明
-
-本次 Graph IR 实现新增了 5 张 LanceDB 表和 5 个 Kuzu 图实体（2 节点表 + 3 关系表），均为空表。这些表将在以下 pipeline 阶段被填充:
-
-- **factors** / **Factor** + 边: 由 Gaia Language 编译器生成 factor graph 后写入
-- **canonical_bindings** / **CANONICAL_BINDING**: 由 canonicalization pipeline 在 publish 阶段写入
-- **global_canonical_nodes** / **GlobalCanonicalNode**: 由 registry 在跨包去重时写入
-- **global_inference_state**: 由 BP 引擎在推理执行后写入
-- **submission_artifacts**: 由 publish pipeline 写入审计快照
+*Report generated from `./data/lancedb/gaia_v2`*
+*Graph backend: neo4j*
