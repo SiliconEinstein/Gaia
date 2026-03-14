@@ -913,6 +913,59 @@ class LanceContentStore(ContentStore):
         offset = max(0, (page - 1) * page_size)
         return items[offset : offset + page_size], total
 
+    async def list_modules(self, package_id: str | None = None) -> list[Module]:
+        """List modules from committed packages, optionally filtered by package_id."""
+        committed = await self._get_committed_packages()
+        table = self._db.open_table("modules")
+        count = table.count_rows()
+        if count == 0:
+            return []
+        results = table.search().limit(count).to_list()
+        modules = [
+            _row_to_module(r)
+            for r in results
+            if self._is_committed(r["package_id"], r.get("package_version", "0.1.0"), committed)
+        ]
+        if package_id:
+            modules = [m for m in modules if m.package_id == package_id]
+        return modules
+
+    async def list_chains_paged(
+        self, page: int = 1, page_size: int = 20, module_id: str | None = None
+    ) -> tuple[list[Chain], int]:
+        """Return paginated chains, optionally filtered by module_id."""
+        committed = await self._get_committed_packages()
+        table = self._db.open_table("chains")
+        count = table.count_rows()
+        if count == 0:
+            return [], 0
+        results = table.search().limit(count).to_list()
+        chains = [
+            _row_to_chain(r)
+            for r in results
+            if self._is_committed(r["package_id"], r.get("package_version", "0.1.0"), committed)
+        ]
+        if module_id:
+            chains = [c for c in chains if c.module_id == module_id]
+        total = len(chains)
+        offset = max(0, (page - 1) * page_size)
+        return chains[offset : offset + page_size], total
+
+    async def get_chain(self, chain_id: str) -> Chain | None:
+        """Get a single chain by chain_id."""
+        committed = await self._get_committed_packages()
+        table = self._db.open_table("chains")
+        count = table.count_rows()
+        if count == 0:
+            return None
+        results = table.search().limit(count).to_list()
+        for r in results:
+            if r["chain_id"] == chain_id and self._is_committed(
+                r["package_id"], r.get("package_version", "0.1.0"), committed
+            ):
+                return _row_to_chain(r)
+        return None
+
     async def list_knowledge_paged(
         self, page: int = 1, page_size: int = 20, type_filter: str | None = None
     ) -> tuple[list[Knowledge], int]:

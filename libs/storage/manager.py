@@ -235,6 +235,19 @@ class StorageManager:
     async def list_packages(self, page: int = 1, page_size: int = 20) -> tuple[list[Package], int]:
         return await self.content_store.list_packages(page=page, page_size=page_size)
 
+    async def list_modules(self, package_id: str | None = None) -> list[Module]:
+        return await self.content_store.list_modules(package_id=package_id)
+
+    async def list_chains_paged(
+        self, page: int = 1, page_size: int = 20, module_id: str | None = None
+    ) -> tuple[list[Chain], int]:
+        return await self.content_store.list_chains_paged(
+            page=page, page_size=page_size, module_id=module_id
+        )
+
+    async def get_chain(self, chain_id: str) -> Chain | None:
+        return await self.content_store.get_chain(chain_id)
+
     async def list_knowledge_paged(
         self, page: int = 1, page_size: int = 20, type_filter: str | None = None
     ) -> tuple[list[Knowledge], int]:

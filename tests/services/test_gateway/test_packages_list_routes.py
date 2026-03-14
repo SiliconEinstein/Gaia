@@ -92,3 +92,29 @@ def test_list_knowledge_type_filter_no_match(client):
     r = client.get("/knowledge?type_filter=setting")
     assert r.status_code == 200
     assert "items" in r.json()
+
+
+def test_list_modules(client):
+    r = client.get("/modules")
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body) == 1
+    assert body[0]["module_id"] == "pkg1.mod1"
+
+
+def test_list_modules_filtered(client):
+    r = client.get("/modules?package_id=pkg1")
+    assert r.status_code == 200
+
+
+def test_list_chains(client):
+    r = client.get("/chains")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total"] == 0
+    assert body["items"] == []
+
+
+def test_get_chain_not_found(client):
+    r = client.get("/chains/nonexistent.chain")
+    assert r.status_code == 404

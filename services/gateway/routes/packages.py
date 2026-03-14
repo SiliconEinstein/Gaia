@@ -40,6 +40,13 @@ class PaginatedKnowledge(BaseModel):
     size: int
 
 
+class PaginatedChains(BaseModel):
+    items: list[dict]
+    total: int
+    page: int
+    size: int
+
+
 class IngestRequest(BaseModel):
     package: dict
     modules: list[dict]
@@ -169,6 +176,14 @@ async def get_knowledge(knowledge_id: str):
     return k.model_dump()
 
 
+@router.get("/modules", response_model=list[dict])
+async def list_modules(package_id: str | None = None):
+    """List all modules, optionally filtered by package."""
+    mgr = _require_storage()
+    modules = await mgr.list_modules(package_id=package_id)
+    return [m.model_dump() for m in modules]
+
+
 # ── Read: Module ──
 # NOTE: Sub-path routes must come BEFORE the catch-all {module_id:path}
 
@@ -189,6 +204,25 @@ async def get_module(module_id: str):
     return m.model_dump()
 
 
+@router.get("/chains", response_model=PaginatedChains)
+async def list_chains(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    module_id: str | None = None,
+):
+    """List chains with pagination, optionally filtered by module."""
+    mgr = _require_storage()
+    items, total = await mgr.list_chains_paged(
+        page=page, page_size=page_size, module_id=module_id
+    )
+    return PaginatedChains(
+        items=[c.model_dump() for c in items],
+        total=total,
+        page=page,
+        size=page_size,
+    )
+
+
 # ── Read: Chain ──
 
 
@@ -197,3 +231,13 @@ async def get_chain_probabilities(chain_id: str):
     mgr = _require_storage()
     probs = await mgr.get_probability_history(chain_id)
     return [p.model_dump() for p in probs]
+
+
+@router.get("/chains/{chain_id:path}")
+async def get_chain(chain_id: str):
+    """Get a single chain by ID."""
+    mgr = _require_storage()
+    chain = await mgr.get_chain(chain_id)
+    if chain is None:
+        raise HTTPException(status_code=404, detail="Chain not found")
+    return chain.model_dump()
