@@ -232,6 +232,9 @@ class StorageManager:
     async def search_bm25(self, text: str, top_k: int):
         return await self.content_store.search_bm25(text, top_k)
 
+    async def list_packages(self, page: int = 1, page_size: int = 20) -> tuple[list[Package], int]:
+        return await self.content_store.list_packages(page=page, page_size=page_size)
+
     async def list_knowledge(self):
         return await self.content_store.list_knowledge()
 

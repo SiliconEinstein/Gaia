@@ -26,6 +26,13 @@ def _require_storage():
 # ── Ingest ──
 
 
+class PaginatedPackages(BaseModel):
+    items: list[dict]
+    total: int
+    page: int
+    size: int
+
+
 class IngestRequest(BaseModel):
     package: dict
     modules: list[dict]
@@ -78,6 +85,19 @@ async def ingest_package(request: IngestRequest):
         status="ingested",
         knowledge_count=len(knowledge_items),
         chain_count=len(chains),
+    )
+
+
+@router.get("/packages", response_model=PaginatedPackages)
+async def list_packages(page: int = 1, page_size: int = 20):
+    """List all packages with pagination."""
+    mgr = _require_storage()
+    items, total = await mgr.list_packages(page=page, page_size=page_size)
+    return PaginatedPackages(
+        items=[p.model_dump() for p in items],
+        total=total,
+        page=page,
+        size=page_size,
     )
 
 

@@ -900,6 +900,19 @@ class LanceContentStore(ContentStore):
 
     # ── BP bulk load ──
 
+    async def list_packages(self, page: int = 1, page_size: int = 20) -> tuple[list[Package], int]:
+        """Return a paginated list of merged packages (visibility-gated)."""
+        table = self._db.open_table("packages")
+        total_rows = table.count_rows()
+        if total_rows == 0:
+            return [], 0
+        results = table.search().limit(total_rows).to_list()
+        # Only return merged packages — consistent with get_package visibility model
+        items = [_row_to_package(r) for r in results if r.get("status") == "merged"]
+        total = len(items)
+        offset = (page - 1) * page_size
+        return items[offset : offset + page_size], total
+
     async def list_knowledge(self) -> list[Knowledge]:
         table = self._db.open_table("knowledge")
         count = table.count_rows()
