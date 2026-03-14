@@ -241,3 +241,13 @@ async def get_chain(chain_id: str):
     if chain is None:
         raise HTTPException(status_code=404, detail="Chain not found")
     return chain.model_dump()
+
+
+# ── Graph ──
+
+
+@router.get("/graph")
+async def get_graph(package_id: str | None = None):
+    """Return Knowledge nodes and Chain edges for DAG visualization."""
+    mgr = _require_storage()
+    return await mgr.get_graph_data(package_id=package_id)

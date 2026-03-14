@@ -989,6 +989,52 @@ class LanceContentStore(ContentStore):
         offset = max(0, (page - 1) * page_size)
         return items[offset : offset + page_size], total
 
+    async def get_graph_data(self, package_id: str | None = None) -> dict:
+        """Return Knowledge nodes + Chain edges for DAG visualization.
+
+        Each Chain step produces edges: each premise → conclusion.
+        Node id format: knowledge_id@version
+        """
+        items, _ = await self.list_knowledge_paged(page=1, page_size=10_000)
+        chains, _ = await self.list_chains_paged(page=1, page_size=10_000)
+
+        if package_id:
+            items = [k for k in items if k.source_package_id == package_id]
+            chains = [c for c in chains if c.package_id == package_id]
+
+        node_ids = {f"{k.knowledge_id}@{k.version}" for k in items}
+
+        nodes = [
+            {
+                "id": f"{k.knowledge_id}@{k.version}",
+                "knowledge_id": k.knowledge_id,
+                "version": k.version,
+                "type": k.type,
+                "content": k.content,
+                "prior": k.prior,
+            }
+            for k in items
+        ]
+
+        edges = []
+        for chain in chains:
+            for step in chain.steps:
+                conc_id = f"{step.conclusion.knowledge_id}@{step.conclusion.version}"
+                for premise in step.premises:
+                    prem_id = f"{premise.knowledge_id}@{premise.version}"
+                    if prem_id in node_ids and conc_id in node_ids:
+                        edges.append(
+                            {
+                                "chain_id": chain.chain_id,
+                                "from": prem_id,
+                                "to": conc_id,
+                                "chain_type": chain.type,
+                                "step_index": step.step_index,
+                            }
+                        )
+
+        return {"nodes": nodes, "edges": edges}
+
     async def list_knowledge(self) -> list[Knowledge]:
         table = self._db.open_table("knowledge")
         count = table.count_rows()

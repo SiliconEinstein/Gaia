@@ -248,6 +248,9 @@ class StorageManager:
     async def get_chain(self, chain_id: str) -> Chain | None:
         return await self.content_store.get_chain(chain_id)
 
+    async def get_graph_data(self, package_id: str | None = None) -> dict:
+        return await self.content_store.get_graph_data(package_id=package_id)
+
     async def list_knowledge_paged(
         self, page: int = 1, page_size: int = 20, type_filter: str | None = None
     ) -> tuple[list[Knowledge], int]:

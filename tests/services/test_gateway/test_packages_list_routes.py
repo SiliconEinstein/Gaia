@@ -118,3 +118,19 @@ def test_list_chains(client):
 def test_get_chain_not_found(client):
     r = client.get("/chains/nonexistent.chain")
     assert r.status_code == 404
+
+
+def test_get_graph(client):
+    r = client.get("/graph")
+    assert r.status_code == 200
+    body = r.json()
+    assert "nodes" in body
+    assert "edges" in body
+
+
+def test_get_graph_filtered(client):
+    r = client.get("/graph?package_id=pkg1")
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body["nodes"], list)
+    assert isinstance(body["edges"], list)
