@@ -11,7 +11,7 @@ from libs.graph_ir import (
     derive_local_parameterization,
 )
 from libs.inference.bp import BeliefPropagation
-from libs.lang.loader import load_package
+from libs.lang.loader import _parse_module, load_package
 from libs.lang.models import Claim, Equivalence, Module, Package
 from libs.lang.resolver import resolve_refs
 
@@ -172,3 +172,50 @@ def test_adapter_builds_factor_graph_and_bp_runs():
     beliefs = BeliefPropagation().run(adapted.factor_graph)
     assert beliefs
     assert len(beliefs) == len(adapted.factor_graph.variables)
+
+
+def test_build_raw_graph_reads_lambda_args_from_chain_surface():
+    module = _parse_module(
+        {
+            "type": "reasoning_module",
+            "name": "m",
+            "premises": [
+                {"type": "claim", "name": "base", "content": "Base premise", "prior": 0.7},
+                {"type": "setting", "name": "regime", "content": "Relevant regime", "prior": 0.9},
+            ],
+            "chains": [
+                {
+                    "name": "demo_chain",
+                    "steps": [
+                        {
+                            "id": "obs",
+                            "type": "claim",
+                            "content": "Observation",
+                            "refs": [
+                                {"ref": "base", "dependency": "direct"},
+                                {"ref": "regime", "dependency": "indirect"},
+                            ],
+                            "prior": 0.61,
+                        }
+                    ],
+                    "conclusion": {
+                        "name": "final_claim",
+                        "type": "claim",
+                        "content": "Final conclusion",
+                        "refs": [{"ref": "obs", "dependency": "direct"}],
+                        "prior": 0.84,
+                    },
+                }
+            ],
+            "export": ["final_claim"],
+        }
+    )
+    pkg = Package(name="demo_pkg", loaded_modules=[module])
+
+    raw_graph = build_raw_graph(pkg)
+
+    reasoning_factor = next(factor for factor in raw_graph.factor_nodes if factor.type == "reasoning")
+    raw_nodes = {node.source_refs[0].knowledge_name: node.raw_node_id for node in raw_graph.knowledge_nodes}
+    assert reasoning_factor.premises == [raw_nodes["base"], raw_nodes["demo_chain__obs"]]
+    assert reasoning_factor.contexts == [raw_nodes["regime"]]
+    assert reasoning_factor.conclusion == raw_nodes["final_claim"]

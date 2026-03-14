@@ -11,6 +11,7 @@ from statistics import fmean
 
 from libs.lang.models import (
     Action,
+    Arg,
     ChainExpr,
     Claim,
     Contradiction,
@@ -235,9 +236,13 @@ def _build_reasoning_factor(
                 else:
                     indirect_refs.append(arg.ref)
         elif isinstance(step, StepLambda):
-            prev_ref = _previous_step_ref(chain, step.step)
-            if prev_ref is not None and prev_ref in name_to_raw_id:
-                direct_refs.append(prev_ref)
+            for arg in _step_args(chain, step):
+                if arg.ref not in name_to_raw_id:
+                    continue
+                if arg.dependency == "direct":
+                    direct_refs.append(arg.ref)
+                else:
+                    indirect_refs.append(arg.ref)
 
     source_ref = SourceRef(
         package=pkg.name,
@@ -416,6 +421,17 @@ def _previous_step_ref(chain: ChainExpr, step_num: int) -> str | None:
         if isinstance(step, StepRef):
             previous = step.ref
     return previous
+
+
+def _step_args(chain: ChainExpr, step: StepApply | StepLambda) -> list[Arg]:
+    if isinstance(step, StepApply):
+        return step.args
+    if step.args:
+        return step.args
+    prev_ref = _previous_step_ref(chain, step.step)
+    if prev_ref is None:
+        return []
+    return [Arg(ref=prev_ref, dependency="direct")]
 
 
 def _dedupe_preserving_order(values) -> list[str]:

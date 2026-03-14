@@ -339,3 +339,40 @@ async def test_infer_action_still_uses_execute_infer():
     assert len(infer_calls) == 1
     assert len(tool_calls) == 0
     assert "all objects fall" in infer_calls[0]["prompt"]
+
+
+async def test_execute_lambda_uses_explicit_args_when_present():
+    base = Claim(name="base", content="Base premise", prior=0.9)
+    regime = Claim(name="regime", content="Context regime", prior=0.7)
+    out = Claim(name="result", content="", prior=0.5)
+    chain = ChainExpr(
+        name="lambda_args_chain",
+        steps=[
+            StepLambda(
+                step=1,
+                **{"lambda": "derive result"},
+                args=[
+                    Arg(ref="base", dependency="direct"),
+                    Arg(ref="regime", dependency="indirect"),
+                ],
+                prior=0.8,
+            ),
+            StepRef(step=2, ref="result"),
+        ],
+    )
+    mod = Module(
+        type="reasoning_module",
+        name="m",
+        knowledge=[base, regime, out, chain],
+        export=["result"],
+    )
+    pkg = Package(name="lambda_args_pkg", modules=["m"])
+    pkg.loaded_modules = [mod]
+
+    executor = MockExecutor()
+    await execute_package(pkg, executor)
+
+    lambda_calls = [c for c in executor.calls if c["type"] == "lambda"]
+    assert len(lambda_calls) == 1
+    assert "Base premise" in lambda_calls[0]["input"]
+    assert "Context regime" in lambda_calls[0]["input"]

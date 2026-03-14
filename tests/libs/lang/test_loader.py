@@ -232,6 +232,65 @@ def test_parse_module_round_trips_model_dump_surface():
     assert parsed.knowledge[0].name == "x"
 
 
+def test_parse_module_supports_premises_and_chains_surface():
+    module = _parse_module(
+        {
+            "type": "reasoning_module",
+            "name": "m",
+            "premises": [
+                {"type": "claim", "name": "base", "content": "Base premise", "prior": 0.7},
+                {"type": "setting", "name": "regime", "content": "Relevant regime", "prior": 0.9},
+            ],
+            "chains": [
+                {
+                    "name": "demo_chain",
+                    "steps": [
+                        {
+                            "id": "obs",
+                            "type": "claim",
+                            "content": "Observation",
+                            "refs": [{"ref": "base", "dependency": "direct"}],
+                            "prior": 0.61,
+                        },
+                        {
+                            "id": "bridge",
+                            "type": "claim",
+                            "content": "Bridge",
+                            "reasoning": "Combine the observation with the regime.",
+                            "refs": [
+                                {"ref": "obs", "dependency": "direct"},
+                                {"ref": "regime", "dependency": "indirect"},
+                            ],
+                            "prior": 0.73,
+                        },
+                    ],
+                    "conclusion": {
+                        "name": "final_claim",
+                        "type": "claim",
+                        "content": "Final conclusion",
+                        "refs": [{"ref": "bridge", "dependency": "direct"}],
+                        "prior": 0.84,
+                    },
+                }
+            ],
+            "export": ["final_claim"],
+        }
+    )
+
+    names = {decl.name for decl in module.knowledge}
+    assert {"base", "regime", "demo_chain__obs", "demo_chain__bridge", "final_claim"}.issubset(
+        names
+    )
+
+    chain = next(decl for decl in module.knowledge if isinstance(decl, ChainExpr))
+    assert chain.name == "demo_chain"
+    assert len(chain.steps) == 6
+    assert chain.steps[0].args[0].ref == "base"
+    assert chain.steps[2].args[0].ref == "demo_chain__obs"
+    assert chain.steps[2].args[1].ref == "regime"
+    assert chain.steps[4].args[0].ref == "demo_chain__bridge"
+
+
 def test_load_package_with_dependencies(tmp_path):
     """Dependencies in package.yaml are parsed."""
     pkg_yaml = tmp_path / "package.yaml"

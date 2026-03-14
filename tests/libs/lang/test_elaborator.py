@@ -3,7 +3,8 @@
 from pathlib import Path
 
 from libs.lang.elaborator import ElaboratedPackage, elaborate_package
-from libs.lang.loader import load_package
+from libs.lang.loader import _parse_module, load_package
+from libs.lang.models import Package
 from libs.lang.resolver import resolve_refs
 
 
@@ -135,3 +136,62 @@ def test_args_include_decl_type_and_prior():
     assert arg0["prior"] == 0.7
     arg1 = prompt["args"][1]
     assert arg1["decl_type"] == "setting"
+
+
+def test_elaborate_chain_surface_tracks_lambda_args():
+    module = _parse_module(
+        {
+            "type": "reasoning_module",
+            "name": "m",
+            "premises": [
+                {"type": "claim", "name": "base", "content": "Base premise", "prior": 0.7},
+                {"type": "setting", "name": "regime", "content": "Relevant regime", "prior": 0.9},
+            ],
+            "chains": [
+                {
+                    "name": "demo_chain",
+                    "steps": [
+                        {
+                            "id": "obs",
+                            "type": "claim",
+                            "content": "Observation",
+                            "refs": [{"ref": "base", "dependency": "direct"}],
+                            "prior": 0.61,
+                        },
+                        {
+                            "id": "bridge",
+                            "type": "claim",
+                            "reasoning": "Combine observation with the regime.",
+                            "content": "Bridge",
+                            "refs": [
+                                {"ref": "obs", "dependency": "direct"},
+                                {"ref": "regime", "dependency": "indirect"},
+                            ],
+                            "prior": 0.73,
+                        },
+                    ],
+                    "conclusion": {
+                        "name": "final_claim",
+                        "type": "claim",
+                        "content": "Final conclusion",
+                        "refs": [{"ref": "bridge", "dependency": "direct"}],
+                        "prior": 0.84,
+                    },
+                }
+            ],
+            "export": ["final_claim"],
+        }
+    )
+    pkg = Package(name="demo_pkg", modules=["m"])
+    pkg.loaded_modules = [module]
+
+    result = elaborate_package(pkg)
+    prompts = {(p["chain"], p["step"]): p for p in result.prompts}
+
+    assert prompts[("demo_chain", 1)]["args"][0]["ref"] == "base"
+    assert prompts[("demo_chain", 3)]["args"][0]["ref"] == "demo_chain__obs"
+    assert prompts[("demo_chain", 3)]["args"][1]["dependency"] == "indirect"
+
+    ctx = result.chain_contexts["demo_chain"]
+    assert [ref["name"] for ref in ctx["premise_refs"]] == ["base"]
+    assert ctx["conclusion_refs"][0]["name"] == "final_claim"

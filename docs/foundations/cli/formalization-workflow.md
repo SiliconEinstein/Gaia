@@ -231,13 +231,20 @@ Use current Gaia surface forms:
 - `claim`
 - `setting`
 - `question`
-- `infer_action`
 - `ref`
-- `chain_expr`
+- `premises`
+- `chains`
 
 Use these authoring rules:
 
-- use `ref` when a chain depends on knowledge from another module
+- for reasoning-heavy modules, prefer `premises:` plus `chains:` over one flat `knowledge:` list
+- put reusable strong support nodes in `premises:`
+- write one reasoning chain per `chains:` block
+- keep intermediate steps inline inside each chain instead of listing every intermediate claim at module top level
+- author the package as a self-contained Gaia-native reformulation of the source, not as article notes or a summary
+- do not let conclusion-bearing nodes become thinner than the source; keep conclusion content, conditions, and quantitative details when the source makes them explicit
+- if a chain step depends on a premise or a previous step, add a `ref` in that step's `refs:` list
+- use `ref` in `premises:` when a chain depends on knowledge from another module
 - use `dependency: direct` for premise-like support
 - use `dependency: indirect` for context-like support
 - encode priors and conditional probability where the current Gaia surface supports them
@@ -272,7 +279,7 @@ Repair until the package passes.
 Typical repair targets include:
 
 - YAML syntax
-- malformed `chain_expr`
+- malformed `chains` or normalized `chain_expr`
 - broken or missing refs
 - naming collisions
 - missing module declarations

@@ -299,11 +299,34 @@ Each module file is a YAML document with:
 - required `type`
 - required `name`
 - optional `knowledge` (defaults to empty; a module with no knowledge objects is structurally valid)
+- optional `premises`
+- optional `chains`
 - optional `export`
 
-Reasoning is expressed inside `knowledge` via `chain_expr`.
+Reasoning may be authored in either of two supported forms:
 
-Gaia Language does not currently use a top-level module `chains:` key. Any simplified example that suggests otherwise should be treated as explanatory shorthand rather than normative syntax.
+- flat `knowledge` declarations, including explicit `chain_expr`
+- the author-facing `premises:` and `chains:` surface for reasoning modules
+
+`premises:` is a list of reusable strong support nodes such as `claim`, `setting`, or local `ref`
+aliases. `chains:` is a list of conclusion-first chain blocks. Each chain block has:
+
+- required `name`
+- optional `steps`
+- required `conclusion`
+
+Each inline chain step or conclusion may use:
+
+- optional `id`
+- optional `name`
+- required `type`
+- `content`
+- optional `refs`
+- optional `reasoning`
+- optional `prior`
+
+The loader normalizes `premises:` and `chains:` into the same internal runtime objects used by
+the existing compiler, elaborator, and Graph IR builders.
 
 ### Knowledge surface
 
@@ -317,7 +340,7 @@ The current knowledge kinds on `main` are:
 - `chain_expr`
 - `ref`
 
-`chain_expr.steps` currently admit exactly three step forms:
+The normalized runtime `chain_expr.steps` surface currently admits exactly three step forms:
 
 - `ref`
 - `apply`
