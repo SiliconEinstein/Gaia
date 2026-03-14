@@ -22,8 +22,9 @@ from libs.storage_v2.manager import StorageManager
 
 
 def wrap(text: str, width: int = 90, indent: str = "") -> str:
-    return textwrap.fill(text.replace("\n", " "), width=width, initial_indent=indent,
-                         subsequent_indent=indent)
+    return textwrap.fill(
+        text.replace("\n", " "), width=width, initial_indent=indent, subsequent_indent=indent
+    )
 
 
 class Report:
