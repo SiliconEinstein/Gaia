@@ -53,6 +53,7 @@ class StepApply(BaseModel):
 class StepLambda(BaseModel):
     step: int
     lambda_: str = Field(alias="lambda")
+    args: list[Arg] = Field(default_factory=list)
     prior: float | None = None
 
     model_config = {"populate_by_name": True}

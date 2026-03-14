@@ -478,8 +478,7 @@ dependencies:
 type: reasoning_module
 name: reasoning
 
-knowledge:
-  # Ref — reference to external knowledge
+premises:
   - type: ref
     name: premise
     target: env.premise
@@ -488,40 +487,28 @@ knowledge:
     name: vacuum_setting
     target: env.vacuum_setting
 
-  # Claim
-  - type: claim
-    name: conclusion
-    content: "Air resistance, not mass, explains differential fall rates"
-    prior: 0.5                    # V3
-
-  # Action
-  - type: infer_action
-    name: contrastive_analysis
-    params:
-      - name: env
-        type: setting
-      - name: hyp
-        type: claim
-    return_type: claim
-    content: "Contrast behavior under two different conditions to test the hypothesis"
-    prior: 0.9                    # V3
-
-  # ChainExpr
-  - type: chain_expr
-    name: main_derivation
+chains:
+  - name: main_derivation
     steps:
-      - step: 1
-        ref: premise
-      - step: 2
-        apply: contrastive_analysis
-        args:
+      - id: contrastive_bridge
+        type: claim
+        content: >
+          Contrasting the empirical premise against the vacuum setting shows that
+          the observed differential fall rates are environment-sensitive.
+        refs:
           - ref: premise
             dependency: direct    # V3
           - ref: vacuum_setting
             dependency: indirect  # V3
         prior: 0.85              # V3
-      - step: 3
-        ref: conclusion
+    conclusion:
+      name: conclusion
+      type: claim
+      content: "Air resistance, not mass, explains differential fall rates"
+      refs:
+        - ref: contrastive_bridge
+          dependency: direct
+      prior: 0.5
 
 export:
   - conclusion

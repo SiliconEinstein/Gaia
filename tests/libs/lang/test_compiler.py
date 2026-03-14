@@ -2,7 +2,7 @@
 from pathlib import Path
 
 from libs.lang.compiler import compile_factor_graph
-from libs.lang.loader import load_package
+from libs.lang.loader import _parse_module, load_package
 from libs.lang.models import (
     Claim,
     ChainExpr,
@@ -264,3 +264,60 @@ def test_non_exported_claim_excluded():
     assert "public" in fg.variables
     assert fg.variables["public"] == 0.9
     assert "private" not in fg.variables
+
+
+def test_chain_surface_keeps_local_premises_and_steps_in_factor_graph():
+    module = _parse_module(
+        {
+            "type": "reasoning_module",
+            "name": "m",
+            "premises": [
+                {"type": "claim", "name": "base", "content": "Base premise", "prior": 0.7},
+                {"type": "setting", "name": "regime", "content": "Relevant regime", "prior": 0.9},
+            ],
+            "chains": [
+                {
+                    "name": "demo_chain",
+                    "steps": [
+                        {
+                            "id": "obs",
+                            "type": "claim",
+                            "content": "Observation",
+                            "refs": [{"ref": "base", "dependency": "direct"}],
+                            "prior": 0.61,
+                        },
+                        {
+                            "id": "bridge",
+                            "type": "claim",
+                            "content": "Bridge",
+                            "refs": [
+                                {"ref": "obs", "dependency": "direct"},
+                                {"ref": "regime", "dependency": "indirect"},
+                            ],
+                            "prior": 0.73,
+                        },
+                    ],
+                    "conclusion": {
+                        "name": "final_claim",
+                        "type": "claim",
+                        "content": "Final conclusion",
+                        "refs": [{"ref": "bridge", "dependency": "direct"}],
+                        "prior": 0.84,
+                    },
+                }
+            ],
+            "export": ["final_claim"],
+        }
+    )
+    pkg = Package(name="demo_pkg", modules=["m"])
+    pkg.loaded_modules = [module]
+
+    fg = compile_factor_graph(pkg)
+
+    assert {"base", "demo_chain__obs", "demo_chain__bridge", "final_claim"}.issubset(
+        fg.variables
+    )
+
+    factor = next(f for f in fg.factors if f["name"] == "demo_chain.step_3")
+    assert factor["premises"] == ["demo_chain__obs"]
+    assert factor["conclusions"] == ["demo_chain__bridge"]
