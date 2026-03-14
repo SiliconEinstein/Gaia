@@ -7,6 +7,7 @@ import {
   WarningOutlined,
   BranchesOutlined,
   SendOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 
 const items = [
@@ -35,6 +36,11 @@ const items = [
     key: "/commits",
     icon: <SendOutlined />,
     label: <Link to="/commits">Commits</Link>,
+  },
+  {
+    key: "/papers",
+    icon: <FileTextOutlined />,
+    label: <Link to="/papers">Papers</Link>,
   },
 ];
 

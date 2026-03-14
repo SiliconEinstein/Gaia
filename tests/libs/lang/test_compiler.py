@@ -194,7 +194,7 @@ def test_compile_single_chain_inline():
 
 
 def test_edge_type_passed_to_factor():
-    """ChainExpr.edge_type should propagate to factor dict."""
+    """ChainExpr.edge_type should propagate to factor dict (deprecated field)."""
     claim_a = Claim(name="a", content="x", prior=0.8)
     claim_b = Claim(name="b", content="", prior=0.5)
     chain = ChainExpr(
@@ -215,7 +215,10 @@ def test_edge_type_passed_to_factor():
     pkg = Package(name="test_edge_type", modules=["m"])
     pkg.loaded_modules = [mod]
 
-    fg = compile_factor_graph(pkg)
+    import pytest
+
+    with pytest.warns(DeprecationWarning, match="edge_type is deprecated"):
+        fg = compile_factor_graph(pkg)
     assert len(fg.factors) == 1
     assert fg.factors[0]["edge_type"] == "retraction"
 

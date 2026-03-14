@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Convert paper XML fixtures to Gaia Language YAML packages.
 
-Converts tests/fixtures/papers/ → tests/fixtures/gaia_language_packages/<slug>/
+Converts tests/fixtures/inputs/papers_xml/ → tests/fixtures/gaia_language_packages/<slug>/
 
 Usage:
     python scripts/xml_to_yaml.py                                  # convert all papers
@@ -17,7 +17,7 @@ from pathlib import Path
 
 import yaml
 
-PAPERS_DIR = Path("tests/fixtures/papers")
+PAPERS_DIR = Path("tests/fixtures/inputs/papers_xml")
 OUTPUT_DIR = Path("tests/fixtures/gaia_language_packages")
 
 

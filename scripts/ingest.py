@@ -79,7 +79,7 @@ class Source(ABC):
 class PaperXMLSource(Source):
     """Convert XML reasoning chains via xml_to_yaml + pipeline_build/review/infer."""
 
-    PAPERS_DIR = Path("tests/fixtures/papers")
+    PAPERS_DIR = Path("tests/fixtures/inputs/papers_xml")
 
     def convert(self) -> list[V2PackageData]:
         results = []

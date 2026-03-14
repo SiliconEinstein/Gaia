@@ -35,7 +35,13 @@ from libs.storage.models import (
 
 
 def load_fixture(name: str) -> list[dict]:
-    path = Path(__file__).parents[2] / "fixtures" / "storage" / f"{name}.json"
+    path = (
+        Path(__file__).parents[2]
+        / "fixtures"
+        / "storage"
+        / "gelileo_falling_bodies"
+        / f"{name}.json"
+    )
     return json.loads(path.read_text())
 
 
