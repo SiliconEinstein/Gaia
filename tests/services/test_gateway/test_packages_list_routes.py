@@ -1,4 +1,5 @@
 """Tests for v2 list API routes."""
+
 from __future__ import annotations
 
 import pytest
@@ -12,18 +13,33 @@ from services.gateway.deps import deps
 class MockStorage:
     async def list_packages(self, page: int = 1, page_size: int = 20):
         pkg = Package(
-            package_id="pkg1", name="pkg1", version="1.0.0",
-            description="test", modules=[], exports=[],
-            submitter="test", submitted_at="2026-01-01T00:00:00Z", status="merged",
+            package_id="pkg1",
+            name="pkg1",
+            version="1.0.0",
+            description="test",
+            modules=[],
+            exports=[],
+            submitter="test",
+            submitted_at="2026-01-01T00:00:00Z",
+            status="merged",
         )
         return [pkg], 1
 
-    async def list_knowledge_paged(self, page: int = 1, page_size: int = 20, type_filter: str | None = None):
+    async def list_knowledge_paged(
+        self, page: int = 1, page_size: int = 20, type_filter: str | None = None
+    ):
         from datetime import datetime
+
         k = Knowledge(
-            knowledge_id="k1", version=1, type="claim", content="test content",
-            prior=0.5, keywords=[], source_package_id="pkg1",
-            source_package_version="1.0.0", source_module_id="pkg1.mod1",
+            knowledge_id="k1",
+            version=1,
+            type="claim",
+            content="test content",
+            prior=0.5,
+            keywords=[],
+            source_package_id="pkg1",
+            source_package_version="1.0.0",
+            source_module_id="pkg1.mod1",
             created_at=datetime(2026, 1, 1),
         )
         if type_filter and type_filter != "claim":
@@ -32,12 +48,20 @@ class MockStorage:
 
     async def list_modules(self, package_id: str | None = None):
         m = Module(
-            module_id="pkg1.mod1", package_id="pkg1", package_version="1.0.0",
-            name="mod1", role="reasoning", imports=[], chain_ids=[], export_ids=[],
+            module_id="pkg1.mod1",
+            package_id="pkg1",
+            package_version="1.0.0",
+            name="mod1",
+            role="reasoning",
+            imports=[],
+            chain_ids=[],
+            export_ids=[],
         )
         return [m]
 
-    async def list_chains_paged(self, page: int = 1, page_size: int = 20, module_id: str | None = None):
+    async def list_chains_paged(
+        self, page: int = 1, page_size: int = 20, module_id: str | None = None
+    ):
         return [], 0
 
     async def get_chain(self, chain_id: str):

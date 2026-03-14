@@ -27,14 +27,14 @@ export interface VisEdge {
   font: { size: number };
 }
 
-function truncate(s: string, n = 50): string {
-  return s.length > n ? s.slice(0, n) + "…" : s;
-}
-
 export function toVisGraph(data: GraphData): { nodes: VisNode[]; edges: VisEdge[] } {
-  const nodes: VisNode[] = data.nodes.map((n: GraphNode) => ({
+  const typeCounters: Partial<Record<KnowledgeType, number>> = {};
+  const nodes: VisNode[] = data.nodes.map((n: GraphNode) => {
+    typeCounters[n.type] = (typeCounters[n.type] ?? 0) + 1;
+    const label = `${n.type} #${typeCounters[n.type]}`;
+    return {
     id: n.id,
-    label: truncate(n.content, 50),
+    label,
     title: `[${n.type}] ${n.content}\nprior: ${n.prior.toFixed(2)}`,
     color: {
       background: TYPE_COLORS[n.type] ?? "#aaa",
@@ -42,7 +42,8 @@ export function toVisGraph(data: GraphData): { nodes: VisNode[]; edges: VisEdge[
     },
     font: { color: "#fff" },
     shape: "box",
-  }));
+    };
+  });
 
   const edgeMap = new Map<string, VisEdge>();
   data.edges.forEach((e: GraphEdge) => {
@@ -64,17 +65,19 @@ export function toVisGraph(data: GraphData): { nodes: VisNode[]; edges: VisEdge[
 }
 
 export const HIERARCHICAL_OPTIONS = {
-  layout: {
-    hierarchical: {
-      enabled: true,
-      direction: "UD",
-      sortMethod: "directed",
-      levelSeparation: 120,
-      nodeSpacing: 180,
+  layout: { improvedLayout: true },
+  physics: {
+    enabled: true,
+    barnesHut: {
+      gravitationalConstant: -8000,
+      centralGravity: 0.3,
+      springLength: 160,
+      springConstant: 0.04,
+      damping: 0.09,
     },
+    stabilization: { iterations: 200 },
   },
-  physics: { enabled: false },
-  interaction: { hover: true, tooltipDelay: 100 },
+  interaction: { hover: true, tooltipDelay: 100, zoomView: true, dragView: true },
   nodes: { borderWidth: 1, borderWidthSelected: 2 },
-  edges: { smooth: { type: "cubicBezier", forceDirection: "vertical" } },
+  edges: { smooth: { type: "dynamic" }, arrows: { to: { scaleFactor: 0.6 } } },
 };

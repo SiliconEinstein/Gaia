@@ -212,9 +212,7 @@ async def list_chains(
 ):
     """List chains with pagination, optionally filtered by module."""
     mgr = _require_storage()
-    items, total = await mgr.list_chains_paged(
-        page=page, page_size=page_size, module_id=module_id
-    )
+    items, total = await mgr.list_chains_paged(page=page, page_size=page_size, module_id=module_id)
     return PaginatedChains(
         items=[c.model_dump() for c in items],
         total=total,
