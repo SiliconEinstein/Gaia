@@ -33,6 +33,13 @@ class PaginatedPackages(BaseModel):
     size: int
 
 
+class PaginatedKnowledge(BaseModel):
+    items: list[dict]
+    total: int
+    page: int
+    size: int
+
+
 class IngestRequest(BaseModel):
     package: dict
     modules: list[dict]
@@ -114,6 +121,25 @@ async def get_package(package_id: str):
     if pkg is None:
         raise HTTPException(status_code=404, detail="Package not found")
     return pkg.model_dump()
+
+
+@router.get("/knowledge", response_model=PaginatedKnowledge)
+async def list_knowledge(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    type_filter: str | None = None,
+):
+    """List knowledge items with pagination and optional type filter."""
+    mgr = _require_storage()
+    items, total = await mgr.list_knowledge_paged(
+        page=page, page_size=page_size, type_filter=type_filter
+    )
+    return PaginatedKnowledge(
+        items=[k.model_dump() for k in items],
+        total=total,
+        page=page,
+        size=page_size,
+    )
 
 
 # ── Read: Knowledge ──

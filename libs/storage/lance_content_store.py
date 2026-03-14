@@ -913,6 +913,29 @@ class LanceContentStore(ContentStore):
         offset = max(0, (page - 1) * page_size)
         return items[offset : offset + page_size], total
 
+    async def list_knowledge_paged(
+        self, page: int = 1, page_size: int = 20, type_filter: str | None = None
+    ) -> tuple[list[Knowledge], int]:
+        """Return paginated knowledge, optionally filtered by type."""
+        committed = await self._get_committed_packages()
+        table = self._db.open_table("knowledge")
+        total_rows = table.count_rows()
+        if total_rows == 0:
+            return [], 0
+        results = table.search().limit(total_rows).to_list()
+        items = [
+            _row_to_knowledge(r)
+            for r in results
+            if self._is_committed(
+                r["source_package_id"], r.get("source_package_version", "0.1.0"), committed
+            )
+        ]
+        if type_filter:
+            items = [k for k in items if k.type == type_filter]
+        total = len(items)
+        offset = max(0, (page - 1) * page_size)
+        return items[offset : offset + page_size], total
+
     async def list_knowledge(self) -> list[Knowledge]:
         table = self._db.open_table("knowledge")
         count = table.count_rows()

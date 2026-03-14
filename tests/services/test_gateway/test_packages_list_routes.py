@@ -19,11 +19,15 @@ class MockStorage:
         return [pkg], 1
 
     async def list_knowledge_paged(self, page: int = 1, page_size: int = 20, type_filter: str | None = None):
+        from datetime import datetime
         k = Knowledge(
             knowledge_id="k1", version=1, type="claim", content="test content",
             prior=0.5, keywords=[], source_package_id="pkg1",
             source_package_version="1.0.0", source_module_id="pkg1.mod1",
+            created_at=datetime(2026, 1, 1),
         )
+        if type_filter and type_filter != "claim":
+            return [], 0
         return [k], 1
 
     async def list_modules(self, package_id: str | None = None):
@@ -68,3 +72,23 @@ def test_list_packages_pagination(client):
     body = r.json()
     assert body["page"] == 2
     assert body["size"] == 5
+
+
+def test_list_knowledge(client):
+    r = client.get("/knowledge")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total"] == 1
+    assert body["items"][0]["knowledge_id"] == "k1"
+
+
+def test_list_knowledge_type_filter(client):
+    r = client.get("/knowledge?type_filter=claim")
+    assert r.status_code == 200
+    assert r.json()["total"] == 1
+
+
+def test_list_knowledge_type_filter_no_match(client):
+    r = client.get("/knowledge?type_filter=setting")
+    assert r.status_code == 200
+    assert "items" in r.json()

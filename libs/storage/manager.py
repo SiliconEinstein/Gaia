@@ -235,6 +235,13 @@ class StorageManager:
     async def list_packages(self, page: int = 1, page_size: int = 20) -> tuple[list[Package], int]:
         return await self.content_store.list_packages(page=page, page_size=page_size)
 
+    async def list_knowledge_paged(
+        self, page: int = 1, page_size: int = 20, type_filter: str | None = None
+    ) -> tuple[list[Knowledge], int]:
+        return await self.content_store.list_knowledge_paged(
+            page=page, page_size=page_size, type_filter=type_filter
+        )
+
     async def list_knowledge(self):
         return await self.content_store.list_knowledge()
 
