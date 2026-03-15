@@ -292,6 +292,38 @@ def test_load_package_with_dependencies(tmp_path):
     assert pkg.dependencies[1].version is None
 
 
+def test_chain_surface_conditional_prior_sets_step_strength():
+    module = _parse_module(
+        {
+            "type": "reasoning_module",
+            "name": "m",
+            "premises": [
+                {"type": "claim", "name": "base", "content": "Base premise", "prior": 0.7}
+            ],
+            "chains": [
+                {
+                    "name": "demo_chain",
+                    "conclusion": {
+                        "name": "final_claim",
+                        "type": "claim",
+                        "content": "Final conclusion",
+                        "refs": [{"ref": "base", "dependency": "direct"}],
+                        "prior": 0.51,
+                        "conditional_prior": 0.87,
+                    },
+                }
+            ],
+            "export": ["final_claim"],
+        }
+    )
+
+    final_claim = next(decl for decl in module.knowledge if decl.name == "final_claim")
+    chain = next(decl for decl in module.knowledge if isinstance(decl, ChainExpr))
+
+    assert final_claim.prior == 0.51
+    assert chain.steps[0].prior == 0.87
+
+
 def test_module_title_loaded():
     """Module title field should be loaded from YAML."""
     pkg = load_package(GALILEO_DIR)

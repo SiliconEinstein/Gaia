@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from libs.lang.loader import load_package
+from libs.lang.models import Claim, ChainExpr, Module, Package, StepLambda, StepRef
 from libs.lang.resolver import resolve_refs
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "gaia_language_packages"
@@ -149,3 +150,30 @@ def test_einstein_subsumption_export_is_materialized_for_publish():
 
     knowledge_ids = {c.knowledge_id for c in data.knowledge_items}
     assert "einstein_gravity/newton_subsumed_by_gr" in knowledge_ids
+
+
+def test_legacy_lambda_without_args_uses_previous_ref_as_premise():
+    from cli.lang_to_storage import convert_to_storage
+
+    claim_a = Claim(name="a", content="Claim A", prior=0.6)
+    claim_b = Claim(name="b", content="Claim B", prior=0.5)
+    chain = ChainExpr(
+        name="legacy_chain",
+        steps=[
+            StepRef(step=1, ref="a"),
+            StepLambda(step=2, **{"lambda": "legacy reasoning"}, prior=0.8),
+            StepRef(step=3, ref="b"),
+        ],
+    )
+    mod = Module(
+        type="reasoning_module", name="m", knowledge=[claim_a, claim_b, chain], export=["b"]
+    )
+    pkg = Package(name="inline_test", modules=["m"])
+    pkg.loaded_modules = [mod]
+
+    data = convert_to_storage(pkg=pkg, review={}, beliefs={}, bp_run_id="test")
+
+    assert len(data.chains) == 1
+    step = data.chains[0].steps[0]
+    assert [prem.knowledge_id for prem in step.premises] == ["inline_test/a"]
+    assert step.conclusion.knowledge_id == "inline_test/b"

@@ -142,3 +142,59 @@ def test_merge_review_does_not_modify_original():
             if hasattr(decl, "steps") and decl.name == "drag_prediction_chain":
                 step1 = next(s for s in decl.steps if s.step == 1)
                 assert step1.prior == orig_prior
+
+
+def test_merge_review_accepts_chain_surface_step_id():
+    pkg = load_package(FIXTURE_PATH)
+    pkg = resolve_refs(pkg)
+    review = {
+        "chains": [
+            {
+                "chain": "drag_prediction_chain",
+                "steps": [
+                    {
+                        "step": "drag_prediction_chain.1",
+                        "conditional_prior": 0.91,
+                    }
+                ],
+            }
+        ]
+    }
+
+    merged = merge_review(pkg, review)
+
+    for mod in merged.loaded_modules:
+        for decl in mod.knowledge:
+            if hasattr(decl, "steps") and decl.name == "drag_prediction_chain":
+                step1 = next(s for s in decl.steps if s.step == 1)
+                assert step1.prior == 0.91
+                return
+    raise AssertionError("drag_prediction_chain not found")
+
+
+def test_merge_review_ignores_unknown_odd_step_id():
+    pkg = load_package(FIXTURE_PATH)
+    pkg = resolve_refs(pkg)
+    review = {
+        "chains": [
+            {
+                "chain": "drag_prediction_chain",
+                "steps": [
+                    {
+                        "step": "drag_prediction_chain.99",
+                        "conditional_prior": 0.2,
+                    }
+                ],
+            }
+        ]
+    }
+
+    merged = merge_review(pkg, review)
+
+    for mod in merged.loaded_modules:
+        for decl in mod.knowledge:
+            if hasattr(decl, "steps") and decl.name == "drag_prediction_chain":
+                step1 = next(s for s in decl.steps if s.step == 1)
+                assert step1.prior == 0.93
+                return
+    raise AssertionError("drag_prediction_chain not found")
