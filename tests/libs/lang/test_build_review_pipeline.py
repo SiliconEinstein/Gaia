@@ -96,10 +96,10 @@ def test_all_three_compile_factor_graphs():
     assert len(fg_g.variables) == 14
     assert len(fg_g.factors) == 11
 
-    # Newton: 12 variables, 4 factors
-    assert len(fg_n.variables) == 12
-    assert len(fg_n.factors) == 4
+    # Newton: authored chains plus exported relation constraints
+    assert len(fg_n.variables) == 15
+    assert len(fg_n.factors) == 8
 
-    # Einstein: 15 variables, 10 factors (9 chain + 1 relation constraint)
-    assert len(fg_e.variables) == 15
-    assert len(fg_e.factors) == 10
+    # Einstein: chain-surface package with one relation constraint
+    assert len(fg_e.variables) == 21
+    assert len(fg_e.factors) == 11

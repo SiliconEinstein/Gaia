@@ -54,6 +54,8 @@ chains:
           dependency: direct
         - ref: galileo_vacuum_prediction
           dependency: direct
+      prior: 0.7
+      conditional_prior: 0.92
 
   - name: contradiction_relation_chain
     conclusion:
@@ -75,6 +77,8 @@ chains:
           dependency: direct
         - ref: aristotle_law
           dependency: direct
+      prior: 0.7
+      conditional_prior: 0.96
 
   - name: theoretical_contradiction_chain
     conclusion:
@@ -94,6 +98,7 @@ chains:
         - ref: aristotle_law
           dependency: direct
       prior: 0.5
+      conditional_prior: 0.95
 
   - name: two_path_rejection_chain
     conclusion:
@@ -115,6 +120,7 @@ chains:
         - ref: newton_contradicts_aristotle
           dependency: direct
       prior: 0.5
+      conditional_prior: 0.94
 
 export:
   - galileo_equivalence

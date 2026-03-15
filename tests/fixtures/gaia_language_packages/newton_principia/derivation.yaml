@@ -44,6 +44,7 @@ chains:
         - ref: near_earth_surface
           dependency: indirect
       prior: 0.5
+      conditional_prior: 0.97
 
   - name: mass_independence_chain
     conclusion:
@@ -59,6 +60,7 @@ chains:
         - ref: force_equation_result
           dependency: direct
       prior: 0.5
+      conditional_prior: 0.95
 
 export:
   - force_equation_result

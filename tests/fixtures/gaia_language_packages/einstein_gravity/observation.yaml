@@ -87,6 +87,7 @@ chains:
         - ref: gr_light_deflection
           dependency: direct
       prior: 0.5
+      conditional_prior: 0.96
 
   - name: soldner_rejection_chain
     conclusion:
@@ -106,6 +107,7 @@ chains:
         - ref: deflection_contradiction
           dependency: direct
       prior: 0.5
+      conditional_prior: 0.92
 
   - name: apollo_chain
     conclusion:
@@ -124,6 +126,7 @@ chains:
         - ref: apollo15_feather_drop
           dependency: direct
       prior: 0.5
+      conditional_prior: 0.99
 
   - name: convergence_chain
     conclusion:
@@ -150,6 +153,7 @@ chains:
         - ref: apollo15_confirms_equal_fall
           dependency: direct
       prior: 0.5
+      conditional_prior: 0.98
 
 export:
   - eddington_confirms_gr

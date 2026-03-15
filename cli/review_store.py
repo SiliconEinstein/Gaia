@@ -7,7 +7,7 @@ from pathlib import Path
 
 import yaml
 
-from libs.lang.models import ChainExpr, Package, StepApply
+from libs.lang.models import ChainExpr, Package, StepApply, StepLambda
 
 
 def write_review(review: dict, reviews_dir: Path, filename: str | None = None) -> Path:
@@ -75,7 +75,7 @@ def merge_review(pkg: Package, review: dict, source_fingerprint: str | None = No
             else:
                 step_num = int(step_id)
 
-            step = next((s for s in chain.steps if s.step == step_num), None)
+            step = _resolve_review_step(chain, step_num)
             if not step:
                 continue
 
@@ -85,10 +85,28 @@ def merge_review(pkg: Package, review: dict, source_fingerprint: str | None = No
                 step.prior = prior
 
             # Backward compat: dependency updates (old format only)
-            if "dependencies" in step_review and isinstance(step, StepApply):
+            if "dependencies" in step_review and isinstance(step, (StepApply, StepLambda)):
                 for dep_review in step_review["dependencies"]:
                     arg = next((a for a in step.args if a.ref == dep_review["ref"]), None)
                     if arg and "suggested" in dep_review:
                         arg.dependency = dep_review["suggested"]
 
     return merged
+
+
+def _resolve_review_step(chain: ChainExpr, step_num: int):
+    step = next((s for s in chain.steps if s.step == step_num), None)
+    if isinstance(step, (StepApply, StepLambda)):
+        return step
+
+    # Backward compatibility: old authored chains used even-numbered factor steps
+    # (`ref -> apply/lambda -> ref`), while the current chain surface normalizes
+    # the first reasoning step to `1`, then `3`, ...
+    if step_num <= 0 or step_num % 2 != 0:
+        return None
+
+    factor_steps = [s for s in chain.steps if isinstance(s, (StepApply, StepLambda))]
+    logical_index = (step_num // 2) - 1
+    if 0 <= logical_index < len(factor_steps):
+        return factor_steps[logical_index]
+    return None

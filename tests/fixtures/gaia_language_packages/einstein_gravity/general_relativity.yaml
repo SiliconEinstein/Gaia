@@ -61,6 +61,7 @@ chains:
         - ref: einstein_field_equations
           dependency: direct
       prior: 0.85
+      conditional_prior: 0.97
       metadata:
         source: "爱因斯坦, Annalen der Physik, 1916"
 
@@ -85,6 +86,8 @@ chains:
           dependency: direct
         - ref: soldner_deflection
           dependency: direct
+      prior: 0.7
+      conditional_prior: 0.94
 
   - name: subsumption_chain
     conclusion:
@@ -106,6 +109,7 @@ chains:
         - ref: newton_a_equals_g
           dependency: direct
       prior: 0.5
+      conditional_prior: 0.92
 
   - name: weak_field_summary_chain
     conclusion:
@@ -129,6 +133,8 @@ chains:
           dependency: indirect
         - ref: newton_gravity
           dependency: indirect
+      prior: 0.9
+      conditional_prior: 0.95
 
 export:
   - einstein_field_equations

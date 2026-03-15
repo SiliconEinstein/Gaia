@@ -128,7 +128,7 @@ def test_args_include_decl_type_and_prior():
     pkg = resolve_refs(pkg)
     result = elaborate_package(pkg)
     prompts = {(p["chain"], p["step"]): p for p in result.prompts}
-    prompt = prompts[("drag_prediction_chain", 2)]
+    prompt = prompts[("drag_prediction_chain", 1)]
     arg0 = prompt["args"][0]
     assert arg0["decl_type"] == "claim"
     assert arg0["prior"] == 0.7

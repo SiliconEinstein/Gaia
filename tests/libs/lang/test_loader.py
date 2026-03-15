@@ -1,7 +1,7 @@
 # tests/libs/lang/test_loader.py
 from pathlib import Path
 
-from libs.lang.loader import _parse_module, load_package
+from libs.lang.loader import _parse_module, _parse_step, load_package
 from libs.lang.models import (
     Claim,
     ChainExpr,
@@ -139,24 +139,8 @@ def test_unknown_step_format_raises(tmp_path):
     """A chain step with neither ref/apply/lambda should raise ValueError."""
     import pytest
 
-    pkg_yaml = tmp_path / "package.yaml"
-    pkg_yaml.write_text("name: test_pkg\nmodules:\n  - m\n")
-
-    mod_yaml = tmp_path / "m.yaml"
-    mod_yaml.write_text(
-        "type: reasoning_module\n"
-        "name: m\n"
-        "knowledge:\n"
-        "  - type: chain_expr\n"
-        "    name: bad_chain\n"
-        "    steps:\n"
-        "      - step: 1\n"
-        "        unknown_key: oops\n"
-        "export: []\n"
-    )
-
     with pytest.raises(ValueError, match="Unknown step format"):
-        load_package(tmp_path)
+        _parse_step({"step": 1, "unknown_key": "oops"})
 
 
 def test_unknown_type_falls_back_to_knowledge(tmp_path):
@@ -166,7 +150,7 @@ def test_unknown_type_falls_back_to_knowledge(tmp_path):
 
     mod_yaml = tmp_path / "m.yaml"
     mod_yaml.write_text(
-        "type: reasoning_module\n"
+        "type: setting_module\n"
         "name: m\n"
         "knowledge:\n"
         "  - type: custom_type\n"

@@ -158,25 +158,25 @@ async def test_newton_full_pipeline():
     assert newton.package.name == "newton_principia"
     assert len(newton.package.loaded_modules) == 4
 
-    # Factor graph: 12 BP variables, 4 chain step factors
-    assert len(newton.factor_graph.variables) == 12
-    assert len(newton.factor_graph.factors) == 4
+    # Factor graph: authored reasoning chains plus exported relation constraints
+    assert len(newton.factor_graph.variables) == 15
+    assert len(newton.factor_graph.factors) == 8
 
     # Beliefs computed
-    assert len(newton.beliefs) == 12
+    assert len(newton.beliefs) == 15
 
     # Key claims updated from priors (chain conclusions with prior=0.5)
     assert newton.beliefs["acceleration_independent_of_mass"] != 0.5
     assert newton.beliefs["force_equation_result"] != 0.5
 
-    # All edge types are deduction (no relation constraints fire)
+    # Newton package now exports explicit equivalence / contradiction relations.
     edge_types = {f["edge_type"] for f in newton.factor_graph.factors}
-    assert edge_types == {"deduction"}
+    assert edge_types == {"deduction", "relation_contradiction", "relation_equivalence"}
 
     summary = newton.inspect()
     assert summary["package"] == "newton_principia"
-    assert summary["variables"] == 12
-    assert summary["factors"] == 4
+    assert summary["variables"] == 15
+    assert summary["factors"] == 8
 
 
 async def test_newton_cross_package_refs_resolved():
@@ -219,12 +219,12 @@ async def test_einstein_full_pipeline():
     assert einstein.package.name == "einstein_gravity"
     assert len(einstein.package.loaded_modules) == 4
 
-    # Factor graph: 15 BP variables, 10 factors (9 chain + 1 relation constraint)
-    assert len(einstein.factor_graph.variables) == 15
-    assert len(einstein.factor_graph.factors) == 10
+    # Factor graph: chain-surface package with one relation constraint
+    assert len(einstein.factor_graph.variables) == 21
+    assert len(einstein.factor_graph.factors) == 11
 
     # Beliefs computed
-    assert len(einstein.beliefs) == 15
+    assert len(einstein.beliefs) == 21
 
     # Subsumption excluded from BP
     assert "newton_subsumed_by_gr" not in einstein.beliefs
@@ -240,8 +240,8 @@ async def test_einstein_full_pipeline():
 
     summary = einstein.inspect()
     assert summary["package"] == "einstein_gravity"
-    assert summary["variables"] == 15
-    assert summary["factors"] == 10
+    assert summary["variables"] == 21
+    assert summary["factors"] == 11
 
 
 async def test_einstein_deflection_contradiction_constraint():

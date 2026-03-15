@@ -55,16 +55,9 @@ async def test_execute_calls_infer_action():
     executor = MockExecutor()
     await execute_package(pkg, executor)
 
-    # The richer story uses 4 reusable infer actions:
-    # drag-effect deduction, contradiction exposure, confound explanation,
-    # and final vacuum synthesis.
+    # The chain-surface Galileo fixture now uses inline lambda reasoning only.
     infer_calls = [c for c in executor.calls if c["type"] == "infer"]
-    assert len(infer_calls) == 4
-    prompts = "\n".join(c["prompt"] for c in infer_calls)
-    assert "轻球应当拖慢重球" in prompts
-    assert "不能同时为真" in prompts
-    assert "介质阻力造成的表象" in prompts
-    assert "不同重量的物体应以相同速率下落" in prompts
+    assert len(infer_calls) == 0
 
 
 async def test_execute_calls_lambda():
@@ -73,15 +66,16 @@ async def test_execute_calls_lambda():
     executor = MockExecutor()
     await execute_package(pkg, executor)
 
-    # The Galileo story uses 6 one-off lambda steps for narrative pivots
-    # (retraction_chain was replaced by a RetractAction, removing one lambda).
+    # The authored `premises + chains` surface expands to 10 lambda reasoning steps
+    # across motivation, reasoning, and follow-up modules.
     lambda_calls = [c for c in executor.calls if c["type"] == "lambda"]
-    assert len(lambda_calls) == 6
+    assert len(lambda_calls) == 10
     contents = "\n".join(c["content"] for c in lambda_calls)
     assert "归纳成一条普遍规律" in contents
+    assert "轻球天然比重球下落更慢" in contents
     assert "复合体 HL 总重量大于单独的重球 H" in contents
-    assert "自由落体的普遍真理" in contents
-    assert "外部阻力效应" in contents
+    assert "内在矛盾" in contents
+    assert "外部介质造成的表象" in contents
     assert "斜面实验把自由落体减慢到可测量尺度后" in contents
     assert "寻找足够接近真空的直接实验" in contents
 

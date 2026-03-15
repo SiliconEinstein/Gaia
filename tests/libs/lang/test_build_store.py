@@ -57,8 +57,8 @@ def test_save_build_has_step_anchors(tmp_path):
     save_build(elaborated, tmp_path)
 
     content = (tmp_path / "package.md").read_text()
-    assert "[step:synthesis_chain.2]" in content
-    assert "[step:drag_prediction_chain.2]" in content
+    assert "[step:synthesis_chain.1]" in content
+    assert "[step:drag_prediction_chain.1]" in content
 
 
 def test_save_build_has_direct_references(tmp_path):

@@ -188,7 +188,9 @@ def _expand_inline_chain(data: dict[str, Any]) -> list[Knowledge]:
                 step=step_num,
                 **{"lambda": lambda_text},
                 args=args,
-                prior=spec["data"].get("prior"),
+                # `prior` belongs to the generated knowledge node. The reasoning
+                # step can carry a separate conditional strength when authored.
+                prior=spec["data"].get("conditional_prior", spec["data"].get("prior")),
             )
         )
         chain_steps.append(StepRef(step=step_num + 1, ref=spec["actual_name"]))

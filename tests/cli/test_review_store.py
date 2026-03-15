@@ -77,8 +77,8 @@ def test_merge_review_updates_prior():
     for mod in merged.loaded_modules:
         for decl in mod.knowledge:
             if hasattr(decl, "steps") and decl.name == "drag_prediction_chain":
-                step2 = next(s for s in decl.steps if s.step == 2)
-                assert step2.prior == 0.95
+                step1 = next(s for s in decl.steps if s.step == 1)
+                assert step1.prior == 0.95
                 break
 
 
@@ -91,8 +91,8 @@ def test_merge_review_updates_dependency():
     for mod in merged.loaded_modules:
         for decl in mod.knowledge:
             if hasattr(decl, "steps") and decl.name == "drag_prediction_chain":
-                step2 = next(s for s in decl.steps if s.step == 2)
-                env_arg = next(a for a in step2.args if a.ref == "thought_experiment_env")
+                step1 = next(s for s in decl.steps if s.step == 1)
+                env_arg = next(a for a in step1.args if a.ref == "thought_experiment_env")
                 assert env_arg.dependency == "direct"
                 break
 
@@ -134,11 +134,11 @@ def test_merge_review_does_not_modify_original():
     for mod in pkg.loaded_modules:
         for decl in mod.knowledge:
             if hasattr(decl, "steps") and decl.name == "drag_prediction_chain":
-                step2 = next(s for s in decl.steps if s.step == 2)
-                orig_prior = step2.prior
+                step1 = next(s for s in decl.steps if s.step == 1)
+                orig_prior = step1.prior
     merge_review(pkg, review)
     for mod in pkg.loaded_modules:
         for decl in mod.knowledge:
             if hasattr(decl, "steps") and decl.name == "drag_prediction_chain":
-                step2 = next(s for s in decl.steps if s.step == 2)
-                assert step2.prior == orig_prior
+                step1 = next(s for s in decl.steps if s.step == 1)
+                assert step1.prior == orig_prior

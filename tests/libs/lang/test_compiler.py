@@ -69,7 +69,7 @@ def test_direct_dependency_creates_edge():
     drag = next(f for f in fg.factors if f["name"] == "drag_prediction_chain.step_1")
     assert drag["premises"] == ["heavier_falls_faster"]
     assert drag["conclusions"] == ["tied_pair_slower_than_heavy"]
-    assert drag["probability"] == 0.5
+    assert drag["probability"] == 0.93
     assert drag["edge_type"] == "deduction"
 
 
