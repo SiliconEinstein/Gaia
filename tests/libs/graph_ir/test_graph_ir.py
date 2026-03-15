@@ -223,3 +223,52 @@ def test_build_raw_graph_reads_lambda_args_from_chain_surface():
     assert reasoning_factor.premises == [raw_nodes["base"], raw_nodes["demo_chain__obs"]]
     assert reasoning_factor.contexts == [raw_nodes["regime"]]
     assert reasoning_factor.conclusion == raw_nodes["final_claim"]
+
+
+def test_build_raw_graph_legacy_lambda_uses_previous_ref_and_ignores_unknown_refs():
+    module = _parse_module(
+        {
+            "type": "reasoning_module",
+            "name": "m",
+            "premises": [
+                {"type": "claim", "name": "base", "content": "Base premise", "prior": 0.7}
+            ],
+            "chains": [
+                {
+                    "name": "legacy_chain",
+                    "steps": [
+                        {
+                            "id": "mid",
+                            "type": "claim",
+                            "reasoning": "Derive the bridge from the base premise.",
+                            "refs": ["base"],
+                            "prior": 0.61,
+                        }
+                    ],
+                    "conclusion": {
+                        "name": "final_claim",
+                        "type": "claim",
+                        "content": "Final conclusion",
+                        "refs": [
+                            {"ref": "mid", "dependency": "direct"},
+                            {"ref": "missing_local", "dependency": "indirect"},
+                        ],
+                        "prior": 0.84,
+                    },
+                }
+            ],
+            "export": ["final_claim"],
+        }
+    )
+    pkg = Package(name="demo_pkg", loaded_modules=[module])
+
+    raw_graph = build_raw_graph(pkg)
+    factors = {factor.source_ref.knowledge_name: factor for factor in raw_graph.factor_nodes}
+    raw_nodes = {
+        node.source_refs[0].knowledge_name: node.raw_node_id for node in raw_graph.knowledge_nodes
+    }
+
+    first = factors["legacy_chain"]
+    assert first.premises == [raw_nodes["base"], raw_nodes["legacy_chain__mid"]]
+    assert first.contexts == []
+    assert first.conclusion == raw_nodes["final_claim"]

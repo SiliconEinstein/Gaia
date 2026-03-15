@@ -193,3 +193,55 @@ def test_elaborate_chain_surface_tracks_lambda_args():
     ctx = result.chain_contexts["demo_chain"]
     assert [ref["name"] for ref in ctx["premise_refs"]] == ["base"]
     assert ctx["conclusion_refs"][0]["name"] == "final_claim"
+
+
+def test_elaborate_legacy_lambda_uses_previous_ref_and_last_output():
+    module = _parse_module(
+        {
+            "type": "reasoning_module",
+            "name": "m",
+            "premises": [
+                {"type": "claim", "name": "base", "content": "Base premise", "prior": 0.7},
+                {"type": "setting", "name": "context", "content": "", "prior": 0.9},
+            ],
+            "chains": [
+                {
+                    "name": "legacy_chain",
+                    "steps": [
+                        {
+                            "id": "mid",
+                            "type": "claim",
+                            "reasoning": "Derive the bridge from the base premise.",
+                            "refs": ["base"],
+                            "prior": 0.61,
+                        }
+                    ],
+                    "conclusion": {
+                        "name": "final_claim",
+                        "type": "claim",
+                        "reasoning": "Use the bridge to reach the final claim.",
+                        "refs": [
+                            {"ref": "mid", "dependency": "direct"},
+                            {"ref": "context", "dependency": "indirect"},
+                        ],
+                        "prior": 0.84,
+                    },
+                }
+            ],
+            "export": ["final_claim"],
+        }
+    )
+    pkg = Package(name="demo_pkg", modules=["m"])
+    pkg.loaded_modules = [module]
+
+    result = elaborate_package(pkg)
+    prompts = {(p["chain"], p["step"]): p for p in result.prompts}
+
+    assert prompts[("legacy_chain", 1)]["args"][0]["ref"] == "base"
+    assert prompts[("legacy_chain", 3)]["args"][0]["ref"] == "legacy_chain__mid"
+    assert prompts[("legacy_chain", 3)]["args"][1]["dependency"] == "indirect"
+    assert prompts[("legacy_chain", 3)]["args"][1]["content"] == ""
+
+    ctx = result.chain_contexts["legacy_chain"]
+    assert [ref["name"] for ref in ctx["premise_refs"]] == ["base"]
+    assert ctx["conclusion_refs"][0]["name"] == "final_claim"

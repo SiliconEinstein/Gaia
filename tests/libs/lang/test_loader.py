@@ -214,6 +214,121 @@ def test_reasoning_module_rejects_legacy_knowledge_surface():
         )
 
 
+def test_reasoning_module_rejects_authored_chain_expr_declaration():
+    import pytest
+
+    with pytest.raises(ValueError, match="authored 'chain_expr' declarations"):
+        _parse_module(
+            {
+                "type": "reasoning_module",
+                "name": "m",
+                "premises": [
+                    {
+                        "type": "chain_expr",
+                        "name": "legacy_chain",
+                        "steps": [{"step": 1, "ref": "x"}],
+                    }
+                ],
+            }
+        )
+
+
+def test_chain_surface_requires_conclusion_block():
+    import pytest
+
+    with pytest.raises(ValueError, match="missing a conclusion block"):
+        _parse_module(
+            {
+                "type": "reasoning_module",
+                "name": "m",
+                "chains": [{"name": "broken_chain", "steps": []}],
+            }
+        )
+
+
+def test_chain_surface_rejects_duplicate_local_aliases():
+    import pytest
+
+    with pytest.raises(ValueError, match="duplicate local ref alias 'dup'"):
+        _parse_module(
+            {
+                "type": "reasoning_module",
+                "name": "m",
+                "chains": [
+                    {
+                        "name": "dup_chain",
+                        "steps": [
+                            {"id": "dup", "type": "claim", "content": "First"},
+                            {"name": "dup", "type": "claim", "content": "Second"},
+                        ],
+                        "conclusion": {
+                            "type": "claim",
+                            "content": "Conclusion",
+                            "refs": ["dup"],
+                        },
+                    }
+                ],
+            }
+        )
+
+
+def test_chain_surface_uses_reasoning_text_and_local_id_aliases():
+    module = _parse_module(
+        {
+            "type": "reasoning_module",
+            "name": "m",
+            "premises": [{"type": "claim", "name": "base", "content": "Base premise"}],
+            "chains": [
+                {
+                    "name": "named_chain",
+                    "steps": [
+                        {
+                            "id": "bridge",
+                            "type": "claim",
+                            "reasoning": "Bridge reasoning",
+                            "refs": ["base"],
+                        }
+                    ],
+                    "conclusion": {
+                        "type": "claim",
+                        "reasoning": "Final reasoning",
+                        "refs": ["bridge"],
+                    },
+                }
+            ],
+        }
+    )
+
+    bridge = next(decl for decl in module.knowledge if decl.name == "named_chain__bridge")
+    conclusion = next(decl for decl in module.knowledge if decl.name == "named_chain__conclusion")
+    chain = next(decl for decl in module.knowledge if isinstance(decl, ChainExpr))
+
+    assert bridge.content == "Bridge reasoning"
+    assert bridge.metadata["generated_from_chain"] is True
+    assert bridge.metadata["chain_role"] == "step"
+    assert conclusion.content == "Final reasoning"
+    assert conclusion.metadata["chain_role"] == "conclusion"
+    assert chain.steps[0].args[0].ref == "base"
+    assert chain.steps[2].args[0].ref == "named_chain__bridge"
+
+
+def test_parse_lambda_step_supports_explicit_args():
+    step = _parse_step(
+        {
+            "step": 3,
+            "lambda": "Explain the bridge",
+            "args": [{"ref": "base", "dependency": "direct"}],
+            "prior": 0.82,
+        }
+    )
+
+    assert step.step == 3
+    assert step.lambda_ == "Explain the bridge"
+    assert step.args[0].ref == "base"
+    assert step.args[0].dependency == "direct"
+    assert step.prior == 0.82
+
+
 def test_parse_module_supports_premises_and_chains_surface():
     module = _parse_module(
         {

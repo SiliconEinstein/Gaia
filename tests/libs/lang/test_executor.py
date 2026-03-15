@@ -370,3 +370,41 @@ async def test_execute_lambda_uses_explicit_args_when_present():
     assert len(lambda_calls) == 1
     assert "Base premise" in lambda_calls[0]["input"]
     assert "Context regime" in lambda_calls[0]["input"]
+
+
+async def test_execute_lambda_input_skips_empty_content_and_formats_untyped_args():
+    base = Claim(name="base", content="Base premise", prior=0.9)
+    empty = Claim(name="empty", content="", prior=0.4)
+    out = Claim(name="result", content="", prior=0.5)
+    chain = ChainExpr(
+        name="lambda_input_chain",
+        steps=[
+            StepLambda(
+                step=1,
+                **{"lambda": "derive result"},
+                args=[
+                    Arg(ref="base"),
+                    Arg(ref="empty", dependency="indirect"),
+                ],
+                prior=0.8,
+            ),
+            StepRef(step=2, ref="result"),
+        ],
+    )
+    mod = Module(
+        type="reasoning_module",
+        name="m",
+        knowledge=[base, empty, out, chain],
+        export=["result"],
+    )
+    pkg = Package(name="lambda_input_pkg", modules=["m"])
+    pkg.loaded_modules = [mod]
+
+    executor = MockExecutor()
+    await execute_package(pkg, executor)
+
+    lambda_calls = [c for c in executor.calls if c["type"] == "lambda"]
+    assert len(lambda_calls) == 1
+    assert "[base]" in lambda_calls[0]["input"]
+    assert "Base premise" in lambda_calls[0]["input"]
+    assert "empty (indirect)" not in lambda_calls[0]["input"]

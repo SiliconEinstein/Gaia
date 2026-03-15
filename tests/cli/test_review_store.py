@@ -198,3 +198,32 @@ def test_merge_review_ignores_unknown_odd_step_id():
                 assert step1.prior == 0.93
                 return
     raise AssertionError("drag_prediction_chain not found")
+
+
+def test_merge_review_updates_lambda_dependencies_from_legacy_even_step_id():
+    pkg = load_package(FIXTURE_PATH)
+    pkg = resolve_refs(pkg)
+    review = {
+        "chains": [
+            {
+                "chain": "drag_prediction_chain",
+                "steps": [
+                    {
+                        "step": 2,
+                        "dependencies": [{"ref": "thought_experiment_env", "suggested": "direct"}],
+                    }
+                ],
+            }
+        ]
+    }
+
+    merged = merge_review(pkg, review)
+
+    for mod in merged.loaded_modules:
+        for decl in mod.knowledge:
+            if hasattr(decl, "steps") and decl.name == "drag_prediction_chain":
+                step1 = next(s for s in decl.steps if s.step == 1)
+                env_arg = next(a for a in step1.args if a.ref == "thought_experiment_env")
+                assert env_arg.dependency == "direct"
+                return
+    raise AssertionError("drag_prediction_chain not found")

@@ -319,3 +319,26 @@ def test_chain_surface_keeps_local_premises_and_steps_in_factor_graph():
     factor = next(f for f in fg.factors if f["name"] == "demo_chain.step_3")
     assert factor["premises"] == ["demo_chain__obs"]
     assert factor["conclusions"] == ["demo_chain__bridge"]
+
+
+def test_legacy_lambda_without_args_keeps_chain_local_nodes_visible():
+    claim_a = Claim(name="a", content="Claim A", prior=0.6)
+    claim_b = Claim(name="b", content="", prior=0.5)
+    chain = ChainExpr(
+        name="legacy_chain",
+        steps=[
+            StepRef(step=1, ref="a"),
+            StepLambda(step=2, **{"lambda": "reason from a"}, prior=0.8),
+            StepRef(step=3, ref="b"),
+        ],
+    )
+    mod = Module(type="reasoning_module", name="m", knowledge=[claim_a, claim_b, chain], export=[])
+    pkg = Package(name="legacy_pkg", modules=["m"])
+    pkg.loaded_modules = [mod]
+
+    fg = compile_factor_graph(pkg)
+
+    assert fg.variables["a"] == 0.6
+    assert fg.variables["b"] == 0.5
+    assert fg.factors[0]["premises"] == ["a"]
+    assert fg.factors[0]["conclusions"] == ["b"]
