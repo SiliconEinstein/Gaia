@@ -408,3 +408,47 @@ async def test_execute_lambda_input_skips_empty_content_and_formats_untyped_args
     assert "[base]" in lambda_calls[0]["input"]
     assert "Base premise" in lambda_calls[0]["input"]
     assert "empty (indirect)" not in lambda_calls[0]["input"]
+
+
+def test_executor_private_helpers_cover_explicit_toposort_and_lambda_input():
+    from libs.lang.executor import _build_lambda_input, _output_ref, _step_args, _topo_sort_chains
+
+    base = Claim(name="base", content="Base premise", prior=0.9)
+    mid = Claim(name="mid", content="Bridge claim", prior=0.6)
+    final = Claim(name="final", content="", prior=0.5)
+    empty = Claim(name="empty", content="", prior=0.4)
+    decls = {"base": base, "mid": mid, "final": final, "empty": empty}
+
+    producer = ChainExpr(
+        name="producer",
+        steps=[
+            StepLambda(
+                step=1,
+                **{"lambda": "derive mid"},
+                args=[Arg(ref="base", dependency="direct")],
+                prior=0.8,
+            ),
+            StepRef(step=2, ref="mid"),
+        ],
+    )
+    consumer = ChainExpr(
+        name="consumer",
+        steps=[
+            StepLambda(
+                step=1,
+                **{"lambda": "derive final"},
+                args=[
+                    Arg(ref="mid", dependency="direct"),
+                    Arg(ref="empty", dependency="indirect"),
+                ],
+                prior=0.7,
+            ),
+            StepRef(step=2, ref="final"),
+        ],
+    )
+
+    ordered = _topo_sort_chains([consumer, producer], decls)
+    assert [chain.name for chain in ordered] == ["producer", "consumer"]
+    assert _step_args(consumer.steps, 0, consumer.steps[0])[0].ref == "mid"
+    assert _output_ref(consumer.steps, 0) == "final"
+    assert _build_lambda_input(consumer.steps[0].args, decls) == "[mid (direct)]\nBridge claim"

@@ -227,3 +227,31 @@ def test_merge_review_updates_lambda_dependencies_from_legacy_even_step_id():
                 assert env_arg.dependency == "direct"
                 return
     raise AssertionError("drag_prediction_chain not found")
+
+
+def test_resolve_review_step_helper_covers_direct_and_out_of_range_ids():
+    from cli.review_store import _resolve_review_step
+    from libs.lang.models import Arg, StepLambda, StepRef
+
+    chain = next(
+        decl
+        for mod in resolve_refs(load_package(FIXTURE_PATH)).loaded_modules
+        for decl in mod.knowledge
+        if hasattr(decl, "steps") and decl.name == "drag_prediction_chain"
+    )
+    assert _resolve_review_step(chain, 1) is not None
+    assert _resolve_review_step(chain, 4) is None
+
+    inline_chain = type(chain)(
+        name="inline_chain",
+        steps=[
+            StepLambda(
+                step=1,
+                **{"lambda": "reason"},
+                args=[Arg(ref="a", dependency="direct")],
+                prior=0.8,
+            ),
+            StepRef(step=2, ref="b"),
+        ],
+    )
+    assert _resolve_review_step(inline_chain, 1) is inline_chain.steps[0]

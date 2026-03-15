@@ -245,3 +245,50 @@ def test_elaborate_legacy_lambda_uses_previous_ref_and_last_output():
     ctx = result.chain_contexts["legacy_chain"]
     assert [ref["name"] for ref in ctx["premise_refs"]] == ["base"]
     assert ctx["conclusion_refs"][0]["name"] == "final_claim"
+
+
+def test_elaborator_private_helpers_cover_context_and_arg_record_paths():
+    from libs.lang.elaborator import (
+        _arg_records,
+        _build_chain_context,
+        _elaborate_chain,
+        _output_ref,
+    )
+    from libs.lang.models import Arg, Claim, ChainExpr, Setting, StepLambda, StepRef
+
+    decls = {
+        "base": Claim(name="base", content="Base premise", prior=0.7),
+        "mid": Claim(name="mid", content="Bridge claim", prior=0.6),
+        "ctx": Setting(name="ctx", content="", prior=0.9),
+        "final": Claim(name="final", content="Final claim", prior=0.8),
+    }
+    chain = ChainExpr(
+        name="helper_chain",
+        steps=[
+            StepRef(step=1, ref="base"),
+            StepLambda(step=2, **{"lambda": "derive mid"}, prior=0.61),
+            StepRef(step=3, ref="mid"),
+            StepLambda(
+                step=4,
+                **{"lambda": "derive final"},
+                args=[
+                    Arg(ref="mid", dependency="direct"),
+                    Arg(ref="ctx", dependency="indirect"),
+                ],
+                prior=0.73,
+            ),
+            StepRef(step=5, ref="final"),
+        ],
+    )
+
+    ctx = _build_chain_context(chain, decls)
+    prompts = _elaborate_chain(chain, decls)
+    arg_records = _arg_records([Arg(ref="ctx", dependency="indirect")], decls)
+
+    assert [ref["name"] for ref in ctx["premise_refs"]] == ["base"]
+    assert ctx["conclusion_refs"][0]["name"] == "final"
+    assert prompts[0]["args"][0]["ref"] == "base"
+    assert prompts[1]["args"][0]["ref"] == "mid"
+    assert prompts[1]["args"][1]["content"] == ""
+    assert _output_ref(chain.steps, 3) == "final"
+    assert arg_records[0]["dependency"] == "indirect"

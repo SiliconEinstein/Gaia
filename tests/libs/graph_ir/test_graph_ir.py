@@ -12,7 +12,7 @@ from libs.graph_ir import (
 )
 from libs.inference.bp import BeliefPropagation
 from libs.lang.loader import _parse_module, load_package
-from libs.lang.models import Claim, Equivalence, Module, Package
+from libs.lang.models import Claim, Equivalence, Module, Package, StepLambda, StepRef
 from libs.lang.resolver import resolve_refs
 
 FIXTURES = Path(__file__).parents[2] / "fixtures" / "gaia_language_packages"
@@ -272,3 +272,32 @@ def test_build_raw_graph_legacy_lambda_uses_previous_ref_and_ignores_unknown_ref
     assert first.premises == [raw_nodes["base"], raw_nodes["legacy_chain__mid"]]
     assert first.contexts == []
     assert first.conclusion == raw_nodes["final_claim"]
+
+
+def test_graph_ir_step_args_helper_covers_apply_explicit_and_legacy_lambda():
+    from libs.graph_ir.build import _step_args
+    from libs.lang.models import Arg, ChainExpr, StepApply
+
+    apply = StepApply(
+        step=1,
+        apply="reason_about",
+        args=[Arg(ref="a", dependency="direct")],
+    )
+    apply_chain = ChainExpr(name="apply_chain", steps=[apply])
+    assert _step_args(apply_chain, apply)[0].ref == "a"
+
+    explicit_lambda = StepLambda(
+        step=3,
+        **{"lambda": "explicit"},
+        args=[Arg(ref="b", dependency="indirect")],
+        prior=0.8,
+    )
+    explicit_chain = ChainExpr(name="explicit_chain", steps=[explicit_lambda])
+    assert _step_args(explicit_chain, explicit_lambda)[0].ref == "b"
+
+    legacy_lambda = StepLambda(step=3, **{"lambda": "legacy"}, prior=0.8)
+    legacy_chain = ChainExpr(
+        name="legacy_chain",
+        steps=[StepRef(step=1, ref="base"), legacy_lambda, StepRef(step=4, ref="out")],
+    )
+    assert _step_args(legacy_chain, legacy_lambda)[0].ref == "base"

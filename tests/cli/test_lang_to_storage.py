@@ -233,3 +233,32 @@ def test_lambda_with_explicit_args_and_chain_surface_step_id_convert_to_storage(
     assert len(data.probabilities) == 1
     assert data.probabilities[0].step_index == 0
     assert data.probabilities[0].value == 0.91
+
+
+def test_lang_to_storage_helpers_cover_lambda_args_and_aliases():
+    from cli.lang_to_storage import _register_review_step_aliases, _step_args
+
+    explicit = StepLambda(
+        step=3,
+        **{"lambda": "explicit reasoning"},
+        args=[Arg(ref="a", dependency="direct")],
+        prior=0.8,
+    )
+    assert _step_args([explicit], 0, explicit)[0].ref == "a"
+
+    legacy = StepLambda(step=3, **{"lambda": "legacy reasoning"}, prior=0.8)
+    legacy_steps = [StepRef(step=1, ref="a"), legacy, StepRef(step=4, ref="b")]
+    assert _step_args(legacy_steps, 1, legacy)[0].ref == "a"
+
+    review_step_index = {}
+    _register_review_step_aliases(
+        review_step_index, "pkg.module.explicit_lambda_chain", "explicit_lambda_chain", 3, 1
+    )
+    assert review_step_index["explicit_lambda_chain.3"] == (
+        "pkg.module.explicit_lambda_chain",
+        1,
+    )
+    assert review_step_index["explicit_lambda_chain.4"] == (
+        "pkg.module.explicit_lambda_chain",
+        1,
+    )

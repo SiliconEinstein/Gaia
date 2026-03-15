@@ -342,3 +342,33 @@ def test_legacy_lambda_without_args_keeps_chain_local_nodes_visible():
     assert fg.variables["b"] == 0.5
     assert fg.factors[0]["premises"] == ["a"]
     assert fg.factors[0]["conclusions"] == ["b"]
+
+
+def test_compiler_helpers_cover_chain_visible_names_and_step_args():
+    from libs.lang.compiler import _chain_visible_names, _step_args
+    from libs.lang.models import Arg
+
+    explicit = StepLambda(
+        step=1,
+        **{"lambda": "explicit"},
+        args=[Arg(ref="base", dependency="direct")],
+        prior=0.8,
+    )
+    chain = ChainExpr(
+        name="mixed_chain",
+        steps=[
+            explicit,
+            StepRef(step=2, ref="mid"),
+            StepRef(step=4, ref="mid"),
+            StepLambda(step=5, **{"lambda": "legacy"}, prior=0.7),
+            StepRef(step=6, ref="final"),
+        ],
+    )
+    mod = Module(type="reasoning_module", name="m", knowledge=[chain], export=[])
+    pkg = Package(name="mixed_pkg", modules=["m"])
+    pkg.loaded_modules = [mod]
+
+    visible = _chain_visible_names(pkg)
+    assert {"base", "mid", "final"}.issubset(visible)
+    assert _step_args(chain.steps, 0, explicit)[0].ref == "base"
+    assert _step_args(chain.steps, 3, chain.steps[3])[0].ref == "mid"
