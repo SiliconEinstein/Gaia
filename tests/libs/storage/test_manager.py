@@ -267,6 +267,67 @@ class TestReadDelegationFull:
         assert isinstance(result, list)
 
 
+class TestListDelegation:
+    """Cover list/graph delegation methods added for v2 visualization."""
+
+    async def test_list_packages(self, full_manager, packages, modules):
+        pkg = packages[0]
+        mods = [m for m in modules if m.package_id == pkg.package_id]
+        await full_manager.content_store.write_package(pkg, mods)
+        items, total = await full_manager.list_packages(page=1, page_size=10)
+        assert total >= 1
+        assert any(p.package_id == pkg.package_id for p in items)
+
+    async def test_list_modules(self, full_manager, packages, modules):
+        pkg = packages[0]
+        mods = [m for m in modules if m.package_id == pkg.package_id]
+        await full_manager.content_store.write_package(pkg, mods)
+        result = await full_manager.list_modules()
+        assert len(result) >= 1
+        filtered = await full_manager.list_modules(package_id=pkg.package_id)
+        assert all(m.package_id == pkg.package_id for m in filtered)
+
+    async def test_list_chains_paged(self, full_manager, packages, modules, chains):
+        pkg = packages[0]
+        mods = [m for m in modules if m.package_id == pkg.package_id]
+        await full_manager.content_store.write_package(pkg, mods)
+        await full_manager.content_store.write_chains(chains)
+        items, total = await full_manager.list_chains_paged(page=1, page_size=10)
+        assert isinstance(items, list)
+        assert total >= 1
+
+    async def test_get_chain(self, full_manager, packages, modules, chains):
+        pkg = packages[0]
+        mods = [m for m in modules if m.package_id == pkg.package_id]
+        await full_manager.content_store.write_package(pkg, mods)
+        await full_manager.content_store.write_chains(chains)
+        chain = await full_manager.get_chain(chains[0].chain_id)
+        assert chain is not None
+        assert chain.chain_id == chains[0].chain_id
+        assert await full_manager.get_chain("nonexistent") is None
+
+    async def test_list_knowledge_paged(self, full_manager, packages, modules, knowledge_items):
+        pkg = packages[0]
+        mods = [m for m in modules if m.package_id == pkg.package_id]
+        await full_manager.content_store.write_package(pkg, mods)
+        await full_manager.content_store.write_knowledge(knowledge_items)
+        items, total = await full_manager.list_knowledge_paged(page=1, page_size=10)
+        assert total >= 1
+        assert len(items) >= 1
+
+    async def test_get_graph_data(self, full_manager, packages, modules, knowledge_items, chains):
+        pkg = packages[0]
+        mods = [m for m in modules if m.package_id == pkg.package_id]
+        await full_manager.content_store.write_package(pkg, mods)
+        await full_manager.content_store.write_knowledge(knowledge_items)
+        await full_manager.content_store.write_chains(chains)
+        data = await full_manager.get_graph_data()
+        assert "nodes" in data
+        assert "edges" in data
+        filtered = await full_manager.get_graph_data(package_id=pkg.package_id)
+        assert "nodes" in filtered
+
+
 class TestCanonicalBindingsAndGlobalNodes:
     async def test_write_and_read_canonical_bindings(self, tmp_path):
         config = StorageConfig(

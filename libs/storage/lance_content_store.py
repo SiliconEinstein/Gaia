@@ -900,6 +900,141 @@ class LanceContentStore(ContentStore):
 
     # ── BP bulk load ──
 
+    async def list_packages(self, page: int = 1, page_size: int = 20) -> tuple[list[Package], int]:
+        """Return a paginated list of merged packages (visibility-gated)."""
+        table = self._db.open_table("packages")
+        total_rows = table.count_rows()
+        if total_rows == 0:
+            return [], 0
+        results = table.search().limit(total_rows).to_list()
+        # Only return merged packages — consistent with get_package visibility model
+        items = [_row_to_package(r) for r in results if r.get("status") == "merged"]
+        total = len(items)
+        offset = max(0, (page - 1) * page_size)
+        return items[offset : offset + page_size], total
+
+    async def list_modules(self, package_id: str | None = None) -> list[Module]:
+        """List modules from committed packages, optionally filtered by package_id."""
+        committed = await self._get_committed_packages()
+        table = self._db.open_table("modules")
+        count = table.count_rows()
+        if count == 0:
+            return []
+        results = table.search().limit(count).to_list()
+        modules = [
+            _row_to_module(r)
+            for r in results
+            if self._is_committed(r["package_id"], r.get("package_version", "0.1.0"), committed)
+        ]
+        if package_id:
+            modules = [m for m in modules if m.package_id == package_id]
+        return modules
+
+    async def list_chains_paged(
+        self, page: int = 1, page_size: int = 20, module_id: str | None = None
+    ) -> tuple[list[Chain], int]:
+        """Return paginated chains, optionally filtered by module_id."""
+        committed = await self._get_committed_packages()
+        table = self._db.open_table("chains")
+        count = table.count_rows()
+        if count == 0:
+            return [], 0
+        results = table.search().limit(count).to_list()
+        chains = [
+            _row_to_chain(r)
+            for r in results
+            if self._is_committed(r["package_id"], r.get("package_version", "0.1.0"), committed)
+        ]
+        if module_id:
+            chains = [c for c in chains if c.module_id == module_id]
+        total = len(chains)
+        offset = max(0, (page - 1) * page_size)
+        return chains[offset : offset + page_size], total
+
+    async def get_chain(self, chain_id: str) -> Chain | None:
+        """Get a single chain by chain_id."""
+        committed = await self._get_committed_packages()
+        table = self._db.open_table("chains")
+        count = table.count_rows()
+        if count == 0:
+            return None
+        results = table.search().limit(count).to_list()
+        for r in results:
+            if r["chain_id"] == chain_id and self._is_committed(
+                r["package_id"], r.get("package_version", "0.1.0"), committed
+            ):
+                return _row_to_chain(r)
+        return None
+
+    async def list_knowledge_paged(
+        self, page: int = 1, page_size: int = 20, type_filter: str | None = None
+    ) -> tuple[list[Knowledge], int]:
+        """Return paginated knowledge, optionally filtered by type."""
+        committed = await self._get_committed_packages()
+        table = self._db.open_table("knowledge")
+        total_rows = table.count_rows()
+        if total_rows == 0:
+            return [], 0
+        results = table.search().limit(total_rows).to_list()
+        items = [
+            _row_to_knowledge(r)
+            for r in results
+            if self._is_committed(
+                r["source_package_id"], r.get("source_package_version", "0.1.0"), committed
+            )
+        ]
+        if type_filter:
+            items = [k for k in items if k.type == type_filter]
+        total = len(items)
+        offset = max(0, (page - 1) * page_size)
+        return items[offset : offset + page_size], total
+
+    async def get_graph_data(self, package_id: str | None = None) -> dict:
+        """Return Knowledge nodes + Chain edges for DAG visualization.
+
+        Each Chain step produces edges: each premise → conclusion.
+        Node id format: knowledge_id@version
+        """
+        items, _ = await self.list_knowledge_paged(page=1, page_size=10_000)
+        chains, _ = await self.list_chains_paged(page=1, page_size=10_000)
+
+        if package_id:
+            items = [k for k in items if k.source_package_id == package_id]
+            chains = [c for c in chains if c.package_id == package_id]
+
+        node_ids = {f"{k.knowledge_id}@{k.version}" for k in items}
+
+        nodes = [
+            {
+                "id": f"{k.knowledge_id}@{k.version}",
+                "knowledge_id": k.knowledge_id,
+                "version": k.version,
+                "type": k.type,
+                "content": k.content,
+                "prior": k.prior,
+            }
+            for k in items
+        ]
+
+        edges = []
+        for chain in chains:
+            for step in chain.steps:
+                conc_id = f"{step.conclusion.knowledge_id}@{step.conclusion.version}"
+                for premise in step.premises:
+                    prem_id = f"{premise.knowledge_id}@{premise.version}"
+                    if prem_id in node_ids and conc_id in node_ids:
+                        edges.append(
+                            {
+                                "chain_id": chain.chain_id,
+                                "from": prem_id,
+                                "to": conc_id,
+                                "chain_type": chain.type,
+                                "step_index": step.step_index,
+                            }
+                        )
+
+        return {"nodes": nodes, "edges": edges}
+
     async def list_knowledge(self) -> list[Knowledge]:
         table = self._db.open_table("knowledge")
         count = table.count_rows()

@@ -232,6 +232,32 @@ class StorageManager:
     async def search_bm25(self, text: str, top_k: int):
         return await self.content_store.search_bm25(text, top_k)
 
+    async def list_packages(self, page: int = 1, page_size: int = 20) -> tuple[list[Package], int]:
+        return await self.content_store.list_packages(page=page, page_size=page_size)
+
+    async def list_modules(self, package_id: str | None = None) -> list[Module]:
+        return await self.content_store.list_modules(package_id=package_id)
+
+    async def list_chains_paged(
+        self, page: int = 1, page_size: int = 20, module_id: str | None = None
+    ) -> tuple[list[Chain], int]:
+        return await self.content_store.list_chains_paged(
+            page=page, page_size=page_size, module_id=module_id
+        )
+
+    async def get_chain(self, chain_id: str) -> Chain | None:
+        return await self.content_store.get_chain(chain_id)
+
+    async def get_graph_data(self, package_id: str | None = None) -> dict:
+        return await self.content_store.get_graph_data(package_id=package_id)
+
+    async def list_knowledge_paged(
+        self, page: int = 1, page_size: int = 20, type_filter: str | None = None
+    ) -> tuple[list[Knowledge], int]:
+        return await self.content_store.list_knowledge_paged(
+            page=page, page_size=page_size, type_filter=type_filter
+        )
+
     async def list_knowledge(self):
         return await self.content_store.list_knowledge()
 

@@ -833,3 +833,143 @@ async def test_write_and_get_submission_artifact(content_store):
 async def test_submission_artifact_not_found(content_store):
     result = await content_store.get_submission_artifact("nonexistent", "xxx")
     assert result is None
+
+
+# ── List/Graph endpoints ──
+
+
+class TestListEndpoints:
+    async def test_list_packages_returns_merged(self, content_store, packages, modules):
+        await content_store.write_package(packages[0], modules)
+        items, total = await content_store.list_packages()
+        assert total >= 1
+        ids = [p.package_id for p in items]
+        assert packages[0].package_id in ids
+
+    async def test_list_packages_excludes_preparing(self, content_store, packages):
+        pkg = packages[0].model_copy(update={"status": "preparing", "package_id": "invisible_pkg"})
+        await content_store.write_package(pkg, [])
+        items, total = await content_store.list_packages()
+        assert all(p.package_id != "invisible_pkg" for p in items)
+        assert total == 0
+
+    async def test_list_packages_pagination(self, content_store, packages, modules):
+        await content_store.write_package(packages[0], modules)
+        items, total = await content_store.list_packages(page=1, page_size=1)
+        assert total == 1
+        assert len(items) == 1
+        assert items[0].package_id == packages[0].package_id
+
+    async def test_list_knowledge_paged(self, content_store, packages, modules, knowledge_items):
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_knowledge(knowledge_items)
+        items, total = await content_store.list_knowledge_paged(page=1, page_size=100)
+        assert total == len(knowledge_items)
+        assert len(items) == len(knowledge_items)
+
+    async def test_list_knowledge_paged_type_filter(
+        self, content_store, packages, modules, knowledge_items
+    ):
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_knowledge(knowledge_items)
+        items, total = await content_store.list_knowledge_paged(
+            page=1, page_size=100, type_filter="setting"
+        )
+        assert all(k.type == "setting" for k in items)
+        assert total == sum(1 for k in knowledge_items if k.type == "setting")
+
+    async def test_list_modules(self, content_store, packages, modules):
+        await content_store.write_package(packages[0], modules)
+        result = await content_store.list_modules()
+        assert len(result) == len(modules)
+        module_ids = {m.module_id for m in result}
+        for m in modules:
+            assert m.module_id in module_ids
+
+    async def test_list_modules_filtered_by_package(self, content_store, packages, modules):
+        await content_store.write_package(packages[0], modules)
+        result = await content_store.list_modules(package_id=packages[0].package_id)
+        assert len(result) == len(modules)
+        assert all(m.package_id == packages[0].package_id for m in result)
+
+        result_missing = await content_store.list_modules(package_id="nonexistent_pkg")
+        assert result_missing == []
+
+    async def test_list_chains_paged(self, content_store, packages, modules, chains):
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_chains(chains)
+        items, total = await content_store.list_chains_paged(page=1, page_size=100)
+        assert total == len(chains)
+        assert len(items) == len(chains)
+
+    async def test_list_chains_paged_filtered_by_module(
+        self, content_store, packages, modules, chains
+    ):
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_chains(chains)
+        # All fixture chains belong to galileo_falling_bodies.reasoning
+        items, total = await content_store.list_chains_paged(
+            page=1, page_size=100, module_id="galileo_falling_bodies.reasoning"
+        )
+        assert total == len(chains)
+        assert all(c.module_id == "galileo_falling_bodies.reasoning" for c in items)
+
+        items_none, total_none = await content_store.list_chains_paged(
+            page=1, page_size=100, module_id="nonexistent_module"
+        )
+        assert total_none == 0
+        assert items_none == []
+
+    async def test_get_chain(self, content_store, packages, modules, chains):
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_chains(chains)
+        chain = await content_store.get_chain(chains[0].chain_id)
+        assert chain is not None
+        assert chain.chain_id == chains[0].chain_id
+
+    async def test_get_chain_not_found(self, content_store):
+        result = await content_store.get_chain("nonexistent_chain_id")
+        assert result is None
+
+    async def test_get_graph_data(self, content_store, packages, modules, knowledge_items, chains):
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_knowledge(knowledge_items)
+        await content_store.write_chains(chains)
+        data = await content_store.get_graph_data()
+        assert "nodes" in data
+        assert "edges" in data
+        assert len(data["nodes"]) == len(knowledge_items)
+        # Edges should be produced for chain steps with valid premise→conclusion node pairs
+        assert len(data["edges"]) > 0
+        # Each node should have the required fields
+        node = data["nodes"][0]
+        assert "id" in node
+        assert "knowledge_id" in node
+        assert "version" in node
+        assert "type" in node
+        assert "content" in node
+        assert "prior" in node
+        # Each edge should have the required fields
+        edge = data["edges"][0]
+        assert "chain_id" in edge
+        assert "from" in edge
+        assert "to" in edge
+        assert "chain_type" in edge
+        assert "step_index" in edge
+
+    async def test_get_graph_data_filtered_by_package(
+        self, content_store, packages, modules, knowledge_items, chains
+    ):
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_knowledge(knowledge_items)
+        await content_store.write_chains(chains)
+
+        pkg_id = packages[0].package_id
+        data = await content_store.get_graph_data(package_id=pkg_id)
+        assert len(data["nodes"]) == len(knowledge_items)
+        assert len(data["edges"]) > 0
+
+        # Filter for a non-existent package should yield empty graph
+        data_empty = await content_store.get_graph_data(package_id="nonexistent_pkg")
+        assert data_empty["nodes"] == []
+        assert data_empty["edges"] == []

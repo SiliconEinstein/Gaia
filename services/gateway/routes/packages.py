@@ -1,6 +1,6 @@
 """Package API routes — ingest + read endpoints."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from libs.storage.models import (
@@ -24,6 +24,27 @@ def _require_storage():
 
 
 # ── Ingest ──
+
+
+class PaginatedPackages(BaseModel):
+    items: list[dict]
+    total: int
+    page: int
+    size: int
+
+
+class PaginatedKnowledge(BaseModel):
+    items: list[dict]
+    total: int
+    page: int
+    size: int
+
+
+class PaginatedChains(BaseModel):
+    items: list[dict]
+    total: int
+    page: int
+    size: int
 
 
 class IngestRequest(BaseModel):
@@ -81,6 +102,22 @@ async def ingest_package(request: IngestRequest):
     )
 
 
+@router.get("/packages", response_model=PaginatedPackages)
+async def list_packages(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+):
+    """List all packages with pagination."""
+    mgr = _require_storage()
+    items, total = await mgr.list_packages(page=page, page_size=page_size)
+    return PaginatedPackages(
+        items=[p.model_dump() for p in items],
+        total=total,
+        page=page,
+        size=page_size,
+    )
+
+
 # ── Read: Package ──
 
 
@@ -91,6 +128,25 @@ async def get_package(package_id: str):
     if pkg is None:
         raise HTTPException(status_code=404, detail="Package not found")
     return pkg.model_dump()
+
+
+@router.get("/knowledge", response_model=PaginatedKnowledge)
+async def list_knowledge(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    type_filter: str | None = None,
+):
+    """List knowledge items with pagination and optional type filter."""
+    mgr = _require_storage()
+    items, total = await mgr.list_knowledge_paged(
+        page=page, page_size=page_size, type_filter=type_filter
+    )
+    return PaginatedKnowledge(
+        items=[k.model_dump() for k in items],
+        total=total,
+        page=page,
+        size=page_size,
+    )
 
 
 # ── Read: Knowledge ──
@@ -120,6 +176,14 @@ async def get_knowledge(knowledge_id: str):
     return k.model_dump()
 
 
+@router.get("/modules", response_model=list[dict])
+async def list_modules(package_id: str | None = None):
+    """List all modules, optionally filtered by package."""
+    mgr = _require_storage()
+    modules = await mgr.list_modules(package_id=package_id)
+    return [m.model_dump() for m in modules]
+
+
 # ── Read: Module ──
 # NOTE: Sub-path routes must come BEFORE the catch-all {module_id:path}
 
@@ -140,6 +204,23 @@ async def get_module(module_id: str):
     return m.model_dump()
 
 
+@router.get("/chains", response_model=PaginatedChains)
+async def list_chains(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    module_id: str | None = None,
+):
+    """List chains with pagination, optionally filtered by module."""
+    mgr = _require_storage()
+    items, total = await mgr.list_chains_paged(page=page, page_size=page_size, module_id=module_id)
+    return PaginatedChains(
+        items=[c.model_dump() for c in items],
+        total=total,
+        page=page,
+        size=page_size,
+    )
+
+
 # ── Read: Chain ──
 
 
@@ -148,3 +229,23 @@ async def get_chain_probabilities(chain_id: str):
     mgr = _require_storage()
     probs = await mgr.get_probability_history(chain_id)
     return [p.model_dump() for p in probs]
+
+
+@router.get("/chains/{chain_id:path}")
+async def get_chain(chain_id: str):
+    """Get a single chain by ID."""
+    mgr = _require_storage()
+    chain = await mgr.get_chain(chain_id)
+    if chain is None:
+        raise HTTPException(status_code=404, detail="Chain not found")
+    return chain.model_dump()
+
+
+# ── Graph ──
+
+
+@router.get("/graph")
+async def get_graph(package_id: str | None = None):
+    """Return Knowledge nodes and Chain edges for DAG visualization."""
+    mgr = _require_storage()
+    return await mgr.get_graph_data(package_id=package_id)
