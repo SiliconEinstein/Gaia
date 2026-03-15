@@ -237,7 +237,7 @@ Use current Gaia surface forms:
 
 Use these authoring rules:
 
-- for reasoning-heavy modules, prefer `premises:` plus `chains:` over one flat `knowledge:` list
+- for reasoning modules, use `premises:` plus `chains:`; do not author flat `knowledge:` plus `chain_expr`
 - put reusable strong support nodes in `premises:`
 - write one reasoning chain per `chains:` block
 - keep intermediate steps inline inside each chain instead of listing every intermediate claim at module top level
@@ -279,7 +279,7 @@ Repair until the package passes.
 Typical repair targets include:
 
 - YAML syntax
-- malformed `chains` or normalized `chain_expr`
+- malformed `chains` or malformed normalized runtime `chain_expr`
 - broken or missing refs
 - naming collisions
 - missing module declarations

@@ -60,7 +60,6 @@ def test_manifest_preserves_all_knowledge_types(tmp_path):
         ChainExpr,
         Claim,
         Contradiction,
-        InferAction,
         Question,
         Ref,
         RetractAction,
@@ -83,7 +82,6 @@ def test_manifest_preserves_all_knowledge_types(tmp_path):
     assert Question in type_set
     assert Ref in type_set
     assert ChainExpr in type_set
-    assert InferAction in type_set
     assert RetractAction in type_set
     assert Contradiction in type_set
 
@@ -105,11 +103,6 @@ def test_manifest_preserves_all_knowledge_types(tmp_path):
     assert isinstance(chain, ChainExpr)
     assert len(chain.steps) > 0
 
-    # InferAction with params
-    action = next(k for k in reasoning.knowledge if k.name == "deduce_drag_effect")
-    assert isinstance(action, InferAction)
-    assert len(action.params) > 0
-
     # RetractAction with target and reason
     retract = next(k for k in reasoning.knowledge if k.name == "retract_aristotle")
     assert isinstance(retract, RetractAction)
@@ -118,9 +111,9 @@ def test_manifest_preserves_all_knowledge_types(tmp_path):
 
 
 def test_manifest_preserves_step_types(tmp_path):
-    """StepRef, StepApply, and StepLambda should all survive roundtrip."""
+    """Normalized chain steps should survive roundtrip."""
     from cli.manifest import deserialize_package, save_manifest
-    from libs.lang.models import ChainExpr, StepApply, StepLambda, StepRef
+    from libs.lang.models import ChainExpr, StepLambda, StepRef
 
     pkg = load_package(GALILEO_DIR)
     pkg = resolve_refs(pkg)
@@ -134,7 +127,7 @@ def test_manifest_preserves_step_types(tmp_path):
 
     step_types = {type(s) for s in drag_chain.steps}
     assert StepRef in step_types
-    assert StepApply in step_types
+    assert StepLambda in step_types
 
     # combined_weight_chain has a StepLambda
     cw_chain = next(k for k in reasoning.knowledge if k.name == "combined_weight_chain")

@@ -298,18 +298,23 @@ Each module file is a YAML document with:
 
 - required `type`
 - required `name`
-- optional `knowledge` (defaults to empty; a module with no knowledge objects is structurally valid)
+- optional `knowledge` for declarative modules such as motivation/setting/follow-up
 - optional `premises`
 - optional `chains`
 - optional `export`
 
-Reasoning may be authored in either of two supported forms:
+Author-facing reasoning is authored with `premises:` and `chains:`.
 
-- flat `knowledge` declarations, including explicit `chain_expr`
-- the author-facing `premises:` and `chains:` surface for reasoning modules
+For `reasoning_module`, the authored surface on current `main` is:
 
-`premises:` is a list of reusable strong support nodes such as `claim`, `setting`, or local `ref`
-aliases. `chains:` is a list of conclusion-first chain blocks. Each chain block has:
+- optional `premises:` for reusable support declarations
+- optional `chains:` for conclusion-first reasoning blocks
+
+Top-level `knowledge:` is no longer an accepted authored surface for `reasoning_module`.
+
+`premises:` is a list of reusable support declarations such as `claim`, `setting`, local `ref`
+aliases, relations, or other knowledge objects that chains depend on. `chains:` is a list of
+conclusion-first chain blocks. Each chain block has:
 
 - required `name`
 - optional `steps`
@@ -326,7 +331,9 @@ Each inline chain step or conclusion may use:
 - optional `prior`
 
 The loader normalizes `premises:` and `chains:` into the same internal runtime objects used by
-the existing compiler, elaborator, and Graph IR builders.
+the existing compiler, elaborator, and Graph IR builders. In particular, authored `chains:` are
+normalized into internal `chain_expr` objects; `chain_expr` remains a runtime/internal form, not
+the recommended authored YAML surface.
 
 ### Knowledge surface
 
@@ -337,8 +344,10 @@ The current knowledge kinds on `main` are:
 - `setting`
 - `infer_action`
 - `toolcall_action`
-- `chain_expr`
 - `ref`
+
+The authored YAML surface for reasoning uses `chains:` rather than explicit `chain_expr`
+declarations. `chain_expr` remains part of the normalized runtime type system.
 
 The normalized runtime `chain_expr.steps` surface currently admits exactly three step forms:
 
@@ -358,7 +367,7 @@ A package is ill-formed for the current runtime if any of the following hold:
 
 - `package.yaml` is missing
 - a module listed in `package.yaml.modules` does not have a matching `<module>.yaml` file
-- a `chain_expr` step is not one of `ref`, `apply`, or `lambda` (these are lowered into Graph IR factor structure for BP)
+- a normalized `chain_expr` step is not one of `ref`, `apply`, or `lambda` (these are lowered into Graph IR factor structure for BP)
 - a `ref.target` cannot be resolved to a non-`ref` knowledge object using `module_name.knowledge_name`
 
 These are structural constraints — they block loading or Graph IR generation / inference preparation and cannot be recovered by LLM interpretation.
@@ -444,7 +453,8 @@ Gaia's goals require traceability even before first-class evidence/object kinds 
 
 Current rule:
 
-- authored knowledge lives in `knowledge` and `chain_expr`
+- declarative authored knowledge lives in module entries such as `knowledge` or `premises`
+- authored reasoning lives in top-level `chains`
 - review and belief outputs stay in sidecars or runtime outputs
 - provenance, citations, and external resources may be attached via knowledge-object `metadata`
 

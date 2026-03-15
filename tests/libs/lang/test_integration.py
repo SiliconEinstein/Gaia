@@ -90,11 +90,11 @@ async def test_galileo_branching_structure():
     hff_factors = [f for f in fg.factors if "heavier_falls_faster" in f["premises"]]
     assert len(hff_factors) == 2, "heavier_falls_faster should feed into exactly 2 chains"
     assert {f["name"] for f in hff_factors} == {
-        "drag_prediction_chain.step_2",
-        "combined_weight_chain.step_2",
+        "drag_prediction_chain.step_1",
+        "combined_weight_chain.step_1",
     }
 
-    synthesis = next(f for f in fg.factors if f["name"] == "synthesis_chain.step_2")
+    synthesis = next(f for f in fg.factors if f["name"] == "synthesis_chain.step_1")
     assert set(synthesis["premises"]) == {
         "aristotle_contradicted",
         "air_resistance_is_confound",

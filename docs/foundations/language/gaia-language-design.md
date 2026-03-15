@@ -514,7 +514,7 @@ export:
   - conclusion
 ```
 
-### Step YAML forms
+### Normalized runtime step YAML forms
 
 ```yaml
 steps:
@@ -535,6 +535,10 @@ steps:
     lambda: "Obviously follows from the definition"
     prior: 0.95                   # V3
 ```
+
+These step records describe the normalized internal `chain_expr` runtime surface.
+Author-facing YAML should use top-level `chains:` blocks rather than writing explicit
+`chain_expr.steps` directly.
 
 ### Abstract-to-YAML mapping
 

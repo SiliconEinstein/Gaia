@@ -4,17 +4,7 @@ type: reasoning_module
 name: aristotle
 title: "亚里士多德学说 — 即将被挑战的先验知识"
 
-knowledge:
-  - type: claim
-    name: heavier_falls_faster
-    content: >
-      重的物体比轻的物体下落得更快。
-      下落速度与重量成正比。
-    prior: 0.7
-    metadata:
-      source: "亚里士多德《物理学》第四卷"
-      era: "约公元前350年"
-
+premises:
   - type: claim
     name: everyday_observation
     content: >
@@ -24,20 +14,25 @@ knowledge:
     metadata:
       source: "日常观察"
 
-  # 日常观察支持亚里士多德学说
-  - type: chain_expr
-    name: inductive_support
-    steps:
-      - step: 1
-        ref: everyday_observation
-      - step: 2
-        lambda: >
-          日常经验反复呈现“重物先落地、轻物后落地”的现象，
-          如果不区分空气阻力等外在因素，人们很自然会把这种表象
-          归纳成一条普遍规律：重量越大，下落越快。
-        prior: 0.8
-      - step: 3
-        ref: heavier_falls_faster
+chains:
+  - name: inductive_support
+    conclusion:
+      type: claim
+      name: heavier_falls_faster
+      content: >
+        重的物体比轻的物体下落得更快。
+        下落速度与重量成正比。
+      reasoning: >
+        日常经验反复呈现“重物先落地、轻物后落地”的现象，
+        如果不区分空气阻力等外在因素，人们很自然会把这种表象
+        归纳成一条普遍规律：重量越大，下落越快。
+      refs:
+        - ref: everyday_observation
+          dependency: direct
+      prior: 0.7
+      metadata:
+        source: "亚里士多德《物理学》第四卷"
+        era: "约公元前350年"
 
 export:
   - heavier_falls_faster

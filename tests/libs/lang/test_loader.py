@@ -4,7 +4,6 @@ from pathlib import Path
 from libs.lang.loader import _parse_module, load_package
 from libs.lang.models import (
     Claim,
-    InferAction,
     ChainExpr,
     Ref,
 )
@@ -47,11 +46,10 @@ def test_knowledge_parsed():
         counts[decl.type] = counts.get(decl.type, 0) + 1
 
     # The richer Galileo fixture should contain:
-    # 4 refs, 4 reusable infer actions, 9 explicit claims, 8 chain expressions,
+    # 4 refs, 9 explicit claims, 8 chain expressions,
     # 1 contradiction relation, 1 retract_action.
     assert counts == {
         "ref": 4,
-        "infer_action": 4,
         "claim": 9,
         "chain_expr": 8,
         "contradiction": 1,
@@ -68,35 +66,22 @@ def test_claim_with_prior():
     assert "重的物体" in heavier.content
 
 
-def test_infer_action_with_params():
-    pkg = load_package(FIXTURE_DIR)
-    reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
-    synthesize = next(
-        d for d in reasoning.knowledge if d.name == "synthesize_equal_fall_prediction"
-    )
-    assert isinstance(synthesize, InferAction)
-    assert len(synthesize.params) == 4
-    assert [p.name for p in synthesize.params] == ["verdict", "confound", "support", "env"]
-    assert synthesize.return_type == "claim"
-    assert "{env}" in synthesize.content
-
-
 def test_chain_expr_steps():
     pkg = load_package(FIXTURE_DIR)
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
     chain = next(d for d in reasoning.knowledge if d.name == "contradiction_chain")
     assert isinstance(chain, ChainExpr)
-    assert len(chain.steps) == 3
+    assert len(chain.steps) == 2
     # After refactoring, contradiction_chain has no edge_type (defaults to deduction)
     assert chain.edge_type is None
-    # Step 1: ref
-    assert chain.steps[0].ref == "tied_pair_slower_than_heavy"
-    # Step 2: apply with args
-    assert chain.steps[1].apply == "expose_mutual_exclusion"
-    assert chain.steps[1].args[0].dependency == "direct"
-    assert chain.steps[1].args[1].dependency == "direct"
-    # Step 3: ref
-    assert chain.steps[2].ref == "tied_balls_contradiction"
+    # Step 1: lambda with explicit args
+    assert hasattr(chain.steps[0], "lambda_")
+    assert chain.steps[0].args[0].ref == "tied_pair_slower_than_heavy"
+    assert chain.steps[0].args[0].dependency == "direct"
+    assert chain.steps[0].args[1].ref == "tied_pair_faster_than_heavy"
+    assert chain.steps[0].args[1].dependency == "direct"
+    # Step 2: conclusion ref
+    assert chain.steps[1].ref == "tied_balls_contradiction"
 
 
 def test_ref_declaration():
@@ -112,10 +97,9 @@ def test_lambda_step():
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
     combined = next(d for d in reasoning.knowledge if d.name == "combined_weight_chain")
     assert isinstance(combined, ChainExpr)
-    # Step 2 should be a lambda
-    step2 = combined.steps[1]
-    assert hasattr(step2, "lambda_")
-    assert "复合体 HL 总重量大于单独的重球 H" in step2.lambda_
+    step1 = combined.steps[0]
+    assert hasattr(step1, "lambda_")
+    assert "复合体 HL 总重量大于单独的重球 H" in step1.lambda_
 
 
 def test_exports():
@@ -206,7 +190,7 @@ def test_load_minimal_package(tmp_path):
     pkg_yaml.write_text("name: minimal\nmodules:\n  - m\n")
 
     mod_yaml = tmp_path / "m.yaml"
-    mod_yaml.write_text("type: reasoning_module\nname: m\nknowledge: []\nexport: []\n")
+    mod_yaml.write_text("type: setting_module\nname: m\nknowledge: []\nexport: []\n")
 
     pkg = load_package(tmp_path)
     assert pkg.name == "minimal"
@@ -219,7 +203,7 @@ def test_load_minimal_package(tmp_path):
 def test_parse_module_round_trips_model_dump_surface():
     module = _parse_module(
         {
-            "type": "reasoning_module",
+            "type": "setting_module",
             "name": "m",
             "knowledge": [{"type": "claim", "name": "x", "content": "hello"}],
             "export": ["x"],
@@ -230,6 +214,20 @@ def test_parse_module_round_trips_model_dump_surface():
 
     assert len(parsed.knowledge) == 1
     assert parsed.knowledge[0].name == "x"
+
+
+def test_reasoning_module_rejects_legacy_knowledge_surface():
+    import pytest
+
+    with pytest.raises(ValueError, match="reasoning_module no longer accepts"):
+        _parse_module(
+            {
+                "type": "reasoning_module",
+                "name": "m",
+                "knowledge": [{"type": "claim", "name": "x", "content": "legacy"}],
+                "export": ["x"],
+            }
+        )
 
 
 def test_parse_module_supports_premises_and_chains_surface():

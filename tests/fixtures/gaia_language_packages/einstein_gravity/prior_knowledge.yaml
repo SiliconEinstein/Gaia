@@ -4,8 +4,7 @@ type: reasoning_module
 name: prior_knowledge
 title: "先验知识 — 从其他 package 和历史背景引入的前提"
 
-knowledge:
-  # === 引用 Newton package ===
+premises:
   - type: ref
     name: newton_gravity
     target: newton_principia.law_of_gravity
@@ -14,12 +13,9 @@ knowledge:
     name: newton_a_equals_g
     target: newton_principia.acceleration_independent_of_mass
 
-  # === 引用 Galileo package ===
   - type: ref
     name: galileo_vacuum_prediction
     target: galileo_falling_bodies.vacuum_prediction
-
-  # === 本 package 的先验知识 ===
 
   - type: claim
     name: eotvos_experiment

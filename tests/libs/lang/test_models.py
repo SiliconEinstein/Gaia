@@ -99,8 +99,8 @@ def test_module_with_knowledge():
 
 def test_module_dump_round_trips_through_loader_surface():
     m = Module(
-        type="reasoning_module",
-        name="reasoning",
+        type="setting_module",
+        name="setting",
         knowledge=[Claim(name="c1", content="test")],
         export=["c1"],
     )

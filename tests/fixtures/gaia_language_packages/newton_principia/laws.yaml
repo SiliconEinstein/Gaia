@@ -4,9 +4,7 @@ type: reasoning_module
 name: laws
 title: "牛顿定律 — 力学基本定律"
 
-knowledge:
-  # === 牛顿三大运动定律 ===
-
+premises:
   - type: claim
     name: first_law
     content: >
@@ -32,8 +30,6 @@ knowledge:
     metadata:
       source: "牛顿《自然哲学的数学原理》第三卷, 1687"
 
-  # === 万有引力定律 ===
-
   - type: claim
     name: law_of_gravity
     content: >
@@ -43,8 +39,6 @@ knowledge:
     metadata:
       source: "牛顿《自然哲学的数学原理》第三卷, 1687"
 
-  # === 惯性质量 = 引力质量（经验事实）===
-
   - type: claim
     name: mass_equivalence
     content: >
@@ -53,8 +47,6 @@ knowledge:
     prior: 0.92
     metadata:
       source: "牛顿摆实验; 后经 Eötvös 1889 精确验证至 10^-9"
-
-  # === 地表近似 ===
 
   - type: setting
     name: near_earth_surface

@@ -48,6 +48,8 @@ def load_package(path: Path) -> Package:
 
 def _parse_module(data: dict) -> Module:
     """Parse a module YAML dict into a Module with typed knowledge items."""
+    _validate_authoring_surface(data)
+
     knowledge = [_parse_knowledge(d) for d in data.get("knowledge", [])]
     knowledge.extend(_parse_knowledge(d) for d in data.get("premises", []))
     for chain_data in data.get("chains", []):
@@ -59,6 +61,24 @@ def _parse_module(data: dict) -> Module:
         knowledge=knowledge,
         export=data.get("export", []),
     )
+
+
+def _validate_authoring_surface(data: dict[str, Any]) -> None:
+    module_type = data["type"]
+
+    if module_type == "reasoning_module" and "knowledge" in data:
+        raise ValueError(
+            "reasoning_module no longer accepts top-level 'knowledge'; "
+            "use 'premises' and 'chains' instead"
+        )
+
+    authored_decls = list(data.get("knowledge", [])) + list(data.get("premises", []))
+    for decl in authored_decls:
+        if decl.get("type") == "chain_expr":
+            raise ValueError(
+                "authored 'chain_expr' declarations are no longer supported; use top-level "
+                "'chains' blocks instead"
+            )
 
 
 def _parse_knowledge(data: dict) -> Knowledge:

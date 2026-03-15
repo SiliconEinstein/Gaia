@@ -19,19 +19,17 @@ def test_elaborate_returns_elaborated_package():
     assert result.package.name == "galileo_falling_bodies"
 
 
-def test_elaborate_renders_step_apply_prompts():
-    """StepApply templates like {law} should be substituted with resolved arg content."""
+def test_elaborate_renders_chain_surface_prompts():
+    """Chain-surface prompts should carry the authored reasoning text."""
     pkg = load_package(FIXTURE_PATH)
     pkg = resolve_refs(pkg)
     result = elaborate_package(pkg)
     prompts = {(p["chain"], p["step"]): p for p in result.prompts}
-    key = ("drag_prediction_chain", 2)
+    key = ("drag_prediction_chain", 1)
     assert key in prompts
     rendered = prompts[key]["rendered"]
-    assert "{law}" not in rendered
-    assert "{env}" not in rendered
-    assert "重的物体" in rendered  # from heavier_falls_faster content
-    assert "重球" in rendered  # from thought_experiment_env content
+    assert "轻球天然比重球下落更慢" in rendered
+    assert "复合体 HL" in rendered
 
 
 def test_elaborate_records_lambda_content():
@@ -40,7 +38,7 @@ def test_elaborate_records_lambda_content():
     pkg = resolve_refs(pkg)
     result = elaborate_package(pkg)
     prompts = {(p["chain"], p["step"]): p for p in result.prompts}
-    key = ("combined_weight_chain", 2)
+    key = ("combined_weight_chain", 1)
     assert key in prompts
     assert "复合体" in prompts[key]["rendered"]
 
@@ -51,7 +49,7 @@ def test_elaborate_records_arg_metadata():
     pkg = resolve_refs(pkg)
     result = elaborate_package(pkg)
     prompts = {(p["chain"], p["step"]): p for p in result.prompts}
-    key = ("drag_prediction_chain", 2)
+    key = ("drag_prediction_chain", 1)
     prompt = prompts[key]
     assert len(prompt["args"]) == 2
     assert prompt["args"][0]["ref"] == "heavier_falls_faster"
@@ -67,13 +65,13 @@ def test_elaborate_does_not_modify_original():
     original_content = None
     for mod in pkg.loaded_modules:
         for decl in mod.knowledge:
-            if decl.name == "deduce_drag_effect":
+            if decl.name == "medium_density_observation":
                 original_content = decl.content
                 break
     elaborate_package(pkg)
     for mod in pkg.loaded_modules:
         for decl in mod.knowledge:
-            if decl.name == "deduce_drag_effect":
+            if decl.name == "medium_density_observation":
                 assert decl.content == original_content
 
 

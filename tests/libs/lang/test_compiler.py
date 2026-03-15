@@ -66,10 +66,10 @@ def test_direct_dependency_creates_edge():
     pkg = load_package(FIXTURE_DIR)
     pkg = resolve_refs(pkg)
     fg = compile_factor_graph(pkg)
-    drag = next(f for f in fg.factors if f["name"] == "drag_prediction_chain.step_2")
+    drag = next(f for f in fg.factors if f["name"] == "drag_prediction_chain.step_1")
     assert drag["premises"] == ["heavier_falls_faster"]
     assert drag["conclusions"] == ["tied_pair_slower_than_heavy"]
-    assert drag["probability"] == 0.93
+    assert drag["probability"] == 0.5
     assert drag["edge_type"] == "deduction"
 
 
@@ -80,8 +80,8 @@ def test_indirect_dependency_excluded_from_edges():
     fg = compile_factor_graph(pkg)
     # thought_experiment_env is used as indirect in drag_prediction_chain
     # It should NOT appear as a tail in that factor
-    drag_factors = [f for f in fg.factors if f.get("name") == "drag_prediction_chain.step_2"]
-    assert len(drag_factors) == 1, "Expected exactly one drag_prediction_chain.step_2 factor"
+    drag_factors = [f for f in fg.factors if f.get("name") == "drag_prediction_chain.step_1"]
+    assert len(drag_factors) == 1, "Expected exactly one drag_prediction_chain.step_1 factor"
     factor = drag_factors[0]
     assert "thought_experiment_env" not in factor.get("premises", [])
 
@@ -111,7 +111,7 @@ def test_contradiction_chain_is_now_deduction():
     pkg = resolve_refs(pkg)
     fg = compile_factor_graph(pkg)
 
-    chain_factor = next(f for f in fg.factors if f["name"] == "contradiction_chain.step_2")
+    chain_factor = next(f for f in fg.factors if f["name"] == "contradiction_chain.step_1")
     assert chain_factor["edge_type"] == "deduction"
     assert set(chain_factor["premises"]) == {
         "tied_pair_slower_than_heavy",
@@ -128,7 +128,7 @@ def test_retract_action_replaces_retraction_chain():
     fg = compile_factor_graph(pkg)
 
     factor_names = {f["name"] for f in fg.factors}
-    assert "retraction_chain.step_2" not in factor_names
+    assert "retraction_chain.step_1" not in factor_names
     # The retract_action is a declaration, not a chain — no factor produced
     assert not any(n.startswith("retract_aristotle") for n in factor_names)
 
