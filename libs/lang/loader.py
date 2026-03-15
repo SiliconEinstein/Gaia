@@ -165,9 +165,7 @@ def _expand_inline_chain(data: dict[str, Any]) -> list[Knowledge]:
         for alias in _inline_node_aliases(spec["data"], actual_name):
             existing = local_names.get(alias)
             if existing is not None and existing != actual_name:
-                raise ValueError(
-                    f"Chain '{chain_name}' uses duplicate local ref alias '{alias}'"
-                )
+                raise ValueError(f"Chain '{chain_name}' uses duplicate local ref alias '{alias}'")
             local_names[alias] = actual_name
 
     knowledge: list[Knowledge] = []

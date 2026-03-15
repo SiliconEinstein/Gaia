@@ -314,9 +314,7 @@ def test_chain_surface_keeps_local_premises_and_steps_in_factor_graph():
 
     fg = compile_factor_graph(pkg)
 
-    assert {"base", "demo_chain__obs", "demo_chain__bridge", "final_claim"}.issubset(
-        fg.variables
-    )
+    assert {"base", "demo_chain__obs", "demo_chain__bridge", "final_claim"}.issubset(fg.variables)
 
     factor = next(f for f in fg.factors if f["name"] == "demo_chain.step_3")
     assert factor["premises"] == ["demo_chain__obs"]

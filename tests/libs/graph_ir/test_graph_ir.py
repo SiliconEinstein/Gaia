@@ -214,8 +214,12 @@ def test_build_raw_graph_reads_lambda_args_from_chain_surface():
 
     raw_graph = build_raw_graph(pkg)
 
-    reasoning_factor = next(factor for factor in raw_graph.factor_nodes if factor.type == "reasoning")
-    raw_nodes = {node.source_refs[0].knowledge_name: node.raw_node_id for node in raw_graph.knowledge_nodes}
+    reasoning_factor = next(
+        factor for factor in raw_graph.factor_nodes if factor.type == "reasoning"
+    )
+    raw_nodes = {
+        node.source_refs[0].knowledge_name: node.raw_node_id for node in raw_graph.knowledge_nodes
+    }
     assert reasoning_factor.premises == [raw_nodes["base"], raw_nodes["demo_chain__obs"]]
     assert reasoning_factor.contexts == [raw_nodes["regime"]]
     assert reasoning_factor.conclusion == raw_nodes["final_claim"]
