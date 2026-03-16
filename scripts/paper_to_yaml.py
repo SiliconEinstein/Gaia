@@ -644,9 +644,7 @@ def _read_existing_xmls(paper_dir: Path) -> dict[str, str | None] | None:
         step2_xml = single_chain.read_text()
     else:
         chain_files = sorted(paper_dir.glob("conclusion_*_reasoning_chain.xml"))
-        chain_files = [
-            f for f in chain_files if "combine" not in f.name and "refine" not in f.name
-        ]
+        chain_files = [f for f in chain_files if "combine" not in f.name and "refine" not in f.name]
         if not chain_files:
             print(f"  SKIP: no reasoning chain XMLs in {paper_dir}")
             return None
