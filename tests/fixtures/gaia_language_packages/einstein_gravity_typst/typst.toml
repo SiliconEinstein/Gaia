@@ -1,0 +1,6 @@
+[package]
+name = "einstein_gravity"
+version = "1.0.0"
+entrypoint = "lib.typ"
+authors = ["Albert Einstein"]
+description = "爱因斯坦引力理论 — 从等价原理到广义相对论"
