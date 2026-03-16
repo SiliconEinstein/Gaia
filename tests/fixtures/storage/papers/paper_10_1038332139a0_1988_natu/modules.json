@@ -1,5 +1,34 @@
 [
   {
+    "module_id": "paper_10_1038332139a0_1988_natu.setting",
+    "package_id": "paper_10_1038332139a0_1988_natu",
+    "package_version": "1.0.0",
+    "name": "setting",
+    "role": "setting",
+    "imports": [],
+    "chain_ids": [],
+    "export_ids": [
+      "paper_10_1038332139a0_1988_natu/synthesis_precursors",
+      "paper_10_1038332139a0_1988_natu/properties_of_bacu3o4_precursor",
+      "paper_10_1038332139a0_1988_natu/synthesis_procedure",
+      "paper_10_1038332139a0_1988_natu/measurement_technique",
+      "paper_10_1038332139a0_1988_natu/definition_of_onset_temperature",
+      "paper_10_1038332139a0_1988_natu/magnetic_indicators_of_superconductivity",
+      "paper_10_1038332139a0_1988_natu/melting_point_of_bacu3o4",
+      "paper_10_1038332139a0_1988_natu/fluidity_of_molten_bacu3o4",
+      "paper_10_1038332139a0_1988_natu/definition_of_superconducting_onset_temperature",
+      "paper_10_1038332139a0_1988_natu/effect_of_calcium_substitution_in_y_and_la_based_superconductors",
+      "paper_10_1038332139a0_1988_natu/melt_solid_reaction_efficiency",
+      "paper_10_1038332139a0_1988_natu/indicator_of_bulk_superconductivity",
+      "paper_10_1038332139a0_1988_natu/manifestation_of_diamagnetism",
+      "paper_10_1038332139a0_1988_natu/measurement_of_ac_susceptibility",
+      "paper_10_1038332139a0_1988_natu/superconductivity_of_tl_ba_cu_o",
+      "paper_10_1038332139a0_1988_natu/effect_of_annealing_on_tl_ba_cu_o",
+      "paper_10_1038332139a0_1988_natu/effect_of_annealing_on_tl_caba_cu_o",
+      "paper_10_1038332139a0_1988_natu/conductivity_of_tl_ca_cu_o"
+    ]
+  },
+  {
     "module_id": "paper_10_1038332139a0_1988_natu.reasoning",
     "package_id": "paper_10_1038332139a0_1988_natu",
     "package_version": "1.0.0",

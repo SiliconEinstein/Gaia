@@ -1,12 +1,20 @@
 """Tests for StorageManager three-write consistency and rollback."""
 
+from datetime import datetime
 from unittest.mock import AsyncMock
 
 import pytest
 
 from libs.storage.config import StorageConfig
 from libs.storage.manager import StorageManager
-from libs.storage.models import KnowledgeEmbedding
+from libs.storage.models import (
+    FactorNode,
+    Knowledge,
+    KnowledgeEmbedding,
+    Module,
+    Package,
+    PackageSubmissionArtifact,
+)
 
 
 @pytest.fixture
@@ -422,3 +430,80 @@ class TestPassthroughWrites:
             for a in pkg_attachments:
                 found = await manager.content_store.get_resources_for(a.target_type, a.target_id)
                 assert isinstance(found, list)
+
+
+class TestIngestWithFactorsAndArtifact:
+    async def test_ingest_package_with_factors_and_artifact(self, tmp_path):
+        """ingest_package accepts factors and submission_artifact."""
+        config = StorageConfig(
+            lancedb_path=str(tmp_path / "lance"),
+            graph_backend="kuzu",
+            kuzu_path=str(tmp_path / "kuzu"),
+        )
+        mgr = StorageManager(config)
+        await mgr.initialize()
+
+        pkg = Package(
+            package_id="pkg",
+            name="pkg",
+            version="1.0.0",
+            submitter="test",
+            submitted_at=datetime.now(),
+            status="merged",
+        )
+        k1 = Knowledge(
+            knowledge_id="pkg/k1",
+            version=1,
+            type="claim",
+            content="X",
+            prior=0.7,
+            source_package_id="pkg",
+            source_module_id="pkg.mod",
+            created_at=datetime.now(),
+        )
+        mod = Module(
+            module_id="pkg.mod",
+            package_id="pkg",
+            name="mod",
+            role="reasoning",
+            chain_ids=[],
+            export_ids=["pkg/k1"],
+        )
+        factors = [
+            FactorNode(
+                factor_id="pkg.mod.f1",
+                type="reasoning",
+                premises=["pkg/k1"],
+                conclusion="pkg/k1",
+                package_id="pkg",
+            ),
+        ]
+        artifact = PackageSubmissionArtifact(
+            package_name="pkg",
+            commit_hash="abc123",
+            source_files={"main.gaia": "knowledge { content: 'X' }"},
+            raw_graph={},
+            local_canonical_graph={},
+            canonicalization_log=[],
+            submitted_at=datetime.now(),
+        )
+
+        await mgr.ingest_package(
+            package=pkg,
+            modules=[mod],
+            knowledge_items=[k1],
+            chains=[],
+            factors=factors,
+            submission_artifact=artifact,
+        )
+
+        # Verify factors stored
+        result_factors = await mgr.get_factors_by_package("pkg")
+        assert len(result_factors) == 1
+
+        # Verify artifact stored
+        result_art = await mgr.get_submission_artifact("pkg", "abc123")
+        assert result_art is not None
+        assert result_art.package_name == "pkg"
+
+        await mgr.close()

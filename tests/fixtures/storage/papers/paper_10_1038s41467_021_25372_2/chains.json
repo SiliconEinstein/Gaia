@@ -11,7 +11,7 @@
         "premises": [],
         "reasoning": "The authors synthesized yttrium hydrides in a diamond anvil cell (DAC) by compressing yttrium metal or $YH_{3}$ in a hydrogen ($H_2$) medium to high pressures (160–395 GPa) and heating with a pulsed laser.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/superconductivity_in_hcp_yh9",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/vinet_equation_of_state",
           "version": 1
         }
       },
@@ -20,10 +20,6 @@
         "premises": [
           {
             "knowledge_id": "paper_10_1038s41467_021_25372_2/vinet_equation_of_state",
-            "version": 1
-          },
-          {
-            "knowledge_id": "paper_10_1038s41467_021_25372_2/theoretical_prediction_of_yh9_structure",
             "version": 1
           }
         ],
@@ -47,7 +43,7 @@
         "premises": [],
         "reasoning": "Electrical resistance measurements were performed on Sample 2. Before laser heating, the sample contained bcc-$YH_{6}$ and showed a superconducting transition at $T_{c} \\sim 211$ K at 201 GPa. After laser heating at 2000(10) K, the phase transformed to hcp-$YH_{9}$, and the superconducting transition shifted to a higher temperature of $T_{c} \\sim 243$ K.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/superconductivity_in_hcp_yh9",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/isotope_effect_coefficient",
           "version": 1
         }
       },
@@ -61,7 +57,7 @@
         ],
         "reasoning": "The authors substituted hydrogen with deuterium and observed a shift in $T_{c}$ from $\\sim 243$ K (hydride) to $\\sim 172$ K (deuteride) in the hcp phase. The calculated isotope coefficient $\\alpha$ is 0.50 [@premise-4], supporting a conventional phonon-mediated mechanism.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/superconductivity_in_hcp_yh9",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/ginzburglandau_and_whh_models",
           "version": 1
         }
       },
@@ -93,7 +89,7 @@
         "premises": [],
         "reasoning": "A sharp drop in $T_c$ was observed for $YH_9$ at pressures below $\\sim 195$ GPa. This is attributed to structural instability, supported by the experimental observation that decreasing pressure in Sample 2 resulted in the decomposition of $YH_9$ into $bcc-YH_6$ at 159 GPa.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/superconductivity_in_hcp_yh9",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/theoretical_prediction_of_yh10",
           "version": 1
         }
       },
@@ -134,7 +130,7 @@
         "premises": [],
         "reasoning": "The authors synthesized yttrium hydrides in a diamond anvil cell (DAC) by compressing yttrium metal or yttrium trihydride ($YH_{3}$) in a hydrogen ($H_{2}$) atmosphere and heating the samples with a pulsed laser at approximately 1500 K, or by exposing reactants to high pressures at room temperature.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/superconductivity_in_bcc_yh6",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/theoretical_prediction_of_yh6_structure_and_stability",
           "version": 1
         }
       },
@@ -148,7 +144,7 @@
         ],
         "reasoning": "Using X-ray powder diffraction, the authors identified a body-centered cubic (bcc) phase with space group $Im\\text{-}3m$ within the pressure range of 160–175 GPa. The lattice parameters and volume of this phase agreed well with theoretical predictions for $bcc\\text{-}YH_{6}$ [@premise-1].",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/superconductivity_in_bcc_yh6",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/hydrogen_induced_volume_expansion",
           "version": 1
         }
       },
@@ -171,7 +167,7 @@
         "premises": [],
         "reasoning": "Electrical resistance measurements of the synthesized $bcc\\text{-}YH_{6}$ samples revealed superconducting transitions, characterized by a drop in resistance to zero.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/superconductivity_in_bcc_yh6",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/isotope_effect_coefficient_definition",
           "version": 1
         }
       },
@@ -185,7 +181,7 @@
         ],
         "reasoning": "The authors substituted hydrogen with deuterium to form $bcc\\text{-}YD_{6}$. They observed a shift in the critical temperature ($T_{c}$) to lower values (e.g., from ~211 K for $YH_{6}$ to ~165 K for $YD_{6}$), yielding an isotope coefficient $\\alpha \\approx 0.39$ [@premise-2], which supports the phonon-assisted mechanism of superconductivity.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/superconductivity_in_bcc_yh6",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/upper_critical_field_and_coherence_length_relationships",
           "version": 1
         }
       },
@@ -245,10 +241,6 @@
           {
             "knowledge_id": "paper_10_1038s41467_021_25372_2/predicted_stability_of_fcc_yh10_at_high_pressure",
             "version": 1
-          },
-          {
-            "knowledge_id": "paper_10_1038s41467_021_25372_2/predicted_high_temperature_stability_of_fcc_yh10",
-            "version": 1
           }
         ],
         "reasoning": "The authors note that theoretical predictions suggest the stability of a high-$T_{c}$ $fcc-YH_{10}$ phase at pressures above 250 GPa [@premise-1] or at high temperatures and pressures, specifically above 1100 K at 400 GPa [@premise-2].",
@@ -271,7 +263,7 @@
         "premises": [],
         "reasoning": "During pulsed laser heating of the samples at 410 GPa and temperatures up to 2250 K, the authors collected in situ X-ray diffraction data.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/absence_of_predicted_fcc_yh10_phase",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/identification_of_crystal_phases_via_diffraction",
           "version": 1
         }
       },
@@ -285,7 +277,7 @@
         ],
         "reasoning": "The authors analyzed the diffraction patterns and identified the formation of the $P6_{3}/mmc$ $YH_{9}$ phase, observing agreement with calculated peak positions for this structure [@premise-4], while detecting only thermal expansion of the lattice.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/absence_of_predicted_fcc_yh10_phase",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/criterion_for_excess_hydrogen_availability",
           "version": 1
         }
       },
@@ -299,7 +291,7 @@
         ],
         "reasoning": "The authors verified that the synthesis conditions allowed for the formation of the highest possible hydride by observing the complete transformation of the initial $YH_{3}$ into single-phase $YH_{9}$ [@premise-3], indicating that excess hydrogen was present.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/absence_of_predicted_fcc_yh10_phase",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/predicted_stability_of_fcc_yh10_at_high_pressure",
           "version": 1
         }
       },
@@ -308,14 +300,6 @@
         "premises": [
           {
             "knowledge_id": "paper_10_1038s41467_021_25372_2/predicted_stability_of_fcc_yh10_at_high_pressure",
-            "version": 1
-          },
-          {
-            "knowledge_id": "paper_10_1038s41467_021_25372_2/predicted_high_temperature_stability_of_fcc_yh10",
-            "version": 1
-          },
-          {
-            "knowledge_id": "paper_10_1038s41467_021_25372_2/criterion_for_excess_hydrogen_availability",
             "version": 1
           }
         ],
@@ -393,7 +377,7 @@
         "premises": [],
         "reasoning": "Comparing the hydride and deuteride transition temperatures, the authors identified a pronounced shift to lower temperatures upon substitution with the heavier isotope (deuterium).",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/isotope_effect_in_yttrium_hydrides",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/significance_of_isotope_effect",
           "version": 1
         }
       },
@@ -407,7 +391,7 @@
         ],
         "reasoning": "Invoking the premise regarding the significance of the isotope effect [@premise-2], the authors assert that this observed shift supports the conventional phonon-assisted mechanism of superconductivity in these materials.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/isotope_effect_in_yttrium_hydrides",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/isotope_effect_coefficient_definition",
           "version": 1
         }
       },
@@ -430,7 +414,7 @@
         "premises": [],
         "reasoning": "The calculation yielded $\\alpha = 0.39$ for the $Im\\text{-}3m$ $YH_{6}/YD_{6}$ system and $\\alpha = 0.50$ for the $P6_3/mmc$ $YH_{9}/YD_{9}$ system.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/isotope_effect_in_yttrium_hydrides",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/bcs_isotope_coefficient_limit",
           "version": 1
         }
       },
@@ -471,7 +455,7 @@
         "premises": [],
         "reasoning": "Using the criterion of 90% of the resistance in the metallic state [@assumption-6], the authors determine the dependence of the critical temperature $T_c$ on the applied external magnetic field.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/upper_critical_fields_and_coherence_lengths",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/ginzburg_landau_equation_validity",
           "version": 1
         }
       },
@@ -480,10 +464,6 @@
         "premises": [
           {
             "knowledge_id": "paper_10_1038s41467_021_25372_2/ginzburg_landau_equation_validity",
-            "version": 1
-          },
-          {
-            "knowledge_id": "paper_10_1038s41467_021_25372_2/werthamer_helfand_hohenberg_model_validity",
             "version": 1
           }
         ],
@@ -498,7 +478,7 @@
         "premises": [],
         "reasoning": "From the fits, the authors derive:\nFor $hcp-YD_{9}$: $H_{c2}^{\\mathrm{WHH}}(0\\mathrm{K})=60\\mathrm{T}$ and $H_{c2}^{\\mathrm{GL}}(0\\mathrm{K})=46\\mathrm{T}$.\nFor $bcc-YH_{6}$: $H_{c2}^{\\mathrm{WHH}}(0\\mathrm{K})=157\\mathrm{T}$ and $H_{c2}^{\\mathrm{GL}}(0\\mathrm{K})=107\\mathrm{T}$.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/upper_critical_fields_and_coherence_lengths",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/definition_of_coherence_length",
           "version": 1
         }
       },
@@ -512,7 +492,7 @@
         ],
         "reasoning": "Using the derived $H_{c2}$ values and the definition $\\xi = \\sqrt{\\frac{\\phi_{0}}{3\\pi^{2}H_{c2}}}$ [@premise-1], the authors calculate the zero-temperature coherence lengths $\\xi(0\\mathrm{K})$:\nFor $bcc-YH_{6}$: 1.45–1.75 nm.\nFor $hcp-YD_{9}$: 2.3–2.7 nm.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/upper_critical_fields_and_coherence_lengths",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/scaling_relation_for_upper_critical_field",
           "version": 1
         }
       },
@@ -553,7 +533,7 @@
         "premises": [],
         "reasoning": "The authors fit the experimental values of $H_{c2}(T)$ to the Werthamer–Helfand–Hohenberg (WHH) model [@assumption-3]. These fits yield $H_{c2}^{\\mathrm{WHH}}(0\\mathrm{K})=157\\mathrm{T}$ for $hcc-YH_{6}$ and $H_{c2}^{\\mathrm{WHH}}(0\\mathrm{K})=60\\mathrm{T}$ for $hcp-YD_{9}$.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/fermi_velocities_in_yttrium_superhydrides",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/relation_between_coherence_length_and_upper_critical_field",
           "version": 1
         }
       },
@@ -567,7 +547,7 @@
         ],
         "reasoning": "Using the estimated $H_{c2}(0\\mathrm{K})$ values, the authors calculate the coherence length $\\xi(0\\mathrm{K})$ for each phase using the relation $\\xi = \\sqrt{\\frac{\\phi_{0}}{3\\pi^{2}H_{c2}}}$ [@premise-1].",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/fermi_velocities_in_yttrium_superhydrides",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/bcs_relation_for_fermi_velocity",
           "version": 1
         }
       },
@@ -635,7 +615,7 @@
         "premises": [],
         "reasoning": "The authors synthesized the $hcp\\text{-}YH_{9}/YD_{9}$ phase by laser heating the previously formed $YH_{4}$ or $YH_{6}$ phases with excess $H_{2}/D_{2}$ at pressures above 185 GPa.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/synthesis_conditions_and_stoichiometry_estimation",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/theoretical_predictions_of_yttrium_hydrides",
           "version": 1
         }
       },
@@ -649,7 +629,7 @@
         ],
         "reasoning": "The authors determined the lattice volumes of the synthesized phases ($bct\\text{-}YH_{4}$, $bcc\\text{-}YH_{6}$, $hcp\\text{-}YH_{9}$) via X-ray diffraction and found them to agree well with theoretical predictions [@premise-1], justifying the assignment of the phases.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/synthesis_conditions_and_stoichiometry_estimation",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/equation_of_state_for_pure_yttrium",
           "version": 1
         }
       },
@@ -663,7 +643,7 @@
         ],
         "reasoning": "Using the extrapolated equation of state for pure yttrium [@premise-3] to isolate the volume of the yttrium sublattice, the authors calculated the hydrogen-induced volume expansion ($V_{H}$) in $bct\\text{-}YH_{4}(YD_{4})$ to be $\\sim 1.7-1.8\\ \\AA^{3}/H(D)$ atom at 180–200 GPa.",
         "conclusion": {
-          "knowledge_id": "paper_10_1038s41467_021_25372_2/synthesis_conditions_and_stoichiometry_estimation",
+          "knowledge_id": "paper_10_1038s41467_021_25372_2/hydrogen_induced_volume_expansion_in_hydrides",
           "version": 1
         }
       },

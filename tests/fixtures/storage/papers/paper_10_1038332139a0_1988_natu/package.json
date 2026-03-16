@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "description": "Reasoning chains extracted from paper 10.1038332139a0_1988_Natu",
   "modules": [
+    "paper_10_1038332139a0_1988_natu.setting",
     "paper_10_1038332139a0_1988_natu.reasoning"
   ],
   "exports": [
@@ -12,7 +13,7 @@
     "paper_10_1038332139a0_1988_natu/verification_of_bulk_superconductivity_via_magnetic_response",
     "paper_10_1038332139a0_1988_natu/compositional_and_thermal_stability_characteristics"
   ],
-  "submitter": "paper_extractor",
-  "submitted_at": "2026-03-12T00:00:00+00:00",
+  "submitter": "cli",
+  "submitted_at": "2026-03-14T03:51:13.533995Z",
   "status": "merged"
 }

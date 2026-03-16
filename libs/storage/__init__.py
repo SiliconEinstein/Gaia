@@ -1,9 +1,65 @@
-"""Storage v2 — Gaia Language-native storage layer (knowledge, chain, module, package)."""
+"""Storage — Gaia Language-native storage layer (knowledge, chain, module, package)."""
 
 from libs.storage.config import StorageConfig
 from libs.storage.content_store import ContentStore
 from libs.storage.graph_store import GraphStore
 from libs.storage.manager import StorageManager
+from libs.storage.models import (
+    BeliefSnapshot,
+    CanonicalBinding,
+    Chain,
+    ChainStep,
+    FactorNode,
+    FactorParams,
+    GlobalCanonicalNode,
+    GlobalInferenceState,
+    Knowledge,
+    KnowledgeEmbedding,
+    KnowledgeRef,
+    LocalCanonicalRef,
+    Module,
+    Package,
+    PackageRef,
+    PackageSubmissionArtifact,
+    Parameter,
+    ProbabilityRecord,
+    Resource,
+    ResourceAttachment,
+    ScoredKnowledge,
+    SourceRef,
+    Subgraph,
+    factors_from_chains,
+)
 from libs.storage.vector_store import VectorStore
 
-__all__ = ["ContentStore", "GraphStore", "StorageConfig", "StorageManager", "VectorStore"]
+__all__ = [
+    "BeliefSnapshot",
+    "CanonicalBinding",
+    "Chain",
+    "ChainStep",
+    "ContentStore",
+    "FactorNode",
+    "FactorParams",
+    "GlobalCanonicalNode",
+    "GlobalInferenceState",
+    "GraphStore",
+    "Knowledge",
+    "KnowledgeEmbedding",
+    "KnowledgeRef",
+    "LocalCanonicalRef",
+    "Module",
+    "Package",
+    "PackageRef",
+    "PackageSubmissionArtifact",
+    "Parameter",
+    "ProbabilityRecord",
+    "Resource",
+    "ResourceAttachment",
+    "ScoredKnowledge",
+    "SourceRef",
+    "StorageConfig",
+    "StorageManager",
+    "Subgraph",
+    "VectorStore",
+    "factors_from_chains",
+]

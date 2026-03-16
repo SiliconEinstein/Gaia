@@ -12,10 +12,6 @@
           {
             "knowledge_id": "paper_363056a0/structural_analogy_with_tl_based_copper_oxides",
             "version": 1
-          },
-          {
-            "knowledge_id": "paper_363056a0/tc_scaling_in_tl_based_systems",
-            "version": 1
           }
         ],
         "reasoning": "Based on the structural similarity to Tl-1201 [@premise-2] and the trend of increasing $T_c$ with the number of $CuO_2$ layers observed in thallium and bismuth compounds [@premise-3], the authors conjecture that transition temperatures exceeding 100 K can be achieved in the Hg-Ba-Ca-Cu-O system by synthesizing members with more than one $CuO_2$ layer ($n > 1$).",
@@ -65,7 +61,7 @@
         "premises": [],
         "reasoning": "Electrical resistivity $R(T)$ is measured. The authors observe a sharp drop in resistivity at $T \\approx 132.5 \\text{ K}$ (maximum in $dR/dT$) and zero resistance at $T = 95 \\text{ K}$.",
         "conclusion": {
-          "knowledge_id": "paper_363056a0/discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu",
+          "knowledge_id": "paper_363056a0/previous_record_transition_temperature",
           "version": 1
         }
       },
@@ -79,7 +75,7 @@
         ],
         "reasoning": "The observed onset temperature of $\\sim 133.5 \\text{ K}$ is compared to the previous record of 125–127 K found in the Tl-system [@premise-4], establishing the new result as distinctly higher.",
         "conclusion": {
-          "knowledge_id": "paper_363056a0/discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu",
+          "knowledge_id": "paper_363056a0/tc_scaling_in_tl_based_systems",
           "version": 1
         }
       },
@@ -111,7 +107,7 @@
         "premises": [],
         "reasoning": "Based on the structural similarity to thallium-based copper oxides, the authors hypothesize the existence of the Hg-based homologous series $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\\delta}$, specifically expecting phases corresponding to $n=2$ (Hg-1212) and $n=3$ (Hg-1223).",
         "conclusion": {
-          "knowledge_id": "paper_363056a0/identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters",
+          "knowledge_id": "paper_363056a0/sample_preparation",
           "version": 1
         }
       },
@@ -125,7 +121,7 @@
         ],
         "reasoning": "The authors synthesized a black material using the precursor method described in [@premise-2].",
         "conclusion": {
-          "knowledge_id": "paper_363056a0/identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters",
+          "knowledge_id": "paper_363056a0/eds_composition_analysis",
           "version": 1
         }
       },
@@ -139,7 +135,7 @@
         ],
         "reasoning": "Using EDS, the authors identified that ~15% of the synthesized material consists of plate-like grains containing the target elements Hg, Ba, Ca, and Cu [@premise-3].",
         "conclusion": {
-          "knowledge_id": "paper_363056a0/identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters",
+          "knowledge_id": "paper_363056a0/microscopic_structural_identification",
           "version": 1
         }
       },
@@ -153,7 +149,7 @@
         ],
         "reasoning": "The authors investigated these specific grains using SAED and HRTEM, confirming the presence of distinct Hg-1223 and Hg-1212 phases, as well as disordered mixtures and periodic stackings [@premise-4].",
         "conclusion": {
-          "knowledge_id": "paper_363056a0/identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters",
+          "knowledge_id": "paper_363056a0/xrd_limitation",
           "version": 1
         }
       },
@@ -176,7 +172,7 @@
         "premises": [],
         "reasoning": "From the SAED patterns, the authors calculated the tetragonal lattice parameters to be $a=3.93(7)\\AA$ for both phases, $c=12.7(2)\\AA$ for the Hg-1212 units, and $c=16.1(3)\\AA$ for the Hg-1223 units.",
         "conclusion": {
-          "knowledge_id": "paper_363056a0/identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters",
+          "knowledge_id": "paper_363056a0/superstructure_observation",
           "version": 1
         }
       },
@@ -235,7 +231,7 @@
         "premises": [],
         "reasoning": "Microscopic analysis determines that the identified grains containing Hg, Ba, Ca, and Cu consist mostly of the Hg-1223 phase.",
         "conclusion": {
-          "knowledge_id": "paper_363056a0/attribution_of_highest_tc_to_the_three_layer_hg_1223_phase",
+          "knowledge_id": "paper_363056a0/empirical_trend_in_tl_and_bi_copper_oxides",
           "version": 1
         }
       },
@@ -244,10 +240,6 @@
         "premises": [
           {
             "knowledge_id": "paper_363056a0/empirical_trend_in_tl_and_bi_copper_oxides",
-            "version": 1
-          },
-          {
-            "knowledge_id": "paper_363056a0/superconducting_properties_of_hg_1201",
             "version": 1
           }
         ],

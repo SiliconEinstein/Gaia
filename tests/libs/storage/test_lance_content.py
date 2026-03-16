@@ -4,7 +4,20 @@ from datetime import datetime
 
 import pytest
 
-from libs.storage.models import BeliefSnapshot, Knowledge
+from libs.storage.models import (
+    BeliefSnapshot,
+    CanonicalBinding,
+    FactorNode,
+    FactorParams,
+    GlobalCanonicalNode,
+    GlobalInferenceState,
+    Knowledge,
+    LocalCanonicalRef,
+    PackageRef,
+    PackageSubmissionArtifact,
+    Parameter,
+    SourceRef,
+)
 
 
 class TestInitialize:
@@ -20,6 +33,11 @@ class TestInitialize:
             "belief_history",
             "resources",
             "resource_attachments",
+            "factors",
+            "canonical_bindings",
+            "global_canonical_nodes",
+            "global_inference_state",
+            "submission_artifacts",
         }
         assert expected.issubset(set(tables))
 
@@ -537,3 +555,421 @@ class TestVisibilityGate:
         await content_store.write_chains(chains)
         result = await content_store.get_chains_by_module(chains[0].module_id)
         assert len(result) == 0
+
+
+# ── Task 4: Knowledge kind/parameters roundtrip ──
+
+
+async def test_knowledge_kind_parameters_roundtrip(content_store, packages, modules):
+    """Knowledge with kind and parameters survives write->read."""
+    await content_store.write_package(packages[0], modules)
+    k = Knowledge(
+        knowledge_id="test/schema1",
+        version=1,
+        type="claim",
+        kind="universal_law",
+        content="For all A satisfying C: P(A)",
+        parameters=[Parameter(name="A", constraint="any substance")],
+        prior=0.5,
+        source_package_id="galileo_falling_bodies",
+        source_package_version="1.0.0",
+        source_module_id="galileo_falling_bodies.setting",
+        created_at=datetime.now(),
+    )
+    await content_store.write_knowledge([k])
+    result = await content_store.get_knowledge("test/schema1", version=1)
+    assert result is not None
+    assert result.kind == "universal_law"
+    assert len(result.parameters) == 1
+    assert result.parameters[0].name == "A"
+    assert result.is_schema is True
+
+
+async def test_knowledge_kind_none_roundtrip(content_store, packages, modules):
+    """Knowledge without kind/parameters defaults correctly."""
+    await content_store.write_package(packages[0], modules)
+    k = Knowledge(
+        knowledge_id="test/ground1",
+        version=1,
+        type="claim",
+        content="X is true",
+        prior=0.7,
+        source_package_id="galileo_falling_bodies",
+        source_package_version="1.0.0",
+        source_module_id="galileo_falling_bodies.setting",
+        created_at=datetime.now(),
+    )
+    await content_store.write_knowledge([k])
+    result = await content_store.get_knowledge("test/ground1", version=1)
+    assert result is not None
+    assert result.kind is None
+    assert result.parameters == []
+    assert result.is_schema is False
+
+
+# ── Task 5: Factors table ──
+
+
+async def test_write_and_list_factors(content_store):
+    factors = [
+        FactorNode(
+            factor_id="pkg.mod.chain1",
+            type="reasoning",
+            premises=["pkg/k1", "pkg/k2"],
+            contexts=["pkg/k3"],
+            conclusion="pkg/k4",
+            package_id="pkg",
+            source_ref=SourceRef(
+                package="pkg", version="1.0.0", module="pkg.mod", knowledge_name="k4"
+            ),
+        ),
+        FactorNode(
+            factor_id="pkg.mutex.1",
+            type="mutex_constraint",
+            premises=["pkg/k1", "pkg/k2"],
+            conclusion="pkg/contra1",
+            package_id="pkg",
+        ),
+    ]
+    await content_store.write_factors(factors)
+    result = await content_store.list_factors()
+    assert len(result) == 2
+    ids = {f.factor_id for f in result}
+    assert ids == {"pkg.mod.chain1", "pkg.mutex.1"}
+
+
+async def test_get_factors_by_package(content_store):
+    factors = [
+        FactorNode(
+            factor_id="a.mod.chain1",
+            type="reasoning",
+            premises=["a/k1"],
+            conclusion="a/k2",
+            package_id="a",
+        ),
+        FactorNode(
+            factor_id="b.mod.chain1",
+            type="reasoning",
+            premises=["b/k1"],
+            conclusion="b/k2",
+            package_id="b",
+        ),
+    ]
+    await content_store.write_factors(factors)
+    result = await content_store.get_factors_by_package("a")
+    assert len(result) == 1
+    assert result[0].factor_id == "a.mod.chain1"
+
+
+async def test_factors_upsert_idempotent(content_store):
+    f = FactorNode(
+        factor_id="pkg.f1",
+        type="instantiation",
+        premises=["pkg/s1"],
+        conclusion="pkg/g1",
+        package_id="pkg",
+    )
+    await content_store.write_factors([f])
+    await content_store.write_factors([f])
+    result = await content_store.list_factors()
+    assert len(result) == 1
+
+
+# ── Task 6: Canonical bindings and global canonical nodes ──
+
+
+async def test_write_and_get_canonical_bindings(content_store):
+    bindings = [
+        CanonicalBinding(
+            package="pkg",
+            version="1.0.0",
+            local_graph_hash="sha256:abc",
+            local_canonical_id="pkg/lc_k1",
+            decision="create_new",
+            global_canonical_id="gcn_01",
+            decided_at=datetime.now(),
+            decided_by="auto",
+        ),
+        CanonicalBinding(
+            package="pkg",
+            version="1.0.0",
+            local_graph_hash="sha256:abc",
+            local_canonical_id="pkg/lc_k2",
+            decision="match_existing",
+            global_canonical_id="gcn_02",
+            decided_at=datetime.now(),
+            decided_by="auto",
+        ),
+    ]
+    await content_store.write_canonical_bindings(bindings)
+    result = await content_store.get_canonical_bindings("pkg", "1.0.0")
+    assert len(result) == 2
+    ids = {b.local_canonical_id for b in result}
+    assert ids == {"pkg/lc_k1", "pkg/lc_k2"}
+
+
+async def test_canonical_bindings_upsert(content_store):
+    b = CanonicalBinding(
+        package="pkg",
+        version="1.0.0",
+        local_graph_hash="sha256:abc",
+        local_canonical_id="pkg/lc_k1",
+        decision="create_new",
+        global_canonical_id="gcn_01",
+        decided_at=datetime.now(),
+        decided_by="auto",
+    )
+    await content_store.write_canonical_bindings([b])
+    await content_store.write_canonical_bindings([b])
+    result = await content_store.get_canonical_bindings("pkg", "1.0.0")
+    assert len(result) == 1
+
+
+async def test_write_and_get_global_canonical_node(content_store):
+    node = GlobalCanonicalNode(
+        global_canonical_id="gcn_01",
+        knowledge_type="claim",
+        representative_content="X is true",
+        member_local_nodes=[
+            LocalCanonicalRef(package="pkg", version="1.0.0", local_canonical_id="pkg/lc_k1")
+        ],
+        provenance=[PackageRef(package="pkg", version="1.0.0")],
+    )
+    await content_store.upsert_global_nodes([node])
+    result = await content_store.get_global_node("gcn_01")
+    assert result is not None
+    assert result.knowledge_type == "claim"
+    assert len(result.member_local_nodes) == 1
+
+
+async def test_global_node_upsert_updates_existing(content_store):
+    node1 = GlobalCanonicalNode(
+        global_canonical_id="gcn_01",
+        knowledge_type="claim",
+        representative_content="X is true",
+        member_local_nodes=[
+            LocalCanonicalRef(package="p1", version="1.0.0", local_canonical_id="p1/lc1")
+        ],
+        provenance=[PackageRef(package="p1", version="1.0.0")],
+    )
+    await content_store.upsert_global_nodes([node1])
+    node2 = node1.model_copy(
+        update={
+            "member_local_nodes": [
+                LocalCanonicalRef(package="p1", version="1.0.0", local_canonical_id="p1/lc1"),
+                LocalCanonicalRef(package="p2", version="1.0.0", local_canonical_id="p2/lc2"),
+            ],
+            "provenance": [
+                PackageRef(package="p1", version="1.0.0"),
+                PackageRef(package="p2", version="1.0.0"),
+            ],
+        }
+    )
+    await content_store.upsert_global_nodes([node2])
+    result = await content_store.get_global_node("gcn_01")
+    assert len(result.member_local_nodes) == 2
+
+
+# ── Task 7: Global inference state and submission artifacts ──
+
+
+async def test_write_and_get_inference_state(content_store):
+    state = GlobalInferenceState(
+        graph_hash="sha256:xyz",
+        node_priors={"gcn_01": 0.7},
+        factor_parameters={"f1": FactorParams(conditional_probability=0.9)},
+        node_beliefs={"gcn_01": 0.8},
+        updated_at=datetime.now(),
+    )
+    await content_store.update_inference_state(state)
+    result = await content_store.get_inference_state()
+    assert result is not None
+    assert result.graph_hash == "sha256:xyz"
+    assert result.node_priors["gcn_01"] == 0.7
+    assert result.factor_parameters["f1"].conditional_probability == 0.9
+    assert result.node_beliefs["gcn_01"] == 0.8
+
+
+async def test_inference_state_update_replaces(content_store):
+    state1 = GlobalInferenceState(
+        graph_hash="sha256:v1",
+        node_priors={"gcn_01": 0.7},
+        updated_at=datetime.now(),
+    )
+    await content_store.update_inference_state(state1)
+    state2 = GlobalInferenceState(
+        graph_hash="sha256:v2",
+        node_priors={"gcn_01": 0.8, "gcn_02": 0.6},
+        updated_at=datetime.now(),
+    )
+    await content_store.update_inference_state(state2)
+    result = await content_store.get_inference_state()
+    assert result.graph_hash == "sha256:v2"
+    assert len(result.node_priors) == 2
+
+
+async def test_inference_state_none_when_empty(content_store):
+    result = await content_store.get_inference_state()
+    assert result is None
+
+
+async def test_write_and_get_submission_artifact(content_store):
+    art = PackageSubmissionArtifact(
+        package_name="pkg",
+        commit_hash="abc123",
+        source_files={"main.gaia": "knowledge { content: 'X' }"},
+        raw_graph={"schema_version": "1.0", "knowledge_nodes": []},
+        local_canonical_graph={"schema_version": "1.0", "knowledge_nodes": []},
+        canonicalization_log=[{"local_canonical_id": "lc1", "members": ["r1"], "reason": "unique"}],
+        submitted_at=datetime.now(),
+    )
+    await content_store.write_submission_artifact(art)
+    result = await content_store.get_submission_artifact("pkg", "abc123")
+    assert result is not None
+    assert result.package_name == "pkg"
+    assert result.source_files["main.gaia"] == "knowledge { content: 'X' }"
+
+
+async def test_submission_artifact_not_found(content_store):
+    result = await content_store.get_submission_artifact("nonexistent", "xxx")
+    assert result is None
+
+
+# ── List/Graph endpoints ──
+
+
+class TestListEndpoints:
+    async def test_list_packages_returns_merged(self, content_store, packages, modules):
+        await content_store.write_package(packages[0], modules)
+        items, total = await content_store.list_packages()
+        assert total >= 1
+        ids = [p.package_id for p in items]
+        assert packages[0].package_id in ids
+
+    async def test_list_packages_excludes_preparing(self, content_store, packages):
+        pkg = packages[0].model_copy(update={"status": "preparing", "package_id": "invisible_pkg"})
+        await content_store.write_package(pkg, [])
+        items, total = await content_store.list_packages()
+        assert all(p.package_id != "invisible_pkg" for p in items)
+        assert total == 0
+
+    async def test_list_packages_pagination(self, content_store, packages, modules):
+        await content_store.write_package(packages[0], modules)
+        items, total = await content_store.list_packages(page=1, page_size=1)
+        assert total == 1
+        assert len(items) == 1
+        assert items[0].package_id == packages[0].package_id
+
+    async def test_list_knowledge_paged(self, content_store, packages, modules, knowledge_items):
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_knowledge(knowledge_items)
+        items, total = await content_store.list_knowledge_paged(page=1, page_size=100)
+        assert total == len(knowledge_items)
+        assert len(items) == len(knowledge_items)
+
+    async def test_list_knowledge_paged_type_filter(
+        self, content_store, packages, modules, knowledge_items
+    ):
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_knowledge(knowledge_items)
+        items, total = await content_store.list_knowledge_paged(
+            page=1, page_size=100, type_filter="setting"
+        )
+        assert all(k.type == "setting" for k in items)
+        assert total == sum(1 for k in knowledge_items if k.type == "setting")
+
+    async def test_list_modules(self, content_store, packages, modules):
+        await content_store.write_package(packages[0], modules)
+        result = await content_store.list_modules()
+        assert len(result) == len(modules)
+        module_ids = {m.module_id for m in result}
+        for m in modules:
+            assert m.module_id in module_ids
+
+    async def test_list_modules_filtered_by_package(self, content_store, packages, modules):
+        await content_store.write_package(packages[0], modules)
+        result = await content_store.list_modules(package_id=packages[0].package_id)
+        assert len(result) == len(modules)
+        assert all(m.package_id == packages[0].package_id for m in result)
+
+        result_missing = await content_store.list_modules(package_id="nonexistent_pkg")
+        assert result_missing == []
+
+    async def test_list_chains_paged(self, content_store, packages, modules, chains):
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_chains(chains)
+        items, total = await content_store.list_chains_paged(page=1, page_size=100)
+        assert total == len(chains)
+        assert len(items) == len(chains)
+
+    async def test_list_chains_paged_filtered_by_module(
+        self, content_store, packages, modules, chains
+    ):
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_chains(chains)
+        # All fixture chains belong to galileo_falling_bodies.reasoning
+        items, total = await content_store.list_chains_paged(
+            page=1, page_size=100, module_id="galileo_falling_bodies.reasoning"
+        )
+        assert total == len(chains)
+        assert all(c.module_id == "galileo_falling_bodies.reasoning" for c in items)
+
+        items_none, total_none = await content_store.list_chains_paged(
+            page=1, page_size=100, module_id="nonexistent_module"
+        )
+        assert total_none == 0
+        assert items_none == []
+
+    async def test_get_chain(self, content_store, packages, modules, chains):
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_chains(chains)
+        chain = await content_store.get_chain(chains[0].chain_id)
+        assert chain is not None
+        assert chain.chain_id == chains[0].chain_id
+
+    async def test_get_chain_not_found(self, content_store):
+        result = await content_store.get_chain("nonexistent_chain_id")
+        assert result is None
+
+    async def test_get_graph_data(self, content_store, packages, modules, knowledge_items, chains):
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_knowledge(knowledge_items)
+        await content_store.write_chains(chains)
+        data = await content_store.get_graph_data()
+        assert "nodes" in data
+        assert "edges" in data
+        assert len(data["nodes"]) == len(knowledge_items)
+        # Edges should be produced for chain steps with valid premise→conclusion node pairs
+        assert len(data["edges"]) > 0
+        # Each node should have the required fields
+        node = data["nodes"][0]
+        assert "id" in node
+        assert "knowledge_id" in node
+        assert "version" in node
+        assert "type" in node
+        assert "content" in node
+        assert "prior" in node
+        # Each edge should have the required fields
+        edge = data["edges"][0]
+        assert "chain_id" in edge
+        assert "from" in edge
+        assert "to" in edge
+        assert "chain_type" in edge
+        assert "step_index" in edge
+
+    async def test_get_graph_data_filtered_by_package(
+        self, content_store, packages, modules, knowledge_items, chains
+    ):
+        await content_store.write_package(packages[0], modules)
+        await content_store.write_knowledge(knowledge_items)
+        await content_store.write_chains(chains)
+
+        pkg_id = packages[0].package_id
+        data = await content_store.get_graph_data(package_id=pkg_id)
+        assert len(data["nodes"]) == len(knowledge_items)
+        assert len(data["edges"]) > 0
+
+        # Filter for a non-existent package should yield empty graph
+        data_empty = await content_store.get_graph_data(package_id="nonexistent_pkg")
+        assert data_empty["nodes"] == []
+        assert data_empty["edges"] == []

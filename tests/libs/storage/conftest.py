@@ -16,7 +16,7 @@ from libs.storage.models import (
     ResourceAttachment,
 )
 
-FIXTURES_DIR = Path(__file__).parents[2] / "fixtures" / "storage"
+FIXTURES_DIR = Path(__file__).parents[2] / "fixtures" / "storage" / "gelileo_falling_bodies"
 
 
 def load_fixture(name: str) -> list[dict]:

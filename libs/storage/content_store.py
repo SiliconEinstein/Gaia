@@ -4,10 +4,15 @@ from abc import ABC, abstractmethod
 
 from libs.storage.models import (
     BeliefSnapshot,
+    CanonicalBinding,
     Chain,
+    FactorNode,
+    GlobalCanonicalNode,
+    GlobalInferenceState,
     Knowledge,
     Module,
     Package,
+    PackageSubmissionArtifact,
     ProbabilityRecord,
     Resource,
     ResourceAttachment,
@@ -119,3 +124,53 @@ class ContentStore(ABC):
     @abstractmethod
     async def list_chains(self) -> list[Chain]:
         """Load all chains for BP factor graph construction."""
+
+    # ── Factors ──
+
+    @abstractmethod
+    async def write_factors(self, factors: list[FactorNode]) -> None:
+        """Write factor nodes from Graph IR."""
+
+    @abstractmethod
+    async def list_factors(self) -> list[FactorNode]:
+        """Load all factors for BP factor graph construction."""
+
+    @abstractmethod
+    async def get_factors_by_package(self, package_id: str) -> list[FactorNode]:
+        """Get factors belonging to a specific package."""
+
+    # ── Canonical bindings ──
+
+    @abstractmethod
+    async def write_canonical_bindings(self, bindings: list[CanonicalBinding]) -> None: ...
+
+    @abstractmethod
+    async def get_canonical_bindings(
+        self, package: str, version: str
+    ) -> list[CanonicalBinding]: ...
+
+    # ── Global canonical nodes ──
+
+    @abstractmethod
+    async def upsert_global_nodes(self, nodes: list[GlobalCanonicalNode]) -> None: ...
+
+    @abstractmethod
+    async def get_global_node(self, global_id: str) -> GlobalCanonicalNode | None: ...
+
+    # ── Global inference state ──
+
+    @abstractmethod
+    async def update_inference_state(self, state: GlobalInferenceState) -> None: ...
+
+    @abstractmethod
+    async def get_inference_state(self) -> GlobalInferenceState | None: ...
+
+    # ── Submission artifacts ──
+
+    @abstractmethod
+    async def write_submission_artifact(self, artifact: PackageSubmissionArtifact) -> None: ...
+
+    @abstractmethod
+    async def get_submission_artifact(
+        self, package: str, commit_hash: str
+    ) -> PackageSubmissionArtifact | None: ...

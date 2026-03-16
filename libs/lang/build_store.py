@@ -26,10 +26,11 @@ _CHINESE_ORDINALS = ["一", "二", "三", "四", "五", "六", "七", "八", "�
 _DECLARATION_TYPES = (Claim, Setting, Question, Contradiction, Equivalence, Subsumption)
 
 
-def save_build(elaborated: ElaboratedPackage, build_dir: Path) -> Path:
-    """Serialize elaborated package to a single package.md file in build_dir."""
-    build_dir.mkdir(parents=True, exist_ok=True)
+def render_package_md(elaborated: ElaboratedPackage) -> str:
+    """Render an elaborated package to Markdown text.
 
+    This is a pure function — no filesystem I/O.
+    """
     pkg = elaborated.package
 
     # Build a lookup from knowledge name -> resolved Knowledge object
@@ -175,8 +176,14 @@ def save_build(elaborated: ElaboratedPackage, build_dir: Path) -> Path:
                     lines.append(f"**Conclusion:** [{ctype}] {cref['name']}{prior_str}")
                 lines.append("")
 
+    return "\n".join(lines)
+
+
+def save_build(elaborated: ElaboratedPackage, build_dir: Path) -> Path:
+    """Serialize elaborated package to a single package.md file in build_dir."""
+    build_dir.mkdir(parents=True, exist_ok=True)
     out_path = build_dir / "package.md"
-    out_path.write_text("\n".join(lines))
+    out_path.write_text(render_package_md(elaborated))
     return build_dir
 
 

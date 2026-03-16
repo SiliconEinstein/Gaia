@@ -1,0 +1,17 @@
+name: paper_10_1038s41467_021_25372_2
+version: 1.0.0
+manifest:
+  description: Reasoning chains extracted from paper 10.1038s41467-021-25372-2
+  authors: []
+  license: CC-BY-4.0
+modules:
+- setting
+- reasoning
+export:
+- superconductivity_in_hcp_yh9
+- superconductivity_in_bcc_yh6
+- absence_of_predicted_fcc_yh10_phase
+- isotope_effect_in_yttrium_hydrides
+- upper_critical_fields_and_coherence_lengths
+- fermi_velocities_in_yttrium_superhydrides
+- synthesis_conditions_and_stoichiometry_estimation

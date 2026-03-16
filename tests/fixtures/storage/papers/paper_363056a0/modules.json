@@ -1,5 +1,33 @@
 [
   {
+    "module_id": "paper_363056a0.setting",
+    "package_id": "paper_363056a0",
+    "package_version": "1.0.0",
+    "name": "setting",
+    "role": "setting",
+    "imports": [],
+    "chain_ids": [],
+    "export_ids": [
+      "paper_363056a0/superconductivity_in_hg_1201",
+      "paper_363056a0/structural_analogy_with_tl_based_copper_oxides",
+      "paper_363056a0/tc_scaling_in_tl_based_systems",
+      "paper_363056a0/previous_record_transition_temperature",
+      "paper_363056a0/absence_of_superconductivity_in_hg_1212_rare_earth_variants",
+      "paper_363056a0/sample_density_for_susceptibility_calculation",
+      "paper_363056a0/general_composition_hypothesis",
+      "paper_363056a0/sample_preparation",
+      "paper_363056a0/eds_composition_analysis",
+      "paper_363056a0/microscopic_structural_identification",
+      "paper_363056a0/xrd_limitation",
+      "paper_363056a0/superstructure_observation",
+      "paper_363056a0/superconducting_properties_of_hg_1201",
+      "paper_363056a0/empirical_trend_in_tl_and_bi_copper_oxides",
+      "paper_363056a0/properties_of_tl_based_analogues",
+      "paper_363056a0/structural_similarity_between_hg_1201_and_tl_1201",
+      "paper_363056a0/sample_density_approximation"
+    ]
+  },
+  {
     "module_id": "paper_363056a0.reasoning",
     "package_id": "paper_363056a0",
     "package_version": "1.0.0",

@@ -46,37 +46,31 @@ def build(
     """Elaborate: parse + resolve + instantiate params."""
     from cli.manifest import save_manifest
     from libs.graph_ir import (
-        build_raw_graph,
-        build_singleton_local_graph,
         save_canonicalization_log,
         save_local_canonical_graph,
         save_raw_graph,
     )
     from libs.lang.build_store import save_build
-    from libs.lang.elaborator import elaborate_package
+    from libs.pipeline import pipeline_build
 
     pkg_path = Path(path)
     try:
-        pkg = _load_with_deps(pkg_path)
+        result = asyncio.run(pipeline_build(pkg_path))
     except FileNotFoundError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
 
-    elaborated = elaborate_package(pkg)
-
     build_dir = pkg_path / ".gaia" / "build"
     graph_dir = pkg_path / ".gaia" / "graph"
-    save_build(elaborated, build_dir)
-    save_manifest(pkg, build_dir, pkg_path=pkg_path)
-    raw_graph = build_raw_graph(pkg)
-    canonicalization = build_singleton_local_graph(raw_graph)
-    save_raw_graph(raw_graph, graph_dir)
-    save_local_canonical_graph(canonicalization.local_graph, graph_dir)
-    save_canonicalization_log(canonicalization.log, graph_dir)
+    save_build(result.elaborated, build_dir)
+    save_manifest(result.package, build_dir, pkg_path=pkg_path)
+    save_raw_graph(result.raw_graph, graph_dir)
+    save_local_canonical_graph(result.local_graph, graph_dir)
+    save_canonicalization_log(result.canonicalization_log, graph_dir)
 
-    n_mods = len(pkg.loaded_modules)
-    n_prompts = len(elaborated.prompts)
-    typer.echo(f"Built {pkg.name}: {n_mods} modules, {n_prompts} elaborated prompts")
+    n_mods = len(result.package.loaded_modules)
+    n_prompts = len(result.elaborated.prompts)
+    typer.echo(f"Built {result.package.name}: {n_mods} modules, {n_prompts} elaborated prompts")
     typer.echo(f"Artifacts: {build_dir}/")
 
 
@@ -323,6 +317,68 @@ def publish(
         raise typer.Exit(1)
 
 
+def _load_graph_ir_factors(graph_dir: Path, package_name: str) -> list:
+    """Load factors from local_canonical_graph.json, mapping lcn IDs to knowledge IDs."""
+    from libs.graph_ir.serialize import load_local_canonical_graph
+    from libs.pipeline import _map_graph_ir_factors
+
+    lcg_path = graph_dir / "local_canonical_graph.json"
+    if not lcg_path.exists():
+        return []
+
+    local_graph = load_local_canonical_graph(lcg_path)
+    return _map_graph_ir_factors(local_graph, package_name)
+
+
+def _build_submission_artifact(graph_dir: Path, pkg_path: Path, package_name: str) -> object | None:
+    """Assemble a PackageSubmissionArtifact from build artifacts."""
+    import json
+    import subprocess
+    from datetime import datetime, timezone
+
+    from libs.storage import models as storage_models
+
+    raw_graph_path = graph_dir / "raw_graph.json"
+    lcg_path = graph_dir / "local_canonical_graph.json"
+    log_path = graph_dir / "canonicalization_log.json"
+
+    if not raw_graph_path.exists() or not lcg_path.exists():
+        return None
+
+    raw_graph = json.loads(raw_graph_path.read_text())
+    local_canonical_graph = json.loads(lcg_path.read_text())
+    canon_log = (
+        json.loads(log_path.read_text()).get("canonicalization_log", [])
+        if log_path.exists()
+        else []
+    )
+
+    source_files = {p.name: p.read_text() for p in pkg_path.glob("*.yaml") if p.is_file()}
+
+    commit_hash = "unknown"
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=pkg_path,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            commit_hash = result.stdout.strip()
+    except FileNotFoundError:
+        pass
+
+    return storage_models.PackageSubmissionArtifact(
+        package_name=package_name,
+        commit_hash=commit_hash,
+        source_files=source_files,
+        raw_graph=raw_graph,
+        local_canonical_graph=local_canonical_graph,
+        canonicalization_log=canon_log,
+        submitted_at=datetime.now(timezone.utc),
+    )
+
+
 async def _publish_local(pkg_path: Path, db_path: str) -> None:
     """Convert artifacts to v2 models and write to LanceDB + Kuzu."""
     from cli.infer_store import load_infer_result
@@ -333,6 +389,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     from libs.storage.manager import StorageManager
 
     build_dir = pkg_path / ".gaia" / "build"
+    graph_dir = pkg_path / ".gaia" / "graph"
     reviews_dir = pkg_path / ".gaia" / "reviews"
     infer_dir = pkg_path / ".gaia" / "infer"
     publish_dir = pkg_path / ".gaia" / "publish"
@@ -372,7 +429,13 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
         bp_run_id=infer_result.get("bp_run_id", "unknown"),
     )
 
-    # 4. Generate embeddings for knowledge items
+    # 4. Load Graph IR factors (lcn IDs → knowledge IDs)
+    factors = _load_graph_ir_factors(graph_dir, pkg.name)
+
+    # 5. Build submission artifact
+    submission_artifact = _build_submission_artifact(graph_dir, pkg_path, pkg.name)
+
+    # 6. Generate embeddings for knowledge items
     from libs.embedding import StubEmbeddingModel
     from libs.storage.models import KnowledgeEmbedding
 
@@ -388,7 +451,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
         for k, vec in zip(data.knowledge_items, vectors)
     ]
 
-    # 5. Initialize v2 stores via StorageManager
+    # 7. Initialize v2 stores via StorageManager
     config = StorageConfig(
         lancedb_path=db_path,
         graph_backend="kuzu",
@@ -398,16 +461,18 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     await mgr.initialize()
 
     try:
-        # 6. Ingest (state machine handles preparing → committed)
+        # 8. Ingest (state machine handles preparing → committed)
         await mgr.ingest_package(
             package=data.package,
             modules=data.modules,
             knowledge_items=data.knowledge_items,
             chains=data.chains,
+            factors=factors or None,
+            submission_artifact=submission_artifact,
             embeddings=embeddings,
         )
 
-        # 7. Write supplementary data
+        # 9. Write supplementary data
         if data.probabilities:
             await mgr.add_probabilities(data.probabilities)
         if data.belief_snapshots:
@@ -415,7 +480,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     finally:
         await mgr.close()
 
-    # 8. Write receipt
+    # 10. Write receipt
     import json
     from datetime import datetime, timezone
 
@@ -428,6 +493,7 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
         "stats": {
             "knowledge_items": len(data.knowledge_items),
             "chains": len(data.chains),
+            "factors": len(factors),
             "probabilities": len(data.probabilities),
             "belief_snapshots": len(data.belief_snapshots),
         },
@@ -439,7 +505,8 @@ async def _publish_local(pkg_path: Path, db_path: str) -> None:
     typer.echo(
         f"Published {pkg.name} to v2 storage:\n"
         f"  Knowledge items: {len(data.knowledge_items)} written to LanceDB ({db_path})\n"
-        f"  Chains: {len(data.chains)} written to LanceDB + Kuzu"
+        f"  Chains: {len(data.chains)} written to LanceDB + Kuzu\n"
+        f"  Factors: {len(factors)} written to LanceDB + Kuzu"
     )
 
 

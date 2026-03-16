@@ -12,14 +12,20 @@ import pyarrow as pa
 from libs.storage.content_store import ContentStore
 from libs.storage.models import (
     BeliefSnapshot,
+    CanonicalBinding,
     Chain,
+    FactorNode,
+    GlobalCanonicalNode,
+    GlobalInferenceState,
     Knowledge,
     Module,
     Package,
+    PackageSubmissionArtifact,
     ProbabilityRecord,
     Resource,
     ResourceAttachment,
     ScoredKnowledge,
+    SourceRef,
 )
 
 # ── PyArrow schemas ──
@@ -56,6 +62,8 @@ _KNOWLEDGE_SCHEMA = pa.schema(
         pa.field("knowledge_id", pa.string()),
         pa.field("version", pa.int64()),
         pa.field("type", pa.string()),
+        pa.field("kind", pa.string()),
+        pa.field("parameters", pa.string()),  # JSON list[Parameter]
         pa.field("content", pa.string()),
         pa.field("prior", pa.float64()),
         pa.field("keywords", pa.string()),  # JSON list[str]
@@ -126,6 +134,69 @@ _RESOURCE_ATTACHMENTS_SCHEMA = pa.schema(
     ]
 )
 
+_FACTORS_SCHEMA = pa.schema(
+    [
+        pa.field("factor_id", pa.string()),
+        pa.field("type", pa.string()),
+        pa.field("premises", pa.string()),  # JSON list[str]
+        pa.field("contexts", pa.string()),  # JSON list[str]
+        pa.field("conclusion", pa.string()),
+        pa.field("source_ref", pa.string()),  # JSON SourceRef | ""
+        pa.field("metadata", pa.string()),  # JSON dict | ""
+        pa.field("package_id", pa.string()),
+    ]
+)
+
+_CANONICAL_BINDINGS_SCHEMA = pa.schema(
+    [
+        pa.field("package", pa.string()),
+        pa.field("version", pa.string()),
+        pa.field("local_graph_hash", pa.string()),
+        pa.field("local_canonical_id", pa.string()),
+        pa.field("decision", pa.string()),
+        pa.field("global_canonical_id", pa.string()),
+        pa.field("decided_at", pa.string()),
+        pa.field("decided_by", pa.string()),
+        pa.field("reason", pa.string()),
+    ]
+)
+
+_GLOBAL_CANONICAL_NODES_SCHEMA = pa.schema(
+    [
+        pa.field("global_canonical_id", pa.string()),
+        pa.field("knowledge_type", pa.string()),
+        pa.field("kind", pa.string()),
+        pa.field("representative_content", pa.string()),
+        pa.field("parameters", pa.string()),  # JSON list[Parameter]
+        pa.field("member_local_nodes", pa.string()),  # JSON list[LocalCanonicalRef]
+        pa.field("provenance", pa.string()),  # JSON list[PackageRef]
+        pa.field("metadata", pa.string()),  # JSON dict
+    ]
+)
+
+_GLOBAL_INFERENCE_STATE_SCHEMA = pa.schema(
+    [
+        pa.field("_id", pa.string()),
+        pa.field("graph_hash", pa.string()),
+        pa.field("node_priors", pa.string()),  # JSON dict
+        pa.field("factor_parameters", pa.string()),  # JSON dict
+        pa.field("node_beliefs", pa.string()),  # JSON dict
+        pa.field("updated_at", pa.string()),  # ISO datetime
+    ]
+)
+
+_SUBMISSION_ARTIFACTS_SCHEMA = pa.schema(
+    [
+        pa.field("package_name", pa.string()),
+        pa.field("commit_hash", pa.string()),
+        pa.field("source_files", pa.string()),  # JSON dict
+        pa.field("raw_graph", pa.string()),  # JSON dict
+        pa.field("local_canonical_graph", pa.string()),  # JSON dict
+        pa.field("canonicalization_log", pa.string()),  # JSON list[dict]
+        pa.field("submitted_at", pa.string()),  # ISO datetime
+    ]
+)
+
 _TABLE_SCHEMAS: dict[str, pa.Schema] = {
     "packages": _PACKAGES_SCHEMA,
     "modules": _MODULES_SCHEMA,
@@ -135,6 +206,11 @@ _TABLE_SCHEMAS: dict[str, pa.Schema] = {
     "belief_history": _BELIEF_HISTORY_SCHEMA,
     "resources": _RESOURCES_SCHEMA,
     "resource_attachments": _RESOURCE_ATTACHMENTS_SCHEMA,
+    "factors": _FACTORS_SCHEMA,
+    "canonical_bindings": _CANONICAL_BINDINGS_SCHEMA,
+    "global_canonical_nodes": _GLOBAL_CANONICAL_NODES_SCHEMA,
+    "global_inference_state": _GLOBAL_INFERENCE_STATE_SCHEMA,
+    "submission_artifacts": _SUBMISSION_ARTIFACTS_SCHEMA,
 }
 
 # ── Helpers ──
@@ -209,6 +285,8 @@ def _knowledge_to_row(k: Knowledge) -> dict[str, Any]:
         "knowledge_id": k.knowledge_id,
         "version": k.version,
         "type": k.type,
+        "kind": k.kind or "",
+        "parameters": json.dumps([p.model_dump() for p in k.parameters]) if k.parameters else "[]",
         "content": k.content,
         "prior": k.prior,
         "keywords": json.dumps(k.keywords),
@@ -222,10 +300,13 @@ def _knowledge_to_row(k: Knowledge) -> dict[str, Any]:
 
 def _row_to_knowledge(row: dict[str, Any]) -> Knowledge:
     emb_raw = row["embedding"]
+    params_raw = row.get("parameters", "[]")
     return Knowledge(
         knowledge_id=row["knowledge_id"],
         version=row["version"],
         type=row["type"],
+        kind=row.get("kind") or None,
+        parameters=json.loads(params_raw) if params_raw else [],
         content=row["content"],
         prior=row["prior"],
         keywords=json.loads(row["keywords"]),
@@ -353,6 +434,137 @@ def _row_to_attachment(row: dict[str, Any]) -> ResourceAttachment:
         target_id=row["target_id"],
         role=row["role"],
         description=row["description"] or None,
+    )
+
+
+def _factor_to_row(f: FactorNode) -> dict[str, Any]:
+    return {
+        "factor_id": f.factor_id,
+        "type": f.type,
+        "premises": json.dumps(f.premises),
+        "contexts": json.dumps(f.contexts),
+        "conclusion": f.conclusion,
+        "source_ref": json.dumps(f.source_ref.model_dump()) if f.source_ref else "",
+        "metadata": json.dumps(f.metadata) if f.metadata else "",
+        "package_id": f.package_id,
+    }
+
+
+def _row_to_factor(row: dict[str, Any]) -> FactorNode:
+    sr_raw = row.get("source_ref", "")
+    return FactorNode(
+        factor_id=row["factor_id"],
+        type=row["type"],
+        premises=json.loads(row["premises"]),
+        contexts=json.loads(row.get("contexts", "[]")),
+        conclusion=row["conclusion"],
+        package_id=row["package_id"],
+        source_ref=SourceRef.model_validate(json.loads(sr_raw)) if sr_raw else None,
+        metadata=json.loads(row["metadata"]) if row.get("metadata") else None,
+    )
+
+
+def _binding_to_row(b: CanonicalBinding) -> dict[str, Any]:
+    return {
+        "package": b.package,
+        "version": b.version,
+        "local_graph_hash": b.local_graph_hash,
+        "local_canonical_id": b.local_canonical_id,
+        "decision": b.decision,
+        "global_canonical_id": b.global_canonical_id,
+        "decided_at": b.decided_at.isoformat(),
+        "decided_by": b.decided_by,
+        "reason": b.reason or "",
+    }
+
+
+def _row_to_binding(row: dict[str, Any]) -> CanonicalBinding:
+    return CanonicalBinding(
+        package=row["package"],
+        version=row["version"],
+        local_graph_hash=row["local_graph_hash"],
+        local_canonical_id=row["local_canonical_id"],
+        decision=row["decision"],
+        global_canonical_id=row["global_canonical_id"],
+        decided_at=datetime.fromisoformat(row["decided_at"]),
+        decided_by=row["decided_by"],
+        reason=row["reason"] or None,
+    )
+
+
+def _global_node_to_row(n: GlobalCanonicalNode) -> dict[str, Any]:
+    return {
+        "global_canonical_id": n.global_canonical_id,
+        "knowledge_type": n.knowledge_type,
+        "kind": n.kind or "",
+        "representative_content": n.representative_content,
+        "parameters": json.dumps([p.model_dump() for p in n.parameters]),
+        "member_local_nodes": json.dumps([m.model_dump() for m in n.member_local_nodes]),
+        "provenance": json.dumps([p.model_dump() for p in n.provenance]),
+        "metadata": json.dumps(n.metadata) if n.metadata else "",
+    }
+
+
+def _row_to_global_node(row: dict[str, Any]) -> GlobalCanonicalNode:
+    return GlobalCanonicalNode(
+        global_canonical_id=row["global_canonical_id"],
+        knowledge_type=row["knowledge_type"],
+        kind=row.get("kind") or None,
+        representative_content=row["representative_content"],
+        parameters=json.loads(row.get("parameters", "[]")),
+        member_local_nodes=json.loads(row.get("member_local_nodes", "[]")),
+        provenance=json.loads(row.get("provenance", "[]")),
+        metadata=json.loads(row["metadata"]) if row.get("metadata") else None,
+    )
+
+
+def _inference_state_to_row(s: GlobalInferenceState) -> dict[str, Any]:
+    return {
+        "_id": "singleton",
+        "graph_hash": s.graph_hash,
+        "node_priors": json.dumps(s.node_priors),
+        "factor_parameters": json.dumps(
+            {k: v.model_dump() for k, v in s.factor_parameters.items()}
+        ),
+        "node_beliefs": json.dumps(s.node_beliefs),
+        "updated_at": s.updated_at.isoformat(),
+    }
+
+
+def _row_to_inference_state(row: dict[str, Any]) -> GlobalInferenceState:
+    from libs.storage.models import FactorParams
+
+    fp_raw = json.loads(row.get("factor_parameters", "{}"))
+    return GlobalInferenceState(
+        graph_hash=row["graph_hash"],
+        node_priors=json.loads(row.get("node_priors", "{}")),
+        factor_parameters={k: FactorParams.model_validate(v) for k, v in fp_raw.items()},
+        node_beliefs=json.loads(row.get("node_beliefs", "{}")),
+        updated_at=datetime.fromisoformat(row["updated_at"]),
+    )
+
+
+def _artifact_to_row(a: PackageSubmissionArtifact) -> dict[str, Any]:
+    return {
+        "package_name": a.package_name,
+        "commit_hash": a.commit_hash,
+        "source_files": json.dumps(a.source_files),
+        "raw_graph": json.dumps(a.raw_graph),
+        "local_canonical_graph": json.dumps(a.local_canonical_graph),
+        "canonicalization_log": json.dumps(a.canonicalization_log),
+        "submitted_at": a.submitted_at.isoformat(),
+    }
+
+
+def _row_to_artifact(row: dict[str, Any]) -> PackageSubmissionArtifact:
+    return PackageSubmissionArtifact(
+        package_name=row["package_name"],
+        commit_hash=row["commit_hash"],
+        source_files=json.loads(row["source_files"]),
+        raw_graph=json.loads(row["raw_graph"]),
+        local_canonical_graph=json.loads(row["local_canonical_graph"]),
+        canonicalization_log=json.loads(row["canonicalization_log"]),
+        submitted_at=datetime.fromisoformat(row["submitted_at"]),
     )
 
 
@@ -688,6 +900,141 @@ class LanceContentStore(ContentStore):
 
     # ── BP bulk load ──
 
+    async def list_packages(self, page: int = 1, page_size: int = 20) -> tuple[list[Package], int]:
+        """Return a paginated list of merged packages (visibility-gated)."""
+        table = self._db.open_table("packages")
+        total_rows = table.count_rows()
+        if total_rows == 0:
+            return [], 0
+        results = table.search().limit(total_rows).to_list()
+        # Only return merged packages — consistent with get_package visibility model
+        items = [_row_to_package(r) for r in results if r.get("status") == "merged"]
+        total = len(items)
+        offset = max(0, (page - 1) * page_size)
+        return items[offset : offset + page_size], total
+
+    async def list_modules(self, package_id: str | None = None) -> list[Module]:
+        """List modules from committed packages, optionally filtered by package_id."""
+        committed = await self._get_committed_packages()
+        table = self._db.open_table("modules")
+        count = table.count_rows()
+        if count == 0:
+            return []
+        results = table.search().limit(count).to_list()
+        modules = [
+            _row_to_module(r)
+            for r in results
+            if self._is_committed(r["package_id"], r.get("package_version", "0.1.0"), committed)
+        ]
+        if package_id:
+            modules = [m for m in modules if m.package_id == package_id]
+        return modules
+
+    async def list_chains_paged(
+        self, page: int = 1, page_size: int = 20, module_id: str | None = None
+    ) -> tuple[list[Chain], int]:
+        """Return paginated chains, optionally filtered by module_id."""
+        committed = await self._get_committed_packages()
+        table = self._db.open_table("chains")
+        count = table.count_rows()
+        if count == 0:
+            return [], 0
+        results = table.search().limit(count).to_list()
+        chains = [
+            _row_to_chain(r)
+            for r in results
+            if self._is_committed(r["package_id"], r.get("package_version", "0.1.0"), committed)
+        ]
+        if module_id:
+            chains = [c for c in chains if c.module_id == module_id]
+        total = len(chains)
+        offset = max(0, (page - 1) * page_size)
+        return chains[offset : offset + page_size], total
+
+    async def get_chain(self, chain_id: str) -> Chain | None:
+        """Get a single chain by chain_id."""
+        committed = await self._get_committed_packages()
+        table = self._db.open_table("chains")
+        count = table.count_rows()
+        if count == 0:
+            return None
+        results = table.search().limit(count).to_list()
+        for r in results:
+            if r["chain_id"] == chain_id and self._is_committed(
+                r["package_id"], r.get("package_version", "0.1.0"), committed
+            ):
+                return _row_to_chain(r)
+        return None
+
+    async def list_knowledge_paged(
+        self, page: int = 1, page_size: int = 20, type_filter: str | None = None
+    ) -> tuple[list[Knowledge], int]:
+        """Return paginated knowledge, optionally filtered by type."""
+        committed = await self._get_committed_packages()
+        table = self._db.open_table("knowledge")
+        total_rows = table.count_rows()
+        if total_rows == 0:
+            return [], 0
+        results = table.search().limit(total_rows).to_list()
+        items = [
+            _row_to_knowledge(r)
+            for r in results
+            if self._is_committed(
+                r["source_package_id"], r.get("source_package_version", "0.1.0"), committed
+            )
+        ]
+        if type_filter:
+            items = [k for k in items if k.type == type_filter]
+        total = len(items)
+        offset = max(0, (page - 1) * page_size)
+        return items[offset : offset + page_size], total
+
+    async def get_graph_data(self, package_id: str | None = None) -> dict:
+        """Return Knowledge nodes + Chain edges for DAG visualization.
+
+        Each Chain step produces edges: each premise → conclusion.
+        Node id format: knowledge_id@version
+        """
+        items, _ = await self.list_knowledge_paged(page=1, page_size=10_000)
+        chains, _ = await self.list_chains_paged(page=1, page_size=10_000)
+
+        if package_id:
+            items = [k for k in items if k.source_package_id == package_id]
+            chains = [c for c in chains if c.package_id == package_id]
+
+        node_ids = {f"{k.knowledge_id}@{k.version}" for k in items}
+
+        nodes = [
+            {
+                "id": f"{k.knowledge_id}@{k.version}",
+                "knowledge_id": k.knowledge_id,
+                "version": k.version,
+                "type": k.type,
+                "content": k.content,
+                "prior": k.prior,
+            }
+            for k in items
+        ]
+
+        edges = []
+        for chain in chains:
+            for step in chain.steps:
+                conc_id = f"{step.conclusion.knowledge_id}@{step.conclusion.version}"
+                for premise in step.premises:
+                    prem_id = f"{premise.knowledge_id}@{premise.version}"
+                    if prem_id in node_ids and conc_id in node_ids:
+                        edges.append(
+                            {
+                                "chain_id": chain.chain_id,
+                                "from": prem_id,
+                                "to": conc_id,
+                                "chain_type": chain.type,
+                                "step_index": step.step_index,
+                            }
+                        )
+
+        return {"nodes": nodes, "edges": edges}
+
     async def list_knowledge(self) -> list[Knowledge]:
         table = self._db.open_table("knowledge")
         count = table.count_rows()
@@ -715,3 +1062,130 @@ class LanceContentStore(ContentStore):
             for r in results
             if self._is_committed(r["package_id"], r.get("package_version", "0.1.0"), committed)
         ]
+
+    # ── Factors ──
+
+    async def write_factors(self, factors: list[FactorNode]) -> None:
+        """Write factor nodes from Graph IR."""
+        if not factors:
+            return
+        table = self._db.open_table("factors")
+        rows = [_factor_to_row(f) for f in factors]
+        (
+            table.merge_insert(["factor_id"])
+            .when_matched_update_all()
+            .when_not_matched_insert_all()
+            .execute(rows)
+        )
+
+    async def list_factors(self) -> list[FactorNode]:
+        """Load all factors for BP factor graph construction."""
+        table = self._db.open_table("factors")
+        count = table.count_rows()
+        if count == 0:
+            return []
+        results = table.search().limit(count).to_list()
+        return [_row_to_factor(r) for r in results]
+
+    async def get_factors_by_package(self, package_id: str) -> list[FactorNode]:
+        """Get factors belonging to a specific package."""
+        table = self._db.open_table("factors")
+        results = (
+            table.search().where(f"package_id = '{_q(package_id)}'").limit(_MAX_SCAN).to_list()
+        )
+        return [_row_to_factor(r) for r in results]
+
+    # ── Canonical bindings ──
+
+    async def write_canonical_bindings(self, bindings: list[CanonicalBinding]) -> None:
+        if not bindings:
+            return
+        table = self._db.open_table("canonical_bindings")
+        rows = [_binding_to_row(b) for b in bindings]
+        (
+            table.merge_insert(["package", "version", "local_graph_hash", "local_canonical_id"])
+            .when_matched_update_all()
+            .when_not_matched_insert_all()
+            .execute(rows)
+        )
+
+    async def get_canonical_bindings(self, package: str, version: str) -> list[CanonicalBinding]:
+        table = self._db.open_table("canonical_bindings")
+        results = (
+            table.search()
+            .where(f"package = '{_q(package)}' AND version = '{_q(version)}'")
+            .limit(_MAX_SCAN)
+            .to_list()
+        )
+        return [_row_to_binding(r) for r in results]
+
+    # ── Global canonical nodes ──
+
+    async def upsert_global_nodes(self, nodes: list[GlobalCanonicalNode]) -> None:
+        if not nodes:
+            return
+        table = self._db.open_table("global_canonical_nodes")
+        rows = [_global_node_to_row(n) for n in nodes]
+        (
+            table.merge_insert(["global_canonical_id"])
+            .when_matched_update_all()
+            .when_not_matched_insert_all()
+            .execute(rows)
+        )
+
+    async def get_global_node(self, global_id: str) -> GlobalCanonicalNode | None:
+        table = self._db.open_table("global_canonical_nodes")
+        results = (
+            table.search().where(f"global_canonical_id = '{_q(global_id)}'").limit(1).to_list()
+        )
+        if not results:
+            return None
+        return _row_to_global_node(results[0])
+
+    # ── Global inference state ──
+
+    async def update_inference_state(self, state: GlobalInferenceState) -> None:
+        table = self._db.open_table("global_inference_state")
+        row = _inference_state_to_row(state)
+        (
+            table.merge_insert(["_id"])
+            .when_matched_update_all()
+            .when_not_matched_insert_all()
+            .execute([row])
+        )
+
+    async def get_inference_state(self) -> GlobalInferenceState | None:
+        table = self._db.open_table("global_inference_state")
+        count = table.count_rows()
+        if count == 0:
+            return None
+        results = table.search().limit(1).to_list()
+        if not results:
+            return None
+        return _row_to_inference_state(results[0])
+
+    # ── Submission artifacts ──
+
+    async def write_submission_artifact(self, artifact: PackageSubmissionArtifact) -> None:
+        table = self._db.open_table("submission_artifacts")
+        row = _artifact_to_row(artifact)
+        (
+            table.merge_insert(["package_name", "commit_hash"])
+            .when_matched_update_all()
+            .when_not_matched_insert_all()
+            .execute([row])
+        )
+
+    async def get_submission_artifact(
+        self, package: str, commit_hash: str
+    ) -> PackageSubmissionArtifact | None:
+        table = self._db.open_table("submission_artifacts")
+        results = (
+            table.search()
+            .where(f"package_name = '{_q(package)}' AND commit_hash = '{_q(commit_hash)}'")
+            .limit(1)
+            .to_list()
+        )
+        if not results:
+            return None
+        return _row_to_artifact(results[0])

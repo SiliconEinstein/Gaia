@@ -1,0 +1,124 @@
+type: setting_module
+name: setting
+title: Settings — 363056a0
+knowledge:
+- type: setting
+  name: superconductivity_in_hg_1201
+  content: The copper-oxide compound $HgBa_{2}CuO_{4+\delta}$ (referred to as Hg-1201) exhibits superconductivity characterized
+    by a transition temperature $T_{c}$ of 94 K.
+  prior: 0.7
+- type: setting
+  name: structural_analogy_with_tl_based_copper_oxides
+  content: The crystal structure of $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) is similar to that of the thallium-based copper oxide
+    $TlBa_{2}CuO_{5}$ (Tl-1201), which suggests that mercury-based copper oxides form a homologous series with the general
+    chemical formula $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$, where $n$ is the number of $CuO_{2}$ layers.
+  prior: 0.7
+- type: setting
+  name: tc_scaling_in_tl_based_systems
+  content: In the thallium-based superconducting homologous series defined by the formula $TlBa_{2}Ca_{n-1}Cu_{n}O_{2n+3}$,
+    the superconducting transition temperatures $T_{c}$ vary with the number of $CuO_{2}$ layers $n$, ranging from $T_{c}
+    < 10$ K for $n=1$ to approximately $T_{c} \approx 110$ K for $n=3$.
+  prior: 0.7
+- type: setting
+  name: previous_record_transition_temperature
+  content: The established record for the highest superconducting transition temperature $T_{c}$ prior to the study of the
+    $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$ system was 125–127 K, observed in the thallium-based compound $Tl_{2}Ba_{2}Ca_{2}Cu_{3}O_{10}$
+    (Tl-2223).
+  prior: 0.7
+- type: setting
+  name: absence_of_superconductivity_in_hg_1212_rare_earth_variants
+  content: In the compound $HgBa_{2}RCu_{2}O_{6+x}$ (referred to as Hg-1212), where $R$ represents a rare-earth element such
+    as Europium (Eu) or Calcium (Ca), experimental synthesis has been reported but no superconducting transition was detected
+    in that specific material system.
+  prior: 0.7
+- type: setting
+  name: sample_density_for_susceptibility_calculation
+  content: For the purpose of calculating the superconducting volume fraction from experimental magnetic susceptibility measurements
+    in the Hg-Ba-Ca-Cu-O (HBCCO) system, the average mass density of the sample is assumed to be $\rho \approx 6 \text{ g
+    cm}^{-3}$.
+  prior: 0.7
+- type: setting
+  name: general_composition_hypothesis
+  content: The structural similarity of the mercury-based compound $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) to the thallium-containing
+    compound $TlBa_{2}CuO_{5}$ (Tl-1201) suggests the existence of a mercury-based homologous series with the general composition
+    $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$, which is structurally analogous to the thallium family $TlBa_{2}Ca_{n-1}Cu_{n}O_{2n+3}$,
+    where $n$ denotes the number of $CuO_{2}$ layers per unit cell.
+  prior: 0.7
+- type: setting
+  name: sample_preparation
+  content: A sample material was synthesized by mixing a precursor of nominal composition $Ba_{2}CaCu_{2}O_{5}$ with powdered
+    $HgO$, sealing the mixture in evacuated quartz tubes, heating at $800^{\circ}C$ for 5 hours (resulting in the breaking
+    of the tubes), and finally annealing the product for 5 hours at $300^{\circ}C$ in flowing oxygen.
+  prior: 0.7
+- type: setting
+  name: eds_composition_analysis
+  content: Energy-dispersive X-ray spectrometry (EDS) analysis of the synthesized sample indicates a composite material containing
+    isolated grains of $BaCuO_{2}$ ($\sim30\%$ volume fraction), $CuO$ ($\approx30\%$ volume fraction), unidentified oxides
+    containing Calcium (Ca) and Copper (Cu), various impurities, and approximately $15\%$ of the total sample volume consisting
+    of plate-like grains containing Mercury (Hg), Barium (Ba), Calcium (Ca), and Copper (Cu).
+  prior: 0.7
+- type: setting
+  name: microscopic_structural_identification
+  content: Selected-area electron-diffraction (SAED) and high-resolution transmission electron microscopy (HRTEM) characterization
+    of the plate-like grains within the $Hg-Ba-Ca-Cu-O$ sample reveal that these grains consist of the phase $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$
+    (Hg-1223), disordered mixtures of Hg-1223 and $HgBa_{2}CaCu_{2}O_{6+x}$ (Hg-1212), and periodic stacking sequences of
+    these respective unit cells.
+  prior: 0.7
+- type: setting
+  name: xrd_limitation
+  content: The volume fraction of the superconducting phases (Hg-1212 and Hg-1223) within the synthesized composite sample
+    is too small to permit precise measurement of their lattice parameters using the X-ray Guinier technique.
+  prior: 0.7
+- type: setting
+  name: superstructure_observation
+  content: High-resolution transmission electron microscopy (HRTEM) imaging of the $Hg-Ba-Ca-Cu-O$ sample reveals specific
+    stacking sequences containing both $HgBa_{2}CaCu_{2}O_{6+x}$ (Hg-1212) and $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223) layers;
+    specifically, a sequence of 1223/1223/1212/1212/1223/1212 unit cells forms a supercell with a c-axis lattice parameter
+    of $c \approx 86.4 \AA$.
+  prior: 0.7
+- type: setting
+  name: superconducting_properties_of_hg_1201
+  content: The mercury-based copper-oxide compound $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) possesses a crystalline structure containing
+    exactly one $CuO_{2}$ layer per unit cell ($n=1$) and exhibits a superconducting transition temperature $T_{c}$ of approximately
+    94 K.
+  prior: 0.7
+- type: setting
+  name: empirical_trend_in_tl_and_bi_copper_oxides
+  content: In high-$T_{c}$ superconducting copper oxides containing bismuth (Bi) or thallium (Tl), the superconducting transition
+    temperature $T_{c}$ is empirically observed to increase as the number of $CuO_{2}$ planes per unit cell increases.
+  prior: 0.7
+- type: setting
+  name: properties_of_tl_based_analogues
+  content: For the homologous series of thallium-containing copper oxides with the general chemical composition $TlBa_{2}Ca_{n-1}Cu_{n}O_{2n+3}$,
+    the superconducting transition temperatures range from $T_{c} < 10$ K for the $n=1$ phase to $T_{c} \approx 110$ K for
+    the $n=3$ phase.
+  prior: 0.7
+- type: setting
+  name: structural_similarity_between_hg_1201_and_tl_1201
+  content: The crystalline structure of $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) is structurally similar to that of the thallium-based
+    compound $TlBa_{2}CuO_{5}$ (Tl-1201), suggesting that mercury-based compounds can form a homologous series with the general
+    chemical composition $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$, where $n$ represents the number of $CuO_{2}$ layers.
+  prior: 0.7
+- type: setting
+  name: sample_density_approximation
+  content: For the purpose of estimating the superconducting volume fraction from magnetic screening (zero-field cooling susceptibility)
+    data in Hg-Ba-Ca-Cu-O composite samples, the average mass density of the material is assumed to be $\rho \approx 6~g~cm^{-3}$.
+  prior: 0.7
+export:
+- superconductivity_in_hg_1201
+- structural_analogy_with_tl_based_copper_oxides
+- tc_scaling_in_tl_based_systems
+- previous_record_transition_temperature
+- absence_of_superconductivity_in_hg_1212_rare_earth_variants
+- sample_density_for_susceptibility_calculation
+- general_composition_hypothesis
+- sample_preparation
+- eds_composition_analysis
+- microscopic_structural_identification
+- xrd_limitation
+- superstructure_observation
+- superconducting_properties_of_hg_1201
+- empirical_trend_in_tl_and_bi_copper_oxides
+- properties_of_tl_based_analogues
+- structural_similarity_between_hg_1201_and_tl_1201
+- sample_density_approximation

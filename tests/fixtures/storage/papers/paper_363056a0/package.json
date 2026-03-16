@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "description": "Reasoning chains extracted from paper 363056a0",
   "modules": [
+    "paper_363056a0.setting",
     "paper_363056a0.reasoning"
   ],
   "exports": [
@@ -12,7 +13,7 @@
     "paper_363056a0/attribution_of_highest_tc_to_the_three_layer_hg_1223_phase",
     "paper_363056a0/critical_role_of_oxygen_annealing"
   ],
-  "submitter": "paper_extractor",
-  "submitted_at": "2026-03-12T00:00:00+00:00",
+  "submitter": "cli",
+  "submitted_at": "2026-03-14T03:51:13.607351Z",
   "status": "merged"
 }

@@ -1,0 +1,69 @@
+[
+  {
+    "factor_id": "f_ad4a532b46a8aabc",
+    "type": "reasoning",
+    "premises": [
+      "paper_10_1038332139a0_1988_natu/synthesis_precursors",
+      "paper_10_1038332139a0_1988_natu/measurement_technique",
+      "paper_10_1038332139a0_1988_natu/definition_of_onset_temperature",
+      "paper_10_1038332139a0_1988_natu/magnetic_indicators_of_superconductivity"
+    ],
+    "contexts": [],
+    "conclusion": "paper_10_1038332139a0_1988_natu/discovery_of_high_tc_superconductivity_in_the_tlcabacuo_system",
+    "package_id": "paper_10_1038332139a0_1988_natu",
+    "source_ref": null,
+    "metadata": {
+      "edge_type": "deduction",
+      "derived_from": "chain"
+    }
+  },
+  {
+    "factor_id": "f_e7b143e9c591a33b",
+    "type": "reasoning",
+    "premises": [
+      "paper_10_1038332139a0_1988_natu/melting_point_of_bacu3o4"
+    ],
+    "contexts": [],
+    "conclusion": "paper_10_1038332139a0_1988_natu/superconducting_transition_properties_of_tl2ca15bacu3o85x",
+    "package_id": "paper_10_1038332139a0_1988_natu",
+    "source_ref": null,
+    "metadata": {
+      "edge_type": "deduction",
+      "derived_from": "chain"
+    }
+  },
+  {
+    "factor_id": "f_884ae168f89d70c6",
+    "type": "reasoning",
+    "premises": [
+      "paper_10_1038332139a0_1988_natu/manifestation_of_diamagnetism",
+      "paper_10_1038332139a0_1988_natu/indicator_of_bulk_superconductivity",
+      "paper_10_1038332139a0_1988_natu/measurement_of_ac_susceptibility"
+    ],
+    "contexts": [],
+    "conclusion": "paper_10_1038332139a0_1988_natu/verification_of_bulk_superconductivity_via_magnetic_response",
+    "package_id": "paper_10_1038332139a0_1988_natu",
+    "source_ref": null,
+    "metadata": {
+      "edge_type": "deduction",
+      "derived_from": "chain"
+    }
+  },
+  {
+    "factor_id": "f_beb335a09479a122",
+    "type": "reasoning",
+    "premises": [
+      "paper_10_1038332139a0_1988_natu/effect_of_annealing_on_tl_ba_cu_o",
+      "paper_10_1038332139a0_1988_natu/effect_of_annealing_on_tl_caba_cu_o",
+      "paper_10_1038332139a0_1988_natu/conductivity_of_tl_ca_cu_o"
+    ],
+    "contexts": [],
+    "conclusion": "paper_10_1038332139a0_1988_natu/compositional_and_thermal_stability_characteristics",
+    "package_id": "paper_10_1038332139a0_1988_natu",
+    "source_ref": null,
+    "metadata": {
+      "edge_type": "deduction",
+      "derived_from": "chain"
+    }
+  }
+]

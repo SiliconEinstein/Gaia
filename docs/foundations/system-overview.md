@@ -62,14 +62,24 @@ Version control and collaboration layer. Gaia delegates all versioning to git an
 
 ### Gaia Server (Large Knowledge Model)
 
-An optional registry and compute backend. Provides four enhancement services:
+An optional registry and compute backend. Server 架构采用 **Write Side / Read Side 分离**：
+
+**Write Side（数据入库 + 离线维护）：**
 
 | Service | Purpose |
 |---------|---------|
-| **Knowledge integration** | Merge approved package content into the global knowledge graph |
-| **Global search** | Cross-package vector + BM25 + topology search |
-| **Peer review and registry integration** | Server-side search, review, canonical binding, and editorial decisions |
-| **Large-scale BP** | Billion-node belief propagation on GPU cluster |
+| **Review Service** | Package 审查流程：validation → canonicalization → multiple agent review → gatekeeper 准入 |
+| **Storage Service** | 统一存储门面，管理三后端写入 |
+| **BP Service** | 离线定期全局信念传播 |
+| **Curation Service** | 离线定期图维护：相似结论聚类、矛盾发掘、全图结构巡检、图清理 |
+
+BP Service 和 Curation Service 构成离线图维护机制：Curation 先做结构维护，BP 再跑推理更新。
+
+**Read Side（数据消费）：**
+
+| Service | Purpose |
+|---------|---------|
+| **Query Service** | 面向 AI agents 的知识搜索、子图探索，核心用例是 research |
 
 The server is analogous to Julia's General Registry or crates.io — it consumes packages read-only and provides centralized services.
 

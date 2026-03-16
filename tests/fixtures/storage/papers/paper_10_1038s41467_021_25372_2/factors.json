@@ -1,0 +1,122 @@
+[
+  {
+    "factor_id": "f_25ee42316391f2b6",
+    "type": "reasoning",
+    "premises": [
+      "paper_10_1038s41467_021_25372_2/vinet_equation_of_state",
+      "paper_10_1038s41467_021_25372_2/isotope_effect_coefficient",
+      "paper_10_1038s41467_021_25372_2/ginzburglandau_and_whh_models",
+      "paper_10_1038s41467_021_25372_2/theoretical_prediction_of_yh10"
+    ],
+    "contexts": [],
+    "conclusion": "paper_10_1038s41467_021_25372_2/superconductivity_in_hcp_yh9",
+    "package_id": "paper_10_1038s41467_021_25372_2",
+    "source_ref": null,
+    "metadata": {
+      "edge_type": "deduction",
+      "derived_from": "chain"
+    }
+  },
+  {
+    "factor_id": "f_50dbd228752fb62f",
+    "type": "reasoning",
+    "premises": [
+      "paper_10_1038s41467_021_25372_2/theoretical_prediction_of_yh6_structure_and_stability",
+      "paper_10_1038s41467_021_25372_2/hydrogen_induced_volume_expansion",
+      "paper_10_1038s41467_021_25372_2/isotope_effect_coefficient_definition",
+      "paper_10_1038s41467_021_25372_2/upper_critical_field_and_coherence_length_relationships"
+    ],
+    "contexts": [],
+    "conclusion": "paper_10_1038s41467_021_25372_2/superconductivity_in_bcc_yh6",
+    "package_id": "paper_10_1038s41467_021_25372_2",
+    "source_ref": null,
+    "metadata": {
+      "edge_type": "deduction",
+      "derived_from": "chain"
+    }
+  },
+  {
+    "factor_id": "f_3e38c5188031c300",
+    "type": "reasoning",
+    "premises": [
+      "paper_10_1038s41467_021_25372_2/predicted_stability_of_fcc_yh10_at_high_pressure",
+      "paper_10_1038s41467_021_25372_2/identification_of_crystal_phases_via_diffraction",
+      "paper_10_1038s41467_021_25372_2/criterion_for_excess_hydrogen_availability"
+    ],
+    "contexts": [],
+    "conclusion": "paper_10_1038s41467_021_25372_2/absence_of_predicted_fcc_yh10_phase",
+    "package_id": "paper_10_1038s41467_021_25372_2",
+    "source_ref": null,
+    "metadata": {
+      "edge_type": "deduction",
+      "derived_from": "chain"
+    }
+  },
+  {
+    "factor_id": "f_4e3046b44e7f41aa",
+    "type": "reasoning",
+    "premises": [
+      "paper_10_1038s41467_021_25372_2/significance_of_isotope_effect",
+      "paper_10_1038s41467_021_25372_2/isotope_effect_coefficient_definition",
+      "paper_10_1038s41467_021_25372_2/bcs_isotope_coefficient_limit"
+    ],
+    "contexts": [],
+    "conclusion": "paper_10_1038s41467_021_25372_2/isotope_effect_in_yttrium_hydrides",
+    "package_id": "paper_10_1038s41467_021_25372_2",
+    "source_ref": null,
+    "metadata": {
+      "edge_type": "deduction",
+      "derived_from": "chain"
+    }
+  },
+  {
+    "factor_id": "f_e180f4f0ed79c366",
+    "type": "reasoning",
+    "premises": [
+      "paper_10_1038s41467_021_25372_2/ginzburg_landau_equation_validity",
+      "paper_10_1038s41467_021_25372_2/definition_of_coherence_length",
+      "paper_10_1038s41467_021_25372_2/scaling_relation_for_upper_critical_field"
+    ],
+    "contexts": [],
+    "conclusion": "paper_10_1038s41467_021_25372_2/upper_critical_fields_and_coherence_lengths",
+    "package_id": "paper_10_1038s41467_021_25372_2",
+    "source_ref": null,
+    "metadata": {
+      "edge_type": "deduction",
+      "derived_from": "chain"
+    }
+  },
+  {
+    "factor_id": "f_921f2ff0c9d557f1",
+    "type": "reasoning",
+    "premises": [
+      "paper_10_1038s41467_021_25372_2/relation_between_coherence_length_and_upper_critical_field",
+      "paper_10_1038s41467_021_25372_2/bcs_relation_for_fermi_velocity"
+    ],
+    "contexts": [],
+    "conclusion": "paper_10_1038s41467_021_25372_2/fermi_velocities_in_yttrium_superhydrides",
+    "package_id": "paper_10_1038s41467_021_25372_2",
+    "source_ref": null,
+    "metadata": {
+      "edge_type": "deduction",
+      "derived_from": "chain"
+    }
+  },
+  {
+    "factor_id": "f_9728dfaf17fade4b",
+    "type": "reasoning",
+    "premises": [
+      "paper_10_1038s41467_021_25372_2/theoretical_predictions_of_yttrium_hydrides",
+      "paper_10_1038s41467_021_25372_2/equation_of_state_for_pure_yttrium",
+      "paper_10_1038s41467_021_25372_2/hydrogen_induced_volume_expansion_in_hydrides"
+    ],
+    "contexts": [],
+    "conclusion": "paper_10_1038s41467_021_25372_2/synthesis_conditions_and_stoichiometry_estimation",
+    "package_id": "paper_10_1038s41467_021_25372_2",
+    "source_ref": null,
+    "metadata": {
+      "edge_type": "deduction",
+      "derived_from": "chain"
+    }
+  }
+]

@@ -1,0 +1,489 @@
+{
+  "factor_nodes": [
+    {
+      "conclusion": "lcn_e7e1b9c7cd9c6b39",
+      "contexts": [],
+      "factor_id": "f_a056cedf6d046de2",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "lcn_c0c476d32d805f12",
+        "lcn_d8fc78dec7817285",
+        "lcn_1a3d5bc005ab292d"
+      ],
+      "source_ref": {
+        "knowledge_name": "force_equating_chain",
+        "module": "derivation",
+        "package": "newton_principia",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "lcn_7a03cda4ec534c19",
+      "contexts": [],
+      "factor_id": "f_104daf2c484a37da",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "lcn_e7e1b9c7cd9c6b39"
+      ],
+      "source_ref": {
+        "knowledge_name": "mass_independence_chain",
+        "module": "derivation",
+        "package": "newton_principia",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "lcn_390e41f5e4271931",
+      "contexts": [],
+      "factor_id": "f_d94bc1f0e6542479",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "lcn_7a03cda4ec534c19"
+      ],
+      "source_ref": {
+        "knowledge_name": "theoretical_contradiction_chain",
+        "module": "implications",
+        "package": "newton_principia",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "lcn_051bcb61bd2c88c1",
+      "contexts": [],
+      "factor_id": "f_118a2cfa1abb5387",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "lcn_390e41f5e4271931"
+      ],
+      "source_ref": {
+        "knowledge_name": "two_path_rejection_chain",
+        "module": "implications",
+        "package": "newton_principia",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    }
+  ],
+  "knowledge_nodes": [
+    {
+      "kind": null,
+      "knowledge_type": "question",
+      "local_canonical_id": "lcn_b3e17ad23d830ed9",
+      "member_raw_node_ids": [
+        "raw_fcdc986ef3d62c8a"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [],
+      "representative_content": "能否从更基本的力学原理出发，推导出落体运动的普遍规律？ 伽利略的思想实验和经验观察已经暗示\"真空中等速下落\"， 但这个预测是否有更深层的理论根基？\n",
+      "source_refs": [
+        {
+          "knowledge_name": "main_question",
+          "module": "motivation",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_fdc52d5c5fdf2374",
+      "member_raw_node_ids": [
+        "raw_25fcc38d760f20ad"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [],
+      "representative_content": "牛顿第一定律（惯性定律）：不受外力作用的物体保持静止或匀速直线运动。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "first_law",
+          "module": "laws",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_c0c476d32d805f12",
+      "member_raw_node_ids": [
+        "raw_d21cd1129ee676e2"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [],
+      "representative_content": "牛顿第二定律：物体的加速度与所受合外力成正比、与惯性质量成反比。 F = m_i × a，其中 m_i 是惯性质量。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "second_law",
+          "module": "laws",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_2c502bb54f9d83c6",
+      "member_raw_node_ids": [
+        "raw_8ff5246586dafe64"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [],
+      "representative_content": "牛顿第三定律（作用与反作用定律）：两个物体之间的力总是大小相等、方向相反。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "third_law",
+          "module": "laws",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_d8fc78dec7817285",
+      "member_raw_node_ids": [
+        "raw_81fe77ce96b61410"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [],
+      "representative_content": "万有引力定律：任意两个物体之间存在引力，大小为 F = G × M × m_g / r²， 其中 m_g 是引力质量，M 是地球质量，r 是距离，G 是引力常数。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "law_of_gravity",
+          "module": "laws",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_1a3d5bc005ab292d",
+      "member_raw_node_ids": [
+        "raw_f16f317dc85166ca"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [],
+      "representative_content": "惯性质量与引力质量在实验精度范围内相等：m_i = m_g。 这是一个经验事实，牛顿注意到了它但没有给出理论解释。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "mass_equivalence",
+          "module": "laws",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "setting",
+      "local_canonical_id": "lcn_3c4eaab5efff7e66",
+      "member_raw_node_ids": [
+        "raw_5c830d721aeb51fd"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [],
+      "representative_content": "在地球表面附近，距离 r 近似等于地球半径 R， 因而引力加速度 g = GM/R² 可视为常数（约 9.8 m/s²）。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "near_earth_surface",
+          "module": "laws",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "local_canonical_id": "lcn_796d71209059ab17",
+      "member_raw_node_ids": [
+        "raw_ab6afd893945f80c"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [
+        {
+          "constraint": "unknown",
+          "name": "dynamic_law"
+        },
+        {
+          "constraint": "unknown",
+          "name": "equivalence"
+        },
+        {
+          "constraint": "unknown",
+          "name": "gravity_law"
+        }
+      ],
+      "representative_content": "由 {dynamic_law} 得 F = m_i × a；由 {gravity_law} 得 F = m_g × g。 因为作用在同一物体上的合力相等，所以 m_i × a = m_g × g。 又由 {equivalence} 知 m_i = m_g，两边约去质量，得 a = g。 加速度只取决于引力场强度 g，与物体质量完全无关。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "equate_forces",
+          "module": "derivation",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "local_canonical_id": "lcn_344146af8b1932e5",
+      "member_raw_node_ids": [
+        "raw_c41c336fcc4c7eb7"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [
+        {
+          "constraint": "unknown",
+          "name": "derivation_result"
+        }
+      ],
+      "representative_content": "{derivation_result} 意味着在同一引力场中，无论物体质量多大， 其自由落体加速度都相同。这不是经验归纳，而是从基本定律出发的 纯理论推导。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "interpret_mass_independence",
+          "module": "derivation",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_e7e1b9c7cd9c6b39",
+      "member_raw_node_ids": [
+        "raw_5b64f4a9054d07d0"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [],
+      "representative_content": "对地表附近的自由落体：m × a = m × g，约去质量得 a = g。 自由落体加速度等于引力场强度，与物体的质量无关。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "force_equation_result",
+          "module": "derivation",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_7a03cda4ec534c19",
+      "member_raw_node_ids": [
+        "raw_22c29b355b673b5b"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [],
+      "representative_content": "在同一引力场中，所有物体的自由落体加速度相同，与质量无关。 这是牛顿力学的理论推论，不依赖于任何具体实验。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "acceleration_independent_of_mass",
+          "module": "derivation",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "equivalence",
+      "local_canonical_id": "lcn_679585c3ffaede4c",
+      "member_raw_node_ids": [
+        "raw_9f1837dcfc31d5ee"
+      ],
+      "metadata": {
+        "between": [
+          "acceleration_independent_of_mass",
+          "galileo_vacuum_prediction"
+        ]
+      },
+      "package": "newton_principia",
+      "parameters": [],
+      "representative_content": "牛顿从 F=ma 和 F=mg 推导出的\"a=g 与质量无关\" 与伽利略从思想实验和经验分析预测的\"真空中不同重量物体等速下落\" 在物理含义上等价。 区别在于：伽利略是经验论证（归谬法 + 介质分析 + 斜面实验）， 牛顿是理论推导（从基本定律出发的演绎）。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "galileo_equivalence",
+          "module": "implications",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_390e41f5e4271931",
+      "member_raw_node_ids": [
+        "raw_5d0eab6f817d468a"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [],
+      "representative_content": "牛顿的 a=g 推导从理论上排除了\"下落速度与重量成正比\"的可能： 如果加速度不依赖质量，那么亚里士多德的 v∝W 就不是自然界的规律。 这与伽利略的归谬法反驳独立，提供了第二条反驳路径。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "newton_contradicts_aristotle",
+          "module": "implications",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_051bcb61bd2c88c1",
+      "member_raw_node_ids": [
+        "raw_a8c7c0487aca4dde"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [],
+      "representative_content": "亚里士多德落体学说同时遭到两条方法上不同的反驳路径削弱： 伽利略通过绑球归谬法暴露其内在矛盾， 牛顿则从更基本的力学定律推导出与之不相容的结果。 两条路径相互独立地汇聚到同一结论。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "two_path_rejection_of_aristotle",
+          "module": "implications",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "contradiction",
+      "local_canonical_id": "lcn_f3d163a634b10ae3",
+      "member_raw_node_ids": [
+        "raw_c3b54ee544548779"
+      ],
+      "metadata": {
+        "between": [
+          "acceleration_independent_of_mass",
+          "aristotle_law"
+        ]
+      },
+      "package": "newton_principia",
+      "parameters": [],
+      "representative_content": "牛顿的 a=g（加速度与质量无关）直接矛盾于 亚里士多德的 v∝W（下落速度与重量成正比）。 前者是理论推导，后者是未经控制的经验归纳。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "newton_vs_aristotle",
+          "module": "implications",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "local_canonical_id": "lcn_cc1deda139d9572d",
+      "member_raw_node_ids": [
+        "raw_f99ede0bda763d22"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [
+        {
+          "constraint": "unknown",
+          "name": "aristotle_claim"
+        },
+        {
+          "constraint": "unknown",
+          "name": "newton_result"
+        }
+      ],
+      "representative_content": "{newton_result} 断言加速度与质量无关；{aristotle_claim} 断言速度与重量成正比。 在自由落体条件下（无介质阻力），这两个命题不能同时为真。 牛顿的推导基于更基本的力学定律，亚里士多德的归纳缺乏对混淆变量的控制， 因此应当接受前者、拒绝后者。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "derive_theoretical_contradiction",
+          "module": "implications",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "local_canonical_id": "lcn_dfd698abeb76807b",
+      "member_raw_node_ids": [
+        "raw_7df230e1698b65b5"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [
+        {
+          "constraint": "unknown",
+          "name": "galileo_result"
+        },
+        {
+          "constraint": "unknown",
+          "name": "newton_result"
+        }
+      ],
+      "representative_content": "{galileo_result} 来自思想实验中的归谬法， {newton_result} 来自基本力学定律的演绎推导。 二者在方法上不同，却都指向同一个判断： 亚里士多德的落体规律不能作为普遍定律保留。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "synthesize_independent_refutations",
+          "module": "implications",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "kind": "retract_action",
+      "knowledge_type": "action",
+      "local_canonical_id": "lcn_3becb7fdc57b4754",
+      "member_raw_node_ids": [
+        "raw_320440ab4a23fb93"
+      ],
+      "metadata": null,
+      "package": "newton_principia",
+      "parameters": [],
+      "representative_content": "牛顿的理论推导提供了第二条独立的反驳路径： 伽利略通过归谬法暴露了亚里士多德定律的内在矛盾， 牛顿则从更基本的力学定律直接推导出与之矛盾的结论。 两条独立路径汇聚，进一步降低亚里士多德定律的可信度。\n",
+      "source_refs": [
+        {
+          "knowledge_name": "retract_aristotle_theoretically",
+          "module": "implications",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ]
+    }
+  ],
+  "package": "newton_principia",
+  "schema_version": "1.0",
+  "version": "1.0.0"
+}

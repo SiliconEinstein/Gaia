@@ -7,6 +7,8 @@ import {
   WarningOutlined,
   BranchesOutlined,
   SendOutlined,
+  FileTextOutlined,
+  DatabaseOutlined,
 } from "@ant-design/icons";
 
 const items = [
@@ -36,6 +38,30 @@ const items = [
     icon: <SendOutlined />,
     label: <Link to="/commits">Commits</Link>,
   },
+  {
+    key: "/papers",
+    icon: <FileTextOutlined />,
+    label: <Link to="/papers">Papers</Link>,
+  },
+  {
+    key: "v2",
+    icon: <DatabaseOutlined />,
+    label: "V2",
+    children: [
+      {
+        key: "/v2/packages",
+        label: <Link to="/v2/packages">Packages</Link>,
+      },
+      {
+        key: "/v2/knowledge",
+        label: <Link to="/v2/knowledge">Knowledge</Link>,
+      },
+      {
+        key: "/v2/graph",
+        label: <Link to="/v2/graph">Graph IR</Link>,
+      },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -44,6 +70,7 @@ export function Sidebar() {
     <Menu
       mode="inline"
       selectedKeys={[location.pathname]}
+      defaultOpenKeys={location.pathname.startsWith("/v2") ? ["v2"] : []}
       items={items}
       style={{ height: "100%", borderRight: 0 }}
     />

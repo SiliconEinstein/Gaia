@@ -1,0 +1,66 @@
+[
+  {
+    "factor_id": "f_0320b5cb81ac929b",
+    "type": "reasoning",
+    "premises": [
+      "paper_363056a0/structural_analogy_with_tl_based_copper_oxides",
+      "paper_363056a0/previous_record_transition_temperature",
+      "paper_363056a0/tc_scaling_in_tl_based_systems"
+    ],
+    "contexts": [],
+    "conclusion": "paper_363056a0/discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu",
+    "package_id": "paper_363056a0",
+    "source_ref": null,
+    "metadata": {
+      "edge_type": "deduction",
+      "derived_from": "chain"
+    }
+  },
+  {
+    "factor_id": "f_96281b6d2385d05a",
+    "type": "reasoning",
+    "premises": [
+      "paper_363056a0/sample_preparation",
+      "paper_363056a0/eds_composition_analysis",
+      "paper_363056a0/microscopic_structural_identification",
+      "paper_363056a0/xrd_limitation",
+      "paper_363056a0/superstructure_observation"
+    ],
+    "contexts": [],
+    "conclusion": "paper_363056a0/identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters",
+    "package_id": "paper_363056a0",
+    "source_ref": null,
+    "metadata": {
+      "edge_type": "deduction",
+      "derived_from": "chain"
+    }
+  },
+  {
+    "factor_id": "f_bc04fea739ff61c5",
+    "type": "reasoning",
+    "premises": [
+      "paper_363056a0/empirical_trend_in_tl_and_bi_copper_oxides"
+    ],
+    "contexts": [],
+    "conclusion": "paper_363056a0/attribution_of_highest_tc_to_the_three_layer_hg_1223_phase",
+    "package_id": "paper_363056a0",
+    "source_ref": null,
+    "metadata": {
+      "edge_type": "deduction",
+      "derived_from": "chain"
+    }
+  },
+  {
+    "factor_id": "f_fe06e4f77c37f040",
+    "type": "reasoning",
+    "premises": [],
+    "contexts": [],
+    "conclusion": "paper_363056a0/critical_role_of_oxygen_annealing",
+    "package_id": "paper_363056a0",
+    "source_ref": null,
+    "metadata": {
+      "edge_type": "deduction",
+      "derived_from": "chain"
+    }
+  }
+]

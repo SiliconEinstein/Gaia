@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "description": "Reasoning chains extracted from paper 10.1038s41467-021-25372-2",
   "modules": [
+    "paper_10_1038s41467_021_25372_2.setting",
     "paper_10_1038s41467_021_25372_2.reasoning"
   ],
   "exports": [
@@ -15,7 +16,7 @@
     "paper_10_1038s41467_021_25372_2/fermi_velocities_in_yttrium_superhydrides",
     "paper_10_1038s41467_021_25372_2/synthesis_conditions_and_stoichiometry_estimation"
   ],
-  "submitter": "paper_extractor",
-  "submitted_at": "2026-03-12T00:00:00+00:00",
+  "submitter": "cli",
+  "submitted_at": "2026-03-14T03:51:13.578921Z",
   "status": "merged"
 }
