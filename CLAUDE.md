@@ -124,6 +124,11 @@ git worktree add .worktrees/<name> -b feature/<name>
    ```
 3. 修复所有 lint/format 错误
 4. 提交 commit，push 分支，创建 PR
+5. 创建 PR 后，**必须**用 `gh run list` 检查 CI 是否通过，若失败则查看日志修复：
+   ```bash
+   gh run list --branch <branch> --limit 1
+   gh run view <run-id> --log-failed
+   ```
 
 ## Design Documents
 
