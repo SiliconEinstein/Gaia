@@ -1,0 +1,108 @@
+<inference_unit>
+  <problem>
+    Ferromagnetic critical phenomena in systems whose pairwise “exchange” decays as a power law r^{-(d+\sigma)} can, in principle, display universal critical behavior that depends not only on spatial dimension d and the number n of spin components but also on the decay exponent σ. Prior work (notably proofs using the perturbative ϵ-expansion about the Gaussian fixed point in d=4−ϵ) had led to the conjecture and, in that high-dimensional expansion, to a demonstration that there is a sharp dividing line σ=2−η_{SR} separating regimes in which long-range (LR) interactions change universal quantities from regimes where short-range (SR) universality prevails. However, those demonstrations were confined to expansions about d=4 and do not establish the same criterion in low dimensions. For vector spins with n&gt;2 an alternative controlled expansion exists for dimensions near d=2, but before this work there was no corresponding proof, within the low-temperature (d=2+ϵ) expansion, that the dividing criterion σ=2−η_{SR} holds, nor a determination from that expansion of the fixed points and critical exponents governing SR versus LR regimes when both k^{2} (SR) and k^{\sigma} (LR) kinetic terms are present in the Hamiltonian. Consequently, it was not established, in the low-dimension expansion relevant to d≈2 and for n&gt;2, (i) whether RG fixed points that include both SR and LR couplings exist and what their coordinates are, (ii) how the domains of attraction of SR and LR fixed points are arranged in the (d,σ,n) parameter space, and (iii) what the explicit leading-order values of the critical exponents η and ν are in each regime when σ is close to 2 (specifically 2−σ=O(ϵ)). These gaps prevented a low-dimension, controlled RG determination of when universal quantities are σ-independent and when they acquire explicit σ-dependence for vector ferromagnets with long-range power-law exchange.
+  </problem>
+  <conclusions>
+    <conclusion id="1" title="Dividing-line theorem for LR versus SR critical behavior near d=2">
+      For classical vector ferromagnets with n&gt;2 components, spatial dimension d=2+ϵ with small ϵ&gt;0, and two-body exchange whose Fourier-space small-k dispersion contains both a short-range $k^{2}$ term with coefficient $a$ and a long-range $k^{\sigma}$ term with coefficient $b$, the following dividing-line statement holds at the level of the low-temperature (d=2+ϵ) renormalization-group (RG) analysis carried out to first order in $ϵ$ and to leading order in $2-\sigma=O(ϵ)$: define $\eta_{SR}$ as the anomalous-dimension exponent at the short-range fixed point (the exponent entering the field rescaling $S'(\vec{q}')=2^{-(d+2-\eta)/2}S(\vec{q})$). Then the RG flow gives two distinct stable fixed points and domains of attraction separated by the line
+      $$
+      \sigma \;=\; 2-\eta_{SR}.
+      $$
+      If $\eta_{SR}&gt;2-\sigma$ the long-range perturbation is irrelevant and the critical behavior is governed by the short-range fixed point (critical exponents depend on $d$ and $n$ but not on $\sigma$). If $\eta_{SR}&lt;2-\sigma$ the short-range fixed point is unstable to the long-range coupling and the critical behavior is governed by a long-range fixed point with $\eta=\eta_{LR}=2-\sigma$ and with at least the correlation-length exponent $\nu$ acquiring explicit dependence on $\sigma$ in addition to $d$ and $n$.
+      <problem>
+        In the study of ferromagnets with power-law exchange $r^{-(d+\sigma)}$, one central physical question is which interactions (short-range $k^{2}$ versus long-range $k^{\sigma}$) control the universal critical behavior. Previous proofs of a dividing criterion $\sigma=2-\eta_{SR}$ were established within the 4−ϵ expansion about the Gaussian fixed point, leaving open whether the same criterion and the associated division of domains of attraction hold in the low-dimensional regime near $d=2$ where a different controlled expansion (the low-temperature expansion for $n&gt;2$) is available. Absent such a low-dimension proof, it was unclear whether the LR interaction could change universal quantities in the physically important region near two dimensions and for vector spins with $n&gt;2$, and there was no controlled calculation of the fixed points and exponents in that regime. Establishing the dividing line within the $d=2+ϵ$ expansion therefore resolves whether the LR perturbation is relevant or irrelevant under RG flows originating in the low-dimension perturbative framework and supplies a low-dimension counterpart to the 4−ϵ results.
+      </problem>
+    </conclusion>
+    <conclusion id="2" title="Short-range fixed point coordinates and anomalous dimension near d=2">
+      Within the same low-temperature RG (d=2+ϵ) framework, the short-range (SR) fixed point is found to satisfy $b^{*}=0$ (vanishing long-range coupling) and the SR fixed-point ratio of temperature to the short-range stiffness is
+      $$
+      \left(\frac{T}{a}\right)^{*} \;=\; \frac{2\pi\,\epsilon}{\,n-2\,},
+      $$
+      and the anomalous-dimension (field rescaling) exponent at this SR fixed point is, to leading order in $ϵ$,
+      $$
+      \eta_{SR} \;=\; \frac{\epsilon}{\,n-2\,},
+      $$
+      where $d=2+\epsilon$, $n&gt;2$, $a$ is the coefficient of the $k^{2}$ term and $T$ is the temperature in energy units; the exponent $\eta$ is defined by the field rescaling factor $S'(\vec{q}')=2^{-(d+2-\eta)/2}S(\vec{q})$ used in the RG transformation.
+      <problem>
+        To decide whether LR couplings are relevant near $d=2$, one needs an explicit, controlled determination of the SR fixed point within the low-temperature expansion for vector spins ($n&gt;2$), including the fixed-point location of the coupling ratios and the anomalous dimension $\eta_{SR}$. Prior information about $\eta_{SR}$ had been obtained in other expansions or from general arguments, but a concrete derivation within the $d=2+ϵ$ low-temperature RG that includes both $k^{2}$ and $k^{\sigma}$ terms was lacking. Without these SR fixed-point coordinates and $\eta_{SR}$ evaluated in the same approximation as the treatment of LR perturbations, one cannot form the quantitative criterion $\sigma=2-\eta_{SR}$ inside the same low-dimension framework or perform a consistent stability analysis of LR perturbations in that regime. The explicit SR fixed-point values above fill that gap by providing the needed reference quantities computed in the d=2+ϵ expansion for n&gt;2.
+      </problem>
+    </conclusion>
+    <conclusion id="3" title="Correlation-length exponent at the SR fixed point (leading order)">
+      For the SR fixed point identified in the d=2+ϵ RG analysis the correlation-length exponent $\nu$ satisfies, to leading order in the small parameter $ϵ=d-2$,
+      $$
+      \nu_{\mathrm{SR}} \;=\; \frac{1}{\epsilon} \;+\; O(1).
+      $$
+      The exponent $\nu$ is defined here by the RG eigenvalue relation for the thermal coupling combination $(T/a)$,
+      $$
+      \left(\frac{T}{a}\right)'\;-\;\left(\frac{T}{a}\right)^{*}\;=\;2^{1/\nu}\Big[\frac{T}{a}-\left(\frac{T}{a}\right)^{*}\Big].
+      $$
+      <problem>
+        Determination of critical exponents requires the RG eigenvalues at the fixed points computed within the same approximation that produced the fixed-point coordinates. Prior to this work there was no explicit low-temperature (d=2+ϵ) derivation of $\nu$ for the SR fixed point in the presence of the bookkeeping of both $k^{2}$ and a putative small $k^{\sigma}$ perturbation. Without this calculation the leading divergence of the correlation length and scaling of thermal perturbations in the SR-controlled regime near two dimensions remained unspecified in this perturbative framework. The result above provides the leading-order scaling dimension of the thermal operator within the same low-dimension RG.
+      </problem>
+    </conclusion>
+    <conclusion id="4" title="Long-range fixed point anomalous dimension">
+      When the long-range coupling $b\neq0$ drives the RG flow to a long-range (LR) fixed point in the d=2+ϵ low-temperature expansion, the anomalous-dimension exponent $\eta$ at that LR fixed point is found exactly (to the order in which $2-\sigma=O(ϵ)$ is treated) to be
+      $$
+      \eta_{\mathrm{LR}} \;=\; 2-\sigma,
+      $$
+      i.e., the LR fixed point enforces the scaling relation that the small-wavevector dispersion exponent equals $2-\eta$.
+      <problem>
+        In the LR-controlled regime one expects the dominant small-$k$ kinetic term to be the $k^{\sigma}$ contribution, and a corresponding fixed-point anomalous dimension consistent with that dispersion must be established within the same low-dimension RG. Prior proofs of the relation $\eta=2-\sigma$ were given in the 4−ϵ framework; it was necessary to show that, within the d=2+ϵ low-temperature RG, a LR fixed point with the dispersion-imposed anomalous dimension emerges and is internally consistent to leading order when $2-\sigma=O(ϵ)$. The statement above fills that need by producing the LR fixed-point value of $\eta$ in the low-dimension expansion.
+      </problem>
+    </conclusion>
+    <conclusion id="5" title="LR fixed-point coupling ratios and consistency relations">
+      At the LR fixed point in the d=2+ϵ analysis the temperature-to-total-stiffness ratio and the ratio of the $k^{\sigma}$ to $k^{2}$ coefficients are given, to leading order in small parameters, by the relations
+      $$
+      \Big(\frac{T}{\,a+b\,}\Big)^{*} \;=\; \frac{2\pi(d-\sigma)}{\,n-1\,},
+      $$
+      $$
+      \Big(\frac{b}{a}\Big)^{*} \;=\; \frac{n-2}{\,d-\sigma\,}\big(2-\sigma-\eta_{SR}\big),
+      $$
+      and the recursion relations are self-consistent in that elimination of $b^{*}$ from these expressions also yields
+      $$
+      \left(\frac{T}{a}\right)^{*} \;=\; 2\pi(2-\sigma).
+      $$
+      Here $d=2+\epsilon$, $n&gt;2$, $a$ and $b$ are the coefficients of the $k^{2}$ and $k^{\sigma}$ terms, respectively, and $\eta_{SR}$ is the SR anomalous exponent given in conclusion 2. These algebraic relations locate the LR fixed point and demonstrate internal consistency of the two-coupling RG flow to the order treated.
+      <problem>
+        To characterize LR criticality one must know not only the value of $\eta_{\mathrm{LR}}$ but also the fixed-point coordinates that determine the magnitudes of coupling ratios which enter the RG eigenvalue calculations for thermal and other operators. Previously, such LR fixed-point coordinates had been established in the 4−ϵ expansion; an analogous low-dimension determination was absent. Moreover, the existence of two couplings ($T/a$ and $T/b$) and higher-order generated vertices demands a check of consistency: whether the truncated two-coupling RG closes and yields mutually compatible fixed-point relations. The relations above resolve these points in the d=2+ϵ expansion by giving explicit leading-order expressions for $(T/(a+b))^{*}$ and $(b/a)^{*}$ and by showing that the $k^{2}$- and $k^{\sigma}$-recursion relations are consistent with one another to the order of approximation used.
+      </problem>
+    </conclusion>
+    <conclusion id="6" title="Correlation-length exponent at the LR fixed point (leading order)">
+      At the LR fixed point exhibited in the d=2+ϵ RG the correlation-length exponent $\nu$ has the leading-order value
+      $$
+      \nu_{\mathrm{LR}} \;=\; \frac{1}{\,d-\sigma\,} \;+\; O(1),
+      $$
+      where $d=2+\epsilon$ and the exponent is extracted from the RG eigenvalue of the thermal combination $(T/b)$ via
+      $$
+      \left(\frac{T}{b}\right)'\;-\;\left(\frac{T}{b}\right)^{*}\;=\;2^{1/\nu}\Big[\frac{T}{b}-\left(\frac{T}{b}\right)^{*}\Big].
+      $$
+      Thus $\nu_{\mathrm{LR}}$ depends explicitly on $\sigma$ (in addition to $d$ and $n$) at leading order in the present expansion.
+      <problem>
+        Knowing that the LR fixed point exists and that $\eta_{\mathrm{LR}}=2-\sigma$ is not sufficient to predict correlation-length scaling; the RG eigenvalue of the thermal operator must be computed at that fixed point to determine $\nu$ and hence how observable quantities such as susceptibility and correlation length diverge near criticality. Prior to this analysis there was no explicit low-dimension evaluation of $\nu$ at the LR fixed point for vector spins with $n&gt;2$ when $2-\sigma=O(ϵ)$. The result above supplies the leading-order dependence of $\nu$ on $\sigma$ within the d=2+ϵ RG, thereby quantifying how LR interactions change thermal scaling in the LR-controlled regime.
+      </problem>
+    </conclusion>
+    <conclusion id="7" title="Linearized RG factor for a long-range perturbation about the SR fixed point">
+      Linearizing the RG recursion relations about the SR fixed point yields the multiplicative renormalization factor for an infinitesimal long-range perturbation $\delta b/T$:
+      $$
+      \big(\delta b/T\big)' \;=\; 2^{\,2-\sigma-\eta_{SR}}\;\big(\delta b/T\big).
+      $$
+      Consequently, the LR perturbation is irrelevant (flows to zero) under the RG when $\eta_{SR}&gt;2-\sigma$, and relevant (grows) when $\eta_{SR}&lt;2-\sigma$. This linear relation is the explicit RG criterion that establishes the dividing line between SR and LR domains of attraction found in conclusion 1.
+      <problem>
+        The question whether a small $k^{\sigma}$ perturbation destabilizes the SR fixed point can be settled only by computing its RG eigenvalue in the same approximation used to locate the SR fixed point. Prior work had posited the criterion $\sigma=2-\eta_{SR}$ but an explicit low-dimension derivation of the linearized flow multiplier for $\delta b/T$ (the prefactor $2^{2-\sigma-\eta_{SR}}$) was not available in the d=2+ϵ expansion for $n&gt;2$. Without this linearized multiplier one cannot quantitatively decide the stability of the SR fixed point to LR couplings in the low-dimension expansion. The equation above provides that decisive perturbative RG eigenvalue and thereby implements the stability test within the same framework that produced $\eta_{SR}$.
+      </problem>
+    </conclusion>
+  </conclusions>
+  <logic_graph>
+    <edge from="2" to="3"/>
+    <edge from="2" to="7"/>
+    <edge from="7" to="1"/>
+    <edge from="4" to="5"/>
+    <edge from="5" to="6"/>
+    <edge from="2" to="5"/>
+    <edge from="4" to="6"/>
+    <edge from="5" to="1"/>
+  </logic_graph>
+  <open_question>
+    The paper explicitly acknowledges that the central dividing-line result and the phase-boundary curve have been checked in controlled perturbative expansions only near the two endpoints (near d=4 via the 4−ϵ expansion and near d=2 via the d=2+ϵ low-temperature expansion for n&gt;2). The shape of the middle portion of the curve that separates SR and LR domains for dimensions between these endpoints remains conjectural: it is probable that the same dividing criterion $\sigma=2-\eta_{SR}$ holds for all dimensions 2&lt;d&lt;4, but a general nonperturbative or uniformly valid proof covering the full interval 2&lt;d&lt;4 has not been found. This unresolved problem — proving the dividing-line theorem (and mapping the full curve of stability boundaries) for intermediate dimensions beyond the two perturbative limits treated — is stated directly by the author as future/proof-required work.
+  </open_question>
+</inference_unit>

@@ -1,0 +1,31 @@
+type: setting_module
+name: motivation
+title: Motivation — 10.1038332139a0_1988_Natu
+knowledge:
+- type: setting
+  name: research_motivation
+  content: "The submission contains two separate experimental research problems that motivated the reported work.\n\n    First,\
+    \ in the search for higher-temperature superconductors the community had recently progressed from 30-K superconductivity\
+    \ in La–Ba–Cu–O to 90-K in Y–Ba–Cu–O, but many subsequent claims of still higher transition temperatures suffered from\
+    \ instability, poor reproducibility, or turned out not to be bulk superconductivity. This left a substantive gap: there\
+    \ was no reliably reproducible, bulk superconducting oxide with a transition temperature substantially above the 90–93\
+    \ K range for high-quality rare-earth cuprates, and the field lacked experimentally accessible compositional or processing\
+    \ routes that reproducibly produced higher onset or zero-resistance temperatures. Conventional solid-state sintering methods\
+    \ and the early Tl–Ba–Cu–O syntheses gave sample-to-sample variability and process sensitivities (for example to annealing)\
+    \ that prevented confident identification of bona fide bulk superconductivity at substantially higher temperatures. As\
+    \ a consequence, both the discovery of materials with reliably higher superconducting transition temperatures (Tc) and\
+    \ the experimental verification of their bulk superconducting properties (resistive zero, diamagnetism, quantitative magnetization)\
+    \ were hindered, limiting progress in establishing new superconducting materials and in testing theories about compositional\
+    \ tuning of Tc.\n\n    Second, in the mechanical behaviour of covalently bonded crystals (diamond and other hard ceramics),\
+    \ there was a contrasting problem: while some indentation and microscopy studies indicated that limited dislocation motion\
+    \ can occur even at low temperatures, bulk mechanical tests (three-point bend) identified a brittle-to-ductile transition\
+    \ for diamond near 1,500 °C, implying that multiple slip and extensive dislocation-mediated plasticity are unlikely at\
+    \ substantially lower temperatures. This produced an unresolved inconsistency between local-indentation evidence and macroscopic\
+    \ mechanical tests, and a practical need for methods to induce and control dislocation motion (multiple slip) in diamond\
+    \ and related ceramics at homologous temperatures well below those implied by bulk tests. Without such methods it was\
+    \ difficult to prepare specimens with controlled dislocation densities for electron microscopy and X-ray topography, to\
+    \ study microplasticity systematically, or to assess the role of microplasticity in the performance of crystalline engineering\
+    \ ceramics under service-like contact pressures."
+  prior: 0.9
+export:
+- research_motivation

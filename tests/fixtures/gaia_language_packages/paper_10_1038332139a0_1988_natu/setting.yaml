@@ -3,121 +3,231 @@ name: setting
 title: Settings — 10.1038332139a0_1988_Natu
 knowledge:
 - type: setting
-  name: synthesis_precursors
-  content: The starting materials used for the preparation of superconducting samples in the Tl–Ca/Ba–Cu–O system are thallium(III)
-    oxide ($Tl_{2}O_{3}$), calcium oxide ($CaO$), and a barium copper oxide precursor ($BaCu_{3}O_{4}$).
+  name: ba_cu3o4_melt_promotes_reaction
+  content: "$BaCu_{3}O_{4}$ denotes the barium–copper oxide phase with nominal formula $BaCu_{3}O_{4}$; the claim is: when\
+    \ $BaCu_{3}O_{4}$ is heated above its melting point so that a molten $BaCu_{3}O_{4}$ liquid phase forms during a short\
+    \ high-temperature treatment lasting on the order of minutes, the molten $BaCu_{3}O_{4}$ liquid (which the authors describe\
+    \ as \"extremely fluid\") promotes melt–solid chemical reactions between the molten $BaCu_{3}O_{4}$ and solid reactant\
+    \ particles (such as $Tl_{2}O_{3}$, thallium(III) oxide, and CaO, calcium oxide) that proceed to a greater extent (i.e.,\
+    \ produce a higher degree of chemical reaction completeness and mixing during the short hold time) than would be achieved\
+    \ by conventional prolonged solid-state sintering reactions operating without a transient molten $BaCu_{3}O_{4}$ phase.\n\
+    \ [12]"
   prior: 0.7
+  dependency: direct
 - type: setting
-  name: properties_of_bacu3o4_precursor
-  content: In the synthesis of Tl-based superconductors, $BaCu_{3}O_{4}$ is utilized as a precursor because it possesses the
-    lowest melting point among the various barium-copper oxides ($Ba$-$Cu$-$O$); furthermore, molten $BaCu_{3}O_{4}$ exhibits
-    high fluidity, which promotes more complete melt-solid reactions during synthesis compared to standard solid-state reactions.
-  prior: 0.7
+  name: synthesis_procedure_reproducibility
+  content: 'In the synthesis context the claim is: the following processing procedure reproducibly produces specimens of the
+    Tl–Ca/Ba–Cu–O family suitable for subsequent resistive and magnetic characterization — mix stoichiometric amounts of $Tl_{2}O_{3}$
+    (thallium(III) oxide), CaO (calcium oxide) and $BaCu_{3}O_{4}$ (barium–copper oxide); grind and press the powder mixture
+    into pellets of diameter $7\ \mathrm{mm}$ and thickness $2$–$3\ \mathrm{mm}$; place each pellet into a tube furnace preheated
+    to a temperature in the range $880$–$910\ ^{\circ}\mathrm{C}$; hold the pellet in a flowing oxygen atmosphere for $3$–$5$
+    minutes; remove the pellet from the furnace and quench it to room temperature in air, with the optional variants that
+    some pellets may instead be cooled in the furnace to room temperature (furnace-cooling) or subjected after quenching to
+    an anneal at $450\ ^{\circ}\mathrm{C}$ in flowing oxygen for several hours; and that repeated application of these steps
+    yields reproducible sample behaviour for the purposes of the reported electrical and qualitative magnetic measurements.'
+  prior: 0.6
+  dependency: direct
 - type: setting
-  name: synthesis_procedure
-  content: The procedure for synthesizing bulk Tl-Ca/Ba-Cu-O superconductors involves mixing stoichiometric amounts of $Tl_{2}O_{3}$,
-    $CaO$, and $BaCu_{3}O_{4}$ precursors, grinding and pressing the mixture into a pellet, heating said pellet to a temperature
-    between 880 °C and 910 °C for a duration of 3 to 5 minutes in a flowing oxygen environment, and subsequently quenching
-    the sample to room temperature in air.
-  prior: 0.7
+  name: bacu3o4_precursor_provenance
+  content: "$BaCu_{3}O_{4}$ denotes the barium–copper oxide precursor used in the Tl–Ca/Ba–Cu–O synthesis; the claim is: the\
+    \ $BaCu_{3}O_{4}$ precursor used in these experiments was prepared according to the specific preparative procedures published\
+    \ in the prior works cited as \"refs 8, 9 and 11\" in the source text, and those referenced preparative procedures produce\
+    \ a reproducible and well-defined $BaCu_{3}O_{4}$ starting-phase composition and morphology appropriate for use as a consistent\
+    \ reagent in the short high-temperature melt–solid processing described by the authors.\n [refs 8, 9 and 11]"
+  prior: 0.8
+  dependency: direct
 - type: setting
-  name: measurement_technique
-  content: The electrical resistance of the synthesized Tl-Ca/Ba-Cu-O superconducting samples is measured as a function of
-    temperature using the standard four-probe technique applied to rectangular bars cut from the prepared pellets, with electrical
-    contacts established using silver paste.
-  prior: 0.7
+  name: four_probe_zero_resistance_indicates_bulk
+  content: "The electrical-measurement claim is: measurements made using the standard four-probe electrical-resistance method,\
+    \ in which four separate electrical contacts (in this work implemented with silver-paste contacts) are attached to a polycrystalline\
+    \ rectangular bar specimen (typical size $7\\times3\\times1\\ \\mathrm{mm}$) and the measured voltage drop between the\
+    \ inner contacts falls to zero within the noise of the instrumentation (i.e., the four-probe measured resistance is indistinguishable\
+    \ from zero within instrument limits), constitute direct evidence that a macroscopic, percolating superconducting state\
+    \ extends through the bulk of the specimen (i.e., that a continuous superconducting path traverses the sample cross-section\
+    \ and that the zero-resistance is not solely caused by a small filamentary or surface superconducting path that bypasses\
+    \ the bulk of the specimen).\n [Fig. 1]"
+  prior: 0.5
+  dependency: direct
 - type: setting
-  name: definition_of_onset_temperature
-  content: The superconducting onset temperature, denoted as the temperature at which the transition to superconductivity
-    begins, is defined and estimated as the specific temperature at which the curvature in the electrical resistance versus
-    temperature ($R$ vs. $T$) plot exhibits the most rapid change.
-  prior: 0.7
+  name: curvature_criterion_for_onset
+  content: "Let $R(T)$ denote the measured electrical resistance as a function of temperature $T$ for a specimen measured\
+    \ in the four-probe configuration; the claim is: identifying the superconducting \"onset temperature\" as the temperature\
+    \ $T_{\\mathrm{onset}}$ at which the curvature $d^{2}R/dT^{2}$ of the $R(T)$ curve is maximal (i.e., where the measured\
+    \ resistance versus temperature plot changes curvature most rapidly) yields a reliable estimate of the true superconducting\
+    \ transition onset temperature for these polycrystalline Tl–Ca/Ba–Cu–O specimens, in the sense that this operational curvature\
+    \ criterion corresponds approximately to other onset estimates (for example the intersection-of-slopes method) and can\
+    \ be used to report an onset near $120\\ \\mathrm{K}$.\n [13]"
+  prior: 0.6
+  dependency: direct
 - type: setting
-  name: magnetic_indicators_of_superconductivity
-  content: In the Tl-Ca/Ba-Cu-O system, the presence of superconductivity is verified qualitatively by observing strong diamagnetic
-    repulsion, characterized by the levitation of the sample over a magnetic field (Meissner effect), and is quantitatively
-    characterized by measuring the temperature dependence of the alternating current (a.c.) magnetic susceptibility.
+  name: levitation_indicates_superconducting_diamagnetism
+  content: "In the levitation experiment the claim is: a macroscopic solid specimen of nominal composition $Tl_{2}Ca_{2}BaCu_{3}O_{9+x}$\
+    \ (where $Tl_{2}Ca_{2}BaCu_{3}O_{9+x}$ denotes the nominal chemical formulation with $x$ indicating possible oxygen non-stoichiometry)\
+    \ that, after immersion in liquid nitrogen (temperature near $77\\ \\mathrm{K}$), was observed to levitate above a stationary\
+    \ magnet producing an applied magnetic field of approximately $5{,}000\\ \\mathrm{G}$ (gauss), exhibits magnetic repulsion\
+    \ consistent with superconducting diamagnetism (Meissner-like expulsion of magnetic flux) rather than being explained\
+    \ by other non-superconducting magnetic effects (for example bulk ferromagnetism or convenience of trapped permanent magnet\
+    \ elements); therefore the levitation observation is taken as qualitative magnetic evidence of superconducting diamagnetism\
+    \ in the specimen.\n [Fig. 2]"
   prior: 0.7
+  dependency: direct
 - type: setting
-  name: melting_point_of_bacu3o4
-  content: The compound $BaCu_{3}O_{4}$ possesses the lowest melting point among all barium-copper oxide (Ba-Cu-O) phases.
-  prior: 0.7
+  name: ac_susceptibility_onset_indicates_diamagnetism
+  content: "Let $\\chi_{\\mathrm{ac}}(T)$ denote the measured alternating-current magnetic susceptibility as a function of\
+    \ temperature $T$ obtained using the measurement technique of Norton; the claim is: the observed deviation of $\\chi_{\\\
+    mathrm{ac}}(T)$ from zero slope (i.e., the first discernible downturn or deviation from the high-temperature near-zero\
+    \ baseline) in a $Tl_{2}Ca_{1.5}BaCu_{3}O_{8.5+x}$ specimen reflects the onset of a diamagnetic superconducting response\
+    \ in the sample, and this diamagnetic onset temperature determined from the a.c. susceptibility is a valid qualitative\
+    \ magnetic signature that can be compared to electrical-resistance-derived transition features.\n [15]\n [Fig. 3]"
+  prior: 0.6
+  dependency: direct
 - type: setting
-  name: fluidity_of_molten_bacu3o4
-  content: In its liquid state, $BaCu_{3}O_{4}$ exhibits extremely high fluidity (low viscosity).
+  name: 450C_anneal_effects_on_superconductivity
+  content: 'The annealing claim is: annealing a specimen in flowing oxygen at $450\ ^{\circ}\mathrm{C}$ (where $450\ ^{\circ}\mathrm{C}$
+    denotes the absolute temperature of $450$ degrees Celsius) has opposite or materially different effects on superconductivity
+    for the two related chemistries studied: specifically, for Tl–Ca/Ba–Cu–O compositions an identical $450\ ^{\circ}\mathrm{C}$
+    oxygen anneal is reported to slightly improve the observed superconductivity (e.g., increased zero-resistance temperature
+    or sharper transition), whereas for Tl–Ba–Cu–O compositions the same $450\ ^{\circ}\mathrm{C}$ oxygen anneal is reported
+    to depress or destroy the superconducting transition.'
   prior: 0.7
+  dependency: direct
 - type: setting
-  name: definition_of_superconducting_onset_temperature
-  content: The onset temperature of a superconducting transition is defined as the temperature at which the rate of change
-    of the curvature (the second derivative) in the electrical resistance ($R$) versus temperature ($T$) plot, $d^{2}R/dT^{2}$,
-    is maximal.
-  prior: 0.7
+  name: ca_ba_ratio_influences_superconductivity
+  content: 'The compositional-variation claim is: variation of the calcium-to-barium atomic ratio (Ca/Ba ratio) in nominal
+    Tl–Ca/Ba–Cu–O samples materially influences the low-temperature electronic behaviour of the material—i.e., changing the
+    Ca/Ba stoichiometry alters whether a specimen exhibits superconducting transitions and modifies the characteristic transition
+    temperatures and transition widths—and thus composition is an important control parameter for superconductivity in these
+    compounds.'
+  prior: 0.8
+  dependency: direct
 - type: setting
-  name: effect_of_calcium_substitution_in_y_and_la_based_superconductors
-  content: The substitution of 50% of barium atoms with calcium atoms in the superconducting compound $YBa_{2}Cu_{3}O_{7-x}$
-    results in a depression of the superconducting transition temperature, whereas an equivalent 50% substitution of calcium
-    for barium in the compound $LaBa_{2}Cu_{3}O_{7-x}$ results in an increase in the superconducting transition temperature.
-  prior: 0.7
+  name: tl_ca_cu_o_semiconducting_to_77K
+  content: "The comparative electronic-behaviour claim is: nominal Tl–Ca–Cu–O compositions (i.e., compositions lacking barium,\
+    \ with chemical formula fragments corresponding to Tl, Ca and Cu oxides) prepared under processing conditions similar\
+    \ to those used for the Tl–Ca/Ba–Cu–O specimens were observed by the authors to display semiconductor-like electrical\
+    \ resistance temperature dependence down to liquid-nitrogen temperature (approximately $77\\ \\mathrm{K}$), in contrast\
+    \ to related Tl–Ba–Cu–O samples which in prior work showed zero resistance just above liquid-nitrogen temperature.\n [8,\
+    \ 9]"
+  prior: 0.75
+  dependency: direct
 - type: setting
-  name: melt_solid_reaction_efficiency
-  content: Chemical reactions occurring between a melt phase and a solid phase proceed more completely and efficiently toward
-    equilibrium than typical solid-state sintering reactions between purely solid precursors.
+  name: softer_indenter_transmits_high_local_pressure
+  content: 'In the point-loading contact geometry the mechanical claim is: using a conical indenter made of cubic boron nitride
+    (c-BN) — where "cubic boron nitride (c-BN)" denotes a hard, high-pressure indenter material that is nevertheless described
+    in the source text as mechanically softer than diamond in the specific contact configuration — and pressing that c-BN
+    cone into the surface of a harder crystalline specimen (for example diamond) at elevated temperature leads to a contact
+    condition in which the nominal contact pressure transmitted into the specimen beneath the indenter is locally high and
+    sufficiently concentrated to activate dislocation motion beneath the contact; in other words, a mechanically softer indenter
+    material in this contact geometry can transmit high localized nominal contact pressure into a harder crystalline specimen
+    that stimulates plastic deformation.'
   prior: 0.7
+  dependency: direct
 - type: setting
-  name: indicator_of_bulk_superconductivity
-  content: The presence of strong diamagnetic repulsion in a material is a physical property that serves as an experimental
-    indicator of the existence of bulk superconductivity within that material.
-  prior: 0.7
+  name: controlled_dislocation_introduction_below_0p3Tm
+  content: 'Define the homologous temperature as the experimental absolute temperature divided by the material melting point
+    $T_{m}$ (i.e., homologous temperature $=T/T_{m}$). The claim is: the point-loading method that presses a c-BN conical
+    indenter into a hard-crystal surface at elevated temperature enables the reproducible introduction of dislocations into
+    the specimen at controlled (adjustable and non-catastrophic) densities when operated at homologous temperatures below
+    $0.3\,T_{m}$, where $T_{m}$ denotes the absolute melting temperature of the specimen material.'
+  prior: 0.6
+  dependency: direct
 - type: setting
-  name: manifestation_of_diamagnetism
-  content: The stable levitation of a material sample over a magnetic field (such as a field of approximately $5,000$ G) is
-    a qualitative physical manifestation of strong diamagnetic repulsion, which is associated with the Meissner effect in
-    superconductors.
-  prior: 0.7
+  name: multiple_slip_in_diamond_at_1000C_10GPa
+  content: 'The experimental-observation claim is: in experiments where a cubic boron nitride (c-BN) conical indenter is point-loaded
+    into a diamond specimen held at an absolute temperature of $1{,}000\ ^{\circ}\mathrm{C}$ (one thousand degrees Celsius),
+    extensive dislocation movement that involves multiple crystallographic slip systems ("multiple slip") was observed beneath
+    the contact region of the diamond, as evidenced by microscopy and the reported microstructural analysis described in the
+    source study.'
+  prior: 0.8
+  dependency: direct
 - type: setting
-  name: measurement_of_ac_susceptibility
-  content: The technique of Norton is an experimental method used to determine the temperature dependence of the alternating
-    current (a.c.) susceptibility of a material sample to identify its superconducting transition characteristics.
-  prior: 0.7
+  name: nominal_contact_pressure_estimate_10GPa
+  content: 'The experimental-parameter claim is: the nominal contact pressure applied during the reported point-loading experiments
+    with a cubic boron nitride cone pressed into diamond at elevated temperature is estimated to be approximately $10\ \mathrm{GPa}$
+    (gigapascals), where this value denotes the nominal local contact pressure calculated or inferred by the experimenters
+    for the specific contact geometry and applied load conditions.'
+  prior: 0.6
+  dependency: direct
 - type: setting
-  name: superconductivity_of_tl_ba_cu_o
-  content: Samples in the Tl-Ba-Cu-O chemical system exhibit bulk superconductivity characterized by zero electrical resistance
-    at temperatures just above the boiling point of liquid nitrogen ($77$ K).
+  name: pellet_and_specimen_geometry
+  content: 'The procedural-geometric context is: in the synthesis and measurement protocol the powder mixtures of $Tl_{2}O_{3}$
+    (thallium(III) oxide), CaO (calcium oxide) and $BaCu_{3}O_{4}$ (barium–copper oxide) are pressed into pellets having a
+    diameter of $7\ \mathrm{mm}$ and a thickness of $2$–$3\ \mathrm{mm}$, and for electrical resistance measurements rectangular
+    bars of typical size $7\times3\times1\ \mathrm{mm}$ were cut from these pellets for use in standard four-probe electrical
+    measurements with silver-paste contacts.'
   prior: 0.7
+  dependency: indirect
 - type: setting
-  name: effect_of_annealing_on_tl_ba_cu_o
-  content: In the Tl-Ba-Cu-O superconducting system, the process of annealing samples at $450^{\circ}\text{C}$ in an environment
-    of flowing oxygen results in the depression or complete destruction of the superconducting transition.
+  name: cooling_and_post_treatment_variants
+  content: 'The processing-variant context is: the authors report alternative thermal treatments as part of their reproducible
+    preparation route, specifically that some heated pellets were allowed to cool to room temperature inside the furnace ("furnace-cooled"),
+    whereas other pellets were rapidly removed from the furnace and quenched to room temperature in air; additionally, some
+    quenched pellets were subjected to a subsequent anneal in flowing oxygen at $450\ ^{\circ}\mathrm{C}$ for several hours.'
   prior: 0.7
+  dependency: indirect
 - type: setting
-  name: effect_of_annealing_on_tl_caba_cu_o
-  content: In the Tl-Ca/Ba-Cu-O superconducting system, the process of annealing samples at $450^{\circ}\text{C}$ in an environment
-    of flowing oxygen results in a slight improvement of the superconducting properties, such as the transition temperature
-    or resistance profile.
+  name: broad_transition_indicates_inhomogeneity
+  content: 'The transition-width context is: the superconducting electrical-resistance transitions reported for the polycrystalline
+    Tl–Ca/Ba–Cu–O pellets are typically broad (reported as greater than $20\ \mathrm{K}$ in transition width), which is consistent
+    with compositional or microstructural inhomogeneity within the polycrystalline specimens and suggests that the measured
+    resistive transition temperatures may reflect a distribution of local transition temperatures rather than a single sharp
+    bulk transition.'
   prior: 0.7
+  dependency: indirect
 - type: setting
-  name: conductivity_of_tl_ca_cu_o
-  content: Samples in the Tl-Ca-Cu-O chemical system, when prepared using thermal and atmospheric conditions similar to those
-    used for the Tl-Ca/Ba-Cu-O system (such as heating to $880$–$910^{\circ}\text{C}$ in flowing oxygen), exhibit semiconductor-like
-    electrical resistivity behavior down to the temperature of liquid nitrogen ($77$ K) rather than metallic or superconducting
-    behavior.
+  name: dc_magnetization_in_progress
+  content: 'The magnetic-measurement context is: at the time of reporting the authors stated that quantitative direct-current
+    (d.c.) magnetization measurements, which would provide quantitative estimates of superconducting volume fraction and critical
+    fields, were in progress but not yet available, so only qualitative magnetic signatures (levitation and a.c. susceptibility
+    onset) are presented in the current report.'
   prior: 0.7
+  dependency: indirect
+- type: setting
+  name: comparative_transition_temperatures_to_other_cuprates
+  content: "The comparative-context statement is: the authors compare the observed midpoint and zero-resistance temperatures\
+    \ in their Tl–Ca/Ba–Cu–O specimens to transition temperatures reported for certain high-quality rare-earth-containing\
+    \ cuprate superconductors and to onset temperatures reported for Bi–Ca/Sr–Cu–O systems, citing prior literature references\
+    \ (for example refs 10, 11, 13, 14) to place their measured temperatures in a comparative context.\n [13]\n [14]"
+  prior: 0.7
+  dependency: indirect
+- type: setting
+  name: reconcile_indentation_and_bend_test_thresholds
+  content: "The literature-reconciliation context is: the authors interpret their observation of multiple slip at $1{,}000\\\
+    \ ^{\\circ}\\mathrm{C}$ under localized high nominal contact pressure as providing experimental evidence that helps reconcile\
+    \ two previously reported thresholds for enhanced dislocation activity in diamond — (a) a brittle-to-ductile transition\
+    \ near $1{,}500\\ ^{\\circ}\\mathrm{C}$ identified from macroscopic three-point bend tests and (b) the lower-temperature\
+    \ onset of limited dislocation mobility suggested by indentation and microscopy studies (below about $1{,}100\\ ^{\\circ}\\\
+    mathrm{C}$) — by indicating that localized contact pressure can lower the effective temperature threshold for extensive,\
+    \ multiple-slip-mediated plasticity. \n [3]"
+  prior: 0.7
+  dependency: indirect
+- type: setting
+  name: practical_significance_for_microscopy
+  content: 'The practical-utility context is: by generating dislocation networks at controlled densities and at relatively
+    low homologous temperatures (below $0.3\,T_{m}$), specimens prepared by the point-loading method are presented as useful
+    for transmission electron microscopy (TEM) and X-ray topography investigations because they avoid catastrophic fracture
+    and allow study of slip and dislocation structures relevant to microstructural analyses.'
+  prior: 0.7
+  dependency: indirect
 export:
-- synthesis_precursors
-- properties_of_bacu3o4_precursor
-- synthesis_procedure
-- measurement_technique
-- definition_of_onset_temperature
-- magnetic_indicators_of_superconductivity
-- melting_point_of_bacu3o4
-- fluidity_of_molten_bacu3o4
-- definition_of_superconducting_onset_temperature
-- effect_of_calcium_substitution_in_y_and_la_based_superconductors
-- melt_solid_reaction_efficiency
-- indicator_of_bulk_superconductivity
-- manifestation_of_diamagnetism
-- measurement_of_ac_susceptibility
-- superconductivity_of_tl_ba_cu_o
-- effect_of_annealing_on_tl_ba_cu_o
-- effect_of_annealing_on_tl_caba_cu_o
-- conductivity_of_tl_ca_cu_o
+- ba_cu3o4_melt_promotes_reaction
+- synthesis_procedure_reproducibility
+- bacu3o4_precursor_provenance
+- four_probe_zero_resistance_indicates_bulk
+- curvature_criterion_for_onset
+- levitation_indicates_superconducting_diamagnetism
+- ac_susceptibility_onset_indicates_diamagnetism
+- 450C_anneal_effects_on_superconductivity
+- ca_ba_ratio_influences_superconductivity
+- tl_ca_cu_o_semiconducting_to_77K
+- softer_indenter_transmits_high_local_pressure
+- controlled_dislocation_introduction_below_0p3Tm
+- multiple_slip_in_diamond_at_1000C_10GPa
+- nominal_contact_pressure_estimate_10GPa
+- pellet_and_specimen_geometry
+- cooling_and_post_treatment_variants
+- broad_transition_indicates_inhomogeneity
+- dc_magnetization_in_progress
+- comparative_transition_temperatures_to_other_cuprates
+- reconcile_indentation_and_bend_test_thresholds
+- practical_significance_for_microscopy

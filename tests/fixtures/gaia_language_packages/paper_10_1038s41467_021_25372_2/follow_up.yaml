@@ -1,0 +1,28 @@
+type: setting_module
+name: follow_up
+title: Open Questions — 10.1038s41467-021-25372-2
+knowledge:
+- type: question
+  name: open_questions
+  content: 'Several experimentally and scientifically meaningful issues remain unresolved and were explicitly identified by
+    the authors: (1) The quantitative origin of the systematic discrepancy between measured T$_{c}$ values (for YH$_{6}$ and
+    YH$_{9}$) and many prior theoretical predictions remains unresolved — existing anharmonic corrections reduce but do not
+    eliminate the gap, so improved theoretical treatments (better anharmonicity, electron–phonon coupling, finite-temperature
+    free energies, or beyond-Migdal effects) are required. (2) The reason why fcc‑YH$_{10}$, predicted by some calculations
+    to be thermodynamically favorable at high pressure and temperature, was not observed under experimental conditions up
+    to 410 GPa and 2250 K is unresolved; it remains an open question whether fcc‑YH$_{10}$ can be stabilized at even higher
+    P–T conditions, whether kinetic barriers prevent its formation, or whether theoretical stability estimates are incorrect.
+    (3) The anomalous relation between T$_{c}$ and H$_{c2}$ observed for YH$_{9}$ versus YH$_{6}$ (i.e., higher T$_{c}$ but
+    lower H$_{c2}$ in hcp-YH$_{9}$ compared with bcc-YH$_{6}$) lacks an ab initio explanation and calls for further electronic-structure
+    and superconducting-gap calculations to determine whether multi-band effects, Fermi-surface topology, or other band-structure
+    details produce this behaviour. (4) Contradictions between different experimental reports (notably the disagreement with
+    the report claiming T$_{c}=262\,$K in Ref. 27) remain unresolved because those prior works lack concomitant structural
+    characterization; reconciling different experimental claims requires further phase-resolved measurements and cross-validation.
+    (5) Some impurity or unidentified phases with complex diffraction patterns and uncertain stoichiometry were observed in
+    samples with hydrogen deficiency; their compositions, structures and possible electronic properties are still unknown.
+    Addressing these open issues requires coordinated advances in higher‑fidelity theoretical modelling, targeted high-P–T
+    synthesis experiments (possibly at still higher pressures/temperatures), and further phase-resolved structural and spectroscopic
+    characterization.'
+  prior: 0.5
+export:
+- open_questions

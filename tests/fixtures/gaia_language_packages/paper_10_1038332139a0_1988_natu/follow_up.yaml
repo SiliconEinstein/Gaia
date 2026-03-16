@@ -1,0 +1,27 @@
+type: setting_module
+name: follow_up
+title: Open Questions — 10.1038332139a0_1988_Natu
+knowledge:
+- type: question
+  name: open_questions
+  content: "The authors explicitly acknowledge and leave open several experimental and characterization issues.\n\n    For\
+    \ the Tl–Ca/Ba–Cu–O superconductors: (1) quantitative d.c. magnetization measurements were still in progress and therefore\
+    \ the superconducting volume fraction, critical fields and other magnetic parameters remained to be determined; (2) the\
+    \ superconducting transitions are rather broad (typically >20 K), indicating that improved preparation could narrow the\
+    \ transition and possibly raise the zero-resistance temperature, but no optimized processing protocol or its limits were\
+    \ yet established; and (3) the dependence of superconducting behaviour on composition — in particular the optimum Ca/Ba\
+    \ ratio for maximizing transition temperature and sharpening the transition — was not yet determined and experiments to\
+    \ find an optimum ratio were reported as underway. These open points leave unresolved the quantitative magnetic confirmation,\
+    \ the reproducibility bounds, and the compositional optimization necessary to fully establish the materials as reliable,\
+    \ bulk, high-Tc superconductors.\n\n    For the diamond/contact-deformation work: an inconsistency in the literature remained\
+    \ between indentation-derived thresholds (suggesting onset of dislocation activity at temperatures below about $1{,}100^{\\\
+    circ}\\mathrm{C}$) and macroscopic three-point bend-derived brittle-to-ductile transition near $1{,}500^{\\circ}\\mathrm{C}$.\
+    \ While the present point-loading result demonstrates multiple slip at $1{,}000^{\\circ}\\mathrm{C}$ under specified contact\
+    \ conditions, the broader parameter space (for example, precise ranges of contact pressure, indenter material and geometry,\
+    \ strain rates, and resulting dislocation densities) and how these conditions map onto macroscopic ductility thresholds\
+    \ remain to be systematically quantified. In other words, the temperature, pressure and loading-mode dependence of the\
+    \ onset of multiple slip in diamond and the quantitative control of dislocation density produced by the method are left\
+    \ as unresolved experimental questions."
+  prior: 0.5
+export:
+- open_questions

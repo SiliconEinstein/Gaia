@@ -3,264 +3,410 @@ name: reasoning
 title: Reasoning — 363056a0
 knowledge:
 - type: ref
-  name: superconductivity_in_hg_1201
-  target: setting.superconductivity_in_hg_1201
+  name: research_motivation
+  target: motivation.research_motivation
 - type: ref
-  name: structural_analogy_with_tl_based_copper_oxides
-  target: setting.structural_analogy_with_tl_based_copper_oxides
+  name: average_mass_density_assumption
+  target: setting.average_mass_density_assumption
 - type: ref
-  name: tc_scaling_in_tl_based_systems
-  target: setting.tc_scaling_in_tl_based_systems
+  name: field_cooled_underestimates_volume_fraction
+  target: setting.field_cooled_underestimates_volume_fraction
 - type: ref
-  name: previous_record_transition_temperature
-  target: setting.previous_record_transition_temperature
+  name: zfc_subsidiary_features_as_distinct_superconducting_phases
+  target: setting.zfc_subsidiary_features_as_distinct_superconducting_phases
 - type: ref
-  name: absence_of_superconductivity_in_hg_1212_rare_earth_variants
-  target: setting.absence_of_superconductivity_in_hg_1212_rare_earth_variants
+  name: fc_60_percent_indicates_dominant_phase
+  target: setting.fc_60_percent_indicates_dominant_phase
 - type: ref
-  name: sample_density_for_susceptibility_calculation
-  target: setting.sample_density_for_susceptibility_calculation
+  name: zero_resistance_interpreted_as_true_superconducting_state
+  target: setting.zero_resistance_interpreted_as_true_superconducting_state
 - type: ref
-  name: general_composition_hypothesis
-  target: setting.general_composition_hypothesis
+  name: dR_dT_max_as_transition_indicator
+  target: setting.dR_dT_max_as_transition_indicator
 - type: ref
-  name: sample_preparation
-  target: setting.sample_preparation
+  name: oxygen_annealing_causes_Tc_increase
+  target: setting.oxygen_annealing_causes_Tc_increase
 - type: ref
-  name: eds_composition_analysis
-  target: setting.eds_composition_analysis
+  name: saed_hrtem_phase_identification
+  target: setting.saed_hrtem_phase_identification
 - type: ref
-  name: microscopic_structural_identification
-  target: setting.microscopic_structural_identification
+  name: saed_lattice_constants_deduction
+  target: setting.saed_lattice_constants_deduction
 - type: ref
-  name: xrd_limitation
-  target: setting.xrd_limitation
+  name: superstructure_extent_qualifies_as_phase
+  target: setting.superstructure_extent_qualifies_as_phase
 - type: ref
-  name: superstructure_observation
-  target: setting.superstructure_observation
+  name: edx_volume_fraction_estimates
+  target: setting.edx_volume_fraction_estimates
 - type: ref
-  name: superconducting_properties_of_hg_1201
-  target: setting.superconducting_properties_of_hg_1201
+  name: edx_sampling_representativeness
+  target: setting.edx_sampling_representativeness
 - type: ref
-  name: empirical_trend_in_tl_and_bi_copper_oxides
-  target: setting.empirical_trend_in_tl_and_bi_copper_oxides
+  name: assignment_of_superconductivity_to_hg_grains
+  target: setting.assignment_of_superconductivity_to_hg_grains
 - type: ref
-  name: properties_of_tl_based_analogues
-  target: setting.properties_of_tl_based_analogues
+  name: zero_resistance_resolution_note
+  target: setting.zero_resistance_resolution_note
 - type: ref
-  name: structural_similarity_between_hg_1201_and_tl_1201
-  target: setting.structural_similarity_between_hg_1201_and_tl_1201
+  name: guinier_limitation_small_volume_fraction
+  target: setting.guinier_limitation_small_volume_fraction
 - type: ref
-  name: sample_density_approximation
-  target: setting.sample_density_approximation
+  name: assignment_presented_as_hypothesis
+  target: setting.assignment_presented_as_hypothesis
+- type: ref
+  name: analogy_with_thallium_bismuth_cuprates
+  target: setting.analogy_with_thallium_bismuth_cuprates
+- type: ref
+  name: magnetic_detection_of_superconductivity_with_onset_near_1335_k_and_multi_phase_m
+  target: reasoning.magnetic_detection_of_superconductivity_with_onset_near_1335_k_and_multi_phase_m
+- type: ref
+  name: electrical_resistivity_behavior_sharp_drop_near_1325_k_and_zero_resistance_at_95
+  target: reasoning.electrical_resistivity_behavior_sharp_drop_near_1325_k_and_zero_resistance_at_95
+- type: ref
+  name: structural_identification_of_hg_1223_hg_1212_and_a_long_period_superstructure_la
+  target: reasoning.structural_identification_of_hg_1223_hg_1212_and_a_long_period_superstructure_la
 - type: claim
-  name: discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu
-  content: The Hg-Ba-Ca-Cu-O system exhibits superconductivity with an onset transition temperature of $T_{c} \approx 133.5$
-    K, which surpasses the previous record of $\sim 127$ K observed in the Tl-system. This result is established through magnetic
-    susceptibility measurements (showing diamagnetism onset at 133.5 K and strong screening at 125 K) and electrical resistivity
-    measurements (showing a sharp drop at $132.5$ K and zero resistance at $95$ K).
+  name: magnetic_detection_of_superconductivity_with_onset_near_1335_k_and_multi_phase_m
+  content: "The oxygen-annealed HBCCO specimen exhibits superconducting diamagnetism with an onset temperature $T_{c}\\approx133.5\\\
+    ,$K measured in both zero-field-cooled (ZFC) and field-cooled (FC) SQUID magnetometry in an external field $H=27\\,$Oe.\
+    \ The ZFC susceptibility at $T=6\\,$K attains approximately $100\\%$ of the ideal superconducting screening value $1/4\\\
+    pi$ (assuming an average mass density $\\rho\\approx6~\\mathrm{g\\,cm^{-3}}$), indicating full magnetic screening of the\
+    \ sample at low temperature; the FC susceptibility reaches roughly $10\\%$ of the maximum possible value at low temperature\
+    \ and attains $\\sim60\\%$ of its full low-temperature value by $T=125\\,$K. The ZFC curve also shows additional diamagnetic\
+    \ features at $126\\,$K and $112\\,$K, indicating the presence of several distinct superconducting phases within the specimen.\n\
+    \      \n       [Fig. 2]"
   prior: 0.5
 - type: claim
-  name: identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters
-  content: 'The synthesized material contains two distinct high-temperature superconducting phases: $HgBa_{2}CaCu_{2}O_{6+x}$
-    (Hg-1212, with two $CuO_{2}$ layers) and $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223, with three $CuO_{2}$ layers), as well
-    as ordered superstructures (e.g., a supercell with $c \approx 86.4 \AA$). The tetragonal lattice parameters derived from
-    selected-area electron diffraction (SAED) are $a=3.93(7)\AA$ for both phases, with $c=12.7(2)\AA$ for Hg-1212 and $c=16.1(3)\AA$
-    for Hg-1223.'
+  name: electrical_resistivity_behavior_sharp_drop_near_1325_k_and_zero_resistance_at_95
+  content: "The four-probe resistivity $R(T)$ of an annealed HBCCO specimen shows a sharp drop in $R$ with a maximum in $dR/dT$\
+    \ at $T\\approx132.5\\,$K and achieves exactly zero resistance within instrumental resolution at $T=95\\,$K. Comparison\
+    \ with as-sintered samples shows that the final oxygen annealing increased the maximum observed $T_{c}$ from $\\sim117\\\
+    ,$K (as-sintered) to the present onset near $132.5$–$133.5\\,$K (oxygen-annealed).\n      \n       [Fig. 3]"
   prior: 0.5
 - type: claim
-  name: attribution_of_highest_tc_to_the_three_layer_hg_1223_phase
-  content: The superconducting transition at $\sim 133$ K is attributed to the $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223) phase.
-    This conclusion is supported by the correlation between the high volume fraction of Hg-1223 observed in microscopic analysis
-    and the large field-cooling susceptibility signal, and reinforces the empirical trend that $T_{c}$ increases with the
-    number of $CuO_{2}$ planes per unit cell in layered copper oxide systems.
+  name: structural_identification_of_hg_1223_hg_1212_and_a_long_period_superstructure_la
+  content: "High-resolution transmission electron microscopy (HRTEM) and selected-area electron-diffraction (SAED) identify\
+    \ plate-like grains composed predominantly of $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223), disordered mixtures of Hg-1223\
+    \ and $HgBa_{2}CaCu_{2}O_{6+x}$ (Hg-1212), and an ordered periodic stacking (superstructure) of these unit cells. From\
+    \ SAED patterns the tetragonal lattice constants are deduced as $c=12.7(2)\\,\\mathrm{\\AA}$ for Hg-1212, $c=16.1(3)\\\
+    ,\\mathrm{\\AA}$ for Hg-1223, and $a=3.93(7)\\,\\mathrm{\\AA}$ for both unit types. HRTEM images show an example stacking\
+    \ sequence 1223/1223/1212/1212/1223/1213 with a supercell $c\\approx86.4\\,\\mathrm{\\AA}$ extending beyond $2000\\,\\\
+    mathrm{\\AA}$, establishing the superstructure as a distinct phase. No Hg-1201-type grains or HgO double layers were detected\
+    \ in the examined grains.\n      \n       [Fig. 1]"
   prior: 0.5
 - type: claim
-  name: critical_role_of_oxygen_annealing
-  content: Post-synthesis annealing in flowing oxygen at $300^{\circ}C$ is required to maximize the transition temperature
-    in the Hg-Ba-Ca-Cu-O system; as-sintered samples exhibit a significantly lower maximum $T_{c}$ of $\sim 117$ K compared
-    to the $\sim 133$ K achieved after annealing.
+  name: sample_phase_composition_determined_by_edx_and_phase_fractions
+  content: 'Energy-dispersive X-ray (EDX) spectrometry and bulk characterization indicate the annealed black material is a
+    multiphase composite with approximate volume fractions: $\sim30\%$ $BaCuO_{2}$, $\approx30\%$ $CuO$, $\sim15\%$ of an
+    unidentified oxide containing Hg, Ca and Cu, $<5\%$ of an oxide with Ca and Cu, $\sim5\%$ impurities of unspecified composition,
+    and $\sim15\%$ of the total volume consisting of plate-like Hg–Ba–Ca–Cu-containing grains (the grains that HRTEM/SAED
+    associate with Hg-1223/Hg-1212).'
+  prior: 0.5
+- type: claim
+  name: suggested_assignment_of_the_sim133_k_superconducting_phase_to_hg_1223_hypothesis
+  content: "Based on the dominance of Hg-1223 observed in the grains investigated microscopically and the large relative superconducting\
+    \ volume fraction inferred near $125\\,$K, it is suggested (without unambiguous proof) that $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$\
+    \ (Hg-1223) is responsible for superconductivity with onset near $\\sim133\\,$K in these samples. This attribution is\
+    \ explicitly presented as a plausible interpretation rather than as a definitive identification.\n      \n       [Fig.\
+    \ 1; Fig. 2]"
   prior: 0.5
 - type: chain_expr
-  name: chain_1
+  name: chain_magnetic_detection_of_superconductivity_with_onset_near_1335_k_and_multi_phase_m
   edge_type: deduction
   steps:
   - step: 1
-    ref: structural_analogy_with_tl_based_copper_oxides
+    lambda: Define "oxygen-annealed specimen" as a sample that, after the main high-temperature synthesis steps, was subjected
+      to a final heat treatment in flowing oxygen at $300^{\circ}\mathrm{C}$ for 5 hours; this is the sample on which the
+      magnetic measurements discussed below were performed.
+    prior: 0.7
   - step: 2
-    lambda: Based on the structural similarity to Tl-1201 [@premise-2] and the trend of increasing $T_c$ with the number of
-      $CuO_2$ layers observed in thallium and bismuth compounds [@premise-3], the authors conjecture that transition temperatures
-      exceeding 100 K can be achieved in the Hg-Ba-Ca-Cu-O system by synthesizing members with more than one $CuO_2$ layer
-      ($n > 1$).
+    lambda: Define "SQUID magnetometer" as the superconducting-quantum-interference-device magnetometer (Quantum Design) used
+      to measure magnetic susceptibility $\chi(T)$ as a function of temperature $T$ in an externally applied magnetic field
+      $H$; the applied field used here is $H=27\,$Oe, where $1\ \mathrm{Oe}$ denotes one oersted.
     prior: 0.7
   - step: 3
-    lambda: Samples are prepared using a precursor $Ba_{2}CaCu_{2}O_{5}$ mixed with $HgO$, heated at $800^{\circ}C$, and annealed
-      in oxygen. The goal is to produce phases with $n=2$ (Hg-1212) and $n=3$ (Hg-1223).
+    lambda: Define "zero-field-cooled (ZFC) susceptibility" as the measured magnetic susceptibility obtained when the specimen
+      is cooled to low temperature in zero applied field and then the external field $H$ is applied before measuring $\chi(T)$
+      on warming; define "field-cooled (FC) susceptibility" as the susceptibility measured while cooling the specimen in the
+      presence of the applied field $H$.
     prior: 0.7
   - step: 4
-    lambda: Using SAED and HRTEM, the authors confirm that the synthesized material contains grains of $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$
-      (Hg-1223), $HgBa_{2}CaCuO_{6+x}$ (Hg-1212), and ordered superstructures. The lattice constants are determined as $c=12.7(2)\mathring{A}$
-      for Hg-1212 and $c=16.1(3)\mathring{A}$ for Hg-1223, with $a=3.93(7)\mathring{A}$.
-    prior: 0.7
+    ref: average_mass_density_assumption
   - step: 5
-    lambda: 'Magnetic susceptibility $\chi(T)$ is measured using a SQUID magnetometer.
-
-      The authors observe an onset of diamagnetism at $T_{c} \approx 133.5 \text{ K}$ in both Field Cooling (FC) and Zero-Field
-      Cooling (ZFC) experiments.'
+    lambda: "State the observation that in the ZFC measurement the low-temperature susceptibility $\\chi(T=6\\ \\mathrm{K})$\
+      \ attains approximately $100\\%$ of the ideal superconducting screening value $1/4\\pi$ (where $1/4\\pi$ denotes the\
+      \ ideal demagnetizing-free susceptibility of a perfectly diamagnetic superconductor in cgs units), under the assumption\
+      \ of an average mass density $\\rho\\approx6\\ \\mathrm{g\\,cm^{-3}}$ for the specimen; this is reported as indicating\
+      \ complete magnetic screening of the sample at $T=6\\ \\mathrm{K}$.\n [Fig. 2]"
     prior: 0.7
+    refs:
+    - setting.average_mass_density_assumption
   - step: 6
-    lambda: Using the assumed density [@assumption-6], the ZFC susceptibility at 6 K corresponds to $\sim 100\%$ screening
-      ($1/4\pi$). The FC susceptibility reaches $\sim 10\%$ of the maximum possible value. The authors interpret this FC value
-      as a lower bound for the superconducting volume fraction, indicating bulk superconductivity.
+    lambda: Define the assumed mass density symbol $\rho$ as $\rho\approx6\ \mathrm{g\,cm^{-3}}$, the value the authors used
+      to convert measured magnetization into an approximate superconducting-volume fraction; note that this assumption is
+      explicitly invoked by the authors rather than derived.
     prior: 0.7
   - step: 7
-    lambda: Electrical resistivity $R(T)$ is measured. The authors observe a sharp drop in resistivity at $T \approx 132.5
-      \text{ K}$ (maximum in $dR/dT$) and zero resistance at $T = 95 \text{ K}$.
-    prior: 0.7
+    ref: field_cooled_underestimates_volume_fraction
   - step: 8
-    ref: previous_record_transition_temperature
+    lambda: "Report the observation that the FC susceptibility reaches roughly $10\\%$ of the maximum possible value at low\
+      \ temperature (i.e., $\\sim10\\%$ of $1/4\\pi$) for the same measurement, and interpret this as a lower-bound estimate\
+      \ of the true superconducting volume fraction in the sample because field-cooling measurements can underestimate the\
+      \ screened fraction compared with ZFC measurements.\n [Fig. 2]"
+    prior: 0.7
+    refs:
+    - setting.field_cooled_underestimates_volume_fraction
   - step: 9
-    lambda: The observed onset temperature of $\sim 133.5 \text{ K}$ is compared to the previous record of 125–127 K found
-      in the Tl-system [@premise-4], establishing the new result as distinctly higher.
+    lambda: "Report the observation that the diamagnetic onset temperature (the temperature where $\\chi(T)$ first departs\
+      \ from the normal-state value toward diamagnetism) is $T_{c}\\approx133.5\\,$K, seen in both ZFC and FC measurements;\
+      \ record $T_{c}$ as the onset temperature of superconducting diamagnetism in this oxygen-annealed specimen.\n [Fig.\
+      \ 2]"
     prior: 0.7
   - step: 10
-    ref: tc_scaling_in_tl_based_systems
+    ref: fc_60_percent_indicates_dominant_phase
   - step: 11
-    lambda: 'The FC susceptibility reaches $\sim 60\%$ of its full low-temperature value at 125 K. The authors argue this
-      indicates the phase with $T_{c} \approx 133.5 \text{ K}$ dominates the superconducting volume.
-
-      Based on the microscopic observation that Hg-1223 is the dominant phase in the grains investigated, and the analogy
-      that $T_c$ increases with layer number [@premise-3], the authors conclude that Hg-1223 is responsible for the superconductivity
-      at $\sim 133$ K.'
+    lambda: "State the additional FC-data observation that the FC susceptibility reaches approximately $60\\%$ of its full\
+      \ low-temperature FC value by $T=125\\,$K, which the authors take as \"strongly indicating\" that the phase with $T_{c}\\\
+      approx133.5\\,$K dominates the superconducting response near 125 K.\n [Fig. 2]"
     prior: 0.7
+    refs:
+    - setting.fc_60_percent_indicates_dominant_phase
   - step: 12
-    ref: discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu
+    ref: zfc_subsidiary_features_as_distinct_superconducting_phases
+  - step: 13
+    lambda: "Report the ZFC-curve observation of subsidiary diamagnetic features (additional decreases in $\\chi(T)$) at $T\\\
+      approx126\\,$K and at $T\\approx112\\,$K; define these features as distinct steps or shoulders in the ZFC susceptibility\
+      \ curve and record the authors' interpretation that these indicate the presence of several distinct superconducting\
+      \ phases within the multiphase specimen.\n [Fig. 2]"
+    prior: 0.7
+    refs:
+    - setting.zfc_subsidiary_features_as_distinct_superconducting_phases
+  - step: 14
+    lambda: "Explicitly record that the authors treat the magnetic evidence (the high onset $T_{c}\\approx133.5\\,$K, the\
+      \ full ZFC screening at low temperature under the stated density assumption, the partial FC shielding fraction, and\
+      \ the additional ZFC features) as demonstrating bulk superconducting diamagnetism in the oxygen-annealed HBCCO specimen,\
+      \ while also acknowledging that multiphase behavior is present.\n [Fig. 2]"
+    prior: 0.7
+  - step: 15
+    ref: magnetic_detection_of_superconductivity_with_onset_near_1335_k_and_multi_phase_m
 - type: chain_expr
-  name: chain_2
+  name: chain_electrical_resistivity_behavior_sharp_drop_near_1325_k_and_zero_resistance_at_95
   edge_type: deduction
   steps:
   - step: 1
-    lambda: Based on the structural similarity to thallium-based copper oxides, the authors hypothesize the existence of the
-      Hg-based homologous series $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$, specifically expecting phases corresponding to $n=2$
-      (Hg-1212) and $n=3$ (Hg-1223).
+    lambda: "Define the four-probe resistivity measurement as the temperature-dependent electrical resistance $R(T)$ measured\
+      \ with a standard four-probe a.c.-resistance bridge; the particular specimen discussed was an oxygen-annealed HBCCO\
+      \ pellet whose resistance was normalized to $R(300)\\approx0.10\\ \\Omega$ for presentation.\n [Fig. 3]"
     prior: 0.7
   - step: 2
-    ref: sample_preparation
+    lambda: "State the observation that $R(T)$ exhibits a sharp drop starting at high temperature, with the temperature derivative\
+      \ $dR/dT$ showing a clear maximum at $T\\approx132.5\\,$K; the inset of the resistivity plot displays $dR/dT$ to make\
+      \ this maximum explicit.\n [Fig. 3]"
+    prior: 0.7
   - step: 3
-    lambda: The authors synthesized a black material using the precursor method described in [@premise-2].
-    prior: 0.7
+    ref: dR_dT_max_as_transition_indicator
   - step: 4
-    ref: eds_composition_analysis
+    lambda: "Define the symbol $dR/dT$ as the temperature derivative of the resistance $R(T)$, and record that the maximum\
+      \ in $dR/dT$ is used by the authors to indicate the temperature where the resistive transition is most rapid, here at\
+      \ $T\\approx132.5\\,$K.\n [Fig. 3]"
+    prior: 0.7
+    refs:
+    - setting.dR_dT_max_as_transition_indicator
   - step: 5
-    lambda: Using EDS, the authors identified that ~15% of the synthesized material consists of plate-like grains containing
-      the target elements Hg, Ba, Ca, and Cu [@premise-3].
-    prior: 0.7
+    ref: zero_resistance_interpreted_as_true_superconducting_state
   - step: 6
-    ref: microscopic_structural_identification
+    ref: zero_resistance_resolution_note
   - step: 7
-    lambda: The authors investigated these specific grains using SAED and HRTEM, confirming the presence of distinct Hg-1223
-      and Hg-1212 phases, as well as disordered mixtures and periodic stackings [@premise-4].
+    lambda: "Report the experimental observation that $R(T)$ reaches exactly zero resistance (within the instrumental resolution\
+      \ of the four-probe a.c.-resistance bridge used) at $T=95\\,$K; explicitly state that \"zero resistance\" here means\
+      \ \"below the resolution limit of the bridge\" as the authors do.\n [Fig. 3]"
     prior: 0.7
+    refs:
+    - setting.zero_resistance_interpreted_as_true_superconducting_state
+    - setting.zero_resistance_resolution_note
   - step: 8
-    ref: xrd_limitation
+    ref: oxygen_annealing_causes_Tc_increase
   - step: 9
-    lambda: Due to the insufficient volume fraction for precise X-ray diffraction analysis [@premise-5], the authors utilized
-      SAED patterns to deduce the lattice constants.
+    lambda: "State the comparative observation that as-sintered (that is, not oxygen-annealed) samples showed a maximum observed\
+      \ $T_{c}$ of only $\\sim117\\,$K, and conclude (as the authors do) that the final oxygen annealing treatment was very\
+      \ effective in increasing the maximum observed transition temperature up to the present onset near $132.5$–$133.5\\\
+      ,$K.\n [Fig. 3]"
     prior: 0.7
+    refs:
+    - setting.oxygen_annealing_causes_Tc_increase
   - step: 10
-    lambda: From the SAED patterns, the authors calculated the tetragonal lattice parameters to be $a=3.93(7)\AA$ for both
-      phases, $c=12.7(2)\AA$ for the Hg-1212 units, and $c=16.1(3)\AA$ for the Hg-1223 units.
+    lambda: "Record the authors' combined transport conclusion: the resistivity data provide a high-temperature resistive\
+      \ anomaly with onset near $132.5\\,$K (maximum $dR/dT$ there) and a zero-resistance state at $95\\,$K in the annealed\
+      \ specimen, and oxygen annealing raised the observed onset temperature compared with as-sintered material.\n [Fig. 3]"
     prior: 0.7
   - step: 11
-    ref: superstructure_observation
+    ref: electrical_resistivity_behavior_sharp_drop_near_1325_k_and_zero_resistance_at_95
+- type: chain_expr
+  name: chain_structural_identification_of_hg_1223_hg_1212_and_a_long_period_superstructure_la
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: 'Define the structural characterization methods used: X-ray diffraction by the Guinier technique (for bulk powder
+      diffraction), energy-dispersive X-ray spectrometry (EDX/EDS) for local elemental analysis, selected-area electron-diffraction
+      (SAED) for local reciprocal-lattice information, and high-resolution transmission electron microscopy (HRTEM) for real-space
+      imaging of lattice planes and stacking sequences; these techniques were applied to the oxygen-annealed black material
+      and to individual plate-like grains extracted from it.'
+    prior: 0.7
+  - step: 2
+    lambda: Report the EDX/EDS compositional observation that about $15\%$ of the total sample volume consisted of plate-like
+      grains containing Hg, Ba, Ca and Cu; state that some of these plate-like grains were selected for detailed SAED and
+      HRTEM analysis.
+    prior: 0.7
+  - step: 3
+    ref: saed_hrtem_phase_identification
+  - step: 4
+    lambda: "State the SAED/HRTEM structural observation that the plate-like Hg–Ba–Ca–Cu-containing grains \"consist mostly\
+      \ of pure $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223), disordered mixtures of Hg-1223 and $HgBa_{2}CaCu_{2}O_{6+x}$ (Hg-1212),\
+      \ and a periodic stacking sequence of the latter unit cells\"; record that this is the authors' identification based\
+      \ on the electron-diffraction patterns and high-resolution imaging.\n [Fig. 1]"
+    prior: 0.7
+    refs:
+    - setting.saed_hrtem_phase_identification
+  - step: 5
+    ref: guinier_limitation_small_volume_fraction
+  - step: 6
+    lambda: Explain that accurate bulk lattice-constant determination by X-ray Guinier diffraction was not possible because
+      the volume fraction of the phases of interest is small; consequently, the authors deduced lattice-parameter values from
+      SAED patterns instead.
+    prior: 0.7
+    refs:
+    - setting.guinier_limitation_small_volume_fraction
+  - step: 7
+    ref: saed_lattice_constants_deduction
+  - step: 8
+    lambda: 'State the numerical lattice-constant deductions from SAED: for the tetragonal Hg-1212 unit $c=12.7(2)\ \mathring{\mathrm{A}}$
+      (where $\mathring{\mathrm{A}}$ denotes an angstrom), for the tetragonal Hg-1223 unit $c=16.1(3)\ \mathring{\mathrm{A}}$,
+      and for both unit types $a=3.93(7)\ \mathring{\mathrm{A}}$; record that the parenthetical uncertainties are those reported
+      by the authors.'
+    prior: 0.7
+    refs:
+    - setting.saed_lattice_constants_deduction
+  - step: 9
+    ref: superstructure_extent_qualifies_as_phase
+  - step: 10
+    lambda: "Describe the HRTEM image-based observation that a representative grain in $[100]$ orientation shows a stacking\
+      \ sequence (given by the authors as example) 1223/1223/1212/1212/1223/1213, which produces a supercell with $c\\approx86.4\\\
+      \ \\mathring{\\mathrm{A}}$ and that this stacking extends beyond $2{,}000\\ \\mathring{\\mathrm{A}}$, thereby qualifying\
+      \ the superstructure as a distinct phase rather than a finite-size faulted region.\n [Fig. 1]"
+    prior: 0.7
+    refs:
+    - setting.superstructure_extent_qualifies_as_phase
+  - step: 11
+    lambda: "Record the negative structural observation that both HRTEM images and SAED patterns gave no evidence for the\
+      \ presence of Hg-1201-type grains or for HgO double layers in the examined grains; treat this absence as an explicit\
+      \ experimental observation reported by the authors.\n [Fig. 1]"
+    prior: 0.7
   - step: 12
-    lambda: The authors further confirmed the existence of ordered superstructures through HRTEM imaging, which displayed
-      a periodic stacking of Hg-1212 and Hg-1223 units with a supercell c-axis of $c \approx 86.4 \AA$ [@premise-6].
+    lambda: "Summarize the authors' structural conclusion: the plate-like grains analyzed by SAED and HRTEM are identified\
+      \ predominantly as Hg-1223, as disordered Hg-1223/Hg-1212 mixtures, and as an ordered long-period superstructure of\
+      \ these unit cells, and numerical lattice constants $c=12.7(2)\\ \\mathring{\\mathrm{A}}$ (Hg-1212), $c=16.1(3)\\ \\\
+      mathring{\\mathrm{A}}$ (Hg-1223), and $a=3.93(7)\\ \\mathring{\\mathrm{A}}$ (both) are deduced from the electron-diffraction\
+      \ data.\n [Fig. 1]"
     prior: 0.7
   - step: 13
-    ref: identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters
+    ref: structural_identification_of_hg_1223_hg_1212_and_a_long_period_superstructure_la
 - type: chain_expr
-  name: chain_3
+  name: chain_sample_phase_composition_determined_by_edx_and_phase_fractions
   edge_type: deduction
   steps:
   - step: 1
-    lambda: Measurements of magnetic susceptibility and resistivity in the synthesized Hg-Ba-Ca-Cu-O samples reveal a superconducting
-      transition with an onset temperature $T_{c} \approx 133.5$ K.
+    lambda: Define energy-dispersive X-ray spectrometry (EDX or EDS) as the local compositional analysis technique applied
+      to the bulk annealed black material and to individual grains; also define "bulk characterization" to include X-ray Guinier
+      diffraction as used by the authors.
     prior: 0.7
   - step: 2
-    lambda: The field-cooling (FC) susceptibility at 125 K reaches $\sim 60\%$ of its full low-temperature value, indicating
-      that the phase responsible for the $T_{c} \approx 133.5$ K transition is volumetrically dominant among the superconducting
-      phases present.
-    prior: 0.7
+    ref: edx_volume_fraction_estimates
   - step: 3
-    lambda: Structural characterization using SAED and HRTEM identifies grains consisting of $HgBa_{2}CaCu_{2}O_{6+x}$ (Hg-1212,
-      $n=2$) and $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223, $n=3$), as well as ordered superstructures, within the sample.
-    prior: 0.7
+    ref: edx_sampling_representativeness
   - step: 4
-    lambda: Microscopic analysis determines that the identified grains containing Hg, Ba, Ca, and Cu consist mostly of the
-      Hg-1223 phase.
+    lambda: 'State the quantitative EDX/bulk-composition findings reported by the authors for the annealed black material:
+      approximately $30\%$ by volume of $BaCuO_{2}$ grains, approximately $30\%$ by volume of $CuO$ grains, roughly $15\%$
+      by volume of an unidentified oxide containing Hg, Ca and Cu, less than $5\%$ by volume of an oxide containing Ca and
+      Cu, about $5\%$ of unspecified impurities, and about $15\%$ of the total volume consisting of plate-like Hg–Ba–Ca–Cu-containing
+      grains (the grains that HRTEM/SAED associate with Hg-1223/Hg-1212).'
     prior: 0.7
+    refs:
+    - setting.edx_volume_fraction_estimates
+    - setting.edx_sampling_representativeness
   - step: 5
-    ref: empirical_trend_in_tl_and_bi_copper_oxides
+    lambda: Record that the authors used these EDX-derived volume-fraction estimates to emphasize that the sample is a multiphase
+      composite and that only a minority fraction (about $15\%$) of the sample volume consists of the plate-like Hg-containing
+      grains of interest for associating structure with superconductivity.
+    prior: 0.7
   - step: 6
-    lambda: Based on the trend observed in thallium and bismuth systems [@premise-2], and given that the $n=1$ phase (Hg-1201)
-      has a $T_{c}$ of 94 K [@premise-1], the authors infer that the transition temperatures in the Hg-system should increase
-      with the number of $CuO_{2}$ layers ($n$).
+    lambda: Note that the authors explicitly connect the EDX compositional inventory to subsequent interpretation of magnetic
+      and transport data by stating that the relatively small volume fraction of Hg-containing plate-like grains limits the
+      ability to perform precise bulk crystallographic measurements and complicates definitive phase-resolved attribution
+      of superconducting signals.
     prior: 0.7
   - step: 7
-    lambda: The authors correlate the dominance of the Hg-1223 phase observed in microscopy with the dominance of the high-$T_{c}$
-      signal ($\sim 133$ K) in susceptibility measurements. Combining this with the expectation that the $n=3$ phase (Hg-1223)
-      should have a higher $T_{c}$ than the $n=1$ phase (94 K) or $n=2$ phase, they attribute the $\sim 133$ K transition
-      to Hg-1223.
-    prior: 0.7
-  - step: 8
-    ref: attribution_of_highest_tc_to_the_three_layer_hg_1223_phase
+    ref: sample_phase_composition_determined_by_edx_and_phase_fractions
 - type: chain_expr
-  name: chain_4
+  name: chain_suggested_assignment_of_the_sim133_k_superconducting_phase_to_hg_1223_hypothesis
   edge_type: deduction
   steps:
   - step: 1
-    lambda: The authors prepared samples by mixing a precursor material $Ba_{2}CaCu_{2}O_{5}$ (obtained from nitrates sintered
-      at $900^{\circ}C$ in $O_{2}$) with powdered $HgO$. The mixture was pressed into pellets, sealed in evacuated quartz
-      tubes, and heated at $800^{\circ}C$ for 5 hours.
+    lambda: Treat as established the upstream result "Magnetic detection of superconductivity with onset near $133.5\,$K and
+      multi-phase magnetic signature" (conclusion id="1"), which provides that an oxygen-annealed HBCCO specimen displays
+      superconducting diamagnetism with onset $T_{c}\approx133.5\,$K, a large relative superconducting volume fraction near
+      $125\,$K (FC susceptibility reaching $\sim60\%$ of low-$T$ value), and multiple superconducting features in ZFC at $126\,$K
+      and $112\,$K.
     prior: 0.7
   - step: 2
-    lambda: The authors noted that upon opening the steel containers, the quartz tubes were found to be broken, implying an
-      uncontrolled atmosphere during the cooling or late heating stage.
+    lambda: "Treat as established the upstream result \"Structural identification of Hg-1223, Hg-1212 and a long-period superstructure;\
+      \ lattice constants deduced\" (conclusion id=\"3\"), which provides that plate-like grains comprising $\\sim15\\%$ of\
+      \ the sample volume consist mostly of Hg-1223, disordered Hg-1223/Hg-1212 mixtures, and an ordered superstructure, and\
+      \ that Hg-1223 is the dominant phase seen microscopically in those grains.\n [Fig. 1]"
     prior: 0.7
   - step: 3
-    lambda: The authors characterized the samples in their "as-sintered" state (before any post-synthesis annealing) and observed
-      a maximum superconducting transition temperature ($T_{c}$) of only $\sim 117$ K.
-    prior: 0.7
+    ref: assignment_of_superconductivity_to_hg_grains
   - step: 4
-    lambda: 'A subset of the synthesized pellets was subjected to a specific post-synthesis annealing process: heating for
-      5 hours at $300^{\circ}C$ in flowing oxygen.'
+    lambda: "Combine these upstream observations: since (a) the magnetic data indicate a dominant superconducting phase whose\
+      \ diamagnetic onset is $T_{c}\\approx133.5\\,$K and which dominates the magnetic signal near 125 K, and (b) the microscopic\
+      \ structural study shows that Hg-1223 is dominant among the plate-like Hg-containing grains investigated, infer that\
+      \ it is plausible to assign the $\\sim133\\,$K superconducting phase to Hg-1223.\n [Fig. 2]\n [Fig. 1]"
     prior: 0.7
+    refs:
+    - setting.assignment_of_superconductivity_to_hg_grains
   - step: 5
-    lambda: Resistivity measurements on the oxygen-annealed samples showed a sharp drop in resistivity starting at a maximum
-      temperature of $T \approx 132.5$ K, reaching zero resistance at 95 K.
-    prior: 0.7
+    ref: assignment_presented_as_hypothesis
   - step: 6
-    lambda: Magnetic susceptibility measurements (Zero-Field Cooling and Field Cooling) on the oxygen-annealed samples revealed
-      an onset of diamagnetism at $T_{c} \approx 133.5$ K.
+    lambda: 'Explicitly state the authors'' caution: this assignment is presented as a suggested, plausible interpretation
+      rather than as a definitive identification, because the sample is multiphase (only $\sim15\%$ by volume are the Hg-containing
+      plate-like grains), single-phase material was not available, and no phase-resolved transport or magnetic measurements
+      tying a single crystallographic phase to the superconducting transition were performed; therefore there is no unambiguous
+      proof linking the $\sim133\,$K superconductivity to Hg-1223.'
     prior: 0.7
+    refs:
+    - setting.assignment_presented_as_hypothesis
   - step: 7
-    lambda: Using the assumed density [@assumption-4], the authors calculated that the zero-field cooling susceptibility corresponded
-      to $\sim 100\%$ screening, and field-cooling susceptibility reached $\sim 10\%$ (and $\sim 60\%$ of its low-T value
-      at 125 K), confirming that the phase with $T_{c} \approx 133.5$ K is a dominant bulk phase.
-    prior: 0.7
+    ref: analogy_with_thallium_bismuth_cuprates
   - step: 8
-    lambda: 'The authors compared the transition temperatures obtained from the two processing conditions: $\sim 133$ K for
-      the oxygen-annealed samples versus $\sim 117$ K for the as-sintered samples.'
+    lambda: "Record the authors' contextual analogy and heuristic support for the suggestion: by analogy with thallium- and\
+      \ bismuth-based multi-CuO$_{2}$ layered cuprates (the authors cite prior work on these systems), where transition temperature\
+      \ $T_{c}$ tends to increase with the number of CuO$_{2}$ layers per unit cell, it is consistent with expectations that\
+      \ the three-layer Hg-1223 phase could exhibit a higher $T_{c}$ than single- or two-layer Hg-based phases; the authors\
+      \ therefore present Hg-1223 as the most plausible candidate for the $\\sim133\\,$K phase while acknowledging the lack\
+      \ of definitive proof.\n [[5]]"
     prior: 0.7
+    refs:
+    - setting.analogy_with_thallium_bismuth_cuprates
   - step: 9
-    lambda: Based on the significant increase in $T_{c}$ from $\sim 117$ K to $\sim 133$ K, the authors deduced that the final
-      oxygen treatment at $300^{\circ}C$ was effective and necessary to achieve the higher transition temperature.
+    lambda: 'Reiterate the explicit scientific framing the authors provide: the suggested attribution of the $\sim133\,$K
+      superconductivity to Hg-1223 is a hypothesis pending phase-pure synthesis and phase-resolved measurements, and the authors
+      emphasize that definitive confirmation requires synthesis of single-phase Hg-1223 material and direct phase-resolved
+      correlation of structure, composition and superconducting properties.'
     prior: 0.7
   - step: 10
-    ref: critical_role_of_oxygen_annealing
+    ref: suggested_assignment_of_the_sim133_k_superconducting_phase_to_hg_1223_hypothesis
 export:
-- discovery_of_superconductivity_with_record_transition_temperature_in_hg_ba_ca_cu
-- identification_of_hg_1212_and_hg_1223_phases_and_lattice_parameters
-- attribution_of_highest_tc_to_the_three_layer_hg_1223_phase
-- critical_role_of_oxygen_annealing
+- magnetic_detection_of_superconductivity_with_onset_near_1335_k_and_multi_phase_m
+- electrical_resistivity_behavior_sharp_drop_near_1325_k_and_zero_resistance_at_95
+- structural_identification_of_hg_1223_hg_1212_and_a_long_period_superstructure_la
+- sample_phase_composition_determined_by_edx_and_phase_fractions
+- suggested_assignment_of_the_sim133_k_superconducting_phase_to_hg_1223_hypothesis

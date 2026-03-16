@@ -1,0 +1,27 @@
+type: setting_module
+name: follow_up
+title: Open Questions — 2512_Superconductivity
+knowledge:
+- type: question
+  name: open_questions
+  content: 'The paper explicitly identifies several unresolved scientific and technical issues requiring further work: (i)
+    the accuracy and applicability of DFPT-derived electron–phonon coupling $\lambda$ in strongly correlated materials and
+    complex band-structure systems (for example transition metals with multiband screening and substantial core-electron contributions)
+    remains an open question and requires development of appropriate EFT-based benchmarking and corrections; (ii) implementing
+    high-order diagrammatic renormalization and VDiagMC-type computations for lattice systems with complex band structure
+    (loss of spherical symmetry, important Umklapp processes, multiple screening channels) is a major technical challenge
+    and a necessary step to extend the present UEG-based results to those materials; (iii) two-dimensional systems and other
+    settings with gapless or weakly gapped plasmon modes (e.g., isolated 2D electron gases without substrate screening) violate
+    the plasmon-gap assumption used to justify decoupling of high- and low-energy sectors, so a careful treatment (potentially
+    full BSE without downfolding) is required and remains to be developed; (iv) in regimes where the plasmon frequency softens
+    (extremely high densities or exotic astrophysical conditions), or where strong electronic collective modes emerge, the
+    present downfolding is no longer controlled and the correct theoretical treatment of Coulomb and electron–phonon interplay
+    is unresolved; (v) the homotopic resummation protocol relies on an assumed analyticity of the diagrammatically generated
+    function $\gamma_{T}(\xi)$ and while an a posteriori numerical consistency check is provided, a rigorous proof of analyticity
+    and further mathematical control of the conformal-map/resummation step remain open; (vi) quantitative extension to materials
+    where conduction and core bands are not well separated, where Umklapp scattering is strong, or where spin-fluctuation
+    contributions to pairing are important will require the design and benchmarking of computationally tractable many-body
+    schemes that incorporate those effects without uncontrolled approximations.'
+  prior: 0.5
+export:
+- open_questions

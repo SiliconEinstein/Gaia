@@ -1,0 +1,25 @@
+type: setting_module
+name: motivation
+title: Motivation — 363056a0
+knowledge:
+- type: setting
+  name: research_motivation
+  content: 'Prior to this work there was an empirical and theoretical expectation, drawn from the families of layered copper-oxide
+    superconductors, that the superconducting transition temperature $T_{c}$ could increase when the number of CuO$_{2}$ planes
+    per crystallographic unit cell is raised. A mercury-based compound, $HgBa_{2}CuO_{4+\delta}$, had been shown to superconduct
+    at $T_{c}=94\,$K, but compounds in the $Hg$–$Ba$–$Ca$–$Cu$–$O$ (HBCCO) family with more than one CuO$_{2}$ layer per cell
+    had not been demonstrated experimentally as superconductors with high $T_{c}$. Syntheses reported earlier (including attempts
+    to make $Hg$-1212) either failed to produce superconductivity or produced poorly characterized multiphase material. As
+    a consequence, it remained unresolved whether layered $Hg$-based multi-CuO$_{2}$ unit-cell compounds could realize $T_{c}$
+    values exceeding those known from thallium- and bismuth-based analogues, and there was no reliable structural, compositional
+    and transport dataset linking specific HBCCO crystallographic phases to superconducting transitions above 100 K. This
+    gap prevented: (a) an experimental test of the conjecture that $T_{c}$ rises with the number of CuO$_{2}$ planes in Hg-based
+    systems; (b) determination of intrinsic $T_{c}$ values for pure HBCCO phases and their dependence on oxygen treatment;
+    and (c) microscopic correlation between specific HBCCO unit cells (for example $Hg$-1212 versus $Hg$-1223) and measured
+    magnetic and transport superconducting signatures. The resulting scientific consequence was that claims about record high
+    $T_{c}$ in mercury-containing multi-layer cuprates lacked direct phase-resolved structural and compositional evidence,
+    leaving unresolved whether observed high-temperature diamagnetism and resistive transitions originate from identified
+    $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$ phases or from minor, unidentified, or intergrown impurity phases.'
+  prior: 0.9
+export:
+- research_motivation

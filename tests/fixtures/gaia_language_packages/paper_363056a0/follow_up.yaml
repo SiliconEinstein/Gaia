@@ -1,0 +1,21 @@
+type: setting_module
+name: follow_up
+title: Open Questions — 363056a0
+knowledge:
+- type: question
+  name: open_questions
+  content: 'The study leaves several explicit unresolved scientific issues: (1) There is no unambiguous, phase-resolved proof
+    that the observed superconductivity (onset near $133\,$K and resistive behavior) arises from members of the $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$
+    family rather than from unidentified or minority impurity phases. The authors state they cannot presently relate the different
+    superconducting transitions to specific crystallographic phases. (2) Precise lattice-parameter determination by X-ray
+    methods was not possible because the volume fraction of the phases of interest is small; therefore accurate bulk crystallographic
+    characterization of single-phase HBCCO materials remains to be achieved. (3) The disparity between the magnetically determined
+    onset temperature ($\sim133.5\,$K) and the temperature of zero resistivity ($95\,$K) in the present multiphase specimens
+    points to unresolved issues of phase inhomogeneity, percolation pathways or intergrain coupling that must be clarified
+    by synthesis of larger-volume, single-phase material and by phase-resolved transport measurements. (4) Reproducible synthesis
+    protocols that yield phase-pure Hg-1223 (or other specific HBCCO phases) with controlled oxygen stoichiometry, and subsequent
+    definitive correlation between structure, composition and intrinsic $T_{c}$, are required to validate or refute the suggested
+    assignment of the $\sim133\,$K superconductivity to Hg-1223.'
+  prior: 0.5
+export:
+- open_questions

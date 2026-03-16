@@ -1,0 +1,183 @@
+type: setting_module
+name: setting
+title: Settings — Sak-1977
+knowledge:
+- type: setting
+  name: expectation_S_squared_order_epsilon
+  content: The expectation value $\langle S^{2}\rangle$ of the local squared spin field $S^{2}(\vec{x})\equiv\sum_{\alpha=1}^{n-1}S_{\alpha}^{2}(\vec{x})$,
+    where $S_{\alpha}(\vec{x})$ are the $n-1$ independent components of a classical $O(n)$ spin field after eliminating the
+    component $S_{n}$ via the constraint $\sum_{i=1}^{n}S_{i}^{2}(\vec{x})=1$, in spatial dimension $d=2+\epsilon$ with small
+    positive parameter $\epsilon$ and number of spin components $n>2$, satisfies $\langle S^{2}\rangle=O(\epsilon)$ (i.e.,
+    $\langle S^{2}\rangle$ is proportional to $\epsilon$ to leading order), so that when expanding $(1-S^{2})^{1/2}$ in powers
+    of $S^{2}$ it is sufficient to retain terms up to order $S^{2}$ (giving quartic interactions in the Fourier representation)
+    to obtain results correct to first order in $\epsilon$.
+  prior: 0.85
+  dependency: direct
+- type: setting
+  name: jacobian_ignored_first_order
+  content: For the classical $O(n)$ spin field with components $S_{i}(\vec{x})$, $i=1,\dots,n$, subject to the local constraint
+    $\sum_{i=1}^{n}S_{i}^{2}(\vec{x})=1$, the functional integral Jacobian factor that arises when eliminating the component
+    $S_{n}(\vec{x})$ and expressing the theory in terms of the remaining $n-1$ fields $S_{\alpha}(\vec{x})$ ($\alpha=1,\dots,n-1$)
+    contributes only terms that are of order higher than first order in the small parameter $\epsilon$ in the low-temperature
+    expansion about $d=2+\epsilon$, and therefore this Jacobian can be neglected when deriving the renormalization-group recursion
+    relations to first order in $\epsilon$.
+  prior: 0.75
+  dependency: direct
+- type: setting
+  name: diagrammatic_recursions_validity
+  content: "Consider the Fourier-space effective Hamiltonian for the $n-1$ fields $S_{\\alpha}(\\vec{k})$ defined on momenta\
+    \ $|\\vec{k}|\\le 1$ with short-distance cutoff set by unit radius, with quadratic kinetic coefficients $a$ multiplying\
+    \ $k^{2}$ and $b$ multiplying $k^{\\sigma}$, temperature $T$ (in energy units), spatial dimension $d=2+\\epsilon$ with\
+    \ small $\\epsilon$, and long-range exponent $\\sigma$ with $2-\\sigma=O(\\epsilon)$. The first-order renormalization-group\
+    \ recursion relations for the running couplings $(a/T)$ and $(b/T)$ obtained by integrating out modes in the momentum\
+    \ shell $1/2<q<1$ and rescaling the momenta and fields (with field rescaling exponent $\\eta$ chosen to permit nontrivial\
+    \ fixed points) are given in analytical form by the pair of relations denoted in the paper as equations (6) and (7); these\
+    \ relations are obtained by evaluating the one-loop and related diagrams shown in Fig. 1 and by approximating certain\
+    \ shell integrals (e.g., extracting the small-$k$ $k^{2}$ contribution by setting $\\sigma=2$ and $d=2$ in the analytic\
+    \ part of the integrand) so that diagrammatic contributions such as $(k^{2}/2\\pi)\\ln2$ appear. The claim is that these\
+    \ analytic recursion relations correctly capture all contributions at first order in $\\epsilon$ necessary to locate fixed\
+    \ points and linearize flows.\n [Fig. 1]"
+  prior: 0.7
+  dependency: direct
+- type: setting
+  name: sigma_minus_two_order_epsilon
+  content: The long-range exponent $\sigma$ satisfies the scaling regime condition $2-\sigma=O(\epsilon)$ where $\epsilon=d-2$
+    is a small positive parameter, i.e., $\sigma$ is assumed to be close to 2 with the difference between 2 and $\sigma$ being
+    of the same asymptotic order in the expansion parameter $\epsilon$ used in the low-temperature renormalization-group analysis.
+  prior: 0.6
+  dependency: direct
+- type: setting
+  name: flow_T_over_a_b_zero
+  content: 'For the Fourier-space effective Hamiltonian with coefficients $a$ (for $k^{2}$) and $b=0$ (vanishing long-range
+    coupling), temperature $T$, spatial dimension $d=2+\epsilon$ with small $\epsilon$, and number of spin components $n>2$,
+    the renormalization-group transformation derived from the first-order recursion relations yields the multiplicative flow
+    equation for the combination $(T/a)$ at the order treated:
+
+    $$
+
+    \left(\frac{T}{a}\right)'' \;=\; 2^{-\epsilon}\left(\frac{T}{a}\right)\left(1+(n-2)\frac{T}{a}\frac{\ln2}{2\pi}\right),
+
+    $$
+
+    where primes denote the couplings after one RG step; this flow equation is used to linearize about the SR fixed-point
+    value of $(T/a)$ and to extract the thermal eigenvalue that defines the correlation-length exponent $\nu$ to leading order
+    in $\epsilon$.'
+  prior: 0.75
+  dependency: direct
+- type: setting
+  name: linearized_long_range_eigenvalue
+  content: 'At the short-range (SR) fixed point characterized by $b^{*}=0$, $(T/a)^{*}=2\pi\epsilon/(n-2)$, and SR anomalous-dimension
+    $\eta_{SR}$ (defined via the RG field rescaling $S_{\alpha}''(\vec{q}'')=2^{-(d+2-\eta)/2}S_{\alpha}(\vec{q})$), the linearization
+    of the first-order recursion relations in an infinitesimal long-range perturbation $\delta b/T$ yields the multiplicative
+    RG eigenvalue relation
+
+    $$
+
+    \big(\delta b/T\big)'' \;=\; 2^{\,2-\sigma-\eta_{SR}}\;\big(\delta b/T\big),
+
+    $$
+
+    valid to the order in which $2-\sigma=O(\epsilon)$ is treated; this eigenvalue is used to determine whether the LR perturbation
+    is relevant ($2-\sigma-\eta_{SR}>0$), marginal ($=$0), or irrelevant ($<0$).'
+  prior: 0.8
+  dependency: direct
+- type: setting
+  name: T_over_a_plus_b_fixed_point_relation
+  content: 'For the Fourier-space effective Hamiltonian with nonzero long-range coupling $b\neq0$, temperature $T$, coefficients
+    $a$ and $b$ for $k^{2}$ and $k^{\sigma}$ respectively, spatial dimension $d=2+\epsilon$ and number of spin components
+    $n>2$, equating the coefficients of the $k^{\sigma}$ terms in the first-order recursion relations at a fixed point (in
+    which the coefficient of $k^{\sigma}$ is invariant under the RG step) yields the algebraic relation for the LR fixed point:
+
+    $$
+
+    \Big(\frac{T}{\,a+b\,}\Big)^{*} \;=\; \frac{2\pi(d-\sigma)}{\,n-1\,},
+
+    $$
+
+    where $(\cdot)^{*}$ denotes the fixed-point value; this relation is obtained from the $k^{\sigma}$ sector of the diagrammatic
+    recursion relations to the order treated.'
+  prior: 0.7
+  dependency: direct
+- type: setting
+  name: b_over_a_fixed_point_relation
+  content: 'Using the fixed-point value of $T/(a+b)$ obtained from the $k^{\sigma}$ coefficient and substituting into the
+    $k^{2}$ coefficient relation of the first-order recursion relations for the case $b\neq0$, one obtains at the LR fixed
+    point the algebraic expression for the ratio of the long-range to short-range stiffness coefficients,
+
+    $$
+
+    \Big(\frac{b}{a}\Big)^{*} \;=\; \frac{n-2}{\,d-\sigma\,}\big(2-\sigma-\eta_{SR}\big),
+
+    $$
+
+    where $d=2+\epsilon$, $n>2$, $\eta_{SR}$ is the short-range anomalous-dimension exponent evaluated at the SR fixed point,
+    and this expression is obtained by solving the $k^{2}$ sector algebraic relation to the order treated.'
+  prior: 0.7
+  dependency: direct
+- type: setting
+  name: two_coupling_truncation_closure
+  content: For the low-temperature renormalization-group treatment of the classical $O(n)$ ferromagnet in $d=2+\epsilon$ with
+    quadratic short-range coefficient $a$ and long-range coefficient $b$, the truncation of the RG description to the two
+    coupling combinations $T/a$ and $T/b$ (or equivalently $T/(a+b)$ and $b/a$) is self-consistent to the first order in $\epsilon$
+    and $2-\sigma=O(\epsilon)$, in the sense that higher-order couplings generated by eliminating short-wavelength modes (e.g.,
+    six-point and higher interactions) do not change the first-order fixed-point coordinates $(T/(a+b))^{*}$ and $(b/a)^{*}$
+    obtained from the $k^{\sigma}$ and $k^{2}$ sectors of the recursion relations, and elimination of $b^{*}$ between those
+    two relations reproduces the $k^{2}$ recursion relation result for $(T/a)^{*}$.
+  prior: 0.65
+  dependency: direct
+- type: setting
+  name: flow_T_over_b_nonzero_b
+  content: 'For the Fourier-space effective Hamiltonian with nonzero long-range coefficient $b\neq0$, temperature $T$, coefficients
+    $a$ and $b$, spatial dimension $d=2+\epsilon$, and long-range exponent $\sigma$, the first-order recursion relations yield
+    the multiplicative renormalization-group flow equation for the thermal combination $(T/b)$ of the form
+
+    $$
+
+    \left(\frac{T}{b}\right)^{\prime}=2^{-d+\sigma}\left(\frac{T}{b}\right)\left(1+(\pi-1)\frac{T}{b}\frac{b}{a+b}\frac{\ln2}{2\pi}\right),
+
+    $$
+
+    where primes denote the values after one RG step; this flow equation is used to linearize about the LR fixed point and
+    to extract the leading-order thermal eigenvalue that defines $\nu_{\mathrm{LR}}$.'
+  prior: 0.7
+  dependency: direct
+- type: setting
+  name: rg_shell_and_rescaling
+  content: The renormalization-group transformation used in the analysis is defined by integrating out Fourier modes with
+    wave vectors in the shell $1/2<q<1$ (where the unit of inverse length is set by the short-distance cutoff) and then rescaling
+    momenta by $q'=2q\in[0,1]$ together with a field rescaling $S_{\alpha}'(\vec{q}')=2^{-(d+2-\eta)/2}S_{\alpha}(\vec{q})$,
+    where $\eta$ is an adjustable anomalous-dimension parameter chosen so that repeated application of this RG transformation
+    can produce a nontrivial fixed-point Hamiltonian rather than driving parameters to trivial limits.
+  prior: 0.7
+  dependency: indirect
+- type: setting
+  name: short_distance_cutoff_unit_sphere
+  content: All momentum-space integrals in the derivation are regulated by a short-distance cutoff implemented as an upper
+    bound on wave-vector magnitude; the integration regions are restricted to the ball $|\vec{k}|\le 1$ (the radius of this
+    ball is chosen as the unit of inverse length defining the cutoff), and the shell integrated out in the RG step is $1/2<|\vec{p}|<1$.
+  prior: 0.7
+  dependency: indirect
+- type: setting
+  name: analytic_expansion_shell_integrals
+  content: When evaluating one-loop and related shell integrals appearing in the diagrammatic recursion relations, expressions
+    of the form $\int_{1/2<p<1}d^{d}p\,\frac{a|\vec{k}-\vec{p}|^{2}+b|\vec{k}-\vec{p}|^{\sigma}}{a p^{2}+b p^{\sigma}}$ are
+    asserted to be analytic in the external momentum $\vec{k}$ for small $|\vec{k}|$ and expanded as $A+B k^{2}+\cdots$, and
+    in evaluating the diagrams to first order the authors set $\sigma=2$ and $d=2$ inside the analytic part to extract the
+    $k^{2}$ coefficient (producing terms such as $(k^{2}/2\pi)\ln2$); this analytic-expansion-and-evaluation step is used
+    as an intermediate technical approximation in the diagram calculations.
+  prior: 0.7
+  dependency: indirect
+export:
+- expectation_S_squared_order_epsilon
+- jacobian_ignored_first_order
+- diagrammatic_recursions_validity
+- sigma_minus_two_order_epsilon
+- flow_T_over_a_b_zero
+- linearized_long_range_eigenvalue
+- T_over_a_plus_b_fixed_point_relation
+- b_over_a_fixed_point_relation
+- two_coupling_truncation_closure
+- flow_T_over_b_nonzero_b
+- rg_shell_and_rescaling
+- short_distance_cutoff_unit_sphere
+- analytic_expansion_shell_integrals

@@ -1,0 +1,29 @@
+type: setting_module
+name: motivation
+title: Motivation — 10.1038s41467-021-25372-2
+knowledge:
+- type: setting
+  name: research_motivation
+  content: 'Prior to this work there was a clear, application-driven need to identify and experimentally validate hydrogen-rich
+    binary compounds that could realize superconductivity at or near room temperature under high pressure. Ab initio structure-prediction
+    studies had proposed yttrium hydrides (notably fcc-YH$_{10}$, hcp-YH$_{9}$ and bcc-YH$_{6}$) as among the most promising
+    candidates, with predicted critical temperatures (T$_{c}$) exceeding 250 K and, in some calculations, reaching or surpassing
+    room temperature. However, these theoretical predictions were inconsistent with one another: different groups reported
+    conflicting stability ranges and T$_{c}$ estimates (e.g., some studies predicted thermodynamic stability of fcc-YH$_{10}$
+    at several hundred GPa, while others found it unstable at T=0 K), and anharmonic and other effects were expected to alter
+    T$_{c}$ but were insufficiently constrained. Experimentally, only a few hydride systems had been reproducibly characterized
+    (e.g., H$_3$S, LaH$_{10}$), and yttrium hydrides lacked comprehensive, structure-resolved experimental data: there was
+    no consensus on which Y–H phases actually form under synthesis conditions, what their crystal structures and compositions
+    are, what pressure–temperature windows they occupy and decompose in, and what their superconducting properties (T$_{c}$,
+    isotope effect, upper critical field H$_{c2}$, coherence length $\xi$) are. These gaps prevented a definitive assessment
+    of (i) whether the highest-predicted phases such as fcc-YH$_{10}$ can be synthesized under realistic high-pressure/high-temperature
+    conditions, (ii) the quantitative accuracy of current ab initio predictions for T$_{c}$ and phase stability in the Y–H
+    system, and (iii) whether the superconductivity in synthesized yttrium hydrides is phonon-mediated and shares characteristic
+    electromagnetic parameters with other superhydrides. Because different theoretical works and at least one prior experimental
+    claim for very high T$_{c}$ in Y–H were contradictory and lacked accompanying structural characterization, a systematic
+    experimental study that couples synthesis, X-ray structural identification, electrical transport (including isotope substitution)
+    and magneto-transport under controlled pressures and temperatures was required to resolve which Y–H phases form, to measure
+    their intrinsic superconducting properties, and thereby to test and refine theoretical predictions.'
+  prior: 0.9
+export:
+- research_motivation

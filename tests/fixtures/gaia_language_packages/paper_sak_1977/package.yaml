@@ -1,0 +1,19 @@
+name: paper_sak_1977
+version: 1.0.0
+manifest:
+  description: Formalized from paper Sak-1977
+  authors: []
+  license: CC-BY-4.0
+modules:
+- motivation
+- setting
+- reasoning
+- follow_up
+export:
+- dividing_line_theorem_for_lr_versus_sr_critical_behavior_near_d2
+- short_range_fixed_point_coordinates_and_anomalous_dimension_near_d2
+- correlation_length_exponent_at_the_sr_fixed_point_leading_order
+- long_range_fixed_point_anomalous_dimension
+- lr_fixed_point_coupling_ratios_and_consistency_relations
+- correlation_length_exponent_at_the_lr_fixed_point_leading_order
+- linearized_rg_factor_for_a_long_range_perturbation_about_the_sr_fixed_point

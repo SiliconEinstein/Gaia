@@ -1,0 +1,599 @@
+type: reasoning_module
+name: reasoning
+title: Reasoning — Sak-1977
+knowledge:
+- type: ref
+  name: research_motivation
+  target: motivation.research_motivation
+- type: ref
+  name: expectation_S_squared_order_epsilon
+  target: setting.expectation_S_squared_order_epsilon
+- type: ref
+  name: jacobian_ignored_first_order
+  target: setting.jacobian_ignored_first_order
+- type: ref
+  name: diagrammatic_recursions_validity
+  target: setting.diagrammatic_recursions_validity
+- type: ref
+  name: sigma_minus_two_order_epsilon
+  target: setting.sigma_minus_two_order_epsilon
+- type: ref
+  name: flow_T_over_a_b_zero
+  target: setting.flow_T_over_a_b_zero
+- type: ref
+  name: linearized_long_range_eigenvalue
+  target: setting.linearized_long_range_eigenvalue
+- type: ref
+  name: T_over_a_plus_b_fixed_point_relation
+  target: setting.T_over_a_plus_b_fixed_point_relation
+- type: ref
+  name: b_over_a_fixed_point_relation
+  target: setting.b_over_a_fixed_point_relation
+- type: ref
+  name: two_coupling_truncation_closure
+  target: setting.two_coupling_truncation_closure
+- type: ref
+  name: flow_T_over_b_nonzero_b
+  target: setting.flow_T_over_b_nonzero_b
+- type: ref
+  name: rg_shell_and_rescaling
+  target: setting.rg_shell_and_rescaling
+- type: ref
+  name: short_distance_cutoff_unit_sphere
+  target: setting.short_distance_cutoff_unit_sphere
+- type: ref
+  name: analytic_expansion_shell_integrals
+  target: setting.analytic_expansion_shell_integrals
+- type: ref
+  name: short_range_fixed_point_coordinates_and_anomalous_dimension_near_d2
+  target: reasoning.short_range_fixed_point_coordinates_and_anomalous_dimension_near_d2
+- type: ref
+  name: long_range_fixed_point_anomalous_dimension
+  target: reasoning.long_range_fixed_point_anomalous_dimension
+- type: ref
+  name: lr_fixed_point_coupling_ratios_and_consistency_relations
+  target: reasoning.lr_fixed_point_coupling_ratios_and_consistency_relations
+- type: ref
+  name: linearized_rg_factor_for_a_long_range_perturbation_about_the_sr_fixed_point
+  target: reasoning.linearized_rg_factor_for_a_long_range_perturbation_about_the_sr_fixed_point
+- type: claim
+  name: dividing_line_theorem_for_lr_versus_sr_critical_behavior_near_d2
+  content: "For classical vector ferromagnets with n>2 components, spatial dimension d=2+ϵ with small ϵ>0, and two-body exchange\
+    \ whose Fourier-space small-k dispersion contains both a short-range $k^{2}$ term with coefficient $a$ and a long-range\
+    \ $k^{\\sigma}$ term with coefficient $b$, the following dividing-line statement holds at the level of the low-temperature\
+    \ (d=2+ϵ) renormalization-group (RG) analysis carried out to first order in $ϵ$ and to leading order in $2-\\sigma=O(ϵ)$:\
+    \ define $\\eta_{SR}$ as the anomalous-dimension exponent at the short-range fixed point (the exponent entering the field\
+    \ rescaling $S'(\\vec{q}')=2^{-(d+2-\\eta)/2}S(\\vec{q})$). Then the RG flow gives two distinct stable fixed points and\
+    \ domains of attraction separated by the line\n      $$\n      \\sigma \\;=\\; 2-\\eta_{SR}.\n      $$\n      If $\\eta_{SR}>2-\\\
+    sigma$ the long-range perturbation is irrelevant and the critical behavior is governed by the short-range fixed point\
+    \ (critical exponents depend on $d$ and $n$ but not on $\\sigma$). If $\\eta_{SR}<2-\\sigma$ the short-range fixed point\
+    \ is unstable to the long-range coupling and the critical behavior is governed by a long-range fixed point with $\\eta=\\\
+    eta_{LR}=2-\\sigma$ and with at least the correlation-length exponent $\\nu$ acquiring explicit dependence on $\\sigma$\
+    \ in addition to $d$ and $n$."
+  prior: 0.5
+- type: claim
+  name: short_range_fixed_point_coordinates_and_anomalous_dimension_near_d2
+  content: "Within the same low-temperature RG (d=2+ϵ) framework, the short-range (SR) fixed point is found to satisfy $b^{*}=0$\
+    \ (vanishing long-range coupling) and the SR fixed-point ratio of temperature to the short-range stiffness is\n      $$\n\
+    \      \\left(\\frac{T}{a}\\right)^{*} \\;=\\; \\frac{2\\pi\\,\\epsilon}{\\,n-2\\,},\n      $$\n      and the anomalous-dimension\
+    \ (field rescaling) exponent at this SR fixed point is, to leading order in $ϵ$,\n      $$\n      \\eta_{SR} \\;=\\; \\\
+    frac{\\epsilon}{\\,n-2\\,},\n      $$\n      where $d=2+\\epsilon$, $n>2$, $a$ is the coefficient of the $k^{2}$ term\
+    \ and $T$ is the temperature in energy units; the exponent $\\eta$ is defined by the field rescaling factor $S'(\\vec{q}')=2^{-(d+2-\\\
+    eta)/2}S(\\vec{q})$ used in the RG transformation."
+  prior: 0.5
+- type: claim
+  name: correlation_length_exponent_at_the_sr_fixed_point_leading_order
+  content: "For the SR fixed point identified in the d=2+ϵ RG analysis the correlation-length exponent $\\nu$ satisfies, to\
+    \ leading order in the small parameter $ϵ=d-2$,\n      $$\n      \\nu_{\\mathrm{SR}} \\;=\\; \\frac{1}{\\epsilon} \\;+\\\
+    ; O(1).\n      $$\n      The exponent $\\nu$ is defined here by the RG eigenvalue relation for the thermal coupling combination\
+    \ $(T/a)$,\n      $$\n      \\left(\\frac{T}{a}\\right)'\\;-\\;\\left(\\frac{T}{a}\\right)^{*}\\;=\\;2^{1/\\nu}\\Big[\\\
+    frac{T}{a}-\\left(\\frac{T}{a}\\right)^{*}\\Big].\n      $$"
+  prior: 0.5
+- type: claim
+  name: long_range_fixed_point_anomalous_dimension
+  content: "When the long-range coupling $b\\neq0$ drives the RG flow to a long-range (LR) fixed point in the d=2+ϵ low-temperature\
+    \ expansion, the anomalous-dimension exponent $\\eta$ at that LR fixed point is found exactly (to the order in which $2-\\\
+    sigma=O(ϵ)$ is treated) to be\n      $$\n      \\eta_{\\mathrm{LR}} \\;=\\; 2-\\sigma,\n      $$\n      i.e., the LR fixed\
+    \ point enforces the scaling relation that the small-wavevector dispersion exponent equals $2-\\eta$."
+  prior: 0.5
+- type: claim
+  name: lr_fixed_point_coupling_ratios_and_consistency_relations
+  content: "At the LR fixed point in the d=2+ϵ analysis the temperature-to-total-stiffness ratio and the ratio of the $k^{\\\
+    sigma}$ to $k^{2}$ coefficients are given, to leading order in small parameters, by the relations\n      $$\n      \\\
+    Big(\\frac{T}{\\,a+b\\,}\\Big)^{*} \\;=\\; \\frac{2\\pi(d-\\sigma)}{\\,n-1\\,},\n      $$\n      $$\n      \\Big(\\frac{b}{a}\\\
+    Big)^{*} \\;=\\; \\frac{n-2}{\\,d-\\sigma\\,}\\big(2-\\sigma-\\eta_{SR}\\big),\n      $$\n      and the recursion relations\
+    \ are self-consistent in that elimination of $b^{*}$ from these expressions also yields\n      $$\n      \\left(\\frac{T}{a}\\\
+    right)^{*} \\;=\\; 2\\pi(2-\\sigma).\n      $$\n      Here $d=2+\\epsilon$, $n>2$, $a$ and $b$ are the coefficients of\
+    \ the $k^{2}$ and $k^{\\sigma}$ terms, respectively, and $\\eta_{SR}$ is the SR anomalous exponent given in conclusion\
+    \ 2. These algebraic relations locate the LR fixed point and demonstrate internal consistency of the two-coupling RG flow\
+    \ to the order treated."
+  prior: 0.5
+- type: claim
+  name: correlation_length_exponent_at_the_lr_fixed_point_leading_order
+  content: "At the LR fixed point exhibited in the d=2+ϵ RG the correlation-length exponent $\\nu$ has the leading-order value\n\
+    \      $$\n      \\nu_{\\mathrm{LR}} \\;=\\; \\frac{1}{\\,d-\\sigma\\,} \\;+\\; O(1),\n      $$\n      where $d=2+\\epsilon$\
+    \ and the exponent is extracted from the RG eigenvalue of the thermal combination $(T/b)$ via\n      $$\n      \\left(\\\
+    frac{T}{b}\\right)'\\;-\\;\\left(\\frac{T}{b}\\right)^{*}\\;=\\;2^{1/\\nu}\\Big[\\frac{T}{b}-\\left(\\frac{T}{b}\\right)^{*}\\\
+    Big].\n      $$\n      Thus $\\nu_{\\mathrm{LR}}$ depends explicitly on $\\sigma$ (in addition to $d$ and $n$) at leading\
+    \ order in the present expansion."
+  prior: 0.5
+- type: claim
+  name: linearized_rg_factor_for_a_long_range_perturbation_about_the_sr_fixed_point
+  content: "Linearizing the RG recursion relations about the SR fixed point yields the multiplicative renormalization factor\
+    \ for an infinitesimal long-range perturbation $\\delta b/T$:\n      $$\n      \\big(\\delta b/T\\big)' \\;=\\; 2^{\\\
+    ,2-\\sigma-\\eta_{SR}}\\;\\big(\\delta b/T\\big).\n      $$\n      Consequently, the LR perturbation is irrelevant (flows\
+    \ to zero) under the RG when $\\eta_{SR}>2-\\sigma$, and relevant (grows) when $\\eta_{SR}<2-\\sigma$. This linear relation\
+    \ is the explicit RG criterion that establishes the dividing line between SR and LR domains of attraction found in conclusion\
+    \ 1."
+  prior: 0.5
+- type: chain_expr
+  name: chain_short_range_fixed_point_coordinates_and_anomalous_dimension_near_d2
+  edge_type: deduction
+  steps:
+  - step: 1
+    ref: short_distance_cutoff_unit_sphere
+  - step: 2
+    lambda: 'Define the model and notation used throughout: let $d$ be the spatial dimension with $d=2+\epsilon$ where $\epsilon$
+      is a small positive parameter; let $n$ be the number of spin components with $n>2$; let $T$ denote the absolute temperature
+      (in energy units); let $a$ denote the coefficient of the short-range kinetic term proportional to $k^{2}$ in Fourier
+      space; let $b$ denote the coefficient of the long-range kinetic term proportional to $k^{\sigma}$ in Fourier space;
+      let $\sigma$ be the LR exponent with the paper treating the case $2-\sigma=O(\epsilon)$; and let $\eta$ denote the anomalous-dimension
+      exponent that enters the RG field rescaling $S_{\alpha}''(\vec{q}'')=2^{-(d+2-\eta)/2}S_{\alpha}(\vec{q})$, where $S_{\alpha}(\vec{q})$
+      are the $(n-1)$ independent Fourier components of the spin field after eliminating one component via the constraint
+      $\sum_{i=1}^{n}S_{i}^{2}(\vec{x})=1$.'
+    prior: 0.7
+    refs:
+    - setting.short_distance_cutoff_unit_sphere
+  - step: 3
+    ref: expectation_S_squared_order_epsilon
+  - step: 4
+    ref: jacobian_ignored_first_order
+  - step: 5
+    lambda: 'Write the effective Hamiltonian (energy functional divided by $-T$) in Fourier space for the $(n-1)$ fields $S_{\alpha}(\vec{k})$
+      (with $\alpha=1,\ldots,n-1$) after eliminating the $n$th component and expanding the square root to the necessary order
+      in $S^{2}$ (the authors note that $\langle S^{2}\rangle=O(\epsilon)$ so higher terms can be neglected). The quadratic
+      part in Fourier space is
+
+      $$
+
+      -3c=\sum_{\alpha=1}^{n-1}\int\frac{d^{d}k}{(2\pi)^{d}}\frac{a k^{2}+b k^{\sigma}}{T}\,S_{\alpha}(\vec{k})S_{\alpha}(-\vec{k})+\cdots,
+
+      $$
+
+      where the ellipsis denotes quartic and higher interaction terms generated by the elimination of $S_{n}$ and the expansion
+      of the square root.'
+    prior: 0.7
+    refs:
+    - setting.expectation_S_squared_order_epsilon
+    - setting.jacobian_ignored_first_order
+  - step: 6
+    ref: rg_shell_and_rescaling
+  - step: 7
+    lambda: 'Define the RG transformation used: integrate out modes with wave vectors in the shell $1/2<q<1$ (where the unit
+      of inverse length is set by the short-distance cutoff) and then rescale momenta by $q'' = 2 q \in [0,1]$ while rescaling
+      fields according to $S_{\alpha}''(\vec{q}'')=2^{-(d+2-\eta)/2}S_{\alpha}(\vec{q})$. The fixed point value of $\eta$
+      is chosen so that repeated application of this RG transformation produces a nontrivial fixed point Hamiltonian rather
+      than driving parameters to trivial limits.'
+    prior: 0.7
+    refs:
+    - setting.rg_shell_and_rescaling
+  - step: 8
+    ref: diagrammatic_recursions_validity
+  - step: 9
+    ref: analytic_expansion_shell_integrals
+  - step: 10
+    lambda: 'State the diagrammatic recursion relations for the running couplings $(a/T)$ and $(b/T)$ obtained to first order
+      in $\epsilon$ from integrating out the shell and rescaling; these relations are the basis for locating fixed points.
+      The authors summarize the result in the form (with all momentum dependence shown explicitly as factors of $k^{2}$ and
+      $k^{\sigma}$):
+
+      $$
+
+      \bigg(\frac{a}{T}\bigg)''\,k^{2}+\bigg(\frac{b}{T}\bigg)''\,k^{\sigma}
+
+      =2^{2-\sigma}\eta\left(\frac{1}{4}\frac{a}{T}k^{2}+\frac{1}{2^{\sigma}}\frac{b}{T}k^{\sigma}+\frac{1}{4}\frac{k^{2}}{2\pi}\ln2\right),
+
+      $$
+
+      and the companion relation (which retains more factors of $\epsilon$ and $\eta$):
+
+      $$
+
+      \bigg(\frac{a}{T}\bigg)''\,k^{2}+\bigg(\frac{b}{T}\bigg)''\,k^{\sigma}
+
+      =2^{2-\epsilon-2\eta}\bigg(\frac{1}{4}\frac{a}{T}k^{2}+\frac{1}{2^{\sigma}}\frac{b}{T}k^{\sigma}+(\eta-1)\frac{\frac{1}{4}ak^{2}+\frac{1}{2^{\sigma}}bk^{\sigma}}{a+b}\frac{\ln2}{2\pi}+\frac{1}{4}k^{2}\frac{\ln2}{2\pi}\bigg).
+
+      $$
+
+      These recursion relations were obtained by evaluating the diagrams shown by the authors (the diagrammatic rules and
+      contributing diagrams are summarized in the paper''s figure depicting the first-order diagrams).  [Fig. 1]'
+    prior: 0.7
+    refs:
+    - setting.diagrammatic_recursions_validity
+    - setting.analytic_expansion_shell_integrals
+  - step: 11
+    lambda: 'Identify the short-range (SR) fixed-point candidate by setting the long-range coupling to zero at the fixed point,
+      i.e., $b^{*}=0$, and solving for $(T/a)^{*}$ and $\eta$ self-consistently from the recursion relations specialized to
+      $b=0$. With $b=0$ the authors obtain the SR fixed-point conditions
+
+      $$
+
+      b^{*}=0,\qquad \left(\frac{T}{a}\right)^{*}=\frac{2\pi\,\epsilon}{\,n-2\,},
+
+      $$
+
+      and the corresponding anomalous-dimension value
+
+      $$
+
+      \eta_{\mathrm{SR}}=\frac{\epsilon}{\,n-2\,}.
+
+      $$
+
+      These expressions are presented by the authors as the fixed-point coordinates to first order in $\epsilon$ for $n>2$
+      and $d=2+\epsilon$.'
+    prior: 0.7
+  - step: 12
+    lambda: 'Explain how the SR fixed-point results arise from the recursion relations: substituting $b=0$ into the recursion
+      relations and requiring invariance under the RG transformation (fixed point condition) produces the algebraic equation
+      for $T/a$ that yields $(T/a)^{*}=2\pi\epsilon/(n-2)$ and simultaneously fixes $\eta$ at $\eta_{\mathrm{SR}}=\epsilon/(n-2)$
+      to the order calculated. The authors also note that these values agree with prior low-temperature (d=2+ϵ) calculations
+      for vector spins (references cited for earlier related calculations).  [[5]]'
+    prior: 0.7
+  - step: 13
+    ref: short_range_fixed_point_coordinates_and_anomalous_dimension_near_d2
+- type: chain_expr
+  name: chain_long_range_fixed_point_anomalous_dimension
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: 'Restate the context and notation needed for the LR fixed point derivation: $d=2+\epsilon$ with $\epsilon$ small,
+      $n>2$, $a$ is the coefficient of the $k^{2}$ term, $b$ is the coefficient of the $k^{\sigma}$ term, $\sigma$ is the
+      LR exponent with $2-\sigma=O(\epsilon)$, and $\eta$ is the RG anomalous-dimension exponent entering the field rescaling
+      $S_{\alpha}''(\vec{q}'')=2^{-(d+2-\eta)/2}S_{\alpha}(\vec{q})$.'
+    prior: 0.7
+  - step: 2
+    lambda: 'Start from the same recursion relations for the running couplings $(a/T)$ and $(b/T)$ obtained by the shell integration
+      and rescaling (these relations are the ones reproduced earlier and were derived from the first-order diagrams). Reproduce
+      the $k^{\sigma}$ part of the representative recursion relation that equates the $k^{\sigma}$ coefficients on left and
+      right after the RG step:
+
+      $$
+
+      \bigg(\frac{b}{T}\bigg)''k^{\sigma}
+
+      =2^{2-\sigma}\eta\left(\frac{1}{2^{\sigma}}\frac{b}{T}k^{\sigma}+\cdots\right),
+
+      $$
+
+      where ellipses denote terms that do not produce additional leading-order $k^{\sigma}$ dependence at the order treated;
+      this identification follows from isolating the $k^{\sigma}$ power in the diagrammatic expansions appearing in the recursion
+      relations.'
+    prior: 0.7
+  - step: 3
+    ref: sigma_minus_two_order_epsilon
+  - step: 4
+    lambda: 'Assume the long-range fixed point is characterized by a nonzero long-range coupling at the fixed point, $b^{*}\neq0$,
+      and enforce the fixed-point condition that the coefficient of $k^{\sigma}$ must be invariant under the RG transformation.
+      Equating the $k^{\sigma}$ coefficients on both sides of the recursion relation and solving for $\eta$ gives, to the
+      order in which $2-\sigma=O(\epsilon)$ is treated, the exact relation
+
+      $$
+
+      \eta_{\mathrm{LR}}=2-\sigma.
+
+      $$
+
+      This equality is obtained by requiring that the rescaling factor produced by the RG exactly compensates the engineering
+      scaling of the $k^{\sigma}$ term at the fixed point, which yields $\eta=2-\sigma$.'
+    prior: 0.7
+    refs:
+    - setting.sigma_minus_two_order_epsilon
+  - step: 5
+    lambda: 'Record the interpretation: the long-range fixed point enforces that the small-wavevector dispersion exponent
+      (the power of $k$ governing the kinetic term, $\sigma$) and the anomalous dimension $\eta$ satisfy the scaling relation
+      $ \sigma = 2 - \eta$, or equivalently $\eta_{\mathrm{LR}}=2-\sigma$, so that the fixed point''s two-point function scaling
+      is consistent with the dominant $k^{\sigma}$ kinetic term.'
+    prior: 0.7
+  - step: 6
+    ref: long_range_fixed_point_anomalous_dimension
+- type: chain_expr
+  name: chain_correlation_length_exponent_at_the_sr_fixed_point_leading_order
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: 'Begin from the SR fixed-point results established earlier and treated as known: $b^{*}=0$, $(T/a)^{*}=2\pi\epsilon/(n-2)$,
+      and $\eta_{\mathrm{SR}}=\epsilon/(n-2)$ for $d=2+\epsilon$ and $n>2$ (these values were derived from the recursion relations
+      in the low-temperature RG). These upstream results are taken as input for the eigenvalue analysis of thermal perturbations
+      about the SR fixed point.'
+    prior: 0.7
+  - step: 2
+    ref: flow_T_over_a_b_zero
+  - step: 3
+    lambda: 'Specialize the recursion relations for $(a/T)$ and $(b/T)$ to the case $b=0$ to obtain the RG transformation
+      for the combination $(T/a)$. Eliminating $\eta$ between the two recursion-relation forms and evaluating to first order
+      in $\epsilon$ gives the flow equation for $(T/a)$:
+
+      $$
+
+      \left(\frac{T}{a}\right)''=2^{-\epsilon}\left(\frac{T}{a}\right)\left(1+(n-2)\frac{T}{a}\frac{\ln2}{2\pi}\right),
+
+      $$
+
+      which is the explicit multiplicative RG transformation of $(T/a)$ valid to the order treated when $b$ is held zero.'
+    prior: 0.7
+    refs:
+    - setting.flow_T_over_a_b_zero
+  - step: 4
+    lambda: 'Define the correlation-length exponent $\nu$ through the RG eigenvalue relation for the thermal perturbation
+      (the deviation of $(T/a)$ from its fixed-point value):
+
+      $$
+
+      \left(\frac{T}{a}\right)''-\left(\frac{T}{a}\right)^{*}=2^{1/\nu}\Big[\frac{T}{a}-\left(\frac{T}{a}\right)^{*}\Big],
+
+      $$
+
+      where $(T/a)^{*}$ is the SR fixed-point value. This relation defines $2^{1/\nu}$ as the linearized multiplicative eigenvalue
+      governing flows of $(T/a)$ near the SR fixed point.'
+    prior: 0.7
+  - step: 5
+    lambda: "Linearize the flow equation obtained for $(T/a)$ around the fixed point $(T/a)^{*}=2\\pi\\epsilon/(n-2)$ by substituting\
+      \ $(T/a)=(T/a)^{*}+\\delta(T/a)$ into the multiplicative RG equation from step 2, expanding to linear order in $\\delta(T/a)$,\
+      \ and comparing the result with the eigenvalue definition of step 3. This comparison yields the leading-order expression\
+      \ for $\\nu$:\n$$\n\\nu_{\\mathrm{SR}}=\\frac{1}{\\epsilon}+O(1).\n$$\nThe authors present this as agreement with previous\
+      \ low-temperature calculations for the SR fixed point.\n [[5]]"
+    prior: 0.7
+  - step: 6
+    ref: correlation_length_exponent_at_the_sr_fixed_point_leading_order
+- type: chain_expr
+  name: chain_linearized_rg_factor_for_a_long_range_perturbation_about_the_sr_fixed_point
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: 'State the starting point taken as known from the upstream SR analysis: the SR fixed point coordinates are $b^{*}=0$,
+      $(T/a)^{*}=2\pi\epsilon/(n-2)$, and the SR anomalous-dimension exponent is $\eta_{\mathrm{SR}}=\epsilon/(n-2)$ for $d=2+\epsilon$,
+      $n>2$; these are used as the reference around which the long-range perturbation is linearized.'
+    prior: 0.7
+  - step: 2
+    lambda: 'Introduce an infinitesimal long-range perturbation by adding to the Hamiltonian the term
+
+      $$
+
+      \int\frac{d^{d}k}{(2\pi)^{d}}\frac{\delta b}{T}\,k^{\sigma}\,S_{\alpha}(k)S_{\alpha}(-k),
+
+      $$
+
+      where $\delta b$ denotes an infinitesimal deviation (perturbation) of the long-range coefficient $b$ from zero and $S_{\alpha}(k)$
+      are the Fourier components of the $(n-1)$ spin fields. The object of interest is the RG multiplication factor by which
+      $\delta b/T$ is multiplied under one RG step.'
+    prior: 0.7
+  - step: 3
+    ref: linearized_long_range_eigenvalue
+  - step: 4
+    lambda: 'Use either of the recursion relations for $(a/T)$ and $(b/T)$ (the authors note that using either recursion relation
+      yields the same result for this linear perturbation) and evaluate them to linear order in $\delta b/T$ about the SR
+      fixed point $(b=0,\ (T/a)=(T/a)^{*},\ \eta=\eta_{\mathrm{SR}})$. The algebraic evaluation of the $k^{\sigma}$-term''s
+      flow yields the linearized recursion
+
+      $$
+
+      \big(\delta b/T\big)'' \;=\; 2^{\,2-\sigma-\eta_{\mathrm{SR}}}\;\big(\delta b/T\big).
+
+      $$
+
+      This expression is the multiplicative RG eigenvalue for the long-range perturbation at the SR fixed point to the order
+      treated.'
+    prior: 0.7
+    refs:
+    - setting.linearized_long_range_eigenvalue
+  - step: 5
+    lambda: 'Translate the multiplicative factor into the stability criterion: since $2^{\,2-\sigma-\eta_{\mathrm{SR}}}<1$
+      if and only if $2-\sigma-\eta_{\mathrm{SR}}<0$, the long-range perturbation $\delta b/T$ is irrelevant (flows to zero
+      under repeated RG) precisely when
+
+      $$
+
+      \eta_{\mathrm{SR}}>2-\sigma,
+
+      $$
+
+      and is relevant (grows under RG) when
+
+      $$
+
+      \eta_{\mathrm{SR}}<2-\sigma.
+
+      $$
+
+      Thus the linearized multiplier $2^{2-\sigma-\eta_{\mathrm{SR}}}$ yields the explicit RG criterion separating SR stability
+      from LR instability about the SR fixed point.'
+    prior: 0.7
+  - step: 6
+    ref: linearized_rg_factor_for_a_long_range_perturbation_about_the_sr_fixed_point
+- type: chain_expr
+  name: chain_lr_fixed_point_coupling_ratios_and_consistency_relations
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: 'Declare the upstream results to be used as known starting points: the SR anomalous exponent $\eta_{\mathrm{SR}}=\epsilon/(n-2)$
+      (conclusion 2) and the LR fixed-point anomalous dimension $\eta_{\mathrm{LR}}=2-\sigma$ (conclusion 4) are treated as
+      given for the algebraic determination of the LR fixed-point coupling ratios. Also retain the definitions $d=2+\epsilon$,
+      $a$ and $b$ as the coefficients of $k^{2}$ and $k^{\sigma}$ respectively, and $T$ as temperature in energy units.'
+    prior: 0.7
+  - step: 2
+    ref: T_over_a_plus_b_fixed_point_relation
+  - step: 3
+    lambda: 'Extract the $k^{\sigma}$ coefficients from the recursion relations that include $b\neq0$, and impose the fixed-point
+      condition (invariance of the $k^{\sigma}$ coefficient under one RG step). Doing this and using the structure of the
+      diagrammatic contributions yields the algebraic fixed-point relation for the ratio $T/(a+b)$ at the LR fixed point:
+
+      $$
+
+      \Big(\frac{T}{\,a+b\,}\Big)^{*} \;=\; \frac{2\pi(d-\sigma)}{\,n-1\,}.
+
+      $$
+
+      This relation is obtained by equating the $k^{\sigma}$ terms in the relevant recursion relation evaluated at the fixed
+      point and solving for $T/(a+b)$.'
+    prior: 0.7
+    refs:
+    - setting.T_over_a_plus_b_fixed_point_relation
+  - step: 4
+    ref: b_over_a_fixed_point_relation
+  - step: 5
+    lambda: 'Next extract the $k^{2}$ coefficients of the recursion relations and impose the fixed-point conditions while
+      using the previously obtained value of $(T/(a+b))^{*}$ and the SR anomalous exponent $\eta_{\mathrm{SR}}$ (treated as
+      known). Solving the algebraic relation produced by the $k^{2}$ terms yields the LR fixed-point ratio of the long-range
+      to short-range stiffness coefficients:
+
+      $$
+
+      \Big(\frac{b}{a}\Big)^{*} \;=\; \frac{n-2}{\,d-\sigma\,}\big(2-\sigma-\eta_{SR}\big).
+
+      $$
+
+      This expression follows from equating the $k^{2}$ coefficients at the LR fixed point and substituting the $T/(a+b)$
+      value obtained in the previous step; the factor $(2-\sigma-\eta_{SR})$ appears because the difference between the LR
+      scaling combination $2-\sigma$ and the SR anomalous dimension enters the balance between $k^{\sigma}$ and $k^{2}$ contributions.'
+    prior: 0.7
+    refs:
+    - setting.b_over_a_fixed_point_relation
+  - step: 6
+    ref: two_coupling_truncation_closure
+  - step: 7
+    lambda: 'Check internal consistency of the two-coupling RG truncation: eliminate $b^{*}$ between the relations obtained
+      in step 2 and step 3 (i.e., use $(b/a)^{*}$ from step 3 together with $(T/(a+b))^{*}$ from step 2) to derive the fixed-point
+      value of $(T/a)^{*}$. The elimination yields
+
+      $$
+
+      \left(\frac{T}{a}\right)^{*} \;=\; 2\pi(2-\sigma),
+
+      $$
+
+      which coincides with the value obtained directly from the separate $k^{2}$ recursion relation when the LR fixed-point
+      substitutions are applied. Thus the three algebraic relations for $(T/(a+b))^{*}$, $(b/a)^{*}$, and $(T/a)^{*}$ are
+      mutually consistent to the order of approximation used, demonstrating that the truncated two-coupling RG closes and
+      yields compatible fixed-point coordinates.'
+    prior: 0.7
+    refs:
+    - setting.two_coupling_truncation_closure
+  - step: 8
+    ref: lr_fixed_point_coupling_ratios_and_consistency_relations
+- type: chain_expr
+  name: chain_correlation_length_exponent_at_the_lr_fixed_point_leading_order
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: 'Begin from upstream LR fixed-point coordinates established earlier and treated as known: the LR anomalous dimension
+      $\eta_{\mathrm{LR}}=2-\sigma$ (conclusion 4) and the LR fixed-point coupling ratios $(T/(a+b))^{*}=2\pi(d-\sigma)/(n-1)$
+      and $(b/a)^{*}=[(n-2)/(d-\sigma)](2-\sigma-\eta_{\mathrm{SR}})$ (conclusion 5) are used as inputs. Also retain the definitions
+      $d=2+\epsilon$, $a$, $b$, $T$, and $\eta$.'
+    prior: 0.7
+  - step: 2
+    ref: flow_T_over_b_nonzero_b
+  - step: 3
+    lambda: 'Isolate the RG flow equation governing the thermal combination $(T/b)$ at nonzero $b$ by taking the $k^{\sigma}$
+      parts of the two recursion relations and eliminating $\eta$ between them. The algebraic manipulation performed by the
+      authors yields the multiplicative flow equation for $(T/b)$ of the form
+
+      $$
+
+      \left(\frac{T}{b}\right)^{\prime}=2^{-d+\sigma}\left(\frac{T}{b}\right)\left(1+(\pi-1)\frac{T}{b}\frac{b}{a+b}\frac{\ln2}{2\pi}\right),
+
+      $$
+
+      where the prefactor $2^{-d+\sigma}=2^{-(d-\sigma)}$ appears as the leading scaling factor and the bracketed term represents
+      subleading interaction corrections at the order treated.'
+    prior: 0.7
+    refs:
+    - setting.flow_T_over_b_nonzero_b
+  - step: 4
+    lambda: 'Define the correlation-length exponent $\nu$ in the LR-controlled regime by the RG eigenvalue relation for deviations
+      of $(T/b)$ from its LR fixed-point value:
+
+      $$
+
+      \left(\frac{T}{b}\right)^{\prime}-\left(\frac{T}{b}\right)^{*}=2^{1/\nu}\Big[\frac{T}{b}-\left(\frac{T}{b}\right)^{*}\Big],
+
+      $$
+
+      so that $2^{1/\nu}$ is the linearized multiplicative eigenvalue for thermal perturbations in the $(T/b)$ direction about
+      the LR fixed point.'
+    prior: 0.7
+  - step: 5
+    lambda: 'Linearize the flow equation from step 2 about the LR fixed point by substituting $(T/b)=(T/b)^{*}+\delta(T/b)$,
+      expanding to linear order in $\delta(T/b)$, and comparing with the eigenvalue relation from step 3. The leading-order
+      contribution to the multiplicative eigenvalue is $2^{-(d-\sigma)}$, so that matching gives the leading-order result
+
+      $$
+
+      \nu_{\mathrm{LR}}=\frac{1}{\,d-\sigma\,}+O(1).
+
+      $$
+
+      Thus the correlation-length exponent at the LR fixed point depends explicitly on $\sigma$ at leading order in the present
+      low-temperature expansion.'
+    prior: 0.7
+  - step: 6
+    ref: correlation_length_exponent_at_the_lr_fixed_point_leading_order
+- type: chain_expr
+  name: chain_dividing_line_theorem_for_lr_versus_sr_critical_behavior_near_d2
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: 'Treat as known the linearized RG multiplier for a small long-range perturbation about the SR fixed point obtained
+      earlier: the multiplicative factor for $\delta b/T$ under a single RG step is
+
+      $$
+
+      \big(\delta b/T\big)'' \;=\; 2^{\,2-\sigma-\eta_{SR}}\;\big(\delta b/T\big),
+
+      $$
+
+      where $\eta_{SR}$ is the SR anomalous-dimension exponent evaluated at the SR fixed point (this result is the linearization
+      derived in the SR context and is treated as an upstream input).'
+    prior: 0.7
+  - step: 2
+    lambda: 'Translate the multiplicative factor into a stability condition by noting that a multiplicative factor less than
+      unity implies the perturbation is irrelevant (decays under repeated RG), while a factor greater than unity implies the
+      perturbation is relevant (grows under repeated RG). The multiplicative factor $2^{2-\sigma-\eta_{SR}}$ is less than
+      unity precisely when $2-\sigma-\eta_{SR}<0$, and greater than unity when $2-\sigma-\eta_{SR}>0$; equality corresponds
+      to marginality. Therefore the dividing condition between SR-stable and LR-stable behavior is
+
+      $$
+
+      \sigma \;=\; 2-\eta_{SR}.
+
+      $$
+
+      This algebraic line in $(d,\sigma,n)$-space separates the two domains of attraction.'
+    prior: 0.7
+  - step: 3
+    lambda: 'State the two alternatives implied by the stability test: (i) if $\eta_{SR}>2-\sigma$ then the long-range perturbation
+      is irrelevant and the RG flow from initial Hamiltonians with small $b$ is attracted to the SR fixed point; hence universal
+      critical exponents depend only on $d$ and $n$ and are independent of $\sigma$. (ii) if $\eta_{SR}<2-\sigma$ then the
+      long-range perturbation is relevant and the SR fixed point is unstable to the LR coupling; in that case the RG flow
+      is driven to the LR fixed point (whose anomalous dimension is $\eta_{\mathrm{LR}}=2-\sigma$) and at least the correlation-length
+      exponent $\nu$ acquires explicit dependence on $\sigma$ in addition to $d$ and $n$. These two alternatives correspond
+      precisely to the domains separated by the line $\sigma=2-\eta_{SR}$.'
+    prior: 0.7
+  - step: 4
+    lambda: 'Note the internal consistency with the LR fixed-point analysis: when the LR fixed point governs criticality it
+      enforces $\eta_{\mathrm{LR}}=2-\sigma$ (as established earlier), so at the boundary between domains the SR anomalous
+      dimension reaches the LR value; the linearized instability calculation thereby divides $(d,\sigma,n)$-space into regions
+      of SR attraction and LR attraction separated by the stated line. The authors summarize this division graphically and
+      state the theorem that for $n>2$ and $d=2+\epsilon$ the LR perturbation is irrelevant when $\eta_{SR}>2-\sigma$ and
+      relevant when $\eta_{SR}<2-\sigma$.  [Fig. 2]'
+    prior: 0.7
+  - step: 5
+    ref: dividing_line_theorem_for_lr_versus_sr_critical_behavior_near_d2
+export:
+- dividing_line_theorem_for_lr_versus_sr_critical_behavior_near_d2
+- short_range_fixed_point_coordinates_and_anomalous_dimension_near_d2
+- correlation_length_exponent_at_the_sr_fixed_point_leading_order
+- long_range_fixed_point_anomalous_dimension
+- lr_fixed_point_coupling_ratios_and_consistency_relations
+- correlation_length_exponent_at_the_lr_fixed_point_leading_order
+- linearized_rg_factor_for_a_long_range_perturbation_about_the_sr_fixed_point

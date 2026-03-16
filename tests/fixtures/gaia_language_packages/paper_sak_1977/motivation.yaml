@@ -1,0 +1,25 @@
+type: setting_module
+name: motivation
+title: Motivation — Sak-1977
+knowledge:
+- type: setting
+  name: research_motivation
+  content: Ferromagnetic critical phenomena in systems whose pairwise “exchange” decays as a power law r^{-(d+\sigma)} can,
+    in principle, display universal critical behavior that depends not only on spatial dimension d and the number n of spin
+    components but also on the decay exponent σ. Prior work (notably proofs using the perturbative ϵ-expansion about the Gaussian
+    fixed point in d=4−ϵ) had led to the conjecture and, in that high-dimensional expansion, to a demonstration that there
+    is a sharp dividing line σ=2−η_{SR} separating regimes in which long-range (LR) interactions change universal quantities
+    from regimes where short-range (SR) universality prevails. However, those demonstrations were confined to expansions about
+    d=4 and do not establish the same criterion in low dimensions. For vector spins with n>2 an alternative controlled expansion
+    exists for dimensions near d=2, but before this work there was no corresponding proof, within the low-temperature (d=2+ϵ)
+    expansion, that the dividing criterion σ=2−η_{SR} holds, nor a determination from that expansion of the fixed points and
+    critical exponents governing SR versus LR regimes when both k^{2} (SR) and k^{\sigma} (LR) kinetic terms are present in
+    the Hamiltonian. Consequently, it was not established, in the low-dimension expansion relevant to d≈2 and for n>2, (i)
+    whether RG fixed points that include both SR and LR couplings exist and what their coordinates are, (ii) how the domains
+    of attraction of SR and LR fixed points are arranged in the (d,σ,n) parameter space, and (iii) what the explicit leading-order
+    values of the critical exponents η and ν are in each regime when σ is close to 2 (specifically 2−σ=O(ϵ)). These gaps prevented
+    a low-dimension, controlled RG determination of when universal quantities are σ-independent and when they acquire explicit
+    σ-dependence for vector ferromagnets with long-range power-law exchange.
+  prior: 0.9
+export:
+- research_motivation

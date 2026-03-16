@@ -1,14 +1,19 @@
 name: paper_10_1038332139a0_1988_natu
 version: 1.0.0
 manifest:
-  description: Reasoning chains extracted from paper 10.1038332139a0_1988_Natu
+  description: Formalized from paper 10.1038332139a0_1988_Natu
   authors: []
   license: CC-BY-4.0
 modules:
+- motivation
 - setting
 - reasoning
+- follow_up
 export:
-- discovery_of_high_tc_superconductivity_in_the_tlcabacuo_system
-- superconducting_transition_properties_of_tl2ca15bacu3o85x
-- verification_of_bulk_superconductivity_via_magnetic_response
-- compositional_and_thermal_stability_characteristics
+- observation_of_bulk_superconductivity_in_tlcabacuo_with_onset_120_k_and_zero_res
+- synthesis_procedure_for_tlcabacuo_employing_bacu3o4_melt_solid_reaction_and_rapi
+- qualitative_magnetic_evidence_for_superconductivity_levitation_and_ac_susceptibi
+- dependence_of_superconductivity_on_annealing_and_caba_ratio_semiconducting_behav
+- demonstration_that_multiple_slip_can_occur_in_diamond_under_point_loading_at_100
+- methodological_route_to_prepare_specimens_with_controlled_dislocation_densities
+- conceptual_implication_microplasticity_matters_for_performance_of_crystalline_en

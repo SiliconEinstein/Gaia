@@ -3,217 +3,229 @@ name: setting
 title: Settings — 10.1038s41467-021-25372-2
 knowledge:
 - type: setting
-  name: theoretical_prediction_of_yh9_structure
-  content: Theoretical calculations predict the existence of a hexagonal close-packed (hcp) yttrium hydride phase with the
-    composition $YH_{9}$ and space group $P6_{3}/mmc$, which is predicted to be stable at high pressures such as 200 GPa.
-  prior: 0.7
+  name: rietveld_le_bail_spacegroup_assignment
+  content: "Rietveld and Le Bail quantitative powder diffraction refinement methods are applied to synchrotron X-ray powder\
+    \ diffraction data collected from compressed samples of yttrium hydride phases; the data were collected with incident\
+    \ X-ray wavelengths $ \\lambda = 0.2952\\ \\text{\\AA} $ and $ \\lambda = 0.3344\\ \\text{\\AA} $, integrated to one-dimensional\
+    \ intensity versus $2\\theta$ patterns, and fit by Rietveld/Le Bail procedures that return refined unit-cell lattice parameters,\
+    \ atomic coordinates for yttrium atoms, phase weight fractions and calculated diffraction peak positions and intensities;\
+    \ the claim is that these Rietveld/Le Bail fits uniquely justify assigning the observed diffraction patterns to the space\
+    \ groups Fm$\\bar{3}$m (fcc YH$_{3}$), I4/mmm (bct YH$_{4}$), Im$\\bar{3}$m (bcc YH$_{6}$) and P6$_{3}$/mmc (hcp YH$_{9}$)\
+    \ because the fitted peak positions and intensities for those space groups align with the experimental peak positions\
+    \ and intensities and the refinements returned sensible phase weight fractions and atomic coordinates consistent with\
+    \ the fits.\n [[57,58]]\n [Fig. 1]"
+  prior: 0.9
+  dependency: direct
 - type: setting
-  name: theoretical_prediction_of_yh10
-  content: Theoretical calculations predict a face-centred cubic (fcc) yttrium hydride phase with the composition $YH_{10}$
-    that possesses a superconducting critical temperature $T_{c}$ estimated to be 303 K at a pressure of 400 GPa or between
-    305 K and 326 K at a pressure of 250 GPa.
-  prior: 0.7
+  name: vinet_eos_fit_validity
+  content: "The pressure dependence of unit-cell volume $V$ for each identified yttrium hydride phase (where $V$ is the crystallographic\
+    \ unit-cell volume in cubic angstroms, measured from powder X-ray diffraction at each pressure) is parametrized by fitting\
+    \ the measured $V(P)$ data over the approximate pressure interval $P\\in[135\\ \\mathrm{GPa},410\\ \\mathrm{GPa}]$ to\
+    \ the Vinet empirical equation of state (where the Vinet equation is the empirical relation $P(V)=3B_{0}\\left(1-x\\right)x^{-2}\\\
+    exp\\left[\\tfrac{3}{2}\\left(B_{0}'-1\\right)\\left(1-x\\right)\\right]$ with $x=(V/V_{0})^{1/3}$, bulk modulus $B_{0}$\
+    \ and its pressure derivative $B_{0}'$), and the claim is that these Vinet fits provide accurate continuous interpolations/extrapolations\
+    \ of $V(P)$ for each phase across the stated pressure range that were used subsequently to compute derived quantities\
+    \ such as hydrogen-induced volume expansion per hydrogen atom.\n [Fig. 2]"
+  prior: 0.9
+  dependency: direct
 - type: setting
-  name: vinet_equation_of_state
-  content: The Vinet equation of state is a mathematical model used to approximate the relationship between the volume of
-    a crystal lattice and the applied external pressure in solid materials.
-  prior: 0.7
+  name: hydrogen_induced_volume_composition_estimate
+  content: "Define the hydrogen-induced volume expansion per hydrogen (or deuterium) atom as $V_{H}$ in units of \\AA$^{3}$/H(D)\
+    \ atom; using (a) the experimentally measured unit-cell volumes $V(P)$ for an identified yttrium hydride phase at pressure\
+    \ $P$, (b) an extrapolated equation of state for pure elemental yttrium giving $V_{\\mathrm{Y}}(P)$ (where $V_{\\mathrm{Y}}(P)$\
+    \ is the unit-cell volume per Y atom at pressure $P$ for the pure metal), and (c) the relation $V_{H}(P)=\\dfrac{V(P)-V_{\\\
+    mathrm{Y}}(P)}{n_{\\mathrm{H}}}$ where $n_{\\mathrm{H}}$ is the number of H(D) atoms per Y atom in the assumed stoichiometry,\
+    \ the authors computed $V_{H}$ and inverted this relation to estimate the hydrogen content $n_{\\mathrm{H}}$ for the hydrogen-richer\
+    \ phases; the specific claim is that this $V_{H}$-based procedure yields composition estimates $YH_{5.7(3)}$ for the bcc-like\
+    \ phase and $YH_{8.5(5)}$ for the hcp-like phase, with the stated uncertainties in the final digit.\n [[33]]\n [Fig. 2]"
+  prior: 0.75
+  dependency: direct
 - type: setting
-  name: isotope_effect_coefficient
-  content: The isotope effect coefficient $\alpha$ in a superconductor is defined by the relation $\alpha = -\frac{d\ln T_{c}}{d\ln
-    M}$, where $T_{c}$ is the superconducting critical temperature and $M$ is the atomic mass of the isotope.
-  prior: 0.7
+  name: phase_assignment_of_resistive_transitions
+  content: "Electrical resistance versus temperature transitions measured in a four-probe van der Pauw geometry (where four\
+    \ sputtered leads arranged on the diamond anvil contact the sample and DC currents in the range $10^{-5}\\text{–}10^{-3}\\\
+    ,$A are applied and the sample temperature is measured with a Si diode thermometer of $\\sim1\\,$K accuracy) are attributed\
+    \ to specific crystallographic phases (Im$\\bar{3}$m bcc YH$_{6}$/YD$_{6}$ or P6$_{3}$/mmc hcp YH$_{9}$/YD$_{9}$) by correlating\
+    \ (i) the temperatures of the observed resistive drops with (ii) X-ray diffraction-determined phase content and spatial\
+    \ phase distribution in the same sample; the claim is that, based on these correlations and the observation that impurity\
+    \ lower-hydride phases (e.g., fcc-YH$_{3}$ and bct-YH$_{4}$) appear only in poorly heated regions near electrical leads\
+    \ and are expected to have much lower $T_{c}$, the observed high-temperature resistive transitions can be assigned to\
+    \ the bcc-YH$_{6}$ and hcp-YH$_{9}$ phases rather than to impurity phases.\n [Fig. 4]"
+  prior: 0.8
+  dependency: direct
 - type: setting
-  name: coherence_length_definition
-  content: The coherence length $\xi$ of the superconducting order parameter is related to the upper critical field $H_{c2}$
-    by the expression $\xi = \sqrt{\frac{\phi_{0}}{3\pi^{2}H_{c2}}}$, where $\phi_{0}$ is the magnetic flux quantum.
-  prior: 0.7
+  name: tc_onset_criterion_and_temperature_accuracy
+  content: "The superconducting critical temperature $T_{c}$ in resistance measurements is defined operationally as the onset\
+    \ temperature at which the measured electrical resistance $R(T)$ upon warming first deviates from the extrapolated normal-state\
+    \ metallic behaviour, where temperature is recorded by an Si diode thermometer attached to the diamond anvil cell with\
+    \ an estimated accuracy of $\\sim1\\,$K and the warming rate is sufficiently slow (e.g., $\\sim0.2\\,$K min$^{-1}$) to\
+    \ reduce thermal lag; the claim is that using this onset criterion and the stated thermometer accuracy yields the reported\
+    \ numerical $T_{c}$ values.\n [[Methods]]"
+  prior: 0.95
+  dependency: direct
 - type: setting
-  name: ginzburglandau_and_whh_models
-  content: The temperature dependence of the superconducting upper critical field $H_{c2}$ can be approximated using the Ginzburg–Landau
-    (GL) equation for the temperature regime near the critical temperature $T_{c}$ (defined by the condition $\frac{T_{c}-T}{T_{c}}\ll1$)
-    and by the Werthamer–Helfand–Hohenberg (WHH) model across the entire temperature range.
+  name: measurement_sensitivity_for_lower_hydrides
+  content: "DC four-probe electrical resistance measurements with applied currents in the $10^{-5}\\text{–}10^{-3}\\,$A range\
+    \ and temperature control and measurement down to $5\\,$K for pressures in the reported ranges (15–180 GPa for fcc-YH$_{3}$\
+    \ and down to $78\\,$K at 250 GPa for bct-YH$_{4}$) are sufficiently sensitive to detect a superconducting resistive transition\
+    \ (a sharp drop of resistance to zero or a pronounced onset deviation from metallic resistance) if a bulk superconducting\
+    \ phase with a transition temperature above the stated experimental lower-temperature bounds were present and electrically\
+    \ connected to the measurement leads.\n [[Methods]]\n [Supplementary Fig. 4; Fig. 2]"
   prior: 0.7
+  dependency: direct
 - type: setting
-  name: vibron_scale_for_pressure_estimation
-  content: The pressure within a diamond anvil cell can be determined using the $H_{2}$ (or $D_{2}$) vibron scale, which is
-    based on the Raman spectroscopy of the hydrogen (or deuterium) medium contained within the cell.
-  prior: 0.7
+  name: paired_hydride_deuteride_tc_measurements
+  content: "Define the isotope-effect coefficient $\\alpha$ by $\\alpha = -\\dfrac{d\\ln T_{c}}{d\\ln M}$ where $M$ is the\
+    \ atomic mass of the hydrogen isotope (i.e., $M\\approx1.0079\\,$u for H and $M\\approx2.0141\\,$u for D); the claim is\
+    \ that superconducting transition temperatures $T_{c}$ were measured for closely matched hydride and deuteride samples\
+    \ (YH$_{6}$/YD$_{6}$ and YH$_{9}$/YD$_{9}$) under the same or directly comparable pressure conditions in the $183\\text{–}205\\\
+    ,$GPa range, and that these paired $T_{c}$ data were used to compute the numerical isotope coefficients $\\alpha\\approx0.39$\
+    \ for the bcc phase and $\\alpha\\approx0.50$ for the hcp phase.\n [Fig. 4]"
+  prior: 0.8
+  dependency: direct
 - type: setting
-  name: diamond_scale_for_pressure_estimation
-  content: The pressure within a diamond anvil cell can be estimated by measuring the Raman shift of the high-frequency edge
-    of the Raman line emitted by the stressed diamond anvil.
+  name: isotope_exponent_interpreted_as_phonon_pairing
+  content: "Within the conventional Bardeen–Cooper–Schrieffer (BCS) and Migdal–Eliashberg frameworks for phonon-mediated superconductivity,\
+    \ the isotopic-mass dependence of the superconducting critical temperature leads to an isotope-effect exponent $\\alpha=0.5$\
+    \ in the ideal harmonic limit (i.e., if phonon frequencies scale as $M^{-1/2}$ and pairing is entirely phonon-mediated\
+    \ in the harmonic approximation); the claim is that measured isotope exponents of $\\alpha\\approx0.39$ (bcc-YH$_{6}$/YD$_{6}$)\
+    \ and $\\alpha\\approx0.50$ (hcp-YH$_{9}$/YD$_{9}$) are evidence supporting a predominantly phonon-mediated pairing mechanism,\
+    \ with the reduced value $\\alpha\\approx0.39$ interpreted as indicating additional effects such as anharmonic phonon\
+    \ renormalization or acoustic-phonon contributions to the electron–phonon coupling.\n [[1]]\n [Fig. 4]"
   prior: 0.7
+  dependency: direct
 - type: setting
-  name: theoretical_prediction_of_yh6_structure_and_stability
-  content: Theoretical ab initio calculations predict that an yttrium hydride phase with the composition $YH_{6}$ and a body-centered
-    cubic (bcc) crystal structure (space group $Im\text{-}3m$) is thermodynamically stable at a pressure of 110 GPa and possesses
-    a predicted superconducting critical temperature ($T_{c}$) in the range of 251–264 K.
-  prior: 0.7
+  name: whh_gl_extrapolation_from_9T
+  content: "Resistance-versus-temperature data collected at multiple fixed external magnetic fields up to $9\\,$T are used\
+    \ to determine $T_{c}(H)$ points (using a 90% of normal-state resistance criterion), and the Werthamer–Helfand–Hohenberg\
+    \ (WHH) model and Ginzburg–Landau (GL) relation are fit to the measured $H_{c2}(T)$ data; the claim is that fitting these\
+    \ models to data limited to $H\\le 9\\,$T and extrapolating the fits yields reliable estimates of the zero-temperature\
+    \ upper critical field $H_{c2}(0)$ for the studied samples, despite the large extrapolation in field relative to the fitted\
+    \ range.\n [[44,45]]\n [Fig. 5]"
+  prior: 0.6
+  dependency: direct
 - type: setting
-  name: isotope_effect_coefficient_definition
-  content: The isotope effect coefficient $\alpha$ is defined by the relation $\alpha = -\frac{d\ln T_{c}}{d\ln M}$, where
-    $T_{c}$ is the superconducting critical temperature and $M$ is the average atomic mass of the oscillating species in the
-    lattice.
-  prior: 0.7
+  name: coherence_length_formula_validity
+  content: The superconducting coherence length $\xi$ at a given temperature is related to the upper critical field $H_{c2}$
+    by the formula $\xi = \sqrt{\dfrac{\phi_{0}}{3\pi^{2}H_{c2}}}$ where $\phi_{0}=h/2e$ is the magnetic flux quantum (with
+    $h$ Planck's constant and $e$ the elementary charge); the claim is that using this formula with the experimentally extracted
+    $H_{c2}$ values provides reasonable estimates of the superconducting coherence length $\xi(0)$ for the studied yttrium
+    hydride samples.
+  prior: 0.9
+  dependency: direct
 - type: setting
-  name: hydrogen_induced_volume_expansion
-  content: The hydrogen content in a metal hydride can be estimated by calculating the hydrogen-induced volume expansion ($V_{H}$),
-    defined as the difference between the measured unit cell volume of the hydride and the volume of the pure host metal lattice
-    extrapolated to the same pressure using an established equation of state.
-  prior: 0.7
+  name: bcs_xi_vf_relation_applicability
+  content: "The Bardeen–Cooper–Schrieffer (BCS) relation $\\xi = 0.18\\,\\dfrac{h v_{F}}{k_{\\mathrm{B}} T_{c}}$ (where $\\\
+    xi$ is the superconducting coherence length at zero temperature, $h$ is Planck's constant, $v_{F}$ is the Fermi velocity,\
+    \ $k_{\\mathrm{B}}$ is Boltzmann's constant, and $T_{c}$ is the superconducting critical temperature) is employed to estimate\
+    \ a characteristic Fermi velocity $v_{F}$ by inserting experimentally determined $\\xi(0)$ and $T_{c}$ values; the claim\
+    \ is that this single-band BCS-derived relation yields reasonable order-of-magnitude estimates of $v_{F}$ for these hydride\
+    \ superconductors.\n [Fig. 5]"
+  prior: 0.6
+  dependency: direct
 - type: setting
-  name: upper_critical_field_and_coherence_length_relationships
-  content: In a superconductor, the upper critical magnetic field at zero temperature, $H_{c2}(0)$, and the Ginzburg–Landau
-    coherence length, $\xi(0)$, are related by the expression $\xi = \sqrt{\frac{\phi_{0}}{3\pi^{2}H_{c2}}}$, where $\phi_{0}$
-    is the magnetic flux quantum; the temperature-dependent behavior of $H_{c2}(T)$ is typically modeled using either the
-    Ginzburg–Landau (GL) equation near $T_{c}$ or the Werthamer–Helfand–Hohenberg (WHH) model across the superconducting temperature
-    range.
-  prior: 0.7
+  name: hc2_scaling_and_equal_vf_assumption
+  content: "To estimate the zero-temperature upper critical field $H_{c2}(0)$ of the hydrogenated P6$_{3}$/mmc YH$_{9}$ phase\
+    \ from the measured deuteride P6$_{3}$/mmc YD$_{9}$ data, a scaling relation $H_{c2}\\sim\\left(\\dfrac{T_{c}}{T_{2}}\\\
+    right)^{2}$ is applied (where $T_{c}$ denotes the superconducting temperature of the hydride and $T_{2}$ that of the deuteride)\
+    \ together with the assumption that the Fermi velocity $v_{F}$ is comparable between hydride and deuteride counterparts;\
+    \ the claim is that this combined scaling and equal-$v_{F}$ assumption yields an approximate $H_{c2}^{\\mathrm{WHH}}(0)\\\
+    approx120\\,$T for hcp-YH$_{9}$.\n [Fig. 5]"
+  prior: 0.5
+  dependency: direct
 - type: setting
-  name: predicted_stability_of_fcc_yh10_at_high_pressure
-  content: Theoretical $ab$ $initio$ calculations predict that the face-centred cubic ($fcc$) phase of yttrium decahydride
-    ($YH_{10}$) reaches thermodynamic stability at an applied pressure of 250 GPa.
-  prior: 0.7
+  name: xrd_sensitivity_to_yh10
+  content: "During pulsed-laser heating experiments up to reported peak temperatures (e.g., $2250(10)\\,$K) at pressures up\
+    \ to $410\\,$GPa, time-resolved in situ powder X-ray diffraction patterns were collected by accumulating $5\\times10^{5}$\
+    \ laser-synchronized exposures per pattern with the synchrotron beam spot and detector setup described, and the claim\
+    \ is that these in situ and post-quench X-ray diffraction measurements have sufficient angular coverage, resolution and\
+    \ signal-to-noise to detect the formation of an fcc-YH$_{10}$ phase (i.e., diffraction peaks at the predicted fcc-YH$_{10}$\
+    \ lattice parameter would have been observable) if that phase appeared as a substantial or transient crystalline product\
+    \ within the illuminated sample volume during heating or after quench.\n [Fig. 3]"
+  prior: 0.8
+  dependency: direct
 - type: setting
-  name: predicted_high_temperature_stability_of_fcc_yh10
-  content: Theoretical $ab$ $initio$ calculations suggest that although yttrium decahydride ($YH_{10}$) may be thermodynamically
-    unstable at 0 K, the difference in Gibbs free energies ($\Delta G$) between the face-centred cubic ($fcc$) $YH_{10}$ phase
-    and the hexagonal close packed ($hcp$) $YH_{9}$ phase decreases as temperature increases, such that $fcc-YH_{10}$ is predicted
-    to become more thermodynamically favourable than $hcp-YH_{9}$ at temperatures exceeding 1500 K at a pressure of 375 GPa,
-    or at temperatures exceeding 1100 K at a pressure of 400 GPa.
-  prior: 0.7
+  name: sample17_excess_hydrogen_realized
+  content: "In a specific experimental run identified as sample 17, a starting assembly composed of YH$_{3}$ mixed with the\
+    \ hydrogen source NH$_{3}$BH$_{3}$ was laser-heated at $410\\,$GPa and $2250(10)\\,$K and the observed outcome by post-heating\
+    \ X-ray diffraction was transformation to single-phase P6$_{3}$/mmc YH$_{9}$ (i.e., the XRD pattern after quench matches\
+    \ the hcp-YH$_{9}$ phase with no detectable fcc-YH$_{10}$ reflections); the claim is that this observation demonstrates\
+    \ that hydrogen-rich conditions sufficient to form a high-hydrogen stoichiometry were achieved in at least this experiment\
+    \ despite the experimental challenge of controlling excess H$_{2}$ when using NH$_{3}$BH$_{3}$.\n [Fig. 3]"
+  prior: 0.8
+  dependency: direct
 - type: setting
-  name: criterion_for_excess_hydrogen_availability
-  content: In high-pressure chemical synthesis experiments using ammonia borane ($NH_{3}BH_{3}$) as a hydrogen source and
-    yttrium trihydride ($YH_{3}$) as a reactant, the successful realization of an excess hydrogen ($H_2$) environment is verified
-    if the initial $YH_{3}$ phase undergoes a complete structural transformation into a hydrogen-rich, single-phase $YH_{9}$
-    with $P6_{3}/mmc$ symmetry following laser heating.
+  name: measured_tc_intrinsic_to_phases
+  content: The reported maximum superconducting critical temperatures (numerical maxima of $T_{c}\approx224\,$K for bcc-YH$_{6}$
+    and $T_{c}=243\,$K for hcp-YH$_{9}$ as reported in the experiments) are taken to represent intrinsic superconducting properties
+    of the corresponding crystallographic phases under the stated pressure conditions, i.e., the claim is that these maximal
+    $T_{c}$ values are not predominantly suppressed by sample inhomogeneity, grain boundary disorder, poor crystallinity,
+    incomplete phase purity or measurement artifacts such that they would be substantially higher in idealized, perfectly
+    crystalline bulk samples of the same phases under identical thermodynamic conditions.
   prior: 0.7
+  dependency: direct
 - type: setting
-  name: identification_of_crystal_phases_via_diffraction
-  content: The identification of specific yttrium hydride phases, such as the $P6_{3}/mmc$ $YH_{9}$ phase, is established
-    by demonstrating structural agreement between experimental X-ray powder diffraction patterns and calculated diffraction
-    peak positions derived from theoretical crystal structure models.
-  prior: 0.7
+  name: dome_shape_intrinsic_not_artifact
+  content: "The observed pressure dependence of superconducting critical temperature $T_{c}(P)$ for the Im$\\bar{3}$m YH$_{6}$\
+    \ and P6$_{3}$/mmc YH$_{9}$ phases, showing an initial increase of $T_{c}$ with pressure to a maximum followed by a decrease\
+    \ at higher pressures (a dome-like profile), reflects an intrinsic dependence of the superconducting pairing strength\
+    \ or lattice dynamics on pressure in those phases rather than being an experimental artifact arising from pressure gradients,\
+    \ phase coexistence, or misassignment of phase identity across the pressure series.\n [Fig. 4]"
+  prior: 0.8
+  dependency: direct
 - type: setting
-  name: significance_of_isotope_effect
-  content: In the study of superconducting materials, a pronounced shift in the superconducting transition temperature $T_{c}$
-    upon the substitution of one isotope for another (the isotope effect) provides evidence supporting a conventional phonon-assisted
-    mechanism of superconductivity.
+  name: pressure_estimation_methods
+  content: "Pressure values reported in this study are estimated either from the frequency of the $H_{2}$ (or $D_{2}$) vibron\
+    \ observed in Raman spectra (denoted $P_{H}$ or $P_{D}$) or from the high-frequency edge of the stressed-diamond Raman\
+    \ line (diamond scale), and it is noted that the diamond-based scale typically overestimates pressure relative to the\
+    \ vibron-based scale by approximately $5\\text{–}40\\,$GPa due to pressure gradients between the hydrogen medium and the\
+    \ gasket; this contextual uncertainty affects absolute pressure placement of data points but is not asserted to invalidate\
+    \ phase identifications.\n [[54,55]]"
   prior: 0.7
+  dependency: indirect
 - type: setting
-  name: bcs_isotope_coefficient_limit
-  content: According to the Bardeen–Cooper–Schrieffer (BCS) theory of superconductivity, the maximal expected value for the
-    isotope effect coefficient $\alpha$ in a purely harmonic lattice system is 0.5.
+  name: anomalous_volume_expansion_in_yh3
+  content: "The hydrogen-induced volume expansion per hydrogen atom $V_{H}$ in YH$_{3}$ is experimentally observed to be anomalously\
+    \ large compared with $V_{H}$ measured in higher yttrium hydrides (i.e., the derived $V_{H}$ values are not constant across\
+    \ stoichiometries), and as a result some phases (bct-YH$_{4}$ and fcc-YH$_{3}$) exhibit similar lattice volumes in the\
+    \ 150–250 GPa pressure range; this context motivates careful interpretation of $V_{H}$-based composition estimates.\n\
+    \ [Fig. 2]"
   prior: 0.7
+  dependency: indirect
 - type: setting
-  name: definition_of_coherence_length
-  content: The Ginzburg-Landau coherence length $\xi$ of the superconducting order parameter is defined by the relation $\xi
-    = \sqrt{\frac{\phi_{0}}{3\pi^{2}H_{c2}}}$, where $\phi_{0}$ is the magnetic flux quantum and $H_{c2}$ is the upper critical
-    field of the superconductor.
+  name: impurities_near_leads_low_tc
+  content: "Lower-hydrogen impurity phases such as fcc-YH$_{3}$ and bct-YH$_{4}$ were observed in X-ray diffraction patterns\
+    \ in regions spatially proximate to electrical leads that were intentionally kept poorly heated; these impurity phases\
+    \ are expected on theoretical grounds and prior experiments to have much lower superconducting critical temperatures than\
+    \ the high-$T_{c}$ transitions reported for bcc-YH$_{6}$ and hcp-YH$_{9}$, and therefore they are treated as unlikely\
+    \ sources of the observed high-$T_{c}$ resistive transitions.\n [Fig. 4]"
   prior: 0.7
+  dependency: indirect
 - type: setting
-  name: ginzburg_landau_equation_validity
-  content: The Ginzburg–Landau (GL) equation provides a valid approximation for the temperature dependence of the upper critical
-    field $H_{c2}(T)$ of a superconductor in the temperature regime close to the critical temperature $T_{c}$, specifically
-    defined by the condition $\frac{T_{c}-T}{T_{c}} \ll 1$.
+  name: difficulty_controlling_excess_hydrogen
+  content: When NH$_{3}$BH$_{3}$ is used as an in situ hydrogen source in a diamond anvil cell, controlling the absolute amount
+    of excess molecular hydrogen $H_{2}$ generated during heating is experimentally challenging, so realization of a precisely
+    defined hydrogen chemical potential in such experiments is uncertain and may vary sample-to-sample.
   prior: 0.7
-- type: setting
-  name: werthamer_helfand_hohenberg_model_validity
-  content: The Werthamer–Helfand–Hohenberg (WHH) model serves as a theoretical framework to approximate the temperature dependence
-    of the upper critical field $H_{c2}(T)$ across the entire temperature range from $0$ K to the critical temperature $T_{c}$.
-  prior: 0.7
-- type: setting
-  name: bcs_relation_for_coherence_length
-  content: In the context of the Bardeen–Cooper–Schrieffer (BCS) theory of superconductivity, the coherence length $\xi$ is
-    related to the Fermi velocity $v_{F}$ and the superconducting critical temperature $T_{c}$ by the expression $\xi = 0.18
-    \frac{h v_{F}}{k_{\mathrm{B}} T_{c}}$, where $h$ is the Planck constant and $k_{\mathrm{B}}$ is the Boltzmann constant.
-  prior: 0.7
-- type: setting
-  name: scaling_relation_for_upper_critical_field
-  content: For the yttrium hydride systems $YH_{9}$ and $YD_{9}$ under high pressure, the zero-temperature upper critical
-    field $H_{c2}(0\text{ K})$ is assumed to follow a scaling relation $H_{c2} \sim (T_{c}/v_{F})^{2}$, which, for constant
-    Fermi velocity $v_{F}$, implies that $H_{c2}$ scales with the square of the critical temperature $T_{c}$.
-  prior: 0.7
-- type: setting
-  name: measurement_criterion_for_tc
-  content: The onset of the superconducting state (defined as the critical temperature $T_{c}$) in yttrium-hydrogen and yttrium-deuterium
-    samples under an applied external magnetic field is determined experimentally using the criterion of 90% of the electrical
-    resistance observed in the normal metallic state.
-  prior: 0.7
-- type: setting
-  name: isotopic_invariance_of_fermi_velocity
-  content: For the purpose of comparing the superconducting properties of yttrium hydride ($YH_{9}$) and its deuterated counterpart
-    yttrium deuteride ($YD_{9}$), the Fermi velocity $v_{F}$ is assumed to remain invariant under isotopic substitution of
-    hydrogen with deuterium.
-  prior: 0.7
-- type: setting
-  name: relation_between_coherence_length_and_upper_critical_field
-  content: The coherence length of the superconducting order parameter, denoted by $\xi$, is determined from the upper critical
-    field $H_{c2}$ using the relation $\xi = \sqrt{\frac{\phi_{0}}{3\pi^{2}H_{c2}}}$, where $\phi_{0}$ is the magnetic flux
-    quantum.
-  prior: 0.7
-- type: setting
-  name: bcs_relation_for_fermi_velocity
-  content: The Fermi velocity $v_{F}$ of charge carriers in a superconductor is related to the coherence length $\xi$ and
-    the critical temperature $T_{c}$ via the Bardeen–Cooper–Schrieffer (BCS) relation $\xi = 0.18 \frac{h v_{F}}{k_{\mathrm{B}}
-    T_{c}}$, where $h$ is the Planck constant and $k_{\mathrm{B}}$ is the Boltzmann constant.
-  prior: 0.7
-- type: setting
-  name: validity_of_whh_model_for_upper_critical_field_estimation
-  content: The temperature dependence of the upper critical field $H_{c2}(T)$ for a superconductor can be approximated by
-    the Werthamer–Helfand–Hohenberg (WHH) model across the entire temperature range to provide an estimate of the upper critical
-    field at zero temperature, $H_{c2}(0\text{ K})$.
-  prior: 0.7
-- type: setting
-  name: theoretical_predictions_of_yttrium_hydrides
-  content: Theoretical ab initio calculations predict the stability, crystal structures, and lattice parameters of several
-    yttrium hydride phases under high pressure, specifically identifying a body-centered tetragonal ($bct$) $YH_{4}$ phase
-    ($I4/mmm$ space group), a body-centered cubic ($bcc$) $YH_{6}$ phase ($Im-3m$ space group), and a hexagonal close packed
-    ($hcp$) $YH_{9}$ phase ($P6_{3}/mmc$ space group).
-  prior: 0.7
-- type: setting
-  name: hydrogen_induced_volume_expansion_in_hydrides
-  content: In hydrogen-rich metal hydrides under high pressure, the hydrogen-induced volume expansion ($V_{H}$), defined as
-    the total volume increase of the crystal lattice per hydrogen (or deuterium) atom added to the metal lattice site, is
-    empirically observed to be approximately $1.7-1.8\ \AA^{3}/H(D)$ atom.
-  prior: 0.7
-- type: setting
-  name: equation_of_state_for_pure_yttrium
-  content: The equation of state for pure yttrium metal defines the relationship between pressure and the atomic volume of
-    yttrium, which serves as a baseline for calculating the volume expansion $V_{H}$ in yttrium-hydrogen compounds when extrapolated
-    to high pressures.
-  prior: 0.7
+  dependency: indirect
 export:
-- theoretical_prediction_of_yh9_structure
-- theoretical_prediction_of_yh10
-- vinet_equation_of_state
-- isotope_effect_coefficient
-- coherence_length_definition
-- ginzburglandau_and_whh_models
-- vibron_scale_for_pressure_estimation
-- diamond_scale_for_pressure_estimation
-- theoretical_prediction_of_yh6_structure_and_stability
-- isotope_effect_coefficient_definition
-- hydrogen_induced_volume_expansion
-- upper_critical_field_and_coherence_length_relationships
-- predicted_stability_of_fcc_yh10_at_high_pressure
-- predicted_high_temperature_stability_of_fcc_yh10
-- criterion_for_excess_hydrogen_availability
-- identification_of_crystal_phases_via_diffraction
-- significance_of_isotope_effect
-- bcs_isotope_coefficient_limit
-- definition_of_coherence_length
-- ginzburg_landau_equation_validity
-- werthamer_helfand_hohenberg_model_validity
-- bcs_relation_for_coherence_length
-- scaling_relation_for_upper_critical_field
-- measurement_criterion_for_tc
-- isotopic_invariance_of_fermi_velocity
-- relation_between_coherence_length_and_upper_critical_field
-- bcs_relation_for_fermi_velocity
-- validity_of_whh_model_for_upper_critical_field_estimation
-- theoretical_predictions_of_yttrium_hydrides
-- hydrogen_induced_volume_expansion_in_hydrides
-- equation_of_state_for_pure_yttrium
+- rietveld_le_bail_spacegroup_assignment
+- vinet_eos_fit_validity
+- hydrogen_induced_volume_composition_estimate
+- phase_assignment_of_resistive_transitions
+- tc_onset_criterion_and_temperature_accuracy
+- measurement_sensitivity_for_lower_hydrides
+- paired_hydride_deuteride_tc_measurements
+- isotope_exponent_interpreted_as_phonon_pairing
+- whh_gl_extrapolation_from_9T
+- coherence_length_formula_validity
+- bcs_xi_vf_relation_applicability
+- hc2_scaling_and_equal_vf_assumption
+- xrd_sensitivity_to_yh10
+- sample17_excess_hydrogen_realized
+- measured_tc_intrinsic_to_phases
+- dome_shape_intrinsic_not_artifact
+- pressure_estimation_methods
+- anomalous_volume_expansion_in_yh3
+- impurities_near_leads_low_tc
+- difficulty_controlling_excess_hydrogen

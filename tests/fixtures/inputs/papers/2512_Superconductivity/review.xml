@@ -1,0 +1,124 @@
+<inference_unit>
+<premises>
+<premise id="P1" conclusion_id="1" step_id="3" prior_probability="0.70" title="coherent_incoherent_pair_propagator_separation" name="pair_propagator_scale_separation">
+The two-particle pair propagator defined as the product of single-particle imaginary-time Green's functions for electrons, $G_{\mathbf{k}\omega}G_{-\mathbf{k},-\omega}$ (where $\mathbf{k}$ is crystal momentum, $\omega$ is a fermionic Matsubara frequency $\omega=\pi T(2n+1)$ for integer $n$, and $T$ is temperature), can be written as the sum of a coherent, infrared (IR), BCS- type contribution and an incoherent, ultraviolet (UV), regular remainder according to
+$G_{\mathbf{k}\omega}G_{-\mathbf{k},-\omega} = \Pi_{\mathrm{BCS}}(\mathbf{k},\omega) + \phi_{\mathbf{k}\omega}$,
+with the coherent part defined by
+$\Pi_{\mathrm{BCS}}(\mathbf{k},\omega) \equiv \dfrac{(z^{\mathrm{e}})^2}{\left(\dfrac{\omega}{z_{\mathrm{w}}^{\mathrm{ph}}}\right)^2 + \epsilon_{\mathbf{k}}^2}\,\Theta(\omega_{c} - |\epsilon_{\mathbf{k}}|)$,
+where (i) $z^{\mathrm{e}}$ is the quasiparticle residue arising from electron–electron interactions assumed frequency- and momentum- independent on the low-energy scales of interest, (ii) $z_{\mathrm{w}}^{\mathrm{ph}}$ is a frequency-dependent quasiparticle weight factor due to electron–phonon coupling, (iii) $\epsilon_{\mathbf{k}}$ is the linearized quasiparticle dispersion measured relative to the Fermi surface, (iv) $\Theta(\cdot)$ is the unit step function, (v) $\omega_{c}$ is an intermediate cutoff energy chosen to satisfy the hierarchy $\omega_{\mathrm{D}}\ll\omega_{c}\ll E_{\mathrm{F}}$ (with $\omega_{\mathrm{D}}$ a typical phonon frequency and $E_{\mathrm{F}}$ the Fermi energy), and (vi) $\phi_{\mathbf{k}\omega}$ denotes the regular incoherent remainder; this specific decomposition of the pair propagator into $\Pi_{\mathrm{BCS}}$ and $\phi$ is taken as an assumption used to define the IR/UV separation for subsequent downfolding.
+</premise>
+
+<premise id="P2" conclusion_id="1" step_id="4" prior_probability="0.95" title="adiabatic_migdal_small_parameter" name="adiabatic_migdal_small_parameter">
+For the electron–phonon problem considered, the adiabatic small parameter $\dfrac{\omega_{\mathrm{D}}}{E_{\mathrm{F}}}\ll 1$ (where $\omega_{\mathrm{D}}$ is a characteristic phonon frequency and $E_{\mathrm{F}}$ is the electronic Fermi energy) holds, and as a consequence Migdal- type vertex corrections involving phonon lines are parametrically suppressed by $O(\omega_{\mathrm{D}}/E_{\mathrm{F}})$ and may be neglected at the stated order of approximation in the derivation of the low- energy Bethe–Salpeter equation.
+</premise>
+
+<premise id="P3" conclusion_id="1" step_id="6" prior_probability="0.80" title="plasmon_gap_suppresses_cross_sector_terms" name="plasmon_gap_cross_sector_suppression">
+The long- wavelength, low- frequency asymptotic form of the screened (plasmon) channel of the dynamical Coulomb interaction may be approximated conservatively by the plasmon- pole form
+$W^{\mathrm{s}}_{q,\Omega} = \dfrac{4\pi e^{2}}{q^{2}}\dfrac{\Omega^{2}}{\Omega^{2} + \omega_{\mathrm{p}}^{2}}$,
+where $q$ is the momentum transfer, $\Omega$ is a bosonic Matsubara frequency, and $\omega_{\mathrm{p}}$ is a characteristic plasmon frequency, and provided the chosen intermediate cutoff $\omega_{c}$ satisfies $\omega_{\mathrm{p}}\gg\omega_{c}$ the phase- space integral of products of this plasmon form with UV incoherent pair propagator pieces $\phi_{\mathbf{k}\omega}$ yields contributions suppressed parametrically by the factor $\dfrac{\omega_{c}^{2}}{\omega_{\mathrm{p}}^{2}}$ so that cross- sector terms mixing UV incoherent propagators and long- wavelength dynamical Coulomb effects are negligible at the claimed order.
+<ref type="citation">[15]</ref>
+</premise>
+
+<premise id="P4" conclusion_id="1" step_id="7" prior_probability="0.75" title="perturbative_elimination_of_high_frequency_sector" name="perturbative_high_frequency_elimination">
+Given that the particle- particle irreducible high- frequency sector operator $\tilde{\Gamma}_{HH}\phi$ describes only non- singular, regular UV processes and that cross- sector coupling terms (e.g., those estimated to be $O(\omega_{c}^{2}/\omega_{\mathrm{p}}^{2})$) are small, the high- frequency anomalous vertex component $\Lambda_{H}$ (defined for $|\omega|&gt;\omega_{c}$) can be solved for perturbatively from the coupled two- sector Bethe–Salpeter equations and substituted back into the low- energy equation to produce an effective low- energy particle- particle irreducible vertex $\tilde{\Gamma}^{\omega_{c}}$ acting solely within $|\omega|&lt;\omega_{c}$, with omitted corrections bounded by the small parameters $\dfrac{\omega_{\mathrm{D}}}{E_{\mathrm{F}}}$, $\dfrac{\omega_{c}^{2}}{\omega_{\mathrm{p}}^{2}}$, and $\dfrac{T}{\omega_{c}}$.
+</premise>
+
+<premise id="P5" conclusion_id="1" step_id="8" prior_probability="0.80" title="fermi_surface_projection_regularity" name="fermi_surface_projection_regularization">
+After integrating out high- energy pair fluctuations up to the cutoff $\omega_{c}$, the resulting effective low- energy particle- particle irreducible vertex $\tilde{\Gamma}^{\omega_{c}}(\mathbf{k}\omega;\mathbf{k}'\omega')$ is assumed to be a function that is regular on momentum variations of order the Fermi- surface curvature scale so that angular (directional) dependence along the Fermi surface is smooth and an average over Fermi- surface directions,
+$\langle\cdots\rangle_{\mathrm{FS}}$, is meaningful; this regularity assumption justifies projecting momenta onto the Fermi surface and defining frequency- only kernels such as the Fermi- surface- averaged phonon- mediated interaction
+$\lambda_{\omega\omega'} \equiv -(z^{\mathrm{e}})^{2}N^{*}_{F}\langle W^{\mathrm{ph}}_{\mathbf{k}_{F}-\mathbf{k}'_{F},\omega-\omega'}\rangle_{\mathbf{k}_{F},\mathbf{k}'_{F}}$,
+where $N^{*}_{F}$ is the quasiparticle density of states and $z^{\mathrm{e}}$ the quasiparticle residue entering the definition.
+</premise>
+
+<premise id="P6" conclusion_id="1" step_id="12" prior_probability="0.85" title="existence_of_landau_quasiparticles" name="landau_fermi_liquid_quasiparticles_exist">
+In the low- energy regime of interest the electronic system is a Landau Fermi liquid with well- defined quasiparticles: there exists a finite quasiparticle residue $z^{\mathrm{e}}&gt;0$ and a linearized quasiparticle dispersion $\epsilon_{\mathbf{k}}$ in a finite window around the Fermi surface such that low- energy pair propagator singularities are of BCS- type and can be treated using the coherent $\Pi_{\mathrm{BCS}}$ contribution described above.
+</premise>
+
+<premise id="P7" conclusion_id="4" step_id="5" prior_probability="0.60" title="homotopic_algebraic_mapping_for_log_repackaging" name="homotopic_mapping_algebraic_relation">
+For a temperature $T$ and chosen intermediate cutoff $\omega_{c}$ the algebraic relation
+$\mu_{\omega_{c}}(\xi) \equiv \dfrac{\gamma_{T}(\xi)}{1 - \gamma_{T}(\xi)\ln(\omega_{c}/T)}$
+(where $\gamma_{T}(\xi)$ is the temperature- dependent, dimensionless two- quasiparticle scattering amplitude expanded as a power series in an auxiliary parameter $\xi$ with physical value $\xi=1$ and $\mu_{\omega_{c}}(\xi)$ is defined as a new series in $\xi$) reorganizes the logarithmically divergent $\ln T$ contributions appearing order- by- order in the original $\gamma_{T}(\xi)$ expansion so that the coefficients of the resulting $\mu_{\omega_{c}}(\xi)$ series are temperature- independent and the low- $T$ growth $\propto [\ln(E_{F}/T)]^{N}$ of partial sums is eliminated order- by- order.
+</premise>
+
+<premise id="P8" conclusion_id="4" step_id="7" prior_probability="0.50" title="analyticity_assumption_for_resummation" name="analyticity_of_gamma_in_xi_domain">
+The temperature- dependent scattering amplitude function $\gamma_{T}(\xi)$, defined as the analytic continuation of the $\xi$- expansion of diagrammatic sums, is analytic as a function of complex $\xi$ inside a domain that contains the real interval between $\xi=0$ and $\xi=1$, and therefore the finite-order homotopic series for $\mu_{\omega_{c}}(\xi)$ can be accelerated and analytically continued from small $\xi$ to $\xi=1$ using conformal- map style resummation and series- acceleration techniques.
+</premise>
+
+<premise id="P9" conclusion_id="4" step_id="2" prior_probability="0.70" title="vdiagmc_yukawa_expansion_convergence" name="vdiagmc_renormalized_yukawa_expansion_accuracy">
+Variational Diagrammatic Monte Carlo (VDiagMC) sampling of Feynman graphs built from a renormalized Yukawa interaction $v_{\mathrm{R}}(\mathbf{q}) \equiv \dfrac{4\pi e^{2}}{q^{2} + \lambda_{\mathrm{R}}}$ with an optimized screening parameter $\lambda_{\mathrm{R}}$ and accompanying counterterms, together with computational- graph implementation and importance- sampling integration, yields accurate, numerically stable estimates of the coefficients $\gamma_{T}^{(n)}$, quasiparticle residue series $z^{\mathrm{e}}(\xi)$, and effective- mass series $m^{*}(\xi)$ to sufficiently high order that the homotopic mapping and subsequent resummation can produce converged results for the pseudopotential within the quoted systematic uncertainties.
+</premise>
+
+<premise id="P10" conclusion_id="4" step_id="7" prior_probability="0.60" title="conformal_map_resummation_effectiveness" name="conformal_map_resummation_effectiveness">
+Application of conformal- map style resummation and standard series- acceleration protocols to the finite- order homotopic series $\mu_{\omega_{c}}(\xi)$ (constructed from the VDiagMC coefficients and the algebraic homotopy in P7) produces a stable accelerated series whose partial sums can be analytically continued to $\xi=1$ with controlled sensitivity to reasonable variations in the conformal map and acceleration parameters, yielding a reliable estimate of $\mu_{\omega_{c}}(\xi=1)$ provided the analyticity assumption of P8 holds.
+</premise>
+
+<premise id="P11" conclusion_id="5" step_id="4" prior_probability="0.70" title="dfpt_quasiparticle_vertex_cancellation_in_ueg" name="dfpt_quasiparticle_vertex_cancellation">
+For the three- dimensional uniform electron gas (UEG) at electronic density parameter values $r_{s}$ in the range $1\le r_{s}\le 5$ (where $r_{s}$ is the Wigner–Seitz radius measured in atomic units), the many- body quasiparticle electron–phonon vertex product defined as $z^{e}\dfrac{v_{\mathbf{q}}}{\epsilon_{\mathbf{q}}}\Gamma_{3}^{e}(\mathbf{k};\mathbf{q})$ (with $z^{e}$ the electronic quasiparticle residue, $v_{\mathbf{q}} = 4\pi e^{2}/q^{2}$ the bare Coulomb potential, $\epsilon_{\mathbf{q}}$ the dielectric screening factor, and $\Gamma_{3}^{e}(\mathbf{k};\mathbf{q})$ the three- point electronic vertex correction) is numerically very close to the density- functional perturbation theory (DFPT) screened ionic potential
+$\dfrac{v_{\mathbf{q}}}{1 - (v_{\mathbf{q}} + f_{\mathrm{xc}})\chi_{0}^{e}(\mathbf{q})}\equiv g^{\mathrm{KS}}(\mathbf{q})$
+(with $\chi_{0}^{e}$ the Kohn–Sham Lindhard response and $f_{\mathrm{xc}}$ the LDA exchange–correlation kernel) for momentum transfers relevant to Fermi- surface scattering $|\mathbf{q}|\le 2k_{F}$, up to small residual $ \mathbf{k}$-dependence; this near- cancellation of separate many- body renormalizations justifies using DFPT- computed $g^{\mathrm{KS}}(\mathbf{q})$ as a proxy for the quasiparticle electron–phonon coupling in simple metals within the present framework.
+<ref type="figure">Fig. 8</ref>
+</premise>
+</premises>
+
+<contexts>
+<context id="C1" conclusion_id="2" step_id="2" title="rpa_toy_model_and_phonon_kernel_choice" name="toy_model_rpa_and_phonon_kernel">
+A toy- model used to validate the downfolding replaces the particle- particle- irreducible electronic vertex by the dynamically screened Coulomb interaction within the random phase approximation (RPA), $W_{\mathrm{RPA}}(\mathbf{q},\nu) = v_{\mathbf{q}}/(1 - v_{\mathbf{q}}\Pi^{0}_{\mathbf{q}\nu})$ with $v_{\mathbf{q}}=4\pi e^{2}/q^{2}$ and $\Pi^{0}$ the noninteracting polarization, and uses a model phonon- mediated interaction
+$W_{q\nu}^{\mathrm{ph}} = -\dfrac{g/N_{F}}{1 + (q/2k_{F})^{2}}\dfrac{\omega_{q}^{2}}{\nu^{2} + \omega_{q}^{2}}$
+with dispersion $\omega_{q}^{2}=\omega_{D}^{2}(q/k_{F})^{2}/(1+(q/k_{F})^{2})$ and chosen coupling strength $g=0.4$; these modeling choices are employed to produce a conservative, representative test of screening plus phonon kernels in a conventional-metal parameter regime.
+<ref type="citation">[23]</ref>
+</context>
+
+<context id="C2" conclusion_id="7" step_id="2" title="ueg_mapping_for_real_metals" name="ueg_mapping_of_real_metals">
+Mapping real simple metals to the uniform electron gas (UEG) model is performed by extracting conduction- electron density and an effective band mass $m_{\mathrm{b}}$ from density- functional band-structure calculations, computing the material Wigner–Seitz radius $r_{s}$ appropriate to conduction electrons, rescaling $r_{s}\to (m_{\mathrm{b}}/m)\,r_{s}$ when mapping to the precomputed UEG pseudopotential table, and interpolating the VDiagMC $\mu_{E_{F}}(r_{s})$ results at the rescaled $r_{s}$ to obtain the material pseudopotential; this mapping neglects additional material- specific complications such as multiband screening, Umklapp processes, and core- electron screening.
+<ref type="figure">Fig. 9</ref>
+</context>
+
+<context id="C3" conclusion_id="4" step_id="9" title="numerical_truncation_and_resummation_choices" name="numerical_truncation_and_resummation_details">
+The practical VDiagMC implementation and resummation protocol involve multiple algorithmic and numerical choices—finite maximal expansion order, optimization of the Yukawa screening parameter $\lambda_{\mathrm{R}}$, choice of conformal map and acceleration parameters, sampling importance- sampling settings, and error estimation procedures— such that quoted systematic uncertainties on resummed results reflect finite- order truncation and resummation- parameter sensitivity rather than strict mathematical error bounds.
+<ref type="figure">Fig. 14</ref>
+</context>
+
+<context id="C4" conclusion_id="1" step_id="3" title="cutoff_hierarchy_choice_and_physical_regime" name="cutoff_hierarchy_and_regime">
+The downfolding derivation assumes an intermediate cutoff energy $\omega_{c}$ can be chosen to satisfy the hierarchy $\omega_{\mathrm{D}}\ll\omega_{c}\ll\omega_{\mathrm{p}}$ (with $\omega_{\mathrm{p}}$ the plasmon frequency) and that temperature obeys $T\ll\omega_{c}$ so that $T/\omega_{c}$ corrections are small; the physical regime of interest is three- dimensional simple metals with typical parameters where these inequalities can be met.
+</context>
+</contexts>
+
+<conclusions>
+<conclusion id="1" conditional_probability="0.90">
+Given the identified small parameters (adiabatic ratio, plasmon gap relative to the cutoff, and low temperature) and the stated scale separation assumptions, the sequence of steps—from partitioning the pair propagator into a coherent BCS piece plus incoherent remainder, estimating and neglecting cross- sector Coulomb–phonon terms using a conservative plasmon pole bound, perturbatively eliminating the high- frequency sector, projecting onto the Fermi surface under the stated regularity assumption, and integrating perpendicular momentum components—logically yields a controlled frequency- only Bethe–Salpeter equation and the downfolded linearized Migdal–Eliashberg gap equation with explicit $O(\omega_{\mathrm{D}}/E_{\mathrm{F}},\omega_{c}^{2}/\omega_{\mathrm{p}}^{2},T/\omega_{c})$ error terms; the reasoning is coherent and the approximations are standard, so the derivation is reliable conditional on the premises (P1–P6) holding.
+</conclusion>
+
+<conclusion id="4" conditional_probability="0.80">
+Assuming the homotopic algebraic relation for reorganizing logarithmic Cooper- channel divergences (P7), that the diagrammatic expansion coefficients are accurately computed by VDiagMC (P9), and that the analytic continuation/resummation step is permissible (P8,P10), the proposed Variational DiagMC homotopic expansion plus conformal- map resummation protocol is a plausible and practically implementable method to obtain a temperature- independent pseudopotential series and evaluate $\mu_{\omega_{c}}(\xi=1)$; the reasoning depends on nontrivial analyticity and resummation assumptions but the protocol is internally consistent and the numerical evidence presented indicates convergence in the tested parameter range.
+</conclusion>
+
+<conclusion id="8" conditional_probability="0.90">
+The identification of controlled- validity conditions (adiabaticity $\omega_{\mathrm{D}}/E_{\mathrm{F}}\ll 1$, scale separation $\omega_{\mathrm{D}}\ll\omega_{c}\ll\omega_{\mathrm{p}}$, and existence of Landau quasiparticles) and the enumeration of failure regimes (plasmon softening, two- dimensional gapless plasmons, emergent soft collective modes, low electron density where $E_{F}\sim\omega_{D}$, and strong Umklapp/multiband/core screening) follow directly from the assumptions underpinning the downfolding derivation and from the cross- sector suppression estimates; given those premises the mapping of breakdown scenarios to physical parameter violations is logically sound and complete for the class of systems considered.
+</conclusion>
+
+<conclusion id="2" conditional_probability="0.90">
+Given the downfolded frequency- only BSE (conclusion 1) and the toy- model definitions (context C1), solving both the full frequency- and momentum- dependent BSE and the downfolded, frequency- only BSE numerically at representative conventional- metal parameters and comparing the extracted $T_{c}$ is a straightforward quantitative test; the reported near- identity of $T_{c}^{(\mathrm{full})}$ and $T_{c}^{(\mathrm{approx})}$ (difference $\sim 0.2\%$) indicates the downfolding is quantitatively accurate in that parameter regime, and the numerical comparison and interpretation are persuasive assuming numerical convergence and model fidelity.
+<cross_ref>[@conclusion-1]</cross_ref>
+</conclusion>
+
+<conclusion id="3" conditional_probability="0.80">
+Assuming the controlled downfolded definitions and renormalization relations (conclusion 1) and the validity of the VDiagMC homotopic/resummation protocol (conclusion 4), the chain of computation—high- order VDiagMC evaluation of quasiparticle and vertex series, homotopic mapping to a temperature- independent pseudopotential series, conformal- map resummation to $\xi=1$, and rescaling to $\mu_{E_{F}}$—is a coherent procedure to obtain numerical values of the bare Coulomb pseudopotential $\mu_{E_{F}}(r_{s})$; the reliability of the numerical values depends on the resummation analyticity assumption and numerical convergence, but the reasoning from the computed series to the tabulated $\mu_{E_{F}}$ values is methodologically consistent.
+<cross_ref>[@conclusion-1],[@conclusion-4]</cross_ref>
+</conclusion>
+
+<conclusion id="5" conditional_probability="0.85">
+Given the downfolded expression linking the quasiparticle electron–phonon vertex to screened Coulomb and vertex corrections (conclusion 1) and assuming the VDiagMC evaluations of $z^{e}$, $\epsilon_{\mathbf{q}}$, and $\Gamma_{3}^{e}$ are accurate, the observed numerical near- cancellation producing $z^{e}\dfrac{v_{\mathbf{q}}}{\epsilon_{\mathbf{q}}}\Gamma_{3}^{e}(\mathbf{k};\mathbf{q})\approx \dfrac{v_{\mathbf{q}}}{1 - (v_{\mathbf{q}} + f_{\mathrm{xc}})\chi_{0}^{e}(\mathbf{q})}$ for $1\le r_{s}\le 5$ is a credible empirical result that justifies using DFPT $g^{\mathrm{KS}}(\mathbf{q})$ as a proxy for the quasiparticle electron–phonon coupling in UEG- like simple metals; the reasoning is primarily numerical but the comparison is direct and compelling.
+<cross_ref>[@conclusion-1]</cross_ref>
+</conclusion>
+
+<conclusion id="6" conditional_probability="0.85">
+Assuming the earlier conclusions are correct (in particular that the downfolded EFT-ME is controlled, that VDiagMC produces reliable $\mu_{E_{F}}$, and that DFPT provides accurate $g^{\mathrm{KS}}$ in the relevant regime), the proposed ab initio workflow—compute many- electron inputs (quasiparticle properties and $\mu_{E_{F}}$) with high- order diagrammatics, compute phonons and DFPT electron–phonon matrix elements to obtain $\lambda$, assemble the downfolded frequency- only BSE kernel, and extract $T_{c}$ from normal- state anomalous-vertex PCF scaling—is logically consistent and operationally well- justified; remaining uncertainties are numerical and material- mapping issues rather than conceptual gaps in the workflow logic.
+<cross_ref>[@conclusion-1],[@conclusion-2],[@conclusion-3],[@conclusion-5]</cross_ref>
+</conclusion>
+
+<conclusion id="7" conditional_probability="0.70">
+Assuming as inputs the material- mapping to UEG parameters and VDiagMC $\mu_{E_{F}}$ values (conclusion 3), the DFPT- validated electron–phonon matrix elements (conclusion 5), and the ab initio workflow (conclusion 6), the sequence of steps to predict material $T_{c}$ (rescale $\mu_{E_{F}}$ for band mass, compute DFPT $\lambda$, solve downfolded BSE or extract $T_{c}$ from PCF) is coherent; however, the final material- specific $T_{c}$ predictions carry additional practical uncertainties (mapping UEG to real band structures, possible structural or multi- band effects, sensitivity to resummation choices) that make the end- to- end inference less airtight than the more formal conclusions, hence a moderate conditional probability is assigned.
+<cross_ref>[@conclusion-3],[@conclusion-5],[@conclusion-6]</cross_ref>
+</conclusion>
+</conclusions>
+</inference_unit>

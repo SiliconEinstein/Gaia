@@ -1,0 +1,35 @@
+type: setting_module
+name: motivation
+title: Motivation — 2512_Superconductivity
+knowledge:
+- type: setting
+  name: research_motivation
+  content: 'The paper addresses the long-standing, practically important but theoretically unresolved problem of how to treat
+    Coulomb repulsion in microscopic, first-principles theories of phonon-mediated superconductivity so as to obtain controlled,
+    quantitative predictions of superconducting transition temperatures.  Physical context: conventional (phonon-mediated)
+    superconductors are described at low energy by a Fermi-surface theory in which phonon-mediated attraction competes with
+    electron-electron (Coulomb) repulsion; predicting the superconducting critical temperature $T_{c}$ requires reliable low-energy
+    (Cooper-channel) effective interactions.  Prior approaches and limitations: (i) Migdal–Eliashberg (ME) theory provides
+    the basic low-energy framework but as commonly implemented relies on a semi-phenomenological "downfolding" in which the
+    full, long-range, dynamical Coulomb interaction is replaced by a single phenomenological static pseudopotential $\mu^{*}$
+    (often taken as an empirical number $0.1\text{–}0.2$); (ii) Random Phase Approximation (RPA) treatments of dynamical screening
+    neglect vertex corrections and other beyond-RPA many-body effects, producing internally inconsistent and sometimes physically
+    implausible predictions (e.g., dynamical-RPA predictions of attractive effective Coulomb interaction at moderate interaction
+    strengths); (iii) Density Functional Perturbation Theory (DFPT) computes an effective electron-phonon coupling $\lambda$
+    from Kohn–Sham response but replaces many-body electron correlations by an exchange–correlation potential, leaving uncertain
+    how accurately $\lambda$ corresponds to the quasiparticle coupling entering the true low-energy pairing problem for correlated
+    electrons; (iv) brute-force solutions of the full Bethe–Salpeter equation (BSE) with full momentum-frequency dependence
+    are computationally prohibitive for realistic materials and are generally implemented with uncontrolled approximations
+    (e.g., RPA screening); (v) numerical diagrammatic and quantum Monte Carlo methods had not previously produced controlled,
+    high-precision values of the Cooper-channel quasiparticle scattering amplitude and therefore of a microscopic $\mu^{*}$
+    across the density range relevant to simple metals.  Scientific consequences of these gaps: without a controlled microscopic
+    definition and computation of $\mu^{*}$ and without a validated mapping between DFPT-computed electron–phonon matrix elements
+    and the quasiparticle e–ph coupling entering the ME/BSE equations, first-principles $T_{c}$ predictions for many simple
+    and weakly correlated metals retain order-of-magnitude uncertainties (especially for sub-Kelvin $T_{c}$), and conceptual
+    questions remain about when dynamical screening or vertex corrections can change the sign or magnitude of the effective
+    pairing interaction.  This combination of theoretical deficiencies prevents reliable ab initio prediction of low $T_{c}$
+    values, of pressure-induced suppression of superconductivity, and of the regimes where purely electronic pairing (plasmon-mediated)
+    might occur.'
+  prior: 0.9
+export:
+- research_motivation

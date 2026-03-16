@@ -1,0 +1,747 @@
+type: reasoning_module
+name: reasoning
+title: Reasoning — 2512_Superconductivity
+knowledge:
+- type: ref
+  name: research_motivation
+  target: motivation.research_motivation
+- type: ref
+  name: pair_propagator_scale_separation
+  target: setting.pair_propagator_scale_separation
+- type: ref
+  name: adiabatic_migdal_small_parameter
+  target: setting.adiabatic_migdal_small_parameter
+- type: ref
+  name: plasmon_gap_cross_sector_suppression
+  target: setting.plasmon_gap_cross_sector_suppression
+- type: ref
+  name: perturbative_high_frequency_elimination
+  target: setting.perturbative_high_frequency_elimination
+- type: ref
+  name: fermi_surface_projection_regularization
+  target: setting.fermi_surface_projection_regularization
+- type: ref
+  name: landau_fermi_liquid_quasiparticles_exist
+  target: setting.landau_fermi_liquid_quasiparticles_exist
+- type: ref
+  name: homotopic_mapping_algebraic_relation
+  target: setting.homotopic_mapping_algebraic_relation
+- type: ref
+  name: analyticity_of_gamma_in_xi_domain
+  target: setting.analyticity_of_gamma_in_xi_domain
+- type: ref
+  name: vdiagmc_renormalized_yukawa_expansion_accuracy
+  target: setting.vdiagmc_renormalized_yukawa_expansion_accuracy
+- type: ref
+  name: conformal_map_resummation_effectiveness
+  target: setting.conformal_map_resummation_effectiveness
+- type: ref
+  name: dfpt_quasiparticle_vertex_cancellation
+  target: setting.dfpt_quasiparticle_vertex_cancellation
+- type: ref
+  name: toy_model_rpa_and_phonon_kernel
+  target: setting.toy_model_rpa_and_phonon_kernel
+- type: ref
+  name: ueg_mapping_of_real_metals
+  target: setting.ueg_mapping_of_real_metals
+- type: ref
+  name: numerical_truncation_and_resummation_details
+  target: setting.numerical_truncation_and_resummation_details
+- type: ref
+  name: cutoff_hierarchy_and_regime
+  target: setting.cutoff_hierarchy_and_regime
+- type: ref
+  name: controlled_low_energy_downfolding_and_precise_mebse_formulation
+  target: reasoning.controlled_low_energy_downfolding_and_precise_mebse_formulation
+- type: ref
+  name: quantitative_validation_of_the_fermi_surface_downfolding
+  target: reasoning.quantitative_validation_of_the_fermi_surface_downfolding
+- type: ref
+  name: first_principles_coulomb_pseudopotential_for_the_3d_uniform_electron_gas_numeric
+  target: reasoning.first_principles_coulomb_pseudopotential_for_the_3d_uniform_electron_gas_numeric
+- type: ref
+  name: variational_diagmc_homotopic_expansion_and_resummation_protocol_for_cooper_chann
+  target: reasoning.variational_diagmc_homotopic_expansion_and_resummation_protocol_for_cooper_chann
+- type: ref
+  name: dfpt_accurately_reproduces_the_quasiparticle_electronphonon_vertex_in_ueg
+  target: reasoning.dfpt_accurately_reproduces_the_quasiparticle_electronphonon_vertex_in_ueg
+- type: ref
+  name: ab_initio_workflow_combining_many_body_and_dfpt_with_precursory_cooper_flow
+  target: reasoning.ab_initio_workflow_combining_many_body_and_dfpt_with_precursory_cooper_flow
+- type: claim
+  name: controlled_low_energy_downfolding_and_precise_mebse_formulation
+  content: "A controlled effective-field-theory downfolding of the particle-particle Bethe–Salpeter equation (BSE) to a frequency-only,\
+    \ Fermi-surface theory is established, yielding precise microscopic definitions of the Coulomb pseudopotential and the\
+    \ effective electron–phonon coupling and exact forms of the low-energy Cooper-channel equations up to specified small\
+    \ parameters.  Concretely, the downfolded anomalous-vertex BSE for the Fermi-surface-averaged anomalous vertex $\\Lambda_{\\\
+    omega}$ is\n      $$\n      \\Lambda_{\\omega} = \\eta_{\\omega} + \\pi T \\sum_{|\\omega^{\\prime}|<\\omega_{c}} \\big(\\\
+    lambda_{\\omega\\omega^{\\prime}} - \\mu_{\\omega_{c}}\\big)\\frac{z_{\\omega^{\\prime}}^{\\mathrm{ph}}}{|\\omega^{\\\
+    prime}|}\\,\\Lambda_{\\omega^{\\prime}} + O\\!\\left(\\frac{\\omega_{\\mathrm{D}}}{E_{\\mathrm{F}}},\\frac{\\omega_{c}^{2}}{\\\
+    omega_{\\mathrm{p}}^{2}},\\frac{T}{\\omega_{c}}\\right),\n      $$\n      and the critical-gap (linearized ME) equation\
+    \ at $T_{c}$ is\n      $$\n      \\Delta_{\\omega} = \\pi T_{c}\\sum_{|\\omega^{\\prime}|<\\omega_{c}} \\big(\\lambda_{\\\
+    omega\\omega^{\\prime}} - \\mu^{*}\\big)\\frac{z_{\\omega^{\\prime}}^{\\mathrm{ph}}}{|\\omega^{\\prime}|}\\,\\Delta_{\\\
+    omega^{\\prime}} + O\\!\\left(\\frac{\\omega_{\\mathrm{D}}}{E_{\\mathrm{F}}},\\frac{\\omega_{c}^{2}}{\\omega_{\\mathrm{p}}^{2}}\\\
+    right),\n      $$\n      where $\\lambda_{\\omega\\omega'}$ is the Fermi-surface-averaged phonon-mediated interaction,\
+    \ $z_{\\omega}^{\\mathrm{ph}}$ is the frequency-dependent quasiparticle weight due to electron–phonon coupling, and $\\\
+    mu_{\\omega_{c}}$ is the coherent, particle–particle-irreducible effective electron–electron interaction defined with\
+    \ respect to the low-energy cutoff $\\omega_{c}$; the Bogoliubov–Tolmachev–Shirkov renormalization relation\n      $$\n\
+    \      \\mu_{\\omega_{c}}=\\frac{\\mu_{\\omega_{c}'} }{1+\\mu_{\\omega_{c}'}\\ln\\!\\frac{\\omega_{c}'}{\\omega_{c}}}\n\
+    \      $$\n      connects values at different cutoff scales.  The derivation is controlled provided the small parameters\
+    \ $\\omega_{\\mathrm{D}}/E_{\\mathrm{F}}$, $\\omega_{c}^{2}/\\omega_{\\mathrm{p}}^{2}$, and $T/\\omega_{c}$ are small;\
+    \ in particular it requires a gapped plasmon ($\\omega_{\\mathrm{p}}\\gg \\omega_{c}$) and a separation $\\omega_{\\mathrm{D}}\\\
+    ll\\omega_{c}\\ll\\omega_{\\mathrm{p}}$."
+  prior: 0.5
+- type: claim
+  name: quantitative_validation_of_the_fermi_surface_downfolding
+  content: "The downfolded, frequency-only BSE is quantitatively accurate for conventional metallic parameters: in a representative\
+    \ toy model (RPA-screened electron irreducible vertex plus a model phonon interaction at $r_{s}=1.91916$ and $\\omega_{\\\
+    mathrm{D}}/E_{\\mathrm{F}}=0.005$) the superconducting critical temperature obtained from the full frequency- and momentum-dependent\
+    \ BSE, $T_{c}^{(\\mathrm{full})}$, and from the downfolded frequency-only BSE, $T_{c}^{(\\mathrm{approx})}$, differ by\
+    \ $\\sim 0.2\\%$ (numerical values reported in the comparison).  \n      \n       [Fig. 5]"
+  prior: 0.5
+- type: claim
+  name: first_principles_coulomb_pseudopotential_for_the_3d_uniform_electron_gas_numeric
+  content: "High-order variational DiagMC calculations combined with a homotopic resummation yield the dimensionless \"bare\"\
+    \ Coulomb pseudopotential at the Fermi-energy scale, $\\mu_{E_{F}}$, for the three-dimensional uniform electron gas (UEG)\
+    \ as a function of Wigner–Seitz radius $r_{s}$. For integer $r_{s}$ values $1\\le r_{s}\\le 6$ the extracted $\\mu_{E_{F}}$\
+    \ (with quoted systematic uncertainties from the VDiagMC and resummation procedure) are:\n      - $r_{s}=1$: $\\mu_{E_{F}}\
+    \ = 0.28(1)$,\n      - $r_{s}=2$: $\\mu_{E_{F}} = 0.53(2)$,\n      - $r_{s}=3$: $\\mu_{E_{F}} = 0.77(5)$,\n      - $r_{s}=4$:\
+    \ $\\mu_{E_{F}} = 1.0(2)$,\n      - $r_{s}=5$: $\\mu_{E_{F}} = 1.3(2)$,\n      - $r_{s}=6$: $\\mu_{E_{F}} = 1.8(8)$.\n\
+    \      These values are significantly larger than estimates based on Morel–Anderson (static Yukawa/Thomas–Fermi) or static-RPA\
+    \ screening in the moderate-density regime ($r_{s}\\gtrsim 1$) and disagree with dynamic-RPA predictions of negative pseudopotentials\
+    \ at $r_{s}\\gtrsim 2$.  The data provide a quantitative, density-dependent parameterization of $\\mu_{E_{F}}$ usable\
+    \ in downfolded ME/BSE calculations for simple metals after adjusting for material band mass and electron density.  \n\
+    \      \n       [Fig. 4; Table I]"
+  prior: 0.5
+- type: claim
+  name: variational_diagmc_homotopic_expansion_and_resummation_protocol_for_cooper_chann
+  content: "A practical computational protocol is developed and implemented that (i) constructs high-order series expansions\
+    \ of the quasiparticle scattering amplitude $\\gamma_{T}(\\xi)$ using an optimized renormalized Yukawa expansion within\
+    \ Variational Diagrammatic Monte Carlo (VDiagMC), (ii) forms a homotopic mapping to a temperature-independent pseudopotential\
+    \ series $\\mu_{\\omega_{c}}(\\xi)$ via the algebraic relation\n      $$\n      \\mu_{\\omega_{c}}(\\xi)=\\frac{\\gamma_{T}(\\\
+    xi)}{1-\\gamma_{T}(\\xi)\\ln(\\omega_{c}/T)},\n      $$\n      and (iii) applies conformal-map style resummation to obtain\
+    \ converged estimates of $\\mu_{\\omega_{c}}(\\xi=1)$ and then rescales to $\\mu_{E_{F}}$ using the Bogoliubov–Tolmachev–Shirkov\
+    \ relation.  This protocol cures the low-temperature $(\\ln T)^N$ growth of finite-order Cooper-ladder contributions,\
+    \ produces rapidly convergent estimates of $\\mu_{\\omega_{c}}$ (illustrated by partial-sum behavior versus $T$), and\
+    \ yields the numerical $\\mu_{E_{F}}$ values reported.  \n      \n       [Fig. 7; Fig. 14]"
+  prior: 0.5
+- type: claim
+  name: dfpt_accurately_reproduces_the_quasiparticle_electronphonon_vertex_in_ueg
+  content: "For the uniform electron gas in the density range $1\\le r_{s}\\le 5$, the many-body quasiparticle electron–phonon\
+    \ vertex—expressed as the product of the quasiparticle residue, screened Coulomb interaction, and the three-point electronic\
+    \ vertex correction,\n      $$\n      z^{e}\\frac{v_{\\mathbf{q}}}{\\epsilon_{\\mathbf{q}}}\\Gamma_{3}^{e}(\\mathbf{k};\\\
+    mathbf{q}),\n      $$\n      is numerically well approximated by the DFPT (Kohn–Sham) screened ionic potential\n     \
+    \ $$\n      \\frac{v_{\\mathbf{q}}}{1-(v_{\\mathbf{q}}+f_{\\mathrm{xc}})\\chi_{0}^{e}(\\mathbf{q})}\\equiv g^{\\mathrm{KS}}(\\\
+    mathbf{q}),\n      $$\n      i.e., $g(\\mathbf{k},\\mathbf{q})\\approx g^{\\mathrm{KS}}(\\mathbf{q})$ with only weak residual\
+    \ $\\mathbf{k}$-dependence over the Fermi-surface-relevant momentum range $|\\mathbf{q}|\\le 2k_{F}$.  This near cancellation\
+    \ of interaction corrections (quasiparticle weight vs vertex renormalization and dielectric screening) justifies the use\
+    \ of DFPT-derived matrix elements to compute the effective e–ph coupling $\\lambda$ for simple metals.  \n      \n   \
+    \    [Fig. 8]"
+  prior: 0.5
+- type: claim
+  name: ab_initio_workflow_combining_many_body_and_dfpt_with_precursory_cooper_flow
+  content: "An end-to-end ab initio workflow is presented that (i) computes many-electron correlation inputs (quasiparticle\
+    \ density of states $N_{F}^{*}$, quasiparticle residue $z^{e}$, the static, Fermi-surface-averaged four-point vertex determining\
+    \ $\\mu_{E_{F}}$, and the three-point quasiparticle vertex) using high-order diagrammatic many-body techniques (e.g.,\
+    \ VDiagMC), (ii) computes phonon spectra and DFPT electron–phonon matrix elements $g^{\\mathrm{KS}}(\\mathbf{q})$ to obtain\
+    \ $\\lambda$, (iii) constructs the downfolded frequency-only BSE (EFT-ME) kernel using the microscopic definitions of\
+    \ $\\mu^{*}$ and $\\lambda$, and (iv) determines $T_{c}$ and the gap function by computing the normal-state anomalous-vertex\
+    \ $\\Lambda_{\\omega}$ and applying the precursory Cooper flow (PCF) scaling $\\Lambda_{0}(T) = [1+g\\ln(\\omega_{\\Lambda}/T)]^{-1}$\
+    \ to infer $T_{c}$ from normal-state calculations.  This workflow enables prediction of ultra-low $T_{c}$ and quantum\
+    \ phase transition points without empirical tuning of $\\mu^{*}$.  \n      \n       [Fig. 9]"
+  prior: 0.5
+- type: claim
+  name: predictions_and_benchmarks_for_simple_metals_pressure_driven_suppression_of_supe
+  content: "Applying the above workflow to a set of simple metals (Li, Na, K, Mg, Al, Zn) with conduction-electron parameters\
+    \ fit to UEG, computed DFPT $\\lambda$, and VDiagMC $\\mu_{E_{F}}$, yields fitting-free $T_{c}$ predictions that substantially\
+    \ reduce prior uncertainties for sub-Kelvin superconductors and reconcile theory with experiment in benchmark cases. \
+    \ Representative numerical predictions (from Table II and Figs. 10–11) include: (i) Al at ambient pressure: $T_{c}^{\\\
+    mathrm{EFT}}\\approx 0.96\\,$K (compared to experimental $1.2\\,$K); (ii) Zn: $T_{c}^{\\mathrm{EFT}}\\approx 0.874\\,$K\
+    \ (experimental $0.875\\,$K); (iii) Li (hcp): $T_{c}^{\\mathrm{EFT}}\\approx 0.03\\,$K (experimental reported $4\\times\
+    \ 10^{-4}\\,$K, with structural uncertainties noted); (iv) Na and Mg are predicted to have extremely small $T_{c}$ (e.g.,\
+    \ practically zero within current experimental reach); (v) under assumed structural stability, Al is predicted to undergo\
+    \ a pressure-induced suppression of s-wave superconductivity and to become non-superconducting above a critical pressure\
+    \ $\\sim 60\\,$GPa (the calculated $T_{c}$ decreases continuously with pressure and falls below experimentally accessible\
+    \ values already at tens of GPa).  These results resolve significant discrepancies for low-$T_{c}$ materials and show\
+    \ that some metals are proximate to a normal–superconducting critical point where the pair-field susceptibility would\
+    \ display quantum-critical (logarithmic) behavior.  \n      \n       [Fig. 10; Fig. 11; Table II]"
+  prior: 0.5
+- type: claim
+  name: identified_validity_limits_and_domain_of_applicability_of_the_downfolded_eft_me
+  content: 'The downfolded EFT-ME framework and the frequency-only BSE are valid and controlled under the following conditions
+    and are quantitatively accurate when they hold: (i) adiabaticity $\omega_{\mathrm{D}}/E_{\mathrm{F}}\ll 1$ (small ionic-to-electron
+    mass ratio), (ii) separation of cut-off scales $\omega_{\mathrm{D}}\ll\omega_{c}\ll\omega_{\mathrm{p}}$ (plasmon frequency
+    $\omega_{\mathrm{p}}$ large compared to the high-energy cutoff $\omega_{c}$), and (iii) well-defined Fermi-surface quasiparticles
+    (Landau Fermi liquid).  The framework fails or requires full BSE treatment when any of these conditions break down, notably
+    when plasmons soften ($\omega_{\mathrm{p}}\lesssim\omega_{c}$), in two-dimensional systems with gapless plasmon modes,
+    in systems with emergent soft collective modes from strong correlations, in materials with very low conduction-electron
+    density ($E_{F}\sim\omega_{D}$), or when Umklapp and multiband/core-electron contributions to screening are significant
+    (e.g., many transition metals).'
+  prior: 0.5
+- type: chain_expr
+  name: chain_controlled_low_energy_downfolding_and_precise_mebse_formulation
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: 'Define the object of interest: the anomalous (pairing) vertex function averaged over the Fermi surface, denoted
+      $\Lambda_{\omega}$, which is the frequency- dependent linear response of the anomalous self- energy to an infinitesimal
+      pair-creating source; the Matsubara frequency variable is $\omega$ (with $\omega = \pi T(2n+1)$ for integer $n$) and
+      $T$ is the temperature.'
+    prior: 0.7
+  - step: 2
+    lambda: "Begin from the exact Bethe–Salpeter equation (BSE) for the anomalous vertex in the normal state: $\\Lambda_{\\\
+      mathbf{k}\\omega} = \\eta_{\\mathbf{k}\\omega} + \\int_{\\mathbf{k}^{\\prime}\\omega^{\\prime}}\\tilde{\\Gamma}_{\\\
+      mathbf{k}\\omega;\\mathbf{k}^{\\prime}\\omega^{\\prime}}\\,G_{\\mathbf{k}^{\\prime}\\omega^{\\prime}}\\,G_{-\\mathbf{k}^{\\\
+      prime},-\\omega^{\\prime}}\\,\\Lambda_{\\mathbf{k}^{\\prime}\\omega^{\\prime}}$, where $\\tilde{\\Gamma}_{\\mathbf{k}\\\
+      omega;\\mathbf{k}^{\\prime}\\omega^{\\prime}}$ is the particle- particle irreducible four- point vertex (the BSE kernel),\
+      \ $G_{\\mathbf{k}\\omega}$ is the single- particle Green's function, and $\\eta_{\\mathbf{k}\\omega}$ is the infinitesimal\
+      \ source profile; this BSE is the starting exact equation for locating pairing instabilities and is the formal basis\
+      \ for the downfolding procedure.\n [Fig. 3]"
+    prior: 0.7
+  - step: 3
+    ref: pair_propagator_scale_separation
+  - step: 4
+    ref: cutoff_hierarchy_and_regime
+  - step: 5
+    lambda: Partition the pair propagator $G_{\mathbf{k}\omega}G_{-\mathbf{k},-\omega}$ into a low- energy coherent (infrared,
+      IR) piece and a high- energy incoherent (ultraviolet, UV) piece by introducing an intermediate cutoff energy $\omega_{c}$
+      with the hierarchy $\omega_{\mathrm{D}}\ll\omega_{c}\ll E_{\mathrm{F}}$ (where $\omega_{\mathrm{D}}$ is a typical phonon
+      frequency and $E_{\mathrm{F}}$ the Fermi energy). Explicitly write $G_{\mathbf{k}\omega}G_{-\mathbf{k},-\omega} = \Pi_{BCS}
+      + \phi_{\mathbf{k}\omega}$, where $\Pi_{BCS} = \dfrac{(z^{\mathrm{e}})^2}{\left(\frac{\omega}{z_{\mathrm{w}}^{\mathrm{ph}}}\right)^2
+      + \epsilon_{\mathbf{k}}^2}\Theta(\omega_{c} - |\epsilon_{\mathbf{k}}|)$ is the coherent pair propagator expressed in
+      terms of (i) $z^{\mathrm{e}}$, the quasiparticle residue from electron–electron interactions (frequency- and momentum-
+      independent on the scales of interest), (ii) $z_{\mathrm{w}}^{\mathrm{ph}}$ the frequency- dependent quasiparticle weight
+      due to electron–phonon coupling, and (iii) $\epsilon_{\mathbf{k}}$ the linearized quasiparticle dispersion renormalized
+      by electron interactions; $\phi_{\mathbf{k}\omega}$ is the regular, incoherent remainder. This separation is the central
+      field- theoretic scale- separation assumption for downfolding.
+    prior: 0.7
+    refs:
+    - setting.pair_propagator_scale_separation
+    - setting.cutoff_hierarchy_and_regime
+  - step: 6
+    ref: adiabatic_migdal_small_parameter
+  - step: 7
+    lambda: 'State the two small- parameter approximations controlling the subsequent manipulations: (i) the adiabatic small
+      parameter $\dfrac{\omega_{\mathrm{D}}}{E_{\mathrm{F}}}\ll 1$ (which renders Migdal- type vertex corrections from phonons
+      small), and (ii) suppression of cross terms that mix UV incoherent propagators and long- wavelength dynamical Coulomb
+      effects provided $\dfrac{\omega_{c}^2}{\omega_{\mathrm{p}}^2}\ll 1$, where $\omega_{\mathrm{p}}$ is a characteristic
+      plasmon frequency; these small ratios control the size of omitted terms and determine the domain of applicability of
+      the downfolding.'
+    prior: 0.7
+    refs:
+    - setting.adiabatic_migdal_small_parameter
+  - step: 8
+    lambda: 'Decompose the full BSE into low- and high- frequency sectors by defining $\Lambda_{L}$ for $|\omega|<\omega_{c}$
+      and $\Lambda_{H}$ for $|\omega|>\omega_{c}$, and write the coupled two- sector equations symbolically as: (i) $\Lambda_{L}
+      = \eta_{\omega} + \tilde{\Gamma}_{LL}\Pi_{BCS}\Lambda_{L} + \tilde{\Gamma}_{LH}\phi\Lambda_{H} + O\!\left(\frac{\omega_{c}^{2}}{\omega_{\mathrm{p}}^{2}}\right)$
+      and (ii) $\Lambda_{H} = \tilde{\Gamma}_{HL}\Pi_{BCS}\Lambda_{L} + \tilde{\Gamma}_{HH}\phi\Lambda_{H} + O\!\left(\frac{\omega_{c}^{2}}{\omega_{\mathrm{p}}^{2}}\right)$,
+      where subscripts indicate frequency sectors and the $O(\omega_{c}^{2}/\omega_{p}^{2})$ terms denote cross- sector contributions
+      that are parametrically small when plasmons are gapped relative to $\omega_{c}$.'
+    prior: 0.7
+  - step: 9
+    ref: plasmon_gap_cross_sector_suppression
+  - step: 10
+    lambda: "Justify neglecting the cross- sector terms: use the exact small- $q$, low- frequency asymptotic form of the dynamical\
+      \ Coulomb interaction in the screened (plasmon) channel, $W^{\\mathrm{s}}_{q,\\Omega} = \\dfrac{4\\pi e^{2}}{q^{2}}\\\
+      dfrac{\\Omega^{2}}{\\Omega^{2} + \\omega_{\\mathrm{p}}^{2}}$, (where $q$ is momentum transfer and $\\Omega$ is transfer\
+      \ frequency) to estimate the size of $\\tilde{\\Gamma}^{\\mathrm{e}}\\cdot\\phi\\cdot W^{\\mathrm{ph}}$ cross terms;\
+      \ integrating this conservative plasmon- pole form over the UV incoherent phase- space leads to suppression by the factor\
+      \ $\\dfrac{\\omega_{c}^{2}}{\\omega_{\\mathrm{p}}^{2}}$, so that provided $\\omega_{\\mathrm{p}}\\gg\\omega_{c}$ these\
+      \ cross terms are negligible at the claimed order.\n [[15]]"
+    prior: 0.7
+    refs:
+    - setting.plasmon_gap_cross_sector_suppression
+  - step: 11
+    ref: perturbative_high_frequency_elimination
+  - step: 12
+    lambda: 'Eliminate the high- energy sector $\Lambda_{H}$ perturbatively: since $\tilde{\Gamma}_{HH}\phi$ describes only
+      non- singular UV processes and $\tilde{\Gamma}_{HL}\Pi_{BCS}$ is suppressed by the small cross- sector estimates, formally
+      solve the second equation for $\Lambda_{H}$ in terms of $\Lambda_{L}$ and substitute back into the first, thereby integrating
+      out high- frequency pair fluctuations to obtain an effective low- energy particle- particle- irreducible vertex $\tilde{\Gamma}^{\omega_{c}}$
+      acting only within $|\omega|<\omega_{c}$; the omitted terms are bounded by the small parameters $\dfrac{\omega_{\mathrm{D}}}{E_{\mathrm{F}}}$,
+      $\dfrac{\omega_{c}^{2}}{\omega_{\mathrm{p}}^{2}}$, and $\dfrac{T}{\omega_{c}}$.'
+    prior: 0.7
+    refs:
+    - setting.perturbative_high_frequency_elimination
+  - step: 13
+    ref: fermi_surface_projection_regularization
+  - step: 14
+    lambda: 'Project momenta onto the Fermi surface: argue that after high- energy elimination the effective vertex $\tilde{\Gamma}^{\omega_{c}}$
+      is regular on the scale of Fermi- surface variations and therefore may be averaged over Fermi- surface directions to
+      produce frequency- only kernels; introduce the Fermi- surface average notation $\langle\cdots\rangle_{\mathrm{FS}}$
+      and define the Fermi- surface- averaged phonon- mediated interaction $\lambda_{\omega\omega''} \equiv -(z^{\mathrm{e}})^{2}N^{*}_{F}\langle
+      W^{\mathrm{ph}}_{\mathbf{k}_{F}-\mathbf{k}''_{F},\omega-\omega''}\rangle_{\mathbf{k}_{F},\mathbf{k}''_{F}}$, where $N^{*}_{F}$
+      is the quasiparticle density of states and $z^{\mathrm{e}}$ the quasiparticle residue.'
+    prior: 0.7
+    refs:
+    - setting.fermi_surface_projection_regularization
+  - step: 15
+    lambda: "Perform the integration over momentum components perpendicular to the Fermi surface using the coherent pair propagator\
+      \ form and obtain the downfolded, frequency- only Bethe–Salpeter equation for the Fermi- surface- averaged anomalous\
+      \ vertex $\\Lambda_{\\omega}$: \n$$\n\\Lambda_{\\omega} = \\eta_{\\omega} + \\pi T\\sum_{|\\omega^{\\prime}|<\\omega_{c}}(\\\
+      lambda_{\\omega\\omega^{\\prime}} - \\mu_{\\omega_{c}})\\frac{z_{\\omega^{\\prime}}^{\\mathrm{ph}}}{|\\omega^{\\prime}|}\\\
+      Lambda_{\\omega^{\\prime}} + O\\!\\left(\\frac{\\omega_{\\mathrm{D}}}{E_{\\mathrm{F}}},\\frac{\\omega_{c}^{2}}{\\omega_{\\\
+      mathrm{p}}^{2}},\\frac{T}{\\omega_{c}}\\right),\n$$\nwhere $\\mu_{\\omega_{c}}$ is the coherent particle- particle-\
+      \ irreducible effective electron– electron interaction defined with respect to cutoff $\\omega_{c}$, and $z_{\\omega}^{\\\
+      mathrm{ph}}$ is the phonon- induced quasiparticle weight factor; this is the explicit frequency- only BSE stated in\
+      \ the conclusion."
+    prior: 0.7
+  - step: 16
+    lambda: 'Linearize the downfolded BSE at the critical point to obtain the linearized gap (ME) equation for the gap function
+      $\Delta_{\omega}$ at $T_{c}$ by noting that near the instability $\Lambda_{\omega}\propto\Delta_{\omega}/(T-T_{c})$
+      and the diverging prefactors cancel, resulting in:
+
+      $$
+
+      \Delta_{\omega} = \pi T_{c}\sum_{|\omega^{\prime}|<\omega_{c}}(\lambda_{\omega\omega^{\prime}} - \mu^{*})\frac{z_{\omega^{\prime}}^{\mathrm{ph}}}{|\omega^{\prime}|}\Delta_{\omega^{\prime}}
+      + O\!\left(\frac{\omega_{\mathrm{D}}}{E_{\mathrm{F}}},\frac{\omega_{c}^{2}}{\omega_{\mathrm{p}}^{2}}\right),
+
+      $$
+
+      where $\mu^{*}\equiv \mu_{\omega_{c}}$; this reproduces the downfolded linearized ME equation with controlled error
+      terms.'
+    prior: 0.7
+  - step: 17
+    lambda: 'State the renormalization (scale- changing) identity for the pseudopotential: show that the physical, temperature-
+      dependent two- quasiparticle scattering amplitude $\gamma_{T}$ at low $T$ and $T\ll\omega_{c}$ satisfies $\gamma_{T}
+      = \dfrac{\mu_{\omega_{c}}}{1 + \mu_{\omega_{c}}\ln(\omega_{c}/T)}$, which implies the Bogoliubov–Tolmachev–Shirkov renormalization
+      relation connecting $\mu$ at different cutoffs:
+
+      $$
+
+      \mu_{\omega_{c}} = \frac{\mu_{\omega_{c}^{\prime}}}{1 + \mu_{\omega_{c}^{\prime}}\ln\frac{\omega_{c}^{\prime}}{\omega_{c}}}.
+
+      $$
+
+      This relation follows from the requirement that the physical $\gamma_{T}$ be independent of the arbitrary separation
+      $\omega_{c}$ and is the explicit connection used to move pseudopotentials between scales.'
+    prior: 0.7
+  - step: 18
+    ref: landau_fermi_liquid_quasiparticles_exist
+  - step: 19
+    lambda: 'Summarize the domain of controlled validity explicitly: the downfolded, frequency- only BSE and the identification
+      of $\mu_{\omega_{c}}$ and $\lambda_{\omega\omega''}$ are controlled approximations provided (i) adiabaticity $\dfrac{\omega_{\mathrm{D}}}{E_{\mathrm{F}}}\ll
+      1$ holds so phonon-vertex corrections are $O(\omega_{\mathrm{D}}/E_{\mathrm{F}})$, (ii) plasmons are gapped so that
+      $\dfrac{\omega_{c}^{2}}{\omega_{\mathrm{p}}^{2}}\ll 1$ and scale- separation $\omega_{\mathrm{D}}\ll\omega_{c}\ll\omega_{\mathrm{p}}$
+      can be chosen, and (iii) well- defined Fermi- surface quasiparticles (Landau Fermi liquid) exist; the neglected terms
+      are explicitly the enumerated $O(\cdots)$ corrections in the displayed equations.'
+    prior: 0.7
+    refs:
+    - setting.landau_fermi_liquid_quasiparticles_exist
+  - step: 20
+    ref: controlled_low_energy_downfolding_and_precise_mebse_formulation
+- type: chain_expr
+  name: chain_variational_diagmc_homotopic_expansion_and_resummation_protocol_for_cooper_chann
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: 'Define the computational goal: compute the temperature- independent, low- energy pseudopotential $\mu_{\omega_{c}}$
+      (and specifically its Fermi- energy scale value $\mu_{E_{F}}$) from high- order diagrammatic expansions of the two-
+      quasiparticle scattering amplitude in the Cooper channel, where direct finite- order expansions at low temperature suffer
+      from nested logarithmic growth $\propto [\ln(E_{F}/T)]^{N}$ at order $N$.'
+    prior: 0.7
+  - step: 2
+    ref: vdiagmc_renormalized_yukawa_expansion_accuracy
+  - step: 3
+    lambda: 'Describe the Variational Diagrammatic Monte Carlo (VDiagMC) starting point: set up a renormalized perturbative
+      expansion for the uniform electron gas (UEG) by re- expressing the Coulomb interaction as a Yukawa interaction $v_{\mathrm{R}}(\mathbf{q})
+      = 4\pi e^{2}/(\mathbf{q}^{2} + \lambda_{\mathrm{R}})$ plus a series of counterterms; introduce an auxiliary expansion
+      parameter $\xi$ (with physical results at $\xi=1$) so that observables are expanded as power series in $\xi$ with optimized
+      choice of screening parameter $\lambda_{\mathrm{R}}$ to accelerate convergence.'
+    prior: 0.7
+    refs:
+    - setting.vdiagmc_renormalized_yukawa_expansion_accuracy
+  - step: 4
+    lambda: 'Construct the power series for the physical, temperature- dependent dimensionless two- quasiparticle scattering
+      amplitude $\gamma_{T}(\xi)$ at a chosen low temperature $T$ (and corresponding lowest Matsubara frequency $\omega_{0}=\pi
+      T$) as
+
+      $$
+
+      \gamma_{T}(\xi) \equiv [z^{\mathrm{e}}(\xi)]^{2}\frac{m_{e}^{*}(\xi)}{m}N_{F}\,\Gamma^{\mathrm{e}}(\xi) \equiv \gamma_{T}^{(0)}
+      + \gamma_{T}^{(1)}\xi + \gamma_{T}^{(2)}\xi^{2} + \dots
+
+      $$
+
+      where $z^{\mathrm{e}}(\xi)$ is the quasiparticle residue series, $m_{e}^{*}(\xi)$ the effective mass series, $N_{F}$
+      the appropriate density of states, and $\Gamma^{\mathrm{e}}(\xi)$ the four- point vertex series; compute these coefficients
+      using high- order VDiagMC sampling of Feynman graphs with the optimized renormalized expansion.'
+    prior: 0.7
+  - step: 5
+    lambda: 'Explain the convergence problem: at low $T$ the $N$-th order term in $\gamma_{T}(\xi)$ grows as $[\ln(E_{F}/T)]^{N}$
+      because of nested Cooper- ladder particle- particle bubbles, so direct summation at $\xi=1$ is numerically unstable
+      and cannot yield the temperature- independent pseudopotential $\mu_{\omega_{c}}$.'
+    prior: 0.7
+  - step: 6
+    ref: homotopic_mapping_algebraic_relation
+  - step: 7
+    lambda: 'Introduce the homotopic mapping between the temperature- dependent scattering amplitude $\gamma_{T}(\xi)$ and
+      a temperature- independent pseudopotential series $\mu_{\omega_{c}}(\xi)$ via the algebraic relation
+
+      $$
+
+      \mu_{\omega_{c}}(\xi) = \frac{\gamma_{T}(\xi)}{1 - \gamma_{T}(\xi)\ln(\omega_{c}/T)}.
+
+      $$
+
+      This relation is chosen so that when expanded in powers of $\xi$ the logarithmic temperature- dependent counterterms
+      present in $\gamma_{T}(\xi)$ are re- packaged into temperature- independent coefficients of $\mu_{\omega_{c}}(\xi)$,
+      thereby curing the low- $T$ divergence of partial sums.'
+    prior: 0.7
+    refs:
+    - setting.homotopic_mapping_algebraic_relation
+  - step: 8
+    lambda: "Demonstrate the conversion step: show that expanding the right- hand side in powers of $\\xi$ yields $\\mu_{\\\
+      omega_{c}}(\\xi) = \\mu^{(0)}_{\\omega_{c}} + \\mu^{(1)}_{\\omega_{c}}\\xi +\\mu^{(2)}_{\\omega_{c}}\\xi^{2} + \\dots$,\
+      \ with explicit relations such as $\\mu^{(0)}_{\\omega_{c}}=\\gamma^{(0)}_{T}$ and $\\mu^{(1)}_{\\omega_{c}}=\\gamma^{(1)}_{T}\
+      \ + [\\gamma^{(0)}_{T}]^{2}\\ln(\\omega_{c}/T)$, so that the $(\\ln T)^N$ growth of $\\gamma_T$ is canceled order- by-\
+      \ order in $\\mu_{\\omega_c}$; numerically, partial sums of the $\\mu_{\\omega_{c}}$ series converge rapidly even as\
+      \ $T\\to 0$ (illustrated by the partial- sum behavior vs $T$).\n [Fig. 7]"
+    prior: 0.7
+  - step: 9
+    ref: analyticity_of_gamma_in_xi_domain
+  - step: 10
+    ref: conformal_map_resummation_effectiveness
+  - step: 11
+    lambda: Apply conformal- map style resummation to the finite- order homotopic series $\mu_{\omega_{c}}(\xi)$ to accelerate
+      convergence and extend the domain of analytic continuation to $\xi=1$, using the assumption that $\gamma_{T}(\xi)$ (and
+      hence $\mu_{\omega_{c}}(\xi)$) is analytic in a domain containing $0$ and $1$; the practical protocol uses conformal
+      mapping choices and standard series- acceleration steps (details and justification given in the Appendix) to obtain
+      a converged estimate of $\mu_{\omega_{c}}(\xi=1)$.
+    prior: 0.7
+    refs:
+    - setting.analyticity_of_gamma_in_xi_domain
+    - setting.conformal_map_resummation_effectiveness
+  - step: 12
+    lambda: 'Rescale the converged $\mu_{\omega_{c}}$ to the physically meaningful Fermi- energy scale using the Bogoliubov–Tolmachev–Shirkov
+      renormalization relation
+
+      $$
+
+      \mu_{E_{F}} = \frac{\mu_{\omega_{c}}}{1 - \mu_{\omega_{c}}\ln(\omega_{c}/E_{F})},
+
+      $$
+
+      thereby producing the final "bare" pseudopotential $\mu_{E_{F}}$ appropriate for use in the downfolded ME/BSE.'
+    prior: 0.7
+  - step: 13
+    ref: numerical_truncation_and_resummation_details
+  - step: 14
+    lambda: "Record practical algorithmic details and numerical evidence: (i) construct high- order series expansions of $\\\
+      Gamma^{\\mathrm{e}}$, $z^{\\mathrm{e}}$, and $m^{*}$ using renormalized Yukawa expansion in VDiagMC; (ii) form $\\gamma_{T}(\\\
+      xi)$ and map to $\\mu_{\\omega_{c}}(\\xi)$ via the algebraic relation; (iii) apply conformal- map resummation to $\\\
+      mu_{\\omega_{c}}(\\xi)$ and evaluate at $\\xi=1$ to obtain $\\mu_{\\omega_{c}}$, then rescale to $\\mu_{E_{F}}$; the\
+      \ resulting protocol cures the $(\\ln T)^N$ growth of finite- order Cooper- ladder contributions and yields rapidly\
+      \ convergent estimates as illustrated in the paper.\n [Fig. 14]"
+    prior: 0.7
+    refs:
+    - setting.numerical_truncation_and_resummation_details
+  - step: 15
+    ref: variational_diagmc_homotopic_expansion_and_resummation_protocol_for_cooper_chann
+- type: chain_expr
+  name: chain_identified_validity_limits_and_domain_of_applicability_of_the_downfolded_eft_me
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: 'State the explicit small- parameter conditions underpinning controlled downfolding: (i) adiabaticity $\dfrac{\omega_{\mathrm{D}}}{E_{\mathrm{F}}}\ll
+      1$ (phonon energy small compared to electronic Fermi energy), (ii) scale separation $\omega_{\mathrm{D}}\ll\omega_{c}\ll\omega_{\mathrm{p}}$
+      (a high- energy cutoff $\omega_{c}$ that lies between phonon and plasmon scales), and (iii) existence of Landau Fermi-
+      liquid quasiparticles (well- defined Fermi surface and finite quasiparticle residue $z^{\mathrm{e}}$).'
+    prior: 0.7
+  - step: 2
+    lambda: 'Explain why each condition is required: (i) $\dfrac{\omega_{\mathrm{D}}}{E_{\mathrm{F}}}\ll 1$ ensures Migdal-
+      theorem suppression of phonon-vertex corrections so $W^{\mathrm{ph}}$-based truncation is valid; (ii) $\omega_{\mathrm{D}}\ll\omega_{c}\ll\omega_{\mathrm{p}}$
+      allows integration out of high- energy incoherent pair propagators while ensuring dynamical plasmon effects do not feed
+      back into the low- energy Cooper channel beyond controlled $O(\omega_{c}^{2}/\omega_{p}^{2})$ corrections; (iii) Landau
+      quasiparticles guarantee that the coherent pair propagator $\Pi_{BCS}$ has the BCS- type logarithmic low- energy singularity
+      exploited in the downfolding and in PCF scaling.'
+    prior: 0.7
+  - step: 3
+    lambda: 'List and characterize regimes where the downfolding fails or requires the full-frequency-momentum BSE: (a) plasmon
+      softening $\omega_{\mathrm{p}}\lesssim\omega_{c}$ (plasmon dynamics intrude on the Cooper window so cross terms are
+      not suppressed), (b) strictly two- dimensional systems with gapless $\sqrt{q}$ plasmon dispersion (absence of plasmon
+      gap invalidates the $ \omega_{c}^2/\omega_{p}^2$ suppression and spatial nonlocal screening is essential), (c) systems
+      with emergent soft collective modes from strong correlations (soft bosonic modes at energies comparable to $\omega_{c}$
+      spoil scale separation), (d) very low electron density where $E_{F}\sim\omega_{D}$ (adiabatic parameter fails), and
+      (e) materials in which Umklapp processes, multiband, or core- electron screening contributions are significant (e.g.,
+      many transition metals) making local Fermi- surface projection insufficient.'
+    prior: 0.7
+  - step: 4
+    lambda: 'Quantify the nature of the breakdown: when any of the above conditions are violated, the $O\!\left(\frac{\omega_{\mathrm{D}}}{E_{\mathrm{F}}},\frac{\omega_{c}^{2}}{\omega_{\mathrm{p}}^{2}},\frac{T}{\omega_{c}}\right)$
+      error estimates no longer guarantee smallness, and dynamical, momentum- dependent screening or vertex corrections can
+      qualitatively change the sign or magnitude of the low- energy Cooper- channel interaction; in such regimes the only
+      controlled approach is to retain full momentum- frequency dependence in the BSE (or to develop an alternate nonperturbative
+      low- energy EFT appropriate to the new emergent scales).'
+    prior: 0.7
+  - step: 5
+    lambda: 'Provide practical guidance: for typical three- dimensional simple metals with $r_{s}\gtrsim 1$ the plasmon gap
+      is large and the stated conditions are satisfied (so the downfolded EFT-ME is quantitatively accurate); for low- density,
+      quasi- two- dimensional, flat- band, or strongly correlated systems caution is required and either full BSE calculations
+      or specialized EFT extensions must be developed before applying the frequency- only downfolded equations.'
+    prior: 0.7
+  - step: 6
+    ref: identified_validity_limits_and_domain_of_applicability_of_the_downfolded_eft_me
+- type: chain_expr
+  name: chain_quantitative_validation_of_the_fermi_surface_downfolding
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: 'Start from the downfolded, frequency- only BSE established in conclusion 1 as the theoretical object to be validated:
+      the frequency- only BSE approximates the full frequency- and momentum- dependent BSE by integrating out high- energy
+      incoherent sectors under the assumptions $\omega_{\mathrm{D}}\ll\omega_{c}\ll\omega_{\mathrm{p}}$ and small $\omega_{D}/E_{F}$.'
+    prior: 0.7
+  - step: 2
+    ref: toy_model_rpa_and_phonon_kernel
+  - step: 3
+    lambda: "Define the toy model used for quantitative validation: (i) the particle- particle- irreducible electronic vertex\
+      \ $\\bar{\\Gamma}^{\\mathrm{e}}$ is approximated by the dynamically screened Coulomb interaction treated in RPA, $W_{\\\
+      mathrm{RPA}}(\\mathbf{q},\\nu) = v_{\\mathbf{q}}/(1 - v_{\\mathbf{q}}\\Pi^{0}_{\\mathbf{q}\\nu})$, where $v_{\\mathbf{q}}=4\\\
+      pi e^{2}/q^{2}$ and $\\Pi^{0}$ is the noninteracting polarization; (ii) the phonon- mediated interaction $W^{\\mathrm{ph}}_{q\\\
+      nu}$ is taken from a model form\n$$\nW_{q\\nu}^{\\mathrm{ph}} = -\\frac{g/N_{F}}{1 + (q/2k_{F})^{2}}\\frac{\\omega_{q}^{2}}{\\\
+      nu^{2} + \\omega_{q}^{2}},\n$$\nwith $\\omega_{q}^{2}=\\omega_{D}^{2}(q/k_{F})^{2}/(1+(q/k_{F})^{2})$ and coupling strength\
+      \ $g=0.4$ (as used in the paper); these choices produce a conservative, representative model of conventional metal screening\
+      \ plus a realistic phonon kernel.\n [[23]]"
+    prior: 0.7
+    refs:
+    - setting.toy_model_rpa_and_phonon_kernel
+  - step: 4
+    lambda: 'Specify the representative parameter values for the test: choose a conventional metallic density corresponding
+      to $r_{s}=1.91916$ (a value representative of aluminum- like density) and an adiabatic ratio $\omega_{\mathrm{D}}/E_{\mathrm{F}}
+      = 0.005$ (small), and set a cutoff $\omega_{c}$ satisfying $\omega_{D}\ll\omega_{c}\ll\omega_{p}$.'
+    prior: 0.7
+  - step: 5
+    lambda: Solve numerically both the full, frequency- and momentum- dependent BSE (i.e., the Bethe–Salpeter equation with
+      the above $\bar{\Gamma}^{\mathrm{e}}$ and $W^{\mathrm{ph}}$ kernels retained in their full dependence) and the downfolded,
+      frequency- only BSE (the reduced equation with Fermi- surface projection and frequency cutoff) for the anomalous vertex
+      and extract the superconducting critical temperature $T_{c}$ in both approaches (numerical solution method follows precursory
+      Cooper flow or direct linearized gap solutions as described in the methods).
+    prior: 0.7
+  - step: 6
+    lambda: "Compare the computed critical temperatures: report the numerical results from the model calculation that $T_{c}^{(\\\
+      mathrm{full})}/T_{F} = 10^{-5.668}$ and $T_{c}^{(\\mathrm{approx})}/T_{F} = 10^{-5.667}$, i.e., a relative difference\
+      \ of approximately $0.2\\%$, demonstrating the quantitative accuracy of the downfolded frequency- only reduction for\
+      \ conventional- metal parameters under the stated scale- separation conditions.\n [Fig. 5]"
+    prior: 0.7
+  - step: 7
+    lambda: 'Conclude validity domain for practical use: because the toy- model comparison exhibits sub- percent agreement
+      for $T_{c}$ at representative metallic parameters ($\omega_{D}\ll\omega_{c}\ll\omega_{p}$ and moderate $r_{s}$), the
+      frequency- only downfolding is quantitatively justified for conventional metals and can be used reliably in the ab initio
+      workflow developed in the paper; note caveats that the approximation may fail when scale separation or plasmon gapping
+      conditions are violated (see validity limits).'
+    prior: 0.7
+  - step: 8
+    ref: quantitative_validation_of_the_fermi_surface_downfolding
+- type: chain_expr
+  name: chain_first_principles_coulomb_pseudopotential_for_the_3d_uniform_electron_gas_numeric
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: 'Treat upstream results as given: (i) the controlled downfolded definitions of the pseudopotential $\mu_{\omega_{c}}$,
+      its renormalization relation, and the frequency- only BSE are established (conclusion 1), and (ii) the VDiagMC homotopic
+      expansion and resummation protocol for extracting $\mu_{\omega_{c}}$ from high- order diagrammatics is available (conclusion
+      4); these results are starting points and are not rederived here.'
+    prior: 0.7
+  - step: 2
+    lambda: 'Specify the quantity computed: the "bare" Coulomb pseudopotential at the Fermi- energy scale, denoted $\mu_{E_{F}}$,
+      is defined as the pseudopotential $\mu_{\omega_{c}}$ renormalized (via the Bogoliubov–Tolmachev–Shirkov relation) to
+      the scale $\omega_{c}=E_{F}$ (i.e., the value of the coherent particle- particle irreducible e– e interaction at the
+      Fermi- energy scale); this is the microscopic Coulomb parameter entering the downfolded ME/BSE.'
+    prior: 0.7
+  - step: 3
+    lambda: "Explain computational procedure used to obtain $\\mu_{E_{F}}(r_{s})$: (i) perform high- order VDiagMC calculations\
+      \ of self- energy, four- point vertex, quasiparticle residue $z^{\\mathrm{e}}$, and effective mass $m_{e}^{*}$ in the\
+      \ UEG for each targeted Wigner–Seitz radius $r_{s}$; (ii) assemble the series for the two- quasiparticle scattering\
+      \ amplitude $\\gamma_{T}(\\xi)$ and map it via the homotopic relation $\\mu_{\\omega_{c}}(\\xi) = \\dfrac{\\gamma_{T}(\\\
+      xi)}{1 - \\gamma_{T}(\\xi)\\ln(\\omega_{c}/T)}$ to obtain the temperature- independent series for $\\mu_{\\omega_{c}}(\\\
+      xi)$; (iii) apply conformal- map/resummation to the $\\mu_{\\omega_{c}}(\\xi)$ series to converge to $\\mu_{\\omega_{c}}(\\\
+      xi=1)$ and then rescale to $\\mu_{E_{F}}$ using the renormalization relation.\n [Fig. 7]"
+    prior: 0.7
+  - step: 4
+    lambda: "State the computed numerical results (with quoted systematic uncertainties) obtained by the above protocol for\
+      \ integer $r_{s}$ values $1\\le r_{s}\\le 6$ (these are direct outputs of the resummed VDiagMC calculations and the\
+      \ $\\xi$-homotopy/resummation pipeline):\n- $r_{s}=1$: $\\mu_{E_{F}} = 0.28(1)$,\n- $r_{s}=2$: $\\mu_{E_{F}} = 0.53(2)$,\n\
+      - $r_{s}=3$: $\\mu_{E_{F}} = 0.77(5)$,\n- $r_{s}=4$: $\\mu_{E_{F}} = 1.0(2)$,\n- $r_{s}=5$: $\\mu_{E_{F}} = 1.3(2)$,\n\
+      - $r_{s}=6$: $\\mu_{E_{F}} = 1.8(8)$;\nthese values appear in the paper's tabulation and figure and include systematic\
+      \ uncertainties arising from finite- order truncation and resummation choices.\n [Fig. 4]\n [Table I]"
+    prior: 0.7
+  - step: 5
+    lambda: 'Compare to prior approximations and highlight qualitative disagreements: note that these VDiagMC- based $\mu_{E_{F}}(r_{s})$
+      values are significantly larger than estimates from Morel–Anderson (MA) static Yukawa/Thomas–Fermi approximations and
+      static- RPA in the moderate- density regime ($r_{s}\gtrsim 1$), and they contradict dynamic- RPA predictions which (in
+      prior work) produced negative pseudopotentials at $r_{s}\gtrsim 2$; therefore the many- body, vertex- corrected VDiagMC
+      results demonstrate the breakdown of MA and RPA approximations at moderate $r_{s}$ and provide a robust, density- dependent
+      parameterization of the bare pseudopotential.'
+    prior: 0.7
+  - step: 6
+    lambda: 'State practical usage: these $\mu_{E_{F}}(r_{s})$ values supply a concrete, first- principles input to the downfolded
+      ME/BSE equations for simple metals after appropriate material- specific adjustments (e.g., accounting for band mass
+      and conduction electron density), thereby replacing the ad hoc phenomenological choices of $\mu^{*}$ historically used
+      in $T_{c}$ predictions.'
+    prior: 0.7
+  - step: 7
+    ref: first_principles_coulomb_pseudopotential_for_the_3d_uniform_electron_gas_numeric
+- type: chain_expr
+  name: chain_dfpt_accurately_reproduces_the_quasiparticle_electronphonon_vertex_in_ueg
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: 'Take as given the downfolded expression for the electron-phonon coupling entering the frequency- only ME/BSE:
+      the effective quasiparticle electron–phonon matrix element is $g(\mathbf{k},\mathbf{q}) \equiv g^{(0)}_{\mathbf{q}}\dfrac{z^{e}}{\epsilon_{\mathbf{q}}}\Gamma_{3}^{e}(\mathbf{k};\mathbf{q})$,
+      where $g^{(0)}_{\mathbf{q}}$ is the bare ion- induced coupling, $z^{e}$ the electronic quasiparticle residue, $\epsilon_{\mathbf{q}}$
+      the dielectric screening factor, and $\Gamma_{3}^{e}(\mathbf{k};\mathbf{q})$ the three- point electronic vertex correction;
+      the effective dimensionless e– ph coupling $\lambda$ is obtained by a Fermi- surface average $\lambda = N_{F}\sum_{\kappa}\left\langle
+      \dfrac{g_{\kappa}^{2}(\mathbf{k},\mathbf{q})}{\omega_{\kappa,\mathbf{q}}^{2}}\right\rangle_{\mathrm{FS}}$ with $N_{F}$
+      the quasiparticle density of states and $\omega_{\kappa,\mathbf{q}}$ phonon frequencies.'
+    prior: 0.7
+  - step: 2
+    lambda: "Introduce the DFPT (Kohn–Sham) ansatz for the screened ionic potential used in conventional ab initio calculations:\
+      \ $g^{\\mathrm{KS}}(\\mathbf{q}) \\equiv \\dfrac{g_{\\mathbf{q}}^{(0)}}{1 - (v_{\\mathbf{q}} + f_{\\mathrm{xc}})\\chi_{0}^{e}(\\\
+      mathbf{q})}$, where $v_{\\mathbf{q}}$ is the Coulomb potential, $f_{\\mathrm{xc}}$ the (LDA) exchange–correlation kernel,\
+      \ and $\\chi_{0}^{e}(\\mathbf{q})$ the Kohn–Sham Lindhard response; $g^{\\mathrm{KS}}(\\mathbf{q})$ depends only on\
+      \ momentum transfer $\\mathbf{q}$ (before projection onto Bloch orbitals).\n [Fig. 8]"
+    prior: 0.7
+  - step: 3
+    lambda: 'Explain the numerical test performed: compute the many- body quantity $z^{e}\dfrac{v_{\mathbf{q}}}{\epsilon_{\mathbf{q}}}\Gamma_{3}^{e}(\mathbf{k};\mathbf{q})$
+      using VDiagMC for the UEG across densities $1\le r_{s}\le 5$ (evaluating $z^{e}$, dielectric screening $\epsilon_{\mathbf{q}}$,
+      and the three- point vertex correction), and compare this many- body quasiparticle vertex product directly to the DFPT
+      screened ionic potential $g^{\mathrm{KS}}(\mathbf{q})$ (no Bloch- state projection needed for UEG).'
+    prior: 0.7
+  - step: 4
+    ref: dfpt_quasiparticle_vertex_cancellation
+  - step: 5
+    lambda: "Report the numerical observation: despite sizeable separate interaction corrections to $z^{e}$, to the dielectric\
+      \ screening $\\epsilon_{\\mathbf{q}}$, and to the vertex $\\Gamma_{3}^{e}$ individually, their product exhibits a near\
+      \ cancellation of interaction effects, yielding\n$$\nz^{e}\\frac{v_{\\mathbf{q}}}{\\epsilon_{\\mathbf{q}}}\\Gamma_{3}^{e}(\\\
+      mathbf{k};\\mathbf{q}) \\approx \\frac{v_{\\mathbf{q}}}{1 - (v_{\\mathbf{q}} + f_{\\mathrm{xc}})\\chi_{0}^{e}(\\mathbf{q})}\
+      \ \\equiv g^{\\mathrm{KS}}(\\mathbf{q}),\n$$\nwith only weak residual $\\mathbf{k}$-dependence for momentum transfers\
+      \ relevant to Fermi- surface scattering $|\\mathbf{q}|\\le 2k_{F}$, and excellent quantitative agreement for $r_{s}\\\
+      le 5$ (numerical comparison shown in the paper).\n [Fig. 8]"
+    prior: 0.7
+    refs:
+    - setting.dfpt_quasiparticle_vertex_cancellation
+  - step: 6
+    lambda: 'Conclude the practical implication: because the many- body quasiparticle e– ph vertex product is accurately reproduced
+      by the DFPT/Kohn–Sham screened ionic potential in the UEG density range studied, one may use DFPT- computed matrix elements
+      projected onto Bloch states as accurate proxies for the quasiparticle electron–phonon coupling entering $\lambda$ for
+      simple metals (after accounting for the small difference between band and quasiparticle densities of states); hence
+      DFPT is validated in this regime for computing the phonon- mediated kernel in the downfolded ME/BSE.'
+    prior: 0.7
+  - step: 7
+    ref: dfpt_accurately_reproduces_the_quasiparticle_electronphonon_vertex_in_ueg
+- type: chain_expr
+  name: chain_ab_initio_workflow_combining_many_body_and_dfpt_with_precursory_cooper_flow
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: 'Treat upstream results as known: accept as given (i) the controlled downfolded frequency- only ME/BSE and microscopic
+      definitions of $\mu^{*}$ and $\lambda$ (conclusion 1), (ii) numerical validation of the downfolding accuracy in conventional-
+      metal parameters (conclusion 2), and (iii) the availability of first- principles many- body methods (VDiagMC) to compute
+      $\mu_{E_{F}}$ and of DFPT to compute $g^{\mathrm{KS}}$ and hence $\lambda$ (conclusions 3 and 5); these upstream results
+      are inputs to the workflow described here.'
+    prior: 0.7
+  - step: 2
+    lambda: "Outline the ab initio workflow sequence and required quantities: (i) compute many- electron correlation inputs\
+      \ using high- order diagrammatic many- body techniques (e.g., VDiagMC): the quasiparticle density of states $N_{F}^{*}$,\
+      \ quasiparticle residue $z^{e}$, the static Fermi- surface- averaged four- point vertex yielding $\\mu_{E_{F}}$, and\
+      \ the three- point quasiparticle vertex $\\Gamma_{3}^{e}$; (ii) compute phonon spectra and DFPT electron–phonon matrix\
+      \ elements $g^{\\mathrm{KS}}(\\mathbf{q})$ and derive $\\lambda$ via Fermi- surface averaging of the projected matrix\
+      \ elements; (iii) construct the downfolded frequency- only BSE (EFT-ME) kernel using the microscopic $\\mu^{*}$ and\
+      \ $\\lambda$ definitions; (iv) determine $T_{c}$ and the gap function by computing the normal- state anomalous- vertex\
+      \ $\\Lambda_{\\omega}$ and applying the precursory Cooper flow (PCF) scaling $\\Lambda_{0}(T) = [1 + g\\ln(\\omega_{\\\
+      Lambda}/T)]^{-1}$ to infer $T_{c}$ from normal- state calculations rather than solving the ME equations directly at\
+      \ $T_c$.\n [Fig. 9]"
+    prior: 0.7
+  - step: 3
+    lambda: "Justify each workflow step with prior results and approximations: (i) VDiagMC with the homotopic/resummation\
+      \ protocol yields numerically controlled $\\mu_{E_{F}}$ for UEG- like conduction electrons (conclusion 3); (ii) DFPT\
+      \ is validated as reproducing the quasiparticle- level electron–phonon vertex in the relevant density range (conclusion\
+      \ 5), justifying use of DFPT matrix elements for $\\lambda$; (iii) the downfolded frequency- only BSE constructed from\
+      \ these microscopic inputs is accurate under the scale- separation conditions validated in conclusion 2; (iv) the PCF\
+      \ relation $\\Lambda_{0}(T) = [1 + g\\ln(\\omega_{\\Lambda}/T)]^{-1}$ allows extraction of $T_{c}$ from normal- state\
+      \ $\\Lambda_{0}(T)$ computed at several temperatures above $T_{c}$, thereby enabling determination of ultra- low $T_{c}$\
+      \ values inaccessible to direct solution at exponentially small temperatures.\n [[25]]"
+    prior: 0.7
+  - step: 4
+    lambda: 'Explain the numerical procedure to extract $T_{c}$ in practice: (i) compute $\Lambda_{0}(T)$ (the low- frequency,
+      Fermi- surface- averaged anomalous vertex) at several low temperatures $T\gg T_{c}$ but within the regime where PCF
+      holds; (ii) fit $\Lambda_{0}(T)$ to the PCF functional form to extract the dimensionless coupling $g$ and the high-
+      energy cutoff $\omega_{\Lambda}$; (iii) infer $T_{c} = \omega_{\Lambda}e^{1/g}$ (or equivalently the temperature at
+      which denominator vanishes) and then solve the linearized ME gap equation if a frequency- dependent gap is required.'
+    prior: 0.7
+  - step: 5
+    lambda: 'State the claimed capabilities of the workflow: it yields an end- to- end, parameter- free procedure to predict
+      $T_{c}$ (including ultra- low $T_{c}$ and pressure- dependent suppression of superconductivity) by combining controlled
+      many- body computation of $\mu^{*}$, validated DFPT computation of $\lambda$, and the PCF extrapolation from normal-
+      state anomalous vertex calculations; this eliminates the historical need to choose $\mu^{*}$ phenomenologically.'
+    prior: 0.7
+  - step: 6
+    ref: ab_initio_workflow_combining_many_body_and_dfpt_with_precursory_cooper_flow
+- type: chain_expr
+  name: chain_predictions_and_benchmarks_for_simple_metals_pressure_driven_suppression_of_supe
+  edge_type: deduction
+  steps:
+  - step: 1
+    lambda: 'Treat upstream inputs as established: use (i) the microscopic pseudopotential values $\mu_{E_{F}}(r_{s})$ computed
+      by VDiagMC and resummation (conclusion 3), (ii) the validation that DFPT $g^{\mathrm{KS}}(\mathbf{q})$ accurately reproduces
+      the quasiparticle electron–phonon vertex in the UEG regime (conclusion 5), and (iii) the ab initio workflow combining
+      these inputs with the downfolded BSE and PCF extraction of $T_{c}$ (conclusion 6); these are the starting inputs for
+      the material- specific calculations.'
+    prior: 0.7
+  - step: 2
+    ref: ueg_mapping_of_real_metals
+  - step: 3
+    lambda: "Describe mapping of real simple metals to UEG parameters: for each simple metal (Li, Na, K, Mg, Al, Zn) extract\
+      \ conduction- electron density and an effective band mass $m_{\\mathrm{b}}$ from DFT band- structure calculations (explicit\
+      \ computational details: Quantum Espresso with ONCV pseudopotentials, PBE functional, Wannier interpolation etc.), compute\
+      \ the material Wigner–Seitz radius $r_{s}$ appropriate to conduction electrons and rescale $r_{s}\\to (m_{b}/m)r_{s}$\
+      \ when mapping to UEG pseudopotential table, and interpolate the VDiagMC $\\mu_{E_{F}}(r_{s})$ results to obtain the\
+      \ material $\\mu_{E_{F}}$; compute DFPT $g^{\\mathrm{KS}}$ and obtain $\\lambda$ via Fermi- surface averaging using\
+      \ EPW/Wannier interpolation.\n [Fig. 9]\n [Table II]"
+    prior: 0.7
+    refs:
+    - setting.ueg_mapping_of_real_metals
+  - step: 4
+    lambda: 'Compute $T_{c}$ using the downfolded ME/BSE with microscopic inputs: substitute the computed $\lambda$ (from
+      DFPT) and microscopic $\mu_{E_{F}}$ (from VDiagMC, rescaled for band mass) into the frequency- only BSE / linearized
+      ME kernel, compute the normal- state anomalous vertex $\Lambda_{0}(T)$ at a series of low temperatures (above the expected
+      $T_{c}$) and apply PCF scaling to extract $T_{c}$; when desired, solve the linearized gap equation at the obtained $T_{c}$
+      to obtain the gap function.'
+    prior: 0.7
+  - step: 5
+    lambda: "Present representative numerical results and benchmarking against experiment from the paper (these are outputs\
+      \ of the above procedure using computed DFPT $\\lambda$ and interpolated VDiagMC $\\mu_{E_{F}}$ and are reported in\
+      \ Table II, Fig. 10–11):\n- Aluminum (ambient pressure): predicted $T_{c}^{\\mathrm{EFT}}\\approx 0.96\\,$K vs experimental\
+      \ $1.2\\,$K (good agreement within uncertainty);\n- Zinc: predicted $T_{c}^{\\mathrm{EFT}}\\approx 0.874\\,$K vs experimental\
+      \ $0.875\\,$K (near exact match);\n- Lithium (hcp): predicted $T_{c}^{\\mathrm{EFT}}\\approx 0.03\\,$K vs reported experimental\
+      \ $4\\times 10^{-4}\\,$K (discrepancy noted; structural uncertainties in Li at very low $T$ are discussed);\n- Sodium\
+      \ and Magnesium: predicted $T_{c}$ values are extremely small (practically zero within current experimental reach);\n\
+      - Potassium: predicted nonsuperconducting in the computed conditions.\nReport that these predictions substantially reduce\
+      \ prior uncertainties for sub- Kelvin superconductors and reconcile theory with experiment in benchmark cases.\n [Fig.\
+      \ 10]\n [Fig. 11]"
+    prior: 0.7
+  - step: 6
+    lambda: "State the pressure- dependent prediction for Al and the quantum- critical observations: using pressure- dependent\
+      \ DFT lattice parameters and DFPT phonons combined with VDiagMC $\\mu$ mapped to the pressure- adjusted conduction density,\
+      \ compute $T_{c}(P)$ and observe continuous suppression of $T_{c}$ with increasing pressure; predict that, assuming\
+      \ no structural transitions, s- wave superconductivity in Al is suppressed to zero at a critical pressure $\\sim 60\\\
+      ,$GPa (with $T_{c}$ already below experimentally accessible values at tens of GPa). Note that Mg and Na are predicted\
+      \ to be proximate to a normal–superconducting critical point yielding log- divergent pair- field susceptibility $\\\
+      chi\\sim\\ln T$ in a quantum- critical regime.\n [Fig. 10]\n [Fig. 11]"
+    prior: 0.7
+  - step: 7
+    lambda: 'Summarize the scientific consequence: these material- specific, fitting- free predictions—obtained by combining
+      VDiagMC $\mu_{E_{F}}$, DFPT $\lambda$, and PCF extraction of $T_{c}$—resolve longstanding discrepancies for low- $T_{c}$
+      materials and provide experimentally testable predictions (e.g., Al pressure suppression, quantum- critical pair- susceptibility
+      in Mg and Na), demonstrating the practical utility of the presented ab initio framework.'
+    prior: 0.7
+  - step: 8
+    ref: predictions_and_benchmarks_for_simple_metals_pressure_driven_suppression_of_supe
+export:
+- controlled_low_energy_downfolding_and_precise_mebse_formulation
+- quantitative_validation_of_the_fermi_surface_downfolding
+- first_principles_coulomb_pseudopotential_for_the_3d_uniform_electron_gas_numeric
+- variational_diagmc_homotopic_expansion_and_resummation_protocol_for_cooper_chann
+- dfpt_accurately_reproduces_the_quasiparticle_electronphonon_vertex_in_ueg
+- ab_initio_workflow_combining_many_body_and_dfpt_with_precursory_cooper_flow
+- predictions_and_benchmarks_for_simple_metals_pressure_driven_suppression_of_supe
+- identified_validity_limits_and_domain_of_applicability_of_the_downfolded_eft_me

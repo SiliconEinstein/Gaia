@@ -3,122 +3,173 @@ name: setting
 title: Settings — 363056a0
 knowledge:
 - type: setting
-  name: superconductivity_in_hg_1201
-  content: The copper-oxide compound $HgBa_{2}CuO_{4+\delta}$ (referred to as Hg-1201) exhibits superconductivity characterized
-    by a transition temperature $T_{c}$ of 94 K.
-  prior: 0.7
+  name: average_mass_density_assumption
+  content: "The oxygen-annealed Hg–Ba–Ca–Cu–O (HBCCO) specimen (defined here as a pressed pellet that was subjected to a final\
+    \ heat treatment in flowing oxygen at $300^{\\circ}\\mathrm{C}$ for 5 hours) is assumed to have an average mass density\
+    \ $\\rho\\approx6\\ \\mathrm{g\\,cm^{-3}}$, where $\\rho$ denotes mass per unit volume, and this numerical value was used\
+    \ to convert the measured magnetic moment (from SQUID magnetometry) into an estimated superconducting volume fraction\
+    \ by comparing the measured susceptibility $\\chi$ with the ideal demagnetizing-free susceptibility of a perfectly diamagnetic\
+    \ superconductor equal to $1/4\\pi$ in cgs units; the numeric value $\\rho\\approx6\\ \\mathrm{g\\,cm^{-3}}$ is explicitly\
+    \ invoked by the authors rather than directly measured for the specific pellet.\n [Fig. 2]"
+  prior: 0.6
+  dependency: direct
 - type: setting
-  name: structural_analogy_with_tl_based_copper_oxides
-  content: The crystal structure of $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) is similar to that of the thallium-based copper oxide
-    $TlBa_{2}CuO_{5}$ (Tl-1201), which suggests that mercury-based copper oxides form a homologous series with the general
-    chemical formula $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$, where $n$ is the number of $CuO_{2}$ layers.
-  prior: 0.7
+  name: field_cooled_underestimates_volume_fraction
+  content: "The field-cooled (FC) magnetic-susceptibility measurement, defined as the magnetic susceptibility $\\chi_{\\mathrm{FC}}(T)$\
+    \ recorded while cooling the specimen in an externally applied magnetic field $H=27\\ \\mathrm{Oe}$, systematically underestimates\
+    \ the true superconducting volume fraction of an inhomogeneous or multiphase superconducting pellet compared with the\
+    \ zero-field-cooled (ZFC) susceptibility because flux trapping, pinning and vortex dynamics during cooling reduce the\
+    \ observable diamagnetic screening in FC runs; the authors treat an observed low-temperature FC value of $\\sim10\\%$\
+    \ of $1/4\\pi$ as a lower bound on the true superconducting volume fraction on this basis.\n [Fig. 2]"
+  prior: 0.8
+  dependency: direct
 - type: setting
-  name: tc_scaling_in_tl_based_systems
-  content: In the thallium-based superconducting homologous series defined by the formula $TlBa_{2}Ca_{n-1}Cu_{n}O_{2n+3}$,
-    the superconducting transition temperatures $T_{c}$ vary with the number of $CuO_{2}$ layers $n$, ranging from $T_{c}
-    < 10$ K for $n=1$ to approximately $T_{c} \approx 110$ K for $n=3$.
-  prior: 0.7
+  name: zfc_subsidiary_features_as_distinct_superconducting_phases
+  content: "Discrete subsidiary decreases (steps/shoulders) in the zero-field-cooled susceptibility curve $\\chi_{\\mathrm{ZFC}}(T)$\
+    \ observed at temperatures near $T\\approx126\\ \\mathrm{K}$ and $T\\approx112\\ \\mathrm{K}$ correspond to physically\
+    \ distinct superconducting phases (i.e., spatially distinct regions or phases with different superconducting transition\
+    \ temperatures) within the multiphase oxygen-annealed pellet, rather than to alternative explanations such as continuous\
+    \ spatial inhomogeneity of a single phase, measurement artifacts, or complex flux-pinning phenomena.\n [Fig. 2]"
+  prior: 0.6
+  dependency: direct
 - type: setting
-  name: previous_record_transition_temperature
-  content: The established record for the highest superconducting transition temperature $T_{c}$ prior to the study of the
-    $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$ system was 125–127 K, observed in the thallium-based compound $Tl_{2}Ba_{2}Ca_{2}Cu_{3}O_{10}$
-    (Tl-2223).
+  name: fc_60_percent_indicates_dominant_phase
+  content: "The observed field-cooled susceptibility $\\chi_{\\mathrm{FC}}(T)$ attaining approximately $60\\%$ of its full\
+    \ low-temperature FC value by $T=125\\ \\mathrm{K}$ implies that the superconducting phase with diamagnetic onset at $T_{c}\\\
+    approx133.5\\ \\mathrm{K}$ supplies the dominant contribution to the specimen's superconducting magnetic response near\
+    \ $125\\ \\mathrm{K}$, i.e., most of the superconducting screening present at $125\\ \\mathrm{K}$ originates from that\
+    \ higher-$T_{c}$ phase rather than from lower-$T_{c}$ phases.\n [Fig. 2]"
   prior: 0.7
+  dependency: direct
 - type: setting
-  name: absence_of_superconductivity_in_hg_1212_rare_earth_variants
-  content: In the compound $HgBa_{2}RCu_{2}O_{6+x}$ (referred to as Hg-1212), where $R$ represents a rare-earth element such
-    as Europium (Eu) or Calcium (Ca), experimental synthesis has been reported but no superconducting transition was detected
-    in that specific material system.
-  prior: 0.7
+  name: zero_resistance_interpreted_as_true_superconducting_state
+  content: "A four-probe a.c.-resistance-bridge measurement performed on the oxygen-annealed HBCCO pellet, normalized such\
+    \ that $R(300)\\approx0.10\\ \\Omega$, yields an electrical resistance $R(T)$ that falls below the instrument's resolution\
+    \ limit at $T=95\\ \\mathrm{K}$; it is assumed that this observed \"zero resistance\" (defined as $R$ below the instrument\
+    \ resolution) indicates a true macroscopic superconducting zero-resistance state or a sample-spanning superconducting\
+    \ percolation path rather than being caused by measurement artifacts such as contact shorting, filamentary conduction\
+    \ confined to minor phases, instrument miscalibration, or other non-bulk effects.\n [Fig. 3]"
+  prior: 0.8
+  dependency: direct
 - type: setting
-  name: sample_density_for_susceptibility_calculation
-  content: For the purpose of calculating the superconducting volume fraction from experimental magnetic susceptibility measurements
-    in the Hg-Ba-Ca-Cu-O (HBCCO) system, the average mass density of the sample is assumed to be $\rho \approx 6 \text{ g
-    cm}^{-3}$.
-  prior: 0.7
+  name: dR_dT_max_as_transition_indicator
+  content: "The temperature at which the temperature derivative of the resistance $dR/dT$ attains a local maximum (observed\
+    \ at $T\\approx132.5\\ \\mathrm{K}$ for the annealed specimen) is taken as the diagnostic for the resistive superconducting\
+    \ transition onset, i.e., the maximum in $dR/dT$ is interpreted as indicating the temperature where the resistive change\
+    \ associated with superconductivity is most rapid and thus represents the resistive transition onset.\n [Fig. 3]"
+  prior: 0.9
+  dependency: direct
 - type: setting
-  name: general_composition_hypothesis
-  content: The structural similarity of the mercury-based compound $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) to the thallium-containing
-    compound $TlBa_{2}CuO_{5}$ (Tl-1201) suggests the existence of a mercury-based homologous series with the general composition
-    $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$, which is structurally analogous to the thallium family $TlBa_{2}Ca_{n-1}Cu_{n}O_{2n+3}$,
-    where $n$ denotes the number of $CuO_{2}$ layers per unit cell.
-  prior: 0.7
+  name: oxygen_annealing_causes_Tc_increase
+  content: "The final oxygen-annealing treatment (defined here as annealing the pellets for 5 hours at $300^{\\circ}\\mathrm{C}$\
+    \ in flowing oxygen after the main synthesis steps) is causally responsible for the observed increase in the maximum measured\
+    \ superconducting transition temperature from $\\sim117\\ \\mathrm{K}$ in as-sintered (non-oxygen-annealed) samples to\
+    \ the present resistive onset near $\\sim132.5$–$133.5\\ \\mathrm{K}$ in the oxygen-annealed samples, i.e., the change\
+    \ in processing is the dominant factor producing the higher observed $T_{c}$.\n [Fig. 3]"
+  prior: 0.8
+  dependency: direct
 - type: setting
-  name: sample_preparation
-  content: A sample material was synthesized by mixing a precursor of nominal composition $Ba_{2}CaCu_{2}O_{5}$ with powdered
-    $HgO$, sealing the mixture in evacuated quartz tubes, heating at $800^{\circ}C$ for 5 hours (resulting in the breaking
-    of the tubes), and finally annealing the product for 5 hours at $300^{\circ}C$ in flowing oxygen.
-  prior: 0.7
+  name: saed_hrtem_phase_identification
+  content: "Selected-area electron-diffraction (SAED) patterns and high-resolution transmission electron microscopy (HRTEM)\
+    \ images recorded from individual plate-like grains extracted from the oxygen-annealed HBCCO pellet allow structural identification\
+    \ of those grains, and the SAED/HRTEM data as interpreted by the authors correctly identify the plate-like Hg–Ba–Ca–Cu-containing\
+    \ grains as consisting predominantly of $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223), disordered mixtures of Hg-1223 and $HgBa_{2}CaCu_{2}O_{6+x}$\
+    \ (Hg-1212), and an ordered periodic stacking (a long-period superstructure) of these unit cells, notwithstanding the\
+    \ small overall bulk volume fraction of these grains.\n [Fig. 1]"
+  prior: 0.85
+  dependency: direct
 - type: setting
-  name: eds_composition_analysis
-  content: Energy-dispersive X-ray spectrometry (EDS) analysis of the synthesized sample indicates a composite material containing
-    isolated grains of $BaCuO_{2}$ ($\sim30\%$ volume fraction), $CuO$ ($\approx30\%$ volume fraction), unidentified oxides
-    containing Calcium (Ca) and Copper (Cu), various impurities, and approximately $15\%$ of the total sample volume consisting
-    of plate-like grains containing Mercury (Hg), Barium (Ba), Calcium (Ca), and Copper (Cu).
-  prior: 0.7
+  name: saed_lattice_constants_deduction
+  content: "Lattice constants deduced from selected-area electron-diffraction (SAED) patterns of the examined plate-like grains\
+    \ have the numerical values $c=12.7(2)\\ \\mathrm{\\AA}$ for the tetragonal Hg-1212 unit, $c=16.1(3)\\ \\mathrm{\\AA}$\
+    \ for the tetragonal Hg-1223 unit, and $a=3.93(7)\\ \\mathrm{\\AA}$ for both unit types, where $a$ and $c$ denote the\
+    \ tetragonal unit-cell lattice parameters along the in-plane and out-of-plane directions respectively, and the parenthetical\
+    \ numbers are the authors' reported uncertainties; these SAED-derived values are taken as accurate for the purposes of\
+    \ structural identification in the paper.\n [Fig. 1]"
+  prior: 0.85
+  dependency: direct
 - type: setting
-  name: microscopic_structural_identification
-  content: Selected-area electron-diffraction (SAED) and high-resolution transmission electron microscopy (HRTEM) characterization
-    of the plate-like grains within the $Hg-Ba-Ca-Cu-O$ sample reveal that these grains consist of the phase $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$
-    (Hg-1223), disordered mixtures of Hg-1223 and $HgBa_{2}CaCu_{2}O_{6+x}$ (Hg-1212), and periodic stacking sequences of
-    these respective unit cells.
-  prior: 0.7
+  name: superstructure_extent_qualifies_as_phase
+  content: "An observed stacking sequence (example given as 1223/1223/1212/1212/1223/1213) that produces a supercell with\
+    \ $c\\approx86.4\\ \\mathrm{\\AA}$ and HRTEM images showing that this stacking extends beyond $2{,}000\\ \\mathrm{\\AA}$\
+    \ imply that the observed superstructure represents a distinct, spatially extended crystallographic phase rather than\
+    \ a finite-size faulted or localized stacking fault region.\n [Fig. 1]"
+  prior: 0.8
+  dependency: direct
 - type: setting
-  name: xrd_limitation
-  content: The volume fraction of the superconducting phases (Hg-1212 and Hg-1223) within the synthesized composite sample
-    is too small to permit precise measurement of their lattice parameters using the X-ray Guinier technique.
-  prior: 0.7
+  name: edx_volume_fraction_estimates
+  content: 'Energy-dispersive X-ray spectrometry (EDX/EDS) and bulk characterization performed on the oxygen-annealed HBCCO
+    pellet yield the following approximate bulk volume-fraction estimates for the pellet: $\sim30\%$ by volume $BaCuO_{2}$
+    grains, $\approx30\%$ by volume $CuO$ grains, $\sim15\%$ by volume of an unidentified oxide containing Hg, Ca and Cu,
+    $<5\%$ by volume of an oxide containing Ca and Cu, $\sim5\%$ by volume unspecified impurities, and $\sim15\%$ by volume
+    of plate-like Hg–Ba–Ca–Cu-containing grains (the grains examined by SAED/HRTEM); these numerical fractions are inferred
+    from the authors'' reported EDX/bulk-characterization data and are used to represent the sample as a multiphase composite.'
+  prior: 0.65
+  dependency: direct
 - type: setting
-  name: superstructure_observation
-  content: High-resolution transmission electron microscopy (HRTEM) imaging of the $Hg-Ba-Ca-Cu-O$ sample reveals specific
-    stacking sequences containing both $HgBa_{2}CaCu_{2}O_{6+x}$ (Hg-1212) and $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$ (Hg-1223) layers;
-    specifically, a sequence of 1223/1223/1212/1212/1223/1212 unit cells forms a supercell with a c-axis lattice parameter
-    of $c \approx 86.4 \AA$.
-  prior: 0.7
+  name: edx_sampling_representativeness
+  content: The local compositional measurements (EDX/EDS) and the subset of individual plate-like grains selected for SAED/HRTEM
+    are assumed to be representative of the overall bulk oxygen-annealed HBCCO pellet such that the reported $\sim15\%$ volume
+    fraction of plate-like Hg–Ba–Ca–Cu-containing grains and the other EDX-derived phase fractions reflect the composition
+    and phase distribution of the entire pellet rather than being artifacts of non-representative sampling of particular regions
+    or particles.
+  prior: 0.55
+  dependency: direct
 - type: setting
-  name: superconducting_properties_of_hg_1201
-  content: The mercury-based copper-oxide compound $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) possesses a crystalline structure containing
-    exactly one $CuO_{2}$ layer per unit cell ($n=1$) and exhibits a superconducting transition temperature $T_{c}$ of approximately
-    94 K.
-  prior: 0.7
+  name: assignment_of_superconductivity_to_hg_grains
+  content: "The superconducting signals observed in the oxygen-annealed HBCCO pellet—specifically the diamagnetic onset near\
+    \ $T_{c}\\approx133.5\\ \\mathrm{K}$ in SQUID magnetometry and the resistive transition onset near $T\\approx132.5\\ \\\
+    mathrm{K}$—originate from the Hg-containing plate-like grains (identified microscopically as predominantly Hg-1223 and\
+    \ Hg-1212) and not from other coexisting phases in the multiphase pellet (such as $BaCuO_{2}$, $CuO$, unidentified oxides,\
+    \ or unspecified impurities); this claim is taken as the hypothesis the authors suggest but do not unambiguously prove.\n\
+    \ [Fig. 2]\n [Fig. 1]"
+  prior: 0.5
+  dependency: direct
 - type: setting
-  name: empirical_trend_in_tl_and_bi_copper_oxides
-  content: In high-$T_{c}$ superconducting copper oxides containing bismuth (Bi) or thallium (Tl), the superconducting transition
-    temperature $T_{c}$ is empirically observed to increase as the number of $CuO_{2}$ planes per unit cell increases.
+  name: zero_resistance_resolution_note
+  content: The authors define the statement "zero resistance" for the four-probe a.c.-resistance-bridge measurement as meaning
+    that the measured resistance $R(T)$ falls below the resolution limit of the particular resistance bridge instrument used,
+    i.e., "zero resistance" is an instrument-limited observation rather than an absolute mathematical zero.
   prior: 0.7
+  dependency: indirect
 - type: setting
-  name: properties_of_tl_based_analogues
-  content: For the homologous series of thallium-containing copper oxides with the general chemical composition $TlBa_{2}Ca_{n-1}Cu_{n}O_{2n+3}$,
-    the superconducting transition temperatures range from $T_{c} < 10$ K for the $n=1$ phase to $T_{c} \approx 110$ K for
-    the $n=3$ phase.
+  name: guinier_limitation_small_volume_fraction
+  content: Because the volume fraction of the phases of interest in the pellet is small, the authors state that accurate bulk
+    lattice-constant determination by X-ray Guinier diffraction was not possible for this sample and therefore lattice parameters
+    were deduced from selected-area electron-diffraction (SAED) patterns instead.
   prior: 0.7
+  dependency: indirect
 - type: setting
-  name: structural_similarity_between_hg_1201_and_tl_1201
-  content: The crystalline structure of $HgBa_{2}CuO_{4+\delta}$ (Hg-1201) is structurally similar to that of the thallium-based
-    compound $TlBa_{2}CuO_{5}$ (Tl-1201), suggesting that mercury-based compounds can form a homologous series with the general
-    chemical composition $HgBa_{2}Ca_{n-1}Cu_{n}O_{2n+2+\delta}$, where $n$ represents the number of $CuO_{2}$ layers.
+  name: assignment_presented_as_hypothesis
+  content: The authors explicitly present the attribution of the $\sim133\ \mathrm{K}$ superconductivity to $HgBa_{2}Ca_{2}Cu_{3}O_{8+x}$
+    (Hg-1223) as a suggested, plausible interpretation rather than a definitive identification, and state that definitive
+    confirmation requires synthesis of single-phase Hg-1223 material and phase-resolved correlation of structure, composition
+    and superconducting properties.
   prior: 0.7
+  dependency: indirect
 - type: setting
-  name: sample_density_approximation
-  content: For the purpose of estimating the superconducting volume fraction from magnetic screening (zero-field cooling susceptibility)
-    data in Hg-Ba-Ca-Cu-O composite samples, the average mass density of the material is assumed to be $\rho \approx 6~g~cm^{-3}$.
+  name: analogy_with_thallium_bismuth_cuprates
+  content: "The authors invoke an analogy with thallium- and bismuth-based multi-CuO$_{2}$ layered cuprates—systems in which\
+    \ reported transition temperatures $T_{c}$ tend to increase with the number of CuO$_{2}$ layers per unit cell—as heuristic\
+    \ support for the expectation that the three-layer Hg-1223 phase could exhibit a higher $T_{c}$ than single- or two-layer\
+    \ Hg-based phases; this analogy is cited as reference [5] in the paper.\n [[5]]"
   prior: 0.7
+  dependency: indirect
 export:
-- superconductivity_in_hg_1201
-- structural_analogy_with_tl_based_copper_oxides
-- tc_scaling_in_tl_based_systems
-- previous_record_transition_temperature
-- absence_of_superconductivity_in_hg_1212_rare_earth_variants
-- sample_density_for_susceptibility_calculation
-- general_composition_hypothesis
-- sample_preparation
-- eds_composition_analysis
-- microscopic_structural_identification
-- xrd_limitation
-- superstructure_observation
-- superconducting_properties_of_hg_1201
-- empirical_trend_in_tl_and_bi_copper_oxides
-- properties_of_tl_based_analogues
-- structural_similarity_between_hg_1201_and_tl_1201
-- sample_density_approximation
+- average_mass_density_assumption
+- field_cooled_underestimates_volume_fraction
+- zfc_subsidiary_features_as_distinct_superconducting_phases
+- fc_60_percent_indicates_dominant_phase
+- zero_resistance_interpreted_as_true_superconducting_state
+- dR_dT_max_as_transition_indicator
+- oxygen_annealing_causes_Tc_increase
+- saed_hrtem_phase_identification
+- saed_lattice_constants_deduction
+- superstructure_extent_qualifies_as_phase
+- edx_volume_fraction_estimates
+- edx_sampling_representativeness
+- assignment_of_superconductivity_to_hg_grains
+- zero_resistance_resolution_note
+- guinier_limitation_small_volume_fraction
+- assignment_presented_as_hypothesis
+- analogy_with_thallium_bismuth_cuprates
