@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Rewrite `docs/foundations/theory/inference-theory.md` to lead with Jaynes first principles, introduce the noisy-AND + leak unified factor model, remove gate semantics for contradiction/equivalence, and relocate BP algorithm details to a later section.
+**Goal:** Rewrite `docs/foundations/theory/inference-theory.md` into a **v2.0 target-design** theory reference: lead with Jaynes first principles, introduce the noisy-AND + leak unified factor model, remove gate semantics for contradiction/equivalence at the theory level, and relocate BP algorithm details to a later section.
 
-**Architecture:** Full document restructure from "BP basics → lattice → edge types" to "Jaynes first principles → unified factor model → lattice → factor types → BP algorithm". The document remains a single Markdown file. Content is a mix of new theoretical sections (§1, §2) and relocated/adapted existing sections (§3, §5).
+**Architecture:** Full document restructure from "BP basics → lattice → edge types" to "Jaynes first principles → unified factor model → lattice → factor types → BP algorithm". The document remains a single Markdown file. Content is a mix of new theoretical sections (§1, §2) and relocated/adapted existing sections (§3, §5). Because `bp-on-graph-ir.md` remains the current runtime/BP reference until a follow-up PR lands, this rewrite must explicitly present itself as target theory rather than already-shipped runtime semantics.
 
 **Tech Stack:** Markdown, ruff (for any format checks), git
 

@@ -102,6 +102,8 @@ Equivalence (新)     ✓       ✓       ✓       ✓(新)    去 gate
 
 ## 文档重构设计
 
+由于 `bp-on-graph-ir.md` 仍是当前 `main` 上已成文的 runtime 语义参考，而它的同步改写会在后续 PR 完成，因此本次重写后的 `inference-theory.md` 必须显式标注为 **v2.0 target design**，不能表述成“当前 foundations 已完全收敛到该模型”。
+
 `inference-theory.md` 重组为：
 
 ```
