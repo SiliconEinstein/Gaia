@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from itertools import combinations
 
 from .models import (
+    Arg,
     ChainExpr,
     Equivalence,
     Knowledge,
@@ -41,7 +42,7 @@ class CompiledFactorGraph:
 def compile_factor_graph(pkg: Package) -> CompiledFactorGraph:
     """Compile a resolved package into a factor graph.
 
-    Variable nodes: Claims and Settings with priors.
+    Variable nodes: exported belief-bearing knowledge plus local chain participants.
     Factor nodes: Applications and Lambdas from ChainExpr steps.
     Edges: determined by direct dependencies (indirect excluded).
     """
@@ -64,9 +65,12 @@ def compile_factor_graph(pkg: Package) -> CompiledFactorGraph:
     for module in pkg.loaded_modules:
         exported.update(module.export)
 
-    # Add variable nodes (only exported Claims and Settings)
+    chain_visible = _chain_visible_names(pkg)
+
+    # Add variable nodes. Public exports remain visible, and local chain participants
+    # are also included so inline chain steps can carry belief within the package.
     for name, decl in all_decls.items():
-        if decl.type in BP_VARIABLE_TYPES and name in exported:
+        if decl.type in BP_VARIABLE_TYPES and (name in exported or name in chain_visible):
             prior = decl.prior if decl.prior is not None else 1.0
             fg.variables[name] = prior
 
@@ -107,24 +111,15 @@ def _compile_chain(
             factor_name = f"{chain.name}.step_{step.step}"
             probability = step.prior if step.prior is not None else 1.0
 
-            # Premises: direct dependencies from args (for Apply)
-            # or the previous ref step (for Lambda)
+            # Premises come from direct dependencies on the current reasoning step.
             premises = []
             conclusions = []
 
-            if isinstance(step, StepApply):
-                for arg in step.args:
-                    if arg.dependency == "direct":
-                        # Resolve arg ref name
-                        ref_name = arg.ref
-                        if ref_name in fg.variables:
-                            premises.append(ref_name)
-            elif isinstance(step, StepLambda):
-                # Lambda: previous step is the implicit input
-                if i > 0:
-                    prev = steps[i - 1]
-                    if isinstance(prev, StepRef) and prev.ref in fg.variables:
-                        premises.append(prev.ref)
+            for arg in _step_args(steps, i, step):
+                if arg.dependency == "direct":
+                    ref_name = arg.ref
+                    if ref_name in fg.variables:
+                        premises.append(ref_name)
 
             # Conclusions: next ref step is the output
             if i + 1 < len(steps):
@@ -144,6 +139,34 @@ def _compile_chain(
                 )
 
 
+def _chain_visible_names(pkg: Package) -> set[str]:
+    names: set[str] = set()
+    for module in pkg.loaded_modules:
+        for decl in module.knowledge:
+            if not isinstance(decl, ChainExpr):
+                continue
+            steps = decl.steps
+            for i, step in enumerate(steps):
+                if not isinstance(step, (StepApply, StepLambda)):
+                    continue
+                names.update(arg.ref for arg in _step_args(steps, i, step))
+                if i + 1 < len(steps) and isinstance(steps[i + 1], StepRef):
+                    names.add(steps[i + 1].ref)
+    return names
+
+
+def _step_args(steps: list, index: int, step: StepApply | StepLambda) -> list[Arg]:
+    if isinstance(step, StepApply):
+        return step.args
+    if step.args:
+        return step.args
+    if index > 0:
+        prev = steps[index - 1]
+        if isinstance(prev, StepRef):
+            return [Arg(ref=prev.ref, dependency="direct")]
+    return []
+
+
 def _compile_relation(
     var_name: str,
     rel: Relation,
@@ -159,7 +182,7 @@ def _compile_relation(
     constraint factors (one per pair), since the BP potential is binary.
     Contradiction uses an n-ary all-true penalty and needs no decomposition.
     """
-    # Only create constraint if the Relation itself is a variable node (exported)
+    # Only create a constraint if the Relation itself participates as a variable node.
     if var_name not in fg.variables:
         return
 

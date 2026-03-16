@@ -5,6 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from .models import (
+    Arg,
     Action,
     ChainExpr,
     Knowledge,
@@ -44,15 +45,11 @@ def _topo_sort_chains(chains: list[ChainExpr], decls: dict[str, Knowledge]) -> l
         w: set[str] = set()
         r: set[str] = set()
         for i, step in enumerate(chain.steps):
-            if isinstance(step, StepRef):
-                # If next step is Apply/Lambda, this is a read
-                if i + 1 < len(chain.steps) and isinstance(
-                    chain.steps[i + 1], (StepApply, StepLambda)
-                ):
-                    r.add(step.ref)
-                # If prev step is Apply/Lambda, this is a write
-                if i > 0 and isinstance(chain.steps[i - 1], (StepApply, StepLambda)):
-                    w.add(step.ref)
+            if isinstance(step, (StepApply, StepLambda)):
+                r.update(arg.ref for arg in _step_args(chain.steps, i, step))
+                output_ref = _output_ref(chain.steps, i)
+                if output_ref is not None:
+                    w.add(output_ref)
         writes[chain.name] = w
         reads[chain.name] = r
 
@@ -166,22 +163,47 @@ async def _execute_chain(
                             target.content = result
 
         elif isinstance(step, StepLambda):
-            # Get input from previous step
-            input_text = ""
-            if i > 0:
-                prev = steps[i - 1]
-                if isinstance(prev, StepRef):
-                    prev_decl = decls.get(prev.ref)
-                    if prev_decl is not None and hasattr(prev_decl, "content"):
-                        input_text = prev_decl.content
+            args = _step_args(steps, i, step)
+            input_text = _build_lambda_input(args, decls)
 
             result = await executor.execute_lambda(step.lambda_, input_text)
 
             # Write result to the next step's claim (if empty)
-            if i + 1 < len(steps):
-                next_step = steps[i + 1]
-                if isinstance(next_step, StepRef):
-                    target = decls.get(next_step.ref)
-                    if target is not None and hasattr(target, "content"):
-                        if not target.content or not target.content.strip():
-                            target.content = result
+            output_ref = _output_ref(steps, i)
+            if output_ref is not None:
+                target = decls.get(output_ref)
+                if target is not None and hasattr(target, "content"):
+                    if not target.content or not target.content.strip():
+                        target.content = result
+
+
+def _output_ref(steps: list, index: int) -> str | None:
+    if index + 1 < len(steps):
+        next_step = steps[index + 1]
+        if isinstance(next_step, StepRef):
+            return next_step.ref
+    return None
+
+
+def _step_args(steps: list, index: int, step: StepApply | StepLambda) -> list[Arg]:
+    if isinstance(step, StepApply):
+        return step.args
+    if step.args:
+        return step.args
+    if index > 0:
+        prev = steps[index - 1]
+        if isinstance(prev, StepRef):
+            return [Arg(ref=prev.ref, dependency="direct")]
+    return []
+
+
+def _build_lambda_input(args: list[Arg], decls: dict[str, Knowledge]) -> str:
+    chunks: list[str] = []
+    for arg in args:
+        target = decls.get(arg.ref)
+        content = getattr(target, "content", "") if target else ""
+        if not content:
+            continue
+        label = arg.ref if arg.dependency is None else f"{arg.ref} ({arg.dependency})"
+        chunks.append(f"[{label}]\n{content}")
+    return "\n\n".join(chunks)

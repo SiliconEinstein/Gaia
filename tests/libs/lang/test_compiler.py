@@ -2,7 +2,7 @@
 from pathlib import Path
 
 from libs.lang.compiler import compile_factor_graph
-from libs.lang.loader import load_package
+from libs.lang.loader import _parse_module, load_package
 from libs.lang.models import (
     Claim,
     ChainExpr,
@@ -66,7 +66,7 @@ def test_direct_dependency_creates_edge():
     pkg = load_package(FIXTURE_DIR)
     pkg = resolve_refs(pkg)
     fg = compile_factor_graph(pkg)
-    drag = next(f for f in fg.factors if f["name"] == "drag_prediction_chain.step_2")
+    drag = next(f for f in fg.factors if f["name"] == "drag_prediction_chain.step_1")
     assert drag["premises"] == ["heavier_falls_faster"]
     assert drag["conclusions"] == ["tied_pair_slower_than_heavy"]
     assert drag["probability"] == 0.93
@@ -80,8 +80,8 @@ def test_indirect_dependency_excluded_from_edges():
     fg = compile_factor_graph(pkg)
     # thought_experiment_env is used as indirect in drag_prediction_chain
     # It should NOT appear as a tail in that factor
-    drag_factors = [f for f in fg.factors if f.get("name") == "drag_prediction_chain.step_2"]
-    assert len(drag_factors) == 1, "Expected exactly one drag_prediction_chain.step_2 factor"
+    drag_factors = [f for f in fg.factors if f.get("name") == "drag_prediction_chain.step_1"]
+    assert len(drag_factors) == 1, "Expected exactly one drag_prediction_chain.step_1 factor"
     factor = drag_factors[0]
     assert "thought_experiment_env" not in factor.get("premises", [])
 
@@ -111,7 +111,7 @@ def test_contradiction_chain_is_now_deduction():
     pkg = resolve_refs(pkg)
     fg = compile_factor_graph(pkg)
 
-    chain_factor = next(f for f in fg.factors if f["name"] == "contradiction_chain.step_2")
+    chain_factor = next(f for f in fg.factors if f["name"] == "contradiction_chain.step_1")
     assert chain_factor["edge_type"] == "deduction"
     assert set(chain_factor["premises"]) == {
         "tied_pair_slower_than_heavy",
@@ -128,7 +128,7 @@ def test_retract_action_replaces_retraction_chain():
     fg = compile_factor_graph(pkg)
 
     factor_names = {f["name"] for f in fg.factors}
-    assert "retraction_chain.step_2" not in factor_names
+    assert "retraction_chain.step_1" not in factor_names
     # The retract_action is a declaration, not a chain — no factor produced
     assert not any(n.startswith("retract_aristotle") for n in factor_names)
 
@@ -267,3 +267,111 @@ def test_non_exported_claim_excluded():
     assert "public" in fg.variables
     assert fg.variables["public"] == 0.9
     assert "private" not in fg.variables
+
+
+def test_chain_surface_keeps_local_premises_and_steps_in_factor_graph():
+    module = _parse_module(
+        {
+            "type": "reasoning_module",
+            "name": "m",
+            "premises": [
+                {"type": "claim", "name": "base", "content": "Base premise", "prior": 0.7},
+                {"type": "setting", "name": "regime", "content": "Relevant regime", "prior": 0.9},
+            ],
+            "chains": [
+                {
+                    "name": "demo_chain",
+                    "steps": [
+                        {
+                            "id": "obs",
+                            "type": "claim",
+                            "content": "Observation",
+                            "refs": [{"ref": "base", "dependency": "direct"}],
+                            "prior": 0.61,
+                        },
+                        {
+                            "id": "bridge",
+                            "type": "claim",
+                            "content": "Bridge",
+                            "refs": [
+                                {"ref": "obs", "dependency": "direct"},
+                                {"ref": "regime", "dependency": "indirect"},
+                            ],
+                            "prior": 0.73,
+                        },
+                    ],
+                    "conclusion": {
+                        "name": "final_claim",
+                        "type": "claim",
+                        "content": "Final conclusion",
+                        "refs": [{"ref": "bridge", "dependency": "direct"}],
+                        "prior": 0.84,
+                    },
+                }
+            ],
+            "export": ["final_claim"],
+        }
+    )
+    pkg = Package(name="demo_pkg", modules=["m"])
+    pkg.loaded_modules = [module]
+
+    fg = compile_factor_graph(pkg)
+
+    assert {"base", "demo_chain__obs", "demo_chain__bridge", "final_claim"}.issubset(fg.variables)
+
+    factor = next(f for f in fg.factors if f["name"] == "demo_chain.step_3")
+    assert factor["premises"] == ["demo_chain__obs"]
+    assert factor["conclusions"] == ["demo_chain__bridge"]
+
+
+def test_legacy_lambda_without_args_keeps_chain_local_nodes_visible():
+    claim_a = Claim(name="a", content="Claim A", prior=0.6)
+    claim_b = Claim(name="b", content="", prior=0.5)
+    chain = ChainExpr(
+        name="legacy_chain",
+        steps=[
+            StepRef(step=1, ref="a"),
+            StepLambda(step=2, **{"lambda": "reason from a"}, prior=0.8),
+            StepRef(step=3, ref="b"),
+        ],
+    )
+    mod = Module(type="reasoning_module", name="m", knowledge=[claim_a, claim_b, chain], export=[])
+    pkg = Package(name="legacy_pkg", modules=["m"])
+    pkg.loaded_modules = [mod]
+
+    fg = compile_factor_graph(pkg)
+
+    assert fg.variables["a"] == 0.6
+    assert fg.variables["b"] == 0.5
+    assert fg.factors[0]["premises"] == ["a"]
+    assert fg.factors[0]["conclusions"] == ["b"]
+
+
+def test_compiler_helpers_cover_chain_visible_names_and_step_args():
+    from libs.lang.compiler import _chain_visible_names, _step_args
+    from libs.lang.models import Arg
+
+    explicit = StepLambda(
+        step=1,
+        **{"lambda": "explicit"},
+        args=[Arg(ref="base", dependency="direct")],
+        prior=0.8,
+    )
+    chain = ChainExpr(
+        name="mixed_chain",
+        steps=[
+            explicit,
+            StepRef(step=2, ref="mid"),
+            StepRef(step=4, ref="mid"),
+            StepLambda(step=5, **{"lambda": "legacy"}, prior=0.7),
+            StepRef(step=6, ref="final"),
+        ],
+    )
+    mod = Module(type="reasoning_module", name="m", knowledge=[chain], export=[])
+    pkg = Package(name="mixed_pkg", modules=["m"])
+    pkg.loaded_modules = [mod]
+
+    visible = _chain_visible_names(pkg)
+    assert {"base", "mid", "final"}.issubset(visible)
+    assert _step_args(chain.steps, 0, explicit)[0].ref == "base"
+    assert _step_args(chain.steps, 3, chain.steps[3])[0].ref == "mid"

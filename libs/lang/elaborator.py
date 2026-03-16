@@ -10,6 +10,7 @@ import copy
 from dataclasses import dataclass, field
 
 from .models import (
+    Arg,
     Action,
     ChainExpr,
     Knowledge,
@@ -61,32 +62,47 @@ def elaborate_package(pkg: Package) -> ElaboratedPackage:
 
 def _build_chain_context(chain: ChainExpr, decls: dict[str, Knowledge]) -> dict:
     """Extract chain-level context: edge_type, premise_refs, conclusion_refs."""
-    # Find the index boundaries of StepApply/StepLambda steps
-    first_apply_idx = None
-    last_apply_idx = None
-    for i, step in enumerate(chain.steps):
-        if isinstance(step, (StepApply, StepLambda)):
-            if first_apply_idx is None:
-                first_apply_idx = i
-            last_apply_idx = i
-
-    # StepRef steps before first apply are premises, after last apply are conclusions
     premise_refs = []
     conclusion_refs = []
+    seen_outputs: set[str] = set()
+    seen_premises: set[str] = set()
+    final_output = None
+
     for i, step in enumerate(chain.steps):
-        if not isinstance(step, StepRef):
+        if not isinstance(step, (StepApply, StepLambda)):
             continue
-        target = decls.get(step.ref)
-        ref_info = {
-            "name": step.ref,
-            "type": target.type if target else None,
-            "prior": target.prior if target else None,
-            "content": getattr(target, "content", "") if target else "",
-        }
-        if first_apply_idx is not None and i < first_apply_idx:
-            premise_refs.append(ref_info)
-        elif last_apply_idx is not None and i > last_apply_idx:
-            conclusion_refs.append(ref_info)
+
+        for arg in _step_args(chain.steps, i, step):
+            if arg.dependency != "direct":
+                continue
+            if arg.ref in seen_outputs or arg.ref in seen_premises:
+                continue
+            seen_premises.add(arg.ref)
+            target = decls.get(arg.ref)
+            premise_refs.append(
+                {
+                    "name": arg.ref,
+                    "type": target.type if target else None,
+                    "prior": target.prior if target else None,
+                    "content": getattr(target, "content", "") if target else "",
+                }
+            )
+
+        output_ref = _output_ref(chain.steps, i)
+        if output_ref is not None:
+            seen_outputs.add(output_ref)
+            final_output = output_ref
+
+    if final_output is not None:
+        target = decls.get(final_output)
+        conclusion_refs.append(
+            {
+                "name": final_output,
+                "type": target.type if target else None,
+                "prior": target.prior if target else None,
+                "content": getattr(target, "content", "") if target else "",
+            }
+        )
 
     return {
         "edge_type": chain.edge_type or "deduction",
@@ -99,7 +115,7 @@ def _elaborate_chain(chain: ChainExpr, decls: dict[str, Knowledge]) -> list[dict
     """Elaborate a single chain's steps, returning rendered prompt dicts."""
     prompts = []
 
-    for step in chain.steps:
+    for i, step in enumerate(chain.steps):
         if isinstance(step, StepApply):
             action = decls.get(step.apply)
             if not action or not isinstance(action, Action):
@@ -139,14 +155,52 @@ def _elaborate_chain(chain: ChainExpr, decls: dict[str, Knowledge]) -> list[dict
             prompts.append(prompt_dict)
 
         elif isinstance(step, StepLambda):
+            arg_records = _arg_records(_step_args(chain.steps, i, step), decls)
             prompts.append(
                 {
                     "chain": chain.name,
                     "step": step.step,
                     "action": "__lambda__",
                     "rendered": step.lambda_,
-                    "args": [],
+                    "args": arg_records,
                 }
             )
 
     return prompts
+
+
+def _output_ref(steps: list, index: int) -> str | None:
+    if index + 1 < len(steps):
+        next_step = steps[index + 1]
+        if isinstance(next_step, StepRef):
+            return next_step.ref
+    return None
+
+
+def _step_args(steps: list, index: int, step: StepApply | StepLambda) -> list[Arg]:
+    if isinstance(step, StepApply):
+        return step.args
+    if step.args:
+        return step.args
+    if index > 0:
+        prev = steps[index - 1]
+        if isinstance(prev, StepRef):
+            return [Arg(ref=prev.ref, dependency="direct")]
+    return []
+
+
+def _arg_records(args: list[Arg], decls: dict[str, Knowledge]) -> list[dict]:
+    arg_records = []
+    for arg in args:
+        target = decls.get(arg.ref)
+        content = getattr(target, "content", "") if target else ""
+        arg_records.append(
+            {
+                "ref": arg.ref,
+                "dependency": arg.dependency,
+                "content": content,
+                "decl_type": target.type if target else None,
+                "prior": target.prior if target else None,
+            }
+        )
+    return arg_records

@@ -139,13 +139,13 @@ galileo_tied_balls/              # = 1 git repo = 1 knowledge package
     └── ...
 ```
 
-Module YAML with knowledge objects, including `chain_expr` reasoning:
+Module YAML with the current author-facing `premises:` and `chains:` reasoning surface:
 
 ```yaml
 type: reasoning_module
 name: reasoning
 
-knowledge:
+premises:
   - type: ref
     name: heavier_falls_fast
     target: aristotle.heavier_falls_faster
@@ -154,37 +154,21 @@ knowledge:
     name: thought_experiment_env
     content: "Consider the tied-bodies thought experiment in still air."
 
-  - type: claim
-    name: combined_slower
-    content: "The tied pair should fall slower than the heavy body alone."
-    prior: 0.3
-
-  - type: infer_action
-    name: tied_bodies_analysis
-    params:
-      - name: premise
-        type: claim
-      - name: env
-        type: setting
-    return_type: claim
-    content: "Analyze the tied-bodies scenario under the given premise and environment."
-
-  - type: chain_expr
-    name: tied_bodies_contradiction
-    edge_type: deduction
-    steps:
-      - step: 1
-        ref: heavier_falls_fast
-      - step: 2
-        apply: tied_bodies_analysis
-        args:
-          - ref: heavier_falls_fast
-            dependency: direct
-          - ref: thought_experiment_env
-            dependency: indirect
-        prior: 0.85
-      - step: 3
-        ref: combined_slower
+chains:
+  - name: tied_bodies_contradiction
+    conclusion:
+      type: claim
+      name: combined_slower
+      content: "The tied pair should fall slower than the heavy body alone."
+      reasoning: >
+        Under the tied-bodies thought experiment, if the lighter body naturally falls
+        slower, then attaching it to the heavier body should drag the pair down.
+      refs:
+        - ref: heavier_falls_fast
+          dependency: direct
+        - ref: thought_experiment_env
+          dependency: indirect
+      prior: 0.85
 ```
 
 - **Direct dependency (`args[].dependency: direct`):** semantic role `premise`. If this is wrong, the conclusion cannot stand. Across package boundaries this requires exported knowledge.

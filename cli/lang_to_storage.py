@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from libs.lang.models import (
+    Arg,
     ChainExpr,
     Claim,
     Contradiction,
@@ -373,7 +374,7 @@ def _convert_chain_expr(
         if isinstance(step, StepApply):
             # Premises from args
             premises: list[storage_models.KnowledgeRef] = []
-            for arg in step.args:
+            for arg in _step_args(chain.steps, i, step):
                 kref = _make_knowledge_ref(
                     arg.ref,
                     module_name=module_name,
@@ -420,25 +421,26 @@ def _convert_chain_expr(
                     conclusion=conclusion_ref,
                 )
             )
-            review_step_index[f"{chain.name}.{step.step}"] = (chain_id, step_index)
+            _register_review_step_aliases(
+                review_step_index, chain_id, chain.name, step.step, step_index
+            )
             step_index += 1
 
         elif isinstance(step, StepLambda):
-            # Lambda step: reasoning is the lambda text, premises from previous StepRef
+            # Lambda step: reasoning is the lambda text. Prefer explicit args from
+            # the authored chain surface, and only fall back to the legacy implicit
+            # "previous ref" convention when no args were provided.
             premises = []
-            # Look back for the preceding StepRef
-            if i > 0:
-                prev_step = chain.steps[i - 1]
-                if isinstance(prev_step, StepRef):
-                    kref = _make_knowledge_ref(
-                        prev_step.ref,
-                        module_name=module_name,
-                        decls_by_name=decls_by_name,
-                        pkg=pkg,
-                        module_decl_index=module_decl_index,
-                    )
-                    if kref is not None:
-                        premises.append(kref)
+            for arg in _step_args(chain.steps, i, step):
+                kref = _make_knowledge_ref(
+                    arg.ref,
+                    module_name=module_name,
+                    decls_by_name=decls_by_name,
+                    pkg=pkg,
+                    module_decl_index=module_decl_index,
+                )
+                if kref is not None:
+                    premises.append(kref)
 
             reasoning = step.lambda_.strip() if step.lambda_ else ""
 
@@ -470,7 +472,9 @@ def _convert_chain_expr(
                     conclusion=conclusion_ref,
                 )
             )
-            review_step_index[f"{chain.name}.{step.step}"] = (chain_id, step_index)
+            _register_review_step_aliases(
+                review_step_index, chain_id, chain.name, step.step, step_index
+            )
             step_index += 1
 
     if not storage_steps:
@@ -484,6 +488,37 @@ def _convert_chain_expr(
         type=edge_type,
         steps=storage_steps,
     )
+
+
+def _step_args(
+    steps: list[StepApply | StepLambda | StepRef],
+    index: int,
+    step: StepApply | StepLambda,
+) -> list[Arg]:
+    if isinstance(step, StepApply):
+        return step.args
+    if step.args:
+        return step.args
+    if index > 0:
+        prev = steps[index - 1]
+        if isinstance(prev, StepRef):
+            return [Arg(ref=prev.ref, dependency="direct")]
+    return []
+
+
+def _register_review_step_aliases(
+    review_step_index: dict[str, tuple[str, int]],
+    chain_id: str,
+    chain_name: str,
+    authored_step: int,
+    step_index: int,
+) -> None:
+    # Current authored surface uses the explicit step number from the normalized
+    # chain (`1`, `3`, ...). Legacy review sidecars referenced factor steps as
+    # `2`, `4`, ... (`ref -> apply/lambda -> ref`). Accept both.
+    aliases = {f"{chain_name}.{authored_step}", f"{chain_name}.{2 * (step_index + 1)}"}
+    for key in aliases:
+        review_step_index[key] = (chain_id, step_index)
 
 
 def _convert_relation_to_chain(

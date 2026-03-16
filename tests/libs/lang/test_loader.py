@@ -1,10 +1,9 @@
 # tests/libs/lang/test_loader.py
 from pathlib import Path
 
-from libs.lang.loader import _parse_module, load_package
+from libs.lang.loader import _parse_module, _parse_step, load_package
 from libs.lang.models import (
     Claim,
-    InferAction,
     ChainExpr,
     Ref,
 )
@@ -47,11 +46,10 @@ def test_knowledge_parsed():
         counts[decl.type] = counts.get(decl.type, 0) + 1
 
     # The richer Galileo fixture should contain:
-    # 4 refs, 4 reusable infer actions, 9 explicit claims, 8 chain expressions,
+    # 4 refs, 9 explicit claims, 8 chain expressions,
     # 1 contradiction relation, 1 retract_action.
     assert counts == {
         "ref": 4,
-        "infer_action": 4,
         "claim": 9,
         "chain_expr": 8,
         "contradiction": 1,
@@ -68,35 +66,22 @@ def test_claim_with_prior():
     assert "重的物体" in heavier.content
 
 
-def test_infer_action_with_params():
-    pkg = load_package(FIXTURE_DIR)
-    reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
-    synthesize = next(
-        d for d in reasoning.knowledge if d.name == "synthesize_equal_fall_prediction"
-    )
-    assert isinstance(synthesize, InferAction)
-    assert len(synthesize.params) == 4
-    assert [p.name for p in synthesize.params] == ["verdict", "confound", "support", "env"]
-    assert synthesize.return_type == "claim"
-    assert "{env}" in synthesize.content
-
-
 def test_chain_expr_steps():
     pkg = load_package(FIXTURE_DIR)
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
     chain = next(d for d in reasoning.knowledge if d.name == "contradiction_chain")
     assert isinstance(chain, ChainExpr)
-    assert len(chain.steps) == 3
+    assert len(chain.steps) == 2
     # After refactoring, contradiction_chain has no edge_type (defaults to deduction)
     assert chain.edge_type is None
-    # Step 1: ref
-    assert chain.steps[0].ref == "tied_pair_slower_than_heavy"
-    # Step 2: apply with args
-    assert chain.steps[1].apply == "expose_mutual_exclusion"
-    assert chain.steps[1].args[0].dependency == "direct"
-    assert chain.steps[1].args[1].dependency == "direct"
-    # Step 3: ref
-    assert chain.steps[2].ref == "tied_balls_contradiction"
+    # Step 1: lambda with explicit args
+    assert hasattr(chain.steps[0], "lambda_")
+    assert chain.steps[0].args[0].ref == "tied_pair_slower_than_heavy"
+    assert chain.steps[0].args[0].dependency == "direct"
+    assert chain.steps[0].args[1].ref == "tied_pair_faster_than_heavy"
+    assert chain.steps[0].args[1].dependency == "direct"
+    # Step 2: conclusion ref
+    assert chain.steps[1].ref == "tied_balls_contradiction"
 
 
 def test_ref_declaration():
@@ -112,10 +97,9 @@ def test_lambda_step():
     reasoning = next(m for m in pkg.loaded_modules if m.name == "reasoning")
     combined = next(d for d in reasoning.knowledge if d.name == "combined_weight_chain")
     assert isinstance(combined, ChainExpr)
-    # Step 2 should be a lambda
-    step2 = combined.steps[1]
-    assert hasattr(step2, "lambda_")
-    assert "复合体 HL 总重量大于单独的重球 H" in step2.lambda_
+    step1 = combined.steps[0]
+    assert hasattr(step1, "lambda_")
+    assert "复合体 HL 总重量大于单独的重球 H" in step1.lambda_
 
 
 def test_exports():
@@ -155,24 +139,8 @@ def test_unknown_step_format_raises(tmp_path):
     """A chain step with neither ref/apply/lambda should raise ValueError."""
     import pytest
 
-    pkg_yaml = tmp_path / "package.yaml"
-    pkg_yaml.write_text("name: test_pkg\nmodules:\n  - m\n")
-
-    mod_yaml = tmp_path / "m.yaml"
-    mod_yaml.write_text(
-        "type: reasoning_module\n"
-        "name: m\n"
-        "knowledge:\n"
-        "  - type: chain_expr\n"
-        "    name: bad_chain\n"
-        "    steps:\n"
-        "      - step: 1\n"
-        "        unknown_key: oops\n"
-        "export: []\n"
-    )
-
     with pytest.raises(ValueError, match="Unknown step format"):
-        load_package(tmp_path)
+        _parse_step({"step": 1, "unknown_key": "oops"})
 
 
 def test_unknown_type_falls_back_to_knowledge(tmp_path):
@@ -182,7 +150,7 @@ def test_unknown_type_falls_back_to_knowledge(tmp_path):
 
     mod_yaml = tmp_path / "m.yaml"
     mod_yaml.write_text(
-        "type: reasoning_module\n"
+        "type: setting_module\n"
         "name: m\n"
         "knowledge:\n"
         "  - type: custom_type\n"
@@ -206,7 +174,7 @@ def test_load_minimal_package(tmp_path):
     pkg_yaml.write_text("name: minimal\nmodules:\n  - m\n")
 
     mod_yaml = tmp_path / "m.yaml"
-    mod_yaml.write_text("type: reasoning_module\nname: m\nknowledge: []\nexport: []\n")
+    mod_yaml.write_text("type: setting_module\nname: m\nknowledge: []\nexport: []\n")
 
     pkg = load_package(tmp_path)
     assert pkg.name == "minimal"
@@ -219,7 +187,7 @@ def test_load_minimal_package(tmp_path):
 def test_parse_module_round_trips_model_dump_surface():
     module = _parse_module(
         {
-            "type": "reasoning_module",
+            "type": "setting_module",
             "name": "m",
             "knowledge": [{"type": "claim", "name": "x", "content": "hello"}],
             "export": ["x"],
@@ -230,6 +198,194 @@ def test_parse_module_round_trips_model_dump_surface():
 
     assert len(parsed.knowledge) == 1
     assert parsed.knowledge[0].name == "x"
+
+
+def test_reasoning_module_rejects_legacy_knowledge_surface():
+    import pytest
+
+    with pytest.raises(ValueError, match="reasoning_module no longer accepts"):
+        _parse_module(
+            {
+                "type": "reasoning_module",
+                "name": "m",
+                "knowledge": [{"type": "claim", "name": "x", "content": "legacy"}],
+                "export": ["x"],
+            }
+        )
+
+
+def test_reasoning_module_rejects_authored_chain_expr_declaration():
+    import pytest
+
+    with pytest.raises(ValueError, match="authored 'chain_expr' declarations"):
+        _parse_module(
+            {
+                "type": "reasoning_module",
+                "name": "m",
+                "premises": [
+                    {
+                        "type": "chain_expr",
+                        "name": "legacy_chain",
+                        "steps": [{"step": 1, "ref": "x"}],
+                    }
+                ],
+            }
+        )
+
+
+def test_chain_surface_requires_conclusion_block():
+    import pytest
+
+    with pytest.raises(ValueError, match="missing a conclusion block"):
+        _parse_module(
+            {
+                "type": "reasoning_module",
+                "name": "m",
+                "chains": [{"name": "broken_chain", "steps": []}],
+            }
+        )
+
+
+def test_chain_surface_rejects_duplicate_local_aliases():
+    import pytest
+
+    with pytest.raises(ValueError, match="duplicate local ref alias 'dup'"):
+        _parse_module(
+            {
+                "type": "reasoning_module",
+                "name": "m",
+                "chains": [
+                    {
+                        "name": "dup_chain",
+                        "steps": [
+                            {"id": "dup", "type": "claim", "content": "First"},
+                            {"name": "dup", "type": "claim", "content": "Second"},
+                        ],
+                        "conclusion": {
+                            "type": "claim",
+                            "content": "Conclusion",
+                            "refs": ["dup"],
+                        },
+                    }
+                ],
+            }
+        )
+
+
+def test_chain_surface_uses_reasoning_text_and_local_id_aliases():
+    module = _parse_module(
+        {
+            "type": "reasoning_module",
+            "name": "m",
+            "premises": [{"type": "claim", "name": "base", "content": "Base premise"}],
+            "chains": [
+                {
+                    "name": "named_chain",
+                    "steps": [
+                        {
+                            "id": "bridge",
+                            "type": "claim",
+                            "reasoning": "Bridge reasoning",
+                            "refs": ["base"],
+                        }
+                    ],
+                    "conclusion": {
+                        "type": "claim",
+                        "reasoning": "Final reasoning",
+                        "refs": ["bridge"],
+                    },
+                }
+            ],
+        }
+    )
+
+    bridge = next(decl for decl in module.knowledge if decl.name == "named_chain__bridge")
+    conclusion = next(decl for decl in module.knowledge if decl.name == "named_chain__conclusion")
+    chain = next(decl for decl in module.knowledge if isinstance(decl, ChainExpr))
+
+    assert bridge.content == "Bridge reasoning"
+    assert bridge.metadata["generated_from_chain"] is True
+    assert bridge.metadata["chain_role"] == "step"
+    assert conclusion.content == "Final reasoning"
+    assert conclusion.metadata["chain_role"] == "conclusion"
+    assert chain.steps[0].args[0].ref == "base"
+    assert chain.steps[2].args[0].ref == "named_chain__bridge"
+
+
+def test_parse_lambda_step_supports_explicit_args():
+    step = _parse_step(
+        {
+            "step": 3,
+            "lambda": "Explain the bridge",
+            "args": [{"ref": "base", "dependency": "direct"}],
+            "prior": 0.82,
+        }
+    )
+
+    assert step.step == 3
+    assert step.lambda_ == "Explain the bridge"
+    assert step.args[0].ref == "base"
+    assert step.args[0].dependency == "direct"
+    assert step.prior == 0.82
+
+
+def test_parse_module_supports_premises_and_chains_surface():
+    module = _parse_module(
+        {
+            "type": "reasoning_module",
+            "name": "m",
+            "premises": [
+                {"type": "claim", "name": "base", "content": "Base premise", "prior": 0.7},
+                {"type": "setting", "name": "regime", "content": "Relevant regime", "prior": 0.9},
+            ],
+            "chains": [
+                {
+                    "name": "demo_chain",
+                    "steps": [
+                        {
+                            "id": "obs",
+                            "type": "claim",
+                            "content": "Observation",
+                            "refs": [{"ref": "base", "dependency": "direct"}],
+                            "prior": 0.61,
+                        },
+                        {
+                            "id": "bridge",
+                            "type": "claim",
+                            "content": "Bridge",
+                            "reasoning": "Combine the observation with the regime.",
+                            "refs": [
+                                {"ref": "obs", "dependency": "direct"},
+                                {"ref": "regime", "dependency": "indirect"},
+                            ],
+                            "prior": 0.73,
+                        },
+                    ],
+                    "conclusion": {
+                        "name": "final_claim",
+                        "type": "claim",
+                        "content": "Final conclusion",
+                        "refs": [{"ref": "bridge", "dependency": "direct"}],
+                        "prior": 0.84,
+                    },
+                }
+            ],
+            "export": ["final_claim"],
+        }
+    )
+
+    names = {decl.name for decl in module.knowledge}
+    assert {"base", "regime", "demo_chain__obs", "demo_chain__bridge", "final_claim"}.issubset(
+        names
+    )
+
+    chain = next(decl for decl in module.knowledge if isinstance(decl, ChainExpr))
+    assert chain.name == "demo_chain"
+    assert len(chain.steps) == 6
+    assert chain.steps[0].args[0].ref == "base"
+    assert chain.steps[2].args[0].ref == "demo_chain__obs"
+    assert chain.steps[2].args[1].ref == "regime"
+    assert chain.steps[4].args[0].ref == "demo_chain__bridge"
 
 
 def test_load_package_with_dependencies(tmp_path):
@@ -249,6 +405,38 @@ def test_load_package_with_dependencies(tmp_path):
     assert pkg.dependencies[0].version == ">=1.0.0"
     assert pkg.dependencies[1].package == "math_utils"
     assert pkg.dependencies[1].version is None
+
+
+def test_chain_surface_conditional_prior_sets_step_strength():
+    module = _parse_module(
+        {
+            "type": "reasoning_module",
+            "name": "m",
+            "premises": [
+                {"type": "claim", "name": "base", "content": "Base premise", "prior": 0.7}
+            ],
+            "chains": [
+                {
+                    "name": "demo_chain",
+                    "conclusion": {
+                        "name": "final_claim",
+                        "type": "claim",
+                        "content": "Final conclusion",
+                        "refs": [{"ref": "base", "dependency": "direct"}],
+                        "prior": 0.51,
+                        "conditional_prior": 0.87,
+                    },
+                }
+            ],
+            "export": ["final_claim"],
+        }
+    )
+
+    final_claim = next(decl for decl in module.knowledge if decl.name == "final_claim")
+    chain = next(decl for decl in module.knowledge if isinstance(decl, ChainExpr))
+
+    assert final_claim.prior == 0.51
+    assert chain.steps[0].prior == 0.87
 
 
 def test_module_title_loaded():

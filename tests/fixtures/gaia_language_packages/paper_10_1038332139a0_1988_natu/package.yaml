@@ -5,10 +5,10 @@ manifest:
   authors: []
   license: CC-BY-4.0
 modules:
-- setting
-- reasoning
+  - setting
+  - reasoning
 export:
-- discovery_of_high_tc_superconductivity_in_the_tlcabacuo_system
-- superconducting_transition_properties_of_tl2ca15bacu3o85x
-- verification_of_bulk_superconductivity_via_magnetic_response
-- compositional_and_thermal_stability_characteristics
+  - discovery_of_high_tc_superconductivity_in_the_tlcabacuo_system
+  - superconducting_transition_properties_of_tl2ca15bacu3o85x
+  - verification_of_bulk_superconductivity_via_magnetic_response
+  - compositional_and_thermal_stability_characteristics

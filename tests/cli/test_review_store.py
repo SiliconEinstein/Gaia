@@ -77,8 +77,8 @@ def test_merge_review_updates_prior():
     for mod in merged.loaded_modules:
         for decl in mod.knowledge:
             if hasattr(decl, "steps") and decl.name == "drag_prediction_chain":
-                step2 = next(s for s in decl.steps if s.step == 2)
-                assert step2.prior == 0.95
+                step1 = next(s for s in decl.steps if s.step == 1)
+                assert step1.prior == 0.95
                 break
 
 
@@ -91,8 +91,8 @@ def test_merge_review_updates_dependency():
     for mod in merged.loaded_modules:
         for decl in mod.knowledge:
             if hasattr(decl, "steps") and decl.name == "drag_prediction_chain":
-                step2 = next(s for s in decl.steps if s.step == 2)
-                env_arg = next(a for a in step2.args if a.ref == "thought_experiment_env")
+                step1 = next(s for s in decl.steps if s.step == 1)
+                env_arg = next(a for a in step1.args if a.ref == "thought_experiment_env")
                 assert env_arg.dependency == "direct"
                 break
 
@@ -134,11 +134,124 @@ def test_merge_review_does_not_modify_original():
     for mod in pkg.loaded_modules:
         for decl in mod.knowledge:
             if hasattr(decl, "steps") and decl.name == "drag_prediction_chain":
-                step2 = next(s for s in decl.steps if s.step == 2)
-                orig_prior = step2.prior
+                step1 = next(s for s in decl.steps if s.step == 1)
+                orig_prior = step1.prior
     merge_review(pkg, review)
     for mod in pkg.loaded_modules:
         for decl in mod.knowledge:
             if hasattr(decl, "steps") and decl.name == "drag_prediction_chain":
-                step2 = next(s for s in decl.steps if s.step == 2)
-                assert step2.prior == orig_prior
+                step1 = next(s for s in decl.steps if s.step == 1)
+                assert step1.prior == orig_prior
+
+
+def test_merge_review_accepts_chain_surface_step_id():
+    pkg = load_package(FIXTURE_PATH)
+    pkg = resolve_refs(pkg)
+    review = {
+        "chains": [
+            {
+                "chain": "drag_prediction_chain",
+                "steps": [
+                    {
+                        "step": "drag_prediction_chain.1",
+                        "conditional_prior": 0.91,
+                    }
+                ],
+            }
+        ]
+    }
+
+    merged = merge_review(pkg, review)
+
+    for mod in merged.loaded_modules:
+        for decl in mod.knowledge:
+            if hasattr(decl, "steps") and decl.name == "drag_prediction_chain":
+                step1 = next(s for s in decl.steps if s.step == 1)
+                assert step1.prior == 0.91
+                return
+    raise AssertionError("drag_prediction_chain not found")
+
+
+def test_merge_review_ignores_unknown_odd_step_id():
+    pkg = load_package(FIXTURE_PATH)
+    pkg = resolve_refs(pkg)
+    review = {
+        "chains": [
+            {
+                "chain": "drag_prediction_chain",
+                "steps": [
+                    {
+                        "step": "drag_prediction_chain.99",
+                        "conditional_prior": 0.2,
+                    }
+                ],
+            }
+        ]
+    }
+
+    merged = merge_review(pkg, review)
+
+    for mod in merged.loaded_modules:
+        for decl in mod.knowledge:
+            if hasattr(decl, "steps") and decl.name == "drag_prediction_chain":
+                step1 = next(s for s in decl.steps if s.step == 1)
+                assert step1.prior == 0.93
+                return
+    raise AssertionError("drag_prediction_chain not found")
+
+
+def test_merge_review_updates_lambda_dependencies_from_legacy_even_step_id():
+    pkg = load_package(FIXTURE_PATH)
+    pkg = resolve_refs(pkg)
+    review = {
+        "chains": [
+            {
+                "chain": "drag_prediction_chain",
+                "steps": [
+                    {
+                        "step": 2,
+                        "dependencies": [{"ref": "thought_experiment_env", "suggested": "direct"}],
+                    }
+                ],
+            }
+        ]
+    }
+
+    merged = merge_review(pkg, review)
+
+    for mod in merged.loaded_modules:
+        for decl in mod.knowledge:
+            if hasattr(decl, "steps") and decl.name == "drag_prediction_chain":
+                step1 = next(s for s in decl.steps if s.step == 1)
+                env_arg = next(a for a in step1.args if a.ref == "thought_experiment_env")
+                assert env_arg.dependency == "direct"
+                return
+    raise AssertionError("drag_prediction_chain not found")
+
+
+def test_resolve_review_step_helper_covers_direct_and_out_of_range_ids():
+    from cli.review_store import _resolve_review_step
+    from libs.lang.models import Arg, StepLambda, StepRef
+
+    chain = next(
+        decl
+        for mod in resolve_refs(load_package(FIXTURE_PATH)).loaded_modules
+        for decl in mod.knowledge
+        if hasattr(decl, "steps") and decl.name == "drag_prediction_chain"
+    )
+    assert _resolve_review_step(chain, 1) is not None
+    assert _resolve_review_step(chain, 4) is None
+
+    inline_chain = type(chain)(
+        name="inline_chain",
+        steps=[
+            StepLambda(
+                step=1,
+                **{"lambda": "reason"},
+                args=[Arg(ref="a", dependency="direct")],
+                prior=0.8,
+            ),
+            StepRef(step=2, ref="b"),
+        ],
+    )
+    assert _resolve_review_step(inline_chain, 1) is inline_chain.steps[0]

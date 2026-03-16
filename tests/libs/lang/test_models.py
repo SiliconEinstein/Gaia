@@ -99,8 +99,8 @@ def test_module_with_knowledge():
 
 def test_module_dump_round_trips_through_loader_surface():
     m = Module(
-        type="reasoning_module",
-        name="reasoning",
+        type="setting_module",
+        name="setting",
         knowledge=[Claim(name="c1", content="test")],
         export=["c1"],
     )
@@ -133,10 +133,15 @@ def test_step_discriminator():
     """Steps are distinguished by which key is present: ref, apply, or lambda_."""
     s1 = StepRef(step=1, ref="x")
     s2 = StepApply(step=2, apply="f", args=[])
-    s3 = StepLambda(step=3, lambda_="some reasoning")
+    s3 = StepLambda(
+        step=3,
+        lambda_="some reasoning",
+        args=[Arg(ref="x", dependency="direct")],
+    )
     assert s1.ref == "x"
     assert s2.apply == "f"
     assert s3.lambda_ == "some reasoning"
+    assert s3.args[0].ref == "x"
 
 
 def test_package_with_dependencies():

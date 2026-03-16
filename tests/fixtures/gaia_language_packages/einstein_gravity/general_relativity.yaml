@@ -4,8 +4,7 @@ type: reasoning_module
 name: general_relativity
 title: "广义相对论 — 1915 场方程、光线偏折预测、与牛顿的关系"
 
-knowledge:
-  # === 引用 ===
+premises:
   - type: ref
     name: light_must_bend_in_gravity
     target: equivalence_principle.light_must_bend_in_gravity
@@ -22,8 +21,6 @@ knowledge:
     name: newton_a_equals_g
     target: prior_knowledge.newton_a_equals_g
 
-  # === 广义相对论核心内容 ===
-
   - type: claim
     name: einstein_field_equations
     content: >
@@ -35,17 +32,6 @@ knowledge:
       source: "爱因斯坦, Sitzungsberichte der Preussischen Akademie, 1915"
 
   - type: claim
-    name: gr_light_deflection
-    content: >
-      广义相对论预测：光线掠过太阳表面时偏折 1.75 角秒。
-      这是 Soldner/牛顿预测 (0.87 角秒) 的恰好两倍，
-      因为 GR 同时包含时间弯曲和空间弯曲的贡献，
-      而牛顿框架只捕获了时间弯曲部分。
-    prior: 0.85
-    metadata:
-      source: "爱因斯坦, Annalen der Physik, 1916"
-
-  - type: claim
     name: mercury_perihelion
     content: >
       广义相对论精确预测了水星近日点每世纪 43 角秒的异常进动，
@@ -54,121 +40,101 @@ knowledge:
     metadata:
       source: "爱因斯坦, Sitzungsberichte, 1915; Le Verrier 1859 观测"
 
-  - type: claim
-    name: gr_subsumes_newton_weak_field
-    content: >
-      在弱引力场和低速条件下，广义相对论退化为牛顿引力。
-      牛顿的 F=GMm/r² 和 a=g 都是 GR 的弱场近似。
-      GR 不否定牛顿，而是将其包含为特殊情况。
-    prior: 0.5
+chains:
+  - name: light_deflection_chain
+    conclusion:
+      type: claim
+      name: gr_light_deflection
+      content: >
+        广义相对论预测：光线掠过太阳表面时偏折 1.75 角秒。
+        这是 Soldner/牛顿预测 (0.87 角秒) 的恰好两倍，
+        因为 GR 同时包含时间弯曲和空间弯曲的贡献，
+        而牛顿框架只捕获了时间弯曲部分。
+      reasoning: >
+        “光在引力场中必须弯曲”只给出定性方向，
+        爱因斯坦场方程则给出如何从时空几何定量计算这种弯曲。
+        在 Schwarzschild 度规下求解光的零测地线，
+        可得太阳边缘处的偏折角约为 1.75 角秒。
+      refs:
+        - ref: light_must_bend_in_gravity
+          dependency: direct
+        - ref: einstein_field_equations
+          dependency: direct
+      prior: 0.85
+      conditional_prior: 0.97
+      metadata:
+        source: "爱因斯坦, Annalen der Physik, 1916"
 
-  - type: subsumption
-    name: newton_subsumed_by_gr
-    between:
-      - einstein_field_equations
-      - newton_gravity
-    content: >
-      牛顿引力定律 F=GMm/r² 是广义相对论在弱场低速极限下的近似。
-      GR 是更一般的理论，牛顿是其特殊情况。
-      这是理论继承而非理论否定。
+  - name: deflection_contradiction_chain
+    conclusion:
+      type: contradiction
+      name: deflection_contradiction
+      between:
+        - gr_light_deflection
+        - soldner_deflection
+      content: >
+        GR 预测光线偏折 1.75 角秒，牛顿微粒说预测 0.87 角秒。
+        两个预测不能同时正确——它们之间恰好差两倍，
+        差异来源是 GR 的空间弯曲贡献。
+        这是一个可以通过观测判决的定量矛盾。
+      reasoning: >
+        一旦接受 GR 的 1.75 角秒预测和 Soldner/牛顿的 0.87 角秒预测
+        都在回答同一个太阳边缘光偏折问题，
+        二者之间的倍数差异就构成了可观测、不可同时为真的定量冲突。
+      refs:
+        - ref: gr_light_deflection
+          dependency: direct
+        - ref: soldner_deflection
+          dependency: direct
+      prior: 0.7
+      conditional_prior: 0.94
 
-  # === 定量矛盾：1.75 vs 0.87 角秒 ===
+  - name: subsumption_chain
+    conclusion:
+      type: claim
+      name: gr_subsumes_newton_weak_field
+      content: >
+        在弱引力场和低速条件下，广义相对论退化为牛顿引力。
+        牛顿的 F=GMm/r² 和 a=g 都是 GR 的弱场近似。
+        GR 不否定牛顿，而是将其包含为特殊情况。
+      reasoning: >
+        爱因斯坦场方程在弱场低速极限下的数学形式
+        精确还原为熟悉的牛顿引力结果，并继续给出 a=g 这类结论。
+        这意味着牛顿理论不是被抛弃，而是被包含为近似。
+      refs:
+        - ref: einstein_field_equations
+          dependency: direct
+        - ref: newton_gravity
+          dependency: direct
+        - ref: newton_a_equals_g
+          dependency: direct
+      prior: 0.5
+      conditional_prior: 0.92
 
-  - type: contradiction
-    name: deflection_contradiction
-    between:
-      - gr_light_deflection
-      - soldner_deflection
-    content: >
-      GR 预测光线偏折 1.75 角秒，牛顿微粒说预测 0.87 角秒。
-      两个预测不能同时正确——它们之间恰好差两倍，
-      差异来源是 GR 的空间弯曲贡献。
-      这是一个可以通过观测判决的定量矛盾。
-
-  # === 推理方法 ===
-
-  - type: infer_action
-    name: derive_subsumption
-    params:
-      - name: general_theory
-        type: claim
-      - name: special_case
-        type: claim
-      - name: weak_field_result
-        type: claim
-    return_type: claim
-    content: >
-      {general_theory} 在弱场低速极限下的数学形式
-      精确还原为 {special_case}，并继续给出 {weak_field_result}
-      这类熟悉的牛顿式结果。
-      这意味着后者不是被"推翻"，而是被包含为前者的近似。
-      旧理论在其有效范围内仍然正确，但不再是最基本的描述。
-    prior: 0.93
-
-  - type: infer_action
-    name: quantify_light_bending
-    params:
-      - name: qualitative_prediction
-        type: claim
-      - name: field_equations
-        type: claim
-    return_type: claim
-    content: >
-      {qualitative_prediction} 只告诉我们光必须弯曲；
-      {field_equations} 则给出如何从时空几何定量计算这种弯曲。
-      在 Schwarzschild 度规下求解光的零测地线，
-      可得太阳边缘处的偏折角约为 1.75 角秒。
-    prior: 0.92
-
-  # === 推理链 ===
-
-  - type: chain_expr
-    name: light_deflection_chain
-    steps:
-      - step: 1
-        ref: light_must_bend_in_gravity
-      - step: 2
-        apply: quantify_light_bending
-        args:
-          - ref: light_must_bend_in_gravity
-            dependency: direct
-          - ref: einstein_field_equations
-            dependency: direct
-        prior: 0.92
-      - step: 3
-        ref: gr_light_deflection
-
-  - type: chain_expr
-    name: subsumption_chain
-    steps:
-      - step: 1
-        ref: einstein_field_equations
-      - step: 2
-        apply: derive_subsumption
-        args:
-          - ref: einstein_field_equations
-            dependency: direct
-          - ref: newton_gravity
-            dependency: direct
-          - ref: newton_a_equals_g
-            dependency: direct
-        prior: 0.93
-      - step: 3
-        ref: gr_subsumes_newton_weak_field
-
-  - type: chain_expr
-    name: weak_field_summary_chain
-    steps:
-      - step: 1
-        ref: gr_subsumes_newton_weak_field
-      - step: 2
-        lambda: >
-          因而更准确的结论不是“GR 推翻了牛顿”，
-          而是：牛顿引力被纳入一个更一般的几何理论之中，
-          在弱场范围内继续作为有效描述保留下来。
-        prior: 0.92
-      - step: 3
-        ref: newton_subsumed_by_gr
+  - name: weak_field_summary_chain
+    conclusion:
+      type: subsumption
+      name: newton_subsumed_by_gr
+      between:
+        - einstein_field_equations
+        - newton_gravity
+      content: >
+        牛顿引力定律 F=GMm/r² 是广义相对论在弱场低速极限下的近似。
+        GR 是更一般的理论，牛顿是其特殊情况。
+        这是理论继承而非理论否定。
+      reasoning: >
+        因而更准确的结论不是“GR 推翻了牛顿”，
+        而是：牛顿引力被纳入一个更一般的几何理论之中，
+        在弱场范围内继续作为有效描述保留下来。
+      refs:
+        - ref: gr_subsumes_newton_weak_field
+          dependency: direct
+        - ref: einstein_field_equations
+          dependency: indirect
+        - ref: newton_gravity
+          dependency: indirect
+      prior: 0.9
+      conditional_prior: 0.95
 
 export:
   - einstein_field_equations

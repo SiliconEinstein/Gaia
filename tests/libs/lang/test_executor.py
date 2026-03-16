@@ -55,16 +55,9 @@ async def test_execute_calls_infer_action():
     executor = MockExecutor()
     await execute_package(pkg, executor)
 
-    # The richer story uses 4 reusable infer actions:
-    # drag-effect deduction, contradiction exposure, confound explanation,
-    # and final vacuum synthesis.
+    # The chain-surface Galileo fixture now uses inline lambda reasoning only.
     infer_calls = [c for c in executor.calls if c["type"] == "infer"]
-    assert len(infer_calls) == 4
-    prompts = "\n".join(c["prompt"] for c in infer_calls)
-    assert "轻球应当拖慢重球" in prompts
-    assert "不能同时为真" in prompts
-    assert "介质阻力造成的表象" in prompts
-    assert "不同重量的物体应以相同速率下落" in prompts
+    assert len(infer_calls) == 0
 
 
 async def test_execute_calls_lambda():
@@ -73,15 +66,16 @@ async def test_execute_calls_lambda():
     executor = MockExecutor()
     await execute_package(pkg, executor)
 
-    # The Galileo story uses 6 one-off lambda steps for narrative pivots
-    # (retraction_chain was replaced by a RetractAction, removing one lambda).
+    # The authored `premises + chains` surface expands to 10 lambda reasoning steps
+    # across motivation, reasoning, and follow-up modules.
     lambda_calls = [c for c in executor.calls if c["type"] == "lambda"]
-    assert len(lambda_calls) == 6
+    assert len(lambda_calls) == 10
     contents = "\n".join(c["content"] for c in lambda_calls)
     assert "归纳成一条普遍规律" in contents
+    assert "轻球天然比重球下落更慢" in contents
     assert "复合体 HL 总重量大于单独的重球 H" in contents
-    assert "自由落体的普遍真理" in contents
-    assert "外部阻力效应" in contents
+    assert "内在矛盾" in contents
+    assert "外部介质造成的表象" in contents
     assert "斜面实验把自由落体减慢到可测量尺度后" in contents
     assert "寻找足够接近真空的直接实验" in contents
 
@@ -339,3 +333,122 @@ async def test_infer_action_still_uses_execute_infer():
     assert len(infer_calls) == 1
     assert len(tool_calls) == 0
     assert "all objects fall" in infer_calls[0]["prompt"]
+
+
+async def test_execute_lambda_uses_explicit_args_when_present():
+    base = Claim(name="base", content="Base premise", prior=0.9)
+    regime = Claim(name="regime", content="Context regime", prior=0.7)
+    out = Claim(name="result", content="", prior=0.5)
+    chain = ChainExpr(
+        name="lambda_args_chain",
+        steps=[
+            StepLambda(
+                step=1,
+                **{"lambda": "derive result"},
+                args=[
+                    Arg(ref="base", dependency="direct"),
+                    Arg(ref="regime", dependency="indirect"),
+                ],
+                prior=0.8,
+            ),
+            StepRef(step=2, ref="result"),
+        ],
+    )
+    mod = Module(
+        type="reasoning_module",
+        name="m",
+        knowledge=[base, regime, out, chain],
+        export=["result"],
+    )
+    pkg = Package(name="lambda_args_pkg", modules=["m"])
+    pkg.loaded_modules = [mod]
+
+    executor = MockExecutor()
+    await execute_package(pkg, executor)
+
+    lambda_calls = [c for c in executor.calls if c["type"] == "lambda"]
+    assert len(lambda_calls) == 1
+    assert "Base premise" in lambda_calls[0]["input"]
+    assert "Context regime" in lambda_calls[0]["input"]
+
+
+async def test_execute_lambda_input_skips_empty_content_and_formats_untyped_args():
+    base = Claim(name="base", content="Base premise", prior=0.9)
+    empty = Claim(name="empty", content="", prior=0.4)
+    out = Claim(name="result", content="", prior=0.5)
+    chain = ChainExpr(
+        name="lambda_input_chain",
+        steps=[
+            StepLambda(
+                step=1,
+                **{"lambda": "derive result"},
+                args=[
+                    Arg(ref="base"),
+                    Arg(ref="empty", dependency="indirect"),
+                ],
+                prior=0.8,
+            ),
+            StepRef(step=2, ref="result"),
+        ],
+    )
+    mod = Module(
+        type="reasoning_module",
+        name="m",
+        knowledge=[base, empty, out, chain],
+        export=["result"],
+    )
+    pkg = Package(name="lambda_input_pkg", modules=["m"])
+    pkg.loaded_modules = [mod]
+
+    executor = MockExecutor()
+    await execute_package(pkg, executor)
+
+    lambda_calls = [c for c in executor.calls if c["type"] == "lambda"]
+    assert len(lambda_calls) == 1
+    assert "[base]" in lambda_calls[0]["input"]
+    assert "Base premise" in lambda_calls[0]["input"]
+    assert "empty (indirect)" not in lambda_calls[0]["input"]
+
+
+def test_executor_private_helpers_cover_explicit_toposort_and_lambda_input():
+    from libs.lang.executor import _build_lambda_input, _output_ref, _step_args, _topo_sort_chains
+
+    base = Claim(name="base", content="Base premise", prior=0.9)
+    mid = Claim(name="mid", content="Bridge claim", prior=0.6)
+    final = Claim(name="final", content="", prior=0.5)
+    empty = Claim(name="empty", content="", prior=0.4)
+    decls = {"base": base, "mid": mid, "final": final, "empty": empty}
+
+    producer = ChainExpr(
+        name="producer",
+        steps=[
+            StepLambda(
+                step=1,
+                **{"lambda": "derive mid"},
+                args=[Arg(ref="base", dependency="direct")],
+                prior=0.8,
+            ),
+            StepRef(step=2, ref="mid"),
+        ],
+    )
+    consumer = ChainExpr(
+        name="consumer",
+        steps=[
+            StepLambda(
+                step=1,
+                **{"lambda": "derive final"},
+                args=[
+                    Arg(ref="mid", dependency="direct"),
+                    Arg(ref="empty", dependency="indirect"),
+                ],
+                prior=0.7,
+            ),
+            StepRef(step=2, ref="final"),
+        ],
+    )
+
+    ordered = _topo_sort_chains([consumer, producer], decls)
+    assert [chain.name for chain in ordered] == ["producer", "consumer"]
+    assert _step_args(consumer.steps, 0, consumer.steps[0])[0].ref == "mid"
+    assert _output_ref(consumer.steps, 0) == "final"
+    assert _build_lambda_input(consumer.steps[0].args, decls) == "[mid (direct)]\nBridge claim"

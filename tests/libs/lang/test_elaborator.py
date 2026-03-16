@@ -3,7 +3,8 @@
 from pathlib import Path
 
 from libs.lang.elaborator import ElaboratedPackage, elaborate_package
-from libs.lang.loader import load_package
+from libs.lang.loader import _parse_module, load_package
+from libs.lang.models import Package
 from libs.lang.resolver import resolve_refs
 
 
@@ -18,19 +19,17 @@ def test_elaborate_returns_elaborated_package():
     assert result.package.name == "galileo_falling_bodies"
 
 
-def test_elaborate_renders_step_apply_prompts():
-    """StepApply templates like {law} should be substituted with resolved arg content."""
+def test_elaborate_renders_chain_surface_prompts():
+    """Chain-surface prompts should carry the authored reasoning text."""
     pkg = load_package(FIXTURE_PATH)
     pkg = resolve_refs(pkg)
     result = elaborate_package(pkg)
     prompts = {(p["chain"], p["step"]): p for p in result.prompts}
-    key = ("drag_prediction_chain", 2)
+    key = ("drag_prediction_chain", 1)
     assert key in prompts
     rendered = prompts[key]["rendered"]
-    assert "{law}" not in rendered
-    assert "{env}" not in rendered
-    assert "重的物体" in rendered  # from heavier_falls_faster content
-    assert "重球" in rendered  # from thought_experiment_env content
+    assert "轻球天然比重球下落更慢" in rendered
+    assert "复合体 HL" in rendered
 
 
 def test_elaborate_records_lambda_content():
@@ -39,7 +38,7 @@ def test_elaborate_records_lambda_content():
     pkg = resolve_refs(pkg)
     result = elaborate_package(pkg)
     prompts = {(p["chain"], p["step"]): p for p in result.prompts}
-    key = ("combined_weight_chain", 2)
+    key = ("combined_weight_chain", 1)
     assert key in prompts
     assert "复合体" in prompts[key]["rendered"]
 
@@ -50,7 +49,7 @@ def test_elaborate_records_arg_metadata():
     pkg = resolve_refs(pkg)
     result = elaborate_package(pkg)
     prompts = {(p["chain"], p["step"]): p for p in result.prompts}
-    key = ("drag_prediction_chain", 2)
+    key = ("drag_prediction_chain", 1)
     prompt = prompts[key]
     assert len(prompt["args"]) == 2
     assert prompt["args"][0]["ref"] == "heavier_falls_faster"
@@ -66,13 +65,13 @@ def test_elaborate_does_not_modify_original():
     original_content = None
     for mod in pkg.loaded_modules:
         for decl in mod.knowledge:
-            if decl.name == "deduce_drag_effect":
+            if decl.name == "medium_density_observation":
                 original_content = decl.content
                 break
     elaborate_package(pkg)
     for mod in pkg.loaded_modules:
         for decl in mod.knowledge:
-            if decl.name == "deduce_drag_effect":
+            if decl.name == "medium_density_observation":
                 assert decl.content == original_content
 
 
@@ -129,9 +128,167 @@ def test_args_include_decl_type_and_prior():
     pkg = resolve_refs(pkg)
     result = elaborate_package(pkg)
     prompts = {(p["chain"], p["step"]): p for p in result.prompts}
-    prompt = prompts[("drag_prediction_chain", 2)]
+    prompt = prompts[("drag_prediction_chain", 1)]
     arg0 = prompt["args"][0]
     assert arg0["decl_type"] == "claim"
     assert arg0["prior"] == 0.7
     arg1 = prompt["args"][1]
     assert arg1["decl_type"] == "setting"
+
+
+def test_elaborate_chain_surface_tracks_lambda_args():
+    module = _parse_module(
+        {
+            "type": "reasoning_module",
+            "name": "m",
+            "premises": [
+                {"type": "claim", "name": "base", "content": "Base premise", "prior": 0.7},
+                {"type": "setting", "name": "regime", "content": "Relevant regime", "prior": 0.9},
+            ],
+            "chains": [
+                {
+                    "name": "demo_chain",
+                    "steps": [
+                        {
+                            "id": "obs",
+                            "type": "claim",
+                            "content": "Observation",
+                            "refs": [{"ref": "base", "dependency": "direct"}],
+                            "prior": 0.61,
+                        },
+                        {
+                            "id": "bridge",
+                            "type": "claim",
+                            "reasoning": "Combine observation with the regime.",
+                            "content": "Bridge",
+                            "refs": [
+                                {"ref": "obs", "dependency": "direct"},
+                                {"ref": "regime", "dependency": "indirect"},
+                            ],
+                            "prior": 0.73,
+                        },
+                    ],
+                    "conclusion": {
+                        "name": "final_claim",
+                        "type": "claim",
+                        "content": "Final conclusion",
+                        "refs": [{"ref": "bridge", "dependency": "direct"}],
+                        "prior": 0.84,
+                    },
+                }
+            ],
+            "export": ["final_claim"],
+        }
+    )
+    pkg = Package(name="demo_pkg", modules=["m"])
+    pkg.loaded_modules = [module]
+
+    result = elaborate_package(pkg)
+    prompts = {(p["chain"], p["step"]): p for p in result.prompts}
+
+    assert prompts[("demo_chain", 1)]["args"][0]["ref"] == "base"
+    assert prompts[("demo_chain", 3)]["args"][0]["ref"] == "demo_chain__obs"
+    assert prompts[("demo_chain", 3)]["args"][1]["dependency"] == "indirect"
+
+    ctx = result.chain_contexts["demo_chain"]
+    assert [ref["name"] for ref in ctx["premise_refs"]] == ["base"]
+    assert ctx["conclusion_refs"][0]["name"] == "final_claim"
+
+
+def test_elaborate_legacy_lambda_uses_previous_ref_and_last_output():
+    module = _parse_module(
+        {
+            "type": "reasoning_module",
+            "name": "m",
+            "premises": [
+                {"type": "claim", "name": "base", "content": "Base premise", "prior": 0.7},
+                {"type": "setting", "name": "context", "content": "", "prior": 0.9},
+            ],
+            "chains": [
+                {
+                    "name": "legacy_chain",
+                    "steps": [
+                        {
+                            "id": "mid",
+                            "type": "claim",
+                            "reasoning": "Derive the bridge from the base premise.",
+                            "refs": ["base"],
+                            "prior": 0.61,
+                        }
+                    ],
+                    "conclusion": {
+                        "name": "final_claim",
+                        "type": "claim",
+                        "reasoning": "Use the bridge to reach the final claim.",
+                        "refs": [
+                            {"ref": "mid", "dependency": "direct"},
+                            {"ref": "context", "dependency": "indirect"},
+                        ],
+                        "prior": 0.84,
+                    },
+                }
+            ],
+            "export": ["final_claim"],
+        }
+    )
+    pkg = Package(name="demo_pkg", modules=["m"])
+    pkg.loaded_modules = [module]
+
+    result = elaborate_package(pkg)
+    prompts = {(p["chain"], p["step"]): p for p in result.prompts}
+
+    assert prompts[("legacy_chain", 1)]["args"][0]["ref"] == "base"
+    assert prompts[("legacy_chain", 3)]["args"][0]["ref"] == "legacy_chain__mid"
+    assert prompts[("legacy_chain", 3)]["args"][1]["dependency"] == "indirect"
+    assert prompts[("legacy_chain", 3)]["args"][1]["content"] == ""
+
+    ctx = result.chain_contexts["legacy_chain"]
+    assert [ref["name"] for ref in ctx["premise_refs"]] == ["base"]
+    assert ctx["conclusion_refs"][0]["name"] == "final_claim"
+
+
+def test_elaborator_private_helpers_cover_context_and_arg_record_paths():
+    from libs.lang.elaborator import (
+        _arg_records,
+        _build_chain_context,
+        _elaborate_chain,
+        _output_ref,
+    )
+    from libs.lang.models import Arg, Claim, ChainExpr, Setting, StepLambda, StepRef
+
+    decls = {
+        "base": Claim(name="base", content="Base premise", prior=0.7),
+        "mid": Claim(name="mid", content="Bridge claim", prior=0.6),
+        "ctx": Setting(name="ctx", content="", prior=0.9),
+        "final": Claim(name="final", content="Final claim", prior=0.8),
+    }
+    chain = ChainExpr(
+        name="helper_chain",
+        steps=[
+            StepRef(step=1, ref="base"),
+            StepLambda(step=2, **{"lambda": "derive mid"}, prior=0.61),
+            StepRef(step=3, ref="mid"),
+            StepLambda(
+                step=4,
+                **{"lambda": "derive final"},
+                args=[
+                    Arg(ref="mid", dependency="direct"),
+                    Arg(ref="ctx", dependency="indirect"),
+                ],
+                prior=0.73,
+            ),
+            StepRef(step=5, ref="final"),
+        ],
+    )
+
+    ctx = _build_chain_context(chain, decls)
+    prompts = _elaborate_chain(chain, decls)
+    arg_records = _arg_records([Arg(ref="ctx", dependency="indirect")], decls)
+
+    assert [ref["name"] for ref in ctx["premise_refs"]] == ["base"]
+    assert ctx["conclusion_refs"][0]["name"] == "final"
+    assert prompts[0]["args"][0]["ref"] == "base"
+    assert prompts[1]["args"][0]["ref"] == "mid"
+    assert prompts[1]["args"][1]["content"] == ""
+    assert _output_ref(chain.steps, 3) == "final"
+    assert arg_records[0]["dependency"] == "indirect"
