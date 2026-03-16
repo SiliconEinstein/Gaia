@@ -15,13 +15,21 @@
   }
 }
 
+// Registers an external knowledge reference. Place as content — do NOT capture
+// with `#let`, as that discards the state update. Use string names to refer to
+// imported knowledge in `premise:` and `ctx:` parameters.
+//
+// Example:
+//   #use("galileo.galileo_experiment")  // registers the ref
+//   #claim("my_step", premise: ("galileo_experiment",))[...]
 #let use(target) = {
   let alias = target.split(".").last()
   _gaia_refs.update(refs => {
     refs.push((alias: alias, target: target))
     refs
   })
-  alias
+  // Render a small note so use() produces visible content
+  text(size: 0.8em, fill: gray)[_imports #alias from #target _]
 }
 
 #let package(name, modules: (), export: ()) = {

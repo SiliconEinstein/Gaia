@@ -112,13 +112,14 @@ description = "Gaia knowledge language primitives for Typst"
   }
 }
 
+// Place as content — do NOT capture with #let
 #let use(target) = {
   let alias = target.split(".").last()
   _gaia_refs.update(refs => {
     refs.push((alias: alias, target: target))
     refs
   })
-  alias
+  text(size: 0.8em, fill: gray)[_imports #alias from #target _]
 }
 
 #let package(name, modules: (), export: ()) = {
@@ -147,20 +148,21 @@ description = "Gaia knowledge language primitives for Typst"
 #let _chain_name = state("chain-name", none)
 #let _chain_step_index = state("chain-step-index", 0)
 
-#let _register_node(name, node_type, content_text, premise, context) = {
+#let _register_node(name, node_type, content_text, premise, ctx) = {
   _gaia_nodes.update(nodes => {
     nodes.push((
       name: name,
       type: node_type,
       content: content_text,
       premise: premise,
-      context: context,
+      ctx: ctx,
     ))
     nodes
   })
 }
 
-#let _knowledge(name, node_type, body, premise: (), context: ()) = context {
+// Note: `ctx` not `context` — `context` is a Typst keyword
+#let _knowledge(name, node_type, body, premise: (), ctx: ()) = context {
   let is_chain = _chain_active.get()
 
   // In chain: auto-inject previous step as first premise if no explicit premise
@@ -173,21 +175,21 @@ description = "Gaia knowledge language primitives for Typst"
   }
 
   // Register node
-  _register_node(name, node_type, body, effective_premise, context)
+  _register_node(name, node_type, body, effective_premise, ctx)
 
   // If in chain, register factor and update pipeline
   if is_chain {
-    let chain = _chain_name.get()
+    let chain_name = _chain_name.get()
     let step_idx = _chain_step_index.get()
     _gaia_factors.update(factors => {
       factors.push((
-        chain: chain,
+        chain: chain_name,
         step: step_idx,
         type: if node_type == "contradiction" { "mutex_constraint" }
               else if node_type == "equivalence" { "equiv_constraint" }
               else { "reasoning" },
         premise: effective_premise,
-        context: context,
+        ctx: ctx,
         conclusion: name,
       ))
       factors
@@ -196,51 +198,43 @@ description = "Gaia knowledge language primitives for Typst"
     _chain_step_index.update(n => n + 1)
   }
 
-  // Render
-  if is_chain {
-    let step_idx = _chain_step_index.get()
-    block(above: 0.6em)[
-      === #name \[#node_type\]
-      #if effective_premise != () [
-        #block(above: 0.3em, inset: (left: 1em))[
-          _Premise: #effective_premise.join(", ")_
-        ]
+  // Render — always show premise/ctx when present
+  block(above: 0.6em)[
+    === #name \[#node_type\]
+    #if effective_premise != () [
+      #block(above: 0.3em, inset: (left: 1em))[
+        _Premise: #effective_premise.join(", ")_
       ]
-      #if context != () [
-        #block(inset: (left: 1em))[
-          _Context: #context.join(", ")_
-        ]
+    ]
+    #if ctx != () [
+      #block(inset: (left: 1em))[
+        _Context: #ctx.join(", ")_
       ]
-      #body
     ]
-  } else {
-    block(above: 0.6em)[
-      === #name \[#node_type\]
-      #body
-    ]
-  }
+    #body
+  ]
 
-  name  // return handle
+  // Does NOT return a value — #let discards content including state.update()
 }
 
-#let claim(name, ..args, premise: (), context: (), body) = {
-  _knowledge(name, "claim", body, premise: premise, context: context)
+#let claim(name, ..args, premise: (), ctx: (), body) = {
+  _knowledge(name, "claim", body, premise: premise, ctx: ctx)
 }
 
-#let setting(name, ..args, premise: (), context: (), body) = {
-  _knowledge(name, "setting", body, premise: premise, context: context)
+#let setting(name, ..args, premise: (), ctx: (), body) = {
+  _knowledge(name, "setting", body, premise: premise, ctx: ctx)
 }
 
-#let question(name, ..args, body) = {
-  _knowledge(name, "question", body)
+#let question(name, ..args, premise: (), ctx: (), body) = {
+  _knowledge(name, "question", body, premise: premise, ctx: ctx)
 }
 
-#let contradiction(name, ..args, premise: (), context: (), body) = {
-  _knowledge(name, "contradiction", body, premise: premise, context: context)
+#let contradiction(name, ..args, premise: (), ctx: (), body) = {
+  _knowledge(name, "contradiction", body, premise: premise, ctx: ctx)
 }
 
-#let equivalence(name, ..args, premise: (), context: (), body) = {
-  _knowledge(name, "equivalence", body, premise: premise, context: context)
+#let equivalence(name, ..args, premise: (), ctx: (), body) = {
+  _knowledge(name, "equivalence", body, premise: premise, ctx: ctx)
 }
 ```
 
@@ -264,11 +258,9 @@ description = "Gaia knowledge language primitives for Typst"
 
   // Deactivate chain context
   _chain_active.update(_ => false)
-  let result = _chain_pipeline.get()
   _chain_pipeline.update(_ => none)
   _chain_name.update(_ => none)
-
-  result  // return conclusion handle
+  // Does NOT return a value — #let discards content including state.update()
 }
 ```
 
@@ -290,7 +282,7 @@ import typst
 test_typ = '''
 #import \"libs/typst/gaia-lang/lib.typ\": *
 #module(\"test\", title: \"Test Module\")
-#let a = claim(\"test_claim\")[Hello world]
+#claim(\"test_claim\")[Hello world]
 #export-graph()
 '''
 import tempfile, os
@@ -308,6 +300,8 @@ with tempfile.NamedTemporaryFile(suffix='.typ', mode='w', delete=False, dir='.')
 ```
 
 Expected: "OK: Typst compilation succeeded" (or a clear error to debug)
+
+**Important:** Never use `#let x = claim(...)` — the `#let` captures the return value but discards the content (including `state.update()` calls), resulting in 0 nodes in the graph. Always place knowledge functions directly as content.
 
 - [ ] **Step 7: Commit**
 
@@ -382,19 +376,19 @@ description = "伽利略落体论证 — 绑球思想实验推翻亚里士多德
 
 #module("aristotle", title: "亚里士多德学说 — 即将被挑战的先验知识")
 
-#let heavier = claim("heavier_falls_faster")[
+#claim("heavier_falls_faster")[
   重的物体比轻的物体下落得更快。
   下落速度与重量成正比。
 ]
 
-#let obs = claim("everyday_observation")[
+#claim("everyday_observation")[
   在日常空气环境中，从同一高度落下时，石头通常比羽毛更早落地；
   重物看起来往往比轻物下落得更快。
 ]
 
-#let _support = chain("inductive_support")[
-  claim("inductive_step",
-    premise: (obs,),
+#chain("inductive_support")[
+  #claim("inductive_step",
+    premise: ("everyday_observation",),
   )[
     日常经验反复呈现"重物先落地、轻物后落地"的现象，
     如果不区分空气阻力等外在因素，人们很自然会把这种表象
@@ -403,7 +397,7 @@ description = "伽利略落体论证 — 绑球思想实验推翻亚里士多德
 ]
 ```
 
-Note: `inductive_support` chain's conclusion auto-links `obs → inductive_step`. The existing YAML chain linked `obs → heavier_falls_faster`; here the chain creates its own conclusion node. The original `heavier_falls_faster` remains an independent claim.
+Note: All knowledge functions are placed as content (no `#let` capture). References use string names. `inductive_support` chain's conclusion auto-links `everyday_observation → inductive_step`.
 
 - [ ] **Step 5: Create reasoning.typ**
 
@@ -412,44 +406,44 @@ Note: `inductive_support` chain's conclusion auto-links `obs → inductive_step`
 
 #module("reasoning", title: "核心推理 — 伽利略的论证")
 
-// ── references ──
-#let law    = use("aristotle.heavier_falls_faster")
-#let obs    = use("aristotle.everyday_observation")
-#let te_env = use("setting.thought_experiment_env")
-#let vac_env = use("setting.vacuum_env")
+// ── references (placed as content, no #let) ──
+#use("aristotle.heavier_falls_faster")
+#use("aristotle.everyday_observation")
+#use("setting.thought_experiment_env")
+#use("setting.vacuum_env")
 
 // ── independent knowledge ──
-#let medium_obs = claim("medium_density_observation")[
+#claim("medium_density_observation")[
   在水、油、空气等不同介质中比较轻重物体的下落，
   会发现介质越稠密，速度差异越明显；介质越稀薄，差异越不明显。
 ]
 
-#let incline_obs = claim("inclined_plane_observation")[
+#claim("inclined_plane_observation")[
   伽利略的斜面实验把下落过程放慢到可测量尺度后显示：
   不同重量的小球在相同斜面条件下呈现近似一致的加速趋势，
   与"重量越大速度越大"的简单比例律并不相符。
 ]
 
 // ── chain: 绑球矛盾论证 ──
-#let verdict = chain("tied_balls_argument")[
-  #let slower = claim("tied_pair_slower",
-    premise: (law, te_env),
+#chain("tied_balls_argument")[
+  #claim("tied_pair_slower",
+    premise: ("heavier_falls_faster", "thought_experiment_env"),
   )[
     在思想实验环境中暂时接受亚里士多德定律：
     轻球天然比重球下落更慢。于是当轻球与重球绑在一起时，
     轻球应当拖慢重球，复合体 HL 的下落速度应慢于单独的重球 H。
   ]
 
-  #let faster = claim("tied_pair_faster",
-    premise: (law, te_env),
+  #claim("tied_pair_faster",
+    premise: ("heavier_falls_faster", "thought_experiment_env"),
   )[
     按照"重量越大，下落越快"的同一条定律，
     被绑在一起后的复合体 HL 总重量大于单独的重球 H，
     因而它又应当比 H 下落更快。
   ]
 
-  contradiction("tied_balls_contradiction",
-    premise: (slower, faster),
+  #contradiction("tied_balls_contradiction",
+    premise: ("tied_pair_slower", "tied_pair_faster"),
   )[
     同一定律对同一绑球系统同时预测"更慢"和"更快"，自相矛盾。
     亚里士多德落体定律因绑球矛盾而不能成立。
@@ -457,16 +451,16 @@ Note: `inductive_support` chain's conclusion auto-links `obs → inductive_step`
 ]
 
 // ── chain: 介质消除论证 ──
-#let confound = chain("medium_elimination")[
-  #let shrinks = claim("medium_difference_shrinks",
-    premise: (medium_obs,),
+#chain("medium_elimination")[
+  #claim("medium_difference_shrinks",
+    premise: ("medium_density_observation",),
   )[
     如果从水到空气，随着介质变稀薄，轻重物体的速度差异持续缩小，
     那么这种差异更像是外部阻力效应，而不是重量本身对自由落体速度的直接支配。
   ]
 
-  claim("air_resistance_is_confound",
-    premise: (obs,),
+  #claim("air_resistance_is_confound",
+    premise: ("everyday_observation",),
   )[
     由此可知，日常观察到的速度差异更应被解释为介质阻力造成的表象，
     而不是重量本身决定自由落体速度的证据。
@@ -475,17 +469,17 @@ Note: `inductive_support` chain's conclusion auto-links `obs → inductive_step`
 
 // ── chain: 最终预测 ──
 #chain("synthesis")[
-  #let support = claim("inclined_plane_supports_equal_fall",
-    premise: (incline_obs,),
+  #claim("inclined_plane_supports_equal_fall",
+    premise: ("inclined_plane_observation",),
   )[
     斜面实验把自由落体减慢到可测量尺度后，
     显示不同重量的小球获得近似一致的加速趋势，
     支持"重量不是决定落体快慢的首要因素"。
   ]
 
-  claim("vacuum_prediction",
-    premise: (verdict, confound, support),
-    context: (vac_env,),
+  #claim("vacuum_prediction",
+    premise: ("tied_balls_contradiction", "air_resistance_is_confound", "inclined_plane_supports_equal_fall"),
+    ctx: ("vacuum_env",),
   )[
     综合以上三条线索：绑球矛盾推翻旧定律、介质分析排除干扰因素、
     斜面实验提供正面支持——在真空中，
@@ -501,11 +495,11 @@ Note: `inductive_support` chain's conclusion auto-links `obs → inductive_step`
 
 #module("follow_up", title: "后续问题 — 未来研究")
 
-#let vp = use("reasoning.vacuum_prediction")
+#use("reasoning.vacuum_prediction")
 
-#let _next = chain("next_steps")[
+#chain("next_steps")[
   #question("follow_up_question",
-    premise: (vp,),
+    premise: ("vacuum_prediction",),
   )[
     能否在足够接近真空的条件下直接比较重球与轻球的下落时间？
     如果日常差异确实来自空气阻力，那么真正决定性的实验应当在

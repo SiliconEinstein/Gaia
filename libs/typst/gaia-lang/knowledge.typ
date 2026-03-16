@@ -55,31 +55,25 @@
     _chain_step_index.update(n => n + 1)
   }
 
-  // Render
-  if is_chain {
-    let step_idx = _chain_step_index.get()
-    block(above: 0.6em)[
-      === #name \[#node_type\]
-      #if effective_premise != () [
-        #block(above: 0.3em, inset: (left: 1em))[
-          _Premise: #effective_premise.join(", ")_
-        ]
+  // Render — always show premise/ctx when present
+  block(above: 0.6em)[
+    === #name \[#node_type\]
+    #if effective_premise != () [
+      #block(above: 0.3em, inset: (left: 1em))[
+        _Premise: #effective_premise.join(", ")_
       ]
-      #if ctx != () [
-        #block(inset: (left: 1em))[
-          _Context: #ctx.join(", ")_
-        ]
+    ]
+    #if ctx != () [
+      #block(inset: (left: 1em))[
+        _Context: #ctx.join(", ")_
       ]
-      #body
     ]
-  } else {
-    block(above: 0.6em)[
-      === #name \[#node_type\]
-      #body
-    ]
-  }
-
-  name  // return handle
+    #body
+  ]
+  // Note: does NOT return a value. In Typst, `#let x = func()` discards
+  // content (including state.update calls), so knowledge functions must
+  // always be placed as content, never captured with #let.
+  // Reference knowledge by its string name, e.g. premise: ("my_claim",)
 }
 
 #let claim(name, ..args, premise: (), ctx: (), body) = {
@@ -90,8 +84,8 @@
   _knowledge(name, "setting", body, premise: premise, ctx: ctx)
 }
 
-#let question(name, ..args, body) = {
-  _knowledge(name, "question", body)
+#let question(name, ..args, premise: (), ctx: (), body) = {
+  _knowledge(name, "question", body, premise: premise, ctx: ctx)
 }
 
 #let contradiction(name, ..args, premise: (), ctx: (), body) = {

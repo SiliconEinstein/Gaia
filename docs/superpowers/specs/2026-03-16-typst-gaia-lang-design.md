@@ -72,35 +72,36 @@ Each knowledge type is a function. Behavior differs inside vs outside a chain:
 |---|---|---|
 | `claim(name, ...)` | Independent node, no premise | Chain step, supports premise, pipeline auto-inject |
 | `setting(name, ...)` | Independent node | Chain step (rare) |
-| `question(name, ...)` | Independent node | Chain step |
+| `question(name, premise:, ctx:)` | Independent node | Chain step |
 | `contradiction(name, ...)` | Not allowed | Chain step, generates mutex_constraint |
 | `equivalence(name, ...)` | Not allowed | Chain step, generates equiv_constraint |
 
 ### Function Signature
 
 ```
-claim(name, premise: (), context: ())[content]
+claim(name, premise: (), ctx: ())[content]
 ```
 
 - `name` — identifier within module
-- `premise:` — named parameter, list of premise handles
-- `context:` — named parameter, list of context handles
+- `premise:` — named parameter, list of premise names (strings)
+- `ctx:` — named parameter, list of context names (strings). Named `ctx` instead of `context` because `context` is a reserved keyword in Typst.
 - `[content]` — Typst content block, natural language description
 - No `prior:` parameter — priors come from review step
 
 ### References
 
 ```typst
-#let law = use("aristotle.heavier_falls_faster")
+#use("aristotle.heavier_falls_faster")
 ```
 
-Imports external knowledge as a variable handle. The handle can be passed as premise/context to chain steps.
+Registers an external knowledge reference. Always place as content (never capture with `#let`, see "Typst Content Model Constraint" below). Reference imported knowledge by its string name in `premise:` and `ctx:` parameters.
 
 ### Chains
 
 ```typst
-#let result = chain("chain_name")[
-  // steps here
+#chain("chain_name")[
+  #claim("step_1")[...]
+  #claim("step_2", premise: ("external_ref",))[...]
 ]
 ```
 
@@ -108,7 +109,24 @@ Rules:
 - **Auto-inject:** previous step automatically becomes first premise of next step
 - **Explicit premise: overrides auto-inject** — if `premise:` is provided, no auto-injection
 - **Last step = conclusion**
-- **chain returns conclusion handle** — assignable to `#let` for cross-chain composition
+- **Never capture with `#let`** — `#let result = chain(...)` discards all state updates inside the chain body
+
+### Typst Content Model Constraint
+
+In Typst, `#let x = func()` captures the return value but **discards the content** produced by `func()`, including `state.update()` calls. Since `@gaia/lang` functions use `state.update()` to register nodes and factors, they must **always be placed as content** — never captured with `#let`.
+
+**Wrong (0 nodes registered):**
+```typst
+#let heavier = claim("heavier_falls_faster")[text]  // state.update() is LOST
+```
+
+**Correct:**
+```typst
+#claim("heavier_falls_faster")[text]  // state.update() is placed in document
+#claim("step_2", premise: ("heavier_falls_faster",))[...]  // reference by string name
+```
+
+This applies to all knowledge functions (`claim`, `setting`, `question`, `contradiction`, `equivalence`), `chain`, and `use`.
 
 ### Module Declaration
 
@@ -125,58 +143,59 @@ One module per `.typ` file.
 
 #module("reasoning", title: "核心推理 — 伽利略的论证")
 
-// ── references ──
-#let law    = use("aristotle.heavier_falls_faster")
-#let obs    = use("aristotle.everyday_observation")
-#let te_env = use("setting.thought_experiment_env")
-#let vac_env = use("setting.vacuum_env")
+// ── references (placed as content, never captured with #let) ──
+#use("aristotle.heavier_falls_faster")
+#use("aristotle.everyday_observation")
+#use("setting.thought_experiment_env")
+#use("setting.vacuum_env")
 
 // ── independent knowledge (no premise, no chain) ──
-#let medium_obs = claim("medium_density_observation")[
+#claim("medium_density_observation")[
   在不同介质中观察物体下落，会发现介质越稠密，
   速度差异越明显；介质越稀薄，差异越不明显。
 ]
 
-#let incline_obs = claim("inclined_plane_observation")[
+#claim("inclined_plane_observation")[
   在斜面实验中，不同重量的球几乎同时到达底部，
   且斜面越光滑、倾角越大，差异越小。
 ]
 
 // ── chain: 绑球矛盾论证 ──
-#let verdict = chain("tied_balls_argument")[
-  #let slower = claim("tied_pair_slower",
-    premise: (law, te_env),
+// Reference knowledge by string names in premise:/ctx: parameters
+#chain("tied_balls_argument")[
+  #claim("tied_pair_slower",
+    premise: ("heavier_falls_faster", "thought_experiment_env"),
   )[复合体因轻球拖拽下落更慢]
 
-  #let faster = claim("tied_pair_faster",
-    premise: (law, te_env),
+  #claim("tied_pair_faster",
+    premise: ("heavier_falls_faster", "thought_experiment_env"),
   )[复合体总重更大下落更快]
 
-  contradiction("tied_balls_contradiction",
-    premise: (slower, faster),
+  #contradiction("tied_balls_contradiction",
+    premise: ("tied_pair_slower", "tied_pair_faster"),
   )[同一定律同时预测更慢和更快，自相矛盾，定律不成立]
 ]
 
 // ── chain: 介质消除论证 ──
-#let confound = chain("medium_elimination")[
-  #let shrinks = claim("medium_difference_shrinks",
-    premise: (medium_obs,),
+#chain("medium_elimination")[
+  #claim("medium_difference_shrinks",
+    premise: ("medium_density_observation",),
   )[介质越稀薄，差异越小]
 
-  claim("air_resistance_is_confound",
-    premise: (obs,),
+  #claim("air_resistance_is_confound",
+    premise: ("everyday_observation",),
   )[日常观察到的速度差异是介质阻力的表象]
 ]
 
 // ── chain: 最终预测 ──
 #chain("synthesis")[
-  #let support = claim("inclined_plane_supports",
-    premise: (incline_obs,),
+  #claim("inclined_plane_supports",
+    premise: ("inclined_plane_observation",),
   )[斜面实验支持等速下落假说]
 
-  claim("vacuum_prediction",
-    premise: (verdict, confound, support),
-    context: (vac_env,),
+  #claim("vacuum_prediction",
+    premise: ("tied_balls_contradiction", "air_resistance_is_confound", "inclined_plane_supports"),
+    ctx: ("vacuum_env",),
   )[在真空中，不同重量的物体应以相同速率下落]
 ]
 ```
@@ -275,6 +294,7 @@ Uses Typst `state` for:
 2. **Typst native package system** — `typst.toml` replaces `package.yaml`
 3. **One module = one `.typ` file**
 4. **Chain auto-pipeline** — previous step auto-injects as first premise; explicit `premise:` overrides
-5. **Chain returns conclusion** — enables cross-chain composition via variable binding
+5. **String-name references** — all knowledge is referenced by string name, never by variable binding (`#let` discards content in Typst)
 6. **No InferAction / StepApply** — reasoning content lives directly in claim/step content
 7. **contradiction/equivalence are chain steps** — not standalone declarations
+8. **`ctx` not `context`** — Typst reserves `context` as a keyword; we use `ctx` for the context parameter
