@@ -1,0 +1,6 @@
+[package]
+name = "galileo_falling_bodies"
+version = "1.0.0"
+entrypoint = "lib.typ"
+authors = ["Galileo Galilei"]
+description = "伽利略落体论证 — 绑球思想实验推翻亚里士多德落体定律"
