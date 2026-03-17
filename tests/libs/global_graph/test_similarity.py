@@ -1,7 +1,8 @@
 """Tests for content similarity matching."""
 
 from libs.global_graph.models import GlobalCanonicalNode
-from libs.global_graph.similarity import compute_similarity, find_best_match
+from libs.global_graph.similarity import compute_similarity_tfidf as compute_similarity
+from libs.global_graph.similarity import find_best_match
 
 
 def _node(gcn_id: str, content: str, ktype: str = "claim", kind: str | None = None):
@@ -38,55 +39,59 @@ class TestComputeSimilarity:
 
 
 class TestFindBestMatch:
-    def test_exact_match_found(self):
+    async def test_exact_match_found(self):
         candidates = [
             _node("gcn_1", "The sky is blue"),
             _node("gcn_2", "Water boils at 100 degrees"),
         ]
-        match = find_best_match("The sky is blue", "claim", None, candidates, threshold=0.90)
+        match = await find_best_match("The sky is blue", "claim", None, candidates, threshold=0.90)
         assert match is not None
         assert match[0] == "gcn_1"
         assert match[1] > 0.90
 
-    def test_no_match_below_threshold(self):
+    async def test_no_match_below_threshold(self):
         candidates = [
             _node("gcn_1", "Unrelated topic about chemistry"),
         ]
-        match = find_best_match("Free fall acceleration", "claim", None, candidates, threshold=0.90)
+        match = await find_best_match(
+            "Free fall acceleration", "claim", None, candidates, threshold=0.90
+        )
         assert match is None
 
-    def test_type_mismatch_rejected(self):
+    async def test_type_mismatch_rejected(self):
         candidates = [
             _node("gcn_1", "The sky is blue", ktype="setting"),
         ]
-        match = find_best_match("The sky is blue", "claim", None, candidates, threshold=0.90)
+        match = await find_best_match("The sky is blue", "claim", None, candidates, threshold=0.90)
         assert match is None
 
-    def test_kind_mismatch_rejected_for_action(self):
+    async def test_kind_mismatch_rejected_for_action(self):
         candidates = [
             _node("gcn_1", "Apply method X", ktype="action", kind="infer_action"),
         ]
-        match = find_best_match(
+        match = await find_best_match(
             "Apply method X", "action", "toolcall_action", candidates, threshold=0.90
         )
         assert match is None
 
-    def test_kind_match_required_for_question(self):
+    async def test_kind_match_required_for_question(self):
         candidates = [
             _node("gcn_1", "Is X true?", ktype="question", kind="research"),
         ]
-        match = find_best_match("Is X true?", "question", "research", candidates, threshold=0.90)
+        match = await find_best_match(
+            "Is X true?", "question", "research", candidates, threshold=0.90
+        )
         assert match is not None
 
-    def test_contradiction_never_matched(self):
+    async def test_contradiction_never_matched(self):
         candidates = [
             _node("gcn_1", "A contradicts B", ktype="contradiction"),
         ]
-        match = find_best_match(
+        match = await find_best_match(
             "A contradicts B", "contradiction", None, candidates, threshold=0.50
         )
         assert match is None
 
-    def test_empty_candidates(self):
-        match = find_best_match("anything", "claim", None, [], threshold=0.90)
+    async def test_empty_candidates(self):
+        match = await find_best_match("anything", "claim", None, [], threshold=0.90)
         assert match is None

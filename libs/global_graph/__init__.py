@@ -11,7 +11,7 @@ from .models import (
     PackageRef,
 )
 from .serialize import load_global_graph, save_global_graph
-from .similarity import compute_similarity, find_best_match
+from .similarity import compute_similarity_tfidf, cosine_similarity_vectors, find_best_match
 
 __all__ = [
     "CanonicalBinding",
@@ -22,7 +22,8 @@ __all__ = [
     "LocalCanonicalRef",
     "PackageRef",
     "canonicalize_package",
-    "compute_similarity",
+    "compute_similarity_tfidf",
+    "cosine_similarity_vectors",
     "find_best_match",
     "load_global_graph",
     "save_global_graph",

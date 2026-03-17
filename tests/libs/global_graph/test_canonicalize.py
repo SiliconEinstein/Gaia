@@ -48,7 +48,7 @@ def _local_params(nodes, factors=None):
 
 
 class TestCanonicalizeFirstPackage:
-    def test_all_create_new_on_empty_global(self):
+    async def test_all_create_new_on_empty_global(self):
         nodes = [
             _lcn("lcn_a", "Free fall acceleration is independent of mass"),
             _lcn("lcn_b", "Superconductivity occurs below critical temperature"),
@@ -56,19 +56,19 @@ class TestCanonicalizeFirstPackage:
         local = _local_graph(nodes)
         params = _local_params(nodes)
 
-        result = canonicalize_package(local, params, GlobalGraph())
+        result = await canonicalize_package(local, params, GlobalGraph())
 
         assert len(result.bindings) == 2
         assert all(b.decision == "create_new" for b in result.bindings)
         assert len(result.new_global_nodes) == 2
         assert len(result.matched_global_nodes) == 0
 
-    def test_global_ids_are_assigned(self):
+    async def test_global_ids_are_assigned(self):
         nodes = [_lcn("lcn_a", "Claim A")]
         local = _local_graph(nodes)
         params = _local_params(nodes)
 
-        result = canonicalize_package(local, params, GlobalGraph())
+        result = await canonicalize_package(local, params, GlobalGraph())
 
         gcn = result.new_global_nodes[0]
         assert gcn.global_canonical_id.startswith("gcn_")
@@ -79,7 +79,7 @@ class TestCanonicalizeFirstPackage:
 
 
 class TestCanonicalizeWithExistingGlobal:
-    def test_match_existing_high_similarity(self):
+    async def test_match_existing_high_similarity(self):
         existing = GlobalCanonicalNode(
             global_canonical_id="gcn_existing",
             knowledge_type="claim",
@@ -94,13 +94,13 @@ class TestCanonicalizeWithExistingGlobal:
         local = _local_graph(nodes)
         params = _local_params(nodes)
 
-        result = canonicalize_package(local, params, global_graph)
+        result = await canonicalize_package(local, params, global_graph)
 
         matched = [b for b in result.bindings if b.decision == "match_existing"]
         assert len(matched) == 1
         assert matched[0].global_canonical_id == "gcn_existing"
 
-    def test_create_new_low_similarity(self):
+    async def test_create_new_low_similarity(self):
         existing = GlobalCanonicalNode(
             global_canonical_id="gcn_existing",
             knowledge_type="claim",
@@ -112,11 +112,11 @@ class TestCanonicalizeWithExistingGlobal:
         local = _local_graph(nodes)
         params = _local_params(nodes)
 
-        result = canonicalize_package(local, params, global_graph)
+        result = await canonicalize_package(local, params, global_graph)
 
         assert all(b.decision == "create_new" for b in result.bindings)
 
-    def test_matched_node_gets_new_member(self):
+    async def test_matched_node_gets_new_member(self):
         existing = GlobalCanonicalNode(
             global_canonical_id="gcn_existing",
             knowledge_type="claim",
@@ -132,14 +132,14 @@ class TestCanonicalizeWithExistingGlobal:
         local = _local_graph(nodes)
         params = _local_params(nodes)
 
-        canonicalize_package(local, params, global_graph)
+        await canonicalize_package(local, params, global_graph)
 
         assert len(existing.member_local_nodes) == 2
         assert existing.member_local_nodes[1].local_canonical_id == "lcn_new"
 
 
 class TestFactorIntegration:
-    def test_factors_get_bindings(self):
+    async def test_factors_get_bindings(self):
         nodes = [
             _lcn("lcn_p", "Premise P"),
             _lcn("lcn_c", "Conclusion C"),
@@ -154,7 +154,7 @@ class TestFactorIntegration:
         local = _local_graph(nodes, [factor])
         params = _local_params(nodes, [factor])
 
-        result = canonicalize_package(local, params, GlobalGraph())
+        result = await canonicalize_package(local, params, GlobalGraph())
 
         lcn_to_gcn = {b.local_canonical_id: b.global_canonical_id for b in result.bindings}
         assert "lcn_p" in lcn_to_gcn

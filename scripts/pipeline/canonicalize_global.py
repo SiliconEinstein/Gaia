@@ -10,22 +10,30 @@ Usage:
         tests/fixtures/gaia_language_packages/galileo_falling_bodies \
         tests/fixtures/gaia_language_packages/newton_principia \
         -o tests/fixtures/global_graph
+
+    # With embedding service (env: API_URL, ACCESS_KEY)
+    python scripts/pipeline/canonicalize_global.py ... --use-embedding
 """
 
 from __future__ import annotations
 
 import argparse
+import asyncio
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from libs.global_graph.canonicalize import canonicalize_package
-from libs.global_graph.serialize import load_global_graph, save_global_graph
-from libs.graph_ir.models import LocalCanonicalGraph, LocalParameterization
+from libs.global_graph.canonicalize import canonicalize_package  # noqa: E402
+from libs.global_graph.serialize import load_global_graph, save_global_graph  # noqa: E402
+from libs.graph_ir.models import LocalCanonicalGraph, LocalParameterization  # noqa: E402
 
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description="Canonicalize packages into global graph")
     parser.add_argument("pkg_dirs", type=Path, nargs="+", help="Package directories")
     parser.add_argument(
@@ -35,7 +43,22 @@ def main():
         default=Path("global_graph"),
         help="Output directory for global graph (default: global_graph/)",
     )
+    parser.add_argument(
+        "--use-embedding",
+        action="store_true",
+        help="Use DP embedding service (requires API_URL and ACCESS_KEY env vars)",
+    )
     args = parser.parse_args()
+
+    # Load embedding model if requested
+    embedding_model = None
+    if args.use_embedding:
+        from libs.embedding import DPEmbeddingModel
+
+        embedding_model = DPEmbeddingModel()
+        print("Using DP embedding service for similarity matching")
+    else:
+        print("Using TF-IDF fallback for similarity matching")
 
     global_graph_path = args.output_dir / "global_graph.json"
     global_graph = load_global_graph(global_graph_path)
@@ -57,7 +80,12 @@ def main():
         local_params = LocalParameterization.model_validate_json(params_path.read_text())
 
         print(f"Processing: {pkg_dir.name} ({len(local_graph.knowledge_nodes)} local nodes)")
-        result = canonicalize_package(local_graph, local_params, global_graph)
+        result = await canonicalize_package(
+            local_graph,
+            local_params,
+            global_graph,
+            embedding_model=embedding_model,
+        )
 
         for gcn in result.new_global_nodes:
             global_graph.add_node(gcn)
@@ -76,4 +104,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

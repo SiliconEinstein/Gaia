@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 
+from libs.embedding import EmbeddingModel
 from libs.graph_ir.models import LocalCanonicalGraph, LocalParameterization
 
 from .models import (
@@ -26,11 +27,12 @@ def _generate_gcn_id(content: str, knowledge_type: str, counter: int) -> str:
     return f"gcn_{digest[:16]}"
 
 
-def canonicalize_package(
+async def canonicalize_package(
     local_graph: LocalCanonicalGraph,
     local_params: LocalParameterization,
     global_graph: GlobalGraph,
     threshold: float = MATCH_THRESHOLD,
+    embedding_model: EmbeddingModel | None = None,
 ) -> CanonicalizationResult:
     """Map local canonical nodes to global graph.
 
@@ -50,7 +52,14 @@ def canonicalize_package(
 
     for node in local_graph.knowledge_nodes:
         content = node.representative_content
-        match = find_best_match(content, node.knowledge_type, node.kind, existing_nodes, threshold)
+        match = await find_best_match(
+            content,
+            node.knowledge_type,
+            node.kind,
+            existing_nodes,
+            threshold,
+            embedding_model=embedding_model,
+        )
 
         if match is not None:
             gcn_id, score = match
