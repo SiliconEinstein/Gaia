@@ -1,6 +1,5 @@
 """Tests for global canonicalization logic."""
 
-import json
 from pathlib import Path
 
 from libs.global_graph.canonicalize import canonicalize_package
