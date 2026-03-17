@@ -20,6 +20,7 @@ from libs.lang.models import (
     Question,
     Ref,
     Relation,
+    RetractAction,
     Setting,
     StepApply,
     StepLambda,
@@ -61,6 +62,10 @@ def build_raw_graph(pkg: Package) -> RawGraph:
         for decl in module.knowledge:
             if not isinstance(decl, _GRAPH_KNOWLEDGE_TYPES):
                 continue
+            if isinstance(decl, RetractAction):
+                continue  # retract_action only produces a factor, not a knowledge node
+            if isinstance(decl, Action) and getattr(decl, "params", None):
+                continue  # schema actions (with params) are templates, not propositions
             node = _build_raw_node(pkg, module.name, decl, version)
             knowledge_nodes.append(node)
             name_to_raw_id[decl.name] = node.raw_node_id
@@ -79,10 +84,27 @@ def build_raw_graph(pkg: Package) -> RawGraph:
                 factor = _build_reasoning_factor(pkg, module.name, decl, version, name_to_raw_id)
                 if factor is not None:
                     factor_nodes.append(factor)
+            elif isinstance(decl, RetractAction):
+                factor = _build_retraction_factor(pkg, module.name, decl, version, name_to_raw_id)
+                if factor is not None:
+                    factor_nodes.append(factor)
             elif isinstance(decl, (Contradiction, Equivalence)):
                 factor_nodes.extend(
                     _build_relation_factors(pkg, module.name, decl, version, name_to_raw_id)
                 )
+
+    # Remove orphan question nodes (not referenced by any factor)
+    # Claims, settings, contradictions, equivalences are kept even if unconnected
+    connected_ids: set[str] = set()
+    for f in factor_nodes:
+        connected_ids.update(f.premises)
+        connected_ids.update(f.contexts)
+        connected_ids.add(f.conclusion)
+    knowledge_nodes = [
+        n
+        for n in knowledge_nodes
+        if n.raw_node_id in connected_ids or n.knowledge_type != "question"
+    ]
 
     return RawGraph(
         package=pkg.name,
@@ -253,6 +275,36 @@ def _build_reasoning_factor(
         conclusion=name_to_raw_id[conclusion_ref],
         source_ref=source_ref,
         metadata={"edge_type": chain.edge_type or "deduction"},
+    )
+
+
+def _build_retraction_factor(
+    pkg: Package,
+    module_name: str,
+    retract: RetractAction,
+    version: str,
+    name_to_raw_id: dict[str, str],
+) -> FactorNode | None:
+    """Build a retraction reasoning factor: reason → weakens target."""
+    reason_id = name_to_raw_id.get(retract.reason)
+    target_id = name_to_raw_id.get(retract.target)
+    if reason_id is None or target_id is None:
+        return None
+
+    source_ref = SourceRef(
+        package=pkg.name,
+        version=version,
+        module=module_name,
+        knowledge_name=retract.name,
+    )
+    return FactorNode(
+        factor_id=_factor_id("reasoning", module_name, retract.name),
+        type="reasoning",
+        premises=[reason_id],
+        contexts=[],
+        conclusion=target_id,
+        source_ref=source_ref,
+        metadata={"edge_type": "retraction"},
     )
 
 
