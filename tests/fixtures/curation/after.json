@@ -1,7 +1,7 @@
 {
   "description": "Physics knowledge graph AFTER curation",
   "node_count": 10,
-  "factor_count": 5,
+  "factor_count": 6,
   "nodes": [
     {
       "global_canonical_id": "gcn_fma_2",
@@ -298,6 +298,23 @@
       "source_ref": null,
       "metadata": {
         "edge_type": "deduction"
+      }
+    },
+    {
+      "factor_id": "f_cur_840b017fb5b7fa74",
+      "type": "equiv_constraint",
+      "premises": [
+        "gcn_fma_2",
+        "gcn_accel"
+      ],
+      "contexts": [],
+      "conclusion": "gate_840b017fb5b7fa74",
+      "package_id": "__curation__",
+      "source_ref": null,
+      "metadata": {
+        "curation_created": true,
+        "constraint_type": "equivalence",
+        "edge_type": "relation_equivalence"
       }
     }
   ]

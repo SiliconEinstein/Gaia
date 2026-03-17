@@ -87,35 +87,55 @@ class CurationReviewer:
                 {"role": "user", "content": user_msg},
             ],
         )
-        return self._parse_llm_response(response.choices[0].message.content, suggestion)
+        raw_output = response.choices[0].message.content
+        self._last_llm_input = user_msg
+        self._last_llm_output = raw_output
+        return self._parse_llm_response(raw_output, suggestion)
 
     def _build_user_message(self, suggestion: CurationSuggestion) -> str | None:
         """Build the user message with node contents and evidence."""
-        if len(suggestion.target_ids) != 2:
-            return None
-
-        node_a = self._nodes.get(suggestion.target_ids[0])
-        node_b = self._nodes.get(suggestion.target_ids[1])
-        if not node_a or not node_b:
+        if not suggestion.target_ids:
             return None
 
         evidence_lines = []
         for k, v in suggestion.evidence.items():
             evidence_lines.append(f"  {k}: {v}")
+        evidence_block = "\n".join(evidence_lines) if evidence_lines else "  (none)"
 
-        return (
-            f"## Proposed Operation: {suggestion.operation}\n\n"
-            f"### Node A: {suggestion.target_ids[0]}\n"
-            f"Type: {node_a.knowledge_type}\n"
-            f"Content: {node_a.representative_content}\n\n"
-            f"### Node B: {suggestion.target_ids[1]}\n"
-            f"Type: {node_b.knowledge_type}\n"
-            f"Content: {node_b.representative_content}\n\n"
-            f"### Evidence\n"
-            + "\n".join(evidence_lines)
-            + f"\n\nConfidence: {suggestion.confidence:.3f}\n"
-            f"Reason: {suggestion.reason}\n"
-        )
+        if len(suggestion.target_ids) == 1:
+            # Single-node operations (archive_orphan, etc.)
+            node = self._nodes.get(suggestion.target_ids[0])
+            if not node:
+                return None
+            return (
+                f"## Proposed Operation: {suggestion.operation}\n\n"
+                f"### Node: {suggestion.target_ids[0]}\n"
+                f"Type: {node.knowledge_type}\n"
+                f"Content: {node.representative_content}\n\n"
+                f"### Evidence\n{evidence_block}\n\n"
+                f"Confidence: {suggestion.confidence:.3f}\n"
+                f"Reason: {suggestion.reason}\n"
+            )
+
+        if len(suggestion.target_ids) == 2:
+            node_a = self._nodes.get(suggestion.target_ids[0])
+            node_b = self._nodes.get(suggestion.target_ids[1])
+            if not node_a or not node_b:
+                return None
+            return (
+                f"## Proposed Operation: {suggestion.operation}\n\n"
+                f"### Node A: {suggestion.target_ids[0]}\n"
+                f"Type: {node_a.knowledge_type}\n"
+                f"Content: {node_a.representative_content}\n\n"
+                f"### Node B: {suggestion.target_ids[1]}\n"
+                f"Type: {node_b.knowledge_type}\n"
+                f"Content: {node_b.representative_content}\n\n"
+                f"### Evidence\n{evidence_block}\n\n"
+                f"Confidence: {suggestion.confidence:.3f}\n"
+                f"Reason: {suggestion.reason}\n"
+            )
+
+        return None
 
     def _parse_llm_response(self, response: str, suggestion: CurationSuggestion) -> Decision:
         """Parse LLM JSON response into a Decision."""

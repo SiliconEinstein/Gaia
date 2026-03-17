@@ -49,6 +49,9 @@ from tests.libs.curation.conftest import build_physics_graph
 
 FIXTURES_DIR = ROOT / "tests" / "fixtures" / "curation"
 
+# LLM model — use openai/ prefix so litellm routes to OPENAI_API_BASE
+LLM_MODEL = "openai/azure/gpt-5-mini"
+
 
 def _serialize_nodes(nodes: list[GlobalCanonicalNode]) -> list[dict]:
     return [n.model_dump(mode="json") for n in nodes]
@@ -174,17 +177,63 @@ async def main():
         print(f"    [{issue.severity}] {issue.issue_type}: {issue.detail[:80]}")
 
     # ── Step 6: Generate plan ──
+    # Temporarily lower review threshold so equivalence suggestions enter LLM review
+    import libs.curation.models as curation_models
+
+    original_threshold = curation_models.REVIEW_THRESHOLD
+    curation_models.REVIEW_THRESHOLD = 0.50
+
     plan = generate_cleanup_plan(cluster_suggestions, conflict_candidates, structure_report)
     print(
         f"  Plan: {len(plan.auto_approve)} auto, "
         f"{len(plan.needs_review)} review, {len(plan.discard)} discard"
     )
 
-    # ── Step 7: Execute cleanup ──
+    # ── Step 7: Review needs_review suggestions via LLM ──
+    review_traces: list[dict] = []
+    from libs.curation.reviewer import CurationReviewer
+
+    reviewer = CurationReviewer(model=LLM_MODEL, nodes=node_map)
+    for suggestion in plan.needs_review:
+        user_msg = reviewer._build_user_message(suggestion)
+        print(f"\n  ── LLM Review: {suggestion.operation} {suggestion.target_ids} ──")
+        print(f"  Input:\n{user_msg}")
+
+        reviewer._last_llm_input = None
+        reviewer._last_llm_output = None
+        decision = await reviewer.areview(suggestion)
+        llm_output = getattr(reviewer, "_last_llm_output", None)
+        print(f"  LLM output: {llm_output}")
+        print(f"  Decision: {decision}")
+
+        review_traces.append(
+            {
+                "suggestion_id": suggestion.suggestion_id,
+                "operation": suggestion.operation,
+                "target_ids": suggestion.target_ids,
+                "confidence": suggestion.confidence,
+                "input": user_msg,
+                "llm_output": llm_output,
+                "decision": decision,
+            }
+        )
+
+    # Save review traces
+    (FIXTURES_DIR / "review_traces.json").write_text(
+        json.dumps(review_traces, indent=2, ensure_ascii=False)
+    )
+    print(f"\n✓ Saved review_traces.json ({len(review_traces)} reviews)")
+
+    # ── Step 8: Execute cleanup (with LLM reviewer) ──
     mutable_factors = list(all_factors)
     audit_log = AuditLog()
-    result = await execute_cleanup(plan, node_map, mutable_factors, audit_log)
+    result = await execute_cleanup(
+        plan, node_map, mutable_factors, audit_log, reviewer_model=LLM_MODEL
+    )
     result.structure_report = structure_report
+
+    # Restore original threshold
+    curation_models.REVIEW_THRESHOLD = original_threshold
 
     print(f"  Executed: {len(result.executed)} operations")
     for s in result.executed:

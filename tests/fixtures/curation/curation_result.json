@@ -2,7 +2,7 @@
   "description": "Curation pipeline result",
   "executed": [
     {
-      "suggestion_id": "sug_926028b14f04",
+      "suggestion_id": "sug_d728f9b78268",
       "operation": "merge",
       "target_ids": [
         "gcn_fma_1",
@@ -16,7 +16,7 @@
       }
     },
     {
-      "suggestion_id": "sug_2645e7f79f05",
+      "suggestion_id": "sug_a138298be523",
       "operation": "fix_dangling_factor",
       "target_ids": [
         "f_contra"
@@ -28,7 +28,7 @@
       }
     },
     {
-      "suggestion_id": "sug_68010d6d039c",
+      "suggestion_id": "sug_08f6c1748080",
       "operation": "fix_dangling_factor",
       "target_ids": [
         "f_dangling"
@@ -38,35 +38,9 @@
       "evidence": {
         "issue_type": "dangling_factor"
       }
-    }
-  ],
-  "skipped": [
-    {
-      "suggestion_id": "sug_9384e1d1766e",
-      "operation": "archive_orphan",
-      "target_ids": [
-        "gcn_orphan"
-      ],
-      "confidence": 0.8,
-      "reason": "Node gcn_orphan has no factor connections",
-      "evidence": {
-        "issue_type": "orphan_node"
-      }
     },
     {
-      "suggestion_id": "sug_cc742aa2d4dd",
-      "operation": "archive_orphan",
-      "target_ids": [
-        "gcn_fma_2"
-      ],
-      "confidence": 0.8,
-      "reason": "Node gcn_fma_2 has no factor connections",
-      "evidence": {
-        "issue_type": "orphan_node"
-      }
-    },
-    {
-      "suggestion_id": "sug_ca552266f287",
+      "suggestion_id": "sug_44f00b15f541",
       "operation": "create_equivalence",
       "target_ids": [
         "gcn_fma_2",
@@ -78,9 +52,11 @@
         "cosine": 0.7456185676160405,
         "method": "embedding"
       }
-    },
+    }
+  ],
+  "skipped": [
     {
-      "suggestion_id": "sug_3d20b2ab00c2",
+      "suggestion_id": "sug_039cd0c38caa",
       "operation": "create_equivalence",
       "target_ids": [
         "gcn_fma_1",
@@ -94,7 +70,7 @@
       }
     },
     {
-      "suggestion_id": "sug_9f2839744388",
+      "suggestion_id": "sug_e5e648ec9669",
       "operation": "create_equivalence",
       "target_ids": [
         "gcn_heat_energy",
@@ -108,7 +84,31 @@
       }
     },
     {
-      "suggestion_id": "sug_27e6f1a00390",
+      "suggestion_id": "sug_79d1ca833d15",
+      "operation": "archive_orphan",
+      "target_ids": [
+        "gcn_fma_2"
+      ],
+      "confidence": 0.8,
+      "reason": "Node gcn_fma_2 has no factor connections",
+      "evidence": {
+        "issue_type": "orphan_node"
+      }
+    },
+    {
+      "suggestion_id": "sug_a95c80b1d816",
+      "operation": "archive_orphan",
+      "target_ids": [
+        "gcn_orphan"
+      ],
+      "confidence": 0.8,
+      "reason": "Node gcn_orphan has no factor connections",
+      "evidence": {
+        "issue_type": "orphan_node"
+      }
+    },
+    {
+      "suggestion_id": "sug_f258de9a1282",
       "operation": "create_contradiction",
       "target_ids": [
         "gcn_accel",
@@ -124,7 +124,7 @@
       }
     },
     {
-      "suggestion_id": "sug_8af6c16e8698",
+      "suggestion_id": "sug_bb2397fb445a",
       "operation": "create_contradiction",
       "target_ids": [
         "gcn_accel",
@@ -140,7 +140,7 @@
       }
     },
     {
-      "suggestion_id": "sug_f6752beb7ec5",
+      "suggestion_id": "sug_735336c9be3d",
       "operation": "create_contradiction",
       "target_ids": [
         "gcn_light",
@@ -156,7 +156,7 @@
       }
     },
     {
-      "suggestion_id": "sug_ec5d50d425d8",
+      "suggestion_id": "sug_1819166452c5",
       "operation": "create_contradiction",
       "target_ids": [
         "gcn_accel",
@@ -172,7 +172,7 @@
       }
     },
     {
-      "suggestion_id": "sug_457144e24c87",
+      "suggestion_id": "sug_745e3aaa7085",
       "operation": "create_contradiction",
       "target_ids": [
         "gcn_accel",
@@ -188,7 +188,7 @@
       }
     },
     {
-      "suggestion_id": "sug_74e26ea08679",
+      "suggestion_id": "sug_3e9185ac4b4c",
       "operation": "create_contradiction",
       "target_ids": [
         "gcn_light",
@@ -204,7 +204,7 @@
       }
     },
     {
-      "suggestion_id": "sug_98cd905a7af4",
+      "suggestion_id": "sug_5ca397960f13",
       "operation": "create_contradiction",
       "target_ids": [
         "gcn_light",
@@ -220,7 +220,7 @@
       }
     },
     {
-      "suggestion_id": "sug_db90e3670938",
+      "suggestion_id": "sug_6004b403c384",
       "operation": "create_contradiction",
       "target_ids": [
         "gcn_light",
@@ -236,7 +236,7 @@
       }
     },
     {
-      "suggestion_id": "sug_fb6c2a212d82",
+      "suggestion_id": "sug_69b8efce4d1e",
       "operation": "create_contradiction",
       "target_ids": [
         "gcn_mass_v",
@@ -252,7 +252,7 @@
       }
     },
     {
-      "suggestion_id": "sug_b7f68f0b4560",
+      "suggestion_id": "sug_a1ecd01c50db",
       "operation": "create_contradiction",
       "target_ids": [
         "gcn_mass_v",
@@ -268,7 +268,7 @@
       }
     },
     {
-      "suggestion_id": "sug_84c511b4f505",
+      "suggestion_id": "sug_3ad0854f8b5a",
       "operation": "create_contradiction",
       "target_ids": [
         "gcn_mass_v",
@@ -286,13 +286,13 @@
   ],
   "audit_entries": [
     {
-      "entry_id": "audit_e60e12b63c15",
+      "entry_id": "audit_5de7c3ac5589",
       "operation": "merge",
       "target_ids": [
         "gcn_fma_1",
         "gcn_fma_2"
       ],
-      "suggestion_id": "sug_926028b14f04",
+      "suggestion_id": "sug_d728f9b78268",
       "rollback_data": {
         "source_id": "gcn_fma_1",
         "target_id": "gcn_fma_2",
@@ -378,15 +378,15 @@
           }
         ]
       },
-      "executed_at": "2026-03-17T09:23:09.765699Z"
+      "executed_at": "2026-03-17T09:47:15.941887Z"
     },
     {
-      "entry_id": "audit_78c6bf6de244",
+      "entry_id": "audit_9d18f881a7e0",
       "operation": "fix_dangling_factor",
       "target_ids": [
         "f_contra"
       ],
-      "suggestion_id": "sug_2645e7f79f05",
+      "suggestion_id": "sug_a138298be523",
       "rollback_data": {
         "removed_factors": [
           {
@@ -406,15 +406,15 @@
           }
         ]
       },
-      "executed_at": "2026-03-17T09:23:09.765714Z"
+      "executed_at": "2026-03-17T09:47:15.941925Z"
     },
     {
-      "entry_id": "audit_c4a598220dde",
+      "entry_id": "audit_89083d695216",
       "operation": "fix_dangling_factor",
       "target_ids": [
         "f_dangling"
       ],
-      "suggestion_id": "sug_68010d6d039c",
+      "suggestion_id": "sug_08f6c1748080",
       "rollback_data": {
         "removed_factors": [
           {
@@ -433,7 +433,20 @@
           }
         ]
       },
-      "executed_at": "2026-03-17T09:23:09.765723Z"
+      "executed_at": "2026-03-17T09:47:15.941937Z"
+    },
+    {
+      "entry_id": "audit_59e8119a136d",
+      "operation": "create_equivalence",
+      "target_ids": [
+        "gcn_fma_2",
+        "gcn_accel"
+      ],
+      "suggestion_id": "sug_44f00b15f541",
+      "rollback_data": {
+        "created_factor_id": "f_cur_840b017fb5b7fa74"
+      },
+      "executed_at": "2026-03-17T09:47:24.755294Z"
     }
   ],
   "structure_report": {
@@ -464,19 +477,19 @@
         "issue_type": "orphan_node",
         "severity": "warning",
         "node_ids": [
-          "gcn_orphan"
+          "gcn_fma_2"
         ],
         "factor_ids": [],
-        "detail": "Node gcn_orphan has no factor connections"
+        "detail": "Node gcn_fma_2 has no factor connections"
       },
       {
         "issue_type": "orphan_node",
         "severity": "warning",
         "node_ids": [
-          "gcn_fma_2"
+          "gcn_orphan"
         ],
         "factor_ids": [],
-        "detail": "Node gcn_fma_2 has no factor connections"
+        "detail": "Node gcn_orphan has no factor connections"
       },
       {
         "issue_type": "disconnected_component",

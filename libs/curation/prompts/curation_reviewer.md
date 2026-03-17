@@ -46,6 +46,16 @@ to be false, or they make directly incompatible claims about the same subject.
 scopes, or interpretations. "Light is a wave" and "Light is a particle" are
 NOT contradictions (wave-particle duality).
 
+### archive_orphan
+A node has no factor connections (no reasoning chains reference it). It is
+proposed to be archived (hidden from active queries but preserved for audit).
+
+**Approve if**: the content appears to be outdated, superseded, or irrelevant
+to the rest of the knowledge graph.
+
+**Reject if**: the content is valid knowledge that simply hasn't been
+connected yet — it may be linked by future packages.
+
 ## Output Format
 
 Reply with ONLY a JSON object (no markdown fences, no extra text):
