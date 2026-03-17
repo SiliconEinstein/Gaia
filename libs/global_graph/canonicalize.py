@@ -5,7 +5,7 @@ from __future__ import annotations
 from hashlib import sha256
 
 from libs.embedding import EmbeddingModel
-from libs.graph_ir.models import LocalCanonicalGraph, LocalParameterization
+from libs.graph_ir.models import FactorNode, LocalCanonicalGraph, LocalParameterization
 
 from .models import (
     CanonicalBinding,
@@ -125,9 +125,52 @@ async def canonicalize_package(
                 )
             )
 
+    # ── Step 5: Factor Integration ──
+    # Lift local factors to global graph, replacing lcn_ IDs with gcn_ IDs.
+    lcn_to_gcn = {b.local_canonical_id: b.global_canonical_id for b in bindings}
+    global_factors: list[FactorNode] = []
+    unresolved: list[str] = []
+
+    for factor in local_graph.factor_nodes:
+        premises_gcn = []
+        all_resolved = True
+        for p in factor.premises:
+            gcn_id = lcn_to_gcn.get(p)
+            if gcn_id is not None:
+                premises_gcn.append(gcn_id)
+            else:
+                all_resolved = False
+                unresolved.append(p)
+
+        contexts_gcn = []
+        for c in factor.contexts:
+            gcn_id = lcn_to_gcn.get(c)
+            if gcn_id is not None:
+                contexts_gcn.append(gcn_id)
+            # contexts are optional — don't mark as unresolved
+
+        conclusion_gcn = lcn_to_gcn.get(factor.conclusion)
+        if conclusion_gcn is None:
+            all_resolved = False
+            unresolved.append(factor.conclusion)
+
+        if all_resolved and conclusion_gcn is not None:
+            global_factors.append(
+                FactorNode(
+                    factor_id=factor.factor_id,
+                    type=factor.type,
+                    premises=premises_gcn,
+                    contexts=contexts_gcn,
+                    conclusion=conclusion_gcn,
+                    source_ref=factor.source_ref,
+                    metadata=factor.metadata,
+                )
+            )
+
     return CanonicalizationResult(
         bindings=bindings,
         new_global_nodes=new_global_nodes,
         matched_global_nodes=matched_global_nodes,
-        unresolved_cross_refs=[],
+        global_factors=global_factors,
+        unresolved_cross_refs=list(set(unresolved)),
     )

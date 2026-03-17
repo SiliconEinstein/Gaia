@@ -90,14 +90,20 @@ async def main():
         for gcn in result.new_global_nodes:
             global_graph.add_node(gcn)
         global_graph.bindings.extend(result.bindings)
+        global_graph.factor_nodes.extend(result.global_factors)
 
         created = sum(1 for b in result.bindings if b.decision == "create_new")
         matched = sum(1 for b in result.bindings if b.decision == "match_existing")
-        print(f"  -> {created} new, {matched} matched")
+        n_factors = len(result.global_factors)
+        n_unresolved = len(result.unresolved_cross_refs)
+        print(f"  -> {created} new, {matched} matched, {n_factors} factors")
+        if n_unresolved:
+            print(f"     {n_unresolved} unresolved cross-package refs")
 
     save_global_graph(global_graph, args.output_dir)
     print(
         f"\nGlobal graph: {len(global_graph.knowledge_nodes)} nodes, "
+        f"{len(global_graph.factor_nodes)} factors, "
         f"{len(global_graph.bindings)} bindings"
     )
     print(f"Saved to: {args.output_dir / 'global_graph.json'}")

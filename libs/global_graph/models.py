@@ -70,4 +70,5 @@ class CanonicalizationResult:
     bindings: list[CanonicalBinding] = field(default_factory=list)
     new_global_nodes: list[GlobalCanonicalNode] = field(default_factory=list)
     matched_global_nodes: list[str] = field(default_factory=list)
+    global_factors: list[FactorNode] = field(default_factory=list)
     unresolved_cross_refs: list[str] = field(default_factory=list)
