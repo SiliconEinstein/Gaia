@@ -185,6 +185,21 @@ class StorageManager:
     async def get_global_node(self, global_id: str) -> GlobalCanonicalNode | None:
         return await self.content_store.get_global_node(global_id)
 
+    async def list_global_nodes(self) -> list[GlobalCanonicalNode]:
+        return await self.content_store.list_global_nodes()
+
+    async def upsert_global_nodes(self, nodes: list[GlobalCanonicalNode]) -> None:
+        """Upsert global nodes to ContentStore + GraphStore."""
+        await self.content_store.upsert_global_nodes(nodes)
+        if self.graph_store is not None:
+            await self.graph_store.write_global_topology([], nodes)
+
+    async def write_factors(self, factors: list[FactorNode]) -> None:
+        """Write factors to ContentStore + GraphStore."""
+        await self.content_store.write_factors(factors)
+        if self.graph_store is not None:
+            await self.graph_store.write_factor_topology(factors)
+
     # ── Global Inference State ──
 
     async def get_inference_state(self) -> GlobalInferenceState | None:

@@ -973,3 +973,30 @@ class TestListEndpoints:
         data_empty = await content_store.get_graph_data(package_id="nonexistent_pkg")
         assert data_empty["nodes"] == []
         assert data_empty["edges"] == []
+
+
+async def test_list_global_nodes(content_store):
+    """list_global_nodes returns all upserted global nodes."""
+    from libs.storage.models import GlobalCanonicalNode
+
+    nodes = [
+        GlobalCanonicalNode(
+            global_canonical_id="gcn_aaa",
+            knowledge_type="claim",
+            representative_content="Earth orbits the Sun",
+            member_local_nodes=[],
+            provenance=[],
+        ),
+        GlobalCanonicalNode(
+            global_canonical_id="gcn_bbb",
+            knowledge_type="claim",
+            representative_content="Water is H2O",
+            member_local_nodes=[],
+            provenance=[],
+        ),
+    ]
+    await content_store.upsert_global_nodes(nodes)
+    result = await content_store.list_global_nodes()
+    assert len(result) == 2
+    ids = {n.global_canonical_id for n in result}
+    assert ids == {"gcn_aaa", "gcn_bbb"}
