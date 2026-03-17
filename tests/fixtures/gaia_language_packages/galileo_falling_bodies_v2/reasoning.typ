@@ -46,11 +46,11 @@
   而不是重量本身决定自由落体速度的证据。
 ][
   #premise("medium_density_observation")
-  #premise("everyday_observation")
 
   #derive("medium_difference_shrinks")[
     从水到空气，随着介质变稀薄，轻重物体的速度差异持续缩小，
-    说明差异更像是外部阻力效应。
+    说明日常观察（everyday_observation）中的现象更像是外部阻力效应，
+    而非重量本身的作用。
   ]
 ]
 
