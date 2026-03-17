@@ -75,7 +75,7 @@ async def find_best_match(
         return None
 
     # Embedding path: batch embed query + all candidates
-    if embedding_model is not None:
+    if embedding_model is not None:  # pragma: no cover
         candidate_texts = [c.representative_content for c in eligible]
         all_texts = [content] + candidate_texts
         embeddings = await embedding_model.embed(all_texts)

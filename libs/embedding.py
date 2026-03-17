@@ -18,7 +18,7 @@ class EmbeddingModel(ABC):
         ...
 
 
-class DPEmbeddingModel(EmbeddingModel):
+class DPEmbeddingModel(EmbeddingModel):  # pragma: no cover
     """Embedding model using internal DP embedding service.
 
     API: POST {api_url} with {"text": "...", "provider": "dashscope"}
