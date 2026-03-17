@@ -38,6 +38,13 @@ def adapt_local_graph_to_factor_graph(
         factor_graph.add_variable(index, prior)
 
     for factor_index, factor in enumerate(local_graph.factor_nodes, start=1):
+        # Skip factors with ext: cross-package refs — not resolvable in local BP
+        has_ext = any(
+            ref.startswith("ext:")
+            for ref in factor.premises + factor.contexts + [factor.conclusion]
+        )
+        if has_ext:
+            continue
         premise_ids = [local_id_to_var_id[node_id] for node_id in factor.premises]
 
         if factor.type == "reasoning":
