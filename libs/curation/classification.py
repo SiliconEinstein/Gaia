@@ -25,6 +25,9 @@ def _classify_pair(
 
     score = pair.similarity_score
 
+    # Clamp score to [0, 1] to handle floating-point precision issues
+    score = max(0.0, min(1.0, score))
+
     # High similarity → merge candidate
     if score >= MERGE_THRESHOLD:
         # Additional heuristic: content length ratio close to 1.0 suggests true duplicate
