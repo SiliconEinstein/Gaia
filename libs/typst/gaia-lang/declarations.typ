@@ -10,7 +10,9 @@
 #let _proof_active = state("proof-active", false)
 #let _proof_conclusion = state("proof-conclusion", none)
 
-#let _register_node(name, node_type, content_text, mod) = {
+// _register_node uses context internally so callers don't need to wrap in context
+#let _register_node(name, node_type, content_text) = context {
+  let mod = _gaia_module_name.get()
   _gaia_nodes.update(nodes => {
     nodes.push((
       name: name,
@@ -23,9 +25,10 @@
 }
 
 // ── observation: empirical fact, no proof needed ──
-#let observation(name, body) = context {
-  let current_module = _gaia_module_name.get()
-  _register_node(name, "observation", body, current_module)
+// Label is placed outside context so it remains referenceable.
+// Accepts ..args for forward-compatibility (extra named args are ignored).
+#let observation(name, ..args, body) = {
+  _register_node(name, "observation", body)
 
   block(above: 0.6em)[
     *#name.replace("_", " ")* (observation): #body #label(name.replace("_", "-"))
@@ -33,9 +36,9 @@
 }
 
 // ── setting: definitional assumption, no proof needed ──
-#let setting(name, body) = context {
-  let current_module = _gaia_module_name.get()
-  _register_node(name, "setting", body, current_module)
+// Accepts ..args for v1 backward-compatibility (premise:/ctx: are accepted but ignored).
+#let setting(name, ..args, body) = {
+  _register_node(name, "setting", body)
 
   block(above: 0.6em)[
     *#name.replace("_", " ")* (setting): #body #label(name.replace("_", "-"))
@@ -43,9 +46,9 @@
 }
 
 // ── question: open question, no proof needed ──
-#let question(name, body) = context {
-  let current_module = _gaia_module_name.get()
-  _register_node(name, "question", body, current_module)
+// Accepts ..args for v1 backward-compatibility (premise:/ctx: are accepted but ignored).
+#let question(name, ..args, body) = {
+  _register_node(name, "question", body)
 
   block(above: 0.6em)[
     *#name.replace("_", " ")* (question): #body #label(name.replace("_", "-"))
@@ -56,14 +59,13 @@
 // Usage:
 //   #claim("name")[statement]              — no proof (hole if used as premise)
 //   #claim("name")[statement][proof block]  — with proof
-#let claim(name, ..args) = context {
-  let current_module = _gaia_module_name.get()
+#let claim(name, ..args) = {
   let positional = args.pos()
   let statement = positional.at(0)
   let has_proof = positional.len() > 1
   let proof_body = if has_proof { positional.at(1) } else { none }
 
-  _register_node(name, "claim", statement, current_module)
+  _register_node(name, "claim", statement)
 
   if has_proof {
     // Activate proof context — tactics will push to global accumulators
@@ -72,6 +74,7 @@
     _proof_conclusion.update(_ => name)
 
     // Render claim heading + statement + proof body
+    // Label is on the block, outside any context expression.
     block(above: 1em)[
       === #name.replace("_", " ") #label(name.replace("_", "-"))
       *Claim:* #statement
@@ -93,14 +96,13 @@
 }
 
 // ── claim_relation: relation between declarations ──
-#let claim_relation(name, type: "contradiction", between: (), ..args) = context {
-  let current_module = _gaia_module_name.get()
+#let claim_relation(name, type: "contradiction", between: (), ..args) = {
   let positional = args.pos()
   let statement = positional.at(0)
   let has_proof = positional.len() > 1
   let proof_body = if has_proof { positional.at(1) } else { none }
 
-  _register_node(name, type, statement, current_module)
+  _register_node(name, type, statement)
 
   // Emit constraint
   _gaia_constraints.update(constraints => {
