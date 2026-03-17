@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-# Import from scripts directory
-sys.path.insert(0, str(Path(__file__).parents[2] / "scripts"))
+# Import from scripts/pipeline directory
+sys.path.insert(0, str(Path(__file__).parents[2] / "scripts" / "pipeline"))
 
 
 class TestParseStep1:
