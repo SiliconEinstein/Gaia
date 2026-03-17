@@ -120,8 +120,7 @@ def build_physics_nodes() -> list[GlobalCanonicalNode]:
             global_canonical_id=ID_GRAVITY,
             knowledge_type="claim",
             representative_content=(
-                "All objects in a vacuum fall with the same acceleration "
-                "regardless of mass"
+                "All objects in a vacuum fall with the same acceleration regardless of mass"
             ),
             member_local_nodes=[_ref("classical_mechanics", "lcn_gravity")],
             provenance=[_prov("classical_mechanics")],
