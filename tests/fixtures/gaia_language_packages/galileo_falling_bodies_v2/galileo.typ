@@ -1,6 +1,6 @@
 #import "../../../../libs/typst/gaia-lang/v2.typ": *
 
-#module("reasoning", title: "核心推理 — 伽利略的论证")
+#module("galileo", title: "伽利略的论证")
 
 // ── Cross-module imports ──
 #use("aristotle.heavier_falls_faster")
