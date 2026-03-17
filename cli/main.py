@@ -43,13 +43,14 @@ def _load_with_deps(pkg_path: Path):
 def build(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     format: str = typer.Option("md", "--format", help="Output format: md, json, all"),
+    proof_state: bool = typer.Option(False, "--proof-state", help="Output proof state report"),
 ) -> None:
     """Build a knowledge package."""
     pkg_path = Path(path)
 
     # Detect Typst package
     if (pkg_path / "typst.toml").exists():
-        _build_typst(pkg_path, format)
+        _build_typst(pkg_path, format, proof_state=proof_state)
         return
 
     # Existing YAML pipeline
@@ -87,7 +88,7 @@ def _build_yaml(pkg_path: Path) -> None:
     typer.echo(f"Artifacts: {build_dir}/")
 
 
-def _build_typst(pkg_path: Path, format: str) -> None:
+def _build_typst(pkg_path: Path, format: str, proof_state: bool = False) -> None:
     """Build a Typst-based knowledge package."""
     import json as json_mod
 
@@ -103,11 +104,29 @@ def _build_typst(pkg_path: Path, format: str) -> None:
         md_path.write_text(md)
         typer.echo(f"Markdown: {md_path}")
 
+    if format in ("typst", "all"):
+        from libs.lang.typst_clean_renderer import render_typst_to_clean_typst
+
+        typ = render_typst_to_clean_typst(pkg_path)
+        typ_path = build_dir / "package.typ"
+        typ_path.write_text(typ)
+        typer.echo(f"Typst: {typ_path}")
+
     if format in ("json", "all"):
         graph = load_typst_package(pkg_path)
         json_path = build_dir / "graph.json"
         json_path.write_text(json_mod.dumps(graph, ensure_ascii=False, indent=2))
         typer.echo(f"Graph JSON: {json_path}")
+
+    if proof_state:
+        from libs.lang.proof_state import analyze_proof_state
+
+        graph = load_typst_package(pkg_path)
+        state = analyze_proof_state(graph)
+        report_path = build_dir / "proof_state.txt"
+        report_path.write_text(state["report"])
+        typer.echo(f"Proof state: {report_path}")
+        typer.echo(state["report"])
 
     typer.echo("Build complete.")
 
