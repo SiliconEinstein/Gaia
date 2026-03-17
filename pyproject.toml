@@ -19,6 +19,7 @@ dependencies = [
     "pandas>=2.0",
     "pyyaml>=6.0",
     "typer[all]>=0.12",
+    "scikit-learn>=1.8.0",
 ]
 
 [project.optional-dependencies]
