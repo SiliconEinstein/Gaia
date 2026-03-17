@@ -25,14 +25,14 @@
 }
 
 // ── observation: empirical fact, no proof needed ──
-// Label is placed outside context so it remains referenceable.
+// Wrapped in figure(kind: "gaia") so the label is referenceable via @name.
 // Accepts ..args for forward-compatibility (extra named args are ignored).
 #let observation(name, ..args, body) = {
   _register_node(name, "observation", body)
 
-  block(above: 0.6em)[
-    *#name.replace("_", " ")* (observation): #body #label(name.replace("_", "-"))
-  ]
+  [#figure(kind: "gaia", supplement: none, outlined: false)[
+    *#name.replace("_", " ")* (observation): #body
+  ] #label(name.replace("_", "-"))]
 }
 
 // ── setting: definitional assumption, no proof needed ──
@@ -40,9 +40,9 @@
 #let setting(name, ..args, body) = {
   _register_node(name, "setting", body)
 
-  block(above: 0.6em)[
-    *#name.replace("_", " ")* (setting): #body #label(name.replace("_", "-"))
-  ]
+  [#figure(kind: "gaia", supplement: none, outlined: false)[
+    *#name.replace("_", " ")* (setting): #body
+  ] #label(name.replace("_", "-"))]
 }
 
 // ── question: open question, no proof needed ──
@@ -50,9 +50,9 @@
 #let question(name, ..args, body) = {
   _register_node(name, "question", body)
 
-  block(above: 0.6em)[
-    *#name.replace("_", " ")* (question): #body #label(name.replace("_", "-"))
-  ]
+  [#figure(kind: "gaia", supplement: none, outlined: false)[
+    *#name.replace("_", " ")* (question): #body
+  ] #label(name.replace("_", "-"))]
 }
 
 // ── claim: assertion, optional proof block ──
@@ -89,9 +89,9 @@
     _proof_conclusion.update(_ => none)
   } else {
     // No proof — just render the declaration
-    block(above: 0.6em)[
-      *#name.replace("_", " ")* (claim): #statement #label(name.replace("_", "-"))
-    ]
+    [#figure(kind: "gaia", supplement: none, outlined: false)[
+      *#name.replace("_", " ")* (claim): #statement
+    ] #label(name.replace("_", "-"))]
   }
 }
 
@@ -130,9 +130,9 @@
     _proof_active.update(_ => false)
     _proof_conclusion.update(_ => none)
   } else {
-    block(above: 0.6em)[
-      *#name.replace("_", " ")* (#type): #statement #label(name.replace("_", "-")) \
+    [#figure(kind: "gaia", supplement: none, outlined: false)[
+      *#name.replace("_", " ")* (#type): #statement \
       _Between: #between.join(", ")_
-    ]
+    ] #label(name.replace("_", "-"))]
   }
 }

@@ -26,6 +26,10 @@ def _flatten_content(node: dict | str | list) -> str:
             return "\n"
         if func == "smartquote":
             return '"'
+        if func == "ref":
+            target = node.get("target", "")
+            # Strip angle brackets: "<foo-bar>" → "foo-bar", then restore underscores
+            return target.strip("<>").replace("-", "_")
         children = node.get("children", [])
         if children:
             return "".join(_flatten_content(c) for c in children)
