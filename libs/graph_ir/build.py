@@ -79,6 +79,52 @@ def build_raw_graph(pkg: Package) -> RawGraph:
                 if target_raw_id is not None:
                     name_to_raw_id[decl.name] = target_raw_id
 
+    # Build action lookup for elaboration
+    action_decls: dict[str, Action] = {}
+    for module in pkg.loaded_modules:
+        for decl in module.knowledge:
+            if isinstance(decl, Action) and getattr(decl, "params", None):
+                action_decls[decl.name] = decl
+
+    # Build content lookup for parameter substitution
+    content_by_name: dict[str, str] = {}
+    for module in pkg.loaded_modules:
+        for decl in module.knowledge:
+            if hasattr(decl, "content") and decl.content:
+                content_by_name[decl.name] = decl.content
+
+    # ── Elaboration: generate ground action nodes + instantiation factors ──
+    for module in pkg.loaded_modules:
+        for decl in module.knowledge:
+            if not isinstance(decl, ChainExpr):
+                continue
+            for step in decl.steps:
+                if not isinstance(step, StepApply) or step.apply not in action_decls:
+                    continue
+                action = action_decls[step.apply]
+                schema_id = name_to_raw_id.get(action.name)
+                if schema_id is None:
+                    continue
+
+                ground_nodes, inst_factor = _elaborate_apply(
+                    pkg,
+                    module.name,
+                    decl,
+                    step,
+                    action,
+                    version,
+                    name_to_raw_id,
+                    content_by_name,
+                )
+                for gn in ground_nodes:
+                    if gn.raw_node_id not in name_to_raw_id:
+                        knowledge_nodes.append(gn)
+                        # Use chain_name__apply_action_name as the lookup key
+                        ground_name = f"{decl.name}__apply_{step.apply}"
+                        name_to_raw_id[ground_name] = gn.raw_node_id
+                if inst_factor is not None:
+                    factor_nodes.append(inst_factor)
+
     for module in pkg.loaded_modules:
         for decl in module.knowledge:
             if isinstance(decl, ChainExpr):
@@ -233,6 +279,82 @@ def _build_raw_node(
         source_refs=[source_ref],
         metadata=metadata,
     )
+
+
+def _elaborate_apply(
+    pkg: Package,
+    module_name: str,
+    chain: ChainExpr,
+    step: StepApply,
+    action: Action,
+    version: str,
+    name_to_raw_id: dict[str, str],
+    content_by_name: dict[str, str],
+) -> tuple[list[RawKnowledgeNode], FactorNode | None]:
+    """Elaborate a StepApply into a ground action node + instantiation factor.
+
+    Substitutes schema action parameters with concrete arg content,
+    producing a ground (parameter-free) action node and a binary
+    instantiation factor from the schema to the ground instance.
+    """
+    schema_id = name_to_raw_id[action.name]
+
+    # Substitute {param} placeholders with arg content
+    ground_content = action.content or ""
+    for i, param in enumerate(action.params):
+        if i < len(step.args):
+            arg_content = content_by_name.get(step.args[i].ref, step.args[i].ref)
+            # Use a short summary for substitution (first sentence or 80 chars)
+            summary = arg_content.strip().split("\n")[0][:80]
+            ground_content = ground_content.replace(f"{{{param.name}}}", summary)
+
+    # Build ground node
+    ground_name = f"{chain.name}__apply_{step.apply}"
+    _, kind = _knowledge_identity(action)
+    ground_id = _raw_node_id(
+        package=pkg.name,
+        version=version,
+        module_name=module_name,
+        knowledge_name=ground_name,
+        knowledge_type="action",
+        kind=kind,
+        content=ground_content,
+        parameters=[],  # ground — no params
+    )
+    ground_node = RawKnowledgeNode(
+        raw_node_id=ground_id,
+        knowledge_type="action",
+        kind=kind,
+        content=ground_content,
+        parameters=[],  # ground node
+        source_refs=[
+            SourceRef(
+                package=pkg.name,
+                version=version,
+                module=module_name,
+                knowledge_name=ground_name,
+            )
+        ],
+        metadata={"elaborated_from": action.name, "chain": chain.name},
+    )
+
+    # Build instantiation factor: schema → ground
+    inst_factor = FactorNode(
+        factor_id=_factor_id("instantiation", module_name, ground_name),
+        type="instantiation",
+        premises=[schema_id],
+        contexts=[],
+        conclusion=ground_id,
+        source_ref=SourceRef(
+            package=pkg.name,
+            version=version,
+            module=module_name,
+            knowledge_name=ground_name,
+        ),
+        metadata={"edge_type": "instantiation"},
+    )
+
+    return [ground_node], inst_factor
 
 
 def _build_reasoning_factor(
