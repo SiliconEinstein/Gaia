@@ -60,6 +60,10 @@ const items = [
         key: "/v2/graph",
         label: <Link to="/v2/graph">Graph IR</Link>,
       },
+      {
+        key: "/v2/graph-ir",
+        label: <Link to="/v2/graph-ir">Graph IR Viewer</Link>,
+      },
     ],
   },
 ];

@@ -1,13 +1,6 @@
 {
   "canonicalization_log": [
     {
-      "local_canonical_id": "lcn_b3e17ad23d830ed9",
-      "members": [
-        "raw_fcdc986ef3d62c8a"
-      ],
-      "reason": "singleton: no local semantic merge applied"
-    },
-    {
       "local_canonical_id": "lcn_fdc52d5c5fdf2374",
       "members": [
         "raw_25fcc38d760f20ad"
@@ -120,9 +113,30 @@
       "reason": "singleton: no local semantic merge applied"
     },
     {
-      "local_canonical_id": "lcn_3becb7fdc57b4754",
+      "local_canonical_id": "lcn_eb4137719d96ee21",
       "members": [
-        "raw_320440ab4a23fb93"
+        "raw_3c915fc034610d2e"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_c23cb24b89936169",
+      "members": [
+        "raw_b0d48227befe5c63"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_e346350bf23badcf",
+      "members": [
+        "raw_ab5ae71a224312fb"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_6e6e3a70f0f405aa",
+      "members": [
+        "raw_992edac888b80370"
       ],
       "reason": "singleton: no local semantic merge applied"
     }

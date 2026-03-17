@@ -350,7 +350,7 @@ Question nodes may only appear as factor conclusions in V1. Action nodes may app
 ### 6.3 Build Output
 
 ```
-.gaia/graph/raw_graph.json
+graph_ir/raw_graph.json
 ```
 
 ## 7. Three-Layer Canonicalization
@@ -368,7 +368,7 @@ Question nodes may only appear as factor conclusions in V1. Action nodes may app
 Output:
 
 ```
-.gaia/graph/raw_graph.json
+graph_ir/raw_graph.json
 ```
 
 ### 7.2 Layer 2: Package-Local Semantic Canonicalization (agent skill)
@@ -400,8 +400,8 @@ If self-review or search discovers a missing premise, context, or external refer
 Output:
 
 ```
-.gaia/graph/local_canonical_graph.json
-.gaia/graph/canonicalization_log.json
+graph_ir/local_canonical_graph.json
+graph_ir/canonicalization_log.json
 ```
 
 Canonicalization log records only structural grouping decisions:
@@ -425,7 +425,7 @@ After package-local canonicalization, author tooling may derive a **local parame
 Typical local path:
 
 ```
-.gaia/inference/local_parameterization.json
+graph_ir/local_parameterization.json
 ```
 
 Minimal shape:
