@@ -34,6 +34,7 @@ class CurationSuggestion(BaseModel):
         "merge",
         "create_equivalence",
         "create_contradiction",
+        "create_abstraction",
         "fix_dangling_factor",
         "archive_orphan",
     ]
@@ -95,6 +96,47 @@ class AuditEntry(BaseModel):
     suggestion_id: str
     rollback_data: dict = Field(default_factory=dict)
     executed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# ── Abstraction pipeline models ──
+
+
+class AbstractionGroup(BaseModel):
+    """A group of claims sharing a common weaker conclusion."""
+
+    group_id: str
+    abstraction_content: str
+    member_node_ids: list[str]
+    reason: str
+    contradiction_pairs: list[tuple[str, str]] = Field(default_factory=list)
+    confidence: float = 0.0
+
+
+class VerificationCheck(BaseModel):
+    """Per-member entailment check result."""
+
+    member_id: str
+    entails: bool
+    reason: str = ""
+
+
+class VerificationResult(BaseModel):
+    """Result of verifying an abstraction group."""
+
+    group_id: str
+    passed: bool
+    checks: list[VerificationCheck] = Field(default_factory=list)
+    union_error: bool = False
+    union_error_detail: str = ""
+
+
+class AbstractionResult(BaseModel):
+    """Result of the full abstraction pipeline."""
+
+    new_nodes: list = Field(default_factory=list)
+    new_factors: list = Field(default_factory=list)
+    contradiction_candidates: list[ConflictCandidate] = Field(default_factory=list)
+    suggestions: list[CurationSuggestion] = Field(default_factory=list)
 
 
 # ── Three-tier thresholds ──
