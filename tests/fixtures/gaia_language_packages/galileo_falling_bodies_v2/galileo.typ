@@ -28,16 +28,16 @@
   #premise("heavier_falls_faster")
   #premise("thought_experiment_env")
 
-  #derive("tied_pair_slower")[
-    由"重者下落更快"的假设，轻球天然比重球慢。
-    在思想实验环境中，轻球应拖慢重球，
-    复合体 HL 的下落速度应慢于单独的重球 H。
+  #by_contradiction[
+    #deduce[
+      由假设，轻球天然比重球慢。
+      轻球应拖慢重球，复合体 HL 速度应慢于 H。
+    ]
+    #deduce[
+      但按同一定律，复合体 HL 总重量大于 H，
+      应比 H 更快。
+    ]
   ]
-  #derive("tied_pair_faster")[
-    但按"重者下落更快"的同一定律，
-    复合体 HL 总重量大于 H，应比 H 更快。
-  ]
-  #contradict("tied_pair_slower", "tied_pair_faster")
 ]
 
 // ── Medium elimination ──
@@ -47,10 +47,10 @@
 ][
   #premise("medium_density_observation")
 
-  #derive("medium_difference_shrinks")[
-    从水到空气，随着介质变稀薄，轻重物体的速度差异持续缩小，
-    说明 @everyday-observation 中的现象更像是外部阻力效应，
-    而非重量本身的作用。
+  #abduction[
+    如果速度差异由介质阻力造成，那么介质越稀薄差异越小。
+    @medium-density-observation 正好显示了这一点，
+    说明介质阻力是更好的解释。
   ]
 ]
 
@@ -62,12 +62,10 @@
   #premise("air_resistance_is_confound")
   #premise("inclined_plane_observation")
 
-  #derive("inclined_plane_supports")[
-    斜面实验显示不同重量的小球获得近似一致的加速趋势，
-    支持"重量不是决定落体快慢的首要因素"。
+  #synthesize[
+    绑球矛盾推翻旧定律、
+    介质分析排除干扰因素、
+    斜面实验提供正面支持。
+    三条独立线索汇聚，在真空中结论成立。
   ]
-
-  综合三条线索：绑球矛盾推翻旧定律、
-  介质分析排除干扰因素、斜面实验提供正面支持。
-  在真空环境下，结论成立。
 ]

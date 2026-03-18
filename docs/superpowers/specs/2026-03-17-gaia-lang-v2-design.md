@@ -75,19 +75,62 @@ Formal declarations passing CI get belief ≈ 1 - ε. Failing = hole.
 
 ## Proof Block and Tactics
 
-A proof block is the optional second content block of `#claim` / `#claim_relation`. It contains **tactics** that transform the proof state from premises to conclusion.
+A proof block is the optional second content block of `#claim` / `#claim_relation`. It contains **tactics** and free-form prose that explain the reasoning from premises to conclusion.
+
+Proof blocks can mix formalized parts (tactics) with informal parts (prose). Tactics tell the reviewer which reasoning strategy is being used; prose provides natural-language elaboration. Not every paragraph needs a tactic — the author formalizes what they choose to.
 
 ### Tactics
+
+Every tactic has the form: `#tactic_name` + optional name + content body.
+
+```typst
+// Anonymous — most cases
+#deduce[reasoning content...]
+
+// Named — when other steps need to @ref this step
+#deduce("step_name")[reasoning content...]
+```
+
+#### Structural Tactic
 
 | Tactic | Purpose | Factor graph effect |
 |--------|---------|-------------------|
 | `#premise("name")` | Declare independent premise | **Input edge** to noisy-AND factor |
-| `#derive("name")[content]` | Derive intermediate conclusion | Not visible to engine |
-| `#contradict("a", "b")` | Annotate contradiction between two derives | None (proof narrative only) |
-| `#equate("a", "b")` | Annotate equivalence between two derives | None (proof narrative only) |
+
+`#premise` is the **only** tactic that affects the factor graph. All other tactics are narrative annotations.
+
+#### Reasoning Strategy Tactics
+
+These tell the reviewer **which reasoning strategy** is being used, so they know what to check. None affect the factor graph.
+
+| Tactic | Strategy | Reviewer checks |
+|--------|----------|----------------|
+| `#deduce` | Deductive reasoning | Does the conclusion follow from the premises? |
+| `#abduction` | Inference to best explanation | Are there alternative explanations? Is the evidence reliable? |
+| `#by_contradiction` | Reductio ad absurdum | Are the derived conclusions truly mutually exclusive? |
+| `#by_cases` | Case analysis | Are the cases exhaustive? Does each case hold? |
+| `#by_induction` | Inductive generalization | Are the samples sufficient? Any counterexamples? |
+| `#by_analogy` | Analogical reasoning | Are the compared objects truly similar? Do differences affect the conclusion? |
+| `#by_elimination` | Process of elimination | Are the alternatives exhaustive? Is each elimination justified? |
+| `#by_extrapolation` | Trend extrapolation / limit argument | Is the trend monotonic? Is the limit reasonable? |
+| `#synthesize` | Convergence of multiple evidence lines | Are the evidence lines independent? Any contradictory evidence ignored? |
+
+#### Other References
+
+| Syntax | Purpose | Factor graph effect |
+|--------|---------|-------------------|
 | `@name` (in text) | Reference for context | No structural effect |
 
-**Important:** `#contradict` and `#equate` inside proof blocks are **narrative annotations** — they help human/LLM reviewers understand the proof structure but have no effect on the factor graph. The enclosing `#claim`'s noisy-AND factor (from `#premise` declarations) is the only factor emitted. For factor-graph-level constraints, use top-level `#claim_relation` instead.
+#### Nesting
+
+Tactics can nest. For example, `#by_contradiction` contains `#deduce` steps:
+
+```typst
+#by_contradiction[
+  #deduce[From the hypothesis, the composite should be slower.]
+  #deduce[But by the same law, the composite should be faster.]
+]
+```
 
 ### Premise vs. Context
 
@@ -181,7 +224,7 @@ galileo_falling_bodies/
   motivation.typ          # Module
   setting.typ             # Module
   aristotle.typ           # Module
-  reasoning.typ           # Module
+  galileo.typ             # Module
   follow_up.typ           # Module
 ```
 
@@ -249,7 +292,8 @@ JSON: {declarations, factors, proof_traces, modules, exports}
   ],
   "proof_traces": [
     {"conclusion": "...", "steps": [
-      {"tactic": "premise|derive|contradict|equate", "name": "...", "content": "..."}
+      {"tactic": "premise|deduce|abduction|by_contradiction|...", "name": "...", "content": "...",
+       "children": [...]}
     ]}
   ],
   "modules": ["..."],
@@ -270,8 +314,7 @@ Python-side analysis of extracted JSON:
 Extract noisy-AND factor graph from proof structure:
 - Each proven claim → one factor node
 - `#premise` → input edges
-- `#derive` → proof trace only
-- `#contradict` / `#equate` inside proofs → narrative only, no factors
+- All other tactics (`#deduce`, `#abduction`, etc.) → proof trace only, no factors
 - `#claim_relation` → constraint factors (mutex/equiv)
 
 **BP model target:** Factor graph output follows the noisy-AND + leak model defined in inference-theory.md v2.0. Default link strength `p` and leak `ε` are NOT set at build time — they are deferred to the review stage, consistent with the "no priors in authoring" principle.
@@ -318,12 +361,12 @@ Typst source IS the readable document. `@gaia/lang` functions render DSL into cl
   ⊥ @tied-pair-slower ↔ @tied-pair-faster
 ```
 
-## Complete Example: reasoning.typ
+## Complete Example: galileo.typ
 
 ```typst
-#import "@gaia/lang": *
+#import "@gaia/lang/v2": *
 
-#module("reasoning", title: "核心推理 — 伽利略的论证")
+#module("galileo", title: "伽利略的论证")
 
 // ── Cross-module imports ──
 #use("aristotle.heavier_falls_faster")
@@ -339,7 +382,8 @@ Typst source IS the readable document. `@gaia/lang` functions render DSL into cl
 
 #observation("inclined_plane_observation")[
   伽利略的斜面实验把下落过程放慢到可测量尺度后显示：
-  不同重量的小球在相同斜面条件下呈现近似一致的加速趋势。
+  不同重量的小球在相同斜面条件下呈现近似一致的加速趋势，
+  与"重量越大速度越大"的简单比例律并不相符。
 ]
 
 // ── Tied balls contradiction ──
@@ -350,16 +394,16 @@ Typst source IS the readable document. `@gaia/lang` functions render DSL into cl
   #premise("heavier_falls_faster")
   #premise("thought_experiment_env")
 
-  #derive("tied_pair_slower")[
-    由 @heavier-falls-faster，轻球天然比重球慢。
-    在 @thought-experiment-env 中，轻球应拖慢重球，
-    复合体 HL 的下落速度应慢于单独的重球 H。
+  #by_contradiction[
+    #deduce[
+      由假设，轻球天然比重球慢。
+      轻球应拖慢重球，复合体 HL 速度应慢于 H。
+    ]
+    #deduce[
+      但按同一定律，复合体 HL 总重量大于 H，
+      应比 H 更快。
+    ]
   ]
-  #derive("tied_pair_faster")[
-    但按 @heavier-falls-faster 的同一定律，
-    复合体 HL 总重量大于 H，应比 H 更快。
-  ]
-  #contradict("tied_pair_slower", "tied_pair_faster")
 ]
 
 // ── Medium elimination ──
@@ -368,11 +412,11 @@ Typst source IS the readable document. `@gaia/lang` functions render DSL into cl
   而不是重量本身决定自由落体速度的证据。
 ][
   #premise("medium_density_observation")
-  #premise("everyday_observation")
 
-  #derive("medium_difference_shrinks")[
-    从水到空气，随着介质变稀薄，轻重物体的速度差异持续缩小，
-    说明差异更像是外部阻力效应。
+  #abduction[
+    如果速度差异由介质阻力造成，那么介质越稀薄差异越小。
+    @medium-density-observation 正好显示了这一点，
+    说明介质阻力是更好的解释。
   ]
 ]
 
@@ -384,14 +428,12 @@ Typst source IS the readable document. `@gaia/lang` functions render DSL into cl
   #premise("air_resistance_is_confound")
   #premise("inclined_plane_observation")
 
-  #derive("inclined_plane_supports")[
-    斜面实验显示不同重量的小球获得近似一致的加速趋势，
-    支持"重量不是决定落体快慢的首要因素"。
+  #synthesize[
+    绑球矛盾推翻旧定律、
+    介质分析排除干扰因素、
+    斜面实验提供正面支持。
+    三条独立线索汇聚，在真空中结论成立。
   ]
-
-  综合三条线索：绑球矛盾推翻旧定律、
-  介质分析排除干扰因素、斜面实验提供正面支持。
-  在 @vacuum-env 下，结论成立。
 ]
 ```
 
@@ -404,7 +446,7 @@ Typst source IS the readable document. `@gaia/lang` functions render DSL into cl
 
 ### Added
 - **Proof block** — `#claim`'s second content block
-- **Tactics** — `#premise`, `#derive`, `#contradict`, `#equate`
+- **Tactics** — `#premise` (structural) + 9 reasoning strategy tactics (`#deduce`, `#abduction`, `#by_contradiction`, `#by_cases`, `#by_induction`, `#by_analogy`, `#by_elimination`, `#by_extrapolation`, `#synthesize`)
 - **Proof state** — automatic established/hole/axiom tracking
 - **`#observation`** — empirical fact type (no proof needed)
 - **`#claim_relation`** — relation declaration (contradiction/equivalence)
@@ -430,24 +472,12 @@ Typst source IS the readable document. `@gaia/lang` functions render DSL into cl
 
 ### Out of scope
 - Formal verification CI pipeline (`type: "python"` etc.) — future
-- Extended tactics (`#induce`, `#by_cases`, `#observe` etc.) — add as needed
 - Review pipeline / Inference pipeline
 - Cross-package `#use` resolution
 - Retraction relation type — deferred to future `#claim_relation(type: "retraction", ...)` extension
 
 ## Future Extensions
 
-### Extended Tactics
-Additional reasoning patterns, each with different link strength priors:
-
-| Tactic | Pattern | Typical link strength |
-|--------|---------|----------------------|
-| `#derive` | Deductive | High |
-| `#induce` | Inductive generalization | Medium |
-| `#by_cases` | Case analysis | Depends on exhaustiveness |
-| `#observe` | Introduce empirical evidence | Medium-low |
-
 ### Lean-like Features
 - **Proof state visualization** — show hypotheses + remaining goals at each tactic step
-- **Tactic extensibility** — user-defined tactics as Typst functions
 - **Auto-tactics** — system-suggested proof steps (LLM-assisted)
