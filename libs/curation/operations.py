@@ -120,6 +120,67 @@ def merge_nodes(
     )
 
 
+@dataclass
+class AbstractionResult:
+    """Result of creating an abstraction (schema node + instantiation factors)."""
+
+    schema_node: GlobalCanonicalNode
+    instantiation_factors: list[FactorNode]
+
+
+def create_abstraction(
+    abstraction_content: str,
+    member_ids: list[str],
+    reason: str = "",
+) -> AbstractionResult:
+    """Create a schema node and instantiation factors for an abstraction group.
+
+    Args:
+        abstraction_content: The common weaker conclusion text.
+        member_ids: IDs of the member nodes being abstracted.
+        reason: Why this abstraction was created.
+
+    Returns:
+        AbstractionResult with the schema node and per-member instantiation factors.
+    """
+    # Deterministic schema node ID
+    sorted_members = sorted(member_ids)
+    digest = sha256(":".join(sorted_members).encode()).hexdigest()[:16]
+    schema_id = f"gcn_schema_{digest}"
+
+    schema_node = GlobalCanonicalNode(
+        global_canonical_id=schema_id,
+        knowledge_type="claim",
+        kind="schema",
+        representative_content=abstraction_content,
+        metadata={
+            "curation_created": True,
+            "abstraction_source_nodes": sorted_members,
+            "abstraction_reason": reason,
+        },
+    )
+
+    # One instantiation factor per member: schema → member
+    factors: list[FactorNode] = []
+    for member_id in sorted_members:
+        pair_key = f"{schema_id}:{member_id}:instantiation"
+        f_digest = sha256(pair_key.encode()).hexdigest()[:16]
+        factor = FactorNode(
+            factor_id=f"f_inst_{f_digest}",
+            type="instantiation",
+            premises=[schema_id],
+            conclusion=member_id,
+            package_id="__curation__",
+            metadata={
+                "curation_created": True,
+                "edge_type": "instantiation",
+            },
+        )
+        factors.append(factor)
+
+    return AbstractionResult(schema_node=schema_node, instantiation_factors=factors)
+
+
 def create_constraint(
     node_a_id: str,
     node_b_id: str,
