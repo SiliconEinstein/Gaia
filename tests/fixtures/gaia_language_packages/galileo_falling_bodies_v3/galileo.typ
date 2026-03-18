@@ -20,8 +20,7 @@
 
 // ── Fine-grained tied-ball decomposition ──
 #claim("composite_is_slower")[
-  假设"重者下落更快"，将重球 H 与轻球 L 绑成复合体 HL：
-  轻球会拖慢重球，因此 HL 的下落速度应慢于 H 单独下落。
+  在"重者下落更快"假设下，复合体 HL 的下落速度慢于重球 H 单独下落。
 ][
   #premise("heavier_falls_faster")
   #premise("thought_experiment_env")
@@ -33,8 +32,7 @@
 ]
 
 #claim("composite_is_faster")[
-  假设"重者下落更快"，复合体 HL 总重量大于 H，
-  因此 HL 的下落速度应快于 H 单独下落。
+  在"重者下落更快"假设下，复合体 HL 的下落速度快于重球 H 单独下落。
 ][
   #premise("heavier_falls_faster")
   #premise("thought_experiment_env")
@@ -48,7 +46,7 @@
 #claim_relation("tied_balls_contradiction",
   type: "contradiction",
   between: ("composite_is_slower", "composite_is_faster")
-)["复合体比 H 慢"与"复合体比 H 快"由同一假设推出却互相矛盾，说明"重者下落更快"不自洽。]
+)["HL 慢于 H"与"HL 快于 H"两个预测互相矛盾。]
 
 // ── Medium elimination ──
 #claim("air_resistance_is_confound")[
