@@ -62,6 +62,8 @@ class GlobalGraph(BaseModel):
         return {n.global_canonical_id: n for n in self.knowledge_nodes}
 
     def add_node(self, node: GlobalCanonicalNode) -> None:
+        if any(n.global_canonical_id == node.global_canonical_id for n in self.knowledge_nodes):
+            return
         self.knowledge_nodes.append(node)
 
 

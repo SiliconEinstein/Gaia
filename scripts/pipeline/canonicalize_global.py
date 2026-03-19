@@ -90,7 +90,12 @@ async def main():
         for gcn in result.new_global_nodes:
             global_graph.add_node(gcn)
         global_graph.bindings.extend(result.bindings)
-        global_graph.factor_nodes.extend(result.global_factors)
+        # Deduplicate factors by factor_id (re-canonicalizing a package produces same IDs)
+        existing_fids = {f.factor_id for f in global_graph.factor_nodes}
+        for f in result.global_factors:
+            if f.factor_id not in existing_fids:
+                global_graph.factor_nodes.append(f)
+                existing_fids.add(f.factor_id)
 
         created = sum(1 for b in result.bindings if b.decision == "create_new")
         matched = sum(1 for b in result.bindings if b.decision == "match_existing")
