@@ -642,7 +642,9 @@ def _validate_close(
 
     if isinstance(mode, ContradictionMode):
         if goal_kind != "relation" or relation_kind != "contradiction":
-            raise KernelError(f"contradiction close is only valid for contradiction relations, not '{goal_name}'")
+            raise KernelError(
+                f"contradiction close is only valid for contradiction relations, not '{goal_name}'"
+            )
         between = _resolve_visible_names(mode.between, scope, step_name="contradiction")
         return CheckedFinalStep(
             strategy="contradiction",
