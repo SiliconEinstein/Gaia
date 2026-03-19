@@ -112,7 +112,7 @@ def test_create_abstraction_factor_structure():
 # ── AbstractionAgent._abstract_cluster tests ──
 
 
-@patch("litellm.acompletion")
+@patch("libs.llm.llm_completion")
 async def test_abstract_cluster_parses_groups(mock_acompletion, physics_node_map):
     """_abstract_cluster parses LLM JSON into AbstractionGroup objects."""
     llm_json = json.dumps(
@@ -139,7 +139,7 @@ async def test_abstract_cluster_parses_groups(mock_acompletion, physics_node_map
     assert groups[0].member_node_ids == [ID_FMA_1, ID_FMA_2]
 
 
-@patch("litellm.acompletion")
+@patch("libs.llm.llm_completion")
 async def test_abstract_cluster_skips_invalid_members(mock_acompletion, physics_node_map):
     """Groups with invalid member IDs have those members filtered out."""
     llm_json = json.dumps(
@@ -174,7 +174,7 @@ async def test_abstract_cluster_skips_invalid_members(mock_acompletion, physics_
 # ── AbstractionAgent._verify_abstraction tests ──
 
 
-@patch("litellm.acompletion")
+@patch("libs.llm.llm_completion")
 async def test_verify_passes(mock_acompletion, physics_node_map):
     """Verification with passed=true returns a passing VerificationResult."""
     llm_json = json.dumps(
@@ -203,7 +203,7 @@ async def test_verify_passes(mock_acompletion, physics_node_map):
     assert all(c.entails for c in result.checks)
 
 
-@patch("litellm.acompletion")
+@patch("libs.llm.llm_completion")
 async def test_verify_catches_union_error(mock_acompletion, physics_node_map):
     """Verification with union_error=true is captured correctly."""
     llm_json = json.dumps(
@@ -236,7 +236,7 @@ async def test_verify_catches_union_error(mock_acompletion, physics_node_map):
 # ── AbstractionAgent._refine_abstraction tests ──
 
 
-@patch("litellm.acompletion")
+@patch("libs.llm.llm_completion")
 async def test_refine_rewrites(mock_acompletion, physics_node_map):
     """Refine with action=rewrite returns an updated group."""
     llm_json = json.dumps(
@@ -267,7 +267,7 @@ async def test_refine_rewrites(mock_acompletion, physics_node_map):
     assert result.member_node_ids == [ID_FMA_1, ID_FMA_2]
 
 
-@patch("litellm.acompletion")
+@patch("libs.llm.llm_completion")
 async def test_refine_abandons(mock_acompletion, physics_node_map):
     """Refine with action=abandon returns None."""
     llm_json = json.dumps({"action": "abandon"})
@@ -286,7 +286,7 @@ async def test_refine_abandons(mock_acompletion, physics_node_map):
     assert result is None
 
 
-@patch("litellm.acompletion")
+@patch("libs.llm.llm_completion")
 async def test_refine_removes_members(mock_acompletion, physics_node_map):
     """Refine with action=remove_members drops failing member."""
     llm_json = json.dumps(
@@ -319,7 +319,7 @@ async def test_refine_removes_members(mock_acompletion, physics_node_map):
     assert len(result.contradiction_pairs) == 0
 
 
-@patch("litellm.acompletion")
+@patch("libs.llm.llm_completion")
 async def test_refine_removes_members_too_few_remaining(mock_acompletion, physics_node_map):
     """Refine with remove_members leaving < 2 members returns None (abandon)."""
     llm_json = json.dumps(
@@ -344,7 +344,7 @@ async def test_refine_removes_members_too_few_remaining(mock_acompletion, physic
     assert result is None
 
 
-@patch("litellm.acompletion")
+@patch("libs.llm.llm_completion")
 async def test_refine_removes_members_with_revised_abstraction(mock_acompletion, physics_node_map):
     """Refine with remove_members can also revise the abstraction text."""
     llm_json = json.dumps(
@@ -375,7 +375,7 @@ async def test_refine_removes_members_with_revised_abstraction(mock_acompletion,
 # ── AbstractionAgent.run tests ──
 
 
-@patch("litellm.acompletion")
+@patch("libs.llm.llm_completion")
 async def test_run_end_to_end(mock_acompletion, physics_node_map):
     """Full pipeline: abstract → verify (passed) → creates nodes/factors/suggestions."""
     abstract_json = json.dumps(
@@ -438,7 +438,7 @@ async def test_run_no_model(physics_node_map):
     assert len(result.suggestions) == 0
 
 
-@patch("litellm.acompletion")
+@patch("libs.llm.llm_completion")
 async def test_contradiction_pairs_extracted(mock_acompletion, physics_node_map):
     """Contradiction pairs from abstract step appear in result.contradiction_candidates."""
     abstract_json = json.dumps(

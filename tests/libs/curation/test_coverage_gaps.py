@@ -225,7 +225,7 @@ class TestReviewerAsyncLLM:
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message.content = '{"decision": "approve", "reason": "Same"}'
 
-        with patch("litellm.acompletion", new_callable=AsyncMock, return_value=mock_response):
+        with patch("libs.llm.llm_completion", new_callable=AsyncMock, return_value=mock_response):
             decision = await reviewer.areview(s)
         assert decision == "approve"
         assert reviewer._last_llm_output == '{"decision": "approve", "reason": "Same"}'
@@ -243,7 +243,7 @@ class TestReviewerAsyncLLM:
         )
 
         with patch(
-            "litellm.acompletion", new_callable=AsyncMock, side_effect=RuntimeError("API down")
+            "libs.llm.llm_completion", new_callable=AsyncMock, side_effect=RuntimeError("API down")
         ):
             decision = await reviewer.areview(s)
         # Falls back to rules — cosine 0.90 → approve
@@ -291,7 +291,7 @@ class TestReviewerAsyncLLM:
         )
 
         # Should not call litellm at all — build_user_message returns None
-        with patch("litellm.acompletion", new_callable=AsyncMock):
+        with patch("libs.llm.llm_completion", new_callable=AsyncMock):
             decision = await reviewer.areview(s)
         # _review_llm calls _build_user_message → None → _review_rules
         # But actually areview checks self._model and self._nodes first
@@ -413,8 +413,8 @@ class TestCleanupEdgeCases:
         assert len(factors) == 1
         assert factors[0].factor_id == "f_good"
 
-    async def test_execute_unknown_operation_skipped(self):
-        """Unknown operation in auto-approve should be skipped."""
+    async def test_archive_orphan_removes_node(self):
+        """archive_orphan removes the orphan node from the graph."""
         plan = CurationPlan(
             suggestions=[
                 CurationSuggestion(
@@ -430,8 +430,8 @@ class TestCleanupEdgeCases:
         factors: list[FactorNode] = []
         audit_log = AuditLog()
         result = await execute_cleanup(plan, nodes, factors, audit_log)
-        # archive_orphan is not implemented in _execute_suggestion → skipped
-        assert len(result.skipped) == 1
+        assert len(result.executed) == 1
+        assert "gcn_orphan" not in nodes
 
     async def test_reviewer_integration_in_cleanup(self):
         """needs_review suggestions go through reviewer."""

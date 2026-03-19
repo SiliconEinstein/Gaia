@@ -88,10 +88,10 @@ class AbstractionAgent:
         nodes: dict[str, GlobalCanonicalNode],
     ) -> list[AbstractionGroup]:
         """Call LLM to find abstraction groups in a cluster."""
-        import litellm
+        from libs.llm import llm_completion
 
         claims_text = _build_claims_text(cluster.node_ids, nodes)
-        response = await litellm.acompletion(
+        response = await llm_completion(
             model=self._model,
             messages=[
                 {"role": "system", "content": self._abstract_prompt},
@@ -132,7 +132,7 @@ class AbstractionAgent:
         nodes: dict[str, GlobalCanonicalNode],
     ) -> VerificationResult:
         """Call LLM to verify entailment for an abstraction group."""
-        import litellm
+        from libs.llm import llm_completion
 
         claims_text = _build_claims_text(group.member_node_ids, nodes)
         user_msg = (
@@ -140,7 +140,7 @@ class AbstractionAgent:
             f"## Member claims:\n{claims_text}"
         )
 
-        response = await litellm.acompletion(
+        response = await llm_completion(
             model=self._model,
             messages=[
                 {"role": "system", "content": self._verify_prompt},
@@ -178,7 +178,7 @@ class AbstractionAgent:
         nodes: dict[str, GlobalCanonicalNode],
     ) -> AbstractionGroup | None:
         """Call LLM to fix a failed abstraction. Returns refined group or None if abandoned."""
-        import litellm
+        from libs.llm import llm_completion
 
         claims_text = _build_claims_text(group.member_node_ids, nodes)
         feedback_lines = []
@@ -194,7 +194,7 @@ class AbstractionAgent:
             f"## Verification feedback:\n" + "\n".join(feedback_lines)
         )
 
-        response = await litellm.acompletion(
+        response = await llm_completion(
             model=self._model,
             messages=[
                 {"role": "system", "content": self._refine_prompt},

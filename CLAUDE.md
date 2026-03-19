@@ -130,6 +130,53 @@ git worktree add .worktrees/<name> -b feature/<name>
    gh run view <run-id> --log-failed
    ```
 
+## Skills
+
+`.claude/skills/` 下定义了规范化的工作流 skill，执行任务时**必须**使用对应的 skill：
+
+- **writing-plans** — 写 implementation plan 时使用
+- **executing-plans** — 按 plan 执行实现时使用
+- **using-superpowers** — 需要调用 superpowers（spec/plan 文档生成）时使用
+- **subagent-driven-development** — 多 agent 并行开发时使用
+- **test-driven-development** — 写测试时使用
+- **verification-before-completion** — 完成任务前的验证流程
+- **finishing-a-development-branch** — 收尾开发分支时使用
+- **requesting-code-review / receiving-code-review** — 代码审查流程
+
+不要跳过 skill 直接手动操作。
+
+## LLM API
+
+项目通过 litellm 调用 LLM，后端是内部 API 网关。
+
+**API 配置**（在 `.env` 中）：
+- `OPENAI_API_BASE` — 网关地址（`https://ai-gateway-internal.dp.tech`）
+- `OPENAI_API_KEY` — API key
+
+**模型命名**：网关的模型名与 OpenAI 官方不同，必须加 `openai/` 前缀让 litellm 通过 OpenAI 兼容接口调用：
+```python
+# ✅ 正确
+litellm.acompletion(model="openai/chenkun/gpt-5-mini", ...)
+
+# ❌ 错误 — litellm 不认识 provider
+litellm.acompletion(model="chenkun/gpt-5-mini", ...)
+
+# ❌ 错误 — 网关不认识这个模型名
+litellm.acompletion(model="gpt-5-mini", ...)
+```
+
+**查看可用模型**：
+```bash
+source .env && curl -s "${OPENAI_API_BASE}/v1/models" \
+  -H "Authorization: Bearer ${OPENAI_API_KEY}" | python3 -m json.tool | grep '"id"'
+```
+
+**需要设置全局 api_base**（在脚本入口处）：
+```python
+import litellm
+litellm.api_base = os.getenv("OPENAI_API_BASE")
+```
+
 ## Implementation Rules
 
 - **严格遵守设计文档**：实现时不得擅自降级设计文档中明确指定的技术方案（如用 TF-IDF 替代 embedding + BM25）。如果实现上有困难或想简化，**必须先和用户商量**，不能自行决定偷工减料。
