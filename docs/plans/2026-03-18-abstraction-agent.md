@@ -267,3 +267,50 @@ pytest tests/libs/curation/ -v
 ruff check libs/curation/ tests/libs/curation/
 ruff format --check libs/curation/ tests/libs/curation/
 ```
+
+## Real-Data Test Plan
+
+上线前需要在真实数据上验证 pipeline 每一步的表现，收集以下指标：
+
+### 指标
+
+| # | 指标 | 含义 | 预期 |
+|---|------|------|------|
+| 1 | **Step 1 命中率** | N 个 cluster 中产出有效 group（非 vacuous）的比例 | 待定 |
+| 2 | **Step 2 一次通过率** | 直接通过 verify 不需要 refine 的 group 占比 | 越高越好，>70% 说明 prompt 质量 OK |
+| 3 | **Step 3 action 分布** | rewrite / remove_members / abandon 各占比 | abandon 过高说明 Step 1 分组太激进 |
+| 4 | **Re-verify 通过率** | refine 后 re-verify 通过的比例 | >80% 说明 refine prompt 有效 |
+| 5 | **max_retries 命中** | 需要 >1 次 refine 的 group 占比 | 若 >20%，考虑增大默认 max_retries |
+| 6 | **Union error 率** | Step 2 检测到 union_error 的比例 | 越低越好，高说明 Step 1 prompt 需要加强 intersection 引导 |
+| 7 | **Contradiction 发现率** | 每 cluster 平均发现的 contradiction_pairs 数 | 参考值 |
+
+### 实验步骤
+
+1. 选取 3-5 个已 ingest 的 package，确保有足够的跨 package 重叠 claim
+2. 运行 `run_curation(skip_conflict_detection=True, skip_abstraction=False)` 并开启 DEBUG 日志
+3. 收集上述 7 个指标
+4. 人工抽查 10-20 个通过的 abstraction：
+   - abstraction 是否真的是 intersection（不是 union）
+   - 是否 vacuous
+   - contradiction_pairs 是否合理
+5. 人工抽查 5-10 个 abandon 的 group：
+   - 确认 abandon 决策合理（而非 prompt 缺陷导致的误杀）
+
+### 调优决策
+
+| 观察 | 调整 |
+|------|------|
+| Step 1 命中率低（<30%） | 降低 similarity_threshold 或调整 clustering |
+| Step 2 一次通过率低（<50%） | Step 1 prompt 对 intersection 引导不够，加强 one-child test |
+| abandon 率高（>40%） | Step 1 prompt 过度分组，加强 "no vacuous abstraction" 引导 |
+| union_error 率高（>30%） | Step 1 prompt 的 worked examples 不够，增加 domain-specific 示例 |
+| Re-verify 通过率低（<60%） | Refine prompt 效果差，考虑用更强的模型跑 refine |
+| remove_members 过多（>30%） | Step 1 分组噪声大，clustering 质量需要提升 |
+
+### 未实现：数据库持久化
+
+当前 abstraction 结果只在 scheduler 内存中流转，尚未直接写入数据库：
+- [ ] LanceDB content store 持久化
+- [ ] Neo4j/Kuzu graph store 拓扑同步（schema node + instantiation edges）
+- [ ] LanceVectorStore embedding 同步
+- [ ] 决定是走 `ingest_package()` 三写流程还是专用 `persist_curation_results()` 方法
