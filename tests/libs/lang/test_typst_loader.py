@@ -157,3 +157,10 @@ def test_v3_math_content_is_preserved():
     assert "10^" in node_map["eotvos_experiment"]
     assert "m_i" in node_map["eotvos_experiment"]
     assert "m_g" in node_map["eotvos_experiment"]
+
+
+def test_v3_package_metadata():
+    """v3 export-graph() should include package name and version."""
+    graph = load_typst_package(GALILEO_V3)
+    assert graph["package"] == "galileo_falling_bodies"
+    assert graph["version"] == "3.0.0"

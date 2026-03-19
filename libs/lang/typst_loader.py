@@ -116,5 +116,7 @@ def load_typst_package(pkg_path: Path) -> dict:
 
     # Ensure keys exist (default to empty for v1 packages)
     data.setdefault("constraints", [])
+    data.setdefault("package", None)
+    data.setdefault("version", None)
 
     return data
