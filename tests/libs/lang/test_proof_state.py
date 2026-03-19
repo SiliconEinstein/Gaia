@@ -128,34 +128,41 @@ def test_proof_state_format_string():
 
 def test_newton_v3_loads():
     graph = load_typst_package(NEWTON_V3)
-    assert len(graph["nodes"]) == 7
-    assert len(graph["factors"]) == 1
+    assert len(graph["nodes"]) == 11
+    assert len(graph["factors"]) == 4
 
 
-def test_newton_v3_derivation_established():
+def test_newton_v3_derivation_chain():
+    """Historical derivation: Kepler → inverse square → gravity → mass equiv → a=g."""
     graph = load_typst_package(NEWTON_V3)
     state = analyze_proof_state(graph)
     established = {d["name"] for d in state["established"]}
+    assert "inverse_square_force" in established
+    assert "law_of_gravity" in established
+    assert "mass_equivalence" in established
     assert "freefall_acceleration_equals_g" in established
 
 
-def test_newton_v3_laws_are_holes():
-    """Newton's laws are used as premises but have no proof in this package."""
+def test_newton_v3_only_axioms_are_holes():
+    """Only the two axioms (second/third law) should be holes."""
     graph = load_typst_package(NEWTON_V3)
     state = analyze_proof_state(graph)
     hole_names = {d["name"] for d in state["holes"]}
-    assert "second_law" in hole_names
-    assert "law_of_gravity" in hole_names
-    assert "mass_equivalence" in hole_names
+    assert hole_names == {"second_law", "third_law"}
 
 
-def test_newton_v3_derivation_premises():
+def test_newton_v3_inverse_square_premises():
     graph = load_typst_package(NEWTON_V3)
-    f = [f for f in graph["factors"] if f["conclusion"] == "freefall_acceleration_equals_g"]
+    f = [f for f in graph["factors"] if f["conclusion"] == "inverse_square_force"]
     assert len(f) == 1
-    assert set(f[0]["premise"]) == {
-        "second_law", "law_of_gravity", "mass_equivalence", "near_earth_surface",
-    }
+    assert set(f[0]["premise"]) == {"kepler_third_law", "second_law"}
+
+
+def test_newton_v3_mass_equivalence_premises():
+    graph = load_typst_package(NEWTON_V3)
+    f = [f for f in graph["factors"] if f["conclusion"] == "mass_equivalence"]
+    assert len(f) == 1
+    assert set(f[0]["premise"]) == {"pendulum_experiment", "second_law", "law_of_gravity"}
 
 
 # ── Einstein v3 ──────────────────────────────────────────────────────────────
