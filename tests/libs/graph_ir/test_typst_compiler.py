@@ -1,9 +1,13 @@
 """Tests for Typst -> RawGraph compiler."""
 
+from pathlib import Path
+
 import pytest
 
+from libs.graph_ir.build_utils import build_singleton_local_graph
 from libs.graph_ir.models import RawGraph
 from libs.graph_ir.typst_compiler import compile_typst_to_raw_graph
+from libs.lang.typst_loader import load_typst_package
 
 
 def _make_graph_data(
@@ -199,3 +203,56 @@ def test_duplicate_node_name_raises():
     )
     with pytest.raises(ValueError, match="Duplicate node name"):
         compile_typst_to_raw_graph(data)
+
+
+# -- Integration tests (Typst fixture → RawGraph) --
+
+GALILEO_V3 = (
+    Path(__file__).parent.parent.parent
+    / "fixtures"
+    / "gaia_language_packages"
+    / "galileo_falling_bodies_v3"
+)
+
+
+def test_galileo_v3_full_compile():
+    """End-to-end: load Typst fixture -> compile -> verify RawGraph structure."""
+    graph_data = load_typst_package(GALILEO_V3)
+    raw = compile_typst_to_raw_graph(graph_data)
+
+    assert raw.package == "galileo_falling_bodies"
+    assert raw.version == "3.0.0"
+
+    # Should have nodes for observations, settings, claims, and constraints
+    types = {n.knowledge_type for n in raw.knowledge_nodes}
+    assert "observation" in types
+    assert "claim" in types
+
+    # Should have reasoning factors
+    reasoning = [f for f in raw.factor_nodes if f.type == "reasoning"]
+    assert len(reasoning) >= 3  # vacuum_prediction, composite_is_slower, etc.
+
+    # Should have constraint factor for tied_balls_contradiction
+    constraints = [f for f in raw.factor_nodes if f.type == "mutex_constraint"]
+    assert len(constraints) >= 1
+
+    # All factor premises/conclusions should reference valid node IDs
+    node_ids = {n.raw_node_id for n in raw.knowledge_nodes}
+    for factor in raw.factor_nodes:
+        assert factor.conclusion in node_ids, f"conclusion {factor.conclusion} not in nodes"
+        for p in factor.premises:
+            assert p in node_ids, f"premise {p} not in nodes"
+
+
+def test_galileo_v3_through_canonicalization():
+    """End-to-end: Typst -> RawGraph -> LocalCanonicalGraph."""
+    graph_data = load_typst_package(GALILEO_V3)
+    raw = compile_typst_to_raw_graph(graph_data)
+    result = build_singleton_local_graph(raw)
+
+    assert len(result.local_graph.knowledge_nodes) == len(raw.knowledge_nodes)
+    assert len(result.local_graph.factor_nodes) == len(raw.factor_nodes)
+
+    # All local IDs should start with "lcn_"
+    for node in result.local_graph.knowledge_nodes:
+        assert node.local_canonical_id.startswith("lcn_")
