@@ -6,6 +6,8 @@
 #let _gaia_module_titles = state("gaia-module-titles", (:))
 #let _gaia_refs = state("gaia-refs", ())
 #let _gaia_exports = state("gaia-exports", ())
+#let _gaia_package_name = state("gaia-package-name", none)
+#let _gaia_package_version = state("gaia-package-version", none)
 
 // v2+ accumulators — premise tactic pushes entries, export-graph reads final()
 #let _gaia_proof_premises = state("gaia-proof-premises", ())  // (conclusion, name) pairs
@@ -52,6 +54,10 @@
   modules: (),
   export: (),
 ) = {
+  _gaia_package_name.update(_ => name)
+  if version != none {
+    _gaia_package_version.update(_ => str(version))
+  }
   _gaia_exports.update(_ => export)
 
   // Render title block
@@ -102,6 +108,9 @@
   // but those edges belong to the constraint factor, not a reasoning factor.
   let constraint_names = raw_constraints.map(c => c.name)
 
+  let pkg_name = _gaia_package_name.final()
+  let pkg_version = _gaia_package_version.final()
+
   let conclusions = raw_premises.map(p => p.at(0)).dedup()
   let proof_factors = conclusions.map(c => {
     let premises = raw_premises.filter(p => p.at(0) == c).map(p => p.at(1))
@@ -109,6 +118,8 @@
   }).filter(f => f.premise.len() > 0 and f.conclusion not in constraint_names)
 
   [#metadata((
+    package: pkg_name,
+    version: pkg_version,
     nodes: _gaia_nodes.final(),
     factors: _gaia_factors.final() + proof_factors,
     refs: _gaia_refs.final(),
