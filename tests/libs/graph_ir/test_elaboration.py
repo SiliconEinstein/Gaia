@@ -209,13 +209,13 @@ def test_elaboration_creates_instantiation_factor():
     inst = inst_factors[0]
     node_map = {n.source_refs[0].knowledge_name: n.raw_node_id for n in raw.knowledge_nodes}
     assert inst.premises == [node_map["my_method"]]  # schema is premise
-    assert inst.metadata["edge_type"] == "instantiation"
+    assert inst.metadata is None
 
 
 def test_ground_action_is_premise_of_reasoning_factor():
     raw = build_raw_graph(_make_elaboration_package())
 
-    reasoning_factors = [f for f in raw.factor_nodes if f.type == "reasoning"]
+    reasoning_factors = [f for f in raw.factor_nodes if f.type == "infer"]
     assert len(reasoning_factors) == 1
 
     rf = reasoning_factors[0]
@@ -250,7 +250,7 @@ def test_galileo_elaboration_in_fixture():
 
     # Each ground node is connected to a reasoning factor as premise
     ground_ids = {n.raw_node_id for n in ground_nodes}
-    reasoning_factors = [f for f in raw.factor_nodes if f.type == "reasoning"]
+    reasoning_factors = [f for f in raw.factor_nodes if f.type == "infer"]
     connected_grounds = set()
     for rf in reasoning_factors:
         connected_grounds.update(set(rf.premises) & ground_ids)
@@ -338,5 +338,5 @@ def test_newton_fixture_builds():
     assert "setting" in types
 
     factor_types = {f.type for f in raw.factor_nodes}
-    assert "reasoning" in factor_types
+    assert "infer" in factor_types
     assert "instantiation" in factor_types

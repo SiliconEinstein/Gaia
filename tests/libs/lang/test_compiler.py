@@ -70,7 +70,7 @@ def test_direct_dependency_creates_edge():
     assert drag["premises"] == ["heavier_falls_faster"]
     assert drag["conclusions"] == ["tied_pair_slower_than_heavy"]
     assert drag["probability"] == 0.93
-    assert drag["edge_type"] == "deduction"
+    assert drag["edge_type"] == "infer"
 
 
 def test_indirect_dependency_excluded_from_edges():
@@ -94,12 +94,10 @@ def test_contradiction_relation_creates_constraint_factor():
     fg = compile_factor_graph(pkg)
 
     constraint = next(f for f in fg.factors if f["name"] == "tied_balls_contradiction.constraint")
-    assert constraint["edge_type"] == "relation_contradiction"
-    assert set(constraint["premises"]) == {
-        "tied_pair_slower_than_heavy",
-        "tied_pair_faster_than_heavy",
-    }
-    # Relation variable excluded from constraint to avoid feedback loop
+    assert constraint["edge_type"] == "contradiction"
+    assert "tied_balls_contradiction" in constraint["premises"]
+    assert "tied_pair_slower_than_heavy" in constraint["premises"]
+    assert "tied_pair_faster_than_heavy" in constraint["premises"]
     assert constraint["conclusions"] == []
     assert constraint["probability"] == 0.6  # Uses Relation's prior as strength
 
@@ -112,7 +110,7 @@ def test_contradiction_chain_is_now_deduction():
     fg = compile_factor_graph(pkg)
 
     chain_factor = next(f for f in fg.factors if f["name"] == "contradiction_chain.step_2")
-    assert chain_factor["edge_type"] == "deduction"
+    assert chain_factor["edge_type"] == "infer"
     assert set(chain_factor["premises"]) == {
         "tied_pair_slower_than_heavy",
         "tied_pair_faster_than_heavy",
@@ -246,7 +244,7 @@ def test_edge_type_defaults_to_deduction():
 
     fg = compile_factor_graph(pkg)
     assert len(fg.factors) == 1
-    assert fg.factors[0]["edge_type"] == "deduction"
+    assert fg.factors[0]["edge_type"] == "infer"
 
 
 def test_non_exported_claim_excluded():

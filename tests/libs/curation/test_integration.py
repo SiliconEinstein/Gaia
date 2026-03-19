@@ -52,19 +52,19 @@ def _build_test_graph():
     factors = [
         FactorNode(
             factor_id="f_1",
-            type="reasoning",
+            type="infer",
             premises=["gcn_earth_1"],
             conclusion="gcn_water",
             package_id="astronomy",
-            metadata={"edge_type": "deduction"},
+            metadata={},
         ),
         FactorNode(
             factor_id="f_dangling",
-            type="reasoning",
+            type="infer",
             premises=["gcn_deleted"],
             conclusion="gcn_water",
             package_id="astronomy",
-            metadata={"edge_type": "deduction"},
+            metadata={},
         ),
     ]
     return nodes, factors
@@ -124,19 +124,19 @@ async def test_curation_pipeline_with_conflict_detection():
     factors = [
         FactorNode(
             factor_id="f_support",
-            type="reasoning",
+            type="infer",
             premises=["gcn_claim_a"],
             conclusion="gcn_claim_b",
             package_id="health",
-            metadata={"edge_type": "deduction"},
+            metadata={},
         ),
         FactorNode(
             factor_id="f_contradict",
-            type="mutex_constraint",
-            premises=["gcn_claim_a", "gcn_claim_b"],
-            conclusion="gate_vc",
+            type="contradiction",
+            premises=["gcn_rel_vc", "gcn_claim_a", "gcn_claim_b"],
+            conclusion=None,
             package_id="health",
-            metadata={"edge_type": "relation_contradiction"},
+            metadata={"curation_created": True},
         ),
     ]
 

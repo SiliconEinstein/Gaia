@@ -40,7 +40,7 @@ async def test_galileo_full_pipeline():
 
     # The graph should contain deduction chains and a relation_contradiction constraint.
     edge_types = {f["edge_type"] for f in result.factor_graph.factors}
-    assert {"deduction", "relation_contradiction"} <= edge_types
+    assert {"infer", "contradiction"} <= edge_types
 
     # Summary
     summary = result.inspect()
@@ -171,7 +171,7 @@ async def test_newton_full_pipeline():
 
     # All edge types are deduction (no relation constraints fire)
     edge_types = {f["edge_type"] for f in newton.factor_graph.factors}
-    assert edge_types == {"deduction"}
+    assert edge_types == {"infer"}
 
     summary = newton.inspect()
     assert summary["package"] == "newton_principia"
@@ -235,8 +235,8 @@ async def test_einstein_full_pipeline():
 
     # Both deduction and relation_contradiction edge types
     edge_types = {f["edge_type"] for f in einstein.factor_graph.factors}
-    assert "deduction" in edge_types
-    assert "relation_contradiction" in edge_types
+    assert "infer" in edge_types
+    assert "contradiction" in edge_types
 
     summary = einstein.inspect()
     assert summary["package"] == "einstein_gravity"
@@ -250,12 +250,11 @@ async def test_einstein_deflection_contradiction_constraint():
     loaded = await _load_deps(runtime)
     einstein = await runtime.run(EINSTEIN_DIR, deps=loaded["einstein_deps"])
 
-    constraint = next(
-        f for f in einstein.factor_graph.factors if f["edge_type"] == "relation_contradiction"
-    )
-    assert set(constraint["premises"]) == {"gr_light_deflection", "soldner_deflection"}
+    constraint = next(f for f in einstein.factor_graph.factors if f["edge_type"] == "contradiction")
+    assert "deflection_contradiction" in constraint["premises"]
+    assert "gr_light_deflection" in constraint["premises"]
+    assert "soldner_deflection" in constraint["premises"]
     assert constraint["conclusions"] == []
-    assert constraint["gate_var"] == "deflection_contradiction"
 
 
 async def test_einstein_subsumption_is_metadata_only():

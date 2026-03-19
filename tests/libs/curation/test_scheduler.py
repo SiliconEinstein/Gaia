@@ -49,7 +49,7 @@ async def test_run_curation_with_duplicate_nodes():
     factors: list[FactorNode] = [
         FactorNode(
             factor_id="f_1",
-            type="reasoning",
+            type="infer",
             premises=["gcn_a"],
             conclusion="gcn_c",
             package_id="pkg1",
@@ -81,7 +81,7 @@ async def test_run_curation_with_orphan():
     factors = [
         FactorNode(
             factor_id="f_1",
-            type="reasoning",
+            type="infer",
             premises=["gcn_a"],
             conclusion="gcn_a",  # self-loop just to give gcn_a a connection
             package_id="pkg1",

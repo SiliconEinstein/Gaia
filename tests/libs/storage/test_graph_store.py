@@ -397,7 +397,7 @@ class TestWriteFactorTopology:
         factors = [
             FactorNode(
                 factor_id="pkg.mod.f1",
-                type="reasoning",
+                type="infer",
                 premises=["pkg/k1", "pkg/k2"],
                 contexts=["pkg/k3"],
                 conclusion="pkg/k4",
@@ -405,9 +405,9 @@ class TestWriteFactorTopology:
             ),
             FactorNode(
                 factor_id="pkg.mutex.1",
-                type="mutex_constraint",
-                premises=["pkg/k1", "pkg/k5"],
-                conclusion="pkg/contra1",
+                type="contradiction",
+                premises=["pkg/rel1", "pkg/k1", "pkg/k5"],
+                conclusion=None,
                 package_id="pkg",
             ),
         ]
@@ -417,17 +417,17 @@ class TestWriteFactorTopology:
         assert count == 2
         # Verify rels created
         fp_count = await _count_rels(graph_store, "FACTOR_PREMISE")
-        assert fp_count == 4  # 2 from f1, 2 from mutex
+        assert fp_count == 5  # 2 from f1, 3 from contradiction
         fc_count = await _count_rels(graph_store, "FACTOR_CONTEXT")
         assert fc_count == 1  # 1 from f1
         fcl_count = await _count_rels(graph_store, "FACTOR_CONCLUSION")
-        assert fcl_count == 2  # 1 each
+        assert fcl_count == 1  # only from f1 (contradiction has None conclusion)
 
     async def test_factor_topology_idempotent(self, graph_store):
         factors = [
             FactorNode(
                 factor_id="pkg.f1",
-                type="reasoning",
+                type="infer",
                 premises=["pkg/k1"],
                 conclusion="pkg/k2",
                 package_id="pkg",

@@ -2,8 +2,8 @@
 
 | 文档属性 | 值 |
 |---------|---|
-| 版本 | 1.0 |
-| 日期 | 2026-03-12 |
+| 版本 | 2.0 |
+| 日期 | 2026-03-19 |
 | 状态 | **Draft — foundation design** |
 | 关联文档 | [graph-ir.md](graph-ir.md) — Graph IR 结构定义, [theory/inference-theory.md](theory/inference-theory.md) — BP 算法理论, [theory/theoretical-foundation.md](theory/theoretical-foundation.md) — Jaynes 纲领 |
 
@@ -11,7 +11,7 @@
 
 ## 1. Purpose
 
-This document defines how belief propagation runs on Graph IR. It covers local parameterization overlays, global inference state, factor functions, gate semantics for Relations, instantiation factor semantics, and the interaction between schema and ground nodes during BP.
+This document defines how belief propagation runs on Graph IR. It covers local parameterization overlays, global inference state, factor functions, instantiation factor semantics, and the interaction between schema and ground nodes during BP.
 
 For the Graph IR structure itself (raw nodes, local canonical nodes, global canonical nodes, factor nodes, canonicalization), see [graph-ir.md](graph-ir.md). For general BP theory (sum-product algorithm, damping, convergence), see [theory/inference-theory.md](theory/inference-theory.md).
 
@@ -53,7 +53,7 @@ Local overlay keys are resolved as follows:
 
 - local inference accepts full `local_canonical_id`s or unambiguous local ID prefixes
 
-`factor_parameters` is keyed by `factor_id`. Full IDs or unambiguous `factor_id` prefixes are allowed. A valid overlay must provide priors for every belief-bearing node in the active local graph and `conditional_probability` for every `reasoning` factor in that graph. Missing entries make the overlay invalid; BP does not fall back to hidden defaults.
+`factor_parameters` is keyed by `factor_id`. Full IDs or unambiguous `factor_id` prefixes are allowed. A valid overlay must provide priors for every belief-bearing node in the active local graph and `conditional_probability` for every `infer` or `abstraction` factor in that graph. Missing entries make the overlay invalid; BP does not fall back to hidden defaults.
 
 ### 2.2 Global Inference State
 
@@ -84,15 +84,15 @@ Cromwell's rule: all priors and probabilities are clamped to [ε, 1−ε] (ε = 
 
 Each factor type defines a potential function that determines how messages propagate through it. Factor nodes reference their connected knowledge nodes via the `premises`, `contexts`, and `conclusion` fields defined in [graph-ir.md](graph-ir.md) §4; probability-like values come from the active local overlay or global inference state.
 
-### 3.1 Reasoning Factor
+### 3.1 Infer Factor
 
-Generated from ChainExpr — one reasoning factor per chain. Connects premise knowledge nodes (direct dependencies) to a single conclusion knowledge node with a conditional probability.
+Generated from ChainExpr — one factor per chain. Connects premise knowledge nodes (direct dependencies) to a single conclusion knowledge node with a conditional probability. Covers both deduction (p=1.0) and induction (p<1.0) — the probability is a parameter constraint, not a type distinction.
 
 **Structure:**
 
 ```
 FactorNode:
-    type:                    reasoning
+    type:                    infer
     premises:                [graph-layer node IDs of direct-dep knowledge nodes]
     contexts:                [graph-layer node IDs of indirect-dep knowledge nodes]
     conclusion:              graph-layer node ID of conclusion knowledge node
@@ -107,7 +107,7 @@ factor_parameters[factor_id].conditional_probability
 - `premises` are mapped from `dependency: direct` args in ChainExpr steps. They create BP edges — BP sends and receives messages along these connections.
 - `contexts` are mapped from `dependency: indirect` args. They do NOT create BP edges. Their influence is folded into `conditional_probability` when local parameterization or registry global-state updates assign that factor's probability.
 - `conclusion` is the single conclusion knowledge node of the chain.
-- By Graph IR V1 constraints, `question` nodes may only appear as conclusions, not premises. `action` nodes may appear in either position.
+- By Graph IR constraints, `question` nodes may only appear as conclusions, not premises. `action` nodes may appear in either position.
 
 **Potential:**
 
@@ -119,18 +119,18 @@ factor_parameters[factor_id].conditional_probability
 
 When any premise is false, the factor imposes no constraint — the conclusion is free to take any value based on other factors.
 
-**Subtypes:**
+**ChainExpr-level granularity:** Each ChainExpr compiles to one infer factor, not one per step. Intermediate steps within the chain are internal to the factor.
 
-| Subtype | Difference | conditional_probability constraint |
-|---------|-----------|-----------------------------------|
-| deduction | Standard (above) | May be 1.0 |
-| induction | Standard (above) | Must be < 1.0 (lattice-theoretic: §2 of inference-theory.md) |
-| abstraction | Standard (above) | May be 1.0 |
-| retraction | Inverted: conclusion=1 with prob `1-p` | — |
+### 3.1b Abstraction Factor
 
-Retraction inverts the potential — it weakens the conclusion rather than supporting it.
+Same potential semantics as `infer`, but generated from chains with `edge_type == "abstraction"`. Promoted to a top-level type for clarity.
 
-**ChainExpr-level granularity:** Each ChainExpr compiles to one reasoning factor, not one per step. Intermediate steps within the chain are internal to the factor. This is correct because intermediate nodes are either deterministic transformations or not independently meaningful knowledge units — only the authored/load-bearing premises and the conclusion are semantically meaningful factor inputs/outputs. If review later discovers a missing premise or context, it must be written back into source and rebuilt before it becomes Graph IR structure.
+```
+FactorNode:
+    type:                    abstraction
+    premises:                [graph-layer node IDs of direct-dep knowledge nodes]
+    conclusion:              graph-layer node ID of conclusion knowledge node
+```
 
 ### 3.2 Instantiation Factor
 
@@ -179,175 +179,92 @@ Each instantiation factor sends a backward message to V_schema. BP aggregates th
 
 Inductive reasoning emerges naturally from BP's message aggregation — no special-case logic needed.
 
-### 3.3 Mutex Constraint Factor (Contradiction)
+### 3.3 Contradiction Factor
 
-Generated from Contradiction relation nodes. Penalizes the all-true configuration of contradicted claims.
+Generated from Contradiction relation nodes. The relation node participates as a full BP variable in `premises[0]`, enabling bidirectional message passing (Jaynes consistency).
 
 **Structure:**
 
 ```
 FactorNode:
-    type:                    mutex_constraint
-    premises:                [graph-layer node IDs of constrained claim nodes]
+    type:                    contradiction
+    premises:                [relation_node_id, claim_a_id, claim_b_id, ...]
     contexts:                []
-    conclusion:              graph-layer node ID of Contradiction node (read-only gate)
+    conclusion:              None
 ```
 
-The `conclusion` field holds the Contradiction knowledge node, which acts as a **read-only gate** — BP reads its runtime belief to determine constraint strength but does not send messages back to it. See §4 for gate semantics. The gate node's initial prior comes from `node_priors[conclusion]`.
+The relation node in `premises[0]` acts as a gating variable — when active (belief high), the constraint penalizes the all-claims-true configuration. Unlike the v1.0 gate design, BP sends messages back to the relation node, allowing the system to "question the relationship itself" when evidence is strong for both claims.
 
 **Potential:**
 
 ```
-f_mutex(a₁, a₂, ..., aₙ) =
-    (1 - effective_prob)    if all aᵢ = 1
+f_contradiction(c, a₁, a₂, ..., aₙ) =
+    ε (≈0)                  if c = 1 and all aᵢ = 1
     1.0                     otherwise
 ```
 
-Where `effective_prob = belief(gate node)`, clamped to [ε, 1−ε].
+Where ε = CROMWELL_EPS (1e-3).
 
 **BP behavior:**
 
-When two contradicted claims both have evidence, the mutex factor sends inhibitory messages to both. The weaker claim (lower belief from other factors) gets suppressed more — Jaynes' "weaker evidence yields first" emerges naturally.
+When the relation is active and two contradicted claims both have evidence, the factor sends inhibitory messages to both claims AND a weakening message to the relation node. Loopy BP with damping handles the resulting feedback naturally.
 
-### 3.4 Equiv Constraint Factor (Equivalence)
+### 3.4 Equivalence Factor
 
-Generated from Equivalence relation nodes. Rewards agreement between equated claims.
+Generated from Equivalence relation nodes. Rewards agreement between equated claims. The relation node participates in `premises[0]`.
 
 **Structure:**
 
 ```
 FactorNode:
-    type:                    equiv_constraint
-    premises:                [graph-layer node IDs of equated claim nodes]
+    type:                    equivalence
+    premises:                [relation_node_id, claim_a_id, claim_b_id]
     contexts:                []
-    conclusion:              graph-layer node ID of Equivalence node (read-only gate)
+    conclusion:              None
 ```
-
-Same gate pattern as mutex_constraint — the `conclusion` holds the Equivalence knowledge node as a read-only gate. The gate node's initial prior comes from `node_priors[conclusion]`.
-
-Graph IR V1 additionally constrains `question`/`action` equivalence to same-root-type, same-`kind` pairs; BP assumes those structural checks have already passed before the factor is built.
 
 **Potential:**
 
 ```
-f_equiv(a, b) =
-    effective_prob          if a == b     (agreement rewarded)
-    1 - effective_prob      if a != b     (disagreement penalized)
+f_equiv(c, a, b) =
+    1.0                     if c = 0     (relation inactive — unconstrained)
+    1 - ε                   if c = 1 and a == b     (agreement rewarded)
+    ε                       if c = 1 and a != b     (disagreement penalized)
 ```
 
-Where `effective_prob = belief(gate node)`, clamped to [ε, 1−ε].
-
-For n-ary equivalence (3+ members), decompose into pairwise constraints: equiv(a, b, c) → factors for (a, b), (a, c), (b, c).
+For n-ary equivalence (3+ members), decompose into pairwise constraints: equiv(a, b, c) → factors for (a, b), (a, c), (b, c). Each pairwise factor shares the same relation node in `premises[0]`.
 
 **BP behavior:**
 
-The equiv factor acts as an evidence bridge — belief flows bidirectionally between equated claims, weighted by the equivalence strength. If one claim receives new evidence, the other's belief increases proportionally.
+The equiv factor acts as an evidence bridge — belief flows bidirectionally between equated claims, weighted by the relation node's belief. The relation node itself receives messages from all pairwise factors, allowing BP to weaken the equivalence if evidence diverges.
 
-## 4. Gate Semantics for Relations
+## 4. Relation Nodes as Full BP Participants
 
-### 4.1 The Problem
+### 4.1 Design (v2.0)
 
-A Relation (Contradiction or Equivalence) is both:
-- A **knowledge node** with its own belief ("how confident are we that this relationship holds?")
-- The source of a **constraint factor** that constrains other knowledge nodes
+In v2.0, relation nodes (Contradiction, Equivalence) are normal BP participants in their constraint factors — placed in `premises[0]` rather than as a read-only gate in `conclusion`. This means:
 
-If the Relation node participates in its own constraint factor as a normal conclusion, BP creates a feedback loop: the constrained claims' beliefs influence the Relation's belief, which influences the constraint strength, which influences the claims' beliefs.
+- The relation node receives factor→variable messages from its constraint factor
+- BP can "question the relationship" when both constrained claims have strong evidence
+- Loopy BP with damping handles the resulting feedback naturally
 
-### 4.2 Design Decision: Read-Only Gate via `conclusion` Field
+**Rationale (Jaynes consistency):** Blocking bidirectional information flow (v1.0 gate design) violates the requirement that all propositions be updatable by evidence. When both contradicted claims have strong evidence, the correct Bayesian response is to lower confidence in the contradiction itself, not just suppress claims.
 
-For constraint factors (`mutex_constraint`, `equiv_constraint`), the `conclusion` field holds the Relation knowledge node as a **read-only gate**. This differs from reasoning factors where `conclusion` receives messages normally.
-
-The factor type determines the semantics of `conclusion`:
-
-| Factor type | `conclusion` semantics |
-|-------------|-------------------|
-| `reasoning` | Normal conclusion — receives factor→knowledge messages |
-| `instantiation` | Normal conclusion — receives factor→knowledge messages |
-| `mutex_constraint` | Read-only gate — belief read, no messages sent back |
-| `equiv_constraint` | Read-only gate — belief read, no messages sent back |
+### 4.2 Structure
 
 ```
-Constraint factor BP participants: only the premise knowledge nodes
-Gate (conclusion): the Relation (read-only — receives no messages from this factor)
+V_relation ───┐
+V_claim_A  ───┤── F_contradiction ──→ (no conclusion)
+V_claim_B  ───┘
 
-V_claim_A ───┐                    V_contradiction (conclusion, read-only gate)
-V_claim_B ───┤── F_mutex               │
-             │      │                   │
-             │      └── reads belief ───┘  (one-directional, no messages sent back)
-             │
-             └── F_mutex sends messages to V_claim_A, V_claim_B
-                 but NOT to V_contradiction
+All three nodes are full BP participants:
+- F sends messages to V_relation, V_claim_A, V_claim_B
+- V_relation, V_claim_A, V_claim_B send messages back to F
 ```
 
-At each BP iteration, when computing factor→knowledge messages for a gated constraint factor:
-1. Read the gate node's (conclusion's) current belief from runtime BP state
-2. Use that belief as `effective_prob` in the factor function
-3. Compute and send messages to the premise variables only
+## 5. Schema/Ground Interaction in BP
 
-### 4.3 Rationale
-
-**Separation of structure and inference.** Relations are structural assertions about logical relationships. BP computes beliefs given those relationships. BP should not modify the relationships it reasons over.
-
-**Analogy to Lean.** Lean's kernel does not modify axioms based on how many theorems use them. Similarly, Gaia's BP should not modify a Contradiction's belief based on the beliefs of the claims it constrains.
-
-**Contradictions must be taken seriously.** If both contradicted claims have strong evidence, the correct response is to flag the inconsistency for investigation, not to silently weaken the contradiction. Under gate semantics, the contradiction forces one claim's belief down, making the inconsistency visible.
-
-**Relations are not immutable.** A Relation's belief CAN change — through reasoning factors that connect to it as a normal conclusion:
-
-```
-V_contradiction ← F_reasoning (chain that discovered the contradiction)
-                ← F_resolution (new chain arguing they're compatible)
-```
-
-These reasoning factors have `conclusion: V_contradiction` and send normal factor→knowledge messages. The updated belief then changes the gate strength for the mutex constraint.
-
-### 4.4 Formal Specification
-
-For `mutex_constraint` and `equiv_constraint` factors:
-- The `conclusion` node (gate) is NOT included in the factor's BP message participant set
-- The factor NEVER sends messages to the `conclusion` node
-- At message computation time, the gate node's current marginal belief replaces any stored probability:
-  ```
-  effective_prob = belief(conclusion_var)    -- clamped to [ε, 1-ε]
-  ```
-- If the gate node's belief is unavailable (e.g., initial iteration), fall back to the gate node's parameterized prior from `node_priors`
-
-### 4.5 Consequences
-
-| Scenario | Gate behavior | Effect |
-|----------|-------------|--------|
-| Contradiction discovered by strong reasoning | gate belief high | Strong mutex constraint, one claim suppressed |
-| Contradiction later disproved by new reasoning | gate belief drops | Mutex constraint weakens, both claims can be high |
-| Both contradicted claims gain evidence | gate belief unchanged | Constraint holds, system flags inconsistency |
-| Equivalence with diverging evidence for equated claims | gate belief unchanged | Equiv bridge still active, partial evidence sharing |
-
-## 5. Retraction in Graph IR
-
-Retraction is modeled as a reasoning factor with inverted potential (§3.1 retraction subtype). The RetractAction from the Relation type design compiles to a reasoning factor:
-
-```
-FactorNode:
-    type:       reasoning (subtype: retraction)
-    premises:   [V_retraction_evidence]
-    contexts:   []
-    conclusion: V_target_claim
-```
-
-Parameterization input:
-
-```
-factor_parameters[factor_id].conditional_probability = p
-```
-
-The inverted potential means: when premises are true, conclusion=1 has potential `1-p` (weakened) rather than `p` (supported).
-
-Retraction differs from contradiction:
-- **Contradiction** is a symmetric structural relationship (all premise claims constrained symmetrically)
-- **Retraction** is a directed reasoning operation (evidence weakens a specific target claim)
-
-## 6. Schema/Ground Interaction in BP
-
-### 6.1 Local Package BP
+### 5.1 Local Package BP
 
 Within a single package's **Local Canonical Graph**, schema and ground nodes interact through binary instantiation factors. Each instantiation factor has `premises=[schema]` and `conclusion=instance`:
 
@@ -363,7 +280,7 @@ BP computes beliefs for all local canonical nodes simultaneously. Forward messag
 
 Local node priors and reasoning-factor probabilities are assumed to be provided by an author-local parameterization overlay generated after package-local canonicalization. This document does not define how the author tool chooses those values; it only defines how BP consumes them.
 
-### 6.2 Global Graph BP
+### 5.2 Global Graph BP
 
 After packages are published, review/registry matching maps package-local nodes into the **Global Canonical Graph**. Schema nodes from different packages may then share one global canonical node. Ground instances from different packages that share a schema node become connected through it:
 
@@ -377,41 +294,17 @@ Evidence for V_ground_a (from Package A's reasoning chains) now indirectly suppo
 
 The policy for generating review-report judgments and registry `GlobalInferenceState` is intentionally deferred. This document specifies BP once a global graph and its current inference state are already instantiated; it does not yet fix how those probabilities are produced.
 
-## 7. Relationship to Existing Implementation
+## 6. Factor Type Summary
 
-### 7.1 What Carries Over
+| Factor type | Premises | Conclusion | Potential |
+|-------------|----------|------------|-----------|
+| `infer` | Direct dependencies | Conclusion node | Standard conditional (prob p) |
+| `abstraction` | Direct dependencies | Conclusion node | Standard conditional (prob p) |
+| `instantiation` | Schema node | Instance node | Deterministic implication |
+| `contradiction` | Relation node + claim nodes | None | Penalize all-true when relation active |
+| `equivalence` | Relation node + 2 claim nodes | None | Reward agreement when relation active |
 
-| Component | Current | Graph IR BP | Status |
-|-----------|---------|-------------|--------|
-| Sum-product algorithm | `libs/inference/bp.py` | Same algorithm | Reuse |
-| Damping | `_damping` parameter | Same | Reuse |
-| Cromwell's rule | Clamping at construction | Same | Reuse |
-| Convergence check | max_change < threshold | Same | Reuse |
-| Gate variable | `gate_var` in factor dict | Maps to `conclusion` field on constraint factors | Adapt |
-| Factor potential | `_evaluate_potential()` | Extended with instantiation | Extend |
-
-### 7.2 What Changes
-
-| Component | Current | Graph IR BP |
-|-----------|---------|-------------|
-| Variable IDs | `int` | `local_canonical_id` / `global_canonical_id: str` (internal mapping to int for performance) |
-| Factor structure | `premises[]`, `conclusions[]`, `probability`, `gate_var` | Structural Graph IR (`premises[]`, `contexts[]`, `conclusion`) + local overlay / global inference state |
-| Factor types | deduction, induction, retraction, contradiction, relation_* | reasoning, instantiation, mutex_constraint, equiv_constraint |
-| Factor granularity | One factor per step (apply/lambda) | One factor per ChainExpr |
-| Instantiation factor | Does not exist | New: implication potential for schema→instance |
-| Input source | `FactorGraph.from_subgraph()` or `CompiledFactorGraph` | Graph IR JSON + local overlay or `GlobalInferenceState` |
-| Output target | `dict[int, float]` | Runtime belief snapshot keyed by graph-layer node ID |
-
-### 7.3 Migration Path
-
-The BP algorithm implementation (`libs/inference/bp.py`) requires these changes:
-
-1. Add `instantiation` case to `_evaluate_potential()`
-2. Add Graph IR → internal FactorGraph conversion (graph-layer node ID → int mapping, `conclusion` singular → conclusions list internally)
-3. Load local overlay or registry `GlobalInferenceState` and map it onto node priors / factor probabilities
-4. Map `conclusion` on constraint factors to existing `gate_var` mechanism
-5. Map `contexts` to non-BP metadata (contexts do not create BP edges)
-6. Write BP results to a runtime belief snapshot rather than mutating submitted Graph IR
+`FactorNode.type` is the single source of truth for BP semantics. No `metadata.edge_type` indirection.
 
 ## Open Questions
 

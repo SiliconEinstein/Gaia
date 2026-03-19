@@ -232,10 +232,9 @@ class Neo4jGraphStore(GraphStore):
     ) -> None:
         for f in factors:
             await tx.run(
-                "MERGE (n:Factor {factor_id: $fid}) SET n.type = $type, n.is_gate = $gate",
+                "MERGE (n:Factor {factor_id: $fid}) SET n.type = $type",
                 fid=f.factor_id,
                 type=f.type,
-                gate=f.is_gate_factor,
             )
             for premise_id in f.premises:
                 await tx.run(
@@ -267,21 +266,22 @@ class Neo4jGraphStore(GraphStore):
                     kid=context_id,
                     fid=f.factor_id,
                 )
-            conc_id = f.conclusion
-            await tx.run(
-                "MERGE (n:Knowledge {knowledge_vid: $vid}) "
-                "ON CREATE SET n.knowledge_id = $vid, n.version = 1, "
-                "n.type = 'claim', n.prior = 0.5, n.belief = 0.5",
-                vid=conc_id,
-            )
-            await tx.run(
-                "MATCH (f:Factor {factor_id: $fid}), "
-                "(k:Knowledge {knowledge_vid: $kid}) "
-                "WHERE NOT EXISTS { MATCH (f)-[:FACTOR_CONCLUSION]->(k) } "
-                "CREATE (f)-[:FACTOR_CONCLUSION]->(k)",
-                fid=f.factor_id,
-                kid=conc_id,
-            )
+            if f.conclusion is not None:
+                conc_id = f.conclusion
+                await tx.run(
+                    "MERGE (n:Knowledge {knowledge_vid: $vid}) "
+                    "ON CREATE SET n.knowledge_id = $vid, n.version = 1, "
+                    "n.type = 'claim', n.prior = 0.5, n.belief = 0.5",
+                    vid=conc_id,
+                )
+                await tx.run(
+                    "MATCH (f:Factor {factor_id: $fid}), "
+                    "(k:Knowledge {knowledge_vid: $kid}) "
+                    "WHERE NOT EXISTS { MATCH (f)-[:FACTOR_CONCLUSION]->(k) } "
+                    "CREATE (f)-[:FACTOR_CONCLUSION]->(k)",
+                    fid=f.factor_id,
+                    kid=conc_id,
+                )
 
     async def write_global_topology(
         self,

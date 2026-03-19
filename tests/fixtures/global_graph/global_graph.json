@@ -520,7 +520,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "gcn_c7057097844283c5",
@@ -539,7 +539,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "mutex_constraint"
+      "type": "contradiction"
     },
     {
       "conclusion": "gcn_d02452d248c12ef9",
@@ -560,7 +560,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "gcn_d02452d248c12ef9",
@@ -578,7 +578,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "gcn_c7057097844283c5",
@@ -598,7 +598,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "gcn_b6616c89da02a570",
@@ -616,7 +616,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "gcn_43636ff1544de453",
@@ -634,7 +634,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "gcn_58c421e2aee21da3",
@@ -655,7 +655,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "gcn_367e2cc5fe5a38ac",
@@ -673,7 +673,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "gcn_fbd0f3e02d09f039",
@@ -696,7 +696,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "gcn_346c911b63389c15",
@@ -714,7 +714,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "gcn_c19c44772bb5129c",
@@ -807,7 +807,7 @@
         "package": "newton_principia",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "gcn_80ac4e3e82a09318",
@@ -826,7 +826,7 @@
         "package": "newton_principia",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "gcn_7a25511aa794a411",
@@ -845,7 +845,7 @@
         "package": "newton_principia",
         "version": "1.0.0"
       },
-      "type": "equiv_constraint"
+      "type": "equivalence"
     },
     {
       "conclusion": "gcn_7363c864c1e552db",
@@ -864,7 +864,7 @@
         "package": "newton_principia",
         "version": "1.0.0"
       },
-      "type": "mutex_constraint"
+      "type": "contradiction"
     },
     {
       "conclusion": "gcn_65f3592372613202",
@@ -884,7 +884,7 @@
         "package": "newton_principia",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "gcn_f54a12d943826d90",
@@ -904,7 +904,7 @@
         "package": "newton_principia",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     }
   ],
   "inference_state": {

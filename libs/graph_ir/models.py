@@ -47,7 +47,7 @@ class FactorNode(BaseModel):
     type: str
     premises: list[str] = Field(default_factory=list)
     contexts: list[str] = Field(default_factory=list)
-    conclusion: str
+    conclusion: str | None = None
     source_ref: SourceRef | None = None
     metadata: dict | None = None
 

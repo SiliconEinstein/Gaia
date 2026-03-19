@@ -91,7 +91,7 @@
         "package": "newton_principia",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "lcn_7a03cda4ec534c19",
@@ -110,7 +110,7 @@
         "package": "newton_principia",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "lcn_679585c3ffaede4c",
@@ -129,7 +129,7 @@
         "package": "newton_principia",
         "version": "1.0.0"
       },
-      "type": "equiv_constraint"
+      "type": "equivalence"
     },
     {
       "conclusion": "lcn_f3d163a634b10ae3",
@@ -148,7 +148,7 @@
         "package": "newton_principia",
         "version": "1.0.0"
       },
-      "type": "mutex_constraint"
+      "type": "contradiction"
     },
     {
       "conclusion": "lcn_390e41f5e4271931",
@@ -168,7 +168,7 @@
         "package": "newton_principia",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "lcn_051bcb61bd2c88c1",
@@ -188,7 +188,7 @@
         "package": "newton_principia",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     }
   ],
   "knowledge_nodes": [

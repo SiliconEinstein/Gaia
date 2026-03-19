@@ -1,7 +1,7 @@
 [
   {
     "factor_id": "f_ad4a532b46a8aabc",
-    "type": "reasoning",
+    "type": "infer",
     "premises": [
       "paper_10_1038332139a0_1988_natu/synthesis_precursors",
       "paper_10_1038332139a0_1988_natu/measurement_technique",
@@ -19,7 +19,7 @@
   },
   {
     "factor_id": "f_e7b143e9c591a33b",
-    "type": "reasoning",
+    "type": "infer",
     "premises": [
       "paper_10_1038332139a0_1988_natu/melting_point_of_bacu3o4"
     ],
@@ -34,7 +34,7 @@
   },
   {
     "factor_id": "f_884ae168f89d70c6",
-    "type": "reasoning",
+    "type": "infer",
     "premises": [
       "paper_10_1038332139a0_1988_natu/manifestation_of_diamagnetism",
       "paper_10_1038332139a0_1988_natu/indicator_of_bulk_superconductivity",
@@ -51,7 +51,7 @@
   },
   {
     "factor_id": "f_beb335a09479a122",
-    "type": "reasoning",
+    "type": "infer",
     "premises": [
       "paper_10_1038332139a0_1988_natu/effect_of_annealing_on_tl_ba_cu_o",
       "paper_10_1038332139a0_1988_natu/effect_of_annealing_on_tl_caba_cu_o",

@@ -177,7 +177,8 @@ def build_raw_graph(pkg: Package) -> RawGraph:
     for f in factor_nodes:
         connected_ids.update(f.premises)
         connected_ids.update(f.contexts)
-        connected_ids.add(f.conclusion)
+        if f.conclusion:
+            connected_ids.add(f.conclusion)
     knowledge_nodes = [
         n
         for n in knowledge_nodes
@@ -239,7 +240,7 @@ def build_singleton_local_graph(raw_graph: RawGraph) -> CanonicalizationResult:
             type=f.type,
             premises=[_map_id(node_id) for node_id in f.premises],
             contexts=[_map_id(node_id) for node_id in f.contexts],
-            conclusion=_map_id(f.conclusion),
+            conclusion=_map_id(f.conclusion) if f.conclusion else None,
             source_ref=f.source_ref,
             metadata=f.metadata,
         )
@@ -273,7 +274,7 @@ def derive_local_parameterization(
 
     factor_parameters: dict[str, FactorParams] = {}
     for factor in local_graph.factor_nodes:
-        if factor.type != "reasoning" or factor.source_ref is None:
+        if factor.type not in ("infer", "abstraction") or factor.source_ref is None:
             continue
         chain = chains_by_key.get((factor.source_ref.module, factor.source_ref.knowledge_name))
         factor_parameters[factor.factor_id] = FactorParams(
@@ -393,7 +394,7 @@ def _elaborate_apply(
             module=module_name,
             knowledge_name=ground_name,
         ),
-        metadata={"edge_type": "instantiation"},
+        metadata=None,
     )
 
     return [ground_node], inst_factor
@@ -436,44 +437,15 @@ def _build_reasoning_factor(
         module=module_name,
         knowledge_name=chain.name,
     )
+    factor_type = "abstraction" if chain.edge_type == "abstraction" else "infer"
     return FactorNode(
-        factor_id=_factor_id("reasoning", module_name, chain.name),
-        type="reasoning",
+        factor_id=_factor_id(factor_type, module_name, chain.name),
+        type=factor_type,
         premises=_dedupe_preserving_order(name_to_raw_id[name] for name in direct_refs),
         contexts=_dedupe_preserving_order(name_to_raw_id[name] for name in indirect_refs),
         conclusion=name_to_raw_id[conclusion_ref],
         source_ref=source_ref,
-        metadata={"edge_type": chain.edge_type or "deduction"},
-    )
-
-
-def _build_retraction_factor(
-    pkg: Package,
-    module_name: str,
-    retract: RetractAction,
-    version: str,
-    name_to_raw_id: dict[str, str],
-) -> FactorNode | None:
-    """Build a retraction reasoning factor: reason → weakens target."""
-    reason_id = name_to_raw_id.get(retract.reason)
-    target_id = name_to_raw_id.get(retract.target)
-    if reason_id is None or target_id is None:
-        return None
-
-    source_ref = SourceRef(
-        package=pkg.name,
-        version=version,
-        module=module_name,
-        knowledge_name=retract.name,
-    )
-    return FactorNode(
-        factor_id=_factor_id("reasoning", module_name, retract.name),
-        type="reasoning",
-        premises=[reason_id],
-        contexts=[],
-        conclusion=target_id,
-        source_ref=source_ref,
-        metadata={"edge_type": "retraction"},
+        metadata=None,
     )
 
 
@@ -488,7 +460,7 @@ def _build_relation_factors(
     if len(related_ids) < 2 or relation.name not in name_to_raw_id:
         return []
 
-    factor_type = "mutex_constraint" if isinstance(relation, Contradiction) else "equiv_constraint"
+    factor_type = "contradiction" if isinstance(relation, Contradiction) else "equivalence"
     source_ref = SourceRef(
         package=pkg.name,
         version=version,
@@ -505,11 +477,11 @@ def _build_relation_factors(
                         factor_type, module_name, relation.name, suffix=str(index)
                     ),
                     type=factor_type,
-                    premises=list(pair),
+                    premises=[name_to_raw_id[relation.name]] + list(pair),
                     contexts=[],
-                    conclusion=name_to_raw_id[relation.name],
+                    conclusion=None,
                     source_ref=source_ref,
-                    metadata={"edge_type": f"relation_{relation.type}"},
+                    metadata=None,
                 )
             )
         return factors
@@ -518,11 +490,11 @@ def _build_relation_factors(
         FactorNode(
             factor_id=_factor_id(factor_type, module_name, relation.name),
             type=factor_type,
-            premises=related_ids,
+            premises=[name_to_raw_id[relation.name]] + related_ids,
             contexts=[],
-            conclusion=name_to_raw_id[relation.name],
+            conclusion=None,
             source_ref=source_ref,
-            metadata={"edge_type": f"relation_{relation.type}"},
+            metadata=None,
         )
     ]
 

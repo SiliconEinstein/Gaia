@@ -171,10 +171,7 @@ def create_abstraction(
             premises=[schema_id],
             conclusion=member_id,
             package_id="__curation__",
-            metadata={
-                "curation_created": True,
-                "edge_type": "instantiation",
-            },
+            metadata={"curation_created": True},
         )
         factors.append(factor)
 
@@ -185,7 +182,7 @@ def create_constraint(
     node_a_id: str,
     node_b_id: str,
     constraint_type: str,
-) -> FactorNode:
+) -> tuple[FactorNode, GlobalCanonicalNode]:
     """Create an equivalence or contradiction factor between two nodes.
 
     Args:
@@ -194,27 +191,27 @@ def create_constraint(
         constraint_type: "equivalence" or "contradiction".
 
     Returns:
-        New FactorNode representing the constraint.
+        Tuple of (FactorNode, GlobalCanonicalNode for the relation).
     """
-    factor_type = "equiv_constraint" if constraint_type == "equivalence" else "mutex_constraint"
-    # Deterministic factor ID from the pair
+    # Deterministic IDs from the pair
     pair_key = f"{min(node_a_id, node_b_id)}:{max(node_a_id, node_b_id)}:{constraint_type}"
     digest = sha256(pair_key.encode()).hexdigest()[:16]
     factor_id = f"f_cur_{digest}"
 
-    # For constraint factors, conclusion is a gate variable (synthetic)
-    gate_id = f"gate_{digest}"
-
-    return FactorNode(
-        factor_id=factor_id,
-        type=factor_type,
-        premises=[node_a_id, node_b_id],
-        contexts=[],
-        conclusion=gate_id,
-        package_id="__curation__",
-        metadata={
-            "curation_created": True,
-            "constraint_type": constraint_type,
-            "edge_type": f"relation_{constraint_type}",
-        },
+    # Create relation node
+    relation_node = GlobalCanonicalNode(
+        global_canonical_id=f"gcn_rel_{digest}",
+        knowledge_type=constraint_type,
+        representative_content=f"{constraint_type} between {node_a_id} and {node_b_id}",
     )
+
+    factor = FactorNode(
+        factor_id=factor_id,
+        type=constraint_type,  # "contradiction" or "equivalence"
+        premises=[relation_node.global_canonical_id, node_a_id, node_b_id],
+        contexts=[],
+        conclusion=None,
+        package_id="__curation__",
+        metadata={"curation_created": True, "constraint_type": constraint_type},
+    )
+    return factor, relation_node

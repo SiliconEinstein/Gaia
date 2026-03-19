@@ -114,7 +114,6 @@ def detect_conflicts_level2(
                 factor["conclusions"],
                 factor["probability"],
                 factor.get("edge_type", "deduction"),
-                factor.get("gate_var"),
             )
 
         # Run BP on clamped graph

@@ -88,7 +88,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "lcn_b6bb05362b879e90",
@@ -107,7 +107,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "mutex_constraint"
+      "type": "contradiction"
     },
     {
       "conclusion": "lcn_8ca9a2b93b0e9307",
@@ -128,7 +128,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "lcn_a95c07b51e050bfb",
@@ -146,7 +146,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "lcn_b6bb05362b879e90",
@@ -166,7 +166,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "lcn_148c1b8d98f495b5",
@@ -184,7 +184,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "lcn_1e3724075272f3b5",
@@ -202,7 +202,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "lcn_61197e996f3dd38a",
@@ -223,7 +223,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "lcn_315917e2f79d7ef7",
@@ -241,7 +241,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "lcn_cfb4e927e732fb7b",
@@ -264,7 +264,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     },
     {
       "conclusion": "lcn_716c8ef657abaf41",
@@ -282,7 +282,7 @@
         "package": "galileo_falling_bodies",
         "version": "1.0.0"
       },
-      "type": "reasoning"
+      "type": "infer"
     }
   ],
   "knowledge_nodes": [

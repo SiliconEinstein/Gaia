@@ -21,7 +21,7 @@ async def test_runtime_full_pipeline():
     assert len(result.beliefs) == 14
     assert result.factor_graph is not None
     edge_types = {f["edge_type"] for f in result.factor_graph.factors}
-    assert {"deduction", "relation_contradiction"}.issubset(edge_types)
+    assert {"infer", "contradiction"}.issubset(edge_types)
 
 
 async def test_runtime_beliefs_computed():

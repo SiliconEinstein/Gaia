@@ -352,12 +352,12 @@ class TestCleanupEdgeCases:
         result = await execute_cleanup(plan, nodes, factors, audit_log)
         assert len(result.executed) == 1
         assert result.executed[0].operation == "create_equivalence"
-        # A new equiv_constraint factor should have been added
+        # A new equivalence factor should have been added
         assert len(factors) == 1
-        assert factors[0].type == "equiv_constraint"
+        assert factors[0].type == "equivalence"
 
     async def test_execute_contradiction_suggestion(self):
-        """create_contradiction should create a mutex_constraint factor."""
+        """create_contradiction should create a contradiction factor."""
         plan = CurationPlan(
             suggestions=[
                 CurationSuggestion(
@@ -375,21 +375,21 @@ class TestCleanupEdgeCases:
         result = await execute_cleanup(plan, nodes, factors, audit_log)
         assert len(result.executed) == 1
         assert len(factors) == 1
-        assert factors[0].type == "mutex_constraint"
+        assert factors[0].type == "contradiction"
 
     async def test_execute_fix_dangling(self):
         """fix_dangling_factor should remove the bad factor."""
         factors = [
             FactorNode(
                 factor_id="f_bad",
-                type="reasoning",
+                type="infer",
                 premises=["gcn_deleted"],
                 conclusion="gcn_a",
                 package_id="pkg1",
             ),
             FactorNode(
                 factor_id="f_good",
-                type="reasoning",
+                type="infer",
                 premises=["gcn_a"],
                 conclusion="gcn_b",
                 package_id="pkg1",
@@ -542,19 +542,19 @@ class TestSchedulerConflictPath:
         factors = [
             FactorNode(
                 factor_id="f_xy",
-                type="reasoning",
+                type="infer",
                 premises=["gcn_x"],
                 conclusion="gcn_y",
                 package_id="pkg",
-                metadata={"edge_type": "deduction"},
+                metadata={},
             ),
             FactorNode(
                 factor_id="f_contra",
-                type="mutex_constraint",
-                premises=["gcn_x", "gcn_y"],
-                conclusion="gate_xy",
+                type="contradiction",
+                premises=["gcn_rel_xy", "gcn_x", "gcn_y"],
+                conclusion=None,
                 package_id="pkg",
-                metadata={"edge_type": "relation_contradiction"},
+                metadata={"curation_created": True},
             ),
         ]
         mgr = AsyncMock()

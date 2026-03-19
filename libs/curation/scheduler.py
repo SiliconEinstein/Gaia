@@ -48,24 +48,15 @@ def _build_factor_graph_from_storage(
     # Add factors
     for fi, factor in enumerate(factors):
         premises_int = [str_to_int[p] for p in factor.premises if p in str_to_int]
-        conclusion_int = str_to_int.get(factor.conclusion)
-
         if not premises_int:
             continue
 
-        edge_type = (factor.metadata or {}).get("edge_type", "deduction")
-
-        if factor.type in ("mutex_constraint", "equiv_constraint"):
-            # Constraint factors: no conclusion in BP
-            graph.add_factor(
-                fi,
-                premises_int,
-                [],
-                0.9,
-                f"relation_{edge_type.split('_')[-1] if 'relation_' in edge_type else edge_type}",
-            )
-        elif conclusion_int is not None:
-            graph.add_factor(fi, premises_int, [conclusion_int], 0.9, edge_type)
+        if factor.type in ("contradiction", "equivalence"):
+            graph.add_factor(fi, premises_int, [], 0.9, factor.type)
+        else:
+            conclusion_int = str_to_int.get(factor.conclusion) if factor.conclusion else None
+            if conclusion_int is not None:
+                graph.add_factor(fi, premises_int, [conclusion_int], 0.9, factor.type)
 
     return graph, str_to_int, int_to_str
 

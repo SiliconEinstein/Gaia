@@ -1,7 +1,7 @@
 [
   {
     "factor_id": "f_0320b5cb81ac929b",
-    "type": "reasoning",
+    "type": "infer",
     "premises": [
       "paper_363056a0/structural_analogy_with_tl_based_copper_oxides",
       "paper_363056a0/previous_record_transition_temperature",
@@ -18,7 +18,7 @@
   },
   {
     "factor_id": "f_96281b6d2385d05a",
-    "type": "reasoning",
+    "type": "infer",
     "premises": [
       "paper_363056a0/sample_preparation",
       "paper_363056a0/eds_composition_analysis",
@@ -37,7 +37,7 @@
   },
   {
     "factor_id": "f_bc04fea739ff61c5",
-    "type": "reasoning",
+    "type": "infer",
     "premises": [
       "paper_363056a0/empirical_trend_in_tl_and_bi_copper_oxides"
     ],
@@ -52,7 +52,7 @@
   },
   {
     "factor_id": "f_fe06e4f77c37f040",
-    "type": "reasoning",
+    "type": "infer",
     "premises": [],
     "contexts": [],
     "conclusion": "paper_363056a0/critical_role_of_oxygen_annealing",

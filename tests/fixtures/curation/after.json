@@ -231,7 +231,7 @@
   "factors": [
     {
       "factor_id": "f_newton",
-      "type": "reasoning",
+      "type": "infer",
       "premises": [
         "gcn_fma_2"
       ],
@@ -245,7 +245,7 @@
     },
     {
       "factor_id": "f_fall",
-      "type": "reasoning",
+      "type": "infer",
       "premises": [
         "gcn_fma_2",
         "gcn_accel"
@@ -260,7 +260,7 @@
     },
     {
       "factor_id": "f_rel",
-      "type": "reasoning",
+      "type": "infer",
       "premises": [
         "gcn_light"
       ],
@@ -274,7 +274,7 @@
     },
     {
       "factor_id": "f_thermo",
-      "type": "reasoning",
+      "type": "infer",
       "premises": [
         "gcn_heat_energy"
       ],
@@ -288,7 +288,7 @@
     },
     {
       "factor_id": "f_qm",
-      "type": "reasoning",
+      "type": "infer",
       "premises": [
         "gcn_quantum"
       ],
@@ -302,7 +302,7 @@
     },
     {
       "factor_id": "f_cur_840b017fb5b7fa74",
-      "type": "equiv_constraint",
+      "type": "equivalence",
       "premises": [
         "gcn_fma_2",
         "gcn_accel"

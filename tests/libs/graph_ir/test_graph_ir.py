@@ -77,7 +77,7 @@ def test_build_raw_graph_has_nodes_and_factors():
     assert len({node.raw_node_id for node in raw_graph.knowledge_nodes}) == len(
         raw_graph.knowledge_nodes
     )
-    assert any(factor.type == "reasoning" for factor in raw_graph.factor_nodes)
+    assert any(factor.type == "infer" for factor in raw_graph.factor_nodes)
 
 
 def test_build_raw_graph_preserves_duplicate_content_as_distinct_occurrences():
@@ -112,7 +112,7 @@ def test_local_parameterization_covers_nodes_and_reasoning_factors():
     reasoning_ids = {
         factor.factor_id
         for factor in canonicalization.local_graph.factor_nodes
-        if factor.type == "reasoning"
+        if factor.type == "infer"
     }
 
     assert parameterization.graph_hash == canonicalization.local_graph.graph_hash()
@@ -124,10 +124,10 @@ def test_equivalence_nary_decomposes_to_pairwise_constraint_factors():
     raw_graph = build_raw_graph(_make_nary_equivalence_package())
 
     pairwise_equiv_factors = [
-        factor for factor in raw_graph.factor_nodes if factor.type == "equiv_constraint"
+        factor for factor in raw_graph.factor_nodes if factor.type == "equivalence"
     ]
     assert len(pairwise_equiv_factors) == 3
-    assert all(len(factor.premises) == 2 for factor in pairwise_equiv_factors)
+    assert all(len(factor.premises) == 3 for factor in pairwise_equiv_factors)  # relation + pair
 
 
 def test_adapter_resolves_unambiguous_short_prefixes():
@@ -167,7 +167,7 @@ def test_adapter_builds_factor_graph_and_bp_runs():
 
     assert len(adapted.factor_graph.variables) == len(canonicalization.local_graph.knowledge_nodes)
     assert len(adapted.factor_graph.factors) == len(canonicalization.local_graph.factor_nodes)
-    assert any("gate_var" in factor for factor in adapted.factor_graph.factors)
+    assert any(factor["edge_type"] == "contradiction" for factor in adapted.factor_graph.factors)
 
     beliefs = BeliefPropagation().run(adapted.factor_graph)
     assert beliefs

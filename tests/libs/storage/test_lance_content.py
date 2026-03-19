@@ -614,7 +614,7 @@ async def test_write_and_list_factors(content_store):
     factors = [
         FactorNode(
             factor_id="pkg.mod.chain1",
-            type="reasoning",
+            type="infer",
             premises=["pkg/k1", "pkg/k2"],
             contexts=["pkg/k3"],
             conclusion="pkg/k4",
@@ -625,7 +625,7 @@ async def test_write_and_list_factors(content_store):
         ),
         FactorNode(
             factor_id="pkg.mutex.1",
-            type="mutex_constraint",
+            type="contradiction",
             premises=["pkg/k1", "pkg/k2"],
             conclusion="pkg/contra1",
             package_id="pkg",
@@ -642,14 +642,14 @@ async def test_get_factors_by_package(content_store):
     factors = [
         FactorNode(
             factor_id="a.mod.chain1",
-            type="reasoning",
+            type="infer",
             premises=["a/k1"],
             conclusion="a/k2",
             package_id="a",
         ),
         FactorNode(
             factor_id="b.mod.chain1",
-            type="reasoning",
+            type="infer",
             premises=["b/k1"],
             conclusion="b/k2",
             package_id="b",

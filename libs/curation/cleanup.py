@@ -178,10 +178,12 @@ def _execute_suggestion(
         constraint_type = (
             "equivalence" if suggestion.operation == "create_equivalence" else "contradiction"
         )
-        factor = create_constraint(
+        factor, relation_node = create_constraint(
             suggestion.target_ids[0], suggestion.target_ids[1], constraint_type
         )
         factors.append(factor)
+        # Add relation node to the nodes dict
+        nodes[relation_node.global_canonical_id] = relation_node
 
         return AuditEntry(
             operation=suggestion.operation,

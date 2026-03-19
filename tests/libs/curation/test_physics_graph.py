@@ -267,17 +267,21 @@ class TestOperations:
 
     def test_create_equivalence_for_heat_thermal(self):
         """Creating equivalence constraint between heat and thermal nodes."""
-        factor = create_constraint(ID_HEAT, ID_THERMAL, "equivalence")
-        assert factor.type == "equiv_constraint"
-        assert set(factor.premises) == {ID_HEAT, ID_THERMAL}
+        factor, relation_node = create_constraint(ID_HEAT, ID_THERMAL, "equivalence")
+        assert factor.type == "equivalence"
+        assert relation_node.global_canonical_id in factor.premises
+        assert ID_HEAT in factor.premises
+        assert ID_THERMAL in factor.premises
+        assert factor.conclusion is None
         assert factor.metadata["curation_created"] is True
-        assert factor.metadata["edge_type"] == "relation_equivalence"
+        assert relation_node.knowledge_type == "equivalence"
 
     def test_create_contradiction_for_gravity_mass(self):
         """Creating explicit contradiction constraint."""
-        factor = create_constraint(ID_GRAVITY, ID_MASS_V, "contradiction")
-        assert factor.type == "mutex_constraint"
-        assert factor.metadata["edge_type"] == "relation_contradiction"
+        factor, relation_node = create_constraint(ID_GRAVITY, ID_MASS_V, "contradiction")
+        assert factor.type == "contradiction"
+        assert factor.conclusion is None
+        assert relation_node.knowledge_type == "contradiction"
 
 
 # ═══════════════════════════════════════════════════════════════════════

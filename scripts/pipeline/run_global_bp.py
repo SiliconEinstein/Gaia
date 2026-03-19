@@ -51,7 +51,7 @@ def _collect_priors(
     # Collect factor conditional_probabilities
     pkg_params_cache: dict[str, LocalParameterization] = {}
     for factor in global_graph.factor_nodes:
-        if factor.type != "reasoning" or factor.source_ref is None:
+        if factor.type not in ("infer", "abstraction") or factor.source_ref is None:
             continue
         pkg_name = factor.source_ref.package
         if pkg_name not in pkg_params_cache:
@@ -108,24 +108,17 @@ def run_global_bp(
 
     for fi, factor in enumerate(global_graph.factor_nodes):
         premises_int = [id_to_int[p] for p in factor.premises if p in id_to_int]
-        conclusion_int = id_to_int.get(factor.conclusion)
-        if conclusion_int is None or not premises_int:
+        if not premises_int:
             continue
 
-        edge_type = (factor.metadata or {}).get("edge_type", "deduction")
         prob = factor_params.get(factor.factor_id, 0.5)
 
-        gate_var = None
-        if factor.type in ("mutex_constraint", "equiv_constraint"):
-            gate_var = conclusion_int
-            edge_type = (
-                "relation_contradiction"
-                if factor.type == "mutex_constraint"
-                else "relation_equivalence"
-            )
-            fg.add_factor(fi, premises_int, [], prob, edge_type, gate_var=gate_var)
+        if factor.type in ("contradiction", "equivalence"):
+            fg.add_factor(fi, premises_int, [], prob, factor.type)
         else:
-            fg.add_factor(fi, premises_int, [conclusion_int], prob, edge_type)
+            conclusion_int = id_to_int.get(factor.conclusion) if factor.conclusion else None
+            if conclusion_int is not None:
+                fg.add_factor(fi, premises_int, [conclusion_int], prob, factor.type)
 
     # Run BP
     bp = BeliefPropagation(damping=damping, max_iterations=max_iter)

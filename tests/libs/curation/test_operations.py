@@ -30,14 +30,14 @@ def test_merge_nodes_combines_members():
     factors = [
         FactorNode(
             factor_id="f_1",
-            type="reasoning",
+            type="infer",
             premises=["gcn_source"],
             conclusion="gcn_other",
             package_id="pkg1",
         ),
         FactorNode(
             factor_id="f_2",
-            type="reasoning",
+            type="infer",
             premises=["gcn_other"],
             conclusion="gcn_target",
             package_id="pkg1",
@@ -72,14 +72,21 @@ def test_merge_nodes_deduplicates_provenance():
 
 def test_create_equivalence_constraint():
     """Create an equivalence factor between two nodes."""
-    factor = create_constraint("gcn_a", "gcn_b", "equivalence")
-    assert factor.type == "equiv_constraint"
-    assert set(factor.premises) == {"gcn_a", "gcn_b"}
+    factor, relation_node = create_constraint("gcn_a", "gcn_b", "equivalence")
+    assert factor.type == "equivalence"
+    assert relation_node.global_canonical_id in factor.premises
+    assert "gcn_a" in factor.premises
+    assert "gcn_b" in factor.premises
+    assert factor.conclusion is None
     assert factor.metadata["curation_created"] is True
+    assert relation_node.knowledge_type == "equivalence"
 
 
 def test_create_contradiction_constraint():
     """Create a contradiction factor between two nodes."""
-    factor = create_constraint("gcn_a", "gcn_b", "contradiction")
-    assert factor.type == "mutex_constraint"
-    assert set(factor.premises) == {"gcn_a", "gcn_b"}
+    factor, relation_node = create_constraint("gcn_a", "gcn_b", "contradiction")
+    assert factor.type == "contradiction"
+    assert relation_node.global_canonical_id in factor.premises
+    assert "gcn_a" in factor.premises
+    assert "gcn_b" in factor.premises
+    assert factor.conclusion is None

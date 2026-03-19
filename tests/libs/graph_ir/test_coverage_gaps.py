@@ -216,7 +216,7 @@ class TestAdapterEdgeCases:
             factor_nodes=[
                 FactorNode(
                     factor_id="f_1",
-                    type="reasoning",
+                    type="infer",
                     premises=["lcn_a"],
                     contexts=[],
                     conclusion="lcn_b",
@@ -240,7 +240,7 @@ class TestAdapterEdgeCases:
             factor_nodes=[
                 FactorNode(
                     factor_id="f_ext",
-                    type="reasoning",
+                    type="infer",
                     premises=["ext:other_pkg.claim"],
                     contexts=[],
                     conclusion="lcn_a",
@@ -256,7 +256,7 @@ class TestAdapterEdgeCases:
         assert len(adapted.factor_graph.factors) == 0
 
     def test_adapter_handles_constraint_factors(self):
-        """Constraint factors (mutex/equiv) should produce gate_var factors."""
+        """Contradiction/equivalence factors should produce no-conclusion factors."""
         nodes = _make_lcg(("lcn_a", "A"), ("lcn_b", "B"), ("lcn_gate", "gate"))
         lcg = LocalCanonicalGraph(
             package="pkg",
@@ -264,11 +264,11 @@ class TestAdapterEdgeCases:
             knowledge_nodes=nodes,
             factor_nodes=[
                 FactorNode(
-                    factor_id="f_mutex",
-                    type="mutex_constraint",
-                    premises=["lcn_a", "lcn_b"],
+                    factor_id="f_contra",
+                    type="contradiction",
+                    premises=["lcn_gate", "lcn_a", "lcn_b"],
                     contexts=[],
-                    conclusion="lcn_gate",
+                    conclusion=None,
                 )
             ],
         )
@@ -280,9 +280,8 @@ class TestAdapterEdgeCases:
         adapted = adapt_local_graph_to_factor_graph(lcg, params)
         assert len(adapted.factor_graph.factors) == 1
         factor = adapted.factor_graph.factors[0]
-        assert factor["edge_type"] == "relation_contradiction"
+        assert factor["edge_type"] == "contradiction"
         assert factor["conclusions"] == []
-        assert "gate_var" in factor
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -335,7 +334,7 @@ class TestBuildEdgeCases:
         )
         pkg = resolve_refs(pkg)
         raw = build_raw_graph(pkg)
-        mutex_factors = [f for f in raw.factor_nodes if f.type == "mutex_constraint"]
+        mutex_factors = [f for f in raw.factor_nodes if f.type == "contradiction"]
         assert len(mutex_factors) == 1
 
     def test_build_with_retraction(self):

@@ -52,29 +52,25 @@ def run_bp_on_package(pkg_dir: Path, damping: float = 0.3, max_iter: int = 100) 
 
     for fi, factor in enumerate(lcg.factor_nodes):
         # Skip factors with ext: cross-package refs (not resolvable in local BP)
-        all_refs = factor.premises + factor.contexts + [factor.conclusion]
+        all_refs = (
+            factor.premises + factor.contexts + ([factor.conclusion] if factor.conclusion else [])
+        )
         if any(r.startswith("ext:") for r in all_refs):
             continue
         premises_int = [id_to_int[p] for p in factor.premises if p in id_to_int]
-        conclusion_int = id_to_int.get(factor.conclusion)
-        if conclusion_int is None or not premises_int:
+        if not premises_int:
             continue
 
-        edge_type = (factor.metadata or {}).get("edge_type", "deduction")
         cp = params.factor_parameters.get(factor.factor_id)
         prob = cp.conditional_probability if cp else 0.5
 
-        gate_var = None
-        if factor.type in ("mutex_constraint", "equiv_constraint"):
-            gate_var = conclusion_int
-            edge_type = (
-                "relation_contradiction"
-                if factor.type == "mutex_constraint"
-                else "relation_equivalence"
-            )
-            fg.add_factor(fi, premises_int, [], prob, edge_type, gate_var=gate_var)
+        if factor.type in ("contradiction", "equivalence"):
+            # No conclusion, relation node already in premises
+            fg.add_factor(fi, premises_int, [], prob, factor.type)
         else:
-            fg.add_factor(fi, premises_int, [conclusion_int], prob, edge_type)
+            conclusion_int = id_to_int.get(factor.conclusion) if factor.conclusion else None
+            if conclusion_int is not None:
+                fg.add_factor(fi, premises_int, [conclusion_int], prob, factor.type)
 
     # Run BP
     bp = BeliefPropagation(damping=damping, max_iterations=max_iter)

@@ -44,7 +44,7 @@ def _local_params(nodes, factors=None):
     priors = {n.local_canonical_id: 0.5 for n in nodes}
     fparams = {}
     for f in factors or []:
-        if f.type == "reasoning":
+        if f.type == "infer":
             fparams[f.factor_id] = FactorParams(conditional_probability=0.9)
     return LocalParameterization(
         graph_hash="sha256:test", node_priors=priors, factor_parameters=fparams
@@ -161,7 +161,7 @@ class TestFactorIntegration:
         ]
         factor = FactorNode(
             factor_id="f_test",
-            type="reasoning",
+            type="infer",
             premises=["lcn_p"],
             conclusion="lcn_c",
             metadata={"edge_type": "deduction"},
@@ -195,7 +195,7 @@ class TestFactorIntegration:
         nodes = [_lcn("lcn_local", "Local claim from B", pkg="pkg_b")]
         factor = FactorNode(
             factor_id="f_cross",
-            type="equiv_constraint",
+            type="equivalence",
             premises=["lcn_local", "ext:pkg_a.target_claim"],
             conclusion="lcn_local",  # simplified
             metadata={"edge_type": "relation_equivalence"},
@@ -216,7 +216,7 @@ class TestFactorIntegration:
         nodes = [_lcn("lcn_local", "Local claim")]
         factor = FactorNode(
             factor_id="f_broken",
-            type="reasoning",
+            type="infer",
             premises=["lcn_local", "ext:unknown_pkg.missing_node"],
             conclusion="lcn_local",
             metadata={"edge_type": "deduction"},
@@ -238,7 +238,7 @@ class TestFactorIntegration:
         # Factor with an ext: context — should still generate even if context unresolved
         factor = FactorNode(
             factor_id="f_ctx",
-            type="reasoning",
+            type="infer",
             premises=["lcn_p"],
             contexts=["ext:other_pkg.optional_context"],
             conclusion="lcn_c",
@@ -270,7 +270,7 @@ class TestFactorIntegration:
             # Fully local — should resolve
             FactorNode(
                 factor_id="f_local",
-                type="reasoning",
+                type="infer",
                 premises=["lcn_a"],
                 conclusion="lcn_b",
                 metadata={"edge_type": "deduction"},
@@ -278,7 +278,7 @@ class TestFactorIntegration:
             # Cross-package resolvable — should resolve
             FactorNode(
                 factor_id="f_cross_ok",
-                type="reasoning",
+                type="infer",
                 premises=["lcn_a", "ext:ext_pkg.ext_claim"],
                 conclusion="lcn_b",
                 metadata={"edge_type": "deduction"},
@@ -286,7 +286,7 @@ class TestFactorIntegration:
             # Cross-package unresolvable — should fail
             FactorNode(
                 factor_id="f_cross_fail",
-                type="reasoning",
+                type="infer",
                 premises=["lcn_a", "ext:missing.node"],
                 conclusion="lcn_b",
                 metadata={"edge_type": "deduction"},

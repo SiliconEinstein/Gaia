@@ -69,16 +69,12 @@ class GaiaRuntime:
         for j, factor in enumerate(compiled_fg.factors):
             premise_ids = [name_to_id[n] for n in factor["premises"] if n in name_to_id]
             conclusion_ids = [name_to_id[n] for n in factor["conclusions"] if n in name_to_id]
-            gate_var_id = None
-            if factor.get("gate_var") in name_to_id:
-                gate_var_id = name_to_id[factor["gate_var"]]
             bp_fg.add_factor(
                 edge_id=j + 1,
                 premises=premise_ids,
                 conclusions=conclusion_ids,
                 probability=factor["probability"],
-                edge_type=factor.get("edge_type", "deduction"),
-                gate_var=gate_var_id,
+                edge_type=factor.get("edge_type", "infer"),
             )
 
         # Run BP

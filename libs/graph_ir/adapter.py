@@ -39,15 +39,15 @@ def adapt_local_graph_to_factor_graph(
 
     for factor_index, factor in enumerate(local_graph.factor_nodes, start=1):
         # Skip factors with ext: cross-package refs — not resolvable in local BP
+        conclusion_refs = [factor.conclusion] if factor.conclusion else []
         has_ext = any(
-            ref.startswith("ext:")
-            for ref in factor.premises + factor.contexts + [factor.conclusion]
+            ref.startswith("ext:") for ref in factor.premises + factor.contexts + conclusion_refs
         )
         if has_ext:
             continue
         premise_ids = [local_id_to_var_id[node_id] for node_id in factor.premises]
 
-        if factor.type == "reasoning":
+        if factor.type in ("infer", "abstraction"):
             params = parameterization.factor_parameters.get(factor.factor_id)
             if params is None:
                 raise ValueError(f"Missing factor parameters for {factor.factor_id}")
@@ -56,29 +56,25 @@ def adapt_local_graph_to_factor_graph(
                 premises=premise_ids,
                 conclusions=[local_id_to_var_id[factor.conclusion]],
                 probability=params.conditional_probability,
-                edge_type=(factor.metadata or {}).get("edge_type", "deduction"),
+                edge_type=factor.type,
             )
-            continue
-
-        gate_var = local_id_to_var_id[factor.conclusion]
-        gate_prior = parameterization.node_priors.get(factor.conclusion)
-        if gate_prior is None:
-            raise ValueError(f"Missing gate-node prior for {factor.conclusion}")
-        edge_type = {
-            "mutex_constraint": "relation_contradiction",
-            "equiv_constraint": "relation_equivalence",
-            "instantiation": "deduction",
-        }.get(factor.type, "deduction")
-        factor_graph.add_factor(
-            edge_id=factor_index,
-            premises=premise_ids,
-            conclusions=[]
-            if factor.type != "instantiation"
-            else [local_id_to_var_id[factor.conclusion]],
-            probability=gate_prior if factor.type != "instantiation" else 1.0,
-            edge_type=edge_type,
-            gate_var=None if factor.type == "instantiation" else gate_var,
-        )
+        elif factor.type == "instantiation":
+            factor_graph.add_factor(
+                edge_id=factor_index,
+                premises=premise_ids,
+                conclusions=[local_id_to_var_id[factor.conclusion]],
+                probability=1.0,
+                edge_type=factor.type,
+            )
+        elif factor.type in ("contradiction", "equivalence"):
+            # Relation node is already in premises[0], no conclusion
+            factor_graph.add_factor(
+                edge_id=factor_index,
+                premises=premise_ids,
+                conclusions=[],
+                probability=1.0,
+                edge_type=factor.type,
+            )
 
     return AdaptedLocalInferenceGraph(
         factor_graph=factor_graph,

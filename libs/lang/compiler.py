@@ -29,7 +29,7 @@ class CompiledFactorGraph:
     """Factor graph built from Gaia Language package structure.
 
     variables: name -> prior
-    factors: list of {name, premises: [name], conclusions: [name], probability, gate_var?}
+    factors: list of {name, premises: [name], conclusions: [name], probability}
     """
 
     variables: dict[str, float] = field(default_factory=dict)
@@ -139,7 +139,7 @@ def _compile_chain(
                         "premises": premises,
                         "conclusions": conclusions,
                         "probability": probability,
-                        "edge_type": chain.edge_type or "deduction",
+                        "edge_type": chain.edge_type or "infer",
                     }
                 )
 
@@ -167,14 +167,8 @@ def _compile_relation(
     if len(related_vars) < 2:
         return
 
-    edge_type = f"relation_{rel.type}"
+    edge_type = rel.type
     prob = rel.prior if rel.prior is not None else 0.5
-
-    # Relation variable is NOT included in the constraint factor.
-    # Instead, the factor stores a read-only gate_var reference so BP can use the
-    # Relation's current belief as the effective constraint strength without sending
-    # messages back into the gate.
-    # probability stores the initial / fallback strength (the Relation prior).
 
     if isinstance(rel, Equivalence) and len(related_vars) > 2:
         # Decompose n-ary equivalence into pairwise constraints.
@@ -183,21 +177,19 @@ def _compile_relation(
             fg.factors.append(
                 {
                     "name": f"{var_name}.constraint.{i}",
-                    "premises": [v1, v2],
+                    "premises": [var_name, v1, v2],
                     "conclusions": [],
                     "probability": prob,
                     "edge_type": edge_type,
-                    "gate_var": var_name,
                 }
             )
     else:
         fg.factors.append(
             {
                 "name": f"{var_name}.constraint",
-                "premises": related_vars,
+                "premises": [var_name] + related_vars,
                 "conclusions": [],
                 "probability": prob,
                 "edge_type": edge_type,
-                "gate_var": var_name,
             }
         )

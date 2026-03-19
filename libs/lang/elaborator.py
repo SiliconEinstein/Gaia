@@ -89,7 +89,7 @@ def _build_chain_context(chain: ChainExpr, decls: dict[str, Knowledge]) -> dict:
             conclusion_refs.append(ref_info)
 
     return {
-        "edge_type": chain.edge_type or "deduction",
+        "edge_type": chain.edge_type or "infer",
         "premise_refs": premise_refs,
         "conclusion_refs": conclusion_refs,
     }

@@ -68,7 +68,7 @@ _SCHEMA_STATEMENTS = [
     ),
     (
         "CREATE NODE TABLE IF NOT EXISTS Factor("
-        "factor_id STRING, type STRING, is_gate BOOLEAN, "
+        "factor_id STRING, type STRING, "
         "PRIMARY KEY(factor_id))"
     ),
     "CREATE REL TABLE IF NOT EXISTS FACTOR_PREMISE(FROM Knowledge TO Factor)",
@@ -326,8 +326,8 @@ class KuzuGraphStore(GraphStore):
         for f in factors:
             # MERGE Factor node
             c.execute(
-                "MERGE (n:Factor {factor_id: $fid}) SET n.type = $type, n.is_gate = $gate",
-                {"fid": f.factor_id, "type": f.type, "gate": f.is_gate_factor},
+                "MERGE (n:Factor {factor_id: $fid}) SET n.type = $type",
+                {"fid": f.factor_id, "type": f.type},
             )
             # Premises
             for premise_id in f.premises:
@@ -372,26 +372,27 @@ class KuzuGraphStore(GraphStore):
                         {"kid": context_id, "fid": f.factor_id},
                     )
             # Conclusion
-            conc_id = f.conclusion
-            c.execute(
-                "MERGE (n:Knowledge {knowledge_vid: $vid}) "
-                "ON CREATE SET n.knowledge_id = $vid, n.version = 1, "
-                "n.type = 'claim', n.prior = 0.5, n.belief = 0.5",
-                {"vid": conc_id},
-            )
-            check = c.execute(
-                "MATCH (f:Factor {factor_id: $fid})"
-                "-[r:FACTOR_CONCLUSION]->"
-                "(k:Knowledge {knowledge_vid: $kid}) RETURN COUNT(r)",
-                {"fid": f.factor_id, "kid": conc_id},
-            )
-            if check.get_next()[0] == 0:
+            if f.conclusion is not None:
+                conc_id = f.conclusion
                 c.execute(
-                    "MATCH (f:Factor {factor_id: $fid}), "
-                    "(k:Knowledge {knowledge_vid: $kid}) "
-                    "CREATE (f)-[:FACTOR_CONCLUSION]->(k)",
+                    "MERGE (n:Knowledge {knowledge_vid: $vid}) "
+                    "ON CREATE SET n.knowledge_id = $vid, n.version = 1, "
+                    "n.type = 'claim', n.prior = 0.5, n.belief = 0.5",
+                    {"vid": conc_id},
+                )
+                check = c.execute(
+                    "MATCH (f:Factor {factor_id: $fid})"
+                    "-[r:FACTOR_CONCLUSION]->"
+                    "(k:Knowledge {knowledge_vid: $kid}) RETURN COUNT(r)",
                     {"fid": f.factor_id, "kid": conc_id},
                 )
+                if check.get_next()[0] == 0:
+                    c.execute(
+                        "MATCH (f:Factor {factor_id: $fid}), "
+                        "(k:Knowledge {knowledge_vid: $kid}) "
+                        "CREATE (f)-[:FACTOR_CONCLUSION]->(k)",
+                        {"fid": f.factor_id, "kid": conc_id},
+                    )
 
     async def write_global_topology(
         self,

@@ -315,10 +315,10 @@ class TestKnowledgeExtensions:
 
 
 class TestFactorNode:
-    def test_factor_node_reasoning(self):
+    def test_factor_node_infer(self):
         f = FactorNode(
             factor_id="pkg.mod.chain1",
-            type="reasoning",
+            type="infer",
             premises=["pkg/k1", "pkg/k2"],
             contexts=["pkg/k3"],
             conclusion="pkg/k4",
@@ -327,30 +327,32 @@ class TestFactorNode:
                 package="pkg", version="1.0.0", module="pkg.mod", knowledge_name="k4"
             ),
         )
-        assert f.type == "reasoning"
-        assert f.is_gate_factor is False
+        assert f.type == "infer"
+        assert f.is_constraint is False
         assert set(f.bp_participant_ids) == {"pkg/k1", "pkg/k2", "pkg/k4"}
 
-    def test_factor_node_mutex_constraint(self):
+    def test_factor_node_contradiction(self):
         f = FactorNode(
             factor_id="pkg.mutex.1",
-            type="mutex_constraint",
-            premises=["pkg/k1", "pkg/k2"],
-            conclusion="pkg/contra1",
+            type="contradiction",
+            premises=["pkg/rel1", "pkg/k1", "pkg/k2"],
+            conclusion=None,
             package_id="pkg",
         )
-        assert f.is_gate_factor is True
-        assert f.bp_participant_ids == ["pkg/k1", "pkg/k2"]
+        assert f.is_constraint is True
+        assert f.conclusion is None
+        assert f.bp_participant_ids == ["pkg/rel1", "pkg/k1", "pkg/k2"]
 
-    def test_factor_node_equiv_constraint(self):
+    def test_factor_node_equivalence(self):
         f = FactorNode(
             factor_id="pkg.equiv.1",
-            type="equiv_constraint",
-            premises=["pkg/k1", "pkg/k2"],
-            conclusion="pkg/equiv1",
+            type="equivalence",
+            premises=["pkg/rel1", "pkg/k1", "pkg/k2"],
+            conclusion=None,
             package_id="pkg",
         )
-        assert f.is_gate_factor is True
+        assert f.is_constraint is True
+        assert f.conclusion is None
 
     def test_factor_node_instantiation(self):
         f = FactorNode(
@@ -360,7 +362,7 @@ class TestFactorNode:
             conclusion="pkg/ground1",
             package_id="pkg",
         )
-        assert f.is_gate_factor is False
+        assert f.is_constraint is False
         assert set(f.bp_participant_ids) == {"pkg/schema1", "pkg/ground1"}
 
 

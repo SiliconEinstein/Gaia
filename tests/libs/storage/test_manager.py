@@ -421,7 +421,7 @@ class TestLoadGlobalFactorGraph:
         factors = [
             FactorNode(
                 factor_id="pkg.f1",
-                type="reasoning",
+                type="infer",
                 premises=["pkg/k1"],
                 conclusion="pkg/k1",
                 package_id="pkg",

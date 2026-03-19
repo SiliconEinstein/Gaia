@@ -102,10 +102,10 @@ def test_chain_context_edge_type():
     pkg = resolve_refs(pkg)
     result = elaborate_package(pkg)
     ctx = result.chain_contexts["contradiction_chain"]
-    assert ctx["edge_type"] == "deduction"
+    assert ctx["edge_type"] == "infer"
     # drag_prediction_chain should also default to 'deduction'
     ctx_drag = result.chain_contexts["drag_prediction_chain"]
-    assert ctx_drag["edge_type"] == "deduction"
+    assert ctx_drag["edge_type"] == "infer"
 
 
 def test_chain_context_premise_and_conclusion():

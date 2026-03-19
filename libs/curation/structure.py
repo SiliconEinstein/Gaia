@@ -39,7 +39,7 @@ def inspect_structure(
     adjacency: dict[str, set[str]] = defaultdict(set)
 
     for factor in factors:
-        all_refs = list(factor.premises) + [factor.conclusion]
+        all_refs = list(factor.premises) + ([factor.conclusion] if factor.conclusion else [])
 
         # Check for dangling references
         dangling = [ref for ref in all_refs if ref not in node_ids]

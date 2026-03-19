@@ -22,7 +22,7 @@ def test_orphan_node_detected():
     factors = [
         FactorNode(
             factor_id="f_1",
-            type="reasoning",
+            type="infer",
             premises=["gcn_a"],
             conclusion="gcn_b",
             package_id="pkg1",
@@ -40,7 +40,7 @@ def test_dangling_factor_detected():
     factors = [
         FactorNode(
             factor_id="f_1",
-            type="reasoning",
+            type="infer",
             premises=["gcn_a"],
             conclusion="gcn_deleted",  # does not exist
             package_id="pkg1",
@@ -59,7 +59,7 @@ def test_high_degree_detected():
     factors = [
         FactorNode(
             factor_id=f"f_{i}",
-            type="reasoning",
+            type="infer",
             premises=["gcn_hub"],
             conclusion=f"gcn_{i}",
             package_id="pkg1",
@@ -78,7 +78,7 @@ def test_clean_graph_no_issues():
     factors = [
         FactorNode(
             factor_id="f_1",
-            type="reasoning",
+            type="infer",
             premises=["gcn_a"],
             conclusion="gcn_b",
             package_id="pkg1",
@@ -101,14 +101,14 @@ def test_disconnected_components():
     factors = [
         FactorNode(
             factor_id="f_1",
-            type="reasoning",
+            type="infer",
             premises=["gcn_a"],
             conclusion="gcn_b",
             package_id="pkg1",
         ),
         FactorNode(
             factor_id="f_2",
-            type="reasoning",
+            type="infer",
             premises=["gcn_c"],
             conclusion="gcn_d",
             package_id="pkg1",

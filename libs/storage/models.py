@@ -151,23 +151,23 @@ class FactorNode(BaseModel):
     """Persistent factor from Graph IR. Defines a constraint between knowledge nodes."""
 
     factor_id: str
-    type: Literal["reasoning", "instantiation", "mutex_constraint", "equiv_constraint"]
+    type: Literal["infer", "instantiation", "abstraction", "contradiction", "equivalence"]
     premises: list[str] = []
     contexts: list[str] = []
-    conclusion: str
+    conclusion: str | None = None
     package_id: str
     source_ref: SourceRef | None = None
     metadata: dict | None = None
 
     @property
-    def is_gate_factor(self) -> bool:
-        """True for constraint factors (mutex/equiv) where conclusion is gate variable."""
-        return self.type in ("mutex_constraint", "equiv_constraint")
+    def is_constraint(self) -> bool:
+        """True for constraint factors (contradiction/equivalence) with no conclusion."""
+        return self.type in ("contradiction", "equivalence")
 
     @property
     def bp_participant_ids(self) -> list[str]:
         """Knowledge IDs that participate in BP message passing."""
-        if self.is_gate_factor:
+        if self.conclusion is None:
             return list(self.premises)
         return list(self.premises) + [self.conclusion]
 
@@ -332,12 +332,12 @@ def factors_from_chains(chains: list[Chain], package_id: str) -> list[FactorNode
         factors.append(
             FactorNode(
                 factor_id=factor_id,
-                type="reasoning",
+                type="infer",
                 premises=premises,
                 contexts=[],
                 conclusion=conclusion,
                 package_id=package_id,
-                metadata={"edge_type": chain.type, "derived_from": "chain"},
+                metadata={"derived_from": "chain"},
             )
         )
     return factors
