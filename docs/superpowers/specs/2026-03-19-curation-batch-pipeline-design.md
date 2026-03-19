@@ -97,7 +97,39 @@ await storage.write_factors(mutable_factors)        # 全量写
 
 每个 barrier 的含义：下一步需要读到前一步产出的**全部**数据。例如 Analysis 需要遍历完整的 abstraction tree，如果 Abstraction 只做了一半就开始 Analysis，会漏掉后一半的 schema node。
 
-## 4. 核心抽象
+## 4. 术语
+
+本文档中几个容易混淆的概念：
+
+| 术语 | 含义 | 解决什么问题 |
+|------|------|-------------|
+| **batch** | 一次从 DB 加载 N 个 work item 到内存处理，处理完写回 DB + 记 checkpoint | **内存**（不一次加载 50 万 cluster）和**容错**（崩溃后从上一个 batch 续跑） |
+| **workers (semaphore)** | 一个 batch 内同时发出的 LLM 并发请求数 | **速度**（不串行等 LLM 响应） |
+| **step** | Pipeline 中一个完整阶段（如 Abstraction、Conflict Detection） | **逻辑分层**，step 之间有依赖 |
+| **barrier** | 上一步全部 batch 完成后，下一步才能开始 | **数据完整性**（Analysis 需要完整 abstraction tree） |
+| **checkpoint** | 记录一个 step 中哪些 work item 已完成 | **断点续跑**（崩溃后跳过已完成的 batch） |
+| **changeset** | 一个 batch 产出的增量改动（新增/修改/删除的 node 和 factor） | **增量写入**（不全量重写 DB） |
+
+**batch 和 workers 的关系**：
+
+```
+Batch 1 (1000 clusters 加载到内存):
+  ├─ worker 1: cluster_001 → LLM call ─┐
+  ├─ worker 2: cluster_002 → LLM call  │ 同时进行
+  ├─ ...                                │ (semaphore 控制并发数)
+  └─ worker 10: cluster_010 → LLM call ┘
+  (cluster_011 等 worker 空出来再发)
+  ... 1000 个 cluster 全部完成
+  → apply_changeset(增量写 DB)
+  → record_checkpoint(记录这 1000 个 cluster 已完成)
+
+Batch 2 (下一批 1000 clusters):
+  ...
+```
+
+两个维度正交：batch_size 控制内存占用和 checkpoint 粒度，workers 控制 LLM 吞吐。瓶颈通常在 LLM API rate limit，调大 workers 到 rate limit 的 80% 即可，batch 之间串行不影响速度。
+
+## 5. 核心抽象
 
 ### 4.1 CurationChangeSet
 
@@ -232,7 +264,7 @@ class PipelineRunner:
 
 **为什么 in_progress 时重新查 DB 是安全的**：步骤间有 barrier，in_progress 期间前置步骤已 completed，不会再改数据，`list_work_items()` 每次查询结果一致。
 
-## 5. 各步骤的 Batch 策略
+## 6. 各步骤的 Batch 策略
 
 ### 5.1 Clustering
 
@@ -277,7 +309,7 @@ class PipelineRunner:
 - **Batch size**：1000 suggestions
 - **操作**：执行 merge / create_constraint / archive 等 → ChangeSet
 
-## 6. 与原仓库 (propositional_logic_analysis) 的对比
+## 7. 与原仓库 (propositional_logic_analysis) 的对比
 
 | 维度 | 原仓库 | Gaia |
 |------|--------|------|
@@ -300,7 +332,7 @@ class PipelineRunner:
 2. **Shell 脚本编排** — Gaia 用 Python 内部编排，类型安全
 3. **Graph JSON 全量快照** — Gaia 的 DB 就是状态，不需要额外快照
 
-## 7. 需要新增/修改的 Storage 接口
+## 8. 需要新增/修改的 Storage 接口
 
 | 方法 | 位置 | 说明 |
 |------|------|------|
@@ -315,7 +347,7 @@ class PipelineRunner:
 | `write_checkpoint(checkpoint)` | ContentStore | 写 step checkpoint |
 | `read_checkpoint(step_name)` | ContentStore | 读 step checkpoint |
 
-## 8. V1 范围
+## 9. V1 范围
 
 | 功能 | V1 | 后续 |
 |------|:---:|:---:|
@@ -331,7 +363,7 @@ class PipelineRunner:
 | Clustering 分片构建 | | ✓（先用全量） |
 | 增量 BP | | ✓ |
 
-## 9. 不在此次范围
+## 10. 不在此次范围
 
 - Clustering 的分片 FAISS index 构建（大规模优化）
 - 增量 BP（只传播受影响区域）
