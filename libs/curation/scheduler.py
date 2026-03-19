@@ -13,8 +13,8 @@ from libs.inference.bp import BeliefPropagation
 from libs.inference.factor_graph import FactorGraph
 
 from .audit import AuditLog
-from .classification import classify_clusters
 from .cleanup import execute_cleanup, generate_cleanup_plan
+from .dedup import deduplicate_by_hash
 from .clustering import cluster_similar_nodes
 from .conflict import detect_conflicts_level1, detect_conflicts_level2
 from .abstraction import AbstractionAgent
@@ -118,16 +118,32 @@ async def run_curation(
     logger.info("Loaded %d global nodes and %d factors", len(all_nodes), len(all_factors))
 
     # Step 2: Cluster similar nodes
+    # Exclude schema nodes (already abstractions) from clustering
+    clusterable_nodes = [n for n in all_nodes if n.kind != "schema"]
+    # Exclude pairs already connected by factors (instantiation, reasoning, etc.)
+    connected_pairs: set[tuple[str, str]] = set()
+    for f in all_factors:
+        for p in f.premises:
+            if f.conclusion:
+                pair = (min(p, f.conclusion), max(p, f.conclusion))
+                connected_pairs.add(pair)
+    logger.info(
+        "Clustering: %d nodes (excluded %d schema), %d connected pairs excluded",
+        len(clusterable_nodes),
+        len(all_nodes) - len(clusterable_nodes),
+        len(connected_pairs),
+    )
     clusters = await cluster_similar_nodes(
-        all_nodes,
+        clusterable_nodes,
         threshold=similarity_threshold,
         embedding_model=embedding_model,
+        exclude_pairs=connected_pairs,
     )
     logger.info("Found %d clusters", len(clusters))
 
-    # Step 3: Classify clusters
-    cluster_suggestions = classify_clusters(clusters, node_map)
-    logger.info("Generated %d cluster suggestions", len(cluster_suggestions))
+    # Step 3: Deduplicate by content hash
+    all_suggestions = deduplicate_by_hash(node_map)
+    logger.info("Found %d duplicate groups to merge", len(all_suggestions))
 
     # Step 3b: Abstraction
     mutable_factors = list(all_factors)
@@ -140,7 +156,7 @@ async def run_curation(
         for node in abs_result.new_nodes:
             node_map[node.global_canonical_id] = node
         mutable_factors.extend(abs_result.new_factors)
-        cluster_suggestions.extend(abs_result.suggestions)
+        all_suggestions.extend(abs_result.suggestions)
         logger.info(
             "Abstraction: %d new nodes, %d new factors, %d contradictions",
             len(abs_result.new_nodes),
@@ -198,7 +214,7 @@ async def run_curation(
     )
 
     # Step 6: Generate and execute cleanup plan
-    plan = generate_cleanup_plan(cluster_suggestions, conflict_candidates, structure_report)
+    plan = generate_cleanup_plan(all_suggestions, conflict_candidates, structure_report)
     logger.info(
         "Plan: %d auto-approve, %d needs review, %d discard",
         len(plan.auto_approve),

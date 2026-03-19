@@ -74,13 +74,13 @@ class CurationReviewer:
 
     async def _review_llm(self, suggestion: CurationSuggestion) -> Decision:
         """Call LLM to review a suggestion."""
-        import litellm
+        from libs.llm import llm_completion
 
         user_msg = self._build_user_message(suggestion)
         if user_msg is None:
             return self._review_rules(suggestion)
 
-        response = await litellm.acompletion(
+        response = await llm_completion(
             model=self._model,
             messages=[
                 {"role": "system", "content": self._system_prompt},

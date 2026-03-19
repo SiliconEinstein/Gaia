@@ -99,6 +99,7 @@ async def cluster_similar_nodes(
     nodes: list[GlobalCanonicalNode],
     threshold: float = 0.90,
     embedding_model: EmbeddingModel | None = None,
+    exclude_pairs: set[tuple[str, str]] | None = None,
 ) -> list[ClusterGroup]:
     """Find clusters of similar nodes via dual-recall: embedding + TF-IDF.
 
@@ -109,10 +110,17 @@ async def cluster_similar_nodes(
         nodes: All GlobalCanonicalNodes to compare.
         threshold: Minimum similarity to consider a pair.
         embedding_model: For embedding computation. TF-IDF always runs as secondary.
+        exclude_pairs: Set of (id_a, id_b) pairs to exclude (already connected by factors).
+            Pairs are normalized so (a,b) and (b,a) are both checked.
 
     Returns:
         List of ClusterGroups, each containing ≥2 similar nodes.
     """
+    _exclude = exclude_pairs or set()
+
+    def _is_excluded(id_a: str, id_b: str) -> bool:
+        return (min(id_a, id_b), max(id_a, id_b)) in _exclude
+
     if len(nodes) < 2:
         return []
 
@@ -134,9 +142,13 @@ async def cluster_similar_nodes(
             for j in range(i + 1, len(nodes)):
                 if nodes[i].knowledge_type != nodes[j].knowledge_type:
                     continue
+                id_a = nodes[i].global_canonical_id
+                id_b = nodes[j].global_canonical_id
+                if _is_excluded(id_a, id_b):
+                    continue
                 score = float(sim_matrix[i, j])
                 if score >= threshold:
-                    key = (nodes[i].global_canonical_id, nodes[j].global_canonical_id)
+                    key = (id_a, id_b)
                     emb_pairs[key] = SimilarityPair(
                         node_a_id=key[0],
                         node_b_id=key[1],
@@ -149,12 +161,16 @@ async def cluster_similar_nodes(
         for j in range(i + 1, len(nodes)):
             if nodes[i].knowledge_type != nodes[j].knowledge_type:
                 continue
+            id_a = nodes[i].global_canonical_id
+            id_b = nodes[j].global_canonical_id
+            if _is_excluded(id_a, id_b):
+                continue
             score = compute_similarity_tfidf(
                 nodes[i].representative_content,
                 nodes[j].representative_content,
             )
             if score >= threshold:
-                key = (nodes[i].global_canonical_id, nodes[j].global_canonical_id)
+                key = (id_a, id_b)
                 tfidf_pairs[key] = SimilarityPair(
                     node_a_id=key[0],
                     node_b_id=key[1],

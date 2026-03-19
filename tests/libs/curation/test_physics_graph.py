@@ -14,8 +14,8 @@ The fixture (conftest.py) builds a graph with:
 """
 
 from libs.curation.audit import AuditLog
-from libs.curation.classification import classify_clusters
 from libs.curation.cleanup import execute_cleanup, generate_cleanup_plan
+from libs.curation.dedup import deduplicate_by_hash
 from libs.curation.clustering import cluster_similar_nodes
 from libs.curation.conflict import detect_conflicts_level2
 from libs.curation.models import CurationResult
@@ -84,53 +84,33 @@ class TestClustering:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 2. CLASSIFICATION — merge vs equivalence
+# 2. DEDUP — content hash exact match
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class TestClassification:
-    def test_high_similarity_classified_as_merge(self, physics_node_map):
-        """A pair with cosine > 0.95 and similar length → merge."""
-        from libs.curation.models import ClusterGroup, SimilarityPair
+class TestDedup:
+    def test_no_duplicates_in_physics_graph(self, physics_node_map):
+        """Physics fixture has no exact content duplicates → no dedup suggestions."""
+        suggestions = deduplicate_by_hash(physics_node_map)
+        assert len(suggestions) == 0
 
-        cluster = ClusterGroup(
-            cluster_id="test",
-            node_ids=[ID_FMA_1, ID_FMA_2],
-            pairs=[
-                SimilarityPair(
-                    node_a_id=ID_FMA_1,
-                    node_b_id=ID_FMA_2,
-                    similarity_score=0.97,
-                    method="embedding",
-                )
-            ],
+    def test_exact_duplicate_produces_merge(self, physics_node_map):
+        """Adding an exact content duplicate → merge suggestion with confidence=1.0."""
+        from libs.global_graph.models import GlobalCanonicalNode
+
+        # Add a node with content identical to fma_1
+        dup_node = GlobalCanonicalNode(
+            global_canonical_id="gcn_fma_dup",
+            knowledge_type="claim",
+            representative_content=physics_node_map[ID_FMA_1].representative_content,
         )
-        suggestions = classify_clusters([cluster], physics_node_map)
+        extended = {**physics_node_map, "gcn_fma_dup": dup_node}
+        suggestions = deduplicate_by_hash(extended)
         assert len(suggestions) == 1
         assert suggestions[0].operation == "merge"
-        assert suggestions[0].confidence >= 0.95
-
-    def test_medium_similarity_classified_as_equivalence(self, physics_node_map):
-        """A pair with cosine ~0.85 → create_equivalence."""
-        from libs.curation.models import ClusterGroup, SimilarityPair
-
-        cluster = ClusterGroup(
-            cluster_id="test",
-            node_ids=[ID_HEAT, ID_THERMAL],
-            pairs=[
-                SimilarityPair(
-                    node_a_id=ID_HEAT,
-                    node_b_id=ID_THERMAL,
-                    similarity_score=0.85,
-                    method="embedding",
-                )
-            ],
-        )
-        suggestions = classify_clusters([cluster], physics_node_map)
-        assert len(suggestions) == 1
-        assert suggestions[0].operation == "create_equivalence"
-        # Confidence should be < 0.95 (discounted)
-        assert suggestions[0].confidence < 0.95
+        assert suggestions[0].confidence == 1.0
+        assert ID_FMA_1 in suggestions[0].target_ids
+        assert "gcn_fma_dup" in suggestions[0].target_ids
 
 
 # ═══════════════════════════════════════════════════════════════════════

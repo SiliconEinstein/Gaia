@@ -20,7 +20,7 @@ from .models import (
     CurationSuggestion,
     StructureReport,
 )
-from .operations import create_constraint, merge_nodes
+from .operations import create_abstraction, create_constraint, merge_nodes
 from .reviewer import CurationReviewer
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ def generate_cleanup_plan(
     """Combine all analysis outputs into a unified CurationPlan.
 
     Args:
-        cluster_suggestions: From classification step (merge/equivalence).
+        cluster_suggestions: From dedup + abstraction steps.
         conflict_candidates: From conflict discovery (Level 1 + 2).
         structure_report: From structure inspection.
 
@@ -190,6 +190,31 @@ def _execute_suggestion(
             rollback_data={"created_factor_id": factor.factor_id},
         )
 
+    if suggestion.operation == "create_abstraction":
+        if len(suggestion.target_ids) < 2:
+            return None
+        abstraction_content = suggestion.evidence.get("abstraction", "")
+        if not abstraction_content:
+            return None
+        result = create_abstraction(
+            abstraction_content=abstraction_content,
+            member_ids=suggestion.target_ids,
+            reason=suggestion.reason,
+        )
+        # Add schema node and instantiation factors
+        nodes[result.schema_node.global_canonical_id] = result.schema_node
+        factors.extend(result.instantiation_factors)
+
+        return AuditEntry(
+            operation="create_abstraction",
+            target_ids=list(suggestion.target_ids),
+            suggestion_id=suggestion.suggestion_id,
+            rollback_data={
+                "schema_node_id": result.schema_node.global_canonical_id,
+                "factor_ids": [f.factor_id for f in result.instantiation_factors],
+            },
+        )
+
     if suggestion.operation == "fix_dangling_factor":
         # Remove dangling factors
         removed_ids = set(suggestion.target_ids)
@@ -201,6 +226,24 @@ def _execute_suggestion(
             target_ids=list(suggestion.target_ids),
             suggestion_id=suggestion.suggestion_id,
             rollback_data={"removed_factors": original_factors},
+        )
+
+    if suggestion.operation == "archive_orphan":
+        # Remove orphan nodes from the graph
+        removed_nodes = {}
+        for nid in suggestion.target_ids:
+            node = nodes.pop(nid, None)
+            if node:
+                removed_nodes[nid] = node.model_dump()
+
+        if not removed_nodes:
+            return None
+
+        return AuditEntry(
+            operation="archive_orphan",
+            target_ids=list(suggestion.target_ids),
+            suggestion_id=suggestion.suggestion_id,
+            rollback_data={"removed_nodes": removed_nodes},
         )
 
     logger.warning("Unknown operation: %s", suggestion.operation)
