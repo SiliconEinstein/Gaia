@@ -30,8 +30,8 @@ def compile_typst_to_raw_graph(graph_data: dict) -> RawGraph:
     Returns:
         A RawGraph with deterministic node/factor IDs and source refs.
     """
-    package = graph_data.get("package", "unknown")
-    version = graph_data.get("version", "0.0.0")
+    package = graph_data.get("package") or "unknown"
+    version = graph_data.get("version") or "0.0.0"
 
     # Build constraint lookup for metadata injection
     constraint_map: dict[str, dict] = {}

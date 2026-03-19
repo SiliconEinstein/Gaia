@@ -66,10 +66,10 @@ def _build_yaml(pkg_path: Path) -> None:
         save_raw_graph,
     )
     from libs.lang.build_store import save_build
-    from libs.pipeline import pipeline_build
+    from libs.pipeline import _pipeline_build_yaml
 
     try:
-        result = asyncio.run(pipeline_build(pkg_path))
+        result = asyncio.run(_pipeline_build_yaml(pkg_path))
     except FileNotFoundError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
@@ -92,13 +92,29 @@ def _build_typst(pkg_path: Path, format: str, proof_state: bool = False) -> None
     """Build a Typst-based knowledge package."""
     import json as json_mod
 
-    from libs.lang.typst_loader import load_typst_package
-    from libs.lang.typst_renderer import render_typst_to_markdown
+    from libs.graph_ir import save_canonicalization_log, save_local_canonical_graph, save_raw_graph
+    from libs.pipeline import pipeline_build
 
     build_dir = pkg_path / ".gaia" / "build"
+    graph_dir = pkg_path / ".gaia" / "graph"
     build_dir.mkdir(parents=True, exist_ok=True)
 
+    # Run unified pipeline
+    result = asyncio.run(pipeline_build(pkg_path))
+
+    # Save Graph IR artifacts
+    save_raw_graph(result.raw_graph, graph_dir)
+    save_local_canonical_graph(result.local_graph, graph_dir)
+    save_canonicalization_log(result.canonicalization_log, graph_dir)
+
+    # Save graph_data as JSON
+    json_path = build_dir / "graph_data.json"
+    json_path.write_text(json_mod.dumps(result.graph_data, ensure_ascii=False, indent=2))
+
+    # Save markdown
     if format in ("md", "all"):
+        from libs.lang.typst_renderer import render_typst_to_markdown
+
         md = render_typst_to_markdown(pkg_path)
         md_path = build_dir / "package.md"
         md_path.write_text(md)
@@ -113,21 +129,23 @@ def _build_typst(pkg_path: Path, format: str, proof_state: bool = False) -> None
         typer.echo(f"Typst: {typ_path}")
 
     if format in ("json", "all"):
-        graph = load_typst_package(pkg_path)
-        json_path = build_dir / "graph.json"
-        json_path.write_text(json_mod.dumps(graph, ensure_ascii=False, indent=2))
-        typer.echo(f"Graph JSON: {json_path}")
+        json_out = build_dir / "graph.json"
+        json_out.write_text(json_mod.dumps(result.graph_data, ensure_ascii=False, indent=2))
+        typer.echo(f"Graph JSON: {json_out}")
 
     if proof_state:
         from libs.lang.proof_state import analyze_proof_state
 
-        graph = load_typst_package(pkg_path)
-        state = analyze_proof_state(graph)
+        state = analyze_proof_state(result.graph_data)
         report_path = build_dir / "proof_state.txt"
         report_path.write_text(state["report"])
         typer.echo(f"Proof state: {report_path}")
         typer.echo(state["report"])
 
+    n_nodes = len(result.local_graph.knowledge_nodes)
+    n_factors = len(result.local_graph.factor_nodes)
+    typer.echo(f"Built {result.graph_data['package']}: {n_nodes} nodes, {n_factors} factors")
+    typer.echo(f"Artifacts: {graph_dir}/")
     typer.echo("Build complete.")
 
 

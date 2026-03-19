@@ -18,15 +18,20 @@ PAPER_PKG_DIR = (
 
 @pytest.mark.asyncio
 async def test_paper_e2e_pipeline(tmp_path):
-    """Full pipeline: build → review(mock) → infer → publish → verify."""
-    from libs.pipeline import pipeline_build, pipeline_infer, pipeline_publish, pipeline_review
+    """Full pipeline: build → review(mock) → infer → publish → verify (YAML legacy)."""
+    from libs.pipeline import (
+        _pipeline_build_yaml,
+        _pipeline_infer_yaml,
+        _pipeline_publish_yaml,
+        _pipeline_review_yaml,
+    )
     from libs.storage.config import StorageConfig
     from libs.storage.manager import StorageManager
 
     assert PAPER_PKG_DIR.is_dir(), f"Fixture not found: {PAPER_PKG_DIR}"
 
     # ── 1. pipeline_build ──
-    build = await pipeline_build(PAPER_PKG_DIR)
+    build = await _pipeline_build_yaml(PAPER_PKG_DIR)
     assert build.package.name == "paper_10_1038332139a0_1988_natu"
     assert len(build.package.loaded_modules) >= 2
     assert len(build.markdown) > 0
@@ -35,13 +40,13 @@ async def test_paper_e2e_pipeline(tmp_path):
     assert len(build.source_files) >= 2
 
     # ── 2. pipeline_review (mock) ──
-    review = await pipeline_review(build, mock=True)
+    review = await _pipeline_review_yaml(build, mock=True)
     assert review.model == "mock"
     assert len(review.review.get("chains", [])) > 0
     assert review.merged_package is not build.package
 
     # ── 3. pipeline_infer ──
-    infer = await pipeline_infer(build, review)
+    infer = await _pipeline_infer_yaml(build, review)
     assert len(infer.beliefs) > 0
     assert infer.bp_run_id
     for name, belief in infer.beliefs.items():
@@ -49,7 +54,7 @@ async def test_paper_e2e_pipeline(tmp_path):
 
     # ── 4. pipeline_publish ──
     db_path = str(tmp_path / "lancedb")
-    result = await pipeline_publish(build, review, infer, db_path=db_path)
+    result = await _pipeline_publish_yaml(build, review, infer, db_path=db_path)
     assert result.package_id == build.package.name
     assert result.stats["knowledge_items"] > 0
     assert result.stats["chains"] > 0
