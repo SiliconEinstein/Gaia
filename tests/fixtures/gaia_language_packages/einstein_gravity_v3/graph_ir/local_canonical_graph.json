@@ -1,0 +1,454 @@
+{
+  "factor_nodes": [
+    {
+      "conclusion": "lcn_8193899faa20f2ee",
+      "contexts": [],
+      "factor_id": "f_35acdee4841c5d7a",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "lcn_71765aaf73276336",
+        "lcn_33b0f744e3baabb8"
+      ],
+      "source_ref": {
+        "knowledge_name": "equivalence_principle",
+        "module": "equivalence_principle",
+        "package": "einstein_gravity",
+        "version": "3.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "lcn_86db95a2abe950c0",
+      "contexts": [],
+      "factor_id": "f_a4cd4a5985346a7e",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "lcn_8193899faa20f2ee",
+        "lcn_af4a006c64baafa5"
+      ],
+      "source_ref": {
+        "knowledge_name": "light_bends_in_gravity",
+        "module": "equivalence_principle",
+        "package": "einstein_gravity",
+        "version": "3.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "lcn_669c3aa98ec8c30e",
+      "contexts": [],
+      "factor_id": "f_f47921e8b9235a0b",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "lcn_86db95a2abe950c0",
+        "lcn_5f0cf26a8389bf89"
+      ],
+      "source_ref": {
+        "knowledge_name": "gr_light_deflection",
+        "module": "general_relativity",
+        "package": "einstein_gravity",
+        "version": "3.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "lcn_01d21f6b04b8394d",
+      "contexts": [],
+      "factor_id": "f_97990ef64cd3cd0e",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "lcn_5f0cf26a8389bf89",
+        "lcn_3b61e9931698a7e2"
+      ],
+      "source_ref": {
+        "knowledge_name": "gr_mercury_precession",
+        "module": "general_relativity",
+        "package": "einstein_gravity",
+        "version": "3.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "lcn_cc62064df5d5fc81",
+      "contexts": [],
+      "factor_id": "f_d2018298bae0344e",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "lcn_fe7d02a30a9ef160",
+        "lcn_b5a6bd098a06d561",
+        "lcn_669c3aa98ec8c30e"
+      ],
+      "source_ref": {
+        "knowledge_name": "eddington_confirms_gr",
+        "module": "observation",
+        "package": "einstein_gravity",
+        "version": "3.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "lcn_d370b87ce3135615",
+      "contexts": [],
+      "factor_id": "f_df2f420ba4c54ec2",
+      "metadata": {
+        "edge_type": "relation_contradiction"
+      },
+      "premises": [
+        "lcn_669c3aa98ec8c30e",
+        "lcn_b8f7b08c33a52ff4"
+      ],
+      "source_ref": {
+        "knowledge_name": "deflection_contradiction",
+        "module": "general_relativity",
+        "package": "einstein_gravity",
+        "version": "3.0.0"
+      },
+      "type": "contradiction"
+    }
+  ],
+  "knowledge_nodes": [
+    {
+      "kind": null,
+      "knowledge_type": "observation",
+      "local_canonical_id": "lcn_71765aaf73276336",
+      "member_raw_node_ids": [
+        "raw_72eed42aecbdad48"
+      ],
+      "metadata": null,
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "Eötvös 1889 年扭摆实验以 10^−9 精度验证： 物体的惯性质量 m_i（决定对力的响应） 与引力质量 m_g（决定所受引力大小）在实验可区分范围内相等。 (m_i − m_g)/m_i < 10^−9",
+      "source_refs": [
+        {
+          "knowledge_name": "eotvos_experiment",
+          "module": "prior_knowledge",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_af4a006c64baafa5",
+      "member_raw_node_ids": [
+        "raw_d2cbc8eaa71b5493"
+      ],
+      "metadata": null,
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "麦克斯韦电磁理论：光是电磁波， 在真空中以恒定速度 c 传播，与光源运动状态无关。",
+      "source_refs": [
+        {
+          "knowledge_name": "maxwell_electromagnetism",
+          "module": "prior_knowledge",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_b8f7b08c33a52ff4",
+      "member_raw_node_ids": [
+        "raw_caf0aacae84654c9"
+      ],
+      "metadata": null,
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "Soldner 1801 年基于牛顿力学将光视为质点（微粒说）， 计算得光线掠过太阳表面时偏折： θ_Newton = (2 G M_⊙)/(c^2 R_⊙) ≈ 0.87''",
+      "source_refs": [
+        {
+          "knowledge_name": "soldner_deflection",
+          "module": "prior_knowledge",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "setting",
+      "local_canonical_id": "lcn_33b0f744e3baabb8",
+      "member_raw_node_ids": [
+        "raw_dd0ae7f1c4217d57"
+      ],
+      "metadata": null,
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "密闭电梯思想实验：电梯中的观察者无法看到外界， 需要判断自己是静止在引力场中还是在无引力空间中匀加速上升。",
+      "source_refs": [
+        {
+          "knowledge_name": "elevator_env",
+          "module": "equivalence_principle",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_8193899faa20f2ee",
+      "member_raw_node_ids": [
+        "raw_863e1d3857cc9a63"
+      ],
+      "metadata": null,
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "爱因斯坦等价原理：在足够小的时空区域内， 均匀引力场的效应与匀加速参考系的效应不可区分。",
+      "source_refs": [
+        {
+          "knowledge_name": "equivalence_principle",
+          "module": "equivalence_principle",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_86db95a2abe950c0",
+      "member_raw_node_ids": [
+        "raw_26e023d558180eb4"
+      ],
+      "metadata": null,
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "光线在引力场中会发生弯曲。",
+      "source_refs": [
+        {
+          "knowledge_name": "light_bends_in_gravity",
+          "module": "equivalence_principle",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_5f0cf26a8389bf89",
+      "member_raw_node_ids": [
+        "raw_47c8ea4a3cb068c1"
+      ],
+      "metadata": null,
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "爱因斯坦场方程：引力不是超距力，而是质能分布导致的时空弯曲。 G_μ ν + Λ g_μ ν = (8 π G)/c^4 T_μ ν 左端 G_μ ν（Einstein 张量）描述时空曲率， 右端 T_μ ν（能动张量）描述物质能量分布， Λ 为宇宙学常数。",
+      "source_refs": [
+        {
+          "knowledge_name": "einstein_field_equations",
+          "module": "general_relativity",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_669c3aa98ec8c30e",
+      "member_raw_node_ids": [
+        "raw_2b54715eec0c8bfa"
+      ],
+      "metadata": null,
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "广义相对论预测：光线掠过太阳表面时偏折 1.75''。",
+      "source_refs": [
+        {
+          "knowledge_name": "gr_light_deflection",
+          "module": "general_relativity",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "contradiction",
+      "local_canonical_id": "lcn_d370b87ce3135615",
+      "member_raw_node_ids": [
+        "raw_30969a871f9ac8f7"
+      ],
+      "metadata": {
+        "between": [
+          "gr_light_deflection",
+          "soldner_deflection"
+        ]
+      },
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "广义相对论预测光线偏折 1.75''，牛顿微粒说预测 0.87''， 两者针对同一物理量给出不同数值，不可能同时正确。",
+      "source_refs": [
+        {
+          "knowledge_name": "deflection_contradiction",
+          "module": "general_relativity",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "observation",
+      "local_canonical_id": "lcn_3b61e9931698a7e2",
+      "member_raw_node_ids": [
+        "raw_f36838544f723d40"
+      ],
+      "metadata": null,
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "天文观测显示水星近日点每世纪有约 43'' 的异常进动， 牛顿引力理论在扣除其他行星摄动后无法解释这一剩余量。",
+      "source_refs": [
+        {
+          "knowledge_name": "mercury_perihelion",
+          "module": "general_relativity",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_01d21f6b04b8394d",
+      "member_raw_node_ids": [
+        "raw_1b8c70fc4a2b280b"
+      ],
+      "metadata": null,
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "广义相对论精确解释了水星近日点每世纪 43'' 的异常进动， 无需引入任何新参数。",
+      "source_refs": [
+        {
+          "knowledge_name": "gr_mercury_precession",
+          "module": "general_relativity",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "observation",
+      "local_canonical_id": "lcn_fe7d02a30a9ef160",
+      "member_raw_node_ids": [
+        "raw_e80169d73964669d"
+      ],
+      "metadata": null,
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "1919 年 5 月 29 日日全食期间，巴西 Sobral 观测站测得 恒星光线经过太阳附近时偏折： θ_Sobral = 1.98'' ± 0.16''",
+      "source_refs": [
+        {
+          "knowledge_name": "eddington_sobral",
+          "module": "observation",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "observation",
+      "local_canonical_id": "lcn_b5a6bd098a06d561",
+      "member_raw_node_ids": [
+        "raw_f1576c447ccca368"
+      ],
+      "metadata": null,
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "同一次日全食期间，西非 Príncipe 岛观测站测得恒星光线偏折： θ_Príncipe = 1.61'' ± 0.30''",
+      "source_refs": [
+        {
+          "knowledge_name": "eddington_principe",
+          "module": "observation",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_cc62064df5d5fc81",
+      "member_raw_node_ids": [
+        "raw_cc2bec6036425d42"
+      ],
+      "metadata": null,
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "1919 年日食观测数据支持广义相对论的 1.75'' 光线偏折预测， 排除牛顿微粒说的 0.87'' 预测。",
+      "source_refs": [
+        {
+          "knowledge_name": "eddington_confirms_gr",
+          "module": "observation",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "corroboration",
+      "local_canonical_id": "lcn_ec30dd7876fdf50a",
+      "member_raw_node_ids": [
+        "raw_6cf6df30d88359d9"
+      ],
+      "metadata": {
+        "between": [
+          "eddington_confirms_gr",
+          "gr_mercury_precession"
+        ]
+      },
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "光线偏折与水星进动是广义相对论的两个独立预测， 分别被不同类型的观测所证实。",
+      "source_refs": [
+        {
+          "knowledge_name": "gr_dual_confirmation",
+          "module": "observation",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "question",
+      "local_canonical_id": "lcn_90aa42dab0ceda83",
+      "member_raw_node_ids": [
+        "raw_bdee2a5665cdabfa"
+      ],
+      "metadata": null,
+      "package": "einstein_gravity",
+      "parameters": [],
+      "representative_content": "广义相对论预测时空曲率的扰动以引力波形式传播。 能否直接探测到引力波，为时空弯曲提供独立于光线偏折的验证？",
+      "source_refs": [
+        {
+          "knowledge_name": "gravitational_waves_question",
+          "module": "follow_up",
+          "package": "einstein_gravity",
+          "version": "3.0.0"
+        }
+      ]
+    }
+  ],
+  "package": "einstein_gravity",
+  "schema_version": "1.0",
+  "version": "3.0.0"
+}

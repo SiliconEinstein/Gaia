@@ -38,11 +38,11 @@ class TestPackageGraphRoutes:
         packages = resp.json()
         assert isinstance(packages, list)
         slugs = {p["slug"] for p in packages}
-        assert "galileo_falling_bodies" in slugs
+        assert "galileo_falling_bodies_v3" in slugs
 
     def test_get_raw_graph(self):
         client = _client()
-        resp = client.get("/graph-ir/galileo_falling_bodies/raw")
+        resp = client.get("/graph-ir/galileo_falling_bodies_v3/raw")
         assert resp.status_code == 200
         data = resp.json()
         assert "knowledge_nodes" in data
@@ -50,19 +50,19 @@ class TestPackageGraphRoutes:
 
     def test_get_local_graph(self):
         client = _client()
-        resp = client.get("/graph-ir/galileo_falling_bodies/local")
+        resp = client.get("/graph-ir/galileo_falling_bodies_v3/local")
         assert resp.status_code == 200
 
     def test_get_parameterization(self):
         client = _client()
-        resp = client.get("/graph-ir/galileo_falling_bodies/parameterization")
+        resp = client.get("/graph-ir/galileo_falling_bodies_v3/parameterization")
         assert resp.status_code == 200
         data = resp.json()
         assert "node_priors" in data
 
     def test_get_beliefs(self):
         client = _client()
-        resp = client.get("/graph-ir/galileo_falling_bodies/beliefs")
+        resp = client.get("/graph-ir/galileo_falling_bodies_v3/beliefs")
         assert resp.status_code == 200
         data = resp.json()
         assert "node_beliefs" in data

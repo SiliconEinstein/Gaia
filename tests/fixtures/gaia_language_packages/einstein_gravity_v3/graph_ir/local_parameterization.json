@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "graph_scope": "local",
+  "graph_hash": "sha256:da1d03d8ce9a0dfbfe029debbb87bb7c1e1e8b9f46a12c95f6a873c63b796815",
+  "node_priors": {
+    "lcn_71765aaf73276336": 1.0,
+    "lcn_af4a006c64baafa5": 0.5,
+    "lcn_b8f7b08c33a52ff4": 0.5,
+    "lcn_33b0f744e3baabb8": 1.0,
+    "lcn_8193899faa20f2ee": 0.5,
+    "lcn_86db95a2abe950c0": 0.5,
+    "lcn_5f0cf26a8389bf89": 0.5,
+    "lcn_669c3aa98ec8c30e": 0.5,
+    "lcn_d370b87ce3135615": 0.5,
+    "lcn_3b61e9931698a7e2": 1.0,
+    "lcn_01d21f6b04b8394d": 0.5,
+    "lcn_fe7d02a30a9ef160": 1.0,
+    "lcn_b5a6bd098a06d561": 1.0,
+    "lcn_cc62064df5d5fc81": 0.5,
+    "lcn_ec30dd7876fdf50a": 0.5,
+    "lcn_90aa42dab0ceda83": 0.5
+  },
+  "factor_parameters": {
+    "f_35acdee4841c5d7a": {
+      "conditional_probability": 0.85
+    },
+    "f_a4cd4a5985346a7e": {
+      "conditional_probability": 0.85
+    },
+    "f_f47921e8b9235a0b": {
+      "conditional_probability": 0.85
+    },
+    "f_97990ef64cd3cd0e": {
+      "conditional_probability": 0.85
+    },
+    "f_d2018298bae0344e": {
+      "conditional_probability": 0.85
+    }
+  },
+  "metadata": null
+}

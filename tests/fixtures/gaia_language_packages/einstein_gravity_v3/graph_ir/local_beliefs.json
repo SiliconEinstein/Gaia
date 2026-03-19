@@ -1,0 +1,21 @@
+{
+  "node_beliefs": {
+    "prior_knowledge.eotvos_experiment": 0.9977561747145921,
+    "prior_knowledge.maxwell_electromagnetism": 0.3488846554833851,
+    "prior_knowledge.soldner_deflection": 0.3870459811680957,
+    "equivalence_principle.elevator_env": 0.9977561747145921,
+    "equivalence_principle.equivalence_principle": 0.8028467609268225,
+    "equivalence_principle.light_bends_in_gravity": 0.5278291554658316,
+    "general_relativity.einstein_field_equations": 0.22446443191018878,
+    "general_relativity.gr_light_deflection": 0.22636029177180372,
+    "general_relativity.deflection_contradiction": 0.5,
+    "general_relativity.mercury_perihelion": 0.9987759821332337,
+    "general_relativity.gr_mercury_precession": 0.5784062545636632,
+    "observation.eddington_sobral": 0.998774542878892,
+    "observation.eddington_principe": 0.998774542878892,
+    "observation.eddington_confirms_gr": 0.5789099931474112,
+    "observation.gr_dual_confirmation": 0.5,
+    "follow_up.gravitational_waves_question": 0.5
+  },
+  "bp_run_id": "7a3237de-7dc9-4910-883e-1b39d1d6c658"
+}

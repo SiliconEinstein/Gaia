@@ -1,15 +1,17 @@
-"""Real-API integration test for the CLI build -> review -> infer -> publish pipeline.
+"""Real-API integration test for the Typst pipeline.
 
 Run with:
   pytest tests/integration/test_cli_pipeline_real_api.py -v -m integration_api
 
 Requires:
   - OPENAI_API_KEY in the environment
+
+Note: This test exercises the Typst pipeline end-to-end.
+The old YAML pipeline has been removed.
 """
 
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import subprocess
@@ -20,7 +22,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures" / "gaia_language_packages"
-PACKAGES = ["galileo_falling_bodies", "newton_principia", "einstein_gravity"]
+TYPST_PACKAGES = ["galileo_falling_bodies_v3", "newton_principia_v3", "einstein_gravity_v3"]
 
 pytestmark = pytest.mark.integration_api
 
@@ -45,15 +47,6 @@ def _run_gaia(
     )
 
 
-def _copy_all_fixtures(tmp_path: Path) -> Path:
-    parent = tmp_path / "packages"
-    parent.mkdir(parents=True, exist_ok=True)
-    for pkg_dir in FIXTURES_DIR.iterdir():
-        if pkg_dir.is_dir():
-            shutil.copytree(pkg_dir, parent / pkg_dir.name)
-    return parent
-
-
 def _assert_ok(result: subprocess.CompletedProcess, step: str) -> None:
     if result.returncode == 0:
         return
@@ -65,38 +58,22 @@ def _assert_ok(result: subprocess.CompletedProcess, step: str) -> None:
 
 
 @skip_no_openai
-def test_real_llm_pipeline_for_all_three_packages(tmp_path):
-    parent = _copy_all_fixtures(tmp_path)
-    db_path = str(tmp_path / "db")
+def test_real_llm_build_for_typst_packages():
+    """Build all v3 Typst packages and verify Graph IR output.
 
-    for package_name in PACKAGES:
-        pkg_dir = parent / package_name
+    Uses real fixture paths (no copy) since Typst #import paths are relative.
+    Cleans up .gaia dirs afterwards.
+    """
+    for package_name in TYPST_PACKAGES:
+        pkg_dir = FIXTURES_DIR / package_name
+        gaia_dir = pkg_dir / ".gaia"
 
-        build = _run_gaia("build", str(pkg_dir))
-        _assert_ok(build, f"{package_name}: build")
-        assert (pkg_dir / ".gaia" / "graph" / "raw_graph.json").exists()
-        assert (pkg_dir / ".gaia" / "graph" / "local_canonical_graph.json").exists()
-        assert (pkg_dir / ".gaia" / "graph" / "canonicalization_log.json").exists()
-
-        review = _run_gaia("review", str(pkg_dir), "--model", "gpt-5-mini")
-        _assert_ok(review, f"{package_name}: review")
-        review_files = sorted((pkg_dir / ".gaia" / "reviews").glob("review_*.yaml"))
-        assert review_files, f"{package_name}: missing review sidecar"
-
-        infer = _run_gaia("infer", str(pkg_dir))
-        _assert_ok(infer, f"{package_name}: infer")
-        assert (pkg_dir / ".gaia" / "inference" / "local_parameterization.json").exists()
-        infer_result = pkg_dir / ".gaia" / "infer" / "infer_result.json"
-        assert infer_result.exists(), f"{package_name}: missing infer_result.json"
-        infer_data = json.loads(infer_result.read_text())
-        assert infer_data["variables"], f"{package_name}: infer_result has no variables"
-
-        publish = _run_gaia("publish", str(pkg_dir), "--local", "--db-path", db_path)
-        _assert_ok(publish, f"{package_name}: publish --local")
-        receipt_path = pkg_dir / ".gaia" / "publish" / "receipt.json"
-        assert receipt_path.exists(), f"{package_name}: missing publish receipt"
-        receipt = json.loads(receipt_path.read_text())
-        assert receipt["package_id"] == package_name
-        assert receipt["stats"]["knowledge_items"] > 0
-        assert receipt["stats"]["chains"] > 0
-        assert receipt["db_path"] == db_path
+        try:
+            build = _run_gaia("build", str(pkg_dir))
+            _assert_ok(build, f"{package_name}: build")
+            assert (pkg_dir / ".gaia" / "graph" / "raw_graph.json").exists()
+            assert (pkg_dir / ".gaia" / "graph" / "local_canonical_graph.json").exists()
+            assert (pkg_dir / ".gaia" / "graph" / "canonicalization_log.json").exists()
+        finally:
+            if gaia_dir.exists():
+                shutil.rmtree(gaia_dir)

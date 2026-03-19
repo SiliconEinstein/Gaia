@@ -1,0 +1,18 @@
+{
+  "node_beliefs": {
+    "motivation.main_question": 0.5,
+    "setting.thought_experiment_env": 0.9985486124681986,
+    "setting.vacuum_env": 0.999,
+    "aristotle.everyday_observation": 0.999,
+    "aristotle.heavier_falls_faster": 0.11858799731893699,
+    "galileo.medium_density_observation": 0.9977807725583426,
+    "galileo.inclined_plane_observation": 0.9987307831222588,
+    "galileo.composite_is_slower": 0.3568548840521199,
+    "galileo.composite_is_faster": 0.3568548840521199,
+    "galileo.tied_balls_contradiction": 0.3653915580345736,
+    "galileo.air_resistance_is_confound": 0.8087297958207478,
+    "galileo.vacuum_prediction": 0.5942259093757984,
+    "follow_up.follow_up_question": 0.5
+  },
+  "bp_run_id": "b4082393-b4ee-41b5-a644-e1f0661e1e4a"
+}

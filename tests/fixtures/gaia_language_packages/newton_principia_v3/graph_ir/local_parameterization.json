@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "graph_scope": "local",
+  "graph_hash": "sha256:7352cef7818729cc122fcdf163d5aa7af155c468eea0e1f9353b96a354c5bdaf",
+  "node_priors": {
+    "lcn_60e43e69a590380a": 0.5,
+    "lcn_fccf085bcf793fc6": 0.5,
+    "lcn_36126b756fc0a2c9": 0.5,
+    "lcn_e72c441693ff0c69": 1.0,
+    "lcn_5bbc10ec207abf46": 1.0,
+    "lcn_136700ecb2adfc15": 1.0,
+    "lcn_489c9354e869b408": 0.5,
+    "lcn_077ad9354f831330": 0.5,
+    "lcn_2b6c308e2b728154": 0.5,
+    "lcn_a3c0e524107d048f": 0.5,
+    "lcn_dd3f22a604fff7f9": 0.5,
+    "lcn_806113ceb7f83846": 1.0,
+    "lcn_077ea66597e31a6e": 0.5,
+    "lcn_e2fa39a7f52f544e": 0.5,
+    "lcn_1a4260957c8f4989": 0.5
+  },
+  "factor_parameters": {
+    "f_4643d063711a35d1": {
+      "conditional_probability": 0.85
+    },
+    "f_59a960f5cecdb892": {
+      "conditional_probability": 0.85
+    },
+    "f_846ae9b9f4f95419": {
+      "conditional_probability": 0.85
+    },
+    "f_00595c04f8f6de4e": {
+      "conditional_probability": 0.85
+    },
+    "f_d3d691c7550ee953": {
+      "conditional_probability": 0.85
+    }
+  },
+  "metadata": null
+}
