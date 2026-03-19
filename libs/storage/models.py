@@ -80,7 +80,9 @@ class Chain(BaseModel):
     module_id: str
     package_id: str
     package_version: str = "0.1.0"
-    type: Literal["deduction", "induction", "abstraction", "contradiction", "retraction"]
+    type: Literal[
+        "deduction", "induction", "abstraction", "contradiction", "retraction", "equivalence"
+    ]
     steps: list[ChainStep]
 
 

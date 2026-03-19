@@ -15,8 +15,8 @@ from .models import (
 )
 
 _CONSTRAINT_TYPE_TO_FACTOR_TYPE = {
-    "contradiction": "mutex_constraint",
-    "equivalence": "equiv_constraint",
+    "contradiction": "contradiction",
+    "equivalence": "equivalence",
 }
 
 
@@ -110,8 +110,8 @@ def compile_typst_to_raw_graph(graph_data: dict) -> RawGraph:
 
         factor_nodes.append(
             FactorNode(
-                factor_id=factor_id("reasoning", conclusion_module, conclusion_name),
-                type="reasoning",
+                factor_id=factor_id("infer", conclusion_module, conclusion_name),
+                type="infer",
                 premises=premise_ids,
                 contexts=[],
                 conclusion=name_to_raw_id[conclusion_name],
