@@ -8,6 +8,15 @@ from pathlib import Path
 import typst
 
 
+def _flatten_fraction_part(node: dict | str | list | None) -> str:
+    flat = _flatten_content(node).strip()
+    if not flat:
+        return ""
+    if any(ch.isspace() for ch in flat):
+        return f"({flat})"
+    return flat
+
+
 def _flatten_content(node: dict | str | list) -> str:
     """Recursively flatten a Typst content tree to plain text."""
     if isinstance(node, str):
@@ -18,6 +27,8 @@ def _flatten_content(node: dict | str | list) -> str:
         func = node.get("func", "")
         if func == "text":
             return node.get("text", "")
+        if func == "symbol":
+            return node.get("text", "")
         if func == "space":
             return " "
         if func == "parbreak":
@@ -26,15 +37,35 @@ def _flatten_content(node: dict | str | list) -> str:
             return "\n"
         if func == "smartquote":
             return '"'
+        if func == "primes":
+            return "'" * node.get("count", 0)
         if func == "ref":
             target = node.get("target", "")
             # Strip angle brackets: "<foo-bar>" → "foo-bar", then restore underscores
             return target.strip("<>").replace("-", "_")
+        if func == "equation":
+            return _flatten_content(node.get("body")).strip()
+        if func == "frac":
+            num = _flatten_fraction_part(node.get("num"))
+            denom = _flatten_fraction_part(node.get("denom"))
+            if num and denom:
+                return f"{num}/{denom}"
+            return num or denom
+        if func == "attach":
+            parts = [_flatten_content(node.get("base"))]
+            for key, prefix in (("b", "_"), ("t", "^"), ("tr", "")):
+                value = node.get(key)
+                if value is None:
+                    continue
+                flat = _flatten_content(value).strip()
+                if flat:
+                    parts.append(f"{prefix}{flat}")
+            return "".join(parts)
         children = node.get("children", [])
         if children:
             return "".join(_flatten_content(c) for c in children)
         body = node.get("body")
-        if body:
+        if body is not None:
             return _flatten_content(body)
     return ""
 
@@ -70,7 +101,9 @@ def load_typst_package(pkg_path: Path) -> dict:
 
     # Flatten content in nodes
     for node in data.get("nodes", []):
-        if isinstance(node.get("content"), (dict, list)):
+        if node.get("content") is None:
+            node["content"] = ""
+        elif isinstance(node.get("content"), (dict, list)):
             node["content"] = _flatten_content(node["content"]).strip()
         # Normalize ctx -> context key for downstream consumers (v1 compat)
         if "ctx" in node:

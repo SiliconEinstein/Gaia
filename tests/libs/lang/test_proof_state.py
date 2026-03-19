@@ -149,6 +149,17 @@ def test_newton_v3_derivation_chain():
     assert "apollo_galileo_convergence" in constraint_names
 
 
+def test_newton_v3_corroborations_are_established():
+    graph = load_typst_package(NEWTON_V3)
+    state = analyze_proof_state(graph)
+    established = {d["name"] for d in state["established"]}
+    standalone = {d["name"] for d in state["standalone"]}
+    assert "galileo_newton_convergence" in established
+    assert "apollo_galileo_convergence" in established
+    assert "galileo_newton_convergence" not in standalone
+    assert "apollo_galileo_convergence" not in standalone
+
+
 def test_newton_v3_only_axioms_are_holes():
     """Only the two axioms (second/third law) should be holes."""
     graph = load_typst_package(NEWTON_V3)
@@ -206,6 +217,15 @@ def test_einstein_v3_constraints():
     assert set(constraint_map["gr_dual_confirmation"]["between"]) == {
         "eddington_confirms_gr", "gr_mercury_precession"
     }
+
+
+def test_einstein_v3_corroboration_is_established():
+    graph = load_typst_package(EINSTEIN_V3)
+    state = analyze_proof_state(graph)
+    established = {d["name"] for d in state["established"]}
+    standalone = {d["name"] for d in state["standalone"]}
+    assert "gr_dual_confirmation" in established
+    assert "gr_dual_confirmation" not in standalone
 
 
 def test_einstein_v3_holes():

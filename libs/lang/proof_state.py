@@ -8,7 +8,7 @@ without proofs), and which are open questions.
 
 from __future__ import annotations
 
-RELATION_TYPES = {"contradiction", "equivalence"}
+RELATION_TYPES = {"contradiction", "equivalence", "corroboration"}
 
 
 def analyze_proof_state(graph: dict) -> dict:

@@ -19,8 +19,10 @@ from .typst_loader import load_typst_package
 _TYPE_LABELS = {
     "claim": "主张",
     "setting": "设定",
+    "observation": "观察",
     "question": "问题",
     "contradiction": "矛盾",
+    "corroboration": "印证",
     "equivalence": "等价",
 }
 
@@ -164,9 +166,12 @@ def render_typst_to_clean_typst(pkg_path: Path, output: Path | None = None) -> s
     # ── Pre-compute ──
     node_map = {n["name"]: n for n in graph["nodes"]}
 
-    chain_nodes = set()
-    for factor in graph.get("factors", []):
-        chain_nodes.add(factor.get("conclusion", ""))
+    factor_by_conclusion = {
+        factor["conclusion"]: factor
+        for factor in graph.get("factors", [])
+        if factor.get("conclusion")
+    }
+    proved_nodes = set(factor_by_conclusion)
 
     chains: dict[str, list[dict]] = {}
     for factor in graph.get("factors", []):
@@ -210,7 +215,7 @@ def render_typst_to_clean_typst(pkg_path: Path, output: Path | None = None) -> s
 
         # ── Independent knowledge ──
         mod_nodes = nodes_by_module.get(mod_name, [])
-        independent = [n for n in mod_nodes if n["name"] not in chain_nodes]
+        independent = [n for n in mod_nodes if n["name"] not in proved_nodes]
 
         groups: list[list[dict]] = []
         for node in independent:
@@ -227,6 +232,22 @@ def render_typst_to_clean_typst(pkg_path: Path, output: Path | None = None) -> s
                 tl = _type_label(node["type"])
                 content = _clean_text(node["content"])
                 lines.append(f"- {content}（{tl}） {_label(node['name'])}")
+
+        # ── v3 single-claim proofs (no chain field) ──
+        for node in mod_nodes:
+            factor = factor_by_conclusion.get(node["name"])
+            if factor is None or factor.get("chain"):
+                continue
+
+            lines.append("")
+            lines.append(f"=== {node['name'].replace('_', ' ')} {_label(node['name'])}")
+            _render_single_step(
+                lines,
+                factor,
+                _clean_text(node["content"]),
+                _type_label(node["type"]),
+                node["name"],
+            )
 
         # ── Chains ──
         for chain_name in chains_by_module.get(mod_name, []):

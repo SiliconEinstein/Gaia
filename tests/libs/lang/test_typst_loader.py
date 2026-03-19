@@ -11,6 +11,12 @@ GALILEO_V3 = (
     / "gaia_language_packages"
     / "galileo_falling_bodies_v3"
 )
+EINSTEIN_V3 = (
+    Path(__file__).parent.parent.parent
+    / "fixtures"
+    / "gaia_language_packages"
+    / "einstein_gravity_v3"
+)
 
 
 def test_load_typst_package_returns_graph_with_nodes():
@@ -141,3 +147,13 @@ def test_v3_node_has_no_premise_field():
         assert "module" in node
         assert "premise" not in node
         assert "context" not in node
+
+
+def test_v3_math_content_is_preserved():
+    graph = load_typst_package(EINSTEIN_V3)
+    node_map = {node["name"]: node["content"] for node in graph["nodes"]}
+    assert "1.75''" in node_map["gr_light_deflection"]
+    assert "43''" in node_map["mercury_perihelion"]
+    assert "10^" in node_map["eotvos_experiment"]
+    assert "m_i" in node_map["eotvos_experiment"]
+    assert "m_g" in node_map["eotvos_experiment"]

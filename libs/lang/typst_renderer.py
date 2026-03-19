@@ -19,6 +19,7 @@ _TYPE_LABELS = {
     "observation": "observation",
     "question": "question",
     "contradiction": "contradiction",
+    "corroboration": "corroboration",
     "equivalence": "equivalence",
 }
 
@@ -29,7 +30,7 @@ _KNOWLEDGE_TYPES = {"setting", "observation"}
 _QUESTION_TYPES = {"question"}
 
 # Relation types that belong in the Constraints section
-_RELATION_TYPES = {"contradiction", "equivalence"}
+_RELATION_TYPES = {"contradiction", "equivalence", "corroboration"}
 
 
 def _clean_text(text: str) -> str:
