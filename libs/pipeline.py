@@ -60,6 +60,15 @@ class PublishResult:
     stats: dict
 
 
+@dataclass
+class TypstBuildResult:
+    graph_data: dict
+    raw_graph: RawGraph
+    local_graph: LocalCanonicalGraph
+    canonicalization_log: list
+    source_files: dict[str, str] = field(default_factory=dict)
+
+
 # ── Pipeline Functions ───────────────────────────────────
 
 
@@ -109,6 +118,30 @@ async def pipeline_build(
         package=pkg,
         elaborated=elaborated,
         markdown=markdown,
+        raw_graph=raw_graph,
+        local_graph=canonicalization.local_graph,
+        canonicalization_log=canonicalization.log,
+        source_files=source_files,
+    )
+
+
+async def pipeline_build_typst(pkg_path: Path) -> TypstBuildResult:
+    """Load, compile, and canonicalize a Typst package — all in memory.
+
+    Args:
+        pkg_path: Path to the Typst package directory (contains typst.toml + lib.typ).
+    """
+    from libs.graph_ir.build_utils import build_singleton_local_graph
+    from libs.graph_ir.typst_compiler import compile_typst_to_raw_graph
+    from libs.lang.typst_loader import load_typst_package
+
+    graph_data = load_typst_package(pkg_path)
+    raw_graph = compile_typst_to_raw_graph(graph_data)
+    canonicalization = build_singleton_local_graph(raw_graph)
+    source_files = {p.name: p.read_text() for p in pkg_path.glob("*.typ") if p.is_file()}
+
+    return TypstBuildResult(
+        graph_data=graph_data,
         raw_graph=raw_graph,
         local_graph=canonicalization.local_graph,
         canonicalization_log=canonicalization.log,
