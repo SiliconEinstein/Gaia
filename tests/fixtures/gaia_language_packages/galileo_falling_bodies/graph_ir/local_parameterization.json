@@ -1,0 +1,63 @@
+{
+  "factor_parameters": {
+    "f_1eeb41a484899eb3": {
+      "conditional_probability": 0.9
+    },
+    "f_2cc0ca127bd8157a": {
+      "conditional_probability": 0.93
+    },
+    "f_41fb903b71ed857a": {
+      "conditional_probability": 0.86
+    },
+    "f_49ced7d9952d3035": {
+      "conditional_probability": 0.93
+    },
+    "f_51b81b082af3b76d": {
+      "conditional_probability": 0.94
+    },
+    "f_982b333aad98d3c6": {
+      "conditional_probability": 1.0
+    },
+    "f_a4589ec00285ef81": {
+      "conditional_probability": 0.97
+    },
+    "f_b98868837751bace": {
+      "conditional_probability": 0.88
+    },
+    "f_cb6667814c366dd8": {
+      "conditional_probability": 0.95
+    },
+    "f_f882aaa2d884dec2": {
+      "conditional_probability": 0.8
+    }
+  },
+  "graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+  "graph_scope": "local",
+  "metadata": null,
+  "node_priors": {
+    "lcn_148c1b8d98f495b5": 0.5,
+    "lcn_1e3724075272f3b5": 0.6,
+    "lcn_1f43c2bad5e7676d": 1.0,
+    "lcn_25dddf57cc6aae0d": 1.0,
+    "lcn_292f81b065df5b91": 0.88,
+    "lcn_315917e2f79d7ef7": 0.55,
+    "lcn_3d20684fe585a228": 0.84,
+    "lcn_4106b1710e46373e": 0.93,
+    "lcn_422bad5b75dd2df5": 0.94,
+    "lcn_61197e996f3dd38a": 0.5,
+    "lcn_645d38ebf9ed901b": 1.0,
+    "lcn_66d50713e601243e": 0.97,
+    "lcn_716c8ef657abaf41": 1.0,
+    "lcn_8c42bbb2570499b9": 1.0,
+    "lcn_8ca9a2b93b0e9307": 0.5,
+    "lcn_a95c07b51e050bfb": 0.5,
+    "lcn_a9ca4fd9f5070274": 0.95,
+    "lcn_aab9003445df2fec": 1.0,
+    "lcn_b6bb05362b879e90": 0.6,
+    "lcn_cfb4e927e732fb7b": 0.5,
+    "lcn_d6c7bca7e8a06693": 0.9,
+    "lcn_df66e0694c5ca5ad": 0.7,
+    "lcn_e3d404d0198f7e25": 1.0
+  },
+  "schema_version": "1.0"
+}

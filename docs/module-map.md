@@ -60,7 +60,7 @@ The Gaia CLI is a Typer-based command-line tool for the local knowledge-authorin
 | Command | Responsibility |
 |---------|----------------|
 | `init` | Scaffold a new knowledge package (package.yaml + starter module) |
-| `build` | Parse language source, resolve refs, lower Graph IR → `.gaia/build/` + `.gaia/graph/` artifacts |
+| `build` | Parse language source, resolve refs, lower Graph IR → `graph_ir/` artifacts |
 | `review` | Current shipped compatibility helper for local self-review sidecars in `.gaia/reviews/` |
 | `infer` | Derive local parameterization from local Graph IR + local review sidecars, run loopy BP → local belief preview |
 | `publish` | Triple-write to LanceDB + Kuzu (--local) or git commit (--git). Server mode deferred. |
@@ -68,7 +68,7 @@ The Gaia CLI is a Typer-based command-line tool for the local knowledge-authorin
 | `search` | Full-text search over published nodes in local LanceDB |
 | `clean` | Remove build artifacts (.gaia/) |
 
-CLI source lives in `cli/`, with language parsing in `libs/lang/`, Graph IR handling in `libs/graph_ir/`, and BP in `libs/inference/`. Build output includes per-module Markdown under `.gaia/build/` plus Graph IR artifacts under `.gaia/graph/`; the shipped `review` command writes local self-review sidecars under `.gaia/reviews/`; inference output lives under `.gaia/inference/`.
+CLI source lives in `cli/`, with language parsing in `libs/lang/`, Graph IR handling in `libs/graph_ir/`, and BP in `libs/inference/`. Build output includes Graph IR artifacts under `graph_ir/` (raw graph, local canonical graph, canonicalization log, local parameterization); the shipped `review` command writes local self-review sidecars under `.gaia/reviews/`.
 
 ### `services/gateway/routes/`
 

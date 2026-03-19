@@ -20,6 +20,7 @@ dependencies = [
     "pyyaml>=6.0",
     "typer[all]>=0.12",
     "typst>=0.12",
+    "scikit-learn>=1.8.0",
 ]
 
 [project.optional-dependencies]
@@ -49,6 +50,20 @@ markers = [
 
 [project.scripts]
 gaia = "cli.main:app"
+
+[tool.coverage.run]
+omit = [
+    "scripts/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "# requires: api",
+    "# requires: neo4j",
+    "# requires: lancedb",
+]
 
 [tool.ruff]
 line-length = 100

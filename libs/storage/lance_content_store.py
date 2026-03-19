@@ -1142,6 +1142,13 @@ class LanceContentStore(ContentStore):
             return None
         return _row_to_global_node(results[0])
 
+    async def list_global_nodes(self) -> list[GlobalCanonicalNode]:
+        table = self._db.open_table("global_canonical_nodes")
+        if table.count_rows() == 0:
+            return []
+        rows = table.search().limit(table.count_rows()).to_list()
+        return [_row_to_global_node(r) for r in rows]
+
     # ── Global inference state ──
 
     async def update_inference_state(self, state: GlobalInferenceState) -> None:

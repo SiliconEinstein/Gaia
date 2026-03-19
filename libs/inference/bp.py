@@ -10,6 +10,7 @@ Implements proper loopy BP on binary variables with:
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from itertools import product as cartesian_product
 from typing import TYPE_CHECKING
 
@@ -21,13 +22,24 @@ from libs.inference.factor_graph import CROMWELL_EPS
 if TYPE_CHECKING:
     from libs.inference.factor_graph import FactorGraph
 
-__all__ = ["BeliefPropagation", "InconsistentGraphError"]
+__all__ = ["BeliefPropagation", "BPDiagnostics", "InconsistentGraphError"]
 
 Msg = NDArray[np.float64]  # shape (2,): [p(x=0), p(x=1)]
 
 
 class InconsistentGraphError(Exception):
     """Raised when BP encounters a zero partition (no valid state)."""
+
+
+@dataclass
+class BPDiagnostics:
+    """Diagnostic information from a BP run for conflict detection."""
+
+    iterations_run: int = 0
+    converged: bool = False
+    max_change_at_stop: float = 0.0
+    belief_history: dict[int, list[float]] = field(default_factory=dict)
+    direction_changes: dict[int, int] = field(default_factory=dict)
 
 
 def _normalize(msg: Msg) -> Msg:
@@ -234,19 +246,19 @@ class BeliefPropagation:
         self._max_iter = max_iterations
         self._threshold = convergence_threshold
 
-    def run(self, graph: FactorGraph) -> dict[int, float]:
-        """Run loopy BP on *graph* and return posterior beliefs.
+    def _run_core(
+        self, graph: FactorGraph, collect_diagnostics: bool = False
+    ) -> tuple[dict[int, float], BPDiagnostics | None]:
+        """Core BP loop shared by run() and run_with_diagnostics()."""
+        diag = BPDiagnostics() if collect_diagnostics else None
 
-        Returns
-        -------
-        dict[int, float]
-            Mapping from variable (node) id to its posterior belief in ``[0, 1]``.
-        """
         if not graph.variables:
-            return {}
+            return {}, diag
 
         if not graph.factors:
-            return dict(graph.variables)
+            if diag is not None:
+                diag.converged = True
+            return dict(graph.variables), diag
 
         var_factors = graph.get_var_factors()
         priors = {vid: _prior_msg(p) for vid, p in graph.variables.items()}
@@ -263,8 +275,12 @@ class BeliefPropagation:
                     v2f_msgs[(vid, fi)] = uniform.copy()
 
         prev_beliefs = {vid: p for vid, p in graph.variables.items()}
+        if diag is not None:
+            for vid, p in graph.variables.items():
+                diag.belief_history[vid] = [p]
 
-        for _iteration in range(self._max_iter):
+        max_change = 0.0
+        for iteration in range(self._max_iter):
             # 1. Compute all var→factor messages
             new_v2f: dict[tuple[int, int], Msg] = {}
             for (vid, fi), _ in v2f_msgs.items():
@@ -302,10 +318,67 @@ class BeliefPropagation:
                 b = _normalize(b)
                 beliefs[vid] = float(b[1])  # p(x=1)
 
+            if diag is not None:
+                for vid, belief in beliefs.items():
+                    diag.belief_history[vid].append(belief)
+
             # 5. Check convergence
             max_change = max(abs(beliefs[vid] - prev_beliefs[vid]) for vid in beliefs)
             if max_change < self._threshold:
-                return beliefs
+                if diag is not None:
+                    diag.iterations_run = iteration + 1
+                    diag.converged = True
+                    diag.max_change_at_stop = max_change
+                return beliefs, diag
             prev_beliefs = beliefs
 
+        if diag is not None:
+            diag.iterations_run = self._max_iter
+            diag.converged = False
+            diag.max_change_at_stop = max_change
+            # Compute direction changes per variable
+            for vid, history in diag.belief_history.items():
+                changes = 0
+                for k in range(2, len(history)):
+                    prev_dir = history[k - 1] - history[k - 2]
+                    curr_dir = history[k] - history[k - 1]
+                    if prev_dir * curr_dir < 0:
+                        changes += 1
+                diag.direction_changes[vid] = changes
+
+        return beliefs, diag
+
+    def run(self, graph: FactorGraph) -> dict[int, float]:
+        """Run loopy BP on *graph* and return posterior beliefs.
+
+        Returns
+        -------
+        dict[int, float]
+            Mapping from variable (node) id to its posterior belief in ``[0, 1]``.
+        """
+        beliefs, _ = self._run_core(graph, collect_diagnostics=False)
         return beliefs
+
+    def run_with_diagnostics(self, graph: FactorGraph) -> tuple[dict[int, float], BPDiagnostics]:
+        """Run loopy BP and return beliefs + diagnostic information.
+
+        Diagnostics include per-node belief history and direction change counts,
+        useful for Level 1 conflict detection (oscillation signals).
+        """
+        beliefs, diag = self._run_core(graph, collect_diagnostics=True)
+        assert diag is not None  # collect_diagnostics=True guarantees non-None
+
+        # Compute direction changes (only if not converged — converged means no oscillation)
+        if not diag.converged:
+            pass  # Already computed in _run_core
+        else:
+            for vid, history in diag.belief_history.items():
+                changes = 0
+                for k in range(2, len(history)):
+                    prev_dir = history[k - 1] - history[k - 2]
+                    curr_dir = history[k] - history[k - 1]
+                    if prev_dir * curr_dir < 0:
+                        changes += 1
+                diag.direction_changes[vid] = changes
+
+        return beliefs, diag

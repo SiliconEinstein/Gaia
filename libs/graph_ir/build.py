@@ -20,6 +20,7 @@ from libs.lang.models import (
     Question,
     Ref,
     Relation,
+    RetractAction,
     Setting,
     StepApply,
     StepLambda,
@@ -54,6 +55,7 @@ def build_raw_graph(pkg: Package) -> RawGraph:
     version = pkg.version or "0.0.0"
     knowledge_nodes: list[RawKnowledgeNode] = []
     factor_nodes: list[FactorNode] = []
+    retraction_intents: list[dict] = []
     name_to_raw_id: dict[str, str] = {}
     decl_obj_to_raw_id: dict[int, str] = {}
 
@@ -61,17 +63,88 @@ def build_raw_graph(pkg: Package) -> RawGraph:
         for decl in module.knowledge:
             if not isinstance(decl, _GRAPH_KNOWLEDGE_TYPES):
                 continue
+            if isinstance(decl, RetractAction):
+                continue  # retract_action only produces a factor, not a knowledge node
+            # Schema actions (with params) are kept as knowledge nodes per design §5.3.
+            # They are currently unconnected (no instantiation factors yet — V1 limitation).
+            # Elaboration will generate ground instances + instantiation factors in a future version.
             node = _build_raw_node(pkg, module.name, decl, version)
             knowledge_nodes.append(node)
             name_to_raw_id[decl.name] = node.raw_node_id
             decl_obj_to_raw_id[id(decl)] = node.raw_node_id
 
+    # Resolve Ref declarations: map ref name → raw_node_id (or ext: placeholder)
+    local_module_names = {m.name for m in pkg.loaded_modules}
     for module in pkg.loaded_modules:
         for decl in module.knowledge:
-            if isinstance(decl, Ref) and decl._resolved is not None:
+            if not isinstance(decl, Ref):
+                continue
+            # Already resolved via _resolved pointer
+            if decl._resolved is not None:
                 target_raw_id = decl_obj_to_raw_id.get(id(decl._resolved))
                 if target_raw_id is not None:
                     name_to_raw_id[decl.name] = target_raw_id
+                    continue
+            # Try local resolution: target might be "module.name" within this package
+            if "." in decl.target:
+                target_module, target_name = decl.target.split(".", 1)
+                if target_module in local_module_names and target_name in name_to_raw_id:
+                    name_to_raw_id[decl.name] = name_to_raw_id[target_name]
+                    continue
+                # Cross-package ref: register as external placeholder
+                if target_module not in local_module_names:
+                    ext_id = f"ext:{decl.target}"
+                    name_to_raw_id[decl.name] = ext_id
+                    continue
+            # Bare name fallback (already in name_to_raw_id from first pass)
+            if decl.name not in name_to_raw_id and decl.target in name_to_raw_id:
+                name_to_raw_id[decl.name] = name_to_raw_id[decl.target]
+
+    # Build action lookup for elaboration
+    action_decls: dict[str, Action] = {}
+    for module in pkg.loaded_modules:
+        for decl in module.knowledge:
+            if isinstance(decl, Action) and getattr(decl, "params", None):
+                action_decls[decl.name] = decl
+
+    # Build content lookup for parameter substitution
+    content_by_name: dict[str, str] = {}
+    for module in pkg.loaded_modules:
+        for decl in module.knowledge:
+            if hasattr(decl, "content") and decl.content:
+                content_by_name[decl.name] = decl.content
+
+    # ── Elaboration: generate ground action nodes + instantiation factors ──
+    for module in pkg.loaded_modules:
+        for decl in module.knowledge:
+            if not isinstance(decl, ChainExpr):
+                continue
+            for step in decl.steps:
+                if not isinstance(step, StepApply) or step.apply not in action_decls:
+                    continue
+                action = action_decls[step.apply]
+                schema_id = name_to_raw_id.get(action.name)
+                if schema_id is None:
+                    continue
+
+                ground_nodes, inst_factor = _elaborate_apply(
+                    pkg,
+                    module.name,
+                    decl,
+                    step,
+                    action,
+                    version,
+                    name_to_raw_id,
+                    content_by_name,
+                )
+                for gn in ground_nodes:
+                    if gn.raw_node_id not in name_to_raw_id:
+                        knowledge_nodes.append(gn)
+                        # Use chain_name__apply_action_name as the lookup key
+                        ground_name = f"{decl.name}__apply_{step.apply}"
+                        name_to_raw_id[ground_name] = gn.raw_node_id
+                if inst_factor is not None:
+                    factor_nodes.append(inst_factor)
 
     for module in pkg.loaded_modules:
         for decl in module.knowledge:
@@ -79,16 +152,48 @@ def build_raw_graph(pkg: Package) -> RawGraph:
                 factor = _build_reasoning_factor(pkg, module.name, decl, version, name_to_raw_id)
                 if factor is not None:
                     factor_nodes.append(factor)
+            elif isinstance(decl, RetractAction):
+                # RetractAction is an author intent declaration, not a BP factor.
+                # The actual belief update comes from existing chain + contradiction
+                # factors via backward BP message passing (per contradiction-handling §3.3).
+                # Record as annotation for audit/review.
+                retraction_intents.append(
+                    {
+                        "name": decl.name,
+                        "target": decl.target,
+                        "reason": decl.reason,
+                        "module": module.name,
+                        "content": decl.content or "",
+                    }
+                )
             elif isinstance(decl, (Contradiction, Equivalence)):
                 factor_nodes.extend(
                     _build_relation_factors(pkg, module.name, decl, version, name_to_raw_id)
                 )
+
+    # Remove orphan question nodes (not referenced by any factor)
+    # Claims, settings, contradictions, equivalences are kept even if unconnected
+    connected_ids: set[str] = set()
+    for f in factor_nodes:
+        connected_ids.update(f.premises)
+        connected_ids.update(f.contexts)
+        connected_ids.add(f.conclusion)
+    knowledge_nodes = [
+        n
+        for n in knowledge_nodes
+        if n.raw_node_id in connected_ids or n.knowledge_type != "question"
+    ]
+
+    graph_metadata = None
+    if retraction_intents:
+        graph_metadata = {"retraction_intents": retraction_intents}
 
     return RawGraph(
         package=pkg.name,
         version=version,
         knowledge_nodes=knowledge_nodes,
         factor_nodes=factor_nodes,
+        metadata=graph_metadata,
     )
 
 
@@ -122,13 +227,19 @@ def build_singleton_local_graph(raw_graph: RawGraph) -> CanonicalizationResult:
             )
         )
 
+    def _map_id(node_id: str) -> str:
+        """Map raw ID to local canonical ID, preserving ext: placeholders."""
+        if node_id.startswith("ext:"):
+            return node_id
+        return raw_to_local[node_id]
+
     local_factors = [
         FactorNode(
             factor_id=f.factor_id,
             type=f.type,
-            premises=[raw_to_local[node_id] for node_id in f.premises],
-            contexts=[raw_to_local[node_id] for node_id in f.contexts],
-            conclusion=raw_to_local[f.conclusion],
+            premises=[_map_id(node_id) for node_id in f.premises],
+            contexts=[_map_id(node_id) for node_id in f.contexts],
+            conclusion=_map_id(f.conclusion),
             source_ref=f.source_ref,
             metadata=f.metadata,
         )
@@ -212,6 +323,82 @@ def _build_raw_node(
     )
 
 
+def _elaborate_apply(
+    pkg: Package,
+    module_name: str,
+    chain: ChainExpr,
+    step: StepApply,
+    action: Action,
+    version: str,
+    name_to_raw_id: dict[str, str],
+    content_by_name: dict[str, str],
+) -> tuple[list[RawKnowledgeNode], FactorNode | None]:
+    """Elaborate a StepApply into a ground action node + instantiation factor.
+
+    Substitutes schema action parameters with concrete arg content,
+    producing a ground (parameter-free) action node and a binary
+    instantiation factor from the schema to the ground instance.
+    """
+    schema_id = name_to_raw_id[action.name]
+
+    # Substitute {param} placeholders with arg content
+    ground_content = action.content or ""
+    for i, param in enumerate(action.params):
+        if i < len(step.args):
+            arg_content = content_by_name.get(step.args[i].ref, step.args[i].ref)
+            # Use a short summary for substitution (first sentence or 80 chars)
+            summary = arg_content.strip().split("\n")[0][:80]
+            ground_content = ground_content.replace(f"{{{param.name}}}", summary)
+
+    # Build ground node
+    ground_name = f"{chain.name}__apply_{step.apply}"
+    _, kind = _knowledge_identity(action)
+    ground_id = _raw_node_id(
+        package=pkg.name,
+        version=version,
+        module_name=module_name,
+        knowledge_name=ground_name,
+        knowledge_type="action",
+        kind=kind,
+        content=ground_content,
+        parameters=[],  # ground — no params
+    )
+    ground_node = RawKnowledgeNode(
+        raw_node_id=ground_id,
+        knowledge_type="action",
+        kind=kind,
+        content=ground_content,
+        parameters=[],  # ground node
+        source_refs=[
+            SourceRef(
+                package=pkg.name,
+                version=version,
+                module=module_name,
+                knowledge_name=ground_name,
+            )
+        ],
+        metadata={"elaborated_from": action.name, "chain": chain.name},
+    )
+
+    # Build instantiation factor: schema → ground
+    inst_factor = FactorNode(
+        factor_id=_factor_id("instantiation", module_name, ground_name),
+        type="instantiation",
+        premises=[schema_id],
+        contexts=[],
+        conclusion=ground_id,
+        source_ref=SourceRef(
+            package=pkg.name,
+            version=version,
+            module=module_name,
+            knowledge_name=ground_name,
+        ),
+        metadata={"edge_type": "instantiation"},
+    )
+
+    return [ground_node], inst_factor
+
+
 def _build_reasoning_factor(
     pkg: Package,
     module_name: str,
@@ -234,6 +421,10 @@ def _build_reasoning_factor(
                     direct_refs.append(arg.ref)
                 else:
                     indirect_refs.append(arg.ref)
+            # Include the ground action node as a direct premise
+            ground_name = f"{chain.name}__apply_{step.apply}"
+            if ground_name in name_to_raw_id:
+                direct_refs.append(ground_name)
         elif isinstance(step, StepLambda):
             prev_ref = _previous_step_ref(chain, step.step)
             if prev_ref is not None and prev_ref in name_to_raw_id:
@@ -253,6 +444,36 @@ def _build_reasoning_factor(
         conclusion=name_to_raw_id[conclusion_ref],
         source_ref=source_ref,
         metadata={"edge_type": chain.edge_type or "deduction"},
+    )
+
+
+def _build_retraction_factor(
+    pkg: Package,
+    module_name: str,
+    retract: RetractAction,
+    version: str,
+    name_to_raw_id: dict[str, str],
+) -> FactorNode | None:
+    """Build a retraction reasoning factor: reason → weakens target."""
+    reason_id = name_to_raw_id.get(retract.reason)
+    target_id = name_to_raw_id.get(retract.target)
+    if reason_id is None or target_id is None:
+        return None
+
+    source_ref = SourceRef(
+        package=pkg.name,
+        version=version,
+        module=module_name,
+        knowledge_name=retract.name,
+    )
+    return FactorNode(
+        factor_id=_factor_id("reasoning", module_name, retract.name),
+        type="reasoning",
+        premises=[reason_id],
+        contexts=[],
+        conclusion=target_id,
+        source_ref=source_ref,
+        metadata={"edge_type": "retraction"},
     )
 
 

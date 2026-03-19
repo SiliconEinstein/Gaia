@@ -130,6 +130,12 @@ git worktree add .worktrees/<name> -b feature/<name>
    gh run view <run-id> --log-failed
    ```
 
+## Implementation Rules
+
+- **严格遵守设计文档**：实现时不得擅自降级设计文档中明确指定的技术方案（如用 TF-IDF 替代 embedding + BM25）。如果实现上有困难或想简化，**必须先和用户商量**，不能自行决定偷工减料。
+- **不确定就问**：对设计方案的任何偏离，无论多小，都要在实现前提出。
+- **Plan 必须覆盖 spec 的每一步**：写 implementation plan 时，逐条核对 spec 中的每个步骤/流程，确保每一步都有对应的 task。遗漏步骤等于悄悄砍需求。
+
 ## Design Documents
 
 Current specs live in `docs/foundations/` (product scope, system overview, domain model, language spec, CLI, server architecture, storage schema). Historical design and planning docs are archived in `docs/archive/`.

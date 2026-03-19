@@ -77,6 +77,7 @@ class RawGraph(BaseModel):
     version: str
     knowledge_nodes: list[RawKnowledgeNode] = Field(default_factory=list)
     factor_nodes: list[FactorNode] = Field(default_factory=list)
+    metadata: dict | None = None
 
     def canonical_json(self) -> str:
         return json.dumps(

@@ -157,6 +157,11 @@ class ContentStore(ABC):
     @abstractmethod
     async def get_global_node(self, global_id: str) -> GlobalCanonicalNode | None: ...
 
+    @abstractmethod
+    async def list_global_nodes(self) -> list[GlobalCanonicalNode]:
+        """Load all global canonical nodes."""
+        ...
+
     # ── Global inference state ──
 
     @abstractmethod

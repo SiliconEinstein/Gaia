@@ -1,0 +1,2149 @@
+{
+  "bindings": [
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_c48405eaa729d879",
+      "local_canonical_id": "lcn_e3d404d0198f7e25",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_0ae2e548bdc3b146",
+      "local_canonical_id": "lcn_aab9003445df2fec",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_4255d77b94766b02",
+      "local_canonical_id": "lcn_df66e0694c5ca5ad",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_294abfafb84132f1",
+      "local_canonical_id": "lcn_a9ca4fd9f5070274",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_c2f24a14911f9a97",
+      "local_canonical_id": "lcn_4106b1710e46373e",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_4c530ed4b621d5b7",
+      "local_canonical_id": "lcn_66d50713e601243e",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_34cabc42c0253a55",
+      "local_canonical_id": "lcn_d6c7bca7e8a06693",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_f0cc0fa5de32b098",
+      "local_canonical_id": "lcn_422bad5b75dd2df5",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_d02452d248c12ef9",
+      "local_canonical_id": "lcn_8ca9a2b93b0e9307",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "match_existing",
+      "global_canonical_id": "gcn_d02452d248c12ef9",
+      "local_canonical_id": "lcn_a95c07b51e050bfb",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": "cosine similarity 0.939",
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_c7057097844283c5",
+      "local_canonical_id": "lcn_b6bb05362b879e90",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_b6616c89da02a570",
+      "local_canonical_id": "lcn_148c1b8d98f495b5",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_681d83be20157cd2",
+      "local_canonical_id": "lcn_292f81b065df5b91",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_43636ff1544de453",
+      "local_canonical_id": "lcn_1e3724075272f3b5",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_58c421e2aee21da3",
+      "local_canonical_id": "lcn_61197e996f3dd38a",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_2060a151042afb16",
+      "local_canonical_id": "lcn_3d20684fe585a228",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_367e2cc5fe5a38ac",
+      "local_canonical_id": "lcn_315917e2f79d7ef7",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_fbd0f3e02d09f039",
+      "local_canonical_id": "lcn_cfb4e927e732fb7b",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_346c911b63389c15",
+      "local_canonical_id": "lcn_716c8ef657abaf41",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_c72ec7157b879f55",
+      "local_canonical_id": "lcn_25dddf57cc6aae0d",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_893f845d67c238bb",
+      "local_canonical_id": "lcn_8c42bbb2570499b9",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_10cfe90023ee6ca7",
+      "local_canonical_id": "lcn_645d38ebf9ed901b",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_542a4fb5cca1b069",
+      "local_canonical_id": "lcn_1f43c2bad5e7676d",
+      "local_graph_hash": "sha256:309e2698846c0e93a10faae0561376d28b07d8b4951617bf8528c1fe585dfad9",
+      "package": "galileo_falling_bodies",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_c639050dc11c8387",
+      "local_canonical_id": "lcn_fdc52d5c5fdf2374",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_3f9a7c3297a1962f",
+      "local_canonical_id": "lcn_c0c476d32d805f12",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_8e3cb03738b170e7",
+      "local_canonical_id": "lcn_2c502bb54f9d83c6",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_130a415b91c2e8ac",
+      "local_canonical_id": "lcn_d8fc78dec7817285",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_9041bd8c37476ebb",
+      "local_canonical_id": "lcn_1a3d5bc005ab292d",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_05b23dc2ff808953",
+      "local_canonical_id": "lcn_3c4eaab5efff7e66",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_c19c44772bb5129c",
+      "local_canonical_id": "lcn_796d71209059ab17",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_ffc8e93d243b209e",
+      "local_canonical_id": "lcn_344146af8b1932e5",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_11dd1e4d9d82de3b",
+      "local_canonical_id": "lcn_e7e1b9c7cd9c6b39",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_80ac4e3e82a09318",
+      "local_canonical_id": "lcn_7a03cda4ec534c19",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_7a25511aa794a411",
+      "local_canonical_id": "lcn_679585c3ffaede4c",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_65f3592372613202",
+      "local_canonical_id": "lcn_390e41f5e4271931",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_f54a12d943826d90",
+      "local_canonical_id": "lcn_051bcb61bd2c88c1",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_7363c864c1e552db",
+      "local_canonical_id": "lcn_f3d163a634b10ae3",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_f3f88a94a3a009bd",
+      "local_canonical_id": "lcn_cc1deda139d9572d",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_fb9792398769ce32",
+      "local_canonical_id": "lcn_dfd698abeb76807b",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "match_existing",
+      "global_canonical_id": "gcn_c19c44772bb5129c",
+      "local_canonical_id": "lcn_eb4137719d96ee21",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": "cosine similarity 0.916",
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_cf54f2fecae97fb4",
+      "local_canonical_id": "lcn_c23cb24b89936169",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "match_existing",
+      "global_canonical_id": "gcn_f3f88a94a3a009bd",
+      "local_canonical_id": "lcn_e346350bf23badcf",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": "cosine similarity 0.932",
+      "version": "1.0.0"
+    },
+    {
+      "decided_by": "auto_canonicalize",
+      "decision": "create_new",
+      "global_canonical_id": "gcn_fcc107960a9eb351",
+      "local_canonical_id": "lcn_6e6e3a70f0f405aa",
+      "local_graph_hash": "sha256:bac4fa372502161135d7a9a5e13d562a1cdf5678c5f6bb15c2d28188c5e7e5b7",
+      "package": "newton_principia",
+      "reason": null,
+      "version": "1.0.0"
+    }
+  ],
+  "factor_nodes": [
+    {
+      "conclusion": "gcn_c72ec7157b879f55",
+      "contexts": [],
+      "factor_id": "f_f057dd82db89dce0",
+      "metadata": {
+        "edge_type": "instantiation"
+      },
+      "premises": [
+        "gcn_c2f24a14911f9a97"
+      ],
+      "source_ref": {
+        "knowledge_name": "drag_prediction_chain__apply_deduce_drag_effect",
+        "module": "reasoning",
+        "package": "galileo_falling_bodies",
+        "version": "1.0.0"
+      },
+      "type": "instantiation"
+    },
+    {
+      "conclusion": "gcn_893f845d67c238bb",
+      "contexts": [],
+      "factor_id": "f_fc08d3b723cf56ff",
+      "metadata": {
+        "edge_type": "instantiation"
+      },
+      "premises": [
+        "gcn_4c530ed4b621d5b7"
+      ],
+      "source_ref": {
+        "knowledge_name": "contradiction_chain__apply_expose_mutual_exclusion",
+        "module": "reasoning",
+        "package": "galileo_falling_bodies",
+        "version": "1.0.0"
+      },
+      "type": "instantiation"
+    },
+    {
+      "conclusion": "gcn_10cfe90023ee6ca7",
+      "contexts": [],
+      "factor_id": "f_ca77883e93b1d8e5",
+      "metadata": {
+        "edge_type": "instantiation"
+      },
+      "premises": [
+        "gcn_34cabc42c0253a55"
+      ],
+      "source_ref": {
+        "knowledge_name": "confound_chain__apply_explain_everyday_observation",
+        "module": "reasoning",
+        "package": "galileo_falling_bodies",
+        "version": "1.0.0"
+      },
+      "type": "instantiation"
+    },
+    {
+      "conclusion": "gcn_542a4fb5cca1b069",
+      "contexts": [],
+      "factor_id": "f_6925159a4efbc465",
+      "metadata": {
+        "edge_type": "instantiation"
+      },
+      "premises": [
+        "gcn_f0cc0fa5de32b098"
+      ],
+      "source_ref": {
+        "knowledge_name": "synthesis_chain__apply_synthesize_equal_fall_prediction",
+        "module": "reasoning",
+        "package": "galileo_falling_bodies",
+        "version": "1.0.0"
+      },
+      "type": "instantiation"
+    },
+    {
+      "conclusion": "gcn_4255d77b94766b02",
+      "contexts": [],
+      "factor_id": "f_f882aaa2d884dec2",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "gcn_294abfafb84132f1"
+      ],
+      "source_ref": {
+        "knowledge_name": "inductive_support",
+        "module": "aristotle",
+        "package": "galileo_falling_bodies",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "gcn_c7057097844283c5",
+      "contexts": [],
+      "factor_id": "f_a2bde6e3ca035c49",
+      "metadata": {
+        "edge_type": "relation_contradiction"
+      },
+      "premises": [
+        "gcn_d02452d248c12ef9",
+        "gcn_d02452d248c12ef9"
+      ],
+      "source_ref": {
+        "knowledge_name": "tied_balls_contradiction",
+        "module": "reasoning",
+        "package": "galileo_falling_bodies",
+        "version": "1.0.0"
+      },
+      "type": "mutex_constraint"
+    },
+    {
+      "conclusion": "gcn_d02452d248c12ef9",
+      "contexts": [
+        "gcn_c48405eaa729d879"
+      ],
+      "factor_id": "f_2cc0ca127bd8157a",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "gcn_4255d77b94766b02",
+        "gcn_c72ec7157b879f55"
+      ],
+      "source_ref": {
+        "knowledge_name": "drag_prediction_chain",
+        "module": "reasoning",
+        "package": "galileo_falling_bodies",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "gcn_d02452d248c12ef9",
+      "contexts": [],
+      "factor_id": "f_49ced7d9952d3035",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "gcn_4255d77b94766b02"
+      ],
+      "source_ref": {
+        "knowledge_name": "combined_weight_chain",
+        "module": "reasoning",
+        "package": "galileo_falling_bodies",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "gcn_c7057097844283c5",
+      "contexts": [],
+      "factor_id": "f_a4589ec00285ef81",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "gcn_d02452d248c12ef9",
+        "gcn_d02452d248c12ef9",
+        "gcn_893f845d67c238bb"
+      ],
+      "source_ref": {
+        "knowledge_name": "contradiction_chain",
+        "module": "reasoning",
+        "package": "galileo_falling_bodies",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "gcn_b6616c89da02a570",
+      "contexts": [],
+      "factor_id": "f_cb6667814c366dd8",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "gcn_c7057097844283c5"
+      ],
+      "source_ref": {
+        "knowledge_name": "verdict_chain",
+        "module": "reasoning",
+        "package": "galileo_falling_bodies",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "gcn_43636ff1544de453",
+      "contexts": [],
+      "factor_id": "f_b98868837751bace",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "gcn_681d83be20157cd2"
+      ],
+      "source_ref": {
+        "knowledge_name": "medium_trend_chain",
+        "module": "reasoning",
+        "package": "galileo_falling_bodies",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "gcn_58c421e2aee21da3",
+      "contexts": [
+        "gcn_294abfafb84132f1"
+      ],
+      "factor_id": "f_1eeb41a484899eb3",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "gcn_43636ff1544de453",
+        "gcn_10cfe90023ee6ca7"
+      ],
+      "source_ref": {
+        "knowledge_name": "confound_chain",
+        "module": "reasoning",
+        "package": "galileo_falling_bodies",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "gcn_367e2cc5fe5a38ac",
+      "contexts": [],
+      "factor_id": "f_41fb903b71ed857a",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "gcn_2060a151042afb16"
+      ],
+      "source_ref": {
+        "knowledge_name": "inclined_plane_chain",
+        "module": "reasoning",
+        "package": "galileo_falling_bodies",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "gcn_fbd0f3e02d09f039",
+      "contexts": [
+        "gcn_0ae2e548bdc3b146"
+      ],
+      "factor_id": "f_51b81b082af3b76d",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "gcn_b6616c89da02a570",
+        "gcn_58c421e2aee21da3",
+        "gcn_367e2cc5fe5a38ac",
+        "gcn_542a4fb5cca1b069"
+      ],
+      "source_ref": {
+        "knowledge_name": "synthesis_chain",
+        "module": "reasoning",
+        "package": "galileo_falling_bodies",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "gcn_346c911b63389c15",
+      "contexts": [],
+      "factor_id": "f_982b333aad98d3c6",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "gcn_fbd0f3e02d09f039"
+      ],
+      "source_ref": {
+        "knowledge_name": "next_steps",
+        "module": "follow_up",
+        "package": "galileo_falling_bodies",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "gcn_c19c44772bb5129c",
+      "contexts": [],
+      "factor_id": "f_9e89ffde48b38b79",
+      "metadata": {
+        "edge_type": "instantiation"
+      },
+      "premises": [
+        "gcn_c19c44772bb5129c"
+      ],
+      "source_ref": {
+        "knowledge_name": "force_equating_chain__apply_equate_forces",
+        "module": "derivation",
+        "package": "newton_principia",
+        "version": "1.0.0"
+      },
+      "type": "instantiation"
+    },
+    {
+      "conclusion": "gcn_cf54f2fecae97fb4",
+      "contexts": [],
+      "factor_id": "f_61e1b4812faa60df",
+      "metadata": {
+        "edge_type": "instantiation"
+      },
+      "premises": [
+        "gcn_ffc8e93d243b209e"
+      ],
+      "source_ref": {
+        "knowledge_name": "mass_independence_chain__apply_interpret_mass_independence",
+        "module": "derivation",
+        "package": "newton_principia",
+        "version": "1.0.0"
+      },
+      "type": "instantiation"
+    },
+    {
+      "conclusion": "gcn_f3f88a94a3a009bd",
+      "contexts": [],
+      "factor_id": "f_e81e18bcb27b657a",
+      "metadata": {
+        "edge_type": "instantiation"
+      },
+      "premises": [
+        "gcn_f3f88a94a3a009bd"
+      ],
+      "source_ref": {
+        "knowledge_name": "theoretical_contradiction_chain__apply_derive_theoretical_contradiction",
+        "module": "implications",
+        "package": "newton_principia",
+        "version": "1.0.0"
+      },
+      "type": "instantiation"
+    },
+    {
+      "conclusion": "gcn_fcc107960a9eb351",
+      "contexts": [],
+      "factor_id": "f_5608368a89ff26e2",
+      "metadata": {
+        "edge_type": "instantiation"
+      },
+      "premises": [
+        "gcn_fb9792398769ce32"
+      ],
+      "source_ref": {
+        "knowledge_name": "two_path_rejection_chain__apply_synthesize_independent_refutations",
+        "module": "implications",
+        "package": "newton_principia",
+        "version": "1.0.0"
+      },
+      "type": "instantiation"
+    },
+    {
+      "conclusion": "gcn_11dd1e4d9d82de3b",
+      "contexts": [],
+      "factor_id": "f_a056cedf6d046de2",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "gcn_3f9a7c3297a1962f",
+        "gcn_130a415b91c2e8ac",
+        "gcn_9041bd8c37476ebb",
+        "gcn_c19c44772bb5129c"
+      ],
+      "source_ref": {
+        "knowledge_name": "force_equating_chain",
+        "module": "derivation",
+        "package": "newton_principia",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "gcn_80ac4e3e82a09318",
+      "contexts": [],
+      "factor_id": "f_104daf2c484a37da",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "gcn_11dd1e4d9d82de3b",
+        "gcn_cf54f2fecae97fb4"
+      ],
+      "source_ref": {
+        "knowledge_name": "mass_independence_chain",
+        "module": "derivation",
+        "package": "newton_principia",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "gcn_7a25511aa794a411",
+      "contexts": [],
+      "factor_id": "f_7aa2e28103c97c51",
+      "metadata": {
+        "edge_type": "relation_equivalence"
+      },
+      "premises": [
+        "gcn_80ac4e3e82a09318",
+        "gcn_fbd0f3e02d09f039"
+      ],
+      "source_ref": {
+        "knowledge_name": "galileo_equivalence",
+        "module": "implications",
+        "package": "newton_principia",
+        "version": "1.0.0"
+      },
+      "type": "equiv_constraint"
+    },
+    {
+      "conclusion": "gcn_7363c864c1e552db",
+      "contexts": [],
+      "factor_id": "f_bf402717960b0321",
+      "metadata": {
+        "edge_type": "relation_contradiction"
+      },
+      "premises": [
+        "gcn_80ac4e3e82a09318",
+        "gcn_4255d77b94766b02"
+      ],
+      "source_ref": {
+        "knowledge_name": "newton_vs_aristotle",
+        "module": "implications",
+        "package": "newton_principia",
+        "version": "1.0.0"
+      },
+      "type": "mutex_constraint"
+    },
+    {
+      "conclusion": "gcn_65f3592372613202",
+      "contexts": [],
+      "factor_id": "f_d94bc1f0e6542479",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "gcn_80ac4e3e82a09318",
+        "gcn_4255d77b94766b02",
+        "gcn_f3f88a94a3a009bd"
+      ],
+      "source_ref": {
+        "knowledge_name": "theoretical_contradiction_chain",
+        "module": "implications",
+        "package": "newton_principia",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    },
+    {
+      "conclusion": "gcn_f54a12d943826d90",
+      "contexts": [],
+      "factor_id": "f_118a2cfa1abb5387",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "gcn_b6616c89da02a570",
+        "gcn_65f3592372613202",
+        "gcn_fcc107960a9eb351"
+      ],
+      "source_ref": {
+        "knowledge_name": "two_path_rejection_chain",
+        "module": "implications",
+        "package": "newton_principia",
+        "version": "1.0.0"
+      },
+      "type": "reasoning"
+    }
+  ],
+  "inference_state": {
+    "factor_parameters": {
+      "f_104daf2c484a37da": {
+        "conditional_probability": 0.95
+      },
+      "f_118a2cfa1abb5387": {
+        "conditional_probability": 0.94
+      },
+      "f_1eeb41a484899eb3": {
+        "conditional_probability": 0.9
+      },
+      "f_2cc0ca127bd8157a": {
+        "conditional_probability": 0.93
+      },
+      "f_41fb903b71ed857a": {
+        "conditional_probability": 0.86
+      },
+      "f_49ced7d9952d3035": {
+        "conditional_probability": 0.93
+      },
+      "f_51b81b082af3b76d": {
+        "conditional_probability": 0.94
+      },
+      "f_982b333aad98d3c6": {
+        "conditional_probability": 1.0
+      },
+      "f_a056cedf6d046de2": {
+        "conditional_probability": 0.97
+      },
+      "f_a4589ec00285ef81": {
+        "conditional_probability": 0.97
+      },
+      "f_b98868837751bace": {
+        "conditional_probability": 0.88
+      },
+      "f_cb6667814c366dd8": {
+        "conditional_probability": 0.95
+      },
+      "f_d94bc1f0e6542479": {
+        "conditional_probability": 0.95
+      },
+      "f_f882aaa2d884dec2": {
+        "conditional_probability": 0.8
+      }
+    },
+    "graph_hash": "",
+    "node_beliefs": {
+      "gcn_05b23dc2ff808953": 0.999,
+      "gcn_0ae2e548bdc3b146": 0.999,
+      "gcn_10cfe90023ee6ca7": 0.998075,
+      "gcn_11dd1e4d9d82de3b": 0.64967,
+      "gcn_130a415b91c2e8ac": 0.857969,
+      "gcn_2060a151042afb16": 0.715751,
+      "gcn_294abfafb84132f1": 0.796563,
+      "gcn_346c911b63389c15": 0.999619,
+      "gcn_34cabc42c0253a55": 0.818182,
+      "gcn_367e2cc5fe5a38ac": 0.739463,
+      "gcn_3f9a7c3297a1962f": 0.898549,
+      "gcn_4255d77b94766b02": 0.033402,
+      "gcn_43636ff1544de453": 0.722857,
+      "gcn_4c530ed4b621d5b7": 0.941748,
+      "gcn_542a4fb5cca1b069": 0.998727,
+      "gcn_58c421e2aee21da3": 0.743935,
+      "gcn_65f3592372613202": 0.411162,
+      "gcn_681d83be20157cd2": 0.755598,
+      "gcn_7363c864c1e552db": 0.5,
+      "gcn_7a25511aa794a411": 0.5,
+      "gcn_80ac4e3e82a09318": 0.784835,
+      "gcn_893f845d67c238bb": 0.998726,
+      "gcn_8e3cb03738b170e7": 0.95,
+      "gcn_9041bd8c37476ebb": 0.837679,
+      "gcn_b6616c89da02a570": 0.585988,
+      "gcn_c19c44772bb5129c": 0.883502,
+      "gcn_c2f24a14911f9a97": 0.869159,
+      "gcn_c48405eaa729d879": 0.999,
+      "gcn_c639050dc11c8387": 0.95,
+      "gcn_c7057097844283c5": 0.437168,
+      "gcn_c72ec7157b879f55": 0.998736,
+      "gcn_cf54f2fecae97fb4": 0.998317,
+      "gcn_d02452d248c12ef9": 0.060011,
+      "gcn_f0cc0fa5de32b098": 0.886792,
+      "gcn_f3f88a94a3a009bd": 0.904715,
+      "gcn_f54a12d943826d90": 0.587966,
+      "gcn_fb9792398769ce32": 0.886792,
+      "gcn_fbd0f3e02d09f039": 0.619398,
+      "gcn_fcc107960a9eb351": 0.9988,
+      "gcn_ffc8e93d243b209e": 0.904762
+    },
+    "node_priors": {
+      "gcn_05b23dc2ff808953": 1.0,
+      "gcn_0ae2e548bdc3b146": 1.0,
+      "gcn_10cfe90023ee6ca7": 1.0,
+      "gcn_11dd1e4d9d82de3b": 0.5,
+      "gcn_130a415b91c2e8ac": 0.93,
+      "gcn_2060a151042afb16": 0.84,
+      "gcn_294abfafb84132f1": 0.95,
+      "gcn_346c911b63389c15": 1.0,
+      "gcn_34cabc42c0253a55": 0.9,
+      "gcn_367e2cc5fe5a38ac": 0.55,
+      "gcn_3f9a7c3297a1962f": 0.95,
+      "gcn_4255d77b94766b02": 0.7,
+      "gcn_43636ff1544de453": 0.6,
+      "gcn_4c530ed4b621d5b7": 0.97,
+      "gcn_542a4fb5cca1b069": 1.0,
+      "gcn_58c421e2aee21da3": 0.5,
+      "gcn_65f3592372613202": 0.5,
+      "gcn_681d83be20157cd2": 0.88,
+      "gcn_7363c864c1e552db": 0.5,
+      "gcn_7a25511aa794a411": 0.5,
+      "gcn_80ac4e3e82a09318": 0.5,
+      "gcn_893f845d67c238bb": 1.0,
+      "gcn_8e3cb03738b170e7": 0.95,
+      "gcn_9041bd8c37476ebb": 0.92,
+      "gcn_b6616c89da02a570": 0.5,
+      "gcn_c19c44772bb5129c": 0.985,
+      "gcn_c2f24a14911f9a97": 0.93,
+      "gcn_c48405eaa729d879": 1.0,
+      "gcn_c639050dc11c8387": 0.95,
+      "gcn_c7057097844283c5": 0.6,
+      "gcn_c72ec7157b879f55": 1.0,
+      "gcn_cf54f2fecae97fb4": 1.0,
+      "gcn_d02452d248c12ef9": 0.5,
+      "gcn_f0cc0fa5de32b098": 0.94,
+      "gcn_f3f88a94a3a009bd": 0.975,
+      "gcn_f54a12d943826d90": 0.5,
+      "gcn_fb9792398769ce32": 0.94,
+      "gcn_fbd0f3e02d09f039": 0.5,
+      "gcn_fcc107960a9eb351": 1.0,
+      "gcn_ffc8e93d243b209e": 0.95
+    },
+    "updated_at": ""
+  },
+  "knowledge_nodes": [
+    {
+      "global_canonical_id": "gcn_c48405eaa729d879",
+      "kind": null,
+      "knowledge_type": "setting",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_e3d404d0198f7e25",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.thought_experiment_env"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "想象一个重球 H 和一个轻球 L 从同一高度落下。 先分别考虑它们各自的“自然下落速度”，再考虑把二者用细绳绑成 复合体 HL 后一起下落，会得到什么结果。\n"
+    },
+    {
+      "global_canonical_id": "gcn_0ae2e548bdc3b146",
+      "kind": null,
+      "knowledge_type": "setting",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_aab9003445df2fec",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.vacuum_env"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "一个理想化的无空气阻力环境， 只保留重力作用，不让介质阻力参与落体过程。\n"
+    },
+    {
+      "global_canonical_id": "gcn_4255d77b94766b02",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_df66e0694c5ca5ad",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.heavier_falls_faster"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "重的物体比轻的物体下落得更快。 下落速度与重量成正比。\n"
+    },
+    {
+      "global_canonical_id": "gcn_294abfafb84132f1",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_a9ca4fd9f5070274",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.everyday_observation"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "在日常空气环境中，从同一高度落下时，石头通常比羽毛更早落地； 重物看起来往往比轻物下落得更快。\n"
+    },
+    {
+      "global_canonical_id": "gcn_c2f24a14911f9a97",
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_4106b1710e46373e",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.deduce_drag_effect"
+        ]
+      },
+      "parameters": [
+        {
+          "constraint": "unknown",
+          "name": "env"
+        },
+        {
+          "constraint": "unknown",
+          "name": "law"
+        }
+      ],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "在 {env} 中暂时接受 {law}： 轻球天然比重球下落更慢。于是当轻球与重球绑在一起时， 轻球应当拖慢重球，复合体 HL 的下落速度应慢于单独的重球 H。\n"
+    },
+    {
+      "global_canonical_id": "gcn_4c530ed4b621d5b7",
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_66d50713e601243e",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.expose_mutual_exclusion"
+        ]
+      },
+      "parameters": [
+        {
+          "constraint": "unknown",
+          "name": "prediction_a"
+        },
+        {
+          "constraint": "unknown",
+          "name": "prediction_b"
+        }
+      ],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "比较 {prediction_a} 与 {prediction_b}。 这两条结论针对同一个绑球系统、同一时刻、同一环境， 却分别断言“更慢”和“更快”，因此不能同时为真。 这暴露出亚里士多德落体定律在该思想实验中的内在矛盾。\n"
+    },
+    {
+      "global_canonical_id": "gcn_34cabc42c0253a55",
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_d6c7bca7e8a06693",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.explain_everyday_observation"
+        ]
+      },
+      "parameters": [
+        {
+          "constraint": "unknown",
+          "name": "gradient"
+        },
+        {
+          "constraint": "unknown",
+          "name": "observation"
+        }
+      ],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "由 {gradient} 可知，介质越稀薄，轻重物体的速度差异越小。 因而 {observation} 更应被解释为介质阻力造成的表象， 而不是重量本身决定自由落体速度的证据。\n"
+    },
+    {
+      "global_canonical_id": "gcn_f0cc0fa5de32b098",
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_422bad5b75dd2df5",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.synthesize_equal_fall_prediction"
+        ]
+      },
+      "parameters": [
+        {
+          "constraint": "unknown",
+          "name": "confound"
+        },
+        {
+          "constraint": "unknown",
+          "name": "env"
+        },
+        {
+          "constraint": "unknown",
+          "name": "support"
+        },
+        {
+          "constraint": "unknown",
+          "name": "verdict"
+        }
+      ],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "如果 {verdict}，并且 {confound}，再加上 {support}， 那么在 {env} 这一无空气阻力的极限条件下， 最合理的预测是：不同重量的物体应以相同速率下落。\n"
+    },
+    {
+      "global_canonical_id": "gcn_d02452d248c12ef9",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_8ca9a2b93b0e9307",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.tied_pair_slower_than_heavy"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "复合体 HL 因轻球拖拽，下落速度应慢于单独的重球 H。\n"
+    },
+    {
+      "global_canonical_id": "gcn_c7057097844283c5",
+      "kind": null,
+      "knowledge_type": "contradiction",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_b6bb05362b879e90",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "between": [
+          "tied_pair_slower_than_heavy",
+          "tied_pair_faster_than_heavy"
+        ],
+        "source_knowledge_names": [
+          "galileo_falling_bodies.tied_balls_contradiction"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "同一定律对同一绑球系统同时预测\"更慢\"和\"更快\"，自相矛盾。\n"
+    },
+    {
+      "global_canonical_id": "gcn_b6616c89da02a570",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_148c1b8d98f495b5",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.aristotle_contradicted"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "亚里士多德\"重者下落更快\"的定律因绑球矛盾而不能成立。\n"
+    },
+    {
+      "global_canonical_id": "gcn_681d83be20157cd2",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_292f81b065df5b91",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.medium_density_observation"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "在水、油、空气等不同介质中比较轻重物体的下落， 会发现介质越稠密，速度差异越明显；介质越稀薄，差异越不明显。\n"
+    },
+    {
+      "global_canonical_id": "gcn_43636ff1544de453",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_1e3724075272f3b5",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.medium_difference_shrinks"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "介质越稀薄，轻重物体的下落速度差异越小。\n"
+    },
+    {
+      "global_canonical_id": "gcn_58c421e2aee21da3",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_61197e996f3dd38a",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.air_resistance_is_confound"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "日常观察到的速度差异来自空气阻力，而非重量本身。\n"
+    },
+    {
+      "global_canonical_id": "gcn_2060a151042afb16",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_3d20684fe585a228",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.inclined_plane_observation"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "伽利略的斜面实验把下落过程放慢到可测量尺度后显示： 不同重量的小球在相同斜面条件下呈现近似一致的加速趋势， 与“重量越大速度越大”的简单比例律并不相符。\n"
+    },
+    {
+      "global_canonical_id": "gcn_367e2cc5fe5a38ac",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_315917e2f79d7ef7",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.inclined_plane_supports_equal_fall"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "斜面实验支持\"重量不是决定落体速度的首要因素\"。\n"
+    },
+    {
+      "global_canonical_id": "gcn_fbd0f3e02d09f039",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_cfb4e927e732fb7b",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.vacuum_prediction"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "在真空中，不同重量的物体应以相同速率下落。\n"
+    },
+    {
+      "global_canonical_id": "gcn_346c911b63389c15",
+      "kind": null,
+      "knowledge_type": "question",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_716c8ef657abaf41",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "galileo_falling_bodies.follow_up_question"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "能否在足够接近真空的条件下直接比较重球与轻球的下落时间？ 如果日常差异确实来自空气阻力，那么真正决定性的实验应当在几乎无介质的环境中完成。\n"
+    },
+    {
+      "global_canonical_id": "gcn_c72ec7157b879f55",
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_25dddf57cc6aae0d",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "chain": "drag_prediction_chain",
+        "elaborated_from": "deduce_drag_effect",
+        "source_knowledge_names": [
+          "galileo_falling_bodies.drag_prediction_chain__apply_deduce_drag_effect"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "在 想象一个重球 H 和一个轻球 L 从同一高度落下。 先分别考虑它们各自的“自然下落速度”，再考虑把二者用细绳绑成 复合体 HL 后一起下落，会得到什么结果。 中暂时接受 重的物体比轻的物体下落得更快。 下落速度与重量成正比。： 轻球天然比重球下落更慢。于是当轻球与重球绑在一起时， 轻球应当拖慢重球，复合体 HL 的下落速度应慢于单独的重球 H。\n"
+    },
+    {
+      "global_canonical_id": "gcn_893f845d67c238bb",
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_8c42bbb2570499b9",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "chain": "contradiction_chain",
+        "elaborated_from": "expose_mutual_exclusion",
+        "source_knowledge_names": [
+          "galileo_falling_bodies.contradiction_chain__apply_expose_mutual_exclusion"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "比较 复合体 HL 因轻球拖拽，下落速度应慢于单独的重球 H。 与 复合体 HL 总重量大于单独的重球 H，下落速度应快于 H。。 这两条结论针对同一个绑球系统、同一时刻、同一环境， 却分别断言“更慢”和“更快”，因此不能同时为真。 这暴露出亚里士多德落体定律在该思想实验中的内在矛盾。\n"
+    },
+    {
+      "global_canonical_id": "gcn_10cfe90023ee6ca7",
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_645d38ebf9ed901b",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "chain": "confound_chain",
+        "elaborated_from": "explain_everyday_observation",
+        "source_knowledge_names": [
+          "galileo_falling_bodies.confound_chain__apply_explain_everyday_observation"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "由 介质越稀薄，轻重物体的下落速度差异越小。 可知，介质越稀薄，轻重物体的速度差异越小。 因而 在日常空气环境中，从同一高度落下时，石头通常比羽毛更早落地； 重物看起来往往比轻物下落得更快。 更应被解释为介质阻力造成的表象， 而不是重量本身决定自由落体速度的证据。\n"
+    },
+    {
+      "global_canonical_id": "gcn_542a4fb5cca1b069",
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_1f43c2bad5e7676d",
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "chain": "synthesis_chain",
+        "elaborated_from": "synthesize_equal_fall_prediction",
+        "source_knowledge_names": [
+          "galileo_falling_bodies.synthesis_chain__apply_synthesize_equal_fall_prediction"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "galileo_falling_bodies",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "如果 亚里士多德\"重者下落更快\"的定律因绑球矛盾而不能成立。，并且 日常观察到的速度差异来自空气阻力，而非重量本身。，再加上 斜面实验支持\"重量不是决定落体速度的首要因素\"。， 那么在 一个理想化的无空气阻力环境， 只保留重力作用，不让介质阻力参与落体过程。 这一无空气阻力的极限条件下， 最合理的预测是：不同重量的物体应以相同速率下落。\n"
+    },
+    {
+      "global_canonical_id": "gcn_c639050dc11c8387",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_fdc52d5c5fdf2374",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "newton_principia.first_law"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "牛顿第一定律（惯性定律）：不受外力作用的物体保持静止或匀速直线运动。\n"
+    },
+    {
+      "global_canonical_id": "gcn_3f9a7c3297a1962f",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_c0c476d32d805f12",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "newton_principia.second_law"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "牛顿第二定律：物体的加速度与所受合外力成正比、与惯性质量成反比。 F = m_i × a，其中 m_i 是惯性质量。\n"
+    },
+    {
+      "global_canonical_id": "gcn_8e3cb03738b170e7",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_2c502bb54f9d83c6",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "newton_principia.third_law"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "牛顿第三定律（作用与反作用定律）：两个物体之间的力总是大小相等、方向相反。\n"
+    },
+    {
+      "global_canonical_id": "gcn_130a415b91c2e8ac",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_d8fc78dec7817285",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "newton_principia.law_of_gravity"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "万有引力定律：任意两个物体之间存在引力，大小为 F = G × M × m_g / r²， 其中 m_g 是引力质量，M 是地球质量，r 是距离，G 是引力常数。\n"
+    },
+    {
+      "global_canonical_id": "gcn_9041bd8c37476ebb",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_1a3d5bc005ab292d",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "newton_principia.mass_equivalence"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "惯性质量与引力质量在实验精度范围内相等：m_i = m_g。 这是一个经验事实，牛顿注意到了它但没有给出理论解释。\n"
+    },
+    {
+      "global_canonical_id": "gcn_05b23dc2ff808953",
+      "kind": null,
+      "knowledge_type": "setting",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_3c4eaab5efff7e66",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "newton_principia.near_earth_surface"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "在地球表面附近，距离 r 近似等于地球半径 R， 因而引力加速度 g = GM/R² 可视为常数（约 9.8 m/s²）。\n"
+    },
+    {
+      "global_canonical_id": "gcn_c19c44772bb5129c",
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_796d71209059ab17",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "newton_principia.equate_forces"
+        ]
+      },
+      "parameters": [
+        {
+          "constraint": "unknown",
+          "name": "dynamic_law"
+        },
+        {
+          "constraint": "unknown",
+          "name": "equivalence"
+        },
+        {
+          "constraint": "unknown",
+          "name": "gravity_law"
+        }
+      ],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "由 {dynamic_law} 得 F = m_i × a；由 {gravity_law} 得 F = m_g × g。 因为作用在同一物体上的合力相等，所以 m_i × a = m_g × g。 又由 {equivalence} 知 m_i = m_g，两边约去质量，得 a = g。 加速度只取决于引力场强度 g，与物体质量完全无关。\n"
+    },
+    {
+      "global_canonical_id": "gcn_ffc8e93d243b209e",
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_344146af8b1932e5",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "newton_principia.interpret_mass_independence"
+        ]
+      },
+      "parameters": [
+        {
+          "constraint": "unknown",
+          "name": "derivation_result"
+        }
+      ],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "{derivation_result} 意味着在同一引力场中，无论物体质量多大， 其自由落体加速度都相同。这不是经验归纳，而是从基本定律出发的 纯理论推导。\n"
+    },
+    {
+      "global_canonical_id": "gcn_11dd1e4d9d82de3b",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_e7e1b9c7cd9c6b39",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "newton_principia.force_equation_result"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "对地表附近的自由落体：m × a = m × g，约去质量得 a = g。 自由落体加速度等于引力场强度，与物体的质量无关。\n"
+    },
+    {
+      "global_canonical_id": "gcn_80ac4e3e82a09318",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_7a03cda4ec534c19",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "newton_principia.acceleration_independent_of_mass"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "在同一引力场中，所有物体的自由落体加速度相同，与质量无关。 这是牛顿力学的理论推论，不依赖于任何具体实验。\n"
+    },
+    {
+      "global_canonical_id": "gcn_7a25511aa794a411",
+      "kind": null,
+      "knowledge_type": "equivalence",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_679585c3ffaede4c",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "between": [
+          "acceleration_independent_of_mass",
+          "galileo_vacuum_prediction"
+        ],
+        "source_knowledge_names": [
+          "newton_principia.galileo_equivalence"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "牛顿从 F=ma 和 F=mg 推导出的\"a=g 与质量无关\" 与伽利略从思想实验和经验分析预测的\"真空中不同重量物体等速下落\" 在物理含义上等价。 区别在于：伽利略是经验论证（归谬法 + 介质分析 + 斜面实验）， 牛顿是理论推导（从基本定律出发的演绎）。\n"
+    },
+    {
+      "global_canonical_id": "gcn_65f3592372613202",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_390e41f5e4271931",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "newton_principia.newton_contradicts_aristotle"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "牛顿的 a=g 推导从理论上排除了\"下落速度与重量成正比\"的可能： 如果加速度不依赖质量，那么亚里士多德的 v∝W 就不是自然界的规律。 这与伽利略的归谬法反驳独立，提供了第二条反驳路径。\n"
+    },
+    {
+      "global_canonical_id": "gcn_f54a12d943826d90",
+      "kind": null,
+      "knowledge_type": "claim",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_051bcb61bd2c88c1",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "newton_principia.two_path_rejection_of_aristotle"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "亚里士多德落体学说同时遭到两条方法上不同的反驳路径削弱： 伽利略通过绑球归谬法暴露其内在矛盾， 牛顿则从更基本的力学定律推导出与之不相容的结果。 两条路径相互独立地汇聚到同一结论。\n"
+    },
+    {
+      "global_canonical_id": "gcn_7363c864c1e552db",
+      "kind": null,
+      "knowledge_type": "contradiction",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_f3d163a634b10ae3",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "between": [
+          "acceleration_independent_of_mass",
+          "aristotle_law"
+        ],
+        "source_knowledge_names": [
+          "newton_principia.newton_vs_aristotle"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "牛顿的 a=g（加速度与质量无关）直接矛盾于 亚里士多德的 v∝W（下落速度与重量成正比）。 前者是理论推导，后者是未经控制的经验归纳。\n"
+    },
+    {
+      "global_canonical_id": "gcn_f3f88a94a3a009bd",
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_cc1deda139d9572d",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "newton_principia.derive_theoretical_contradiction"
+        ]
+      },
+      "parameters": [
+        {
+          "constraint": "unknown",
+          "name": "aristotle_claim"
+        },
+        {
+          "constraint": "unknown",
+          "name": "newton_result"
+        }
+      ],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "{newton_result} 断言加速度与质量无关；{aristotle_claim} 断言速度与重量成正比。 在自由落体条件下（无介质阻力），这两个命题不能同时为真。 牛顿的推导基于更基本的力学定律，亚里士多德的归纳缺乏对混淆变量的控制， 因此应当接受前者、拒绝后者。\n"
+    },
+    {
+      "global_canonical_id": "gcn_fb9792398769ce32",
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_dfd698abeb76807b",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "source_knowledge_names": [
+          "newton_principia.synthesize_independent_refutations"
+        ]
+      },
+      "parameters": [
+        {
+          "constraint": "unknown",
+          "name": "galileo_result"
+        },
+        {
+          "constraint": "unknown",
+          "name": "newton_result"
+        }
+      ],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "{galileo_result} 来自思想实验中的归谬法， {newton_result} 来自基本力学定律的演绎推导。 二者在方法上不同，却都指向同一个判断： 亚里士多德的落体规律不能作为普遍定律保留。\n"
+    },
+    {
+      "global_canonical_id": "gcn_cf54f2fecae97fb4",
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_c23cb24b89936169",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "chain": "mass_independence_chain",
+        "elaborated_from": "interpret_mass_independence",
+        "source_knowledge_names": [
+          "newton_principia.mass_independence_chain__apply_interpret_mass_independence"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "对地表附近的自由落体：m × a = m × g，约去质量得 a = g。 自由落体加速度等于引力场强度，与物体的质量无关。 意味着在同一引力场中，无论物体质量多大， 其自由落体加速度都相同。这不是经验归纳，而是从基本定律出发的 纯理论推导。\n"
+    },
+    {
+      "global_canonical_id": "gcn_fcc107960a9eb351",
+      "kind": "infer_action",
+      "knowledge_type": "action",
+      "member_local_nodes": [
+        {
+          "local_canonical_id": "lcn_6e6e3a70f0f405aa",
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "metadata": {
+        "chain": "two_path_rejection_chain",
+        "elaborated_from": "synthesize_independent_refutations",
+        "source_knowledge_names": [
+          "newton_principia.two_path_rejection_chain__apply_synthesize_independent_refutations"
+        ]
+      },
+      "parameters": [],
+      "provenance": [
+        {
+          "package": "newton_principia",
+          "version": "1.0.0"
+        }
+      ],
+      "representative_content": "galileo_aristotle_contradicted 来自思想实验中的归谬法， 牛顿的 a=g 推导从理论上排除了\"下落速度与重量成正比\"的可能： 如果加速度不依赖质量，那么亚里士多德的 v∝W 就不是自然界的规律。 这与伽利略的归谬法反驳 来自基本力学定律的演绎推导。 二者在方法上不同，却都指向同一个判断： 亚里士多德的落体规律不能作为普遍定律保留。\n"
+    }
+  ],
+  "schema_version": "1.0"
+}
