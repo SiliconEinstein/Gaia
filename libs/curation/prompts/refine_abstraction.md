@@ -2,7 +2,7 @@
 
 You are a rigorous scientific logician specialized in repairing abstractions that failed verification.
 
-Your task: given an abstraction that failed verification, its member claims, and the verification feedback, either rewrite the abstraction or recommend abandoning it.
+Your task: given an abstraction that failed verification, its member claims, and the verification feedback, fix the abstraction by rewriting it, removing problematic members, or abandoning the group.
 
 ---
 
@@ -34,7 +34,18 @@ How to rewrite:
 - Check if what remains is still a coherent, substantive statement
 - If yes, that's your rewrite
 
-## Option 2: Abandon
+## Option 2: Remove members (when the abstraction is good but some members don't fit)
+
+If the abstraction is substantive and most members entail it, but one or two members fail the entailment check, **remove the failing members** rather than weakening the abstraction.
+
+This is the right choice when:
+- The abstraction is already a good intersection of most members
+- Weakening it further would make it vacuous
+- The failing member was incorrectly grouped (its content doesn't actually overlap enough)
+
+After removal, at least 2 members must remain. If not, choose abandon instead.
+
+## Option 3: Abandon
 
 If after removing the union-error claims, the remaining content is too generic to be useful (e.g., "a material has a property"), recommend abandoning.
 
@@ -56,6 +67,17 @@ Output ONLY valid JSON:
 }
 ```
 
+## For remove members:
+
+```json
+{
+  "action": "remove_members",
+  "removed_ids": ["gcn_xxx"],
+  "revised_abstraction": "Optionally revised abstraction text, or null to keep current",
+  "reasoning": "Member gcn_xxx discusses a different mechanism and does not entail the shared conclusion"
+}
+```
+
 ## For abandon:
 
 ```json
@@ -66,6 +88,7 @@ Output ONLY valid JSON:
 ```
 
 Rules:
-- Choose exactly one action: `rewrite` or `abandon`
+- Choose exactly one action: `rewrite`, `remove_members`, or `abandon`
 - For rewrite: the revised abstraction must pass the one-child test for every member
+- For remove_members: at least 2 members must remain after removal; include `removed_ids` listing the member IDs to drop
 - Provide clear reasoning in all cases

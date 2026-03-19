@@ -286,6 +286,92 @@ async def test_refine_abandons(mock_acompletion, physics_node_map):
     assert result is None
 
 
+@patch("litellm.acompletion")
+async def test_refine_removes_members(mock_acompletion, physics_node_map):
+    """Refine with action=remove_members drops failing member."""
+    llm_json = json.dumps(
+        {
+            "action": "remove_members",
+            "removed_ids": [ID_HEAT],
+            "revised_abstraction": None,
+            "reasoning": "Member does not fit the group",
+        }
+    )
+    mock_acompletion.return_value = _mock_response(llm_json)
+
+    agent = AbstractionAgent(model="test-model")
+    group = AbstractionGroup(
+        group_id="G1",
+        abstraction_content="Original abstraction",
+        member_node_ids=[ID_FMA_1, ID_FMA_2, ID_HEAT],
+        reason="test",
+        contradiction_pairs=[(ID_FMA_1, ID_HEAT)],
+    )
+    verification = VerificationResult(group_id="G1", passed=False, checks=[])
+    result = await agent._refine_abstraction(group, verification, physics_node_map)
+
+    assert result is not None
+    assert ID_HEAT not in result.member_node_ids
+    assert ID_FMA_1 in result.member_node_ids
+    assert ID_FMA_2 in result.member_node_ids
+    assert result.abstraction_content == "Original abstraction"
+    # Contradiction pairs involving removed member should be cleaned
+    assert len(result.contradiction_pairs) == 0
+
+
+@patch("litellm.acompletion")
+async def test_refine_removes_members_too_few_remaining(mock_acompletion, physics_node_map):
+    """Refine with remove_members leaving < 2 members returns None (abandon)."""
+    llm_json = json.dumps(
+        {
+            "action": "remove_members",
+            "removed_ids": [ID_FMA_2],
+            "reasoning": "Member does not fit",
+        }
+    )
+    mock_acompletion.return_value = _mock_response(llm_json)
+
+    agent = AbstractionAgent(model="test-model")
+    group = AbstractionGroup(
+        group_id="G1",
+        abstraction_content="Original",
+        member_node_ids=[ID_FMA_1, ID_FMA_2],
+        reason="test",
+    )
+    verification = VerificationResult(group_id="G1", passed=False, checks=[])
+    result = await agent._refine_abstraction(group, verification, physics_node_map)
+
+    assert result is None
+
+
+@patch("litellm.acompletion")
+async def test_refine_removes_members_with_revised_abstraction(mock_acompletion, physics_node_map):
+    """Refine with remove_members can also revise the abstraction text."""
+    llm_json = json.dumps(
+        {
+            "action": "remove_members",
+            "removed_ids": [ID_HEAT],
+            "revised_abstraction": "Revised abstraction after removal",
+            "reasoning": "Tightened after removing unrelated member",
+        }
+    )
+    mock_acompletion.return_value = _mock_response(llm_json)
+
+    agent = AbstractionAgent(model="test-model")
+    group = AbstractionGroup(
+        group_id="G1",
+        abstraction_content="Original",
+        member_node_ids=[ID_FMA_1, ID_FMA_2, ID_HEAT],
+        reason="test",
+    )
+    verification = VerificationResult(group_id="G1", passed=False, checks=[])
+    result = await agent._refine_abstraction(group, verification, physics_node_map)
+
+    assert result is not None
+    assert result.abstraction_content == "Revised abstraction after removal"
+    assert len(result.member_node_ids) == 2
+
+
 # ── AbstractionAgent.run tests ──
 
 

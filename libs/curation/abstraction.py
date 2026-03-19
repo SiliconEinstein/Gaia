@@ -212,6 +212,30 @@ class AbstractionAgent:
             revised = parsed.get("revised_abstraction", "")
             if revised:
                 return group.model_copy(update={"abstraction_content": revised})
+
+        elif action == "remove_members":
+            removed_ids = set(parsed.get("removed_ids", []))
+            if not removed_ids:
+                return None
+            remaining = [m for m in group.member_node_ids if m not in removed_ids]
+            if len(remaining) < 2:
+                logger.info(
+                    "remove_members would leave < 2 members for group %s, abandoning",
+                    group.group_id,
+                )
+                return None
+            updates: dict = {"member_node_ids": remaining}
+            revised = parsed.get("revised_abstraction")
+            if revised:
+                updates["abstraction_content"] = revised
+            # Also clean contradiction_pairs involving removed members
+            updates["contradiction_pairs"] = [
+                p
+                for p in group.contradiction_pairs
+                if p[0] not in removed_ids and p[1] not in removed_ids
+            ]
+            return group.model_copy(update=updates)
+
         return None
 
     # ── Full pipeline ──
