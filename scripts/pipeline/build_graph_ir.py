@@ -24,11 +24,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from libs.graph_ir.build import (
+    CanonicalizationResult,
     build_raw_graph,
     build_singleton_local_graph,
     derive_local_parameterization,
     derive_local_parameterization_from_raw,
 )
+from libs.graph_ir.models import LocalParameterization, RawGraph
 from libs.graph_ir.typst_compiler import compile_typst_to_raw_graph
 from libs.lang.loader import load_package
 from libs.lang.typst_loader import load_typst_package
@@ -36,9 +38,9 @@ from libs.lang.typst_loader import load_typst_package
 
 def _write_graph_ir_outputs(
     pkg_dir: Path,
-    raw_graph,
-    result,
-    params,
+    raw_graph: RawGraph,
+    result: CanonicalizationResult,
+    params: LocalParameterization,
 ) -> None:
     """Write the standard set of graph_ir/ output files."""
     local_graph = result.local_graph
