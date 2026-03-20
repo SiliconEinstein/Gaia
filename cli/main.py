@@ -176,27 +176,54 @@ def init_cmd(
 ) -> None:
     """Initialize a new Typst knowledge package."""
     pkg_dir = Path(name)
+    pkg_name = pkg_dir.name
     if pkg_dir.exists():
         typer.echo(f"Error: directory '{name}' already exists", err=True)
         raise typer.Exit(1)
 
     pkg_dir.mkdir(parents=True)
 
+    # Vendor the minimal Gaia Typst runtime so the package can build anywhere.
+    runtime_src_dir = Path(__file__).resolve().parents[1] / "libs" / "typst" / "gaia-lang"
+    runtime_dst_dir = pkg_dir / "_gaia"
+    runtime_dst_dir.mkdir()
+    for filename in ("v2.typ", "module.typ", "declarations.typ", "tactics.typ"):
+        src = runtime_src_dir / filename
+        (runtime_dst_dir / filename).write_text(src.read_text())
+
     # typst.toml
     toml_content = f"""[package]
-name = "{name}"
+name = "{pkg_name}"
 version = "1.0.0"
+entrypoint = "lib.typ"
+authors = ["Gaia Project"]
+description = "Starter Gaia knowledge package"
 """
     (pkg_dir / "typst.toml").write_text(toml_content)
 
+    # gaia.typ
+    gaia_content = """#import "_gaia/v2.typ": *
+"""
+    (pkg_dir / "gaia.typ").write_text(gaia_content)
+
     # lib.typ
     lib_content = f"""#import "gaia.typ": *
+#show: gaia-style
 
-// {name} — knowledge package
+// {pkg_name} — knowledge package
 //
 // Modules: motivation
 
-#import "motivation.typ"
+#package("{pkg_name}",
+  title: "{pkg_name.replace('_', ' ')}",
+  version: "1.0.0",
+  modules: ("motivation",),
+  export: ("main_question",),
+)
+
+#include "motivation.typ"
+
+#export-graph()
 """
     (pkg_dir / "lib.typ").write_text(lib_content)
 
@@ -205,13 +232,15 @@ version = "1.0.0"
 
 // motivation module
 
-#let main_question = question("main_question",
-  "What is the main research question?"
-)
+#module("motivation", title: "研究动机")
+
+#question("main_question")[
+  What is the main research question?
+]
 """
     (pkg_dir / "motivation.typ").write_text(motivation_content)
 
-    typer.echo(f"Initialized Typst package '{name}' in ./{name}/")
+    typer.echo(f"Initialized Typst package '{pkg_name}' in {pkg_dir}/")
 
 
 @app.command()

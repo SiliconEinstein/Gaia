@@ -42,3 +42,15 @@ def test_init_refuses_existing_directory(tmp_path, monkeypatch):
     (tmp_path / "existing_pkg").mkdir()
     result = runner.invoke(app, ["init", "existing_pkg"])
     assert result.exit_code != 0
+
+
+def test_init_package_builds_from_absolute_path(tmp_path):
+    pkg_dir = tmp_path / "my_package"
+    result = runner.invoke(app, ["init", str(pkg_dir)])
+    assert result.exit_code == 0
+
+    build_result = runner.invoke(app, ["build", str(pkg_dir)])
+    assert build_result.exit_code == 0, build_result.output
+    assert "Build complete." in build_result.output
+    assert (pkg_dir / "gaia.typ").exists()
+    assert (pkg_dir / ".gaia" / "build" / "graph_data.json").exists()
