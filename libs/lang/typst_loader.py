@@ -197,15 +197,11 @@ def load_typst_package_v4(pkg_path: Path) -> dict:
     root = _find_project_root(pkg_path)
 
     # Query gaia-node figures (local knowledge nodes)
-    raw_nodes_json = typst.query(
-        str(entrypoint), 'figure.where(kind: "gaia-node")', root=root
-    )
+    raw_nodes_json = typst.query(str(entrypoint), 'figure.where(kind: "gaia-node")', root=root)
     raw_nodes = json.loads(raw_nodes_json) if isinstance(raw_nodes_json, str) else raw_nodes_json
 
     # Query gaia-ext figures (external references from gaia-bibliography)
-    raw_ext_json = typst.query(
-        str(entrypoint), 'figure.where(kind: "gaia-ext")', root=root
-    )
+    raw_ext_json = typst.query(str(entrypoint), 'figure.where(kind: "gaia-ext")', root=root)
     raw_ext = json.loads(raw_ext_json) if isinstance(raw_ext_json, str) else raw_ext_json
 
     nodes = []
@@ -232,38 +228,44 @@ def load_typst_package_v4(pkg_path: Path) -> dict:
         from_labels = meta.get("from", [])
         if from_labels:
             premises = [_strip_label(lbl) for lbl in from_labels]
-            factors.append({
-                "type": "reasoning",
-                "premises": premises,
-                "conclusion": label,
-            })
+            factors.append(
+                {
+                    "type": "reasoning",
+                    "premises": premises,
+                    "conclusion": label,
+                }
+            )
 
         # Process relation between: → constraint
         gaia_type = meta.get("gaia-type", "")
         if gaia_type == "relation":
             between_labels = meta.get("between", [])
             rel_type = meta.get("rel-type", "contradiction")
-            constraints.append({
-                "name": label,
-                "type": rel_type,
-                "between": [_strip_label(lbl) for lbl in between_labels],
-            })
+            constraints.append(
+                {
+                    "name": label,
+                    "type": rel_type,
+                    "between": [_strip_label(lbl) for lbl in between_labels],
+                }
+            )
 
     # Process external nodes
     ext_nodes = []
     for figure in raw_ext:
         label = _strip_label(figure.get("label", ""))
         meta = _extract_metadata_from_figure(figure) or {}
-        ext_nodes.append({
-            "name": label,
-            "type": meta.get("ext-content-type", "claim"),
-            "content": "",
-            "kind": None,
-            "external": True,
-            "ext_package": meta.get("ext-package", ""),
-            "ext_version": meta.get("ext-version", ""),
-            "ext_node": meta.get("ext-node", label),
-        })
+        ext_nodes.append(
+            {
+                "name": label,
+                "type": meta.get("ext-content-type", "claim"),
+                "content": "",
+                "kind": None,
+                "external": True,
+                "ext_package": meta.get("ext-package", ""),
+                "ext_version": meta.get("ext-version", ""),
+                "ext_node": meta.get("ext-node", label),
+            }
+        )
 
     return {
         "package": package_name,
