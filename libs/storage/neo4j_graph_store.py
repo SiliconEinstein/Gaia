@@ -333,6 +333,38 @@ class Neo4jGraphStore(GraphStore):
                 ver=b.version,
             )
 
+    # ── Delete global/factor nodes ──
+
+    async def delete_global_nodes(self, global_ids: list[str]) -> None:
+        if not global_ids:
+            return
+        async with self._driver.session(database=self._db) as session:
+            await session.execute_write(self._tx_delete_global_nodes, global_ids)
+
+    @staticmethod
+    async def _tx_delete_global_nodes(
+        tx: neo4j.AsyncManagedTransaction, global_ids: list[str]
+    ) -> None:
+        for gid in global_ids:
+            await tx.run(
+                "MATCH (n:GlobalCanonicalNode {global_canonical_id: $gid}) DETACH DELETE n",
+                gid=gid,
+            )
+
+    async def delete_factors(self, factor_ids: list[str]) -> None:
+        if not factor_ids:
+            return
+        async with self._driver.session(database=self._db) as session:
+            await session.execute_write(self._tx_delete_factors, factor_ids)
+
+    @staticmethod
+    async def _tx_delete_factors(tx: neo4j.AsyncManagedTransaction, factor_ids: list[str]) -> None:
+        for fid in factor_ids:
+            await tx.run(
+                "MATCH (n:Factor {factor_id: $fid}) DETACH DELETE n",
+                fid=fid,
+            )
+
     # ── Query ──
 
     async def get_neighbors(

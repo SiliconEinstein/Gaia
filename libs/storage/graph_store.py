@@ -51,6 +51,14 @@ class GraphStore(ABC):
     ) -> None:
         """Write GlobalCanonicalNode nodes and CANONICAL_BINDING relationships."""
 
+    @abstractmethod
+    async def delete_global_nodes(self, global_ids: list[str]) -> None:
+        """Delete GlobalCanonicalNode nodes and their CANONICAL_BINDING relationships."""
+
+    @abstractmethod
+    async def delete_factors(self, factor_ids: list[str]) -> None:
+        """Delete Factor nodes and their FACTOR_PREMISE/CONCLUSION relationships."""
+
     # ── Query ──
 
     @abstractmethod

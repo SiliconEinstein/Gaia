@@ -218,6 +218,18 @@ class StorageManager:
         if self.graph_store is not None:
             await self.graph_store.write_factor_topology(factors)
 
+    async def delete_global_nodes(self, global_ids: list[str]) -> None:
+        """Delete global canonical nodes from ContentStore + GraphStore."""
+        await self.content_store.delete_global_nodes(global_ids)
+        if self.graph_store is not None:
+            await self.graph_store.delete_global_nodes(global_ids)
+
+    async def delete_factors(self, factor_ids: list[str]) -> None:
+        """Delete factors from ContentStore + GraphStore."""
+        await self.content_store.delete_factors(factor_ids)
+        if self.graph_store is not None:
+            await self.graph_store.delete_factors(factor_ids)
+
     # ── Global Inference State ──
 
     async def get_inference_state(self) -> GlobalInferenceState | None:

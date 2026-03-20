@@ -1152,6 +1152,20 @@ class LanceContentStore(ContentStore):
         rows = table.search().limit(table.count_rows()).to_list()
         return [_row_to_global_node(r) for r in rows]
 
+    async def delete_global_nodes(self, global_ids: list[str]) -> None:
+        if not global_ids:
+            return
+        table = self._db.open_table("global_canonical_nodes")
+        for gid in global_ids:
+            table.delete(f"global_canonical_id = '{_q(gid)}'")
+
+    async def delete_factors(self, factor_ids: list[str]) -> None:
+        if not factor_ids:
+            return
+        table = self._db.open_table("factors")
+        for fid in factor_ids:
+            table.delete(f"factor_id = '{_q(fid)}'")
+
     # ── Global inference state ──
 
     async def update_inference_state(self, state: GlobalInferenceState) -> None:

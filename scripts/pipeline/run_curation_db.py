@@ -445,7 +445,24 @@ async def main() -> None:
     logger.info("--- Writing curated results back to DB ---")
     t0 = time.monotonic()
 
-    # Convert curation (global_graph) nodes back to storage nodes
+    # Compute diff: which nodes/factors were removed during curation
+    original_node_ids = {n.global_canonical_id for n in storage_nodes}
+    final_node_ids = set(node_map.keys())
+    removed_node_ids = list(original_node_ids - final_node_ids)
+
+    original_factor_ids = {f.factor_id for f in factors}
+    final_factor_ids = {f.factor_id for f in mutable_factors}
+    removed_factor_ids = list(original_factor_ids - final_factor_ids)
+
+    # Delete removed nodes and factors
+    if removed_node_ids:
+        await mgr.delete_global_nodes(removed_node_ids)
+        logger.info("Deleted %d removed global nodes from DB", len(removed_node_ids))
+    if removed_factor_ids:
+        await mgr.delete_factors(removed_factor_ids)
+        logger.info("Deleted %d removed factors from DB", len(removed_factor_ids))
+
+    # Upsert remaining/new nodes and factors
     final_storage_nodes = [curation_to_storage(n) for n in node_map.values()]
     await mgr.upsert_global_nodes(final_storage_nodes)
     logger.info("Upserted %d global nodes to DB", len(final_storage_nodes))

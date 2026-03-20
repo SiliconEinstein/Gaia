@@ -162,6 +162,16 @@ class ContentStore(ABC):
         """Load all global canonical nodes."""
         ...
 
+    @abstractmethod
+    async def delete_global_nodes(self, global_ids: list[str]) -> None:
+        """Delete global canonical nodes by ID."""
+        ...
+
+    @abstractmethod
+    async def delete_factors(self, factor_ids: list[str]) -> None:
+        """Delete factors by ID."""
+        ...
+
     # ── Global inference state ──
 
     @abstractmethod
