@@ -14,3 +14,9 @@
   The cosmological constant interpretation of dark energy differs from
   quantum field theory's vacuum energy prediction by 120 orders of magnitude.
 ] <vacuum_catastrophe>
+
+#gaia-bibliography(yaml("gaia-deps.yml"))
+
+#claim(from: (<dark_energy_fraction>, <prior_cmb_analysis>))[
+  The dark energy fraction is consistent with independent CMB power spectrum analysis.
+] <cross_validation>
