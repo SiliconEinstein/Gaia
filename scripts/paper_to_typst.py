@@ -46,8 +46,7 @@ def _escape_typst(text: str) -> str:
 
     # First handle display math $$...$$
     def _replace_display(m: re.Match) -> str:
-        latex = m.group(1).strip()
-        # Escape quotes inside the LaTeX
+        latex = _sanitize_latex(m.group(1).strip())
         latex = latex.replace('"', '\\"')
         return f"\n#mitex(`{latex}`)\n"
 
@@ -55,7 +54,7 @@ def _escape_typst(text: str) -> str:
 
     # Then handle inline math $...$
     def _replace_inline(m: re.Match) -> str:
-        latex = m.group(1)
+        latex = _sanitize_latex(m.group(1))
         latex = latex.replace('"', '\\"')
         return f"#mi(`{latex}`)"
 
@@ -71,6 +70,8 @@ def _escape_typst(text: str) -> str:
         else:
             part = part.replace("#", "\\#")
             part = part.replace("@", "\\@")
+            part = part.replace("<", "\\<")
+            part = part.replace(">", "\\>")
             result.append(part)
     return "".join(result)
 

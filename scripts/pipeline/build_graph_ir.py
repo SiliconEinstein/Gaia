@@ -125,14 +125,22 @@ def main():
     args = parser.parse_args()
 
     succeeded = 0
+    failed = []
     for pkg_dir in args.pkg_dirs:
         if not pkg_dir.is_dir():
             continue
         print(f"Processing: {pkg_dir.name}")
-        if build_package_graph_ir(pkg_dir):
-            succeeded += 1
+        try:
+            if build_package_graph_ir(pkg_dir):
+                succeeded += 1
+        except Exception as e:
+            print(f"  ERROR: {e}")
+            failed.append(pkg_dir.name)
 
-    print(f"\nDone: {succeeded}/{len(args.pkg_dirs)} packages.")
+    total = succeeded + len(failed)
+    print(f"\nDone: {succeeded}/{total} packages.")
+    if failed:
+        print(f"Failed: {', '.join(failed)}")
 
 
 if __name__ == "__main__":
