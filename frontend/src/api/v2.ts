@@ -4,7 +4,7 @@ import { apiFetch } from "./client";
 import type {
   V2Package, V2Knowledge, V2Module, V2Chain,
   V2ProbabilityRecord, V2BeliefSnapshot,
-  V2Paginated, GraphData,
+  V2Paginated, GraphData, UnifiedGraphData,
 } from "./v2-types";
 
 // ── Fetch functions ──
@@ -56,6 +56,11 @@ export const fetchGraphData = (packageId?: string) => {
   return apiFetch<GraphData>(`/graph${params}`);
 };
 
+export const fetchUnifiedGraph = (packageId?: string) => {
+  const params = packageId ? `?package_id=${encodeURIComponent(packageId)}` : "";
+  return apiFetch<UnifiedGraphData>(`/graph${params}`);
+};
+
 // ── React Query hooks ──
 
 export const usePackages = (page = 1, pageSize = 20) =>
@@ -96,3 +101,6 @@ export const useChainProbabilities = (id: string) =>
 
 export const useGraphData = (packageId?: string) =>
   useQuery({ queryKey: ["v2", "graph", packageId], queryFn: () => fetchGraphData(packageId) });
+
+export const useUnifiedGraph = (packageId?: string) =>
+  useQuery({ queryKey: ["v2", "unified-graph", packageId], queryFn: () => fetchUnifiedGraph(packageId) });

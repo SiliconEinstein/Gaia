@@ -1,125 +1,424 @@
 // frontend/src/pages/v2/GraphViewer.tsx
 import { useEffect, useRef, useState } from "react";
-import { Card, Select, Typography, Spin, Drawer } from "antd";
+import { Card, Select, Typography, Spin, Drawer, Tag } from "antd";
 import { Network, DataSet } from "vis-network/standalone";
+import { usePackages, useUnifiedGraph } from "../../api/v2";
+import type { UnifiedGraphData } from "../../api/v2-types";
 import { Link } from "react-router-dom";
-import { useGraphData, usePackages, useKnowledge } from "../../api/v2";
-import { toVisGraph, HIERARCHICAL_OPTIONS } from "../../lib/v2-graph-transform";
 
-export function GraphViewer() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const networkRef = useRef<Network | null>(null);
-  const [packageId, setPackageId] = useState<string | undefined>();
-  const [selectedKnowledgeId, setSelectedKnowledgeId] = useState<string | null>(null);
+// ── Colors ──
 
-  const { data: packages } = usePackages(1, 100);
-  const { data: graphData, isLoading } = useGraphData(packageId);
+const TYPE_COLORS: Record<string, string> = {
+  claim: "#1677ff",
+  setting: "#52c41a",
+  question: "#fa8c16",
+  action: "#722ed1",
+  contradiction: "#f5222d",
+  equivalence: "#13c2c2",
+};
 
-  useEffect(() => {
-    if (!containerRef.current || !graphData) return;
+const FACTOR_COLORS: Record<string, string> = {
+  infer: "#595959",
+  abstraction: "#595959",
+  instantiation: "#8c8c8c",
+  contradiction: "#cf1322",
+  equivalence: "#08979c",
+};
 
-    const { nodes, edges } = toVisGraph(graphData);
-    const nodeDs = new DataSet(nodes);
-    const edgeDs = new DataSet(edges);
+// ── Vis transform ──
 
-    const net = new Network(
-      containerRef.current,
-      { nodes: nodeDs, edges: edgeDs },
-      HIERARCHICAL_OPTIONS,
-    );
+function truncateName(knowledgeId: string, maxLen = 25): string {
+  const parts = knowledgeId.split("/");
+  const name = parts.length > 1 ? parts.slice(1).join("/") : knowledgeId;
+  return name.length > maxLen ? name.slice(0, maxLen - 2) + "\u2026" : name;
+}
 
-    net.on("click", (params) => {
-      if (params.nodes.length > 0) {
-        const nodeId = params.nodes[0] as string;
-        // nodeId format: knowledge_id@version — strip the @version suffix
-        const parts = nodeId.split("@");
-        const knowledgeId = parts.slice(0, -1).join("@");
-        setSelectedKnowledgeId(knowledgeId);
-      }
+function buildVisGraph(data: UnifiedGraphData) {
+  const nodes: {
+    id: string;
+    label: string;
+    title: string;
+    color: { background: string; border: string };
+    font: { color: string; size: number };
+    shape: string;
+    size: number;
+    borderWidth: number;
+  }[] = [];
+  const edges: {
+    id: string;
+    from: string;
+    to: string;
+    arrows: string;
+    color: { color: string };
+    dashes?: boolean;
+    label?: string;
+    font?: { size: number; color: string };
+  }[] = [];
+
+  for (const n of data.knowledge_nodes) {
+    const shortName = truncateName(n.knowledge_id);
+    const label = `${shortName}\n[${n.prior.toFixed(2)}]`;
+
+    const tooltip = [
+      `[${n.type}] ${n.knowledge_id}`,
+      n.content.trim().slice(0, 300),
+      `prior: ${n.prior.toFixed(3)}`,
+      `package: ${n.source_package_id}`,
+      `module: ${n.source_module_id}`,
+    ].join("\n");
+
+    nodes.push({
+      id: n.knowledge_id,
+      label,
+      title: tooltip,
+      color: {
+        background: TYPE_COLORS[n.type] ?? "#aaa",
+        border: "#555",
+      },
+      font: { color: "#fff", size: 10 },
+      shape: "box",
+      size: 14,
+      borderWidth: 1,
+    });
+  }
+
+  for (const f of data.factor_nodes) {
+    const edgeType = (f.metadata?.edge_type as string) ?? f.type;
+
+    const tooltip = [
+      `[factor: ${f.type}] ${f.factor_id}`,
+      `edge_type: ${edgeType}`,
+      `premises: ${f.premises.length}, contexts: ${f.contexts.length}`,
+      `package: ${f.package_id}`,
+    ].join("\n");
+
+    nodes.push({
+      id: f.factor_id,
+      label: edgeType,
+      title: tooltip,
+      color: {
+        background: FACTOR_COLORS[f.type] ?? "#595959",
+        border: FACTOR_COLORS[f.type] ?? "#595959",
+      },
+      font: { color: "#fff", size: 8 },
+      shape: "box",
+      size: 6,
+      borderWidth: 0,
     });
 
-    networkRef.current = net;
+    for (const p of f.premises) {
+      edges.push({
+        id: `${p}->${f.factor_id}`,
+        from: p,
+        to: f.factor_id,
+        arrows: "",
+        color: { color: "#595959" },
+      });
+    }
+    for (const c of f.contexts) {
+      edges.push({
+        id: `${c}->${f.factor_id}:ctx`,
+        from: c,
+        to: f.factor_id,
+        arrows: "",
+        color: { color: "#d9d9d9" },
+        dashes: true,
+      });
+    }
+    if (f.conclusion) {
+      edges.push({
+        id: `${f.factor_id}->${f.conclusion}`,
+        from: f.factor_id,
+        to: f.conclusion,
+        arrows: "to",
+        color: {
+          color:
+            f.type === "contradiction" || f.type === "equivalence"
+              ? (FACTOR_COLORS[f.type] ?? "#595959")
+              : "#595959",
+        },
+      });
+    }
+  }
 
+  return { nodes, edges };
+}
+
+// ── Layout options ──
+
+const LAYOUT_OPTIONS = {
+  layout: {
+    hierarchical: {
+      enabled: true,
+      direction: "UD",
+      sortMethod: "directed",
+      levelSeparation: 50,
+      nodeSpacing: 160,
+      treeSpacing: 80,
+      blockShifting: true,
+      edgeMinimization: true,
+      parentCentralization: true,
+    },
+  },
+  physics: { enabled: false },
+  interaction: { hover: true, tooltipDelay: 100, zoomView: true, dragView: true, dragNodes: true },
+  nodes: { borderWidth: 1, borderWidthSelected: 3 },
+  edges: {
+    smooth: { type: "cubicBezier", forceDirection: "vertical", roundness: 0.3 },
+    arrows: { to: { scaleFactor: 0.4 } },
+    font: { size: 8, color: "#999" },
+    color: { opacity: 0.7 },
+  },
+};
+
+// ── Graph canvas component ──
+
+function FactorGraphCanvas({
+  data,
+  onSelectNode,
+  height = "70vh",
+}: {
+  data: UnifiedGraphData | undefined;
+  onSelectNode: (id: string) => void;
+  height?: string | number;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const networkRef = useRef<Network | null>(null);
+  const onSelectNodeRef = useRef(onSelectNode);
+  onSelectNodeRef.current = onSelectNode;
+
+  useEffect(() => {
+    if (!containerRef.current || !data) return;
+    if (networkRef.current) {
+      networkRef.current.destroy();
+      networkRef.current = null;
+    }
+
+    const { nodes, edges } = buildVisGraph(data);
+    const net = new Network(
+      containerRef.current,
+      { nodes: new DataSet(nodes), edges: new DataSet(edges) },
+      LAYOUT_OPTIONS,
+    );
+    net.on("click", (p) => {
+      if (p.nodes.length > 0) onSelectNodeRef.current(p.nodes[0] as string);
+    });
+    networkRef.current = net;
     return () => {
       net.destroy();
       networkRef.current = null;
     };
-  }, [graphData]);
-
-  const packageOptions = (packages?.items ?? []).map((p) => ({
-    value: p.package_id,
-    label: p.package_id,
-  }));
+  }, [data]);
 
   return (
-    <div>
-      <Typography.Title level={3} style={{ marginBottom: 16 }}>Graph IR</Typography.Title>
-      <Card style={{ marginBottom: 16 }}>
-        <Select
-          allowClear
-          placeholder="Filter by package (all if empty)"
-          style={{ width: 400 }}
-          options={packageOptions}
-          onChange={(v) => setPackageId(v)}
-        />
-        <Typography.Text style={{ marginLeft: 16, color: "#888" }}>
-          {graphData ? `${graphData.nodes.length} nodes · ${graphData.edges.length} edges` : ""}
-        </Typography.Text>
-      </Card>
-      <div style={{ position: "relative", width: "100%", height: "70vh" }}>
-        <div
-          ref={containerRef}
-          style={{
-            width: "100%",
-            height: "100%",
-            border: "1px solid #e8e8e8",
-            borderRadius: 6,
-            background: "#fafafa",
-          }}
-        />
-        {isLoading && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Spin size="large" />
-          </div>
-        )}
-      </div>
-      <Drawer
-        title={
-          selectedKnowledgeId ? (
-            <Link to={`/v2/knowledge/${encodeURIComponent(selectedKnowledgeId)}`}>
-              {selectedKnowledgeId}
-            </Link>
-          ) : "Knowledge"
-        }
-        open={!!selectedKnowledgeId}
-        onClose={() => setSelectedKnowledgeId(null)}
-        width={520}
-      >
-        {selectedKnowledgeId && <KnowledgeDetailInline id={selectedKnowledgeId} />}
-      </Drawer>
-    </div>
+    <div
+      ref={containerRef}
+      style={{
+        width: "100%",
+        height,
+        minHeight: 400,
+        border: "1px solid #e8e8e8",
+        borderRadius: 6,
+        background: "#fafafa",
+      }}
+    />
   );
 }
 
-function KnowledgeDetailInline({ id }: { id: string }) {
-  const { data: k, isLoading } = useKnowledge(id);
-  if (isLoading) return <Spin />;
-  if (!k) return <Typography.Text type="danger">Not found</Typography.Text>;
+// ── Node detail drawer ──
+
+function NodeDetailDrawer({
+  nodeId,
+  data,
+  onClose,
+}: {
+  nodeId: string | null;
+  data: UnifiedGraphData | undefined;
+  onClose: () => void;
+}) {
+  if (!nodeId || !data) return null;
+
+  const kNode = data.knowledge_nodes.find((n) => n.knowledge_id === nodeId);
+  const fNode = data.factor_nodes.find((f) => f.factor_id === nodeId);
+
+  const title = kNode ? (
+    <Link to={`/v2/knowledge/${encodeURIComponent(kNode.knowledge_id)}`}>
+      {kNode.knowledge_id}
+    </Link>
+  ) : fNode ? (
+    fNode.factor_id
+  ) : (
+    "Node Detail"
+  );
+
+  return (
+    <Drawer title={title} open={!!nodeId} onClose={onClose} width={560}>
+      {kNode && (
+        <div>
+          <div style={{ marginBottom: 12 }}>
+            <Tag color={TYPE_COLORS[kNode.type]}>{kNode.type}</Tag>
+            {kNode.kind && <Tag>{kNode.kind}</Tag>}
+          </div>
+          <Typography.Text type="secondary" copyable style={{ fontSize: 11 }}>
+            {kNode.knowledge_id} (v{kNode.version})
+          </Typography.Text>
+          <Typography.Paragraph style={{ whiteSpace: "pre-wrap", marginTop: 12 }}>
+            {kNode.content}
+          </Typography.Paragraph>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text strong>Prior: {kNode.prior.toFixed(3)}</Typography.Text>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary">
+              Package: {kNode.source_package_id}
+            </Typography.Text>
+          </div>
+          <div>
+            <Typography.Text type="secondary">
+              Module: {kNode.source_module_id}
+            </Typography.Text>
+          </div>
+        </div>
+      )}
+      {fNode && (
+        <div>
+          <div style={{ marginBottom: 12 }}>
+            <Tag color={FACTOR_COLORS[fNode.type] ?? "#595959"}>{fNode.type}</Tag>
+            {fNode.metadata?.edge_type && (
+              <Tag>{String(fNode.metadata.edge_type)}</Tag>
+            )}
+          </div>
+          <Typography.Text type="secondary" copyable style={{ fontSize: 11 }}>
+            {fNode.factor_id}
+          </Typography.Text>
+          <div style={{ marginTop: 12 }}>
+            <Typography.Text strong>Premises ({fNode.premises.length}):</Typography.Text>
+            {fNode.premises.map((p) => (
+              <div key={p}>
+                <Typography.Text code style={{ fontSize: 10 }}>
+                  {p}
+                </Typography.Text>
+              </div>
+            ))}
+          </div>
+          {fNode.contexts.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <Typography.Text strong>Contexts ({fNode.contexts.length}):</Typography.Text>
+              {fNode.contexts.map((c) => (
+                <div key={c}>
+                  <Typography.Text code style={{ fontSize: 10 }}>
+                    {c}
+                  </Typography.Text>
+                </div>
+              ))}
+            </div>
+          )}
+          {fNode.conclusion && (
+            <div style={{ marginTop: 8 }}>
+              <Typography.Text strong>Conclusion: </Typography.Text>
+              <Typography.Text code style={{ fontSize: 10 }}>
+                {fNode.conclusion}
+              </Typography.Text>
+            </div>
+          )}
+          {fNode.metadata && Object.keys(fNode.metadata).length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <Typography.Text strong>Metadata:</Typography.Text>
+              <pre style={{ fontSize: 11, marginTop: 4, color: "#666" }}>
+                {JSON.stringify(fNode.metadata, null, 2)}
+              </pre>
+            </div>
+          )}
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary">
+              Package: {fNode.package_id}
+            </Typography.Text>
+          </div>
+        </div>
+      )}
+    </Drawer>
+  );
+}
+
+// ── Main page ──
+
+export function GraphViewer() {
+  const [packageId, setPackageId] = useState<string | undefined>();
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+
+  const { data: packages } = usePackages(1, 100);
+  const { data: graphData, isLoading } = useUnifiedGraph(packageId);
+
+  const packageOptions = [
+    { value: "", label: "All packages" },
+    ...(packages?.items ?? []).map((p) => ({
+      value: p.package_id,
+      label: p.package_id,
+    })),
+  ];
+
+  const knowledgeCount = graphData?.knowledge_nodes.length ?? 0;
+  const factorCount = graphData?.factor_nodes.length ?? 0;
+
   return (
     <div>
-      <Typography.Text type="secondary">{k.type}</Typography.Text>
-      <Typography.Paragraph style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>
-        {k.content}
-      </Typography.Paragraph>
-      <Typography.Text>Prior: {k.prior.toFixed(2)}</Typography.Text>
+      <Typography.Title level={3} style={{ marginBottom: 16 }}>
+        Graph
+      </Typography.Title>
+
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+          <Select
+            placeholder="Select package"
+            style={{ width: 300 }}
+            options={packageOptions}
+            onChange={(v) => {
+              setPackageId(v || undefined);
+              setSelectedNode(null);
+            }}
+            allowClear
+          />
+          {graphData && (
+            <Typography.Text type="secondary">
+              {knowledgeCount} nodes &middot; {factorCount} factors
+            </Typography.Text>
+          )}
+        </div>
+      </Card>
+
+      <Card size="small" style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+          {Object.entries(TYPE_COLORS).map(([type, color]) => (
+            <span key={type}>
+              <Tag color={color}>{type}</Tag>
+            </span>
+          ))}
+          <Tag style={{ background: "#595959", color: "#fff", border: "none" }}>factor</Tag>
+          <Typography.Text type="secondary">
+            solid = premise &middot; dashed = context &middot; arrow = conclusion
+          </Typography.Text>
+        </div>
+      </Card>
+
+      {isLoading && (
+        <div style={{ textAlign: "center", padding: 60 }}>
+          <Spin size="large" />
+        </div>
+      )}
+
+      {!isLoading && graphData && (
+        <FactorGraphCanvas
+          key={packageId ?? "__all__"}
+          data={graphData}
+          onSelectNode={setSelectedNode}
+        />
+      )}
+
+      <NodeDetailDrawer
+        nodeId={selectedNode}
+        data={graphData}
+        onClose={() => setSelectedNode(null)}
+      />
     </div>
   );
 }
