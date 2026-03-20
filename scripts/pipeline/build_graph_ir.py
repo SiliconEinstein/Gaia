@@ -107,6 +107,33 @@ def _build_from_typst(pkg_dir: Path) -> bool:
                     node.metadata["prior"] = priors_map[sr.knowledge_name]
                     break
 
+    # Connect question nodes to claim nodes via a reasoning factor
+    # (Gaia Lang #question doesn't support proof blocks, so we add the link here)
+    question_nodes = [n for n in raw_graph.knowledge_nodes if n.knowledge_type == "question"]
+    claim_node_ids = [
+        n.raw_node_id for n in raw_graph.knowledge_nodes if n.knowledge_type == "claim"
+    ]
+    for q_node in question_nodes:
+        if claim_node_ids:
+            from libs.graph_ir.models import FactorNode as GIRFactorNode, SourceRef
+
+            q_sr = q_node.source_refs[0] if q_node.source_refs else None
+            raw_graph.factor_nodes.append(
+                GIRFactorNode(
+                    factor_id=f"f_question_{q_node.raw_node_id[:16]}",
+                    type="reasoning",
+                    premises=list(claim_node_ids),
+                    conclusion=q_node.raw_node_id,
+                    source_ref=SourceRef(
+                        package=q_sr.package if q_sr else raw_graph.package,
+                        version=q_sr.version if q_sr else raw_graph.version,
+                        module=q_sr.module if q_sr else "follow_up",
+                        knowledge_name=q_sr.knowledge_name if q_sr else "open_questions",
+                    ),
+                    metadata={"edge_type": "deduction"},
+                )
+            )
+
     result = build_singleton_local_graph(raw_graph)
     params = derive_local_parameterization_from_raw(raw_graph, result.local_graph)
 
