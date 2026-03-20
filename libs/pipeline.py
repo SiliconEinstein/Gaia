@@ -7,6 +7,7 @@ Callable from both CLI and server-side batch processing.
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -16,6 +17,8 @@ from typing import TYPE_CHECKING
 from libs.graph_ir.adapter import AdaptedLocalInferenceGraph
 from libs.graph_ir.models import FactorParams, LocalCanonicalGraph, LocalParameterization, RawGraph
 from libs.storage import models as storage_models
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from libs.storage.config import StorageConfig
@@ -447,9 +450,13 @@ def _convert_local_graph_to_storage(
 
     for node in local_graph.knowledge_nodes:
         if not node.source_refs:
+            logger.warning(
+                "Knowledge node %s has no source_refs; skipping storage conversion",
+                node.local_canonical_id,
+            )
             continue
         sr = node.source_refs[0]
-        knowledge_id = f"{sr.package}/{sr.knowledge_name}"
+        knowledge_id = f"{package_name}/{sr.knowledge_name}"
         if knowledge_id in seen_kids:
             continue
         seen_kids.add(knowledge_id)
@@ -482,7 +489,7 @@ def _convert_local_graph_to_storage(
     for node in local_graph.knowledge_nodes:
         if node.source_refs:
             sr = node.source_refs[0]
-            lcn_to_kid[node.local_canonical_id] = f"{sr.package}/{sr.knowledge_name}"
+            lcn_to_kid[node.local_canonical_id] = f"{package_name}/{sr.knowledge_name}"
 
     chains: list[storage_models.Chain] = []
     for factor in local_graph.factor_nodes:
@@ -496,6 +503,10 @@ def _convert_local_graph_to_storage(
             chain_id = f"{package_name}.{sr.module}.{sr.knowledge_name}"
             module_id = f"{package_name}.{sr.module}"
         else:
+            logger.warning(
+                "Factor %s has no source_ref; chain will not be associated with a module",
+                factor.factor_id,
+            )
             chain_id = f"{package_name}.{factor.factor_id}"
             module_id = package_name
 
@@ -581,6 +592,10 @@ def _convert_local_graph_to_storage(
     for factor_id, params in review.factor_params.items():
         chain_id = factor_to_chain.get(factor_id)
         if chain_id is None:
+            logger.warning(
+                "Factor %s has review params but no matching chain; skipping ProbabilityRecord",
+                factor_id,
+            )
             continue
         prob_value = max(min(params.conditional_probability, 1.0), 1e-6)
         probabilities.append(
@@ -601,7 +616,7 @@ def _convert_local_graph_to_storage(
         if node.source_refs:
             sr = node.source_refs[0]
             label = f"{sr.module}.{sr.knowledge_name}"
-            label_to_kid[label] = f"{sr.package}/{sr.knowledge_name}"
+            label_to_kid[label] = f"{package_name}/{sr.knowledge_name}"
 
     belief_snapshots: list[storage_models.BeliefSnapshot] = []
     for label, belief_value in beliefs.items():
@@ -639,7 +654,7 @@ def _map_graph_ir_factors(
     for node in local_graph.knowledge_nodes:
         if node.source_refs:
             sr = node.source_refs[0]
-            lcn_to_kid[node.local_canonical_id] = f"{sr.package}/{sr.knowledge_name}"
+            lcn_to_kid[node.local_canonical_id] = f"{package_name}/{sr.knowledge_name}"
 
     factors: list[storage_models.FactorNode] = []
     for f in local_graph.factor_nodes:
