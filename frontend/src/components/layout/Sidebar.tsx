@@ -2,7 +2,6 @@ import { Link, useLocation } from "react-router-dom";
 import { Menu } from "antd";
 import {
   HomeOutlined,
-  DeploymentUnitOutlined,
   TableOutlined,
   WarningOutlined,
   BranchesOutlined,
@@ -13,11 +12,6 @@ import {
 
 const items = [
   { key: "/", icon: <HomeOutlined />, label: <Link to="/">Dashboard</Link> },
-  {
-    key: "/graph",
-    icon: <DeploymentUnitOutlined />,
-    label: <Link to="/graph">Graph Explorer</Link>,
-  },
   {
     key: "/browse/nodes",
     icon: <TableOutlined />,
@@ -58,15 +52,7 @@ const items = [
       },
       {
         key: "/v2/graph",
-        label: <Link to="/v2/graph">Graph IR</Link>,
-      },
-      {
-        key: "/v2/graph-ir",
-        label: <Link to="/v2/graph-ir">Graph IR Viewer</Link>,
-      },
-      {
-        key: "/v2/global-graph",
-        label: <Link to="/v2/global-graph">Global Graph</Link>,
+        label: <Link to="/v2/graph">Graph</Link>,
       },
     ],
   },

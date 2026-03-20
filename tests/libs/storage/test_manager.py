@@ -322,10 +322,10 @@ class TestListDelegation:
         await full_manager.content_store.write_knowledge(knowledge_items)
         await full_manager.content_store.write_chains(chains)
         data = await full_manager.get_graph_data()
-        assert "nodes" in data
-        assert "edges" in data
+        assert "knowledge_nodes" in data
+        assert "factor_nodes" in data
         filtered = await full_manager.get_graph_data(package_id=pkg.package_id)
-        assert "nodes" in filtered
+        assert "knowledge_nodes" in filtered
 
 
 class TestCanonicalBindingsAndGlobalNodes:

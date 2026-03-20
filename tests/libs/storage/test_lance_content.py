@@ -936,26 +936,16 @@ class TestListEndpoints:
         await content_store.write_knowledge(knowledge_items)
         await content_store.write_chains(chains)
         data = await content_store.get_graph_data()
-        assert "nodes" in data
-        assert "edges" in data
-        assert len(data["nodes"]) == len(knowledge_items)
-        # Edges should be produced for chain steps with valid premise→conclusion node pairs
-        assert len(data["edges"]) > 0
-        # Each node should have the required fields
-        node = data["nodes"][0]
-        assert "id" in node
+        assert "knowledge_nodes" in data
+        assert "factor_nodes" in data
+        assert len(data["knowledge_nodes"]) == len(knowledge_items)
+        # Each knowledge node should have the required fields
+        node = data["knowledge_nodes"][0]
         assert "knowledge_id" in node
         assert "version" in node
         assert "type" in node
         assert "content" in node
         assert "prior" in node
-        # Each edge should have the required fields
-        edge = data["edges"][0]
-        assert "chain_id" in edge
-        assert "from" in edge
-        assert "to" in edge
-        assert "chain_type" in edge
-        assert "step_index" in edge
 
     async def test_get_graph_data_filtered_by_package(
         self, content_store, packages, modules, knowledge_items, chains
@@ -966,13 +956,12 @@ class TestListEndpoints:
 
         pkg_id = packages[0].package_id
         data = await content_store.get_graph_data(package_id=pkg_id)
-        assert len(data["nodes"]) == len(knowledge_items)
-        assert len(data["edges"]) > 0
+        assert len(data["knowledge_nodes"]) == len(knowledge_items)
 
         # Filter for a non-existent package should yield empty graph
         data_empty = await content_store.get_graph_data(package_id="nonexistent_pkg")
-        assert data_empty["nodes"] == []
-        assert data_empty["edges"] == []
+        assert data_empty["knowledge_nodes"] == []
+        assert data_empty["factor_nodes"] == []
 
 
 async def test_list_global_nodes(content_store):
