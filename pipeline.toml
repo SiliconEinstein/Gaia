@@ -1,0 +1,43 @@
+# Gaia Pipeline Configuration
+# Non-sensitive pipeline parameters. DB credentials go in .env
+
+[pipeline]
+# Output directory for intermediate files
+output_dir = "output"
+# Max concurrent papers for xml-to-typst stage
+concurrency = 5
+
+[pipeline.bp]
+# Belief propagation parameters
+damping = 0.3
+max_iterations = 100
+
+[pipeline.canonicalization]
+# Use embedding service for similarity matching (requires API_URL in .env)
+use_embedding = true
+
+[pipeline.curation]
+# LLM model for abstraction agent (must use openai/ prefix for litellm)
+llm_model = "openai/chenkun/gpt-5-mini"
+# Clustering similarity threshold
+clustering_threshold = 0.85
+
+[storage]
+# Graph backend: "kuzu", "neo4j", or "none"
+graph_backend = "none"
+
+# --- Storage credentials go in .env (GAIA_ prefix for StorageConfig) ---
+#
+# Local LanceDB:
+#   GAIA_LANCEDB_PATH=./data/lancedb/gaia
+#
+# Remote LanceDB (S3/TOS):
+#   GAIA_LANCEDB_URI=s3://datainfra-prod/propositional_logic_analysis
+#   (also needs TOS_ACCESS_KEY, TOS_SECRET_KEY, TOS_ENDPOINT, TOS_BUCKET in .env)
+#
+# Remote Neo4j:
+#   GAIA_GRAPH_BACKEND=neo4j
+#   GAIA_NEO4J_URI=bolt://remote-host:7687
+#   GAIA_NEO4J_USER=neo4j
+#   GAIA_NEO4J_PASSWORD=...
+#   GAIA_NEO4J_DATABASE=neo4j
