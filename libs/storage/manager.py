@@ -45,7 +45,9 @@ class StorageManager:
         from libs.storage.lance_vector_store import LanceVectorStore
 
         # ContentStore — always required
-        cs = LanceContentStore(self._config.lancedb_path)
+        lance_conn = self._config.effective_lancedb_connection
+        storage_options = self._build_tos_options() if self._config.is_remote_lancedb else None
+        cs = LanceContentStore(lance_conn, storage_options=storage_options)
         await cs.initialize()
         self.content_store = cs
 
@@ -73,9 +75,25 @@ class StorageManager:
             self.graph_store = gs
         # else: "none" — graph_store stays None
 
-        # VectorStore — always created (same LanceDB path, separate table)
-        vs = LanceVectorStore(self._config.lancedb_path)
+        # VectorStore — always created (same LanceDB connection, separate table)
+        vs = LanceVectorStore(lance_conn, storage_options=storage_options)
         self.vector_store = vs
+
+    @staticmethod
+    def _build_tos_options() -> dict[str, str]:
+        """Build S3/TOS storage_options from environment variables."""
+        import os
+
+        ak = os.getenv("TOS_ACCESS_KEY", "")
+        sk = os.getenv("TOS_SECRET_KEY", "")
+        endpoint = os.getenv("TOS_ENDPOINT", "")
+        bucket = os.getenv("TOS_BUCKET", "")
+        return {
+            "access_key_id": ak,
+            "secret_access_key": sk,
+            "endpoint": f"https://{bucket}.{endpoint}" if bucket and endpoint else "",
+            "virtual_hosted_style_request": "true",
+        }
 
     async def close(self) -> None:
         """Release connections held by stores."""
