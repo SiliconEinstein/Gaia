@@ -73,9 +73,11 @@ def test_v4_loader_external_refs(v4_data):
     assert len(ext_nodes) >= 1
     ext = next(n for n in ext_nodes if n["name"] == "prior_cmb_analysis")
     assert ext["ext_package"] == "cmb-analysis"
+    assert "CMB" in ext["content"]
 
 
 def test_v4_loader_package_metadata(v4_data):
     """Package name and version come from typst.toml."""
     assert v4_data["package"] == "dark_energy"
     assert v4_data["version"] == "1.0.0"
+    assert v4_data["dsl_version"] == "v4"

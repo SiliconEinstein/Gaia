@@ -119,6 +119,7 @@ def load_typst_package(pkg_path: Path) -> dict:
     data.setdefault("constraints", [])
     data.setdefault("package", None)
     data.setdefault("version", None)
+    data.setdefault("dsl_version", "v3")
 
     return data
 
@@ -258,7 +259,7 @@ def load_typst_package_v4(pkg_path: Path) -> dict:
             {
                 "name": label,
                 "type": meta.get("ext-content-type", "claim"),
-                "content": "",
+                "content": meta.get("ext-content", meta.get("ext-node", label)),
                 "kind": None,
                 "external": True,
                 "ext_package": meta.get("ext-package", ""),
@@ -276,4 +277,5 @@ def load_typst_package_v4(pkg_path: Path) -> dict:
         "refs": [],
         "modules": [],
         "module_titles": {},
+        "dsl_version": "v4",
     }

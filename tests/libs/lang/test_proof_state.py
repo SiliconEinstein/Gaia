@@ -10,6 +10,8 @@ GALILEO_V3 = _FIXTURES / "galileo_falling_bodies_v3"
 NEWTON_V3 = _FIXTURES / "newton_principia_v3"
 EINSTEIN_V3 = _FIXTURES / "einstein_gravity_v3"
 GALILEO_V4 = _FIXTURES / "galileo_falling_bodies_v4"
+NEWTON_V4 = _FIXTURES / "newton_principia_v4"
+DARK_ENERGY_V4 = _FIXTURES / "dark_energy_v4"
 
 
 def test_established_claims():
@@ -286,3 +288,21 @@ def test_v4_questions_detected():
     state = analyze_proof_state(graph)
     question_names = {d["name"] for d in state["questions"]}
     assert "motivation.main_question" in question_names
+
+
+def test_v4_relation_nodes_are_established():
+    graph = load_typst_package_v4(DARK_ENERGY_V4)
+    state = analyze_proof_state(graph)
+    established = {d["name"] for d in state["established"]}
+    standalone = {d["name"] for d in state["standalone"]}
+    assert "vacuum_catastrophe" in established
+    assert "vacuum_catastrophe" not in standalone
+
+
+def test_v4_external_refs_are_imports_not_holes():
+    graph = load_typst_package_v4(NEWTON_V4)
+    state = analyze_proof_state(graph)
+    imports = {d["name"] for d in state["imported"]}
+    holes = {d["name"] for d in state["holes"]}
+    assert "vacuum_prediction" in imports
+    assert "vacuum_prediction" not in holes

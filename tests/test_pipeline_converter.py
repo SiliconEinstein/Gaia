@@ -15,6 +15,9 @@ from libs.pipeline import (
 GALILEO_V3 = (
     Path(__file__).parent / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies_v3"
 )
+NEWTON_V4 = (
+    Path(__file__).parent / "fixtures" / "gaia_language_packages" / "newton_principia_v4"
+)
 
 
 # ── Shared fixture to avoid rebuilding the pipeline 9 times ──
@@ -136,3 +139,32 @@ def test_render_markdown_skips_non_reasoning_factors():
     }
     md = _render_markdown_from_graph_data(graph_data)
     assert "[proof]" not in md
+
+
+@pytest.mark.asyncio
+async def test_converter_v4_external_refs_are_not_materialized_locally():
+    build = await pipeline_build(NEWTON_V4)
+    review = await pipeline_review(build, mock=True)
+    infer = await pipeline_infer(build, review)
+    data = _convert_local_graph_to_storage(build, review, infer.beliefs, infer.bp_run_id)
+
+    knowledge_ids = {k.knowledge_id for k in data.knowledge_items}
+    assert "newton_principia/vacuum_prediction" not in knowledge_ids
+    assert len(data.knowledge_items) == 15
+
+    premise_sets = {
+        chain.chain_id: {premise.knowledge_id for premise in chain.steps[0].premises}
+        for chain in data.chains
+    }
+    assert (
+        "galileo_falling_bodies/vacuum_prediction"
+        in premise_sets["newton_principia.default.derivation.galileo_newton_convergence"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_render_markdown_includes_external_content():
+    build = await pipeline_build(NEWTON_V4)
+    md = _render_markdown_from_graph_data(build.graph_data)
+    assert "external from galileo_falling_bodies@4.0.0" in md
+    assert "在真空中，不同重量的物体应以相同速率下落。" in md

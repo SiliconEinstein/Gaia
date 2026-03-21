@@ -36,12 +36,15 @@ def analyze_proof_state(graph: dict) -> dict:
             used_as_premise.add(p)
 
     # Also count constraint `between` members as structurally referenced
+    constraint_names = set()
     for constraint in graph.get("constraints", []):
+        constraint_names.add(constraint.get("name"))
         for member in constraint.get("between", []):
             used_as_premise.add(member)
 
     established: list[dict] = []
     axioms: list[dict] = []
+    imported: list[dict] = []
     holes: list[dict] = []
     questions: list[dict] = []
     standalone: list[dict] = []
@@ -49,12 +52,14 @@ def analyze_proof_state(graph: dict) -> dict:
     for name, node in nodes.items():
         node_type = node.get("type", "")
 
-        if node_type == "question":
+        if node.get("external"):
+            imported.append(node)
+        elif node_type == "question":
             questions.append(node)
         elif node_type in ("setting", "observation"):
             axioms.append(node)
-        elif node_type in RELATION_TYPES:
-            # claim_relation nodes are always established
+        elif node_type in RELATION_TYPES or node_type == "relation" or name in constraint_names:
+            # Relation nodes are structurally established by their constraint declaration.
             established.append(node)
         elif name in proven_names:
             established.append(node)
@@ -63,11 +68,12 @@ def analyze_proof_state(graph: dict) -> dict:
         else:
             standalone.append(node)
 
-    report = _format_report(established, axioms, holes, questions, standalone)
+    report = _format_report(established, axioms, imported, holes, questions, standalone)
 
     return {
         "established": established,
         "axioms": axioms,
+        "imported": imported,
         "holes": holes,
         "questions": questions,
         "standalone": standalone,
@@ -78,6 +84,7 @@ def analyze_proof_state(graph: dict) -> dict:
 def _format_report(
     established: list[dict],
     axioms: list[dict],
+    imported: list[dict],
     holes: list[dict],
     questions: list[dict],
     standalone: list[dict] | None = None,
@@ -94,6 +101,15 @@ def _format_report(
         lines.append("\u25cb axioms (no proof needed):")
         for d in axioms:
             lines.append(f"  {d['name']}  ({d.get('type', '')})")
+
+    if imported:
+        lines.append("")
+        lines.append("imports:")
+        for d in imported:
+            pkg = d.get("ext_package", "")
+            ver = d.get("ext_version", "")
+            suffix = f"  ({pkg}@{ver})" if pkg and ver else ""
+            lines.append(f"  {d['name']}{suffix}")
 
     if holes:
         lines.append("")
