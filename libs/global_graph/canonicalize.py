@@ -49,6 +49,7 @@ async def canonicalize_package(
     global_graph: GlobalGraph,
     threshold: float = MATCH_THRESHOLD,
     embedding_model: EmbeddingModel | None = None,
+    canonicalizable_types: set[str] | None = None,
 ) -> CanonicalizationResult:
     """Map local canonical nodes to global graph.
 
@@ -67,7 +68,11 @@ async def canonicalize_package(
     graph_hash = local_graph.graph_hash()
     existing_nodes = list(global_graph.knowledge_nodes)
 
-    for node in local_graph.knowledge_nodes:
+    # Only canonicalize configured types — others stay package-local
+    allowed = canonicalizable_types or {"claim"}
+    claim_nodes = [n for n in local_graph.knowledge_nodes if n.knowledge_type in allowed]
+
+    for node in claim_nodes:
         content = node.representative_content
         match = await find_best_match(
             content,

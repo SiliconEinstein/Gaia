@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from collections import Counter
 from pathlib import Path
@@ -99,7 +100,14 @@ def build_package_graph_ir(pkg_dir: Path) -> bool:
     result = build_singleton_local_graph(raw_graph)
     params = derive_local_parameterization_from_raw(raw_graph, result.local_graph)
 
+    graph_dir = pkg_dir / "graph_ir"
     _write_graph_ir_outputs(pkg_dir, raw_graph, result, params)
+
+    # Copy reasoning_steps.json to graph_ir/ for downstream consumers
+    reasoning_steps_path = pkg_dir / "reasoning_steps.json"
+    if reasoning_steps_path.exists():
+        shutil.copy2(reasoning_steps_path, graph_dir / "reasoning_steps.json")
+
     _print_summary(raw_graph)
     return True
 

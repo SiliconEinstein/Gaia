@@ -34,7 +34,7 @@ class DPEmbeddingModel(EmbeddingModel):  # pragma: no cover
         api_url: str | None = None,
         access_key: str | None = None,
         provider: str = "dashscope",
-        max_concurrent: int = 24,
+        max_concurrent: int = 8,
     ) -> None:
         self._api_url = api_url or os.getenv("API_URL", "")
         self._access_key = access_key or os.getenv("ACCESS_KEY", "")
@@ -55,11 +55,20 @@ class DPEmbeddingModel(EmbeddingModel):  # pragma: no cover
         async def _embed_one(client: httpx.AsyncClient, text: str) -> list[float]:
             payload = {"text": text, "provider": self._provider}
             async with sem:
-                r = await client.post(self._api_url, headers=headers, json=payload)
-                r.raise_for_status()
-                return r.json()["data"]["vector"]
+                for attempt in range(3):
+                    try:
+                        r = await client.post(self._api_url, headers=headers, json=payload)
+                        r.raise_for_status()
+                        body = r.json()
+                        if "data" not in body or "vector" not in body.get("data", {}):
+                            raise ValueError(f"Unexpected API response: {body}")
+                        return body["data"]["vector"]
+                    except (httpx.ReadTimeout, httpx.ConnectTimeout, ValueError):
+                        if attempt == 2:
+                            raise
+                        await asyncio.sleep(2**attempt)
 
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=60) as client:
             tasks = [_embed_one(client, t) for t in texts]
             return await asyncio.gather(*tasks)
 

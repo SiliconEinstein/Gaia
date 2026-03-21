@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from libs.graph_ir.models import (
     FactorNode,
     LocalCanonicalGraph,
@@ -322,3 +324,85 @@ class TestEmptyBeliefs:
         result = convert_graph_ir_to_storage(lcg, params, beliefs={})
 
         assert result.belief_snapshots == []
+
+
+# ---------------------------------------------------------------------------
+# Shared fixture for multi-step chain tests
+# ---------------------------------------------------------------------------
+
+
+class _BasicResult:
+    """Container for a basic LCG + params + pre-computed result."""
+
+    def __init__(
+        self,
+        local_graph: LocalCanonicalGraph,
+        params: LocalParameterization,
+    ) -> None:
+        self.local_graph = local_graph
+        self.params = params
+
+
+@pytest.fixture
+def basic_result() -> _BasicResult:
+    """A simple graph with one reasoning factor whose factor has a source_ref."""
+    n1 = _make_node("lcn_P", content="Premise claim.", knowledge_name="premise_claim")
+    n2 = _make_node("lcn_C", content="Conclusion claim.", knowledge_name="conclusion_claim")
+    factor = FactorNode(
+        factor_id="f_conclusion_claim",
+        type="reasoning",
+        premises=["lcn_P"],
+        conclusion="lcn_C",
+        source_ref=SourceRef(
+            package="test-pkg",
+            version="0.1.0",
+            module="main",
+            knowledge_name="conclusion_claim",
+        ),
+    )
+    lcg = _make_lcg(nodes=[n1, n2], factors=[factor])
+    params = _make_params(node_priors={"lcn_P": 0.8, "lcn_C": 0.6})
+    return _BasicResult(local_graph=lcg, params=params)
+
+
+class TestMultiStepChains:
+    """Test multi-step chain generation from reasoning_steps."""
+
+    def test_chain_has_multiple_steps_when_reasoning_provided(self, basic_result):
+        """When reasoning_steps is provided, chains should have multi-step reasoning."""
+        lcg = basic_result.local_graph
+        params = basic_result.params
+
+        # Find a reasoning factor to build reasoning_steps for
+        reasoning_factor = next(
+            (f for f in lcg.factor_nodes if f.type in ("infer", "reasoning")), None
+        )
+        assert reasoning_factor is not None
+        conc_name = reasoning_factor.source_ref.knowledge_name
+
+        reasoning_steps = {
+            conc_name: [
+                {"step_index": 0, "reasoning": "First we observe X."},
+                {"step_index": 1, "reasoning": "From X we derive Y."},
+                {"step_index": 2, "reasoning": "Therefore Z follows."},
+            ]
+        }
+
+        result = convert_graph_ir_to_storage(lcg, params, reasoning_steps=reasoning_steps)
+
+        # Find the chain for this conclusion
+        matching = [c for c in result.chains if conc_name in c.chain_id]
+        assert len(matching) == 1
+        chain = matching[0]
+        assert len(chain.steps) == 3
+        assert chain.steps[0].reasoning == "First we observe X."
+        assert chain.steps[1].reasoning == "From X we derive Y."
+        assert chain.steps[2].reasoning == "Therefore Z follows."
+        assert all(s.conclusion == chain.steps[0].conclusion for s in chain.steps)
+
+    def test_chain_falls_back_to_single_step(self, basic_result):
+        """Without reasoning_steps, chains remain single-step with empty reasoning."""
+        result = convert_graph_ir_to_storage(basic_result.local_graph, basic_result.params)
+        for chain in result.chains:
+            assert len(chain.steps) == 1
+            assert chain.steps[0].reasoning == ""

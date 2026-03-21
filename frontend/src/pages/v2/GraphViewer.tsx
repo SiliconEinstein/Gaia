@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 
 const TYPE_COLORS: Record<string, string> = {
   claim: "#1677ff",
+  schema: "#9254de",  // abstraction nodes from curation
   setting: "#52c41a",
   question: "#fa8c16",
   action: "#722ed1",
@@ -57,28 +58,35 @@ function buildVisGraph(data: UnifiedGraphData) {
 
   for (const n of data.knowledge_nodes) {
     const shortName = truncateName(n.knowledge_id);
-    const label = `${shortName}\n[${n.prior.toFixed(2)}]`;
+    const belief = n.belief != null ? n.belief : n.prior;
+    const delta = belief - n.prior;
+    const deltaStr = delta >= 0 ? `+${delta.toFixed(3)}` : delta.toFixed(3);
+    const label = `${shortName}\n${belief.toFixed(2)}`;
 
     const tooltip = [
       `[${n.type}] ${n.knowledge_id}`,
       n.content.trim().slice(0, 300),
-      `prior: ${n.prior.toFixed(3)}`,
+      `prior: ${n.prior.toFixed(3)}  →  belief: ${belief.toFixed(3)}  (${deltaStr})`,
       `package: ${n.source_package_id}`,
       `module: ${n.source_module_id}`,
     ].join("\n");
 
+    // Schema (abstraction) nodes get distinct color and larger size
+    const isSchema = n.kind === "schema";
+    const bgColor = isSchema ? TYPE_COLORS.schema : (TYPE_COLORS[n.type] ?? "#aaa");
+
     nodes.push({
       id: n.knowledge_id,
-      label,
+      label: isSchema ? `⬡ ${label}` : label,
       title: tooltip,
       color: {
-        background: TYPE_COLORS[n.type] ?? "#aaa",
-        border: "#555",
+        background: bgColor,
+        border: isSchema ? "#531dab" : "#555",
       },
-      font: { color: "#fff", size: 10 },
+      font: { color: "#fff", size: isSchema ? 12 : 10 },
       shape: "box",
-      size: 14,
-      borderWidth: 1,
+      size: isSchema ? 20 : 14,
+      borderWidth: isSchema ? 2 : 1,
     });
   }
 
@@ -143,7 +151,19 @@ function buildVisGraph(data: UnifiedGraphData) {
 
 // ── Layout options ──
 
-const LAYOUT_OPTIONS = {
+const SHARED_OPTIONS = {
+  interaction: { hover: true, tooltipDelay: 100, zoomView: true, dragView: true, dragNodes: true },
+  nodes: { borderWidth: 1, borderWidthSelected: 3 },
+  edges: {
+    arrows: { to: { scaleFactor: 0.4 } },
+    font: { size: 8, color: "#999" },
+    color: { opacity: 0.7 },
+  },
+};
+
+// Per-package: hierarchical top-down
+const HIERARCHICAL_OPTIONS = {
+  ...SHARED_OPTIONS,
   layout: {
     hierarchical: {
       enabled: true,
@@ -158,13 +178,30 @@ const LAYOUT_OPTIONS = {
     },
   },
   physics: { enabled: false },
-  interaction: { hover: true, tooltipDelay: 100, zoomView: true, dragView: true, dragNodes: true },
-  nodes: { borderWidth: 1, borderWidthSelected: 3 },
   edges: {
+    ...SHARED_OPTIONS.edges,
     smooth: { type: "cubicBezier", forceDirection: "vertical", roundness: 0.3 },
-    arrows: { to: { scaleFactor: 0.4 } },
-    font: { size: 8, color: "#999" },
-    color: { opacity: 0.7 },
+  },
+};
+
+// Global: force-directed gravity layout
+const GRAVITY_OPTIONS = {
+  ...SHARED_OPTIONS,
+  layout: { hierarchical: { enabled: false } },
+  physics: {
+    enabled: true,
+    barnesHut: {
+      gravitationalConstant: -6000,
+      centralGravity: 0.5,
+      springLength: 120,
+      springConstant: 0.02,
+      damping: 0.3,
+    },
+    stabilization: { iterations: 200, fit: true },
+  },
+  edges: {
+    ...SHARED_OPTIONS.edges,
+    smooth: { type: "continuous" },
   },
 };
 
@@ -174,10 +211,12 @@ function FactorGraphCanvas({
   data,
   onSelectNode,
   height = "70vh",
+  useGravity = false,
 }: {
   data: UnifiedGraphData | undefined;
   onSelectNode: (id: string) => void;
   height?: string | number;
+  useGravity?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<Network | null>(null);
@@ -195,7 +234,7 @@ function FactorGraphCanvas({
     const net = new Network(
       containerRef.current,
       { nodes: new DataSet(nodes), edges: new DataSet(edges) },
-      LAYOUT_OPTIONS,
+      useGravity ? GRAVITY_OPTIONS : HIERARCHICAL_OPTIONS,
     );
     net.on("click", (p) => {
       if (p.nodes.length > 0) onSelectNodeRef.current(p.nodes[0] as string);
@@ -205,7 +244,7 @@ function FactorGraphCanvas({
       net.destroy();
       networkRef.current = null;
     };
-  }, [data]);
+  }, [data, useGravity]);
 
   return (
     <div
@@ -405,6 +444,7 @@ export function GraphViewer() {
           key={packageId ?? "__all__"}
           data={graphData}
           onSelectNode={setSelectedNode}
+          useGravity={!packageId}
         />
       )}
 
