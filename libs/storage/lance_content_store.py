@@ -571,8 +571,11 @@ def _row_to_artifact(row: dict[str, Any]) -> PackageSubmissionArtifact:
 class LanceContentStore(ContentStore):
     """LanceDB-backed content store for Gaia v2 storage layer."""
 
-    def __init__(self, db_path: str) -> None:
-        self._db = lancedb.connect(db_path)
+    def __init__(self, db_path: str, storage_options: dict[str, str] | None = None) -> None:
+        if storage_options:
+            self._db = lancedb.connect(db_path, storage_options=storage_options)
+        else:
+            self._db = lancedb.connect(db_path)
         self._fts_dirty = True
         self._committed_pkgs: set[tuple[str, str]] | None = None  # lazy-loaded cache
 

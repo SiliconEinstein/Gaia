@@ -13,10 +13,8 @@ Usage:
 
 from __future__ import annotations
 
-import asyncio
 import json
 import sys
-import tempfile
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -82,62 +80,9 @@ class PaperXMLSource(Source):
     PAPERS_DIR = Path("tests/fixtures/inputs/papers_xml")
 
     def convert(self) -> list[V2PackageData]:
-        results = []
-        for paper_dir in sorted(self.PAPERS_DIR.iterdir()):
-            if not paper_dir.is_dir() or paper_dir.name == "images":
-                continue
-            data = asyncio.run(self._convert_paper(paper_dir))
-            if data is None:
-                print(f"  SKIP {paper_dir.name}: no combine XMLs found")
-                continue
-            print(
-                f"  OK {paper_dir.name}: {len(data.knowledge)} knowledge, {len(data.chains)} chains"
-            )
-            results.append(data)
-        return results
-
-    async def _convert_paper(self, paper_dir: Path) -> V2PackageData | None:
-        from scripts.xml_to_yaml import convert_paper, write_package
-        from cli.lang_to_storage import convert_to_storage
-        from libs.pipeline import pipeline_build, pipeline_infer, pipeline_review
-
-        # 1. XML → YAML (in temp dir)
-        yaml_data = convert_paper(paper_dir)
-        if yaml_data is None:
-            return None
-
-        with tempfile.TemporaryDirectory() as tmp:
-            pkg_path = write_package(yaml_data, Path(tmp))
-
-            # 2. Full pipeline: build → review → infer
-            build = await pipeline_build(pkg_path)
-            review = await pipeline_review(build, mock=True)
-            infer = await pipeline_infer(build, review)
-
-        # 3. Convert to storage models
-        data = convert_to_storage(
-            pkg=review.merged_package,
-            review=review.review,
-            beliefs=infer.beliefs,
-            bp_run_id=infer.bp_run_id,
-        )
-
-        # 4. Serialize to dicts (V2PackageData format)
-        knowledge_dicts = [k.model_dump(mode="json") for k in data.knowledge_items]
-        chain_dicts = [c.model_dump(mode="json") for c in data.chains]
-        module_dicts = [m.model_dump(mode="json") for m in data.modules]
-        pkg_dict = data.package.model_dump(mode="json")
-
-        prob_dicts = [p.model_dump(mode="json") for p in data.probabilities]
-        belief_dicts = [b.model_dump(mode="json") for b in data.belief_snapshots]
-
-        return V2PackageData(
-            package=pkg_dict,
-            modules=module_dicts,
-            knowledge=knowledge_dicts,
-            chains=chain_dicts,
-            probabilities=prob_dicts,
-            beliefs=belief_dicts,
+        raise NotImplementedError(
+            "PaperXMLSource requires the YAML pipeline which has been removed. "
+            "Use Typst packages with `pipeline_build` / `pipeline_publish` instead."
         )
 
 

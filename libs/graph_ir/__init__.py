@@ -1,12 +1,7 @@
 """Graph IR package-local structures and helpers."""
 
 from .adapter import AdaptedLocalInferenceGraph, adapt_local_graph_to_factor_graph
-from .build import (
-    CanonicalizationResult,
-    build_raw_graph,
-    build_singleton_local_graph,
-    derive_local_parameterization,
-)
+from .build_utils import CanonicalizationResult, build_singleton_local_graph
 from .models import (
     CanonicalizationLogEntry,
     FactorNode,
@@ -43,9 +38,7 @@ __all__ = [
     "RawKnowledgeNode",
     "SourceRef",
     "adapt_local_graph_to_factor_graph",
-    "build_raw_graph",
     "build_singleton_local_graph",
-    "derive_local_parameterization",
     "load_local_canonical_graph",
     "load_local_parameterization",
     "load_raw_graph",

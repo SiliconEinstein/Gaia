@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "graph_scope": "local",
+  "graph_hash": "sha256:dc28293851524300599dcf47a7b796dfc71087354c8e8773bcb0e1f774b6d6ca",
+  "node_priors": {
+    "lcn_7a5248dedef90f79": 0.5,
+    "lcn_93a017c0c682eaf0": 1.0,
+    "lcn_6dbedf20d64fef6e": 1.0,
+    "lcn_25235cbd04b34d9d": 1.0,
+    "lcn_20cf6f77fcac2e25": 0.5,
+    "lcn_eddc6dd01c0e1288": 1.0,
+    "lcn_54c90e14954e7ef2": 1.0,
+    "lcn_b64179ab27023256": 0.5,
+    "lcn_f724c734f7ff17b3": 0.5,
+    "lcn_faa0cb7802f06050": 0.5,
+    "lcn_0afddeef5b0751cc": 0.5,
+    "lcn_90ce38bc89b16436": 0.5,
+    "lcn_e1cb16cdb818db04": 0.5
+  },
+  "factor_parameters": {
+    "f_db795fc80d939567": {
+      "conditional_probability": 0.85
+    },
+    "f_ff04a2f5d5b5b49b": {
+      "conditional_probability": 0.85
+    },
+    "f_112316c97238ad9b": {
+      "conditional_probability": 0.85
+    },
+    "f_39c680515e30b854": {
+      "conditional_probability": 0.85
+    }
+  },
+  "metadata": null
+}

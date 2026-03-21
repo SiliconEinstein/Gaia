@@ -116,7 +116,7 @@ def test_reasoning_factor():
     raw = compile_typst_to_raw_graph(data)
     assert len(raw.factor_nodes) == 1
     factor = raw.factor_nodes[0]
-    assert factor.type == "reasoning"
+    assert factor.type == "infer"
     assert factor.factor_id.startswith("f_")
     assert factor.contexts == []
     assert factor.metadata == {"edge_type": "deduction"}
@@ -162,7 +162,7 @@ def test_contradiction_constraint():
         ],
     )
     raw = compile_typst_to_raw_graph(data)
-    constraint_factors = [f for f in raw.factor_nodes if f.type == "mutex_constraint"]
+    constraint_factors = [f for f in raw.factor_nodes if f.type == "contradiction"]
     assert len(constraint_factors) == 1
     cf = constraint_factors[0]
     assert len(cf.premises) == 2
@@ -185,9 +185,64 @@ def test_equivalence_constraint():
         ],
     )
     raw = compile_typst_to_raw_graph(data)
-    equiv_factors = [f for f in raw.factor_nodes if f.type == "equiv_constraint"]
+    equiv_factors = [f for f in raw.factor_nodes if f.type == "equivalence"]
     assert len(equiv_factors) == 1
     assert equiv_factors[0].metadata == {"edge_type": "relation_equivalence"}
+
+
+# -- Factor type canonicalization --
+
+
+def test_reasoning_factor_uses_infer_type():
+    """Reasoning factors must emit type='infer' (not 'reasoning')."""
+    data = _make_graph_data(
+        nodes=[
+            {"name": "p", "type": "observation", "content": "P", "module": "m"},
+            {"name": "q", "type": "claim", "content": "Q", "module": "m"},
+        ],
+        factors=[
+            {"type": "reasoning", "premise": ["p"], "conclusion": "q"},
+        ],
+    )
+    raw = compile_typst_to_raw_graph(data)
+    factor = raw.factor_nodes[0]
+    assert factor.type == "infer"
+    # factor_id should also be based on "infer" kind
+    assert factor.factor_id.startswith("f_")
+
+
+def test_contradiction_constraint_uses_canonical_type():
+    """Contradiction constraints must emit type='contradiction' (not 'mutex_constraint')."""
+    data = _make_graph_data(
+        nodes=[
+            {"name": "x", "type": "claim", "content": "X", "module": "m"},
+            {"name": "y", "type": "claim", "content": "Y", "module": "m"},
+            {"name": "rel", "type": "contradiction", "content": "R", "module": "m"},
+        ],
+        constraints=[
+            {"name": "rel", "type": "contradiction", "between": ["x", "y"]},
+        ],
+    )
+    raw = compile_typst_to_raw_graph(data)
+    factor = raw.factor_nodes[0]
+    assert factor.type == "contradiction"
+
+
+def test_equivalence_constraint_uses_canonical_type():
+    """Equivalence constraints must emit type='equivalence' (not 'equiv_constraint')."""
+    data = _make_graph_data(
+        nodes=[
+            {"name": "x", "type": "claim", "content": "X", "module": "m"},
+            {"name": "y", "type": "claim", "content": "Y", "module": "m"},
+            {"name": "eq", "type": "equivalence", "content": "E", "module": "m"},
+        ],
+        constraints=[
+            {"name": "eq", "type": "equivalence", "between": ["x", "y"]},
+        ],
+    )
+    raw = compile_typst_to_raw_graph(data)
+    factor = raw.factor_nodes[0]
+    assert factor.type == "equivalence"
 
 
 # -- Duplicate detection --
@@ -228,12 +283,12 @@ def test_galileo_v3_full_compile():
     assert "observation" in types
     assert "claim" in types
 
-    # Should have reasoning factors
-    reasoning = [f for f in raw.factor_nodes if f.type == "reasoning"]
+    # Should have reasoning factors (type="infer")
+    reasoning = [f for f in raw.factor_nodes if f.type == "infer"]
     assert len(reasoning) >= 3  # vacuum_prediction, composite_is_slower, etc.
 
-    # Should have constraint factor for tied_balls_contradiction
-    constraints = [f for f in raw.factor_nodes if f.type == "mutex_constraint"]
+    # Should have constraint factor for tied_balls_contradiction (type="contradiction")
+    constraints = [f for f in raw.factor_nodes if f.type == "contradiction"]
     assert len(constraints) >= 1
 
     # All factor premises/conclusions should reference valid node IDs

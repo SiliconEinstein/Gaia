@@ -15,8 +15,8 @@ from .models import (
 )
 
 _CONSTRAINT_TYPE_TO_FACTOR_TYPE = {
-    "contradiction": "mutex_constraint",
-    "equivalence": "equiv_constraint",
+    "contradiction": "contradiction",
+    "equivalence": "equivalence",
 }
 
 
@@ -30,8 +30,8 @@ def compile_typst_to_raw_graph(graph_data: dict) -> RawGraph:
     Returns:
         A RawGraph with deterministic node/factor IDs and source refs.
     """
-    package = graph_data.get("package", "unknown")
-    version = graph_data.get("version", "0.0.0")
+    package = graph_data.get("package") or "unknown"
+    version = graph_data.get("version") or "0.0.0"
 
     # Build constraint lookup for metadata injection
     constraint_map: dict[str, dict] = {}
@@ -110,8 +110,8 @@ def compile_typst_to_raw_graph(graph_data: dict) -> RawGraph:
 
         factor_nodes.append(
             FactorNode(
-                factor_id=factor_id("reasoning", conclusion_module, conclusion_name),
-                type="reasoning",
+                factor_id=factor_id("infer", conclusion_module, conclusion_name),
+                type="infer",
                 premises=premise_ids,
                 contexts=[],
                 conclusion=name_to_raw_id[conclusion_name],

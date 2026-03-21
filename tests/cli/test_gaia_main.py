@@ -10,22 +10,12 @@ runner = CliRunner()
 def test_help_shows_all_commands():
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    for cmd in ["build", "review", "infer", "publish", "init", "show", "search", "clean"]:
+    for cmd in ["build", "publish", "init", "search", "clean"]:
         assert cmd in result.output
 
 
 def test_build_stub():
     result = runner.invoke(app, ["build", "--help"])
-    assert result.exit_code == 0
-
-
-def test_review_stub():
-    result = runner.invoke(app, ["review", "--help"])
-    assert result.exit_code == 0
-
-
-def test_infer_stub():
-    result = runner.invoke(app, ["infer", "--help"])
     assert result.exit_code == 0
 
 
@@ -36,11 +26,6 @@ def test_init_stub():
 
 def test_clean_stub():
     result = runner.invoke(app, ["clean", "--help"])
-    assert result.exit_code == 0
-
-
-def test_show_stub():
-    result = runner.invoke(app, ["show", "--help"])
     assert result.exit_code == 0
 
 

@@ -33,8 +33,11 @@ def _q(s: str) -> str:
 class LanceVectorStore(VectorStore):
     """LanceDB-backed vector store for knowledge embedding search."""
 
-    def __init__(self, db_path: str) -> None:
-        self._db = lancedb.connect(db_path)
+    def __init__(self, db_path: str, storage_options: dict[str, str] | None = None) -> None:
+        if storage_options:
+            self._db = lancedb.connect(db_path, storage_options=storage_options)
+        else:
+            self._db = lancedb.connect(db_path)
         self._table: lancedb.table.LanceTable | None = None
         self._dim: int | None = None
 

@@ -1,0 +1,20 @@
+{
+  "node_beliefs": {
+    "motivation.main_question": 0.5,
+    "axioms.second_law": 0.21746417003292784,
+    "axioms.third_law": 0.40694066457776246,
+    "observations.kepler_third_law": 0.9987300173438219,
+    "observations.pendulum_experiment": 0.9989164368778335,
+    "observations.near_earth_surface": 0.9989652629331401,
+    "derivation.inverse_square_force": 0.5054101283111313,
+    "derivation.law_of_gravity": 0.5051029923493904,
+    "derivation.mass_equivalence": 0.512159897827836,
+    "derivation.freefall_acceleration_equals_g": 0.5121579735480342,
+    "derivation.galileo_newton_convergence": 0.5,
+    "derivation.apollo15_feather_drop": 0.9980019983585549,
+    "derivation.apollo15_confirms_equal_fall": 0.8493006160209229,
+    "derivation.apollo_galileo_convergence": 0.5,
+    "follow_up.follow_up_question": 0.5
+  },
+  "bp_run_id": "7d25e3f1-52c2-495a-a827-e45704ee92ff"
+}

@@ -7,6 +7,7 @@ Callable from both CLI and server-side batch processing.
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -14,10 +15,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from libs.graph_ir.adapter import AdaptedLocalInferenceGraph
-from libs.graph_ir.models import LocalCanonicalGraph, LocalParameterization, RawGraph
-from libs.lang.elaborator import ElaboratedPackage
-from libs.lang import models as lang_models
+from libs.graph_ir.models import FactorParams, LocalCanonicalGraph, LocalParameterization, RawGraph
 from libs.storage import models as storage_models
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from libs.storage.config import StorageConfig
@@ -29,9 +30,9 @@ if TYPE_CHECKING:
 
 @dataclass
 class BuildResult:
-    package: lang_models.Package
-    elaborated: ElaboratedPackage
-    markdown: str
+    """Unified build result for Typst packages."""
+
+    graph_data: dict  # typst_loader output (for renderer, proof_state)
     raw_graph: RawGraph
     local_graph: LocalCanonicalGraph
     canonicalization_log: list
@@ -39,11 +40,14 @@ class BuildResult:
 
 
 @dataclass
-class ReviewResult:
-    review: dict
-    merged_package: lang_models.Package
+class ReviewOutput:
+    """Result of reviewing a knowledge package (v3 Typst)."""
+
+    review: dict  # raw LLM/mock review data
+    node_priors: dict[str, float]  # lcn_id → prior π
+    factor_params: dict[str, FactorParams]  # factor_id → FactorParams
     model: str
-    source_fingerprint: str | None
+    source_fingerprint: str | None = None
 
 
 @dataclass
@@ -55,82 +59,28 @@ class InferResult:
 
 
 @dataclass
+class V2IngestData:
+    """Result of converting to v2 storage models."""
+
+    package: storage_models.Package
+    modules: list[storage_models.Module] = field(default_factory=list)
+    knowledge_items: list[storage_models.Knowledge] = field(default_factory=list)
+    chains: list[storage_models.Chain] = field(default_factory=list)
+    probabilities: list[storage_models.ProbabilityRecord] = field(default_factory=list)
+    belief_snapshots: list[storage_models.BeliefSnapshot] = field(default_factory=list)
+
+
+@dataclass
 class PublishResult:
     package_id: str
     stats: dict
 
 
-@dataclass
-class TypstBuildResult:
-    graph_data: dict
-    raw_graph: RawGraph
-    local_graph: LocalCanonicalGraph
-    canonicalization_log: list
-    source_files: dict[str, str] = field(default_factory=dict)
-
-
 # ── Pipeline Functions ───────────────────────────────────
 
 
-async def pipeline_build(
-    pkg_path: Path,
-    source_files: dict[str, str] | None = None,
-) -> BuildResult:
-    """Load, resolve, elaborate, and build Graph IR — all in memory.
-
-    Args:
-        pkg_path: Path to the knowledge package directory.
-        source_files: Optional pre-loaded source files {filename: content}.
-                      If None, reads YAML files from pkg_path.
-    """
-    from libs.graph_ir.build import build_raw_graph, build_singleton_local_graph
-    from libs.lang.build_store import render_package_md
-    from libs.lang.elaborator import elaborate_package
-    from libs.lang.loader import load_package
-    from libs.lang.resolver import resolve_refs
-
-    # 1. Load and resolve (recursive dep loading)
-    def _load_with_deps(p: Path):
-        loaded = load_package(p)
-        dep_map: dict[str, object] = {}
-        for dep in loaded.dependencies:
-            dep_path = p.parent / dep.package
-            dep_map[dep.package] = _load_with_deps(dep_path)
-        return resolve_refs(loaded, deps=dep_map or None)
-
-    pkg = _load_with_deps(pkg_path)
-
-    # 2. Elaborate
-    elaborated = elaborate_package(pkg)
-
-    # 3. Render markdown
-    markdown = render_package_md(elaborated)
-
-    # 4. Build Graph IR
-    raw_graph = build_raw_graph(pkg)
-    canonicalization = build_singleton_local_graph(raw_graph)
-
-    # 5. Collect source files
-    if source_files is None:
-        source_files = {p.name: p.read_text() for p in pkg_path.glob("*.yaml") if p.is_file()}
-
-    return BuildResult(
-        package=pkg,
-        elaborated=elaborated,
-        markdown=markdown,
-        raw_graph=raw_graph,
-        local_graph=canonicalization.local_graph,
-        canonicalization_log=canonicalization.log,
-        source_files=source_files,
-    )
-
-
-async def pipeline_build_typst(pkg_path: Path) -> TypstBuildResult:
-    """Load, compile, and canonicalize a Typst package — all in memory.
-
-    Args:
-        pkg_path: Path to the Typst package directory (contains typst.toml + lib.typ).
-    """
+async def pipeline_build(pkg_path: Path) -> BuildResult:
+    """Load, compile, and canonicalize a Typst package — all in memory."""
     from libs.graph_ir.build_utils import build_singleton_local_graph
     from libs.graph_ir.typst_compiler import compile_typst_to_raw_graph
     from libs.lang.typst_loader import load_typst_package
@@ -140,7 +90,7 @@ async def pipeline_build_typst(pkg_path: Path) -> TypstBuildResult:
     canonicalization = build_singleton_local_graph(raw_graph)
     source_files = {p.name: p.read_text() for p in pkg_path.glob("*.typ") if p.is_file()}
 
-    return TypstBuildResult(
+    return BuildResult(
         graph_data=graph_data,
         raw_graph=raw_graph,
         local_graph=canonicalization.local_graph,
@@ -155,33 +105,33 @@ async def pipeline_review(
     mock: bool = False,
     model: str = "gpt-5-mini",
     source_fingerprint: str | None = None,
-) -> ReviewResult:
-    """Review the package chains via LLM or mock reviewer.
+) -> ReviewOutput:
+    """Review the package via LLM or mock reviewer (v3 Typst graph_data).
 
     Args:
-        build: Result from pipeline_build.
+        build: Result from pipeline_build (must contain graph_data and local_graph).
         mock: If True, use MockReviewClient (no LLM calls).
         model: LLM model name for real reviews.
         source_fingerprint: Optional fingerprint for staleness detection.
     """
     from cli.llm_client import MockReviewClient, ReviewClient
-    from cli.review_store import merge_review
 
-    package_data = {"package": build.package.name, "markdown": build.markdown}
+    graph_data = build.graph_data
 
     if mock:
         client = MockReviewClient()
-        result = await client.areview_package(package_data)
+        result = client.review_from_graph_data(graph_data)
         actual_model = "mock"
     else:
+        md = _render_markdown_from_graph_data(graph_data)
         client = ReviewClient(model=model)
-        result = await client.areview_package(package_data)
+        result = await client.areview_package({"markdown": md})
         actual_model = model
 
     # Normalize review into sidecar format
     now = datetime.now(timezone.utc)
     review_data = {
-        "package": build.package.name,
+        "package": graph_data.get("package", "unknown"),
         "model": actual_model,
         "timestamp": now.isoformat(),
         "source_fingerprint": source_fingerprint,
@@ -189,12 +139,16 @@ async def pipeline_review(
         "chains": result.get("chains", []),
     }
 
-    # Merge review into package
-    merged_package = merge_review(build.package, review_data, source_fingerprint=source_fingerprint)
+    # Build node_priors: lcn_id → default prior by knowledge_type
+    node_priors = _build_node_priors(build.local_graph)
 
-    return ReviewResult(
+    # Build factor_params: factor_id → FactorParams from review chains
+    factor_params = _build_factor_params(build.local_graph, graph_data, review_data)
+
+    return ReviewOutput(
         review=review_data,
-        merged_package=merged_package,
+        node_priors=node_priors,
+        factor_params=factor_params,
         model=actual_model,
         source_fingerprint=source_fingerprint,
     )
@@ -202,20 +156,23 @@ async def pipeline_review(
 
 async def pipeline_infer(
     build: BuildResult,
-    review: ReviewResult,
+    review: ReviewOutput,
 ) -> InferResult:
-    """Derive parameterization, adapt to factor graph, and run BP.
+    """Adapt local graph to factor graph and run Belief Propagation.
 
     Args:
         build: Result from pipeline_build.
-        review: Result from pipeline_review.
+        review: Result from pipeline_review (v3 Typst ReviewOutput).
     """
     from libs.graph_ir.adapter import adapt_local_graph_to_factor_graph
-    from libs.graph_ir.build import derive_local_parameterization
     from libs.inference.bp import BeliefPropagation
 
-    # 1. Derive parameterization from merged package + local graph
-    local_parameterization = derive_local_parameterization(review.merged_package, build.local_graph)
+    # 1. Build LocalParameterization from ReviewOutput
+    local_parameterization = LocalParameterization(
+        graph_hash=build.local_graph.graph_hash(),
+        node_priors=review.node_priors,
+        factor_parameters=review.factor_params,
+    )
 
     # 2. Adapt to factor graph
     adapted = adapt_local_graph_to_factor_graph(build.local_graph, local_parameterization)
@@ -243,7 +200,7 @@ async def pipeline_infer(
 
 async def pipeline_publish(
     build: BuildResult,
-    review: ReviewResult,
+    review: ReviewOutput,
     infer: InferResult,
     *,
     storage_manager: "StorageManager | None" = None,
@@ -251,40 +208,34 @@ async def pipeline_publish(
     db_path: str | None = None,
     embed_dim: int = 512,
 ) -> PublishResult:
-    """Convert to storage models and ingest into StorageManager.
+    """Convert LocalCanonicalGraph to storage models and ingest into StorageManager.
 
     Args:
-        build: Result from pipeline_build.
-        review: Result from pipeline_review.
+        build: Result from pipeline_build (Typst v3).
+        review: Result from pipeline_review (v3 ReviewOutput).
         infer: Result from pipeline_infer.
         storage_manager: Pre-initialized StorageManager (server/batch use — not closed after).
         storage_config: StorageConfig to create a new manager (CLI use — closed after).
         db_path: LanceDB path shortcut (used if storage_config is None).
         embed_dim: Embedding dimension for stub embeddings.
     """
-    from cli.lang_to_storage import convert_to_storage
     from libs.embedding import StubEmbeddingModel
     from libs.storage.config import StorageConfig
     from libs.storage.manager import StorageManager
     from libs.storage.models import KnowledgeEmbedding
 
-    pkg = review.merged_package
+    package_name = build.local_graph.package
 
-    # 1. Convert to v2 storage models
-    data = convert_to_storage(
-        pkg=pkg,
-        review=review.review,
-        beliefs=infer.beliefs,
-        bp_run_id=infer.bp_run_id,
-    )
+    # 1. Convert LocalCanonicalGraph + ReviewOutput → V2IngestData
+    data = _convert_local_graph_to_storage(build, review, infer.beliefs, infer.bp_run_id)
 
     # 2. Map Graph IR factors (lcn → knowledge IDs)
-    factors = _map_graph_ir_factors(build.local_graph, pkg.name)
+    factors = _map_graph_ir_factors(build.local_graph, package_name)
 
     # 3. Build submission artifact (in-memory, no git)
     submission_artifact = _build_submission_artifact_in_memory(
         build=build,
-        package_name=pkg.name,
+        package_name=package_name,
     )
 
     # 4. Generate embeddings
@@ -353,6 +304,345 @@ async def pipeline_publish(
 
 # ── Internal helpers ─────────────────────────────────────
 
+# Default priors by knowledge_type
+_DEFAULT_PRIORS: dict[str, float] = {
+    "setting": 1.0,
+    "observation": 1.0,
+    "question": 0.5,
+    "contradiction": 0.5,
+    "equivalence": 0.5,
+    "corroboration": 0.5,
+    "claim": 0.5,
+}
+
+
+def _build_node_priors(local_graph: LocalCanonicalGraph) -> dict[str, float]:
+    """Build node_priors dict: lcn_id → default prior based on knowledge_type."""
+    priors: dict[str, float] = {}
+    for node in local_graph.knowledge_nodes:
+        priors[node.local_canonical_id] = _DEFAULT_PRIORS.get(node.knowledge_type, 0.5)
+    return priors
+
+
+def _build_factor_params(
+    local_graph: LocalCanonicalGraph,
+    graph_data: dict,
+    review_data: dict,
+) -> dict[str, FactorParams]:
+    """Build factor_params dict: factor_id → FactorParams from review chain results.
+
+    Maps review chain conclusions (knowledge names) → factor_ids via local_graph,
+    then extracts conditional_probability from review steps.
+    """
+    # Build mapping: knowledge_name → lcn_id from knowledge nodes
+    name_to_lcn: dict[str, str] = {}
+    for node in local_graph.knowledge_nodes:
+        if node.source_refs:
+            name_to_lcn[node.source_refs[0].knowledge_name] = node.local_canonical_id
+
+    # Build mapping: conclusion_lcn_id → factor_id from factor nodes (infer type only)
+    conclusion_to_factor: dict[str, str] = {}
+    for factor in local_graph.factor_nodes:
+        if factor.type == "infer" and factor.conclusion:
+            conclusion_to_factor[factor.conclusion] = factor.factor_id
+
+    # Build mapping: conclusion_knowledge_name → factor_id
+    name_to_factor: dict[str, str] = {}
+    for name, lcn_id in name_to_lcn.items():
+        if lcn_id in conclusion_to_factor:
+            name_to_factor[name] = conclusion_to_factor[lcn_id]
+
+    # Parse review chains and extract conditional_probability
+    review_probs: dict[str, float] = {}
+    for chain_entry in review_data.get("chains", []):
+        conclusion_name = chain_entry.get("chain", "")
+        if conclusion_name not in name_to_factor:
+            continue
+        factor_id = name_to_factor[conclusion_name]
+        steps = chain_entry.get("steps", [])
+        if steps:
+            prob = steps[0].get("conditional_prior", 1.0)
+            review_probs[factor_id] = float(prob)
+
+    # Build final factor_params: all infer factors get params, default 1.0 if not in review
+    factor_params: dict[str, FactorParams] = {}
+    for factor in local_graph.factor_nodes:
+        if factor.type == "infer":
+            prob = review_probs.get(factor.factor_id, 1.0)
+            factor_params[factor.factor_id] = FactorParams(conditional_probability=prob)
+
+    return factor_params
+
+
+def _render_markdown_from_graph_data(graph_data: dict) -> str:
+    """Render in-memory markdown from graph_data for LLM review (no filesystem)."""
+    lines: list[str] = []
+    package_name = graph_data.get("package", "unknown")
+    lines.append(f"# Package: {package_name}\n")
+
+    for node in graph_data.get("nodes", []):
+        lines.append(f"### {node['name']} [{node.get('type', 'claim')}]")
+        lines.append(f"> {node.get('content', '')}\n")
+
+    for factor in graph_data.get("factors", []):
+        if factor.get("type") != "reasoning":
+            continue
+        conclusion = factor["conclusion"]
+        premises = factor.get("premise", [])
+        lines.append(f"### {conclusion} [proof]")
+        lines.append(f"**Premises:** {', '.join(premises)}")
+        lines.append(f"**[step:{conclusion}.1]** (prior=0.85)\n")
+
+    return "\n".join(lines)
+
+
+# ── Knowledge type mapping ───────────────────────────────
+
+# Map graph_data knowledge_type → valid storage Knowledge.type
+_KNOWLEDGE_TYPE_MAP: dict[str, str] = {
+    "claim": "claim",
+    "question": "question",
+    "setting": "setting",
+    "action": "action",
+    "observation": "setting",  # observation → setting
+    "corroboration": "claim",  # corroboration → claim
+    "contradiction": "contradiction",
+    "equivalence": "equivalence",
+}
+
+# Map factor type → Chain.type
+_FACTOR_TO_CHAIN_TYPE: dict[str, str] = {
+    "infer": "deduction",
+    "abstraction": "abstraction",
+    "contradiction": "contradiction",
+    "equivalence": "equivalence",
+}
+
+# Map module name → Module.role
+_MODULE_ROLE_MAP: dict[str, str] = {
+    "motivation": "motivation",
+    "setting": "setting",
+    "reasoning": "reasoning",
+    "follow_up": "follow_up_question",
+}
+
+
+def _convert_local_graph_to_storage(
+    build: BuildResult,
+    review: ReviewOutput,
+    beliefs: dict[str, float],
+    bp_run_id: str,
+) -> V2IngestData:
+    """Convert LocalCanonicalGraph + ReviewOutput to V2IngestData for storage.
+
+    Builds Knowledge, Chain, Module, Package, ProbabilityRecord, and BeliefSnapshot
+    from the local canonical graph structure and BP results.
+    """
+    now = datetime.now(timezone.utc)
+    local_graph = build.local_graph
+    graph_data = build.graph_data
+    package_name = local_graph.package
+    package_version = local_graph.version
+
+    # ── 1. Knowledge items ──
+    knowledge_items: list[storage_models.Knowledge] = []
+    seen_kids: set[str] = set()
+
+    for node in local_graph.knowledge_nodes:
+        if not node.source_refs:
+            logger.warning(
+                "Knowledge node %s has no source_refs; skipping storage conversion",
+                node.local_canonical_id,
+            )
+            continue
+        sr = node.source_refs[0]
+        knowledge_id = f"{package_name}/{sr.knowledge_name}"
+        if knowledge_id in seen_kids:
+            continue
+        seen_kids.add(knowledge_id)
+
+        # Map knowledge_type to valid storage type
+        k_type = _KNOWLEDGE_TYPE_MAP.get(node.knowledge_type, "claim")
+
+        # Prior from review.node_priors (lcn_id → prior)
+        raw_prior = review.node_priors.get(node.local_canonical_id, 0.5)
+        prior = max(min(raw_prior, 1.0), 1e-6)  # clamp to (0, 1]
+
+        knowledge_items.append(
+            storage_models.Knowledge(
+                knowledge_id=knowledge_id,
+                version=1,
+                type=k_type,
+                content=node.representative_content.strip(),
+                prior=prior,
+                keywords=[],
+                source_package_id=package_name,
+                source_package_version=package_version,
+                source_module_id=f"{package_name}.{sr.module}",
+                created_at=now,
+            )
+        )
+
+    # ── 2. Chains from factor nodes ──
+    # Build lcn_id → knowledge_id mapping
+    lcn_to_kid: dict[str, str] = {}
+    for node in local_graph.knowledge_nodes:
+        if node.source_refs:
+            sr = node.source_refs[0]
+            lcn_to_kid[node.local_canonical_id] = f"{package_name}/{sr.knowledge_name}"
+
+    chains: list[storage_models.Chain] = []
+    for factor in local_graph.factor_nodes:
+        chain_type = _FACTOR_TO_CHAIN_TYPE.get(factor.type)
+        if chain_type is None:
+            continue  # skip unknown factor types (e.g. instantiation)
+
+        # Build chain_id from source_ref
+        if factor.source_ref:
+            sr = factor.source_ref
+            chain_id = f"{package_name}.{sr.module}.{sr.knowledge_name}"
+            module_id = f"{package_name}.{sr.module}"
+        else:
+            logger.warning(
+                "Factor %s has no source_ref; chain will not be associated with a module",
+                factor.factor_id,
+            )
+            chain_id = f"{package_name}.{factor.factor_id}"
+            module_id = package_name
+
+        # Premises → KnowledgeRef
+        premises: list[storage_models.KnowledgeRef] = []
+        for p_lcn in factor.premises:
+            kid = lcn_to_kid.get(p_lcn)
+            if kid:
+                premises.append(storage_models.KnowledgeRef(knowledge_id=kid, version=1))
+
+        # Conclusion → KnowledgeRef
+        if factor.conclusion is None:
+            continue
+        conclusion_kid = lcn_to_kid.get(factor.conclusion)
+        if conclusion_kid is None:
+            continue
+        conclusion_ref = storage_models.KnowledgeRef(knowledge_id=conclusion_kid, version=1)
+
+        chains.append(
+            storage_models.Chain(
+                chain_id=chain_id,
+                module_id=module_id,
+                package_id=package_name,
+                package_version=package_version,
+                type=chain_type,
+                steps=[
+                    storage_models.ChainStep(
+                        step_index=0,
+                        premises=premises,
+                        reasoning="",
+                        conclusion=conclusion_ref,
+                    )
+                ],
+            )
+        )
+
+    # ── 3. Modules from graph_data ──
+    modules_list = graph_data.get("modules", [])
+    storage_modules: list[storage_models.Module] = []
+    # Build per-module chain IDs
+    module_chain_ids: dict[str, list[str]] = {m: [] for m in modules_list}
+    for chain in chains:
+        mod_name = chain.module_id.split(".", 1)[1] if "." in chain.module_id else ""
+        if mod_name in module_chain_ids:
+            module_chain_ids[mod_name].append(chain.chain_id)
+
+    for mod_name in modules_list:
+        role = _MODULE_ROLE_MAP.get(mod_name, "other")
+        storage_modules.append(
+            storage_models.Module(
+                module_id=f"{package_name}.{mod_name}",
+                package_id=package_name,
+                package_version=package_version,
+                name=mod_name,
+                role=role,
+                chain_ids=module_chain_ids.get(mod_name, []),
+            )
+        )
+
+    # ── 4. Package ──
+    exports_list = graph_data.get("exports", [])
+    storage_package = storage_models.Package(
+        package_id=package_name,
+        name=package_name,
+        version=package_version,
+        description=graph_data.get("module_titles", {}).get("lib", None),
+        modules=[f"{package_name}.{m}" for m in modules_list],
+        exports=[f"{package_name}/{name}" for name in exports_list],
+        submitter="cli",
+        submitted_at=now,
+        status="merged",
+    )
+
+    # ── 5. ProbabilityRecord from review factor_params ──
+    probabilities: list[storage_models.ProbabilityRecord] = []
+    # Map factor_id → chain_id for probability records
+    factor_to_chain: dict[str, str] = {}
+    for factor in local_graph.factor_nodes:
+        if factor.source_ref:
+            sr = factor.source_ref
+            factor_to_chain[factor.factor_id] = f"{package_name}.{sr.module}.{sr.knowledge_name}"
+
+    for factor_id, params in review.factor_params.items():
+        chain_id = factor_to_chain.get(factor_id)
+        if chain_id is None:
+            logger.warning(
+                "Factor %s has review params but no matching chain; skipping ProbabilityRecord",
+                factor_id,
+            )
+            continue
+        prob_value = max(min(params.conditional_probability, 1.0), 1e-6)
+        probabilities.append(
+            storage_models.ProbabilityRecord(
+                chain_id=chain_id,
+                step_index=0,
+                value=prob_value,
+                source="llm_review",
+                recorded_at=now,
+            )
+        )
+
+    # ── 6. BeliefSnapshot from BP results ──
+    # Build label → knowledge_id mapping
+    # Beliefs use "module.knowledge_name" format (from adapter._display_label)
+    label_to_kid: dict[str, str] = {}
+    for node in local_graph.knowledge_nodes:
+        if node.source_refs:
+            sr = node.source_refs[0]
+            label = f"{sr.module}.{sr.knowledge_name}"
+            label_to_kid[label] = f"{package_name}/{sr.knowledge_name}"
+
+    belief_snapshots: list[storage_models.BeliefSnapshot] = []
+    for label, belief_value in beliefs.items():
+        kid = label_to_kid.get(label)
+        if kid is None or kid not in seen_kids:
+            continue
+        clamped = max(min(belief_value, 1.0), 0.0)
+        belief_snapshots.append(
+            storage_models.BeliefSnapshot(
+                knowledge_id=kid,
+                version=1,
+                belief=clamped,
+                bp_run_id=bp_run_id,
+                computed_at=now,
+            )
+        )
+
+    return V2IngestData(
+        package=storage_package,
+        modules=storage_modules,
+        knowledge_items=knowledge_items,
+        chains=chains,
+        probabilities=probabilities,
+        belief_snapshots=belief_snapshots,
+    )
+
 
 def _map_graph_ir_factors(
     local_graph: LocalCanonicalGraph,
@@ -364,7 +654,7 @@ def _map_graph_ir_factors(
     for node in local_graph.knowledge_nodes:
         if node.source_refs:
             sr = node.source_refs[0]
-            lcn_to_kid[node.local_canonical_id] = f"{sr.package}/{sr.knowledge_name}"
+            lcn_to_kid[node.local_canonical_id] = f"{package_name}/{sr.knowledge_name}"
 
     factors: list[storage_models.FactorNode] = []
     for f in local_graph.factor_nodes:

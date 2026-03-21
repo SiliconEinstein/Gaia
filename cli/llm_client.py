@@ -191,6 +191,31 @@ class MockReviewClient:
 
     _STEP_RE = re.compile(r"\*\*\[step:([\w.]+\.(\d+))\]\*\*\s*\(prior=([\d.]+)\)")
 
+    def review_from_graph_data(self, graph_data: dict) -> dict:
+        """Generate mock review from v3 Typst graph_data."""
+        chains = []
+        for factor in graph_data.get("factors", []):
+            if factor.get("type") != "reasoning":
+                continue
+            conclusion = factor["conclusion"]
+            chains.append(
+                {
+                    "chain": conclusion,
+                    "steps": [
+                        {
+                            "step": f"{conclusion}.1",
+                            "conditional_prior": 0.85,
+                            "weak_points": [],
+                            "explanation": "Mock review — accepted at default prior.",
+                        }
+                    ],
+                }
+            )
+        return {
+            "summary": "Mock review — all factors accepted at default priors.",
+            "chains": chains,
+        }
+
     def review_package(self, package_data: dict) -> dict:
         """Parse all chains from package markdown."""
         md = package_data.get("markdown", "")
