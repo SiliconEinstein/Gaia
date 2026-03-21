@@ -21,6 +21,7 @@ _TYPE_LABELS = {
     "setting": "设定",
     "observation": "观察",
     "question": "问题",
+    "action": "操作",
     "contradiction": "矛盾",
     "equivalence": "等价",
 }
@@ -191,8 +192,14 @@ def render_typst_to_clean_typst(pkg_path: Path, output: Path | None = None) -> s
     modules = graph.get("modules", [])
     module_titles = graph.get("module_titles", {})
 
+    # v4 packages have no module field on nodes and modules=[]
+    if not modules:
+        modules = [""]
+
     nodes_by_module: dict[str, list[dict]] = {}
     for node in graph["nodes"]:
+        if node.get("external"):
+            continue
         mod = node.get("module", "")
         nodes_by_module.setdefault(mod, []).append(node)
 
@@ -204,13 +211,14 @@ def render_typst_to_clean_typst(pkg_path: Path, output: Path | None = None) -> s
             chains_by_module.setdefault(mod_name, []).append(chain_name)
 
     for mod_name in modules:
-        lines.append("")
-        title = module_titles.get(mod_name)
-        label = _label(mod_name)
-        if title:
-            lines.append(f"== {title} {label}")
-        else:
-            lines.append(f"== {mod_name.replace('_', ' ')} {label}")
+        if mod_name:
+            lines.append("")
+            title = module_titles.get(mod_name)
+            label = _label(mod_name)
+            if title:
+                lines.append(f"== {title} {label}")
+            else:
+                lines.append(f"== {mod_name.replace('_', ' ')} {label}")
 
         # ── Independent knowledge ──
         mod_nodes = nodes_by_module.get(mod_name, [])
@@ -305,6 +313,32 @@ def render_typst_to_clean_typst(pkg_path: Path, output: Path | None = None) -> s
                     seen_premises.update(premise)
                     seen_context.update(context)
                     chain_step_conclusions.add(conclusion)
+
+    # ── Constraints (contradictions, equivalences) ──
+    constraints = graph.get("constraints", [])
+    if constraints:
+        lines.append("")
+        lines.append("== 约束关系")
+        for constraint in constraints:
+            cname = constraint["name"]
+            ctype = _type_label(constraint.get("type", ""))
+            between = constraint.get("between", [])
+            node = node_map.get(cname)
+            content = _clean_text(node["content"]) if node else ""
+            lines.append(f"- *{ctype}*：{_join_refs(between)} {_label(cname)}")
+            if content:
+                lines.append(f"  {content}")
+
+    # ── External references ──
+    ext_nodes = [n for n in graph["nodes"] if n.get("external")]
+    if ext_nodes:
+        lines.append("")
+        lines.append("== 外部引用")
+        for node in ext_nodes:
+            pkg = node.get("ext_package", "")
+            ver = node.get("ext_version", "")
+            content = _clean_text(node.get("content", ""))
+            lines.append(f"- {content}（{pkg}@{ver}） {_label(node['name'])}")
 
     result = "\n".join(lines)
 
