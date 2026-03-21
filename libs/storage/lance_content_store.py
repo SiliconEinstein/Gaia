@@ -993,45 +993,103 @@ class LanceContentStore(ContentStore):
         return items[offset : offset + page_size], total
 
     async def get_graph_data(self, package_id: str | None = None) -> dict:
-        """Return knowledge nodes + factor nodes for factor graph visualization."""
-        items, _ = await self.list_knowledge_paged(page=1, page_size=10_000)
+        """Return the global factor graph for visualization.
+
+        Nodes come from global_canonical_nodes (GCN), enriched with knowledge
+        detail (prior, content) via canonical_bindings → knowledge join.
+        Abstraction (schema) nodes created by curation are included.
+        Factors use GCN IDs directly — no remapping needed.
+        """
         factors = await self.list_factors()
 
-        if package_id:
-            items = [k for k in items if k.source_package_id == package_id]
-            factors = [f for f in factors if f.package_id == package_id]
+        # 1. Load all GCN nodes
+        gcn_rows: list[dict] = []
+        try:
+            tbl = self._db.open_table("global_canonical_nodes")
+            gcn_rows = tbl.search().limit(tbl.count_rows()).to_list()
+        except Exception:
+            pass
 
-        # Build gcn→knowledge_id mapping from canonical_bindings table.
-        # Factors reference gcn_ IDs (from global canonicalization),
-        # but knowledge nodes use paper_xxx/name IDs. Remap so the
-        # frontend can draw edges between knowledge nodes and factors.
+        # 2. Build gcn_id → knowledge detail via canonical_bindings + knowledge
         gcn_to_kid: dict[str, str] = {}
         try:
             tbl = self._db.open_table("canonical_bindings")
-            rows = tbl.search().limit(100_000).to_list()
-            for r in rows:
+            for r in tbl.search().limit(100_000).to_list():
                 gcn_to_kid[r["global_canonical_id"]] = r["local_canonical_id"]
         except Exception:
-            pass  # table may not exist yet
+            pass
 
-        knowledge_nodes = [
-            {
-                "knowledge_id": k.knowledge_id,
-                "version": k.version,
-                "type": k.type,
-                "kind": k.kind,
-                "content": k.content,
-                "prior": k.prior,
-                "source_package_id": k.source_package_id,
-                "source_module_id": k.source_module_id,
-            }
-            for k in items
-        ]
+        kid_detail: dict[str, Knowledge] = {}
+        items, _ = await self.list_knowledge_paged(page=1, page_size=10_000)
+        for k in items:
+            kid_detail[k.knowledge_id] = k
 
-        kid_set = {k.knowledge_id for k in items}
+        # 3. Load beliefs
+        belief_map: dict[str, float] = {}
+        try:
+            btbl = self._db.open_table("belief_history")
+            for r in btbl.search().limit(100_000).to_list():
+                belief_map[r["knowledge_id"]] = r["belief"]
+        except Exception:
+            pass
 
-        def _remap_id(ref_id: str) -> str:
-            """Remap gcn_ ID to knowledge_id via canonical bindings."""
+        # 4. Build knowledge_nodes
+        knowledge_nodes: list[dict] = []
+
+        if gcn_rows:
+            # GCN-based: join to knowledge for detail, include abstraction nodes
+            for gcn in gcn_rows:
+                gcn_id = gcn["global_canonical_id"]
+                kid = gcn_to_kid.get(gcn_id)
+                k = kid_detail.get(kid) if kid else None
+
+                content = k.content if k else gcn.get("representative_content", "")
+                prior = k.prior if k else 0.5
+                k_type = k.type if k else gcn.get("knowledge_type", "claim")
+                kind = k.kind if k else gcn.get("kind")
+                src_pkg = k.source_package_id if k else "__curation__"
+                src_mod = k.source_module_id if k else "__curation__"
+                belief = belief_map.get(gcn_id) or (belief_map.get(kid) if kid else None)
+
+                node: dict = {
+                    "knowledge_id": gcn_id,
+                    "version": 1,
+                    "type": k_type,
+                    "kind": kind,
+                    "content": content,
+                    "prior": prior,
+                    "belief": belief,
+                    "source_package_id": src_pkg,
+                    "source_module_id": src_mod,
+                }
+                if kid:
+                    node["local_knowledge_id"] = kid
+                knowledge_nodes.append(node)
+        else:
+            # Fallback: no GCN yet (pre-canonicalization), use knowledge table directly
+            for k in items:
+                knowledge_nodes.append(
+                    {
+                        "knowledge_id": k.knowledge_id,
+                        "version": k.version,
+                        "type": k.type,
+                        "kind": k.kind,
+                        "content": k.content,
+                        "prior": k.prior,
+                        "belief": belief_map.get(k.knowledge_id),
+                        "source_package_id": k.source_package_id,
+                        "source_module_id": k.source_module_id,
+                    }
+                )
+
+        if package_id:
+            knowledge_nodes = [n for n in knowledge_nodes if n["source_package_id"] == package_id]
+            factors = [f for f in factors if f.package_id == package_id]
+
+        # 5. Build factor_nodes — remap gcn_ IDs to knowledge IDs when in fallback mode
+        kid_set = {n["knowledge_id"] for n in knowledge_nodes}
+
+        def _remap(ref_id: str) -> str:
             if ref_id in kid_set:
                 return ref_id
             return gcn_to_kid.get(ref_id, ref_id)
@@ -1040,9 +1098,9 @@ class LanceContentStore(ContentStore):
             {
                 "factor_id": f.factor_id,
                 "type": f.type,
-                "premises": [_remap_id(p) for p in f.premises],
-                "contexts": [_remap_id(c) for c in f.contexts],
-                "conclusion": _remap_id(f.conclusion) if f.conclusion else None,
+                "premises": [_remap(p) for p in f.premises],
+                "contexts": [_remap(c) for c in f.contexts],
+                "conclusion": _remap(f.conclusion) if f.conclusion else None,
                 "package_id": f.package_id,
                 "metadata": f.metadata,
             }

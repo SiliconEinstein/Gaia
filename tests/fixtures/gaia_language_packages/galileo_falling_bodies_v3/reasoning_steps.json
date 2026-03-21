@@ -1,0 +1,16 @@
+{
+  "vacuum_prediction": [
+    {
+      "step_index": 0,
+      "reasoning": "The tied-balls thought experiment reveals an internal contradiction in Aristotle's thesis: if heavier falls faster, then binding a heavy and light ball together must simultaneously make the composite faster (more total weight) and slower (the lighter ball retards the heavier)."
+    },
+    {
+      "step_index": 1,
+      "reasoning": "This contradiction implies that weight alone cannot be the determinant of fall speed. The observed speed differences in everyday experience must therefore stem from an external factor — the resistance of the surrounding medium."
+    },
+    {
+      "step_index": 2,
+      "reasoning": "Extrapolating to the limit of zero medium resistance (vacuum), the confounding factor vanishes entirely, so objects of different weights must fall at the same rate."
+    }
+  ]
+}

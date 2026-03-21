@@ -467,8 +467,15 @@ async def main() -> None:
     await mgr.upsert_global_nodes(final_storage_nodes)
     logger.info("Upserted %d global nodes to DB", len(final_storage_nodes))
 
-    await mgr.write_factors(mutable_factors)
-    logger.info("Wrote %d factors to DB", len(mutable_factors))
+    # Deduplicate factors by factor_id (abstraction + cleanup may both add same factors)
+    seen_fids: set[str] = set()
+    unique_factors: list[FactorNode] = []
+    for f in mutable_factors:
+        if f.factor_id not in seen_fids:
+            seen_fids.add(f.factor_id)
+            unique_factors.append(f)
+    await mgr.write_factors(unique_factors)
+    logger.info("Wrote %d factors to DB", len(unique_factors))
 
     t_writeback = time.monotonic() - t0
     logger.info("DB writeback completed (%.1fs)", t_writeback)

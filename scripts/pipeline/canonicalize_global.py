@@ -48,6 +48,12 @@ async def main():
         action="store_true",
         help="Use DP embedding service (requires API_URL and ACCESS_KEY env vars)",
     )
+    parser.add_argument(
+        "--canonicalizable-types",
+        nargs="+",
+        default=["claim"],
+        help="Knowledge types to canonicalize across packages (default: claim)",
+    )
     args = parser.parse_args()
 
     # Load embedding model if requested
@@ -85,6 +91,7 @@ async def main():
             local_params,
             global_graph,
             embedding_model=embedding_model,
+            canonicalizable_types=set(args.canonicalizable_types),
         )
 
         for gcn in result.new_global_nodes:
