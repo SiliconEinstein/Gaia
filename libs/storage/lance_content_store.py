@@ -1068,17 +1068,19 @@ class LanceContentStore(ContentStore):
         else:
             # Fallback: no GCN yet (pre-canonicalization), use knowledge table directly
             for k in items:
-                knowledge_nodes.append({
-                    "knowledge_id": k.knowledge_id,
-                    "version": k.version,
-                    "type": k.type,
-                    "kind": k.kind,
-                    "content": k.content,
-                    "prior": k.prior,
-                    "belief": belief_map.get(k.knowledge_id),
-                    "source_package_id": k.source_package_id,
-                    "source_module_id": k.source_module_id,
-                })
+                knowledge_nodes.append(
+                    {
+                        "knowledge_id": k.knowledge_id,
+                        "version": k.version,
+                        "type": k.type,
+                        "kind": k.kind,
+                        "content": k.content,
+                        "prior": k.prior,
+                        "belief": belief_map.get(k.knowledge_id),
+                        "source_package_id": k.source_package_id,
+                        "source_module_id": k.source_module_id,
+                    }
+                )
 
         if package_id:
             knowledge_nodes = [n for n in knowledge_nodes if n["source_package_id"] == package_id]
