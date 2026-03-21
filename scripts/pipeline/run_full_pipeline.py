@@ -120,8 +120,9 @@ def build_stage_command(
     output_dir: str,
     graph_backend: str,
     use_embedding: bool,
-    concurrency: int,
-    gaia_lang_import: str,
+    canonicalizable_types: list[str] | None = None,
+    concurrency: int = 5,
+    gaia_lang_import: str = "../../../libs/typst/gaia-lang/v2.typ",
     clean: bool = False,
 ) -> list[str]:
     """Build the subprocess command for a given stage."""
@@ -163,6 +164,8 @@ def build_stage_command(
         ]
         if use_embedding:
             cmd.append("--use-embedding")
+        if canonicalizable_types:
+            cmd.extend(["--canonicalizable-types", *canonicalizable_types])
     elif stage == "persist":
         cmd = [
             sys.executable,
@@ -334,6 +337,7 @@ def main() -> int:
         "output_dir": args.output_dir,
         "graph_backend": args.graph_backend,
         "use_embedding": args.use_embedding,
+        "canonicalizable_types": canon_cfg.get("canonicalizable_types", ["claim"]),
         "concurrency": args.concurrency,
         "gaia_lang_import": args.gaia_lang_import,
         "clean": args.clean,

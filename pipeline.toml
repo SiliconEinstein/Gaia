@@ -16,6 +16,9 @@ max_iterations = 100
 
 [pipeline.canonicalization]
 use_embedding = true
+# Only these knowledge_types are clustered across packages in global canonicalization.
+# Settings, observations, questions are package-local and skipped.
+canonicalizable_types = ["claim"]
 
 [pipeline.curation]
 llm_model = "openai/chenkun/gpt-5-mini"

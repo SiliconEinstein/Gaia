@@ -524,6 +524,38 @@ def write_typst_package(data: dict[str, str], output_dir: Path) -> Path:
     return output_dir
 
 
+# ── Reasoning Steps Sidecar ───────────────────────────────────────────
+
+
+def build_reasoning_steps(
+    step2_data: list[dict],
+    conclusion_names: dict[str, str],
+) -> dict[str, list[dict]]:
+    """Build reasoning_steps map from step2 XML extraction.
+
+    Args:
+        step2_data: Parsed step2 chains, each with conclusion_id and steps[].
+        conclusion_names: Map conclusion_id → knowledge_name (slugified).
+
+    Returns:
+        Dict mapping knowledge_name → list of {step_index, reasoning}.
+    """
+    result: dict[str, list[dict]] = {}
+    for chain in step2_data:
+        conc_id = chain.get("conclusion_id", "")
+        conc_name = conclusion_names.get(conc_id)
+        if not conc_name:
+            continue
+        steps = []
+        for i, step in enumerate(chain.get("steps", [])):
+            text = step.get("text", "").strip()
+            if text:
+                steps.append({"step_index": i, "reasoning": text})
+        if steps:
+            result[conc_name] = steps
+    return result
+
+
 # ── Main Pipeline ─────────────────────────────────────────────────────
 
 
@@ -601,6 +633,17 @@ async def process_paper(
         if conc_name not in priors_map:
             priors_map[conc_name] = 0.5
     (pkg_dir / "priors.json").write_text(json.dumps(priors_map, indent=2, ensure_ascii=False))
+
+    # Save reasoning_steps.json — multi-step reasoning from LLM extraction (step2)
+    # Used by storage_converter to populate Chain.steps with reasoning text
+    conclusion_names: dict[str, str] = {}
+    for conc in step1_data["conclusions"]:
+        conclusion_names[conc["id"]] = _truncate_name(_slugify(conc["title"]))
+    reasoning_steps = build_reasoning_steps(step2_data, conclusion_names)
+    if reasoning_steps:
+        (pkg_dir / "reasoning_steps.json").write_text(
+            json.dumps(reasoning_steps, indent=2, ensure_ascii=False)
+        )
 
     # Verify compilation; fallback to plaintext math if mitex fails
     if not _try_compile(pkg_dir):

@@ -289,7 +289,14 @@ async def persist_packages(
         params = _load_local_params(pkg_dir)
         beliefs = _load_local_beliefs(pkg_dir)
 
-        ingest_data = convert_graph_ir_to_storage(lcg, params, beliefs)
+        reasoning_steps_path = pkg_dir / "graph_ir" / "reasoning_steps.json"
+        reasoning_steps = (
+            json.loads(reasoning_steps_path.read_text()) if reasoning_steps_path.exists() else None
+        )
+
+        ingest_data = convert_graph_ir_to_storage(
+            lcg, params, beliefs, reasoning_steps=reasoning_steps
+        )
         all_lcn_to_kid.update(ingest_data.lcn_to_kid)
 
         # Save local backups before writing to DB

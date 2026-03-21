@@ -104,6 +104,7 @@ def convert_graph_ir_to_storage(
     params: LocalParameterization,
     beliefs: dict[str, float] | None = None,
     bp_run_id: str = "local_bp",
+    reasoning_steps: dict[str, list[dict]] | None = None,
 ) -> GraphIRIngestData:
     """Convert Graph IR outputs into storage models.
 
@@ -112,6 +113,10 @@ def convert_graph_ir_to_storage(
         params: Parameterization with node priors and factor parameters.
         beliefs: Optional dict mapping local_canonical_id to belief value.
         bp_run_id: Identifier for the BP run that produced beliefs.
+        reasoning_steps: Optional dict mapping conclusion knowledge_name to a list of
+            step dicts (``{"step_index": int, "reasoning": str}``).  When provided,
+            the corresponding chain will have one ``ChainStep`` per entry instead of
+            a single empty-reasoning step.
 
     Returns:
         GraphIRIngestData with all storage objects ready for ingest.
@@ -228,10 +233,8 @@ def convert_graph_ir_to_storage(
         )
 
     # -- Build chains from reasoning factors --
-    # Each reasoning factor becomes a single-step chain: premises → conclusion
     chains: list[storage.Chain] = []
     module_chain_ids: dict[str, list[str]] = {m.module_id: [] for m in modules}
-    # Map factor type → chain type
     _FACTOR_TO_CHAIN_TYPE: dict[str, str] = {
         "reasoning": "deduction",
         "infer": "deduction",
@@ -247,10 +250,36 @@ def convert_graph_ir_to_storage(
         if not premises_kid or conclusion_kid is None:
             continue
 
-        # Determine module from source_ref
         mod_name = f.source_ref.module if f.source_ref else "unknown"
         module_id = f"{package_id}.{mod_name}"
         chain_id = f"{package_id}.{mod_name}.{f.factor_id}"
+
+        premise_refs = [storage.KnowledgeRef(knowledge_id=kid, version=1) for kid in premises_kid]
+        conclusion_ref = storage.KnowledgeRef(knowledge_id=conclusion_kid, version=1)
+
+        # Check for multi-step reasoning from sidecar
+        conc_name = f.source_ref.knowledge_name if f.source_ref else None
+        steps_data = (reasoning_steps or {}).get(conc_name, []) if conc_name else []
+
+        if steps_data:
+            steps = [
+                storage.ChainStep(
+                    step_index=s["step_index"],
+                    premises=premise_refs if s["step_index"] == 0 else [],
+                    reasoning=s["reasoning"],
+                    conclusion=conclusion_ref,
+                )
+                for s in steps_data
+            ]
+        else:
+            steps = [
+                storage.ChainStep(
+                    step_index=0,
+                    premises=premise_refs,
+                    reasoning="",
+                    conclusion=conclusion_ref,
+                )
+            ]
 
         chains.append(
             storage.Chain(
@@ -259,17 +288,7 @@ def convert_graph_ir_to_storage(
                 package_id=package_id,
                 package_version=package_version,
                 type=chain_type,
-                steps=[
-                    storage.ChainStep(
-                        step_index=0,
-                        premises=[
-                            storage.KnowledgeRef(knowledge_id=kid, version=1)
-                            for kid in premises_kid
-                        ],
-                        reasoning="",
-                        conclusion=storage.KnowledgeRef(knowledge_id=conclusion_kid, version=1),
-                    )
-                ],
+                steps=steps,
             )
         )
         if module_id in module_chain_ids:

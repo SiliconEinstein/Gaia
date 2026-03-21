@@ -123,6 +123,7 @@ export interface GraphKnowledgeNode {
   kind: string | null;
   content: string;
   prior: number;
+  belief: number | null;
   source_package_id: string;
   source_module_id: string;
 }
