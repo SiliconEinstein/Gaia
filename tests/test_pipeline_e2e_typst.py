@@ -347,14 +347,12 @@ class TestMultiPackagePublishToSameDb:
             for chain in pkg_chains:
                 assert chain.package_id == result.package_id
 
-    async def test_bm25_search_finds_published_knowledge(self, multi_db):
+    async def test_all_knowledge_queryable_by_id(self, multi_db):
+        """Every published knowledge item can be retrieved by its ID."""
         _, mgr = multi_db
-        # Pick a word from actual published content to verify FTS works
         all_knowledge = await mgr.content_store.list_knowledge()
         assert len(all_knowledge) > 0
-        # Use a word from the first knowledge item's content
-        sample_content = all_knowledge[0].content
-        # Take first meaningful word (at least 2 chars)
-        search_term = next((w for w in sample_content.split() if len(w) >= 2), sample_content[:10])
-        results = await mgr.content_store.search_bm25(search_term, top_k=5)
-        assert len(results) > 0, f"BM25 search for '{search_term}' should return results"
+        for k in all_knowledge:
+            fetched = await mgr.content_store.get_knowledge(k.knowledge_id)
+            assert fetched is not None, f"Knowledge {k.knowledge_id} not queryable by ID"
+            assert fetched.content == k.content
