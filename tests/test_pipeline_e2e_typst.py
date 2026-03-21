@@ -33,9 +33,7 @@ async def _run_full_pipeline(pkg_path: Path, db_path: str):
     infer = await pipeline_infer(build, review)
     result = await pipeline_publish(build, review, infer, db_path=db_path)
 
-    config = StorageConfig(
-        lancedb_path=db_path, graph_backend="kuzu", kuzu_path=f"{db_path}/kuzu"
-    )
+    config = StorageConfig(lancedb_path=db_path, graph_backend="kuzu", kuzu_path=f"{db_path}/kuzu")
     mgr = StorageManager(config)
     await mgr.initialize()
     return build, result, mgr
@@ -77,7 +75,14 @@ class TestGalileoV4PublishToDb:
         for k in db_knowledge:
             assert k.content, f"Knowledge {k.knowledge_id} has empty content"
             assert k.prior > 0, f"Knowledge {k.knowledge_id} has non-positive prior"
-            assert k.type in ("claim", "question", "setting", "action", "contradiction", "equivalence")
+            assert k.type in (
+                "claim",
+                "question",
+                "setting",
+                "action",
+                "contradiction",
+                "equivalence",
+            )
 
     async def test_chains_exist_and_have_steps(self, pipeline):
         _, result, mgr = pipeline
@@ -171,11 +176,7 @@ class TestNewtonV4PublishToDb:
     async def test_external_refs_not_materialized(self, pipeline):
         """External nodes should not appear as Knowledge items."""
         build, _, mgr = pipeline
-        ext_nodes = [
-            n
-            for n in build.raw_graph.knowledge_nodes
-            if n.raw_node_id.startswith("ext:")
-        ]
+        ext_nodes = [n for n in build.raw_graph.knowledge_nodes if n.raw_node_id.startswith("ext:")]
         assert len(ext_nodes) >= 1, "Newton should reference external galileo nodes"
         db_knowledge = await mgr.content_store.list_knowledge()
         db_kids = {k.knowledge_id for k in db_knowledge}
@@ -209,8 +210,12 @@ class TestNewtonV4PublishToDb:
         for chain in chains:
             assert len(chain.steps) > 0
             assert chain.type in (
-                "deduction", "induction", "abstraction",
-                "contradiction", "retraction", "equivalence",
+                "deduction",
+                "induction",
+                "abstraction",
+                "contradiction",
+                "retraction",
+                "equivalence",
             )
 
     async def test_modules_do_not_include_external(self, pipeline):
@@ -255,7 +260,9 @@ class TestEinsteinV4PublishToDb:
         _, _, mgr = pipeline
         chains = await mgr.content_store.list_chains()
         contradiction_chains = [c for c in chains if c.type == "contradiction"]
-        assert len(contradiction_chains) >= 1, "Einstein should have at least one contradiction chain"
+        assert len(contradiction_chains) >= 1, (
+            "Einstein should have at least one contradiction chain"
+        )
 
     async def test_all_probabilities_have_valid_chains(self, pipeline):
         _, _, mgr = pipeline
@@ -348,8 +355,6 @@ class TestMultiPackagePublishToSameDb:
         # Use a word from the first knowledge item's content
         sample_content = all_knowledge[0].content
         # Take first meaningful word (at least 2 chars)
-        search_term = next(
-            (w for w in sample_content.split() if len(w) >= 2), sample_content[:10]
-        )
+        search_term = next((w for w in sample_content.split() if len(w) >= 2), sample_content[:10])
         results = await mgr.content_store.search_bm25(search_term, top_k=5)
         assert len(results) > 0, f"BM25 search for '{search_term}' should return results"
