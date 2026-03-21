@@ -225,45 +225,35 @@ async def pipeline_publish(
         embed_dim: Embedding dimension for stub embeddings.
     """
     from libs.embedding import StubEmbeddingModel
+    from libs.graph_ir.storage_converter import convert_graph_ir_to_storage
     from libs.storage.config import StorageConfig
     from libs.storage.manager import StorageManager
     from libs.storage.models import KnowledgeEmbedding
 
-    from libs.graph_ir.storage_converter import convert_graph_ir_to_storage
-
     package_name = build.local_graph.package
     local_graph = build.local_graph
 
-    # 1. Convert label-based beliefs to lcn_id-based
-    label_to_lcn = {v: k for k, v in infer.adapted_graph.local_id_to_label.items()}
-    lcn_beliefs = {
-        label_to_lcn[label]: belief
-        for label, belief in infer.beliefs.items()
-        if label in label_to_lcn
-    }
+    # 1. Convert LocalCanonicalGraph → storage models via unified converter.
+    # Local BP beliefs remain author-local preview artifacts and are not published.
+    data = convert_graph_ir_to_storage(local_graph, infer.local_parameterization)
 
-    # 2. Convert LocalCanonicalGraph → storage models via unified converter
-    data = convert_graph_ir_to_storage(
-        local_graph, infer.local_parameterization, lcn_beliefs, infer.bp_run_id
-    )
-
-    # 3. Patch package fields for CLI publish context
+    # 2. Patch package fields for CLI publish context
     data.package.submitter = "cli"
     data.package.status = "merged"
     desc = build.graph_data.get("module_titles", {}).get("lib")
     if desc:
         data.package.description = desc
 
-    # 4. Build ProbabilityRecords from review factor_params
+    # 3. Build ProbabilityRecords from review factor_params
     probabilities = _build_probability_records(local_graph, review, package_name)
 
-    # 5. Build submission artifact (in-memory, no git)
+    # 4. Build submission artifact (in-memory, no git)
     submission_artifact = _build_submission_artifact_in_memory(
         build=build,
         package_name=package_name,
     )
 
-    # 6. Generate embeddings
+    # 5. Generate embeddings
     embed_model = StubEmbeddingModel(dim=embed_dim)
     texts = [k.content for k in data.knowledge_items]
     vectors = await embed_model.embed(texts) if texts else []
@@ -276,7 +266,7 @@ async def pipeline_publish(
         for k, vec in zip(data.knowledge_items, vectors)
     ]
 
-    # 7. Resolve StorageManager — external (batch/server) or self-managed (CLI)
+    # 6. Resolve StorageManager — external (batch/server) or self-managed (CLI)
     _owns_mgr = storage_manager is None
     if _owns_mgr:
         if storage_config is None:
@@ -293,7 +283,7 @@ async def pipeline_publish(
         mgr = storage_manager
 
     try:
-        # 8. Ingest
+        # 7. Ingest
         await mgr.ingest_package(
             package=data.package,
             modules=data.modules,
@@ -304,11 +294,9 @@ async def pipeline_publish(
             embeddings=embeddings,
         )
 
-        # 9. Write supplementary data
+        # 8. Write supplementary data
         if probabilities:
             await mgr.add_probabilities(probabilities)
-        if data.belief_snapshots:
-            await mgr.write_beliefs(data.belief_snapshots)
     finally:
         if _owns_mgr:
             await mgr.close()
@@ -318,7 +306,7 @@ async def pipeline_publish(
         "chains": len(data.chains),
         "factors": len(data.factors),
         "probabilities": len(probabilities),
-        "belief_snapshots": len(data.belief_snapshots),
+        "belief_snapshots": 0,
     }
 
     return PublishResult(
@@ -435,12 +423,12 @@ def _build_probability_records(
     package_name: str,
 ) -> list[storage_models.ProbabilityRecord]:
     """Build ProbabilityRecords from review factor_params."""
+    from libs.graph_ir.storage_converter import _make_chain_id
+
     now = datetime.now(timezone.utc)
     factor_to_chain: dict[str, str] = {}
     for factor in local_graph.factor_nodes:
-        if factor.source_ref:
-            sr = factor.source_ref
-            factor_to_chain[factor.factor_id] = f"{package_name}.{sr.module}.{sr.knowledge_name}"
+        factor_to_chain[factor.factor_id] = _make_chain_id(package_name, factor)
 
     probabilities: list[storage_models.ProbabilityRecord] = []
     for factor_id, params in review.factor_params.items():

@@ -104,10 +104,14 @@ async def test_probability_records_from_pipeline():
 
     build = await pipeline_build(GALILEO_V3)
     review = await pipeline_review(build, mock=True)
+    infer_result = await pipeline_infer(build, review)
+    data = convert_graph_ir_to_storage(build.local_graph, infer_result.local_parameterization)
     probs = _build_probability_records(build.local_graph, review, build.local_graph.package)
     assert len(probs) > 0
+    chain_ids = {chain.chain_id for chain in data.chains}
     for p in probs:
         assert 0 < p.value <= 1.0
+        assert p.chain_id in chain_ids
 
 
 # ── 2. render_markdown_from_graph_data tests ──
@@ -179,6 +183,8 @@ async def test_converter_v4_external_refs_are_not_materialized_locally():
             for p in step.premises:
                 all_premises.add(p.knowledge_id)
     assert "galileo_falling_bodies/vacuum_prediction" in all_premises
+    assert {m.name for m in data.modules} == {"default"}
+    assert {snap.knowledge_id for snap in data.belief_snapshots} <= knowledge_ids
 
 
 @pytest.mark.asyncio

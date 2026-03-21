@@ -100,6 +100,15 @@ def _make_knowledge_id(package: str, knowledge_name: str) -> str:
     return f"{package}/{knowledge_name}"
 
 
+def _make_chain_id(package_id: str, factor) -> str:
+    """Build a published chain ID from author-facing provenance when available."""
+    if factor.source_ref:
+        return (
+            f"{package_id}.{factor.source_ref.module}.{factor.source_ref.knowledge_name}"
+        )
+    return f"{package_id}.{factor.factor_id}"
+
+
 def convert_graph_ir_to_storage(
     lcg: LocalCanonicalGraph,
     params: LocalParameterization,
@@ -121,17 +130,13 @@ def convert_graph_ir_to_storage(
     package_id = lcg.package
     package_version = lcg.version
 
-    # -- Discover modules from source_refs --
-    module_names: dict[str, set[str]] = {}  # module_name -> set of knowledge_ids
-    for node in lcg.knowledge_nodes:
-        for ref in node.source_refs:
-            if ref.module not in module_names:
-                module_names[ref.module] = set()
-
     # -- Build knowledge items --
+    module_names: dict[str, set[str]] = {}  # module_name -> set of knowledge_ids
     knowledge_items: list[storage.Knowledge] = []
     # Map from lcn_id to knowledge_id for factor rewiring (includes external nodes)
     lcn_to_kid: dict[str, str] = {}
+    # Map from local, materialized lcn_id to knowledge_id for publishable artifacts
+    materialized_lcn_to_kid: dict[str, str] = {}
 
     for node in lcg.knowledge_nodes:
         # Use first source_ref's knowledge_name for the id, fallback to lcn_id
@@ -172,6 +177,7 @@ def convert_graph_ir_to_storage(
         module_names[module_name].add(knowledge_id)
 
         module_id = f"{package_id}.{module_name}"
+        materialized_lcn_to_kid[node.local_canonical_id] = knowledge_id
 
         knowledge_items.append(
             storage.Knowledge(
@@ -260,7 +266,7 @@ def convert_graph_ir_to_storage(
         # Determine module from source_ref
         mod_name = f.source_ref.module if f.source_ref else "unknown"
         module_id = f"{package_id}.{mod_name}"
-        chain_id = f"{package_id}.{mod_name}.{f.factor_id}"
+        chain_id = _make_chain_id(package_id, f)
 
         chains.append(
             storage.Chain(
@@ -293,7 +299,7 @@ def convert_graph_ir_to_storage(
     belief_snapshots: list[storage.BeliefSnapshot] = []
     if beliefs:
         for lcn_id, belief_value in beliefs.items():
-            kid = lcn_to_kid.get(lcn_id)
+            kid = materialized_lcn_to_kid.get(lcn_id)
             if kid is not None:
                 belief_snapshots.append(
                     storage.BeliefSnapshot(
