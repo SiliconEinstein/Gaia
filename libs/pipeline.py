@@ -334,6 +334,24 @@ _DEFAULT_PRIORS: dict[str, float] = {
 }
 
 
+def _source_ref_knowledge_id(
+    source_ref: storage_models.SourceRef | None,
+    current_package: str,
+) -> str | None:
+    """Build a storage knowledge_id while preserving external provenance."""
+    if source_ref is None or not source_ref.knowledge_name:
+        return None
+    package = source_ref.package or current_package
+    return f"{package}/{source_ref.knowledge_name}"
+
+
+def _is_external_source_ref(
+    source_ref: storage_models.SourceRef | None,
+    current_package: str,
+) -> bool:
+    return bool(source_ref and source_ref.package and source_ref.package != current_package)
+
+
 def _build_node_priors(local_graph: LocalCanonicalGraph) -> dict[str, float]:
     """Build node_priors dict: lcn_id → default prior based on knowledge_type."""
     priors: dict[str, float] = {}
@@ -399,7 +417,12 @@ def _render_markdown_from_graph_data(graph_data: dict) -> str:
     lines.append(f"# Package: {package_name}\n")
 
     for node in graph_data.get("nodes", []):
-        lines.append(f"### {node['name']} [{node.get('type', 'claim')}]")
+        label = node.get("type", "claim")
+        if node.get("external"):
+            ext_pkg = node.get("ext_package", "unknown")
+            ext_ver = node.get("ext_version", "") or "unknown"
+            label = f"{label}, external from {ext_pkg}@{ext_ver}"
+        lines.append(f"### {node['name']} [{label}]")
         lines.append(f"> {node.get('content', '')}\n")
 
     for factor in graph_data.get("factors", []):
@@ -474,7 +497,11 @@ def _convert_local_graph_to_storage(
             )
             continue
         sr = node.source_refs[0]
-        knowledge_id = f"{package_name}/{sr.knowledge_name}"
+        if _is_external_source_ref(sr, package_name):
+            continue
+        knowledge_id = _source_ref_knowledge_id(sr, package_name)
+        if knowledge_id is None:
+            continue
         if knowledge_id in seen_kids:
             continue
         seen_kids.add(knowledge_id)
@@ -508,7 +535,9 @@ def _convert_local_graph_to_storage(
     for node in local_graph.knowledge_nodes:
         if node.source_refs:
             sr = node.source_refs[0]
-            lcn_to_kid[node.local_canonical_id] = f"{package_name}/{sr.knowledge_name}"
+            kid = _source_ref_knowledge_id(sr, package_name)
+            if kid is not None:
+                lcn_to_kid[node.local_canonical_id] = kid
 
     chains: list[storage_models.Chain] = []
     for factor in local_graph.factor_nodes:
@@ -641,7 +670,9 @@ def _convert_local_graph_to_storage(
         if node.source_refs:
             sr = node.source_refs[0]
             label = f"{sr.module}.{sr.knowledge_name}"
-            label_to_kid[label] = f"{package_name}/{sr.knowledge_name}"
+            kid = _source_ref_knowledge_id(sr, package_name)
+            if kid is not None:
+                label_to_kid[label] = kid
 
     belief_snapshots: list[storage_models.BeliefSnapshot] = []
     for label, belief_value in beliefs.items():
@@ -679,7 +710,9 @@ def _map_graph_ir_factors(
     for node in local_graph.knowledge_nodes:
         if node.source_refs:
             sr = node.source_refs[0]
-            lcn_to_kid[node.local_canonical_id] = f"{package_name}/{sr.knowledge_name}"
+            kid = _source_ref_knowledge_id(sr, package_name)
+            if kid is not None:
+                lcn_to_kid[node.local_canonical_id] = kid
 
     factors: list[storage_models.FactorNode] = []
     for f in local_graph.factor_nodes:

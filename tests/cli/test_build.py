@@ -11,6 +11,7 @@ from cli.main import app
 runner = CliRunner()
 
 TYPST_FIXTURE = "tests/fixtures/gaia_language_packages/galileo_falling_bodies_typst"
+V4_TYPST_FIXTURE = "tests/fixtures/gaia_language_packages/newton_principia_v4"
 
 
 def test_build_invalid_path():
@@ -72,3 +73,21 @@ def test_build_typst_package_all_format(typst_fixture):
     assert (build_dir / "package.md").exists()
     assert (build_dir / "graph.json").exists()
     assert "Build complete." in result.output
+
+
+def test_build_v4_package_default_format_produces_markdown():
+    pkg = Path(V4_TYPST_FIXTURE)
+    gaia_dir = pkg / ".gaia"
+    if gaia_dir.exists():
+        shutil.rmtree(gaia_dir)
+    try:
+        result = runner.invoke(app, ["build", str(pkg)])
+        assert result.exit_code == 0, result.output
+        md_path = pkg / ".gaia" / "build" / "package.md"
+        assert md_path.exists()
+        content = md_path.read_text()
+        assert "external from galileo_falling_bodies@4.0.0" in content
+        assert "Build complete." in result.output
+    finally:
+        if gaia_dir.exists():
+            shutil.rmtree(gaia_dir)

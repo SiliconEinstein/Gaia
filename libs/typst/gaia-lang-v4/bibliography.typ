@@ -15,6 +15,7 @@
         "ext-version": entry.at("version", default: ""),
         "ext-node": entry.at("node", default: key),
         "ext-content-type": entry.at("type", default: "claim"),
+        "ext-content": entry.at("content", default: key),
       )))
       hide(text(entry.at("content", default: key)))
     }) #label(key)]

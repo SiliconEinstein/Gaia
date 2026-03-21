@@ -78,6 +78,7 @@ def test_external_nodes_prefixed(raw_graph):
     ext = ext_nodes[0]
     assert ext.metadata is not None
     assert ext.metadata.get("ext_package") == "cmb-analysis"
+    assert "CMB" in ext.content
 
 
 def test_deterministic_ids(raw_graph):

@@ -276,7 +276,7 @@ def compile_v4_to_raw_graph(graph_data: dict) -> RawGraph:
                 raw_node_id=node_id,
                 knowledge_type=node.get("type", "claim"),
                 kind=None,
-                content="",
+                content=node.get("content", ""),
                 parameters=[],
                 source_refs=[
                     SourceRef(
