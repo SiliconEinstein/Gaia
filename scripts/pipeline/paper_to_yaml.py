@@ -19,10 +19,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import yaml
-from dotenv import load_dotenv
 from openai import AsyncOpenAI
-
-load_dotenv()
 
 
 # ── LLM Call Layer ─────────────────────────────────────────────────────
@@ -774,6 +771,10 @@ async def process_paper(
 
 
 async def main():
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
     parser = argparse.ArgumentParser(description="Convert paper to Gaia YAML package")
     parser.add_argument(
         "paper_dirs", type=Path, nargs="+", help="Paper directories with .md and/or .xml files"

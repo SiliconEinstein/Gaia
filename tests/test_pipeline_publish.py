@@ -6,6 +6,8 @@ import pytest
 
 from libs.pipeline import pipeline_build, pipeline_infer, pipeline_publish, pipeline_review
 
+pytestmark = pytest.mark.usefixtures("fresh_lancedb_loop")
+
 GALILEO_V3 = (
     Path(__file__).parent / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies_v3"
 )

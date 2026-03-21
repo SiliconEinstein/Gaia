@@ -100,6 +100,7 @@ class KuzuGraphStore(GraphStore):
     """
 
     def __init__(self, db_path: Path | str) -> None:
+        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         self._db = kuzu.Database(str(db_path))
         self._conn: kuzu.Connection | None = kuzu.Connection(self._db)
 
