@@ -3,6 +3,7 @@
 from libs.graph_ir.build_utils import (
     CanonicalizationResult,
     build_singleton_local_graph,
+    derive_local_parameterization_from_raw,
     extract_parameters,
     factor_id,
     local_canonical_id,
@@ -122,3 +123,63 @@ def test_build_singleton_local_graph():
     factor = result.local_graph.factor_nodes[0]
     assert factor.conclusion.startswith("lcn_")
     assert all(p.startswith("lcn_") for p in factor.premises)
+
+
+def test_derive_local_parameterization_defaults_only_settings_to_one():
+    raw = RawGraph(
+        package="test_pkg",
+        version="1.0.0",
+        knowledge_nodes=[
+            RawKnowledgeNode(
+                raw_node_id="raw_setting",
+                knowledge_type="setting",
+                content="In vacuum conditions.",
+                source_refs=[
+                    SourceRef(
+                        package="test_pkg",
+                        version="1.0.0",
+                        module="m",
+                        knowledge_name="vacuum_env",
+                    )
+                ],
+            ),
+            RawKnowledgeNode(
+                raw_node_id="raw_obs",
+                knowledge_type="observation",
+                content="A detector reading was observed.",
+                source_refs=[
+                    SourceRef(
+                        package="test_pkg",
+                        version="1.0.0",
+                        module="m",
+                        knowledge_name="detector_observation",
+                    )
+                ],
+            ),
+            RawKnowledgeNode(
+                raw_node_id="raw_claim",
+                knowledge_type="claim",
+                content="A hypothesis holds.",
+                source_refs=[
+                    SourceRef(
+                        package="test_pkg",
+                        version="1.0.0",
+                        module="m",
+                        knowledge_name="hypothesis",
+                    )
+                ],
+            ),
+        ],
+        factor_nodes=[],
+    )
+
+    result = build_singleton_local_graph(raw)
+    params = derive_local_parameterization_from_raw(raw, result.local_graph)
+    by_name = {
+        node.source_refs[0].knowledge_name: params.node_priors[node.local_canonical_id]
+        for node in result.local_graph.knowledge_nodes
+    }
+
+    assert by_name["vacuum_env"] == 1.0
+    assert by_name["detector_observation"] == 0.5
+    assert by_name["hypothesis"] == 0.5

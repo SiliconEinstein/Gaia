@@ -138,9 +138,9 @@ def build_singleton_local_graph(raw_graph: RawGraph) -> CanonicalizationResult:
 
 def _default_node_prior(knowledge_type: str) -> float:
     """Default prior based on knowledge type."""
-    if knowledge_type in {"contradiction", "equivalence"}:
-        return 0.5
-    return 1.0
+    if knowledge_type == "setting":
+        return 1.0
+    return 0.5
 
 
 def derive_local_parameterization_from_raw(

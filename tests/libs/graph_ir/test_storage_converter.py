@@ -161,6 +161,23 @@ class TestKnowledgePriors:
         k = result.knowledge_items[0]
         assert k.prior == 0.5  # default
 
+    def test_observation_maps_to_claim_with_observation_kind(self):
+        obs = _make_node(
+            "lcn_obs",
+            content="The apparatus recorded a signal.",
+            knowledge_type="observation",
+            knowledge_name="signal_observation",
+        )
+        lcg = _make_lcg(nodes=[obs])
+        params = _make_params(node_priors={"lcn_obs": 0.4})
+
+        result = convert_graph_ir_to_storage(lcg, params)
+
+        stored = result.knowledge_items[0]
+        assert stored.type == "claim"
+        assert stored.kind == "observation"
+        assert stored.prior == 0.4
+
 
 class TestFactorTypeMapping:
     """test_factor_type_mapping: reasoning→infer, mutex_constraint→contradiction, etc."""

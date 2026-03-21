@@ -48,20 +48,28 @@ def test_heavier_falls_faster_is_hole():
     assert "heavier_falls_faster" in hole_names
 
 
-def test_axioms_include_settings():
+def test_settings_are_assumptions():
     graph = load_typst_package(GALILEO_V3)
     state = analyze_proof_state(graph)
-    axiom_names = {d["name"] for d in state["axioms"]}
-    assert "thought_experiment_env" in axiom_names
-    assert "vacuum_env" in axiom_names
+    assumption_names = {d["name"] for d in state["assumptions"]}
+    assert "thought_experiment_env" in assumption_names
+    assert "vacuum_env" in assumption_names
 
 
-def test_axioms_include_observations():
+def test_observations_are_holes():
+    """Observations used as premises without proof should be holes, not assumptions."""
     graph = load_typst_package(GALILEO_V3)
     state = analyze_proof_state(graph)
-    axiom_names = {d["name"] for d in state["axioms"]}
-    assert "medium_density_observation" in axiom_names
-    assert "inclined_plane_observation" in axiom_names
+    hole_names = {d["name"] for d in state["holes"]}
+    assert "medium_density_observation" in hole_names
+    assert "inclined_plane_observation" in hole_names
+
+
+def test_unreferenced_observation_is_standalone():
+    graph = load_typst_package(GALILEO_V3)
+    state = analyze_proof_state(graph)
+    standalone_names = {d["name"] for d in state["standalone"]}
+    assert "everyday_observation" in standalone_names
 
 
 def test_questions_detected():
@@ -72,13 +80,12 @@ def test_questions_detected():
     assert "follow_up_question" in question_names
 
 
-def test_no_false_holes():
-    """Settings and observations should never be holes."""
+def test_settings_not_holes():
+    """Settings are assumptions, never holes."""
     graph = load_typst_package(GALILEO_V3)
     state = analyze_proof_state(graph)
     hole_names = {d["name"] for d in state["holes"]}
     assert "thought_experiment_env" not in hole_names
-    assert "medium_density_observation" not in hole_names
 
 
 def test_constraint_between_members_are_used_as_premise():
@@ -123,7 +130,14 @@ def test_proof_state_format_string():
     state = analyze_proof_state(graph)
     report = state["report"]
     assert "established" in report.lower() or "\u2713" in report
-    assert "axiom" in report.lower() or "\u25cb" in report
+    assert "assumption" in report.lower() or "\u25cb" in report
+    assert "medium_density_observation  (observation, used as premise, no proof)" in report
+
+
+def test_proof_state_does_not_return_axioms_key():
+    graph = load_typst_package(GALILEO_V3)
+    state = analyze_proof_state(graph)
+    assert "axioms" not in state
 
 
 # ── Newton v3 ────────────────────────────────────────────────────────────────
@@ -163,12 +177,16 @@ def test_newton_v3_corroborations_are_established():
     assert "apollo_galileo_convergence" not in standalone
 
 
-def test_newton_v3_only_axioms_are_holes():
-    """Only the two axioms (second/third law) should be holes."""
+def test_newton_v3_observations_and_unproved_claims_are_holes():
+    """Observations used as premises should be holes (need experimental proof)."""
     graph = load_typst_package(NEWTON_V3)
     state = analyze_proof_state(graph)
     hole_names = {d["name"] for d in state["holes"]}
-    assert hole_names == {"second_law", "third_law"}
+    assert "kepler_third_law" in hole_names
+    assert "pendulum_experiment" in hole_names
+    assert "apollo15_feather_drop" in hole_names
+    assert "second_law" in hole_names
+    assert "third_law" in hole_names
 
 
 def test_newton_v3_inverse_square_premises():
@@ -234,23 +252,17 @@ def test_einstein_v3_corroboration_is_established():
 
 
 def test_einstein_v3_holes():
-    """Postulates without proof in this package should be holes."""
+    """Postulates and observations without proof should be holes."""
     graph = load_typst_package(EINSTEIN_V3)
     state = analyze_proof_state(graph)
     hole_names = {d["name"] for d in state["holes"]}
     assert "maxwell_electromagnetism" in hole_names
     assert "soldner_deflection" in hole_names
     assert "einstein_field_equations" in hole_names
-
-
-def test_einstein_v3_observations_are_axioms():
-    graph = load_typst_package(EINSTEIN_V3)
-    state = analyze_proof_state(graph)
-    axiom_names = {d["name"] for d in state["axioms"]}
-    assert "eotvos_experiment" in axiom_names
-    assert "eddington_sobral" in axiom_names
-    assert "eddington_principe" in axiom_names
-    assert "mercury_perihelion" in axiom_names
+    assert "eotvos_experiment" in hole_names
+    assert "eddington_sobral" in hole_names
+    assert "eddington_principe" in hole_names
+    assert "mercury_perihelion" in hole_names
 
 
 # ── v4 proof state (uses "premises" key) ────────────────────────────────────
@@ -276,11 +288,11 @@ def test_v4_holes_detected():
     assert "aristotle.everyday_observation" in hole_names
 
 
-def test_v4_settings_are_axioms():
+def test_v4_settings_are_assumptions():
     graph = load_typst_package_v4(GALILEO_V4)
     state = analyze_proof_state(graph)
-    axiom_names = {d["name"] for d in state["axioms"]}
-    assert "setting.thought_experiment_env" in axiom_names
+    assumption_names = {d["name"] for d in state["assumptions"]}
+    assert "setting.thought_experiment_env" in assumption_names
 
 
 def test_v4_questions_detected():

@@ -76,7 +76,7 @@ Knowledge:
     knowledge_id:  str           # 全局唯一
     version:       int           # 显式版本号，同 id 同 version 只存一份
     type:          str           # claim | question | setting | action | contradiction | equivalence
-    kind:          str | None    # root-type-specific kind label（question/action 的子类型）
+    kind:          str | None    # root-type-specific kind label（如 claim: observation, action: python）
     content:       str
     parameters:    list[Parameter]  # 空 = ground node，非空 = schema node（∀量化）
     prior:         float         # reviewed prior attached to this authored knowledge unit；历史/审计参考，不是 active global BP prior
@@ -96,7 +96,7 @@ Parameter:
 | 变化 | 说明 |
 |------|------|
 | `type` 扩展 | 新增 `contradiction`, `equivalence`（Relation 作为 knowledge root type） |
-| `kind` 新增 | question/action 的子类型；equivalence 要求同 root type 同 kind |
+| `kind` 新增 | root-type-specific subtype（如 `claim(kind="observation")`, `action(kind="python")`）；equivalence 要求同 root type 同 kind |
 | `parameters` 新增 | 空 = ground node，非空 = schema node。支持 ∀ 量化 |
 | `is_schema` 派生属性 | `len(parameters) > 0` |
 | `prior` 语义更新 | 保留为 package review 产出的 reviewed prior；全局 BP 使用 `GlobalInferenceState.node_priors` |

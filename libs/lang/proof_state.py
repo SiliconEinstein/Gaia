@@ -1,9 +1,12 @@
 """Proof state analysis for Gaia Language packages (v3 and v4).
 
-Analyzes a loaded Typst graph to determine which declarations are
-established (have reasoning factors or are relation types), which are
-axioms (settings/observations), which are holes (claims used as premises
-without proofs), and which are open questions.
+Analyzes a loaded Typst graph to classify every declaration:
+- established: has a reasoning factor concluding it, or is a relation node
+- assumptions: settings (contextual choices, no proof needed, but challengeable)
+- holes: used as premise but has no proof in this package (includes observations)
+- imported: external cross-package references
+- questions: open inquiries
+- standalone: declared but not referenced and not proven
 """
 
 from __future__ import annotations
@@ -19,7 +22,8 @@ def analyze_proof_state(graph: dict) -> dict:
                constraints.
 
     Returns:
-        Dict with keys: established, axioms, holes, questions, standalone, report.
+        Dict with keys: established, assumptions, holes, imported,
+        questions, standalone, report.
     """
     nodes = {n["name"]: n for n in graph.get("nodes", [])}
 
@@ -43,7 +47,7 @@ def analyze_proof_state(graph: dict) -> dict:
             used_as_premise.add(member)
 
     established: list[dict] = []
-    axioms: list[dict] = []
+    assumptions: list[dict] = []
     imported: list[dict] = []
     holes: list[dict] = []
     questions: list[dict] = []
@@ -56,8 +60,8 @@ def analyze_proof_state(graph: dict) -> dict:
             imported.append(node)
         elif node_type == "question":
             questions.append(node)
-        elif node_type in ("setting", "observation"):
-            axioms.append(node)
+        elif node_type == "setting":
+            assumptions.append(node)
         elif node_type in RELATION_TYPES or node_type == "relation" or name in constraint_names:
             # Relation nodes are structurally established by their constraint declaration.
             established.append(node)
@@ -68,11 +72,11 @@ def analyze_proof_state(graph: dict) -> dict:
         else:
             standalone.append(node)
 
-    report = _format_report(established, axioms, imported, holes, questions, standalone)
+    report = _format_report(established, assumptions, imported, holes, questions, standalone)
 
     return {
         "established": established,
-        "axioms": axioms,
+        "assumptions": assumptions,
         "imported": imported,
         "holes": holes,
         "questions": questions,
@@ -83,7 +87,7 @@ def analyze_proof_state(graph: dict) -> dict:
 
 def _format_report(
     established: list[dict],
-    axioms: list[dict],
+    assumptions: list[dict],
     imported: list[dict],
     holes: list[dict],
     questions: list[dict],
@@ -96,10 +100,10 @@ def _format_report(
         for d in established:
             lines.append(f"  {d['name']}")
 
-    if axioms:
+    if assumptions:
         lines.append("")
-        lines.append("\u25cb axioms (no proof needed):")
-        for d in axioms:
+        lines.append("\u25cb assumptions (challengeable):")
+        for d in assumptions:
             lines.append(f"  {d['name']}  ({d.get('type', '')})")
 
     if imported:
@@ -115,7 +119,8 @@ def _format_report(
         lines.append("")
         lines.append("? holes:")
         for d in holes:
-            lines.append(f"  {d['name']}  (claim, used as premise, no proof)")
+            node_type = d.get("type", "claim")
+            lines.append(f"  {d['name']}  ({node_type}, used as premise, no proof)")
 
     if questions:
         lines.append("")
