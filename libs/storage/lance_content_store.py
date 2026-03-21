@@ -993,50 +993,63 @@ class LanceContentStore(ContentStore):
         return items[offset : offset + page_size], total
 
     async def get_graph_data(self, package_id: str | None = None) -> dict:
-        """Return Knowledge nodes + Chain edges for DAG visualization.
-
-        Each Chain step produces edges: each premise → conclusion.
-        Node id format: knowledge_id@version
-        """
+        """Return knowledge nodes + factor nodes for factor graph visualization."""
         items, _ = await self.list_knowledge_paged(page=1, page_size=10_000)
-        chains, _ = await self.list_chains_paged(page=1, page_size=10_000)
+        factors = await self.list_factors()
 
         if package_id:
             items = [k for k in items if k.source_package_id == package_id]
-            chains = [c for c in chains if c.package_id == package_id]
+            factors = [f for f in factors if f.package_id == package_id]
 
-        node_ids = {f"{k.knowledge_id}@{k.version}" for k in items}
+        # Build gcn→knowledge_id mapping from canonical_bindings table.
+        # Factors reference gcn_ IDs (from global canonicalization),
+        # but knowledge nodes use paper_xxx/name IDs. Remap so the
+        # frontend can draw edges between knowledge nodes and factors.
+        gcn_to_kid: dict[str, str] = {}
+        try:
+            tbl = self._db.open_table("canonical_bindings")
+            rows = tbl.search().limit(100_000).to_list()
+            for r in rows:
+                gcn_to_kid[r["global_canonical_id"]] = r["local_canonical_id"]
+        except Exception:
+            pass  # table may not exist yet
 
-        nodes = [
+        knowledge_nodes = [
             {
-                "id": f"{k.knowledge_id}@{k.version}",
                 "knowledge_id": k.knowledge_id,
                 "version": k.version,
                 "type": k.type,
+                "kind": k.kind,
                 "content": k.content,
                 "prior": k.prior,
+                "source_package_id": k.source_package_id,
+                "source_module_id": k.source_module_id,
             }
             for k in items
         ]
 
-        edges = []
-        for chain in chains:
-            for step in chain.steps:
-                conc_id = f"{step.conclusion.knowledge_id}@{step.conclusion.version}"
-                for premise in step.premises:
-                    prem_id = f"{premise.knowledge_id}@{premise.version}"
-                    if prem_id in node_ids and conc_id in node_ids:
-                        edges.append(
-                            {
-                                "chain_id": chain.chain_id,
-                                "from": prem_id,
-                                "to": conc_id,
-                                "chain_type": chain.type,
-                                "step_index": step.step_index,
-                            }
-                        )
+        kid_set = {k.knowledge_id for k in items}
 
-        return {"nodes": nodes, "edges": edges}
+        def _remap_id(ref_id: str) -> str:
+            """Remap gcn_ ID to knowledge_id via canonical bindings."""
+            if ref_id in kid_set:
+                return ref_id
+            return gcn_to_kid.get(ref_id, ref_id)
+
+        factor_nodes = [
+            {
+                "factor_id": f.factor_id,
+                "type": f.type,
+                "premises": [_remap_id(p) for p in f.premises],
+                "contexts": [_remap_id(c) for c in f.contexts],
+                "conclusion": _remap_id(f.conclusion) if f.conclusion else None,
+                "package_id": f.package_id,
+                "metadata": f.metadata,
+            }
+            for f in factors
+        ]
+
+        return {"knowledge_nodes": knowledge_nodes, "factor_nodes": factor_nodes}
 
     async def list_knowledge(self) -> list[Knowledge]:
         table = self._db.open_table("knowledge")

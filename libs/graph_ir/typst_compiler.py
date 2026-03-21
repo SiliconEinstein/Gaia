@@ -121,7 +121,7 @@ def compile_typst_to_raw_graph(graph_data: dict) -> RawGraph:
                     module=conclusion_module,
                     knowledge_name=conclusion_name,
                 ),
-                metadata={"edge_type": "deduction"},
+                metadata=None,
             )
         )
 
@@ -156,7 +156,7 @@ def compile_typst_to_raw_graph(graph_data: dict) -> RawGraph:
                     module=constraint_module,
                     knowledge_name=constraint_name,
                 ),
-                metadata={"edge_type": f"relation_{constraint_type}"},
+                metadata=None,
             )
         )
 

@@ -108,7 +108,36 @@ export interface GraphEdge {
   step_index: number;
 }
 
+/** @deprecated Use UnifiedGraphData instead */
 export interface GraphData {
   nodes: GraphNode[];
   edges: GraphEdge[];
+}
+
+// ── Unified factor graph types (new /graph API) ──
+
+export interface GraphKnowledgeNode {
+  knowledge_id: string;
+  version: number;
+  type: string;
+  kind: string | null;
+  content: string;
+  prior: number;
+  source_package_id: string;
+  source_module_id: string;
+}
+
+export interface GraphFactorNode {
+  factor_id: string;
+  type: string;
+  premises: string[];
+  contexts: string[];
+  conclusion: string;
+  package_id: string;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface UnifiedGraphData {
+  knowledge_nodes: GraphKnowledgeNode[];
+  factor_nodes: GraphFactorNode[];
 }

@@ -1,8 +1,7 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppShell } from "./components/layout/AppShell";
 import { DashboardHome } from "./pages/DashboardHome";
-import { GraphExplorer } from "./pages/GraphExplorer";
 import { DataBrowser } from "./pages/DataBrowser";
 import { NodePage } from "./pages/NodePage";
 import { EdgePage } from "./pages/EdgePage";
@@ -15,8 +14,6 @@ import { ModuleDetail } from "./pages/v2/ModuleDetail";
 import { KnowledgeDetail } from "./pages/v2/KnowledgeDetail";
 import { ChainDetail } from "./pages/v2/ChainDetail";
 import { GraphViewer } from "./pages/v2/GraphViewer";
-import { GraphIRViewer } from "./pages/v2/GraphIRViewer";
-import { GlobalGraphViewer } from "./pages/v2/GlobalGraphViewer";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,7 +31,7 @@ export default function App() {
         <Routes>
           <Route element={<AppShell />}>
             <Route index element={<DashboardHome />} />
-            <Route path="graph" element={<GraphExplorer />} />
+            <Route path="graph" element={<Navigate to="/v2/graph" replace />} />
             <Route path="browse/nodes" element={<DataBrowser />} />
             <Route path="browse/edges" element={<DataBrowser />} />
             <Route path="browse/contradictions" element={<DataBrowser />} />
@@ -49,8 +46,6 @@ export default function App() {
             <Route path="v2/modules/:id" element={<ModuleDetail />} />
             <Route path="v2/chains/:id" element={<ChainDetail />} />
             <Route path="v2/graph" element={<GraphViewer />} />
-            <Route path="v2/graph-ir" element={<GraphIRViewer />} />
-            <Route path="v2/global-graph" element={<GlobalGraphViewer />} />
           </Route>
         </Routes>
       </BrowserRouter>

@@ -119,7 +119,7 @@ def test_reasoning_factor():
     assert factor.type == "infer"
     assert factor.factor_id.startswith("f_")
     assert factor.contexts == []
-    assert factor.metadata == {"edge_type": "deduction"}
+    assert factor.metadata is None
 
     # premises and conclusion should be raw_node_ids, not names
     node_ids = {n.raw_node_id for n in raw.knowledge_nodes}
@@ -166,7 +166,7 @@ def test_contradiction_constraint():
     assert len(constraint_factors) == 1
     cf = constraint_factors[0]
     assert len(cf.premises) == 2
-    assert cf.metadata == {"edge_type": "relation_contradiction"}
+    assert cf.metadata is None
 
     # conclusion should be the constraint node's ID
     node_map = {n.knowledge_type: n.raw_node_id for n in raw.knowledge_nodes}
@@ -187,7 +187,7 @@ def test_equivalence_constraint():
     raw = compile_typst_to_raw_graph(data)
     equiv_factors = [f for f in raw.factor_nodes if f.type == "equivalence"]
     assert len(equiv_factors) == 1
-    assert equiv_factors[0].metadata == {"edge_type": "relation_equivalence"}
+    assert equiv_factors[0].metadata is None
 
 
 # -- Factor type canonicalization --

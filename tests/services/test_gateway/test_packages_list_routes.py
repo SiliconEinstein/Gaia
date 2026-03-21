@@ -84,7 +84,7 @@ class MockStorage:
         return None
 
     async def get_graph_data(self, package_id: str | None = None):
-        return {"nodes": [], "edges": []}
+        return {"knowledge_nodes": [], "factor_nodes": []}
 
 
 @pytest.fixture()
@@ -173,13 +173,13 @@ def test_get_graph(client):
     r = client.get("/graph")
     assert r.status_code == 200
     body = r.json()
-    assert "nodes" in body
-    assert "edges" in body
+    assert "knowledge_nodes" in body
+    assert "factor_nodes" in body
 
 
 def test_get_graph_filtered(client):
     r = client.get("/graph?package_id=pkg1")
     assert r.status_code == 200
     body = r.json()
-    assert isinstance(body["nodes"], list)
-    assert isinstance(body["edges"], list)
+    assert isinstance(body["knowledge_nodes"], list)
+    assert isinstance(body["factor_nodes"], list)
