@@ -402,6 +402,27 @@ All declarations produce `figure(kind: "gaia-node")` with hidden `metadata(...)`
 
 The `gaia-style` show rule renders each declaration type with a colored left border and type badge, and formats `@ref` links using the label name instead of figure numbering.
 
+## Proof State
+
+After extraction, every node in a package is classified into one of six categories. This classification is the package's **proof state** — a structural completeness report analogous to Lean's goal view.
+
+| Category | Rule | Meaning |
+|----------|------|---------|
+| **established** | Node is the conclusion of a reasoning factor, or is a relation node | Has proof within this package |
+| **assumption** | Node type is `setting` | Contextual choice — no proof needed, but can be challenged or replaced |
+| **hole** | Node is used as a premise by some factor, but has no proof in this package | Missing link in the reasoning chain (includes observations without experimental backing) |
+| **imported** | Node is marked `external` (from `gaia-bibliography`) | Proof lives in another package |
+| **question** | Node type is `question` | Open inquiry — motivates the package but is not a truth claim |
+| **standalone** | None of the above | Declared but not referenced and not proven — may indicate an orphaned node |
+
+Key design decisions:
+
+- **Observations are not special-cased.** A `claim(kind: "observation")` follows the same rules as any claim: if it has `from:` it can be established; if it is used as a premise without proof, it is a hole. The `kind` field records the *evidence type* but does not exempt the node from needing proof.
+- **Settings are assumptions, not axioms.** A setting can always be challenged by a `relation(type: "contradiction")` in another package. The label "assumption" reflects this: accepted without proof here, but not immune to revision.
+- **Holes are actionable.** Each hole represents a concrete next step — provide a proof, import from another package, or demote to standalone if the premise link was accidental.
+
+Run `gaia build --proof-state` to generate the proof state report for a package.
+
 ## Future Work
 
 The following are not part of the v4 surface but are planned or under consideration:
