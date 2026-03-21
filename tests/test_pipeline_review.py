@@ -44,9 +44,9 @@ async def test_pipeline_review_default_priors_by_type():
     review = await pipeline_review(build, mock=True)
     for node in build.local_graph.knowledge_nodes:
         prior = review.node_priors[node.local_canonical_id]
-        if node.knowledge_type in ("setting", "observation"):
+        if node.knowledge_type == "setting":
             assert prior == 1.0
-        elif node.knowledge_type in ("claim", "question"):
+        elif node.knowledge_type in ("claim", "observation", "question"):
             assert prior == 0.5
 
 

@@ -39,6 +39,12 @@ There is no `corroboration` relation type. Independent evidence for the same cla
 | Claim or Action with `from:` | Variable node + reasoning factor connecting premises to conclusion |
 | Relation | Constraint (not a factor; enforces structural rules on the graph) |
 
+### Assumptions and Observations
+
+- `#setting` occupies the current proof-state `assumption` role: accepted locally without proof, but still challengeable by other packages.
+- `#claim(kind: "observation")` remains a claim. If it is used as a premise without a local proof or imported justification, it is a `hole`, not an assumption.
+- Gaia intentionally does not expose a node-level `axiom` category. If future inference or explanation tooling needs multiple alternative starting-point sets, those should be represented as explicit `assumption basis` / proof-view selections on top of the same graph.
+
 ## Declaration Syntax
 
 ### Setting and Question (no premises, no proof)

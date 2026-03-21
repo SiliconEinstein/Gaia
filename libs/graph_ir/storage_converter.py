@@ -25,6 +25,7 @@ _FACTOR_TYPE_MAP: dict[str, str] = {
 
 _KNOWLEDGE_TYPE_MAP: dict[str, str] = {
     "claim": "claim",
+    "observation": "claim",
     "question": "question",
     "setting": "setting",
     "action": "action",
@@ -71,6 +72,16 @@ def _map_knowledge_type(
     if mapped is not None:
         return mapped
     return "claim"
+
+
+def _map_knowledge_kind(
+    knowledge_type: str,
+    kind: str | None,
+) -> str | None:
+    """Preserve evidence-like subtyping when storage lacks a root observation type."""
+    if knowledge_type == "observation" and kind is None:
+        return "observation"
+    return kind
 
 
 def _map_factor_type(
@@ -157,7 +168,7 @@ def convert_graph_ir_to_storage(
                 knowledge_id=knowledge_id,
                 version=1,
                 type=k_type,
-                kind=node.kind,
+                kind=_map_knowledge_kind(node.knowledge_type, node.kind),
                 content=node.representative_content,
                 parameters=k_params,
                 prior=prior,

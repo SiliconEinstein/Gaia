@@ -324,7 +324,7 @@ async def pipeline_publish(
 # Default priors by knowledge_type
 _DEFAULT_PRIORS: dict[str, float] = {
     "setting": 1.0,
-    "observation": 1.0,
+    "observation": 0.5,
     "question": 0.5,
     "action": 0.5,
     "contradiction": 0.5,
@@ -418,6 +418,8 @@ def render_markdown_from_graph_data(graph_data: dict) -> str:
 
     for node in graph_data.get("nodes", []):
         label = node.get("type", "claim")
+        if node.get("kind"):
+            label = f"{label}, kind={node['kind']}"
         if node.get("external"):
             ext_pkg = node.get("ext_package", "unknown")
             ext_ver = node.get("ext_version", "") or "unknown"
@@ -445,7 +447,7 @@ _KNOWLEDGE_TYPE_MAP: dict[str, str] = {
     "question": "question",
     "setting": "setting",
     "action": "action",
-    "observation": "setting",  # observation → setting
+    "observation": "claim",  # preserve evidence semantics via kind="observation"
     "corroboration": "claim",  # corroboration → claim
     "contradiction": "contradiction",
     "equivalence": "equivalence",
@@ -466,6 +468,13 @@ _MODULE_ROLE_MAP: dict[str, str] = {
     "reasoning": "reasoning",
     "follow_up": "follow_up_question",
 }
+
+
+def _storage_kind_for_node(knowledge_type: str, kind: str | None) -> str | None:
+    """Normalize authoring-layer kinds before writing storage Knowledge rows."""
+    if knowledge_type == "observation" and kind is None:
+        return "observation"
+    return kind
 
 
 def _convert_local_graph_to_storage(
@@ -518,7 +527,7 @@ def _convert_local_graph_to_storage(
                 knowledge_id=knowledge_id,
                 version=1,
                 type=k_type,
-                kind=node.kind,
+                kind=_storage_kind_for_node(node.knowledge_type, node.kind),
                 content=node.representative_content.strip(),
                 prior=prior,
                 keywords=[],

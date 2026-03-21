@@ -36,10 +36,10 @@ async def converter_data():
 
 async def test_converter_knowledge_type_mapping(converter_data):
     data, _build = converter_data
-    types = {k.type for k in data.knowledge_items}
-    # observation → setting, claim stays claim
-    assert "setting" in types
-    assert "claim" in types
+    by_id = {k.knowledge_id: k for k in data.knowledge_items}
+    assert by_id["galileo_falling_bodies/medium_density_observation"].type == "claim"
+    assert by_id["galileo_falling_bodies/medium_density_observation"].kind == "observation"
+    assert by_id["galileo_falling_bodies/thought_experiment_env"].type == "setting"
 
 
 async def test_converter_knowledge_id_format(converter_data):
@@ -102,12 +102,12 @@ async def test_converter_probability_records(converter_data):
 def test_render_markdown_has_package_header():
     graph_data = {
         "package": "test_pkg",
-        "nodes": [{"name": "n1", "type": "claim", "content": "hello"}],
+        "nodes": [{"name": "n1", "type": "claim", "kind": "observation", "content": "hello"}],
         "factors": [],
     }
     md = render_markdown_from_graph_data(graph_data)
     assert "# Package: test_pkg" in md
-    assert "### n1 [claim]" in md
+    assert "### n1 [claim, kind=observation]" in md
     assert "> hello" in md
 
 
@@ -166,3 +166,12 @@ async def test_render_markdown_includes_external_content():
     md = render_markdown_from_graph_data(build.graph_data)
     assert "external from galileo_falling_bodies@4.0.0" in md
     assert "在真空中，不同重量的物体应以相同速率下落。" in md
+
+
+@pytest.mark.asyncio
+async def test_render_markdown_preserves_v4_observation_kind():
+    build = await pipeline_build(
+        Path(__file__).parent / "fixtures" / "gaia_language_packages" / "dark_energy_v4"
+    )
+    md = render_markdown_from_graph_data(build.graph_data)
+    assert "claim, kind=observation" in md

@@ -82,10 +82,12 @@ Every node is classified after compilation:
 |----------|---------|
 | **established** | Has proof (conclusion of a reasoning factor or relation) |
 | **assumption** | Setting — contextual choice, no proof needed, but challengeable |
-| **hole** | Used as premise but has no proof in this package |
+| **hole** | Used as premise but has no proof in this package, including observations without experimental justification |
 | **imported** | External reference (from another package via `gaia-deps.yml`) |
 | **question** | Open inquiry |
 | **standalone** | Declared but unreferenced and unproven |
+
+Gaia does not currently expose an `axiom` proof-state bucket or API key. If future inference or explanation tooling needs multiple alternative starting-point sets, those will be modeled as explicit `assumption basis` / proof-view metadata layered on top of the same graph, not as a node-level type.
 
 ## Architecture
 

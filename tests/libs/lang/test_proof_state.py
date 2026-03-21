@@ -65,8 +65,7 @@ def test_observations_are_holes():
     assert "inclined_plane_observation" in hole_names
 
 
-def test_observation_standalone_when_not_referenced():
-    """An observation not used as premise and not proven is standalone."""
+def test_unreferenced_observation_is_standalone():
     graph = load_typst_package(GALILEO_V3)
     state = analyze_proof_state(graph)
     standalone_names = {d["name"] for d in state["standalone"]}
@@ -132,6 +131,13 @@ def test_proof_state_format_string():
     report = state["report"]
     assert "established" in report.lower() or "\u2713" in report
     assert "assumption" in report.lower() or "\u25cb" in report
+    assert "medium_density_observation  (observation, used as premise, no proof)" in report
+
+
+def test_proof_state_does_not_return_axioms_key():
+    graph = load_typst_package(GALILEO_V3)
+    state = analyze_proof_state(graph)
+    assert "axioms" not in state
 
 
 # ── Newton v3 ────────────────────────────────────────────────────────────────
@@ -171,7 +177,7 @@ def test_newton_v3_corroborations_are_established():
     assert "apollo_galileo_convergence" not in standalone
 
 
-def test_newton_v3_observations_are_holes():
+def test_newton_v3_observations_and_unproved_claims_are_holes():
     """Observations used as premises should be holes (need experimental proof)."""
     graph = load_typst_package(NEWTON_V3)
     state = analyze_proof_state(graph)
@@ -179,7 +185,6 @@ def test_newton_v3_observations_are_holes():
     assert "kepler_third_law" in hole_names
     assert "pendulum_experiment" in hole_names
     assert "apollo15_feather_drop" in hole_names
-    # Claims without proof used as premises are also holes
     assert "second_law" in hole_names
     assert "third_law" in hole_names
 
@@ -251,15 +256,13 @@ def test_einstein_v3_holes():
     graph = load_typst_package(EINSTEIN_V3)
     state = analyze_proof_state(graph)
     hole_names = {d["name"] for d in state["holes"]}
-    # Claims without proof
     assert "maxwell_electromagnetism" in hole_names
     assert "soldner_deflection" in hole_names
     assert "einstein_field_equations" in hole_names
-    # Observations without proof (need experimental evidence)
     assert "eotvos_experiment" in hole_names
-    assert "mercury_perihelion" in hole_names
     assert "eddington_sobral" in hole_names
     assert "eddington_principe" in hole_names
+    assert "mercury_perihelion" in hole_names
 
 
 # ── v4 proof state (uses "premises" key) ────────────────────────────────────

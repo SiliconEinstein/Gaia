@@ -119,7 +119,8 @@ def _format_report(
         lines.append("")
         lines.append("? holes:")
         for d in holes:
-            lines.append(f"  {d['name']}  (claim, used as premise, no proof)")
+            node_type = d.get("type", "claim")
+            lines.append(f"  {d['name']}  ({node_type}, used as premise, no proof)")
 
     if questions:
         lines.append("")

@@ -419,6 +419,7 @@ Key design decisions:
 
 - **Observations are not special-cased.** A `claim(kind: "observation")` follows the same rules as any claim: if it has `from:` it can be established; if it is used as a premise without proof, it is a hole. The `kind` field records the *evidence type* but does not exempt the node from needing proof.
 - **Settings are assumptions, not axioms.** A setting can always be challenged by a `relation(type: "contradiction")` in another package. The label "assumption" reflects this: accepted without proof here, but not immune to revision.
+- **Axiom systems are future proof views, not node properties.** Gaia does not expose `axiom` as a declaration type or proof-state bucket. If the system later needs alternative starting-point sets for explanation trees, loop cuts, or inference views, those should be represented as explicit `assumption basis` metadata layered on top of the graph.
 - **Holes are actionable.** Each hole represents a concrete next step — provide a proof, import from another package, or demote to standalone if the premise link was accidental.
 
 Run `gaia build --proof-state` to generate the proof state report for a package.
