@@ -59,18 +59,6 @@ class InferResult:
 
 
 @dataclass
-class V2IngestData:
-    """Result of converting to v2 storage models."""
-
-    package: storage_models.Package
-    modules: list[storage_models.Module] = field(default_factory=list)
-    knowledge_items: list[storage_models.Knowledge] = field(default_factory=list)
-    chains: list[storage_models.Chain] = field(default_factory=list)
-    probabilities: list[storage_models.ProbabilityRecord] = field(default_factory=list)
-    belief_snapshots: list[storage_models.BeliefSnapshot] = field(default_factory=list)
-
-
-@dataclass
 class PublishResult:
     package_id: str
     stats: dict
@@ -237,25 +225,35 @@ async def pipeline_publish(
         embed_dim: Embedding dimension for stub embeddings.
     """
     from libs.embedding import StubEmbeddingModel
+    from libs.graph_ir.storage_converter import convert_graph_ir_to_storage
     from libs.storage.config import StorageConfig
     from libs.storage.manager import StorageManager
     from libs.storage.models import KnowledgeEmbedding
 
     package_name = build.local_graph.package
+    local_graph = build.local_graph
 
-    # 1. Convert LocalCanonicalGraph + ReviewOutput → V2IngestData
-    data = _convert_local_graph_to_storage(build, review, infer.beliefs, infer.bp_run_id)
+    # 1. Convert LocalCanonicalGraph → storage models via unified converter.
+    # Local BP beliefs remain author-local preview artifacts and are not published.
+    data = convert_graph_ir_to_storage(local_graph, infer.local_parameterization)
 
-    # 2. Map Graph IR factors (lcn → knowledge IDs)
-    factors = _map_graph_ir_factors(build.local_graph, package_name)
+    # 2. Patch package fields for CLI publish context
+    data.package.submitter = "cli"
+    data.package.status = "merged"
+    desc = build.graph_data.get("module_titles", {}).get("lib")
+    if desc:
+        data.package.description = desc
 
-    # 3. Build submission artifact (in-memory, no git)
+    # 3. Build ProbabilityRecords from review factor_params
+    probabilities = _build_probability_records(local_graph, review, package_name)
+
+    # 4. Build submission artifact (in-memory, no git)
     submission_artifact = _build_submission_artifact_in_memory(
         build=build,
         package_name=package_name,
     )
 
-    # 4. Generate embeddings
+    # 5. Generate embeddings
     embed_model = StubEmbeddingModel(dim=embed_dim)
     texts = [k.content for k in data.knowledge_items]
     vectors = await embed_model.embed(texts) if texts else []
@@ -268,7 +266,7 @@ async def pipeline_publish(
         for k, vec in zip(data.knowledge_items, vectors)
     ]
 
-    # 5. Resolve StorageManager — external (batch/server) or self-managed (CLI)
+    # 6. Resolve StorageManager — external (batch/server) or self-managed (CLI)
     _owns_mgr = storage_manager is None
     if _owns_mgr:
         if storage_config is None:
@@ -285,22 +283,20 @@ async def pipeline_publish(
         mgr = storage_manager
 
     try:
-        # 6. Ingest
+        # 7. Ingest
         await mgr.ingest_package(
             package=data.package,
             modules=data.modules,
             knowledge_items=data.knowledge_items,
             chains=data.chains,
-            factors=factors or None,
+            factors=data.factors or None,
             submission_artifact=submission_artifact,
             embeddings=embeddings,
         )
 
-        # 7. Write supplementary data
-        if data.probabilities:
-            await mgr.add_probabilities(data.probabilities)
-        if data.belief_snapshots:
-            await mgr.write_beliefs(data.belief_snapshots)
+        # 8. Write supplementary data
+        if probabilities:
+            await mgr.add_probabilities(probabilities)
     finally:
         if _owns_mgr:
             await mgr.close()
@@ -308,9 +304,9 @@ async def pipeline_publish(
     stats = {
         "knowledge_items": len(data.knowledge_items),
         "chains": len(data.chains),
-        "factors": len(factors),
-        "probabilities": len(data.probabilities),
-        "belief_snapshots": len(data.belief_snapshots),
+        "factors": len(data.factors),
+        "probabilities": len(probabilities),
+        "belief_snapshots": 0,
     }
 
     return PublishResult(
@@ -332,24 +328,6 @@ _DEFAULT_PRIORS: dict[str, float] = {
     "corroboration": 0.5,
     "claim": 0.5,
 }
-
-
-def _source_ref_knowledge_id(
-    source_ref: storage_models.SourceRef | None,
-    current_package: str,
-) -> str | None:
-    """Build a storage knowledge_id while preserving external provenance."""
-    if source_ref is None or not source_ref.knowledge_name:
-        return None
-    package = source_ref.package or current_package
-    return f"{package}/{source_ref.knowledge_name}"
-
-
-def _is_external_source_ref(
-    source_ref: storage_models.SourceRef | None,
-    current_package: str,
-) -> bool:
-    return bool(source_ref and source_ref.package and source_ref.package != current_package)
 
 
 def _build_node_priors(local_graph: LocalCanonicalGraph) -> dict[str, float]:
@@ -439,226 +417,23 @@ def render_markdown_from_graph_data(graph_data: dict) -> str:
     return "\n".join(lines)
 
 
-# ── Knowledge type mapping ───────────────────────────────
-
-# Map graph_data knowledge_type → valid storage Knowledge.type
-_KNOWLEDGE_TYPE_MAP: dict[str, str] = {
-    "claim": "claim",
-    "question": "question",
-    "setting": "setting",
-    "action": "action",
-    "observation": "claim",  # preserve evidence semantics via kind="observation"
-    "corroboration": "claim",  # corroboration → claim
-    "contradiction": "contradiction",
-    "equivalence": "equivalence",
-}
-
-# Map factor type → Chain.type
-_FACTOR_TO_CHAIN_TYPE: dict[str, str] = {
-    "infer": "deduction",
-    "abstraction": "abstraction",
-    "contradiction": "contradiction",
-    "equivalence": "equivalence",
-}
-
-# Map module name → Module.role
-_MODULE_ROLE_MAP: dict[str, str] = {
-    "motivation": "motivation",
-    "setting": "setting",
-    "reasoning": "reasoning",
-    "follow_up": "follow_up_question",
-}
-
-
-def _storage_kind_for_node(knowledge_type: str, kind: str | None) -> str | None:
-    """Normalize authoring-layer kinds before writing storage Knowledge rows."""
-    if knowledge_type == "observation" and kind is None:
-        return "observation"
-    return kind
-
-
-def _convert_local_graph_to_storage(
-    build: BuildResult,
+def _build_probability_records(
+    local_graph: LocalCanonicalGraph,
     review: ReviewOutput,
-    beliefs: dict[str, float],
-    bp_run_id: str,
-) -> V2IngestData:
-    """Convert LocalCanonicalGraph + ReviewOutput to V2IngestData for storage.
+    package_name: str,
+) -> list[storage_models.ProbabilityRecord]:
+    """Build ProbabilityRecords from review factor_params."""
+    from libs.graph_ir.storage_converter import _make_chain_id
 
-    Builds Knowledge, Chain, Module, Package, ProbabilityRecord, and BeliefSnapshot
-    from the local canonical graph structure and BP results.
-    """
     now = datetime.now(timezone.utc)
-    local_graph = build.local_graph
-    graph_data = build.graph_data
-    package_name = local_graph.package
-    package_version = local_graph.version
-
-    # ── 1. Knowledge items ──
-    knowledge_items: list[storage_models.Knowledge] = []
-    seen_kids: set[str] = set()
-
-    for node in local_graph.knowledge_nodes:
-        if not node.source_refs:
-            logger.warning(
-                "Knowledge node %s has no source_refs; skipping storage conversion",
-                node.local_canonical_id,
-            )
-            continue
-        sr = node.source_refs[0]
-        if _is_external_source_ref(sr, package_name):
-            continue
-        knowledge_id = _source_ref_knowledge_id(sr, package_name)
-        if knowledge_id is None:
-            continue
-        if knowledge_id in seen_kids:
-            continue
-        seen_kids.add(knowledge_id)
-
-        # Map knowledge_type to valid storage type
-        k_type = _KNOWLEDGE_TYPE_MAP.get(node.knowledge_type, "claim")
-
-        # Prior from review.node_priors (lcn_id → prior)
-        raw_prior = review.node_priors.get(node.local_canonical_id, 0.5)
-        prior = max(min(raw_prior, 1.0), 1e-6)  # clamp to (0, 1]
-
-        knowledge_items.append(
-            storage_models.Knowledge(
-                knowledge_id=knowledge_id,
-                version=1,
-                type=k_type,
-                kind=_storage_kind_for_node(node.knowledge_type, node.kind),
-                content=node.representative_content.strip(),
-                prior=prior,
-                keywords=[],
-                source_package_id=package_name,
-                source_package_version=package_version,
-                source_module_id=f"{package_name}.{sr.module}",
-                created_at=now,
-            )
-        )
-
-    # ── 2. Chains from factor nodes ──
-    # Build lcn_id → knowledge_id mapping
-    lcn_to_kid: dict[str, str] = {}
-    for node in local_graph.knowledge_nodes:
-        if node.source_refs:
-            sr = node.source_refs[0]
-            kid = _source_ref_knowledge_id(sr, package_name)
-            if kid is not None:
-                lcn_to_kid[node.local_canonical_id] = kid
-
-    chains: list[storage_models.Chain] = []
-    for factor in local_graph.factor_nodes:
-        chain_type = _FACTOR_TO_CHAIN_TYPE.get(factor.type)
-        if chain_type is None:
-            continue  # skip unknown factor types (e.g. instantiation)
-
-        # Build chain_id from source_ref
-        if factor.source_ref:
-            sr = factor.source_ref
-            chain_id = f"{package_name}.{sr.module}.{sr.knowledge_name}"
-            module_id = f"{package_name}.{sr.module}"
-        else:
-            logger.warning(
-                "Factor %s has no source_ref; chain will not be associated with a module",
-                factor.factor_id,
-            )
-            chain_id = f"{package_name}.{factor.factor_id}"
-            module_id = package_name
-
-        # Premises → KnowledgeRef
-        premises: list[storage_models.KnowledgeRef] = []
-        for p_lcn in factor.premises:
-            kid = lcn_to_kid.get(p_lcn)
-            if kid:
-                premises.append(storage_models.KnowledgeRef(knowledge_id=kid, version=1))
-
-        # Conclusion → KnowledgeRef
-        if factor.conclusion is None:
-            continue
-        conclusion_kid = lcn_to_kid.get(factor.conclusion)
-        if conclusion_kid is None:
-            continue
-        conclusion_ref = storage_models.KnowledgeRef(knowledge_id=conclusion_kid, version=1)
-
-        chains.append(
-            storage_models.Chain(
-                chain_id=chain_id,
-                module_id=module_id,
-                package_id=package_name,
-                package_version=package_version,
-                type=chain_type,
-                steps=[
-                    storage_models.ChainStep(
-                        step_index=0,
-                        premises=premises,
-                        reasoning="",
-                        conclusion=conclusion_ref,
-                    )
-                ],
-            )
-        )
-
-    # ── 3. Modules from graph_data ──
-    modules_list = graph_data.get("modules", [])
-    if not modules_list:
-        # v4 packages have no explicit modules; synthesize a "default" module
-        modules_list = ["default"]
-    storage_modules: list[storage_models.Module] = []
-    # Build per-module chain IDs
-    module_chain_ids: dict[str, list[str]] = {m: [] for m in modules_list}
-    for chain in chains:
-        mod_name = chain.module_id.split(".", 1)[1] if "." in chain.module_id else ""
-        if mod_name in module_chain_ids:
-            module_chain_ids[mod_name].append(chain.chain_id)
-
-    for mod_name in modules_list:
-        role = _MODULE_ROLE_MAP.get(mod_name, "other")
-        storage_modules.append(
-            storage_models.Module(
-                module_id=f"{package_name}.{mod_name}",
-                package_id=package_name,
-                package_version=package_version,
-                name=mod_name,
-                role=role,
-                chain_ids=module_chain_ids.get(mod_name, []),
-            )
-        )
-
-    # ── 4. Package ──
-    exports_list = graph_data.get("exports", [])
-    if not exports_list:
-        # v4 packages export all local nodes by default
-        exports_list = [n["name"] for n in graph_data.get("nodes", []) if not n.get("external")]
-    storage_package = storage_models.Package(
-        package_id=package_name,
-        name=package_name,
-        version=package_version,
-        description=graph_data.get("module_titles", {}).get("lib", None),
-        modules=[f"{package_name}.{m}" for m in modules_list],
-        exports=[f"{package_name}/{name}" for name in exports_list],
-        submitter="cli",
-        submitted_at=now,
-        status="merged",
-    )
-
-    # ── 5. ProbabilityRecord from review factor_params ──
-    probabilities: list[storage_models.ProbabilityRecord] = []
-    # Map factor_id → chain_id for probability records
     factor_to_chain: dict[str, str] = {}
     for factor in local_graph.factor_nodes:
-        if factor.source_ref:
-            sr = factor.source_ref
-            factor_to_chain[factor.factor_id] = f"{package_name}.{sr.module}.{sr.knowledge_name}"
+        factor_to_chain[factor.factor_id] = _make_chain_id(package_name, factor)
 
+    probabilities: list[storage_models.ProbabilityRecord] = []
     for factor_id, params in review.factor_params.items():
         chain_id = factor_to_chain.get(factor_id)
         if chain_id is None:
-            logger.warning(
-                "Factor %s has review params but no matching chain; skipping ProbabilityRecord",
-                factor_id,
-            )
             continue
         prob_value = max(min(params.conditional_probability, 1.0), 1e-6)
         probabilities.append(
@@ -670,90 +445,7 @@ def _convert_local_graph_to_storage(
                 recorded_at=now,
             )
         )
-
-    # ── 6. BeliefSnapshot from BP results ──
-    # Build label → knowledge_id mapping
-    # Beliefs use "module.knowledge_name" format (from adapter._display_label)
-    label_to_kid: dict[str, str] = {}
-    for node in local_graph.knowledge_nodes:
-        if node.source_refs:
-            sr = node.source_refs[0]
-            label = f"{sr.module}.{sr.knowledge_name}"
-            kid = _source_ref_knowledge_id(sr, package_name)
-            if kid is not None:
-                label_to_kid[label] = kid
-
-    belief_snapshots: list[storage_models.BeliefSnapshot] = []
-    for label, belief_value in beliefs.items():
-        kid = label_to_kid.get(label)
-        if kid is None or kid not in seen_kids:
-            continue
-        clamped = max(min(belief_value, 1.0), 0.0)
-        belief_snapshots.append(
-            storage_models.BeliefSnapshot(
-                knowledge_id=kid,
-                version=1,
-                belief=clamped,
-                bp_run_id=bp_run_id,
-                computed_at=now,
-            )
-        )
-
-    return V2IngestData(
-        package=storage_package,
-        modules=storage_modules,
-        knowledge_items=knowledge_items,
-        chains=chains,
-        probabilities=probabilities,
-        belief_snapshots=belief_snapshots,
-    )
-
-
-def _map_graph_ir_factors(
-    local_graph: LocalCanonicalGraph,
-    package_name: str,
-) -> list[storage_models.FactorNode]:
-    """Map local canonical graph factors to storage FactorNodes with knowledge IDs."""
-    # Build lcn_id → knowledge_id mapping
-    lcn_to_kid: dict[str, str] = {}
-    for node in local_graph.knowledge_nodes:
-        if node.source_refs:
-            sr = node.source_refs[0]
-            kid = _source_ref_knowledge_id(sr, package_name)
-            if kid is not None:
-                lcn_to_kid[node.local_canonical_id] = kid
-
-    factors: list[storage_models.FactorNode] = []
-    for f in local_graph.factor_nodes:
-        mapped_premises = [lcn_to_kid[p] for p in f.premises if p in lcn_to_kid]
-        mapped_contexts = [lcn_to_kid[c] for c in f.contexts if c in lcn_to_kid]
-        mapped_conclusion = lcn_to_kid.get(f.conclusion)
-        if mapped_conclusion is None:
-            continue
-
-        source_ref = None
-        if f.source_ref is not None:
-            source_ref = storage_models.SourceRef(
-                package=f.source_ref.package,
-                version=f.source_ref.version,
-                module=f.source_ref.module,
-                knowledge_name=f.source_ref.knowledge_name,
-            )
-
-        factors.append(
-            storage_models.FactorNode(
-                factor_id=f.factor_id,
-                type=f.type,
-                premises=mapped_premises,
-                contexts=mapped_contexts,
-                conclusion=mapped_conclusion,
-                package_id=package_name,
-                source_ref=source_ref,
-                metadata=f.metadata,
-            )
-        )
-
-    return factors
+    return probabilities
 
 
 def _build_submission_artifact_in_memory(

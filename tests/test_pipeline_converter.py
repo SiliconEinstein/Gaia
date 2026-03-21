@@ -1,11 +1,11 @@
-"""Tests for _convert_local_graph_to_storage() and render_markdown_from_graph_data()."""
+"""Tests for convert_graph_ir_to_storage() and render_markdown_from_graph_data()."""
 
 from pathlib import Path
 
 import pytest
 
+from libs.graph_ir.storage_converter import convert_graph_ir_to_storage
 from libs.pipeline import (
-    _convert_local_graph_to_storage,
     render_markdown_from_graph_data,
     pipeline_build,
     pipeline_infer,
@@ -23,15 +23,24 @@ NEWTON_V4 = Path(__file__).parent / "fixtures" / "gaia_language_packages" / "new
 
 @pytest.fixture(scope="module")
 async def converter_data():
-    """Build → review → infer → convert, returning V2IngestData + build for reuse."""
+    """Build → review → infer → convert, returning GraphIRIngestData + build for reuse."""
     build = await pipeline_build(GALILEO_V3)
     review = await pipeline_review(build, mock=True)
-    infer = await pipeline_infer(build, review)
-    data = _convert_local_graph_to_storage(build, review, infer.beliefs, infer.bp_run_id)
+    infer_result = await pipeline_infer(build, review)
+    # Convert label-based beliefs to lcn_id-based (same as pipeline_publish does)
+    label_to_lcn = {v: k for k, v in infer_result.adapted_graph.local_id_to_label.items()}
+    lcn_beliefs = {
+        label_to_lcn[label]: belief
+        for label, belief in infer_result.beliefs.items()
+        if label in label_to_lcn
+    }
+    data = convert_graph_ir_to_storage(
+        build.local_graph, infer_result.local_parameterization, lcn_beliefs, infer_result.bp_run_id
+    )
     return data, build
 
 
-# ── 1. _convert_local_graph_to_storage tests ──
+# ── 1. convert_graph_ir_to_storage tests ──
 
 
 async def test_converter_knowledge_type_mapping(converter_data):
@@ -89,11 +98,20 @@ async def test_converter_belief_snapshots_match_knowledge(converter_data):
         assert snap.knowledge_id in kid_set
 
 
-async def test_converter_probability_records(converter_data):
-    data, _build = converter_data
-    assert len(data.probabilities) > 0
-    for p in data.probabilities:
+async def test_probability_records_from_pipeline():
+    """ProbabilityRecords are built by _build_probability_records in pipeline_publish."""
+    from libs.pipeline import _build_probability_records
+
+    build = await pipeline_build(GALILEO_V3)
+    review = await pipeline_review(build, mock=True)
+    infer_result = await pipeline_infer(build, review)
+    data = convert_graph_ir_to_storage(build.local_graph, infer_result.local_parameterization)
+    probs = _build_probability_records(build.local_graph, review, build.local_graph.package)
+    assert len(probs) > 0
+    chain_ids = {chain.chain_id for chain in data.chains}
+    for p in probs:
         assert 0 < p.value <= 1.0
+        assert p.chain_id in chain_ids
 
 
 # ── 2. render_markdown_from_graph_data tests ──
@@ -143,21 +161,30 @@ def test_render_markdown_skips_non_reasoning_factors():
 async def test_converter_v4_external_refs_are_not_materialized_locally():
     build = await pipeline_build(NEWTON_V4)
     review = await pipeline_review(build, mock=True)
-    infer = await pipeline_infer(build, review)
-    data = _convert_local_graph_to_storage(build, review, infer.beliefs, infer.bp_run_id)
+    infer_result = await pipeline_infer(build, review)
+    label_to_lcn = {v: k for k, v in infer_result.adapted_graph.local_id_to_label.items()}
+    lcn_beliefs = {
+        label_to_lcn[label]: belief
+        for label, belief in infer_result.beliefs.items()
+        if label in label_to_lcn
+    }
+    data = convert_graph_ir_to_storage(
+        build.local_graph, infer_result.local_parameterization, lcn_beliefs, infer_result.bp_run_id
+    )
 
     knowledge_ids = {k.knowledge_id for k in data.knowledge_items}
     assert "newton_principia/vacuum_prediction" not in knowledge_ids
     assert len(data.knowledge_items) == 15
 
-    premise_sets = {
-        chain.chain_id: {premise.knowledge_id for premise in chain.steps[0].premises}
-        for chain in data.chains
-    }
-    assert (
-        "galileo_falling_bodies/vacuum_prediction"
-        in premise_sets["newton_principia.default.derivation.galileo_newton_convergence"]
-    )
+    # External ref should appear as premise in a chain (not materialized as local knowledge)
+    all_premises = set()
+    for chain in data.chains:
+        for step in chain.steps:
+            for p in step.premises:
+                all_premises.add(p.knowledge_id)
+    assert "galileo_falling_bodies/vacuum_prediction" in all_premises
+    assert {m.name for m in data.modules} == {"default"}
+    assert {snap.knowledge_id for snap in data.belief_snapshots} <= knowledge_ids
 
 
 @pytest.mark.asyncio

@@ -67,11 +67,10 @@ Labels follow `<filename.name>` convention. `from:` declares premises (reasoning
 ## Pipeline
 
 ```
-gaia build          Typst → load → compile → canonicalize → Graph IR
-gaia build --proof-state                    → proof state report
-pipeline_review()   Graph IR + LLM → priors, factor parameters
-pipeline_infer()    Adapted factor graph → belief propagation → beliefs
-pipeline_publish()  → storage (LanceDB + graph DB)
+gaia build                Typst → load → compile → canonicalize → Graph IR
+gaia build --proof-state                          → proof state report
+gaia infer                mock review → local parameterization → BP → beliefs
+gaia publish --local      → storage (LanceDB + graph DB)
 ```
 
 ### Proof State

@@ -26,6 +26,7 @@ _FACTOR_TYPE_MAP: dict[str, str] = {
 _KNOWLEDGE_TYPE_MAP: dict[str, str] = {
     "claim": "claim",
     "observation": "claim",
+    "corroboration": "claim",
     "question": "question",
     "setting": "setting",
     "action": "action",
@@ -99,6 +100,13 @@ def _make_knowledge_id(package: str, knowledge_name: str) -> str:
     return f"{package}/{knowledge_name}"
 
 
+def _make_chain_id(package_id: str, factor) -> str:
+    """Build a published chain ID from author-facing provenance when available."""
+    if factor.source_ref:
+        return f"{package_id}.{factor.source_ref.module}.{factor.source_ref.knowledge_name}"
+    return f"{package_id}.{factor.factor_id}"
+
+
 def convert_graph_ir_to_storage(
     lcg: LocalCanonicalGraph,
     params: LocalParameterization,
@@ -125,29 +133,34 @@ def convert_graph_ir_to_storage(
     package_id = lcg.package
     package_version = lcg.version
 
-    # -- Discover modules from source_refs --
-    module_names: dict[str, set[str]] = {}  # module_name -> set of knowledge_ids
-    for node in lcg.knowledge_nodes:
-        for ref in node.source_refs:
-            if ref.module not in module_names:
-                module_names[ref.module] = set()
-
     # -- Build knowledge items --
+    module_names: dict[str, set[str]] = {}  # module_name -> set of knowledge_ids
     knowledge_items: list[storage.Knowledge] = []
-    # Map from lcn_id to knowledge_id for factor rewiring
+    # Map from lcn_id to knowledge_id for factor rewiring (includes external nodes)
     lcn_to_kid: dict[str, str] = {}
+    # Map from local, materialized lcn_id to knowledge_id for publishable artifacts
+    materialized_lcn_to_kid: dict[str, str] = {}
 
     for node in lcg.knowledge_nodes:
         # Use first source_ref's knowledge_name for the id, fallback to lcn_id
         if node.source_refs:
             k_name = node.source_refs[0].knowledge_name
             module_name = node.source_refs[0].module
+            ref_package = node.source_refs[0].package
         else:
             k_name = node.local_canonical_id
             module_name = "default"
+            ref_package = None
 
-        knowledge_id = _make_knowledge_id(package_id, k_name)
+        # External nodes use their source package prefix
+        is_external = ref_package is not None and ref_package != package_id
+        kid_package = ref_package if is_external else package_id
+        knowledge_id = _make_knowledge_id(kid_package, k_name)
         lcn_to_kid[node.local_canonical_id] = knowledge_id
+
+        # External nodes are referenced in chains but not materialized locally
+        if is_external:
+            continue
 
         prior = params.node_priors.get(node.local_canonical_id, 0.5)
         # Ensure prior > 0 (storage model constraint: gt=0)
@@ -167,6 +180,7 @@ def convert_graph_ir_to_storage(
         module_names[module_name].add(knowledge_id)
 
         module_id = f"{package_id}.{module_name}"
+        materialized_lcn_to_kid[node.local_canonical_id] = knowledge_id
 
         knowledge_items.append(
             storage.Knowledge(
@@ -240,7 +254,7 @@ def convert_graph_ir_to_storage(
         "infer": "deduction",
         "abstraction": "abstraction",
         "contradiction": "contradiction",
-        "equivalence": "contradiction",
+        "equivalence": "equivalence",
     }
     for f in lcg.factor_nodes:
         chain_type = _FACTOR_TO_CHAIN_TYPE.get(f.type, "deduction")
@@ -252,7 +266,7 @@ def convert_graph_ir_to_storage(
 
         mod_name = f.source_ref.module if f.source_ref else "unknown"
         module_id = f"{package_id}.{mod_name}"
-        chain_id = f"{package_id}.{mod_name}.{f.factor_id}"
+        chain_id = _make_chain_id(package_id, f)
 
         premise_refs = [storage.KnowledgeRef(knowledge_id=kid, version=1) for kid in premises_kid]
         conclusion_ref = storage.KnowledgeRef(knowledge_id=conclusion_kid, version=1)
@@ -302,7 +316,7 @@ def convert_graph_ir_to_storage(
     belief_snapshots: list[storage.BeliefSnapshot] = []
     if beliefs:
         for lcn_id, belief_value in beliefs.items():
-            kid = lcn_to_kid.get(lcn_id)
+            kid = materialized_lcn_to_kid.get(lcn_id)
             if kid is not None:
                 belief_snapshots.append(
                     storage.BeliefSnapshot(

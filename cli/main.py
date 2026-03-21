@@ -117,6 +117,67 @@ def _build_typst(pkg_path: Path, format: str, proof_state: bool = False) -> None
 
 
 @app.command()
+def infer(
+    path: str = typer.Argument(".", help="Path to knowledge package directory"),
+) -> None:
+    """Run local belief propagation on a built package.
+
+    Requires a prior 'gaia build'. Uses mock review to derive priors
+    and factor parameters, then runs BP to compute beliefs.
+    """
+    import json as json_mod
+
+    from libs.pipeline import pipeline_build, pipeline_infer, pipeline_review
+
+    pkg_path = Path(path)
+
+    if not (pkg_path / "typst.toml").exists():
+        typer.echo("Error: no typst.toml found. Only Typst packages are supported.", err=True)
+        raise typer.Exit(1)
+
+    build_dir = pkg_path / ".gaia" / "build"
+    infer_dir = pkg_path / ".gaia" / "infer"
+    infer_dir.mkdir(parents=True, exist_ok=True)
+
+    # Check build artifacts exist
+    if not build_dir.exists():
+        typer.echo(f"Error: no build artifacts found.\nRun 'gaia build {path}' first.", err=True)
+        raise typer.Exit(1)
+
+    async def _run():
+        build_result = await pipeline_build(pkg_path)
+        review_result = await pipeline_review(build_result, mock=True)
+        return await pipeline_infer(build_result, review_result)
+
+    result = asyncio.run(_run())
+
+    # Save infer_result.json
+    infer_out = {
+        "bp_run_id": result.bp_run_id,
+        "beliefs": result.beliefs,
+    }
+    infer_path = infer_dir / "infer_result.json"
+    infer_path.write_text(json_mod.dumps(infer_out, ensure_ascii=False, indent=2))
+
+    # Print results
+    typer.echo("Beliefs after BP:")
+    for name, belief in sorted(result.beliefs.items()):
+        prior = result.local_parameterization.node_priors.get(
+            next(
+                (
+                    lid
+                    for lid, label in result.adapted_graph.local_id_to_label.items()
+                    if label == name
+                ),
+                "",
+            ),
+            "?",
+        )
+        typer.echo(f"  {name}: prior={prior} -> belief={belief:.4f}")
+    typer.echo(f"\nResults: {infer_path}")
+
+
+@app.command()
 def publish(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     git: bool = typer.Option(False, "--git", help="Publish via git add+commit+push"),
