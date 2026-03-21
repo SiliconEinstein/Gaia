@@ -121,10 +121,9 @@ def parse_args() -> argparse.Namespace:
 
 async def create_storage_manager(args: argparse.Namespace) -> StorageManager:
     """Create and initialize a StorageManager from CLI args."""
-    graph_backend = args.graph_backend if args.graph_backend != "none" else None
     config = StorageConfig(
         lancedb_path=str(args.db_path),
-        graph_backend=graph_backend,
+        graph_backend=args.graph_backend,
     )
     mgr = StorageManager(config)
     await mgr.initialize()

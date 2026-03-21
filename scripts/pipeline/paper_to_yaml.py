@@ -111,7 +111,7 @@ def _extract_inference_unit(text: str) -> str:
 # ── Step Runners ───────────────────────────────────────────────────────
 
 
-PROMPTS_DIR = Path(__file__).parent.parent / "libs" / "prompts"
+PROMPTS_DIR = Path(__file__).resolve().parents[2] / "libs" / "prompts"
 
 
 async def run_step1(client: AsyncOpenAI, paper_md: str, model: str) -> str:
