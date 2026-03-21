@@ -964,6 +964,87 @@ class TestListEndpoints:
         assert data_empty["factor_nodes"] == []
 
 
+async def test_get_graph_data_remaps_gcn_ids(content_store):
+    """Factor premises with gcn_ IDs are remapped to knowledge_ids via bindings."""
+    from datetime import datetime, timezone
+
+    from libs.storage.models import CanonicalBinding, FactorNode, Knowledge, Module, Package
+
+    now = datetime.now(timezone.utc)
+    pkg = Package(
+        package_id="pkg",
+        name="pkg",
+        version="1.0.0",
+        submitter="test",
+        submitted_at=now,
+        status="merged",
+    )
+    mod = Module(module_id="pkg.main", package_id="pkg", name="main", role="reasoning")
+    k1 = Knowledge(
+        knowledge_id="pkg/claim_a",
+        version=1,
+        type="claim",
+        content="Claim A",
+        prior=0.8,
+        source_package_id="pkg",
+        source_module_id="pkg.main",
+        created_at=now,
+    )
+    k2 = Knowledge(
+        knowledge_id="pkg/claim_b",
+        version=1,
+        type="claim",
+        content="Claim B",
+        prior=0.5,
+        source_package_id="pkg",
+        source_module_id="pkg.main",
+        created_at=now,
+    )
+
+    await content_store.write_package(pkg, [mod])
+    await content_store.write_knowledge([k1, k2])
+
+    # Write a factor with gcn_ IDs (as global canonicalization produces)
+    factor = FactorNode(
+        factor_id="f_001",
+        type="infer",
+        premises=["gcn_aaa"],
+        conclusion="gcn_bbb",
+        package_id="pkg",
+    )
+    await content_store.write_factors([factor])
+
+    # Write canonical bindings that map gcn_ → knowledge_id
+    b1 = CanonicalBinding(
+        package="pkg",
+        version="1.0.0",
+        local_graph_hash="sha256:test",
+        local_canonical_id="pkg/claim_a",
+        decision="create_new",
+        global_canonical_id="gcn_aaa",
+        decided_at=now,
+        decided_by="test",
+    )
+    b2 = CanonicalBinding(
+        package="pkg",
+        version="1.0.0",
+        local_graph_hash="sha256:test",
+        local_canonical_id="pkg/claim_b",
+        decision="create_new",
+        global_canonical_id="gcn_bbb",
+        decided_at=now,
+        decided_by="test",
+    )
+    await content_store.write_canonical_bindings([b1, b2])
+
+    # get_graph_data should remap gcn_ → knowledge_id
+    data = await content_store.get_graph_data()
+    assert len(data["factor_nodes"]) == 1
+    f = data["factor_nodes"][0]
+    assert f["premises"] == ["pkg/claim_a"]  # remapped from gcn_aaa
+    assert f["conclusion"] == "pkg/claim_b"  # remapped from gcn_bbb
+
+
 async def test_list_global_nodes(content_store):
     """list_global_nodes returns all upserted global nodes."""
     from libs.storage.models import GlobalCanonicalNode
