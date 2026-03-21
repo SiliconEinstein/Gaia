@@ -31,7 +31,7 @@
 
 // ── GR 双重独立验证 ──
 
-#relation(type: "corroboration", between: (<observation.eddington_confirms_gr>, <general_relativity.gr_mercury_precession>))[
+#claim(from: (<observation.eddington_confirms_gr>, <general_relativity.gr_mercury_precession>))[
   光线偏折与水星进动是广义相对论的两个独立预测，
   分别被不同类型的观测所证实。
 ][

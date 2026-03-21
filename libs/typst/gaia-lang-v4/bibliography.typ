@@ -3,7 +3,9 @@
 // Usage: #gaia-bibliography(yaml("gaia-deps.yml"))
 
 #let gaia-bibliography(data) = {
+  if data == none or type(data) != dictionary { return }
   for (key, entry) in data {
+    if type(entry) != dictionary { continue }
     // Create a hidden figure for each external node.
     // This makes the <key> label available for from: and @ref.
     [#figure(kind: "gaia-ext", supplement: "External", {
@@ -14,7 +16,7 @@
         "ext-node": entry.at("node", default: key),
         "ext-content-type": entry.at("type", default: "claim"),
       )))
-      hide[#entry.at("content", default: key)]
+      hide(text(entry.at("content", default: key)))
     }) #label(key)]
   }
 }

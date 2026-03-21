@@ -337,6 +337,8 @@ def compile_v4_to_raw_graph(graph_data: dict) -> RawGraph:
         if constraint_name not in name_to_raw_id:
             continue
         related_ids = [name_to_raw_id[b] for b in between if b in name_to_raw_id]
+        if len(related_ids) < 2:
+            continue
 
         ft = _CONSTRAINT_TYPE_TO_FACTOR_TYPE.get(constraint_type)
         if ft is None:

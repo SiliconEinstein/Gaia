@@ -59,7 +59,7 @@
 ] <galileo.air_resistance_is_confound>
 
 // -- Final synthesis --
-#claim(from: (<galileo.tied_balls_contradiction>, <galileo.air_resistance_is_confound>, <galileo.inclined_plane_observation>))[
+#claim(from: (<galileo.tied_balls_contradiction>, <galileo.air_resistance_is_confound>, <galileo.inclined_plane_observation>, <setting.vacuum_env>))[
   在真空中，不同重量的物体应以相同速率下落。
 ][
   + 绑球思想实验表明旧定律自相矛盾 @galileo.tied_balls_contradiction 。

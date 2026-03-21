@@ -91,14 +91,18 @@ async def pipeline_build(pkg_path: Path) -> BuildResult:
     # Try v4 first: query figure.where(kind: "gaia-node")
     try:
         graph_data = load_typst_package_v4(pkg_path)
-        if graph_data["nodes"]:
-            raw_graph = compile_v4_to_raw_graph(graph_data)
-        else:
+        if not graph_data["nodes"]:
             raise ValueError("No v4 nodes found")
-    except Exception:
-        # Fall back to v3
+    except Exception as exc:
+        logger.debug(
+            "v4 loader did not produce nodes for %s (%s), falling back to v3", pkg_path, exc
+        )
         graph_data = load_typst_package(pkg_path)
         raw_graph = compile_typst_to_raw_graph(graph_data)
+    else:
+        # v4 loaded successfully — compile outside try/except so bugs are not swallowed
+        logger.info("Building %s via v4 loader", pkg_path.name)
+        raw_graph = compile_v4_to_raw_graph(graph_data)
 
     canonicalization = build_singleton_local_graph(raw_graph)
     source_files = {p.name: p.read_text() for p in pkg_path.glob("*.typ") if p.is_file()}
@@ -560,6 +564,9 @@ def _convert_local_graph_to_storage(
 
     # ── 3. Modules from graph_data ──
     modules_list = graph_data.get("modules", [])
+    if not modules_list:
+        # v4 packages have no explicit modules; synthesize a "default" module
+        modules_list = ["default"]
     storage_modules: list[storage_models.Module] = []
     # Build per-module chain IDs
     module_chain_ids: dict[str, list[str]] = {m: [] for m in modules_list}
@@ -583,6 +590,9 @@ def _convert_local_graph_to_storage(
 
     # ── 4. Package ──
     exports_list = graph_data.get("exports", [])
+    if not exports_list:
+        # v4 packages export all local nodes by default
+        exports_list = [n["name"] for n in graph_data.get("nodes", []) if not n.get("external")]
     storage_package = storage_models.Package(
         package_id=package_name,
         name=package_name,

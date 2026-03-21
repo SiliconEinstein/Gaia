@@ -73,7 +73,7 @@
 
 #gaia-bibliography(yaml("gaia-deps.yml"))
 
-#relation(type: "corroboration", between: (<derivation.freefall_acceleration_equals_g>, <vacuum_prediction>))[
+#claim(from: (<derivation.freefall_acceleration_equals_g>, <vacuum_prediction>))[
   牛顿从力学定律出发的数学推导，与伽利略从思想实验出发的逻辑论证，
   独立得出同一结论：自由落体加速度与物体质量无关。
 ][
@@ -110,7 +110,7 @@
   实际观测：两者同时落地，$Delta t approx 0$。
 ] <derivation.apollo15_confirms_equal_fall>
 
-#relation(type: "corroboration", between: (<derivation.apollo15_confirms_equal_fall>, <vacuum_prediction>))[
+#claim(from: (<derivation.apollo15_confirms_equal_fall>, <vacuum_prediction>))[
   伽利略 1638 年的思想实验预测与 Apollo 15 1971 年的月面实验结果一致：
   在真空中一切物体以相同速率下落。
 ][

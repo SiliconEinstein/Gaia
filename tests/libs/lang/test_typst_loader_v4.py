@@ -15,11 +15,11 @@ def v4_data():
 
 
 def test_v4_loader_extracts_nodes(v4_data):
-    """All 9 nodes (2 settings, 1 question, 4 claims, 1 action, 1 relation) are extracted."""
+    """All 10 local nodes extracted."""
     nodes = v4_data["nodes"]
     local_nodes = [n for n in nodes if not n.get("external")]
-    # 2 settings + 1 question + 4 claims (2 obs + main + cross_validation) + 1 action + 1 relation
-    assert len(local_nodes) == 9
+    # 2 settings + 1 question + 5 claims (2 obs + main + qft_vacuum + cross_validation) + 1 action + 1 relation
+    assert len(local_nodes) == 10
 
 
 def test_v4_loader_node_types(v4_data):

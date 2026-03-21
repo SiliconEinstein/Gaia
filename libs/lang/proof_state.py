@@ -1,4 +1,4 @@
-"""Proof state analysis for Gaia Language v3 packages.
+"""Proof state analysis for Gaia Language packages (v3 and v4).
 
 Analyzes a loaded Typst graph to determine which declarations are
 established (have reasoning factors or are relation types), which are
@@ -32,7 +32,7 @@ def analyze_proof_state(graph: dict) -> dict:
     # Names used as premises across all factors
     used_as_premise: set[str] = set()
     for factor in graph.get("factors", []):
-        for p in factor.get("premise", []):
+        for p in factor.get("premises") or factor.get("premise", []):
             used_as_premise.add(p)
 
     # Also count constraint `between` members as structurally referenced

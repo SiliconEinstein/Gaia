@@ -35,11 +35,28 @@
       inset: 1em,
       stroke: (left: 3pt + color, rest: 0.5pt + luma(220)),
       {
-        text(8pt, weight: "bold", fill: color, upper(repr(it.supplement)))
+        text(8pt, weight: "bold", fill: color, upper(it.supplement))
         h(0.5em)
         it.body
       },
     )
+  }
+
+  // Render @ref to gaia-node figures using the label name instead of "Claim 1"
+  show ref: it => {
+    let targets = query(it.target)
+    if targets.len() > 0 {
+      let target = targets.first()
+      if target.has("kind") and target.kind == "gaia-node" {
+        let label-str = str(it.target)
+        let color = _color_for(target.supplement)
+        text(fill: color, weight: "medium", label-str)
+      } else {
+        it
+      }
+    } else {
+      it
+    }
   }
 
   // Hide external reference figures from rendering

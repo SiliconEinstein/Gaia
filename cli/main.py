@@ -217,6 +217,7 @@ description = "Starter Gaia knowledge package"
 #show: gaia-style
 
 #include "motivation.typ"
+#include "reasoning.typ"
 """
     (pkg_dir / "lib.typ").write_text(lib_content)
 
@@ -225,9 +226,24 @@ description = "Starter Gaia knowledge package"
 
 = Motivation
 
-#question[What is the main research question?] <main_question>
+#question[What is the main research question?] <motivation.main_question>
 """
     (pkg_dir / "motivation.typ").write_text(motivation_content)
+
+    # reasoning.typ — demonstrates a claim with premises
+    reasoning_content = """#import "gaia.typ": *
+
+= Reasoning
+
+#setting[Describe the background context here.] <reasoning.background>
+
+#claim(from: (<reasoning.background>,))[
+  State your conclusion here.
+][
+  Explain your reasoning from @reasoning.background here.
+] <reasoning.first_claim>
+"""
+    (pkg_dir / "reasoning.typ").write_text(reasoning_content)
 
     typer.echo(f"Initialized Typst package '{pkg_name}' in {pkg_dir}/")
 

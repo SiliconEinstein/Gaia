@@ -19,8 +19,8 @@ def raw_graph():
 def test_local_node_count(raw_graph):
     """All local nodes are compiled (excludes external)."""
     local_nodes = [n for n in raw_graph.knowledge_nodes if not n.raw_node_id.startswith("ext:")]
-    # 2 settings + 1 question + 4 claims + 1 action + 1 relation = 9
-    assert len(local_nodes) == 9
+    # 2 settings + 1 question + 5 claims + 1 action + 1 relation = 10
+    assert len(local_nodes) == 10
 
 
 def test_node_types(raw_graph):

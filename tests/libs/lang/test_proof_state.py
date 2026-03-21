@@ -3,12 +3,13 @@
 from pathlib import Path
 
 from libs.lang.proof_state import analyze_proof_state
-from libs.lang.typst_loader import load_typst_package
+from libs.lang.typst_loader import load_typst_package, load_typst_package_v4
 
 _FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "gaia_language_packages"
 GALILEO_V3 = _FIXTURES / "galileo_falling_bodies_v3"
 NEWTON_V3 = _FIXTURES / "newton_principia_v3"
 EINSTEIN_V3 = _FIXTURES / "einstein_gravity_v3"
+GALILEO_V4 = _FIXTURES / "galileo_falling_bodies_v4"
 
 
 def test_established_claims():
@@ -248,3 +249,40 @@ def test_einstein_v3_observations_are_axioms():
     assert "eddington_sobral" in axiom_names
     assert "eddington_principe" in axiom_names
     assert "mercury_perihelion" in axiom_names
+
+
+# ── v4 proof state (uses "premises" key) ────────────────────────────────────
+
+
+def test_v4_established_claims():
+    """v4 loader uses 'premises' key; proof_state should still detect established claims."""
+    graph = load_typst_package_v4(GALILEO_V4)
+    state = analyze_proof_state(graph)
+    established = {d["name"] for d in state["established"]}
+    assert "galileo.composite_is_slower" in established
+    assert "galileo.composite_is_faster" in established
+    assert "galileo.vacuum_prediction" in established
+
+
+def test_v4_holes_detected():
+    """Claims used as premises without proofs should be holes in v4."""
+    graph = load_typst_package_v4(GALILEO_V4)
+    state = analyze_proof_state(graph)
+    hole_names = {d["name"] for d in state["holes"]}
+    # aristotle.everyday_observation is now a premise of heavier_falls_faster,
+    # but has no reasoning factor concluding it — it's a hole (observation claim)
+    assert "aristotle.everyday_observation" in hole_names
+
+
+def test_v4_settings_are_axioms():
+    graph = load_typst_package_v4(GALILEO_V4)
+    state = analyze_proof_state(graph)
+    axiom_names = {d["name"] for d in state["axioms"]}
+    assert "setting.thought_experiment_env" in axiom_names
+
+
+def test_v4_questions_detected():
+    graph = load_typst_package_v4(GALILEO_V4)
+    state = analyze_proof_state(graph)
+    question_names = {d["name"] for d in state["questions"]}
+    assert "motivation.main_question" in question_names

@@ -42,11 +42,11 @@ class TestGalileoV4Pipeline:
         assert len(build_result.local_graph.knowledge_nodes) == 13
 
     def test_build_factor_count(self, build_result):
-        """4 infer + 1 contradiction = 5 factors."""
+        """5 infer + 1 contradiction = 6 factors."""
         factors = build_result.local_graph.factor_nodes
         infer = [f for f in factors if f.type == "infer"]
         contradiction = [f for f in factors if f.type == "contradiction"]
-        assert len(infer) == 4
+        assert len(infer) == 5
         assert len(contradiction) == 1
 
     def test_graph_data_package_name(self, build_result):
@@ -116,11 +116,11 @@ class TestNewtonV4Pipeline:
         assert "ext_package" in ext.metadata
 
     def test_build_factor_count(self, build_result):
-        """5 infer factors, 0 contradiction (corroboration not factored)."""
+        """7 infer factors (5 original + 2 converted from corroboration), 0 contradiction."""
         factors = build_result.local_graph.factor_nodes
         infer = [f for f in factors if f.type == "infer"]
         contradiction = [f for f in factors if f.type == "contradiction"]
-        assert len(infer) == 5
+        assert len(infer) == 7
         assert len(contradiction) == 0
 
     def test_graph_data_package_name(self, build_result):
@@ -160,11 +160,11 @@ class TestEinsteinV4Pipeline:
         assert len(build_result.local_graph.knowledge_nodes) == 16
 
     def test_build_factor_count(self, build_result):
-        """5 infer + 1 contradiction = 6 factors."""
+        """6 infer (5 original + 1 converted from corroboration) + 1 contradiction."""
         factors = build_result.local_graph.factor_nodes
         infer = [f for f in factors if f.type == "infer"]
         contradiction = [f for f in factors if f.type == "contradiction"]
-        assert len(infer) == 5
+        assert len(infer) == 6
         assert len(contradiction) == 1
 
     def test_graph_data_package_name(self, build_result):

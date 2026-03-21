@@ -10,7 +10,12 @@
   the Friedmann equations constrain the dark energy fraction to approximately 68%.
 ] <dark_energy_fraction>
 
-#relation(type: "contradiction", between: (<dark_energy_fraction>,))[
+#claim[
+  Quantum field theory predicts a vacuum energy density roughly 120 orders of magnitude
+  larger than the observed dark energy density.
+] <qft_vacuum_energy>
+
+#relation(type: "contradiction", between: (<dark_energy_fraction>, <qft_vacuum_energy>))[
   The cosmological constant interpretation of dark energy differs from
   quantum field theory's vacuum energy prediction by 120 orders of magnitude.
 ] <vacuum_catastrophe>
