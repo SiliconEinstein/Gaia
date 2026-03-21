@@ -1,0 +1,6 @@
+[package]
+name = "galileo_falling_bodies"
+version = "4.0.0"
+entrypoint = "lib.typ"
+authors = ["Galileo Galilei"]
+description = "伽利略落体论证 — Gaia Lang v4"

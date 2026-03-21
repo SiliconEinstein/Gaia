@@ -1,0 +1,6 @@
+[package]
+name = "gaia-lang"
+version = "4.0.0"
+entrypoint = "lib.typ"
+authors = ["Gaia Project"]
+description = "Gaia knowledge representation DSL"

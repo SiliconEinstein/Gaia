@@ -20,6 +20,12 @@ app = typer.Typer(
 )
 
 
+def _uses_v4_dsl(graph_data: dict) -> bool:
+    if graph_data.get("dsl_version") == "v4":
+        return True
+    return any("premises" in factor for factor in graph_data.get("factors", []))
+
+
 @app.command()
 def build(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
@@ -64,22 +70,30 @@ def _build_typst(pkg_path: Path, format: str, proof_state: bool = False) -> None
     json_path = build_dir / "graph_data.json"
     json_path.write_text(json_mod.dumps(result.graph_data, ensure_ascii=False, indent=2))
 
-    # Save markdown
+    # Save markdown for both v3 and v4 packages.
     if format in ("md", "all"):
-        from libs.lang.typst_renderer import render_typst_to_markdown
+        if _uses_v4_dsl(result.graph_data):
+            from libs.pipeline import render_markdown_from_graph_data
 
-        md = render_typst_to_markdown(pkg_path)
+            md = render_markdown_from_graph_data(result.graph_data)
+        else:
+            from libs.lang.typst_renderer import render_typst_to_markdown
+
+            md = render_typst_to_markdown(pkg_path)
         md_path = build_dir / "package.md"
         md_path.write_text(md)
         typer.echo(f"Markdown: {md_path}")
 
     if format in ("typst", "all"):
-        from libs.lang.typst_clean_renderer import render_typst_to_clean_typst
+        if _uses_v4_dsl(result.graph_data):
+            typer.echo("Typst clean render is not supported for v4 packages yet; skipping.")
+        else:
+            from libs.lang.typst_clean_renderer import render_typst_to_clean_typst
 
-        typ = render_typst_to_clean_typst(pkg_path)
-        typ_path = build_dir / "package.typ"
-        typ_path.write_text(typ)
-        typer.echo(f"Typst: {typ_path}")
+            typ = render_typst_to_clean_typst(pkg_path)
+            typ_path = build_dir / "package.typ"
+            typ_path.write_text(typ)
+            typer.echo(f"Typst: {typ_path}")
 
     if format in ("json", "all"):
         json_out = build_dir / "graph.json"
@@ -174,7 +188,7 @@ def publish(
 def init_cmd(
     name: str = typer.Argument(..., help="Package name"),
 ) -> None:
-    """Initialize a new Typst knowledge package."""
+    """Initialize a new Typst knowledge package (v4 label-based DSL)."""
     pkg_dir = Path(name)
     pkg_name = pkg_dir.name
     if pkg_dir.exists():
@@ -183,11 +197,11 @@ def init_cmd(
 
     pkg_dir.mkdir(parents=True)
 
-    # Vendor the minimal Gaia Typst runtime so the package can build anywhere.
-    runtime_src_dir = Path(__file__).resolve().parents[1] / "libs" / "typst" / "gaia-lang"
+    # Vendor the v4 Gaia Typst runtime so the package can build anywhere.
+    runtime_src_dir = Path(__file__).resolve().parents[1] / "libs" / "typst" / "gaia-lang-v4"
     runtime_dst_dir = pkg_dir / "_gaia"
     runtime_dst_dir.mkdir()
-    for filename in ("v2.typ", "module.typ", "declarations.typ", "tactics.typ"):
+    for filename in ("lib.typ", "declarations.typ", "bibliography.typ", "style.typ"):
         src = runtime_src_dir / filename
         (runtime_dst_dir / filename).write_text(src.read_text())
 
@@ -202,43 +216,42 @@ description = "Starter Gaia knowledge package"
     (pkg_dir / "typst.toml").write_text(toml_content)
 
     # gaia.typ
-    gaia_content = """#import "_gaia/v2.typ": *
+    gaia_content = """#import "_gaia/lib.typ": *
 """
     (pkg_dir / "gaia.typ").write_text(gaia_content)
 
     # lib.typ
-    lib_content = f"""#import "gaia.typ": *
+    lib_content = """#import "gaia.typ": *
 #show: gaia-style
 
-// {pkg_name} — knowledge package
-//
-// Modules: motivation
-
-#package("{pkg_name}",
-  title: "{pkg_name.replace("_", " ")}",
-  version: "1.0.0",
-  modules: ("motivation",),
-  export: ("main_question",),
-)
-
 #include "motivation.typ"
-
-#export-graph()
+#include "reasoning.typ"
 """
     (pkg_dir / "lib.typ").write_text(lib_content)
 
     # motivation.typ
     motivation_content = """#import "gaia.typ": *
 
-// motivation module
+= Motivation
 
-#module("motivation", title: "研究动机")
-
-#question("main_question")[
-  What is the main research question?
-]
+#question[What is the main research question?] <motivation.main_question>
 """
     (pkg_dir / "motivation.typ").write_text(motivation_content)
+
+    # reasoning.typ — demonstrates a claim with premises
+    reasoning_content = """#import "gaia.typ": *
+
+= Reasoning
+
+#setting[Describe the background context here.] <reasoning.background>
+
+#claim(from: (<reasoning.background>,))[
+  State your conclusion here.
+][
+  Explain your reasoning from @reasoning.background here.
+] <reasoning.first_claim>
+"""
+    (pkg_dir / "reasoning.typ").write_text(reasoning_content)
 
     typer.echo(f"Initialized Typst package '{pkg_name}' in {pkg_dir}/")
 

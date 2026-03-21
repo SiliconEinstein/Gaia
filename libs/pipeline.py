@@ -80,13 +80,30 @@ class PublishResult:
 
 
 async def pipeline_build(pkg_path: Path) -> BuildResult:
-    """Load, compile, and canonicalize a Typst package — all in memory."""
-    from libs.graph_ir.build_utils import build_singleton_local_graph
-    from libs.graph_ir.typst_compiler import compile_typst_to_raw_graph
-    from libs.lang.typst_loader import load_typst_package
+    """Load, compile, and canonicalize a Typst package — all in memory.
 
-    graph_data = load_typst_package(pkg_path)
-    raw_graph = compile_typst_to_raw_graph(graph_data)
+    Tries v4 (label-based) loader first; falls back to v3 (string-based).
+    """
+    from libs.graph_ir.build_utils import build_singleton_local_graph
+    from libs.graph_ir.typst_compiler import compile_typst_to_raw_graph, compile_v4_to_raw_graph
+    from libs.lang.typst_loader import load_typst_package, load_typst_package_v4
+
+    # Try v4 first: query figure.where(kind: "gaia-node")
+    try:
+        graph_data = load_typst_package_v4(pkg_path)
+        if not graph_data["nodes"]:
+            raise ValueError("No v4 nodes found")
+    except Exception as exc:
+        logger.debug(
+            "v4 loader did not produce nodes for %s (%s), falling back to v3", pkg_path, exc
+        )
+        graph_data = load_typst_package(pkg_path)
+        raw_graph = compile_typst_to_raw_graph(graph_data)
+    else:
+        # v4 loaded successfully — compile outside try/except so bugs are not swallowed
+        logger.info("Building %s via v4 loader", pkg_path.name)
+        raw_graph = compile_v4_to_raw_graph(graph_data)
+
     canonicalization = build_singleton_local_graph(raw_graph)
     source_files = {p.name: p.read_text() for p in pkg_path.glob("*.typ") if p.is_file()}
 
@@ -123,7 +140,7 @@ async def pipeline_review(
         result = client.review_from_graph_data(graph_data)
         actual_model = "mock"
     else:
-        md = _render_markdown_from_graph_data(graph_data)
+        md = render_markdown_from_graph_data(graph_data)
         client = ReviewClient(model=model)
         result = await client.areview_package({"markdown": md})
         actual_model = model
@@ -309,11 +326,30 @@ _DEFAULT_PRIORS: dict[str, float] = {
     "setting": 1.0,
     "observation": 1.0,
     "question": 0.5,
+    "action": 0.5,
     "contradiction": 0.5,
     "equivalence": 0.5,
     "corroboration": 0.5,
     "claim": 0.5,
 }
+
+
+def _source_ref_knowledge_id(
+    source_ref: storage_models.SourceRef | None,
+    current_package: str,
+) -> str | None:
+    """Build a storage knowledge_id while preserving external provenance."""
+    if source_ref is None or not source_ref.knowledge_name:
+        return None
+    package = source_ref.package or current_package
+    return f"{package}/{source_ref.knowledge_name}"
+
+
+def _is_external_source_ref(
+    source_ref: storage_models.SourceRef | None,
+    current_package: str,
+) -> bool:
+    return bool(source_ref and source_ref.package and source_ref.package != current_package)
 
 
 def _build_node_priors(local_graph: LocalCanonicalGraph) -> dict[str, float]:
@@ -374,21 +410,26 @@ def _build_factor_params(
     return factor_params
 
 
-def _render_markdown_from_graph_data(graph_data: dict) -> str:
+def render_markdown_from_graph_data(graph_data: dict) -> str:
     """Render in-memory markdown from graph_data for LLM review (no filesystem)."""
     lines: list[str] = []
     package_name = graph_data.get("package", "unknown")
     lines.append(f"# Package: {package_name}\n")
 
     for node in graph_data.get("nodes", []):
-        lines.append(f"### {node['name']} [{node.get('type', 'claim')}]")
+        label = node.get("type", "claim")
+        if node.get("external"):
+            ext_pkg = node.get("ext_package", "unknown")
+            ext_ver = node.get("ext_version", "") or "unknown"
+            label = f"{label}, external from {ext_pkg}@{ext_ver}"
+        lines.append(f"### {node['name']} [{label}]")
         lines.append(f"> {node.get('content', '')}\n")
 
     for factor in graph_data.get("factors", []):
         if factor.get("type") != "reasoning":
             continue
         conclusion = factor["conclusion"]
-        premises = factor.get("premise", [])
+        premises = factor.get("premises") or factor.get("premise", [])
         lines.append(f"### {conclusion} [proof]")
         lines.append(f"**Premises:** {', '.join(premises)}")
         lines.append(f"**[step:{conclusion}.1]** (prior=0.85)\n")
@@ -456,7 +497,11 @@ def _convert_local_graph_to_storage(
             )
             continue
         sr = node.source_refs[0]
-        knowledge_id = f"{package_name}/{sr.knowledge_name}"
+        if _is_external_source_ref(sr, package_name):
+            continue
+        knowledge_id = _source_ref_knowledge_id(sr, package_name)
+        if knowledge_id is None:
+            continue
         if knowledge_id in seen_kids:
             continue
         seen_kids.add(knowledge_id)
@@ -473,6 +518,7 @@ def _convert_local_graph_to_storage(
                 knowledge_id=knowledge_id,
                 version=1,
                 type=k_type,
+                kind=node.kind,
                 content=node.representative_content.strip(),
                 prior=prior,
                 keywords=[],
@@ -489,7 +535,9 @@ def _convert_local_graph_to_storage(
     for node in local_graph.knowledge_nodes:
         if node.source_refs:
             sr = node.source_refs[0]
-            lcn_to_kid[node.local_canonical_id] = f"{package_name}/{sr.knowledge_name}"
+            kid = _source_ref_knowledge_id(sr, package_name)
+            if kid is not None:
+                lcn_to_kid[node.local_canonical_id] = kid
 
     chains: list[storage_models.Chain] = []
     for factor in local_graph.factor_nodes:
@@ -545,6 +593,9 @@ def _convert_local_graph_to_storage(
 
     # ── 3. Modules from graph_data ──
     modules_list = graph_data.get("modules", [])
+    if not modules_list:
+        # v4 packages have no explicit modules; synthesize a "default" module
+        modules_list = ["default"]
     storage_modules: list[storage_models.Module] = []
     # Build per-module chain IDs
     module_chain_ids: dict[str, list[str]] = {m: [] for m in modules_list}
@@ -568,6 +619,9 @@ def _convert_local_graph_to_storage(
 
     # ── 4. Package ──
     exports_list = graph_data.get("exports", [])
+    if not exports_list:
+        # v4 packages export all local nodes by default
+        exports_list = [n["name"] for n in graph_data.get("nodes", []) if not n.get("external")]
     storage_package = storage_models.Package(
         package_id=package_name,
         name=package_name,
@@ -616,7 +670,9 @@ def _convert_local_graph_to_storage(
         if node.source_refs:
             sr = node.source_refs[0]
             label = f"{sr.module}.{sr.knowledge_name}"
-            label_to_kid[label] = f"{package_name}/{sr.knowledge_name}"
+            kid = _source_ref_knowledge_id(sr, package_name)
+            if kid is not None:
+                label_to_kid[label] = kid
 
     belief_snapshots: list[storage_models.BeliefSnapshot] = []
     for label, belief_value in beliefs.items():
@@ -654,7 +710,9 @@ def _map_graph_ir_factors(
     for node in local_graph.knowledge_nodes:
         if node.source_refs:
             sr = node.source_refs[0]
-            lcn_to_kid[node.local_canonical_id] = f"{package_name}/{sr.knowledge_name}"
+            kid = _source_ref_knowledge_id(sr, package_name)
+            if kid is not None:
+                lcn_to_kid[node.local_canonical_id] = kid
 
     factors: list[storage_models.FactorNode] = []
     for f in local_graph.factor_nodes:

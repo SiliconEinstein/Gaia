@@ -1,0 +1,6 @@
+[package]
+name = "newton_principia"
+version = "4.0.0"
+entrypoint = "lib.typ"
+authors = ["Isaac Newton"]
+description = "牛顿力学定律与自由落体加速度推导 — Gaia Lang v4"
