@@ -1,4 +1,4 @@
-"""Tests for the rewritten pipeline_review (v3 Typst graph_data)."""
+"""Tests for the rewritten pipeline_review (v4 Typst graph_data)."""
 
 from pathlib import Path
 
@@ -6,14 +6,14 @@ import pytest
 
 from libs.pipeline import ReviewOutput, pipeline_build, pipeline_review
 
-GALILEO_V3 = (
-    Path(__file__).parent / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies_v3"
+GALILEO_V4 = (
+    Path(__file__).parent / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies_v4"
 )
 
 
 @pytest.mark.asyncio
 async def test_pipeline_review_mock_returns_review_output():
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     review = await pipeline_review(build, mock=True)
     assert isinstance(review, ReviewOutput)
     assert review.model == "mock"
@@ -21,7 +21,7 @@ async def test_pipeline_review_mock_returns_review_output():
 
 @pytest.mark.asyncio
 async def test_pipeline_review_mock_has_node_priors():
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     review = await pipeline_review(build, mock=True)
     for node in build.local_graph.knowledge_nodes:
         assert node.local_canonical_id in review.node_priors
@@ -30,7 +30,7 @@ async def test_pipeline_review_mock_has_node_priors():
 
 @pytest.mark.asyncio
 async def test_pipeline_review_mock_has_factor_params():
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     review = await pipeline_review(build, mock=True)
     for factor in build.local_graph.factor_nodes:
         if factor.type == "infer":
@@ -40,7 +40,7 @@ async def test_pipeline_review_mock_has_factor_params():
 
 @pytest.mark.asyncio
 async def test_pipeline_review_default_priors_by_type():
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     review = await pipeline_review(build, mock=True)
     for node in build.local_graph.knowledge_nodes:
         prior = review.node_priors[node.local_canonical_id]
@@ -53,7 +53,7 @@ async def test_pipeline_review_default_priors_by_type():
 @pytest.mark.asyncio
 async def test_pipeline_review_mock_factor_params_from_review():
     """Mock review sets conditional_prior=0.85 for reasoning factors."""
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     review = await pipeline_review(build, mock=True)
     # All infer factors that have a matching review chain should get 0.85
     for factor in build.local_graph.factor_nodes:
@@ -66,7 +66,7 @@ async def test_pipeline_review_mock_factor_params_from_review():
 @pytest.mark.asyncio
 async def test_pipeline_review_review_data_structure():
     """Review data should have standard sidecar format fields."""
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     review = await pipeline_review(build, mock=True)
     assert "package" in review.review
     assert "model" in review.review
@@ -79,7 +79,7 @@ async def test_pipeline_review_review_data_structure():
 @pytest.mark.asyncio
 async def test_pipeline_review_source_fingerprint():
     """source_fingerprint should be passed through to ReviewOutput."""
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     review = await pipeline_review(build, mock=True, source_fingerprint="abc123")
     assert review.source_fingerprint == "abc123"
     assert review.review["source_fingerprint"] == "abc123"

@@ -1,9 +1,4 @@
-"""Tests for scripts/pipeline/build_graph_ir.py — Typst path with priors.
-
-Note: Typst tests run against fixture dirs in-place because the Typst compiler
-resolves imports via relative paths (e.g. ../../libs/typst/gaia-lang/v2.typ)
-which break when copied to tmp_path.
-"""
+"""Tests for scripts/pipeline/build_graph_ir.py — Typst v4 path with priors."""
 
 from __future__ import annotations
 
@@ -19,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parents[2] / "scripts" / "pipeline"))
 from scripts.pipeline.build_graph_ir import build_package_graph_ir
 
 FIXTURES_DIR = Path(__file__).parents[1] / "fixtures" / "gaia_language_packages"
-TYPST_PKG = FIXTURES_DIR / "galileo_falling_bodies_typst"
+TYPST_PKG = FIXTURES_DIR / "galileo_falling_bodies_v4"
 
 
 @pytest.fixture(autouse=False)

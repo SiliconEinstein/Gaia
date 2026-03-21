@@ -14,7 +14,7 @@ try:
 except ModuleNotFoundError:  # Python < 3.11
     import tomli as tomllib  # type: ignore[no-redef]
 
-from .typst_loader import load_typst_package
+from .typst_loader import load_typst_package_v4
 
 _TYPE_LABELS = {
     "claim": "主张",
@@ -22,7 +22,6 @@ _TYPE_LABELS = {
     "observation": "观察",
     "question": "问题",
     "contradiction": "矛盾",
-    "corroboration": "印证",
     "equivalence": "等价",
 }
 
@@ -106,7 +105,7 @@ def _build_overview(chains: dict[str, list[dict]], node_map: dict) -> list[str]:
     chain_deps: dict[str, list[str]] = {name: [] for name in chains}
     for chain_name, factors in chains.items():
         for factor in factors:
-            for p in factor.get("premise", []):
+            for p in factor.get("premises", factor.get("premise", [])):
                 dep: str | None = None
                 if p in chains and p != chain_name:
                     dep = p
@@ -145,7 +144,7 @@ def _build_overview(chains: dict[str, list[dict]], node_map: dict) -> list[str]:
 def render_typst_to_clean_typst(pkg_path: Path, output: Path | None = None) -> str:
     """Render a Typst package to a clean Typst document with native cross-references."""
     pkg_path = Path(pkg_path)
-    graph = load_typst_package(pkg_path)
+    graph = load_typst_package_v4(pkg_path)
     meta = _read_pkg_meta(pkg_path)
     lines: list[str] = []
 
@@ -233,7 +232,7 @@ def render_typst_to_clean_typst(pkg_path: Path, output: Path | None = None) -> s
                 content = _clean_text(node["content"])
                 lines.append(f"- {content}（{tl}） {_label(node['name'])}")
 
-        # ── v3 single-claim proofs (no chain field) ──
+        # ── Single-claim proofs (no chain field) ──
         for node in mod_nodes:
             factor = factor_by_conclusion.get(node["name"])
             if factor is None or factor.get("chain"):
@@ -285,7 +284,7 @@ def render_typst_to_clean_typst(pkg_path: Path, output: Path | None = None) -> s
                         lines.append("")
                     lines.append(f"*第 {i + 1} 步*（{tl}）")
 
-                    premise = factor.get("premise", [])
+                    premise = factor.get("premises", factor.get("premise", []))
                     new_premises = [p for p in premise if p not in seen_premises]
                     context = factor.get("context", [])
                     new_context = [c for c in context if c not in seen_context]
@@ -323,7 +322,7 @@ def _render_single_step(
     type_label: str,
     name: str,
 ) -> None:
-    premise = factor.get("premise", [])
+    premise = factor.get("premises", factor.get("premise", []))
     context = factor.get("context", [])
 
     if len(premise) == 1 and not context:

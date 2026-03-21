@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import pytest
 
 from libs.graph_ir.models import (
@@ -409,36 +406,3 @@ class TestMultiStepChains:
         for chain in result.chains:
             assert len(chain.steps) == 1
             assert chain.steps[0].reasoning == ""
-
-
-# ---------------------------------------------------------------------------
-# Integration test: real galileo_falling_bodies_v3 fixture
-# ---------------------------------------------------------------------------
-
-FIXTURE_DIR = (
-    Path(__file__).parents[2] / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies_v3"
-)
-
-
-class TestGalileoFixtureIntegration:
-    """Integration test using the real galileo_falling_bodies_v3 fixture files."""
-
-    def test_multi_step_chains_from_fixture(self):
-        """convert_graph_ir_to_storage with reasoning_steps.json produces multi-step chains."""
-        graph_ir_dir = FIXTURE_DIR / "graph_ir"
-        lcg_data = json.loads((graph_ir_dir / "local_canonical_graph.json").read_text())
-        params_data = json.loads((graph_ir_dir / "local_parameterization.json").read_text())
-        reasoning_steps = json.loads((FIXTURE_DIR / "reasoning_steps.json").read_text())
-
-        lcg = LocalCanonicalGraph.model_validate(lcg_data)
-        params = LocalParameterization.model_validate(params_data)
-
-        result = convert_graph_ir_to_storage(lcg, params, reasoning_steps=reasoning_steps)
-
-        # At least one chain must have multiple steps with non-empty reasoning
-        multi_step_chains = [c for c in result.chains if len(c.steps) > 1]
-        assert len(multi_step_chains) >= 1, "Expected at least one multi-step chain"
-
-        for chain in multi_step_chains:
-            for step in chain.steps:
-                assert step.reasoning, f"Step reasoning must be non-empty: {step}"

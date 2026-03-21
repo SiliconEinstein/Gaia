@@ -6,7 +6,6 @@ import { DataBrowser } from "./pages/DataBrowser";
 import { NodePage } from "./pages/NodePage";
 import { EdgePage } from "./pages/EdgePage";
 import { CommitPanel } from "./pages/CommitPanel";
-import { PaperViewer } from "./pages/PaperViewer";
 import { PackageList } from "./pages/v2/PackageList";
 import { KnowledgeList } from "./pages/v2/KnowledgeList";
 import { PackageDetail } from "./pages/v2/PackageDetail";
@@ -38,7 +37,6 @@ export default function App() {
             <Route path="nodes/:id" element={<NodePage />} />
             <Route path="edges/:id" element={<EdgePage />} />
             <Route path="commits" element={<CommitPanel />} />
-            <Route path="papers" element={<PaperViewer />} />
             <Route path="v2/packages" element={<PackageList />} />
             <Route path="v2/packages/:id" element={<PackageDetail />} />
             <Route path="v2/knowledge" element={<KnowledgeList />} />

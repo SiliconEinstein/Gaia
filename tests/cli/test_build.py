@@ -10,7 +10,7 @@ from cli.main import app
 
 runner = CliRunner()
 
-TYPST_FIXTURE = "tests/fixtures/gaia_language_packages/galileo_falling_bodies_typst"
+TYPST_FIXTURE = "tests/fixtures/gaia_language_packages/galileo_falling_bodies_v4"
 V4_TYPST_FIXTURE = "tests/fixtures/gaia_language_packages/newton_principia_v4"
 
 

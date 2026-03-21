@@ -1,6 +1,0 @@
-[package]
-name = "newton_principia"
-version = "1.0.0"
-entrypoint = "lib.typ"
-authors = ["Isaac Newton"]
-description = "牛顿力学 — 从运动定律推导出落体加速度与质量无关"

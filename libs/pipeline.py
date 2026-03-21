@@ -41,7 +41,7 @@ class BuildResult:
 
 @dataclass
 class ReviewOutput:
-    """Result of reviewing a knowledge package (v3 Typst)."""
+    """Result of reviewing a knowledge package."""
 
     review: dict  # raw LLM/mock review data
     node_priors: dict[str, float]  # lcn_id → prior π
@@ -68,29 +68,13 @@ class PublishResult:
 
 
 async def pipeline_build(pkg_path: Path) -> BuildResult:
-    """Load, compile, and canonicalize a Typst package — all in memory.
-
-    Tries v4 (label-based) loader first; falls back to v3 (string-based).
-    """
+    """Load, compile, and canonicalize a Typst package — all in memory."""
     from libs.graph_ir.build_utils import build_singleton_local_graph
-    from libs.graph_ir.typst_compiler import compile_typst_to_raw_graph, compile_v4_to_raw_graph
-    from libs.lang.typst_loader import load_typst_package, load_typst_package_v4
+    from libs.graph_ir.typst_compiler import compile_v4_to_raw_graph
+    from libs.lang.typst_loader import load_typst_package_v4
 
-    # Try v4 first: query figure.where(kind: "gaia-node")
-    try:
-        graph_data = load_typst_package_v4(pkg_path)
-        if not graph_data["nodes"]:
-            raise ValueError("No v4 nodes found")
-    except Exception as exc:
-        logger.debug(
-            "v4 loader did not produce nodes for %s (%s), falling back to v3", pkg_path, exc
-        )
-        graph_data = load_typst_package(pkg_path)
-        raw_graph = compile_typst_to_raw_graph(graph_data)
-    else:
-        # v4 loaded successfully — compile outside try/except so bugs are not swallowed
-        logger.info("Building %s via v4 loader", pkg_path.name)
-        raw_graph = compile_v4_to_raw_graph(graph_data)
+    graph_data = load_typst_package_v4(pkg_path)
+    raw_graph = compile_v4_to_raw_graph(graph_data)
 
     canonicalization = build_singleton_local_graph(raw_graph)
     source_files = {p.name: p.read_text() for p in pkg_path.glob("*.typ") if p.is_file()}
@@ -111,7 +95,7 @@ async def pipeline_review(
     model: str = "gpt-5-mini",
     source_fingerprint: str | None = None,
 ) -> ReviewOutput:
-    """Review the package via LLM or mock reviewer (v3 Typst graph_data).
+    """Review the package via LLM or mock reviewer.
 
     Args:
         build: Result from pipeline_build (must contain graph_data and local_graph).
@@ -167,7 +151,7 @@ async def pipeline_infer(
 
     Args:
         build: Result from pipeline_build.
-        review: Result from pipeline_review (v3 Typst ReviewOutput).
+        review: Result from pipeline_review.
     """
     from libs.graph_ir.adapter import adapt_local_graph_to_factor_graph
     from libs.inference.bp import BeliefPropagation
@@ -216,8 +200,8 @@ async def pipeline_publish(
     """Convert LocalCanonicalGraph to storage models and ingest into StorageManager.
 
     Args:
-        build: Result from pipeline_build (Typst v3).
-        review: Result from pipeline_review (v3 ReviewOutput).
+        build: Result from pipeline_build.
+        review: Result from pipeline_review.
         infer: Result from pipeline_infer.
         storage_manager: Pre-initialized StorageManager (server/batch use — not closed after).
         storage_config: StorageConfig to create a new manager (CLI use — closed after).
@@ -325,7 +309,6 @@ _DEFAULT_PRIORS: dict[str, float] = {
     "action": 0.5,
     "contradiction": 0.5,
     "equivalence": 0.5,
-    "corroboration": 0.5,
     "claim": 0.5,
 }
 

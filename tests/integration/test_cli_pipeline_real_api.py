@@ -22,7 +22,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures" / "gaia_language_packages"
-TYPST_PACKAGES = ["galileo_falling_bodies_v3", "newton_principia_v3", "einstein_gravity_v3"]
+TYPST_PACKAGES = ["galileo_falling_bodies_v4", "newton_principia_v4", "einstein_gravity_v4"]
 
 pytestmark = pytest.mark.integration_api
 
@@ -59,7 +59,7 @@ def _assert_ok(result: subprocess.CompletedProcess, step: str) -> None:
 
 @skip_no_openai
 def test_real_llm_build_for_typst_packages():
-    """Build all v3 Typst packages and verify Graph IR output.
+    """Build all v4 Typst packages and verify Graph IR output.
 
     Uses real fixture paths (no copy) since Typst #import paths are relative.
     Cleans up .gaia dirs afterwards.

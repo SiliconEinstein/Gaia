@@ -12,8 +12,8 @@ from libs.pipeline import (
     pipeline_review,
 )
 
-GALILEO_V3 = (
-    Path(__file__).parent / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies_v3"
+GALILEO_V4 = (
+    Path(__file__).parent / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies_v4"
 )
 NEWTON_V4 = Path(__file__).parent / "fixtures" / "gaia_language_packages" / "newton_principia_v4"
 
@@ -24,7 +24,7 @@ NEWTON_V4 = Path(__file__).parent / "fixtures" / "gaia_language_packages" / "new
 @pytest.fixture(scope="module")
 async def converter_data():
     """Build → review → infer → convert, returning GraphIRIngestData + build for reuse."""
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     review = await pipeline_review(build, mock=True)
     infer_result = await pipeline_infer(build, review)
     # Convert label-based beliefs to lcn_id-based (same as pipeline_publish does)
@@ -46,9 +46,9 @@ async def converter_data():
 async def test_converter_knowledge_type_mapping(converter_data):
     data, _build = converter_data
     by_id = {k.knowledge_id: k for k in data.knowledge_items}
-    assert by_id["galileo_falling_bodies/medium_density_observation"].type == "claim"
-    assert by_id["galileo_falling_bodies/medium_density_observation"].kind == "observation"
-    assert by_id["galileo_falling_bodies/thought_experiment_env"].type == "setting"
+    assert by_id["galileo_falling_bodies/galileo.medium_density_observation"].type == "claim"
+    assert by_id["galileo_falling_bodies/galileo.medium_density_observation"].kind == "observation"
+    assert by_id["galileo_falling_bodies/setting.thought_experiment_env"].type == "setting"
 
 
 async def test_converter_knowledge_id_format(converter_data):
@@ -102,7 +102,7 @@ async def test_probability_records_from_pipeline():
     """ProbabilityRecords are built by _build_probability_records in pipeline_publish."""
     from libs.pipeline import _build_probability_records
 
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     review = await pipeline_review(build, mock=True)
     infer_result = await pipeline_infer(build, review)
     data = convert_graph_ir_to_storage(build.local_graph, infer_result.local_parameterization)
