@@ -48,10 +48,21 @@ services/gateway/        → FastAPI HTTP API (routes, dependency injection)
 libs/storage/            → Storage backends (LanceDB content, Neo4j/Kuzu graph, LanceDB vector)
 libs/storage/models.py   → Core Pydantic models (Knowledge, Chain, Module, Package, etc.)
 libs/inference/          → BP algorithm (factor graph, belief propagation)
-libs/lang/               → Gaia Language compiler and runtime
+libs/lang/               → Gaia Language v4 Typst DSL loader, compiler, and proof state analysis
 ```
 
 Dependencies flow downward only. `libs` has no service dependencies.
+
+### Gaia Language v4 DSL
+
+Packages are authored as Typst projects (each with a `typst.toml` manifest).
+
+- **Declarations:** `#setting`, `#question`, `#claim`, `#action`, `#relation` -- each emits a `figure(kind: "gaia-node")` in the Typst document.
+- **Labels:** follow `<filename.label_name>` convention for cross-referencing within a package.
+- **Reasoning links:** `from:` parameter lists premises on claims; `between:` parameter defines relation endpoints.
+- **Cross-package deps:** `#gaia-bibliography(yaml("gaia-deps.yml"))` declares external knowledge references.
+- **Graph IR extraction:** `typst query` extracts `gaia-node` figures into Graph IR (no `#export-graph()` call needed).
+- **Runtime files:** Typst function definitions live in `libs/typst/gaia-lang-v4/`.
 
 ### Storage Layer (`libs/storage/`)
 

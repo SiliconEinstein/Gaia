@@ -2,8 +2,8 @@
 
 | 文档属性 | 值 |
 |---------|---|
-| 版本 | 1.0 |
-| 日期 | 2026-03-11 |
+| 版本 | 1.1 |
+| 日期 | 2026-03-21 |
 | 状态 | **Target architecture — foundation baseline (not yet equal to shipped implementation)** |
 | Supersedes | `architecture.md` sections on build context / build align |
 | 关联文档 | [architecture.md](architecture.md), [../cli/command-lifecycle.md](../cli/command-lifecycle.md), [../server/architecture.md](../server/architecture.md) |
@@ -31,19 +31,26 @@
 ## 2. Pipeline Overview
 
 ```
-gaia build         compile (structural validation + elaboration)
+gaia build         pipeline_build(pkg_path) → BuildResult
+                     v4 detection: try load_typst_package_v4 → compile_v4_to_raw_graph
+                     v3 fallback:  load_typst_package → compile_typst_to_raw_graph
+                     then: build_singleton_local_graph(raw_graph) → LocalCanonicalGraph
                          │
                          ▼
                    agent skill: self-review (optional, recommended)
                          │
                          ▼
-                   agent skill: graph construction / local parameterization
+                   pipeline_review(build, mock=True) → ReviewOutput
+                     node_priors (lcn_id → π), factor_params (factor_id → FactorParams)
                          │
                          ▼
-                   gaia infer         local BP on canonical graph + local parameterization (optional, preview)
+                   pipeline_infer(build, review) → InferResult
+                     adapt → FactorGraph → BP → beliefs, bp_run_id
                          │
                          ▼
-gaia publish       submit package → triggers peer review cycle
+gaia publish       pipeline_publish(build, review, infer, storage_manager) → PublishResult
+                     convert LocalCanonicalGraph + ReviewOutput → storage models
+                     external refs preserved as premises, not materialized as Knowledge
                          │
                          ▼
                    ┌─────────────────────────────────┐
@@ -60,9 +67,9 @@ gaia publish       submit package → triggers peer review cycle
 
 | Command | Responsibility |
 |---------|---------------|
-| `gaia build` | Compile: schema validation, ref resolution, elaboration. Produces `manifest.json` + `package.md` + `raw_graph.json` |
-| `gaia infer` | Read canonical graph + local parameterization, run BP, produce belief outputs |
-| `gaia publish [--local \| --remote]` | Submit package to target DB. Triggers peer review cycle. Includes automatic re-compile on server side |
+| `gaia build` | `pipeline_build(pkg_path)` → `BuildResult(graph_data, raw_graph, local_graph, canonicalization_log, source_files)`. Tries v4 loader (`load_typst_package_v4`) first; falls back to v3 (`load_typst_package`) if no v4 nodes found. v4 uses `compile_v4_to_raw_graph`, v3 uses `compile_typst_to_raw_graph`. |
+| `gaia infer` | `pipeline_review(build, mock=True)` → `ReviewOutput(node_priors, factor_params)`, then `pipeline_infer(build, review)` → `InferResult(beliefs, bp_run_id)`. Adapts local graph to factor graph, runs BP. |
+| `gaia publish [--local \| --remote]` | `pipeline_publish(build, review, infer, storage_manager)` → storage. Converts `LocalCanonicalGraph` + `ReviewOutput` to storage models and ingests. External refs (v4 `ext:` nodes) are preserved as premises in chains but not materialized as local Knowledge. |
 
 ### Agent Skills (3 core)
 

@@ -1,716 +1,415 @@
-# Gaia Language Spec
+# Gaia Language Spec (v4)
 
 ## Purpose
 
-This document defines the role of Gaia Language in the overall Gaia system.
+This document defines the Gaia Language v4 surface: a Typst-based DSL for authoring structured knowledge packages. It covers the package format, declaration types, cross-referencing, extraction mechanism, and conformance rules.
 
-It is not the detailed grammar listing. Instead, it defines the semantic and architectural contract that the grammar depends on:
-
-- what Gaia Language is for
-- which lifecycle stages it must support
-- which responsibilities belong to the language, the local runtime, and the server
-- which architectural direction should guide V1
-
-For the detailed language design, see [gaia-language-design.md](gaia-language-design.md).
+A developer reading this document should be able to write a conforming v4 package from scratch.
 
 ## Status and Normative Scope
 
-This document is the normative spec for:
+This document is normative for:
 
-- Gaia Language's lifecycle model
-- the boundary between source package, local runtime artifacts, and server/LKM integration
-- the current V1 package surface on `main`
-- language-level conformance rules for well-formed packages
-- versioning and extension policy
+- the v4 package file layout and manifest format
+- the declaration type system (`setting`, `question`, `claim`, `action`, `relation`)
+- the label and cross-reference conventions
+- the cross-package reference mechanism (`gaia-bibliography`)
+- the extraction contract (how packages become structured data)
+- conformance and well-formedness rules
 
-This document is not the sole source of concrete syntax examples.
+## Role of Gaia Language
 
-- [gaia-language-design.md](gaia-language-design.md) is normative for the current abstract syntax and YAML surface where this document references them.
-- [design-rationale.md](design-rationale.md) is explanatory, not normative.
-- When surrounding docs give simplified examples, this document and the detailed language design take precedence for the language surface.
+Gaia Language serves five interrelated purposes:
 
-## Problem
+1. **Verifiable agent memory** -- agents externalize reasoning into explicit, reviewable artifacts with structured knowledge objects, explicit reasoning steps, and traceable provenance.
 
-Gaia Language is currently being asked to serve several different goals at once:
+2. **Formalized scientific knowledge** -- typed, modular, composable, uncertainty-aware knowledge representation stable enough for long-term integration.
 
-1. agent-verifiable long-term memory
-2. formalized scientific knowledge representation
-3. a publishable artifact that can replace or complement papers and project summaries
-4. a machine-writable language that AI agents can execute and validate
-5. an input substrate for the global Large Knowledge Model (LKM)
+3. **Publishable research artifact** -- packages act as paper replacements or companions, reviewable in git, readable by humans and agents.
 
-Those goals are related, but they are not the same layer.
+4. **Agent-friendly authoring** -- machine-parsable Typst syntax with deterministic extraction via `typst query`.
 
-If Gaia Language is treated as only one of the following, the design becomes distorted:
-
-- only a package exchange format
-- only an agent execution script
-- only a graph ingestion schema
-- only a paper-like authoring format
-
-The framework therefore needs explicit layering.
-
-## Design Goals
-
-Gaia Language should support the following product goals:
-
-### 1. Verifiable Agent Memory
-
-Gaia should let agents externalize reasoning into explicit, reviewable artifacts rather than opaque context-window state.
-
-This requires:
-
-- structured knowledge objects
-- explicit reasoning steps
-- reviewable intermediate conclusions
-- local and global belief updates
-- traceable provenance
-
-### 2. Formalized Scientific Knowledge
-
-Gaia should represent scientific knowledge in a form that is:
-
-- typed
-- modular
-- composable
-- uncertainty-aware
-- stable enough for long-term integration
-
-### 3. Publishable Research Artifact
-
-Gaia packages should be able to act as:
-
-- a research project summary
-- a paper replacement or paper companion
-- a structured note or knowledge bundle
-- a reviewable git artifact
-
-This requires clear package boundaries, stable serialization, and sidecar review artifacts.
-
-### 4. Agent-Friendly Execution
-
-Gaia should be easy for agents to generate, validate, and run locally.
-
-This requires:
-
-- machine-parsable syntax
-- deterministic validation
-- explicit runtime boundaries
-- local execution support for LLM and tool-backed steps
-
-### 5. Clean Path to Global LKM Integration
-
-Gaia packages must eventually map into a global knowledge graph with:
-
-- canonical identity
-- provenance tracking
-- contradiction and retraction handling
-- large-scale belief propagation
+5. **Clean path to LKM integration** -- packages map into a global knowledge graph with canonical identity, provenance tracking, contradiction handling, and large-scale belief propagation.
 
 ## Non-Goals
 
-The language framework should explicitly avoid these confusions:
+- Gaia is not the agent's entire workspace. The published package is the stable artifact, not the full private thought process.
+- Gaia is not a general-purpose workflow engine. No `if/else`, loops, or orchestration constructs.
+- Package-local names are not global identity. Canonical identity belongs to publish-time integration.
+- The published package is not the server's canonical Graph IR. The server derives its own internal representation.
 
-### 1. Gaia is not the agent's entire workspace
+## Package Layout
 
-Gaia should not try to store every speculative draft or exploratory branch the agent considers before submission.
+A conforming v4 package is a directory with the following structure:
 
-Local workspace activity is allowed and necessary, but the published package is the stable artifact, not the full private thought process.
+```
+my_package/
+  typst.toml          # package manifest
+  lib.typ             # entrypoint: imports runtime, applies style, includes modules
+  gaia.typ            # runtime import shim
+  motivation.typ      # module file (one or more)
+  reasoning.typ       # module file
+  gaia-deps.yml       # (optional) cross-package references
+```
 
-### 2. Gaia is not a general-purpose workflow engine
+### `typst.toml` -- Package Manifest
 
-Gaia may need minimal control-flow constructs for execution, but V1 should not attempt to become a full orchestration language.
+Standard Typst package manifest. Required fields:
 
-### 3. Gaia package names are not global identity
+```toml
+[package]
+name = "galileo_falling_bodies"
+version = "4.0.0"
+entrypoint = "lib.typ"
+authors = ["Galileo Galilei"]
+description = "Galileo's falling bodies argument"
+```
 
-Local names exist for authoring convenience. Canonical identity belongs to publish-time or ingest-time integration, not to initial authorship.
+The `name` and `version` fields become the package's identity in the Gaia system.
 
-### 4. The published package is not the same thing as the server's canonical graph IR
+### `gaia.typ` -- Runtime Import Shim
 
-The package is the authoring and exchange artifact. The server may derive a different internal representation for graph integration and inference.
+A single-line file that imports the Gaia runtime library:
 
-## Lifecycle Model
+```typst
+#import "/libs/typst/gaia-lang-v4/lib.typ": *
+```
 
-Gaia should be designed around three distinct lifecycle stages.
+This indirection lets packages resolve the runtime from the repository root via `--root`, without hardcoding absolute paths.
 
-### Stage A: Local Workspace
+### `lib.typ` -- Entrypoint
 
-This is where the agent works locally.
+The entrypoint imports the runtime, applies document styling, and includes module files in narrative order:
 
-Typical activities:
+```typst
+#import "gaia.typ": *
+#show: gaia-style
 
-- read existing packages and claims
-- draft new reasoning
-- run local tools
-- execute local LLM-backed inference steps
-- perform dry-run validation
-- inspect local belief updates
+#include "motivation.typ"
+#include "setting.typ"
+#include "reasoning.typ"
+#include "follow_up.typ"
+```
 
-This stage is exploratory and may contain transient state.
+### Module Files (`*.typ`)
 
-### Stage B: Published Package
+Each module file is a Typst document containing knowledge declarations. A module typically begins with `#import "gaia.typ": *` and a heading:
 
-This is the stable artifact that enters git, PR review, and long-term sharing.
+```typst
+#import "gaia.typ": *
 
-It should be:
+= Background and Assumptions
 
-- serializable
-- diff-friendly
-- reviewable
-- readable by humans and agents
-- stable enough to serve as a research artifact
+#setting[
+  A heavy ball $H$ and a light ball $L$ fall from the same height.
+] <setting.thought_experiment_env>
+```
 
-This is the primary language exchange surface.
+Module files are the primary authoring surface. They contain narrative prose interspersed with typed knowledge declarations.
 
-### Stage C: Canonical LKM Integration
+## Declaration Types
 
-This is where published packages are ingested into the global Large Knowledge Model.
+All declaration types produce `figure(kind: "gaia-node")` elements with hidden metadata. This uniform representation enables extraction via a single `typst query` call.
 
-Typical activities:
+### `#setting`
 
-- canonicalize identities
-- preserve provenance
-- merge equivalent knowledge
-- attach contradiction and retraction structure
-- run larger-scale BP across packages
+A contextual assumption that requires no proof.
 
-This stage belongs primarily to the server or registry layer, not to the authoring surface.
+```typst
+#setting[
+  An idealized vacuum environment with no air resistance.
+] <setting.vacuum_env>
+```
+
+Parameters: none (content body only).
+
+### `#question`
+
+An open question.
+
+```typst
+#question[
+  Does the rate of falling truly depend on an object's weight?
+] <motivation.main_question>
+```
+
+Parameters: none (content body only).
+
+### `#claim`
+
+A truth-apt statement. Supports optional `from:` (premises) and `kind:` (subtype).
+
+```typst
+// Simple claim with no premises
+#claim(kind: "observation")[
+  Stones fall faster than feathers in everyday experience.
+] <aristotle.everyday_observation>
+
+// Claim with premises and a proof block
+#claim(from: (<aristotle.everyday_observation>,))[
+  Heavier objects fall faster, in proportion to their weight.
+][
+  Based on everyday observations @aristotle.everyday_observation,
+  heavier objects consistently reach the ground first.
+] <aristotle.heavier_falls_faster>
+```
+
+Parameters:
+- `from: (<label1>, <label2>, ...)` -- tuple of premise labels (optional)
+- `kind: "observation"` -- subtype string (optional)
+- First content block: the claim statement
+- Second content block: the proof/justification (optional)
+
+### `#action`
+
+A procedural step. Same parameter signature as `#claim`.
+
+```typst
+#action(from: (<data_source>,), kind: "python")[
+  Run statistical analysis on the dataset.
+][
+  Load the CSV, compute summary statistics, and output results.
+] <analysis.run_stats>
+```
+
+Parameters: same as `#claim` (`from:`, `kind:`, content body, optional proof block).
+
+### `#relation`
+
+A structural relation between two existing nodes. Currently supports `"contradiction"` and `"equivalence"` types.
+
+```typst
+#relation(
+  type: "contradiction",
+  between: (<galileo.composite_is_slower>, <galileo.composite_is_faster>),
+)[
+  "HL is slower than H" and "HL is faster than H" contradict each other.
+][
+  Both predictions derive from the same assumption but yield
+  opposite conclusions about the same physical object.
+] <galileo.tied_balls_contradiction>
+```
+
+Parameters:
+- `type: "contradiction"` or `type: "equivalence"` -- required
+- `between: (<label_a>, <label_b>)` -- the two nodes being related (required)
+- Content body: description of the relation
+- Optional proof block
+
+## Labels and Cross-References
+
+### Label Convention
+
+Labels follow the pattern `<filename.label_name>`:
+
+```typst
+#setting[...] <setting.vacuum_env>
+#claim[...]   <galileo.vacuum_prediction>
+```
+
+The `filename.` prefix is a naming convention (not enforced by Typst), chosen so that labels remain unique across module files within a package.
+
+### In-Text References
+
+Use Typst's `@label` syntax to reference other nodes in prose:
+
+```typst
+Based on the observation @aristotle.everyday_observation, ...
+```
+
+### Premise References
+
+Use angle-bracket labels inside `from:` tuples:
+
+```typst
+#claim(from: (<aristotle.everyday_observation>, <setting.vacuum_env>))[...]
+```
+
+Note the trailing comma for single-element tuples: `from: (<label>,)`.
+
+## Cross-Package References
+
+To reference knowledge from another package, use `gaia-deps.yml` and `#gaia-bibliography`.
+
+### `gaia-deps.yml`
+
+Declares external knowledge nodes:
+
+```yaml
+vacuum_prediction:
+  package: "galileo_falling_bodies"
+  version: "4.0.0"
+  node: "vacuum_prediction"
+  type: claim
+  content: "In a vacuum, objects of different weights should fall at the same rate."
+```
+
+Each entry creates a label (the YAML key) that can be used in `from:` and `@ref` within the package.
+
+### `#gaia-bibliography`
+
+Place this call in the module file that uses external references, before the declarations that reference them:
+
+```typst
+#gaia-bibliography(yaml("gaia-deps.yml"))
+
+#claim(from: (<derivation.freefall_acceleration>, <vacuum_prediction>))[
+  Newton's mathematical derivation and Galileo's logical argument
+  independently reach the same conclusion.
+] <derivation.convergence>
+```
+
+`#gaia-bibliography` creates hidden `figure(kind: "gaia-ext")` elements for each entry, making the labels resolvable by both Typst's reference system and the extraction pipeline.
+
+## Extraction
+
+Packages are extracted to structured data using Typst's built-in query mechanism. No special export function is needed.
+
+### Local Nodes
+
+```bash
+typst query --root <repo-root> lib.typ 'figure.where(kind: "gaia-node")'
+```
+
+Each result contains:
+- `label` -- the node's identity (e.g., `<galileo.vacuum_prediction>`)
+- `supplement` -- the type as display text (`"Setting"`, `"Claim"`, etc.)
+- `body` -- content tree with hidden metadata and visible text
+
+The Python loader (`libs/lang/typst_loader.py::load_typst_package_v4`) processes these results into a normalized dict:
+
+```python
+{
+    "package": "galileo_falling_bodies",
+    "version": "4.0.0",
+    "dsl_version": "v4",
+    "nodes": [
+        {"name": "setting.vacuum_env", "type": "setting", "content": "...", "kind": None},
+        {"name": "galileo.vacuum_prediction", "type": "claim", "content": "...", "kind": None},
+        ...
+    ],
+    "factors": [
+        {"type": "reasoning", "premises": ["aristotle.everyday_observation"], "conclusion": "aristotle.heavier_falls_faster"},
+        ...
+    ],
+    "constraints": [
+        {"name": "galileo.tied_balls_contradiction", "type": "contradiction", "between": ["galileo.composite_is_slower", "galileo.composite_is_faster"]},
+        ...
+    ],
+    "refs": [],
+    "modules": [],
+    "module_titles": {},
+}
+```
+
+### External Nodes
+
+```bash
+typst query --root <repo-root> lib.typ 'figure.where(kind: "gaia-ext")'
+```
+
+External nodes are appended to the `nodes` list with `"external": True` and provenance metadata (`ext_package`, `ext_version`, `ext_node`).
 
 ## Layer Model
 
-The framework should separate at least five semantic layers.
+The v4 language separates three semantic layers.
 
-### 1. Knowledge Layer
+### Knowledge Layer
 
-Defines what exists as reusable knowledge.
+Defines the type system for knowledge objects:
 
-Examples:
+| Type | Purpose | Has `from:`? | Has `between:`? |
+|------|---------|:---:|:---:|
+| `setting` | Contextual assumption | No | No |
+| `question` | Open question | No | No |
+| `claim` | Truth-apt statement | Optional | No |
+| `action` | Procedural step | Optional | No |
+| `relation` | Structural constraint | No | Yes |
 
-- `claim`
-- `question`
-- `setting`
-- `action`
-- `ref`
+The `kind:` parameter provides further subtyping (e.g., `kind: "observation"` on a claim).
 
-This layer is the core substrate shared across local runtime and server ingestion.
+### Structural Layer
 
-### 2. Reasoning Layer
+Defines how knowledge objects connect:
 
-Defines how local reasoning is expressed.
+- **`from:` edges** -- A `claim` or `action` with `from: (<a>, <b>)` declares that `a` and `b` are premises for the conclusion. These become reasoning factors in the Graph IR.
+- **`between:` constraints** -- A `relation` with `between: (<a>, <b>)` declares a structural constraint (contradiction or equivalence) between two nodes.
 
-Examples:
+### Probabilistic Layer
 
-- `chain_expr`
-- named action application
-- lambda-like inline reasoning steps
+Not expressed in the authoring surface. Priors are assigned during the review stage; posteriors are computed by belief propagation over the extracted Graph IR. The language surface provides the graph topology; the probabilistic semantics are layered on top at runtime.
 
-This layer describes a reasoning structure, not yet the full execution plan of a package.
+## Lifecycle Model
 
-### 3. Control Layer
+### Stage A: Local Authoring
 
-Defines how multiple reasoning units are scheduled and executed.
+The author writes `.typ` files, compiles to PDF for visual review, and iterates. Typst provides instant preview with `typst watch`.
 
-Examples:
+### Stage B: Extraction and Compilation
 
-- package entrypoint
-- explicit chain dependencies
-- staged execution
-- optional future guarded execution
+The pipeline extracts structured data via `typst query`, producing nodes, factors, and constraints. This feeds into Graph IR construction, canonicalization, and storage.
 
-This layer should exist primarily for runtime coordination, not as hidden YAML ordering semantics.
+### Stage C: Review and Inference
 
-### 4. Probabilistic Layer
+Review assigns priors and evaluates reasoning quality. Belief propagation runs over the Graph IR to compute posterior beliefs. These are runtime outputs, not part of the authored source.
 
-Defines uncertainty and inference semantics.
+### Stage D: Integration
 
-Examples:
-
-- `prior`
-- posterior belief
-- dependency role (`direct` / `indirect`; semantics `premise` / `context`)
-- Graph IR lowering
-- belief propagation
-
-### 5. Integration Layer
-
-Defines how a published package enters the global LKM.
-
-Examples:
-
-- canonical identity assignment
-- provenance registration
-- cross-package linking
-- deduplication
-- cross-package BP participation
-
-## Artifact Surfaces
-
-Gaia should distinguish four artifact surfaces.
-
-| Surface | Primary user | Purpose | Stability |
-|---|---|---|---|
-| Local workspace state | agent + local runtime | exploration, dry-run, temporary execution state | low |
-| Published package | author, reviewer, agent, git | stable exchange and review artifact | high |
-| Review sidecars | reviewer, agent, CI/server | external evaluation of package quality | medium |
-| Canonical graph IR | server/LKM runtime | internal integration and large-scale inference | internal |
-
-The published package is the most important author-facing artifact.
-
-## Current V1 Package Surface
-
-The current Gaia Language surface on `main` is file-based YAML, not a single monolithic package blob.
-
-### Package layout
-
-A conforming package on `main` consists of:
-
-- one `package.yaml` manifest at the package root
-- one module file `<module>.yaml` for each entry in `package.yaml.modules`
-- optional runtime artifacts under `.gaia/`, which are not part of the normative package surface
-
-The current language surface does not require:
-
-- `Gaia.toml`
-- `gaia.lock`
-- a separate package-management manifest
-
-Those remain deferred package-management concerns rather than part of the current language contract.
-
-### Package manifest surface
-
-`package.yaml` is the normative package manifest on current `main`.
-
-Required fields:
-
-- `name`
-
-Optional fields currently supported on `main`:
-
-- `modules` (defaults to empty; a package with no modules is structurally valid)
-- `version`
-- `manifest`
-- `dependencies`
-- `export`
-
-### Module surface
-
-Each module file is a YAML document with:
-
-- required `type`
-- required `name`
-- optional `knowledge` (defaults to empty; a module with no knowledge objects is structurally valid)
-- optional `export`
-
-Reasoning is expressed inside `knowledge` via `chain_expr`.
-
-Gaia Language does not currently use a top-level module `chains:` key. Any simplified example that suggests otherwise should be treated as explanatory shorthand rather than normative syntax.
-
-### Knowledge surface
-
-The current knowledge kinds on `main` are:
-
-- `claim`
-- `question`
-- `setting`
-- `infer_action`
-- `toolcall_action`
-- `chain_expr`
-- `ref`
-
-`chain_expr.steps` currently admit exactly three step forms:
-
-- `ref`
-- `apply`
-- `lambda`
-
-These are the shapes consumed by the current loader and runtime. The loader also accepts knowledge types not in this list — unknown types are loaded as generic `Knowledge` objects so the LLM runtime can interpret their semantics during build and review.
+Published packages are ingested into the global LKM with canonical identity, provenance tracking, and cross-package BP participation.
 
 ## Conformance and Well-Formedness
 
-Gaia uses an LLM as its runtime CPU. This means conformance should be **structurally strict but semantically permissive**: the loader enforces file-level and graph-compilation constraints that an LLM cannot self-heal, while semantic interpretation of knowledge content and unknown types is intentionally left to the LLM runtime.
+### Structural Requirements (enforced)
 
-### Runtime-enforced conformance on current `main`
+A package is ill-formed if any of the following hold:
 
-A package is ill-formed for the current runtime if any of the following hold:
+- `typst.toml` is missing or lacks a `[package]` section with `name`
+- `lib.typ` is missing
+- `gaia.typ` does not import the Gaia runtime
+- A `from:` label references a label that does not exist in the document
+- A `between:` label references a label that does not exist in the document
+- A `relation` uses a `type:` other than `"contradiction"` or `"equivalence"` (assertion error at compile time)
+- The package fails `typst compile` (syntax errors, unresolved references)
 
-- `package.yaml` is missing
-- a module listed in `package.yaml.modules` does not have a matching `<module>.yaml` file
-- a `chain_expr` step is not one of `ref`, `apply`, or `lambda` (these are lowered into Graph IR factor structure for BP)
-- a `ref.target` cannot be resolved to a non-`ref` knowledge object using `module_name.knowledge_name`
+### Semantically Permissive by Design
 
-These are structural constraints — they block loading or Graph IR generation / inference preparation and cannot be recovered by LLM interpretation.
+The following are accepted:
 
-### Semantically permissive by design
+- Packages with no declarations (empty modules)
+- Claims without `from:` (standalone assertions)
+- Claims without proof blocks
+- Unknown `kind:` values on claims and actions (interpreted by the LLM during review)
+- Module files that contain only prose with no declarations
 
-The following are intentionally accepted by the current runtime:
+### Recommended Lint Rules
 
-- knowledge types not in `KNOWLEDGE_TYPE_MAP` — loaded as generic `Knowledge` objects and interpreted by the LLM during build/review
-- packages with an empty `modules` list
-- modules with an empty `knowledge` list
+- Labels should be unique within a package
+- Labels should follow the `filename.label_name` convention
+- Every `claim` with `from:` should have a proof block explaining the reasoning
+- `gaia-deps.yml` entries should specify `package`, `version`, `node`, `type`, and `content`
 
-This permissiveness is a design choice: since the LLM runtime can understand author intent from content and context, the loader should not reject valid-looking YAML that simply uses unfamiliar type names.
+## Gaia Runtime Library
 
-### Recommended lint rules
+The runtime library lives at `libs/typst/gaia-lang-v4/` and exports:
 
-The following should be treated as language-level quality rules even where the current runtime does not reject them:
+| Symbol | Source file | Purpose |
+|--------|------------|---------|
+| `setting`, `question`, `claim`, `action`, `relation` | `declarations.typ` | Knowledge declaration functions |
+| `gaia-bibliography` | `bibliography.typ` | Cross-package reference registration |
+| `gaia-style` | `style.typ` | Document show rules and visual styling |
 
-- knowledge object names should be unique within a module
-- exported names should refer to knowledge objects that actually exist in the package
-- package/module naming should avoid ambiguity between local aliases and resolved targets
-- package examples in docs should use the same surface as the real loader
-- unknown knowledge types should be documented in the module or package manifest when used intentionally
+All declarations produce `figure(kind: "gaia-node")` with hidden `metadata(...)` containing the node's type, `from:` premises, `kind:`, and (for relations) `rel-type` and `between:`.
 
-## Operational Semantics Boundary
+The `gaia-style` show rule renders each declaration type with a colored left border and type badge, and formats `@ref` links using the label name instead of figure numbering.
 
-Gaia Language source files define the package artifact. CLI commands operate on that artifact but also produce non-language runtime outputs.
+## Future Work
 
-### `build`
+The following are not part of the v4 surface but are planned or under consideration:
 
-`build` is a normalization and elaboration stage.
-
-It currently:
-
-- loads `package.yaml` and module files
-- resolves refs
-- elaborates `chain_expr` steps into rendered prompts
-- writes per-module Markdown under `.gaia/build/`
-- writes Graph IR runtime artifacts under `.gaia/graph/` (for example `raw_graph.json`, `local_canonical_graph.json`, and `canonicalization_log.json`)
-
-It does not make `.gaia/build/` part of the language surface, and it does not define the package's long-term canonical representation.
-
-### `review`
-
-`review` consumes build artifacts and emits sidecar review reports under `.gaia/reviews/`.
-
-Review outputs are runtime artifacts, not source syntax. They must not silently redefine the meaning of the source package.
-
-### `infer`
-
-`infer` consumes the package's local Graph IR artifacts plus review sidecars, derives local parameterization as a runtime step, and then runs local belief propagation.
-
-Belief scores are derived runtime outputs. They are semantically downstream of the language, not part of the authored source syntax.
-
-### `publish`
-
-`publish` hands the package to git, local storage backends, or future server integration paths.
-
-Publish-time storage records, canonical IDs, and merged graph state are outside the normative author-facing language surface.
-
-## Versioning and Extension Policy
-
-The current implementation uses a layered language story without an explicit in-file `schema_version` marker.
-
-Current practical rule on `main`:
-
-- V1 core covers the typed declaration system, modules, `ref`, and `chain_expr`
-- current optional package metadata (`version`, `manifest`, `dependencies`) live in `package.yaml`
-- current optional probabilistic annotations (`prior`, dependency role, `edge_type`) extend the same YAML surface rather than a separate file format
-
-Deferred items include:
-
-- `Gaia.toml`
-- `gaia.lock`
-- explicit schema negotiation and migration metadata
-- stable backward-compatibility policy across future grammar revisions
-
-Until an explicit schema marker exists, breaking surface changes should be treated as repo-level design changes that require synchronized updates to the spec, examples, and loader/runtime.
-
-## Provenance and Evidence Hooks
-
-Gaia's goals require traceability even before first-class evidence/object kinds are added.
-
-Current rule:
-
-- authored knowledge lives in `knowledge` and `chain_expr`
-- review and belief outputs stay in sidecars or runtime outputs
-- provenance, citations, and external resources may be attached via knowledge-object `metadata`
-
-Deferred for later language versions:
-
-- first-class `observation`
-- first-class `experiment`
-- first-class `dataset`
-- richer evidence schemas and reproducibility records
-
-## Major Architecture Directions
-
-There are several possible ways to center the Gaia Language design.
-
-### Option 1: Package-First Language
-
-The language is primarily a stable package and publication format.
-
-Pros:
-
-- best fit for paper replacement and project sharing
-- easiest to review in git and PRs
-- stable exchange format
-- clean separation between package content and review sidecars
-
-Cons:
-
-- runtime semantics can become vague
-- local agent execution may rely on convention rather than explicit control
-- harder to support replay, checkpointing, and local tool orchestration
-
-### Option 2: Runtime-First Language
-
-The language is primarily an executable instruction language for agents.
-
-Pros:
-
-- best fit for local automation
-- execution order is explicit
-- easier checkpointing, retries, and runtime observability
-- natural place for tool calls and LLM-backed steps
-
-Cons:
-
-- publishable artifact becomes process-heavy
-- review target becomes "program plus environment plus run result"
-- weaker fit for paper-like long-term knowledge sharing
-
-### Option 3: Graph-First Language
-
-The language is primarily a direct authoring surface for the global graph model.
-
-Pros:
-
-- easiest path into server ingestion
-- identity and BP semantics are central from the start
-- close to current node/hyperedge infrastructure
-
-Cons:
-
-- poor authoring ergonomics
-- weak narrative structure
-- poor fit for paper replacement
-- local reasoning and package modularity are under-expressed
-
-### Option 4: Layered Split
-
-The language framework explicitly separates:
-
-- local runtime execution
-- published package representation
-- global graph integration
-
-Pros:
-
-- best fit for Gaia's combined goals
-- supports agent execution without turning the published artifact into a raw script
-- supports paper-like package structure without losing runtime semantics
-- keeps the LKM ingest layer clean
-
-Cons:
-
-- highest design complexity
-- requires careful boundary definitions
-
-## Recommended Direction
-
-The recommended architecture is Option 4: Layered Split.
-
-The core principle is:
-
-> Gaia's published package is the stable knowledge artifact.
-> Gaia's local runtime is the execution environment that helps agents produce and validate that artifact.
-> Gaia's server or registry is the integration layer that turns packages into global LKM structure.
-
-This gives Gaia a clean separation of concerns:
-
-### Local Runtime Responsibilities
-
-- load and validate packages
-- resolve refs and dependencies
-- schedule local execution
-- call LLM executors for `infer_action`
-- call tool executors for `toolcall_action`
-- run local BP
-- support dry-run and local inspection
-
-### Published Package Responsibilities
-
-- declare knowledge objects
-- declare reasoning structure
-- declare package/module boundaries
-- expose stable exports
-- remain reviewable in git
-- remain understandable as a research artifact
-
-### Server / LKM Responsibilities
-
-- canonicalize and merge packages
-- attach global identity and provenance
-- run large-scale review and inference
-- expose global search and integration services
-
-## Recommended Execution Principle
-
-The control layer should be implemented primarily by interpreter software, not by the LLM itself.
-
-The recommended execution split is:
-
-- interpreter software controls package-level flow
-- LLM executes local cognitive steps
-- tools execute deterministic external actions
-
-In short:
-
-> the LLM should not define the package-level control semantics;
-> the LLM should execute the reasoning steps delegated to it by the runtime.
-
-This improves:
-
-- determinism
-- replayability
-- error handling
-- checkpointing
-- observability
-- cost control
-
-## V1 Scope Recommendation
-
-V1 should stay intentionally narrow.
-
-### What V1 should include
-
-- a stable package artifact
-- typed knowledge objects
-- explicit modules and exports
-- local reasoning via `chain_expr`
-- sidecar review artifacts
-- local and server validation
-- probabilistic annotations and BP compilation
-
-### What V1 should include only in minimal form
-
-- package-level control metadata for local execution
-
-Current status on `main`:
-
-- package-level control metadata is not yet standardized in source YAML
-- runtime command/skill staging (`build -> self-review -> graph-construction -> infer -> publish`) exists, but is not itself a language grammar
-- future fields such as `entry` or `depends_on` should not be treated as part of the current source surface until they are specified in concrete syntax and supported by the runtime
-
-### What V1 should defer
-
-- general `if / else`
-- general loops
-- full workflow-engine semantics
-- rich theorem-proving or dependent typing
-- complete cross-package graph canonicalization in author-facing syntax
-
-## Design Rules for the Detailed Language
-
-The detailed language design should follow these rules.
-
-### 1. Keep the published package as the normative author-facing artifact
-
-This is the main object that should be committed, reviewed, shared, and cited.
-
-### 2. Keep local runtime semantics explicit
-
-If execution order matters, it should be modeled explicitly rather than smuggled in through YAML declaration order.
-
-### 3. Keep narrative order separate from execution order
-
-A package may have:
-
-- reading order
-- chain step order
-- chain scheduling order
-- probabilistic dependency order
-
-These should not be collapsed into one notion of "order".
-
-### 4. Keep local names separate from global identity
-
-Package-local and module-local naming are authoring conveniences. Global identity belongs to integration.
-
-### 5. Keep review separate from content
-
-Review reports should remain sidecar artifacts rather than mutating package content files.
-
-### 6. Keep workspace and published knowledge distinct
-
-The local workspace may be richer, messier, and more executable than the published package.
-
-## Relationship to the Current Language Draft
-
-The current detailed language draft already establishes several important pieces correctly:
-
-- Gaia is treated as a language, not merely an API payload
-- the core knowledge object set is small and coherent
-- reasoning structure is represented with `chain_expr`
-- module types can encode editorial intent such as motivation, setting, reasoning, and follow-up
-- probabilistic semantics are recognized as part of the language rather than an afterthought
-
-This spec resolves several framework-level questions for the current draft:
-
-### 1. Package artifact vs runtime artifact
-
-Source YAML is the normative package artifact. `.gaia/` build products, review sidecars, local DB state, and BP results are runtime artifacts layered on top.
-
-### 2. Control layer
-
-`chain_expr` is part of the language. Package-level control metadata remains deferred until concrete syntax and runtime behavior are specified together.
-
-### 3. Package-to-LKM integration
-
-Local names and refs are authoring conveniences. Canonical IDs, cross-package merge policy, and global provenance remain integration-layer concerns.
-
-Current V1/V2 boundary on `main`:
-
-- author-facing refs remain package-scoped references to concrete package knowledge units
-- search and server workflows may surface matching canonical identities, but those are not authored directly in source syntax
-- exported external knowledge may be used as premise or context
-- non-exported external knowledge may still be referenced when explicitly named, but only as context rather than as an independent premise-bearing interface
-
-### 4. Review and publish lifecycle
-
-Review reports remain sidecars, and publish-time integration remains downstream of the source package.
-
-### 5. Scientific evidence modeling
-
-The current type system is intentionally minimal; richer first-class evidence kinds remain future extensions rather than hidden assumptions in V1.
-
-## Practical Guidance
-
-When extending Gaia Language, ask these questions first:
-
-1. Is this feature for local runtime, published package, or global integration?
-2. Does this belong in the normative package surface, or only in the interpreter/runtime?
-3. Is this defining knowledge structure, execution control, or integration semantics?
-4. Does this make the package easier to review and share, or does it merely make local execution easier?
-5. Can this be deferred to a later layer without weakening V1?
-
-If those questions are answered explicitly, the detailed language grammar becomes much easier to design coherently.
-
-## Theoretical Foundation
-
-Gaia is a **proof assistant for probabilistic defeasible reasoning** — borrowing Lean's architecture, Bayesian networks' semantics, and belief revision's knowledge model.
-
-The full theoretical analysis is in [design-rationale.md](design-rationale.md). Key findings:
-
-- **InferAction is a Tactic, not a function call.** The LLM constructs reasoning content (untrusted); BP independently computes beliefs from formal structure.
-- **Gaia has two kernels.** BP checks structure (graph topology, probabilities). Review checks content (reasoning text quality). Both are required for complete verification.
-- **BeliefState is Gaia's ProofState.** Open claims are analogous to Lean's goals (metavariables). Tactics fill holes; InferActions ground claims.
-- **Gaia is not "probabilistic Lean."** It takes Lean's architecture but not its type theory. Gaia's knowledge is defeasible (retraction, contradiction); Lean's proofs are permanent.
-- **Gaia is the intersection of three traditions:** Lean (architecture), probabilistic graphical models (semantics), and non-monotonic logic (knowledge model).
-
-## Summary
-
-Gaia Language should be treated as a layered language system with three lifecycle stages:
-
-1. local workspace execution
-2. published package exchange
-3. canonical LKM integration
-
-The published package should remain the central author-facing artifact.
-
-The local runtime should help agents produce and validate that artifact.
-
-The server should integrate that artifact into the global Large Knowledge Model.
-
-That separation is the clearest way to satisfy Gaia's combined goals without forcing one syntax layer to carry every responsibility at once.
+- `corroboration` relation type (currently modeled as `claim(from:)` instead)
+- `dependency: indirect` / context semantics (only `from:` = direct premise exists)
+- Action execution runtime (actions are declared but not executed)
+- Schema/ground node parameterization in the language surface
+- First-class evidence kinds (`observation`, `experiment`, `dataset` as distinct types)
+- Explicit schema versioning in source files
+- `Gaia.toml` / `gaia.lock` for package dependency management
