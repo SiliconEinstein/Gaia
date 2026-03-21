@@ -1033,55 +1033,72 @@ class LanceContentStore(ContentStore):
         except Exception:
             pass
 
-        # 4. Build knowledge_nodes from GCN, joining to knowledge for detail
+        # 4. Build knowledge_nodes
         knowledge_nodes: list[dict] = []
-        gcn_id_set: set[str] = set()
-        for gcn in gcn_rows:
-            gcn_id = gcn["global_canonical_id"]
-            gcn_id_set.add(gcn_id)
 
-            # Try to find linked knowledge item
-            kid = gcn_to_kid.get(gcn_id)
-            k = kid_detail.get(kid) if kid else None
+        if gcn_rows:
+            # GCN-based: join to knowledge for detail, include abstraction nodes
+            for gcn in gcn_rows:
+                gcn_id = gcn["global_canonical_id"]
+                kid = gcn_to_kid.get(gcn_id)
+                k = kid_detail.get(kid) if kid else None
 
-            # For schema (abstraction) nodes, use GCN's own content
-            content = k.content if k else gcn.get("representative_content", "")
-            prior = k.prior if k else 0.5
-            k_type = k.type if k else gcn.get("knowledge_type", "claim")
-            kind = k.kind if k else gcn.get("kind")
-            src_pkg = k.source_package_id if k else "__curation__"
-            src_mod = k.source_module_id if k else "__curation__"
+                content = k.content if k else gcn.get("representative_content", "")
+                prior = k.prior if k else 0.5
+                k_type = k.type if k else gcn.get("knowledge_type", "claim")
+                kind = k.kind if k else gcn.get("kind")
+                src_pkg = k.source_package_id if k else "__curation__"
+                src_mod = k.source_module_id if k else "__curation__"
+                belief = belief_map.get(gcn_id) or (belief_map.get(kid) if kid else None)
 
-            # Belief: try gcn_id first (global BP uses gcn IDs), then kid
-            belief = belief_map.get(gcn_id) or (belief_map.get(kid) if kid else None)
-
-            node = {
-                "knowledge_id": gcn_id,
-                "version": 1,
-                "type": k_type,
-                "kind": kind,
-                "content": content,
-                "prior": prior,
-                "belief": belief,
-                "source_package_id": src_pkg,
-                "source_module_id": src_mod,
-            }
-            if kid:
-                node["local_knowledge_id"] = kid
-            knowledge_nodes.append(node)
+                node: dict = {
+                    "knowledge_id": gcn_id,
+                    "version": 1,
+                    "type": k_type,
+                    "kind": kind,
+                    "content": content,
+                    "prior": prior,
+                    "belief": belief,
+                    "source_package_id": src_pkg,
+                    "source_module_id": src_mod,
+                }
+                if kid:
+                    node["local_knowledge_id"] = kid
+                knowledge_nodes.append(node)
+        else:
+            # Fallback: no GCN yet (pre-canonicalization), use knowledge table directly
+            for k in items:
+                knowledge_nodes.append({
+                    "knowledge_id": k.knowledge_id,
+                    "version": k.version,
+                    "type": k.type,
+                    "kind": k.kind,
+                    "content": k.content,
+                    "prior": k.prior,
+                    "belief": belief_map.get(k.knowledge_id),
+                    "source_package_id": k.source_package_id,
+                    "source_module_id": k.source_module_id,
+                })
 
         if package_id:
             knowledge_nodes = [n for n in knowledge_nodes if n["source_package_id"] == package_id]
             factors = [f for f in factors if f.package_id == package_id]
 
-        # 5. Factors — use GCN IDs directly (no remapping)
+        # 5. Build factor_nodes — remap gcn_ IDs to knowledge IDs when in fallback mode
+        kid_set = {n["knowledge_id"] for n in knowledge_nodes}
+
+        def _remap(ref_id: str) -> str:
+            if ref_id in kid_set:
+                return ref_id
+            return gcn_to_kid.get(ref_id, ref_id)
+
         factor_nodes = [
             {
                 "factor_id": f.factor_id,
                 "type": f.type,
-                "premises": list(f.premises),
-                "contexts": list(f.contexts),
-                "conclusion": f.conclusion,
+                "premises": [_remap(p) for p in f.premises],
+                "contexts": [_remap(c) for c in f.contexts],
+                "conclusion": _remap(f.conclusion) if f.conclusion else None,
                 "package_id": f.package_id,
                 "metadata": f.metadata,
             }
