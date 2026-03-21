@@ -71,59 +71,6 @@ def _flatten_content(node: dict | str | list) -> str:
     return ""
 
 
-def load_typst_package(pkg_path: Path) -> dict:
-    """Compile a Typst package and extract the knowledge graph via metadata query.
-
-    Args:
-        pkg_path: Path to directory containing typst.toml and lib.typ.
-
-    Returns:
-        Dict with keys: nodes, factors, refs, modules, exports, constraints.
-        Node content is flattened to plain text strings.
-    """
-    pkg_path = Path(pkg_path)
-    entrypoint = pkg_path / "lib.typ"
-    if not entrypoint.exists():
-        raise FileNotFoundError(f"No lib.typ found in {pkg_path}")
-
-    # Find repository root by walking up to find pyproject.toml
-    root = pkg_path.resolve()
-    while root != root.parent:
-        if (root / "pyproject.toml").exists():
-            break
-        root = root.parent
-
-    raw = typst.query(str(entrypoint), "<gaia-graph>", field="value", one=True, root=str(root))
-    data = json.loads(raw) if isinstance(raw, str) else raw
-
-    # Normalize hyphenated keys to snake_case
-    if "module-titles" in data:
-        data["module_titles"] = data.pop("module-titles")
-
-    # Flatten content in nodes
-    for node in data.get("nodes", []):
-        if node.get("content") is None:
-            node["content"] = ""
-        elif isinstance(node.get("content"), (dict, list)):
-            node["content"] = _flatten_content(node["content"]).strip()
-        # Normalize ctx -> context key for downstream consumers (v1 compat)
-        if "ctx" in node:
-            node["context"] = node.pop("ctx")
-
-    # Normalize ctx -> context in factors (v1 compat)
-    for factor in data.get("factors", []):
-        if "ctx" in factor:
-            factor["context"] = factor.pop("ctx")
-
-    # Ensure keys exist (default to empty for v1 packages)
-    data.setdefault("constraints", [])
-    data.setdefault("package", None)
-    data.setdefault("version", None)
-    data.setdefault("dsl_version", "v3")
-
-    return data
-
-
 def _find_project_root(pkg_path: Path) -> str:
     """Find repository root by walking up to find pyproject.toml."""
     root = pkg_path.resolve()

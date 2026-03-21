@@ -1,4 +1,4 @@
-"""Tests for pipeline_publish (Chunk 5 — Typst v3 LocalCanonicalGraph converter)."""
+"""Tests for pipeline_publish (Chunk 5 — Typst v4 LocalCanonicalGraph converter)."""
 
 from pathlib import Path
 
@@ -8,14 +8,14 @@ from libs.pipeline import pipeline_build, pipeline_infer, pipeline_publish, pipe
 
 pytestmark = pytest.mark.usefixtures("fresh_lancedb_loop")
 
-GALILEO_V3 = (
-    Path(__file__).parent / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies_v3"
+GALILEO_V4 = (
+    Path(__file__).parent / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies_v4"
 )
 
 
 @pytest.mark.asyncio
 async def test_pipeline_publish_to_lancedb(tmp_path):
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     review = await pipeline_review(build, mock=True)
     infer = await pipeline_infer(build, review)
     result = await pipeline_publish(build, review, infer, db_path=str(tmp_path / "db"))
@@ -25,7 +25,7 @@ async def test_pipeline_publish_to_lancedb(tmp_path):
 
 @pytest.mark.asyncio
 async def test_pipeline_publish_has_chains(tmp_path):
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     review = await pipeline_review(build, mock=True)
     infer = await pipeline_infer(build, review)
     result = await pipeline_publish(build, review, infer, db_path=str(tmp_path / "db"))
@@ -34,7 +34,7 @@ async def test_pipeline_publish_has_chains(tmp_path):
 
 @pytest.mark.asyncio
 async def test_pipeline_publish_does_not_persist_local_belief_previews(tmp_path):
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     review = await pipeline_review(build, mock=True)
     infer = await pipeline_infer(build, review)
     db_path = str(tmp_path / "db")
@@ -56,7 +56,7 @@ async def test_pipeline_publish_does_not_persist_local_belief_previews(tmp_path)
 
 @pytest.mark.asyncio
 async def test_pipeline_publish_probability_records_match_chain_ids(tmp_path):
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     review = await pipeline_review(build, mock=True)
     infer = await pipeline_infer(build, review)
     db_path = str(tmp_path / "db")
@@ -72,10 +72,10 @@ async def test_pipeline_publish_probability_records_match_chain_ids(tmp_path):
     try:
         chains, _ = await mgr.list_chains_paged(page=1, page_size=100)
         chain_ids = {chain.chain_id for chain in chains}
-        assert "galileo_falling_bodies.galileo.composite_is_slower" in chain_ids
+        assert "galileo_falling_bodies.default.galileo.composite_is_slower" in chain_ids
 
         probabilities = await mgr.get_probability_history(
-            "galileo_falling_bodies.galileo.composite_is_slower"
+            "galileo_falling_bodies.default.galileo.composite_is_slower"
         )
         assert probabilities
         assert all(p.chain_id in chain_ids for p in probabilities)
@@ -94,7 +94,7 @@ async def test_pipeline_publish_probability_records_match_chain_ids(tmp_path):
 @pytest.mark.asyncio
 async def test_pipeline_publish_idempotent(tmp_path):
     db_path = str(tmp_path / "db")
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     review = await pipeline_review(build, mock=True)
     infer = await pipeline_infer(build, review)
     await pipeline_publish(build, review, infer, db_path=db_path)

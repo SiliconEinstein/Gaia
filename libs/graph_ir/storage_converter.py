@@ -26,7 +26,6 @@ _FACTOR_TYPE_MAP: dict[str, str] = {
 _KNOWLEDGE_TYPE_MAP: dict[str, str] = {
     "claim": "claim",
     "observation": "claim",
-    "corroboration": "claim",
     "question": "question",
     "setting": "setting",
     "action": "action",

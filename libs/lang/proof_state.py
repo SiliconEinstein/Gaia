@@ -11,14 +11,14 @@ Analyzes a loaded Typst graph to classify every declaration:
 
 from __future__ import annotations
 
-RELATION_TYPES = {"contradiction", "equivalence", "corroboration"}
+RELATION_TYPES = {"contradiction", "equivalence"}
 
 
 def analyze_proof_state(graph: dict) -> dict:
     """Analyze proof state of a loaded Typst package graph.
 
     Args:
-        graph: Dict from load_typst_package() with nodes, factors,
+        graph: Dict from load_typst_package_v4() with nodes, factors,
                constraints.
 
     Returns:

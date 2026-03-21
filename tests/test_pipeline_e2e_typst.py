@@ -1,4 +1,4 @@
-"""End-to-end test: build -> review(mock) -> infer -> publish for Typst v3 packages."""
+"""End-to-end test: build -> review(mock) -> infer -> publish for Typst v4 packages."""
 
 from pathlib import Path
 
@@ -8,18 +8,18 @@ from libs.pipeline import pipeline_build, pipeline_infer, pipeline_publish, pipe
 
 pytestmark = pytest.mark.usefixtures("fresh_lancedb_loop")
 
-GALILEO_V3 = (
-    Path(__file__).parent / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies_v3"
+GALILEO_V4 = (
+    Path(__file__).parent / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies_v4"
 )
 
 
 @pytest.mark.asyncio
-async def test_typst_v3_full_pipeline(tmp_path):
-    """Galileo v3: build -> review(mock) -> infer -> publish."""
+async def test_typst_v4_full_pipeline(tmp_path):
+    """Galileo v4: build -> review(mock) -> infer -> publish."""
     db_path = str(tmp_path / "db")
 
     # Build
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     assert build.graph_data["package"] == "galileo_falling_bodies"
     assert len(build.local_graph.knowledge_nodes) > 0
 
@@ -54,9 +54,9 @@ async def test_typst_v3_full_pipeline(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_typst_v3_beliefs_are_reasonable(tmp_path):
+async def test_typst_v4_beliefs_are_reasonable(tmp_path):
     """Beliefs should be between 0 and 1."""
-    build = await pipeline_build(GALILEO_V3)
+    build = await pipeline_build(GALILEO_V4)
     review = await pipeline_review(build, mock=True)
     infer = await pipeline_infer(build, review)
 

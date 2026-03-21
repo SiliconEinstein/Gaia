@@ -9,7 +9,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .deps import deps, Dependencies
 from .routes.packages import router as packages_router
-from .routes.papers import router as papers_router
 
 
 def create_app(dependencies: Dependencies | None = None) -> FastAPI:
@@ -54,6 +53,5 @@ def create_app(dependencies: Dependencies | None = None) -> FastAPI:
         return {"status": "ok", "version": "0.2.0"}
 
     app.include_router(packages_router)
-    app.include_router(papers_router)
 
     return app

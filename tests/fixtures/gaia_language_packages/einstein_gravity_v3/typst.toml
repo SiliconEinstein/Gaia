@@ -1,6 +1,0 @@
-[package]
-name = "einstein_gravity"
-version = "3.0.0"
-entrypoint = "lib.typ"
-authors = ["Albert Einstein"]
-description = "爱因斯坦引力理论：等价原理、广义相对论与观测验证 — Gaia Lang v3"

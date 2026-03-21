@@ -9,7 +9,7 @@ from cli.main import app
 
 runner = CliRunner()
 
-TYPST_FIXTURE = Path("tests/fixtures/gaia_language_packages/galileo_falling_bodies_v3")
+TYPST_FIXTURE = Path("tests/fixtures/gaia_language_packages/galileo_falling_bodies_v4")
 
 
 def _publish_galileo_typst(tmp_path: Path) -> str:

@@ -10,7 +10,7 @@ try:
 except ModuleNotFoundError:  # Python < 3.11
     import tomli as tomllib  # type: ignore[no-redef]
 
-from .typst_loader import load_typst_package
+from .typst_loader import load_typst_package_v4
 
 # Type tag display: code type -> human-friendly label
 _TYPE_LABELS = {
@@ -19,7 +19,6 @@ _TYPE_LABELS = {
     "observation": "observation",
     "question": "question",
     "contradiction": "contradiction",
-    "corroboration": "corroboration",
     "equivalence": "equivalence",
 }
 
@@ -30,7 +29,7 @@ _KNOWLEDGE_TYPES = {"setting", "observation"}
 _QUESTION_TYPES = {"question"}
 
 # Relation types that belong in the Constraints section
-_RELATION_TYPES = {"contradiction", "equivalence", "corroboration"}
+_RELATION_TYPES = {"contradiction", "equivalence"}
 
 
 def _clean_text(text: str) -> str:
@@ -68,7 +67,7 @@ def render_typst_to_markdown(pkg_path: Path, output: Path | None = None) -> str:
         ## Questions
     """
     pkg_path = Path(pkg_path)
-    graph = load_typst_package(pkg_path)
+    graph = load_typst_package_v4(pkg_path)
     meta = _read_pkg_meta(pkg_path)
     lines: list[str] = []
 
@@ -146,7 +145,7 @@ def render_typst_to_markdown(pkg_path: Path, output: Path | None = None) -> str:
             factor = factor_by_conclusion.get(node["name"])
             lines.append(f"### {node['name']} [{label}]")
             if factor:
-                premises = factor.get("premise", [])
+                premises = factor.get("premises", factor.get("premise", []))
                 if premises:
                     lines.append(f"**Premises:** {', '.join(premises)}")
             lines.append(f"> {content}\n")
