@@ -73,19 +73,16 @@ def _build_typst(pkg_path: Path, format: str, proof_state: bool = False) -> None
     # Save markdown for both v3 and v4 packages.
     if format in ("md", "all"):
         if _uses_v4_dsl(result.graph_data):
-            from libs.pipeline import _render_markdown_from_graph_data
+            from libs.pipeline import render_markdown_from_graph_data
 
-            md = _render_markdown_from_graph_data(result.graph_data)
-            md_path = build_dir / "package.md"
-            md_path.write_text(md)
-            typer.echo(f"Markdown: {md_path}")
+            md = render_markdown_from_graph_data(result.graph_data)
         else:
             from libs.lang.typst_renderer import render_typst_to_markdown
 
             md = render_typst_to_markdown(pkg_path)
-            md_path = build_dir / "package.md"
-            md_path.write_text(md)
-            typer.echo(f"Markdown: {md_path}")
+        md_path = build_dir / "package.md"
+        md_path.write_text(md)
+        typer.echo(f"Markdown: {md_path}")
 
     if format in ("typst", "all"):
         if _uses_v4_dsl(result.graph_data):

@@ -140,7 +140,7 @@ async def pipeline_review(
         result = client.review_from_graph_data(graph_data)
         actual_model = "mock"
     else:
-        md = _render_markdown_from_graph_data(graph_data)
+        md = render_markdown_from_graph_data(graph_data)
         client = ReviewClient(model=model)
         result = await client.areview_package({"markdown": md})
         actual_model = model
@@ -410,7 +410,7 @@ def _build_factor_params(
     return factor_params
 
 
-def _render_markdown_from_graph_data(graph_data: dict) -> str:
+def render_markdown_from_graph_data(graph_data: dict) -> str:
     """Render in-memory markdown from graph_data for LLM review (no filesystem)."""
     lines: list[str] = []
     package_name = graph_data.get("package", "unknown")
