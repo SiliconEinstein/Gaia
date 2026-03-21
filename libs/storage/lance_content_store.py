@@ -998,6 +998,19 @@ class LanceContentStore(ContentStore):
             items = [k for k in items if k.source_package_id == package_id]
             factors = [f for f in factors if f.package_id == package_id]
 
+        # Build gcn→knowledge_id mapping from canonical_bindings table.
+        # Factors reference gcn_ IDs (from global canonicalization),
+        # but knowledge nodes use paper_xxx/name IDs. Remap so the
+        # frontend can draw edges between knowledge nodes and factors.
+        gcn_to_kid: dict[str, str] = {}
+        try:
+            tbl = self._db.open_table("canonical_bindings")
+            rows = tbl.search().limit(100_000).to_list()
+            for r in rows:
+                gcn_to_kid[r["global_canonical_id"]] = r["local_canonical_id"]
+        except Exception:
+            pass  # table may not exist yet
+
         knowledge_nodes = [
             {
                 "knowledge_id": k.knowledge_id,
@@ -1012,13 +1025,21 @@ class LanceContentStore(ContentStore):
             for k in items
         ]
 
+        kid_set = {k.knowledge_id for k in items}
+
+        def _remap_id(ref_id: str) -> str:
+            """Remap gcn_ ID to knowledge_id via canonical bindings."""
+            if ref_id in kid_set:
+                return ref_id
+            return gcn_to_kid.get(ref_id, ref_id)
+
         factor_nodes = [
             {
                 "factor_id": f.factor_id,
                 "type": f.type,
-                "premises": f.premises,
-                "contexts": f.contexts,
-                "conclusion": f.conclusion,
+                "premises": [_remap_id(p) for p in f.premises],
+                "contexts": [_remap_id(c) for c in f.contexts],
+                "conclusion": _remap_id(f.conclusion) if f.conclusion else None,
                 "package_id": f.package_id,
                 "metadata": f.metadata,
             }
