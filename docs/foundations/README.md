@@ -32,7 +32,7 @@ The execution plan for that reset lives here:
 
 - [Theoretical Foundation](theory/theoretical-foundation.md) — Jaynes 纲领
 - [Inference Theory](theory/inference-theory.md) — BP 算法理论
-- [Corroboration & Conditional Independence](theory/corroboration-and-conditional-independence.md) — Corroboration 语义、条件独立性判定、交叉审查流程
+- [Independent Evidence & Conditional Independence](theory/corroboration-and-conditional-independence.md) — 多路径独立证据的语义、条件独立性判定、交叉审查流程
 
 **BP on Graph IR:**
 

@@ -116,7 +116,7 @@ class TestNewtonV4Pipeline:
         assert "ext_package" in ext.metadata
 
     def test_build_factor_count(self, build_result):
-        """7 infer factors (5 original + 2 converted from corroboration), 0 contradiction."""
+        """7 infer factors, 0 contradiction."""
         factors = build_result.local_graph.factor_nodes
         infer = [f for f in factors if f.type == "infer"]
         contradiction = [f for f in factors if f.type == "contradiction"]
@@ -160,7 +160,7 @@ class TestEinsteinV4Pipeline:
         assert len(build_result.local_graph.knowledge_nodes) == 16
 
     def test_build_factor_count(self, build_result):
-        """6 infer (5 original + 1 converted from corroboration) + 1 contradiction."""
+        """6 infer + 1 contradiction."""
         factors = build_result.local_graph.factor_nodes
         infer = [f for f in factors if f.type == "infer"]
         contradiction = [f for f in factors if f.type == "contradiction"]
@@ -213,6 +213,24 @@ class TestV4PipelineCrossPackage:
         """All packages produce a canonicalization log."""
         for name, build in all_builds.items():
             assert len(build.canonicalization_log) > 0, f"{name} has no canonicalization log"
+
+    def test_no_corroboration_in_active_v4_surface(self, all_builds):
+        """The active v4 surface should not emit corroboration nodes, constraints, or factors."""
+        for name, build in all_builds.items():
+            node_types = {node.get("type") for node in build.graph_data.get("nodes", [])}
+            constraint_types = {
+                constraint.get("type") for constraint in build.graph_data.get("constraints", [])
+            }
+            factor_types = {factor.type for factor in build.local_graph.factor_nodes}
+            knowledge_types = {node.knowledge_type for node in build.local_graph.knowledge_nodes}
+            assert "corroboration" not in node_types, f"{name} emitted corroboration node types"
+            assert (
+                "corroboration" not in constraint_types
+            ), f"{name} emitted corroboration constraints"
+            assert "corroboration" not in factor_types, f"{name} emitted corroboration factors"
+            assert (
+                "corroboration" not in knowledge_types
+            ), f"{name} emitted corroboration knowledge types"
 
     def test_deterministic_builds(self, all_builds):
         """Building twice produces same graph hashes."""

@@ -624,7 +624,7 @@ def slide_08_bp(prs):
         tf,
         [
             "消息传递：前提可信度 × 推理可靠度 → 结论可信度",
-            "多条证据汇聚 → 结论更可靠 (corroboration)",
+            "多条证据汇聚 → 结论更可靠",
             "矛盾证据 → 双方 belief 下降 (competition)",
             "Loopy BP：大规模图上近似推断",
         ],

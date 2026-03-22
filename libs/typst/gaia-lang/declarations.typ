@@ -23,7 +23,6 @@
 #let _c_qst = rgb("#b45309")   // amber
 #let _c_clm = rgb("#0f766e")   // teal
 #let _c_ctr = rgb("#b91c1c")   // red
-#let _c_cor = rgb("#15803d")   // green (corroboration)
 
 // ── Shared card renderer ──
 #let _card(name_str, tag, color, body) = {
@@ -134,7 +133,7 @@
   let has_proof = positional.len() > 1
   let proof_body = if has_proof { positional.at(1) } else { none }
 
-  let color = if type == "contradiction" { _c_ctr } else if type == "corroboration" { _c_cor } else { _c_clm }
+  let color = if type == "contradiction" { _c_ctr } else { _c_clm }
 
   _register_node(name, type, statement)
 

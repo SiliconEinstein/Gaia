@@ -229,7 +229,7 @@ The v4 compiler (`load_typst_package_v4`) performs these steps:
 ## What v4 Does NOT Have (Future Work)
 
 - **`context:` / indirect dependency** -- only `from:` exists, meaning "premise." There is no way to mark a reference as contextual-but-not-load-bearing.
-- **Corroboration as relation type** -- use independent `claim(from:)` instead.
+- **Dedicated independent-evidence relation type** -- use independent `claim(from:)` instead.
 - **Action execution semantics** -- `#action` declares procedural knowledge but does not execute it.
 - **Schema nodes** -- no parameterized or generic knowledge declarations.
 - **Explicit module boundaries** -- modules are implicit from filenames. No `export` declarations.

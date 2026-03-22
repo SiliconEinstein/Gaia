@@ -428,7 +428,6 @@ Run `gaia build --proof-state` to generate the proof state report for a package.
 
 The following are not part of the v4 surface but are planned or under consideration:
 
-- `corroboration` relation type (currently modeled as `claim(from:)` instead)
 - `dependency: indirect` / context semantics (only `from:` = direct premise exists)
 - Action execution runtime (actions are declared but not executed)
 - Schema/ground node parameterization in the language surface

@@ -1,4 +1,4 @@
-# Corroboration 与条件独立性
+# Independent Evidence 与条件独立性
 
 | 文档属性 | 值 |
 |---------|---|
@@ -11,9 +11,9 @@
 
 ## 1. 问题
 
-当两条独立推导路径得出同一结论时，这一"殊途同归"在认识论上具有显著意义——它应当提升该结论的可信度。本文档定义 Gaia 中 corroboration（独立验证）的精确语义、其与 BP 的关系、条件独立性的判定标准、以及 canonicalization pipeline 中的处理方式。
+当两条独立推导路径得出同一结论时，这一"殊途同归"在认识论上具有显著意义——它应当提升该结论的可信度。本文档讨论 Gaia 中的独立证据审查问题（historically discussed as corroboration）、其与 BP 的关系、条件独立性的判定标准、以及 canonicalization / curation 阶段应如何处理这类问题。
 
-核心论点：**Corroboration 不是 BP 的 constraint factor，而是 canonicalization 指令加独立性论证文档。** Belief 的提升来自合并后图结构的自然 BP 传播，不需要额外的 factor 类型。
+核心论点：**Independent evidence review 不是语言 relation type，不是 BP 的 constraint factor，而是 canonicalization / curation 阶段的独立性审查 artifact。** Belief 的提升来自合并后图结构的自然 BP 传播，不需要额外的 factor 类型。
 
 ## 2. BP 理论基础
 
@@ -75,30 +75,30 @@ P(X=T | e₁, e₂) = Σ_H P(X=T | H) · P(H | e₁, e₂)
 - `P(H=T) ≈ 1`（H 几乎确定为真，marginalization trivial）
 - 或 H 与 X 因果无关
 
-## 3. Corroboration 的精确语义
+## 3. Independent Evidence Review 的精确语义
 
 ### 3.1 定义
 
-Corroboration 是一个认识论声明：
+Independent evidence review 处理的是一个认识论声明：
 
 > 节点 X 经由两条（或多条）推理路径得出，且这些路径的高危前提互不重叠。因此 canonicalization 合并 X 后，BP 可以安全地从多路径汇聚中获得 belief 提升。
 
-Corroboration **不是** BP 的 factor 类型。它是：
+Independent evidence review **不是**语言节点，也不是 BP 的 factor 类型。它是：
 
-1. **Canonicalization 指令**：告诉 pipeline 这两个节点应当合并
-2. **独立性论证文档**：proof block 论证为什么高危前提不重叠
+1. **Curation / canonicalization 审查对象**：判断多路径支持是否真的独立
+2. **独立性论证文档**：记录为什么高危前提不重叠，或哪些地方需要补图
 3. **Premise completeness audit 的触发器**：审查过程会发现并补全隐藏前提
 
 ### 3.2 与现有 constraint factor 的区分
 
-| | mutex_constraint | equiv_constraint | corroboration |
+| | mutex_constraint | equiv_constraint | independent_evidence_review |
 |---|---|---|---|
-| 本质 | BP factor（惩罚 T,T） | BP factor（奖励一致） | Canonicalization 指令 |
-| Graph IR 表现 | FactorNode | FactorNode | 不生成 FactorNode |
+| 本质 | BP factor（惩罚 T,T） | BP factor（奖励一致） | Curation / review artifact |
+| Graph IR 表现 | FactorNode | FactorNode | 不生成 FactorNode；只记录审查结果 |
 | Belief 影响 | 通过 factor potential | 通过 factor potential | 通过图结构（合并后多路径 BP） |
 | 触发方式 | 作者声明或系统探测 | 作者声明或系统探测 | Agent 审查确认 |
 
-### 3.3 为什么 corroboration 不需要 constraint factor
+### 3.3 为什么独立证据不需要 constraint factor
 
 Canonicalization 合并等价节点后，BP 通过标准 message passing 自动处理多路径汇聚。额外的 constraint factor 会导致**双重计算**——图结构已经编码了多路径信息，再加一个 factor 等于把同一信息数了两遍。
 
@@ -127,11 +127,11 @@ Agent 需要确认的精确问题：
 | 经验数据 | 两条路共享同一数据源或校准 | 取决于数据质量 | 中–高 |
 | 领域假设 | 某个未声明的物理定律被两条路都隐含使用 | 变化大 | **高危** |
 
-核心原则：**我们只显式提取高危前提（prior 不接近 1 的前提）。** Corroboration 关心的独立性是高危前提的独立性，不是所有前提的独立性。高置信度的背景知识（逻辑、基本数学）即使被 double-count，对 belief 的影响也在 ε 量级内。
+核心原则：**我们只显式提取高危前提（prior 不接近 1 的前提）。** 独立证据审查关心的是高危前提的独立性，不是所有前提的独立性。高置信度的背景知识（逻辑、基本数学）即使被 double-count，对 belief 的影响也在 ε 量级内。
 
 ### 4.3 交叉审查流程（Bidirectional Premise Completeness Audit）
 
-Corroboration review 的核心价值不仅是判定独立性，更是**发现隐藏前提**。一条路的显式前提可以作为 checklist，探测另一条路的隐含依赖。
+Independent evidence review 的核心价值不仅是判定独立性，更是**发现隐藏前提**。一条路的显式前提可以作为 checklist，探测另一条路的隐含依赖。
 
 ```
 Step 1: 收集两条路的显式前提集合
@@ -154,10 +154,10 @@ Step 4: 在补全后的 graph 上重新检查结构独立性
         → 如果独立：canonicalize + BP 安全
         → 如果不独立：graph 已经正确了，BP 会通过共享节点正确处理
 
-Step 5: 无论 corroboration 是否成立，graph 都变得更完整
+Step 5: 无论独立性审查是否通过，graph 都变得更完整
 ```
 
-**关键洞察**：即使 corroboration 最终被否定（路径不独立），审查过程仍然有价值——它发现了之前遗漏的前提，使 graph 更完整，使 BP 结果更准确。
+**关键洞察**：即使独立证据最终被否定（路径不独立），审查过程仍然有价值——它发现了之前遗漏的前提，使 graph 更完整，使 BP 结果更准确。
 
 ### 4.4 三种场景的处理
 
@@ -173,7 +173,7 @@ Step 5: 无论 corroboration 是否成立，graph 都变得更完整
 2. **对抗性审查**：让第二个 Agent 专门尝试找共享隐藏前提
 3. **ε 安全余量**：noisy-AND 的 ε 参数（见 [inference-theory.md](inference-theory.md) §2.2）本质上编码"即使所有已知前提成立，结论仍有 ε 概率为假"——这为未知隐藏前提提供了系统性的安全余量
 
-## 5. Canonicalization Pipeline 中的 Corroboration 处理
+## 5. Canonicalization / Curation 中的独立证据处理
 
 ### 5.1 整体流程
 
@@ -190,8 +190,8 @@ Step 5: 无论 corroboration 是否成立，graph 都变得更完整
    c. 补全发现的隐藏前提
    d. 在补全后的 graph 上判定条件独立性
         ↓
-4. Agent 输出 corroboration 报告
-   （本身是一个有 premise 和 proof 的 claim，进入 graph）
+4. Agent 输出独立证据审查报告
+   （存为 review artifact / annotation，而非 relation 或 factor）
         ↓
 5. Canonicalize 合并节点
         ↓
@@ -203,33 +203,22 @@ Step 5: 无论 corroboration 是否成立，graph 都变得更完整
 
 1. **机器提出假说，Agent 论证，人类审查，BP 计算**——没有任何 belief 变化是自动发生的
 2. **解决方案永远是补全 graph，不是给 BP 加 patch**——BP on correct graph = correct answer
-3. **Corroboration review 是 graph 补全的最佳时机**——交叉审查自然暴露隐藏前提
+3. **Independent evidence review 是 graph 补全的最佳时机**——交叉审查自然暴露隐藏前提
 4. **ε 是最后的安全网**——对无法发现的隐藏共因，noisy-AND 的 leak probability 提供系统性保护
 
-## 6. 在 Gaia Language 中的表现
+## 6. 在当前 Gaia 中的落点
 
-`#claim_relation(type: "corroboration")` 在语言层面保留，但语义为 canonicalization 指令：
+Gaia Language 不提供 `corroboration` relation，也不提供对应 declaration。作者只需把不同支持路径写成普通 `claim(from:)` 推理链。系统如果要讨论“多路径支持是否真的独立、是否可以安全叠加”，应该在 canonicalization / curation 阶段基于这些路径生成审查 artifact，而不是在 source 中引入新的 relation type 或 factor type。
 
-```typst
-#claim_relation("galileo_newton_convergence",
-  type: "corroboration",
-  between: ("freefall_acceleration_equals_g", "vacuum_prediction"),
-)[两条独立路径得出同一结论：自由落体加速度与物体质量无关。][
-  // proof block 论证高危前提的独立性
-  伽利略路径的前提：绑球思想实验、斜面观测、介质消除。
-  牛顿路径的前提：开普勒第三定律、运动三定律、摆锤实验。
-  两组前提无重叠。共享的隐含假设（经典逻辑、欧氏几何）prior ≈ 1。
-]
-```
-
-编译到 Graph IR 时：
-- **不生成 FactorNode**（区别于 contradiction → mutex_constraint, equivalence → equiv_constraint）
-- 生成 canonicalization hint，标记 `between` 中的节点为合并候选
-- Proof block 内容保留为审查文档
+当前约束是：
+- **不生成 `corroboration` FactorNode**
+- **不生成 `corroboration` relation node**
+- **不为它单独设计 BP potential**
+- **belief 提升只来自合并后的真实多路径结构**
 
 ## 7. Open Questions
 
-1. **N-ary corroboration**：三条以上路径汇聚时，是否需要验证所有路径 pairwise 独立，还是全局联合独立？
-2. **Partial independence**：如果两条路径共享部分前提但非全部，如何量化 corroboration 的强度折扣？
+1. **N-ary independent evidence**：三条以上路径汇聚时，是否需要验证所有路径 pairwise 独立，还是全局联合独立？
+2. **Partial independence**：如果两条路径共享部分前提但非全部，如何量化独立证据的强度折扣？
 3. **Domain checklist 标准化**：是否应该为每个学科领域维护一份标准的"常见隐含假设"清单？
 4. **自动语义相似度**：用什么模型/方法自动探测跨 package 的潜在等价节点？
