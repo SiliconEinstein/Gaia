@@ -91,7 +91,12 @@ docs/foundations/
 ### Contracts
 
 - [Package Profiles](contracts/artifacts/package-profiles.md) — semantic profiles for knowledge, review, rebuttal, and investigation packages
+- [Review Artifacts](contracts/artifacts/review-artifacts.md) — the structured outputs of submission review
+- [Investigation Artifacts](contracts/artifacts/investigation-artifacts.md) — open-question and investigation-queue style artifacts
 - [LKM Package Lifecycle](contracts/lifecycles/lkm-package-lifecycle.md) — what happens to packages after they arrive in Gaia LKM
+- [Service Boundaries](contracts/services/service-boundaries.md) — the primary service split inside Gaia LKM
+- [Review Service](contracts/services/review-service.md) — submission-scoped adjudication ownership
+- [Curation Service](contracts/services/curation-service.md) — shared-state maintenance and investigation ownership
 - [Gaia Language Spec](language/gaia-language-spec.md)
 - [Gaia Language Design](language/gaia-language-design.md)
 - [Language Design Rationale](language/design-rationale.md)
