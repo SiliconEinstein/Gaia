@@ -18,13 +18,56 @@ Use it when the task affects:
 
 ## Active Structure
 
-The active foundations reset is reorganizing this directory around three layers:
+The active foundations reset is reorganizing this directory around four top-level families:
 
-- **Meaning** — what Gaia concepts mean
+- **Foundation** — why Gaia exists and what high-level scientific reasoning foundation it assumes
+- **Semantics** — Gaia-specific terminology, knowledge, relations, and reasoning semantics
 - **Contracts** — the stable authored and system contracts
 - **Runtime** — how the current implementation behaves
 
-The migration is in progress, so some active docs still live in legacy subfolders. The goal is to move the active set toward a clearer `meaning / contracts / runtime` split over time.
+The migration is in progress, so some active docs still live in legacy subfolders. The goal is to move the active set toward a clearer `foundation / semantics / contracts / runtime` tree over time.
+
+## Target Tree
+
+The target active tree is being made explicit as a file tree, even before all content has migrated. Placeholder docs use `Status: Target design` so each major theme has an obvious future canonical home.
+
+```text
+docs/foundations/
+  foundation/
+    gaia-overview.md
+    scientific-reasoning-foundation.md
+
+  semantics/
+    terminology.md
+    scientific-knowledge.md
+    knowledge-relations.md
+    gaia-reasoning-model.md
+
+  contracts/
+    authoring/
+      gaia-language-spec.md
+      graph-ir.md
+      package-linking.md
+    workflows/
+      package-types.md
+      cli-lifecycle.md
+      lkm-lifecycle.md
+      review-artifacts.md
+      investigation-artifacts.md
+    services/
+      service-boundaries.md
+      review-service.md
+      curation-service.md
+      api-contract.md
+
+  runtime/
+    server-architecture.md
+    storage-schema.md
+    inference-runtime.md
+    loop-analysis.md
+    review-runtime.md
+    curation-runtime.md
+```
 
 ## Current Reading Order
 
