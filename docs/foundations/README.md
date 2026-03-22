@@ -13,6 +13,7 @@ Use it when the task affects:
 
 - [Documentation Policy](documentation-policy.md)
 - [System Overview](system-overview.md)
+- [Gaia Overview](foundation/gaia-overview.md)
 - [Gaia Vocabulary](meaning/vocabulary.md)
 - [Foundation Reset Plan](foundation-reset-plan.md)
 
@@ -29,7 +30,7 @@ The migration is in progress, so some active docs still live in legacy subfolder
 
 ## Target Tree
 
-The target active tree is being made explicit as a file tree, even before all content has migrated. Placeholder docs use `Status: Target design` so each major theme has an obvious future canonical home.
+The target active tree is being made explicit as a file tree before every legacy document has been retired. Some files in this tree are still placeholders with `Status: Target design`; others are already becoming the new canonical homes for their topics.
 
 ```text
 docs/foundations/
@@ -71,14 +72,18 @@ docs/foundations/
 
 ## Current Reading Order
 
-### Meaning
+### Foundation and Semantics
 
 - [Gaia Vocabulary](meaning/vocabulary.md) — primary foundation terminology
-- [Product Scope](product-scope.md) — product positioning and current baseline
-- [Theoretical Foundation](theory/theoretical-foundation.md) — Jaynes-centered framing and epistemic motivation
-- [Domain Model](domain-model.md) — legacy meaning doc that will be retired as newer canonical homes are created
-- [Inference Theory](theory/inference-theory.md) — current semantic operator theory
-- [Independent Evidence & Conditional Independence](theory/corroboration-and-conditional-independence.md) — current corroboration semantics
+- [Gaia Overview](foundation/gaia-overview.md) — what Gaia is, is not, and why it is split into Gaia CLI and Gaia LKM
+- [Scientific Knowledge](semantics/scientific-knowledge.md) — the main scientific knowledge types in Gaia
+- [Knowledge Relations](semantics/knowledge-relations.md) — the semantic relation families between Gaia knowledge items
+- [Gaia Reasoning Model](semantics/gaia-reasoning-model.md) — Gaia's chosen reasoning model across deduction, induction, abduction, abstraction, and instantiation
+- [Product Scope](product-scope.md) — current baseline and product-surface context during migration
+- [Theoretical Foundation](theory/theoretical-foundation.md) — older Jaynes-centered framing and background theory during migration
+- [Inference Theory](theory/inference-theory.md) — older operator/factor theory during migration
+- [Independent Evidence & Conditional Independence](theory/corroboration-and-conditional-independence.md) — current independent-evidence theory during migration
+- [Domain Model](domain-model.md) — legacy meaning doc that will be retired as newer canonical homes stabilize
 
 ### Contracts
 
