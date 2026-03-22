@@ -5,6 +5,7 @@
 > - [Gaia Language Design](gaia-language-design.md)
 > - [Language Design Rationale](design-rationale.md)
 > - [Theoretical Foundation](../theory/theoretical-foundation.md)
+> - [Scientific Ontology](../theory/scientific-ontology.md)
 
 ## Purpose
 
@@ -26,6 +27,22 @@ Gaia is a formal language for plausible reasoning. Its type-theoretic foundation
 This means the type system's structure can follow established formal language design (borrowing from Lean), while the evaluation semantics follow Jaynes (BP computes beliefs instead of term reduction producing proofs).
 
 In one sentence: **Lean's structure + Jaynes' semantics.**
+
+## Closed Claims, Templates, and Laws
+
+Gaia's type system should distinguish three layers that are often conflated in informal scientific writing:
+
+- `Template`: open proposition schema or predicate-like pattern
+- `ClosedClaim`: closed, truth-apt scientific assertion
+- `LawClaim`: closed general assertion with explicit scope, domain, and regime
+
+The Lean analogy is useful here:
+
+- `Template` is analogous to a predicate-like object such as `P : α → Prop`
+- a concrete `ClosedClaim` is analogous to `P(a)`
+- a `LawClaim` is analogous to a closed quantified proposition such as `∀ x, P(x)`
+
+Only closed, truth-apt assertions directly participate in BP. Open templates do not. This is why Gaia should keep probability at the value layer while also keeping a clear boundary between language surface categories and BP-bearing assertion categories.
 
 ## Why Not Curry-Howard
 
@@ -60,11 +77,10 @@ def proof : EarthIsRound := ...
 ```
 
 In Gaia:
-```yaml
-# "Earth is round" is a term of type Claim
-claim earth_is_round:
-  content: "Earth is round"
-  prior: 0.5
+```typst
+#claim(kind: "hypothesis")[
+  Earth is round.
+] <earth_is_round>
 ```
 
 All claims are terms of type `Claim`. Evidence connects to claims via graph edges, not via type inhabitation. BP computes belief on the graph, not via type checking.
@@ -120,7 +136,7 @@ Lean distinguishes surface syntax from core terms.
 
 Gaia should do the same:
 
-- authors and agents write YAML surface form
+- authors and agents write Typst-based package source
 - the system elaborates into a typed core IR
 - all kernel checks operate on that core IR
 
@@ -219,7 +235,7 @@ V1 should make the following explicit:
 - a core set of knowledge kinds with formal rules
 - action signatures as first-class checked structure
 - typed chain connectivity
-- the distinction between visible and belief-bearing knowledge objects
+- the distinction between BP-bearing closed assertions and non-BP inquiry/workflow objects
 - the boundary between surface syntax and checked core IR
 
 ### V1 core categories
@@ -229,23 +245,28 @@ The current categories are the right starting point:
 | Type | Role | Truth-apt? | Participates in BP? |
 |---|---|---|---|
 | `Claim` | Assertive, revisable | Yes | Yes (variable node) |
-| `Question` | Interrogative, motivational | Yes (well-posedness proposition) | Yes (variable node, conclusion-only) |
 | `Setting` | Contextual (definitions, assumptions) | Yes | Yes (variable node) |
-| `Action` | Procedural (InferAction, ToolCallAction) | Yes (admissibility proposition) | Yes (variable node; premise or conclusion, plus via application factors) |
+| `Question` | Inquiry, follow-up, open issue | No | No |
+| `Action` | Procedural (InferAction, ToolCallAction) | No (not by default) | Not directly; via lowering-specific structure |
 | `Expr` | Compositional (ChainExpr) | No | Via steps |
 | `Ref` | Reference to external knowledge | No | Via resolved target |
 | `Module` | Organizational | No | Via exported knowledge objects |
 
 V1 should strengthen the internal representation of these types — stop treating parameter types and return types as bare strings, use explicit type expressions and signatures.
 
+This small root set can still support a richer scientific ontology through metadata and subkinds:
+
+- `Claim(kind: observation | measurement | hypothesis | law | prediction | ...)`
+- `Setting(kind: regime | approximation | experimental_setup | ...)`
+- future `mode:` for deductive / inductive / abductive support
+- future `under:` for background conditions and applicability assumptions
+
 ### V1 type-specific belief semantics
 
 - `Claim = true` means the asserted proposition holds.
 - `Setting = true` means the contextual assumption/definition holds.
-- `Question = true` means the question is valid, well-posed, and sufficiently motivated in the current context.
-- `Action = true` means the action is admissible or appropriate in the current context.
-
-This means `Question` and `Action` can be belief-bearing without collapsing them into ordinary world-state claims.
+- `Question` does not denote a truth-apt world claim by default; it denotes an inquiry artifact.
+- `Action` does not denote a truth-apt scientific assertion by default; it denotes a procedural declaration that may lower into BP-relevant structure elsewhere.
 
 ### V1 BP position constraints
 
@@ -253,14 +274,13 @@ This means `Question` and `Action` can be belief-bearing without collapsing them
 |---|---|---|
 | `Claim` | Yes | Yes |
 | `Setting` | Yes | Yes |
-| `Question` | No | Yes |
-| `Action` | Yes | Yes |
+| `Question` | No | No |
+| `Action` | Lowering-specific, not directly | Lowering-specific, not directly |
 
 ### V1 relation constraints
 
 - `Equivalence` is type-preserving.
-- For `Question` and `Action`, `Equivalence` is only valid between declarations of the same root type and the same `kind`.
-- `Contradiction` is defined for truth-conflicting propositions (`Claim`, `Setting`, `Relation`) and is not defined for `Question` or `Action` in V1.
+- `Equivalence` and `Contradiction` are defined over truth-apt declarations and relation-bearing claim structures, not over `Question` or bare `Action` declarations in V1.
 
 ### V1 judgments
 
@@ -294,7 +314,7 @@ The kernel should establish these judgments:
 **Export (module-level):**
 - `Γ, M ⊢ x exportable`
 
-Note the distinction: `belief_bearing` is an intrinsic property of a declaration's type. In V1, `Claim`, `Setting`, `Question`, and `Action` are belief-bearing, but with type-specific semantics. `exportable` is a module boundary property — it depends on whether `x` appears in module `M`'s export list, not on `x`'s type. Any declaration type can be exported or not.
+Note the distinction: `belief_bearing` is an intrinsic property of a declaration's type. In V1, `Claim` and `Setting` are the root belief-bearing declaration types; richer BP-bearing distinctions such as observation, measurement, hypothesis, or law should be modeled as subkinds of those roots, not as new root types. `Question` and `Action` remain structurally important, but they are not BP-bearing by default. `exportable` is a module boundary property — it depends on whether `x` appears in module `M`'s export list, not on `x`'s type. Any declaration type can be exported or not.
 
 These are intentionally modest — they define the structural kernel without overcommitting to future machinery.
 
@@ -324,23 +344,24 @@ class TruthApt (K : Knowledge) where
 class BPNode (K : Knowledge) where
   to_variable : K → VariableNode
 
+class Lowerable (K : Knowledge) where
+  lower : K → CoreIRFragment
+
 instance : TruthApt Claim
 instance : TruthApt Setting
-instance : TruthApt Question
-instance : TruthApt Action
 instance : BPNode Claim
 instance : BPNode Setting
-instance : BPNode Question
-instance : BPNode Action
+instance : Lowerable Action
+instance : Lowerable Question
 ```
 
-Type classes replace the current ad-hoc conventions (scattered if-else checks for "is this type truth-apt?") with explicit, checkable judgments. The `belief_bearing` judgment from V1 becomes derived from type class instances rather than hardcoded rules. Note that `exportable` remains a module-level judgment — it depends on the module's export list, not on type class membership.
+Type classes replace the current ad-hoc conventions (scattered if-else checks for "is this type truth-apt?") with explicit, checkable judgments. The `belief_bearing` judgment from V1 becomes derived from `TruthApt` / `BPNode` instances rather than hardcoded rules. `Question` and `Action` still matter structurally, but through `Lowerable`-style interfaces rather than by pretending they are ordinary BP variables. Note that `exportable` remains a module-level judgment — it depends on the module's export list, not on type class membership.
 
 ### Phase 4: User-extensible knowledge types
 
 Move type definitions from the Python implementation layer into the language itself, with a clear distinction between closed and open layers.
 
-**Root types are closed.** The base knowledge categories (Claim, Question, Setting, Action, Expr, Ref, Module) define the grammar of the language. They determine what kernel judgments apply, how knowledge objects participate in BP, and what structural rules hold. These are fixed by the language definition, just as Lean's core type formers (inductive, structure, class) are fixed.
+**Root types are closed.** The base knowledge categories (Claim, Question, Setting, Action, Expr, Ref, Module) define the grammar of the language. They determine what kernel judgments apply, which objects are truth-apt, how knowledge objects participate in BP, and what structural rules hold. These are fixed by the language definition, just as Lean's core type formers (inductive, structure, class) are fixed.
 
 **Subtypes are open.** Users can extend any root type with domain-specific subtypes without modifying the root definition:
 
@@ -348,16 +369,18 @@ Move type definitions from the Python implementation layer into the language its
 -- User-defined subtypes of Claim
 extend Claim where
   | Observation      -- direct empirical data
-  | Conjecture       -- unverified hypothesis
-  | Theorem          -- highly verified
+  | Measurement      -- quantitative observation
+  | Hypothesis       -- explanatory candidate
+  | Law              -- scoped general law
+  | Prediction       -- model-derived claim
 
--- User-defined subtypes of Action
-extend Action where
-  | PythonAction     -- executes Python code
-  | LeanProofAction  -- calls Lean prover
+-- User-defined subtypes of Setting
+extend Setting where
+  | Regime           -- applicability condition
+  | Approximation    -- idealization or simplifying assumption
 ```
 
-New subtypes inherit the kernel rules of their parent (a `Conjecture` is a `Claim`, so it is `belief_bearing` and participates in BP). Type class instances can be overridden for subtypes where needed (e.g., `Observation` might have a higher default prior than `Conjecture`).
+New subtypes inherit the kernel rules of their parent (an `Observation` is a `Claim`, so it is `belief_bearing` and participates in BP). Type class instances can be overridden for subtypes where needed (e.g., `Observation` might have a different default prior policy than `Hypothesis`).
 
 The exact syntax (`extend`, `open inductive`, or another mechanism) is deferred. The design commitment is: **closed root types for language integrity, open subtypes for domain extensibility.**
 

@@ -6,7 +6,7 @@
 | 日期 | 2026-03-15 |
 | 状态 | **Draft — 目标架构设计** |
 | Supersedes | architecture.md v2.0 (2026-03-13) |
-| 关联文档 | [../graph-ir.md](../graph-ir.md), [../bp-on-graph-ir.md](../bp-on-graph-ir.md), [storage-schema.md](storage-schema.md), [../review/publish-pipeline.md](../review/publish-pipeline.md), [../system-overview.md](../system-overview.md) |
+| 关联文档 | [../graph-ir.md](../graph-ir.md), [../bp-on-graph-ir.md](../bp-on-graph-ir.md), [storage-schema.md](storage-schema.md), [../review/publish-pipeline.md](../review/publish-pipeline.md), [../review/service-boundaries.md](../review/service-boundaries.md), [../review/package-artifact-profiles.md](../review/package-artifact-profiles.md), [../theory/scientific-ontology.md](../theory/scientific-ontology.md), [../system-overview.md](../system-overview.md) |
 
 > **变更摘要 (v2.0 → v2.1)：** 引入 Write Side / Read Side 架构分离。Write Side 新增 Curation Service（离线图维护：相似结论聚类、矛盾发掘、全图结构巡检、图清理），与 BP Service 共同构成离线图维护机制。Review Service（原 IngestionService）细化为四步工程流程：validation → canonicalization → multiple agent review → gatekeeper。Read Side 明确 agent-first 定位，QueryService 面向 AI agents 的 research 用例。
 >
@@ -26,10 +26,10 @@ Server 架构采用 **Write Side / Read Side 分离**，类似推荐系统中的
 
 | 服务 | 说明 |
 |------|------|
-| **Review Service** | Package 审查：validation → canonicalization → multiple agent review → gatekeeper 准入决策 |
+| **Review Service** | submission-scoped package adjudication：validation → canonicalization audit → peer review → gatekeeper 准入决策 |
 | **Storage Service** | 统一存储门面，管理 Content/Graph/Vector 三后端写入 |
 | **BP Service** | 离线定期运行全局信念传播，更新 GlobalInferenceState |
-| **Curation Service** | 离线定期图维护：相似结论聚类、矛盾发掘、全图结构巡检、图清理 |
+| **Curation Service** | server-internal 离线图维护：相似结论聚类、矛盾发掘、全图结构巡检、图清理 |
 
 BP Service 和 Curation Service 共同构成**离线图维护机制**——Curation Service 先做结构维护（聚类、去重、发现矛盾、清理），BP Service 再在清洁的图上运行信念传播。
 
@@ -42,6 +42,15 @@ BP Service 和 Curation Service 共同构成**离线图维护机制**——Curat
 Read Side 的一等消费者是 **AI agents**，核心用例是 **research**（科研探索）——agents 通过 Query Service 搜索、浏览和探索全局知识图，发现新的研究方向。
 
 Server **不修改 package source**——它是 package 的只读消费者。但 server 拥有 global identity assignment（CanonicalBinding）和 GlobalInferenceState，这些是 registry-side 数据。
+
+Formal external submissions still prefer Gaia packages with different profiles:
+
+- `knowledge` for base scientific submissions
+- `review` for structured review artifacts
+- `rebuttal` for author responses
+- `investigation` only when an issue is intentionally externalized into a formal submission
+
+By contrast, ordinary curation outputs remain internal service artifacts by default. `CurationService` does not automatically emit external packages.
 
 ---
 
@@ -189,7 +198,7 @@ agent: graph-construction → local_canonical_graph.json
 gaia infer          → local BP preview (不提交)
 
 gaia publish ──────────────────────────────→ 提交四个 artifact:
-                                            1. source YAMLs
+                                            1. source package files
                                             2. raw_graph.json
                                             3. local_canonical_graph.json
                                             4. canonicalization_log.json
@@ -245,6 +254,8 @@ gaia publish (with rebuttal) ────────→     re-review
 - 全局：GlobalInferenceState（registry 管理，从 peer review 的 probability judgments 初始化，BP 运行后更新 beliefs）。Knowledge 自身保留 reviewed prior 作为 package-level 历史判断，但全局 BP 主变量节点仍是 GlobalCanonicalNode
 
 **为什么有两层图拓扑（Chain + Factor）？** Chain 是 authoring-layer 概念（多步叙事），一个 Chain 编译成一个 reasoning FactorNode。保留 Chain 用于 package 结构浏览；Factor 层供 BP 直接消费。
+
+**哪些对象直接进 BP？** 只有闭合、truth-apt 的科学断言及其结构化关系才是普通 domain-BP 参与者。Review/rebuttal artifacts 属于 package 上的 meta-knowledge fiber；普通内部 curation suggestions 默认不是对外 package，也不是主图上的普通 BP 变量。
 
 ---
 
@@ -361,7 +372,7 @@ GlobalInferenceState:
 PackageSubmissionArtifact:
     package_name:        str
     commit_hash:         str
-    source_files:        dict[str, str]  # filename → YAML content
+    source_files:        dict[str, str]  # filename → source package content
     raw_graph:           dict             # raw_graph.json 内容
     local_canonical_graph: dict
     canonicalization_log: list[dict]
@@ -657,7 +668,7 @@ class QueryService:
 @dataclass
 class PackageSubmission:
     source: Literal["webhook", "direct"]
-    source_files: dict[str, str]        # filename → YAML content
+    source_files: dict[str, str]        # filename → source package content
     raw_graph: dict                      # raw_graph.json content
     local_canonical_graph: dict          # local_canonical_graph.json content
     canonicalization_log: list[dict]      # canonicalization_log.json content
@@ -879,7 +890,7 @@ integrate(bindings, global_nodes, inference_state):
 | [bp-on-graph-ir.md](../bp-on-graph-ir.md) | 定义 BP 语义。本文档的 BPService 实现这些语义 |
 | [storage-schema.md](storage-schema.md) | 需要同步更新。本文档 §4 supersedes 部分内容 |
 | [publish-pipeline.md](../review/publish-pipeline.md) | 定义 publish cycle。本文档的 IngestionService 实现该 cycle |
-| [domain-model.md](../domain-model.md) | closure kind 扩展为包含 contradiction / equivalence |
+| [domain-model.md](../domain-model.md) | 已降级为兼容跳转页；相关规范已迁移到 ontology / language / review docs |
 | [../system-overview.md](../system-overview.md) | 顶层架构概览已同步更新 Write/Read Side 分离和 Curation Service |
 
 ---

@@ -1,14 +1,47 @@
 # Gaia Language Design Rationale
 
-> **Related documents:** For the underlying Jaynes/probability foundations, see [../theory/theoretical-foundation.md](../theory/theoretical-foundation.md). For BP algorithm details, see [../theory/inference-theory.md](../theory/inference-theory.md).
+> **Related documents:** For the underlying Jaynes/probability foundations, see [../theory/theoretical-foundation.md](../theory/theoretical-foundation.md). For the scientific object model, see [../theory/scientific-ontology.md](../theory/scientific-ontology.md). For BP operator details, see [../theory/inference-theory.md](../theory/inference-theory.md).
 >
-> This document derives Gaia's CLI architecture from the Lean proof assistant analogy. It covers the tactic model, BeliefState, proof search, and command semantics.
+> This document derives Gaia's language and package architecture from the Lean proof assistant analogy. It covers the tactic model, BeliefState, proof search, and command semantics.
 
 ## Purpose
 
 This document captures Gaia's theoretical identity — what kind of formal system Gaia is, how it relates to existing paradigms, and what architectural principles follow from that identity.
 
 The core finding: Gaia is not a programming language, not a database query language, and not a probabilistic programming language in the Stan/Pyro sense. It is a **proof assistant for probabilistic defeasible reasoning** — a system that borrows Lean's architecture, Bayesian networks' semantics, and belief revision's knowledge model.
+
+## Surface Simplicity, Ontology Richness
+
+Gaia Language should keep a **small authoring surface** while still supporting a richer scientific ontology underneath.
+
+The root declaration vocabulary stays intentionally compact:
+
+- `#setting`
+- `#question`
+- `#claim`
+- `#action`
+- `#relation`
+
+The richer distinctions needed for scientific reasoning should mostly appear through metadata and lowering, not by minting a new keyword for every ontology class. Examples include:
+
+- `kind:` for distinctions such as observation, measurement, hypothesis, law, or prediction
+- `mode:` for distinctions such as deductive, inductive, or abductive support
+- future `under:` for regime assumptions, idealizations, and background conditions
+
+This keeps the surface legible for authors and agents, while allowing the ontology to grow without exploding the syntax.
+
+Just as importantly, not every ontology distinction should become a BP-bearing runtime object:
+
+- closed, truth-apt scientific assertions may participate in BP
+- open questions, templates, workflow declarations, and curation artifacts should not directly participate in BP
+
+The language surface should therefore separate:
+
+- **what authors write**
+- **what the ontology distinguishes**
+- **what the BP runtime actually reasons over**
+
+Collapsing those three layers into one syntax would make the language noisier while still failing to clarify semantics.
 
 ## The Lean Analogy
 
@@ -236,7 +269,7 @@ The analogy is architecturally productive but semantically misleading. Three rea
 
 Lean's kernel implements the Calculus of Inductive Constructions (CIC) — dependent types, universe polymorphism, inductive types. Decades of type theory research.
 
-Gaia's type system: Claim, Setting, Question, Action, ChainExpr. That's it.
+Gaia's root language surface is intentionally small: `setting`, `question`, `claim`, `action`, `relation`, plus compositional chain structure. Richer scientific meaning should come from metadata and lowering, not from multiplying declaration keywords.
 
 Using a probabilistic CIC extension for Gaia would be like using aerospace alloys for a kitchen knife — theoretically possible, practically a disaster.
 
@@ -318,7 +351,7 @@ The Lean analogy clarifies why `run` is the wrong top-level verb for Gaia:
 
 ## Implications for Prior and Probability Annotations
 
-The `prior` and `probability` values written by hand in YAML are analogous to **type annotations** in Lean. In Lean, the elaborator can often infer types automatically; the user provides annotations only when needed.
+The `prior` and `probability` values written by hand in source are analogous to **type annotations** in Lean. In Lean, the elaborator can often infer types automatically; the user provides annotations only when needed.
 
 In Gaia, `review` could eventually serve a similar role — estimating or adjusting edge probabilities based on content quality assessment, rather than requiring the author to manually assign all probabilities.
 

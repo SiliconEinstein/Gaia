@@ -5,7 +5,7 @@
 | 版本 | 1.0 |
 | 日期 | 2026-03-12 |
 | 状态 | **Draft — foundation design** |
-| 关联文档 | [language/gaia-language-spec.md](language/gaia-language-spec.md), [language/gaia-language-design.md](language/gaia-language-design.md), [review/publish-pipeline.md](review/publish-pipeline.md), [theory/inference-theory.md](theory/inference-theory.md), [bp-on-graph-ir.md](bp-on-graph-ir.md) — BP on Graph IR, [server/storage-schema.md](server/storage-schema.md) |
+| 关联文档 | [language/gaia-language-spec.md](language/gaia-language-spec.md), [language/gaia-language-design.md](language/gaia-language-design.md), [review/publish-pipeline.md](review/publish-pipeline.md), [review/package-artifact-profiles.md](review/package-artifact-profiles.md), [theory/scientific-ontology.md](theory/scientific-ontology.md), [theory/inference-theory.md](theory/inference-theory.md), [bp-on-graph-ir.md](bp-on-graph-ir.md) — BP on Graph IR, [server/storage-schema.md](server/storage-schema.md) |
 | V1 实现 specs | [../../superpowers/specs/2026-03-17-simplified-global-canonicalization-design.md](../../superpowers/specs/2026-03-17-simplified-global-canonicalization-design.md) — 简化版 Global Canonicalization, [../../superpowers/specs/2026-03-17-curation-service-design.md](../../superpowers/specs/2026-03-17-curation-service-design.md) — Curation Service |
 
 ---
@@ -15,6 +15,8 @@
 This document defines the Graph IR — a structural factor graph intermediate representation that sits between Gaia Language and belief propagation.
 
 Gaia Language is the authored surface. Graph IR is the submitted structural form that machines reason over. BP runs on Graph IR plus either an author-local parameterization overlay or a registry-managed global inference state, not on the language surface directly.
+
+This document is **structural first**. It defines the submitted graph shape and identity layers. Exact BP runtime lowering rules may evolve and are defined by [theory/inference-theory.md](theory/inference-theory.md) and [bp-on-graph-ir.md](bp-on-graph-ir.md). Readers should not treat every current runtime choice described here as a permanent ontology commitment.
 
 ## 2. Problem
 
@@ -32,7 +34,7 @@ This causes:
 Add Graph IR as an explicit layer between Gaia Language and BP.
 
 ```
-Gaia Lang Source (authored YAML)
+Gaia Lang Source (authored package source)
     │
     ▼
 gaia build (compile + elaborate + IR generation, deterministic)
@@ -219,10 +221,10 @@ FactorNode:
 
 **Field semantics:**
 
-- `premises` — knowledge nodes with strong (direct) dependency. If a premise is false, the conclusion's validity is undermined. Mapped from Gaia Language `dependency: direct`.
-- `contexts` — knowledge nodes with weak (indirect) dependency. Background knowledge that frames the reasoning but the conclusion can stand without it. Mapped from `dependency: indirect`. Contexts do not create BP edges; their influence is consumed later by either local parameterization or registry-side global inference-state updates when a reasoning-factor probability is assigned.
+- `premises` — knowledge nodes with strong, load-bearing dependency. If a premise is false, the conclusion's validity is undermined.
+- `contexts` — knowledge nodes with weak/background dependency. Contexts do not create BP edges; their influence is consumed later by either local parameterization or registry-side global inference-state updates when a reasoning-factor probability is assigned.
 - `irrelevant` is a valid review/self-review classification for a mentioned reference or candidate, but it does not appear in Graph IR factor connectivity. V1 Graph IR only stores `premises` and `contexts`.
-- `conclusion` — the single knowledge node produced or controlled by this factor. For reasoning and instantiation factors, this is the reasoning conclusion that receives BP messages normally. For constraint factors (`mutex_constraint`, `equiv_constraint`), this is the Relation knowledge node acting as a read-only gate — BP reads its runtime belief to determine constraint strength but does not send messages back to it (see [bp-on-graph-ir.md](bp-on-graph-ir.md) §4).
+- `conclusion` — the single knowledge node produced or controlled by this factor. For reasoning and instantiation factors, this is the reasoning conclusion that receives BP messages normally. For constraint factors (`mutex_constraint`, `equiv_constraint`), current runtime references still use the Relation knowledge node here. Whether that relation behaves as a read-only gate or a full BP participant is a **runtime-lowering question**, not a structural Graph IR requirement; see [bp-on-graph-ir.md](bp-on-graph-ir.md) and [theory/inference-theory.md](theory/inference-theory.md).
 
 In a raw graph these IDs are `raw_node_id`s. In a local canonical graph they are `local_canonical_id`s. In the global graph they are `global_canonical_id`s.
 
@@ -234,6 +236,8 @@ In a raw graph these IDs are `raw_node_id`s. In a local canonical graph they are
 
 ### 4.7 Factor Types
 
+The factor type names below are the **current structural schema identifiers** used in Graph IR and storage-adjacent code paths. They should be read separately from the higher-level operator families in [theory/inference-theory.md](theory/inference-theory.md), which may use cleaner target-design terminology.
+
 | Factor type | Generated by | premises | contexts | conclusion | Extra runtime parameterization |
 |-------------|-------------|----------|----------|------------|------------------------------|
 | `reasoning` | ChainExpr | direct-dep knowledge nodes | indirect-dep knowledge nodes | reasoning conclusion | `conditional_probability` supplied outside Graph IR |
@@ -243,7 +247,7 @@ In a raw graph these IDs are `raw_node_id`s. In a local canonical graph they are
 
 **Reasoning factor granularity:** one FactorNode per ChainExpr (not per step). A ChainExpr represents one complete reasoning unit from premises to conclusion. Intermediate steps within the chain are internal to the factor and do not appear as separate knowledge nodes. See §6.1 for the generation rule.
 
-**Constraint factor gate:** for `mutex_constraint` and `equiv_constraint`, the `conclusion` field holds the Relation knowledge node. This node acts as a read-only gate — BP reads its runtime belief to determine constraint strength but does not send messages back to it. The factor type determines the gate semantics. See [bp-on-graph-ir.md](bp-on-graph-ir.md) §4.
+**Constraint factor note:** for `mutex_constraint` and `equiv_constraint`, the `conclusion` field currently holds the Relation knowledge node. Historical runtime paths interpret this as a read-only gate. Target BP theory may instead treat the relation as a normal participant. The structural Graph IR schema does not by itself settle that runtime question.
 
 ### 4.8 Factor Functions
 
@@ -260,21 +264,21 @@ For detailed factor function definitions, BP behavior, and gate semantics for Re
 
 ### 4.9 Type-Specific BP Semantics (V1)
 
-Graph IR permits multiple belief-bearing root types, but they do not all carry the same proposition semantics:
+Graph IR may preserve multiple authored root types, but they do not all become ordinary domain-BP variables:
 
 | Root type | `node = true` means | May appear as premise? | May appear as conclusion? |
 |-----------|---------------------|------------------------|---------------------------|
 | `claim` | the asserted proposition holds | Yes | Yes |
 | `setting` | the contextual assumption/definition holds | Yes | Yes |
-| `question` | the question is valid, well-posed, and sufficiently motivated | No | Yes |
-| `action` | the action is admissible or appropriate in context | Yes | Yes |
+| `question` | inquiry artifact; not a default truth-apt domain proposition | No | No (unless a specialized runtime lowering says otherwise) |
+| `action` | procedural declaration; not a default truth-apt domain proposition | Lowering-specific, not directly | Lowering-specific, not directly |
 | `contradiction` / `equivalence` | the relation itself holds | Yes | Yes |
 
 V1 relation constraints:
 
 - `Equivalence` is type-preserving.
-- For `question` and `action`, `Equivalence` is only valid between nodes with the same root type and the same `kind`.
-- `Contradiction` is only defined for `claim`, `setting`, and `relation` nodes in V1; it is not defined for `question` or `action`.
+- For structurally preserved `question` and `action` nodes, `Equivalence` is only valid between nodes with the same root type and the same `kind`.
+- `Contradiction` is only defined for `claim`, `setting`, and relation nodes in V1; it is not defined for `question` or bare `action` declarations.
 
 ## 5. Schema and Ground Nodes
 
@@ -346,7 +350,7 @@ Only one case merges at build time: **content hash identity**. If two elaborated
 
 Equivalence declarations are NOT merged at build time. They become Equivalence RawKnowledgeNodes + equiv_constraint factors in the raw Graph IR. Whether to merge the equated nodes is a package-local or global canonicalization judgment.
 
-Question nodes may only appear as factor conclusions in V1. Action nodes may appear as either premises or conclusions. For cross-package references, only exported external nodes may appear in `premises`; non-exported external references must lower to `contexts`.
+Question and Action may still be present structurally in Graph IR, but they are not ordinary domain-BP variables by default. Any specialized runtime handling for them belongs to lowering-specific semantics, not to the core Graph IR contract. For cross-package references, only exported external nodes may appear in `premises`; non-exported external references must lower to `contexts`.
 
 ### 6.3 Build Output
 
@@ -482,7 +486,7 @@ Each layer handles only what it can reliably do, passing unresolved cases to the
 
 `gaia publish` submits four artifacts:
 
-1. **Gaia Lang source** — package.yaml + module YAMLs
+1. **Gaia Lang source** — source package files (for example Typst package source in v4)
 2. **Raw Graph IR** — raw_graph.json
 3. **Local Canonical Graph** — local_canonical_graph.json
 4. **Canonicalization log** — agent's local grouping decisions
@@ -544,7 +548,7 @@ For full details on factor functions, gate semantics for Relations, schema/groun
 ### 10.2 What Does NOT Change
 
 - Gaia Lang source syntax and semantics
-- Package structure (package.yaml + module YAMLs)
+- Package structure as the authored package artifact
 - CLI commands (build, infer, publish)
 - Publish pipeline flow (self-review → canonicalization / optional local parameterization → publish → peer review)
 - Relation type design (Contradiction, Equivalence as Knowledge root types)

@@ -4,6 +4,14 @@ This document describes the overall architecture and interaction flow of Gaia as
 
 For product positioning rationale, see [product-scope.md](product-scope.md).
 
+Related documents:
+
+- [review/publish-pipeline.md](review/publish-pipeline.md)
+- [review/service-boundaries.md](review/service-boundaries.md)
+- [review/package-artifact-profiles.md](review/package-artifact-profiles.md)
+- [language/gaia-language-spec.md](language/gaia-language-spec.md)
+- [theory/scientific-ontology.md](theory/scientific-ontology.md)
+
 ## Three Product Layers
 
 ```
@@ -34,6 +42,7 @@ Key properties:
 - **Local-complete** — embedded LanceDB + Kuzu + BP engine, fully offline, zero server dependency
 - **1 package = 1 git repo** — can be hosted directly on GitHub
 - **Gaia does not wrap git** — version control is completely delegated to git
+- **Formal external submissions prefer Gaia packages** — base knowledge, review, rebuttal, and intentionally externalized investigations should reuse Gaia package format with different profiles
 
 Target core pipeline:
 
@@ -68,10 +77,10 @@ An optional registry and compute backend. Server 架构采用 **Write Side / Rea
 
 | Service | Purpose |
 |---------|---------|
-| **Review Service** | Package 审查流程：validation → canonicalization → multiple agent review → gatekeeper 准入 |
+| **Review Service** | submission-scoped package adjudication：validation → canonicalization audit → peer review → gatekeeper 决策 |
 | **Storage Service** | 统一存储门面，管理三后端写入 |
 | **BP Service** | 离线定期全局信念传播 |
-| **Curation Service** | 离线定期图维护：相似结论聚类、矛盾发掘、全图结构巡检、图清理 |
+| **Curation Service** | server-internal 离线图维护：相似结论聚类、矛盾发掘、全图结构巡检、图清理 |
 
 BP Service 和 Curation Service 构成离线图维护机制：Curation 先做结构维护，BP 再跑推理更新。
 
@@ -92,7 +101,7 @@ Agent (local)            Git / GitHub             Gaia Server
 ─────────────           ──────────────           ───────────
 
 gaia init
-(author YAML modules)
+(author Typst package modules)
 gaia build
 agent self-review / graph construction
 gaia infer   (optional local preview)
@@ -120,75 +129,51 @@ Key properties of this flow:
 - **Agent autonomy** — agents can read peer review findings and self-correct without human intervention
 - **Fully async** — push triggers webhook, agent polls or watches for results
 
-## Knowledge Package Format
+## Gaia Package Format
 
 Each package is a git repo with this structure:
 
 ```
-galileo_tied_balls/              # = 1 git repo = 1 knowledge package
-├── package.yaml                 # manifest (name, version, modules list)
-├── gaia.lock                    # (deferred) cross-package dependency lock
-├── aristotle_physics.yaml       # per-module YAML — knowledge objects + chains
-├── thought_experiment.yaml
-├── ...
+galileo_falling_bodies/
+├── typst.toml                   # package manifest
+├── gaia.typ                     # runtime import shim
+├── lib.typ                      # package entrypoint
+├── motivation.typ               # module file
+├── reasoning.typ                # module file
+├── gaia-deps.yml                # optional external refs
 └── .gaia/                       # local artifacts (git-ignored)
-    ├── build/                   # per-module Markdown for LLM review
+    ├── build/                   # rendered review-facing artifacts
     ├── graph/                   # raw/local-canonical Graph IR artifacts
     ├── reviews/                 # local self-review sidecars (compat path on main)
     ├── inference/               # local parameterization + belief preview artifacts
     └── ...
 ```
 
-Module YAML with knowledge objects, including `chain_expr` reasoning:
+The default profile is a `knowledge` package. The same Gaia package substrate may also be used for formal `review`, `rebuttal`, or explicitly externalized `investigation` submissions. Profile changes affect review and merge semantics, not the basic package format.
 
-```yaml
-type: reasoning_module
-name: reasoning
+Typst module files contain typed declarations rather than YAML knowledge objects:
 
-knowledge:
-  - type: ref
-    name: heavier_falls_fast
-    target: aristotle.heavier_falls_faster
+```typst
+#import "gaia.typ": *
 
-  - type: setting
-    name: thought_experiment_env
-    content: "Consider the tied-bodies thought experiment in still air."
+#setting[
+  Consider the tied-bodies thought experiment in still air.
+] <setting.thought_experiment_env>
 
-  - type: claim
-    name: combined_slower
-    content: "The tied pair should fall slower than the heavy body alone."
-    prior: 0.3
+#claim(kind: "observation")[
+  Everyday observation suggests that heavier bodies fall faster.
+] <aristotle.everyday_observation>
 
-  - type: infer_action
-    name: tied_bodies_analysis
-    params:
-      - name: premise
-        type: claim
-      - name: env
-        type: setting
-    return_type: claim
-    content: "Analyze the tied-bodies scenario under the given premise and environment."
-
-  - type: chain_expr
-    name: tied_bodies_contradiction
-    edge_type: deduction
-    steps:
-      - step: 1
-        ref: heavier_falls_fast
-      - step: 2
-        apply: tied_bodies_analysis
-        args:
-          - ref: heavier_falls_fast
-            dependency: direct
-          - ref: thought_experiment_env
-            dependency: indirect
-        prior: 0.85
-      - step: 3
-        ref: combined_slower
+#claim(from: (<aristotle.everyday_observation>, <setting.thought_experiment_env>))[
+  The tied pair should fall slower than the heavy body alone.
+][
+  Under the thought experiment setting @setting.thought_experiment_env,
+  Aristotle's premise @aristotle.everyday_observation implies the pair
+  should be slowed by the lighter body.
+] <reasoning.combined_slower>
 ```
 
-- **Direct dependency (`args[].dependency: direct`):** semantic role `premise`. If this is wrong, the conclusion cannot stand. Across package boundaries this requires exported knowledge.
-- **Indirect dependency (`args[].dependency: indirect`):** semantic role `context`. Provides background rather than a load-bearing BP edge. Across package boundaries, non-exported external knowledge is context-only.
+At the ontology level, only closed, truth-apt scientific assertions directly participate in BP. Questions, workflow declarations, review artifacts, and other meta-level structures may still be part of Gaia packages, but they are not default domain-BP variables.
 
 For the language spec, see [language/gaia-language-spec.md](language/gaia-language-spec.md).
 
@@ -222,6 +207,6 @@ Current monorepo mapping:
 
 The following are explicitly deferred and will be addressed in later foundation phases:
 
-- Review output format (the exact fields and scoring schema)
-- Direct publish contract (`gaia publish --server` without git)
-- `observation` and `assumption` artifact kinds (V2 of domain model)
+- exact package-level profile metadata layout (`artifact_profile`, `subject_package`, `in_response_to`, etc.)
+- exact review output fields and scoring schema
+- direct publish contract (`gaia publish --server` without git)

@@ -413,152 +413,136 @@ Gaia 真正有意义的两种操作占据了对角线：**abstraction (保真弱
 
 ---
 
-## 4. 五种 Factor 类型
+## 4. 四类 BP Operator Family 与当前 lowering
 
-每种 factor 使用统一格式：结构、势函数表、Jaynes 合规性、设计理由。
+本节只讨论 **BP operator family**，不讨论所有图构造操作。
 
-### 4.1 Reasoning Factor
+这一区分必须明确：
 
-**结构：** 连接前提知识节点到单个结论知识节点，附带条件概率。
+- `abstraction`、`generalization`、`hidden premise discovery` 首先是**图构造 / 研究操作**
+- BP 关心的是这些操作在被接受后，最终降低成什么 **operator family**
+
+因此，Graph IR / storage 中出现的结构名和 BP family 并不总是一一对应。
+
+### 4.1 Operator Family 总表
+
+| Family | 语义 | 保真性 | probability 约束 | antecedent=false 时的正确行为 | 当前 / 目标 lowering |
+|---|---|---|---|---|---|
+| `reasoning_support` | 普通前提→结论支持 | 不一定保真 | `p ∈ (0,1]`；deductive 可接近 1，abductive 通常 < 1 | **应压低结论**（noisy-AND + leak） | 当前主要由 `infer` 承载 |
+| `deterministic_entailment` | 真值保留的蕴含 | 保真 | 概念上 = 1.0（runtime 仍受 Cromwell clamp） | **通常沉默**，不推出结论为假 | 当前稳定子类是 `instantiation`；accepted abstraction/member entailment 也应落这里 |
+| `inductive_support` | 从实例到更强候选规律的支持 | 不保真 | **必须 < 1.0** | 通常弱影响或沉默，不应按 noisy-AND 必要条件语义处理 | 未来 family，当前 local runtime 尚未稳定成型 |
+| `constraint` | 兼容性约束（矛盾 / 等价） | 非 antecedent→consequent 关系 | 不适用；由兼容核决定 | 不适用；使用专门约束势函数 | 当前 / 目标都由 `contradiction` / `equivalence` 承载 |
+
+### 4.2 更新律矩阵
+
+Jaynes 的四个三段论在系统里应被理解为 **operator contract**，而不是新的语言关键字。
+
+| Family | 前提真→结论↑ | 结论真→前提↑ | 结论假→前提↓ | 前提假→结论↓ |
+|---|:---:|:---:|:---:|:---:|
+| `reasoning_support` | ✓ | ✓ | ✓ | ✓ |
+| `deterministic_entailment` | ✓ | ✓ | ✓ | 通常否；应沉默 |
+| `inductive_support` | ✓ | ✓ | 弱 / 部分成立 | 通常否；不应强行压低 |
+| `constraint` | 不适用 | 不适用 | 不适用 | 不适用 |
+
+最后一列最容易被误用：
+
+- 对 `reasoning_support`，前提是结论的近似必要条件，所以 antecedent=false 应压低结论
+- 对 `deterministic_entailment`，`not A` 一般不推出 `not B`，所以 antecedent=false 应沉默
+- 对 `inductive_support`，从案例到规律的支持不是必要条件结构，不能机械套用 noisy-AND 的第四条
+
+### 4.3 `reasoning_support`
+
+`reasoning_support` 是作者最常写、也是本地 BP 最常见的 operator family。
+
+它的典型结构是：
 
 ```
-premises:   [P₁, P₂, ..., Pₙ]    (直接依赖)
-conclusion: C                      (结论)
-parameter:  conditional_probability = p
+premises:   [P₁, P₂, ..., Pₙ]
+conclusion: C
+parameter:  p
 ```
 
-**势函数（noisy-AND + leak）：**
+其 canonical 势函数是 §2.2 的 **noisy-AND + leak**：
 
 | 前提全真？ | 结论值 | Potential |
 |-----------|--------|-----------|
 | 是 | 1 | p |
 | 是 | 0 | 1-p |
-| 否 | 1 | ε (leak) |
+| 否 | 1 | ε |
 | 否 | 0 | 1-ε |
 
-其中 ε = Cromwell 下界（默认 10⁻³）。
+这个 family 覆盖的是“给定这些前提，结论应该更可信”的一般支持结构。
 
-**Subtypes：**
+说明：
 
-| Subtype | 势函数差异 | probability 约束 |
-|---------|-----------|-----------------|
-| deduction | 标准（上表） | 可以 = 1.0 |
-| induction | 标准（上表） | 必须 < 1.0（§3 格论约束） |
-| abstraction | 标准（上表） | 可以 = 1.0 |
-| retraction | 反转（见下） | — |
+- `deductive` 是它的高置信模式，不是独立 family
+- `abductive` 更适合被看作它的作者语义 mode，而不是底层独立 kernel family
+- 当前代码里一些历史名如 `retraction`、`abstraction` 若仍以 infer-like factor 出现，应被视为 transitional lowering，而不是新的 ontology family
 
-**Retraction 的反转势函数：**
+### 4.4 `deterministic_entailment`
 
-Retraction 表示"撤回证据 E 成立时，结论 C 被削弱"：
+`deterministic_entailment` 表达真值保留的蕴含。
 
-| E (前提) | C (结论) | Potential |
-|----------|---------|-----------|
-| 1 | 1 | 1-p (削弱) |
-| 1 | 0 | p |
-| 0 | 1 | 1.0 (沉默) |
-| 0 | 0 | 1.0 (沉默) |
-
-Retraction 的 E=0 行保持 1.0 是正确的（§2.4）：撤回证据不成立时，这条反对论据消失，C 由其他 factor 决定。这与 reasoning factor 不同——reasoning 的前提是结论存在的根据（前提倒 → 结论失去基础），retraction 的前提是反对结论的论据（论据消失 → 结论不受影响）。
-
-**合规性：** 满足 C1–C4（§2.4）。
-
-### 4.2 Instantiation Factor
-
-**结构：** 二元 factor，连接一个 schema 节点（全称命题）到一个 ground 节点（实例）。
+最稳定的子类是 `instantiation`：
 
 ```
-premises:   [V_schema]             (∀x.P(x))
-conclusion: V_instance             (P(a))
+premises:   [V_schema]
+conclusion: V_instance
 ```
 
-**势函数（确定性蕴含）：**
+其关键语义是：
 
-| Schema | Instance | Potential |
-|--------|----------|-----------|
-| 1 (∀x.P(x) 成立) | 1 (P(a) 成立) | 1.0 |
-| 1 (∀x.P(x) 成立) | 0 (P(a) 不成立) | ε (矛盾：全称为真但实例为假) |
-| 0 (∀x.P(x) 不成立) | 1 (P(a) 成立) | 1.0 (实例可独立成立) |
-| 0 (∀x.P(x) 不成立) | 0 (P(a) 不成立) | 1.0 |
+- `schema=true` 强约束 `instance=true`
+- `instance=false` 反向削弱 `schema`
+- `schema=false` 时通常沉默，而不是推出 `instance=false`
 
-无参数化的 conditional_probability——这是确定性逻辑蕴含。
+这也是 accepted abstraction/member entailment 的正确家族：如果多个更具体命题都蕴含一个更弱命题，那么成员到抽象命题的连接应落在 `deterministic_entailment`，而不是复用 ordinary reasoning kernel。
 
-**归纳强化：** 多个实例通过 BP 消息聚合，在共享的 schema 节点上产生归纳效应：
+### 4.5 `inductive_support`
 
-```
-V_schema ─── F_inst_1 ─── V_ground_1 (belief=0.9)
-         ─── F_inst_2 ─── V_ground_2 (belief=0.85)
-         ─── F_inst_3 ─── V_ground_3 (belief=0.1)   ← 反例
-```
+`inductive_support` 表达从多个具体实例到更强 generalization candidate 的支持。
 
-- 多个高 belief 实例：backward 消息弱支持 schema（正例不能证明全称，但多个正例累积提供弱归纳证据）
-- 一个低 belief 实例：backward 消息强力压低 schema（反例否证全称）
-- Schema belief 下降 → forward 消息削弱所有实例（全称被质疑 → 所有实例失去全称支持）
+它与 `reasoning_support` 的差异不在于“都有一个 p”，而在于其认识论方向：
 
-**合规性：** 满足 C1–C4（§2.4）。Schema=0 时 potential=1.0 是正确的：¬∀x.P(x) ⊬ ¬P(a)。
+- `reasoning_support` 通常是给定前提支持结论
+- `inductive_support` 是从具体案例支持一个**超出案例范围**的更强命题
 
-### 4.3 Contradiction Factor
+因此：
 
-**结构：** 多变量约束 factor，连接矛盾关系节点和被约束的命题节点。
+- `p` 必须严格小于 1.0
+- 它不应被当作必要条件结构
+- antecedent=false 时通常不应像 noisy-AND 那样强力压低 generalization
 
-```
-participants: [C_contra, A₁, A₂, ..., Aₙ]
-```
+当前 Gaia 中，真正稳定的 `inductive_support` 还没有完整落成统一 local runtime family；它更多仍处在 curation / investigation 的候选结构层。
 
-C_contra 是矛盾关系节点（Knowledge type="contradiction"），**作为普通参与者**参与 BP——不是 gate。
+### 4.6 `constraint`
 
-**势函数（互斥约束）：**
+`constraint` family 包含：
 
-| C_contra | 所有 Aᵢ | Potential |
-|----------|---------|-----------|
-| 1 | 全部 = 1 | ε (矛盾成立且都真 → 几乎不可能) |
-| 其他任意组合 | — | 1 (无约束) |
+- `contradiction`
+- `equivalence`
 
-**三个方向的效果：**
+它们不是 antecedent→consequent operator，而是兼容性核：
 
-```
-C_contra(0.8), A(0.9), B(0.6)
-    ↓
-BP 收敛后：
-  B 大幅下降（弱证据先让步，odds 空间乘法）
-  A 小幅下降
-  C_contra 基本不变（A·B 乘积已不大）
+- `contradiction`：关系成立时，不兼容 all-true 配置
+- `equivalence`：关系成立时，奖励一致、惩罚分歧
 
-如果 A 和 B 都收到新证据，升到 0.95：
-  C_contra 被大幅压低（LR ≈ 1 - 0.95×0.95 ≈ 0.10）
-  系统结论：矛盾关系可能不成立
-```
+这里最重要的理论要求不是四条三段论，而是：
 
-**Jaynes 的解释：** 发现矛盾 = 学到新信息 P(A∧B|I) ≈ 0。这不是系统错误，而是证据冲突。BP 自动处理：弱证据先让步（从 odds 乘法自然涌现），强反证可质疑矛盾本身（从双向消息自然涌现）。
+- 约束应能双向影响被约束命题
+- 在 target design 中，关系节点本身也应可被证据质疑
 
-**合规性：** 满足 C1–C4（§2.4）。
+### 4.7 当前 structural factor names 与 operator family 的映射
 
-### 4.4 Equivalence Factor
+| 当前结构名 | 应归入的 BP family | 备注 |
+|---|---|---|
+| `infer` | `reasoning_support` | 当前最主要 lowering |
+| `abstraction` | transitional；通常应落到 `deterministic_entailment` 或 graph-construction result | 名称上仍带历史混淆 |
+| `instantiation` | `deterministic_entailment` | 语义最稳定 |
+| `contradiction` | `constraint` | 当前 / 目标都保留 |
+| `equivalence` | `constraint` | 当前 runtime 仍有同步中的过渡痕迹 |
 
-**结构：** 三变量约束 factor，连接等价关系节点和被等价的命题节点。
-
-```
-participants: [C_equiv, A, B]
-```
-
-C_equiv 是等价关系节点（Knowledge type="equivalence"），**作为普通参与者**参与 BP——不是 gate。
-
-**势函数（等价约束）：**
-
-| C_equiv | A, B 关系 | Potential |
-|---------|----------|-----------|
-| 1 | A = B (一致) | 1-ε |
-| 1 | A ≠ B (不一致) | ε |
-| 0 | 任意 | 1 (无约束) |
-
-n-ary equivalence（3+ 成员）分解为 pairwise：equiv(A, B, C) → factors for (C_equiv, A, B), (C_equiv, A, C), (C_equiv, B, C)。
-
-**效果：**
-
-- 等价成立 + A 可信 → B 被提升（证据桥接）
-- 等价成立 + A 和 B 一致 → C_equiv 被推高（确认等价）
-- 等价成立 + A 和 B 分歧 → C_equiv 被压低（质疑等价关系）
-
-**合规性：** 满足 C1–C4（§2.4）。
+这张表的目的不是重新命名现有 schema，而是防止把结构名、语言名、BP family 名混成一个层级。
 
 ---
 

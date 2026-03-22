@@ -1,5 +1,12 @@
 # Gaia Language Design (v4)
 
+> Related documents:
+> - [gaia-language-spec.md](gaia-language-spec.md)
+> - [design-rationale.md](design-rationale.md)
+> - [type-system-direction.md](type-system-direction.md)
+> - [../theory/scientific-ontology.md](../theory/scientific-ontology.md)
+> - [../theory/inference-theory.md](../theory/inference-theory.md)
+
 ## Purpose
 
 This document defines the language design of Gaia v4 -- a Typst-based DSL for knowledge representation and epistemic inference. Authors write knowledge packages as ordinary Typst documents; the compiler extracts a structured knowledge graph (nodes, factors, constraints) via `typst query`.
@@ -7,6 +14,8 @@ This document defines the language design of Gaia v4 -- a Typst-based DSL for kn
 ## Design Approach
 
 **Typst as host language.** Gaia v4 follows the same architecture as Church (extending Scheme) and Pyro (extending Python): a deterministic host language with domain-specific extensions. Typst provides the parser, renderer, and label/reference system; Gaia adds five declaration functions (`#setting`, `#question`, `#claim`, `#action`, `#relation`) and a cross-package bibliography mechanism.
+
+**Small surface, richer ontology.** Gaia keeps a compact declaration surface on purpose. Richer scientific distinctions such as observation vs hypothesis, deductive vs abductive support, and load-bearing premise vs regime assumption should primarily appear through metadata and lowering, not through a large proliferation of new top-level keywords.
 
 **No custom parser.** Every Gaia declaration is a standard Typst function call that produces a `figure(kind: "gaia-node")`. The compiler extracts the knowledge graph by querying these figures -- `typst query lib.typ 'figure.where(kind: "gaia-node")'` -- and reading the hidden `metadata()` dict inside each one.
 
@@ -24,6 +33,12 @@ This document defines the language design of Gaia v4 -- a Typst-based DSL for kn
 | **Action** | `#action` | Procedural step | Yes | Yes (e.g. `"python"`) |
 | **Relation** | `#relation` | Structural constraint between nodes | No | No (uses `type:` + `between:`) |
 
+Current v4 keeps these root declaration types intentionally coarse. Finer distinctions should come from:
+
+- `kind:` for claim/action subkinds
+- future `mode:` for deductive / inductive / abductive support
+- future `under:` for regime assumptions and background conditions
+
 ### Relation subtypes
 
 - **`contradiction`** -- two nodes are mutually exclusive.
@@ -35,14 +50,17 @@ There is no `corroboration` relation type. Independent evidence for the same cla
 
 | Declaration | Graph IR role |
 |-------------|--------------|
-| Setting, Question, Claim (no `from:`) | Variable node (leaf) |
-| Claim or Action with `from:` | Variable node + reasoning factor connecting premises to conclusion |
-| Relation | Constraint (not a factor; enforces structural rules on the graph) |
+| Setting, Claim (no `from:`) | Truth-apt node that may lower to a BP variable |
+| Question | Inquiry artifact; extracted structurally but not a default BP variable |
+| Claim with `from:` | Truth-apt node + reasoning factor connecting premises to conclusion |
+| Action with `from:` | Procedural declaration; lowering is runtime-specific rather than core scientific ontology |
+| Relation | Structural constraint; exact runtime lowering is defined downstream |
 
 ### Assumptions and Observations
 
 - `#setting` occupies the current proof-state `assumption` role: accepted locally without proof, but still challengeable by other packages.
 - `#claim(kind: "observation")` remains a claim. If it is used as a premise without a local proof or imported justification, it is a `hole`, not an assumption.
+- `from:` should mean load-bearing premise, not a generic bag of related refs. Background conditions such as regime or idealization should eventually move to a distinct `under:`-style slot rather than overloading `from:`.
 - Gaia intentionally does not expose a node-level `axiom` category. If future inference or explanation tooling needs multiple alternative starting-point sets, those should be represented as explicit `assumption basis` / proof-view selections on top of the same graph.
 
 ## Declaration Syntax
@@ -228,7 +246,8 @@ The v4 compiler (`load_typst_package_v4`) performs these steps:
 
 ## What v4 Does NOT Have (Future Work)
 
-- **`context:` / indirect dependency** -- only `from:` exists, meaning "premise." There is no way to mark a reference as contextual-but-not-load-bearing.
+- **`under:` / contextual dependency** -- only `from:` exists today, meaning "premise." There is no first-class way to mark a reference as regime/background rather than load-bearing support.
+- **`mode:` metadata** -- no first-class deductive / inductive / abductive distinction on support edges yet.
 - **Dedicated independent-evidence relation type** -- use independent `claim(from:)` instead.
 - **Action execution semantics** -- `#action` declares procedural knowledge but does not execute it.
 - **Schema nodes** -- no parameterized or generic knowledge declarations.

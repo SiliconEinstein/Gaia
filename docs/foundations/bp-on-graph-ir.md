@@ -4,7 +4,7 @@
 |---------|---|
 | 版本 | 2.0 |
 | 日期 | 2026-03-19 |
-| 状态 | **Draft — foundation design** |
+| 状态 | **Draft — current runtime reference + target lowering notes** |
 | 关联文档 | [graph-ir.md](graph-ir.md) — Graph IR 结构定义, [theory/inference-theory.md](theory/inference-theory.md) — BP 算法理论, [theory/theoretical-foundation.md](theory/theoretical-foundation.md) — Jaynes 纲领 |
 
 ---
@@ -14,6 +14,13 @@
 This document defines how belief propagation runs on Graph IR. It covers local parameterization overlays, global inference state, factor functions, instantiation factor semantics, and the interaction between schema and ground nodes during BP.
 
 For the Graph IR structure itself (raw nodes, local canonical nodes, global canonical nodes, factor nodes, canonicalization), see [graph-ir.md](graph-ir.md). For general BP theory (sum-product algorithm, damping, convergence), see [theory/inference-theory.md](theory/inference-theory.md).
+
+This document has two jobs:
+
+1. record the **current local/runtime lowering** that code paths such as `libs/graph_ir/adapter.py` and `libs/inference/bp.py` rely on
+2. record the **target lowering direction** where current runtime and theory are not yet fully synchronized
+
+When the two differ, this document says so explicitly.
 
 ## 2. BP on the Factor Graph
 
@@ -80,9 +87,26 @@ Messages are 2-vectors `[p(x=0), p(x=1)]`, always normalized. The algorithm foll
 
 Cromwell's rule: all priors and probabilities are clamped to [ε, 1−ε] (ε = 1e-3) when local overlays or global inference state are loaded, preventing degenerate potentials.
 
-## 3. Factor Functions
+## 3. Current local runtime reference (transitional)
 
-Each factor type defines a potential function that determines how messages propagate through it. Factor nodes reference their connected knowledge nodes via the `premises`, `contexts`, and `conclusion` fields defined in [graph-ir.md](graph-ir.md) §4; probability-like values come from the active local overlay or global inference state.
+This section describes the runtime shape currently used by local BP adaptation and the existing `libs/inference/bp.py` kernel family.
+
+Important caveat:
+
+- current runtime is still transitional
+- target BP semantics are defined in [theory/inference-theory.md](theory/inference-theory.md)
+- not every current structural factor name should be read as a permanent BP operator family
+
+### 3.0 Runtime contract
+
+Each runtime factor is compiled into a `FactorGraph` factor with:
+
+- `premises`
+- `conclusions`
+- `probability`
+- `edge_type`
+
+Current runtime semantics are keyed by `edge_type` in `libs/inference/bp.py`.
 
 ### 3.1 Infer Factor
 
@@ -109,7 +133,7 @@ factor_parameters[factor_id].conditional_probability
 - `conclusion` is the single conclusion knowledge node of the chain.
 - By Graph IR constraints, `question` nodes may only appear as conclusions, not premises. `action` nodes may appear in either position.
 
-**Potential:**
+**Current runtime potential:**
 
 | All premises true? | Conclusion value | Potential |
 |-------------------|-----------------|-----------|
@@ -117,13 +141,13 @@ factor_parameters[factor_id].conditional_probability
 | Yes | 0 | `1 - conditional_probability` |
 | No | any | `1.0` (unconstrained) |
 
-When any premise is false, the factor imposes no constraint — the conclusion is free to take any value based on other factors.
+When any premise is false, the current runtime imposes no constraint. This is part of the **current** local BP contract, not the settled target theory. The target `reasoning_support` family in [theory/inference-theory.md](theory/inference-theory.md) moves to noisy-AND + leak instead of this silent fallback.
 
 **ChainExpr-level granularity:** Each ChainExpr compiles to one infer factor, not one per step. Intermediate steps within the chain are internal to the factor.
 
 ### 3.1b Abstraction Factor
 
-Same potential semantics as `infer`, but generated from chains with `edge_type == "abstraction"`. Promoted to a top-level type for clarity.
+Current local runtime treats `abstraction` with the same infer-like kernel shape as `infer`.
 
 ```
 FactorNode:
@@ -131,6 +155,8 @@ FactorNode:
     premises:                [graph-layer node IDs of direct-dep knowledge nodes]
     conclusion:              graph-layer node ID of conclusion knowledge node
 ```
+
+This is a **transitional naming path**. In the target theory, accepted abstraction results are better understood as graph-construction outputs that often lower to deterministic entailment, not as a permanently separate infer-like BP family.
 
 ### 3.2 Instantiation Factor
 
@@ -181,7 +207,7 @@ Inductive reasoning emerges naturally from BP's message aggregation — no speci
 
 ### 3.3 Contradiction Factor
 
-Generated from Contradiction relation nodes. The relation node participates as a full BP variable in `premises[0]`, enabling bidirectional message passing (Jaynes consistency).
+Generated from Contradiction relation nodes. In the current local adapter, the relation node is included in `premises[0]`, so it already participates as a BP variable rather than as a separate read-only gate variable.
 
 **Structure:**
 
@@ -193,7 +219,7 @@ FactorNode:
     conclusion:              None
 ```
 
-The relation node in `premises[0]` acts as a gating variable — when active (belief high), the constraint penalizes the all-claims-true configuration. Unlike the v1.0 gate design, BP sends messages back to the relation node, allowing the system to "question the relationship itself" when evidence is strong for both claims.
+The relation node in `premises[0]` is part of the participant set. Current runtime therefore already permits bidirectional influence between relation and constrained claims on the contradiction path.
 
 **Potential:**
 
@@ -207,11 +233,11 @@ Where ε = CROMWELL_EPS (1e-3).
 
 **BP behavior:**
 
-When the relation is active and two contradicted claims both have evidence, the factor sends inhibitory messages to both claims AND a weakening message to the relation node. Loopy BP with damping handles the resulting feedback naturally.
+When the relation is active and two contradicted claims both have evidence, the factor sends inhibitory messages to the claims and may also weaken the relation node through the same loopy update cycle.
 
 ### 3.4 Equivalence Factor
 
-Generated from Equivalence relation nodes. Rewards agreement between equated claims. The relation node participates in `premises[0]`.
+Generated from Equivalence relation nodes. The current local adapter also places the relation node in `premises[0]`.
 
 **Structure:**
 
@@ -223,22 +249,14 @@ FactorNode:
     conclusion:              None
 ```
 
-**Potential:**
+**Current state:** the structural lowering exists, but equivalence semantics in the runtime kernel are still **transitional** and should not yet be treated as the final semantic reference.
 
-```
-f_equiv(c, a, b) =
-    1.0                     if c = 0     (relation inactive — unconstrained)
-    1 - ε                   if c = 1 and a == b     (agreement rewarded)
-    ε                       if c = 1 and a != b     (disagreement penalized)
-```
+Use this rule:
 
-For n-ary equivalence (3+ members), decompose into pairwise constraints: equiv(a, b, c) → factors for (a, b), (a, c), (b, c). Each pairwise factor shares the same relation node in `premises[0]`.
+- for current code reality, trust `libs/graph_ir/adapter.py` and `libs/inference/bp.py`
+- for target semantic intent, trust §4 below plus [theory/inference-theory.md](theory/inference-theory.md)
 
-**BP behavior:**
-
-The equiv factor acts as an evidence bridge — belief flows bidirectionally between equated claims, weighted by the relation node's belief. The relation node itself receives messages from all pairwise factors, allowing BP to weaken the equivalence if evidence diverges.
-
-## 4. Relation Nodes as Full BP Participants
+## 4. Target lowering direction
 
 ### 4.1 Design (v2.0)
 
@@ -256,11 +274,23 @@ In v2.0, relation nodes (Contradiction, Equivalence) are normal BP participants 
 V_relation ───┐
 V_claim_A  ───┤── F_contradiction ──→ (no conclusion)
 V_claim_B  ───┘
+```
 
 All three nodes are full BP participants:
 - F sends messages to V_relation, V_claim_A, V_claim_B
 - V_relation, V_claim_A, V_claim_B send messages back to F
-```
+
+### 4.3 Operator-family lowering
+
+Target lowering should follow the BP family distinctions in [theory/inference-theory.md](theory/inference-theory.md):
+
+| Structural factor / pattern | Target BP family | Note |
+|---|---|---|
+| `infer` | `reasoning_support` | target kernel = noisy-AND + leak |
+| accepted member → abstract claim entailment | `deterministic_entailment` | not necessarily a permanent `abstraction` runtime family |
+| `instantiation` | `deterministic_entailment` | stable special case |
+| future instance → law candidate support | `inductive_support` | not yet a stable local runtime path |
+| `contradiction`, `equivalence` | `constraint` | relation nodes should be normal participants in target design |
 
 ## 5. Schema/Ground Interaction in BP
 
@@ -296,15 +326,15 @@ The policy for generating review-report judgments and registry `GlobalInferenceS
 
 ## 6. Factor Type Summary
 
-| Factor type | Premises | Conclusion | Potential |
-|-------------|----------|------------|-----------|
-| `infer` | Direct dependencies | Conclusion node | Standard conditional (prob p) |
-| `abstraction` | Direct dependencies | Conclusion node | Standard conditional (prob p) |
-| `instantiation` | Schema node | Instance node | Deterministic implication |
-| `contradiction` | Relation node + claim nodes | None | Penalize all-true when relation active |
-| `equivalence` | Relation node + 2 claim nodes | None | Reward agreement when relation active |
+| Structural factor type | Current runtime note | Target BP family |
+|-------------|----------|-----------|
+| `infer` | stable current local path | `reasoning_support` |
+| `abstraction` | transitional infer-like lowering | usually `deterministic_entailment` after accepted graph construction |
+| `instantiation` | stable current local path | `deterministic_entailment` |
+| `contradiction` | current local path already uses relation in participant set | `constraint` |
+| `equivalence` | structural lowering exists; runtime semantics still transitional | `constraint` |
 
-`FactorNode.type` is the single source of truth for BP semantics. No `metadata.edge_type` indirection.
+`FactorNode.type` remains a structural schema key, but it should not be confused with the higher-level BP operator family taxonomy.
 
 ## Open Questions
 

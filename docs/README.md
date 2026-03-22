@@ -6,7 +6,7 @@ The canonical specifications for Gaia live in [`foundations/`](foundations/READM
 
 - [Product Scope](foundations/product-scope.md) — what Gaia is and is not
 - [System Overview](foundations/system-overview.md) — architecture layers and runtime flow
-- [Domain Model](foundations/domain-model.md) — nodes, hyperedges, commits, and vocabulary
+- [Scientific Ontology](foundations/theory/scientific-ontology.md) — scientific object model, BP boundary, and core operator distinctions
 - [Language Spec](foundations/language/gaia-language-spec.md) — Gaia Language semantics, package surface, and conformance rules
 - [CLI Command Lifecycle](foundations/cli/command-lifecycle.md) — build / review / infer / publish pipeline
 - [Theoretical Foundation](foundations/theory/theoretical-foundation.md) — Jaynes framework, Gaia identity, plausible reasoning
@@ -19,7 +19,7 @@ Start there for any question about current architecture, contracts, or semantics
 
 | Directory | Contents | Status |
 |-----------|----------|--------|
-| `foundations/` | Product scope, system overview, domain model, language spec, CLI specs | **Current** — canonical specs |
+| `foundations/` | Product scope, system overview, ontology, language spec, CLI specs | **Current** — canonical specs |
 | `design/` | Scaling belief propagation, related work | **Reference** — evergreen design notes |
 | `examples/` | Einstein elevator, Galileo tied-balls worked examples | **Reference** — evergreen examples |
 | `archive/` | Historical design docs and implementation plans from the initial build-out | **Historical** — preserved for context |

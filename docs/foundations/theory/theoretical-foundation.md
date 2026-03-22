@@ -15,7 +15,7 @@
 1. **Gaia 是基于 plausible reasoning 的形式化语言。**
 2. **Large Knowledge Model = 自然科学的系统的形式化。**
 
-Gaia 不是数据库、不是编程语言、不是传统知识图谱。它是一套形式系统，让人类和 LLM 能够把科学知识——命题、证据、推理链——写成结构化的、可计算合理度的表达式。
+Gaia 不是数据库、不是编程语言、不是传统知识图谱。它是一套形式系统，让人类和 LLM 能够把科学知识——命题、证据、推理链、适用条件、反驳关系——写成结构化的、可计算合理度的表达式。
 
 Gaia 由三个组成部分构成：
 
@@ -23,14 +23,46 @@ Gaia 由三个组成部分构成：
 Language  →  CLI (Robot)  →  Cloud (LKM)
     ↓                  ↓               ↓
 形式化知识          本地推理          全局知识模型
-YAML 表达式         BP 计算           跨 package 集成
+Typst / package      BP 计算           跨 package 集成
 ```
 
-- **Language** 是语法层：Gaia Language 定义了如何用 YAML 表达命题、推理链、模块依赖
+- **Language** 是语法层：Gaia Language 定义了如何用 package / Typst surface 表达命题、推理链、模块依赖
 - **CLI** 是推理层：`gaia build` 编译因子图、运行 BP，严格按概率规则计算每个命题的合理度
 - **Cloud** 是集成层：多个知识 package 发布后合并为 Large Knowledge Model，跨 package BP 统一信念
 
 **核心思想：** 这三层的理论根基是同一个——E.T. Jaynes 的概率论纲领。Gaia 就是 Jaynes 的 "Robot" 的形式化语言实现。
+
+### 1.1 科学推理比数学逻辑多了什么
+
+Gaia 形式化的不是抽象逻辑本身，而是**科学断言体系**。与纯数学逻辑相比，科学推理至少多了五层：
+
+1. **世界接口**：前提不是凭空给定，而是来自观测、测量、文献、实验和模型拟合。
+2. **不确定性**：我们通常不是在证明命题真，而是在评估它在当前证据下有多可信。
+3. **适用条件**：科学规律几乎总带 regime、idealization、background assumptions。
+4. **可修正性**：新证据可以削弱旧结论，矛盾不是系统崩溃，而是知识更新信号。
+5. **开放式发现**：abduction、induction、hidden-premise discovery 不属于纯演绎逻辑。
+
+因此 Gaia 需要的不是单纯的 proof system，而是：
+
+- 一个能承载科学断言与适用条件的语言
+- 一个能在不确定性下做一致更新的推理系统
+- 一个能容纳反驳、矛盾、修订和跨 package 集成的知识生命周期
+
+### 1.2 闭合断言边界
+
+Gaia 必须区分两类对象：
+
+- **闭合的、truth-apt 的科学断言**
+- **开放模板、研究问题、审查 artifact**
+
+只有前者直接参与 BP。
+
+这意味着：
+
+- 具体 claim、law claim、prediction、regime assumption 可以进入 BP
+- question、template、curation suggestion、independent-evidence audit 等对象不直接进入 BP
+
+更细的本体分类参见 [scientific-ontology.md](scientific-ontology.md)。
 
 ---
 
@@ -76,8 +108,10 @@ Jaynes 强调：这些不是"方法"或"学派"，是**逻辑定理**。
 | 场景 | MaxEnt 选择 | Gaia 实现 |
 |------|------------|----------|
 | 节点无额外信息 | P(x=1) = P(x=0) = 0.5 | Node.prior 默认值 |
-| 因子中前提不全为真 | 对结论无约束 | potential = 1（均匀） |
+| 信息不足、无法合法偏向任一结论 | 保持中性，不偷塞额外结构假设 | 默认 prior / 中性初始化 / 显式 review judgment |
 | 没有入边的孤立节点 | belief = prior | BP 不修改无因子节点 |
+
+这里的 MaxEnt 约束是**认识论原则**，不是某个具体 factor potential 的永久定义。具体 runtime 势函数应在 [inference-theory.md](inference-theory.md) 中单独定义，而不应在 foundation 文档中硬编码。
 
 ### 2.5 Cromwell 规则
 
@@ -287,7 +321,7 @@ Gaia 将逻辑复杂度分为两层：
 ├─────────────────────────────────────────────────────┤
 │  图结构层 (Graph Structure Layer)                     │
 │  ─────────────────────────                           │
-│  超边连接命题，只表达：                                │
+│  超边连接**已接受的闭合断言**，只表达：                 │
 │    premise₁ ∧ premise₂ ∧ ... ∧ premiseₙ → conclusion₁ ∧ ... ∧ conclusionₘ │
 │  每条边附带概率 (probability) 和类型 (type)            │
 │                                                      │
@@ -300,6 +334,7 @@ Gaia 将逻辑复杂度分为两层：
 
 - **图结构层刻意简单**——只有"合取蕴含合取"加概率，因为这是要在十亿节点上自动计算的部分
 - **逻辑的丰富性留在节点内容里**——析取、否定、因果关系等都可以作为命题的 content 存在，由人和 LLM 理解
+- **开放模板和工作流对象不直接进入图结构层**——模板、研究任务、审查建议需要先被转化为可接受的闭合断言或 accepted relation，才能进入 BP
 
 ### 6.2 命题级 vs 实体级
 

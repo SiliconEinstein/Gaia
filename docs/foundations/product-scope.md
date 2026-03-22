@@ -1,5 +1,12 @@
 # Gaia Product Scope
 
+> Related documents:
+> - [system-overview.md](system-overview.md)
+> - [theory/scientific-ontology.md](theory/scientific-ontology.md)
+> - [review/service-boundaries.md](review/service-boundaries.md)
+> - [review/package-artifact-profiles.md](review/package-artifact-profiles.md)
+> - [language/gaia-language-spec.md](language/gaia-language-spec.md)
+
 ## Purpose
 
 This document defines Gaia's product positioning, theoretical foundation, and current baseline on `main`.
@@ -19,23 +26,30 @@ Gaia's goal is to build a **Large Knowledge Model (LKM)** — a billion-scale re
 
 This requires a **machine-readable, machine-writable knowledge representation** that supports:
 
-1. **Structured reasoning** — not free-text, but typed knowledge objects (claims, questions, settings, actions) connected by explicit inference steps
+1. **Structured reasoning** — not free-text, but typed knowledge objects and explicit support / constraint structure
 2. **Probabilistic belief** — knowledge is not true/false but carries degrees of belief, because scientific knowledge is inherently uncertain
 3. **Composable modules** — knowledge must be packaged, exported, imported, and composed, like code in a programming language
 4. **Automated inference** — the system must propagate beliefs through the graph automatically when new evidence arrives
 
-These requirements together define a programming language. Gaia is that language.
+These requirements together define a formal package language for scientific reasoning. Gaia is that language.
 
-### Gaia as a probabilistic functional programming language
+### Gaia as a structured language for probabilistic scientific reasoning
 
-Gaia is a **probabilistic functional programming language** specialized for knowledge representation and epistemic inference.
+Gaia is a **structured language for probabilistic scientific reasoning**.
 
-It follows the standard architecture of probabilistic PLs: a **deterministic host language** with a **probabilistic layer** on top.
+It combines:
+
+- a deterministic authored package surface
+- a structural Graph IR layer
+- a probabilistic inference layer on top
 
 | Layer | What it provides | PL analogy |
 |-------|-----------------|------------|
-| **V1 — Deterministic FP core** | Knowledge (values), inferences (lambdas), chains (composition), modules (with imports/exports), packages | Haskell, OCaml |
-| **V3 — Probabilistic layer** | Priors, dependency roles (`direct`/`indirect` surface syntax; `premise`/`context` semantics), belief propagation (inference) | Church's `flip`/`observe`, Hakaru's `measure` monad, Pyro's `sample`/`observe` |
+| **Authored package surface** | Declarations, refs, modules, package structure | typed DSL / package language |
+| **Graph IR** | Submitted structural graph, canonicalization boundary, factor graph shape | typed intermediate representation |
+| **Inference layer** | Priors, factor parameters, BP, review-derived judgments | probabilistic inference layer |
+
+Only closed, truth-apt scientific assertions directly participate in ordinary domain BP. Questions, workflow declarations, review artifacts, and internal curation artifacts may still exist in Gaia packages or service outputs, but they are not ordinary domain-BP variables by default.
 
 The theoretical positioning:
 
@@ -74,7 +88,7 @@ These provide graph storage and deterministic querying, but have no probabilisti
 
 Gaia combines three capabilities that no existing tool provides together:
 
-1. **Functional knowledge structure** (V1) — knowledge objects, inferences, chains, modules, packages — a typed, composable knowledge representation inspired by Haskell/OCaml module systems
+1. **Structured package-based knowledge representation** — declarations, chains, modules, packages, and explicit structural lowering
 2. **Epistemic probabilistic reasoning** (V3) — priors, beliefs, dependency roles, contradiction/retraction semantics — grounded in Jaynes' probability-as-logic tradition
 3. **Hypergraph belief propagation** — loopy BP on factor graphs derived from the knowledge package structure, computing self-consistent beliefs across the entire LKM
 
@@ -86,11 +100,13 @@ Gaia is **CLI-first, Server-enhanced**.
 
 - **CLI is the primary product** — AI agents and researchers interact with Gaia through the CLI, working locally with zero server dependency
 - **The target local pipeline** is `build -> self-review skill -> graph-construction skill -> infer -> publish`
-- **Server provides four optional enhancement services:**
+- **Formal external submissions prefer Gaia packages** — `knowledge` by default, with `review`, `rebuttal`, and intentionally externalized `investigation` as additional artifact profiles
+- **Server provides four optional enhancement services plus internal maintenance:**
   1. Knowledge integration — merge approved packages into the global Large Knowledge Model
   2. Global search — cross-package vector + BM25 + topology search
   3. Peer review and registry integration — independent review, editorial decisions, identity assignment
   4. Large-scale BP — billion-node belief propagation on GPU cluster
+  5. Internal curation — server-internal offline graph maintenance, not a default external submission surface
 
 The target shared interaction path is: **CLI → git push / publish → peer review → rebuttal / editor cycle → merge or reject** (similar to an academic publishing workflow).
 
@@ -106,7 +122,7 @@ What is currently shipped on `main`:
 - type-aware belief propagation (contradiction, retraction edges)
 - **CLI with 8 commands** (`init`, `build`, `review`, `infer`, `publish`, `show`, `search`, `clean`) — shipped in PR #63
 - **Target architecture docs now treat only `build`, `infer`, and `publish` as core CLI pipeline commands**. The shipped `gaia review` command remains a compatibility path for local self-review sidecars.
-- **Gaia Language** — per-module YAML with knowledge objects, chains, and `dependency: direct/indirect` references
+- **Gaia foundations baseline now centers Gaia packages and Graph IR as the normative submission model**. Older YAML-centric descriptions are historical and no longer the source of truth.
 - **Inference engine moved to `libs/inference/`** — local belief propagation decoupled from server
 - **Build output** — per-module Markdown for LLM review
 
@@ -117,7 +133,7 @@ What is not yet shipped but is on the roadmap:
 - rebuttal / editor publish cycle
 - registry-side `CanonicalBinding` + `GlobalInferenceState` end-to-end flow
 - cross-package dependency resolution and `gaia.lock`
-- shared knowledge-package contracts (being standardized in this foundation work)
+- fully stabilized package-profile metadata and review artifact integration contracts
 
 ## Current Supported Product Surfaces
 
@@ -191,7 +207,7 @@ The CLI is shipped on `main` with 8 commands:
 | Command | Purpose |
 |---------|---------|
 | `gaia init` | Initialize a knowledge package |
-| `gaia build` | Parse YAML, resolve refs, lower package-local Graph IR → `.gaia/build/` + `.gaia/graph/` artifacts |
+| `gaia build` | Deterministically validate and lower package source into `.gaia/build/` + `.gaia/graph/` artifacts |
 | `gaia review` | Shipped compatibility helper for local self-review sidecars |
 | `gaia infer` | Derive local parameterization from local Graph IR + local review sidecars, then run local belief propagation |
 | `gaia publish` | Publish to git or local databases (LanceDB + Kuzu) |
@@ -199,7 +215,7 @@ The CLI is shipped on `main` with 8 commands:
 | `gaia search` | Search published nodes in local LanceDB |
 | `gaia clean` | Remove build artifacts (`.gaia/` directory) |
 
-Note: target pipeline semantics no longer treat `gaia review` as one of the minimal core commands. In the target architecture, self-review is an agent skill; the shipped command is a bridge on current `main`. The original RFC also included `gaia claim` — this was replaced by declarative YAML authoring (per-module YAML files with knowledge objects and chains). `gaia.lock` and cross-package dependency resolution remain deferred.
+Note: target pipeline semantics no longer treat `gaia review` as one of the minimal core commands. In the target architecture, self-review is an agent skill; the shipped command is a bridge on current `main`. `gaia.lock` and cross-package dependency resolution remain deferred.
 
 Still not shipped:
 
@@ -235,8 +251,8 @@ These remain design directions, not current baseline capability.
 
 Gaia is a **CLI-first, Server-enhanced** Large Knowledge Model platform.
 
-- **CLI** — the primary product surface for creating, building, reviewing, and publishing knowledge packages
-- **Server** — an optional registry that provides knowledge integration, global search, peer review / identity assignment, and large-scale BP
+- **CLI** — the primary product surface for creating, building, reviewing, and publishing Gaia packages
+- **Server** — an optional registry that provides knowledge integration, global search, peer review / identity assignment, large-scale BP, and internal offline curation
 - **Dashboard** — a browser UI for exploring the server-side knowledge graph
 
 The current `main` ships the server, dashboard, and CLI.
@@ -251,7 +267,7 @@ Large new work should be framed in one of these ways:
 
 That means:
 
-- shared contracts (knowledge package schema, domain vocabulary) are the highest priority foundation work
+- shared contracts (ontology, package schema, review/curation boundaries, artifact profiles) are the highest priority foundation work
 - CLI architecture should drive design decisions, not be an afterthought
 - server work should focus on the four enhancement services, not on being the sole product surface
 

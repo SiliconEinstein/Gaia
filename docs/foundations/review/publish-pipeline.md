@@ -6,7 +6,7 @@
 | 日期 | 2026-03-21 |
 | 状态 | **Target architecture — foundation baseline (not yet equal to shipped implementation)** |
 | Supersedes | `architecture.md` sections on build context / build align |
-| 关联文档 | [architecture.md](architecture.md), [../cli/command-lifecycle.md](../cli/command-lifecycle.md), [../server/architecture.md](../server/architecture.md) |
+| 关联文档 | [architecture.md](architecture.md), [service-boundaries.md](service-boundaries.md), [package-artifact-profiles.md](package-artifact-profiles.md), [../cli/command-lifecycle.md](../cli/command-lifecycle.md), [../server/architecture.md](../server/architecture.md) |
 
 > **Note:** This document defines the **target architecture** for Gaia's package pipeline. It redefines the older `compile → context → align → review` model from `architecture.md` as a simpler flow: 3 CLI commands + 3 agent skills, with an academic-publishing-style peer review cycle at publish time.
 >
@@ -27,6 +27,10 @@
 3. **Local and remote are the same flow, different database.** `--local` targets local LanceDB + Kuzu; `--remote` targets server. The pipeline is identical.
 
 4. **Academic publishing model.** The publish cycle mirrors paper submission: self-review → submit → peer review → revise/rebuttal → editor verdict → accept or reject.
+
+5. **Curation is downstream, not part of the publish verdict loop.** Publish-time review decides whether a submission is acceptable now. Offline `CurationService` later maintains the accepted global graph; it is not the same service as publish-time peer review.
+
+6. **Formal external submissions prefer Gaia packages.** Knowledge submissions, review artifacts, rebuttals, and explicitly externalized investigations should reuse the Gaia package format with different artifact profiles rather than inventing unrelated submission formats.
 
 ## 2. Pipeline Overview
 
@@ -261,7 +265,20 @@ The review process is itself a Gaia knowledge structure:
 
 All expressed in Gaia language. They form structured review metadata over the package and can inform registry-side judgments. Direct BP participation of review/rebuttal/editor artifacts is deferred. The review process forms a **fiber bundle** over the package — meta-knowledge attached to the base knowledge.
 
-### 5.5 Per-Module Status & Visibility
+### 5.5 Artifact Profiles
+
+The package under review is not the only Gaia-language artifact in this workflow.
+
+The formal external artifacts in the review loop should generally use Gaia package profiles:
+
+- `knowledge` for the base submission
+- `review` for structured peer-review findings
+- `rebuttal` for author responses
+- `investigation` only when a targeted external investigation is intentionally formalized
+
+These profiles share one language surface but do not have the same merge semantics. See [package-artifact-profiles.md](package-artifact-profiles.md).
+
+### 5.6 Per-Module Status & Visibility
 
 Each module is tracked independently during review, but the package merges atomically:
 
@@ -304,6 +321,17 @@ Only `approved` packages' exported knowledge enters the global graph as primary 
 **Note on peer review search:** Review engines perform high-recall global search and may return both exported and intermediate knowledge as candidates. Search results may be described using canonical identities server-side, but if an author accepts one into the package it must be written back as an explicit package-scoped reference and rebuilt. Intermediate results remain context-only across package boundaries unless the source package later promotes them to `export`.
 
 ## 6. Report Formats
+
+The following YAML shapes are **service-side projections** of review-loop artifacts.
+
+They are useful for:
+
+- transport
+- storage
+- deterministic pipeline I/O
+- local previews
+
+But they are not the only intended normative artifact shape. When review or rebuttal needs to be externally reviewable as a first-class submission, Gaia should prefer the corresponding package profiles (`review`, `rebuttal`) described in [package-artifact-profiles.md](package-artifact-profiles.md).
 
 ### 6.1 Peer Review Report
 

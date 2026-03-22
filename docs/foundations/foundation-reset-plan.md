@@ -74,15 +74,16 @@ Key decisions:
 
 ### Phase 1: Lock the vocabulary and entities — ✅ DONE
 
-> `domain-model.md` is written. Canonical terms established: declaration, chain, module, package.
+> The older `domain-model.md` baseline has now been superseded by `theory/scientific-ontology.md` plus the newer language/review docs. The old file remains only as a redirect for compatibility.
 
 Objective:
 
 - define the canonical domain terms and core entities
 
-Deliverable:
+Deliverables:
 
-- `domain-model.md`
+- `theory/scientific-ontology.md`
+- aligned language / review docs
 
 Key decisions:
 
@@ -93,7 +94,7 @@ Key decisions:
 
 ### Phase 2: Lock the shared knowledge package contracts — ✅ DONE
 
-> The Gaia Language (PR #63) implements the package model. Actual format uses per-module YAML with `package.yaml` manifest, declaration/chain structure, and `.gaia/` build artifacts. Review output uses YAML sidecar format with per-chain steps.
+> The Gaia Language baseline is now Typst/package-based. Review output may still have machine-readable projections, but the formal external artifact model is no longer centered on the old per-module YAML/package.yaml schema.
 
 Objective:
 

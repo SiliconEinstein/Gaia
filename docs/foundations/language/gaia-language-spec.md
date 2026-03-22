@@ -137,7 +137,7 @@ Parameters: none (content body only).
 
 ### `#claim`
 
-A truth-apt statement. Supports optional `from:` (premises) and `kind:` (subtype).
+A truth-apt statement. Supports optional `from:` (premises) and `kind:` (scientific subtype).
 
 ```typst
 // Simple claim with no premises
@@ -155,10 +155,12 @@ A truth-apt statement. Supports optional `from:` (premises) and `kind:` (subtype
 ```
 
 Parameters:
-- `from: (<label1>, <label2>, ...)` -- tuple of premise labels (optional)
-- `kind: "observation"` -- subtype string (optional)
+- `from: (<label1>, <label2>, ...)` -- tuple of load-bearing premise labels (optional)
+- `kind: "observation"` -- scientific subtype string (optional)
 - First content block: the claim statement
 - Second content block: the proof/justification (optional)
+
+`from:` should be read as "this reasoning step materially depends on these premises." It is not a generic bag of related references.
 
 ### `#action`
 
@@ -328,12 +330,16 @@ Defines the type system for knowledge objects:
 
 The `kind:` parameter provides further subtyping (e.g., `kind: "observation"` on a claim).
 
+`kind:` records scientific role and provenance style. It does **not** exempt a node from needing support, and it does not by itself change Graph IR topology.
+
 ### Structural Layer
 
 Defines how knowledge objects connect:
 
-- **`from:` edges** -- A `claim` or `action` with `from: (<a>, <b>)` declares that `a` and `b` are premises for the conclusion. These become reasoning factors in the Graph IR.
+- **`from:` edges** -- A `claim` or `action` with `from: (<a>, <b>)` declares that `a` and `b` are load-bearing premises for the conclusion. These become reasoning factors in the Graph IR.
 - **`between:` constraints** -- A `relation` with `between: (<a>, <b>)` declares a structural constraint (contradiction or equivalence) between two nodes.
+
+The v4 surface does **not yet** provide a separate slot for regime / background conditions. In the target direction, this should become an explicit `under:`-like role rather than being overloaded into `from:`.
 
 ### Probabilistic Layer
 
@@ -419,6 +425,7 @@ Key design decisions:
 
 - **Observations are not special-cased.** A `claim(kind: "observation")` follows the same rules as any claim: if it has `from:` it can be established; if it is used as a premise without proof, it is a hole. The `kind` field records the *evidence type* but does not exempt the node from needing proof.
 - **Settings are assumptions, not axioms.** A setting can always be challenged by a `relation(type: "contradiction")` in another package. The label "assumption" reflects this: accepted without proof here, but not immune to revision.
+- **`from:` is stronger than generic relevance.** If a node appears in `from:`, the author is asserting that the conclusion materially depends on it. Background conditions and regimes should eventually move to a distinct `under:` role rather than being mixed into direct premises.
 - **Axiom systems are future proof views, not node properties.** Gaia does not expose `axiom` as a declaration type or proof-state bucket. If the system later needs alternative starting-point sets for explanation trees, loop cuts, or inference views, those should be represented as explicit `assumption basis` metadata layered on top of the graph.
 - **Holes are actionable.** Each hole represents a concrete next step — provide a proof, import from another package, or demote to standalone if the premise link was accidental.
 
@@ -428,9 +435,10 @@ Run `gaia build --proof-state` to generate the proof state report for a package.
 
 The following are not part of the v4 surface but are planned or under consideration:
 
-- `dependency: indirect` / context semantics (only `from:` = direct premise exists)
+- `under:` / context semantics for regime, idealization, and background conditions (today only `from:` = direct premise exists)
+- `mode:` metadata for support semantics such as `deductive`, `inductive`, and `abductive`
 - Action execution runtime (actions are declared but not executed)
 - Schema/ground node parameterization in the language surface
-- First-class evidence kinds (`observation`, `experiment`, `dataset` as distinct types)
+- Richer scientific `kind:` conventions (`measurement`, `hypothesis`, `law`, `prediction`) without exploding the number of top-level declarations
 - Explicit schema versioning in source files
 - `Gaia.toml` / `gaia.lock` for package dependency management

@@ -22,7 +22,7 @@ The execution plan for that reset lives here:
 - [Foundation Reset Plan](foundation-reset-plan.md)
 - [Product Scope](product-scope.md)
 - [System Overview](system-overview.md)
-- [Domain Model](domain-model.md)
+- [Domain Model](domain-model.md) — superseded redirect to newer ontology/package-profile docs
 
 **Graph IR:**
 
@@ -31,6 +31,7 @@ The execution plan for that reset lives here:
 **Theory:**
 
 - [Theoretical Foundation](theory/theoretical-foundation.md) — Jaynes 纲领
+- [Scientific Ontology](theory/scientific-ontology.md) — scientific object model, BP-bearing vs non-BP objects, operator families
 - [Inference Theory](theory/inference-theory.md) — BP 算法理论
 - [Independent Evidence & Conditional Independence](theory/corroboration-and-conditional-independence.md) — 多路径独立证据的语义、条件独立性判定、交叉审查流程
 
@@ -53,6 +54,8 @@ The execution plan for that reset lives here:
 **Review:**
 
 - [Review Pipeline & Publish Workflow](review/publish-pipeline.md) — current self-review / peer review / publish contract
+- [Review and Curation Service Boundaries](review/service-boundaries.md) — submission-scoped review vs registry-scoped curation
+- [Gaia Package Artifact Profiles](review/package-artifact-profiles.md) — `knowledge` / `investigation` / `review` / `rebuttal` package semantics
 - [Build, Alignment, and Review Architecture](review/architecture.md) — superseded historical reference
 
 **Server:**
@@ -64,27 +67,28 @@ The execution plan for that reset lives here:
 The plan is to establish a small set of durable foundation docs before major code restructuring resumes:
 
 1. `product-scope.md`
-2. `domain-model.md`
-3. `theory/theoretical-foundation.md` (Jaynes-centered theoretical foundation)
-4. `theory/inference-theory.md` (BP algorithm and inference theory)
+2. `system-overview.md`
+3. `theory/scientific-ontology.md` (scientific object model and BP boundary)
+4. `theory/theoretical-foundation.md` (Jaynes-centered theoretical foundation)
 5. `language/gaia-language-spec.md` (Gaia Language spec)
-6. `cli/boundaries.md` (Gaia CLI runtime layering)
-7. `review/publish-pipeline.md` (self-review, peer review, and publish workflow)
-8. `server/architecture.md` (Server architecture)
-9. `graph-ir.md` (Graph IR — canonical factor graph layer)
-10. `server/graph-spec.md`
-11. `server/storage-schema.md` (Server storage schema)
-12. `server/module-boundaries.md`
-13. `server/api-contract.md`
+6. `graph-ir.md` (Graph IR — canonical factor graph layer)
+7. `theory/inference-theory.md` (BP algorithm and operator theory)
+8. `review/service-boundaries.md` (ReviewService vs CurationService)
+9. `review/package-artifact-profiles.md` (knowledge / investigation / review / rebuttal package semantics)
+10. `review/publish-pipeline.md` (self-review, peer review, and publish workflow)
+11. `server/architecture.md` (Server architecture)
+12. `server/storage-schema.md` (Server storage schema)
+13. `domain-model.md` (compat redirect only; no longer a normative source)
+14. `cli/boundaries.md` (Gaia CLI runtime layering)
 
 Those files do not all exist yet. This directory is the place where they should be created and kept current.
 
 ## Folder Layout
 
-- `theory/`: Theoretical foundations (Jaynes, BP algorithm) — shared mathematical basis
+- `theory/`: Theoretical foundations and ontology (Jaynes, scientific object model, BP operator theory)
 - `language/`: Gaia formal language spec, design, and design rationale
 - `cli/`: Gaia CLI runtime boundaries and future CLI-specific docs
-- `review/`: Review and publish semantics; may also contain superseded historical design docs
+- `review/`: Review and publish semantics, plus service-boundary docs for review vs curation
 - `server/`: Server architecture, storage schema, API contracts
 
 ## Historical docs

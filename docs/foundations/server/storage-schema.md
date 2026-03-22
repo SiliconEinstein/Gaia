@@ -6,7 +6,7 @@
 | 日期 | 2026-03-13 |
 | 状态 | Draft |
 | Supersedes | storage-schema.md v1.1 (2026-03-10) |
-| 关联文档 | [architecture.md](architecture.md) — Server 整体架构 v2.0, [../graph-ir.md](../graph-ir.md) — Graph IR 规范, [../bp-on-graph-ir.md](../bp-on-graph-ir.md) — BP on Graph IR, [../review/publish-pipeline.md](../review/publish-pipeline.md) — Publish Pipeline |
+| 关联文档 | [architecture.md](architecture.md) — Server 整体架构 v2.0, [../graph-ir.md](../graph-ir.md) — Graph IR 规范, [../bp-on-graph-ir.md](../bp-on-graph-ir.md) — BP on Graph IR, [../review/publish-pipeline.md](../review/publish-pipeline.md) — Publish Pipeline, [../review/package-artifact-profiles.md](../review/package-artifact-profiles.md) — package profile semantics, [../review/service-boundaries.md](../review/service-boundaries.md) — ReviewService / CurationService split, [../theory/scientific-ontology.md](../theory/scientific-ontology.md) — ontology boundary |
 
 > **变更摘要 (v1.1 → v2.0)：** Graph IR 使因子图成为持久化的 first-class artifact。本次修订新增 5 个实体（FactorNode、CanonicalBinding、GlobalCanonicalNode、GlobalInferenceState、PackageSubmissionArtifact），扩展 Knowledge（+kind, +parameters, +contradiction/equivalence），重写图拓扑设计（新增 Factor 层），更新所有后端分工和查询模式。
 
@@ -37,6 +37,7 @@ Package:
     package_id:    str           # 全局唯一
     name:          str
     version:       str           # semver
+    artifact_profile: str        # knowledge | investigation | review | rebuttal
     description:   str | None
     modules:       list[str]     # module_id 有序列表（叙事顺序）
     exports:       list[str]     # 对外导出的 knowledge_id
@@ -44,6 +45,8 @@ Package:
     submitted_at:  datetime
     status:        str           # submitted | merged | rejected
 ```
+
+`artifact_profile` determines submission semantics, review policy, and merge behavior. It does not change the underlying Gaia package substrate.
 
 ### 2.2 Module
 
@@ -102,6 +105,8 @@ Parameter:
 | `prior` 语义更新 | 保留为 package review 产出的 reviewed prior；全局 BP 使用 `GlobalInferenceState.node_priors` |
 
 **版本规则：** 同 v1.1——`(knowledge_id, version)` 唯一，新版本由新 package 提交时创建，旧版本不可变。
+
+**BP boundary reminder:** `Knowledge.type` may still preserve authored root types such as `question` or `action`, but ordinary domain BP remains centered on closed, truth-apt scientific assertions plus accepted relation-bearing structures. Review/rebuttal artifacts and ordinary internal curation outputs are not implied to be domain-BP variables simply because they are stored.
 
 **ImportRef 语义更新：** ImportRef 现在保留 author-facing 的 package-scoped 引用信息（`package/version/module/knowledge_name + dependency`），而不是直接内嵌 `knowledge_id` 或 `global_canonical_id`。如果 target 是非导出 external knowledge，则只允许 `dependency = indirect`。
 
@@ -163,7 +168,7 @@ SourceRef:
 **字段语义：**
 - `premises` — 直接依赖，创建 BP 边
 - `contexts` — 间接依赖，**不**创建 BP 边，影响折入 conditional_probability
-- `conclusion` — reasoning/instantiation：正常接收 BP 消息；constraint：**只读门控**（BP 读其 belief，不向其发消息）
+- `conclusion` — reasoning/instantiation：正常接收 BP 消息；constraint：当前 runtime references 常把 Relation 节点放在这里。它究竟被当作只读 gate 还是普通 participant，属于 runtime-lowering 问题，不由 storage schema 单独决定
 
 **派生属性：**
 - `is_gate_factor` = type ∈ {mutex_constraint, equiv_constraint}
@@ -243,7 +248,7 @@ FactorParams:
 PackageSubmissionArtifact:
     package_name:        str
     commit_hash:         str
-    source_files:        dict[str, str]  # filename → YAML content
+    source_files:        dict[str, str]  # filename → source package content
     raw_graph:           dict             # raw_graph.json 内容
     local_canonical_graph: dict
     canonicalization_log: list[dict]
@@ -524,7 +529,7 @@ Integration 阶段为 LocalCanonicalNode 分配全局身份。
 查询路径: ContentStore
 
 get_submission_artifact(package, commit_hash) → PackageSubmissionArtifact
-    → 包含 source YAMLs, raw_graph, local_canonical_graph, canonicalization_log
+    → 包含 source package files, raw_graph, local_canonical_graph, canonicalization_log
     → 不可变快照，支持 re-verify
 get_bindings_for_package(package, version) → list[CanonicalBinding]
 ```

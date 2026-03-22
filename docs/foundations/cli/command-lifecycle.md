@@ -1,5 +1,11 @@
 # Gaia CLI Command Lifecycle
 
+> Related documents:
+> - [../review/publish-pipeline.md](../review/publish-pipeline.md)
+> - [../review/package-artifact-profiles.md](../review/package-artifact-profiles.md)
+> - [../review/service-boundaries.md](../review/service-boundaries.md)
+> - [../theory/scientific-ontology.md](../theory/scientific-ontology.md)
+
 > **Status: Current target semantics.** This document aligns to [`../review/publish-pipeline.md`](../review/publish-pipeline.md). The target pipeline has 3 core CLI commands (`build`, `infer`, `publish`) plus 3 agent skills (`self-review`, `graph-construction`, `rebuttal`). The shipped `gaia review` command on `main` is a compatibility bridge for the local self-review step, not part of the long-term minimal core.
 
 ## Purpose
@@ -59,6 +65,8 @@ At some point the author materializes a structured package:
 - module/package boundaries
 - provenance or resource links
 
+The default authored submission is a `knowledge` package. Downstream review/rebuttal may also be represented as Gaia packages with different profiles, but the local authoring lifecycle normally starts from the `knowledge` profile.
+
 This authored source is the input to `gaia build`.
 
 ### Stage 2: Built Package
@@ -97,6 +105,8 @@ On `main`, the shipped `gaia review` command is the compatibility path that mate
 
 It consumes the package's local Graph IR plus available local review sidecars, derives a local parameterization as a runtime step, and runs local BP. Typical outputs live under `.gaia/inference/`, including local parameterization artifacts and belief previews.
 
+Only closed, truth-apt assertions directly participate in this BP preview. Inquiry artifacts and procedural declarations may still shape structure or workflows, but they are not ordinary domain-BP variables by default.
+
 ### Stage 5: Verified Package
 
 > **Not yet implemented.** `gaia verify` remains a future command for execution-backed or reproducibility-backed claims.
@@ -117,6 +127,8 @@ After publish, the shared system may:
 
 That work is downstream of local CLI authority.
 
+The publish handoff still centers on Gaia packages. Review and rebuttal may later be represented as Gaia-language artifacts as well, but with different artifact profiles and merge semantics.
+
 ## Command And Skill Contracts
 
 | Entry | Kind | Role | Determinism | Primary outputs |
@@ -126,8 +138,8 @@ That work is downstream of local CLI authority.
 | `graph-construction` | agent skill | local canonicalization + optional local parameterization | mixed | local canonical graph + optional `.gaia/inference/local_parameterization.json` |
 | `infer` | CLI command | local BP preview | deterministic given local artifacts | `.gaia/inference/` artifacts + belief preview |
 | `verify` | CLI command | reproducibility / execution checks | execution-dependent | verification evidence sidecars |
-| `publish` | CLI command | submission handoff | protocol-driven | package submission to git / registry-facing pipeline |
-| `rebuttal` | agent skill | process peer review findings | model-dependent | revised package source or rebuttal artifacts |
+| `publish` | CLI command | submission handoff | protocol-driven | Gaia package submission + deterministic artifacts to git / registry-facing pipeline |
+| `rebuttal` | agent skill | process peer review findings | model-dependent | revised package source or rebuttal package/projection artifacts |
 
 ## Current `main` Compatibility Note
 
@@ -171,6 +183,7 @@ Responsibilities:
 - submit the package and its deterministic artifacts
 - hand off to peer review and registry-side identity assignment
 - preserve the distinction between package-local Graph IR and global registry state
+- preserve the distinction between base `knowledge` submissions and later `review` / `rebuttal` / `investigation` package profiles
 
 ## Recommended Agent Workflow
 
