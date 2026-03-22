@@ -4,14 +4,16 @@
 
 The canonical specifications for Gaia live in [`foundations/`](foundations/README.md):
 
+- [Documentation Policy](foundations/documentation-policy.md) — how active foundation docs are structured and maintained
+- [System Overview](foundations/system-overview.md) — Gaia CLI, Gaia LKM, and top-level artifact flow
+- [Gaia Vocabulary](foundations/meaning/vocabulary.md) — canonical terminology for CLI, LKM, service, engine, server, package, and artifact
 - [Product Scope](foundations/product-scope.md) — what Gaia is and is not
-- [System Overview](foundations/system-overview.md) — architecture layers and runtime flow
-- [Domain Model](foundations/domain-model.md) — nodes, hyperedges, commits, and vocabulary
-- [Language Spec](foundations/language/gaia-language-spec.md) — Gaia Language semantics, package surface, and conformance rules
-- [CLI Command Lifecycle](foundations/cli/command-lifecycle.md) — build / review / infer / publish pipeline
-- [Theoretical Foundation](foundations/theory/theoretical-foundation.md) — Jaynes framework, Gaia identity, plausible reasoning
-- [Inference Theory](foundations/theory/inference-theory.md) — BP algorithm, lattice theory, edge semantics
-- [Server Architecture](foundations/server/architecture.md) — registry-based server design
+- [Language Spec](foundations/language/gaia-language-spec.md) — Gaia Language semantics, Typst package surface, and conformance rules
+- [Graph IR](foundations/graph-ir.md) — structural contract between language and inference/runtime
+- [CLI Command Lifecycle](foundations/cli/command-lifecycle.md) — local build / infer / publish lifecycle
+- [Theoretical Foundation](foundations/theory/theoretical-foundation.md) — Jaynes framework and plausible reasoning motivation
+- [Inference Theory](foundations/theory/inference-theory.md) — current semantic operator theory
+- [Server Architecture](foundations/server/architecture.md) — current runtime/backend implementation
 
 Start there for any question about current architecture, contracts, or semantics.
 
@@ -19,7 +21,7 @@ Start there for any question about current architecture, contracts, or semantics
 
 | Directory | Contents | Status |
 |-----------|----------|--------|
-| `foundations/` | Product scope, system overview, domain model, language spec, CLI specs | **Current** — canonical specs |
+| `foundations/` | Active foundation docs organized around meaning, contracts, and runtime | **Current** — canonical specs |
 | `design/` | Scaling belief propagation, related work | **Reference** — evergreen design notes |
 | `examples/` | Einstein elevator, Galileo tied-balls worked examples | **Reference** — evergreen examples |
 | `archive/` | Historical design docs and implementation plans from the initial build-out | **Historical** — preserved for context |

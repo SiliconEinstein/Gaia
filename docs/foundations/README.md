@@ -1,97 +1,69 @@
 # Foundations
 
-This directory is the working area for Gaia's next foundation reset.
+This directory contains Gaia's active foundation docs.
 
-Use it when the task affects any of the following:
+Use it when the task affects:
 
-- overall architecture
-- module boundaries
-- API contracts
-- graph model semantics
-- storage schema or backend capability assumptions
-- domain vocabulary
+- overall system meaning or terminology
+- package, graph, or storage contracts
+- CLI and shared-side lifecycle boundaries
+- runtime architecture and behavior
 
-## Current status
-
-Gaia now has a documented re-baselining diagnosis in [../architecture-rebaseline.md](../architecture-rebaseline.md).
-
-The execution plan for that reset lives here:
-
-**Global (cross-subsystem):**
+## Start Here
 
 - [Documentation Policy](documentation-policy.md)
-- [Foundation Reset Plan](foundation-reset-plan.md)
-- [Product Scope](product-scope.md)
 - [System Overview](system-overview.md)
-- [Domain Model](domain-model.md)
+- [Gaia Vocabulary](meaning/vocabulary.md)
+- [Foundation Reset Plan](foundation-reset-plan.md)
 
-**Graph IR:**
+## Active Structure
 
-- [Graph IR](graph-ir.md) — Canonical factor graph IR between Gaia Language and BP
+The active foundations reset is reorganizing this directory around three layers:
 
-**Theory:**
+- **Meaning** — what Gaia concepts mean
+- **Contracts** — the stable authored and system contracts
+- **Runtime** — how the current implementation behaves
 
-- [Theoretical Foundation](theory/theoretical-foundation.md) — Jaynes 纲领
-- [Inference Theory](theory/inference-theory.md) — BP 算法理论
-- [Independent Evidence & Conditional Independence](theory/corroboration-and-conditional-independence.md) — 多路径独立证据的语义、条件独立性判定、交叉审查流程
+The migration is in progress, so some active docs still live in legacy subfolders. The goal is to move the active set toward a clearer `meaning / contracts / runtime` split over time.
 
-**BP on Graph IR:**
+## Current Reading Order
 
-- [BP on Graph IR](bp-on-graph-ir.md) — Factor functions, gate semantics, schema/ground BP interaction
+### Meaning
 
-**Language:**
+- [Gaia Vocabulary](meaning/vocabulary.md) — primary foundation terminology
+- [Product Scope](product-scope.md) — product positioning and current baseline
+- [Theoretical Foundation](theory/theoretical-foundation.md) — Jaynes-centered framing and epistemic motivation
+- [Domain Model](domain-model.md) — legacy meaning doc that will be retired as newer canonical homes are created
+- [Inference Theory](theory/inference-theory.md) — current semantic operator theory
+- [Independent Evidence & Conditional Independence](theory/corroboration-and-conditional-independence.md) — current corroboration semantics
+
+### Contracts
 
 - [Gaia Language Spec](language/gaia-language-spec.md)
 - [Gaia Language Design](language/gaia-language-design.md)
 - [Language Design Rationale](language/design-rationale.md)
 - [Type System Direction](language/type-system-direction.md)
+- [Graph IR](graph-ir.md)
+- [Gaia CLI Command Lifecycle](cli/command-lifecycle.md)
+- [Review Pipeline & Publish Workflow](review/publish-pipeline.md) — current shared-side workflow doc during migration
 
-**CLI:**
+### Runtime
 
 - [Gaia CLI Runtime Boundaries](cli/boundaries.md)
-- [Gaia CLI Command Lifecycle](cli/command-lifecycle.md)
-
-**Review:**
-
-- [Review Pipeline & Publish Workflow](review/publish-pipeline.md) — current self-review / peer review / publish contract
-- [Build, Alignment, and Review Architecture](review/architecture.md) — superseded historical reference
-
-**Server:**
-
+- [BP on Graph IR](bp-on-graph-ir.md)
 - [Server Architecture](server/architecture.md)
+- [Server Storage Schema](server/storage-schema.md)
 
-## Intended outputs
+## Migration Notes
 
-The plan is to establish a small set of durable foundation docs before major code restructuring resumes:
+- Active docs should prefer `Gaia CLI` and `Gaia LKM` over `Gaia Cloud` and `Gaia Server` as the primary conceptual split.
+- Active docs should describe authoring in terms of Typst packages and Gaia packages, not YAML package files.
+- The canonical local CLI lifecycle is `build -> infer -> publish`; review belongs on the shared-side lifecycle.
 
-1. `product-scope.md`
-2. `domain-model.md`
-3. `theory/theoretical-foundation.md` (Jaynes-centered theoretical foundation)
-4. `theory/inference-theory.md` (BP algorithm and inference theory)
-5. `language/gaia-language-spec.md` (Gaia Language spec)
-6. `cli/boundaries.md` (Gaia CLI runtime layering)
-7. `review/publish-pipeline.md` (self-review, peer review, and publish workflow)
-8. `server/architecture.md` (Server architecture)
-9. `graph-ir.md` (Graph IR — canonical factor graph layer)
-10. `server/graph-spec.md`
-11. `server/storage-schema.md` (Server storage schema)
-12. `server/module-boundaries.md`
-13. `server/api-contract.md`
+## Historical Docs
 
-Those files do not all exist yet. This directory is the place where they should be created and kept current.
+Historical design documents and older implementation plans are preserved in [`../archive/`](../archive/).
 
-## Folder Layout
+## Working Rule
 
-- `theory/`: Theoretical foundations (Jaynes, BP algorithm) — shared mathematical basis
-- `language/`: Gaia formal language spec, design, and design rationale
-- `cli/`: Gaia CLI runtime boundaries and future CLI-specific docs
-- `review/`: Review and publish semantics; may also contain superseded historical design docs
-- `server/`: Server architecture, storage schema, API contracts
-
-## Historical docs
-
-Historical design documents and implementation plans from the initial build-out are preserved in [`../archive/`](../archive/).
-
-## Working rule
-
-When a change affects architecture or cross-module behavior, the relevant foundation doc should be updated in the same branch, or the PR should explicitly state why the docs are being deferred.
+When a change affects architecture or cross-module behavior, update the relevant foundation doc in the same branch, or explicitly state why the doc update is being deferred.

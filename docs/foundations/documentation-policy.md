@@ -37,7 +37,7 @@ A concept may be mentioned in many docs, but it should have only one canonical p
 
 Examples:
 
-- scientific object kinds belong in ontology docs
+- primary terminology belongs in meaning docs
 - authored package syntax belongs in language spec
 - structural graph shape belongs in Graph IR
 - package review/curation workflow belongs in review docs
@@ -109,7 +109,7 @@ Should not contain:
 
 Examples:
 
-- `theory/scientific-ontology.md`
+- `meaning/vocabulary.md`
 - `theory/theoretical-foundation.md`
 
 ### Architecture
@@ -129,7 +129,6 @@ Should not contain:
 Examples:
 
 - `system-overview.md`
-- `review/service-boundaries.md`
 - `server/architecture.md`
 
 ### Spec

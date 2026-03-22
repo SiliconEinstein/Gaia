@@ -1,227 +1,139 @@
 # Gaia System Overview
 
-This document describes the overall architecture and interaction flow of Gaia as a CLI-first, Server-enhanced Large Knowledge Model platform.
+| Field | Value |
+|---|---|
+| Status | Current canonical |
+| Level | Overview |
+| Scope | Repo-wide |
+| Related | [meaning/vocabulary.md](meaning/vocabulary.md), [product-scope.md](product-scope.md), [language/gaia-language-spec.md](language/gaia-language-spec.md), [graph-ir.md](graph-ir.md), [cli/command-lifecycle.md](cli/command-lifecycle.md), [review/publish-pipeline.md](review/publish-pipeline.md), [server/architecture.md](server/architecture.md) |
 
-For product positioning rationale, see [product-scope.md](product-scope.md).
+## Purpose
 
-## Three Product Layers
+This document describes the top-level structure of Gaia.
 
-```
-┌─────────────────────────────────────────────────────┐
-│  Research Agent (AI agent, primary user)             │
-│  ↕ bash + JSON                                      │
-├─────────────────────────────────────────────────────┤
-│  Gaia CLI (gaia-cli)                                │
-│  Local-complete, zero-config                        │
-│  LanceDB + Kuzu (embedded) + local BP               │
-├──────────────┬──────────────────────────────────────┤
-│   git/GitHub │  gaia publish --server               │
-│   (版本控制)  │  (知识整合)                            │
-├──────────────┴──────────────────────────────────────┤
-│  Gaia Server — Large Knowledge Model (LKM)          │
-│  Neo4j + LanceDB + ByteHouse + GPU BP               │
-│  知识整合 · 全局搜索 · Peer Review · Registry · 大尺度 BP │
-└─────────────────────────────────────────────────────┘
-```
+It is the canonical orientation doc for how the major parts of the system fit together. It does not try to fully specify every workflow or runtime detail.
 
-### Gaia CLI
+For terminology, see [meaning/vocabulary.md](meaning/vocabulary.md).
 
-The primary product surface. AI agents and researchers use the CLI to create, build, preview, and publish knowledge packages.
+## Primary Split: Gaia CLI and Gaia LKM
 
-Key properties:
+Gaia has two primary active sides:
 
-- **Agent-first** — AI agents are the primary users, calling CLI via bash and parsing JSON output
-- **Local-complete** — embedded LanceDB + Kuzu + BP engine, fully offline, zero server dependency
-- **1 package = 1 git repo** — can be hosted directly on GitHub
-- **Gaia does not wrap git** — version control is completely delegated to git
+- **Gaia CLI** — the local author-side toolchain
+- **Gaia LKM** — the shared-side knowledge core and system of record
 
-Target core pipeline:
-
-> **Note:** The current foundations baseline follows [`review/publish-pipeline.md`](review/publish-pipeline.md): core CLI commands are `gaia build`, `gaia infer`, and `gaia publish`; self-review, graph construction, and rebuttal are agent skills. The shipped `gaia review` command on `main` is a local compatibility bridge for self-review sidecars, not the long-term core review boundary.
-
-| Command | Purpose |
-|---------|---------|
-| `gaia init [name]` | Initialize a knowledge package |
-| `gaia build` | Deterministically validate/lower package source into `.gaia/build/` and `.gaia/graph/` artifacts |
-| `gaia review [PATH]` | Current shipped compatibility path for local self-review sidecars under `.gaia/reviews/` |
-| `gaia infer` | Derive local parameterization from local Graph IR + local review sidecars, then run local BP |
-| `gaia publish` | Publish to git or local databases (LanceDB + Kuzu) |
-| `gaia show <name>` | Display a declaration + connected chains |
-| `gaia search "query"` | Search published nodes in local LanceDB |
-| `gaia clean` | Remove build artifacts (`.gaia/` directory) |
-
-For CLI architecture details, see [cli/boundaries.md](cli/boundaries.md).
-
-### Git / GitHub
-
-Version control and collaboration layer. Gaia delegates all versioning to git and does not reimpose its own VCS.
-
-- Each knowledge package is a git repo
-- Collaboration happens through standard git workflows (branches, PRs)
-- Server integration uses GitHub webhooks on the registry repo
-
-### Gaia Server (Large Knowledge Model)
-
-An optional registry and compute backend. Server 架构采用 **Write Side / Read Side 分离**：
-
-**Write Side（数据入库 + 离线维护）：**
-
-| Service | Purpose |
-|---------|---------|
-| **Review Service** | Package 审查流程：validation → canonicalization → multiple agent review → gatekeeper 准入 |
-| **Storage Service** | 统一存储门面，管理三后端写入 |
-| **BP Service** | 离线定期全局信念传播 |
-| **Curation Service** | 离线定期图维护：相似结论聚类、矛盾发掘、全图结构巡检、图清理 |
-
-BP Service 和 Curation Service 构成离线图维护机制：Curation 先做结构维护，BP 再跑推理更新。
-
-**Read Side（数据消费）：**
-
-| Service | Purpose |
-|---------|---------|
-| **Query Service** | 面向 AI agents 的知识搜索、子图探索，核心用例是 research |
-
-The server is analogous to Julia's General Registry or crates.io — it consumes packages read-only and provides centralized services.
-
-## Primary Interaction Path: Git + Server Webhook
-
-The main interaction flow, similar to Julia Pkg Registry:
+This is the primary conceptual split for active foundation docs.
 
 ```
-Agent (local)            Git / GitHub             Gaia Server
-─────────────           ──────────────           ───────────
-
-gaia init
-(author YAML modules)
-gaia build
-agent self-review / graph construction
-gaia infer   (optional local preview)
-
-git add + commit
-git push ──────────→  PR to registry repo
-                      webhook notify ─────────→  auto peer review + search + identity matching
-                                                 │
-                                                 ├─ pass → merge into LKM
-                                                 │         PR comment: ✅
-                                                 │
-                                                 └─ fail → PR comment: ❌
-                                                           + peer review / editor report
-
-Agent reads result ←── PR comments
-├─ pass: done
-└─ fail: modify based on report
-         → push → triggers review again
+┌─────────────────────────────────────────────────────────────┐
+│ Researcher / agent                                         │
+│ writes Typst package source and runs local commands        │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Gaia CLI                                                    │
+│ local authoring, build, infer, publish                     │
+│ local Typst package source + local .gaia/ artifacts        │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Gaia LKM                                                    │
+│ shared knowledge state, review, rebuttal, integration,     │
+│ curation, search, and shared inference surfaces            │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-Key properties of this flow:
+## Gaia CLI
 
-- **Server never modifies the package** — it is a read-only consumer
-- **Peer review results appear as PR comments** — standard GitHub collaboration model
-- **Agent autonomy** — agents can read peer review findings and self-correct without human intervention
-- **Fully async** — push triggers webhook, agent polls or watches for results
+Gaia CLI is the local toolchain for authors, researchers, and agents.
 
-## Knowledge Package Format
+Its canonical local lifecycle is:
 
-Each package is a git repo with this structure:
+- `build`
+- `infer`
+- `publish`
 
-```
-galileo_tied_balls/              # = 1 git repo = 1 knowledge package
-├── package.yaml                 # manifest (name, version, modules list)
-├── gaia.lock                    # (deferred) cross-package dependency lock
-├── aristotle_physics.yaml       # per-module YAML — knowledge objects + chains
-├── thought_experiment.yaml
-├── ...
-└── .gaia/                       # local artifacts (git-ignored)
-    ├── build/                   # per-module Markdown for LLM review
-    ├── graph/                   # raw/local-canonical Graph IR artifacts
-    ├── reviews/                 # local self-review sidecars (compat path on main)
-    ├── inference/               # local parameterization + belief preview artifacts
-    └── ...
-```
+The CLI is responsible for:
 
-Module YAML with knowledge objects, including `chain_expr` reasoning:
+- working from local Typst package source
+- producing local build and inference artifacts under `.gaia/`
+- giving users a local preview before shared-side submission
+- publishing package artifacts outward
 
-```yaml
-type: reasoning_module
-name: reasoning
+Important boundary:
 
-knowledge:
-  - type: ref
-    name: heavier_falls_fast
-    target: aristotle.heavier_falls_faster
+- `review` is not part of the canonical CLI lifecycle
+- the currently shipped `gaia review` command on `main` should be treated as a local compatibility helper, not the primary lifecycle boundary
 
-  - type: setting
-    name: thought_experiment_env
-    content: "Consider the tied-bodies thought experiment in still air."
+For CLI details, see [cli/command-lifecycle.md](cli/command-lifecycle.md).
 
-  - type: claim
-    name: combined_slower
-    content: "The tied pair should fall slower than the heavy body alone."
-    prior: 0.3
+## Gaia LKM
 
-  - type: infer_action
-    name: tied_bodies_analysis
-    params:
-      - name: premise
-        type: claim
-      - name: env
-        type: setting
-    return_type: claim
-    content: "Analyze the tied-bodies scenario under the given premise and environment."
+Gaia LKM is the shared-side knowledge core and system of record.
 
-  - type: chain_expr
-    name: tied_bodies_contradiction
-    edge_type: deduction
-    steps:
-      - step: 1
-        ref: heavier_falls_fast
-      - step: 2
-        apply: tied_bodies_analysis
-        args:
-          - ref: heavier_falls_fast
-            dependency: direct
-          - ref: thought_experiment_env
-            dependency: indirect
-        prior: 0.85
-      - step: 3
-        ref: combined_slower
-```
+It is responsible for the shared workflows that happen after local publication reaches the shared side, including:
 
-- **Direct dependency (`args[].dependency: direct`):** semantic role `premise`. If this is wrong, the conclusion cannot stand. Across package boundaries this requires exported knowledge.
-- **Indirect dependency (`args[].dependency: indirect`):** semantic role `context`. Provides background rather than a load-bearing BP edge. Across package boundaries, non-exported external knowledge is context-only.
+- review
+- rebuttal handling
+- integration into shared knowledge state
+- curation and maintenance
+- shared discovery and search surfaces
+- larger-scale inference and graph-wide maintenance
 
-For the language spec, see [language/gaia-language-spec.md](language/gaia-language-spec.md).
+Important boundary:
 
-## Technology Stack
+- Gaia LKM is the primary shared-side foundation term
+- `Gaia Cloud` may still be used as a product or deployment alias
+- `cloud` does not imply remote-only deployment; a local or self-hosted LKM deployment is still valid
 
-| Component | CLI (local) | Server |
-|-----------|-------------|--------|
-| Graph store | Kuzu (embedded) | Neo4j |
-| Content store | LanceDB (embedded) | LanceDB (distributed) |
-| Vector search | LanceDB | ByteHouse (planned) |
-| BP engine | Local (single-machine) | GPU cluster |
-| LLM review | User-chosen model via API key / agent skills | Server-managed peer review |
+Current detailed workflow docs still live in legacy locations such as [review/publish-pipeline.md](review/publish-pipeline.md) while the foundations reset is in progress.
 
-Both CLI and server share the same core libraries (`libs/`) and inference engine (`libs/inference/`). The `GraphStore` ABC abstracts the graph backend difference.
+## Service, Engine, and Server
 
-## Long-Term Repo Structure
+Within Gaia LKM, active docs should distinguish three different ideas:
 
-| Repo | Contents | Analogy |
-|------|----------|---------|
-| **gaia-core** | Shared models, BP algorithm, storage ABCs, serialization | Rust stdlib |
-| **gaia-cli** | CLI + embedded LanceDB/Kuzu + local BP | cargo |
-| **gaia-server** | FastAPI registry + Neo4j + distributed storage + LLM alignment/review | crates.io |
+- **Service** — a responsibility boundary such as `ReviewService` or `CurationService`
+- **Engine** — an internal algorithmic component such as a BP engine
+- **Server** — the current running backend implementation
 
-Current monorepo mapping:
+This distinction matters because:
 
-- `libs/` → future gaia-core
-- `cli/` → future gaia-cli
-- `services/` + `frontend/` → future gaia-server
+- a `service` is part of the conceptual architecture
+- an `engine` is an internal execution component
+- a `server` is a runtime/deployment term, not the best name for the entire shared side
 
-## Deferred Design Decisions
+For current backend runtime details, see [server/architecture.md](server/architecture.md).
 
-The following are explicitly deferred and will be addressed in later foundation phases:
+## Artifact Flow
 
-- Review output format (the exact fields and scoring schema)
-- Direct publish contract (`gaia publish --server` without git)
-- `observation` and `assumption` artifact kinds (V2 of domain model)
+At a high level, Gaia moves artifacts through the following path:
+
+1. A user or agent authors a Typst package locally.
+2. Gaia CLI builds that source into deterministic local artifacts.
+3. Gaia CLI optionally runs local inference for preview.
+4. Gaia CLI publishes a package artifact outward.
+5. Gaia LKM processes the shared-side lifecycle around that package: review, rebuttal, integration, and curation.
+
+This split is why CLI and LKM should be documented separately even when they share code.
+
+## Current Runtime on `main`
+
+The current `main` branch already includes several shipped runtime surfaces:
+
+- Gaia CLI
+- a backend server implementation
+- a dashboard frontend
+
+The active foundations reset should describe those surfaces using the Gaia CLI / Gaia LKM conceptual split, while keeping runtime implementation details in runtime-oriented docs.
+
+## Related Documents
+
+- [meaning/vocabulary.md](meaning/vocabulary.md) — canonical terminology
+- [product-scope.md](product-scope.md) — product positioning and current baseline
+- [language/gaia-language-spec.md](language/gaia-language-spec.md) — author-facing package surface
+- [graph-ir.md](graph-ir.md) — structural IR contract
+- [cli/command-lifecycle.md](cli/command-lifecycle.md) — local CLI lifecycle
+- [review/publish-pipeline.md](review/publish-pipeline.md) — current shared-side workflow doc during migration
+- [server/architecture.md](server/architecture.md) — current backend runtime
