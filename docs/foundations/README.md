@@ -19,6 +19,7 @@ The execution plan for that reset lives here:
 
 **Global (cross-subsystem):**
 
+- [Documentation Policy](documentation-policy.md)
 - [Foundation Reset Plan](foundation-reset-plan.md)
 - [Product Scope](product-scope.md)
 - [System Overview](system-overview.md)

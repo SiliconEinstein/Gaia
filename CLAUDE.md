@@ -197,3 +197,24 @@ litellm.api_base = os.getenv("OPENAI_API_BASE")
 ## Design Documents
 
 Current specs live in `docs/foundations/` (product scope, system overview, domain model, language spec, CLI, server architecture, storage schema). Historical design and planning docs are archived in `docs/archive/`.
+
+## Documentation Policy
+
+When editing architecture or foundation docs, read `docs/foundations/documentation-policy.md` first.
+
+Non-trivial doc changes must follow that policy:
+
+- identify the doc's level (`overview`, `foundation`, `architecture`, `spec`)
+- identify the doc's status (`Current canonical`, `Target design`, `Transitional`)
+- identify whether the edit is a clarification, a replacement, or a proposal
+- prefer replacing or archiving an obsolete conceptual model over endlessly patching it in place
+- update index/archive/redirect files in the same branch when a canonical doc is added, replaced, or materially re-scoped
+
+Do not silently mix:
+
+- current canonical semantics
+- target design
+- runtime implementation quirks
+- historical rationale
+
+into one document.

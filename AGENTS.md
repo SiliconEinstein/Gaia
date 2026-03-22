@@ -127,3 +127,16 @@ Usage notes:
 <!-- SKILLS_TABLE_END -->
 
 </skills_system>
+
+## Documentation Policy
+
+When editing docs under `docs/foundations/`, read `docs/foundations/documentation-policy.md` first.
+
+Use that file as the canonical rule set for:
+
+- document levels and scope
+- status labels (`Current canonical`, `Target design`, `Transitional`)
+- when to clarify vs replace vs write a proposal doc
+- how to handle retired docs and companion README/index updates
+
+Do not treat old foundation docs as the source of truth just because they exist. If a concept has been moved to a newer canonical doc, archive the old file or reduce it to a thin redirect instead of continuing to evolve two competing definitions.
