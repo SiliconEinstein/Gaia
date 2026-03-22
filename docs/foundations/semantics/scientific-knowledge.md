@@ -5,7 +5,7 @@
 | Status | Current canonical |
 | Level | Foundation |
 | Scope | Repo-wide |
-| Related | [../foundation/gaia-overview.md](../foundation/gaia-overview.md), [../meaning/vocabulary.md](../meaning/vocabulary.md), [knowledge-relations.md](knowledge-relations.md), [../domain-model.md](../domain-model.md) |
+| Related | [../foundation/gaia-overview.md](../foundation/gaia-overview.md), [terminology.md](terminology.md), [knowledge-relations.md](knowledge-relations.md), [../domain-model.md](../domain-model.md) |
 
 ## Purpose
 

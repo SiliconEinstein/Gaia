@@ -5,7 +5,7 @@
 | Status | Current canonical |
 | Level | Foundation |
 | Scope | Repo-wide |
-| Related | [../system-overview.md](../system-overview.md), [../meaning/vocabulary.md](../meaning/vocabulary.md), [scientific-reasoning-foundation.md](scientific-reasoning-foundation.md), [../product-scope.md](../product-scope.md) |
+| Related | [../system-overview.md](../system-overview.md), [../semantics/terminology.md](../semantics/terminology.md), [scientific-reasoning-foundation.md](scientific-reasoning-foundation.md), [../product-scope.md](../product-scope.md) |
 
 ## Purpose
 
@@ -120,7 +120,7 @@ This document answers the highest-level question: "What is Gaia?"
 The next questions are answered elsewhere:
 
 - [scientific-reasoning-foundation.md](scientific-reasoning-foundation.md) — why scientific reasoning needs a system like Gaia
-- [../meaning/vocabulary.md](../meaning/vocabulary.md) — the canonical large terms such as `Gaia CLI`, `Gaia LKM`, `Service`, and `Engine`
+- [../semantics/terminology.md](../semantics/terminology.md) — the canonical large terms such as `Gaia CLI`, `Gaia LKM`, `Service`, and `Engine`
 - [../semantics/scientific-knowledge.md](../semantics/scientific-knowledge.md) — what counts as scientific knowledge in Gaia
 - [../semantics/knowledge-relations.md](../semantics/knowledge-relations.md) — what kinds of relations exist between knowledge items
 - [../semantics/gaia-reasoning-model.md](../semantics/gaia-reasoning-model.md) — Gaia's chosen reasoning model

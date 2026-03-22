@@ -5,7 +5,7 @@
 | Status | Current canonical |
 | Level | Overview |
 | Scope | Repo-wide |
-| Related | [meaning/vocabulary.md](meaning/vocabulary.md), [product-scope.md](product-scope.md), [language/gaia-language-spec.md](language/gaia-language-spec.md), [graph-ir.md](graph-ir.md), [cli/command-lifecycle.md](cli/command-lifecycle.md), [review/publish-pipeline.md](review/publish-pipeline.md), [server/architecture.md](server/architecture.md) |
+| Related | [semantics/terminology.md](semantics/terminology.md), [product-scope.md](product-scope.md), [language/gaia-language-spec.md](language/gaia-language-spec.md), [graph-ir.md](graph-ir.md), [cli/command-lifecycle.md](cli/command-lifecycle.md), [review/publish-pipeline.md](review/publish-pipeline.md), [server/architecture.md](server/architecture.md) |
 
 ## Purpose
 
@@ -13,7 +13,7 @@ This document describes the top-level structure of Gaia.
 
 It is the canonical orientation doc for how the major parts of the system fit together. It does not try to fully specify every workflow or runtime detail.
 
-For terminology, see [meaning/vocabulary.md](meaning/vocabulary.md).
+For terminology, see [semantics/terminology.md](semantics/terminology.md).
 
 ## Primary Split: Gaia CLI and Gaia LKM
 
@@ -130,7 +130,7 @@ The active foundations reset should describe those surfaces using the Gaia CLI /
 
 ## Related Documents
 
-- [meaning/vocabulary.md](meaning/vocabulary.md) — canonical terminology
+- [semantics/terminology.md](semantics/terminology.md) — canonical terminology
 - [product-scope.md](product-scope.md) — product positioning and current baseline
 - [language/gaia-language-spec.md](language/gaia-language-spec.md) — author-facing package surface
 - [graph-ir.md](graph-ir.md) — structural IR contract

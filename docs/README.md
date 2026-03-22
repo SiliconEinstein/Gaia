@@ -6,7 +6,7 @@ The canonical specifications for Gaia live in [`foundations/`](foundations/READM
 
 - [Documentation Policy](foundations/documentation-policy.md) — how active foundation docs are structured and maintained
 - [System Overview](foundations/system-overview.md) — Gaia CLI, Gaia LKM, and top-level artifact flow
-- [Gaia Vocabulary](foundations/meaning/vocabulary.md) — canonical terminology for CLI, LKM, service, engine, server, package, and artifact
+- [Terminology](foundations/semantics/terminology.md) — canonical terminology for CLI, LKM, service, engine, server, package, and artifact
 - [Product Scope](foundations/product-scope.md) — what Gaia is and is not
 - [Language Spec](foundations/language/gaia-language-spec.md) — Gaia Language semantics, Typst package surface, and conformance rules
 - [Graph IR](foundations/graph-ir.md) — structural contract between language and inference/runtime

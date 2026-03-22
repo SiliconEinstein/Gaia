@@ -13,7 +13,7 @@
 
 - [基础文档治理策略](documentation-policy.md)
 - [系统概览](system-overview.md)
-- [Gaia 词汇表](meaning/vocabulary.md)
+- [Terminology](semantics/terminology.md)
 - [基础重置计划](foundation-reset-plan.md)
 
 ## 当前结构
@@ -30,7 +30,7 @@
 
 ### Meaning
 
-- [Gaia 词汇表](meaning/vocabulary.md) — 基础术语的规范出处
+- [Terminology](semantics/terminology.md) — 基础术语的规范出处
 - [产品范围](product-scope.md) — Gaia 是什么、当前 baseline 是什么
 - [理论基础](theory/theoretical-foundation.md) — Jaynes 式认识论动机
 - [领域模型](domain-model.md) — 旧的意义层文档，后续会退役

@@ -2,16 +2,22 @@
 
 | Field | Value |
 |---|---|
-| Status | Current canonical |
+| Status | Transitional |
 | Level | Foundation |
 | Scope | Repo-wide |
-| Related | [../system-overview.md](../system-overview.md), [../product-scope.md](../product-scope.md), [../theory/theoretical-foundation.md](../theory/theoretical-foundation.md) |
+| Related | [../semantics/terminology.md](../semantics/terminology.md), [../system-overview.md](../system-overview.md), [../product-scope.md](../product-scope.md), [../theory/theoretical-foundation.md](../theory/theoretical-foundation.md) |
 
 ## Purpose
 
-This document defines the primary vocabulary for active Gaia foundation docs.
+This document preserves the earlier vocabulary framing introduced during the foundations reset.
 
-Its job is to freeze the large terms that otherwise drift across architecture, workflow, and runtime docs. When a new foundation doc needs one of these terms, this is the canonical home.
+Its terminology content is being migrated to [../semantics/terminology.md](../semantics/terminology.md), which is now the canonical home for active terminology.
+
+## Status Note
+
+Use [../semantics/terminology.md](../semantics/terminology.md) for active terminology updates and references.
+
+This document remains in place temporarily so existing links and stacked PRs do not break during the documentation reset.
 
 ## Primary System Terms
 

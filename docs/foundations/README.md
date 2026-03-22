@@ -14,7 +14,7 @@ Use it when the task affects:
 - [Documentation Policy](documentation-policy.md)
 - [System Overview](system-overview.md)
 - [Gaia Overview](foundation/gaia-overview.md)
-- [Gaia Vocabulary](meaning/vocabulary.md)
+- [Terminology](semantics/terminology.md)
 - [Foundation Reset Plan](foundation-reset-plan.md)
 
 ## Active Structure
@@ -74,11 +74,13 @@ docs/foundations/
 
 ### Foundation and Semantics
 
-- [Gaia Vocabulary](meaning/vocabulary.md) — primary foundation terminology
 - [Gaia Overview](foundation/gaia-overview.md) — what Gaia is, is not, and why it is split into Gaia CLI and Gaia LKM
+- [Scientific Reasoning Foundation](foundation/scientific-reasoning-foundation.md) — why Gaia needs a scientific-reasoning foundation broader than pure mathematical logic
+- [Terminology](semantics/terminology.md) — primary foundation terminology
 - [Scientific Knowledge](semantics/scientific-knowledge.md) — the main scientific knowledge types in Gaia
 - [Knowledge Relations](semantics/knowledge-relations.md) — the semantic relation families between Gaia knowledge items
 - [Gaia Reasoning Model](semantics/gaia-reasoning-model.md) — Gaia's chosen reasoning model across deduction, induction, abduction, abstraction, and instantiation
+- [Gaia Vocabulary](meaning/vocabulary.md) — transitional terminology bridge during migration
 - [Product Scope](product-scope.md) — current baseline and product-surface context during migration
 - [Theoretical Foundation](theory/theoretical-foundation.md) — older Jaynes-centered framing and background theory during migration
 - [Inference Theory](theory/inference-theory.md) — older operator/factor theory during migration

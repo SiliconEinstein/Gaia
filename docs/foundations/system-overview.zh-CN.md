@@ -5,7 +5,7 @@
 | Status | Current canonical |
 | Level | Overview |
 | Scope | Repo-wide |
-| Related | [meaning/vocabulary.md](meaning/vocabulary.md), [product-scope.md](product-scope.md), [language/gaia-language-spec.md](language/gaia-language-spec.md), [graph-ir.md](graph-ir.md), [cli/command-lifecycle.md](cli/command-lifecycle.md), [review/publish-pipeline.md](review/publish-pipeline.md), [server/architecture.md](server/architecture.md) |
+| Related | [semantics/terminology.md](semantics/terminology.md), [product-scope.md](product-scope.md), [language/gaia-language-spec.md](language/gaia-language-spec.md), [graph-ir.md](graph-ir.md), [cli/command-lifecycle.md](cli/command-lifecycle.md), [review/publish-pipeline.md](review/publish-pipeline.md), [server/architecture.md](server/architecture.md) |
 
 ## Purpose
 
@@ -13,7 +13,7 @@
 
 它是“Gaia 的主要部分如何组合在一起”的规范入口文档，不试图穷尽所有工作流或运行时细节。
 
-术语规范请参阅 [meaning/vocabulary.md](meaning/vocabulary.md)。
+术语规范请参阅 [semantics/terminology.md](semantics/terminology.md)。
 
 ## 主要分界：Gaia CLI 与 Gaia LKM
 
@@ -130,7 +130,7 @@ Gaia LKM 是共享侧知识核心与 system of record。
 
 ## 相关文档
 
-- [meaning/vocabulary.md](meaning/vocabulary.md) — 规范术语
+- [semantics/terminology.md](semantics/terminology.md) — 规范术语
 - [product-scope.md](product-scope.md) — 产品定位与当前 baseline
 - [language/gaia-language-spec.md](language/gaia-language-spec.md) — 作者侧 package surface
 - [graph-ir.md](graph-ir.md) — 结构化 IR 契约

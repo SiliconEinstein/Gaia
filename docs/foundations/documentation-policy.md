@@ -109,7 +109,7 @@ Should not contain:
 
 Examples:
 
-- `meaning/vocabulary.md`
+- `semantics/terminology.md`
 - `theory/theoretical-foundation.md`
 
 ### Architecture
