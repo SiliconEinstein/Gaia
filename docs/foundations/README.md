@@ -49,12 +49,13 @@ docs/foundations/
       gaia-language-spec.md
       graph-ir.md
       package-linking.md
-    workflows/
-      package-types.md
-      cli-lifecycle.md
-      lkm-lifecycle.md
+    artifacts/
+      package-profiles.md
       review-artifacts.md
       investigation-artifacts.md
+    lifecycles/
+      cli-lifecycle.md
+      lkm-package-lifecycle.md
     services/
       service-boundaries.md
       review-service.md
@@ -89,6 +90,8 @@ docs/foundations/
 
 ### Contracts
 
+- [Package Profiles](contracts/artifacts/package-profiles.md) — semantic profiles for knowledge, review, rebuttal, and investigation packages
+- [LKM Package Lifecycle](contracts/lifecycles/lkm-package-lifecycle.md) — what happens to packages after they arrive in Gaia LKM
 - [Gaia Language Spec](language/gaia-language-spec.md)
 - [Gaia Language Design](language/gaia-language-design.md)
 - [Language Design Rationale](language/design-rationale.md)
