@@ -114,6 +114,92 @@ The graph store (Neo4j or Kuzu) maintains topology for traversal queries:
 
 The graph store is always secondary to the content store. It is populated during the three-write protocol and can be rebuilt from content store data.
 
+## Complete Schema Reference
+
+Field-level definitions for all core models, verified against `libs/storage/models.py`.
+
+### Knowledge
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `knowledge_id` | `str` | Globally unique identifier |
+| `version` | `int` | Explicit version number; `(knowledge_id, version)` is the composite key |
+| `type` | `Literal["claim", "question", "setting", "action", "contradiction", "equivalence"]` | Root declaration type |
+| `kind` | `str \| None` | Root-type-specific subtype label (e.g., `observation` for a claim, `python` for an action) |
+| `content` | `str` | Proposition text |
+| `parameters` | `list[Parameter]` | Empty = ground node; non-empty = schema node (universally quantified) |
+| `prior` | `float` | Reviewed prior in `(0, 1]`; historical/provenance reference at the package level |
+| `keywords` | `list[str]` | Search keywords |
+| `source_package_id` | `str` | Package that created this version |
+| `source_package_version` | `str` | Semver of the source package (default `"0.1.0"`) |
+| `source_module_id` | `str` | Module within the source package |
+| `created_at` | `datetime` | Creation timestamp |
+| `embedding` | `list[float] \| None` | Optional embedding vector |
+
+Derived property: `is_schema` = `len(parameters) > 0`.
+
+`Parameter` has two fields: `name: str` (placeholder name, e.g. `"A"`) and `constraint: str` (constraint description).
+
+### FactorNode
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `factor_id` | `str` | Unique factor identifier |
+| `type` | `Literal["infer", "instantiation", "abstraction", "contradiction", "equivalence"]` | Factor type (code uses `infer` where archive design says `reasoning`) |
+| `premises` | `list[str]` | Knowledge node IDs -- direct dependencies, create BP edges |
+| `contexts` | `list[str]` | Knowledge node IDs -- indirect dependencies, do NOT create BP edges |
+| `conclusion` | `str \| None` | Single knowledge node ID; `None` for constraint factors |
+| `package_id` | `str` | Owning package |
+| `source_ref` | `SourceRef \| None` | Traceability back to authoring layer |
+| `metadata` | `dict \| None` | Arbitrary metadata |
+
+Derived properties: `is_constraint` = type in `{contradiction, equivalence}`; `bp_participant_ids` = premises only for constraint factors, premises + conclusion otherwise.
+
+`SourceRef` fields: `package: str`, `version: str`, `module: str`, `knowledge_name: str`.
+
+### CanonicalBinding
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `package` | `str` | Source package name |
+| `version` | `str` | Source package version |
+| `local_graph_hash` | `str` | Hash of the local graph at binding time |
+| `local_canonical_id` | `str` | Local canonical node ID within the package |
+| `decision` | `Literal["match_existing", "create_new"]` | How the global identity was assigned |
+| `global_canonical_id` | `str` | Registry-assigned global identity |
+| `decided_at` | `datetime` | When the decision was made |
+| `decided_by` | `str` | Who/what made the decision |
+| `reason` | `str \| None` | Optional justification |
+
+### GlobalCanonicalNode
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `global_canonical_id` | `str` | Registry-assigned opaque ID (e.g., `gcn_<ULID>`) |
+| `knowledge_type` | `str` | Root type of the knowledge concept |
+| `kind` | `str \| None` | Subtype label |
+| `representative_content` | `str` | Representative text for display and search |
+| `parameters` | `list[Parameter]` | Schema parameters (empty for ground nodes) |
+| `member_local_nodes` | `list[LocalCanonicalRef]` | All local nodes bound to this global identity |
+| `provenance` | `list[PackageRef]` | Packages that contributed to this node |
+| `metadata` | `dict \| None` | Arbitrary metadata |
+
+Supporting types: `LocalCanonicalRef` = `(package, version, local_canonical_id)`; `PackageRef` = `(package, version)`.
+
+### GlobalInferenceState
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `graph_hash` | `str` | Hash of the global graph structure at update time |
+| `node_priors` | `dict[str, float]` | Priors keyed by `global_canonical_id` |
+| `factor_parameters` | `dict[str, FactorParams]` | Runtime factor params keyed by `factor_id` |
+| `node_beliefs` | `dict[str, float]` | BP-computed beliefs keyed by `global_canonical_id` |
+| `updated_at` | `datetime` | Last update timestamp |
+
+`FactorParams` has one field: `conditional_probability: float`.
+
+Probability and structure are strictly separated: Graph IR stores only structure; `GlobalInferenceState` stores all runtime parameters. It is a registry-managed singleton, not a package artifact.
+
 ## Current State
 
 The storage layer is working in production with remote LanceDB (S3/TOS) and Neo4j. Local development uses embedded LanceDB and optionally Kuzu. BM25 full-text search is available via LanceDB's built-in FTS indexing. The three-write protocol is exercised by both the CLI publish path and the server ingestion pipeline.
