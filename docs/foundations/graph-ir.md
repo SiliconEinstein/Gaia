@@ -492,7 +492,7 @@ Each layer handles only what it can reliably do, passing unresolved cases to the
 
 `gaia publish` submits four artifacts:
 
-1. **Gaia Lang source** — package.yaml + module YAMLs
+1. **Gaia Lang source** — Typst package source files
 2. **Raw Graph IR** — raw_graph.json
 3. **Local Canonical Graph** — local_canonical_graph.json
 4. **Canonicalization log** — agent's local grouping decisions
@@ -554,7 +554,7 @@ For full details on factor functions, gate semantics for Relations, schema/groun
 ### 10.2 What Does NOT Change
 
 - Gaia Lang source syntax and semantics
-- Package structure (package.yaml + module YAMLs)
+- Package structure (Typst package source + package-local includes/imports)
 - CLI commands (build, infer, publish)
 - Publish pipeline flow (self-review → canonicalization / optional local parameterization → publish → peer review)
 - Relation type design (Contradiction, Equivalence as Knowledge root types)
@@ -631,7 +631,7 @@ Offline global graph maintenance: clustering, classification (dedup/equivalence/
 
 ## 12. Open Questions
 
-1. **Graph IR serialization format** — JSON is natural for factor graph structure; YAML for human readability. Binary formats for performance.
+1. **Graph IR serialization format** — JSON is natural for factor graph structure; binary formats may matter later for performance; the active authored surface is not YAML.
 2. **Parameter placeholder syntax** — how to consistently represent `{X}` placeholders in content strings across packages.
 3. **Graph IR schema versioning** — version marker for the IR format itself.
 4. **Incremental build** — can `gaia build` incrementally update raw/local graphs when only some modules change?

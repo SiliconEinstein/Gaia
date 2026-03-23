@@ -108,15 +108,20 @@ Users can work entirely offline with the CLI. The server is an optional registry
 
 What is currently shipped on `main`:
 
-- a backend reasoning-graph service (FastAPI) — this is the server side
-- a dashboard frontend for browsing, graph exploration, and commit workflows
-- GraphStore ABC with Neo4j and Kuzu implementations
-- type-aware belief propagation (contradiction, retraction edges)
-- **CLI with 8 commands** (`init`, `build`, `review`, `infer`, `publish`, `show`, `search`, `clean`) — shipped in PR #63
-- **Target architecture docs now treat only `build`, `infer`, and `publish` as core CLI pipeline commands**. The shipped `gaia review` command remains a compatibility path for local self-review sidecars.
-- **Gaia Language** — per-module YAML with knowledge objects, chains, and `dependency: direct/indirect` references
-- **Inference engine moved to `libs/inference/`** — local belief propagation decoupled from server
-- **Build output** — per-module Markdown for LLM review
+- a Typst-based Gaia CLI surface
+- reusable pipeline functions for build, review, infer, and publish
+- storage abstractions with LanceDB-backed content storage and optional graph backends
+- local publish into storage-backed runtime state
+- local factor-graph belief propagation in `libs/inference/`
+- offline curation modules in `libs/curation/`
+- build output under `.gaia/`, including graph artifacts and rendered review-oriented outputs
+
+What is **not** currently shipped as a stable product surface on `main`:
+
+- a standalone `gaia review` command in the main CLI entrypoint
+- a stable external FastAPI-style LKM API surface in this repository
+- `gaia publish --server`
+- a complete end-to-end peer-review / rebuttal / editor loop
 
 What is not yet shipped but is on the roadmap:
 
@@ -129,37 +134,22 @@ What is not yet shipped but is on the roadmap:
 
 ## Current Supported Product Surfaces
 
-### 1. HTTP server
+### 1. Local CLI surface
 
-The currently shipped server surface is the FastAPI service exposed from `services/gateway/`.
+The current shipped end-user surface is primarily the CLI in [`cli/main.py`](../../cli/main.py), including:
 
-Current API areas:
+- `gaia init`
+- `gaia build`
+- `gaia infer`
+- `gaia publish`
+- `gaia search`
+- `gaia clean`
 
-- commit submission, review, merge, and retrieval
-- read APIs for nodes, hyperedges, contradictions, subgraphs, and stats
-- search APIs for nodes and hyperedges
-- batch APIs for commit, read, subgraph, and search flows
-- job APIs for async status and result retrieval
+This is the clearest current product surface.
 
-This is the main externally addressable surface today. Under CLI-first positioning, the server becomes a registry and compute backend that the CLI publishes to.
+### 2. Shared-side storage and graph runtime
 
-### 2. Dashboard frontend
-
-The current frontend product is the React dashboard in `frontend/`.
-
-Current UI surfaces include:
-
-- dashboard landing page
-- data browser
-- graph explorer
-- node and edge detail pages
-- commit panel
-
-The frontend should be treated as a client of the current server API, not as an independent product line with separate domain contracts.
-
-### 3. Server-side graph and storage runtime
-
-Gaia currently ships a server-side storage/runtime stack with:
+Gaia currently ships a shared-side storage/runtime stack with:
 
 - LanceDB for node content and metadata
 - a vector search layer with a local LanceDB-backed implementation
@@ -176,7 +166,7 @@ Important boundary:
 
 The existence of multiple graph backends in code does not yet mean Gaia has a fully specified product contract for backend parity. The capability matrix still needs to be documented explicitly.
 
-### 4. Local developer workflow
+### 3. Local developer workflow
 
 Gaia currently supports a local development workflow based on:
 
@@ -192,22 +182,20 @@ This is a development and validation workflow, not the same thing as a formal en
 
 The following should not be described as current Gaia product capability on `main` unless they are actually merged and documented separately.
 
-### 1. CLI/package-manager product — NOW SHIPPED (PR #63)
+### 1. CLI/package-manager product
 
-The CLI is shipped on `main` with 8 commands:
+The CLI is shipped on `main` with these primary commands:
 
 | Command | Purpose |
 |---------|---------|
-| `gaia init` | Initialize a knowledge package |
-| `gaia build` | Parse YAML, resolve refs, lower package-local Graph IR → `.gaia/build/` + `.gaia/graph/` artifacts |
-| `gaia review` | Shipped compatibility helper for local self-review sidecars |
-| `gaia infer` | Derive local parameterization from local Graph IR + local review sidecars, then run local belief propagation |
+| `gaia init` | Initialize a Typst knowledge package |
+| `gaia build` | Build package-local Graph IR and related `.gaia/` artifacts |
+| `gaia infer` | Derive local preview review inputs and run local belief propagation |
 | `gaia publish` | Publish to git or local databases (LanceDB + Kuzu) |
-| `gaia show` | Display knowledge object details + connected chains |
-| `gaia search` | Search published nodes in local LanceDB |
+| `gaia search` | Search published knowledge in local storage |
 | `gaia clean` | Remove build artifacts (`.gaia/` directory) |
 
-Note: target pipeline semantics no longer treat `gaia review` as one of the minimal core commands. In the target architecture, self-review is an agent skill; the shipped command is a bridge on current `main`. The original RFC also included `gaia claim` — this was replaced by declarative YAML authoring (per-module YAML files with knowledge objects and chains). `gaia.lock` and cross-package dependency resolution remain deferred.
+The canonical CLI lifecycle is now documented as `build -> infer -> publish`. Older docs that speak about a shipped `gaia review` command should be read as migration-era workflow framing rather than literal current CLI surface.
 
 Still not shipped:
 

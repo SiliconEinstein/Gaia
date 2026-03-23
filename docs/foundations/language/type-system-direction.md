@@ -120,7 +120,7 @@ Lean distinguishes surface syntax from core terms.
 
 Gaia should do the same:
 
-- authors and agents write YAML surface form
+- authors and agents write Typst-based package surface form
 - the system elaborates into a typed core IR
 - all kernel checks operate on that core IR
 

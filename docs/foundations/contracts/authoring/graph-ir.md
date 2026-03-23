@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Status | Transitional |
+| Status | Current canonical |
 | Level | Spec |
 | Scope | Subsystem |
 | Related | [gaia-language-spec.md](gaia-language-spec.md), [../lifecycles/cli-lifecycle.md](../lifecycles/cli-lifecycle.md), [../../semantics/scientific-knowledge.md](../../semantics/scientific-knowledge.md), [../../semantics/knowledge-relations.md](../../semantics/knowledge-relations.md), [../../graph-ir.md](../../graph-ir.md) |
 
 ## Purpose
 
-This document defines the Graph IR structural contract between authored Gaia packages and downstream inference/runtime processing.
+This document defines the current Graph IR structural contract between authored Gaia packages and downstream inference/runtime processing.
 
-It is marked `Transitional` because this is the new canonical home for the contract, but the older detailed Graph IR draft still contains migration-era field detail that has not yet been fully folded in here.
+The older detailed Graph IR draft remains useful as migration-era background material, but this file is now the canonical contract home.
 
 ## Core Role
 
@@ -23,6 +23,16 @@ Graph IR is the explicit structural layer between:
 Its purpose is to make the lowering boundary auditable and machine-readable.
 
 Gaia should not reason directly over authored source text. It should reason over an explicit structural representation derived from that source.
+
+## Current Artifact Boundary
+
+At the local build boundary, the important Graph IR artifacts are:
+
+- raw graph
+- local canonical graph
+- canonicalization log
+
+Local parameterization and local inference state are downstream overlays, not part of the Graph IR structural contract itself.
 
 ## What Graph IR Must Preserve
 
@@ -55,6 +65,65 @@ The canonicalization log records how raw graph structure was consolidated into t
 
 Its job is auditability, not belief calculation.
 
+## Current Object Models
+
+The current local Graph IR models are defined in `libs/graph_ir/models.py`. The important structural objects are:
+
+- `RawGraph`
+- `RawKnowledgeNode`
+- `LocalCanonicalGraph`
+- `LocalCanonicalNode`
+- `FactorNode`
+- `SourceRef`
+
+### Raw graph
+
+The current `RawGraph` contract includes:
+
+- package identity
+- package version
+- `knowledge_nodes`
+- `factor_nodes`
+
+### Raw knowledge node
+
+The current `RawKnowledgeNode` contract includes:
+
+- deterministic `raw_node_id`
+- `knowledge_type`
+- optional `kind`
+- visible `content`
+- optional `parameters`
+- one or more `source_refs`
+- optional `metadata`
+
+### Local canonical node
+
+The current `LocalCanonicalNode` contract includes:
+
+- `local_canonical_id`
+- package name
+- `knowledge_type`
+- optional `kind`
+- representative content
+- member raw-node IDs
+- source refs
+- optional metadata
+
+### Factor node
+
+The current `FactorNode` contract includes:
+
+- deterministic `factor_id`
+- `type`
+- `premises`
+- `contexts`
+- optional `conclusion`
+- optional `source_ref`
+- optional `metadata`
+
+The presence of both `premises` and `contexts` is part of the structural contract even though the current v4 Typst surface mostly emits `premises` only.
+
 ## Core Object Families
 
 The Graph IR contract must support at least the following object families.
@@ -78,6 +147,54 @@ These preserve traceability back to authored package source.
 ### Parameterization-related placeholders or schema structure
 
 Graph IR may preserve open structure such as templates, schema nodes, or parameterized patterns when needed for later lowering or instantiation behavior.
+
+## Current v4 Lowering Shape
+
+The current shipped Typst v4 compiler path lowers package source into Graph IR with the following stable shape.
+
+### Knowledge-bearing nodes
+
+Current v4 lowering emits local knowledge-bearing nodes for:
+
+- `setting`
+- `question`
+- `claim`
+- `action`
+- explicit relation nodes that become knowledge types such as `contradiction` or `equivalence`
+
+### External references
+
+Current v4 lowering also emits explicit external nodes for cross-package references declared through the active package-linking surface.
+
+These external nodes are structurally present in the raw graph and remain identifiable as external provenance rather than silently collapsing into local authored identity.
+
+### Reasoning factors
+
+Current v4 lowering emits `infer` factors from authored `from:` dependencies.
+
+At this boundary the stable contract is:
+
+- `premises` are explicit
+- `conclusion` points to the supported node
+- current local v4 authoring does not yet emit separate authored `contexts`
+
+### Constraint factors
+
+Current v4 lowering emits constraint structure for:
+
+- `contradiction`
+- `equivalence`
+
+These arise from explicit authored relation declarations rather than from downstream discovery alone.
+
+### Broader factor families
+
+The wider Graph IR/runtime ecosystem may also contain factor families such as:
+
+- `instantiation`
+- `abstraction`
+
+Those are real Graph IR concepts in the broader system, but they are not the primary factor families emitted by the current local Typst v4 authoring path.
 
 ## Structural Invariants
 
@@ -134,7 +251,7 @@ The older [../../graph-ir.md](../../graph-ir.md) document contains migration-era
 - factor node field sketches
 - runtime-oriented notes that accumulated over time
 
-This document now becomes the canonical contract home, but it remains intentionally higher-level until that detailed material is folded in and cleaned up.
+That older file is now a detailed migration-era reference, not the canonical contract home.
 
 ## Relationship To Other Docs
 
@@ -154,4 +271,6 @@ This document does not define:
 
 ## Migration Note
 
-This file now becomes the canonical home for the Graph IR contract in the new tree, but it remains `Transitional` until the remaining detailed field and invariant material is migrated out of the older legacy draft.
+This file is now the canonical home for the Graph IR contract in the new tree.
+
+The older detailed Graph IR draft remains available as background reference, but future structural contract changes should land here first.

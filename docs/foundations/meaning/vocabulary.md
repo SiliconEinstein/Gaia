@@ -42,7 +42,7 @@ It works on local Typst package source and local `.gaia/` artifacts.
 Important boundary:
 
 - `review` is not part of the canonical CLI lifecycle
-- the currently shipped `gaia review` command on `main` is a compatibility helper, not the primary lifecycle boundary
+- older design docs may mention a `gaia review` step, but current `main` does not ship a standalone `gaia review` command in `cli/main.py`
 
 ### Gaia LKM
 

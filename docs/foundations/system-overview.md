@@ -5,7 +5,7 @@
 | Status | Current canonical |
 | Level | Overview |
 | Scope | Repo-wide |
-| Related | [semantics/terminology.md](semantics/terminology.md), [product-scope.md](product-scope.md), [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md), [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md), [contracts/lifecycles/lkm-package-lifecycle.md](contracts/lifecycles/lkm-package-lifecycle.md), [server/architecture.md](server/architecture.md) |
+| Related | [semantics/terminology.md](semantics/terminology.md), [foundation/gaia-overview.md](foundation/gaia-overview.md), [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md), [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md), [contracts/lifecycles/lkm-package-lifecycle.md](contracts/lifecycles/lkm-package-lifecycle.md), [runtime/server-architecture.md](runtime/server-architecture.md) |
 
 ## Purpose
 
@@ -65,7 +65,7 @@ The CLI is responsible for:
 Important boundary:
 
 - `review` is not part of the canonical CLI lifecycle
-- the currently shipped `gaia review` command on `main` should be treated as a local compatibility helper, not the primary lifecycle boundary
+- current `main` does not ship a standalone `gaia review` command in `cli/main.py`; review logic currently appears as embedded preview runtime inside local infer and local publish flows
 
 For CLI details, see [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md).
 
@@ -88,7 +88,10 @@ Important boundary:
 - `Gaia Cloud` may still be used as a product or deployment alias
 - `cloud` does not imply remote-only deployment; a local or self-hosted LKM deployment is still valid
 
-Current detailed workflow docs still live in legacy locations such as [review/publish-pipeline.md](review/publish-pipeline.md) while the foundations reset is in progress.
+Current detailed shared-side docs now primarily live in:
+
+- [contracts/lifecycles/lkm-package-lifecycle.md](contracts/lifecycles/lkm-package-lifecycle.md)
+- [contracts/services/service-boundaries.md](contracts/services/service-boundaries.md)
 
 ## Service, Engine, and Server
 
@@ -104,7 +107,7 @@ This distinction matters because:
 - an `engine` is an internal execution component
 - a `server` is a runtime/deployment term, not the best name for the entire shared side
 
-For current backend runtime details, see [server/architecture.md](server/architecture.md).
+For current backend runtime details, see [runtime/server-architecture.md](runtime/server-architecture.md).
 
 ## Artifact Flow
 
@@ -120,20 +123,21 @@ This split is why CLI and LKM should be documented separately even when they sha
 
 ## Current Runtime on `main`
 
-The current `main` branch already includes several shipped runtime surfaces:
+The current `main` branch already includes several runtime surfaces:
 
 - Gaia CLI
-- a backend server implementation
-- a dashboard frontend
+- shared-side backend/runtime modules
+- storage-backed local and shared execution paths
 
 The active foundations reset should describe those surfaces using the Gaia CLI / Gaia LKM conceptual split, while keeping runtime implementation details in runtime-oriented docs.
 
 ## Related Documents
 
 - [semantics/terminology.md](semantics/terminology.md) — canonical terminology
-- [product-scope.md](product-scope.md) — product positioning and current baseline
+- [foundation/gaia-overview.md](foundation/gaia-overview.md) — Gaia's overall positioning
+- [product-scope.md](product-scope.md) — migration-era product scope and baseline
 - [contracts/authoring/gaia-language-spec.md](contracts/authoring/gaia-language-spec.md) — author-facing package surface
 - [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md) — structural IR contract
 - [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md) — local CLI lifecycle
-- [review/publish-pipeline.md](review/publish-pipeline.md) — current shared-side workflow doc during migration
-- [server/architecture.md](server/architecture.md) — current backend runtime
+- [contracts/lifecycles/lkm-package-lifecycle.md](contracts/lifecycles/lkm-package-lifecycle.md) — shared-side package lifecycle
+- [runtime/server-architecture.md](runtime/server-architecture.md) — current backend/runtime

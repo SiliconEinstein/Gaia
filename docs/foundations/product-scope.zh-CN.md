@@ -100,15 +100,20 @@ Gaia 是**CLI 优先，服务器增强**。
 
 `main` 上当前发布的内容：
 
-- 后端推理图服务（FastAPI）—— 这是服务器端
-- 用于浏览、图探索和提交工作流的仪表盘前端
-- 带有 Neo4j 和 Kuzu 实现的 GraphStore ABC
-- 类型感知的信念传播（矛盾、撤回边）
-- **带 8 个命令的 CLI**（`init`、`build`、`review`、`infer`、`publish`、`show`、`search`、`clean`）—— 在 PR #63 中发布
-- **目标架构文档现在只将 `build`、`infer` 和 `publish` 视为核心 CLI 流水线命令**。发布的 `gaia review` 命令仍是本地自审查边车的兼容路径。
-- **Gaia Language** —— 每模块 YAML，包含知识对象、链和 `dependency: direct/indirect` 引用
-- **推理引擎移至 `libs/inference/`** —— 与服务器解耦的本地信念传播
-- **构建输出** —— 用于 LLM 审查的每模块 Markdown
+- 基于 Typst package 的 Gaia CLI surface
+- 可复用的 build / review / infer / publish pipeline 函数
+- 带 LanceDB 内容存储和可选图后端的存储抽象
+- 本地发布到存储支持的运行时状态
+- 位于 `libs/inference/` 的本地 factor-graph belief propagation
+- 位于 `libs/curation/` 的离线 curation 模块
+- `.gaia/` 下的本地构建工件，包括图工件和面向 review 的渲染输出
+
+`main` 上当前**尚未**作为稳定产品界面发布的内容：
+
+- CLI 主入口里的独立 `gaia review` 命令
+- 本仓库中的稳定外部 FastAPI 风格 LKM API
+- `gaia publish --server`
+- 完整的同行审查 / 反驳 / editor 循环
 
 尚未发布但在路线图上的内容：
 
@@ -121,37 +126,22 @@ Gaia 是**CLI 优先，服务器增强**。
 
 ## 当前支持的产品界面
 
-### 1. HTTP 服务器
+### 1. 本地 CLI 界面
 
-当前发布的服务器界面是从 `services/gateway/` 暴露的 FastAPI 服务。
+当前真正发布的终端用户表面，首先是 [`cli/main.py`](../../cli/main.py) 中的 CLI，包括：
 
-当前 API 区域：
+- `gaia init`
+- `gaia build`
+- `gaia infer`
+- `gaia publish`
+- `gaia search`
+- `gaia clean`
 
-- 提交提交、审查、合并和检索
-- 节点、超边、矛盾、子图和统计的读取 API
-- 节点和超边的搜索 API
-- 提交、读取、子图和搜索流程的批量 API
-- 异步状态和结果检索的作业 API
+这是当前最清晰的产品界面。
 
-这是今天主要的外部可寻址界面。在 CLI 优先定位下，服务器成为 CLI 发布到的注册表和计算后端。
+### 2. 共享侧存储与图运行时
 
-### 2. 仪表盘前端
-
-当前前端产品是 `frontend/` 中的 React 仪表盘。
-
-当前 UI 界面包括：
-
-- 仪表盘着陆页
-- 数据浏览器
-- 图探索器
-- 节点和边详情页
-- 提交面板
-
-前端应被视为当前服务器 API 的客户端，而非具有独立领域契约的独立产品线。
-
-### 3. 服务器端图和存储运行时
-
-Gaia 目前发布了一个服务器端存储/运行时栈，包括：
+Gaia 目前发布了一个共享侧存储/运行时栈，包括：
 
 - 用于节点内容和元数据的 LanceDB
 - 带有本地 LanceDB 支持实现的向量搜索层
@@ -168,7 +158,7 @@ Gaia 目前发布了一个服务器端存储/运行时栈，包括：
 
 代码中存在多个图后端并不意味着 Gaia 有完全规范的产品契约保证后端对等。能力矩阵仍需明确记录。
 
-### 4. 本地开发者工作流
+### 3. 本地开发者工作流
 
 Gaia 目前支持基于以下内容的本地开发工作流：
 
@@ -184,22 +174,20 @@ Gaia 目前支持基于以下内容的本地开发工作流：
 
 以下内容不应被描述为 `main` 上当前的 Gaia 产品能力，除非它们已单独合并和记录。
 
-### 1. CLI/包管理器产品 —— 现已发布（PR #63）
+### 1. CLI/包管理器产品
 
-CLI 已在 `main` 上发布，带 8 个命令：
+CLI 已在 `main` 上发布，当前主要命令为：
 
 | 命令 | 用途 |
 |-----|------|
-| `gaia init` | 初始化知识包 |
-| `gaia build` | 解析 YAML，解析引用，降低包本地图 IR → `.gaia/build/` + `.gaia/graph/` 工件 |
-| `gaia review` | 为本地自审查边车发布的兼容性辅助 |
-| `gaia infer` | 从本地图 IR + 本地审查边车派生本地参数化，然后运行本地信念传播 |
+| `gaia init` | 初始化 Typst knowledge package |
+| `gaia build` | 构建 package-local Graph IR 与 `.gaia/` 工件 |
+| `gaia infer` | 生成本地 preview review 输入并运行本地信念传播 |
 | `gaia publish` | 发布到 git 或本地数据库（LanceDB + Kuzu） |
-| `gaia show` | 显示知识对象详情 + 连接的链 |
-| `gaia search` | 在本地 LanceDB 中搜索已发布节点 |
+| `gaia search` | 在本地存储中搜索已发布知识 |
 | `gaia clean` | 移除构建工件（`.gaia/` 目录） |
 
-注意：目标流水线语义不再将 `gaia review` 视为最小核心命令之一。在目标架构中，自审查是代理技能；发布的命令是当前 `main` 上的桥梁。原始 RFC 还包括 `gaia claim` —— 这已被声明式 YAML 创作（带有知识对象和链的每模块 YAML 文件）取代。`gaia.lock` 和跨包依赖解析仍被推迟。
+规范 CLI 生命周期现在定义为 `build -> infer -> publish`。旧文档里如果提到已发布的 `gaia review` 命令，应当理解为迁移期 workflow 表述，而不是当前 CLI 主表面。
 
 仍未发布：
 
