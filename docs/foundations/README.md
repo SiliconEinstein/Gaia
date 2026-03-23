@@ -14,6 +14,7 @@ Canonical reference docs for Gaia, organized by change frequency.
 - [Reasoning Relations](gaia-concepts/reasoning-relations.md) — deduction / induction / abstraction / contradiction
 - [Factor Design](gaia-concepts/factor-design.md) — reasoning type → factor potential mapping
 - [Package Model](gaia-concepts/package-model.md) — package / module / chain / knowledge structure
+- [Type System Direction](gaia-concepts/type-system-direction.md) — Jaynes + Lean hybrid, why not Curry-Howard, probability at value layer
 
 ## Interfaces — contracts between layers
 
@@ -21,6 +22,7 @@ Canonical reference docs for Gaia, organized by change frequency.
 - [Graph IR](interfaces/graph-ir.md) — Graph IR structural contract
 - [API](interfaces/api.md) — HTTP API contract
 - [Lifecycle](interfaces/lifecycle.md) — CLI lifecycle (build→infer→publish) + LKM lifecycle (review→curate→integrate)
+- [Agent Credit](interfaces/agent-credit.md) — agent reliability as BP-computed belief (target design)
 
 ## Implementations — how the system is built
 
