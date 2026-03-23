@@ -1,6 +1,13 @@
 # Gaia CLI Command Lifecycle
 
-> **Status: Current target semantics.** This document aligns to [`../review/publish-pipeline.md`](../review/publish-pipeline.md). The target pipeline has 3 core CLI commands (`build`, `infer`, `publish`) plus 3 agent skills (`self-review`, `graph-construction`, `rebuttal`). The shipped `gaia review` command on `main` is a compatibility bridge for the local self-review step, not part of the long-term minimal core.
+> **Status: Transitional.** This is an older combined lifecycle narrative. The current canonical local lifecycle is now defined in [`../contracts/lifecycles/cli-lifecycle.md`](../contracts/lifecycles/cli-lifecycle.md).
+>
+> The newer foundations split is:
+>
+> - local CLI lifecycle: [`../contracts/lifecycles/cli-lifecycle.md`](../contracts/lifecycles/cli-lifecycle.md)
+> - shared-side package lifecycle: [`../contracts/lifecycles/lkm-package-lifecycle.md`](../contracts/lifecycles/lkm-package-lifecycle.md)
+>
+> Also note that current code does **not** ship a standalone `gaia review` command in `cli/main.py`. Older references to `gaia review` here should therefore be read as migration-era workflow language, not as literal current CLI surface.
 
 ## Purpose
 

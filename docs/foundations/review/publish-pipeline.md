@@ -12,9 +12,17 @@
 >
 > On `main` today, parts of this target are still transitional:
 >
-> - `gaia review` still exists as a shipped command and acts as a local compatibility path for self-review sidecars
+> - current code does **not** ship a standalone `gaia review` command in `cli/main.py`; review logic is currently embedded in local infer/publish flows
 > - `gaia publish --server` and the full peer-review / rebuttal / editor loop are not yet implemented end-to-end
 > - local `publish --local` does not yet realize the full registry-side `CanonicalBinding` / `GlobalInferenceState` flow described here
+>
+> Newer canonical homes now exist for the major pieces of this flow:
+>
+> - [../contracts/lifecycles/cli-lifecycle.md](../contracts/lifecycles/cli-lifecycle.md)
+> - [../contracts/lifecycles/lkm-package-lifecycle.md](../contracts/lifecycles/lkm-package-lifecycle.md)
+> - [../contracts/artifacts/package-profiles.md](../contracts/artifacts/package-profiles.md)
+> - [../runtime/review-runtime.md](../runtime/review-runtime.md)
+> - [../runtime/curation-runtime.md](../runtime/curation-runtime.md)
 
 ---
 

@@ -4,11 +4,15 @@
 |---------|---|
 | 版本 | 2.0 |
 | 日期 | 2026-03-13 |
-| 状态 | Draft |
+| 状态 | Transitional |
 | Supersedes | storage-schema.md v1.1 (2026-03-10) |
-| 关联文档 | [architecture.md](architecture.md) — Server 整体架构 v2.0, [../graph-ir.md](../graph-ir.md) — Graph IR 规范, [../bp-on-graph-ir.md](../bp-on-graph-ir.md) — BP on Graph IR, [../review/publish-pipeline.md](../review/publish-pipeline.md) — Publish Pipeline |
+| 关联文档 | [../runtime/storage-schema.md](../runtime/storage-schema.md) — 当前 runtime schema, [../runtime/server-architecture.md](../runtime/server-architecture.md) — 当前 backend runtime, [../contracts/authoring/graph-ir.md](../contracts/authoring/graph-ir.md) — 当前 Graph IR 契约 |
 
 > **变更摘要 (v1.1 → v2.0)：** Graph IR 使因子图成为持久化的 first-class artifact。本次修订新增 5 个实体（FactorNode、CanonicalBinding、GlobalCanonicalNode、GlobalInferenceState、PackageSubmissionArtifact），扩展 Knowledge（+kind, +parameters, +contradiction/equivalence），重写图拓扑设计（新增 Factor 层），更新所有后端分工和查询模式。
+
+> **Migration note:** This file is now a legacy detailed schema draft. The current canonical home for the runtime persistence model is [../runtime/storage-schema.md](../runtime/storage-schema.md).
+>
+> Keep using this file when you need older table-by-table detail that has not yet been fully migrated, but prefer the newer runtime doc for current truth about source-of-truth boundaries and publish behavior.
 
 ---
 

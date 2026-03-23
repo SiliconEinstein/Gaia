@@ -4,10 +4,24 @@
 |---------|---|
 | 版本 | 2.0 |
 | 日期 | 2026-03-19 |
-| 状态 | **Draft — foundation design** |
-| 关联文档 | [graph-ir.md](graph-ir.md) — Graph IR 结构定义, [theory/inference-theory.md](theory/inference-theory.md) — BP 算法理论, [theory/theoretical-foundation.md](theory/theoretical-foundation.md) — Jaynes 纲领 |
+| 状态 | **Transitional — legacy integrated BP/runtime reference** |
+| 关联文档 | [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md) — 当前 Graph IR 契约, [runtime/inference-runtime.md](runtime/inference-runtime.md) — 当前 inference runtime, [runtime/loop-analysis.md](runtime/loop-analysis.md) — 当前 loop 处理, [theory/inference-theory.md](theory/inference-theory.md) — 目标 BP 理论 |
 
 ---
+
+> **Migration note:** This document predates the newer split between:
+>
+> - Graph IR contract
+> - runtime inference behavior
+> - loop-analysis and basis-view handling
+>
+> It remains useful as a detailed integrated reference, but the current canonical homes are:
+>
+> - [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md)
+> - [runtime/inference-runtime.md](runtime/inference-runtime.md)
+> - [runtime/loop-analysis.md](runtime/loop-analysis.md)
+>
+> Use this file when you need the older combined narrative or low-level detail that has not yet been fully redistributed.
 
 ## 1. Purpose
 

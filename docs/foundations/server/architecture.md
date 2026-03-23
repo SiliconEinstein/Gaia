@@ -4,13 +4,22 @@
 |---------|---|
 | 版本 | 2.1 |
 | 日期 | 2026-03-15 |
-| 状态 | **Draft — 目标架构设计** |
+| 状态 | **Transitional — legacy target architecture** |
 | Supersedes | architecture.md v2.0 (2026-03-13) |
-| 关联文档 | [../graph-ir.md](../graph-ir.md), [../bp-on-graph-ir.md](../bp-on-graph-ir.md), [storage-schema.md](storage-schema.md), [../review/publish-pipeline.md](../review/publish-pipeline.md), [../system-overview.md](../system-overview.md) |
+| 关联文档 | [../runtime/server-architecture.md](../runtime/server-architecture.md), [../runtime/storage-schema.md](../runtime/storage-schema.md), [../contracts/services/service-boundaries.md](../contracts/services/service-boundaries.md), [../system-overview.md](../system-overview.md) |
 
 > **变更摘要 (v2.0 → v2.1)：** 引入 Write Side / Read Side 架构分离。Write Side 新增 Curation Service（离线图维护：相似结论聚类、矛盾发掘、全图结构巡检、图清理），与 BP Service 共同构成离线图维护机制。Review Service（原 IngestionService）细化为四步工程流程：validation → canonicalization → multiple agent review → gatekeeper。Read Side 明确 agent-first 定位，QueryService 面向 AI agents 的 research 用例。
 >
 > **变更摘要 (v1.1 → v2.0)：** Graph IR 引入后，因子图不再是临时运行时构造物——raw graph 和 local canonical graph 是 package 提交时的 first-class artifact。Server 需要验证、审计、合并这些结构化图。本次修订重新设计了 Storage Layer（新增 FactorNode、CanonicalBinding、GlobalInferenceState）、IngestionService 流程（新增 raw graph 验证 + canonicalization 审计 + global matching）、BPService（从持久化 Graph IR 加载而非动态编译）。
+
+> **Migration note:** This file is now a legacy target-architecture narrative. For the current runtime/backend picture, use:
+>
+> - [../runtime/server-architecture.md](../runtime/server-architecture.md)
+> - [../runtime/review-runtime.md](../runtime/review-runtime.md)
+> - [../runtime/curation-runtime.md](../runtime/curation-runtime.md)
+> - [../runtime/storage-schema.md](../runtime/storage-schema.md)
+>
+> This older file remains valuable when discussing larger target architecture shape, but it should not be read as the literal shipped runtime.
 
 ---
 
