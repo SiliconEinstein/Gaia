@@ -1,5 +1,5 @@
-# Scientific Ontology
+# Graph IR
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+Graph IR structural contract

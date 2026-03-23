@@ -1,5 +1,5 @@
-# Scientific Ontology
+# Knowledge Types
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+Knowledge types: claim, setting, question, action, relation

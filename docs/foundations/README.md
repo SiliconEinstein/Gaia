@@ -1,101 +1,51 @@
 # Foundations
 
-This directory is the working area for Gaia's next foundation reset.
+Canonical reference docs for Gaia, organized by change frequency.
 
-Use it when the task affects any of the following:
+## Theory — why Gaia reasons this way
 
-- overall architecture
-- module boundaries
-- API contracts
-- graph model semantics
-- storage schema or backend capability assumptions
-- domain vocabulary
+- [Theoretical Foundation](theory/theoretical-foundation.md) — Jaynes plausible reasoning, why probabilistic
+- [Scientific Ontology](theory/scientific-ontology.md) — scientific knowledge ontology, terminology
+- [Belief Propagation](theory/belief-propagation.md) — BP algorithm, loopy BP, convergence, factor potentials
 
-## Current status
+## Gaia Concepts — Gaia's technical choices built on theory
 
-Gaia now has a documented re-baselining diagnosis in [../architecture-rebaseline.md](../architecture-rebaseline.md).
+- [Knowledge Types](gaia-concepts/knowledge-types.md) — claim / setting / question / action / relation
+- [Reasoning Relations](gaia-concepts/reasoning-relations.md) — deduction / induction / abstraction / contradiction
+- [Factor Design](gaia-concepts/factor-design.md) — reasoning type → factor potential mapping
+- [Package Model](gaia-concepts/package-model.md) — package / module / chain / knowledge structure
 
-The execution plan for that reset lives here:
+## Interfaces — contracts between layers
 
-**Global (cross-subsystem):**
+- [Language Spec](interfaces/language-spec.md) — Gaia Language v4 Typst DSL full spec
+- [Graph IR](interfaces/graph-ir.md) — Graph IR structural contract
+- [API](interfaces/api.md) — HTTP API contract
+- [Lifecycle](interfaces/lifecycle.md) — CLI lifecycle (build→infer→publish) + LKM lifecycle (review→curate→integrate)
 
-- [Documentation Policy](documentation-policy.md)
-- [Foundation Reset Plan](foundation-reset-plan.md)
-- [Product Scope](product-scope.md)
-- [System Overview](system-overview.md)
-- [Domain Model](domain-model.md) — superseded redirect to newer ontology/package-profile docs
+## Implementations — how the system is built
 
-**Graph IR:**
+- [Overview](implementations/overview.md) — architecture: entry points → engines → storage
 
-- [Graph IR](graph-ir.md) — Canonical factor graph IR between Gaia Language and BP
+### Entry Points (callers of the engine layer)
 
-**Theory:**
+- [CLI](implementations/entry-points/cli.md) — single-package interactive (build/infer/publish)
+- [Server](implementations/entry-points/server.md) — API server: write side (review, curation) + read side (search, recommend)
+- [Pipeline](implementations/entry-points/pipeline.md) — batch orchestration (7 stages, multi-paper)
 
-- [Theoretical Foundation](theory/theoretical-foundation.md) — Jaynes 纲领
-- [Scientific Ontology](theory/scientific-ontology.md) — scientific object model, BP-bearing vs non-BP objects, operator families
-- [Inference Theory](theory/inference-theory.md) — BP 算法理论
-- [Independent Evidence & Conditional Independence](theory/corroboration-and-conditional-independence.md) — 多路径独立证据的语义、条件独立性判定、交叉审查流程
+### Engines (shared capability layer)
 
-**BP on Graph IR:**
+- [Graph IR Compiler](implementations/engines/graph-ir-compiler.md) — typst → raw graph → local canonical graph
+- [BP Engine](implementations/engines/bp-engine.md) — local BP + global BP
+- [Review Engine](implementations/engines/review-engine.md) — LLM-based review
+- [Curation Engine](implementations/engines/curation-engine.md) — clustering, dedup, abstraction, conflict detection
+- [Canonicalization Engine](implementations/engines/canonicalization-engine.md) — local → global node mapping
 
-- [BP on Graph IR](bp-on-graph-ir.md) — Factor functions, gate semantics, schema/ground BP interaction
+### Infrastructure
 
-**Language:**
+- [Storage](implementations/storage.md) — LanceDB + Neo4j + three-write atomicity
+- [Testing](implementations/testing.md) — test structure, fixtures, CI
 
-- [Gaia Language Spec](language/gaia-language-spec.md)
-- [Gaia Language Design](language/gaia-language-design.md)
-- [Language Design Rationale](language/design-rationale.md)
-- [Type System Direction](language/type-system-direction.md)
+## Other
 
-**CLI:**
-
-- [Gaia CLI Runtime Boundaries](cli/boundaries.md)
-- [Gaia CLI Command Lifecycle](cli/command-lifecycle.md)
-
-**Review:**
-
-- [Review Pipeline & Publish Workflow](review/publish-pipeline.md) — current self-review / peer review / publish contract
-- [Review and Curation Service Boundaries](review/service-boundaries.md) — submission-scoped review vs registry-scoped curation
-- [Gaia Package Artifact Profiles](review/package-artifact-profiles.md) — `knowledge` / `investigation` / `review` / `rebuttal` package semantics
-- [Build, Alignment, and Review Architecture](review/architecture.md) — superseded historical reference
-
-**Server:**
-
-- [Server Architecture](server/architecture.md)
-
-## Intended outputs
-
-The plan is to establish a small set of durable foundation docs before major code restructuring resumes:
-
-1. `product-scope.md`
-2. `system-overview.md`
-3. `theory/scientific-ontology.md` (scientific object model and BP boundary)
-4. `theory/theoretical-foundation.md` (Jaynes-centered theoretical foundation)
-5. `language/gaia-language-spec.md` (Gaia Language spec)
-6. `graph-ir.md` (Graph IR — canonical factor graph layer)
-7. `theory/inference-theory.md` (BP algorithm and operator theory)
-8. `review/service-boundaries.md` (ReviewService vs CurationService)
-9. `review/package-artifact-profiles.md` (knowledge / investigation / review / rebuttal package semantics)
-10. `review/publish-pipeline.md` (self-review, peer review, and publish workflow)
-11. `server/architecture.md` (Server architecture)
-12. `server/storage-schema.md` (Server storage schema)
-13. `domain-model.md` (compat redirect only; no longer a normative source)
-14. `cli/boundaries.md` (Gaia CLI runtime layering)
-
-Those files do not all exist yet. This directory is the place where they should be created and kept current.
-
-## Folder Layout
-
-- `theory/`: Theoretical foundations and ontology (Jaynes, scientific object model, BP operator theory)
-- `language/`: Gaia formal language spec, design, and design rationale
-- `cli/`: Gaia CLI runtime boundaries and future CLI-specific docs
-- `review/`: Review and publish semantics, plus service-boundary docs for review vs curation
-- `server/`: Server architecture, storage schema, API contracts
-
-## Historical docs
-
-Historical design documents and implementation plans from the initial build-out are preserved in [`../archive/`](../archive/).
-
-## Working rule
-
-When a change affects architecture or cross-module behavior, the relevant foundation doc should be updated in the same branch, or the PR should explicitly state why the docs are being deferred.
+- [Product Scope](product-scope.md) — current product boundaries
+- [Documentation Policy](documentation-policy.md) — doc maintenance rules

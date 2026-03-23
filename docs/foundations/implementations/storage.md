@@ -1,5 +1,5 @@
-# Scientific Ontology
+# Storage
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+Storage layer: LanceDB + Neo4j + three-write atomicity

@@ -1,5 +1,5 @@
-# Scientific Ontology
+# Canonicalization Engine
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+Canonicalization engine: local → global node mapping

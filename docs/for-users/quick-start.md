@@ -1,5 +1,5 @@
-# Scientific Ontology
+# Quick Start
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+10 minutes: run your first Gaia package

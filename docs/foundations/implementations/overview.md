@@ -1,5 +1,5 @@
-# Scientific Ontology
+# Implementation Overview
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+System architecture: entry points → engines → storage

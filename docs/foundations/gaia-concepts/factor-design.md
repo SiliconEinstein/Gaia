@@ -1,5 +1,5 @@
-# Scientific Ontology
+# Factor Design
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+Reasoning type → factor potential mapping

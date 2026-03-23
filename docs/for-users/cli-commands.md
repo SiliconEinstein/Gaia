@@ -1,5 +1,5 @@
-# Scientific Ontology
+# CLI Commands
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+CLI commands: build, infer, publish

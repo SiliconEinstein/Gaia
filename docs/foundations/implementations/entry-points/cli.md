@@ -1,5 +1,5 @@
-# Scientific Ontology
+# CLI Entry Point
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+CLI entry point: single-package interactive build/infer/publish

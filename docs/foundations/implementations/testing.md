@@ -1,5 +1,5 @@
-# Scientific Ontology
+# Testing
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+Testing: test structure, fixtures, CI, how to add tests

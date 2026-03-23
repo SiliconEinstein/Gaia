@@ -1,5 +1,5 @@
-# Scientific Ontology
+# Review Engine
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+LLM-based review engine

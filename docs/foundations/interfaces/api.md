@@ -1,5 +1,5 @@
-# Scientific Ontology
+# API
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+HTTP API contract

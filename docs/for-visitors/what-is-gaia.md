@@ -1,5 +1,5 @@
-# Scientific Ontology
+# What Is Gaia?
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+What problem Gaia solves and how it works

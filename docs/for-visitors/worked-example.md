@@ -1,5 +1,5 @@
-# Scientific Ontology
+# Worked Example
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+One paper → knowledge graph → BP reasoning, end to end

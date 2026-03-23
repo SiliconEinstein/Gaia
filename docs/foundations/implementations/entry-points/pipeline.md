@@ -1,5 +1,5 @@
-# Scientific Ontology
+# Batch Pipeline
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+Batch pipeline orchestration: 7 stages, multi-paper end to end

@@ -1,5 +1,5 @@
-# Scientific Ontology
+# Belief Propagation
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+BP algorithm, loopy BP, convergence, factor potentials

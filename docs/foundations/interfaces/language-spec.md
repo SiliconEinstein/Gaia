@@ -1,5 +1,5 @@
-# Scientific Ontology
+# Language Spec
 
 > **Status:** Placeholder — to be filled from foundations_archive and codebase.
 
-Scientific knowledge ontology and terminology
+Gaia Language v4 Typst DSL specification
