@@ -1,11 +1,9 @@
 # Gaia Product Scope
 
 > Related documents:
-> - [system-overview.md](system-overview.md)
-> - [theory/scientific-ontology.md](theory/scientific-ontology.md)
-> - [review/service-boundaries.md](review/service-boundaries.md)
-> - [review/package-artifact-profiles.md](review/package-artifact-profiles.md)
-> - [language/gaia-language-spec.md](language/gaia-language-spec.md)
+> - [architecture-overview.md](architecture-overview.md)
+> - [../theory/scientific-ontology.md](../theory/scientific-ontology.md)
+> - [../cli/gaia-lang/spec.md](../cli/gaia-lang/spec.md)
 
 ## Purpose
 
