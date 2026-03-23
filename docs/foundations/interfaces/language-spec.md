@@ -85,15 +85,32 @@ The Python loader (`libs/lang/typst_loader.py::load_typst_package_v4`) processes
 
 ## Package Layout
 
+Two supported layouts:
+
+**Vendored (default for new packages, created by `gaia init`):**
 ```
 my_package/
   typst.toml          # manifest: name, version, entrypoint
-  lib.typ             # entrypoint: imports runtime, applies style, includes modules
-  gaia.typ            # runtime import shim: #import "/libs/typst/gaia-lang-v4/lib.typ": *
+  lib.typ             # entrypoint: #import "_gaia/lib.typ": *
+  _gaia/              # vendored runtime (copied by gaia init)
+    lib.typ
+    ...
   motivation.typ      # module file
   reasoning.typ       # module file
   gaia-deps.yml       # (optional) cross-package references
 ```
+
+**Repo-relative (fixtures and development inside the Gaia repo):**
+```
+my_package/
+  typst.toml          # manifest: name, version, entrypoint
+  lib.typ             # entrypoint: #import "/libs/typst/gaia-lang-v4/lib.typ": *
+  motivation.typ      # module file
+  reasoning.typ       # module file
+  gaia-deps.yml       # (optional) cross-package references
+```
+
+The vendored layout is recommended for standalone packages. The repo-relative layout is used in `tests/fixtures/` and development workflows within the Gaia repository.
 
 ## Runtime Library
 

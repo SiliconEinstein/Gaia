@@ -57,7 +57,7 @@ The review output feeds directly into `pipeline_infer()`, which constructs a `Lo
 
 ## Current State
 
-Working via `litellm` for real LLM review (used in pipeline scripts) and via `MockReviewClient` for CLI and tests. The review client lives in `cli/` rather than `libs/` because it was originally CLI-only.
+`pipeline_review()` supports both paths via the `mock` parameter. Current CLI commands (`gaia infer`, `gaia publish --local`) and pipeline scripts default to `mock=True` (deterministic, no LLM calls). Real LLM review requires explicit `mock=False` plus valid API credentials (`OPENAI_API_BASE`, `OPENAI_API_KEY`). The review client lives in `cli/` rather than `libs/` because it was originally CLI-only.
 
 ## Target State
 

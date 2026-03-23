@@ -17,7 +17,7 @@ author  ->  build  ->  [self-review]  ->  [graph-construction]  ->  infer  ->  p
 Deterministic lowering from Typst source to Graph IR.
 
 - **Input**: package source (`.typ` files + `typst.toml`).
-- **Output**: `graph_ir/raw_graph.json`, `graph_ir/local_canonical_graph.json`, `graph_ir/canonicalization_log.json`.
+- **Output**: `.gaia/graph/raw_graph.json`, `.gaia/graph/local_canonical_graph.json`, `.gaia/graph/canonicalization_log.json`.
 - **What it does**: validates package structure, extracts knowledge via `typst query`, compiles raw graph, builds singleton local canonical graph.
 - **What it does NOT do**: no LLM calls, no search, no probability assignment.
 
@@ -33,7 +33,7 @@ If review discovers missing premises or references, the agent updates source and
 Local belief propagation preview.
 
 - **Input**: local canonical graph + local parameterization overlay.
-- **Output**: local belief preview under `.gaia/inference/`.
+- **Output**: local belief preview under `.gaia/infer/`.
 - **What it does**: adapts local canonical graph to a `FactorGraph`, derives parameterization from local review sidecars, runs sum-product BP with damping.
 - **Scope**: package-local only. Does not query or modify the global graph.
 

@@ -48,7 +48,7 @@ Package ingestion follows a four-step protocol:
 2. Write to ContentStore:  package, modules, knowledge, chains, factors, submission_artifact
 3. Write to GraphStore:    topology (knowledge→chain relationships), factor topology
 4. Write to VectorStore:   embeddings
-5. Flip status to "committed"  (visible to reads)
+5. Flip status to "merged"  (visible to reads)
 ```
 
 On failure, data stays in "preparing" status -- invisible to readers and safe to retry. The content store is always written first as the source of truth.
@@ -61,7 +61,7 @@ All tables are defined as PyArrow schemas in `libs/storage/lance_content_store.p
 
 | Table | Key | Purpose |
 |-------|-----|---------|
-| `packages` | `package_id` | Package metadata, status, modules list |
+| `packages` | `(package_id, version)` | Package metadata, status, modules list |
 | `modules` | `module_id` | Module metadata, chain_ids, export_ids |
 | `knowledge` | `(knowledge_id, version)` | Versioned propositions with type, content, prior, keywords |
 | `chains` | `chain_id` | Reasoning chains with typed steps (premises -> conclusion) |
@@ -97,7 +97,7 @@ Defined in `libs/storage/models.py`:
 - **`Knowledge`**: Versioned proposition with `(knowledge_id, version)` identity. Types: `claim`, `question`, `setting`, `action`, `contradiction`, `equivalence`. Prior is constrained to `(0, 1]`.
 - **`Chain`**: Reasoning link with `steps: list[ChainStep]`. Each step has `premises: list[KnowledgeRef]`, `reasoning: str`, `conclusion: KnowledgeRef`. Types: `deduction`, `induction`, `abstraction`, `contradiction`, `retraction`, `equivalence`.
 - **`Module`**: Groups knowledge and chains within a package. Roles: `reasoning`, `setting`, `motivation`, `follow_up_question`, `other`.
-- **`Package`**: Top-level container. Status lifecycle: `preparing` -> `submitted` -> `merged` | `rejected`.
+- **`Package`**: Top-level container, keyed by `(package_id, version)`. Status lifecycle: `preparing` -> `submitted` -> `merged` | `rejected`.
 - **`FactorNode`**: Persistent factor with `type`, `premises[]`, `contexts[]`, `conclusion`. Types: `infer`, `instantiation`, `abstraction`, `contradiction`, `equivalence`.
 - **`GlobalCanonicalNode`**: Cross-package dedup identity with `member_local_nodes[]` and `provenance[]`.
 - **`CanonicalBinding`**: Maps `(package, version, local_canonical_id)` to `global_canonical_id` with decision audit trail.
