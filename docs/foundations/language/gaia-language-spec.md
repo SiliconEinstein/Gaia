@@ -1,5 +1,13 @@
 # Gaia Language Spec (v4)
 
+> **Status: Transitional legacy detailed spec.** The current canonical home for the authoring contract is [`../contracts/authoring/gaia-language-spec.md`](../contracts/authoring/gaia-language-spec.md).
+>
+> Use this file when you need older detailed v4 surface material that has not yet been fully redistributed. For the current contract boundary, terminology, and conformance framing, start with:
+>
+> - [`../contracts/authoring/gaia-language-spec.md`](../contracts/authoring/gaia-language-spec.md)
+> - [`../semantics/terminology.md`](../semantics/terminology.md)
+> - [`../semantics/scientific-knowledge.md`](../semantics/scientific-knowledge.md)
+
 ## Purpose
 
 This document defines the Gaia Language v4 surface: a Typst-based DSL for authoring structured knowledge packages. It covers the package format, declaration types, cross-referencing, extraction mechanism, and conformance rules.

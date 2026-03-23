@@ -4,9 +4,20 @@
 |---------|---|
 | 版本 | 2.0 |
 | 日期 | 2026-03-09 |
-| 关联文档 | [inference-theory.md](inference-theory.md) — 推理引擎数学细节, [../language/design-rationale.md](../language/design-rationale.md) — Lean 类比与 CLI 语义 |
+| 状态 | Transitional |
+| 关联文档 | [../foundation/gaia-overview.md](../foundation/gaia-overview.md) — 当前 Gaia 总体定位, [../foundation/scientific-reasoning-foundation.md](../foundation/scientific-reasoning-foundation.md) — 当前科学推理基础, [inference-theory.md](inference-theory.md) — 目标推理理论细节, [../language/design-rationale.md](../language/design-rationale.md) — 旧的语言设计补充说明 |
 
 ---
+
+> **Migration note:** This is an older integrated theory narrative. The newer split is:
+>
+> - [../foundation/gaia-overview.md](../foundation/gaia-overview.md)
+> - [../foundation/scientific-reasoning-foundation.md](../foundation/scientific-reasoning-foundation.md)
+> - [../semantics/scientific-knowledge.md](../semantics/scientific-knowledge.md)
+> - [../semantics/knowledge-relations.md](../semantics/knowledge-relations.md)
+> - [../semantics/gaia-reasoning-model.md](../semantics/gaia-reasoning-model.md)
+>
+> This file remains useful as a migration-era background text, but it still carries older wording such as `Cloud`, YAML-era framing, and an over-combined presentation of foundation and Gaia-specific semantics.
 
 ## 1. 总论：Gaia 是什么
 
@@ -264,7 +275,7 @@ Robot 隐喻解释了 Gaia 的两层架构（§6.1）：
 
 LLM 负责把自然语言知识翻译成 Gaia Language（命题 + 推理链 + 概率标注）。Robot (BP) 负责推理——严格按 Jaynes 规则计算合理度。
 
-一个幻觉频发的 LLM 可以产生"精彩"但错误的推理——BP 不在乎，因为它只看结构和概率，不读文字。这就是 Gaia 从 Lean 借鉴的**构造/验证分离**原则：构造过程（LLM）可以犯错，验证过程（BP + Review）独立把关（详见 [language/design-rationale.md](language/design-rationale.md)）。
+一个幻觉频发的 LLM 可以产生"精彩"但错误的推理——BP 不在乎，因为它只看结构和概率，不读文字。这就是 Gaia 从 Lean 借鉴的**构造/验证分离**原则：构造过程（LLM）可以犯错，验证过程（BP + Review）独立把关（详见 [../language/design-rationale.md](../language/design-rationale.md)）。
 
 ---
 
@@ -380,7 +391,7 @@ Gaia 是三个传统的交叉点：
 | **概率图模型** (因子图, BP) | 语义：连续 belief、消息传递、近似推理 |
 | **非单调逻辑** (AGM, Belief Revision) | 知识模型：retraction、contradiction、defeasible reasoning |
 
-但 Gaia 不是"概率化的 Lean"——Lean 的依赖类型论过重、知识是单调的、验证是确定性的。详见 [language/design-rationale.md](language/design-rationale.md)。
+但 Gaia 不是"概率化的 Lean"——Lean 的依赖类型论过重、知识是单调的、验证是确定性的。详见 [../language/design-rationale.md](../language/design-rationale.md)。
 
 ### 7.3 与因果图的关系
 

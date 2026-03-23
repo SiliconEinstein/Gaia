@@ -4,11 +4,21 @@
 |---------|---|
 | 版本 | 1.0 |
 | 日期 | 2026-03-12 |
-| 状态 | **Draft — foundation design** |
-| 关联文档 | [language/gaia-language-spec.md](language/gaia-language-spec.md), [language/gaia-language-design.md](language/gaia-language-design.md), [review/publish-pipeline.md](review/publish-pipeline.md), [theory/inference-theory.md](theory/inference-theory.md), [bp-on-graph-ir.md](bp-on-graph-ir.md) — BP on Graph IR, [server/storage-schema.md](server/storage-schema.md) |
-| V1 实现 specs | [../../superpowers/specs/2026-03-17-simplified-global-canonicalization-design.md](../../superpowers/specs/2026-03-17-simplified-global-canonicalization-design.md) — 简化版 Global Canonicalization, [../../superpowers/specs/2026-03-17-curation-service-design.md](../../superpowers/specs/2026-03-17-curation-service-design.md) — Curation Service |
+| 状态 | **Transitional — legacy detailed Graph IR draft** |
+| 关联文档 | [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md) — 当前 Graph IR 契约, [contracts/authoring/gaia-language-spec.md](contracts/authoring/gaia-language-spec.md) — 当前 authoring 契约, [runtime/inference-runtime.md](runtime/inference-runtime.md) — 当前 inference runtime, [runtime/storage-schema.md](runtime/storage-schema.md) — 当前 storage runtime |
+| V1 实现 specs | [../superpowers/specs/2026-03-17-simplified-global-canonicalization-design.md](../superpowers/specs/2026-03-17-simplified-global-canonicalization-design.md) — 简化版 Global Canonicalization, [../superpowers/specs/2026-03-17-curation-service-design.md](../superpowers/specs/2026-03-17-curation-service-design.md) — Curation Service |
 
 ---
+
+> **Migration note:** The current canonical home for the Graph IR contract is [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md).
+>
+> This older file remains useful because it still contains detailed design rationale and examples, but it mixes:
+>
+> - older authored-surface framing
+> - older runtime references
+> - pre-split contract/runtime presentation
+>
+> Prefer the newer contract doc for active meaning, and use this file as a deeper legacy design reference.
 
 ## 1. Purpose
 
@@ -32,7 +42,7 @@ This causes:
 Add Graph IR as an explicit layer between Gaia Language and BP.
 
 ```
-Gaia Lang Source (authored YAML)
+Gaia Lang Source (authored package source)
     │
     ▼
 gaia build (compile + elaborate + IR generation, deterministic)
@@ -601,13 +611,13 @@ After:
 
 ### 11.2 Next: Simplified Global Canonicalization
 
-Spec: [../../superpowers/specs/2026-03-17-simplified-global-canonicalization-design.md](../../superpowers/specs/2026-03-17-simplified-global-canonicalization-design.md)
+Spec: [../superpowers/specs/2026-03-17-simplified-global-canonicalization-design.md](../superpowers/specs/2026-03-17-simplified-global-canonicalization-design.md)
 
 Minimal subset of §7.4: automatic identity assignment (local node → global node) at publish time via embedding similarity. Skips rebuttal cycle and probability judgments. Conservative threshold — curation corrects missed merges later.
 
 ### 11.3 Next: Curation Service
 
-Spec: [../../superpowers/specs/2026-03-17-curation-service-design.md](../../superpowers/specs/2026-03-17-curation-service-design.md)
+Spec: [../superpowers/specs/2026-03-17-curation-service-design.md](../superpowers/specs/2026-03-17-curation-service-design.md)
 
 Offline global graph maintenance: clustering, classification (dedup/equivalence/abstraction/induction), conflict discovery (3-level BP pipeline), structure inspection, cleanup with 3-tier auto-execution.
 

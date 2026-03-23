@@ -1,5 +1,13 @@
 # Gaia Product Scope
 
+> **Status: Transitional.** This file remains useful as a product-direction narrative, but the newer foundation split is now:
+>
+> - [`foundation/gaia-overview.md`](foundation/gaia-overview.md)
+> - [`foundation/scientific-reasoning-foundation.md`](foundation/scientific-reasoning-foundation.md)
+> - [`semantics/terminology.md`](semantics/terminology.md)
+>
+> This older document still carries legacy wording such as "probabilistic functional programming language" and some older cloud-centric framing. Prefer the newer foundation docs for current canonical positioning.
+
 ## Purpose
 
 This document defines Gaia's product positioning, theoretical foundation, and current baseline on `main`.

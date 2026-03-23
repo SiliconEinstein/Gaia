@@ -5,9 +5,19 @@
 | 版本 | 2.0 |
 | 日期 | 2026-03-16 |
 | 状态 | Target design for the next BP / Graph IR theory revision |
-| 关联文档 | [theoretical-foundation.md](theoretical-foundation.md) — Jaynes 纲领与 Gaia 定位, [../bp-on-graph-ir.md](../bp-on-graph-ir.md) — BP 在 Graph IR 上的运行 |
+| 关联文档 | [../foundation/scientific-reasoning-foundation.md](../foundation/scientific-reasoning-foundation.md) — 当前科学推理基础, [../semantics/gaia-reasoning-model.md](../semantics/gaia-reasoning-model.md) — 当前 Gaia 推理模型, [../runtime/inference-runtime.md](../runtime/inference-runtime.md) — 当前 inference runtime |
 
 ---
+
+> **Migration note:** This document remains the detailed target-theory reference for the next BP revision.
+>
+> The newer foundations split is:
+>
+> - semantic meaning of Gaia reasoning families: [../semantics/gaia-reasoning-model.md](../semantics/gaia-reasoning-model.md)
+> - current executable runtime: [../runtime/inference-runtime.md](../runtime/inference-runtime.md)
+> - loop handling and basis-view status: [../runtime/loop-analysis.md](../runtime/loop-analysis.md)
+>
+> Use this file when you need the deeper target theory for noisy-AND, operator contracts, and next-step BP semantics.
 
 本文档定义 Gaia 推理引擎 **v2.0 目标模型** 的理论参考。组织顺序为：先从 Jaynes 第一性原理推导设计约束（§1），再给出满足这些约束的统一势函数模型（§2），然后分析推理方向的格论性质（§3），定义五种 factor 类型（§4），最后描述信念传播算法的计算细节（§5）。
 
