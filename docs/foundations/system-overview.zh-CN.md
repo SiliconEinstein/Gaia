@@ -5,7 +5,7 @@
 | Status | Current canonical |
 | Level | Overview |
 | Scope | Repo-wide |
-| Related | [semantics/terminology.md](semantics/terminology.md), [product-scope.md](product-scope.md), [language/gaia-language-spec.md](language/gaia-language-spec.md), [graph-ir.md](graph-ir.md), [cli/command-lifecycle.md](cli/command-lifecycle.md), [review/publish-pipeline.md](review/publish-pipeline.md), [server/architecture.md](server/architecture.md) |
+| Related | [semantics/terminology.md](semantics/terminology.md), [product-scope.md](product-scope.md), [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md), [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md), [contracts/lifecycles/lkm-package-lifecycle.md](contracts/lifecycles/lkm-package-lifecycle.md), [server/architecture.md](server/architecture.md) |
 
 ## Purpose
 
@@ -67,7 +67,7 @@ CLI 负责：
 - `review` 不属于规范的 CLI 生命周期
 - `main` 上当前存在的 `gaia review` 命令应被视为本地兼容辅助路径，而不是主要生命周期边界
 
-CLI 细节见 [cli/command-lifecycle.md](cli/command-lifecycle.md)。
+CLI 细节见 [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md)。
 
 ## Gaia LKM
 
@@ -133,7 +133,7 @@ Gaia LKM 是共享侧知识核心与 system of record。
 - [semantics/terminology.md](semantics/terminology.md) — 规范术语
 - [product-scope.md](product-scope.md) — 产品定位与当前 baseline
 - [language/gaia-language-spec.md](language/gaia-language-spec.md) — 作者侧 package surface
-- [graph-ir.md](graph-ir.md) — 结构化 IR 契约
-- [cli/command-lifecycle.md](cli/command-lifecycle.md) — 本地 CLI 生命周期
+- [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md) — 结构化 IR 契约
+- [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md) — 本地 CLI 生命周期
 - [review/publish-pipeline.md](review/publish-pipeline.md) — 迁移期间的共享侧工作流文档
 - [server/architecture.md](server/architecture.md) — 当前后端运行时

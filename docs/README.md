@@ -9,8 +9,8 @@ The canonical specifications for Gaia live in [`foundations/`](foundations/READM
 - [Terminology](foundations/semantics/terminology.md) — canonical terminology for CLI, LKM, service, engine, server, package, and artifact
 - [Product Scope](foundations/product-scope.md) — what Gaia is and is not
 - [Language Spec](foundations/language/gaia-language-spec.md) — Gaia Language semantics, Typst package surface, and conformance rules
-- [Graph IR](foundations/graph-ir.md) — structural contract between language and inference/runtime
-- [CLI Command Lifecycle](foundations/cli/command-lifecycle.md) — local build / infer / publish lifecycle
+- [Graph IR](foundations/contracts/authoring/graph-ir.md) — structural contract between authored packages and downstream reasoning/runtime
+- [CLI Lifecycle](foundations/contracts/lifecycles/cli-lifecycle.md) — local build / infer / publish lifecycle
 - [Theoretical Foundation](foundations/theory/theoretical-foundation.md) — Jaynes framework and plausible reasoning motivation
 - [Inference Theory](foundations/theory/inference-theory.md) — current semantic operator theory
 - [Server Architecture](foundations/server/architecture.md) — current runtime/backend implementation

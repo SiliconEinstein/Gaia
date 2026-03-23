@@ -5,7 +5,7 @@
 | Status | Current canonical |
 | Level | Overview |
 | Scope | Repo-wide |
-| Related | [semantics/terminology.md](semantics/terminology.md), [product-scope.md](product-scope.md), [language/gaia-language-spec.md](language/gaia-language-spec.md), [graph-ir.md](graph-ir.md), [cli/command-lifecycle.md](cli/command-lifecycle.md), [review/publish-pipeline.md](review/publish-pipeline.md), [server/architecture.md](server/architecture.md) |
+| Related | [semantics/terminology.md](semantics/terminology.md), [product-scope.md](product-scope.md), [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md), [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md), [contracts/lifecycles/lkm-package-lifecycle.md](contracts/lifecycles/lkm-package-lifecycle.md), [server/architecture.md](server/architecture.md) |
 
 ## Purpose
 
@@ -67,7 +67,7 @@ Important boundary:
 - `review` is not part of the canonical CLI lifecycle
 - the currently shipped `gaia review` command on `main` should be treated as a local compatibility helper, not the primary lifecycle boundary
 
-For CLI details, see [cli/command-lifecycle.md](cli/command-lifecycle.md).
+For CLI details, see [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md).
 
 ## Gaia LKM
 
@@ -133,7 +133,7 @@ The active foundations reset should describe those surfaces using the Gaia CLI /
 - [semantics/terminology.md](semantics/terminology.md) — canonical terminology
 - [product-scope.md](product-scope.md) — product positioning and current baseline
 - [language/gaia-language-spec.md](language/gaia-language-spec.md) — author-facing package surface
-- [graph-ir.md](graph-ir.md) — structural IR contract
-- [cli/command-lifecycle.md](cli/command-lifecycle.md) — local CLI lifecycle
+- [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md) — structural IR contract
+- [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md) — local CLI lifecycle
 - [review/publish-pipeline.md](review/publish-pipeline.md) — current shared-side workflow doc during migration
 - [server/architecture.md](server/architecture.md) — current backend runtime

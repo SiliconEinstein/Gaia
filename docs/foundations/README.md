@@ -97,12 +97,14 @@ docs/foundations/
 - [Service Boundaries](contracts/services/service-boundaries.md) — the primary service split inside Gaia LKM
 - [Review Service](contracts/services/review-service.md) — submission-scoped adjudication ownership
 - [Curation Service](contracts/services/curation-service.md) — shared-state maintenance and investigation ownership
+- [CLI Lifecycle](contracts/lifecycles/cli-lifecycle.md) — the canonical local CLI lifecycle ending at publish
+- [Graph IR](contracts/authoring/graph-ir.md) — the structural contract between authored packages and downstream reasoning/runtime
 - [Gaia Language Spec](language/gaia-language-spec.md)
 - [Gaia Language Design](language/gaia-language-design.md)
 - [Language Design Rationale](language/design-rationale.md)
 - [Type System Direction](language/type-system-direction.md)
-- [Graph IR](graph-ir.md)
-- [Gaia CLI Command Lifecycle](cli/command-lifecycle.md)
+- [Legacy Graph IR Draft](graph-ir.md) — older detailed Graph IR draft during migration
+- [Legacy CLI Command Lifecycle](cli/command-lifecycle.md) — older combined lifecycle doc during migration
 - [Review Pipeline & Publish Workflow](review/publish-pipeline.md) — current shared-side workflow doc during migration
 
 ### Runtime
