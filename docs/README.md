@@ -11,9 +11,12 @@ The canonical specifications for Gaia live in [`foundations/`](foundations/READM
 - [Language Spec](foundations/contracts/authoring/gaia-language-spec.md) — Gaia Language semantics, Typst package surface, and conformance rules
 - [Graph IR](foundations/contracts/authoring/graph-ir.md) — structural contract between authored packages and downstream reasoning/runtime
 - [CLI Lifecycle](foundations/contracts/lifecycles/cli-lifecycle.md) — local build / infer / publish lifecycle
+- [Package Profiles](foundations/contracts/artifacts/package-profiles.md) — the main Gaia package profiles
 - [Theoretical Foundation](foundations/theory/theoretical-foundation.md) — Jaynes framework and plausible reasoning motivation
 - [Inference Theory](foundations/theory/inference-theory.md) — current semantic operator theory
-- [Server Architecture](foundations/server/architecture.md) — current runtime/backend implementation
+- [Inference Runtime](foundations/runtime/inference-runtime.md) — current executable inference path
+- [Server Architecture](foundations/runtime/server-architecture.md) — current backend/runtime implementation
+- [Storage Schema](foundations/runtime/storage-schema.md) — current persistence/runtime data model
 
 Start there for any question about current architecture, contracts, or semantics.
 

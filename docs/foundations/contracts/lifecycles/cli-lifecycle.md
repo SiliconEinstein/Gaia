@@ -96,15 +96,15 @@ Once publish completes, the next lifecycle belongs to [lkm-package-lifecycle.md]
 
 ## What Is Not In The Canonical CLI Lifecycle
 
-The following may exist in current code, local workflows, or future tooling, but they are not part of the canonical three-stage CLI lifecycle:
+The following may exist in older design docs, local workflows, or future tooling, but they are not part of the canonical three-stage CLI lifecycle:
 
-- `gaia review` as a core stage
+- a separate `gaia review` stage
 - shared-side peer review
 - rebuttal exchange
 - editorial decisions
 - LKM integration
 
-The currently shipped `gaia review` command on `main` should be treated as a compatibility helper for local self-review flows, not as a fourth canonical CLI stage.
+Current code does not ship a standalone `gaia review` command in the main CLI entrypoint. Review logic currently appears as embedded preview runtime inside local infer and local publish flows rather than as a fourth canonical lifecycle stage.
 
 ## Relationship To Other Docs
 

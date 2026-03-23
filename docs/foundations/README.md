@@ -111,10 +111,16 @@ docs/foundations/
 
 ### Runtime
 
-- [Gaia CLI Runtime Boundaries](cli/boundaries.md)
-- [BP on Graph IR](bp-on-graph-ir.md)
-- [Server Architecture](server/architecture.md)
-- [Server Storage Schema](server/storage-schema.md)
+- [Inference Runtime](runtime/inference-runtime.md) — current executable inference path and current-vs-target divergence
+- [Loop Analysis](runtime/loop-analysis.md) — how Gaia treats loops, diagnostics, and basis-style views
+- [Server Architecture](runtime/server-architecture.md) — current backend/runtime composition
+- [Storage Schema](runtime/storage-schema.md) — current persistence-side data model
+- [Review Runtime](runtime/review-runtime.md) — current execution path for review logic
+- [Curation Runtime](runtime/curation-runtime.md) — current execution path for shared-state maintenance
+- [Gaia CLI Runtime Boundaries](cli/boundaries.md) — legacy CLI runtime note during migration
+- [BP on Graph IR](bp-on-graph-ir.md) — older BP runtime/theory draft during migration
+- [Legacy Server Architecture](server/architecture.md) — older server target architecture during migration
+- [Legacy Server Storage Schema](server/storage-schema.md) — older storage draft during migration
 
 ## Migration Notes
 
