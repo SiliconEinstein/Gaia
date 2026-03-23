@@ -1,53 +1,55 @@
 # Foundations
 
-Canonical reference docs for Gaia, organized by change frequency.
+Canonical reference docs for Gaia, organized by architectural layer.
 
-## Theory — why Gaia reasons this way
+## Theory — pure math, Gaia-independent (never changes)
 
-- [Theoretical Foundation](theory/theoretical-foundation.md) — Jaynes plausible reasoning, why probabilistic
-- [Scientific Ontology](theory/scientific-ontology.md) — scientific knowledge ontology, terminology
-- [Belief Propagation](theory/belief-propagation.md) — BP algorithm, loopy BP, convergence, factor potentials
+- [Plausible Reasoning](theory/plausible-reasoning.md) — Jaynes, Cox theorem, probability as logic
+- [Belief Propagation](theory/belief-propagation.md) — sum-product algorithm, convergence, damping
+- [Scientific Ontology](theory/scientific-ontology.md) — scientific knowledge classification
 
-## Gaia Concepts — Gaia's technical choices built on theory
+## Rationale — design philosophy (rarely changes)
 
-- [Knowledge Types](gaia-concepts/knowledge-types.md) — claim / setting / question / action / relation
-- [Reasoning Relations](gaia-concepts/reasoning-relations.md) — deduction / induction / abstraction / contradiction
-- [Factor Design](gaia-concepts/factor-design.md) — reasoning type → factor potential mapping
-- [Package Model](gaia-concepts/package-model.md) — package / module / chain / knowledge structure
-- [Type System Direction](gaia-concepts/type-system-direction.md) — Jaynes + Lean hybrid, why not Curry-Howard, probability at value layer
+- [Product Scope](rationale/product-scope.md) — what Gaia is, why it exists
+- [Architecture Overview](rationale/architecture-overview.md) — three-layer pipeline, CLI↔LKM contract
+- [Domain Vocabulary](rationale/domain-vocabulary.md) — Knowledge, Chain, Module, Package
+- [Type System Direction](rationale/type-system-direction.md) — Jaynes + Lean hybrid
+- [Documentation Policy](rationale/documentation-policy.md) — doc maintenance rules
 
-## Interfaces — contracts between layers
+## Graph IR — the shared contract between CLI and LKM
 
-- [Language Spec](interfaces/language-spec.md) — Gaia Language v4 Typst DSL full spec
-- [Graph IR](interfaces/graph-ir.md) — Graph IR structural contract
-- [API](interfaces/api.md) — HTTP API contract
-- [Lifecycle](interfaces/lifecycle.md) — CLI lifecycle (build→infer→publish) + LKM lifecycle (review→curate→integrate)
-- [Agent Credit](interfaces/agent-credit.md) — agent reliability as BP-computed belief (target design)
+- [Overview](graph-ir/overview.md) — purpose, three identity layers
+- [Knowledge Nodes](graph-ir/knowledge-nodes.md) — Raw, LocalCanonical, GlobalCanonical schemas
+- [Factor Nodes](graph-ir/factor-nodes.md) — FactorNode schema (single definition), types, compilation rules
+- [Canonicalization](graph-ir/canonicalization.md) — local and global canonicalization
+- [Parameterization](graph-ir/parameterization.md) — overlay schemas, graph hash
 
-## Implementations — how the system is built
+## BP — computation on Graph IR
 
-- [Overview](implementations/overview.md) — architecture: entry points → engines → storage
+- [Factor Potentials](bp/potentials.md) — potential functions for each factor type
+- [Inference](bp/inference.md) — BP algorithm applied to Graph IR
+- [Local vs Global](bp/local-vs-global.md) — CLI local inference vs LKM global inference
 
-### Entry Points (callers of the engine layer)
+## CLI — local authoring and inference
 
-- [CLI](implementations/entry-points/cli.md) — single-package interactive (build/infer/publish)
-- [Server](implementations/entry-points/server.md) — API server: write side (review, curation) + read side (search, recommend)
-- [Pipeline](implementations/entry-points/pipeline.md) — batch orchestration (7 stages, multi-paper)
+- **Gaia Lang** (the CLI's frontend for Graph IR):
+  - [Language Spec](cli/gaia-lang/spec.md) — Typst DSL syntax
+  - [Knowledge Types](cli/gaia-lang/knowledge-types.md) — declaration types, proof state
+  - [Package Model](cli/gaia-lang/package-model.md) — package/module/chain
+- [Lifecycle](cli/lifecycle.md) — build → infer → publish
+- [Compiler](cli/compiler.md) — Typst → Graph IR compilation
+- [Local Inference](cli/local-inference.md) — `gaia infer` internals
+- [Local Storage](cli/local-storage.md) — LanceDB + Kuzu embedded
 
-### Engines (shared capability layer)
+## LKM — computational registry (server)
 
-- [Graph IR Compiler](implementations/engines/graph-ir-compiler.md) — typst → raw graph → local canonical graph
-- [BP Engine](implementations/engines/bp-engine.md) — local BP + global BP
-- [Review Engine](implementations/engines/review-engine.md) — LLM-based review
-- [Curation Engine](implementations/engines/curation-engine.md) — clustering, dedup, abstraction, conflict detection
-- [Canonicalization Engine](implementations/engines/canonicalization-engine.md) — local → global node mapping
-
-### Infrastructure
-
-- [Storage](implementations/storage.md) — LanceDB + Neo4j + three-write atomicity
-- [Testing](implementations/testing.md) — test structure, fixtures, CI
-
-## Other
-
-- [Product Scope](product-scope.md) — current product boundaries
-- [Documentation Policy](documentation-policy.md) — doc maintenance rules
+- [Overview](lkm/overview.md) — Write/Read side architecture
+- [Review Pipeline](lkm/review-pipeline.md) — validation → review → gatekeeper
+- [Global Canonicalization](lkm/global-canonicalization.md) — cross-package node mapping
+- [Curation](lkm/curation.md) — clustering, dedup, conflict detection
+- [Global Inference](lkm/global-inference.md) — server-side BP
+- [Pipeline](lkm/pipeline.md) — 7-stage batch orchestration
+- [Storage](lkm/storage.md) — three-backend architecture
+- [API](lkm/api.md) — HTTP API contract
+- [Agent Credit](lkm/agent-credit.md) — agent reliability tracking
+- [Lifecycle](lkm/lifecycle.md) — review → curate → integrate

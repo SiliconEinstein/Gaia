@@ -82,7 +82,7 @@ No authentication is implemented. The gateway is intended for internal/developme
 
 ## Not Yet Implemented
 
-The following are described in the target server architecture (`docs/foundations_archive/server/architecture.md`) but not yet exposed as HTTP endpoints:
+The following are described in the target server architecture (`docs/archive/foundations-v2/server/architecture.md`) but not yet exposed as HTTP endpoints:
 
 - **Search API** (`QueryService`) -- full-text and vector search for agents. Experimental.
 - **Review submission** -- peer review engine integration. Target architecture.

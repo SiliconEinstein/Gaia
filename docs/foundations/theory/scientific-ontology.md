@@ -77,5 +77,5 @@ For how Gaia Language maps these ontological classes to declarations, see `../cl
 
 ## Source
 
-- [../../foundations_archive/theory/scientific-ontology.md](../../foundations_archive/theory/scientific-ontology.md)
-- [../../foundations_archive/theory/theoretical-foundation.md](../../foundations_archive/theory/theoretical-foundation.md) (sections 1.1, 1.2)
+- [../../archive/foundations-v2/theory/scientific-ontology.md](../../archive/foundations-v2/theory/scientific-ontology.md)
+- [../../archive/foundations-v2/theory/theoretical-foundation.md](../../archive/foundations-v2/theory/theoretical-foundation.md) (sections 1.1, 1.2)

@@ -128,4 +128,4 @@ The shared principle is that authors write in a convenient surface language and 
 
 ## Source
 
-- [../../foundations_archive/language/type-system-direction.md](../../foundations_archive/language/type-system-direction.md)
+- [../../archive/foundations-v2/language/type-system-direction.md](../../archive/foundations-v2/language/type-system-direction.md)

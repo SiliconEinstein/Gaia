@@ -4,7 +4,7 @@
 
 This document defines the knowledge node schemas at each of Graph IR's three identity layers. Knowledge nodes are the variable nodes in Gaia's factor graph -- they represent propositions with quantifiable uncertainty.
 
-For factor nodes (the constraint nodes that connect knowledge nodes), see [factor-nodes.md](factor-nodes.md). For the BP behavior of different knowledge types, see [../gaia-concepts/knowledge-types.md](../gaia-concepts/knowledge-types.md).
+For factor nodes (the constraint nodes that connect knowledge nodes), see [factor-nodes.md](factor-nodes.md). For the BP behavior of different knowledge types, see [../cli/gaia-lang/knowledge-types.md](../cli/gaia-lang/knowledge-types.md).
 
 ## 1. RawKnowledgeNode (from `gaia build`)
 

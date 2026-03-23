@@ -2,7 +2,7 @@
 
 > **Status:** Current canonical
 
-This document summarizes the Gaia Language v4 Typst DSL -- the authoring surface for knowledge packages. For full details, see `docs/foundations_archive/language/gaia-language-spec.md`.
+This document summarizes the Gaia Language v4 Typst DSL -- the authoring surface for knowledge packages. For full details, see `docs/archive/foundations-v2/language/gaia-language-spec.md`.
 
 ## Overview
 
@@ -126,5 +126,5 @@ Lives at `libs/typst/gaia-lang-v4/`. Exports:
 
 - `libs/typst/gaia-lang-v4/` -- runtime Typst function definitions
 - `libs/lang/typst_loader.py` -- Python extraction loader
-- `docs/foundations_archive/language/gaia-language-spec.md` -- full specification
-- `docs/foundations_archive/language/gaia-language-design.md` -- design rationale
+- `docs/archive/foundations-v2/language/gaia-language-spec.md` -- full specification
+- `docs/archive/foundations-v2/language/gaia-language-design.md` -- design rationale

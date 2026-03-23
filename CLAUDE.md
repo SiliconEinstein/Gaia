@@ -196,29 +196,42 @@ litellm.api_base = os.getenv("OPENAI_API_BASE")
 
 ## Design Documents
 
-Current specs live in `docs/foundations/` organized in four layers. Historical docs are in `docs/foundations_archive/`. Planning docs are in `docs/archive/`.
+Current specs live in `docs/foundations/` organized by architectural layer:
+
+```
+docs/foundations/theory/       → Pure theory (Jaynes, BP algorithm) — never changes
+docs/foundations/rationale/    → Design philosophy, product scope — rarely changes
+docs/foundations/graph-ir/     → Graph IR structural contract (CLI↔LKM shared layer)
+docs/foundations/bp/           → BP computation semantics on Graph IR
+docs/foundations/cli/          → CLI + Gaia Lang (local authoring, compilation, inference)
+docs/foundations/lkm/          → LKM server (review, curation, global inference, storage, API)
+```
+
+Historical docs are in `docs/archive/`. Planning docs are in `docs/superpowers/plans/`.
 
 ## Documentation Policy
 
-When editing architecture or foundation docs, read `docs/foundations/documentation-policy.md` first.
+When editing architecture or foundation docs, read `docs/foundations/rationale/documentation-policy.md` first.
 
 ### Foundations Layer Rules
 
-The `docs/foundations/` directory has four layers. Information flows **downward** — each layer references the one above, never redefines it.
+The `docs/foundations/` directory mirrors Gaia's three-layer compilation pipeline (Gaia Lang → Graph IR → BP) plus two product surfaces (CLI, LKM). Information flows **downward** — each layer references layers above it, never redefines.
 
 | Layer | Responsibility | What belongs here |
 |-------|---------------|-------------------|
 | **theory/** | External theory (Jaynes, BP algorithm) | Definitions that exist independent of Gaia |
-| **concepts/** | Gaia domain definitions — what things ARE | "A factor is a reasoning link with 5 types..." |
-| **interfaces/** | API structure and contracts, based on concepts | "FactorNode has fields factor_id, type, premises[]. See concepts/factor-design.md for type semantics." |
-| **implementations/** | Code paths and runtime behavior | "BP engine dispatches on FactorNode.type. See libs/inference/bp.py:69." |
+| **rationale/** | Gaia design philosophy, product scope | Why Gaia makes the choices it does |
+| **graph-ir/** | Graph IR structural contract | Node schemas, factor types, canonicalization — defined ONCE here |
+| **bp/** | BP computation on Graph IR | Factor potentials, inference algorithm, local vs global |
+| **cli/** | CLI + Gaia Lang (local workflow) | Language spec, compiler, local inference, local storage |
+| **lkm/** | LKM server (global workflow) | Review, curation, global inference, storage, API |
 
 **Rules:**
-1. **Concepts is the source of truth** for domain definitions. Lower layers reference upward, not redefine.
-2. **Interfaces** describe structure (field names, schemas, endpoints). They link to concepts for semantics.
-3. **Implementations** describe code. They link to interfaces for structure and concepts for semantics.
-4. **Never copy** a definition from a higher layer — link to it instead.
-5. When a concept changes, update it in concepts/ first, then verify lower layers' references still hold.
+1. **graph-ir/ is the single source of truth** for structural definitions (FactorNode, knowledge node schemas). BP, CLI, and LKM reference it, never redefine.
+2. **bp/** defines computational semantics (potential functions). CLI and LKM reference it for algorithm details.
+3. **cli/** owns Gaia Lang. LKM never references Gaia Lang — it operates on Graph IR.
+4. **Never copy** a definition from another layer — link to it instead.
+5. When a schema changes, update it in graph-ir/ first, then verify downstream references.
 
 ### General Doc Rules
 

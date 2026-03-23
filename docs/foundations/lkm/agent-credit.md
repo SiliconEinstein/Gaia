@@ -73,4 +73,4 @@ The loop converges because: (1) credit influence on prior is bounded, (2) peer r
 
 ## Source
 
-- [../../foundations_archive/agent-credit.md](../../foundations_archive/agent-credit.md)
+- [../../archive/foundations-v2/agent-credit.md](../../archive/foundations-v2/agent-credit.md)

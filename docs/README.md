@@ -17,29 +17,28 @@ Start with the [Quick Start](for-users/quick-start.md), then read the [Language 
 ### I want to develop Gaia
 > You're a developer working on the codebase.
 
-Start with the [Architecture Overview](foundations/implementations/overview.md), then see [Entry Points](foundations/implementations/entry-points/), [Engines](foundations/implementations/engines/), and [Testing](foundations/implementations/testing.md).
+Start with the [Architecture Overview](foundations/rationale/architecture-overview.md), then explore:
+- [CLI surface](foundations/cli/) — local authoring, compilation, inference
+- [LKM surface](foundations/lkm/) — server-side review, curation, global inference
+- [Graph IR contract](foundations/graph-ir/) — the shared intermediate representation
 
 ## Deep Reference
 
-The [Foundations](foundations/README.md) directory contains Gaia's canonical reference docs, organized by change frequency:
+The [Foundations](foundations/README.md) directory contains Gaia's canonical reference docs, organized by architectural layer:
 
 | Layer | What it answers | Changes |
 |-------|----------------|---------|
 | [Theory](foundations/theory/) | Why does Gaia reason this way? | Never |
-| [Gaia Concepts](foundations/gaia-concepts/) | What are Gaia's core abstractions? | Rarely |
-| [Interfaces](foundations/interfaces/) | What are the contracts between layers? | Sometimes |
-| [Implementations](foundations/implementations/) | How is it built? How do I work on it? | Often |
+| [Rationale](foundations/rationale/) | What are Gaia's design choices? | Rarely |
+| [Graph IR](foundations/graph-ir/) | What is the structural contract? | Sometimes |
+| [BP](foundations/bp/) | How does inference work? | Sometimes |
+| [CLI](foundations/cli/) | How does local authoring work? | Often |
+| [LKM](foundations/lkm/) | How does the server work? | Often |
 
 ## Other Resources
 
 | Directory | Contents |
 |-----------|----------|
-| `foundations_archive/` | Previous foundations docs (preserved for reference during migration) |
+| `archive/` | Historical design docs, previous foundations versions, completed plans |
 | `design/` | Scaling belief propagation, related work |
 | `examples/` | Worked examples (Einstein elevator, Galileo tied-balls) |
-| `archive/` | Historical design docs and implementation plans |
-
-## Other Entry Points
-
-- [Module Map](module-map.md) — current repo structure, module boundaries, and dependency flow
-- [Repository README](../README.md) — quick start, runtime overview, and API entry points
