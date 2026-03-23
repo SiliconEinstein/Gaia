@@ -2,22 +2,22 @@
 
 > **Status:** Current canonical
 
-Global canonicalization maps local canonical nodes (package-scoped) to global canonical nodes (cross-package). This enables the global knowledge graph to recognize that semantically equivalent propositions across packages refer to the same claim.
+Global canonicalization 将 local canonical node（包作用域）映射到 global canonical node（跨包）。这使得全局知识图谱能够识别不同包中语义等价的命题指向同一 claim。
 
-For the canonicalization identity model (raw, local canonical, global canonical): see [../graph-ir/canonicalization.md](../graph-ir/canonicalization.md).
+关于规范化身份模型（raw、local canonical、global canonical），参见 [../graph-ir/canonicalization.md](../graph-ir/canonicalization.md)。
 
-## What Canonicalization Does
+## 规范化的作用
 
-When a new package is ingested, each of its local nodes is either:
+当一个新包被摄入时，它的每个本地节点要么：
 
-- **match_existing**: bound to an existing `GlobalCanonicalNode` that expresses the same proposition.
-- **create_new**: a new `GlobalCanonicalNode` is created for this previously unseen proposition.
+- **match_existing**：绑定到表达相同命题的现有 GlobalCanonicalNode。
+- **create_new**：为此前未见的命题创建新的 GlobalCanonicalNode。
 
-After node canonicalization, local factors are lifted to the global graph by replacing local canonical IDs with global canonical IDs, including resolution of `ext:` cross-package references.
+节点规范化之后，本地 factor 被提升到全局图，通过将 local canonical ID 替换为 global canonical ID 实现，包括解析 `ext:` 跨包引用。
 
 ## Pipeline
 
-See `libs/global_graph/canonicalize.py:canonicalize_package()`.
+参见 `libs/global_graph/canonicalize.py:canonicalize_package()`。
 
 ```
 Input:
@@ -41,64 +41,64 @@ Output:
     unresolved_cross_refs: list[str]
 ```
 
-## Match Strategies
+## 匹配策略
 
-See `libs/global_graph/similarity.py:find_best_match()`.
+参见 `libs/global_graph/similarity.py:find_best_match()`。
 
-### Embedding Similarity (primary)
+### Embedding 相似度（主要方法）
 
-When an `EmbeddingModel` is provided, the engine:
-1. Batch-embeds the query content and all candidate contents.
-2. Computes cosine similarity between the query embedding and each candidate.
-3. Returns the best match above the threshold.
+当提供 EmbeddingModel 时，引擎：
+1. 批量 embed 查询内容和所有候选内容。
+2. 计算查询 embedding 与每个候选之间的 cosine similarity。
+3. 返回超过阈值的最佳匹配。
 
-### TF-IDF Fallback
+### TF-IDF 回退
 
-When no embedding model is available, the engine uses scikit-learn's `TfidfVectorizer` to compute pairwise cosine similarity. This is slower and less accurate but requires no external API.
+当没有可用的 embedding 模型时，引擎使用 scikit-learn 的 `TfidfVectorizer` 计算两两 cosine similarity。这种方法较慢且精度较低，但不需要外部 API。
 
-### Match Threshold
+### 匹配阈值
 
-The default threshold is `0.90` (see `canonicalize.py:MATCH_THRESHOLD`). A match must exceed this threshold to be accepted.
+默认阈值为 `0.90`（见 `canonicalize.py:MATCH_THRESHOLD`）。匹配必须超过此阈值才会被接受。
 
-## Filtering Rules
+## 过滤规则
 
-Before similarity computation, candidates are filtered:
+在相似度计算之前，候选项会被过滤：
 
-- **Type match required**: only candidates with the same `knowledge_type` are eligible.
-- **Kind match for some types**: `question` and `action` types additionally require matching `kind`.
-- **Relation types excluded**: `contradiction` and `equivalence` are package-local relations and never match across packages.
+- **类型匹配必需**：只有 `knowledge_type` 相同的候选项才有资格。
+- **某些类型需要 kind 匹配**：`question` 和 `action` 类型还需要 `kind` 匹配。
+- **关系类型排除**：`contradiction` 和 `equivalence` 是包内关系，永远不会跨包匹配。
 
-## Claims-Only Default
+## 仅 Claim 默认策略
 
-By default, only `claim` nodes are canonicalized. This is configurable via the `canonicalizable_types` parameter (typically set in `pipeline.toml`).
+默认情况下，只有 `claim` 节点会被规范化。这可以通过 `canonicalizable_types` 参数配置（通常在 `pipeline.toml` 中设置）。
 
-The rationale: claims are truth-apt propositions that participate in BP and benefit from cross-package identity. Settings define context; questions frame inquiry; actions describe procedures -- these are typically package-specific.
+理由是：claim 是具有真值的命题，参与 BP 并从跨包身份中获益。Setting 定义上下文；question 构建探究框架；action 描述流程——这些通常是包特定的。
 
-## Factor Lifting
+## Factor 提升
 
-After node canonicalization, local factors are rewritten with global IDs:
+节点规范化之后，本地 factor 被改写为全局 ID：
 
-1. Build `lcn_ -> gcn_` mapping from bindings.
-2. Build `ext: -> gcn_` mapping from global node metadata (`source_knowledge_names`).
-3. For each local factor, resolve all premise, context, and conclusion IDs.
-4. Factors with unresolved references are dropped (logged in `unresolved_cross_refs`).
+1. 从 binding 构建 `lcn_ -> gcn_` 映射。
+2. 从全局节点元数据（`source_knowledge_names`）构建 `ext: -> gcn_` 映射。
+3. 对每个本地 factor，解析所有 premise、context 和 conclusion ID。
+4. 含有未解析引用的 factor 被丢弃（记录在 `unresolved_cross_refs` 中）。
 
-For factor node schema: see [../graph-ir/factor-nodes.md](../graph-ir/factor-nodes.md).
+关于 factor node schema，参见 [../graph-ir/factor-nodes.md](../graph-ir/factor-nodes.md)。
 
-## Code Paths
+## 代码路径
 
-| Component | File |
-|-----------|------|
-| Canonicalization entry | `libs/global_graph/canonicalize.py:canonicalize_package()` |
-| Similarity matching | `libs/global_graph/similarity.py:find_best_match()` |
-| Global node model | `libs/storage/models.py:GlobalCanonicalNode` |
-| Canonical binding model | `libs/storage/models.py:CanonicalBinding` |
-| Pipeline integration | `scripts/pipeline/canonicalize_global.py` |
+| 组件 | 文件 |
+|------|------|
+| 规范化入口 | `libs/global_graph/canonicalize.py:canonicalize_package()` |
+| 相似度匹配 | `libs/global_graph/similarity.py:find_best_match()` |
+| Global node 模型 | `libs/storage/models.py:GlobalCanonicalNode` |
+| Canonical binding 模型 | `libs/storage/models.py:CanonicalBinding` |
+| Pipeline 集成 | `scripts/pipeline/canonicalize_global.py` |
 
-## Current State
+## 当前状态
 
-The canonicalization engine works for claims-only default mode with both embedding and TF-IDF similarity. Factor lifting resolves both local and cross-package references. The engine is exercised by the server ingestion pipeline and tested in `tests/libs/global_graph/`.
+规范化引擎在仅 claim 默认模式下可用，支持 embedding 和 TF-IDF 相似度。Factor 提升可解析本地和跨包引用。该引擎由服务端摄入 pipeline 调用，并在 `tests/libs/global_graph/` 中有测试覆盖。
 
-## Target State
+## 目标状态
 
-The canonicalization engine is stable. Potential minor improvements include smarter representative content selection when multiple local nodes merge into one global node, and caching of embeddings to avoid recomputation.
+规范化引擎已稳定。潜在的小改进包括：当多个本地节点合并为一个全局节点时更智能地选择代表性内容，以及缓存 embedding 以避免重复计算。

@@ -1,294 +1,294 @@
-# Gaia Product Scope
+# Gaia 产品范围
 
-> Related documents:
+> 相关文档：
 > - [architecture-overview.md](architecture-overview.md)
 > - [../theory/scientific-ontology.md](../theory/scientific-ontology.md)
 > - [../cli/gaia-lang/spec.md](../cli/gaia-lang/spec.md)
 
-## Purpose
+## 目的
 
-This document defines Gaia's product positioning, theoretical foundation, and current baseline on `main`.
+本文档定义 Gaia 的产品定位、理论基础，以及 `main` 分支上的当前基线。
 
-Its job is:
+本文档的职责：
 
-- state the theoretical foundation — why Gaia exists and why existing tools cannot replace it
-- state the decided product direction
-- state what is currently shipped on `main`
-- state what is not yet shipped but is on the roadmap
+- 陈述理论基础——Gaia 为何存在，以及现有工具为何无法替代它
+- 陈述已决定的产品方向
+- 陈述当前 `main` 上已发布的内容
+- 陈述尚未发布但在路线图中的内容
 
-## Theoretical Foundation
+## 理论基础
 
-### The goal: a Large Knowledge Model
+### 目标：大型知识模型
 
-Gaia's goal is to build a **Large Knowledge Model (LKM)** — a billion-scale reasoning hypergraph where propositions are nodes and reasoning relationships are hyperedges. The LKM is constructed automatically by AI agents on the cloud, not manually by humans.
+Gaia 的目标是构建一个 **Large Knowledge Model (LKM)**——一个十亿级规模的推理超图，其中命题是节点，推理关系是超边。LKM 由云端的 AI 代理自动构建，而非由人工手动创建。
 
-This requires a **machine-readable, machine-writable knowledge representation** that supports:
+这需要一种**机器可读、机器可写的知识表示**，支持：
 
-1. **Structured reasoning** — not free-text, but typed knowledge objects and explicit support / constraint structure
-2. **Probabilistic belief** — knowledge is not true/false but carries degrees of belief, because scientific knowledge is inherently uncertain
-3. **Composable modules** — knowledge must be packaged, exported, imported, and composed, like code in a programming language
-4. **Automated inference** — the system must propagate beliefs through the graph automatically when new evidence arrives
+1. **结构化推理**——不是自由文本，而是类型化的知识对象和明确的支持/约束结构
+2. **概率信念**——知识不是非真即假，而是携带信念度，因为科学知识本质上是不确定的
+3. **可组合模块**——知识必须能够被打包、导出、导入和组合，就像编程语言中的代码一样
+4. **自动推理**——当新证据到来时，系统必须自动通过图传播信念
 
-These requirements together define a formal package language for scientific reasoning. Gaia is that language.
+这些需求共同定义了一种用于科学推理的形式化包语言。Gaia 就是这种语言。
 
-### Gaia as a structured language for probabilistic scientific reasoning
+### Gaia 作为概率科学推理的结构化语言
 
-Gaia is a **structured language for probabilistic scientific reasoning**.
+Gaia 是一种**用于概率科学推理的结构化语言**。
 
-It combines:
+它结合了：
 
-- a deterministic authored package surface
-- a structural Graph IR layer
-- a probabilistic inference layer on top
+- 一个确定性的编写包表面
+- 一个结构性的 Graph IR 层
+- 一个在其上的概率推理层
 
-| Layer | What it provides | PL analogy |
+| 层 | 提供什么 | 编程语言类比 |
 |-------|-----------------|------------|
-| **Authored package surface** | Declarations, refs, modules, package structure | typed DSL / package language |
-| **Graph IR** | Submitted structural graph, canonicalization boundary, factor graph shape | typed intermediate representation |
-| **Inference layer** | Priors, factor parameters, BP, review-derived judgments | probabilistic inference layer |
+| **编写包表面** | 声明、引用、模块、包结构 | 类型化 DSL / 包语言 |
+| **Graph IR** | 提交的结构图、规范化边界、因子图形状 | 类型化中间表示 |
+| **推理层** | 先验、因子参数、BP、审查衍生的判断 | 概率推理层 |
 
-Only closed, truth-apt scientific assertions directly participate in ordinary domain BP. Questions, workflow declarations, review artifacts, and internal curation artifacts may still exist in Gaia packages or service outputs, but they are not ordinary domain-BP variables by default.
+只有封闭的、具有真值的科学断言直接参与普通领域 BP。问题、工作流声明、审查制品和内部策展制品可能仍然存在于 Gaia 包或服务输出中，但它们默认不是普通领域 BP 变量。
 
-The theoretical positioning:
+理论定位：
 
-- **Pólya** (*Mathematics and Plausible Reasoning*, 1954) — reasoning extends beyond deductive proof to plausible inference
-- **Jaynes** (*Probability Theory: The Logic of Science*, 2003) — probability is the logic of plausible reasoning, a generalization of deductive logic to degrees of belief
-- **Cox's theorem** — any consistent system of plausible reasoning is isomorphic to probability theory
+- **Polya**（*Mathematics and Plausible Reasoning*，1954）——推理超越演绎证明，延伸到似然推理
+- **Jaynes**（*Probability Theory: The Logic of Science*，2003）——概率是似然推理的逻辑，是演绎逻辑向信念度的推广
+- **Cox 定理**——任何一致的似然推理系统都同构于概率论
 
-Gaia aspires to be **Curry-Howard for plausible reasoning**: just as functional programming languages (Haskell, Lean) are grounded in the Curry-Howard correspondence between proofs and programs, Gaia extends this from deductive certainty to plausible belief. This is an open research direction, not an established theorem — the full Curry-Howard correspondence for probabilistic computation remains an active area of study (cf. "Curry and Howard Meet Borel", LICS 2022).
+Gaia 致力于成为**似然推理的 Curry-Howard**：正如函数式编程语言（Haskell、Lean）建立在证明与程序之间的 Curry-Howard 对应关系之上，Gaia 将其从演绎确定性扩展到似然信念。这是一个开放的研究方向，而非已确立的定理——概率计算的完整 Curry-Howard 对应关系仍然是一个活跃的研究领域（参见 "Curry and Howard Meet Borel", LICS 2022）。
 
-### Why existing tools cannot replace Gaia
+### 现有工具为何无法替代 Gaia
 
-**Why not existing probabilistic PLs (Pyro, Stan, Church, Hakaru)?**
+**为何不用现有的概率编程语言（Pyro、Stan、Church、Hakaru）？**
 
-These languages model **statistical probability** — distributions over random variables for data modeling. Gaia models **epistemic probability** — degrees of belief in the truth of propositions.
+这些语言建模的是**统计概率**——用于数据建模的随机变量上的分布。Gaia 建模的是**认知概率**——对命题真值的信念度。
 
-| | Statistical probability (Pyro/Stan) | Epistemic probability (Gaia) |
+| | 统计概率（Pyro/Stan） | 认知概率（Gaia） |
 |---|---|---|
-| Probability of what | Random variables (numerical) | Propositions (knowledge objects) |
-| Probability means | Frequency / measure over outcomes | Degree of belief in truth |
-| Conditioning on | Observed data | Dependency role (`direct` / `indirect`; semantics `premise` / `context`) |
-| Graph model | DAG (Bayesian network) | Hypergraph (multi-premise → multi-conclusion) |
-| Inference computes | Posterior distribution | Belief scores on propositions |
-| Inference algorithm | MCMC, variational inference | Loopy BP on hypergraphs |
+| 概率的对象 | 随机变量（数值） | 命题（知识对象） |
+| 概率的含义 | 结果的频率/测度 | 对真值的信念度 |
+| 条件化对象 | 观测数据 | 依赖角色（`direct` / `indirect`；语义 `premise` / `context`） |
+| 图模型 | DAG（Bayesian 网络） | 超图（多前提 → 多结论） |
+| 推理计算 | 后验分布 | 命题上的信念分数 |
+| 推理算法 | MCMC、变分推断 | 超图上的 loopy BP |
 
-The mathematical foundation is the same (Bayesian probability), but the domain structure is fundamentally different — like SQL and Haskell both being grounded in set theory, but SQL exists because relational data needs its own language.
+数学基础相同（Bayesian 概率），但领域结构根本不同——就像 SQL 和 Haskell 都基于集合论，但 SQL 存在是因为关系数据需要自己的语言。
 
-**Why not existing FP languages (Haskell, OCaml)?**
+**为何不用现有的函数式编程语言（Haskell、OCaml）？**
 
-These provide the deductive logic layer but have no built-in probabilistic reasoning. You could build Gaia on top of Haskell, but you would need to add the entire probabilistic layer (priors, belief propagation, conditioning semantics, hypergraph inference) — at which point you have built a new language.
+这些语言提供演绎逻辑层，但没有内建的概率推理。你可以在 Haskell 之上构建 Gaia，但你需要添加整个概率层（先验、Belief Propagation、条件化语义、超图推理）——到那时你已经构建了一种新语言。
 
-**Why not existing knowledge graphs (Neo4j, OWL, RDF)?**
+**为何不用现有的知识图谱（Neo4j、OWL、RDF）？**
 
-These provide graph storage and deterministic querying, but have no probabilistic inference. They can tell you "A is connected to B" but not "how much should you believe B given evidence for A?" Gaia uses graph databases (Neo4j, Kuzu) as storage backends, but the knowledge representation and inference layers are what make Gaia a language, not just a database.
+这些提供图存储和确定性查询，但没有概率推理。它们能告诉你"A 与 B 相连"，但无法告诉你"给定 A 的证据，你应该多大程度上相信 B？"Gaia 使用图数据库（Neo4j、Kuzu）作为存储后端，但知识表示和推理层才是使 Gaia 成为一种语言（而不仅仅是数据库）的关键。
 
-### Gaia's unique combination
+### Gaia 的独特组合
 
-Gaia combines three capabilities that no existing tool provides together:
+Gaia 结合了三种没有任何现有工具能同时提供的能力：
 
-1. **Structured package-based knowledge representation** — declarations, chains, modules, packages, and explicit structural lowering
-2. **Epistemic probabilistic reasoning** (V3) — priors, beliefs, dependency roles, contradiction/retraction semantics — grounded in Jaynes' probability-as-logic tradition
-3. **Hypergraph belief propagation** — loopy BP on factor graphs derived from the knowledge package structure, computing self-consistent beliefs across the entire LKM
+1. **基于包的结构化知识表示**——声明、链、模块、包，以及明确的结构降级
+2. **认知概率推理**（V3）——先验、信念、依赖角色、矛盾/撤回语义——根植于 Jaynes 的概率即逻辑传统
+3. **超图 Belief Propagation**——在从知识包结构派生的因子图上运行 loopy BP，计算整个 LKM 上自洽的信念
 
-This combination enables the core product: **AI agents write knowledge packages (probabilistic programs), the cloud runs belief propagation (posterior inference), and the result is a Large Knowledge Model where every proposition carries a calibrated degree of belief.**
+这种组合使核心产品成为可能：**AI 代理编写知识包（概率程序），云端运行 Belief Propagation（后验推理），结果是一个大型知识模型，其中每个命题都携带校准的信念度。**
 
-## Product Direction (Decided)
+## 产品方向（已决定）
 
-Gaia is **CLI-first, Server-enhanced**.
+Gaia 是 **CLI 优先，服务器增强**。
 
-- **CLI is the primary product** — AI agents and researchers interact with Gaia through the CLI, working locally with zero server dependency
-- **The target local pipeline** is `build -> self-review skill -> graph-construction skill -> infer -> publish`
-- **Formal external submissions prefer Gaia packages** — `knowledge` by default, with `review`, `rebuttal`, and intentionally externalized `investigation` as additional artifact profiles
-- **Server provides four optional enhancement services plus internal maintenance:**
-  1. Knowledge integration — merge approved packages into the global Large Knowledge Model
-  2. Global search — cross-package vector + BM25 + topology search
-  3. Peer review and registry integration — independent review, editorial decisions, identity assignment
-  4. Large-scale BP — billion-node belief propagation on GPU cluster
-  5. Internal curation — server-internal offline graph maintenance, not a default external submission surface
+- **CLI 是主要产品**——AI 代理和研究人员通过 CLI 与 Gaia 交互，在本地工作，零服务器依赖
+- **目标本地管线**是 `build -> self-review skill -> graph-construction skill -> infer -> publish`
+- **正式的外部提交优先使用 Gaia 包**——默认为 `knowledge`，另有 `review`、`rebuttal` 和有意对外公开的 `investigation` 作为额外制品配置
+- **服务器提供四项可选增强服务加内部维护：**
+  1. 知识集成——将批准的包合并到全局 Large Knowledge Model
+  2. 全局搜索——跨包的向量 + BM25 + 拓扑搜索
+  3. 同行评审与注册集成——独立评审、编辑决定、身份分配
+  4. 大规模 BP——十亿节点的 GPU 集群 Belief Propagation
+  5. 内部策展——服务器内部的离线图维护，不是默认的外部提交表面
 
-The target shared interaction path is: **CLI → git push / publish → peer review → rebuttal / editor cycle → merge or reject** (similar to an academic publishing workflow).
+目标共享交互路径为：**CLI → git push / publish → 同行评审 → 反驳 / 编辑周期 → 合并或拒绝**（类似于学术出版工作流）。
 
-Users can work entirely offline with the CLI. The server is an optional registry and compute backend, not a prerequisite.
+用户可以完全离线使用 CLI。服务器是可选的注册中心和计算后端，而非前提条件。
 
-## Current Baseline on `main`
+## `main` 上的当前基线
 
-What is currently shipped on `main`:
+当前 `main` 上已发布的内容：
 
-- a backend reasoning-graph service (FastAPI) — this is the server side
-- a dashboard frontend for browsing, graph exploration, and commit workflows
-- GraphStore ABC with Neo4j and Kuzu implementations
-- type-aware belief propagation (contradiction, retraction edges)
-- **CLI with 8 commands** (`init`, `build`, `review`, `infer`, `publish`, `show`, `search`, `clean`) — shipped in PR #63
-- **Target architecture docs now treat only `build`, `infer`, and `publish` as core CLI pipeline commands**. The shipped `gaia review` command remains a compatibility path for local self-review sidecars.
-- **Gaia foundations baseline now centers Gaia packages and Graph IR as the normative submission model**. Older YAML-centric descriptions are historical and no longer the source of truth.
-- **Inference engine moved to `libs/inference/`** — local belief propagation decoupled from server
-- **Build output** — per-module Markdown for LLM review
+- 后端推理图服务（FastAPI）——这是服务器端
+- 用于浏览、图探索和提交工作流的仪表盘前端
+- GraphStore ABC 及 Neo4j 和 Kuzu 实现
+- 类型感知的 Belief Propagation（矛盾、撤回边）
+- **CLI 包含 8 个命令**（`init`、`build`、`review`、`infer`、`publish`、`show`、`search`、`clean`）——在 PR #63 中发布
+- **目标架构文档现在仅将 `build`、`infer` 和 `publish` 视为核心 CLI 管线命令**。已发布的 `gaia review` 命令作为本地自审查 sidecar 的兼容路径保留。
+- **Gaia 基础基线现在以 Gaia 包和 Graph IR 作为规范提交模型的中心**。较早的以 YAML 为中心的描述是历史性的，不再是信息源。
+- **推理引擎已移至 `libs/inference/`**——本地 Belief Propagation 与服务器解耦
+- **构建输出**——每模块 Markdown 用于 LLM 审查
 
-What is not yet shipped but is on the roadmap:
+尚未发布但在路线图中的内容：
 
-- `gaia publish --server` (direct server publish without git)
-- GitHub webhook integration for publish-time peer review
-- rebuttal / editor publish cycle
-- registry-side `CanonicalBinding` + `GlobalInferenceState` end-to-end flow
-- cross-package dependency resolution and `gaia.lock`
-- fully stabilized package-profile metadata and review artifact integration contracts
+- `gaia publish --server`（无需 git 的直接服务器发布）
+- GitHub webhook 集成用于发布时同行评审
+- 反驳 / 编辑发布周期
+- 注册端 `CanonicalBinding` + `GlobalInferenceState` 端到端流程
+- 跨包依赖解析和 `gaia.lock`
+- 完全稳定的包配置元数据和审查制品集成合约
 
-## Current Supported Product Surfaces
+## 当前支持的产品表面
 
-### 1. HTTP server
+### 1. HTTP 服务器
 
-The currently shipped server surface is the FastAPI service exposed from `services/gateway/`.
+当前已发布的服务器表面是从 `services/gateway/` 暴露的 FastAPI 服务。
 
-Current API areas:
+当前 API 领域：
 
-- commit submission, review, merge, and retrieval
-- read APIs for nodes, hyperedges, contradictions, subgraphs, and stats
-- search APIs for nodes and hyperedges
-- batch APIs for commit, read, subgraph, and search flows
-- job APIs for async status and result retrieval
+- 提交提交、审查、合并和检索
+- 节点、超边、矛盾、子图和统计信息的读取 API
+- 节点和超边的搜索 API
+- 提交、读取、子图和搜索流程的批量 API
+- 异步状态和结果检索的任务 API
 
-This is the main externally addressable surface today. Under CLI-first positioning, the server becomes a registry and compute backend that the CLI publishes to.
+这是当前主要的外部可寻址表面。在 CLI 优先的定位下，服务器成为 CLI 发布到的注册中心和计算后端。
 
-### 2. Dashboard frontend
+### 2. 仪表盘前端
 
-The current frontend product is the React dashboard in `frontend/`.
+当前的前端产品是 `frontend/` 中的 React 仪表盘。
 
-Current UI surfaces include:
+当前 UI 表面包括：
 
-- dashboard landing page
-- data browser
-- graph explorer
-- node and edge detail pages
-- commit panel
+- 仪表盘着陆页
+- 数据浏览器
+- 图探索器
+- 节点和边详情页
+- 提交面板
 
-The frontend should be treated as a client of the current server API, not as an independent product line with separate domain contracts.
+前端应被视为当前服务器 API 的客户端，而非具有独立领域合约的独立产品线。
 
-### 3. Server-side graph and storage runtime
+### 3. 服务器端图和存储运行时
 
-Gaia currently ships a server-side storage/runtime stack with:
+Gaia 当前发布了一个服务器端存储/运行时栈：
 
-- LanceDB for node content and metadata
-- a vector search layer with a local LanceDB-backed implementation
-- a graph backend abstraction (`GraphStore`)
-- Neo4j and Kuzu graph backend implementations
+- LanceDB 用于节点内容和元数据
+- 基于本地 LanceDB 实现的向量搜索层
+- 图后端抽象（`GraphStore`）
+- Neo4j 和 Kuzu 图后端实现
 
-Current backend modes on `main`:
+`main` 上的当前后端模式：
 
-- `graph_backend="neo4j"`: default server-oriented graph backend
-- `graph_backend="kuzu"`: embedded graph backend available in current code
-- `graph_backend="none"`: degraded mode for cases where graph operations are unavailable
+- `graph_backend="neo4j"`：默认的面向服务器的图后端
+- `graph_backend="kuzu"`：当前代码中可用的嵌入式图后端
+- `graph_backend="none"`：图操作不可用时的降级模式
 
-Important boundary:
+重要边界：
 
-The existence of multiple graph backends in code does not yet mean Gaia has a fully specified product contract for backend parity. The capability matrix still needs to be documented explicitly.
+代码中存在多个图后端并不意味着 Gaia 已有完全指定的后端对等产品合约。能力矩阵仍需显式文档化。
 
-### 4. Local developer workflow
+### 4. 本地开发工作流
 
-Gaia currently supports a local development workflow based on:
+Gaia 当前支持基于以下内容的本地开发工作流：
 
-- editable Python install
-- seeded local databases
-- running the FastAPI server
-- running the Vite frontend
-- running the test suite
+- 可编辑的 Python 安装
+- 预填充的本地数据库
+- 运行 FastAPI 服务器
+- 运行 Vite 前端
+- 运行测试套件
 
-This is a development and validation workflow, not the same thing as a formal end-user local product experience.
+这是开发和验证工作流，不等同于正式的终端用户本地产品体验。
 
-## Explicitly Not In Current Product Scope
+## 明确不在当前产品范围内
 
-The following should not be described as current Gaia product capability on `main` unless they are actually merged and documented separately.
+除非已经实际合并并单独文档化，否则以下内容不应被描述为 `main` 上的当前 Gaia 产品能力。
 
-### 1. CLI/package-manager product — NOW SHIPPED (PR #63)
+### 1. CLI/包管理器产品——已发布（PR #63）
 
-The CLI is shipped on `main` with 8 commands:
+CLI 已在 `main` 上发布，包含 8 个命令：
 
-| Command | Purpose |
+| 命令 | 用途 |
 |---------|---------|
-| `gaia init` | Initialize a knowledge package |
-| `gaia build` | Deterministically validate and lower package source into `.gaia/build/` + `.gaia/graph/` artifacts |
-| `gaia review` | Shipped compatibility helper for local self-review sidecars |
-| `gaia infer` | Derive local parameterization from local Graph IR + local review sidecars, then run local belief propagation |
-| `gaia publish` | Publish to git or local databases (LanceDB + Kuzu) |
-| `gaia show` | Display knowledge object details + connected chains |
-| `gaia search` | Search published nodes in local LanceDB |
-| `gaia clean` | Remove build artifacts (`.gaia/` directory) |
+| `gaia init` | 初始化知识包 |
+| `gaia build` | 确定性地验证并将包源降级到 `.gaia/build/` + `.gaia/graph/` 制品 |
+| `gaia review` | 已发布的本地自审查 sidecar 兼容辅助 |
+| `gaia infer` | 从本地 Graph IR + 本地审查 sidecar 派生本地参数化，然后运行本地 Belief Propagation |
+| `gaia publish` | 发布到 git 或本地数据库（LanceDB + Kuzu） |
+| `gaia show` | 显示知识对象详情 + 连接的链 |
+| `gaia search` | 在本地 LanceDB 中搜索已发布的节点 |
+| `gaia clean` | 删除构建制品（`.gaia/` 目录） |
 
-Note: target pipeline semantics no longer treat `gaia review` as one of the minimal core commands. In the target architecture, self-review is an agent skill; the shipped command is a bridge on current `main`. `gaia.lock` and cross-package dependency resolution remain deferred.
+注意：目标管线语义不再将 `gaia review` 视为最小核心命令之一。在目标架构中，自审查是代理技能；已发布的命令是当前 `main` 上的过渡桥。`gaia.lock` 和跨包依赖解析仍然推迟。
 
-Still not shipped:
+仍未发布的内容：
 
-- `gaia publish --server` (direct server publish)
-- GitHub webhook integration
-- publish-time peer review / rebuttal / editor loop
-- `gaia.lock` / cross-package dependency resolution
+- `gaia publish --server`（直接服务器发布）
+- GitHub webhook 集成
+- 发布时同行评审 / 反驳 / 编辑循环
+- `gaia.lock` / 跨包依赖解析
 
-### 2. Production ByteHouse-backed deployment
+### 2. 生产环境 ByteHouse 后端部署
 
-The config still contains ByteHouse-oriented fields, but ByteHouse is not a fully implemented current product storage path.
+配置中仍包含面向 ByteHouse 的字段，但 ByteHouse 不是当前完全实现的产品存储路径。
 
-Until that changes, ByteHouse should be treated as planned or reserved, not supported current deployment.
+在此变更之前，ByteHouse 应被视为计划中或保留状态，而非当前支持的部署。
 
-### 3. Fully specified backend interchangeability
+### 3. 完全指定的后端可互换性
 
-Gaia now has more than one graph backend implementation, but it does not yet have a fully documented, stable product-level guarantee that every backend supports every graph-dependent feature identically.
+Gaia 现在有多个图后端实现，但尚未有完整文档化的、稳定的产品级保证，确保每个后端以相同方式支持每个依赖图的功能。
 
-Until a capability matrix exists, claims about backend parity should be avoided.
+在能力矩阵存在之前，应避免关于后端对等性的声明。
 
-### 4. GitHub-native review/publish ecosystem
+### 4. GitHub 原生审查/发布生态系统
 
-Gaia does not currently ship a complete product story for:
+Gaia 当前未发布完整的产品方案用于：
 
-- GitHub bot review
-- PR-native reasoning package validation
-- federated or community review workflows
-- publish-to-Git as a supported end-user path
+- GitHub 机器人审查
+- PR 原生推理包验证
+- 联邦式或社区审查工作流
+- 发布到 Git 作为支持的终端用户路径
 
-These remain design directions, not current baseline capability.
+这些仍然是设计方向，而非当前基线能力。
 
-## Product Positioning Summary
+## 产品定位总结
 
-Gaia is a **CLI-first, Server-enhanced** Large Knowledge Model platform.
+Gaia 是一个 **CLI 优先、服务器增强**的大型知识模型平台。
 
-- **CLI** — the primary product surface for creating, building, reviewing, and publishing Gaia packages
-- **Server** — an optional registry that provides knowledge integration, global search, peer review / identity assignment, large-scale BP, and internal offline curation
-- **Dashboard** — a browser UI for exploring the server-side knowledge graph
+- **CLI**——创建、构建、审查和发布 Gaia 包的主要产品表面
+- **服务器**——提供知识集成、全局搜索、同行评审/身份分配、大规模 BP 和内部离线策展的可选注册中心
+- **仪表盘**——用于探索服务器端知识图的浏览器 UI
 
-The current `main` ships the server, dashboard, and CLI.
+当前 `main` 发布了服务器、仪表盘和 CLI。
 
-## Implications For Future Work
+## 对未来工作的启示
 
-Large new work should be framed in one of these ways:
+大型新工作应以以下方式之一来规划：
 
-1. build out the CLI product surface (the primary product)
-2. extend the server as a registry and compute backend for the CLI
-3. tighten shared foundations that both CLI and server depend on
+1. 扩展 CLI 产品表面（主要产品）
+2. 将服务器扩展为 CLI 的注册中心和计算后端
+3. 加强 CLI 和服务器共同依赖的共享基础
 
-That means:
+这意味着：
 
-- shared contracts (ontology, package schema, review/curation boundaries, artifact profiles) are the highest priority foundation work
-- CLI architecture should drive design decisions, not be an afterthought
-- server work should focus on the four enhancement services, not on being the sole product surface
+- 共享合约（本体论、包 schema、审查/策展边界、制品配置）是最高优先级的基础工作
+- CLI 架构应驱动设计决策，而非作为附带考虑
+- 服务器工作应聚焦于四项增强服务，而非成为唯一的产品表面
 
-## PR And Documentation Rules
+## PR 与文档规则
 
-When writing docs or reviewing PRs:
+撰写文档或审查 PR 时：
 
-1. If the feature is part of the current product baseline, it can be described as current behavior.
-2. If it is implemented in code but not yet fully specified as product contract, call out the limitation explicitly.
-3. If it is only planned, label it as proposal, roadmap, or future work.
-4. Do not let design docs silently redefine the current product baseline.
+1. 如果功能是当前产品基线的一部分，可以描述为当前行为。
+2. 如果已在代码中实现但尚未完全指定为产品合约，应明确指出限制。
+3. 如果仅是计划中的，应标记为提案、路线图或未来工作。
+4. 不要让设计文档悄悄重新定义当前产品基线。
 
-## Decided Questions
+## 已决定的问题
 
-These have been resolved and should not be reopened:
+这些问题已解决，不应重新讨论：
 
-1. **CLI-first or server-first?** → CLI-first, Server-enhanced.
-2. **Primary interaction path?** → CLI local pipeline (`build -> self-review -> graph-construction -> infer -> publish`) → shared peer review / editor cycle → merge or reject.
-3. **Kuzu role?** → CLI's embedded graph backend (local, zero-config). Neo4j is the server-side backend.
+1. **CLI 优先还是服务器优先？** → CLI 优先，服务器增强。
+2. **主要交互路径？** → CLI 本地管线（`build -> self-review -> graph-construction -> infer -> publish`）→ 共享同行评审 / 编辑周期 → 合并或拒绝。
+3. **Kuzu 的角色？** → CLI 的嵌入式图后端（本地、零配置）。Neo4j 是服务器端后端。
 
-## Open Product Decisions
+## 开放的产品决策
 
-These remain open for later foundation phases:
+这些在后续基础阶段仍待决定：
 
-1. Should degraded graph-free operation be part of the supported product story, or only an internal fallback mode?
-2. What is the direct publish (`gaia publish --server`) contract? (deferred)
+1. 降级的无图操作是否应成为受支持的产品方案，还是仅作为内部回退模式？
+2. 直接发布（`gaia publish --server`）的合约是什么？（已推迟）

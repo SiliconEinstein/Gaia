@@ -1,40 +1,40 @@
-# CLI Lifecycle
+# CLI 生命周期
 
 > **Status:** Current canonical
 
-The Gaia CLI (`cli/main.py`) is a Typer application providing single-package interactive workflows. This document covers the full local lifecycle from init to publish.
+Gaia CLI（`cli/main.py`）是一个 Typer 应用，提供单包交互工作流。本文档涵盖从 init 到 publish 的完整本地生命周期。
 
-## Workflow Overview
+## 工作流概览
 
 ```
 gaia init  ->  author  ->  gaia build  ->  [agent skills]  ->  gaia infer  ->  gaia publish
 ```
 
-Additional utility commands: `gaia search`, `gaia clean`.
+额外的实用命令：`gaia search`、`gaia clean`。
 
-## Commands
+## 命令
 
 ### `gaia init <name>`
 
-Scaffold a new Typst knowledge package with v4 DSL runtime.
+使用 v4 DSL 运行时搭建一个新的 Typst 知识包。
 
-- **Input**: package name.
-- **Output**: a new directory with `typst.toml`, `lib.typ`, vendored `_gaia/` runtime, and template module files.
-- **What it does**: copies the v4 runtime from `libs/typst/gaia-lang-v4/` and creates a minimal package structure.
-- **What it does NOT do**: no compilation, no LLM calls, no network access.
+- **输入**：包名称。
+- **输出**：一个新目录，包含 `typst.toml`、`lib.typ`、vendored `_gaia/` 运行时和模板模块文件。
+- **功能**：从 `libs/typst/gaia-lang-v4/` 复制 v4 运行时，并创建最小包结构。
+- **不做的事**：不编译、不调用 LLM、不访问网络。
 
 ### `gaia build [path]`
 
-Deterministic lowering from Typst source to Graph IR.
+从 Typst 源码到 Graph IR 的确定性降级。
 
-- **Input**: package source (`.typ` files + `typst.toml`).
-- **Output**: `.gaia/graph/raw_graph.json`, `.gaia/graph/local_canonical_graph.json`, `.gaia/graph/canonicalization_log.json`.
-- **What it does**: validates package structure, extracts knowledge via `typst query`, compiles raw graph, builds singleton local canonical graph.
-- **What it does NOT do**: no LLM calls, no search, no probability assignment.
-- **Output formats**: `--format md` (default), `json`, `typst`, `all`.
-- **Optional**: `--proof-state` flag runs `libs/lang/proof_state.analyze_proof_state()` and writes a proof state report.
+- **输入**：包源码（`.typ` 文件 + `typst.toml`）。
+- **输出**：`.gaia/graph/raw_graph.json`、`.gaia/graph/local_canonical_graph.json`、`.gaia/graph/canonicalization_log.json`。
+- **功能**：验证包结构、通过 `typst query` 提取知识、编译原始图、构建单例局部规范图。
+- **不做的事**：不调用 LLM、不搜索、不分配概率。
+- **输出格式**：`--format md`（默认）、`json`、`typst`、`all`。
+- **可选**：`--proof-state` 标志运行 `libs/lang/proof_state.analyze_proof_state()` 并生成证明状态报告。
 
-Build runs the unified `pipeline_build()` from `libs/pipeline.py`:
+Build 运行 `libs/pipeline.py` 中的统一 `pipeline_build()`：
 
 ```
 typst_loader.load_typst_package_v4(pkg_path)
@@ -43,93 +43,93 @@ typst_loader.load_typst_package_v4(pkg_path)
     -> save artifacts to .gaia/graph/ and .gaia/build/
 ```
 
-### Agent Skills (optional, recommended)
+### Agent Skills（可选，推荐）
 
-Optional LLM-assisted steps between build and infer:
+Build 和 infer 之间的可选 LLM 辅助步骤：
 
-- **Self-review**: two-round LLM evaluation of reasoning quality. Produces candidate weak points and conditional priors as local sidecar artifacts.
-- **Graph-construction**: inspects raw graph, clusters semantically similar nodes, produces refined local canonical graph and optional local parameterization.
+- **自审查**：两轮 LLM 推理质量评估。产出候选薄弱点和条件先验作为本地附属产物。
+- **图构建**：检查原始图，对语义相似节点进行聚类，产出精化的局部规范图和可选的局部参数化。
 
-If review discovers missing premises or references, the agent updates source and re-runs `gaia build`.
+如果审查发现缺失的前提或引用，agent 会更新源码并重新运行 `gaia build`。
 
 ### `gaia infer [path]`
 
-Local belief propagation preview.
+本地置信传播预览。
 
-- **Input**: local canonical graph + local parameterization overlay.
-- **Output**: local belief preview under `.gaia/infer/infer_result.json`.
-- **What it does**: adapts local canonical graph to a `FactorGraph`, derives parameterization from local review sidecars, runs sum-product BP with damping.
-- **Scope**: package-local only. Does not query or modify the global graph.
+- **输入**：局部规范图 + 局部参数化覆盖层。
+- **输出**：`.gaia/infer/infer_result.json` 下的本地置信预览。
+- **功能**：将局部规范图适配为 `FactorGraph`，从本地审查附属产物导出参数化，运行带阻尼的 sum-product BP。
+- **范围**：仅限包本地。不查询或修改全局图。
 
-`gaia infer` chains three pipeline functions:
+`gaia infer` 链接三个管线函数：
 
-1. `pipeline_build()` -- rebuild the package
-2. `pipeline_review(build, mock=True)` -- derive priors and factor params via `MockReviewClient`
-3. `pipeline_infer(build, review)` -- adapt graph to factor graph, run `BeliefPropagation`, output beliefs
+1. `pipeline_build()` —— 重建包
+2. `pipeline_review(build, mock=True)` —— 通过 `MockReviewClient` 导出先验和因子参数
+3. `pipeline_infer(build, review)` —— 将图适配为因子图，运行 `BeliefPropagation`，输出置信值
 
-For details on the BP algorithm: see [../bp/inference.md](../bp/inference.md). For factor potentials: see [../bp/potentials.md](../bp/potentials.md).
+BP 算法详情参见 [../bp/inference.md](../bp/inference.md)。因子势函数参见 [../bp/potentials.md](../bp/potentials.md)。
 
 ### `gaia publish [path]`
 
-Submission handoff from local to shared system.
+从本地到共享系统的提交交接。
 
-- **Input**: source + raw graph + local canonical graph + canonicalization log.
-- **Output**: package submission to registry (local LanceDB or remote server).
-- **What it does**: converts local canonical graph + review output to storage models, ingests via `StorageManager`.
-- **What it does NOT submit**: author-local parameterization, self-review priors, local belief previews.
-- **Modes**: `--git` (git-based), `--local` (LanceDB + Kuzu), `--server` (remote API, stubbed).
+- **输入**：源码 + 原始图 + 局部规范图 + 规范化日志。
+- **输出**：将包提交到注册中心（本地 LanceDB 或远程服务器）。
+- **功能**：将局部规范图 + 审查输出转换为存储模型，通过 `StorageManager` 摄入。
+- **不提交的内容**：作者本地参数化、自审查先验、本地置信预览。
+- **模式**：`--git`（基于 git）、`--local`（LanceDB + Kuzu）、`--server`（远程 API，已预留）。
 
-#### `gaia publish --local` Flow
+#### `gaia publish --local` 流程
 
-The full four-step local publish pipeline:
+完整的四步本地发布管线：
 
-1. `pipeline_build()` -- load and compile
-2. `pipeline_review(build, mock=True)` -- mock review (LLM review not yet wired to CLI)
-3. `pipeline_infer(build, review)` -- local BP
-4. `pipeline_publish(build, review, infer, db_path=...)` -- convert Graph IR to storage models, three-write via `StorageManager` into LanceDB + Kuzu
+1. `pipeline_build()` —— 加载并编译
+2. `pipeline_review(build, mock=True)` —— 模拟审查（LLM 审查尚未接入 CLI）
+3. `pipeline_infer(build, review)` —— 本地 BP
+4. `pipeline_publish(build, review, infer, db_path=...)` —— 将 Graph IR 转换为存储模型，通过 `StorageManager` 三写入 LanceDB + Kuzu
 
-The `--db-path` option (or `GAIA_LANCEDB_PATH` env var) controls the LanceDB location.
+`--db-path` 选项（或 `GAIA_LANCEDB_PATH` 环境变量）控制 LanceDB 的存储位置。
 
 ### `gaia search <query>`
 
-BM25 full-text search over published knowledge in LanceDB.
+在 LanceDB 中对已发布知识进行 BM25 全文搜索。
 
-- Primary: BM25 full-text search via LanceDB FTS index
-- Fallback: SQL `LIKE` filter for CJK/unsegmented text
-- `--id <knowledge_id>`: direct lookup with latest belief from `belief_history`
+- 主要方式：通过 LanceDB FTS 索引的 BM25 全文搜索
+- 回退方式：针对 CJK/未分词文本的 SQL `LIKE` 过滤
+- `--id <knowledge_id>`：直接查找，并从 `belief_history` 获取最新置信值
 
 ### `gaia clean [path]`
 
-Remove `.gaia/` build artifacts from a package directory.
+移除包目录中的 `.gaia/` 构建产物。
 
-## Artifacts at Each Stage
+## 各阶段产物
 
-| Stage | Key artifacts |
+| 阶段 | 关键产物 |
 |---|---|
-| Init | `typst.toml`, `lib.typ`, `_gaia/`, template `.typ` files |
-| Source | `.typ` files, `typst.toml`, `gaia-deps.yml` |
-| Build | `raw_graph.json`, `local_canonical_graph.json`, `canonicalization_log.json` |
-| Self-review | review sidecars (candidate weak points, conditional priors) |
-| Infer | `local_parameterization.json`, `infer_result.json` (belief preview) |
-| Publish | submission to registry (source + raw + local canonical + log) |
+| Init | `typst.toml`、`lib.typ`、`_gaia/`、模板 `.typ` 文件 |
+| Source | `.typ` 文件、`typst.toml`、`gaia-deps.yml` |
+| Build | `raw_graph.json`、`local_canonical_graph.json`、`canonicalization_log.json` |
+| Self-review | 审查附属产物（候选薄弱点、条件先验） |
+| Infer | `local_parameterization.json`、`infer_result.json`（置信预览） |
+| Publish | 提交到注册中心（源码 + 原始图 + 局部规范图 + 日志） |
 
-## Code Paths
+## 代码路径
 
-| Function | File |
+| 函数 | 文件 |
 |----------|------|
-| CLI app + commands | `cli/main.py` |
-| Pipeline functions | `libs/pipeline.py` (`pipeline_build`, `pipeline_review`, `pipeline_infer`, `pipeline_publish`) |
-| Typst loader | `libs/lang/typst_loader.py` |
-| Graph IR compiler | `libs/graph_ir/typst_compiler.py` |
-| Mock/LLM review | `cli/llm_client.py` |
-| BP engine | `libs/inference/bp.py` |
-| Storage manager | `libs/storage/manager.py` |
+| CLI 应用 + 命令 | `cli/main.py` |
+| 管线函数 | `libs/pipeline.py`（`pipeline_build`、`pipeline_review`、`pipeline_infer`、`pipeline_publish`） |
+| Typst 加载器 | `libs/lang/typst_loader.py` |
+| Graph IR 编译器 | `libs/graph_ir/typst_compiler.py` |
+| 模拟/LLM 审查 | `cli/llm_client.py` |
+| BP 引擎 | `libs/inference/bp.py` |
+| 存储管理器 | `libs/storage/manager.py` |
 
-## Current State
+## 当前状态
 
-All commands are working. `publish --server` is stubbed (exits with "not yet implemented"). Review always uses `MockReviewClient` in the CLI; real LLM review is only available via the pipeline scripts.
+所有命令均可正常工作。`publish --server` 已预留（退出并提示"尚未实现"）。CLI 中审查始终使用 `MockReviewClient`；真正的 LLM 审查仅通过管线脚本可用。
 
-## Target State
+## 目标状态
 
-- Add `gaia review` command that invokes real LLM review via `ReviewClient` and saves a review sidecar file.
-- Wire `publish --server` to the gateway API's `POST /packages/ingest` endpoint.
+- 添加 `gaia review` 命令，通过 `ReviewClient` 调用真正的 LLM 审查并保存审查附属文件。
+- 将 `publish --server` 接入网关 API 的 `POST /packages/ingest` 端点。

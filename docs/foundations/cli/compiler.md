@@ -1,97 +1,97 @@
-# Graph IR Compiler
+# Graph IR 编译器
 
 > **Status:** Current canonical
 
-This document describes the Graph IR compilation pipeline that powers `gaia build`. For the Graph IR schema definitions, see [../graph-ir/overview.md](../graph-ir/overview.md).
+本文档描述驱动 `gaia build` 的 Graph IR 编译管线。Graph IR 模式定义参见 [../graph-ir/overview.md](../graph-ir/overview.md)。
 
-## Overview
+## 概览
 
-The compiler is a deterministic pipeline that transforms Typst source into Graph IR. It produces a factor graph intermediate representation with no LLM calls, no search, and no probability assignment.
+编译器是一条确定性管线，将 Typst 源码转换为 Graph IR。它产生因子图中间表示，不涉及 LLM 调用、搜索或概率分配。
 
 ```
 Typst source  ->  Typst loading  ->  Raw graph  ->  Local canonical graph  ->  Local parameterization
 ```
 
-Each step adds an identity layer. The raw graph preserves exact source traceability. The local canonical graph allows within-package merging. The local parameterization assigns default probability values.
+每一步添加一个标识层。原始图保留精确的源码可追溯性。局部规范图允许包内合并。局部参数化分配默认概率值。
 
-## Step 1: Typst Loading
+## 步骤一：Typst 加载
 
-See `libs/lang/typst_loader.py`.
+参见 `libs/lang/typst_loader.py`。
 
-The Typst loader runs `typst query` to extract `gaia-node` figures from compiled Typst documents:
+Typst 加载器运行 `typst query` 从编译后的 Typst 文档中提取 `gaia-node` figure：
 
 ```bash
 typst query --root <repo-root> lib.typ 'figure.where(kind: "gaia-node")'
 typst query --root <repo-root> lib.typ 'figure.where(kind: "gaia-ext")'
 ```
 
-This produces a dict with `nodes`, `factors`, `constraints`, `package`, and `version`.
+这会产生一个包含 `nodes`、`factors`、`constraints`、`package` 和 `version` 的字典。
 
-## Step 2: Raw Graph Compilation
+## 步骤二：原始图编译
 
-See `libs/graph_ir/typst_compiler.py:compile_v4_to_raw_graph()`.
+参见 `libs/graph_ir/typst_compiler.py:compile_v4_to_raw_graph()`。
 
-The compiler processes the loader output into a `RawGraph`:
+编译器将加载器输出处理为 `RawGraph`：
 
-1. **Knowledge nodes**: Each non-external node becomes a `RawKnowledgeNode`. The v4 type map resolves `setting`, `question`, `claim`, `action`. Relation nodes (`contradiction`, `equivalence`) get their type from the constraint map.
+1. **知识节点**：每个非外部节点成为一个 `RawKnowledgeNode`。v4 类型映射解析 `setting`、`question`、`claim`、`action`。关系节点（`contradiction`、`equivalence`）从约束映射获取其类型。
 
-2. **External nodes**: Nodes from `gaia-bibliography` become `RawKnowledgeNode` with `ext:package/node` IDs, preserving cross-package references.
+2. **外部节点**：来自 `gaia-bibliography` 的节点成为带有 `ext:package/node` ID 的 `RawKnowledgeNode`，保留跨包引用。
 
-3. **Reasoning factors**: Each `from:` parameter generates a `FactorNode` of type `infer` linking premise nodes to the conclusion.
+3. **推理因子**：每个 `from:` 参数生成一个类型为 `infer` 的 `FactorNode`，将前提节点链接到结论。
 
-4. **Constraint factors**: `#relation` declarations with `between:` generate `contradiction` or `equivalence` factors.
+4. **约束因子**：带有 `between:` 的 `#relation` 声明生成 `contradiction` 或 `equivalence` 因子。
 
-For factor type definitions: see [../graph-ir/factor-nodes.md](../graph-ir/factor-nodes.md).
+因子类型定义参见 [../graph-ir/factor-nodes.md](../graph-ir/factor-nodes.md)。
 
-## Step 3: Local Canonicalization
+## 步骤三：局部规范化
 
-See `libs/graph_ir/build_utils.py:build_singleton_local_graph()`.
+参见 `libs/graph_ir/build_utils.py:build_singleton_local_graph()`。
 
-Currently implements singleton canonicalization: each raw node maps to exactly one `LocalCanonicalNode` with no merging. The raw-to-local mapping is recorded in a `CanonicalizationLogEntry` for auditability.
+目前实现单例规范化：每个原始节点精确映射到一个 `LocalCanonicalNode`，不进行合并。原始到局部的映射记录在 `CanonicalizationLogEntry` 中以便审计。
 
-For the canonicalization identity model: see [../graph-ir/canonicalization.md](../graph-ir/canonicalization.md).
+规范化标识模型参见 [../graph-ir/canonicalization.md](../graph-ir/canonicalization.md)。
 
-## Step 4: Local Parameterization
+## 步骤四：局部参数化
 
-See `libs/graph_ir/build_utils.py:derive_local_parameterization_from_raw()`.
+参见 `libs/graph_ir/build_utils.py:derive_local_parameterization_from_raw()`。
 
-Derives the probability overlay for local BP:
+为本地 BP 导出概率覆盖层：
 
-- **Node priors**: From explicit metadata if present, otherwise defaults by type (`setting` = 1.0, everything else = 0.5).
-- **Factor parameters**: `infer`, `abstraction`, and `reasoning` factors get `conditional_probability = 1.0` by default.
+- **节点先验**：如果存在显式元数据则使用，否则按类型取默认值（`setting` = 1.0，其他 = 0.5）。
+- **因子参数**：`infer`、`abstraction` 和 `reasoning` 因子默认 `conditional_probability = 1.0`。
 
-The parameterization is bound to a specific graph via `graph_hash`.
+参数化通过 `graph_hash` 绑定到特定图。
 
-For the parameterization model: see [../graph-ir/parameterization.md](../graph-ir/parameterization.md).
+参数化模型参见 [../graph-ir/parameterization.md](../graph-ir/parameterization.md)。
 
-## Node Identity
+## 节点标识
 
-Three ID schemes, each deterministic:
+三种 ID 方案，均为确定性生成：
 
-| ID type | Format | Generation |
+| ID 类型 | 格式 | 生成方式 |
 |---------|--------|------------|
 | `raw_node_id` | `raw_{sha256[:16]}` | SHA-256 of `(package, version, module, name, type, kind, content, parameters)` |
 | `local_canonical_id` | `lcn_{sha256[:16]}` | SHA-256 of the raw_node_id |
 | `factor_id` | `f_{sha256[:16]}` | SHA-256 of `(kind, module, name[, suffix])` |
 
-External nodes use the format `ext:{package}/{node}` instead of a hash-based ID.
+外部节点使用 `ext:{package}/{node}` 格式而非基于哈希的 ID。
 
-For global canonical IDs (`gcn_`): see [../graph-ir/knowledge-nodes.md](../graph-ir/knowledge-nodes.md).
+全局规范 ID（`gcn_`）参见 [../graph-ir/knowledge-nodes.md](../graph-ir/knowledge-nodes.md)。
 
-## Code Paths
+## 代码路径
 
-| Component | File |
+| 组件 | 文件 |
 |-----------|------|
-| Typst loader | `libs/lang/typst_loader.py` |
-| Raw graph compiler | `libs/graph_ir/typst_compiler.py` |
-| Local canonicalization | `libs/graph_ir/build_utils.py` |
-| Graph IR models | `libs/graph_ir/models.py` |
-| CLI integration | `libs/pipeline.py:pipeline_build()` |
+| Typst 加载器 | `libs/lang/typst_loader.py` |
+| 原始图编译器 | `libs/graph_ir/typst_compiler.py` |
+| 局部规范化 | `libs/graph_ir/build_utils.py` |
+| Graph IR 模型 | `libs/graph_ir/models.py` |
+| CLI 集成 | `libs/pipeline.py:pipeline_build()` |
 
-## Current State
+## 当前状态
 
-The compiler works for v3 and v4 Typst packages. The full pipeline (load, compile, canonicalize, parameterize) is exercised by `gaia build` and `gaia infer` CLI commands and by the server ingestion pipeline. Test coverage exists in `tests/libs/graph_ir/`.
+编译器支持 v3 和 v4 Typst 包。完整管线（加载、编译、规范化、参数化）由 `gaia build` 和 `gaia infer` CLI 命令以及服务器摄入管线驱动。测试覆盖位于 `tests/libs/graph_ir/`。
 
-## Target State
+## 目标状态
 
-The Graph IR compiler is stable. No major changes are planned. The singleton local canonicalization may eventually support semantic merging within a package, but this is not prioritized.
+Graph IR 编译器已趋于稳定，无重大变更计划。单例局部规范化未来可能支持包内语义合并，但这不是优先事项。

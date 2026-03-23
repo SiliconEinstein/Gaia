@@ -1,69 +1,69 @@
-# Plausible Reasoning — Jaynes Framework
+# 似然推理 — Jaynes 框架
 
 > **Status:** Current canonical
 >
-> This document describes pure mathematical foundations. For how Gaia applies these, see `../rationale/product-scope.md`.
+> 本文档描述纯数学基础。关于 Gaia 如何应用这些基础，参见 `../rationale/product-scope.md`。
 
-## 1. Jaynes's Programme: Probability as Logic
+## 1. Jaynes 纲领：概率即逻辑
 
-Jaynes (*Probability Theory: The Logic of Science*, 2003) defines probability not as frequency but as **degree of plausibility**: P(A|X) is how believable proposition A is given information X. Every probability is conditional. Change the information, change the probability -- this is logical necessity, not subjective preference.
+Jaynes（*Probability Theory: The Logic of Science*，2003）将概率定义为**合理性程度**而非频率：P(A|X) 表示在已知信息 X 的条件下，命题 A 的可信程度。每个概率都是条件概率。改变信息，概率也随之改变——这是逻辑必然，而非主观偏好。
 
-### Cox's Theorem
+### Cox 定理
 
-Cox (1946) proved that any system of plausible reasoning satisfying three requirements is isomorphic to probability theory:
+Cox（1946）证明了任何满足三个条件的似然推理系统都同构于概率论：
 
-1. **Real-valued**: plausibility is represented by real numbers
-2. **Common-sense consistent**: evidence supporting A continuously increases A's plausibility
-3. **Consistent**: equivalent reasoning paths yield the same answer; no information is ignored
+1. **实值性**：合理性用实数表示
+2. **常识一致性**：支持 A 的证据连续地增加 A 的合理性
+3. **一致性**：等价的推理路径产生相同结果；不忽略任何信息
 
-From these, three rules are **derived** (not assumed):
+由此**推导**（而非假设）出三条规则：
 
-- **Product rule**: P(AB|X) = P(A|BX) * P(B|X)
-- **Sum rule**: P(A|X) + P(not-A|X) = 1
-- **Bayes' theorem**: P(H|DX) = P(D|HX) * P(H|X) / P(D|X)
+- **乘法规则**：P(AB|X) = P(A|BX) * P(B|X)
+- **加法规则**：P(A|X) + P(not-A|X) = 1
+- **Bayes 定理**：P(H|DX) = P(D|HX) * P(H|X) / P(D|X)
 
-Probability theory is not one method among many -- it is the only consistent system.
+概率论不是众多方法之一——它是唯一一致的系统。
 
-### MaxEnt and Cromwell's Rule
+### MaxEnt 与 Cromwell 规则
 
-Two principles constrain how beliefs are initialized:
+两条原则约束信念的初始化方式：
 
-- **Maximum entropy**: when information is incomplete, choose the distribution with maximum entropy subject to known constraints. The default prior is 0.5 (maximum ignorance for a binary variable).
-- **Cromwell's rule**: never assign probability 0 or 1 to an empirical proposition. If P(H) = 0, no amount of evidence can update it. All priors and probabilities should be clamped to the open interval (epsilon, 1 - epsilon).
+- **最大熵原则（MaxEnt）**：当信息不完整时，在已知约束下选择熵最大的分布。对于二值变量，默认先验为 0.5（最大无知状态）。
+- **Cromwell 规则**：永远不要对经验命题赋予概率 0 或 1。如果 P(H) = 0，则无论多少证据都无法更新它。所有先验和概率都应钳制在开区间 (epsilon, 1 - epsilon) 内。
 
-## 2. Jaynes's Robot
+## 2. Jaynes 的机器人
 
-Jaynes frames his entire programme as designing a **robot** that:
+Jaynes 将他的整个纲领框定为设计一个**机器人**，该机器人：
 
-- receives propositions and evidence, outputs plausibilities
-- follows the three rules strictly (Cox's theorem)
-- has no intuition or bias -- only structure and probabilities
-- satisfies consistency -- the same question asked differently yields the same answer
+- 接收命题和证据，输出合理性值
+- 严格遵循三条规则（Cox 定理）
+- 没有直觉或偏见——只有结构和概率
+- 满足一致性——同一问题以不同方式提问应得到相同答案
 
-This robot paradigm motivates systems like Gaia. A factor graph serves as the robot's reasoning engine. The content of propositions is opaque to the engine -- it only sees graph structure and probability parameters. Semantic understanding is handled by humans and LLMs at the content layer.
+这个机器人范式激发了 Gaia 这样的系统。factor graph（因子图）充当机器人的推理引擎。命题的内容对引擎来说是不透明的——它只看到图结构和概率参数。语义理解由人类和 LLM 在内容层处理。
 
-This motivates a two-layer architecture:
+这激发了一种两层架构：
 
-| Layer | Role | Handled by |
+| 层 | 角色 | 由谁处理 |
 |---|---|---|
-| **Content layer** | Proposition semantics -- what claims mean | Humans + LLMs |
-| **Graph structure layer** | Reasoning topology -- how claims relate | BP algorithm (automatic) |
+| **内容层** | 命题语义——命题的含义 | 人类 + LLM |
+| **图结构层** | 推理拓扑——命题之间的关系 | BP 算法（自动） |
 
-## 3. Curry-Howard Analogy
+## 3. Curry-Howard 类比
 
-Just as functional programming languages (Haskell, Lean) are grounded in the Curry-Howard correspondence between proofs and programs, there is an aspiration to extend this from deductive certainty to plausible belief. This is an open research direction, not an established theorem -- the full Curry-Howard correspondence for probabilistic computation remains an active area of study.
+正如函数式编程语言（Haskell、Lean）建立在证明与程序之间的 Curry-Howard 对应关系之上，存在一种将其从演绎确定性扩展到似然信念的愿景。这是一个开放的研究方向，而非已确立的定理——概率计算的完整 Curry-Howard 对应关系仍然是一个活跃的研究领域。
 
-The key architectural borrowing from Lean is **construction/verification separation**: construction agents may hallucinate or err, while BP independently verifies belief consistency. A wrong construction does not corrupt the system -- verification catches it.
+从 Lean 借鉴的关键架构思想是**构造/验证分离**：构造代理可能产生幻觉或出错，而 BP 独立地验证信念一致性。错误的构造不会破坏系统——验证会捕获它。
 
-## 4. Contradiction as First-Class Citizen
+## 4. 矛盾作为一等公民
 
-In classical logic, contradiction triggers the explosion principle (ex falso quodlibet) -- from a contradiction, anything follows. In Jaynes's framework, contradiction is **evidence of conflict**: P(A and B | I) is near 0, meaning A and B cannot both be true. The system does not crash; it adjusts beliefs.
+在经典逻辑中，矛盾触发爆炸原理（ex falso quodlibet）——从矛盾可以推出任何结论。在 Jaynes 的框架中，矛盾是**冲突的证据**：P(A and B | I) 接近 0，意味着 A 和 B 不能同时为真。系统不会崩溃；它调整信念。
 
-The weaker-evidence-yields-first principle emerges automatically: when a contradiction factor penalizes the all-true configuration, backward messages suppress all premises, but premises with lower prior are suppressed more (their prior odds are smaller, so the same likelihood ratio has a larger effect in odds space).
+较弱证据优先让步原则自动产生：当矛盾 factor（因子）惩罚全真配置时，反向消息会抑制所有前提，但先验较低的前提被抑制得更多（它们的先验赔率更小，因此相同的似然比在赔率空间中产生更大的效应）。
 
-Science advances through contradictions between experiments, theories, and predictions. Treating contradiction as a first-class reasoning primitive -- rather than a data quality problem -- aligns formal systems with how scientific knowledge actually evolves.
+科学通过实验、理论和预测之间的矛盾而进步。将矛盾作为一等推理原语——而不是数据质量问题——使形式系统与科学知识的实际演化方式对齐。
 
-## Source
+## 参考文献
 
 - Jaynes, E.T. *Probability Theory: The Logic of Science* (2003)
 - Cox, R.T. "Probability, Frequency and Reasonable Expectation" (1946)

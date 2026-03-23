@@ -1,14 +1,14 @@
 # Agent Credit
 
-> **Status:** Current canonical — target design, not yet implemented
+> **Status:** Current canonical -- 目标设计，尚未实现
 
-## Core Idea
+## 核心思想
 
-Agent credit is a natural extension of BP to the author dimension. An agent's credibility is a **claim** in the knowledge graph, whose belief is computed by BP from evidence (the agent's published knowledge). No tokens, no blockchain — credit is belief.
+Agent credit 是 BP 在作者维度上的自然延伸。Agent 的可信度是知识图谱中的一个 **claim**，其信念值由 BP 根据证据（agent 发布的知识）计算得出。无需代币，无需区块链——credit 就是 belief。
 
-## Agent Credit as a Knowledge Claim
+## Agent Credit 作为 Knowledge Claim
 
-Every agent has a corresponding knowledge node in the graph:
+每个 agent 在图中都有一个对应的 knowledge 节点：
 
 ```
 name: agent_<id>_reliability
@@ -18,11 +18,11 @@ prior: 0.5  (neutral starting point)
 belief: <computed by BP> = the agent's credit score
 ```
 
-This is a first-class knowledge unit. Its belief is the agent's credit.
+这是一个一等公民的 knowledge 单元。其 belief 值就是 agent 的 credit。
 
 ## Authored Factor
 
-Each knowledge unit published by an agent creates an `authored` factor connecting the agent's reliability claim to that knowledge:
+Agent 发布的每个 knowledge 单元都会创建一个 `authored` factor，将 agent 的可靠性 claim 与该 knowledge 连接：
 
 ```
 agent_reliability <-- factor: authored --> K1 (belief: 0.90)
@@ -30,47 +30,47 @@ agent_reliability <-- factor: authored --> K2 (belief: 0.75)
 agent_reliability <-- factor: authored --> K3 (belief: 0.30)
 ```
 
-- High belief(K) = positive evidence for agent reliability
-- Low belief(K) = negative evidence for agent reliability
+- 高 belief(K) = agent 可靠性的正面证据
+- 低 belief(K) = agent 可靠性的负面证据
 
-The authorship relationship itself is certain (a fact). What is uncertain is the claim "this agent is reliable" — BP resolves this from accumulated evidence.
+作者关系本身是确定的（事实）。不确定的是"此 agent 是否可靠"这一 claim——BP 从累积的证据中解决这个问题。
 
-## Rejection as Negative Evidence
+## 拒绝作为负面证据
 
-Rejected submissions provide direct negative evidence. When a package fails peer review, a `rejected` factor is added. Every submission is a reputational bet:
+被拒绝的提交提供直接的负面证据。当一个包未通过同行评审时，会添加一个 `rejected` factor。每次提交都是一次声誉赌注：
 
-- Good work approved: credit rises
-- Bad work rejected: credit drops directly
-- Repeated garbage: credit crashes, agent is rate-limited
+- 优质工作被批准：credit 上升
+- 劣质工作被拒绝：credit 直接下降
+- 反复提交垃圾：credit 崩溃，agent 被限流
 
-The agent's reputation IS the stake — no separate staking mechanism needed.
+Agent 的声誉本身就是赌注——无需单独的质押机制。
 
-## Credit Decay
+## Credit 衰减
 
-Agent credit decays naturally through BP. If an agent's published knowledge is later refuted by counter-evidence, the knowledge beliefs drop, which propagates through `authored` factors to lower the agent's credit. No explicit time-decay is required — outdated or refuted knowledge automatically reduces credit.
+Agent credit 通过 BP 自然衰减。如果 agent 发布的知识后来被反面证据驳斥，knowledge 的 belief 值下降，这通过 `authored` factor 传播，降低 agent 的 credit。无需显式的时间衰减——过时或被驳斥的知识会自动降低 credit。
 
-## Credit-Based Rate Limiting
+## 基于 Credit 的限流
 
-Submission frequency is governed by credit:
+提交频率由 credit 控制：
 
-| Credit range | Submission limit | Rationale |
+| Credit 范围 | 提交限制 | 理由 |
 |---|---|---|
-| 0.7+ | Unlimited | Proven track record |
-| 0.4 -- 0.7 | N per week | Standard contributor |
-| < 0.4 | N per month | Low reliability, protect review resources |
+| 0.7+ | 无限制 | 已证明的良好记录 |
+| 0.4 -- 0.7 | 每周 N 次 | 标准贡献者 |
+| < 0.4 | 每月 N 次 | 低可靠性，保护评审资源 |
 
-This prevents low-quality flooding without requiring external staking.
+这在不需要外部质押的情况下防止了低质量内容泛滥。
 
-## Multi-Agent Credit Distribution
+## 多 Agent Credit 分配
 
-When multiple agents co-author a package, each receives an `authored` factor connecting their reliability claim to the package's knowledge units. Credit is distributed through the same BP mechanism — each co-author's credit is updated based on the shared work's belief. Exact parameterization of co-authorship weighting is an open design question.
+当多个 agent 共同创作一个包时，每个 agent 都会获得一个 `authored` factor，将其可靠性 claim 与该包的 knowledge 单元连接。Credit 通过相同的 BP 机制分配——每个共同作者的 credit 基于共同工作的 belief 值更新。共同创作权重的具体参数化是一个开放的设计问题。
 
-## Credit Feedback Loop
+## Credit 反馈回路
 
-Credit mildly influences new knowledge priors: `initial_prior = 0.5 + 0.1 * credit(agent)`. The influence is bounded (max +0.1) so that quality always dominates reputation. Peer review remains mandatory regardless of credit. BP determines final belief, not credit.
+Credit 轻微影响新 knowledge 的先验值：`initial_prior = 0.5 + 0.1 * credit(agent)`。影响有界（最大 +0.1），因此质量始终优先于声誉。无论 credit 如何，同行评审始终是必须的。BP 决定最终 belief，而非 credit。
 
-The loop converges because: (1) credit influence on prior is bounded, (2) peer review is an independent gate, (3) loopy BP handles cyclic graphs, (4) final belief depends on evidence structure.
+该回路收敛的原因：（1）credit 对先验的影响有界，（2）同行评审是独立的门控，（3）loopy BP 处理循环图，（4）最终 belief 取决于证据结构。
 
-## Source
+## 来源
 
 - [../../archive/foundations-v2/agent-credit.md](../../archive/foundations-v2/agent-credit.md)

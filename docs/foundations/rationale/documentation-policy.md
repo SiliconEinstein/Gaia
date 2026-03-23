@@ -1,353 +1,353 @@
-# Foundations Documentation Policy
+# 基础文档政策
 
 | 文档属性 | 值 |
 |---------|---|
 | 版本 | 0.1 |
 | 日期 | 2026-03-22 |
 | 状态 | **Current canonical** |
-| 关联文档 | [README.md](README.md), [product-scope.md](product-scope.md), [system-overview.md](system-overview.md), [graph-ir.md](graph-ir.md) |
+| 关联文档 | [README.md](../README.md), [product-scope.md](product-scope.md) |
 
-## 1. Purpose
+## 1. 目的
 
-This document defines how Gaia foundation docs should be written, updated, split, and superseded.
+本文档定义 Gaia 基础文档应如何编写、更新、拆分和废止。
 
-Its goal is to solve two recurring problems:
+其目标是解决两个反复出现的问题：
 
-- old and new designs getting mixed into one file
-- document layers becoming muddled, so high-level docs are too detailed and low-level docs are not precise enough
+- 新旧设计混入同一文件
+- 文档层次混乱，导致高层文档过于详细，低层文档不够精确
 
-This policy is the canonical rule set for documentation structure in this repository.
+本政策是本仓库中文档结构的规范性规则集。
 
-## 2. Core Principles
+## 2. 核心原则
 
-### 2.1 One document, one primary job
+### 2.1 一个文档，一个主要职责
 
-A document should not simultaneously serve as:
+一个文档不应同时充当：
 
-- current canonical spec
-- target design proposal
-- implementation notes
-- historical record
+- 当前规范性规格
+- 目标设计提案
+- 实现笔记
+- 历史记录
 
-If a file is trying to do more than one of those jobs, split it.
+如果一个文件试图承担多个职责，请拆分它。
 
-### 2.2 One concept, one canonical home
+### 2.2 一个概念，一个规范性归属
 
-A concept may be mentioned in many docs, but it should have only one canonical place where it is defined.
+一个概念可以在多个文档中被提及，但它应只有一个定义它的规范性位置。
 
-Examples:
+示例：
 
-- scientific object kinds belong in ontology docs
-- authored package syntax belongs in language spec
-- structural graph shape belongs in Graph IR
-- package review/curation workflow belongs in review docs
+- 科学对象类别属于本体论文档
+- 编写包语法属于语言规格
+- 结构图形状属于 Graph IR
+- 包审查/策展工作流属于审查文档
 
-Other docs should reference the canonical home rather than silently redefining it.
+其他文档应引用规范性归属，而非悄悄重新定义它。
 
-### 2.3 Current, target, and history must be separated
+### 2.3 当前、目标和历史必须分离
 
-Do not encode timeline confusion into a single narrative.
+不要将时间线混淆编码到单一叙事中。
 
-- **Current canonical** docs describe the present source of truth
-- **Target design** docs describe the intended destination
-- **Transitional** docs explicitly separate current runtime from target semantics
-- retired or historical material belongs in archive/spec history, not in canonical docs
+- **Current canonical** 文档描述当前的信息源
+- **Target design** 文档描述预期的目标状态
+- **Transitional** 文档显式地将当前运行时与目标语义分开
+- 退役或历史材料属于归档/规格历史，不属于规范性文档
 
-### 2.4 Product docs and reference docs need different resolutions
+### 2.4 产品文档和参考文档需要不同的精细度
 
-Some docs should orient the reader. Others should specify exact structure.
+一些文档应引导读者。另一些应精确指定结构。
 
-Do not force one document to do both.
+不要强迫一个文档同时做这两件事。
 
-## 3. Documentation Axes
+## 3. 文档维度
 
-Gaia foundation docs should be classified along three axes:
+Gaia 基础文档应沿三个维度分类：
 
-- `Level`: what resolution the document operates at
-- `Status`: whether it is current canonical, target design, or transitional
-- `Scope`: whether it is repo-wide, subsystem-specific, or component-specific
+- `Level`：文档运作在什么精细度
+- `Status`：它是 current canonical、target design 还是 transitional
+- `Scope`：它是仓库级、子系统级还是组件级
 
-The most important rule is to keep these axes separate. Project scale should usually expand scope, not invent more levels.
+最重要的规则是保持这些维度分离。项目规模扩大时通常应扩展范围，而非发明更多层次。
 
-## 4. Levels
+## 4. 层次
 
-Gaia foundation docs should fit into one of four primary levels.
+Gaia 基础文档应归入以下四个主要层次之一。
 
-### Overview
+### 概述
 
-Answers:
+回答：
 
-- what Gaia is
-- what Gaia is not
-- who the product is for
-- what the product boundary is
+- Gaia 是什么
+- Gaia 不是什么
+- 产品面向谁
+- 产品边界是什么
 
-Should not contain:
+不应包含：
 
-- field-by-field schemas
-- current runtime workaround details
-- low-level storage or BP specifics
+- 逐字段的 schema
+- 当前运行时变通方案的细节
+- 低层存储或 BP 的具体实现
 
-Examples:
+示例：
 
 - `product-scope.md`
 
-### Foundation
+### 基础
 
-Answers:
+回答：
 
-- what kinds of objects exist
-- which objects are truth-apt
-- which objects enter BP
-- which distinctions are ontological vs workflow-only
+- 存在哪些类型的对象
+- 哪些对象具有真值性
+- 哪些对象进入 BP
+- 哪些区分是本体论层面的 vs 仅工作流层面的
 
-Should not contain:
+不应包含：
 
-- API details
-- storage tables
-- command invocation mechanics
+- API 细节
+- 存储表
+- 命令调用机制
 
-Examples:
+示例：
 
 - `theory/scientific-ontology.md`
 - `theory/theoretical-foundation.md`
 
-### Architecture
+### 架构
 
-Answers:
+回答：
 
-- what a subsystem is responsible for
-- what it is not responsible for
-- how artifacts move between subsystems
-- what the boundary is between neighboring services/layers
+- 子系统负责什么
+- 子系统不负责什么
+- 制品如何在子系统之间流转
+- 相邻服务/层之间的边界是什么
 
-Should not contain:
+不应包含：
 
-- full field reference tables
-- low-level implementation quirks unless explicitly marked transitional
+- 完整的字段参考表
+- 低层实现细节，除非明确标记为 transitional
 
-Examples:
+示例：
 
 - `system-overview.md`
 - `review/service-boundaries.md`
 - `server/architecture.md`
 
-### Spec
+### 规格
 
-Answers:
+回答：
 
-- exact shape of a package / IR / schema / command contract
-- field meanings
-- invariants
-- allowed and disallowed cases
+- 包 / IR / schema / 命令合约的确切形状
+- 字段含义
+- 不变量
+- 允许和不允许的情况
 
-Should be precise enough that an implementer can use it as a reference.
+应足够精确，使实现者能将其用作参考。
 
-Examples:
+示例：
 
 - `language/gaia-language-spec.md`
 - `graph-ir.md`
 - `server/storage-schema.md`
 - `cli/command-lifecycle.md`
 
-## 5. Scope
+## 5. 范围
 
-Every substantial doc should also have an explicit scope.
+每个重要文档还应有明确的范围。
 
-Recommended values:
+推荐值：
 
 - `Repo-wide`
 - `Subsystem`
 - `Component`
 
-When Gaia grows, this axis usually does the scaling work. For example:
+当 Gaia 增长时，这个维度通常承担扩展工作。例如：
 
-- `product-scope.md` is `Repo-wide`
-- `server/architecture.md` is `Subsystem`
-- a future storage ingestion design doc may be `Component`
+- `product-scope.md` 是 `Repo-wide`
+- `server/architecture.md` 是 `Subsystem`
+- 未来的存储摄取设计文档可能是 `Component`
 
-## 6. Status Labels
+## 6. 状态标签
 
-Every substantial foundation doc should have an explicit status.
+每个重要的基础文档应有明确的状态。
 
-Recommended values:
+推荐值：
 
 - `Current canonical`
 - `Target design`
 - `Transitional`
 
-If a file cannot clearly state its status, it is probably mixing roles.
+如果一个文件无法清楚地陈述其状态，它可能在混合角色。
 
-### Transitional docs
+### Transitional 文档
 
-Some docs need to describe the current implementation and the intended target at the same time.
+一些文档需要同时描述当前实现和预期目标。
 
-Those docs should keep one of the four main levels above, but set `Status: Transitional`.
+这些文档应保持上述四个主要层次之一，但设置 `Status: Transitional`。
 
-Typical example:
+典型示例：
 
 - `bp-on-graph-ir.md`
 
-### Historical docs
+### 历史文档
 
-Historical or ADR-style docs should not act as the primary source of truth for current semantics.
+历史或 ADR 风格的文档不应充当当前语义的主要信息源。
 
-They should usually be handled by location first, not by active-status labeling:
+它们通常应优先通过位置处理，而非活跃状态标签：
 
-- `docs/archive/` for archived historical docs
-- `docs/superpowers/specs/` for dated proposals and design records
+- `docs/archive/` 用于归档的历史文档
+- `docs/superpowers/specs/` 用于带日期的提案和设计记录
 
-By default, retired docs should leave `docs/foundations/` entirely. If an old path must remain for compatibility, keep only a short redirect note rather than maintaining a long historical body in the active canonical area.
+默认情况下，退役文档应完全离开 `docs/foundations/`。如果旧路径必须因兼容性保留，只保留一个简短的重定向说明，而非在活跃规范性区域维护一长段历史正文。
 
-Examples:
+示例：
 
-- time-stamped specs in `docs/superpowers/specs/`
-- archived historical docs
+- `docs/superpowers/specs/` 中的带时间戳的规格
+- 归档的历史文档
 
-## 7. Audience and Out-of-Scope
+## 7. 受众与超出范围
 
-For major docs, explicitly state:
+对于主要文档，应明确陈述：
 
-- intended audience
-- what the doc does define
-- what the doc does not define
+- 目标受众
+- 文档定义什么
+- 文档不定义什么
 
-This prevents abstract docs from drifting into low-level detail and prevents low-level docs from bloating with theory.
+这防止抽象文档漂移到低层细节，也防止低层文档因理论而膨胀。
 
-## 8. Update Decision Rules
+## 8. 更新决策规则
 
-When changing docs, first classify the work:
+变更文档时，首先分类工作类型：
 
-### 8.1 Clarification
+### 8.1 澄清
 
-Use when:
+适用条件：
 
-- semantics are unchanged
-- the doc is already the right canonical home
-- wording or examples are just being improved
+- 语义未变
+- 文档已是正确的规范性归属
+- 仅改善措辞或示例
 
-Action:
+操作：
 
-- edit the existing canonical doc
+- 编辑现有规范性文档
 
-### 8.2 Replacement
+### 8.2 替换
 
-Use when:
+适用条件：
 
-- the doc's core responsibility has changed
-- the ontology or contract has materially changed
-- keeping the old body would preserve misleading conceptual structure
+- 文档的核心职责已变
+- 本体论或合约已发生实质性变化
+- 保留旧正文会保存误导性的概念结构
 
-Action:
+操作：
 
-- write a new or substantially rewritten canonical doc
-- retire the old doc from the active canonical area
-- move historical content to `docs/archive/` or keep it in dated specs if that history is still useful
-- keep a thin redirect only when compatibility is worth the cognitive cost
-- update README / related-doc links
+- 编写新的或大幅重写的规范性文档
+- 将旧文档从活跃规范性区域退役
+- 将历史内容移至 `docs/archive/`，或如果该历史仍有用则保留在带日期的规格中
+- 仅在兼容性值得认知成本时保留精简的重定向
+- 更新 README / 相关文档链接
 
-### 8.3 Proposal
+### 8.3 提案
 
-Use when:
+适用条件：
 
-- the design is not yet accepted
-- the implementation is intentionally not yet aligned
-- the purpose is exploration or decision-making
+- 设计尚未被接受
+- 实现有意尚未对齐
+- 目的是探索或决策
 
-Action:
+操作：
 
-- write a spec / ADR / proposal doc outside the canonical flow
-- do not silently turn proposal text into current canonical language
+- 在规范性流程之外编写规格 / ADR / 提案文档
+- 不要悄悄将提案文本变成当前规范性语言
 
-## 9. When to Split a Doc
+## 9. 何时拆分文档
 
-Split a document when one or more of these is true:
+当以下一个或多个条件为真时拆分文档：
 
-- current runtime and target design have meaningfully diverged
-- more than roughly one-third of the document would need to be rewritten to preserve accuracy
-- the file is serving multiple levels at once
-- a concept is being canonically defined in more than one place
+- 当前运行时和目标设计已明显分歧
+- 文档的大约三分之一以上需要重写以保持准确性
+- 文件同时服务于多个层次
+- 一个概念在多个地方被规范性定义
 
-Typical split patterns:
+典型拆分模式：
 
-- current runtime reference vs target design
-- foundation vs spec
-- service boundary vs workflow details
-- canonical doc vs archived historical doc
+- 当前运行时参考 vs 目标设计
+- 基础 vs 规格
+- 服务边界 vs 工作流细节
+- 规范性文档 vs 归档历史文档
 
-## 10. Retiring an Old Doc
+## 10. 退役旧文档
 
-When a doc is no longer the right source of truth:
+当一个文档不再是正确的信息源时：
 
-1. move it out of the active canonical area
-2. point to its replacements explicitly
-3. preserve history in `docs/archive/` or dated specs when useful
-4. keep a compatibility redirect only for especially stable or high-traffic paths
-5. update major indexes and related-doc sections
+1. 将其移出活跃规范性区域
+2. 明确指向其替代文档
+3. 在有用时将历史保存在 `docs/archive/` 或带日期的规格中
+4. 仅对特别稳定或高流量的路径保留兼容性重定向
+5. 更新主要索引和相关文档章节
 
-Do not keep editing a retired conceptual model as if it were still active.
+不要继续编辑一个已退役的概念模型，好像它仍然是活跃的。
 
-## 11. Required Companion Updates
+## 11. 必要的伴随更新
 
-When a canonical foundation doc is added, replaced, or materially re-scoped, also update the relevant index pages and pointers.
+当规范性基础文档被添加、替换或实质性重新界定范围时，也应更新相关索引页和指针。
 
-Typical companion files:
+典型伴随文件：
 
 - `docs/README.md`
 - `docs/foundations/README.md`
 - `docs/foundations/README.zh-CN.md`
-- related-doc headers in neighboring canonical docs
-- any archived or compatibility-redirect pages affected by the change
+- 相邻规范性文档中的相关文档标题
+- 受变更影响的任何归档或兼容性重定向页面
 
-## 12. Gaia-Specific Boundary Rules
+## 12. Gaia 特定的边界规则
 
-These are especially important in this repository:
+以下在本仓库中尤为重要：
 
-1. **Ontology is not language syntax.**
-   Object classes belong in ontology docs; surface declarations belong in language docs.
+1. **本体论不是语言语法。**
+   对象类别属于本体论文档；表面声明属于语言文档。
 
-2. **Language, Graph IR, and BP are distinct layers.**
-   A term should not silently change meaning across those layers.
+2. **语言、Graph IR 和 BP 是不同的层。**
+   一个术语不应在这些层之间悄悄改变含义。
 
-3. **Review and curation are distinct services.**
-   Submission adjudication belongs to `ReviewService`; registry-wide offline maintenance belongs to `CurationService`.
+3. **审查和策展是不同的服务。**
+   提交裁决属于 `ReviewService`；注册中心级的离线维护属于 `CurationService`。
 
-4. **Formal external submissions prefer Gaia packages.**
-   Package profile semantics belong with review/workflow docs, not in ad hoc side notes.
+4. **正式的外部提交优先使用 Gaia 包。**
+   包配置语义属于审查/工作流文档，不属于临时侧注。
 
-5. **Only closed, truth-apt scientific assertions are ordinary domain-BP participants.**
-   Workflow artifacts, open questions, and internal curation outputs are not ordinary domain-BP variables by default.
+5. **只有封闭的、具有真值的科学断言是普通领域 BP 的参与者。**
+   工作流制品、开放问题和内部策展输出默认不是普通领域 BP 变量。
 
-## 13. Practical Writing Tests
+## 13. 实用写作测试
 
-### Test A: Is this doc too coarse?
+### 测试 A：此文档是否过于粗略？
 
-After reading it, can a reader answer in a few sentences:
+阅读后，读者能否用几句话回答：
 
-- what this subsystem is for
-- what it is not for
-- where its boundaries are
+- 这个子系统用于什么
+- 它不用于什么
+- 它的边界在哪里
 
-If not, the doc is probably too entangled in detail.
+如果不能，文档可能过于纠缠于细节。
 
-### Test B: Is this doc too vague?
+### 测试 B：此文档是否过于模糊？
 
-After reading it, can an implementer answer:
+阅读后，实现者能否回答：
 
-- what fields/objects/interfaces are allowed
-- what is forbidden
-- what happens at edge cases
+- 允许哪些字段/对象/接口
+- 什么是禁止的
+- 边界情况下会发生什么
 
-If not, the doc is probably not yet a true spec/reference.
+如果不能，文档可能尚未成为真正的规格/参考。
 
-## 14. Current Working Rule
+## 14. 当前工作规则
 
-Before making a non-trivial foundations doc change:
+在进行非琐碎的基础文档变更之前：
 
-1. identify the doc's level
-2. identify its status
-3. identify its scope when that is relevant
-4. decide whether the change is clarification, replacement, or proposal
-5. update companion indexes and redirects in the same branch
+1. 识别文档的层次
+2. 识别其状态
+3. 在相关时识别其范围
+4. 决定变更是澄清、替换还是提案
+5. 在同一分支中更新伴随索引和重定向
 
-If that process is skipped, doc drift is the default outcome.
+如果跳过此流程，文档漂移是默认结果。

@@ -1,45 +1,45 @@
-# Server Storage
+# 服务端存储
 
 > **Status:** Current canonical
 
-This document describes the server-side storage architecture. For local (embedded) storage used by the CLI, see [../cli/local-storage.md](../cli/local-storage.md).
+本文档描述服务端存储架构。关于 CLI 使用的本地（嵌入式）存储，参见 [../cli/local-storage.md](../cli/local-storage.md)。
 
-## Three-Backend Architecture
+## 三后端架构
 
-The storage layer uses three complementary backends, all managed by `StorageManager` (`libs/storage/manager.py`):
+存储层使用三个互补的后端，均由 `StorageManager`（`libs/storage/manager.py`）管理：
 
-| Backend | Class | Purpose | Required? |
+| 后端 | 类 | 用途 | 是否必需？ |
 |---------|-------|---------|-----------|
-| **LanceDB Content** | `LanceContentStore` | All entity persistence, BM25 full-text search | Yes (source of truth) |
-| **Neo4j / Kuzu Graph** | `Neo4jGraphStore` / `KuzuGraphStore` | Graph topology for traversal queries | Optional |
-| **LanceDB Vector** | `LanceVectorStore` | Embedding similarity search | Optional |
+| **LanceDB Content** | `LanceContentStore` | 所有实体持久化，BM25 全文搜索 | 是（数据源） |
+| **Neo4j / Kuzu Graph** | `Neo4jGraphStore` / `KuzuGraphStore` | 图拓扑，用于遍历查询 | 可选 |
+| **LanceDB Vector** | `LanceVectorStore` | Embedding 相似度搜索 | 可选 |
 
-The content store is always required and serves as the source of truth. Graph and vector stores are optional -- the system degrades gracefully without them.
+Content store 始终必需，作为数据源。Graph store 和 Vector store 是可选的——系统在缺少它们时优雅降级。
 
-### Backend Selection
+### 后端选择
 
-Configured via `StorageConfig` (`libs/storage/config.py`):
+通过 `StorageConfig`（`libs/storage/config.py`）配置：
 
-- **LanceDB**: Local path or remote S3/TOS URI. Remote mode uses `storage_options` with TOS access keys.
-- **Graph backend**: `"kuzu"` (embedded, local default), `"neo4j"` (server), or `"none"`.
-- **Vector store**: Always created alongside the content store (same LanceDB connection, separate table).
+- **LanceDB**：本地路径或远程 S3/TOS URI。远程模式使用 `storage_options` 配合 TOS 访问密钥。
+- **Graph 后端**：`"kuzu"`（嵌入式，本地默认）、`"neo4j"`（服务端）或 `"none"`。
+- **Vector store**：始终与 Content store 一起创建（相同 LanceDB 连接，独立表）。
 
 ## StorageManager
 
-`StorageManager` is the unified facade. Domain services interact only with this class, never with individual stores directly.
+`StorageManager` 是统一门面。领域服务仅与此类交互，不直接访问各个 store。
 
-Key responsibilities:
+核心职责：
 
-- **Initialization**: instantiates and connects all configured stores.
-- **Three-write atomicity**: coordinates multi-store writes with visibility gating.
-- **Read delegation**: passes reads through to the appropriate store, with visibility filtering for graph queries.
-- **Graceful degradation**: returns empty results when optional stores are unavailable.
+- **初始化**：实例化并连接所有已配置的 store。
+- **三写入原子性**：协调多 store 写入，带有可见性门控。
+- **读取委派**：将读取请求传递给相应的 store，对图查询进行可见性过滤。
+- **优雅降级**：当可选 store 不可用时返回空结果。
 
-## Three-Write Atomicity
+## 三写入原子性
 
-See `libs/storage/manager.py:StorageManager.ingest_package()`.
+参见 `libs/storage/manager.py:StorageManager.ingest_package()`。
 
-Package ingestion follows a five-step protocol:
+包摄取遵循五步协议：
 
 ```
 1. Write package with status="preparing"  (invisible to reads)
@@ -49,82 +49,82 @@ Package ingestion follows a five-step protocol:
 5. Flip status to "merged"  (visible to reads)
 ```
 
-On failure, data stays in "preparing" status -- invisible to readers and safe to retry. The content store is always written first as the source of truth.
+失败时，数据保持 "preparing" 状态——对读取者不可见，可安全重试。Content store 始终最先写入，作为数据源。
 
-## LanceDB Table Schemas
+## LanceDB 表 Schema
 
-All tables are defined as PyArrow schemas in `libs/storage/lance_content_store.py`:
+所有表在 `libs/storage/lance_content_store.py` 中以 PyArrow schema 定义：
 
-### Core Entity Tables
+### 核心实体表
 
-| Table | Key | Purpose |
+| 表 | 键 | 用途 |
 |-------|-----|---------|
-| `packages` | `(package_id, version)` | Package metadata, status, modules list |
-| `modules` | `module_id` | Module metadata, chain_ids, export_ids |
-| `knowledge` | `(knowledge_id, version)` | Versioned propositions with type, content, prior, keywords |
-| `chains` | `chain_id` | Reasoning chains with typed steps (premises -> conclusion) |
+| `packages` | `(package_id, version)` | 包元数据、状态、模块列表 |
+| `modules` | `module_id` | 模块元数据、chain_ids、export_ids |
+| `knowledge` | `(knowledge_id, version)` | 带版本的命题，包含 type、content、prior、keywords |
+| `chains` | `chain_id` | 推理链，包含带类型的 steps（premises -> conclusion） |
 
-### Inference Tables
+### 推理表
 
-| Table | Key | Purpose |
+| 表 | 键 | 用途 |
 |-------|-----|---------|
-| `probabilities` | `(chain_id, step_index)` | Step reliability scores from various sources |
-| `belief_history` | `(knowledge_id, version, bp_run_id)` | BP result snapshots over time |
+| `probabilities` | `(chain_id, step_index)` | 来自各来源的步骤可靠性分数 |
+| `belief_history` | `(knowledge_id, version, bp_run_id)` | BP 结果的历史快照 |
 
-### Graph IR Tables
+### Graph IR 表
 
-| Table | Key | Purpose |
+| 表 | 键 | 用途 |
 |-------|-----|---------|
-| `factors` | `factor_id` | Persistent factors from Graph IR compilation |
-| `canonical_bindings` | `(package, version, local_canonical_id)` | Local-to-global node mappings |
-| `global_canonical_nodes` | `global_canonical_id` | Deduplicated cross-package knowledge identities |
-| `global_inference_state` | singleton `_id` | Registry-managed global BP state (priors, beliefs, factor params) |
+| `factors` | `factor_id` | Graph IR 编译产生的持久化 factor |
+| `canonical_bindings` | `(package, version, local_canonical_id)` | 本地到全局节点的映射 |
+| `global_canonical_nodes` | `global_canonical_id` | 跨包去重的知识标识 |
+| `global_inference_state` | singleton `_id` | 注册表管理的全局 BP 状态（先验、信念、factor 参数） |
 
-### Resource Tables
+### 资源表
 
-| Table | Key | Purpose |
+| 表 | 键 | 用途 |
 |-------|-----|---------|
-| `resources` | `resource_id` | Resource metadata (images, code, datasets) |
-| `resource_attachments` | `(resource_id, target_id)` | Many-to-many links to knowledge/chains/modules |
-| `submission_artifacts` | `(package_name, commit_hash)` | Immutable snapshots for audit |
+| `resources` | `resource_id` | 资源元数据（图片、代码、数据集） |
+| `resource_attachments` | `(resource_id, target_id)` | 到 knowledge/chains/modules 的多对多链接 |
+| `submission_artifacts` | `(package_name, commit_hash)` | 不可变快照，用于审计 |
 
-## Graph Store Topology
+## Graph Store 拓扑
 
-The graph store (Neo4j or Kuzu) maintains topology for traversal queries:
+Graph store（Neo4j 或 Kuzu）维护用于遍历查询的拓扑：
 
-- Knowledge nodes keyed by composite `knowledge_id@version`
-- `:PREMISE` and `:CONCLUSION` relationships from chains
-- Factor topology links
-- Global canonical node topology and bindings
+- Knowledge 节点以复合键 `knowledge_id@version` 标识
+- 来自 chain 的 `:PREMISE` 和 `:CONCLUSION` 关系
+- Factor 拓扑链接
+- GlobalCanonicalNode 拓扑和绑定
 
-The graph store is always secondary to the content store. It is populated during the three-write protocol and can be rebuilt from content store data.
+Graph store 始终从属于 Content store。它在三写入协议中被填充，可从 Content store 数据重建。
 
-## Server vs Local Storage
+## 服务端 vs 本地存储
 
-| Aspect | Server | Local (CLI) |
+| 方面 | 服务端 | 本地（CLI） |
 |--------|--------|-------------|
-| **LanceDB** | Remote S3/TOS URI or local path | Local path (`GAIA_LANCEDB_PATH`) |
-| **Graph backend** | Neo4j (production) or Kuzu | Kuzu (embedded) |
-| **Vector store** | Active | Active |
-| **Access** | Via FastAPI gateway | Direct via `StorageManager` |
-| **Concurrency** | Multi-reader, single writer | Single-user |
+| **LanceDB** | 远程 S3/TOS URI 或本地路径 | 本地路径（`GAIA_LANCEDB_PATH`） |
+| **Graph 后端** | Neo4j（生产）或 Kuzu | Kuzu（嵌入式） |
+| **Vector store** | 启用 | 启用 |
+| **访问方式** | 通过 FastAPI 网关 | 直接通过 `StorageManager` |
+| **并发** | 多读单写 | 单用户 |
 
-## Code Paths
+## 代码路径
 
-| Component | File |
+| 组件 | 文件 |
 |-----------|------|
-| Storage manager | `libs/storage/manager.py:StorageManager` |
-| Storage config | `libs/storage/config.py:StorageConfig` |
+| 存储管理器 | `libs/storage/manager.py:StorageManager` |
+| 存储配置 | `libs/storage/config.py:StorageConfig` |
 | Content store | `libs/storage/lance_content_store.py:LanceContentStore` |
 | Graph store (Neo4j) | `libs/storage/neo4j_graph_store.py:Neo4jGraphStore` |
 | Graph store (Kuzu) | `libs/storage/kuzu_graph_store.py:KuzuGraphStore` |
 | Vector store | `libs/storage/lance_vector_store.py:LanceVectorStore` |
-| Data models | `libs/storage/models.py` |
+| 数据模型 | `libs/storage/models.py` |
 
-## Current State
+## 当前状态
 
-The storage layer is working in production with remote LanceDB (S3/TOS) and Neo4j. Local development uses embedded LanceDB and optionally Kuzu. BM25 full-text search is available via LanceDB's built-in FTS indexing. The three-write protocol is exercised by both the CLI publish path and the server ingestion pipeline.
+存储层已在生产环境中运行，使用远程 LanceDB（S3/TOS）和 Neo4j。本地开发使用嵌入式 LanceDB，可选使用 Kuzu。BM25 全文搜索通过 LanceDB 内置的 FTS 索引提供。三写入协议在 CLI 发布路径和服务端摄取流水线中均被使用。
 
-## Target State
+## 目标状态
 
-The storage layer is stable. No major schema changes are planned. The `global_inference_state` table was recently added and may see minor field additions as the inference pipeline matures.
+存储层已稳定，无计划中的重大 schema 变更。`global_inference_state` 表最近新增，随着推理流水线成熟可能会有少量字段增补。

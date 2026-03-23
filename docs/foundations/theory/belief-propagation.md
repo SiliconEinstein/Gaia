@@ -2,12 +2,12 @@
 
 > **Status:** Current canonical
 
-## 1. Factor Graphs
+## 1. 因子图
 
-A factor graph is a bipartite graph with two kinds of nodes:
+factor graph（因子图）是一种二部图，包含两种节点：
 
-- **Variable nodes**: unknown quantities with prior distributions. For binary variables: state true (1) or false (0).
-- **Factor nodes**: constraints or relationships between variables. Each factor connects a subset of variables and encodes how they interact.
+- **variable node（变量节点）**：具有先验分布的未知量。对于二值变量：状态为真（1）或假（0）。
+- **factor node（因子节点）**：变量之间的约束或关系。每个因子连接一组变量子集，编码它们之间的交互方式。
 
 ```
 Variable nodes = propositions or unknown quantities
@@ -19,19 +19,19 @@ Factor nodes = constraints or reasoning links
   potential function encodes constraint semantics
 ```
 
-The joint probability over all variables factorizes as:
+所有变量的联合概率分解为：
 
 ```
 P(x1, ..., xn | I) proportional to  prod_j phi_j(x_j) * prod_a psi_a(x_S_a)
 ```
 
-where phi_j is the prior (unary factor) for variable j, and psi_a is the potential function for factor a over its connected variable subset S_a. Potentials are not probabilities -- they need not normalize. Only ratios matter.
+其中 phi_j 是变量 j 的先验（一元因子），psi_a 是因子 a 在其连接变量子集 S_a 上的势函数。势不是概率——它们不需要归一化。只有比值有意义。
 
-## 2. Sum-Product Message Passing
+## 2. Sum-Product 消息传递
 
-Messages are 2-vectors `[p(x=0), p(x=1)]`, always normalized to sum to 1.
+消息是二维向量 `[p(x=0), p(x=1)]`，始终归一化使得和为 1。
 
-### Algorithm
+### 算法
 
 ```
 Initialize: all messages = [0.5, 0.5] (uniform, MaxEnt)
@@ -59,49 +59,49 @@ Repeat (up to max_iterations):
      If max |new_belief - old_belief| < threshold: stop.
 ```
 
-Key design points:
+关键设计要点：
 
-- **Bidirectional messages**: variable-to-factor and factor-to-variable. Backward inhibition (modus tollens) emerges naturally.
-- **Exclude-self rule**: when variable v sends a message to factor f, it excludes f's own incoming message. This prevents circular self-reinforcement.
-- **Synchronous schedule**: all new messages are computed from old messages, then swapped simultaneously. Factor ordering does not affect results.
-- **2-vector normalization**: messages always sum to 1, preventing numerical decay in long chains.
+- **双向消息**：变量到因子和因子到变量。反向抑制（modus tollens，否定后件式）自然产生。
+- **排除自身规则（exclude-self rule）**：当变量 v 向因子 f 发送消息时，排除 f 自身的传入消息。这防止了循环自增强。
+- **同步调度**：所有新消息都从旧消息计算，然后同时交换。因子排序不影响结果。
+- **二维向量归一化**：消息始终和为 1，防止长链中的数值衰减。
 
-### Correspondence with Jaynes's Rules
+### 与 Jaynes 规则的对应关系
 
-| BP operation | Jaynes rule |
+| BP 操作 | Jaynes 规则 |
 |---|---|
-| Joint = product of potentials and priors | Product rule |
-| Message normalization [p(0) + p(1) = 1] | Sum rule |
-| belief = prior * product of factor-to-var messages | Bayes' theorem (posterior proportional to prior * likelihood) |
-| Variable-to-factor message (exclude-self) | Background information P(H\|X) excluding current factor |
-| Factor-to-variable message (marginalize) | Likelihood P(D\|HX) marginalized over other variables |
+| 联合 = 势与先验的乘积 | 乘法规则 |
+| 消息归一化 [p(0) + p(1) = 1] | 加法规则 |
+| belief = 先验 * 因子到变量消息的乘积 | Bayes 定理（后验正比于先验 * 似然） |
+| 变量到因子消息（排除自身） | 排除当前因子的背景信息 P(H\|X) |
+| 因子到变量消息（边缘化） | 对其他变量边缘化后的似然 P(D\|HX) |
 
-On tree-structured graphs, BP is exact. On loopy graphs, it is an approximation.
+在树结构图上，BP 是精确的。在有环图上，它是一种近似。
 
-## 3. Loopy BP and Convergence
+## 3. Loopy BP 与收敛性
 
-Real-world factor graphs often have cycles. Loopy BP handles this by iterating message passing until beliefs stabilize.
+现实世界的因子图常包含环。loopy BP 通过迭代消息传递直到信念稳定来处理这种情况。
 
-**Damping** prevents oscillation on cyclic graphs:
+**阻尼（damping）** 防止在有环图上的振荡：
 
 ```
 msg_new = alpha * computed_msg + (1 - alpha) * msg_old
 ```
 
-With alpha = 0.5 (default), each update moves halfway toward the new value. Damping trades convergence speed for stability.
+当 alpha = 0.5（默认值）时，每次更新向新值移动一半。阻尼以收敛速度换取稳定性。
 
-Loopy BP minimizes the **Bethe free energy**, a variational approximation to the true free energy. On sparse graphs, this approximation is generally good. The system always produces a set of beliefs -- there is no "unsatisfiable" state. Incomplete information yields uncertain beliefs, not system failure.
+loopy BP 最小化 **Bethe 自由能**，这是真实自由能的变分近似。在稀疏图上，这种近似通常较好。系统始终产生一组信念——不存在"不可满足"的状态。不完整的信息产生不确定的信念，而非系统失败。
 
-**Cromwell's rule** is enforced at two points:
+**Cromwell 规则**在两处强制执行：
 
-1. **At construction**: all priors and conditional probabilities are clamped to [epsilon, 1-epsilon], with epsilon = 10^-3.
-2. **In potentials**: the leak parameter in noisy-AND factors is itself the Cromwell lower bound, ensuring no state combination has zero potential.
+1. **在构造时**：所有先验和条件概率都钳制在 [epsilon, 1-epsilon]，其中 epsilon = 10^-3。
+2. **在势函数中**：noisy-AND 因子中的泄漏参数本身就是 Cromwell 下界，确保没有状态组合具有零势。
 
-This prevents degenerate updates where a zero probability blocks all future evidence.
+这防止了零概率阻断所有未来证据的退化更新。
 
-For Gaia's specific factor type potentials, see `../bp/potentials.md`.
+关于 Gaia 的特定因子类型势函数，参见 `../bp/potentials.md`。
 
-## Source
+## 参考文献
 
 - Jaynes, E.T. *Probability Theory: The Logic of Science* (2003)
 - Pearl, J. *Probabilistic Reasoning in Intelligent Systems* (1988)

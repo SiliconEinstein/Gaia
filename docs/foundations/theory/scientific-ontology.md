@@ -1,81 +1,81 @@
-# Scientific Ontology
+# 科学本体论
 
 > **Status:** Current canonical
 
-## 1. First Principle
+## 1. 第一原则
 
-Gaia does not formalize abstract logic in isolation. It formalizes **scientific assertions with evidence provenance, applicability conditions, uncertainty, and revisability**.
+Gaia 不是孤立地形式化抽象逻辑。它形式化的是**具有证据溯源、适用条件、不确定性和可修正性的科学断言**。
 
-The core boundary: only closed, truth-apt scientific assertions participate in belief propagation. Open templates, discovery workflows, research tasks, and review artifacts do not.
+核心边界：只有封闭的、具有真值的科学断言参与 Belief Propagation。开放模板、发现工作流、研究任务和审查制品不参与。
 
-## 2. What Makes Scientific Reasoning Different
+## 2. 科学推理的独特之处
 
-Compared to formal deductive logic, scientific reasoning has five additional layers:
+与形式演绎逻辑相比，科学推理有五个额外层次：
 
-1. **World interface**: premises come from observations, measurements, experiments, and literature -- not from axioms.
-2. **Uncertainty**: we rarely prove a proposition true; we assess how believable it is given current evidence.
-3. **Applicability conditions**: scientific laws almost always carry regime restrictions, idealizations, and background assumptions.
-4. **Defeasibility**: new evidence can weaken old conclusions. Contradiction is not system failure but a knowledge-update signal.
-5. **Open-ended discovery**: abduction, induction, and hidden-premise discovery lie outside pure deductive logic.
+1. **世界接口**：前提来自观测、测量、实验和文献——而非来自公理。
+2. **不确定性**：我们很少证明一个命题为真；我们评估的是在当前证据下它的可信程度。
+3. **适用条件**：科学定律几乎总是附带体系限制、理想化条件和背景假设。
+4. **可废止性（defeasibility）**：新证据可以削弱旧结论。矛盾不是系统故障，而是知识更新信号。
+5. **开放式发现**：溯因推理、归纳推理和隐含前提的发现都超出纯演绎逻辑的范畴。
 
-Therefore Gaia needs:
+因此 Gaia 需要：
 
-- a language that can express scientific assertions with their applicability conditions
-- an inference system that updates beliefs consistently under uncertainty
-- a knowledge lifecycle that accommodates contradiction, retraction, and revision
+- 一种能够表达带有适用条件的科学断言的语言
+- 一个能够在不确定性下一致地更新信念的推理系统
+- 一个能够容纳矛盾、撤回和修正的知识生命周期
 
-## 3. Scientific Object Classes
+## 3. 科学对象类别
 
-### BP-bearing objects (truth-apt, closed assertions)
+### 承载 BP 的对象（具有真值的封闭断言）
 
-| Class | Description | Example |
+| 类别 | 描述 | 示例 |
 |---|---|---|
-| **ClosedClaim** | A concrete, truth-apt scientific assertion | "The feather and hammer fall at the same rate in lunar vacuum" |
-| **ObservationClaim** | A claim whose authority comes from observation | A reported experimental outcome or instrument reading |
-| **MeasurementClaim** | An observation with quantitative metadata | "The transition temperature is 92 +/- 1 K" |
-| **HypothesisClaim** | An explanatory or predictive candidate | A dark-matter interpretation of an anomaly |
-| **LawClaim** | A general assertion with explicit scope and regime | "For ideal gases in the dilute regime, PV = nRT" |
-| **PredictionClaim** | A claim derived from a model under specific assumptions | "Given model M, the spectrum should peak at lambda" |
-| **RegimeAssumption** | A background condition or idealization | Vacuum, non-relativistic regime, negligible air resistance |
+| **ClosedClaim** | 具体的、具有真值的科学断言 | "在月球真空中，羽毛和锤子以相同速率下落" |
+| **ObservationClaim** | 权威性来自观测的断言 | 报告的实验结果或仪器读数 |
+| **MeasurementClaim** | 带有定量元数据的观测 | "转变温度为 92 +/- 1 K" |
+| **HypothesisClaim** | 解释性或预测性候选项 | 对异常现象的暗物质解释 |
+| **LawClaim** | 具有明确范围和体系的一般性断言 | "对于稀薄态下的理想气体，PV = nRT" |
+| **PredictionClaim** | 在特定假设下由模型推导的断言 | "给定模型 M，光谱应在 lambda 处达到峰值" |
+| **RegimeAssumption** | 背景条件或理想化假设 | 真空、非相对论体系、可忽略空气阻力 |
 
-All of these carry a belief value in [0, 1] and participate in BP after acceptance.
+所有这些对象都携带 [0, 1] 范围内的信念值，并在被接受后参与 BP。
 
-### Non-BP objects
+### 非 BP 对象
 
-| Class | Description | Why excluded |
+| 类别 | 描述 | 排除原因 |
 |---|---|---|
-| **Template** | An open proposition schema (e.g., `P(x) -> Q(x)`) | Not closed; no truth value |
-| **Question** | An inquiry artifact | Not truth-apt |
-| **GeneralizationCandidate** | A broader pattern induced from cases, before acceptance | Not yet accepted into the graph |
-| Review findings, curation suggestions | Workflow artifacts | Not knowledge assertions |
+| **Template** | 开放命题模式（例如 `P(x) -> Q(x)`） | 不封闭；无真值 |
+| **Question** | 问询制品 | 不具有真值性 |
+| **GeneralizationCandidate** | 从案例归纳出的更广模式，接受之前 | 尚未被接受进入图 |
+| 审查发现、策展建议 | 工作流制品 | 不是知识断言 |
 
-## 4. Defeasibility
+## 4. 可废止性
 
-Scientific beliefs change with new evidence. This is formalized through three mechanisms:
+科学信念随新证据而变化。这通过三种机制形式化：
 
-- **Belief update via BP**: when new factors (reasoning links) are added to the graph, BP recomputes all beliefs. A previously high-belief claim can be lowered by new contradictory evidence.
-- **Contradiction**: an explicit relation declaring that two claims should not both be true. BP automatically weakens the less-supported claim.
-- **Retraction**: an explicit declaration that prior evidence against a claim is withdrawn. The retracted evidence's influence is inverted.
+- **通过 BP 的信念更新**：当新因子（推理链接）被添加到图中时，BP 重新计算所有信念。一个先前高信念的断言可能被新的矛盾证据降低。
+- **矛盾（contradiction）**：明确声明两个断言不应同时为真的关系。BP 自动削弱支持较少的断言。
+- **撤回（retraction）**：明确声明先前反对某断言的证据被撤回。被撤回证据的影响被反转。
 
-Defeasibility is not a bug or a special case -- it is the core feature that distinguishes scientific reasoning from deductive proof. In Gaia, non-monotonicity (new premises can lower belief in old conclusions) is built into the inference engine.
+可废止性不是缺陷或特殊情况——它是区分科学推理与演绎证明的核心特征。在 Gaia 中，非单调性（新前提可以降低旧结论的信念）被内建于推理引擎中。
 
-## 5. Propositions, Not Entities
+## 5. 命题，而非实体
 
-Traditional knowledge graphs store **entities** (Einstein, Ulm) connected by **relations** (bornIn). Gaia stores **propositions** ("Einstein was born in Ulm") connected by **reasoning links** (premises support conclusions).
+传统知识图谱存储**实体**（爱因斯坦、乌尔姆），通过**关系**（出生于）连接。Gaia 存储**命题**（"爱因斯坦出生于乌尔姆"），通过**推理链接**（前提支持结论）连接。
 
-| Dimension | Entity-level (traditional KG) | Proposition-level (Gaia) |
+| 维度 | 实体级（传统知识图谱） | 命题级（Gaia） |
 |---|---|---|
-| Node | A thing in the world | A claim about the world |
-| Edge | A relation (bornIn) | A reasoning step (premises -> conclusion) |
-| Uncertainty | None (stored = true) | Prior, belief, probability |
-| Contradiction | Data quality error | First-class citizen |
-| Provenance | Optional metadata | Core structure (reasoning chain) |
+| 节点 | 世界中的事物 | 关于世界的断言 |
+| 边 | 关系（出生于） | 推理步骤（前提 -> 结论） |
+| 不确定性 | 无（存储 = 为真） | 先验、信念、概率 |
+| 矛盾 | 数据质量问题 | 一等公民 |
+| 溯源 | 可选元数据 | 核心结构（推理链） |
 
-## 6. Language Surface Mapping
+## 6. 语言表面映射
 
-For how Gaia Language maps these ontological classes to declarations, see `../cli/gaia-lang/knowledge-types.md`.
+关于 Gaia 语言如何将这些本体论类别映射到声明，参见 `../cli/gaia-lang/knowledge-types.md`。
 
-## Source
+## 参考文献
 
 - [../../archive/foundations-v2/theory/scientific-ontology.md](../../archive/foundations-v2/theory/scientific-ontology.md)
-- [../../archive/foundations-v2/theory/theoretical-foundation.md](../../archive/foundations-v2/theory/theoretical-foundation.md) (sections 1.1, 1.2)
+- [../../archive/foundations-v2/theory/theoretical-foundation.md](../../archive/foundations-v2/theory/theoretical-foundation.md)（第 1.1、1.2 节）

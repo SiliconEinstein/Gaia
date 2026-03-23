@@ -1,33 +1,33 @@
-# Local Storage
+# 本地存储
 
 > **Status:** Current canonical
 
-This document describes the embedded storage configuration used by the CLI for local development and `gaia publish --local`. For server-side storage architecture, see [../lkm/storage.md](../lkm/storage.md).
+本文档描述 CLI 在本地开发和 `gaia publish --local` 中使用的嵌入式存储配置。服务器端存储架构参见 [../lkm/storage.md](../lkm/storage.md)。
 
-## Embedded Backends
+## 嵌入式后端
 
-The CLI uses embedded (in-process) storage backends:
+CLI 使用嵌入式（进程内）存储后端：
 
-| Backend | Implementation | Purpose |
+| 后端 | 实现 | 用途 |
 |---------|---------------|---------|
-| **LanceDB embedded** | `LanceContentStore` with local path | Content persistence, BM25 full-text search |
-| **Kuzu embedded** | `KuzuGraphStore` | Graph topology for traversal queries |
-| **LanceDB Vector** | `LanceVectorStore` (same LanceDB connection) | Embedding similarity search |
+| **LanceDB embedded** | `LanceContentStore`（使用本地路径） | 内容持久化、BM25 全文搜索 |
+| **Kuzu embedded** | `KuzuGraphStore` | 图拓扑，用于遍历查询 |
+| **LanceDB Vector** | `LanceVectorStore`（同一 LanceDB 连接） | 向量相似性搜索 |
 
-Both LanceDB and Kuzu run as embedded databases -- no separate server process is needed.
+LanceDB 和 Kuzu 均作为嵌入式数据库运行——无需单独的服务器进程。
 
-## Configuration
+## 配置
 
-| Setting | Source | Default |
+| 设置项 | 来源 | 默认值 |
 |---------|--------|---------|
-| `GAIA_LANCEDB_PATH` | env var or `--db-path` | `./data/lancedb/gaia` |
-| `graph_backend` | `StorageConfig` | `"kuzu"` (embedded) |
+| `GAIA_LANCEDB_PATH` | 环境变量或 `--db-path` | `./data/lancedb/gaia` |
+| `graph_backend` | `StorageConfig` | `"kuzu"`（嵌入式） |
 
-The LanceDB path controls where all content, vector, and Kuzu graph data is stored locally.
+LanceDB 路径控制所有内容、向量和 Kuzu 图数据的本地存储位置。
 
-## `gaia publish --local` Triple-Write
+## `gaia publish --local` 三写入
 
-When publishing locally, the CLI runs the full three-write protocol via `StorageManager`:
+本地发布时，CLI 通过 `StorageManager` 运行完整的三写入协议：
 
 ```
 1. Write package with status="preparing"  (invisible to reads)
@@ -37,28 +37,28 @@ When publishing locally, the CLI runs the full three-write protocol via `Storage
 5. Flip status to "merged"  (visible to reads)
 ```
 
-On failure, data stays in "preparing" status -- invisible to readers and safe to retry.
+失败时，数据保持 "preparing" 状态——对读取者不可见，可以安全重试。
 
-## `gaia search` via BM25
+## 通过 BM25 进行 `gaia search`
 
-`gaia search` queries the local LanceDB content store:
+`gaia search` 查询本地 LanceDB 内容存储：
 
-- **Primary**: BM25 full-text search via LanceDB's built-in FTS indexing.
-- **Fallback**: SQL `LIKE` filter for CJK/unsegmented text.
-- **Direct lookup**: `--id <knowledge_id>` fetches a specific knowledge item with latest belief from `belief_history`.
+- **主要方式**：通过 LanceDB 内置 FTS 索引的 BM25 全文搜索。
+- **回退方式**：针对 CJK/未分词文本的 SQL `LIKE` 过滤。
+- **直接查找**：`--id <knowledge_id>` 获取特定知识项及其来自 `belief_history` 的最新置信值。
 
-## Code Paths
+## 代码路径
 
-| Component | File |
+| 组件 | 文件 |
 |-----------|------|
-| Storage config | `libs/storage/config.py:StorageConfig` |
-| Storage manager | `libs/storage/manager.py:StorageManager` |
-| Content store | `libs/storage/lance_content_store.py:LanceContentStore` |
-| Graph store (Kuzu) | `libs/storage/kuzu_graph_store.py:KuzuGraphStore` |
-| Vector store | `libs/storage/lance_vector_store.py:LanceVectorStore` |
-| CLI publish command | `cli/main.py` |
-| Pipeline publish | `libs/pipeline.py:pipeline_publish()` |
+| 存储配置 | `libs/storage/config.py:StorageConfig` |
+| 存储管理器 | `libs/storage/manager.py:StorageManager` |
+| 内容存储 | `libs/storage/lance_content_store.py:LanceContentStore` |
+| 图存储（Kuzu） | `libs/storage/kuzu_graph_store.py:KuzuGraphStore` |
+| 向量存储 | `libs/storage/lance_vector_store.py:LanceVectorStore` |
+| CLI 发布命令 | `cli/main.py` |
+| 管线发布 | `libs/pipeline.py:pipeline_publish()` |
 
-## Current State
+## 当前状态
 
-Local storage works with embedded LanceDB and Kuzu. The `publish --local` path exercises the full three-write protocol. BM25 search is functional. The graph backend is optional -- the system degrades gracefully to content-only mode.
+本地存储使用嵌入式 LanceDB 和 Kuzu 正常工作。`publish --local` 路径执行完整的三写入协议。BM25 搜索功能正常。图后端是可选的——系统可优雅降级为仅内容模式。

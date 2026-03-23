@@ -1,43 +1,43 @@
-# Domain Vocabulary
+# 领域词汇表
 
 > **Status:** Current canonical
 
-Core terms used across Gaia documentation.
+Gaia 文档中使用的核心术语。
 
 ## Knowledge
 
-A versioned proposition -- the fundamental unit of the knowledge graph. A knowledge object carries content (the proposition text), a type (claim, question, setting, action, contradiction, equivalence), and an author-assigned prior (degree of initial belief).
+一个版本化的命题——知识图的基本单元。一个 Knowledge 对象携带内容（命题文本）、类型（claim、question、setting、action、contradiction、equivalence）以及作者分配的先验（初始信念度）。
 
-For the full type taxonomy, see `../cli/gaia-lang/knowledge-types.md`. For storage schema, see `../graph-ir/knowledge-nodes.md`.
+完整的类型分类参见 `../cli/gaia-lang/knowledge-types.md`。存储 schema 参见 `../graph-ir/knowledge-nodes.md`。
 
 ## Chain
 
-A multi-step reasoning structure connecting premises to a conclusion. Each chain has a type (deduction, induction, abstraction, contradiction, retraction, equivalence) that classifies the reasoning pattern. In Graph IR, each chain produces one factor node.
+一个连接前提到结论的多步推理结构。每个 Chain 有一个类型（deduction、induction、abstraction、contradiction、retraction、equivalence），用于分类推理模式。在 Graph IR 中，每个 Chain 产生一个 factor node。
 
-For factor node details, see `../graph-ir/factor-nodes.md`.
+因子节点详情参见 `../graph-ir/factor-nodes.md`。
 
 ## Module
 
-A logical grouping of knowledge objects and chains within a package. In the authoring surface, each `.typ` file (other than `lib.typ` and `gaia.typ`) is implicitly a module. Modules exist for organizational clarity -- they do not create independent BP boundaries.
+包内 Knowledge 对象和 Chain 的逻辑分组。在编写表面中，每个 `.typ` 文件（`lib.typ` 和 `gaia.typ` 除外）隐式地是一个 Module。Module 用于组织清晰性——它们不创建独立的 BP 边界。
 
 ## Package
 
-A complete, versioned knowledge container. Analogous to a git repository or a published paper. The unit of submission, review, and integration. Identity: `(package_id, version)`.
+一个完整的、版本化的知识容器。类似于 git 仓库或已发表的论文。提交、审查和集成的单元。身份标识：`(package_id, version)`。
 
-For package authoring structure, see `../cli/gaia-lang/package-model.md`. For package lifecycle, see `../cli/lifecycle.md`.
+包编写结构参见 `../cli/gaia-lang/package-model.md`。包生命周期参见 `../cli/lifecycle.md`。
 
 ## Factor Graph
 
-A bipartite graph with variable nodes (knowledge objects) and factor nodes (reasoning constraints). The core computational structure for belief propagation. See `../graph-ir/overview.md` and `../bp/inference.md`.
+一个包含 variable node（变量节点，知识对象）和 factor node（因子节点，推理约束）的二部图。Belief Propagation 的核心计算结构。参见 `../graph-ir/overview.md` 和 `../bp/inference.md`。
 
 ## Graph IR
 
-The structural intermediate representation between Gaia Lang and BP. A first-class submission artifact with three identity layers: Raw Graph, Local Canonical Graph, and Global Canonical Graph. See `../graph-ir/overview.md`.
+Gaia Lang 与 BP 之间的结构中间表示。一个一等提交制品，具有三个身份层：RawGraph、LocalCanonicalGraph 和 GlobalCanonicalGraph。参见 `../graph-ir/overview.md`。
 
 ## Belief
 
-The posterior plausibility of a knowledge object, computed by BP. In [0, 1], where 0.5 represents maximum ignorance (MaxEnt). See `../theory/belief-propagation.md`.
+一个 Knowledge 对象的后验合理性，由 BP 计算。取值在 [0, 1] 范围内，其中 0.5 表示最大无知（MaxEnt）。参见 `../theory/belief-propagation.md`。
 
-## Source
+## 参考文献
 
-- `libs/storage/models.py` -- Pydantic models for all core types
+- `libs/storage/models.py`——所有核心类型的 Pydantic 模型

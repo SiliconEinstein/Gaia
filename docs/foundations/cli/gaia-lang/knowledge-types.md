@@ -1,88 +1,88 @@
-# Knowledge Types
+# 知识类型
 
 > **Status:** Current canonical
 
-Gaia has four **declaration types** for knowledge objects and two **relation types** for structural constraints. Each maps to a Typst surface function.
+Gaia 有四种知识对象的**声明类型**和两种结构约束的**关系类型**。每种类型对应一个 Typst 表面函数。
 
-## Declaration Types
+## 声明类型
 
 ### Claim (`#claim`)
 
-A truth-apt scientific assertion. The primary reasoning type.
+可判真的科学断言，是主要的推理类型。
 
-- **Meaning**: a proposition that can be true or false, with quantifiable uncertainty.
-- **Default prior**: author-assigned, in (epsilon, 1 - epsilon). No fixed default; must be parameterized before inference.
-- **Subtypes via `kind:`**: `"observation"`, `"hypothesis"`, `"law"`, `"prediction"`, etc. The `kind` records evidence type and scientific role but does not change structural topology.
-- **Surface**: `#claim(kind: "observation", from: (<premise>,))[content][proof]`
+- **含义**：可以为真或假的命题，具有可量化的不确定性。
+- **默认先验**：作者指定，在 (epsilon, 1 - epsilon) 范围内。无固定默认值；推理前必须参数化。
+- **通过 `kind:` 指定子类型**：`"observation"`、`"hypothesis"`、`"law"`、`"prediction"` 等。`kind` 记录证据类型和科学角色，但不改变结构拓扑。
+- **表面语法**：`#claim(kind: "observation", from: (<premise>,))[content][proof]`
 
 ### Setting (`#setting`)
 
-A contextual assumption, background condition, or regime restriction that requires no proof within the package.
+上下文假设、背景条件或范围限制，在包内无需证明。
 
-- **Meaning**: accepted locally without justification. Can be challenged by contradiction from another package.
-- **Default prior**: typically high (author considers it given), but still in (epsilon, 1 - epsilon).
-- **Surface**: `#setting[content] <label>`
+- **含义**：在本地无需理由即被接受。可被其他包的矛盾所质疑。
+- **默认先验**：通常较高（作者认为是已知的），但仍在 (epsilon, 1 - epsilon) 范围内。
+- **表面语法**：`#setting[content] <label>`
 
 ### Question (`#question`)
 
-An open scientific inquiry. Not a truth-apt assertion.
+开放的科学探究，不是可判真的断言。
 
-- **Meaning**: motivates the package but makes no claim about the world.
-- **Default prior**: N/A. Questions are not parameterized.
-- **Surface**: `#question[content] <label>`
+- **含义**：为包提供动机，但不对世界做任何断言。
+- **默认先验**：不适用。Question 不参与参数化。
+- **表面语法**：`#question[content] <label>`
 
 ### Action (`#action`)
 
-A procedural step or computational task. Shares the parameter signature of `#claim`.
+程序性步骤或计算任务。与 `#claim` 共享参数签名。
 
-- **Meaning**: declares a procedure to be performed. Not a default truth-apt proposition in the scientific sense.
-- **Default prior**: N/A for default inference. Runtime-specific lowering may assign one.
-- **Surface**: `#action(kind: "python", from: (<dep>,))[content][proof]`
+- **含义**：声明要执行的程序。在科学意义上默认不是可判真的命题。
+- **默认先验**：默认推理不适用。运行时特定的降级可能会赋予先验值。
+- **表面语法**：`#action(kind: "python", from: (<dep>,))[content][proof]`
 
-## Relation Types
+## 关系类型
 
-Relations are declared with `#relation(type:, between:)` and serve as structural constraints between existing nodes.
+关系通过 `#relation(type:, between:)` 声明，作为现有节点之间的结构约束。
 
 ### Contradiction (`#relation(type: "contradiction")`)
 
-- **Meaning**: the two referenced nodes are mutually exclusive -- they should not both be true.
-- **V1 scope**: defined for claims, settings, and other relation nodes. Not defined for questions or bare actions.
+- **含义**：两个被引用的节点互斥——它们不应同时为真。
+- **V1 范围**：适用于 claim、setting 和其他关系节点。不适用于 question 或裸 action。
 
 ### Equivalence (`#relation(type: "equivalence")`)
 
-- **Meaning**: the two referenced nodes express the same proposition.
-- **V1 scope**: type-preserving. For questions and actions, equivalence is valid only between nodes with the same root type and same `kind`.
+- **含义**：两个被引用的节点表达相同的命题。
+- **V1 范围**：保持类型一致。对于 question 和 action，等价关系仅在具有相同根类型和相同 `kind` 的节点之间有效。
 
-## Summary Table
+## 总结表
 
-| Type | Typst function | Truth-apt? | `from:` | `between:` |
+| 类型 | Typst 函数 | 可判真？ | `from:` | `between:` |
 |---|---|---|---|---|
-| Claim | `#claim` | Yes | Optional | No |
-| Setting | `#setting` | Yes | No | No |
-| Question | `#question` | No | No | No |
-| Action | `#action` | No (default) | Optional | No |
-| Contradiction | `#relation(type: "contradiction")` | Yes | No | Required |
-| Equivalence | `#relation(type: "equivalence")` | Yes | No | Required |
+| Claim | `#claim` | 是 | 可选 | 否 |
+| Setting | `#setting` | 是 | 否 | 否 |
+| Question | `#question` | 否 | 否 | 否 |
+| Action | `#action` | 否（默认） | 可选 | 否 |
+| Contradiction | `#relation(type: "contradiction")` | 是 | 否 | 必需 |
+| Equivalence | `#relation(type: "equivalence")` | 是 | 否 | 必需 |
 
-## Proof State Classification
+## 证明状态分类
 
-Each knowledge node in a package can be classified by its proof state — how well-supported it is within the package's reasoning structure:
+包中的每个知识节点可以根据其证明状态进行分类——即它在包的推理结构中被支持的程度：
 
-| Proof state | Meaning |
+| 证明状态 | 含义 |
 |---|---|
-| **Theorem** | Has at least one reasoning chain with all premises resolved within the package |
-| **Assumption** | Accepted without proof within the package (settings, or claims with no `from:`) |
-| **Hole** | Referenced as a premise but never declared — a gap in the reasoning |
-| **Conjecture** | Has reasoning chains, but at least one premise is unresolved (depends on a hole) |
+| **Theorem** | 至少有一条推理链，其所有前提在包内已解析 |
+| **Assumption** | 在包内无需证明即被接受（setting，或无 `from:` 的 claim） |
+| **Hole** | 被作为前提引用但从未声明——推理中的缺口 |
+| **Conjecture** | 有推理链，但至少一个前提未解析（依赖于 hole） |
 
-Run `gaia build --proof-state` to generate a proof state report. See `libs/lang/proof_state.py` for the analysis implementation.
+运行 `gaia build --proof-state` 可生成证明状态报告。分析实现参见 `libs/lang/proof_state.py`。
 
-## Cross-Layer References
+## 跨层引用
 
-- **BP behavior**: see [../../bp/potentials.md](../../bp/potentials.md)
-- **Graph IR mapping** (how declarations become variable and factor nodes): see [../../graph-ir/factor-nodes.md](../../graph-ir/factor-nodes.md) and [../../graph-ir/knowledge-nodes.md](../../graph-ir/knowledge-nodes.md)
+- **BP 行为**：参见 [../../bp/potentials.md](../../bp/potentials.md)
+- **Graph IR 映射**（声明如何转变为变量节点和因子节点）：参见 [../../graph-ir/factor-nodes.md](../../graph-ir/factor-nodes.md) 和 [../../graph-ir/knowledge-nodes.md](../../graph-ir/knowledge-nodes.md)
 
-## Source
+## 源码
 
-- `libs/storage/models.py` -- `Knowledge.type` enum: `claim | question | setting | action | contradiction | equivalence`
-- `docs/foundations/theory/scientific-ontology.md` -- ontology classification
+- `libs/storage/models.py` —— `Knowledge.type` 枚举：`claim | question | setting | action | contradiction | equivalence`
+- `docs/foundations/theory/scientific-ontology.md` —— 本体论分类

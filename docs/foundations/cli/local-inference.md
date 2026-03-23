@@ -1,70 +1,70 @@
-# Local Inference
+# 本地推理
 
 > **Status:** Current canonical
 
-This document describes how `gaia infer` runs local belief propagation on a single package. For the BP algorithm and factor potential definitions, see the [BP layer](../bp/inference.md).
+本文档描述 `gaia infer` 如何在单个包上运行本地置信传播。BP 算法和因子势函数的定义参见 [BP 层](../bp/inference.md)。
 
-## Overview
+## 概览
 
-`gaia infer` provides a local belief preview -- it runs BP on the package's local canonical graph with locally derived parameterization. The scope is strictly one package; it does not query or modify the global graph.
+`gaia infer` 提供本地置信预览——它在包的局部规范图上使用本地导出的参数化运行 BP。范围严格限制在单个包内；不查询或修改全局图。
 
-## How `gaia infer` Works
+## `gaia infer` 的工作原理
 
-The command chains three pipeline functions:
+该命令链接三个管线函数：
 
-1. **Build** (`pipeline_build()`) -- rebuild the package, producing a `LocalCanonicalGraph`.
-2. **Review** (`pipeline_review(build, mock=True)`) -- derive priors and factor params via `MockReviewClient`, producing a `ReviewOutput` with `node_priors` and `factor_params`.
-3. **Infer** (`pipeline_infer(build, review)`) -- adapt graph to factor graph, run BP, output beliefs.
+1. **Build**（`pipeline_build()`）—— 重建包，产出 `LocalCanonicalGraph`。
+2. **Review**（`pipeline_review(build, mock=True)`）—— 通过 `MockReviewClient` 导出先验和因子参数，产出包含 `node_priors` 和 `factor_params` 的 `ReviewOutput`。
+3. **Infer**（`pipeline_infer(build, review)`）—— 将图适配为因子图，运行 BP，输出置信值。
 
-## The Adapter Layer
+## 适配层
 
-See `libs/graph_ir/adapter.py`.
+参见 `libs/graph_ir/adapter.py`。
 
-The adapter builds a `FactorGraph` from Graph IR by:
+适配器通过以下方式从 Graph IR 构建 `FactorGraph`：
 
-1. Mapping each `LocalCanonicalNode` ID to an integer variable ID.
-2. Setting priors from the `LocalParameterization` (or `ReviewOutput.node_priors`).
-3. Mapping each `FactorNode` to a factor dict with `premises`, `conclusions`, `probability`, and `edge_type`.
-4. Applying Cromwell's rule: all priors and factor probabilities clamped to `[epsilon, 1 - epsilon]`.
+1. 将每个 `LocalCanonicalNode` ID 映射为整数变量 ID。
+2. 从 `LocalParameterization`（或 `ReviewOutput.node_priors`）设置先验。
+3. 将每个 `FactorNode` 映射为包含 `premises`、`conclusions`、`probability` 和 `edge_type` 的因子字典。
+4. 应用 Cromwell 规则：所有先验和因子概率限制在 `[epsilon, 1 - epsilon]` 范围内。
 
-The result is a `FactorGraph` ready for the BP engine.
+结果是一个可供 BP 引擎使用的 `FactorGraph`。
 
-## Parameters
+## 参数
 
-| Parameter | Default | Description |
+| 参数 | 默认值 | 描述 |
 |-----------|---------|-------------|
-| `damping` | 0.5 | Blending factor; 1.0 = fully replace, 0.0 = keep old |
-| `max_iterations` | 50 | Upper bound on sweeps |
-| `convergence_threshold` | 1e-6 | Stop when max belief change is below this |
+| `damping` | 0.5 | 混合因子；1.0 = 完全替换，0.0 = 保持旧值 |
+| `max_iterations` | 50 | 迭代次数上限 |
+| `convergence_threshold` | 1e-6 | 最大置信变化低于此值时停止 |
 
-These are the default BP parameters. The CLI does not currently expose them as command-line arguments.
+这些是默认的 BP 参数。CLI 目前不将它们暴露为命令行参数。
 
-## Output
+## 输出
 
-Results are saved to `.gaia/infer/infer_result.json`, containing:
+结果保存到 `.gaia/infer/infer_result.json`，包含：
 
-- Per-node beliefs (posterior probabilities)
-- Convergence diagnostics (iterations run, converged status, max change at stop)
-- Belief history traces for conflict detection
+- 每节点置信值（后验概率）
+- 收敛诊断信息（运行迭代次数、是否收敛、停止时的最大变化）
+- 用于冲突检测的置信历史轨迹
 
-## Cross-Layer References
+## 跨层引用
 
-- **BP algorithm** (message passing, convergence, diagnostics): see [../bp/inference.md](../bp/inference.md)
-- **Factor potentials** (how each factor type constrains beliefs): see [../bp/potentials.md](../bp/potentials.md)
-- **Local vs global BP** (same algorithm, different scope): see [../bp/local-vs-global.md](../bp/local-vs-global.md)
-- **Parameterization model** (structure vs. probabilities separation): see [../graph-ir/parameterization.md](../graph-ir/parameterization.md)
+- **BP 算法**（消息传递、收敛、诊断）：参见 [../bp/inference.md](../bp/inference.md)
+- **因子势函数**（每种因子类型如何约束置信值）：参见 [../bp/potentials.md](../bp/potentials.md)
+- **本地与全局 BP**（相同算法，不同范围）：参见 [../bp/local-vs-global.md](../bp/local-vs-global.md)
+- **参数化模型**（结构与概率的分离）：参见 [../graph-ir/parameterization.md](../graph-ir/parameterization.md)
 
-## Code Paths
+## 代码路径
 
-| Component | File |
+| 组件 | 文件 |
 |-----------|------|
-| Pipeline infer function | `libs/pipeline.py:pipeline_infer()` |
-| Graph IR adapter | `libs/graph_ir/adapter.py` |
-| Factor graph | `libs/inference/factor_graph.py` |
-| BP algorithm | `libs/inference/bp.py:BeliefPropagation` |
-| CLI command | `cli/main.py` (`infer` command) |
-| Mock review client | `cli/llm_client.py:MockReviewClient` |
+| 管线推理函数 | `libs/pipeline.py:pipeline_infer()` |
+| Graph IR 适配器 | `libs/graph_ir/adapter.py` |
+| 因子图 | `libs/inference/factor_graph.py` |
+| BP 算法 | `libs/inference/bp.py:BeliefPropagation` |
+| CLI 命令 | `cli/main.py`（`infer` 命令） |
+| 模拟审查客户端 | `cli/llm_client.py:MockReviewClient` |
 
-## Current State
+## 当前状态
 
-Local inference is fully functional. The CLI always uses `MockReviewClient` (deterministic priors: `setting = 1.0`, others = `0.5`; factor conditional probability = `0.85`). Real LLM review is only available via the pipeline scripts.
+本地推理功能完备。CLI 始终使用 `MockReviewClient`（确定性先验：`setting = 1.0`，其他 = `0.5`；因子条件概率 = `0.85`）。真正的 LLM 审查仅通过管线脚本可用。

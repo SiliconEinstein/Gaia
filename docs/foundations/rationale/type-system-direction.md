@@ -1,77 +1,77 @@
-# Type System Direction
+# 类型系统方向
 
 > **Status:** Current canonical
 
-## Foundational Position: Jaynes + Lean Hybrid
+## 基础立场：Jaynes + Lean 混合体
 
-Gaia's type-theoretic identity derives from one observation: Jaynes's plausible reasoning extends deductive logic by generalizing truth values from {0, 1} to [0, 1]. This means the type system's *structure* can follow established formal language design (borrowing from Lean), while the *evaluation semantics* follow Jaynes (BP computes beliefs instead of term reduction producing proofs).
+Gaia 的类型论身份源自一个观察：Jaynes 的似然推理将演绎逻辑的真值从 {0, 1} 推广到 [0, 1]。这意味着类型系统的*结构*可以遵循成熟的形式语言设计（借鉴 Lean），而*求值语义*遵循 Jaynes（BP 计算信念，而非项归约产生证明）。
 
-**In one sentence: Lean's structure + Jaynes's semantics.**
+**一句话概括：Lean 的结构 + Jaynes 的语义。**
 
-## Why Not Curry-Howard
+## 为何不是 Curry-Howard
 
-Lean's type system is built on the Curry-Howard correspondence: propositions are types, proofs are terms. This does not apply to Gaia for three reasons:
+Lean 的类型系统建立在 Curry-Howard 对应关系之上：命题即类型，证明即项。这不适用于 Gaia，有三个原因：
 
-### 1. Proof irrelevance vs evidence relevance
+### 1. 证明无关性 vs 证据相关性
 
-In Lean, once a proposition has one proof, all proofs are equal (proof irrelevance). In Gaia, different evidence for the same claim has different weight. Multiple pieces of evidence must be aggregated via BP. Evidence is never irrelevant — it is the entire basis for computing belief.
+在 Lean 中，一旦一个命题有了一个证明，所有证明都是等价的（证明无关性）。在 Gaia 中，同一断言的不同证据具有不同权重。多条证据必须通过 BP 聚合。证据从不是无关的——它是计算信念的全部基础。
 
-### 2. Binary inhabitation vs continuous belief
+### 2. 二值居留 vs 连续信念
 
-In Lean, a proposition is either inhabited (proved) or not. In Gaia, a claim has a degree of belief in [0, 1]. The question is never "is this true?" but "how much should we believe this?"
+在 Lean 中，一个命题要么被居留（已证明），要么没有。在 Gaia 中，一个断言有 [0, 1] 范围内的信念度。问题从来不是"这是否为真？"而是"我们应该多大程度上相信这一点？"
 
-### 3. Monotonicity vs defeasibility
+### 3. 单调性 vs 可废止性
 
-In Lean, once a theorem is proved, it stays proved forever. New theorems never invalidate old ones. In Gaia, new evidence can weaken old claims. Retraction and contradiction are first-class operations. Belief revision is the norm, not the exception.
+在 Lean 中，一旦定理被证明，它就永远成立。新定理永远不会使旧定理失效。在 Gaia 中，新证据可以削弱旧断言。撤回和矛盾是一等操作。信念修正是常态，而非例外。
 
-### Consequence
+### 结论
 
-Claims are terms, not types. All claims are terms of type `Claim`. Evidence connects to claims via graph edges, not via type inhabitation. BP computes belief on the graph, not via type checking.
+断言是项，而非类型。所有断言都是 `Claim` 类型的项。证据通过图边连接到断言，而非通过类型居留。BP 在图上计算信念，而非通过类型检查。
 
-## Probability at the Value Layer, Not the Type Layer
+## 概率在值层，而非类型层
 
-If probability were part of the type system (e.g., `Claim(p=0.8)` as a type distinct from `Claim(p=0.7)`), type checking itself becomes probabilistic. This is avoided because:
+如果概率是类型系统的一部分（例如 `Claim(p=0.8)` 作为与 `Claim(p=0.7)` 不同的类型），类型检查本身就变成概率性的。避免这样做是因为：
 
-- Type checking should be decidable and deterministic
-- No mature theory exists for probabilistic type checking
-- Every successful probabilistic language (Church, Pyro, Stan) keeps probability at the value level
-- Jaynes's own framework treats logical structure as deterministic, with probability assigned to propositions within that structure
+- 类型检查应该是可判定的和确定性的
+- 不存在概率类型检查的成熟理论
+- 每种成功的概率语言（Church、Pyro、Stan）都将概率保持在值层
+- Jaynes 自己的框架将逻辑结构视为确定性的，概率赋予该结构内的命题
 
-| Layer | Deterministic? | Responsible for |
+| 层 | 确定性的？ | 负责什么 |
 |---|---|---|
-| Type system | Yes | Structural well-formedness, classification, checking |
-| Values (prior, belief) | N/A — they are data | Carrying probability information |
-| BP evaluator | Deterministic given a graph | Computing posterior beliefs |
+| 类型系统 | 是 | 结构良构性、分类、检查 |
+| 值（先验、信念） | 不适用——它们是数据 | 携带概率信息 |
+| BP 求值器 | 给定图则确定性 | 计算后验信念 |
 
-## Closed Claims vs Templates vs Laws
+## 封闭断言 vs 模板 vs 定律
 
-Gaia's type system distinguishes three layers often conflated in informal scientific writing:
+Gaia 的类型系统区分了非正式科学写作中经常混淆的三个层次：
 
-| Concept | Lean analogy | Role |
+| 概念 | Lean 类比 | 角色 |
 |---|---|---|
-| **Template** | `P : a -> Prop` (predicate) | Open proposition schema; not truth-apt |
-| **ClosedClaim** | `P(a)` (applied predicate) | Closed, truth-apt assertion; participates in BP |
-| **LawClaim** | `forall x, P(x)` (quantified) | Closed general assertion with explicit scope and regime |
+| **Template** | `P : a -> Prop`（谓词） | 开放命题模式；不具有真值性 |
+| **ClosedClaim** | `P(a)`（应用谓词） | 封闭的、具有真值的断言；参与 BP |
+| **LawClaim** | `forall x, P(x)`（量化） | 具有明确范围和体系的封闭一般性断言 |
 
-Only closed, truth-apt assertions participate in BP. Open templates do not.
+只有封闭的、具有真值的断言参与 BP。开放模板不参与。
 
-## What Gaia Borrows From Lean
+## Gaia 从 Lean 借鉴了什么
 
-1. **Small trusted kernel** — a core with a clear trust boundary handling deterministic structural checks (declaration formation, ref resolution, chain well-formedness, factor-graph compilation validity).
+1. **小型可信内核**——一个具有清晰信任边界的核心，处理确定性结构检查（声明形成、引用解析、链良构性、因子图编译有效性）。
 
-2. **Construction and verification separation** — LLMs and tools construct candidate reasoning structures; the kernel checks structural validity; review checks reasoning quality; BP computes posteriors.
+2. **构造与验证分离**——LLM 和工具构造候选推理结构；内核检查结构有效性；审查检查推理质量；BP 计算后验。
 
-3. **Elaboration** — authors write Typst-based package source; the system elaborates into typed core IR; all kernel checks operate on that IR.
+3. **展开（elaboration）**——作者编写基于 Typst 的包源；系统展开为类型化核心 IR；所有内核检查在该 IR 上操作。
 
-4. **Judgments and rules** — the kernel is defined in terms of formal judgments (e.g., "ref resolves," "chain is well-formed," "factor graph compiles"), not ad hoc validators.
+4. **判断和规则**——内核以形式化判断定义（例如"引用可解析"、"链是良构的"、"因子图可编译"），而非临时验证器。
 
-5. **Goal-state thinking (ProofState)** — open claims are analogous to Lean goals; grounded claims are analogous to discharged goals; `InferAction` is analogous to a tactic that fills a hole; local progress is observable as BeliefState.
+5. **目标状态思维（ProofState）**——开放断言类似于 Lean 的目标；已接地的断言类似于已消解的目标；`InferAction` 类似于填充空洞的 tactic；本地进展可观察为 BeliefState。
 
-6. **Module and namespace discipline** — strict rules for name introduction, scope resolution, and export boundaries.
+6. **模块和命名空间纪律**——名称引入、作用域解析和导出边界的严格规则。
 
-### ProofState and the Goal-State Metaphor
+### ProofState 与目标状态隐喻
 
-In Lean, a tactic operates on **proof state** -- a set of "holes" (metavariables), each with a type (the proposition to prove) and a local context (available hypotheses):
+在 Lean 中，tactic 操作 **proof state**——一组"空洞"（元变量），每个空洞有一个类型（要证明的命题）和一个局部上下文（可用假设）：
 
 ```
 ProofState = {
@@ -82,50 +82,50 @@ ProofState = {
 }
 ```
 
-Each tactic fills a hole, possibly introducing new subgoals. When all holes are filled, the proof is complete.
+每个 tactic 填充一个空洞，可能引入新的子目标。当所有空洞被填充时，证明完成。
 
-Gaia's equivalent is **BeliefState**: open claims are analogous to Lean goals (holes to be filled); grounded claims are analogous to discharged goals. The key structural difference is termination: Lean requires all goals to be discharged or the proof fails. Gaia allows incompleteness -- open claims yield wider uncertainty, but BP still computes beliefs on the partial graph. Half a proof is zero proof; half the evidence is half the confidence.
+Gaia 的等价物是 **BeliefState**：开放断言类似于 Lean 的目标（待填充的空洞）；已接地的断言类似于已消解的目标。关键的结构差异在于终止条件：Lean 要求所有目标被消解，否则证明失败。Gaia 允许不完整性——开放断言产生更大的不确定性，但 BP 仍然在部分图上计算信念。半个证明等于零证明；半个证据等于半个置信度。
 
-### The Tactic Mental Model vs the Function Call Mental Model
+### Tactic 心智模型 vs 函数调用心智模型
 
-This distinction is architecturally fundamental.
+这个区分在架构上是根本性的。
 
-In the **function call mental model** (wrong for Gaia), the LLM is the authority -- its output is the answer, and reasoning quality depends entirely on LLM text quality. Formal structure (chains, priors) is just a calling framework.
+在**函数调用心智模型**（对 Gaia 来说是错误的）中，LLM 是权威——它的输出就是答案，推理质量完全取决于 LLM 文本质量。形式结构（链、先验）只是一个调用框架。
 
-In the **tactic mental model** (correct for Gaia), the LLM helps *construct* reasoning content but does not determine its credibility. BP independently computes beliefs based on graph structure, priors, and edge probabilities. BP reads structure, not text. A hallucinating LLM cannot corrupt probabilistic judgment, just as a buggy tactic in Lean cannot corrupt a verified proof -- as long as the formal structure is sound.
+在 **tactic 心智模型**（对 Gaia 来说是正确的）中，LLM 帮助*构造*推理内容但不决定其可信度。BP 基于图结构、先验和边概率独立计算信念。BP 读取结构，而非文本。一个产生幻觉的 LLM 无法破坏概率判断，正如 Lean 中有缺陷的 tactic 无法破坏已验证的证明——只要形式结构是健全的。
 
-`InferAction` in Gaia is a tactic, not a function call. It constructs candidate reasoning chains. BP evaluates them independently.
+Gaia 中的 `InferAction` 是一个 tactic，而非函数调用。它构造候选推理链。BP 独立地评估它们。
 
-### Two-Kernel Concept: BP Kernel + Review Kernel
+### 双内核概念：BP 内核 + 审查内核
 
-In Lean, a single kernel checks both the structure and the content of a proof term. In Gaia, BP only checks **structure** -- graph topology, priors, edge probabilities. It does not read the text content of claims. BP alone is only half a kernel:
+在 Lean 中，单个内核同时检查证明项的结构和内容。在 Gaia 中，BP 只检查**结构**——图拓扑、先验、边概率。它不读取断言的文本内容。仅有 BP 只是半个内核：
 
-| Component | What it checks | Lean analogy |
+| 组件 | 检查什么 | Lean 类比 |
 |-----------|---------------|--------------|
-| **BP** | Graph structure, probability consistency | Structural type-check |
-| **Review** | Reasoning text quality, logical validity | Semantic type-check |
-| **BP + Review** | **Complete verification** | **Full kernel** |
+| **BP** | 图结构、概率一致性 | 结构类型检查 |
+| **审查** | 推理文本质量、逻辑有效性 | 语义类型检查 |
+| **BP + 审查** | **完整验证** | **完整内核** |
 
-This means `review` is not an optional product feature. It is the content-checking half of Gaia's kernel. Without review, Gaia can verify that a reasoning graph is structurally consistent but cannot assess whether the reasoning text is sound -- analogous to a type checker that verifies syntax but not semantics.
+这意味着 `review` 不是可选的产品功能。它是 Gaia 内核的内容检查半部分。没有审查，Gaia 可以验证推理图在结构上是一致的，但无法评估推理文本是否健全——类似于一个验证语法但不验证语义的类型检查器。
 
-### How Gaia's "Elaboration" Differs from Lean's
+### Gaia 的"展开"与 Lean 的区别
 
-Both systems have an elaboration phase, but they serve different purposes:
+两个系统都有展开阶段，但服务于不同目的：
 
-- **Lean elaboration** fills in implicit arguments, resolves overloaded notation, inserts coercions, and infers types. It transforms terse surface syntax into a fully explicit core term that the kernel can check. Elaboration is a complex, bidirectional process that interleaves with unification and type inference.
+- **Lean 展开**填充隐式参数、解析重载表示法、插入强制转换、推断类型。它将简洁的表面语法转换为内核可以检查的完全显式核心项。展开是一个复杂的、双向的过程，与合一和类型推断交错进行。
 
-- **Gaia elaboration** transforms Typst-based package source into typed core IR (Graph IR). It resolves references, classifies declarations by root type and kind, compiles chains into factor nodes, and produces the structural graph that BP and review will consume. There is no type inference in Lean's sense -- the elaborator's job is to lower authoring-layer narrative structure into a verifiable factor graph.
+- **Gaia 展开**将基于 Typst 的包源转换为类型化核心 IR（Graph IR）。它解析引用、按根类型和种类分类声明、将链编译为因子节点，并产生 BP 和审查将消费的结构图。没有 Lean 意义上的类型推断——展开器的任务是将编写层的叙事结构降级为可验证的因子图。
 
-The shared principle is that authors write in a convenient surface language and the system elaborates into a core representation where all checks operate. The difference is that Lean's elaboration is primarily about types and terms, while Gaia's elaboration is primarily about graph structure and knowledge identity.
+共同原则是作者使用便利的表面语言编写，系统展开为所有检查操作所在的核心表示。区别在于 Lean 的展开主要关于类型和项，而 Gaia 的展开主要关于图结构和知识身份。
 
-## What Gaia Does Not Borrow From Lean
+## Gaia 不从 Lean 借鉴什么
 
-- **Curry-Howard** — claims are terms, not types (see above)
-- **Full dependent type theory** — not needed for V1; the problem is validating reasoning structures, not proving value-indexed programs correct
-- **Definitional equality and reduction** — Gaia's evaluation is BP on graphs, not term reduction
-- **Monotonic proof semantics** — beliefs are revised as new evidence arrives; non-monotonicity is fundamental
-- **Aggressive implicit inference** — Gaia's users are agents and reviewers who need legible artifacts; V1 prefers explicitness
+- **Curry-Howard**——断言是项，不是类型（见上文）
+- **完整的依赖类型理论**——V1 不需要；问题是验证推理结构，而非证明值索引程序的正确性
+- **定义相等性和归约**——Gaia 的求值是图上的 BP，而非项归约
+- **单调证明语义**——信念随新证据到来而修正；非单调性是根本性的
+- **激进的隐式推断**——Gaia 的用户是代理和审查者，需要可读的制品；V1 倾向于显式性
 
-## Source
+## 参考文献
 
 - [../../archive/foundations-v2/language/type-system-direction.md](../../archive/foundations-v2/language/type-system-direction.md)

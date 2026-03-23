@@ -1,65 +1,65 @@
-# Global Inference
+# 全局推断
 
 > **Status:** Current canonical
 
-This document describes server-side belief propagation on the global canonical graph. For the BP algorithm details, see the [BP layer](../bp/inference.md). For factor potential definitions, see [potentials](../bp/potentials.md).
+本文档描述在 global canonical graph 上进行的服务端 belief propagation。BP 算法详情参见 [BP 层](../bp/inference.md)。Factor potential 定义参见 [potentials](../bp/potentials.md)。
 
-## Overview
+## 概述
 
-Global inference runs the same sum-product loopy BP algorithm as local inference, but on a different scope:
+全局推断运行与本地推断相同的 sum-product loopy BP 算法，但作用域不同：
 
-| Aspect | Local BP (`gaia infer`) | Global BP (server) |
-|--------|------------------------|--------------------|
-| **Graph** | `LocalCanonicalGraph` (one package) | Global canonical graph (all packages) |
-| **Parameterization** | `LocalParameterization` / `ReviewOutput` | `GlobalInferenceState` |
-| **Trigger** | `gaia infer` CLI command | After integration or curation |
-| **Output** | Local belief preview (`.gaia/infer/`) | Updated `GlobalInferenceState.node_beliefs` |
+| 方面 | 本地 BP（`gaia infer`） | 全局 BP（服务端） |
+|------|------------------------|-------------------|
+| **图** | LocalCanonicalGraph（单个包） | Global canonical graph（所有包） |
+| **参数化** | LocalParameterization / ReviewOutput | GlobalInferenceState |
+| **触发** | `gaia infer` CLI 命令 | 集成或策展之后 |
+| **输出** | 本地信念预览（`.gaia/infer/`） | 更新 `GlobalInferenceState.node_beliefs` |
 
-The algorithm, message schedule, and factor potentials are identical. See [../bp/local-vs-global.md](../bp/local-vs-global.md) for the comparison.
+算法、消息调度和 factor potential 完全相同。参见 [../bp/local-vs-global.md](../bp/local-vs-global.md) 了解对比。
 
-## GlobalInferenceState as Parameterization Source
+## GlobalInferenceState 作为参数化来源
 
-`GlobalInferenceState` is a registry-managed singleton that stores all runtime parameters for the global graph:
+GlobalInferenceState 是注册中心管理的单例，存储全局图的所有运行时参数：
 
-- **`node_priors`** -- `dict[str, float]` keyed by `global_canonical_id`. Aggregated from review outputs of all integrated packages.
-- **`factor_parameters`** -- `dict[str, FactorParams]` keyed by `factor_id`. Each contains `conditional_probability`.
-- **`node_beliefs`** -- `dict[str, float]` keyed by `global_canonical_id`. Updated after each BP run.
-- **`graph_hash`** -- integrity check binding the state to a specific graph structure.
+- **`node_priors`** -- `dict[str, float]`，以 `global_canonical_id` 为键。由所有已集成包的审查输出聚合而成。
+- **`factor_parameters`** -- `dict[str, FactorParams]`，以 `factor_id` 为键。每个包含 `conditional_probability`。
+- **`node_beliefs`** -- `dict[str, float]`，以 `global_canonical_id` 为键。每次 BP 运行后更新。
+- **`graph_hash`** -- 完整性校验，将状态绑定到特定的图结构。
 
-Probability and structure are strictly separated: Graph IR stores only structure; `GlobalInferenceState` stores all runtime parameters. See [../graph-ir/parameterization.md](../graph-ir/parameterization.md).
+概率与结构严格分离：Graph IR 只存储结构；GlobalInferenceState 存储所有运行时参数。参见 [../graph-ir/parameterization.md](../graph-ir/parameterization.md)。
 
-## When Global BP Runs
+## 全局 BP 何时运行
 
-Global BP is triggered after:
+全局 BP 在以下情况后触发：
 
-1. **Integration** -- a new package is merged into the global graph, adding new nodes and factors.
-2. **Curation** -- the curation engine modifies the graph (merges duplicates, adds abstraction factors, removes stale entries).
+1. **集成** -- 新包被合并到全局图，添加新的节点和 factor。
+2. **策展** -- 策展引擎修改了图（合并重复项、添加抽象 factor、移除过期条目）。
 
-In both cases, the graph structure has changed and beliefs need to be recomputed.
+在这两种情况下，图结构都已改变，信念需要重新计算。
 
-## Execution Flow
+## 执行流程
 
-1. Load the global canonical graph (all `GlobalCanonicalNode`s and global `FactorNode`s) from storage.
-2. Build a `FactorGraph` from the global nodes and factors, using `GlobalInferenceState.node_priors` and `factor_parameters`.
-3. Run `BeliefPropagation` with standard parameters (damping=0.5, max_iterations=50, threshold=1e-6).
-4. Write updated beliefs to `GlobalInferenceState.node_beliefs`.
-5. Optionally write `BeliefSnapshot` history records.
+1. 从存储加载 global canonical graph（所有 GlobalCanonicalNode 和全局 FactorNode）。
+2. 使用 `GlobalInferenceState.node_priors` 和 `factor_parameters` 从全局节点和 factor 构建 FactorGraph。
+3. 使用标准参数运行 BeliefPropagation（damping=0.5、max_iterations=50、threshold=1e-6）。
+4. 将更新的信念写入 `GlobalInferenceState.node_beliefs`。
+5. 可选地写入 BeliefSnapshot 历史记录。
 
-## Code Paths
+## 代码路径
 
-| Component | File |
-|-----------|------|
-| Global BP script | `scripts/pipeline/run_global_bp_db.py` |
-| BP algorithm | `libs/inference/bp.py:BeliefPropagation` |
+| 组件 | 文件 |
+|------|------|
+| 全局 BP 脚本 | `scripts/pipeline/run_global_bp_db.py` |
+| BP 算法 | `libs/inference/bp.py:BeliefPropagation` |
 | Factor graph | `libs/inference/factor_graph.py:FactorGraph` |
 | Global inference state | `libs/storage/models.py:GlobalInferenceState` |
 | Storage manager | `libs/storage/manager.py:StorageManager` |
 
-## Current State
+## 当前状态
 
-Global BP is functional as a batch pipeline script (`run_global_bp_db.py`). It reads from and writes to LanceDB via `StorageManager`. The same `BeliefPropagation` class used for local inference is reused with no modifications.
+全局 BP 作为批处理 pipeline 脚本（`run_global_bp_db.py`）可用。它通过 StorageManager 从 LanceDB 读写。用于本地推断的同一个 BeliefPropagation 类被无修改地复用。
 
-## Target State
+## 目标状态
 
-- Expose global BP as a server-side `BPService` triggered asynchronously after integration.
-- Add incremental BP (re-run only on the subgraph affected by newly integrated packages).
+- 将全局 BP 作为服务端 BPService 暴露，在集成后异步触发。
+- 添加增量 BP（仅在受新集成包影响的子图上重新运行）。

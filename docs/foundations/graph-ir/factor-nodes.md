@@ -1,12 +1,12 @@
-# Factor Nodes
+# Factor 节点
 
 > **Status:** Current canonical
 
-This document is the single definition of FactorNode -- the constraint node in Gaia's factor graph. For potential functions (computational semantics), see [../bp/potentials.md](../bp/potentials.md).
+本文档是 FactorNode 的唯一定义——Gaia factor graph 中的约束节点。Potential 函数（计算语义）见 [../bp/potentials.md](../bp/potentials.md)。
 
 ## FactorNode Schema
 
-Every factor in Graph IR has this structure:
+Graph IR 中每个 factor 都具有以下结构：
 
 ```
 FactorNode:
@@ -19,76 +19,76 @@ FactorNode:
     metadata:     dict | None
 ```
 
-Factor identity is deterministic: `f_{sha256[:16]}` computed from chain ID or source construct. Same reasoning link always gets the same factor ID across rebuilds.
+Factor 身份是确定性的：`f_{sha256[:16]}` 由 chain ID 或源构造计算得出。相同的推理链接在重复构建时总是获得相同的 factor ID。
 
-Factors are shared across all three identity layers (raw, local canonical, global canonical) -- only the node ID namespace changes. When factors are lifted from local to global scope during canonicalization, premise/context/conclusion IDs are rewritten from `lcn_` to `gcn_` namespace.
+Factor 在三个身份层（raw、local canonical、global canonical）之间共享——仅节点 ID 命名空间不同。当 factor 在规范化过程中从 local 提升到 global 范围时，premise/context/conclusion ID 从 `lcn_` 命名空间重写为 `gcn_` 命名空间。
 
-## Factor Types
+## Factor 类型
 
 ### reasoning
 
-Generated from: `#claim(from: ...)` or `#action(from: ...)` declarations (via ChainExpr).
+由以下声明生成：`#claim(from: ...)` 或 `#action(from: ...)`（通过 ChainExpr）。
 
-- **Premises**: the knowledge nodes listed in `from:`.
-- **Contexts**: indirect dependencies (not yet expressible in v4 surface).
-- **Conclusion**: the claim or action being supported.
-- **Covers**: deduction (high p), induction (moderate p), abstraction (same potential shape, transitional).
-- **Granularity**: one factor per ChainExpr, not per step. Intermediate steps are internal to the chain.
+- **Premises**：`from:` 中列出的 knowledge 节点。
+- **Contexts**：间接依赖（在 v4 表层中尚不可表达）。
+- **Conclusion**：被支持的 claim 或 action。
+- **覆盖范围**：deduction（高 p）、induction（中等 p）、abstraction（相同 potential 形状，过渡性的）。
+- **粒度**：每个 ChainExpr 一个 factor，而非每步一个。中间步骤是 chain 的内部细节。
 
 ### instantiation
 
-Generated from: elaboration of schema nodes (parameterized knowledge) into ground instances.
+由以下操作生成：schema 节点（参数化 knowledge）展开为 ground 实例。
 
-- **Premises**: `[schema_node]` -- the universal/parameterized proposition.
-- **Contexts**: `[]`
-- **Conclusion**: the ground instance node.
-- **Binary**: each instantiation factor connects exactly one schema to one instance. Partial instantiation chains through intermediate nodes.
+- **Premises**：`[schema_node]` —— 全称/参数化命题。
+- **Contexts**：`[]`
+- **Conclusion**：ground 实例节点。
+- **二元性**：每个 instantiation factor 恰好连接一个 schema 和一个 instance。部分实例化通过中间节点链式传递。
 
 ### mutex_constraint
 
-Generated from: `#relation(type: "contradiction", between: (<A>, <B>))`.
+由以下声明生成：`#relation(type: "contradiction", between: (<A>, <B>))`。
 
-- **Premises**: `[R, A, B]` where R is the relation node, A and B are the constrained claim nodes.
-- **Conclusion**: R (acts as read-only gate in current runtime; target design makes R a full participant).
+- **Premises**：`[R, A, B]`，其中 R 是 relation 节点，A 和 B 是被约束的 claim 节点。
+- **Conclusion**：R（在当前运行时中充当只读门控；目标设计使 R 成为完全参与者）。
 
 ### equiv_constraint
 
-Generated from: `#relation(type: "equivalence", between: (<A>, <B>))`.
+由以下声明生成：`#relation(type: "equivalence", between: (<A>, <B>))`。
 
-- **Premises**: `[R, A, B]` where R is the relation node, A and B are the equated claim nodes.
-- **Conclusion**: R (acts as read-only gate in current runtime; target design makes R a full participant).
-- **N-ary**: decomposed into pairwise factors sharing the same relation node R.
+- **Premises**：`[R, A, B]`，其中 R 是 relation 节点，A 和 B 是被等价的 claim 节点。
+- **Conclusion**：R（在当前运行时中充当只读门控；目标设计使 R 成为完全参与者）。
+- **N 元**：分解为共享同一 relation 节点 R 的成对 factor。
 
 ### retraction
 
-Generated from: chains with `type: "retraction"`.
+由以下操作生成：`type: "retraction"` 的 chain。
 
-- **Premises**: the evidence nodes that argue against the conclusion.
-- **Conclusion**: the claim being retracted.
+- **Premises**：反对结论的证据节点。
+- **Conclusion**：被撤回的 claim。
 
-## Compilation Rules
+## 编译规则
 
-| Source construct | Knowledge node(s) | Factor node(s) |
+| 源构造 | Knowledge 节点 | Factor 节点 |
 |---|---|---|
-| `#claim` / `#setting` / `#question` / `#action` (no `from:`) | One knowledge node | None |
-| `#claim(from: ...)` / `#action(from: ...)` | One knowledge node | One reasoning factor |
-| `#relation(type: "contradiction", between: ...)` | One contradiction node | One mutex_constraint factor |
-| `#relation(type: "equivalence", between: ...)` | One equivalence node | One equiv_constraint factor |
-| Schema elaboration | Instance node | One instantiation factor per pair |
+| `#claim` / `#setting` / `#question` / `#action`（无 `from:`） | 一个 knowledge 节点 | 无 |
+| `#claim(from: ...)` / `#action(from: ...)` | 一个 knowledge 节点 | 一个 reasoning factor |
+| `#relation(type: "contradiction", between: ...)` | 一个 contradiction 节点 | 一个 mutex_constraint factor |
+| `#relation(type: "equivalence", between: ...)` | 一个 equivalence 节点 | 一个 equiv_constraint factor |
+| Schema 展开 | Instance 节点 | 每对一个 instantiation factor |
 
-## Context vs Premise
+## Context 与 Premise 的区别
 
-- **Premise** (`premises` field): load-bearing. False premises undermine conclusion validity. Creates BP edges -- BP sends and receives messages along these connections.
-- **Context** (`contexts` field): weak/background dependency. Does not create BP edges. Consumed by parameterization overlays when assigning factor probabilities.
+- **Premise**（`premises` 字段）：承载性依赖。前提为假会削弱结论的有效性。会创建 BP 边——BP 沿这些连接发送和接收消息。
+- **Context**（`contexts` 字段）：弱/背景依赖。不创建 BP 边。被参数化覆盖层在分配 factor 概率时使用。
 
-> v4 only has `from:` (premise). A separate `under:` context role is planned but not yet implemented.
+> v4 目前仅有 `from:`（premise）。一个独立的 `under:` context 角色已计划但尚未实现。
 
-## Note on Storage Model
+## 存储模型说明
 
-The storage model (`libs/storage/models.py`) uses slightly different enum values for factor types. The `FactorNode` type enum in storage uses `infer` rather than `reasoning`, and lists: `infer | instantiation | abstraction | contradiction | equivalence`. The Graph IR spec uses `reasoning | instantiation | mutex_constraint | equiv_constraint | retraction`. These are converging; the storage model reflects the current implementation while Graph IR reflects the target schema.
+存储模型（`libs/storage/models.py`）使用略有不同的枚举值来表示 factor 类型。存储中的 `FactorNode` 类型枚举使用 `infer` 而非 `reasoning`，并列出：`infer | instantiation | abstraction | contradiction | equivalence`。Graph IR 规范使用 `reasoning | instantiation | mutex_constraint | equiv_constraint | retraction`。两者正在趋同；存储模型反映当前实现，而 Graph IR 反映目标 schema。
 
-## Source
+## 源代码
 
 - `libs/graph_ir/models.py` -- Graph IR `FactorNode`
-- `libs/storage/models.py` -- Storage `FactorNode`
-- [../bp/potentials.md](../bp/potentials.md) -- potential functions for each factor type
+- `libs/storage/models.py` -- 存储 `FactorNode`
+- [../bp/potentials.md](../bp/potentials.md) -- 每种 factor 类型的 potential 函数

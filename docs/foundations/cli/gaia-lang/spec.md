@@ -1,57 +1,57 @@
-# Language Spec
+# 语言规范
 
 > **Status:** Current canonical
 
-This document summarizes the Gaia Language v4 Typst DSL -- the authoring surface for knowledge packages. For full details, see `docs/archive/foundations-v2/language/gaia-language-spec.md`.
+本文档概述 Gaia Language v4 Typst DSL —— 知识包的创作界面。完整细节参见 `docs/archive/foundations-v2/language/gaia-language-spec.md`。
 
-## Overview
+## 概览
 
-Gaia Language v4 is a Typst-based DSL. Authors write knowledge packages as standard Typst documents; the compiler extracts a structured knowledge graph via `typst query`. The language provides five declaration functions plus a cross-package bibliography mechanism.
+Gaia Language v4 是一种基于 Typst 的 DSL。作者将知识包编写为标准 Typst 文档；编译器通过 `typst query` 提取结构化知识图。该语言提供五个声明函数以及一个跨包参考文献机制。
 
-## Declarations
+## 声明
 
-All declarations produce `figure(kind: "gaia-node")` elements with hidden metadata, enabling extraction via a single query.
+所有声明都会生成带有隐藏元数据的 `figure(kind: "gaia-node")` 元素，从而可以通过单次查询进行提取。
 
-| Function | Purpose | Parameters |
+| 函数 | 用途 | 参数 |
 |---|---|---|
-| `#setting[content]` | Contextual assumption | Content body only |
-| `#question[content]` | Open inquiry | Content body only |
-| `#claim[content][proof]` | Truth-apt assertion | `from:` (premises), `kind:` (subtype) |
-| `#action[content][proof]` | Procedural step | `from:` (premises), `kind:` (subtype) |
-| `#relation[content][proof]` | Structural constraint | `type:` ("contradiction" or "equivalence"), `between:` (endpoints) |
+| `#setting[content]` | 上下文假设 | 仅内容主体 |
+| `#question[content]` | 开放性问题 | 仅内容主体 |
+| `#claim[content][proof]` | 可判真的断言 | `from:`（前提）、`kind:`（子类型） |
+| `#action[content][proof]` | 程序性步骤 | `from:`（前提）、`kind:`（子类型） |
+| `#relation[content][proof]` | 结构性约束 | `type:`（"contradiction" 或 "equivalence"）、`between:`（端点） |
 
-The optional second content block `[proof]` contains the natural-language justification with `@ref` cross-references.
+可选的第二个内容块 `[proof]` 包含带有 `@ref` 交叉引用的自然语言证明理由。
 
-## Key Parameters
+## 关键参数
 
-**`from:`** -- a tuple of label references declaring load-bearing premises:
+**`from:`** —— 一个标签引用元组，声明承载性前提：
 ```typst
 #claim(from: (<setting.vacuum_env>, <obs.measurement>))[conclusion][proof]
 ```
-Single-element tuples require a trailing comma: `from: (<label>,)`.
+单元素元组需要尾随逗号：`from: (<label>,)`。
 
-**`between:`** -- required on `#relation`, names the two constrained nodes:
+**`between:`** —— `#relation` 上的必需参数，命名两个被约束的节点：
 ```typst
 #relation(type: "contradiction", between: (<claim_a>, <claim_b>))[description]
 ```
 
-**`kind:`** -- optional scientific subtype on claims and actions (e.g., `"observation"`, `"hypothesis"`, `"python"`). Records evidence type; does not change Graph IR topology.
+**`kind:`** —— `#claim` 和 `#action` 上的可选科学子类型（如 `"observation"`、`"hypothesis"`、`"python"`）。记录证据类型；不改变 Graph IR 拓扑结构。
 
-## Labels
+## 标签
 
-Labels follow `<filename.label_name>` convention:
+标签遵循 `<filename.label_name>` 约定：
 ```typst
 #setting[...] <setting.vacuum_env>
 #claim[...]   <reasoning.main_conclusion>
 ```
 
-The `filename.` prefix is a naming convention for uniqueness across modules. In-text references use `@label` syntax.
+`filename.` 前缀是为了在模块间保持唯一性的命名约定。文内引用使用 `@label` 语法。
 
-## Cross-Package References
+## 跨包引用
 
-External knowledge is declared via `gaia-deps.yml` and registered with `#gaia-bibliography`:
+外部知识通过 `gaia-deps.yml` 声明并用 `#gaia-bibliography` 注册：
 
-**`gaia-deps.yml`:**
+**`gaia-deps.yml`：**
 ```yaml
 vacuum_prediction:
   package: "galileo_falling_bodies"
@@ -61,17 +61,17 @@ vacuum_prediction:
   content: "In a vacuum, objects of different weights fall at the same rate."
 ```
 
-**Usage:**
+**用法：**
 ```typst
 #gaia-bibliography(yaml("gaia-deps.yml"))
 #claim(from: (<local_derivation>, <vacuum_prediction>))[...][...]
 ```
 
-`#gaia-bibliography` creates hidden `figure(kind: "gaia-ext")` elements that make external labels resolvable by Typst's reference system and the extraction pipeline.
+`#gaia-bibliography` 创建隐藏的 `figure(kind: "gaia-ext")` 元素，使外部标签可被 Typst 的引用系统和提取管线解析。
 
-## Extraction
+## 提取
 
-Graph IR is extracted via Typst's built-in query mechanism:
+Graph IR 通过 Typst 的内置查询机制提取：
 
 ```bash
 # Local nodes
@@ -81,13 +81,13 @@ typst query --root <repo-root> lib.typ 'figure.where(kind: "gaia-node")'
 typst query --root <repo-root> lib.typ 'figure.where(kind: "gaia-ext")'
 ```
 
-The Python loader (`libs/lang/typst_loader.py::load_typst_package_v4`) processes query results into `{package, version, nodes, factors, constraints, dsl_version: "v4"}`.
+Python 加载器（`libs/lang/typst_loader.py::load_typst_package_v4`）将查询结果处理为 `{package, version, nodes, factors, constraints, dsl_version: "v4"}`。
 
-## Package Layout
+## 包布局
 
-Two supported layouts:
+支持两种布局：
 
-**Vendored (default for new packages, created by `gaia init`):**
+**Vendored（新包的默认布局，由 `gaia init` 创建）：**
 ```
 my_package/
   typst.toml          # manifest: name, version, entrypoint
@@ -100,7 +100,7 @@ my_package/
   gaia-deps.yml       # (optional) cross-package references
 ```
 
-**Repo-relative (fixtures and development inside the Gaia repo):**
+**仓库相对路径（Gaia 仓库内的 fixtures 和开发用途）：**
 ```
 my_package/
   typst.toml          # manifest: name, version, entrypoint
@@ -110,21 +110,21 @@ my_package/
   gaia-deps.yml       # (optional) cross-package references
 ```
 
-The vendored layout is recommended for standalone packages. The repo-relative layout is used in `tests/fixtures/` and development workflows within the Gaia repository.
+推荐独立包使用 vendored 布局。仓库相对路径布局用于 `tests/fixtures/` 和 Gaia 仓库内的开发工作流。
 
-## Runtime Library
+## 运行时库
 
-Lives at `libs/typst/gaia-lang-v4/`. Exports:
+位于 `libs/typst/gaia-lang-v4/`。导出内容：
 
-| Symbol | Source | Purpose |
+| 符号 | 来源 | 用途 |
 |---|---|---|
-| `setting`, `question`, `claim`, `action`, `relation` | `declarations.typ` | Declaration functions |
-| `gaia-bibliography` | `bibliography.typ` | Cross-package reference registration |
-| `gaia-style` | `style.typ` | Document show rules and visual styling |
+| `setting`, `question`, `claim`, `action`, `relation` | `declarations.typ` | 声明函数 |
+| `gaia-bibliography` | `bibliography.typ` | 跨包引用注册 |
+| `gaia-style` | `style.typ` | 文档展示规则和视觉样式 |
 
-## Source
+## 源码
 
-- `libs/typst/gaia-lang-v4/` -- runtime Typst function definitions
-- `libs/lang/typst_loader.py` -- Python extraction loader
-- `docs/archive/foundations-v2/language/gaia-language-spec.md` -- full specification
-- `docs/archive/foundations-v2/language/gaia-language-design.md` -- design rationale
+- `libs/typst/gaia-lang-v4/` —— 运行时 Typst 函数定义
+- `libs/lang/typst_loader.py` —— Python 提取加载器
+- `docs/archive/foundations-v2/language/gaia-language-spec.md` —— 完整规范
+- `docs/archive/foundations-v2/language/gaia-language-design.md` —— 设计原理

@@ -1,51 +1,51 @@
-# Package Model
+# 包模型
 
 > **Status:** Current canonical
 
-This document defines the structural layers of a Gaia knowledge container as they appear in the authoring surface: Package, Module, Knowledge, and Chain.
+本文档定义了 Gaia 知识容器在创作界面中呈现的结构层次：Package、Module、Knowledge 和 Chain。
 
 ## Package
 
-A Package is a complete, versioned knowledge container. It is analogous to a git repository or a published paper.
+Package 是一个完整的、版本化的知识容器。它类似于一个 git 仓库或一篇已发表的论文。
 
-- **Identity**: `(package_id, version)` -- semver string (e.g., `"4.0.0"`).
-- **Authored form**: a Typst project directory with `typst.toml` manifest, `lib.typ` entrypoint, and module files.
-- **Status values**: `preparing` | `submitted` | `merged` | `rejected`.
+- **标识**：`(package_id, version)` —— 语义化版本字符串（如 `"4.0.0"`）。
+- **创作形式**：一个 Typst 项目目录，包含 `typst.toml` 清单文件、`lib.typ` 入口文件和模块文件。
+- **状态值**：`preparing` | `submitted` | `merged` | `rejected`。
 
-A package is the unit of submission, review, and integration. Packages are ingested atomically -- all modules succeed or none do.
+Package 是提交、审查和集成的单位。Package 的摄入是原子性的——所有模块要么全部成功，要么全部失败。
 
 ## Module
 
-A Module is a logical grouping within a package. In the authoring surface, each `.typ` file (other than `lib.typ` and `gaia.typ`) is implicitly a module.
+Module 是包内的逻辑分组。在创作界面中，每个 `.typ` 文件（除 `lib.typ` 和 `gaia.typ` 外）隐式地构成一个模块。
 
-- **Identity**: `module_id` scoped to the package.
-- **Roles**: `reasoning` | `setting` | `motivation` | `follow_up_question` | `other`.
-- **Contains**: references to knowledge objects and chains (`chain_ids[]`, `export_ids[]`).
-- **Imports**: cross-module dependencies via `ImportRef(knowledge_id, version, strength)`.
+- **标识**：`module_id`，作用域限定在包内。
+- **角色**：`reasoning` | `setting` | `motivation` | `follow_up_question` | `other`。
+- **包含**：对知识对象和链的引用（`chain_ids[]`、`export_ids[]`）。
+- **导入**：通过 `ImportRef(knowledge_id, version, strength)` 实现跨模块依赖。
 
-Modules exist for organizational clarity. They do not create independent inference boundaries -- all knowledge within a package participates in the same factor graph.
+Module 的存在是为了组织上的清晰性。它们不会创建独立的推理边界——包内所有知识都参与同一个因子图。
 
 ## Knowledge
 
-A Knowledge object is a versioned proposition -- the fundamental unit of the knowledge graph.
+Knowledge 对象是一个版本化的命题——知识图的基本单元。
 
-- **Identity**: `(knowledge_id, version)`. The `knowledge_id` is scoped to the package; the version is an integer that increments with edits.
-- **Type**: `claim | question | setting | action | contradiction | equivalence` (see [knowledge-types.md](knowledge-types.md)).
-- **Content**: the proposition text.
-- **Prior**: author-assigned plausibility in (epsilon, 1 - epsilon), required for inference-bearing types.
-- **Parameters**: optional list of `Parameter(name, constraint)` for schema/universal nodes.
-- **Keywords**: extracted terms for search.
+- **标识**：`(knowledge_id, version)`。`knowledge_id` 的作用域限定在包内；版本是一个随编辑递增的整数。
+- **类型**：`claim | question | setting | action | contradiction | equivalence`（参见 [knowledge-types.md](knowledge-types.md)）。
+- **内容**：命题文本。
+- **先验**：作者指定的合理性值，在 (epsilon, 1 - epsilon) 范围内，参与推理的类型必须提供。
+- **参数**：可选的 `Parameter(name, constraint)` 列表，用于模式/通用节点。
+- **关键词**：提取的搜索词。
 
 ## Chain
 
-A Chain is a display-layer multi-step reasoning structure. Each chain represents one complete reasoning unit from premises to conclusion.
+Chain 是一个展示层的多步推理结构。每条 Chain 代表一个从前提到结论的完整推理单元。
 
-- **Identity**: `chain_id` scoped to the module.
-- **Type**: `deduction | induction | abstraction | contradiction | retraction | equivalence`.
-- **Steps**: ordered list of `ChainStep(step_index, premises[], reasoning, conclusion)`. Each step connects premise `KnowledgeRef`s to a conclusion `KnowledgeRef`.
-- **Factor mapping**: each Chain produces one factor in the Graph IR. The chain preserves the author's multi-step argument; the factor collapses it into a single constraint.
+- **标识**：`chain_id`，作用域限定在模块内。
+- **类型**：`deduction | induction | abstraction | contradiction | retraction | equivalence`。
+- **步骤**：有序的 `ChainStep(step_index, premises[], reasoning, conclusion)` 列表。每一步将前提 `KnowledgeRef` 连接到结论 `KnowledgeRef`。
+- **因子映射**：每条 Chain 在 Graph IR 中产生一个因子。Chain 保留了作者的多步论证；因子将其折叠为单一约束。
 
-## Package Lifecycle (Authoring View)
+## 包生命周期（创作视角）
 
 ```
 authored   -> author writes Typst source
@@ -54,9 +54,9 @@ inferred   -> gaia infer: local BP preview with local parameterization
 published  -> gaia publish: submitted to registry for peer review
 ```
 
-For what happens after publish, see [../../lkm/lifecycle.md](../../lkm/lifecycle.md).
+发布之后的流程参见 [../../lkm/lifecycle.md](../../lkm/lifecycle.md)。
 
-## Relationship Between Layers
+## 层级间关系
 
 ```
 Package (1)
@@ -66,12 +66,12 @@ Package (1)
       references -> Knowledge via KnowledgeRef (premises, conclusions)
 ```
 
-## Cross-Layer References
+## 跨层引用
 
-- **Node identity layers** (raw, local canonical, global canonical): see [../../graph-ir/knowledge-nodes.md](../../graph-ir/knowledge-nodes.md)
-- **Graph IR representation** of packages: see [../../graph-ir/overview.md](../../graph-ir/overview.md)
-- **Storage schema** for persisted models: see [../../lkm/storage.md](../../lkm/storage.md)
+- **节点标识层**（raw、local canonical、global canonical）：参见 [../../graph-ir/knowledge-nodes.md](../../graph-ir/knowledge-nodes.md)
+- **包的 Graph IR 表示**：参见 [../../graph-ir/overview.md](../../graph-ir/overview.md)
+- **持久化模型的存储模式**：参见 [../../lkm/storage.md](../../lkm/storage.md)
 
-## Source
+## 源码
 
-- `libs/storage/models.py` -- `Package`, `Module`, `Knowledge`, `Chain`, `ChainStep` models
+- `libs/storage/models.py` —— `Package`、`Module`、`Knowledge`、`Chain`、`ChainStep` 模型

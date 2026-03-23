@@ -1,85 +1,85 @@
-# Curation Engine
+# 策展引擎
 
 > **Status:** Current canonical -- target evolution noted
 
-The curation engine performs offline maintenance on the global knowledge graph: deduplicating nodes, discovering abstractions, detecting contradictions, and cleaning up structural issues. It lives in `libs/curation/` with orchestration in `scripts/pipeline/run_curation_db.py`.
+策展引擎对全局知识图谱执行离线维护：去重节点、发现抽象、检测矛盾以及清理结构问题。它位于 `libs/curation/`，编排逻辑在 `scripts/pipeline/run_curation_db.py`。
 
-## 6-Step Pipeline
+## 6 步 Pipeline
 
-The curation pipeline runs as stage 6 of the batch pipeline. It reads global nodes and factors from the database, processes them through six steps, and writes results back.
+策展 pipeline 作为批处理 pipeline 的第 6 阶段运行。它从数据库读取全局节点和 factor，通过六个步骤处理，然后将结果写回。
 
-### 1. Clustering
+### 1. 聚类
 
-`libs/curation/clustering.py` -- Groups similar nodes using embedding similarity (via `DPEmbeddingModel`). Excludes schema nodes and already-connected pairs. Threshold: 0.85.
+`libs/curation/clustering.py` -- 使用 embedding 相似度（通过 `DPEmbeddingModel`）对相似节点进行分组。排除 schema 节点和已连接的节点对。阈值：0.85。
 
-### 2. Deduplication
+### 2. 去重
 
-`libs/curation/dedup.py` -- Identifies exact duplicates by content hash. Returns merge suggestions with target IDs and evidence.
+`libs/curation/dedup.py` -- 通过内容哈希识别完全重复。返回包含目标 ID 和证据的合并建议。
 
-### 3. Abstraction
+### 3. 抽象
 
-`libs/curation/abstraction.py` -- Uses an LLM (`AbstractionAgent`) to analyze clusters and propose schema (abstraction) nodes. Creates new `kind: "schema"` global canonical nodes with `instantiation` factors linking them to instance nodes. Also detects contradiction candidates within clusters.
+`libs/curation/abstraction.py` -- 使用 LLM（`AbstractionAgent`）分析聚类并提出 schema（抽象）节点。创建新的 `kind: "schema"` GlobalCanonicalNode，并用 `instantiation` factor 将其与实例节点关联。还检测聚类中的矛盾候选。
 
-### 4. Conflict Detection
+### 4. 冲突检测
 
-`libs/curation/conflict.py` -- Two-level conflict detection using BP diagnostics:
-- **Level 1** (`detect_conflicts_level1`): analyzes convergence diagnostics for oscillation and residual signals.
-- **Level 2** (`detect_conflicts_level2`): performs perturbation probing on flagged nodes.
+`libs/curation/conflict.py` -- 使用 BP 诊断的两级冲突检测：
+- **第 1 级**（`detect_conflicts_level1`）：分析收敛诊断中的振荡和残差信号。
+- **第 2 级**（`detect_conflicts_level2`）：对标记的节点执行扰动探测。
 
-For BP diagnostics details: see [../bp/inference.md](../bp/inference.md).
+BP 诊断详情参见 [../bp/inference.md](../bp/inference.md)。
 
-### 5. Structure Audit
+### 5. 结构审计
 
-`libs/curation/structure.py` -- Inspects the global graph for structural issues: orphan nodes, dangling factor references, cycles, and other anomalies. Returns a report with errors, warnings, and info items.
+`libs/curation/structure.py` -- 检查全局图的结构问题：孤立节点、悬空 factor 引用、环路及其他异常。返回包含错误、警告和信息项的报告。
 
-### 6. Cleanup
+### 6. 清理
 
-`libs/curation/cleanup.py` -- Generates a cleanup plan from all suggestions and conflict candidates, categorizing them as auto-approve, needs-review, or discard. Executes approved operations (merges, deletions) with an audit log.
+`libs/curation/cleanup.py` -- 根据所有建议和冲突候选生成清理计划，将其分类为自动批准、需要审查或丢弃。执行已批准的操作（合并、删除），并记录审计日志。
 
-## Supporting Modules
+## 辅助模块
 
-| Module | Purpose |
-|--------|---------|
-| `models.py` | Data models: `SimilarityCluster`, `MergeSuggestion`, `ConflictCandidate`, `CleanupPlan` |
-| `similarity.py` | Pairwise similarity computation |
-| `operations.py` | Merge and delete operations on the node/factor graph |
-| `audit.py` | `AuditLog` for tracking all curation decisions |
-| `reviewer.py` | LLM-based review of merge/abstraction suggestions |
-| `scheduler.py` | `run_curation()` entry point exported from `__init__.py` |
-| `prompts/` | LLM prompt templates for abstraction and review |
+| 模块 | 用途 |
+|------|------|
+| `models.py` | 数据模型：`SimilarityCluster`、`MergeSuggestion`、`ConflictCandidate`、`CleanupPlan` |
+| `similarity.py` | 两两相似度计算 |
+| `operations.py` | 对节点/factor 图的合并和删除操作 |
+| `audit.py` | `AuditLog`，用于追踪所有策展决策 |
+| `reviewer.py` | 基于 LLM 的合并/抽象建议审查 |
+| `scheduler.py` | `run_curation()` 入口点，从 `__init__.py` 导出 |
+| `prompts/` | 用于抽象和审查的 LLM 提示模板 |
 
-## Orchestration
+## 编排
 
-`scripts/pipeline/run_curation_db.py` is the standalone orchestrator:
+`scripts/pipeline/run_curation_db.py` 是独立的编排器：
 
-1. Connects to storage via `StorageManager` (LanceDB + optional graph backend)
-2. Loads all global canonical nodes and factors
-3. Runs the 6 steps sequentially, accumulating suggestions and conflict candidates
-4. Computes diff (added/removed nodes and factors)
-5. Writes results back: deletes removed nodes/factors, upserts remaining/new ones
-6. Saves a JSON report with per-step timing, counts, and details
+1. 通过 StorageManager 连接存储（LanceDB + 可选的 graph 后端）
+2. 加载所有 GlobalCanonicalNode 和 factor
+3. 顺序运行 6 个步骤，累积建议和冲突候选
+4. 计算差异（增加/移除的节点和 factor）
+5. 写回结果：删除移除的节点/factor，upsert 剩余/新增的节点
+6. 保存 JSON 报告，包含每步的耗时、计数和详情
 
-CLI arguments: `--db-path`, `--graph-backend`, `--report-path`, `--llm-model`.
+CLI 参数：`--db-path`、`--graph-backend`、`--report-path`、`--llm-model`。
 
-## Code Paths
+## 代码路径
 
-| Component | File |
-|-----------|------|
-| Clustering | `libs/curation/clustering.py` |
-| Deduplication | `libs/curation/dedup.py` |
-| Abstraction agent | `libs/curation/abstraction.py` |
-| Conflict detection | `libs/curation/conflict.py` |
-| Structure audit | `libs/curation/structure.py` |
-| Cleanup execution | `libs/curation/cleanup.py` |
-| DB orchestrator | `scripts/pipeline/run_curation_db.py` |
-| Embedding model | `libs/embedding.py:DPEmbeddingModel` |
+| 组件 | 文件 |
+|------|------|
+| 聚类 | `libs/curation/clustering.py` |
+| 去重 | `libs/curation/dedup.py` |
+| 抽象 agent | `libs/curation/abstraction.py` |
+| 冲突检测 | `libs/curation/conflict.py` |
+| 结构审计 | `libs/curation/structure.py` |
+| 清理执行 | `libs/curation/cleanup.py` |
+| 数据库编排器 | `scripts/pipeline/run_curation_db.py` |
+| Embedding 模型 | `libs/embedding.py:DPEmbeddingModel` |
 
-## Current State
+## 当前状态
 
-Working as a DB-native batch script. Uses real LLM calls (via `litellm`) for the abstraction step and real embeddings for clustering. Tested against a graph of ~5 papers. Writes curated results back to storage.
+作为数据库原生批处理脚本运行。抽象步骤使用真实 LLM 调用（通过 litellm），聚类使用真实 embedding。已在约 5 篇论文的图上测试。策展结果写回存储。
 
-## Target State
+## 目标状态
 
-- Move orchestration to a server-side `CurationService` that runs as a scheduled background job after package ingest.
-- Add incremental curation (process only newly ingested packages rather than the full graph).
-- Expose curation reports via the API for frontend visualization.
+- 将编排迁移到服务端 CurationService，作为包摄入后的定时后台任务运行。
+- 添加增量策展（仅处理新摄入的包，而非整个图）。
+- 通过 API 暴露策展报告，供前端可视化。
