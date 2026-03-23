@@ -38,7 +38,7 @@
 
 ### Contracts
 
-- [Gaia Language 规范](language/gaia-language-spec.md)
+- [Gaia Language 规范](contracts/authoring/gaia-language-spec.md)
 - [Gaia Language 设计](language/gaia-language-design.md)
 - [语言设计原理](language/design-rationale.md)
 - [类型系统方向](language/type-system-direction.md)

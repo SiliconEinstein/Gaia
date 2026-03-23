@@ -132,7 +132,7 @@ Gaia LKM 是共享侧知识核心与 system of record。
 
 - [semantics/terminology.md](semantics/terminology.md) — 规范术语
 - [product-scope.md](product-scope.md) — 产品定位与当前 baseline
-- [language/gaia-language-spec.md](language/gaia-language-spec.md) — 作者侧 package surface
+- [contracts/authoring/gaia-language-spec.md](contracts/authoring/gaia-language-spec.md) — 作者侧 package surface
 - [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md) — 结构化 IR 契约
 - [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md) — 本地 CLI 生命周期
 - [review/publish-pipeline.md](review/publish-pipeline.md) — 迁移期间的共享侧工作流文档

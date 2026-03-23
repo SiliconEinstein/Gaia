@@ -132,7 +132,7 @@ The active foundations reset should describe those surfaces using the Gaia CLI /
 
 - [semantics/terminology.md](semantics/terminology.md) — canonical terminology
 - [product-scope.md](product-scope.md) — product positioning and current baseline
-- [language/gaia-language-spec.md](language/gaia-language-spec.md) — author-facing package surface
+- [contracts/authoring/gaia-language-spec.md](contracts/authoring/gaia-language-spec.md) — author-facing package surface
 - [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md) — structural IR contract
 - [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md) — local CLI lifecycle
 - [review/publish-pipeline.md](review/publish-pipeline.md) — current shared-side workflow doc during migration
