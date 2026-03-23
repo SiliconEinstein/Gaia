@@ -12,25 +12,23 @@ Use it when the task affects:
 ## Start Here
 
 - [Documentation Policy](documentation-policy.md)
-- [System Overview](system-overview.md)
 - [Gaia Overview](foundation/gaia-overview.md)
+- [Scientific Reasoning Foundation](foundation/scientific-reasoning-foundation.md)
 - [Terminology](semantics/terminology.md)
-- [Foundation Reset Plan](foundation-reset-plan.md)
+- [System Overview](system-overview.md)
 
 ## Active Structure
 
-The active foundations reset is reorganizing this directory around four top-level families:
+The active foundations tree is organized around four top-level families:
 
 - **Foundation** — why Gaia exists and what high-level scientific reasoning foundation it assumes
 - **Semantics** — Gaia-specific terminology, knowledge, relations, and reasoning semantics
 - **Contracts** — the stable authored and system contracts
 - **Runtime** — how the current implementation behaves
 
-The migration is in progress, so some active docs still live in legacy subfolders. The goal is to move the active set toward a clearer `foundation / semantics / contracts / runtime` tree over time.
+Legacy subfolders such as `theory/`, `review/`, `server/`, `cli/`, and top-level transition files still exist as bridge pages or detailed migration-era references. They should not be treated as first-stop canonical homes unless this README points to them explicitly.
 
-## Target Tree
-
-The target active tree is being made explicit as a file tree before every legacy document has been retired. Some files in this tree are still placeholders with `Status: Target design`; others are already becoming the new canonical homes for their topics.
+## Active Tree
 
 ```text
 docs/foundations/
@@ -81,46 +79,54 @@ docs/foundations/
 - [Scientific Knowledge](semantics/scientific-knowledge.md) — the main scientific knowledge types in Gaia
 - [Knowledge Relations](semantics/knowledge-relations.md) — the semantic relation families between Gaia knowledge items
 - [Gaia Reasoning Model](semantics/gaia-reasoning-model.md) — Gaia's chosen reasoning model across deduction, induction, abduction, abstraction, and instantiation
-- [Gaia Vocabulary](meaning/vocabulary.md) — transitional terminology bridge during migration
 - [Product Scope](product-scope.md) — current baseline and product-surface context during migration
-- [Theoretical Foundation](theory/theoretical-foundation.md) — older Jaynes-centered framing and background theory during migration
-- [Inference Theory](theory/inference-theory.md) — older operator/factor theory during migration
-- [Independent Evidence & Conditional Independence](theory/corroboration-and-conditional-independence.md) — current independent-evidence theory during migration
-- [Domain Model](domain-model.md) — legacy meaning doc that will be retired as newer canonical homes stabilize
 
 ### Contracts
 
+- [Gaia Language Spec](contracts/authoring/gaia-language-spec.md) — the canonical author-facing language contract
+- [Graph IR](contracts/authoring/graph-ir.md) — the structural contract between authored packages and downstream reasoning/runtime
+- [Package Linking](contracts/authoring/package-linking.md) — cross-package reference and export-boundary rules
 - [Package Profiles](contracts/artifacts/package-profiles.md) — semantic profiles for knowledge, review, rebuttal, and investigation packages
 - [Review Artifacts](contracts/artifacts/review-artifacts.md) — the structured outputs of submission review
 - [Investigation Artifacts](contracts/artifacts/investigation-artifacts.md) — open-question and investigation-queue style artifacts
+- [CLI Lifecycle](contracts/lifecycles/cli-lifecycle.md) — the canonical local CLI lifecycle ending at publish
 - [LKM Package Lifecycle](contracts/lifecycles/lkm-package-lifecycle.md) — what happens to packages after they arrive in Gaia LKM
 - [Service Boundaries](contracts/services/service-boundaries.md) — the primary service split inside Gaia LKM
 - [Review Service](contracts/services/review-service.md) — submission-scoped adjudication ownership
 - [Curation Service](contracts/services/curation-service.md) — shared-state maintenance and investigation ownership
-- [CLI Lifecycle](contracts/lifecycles/cli-lifecycle.md) — the canonical local CLI lifecycle ending at publish
-- [Gaia Language Spec](contracts/authoring/gaia-language-spec.md) — the new canonical home for the author-facing language contract
-- [Graph IR](contracts/authoring/graph-ir.md) — the structural contract between authored packages and downstream reasoning/runtime
-- [Package Linking](contracts/authoring/package-linking.md) — cross-package reference and export-boundary rules
-- [Gaia Language Design](language/gaia-language-design.md)
-- [Language Design Rationale](language/design-rationale.md)
-- [Type System Direction](language/type-system-direction.md)
-- [Legacy Gaia Language Spec](language/gaia-language-spec.md) — older detailed v4 spec during migration
-- [Legacy Graph IR Draft](graph-ir.md) — older detailed Graph IR draft during migration
-- [Legacy CLI Command Lifecycle](cli/command-lifecycle.md) — older combined lifecycle doc during migration
-- [Review Pipeline & Publish Workflow](review/publish-pipeline.md) — current shared-side workflow doc during migration
+- [API Contract](contracts/services/api-contract.md) — what external API commitments are and are not yet stable
 
 ### Runtime
 
-- [Inference Runtime](runtime/inference-runtime.md) — current executable inference path and current-vs-target divergence
-- [Loop Analysis](runtime/loop-analysis.md) — how Gaia treats loops, diagnostics, and basis-style views
 - [Server Architecture](runtime/server-architecture.md) — current backend/runtime composition
 - [Storage Schema](runtime/storage-schema.md) — current persistence-side data model
+- [Inference Runtime](runtime/inference-runtime.md) — current executable inference path and current-vs-target divergence
+- [Loop Analysis](runtime/loop-analysis.md) — how Gaia treats loops, diagnostics, and basis-style views
 - [Review Runtime](runtime/review-runtime.md) — current execution path for review logic
 - [Curation Runtime](runtime/curation-runtime.md) — current execution path for shared-state maintenance
-- [Gaia CLI Runtime Boundaries](cli/boundaries.md) — legacy CLI runtime note during migration
-- [BP on Graph IR](bp-on-graph-ir.md) — older BP runtime/theory draft during migration
-- [Legacy Server Architecture](server/architecture.md) — older server target architecture during migration
-- [Legacy Server Storage Schema](server/storage-schema.md) — older storage draft during migration
+
+## Legacy Bridges and Detailed References
+
+These docs remain useful during migration, but they are not the preferred first-stop canonical homes:
+
+- [Gaia Vocabulary](meaning/vocabulary.md)
+- [Domain Model](domain-model.md)
+- [Theoretical Foundation](theory/theoretical-foundation.md)
+- [Inference Theory](theory/inference-theory.md)
+- [Independent Evidence & Conditional Independence](theory/corroboration-and-conditional-independence.md)
+- [Gaia Language Design](language/gaia-language-design.md)
+- [Language Design Rationale](language/design-rationale.md)
+- [Type System Direction](language/type-system-direction.md)
+- [Legacy Gaia Language Spec](language/gaia-language-spec.md)
+- [Legacy Graph IR Draft](graph-ir.md)
+- [Legacy CLI Command Lifecycle](cli/command-lifecycle.md)
+- [Gaia CLI Runtime Boundaries](cli/boundaries.md)
+- [Review Architecture](review/architecture.md)
+- [Review Pipeline & Publish Workflow](review/publish-pipeline.md)
+- [BP on Graph IR](bp-on-graph-ir.md)
+- [Legacy Server Architecture](server/architecture.md)
+- [Legacy Server Storage Schema](server/storage-schema.md)
+- [Foundation Reset Plan](foundation-reset-plan.md)
 
 ## Migration Notes
 
