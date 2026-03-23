@@ -1,10 +1,13 @@
 # Gaia Type System Direction
 
 > Related documents:
-> - [Gaia Language Spec](gaia-language-spec.md)
+> - [Current language contract](../contracts/authoring/gaia-language-spec.md)
 > - [Gaia Language Design](gaia-language-design.md)
 > - [Language Design Rationale](design-rationale.md)
-> - [Theoretical Foundation](../theory/theoretical-foundation.md)
+> - [Scientific Reasoning Foundation](../foundation/scientific-reasoning-foundation.md)
+> - [Gaia Reasoning Model](../semantics/gaia-reasoning-model.md)
+>
+> **Status: Transitional design-direction note.** This file is supplemental direction for type-system design, not the primary source of current semantic or contract truth.
 
 ## Purpose
 
@@ -60,11 +63,10 @@ def proof : EarthIsRound := ...
 ```
 
 In Gaia:
-```yaml
-# "Earth is round" is a term of type Claim
-claim earth_is_round:
-  content: "Earth is round"
-  prior: 0.5
+```text
+earth_is_round : Claim
+earth_is_round.content = "Earth is round"
+earth_is_round.prior = 0.5
 ```
 
 All claims are terms of type `Claim`. Evidence connects to claims via graph edges, not via type inhabitation. BP computes belief on the graph, not via type checking.

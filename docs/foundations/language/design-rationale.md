@@ -1,8 +1,13 @@
 # Gaia Language Design Rationale
 
-> **Related documents:** For the underlying Jaynes/probability foundations, see [../theory/theoretical-foundation.md](../theory/theoretical-foundation.md). For BP algorithm details, see [../theory/inference-theory.md](../theory/inference-theory.md).
+> **Status: Transitional supplemental rationale.** The current canonical homes for the active foundations split are:
 >
-> This document derives Gaia's CLI architecture from the Lean proof assistant analogy. It covers the tactic model, BeliefState, proof search, and command semantics.
+> - [../foundation/scientific-reasoning-foundation.md](../foundation/scientific-reasoning-foundation.md)
+> - [../semantics/gaia-reasoning-model.md](../semantics/gaia-reasoning-model.md)
+> - [../contracts/authoring/gaia-language-spec.md](../contracts/authoring/gaia-language-spec.md)
+> - [../contracts/lifecycles/cli-lifecycle.md](../contracts/lifecycles/cli-lifecycle.md)
+>
+> This file remains as deeper design rationale and analogy material rather than the primary source of current contract truth.
 
 ## Purpose
 
@@ -318,9 +323,9 @@ The Lean analogy clarifies why `run` is the wrong top-level verb for Gaia:
 
 ## Implications for Prior and Probability Annotations
 
-The `prior` and `probability` values written by hand in YAML are analogous to **type annotations** in Lean. In Lean, the elaborator can often infer types automatically; the user provides annotations only when needed.
+When Gaia uses explicit `prior` or `probability` values, they are analogous to **type annotations** in Lean. In Lean, the elaborator can often infer types automatically; the user provides annotations only when needed.
 
-In Gaia, `review` could eventually serve a similar role — estimating or adjusting edge probabilities based on content quality assessment, rather than requiring the author to manually assign all probabilities.
+In Gaia, review and inference tooling can eventually play a similar role — estimating or adjusting edge probabilities based on content quality assessment, rather than forcing authors to carry every probability as explicit authored surface data.
 
 ## Summary
 

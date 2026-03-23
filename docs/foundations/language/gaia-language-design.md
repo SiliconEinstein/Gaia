@@ -1,5 +1,7 @@
 # Gaia Language Design (v4)
 
+> **Status: Transitional detailed v4 design reference.** For the current canonical authoring contract, start with [../contracts/authoring/gaia-language-spec.md](../contracts/authoring/gaia-language-spec.md). This file remains useful when you need additional v4 surface examples and extraction detail.
+
 ## Purpose
 
 This document defines the language design of Gaia v4 -- a Typst-based DSL for knowledge representation and epistemic inference. Authors write knowledge packages as ordinary Typst documents; the compiler extracts a structured knowledge graph (nodes, factors, constraints) via `typst query`.
