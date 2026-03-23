@@ -64,9 +64,22 @@ Relations are declared with `#relation(type:, between:)` and serve as structural
 | Contradiction | `#relation(type: "contradiction")` | Yes | No | Required |
 | Equivalence | `#relation(type: "equivalence")` | Yes | No | Required |
 
+## Proof State Classification
+
+Each knowledge node in a package can be classified by its proof state — how well-supported it is within the package's reasoning structure:
+
+| Proof state | Meaning |
+|---|---|
+| **Theorem** | Has at least one reasoning chain with all premises resolved within the package |
+| **Assumption** | Accepted without proof within the package (settings, or claims with no `from:`) |
+| **Hole** | Referenced as a premise but never declared — a gap in the reasoning |
+| **Conjecture** | Has reasoning chains, but at least one premise is unresolved (depends on a hole) |
+
+Run `gaia build --proof-state` to generate a proof state report. See `libs/lang/proof_state.py` for the analysis implementation.
+
 ## Cross-Layer References
 
-- **BP behavior** of each type (factor potentials, message passing, gate variables): see [../../bp/potentials.md](../../bp/potentials.md)
+- **BP behavior**: see [../../bp/potentials.md](../../bp/potentials.md)
 - **Graph IR mapping** (how declarations become variable and factor nodes): see [../../graph-ir/factor-nodes.md](../../graph-ir/factor-nodes.md) and [../../graph-ir/knowledge-nodes.md](../../graph-ir/knowledge-nodes.md)
 
 ## Source

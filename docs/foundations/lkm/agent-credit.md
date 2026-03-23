@@ -1,6 +1,6 @@
 # Agent Credit
 
-> **Status:** Target design — not yet implemented
+> **Status:** Current canonical — target design, not yet implemented
 
 ## Core Idea
 
