@@ -13,14 +13,16 @@
 
 - [基础文档治理策略](documentation-policy.md)
 - [系统概览](system-overview.md)
+- [Gaia 概览](foundation/gaia-overview.md)
 - [Terminology](semantics/terminology.md)
 - [基础重置计划](foundation-reset-plan.md)
 
 ## 当前结构
 
-基础文档正在逐步重组为三层：
+基础文档正在逐步重组为四类：
 
-- **Meaning**：概念是什么意思
+- **Foundation**：Gaia 的总体定位与科学推理基础
+- **Semantics**：Gaia 自己定义的术语、知识类型、关系和推理模型
 - **Contracts**：作者侧与系统侧稳定契约
 - **Runtime**：当前实现实际上怎么运行
 
@@ -28,30 +30,49 @@
 
 ## 当前推荐阅读顺序
 
-### Meaning
+### Foundation 与 Semantics
 
+- [Gaia 概览](foundation/gaia-overview.md) — Gaia 是什么、为什么分成 CLI 与 LKM
+- [科学推理基础](foundation/scientific-reasoning-foundation.md) — 为什么科学推理不只是纯数学逻辑
 - [Terminology](semantics/terminology.md) — 基础术语的规范出处
-- [产品范围](product-scope.md) — Gaia 是什么、当前 baseline 是什么
-- [理论基础](theory/theoretical-foundation.md) — Jaynes 式认识论动机
-- [领域模型](domain-model.md) — 旧的意义层文档，后续会退役
-- [推理理论](theory/inference-theory.md) — 当前语义层 operator 理论
+- [Scientific Knowledge](semantics/scientific-knowledge.md) — Gaia 中主要的知识类型
+- [Knowledge Relations](semantics/knowledge-relations.md) — Gaia 知识项之间的核心关系
+- [Gaia Reasoning Model](semantics/gaia-reasoning-model.md) — Gaia 如何落 deduction / induction / abduction / abstraction / instantiation
+- [产品范围](product-scope.md) — 迁移期产品定位文档
+- [理论基础](theory/theoretical-foundation.md) — 迁移期旧理论总述
+- [推理理论](theory/inference-theory.md) — 迁移期目标 BP 理论
+- [领域模型](domain-model.md) — 已退役入口，保留给旧链接
 
 ### Contracts
 
+- [Package Profiles](contracts/artifacts/package-profiles.md) — `knowledge / review / rebuttal / investigation` 等 package 形态
+- [Review Artifacts](contracts/artifacts/review-artifacts.md) — submission review 产物
+- [Investigation Artifacts](contracts/artifacts/investigation-artifacts.md) — investigation queue / open question 风格产物
+- [LKM Package Lifecycle](contracts/lifecycles/lkm-package-lifecycle.md) — package 进入 Gaia LKM 后的共享侧生命周期
+- [Service Boundaries](contracts/services/service-boundaries.md) — ReviewService 与 CurationService 的边界
+- [Review Service](contracts/services/review-service.md)
+- [Curation Service](contracts/services/curation-service.md)
+- [CLI Lifecycle](contracts/lifecycles/cli-lifecycle.md) — 规范的本地 `build -> infer -> publish`
 - [Gaia Language 规范](contracts/authoring/gaia-language-spec.md)
-- [Gaia Language 设计](language/gaia-language-design.md)
-- [语言设计原理](language/design-rationale.md)
-- [类型系统方向](language/type-system-direction.md)
-- [图 IR](graph-ir.md)
-- [Gaia CLI 命令生命周期](cli/command-lifecycle.md)
-- [审查流水线与发布工作流](review/publish-pipeline.md) — 迁移期的共享侧工作流文档
+- [Graph IR 契约](contracts/authoring/graph-ir.md)
+- [Package Linking](contracts/authoring/package-linking.md)
+- [旧 Gaia Language 详细规范](language/gaia-language-spec.md) — 迁移期 legacy detailed spec
+- [旧 Graph IR 草稿](graph-ir.md) — 迁移期 legacy draft
+- [旧 CLI 生命周期](cli/command-lifecycle.md) — 迁移期 legacy lifecycle doc
+- [审查流水线与发布工作流](review/publish-pipeline.md) — 迁移期共享侧 workflow doc
 
 ### Runtime
 
-- [Gaia CLI 运行时边界](cli/boundaries.md)
-- [图 IR 上的 BP](bp-on-graph-ir.md)
-- [服务器架构](server/architecture.md)
-- [服务器存储模式](server/storage-schema.md)
+- [Inference Runtime](runtime/inference-runtime.md) — 当前 inference 执行路径与 current-vs-target 差异
+- [Loop Analysis](runtime/loop-analysis.md) — loops、diagnostics 与 basis-style view 的运行时定位
+- [Server Architecture](runtime/server-architecture.md) — 当前 backend/runtime 组合方式
+- [Storage Schema](runtime/storage-schema.md) — 当前 persistence/runtime data model
+- [Review Runtime](runtime/review-runtime.md)
+- [Curation Runtime](runtime/curation-runtime.md)
+- [Gaia CLI 运行时边界](cli/boundaries.md) — 迁移期旧 runtime note
+- [图 IR 上的 BP](bp-on-graph-ir.md) — 迁移期旧 BP runtime/theory 参考
+- [旧服务器架构](server/architecture.md)
+- [旧服务器存储模式](server/storage-schema.md)
 
 ## 迁移说明
 

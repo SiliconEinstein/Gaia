@@ -1,5 +1,16 @@
 # Gaia Foundation Reset Plan
 
+> **Status: Historical reset plan.**
+>
+> This document records the earlier plan for restructuring Gaia's foundation docs.
+>
+> The active structure is now governed by:
+>
+> - [documentation-policy.md](documentation-policy.md)
+> - [README.md](README.md)
+>
+> Many items in this plan refer to older document names such as `domain-model`, `server/storage-schema`, and YAML-oriented package contracts. Treat it as historical planning context, not as the current canonical map.
+
 ## Purpose
 
 Before making more structural code changes, Gaia needs a documented foundation pass that resets the shared understanding of:

@@ -5,7 +5,7 @@
 | Status | Current canonical |
 | Level | Overview |
 | Scope | Repo-wide |
-| Related | [semantics/terminology.md](semantics/terminology.md), [product-scope.md](product-scope.md), [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md), [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md), [contracts/lifecycles/lkm-package-lifecycle.md](contracts/lifecycles/lkm-package-lifecycle.md), [server/architecture.md](server/architecture.md) |
+| Related | [semantics/terminology.md](semantics/terminology.md), [foundation/gaia-overview.md](foundation/gaia-overview.md), [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md), [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md), [contracts/lifecycles/lkm-package-lifecycle.md](contracts/lifecycles/lkm-package-lifecycle.md), [runtime/server-architecture.md](runtime/server-architecture.md) |
 
 ## Purpose
 
@@ -65,7 +65,7 @@ CLI 负责：
 重要边界：
 
 - `review` 不属于规范的 CLI 生命周期
-- `main` 上当前存在的 `gaia review` 命令应被视为本地兼容辅助路径，而不是主要生命周期边界
+- 当前 `main` 的 CLI 入口并没有单独的 `gaia review` 命令；review 逻辑目前是嵌在本地 infer / publish 流中的 preview runtime
 
 CLI 细节见 [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md)。
 
@@ -88,7 +88,10 @@ Gaia LKM 是共享侧知识核心与 system of record。
 - `Gaia Cloud` 仍可作为产品或部署别名
 - `cloud` 不意味着必须远程部署；本地或自托管的 LKM 仍然成立
 
-当前更细的共享侧流程文档仍然暂时保留在 [review/publish-pipeline.md](review/publish-pipeline.md) 这类旧位置中，直到 foundations reset 继续推进。
+当前更细的共享侧流程文档请优先看：
+
+- [contracts/lifecycles/lkm-package-lifecycle.md](contracts/lifecycles/lkm-package-lifecycle.md)
+- [contracts/services/service-boundaries.md](contracts/services/service-boundaries.md)
 
 ## Service、Engine 与 Server
 
@@ -104,7 +107,7 @@ Gaia LKM 是共享侧知识核心与 system of record。
 - `engine` 是内部执行组件
 - `server` 是运行时/部署术语，不是共享侧整体最好的名字
 
-当前后端运行时细节见 [server/architecture.md](server/architecture.md)。
+当前后端运行时细节见 [runtime/server-architecture.md](runtime/server-architecture.md)。
 
 ## Artifact Flow
 
@@ -120,20 +123,21 @@ Gaia LKM 是共享侧知识核心与 system of record。
 
 ## `main` 上的当前运行时
 
-当前 `main` 分支已经包含多个已发布的运行时表面：
+当前 `main` 分支已经包含多个运行时表面：
 
 - Gaia CLI
-- 一个后端 server 实现
-- 一个 dashboard frontend
+- 共享侧 backend/runtime 模块
+- 若干本地与共享侧共用的 library pipelines
 
 激活基础文档应使用 `Gaia CLI / Gaia LKM` 这一概念分界来描述这些表面，而把更具体的实现细节放在 runtime 导向的文档里。
 
 ## 相关文档
 
 - [semantics/terminology.md](semantics/terminology.md) — 规范术语
-- [product-scope.md](product-scope.md) — 产品定位与当前 baseline
+- [foundation/gaia-overview.md](foundation/gaia-overview.md) — Gaia 的总体定位
+- [product-scope.md](product-scope.md) — 迁移期产品定位与 baseline
 - [contracts/authoring/gaia-language-spec.md](contracts/authoring/gaia-language-spec.md) — 作者侧 package surface
 - [contracts/authoring/graph-ir.md](contracts/authoring/graph-ir.md) — 结构化 IR 契约
 - [contracts/lifecycles/cli-lifecycle.md](contracts/lifecycles/cli-lifecycle.md) — 本地 CLI 生命周期
-- [review/publish-pipeline.md](review/publish-pipeline.md) — 迁移期间的共享侧工作流文档
-- [server/architecture.md](server/architecture.md) — 当前后端运行时
+- [contracts/lifecycles/lkm-package-lifecycle.md](contracts/lifecycles/lkm-package-lifecycle.md) — 共享侧 package lifecycle
+- [runtime/server-architecture.md](runtime/server-architecture.md) — 当前 backend/runtime
