@@ -229,27 +229,33 @@ These remain design directions, not current baseline capability.
 
 ## Product Positioning Summary
 
-Gaia is a **CLI-first, Server-enhanced** Large Knowledge Model platform.
+Gaia is a **Gaia CLI + Gaia LKM** system.
 
-- **CLI** — the primary product surface for creating, building, reviewing, and publishing knowledge packages
-- **Server** — an optional registry that provides knowledge integration, global search, peer review / identity assignment, and large-scale BP
-- **Dashboard** — a browser UI for exploring the server-side knowledge graph
+- **Gaia CLI** — the primary local product surface for authoring, building, previewing, and publishing Gaia packages
+- **Gaia LKM** — the shared-side knowledge core that owns intake, review, integration, curation, and shared inference concerns
+- **Gaia Cloud** — a deployment or product alias for LKM-side capabilities, not a separate foundation-level concept
 
-The current `main` ships the server, dashboard, and CLI.
+Current `main` most clearly ships:
+
+- the CLI
+- reusable shared-side library/runtime pieces
+- storage-backed local and shared-state execution components
+
+It does **not** yet ship a fully stabilized external LKM product shell with fixed API, review marketplace, and browser product surface all frozen as contract.
 
 ## Implications For Future Work
 
 Large new work should be framed in one of these ways:
 
 1. build out the CLI product surface (the primary product)
-2. extend the server as a registry and compute backend for the CLI
-3. tighten shared foundations that both CLI and server depend on
+2. extend Gaia LKM as the shared registry and compute side
+3. tighten shared foundations that both CLI and LKM depend on
 
 That means:
 
 - shared contracts (knowledge package schema, domain vocabulary) are the highest priority foundation work
 - CLI architecture should drive design decisions, not be an afterthought
-- server work should focus on the four enhancement services, not on being the sole product surface
+- shared-side work should focus on LKM capabilities and explicit service boundaries, not on vague "server-first" positioning
 
 ## PR And Documentation Rules
 
@@ -264,13 +270,13 @@ When writing docs or reviewing PRs:
 
 These have been resolved and should not be reopened:
 
-1. **CLI-first or server-first?** → CLI-first, Server-enhanced.
-2. **Primary interaction path?** → CLI local pipeline (`build -> self-review -> graph-construction -> infer -> publish`) → shared peer review / editor cycle → merge or reject.
-3. **Kuzu role?** → CLI's embedded graph backend (local, zero-config). Neo4j is the server-side backend.
+1. **Primary top-level split?** → `Gaia CLI` and `Gaia LKM`.
+2. **Canonical local lifecycle?** → `build -> infer -> publish`.
+3. **Shared-side review location?** → review belongs to Gaia LKM, not to the canonical CLI lifecycle.
 
 ## Open Product Decisions
 
 These remain open for later foundation phases:
 
 1. Should degraded graph-free operation be part of the supported product story, or only an internal fallback mode?
-2. What is the direct publish (`gaia publish --server`) contract? (deferred)
+2. What exact stable external LKM API should exist, if any, in this repository?
