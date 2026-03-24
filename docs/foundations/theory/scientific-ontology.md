@@ -156,7 +156,7 @@ infer 类型的算子经历三个阶段：
 
 | 阶段 | 说明 |
 |------|------|
-| **infer** | 作者写入的初始占位符。 |
+| **infer** | 粗粒化的推理过程。 |
 | **candidate** | review/research agent 分析后提议的具体推理类型。已识别出语义，但尚未经过充分验证。 |
 | **permanent** | 经过 research/review agent 研究和判断后确认。正式成为图结构的一部分，具有明确的 BP 规则。 |
 
