@@ -37,6 +37,11 @@ review_*.json
 review_*.md
 !cli/prompts/review_system.md
 
+# Pipeline output artifacts
+output/
+output_typst/
+paper/
+
 # Data (local databases, large files)
 data/
 

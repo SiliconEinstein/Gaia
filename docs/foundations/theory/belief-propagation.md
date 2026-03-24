@@ -1,37 +1,183 @@
-# Belief Propagation
+# Belief Propagation — 推理超图上的概率推理
 
-> **Status:** Current canonical
+> **Status:** Target design — foundation baseline
+>
+> 本文档定义如何在推理超图上定义概率并计算信念。
+> 关于推理超图的结构（知识对象、算子类型、因子图形式），参见 [reasoning-hypergraph.md](reasoning-hypergraph.md)。
+> 关于为什么用概率来描述科学推理（Jaynes 框架），参见 [plausible-reasoning.md](plausible-reasoning.md)。
+> 本文档不定义具体的编写语言语法或 Graph IR 字段布局。
 
-## 1. Factor Graphs
+**假设**
 
-A factor graph is a bipartite graph with two kinds of nodes:
+1. **Jaynes 框架**：概率是对命题可信度的度量，服从 Cox 定理推导出的规则（乘法规则、加法规则、Bayes 定理）。参见 [plausible-reasoning.md](plausible-reasoning.md)。
+2. **因子图结构**：知识组织为二部图 — 变量节点（命题）和因子节点（推理链）。参见 [reasoning-hypergraph.md](reasoning-hypergraph.md)。
+3. **合取语义（noisy-AND + leak）**：前提是联合必要条件。前提全真时结论以概率 p 成立；任何前提为假时结论以 ε（Cromwell 下界，10⁻³）成立。这是 Jaynes 规则之上唯一的建模假设。
 
-- **Variable nodes**: unknown quantities with prior distributions. In Gaia, these are knowledge nodes (propositions) with binary state: true (1) or false (0).
-- **Factor nodes**: constraints or relationships between variables. In Gaia, these are reasoning links connecting premises to conclusions.
+**输入与输出**
+
+- **输入**：作者对每条推理链给出条件概率 p，对每个命题给出先验 π
+- **输出**：每个命题的后验信念 belief(v) ∈ (ε, 1−ε) — 在给定整个网络结构和所有 p、π 的条件下，该命题为真的边缘后验概率
+
+在树结构图上，BP 精确计算这个边缘后验。在有环图上，BP 是变分近似（最小化 Bethe 自由能），收敛后的信念是近似边缘后验。
+
+**主观性的来源**：整个系统中唯一的主观判断是作者给出的条件概率 p — "这条推理有多强"。π 的影响随网络证据积累而递减（§5），ε 是固定常数，图结构由知识内容决定。因此 p 是系统的核心自由度，也是科学争论的焦点所在。关于如何从科学实践中确定 p 的值，参见 [science-formalization.md](science-formalization.md)。
+
+---
+
+## 1. Jaynes 规则与建模缺口
+
+Jaynes 理论（参见 [plausible-reasoning.md](plausible-reasoning.md)）给出了概率推理的**规则** — 乘法规则、加法规则、Bayes 定理。这些规则是推理的微积分：它告诉你如何从已知概率计算未知概率。
+
+但规则本身不构成一个可计算的系统。类比：牛顿给你 F=ma，但你还需要具体的力学定律（F=-kx 弹簧，F=GMm/r² 万有引力）才能解具体问题。Jaynes 的规则是 F=ma，我们还需要"力学定律"。
+
+### 1.1 因子图上的参数
+
+在因子图上做概率推理，作者需要提供两类数值：
+
+- **条件概率 p**：每条推理链的强度 — P(C=1 | 所有前提为真) = p。例如 p = 0.9 表示"前提全真时，结论有 90% 可信度"。p 附着在**因子节点**上。
+- **节点先验 π**：每个命题在任何推理之前的初始可信度。例如 π = 0.5 表示"尚无偏好"。π 附着在**变量节点**上。
+
+### 1.2 Jaynes 确定了什么
+
+有了 p 和 π，Jaynes 的规则（乘法规则、加法规则、Bayes 定理）确定了以下操作：
+
+- **前提全真时**：P(C=1 | P₁=1, P₂=1) = p（直接由 p 给出）
+- **反向更新**：Bayes 定理唯一地决定了 P(P₁ | C) 如何从 P(C | P₁) 计算
+- **多因子合并**：乘法规则决定了多条推理链的影响如何组合
+- **信念计算**：belief(v) = normalize(π(v) × 所有因子消息的乘积) — 后验 ∝ 先验 × 似然
+
+### 1.3 Jaynes 没有确定什么
+
+关键缺口：**前提为假时，结论怎么办？**
 
 ```
-Variable nodes = Knowledge (propositions)
-  prior  -> author-assigned plausibility, in (epsilon, 1 - epsilon)
-  belief -> posterior plausibility computed by BP
-
-Factor nodes = Reasoning links / constraints
-  connects premises[] + conclusion(s)
-  potential function encodes edge-type semantics
+P(C=1 | P₁=0) = ?
 ```
 
-The joint probability over all variables factorizes as:
+Jaynes 的规则对此没有唯一答案 — 这是一个**建模选择**。不同的选择导致不同的系统行为：
+
+- **沉默**：P(C | P₁=0) = prior(C) — 前提倒了，结论不受影响，回到先验
+- **主动压低**：P(C | P₁=0) = ε — 前提倒了，结论被强力压低
+
+哪个是对的？Polya/Jaynes 的弱三段论 4（参见 [plausible-reasoning.md](plausible-reasoning.md) §1.3-1.4）给出了判据：
+
+| 约束 | 来源 | 需求 |
+|------|------|------|
+| C1 | 三段论 1 (modus ponens) | 前提真 → 结论信念上升 |
+| C2 | 三段论 2 (弱确认) | 结论真 → 前提信念上升 |
+| C3 | 三段论 3 (modus tollens) | 结论假 → 前提信念下降 |
+| C4 | 三段论 4 (弱否认) | **前提假 → 结论信念下降** |
+
+C1–C3 在任何正确使用 Jaynes 规则的系统中自动满足。关键是 C4。
+
+**为什么沉默模型违反 C4？** 沉默模型说：前提为假时，因子不施加影响，结论回到先验 π(C)。但 C4 要求的是：发现前提为假后，结论的可信度应该**低于先验**。
+
+直觉上：如果"温度升高"是"金属膨胀"的前提，发现温度没有升高后，我们对金属膨胀的信心应该**降低**（因为一条支撑它的推理链断了），而不是回到"不知道"。沉默模型把"前提为假"当作"这条推理链不存在"，但推理链是存在的 — 它的前提被否定了，这本身就是负面证据。
+
+因此建模缺口的约束是：Jaynes 的规则不唯一确定 P(C | P₁=0)，但弱三段论 C4 缩小了选择空间 — **模型必须在前提为假时主动压低结论**。
+
+## 2. 合取语义在 BP 中的好处
+
+推理超图已经确立了合取语义：前提是联合必要条件，任何一个前提失败整条推理链断裂（参见 [reasoning-hypergraph.md](reasoning-hypergraph.md) §4.1）。这是科学推理的结构性质，不是概率层面的选择。
+
+当我们把这一结构性质翻译为概率模型时，对应的是 PGM 文献中的 **noisy-AND + leak**（Independence of Causal Influence 族的标准成员，与 noisy-OR 对偶；Pearl 1988, Henrion 1989）。**Leak probability** ε 是 Cromwell 下界（10⁻³），编码"前提不全为真时结论仍成立的极小背景概率"。
+
+这个模型在 BP 中有三个关键好处。
+
+### 2.1 好处一：唯一确定，无额外自由度
+
+作者对一条推理链提供的信息只有条件概率 p = P(C=1 | 所有前提为真)。对于 n 个二值前提 + 1 个结论，完整的条件概率表需要 2ⁿ 个参数。合取语义 + leak 将这个空间压缩到**零额外自由度**：
 
 ```
-P(x1, ..., xn | I) proportional to  prod_j phi_j(x_j) * prod_a psi_a(x_S_a)
+前提全真, 结论真  →  p        (作者给定)
+前提全真, 结论假  →  1-p      (加法规则：必然)
+前提不全真, 结论真  →  ε      (合取语义：前提断裂 → 结论几乎不成立)
+前提不全真, 结论假  →  1-ε    (加法规则：必然)
 ```
 
-where phi_j is the prior (unary factor) for variable j, and psi_a is the potential function for factor a over its connected variable subset S_a. Potentials are not probabilities -- they need not normalize. Only ratios matter.
+ε 是系统常数，所以**作者只需给 p，模型就唯一确定了**。
 
-## 2. Sum-Product Message Passing
+### 2.2 好处二：自动满足全部四条弱三段论
 
-Messages are 2-vectors `[p(x=0), p(x=1)]`, always normalized to sum to 1.
+取 π₁=0.9, π₂=0.8, p=0.9, ε=0.001 验证：
 
-### Algorithm
+**C 的边缘概率**：P(C=1) = p·π₁π₂ + ε·(1-π₁π₂) = 0.648
+
+**C1** — P(C=1 | P₁=1, P₂=1) = p = 0.9 ✓
+
+**C2** — P(P₁=1 | C=1)：
+
+```
+P(C=1 | P₁=1) = p·π₂ + ε·(1-π₂) = 0.7202
+P(P₁=1 | C=1) = 0.7202 × 0.9 / 0.648 = 0.9997 > 0.9 ✓
+```
+
+**C3** — P(P₁=1 | C=0)：
+
+```
+P(C=0 | P₁=1) = (1-p)·π₂ + (1-ε)·(1-π₂) = 0.2798
+P(P₁=1 | C=0) = 0.2798 × 0.9 / 0.352 = 0.716 < 0.9 ✓
+```
+
+**C4** — P(C=1 | P₁=0) = ε = 0.001 ✓
+
+特别是 C4：前提为假时，结论从 0.648 跌到 0.001。这正是 §1.2 中 Jaynes 缺口的解答 — 合取语义天然要求"前提假 → 结论被压低"，恰好填补了缺口。
+
+### 2.3 好处三：沉默模型自动被排除
+
+如果不采用合取语义而采用"沉默"模型（前提假时不施加影响）：
+
+```
+前提不全真, 结论真  →  1.0     ← 沉默
+前提不全真, 结论假  →  1.0     ← 沉默
+```
+
+则 P(C | 前提假) = prior(C)。先验 0.5 时结论不变 — 违反 C4。沉默模型在概率意义上等价于"前提是否成立与结论无关"，这与合取语义矛盾。因此**合取语义自动排除了沉默模型**，无需额外论证。
+
+### 2.5 约束算子的模型
+
+Contradiction 和 equivalence 不是前提→结论的推理，而是命题之间的结构性约束（参见 [reasoning-hypergraph.md](reasoning-hypergraph.md) §7.3）。它们有各自的固定模型：
+
+**Contradiction**（互斥约束）— 矛盾成立且所有命题都为真几乎不可能：
+
+```
+C_contra=1, all Aᵢ=1   →  ε
+其他所有组合              →  1
+```
+
+如果 A 和 B 都有压倒性证据为真，系统会质疑矛盾声明本身 — 这正是 Jaynes 一致性要求的体现。
+
+**Equivalence**（等价约束）— 等价成立时，真值应一致：
+
+```
+C_equiv=1, A=B    →  1-ε
+C_equiv=1, A≠B    →  ε
+C_equiv=0, 任意    →  1
+```
+
+约束算子的模型也由 ε（Cromwell 下界）唯一确定，无额外参数。
+
+### 2.6 合规性总结
+
+五种推理算子（参见 [reasoning-hypergraph.md](reasoning-hypergraph.md) §7）对四条约束的满足情况：
+
+| 算子类型 | C1 | C2 | C3 | C4 | 自由参数 |
+|---------|:---:|:---:|:---:|:---:|------|
+| entailment | ✓ | ✓ | ✓ | 通常沉默 | p（≈1.0） |
+| induction | ✓ | ✓ | ✓ | ✓ | p（< 1.0） |
+| abduction | ✓ | ✓ | ✓ | ✓ | p |
+| equivalent | ✓ | ✓ | ✓ | ✓ (质疑关系) | 无（仅 ε） |
+| contradict | ✓ | ✓ | ✓ | ✓ (质疑关系) | 无（仅 ε） |
+
+**entailment 的 C4 为什么通常沉默是正确的：** 对于 instantiation（从全称到实例），¬∀x.P(x) ⊬ ¬P(a) — 全称命题为假不代表每个实例都假。这是 Popper/Jaynes 对归纳的标准观点。
+
+## 3. Sum-Product 消息传递
+
+§2 定义了每个因子节点的局部模型。本节描述如何在整个因子图（参见 [reasoning-hypergraph.md](reasoning-hypergraph.md) §5）上，通过消息传递从局部模型计算全局信念。
+
+消息是二维向量 `[p(x=0), p(x=1)]`，始终归一化使得和为 1。
+
+### 算法
 
 ```
 Initialize: all messages = [0.5, 0.5] (uniform, MaxEnt)
@@ -59,272 +205,81 @@ Repeat (up to max_iterations):
      If max |new_belief - old_belief| < threshold: stop.
 ```
 
-Key design points:
+关键设计要点：
 
-- **Bidirectional messages**: variable-to-factor and factor-to-variable. Backward inhibition (modus tollens) emerges naturally.
-- **Exclude-self rule**: when variable v sends a message to factor f, it excludes f's own incoming message. This prevents circular self-reinforcement.
-- **Synchronous schedule**: all new messages are computed from old messages, then swapped simultaneously. Factor ordering does not affect results.
-- **2-vector normalization**: messages always sum to 1, preventing numerical decay in long chains.
+- **双向消息**：变量到因子和因子到变量。反向抑制（modus tollens）自然产生。
+- **排除自身规则（exclude-self rule）**：当变量 v 向因子 f 发送消息时，排除 f 自身的传入消息。这防止了循环自增强。
+- **同步调度**：所有新消息都从旧消息计算，然后同时交换。因子排序不影响结果。
+- **二维向量归一化**：消息始终和为 1，防止长链中的数值衰减。
 
-### Correspondence with Jaynes's Rules
+### 与 Jaynes 规则的对应关系
 
-| BP operation | Jaynes rule |
+| BP 操作 | Jaynes 规则 |
 |---|---|
-| Joint = product of potentials and priors | Product rule |
-| Message normalization [p(0) + p(1) = 1] | Sum rule |
-| belief = prior * product of factor-to-var messages | Bayes' theorem (posterior proportional to prior * likelihood) |
-| Variable-to-factor message (exclude-self) | Background information P(H\|X) excluding current factor |
-| Factor-to-variable message (marginalize) | Likelihood P(D\|HX) marginalized over other variables |
+| 联合 = 势与先验的乘积 | 乘法规则 |
+| 消息归一化 [p(0) + p(1) = 1] | 加法规则 |
+| belief = 先验 × 因子到变量消息的乘积 | Bayes 定理（后验正比于先验 × 似然） |
+| 变量到因子消息（排除自身） | 排除当前因子的背景信息 P(H\|X) |
+| 因子到变量消息（边缘化） | 对其他变量边缘化后的似然 P(D\|HX) |
 
-On tree-structured graphs, BP is exact. On loopy graphs, it is an approximation.
+在树结构图上，BP 是精确的。在有环图上，它是一种近似。
 
-## 3. Loopy BP and Convergence
+## 4. Loopy BP 与收敛性
 
-Real knowledge graphs have cycles. Loopy BP handles this by iterating message passing until beliefs stabilize.
+现实世界的因子图常包含环。loopy BP 通过迭代消息传递直到信念稳定来处理这种情况。
 
-**Damping** prevents oscillation on cyclic graphs:
+**阻尼（damping）** 防止在有环图上的振荡：
 
 ```
 msg_new = alpha * computed_msg + (1 - alpha) * msg_old
 ```
 
-With alpha = 0.5 (default), each update moves halfway toward the new value. Damping trades convergence speed for stability.
+当 alpha = 0.5（默认值）时，每次更新向新值移动一半。阻尼以收敛速度换取稳定性。
 
-Loopy BP minimizes the **Bethe free energy**, a variational approximation to the true free energy. On sparse graphs (typical of knowledge hypergraphs), this approximation is generally good. The system always produces a set of beliefs -- there is no "unsatisfiable" state. Incomplete knowledge yields uncertain beliefs, not system failure.
+loopy BP 最小化 **Bethe 自由能**，这是真实自由能的变分近似。在稀疏图上，这种近似通常较好。系统始终产生一组信念 — 不存在"不可满足"的状态。不完整的信息产生不确定的信念，而非系统失败。
 
-**Cromwell's rule** is enforced at two points:
+**Cromwell 规则**在两处强制执行：
 
-1. **At construction**: all priors and conditional probabilities are clamped to [epsilon, 1-epsilon], with epsilon = 10^-3.
-2. **In potentials**: the leak parameter in noisy-AND factors is itself the Cromwell lower bound, ensuring no state combination has zero potential.
+1. **在构造时**：所有先验和条件概率都钳制在 [ε, 1-ε]，其中 ε = 10⁻³。
+2. **在势函数中**：泄漏参数本身就是 Cromwell 下界，确保没有状态组合具有零势。
 
-This prevents degenerate updates where a zero probability blocks all future evidence.
+这防止了零概率阻断所有未来证据的退化更新。
 
-## 4. Factor Potentials
+**系统永远有解**：在因子图上运行 BP，总能给出一组信念值。不存在"不可满足"或"无解"的概念。不完整的信息产生不确定的信念（接近 0.5），矛盾的信息产生竞争的信念（弱者被压低），但系统永远不会崩溃。这与基于 SAT 求解的系统形成对比 — 概率推理没有"无解"，只有"不确定"。
 
-Each factor type has a potential function mapping variable assignments to non-negative weights.
+## 5. 极简假设与两类作者输入
 
-### 4.1 Reasoning Support (deduction / induction)
+回顾整个理论，Gaia 的概率推理在 Jaynes 规则之上只有**一个建模假设**：noisy-AND（前提是联合必要条件）。系统没有隐藏的超参数需要调优，没有需要训练的权重。作者提供两类输入，BP 从中计算所有信念：
 
-The current implementation uses a **conditional potential gated on all-premises-true**:
+| 输入 | 附着位置 | 含义 | 符号 |
+|------|---------|------|------|
+| **条件概率** | 因子节点（推理链） | "如果前提全真，结论有多可信" | p |
+| **节点先验** | 变量节点（命题） | "在任何推理之前，这个命题有多可信" | π |
 
-| All premises true? | Conclusion value | Potential |
-|---|---|---|
-| Yes | 1 | p (conditional probability) |
-| Yes | 0 | 1 - p |
-| No | any | 1.0 (unconstrained) |
-
-where p is the author-assigned conditional probability for the reasoning step.
-
-This covers both deduction (p close to 1.0) and induction (p < 1.0). The `edge_type` values `deduction`, `induction`, `abstraction`, and `paper-extract` all use this same potential shape in the current runtime (`libs/inference/bp.py`).
-
-**Theoretical note**: the target model replaces the "unconstrained when premises false" row with a **noisy-AND + leak** potential (leak = epsilon), which ensures that false premises actively suppress the conclusion rather than leaving it at its prior. This satisfies Jaynes's fourth syllogism (weak denial). The current runtime does not yet implement noisy-AND + leak. See the detailed parameterization in section 6 below.
-
-### 4.2 Contradiction
-
-Penalizes the configuration where all premises are simultaneously true:
-
-| All premises true? | Potential |
-|---|---|
-| Yes | epsilon (near zero) |
-| No | 1.0 |
-
-In the current implementation, conclusion variables in contradiction factors are non-participating -- the potential depends only on premises, so factor-to-conclusion messages are uniform and conclusion beliefs stay at their priors.
-
-**BP behavior**: when two contradicted claims both have high belief, the factor sends strong inhibitory backward messages. The claim with weaker evidence is suppressed more -- this is the "weaker evidence yields first" principle, a direct consequence of Jaynes's rules operating in odds space.
-
-For `relation_contradiction` factors (generated from Relation nodes), the relation node itself is included as a premise participant (`premises[0]`). This allows BP to "question the relationship" when both constrained claims have overwhelming evidence -- the relation's belief is lowered rather than indefinitely suppressing strong claims.
-
-### 4.3 Equivalence
-
-Rewards agreement and penalizes disagreement between two claims:
-
-| Claim A value | Claim B value | Potential |
-|---|---|---|
-| A = B (agree) | | p (constraint strength) |
-| A != B (disagree) | | 1 - p |
-
-For `relation_equivalence` factors, the relation node participates as `premises[0]`, and p is derived from the relation node's current belief. When claims agree, the equivalence relation is strengthened; when they disagree, the relation itself is weakened.
-
-N-ary equivalence is decomposed into pairwise factors sharing the same relation node.
-
-### 4.4 Retraction
-
-Inverts the standard conditional -- models evidence **against** a conclusion:
-
-| All premises true? | Conclusion value | Potential |
-|---|---|---|
-| Yes | 1 | 1 - p |
-| Yes | 0 | p |
-| No | any | 1.0 (unconstrained) |
-
-When retraction evidence is present (premises true), the conclusion is suppressed. When retraction evidence is absent (premises false), the factor is silent -- "absence of counter-evidence is not evidence of support."
-
-### 4.5 Instantiation
-
-Models the logical implication from a universal/schema claim to a specific instance:
-
-| Schema (premise) | Instance (conclusion) | Potential |
-|---|---|---|
-| 1 (universal holds) | 1 (instance holds) | 1.0 |
-| 1 (universal holds) | 0 (instance fails) | 0.0 (contradiction) |
-| 0 (universal fails) | 1 (instance holds) | 1.0 (instance can hold independently) |
-| 0 (universal fails) | 0 (instance fails) | 1.0 |
-
-This is deterministic: if the schema is believed, the instance must be believed. If the instance is disbelieved, the schema is disbelieved (counterexample). If the schema is disbelieved, no constraint on the instance -- not-forall-x-P(x) does not imply not-P(a).
-
-Inductive strengthening emerges from BP's message aggregation: multiple high-belief instances send backward messages that raise the schema's belief, while a single low-belief instance (counterexample) lowers the schema and propagates weakness to all other instances.
-
-## 5. Factor Type Summary
-
-| Factor type | Potential shape | Current implementation status |
-|---|---|---|
-| `infer` (deduction/induction) | Conditional on all-premises-true | Stable; `libs/inference/bp.py` |
-| `abstraction` | Same as infer | Transitional; target is deterministic entailment |
-| `instantiation` | Deterministic implication | Stable |
-| `contradiction` | Jaynes penalty on all-premises-true | Stable |
-| `relation_contradiction` | Same penalty with relation as participant | Stable |
-| `relation_equivalence` | Agreement/disagreement reward | Stable |
-| `retraction` | Inverted conditional | Stable |
-
-## 6. Noisy-AND + Leak: Target Potential Model
-
-### 6.1 Parameters
-
-The noisy-AND + leak model requires only two parameters per reasoning factor:
-
-- **p** — conditional probability P(C=1 | all premises true), the author-assigned strength of the reasoning step.
-- **epsilon (leak)** — background probability that the conclusion holds even when premises are not all true. Default: Cromwell lower bound (10^-3).
-
-This compresses the full CPT (2^n entries for n premises) into 2 parameters, matching Gaia's authoring model where the author specifies a single conditional probability.
-
-### 6.2 Potential Function
+BP 计算每个节点的后验信念（belief）：
 
 ```
-phi(P1, ..., Pn, C):
-  all Pi=1, C=1  ->  p          (premises true, support conclusion)
-  all Pi=1, C=0  ->  1-p        (premises true, conclusion absent)
-  any Pi=0, C=1  ->  epsilon    (premises not all true, conclusion still true -> near-impossible)
-  any Pi=0, C=0  ->  1-epsilon  (premises not all true, conclusion false -> compatible)
+belief(v) = normalize( π(v) × ∏_f msg(f → v) )
+                        ↑              ↑
+                    节点先验     来自所有连接因子的消息
+                                （由 p 值和邻居信念驱动）
 ```
 
-The key difference from the current all-or-nothing model is the third and fourth rows: instead of potential = 1.0 (silence), false premises actively suppress the conclusion via the epsilon/1-epsilon ratio. This satisfies Jaynes's fourth syllogism (weak denial).
+这就是 Bayes 定理在因子图上的表达：后验 ∝ 先验 × 似然。其中 π 是先验，因子消息的乘积是似然（由网络中的 p 值和其他节点的信念共同决定）。
 
-### 6.3 Why Noisy-AND Generalizes the Current Model
+**π 的影响随网络证据积累而递减**：连接到一个节点的推理链越多，因子消息的乘积越主导，π 的相对权重越小。在证据充分的大网络中，信念主要由网络结构和 p 值决定，而非 π 的具体选择。
 
-The current model sets potential = 1.0 when any premise is false, making the factor silent. This is equivalent to setting epsilon = 0.5 in the noisy-AND formulation (equal weight to C=1 and C=0). The noisy-AND model with epsilon << 1 is strictly more expressive:
+但 π 不会完全消失：
 
-- epsilon = 0.5 recovers the current silent behavior
-- epsilon -> 0 gives hard AND gating (conclusion impossible without premises)
-- epsilon = 10^-3 (default) gives strong but not absolute suppression
+- **稀疏连接的节点**（只有一两条推理链连接）仍然对 π 敏感
+- **Cromwell 规则**保证 π 永远在 (ε, 1-ε) 内，因此新证据总是可以移动信念 — 这防止了"零概率锁死"
+- **loopy BP 的多不动点**：在有环图上，不同的 π 初始化可能导致收敛到不同的不动点，虽然阻尼通常会稳定到一个
 
-### 6.4 Jaynes's Four Syllogisms Verified
+这意味着 Gaia 的推理引擎是一个**证据驱动**的系统：网络越大、连接越密，信念就越由 p 值和网络结构决定，越不依赖 π 的个体判断。这正是科学知识的积累性质在概率框架中的自然体现。
 
-Given premises P1, P2 with priors pi_1=0.9, pi_2=0.8, conditional probability p=0.9, epsilon=0.001:
+## 参考文献
 
-**Marginal probability of C:**
-
-```
-P(C=1) = p * pi_1 * pi_2 + epsilon * (1 - pi_1 * pi_2)
-       = 0.9 * 0.72 + 0.001 * 0.28
-       = 0.648
-```
-
-**Syllogism 1 — Modus Ponens:** P(C=1 | P1=1, P2=1) = p = 0.9. Premises true implies conclusion supported.
-
-**Syllogism 2 — Weak confirmation:** P(P1=1 | C=1) = P(C=1|P1=1) * pi_1 / P(C=1) where P(C=1|P1=1) = p*pi_2 + epsilon*(1-pi_2) = 0.7202. Result: 0.7202 * 0.9 / 0.648 = 0.9997 > 0.9. Conclusion true raises premise belief.
-
-**Syllogism 3 — Modus Tollens:** P(P1=1 | C=0) = P(C=0|P1=1) * pi_1 / P(C=0) where P(C=0|P1=1) = 0.2798. Result: 0.2798 * 0.9 / 0.352 = 0.716 < 0.9. Conclusion false lowers premise belief.
-
-**Syllogism 4 — Weak denial:** P(C=1 | P1=0) = epsilon = 0.001 << 0.648. Premise false strongly suppresses conclusion. Under the current model (silent), C would only drop to its prior, not to 0.001.
-
-### 6.5 Weak Syllogism: Partial Premise Support
-
-With noisy-AND + leak, partial premise support (some premises believed, others uncertain) produces graded conclusion support. Consider three premises with beliefs b1=0.9, b2=0.6, b3=0.3:
-
-The factor-to-conclusion message is computed by marginalizing over all premise states, weighted by their beliefs. The dominant terms are:
-
-- All true (weight ~ b1*b2*b3 = 0.162): contributes p to conclusion
-- Mixed states (remaining weight ~ 0.838): contributes epsilon to conclusion
-
-The resulting conclusion support is approximately:
-
-```
-msg(C=1) ~ 0.162 * p + 0.838 * epsilon
-         ~ 0.162 * 0.9 + 0.838 * 0.001
-         ~ 0.147
-```
-
-This is much lower than the all-premises-true case (0.9) but higher than the all-premises-false case (0.001). Partial evidence gives partial support — a smooth interpolation that the current all-or-nothing gating cannot express.
-
-## 7. Factor Potential Derivations by Type
-
-This section collects the explicit potential formulas for all factor types.
-
-### 7.1 Reasoning Support (deduction / induction)
-
-**Current:** conditional potential gated on all-premises-true (section 4.1 above).
-
-**Target (noisy-AND + leak):** phi(P1..Pn, C) as defined in section 6.2.
-
-### 7.2 Contradiction
-
-```
-phi(C_contra, A1, ..., An):
-  C_contra=1, all Ai=1  ->  epsilon   (contradiction holds and all claims true -> near-impossible)
-  all other combinations ->  1.0       (unconstrained)
-```
-
-When both contradicted claims have strong evidence, the factor sends inhibitory backward messages. The claim with weaker evidence yields first (the "weaker evidence yields first" principle from odds-space reasoning). When both claims have overwhelming evidence, the relation node C_contra itself is suppressed — the system questions the contradiction.
-
-### 7.3 Equivalence
-
-```
-phi(C_equiv, A, B):
-  C_equiv=1, A=B    ->  1-epsilon  (equivalence holds + agreement -> high compatibility)
-  C_equiv=1, A!=B   ->  epsilon    (equivalence holds + disagreement -> low compatibility)
-  C_equiv=0, any    ->  1.0        (no equivalence -> unconstrained)
-```
-
-N-ary equivalence decomposes into pairwise factors sharing the same C_equiv node.
-
-### 7.4 Retraction
-
-```
-phi(P1..Pn, C):
-  all Pi=1, C=1  ->  1-p   (retraction evidence present, conclusion survives -> unlikely)
-  all Pi=1, C=0  ->  p     (retraction evidence present, conclusion suppressed -> likely)
-  any Pi=0, any  ->  1.0   (retraction evidence absent -> silent)
-```
-
-Retraction is correctly silent when evidence is absent: "absence of counter-evidence is not evidence of support."
-
-### 7.5 Instantiation
-
-```
-phi(Schema, Instance):
-  Schema=1, Instance=1  ->  1.0    (universal holds, instance holds)
-  Schema=1, Instance=0  ->  0.0    (universal holds, instance fails -> contradiction)
-  Schema=0, Instance=1  ->  1.0    (universal fails, instance can hold independently)
-  Schema=0, Instance=0  ->  1.0    (universal fails, no constraint)
-```
-
-Deterministic: schema true forces instance true. Instance false forces schema false (counterexample). Schema false places no constraint on instance (not-forall-x-P(x) does not imply not-P(a)).
-
-## 8. Current vs Target
-
-| Aspect | Current implementation | Noisy-AND target |
-|---|---|---|
-| **Reasoning support potential** | All-or-nothing gating: potential = 1.0 when any premise is false (silent) | Noisy-AND + leak: potential = epsilon when any premise is false (active suppression) |
-| **Jaynes syllogism 4** | Not satisfied: false premises leave conclusion at prior | Satisfied: false premises drive conclusion toward epsilon |
-| **Weak syllogism** | Not expressible: partial premise support produces no graded signal | Smooth interpolation between full support and full suppression |
-| **Contradiction/equivalence** | Relation node belief used as gate strength; relation belief not updated by BP | Target: relation node participates as ordinary BP variable; can be questioned when evidence conflicts |
-| **Parameters** | p (conditional probability) per reasoning step | p + epsilon (leak, default 10^-3) per reasoning step |
-| **Implementation** | `libs/inference/bp.py` — stable, tested | Not yet implemented in runtime |
-
-The current implementation is correct for its scope: on graphs where premises are well-supported, the all-or-nothing gating produces reasonable beliefs. The noisy-AND target addresses edge cases (partial evidence, syllogism 4 compliance) and is the planned next revision.
-
-## Source
-
-- [../../foundations_archive/theory/inference-theory.md](../../foundations_archive/theory/inference-theory.md)
-- [../../foundations_archive/bp-on-graph-ir.md](../../foundations_archive/bp-on-graph-ir.md)
-- `libs/inference/bp.py` -- verified potential functions against implementation
+- Jaynes, E.T. *Probability Theory: The Logic of Science* (2003)
+- Pearl, J. *Probabilistic Reasoning in Intelligent Systems* (1988)
+- Yedidia, Freeman, Weiss. "Understanding Belief Propagation and its Generalizations" (2003)
+- Henrion, M. "Some Practical Issues in Constructing Belief Networks" (1989)
