@@ -7,6 +7,7 @@ Gaia 的规范参考文档，按架构层级组织。
 - [合情推理](theory/plausible-reasoning.md) — Jaynes、Cox 定理、概率即逻辑
 - [推理超图](theory/reasoning-hypergraph.md) — 科学对象模型、算子分类、因子图结构
 - [Belief Propagation](theory/belief-propagation.md) — 势函数模型（noisy-AND + leak）、和积算法、收敛性
+- [科学知识的形式化](theory/science-formalization.md) — 从自然语言到超图的分步精炼、p 的客观化
 
 ## 设计理念 — 设计哲学（极少变更）
 
