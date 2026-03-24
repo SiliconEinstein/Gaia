@@ -274,12 +274,26 @@ Graph IR 中没有 retraction factor 类型。撤回是一个**操作**：将目
 
 规范化是将 local canonical 节点映射到 global canonical 节点的过程——从包内身份到跨包身份。
 
-### 3.1 映射决策
+### 3.1 映射决策：premise 与 conclusion 的区别
 
-当新包被发布时，其每个 local canonical 节点要么：
+当新包中的 local 节点与全局图中已有节点语义匹配时，处理方式取决于**该节点在 local 图中的角色**：
 
-- **match_existing**：绑定到表达相同命题的现有 GlobalCanonicalNode
-- **create_new**：为前所未见的命题创建新的 GlobalCanonicalNode
+**作为 premise 的节点 → 直接 merge**
+
+如果 local 节点在 local 图中仅作为 premise 使用，且与已有 global 节点匹配，则直接绑定到该 global 节点。全局图上的 prior 和 belief 保持不变，不因为新包的加入而更新。
+
+**作为 conclusion 的节点 → 创建 equivalent candidate factor**
+
+如果 local 节点在 local 图中作为某个 factor 的 conclusion，且与已有 global 节点匹配，**不**直接 merge 为同一个 global 节点。而是：
+
+1. 为 local conclusion 创建新的 global 节点
+2. 在新旧两个 global 节点之间创建一个 `reasoning_type=equivalent, stage=candidate` 的 factor
+
+理由：两个不同包独立得出的结论语义相似，不代表它们是同一个命题。它们之间的等价关系需要经过 review 确认后才能升格为 permanent。直接 merge 会跳过这一审查步骤。
+
+**无匹配 → create_new**
+
+为前所未见的命题创建新的 GlobalCanonicalNode。
 
 ### 3.2 参与规范化的节点类型
 
@@ -309,18 +323,20 @@ CanonicalBinding:
     global_canonical_id:    str
     package_id:             str
     version:                str
-    decision:               str    # "match_existing" | "create_new"
+    decision:               str    # "match_existing" | "create_new" | "equivalent_candidate"
     reason:                 str    # 匹配原因（如 "cosine similarity 0.95"）
 ```
 
 ### 3.5 Factor 提升
 
-节点规范化完成后，local factor 使用全局 ID 重写：
+节点规范化完成后，local factor 提升到全局图：
 
 1. 从 CanonicalBinding 构建 `lcn_ → gcn_` 映射
 2. 从全局节点元数据构建 `ext: → gcn_` 映射（跨包引用解析）
 3. 对每个 local factor，解析所有 premise、context 和 conclusion ID
 4. 含未解析引用的 factor 被丢弃（记录在 `unresolved_cross_refs` 中）
+
+**Global factor 不携带 steps。** Local factor 的 `steps`（推理过程文本）保留在 local canonical 层。Global factor 只保留结构信息（category、stage、reasoning_type、premises、contexts、conclusion），不复制推理内容。需要查看推理细节时，通过 CanonicalBinding 回溯到 local 层。
 
 ### 3.6 GlobalCanonicalNode 的内容引用
 
