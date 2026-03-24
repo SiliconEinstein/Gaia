@@ -144,6 +144,7 @@ loopy BP 最小化 **Bethe 自由能**，这是真实自由能的变分近似。
 以下对象**不**直接进入 BP：
 
 - Template
+- Background
 - Question
 - infer 阶段的推理链接（尚未经过审查确认具体类型）
 - candidate 阶段的推理链接（尚未经过充分验证）
