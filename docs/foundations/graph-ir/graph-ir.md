@@ -239,26 +239,30 @@ Factor 身份是确定性的：`f_{sha256[:16]}` 由源构造计算得出。Fact
 
 | category | stage=initial | stage=candidate/permanent |
 |----------|--------------|--------------------------|
-| **infer** | reasoning_type=None | reasoning_type 必填 |
+| **infer** | reasoning_type 可为 None 或作者指定 | reasoning_type 必填 |
 | **toolcall** | reasoning_type=None | 不经历 lifecycle |
 | **proof** | reasoning_type=None | 不经历 lifecycle |
 
+**stage 说明：**
+
+- 作者可以在写入时直接指定 `reasoning_type`（如 `entailment`），此时 `stage=initial` 但 `reasoning_type` 非 None。Review 通过后，包内关系可直接升格为 `permanent`。
+- 如果作者不指定具体类型，`reasoning_type=None`，由 review/research agent 在 candidate 阶段提议。
+
 **不变量：**
 
-1. `stage=initial` → `reasoning_type=None`
-2. `stage=candidate|permanent` 且 `category=infer` → `reasoning_type` 必填
-3. `conclusion` 的 type 必须是 `claim`（如果 conclusion 非 None）
-4. `premises` 中的 type 必须是 `claim`（和 instantiation 场景中的 `type=template`）
-5. `contexts` 中的 type 可以是 `claim | setting | question`
-6. `type=template` 的节点只能作为 entailment factor 的 premise（instantiation 场景）
-7. `equivalent` 和 `contradict` 的 `conclusion = None`，`premises` 至少包含 2 个节点
+1. `stage=candidate|permanent` 且 `category=infer` → `reasoning_type` 必填
+2. `conclusion` 的 type 必须是 `claim`（如果 conclusion 非 None）
+3. `premises` 中的 type 可以是 `claim | setting | question | template`
+4. `contexts` 中的 type 可以是 `claim | setting | question`
+5. `type=template` 的节点只能作为 entailment factor 的 premise（instantiation 场景）
+6. `equivalent` 和 `contradict` 的 `conclusion = None`，`premises` 至少包含 2 个节点
 
 ### 2.4 Premise 与 Context 的区别
 
-- **Premise**（`premises` 字段）：承载性依赖。前提为假会削弱结论的有效性。创建 BP 边。
-- **Context**（`contexts` 字段）：弱/背景依赖。不创建 BP 边。Setting 和 Question 作为推理输入时进入此字段。
+- **Premise**（`premises` 字段）：承载性依赖。前提为假会削弱结论的有效性。创建 BP 边。可以是任意知识类型（claim、setting、question、template）。
+- **Context**（`contexts` 字段）：弱相关的引用。不创建 BP 边。不是推理的直接输入，而是提供间接背景信息。可以是 claim、setting 或 question。
 
-设计动机：Setting/Question 不参与 BP（theory §6.2-6.3），将它们放在 `contexts` 使 BP 引擎无需检查节点类型就知道哪些边参与消息传递。
+两者的区别不在于知识类型，而在于**依赖强度**：premise 是推理成立的必要条件，context 是辅助参考。
 
 ### 2.5 关于撤回（retraction）
 
