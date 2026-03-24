@@ -85,4 +85,4 @@ Gaia 有四种知识对象的**声明类型**和两种结构约束的**关系类
 ## 源码
 
 - `libs/storage/models.py` —— `Knowledge.type` 枚举：`claim | question | setting | action | contradiction | equivalence`
-- `docs/foundations/theory/scientific-ontology.md` —— 本体论分类
+- `docs/foundations/theory/reasoning-hypergraph.md` —— 本体论分类

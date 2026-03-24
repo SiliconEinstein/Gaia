@@ -109,7 +109,7 @@ Gaia 基础文档应归入以下四个主要层次之一。
 
 示例：
 
-- `theory/scientific-ontology.md`
+- `theory/reasoning-hypergraph.md`
 - `theory/theoretical-foundation.md`
 
 ### 架构

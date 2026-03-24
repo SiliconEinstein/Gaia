@@ -6,7 +6,7 @@ Gaia 的规范参考文档，按架构层级组织。
 
 - [合情推理](theory/plausible-reasoning.md) — Jaynes、Cox 定理、概率即逻辑
 - [Belief Propagation](theory/belief-propagation.md) — 和积算法、收敛性、阻尼
-- [科学本体论](theory/scientific-ontology.md) — 科学知识分类
+- [科学本体论](theory/reasoning-hypergraph.md) — 科学知识分类
 
 ## 设计理念 — 设计哲学（极少变更）
 

@@ -2,7 +2,7 @@
 
 > 相关文档：
 > - [architecture-overview.md](architecture-overview.md)
-> - [../theory/scientific-ontology.md](../theory/scientific-ontology.md)
+> - [../theory/reasoning-hypergraph.md](../theory/reasoning-hypergraph.md)
 > - [../cli/gaia-lang/spec.md](../cli/gaia-lang/spec.md)
 
 ## 目的
