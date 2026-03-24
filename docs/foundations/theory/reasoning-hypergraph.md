@@ -298,34 +298,9 @@ instantiation 示例：
 
 ### 7.4 算子类型之间的深层关系
 
-#### Entailment 是核心算子
+Entailment 是最基本的推理算子。Polya/Jaynes 的四个三段论（强三段论 + 三个弱三段论）都是同一个 entailment 因子上双向消息传递的不同情况。而 induction 和 abduction 的本质是**发现并建立新的 entailment 关系**——探索性推理的终极目标是建立确定性推理。
 
-Polya/Jaynes 的强三段论和三个弱三段论都建立在同一个蕴含关系 A → B 上。它们不是四种不同的算子，而是同一个 entailment 因子上 BP 双向消息传递的四种情况：
-
-| 三段论 | BP 消息方向 | 效果 |
-|--------|-----------|------|
-| 强三段论 (modus ponens) | 正向：A → B | A 的高信念推高 B |
-| 弱三段论 3 (弱否认) | 正向：A → B | A 的低信念略微压低 B（B 可能有其他支撑，因此只是"稍微"） |
-| 弱三段论 1 (弱确认) | 反向：B → A | B 的高信念提升 A |
-| 弱三段论 2 (modus tollens) | 反向：B → A | B 的低信念压低 A |
-
-这意味着 entailment 是推理超图中最基本的算子——它的正向和反向消息自然实现了科学推理中的确认和反驳逻辑。
-
-#### Induction 和 abduction 在尝试建立 entailment
-
-induction 和 abduction 与 entailment 之间不仅仅是并列关系——它们的目标都是**发现并建立新的 entailment 关系**：
-
-- **induction**：从多个具体案例中发现规律，提议一个新的蕴含关系。"铜导电、铁导电、铝导电"→ 提议 "金属 → 导电" 这个 entailment。如果这个 entailment 被确认（permanent），它就可以通过强三段论和弱三段论参与后续推理。
-- **abduction**：从观测出发寻找解释，提议一个新的蕴含关系。"星系旋转曲线平坦"→ 提议 "暗物质存在 → 旋转曲线平坦" 这个 entailment。
-
-因此，推理算子的生命周期可以理解为：
-
-```
-induction/abduction  →  发现候选 entailment  →  review 验证  →  permanent entailment
-     (探索)                  (提议)              (确认)           (利用)
-```
-
-一旦 entailment 被建立为 permanent，BP 的双向消息传递就自动实现了全部四个三段论——既能正向推导结论，也能反向确认或反驳前提。
+完整的分析参见 [plausible-reasoning.md](plausible-reasoning.md) §1.5。
 
 ## 8. 图的不可变性与可废止性
 
