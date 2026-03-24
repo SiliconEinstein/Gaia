@@ -5,8 +5,8 @@ Gaia 的规范参考文档，按架构层级组织。
 ## 理论 — 纯数学，与 Gaia 无关（不会变更）
 
 - [合情推理](theory/plausible-reasoning.md) — Jaynes、Cox 定理、概率即逻辑
-- [Belief Propagation](theory/belief-propagation.md) — 和积算法、收敛性、阻尼
-- [科学本体论](theory/reasoning-hypergraph.md) — 科学知识分类
+- [推理超图](theory/reasoning-hypergraph.md) — 科学对象模型、算子分类、因子图结构
+- [Belief Propagation](theory/belief-propagation.md) — 势函数模型（noisy-AND + leak）、和积算法、收敛性
 
 ## 设计理念 — 设计哲学（极少变更）
 
