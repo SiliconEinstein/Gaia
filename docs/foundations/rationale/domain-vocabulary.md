@@ -10,15 +10,15 @@ Gaia 文档中使用的核心术语。
 
 完整的类型分类参见 `../cli/gaia-lang/knowledge-types.md`。存储 schema 参见 `../graph-ir/knowledge-nodes.md`。
 
-## Chain
+## Reasoning
 
-一个连接前提到结论的多步推理结构。每个 Chain 有一个类型（deduction、induction、abstraction、contradiction、retraction、equivalence），用于分类推理模式。在 Graph IR 中，每个 Chain 产生一个 factor node。
+一个连接前提到结论的推理结构。每个 Reasoning 有一个类型（deduction、induction、abstraction、contradiction、retraction、equivalence），用于分类推理模式。在 Graph IR 中，每个 Reasoning 产生一个 factor node。
 
 因子节点详情参见 `../graph-ir/factor-nodes.md`。
 
 ## Module
 
-包内 Knowledge 对象和 Chain 的逻辑分组。在编写表面中，每个 `.typ` 文件（`lib.typ` 和 `gaia.typ` 除外）隐式地是一个 Module。Module 用于组织清晰性——它们不创建独立的 BP 边界。
+包内 Knowledge 对象和 Reasoning 的逻辑分组。在编写表面中，每个 `.typ` 文件（`lib.typ` 和 `gaia.typ` 除外）隐式地是一个 Module。Module 用于组织清晰性——它们不创建独立的 BP 边界。
 
 ## Package
 
