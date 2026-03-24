@@ -7,6 +7,21 @@
 > 关于为什么用概率来描述科学推理（Jaynes 框架），参见 [plausible-reasoning.md](plausible-reasoning.md)。
 > 本文档不定义具体的编写语言语法或 Graph IR 字段布局。
 
+**假设**
+
+1. **Jaynes 框架**：概率是对命题可信度的度量，服从 Cox 定理推导出的规则（乘法规则、加法规则、Bayes 定理）。参见 [plausible-reasoning.md](plausible-reasoning.md)。
+2. **因子图结构**：知识组织为二部图 — 变量节点（命题）和因子节点（推理链）。参见 [reasoning-hypergraph.md](reasoning-hypergraph.md)。
+3. **合取语义（noisy-AND + leak）**：前提是联合必要条件。前提全真时结论以概率 p 成立；任何前提为假时结论以 ε（Cromwell 下界，10⁻³）成立。这是 Jaynes 规则之上唯一的建模假设。
+
+**输入与输出**
+
+- **输入**：作者对每条推理链给出条件概率 p，对每个命题给出先验 π
+- **输出**：每个命题的后验信念 belief(v) ∈ (ε, 1−ε) — 在给定整个网络结构和所有 p、π 的条件下，该命题为真的边缘后验概率
+
+在树结构图上，BP 精确计算这个边缘后验。在有环图上，BP 是变分近似（最小化 Bethe 自由能），收敛后的信念是近似边缘后验。
+
+---
+
 ## 1. Jaynes 规则与建模缺口
 
 Jaynes 理论（参见 [plausible-reasoning.md](plausible-reasoning.md)）给出了概率推理的**规则** — 乘法规则、加法规则、Bayes 定理。这些规则是推理的微积分：它告诉你如何从已知概率计算未知概率。
