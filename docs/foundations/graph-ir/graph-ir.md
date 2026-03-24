@@ -120,13 +120,13 @@ metadata:
 
 #### setting（背景设定）
 
-研究的背景信息或动机性叙述。不携带 probability，不参与 BP。可作为 factor 的 context（提供背景），但不创建 BP 边。
+研究的背景信息或动机性叙述。不携带 probability，不参与 BP。可作为 factor 的 premise（承载性依赖）或 context（弱引用），但无论哪种角色都不创建 BP 边（见 §2.5）。
 
 示例：某个领域的研究现状、实验动机、未解决挑战、近似方法或理论框架。
 
 #### question（问题）
 
-探究制品，表达待研究的方向。不携带 probability，不参与 BP。可作为 factor 的 context（驱动探究方向），但不创建 BP 边。
+探究制品，表达待研究的方向。不携带 probability，不参与 BP。可作为 factor 的 premise 或 context，但不创建 BP 边（见 §2.5）。
 
 示例：未解决的科学问题、后续调查目标。
 
@@ -155,8 +155,8 @@ FactorNode:
                                          # | equivalent | contradict | None
 
     # ── 连接 ──
-    premises:         list[str]          # knowledge node IDs — 承载性依赖，创建 BP 边
-    contexts:         list[str]          # knowledge node IDs — 弱依赖，不创建 BP 边
+    premises:         list[str]          # knowledge node IDs — 承载性依赖（仅 claim premise 创建 BP 边，见 §2.5）
+    contexts:         list[str]          # knowledge node IDs — 弱引用，不创建 BP 边
     conclusion:       str | None         # 单个输出 knowledge 节点（双向算子为 None）
 
     # ── 推理内容 ──
@@ -174,7 +174,7 @@ Step:
 
 `steps` 记录推理过程的分步文本。一个 factor 可以有一步或多步。每步的 `premises` 和 `conclusion` 是可选的——有些步骤只是描述性的推理过程，不显式关联特定的知识节点。FactorNode 的顶层 `premises` 和 `conclusion` 是整个推理链的输入和最终输出。
 
-Factor 身份是确定性的：`f_{sha256[:16]}` 由源构造计算得出。Factor 在两个身份层之间共享——仅节点 ID 命名空间不同。
+Factor 身份是确定性的：`f_{sha256[:16]}` 由源构造计算得出。Factor 从 local 提升到 global 时，premise/context/conclusion ID 从 `lcn_` 重写为 `gcn_`，且 `steps` 不复制到 global 层（见 §3.5）。
 
 ### 2.2 三维类型系统
 
@@ -301,7 +301,11 @@ Graph IR 中没有 retraction factor 类型。撤回是一个**操作**：将目
 
 理由：两个不同包独立得出的结论语义相似，不代表它们是同一个命题。它们之间的等价关系需要经过 review 确认后才能升格为 permanent。直接 merge 会跳过这一审查步骤。
 
-新创建的 equivalent candidate factor 在 Parameterization 中使用 placeholder probability（由 canonicalization 步骤设置默认值）。具体的 probability 由后续 review 步骤确定。
+Canonicalization 步骤同时创建 placeholder 参数记录：新 global claim 节点的 PriorRecord（placeholder prior）和 equivalent candidate factor 的 FactorParamRecord（placeholder probability）。具体值由后续 review 步骤确定。
+
+**同时作为 premise 和 conclusion 的节点 → 走 conclusion 路径**
+
+如果一个 local 节点既是某个 factor 的 conclusion，又是另一个 factor 的 premise，按 conclusion 规则处理（创建新 global 节点 + equivalent candidate factor）。理由：该节点有独立的推理来源，不应静默合并。
 
 **无匹配 → create_new**
 

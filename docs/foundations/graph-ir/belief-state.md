@@ -15,6 +15,7 @@ BeliefState:
 
     # ── 重现条件 ──
     resolution_policy:    str              # "latest" | "source:<source_id>"
+    prior_cutoff:         str              # ISO 8601，只用此时间点之前的记录
 
     # ── 信念 ──
     beliefs:              dict[str, float] # 以 gcn_ ID 为键
@@ -29,8 +30,8 @@ BeliefState:
 ## 关键规则
 
 - **beliefs 只对 Claim**：只有 `type=claim` 的节点有 belief。Setting、Question、Template 没有 belief。
-- **可重现**：给定 `resolution_policy` + 当前 PriorRecord/FactorParamRecord 表，可以重新组装参数集并重跑 BP 得到相同结果。
-- **可多次运行**：同一 resolution policy 可以有多次 BP 运行（不同调度策略、阻尼系数等），每次产出不同的 BeliefState。
+- **可重现**：`resolution_policy` + `prior_cutoff` 完整定义了参数组装条件。`prior_cutoff` 记录 BP 运行时的时间点，确保用 `latest` policy 重跑时只取该时间之前的记录，结果可重现。
+- **可多次运行**：同一 resolution policy + prior_cutoff 可以有多次 BP 运行（不同调度策略、阻尼系数等），每次产出不同的 BeliefState。
 - **belief 是后验**：belief 是 BP 计算后的后验信念值，不是 prior。
 
 ## 诊断字段
