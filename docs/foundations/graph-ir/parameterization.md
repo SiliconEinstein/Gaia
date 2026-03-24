@@ -22,25 +22,18 @@ Parameterization:
 
 Prior:
     value:              float                          # ∈ (ε, 1-ε)
-    source:             str                            # "review" | "aggregated"
-    sources:            list[PriorSource] | None       # 聚合时记录各来源
+    source:             str                            # "review" | "placeholder"
 
 FactorParams:
     probability:        float                          # ∈ (ε, 1-ε)
-    source:             str                            # "review" | "toolcall_reproducibility" | ...
-
-PriorSource:
-    package:            str
-    local_id:           str
-    value:              float
-    source:             str                            # "author" | "review"
+    source:             str                            # "review" | "toolcall_reproducibility" | "placeholder" | ...
 ```
 
 ## node_priors：只对 Claim
 
 只有 `type=claim` 的 knowledge 节点有 prior。Setting、Question、Template 不出现在 `node_priors` 中——它们不参与 BP，没有 probability 的概念。
 
-一个 global 节点可能由多个 local 节点映射而来，各自有不同的 prior。`Prior.sources` 记录各来源，`Prior.value` 是聚合后的结果。聚合方法（取最大值、均值、贝叶斯更新等）是可配置的实现细节。
+每个 global claim 节点有一个 prior，由 review 赋值。不存在聚合逻辑——canonicalization 对 premise 节点直接复用已有 global 节点（prior 不变），对 conclusion 节点创建新的 global 节点（prior 由 review 独立赋值）。
 
 ## factor_params：所有 category 都有
 
