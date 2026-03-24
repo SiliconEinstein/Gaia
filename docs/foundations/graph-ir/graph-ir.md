@@ -48,10 +48,10 @@ GlobalCanonicalNode:
 
 | type | 说明 | 参与 BP | 可作为 |
 |------|------|---------|--------|
-| **claim** | 封闭的科学断言 | 是（唯一 BP 承载者） | premise, conclusion |
-| **setting** | 背景信息 | 否 | context |
-| **question** | 待研究方向 | 否 | context |
-| **template** | 含自由变量的命题模式 | 否 | entailment premise（instantiation） |
+| **claim** | 封闭的科学断言 | 是（唯一 BP 承载者） | premise, context, conclusion |
+| **setting** | 背景信息 | 否 | premise, context |
+| **question** | 待研究方向 | 否 | premise, context |
+| **template** | 含自由变量的命题模式 | 否 | premise（entailment/instantiation 场景） |
 
 #### claim（断言）
 
@@ -192,19 +192,19 @@ Factor 身份是确定性的：`f_{sha256[:16]}` 由源构造计算得出。Fact
 
 | stage | 说明 |
 |-------|------|
-| **initial** | 作者写入时的默认状态。`reasoning_type = None`。 |
+| **initial** | 作者写入时的默认状态。`reasoning_type` 可为 None（未指定）或作者直接指定。 |
 | **candidate** | review/research agent 提议了具体推理类型，但尚未充分验证。 |
 | **permanent** | 经过验证确认，正式具有明确的 BP 规则。 |
 
 **生命周期规则：**
 
-- `infer` 类 factor 经历完整生命周期：initial → candidate → permanent
+- `infer` 类 factor 经历生命周期：initial → candidate → permanent。如果作者在 initial 阶段已指定 `reasoning_type`，review 通过后可直接升格为 permanent。
 - `toolcall` 和 `proof` 不经历生命周期——它们的语义在创建时就是明确的
 - Template 实例化（entailment 特例）可跳过 review 直接升格为 permanent
 
 #### reasoning_type：具体什么逻辑关系
 
-以下类型适用于 candidate 和 permanent 阶段。stage=initial 时 reasoning_type=None。
+以下类型在 candidate 和 permanent 阶段必填。initial 阶段可由作者指定，也可为 None（由后续 review 确定）。
 
 **entailment（蕴含）** — 前提 → 结论，保真。
 
@@ -264,7 +264,17 @@ Factor 身份是确定性的：`f_{sha256[:16]}` 由源构造计算得出。Fact
 
 两者的区别不在于知识类型，而在于**依赖强度**：premise 是推理成立的必要条件，context 是辅助参考。
 
-### 2.5 关于撤回（retraction）
+### 2.5 Non-claim premise 的 BP 合约
+
+Premise 可以包含任意知识类型，但**只有 `type=claim` 的 premise 参与 BP 消息传递**。Non-claim premise（setting、question、template）在 BP 中被跳过——不发送消息、不接收消息、不影响 belief 计算。
+
+这意味着：
+
+- Non-claim premise 在**图结构**中是承载性依赖（它们是推理成立的必要条件）
+- 但在**BP 计算**中不产生效果（因为它们没有 prior/belief）
+- Review 和 parameterization 在分配 factor probability 时应考虑 non-claim premise 的内容（它们影响推理的可信度评估），但这是 review 的职责，不是 BP 的
+
+### 2.6 关于撤回（retraction）
 
 Graph IR 中没有 retraction factor 类型。撤回是一个**操作**：将目标 knowledge 节点关联的所有 factor 的 probability 在 parameterization 中设为 0。该节点变成孤岛，belief 回到 prior。图结构不变——图是不可变的。
 
@@ -290,6 +300,8 @@ Graph IR 中没有 retraction factor 类型。撤回是一个**操作**：将目
 2. 在新旧两个 global 节点之间创建一个 `reasoning_type=equivalent, stage=candidate` 的 factor
 
 理由：两个不同包独立得出的结论语义相似，不代表它们是同一个命题。它们之间的等价关系需要经过 review 确认后才能升格为 permanent。直接 merge 会跳过这一审查步骤。
+
+新创建的 equivalent candidate factor 在 Parameterization 中使用 placeholder probability（由 canonicalization 步骤设置默认值）。具体的 probability 由后续 review 步骤确定。
 
 **无匹配 → create_new**
 
@@ -338,9 +350,14 @@ CanonicalBinding:
 
 **Global factor 不携带 steps。** Local factor 的 `steps`（推理过程文本）保留在 local canonical 层。Global factor 只保留结构信息（category、stage、reasoning_type、premises、contexts、conclusion），不复制推理内容。需要查看推理细节时，通过 CanonicalBinding 回溯到 local 层。
 
-### 3.6 GlobalCanonicalNode 的内容引用
+### 3.6 Global 层的内容引用
 
-Global 节点**不存储 content**。它通过 `representative_lcn` 引用 local canonical 节点获取内容。当多个 local 节点映射到同一 global 节点时，选择一个作为代表，所有映射记录在 `member_local_nodes` 中。
+Global 层**不存储内容**——无论是 knowledge 的 content 还是 factor 的 steps。
+
+- **GlobalCanonicalNode** 通过 `representative_lcn` 引用 local canonical 节点获取 content。当多个 local 节点映射到同一 global 节点时，选择一个作为代表，所有映射记录在 `member_local_nodes` 中。
+- **Global factor** 不携带 `steps`（§3.5）。推理过程的文本保留在 local 层的 factor 中。
+
+需要查看具体内容时，通过 CanonicalBinding 回溯到 local 层。Global 层是**结构索引**，local 层是**内容仓库**。
 
 ---
 
