@@ -156,7 +156,7 @@ FactorNode:
 
     # ── 连接 ──
     premises:         list[str]          # knowledge node IDs — 承载性依赖（仅 claim premise 创建 BP 边，见 §2.5）
-    contexts:         list[str]          # knowledge node IDs — 弱引用，不创建 BP 边
+    weak_points:      list[str]          # knowledge node IDs — 推理薄弱环节，尚未分离成具体 premise
     conclusion:       str | None         # 单个输出 knowledge 节点（双向算子为 None）
 
     # ── 推理内容 ──
@@ -164,7 +164,7 @@ FactorNode:
 
     # ── 追溯 ──
     source_ref:       SourceRef | None
-    metadata:         dict | None
+    metadata:         dict | None        # 包含 context（弱相关引用、背景信息等）
 
 Step:
     reasoning:        str                # 该步的推理描述文本
@@ -174,7 +174,7 @@ Step:
 
 `steps` 记录推理过程的分步文本。一个 factor 可以有一步或多步。每步的 `premises` 和 `conclusion` 是可选的——有些步骤只是描述性的推理过程，不显式关联特定的知识节点。FactorNode 的顶层 `premises` 和 `conclusion` 是整个推理链的输入和最终输出。
 
-Factor 身份是确定性的：`f_{sha256[:16]}` 由源构造计算得出。Factor 从 local 提升到 global 时，premise/context/conclusion ID 从 `lcn_` 重写为 `gcn_`，且 `steps` 不复制到 global 层（见 §3.5）。
+Factor 身份是确定性的：`f_{sha256[:16]}` 由源构造计算得出。Factor 从 local 提升到 global 时，premise/weak_point/conclusion ID 从 `lcn_` 重写为 `gcn_`，且 `steps` 不复制到 global 层（见 §3.5）。
 
 ### 2.2 三维类型系统
 
@@ -253,26 +253,29 @@ Factor 身份是确定性的：`f_{sha256[:16]}` 由源构造计算得出。Fact
 1. `stage=candidate|permanent` 且 `category=infer` → `reasoning_type` 必填
 2. `conclusion` 的 type 必须是 `claim`（如果 conclusion 非 None）
 3. `premises` 中的 type 可以是 `claim | setting | question | template`
-4. `contexts` 中的 type 可以是 `claim | setting | question`
+4. `weak_points` 中的 type 可以是 `claim | setting | question`（它们不参与 BP，是 factor probability 评估的注解）
 5. `type=template` 的节点只能作为 entailment factor 的 premise（instantiation 场景）
 6. `equivalent` 和 `contradict` 的 `conclusion = None`，`premises` 至少包含 2 个节点
 
-### 2.4 Premise 与 Context 的区别
+### 2.4 Premise、Weak Point 与 Context 的区别
 
-- **Premise**（`premises` 字段）：承载性依赖。前提为假会削弱结论的有效性。可以是任意知识类型（claim、setting、question、template），但只有 claim premise 创建 BP 边（见 §2.5）。
-- **Context**（`contexts` 字段）：弱相关的引用。不创建 BP 边。不是推理的直接输入，而是提供间接背景信息。可以是 claim、setting 或 question。
+| 字段 | 位置 | 参与 BP | 说明 |
+|------|------|---------|------|
+| **premises** | 顶层字段 | claim premise 创建 BP 边（见 §2.5） | 承载性依赖，前提为假会削弱结论 |
+| **weak_points** | 顶层字段 | 否 | 推理薄弱环节的注解，影响体现在 factor 的 conditional probability 上 |
+| **context** | `metadata` 内 | 否 | 弱相关的引用、背景信息、动机等 |
 
-两者的区别不在于知识类型，而在于**依赖强度**：premise 是推理成立的必要条件，context 是辅助参考。
+- **Premise**：推理成立的必要条件。可以是任意知识类型（claim、setting、question、template），但只有 claim premise 创建 BP 边。
+- **Weak point**：推理过程中已识别但尚未分离成独立 premise 的薄弱环节。weak_points 本身不创建 BP 边，不承担独立概率——它们的影响体现在该 factor 的 conditional probability 上（review 在评估 factor probability 时会参考 weak_points）。随着研究深入，weak point 可以被提取为独立的 premise。
+- **Context**：存储在 `metadata.context` 中的弱相关引用。不参与图结构，不参与 BP。用于记录 setup、motivation、background 等辅助信息。
 
-### 2.5 Non-claim premise 的 BP 合约
+### 2.5 BP 参与规则
 
-Premise 可以包含任意知识类型，但**只有 `type=claim` 的 premise 参与 BP 消息传递**。Non-claim premise（setting、question、template）在 BP 中被跳过——不发送消息、不接收消息、不影响 belief 计算。
+**Premise**：可以包含任意知识类型，但只有 `type=claim` 的 premise 参与 BP 消息传递。Non-claim premise（setting、question、template）在 BP 中被跳过——不发送消息、不接收消息、不影响 belief 计算。Non-claim premise 在图结构中是承载性依赖，但 review 在分配 factor probability 时应考虑其内容。
 
-这意味着：
+**Weak point**：不参与 BP。它们是 factor 内部的注解——review 在评估 factor 的 conditional probability 时参考 weak_points，将薄弱环节的影响编码进 factor probability 中。
 
-- Non-claim premise 在**图结构**中是承载性依赖（它们是推理成立的必要条件）
-- 但在**BP 计算**中不产生效果（因为它们没有 prior/belief）
-- Review 和 parameterization 在分配 factor probability 时应考虑 non-claim premise 的内容（它们影响推理的可信度评估），但这是 review 的职责，不是 BP 的
+**Context**：在 metadata 中，不参与图结构，不参与 BP。
 
 ### 2.6 关于撤回（retraction）
 
@@ -349,7 +352,7 @@ CanonicalBinding:
 
 1. 从 CanonicalBinding 构建 `lcn_ → gcn_` 映射
 2. 从全局节点元数据构建 `ext: → gcn_` 映射（跨包引用解析）
-3. 对每个 local factor，解析所有 premise、context 和 conclusion ID
+3. 对每个 local factor，解析所有 premise、weak_point 和 conclusion ID
 4. 含未解析引用的 factor 被丢弃（记录在 `unresolved_cross_refs` 中）
 
 **Global factor 不携带 steps。** Local factor 的 `steps`（推理过程文本）保留在 local canonical 层。Global factor 只保留结构信息（category、stage、reasoning_type、premises、contexts、conclusion），不复制推理内容。需要查看推理细节时，通过 CanonicalBinding 回溯到 local 层。
