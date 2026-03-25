@@ -2,9 +2,9 @@
 
 | 文档属性 | 值 |
 |---------|---|
-| 版本 | 0.1 (draft) |
+| 版本 | 0.2 |
 | 日期 | 2026-03-25 |
-| 状态 | **Proposal** — 待 review |
+| 状态 | **Proposal** — review 后更新 |
 | 关联文档 | [graph-ir/overview.md](../foundations/graph-ir/overview.md), [lkm/overview.md](../foundations/lkm/overview.md), [lkm/pipeline.md](../foundations/lkm/pipeline.md) |
 
 ## 1. 目标
@@ -109,14 +109,17 @@ lkm/services/  ──┘       ↓
 | 表 | 内容 | 对应 Graph IR 对象 |
 |---|------|-------------------|
 | `knowledge_nodes` | knowledge 节点（local + global 共用） | KnowledgeNode，以 `id` 前缀区分 (`lcn_` / `gcn_`) |
-| `factor_nodes` | factor 节点（local + global 共用） | FactorNode，global 层 `steps`/`weak_points` 为 None |
+| `factor_nodes` | factor 节点（local + global 共用） | FactorNode，以 `factor_id` 前缀区分 (`lcf_` / `gcf_`)，含 `scope` 字段 |
 | `canonical_bindings` | lcn → gcn 映射 | CanonicalBinding |
 | `prior_records` | claim 先验（原子记录） | PriorRecord |
 | `factor_param_records` | factor 概率（原子记录） | FactorParamRecord |
 | `param_sources` | review 来源 | ParameterizationSource |
 | `belief_states` | BP 输出 | BeliefState |
+| `node_embeddings` | gcn_ 节点的 embedding 向量 | gcn_id → vector（representative content 的向量化） |
 
-> **注意：** graph-ir.md §1.1 规定 local 和 global knowledge node 使用同一个 data class（`KnowledgeNode`），通过 `id` 前缀（`lcn_` vs `gcn_`）和字段填充（`content` vs `representative_lcn`）区分层级。Factor 节点同理。因此存储层不再按 local/global 拆分表，而是统一存储，查询时按前缀过滤。
+> **Embedding 向量表：** `node_embeddings` 是专门的向量表，只存 global canonical node 的 representative content 的向量化。Canonicalize 匹配时直接查这个表，不需要 dereference `representative_lcn` 再去取 content。新 gcn 节点创建时写入对应 embedding。
+
+> **注意：** KnowledgeNode 通过 `id` 前缀（`lcn_` vs `gcn_`）和字段填充区分层级。FactorNode 通过 `factor_id` 前缀（`lcf_` vs `gcf_`）和 `scope` 字段区分层级。两者结构完全对偶（见 graph-ir.md §2.1）。存储层统一表，查询时按前缀过滤。
 
 **旧表（Knowledge, Chain, Module, Package 等）全部废弃。**
 
@@ -147,15 +150,17 @@ lkm/services/  ──┘       ↓
 | `BeliefState` | `belief_state.py` | belief-state.md |
 | `CanonicalBinding` | `binding.py` | graph-ir.md §3.4 |
 
-> **注意：** `KnowledgeNode` 是 local 和 global 共用的唯一 data class。Local 层 `id` 以 `lcn_` 开头（content-addressed），global 层以 `gcn_` 开头（registry-allocated）。字段填充按层级不同：local 层有 `content`，global 层通常 `content=None` 但有 `representative_lcn`。不再有独立的 `GlobalCanonicalNode` class。`FactorNode` 同理。
+> **注意：** `KnowledgeNode` 是 local 和 global 共用的唯一 data class。Local 层 `id` 以 `lcn_` 开头（content-addressed），global 层以 `gcn_` 开头（registry-allocated）。`FactorNode` 同理：`lcf_`（local）/ `gcf_`（global）前缀 + `scope` 字段。
 
 **关键约束（来自 graph-ir 文档）：**
 - KnowledgeNode ID: local 层 `SHA-256(type + content + sorted(parameters))`，前缀 `lcn_`；global 层注册分配，前缀 `gcn_`
+- FactorNode ID: `{prefix}_{sha256[:16]}`，local 层前缀 `lcf_`，global 层前缀 `gcf_`；含 `scope` 字段
 - Cromwell's rule: 所有概率 clamp 到 `[ε, 1-ε]`，ε = 1e-3
 - 只有 `type=claim` 的节点参与 BP、有 prior 和 belief
 - `stage=candidate|permanent` + `category=infer` → `reasoning_type` 必填
 - `equivalent`/`contradict` → `conclusion=None`，`premises >= 2`
 - Global factor 不携带 `steps` 和 `weak_points`
+- **所有知识类型（claim, setting, question, template）都参与全局规范化**（graph-ir.md §3.2）
 
 ## 3. Pipeline 流程
 
@@ -173,7 +178,6 @@ lkm/services/  ──┘       ↓
 ```
 输入:
   - LocalCanonicalGraph
-  - LocalParameterization（node_priors + factor_params，来自 CLI build/review）
   - package_id + version
 
 操作:
@@ -336,8 +340,9 @@ gaia/
 
   core/
     __init__.py
-    matching.py                # Embedding cosine + TF-IDF
-    canonicalize.py            # Global canonicalization
+    local_params.py            # LocalParameterization（临时容器，非 Graph IR 契约）
+    matching.py                # Embedding cosine + TF-IDF（查 node_embeddings 表）
+    canonicalize.py            # Global canonicalization + 参数整合
     global_bp.py               # 参数组装 + BP 编排
 
   lkm/
@@ -383,7 +388,7 @@ tests/gaia/
 | 层 | 测试类型 | 依赖 | 重点 |
 |----|---------|------|------|
 | models | 单元测试 | 无 | 锁定 Graph IR spec 的每个约束 |
-| storage | 集成测试 | LanceDB (tmp_path)，Neo4j (标记跳过) | 读写 roundtrip，三写入原子性 |
+| storage | 集成测试 | LanceDB (tmp_path)，Neo4j (标记跳过) | 读写 roundtrip，前缀过滤 |
 | core | 单元+集成 | fixtures，StubEmbeddingModel | §3.1 决策规则、BP 正确性 |
 | lkm/ingest | 集成测试 | storage + core | 端到端写入路径 |
 | lkm/services | E2E | 全栈 (httpx + ASGITransport) | HTTP roundtrip smoke test |
@@ -410,6 +415,7 @@ tests/gaia/
 | CLI 迁移 | 合作者 scope |
 | BP 迁移 | 桥接即可，独立 plan |
 | 前端 | 后续 plan |
+| 三写入原子性 | MVP 不做，创建 issue 跟踪（preparing→committed 可见性门控）|
 | 旧代码删除 | 新 pipeline 跑通后再统一清理 |
 
 ## 7. 验收标准
