@@ -222,11 +222,12 @@ Factor 身份是确定性的：`f_{sha256[:16]}` 由源构造计算得出。Fact
 - `premises: [A₁, ..., Aₙ], conclusion: B`
 - 示例："铜导电"+"铁导电"+"铝导电" → "所有金属都导电"
 
-**abduction（溯因）** — 前提（假说）→ 结论（观测），不保真。
+**abduction（溯因）** — 从证据推断最佳解释，不保真。
 
-- 因子图中假说作为 premise，观测作为 conclusion。BP 反向消息自然实现"从观测推断假说"
-- `premises: [hypothesis], conclusion: observation`
-- 示例："暗物质存在" → "星系旋转曲线平坦"
+- 结论是 hypothesis（被推断的解释）。前提是支持该假说的已有知识。观测证据本身不作为 premise，而是体现在 weak_points 和推理过程（steps）中——"这个假说能解释某些观测现象"是推理的动机，但观测不是假说成立的前提条件。
+- `premises: [supporting_knowledge], conclusion: hypothesis`
+- `weak_points: ["该假说尚未解释 X 现象", "竞争假说 Y 也能解释部分观测"]`
+- 示例：premises: ["星系旋转曲线数据", "引力透镜效应"] → conclusion: "暗物质存在"
 
 **equivalent（等价）** — 双向，真值一致。
 
@@ -282,13 +283,14 @@ Factor 身份是确定性的：`f_{sha256[:16]}` 由源构造计算得出。Fact
 
 ### 2.6 子图分解（Subgraph）
 
-当 candidate factor 经过 agent 验证升格为 permanent 时，agent 可以同时提供一个 `subgraph`——将粗粒度的推理关系分解为更细粒度的 factor 组合。
+当 candidate factor 经过 agent 验证升格为 permanent 时，agent 可以同时提供一个 `subgraph`——将粗粒度的推理关系分解为更细粒度的 factor 组合，并在分解过程中创建新的中间 knowledge 节点。
 
 **Induction 分解示例：**
 
 ```
 原始 factor（permanent induction）：
   premises: [A1, A2, A3]  →  conclusion: B
+  （三个具体案例归纳出一般性定律 B）
 
 subgraph:
   - FactorNode(entailment, premises: [B], conclusion: A1)  # instantiation
@@ -296,26 +298,33 @@ subgraph:
   - FactorNode(entailment, premises: [B], conclusion: A3)  # instantiation
 ```
 
-归纳的本质是：如果 B 成立，它应当能蕴含每个具体观测。subgraph 将这个关系展开为 B 到每个 Aᵢ 的 entailment。
+归纳的展开：如果 B 成立，它应当能蕴含每个具体观测。subgraph 将这个关系分解为 B 到每个 Aᵢ 的 entailment（instantiation）。
 
 **Abduction 分解示例：**
 
 ```
 原始 factor（permanent abduction）：
-  premises: [hypothesis]  →  conclusion: observation
+  premises: [supporting_knowledge]  →  conclusion: hypothesis
+  weak_points: ["该假说尚未解释 X 现象"]
+  （从已有知识推断假说，观测证据在 weak_points 中描述）
 
-subgraph（引入中间节点 prediction）：
+subgraph（创建中间节点 prediction 和 observation）：
   - FactorNode(entailment, premises: [hypothesis], conclusion: prediction)
   - FactorNode(equivalent, premises: [prediction, observation])
 ```
 
-溯因的本质是：假说蕴含一个预测，该预测与观测等价。subgraph 将这个关系展开为 entailment + equivalent。
+溯因的展开：agent 将 weak_points 中描述的观测具体化为 knowledge 节点，然后构建"假说 → 预测 ↔ 观测"的细粒度结构。prediction 和 observation 是 subgraph 展开时新创建的 knowledge 节点。
 
-**规则：**
+**BP 规则：**
+
+- 如果 factor 有 subgraph，**BP 只在最细粒度的 subgraph factor 上运行**，不在外层粗粒度 factor 上运行。外层 factor 的 probability 不再直接参与 BP，由 subgraph 内的 factor 接管。
+- 未来可以考虑分层 BP（先在粗粒度 factor 上做快速推理，再在 subgraph 上细化），但当前设计只在最细粒度上运行。
+
+**其他规则：**
 
 - `subgraph` 在 candidate 和 initial 阶段为 None，仅在升格为 permanent 时由 agent 填充
-- subgraph 中的 factor 可以引用外层图中已有的 knowledge 节点，也可以引用新创建的中间节点（如 prediction）
-- subgraph 中的 factor 本身也有 category、stage、reasoning_type，且可以递归包含 subgraph
+- subgraph 中的 factor 可以引用外层图中已有的 knowledge 节点，也可以引用新创建的中间节点
+- subgraph 中的 factor 本身也有完整的 FactorNode schema，可以递归包含 subgraph
 - subgraph 不复制到 global 层（与 steps 相同，保留在 local 层）
 
 ### 2.7 关于撤回（retraction）
