@@ -272,12 +272,13 @@ A 是"假说"，日常观测是它的"预测+观测"对：
 
 ```mermaid
 graph TD
-    A("A 重者更快") --> f1(["ent p≈1"]) --> Bs("B_stone<br/>石头应比羽毛先着地")
+    A("A 重者更快"):::concl --> f1(["ent p≈1"]) --> Bs("B_stone<br/>石头应比羽毛先着地")
     A --> f2(["ent p≈1"]) --> Bi("B_iron<br/>铁球应比木球先着地")
     Bs --- eq1{{"≡"}} --- Bps("B'_stone<br/>石头确实比羽毛先着地"):::obs
     Bi --- eq2{{"≡"}} --- Bpi("B'_iron<br/>铁球确实比木球先着地"):::obs
 
     classDef obs fill:#e8f5e9,stroke:#4caf50
+    classDef concl fill:#e3f2fd,stroke:#1976d2
 ```
 
 BP 效果：两个 observation 的高 belief 通过 equivalence + 反向消息提升 A。但这只有两个实例，支撑有限。
@@ -288,21 +289,19 @@ W₂ 分解为 induction + entailment 两步。
 
 **Part a — Induction：O_media + O_air → G**
 
-G："不同重量物体的下落速度差异由介质阻力决定 — 阻力越大差异越大，阻力越小差异越小"。各介质条件下的观测是 G 的预测+观测对：
+G："不同重量物体的下落速度差异由介质阻力决定 — 阻力越大差异越大，阻力越小差异越小"。两组观测是 G 的预测+观测对：
 
 ```mermaid
 graph TD
-    G("G 阻力决定速度差异") --> f1(["ent p≈1"]) --> Bhg("B_hg<br/>水银（高阻力）中差异大")
-    G --> f2(["ent p≈1"]) --> Bw("B_water<br/>水（中阻力）中差异中等")
-    G --> f3(["ent p≈1"]) --> Ba("B_air<br/>空气（低阻力）中差异微小")
-    Bhg --- eq1{{"≡"}} --- Bphg("B'_hg ✓"):::obs
-    Bw --- eq2{{"≡"}} --- Bpw("B'_water ✓"):::obs
-    Ba --- eq3{{"≡"}} --- Bpa("B'_air ✓"):::obs
+    G("G 阻力决定速度差异") --> f1(["ent p≈1"]) --> Bm("B_media<br/>稠密介质中差异大")
+    G --> f2(["ent p≈1"]) --> Ba("B_air<br/>空气中差异微小")
+    Bm --- eq1{{"≡"}} --- Omedia("O_media"):::obs
+    Ba --- eq2{{"≡"}} --- Oair("O_air"):::obs
 
     classDef obs fill:#e8f5e9,stroke:#4caf50
 ```
 
-BP 效果：三个 equivalence 的反向消息共同提升 G 的 belief。
+BP 效果：两个 equivalence 的反向消息共同提升 G 的 belief。
 
 注意 G 同时编码了经验规律（阻力↓差异↓）和因果机制（阻力**决定**差异）。这来自伽利略原文："the differences in speed were greater in those media which were **the more resistant**"。
 
@@ -312,7 +311,9 @@ BP 效果：三个 equivalence 的反向消息共同提升 G 的 belief。
 graph LR
     G("G 阻力决定速度差异") --> f(["ent p≈1"])
     Svac("S_vac 真空=零阻力") --> f
-    f --> V("V 真空等速")
+    f --> V("V 真空等速"):::concl
+
+    classDef concl fill:#e3f2fd,stroke:#1976d2
 ```
 
 推理链：G 说阻力是速度差异的唯一原因；S_vac 说真空阻力为零；因此真空中速度差异为零。
@@ -327,7 +328,7 @@ V 是"假说"，每个斜面实验条件是一个预测+观测对：
 
 ```mermaid
 graph TD
-    V("V 真空等速") --> f1(["ent p≈1"])
+    V("V 真空等速"):::concl --> f1(["ent p≈1"])
     Sp("S_plane<br/>斜面 = 稀释重力") --> f1
     f1 --> Bt1("B_θ₁ 倾角 θ₁ 下一致")
     f1 --> Bt2("B_θ₂ 倾角 θ₂ 下一致")
@@ -335,6 +336,7 @@ graph TD
     Bt2 --- eq2{{"≡"}} --- Bpt2("B'_θ₂ ✓"):::obs
 
     classDef obs fill:#e8f5e9,stroke:#4caf50
+    classDef concl fill:#e3f2fd,stroke:#1976d2
 ```
 
 注意 S_plane 是显式前提："斜面是稀释的重力"这个力学关系使得从 V 到具体实验预测的 entailment 成立。没有 S_plane，V 不直接蕴含斜面上的实验结果。
