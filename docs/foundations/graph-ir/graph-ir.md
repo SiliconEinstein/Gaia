@@ -155,7 +155,8 @@ Local 和 global 使用同一个 data class，字段按层级使用：
 
 ```
 FactorNode:
-    factor_id:        str                # f_{sha256[:16]}，确定性
+    factor_id:        str                # lcf_ 或 gcf_ 前缀 + {sha256[:16]}，确定性
+    scope:            str                # "local" | "global"
 
     # ── 三维类型系统 ──
     category:         str                # infer | toolcall | proof
@@ -188,6 +189,8 @@ Step:
 
 | 字段 | Local | Global |
 |------|-------|--------|
+| `factor_id` | `lcf_` 前缀，由源构造确定性计算 | `gcf_` 前缀，由 factor lifting 后的全局构造计算 |
+| `scope` | `"local"` | `"global"` |
 | `premises`/`conclusion` | `lcn_` ID | `gcn_` ID |
 | `steps` | 有值（推理过程文本） | None |
 | `weak_points` | 有值（薄弱环节描述） | None |
@@ -195,7 +198,9 @@ Step:
 
 `steps` 记录推理过程的分步文本。一个 factor 可以有一步或多步。每步的 `premises` 和 `conclusion` 是可选的——有些步骤只是描述性的推理过程，不显式关联特定的知识节点。FactorNode 的顶层 `premises` 和 `conclusion` 是整个推理链的输入和最终输出。
 
-Factor 身份是确定性的：`f_{sha256[:16]}` 由源构造计算得出。
+**身份规则：** Factor ID 由 `scope + category + sorted(premises) + conclusion` 确定性计算：`{prefix}_{sha256[:16]}`。Local 层前缀 `lcf_`，global 层前缀 `gcf_`。Factor lifting（lcn→gcn 重写）后 premises/conclusion 变化，因此 global factor 与其源 local factor 有不同的 `factor_id`。
+
+> **与 KnowledgeNode 的对偶关系：** KnowledgeNode 用 `lcn_`/`gcn_` 前缀 + `content`/`representative_lcn` 字段区分层级；FactorNode 用 `lcf_`/`gcf_` 前缀 + `scope` + `steps`/`subgraph` 字段区分层级。两者结构完全对偶。
 
 ### 2.2 三维类型系统
 
