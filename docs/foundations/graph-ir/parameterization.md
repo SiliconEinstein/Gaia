@@ -1,6 +1,8 @@
 # Parameterization — 参数定义
 
 > **Status:** Target design
+>
+> **⚠️ Protected Contract Layer** — 本目录定义 CLI↔LKM 结构契约。变更需要独立 PR 并经负责人审查批准。详见 [documentation-policy.md](../rationale/documentation-policy.md#12-变更控制)。
 
 Parameterization 是 GlobalCanonicalGraph 上的概率参数层。它由一组**原子记录**构成——每条记录是一个节点的 prior 或一个 factor 的 probability。不同 review 来源（不同模型、不同策略）产出不同的记录，BP 运行前按 resolution policy 组装成完整参数集。
 

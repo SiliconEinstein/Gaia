@@ -237,6 +237,20 @@ The `docs/foundations/` directory mirrors Gaia's three-layer compilation pipelin
 4. **Never copy** a definition from another layer — link to it instead.
 5. When a schema changes, update it in graph-ir/ first, then verify downstream references.
 
+### Protected Layers (Change Control)
+
+`graph-ir/` 是 CLI↔LKM 的协议契约层，所有开发必须以 `docs/foundations/graph-ir/` 中定义的数据格式为准。
+
+**硬性规则：**
+- Agent **禁止**直接修改 `docs/foundations/graph-ir/` 下的任何文件
+- Agent **禁止**直接修改 `docs/foundations/theory/` 下的任何文件（纯理论层，外部定义）
+- 如果实现过程中发现 Graph IR 的定义需要调整，必须**停下来和用户沟通**，说明：
+  1. 当前定义是什么
+  2. 为什么需要改
+  3. 提议的改动内容
+- 用户明确批准后，改动必须作为**独立的 PR** 提交，不能混在功能 PR 里
+- 改动合并后，必须验证所有下游引用（bp/、cli/、lkm/）仍然一致
+
 ### General Doc Rules
 
 - identify the doc's status (`Current canonical`, `Target design`, `Transitional`)

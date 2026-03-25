@@ -1,6 +1,8 @@
 # BeliefState — 信念定义
 
 > **Status:** Target design
+>
+> **⚠️ Protected Contract Layer** — 本目录定义 CLI↔LKM 结构契约。变更需要独立 PR 并经负责人审查批准。详见 [documentation-policy.md](../rationale/documentation-policy.md#12-变更控制)。
 
 BeliefState 是 BP 在 GlobalCanonicalGraph 上的纯输出——后验信念值。它记录产生它的条件（resolution policy），使结果可重现。
 
