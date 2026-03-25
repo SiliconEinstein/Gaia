@@ -216,10 +216,10 @@ V 有两条独立的支撑路径，各包含一个 weakpoint。
 
 | 因子 | 连接 | 类型 | p |
 |------|------|------|---|
-| **W₂** | O_media + O_air + C_cont + S_vac → V | **weakpoint**（analogy） | < 1 |
+| **W₂** | O_media + O_air → V | **weakpoint**（analogy） | < 1 |
 | **W₃** | E_θᵢ + S_plane → V | **weakpoint**（induction） | < 1 |
 
-**W₂**（analogy）：从有限密度介质下的观测外推到零密度极限（真空）。C_cont（连续性假设）和 S_vac（真空密度=0）是 premise — 若为假则外推不成立。但整体推理的 p < 1，因为内部包含 abduction 和 induction，将在 Step 3 展开。
+**W₂**（analogy）：从有限密度介质下的观测外推到零密度极限（真空）。整体推理的 p < 1，因为内部包含 abduction 和 induction。Step 3 展开后，analogy 内部的 entailment 步骤会引入 C_cont（连续性假设）和 S_vac（真空密度=0）作为 premise。
 
 **W₃**（induction）：从多组斜面实验归纳支撑 V。S_plane（斜面=稀释重力）是 premise。
 
@@ -240,8 +240,6 @@ graph TD
     %% Conclusion V — analogy path
     Omedia("O_media"):::obs --> w2(["W₂<br/>analogy<br/>p < 1"]):::weak
     Oair("O_air"):::obs --> w2
-    Ccont("C_cont 连续性") --> w2
-    Svac("S_vac 密度=0") --> w2
     w2 --> V("V 真空等速"):::concl
 
     %% Conclusion V — experiment path
