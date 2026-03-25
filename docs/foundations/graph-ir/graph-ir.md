@@ -162,9 +162,6 @@ FactorNode:
     # ── 推理内容 ──
     steps:            list[Step]         # 推理过程的分步描述
 
-    # ── 子图分解 ──
-    subgraph:         list[FactorNode] | None  # 升格为 permanent 时的细粒度分解
-
     # ── 追溯 ──
     source_ref:       SourceRef | None
     metadata:         dict | None        # 包含 context: list[str]（弱相关 knowledge node IDs）等
@@ -177,7 +174,37 @@ Step:
 
 `steps` 记录推理过程的分步文本。一个 factor 可以有一步或多步。每步的 `premises` 和 `conclusion` 是可选的——有些步骤只是描述性的推理过程，不显式关联特定的知识节点。FactorNode 的顶层 `premises` 和 `conclusion` 是整个推理链的输入和最终输出。
 
-Factor 身份是确定性的：`f_{sha256[:16]}` 由源构造计算得出。Factor 从 local 提升到 global 时，premise/conclusion ID 从 `lcn_` 重写为 `gcn_`，`steps` 和 `weak_points` 不复制到 global 层（见 §3.5）。
+Factor 身份是确定性的：`f_{sha256[:16]}` 由源构造计算得出。
+
+#### Global FactorNode
+
+Global 层的 FactorNode 与 local 层有以下区别：
+
+```
+GlobalFactorNode:
+    factor_id:        str
+    category:         str
+    stage:            str
+    reasoning_type:   str | None
+
+    # ── 连接（ID 使用 gcn_ 命名空间）──
+    premises:         list[str]
+    conclusion:       str | None
+
+    # ── 子图分解（global 独有）──
+    subgraph:         list[GlobalFactorNode] | None  # 升格为 permanent 时的细粒度分解
+
+    # ── 追溯 ──
+    source_ref:       SourceRef | None
+    metadata:         dict | None
+```
+
+**与 local FactorNode 的区别：**
+
+- `premises`/`conclusion` 使用 `gcn_` ID
+- **无 `steps`**：推理过程文本保留在 local 层
+- **无 `weak_points`**：薄弱环节描述保留在 local 层
+- **有 `subgraph`**：agent 在 global 层做 review/curation 时创建的细粒度分解（见 §2.6）
 
 ### 2.2 三维类型系统
 
