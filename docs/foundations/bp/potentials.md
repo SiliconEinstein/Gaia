@@ -22,9 +22,9 @@ Factor potential 是一个函数，接受其所连接变量的联合赋值并返
 
 参数化输入：`factor_parameters[factor_id].conditional_probability`
 
-### 目标模型——Noisy-AND + Leak
+### 目标模型——粗推理算子 potential（合取 + leak）
 
-当前的全有或全无门控违反了 Jaynes 第四三段论（弱否认）：当前提为假时，结论应变得更不可信，而不仅仅是回到先验值。目标模型用 leak 概率替换沉默回退：
+当前的全有或全无门控违反了 Jaynes 第四三段论（弱否认，参见 [coarse-reasoning.md](../theory/coarse-reasoning.md) §3）：当前提为假时，结论应变得更不可信，而不仅仅是回到先验值。目标模型用 leak 概率替换沉默回退：
 
 | 所有前提为真？ | 结论值 | Potential |
 |---|---|---|
@@ -35,7 +35,7 @@ Factor potential 是一个函数，接受其所连接变量的联合赋值并返
 
 **Leak 概率**（Henrion 1989）编码"即使前提不全为真，结论成立的背景概率"。对于 Gaia 的推理链，前提是结论的近似必要条件，因此 leak 应该极小。默认值：`epsilon = Cromwell 下界 (1e-3)`。
 
-**Noisy-AND** 是 noisy-OR 的对偶（Pearl 1988, Henrion 1989）。Noisy-OR 用于析取因果模型（任何原因都可产生效果）；noisy-AND 用于合取因果模型（所有条件必须成立）。完整 CPT 需要 2^n 个参数（n 个前提）；noisy-AND + leak 仅需 2 个：`p` 和 `epsilon`。
+这一 potential 形式对应概率图模型文献中的 **noisy-AND + leak** 模型（Pearl 1988, Henrion 1989），是 noisy-OR 的对偶。Noisy-OR 用于析取因果模型（任何原因都可产生效果）；noisy-AND 用于合取因果模型（所有条件必须成立）。完整 CPT 需要 2^n 个参数（n 个前提）；此模型仅需 2 个：`p` 和 `epsilon`。在 theory 层，这一模型被称为**粗推理算子**（参见 [coarse-reasoning.md](../theory/coarse-reasoning.md)）。
 
 ### 四个三段论验证
 
@@ -147,7 +147,7 @@ V_schema ---- F_inst_1 ---- V_ground_1 (belief=0.9)
 
 | Factor 类型 | 当前运行时名称 | 目标 BP 家族 | Potential 形状 |
 |---|---|---|---|
-| `reasoning` | `infer` / `deduction` / `induction` | `reasoning_support` | 条件（当前）/ Noisy-AND + leak（目标） |
+| `reasoning` | `infer` / `deduction` / `induction` | `reasoning_support` | 条件（当前）/ 粗推理算子 potential（目标） |
 | `abstraction` | `abstraction` | `deterministic_entailment`（过渡性） | 与 reasoning 相同（当前） |
 | `instantiation` | `instantiation` | `deterministic_entailment` | 确定性蕴含 |
 | `mutex_constraint` | `contradiction` / `relation_contradiction` | `constraint` | 全真惩罚 |
@@ -158,7 +158,7 @@ V_schema ---- F_inst_1 ---- V_ground_1 (belief=0.9)
 
 | 方面 | 当前 | 目标 |
 |---|---|---|
-| Reasoning potential | 全有或全无门控（任何前提为假时沉默） | Noisy-AND + leak（前提为假时抑制结论） |
+| Reasoning potential | 全有或全无门控（任何前提为假时沉默） | 粗推理算子 potential（合取 + leak，前提为假时抑制结论） |
 | Relation 节点 | 门控变量（当前运行时有 `gate_var` 机制） | 完全 BP 参与者（无门控；双向消息） |
 | 约束强度 | 由 relation 节点当前信念值固定 | 动态，由 BP 证据更新 |
 | Abstraction | 独立的 factor 类型，使用类 infer 核 | 被接受的 abstraction 降级为 `deterministic_entailment` |

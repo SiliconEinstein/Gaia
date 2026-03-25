@@ -85,4 +85,4 @@ reasoning_type: entailment | induction | abduction
 
 - [../foundations/graph-ir/graph-ir.md](../foundations/graph-ir/graph-ir.md) §2.2 — reasoning_type 定义
 - [../foundations/bp/potentials.md](../foundations/bp/potentials.md) — contradiction / equivalence 的 potential 函数
-- [../foundations/theory/reasoning-hypergraph.md](../foundations/theory/reasoning-hypergraph.md) §5.4 — 概率化 Horn 子句（当前缺少否定）
+- [../foundations/theory/reasoning-factor-graph.md](../foundations/theory/reasoning-factor-graph.md) — 因子图逻辑算子（当前缺少否定）

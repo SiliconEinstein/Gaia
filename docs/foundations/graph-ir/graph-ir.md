@@ -1,6 +1,6 @@
 # Graph IR — 结构定义
 
-> **Status:** Target design — 基于 [reasoning-hypergraph.md](../theory/reasoning-hypergraph.md) 重新设计
+> **Status:** Target design — 基于 [reasoning-factor-graph.md](../theory/reasoning-factor-graph.md) 和 [science-ontology.md](../theory/science-ontology.md) 设计
 >
 > **⚠️ Protected Contract Layer** — 本目录定义 CLI↔LKM 结构契约。变更需要独立 PR 并经负责人审查批准。详见 [documentation-policy.md](../../documentation-policy.md#12-变更控制)。
 

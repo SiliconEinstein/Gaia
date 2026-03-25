@@ -2,12 +2,16 @@
 
 Gaia 的规范参考文档，按架构层级组织。
 
-## 理论 — 纯数学，与 Gaia 无关（不会变更）
+## 理论 — 纯数学基础（极少变更）
 
-- [合情推理](theory/plausible-reasoning.md) — Jaynes、Cox 定理、概率即逻辑
-- [推理超图](theory/reasoning-hypergraph.md) — 科学对象模型、算子分类、因子图结构
-- [Belief Propagation](theory/belief-propagation.md) — 势函数模型（noisy-AND + leak）、和积算法、收敛性
-- [科学知识的形式化](theory/science-formalization.md) — 从自然语言到超图的分步精炼、p 的客观化
+推导链：plausible-reasoning → reasoning-factor-graph → coarse-reasoning → belief-propagation → science-ontology → science-formalization
+
+- [似然推理](theory/plausible-reasoning.md) — Jaynes、Cox 定理、概率即逻辑、弱三段论 C1-C4
+- [推理因子图](theory/reasoning-factor-graph.md) — 因子图二部图结构、四种逻辑原语算子（蕴含、合取、析取、否定）
+- [粗推理算子](theory/coarse-reasoning.md) — 粗推理算子（p<1 的唯一因子类型）、粗/细因子图
+- [置信传播](theory/belief-propagation.md) — 和积算法、消息传递语义、收敛性
+- [科学知识本体论](theory/science-ontology.md) — 知识类型、关系类型、推理策略
+- [科学知识的形式化](theory/science-formalization.md) — 从自然语言到因子图的分步精炼、p 的客观化
 
 ## 设计理念 — 设计哲学（极少变更）
 
