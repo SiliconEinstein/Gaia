@@ -117,7 +117,7 @@ graph LR
 
 关键：连续性假设 `C_cont` 被显式化为一个独立的 claim。它本身可以被其他证据支撑或质疑 — 有些物理量在极限处不连续（如相变）。不再是一个隐含在 p 值中的模糊判断。
 
-> **TODO**：上述例子（介质→真空外推）实际上不是 analogy — 它在同一参数空间内外推（介质阻力从高到零），属于 induction + entailment（见 §3.4 W₂）。Analogy 应当是真正的跨域类比（如从流体阻力到电阻的类推）。此节需要替换为一个真正的 cross-domain analogy 例子。
+> **TODO**：上述例子（介质→真空外推）实际上不是 analogy — 它在同一参数空间内外推（介质阻力从高到零），属于 abduction + entailment（见 §3.4 W₂）。Analogy 应当是真正的跨域类比（如从流体阻力到电阻的类推）。此节需要替换为一个真正的 cross-domain analogy 例子。
 
 ### 2.4 组装：noisy-AND 主链 + 约束
 
@@ -223,7 +223,7 @@ V 有两条独立的支撑路径，各包含一个 weakpoint。
 | **W₂** | O_media + O_air + S_vac → V | 介质越稀薄速度差异越小，推到极限（S_vac，真空）差异应为零 | **weakpoint** | < 1 |
 | **W₃** | E_θᵢ + S_plane → V | 斜面实验中 s∝t² 与球的重量无关，对所有倾角成立 | **weakpoint** | < 1 |
 
-**W₂**（induction）：从多种介质下的观测归纳出 G（阻力决定速度差异），再结合 S_vac 推出 V。整体推理的 p < 1，因为 G 的建立依赖 induction。外推到真空不需要单独的连续性假设 — G 的因果机制（阻力是差异的唯一原因）加上 T₁ ⊗ T₂（排除 weight-intrinsic 的速度差异）保证了零阻力 → 零差异。
+**W₂**（abduction）：从介质观测推断因果假说 G（"阻力**决定**速度差异"），再结合 S_vac 推出 V。G 不是纯粹的 pattern 归纳（那只会得到"密度↓差异↓"的相关性），而是提出了一个因果机制 — 阻力是速度差异的**唯一原因**。这个因果主张超出了观测数据本身，是 abduction（最佳解释推断）。整体推理的 p < 1，因为 G 的建立依赖 abduction 跳跃。外推到真空不需要单独的连续性假设 — G 的因果机制加上 T₁ ⊗ T₂（排除 weight-intrinsic 的速度差异）保证了零阻力 → 零差异。
 
 **W₃**（induction）：从多组斜面实验归纳支撑 V。S_plane（斜面=稀释重力）是 premise。
 
@@ -243,8 +243,8 @@ graph TD
     fAvac --> Avac("A_vac<br/>真空中重者更快")
     Avac --- contra2{{"⊗"}}:::contra --- V
 
-    %% Conclusion V — induction path
-    Omedia("O_media"):::obs --> w2(["W₂<br/>induction<br/>p < 1"]):::weak
+    %% Conclusion V — abduction path
+    Omedia("O_media"):::obs --> w2(["W₂<br/>abduction<br/>p < 1"]):::weak
     Oair("O_air"):::obs --> w2
     Svac --> w2
     w2 --> V("V 真空等速"):::concl
@@ -283,13 +283,15 @@ graph TD
 
 BP 效果：两个 observation 的高 belief 通过 equivalence + 反向消息提升 A。但这只有两个实例，支撑有限。
 
-#### W₂：介质观测 → V（Induction + Entailment）
+#### W₂：介质观测 → V（Abduction + Entailment）
 
-W₂ 分解为 induction + entailment 两步。
+W₂ 分解为 abduction + entailment 两步。
 
-**Part a — Induction：O_media + O_air → G**
+**Abduction vs Induction：** W₁ 和 W₃ 是 induction — 假说只是观测 pattern 的泛化（A = "重者更快"，V 的斜面预测 = "s∝t²"），不超出数据本身。W₂ 是 abduction — G 不仅编码了"密度↓差异↓"的 pattern，还主张阻力是速度差异的**唯一原因**（因果机制）。这个因果主张超出了观测，是一个解释性假说。在因子图层面，abduction 和 induction 的结构完全相同（假说 → entailment → 预测 ≡ 观测），区别仅在于假说内容是 pattern 还是 causal mechanism。
 
-G："不同重量物体的下落速度差异由介质阻力决定 — 阻力越大差异越大，阻力越小差异越小"。两组观测是 G 的预测+观测对：
+**Part a — Abduction：O_media + O_air → G**
+
+G："不同重量物体的下落速度差异由介质阻力**决定** — 阻力越大差异越大，阻力越小差异越小"。两组观测是 G 的预测+观测对：
 
 ```mermaid
 graph TD
@@ -303,7 +305,7 @@ graph TD
 
 BP 效果：两个 equivalence 的反向消息共同提升 G 的 belief。
 
-注意 G 同时编码了经验规律（阻力↓差异↓）和因果机制（阻力**决定**差异）。这来自伽利略原文："the differences in speed were greater in those media which were **the more resistant**"。
+G 的因果主张来自伽利略原文："the differences in speed were greater in those media which were **the more resistant**" — "the more resistant" 不是在描述相关性，而是在指认原因。纯 induction 只会得到"密度↓差异↓"；abduction 进一步主张阻力**决定**差异。
 
 **Part b — Entailment：G + S_vac → V（p ≈ 1）**
 
@@ -357,8 +359,8 @@ graph TD
     A --> fAvac(["ent p≈1"]) --> Avac("A_vac")
     Avac --- c2{{"⊗"}}:::contra --- V
 
-    %% ===== Observation path (W₂ induction expanded) =====
-    Omedia("O_media"):::obs --> w2(["W₂<br/>induction"]):::weak --> G("G 阻力决定速度差异")
+    %% ===== Observation path (W₂ abduction expanded) =====
+    Omedia("O_media"):::obs --> w2(["W₂<br/>abduction"]):::weak --> G("G 阻力决定速度差异")
     Oair("O_air"):::obs --> w2
     G --> f1(["ent p≈1"])
     Svac("S_vac 真空=零阻力") --> f1
@@ -386,7 +388,7 @@ graph TD
 **三条独立路径通向 V：**
 
 1. **逻辑路径**：A → T₁ + T₂ → contradiction → A 的 belief 被压低；A → A_vac ⊗ V → A 低则 V 获得间接支撑
-2. **观测路径**：W₂ 展开为 induction(→G) + entailment(G+S_vac→V)
+2. **观测路径**：W₂ 展开为 abduction(→G，因果假说) + entailment(G+S_vac→V)
 3. **实验路径**：W₃ 展开为 induction — 大量斜面实验观测通过反向消息直接支撑 V
 
 **G 与 O_daily 的竞争（explaining away）：**
