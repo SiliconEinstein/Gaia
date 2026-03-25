@@ -3,7 +3,7 @@
 > 相关文档：
 > - [architecture-overview.md](architecture-overview.md)
 > - [../theory/reasoning-hypergraph.md](../theory/reasoning-hypergraph.md)
-> - [../cli/gaia-lang/spec.md](../cli/gaia-lang/spec.md)
+> - [../gaia-lang/spec.md](../gaia-lang/spec.md)
 
 ## 目的
 

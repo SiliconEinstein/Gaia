@@ -202,9 +202,11 @@ Current specs live in `docs/foundations/` organized by architectural layer:
 docs/foundations/theory/       → Pure theory (Jaynes, BP algorithm) — never changes
 docs/foundations/rationale/    → Design philosophy, product scope — rarely changes
 docs/foundations/graph-ir/     → Graph IR structural contract (CLI↔LKM shared layer)
+docs/foundations/gaia-lang/    → Gaia Language (authoring DSL, shared by CLI and LKM)
 docs/foundations/bp/           → BP computation semantics on Graph IR
-docs/foundations/cli/          → CLI + Gaia Lang (local authoring, compilation, inference)
-docs/foundations/lkm/          → LKM server (review, curation, global inference, storage, API)
+docs/foundations/review/       → Review pipeline (shared by CLI and LKM)
+docs/foundations/cli/          → CLI (local authoring, compilation, inference)
+docs/foundations/lkm/          → LKM server (curation, global inference, storage, API)
 ```
 
 Historical docs are in `docs/archive/`. Planning docs are in `docs/superpowers/plans/`.
@@ -222,9 +224,11 @@ The `docs/foundations/` directory mirrors Gaia's three-layer compilation pipelin
 | **theory/** | External theory (Jaynes, BP algorithm) | Definitions that exist independent of Gaia |
 | **rationale/** | Gaia design philosophy, product scope | Why Gaia makes the choices it does |
 | **graph-ir/** | Graph IR structural contract | Node schemas, factor types, canonicalization — defined ONCE here |
+| **gaia-lang/** | Gaia Language (authoring DSL) | Language spec, knowledge types, package model — shared by CLI and LKM |
 | **bp/** | BP computation on Graph IR | Factor potentials, inference algorithm, local vs global |
-| **cli/** | CLI + Gaia Lang (local workflow) | Language spec, compiler, local inference, local storage |
-| **lkm/** | LKM server (global workflow) | Review, curation, global inference, storage, API |
+| **review/** | Review pipeline | Verification, review, gating — shared by CLI and LKM |
+| **cli/** | CLI (local workflow) | Compiler, local inference, local storage |
+| **lkm/** | LKM server (global workflow) | Curation, global inference, storage, API |
 
 **Rules:**
 1. **graph-ir/ is the single source of truth** for structural definitions (FactorNode, knowledge node schemas). BP, CLI, and LKM reference it, never redefine.

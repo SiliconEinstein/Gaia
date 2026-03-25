@@ -54,7 +54,7 @@ inferred   -> gaia infer: local BP preview with local parameterization
 published  -> gaia publish: submitted to registry for peer review
 ```
 
-发布之后的流程参见 [../../lkm/lifecycle.md](../../lkm/lifecycle.md)。
+发布之后的流程参见 [../lkm/lifecycle.md](../lkm/lifecycle.md)。
 
 ## 层级间关系
 
@@ -68,9 +68,9 @@ Package (1)
 
 ## 跨层引用
 
-- **节点标识层**（raw、local canonical、global canonical）：参见 [../../graph-ir/knowledge-nodes.md](../../graph-ir/knowledge-nodes.md)
-- **包的 Graph IR 表示**：参见 [../../graph-ir/overview.md](../../graph-ir/overview.md)
-- **持久化模型的存储模式**：参见 [../../lkm/storage.md](../../lkm/storage.md)
+- **节点标识层**（raw、local canonical、global canonical）：参见 [../graph-ir/graph-ir.md](../graph-ir/graph-ir.md)
+- **包的 Graph IR 表示**：参见 [../graph-ir/overview.md](../graph-ir/overview.md)
+- **持久化模型的存储模式**：参见 [../lkm/storage.md](../lkm/storage.md)
 
 ## 源码
 

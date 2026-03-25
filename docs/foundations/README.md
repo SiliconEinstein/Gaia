@@ -18,11 +18,16 @@ Gaia 的规范参考文档，按架构层级组织。
 
 ## Graph IR — CLI 与 LKM 之间的共享契约
 
-- [概述](graph-ir/overview.md) — 用途、三层身份体系
-- [知识节点](graph-ir/knowledge-nodes.md) — Raw、LocalCanonical、GlobalCanonical 模式
-- [因子节点](graph-ir/factor-nodes.md) — FactorNode 模式（单一定义）、类型、编译规则
-- [规范化](graph-ir/canonicalization.md) — 局部规范化与全局规范化
-- [参数化](graph-ir/parameterization.md) — 叠加模式、图哈希
+- [概述](graph-ir/overview.md) — 三部分总览（Graph IR + Parameterization + BeliefState）
+- [结构定义](graph-ir/graph-ir.md) — KnowledgeNode、FactorNode、规范化
+- [参数定义](graph-ir/parameterization.md) — 原子记录、resolution policy
+- [信念定义](graph-ir/belief-state.md) — BP 输出、可重现性
+
+## Gaia Lang — 编著语言
+
+- [语言规范](gaia-lang/spec.md) — Typst DSL 语法
+- [知识类型](gaia-lang/knowledge-types.md) — 声明类型、证明状态
+- [包模型](gaia-lang/package-model.md) — package/module/chain
 
 ## BP — 基于 Graph IR 的计算
 
@@ -30,12 +35,12 @@ Gaia 的规范参考文档，按架构层级组织。
 - [推理](bp/inference.md) — BP 算法应用于 Graph IR
 - [局部与全局](bp/local-vs-global.md) — CLI 局部推理 vs LKM 全局推理
 
+## Review — 审查管线
+
+- [审阅管线](review/review-pipeline.md) — 验证 → 审阅 → 门控
+
 ## CLI — 本地编著与推理
 
-- **Gaia Lang**（CLI 面向 Graph IR 的前端）：
-  - [语言规范](cli/gaia-lang/spec.md) — Typst DSL 语法
-  - [知识类型](cli/gaia-lang/knowledge-types.md) — 声明类型、证明状态
-  - [包模型](cli/gaia-lang/package-model.md) — package/module/chain
 - [生命周期](cli/lifecycle.md) — build → infer → publish
 - [编译器](cli/compiler.md) — Typst → Graph IR 编译
 - [局部推理](cli/local-inference.md) — `gaia infer` 内部机制
@@ -44,7 +49,6 @@ Gaia 的规范参考文档，按架构层级组织。
 ## LKM — 计算注册中心（服务端）
 
 - [概述](lkm/overview.md) — 写入/读取侧架构
-- [审阅管线](lkm/review-pipeline.md) — 验证 → 审阅 → 门控
 - [全局规范化](lkm/global-canonicalization.md) — 跨包节点映射
 - [整理](lkm/curation.md) — 聚类、去重、冲突检测
 - [全局推理](lkm/global-inference.md) — 服务端 BP

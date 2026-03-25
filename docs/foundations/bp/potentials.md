@@ -2,7 +2,7 @@
 
 > **Status:** Current canonical
 
-本文档定义了每种 factor 类型的计算语义（potential 函数）。结构定义（schema、字段、编译规则）见 [../graph-ir/factor-nodes.md](../graph-ir/factor-nodes.md)。
+本文档定义了每种 factor 类型的计算语义（potential 函数）。结构定义（schema、字段、编译规则）见 [../graph-ir/graph-ir.md](../graph-ir/graph-ir.md)。
 
 Factor potential 是一个函数，接受其所连接变量的联合赋值并返回一个非负权重，编码该赋值与约束的兼容程度。Potential 不是概率——它们无需归一化。仅比值有意义。
 
@@ -170,4 +170,4 @@ V_schema ---- F_inst_1 ---- V_ground_1 (belief=0.9)
 - `libs/inference/bp.py` -- `_evaluate_potential()`, `BeliefPropagation`
 - `libs/inference/factor_graph.py` -- `FactorGraph`, `CROMWELL_EPS`
 - `docs/foundations/theory/belief-propagation.md` -- 纯 BP 算法
-- [../graph-ir/factor-nodes.md](../graph-ir/factor-nodes.md) -- factor 结构定义
+- [../graph-ir/graph-ir.md](../graph-ir/graph-ir.md) -- factor 结构定义

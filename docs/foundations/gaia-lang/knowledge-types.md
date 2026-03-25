@@ -79,8 +79,8 @@ Gaia 有四种知识对象的**声明类型**和两种结构约束的**关系类
 
 ## 跨层引用
 
-- **BP 行为**：参见 [../../bp/potentials.md](../../bp/potentials.md)
-- **Graph IR 映射**（声明如何转变为变量节点和因子节点）：参见 [../../graph-ir/factor-nodes.md](../../graph-ir/factor-nodes.md) 和 [../../graph-ir/knowledge-nodes.md](../../graph-ir/knowledge-nodes.md)
+- **BP 行为**：参见 [../bp/potentials.md](../bp/potentials.md)
+- **Graph IR 映射**（声明如何转变为变量节点和因子节点）：参见 [../graph-ir/graph-ir.md](../graph-ir/graph-ir.md) 和 [../graph-ir/graph-ir.md](../graph-ir/graph-ir.md)
 
 ## 源码
 

@@ -4,7 +4,7 @@
 
 Global canonicalization 将 local canonical node（包作用域）映射到 global canonical node（跨包）。这使得全局知识图谱能够识别不同包中语义等价的命题指向同一 claim。
 
-关于规范化身份模型（raw、local canonical、global canonical），参见 [../graph-ir/canonicalization.md](../graph-ir/canonicalization.md)。
+关于规范化身份模型（raw、local canonical、global canonical），参见 [../graph-ir/graph-ir.md](../graph-ir/graph-ir.md)。
 
 ## 规范化的作用
 
@@ -83,7 +83,7 @@ Output:
 3. 对每个本地 factor，解析所有 premise、context 和 conclusion ID。
 4. 含有未解析引用的 factor 被丢弃（记录在 `unresolved_cross_refs` 中）。
 
-关于 factor node schema，参见 [../graph-ir/factor-nodes.md](../graph-ir/factor-nodes.md)。
+关于 factor node schema，参见 [../graph-ir/graph-ir.md](../graph-ir/graph-ir.md)。
 
 ## 代码路径
 

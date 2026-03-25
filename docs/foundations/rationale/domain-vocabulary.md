@@ -8,13 +8,13 @@ Gaia 文档中使用的核心术语。
 
 一个版本化的命题——知识图的基本单元。一个 Knowledge 对象携带内容（命题文本）、类型（claim、question、setting、action、contradiction、equivalence）以及作者分配的先验（初始信念度）。
 
-完整的类型分类参见 `../cli/gaia-lang/knowledge-types.md`。存储 schema 参见 `../graph-ir/knowledge-nodes.md`。
+完整的类型分类参见 `../gaia-lang/knowledge-types.md`。存储 schema 参见 `../graph-ir/graph-ir.md`。
 
 ## Reasoning
 
 一个连接前提到结论的推理结构。每个 Reasoning 有一个类型（deduction、induction、abstraction、contradiction、retraction、equivalence），用于分类推理模式。在 Graph IR 中，每个 Reasoning 产生一个 factor node。
 
-因子节点详情参见 `../graph-ir/factor-nodes.md`。
+因子节点详情参见 `../graph-ir/graph-ir.md`。
 
 ## Module
 
@@ -24,7 +24,7 @@ Gaia 文档中使用的核心术语。
 
 一个完整的、版本化的知识容器。类似于 git 仓库或已发表的论文。提交、审查和集成的单元。身份标识：`(package_id, version)`。
 
-包编写结构参见 `../cli/gaia-lang/package-model.md`。包生命周期参见 `../cli/lifecycle.md`。
+包编写结构参见 `../gaia-lang/package-model.md`。包生命周期参见 `../cli/lifecycle.md`。
 
 ## Factor Graph
 

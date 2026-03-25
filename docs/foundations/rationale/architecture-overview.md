@@ -18,7 +18,7 @@ Belief Propagation (probabilistic inference)
 
 每层都有清晰的边界：
 
-1. **Gaia Lang**——编写表面。一种基于 Typst 的 DSL，用于声明知识对象、推理链和包结构。确定性地编译为 Graph IR。参见 `../cli/gaia-lang/spec.md`。
+1. **Gaia Lang**——编写表面。一种基于 Typst 的 DSL，用于声明知识对象、推理链和包结构。确定性地编译为 Graph IR。参见 `../gaia-lang/spec.md`。
 
 2. **Graph IR**——结构中间表示。一个包含 knowledge node（知识节点，变量）和 factor node（因子节点，约束）的二部因子图。Graph IR 是**提交制品**——CLI 与 LKM 之间的合约。参见 `../graph-ir/overview.md`。
 
