@@ -14,35 +14,38 @@ Knowledge 节点表示命题。Gaia 中有四种知识对象。**Claim 是唯一
 
 ### 1.1 Schema
 
-#### LocalCanonicalNode
+Local 和 global 使用同一个 data class，字段按层级使用：
 
 ```
-LocalCanonicalNode:
-    local_canonical_id:     str              # SHA-256 内容寻址
+KnowledgeNode:
+    id:                     str              # lcn_ 或 gcn_ 前缀
     type:                   str              # claim | setting | question | template
-    content:                str              # 知识内容（唯一存储位置）
     parameters:             list[Parameter]  # 仅 template：自由变量列表
     source_refs:            list[SourceRef]
     metadata:               dict | None      # 特化 schema 数据（见 claim 特化）
+
+    # ── local 层使用 ──
+    content:                str | None       # 知识内容（local 层存储，global 层通常为 None）
+
+    # ── global 层使用 ──
+    representative_lcn:     LocalCanonicalRef | None  # 代表性 local 节点（内容从此获取）
+    member_local_nodes:     list[LocalCanonicalRef] | None  # 所有映射到此的 local 节点
+    provenance:             list[PackageRef] | None   # 贡献包列表
 ```
 
-**身份规则**：`local_canonical_id = SHA-256(type + content + sorted(parameters))`。相同类型、内容和参数的声明共享同一 ID。
+**各层字段使用：**
 
-**内容的唯一存储位置。** 所有知识的完整文本内容存储在 local canonical 节点上。Global 层不重复存储。
+| 字段 | Local | Global |
+|------|-------|--------|
+| `id` | `lcn_` 前缀，SHA-256 内容寻址 | `gcn_` 前缀，注册中心分配 |
+| `content` | 有值（唯一存储位置） | 通常为 None（subgraph 中间节点例外） |
+| `representative_lcn` | None | 有值（引用 local 节点获取内容） |
+| `member_local_nodes` | None | 有值（所有映射到此的 local 节点） |
+| `provenance` | None | 有值（贡献包列表） |
 
-#### GlobalCanonicalNode
+**身份规则**：local 层 `id = SHA-256(type + content + sorted(parameters))`，相同类型、内容和参数的声明共享同一 ID。
 
-```
-GlobalCanonicalNode:
-    global_canonical_id:    str              # 注册中心分配（gcn_<sha256[:16]>）
-    type:                   str              # claim | setting | question | template
-    representative_lcn:     LocalCanonicalRef  # 代表性 local 节点（内容从此获取）
-    member_local_nodes:     list[LocalCanonicalRef]  # 所有映射到此的 local 节点
-    provenance:             list[PackageRef]  # 贡献包列表
-    metadata:               dict | None
-```
-
-**不存储 content。** Global 节点通过 `representative_lcn` 引用一个 local canonical 节点来获取内容。
+**内容存储**：所有知识内容存储在 local 层的 `content` 字段上。Global 层通过 `representative_lcn` 引用获取内容，不重复存储。唯一例外是 subgraph 展开时新创建的中间节点（无 local 来源，content 直接存在 global 节点上）。
 
 ### 1.2 四种知识类型
 
@@ -144,6 +147,8 @@ Factor 节点表示推理算子，连接 knowledge 节点。对应 theory 层中
 
 ### 2.1 FactorNode Schema
 
+Local 和 global 使用同一个 data class，字段按层级使用：
+
 ```
 FactorNode:
     factor_id:        str                # f_{sha256[:16]}，确定性
@@ -156,11 +161,14 @@ FactorNode:
 
     # ── 连接 ──
     premises:         list[str]          # knowledge node IDs — 承载性依赖（仅 claim premise 创建 BP 边，见 §2.5）
-    weak_points:      list[str]          # 自由文本 — 推理薄弱环节描述，尚未分离成具体 premise
     conclusion:       str | None         # 单个输出 knowledge 节点（双向算子为 None）
 
-    # ── 推理内容 ──
-    steps:            list[Step]         # 推理过程的分步描述
+    # ── local 层使用 ──
+    steps:            list[Step] | None  # 推理过程的分步描述
+    weak_points:      list[str] | None   # 自由文本 — 推理薄弱环节描述
+
+    # ── global 层使用 ──
+    subgraph:         list[FactorNode] | None  # 升格为 permanent 时的细粒度分解
 
     # ── 追溯 ──
     source_ref:       SourceRef | None
@@ -172,39 +180,18 @@ Step:
     conclusion:       str | None         # 该步的结论（可选）
 ```
 
+**各层字段使用：**
+
+| 字段 | Local | Global |
+|------|-------|--------|
+| `premises`/`conclusion` | `lcn_` ID | `gcn_` ID |
+| `steps` | 有值（推理过程文本） | None |
+| `weak_points` | 有值（薄弱环节描述） | None |
+| `subgraph` | None | 有值（agent 在 global 层创建的细粒度分解，见 §2.6） |
+
 `steps` 记录推理过程的分步文本。一个 factor 可以有一步或多步。每步的 `premises` 和 `conclusion` 是可选的——有些步骤只是描述性的推理过程，不显式关联特定的知识节点。FactorNode 的顶层 `premises` 和 `conclusion` 是整个推理链的输入和最终输出。
 
 Factor 身份是确定性的：`f_{sha256[:16]}` 由源构造计算得出。
-
-#### Global FactorNode
-
-Global 层的 FactorNode 与 local 层有以下区别：
-
-```
-GlobalFactorNode:
-    factor_id:        str
-    category:         str
-    stage:            str
-    reasoning_type:   str | None
-
-    # ── 连接（ID 使用 gcn_ 命名空间）──
-    premises:         list[str]
-    conclusion:       str | None
-
-    # ── 子图分解（global 独有）──
-    subgraph:         list[GlobalFactorNode] | None  # 升格为 permanent 时的细粒度分解
-
-    # ── 追溯 ──
-    source_ref:       SourceRef | None
-    metadata:         dict | None
-```
-
-**与 local FactorNode 的区别：**
-
-- `premises`/`conclusion` 使用 `gcn_` ID
-- **无 `steps`**：推理过程文本保留在 local 层
-- **无 `weak_points`**：薄弱环节描述保留在 local 层
-- **有 `subgraph`**：agent 在 global 层做 review/curation 时创建的细粒度分解（见 §2.6）
 
 ### 2.2 三维类型系统
 
