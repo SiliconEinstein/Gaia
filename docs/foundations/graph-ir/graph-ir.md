@@ -263,11 +263,11 @@ Factor 身份是确定性的：`f_{sha256[:16]}` 由源构造计算得出。Fact
 |------|------|---------|------|
 | **premises** | 顶层字段 | claim premise 创建 BP 边（见 §2.5） | 承载性依赖，前提为假会削弱结论 |
 | **weak_points** | 顶层字段 | 否 | 推理薄弱环节的注解，影响体现在 factor 的 conditional probability 上 |
-| **context** | `metadata` 内 | 否 | 弱相关的引用、背景信息、动机等 |
+| **context** | `metadata` 内 | 否 | 弱相关的 knowledge、question 等引用 |
 
 - **Premise**：推理成立的必要条件。可以是任意知识类型（claim、setting、question、template），但只有 claim premise 创建 BP 边。
 - **Weak point**：自由文本，描述推理过程中已识别但尚未分离成独立 premise 的薄弱环节。不是 knowledge node 引用，不创建 BP 边，不承担独立概率——它们的影响体现在该 factor 的 conditional probability 上（review 在评估 factor probability 时会参考 weak_points）。随着研究深入，weak point 可以被具体化为独立的 knowledge node 并提取为 premise。
-- **Context**：存储在 `metadata.context` 中的 knowledge node ID 列表。不参与图结构（不创建边），不参与 BP。用于记录弱相关的引用（setup、motivation、background 等）。
+- **Context**：存储在 `metadata.context` 中的 knowledge node ID 列表。不参与图结构（不创建边），不参与 BP。用于记录弱相关的 knowledge、question 等引用。
 
 ### 2.5 BP 参与规则
 
