@@ -96,28 +96,33 @@ graph TD
 
 #### Analogy 模式（类比）
 
-类比是"源域的规律外推到目标域"。分解为两部分：
+类比不是在同一参数空间内做极限外推；那属于 induction / abduction 之后的 entailment。
+类比是把源域中已经建立的结构规律迁移到目标域。其关键不是连续性，而是一个显式的桥梁主张 `M`：
 
-**Part a — Induction 建立模式**：从源域的多个实例归纳出一般模式 G（同上）。
+> 在某个变量映射 `φ` 下，源域中真正起作用的关系在目标域中也保持成立。
+
+分解为两部分：
+
+**Part a — 在源域建立规律**：先在源域得到 `G_src`。这一步本身可以来自 deduction、induction 或 abduction（复用前述子图模式）。
 
 **Part b — Entailment 外推到目标域**：
 
 ```mermaid
 graph LR
-    G("G 一般模式") --> f(["ent p≈1"])
-    Ccont("C_cont 连续性") --> f
-    St("S_target 目标条件") --> f
-    f --> V("V 结论")
+    Gs("G_src 源域规律") --> f(["ent p≈1"])
+    M("M 类比桥梁 / 结构对应") --> f
+    St("S_target 目标域条件") --> f
+    f --> Vt("V_target 目标域结论")
 ```
 
-- **G**: 在不同密度的介质中，密度越低，不同重量物体的下落速度差异越小（一般模式）
-- **C_cont**: 物理量随参数连续变化的趋势在极限处保持（显式连续性假设）
-- **S_target**: 真空的介质密度为零（目标域条件，setting）
-- **V**: 在真空中，不同重量的物体以相同速率下落（目标域结论）
+- **G_src**：源域中已经建立的规律、机制或约束
+- **M**：类比桥梁。声明源域与目标域在相关变量、约束或因果结构上可对应
+- **S_target**：目标域的具体条件、边界条件或适用范围
+- **V_target**：迁移到目标域后的结论
 
-关键：连续性假设 `C_cont` 被显式化为一个独立的 claim。它本身可以被其他证据支撑或质疑 — 有些物理量在极限处不连续（如相变）。不再是一个隐含在 p 值中的模糊判断。
+关键点是：类比中的不确定性通常不在 `G_src + M + S_target -> V_target` 这条 entailment 本身，而在 `M` 是否成立。formalization 的任务不是把这一步藏进一个模糊的 `p < 1`，而是把 `M` 显式化，使它能够被独立支持、质疑、复用或反驳。
 
-> **TODO**：上述例子（介质→真空外推）实际上不是 analogy — 它在同一参数空间内外推（介质阻力从高到零），属于 abduction + entailment（见 §3.4 W₂）。Analogy 应当是真正的跨域类比（如从流体阻力到电阻的类推）。此节需要替换为一个真正的 cross-domain analogy 例子。
+如果目标域后来获得了观测，还可以继续加入 `V_target ≡ O_target`，让目标域证据反过来约束 `M`。
 
 ### 2.4 组装：noisy-AND 主链 + 约束
 
@@ -422,7 +427,7 @@ graph TD
 | entailment | 不变 | ≈ 1（逻辑蕴含） |
 | abduction | entailment + observation + equivalence | ≈ 1（假说→预测是蕴含） |
 | induction | 重复 abduction | ≈ 1（规律→实例是蕴含） |
-| analogy | induction + entailment（显式连续性前提） | ≈ 1（模式+条件→结论是蕴含） |
+| analogy | 源域规律 + 显式类比桥梁 + entailment | ≈ 1（桥梁与条件给定后） |
 | contradiction | 不变 | 结构约束 |
 | equivalence | 不变 | 结构约束 |
 
@@ -448,7 +453,7 @@ Cox 定理（参见 [plausible-reasoning.md](plausible-reasoning.md)）保证：
 | Step 2：识别弱点，区分 premise 与 weakpoint | 同行评审质疑论证中的薄弱环节，判断哪些是核心假设 |
 | Step 2：weakpoint 作为因子图中的 factor node | 审稿人要求论证结构清晰，标注每处推理的确定性 |
 | Step 3：分解 weakpoint 为 entailment + equivalence 子图 | 要求作者给出假说的可测预测，并与实际观测对照 |
-| Step 3：显式化隐含前提（如连续性假设） | 审稿人要求作者明确假设和适用条件 |
+| Step 3：显式化桥梁主张（如结构对应、变量映射、适用条件） | 审稿人要求作者明确类比为何成立、适用到哪里 |
 | 添加竞争假说 | 要求讨论替代解释（alternative explanations） |
 | 多路径 + contradiction + equivalence | 独立实验室复现、不同方法得到相同结论 |
 | π 被因子消息淹没 | 科学共识从证据结构中涌现，而非从个人先验中产生 |
