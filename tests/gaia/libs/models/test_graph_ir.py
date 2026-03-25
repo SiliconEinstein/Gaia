@@ -292,6 +292,133 @@ class TestFactorNodeValidation:
             )
 
 
+class TestToolcallProofConstraints:
+    """toolcall/proof categories: reasoning_type=None, no candidate/permanent stage."""
+
+    def test_toolcall_rejects_reasoning_type(self):
+        with pytest.raises(ValidationError):
+            FactorNode(
+                scope="local",
+                category=FactorCategory.TOOLCALL,
+                stage=FactorStage.INITIAL,
+                reasoning_type=ReasoningType.ENTAILMENT,
+                premises=["lcn_a"],
+                conclusion="lcn_b",
+            )
+
+    def test_proof_rejects_reasoning_type(self):
+        with pytest.raises(ValidationError):
+            FactorNode(
+                scope="local",
+                category=FactorCategory.PROOF,
+                stage=FactorStage.INITIAL,
+                reasoning_type=ReasoningType.ENTAILMENT,
+                premises=["lcn_a"],
+                conclusion="lcn_b",
+            )
+
+    def test_toolcall_rejects_candidate_stage(self):
+        with pytest.raises(ValidationError):
+            FactorNode(
+                scope="local",
+                category=FactorCategory.TOOLCALL,
+                stage=FactorStage.CANDIDATE,
+                premises=["lcn_a"],
+                conclusion="lcn_b",
+            )
+
+    def test_proof_rejects_candidate_stage(self):
+        with pytest.raises(ValidationError):
+            FactorNode(
+                scope="local",
+                category=FactorCategory.PROOF,
+                stage=FactorStage.CANDIDATE,
+                premises=["lcn_a"],
+                conclusion="lcn_b",
+            )
+
+    def test_toolcall_rejects_permanent_stage(self):
+        with pytest.raises(ValidationError):
+            FactorNode(
+                scope="local",
+                category=FactorCategory.TOOLCALL,
+                stage=FactorStage.PERMANENT,
+                premises=["lcn_a"],
+                conclusion="lcn_b",
+            )
+
+    def test_proof_rejects_permanent_stage(self):
+        with pytest.raises(ValidationError):
+            FactorNode(
+                scope="local",
+                category=FactorCategory.PROOF,
+                stage=FactorStage.PERMANENT,
+                premises=["lcn_a"],
+                conclusion="lcn_b",
+            )
+
+
+class TestSubgraphStageConstraint:
+    """subgraph only allowed for permanent stage."""
+
+    def test_subgraph_rejected_for_non_permanent(self):
+        inner = FactorNode(
+            scope="local",
+            category=FactorCategory.INFER,
+            stage=FactorStage.INITIAL,
+            premises=["lcn_x"],
+            conclusion="lcn_y",
+        )
+        with pytest.raises(ValidationError):
+            FactorNode(
+                scope="local",
+                category=FactorCategory.INFER,
+                stage=FactorStage.INITIAL,
+                premises=["lcn_a"],
+                conclusion="lcn_b",
+                subgraph=[inner],
+            )
+
+    def test_subgraph_rejected_for_candidate(self):
+        inner = FactorNode(
+            scope="local",
+            category=FactorCategory.INFER,
+            stage=FactorStage.INITIAL,
+            premises=["lcn_x"],
+            conclusion="lcn_y",
+        )
+        with pytest.raises(ValidationError):
+            FactorNode(
+                scope="local",
+                category=FactorCategory.INFER,
+                stage=FactorStage.CANDIDATE,
+                reasoning_type=ReasoningType.ENTAILMENT,
+                premises=["lcn_a"],
+                conclusion="lcn_b",
+                subgraph=[inner],
+            )
+
+    def test_subgraph_allowed_for_permanent(self):
+        inner = FactorNode(
+            scope="local",
+            category=FactorCategory.INFER,
+            stage=FactorStage.INITIAL,
+            premises=["lcn_x"],
+            conclusion="lcn_y",
+        )
+        factor = FactorNode(
+            scope="local",
+            category=FactorCategory.INFER,
+            stage=FactorStage.PERMANENT,
+            reasoning_type=ReasoningType.ENTAILMENT,
+            premises=["lcn_a"],
+            conclusion="lcn_b",
+            subgraph=[inner],
+        )
+        assert factor.subgraph is not None
+        assert len(factor.subgraph) == 1
+
+
 class TestFactorNodeDeterminism:
     def test_factor_id_deterministic(self):
         kwargs = dict(

@@ -189,6 +189,17 @@ class FactorNode(BaseModel):
 
     @model_validator(mode="after")
     def _validate_and_compute_id(self) -> FactorNode:
+        self._validate_invariants()
+
+        # Compute factor_id if not provided
+        if self.factor_id is None:
+            self.factor_id = _compute_factor_id(
+                self.scope, self.category, self.premises, self.conclusion
+            )
+        return self
+
+    def _validate_invariants(self) -> None:
+        """Validate FactorNode invariants from graph-ir.md §2.3."""
         # Invariant 1: candidate/permanent infer requires reasoning_type
         if (
             self.stage in (FactorStage.CANDIDATE, FactorStage.PERMANENT)
@@ -196,6 +207,18 @@ class FactorNode(BaseModel):
             and self.reasoning_type is None
         ):
             raise ValueError(f"stage={self.stage} with category=infer requires reasoning_type")
+
+        # §2.3: toolcall/proof have reasoning_type=None and stay at initial
+        if self.category in (FactorCategory.TOOLCALL, FactorCategory.PROOF):
+            if self.reasoning_type is not None:
+                raise ValueError(
+                    f"category={self.category} must have reasoning_type=None, "
+                    f"got {self.reasoning_type}"
+                )
+            if self.stage in (FactorStage.CANDIDATE, FactorStage.PERMANENT):
+                raise ValueError(
+                    f"category={self.category} must stay at stage=initial, got stage={self.stage}"
+                )
 
         # Invariant 6: bilateral types require conclusion=None and premises >= 2
         if self.reasoning_type in (ReasoningType.EQUIVALENT, ReasoningType.CONTRADICT):
@@ -206,12 +229,16 @@ class FactorNode(BaseModel):
                     f"reasoning_type={self.reasoning_type} requires at least 2 premises"
                 )
 
-        # Compute factor_id if not provided
-        if self.factor_id is None:
-            self.factor_id = _compute_factor_id(
-                self.scope, self.category, self.premises, self.conclusion
-            )
-        return self
+        # §2.6: subgraph only allowed for permanent stage
+        if self.subgraph is not None and self.stage != FactorStage.PERMANENT:
+            raise ValueError(f"subgraph is only allowed at stage=permanent, got stage={self.stage}")
+
+        # -- Deferred cross-object invariants (require graph-level context) --
+        # §2.3 invariant 2: conclusion node type must be claim (needs node registry)
+        # §2.3 invariant 3: premise types restricted to claim/setting/question/template
+        #   (needs node registry)
+        # §2.3 invariant 5: template may only appear as premise of entailment
+        #   (needs node registry)
 
 
 # ---------------------------------------------------------------------------
