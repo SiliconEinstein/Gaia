@@ -252,7 +252,7 @@ type:
 
 ### 2.3 Noisy-AND 语义
 
-Strategy 的隐含结构是 ∧ + ↝（theory [§5](../theory/05-multi-premise-reasoning.md)）：
+Strategy 的隐含结构是 ∧ + ↝（theory [03-propositional-operators.md §5](../theory/03-propositional-operators.md)）：
 
 ```
 A₁ ──(q₁)──┐
@@ -658,7 +658,7 @@ Graph IR 中没有 retraction 类型。撤回是一个**操作**：为目标 Pro
 
 | 决策 | 理由 |
 |------|------|
-| Strategy 保持 noisy-AND 语义 | Theory §5 证明 ∧ + ↝ 是最基本的多前提组合；9 种策略全部可用 noisy-AND 表达 |
+| Strategy 保持 noisy-AND 语义 | [03-propositional-operators.md §5](../theory/03-propositional-operators.md) 证明 ∧ + ↝ 是最基本的多前提组合；9 种策略全部可用 noisy-AND 表达 |
 | Operator 从 Strategy 分离 | ↔/⊗/⊕ 是确定性命题算子，不是推理声明；分离后 Strategy 纯粹为 ↝ 载体 |
 | FormalExpr 作为独立实体 | 推理层和计算层的分离点；避免 Strategy 承担计算语义 |
 | 确定性策略视为"有 trivial FormalExpr" | 统一 BP 编译规则为一条：有 FormalExpr → Operator 层运行；无 → ↝ 编译 |
