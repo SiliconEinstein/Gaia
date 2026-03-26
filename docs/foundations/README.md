@@ -2,16 +2,24 @@
 
 Gaia 的规范参考文档，按架构层级组织。
 
-## 理论 — 纯数学基础（极少变更）
+## theory/ — 理论基础
 
-推导链：plausible-reasoning → reasoning-factor-graph → coarse-reasoning → belief-propagation → science-ontology → science-formalization
+推导链：plausible-reasoning → maxent-grounding → propositional-operators → reasoning-strategies → formalization-methodology → factor-graphs → belief-propagation
 
-- [似然推理](theory/01-plausible-reasoning.md) — Jaynes、Cox 定理、概率即逻辑、弱三段论 C1-C4
-- [推理因子图](theory/02-reasoning-factor-graph.md) — 因子图二部图结构、四种逻辑原语算子（蕴含、合取、析取、否定）
-- [粗推理算子](theory/03-coarse-reasoning.md) — 粗推理算子（p<1 的唯一因子类型）、粗/细因子图
-- [置信传播](theory/04-belief-propagation.md) — 和积算法、消息传递语义、收敛性
-- [科学知识本体论](theory/05-science-ontology.md) — 知识类型、关系类型、推理策略
-- [科学知识的形式化](theory/06-science-formalization.md) — 从自然语言到因子图的分步精炼、p 的客观化
+**三层结构：**
+
+**Layer 1 — Jaynes 理论（纯理论，不涉及因子图/BP）：**
+- [`01-plausible-reasoning.md`](theory/01-plausible-reasoning.md) — Cox 定理、概率唯一性、弱三段论
+- [`02-maxent-grounding.md`](theory/02-maxent-grounding.md) — MaxEnt/Min-KL、从约束到后验
+
+**Layer 2 — 科学本体论（命题与算子，不涉及因子图/BP）：**
+- [`03-propositional-operators.md`](theory/03-propositional-operators.md) — 最小原料 {¬, ∧, π}、派生算子、↝ 似然蕴含、完备性
+- [`04-reasoning-strategies.md`](theory/04-reasoning-strategies.md) — 知识类型、七种推理策略作为 ↝ 微观结构
+- [`05-formalization-methodology.md`](theory/05-formalization-methodology.md) — 从科学文本到命题网络的方法论
+
+**Layer 3 — 计算方法（因子图 + BP 作为大规模近似）：**
+- [`06-factor-graphs.md`](theory/06-factor-graphs.md) — 命题网络到因子图的映射、势函数
+- [`07-belief-propagation.md`](theory/07-belief-propagation.md) — BP 近似推理算法
 
 ## 设计理念 — 设计哲学（极少变更）
 
