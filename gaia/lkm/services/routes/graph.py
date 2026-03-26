@@ -37,13 +37,21 @@ async def get_graph(
         if package_id:
             bindings = await storage.get_bindings(package_id=package_id)
             local_ids = {b.local_canonical_id for b in bindings}
-            nodes = [n for n in nodes if n.id in local_ids]
-            # Filter factors to those with all premises in local_ids
-            factor_ids = set()
+            # Deduplicate nodes by id (same lcn_ can appear from multiple packages)
+            seen_ids: set[str] = set()
+            deduped_nodes = []
+            for n in nodes:
+                if n.id in local_ids and n.id not in seen_ids:
+                    deduped_nodes.append(n)
+                    seen_ids.add(n.id)
+            nodes = deduped_nodes
+            # Filter factors: all premises must be in this package's local_ids
+            filtered_factors = []
             for f in factors:
                 if all(p in local_ids for p in f.premises):
-                    factor_ids.add(f.factor_id)
-            factors = [f for f in factors if f.factor_id in factor_ids]
+                    if f.conclusion is None or f.conclusion in local_ids:
+                        filtered_factors.append(f)
+            factors = filtered_factors
 
     # Also get prior records for display
     priors = {}

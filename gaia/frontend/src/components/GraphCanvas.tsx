@@ -58,8 +58,16 @@ export default function GraphCanvas({ nodes, edges }: Props) {
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Deduplicate nodes by id (same lcn_ can appear from multiple packages)
+    const seen = new Set<string>();
+    const uniqueNodes = nodes.filter((n) => {
+      if (seen.has(n.id)) return false;
+      seen.add(n.id);
+      return true;
+    });
+
     const visNodes = new DataSet(
-      nodes.map((n) => ({
+      uniqueNodes.map((n) => ({
         id: n.id,
         label: buildLabel(n),
         shape: nodeShape(n.type),
