@@ -27,7 +27,8 @@ async def manager(tmp_path):
 
 
 def _galileo():
-    return make_galileo_falling_bodies()
+    graph, _params = make_galileo_falling_bodies()
+    return graph
 
 
 # ---------------------------------------------------------------------------
@@ -56,14 +57,14 @@ class TestWriteAndReadKnowledgeNodes:
         await manager.write_knowledge_nodes(graph.knowledge_nodes)
 
         nodes = await manager.get_knowledge_nodes(prefix="lcn_")
-        assert len(nodes) == 5
+        assert len(nodes) == 10
 
     async def test_read_all_without_prefix(self, manager):
         graph = _galileo()
         await manager.write_knowledge_nodes(graph.knowledge_nodes)
 
         nodes = await manager.get_knowledge_nodes()
-        assert len(nodes) == 5
+        assert len(nodes) == 10
 
     async def test_get_node_by_id(self, manager):
         graph = _galileo()
@@ -91,14 +92,14 @@ class TestWriteAndReadFactorNodes:
         await manager.write_factor_nodes(graph.factor_nodes)
 
         factors = await manager.get_factor_nodes(scope="local")
-        assert len(factors) == 4
+        assert len(factors) == 7
 
     async def test_read_all_without_scope(self, manager):
         graph = _galileo()
         await manager.write_factor_nodes(graph.factor_nodes)
 
         factors = await manager.get_factor_nodes()
-        assert len(factors) == 4
+        assert len(factors) == 7
 
 
 # ---------------------------------------------------------------------------
@@ -297,6 +298,6 @@ class TestGraphStoreOptional:
         await manager.write_factor_nodes(graph.factor_nodes)
 
         nodes = await manager.get_knowledge_nodes()
-        assert len(nodes) == 5
+        assert len(nodes) == 10
         factors = await manager.get_factor_nodes()
-        assert len(factors) == 4
+        assert len(factors) == 7

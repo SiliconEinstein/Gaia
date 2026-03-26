@@ -39,8 +39,7 @@ def empty_global_graph():
 
 async def test_first_package_all_create_new(embedding_model, empty_global_graph):
     """Empty global graph → all bindings are create_new."""
-    local = make_galileo_falling_bodies()
-    params = make_default_local_params(local)
+    local, params = make_galileo_falling_bodies()
 
     result = await canonicalize_package(
         local_graph=local,
@@ -97,8 +96,7 @@ async def test_bindings_have_gcn_ids(embedding_model, empty_global_graph):
 
 async def test_prior_records_created_for_claims(embedding_model, empty_global_graph):
     """Only claim nodes get PriorRecord. Setting nodes do not."""
-    local = make_galileo_falling_bodies()
-    params = make_default_local_params(local)
+    local, params = make_galileo_falling_bodies()
 
     result = await canonicalize_package(
         local_graph=local,
@@ -109,7 +107,7 @@ async def test_prior_records_created_for_claims(embedding_model, empty_global_gr
         embedding_model=embedding_model,
     )
 
-    # Galileo has 1 setting + 4 claims
+    # Galileo has 1 setting + 9 claims
     claim_count = sum(1 for n in local.knowledge_nodes if n.type == KnowledgeType.CLAIM)
     assert len(result.prior_records) == claim_count
 
@@ -174,8 +172,7 @@ async def test_param_source_created(embedding_model, empty_global_graph):
 async def test_global_factors_drop_steps_and_weak_points(embedding_model, empty_global_graph):
     """All global factors have steps=None, weak_points=None."""
     # Einstein equivalence has weak_points on a factor
-    local = make_einstein_equivalence()
-    params = make_default_local_params(local)
+    local, params = make_einstein_equivalence()
 
     # Verify local has weak_points
     assert any(f.weak_points for f in local.factor_nodes)
@@ -184,7 +181,7 @@ async def test_global_factors_drop_steps_and_weak_points(embedding_model, empty_
         local_graph=local,
         local_params=params,
         global_graph=empty_global_graph,
-        package_id="einstein_equivalence",
+        package_id="einstein_gravity",
         version="1.0",
         embedding_model=embedding_model,
     )
@@ -201,8 +198,7 @@ async def test_global_factors_drop_steps_and_weak_points(embedding_model, empty_
 
 async def test_global_factors_have_global_scope(embedding_model, empty_global_graph):
     """All global factors have scope='global'."""
-    local = make_galileo_falling_bodies()
-    params = make_default_local_params(local)
+    local, params = make_galileo_falling_bodies()
 
     result = await canonicalize_package(
         local_graph=local,
@@ -225,8 +221,7 @@ async def test_global_factors_have_global_scope(embedding_model, empty_global_gr
 async def test_second_package_cross_match(embedding_model):
     """Canonicalize galileo, then newton. Newton's vacuum claim should match."""
     # First: canonicalize galileo into empty global graph
-    galileo = make_galileo_falling_bodies()
-    galileo_params = make_default_local_params(galileo)
+    galileo, galileo_params = make_galileo_falling_bodies()
     global_graph = GlobalCanonicalGraph(knowledge_nodes=[], factor_nodes=[])
 
     result1 = await canonicalize_package(
@@ -245,8 +240,7 @@ async def test_second_package_cross_match(embedding_model):
     )
 
     # Second: canonicalize newton against populated global graph
-    newton = make_newton_gravity()
-    newton_params = make_default_local_params(newton)
+    newton, newton_params = make_newton_gravity()
 
     result2 = await canonicalize_package(
         local_graph=newton,
@@ -285,8 +279,7 @@ async def test_second_package_cross_match(embedding_model):
 
 async def test_factor_lifting_rewrites_ids(embedding_model, empty_global_graph):
     """All premises/conclusions in global factors use gcn_ IDs."""
-    local = make_galileo_falling_bodies()
-    params = make_default_local_params(local)
+    local, params = make_galileo_falling_bodies()
 
     result = await canonicalize_package(
         local_graph=local,

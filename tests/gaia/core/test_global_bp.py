@@ -81,9 +81,8 @@ class TestAssembleParameterization:
 # ---------------------------------------------------------------------------
 
 
-async def _canonicalize_to_global(local_graph, embedding_model, prior=0.5, factor_prob=0.8):
+async def _canonicalize_to_global(local_graph, local_params, embedding_model):
     """Helper: canonicalize a local graph into a global graph with params."""
-    local_params = make_default_local_params(local_graph, prior=prior, factor_prob=factor_prob)
     empty_global = GlobalCanonicalGraph(knowledge_nodes=[], factor_nodes=[])
     result = await canonicalize_package(
         local_graph=local_graph,
@@ -104,8 +103,9 @@ class TestRunGlobalBP:
     async def test_minimal_graph_produces_belief_state(self, embedding_model):
         """Canonicalize minimal_claim_pair -> run BP -> get valid BeliefState."""
         local_graph = make_minimal_claim_pair()
+        local_params = make_default_local_params(local_graph)
         global_graph, priors, factor_params = await _canonicalize_to_global(
-            local_graph, embedding_model
+            local_graph, local_params, embedding_model
         )
         policy = ResolutionPolicy(strategy="latest")
 
@@ -123,9 +123,9 @@ class TestRunGlobalBP:
 
     async def test_beliefs_only_for_claims(self, embedding_model):
         """Galileo graph has a setting node -> it should NOT appear in beliefs."""
-        local_graph = make_galileo_falling_bodies()
+        local_graph, local_params = make_galileo_falling_bodies()
         global_graph, priors, factor_params = await _canonicalize_to_global(
-            local_graph, embedding_model
+            local_graph, local_params, embedding_model
         )
         policy = ResolutionPolicy(strategy="latest")
 
@@ -163,8 +163,9 @@ class TestRunGlobalBP:
     async def test_belief_values_in_cromwell_bounds(self, embedding_model):
         """All beliefs between EPS and 1-EPS."""
         local_graph = make_minimal_claim_pair()
+        local_params = make_default_local_params(local_graph)
         global_graph, priors, factor_params = await _canonicalize_to_global(
-            local_graph, embedding_model
+            local_graph, local_params, embedding_model
         )
         policy = ResolutionPolicy(strategy="latest")
 
@@ -182,9 +183,9 @@ class TestRunGlobalBP:
 
     async def test_galileo_graph_with_contradiction(self, embedding_model):
         """Galileo has contradiction -> BP should still converge, beliefs should be valid."""
-        local_graph = make_galileo_falling_bodies()
+        local_graph, local_params = make_galileo_falling_bodies()
         global_graph, priors, factor_params = await _canonicalize_to_global(
-            local_graph, embedding_model
+            local_graph, local_params, embedding_model
         )
         policy = ResolutionPolicy(strategy="latest")
 
