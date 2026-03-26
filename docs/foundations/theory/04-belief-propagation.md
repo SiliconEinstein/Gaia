@@ -4,6 +4,7 @@
 >
 > **上游依赖：**
 > - [01-plausible-reasoning.md](01-plausible-reasoning.md) — Jaynes 框架、弱三段论 C1-C4
+> - [01a-jaynes-maxent-grounding.md](01a-jaynes-maxent-grounding.md) — 从约束到 posterior 的 MaxEnt / Min-KL 落地
 > - [02-reasoning-factor-graph.md](02-reasoning-factor-graph.md) — 因子图、逻辑算子
 > - [03-coarse-reasoning.md](03-coarse-reasoning.md) — 粗推理算子
 

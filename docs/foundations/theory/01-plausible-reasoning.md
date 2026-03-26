@@ -3,16 +3,18 @@
 > **Status:** Target design — foundation baseline
 >
 > 本文档描述纯理论基础：什么是科学推理、为什么概率是正确的形式化工具。
+> 关于如何从命题、约束和证据得到具体 posterior，参见 [01a-jaynes-maxent-grounding.md](01a-jaynes-maxent-grounding.md)。
 > 关于推理网络的计算结构和算法，参见 [04-belief-propagation.md](04-belief-propagation.md)。
 > 本文档不定义具体的编写语言语法、Graph IR 字段布局或因子势函数公式。
 
 **本文档是 theory/ 层的基础文件。** 下游文档在此基础上逐步引入形式结构和算法：
 
 1. [02-reasoning-factor-graph.md](02-reasoning-factor-graph.md) — 因子图形式和逻辑算子
-2. [03-coarse-reasoning.md](03-coarse-reasoning.md) — 粗推理算子
-3. [04-belief-propagation.md](04-belief-propagation.md) — BP 消息传递算法
-4. [05-science-ontology.md](05-science-ontology.md) — 科学知识本体论
-5. [06-science-formalization.md](06-science-formalization.md) — 科学推理形式化
+2. [01a-jaynes-maxent-grounding.md](01a-jaynes-maxent-grounding.md) — 从约束到 posterior 的 MaxEnt / Min-KL 落地
+3. [03-coarse-reasoning.md](03-coarse-reasoning.md) — 粗推理算子
+4. [04-belief-propagation.md](04-belief-propagation.md) — BP 消息传递算法
+5. [05-science-ontology.md](05-science-ontology.md) — 科学知识本体论
+6. [06-science-formalization.md](06-science-formalization.md) — 科学推理形式化
 
 ## 1. 科学推理的基本模式
 
@@ -250,6 +252,8 @@ P(B|¬AX) = P(B|X) - P(A|X) · [P(B|AX) - P(B|¬AX)]  （边际化展开后）
 
 MaxEnt 不是一种启发式 — 它是信息论的定理：在已知约束下，最大熵分布是唯一不引入额外假设的分布。
 
+但 MaxEnt 在具体系统中的优化目标、与最小相对熵更新的关系、以及如何从约束走到一个局部因子化的 posterior，留待 [01a-jaynes-maxent-grounding.md](01a-jaynes-maxent-grounding.md) 展开。
+
 ### 3.5 Cromwell 规则
 
 对经验命题**永远不要赋予概率 0 或 1**。
@@ -352,7 +356,7 @@ posterior odds = prior odds × likelihood ratio
 
 上述五章建立了科学推理的认识论基础：推理模式（Polya）、概率作为唯一一致的形式化（Cox）、完整的推理框架（Jaynes）、Robot 的两层架构、以及矛盾的一等公民地位。
 
-这些概率关系在大规模科学知识上形成一个需要计算结构和算法的网络。关于推理超图（因子图）的数学结构和 Belief Propagation 算法，参见 [04-belief-propagation.md](04-belief-propagation.md)。
+这些概率关系在大规模科学知识上形成一个需要计算结构和算法的网络。关于如何从约束、MaxEnt 和相对熵更新得到具体 posterior，参见 [01a-jaynes-maxent-grounding.md](01a-jaynes-maxent-grounding.md)。关于推理超图（因子图）的数学结构和 Belief Propagation 算法，参见 [04-belief-propagation.md](04-belief-propagation.md)。
 
 ## 参考文献
 
