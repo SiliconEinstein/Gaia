@@ -41,7 +41,7 @@ jobs:
           ruff format --check .
 
       - name: Run tests
-        run: pytest --cov=libs --cov=services --cov-report=xml tests -v
+        run: pytest --cov=libs --cov=services --cov-report=xml tests -v -m "not integration_api"
 
       - name: Upload coverage to Codecov
         if: always()
