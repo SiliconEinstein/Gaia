@@ -1,5 +1,7 @@
 """Tests for gaia.core.canonicalize — global canonicalization."""
 
+import os
+
 import pytest
 
 from gaia.core.canonicalize import CanonicalizationResult, canonicalize_package
@@ -267,6 +269,10 @@ async def test_second_package_exact_content_match(embedding_model):
 
 
 @pytest.mark.integration_api
+@pytest.mark.skipif(
+    not os.getenv("API_URL"),
+    reason="Requires real embedding API (API_URL env var)",
+)
 async def test_equivalent_candidate_with_real_embedding():
     """Galileo → Newton: mass_cancellation is semantically similar to vacuum_prediction.
 
