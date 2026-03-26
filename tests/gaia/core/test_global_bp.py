@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 from gaia.core.global_bp import assemble_parameterization, run_global_bp
 from gaia.core.canonicalize import canonicalize_package
-from gaia.libs.models import GlobalCanonicalGraph, KnowledgeType, BeliefState
+from gaia.libs.models import GlobalCanonicalGraph, KnowledgeNode, KnowledgeType, BeliefState
 from gaia.libs.models.parameterization import (
     PriorRecord,
     ResolutionPolicy,
@@ -136,20 +136,29 @@ class TestRunGlobalBP:
             policy=policy,
         )
 
-        # The Galileo graph has 1 setting node and 4 claim nodes.
-        # Only claim nodes should have beliefs.
+        # All galileo nodes are claims — beliefs should exist for all of them.
         claim_gcn_ids = {
             n.id for n in global_graph.knowledge_nodes if n.type == KnowledgeType.CLAIM
         }
-        setting_gcn_ids = {
-            n.id for n in global_graph.knowledge_nodes if n.type == KnowledgeType.SETTING
-        }
-
-        assert len(setting_gcn_ids) > 0, "Galileo graph should have setting nodes"
         for gcn_id in belief_state.beliefs:
             assert gcn_id in claim_gcn_ids, f"Non-claim node {gcn_id} should not be in beliefs"
-        for gcn_id in setting_gcn_ids:
-            assert gcn_id not in belief_state.beliefs
+
+        # Also verify: add a setting node to global graph and confirm it has no belief.
+        # (Setting nodes don't participate in BP.)
+        setting_node = KnowledgeNode(
+            id="gcn_setting_test",
+            type=KnowledgeType.SETTING,
+            content="Background context — not a claim",
+            source_refs=[],
+        )
+        global_graph.knowledge_nodes.append(setting_node)
+        belief_state2 = await run_global_bp(
+            global_graph=global_graph,
+            prior_records=priors,
+            factor_records=factor_params,
+            policy=policy,
+        )
+        assert "gcn_setting_test" not in belief_state2.beliefs
 
     async def test_belief_values_in_cromwell_bounds(self, embedding_model):
         """All beliefs between EPS and 1-EPS."""

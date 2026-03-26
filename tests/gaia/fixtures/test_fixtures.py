@@ -21,8 +21,8 @@ class TestGalileoFallingBodies:
         settings = [n for n in g.knowledge_nodes if n.type == KnowledgeType.SETTING]
         claims = [n for n in g.knowledge_nodes if n.type == KnowledgeType.CLAIM]
         assert len(g.knowledge_nodes) == 5
-        assert len(settings) == 1
-        assert len(claims) == 4
+        assert len(settings) == 0
+        assert len(claims) == 5
 
     def test_factor_count(self) -> None:
         g = make_galileo_falling_bodies()
@@ -103,8 +103,8 @@ class TestDefaultLocalParams:
     def test_key_counts_galileo(self) -> None:
         g = make_galileo_falling_bodies()
         params = make_default_local_params(g)
-        # Only CLAIM nodes get priors (4 claims in galileo)
-        assert len(params.node_priors) == 4
+        # Only CLAIM nodes get priors (5 claims in galileo)
+        assert len(params.node_priors) == 5
         assert len(params.factor_parameters) == 4
 
     def test_key_counts_newton(self) -> None:

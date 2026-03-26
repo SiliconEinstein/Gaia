@@ -36,7 +36,7 @@ def make_galileo_falling_bodies() -> LocalCanonicalGraph:
     pkg = "galileo_falling_bodies"
 
     aristotle_doctrine = KnowledgeNode(
-        type=KnowledgeType.SETTING,
+        type=KnowledgeType.CLAIM,
         content="Aristotle's doctrine: heavier objects fall faster than lighter ones",
         source_refs=_src(pkg),
     )
