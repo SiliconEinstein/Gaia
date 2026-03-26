@@ -6,7 +6,7 @@
 
 BeliefState 是 BP 在 GlobalCanonicalGraph 上的纯输出——后验信念值。它记录产生它的条件（resolution policy），使结果可重现。
 
-Graph IR 结构定义见 [graph-ir.md](graph-ir.md)。概率参数见 [parameterization.md](parameterization.md)。三者的关系见 [overview.md](overview.md)。
+Gaia IR 结构定义见 [gaia-ir.md](gaia-ir.md)。概率参数见 [parameterization.md](parameterization.md)。三者的关系见 [overview.md](overview.md)。
 
 ## Schema
 
@@ -21,7 +21,7 @@ BeliefState:
 
     # ── 信念 ──
     beliefs:              dict[str, float] # 以 gcn_ ID 为键
-                                           # 只有 type=claim 的 Proposition 有 belief
+                                           # 只有 type=claim 的 Knowledge 有 belief
 
     # ── 编译信息（可选诊断） ──
     compilation_summary:  dict | None      # Strategy → 编译路径（"direct" 或 "formal_expr"）
@@ -34,7 +34,7 @@ BeliefState:
 
 ## 关键规则
 
-- **beliefs 只对 Claim**：只有 `type=claim` 的 Proposition 有 belief。Setting、Question、Template 没有 belief。
+- **beliefs 只对 Claim**：只有 `type=claim` 的 Knowledge 有 belief。Setting、Question、Template 没有 belief。
 - **可重现**：`resolution_policy` + `prior_cutoff` 完整定义了参数组装条件。`prior_cutoff` 记录 BP 运行时的时间点，确保用 `latest` policy 重跑时只取该时间之前的记录，结果可重现。
 - **可多次运行**：同一 resolution policy + prior_cutoff 可以有多次 BP 运行（不同调度策略、阻尼系数等），每次产出不同的 BeliefState。
 - **belief 是后验**：belief 是 BP 计算后的后验信念值，不是 prior。

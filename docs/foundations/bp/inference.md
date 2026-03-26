@@ -1,14 +1,14 @@
-# Graph IR 上的 BP 推理
+# Gaia IR 上的 BP 推理
 
 > **Status:** Current canonical
 
-本文档描述 belief propagation 如何在 Graph IR 上运行。纯 BP 算法（sum-product 消息传递、damping、收敛）见 [../theory/07-belief-propagation.md](../theory/07-belief-propagation.md)。Factor potential 函数见 [potentials.md](potentials.md)。Local 与 global 推理的区别见 [local-vs-global.md](local-vs-global.md)。
+本文档描述 belief propagation 如何在 Gaia IR 上运行。纯 BP 算法（sum-product 消息传递、damping、收敛）见 [../theory/07-belief-propagation.md](../theory/07-belief-propagation.md)。Factor potential 函数见 [potentials.md](potentials.md)。Local 与 global 推理的区别见 [local-vs-global.md](local-vs-global.md)。
 
 ## Factor Graph 构建
 
 见 `libs/inference/factor_graph.py`。
 
-BP 不直接运行在原始 Graph IR 上。它运行在从 local canonical graph（或 global canonical graph）加参数化覆盖层构建而成的 `FactorGraph` 上。
+BP 不直接运行在原始 Gaia IR 上。它运行在从 local canonical graph（或 global canonical graph）加参数化覆盖层构建而成的 `FactorGraph` 上。
 
 ### FactorGraph 结构
 
@@ -19,7 +19,7 @@ BP 不直接运行在原始 Graph IR 上。它运行在从 local canonical graph
 
 ### 适配层
 
-适配器（`libs/graph_ir/adapter.py`）从 Graph IR 构建 `FactorGraph`：
+适配器（`libs/graph_ir/adapter.py`）从 Gaia IR 构建 `FactorGraph`：
 
 1. 将 `LocalCanonicalNode` ID 映射为整数变量 ID。
 2. 将每个 `FactorNode` 映射为具有整数键 premise 和 conclusion 的 factor 字典。
@@ -100,4 +100,4 @@ Package B:  F_inst_b: premises=[V_schema], conclusion=V_ground_b
 
 - `libs/inference/bp.py` -- `BeliefPropagation`, `run_with_diagnostics()`
 - `libs/inference/factor_graph.py` -- `FactorGraph`, `CROMWELL_EPS`
-- `libs/graph_ir/adapter.py` -- 从 Graph IR 构建 `FactorGraph`
+- `libs/graph_ir/adapter.py` -- 从 Gaia IR 构建 `FactorGraph`

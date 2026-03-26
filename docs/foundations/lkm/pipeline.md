@@ -9,7 +9,7 @@
 | # | 阶段 | 脚本 | 用途 |
 |---|-------|--------|---------|
 | 1 | `xml-to-typst` | `scripts/paper_to_typst.py` | 将论文 XML 转换为 Typst 包（可选 `--skip-llm`） |
-| 2 | `build-graph-ir` | `scripts/pipeline/build_graph_ir.py` | 将 Typst 包编译为 Raw Graph + Local Canonical Graph |
+| 2 | `build-gaia-ir` | `scripts/pipeline/build_graph_ir.py` | 将 Typst 包编译为 Raw Graph + Local Canonical Graph |
 | 3 | `local-bp` | `scripts/pipeline/run_local_bp.py` | 对每个包运行本地 BP |
 | 4 | `global-canon` | `scripts/pipeline/canonicalize_global.py` | 将本地节点映射到全局规范节点（可选 `--use-embedding`） |
 | 5 | `persist` | `scripts/pipeline/persist_to_db.py` | 三写入 LanceDB + 图后端 |

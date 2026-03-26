@@ -1,10 +1,10 @@
-# Graph IR 重构 Implementation Plan
+# Gaia IR 重构 Implementation Plan
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 按照设计文档 `docs/specs/2026-03-26-graph-ir-restructuring-design.md`，更新 `docs/foundations/graph-ir/` 下所有文档，完成推理层与计算层分离的四实体架构重写。
+**Goal:** 按照设计文档 `docs/specs/2026-03-26-graph-ir-restructuring-design.md`，更新 `docs/foundations/gaia-ir/` 下所有文档，完成推理层与计算层分离的四实体架构重写。
 
-**Architecture:** 将原 KnowledgeNode + FactorNode 二实体架构重构为 Proposition + Strategy + Operator + FormalExpr 四实体架构。Strategy 承载 ↝ 语义（noisy-AND），Operator 承载确定性算子，FormalExpr 记录 Strategy→Operator 展开。
+**Architecture:** 将原 KnowledgeNode + FactorNode 二实体架构重构为 Knowledge + Strategy + Operator + FormalExpr 四实体架构。Strategy 承载 ↝ 语义（noisy-AND），Operator 承载确定性算子，FormalExpr 记录 Strategy→Operator 展开。
 
 **Tech Stack:** Markdown 文档（无代码变更）
 
@@ -15,12 +15,12 @@
 
 ---
 
-## Chunk 1: graph-ir.md 重写
+## Chunk 1: gaia-ir.md 重写
 
-### Task 1: graph-ir.md — §1 Proposition（原 §1 KnowledgeNode）
+### Task 1: gaia-ir.md — §1 Knowledge（原 §1 KnowledgeNode）
 
 **Files:**
-- Modify: `docs/foundations/graph-ir/graph-ir.md:1-145`
+- Modify: `docs/foundations/gaia-ir/gaia-ir.md:1-145`
 
 - [ ] **Step 1: 更新文档头和导航**
 
@@ -28,14 +28,14 @@
 
 - [ ] **Step 2: 重写 §1 标题和引导文字**
 
-将 `## 1. Knowledge 节点（变量节点）` 改为 `## 1. Proposition（命题节点）`。引导段更新为："Proposition 表示命题。对应原 KnowledgeNode，schema 基本一致。"
+将 `## 1. Knowledge 节点（变量节点）` 改为 `## 1. Knowledge（命题节点）`。引导段更新为："Knowledge 表示命题。对应原 KnowledgeNode，schema 基本一致。"
 
 - [ ] **Step 3: 重写 §1.1 Schema**
 
-将 KnowledgeNode schema 替换为 Proposition schema（设计文档 §3.2）：
+将 KnowledgeNode schema 替换为 Knowledge schema（设计文档 §3.2）：
 
 ```
-Proposition:
+Knowledge:
     id:                     str              # lcn_ 或 gcn_ 前缀
     type:                   str              # claim | setting | question | template
     parameters:             list[Parameter]  # 仅 template：自由变量列表
@@ -53,25 +53,25 @@ Proposition:
     member_local_nodes:     list[LocalCanonicalRef] | None
 ```
 
-字段使用表和身份规则保持不变，仅将 `KnowledgeNode` 全部替换为 `Proposition`。
+字段使用表和身份规则保持不变，仅将 `KnowledgeNode` 全部替换为 `Knowledge`。
 
 - [ ] **Step 4: 确认 §1.2 四种知识类型不变**
 
-四种类型（claim/setting/question/template）定义、示例均保持不变。仅更新引用，将 `knowledge 节点` 改为 `Proposition`，`factor` 改为 `Strategy`。
+四种类型（claim/setting/question/template）定义、示例均保持不变。仅更新引用，将 `knowledge 节点` 改为 `Knowledge`，`factor` 改为 `Strategy`。
 
 - [ ] **Step 5: 提交**
 
 ```bash
-git add docs/foundations/graph-ir/graph-ir.md
-git commit -m "docs(graph-ir): rename KnowledgeNode to Proposition in §1"
+git add docs/foundations/gaia-ir/gaia-ir.md
+git commit -m "docs(gaia-ir): rename KnowledgeNode to Knowledge in §1"
 ```
 
 ---
 
-### Task 2: graph-ir.md — §2 Strategy（原 §2 FactorNode）
+### Task 2: gaia-ir.md — §2 Strategy（原 §2 FactorNode）
 
 **Files:**
-- Modify: `docs/foundations/graph-ir/graph-ir.md:146-356`
+- Modify: `docs/foundations/gaia-ir/gaia-ir.md:146-356`
 
 - [ ] **Step 1: 重写 §2 标题和引导文字**
 
@@ -91,8 +91,8 @@ Strategy:
     type:           str                # 见 §2.2
 
     # ── 连接 ──
-    premises:       list[str]          # Proposition IDs（仅 claim premise 创建 BP 边）
-    conclusion:     str | None         # 单个输出 Proposition
+    premises:       list[str]          # Knowledge IDs（仅 claim premise 创建 BP 边）
+    conclusion:     str | None         # 单个输出 Knowledge
 
     # ── 条件概率（值在 parameterization 层） ──
     # type ∈ {infer, None}:        [q₁,...,qₖ], qᵢ = P(C=1 | Aᵢ=1, 其余前提=1)
@@ -168,11 +168,11 @@ stage=permanent
 
 - [ ] **Step 6: 更新 §2.5 合法组合与不变量**
 
-更新原 §2.3 的合法组合表为新的 type 体系。更新不变量列表中的术语（FactorNode→Strategy, knowledge node→Proposition 等）。
+更新原 §2.3 的合法组合表为新的 type 体系。更新不变量列表中的术语（FactorNode→Strategy, knowledge node→Knowledge 等）。
 
 - [ ] **Step 7: 更新 §2.6 Premise/WeakPoint/Context 区别**
 
-保留原 §2.4 的三者区别说明，仅将术语从 factor/knowledge 替换为 Strategy/Proposition。
+保留原 §2.4 的三者区别说明，仅将术语从 factor/knowledge 替换为 Strategy/Knowledge。
 
 - [ ] **Step 8: 更新 §2.7 BP 参与规则**
 
@@ -181,16 +181,16 @@ stage=permanent
 - [ ] **Step 9: 提交**
 
 ```bash
-git add docs/foundations/graph-ir/graph-ir.md
-git commit -m "docs(graph-ir): replace FactorNode with Strategy in §2, unify type system"
+git add docs/foundations/gaia-ir/gaia-ir.md
+git commit -m "docs(gaia-ir): replace FactorNode with Strategy in §2, unify type system"
 ```
 
 ---
 
-### Task 3: graph-ir.md — §3 Operator + §4 FormalExpr（新章节）
+### Task 3: gaia-ir.md — §3 Operator + §4 FormalExpr（新章节）
 
 **Files:**
-- Modify: `docs/foundations/graph-ir/graph-ir.md`（在 §2 之后新增 §3 和 §4）
+- Modify: `docs/foundations/gaia-ir/gaia-ir.md`（在 §2 之后新增 §3 和 §4）
 
 - [ ] **Step 1: 新增 §3 Operator（结构约束）**
 
@@ -202,7 +202,7 @@ Operator:
     operator_id:    str                # lco_ 或 gco_ 前缀
     scope:          str                # "local" | "global"
     operator:       str                # 算子类型
-    variables:      list[str]          # 连接的 Proposition IDs（有序）
+    variables:      list[str]          # 连接的 Knowledge IDs（有序）
     conclusion:     str | None         # 有向算子的输出（无向算子为 None）
     stage:          str                # candidate | permanent
     source:         str                # "standalone" | "formal_expr:<strategy_id>"
@@ -224,7 +224,7 @@ FormalExpr:
     formal_expr_id:          str
     source_strategy_id:      str
     operators:               list[Operator]
-    intermediate_propositions: list[Proposition]
+    intermediate_knowledges: list[Knowledge]
 ```
 
 BP 编译规则（统一为一条）：
@@ -232,7 +232,7 @@ BP 编译规则（统一为一条）：
 if Strategy 有 FormalExpr:
     BP 在 FormalExpr 的 Operator 层运行
     Strategy 自身不需要 conditional_probabilities
-    不确定性转移到中间 Proposition 的先验 π 上
+    不确定性转移到中间 Knowledge 的先验 π 上
 else:
     BP 将 Strategy 编译为 ↝ 因子
     使用 Strategy 的 conditional_probabilities
@@ -247,12 +247,12 @@ else:
 - elimination（n×⊗ + n×⊕ + ∧ + →）
 - case_analysis（∨ + n×(∧ + →)）
 
-每个模板包含 Strategy 输入、intermediate Propositions、Operators 列表。
+每个模板包含 Strategy 输入、intermediate Knowledges、Operators 列表。
 
 - [ ] **Step 4: 新增 §4.2 非确定性策略 FormalExpr 模板 + §4.3 层级规则**
 
 添加 4 种非确定性策略的展开模板（设计文档 §3.5.1 下半部分）：
-- abduction（→ + ↔，不确定性来自中间 Proposition O 的先验）
+- abduction（→ + ↔，不确定性来自中间 Knowledge O 的先验）
 - induction（n×(→ + ↔)，溯因的并行重复）
 - analogy（∧ + →，不确定性来自 BridgeClaim 先验）
 - extrapolation（∧ + →，不确定性来自 ContinuityClaim 先验）
@@ -260,30 +260,30 @@ else:
 然后添加 §4.3 FormalExpr 层级规则（设计文档 §3.5.2）：
 - 只在 global 层产生
 - 确定性策略可自动生成
-- 非确定性策略需要手动创建中间 Proposition 并赋先验
+- 非确定性策略需要手动创建中间 Knowledge 并赋先验
 
 - [ ] **Step 5: 提交**
 
 ```bash
-git add docs/foundations/graph-ir/graph-ir.md
-git commit -m "docs(graph-ir): add Operator §3 and FormalExpr §4 entities"
+git add docs/foundations/gaia-ir/gaia-ir.md
+git commit -m "docs(gaia-ir): add Operator §3 and FormalExpr §4 entities"
 ```
 
 ---
 
-### Task 4: graph-ir.md — §5 规范化更新 + §6 撤回更新 + 映射表
+### Task 4: gaia-ir.md — §5 规范化更新 + §6 撤回更新 + 映射表
 
 **Files:**
-- Modify: `docs/foundations/graph-ir/graph-ir.md`（原 §3 规范化节→新 §5，原 §2.7 撤回→新 §6）
+- Modify: `docs/foundations/gaia-ir/gaia-ir.md`（原 §3 规范化节→新 §5，原 §2.7 撤回→新 §6）
 
 - [ ] **Step 1: 更新规范化章节编号和术语**
 
 将原 §3 规范化改为 §5。全局替换术语：
-- `KnowledgeNode` → `Proposition`
+- `KnowledgeNode` → `Knowledge`
 - `FactorNode` → `Strategy`
-- `knowledge node` → `Proposition`
+- `knowledge node` → `Knowledge`
 - `factor` → `Strategy`（在 factor lifting 上下文中）
-- `knowledge` → `Proposition`
+- `knowledge` → `Knowledge`
 
 - [ ] **Step 2: 更新 §5.1 equivalent candidate 机制**
 
@@ -299,13 +299,13 @@ git commit -m "docs(graph-ir): add Operator §3 and FormalExpr §4 entities"
 
 **关键变更：** 原撤回机制是 "为目标 factor 添加 FactorParamRecord，probability 设为 ε"。现在 `conditional_probabilities` 是 list[float]，撤回时需要将**所有条目**设为 Cromwell 下界 ε。即：对 noisy-AND 的 [q₁,...,qₖ] 全部设为 ε，对 soft_implication 的 [p₁, p₂] 全部设为 ε。
 
-- [ ] **Step 5: 新增 §7 与原 Graph IR 的映射**
+- [ ] **Step 5: 新增 §7 与原 Gaia IR 的映射**
 
 在文档末尾新增映射表（设计文档 §4）和 Future Work（设计文档 §6），帮助读者理解从旧概念到新概念的变化。
 
 - [ ] **Step 6: 新增 §8 设计决策记录**
 
-将设计文档 §7 的 7 条设计决策作为附录纳入 graph-ir.md，让读者理解重构的理由：
+将设计文档 §7 的 7 条设计决策作为附录纳入 gaia-ir.md，让读者理解重构的理由：
 - Strategy 保持 noisy-AND 语义（theory §5 证明 ∧ + ↝ 是最基本的多前提组合）
 - Operator 从 Strategy 分离（↔/⊗/⊕ 是确定性算子，不是推理声明）
 - FormalExpr 作为独立实体（推理层和计算层的分离点）
@@ -324,8 +324,8 @@ git commit -m "docs(graph-ir): add Operator §3 and FormalExpr §4 entities"
 - [ ] **Step 8: 提交**
 
 ```bash
-git add docs/foundations/graph-ir/graph-ir.md
-git commit -m "docs(graph-ir): update canonicalization, retraction, add mapping and design decisions"
+git add docs/foundations/gaia-ir/gaia-ir.md
+git commit -m "docs(gaia-ir): update canonicalization, retraction, add mapping and design decisions"
 ```
 
 ---
@@ -335,17 +335,17 @@ git commit -m "docs(graph-ir): update canonicalization, retraction, add mapping 
 ### Task 5: overview.md 更新
 
 **Files:**
-- Modify: `docs/foundations/graph-ir/overview.md`
+- Modify: `docs/foundations/gaia-ir/overview.md`
 
-- [ ] **Step 1: 更新 §一 Graph IR 结构描述**
+- [ ] **Step 1: 更新 §一 Gaia IR 结构描述**
 
-更新 "整体结构" JSON 示例，将 `knowledge_nodes` 改为 `propositions`，`factor_nodes` 改为 `strategies`，新增 `operators` 数组。
+更新 "整体结构" JSON 示例，将 `knowledge_nodes` 改为 `knowledges`，`factor_nodes` 改为 `strategies`，新增 `operators` 数组。
 
 更新 FactorNode 内的字段为新 Strategy schema（统一 type 替代三维类型）。
 
-- [ ] **Step 2: 更新 Knowledge/Factor 概述为 Proposition/Strategy/Operator**
+- [ ] **Step 2: 更新 Knowledge/Factor 概述为 Knowledge/Strategy/Operator**
 
-- "Knowledge 节点（变量节点）" → "Proposition（命题节点）"
+- "Knowledge 节点（变量节点）" → "Knowledge（命题节点）"
 - "Factor 节点（因子节点）" → "Strategy（推理声明）"
 - 新增 Operator 和 FormalExpr 的简要描述
 - 更新三维类型系统表为统一 type
@@ -364,20 +364,20 @@ git commit -m "docs(graph-ir): update canonicalization, retraction, add mapping 
 - [ ] **Step 5: 更新 "完备性" 表**
 
 更新表中的术语：
-- `knowledge 节点` → `Proposition`
+- `knowledge 节点` → `Knowledge`
 - `factor 节点` → `Strategy + Operator`
 - `FactorParamRecord` → `StrategyParamRecord`
 - 新增 FormalExpr 行
 
 - [ ] **Step 6: 更新源代码引用**
 
-更新文档末尾的源代码引用，匹配 graph-ir.md 中的更新。
+更新文档末尾的源代码引用，匹配 gaia-ir.md 中的更新。
 
 - [ ] **Step 7: 提交**
 
 ```bash
-git add docs/foundations/graph-ir/overview.md
-git commit -m "docs(graph-ir): update overview for four-entity architecture"
+git add docs/foundations/gaia-ir/overview.md
+git commit -m "docs(gaia-ir): update overview for four-entity architecture"
 ```
 
 ---
@@ -385,7 +385,7 @@ git commit -m "docs(graph-ir): update overview for four-entity architecture"
 ### Task 6: parameterization.md 更新
 
 **Files:**
-- Modify: `docs/foundations/graph-ir/parameterization.md`
+- Modify: `docs/foundations/gaia-ir/parameterization.md`
 
 - [ ] **Step 1: 更新 FactorParamRecord → StrategyParamRecord**
 
@@ -401,7 +401,7 @@ StrategyParamRecord:
 
 - [ ] **Step 2: 新增 9 种命名策略的参数规则**
 
-新增说明：当 Strategy.type 为 9 种命名策略之一时，不需要 StrategyParamRecord。参数化通过 FormalExpr 中间 Proposition 的 PriorRecord 实现。
+新增说明：当 Strategy.type 为 9 种命名策略之一时，不需要 StrategyParamRecord。参数化通过 FormalExpr 中间 Knowledge 的 PriorRecord 实现。
 
 - [ ] **Step 3: 新增 Operator 参数说明**
 
@@ -410,7 +410,7 @@ StrategyParamRecord:
 - [ ] **Step 4: 更新 BP 运行时组装规则**
 
 更新 resolution policy 说明中的 `factor` 为 `Strategy`。新增编译路径选择规则：
-- 有 FormalExpr → Operator 层运行（参数在中间 Proposition 的 PriorRecord）
+- 有 FormalExpr → Operator 层运行（参数在中间 Knowledge 的 PriorRecord）
 - 无 FormalExpr → 使用 StrategyParamRecord.conditional_probabilities
 
 - [ ] **Step 5: 更新 Factor probability 来源为 Strategy probability 来源**
@@ -425,8 +425,8 @@ StrategyParamRecord:
 - [ ] **Step 7: 提交**
 
 ```bash
-git add docs/foundations/graph-ir/parameterization.md
-git commit -m "docs(graph-ir): update parameterization for Strategy + Operator model"
+git add docs/foundations/gaia-ir/parameterization.md
+git commit -m "docs(gaia-ir): update parameterization for Strategy + Operator model"
 ```
 
 ---
@@ -434,11 +434,11 @@ git commit -m "docs(graph-ir): update parameterization for Strategy + Operator m
 ### Task 7: belief-state.md 更新
 
 **Files:**
-- Modify: `docs/foundations/graph-ir/belief-state.md`
+- Modify: `docs/foundations/gaia-ir/belief-state.md`
 
 - [ ] **Step 1: 更新 Schema 中的术语**
 
-将文档中所有 `factor` 替换为 `Strategy`，`knowledge 节点` / `KnowledgeNode` 替换为 `Proposition`。
+将文档中所有 `factor` 替换为 `Strategy`，`knowledge 节点` / `KnowledgeNode` 替换为 `Knowledge`。
 
 - [ ] **Step 2: 新增 BP 编译路径记录**
 
@@ -460,8 +460,8 @@ git commit -m "docs(graph-ir): update parameterization for Strategy + Operator m
 - [ ] **Step 5: 提交**
 
 ```bash
-git add docs/foundations/graph-ir/belief-state.md
-git commit -m "docs(graph-ir): update belief-state for compilation path tracking"
+git add docs/foundations/gaia-ir/belief-state.md
+git commit -m "docs(gaia-ir): update belief-state for compilation path tracking"
 ```
 
 ---
@@ -471,14 +471,14 @@ git commit -m "docs(graph-ir): update belief-state for compilation path tracking
 ### Task 8: 交叉引用验证
 
 **Files:**
-- Read: 所有 4 个 graph-ir 文档
+- Read: 所有 4 个 gaia-ir 文档
 - Read: `docs/foundations/theory/04-reasoning-strategies.md`
 - Read: `docs/foundations/theory/03-propositional-operators.md`
 
 - [ ] **Step 1: 验证术语一致性**
 
 在所有 4 个文档中搜索以下旧术语，确保全部替换：
-- `KnowledgeNode` → `Proposition`
+- `KnowledgeNode` → `Knowledge`
 - `FactorNode` → `Strategy`
 - `factor_id` → `strategy_id`（在 Strategy 上下文中）
 - `lcf_` → `lcs_`
@@ -487,41 +487,41 @@ git commit -m "docs(graph-ir): update belief-state for compilation path tracking
 - `category` → 不应再出现为独立字段
 - `subgraph` → `FormalExpr`
 
-Run: `grep -rn "KnowledgeNode\|FactorNode\|factor_id\|lcf_\|gcf_\|reasoning_type\|subgraph" docs/foundations/graph-ir/`
-Expected: 无匹配（或仅在 "与原 Graph IR 的映射" 历史对比表中出现）
+Run: `grep -rn "KnowledgeNode\|FactorNode\|factor_id\|lcf_\|gcf_\|reasoning_type\|subgraph" docs/foundations/gaia-ir/`
+Expected: 无匹配（或仅在 "与原 Gaia IR 的映射" 历史对比表中出现）
 
 - [ ] **Step 2: 验证跨文档链接**
 
 确认以下引用链接仍然正确：
-- `graph-ir.md` 内的 §N 交叉引用（章节号已变化）
-- `overview.md` → `graph-ir.md` 的链接
-- `parameterization.md` → `graph-ir.md` 的链接
-- `belief-state.md` → `graph-ir.md` 的链接
+- `gaia-ir.md` 内的 §N 交叉引用（章节号已变化）
+- `overview.md` → `gaia-ir.md` 的链接
+- `parameterization.md` → `gaia-ir.md` 的链接
+- `belief-state.md` → `gaia-ir.md` 的链接
 - 所有文档 → theory 文档的链接
 
 - [ ] **Step 3: 验证设计文档完整覆盖**
 
-逐条核对 `docs/specs/2026-03-26-graph-ir-restructuring-design.md` 中的每个决策，确认已体现在 graph-ir 文档中：
+逐条核对 `docs/specs/2026-03-26-graph-ir-restructuring-design.md` 中的每个决策，确认已体现在 gaia-ir 文档中：
 
-| 设计文档章节 | 对应 graph-ir 文档位置 |
+| 设计文档章节 | 对应 gaia-ir 文档位置 |
 |-------------|----------------------|
-| §3.2 Proposition | graph-ir.md §1 |
-| §3.3 Strategy + §3.3.1-4 | graph-ir.md §2 |
-| §3.4 Operator | graph-ir.md §3 |
-| §3.5 FormalExpr + §3.5.1-2 | graph-ir.md §4 |
-| §4 映射表 | graph-ir.md §7 |
+| §3.2 Knowledge | gaia-ir.md §1 |
+| §3.3 Strategy + §3.3.1-4 | gaia-ir.md §2 |
+| §3.4 Operator | gaia-ir.md §3 |
+| §3.5 FormalExpr + §3.5.1-2 | gaia-ir.md §4 |
+| §4 映射表 | gaia-ir.md §7 |
 | §5.1 parameterization | parameterization.md |
 | §5.2 belief-state | belief-state.md |
 | §5.3 overview | overview.md |
-| §5.4 canonicalization | graph-ir.md §5 |
-| §6 Future Work | graph-ir.md §7 |
-| §7 Design Decisions | graph-ir.md §8 |
+| §5.4 canonicalization | gaia-ir.md §5 |
+| §6 Future Work | gaia-ir.md §7 |
+| §7 Design Decisions | gaia-ir.md §8 |
 
 - [ ] **Step 4: 提交（如有修复）**
 
 ```bash
-git add docs/foundations/graph-ir/
-git commit -m "docs(graph-ir): fix cross-references and terminology consistency"
+git add docs/foundations/gaia-ir/
+git commit -m "docs(gaia-ir): fix cross-references and terminology consistency"
 ```
 
 ### Task 9: 最终验证与 PR
@@ -540,7 +540,7 @@ Expected: 全部通过（文档变更不影响测试）
 
 ```bash
 git push -u origin docs/theory-restructuring
-gh pr create --title "docs(graph-ir): restructure to four-entity architecture" \
+gh pr create --title "docs(gaia-ir): restructure to four-entity architecture" \
   --body "..."
 ```
 

@@ -28,12 +28,12 @@ Gaia 的规范参考文档，按架构层级组织。
 - [领域词汇表](rationale/domain-vocabulary.md) — Knowledge、Chain、Module、Package
 - [文档维护策略](../documentation-policy.md) — 文档维护规则
 
-## Graph IR — CLI 与 LKM 之间的共享契约
+## Gaia IR — CLI 与 LKM 之间的共享契约
 
-- [概述](graph-ir/overview.md) — 三部分总览（Graph IR + Parameterization + BeliefState）
-- [结构定义](graph-ir/graph-ir.md) — KnowledgeNode、FactorNode、规范化
-- [参数定义](graph-ir/parameterization.md) — 原子记录、resolution policy
-- [信念定义](graph-ir/belief-state.md) — BP 输出、可重现性
+- [概述](gaia-ir/overview.md) — 三部分总览（Gaia IR + Parameterization + BeliefState）
+- [结构定义](gaia-ir/gaia-ir.md) — KnowledgeNode、FactorNode、规范化
+- [参数定义](gaia-ir/parameterization.md) — 原子记录、resolution policy
+- [信念定义](gaia-ir/belief-state.md) — BP 输出、可重现性
 
 ## Gaia Lang — 编著语言
 
@@ -41,10 +41,10 @@ Gaia 的规范参考文档，按架构层级组织。
 - [知识类型](gaia-lang/knowledge-types.md) — 声明类型、证明状态
 - [包模型](gaia-lang/package-model.md) — package/module/chain
 
-## BP — 基于 Graph IR 的计算
+## BP — 基于 Gaia IR 的计算
 
 - [因子势函数](bp/potentials.md) — 各因子类型的势函数
-- [推理](bp/inference.md) — BP 算法应用于 Graph IR
+- [推理](bp/inference.md) — BP 算法应用于 Gaia IR
 - [局部与全局](bp/local-vs-global.md) — CLI 局部推理 vs LKM 全局推理
 
 ## Review — 审查管线
@@ -54,7 +54,7 @@ Gaia 的规范参考文档，按架构层级组织。
 ## CLI — 本地编著与推理
 
 - [生命周期](cli/lifecycle.md) — build → infer → publish
-- [编译器](cli/compiler.md) — Typst → Graph IR 编译
+- [编译器](cli/compiler.md) — Typst → Gaia IR 编译
 - [局部推理](cli/local-inference.md) — `gaia infer` 内部机制
 - [本地存储](cli/local-storage.md) — LanceDB + Kuzu 嵌入式存储
 

@@ -8,13 +8,13 @@ Gaia 文档中使用的核心术语。
 
 一个版本化的命题——知识图的基本单元。一个 Knowledge 对象携带内容（命题文本）、类型（claim、question、setting、action、contradiction、equivalence）以及作者分配的先验（初始信念度）。
 
-完整的类型分类参见 `../gaia-lang/knowledge-types.md`。存储 schema 参见 `../graph-ir/graph-ir.md`。
+完整的类型分类参见 `../gaia-lang/knowledge-types.md`。存储 schema 参见 `../gaia-ir/gaia-ir.md`。
 
 ## Reasoning
 
-一个连接前提到结论的推理结构。每个 Reasoning 有一个类型（deduction、induction、abstraction、contradiction、retraction、equivalence），用于分类推理模式。在 Graph IR 中，每个 Reasoning 产生一个 factor node。
+一个连接前提到结论的推理结构。每个 Reasoning 有一个类型（deduction、induction、abstraction、contradiction、retraction、equivalence），用于分类推理模式。在 Gaia IR 中，每个 Reasoning 产生一个 factor node。
 
-因子节点详情参见 `../graph-ir/graph-ir.md`。
+因子节点详情参见 `../gaia-ir/gaia-ir.md`。
 
 ## Module
 
@@ -28,11 +28,11 @@ Gaia 文档中使用的核心术语。
 
 ## Factor Graph
 
-一个包含 variable node（变量节点，知识对象）和 factor node（因子节点，推理约束）的二部图。Belief Propagation 的核心计算结构。参见 `../graph-ir/overview.md` 和 `../bp/inference.md`。
+一个包含 variable node（变量节点，知识对象）和 factor node（因子节点，推理约束）的二部图。Belief Propagation 的核心计算结构。参见 `../gaia-ir/overview.md` 和 `../bp/inference.md`。
 
-## Graph IR
+## Gaia IR
 
-Gaia Lang 与 BP 之间的结构中间表示。一个一等提交制品，具有三个身份层：RawGraph、LocalCanonicalGraph 和 GlobalCanonicalGraph。参见 `../graph-ir/overview.md`。
+Gaia Lang 与 BP 之间的结构中间表示。一个一等提交制品，具有三个身份层：RawGraph、LocalCanonicalGraph 和 GlobalCanonicalGraph。参见 `../gaia-ir/overview.md`。
 
 ## Belief
 

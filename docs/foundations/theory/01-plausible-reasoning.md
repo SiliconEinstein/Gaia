@@ -11,7 +11,7 @@
 > 本文档描述纯理论基础：什么是科学推理、为什么概率是正确的形式化工具。
 > 关于如何从命题、约束和证据得到具体 posterior，参见 [02-maxent-grounding.md](02-maxent-grounding.md)。
 > 关于推理网络的计算结构和算法，参见 [07-belief-propagation.md](07-belief-propagation.md)。
-> 本文档不定义具体的编写语言语法、Graph IR 字段布局或计算层的实现细节。
+> 本文档不定义具体的编写语言语法、Gaia IR 字段布局或计算层的实现细节。
 
 **本文档是 theory/ 层的基础文件。** 下游文档在此基础上逐步引入形式结构和算法：
 

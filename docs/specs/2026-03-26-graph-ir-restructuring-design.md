@@ -1,25 +1,25 @@
-# Design: Graph IR 重构 — 推理层与计算层分离
+# Design: Gaia IR 重构 — 推理层与计算层分离
 
 | 属性 | 值 |
 |------|---|
 | 日期 | 2026-03-26 |
 | 状态 | Draft |
-| 影响文档 | `docs/foundations/graph-ir/` 全部文件, `docs/foundations/bp/`, `docs/foundations/theory/04-reasoning-strategies.md` |
+| 影响文档 | `docs/foundations/gaia-ir/` 全部文件, `docs/foundations/bp/`, `docs/foundations/theory/04-reasoning-strategies.md` |
 | 前置依赖 | Theory 重构完成（`docs/foundations/theory/` 01-07） |
 
 ---
 
 ## 1. 动机
 
-Theory 层完成了大重构，定义了 9 种推理策略、完整的命题算子体系（{¬, ∧, π} + 派生算子 + ↝），以及因子图的势函数映射。当前 Graph IR 存在以下结构性问题：
+Theory 层完成了大重构，定义了 9 种推理策略、完整的命题算子体系（{¬, ∧, π} + 派生算子 + ↝），以及因子图的势函数映射。当前 Gaia IR 存在以下结构性问题：
 
 1. **FactorNode 混淆两层语义**：既是作者的"推理声明"（Layer 2 — 科学本体），又是 BP 的"计算因子"（Layer 3 — 计算方法）。`reasoning_type` 字段混合了算子（equivalent, contradict）和策略（induction, abduction）。
 
-2. **算子集不完整**：缺少 ⊕（互补）、∨（析取），导致归谬、排除、分情况讨论三种策略无法在 Graph IR 中表示。
+2. **算子集不完整**：缺少 ⊕（互补）、∨（析取），导致归谬、排除、分情况讨论三种策略无法在 Gaia IR 中表示。
 
 3. **策略集不完整**：9 种策略中仅覆盖 3 种（entailment ≈ deduction, induction, abduction），缺少类比、外推、归谬、排除、数学归纳、分情况讨论。
 
-4. **策略到算子的映射未定义**：Theory 为每种策略定义了完整的微观结构（算子组合），但 Graph IR 没有对应的表示机制。
+4. **策略到算子的映射未定义**：Theory 为每种策略定义了完整的微观结构（算子组合），但 Gaia IR 没有对应的表示机制。
 
 ## 2. 核心设计：推理层与计算层分离
 
@@ -51,7 +51,7 @@ Theory 自身有清晰的分层：
 ### 3.1 总览
 
 ```
-Proposition          命题（变量节点）
+Knowledge          命题（变量节点）
     ├── claim / setting / question / template
 
 Strategy             推理声明（↝ 层，noisy-AND）
@@ -65,17 +65,17 @@ Operator             结构约束（Jaynes 确定性算子）
 
 FormalExpr           Strategy → Operator 的展开
     ├── source_strategy_id
-    ├── operators + intermediate_propositions
+    ├── operators + intermediate_knowledges
 ```
 
-**读法：** 一个 Strategy 连接多个 Proposition。当 Strategy 有 FormalExpr 时，BP 在 Operator 层运行；否则 BP 编译 Strategy 为 ↝ 因子。
+**读法：** 一个 Strategy 连接多个 Knowledge。当 Strategy 有 FormalExpr 时，BP 在 Operator 层运行；否则 BP 编译 Strategy 为 ↝ 因子。
 
-### 3.2 Proposition（原 KnowledgeNode）
+### 3.2 Knowledge（原 KnowledgeNode）
 
 命题节点。Schema 与原 KnowledgeNode 基本一致，仅改名。
 
 ```
-Proposition:
+Knowledge:
     id:                     str              # lcn_ 或 gcn_ 前缀
     type:                   str              # claim | setting | question | template
     parameters:             list[Parameter]  # 仅 template：自由变量列表
@@ -116,8 +116,8 @@ Strategy:
     type:           str                # 见 §3.3.1
 
     # ── 连接 ──
-    premises:       list[str]          # Proposition IDs（仅 claim premise 创建 BP 边）
-    conclusion:     str | None         # 单个输出 Proposition
+    premises:       list[str]          # Knowledge IDs（仅 claim premise 创建 BP 边）
+    conclusion:     str | None         # 单个输出 Knowledge
 
     # ── 条件概率（值在 parameterization 层） ──
     # type ∈ {infer, None}:        [q₁,...,qₖ], qᵢ = P(C=1 | Aᵢ=1, 其余前提=1)
@@ -224,7 +224,7 @@ type=toolcall 和 type=proof 不经历 lifecycle — 创建时语义即明确。
 
 ### 3.4 Operator（新实体）
 
-结构约束。表示两个或多个 Proposition 之间的确定性逻辑关系。对应 theory Layer 3（因子图层）的势函数。
+结构约束。表示两个或多个 Knowledge 之间的确定性逻辑关系。对应 theory Layer 3（因子图层）的势函数。
 
 ```
 Operator:
@@ -232,7 +232,7 @@ Operator:
     scope:          str                # "local" | "global"
 
     operator:       str                # 算子类型（见下表）
-    variables:      list[str]          # 连接的 Proposition IDs（有序）
+    variables:      list[str]          # 连接的 Knowledge IDs（有序）
     conclusion:     str | None         # 有向算子的输出（无向算子为 None）
 
     stage:          str                # candidate | permanent
@@ -252,7 +252,7 @@ Operator:
 | disjunction | ∨ | [A₁,...,Aₖ] | None | ψ=0 iff all Aᵢ=0 | §2.2 |
 | conjunction | ∧ | [A₁,...,Aₖ,M] | M | ψ=1 iff M=(A₁∧...∧Aₖ) | §1 |
 
-所有算子都是**确定性的**（ψ ∈ {0, 1}，无自由参数）。系统中唯一的连续参数在 Strategy 的 conditional_probabilities 和 Proposition 的先验 π 上。
+所有算子都是**确定性的**（ψ ∈ {0, 1}，无自由参数）。系统中唯一的连续参数在 Strategy 的 conditional_probabilities 和 Knowledge 的先验 π 上。
 
 **来源：**
 
@@ -261,14 +261,14 @@ Operator:
 
 ### 3.5 FormalExpr（新实体）
 
-Strategy 在 Operator 层的展开。记录一个 Strategy 的微观结构 — 由哪些 Operator 和中间 Proposition 构成。
+Strategy 在 Operator 层的展开。记录一个 Strategy 的微观结构 — 由哪些 Operator 和中间 Knowledge 构成。
 
 ```
 FormalExpr:
     formal_expr_id:          str
     source_strategy_id:      str                  # 展开的是哪个 Strategy
     operators:               list[Operator]        # 内部的原语算子
-    intermediate_propositions: list[Proposition]   # 展开时创建的中间命题
+    intermediate_knowledges: list[Knowledge]   # 展开时创建的中间命题
 ```
 
 **BP 编译规则（统一为一条）：**
@@ -277,7 +277,7 @@ FormalExpr:
 if Strategy 有 FormalExpr:
     BP 在 FormalExpr 的 Operator 层运行
     Strategy 自身不需要 conditional_probabilities
-    不确定性转移到中间 Proposition 的先验 π 上
+    不确定性转移到中间 Knowledge 的先验 π 上
 else:
     BP 将 Strategy 编译为 ↝ 因子
     使用 Strategy 的 conditional_probabilities
@@ -357,7 +357,7 @@ FormalExpr:
     - ...（每个 case 一对 conjunction + implication）
 ```
 
-**非确定性策略（确定性 Operator + 带先验的中间 Proposition）：**
+**非确定性策略（确定性 Operator + 带先验的中间 Knowledge）：**
 
 **溯因（abduction）：**
 ```
@@ -369,7 +369,7 @@ FormalExpr:
     - implication(variables=[H,O], conclusion=O)
     - equivalence(variables=[O,Obs])
 ```
-不确定性来自中间 Proposition O 的先验 π(O)。
+不确定性来自中间 Knowledge O 的先验 π(O)。
 
 **归纳（induction）：**
 ```
@@ -413,15 +413,15 @@ FormalExpr:
 #### 3.5.2 FormalExpr 的层级
 
 - FormalExpr **只在 global 层产生**（与原 subgraph 一致）。Local 层的 Strategy 没有 FormalExpr。
-- FormalExpr 中新创建的中间 Proposition 直接写在 global 层（content 存在 global Proposition 上，这是 global 层存储 content 的唯一例外）。
+- FormalExpr 中新创建的中间 Knowledge 直接写在 global 层（content 存在 global Knowledge 上，这是 global 层存储 content 的唯一例外）。
 - 确定性策略的 FormalExpr 可以在分类确认时**自动生成**（微观结构由 type 决定）。
-- 非确定性策略的 FormalExpr 需要 reviewer/agent **手动创建**中间 Proposition 并赋先验。
+- 非确定性策略的 FormalExpr 需要 reviewer/agent **手动创建**中间 Knowledge 并赋先验。
 
-## 4. 与原 Graph IR 的映射
+## 4. 与原 Gaia IR 的映射
 
 | 原概念 | 新概念 | 变更说明 |
 |--------|--------|---------|
-| KnowledgeNode | **Proposition** | 改名，schema 不变 |
+| KnowledgeNode | **Knowledge** | 改名，schema 不变 |
 | FactorNode | **Strategy** | 改名 + 重构（见下） |
 | FactorNode.reasoning_type | Strategy.type | 合并 category + reasoning_type + link_type |
 | FactorNode.subgraph | **FormalExpr**（独立实体） | 从 FactorNode 字段提升为独立实体 |
@@ -439,23 +439,23 @@ FormalExpr:
 
 - `FactorParamRecord` → `StrategyParamRecord`，`factor_id` → `strategy_id`
 - probability 结构从单个 float 变为 `conditional_probabilities: list[float]`
-- 新增规则：9 种命名策略不需要 StrategyParamRecord（参数在 FormalExpr 的中间 Proposition 先验上）
-- 新增规则：中间 Proposition 需要 PriorRecord
+- 新增规则：9 种命名策略不需要 StrategyParamRecord（参数在 FormalExpr 的中间 Knowledge 先验上）
+- 新增规则：中间 Knowledge 需要 PriorRecord
 - Cromwell's rule 不变
 
 ### 5.2 belief-state.md
 
-- BeliefState.beliefs 仍只对 type=claim 的 Proposition
+- BeliefState.beliefs 仍只对 type=claim 的 Knowledge
 - bp_run 需要记录编译路径（Strategy 直接编译 vs FormalExpr 编译）
 
 ### 5.3 overview.md
 
-- LocalCanonicalGraph / GlobalCanonicalGraph 的组成更新为 Proposition + Strategy + Operator
+- LocalCanonicalGraph / GlobalCanonicalGraph 的组成更新为 Knowledge + Strategy + Operator
 - 三写原子性规则更新
 
 ### 5.4 规范化（canonicalization）
 
-- Proposition 的规范化逻辑不变
+- Knowledge 的规范化逻辑不变
 - Strategy 的 factor lifting 逻辑适配新字段名
 - 规范化产生的 equivalent candidate 现在是 Operator(source="standalone", stage=candidate)，不再是 FactorNode
 
@@ -463,7 +463,7 @@ FormalExpr:
 
 | 缺口 | 说明 | 影响 |
 |------|------|------|
-| **量词 / 绑定变量** | `∀n.P(n)` 是 Template `P(n)` 的全称闭包，Graph IR 无法表达"闭包"关系 | 数学归纳的 Template↔Claim 关系不完整 |
+| **量词 / 绑定变量** | `∀n.P(n)` 是 Template `P(n)` 的全称闭包，Gaia IR 无法表达"闭包"关系 | 数学归纳的 Template↔Claim 关系不完整 |
 | **soft_implication 作为 Operator** | 当 FormalExpr 部分展开时，某些子链仍为 ↝，需要 soft_implication 作为 Operator 类型 | 当前 Operator 只有确定性类型 |
 | **Relation 类型（Issue #62）** | Contradiction/Support 作为一等公民 Relation | 可能影响 Operator 设计 |
 

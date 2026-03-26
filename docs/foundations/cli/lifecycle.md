@@ -25,7 +25,7 @@ gaia init  ->  author  ->  gaia build  ->  [agent skills]  ->  gaia infer  ->  g
 
 ### `gaia build [path]`
 
-从 Typst 源码到 Graph IR 的确定性降级。
+从 Typst 源码到 Gaia IR 的确定性降级。
 
 - **输入**：包源码（`.typ` 文件 + `typst.toml`）。
 - **输出**：`.gaia/graph/raw_graph.json`、`.gaia/graph/local_canonical_graph.json`、`.gaia/graph/canonicalization_log.json`。
@@ -86,7 +86,7 @@ BP 算法详情参见 [../bp/inference.md](../bp/inference.md)。因子势函数
 1. `pipeline_build()` —— 加载并编译
 2. `pipeline_review(build, mock=True)` —— 模拟审查（LLM 审查尚未接入 CLI）
 3. `pipeline_infer(build, review)` —— 本地 BP
-4. `pipeline_publish(build, review, infer, db_path=...)` —— 将 Graph IR 转换为存储模型，通过 `StorageManager` 三写入 LanceDB + Kuzu
+4. `pipeline_publish(build, review, infer, db_path=...)` —— 将 Gaia IR 转换为存储模型，通过 `StorageManager` 三写入 LanceDB + Kuzu
 
 `--db-path` 选项（或 `GAIA_LANCEDB_PATH` 环境变量）控制 LanceDB 的存储位置。
 
@@ -120,7 +120,7 @@ BP 算法详情参见 [../bp/inference.md](../bp/inference.md)。因子势函数
 | CLI 应用 + 命令 | `cli/main.py` |
 | 管线函数 | `libs/pipeline.py`（`pipeline_build`、`pipeline_review`、`pipeline_infer`、`pipeline_publish`） |
 | Typst 加载器 | `libs/lang/typst_loader.py` |
-| Graph IR 编译器 | `libs/graph_ir/typst_compiler.py` |
+| Gaia IR 编译器 | `libs/graph_ir/typst_compiler.py` |
 | 模拟/LLM 审查 | `cli/llm_client.py` |
 | BP 引擎 | `libs/inference/bp.py` |
 | 存储管理器 | `libs/storage/manager.py` |

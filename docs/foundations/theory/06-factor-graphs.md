@@ -356,4 +356,4 @@ P(x | E, I) ∝ P(x | I) · λ_E(x)
 - **下游（计算层）：**
   - [07-belief-propagation.md](07-belief-propagation.md) — 因子图上的消息传递算法，将势函数转化为信念值的计算过程
 - **工程层：**
-  - `docs/foundations/graph-ir/` — 因子图在工程实现中的节点 schema、因子类型和序列化格式。本文档定义计算语义，Graph IR 定义数据合约
+  - `docs/foundations/gaia-ir/` — 因子图在工程实现中的节点 schema、因子类型和序列化格式。本文档定义计算语义，Gaia IR 定义数据合约

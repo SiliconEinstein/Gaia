@@ -38,13 +38,13 @@ Gaia 是一种**用于概率科学推理的结构化语言**。
 它结合了：
 
 - 一个确定性的编写包表面
-- 一个结构性的 Graph IR 层
+- 一个结构性的 Gaia IR 层
 - 一个在其上的概率推理层
 
 | 层 | 提供什么 | 编程语言类比 |
 |-------|-----------------|------------|
 | **编写包表面** | 声明、引用、模块、包结构 | 类型化 DSL / 包语言 |
-| **Graph IR** | 提交的结构图、规范化边界、因子图形状 | 类型化中间表示 |
+| **Gaia IR** | 提交的结构图、规范化边界、因子图形状 | 类型化中间表示 |
 | **推理层** | 先验、因子参数、BP、审查衍生的判断 | 概率推理层 |
 
 只有封闭的、具有真值的科学断言直接参与普通领域 BP。问题、工作流声明、审查制品和内部策展制品可能仍然存在于 Gaia 包或服务输出中，但它们默认不是普通领域 BP 变量。
@@ -120,7 +120,7 @@ Gaia 是 **CLI 优先，服务器增强**。
 - 类型感知的 Belief Propagation（矛盾、撤回边）
 - **CLI 包含 8 个命令**（`init`、`build`、`review`、`infer`、`publish`、`show`、`search`、`clean`）——在 PR #63 中发布
 - **目标架构文档现在仅将 `build`、`infer` 和 `publish` 视为核心 CLI 管线命令**。已发布的 `gaia review` 命令作为本地自审查 sidecar 的兼容路径保留。
-- **Gaia 基础基线现在以 Gaia 包和 Graph IR 作为规范提交模型的中心**。较早的以 YAML 为中心的描述是历史性的，不再是信息源。
+- **Gaia 基础基线现在以 Gaia 包和 Gaia IR 作为规范提交模型的中心**。较早的以 YAML 为中心的描述是历史性的，不再是信息源。
 - **推理引擎已移至 `libs/inference/`**——本地 Belief Propagation 与服务器解耦
 - **构建输出**——每模块 Markdown 用于 LLM 审查
 
@@ -207,7 +207,7 @@ CLI 已在 `main` 上发布，包含 8 个命令：
 | `gaia init` | 初始化知识包 |
 | `gaia build` | 确定性地验证并将包源降级到 `.gaia/build/` + `.gaia/graph/` 制品 |
 | `gaia review` | 已发布的本地自审查 sidecar 兼容辅助 |
-| `gaia infer` | 从本地 Graph IR + 本地审查 sidecar 派生本地参数化，然后运行本地 Belief Propagation |
+| `gaia infer` | 从本地 Gaia IR + 本地审查 sidecar 派生本地参数化，然后运行本地 Belief Propagation |
 | `gaia publish` | 发布到 git 或本地数据库（LanceDB + Kuzu） |
 | `gaia show` | 显示知识对象详情 + 连接的链 |
 | `gaia search` | 在本地 LanceDB 中搜索已发布的节点 |

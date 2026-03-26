@@ -43,7 +43,7 @@ Mock 审查被所有 CLI 命令（`gaia infer`、`gaia publish --local`）和测
 4. 通过本地图将审查链结论映射回 factor ID 来构建 `factor_params`
 5. 返回 ReviewOutput
 
-审查输出直接馈入 `pipeline_infer()`，后者构造 LocalParameterization 并运行 BP。参见 [../graph-ir/parameterization.md](../graph-ir/parameterization.md) 了解参数化模型。
+审查输出直接馈入 `pipeline_infer()`，后者构造 LocalParameterization 并运行 BP。参见 [../gaia-ir/parameterization.md](../gaia-ir/parameterization.md) 了解参数化模型。
 
 ## 目标：服务端 ReviewService
 

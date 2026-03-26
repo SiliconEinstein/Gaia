@@ -20,7 +20,7 @@
 
 参见 `libs/graph_ir/adapter.py`。
 
-适配器通过以下方式从 Graph IR 构建 `FactorGraph`：
+适配器通过以下方式从 Gaia IR 构建 `FactorGraph`：
 
 1. 将每个 `LocalCanonicalNode` ID 映射为整数变量 ID。
 2. 从 `LocalParameterization`（或 `ReviewOutput.node_priors`）设置先验。
@@ -52,14 +52,14 @@
 - **BP 算法**（消息传递、收敛、诊断）：参见 [../bp/inference.md](../bp/inference.md)
 - **因子势函数**（每种因子类型如何约束置信值）：参见 [../bp/potentials.md](../bp/potentials.md)
 - **本地与全局 BP**（相同算法，不同范围）：参见 [../bp/local-vs-global.md](../bp/local-vs-global.md)
-- **参数化模型**（结构与概率的分离）：参见 [../graph-ir/parameterization.md](../graph-ir/parameterization.md)
+- **参数化模型**（结构与概率的分离）：参见 [../gaia-ir/parameterization.md](../gaia-ir/parameterization.md)
 
 ## 代码路径
 
 | 组件 | 文件 |
 |-----------|------|
 | 管线推理函数 | `libs/pipeline.py:pipeline_infer()` |
-| Graph IR 适配器 | `libs/graph_ir/adapter.py` |
+| Gaia IR 适配器 | `libs/graph_ir/adapter.py` |
 | 因子图 | `libs/inference/factor_graph.py` |
 | BP 算法 | `libs/inference/bp.py:BeliefPropagation` |
 | CLI 命令 | `cli/main.py`（`infer` 命令） |

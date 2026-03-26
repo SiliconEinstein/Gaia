@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Gaia is a Large Knowledge Model (LKM) — a billion-scale reasoning hypergraph for knowledge representation and inference. It stores knowledge as propositions and reasoning relationships via Graph IR (factor graphs), with a publish pipeline (build → canonicalize → publish → review → integrate) and probabilistic inference via loopy belief propagation.
+Gaia is a Large Knowledge Model (LKM) — a billion-scale reasoning hypergraph for knowledge representation and inference. It stores knowledge as propositions and reasoning relationships via Gaia IR (factor graphs), with a publish pipeline (build → canonicalize → publish → review → integrate) and probabilistic inference via loopy belief propagation.
 
 **Stack:** Python 3.12+, FastAPI, Pydantic v2, LanceDB, Neo4j/Kuzu, NumPy/PyArrow
 
@@ -61,7 +61,7 @@ Packages are authored as Typst projects (each with a `typst.toml` manifest).
 - **Labels:** follow `<filename.label_name>` convention for cross-referencing within a package.
 - **Reasoning links:** `from:` parameter lists premises on claims; `between:` parameter defines relation endpoints.
 - **Cross-package deps:** `#gaia-bibliography(yaml("gaia-deps.yml"))` declares external knowledge references.
-- **Graph IR extraction:** `typst query` extracts `gaia-node` figures into Graph IR (no `#export-graph()` call needed).
+- **Gaia IR extraction:** `typst query` extracts `gaia-node` figures into Gaia IR (no `#export-graph()` call needed).
 - **Runtime files:** Typst function definitions live in `libs/typst/gaia-lang-v4/`.
 
 ### Storage Layer (`libs/storage/`)
@@ -201,9 +201,9 @@ Current specs live in `docs/foundations/` organized by architectural layer:
 ```
 docs/foundations/theory/       → Pure theory (Jaynes, BP algorithm) — never changes
 docs/foundations/rationale/    → Design philosophy, product scope — rarely changes
-docs/foundations/graph-ir/     → Graph IR structural contract (CLI↔LKM shared layer)
+docs/foundations/gaia-ir/     → Gaia IR structural contract (CLI↔LKM shared layer)
 docs/foundations/gaia-lang/    → Gaia Language (authoring DSL, shared by CLI and LKM)
-docs/foundations/bp/           → BP computation semantics on Graph IR
+docs/foundations/bp/           → BP computation semantics on Gaia IR
 docs/foundations/review/       → Review pipeline (shared by CLI and LKM)
 docs/foundations/cli/          → CLI (local authoring, compilation, inference)
 docs/foundations/lkm/          → LKM server (curation, global inference, storage, API)
@@ -217,34 +217,34 @@ When editing architecture or foundation docs, read `docs/documentation-policy.md
 
 ### Foundations Layer Rules
 
-The `docs/foundations/` directory mirrors Gaia's three-layer compilation pipeline (Gaia Lang → Graph IR → BP) plus two product surfaces (CLI, LKM). Information flows **downward** — each layer references layers above it, never redefines.
+The `docs/foundations/` directory mirrors Gaia's three-layer compilation pipeline (Gaia Lang → Gaia IR → BP) plus two product surfaces (CLI, LKM). Information flows **downward** — each layer references layers above it, never redefines.
 
 | Layer | Responsibility | What belongs here |
 |-------|---------------|-------------------|
 | **theory/** | External theory (Jaynes, BP algorithm) | Definitions that exist independent of Gaia |
 | **rationale/** | Gaia design philosophy, product scope | Why Gaia makes the choices it does |
-| **graph-ir/** | Graph IR structural contract | Node schemas, factor types, canonicalization — defined ONCE here |
+| **gaia-ir/** | Gaia IR structural contract | Node schemas, factor types, canonicalization — defined ONCE here |
 | **gaia-lang/** | Gaia Language (authoring DSL) | Language spec, knowledge types, package model — shared by CLI and LKM |
-| **bp/** | BP computation on Graph IR | Factor potentials, inference algorithm, local vs global |
+| **bp/** | BP computation on Gaia IR | Factor potentials, inference algorithm, local vs global |
 | **review/** | Review pipeline | Verification, review, gating — shared by CLI and LKM |
 | **cli/** | CLI (local workflow) | Compiler, local inference, local storage |
 | **lkm/** | LKM server (global workflow) | Curation, global inference, storage, API |
 
 **Rules:**
-1. **graph-ir/ is the single source of truth** for structural definitions (FactorNode, knowledge node schemas). BP, CLI, and LKM reference it, never redefine.
+1. **gaia-ir/ is the single source of truth** for structural definitions (FactorNode, knowledge node schemas). BP, CLI, and LKM reference it, never redefine.
 2. **bp/** defines computational semantics (potential functions). CLI and LKM reference it for algorithm details.
-3. **cli/** owns Gaia Lang. LKM never references Gaia Lang — it operates on Graph IR.
+3. **cli/** owns Gaia Lang. LKM never references Gaia Lang — it operates on Gaia IR.
 4. **Never copy** a definition from another layer — link to it instead.
-5. When a schema changes, update it in graph-ir/ first, then verify downstream references.
+5. When a schema changes, update it in gaia-ir/ first, then verify downstream references.
 
 ### Protected Layers (Change Control)
 
-`graph-ir/` 是 CLI↔LKM 的协议契约层，所有开发必须以 `docs/foundations/graph-ir/` 中定义的数据格式为准。
+`gaia-ir/` 是 CLI↔LKM 的协议契约层，所有开发必须以 `docs/foundations/gaia-ir/` 中定义的数据格式为准。
 
 **硬性规则：**
-- Agent **禁止**直接修改 `docs/foundations/graph-ir/` 下的任何文件
+- Agent **禁止**直接修改 `docs/foundations/gaia-ir/` 下的任何文件
 - Agent **禁止**直接修改 `docs/foundations/theory/` 下的任何文件（纯理论层，外部定义）
-- 如果实现过程中发现 Graph IR 的定义需要调整，必须**停下来和用户沟通**，说明：
+- 如果实现过程中发现 Gaia IR 的定义需要调整，必须**停下来和用户沟通**，说明：
   1. 当前定义是什么
   2. 为什么需要改
   3. 提议的改动内容

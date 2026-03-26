@@ -11,7 +11,7 @@
 > 本文档讨论一个在 [01-plausible-reasoning.md](01-plausible-reasoning.md) 之后仍然缺失的问题：
 > 如果概率是唯一一致的似然推理形式化，那么一个具体系统应如何从命题、约束和证据得到可计算的 posterior？
 > 关于推理算子的定义，参见 [03-propositional-operators.md](03-propositional-operators.md)。
-> 本文档不定义具体的编写语言语法、Graph IR 字段布局或数据库 schema。
+> 本文档不定义具体的编写语言语法、Gaia IR 字段布局或数据库 schema。
 
 ## 1. 问题：Jaynes 给了规则，但系统还需要 posterior
 
