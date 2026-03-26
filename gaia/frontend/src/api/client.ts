@@ -33,9 +33,10 @@ export async function getTableData(name: string, limit = 100) {
 
 export async function getNeo4jStats() {
   return fetchJson<{
-    knowledge_node_count: number;
-    factor_node_count: number;
-    edge_count: number;
+    knowledge_nodes: number;
+    factor_nodes: number;
+    edges: number;
+    available: boolean;
   }>('/neo4j/stats');
 }
 

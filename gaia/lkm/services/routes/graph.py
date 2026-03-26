@@ -83,6 +83,29 @@ async def get_graph(
             }
         )
 
+    # Build edges from factors (premise→factor, factor→conclusion)
+    # Also add factor nodes to the node list for bipartite graph rendering
+    edge_list = []
+    for f_data in factor_list:
+        fid = f_data["id"]
+        # Add factor as a node
+        node_list.append(
+            {
+                "id": fid,
+                "type": "factor",
+                "content": f_data["reasoning_type"] or f_data["category"],
+                "belief": None,
+                "prior": None,
+                "reasoning_type": f_data["reasoning_type"],
+            }
+        )
+        # Premise → factor edges
+        for p in f_data["premises"]:
+            edge_list.append({"from": p, "to": fid, "role": "premise"})
+        # Factor → conclusion edge
+        if f_data["conclusion"]:
+            edge_list.append({"from": fid, "to": f_data["conclusion"], "role": "conclusion"})
+
     # Get distinct package IDs for the package selector
     all_bindings = await storage.get_bindings()
     package_ids = sorted({b.package_id for b in all_bindings})
@@ -92,5 +115,6 @@ async def get_graph(
         "package_id": package_id,
         "nodes": node_list,
         "factors": factor_list,
+        "edges": edge_list,
         "packages": package_ids,
     }

@@ -9,9 +9,10 @@ import { getNeo4jStats } from '../api/client';
 
 export default function Neo4jStats() {
   const [stats, setStats] = useState<{
-    knowledge_node_count: number;
-    factor_node_count: number;
-    edge_count: number;
+    knowledge_nodes: number;
+    factor_nodes: number;
+    edges: number;
+    available: boolean;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,9 +34,8 @@ export default function Neo4jStats() {
         <Card>
           <Statistic
             title="Knowledge Nodes"
-            value={stats.knowledge_node_count}
+            value={stats.knowledge_nodes}
             prefix={<NodeIndexOutlined />}
-            valueStyle={{ color: '#1890ff' }}
           />
         </Card>
       </Col>
@@ -43,9 +43,8 @@ export default function Neo4jStats() {
         <Card>
           <Statistic
             title="Factor Nodes"
-            value={stats.factor_node_count}
+            value={stats.factor_nodes}
             prefix={<ApartmentOutlined />}
-            valueStyle={{ color: '#ff4d4f' }}
           />
         </Card>
       </Col>
@@ -53,9 +52,8 @@ export default function Neo4jStats() {
         <Card>
           <Statistic
             title="Edges"
-            value={stats.edge_count}
+            value={stats.edges}
             prefix={<BranchesOutlined />}
-            valueStyle={{ color: '#52c41a' }}
           />
         </Card>
       </Col>
