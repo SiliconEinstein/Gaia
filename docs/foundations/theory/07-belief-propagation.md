@@ -17,6 +17,13 @@
 
 本文档定义因子图上的置信传播（Belief Propagation, BP）算法。BP 是因子图上的通用消息传递算法，与具体的势函数选择无关。BP 不是 Jaynes 理论的一部分——它是一种计算方法，用于在因子图上近似计算边缘后验。在树结构图上，BP 给出精确的边缘后验；在含环图上，BP 是一种变分近似，最小化 Bethe 自由能。
 
+这里要先区分两个层次：
+
+- [03-propositional-operators.md](03-propositional-operators.md) 中的 `↝` 是精确 Jaynes 语义下的 coarse summary。
+- [06-factor-graphs.md](06-factor-graphs.md) 中的 ↝ 因子是对这个 summary 的**编译实现**。
+
+因此，本节讨论的是：**BP 如何在这组编译后的局部因子上近似边缘化一个联合分布。**
+
 ---
 
 ## 1. Sum-Product 消息传递
@@ -28,7 +35,7 @@
 ### 1.1 算法
 
 ```
-Initialize: all messages = [0.5, 0.5] (uniform, MaxEnt)
+Initialize: all messages = [0.5, 0.5] (uniform, neutral)
             priors = {var_id: [1-prior, prior]}
 
 Repeat (up to max_iterations):
@@ -52,6 +59,8 @@ Repeat (up to max_iterations):
   5. Check convergence:
      If max|new_belief - old_belief| < threshold: stop.
 ```
+
+这里的 `[0.5, 0.5]` 只是一个**中性初始化**，不应与 [02-maxent-grounding.md](02-maxent-grounding.md) 中的 MaxEnt posterior 混淆。真正的 posterior 由整张图的联合分布和边缘化规则决定，而不是由初始消息直接给出。
 
 ### 1.2 消息公式详解
 
@@ -167,7 +176,7 @@ msg(f→A)[A=0] = ψ(0,0)·r + ψ(0,1)·(1-r) = 1·r + 1·(1-r) = 1
 | 0 | 0 | p₂ |
 | 0 | 1 | 1−p₂ |
 
-其中 p₁ = 近似充分性（M 真时 C 真的条件概率），p₂ = 局部必要性（M 假时 C 假的条件概率）。
+其中 p₁ = 近似充分性，p₂ = 局部必要性。按 [03-propositional-operators.md](03-propositional-operators.md) §4 的口径，它们首先是未展开子结构在接口 `(M,C)` 上的有效条件统计；到本层被编译成一个局部、按行归一化的因子后，在孤立极限下与对应的条件通道一致。
 
 按照 [03-propositional-operators.md](03-propositional-operators.md) §4 的定义，↝ 还要求：
 
@@ -175,7 +184,9 @@ msg(f→A)[A=0] = ψ(0,0)·r + ψ(0,1)·(1-r) = 1·r + 1·(1-r) = 1
 p₁ + p₂ > 1
 ```
 
-即 `P(C=1|M=1) > P(C=1|M=0)`。因此这里分析的 ↝ 始终是**正支持通道**；若某条边表现为负支持，应在理论层改写为 `M ↝ ¬C`。
+即 `P_eff(C=1|M=1) > P_eff(C=1|M=0)`。因此这里分析的 ↝ 始终是**正支持通道**；若某条边表现为负支持，应在理论层改写为 `M ↝ ¬C`。
+
+同时要注意：在整张粗因子图里，真实的全局后验条件概率由所有相邻因子共同决定，因此这里的 `(p₁,p₂)` 不应被机械理解为最终整图上的 `P(C|M)`；它们是局部支持因子的参数。
 
 **正向消息（M→C）：** 设 msg(M→f) = [q, 1-q]（q = P(M=0)），则：
 
@@ -242,9 +253,19 @@ max_v |b^(t+1)(v) - b^(t)(v)| < threshold
 
 当所有变量的信念变化幅度都小于阈值时，算法终止。
 
-### 3.5 系统永远有解
+### 3.5 失败模式与边界
 
-在因子图上运行 BP，总能给出一组信念值。不存在"不可满足"或"无解"的概念。不完整的信息产生不确定的信念（接近 0.5），矛盾的信息产生竞争的信念（弱者被压低），但系统永远不会崩溃。这与基于 SAT 求解的系统形成对比——概率推理没有"无解"，只有"不确定"。
+BP 不是"永远有解"的魔法过程，它仍然受上游模型和图结构的约束：
+
+- 如果上游给出的硬约束彼此不相容，使可行集为空，那么 Jaynes 意义下就不存在合法 posterior；这不是 BP 可以修复的问题。
+- 如果联合分布定义良好，但图中有环，loopy BP 可能振荡、不收敛，或收敛到偏差较大的近似。
+- 与 SAT 不同的是，软证据之间的张力通常表现为 competing messages 和较高不确定性，而不是立刻出现二值的“无解”。
+
+因此，BP 的正确定位是：
+
+> **在可行的概率模型上近似边缘化。**
+
+它很好地处理不完整信息和相互竞争的软支撑，但并不消除上游约束不相容或近似算法不收敛这两类根本问题。
 
 ---
 
