@@ -31,7 +31,7 @@ class StorageConfig(BaseSettings):
 
     @property
     def has_neo4j(self) -> bool:
-        return self.neo4j_uri is not None
+        return bool(self.neo4j_uri)
 
     @property
     def effective_lancedb_connection(self) -> str:
