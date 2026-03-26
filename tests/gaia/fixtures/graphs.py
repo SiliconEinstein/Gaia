@@ -288,10 +288,7 @@ def make_newton_gravity() -> tuple[LocalCanonicalGraph, LocalParameterization]:
     # derived — Newton's version expressed as a Newtonian derivation result.
     mass_cancellation = KnowledgeNode(
         type=KnowledgeType.CLAIM,
-        content=(
-            "All objects fall at the same rate in vacuum,"
-            " independent of their mass"
-        ),
+        content=("All objects fall at the same rate in vacuum, independent of their mass"),
         source_refs=_src(pkg),
     )
     kepler_third_law = KnowledgeNode(
