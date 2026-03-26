@@ -41,13 +41,13 @@ KnowledgeNode:
 
 | 字段 | Local | Global |
 |------|-------|--------|
-| `id` | `lcn_` 前缀，SHA-256 内容寻址 | `gcn_` 前缀，注册中心分配 |
+| `id` | `lcn_` 前缀，SHA-256 包+内容寻址 | `gcn_` 前缀，注册中心分配 |
 | `content` | 有值（唯一存储位置） | 通常为 None（subgraph 中间节点例外） |
 | `provenance` | 有值（来源包） | 有值（贡献包列表） |
 | `representative_lcn` | None | 有值（引用 local 节点获取内容） |
 | `member_local_nodes` | None | 有值（所有映射到此的 local 节点） |
 
-**身份规则**：local 层 `id = SHA-256(type + content + sorted(parameters))`，相同类型、内容和参数的声明共享同一 ID。
+**身份规则**：local 层 `id = lcn_{SHA-256(package_id + type + content + sorted(parameters))[:16]}`。ID 包含 `package_id`，因此不同包中相同内容的节点有**不同的** lcn_id。跨包的语义等价由 global canonicalization 通过 embedding 相似度判定，而非 ID 相等。
 
 **内容存储**：所有知识内容存储在 local 层的 `content` 字段上。Global 层通过 `representative_lcn` 引用获取内容，不重复存储。唯一例外是 subgraph 展开时新创建的中间节点（无 local 来源，content 直接存在 global 节点上）。
 
