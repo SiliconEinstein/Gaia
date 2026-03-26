@@ -41,7 +41,7 @@ def make_galileo_falling_bodies() -> LocalCanonicalGraph:
         source_refs=_src(pkg),
     )
     tied_balls_setup = KnowledgeNode(
-        type=KnowledgeType.CLAIM,
+        type=KnowledgeType.SETTING,
         content="Consider a heavy ball tied to a light ball and dropped together",
         source_refs=_src(pkg),
     )
