@@ -2,7 +2,7 @@
 
 > **Status:** Current canonical
 
-本文档描述 belief propagation 如何在 Graph IR 上运行。纯 BP 算法（sum-product 消息传递、damping、收敛）见 [../theory/04-belief-propagation.md](../theory/04-belief-propagation.md)。Factor potential 函数见 [potentials.md](potentials.md)。Local 与 global 推理的区别见 [local-vs-global.md](local-vs-global.md)。
+本文档描述 belief propagation 如何在 Graph IR 上运行。纯 BP 算法（sum-product 消息传递、damping、收敛）见 [../theory/07-belief-propagation.md](../theory/07-belief-propagation.md)。Factor potential 函数见 [potentials.md](potentials.md)。Local 与 global 推理的区别见 [local-vs-global.md](local-vs-global.md)。
 
 ## Factor Graph 构建
 

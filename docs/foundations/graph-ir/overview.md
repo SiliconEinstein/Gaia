@@ -1,6 +1,6 @@
 # Graph IR 概述
 
-> **Status:** Target design — 基于 [02-reasoning-factor-graph.md](../theory/02-reasoning-factor-graph.md) 和 [05-science-ontology.md](../theory/05-science-ontology.md) 设计
+> **Status:** Target design — 基于 [06-factor-graphs.md](../theory/06-factor-graphs.md) 和 [04-reasoning-strategies.md](../theory/04-reasoning-strategies.md) 设计
 >
 > **⚠️ Protected Contract Layer** — 本目录定义 CLI↔LKM 结构契约。变更需要独立 PR 并经负责人审查批准。详见 [documentation-policy.md](../../documentation-policy.md#12-变更控制)。
 

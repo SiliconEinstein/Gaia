@@ -109,7 +109,7 @@ Gaia 基础文档应归入以下四个主要层次之一。
 
 示例：
 
-- `theory/02-reasoning-factor-graph.md`
+- `theory/06-factor-graphs.md`
 - `theory/theoretical-foundation.md`
 
 ### 架构
