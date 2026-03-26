@@ -4,7 +4,7 @@
 
 ## 动机
 
-当前系统的 induction 策略（见 [05-science-ontology.md](../foundations/theory/05-science-ontology.md) §3.3）是**经验归纳**——从有限实例推断一般规律，本质上不确定（p<1）。但数学归纳法（mathematical induction）是一种**确定性**推理：基础情形 + 归纳步骤 → 全称命题，p=1。
+当前系统的 induction 策略（见 [04-reasoning-strategies.md](../foundations/theory/04-reasoning-strategies.md) §3.3）是**经验归纳**——从有限实例推断一般规律，本质上不确定（p<1）。但数学归纳法（mathematical induction）是一种**确定性**推理：基础情形 + 归纳步骤 → 全称命题，p=1。
 
 两者虽然都叫"归纳"，但在因子图上结构完全不同：
 
@@ -263,9 +263,9 @@ S (law)
 
 ## 参考
 
-- [../foundations/theory/05-science-ontology.md](../foundations/theory/05-science-ontology.md) §3.1, §3.3 — deduction 和 induction 策略
-- [../foundations/theory/02-reasoning-factor-graph.md](../foundations/theory/02-reasoning-factor-graph.md) — 逻辑算子定义
-- [../foundations/theory/03-coarse-reasoning.md](../foundations/theory/03-coarse-reasoning.md) — 粗/细因子图
+- [../foundations/theory/04-reasoning-strategies.md](../foundations/theory/04-reasoning-strategies.md) §3.1, §3.3 — deduction 和 induction 策略
+- [../foundations/theory/03-propositional-operators.md](../foundations/theory/03-propositional-operators.md) — 逻辑算子定义
+- [../foundations/theory/03-propositional-operators.md](../foundations/theory/03-propositional-operators.md) — 粗/细因子图
 - [../foundations/graph-ir/graph-ir.md](../foundations/graph-ir/graph-ir.md) §1.2, §2.2 — template 类型和 reasoning_type 定义
 - [../foundations/gaia-lang/knowledge-types.md](../foundations/gaia-lang/knowledge-types.md) — Gaia Lang 知识类型
 - [template-mechanism.md](template-mechanism.md) — template 机制设计

@@ -45,7 +45,7 @@ Case Analysis 是第九种推理策略，归入**确定性**类别。
 
 **BP 路径：** 析取因子确保至少一个 Aᵢ 具有高 belief。每条蕴含 Aᵢ→C 的前向消息将 Aᵢ 的 belief 传递给 C。由于析取保证至少一条路径活跃，C 获得高 belief。
 
-**注意：** Case Analysis 使用析取（∨）原语。当前 [02-reasoning-factor-graph.md](../foundations/theory/02-reasoning-factor-graph.md) 已定义析取为四种逻辑原语之一，但 graph-ir 尚未有对应的 reasoning_type。
+**注意：** Case Analysis 使用析取（∨）原语。当前 [03-propositional-operators.md](../foundations/theory/03-propositional-operators.md) 已定义析取为四种逻辑原语之一，但 graph-ir 尚未有对应的 reasoning_type。
 
 ### 与 Elimination 的因子图对比
 
@@ -256,14 +256,14 @@ H₂: n²+n 总是偶数
 
 ## 依赖
 
-- **析取原语（∨）的 Graph IR 支持** — theory 层已定义析取为四种逻辑原语之一（见 [02-reasoning-factor-graph.md](../foundations/theory/02-reasoning-factor-graph.md)），但 graph-ir 的 reasoning_type 枚举中尚无对应类型
+- **析取原语（∨）的 Graph IR 支持** — theory 层已定义析取为四种逻辑原语之一（见 [03-propositional-operators.md](../foundations/theory/03-propositional-operators.md)），但 graph-ir 的 reasoning_type 枚举中尚无对应类型
 - **gaia-lang 语法设计** — 需要 `#case-analysis` 策略语法
 
 ## 参考
 
-- [../foundations/theory/05-science-ontology.md](../foundations/theory/05-science-ontology.md) §3 — 推理策略概览
-- [../foundations/theory/02-reasoning-factor-graph.md](../foundations/theory/02-reasoning-factor-graph.md) — 析取算子定义
-- [../foundations/theory/03-coarse-reasoning.md](../foundations/theory/03-coarse-reasoning.md) — 粗/细因子图
+- [../foundations/theory/04-reasoning-strategies.md](../foundations/theory/04-reasoning-strategies.md) §3 — 推理策略概览
+- [../foundations/theory/03-propositional-operators.md](../foundations/theory/03-propositional-operators.md) — 析取算子定义
+- [../foundations/theory/03-propositional-operators.md](../foundations/theory/03-propositional-operators.md) — 粗/细因子图
 - [../foundations/graph-ir/graph-ir.md](../foundations/graph-ir/graph-ir.md) §2.2 — reasoning_type 定义
 - [elimination-strategy.md](elimination-strategy.md) — 排除法（共享穷尽性前提的平行策略）
 - [../specs/2026-03-25-gaia-lang-alignment-design.md](../specs/2026-03-25-gaia-lang-alignment-design.md) §4 — 当前论证策略设计

@@ -43,7 +43,7 @@ FactorNode(reasoning_type: negation):
 | 0 | 0   | ε        |  （不兼容：不能同时为假）
 ```
 
-其中 ε = Cromwell 下界（见 [04-belief-propagation.md](../foundations/theory/04-belief-propagation.md)）。
+其中 ε = Cromwell 下界（见 [07-belief-propagation.md](../foundations/theory/07-belief-propagation.md)）。
 
 ### BP 行为
 
@@ -85,4 +85,4 @@ reasoning_type: entailment | induction | abduction
 
 - [../foundations/graph-ir/graph-ir.md](../foundations/graph-ir/graph-ir.md) §2.2 — reasoning_type 定义
 - [../foundations/bp/potentials.md](../foundations/bp/potentials.md) — contradiction / equivalence 的 potential 函数
-- [../foundations/theory/02-reasoning-factor-graph.md](../foundations/theory/02-reasoning-factor-graph.md) — 因子图逻辑算子（当前缺少否定）
+- [../foundations/theory/03-propositional-operators.md](../foundations/theory/03-propositional-operators.md) — 因子图逻辑算子（当前缺少否定）

@@ -99,5 +99,5 @@ Process of elimination（排除法）是科学推理中的常见模式：在一�
 - [reductio-strategy.md](reductio-strategy.md) — reductio 策略（排除法的单步可能是归谬）
 - [../foundations/graph-ir/graph-ir.md](../foundations/graph-ir/graph-ir.md) §2.2 — contradict reasoning_type
 - [../foundations/bp/potentials.md](../foundations/bp/potentials.md) — contradiction potential 函数
-- [../foundations/theory/02-reasoning-factor-graph.md](../foundations/theory/02-reasoning-factor-graph.md) — 因子图逻辑算子
+- [../foundations/theory/03-propositional-operators.md](../foundations/theory/03-propositional-operators.md) — 因子图逻辑算子
 - [../specs/2026-03-25-gaia-lang-alignment-design.md](../specs/2026-03-25-gaia-lang-alignment-design.md) §7 — Ideas 列表
