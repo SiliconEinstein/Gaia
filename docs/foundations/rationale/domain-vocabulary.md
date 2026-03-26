@@ -36,7 +36,7 @@ Gaia Lang 与 BP 之间的结构中间表示。一个一等提交制品，具有
 
 ## Belief
 
-一个 Knowledge 对象的后验合理性，由 BP 计算。取值在 [0, 1] 范围内，其中 0.5 表示最大无知（MaxEnt）。参见 `../theory/belief-propagation.md`。
+一个 Knowledge 对象的后验合理性，由 BP 计算。取值在 [0, 1] 范围内，其中 0.5 表示最大无知（MaxEnt）。参见 `../theory/04-belief-propagation.md`。
 
 ## 参考文献
 

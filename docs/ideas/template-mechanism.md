@@ -70,7 +70,7 @@ modus_tollens(P: claim, Q: claim, not_Q: claim) → {
 
 Template 是全称命题 ∀x. P(x) 的自然表达。当前 graph-ir 的 template 类型已支持这一用例——template 节点通过 instantiation factor 连接到具体 claim。
 
-Theory 层的分析见 [science-ontology.md](../foundations/theory/science-ontology.md)：Template 不直接参与 BP，但通过 instantiation 桥接到 claim。[potentials.md](../foundations/bp/potentials.md) §Instantiation 已定义了 BP 行为：多个实例的反向消息在 template 节点聚合，实现归纳强化。
+Theory 层的分析见 [05-science-ontology.md](../foundations/theory/05-science-ontology.md)：Template 不直接参与 BP，但通过 instantiation 桥接到 claim。[potentials.md](../foundations/bp/potentials.md) §Instantiation 已定义了 BP 行为：多个实例的反向消息在 template 节点聚合，实现归纳强化。
 
 ### 4. 论证策略的底层机制
 
@@ -128,6 +128,6 @@ Graph-ir 的 KnowledgeNode 已有 `type: template` 和 `parameters: list[Paramet
 
 - [../foundations/graph-ir/graph-ir.md](../foundations/graph-ir/graph-ir.md) §1.2 — template 知识类型定义
 - [../foundations/bp/potentials.md](../foundations/bp/potentials.md) §Instantiation — 实例化 potential 函数
-- [../foundations/theory/science-ontology.md](../foundations/theory/science-ontology.md) — Template 知识类型定义与桥接角色
+- [../foundations/theory/05-science-ontology.md](../foundations/theory/05-science-ontology.md) — Template 知识类型定义与桥接角色
 - [negation-relation.md](negation-relation.md) — 否命题构造是第一个用例
 - [../specs/2026-03-25-gaia-lang-alignment-design.md](../specs/2026-03-25-gaia-lang-alignment-design.md) §2.5 — Defer template 的决定

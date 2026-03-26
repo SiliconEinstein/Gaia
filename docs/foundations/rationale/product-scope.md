@@ -2,7 +2,7 @@
 
 > 相关文档：
 > - [architecture-overview.md](architecture-overview.md)
-> - [../theory/science-ontology.md](../theory/science-ontology.md)
+> - [../theory/05-science-ontology.md](../theory/05-science-ontology.md)
 > - [../gaia-lang/spec.md](../gaia-lang/spec.md)
 
 ## 目的

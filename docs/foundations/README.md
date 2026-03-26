@@ -6,12 +6,12 @@ Gaia 的规范参考文档，按架构层级组织。
 
 推导链：plausible-reasoning → reasoning-factor-graph → coarse-reasoning → belief-propagation → science-ontology → science-formalization
 
-- [似然推理](theory/plausible-reasoning.md) — Jaynes、Cox 定理、概率即逻辑、弱三段论 C1-C4
-- [推理因子图](theory/reasoning-factor-graph.md) — 因子图二部图结构、四种逻辑原语算子（蕴含、合取、析取、否定）
-- [粗推理算子](theory/coarse-reasoning.md) — 粗推理算子（p<1 的唯一因子类型）、粗/细因子图
-- [置信传播](theory/belief-propagation.md) — 和积算法、消息传递语义、收敛性
-- [科学知识本体论](theory/science-ontology.md) — 知识类型、关系类型、推理策略
-- [科学知识的形式化](theory/science-formalization.md) — 从自然语言到因子图的分步精炼、p 的客观化
+- [似然推理](theory/01-plausible-reasoning.md) — Jaynes、Cox 定理、概率即逻辑、弱三段论 C1-C4
+- [推理因子图](theory/02-reasoning-factor-graph.md) — 因子图二部图结构、四种逻辑原语算子（蕴含、合取、析取、否定）
+- [粗推理算子](theory/03-coarse-reasoning.md) — 粗推理算子（p<1 的唯一因子类型）、粗/细因子图
+- [置信传播](theory/04-belief-propagation.md) — 和积算法、消息传递语义、收敛性
+- [科学知识本体论](theory/05-science-ontology.md) — 知识类型、关系类型、推理策略
+- [科学知识的形式化](theory/06-science-formalization.md) — 从自然语言到因子图的分步精炼、p 的客观化
 
 ## 设计理念 — 设计哲学（极少变更）
 

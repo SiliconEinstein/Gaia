@@ -5,9 +5,9 @@
 > 本文档定义粗推理算子——因子图中唯一携带自由参数 p < 1 的因子类型。
 > 粗推理算子是对未完全形式化推理步骤的近似表示。
 >
-> **上游依赖：** [reasoning-factor-graph.md](reasoning-factor-graph.md)（因子图结构与逻辑算子）、[plausible-reasoning.md](plausible-reasoning.md)（Jaynes 框架与弱三段论 C1-C4）
+> **上游依赖：** [02-reasoning-factor-graph.md](02-reasoning-factor-graph.md)（因子图结构与逻辑算子）、[01-plausible-reasoning.md](01-plausible-reasoning.md)（Jaynes 框架与弱三段论 C1-C4）
 >
-> **下游引用：** [belief-propagation.md](belief-propagation.md)（BP 算法）、[science-ontology.md](science-ontology.md)（科学本体论）
+> **下游引用：** [04-belief-propagation.md](04-belief-propagation.md)（BP 算法）、[05-science-ontology.md](05-science-ontology.md)（科学本体论）
 >
 > **BP 层：** [../bp/potentials.md](../bp/potentials.md)（f(p) 的具体形式定义在 BP 层）
 
@@ -15,7 +15,7 @@
 
 ## 1. 动机
 
-在 [reasoning-factor-graph.md](reasoning-factor-graph.md) 中，我们定义了四种逻辑原语算子（蕴含、合取、析取、否定），它们的势函数完全由逻辑真值表确定——一致状态 ψ=1，不一致状态 ψ=0，没有自由参数。
+在 [02-reasoning-factor-graph.md](02-reasoning-factor-graph.md) 中，我们定义了四种逻辑原语算子（蕴含、合取、析取、否定），它们的势函数完全由逻辑真值表确定——一致状态 ψ=1，不一致状态 ψ=0，没有自由参数。
 
 如果作者能够将每一步推理都完全分解为逻辑算子的组合，因子图中就不需要任何额外的参数。这样的因子图是"细因子图"——所有因子都是 p=1 的逻辑约束，系统的全部不确定性都来自节点先验 π。
 
@@ -70,7 +70,7 @@ f(p) 的具体函数形式（如 1-p 或 (1-p)/p）不属于 theory 层的定义
 
 ## 3. 与 Jaynes 弱三段论的一致性
 
-[plausible-reasoning.md](plausible-reasoning.md) 中定义了弱三段论的四条准则 C1-C4。粗推理算子的势函数加上 BP 消息传递，自然产生满足 C1-C4 的行为：
+[01-plausible-reasoning.md](01-plausible-reasoning.md) 中定义了弱三段论的四条准则 C1-C4。粗推理算子的势函数加上 BP 消息传递，自然产生满足 C1-C4 的行为：
 
 **C1（C 为假 → M 更不可信）✓：** 反向消息方向。当 C 的 belief 较低时，因子向 M 传递的消息会压低 M 的 belief。直觉：如果结论不成立，那么支持该结论的前提的可信度应该下降。
 

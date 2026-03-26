@@ -42,7 +42,7 @@ Knowledge 对象是一个版本化的命题——知识图的基本单元。
 
 Language 层不定义独立的 Factor 数据模型。Factor 由以下编译路径生成：
 
-- **`from:`** —— claim 上的 `from:` 参数编译为粗因子（合取语义，参见 [../theory/coarse-reasoning.md](../theory/coarse-reasoning.md)）。
+- **`from:`** —— claim 上的 `from:` 参数编译为粗因子（合取语义，参见 [../theory/03-coarse-reasoning.md](../theory/03-coarse-reasoning.md)）。
 - **论证策略** —— `#abduction`、`#induction`、`#analogy`、`#extrapolation` 程序化生成细因子图。
 - **`#relation`** —— `contradiction` / `equivalence` 关系编译为 FactorNode。
 

@@ -3,9 +3,9 @@
 > **Status:** Target design
 >
 > **上游依赖：**
-> - [plausible-reasoning.md](plausible-reasoning.md) — Jaynes 框架、弱三段论 C1-C4
-> - [reasoning-factor-graph.md](reasoning-factor-graph.md) — 因子图、逻辑算子
-> - [coarse-reasoning.md](coarse-reasoning.md) — 粗推理算子
+> - [01-plausible-reasoning.md](01-plausible-reasoning.md) — Jaynes 框架、弱三段论 C1-C4
+> - [02-reasoning-factor-graph.md](02-reasoning-factor-graph.md) — 因子图、逻辑算子
+> - [03-coarse-reasoning.md](03-coarse-reasoning.md) — 粗推理算子
 
 本文档定义因子图上的置信传播（Belief Propagation, BP）算法。BP 是因子图上的通用消息传递算法，与具体的势函数选择无关。
 
@@ -13,7 +13,7 @@
 
 ## 1. Sum-Product 消息传递
 
-因子图由变量节点（命题）和因子节点（逻辑约束）组成（参见 [reasoning-factor-graph.md](reasoning-factor-graph.md) §1）。BP 通过在变量节点和因子节点之间传递消息来计算每个变量的边缘后验信念。
+因子图由变量节点（命题）和因子节点（逻辑约束）组成（参见 [02-reasoning-factor-graph.md](02-reasoning-factor-graph.md) §1）。BP 通过在变量节点和因子节点之间传递消息来计算每个变量的边缘后验信念。
 
 消息是二维向量 `[p(x=0), p(x=1)]`，始终归一化使得和为 1。
 
@@ -75,8 +75,8 @@ b(v) ∝ π(v) · ∏_{f ∈ ne(v)} msg(f → v)
 
 信念计算公式 b(v) ∝ π(v) · ∏ msg(f→v) 中，消息由势函数 ψ 驱动。因此系统的自由参数取决于因子图的类型：
 
-- **细因子图**（所有因子都是逻辑算子，p=1）：势函数由真值表唯一确定（参见 [reasoning-factor-graph.md](reasoning-factor-graph.md) §1.4），节点先验 π 是**唯一的自由参数类**。
-- **粗因子图**（包含粗推理算子，p<1）：势函数携带参数 p（参见 [coarse-reasoning.md](coarse-reasoning.md) §2），p 作为**第二自由参数类**加入系统。
+- **细因子图**（所有因子都是逻辑算子，p=1）：势函数由真值表唯一确定（参见 [02-reasoning-factor-graph.md](02-reasoning-factor-graph.md) §1.4），节点先验 π 是**唯一的自由参数类**。
+- **粗因子图**（包含粗推理算子，p<1）：势函数携带参数 p（参见 [03-coarse-reasoning.md](03-coarse-reasoning.md) §2），p 作为**第二自由参数类**加入系统。
 
 ### 1.4 同步调度
 
@@ -104,7 +104,7 @@ b(v) ∝ π(v) · ∏_{f ∈ ne(v)} msg(f → v)
 
 ### 2.1 逻辑算子上的消息传递
 
-逻辑算子（蕴含、合取、析取、否定）的势函数完全由真值表确定：一致状态 ψ=1，不一致状态 ψ=0（参见 [reasoning-factor-graph.md](reasoning-factor-graph.md) §2）。这些 0/1 势函数使 BP 消息传递产生确定性逻辑行为。
+逻辑算子（蕴含、合取、析取、否定）的势函数完全由真值表确定：一致状态 ψ=1，不一致状态 ψ=0（参见 [02-reasoning-factor-graph.md](02-reasoning-factor-graph.md) §2）。这些 0/1 势函数使 BP 消息传递产生确定性逻辑行为。
 
 以蕴含 A→C 为例。蕴含的势函数为：
 
@@ -147,7 +147,7 @@ msg(f→A)[A=0] = ψ(0,0)·r + ψ(0,1)·(1-r) = 1·r + 1·(1-r) = 1
 
 ### 2.2 粗推理算子上的消息传递
 
-粗推理算子连接前提 M 和结论 C，携带参数 p，势函数中 ψ(1,0) = f(p)（参见 [coarse-reasoning.md](coarse-reasoning.md) §2）：
+粗推理算子连接前提 M 和结论 C，携带参数 p，势函数中 ψ(1,0) = f(p)（参见 [03-coarse-reasoning.md](03-coarse-reasoning.md) §2）：
 
 | M | C | ψ |
 |---|---|---|
@@ -183,7 +183,7 @@ msg(f→M)[M=0] = 1·r + 1·(1-r) = 1
 
 ### 2.3 弱三段论的实现
 
-[plausible-reasoning.md](plausible-reasoning.md) §1.3 定义了四条弱三段论准则 C1-C4。[coarse-reasoning.md](coarse-reasoning.md) §3 论证了粗推理算子的势函数满足这些准则。本节从 BP 消息传递的角度展示 C1-C4 如何自然涌现。
+[01-plausible-reasoning.md](01-plausible-reasoning.md) §1.3 定义了四条弱三段论准则 C1-C4。[03-coarse-reasoning.md](03-coarse-reasoning.md) §3 论证了粗推理算子的势函数满足这些准则。本节从 BP 消息传递的角度展示 C1-C4 如何自然涌现。
 
 **C1（前提真 → 结论信念上升）：** §2.2 的正向消息分析表明，当 M 信念高时，因子向 C 传递强支持消息。这是 BP 正向消息传播的直接结果。
 
@@ -233,7 +233,7 @@ max_v |b^(t+1)(v) - b^(t)(v)| < threshold
 
 ## 跨层引用
 
-- **上游（theory 层）**：[plausible-reasoning.md](plausible-reasoning.md) — Jaynes 框架、Cox 定理、弱三段论 C1-C4；[reasoning-factor-graph.md](reasoning-factor-graph.md) — 因子图结构、四种逻辑算子及其势函数；[coarse-reasoning.md](coarse-reasoning.md) — 粗推理算子定义、参数 p 的含义
+- **上游（theory 层）**：[01-plausible-reasoning.md](01-plausible-reasoning.md) — Jaynes 框架、Cox 定理、弱三段论 C1-C4；[02-reasoning-factor-graph.md](02-reasoning-factor-graph.md) — 因子图结构、四种逻辑算子及其势函数；[03-coarse-reasoning.md](03-coarse-reasoning.md) — 粗推理算子定义、参数 p 的含义
 - **BP 层**：[../bp/potentials.md](../bp/potentials.md) — f(p) 的具体函数形式；[../bp/inference.md](../bp/inference.md) — BP 推理的工程实现细节
 - **源码**：`libs/inference/bp.py`（BP 算法实现）、`libs/inference/factor_graph.py`（因子图数据结构）
 

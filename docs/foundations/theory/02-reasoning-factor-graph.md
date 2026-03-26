@@ -2,12 +2,12 @@
 
 > **Status:** Target design
 >
-> **上游依赖：** [plausible-reasoning.md](plausible-reasoning.md) — Cox 定理、弱三段论、Jaynes 框架
+> **上游依赖：** [01-plausible-reasoning.md](01-plausible-reasoning.md) — Cox 定理、弱三段论、Jaynes 框架
 >
 > 本文档定义推理的计算结构：因子图的二部图表示和四种逻辑原语算子。
 > 本文档回答"推理关系如何用因子图编码"和"有哪些基本逻辑约束"的问题。
-> 关于不完全形式化下的粗推理算子，参见 [coarse-reasoning.md](coarse-reasoning.md)。
-> 关于因子图上的消息传递算法，参见 [belief-propagation.md](belief-propagation.md)。
+> 关于不完全形式化下的粗推理算子，参见 [03-coarse-reasoning.md](03-coarse-reasoning.md)。
+> 关于因子图上的消息传递算法，参见 [04-belief-propagation.md](04-belief-propagation.md)。
 > 本文档不定义编写语言语法、Graph IR 字段布局或服务器 API 合约。
 
 ## 1. 因子图表示
@@ -89,7 +89,7 @@ P(x₁, ..., xₙ | I) ∝ ∏ⱼ φⱼ(xⱼ) · ∏ₐ ψₐ(x_Sₐ)
 - **(0,1)** 一致：前提不成立，结论可因其他路径为真 — 因子不发言。
 - **(0,0)** 一致：前提不成立，结论不成立 — 因子不发言。
 
-蕴含是最基本的推理关系。如 [plausible-reasoning.md](plausible-reasoning.md) §1.5 所述，一旦蕴含关系建立，四种弱三段论的推理能力通过 BP 消息传递自动获得。
+蕴含是最基本的推理关系。如 [01-plausible-reasoning.md](01-plausible-reasoning.md) §1.5 所述，一旦蕴含关系建立，四种弱三段论的推理能力通过 BP 消息传递自动获得。
 
 ### 2.2 合取（Conjunction）
 
@@ -317,7 +317,7 @@ Aₙ ─┘
 
 ## 交叉引用
 
-- **上游**：[plausible-reasoning.md](plausible-reasoning.md) — Cox 定理证明概率是唯一一致的似然推理系统；弱三段论给出蕴含关系的四种推理能力。
-- **下游**：[coarse-reasoning.md](coarse-reasoning.md) — 当推理无法完全形式化为逻辑算子时，引入粗推理算子（带参数 p<1 的近似因子）。
-- **下游**：[belief-propagation.md](belief-propagation.md) — 因子图上的消息传递算法，将势函数转化为信念值的计算过程。
+- **上游**：[01-plausible-reasoning.md](01-plausible-reasoning.md) — Cox 定理证明概率是唯一一致的似然推理系统；弱三段论给出蕴含关系的四种推理能力。
+- **下游**：[03-coarse-reasoning.md](03-coarse-reasoning.md) — 当推理无法完全形式化为逻辑算子时，引入粗推理算子（带参数 p<1 的近似因子）。
+- **下游**：[04-belief-propagation.md](04-belief-propagation.md) — 因子图上的消息传递算法，将势函数转化为信念值的计算过程。
 - **Graph IR 层**：`docs/foundations/graph-ir/` — 因子图在工程实现中的节点 schema、因子类型和序列化格式。本文档定义理论语义，Graph IR 定义数据合约。

@@ -67,4 +67,4 @@ CLI 是 Graph IR 的**前端**——类比于 Clang 是 LLVM IR 的前端。LKM 
 ## 参考文献
 
 - `docs/foundations/rationale/product-scope.md`——产品定位
-- `docs/foundations/theory/plausible-reasoning.md`——理论基础
+- `docs/foundations/theory/01-plausible-reasoning.md`——理论基础
