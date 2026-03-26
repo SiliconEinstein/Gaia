@@ -26,7 +26,8 @@ async def store(tmp_path):
 
 
 def _galileo_graph():
-    return make_galileo_falling_bodies()
+    graph, _params = make_galileo_falling_bodies()
+    return graph
 
 
 # ---------------------------------------------------------------------------
@@ -40,7 +41,7 @@ class TestKnowledgeNodeStorage:
         await store.write_knowledge_nodes(graph.knowledge_nodes)
 
         nodes = await store.get_knowledge_nodes(prefix="lcn_")
-        assert len(nodes) == 5
+        assert len(nodes) == 10
         ids = {n.id for n in nodes}
         for n in graph.knowledge_nodes:
             assert n.id in ids
@@ -50,7 +51,7 @@ class TestKnowledgeNodeStorage:
         await store.write_knowledge_nodes(graph.knowledge_nodes)
 
         nodes = await store.get_knowledge_nodes()
-        assert len(nodes) == 5
+        assert len(nodes) == 10
 
     async def test_get_single_node(self, store):
         graph = _galileo_graph()
@@ -112,14 +113,14 @@ class TestFactorNodeStorage:
         await store.write_factor_nodes(graph.factor_nodes)
 
         factors = await store.get_factor_nodes(scope="local")
-        assert len(factors) == 4
+        assert len(factors) == 7
 
     async def test_read_all_factors_without_scope(self, store):
         graph = _galileo_graph()
         await store.write_factor_nodes(graph.factor_nodes)
 
         factors = await store.get_factor_nodes()
-        assert len(factors) == 4
+        assert len(factors) == 7
 
     async def test_write_global_factors(self, store):
         from gaia.libs.models import (
@@ -416,4 +417,4 @@ class TestInitializeIdempotent:
         await store.initialize()
 
         nodes = await store.get_knowledge_nodes()
-        assert len(nodes) == 5
+        assert len(nodes) == 10
