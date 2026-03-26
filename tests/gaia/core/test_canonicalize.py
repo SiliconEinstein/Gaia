@@ -10,6 +10,7 @@ from gaia.libs.models import (
     KnowledgeNode,
     KnowledgeType,
     LocalCanonicalGraph,
+    ReasoningType,
     SourceRef,
 )
 from gaia.libs.models.binding import BindingDecision
@@ -218,9 +219,66 @@ async def test_global_factors_have_global_scope(embedding_model, empty_global_gr
 # ---------------------------------------------------------------------------
 
 
-async def test_second_package_cross_match(embedding_model):
-    """Canonicalize galileo, then newton. Newton's vacuum claim should match."""
-    # First: canonicalize galileo into empty global graph
+async def test_second_package_exact_content_match(embedding_model):
+    """Newton → Einstein: inverse_square_law has identical content → match_existing.
+
+    This test uses StubEmbeddingModel (hash-based), so only exact content matches.
+    The inverse_square_law content is shared via INVERSE_SQUARE_CONTENT constant.
+    Einstein's newton_gravity is premise-only → match_existing.
+    """
+    # First: canonicalize newton
+    newton, newton_params = make_newton_gravity()
+    global_graph = GlobalCanonicalGraph(knowledge_nodes=[], factor_nodes=[])
+
+    result1 = await canonicalize_package(
+        local_graph=newton,
+        local_params=newton_params,
+        global_graph=global_graph,
+        package_id="newton_principia",
+        version="1.0",
+        embedding_model=embedding_model,
+    )
+    global_graph = GlobalCanonicalGraph(
+        knowledge_nodes=global_graph.knowledge_nodes + result1.new_global_nodes,
+        factor_nodes=global_graph.factor_nodes + result1.global_factors,
+    )
+
+    # Second: canonicalize einstein
+    einstein, einstein_params = make_einstein_equivalence()
+    result2 = await canonicalize_package(
+        local_graph=einstein,
+        local_params=einstein_params,
+        global_graph=global_graph,
+        package_id="einstein_gravity",
+        version="1.0",
+        embedding_model=embedding_model,
+    )
+
+    decisions = {b.local_canonical_id: b.decision for b in result2.bindings}
+
+    # Find einstein's newton_gravity (INVERSE_SQUARE_CONTENT, premise-only)
+    from tests.gaia.fixtures.graphs import INVERSE_SQUARE_CONTENT
+
+    isq_node = next(n for n in einstein.knowledge_nodes if n.content == INVERSE_SQUARE_CONTENT)
+
+    # Premise-only + exact match → match_existing
+    assert decisions[isq_node.id] == BindingDecision.MATCH_EXISTING
+    assert len(result2.matched_global_nodes) > 0
+
+
+@pytest.mark.integration_api
+async def test_equivalent_candidate_with_real_embedding():
+    """Galileo → Newton: mass_cancellation is semantically similar to vacuum_prediction.
+
+    mass_cancellation is a CONCLUSION in Newton's graph, so even though it matches
+    Galileo's vacuum_prediction, it should create a new gcn + equivalent candidate
+    factor (§3.1 conclusion rule). Requires real embedding API.
+    """
+    from gaia.libs.embedding import DPEmbeddingModel
+
+    emb = DPEmbeddingModel()
+
+    # First: canonicalize galileo
     galileo, galileo_params = make_galileo_falling_bodies()
     global_graph = GlobalCanonicalGraph(knowledge_nodes=[], factor_nodes=[])
 
@@ -230,46 +288,41 @@ async def test_second_package_cross_match(embedding_model):
         global_graph=global_graph,
         package_id="galileo_falling_bodies",
         version="1.0",
-        embedding_model=embedding_model,
+        embedding_model=emb,
     )
-
-    # Apply result to global graph
     global_graph = GlobalCanonicalGraph(
         knowledge_nodes=global_graph.knowledge_nodes + result1.new_global_nodes,
         factor_nodes=global_graph.factor_nodes + result1.global_factors,
     )
 
-    # Second: canonicalize newton against populated global graph
+    # Second: canonicalize newton
     newton, newton_params = make_newton_gravity()
-
     result2 = await canonicalize_package(
         local_graph=newton,
         local_params=newton_params,
         global_graph=global_graph,
         package_id="newton_principia",
         version="1.0",
-        embedding_model=embedding_model,
+        embedding_model=emb,
     )
 
-    # Newton's vacuum claim has identical content to galileo's → should match
     decisions = {b.local_canonical_id: b.decision for b in result2.bindings}
 
-    # Find the newton vacuum node
-    vacuum_node = None
-    for n in newton.knowledge_nodes:
-        if n.content and "vacuum" in n.content.lower() and "all objects fall" in n.content.lower():
-            vacuum_node = n
-            break
-    assert vacuum_node is not None, "Newton's vacuum node not found"
-
-    # It should be match_existing or equivalent_candidate (depending on role)
-    decision = decisions[vacuum_node.id]
-    assert decision in (BindingDecision.MATCH_EXISTING, BindingDecision.EQUIVALENT_CANDIDATE), (
-        f"Expected vacuum node to match, got {decision}"
+    # Find newton's mass_cancellation (conclusion node, semantically ~ vacuum prediction)
+    mass_cancel = next(
+        n for n in newton.knowledge_nodes if n.content and "All objects fall" in n.content
     )
 
-    # At least one matched global node
-    assert len(result2.matched_global_nodes) > 0
+    # mass_cancellation is a conclusion → equivalent_candidate (not match_existing)
+    assert decisions[mass_cancel.id] == BindingDecision.EQUIVALENT_CANDIDATE, (
+        f"Expected equivalent_candidate for conclusion node, got {decisions[mass_cancel.id]}"
+    )
+
+    # Should have created an equivalent candidate factor in global factors
+    equiv_factors = [
+        f for f in result2.global_factors if f.reasoning_type == ReasoningType.EQUIVALENT
+    ]
+    assert len(equiv_factors) > 0, "Expected at least one equivalent candidate factor"
 
 
 # ---------------------------------------------------------------------------

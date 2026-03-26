@@ -262,9 +262,12 @@ def make_galileo_falling_bodies() -> tuple[LocalCanonicalGraph, LocalParameteriz
 def make_newton_gravity() -> tuple[LocalCanonicalGraph, LocalParameterization]:
     """Newton's derivation of universal gravitation.
 
-    6 knowledge nodes (all claims), 3 factors.  ``galileo_vacuum`` uses the
-    exact same content string as Galileo's ``vacuum_prediction`` for
-    cross-package matching.
+    5 knowledge nodes (all claims), 3 factors.  ``mass_cancellation`` is
+    Newton's independent derivation of the same physical truth as Galileo's
+    ``vacuum_prediction`` — semantically equivalent but worded differently.
+    Since it's a *conclusion* (of F=ma + F=mg entailment), cross-package
+    canonicalization should produce an ``equivalent_candidate`` binding
+    rather than a direct ``match_existing``.
     """
     pkg = "newton_principia"
 
@@ -281,9 +284,14 @@ def make_newton_gravity() -> tuple[LocalCanonicalGraph, LocalParameterization]:
         ),
         source_refs=_src(pkg),
     )
+    # Semantically equivalent to Galileo's vacuum_prediction but independently
+    # derived — Newton's version expressed as a Newtonian derivation result.
     mass_cancellation = KnowledgeNode(
         type=KnowledgeType.CLAIM,
-        content=("From F = ma and F = mg: a = g, acceleration in free fall is independent of mass"),
+        content=(
+            "All objects fall at the same rate in vacuum,"
+            " independent of their mass"
+        ),
         source_refs=_src(pkg),
     )
     kepler_third_law = KnowledgeNode(
@@ -296,11 +304,6 @@ def make_newton_gravity() -> tuple[LocalCanonicalGraph, LocalParameterization]:
         content=INVERSE_SQUARE_CONTENT,
         source_refs=_src(pkg),
     )
-    galileo_vacuum = KnowledgeNode(
-        type=KnowledgeType.CLAIM,
-        content=VACUUM_PREDICTION_CONTENT,
-        source_refs=_src(pkg),
-    )
 
     nodes = [
         newton_second_law,
@@ -308,7 +311,6 @@ def make_newton_gravity() -> tuple[LocalCanonicalGraph, LocalParameterization]:
         mass_cancellation,
         kepler_third_law,
         inverse_square_law,
-        galileo_vacuum,
     ]
 
     src = _factor_src(pkg)
@@ -354,7 +356,6 @@ def make_newton_gravity() -> tuple[LocalCanonicalGraph, LocalParameterization]:
         mass_cancellation.id: 0.95,
         kepler_third_law.id: 0.9,
         inverse_square_law.id: 0.9,
-        galileo_vacuum.id: 0.85,
     }
     factor_params = {
         f_cancel.factor_id: 0.95,

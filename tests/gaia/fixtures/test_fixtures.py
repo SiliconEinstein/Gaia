@@ -51,8 +51,8 @@ class TestNewtonGravity:
     def test_node_counts(self) -> None:
         g, _ = make_newton_gravity()
         claims = [n for n in g.knowledge_nodes if n.type == KnowledgeType.CLAIM]
-        assert len(g.knowledge_nodes) == 6
-        assert len(claims) == 6
+        assert len(g.knowledge_nodes) == 5
+        assert len(claims) == 5
 
     def test_factor_count(self) -> None:
         g, _ = make_newton_gravity()
@@ -98,21 +98,25 @@ class TestMinimalClaimPair:
 
 
 class TestCrossPackageMatch:
-    def test_galileo_vacuum_matches_newton_galileo_vacuum(self) -> None:
-        """Identical content produces the same lcn_ ID across packages."""
+    def test_newton_mass_cancellation_different_id_from_galileo_vacuum(self) -> None:
+        """Newton's mass_cancellation and Galileo's vacuum_prediction are
+        semantically equivalent but worded differently → different lcn_ IDs.
+        This is the equivalent_candidate scenario for canonicalization."""
         galileo, _ = make_galileo_falling_bodies()
         newton, _ = make_newton_gravity()
 
         galileo_vacuum = next(
             n for n in galileo.knowledge_nodes if n.content == VACUUM_PREDICTION_CONTENT
         )
-        newton_galileo_vacuum = next(
-            n for n in newton.knowledge_nodes if n.content == VACUUM_PREDICTION_CONTENT
+        newton_mass_cancel = next(
+            n for n in newton.knowledge_nodes if "All objects fall" in (n.content or "")
         )
 
-        assert galileo_vacuum.id == newton_galileo_vacuum.id
-        assert galileo_vacuum.id is not None
+        # Different wording → different content-addressed IDs
+        assert galileo_vacuum.id != newton_mass_cancel.id
+        # But both are claims about the same physical truth
         assert galileo_vacuum.id.startswith("lcn_")
+        assert newton_mass_cancel.id.startswith("lcn_")
 
     def test_newton_inverse_square_matches_einstein_newton_gravity(self) -> None:
         """Identical inverse-square content matches across newton and einstein."""
