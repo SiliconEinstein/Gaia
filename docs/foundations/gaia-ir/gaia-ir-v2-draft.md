@@ -256,7 +256,7 @@ FormalExpr:
     operators:       list[Operator]  # 只包含确定性 Operator
 ```
 
-FormalExpr 中的中间 Knowledge 不需要显式列出——从 operators 的 variables 推导：`{所有 Knowledge ID} - {premises} - {conclusion}`。
+FormalExpr 只引用 Knowledge ID，不创建 Knowledge。展开操作需要的中间 Knowledge（如 abduction 的 prediction、deduction 的 conjunction 结果）由执行展开的 compiler/reviewer/agent 显式创建，作为独立的 Knowledge 节点存在于图中。
 
 **各层字段使用：**
 
@@ -329,7 +329,7 @@ P(conclusion=true | any premise=false) = ε    （Cromwell leak）
 
 用于有已知确定性微观结构的命名策略。`formal_expr` 只包含 Operator（确定性），不包含不确定的 ↝。
 
-**关键约束：FormalExpr 内部没有概率参数——不确定性转移到中间 Knowledge 的先验 π 上。**
+**关键约束：FormalExpr 只包含确定性 Operator，不包含概率参数。展开时的不确定性通过中间 Knowledge 的先验 π 表达（在 parameterization 层赋值）。**
 
 ### 3.6 命名策略的组装方式
 
@@ -600,11 +600,12 @@ Global 层是**结构索引**，local 层是**内容仓库**。
 - **CompositeStrategy**：local 层（作者在包内构造层次化论证）和 global 层（reviewer/agent 分解）均可。
 - **FormalStrategy**：local 层（compiler 识别 type 后自动生成 FormalExpr）和 global 层（reviewer/agent 分类后生成）均可。
 
-**中间 Knowledge 的归属：**
+**中间 Knowledge 的创建：**
 
-- FormalExpr 展开时可能创建中间 Knowledge（FormalExpr 中引用但不在 premises/conclusion 中的 Knowledge ID）。
-- Local 层的中间 Knowledge 获得 `lcn_` ID，归属于当前包。
-- Global 层的中间 Knowledge 获得 `gcn_` ID，由 LKM 直接创建，content 存在 global Knowledge 上（§4.6 的例外情况）。
+展开操作可能需要创建中间 Knowledge（如 deduction 的 conjunction 结果 M、abduction 的 prediction O）。这些 Knowledge 由执行展开的 compiler/reviewer/agent **显式创建**，不由 FormalExpr 自动产生。
+
+- Local 层：中间 Knowledge 获得 `lcn_` ID，归属于当前包。
+- Global 层：中间 Knowledge 获得 `gcn_` ID，content 直接存在 global Knowledge 上（§4.6 的例外情况）。
 
 **FormalExpr 的生成方式：**
 
