@@ -1,309 +1,219 @@
 # Gaia IR 概述
 
-> **Status:** Target design — 基于 [06-factor-graphs.md](../theory/06-factor-graphs.md) 和 [04-reasoning-strategies.md](../theory/04-reasoning-strategies.md) 设计
+> **Status:** Target design — 以 `theory/01`-`theory/05` 为语义边界
 >
 > **⚠️ Protected Contract Layer** — 本目录定义 CLI↔LKM 结构契约。变更需要独立 PR 并经负责人审查批准。详见 [documentation-policy.md](../../documentation-policy.md#12-变更控制)。
 
 ## 目的
 
-Gaia IR 是 Gaia 推理超图的完备数据表示。读完本文档，你应当知道一个完整的 Gaia 知识体系由哪几部分信息构成。
+Gaia IR 是 Gaia 在 **theory Layer 2** 上的命题网络表示。它回答的是：
 
-Gaia 的数据由三个独立对象组成：
+- 图里有哪些对象？
+- 哪些对象是可判真的 claim？
+- 哪些关系是严格逻辑关系？
+- 哪些推理步骤仍然是尚未完全形式化的 coarse strategy / weakpoint？
 
+Gaia IR **不**回答：
+
+- 如何编译成因子图
+- 如何给某条边挑选 noisy-AND / CPT 参数模型
+- 如何运行 BP 或其他推理算法
+
+这些属于 downstream 计算层。
+
+## 一、Gaia IR 的三个对象
+
+Gaia IR 由三种对象组成：
+
+```text
+Knowledge   +   Operator   +   Strategy
+节点            严格关系        粗推理声明
 ```
-Gaia IR（结构）    ×    Parameterization（参数）    →    BeliefState（信念）
-什么连接什么               每个 Knowledge/Strategy 多可信     BP 计算的后验信念
-编译时确定                  review 产出                     BP 产出
-```
 
-三者严格分离。Gaia IR 有 local 和 global 两层。Parameterization 和 BeliefState 只作用在 GlobalCanonicalGraph 上。
+| 对象 | 作用 | theory 对齐点 |
+|------|------|---------------|
+| **Knowledge** | 表示命题、背景或问题 | `04-reasoning-strategies.md` 的知识类型 |
+| **Operator** | 表示 claim 之间的严格关系 | `03-propositional-operators.md` 的严格算子 |
+| **Strategy** | 表示尚未充分展开的推理步骤 | `03` 的 ↝ 与 `04` 的命名推理策略 |
 
-## 一、Gaia IR — 结构
+### Knowledge
 
-Gaia IR 编码**什么连接什么**——推理超图的拓扑结构。它不包含任何概率值。
+Knowledge 有三种类型：
 
-Gaia IR 由三种实体构成：**Knowledge**（命题）、**Strategy**（推理声明）、**Operator**（结构约束）。Strategy 有三种形态：基础 Strategy（↝ 叶子）、CompositeStrategy（含子策略，可递归嵌套）和 FormalStrategy（含确定性展开 FormalExpr）。
+| type | 是否真值对象 | 说明 |
+|------|-------------|------|
+| **claim** | 是 | 科学断言，唯一会在 downstream 获得 prior / belief |
+| **setting** | 否 | 背景设定、适用语境 |
+| **question** | 否 | 待研究问题 |
 
-### 整体结构
+`template` 不再是 Gaia IR 一等类型。全称命题直接作为 `claim(parameters != [])` 表达。
 
-**Local 层示例**（包内，存储完整内容）：
+### Operator
+
+Operator 是 claim 之间的**确定性逻辑约束**。当前核心类型包括：
+
+- `entailment`
+- `equivalence`
+- `contradiction`
+- `negation`
+- `conjunction`
+- `disjunction`
+
+这些对象定义命题网络的严格结构，不携带自由概率参数。
+
+### Strategy
+
+Strategy 是**粗推理声明**。它说明某些 claim 通过某种 reasoning pattern 支撑另一个 claim，但尚未完全还原成显式 claim + strict operator 子网络。
+
+`Strategy.type` 是语义分类，不是运行时参数模型。典型类型包括：
+
+- `soft_implication`
+- `deduction`
+- `abduction`
+- `induction`
+- `analogy`
+- `extrapolation`
+- `reductio`
+- `elimination`
+- `mathematical_induction`
+- `case_analysis`
+
+## 二、粗命题网络与细命题网络
+
+Gaia IR 允许图停留在不同形式化层级，但**同一条推理步骤在同一张活跃图里应只选择一个分辨率表达**。
+
+### 粗命题网络
+
+当某条推理还没有被完全分析时，用 Strategy 诚实记录 weakpoint：
 
 ```json
 {
   "scope": "local",
-  "ir_hash": "sha256:...",
   "knowledges": [
-    {
-      "id": "lcn_a3f2...",
-      "type": "claim",
-      "content": "该样本在 90 K 以下表现出超导性"
-    },
-    {
-      "id": "lcn_b7e1...",
-      "type": "claim",
-      "content": "YBa₂Cu₃O₇ 的超导转变温度为 92 ± 1 K"
-    },
-    {
-      "id": "lcn_c9a0...",
-      "type": "setting",
-      "content": "高温超导研究的当前进展"
-    },
-    {
-      "_comment": "全称 claim（原 template）— 通用定律，含量化变量，参与 BP",
-      "id": "lcn_e4b7...",
-      "type": "claim",
-      "content": "∀{x}. superconductor({x}) → zero_resistance({x})",
-      "parameters": [{"name": "x", "type": "material"}]
-    },
-    {
-      "_comment": "绑定 setting — 实例化时提供具体参数值",
-      "id": "lcn_f5c8...",
-      "type": "setting",
-      "content": "x = YBa₂Cu₃O₇（YBCO）"
-    },
-    {
-      "_comment": "实例化后的封闭 claim",
-      "id": "lcn_g6d9...",
-      "type": "claim",
-      "content": "superconductor(YBCO) → zero_resistance(YBCO)"
-    }
+    {"id": "lcn_obs1", "type": "claim", "content": "Obs1"},
+    {"id": "lcn_obs2", "type": "claim", "content": "Obs2"},
+    {"id": "lcn_law", "type": "claim", "content": "Law"}
   ],
   "strategies": [
     {
-      "strategy_id": "lcs_d2c8...",
-      "type": "infer",
-      "premises": ["lcn_a3f2..."],
-      "conclusion": "lcn_b7e1...",
-      "background": ["lcn_c9a0..."],
-      "steps": [{"reasoning": "基于超导样品的电阻率骤降..."}]
-    },
-    {
-      "_comment": "全称 claim 的实例化 — deduction, p₁=1.0",
-      "strategy_id": "lcs_h7ea...",
-      "type": "deduction",
-      "premises": ["lcn_e4b7..."],
-      "conclusion": "lcn_g6d9...",
-      "background": ["lcn_f5c8..."]
+      "strategy_id": "lcs_1",
+      "type": "induction",
+      "premises": ["lcn_obs1", "lcn_obs2"],
+      "conclusion": "lcn_law"
     }
   ],
   "operators": []
 }
 ```
 
-**Global 层示例**（跨包，展示三种 Strategy 形态）：
+### 细命题网络
+
+当同一条推理被进一步形式化时，应把中间命题写成显式 claim，再用 Operator 连接：
 
 ```json
 {
-  "scope": "global",
+  "scope": "local",
   "knowledges": [
-    {"id": "gcn_a1...", "type": "claim"},
-    {"id": "gcn_b2...", "type": "claim"},
-    {"id": "gcn_d4...", "type": "claim"},
-    {"id": "gcn_m1...", "type": "claim", "content": "gcn_a1 ∧ gcn_b2"}
+    {"id": "lcn_law", "type": "claim", "content": "Law"},
+    {"id": "lcn_inst1", "type": "claim", "content": "Instance1"},
+    {"id": "lcn_obs1", "type": "claim", "content": "Obs1"},
+    {"id": "lcn_inst2", "type": "claim", "content": "Instance2"},
+    {"id": "lcn_obs2", "type": "claim", "content": "Obs2"}
   ],
-  "strategies": [
-    {
-      "_comment": "Strategy（叶子 ↝）",
-      "strategy_id": "gcs_s1...",
-      "type": "infer",
-      "premises": ["gcn_a1..."],
-      "conclusion": "gcn_b2..."
-    },
-    {
-      "_comment": "CompositeStrategy（含子策略）",
-      "strategy_id": "gcs_s2...",
-      "type": "infer",
-      "premises": ["gcn_a1...", "gcn_b2..."],
-      "conclusion": "gcn_d4...",
-      "sub_strategies": ["gcs_s1...", "gcs_s3..."]
-    },
-    {
-      "_comment": "FormalStrategy（确定性展开）",
-      "strategy_id": "gcs_s3...",
-      "type": "deduction",
-      "premises": ["gcn_a1...", "gcn_b2..."],
-      "conclusion": "gcn_d4...",
-      "formal_expr": {
-        "operators": [
-          {"operator_id": "gco_1...", "operator": "conjunction",
-           "variables": ["gcn_a1...", "gcn_b2...", "gcn_m1..."], "conclusion": "gcn_m1..."},
-          {"operator_id": "gco_2...", "operator": "implication",
-           "variables": ["gcn_m1...", "gcn_d4..."], "conclusion": "gcn_d4..."}
-        ]
-      }
-    }
-  ],
+  "strategies": [],
   "operators": [
     {
-      "_comment": "standalone Operator（规范化产生的等价候选，位置即来源——顶层 = 独立结构关系）",
-      "operator_id": "gco_e1...",
+      "operator_id": "lco_1",
+      "operator": "entailment",
+      "variables": ["lcn_law", "lcn_inst1"],
+      "conclusion": "lcn_inst1"
+    },
+    {
+      "operator_id": "lco_2",
       "operator": "equivalence",
-      "variables": ["gcn_a1...", "gcn_x9..."],
+      "variables": ["lcn_inst1", "lcn_obs1"],
+      "conclusion": null
+    },
+    {
+      "operator_id": "lco_3",
+      "operator": "entailment",
+      "variables": ["lcn_law", "lcn_inst2"],
+      "conclusion": "lcn_inst2"
+    },
+    {
+      "operator_id": "lco_4",
+      "operator": "equivalence",
+      "variables": ["lcn_inst2", "lcn_obs2"],
       "conclusion": null
     }
   ]
 }
 ```
 
-Global 层 Knowledge 通常不存储 content（通过 `representative_lcn` 引用 local 层）。LKM 服务器直接创建的 Knowledge（包括 FormalExpr 中间 Knowledge 如 `gcn_m1`）无 local 来源，content 直接存在 global 层。
+这里的关键不是“给 BP 一个可折叠/可展开的 AST”，而是：**细命题网络中的每个承重对象都必须是显式 claim。**
 
-### Knowledge（命题）
+如果某条路径已经被细化成显式子网络，就不应再把对应 coarse strategy 作为另一条独立证据同时激活，否则会重复计数。细化是 graph rewrite / graph replacement，不是 IR 内置的 dual-resolution runtime。
 
-表示命题。四种类型：
+## 三、显式 claim 规则
 
-| type | 说明 | 参与 BP | 可作为 |
-|------|------|---------|--------|
-| **claim** | 科学断言（封闭或全称） | 是（唯一 BP 承载者） | premise, background, conclusion, refs |
-| **setting** | 背景信息 | 否 | background, refs |
-| **question** | 待研究方向 | 否 | background, refs |
+Gaia IR 不允许隐式中间命题：
 
-详细 schema 见 [gaia-ir.md](gaia-ir.md) §1。
+- 任何被 `Operator` 或 `Strategy` 引用的 claim，都必须出现在顶层 `knowledges`
+- prediction、instance、bridge claim、continuity claim 等必须写成 self-contained claim
+- 不能依赖“服务器展开 strategy 时临时创建一个看不见的 claim”
 
-### Strategy（推理声明）
+这点直接对齐 [05-formalization-methodology.md](../theory/05-formalization-methodology.md)。
 
-表示推理算子，连接 Knowledge。Strategy 有三种形态（类层级）：
+## 四、Background 的边界
 
-| 形态 | 说明 | 独有字段 |
-|------|------|---------|
-| **Strategy**（基类，可实例化） | 叶子推理，编译为 ↝ | — |
-| **CompositeStrategy**(Strategy) | 含子策略，可递归嵌套 | `sub_strategies: list[str]` |
-| **FormalStrategy**(Strategy) | 含确定性 Operator 展开 | `formal_expr: FormalExpr` |
+`background` 只承载 `setting` / `question`，不承载 claim。
 
-所有形态折叠时均编译为 ↝（概率参数来自 [parameterization](parameterization.md) 层）。展开时进入内部结构（子策略或确定性 Operator）。这支持**多分辨率 BP**——同一图在不同粒度做推理。
+原因很简单：只要一个对象有真值、可被支持或反驳、会影响结论是否成立，它就应该进入 proposition network 成为显式 claim，而不是被藏进 `background`。
 
-统一 `type` 字段（与形态正交）：
+例如全称命题实例化中的变量绑定，应该写进结构化 `metadata.binding`，同时把实例化结果写成显式封闭 claim；而不是把 `"x = YBCO"` 作为一个假的图节点去承担推理语义。
 
-| type | 参数化模型 | 经历 lifecycle | 形态 |
-|------|-----------|---------------|------|
-| **None** | 通用 CPT: 2^K（默认 MaxEnt 0.5） | 是 | Strategy 或 CompositeStrategy |
-| **infer** | noisy-AND: [q]（单参数） | 是 | Strategy 或 CompositeStrategy |
-| **soft_implication** | [p₁, p₂] | 是 | Strategy 或 CompositeStrategy |
-| **deduction** | — | 是 | FormalStrategy |
-| **abduction** | — | 是 | FormalStrategy |
-| **induction** | — | 是 | FormalStrategy |
-| **analogy** | — | 是 | FormalStrategy |
-| **extrapolation** | — | 是 | FormalStrategy |
-| **reductio** | — | 是 | FormalStrategy |
-| **elimination** | — | 是 | FormalStrategy |
-| **mathematical_induction** | — | 是 | FormalStrategy |
-| **case_analysis** | — | 是 | FormalStrategy |
-| **independent_evidence** | [q] | 是 | Strategy（conclusion=None） |
-| **contradiction** | [q] | 是 | Strategy（conclusion=None） |
-| **toolcall** | 另行定义 | 否 | Strategy |
-| **proof** | 另行定义 | 否 | Strategy |
+## 五、Canonicalization 原则
 
-详细 schema 见 [gaia-ir.md](gaia-ir.md) §2。
+规范化按**命题身份**进行，而不是按“它在 local 图里是 premise 还是 conclusion”进行。
 
-### Operator（结构约束）
+三种情况必须分开：
 
-确定性逻辑关系（equivalence, contradiction, complement, implication, disjunction, conjunction）。对应 theory Layer 3 的势函数，所有算子均确定性（ψ ∈ {0, 1}，无自由参数）。Schema 见 [gaia-ir.md](gaia-ir.md) §3。
+1. local 与已有 global 是**同一命题**：直接 CanonicalBinding
+2. 两者不是同一命题，但 reviewer 认为它们**等价**：保留为两个 global claim，再加 `equivalence`
+3. 没有匹配：创建新 global claim
 
-### FormalExpr（data class，非顶层实体）
+因此，`equivalence` 是命题层关系，不是为了解决“结论节点不能 merge”而引入的技术补丁。
 
-FormalStrategy 的确定性展开结构——由 Operator 列表构成。中间 Knowledge 从 operators 推导（不显式列出）。不是独立实体，而是 FormalStrategy 的嵌入字段。9 种命名策略自带 FormalExpr 模板，确定性策略可自动生成，非确定性策略需 reviewer 手动创建。Schema 见 [gaia-ir.md](gaia-ir.md) §4。
+## 六、Local / Global 两层
 
-### 两层身份
+Gaia IR 仍然有 local / global 两层：
 
-两个 ID 命名空间，schema 有差异（global 层不存储 content 和 steps）：
+| 层 | 范围 | 作用 |
+|----|------|------|
+| **LocalCanonicalGraph** | 单个包内 | 存储正文 content、local strategy steps、作者局部结构 |
+| **GlobalCanonicalGraph** | 跨包 | 统一命题身份，承载全局 proposition network |
 
-| 层 | 范围 | ID 前缀 | 内容 |
-|----|------|---------|------|
-| **LocalCanonicalGraph** | 单个包 | `lcn_`, `lcs_`, `lco_` | 存储完整 content + Strategy steps（内容仓库） |
-| **GlobalCanonicalGraph** | 跨包 | `gcn_`, `gcs_`, `gco_` | 引用 representative lcn，Strategy 无 steps（结构索引）+ Operator |
+Global 层通常通过 `representative_lcn` 引用 local content，但如果 review / LKM 在 global 层新增 claim，它也必须作为**显式 Knowledge** 写入图中，而不是作为隐式展开副产物存在。
 
-规范化（lcn → gcn 映射）见 [gaia-ir.md](gaia-ir.md) §5。
+## 七、下游对象
 
-### 图哈希
+Gaia IR 之外还有两个 downstream 对象：
 
-LocalCanonicalGraph 有确定性哈希 `ir_hash = SHA-256(canonical JSON)`，用于编译完整性校验——审查引擎重新编译并验证匹配。GlobalCanonicalGraph 是增量变化的，不使用整体哈希。
-
-## 二、Parameterization — 参数
-
-Parameterization 是 GlobalCanonicalGraph 上的概率参数层。它由**原子记录**构成，不同 review 来源（不同模型、不同策略）产出不同的记录。
-
-### 存储层
-
-```json
-// PriorRecord（每条一个 Knowledge）
-{"gcn_id": "gcn_8b1c...", "value": 0.7, "source_id": "src_001", "created_at": "..."}
-{"gcn_id": "gcn_8b1c...", "value": 0.8, "source_id": "src_002", "created_at": "..."}
-
-// StrategyParamRecord（每条一个 Strategy）
-{"strategy_id": "gcs_d2c8...", "conditional_probabilities": [0.85], "source_id": "src_001", "created_at": "..."}
-
-// ParameterizationSource（记录产出上下文）
-{"source_id": "src_001", "model": "gpt-5-mini", "policy": "conservative", "created_at": "..."}
-{"source_id": "src_002", "model": "claude-opus", "policy": null, "created_at": "..."}
+```text
+Gaia IR          ->   Parameterization          ->   BeliefState
+命题网络结构          参数层 / 输入记录               推理输出
 ```
 
-### BP 运行时组装
+它们的边界应该这样理解：
 
-BP 运行前按 resolution policy 从原子记录中选择每个 Knowledge/Strategy 的值，**现算不持久化**：
+- **Gaia IR**：theory 层的结构 contract
+- **Parameterization**：给 claim 和 coarse strategy 附加参数的下游层
+- **BeliefState**：任一推理引擎产出的后验结果
 
-| policy | 说明 |
-|--------|------|
-| `latest` | 每个 Knowledge/Strategy 取最新记录 |
-| `source:<source_id>` | 指定使用某个 source 的记录 |
+Parameterization 和 BeliefState 可以只作用于 global graph，但它们都**不是** Gaia IR 语义的一部分。Gaia IR 不应反向依赖某个具体推理引擎的实现选择。
 
-关键规则：
+## 八、进一步阅读
 
-- **claim_priors**：只有 `type=claim` 的 Knowledge 有记录。
-- **strategy_params**：所有推理类 Strategy 都有 conditional_probabilities（参数数量由 type 决定：None=2^K, infer=[q], soft_implication=[p₁,p₂]）。
-- **Cromwell's rule**：所有概率钳制到 `[ε, 1-ε]`，ε = 1e-3。
-- 组装时使用 `prior_cutoff` 时间戳过滤记录，确保可重现。
-- 组装结果必须覆盖所有 claim Knowledge 和所有 Strategy，否则 BP 拒绝运行。
-
-详细设计见 [parameterization.md](parameterization.md)。
-
-## 三、BeliefState — 信念
-
-BeliefState 是 BP 在 GlobalCanonicalGraph 上的纯输出——后验信念值。它记录 resolution policy 使结果可重现。
-
-### 整体结构
-
-```json
-{
-  "bp_run_id": "uuid-...",
-  "created_at": "2026-03-24T12:00:00Z",
-  "resolution_policy": "latest",
-  "prior_cutoff": "2026-03-24T12:00:00Z",
-  "beliefs": {
-    "gcn_8b1c...": 0.82,
-    "gcn_9d2a...": 0.71
-  },
-  "converged": true,
-  "iterations": 23,
-  "max_residual": 4.2e-7
-}
-```
-
-关键规则：
-
-- **beliefs**：只有 `type=claim` 的 Knowledge 有 belief。
-- **可重现**：`resolution_policy` + `prior_cutoff` 完整定义参数组装条件，可重跑 BP。
-- **可多次运行**：同一 resolution policy 可以有多次 BP 运行。
-
-详细设计见 [belief-state.md](belief-state.md)。
-
-## 完备性
-
-一个完整的 Gaia 知识体系需要以下信息：
-
-| 对象 | 内容 | 变化频率 |
-|------|------|---------|
-| **LocalCanonicalGraph** | 包内 Knowledge + Strategy（含 steps）+ 完整文本 | 每次 build 更新 |
-| **GlobalCanonicalGraph** | 跨包 Knowledge（引用 lcn）+ 全局 Strategy（无 steps，FormalStrategy 含 FormalExpr）+ Operator | 每次 ingest/curation 更新 |
-| **CanonicalBinding** | lcn → gcn 映射记录 | 每次 ingest 更新 |
-| **PriorRecord** | 全局 claim 的 prior（每条记录携带 source） | 每次 review 追加 |
-| **StrategyParamRecord** | 全局 Strategy 的 conditional_probabilities（每条记录携带 source） | 每次 review 追加 |
-| **ParameterizationSource** | review 来源信息（模型、策略、配置） | 每次 review 创建 |
-| **BeliefState** | 全局 claim 的后验信念 + resolution policy | 每次 global BP 创建 |
-
-## 源代码
-
-- `libs/graph_ir/models.py` -- `LocalCanonicalGraph`, `Knowledge`, `Strategy`
-- `libs/storage/models.py` -- global `Knowledge`, `CanonicalBinding`, `BeliefSnapshot`
-- `libs/global_graph/canonicalize.py` -- `canonicalize_package()`
-- `libs/global_graph/similarity.py` -- `find_best_match()`
-- *Future:* `libs/graph_ir/operator.py` -- `Operator`
-- *Future:* `libs/graph_ir/strategy.py` -- `CompositeStrategy`, `FormalStrategy`, `FormalExpr`
+- 详细 schema： [gaia-ir-v2-draft.md](gaia-ir-v2-draft.md)
+- theory 边界： [03-propositional-operators.md](../theory/03-propositional-operators.md), [04-reasoning-strategies.md](../theory/04-reasoning-strategies.md), [05-formalization-methodology.md](../theory/05-formalization-methodology.md)
+- downstream docs： [parameterization.md](parameterization.md), [belief-state.md](belief-state.md)
