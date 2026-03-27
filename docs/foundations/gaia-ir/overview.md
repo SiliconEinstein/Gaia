@@ -126,10 +126,9 @@ Global 层 Knowledge 通常不存储 content（通过 `representative_lcn` 引�
 
 | type | 说明 | 参与 BP | 可作为 |
 |------|------|---------|--------|
-| **claim** | 封闭的科学断言 | 是（唯一 BP 承载者） | premise, background, conclusion, refs |
+| **claim** | 科学断言（封闭或全称） | 是（唯一 BP 承载者） | premise, background, conclusion, refs |
 | **setting** | 背景信息 | 否 | background, refs |
 | **question** | 待研究方向 | 否 | background, refs |
-| **template** | 含自由变量的命题模式 | 否 | background, refs |
 
 详细 schema 见 [gaia-ir.md](gaia-ir.md) §1。
 
