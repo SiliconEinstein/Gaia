@@ -21,7 +21,7 @@ PriorRecord:
 
 StrategyParamRecord:
     strategy_id:            str              # 全局 Strategy ID (gcs_ 前缀)
-    conditional_probabilities: list[float]   # noisy-AND: [q₁,...,qₖ]; soft_implication: [p₁, p₂]
+    conditional_probabilities: list[float]   # None(通用): 2^K; infer(noisy-AND): [q]; soft_implication: [p₁, p₂]
     source_id:              str              # 哪个 ParameterizationSource 产出的
     created_at:             str              # ISO 8601
 
@@ -77,7 +77,9 @@ BP 引擎在运行前验证组装结果的完整性：
 
 ## Strategy probability 来源
 
-- `infer`：conditional_probabilities 由 review 赋值，反映推理的可信度
+- `None`（通用）：完整 CPT（2^K 参数），默认 MaxEnt 0.5，由 review 赋值
+- `infer`（noisy-AND）：单参数 [q]，由 review 赋值，反映推理本身的可信度
+- `soft_implication`：[p₁, p₂]，由 review 赋值
 - `toolcall` / `proof`：可根据计算的可复现性打分（具体策略后续定义）
 - Canonicalization 确认的 equivalence Operator 是独立结构关系（顶层 operators），不需要 StrategyParamRecord
 
