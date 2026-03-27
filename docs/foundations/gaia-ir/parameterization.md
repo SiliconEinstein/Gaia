@@ -36,8 +36,8 @@ ParameterizationSource:
 **关键规则：**
 
 - **PriorRecord 只对 Claim**：只有 `type=claim` 的 Knowledge 有记录。Setting/Question/Template 不参与 BP。
-- **StrategyParamRecord 覆盖 type=infer 和 type=soft_implication 的 Strategy**：只有这两种 type 需要显式的条件概率参数记录。
-- **9 种命名策略（deduction, abduction, induction, analogy, extrapolation, reductio, elimination, mathematical_induction, case_analysis）不需要 StrategyParamRecord**——它们有 FormalExpr，参数化通过中间 Knowledge 的 PriorRecord 实现。
+- **所有形态的 Strategy 都有 conditional_probabilities**（折叠模式下的 ↝ 参数），因此所有推理类 Strategy 都需要 StrategyParamRecord。
+- **FormalStrategy（9 种命名策略）展开时**，参数化通过中间 Knowledge 的 PriorRecord 实现；折叠时仍使用 conditional_probabilities。
 - **Operator 是纯确定性的（ψ ∈ {0, 1}），不需要参数记录。**
 - **一个 Knowledge/Strategy 可以有多条记录**（来自不同 source），BP 运行时选择用哪条。
 - **Cromwell's rule**：所有值钳制到 `[ε, 1-ε]`，ε = 1e-3。
@@ -53,20 +53,21 @@ BP 运行前，按 resolution policy 从原子记录中为每个 Knowledge/Strat
 
 组装过程是**现算的**，不持久化。组装时使用 `prior_cutoff` 时间戳过滤记录——只取该时间点之前的记录，确保结果可重现（见 [belief-state.md](belief-state.md)）。
 
-### BP 编译路径
+### 多分辨率 BP 编译路径
 
-BP 引擎在组装参数时根据 Strategy 是否有 FormalExpr 选择不同路径：
+BP 编译接受 `expand_set`（需要展开的 Strategy ID 集合），根据 Strategy 形态和展开决策选择路径：
 
-- **有 FormalExpr → BP 在 Operator 层运行**（参数在中间 Knowledge 的 PriorRecord）
-- **无 FormalExpr → 使用 StrategyParamRecord.conditional_probabilities**
+- **Strategy 未在 expand_set 中 → 折叠**：使用 StrategyParamRecord.conditional_probabilities 编译为 ↝
+- **CompositeStrategy 在 expand_set 中 → 展开**：递归编译 sub_strategies
+- **FormalStrategy 在 expand_set 中 → 展开**：BP 在 Operator 层运行（参数在中间 Knowledge 的 PriorRecord）
 
 ### 完整性检查
 
 BP 引擎在运行前验证组装结果的完整性：
 
 - GlobalCanonicalGraph 中每个 `type=claim` 的 Knowledge 都必须有对应的 PriorRecord
-- 每个 `type=infer` 或 `type=soft_implication` 的 Strategy 都必须有 StrategyParamRecord
-- FormalExpr 展开的中间 Knowledge（如果是 claim）也必须有 PriorRecord
+- 所有推理类 Strategy 都必须有 StrategyParamRecord（折叠参数）
+- FormalStrategy 的 FormalExpr 展开的中间 Knowledge（如果是 claim）也必须有 PriorRecord（仅在展开模式下需要）
 
 否则拒绝运行。
 
@@ -78,7 +79,7 @@ BP 引擎在运行前验证组装结果的完整性：
 
 - `infer`：conditional_probabilities 由 review 赋值，反映推理的可信度
 - `toolcall` / `proof`：可根据计算的可复现性打分（具体策略后续定义）
-- Canonicalization 产生的 equivalent candidate 现在是 `Operator(source="standalone")`，不需要 StrategyParamRecord
+- Canonicalization 确认的 equivalence Operator 是独立结构关系（顶层 operators），不需要 StrategyParamRecord
 
 ## 源代码
 

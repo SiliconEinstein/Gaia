@@ -54,4 +54,4 @@ BeliefState:
 
 - `libs/inference/bp.py` -- `BeliefPropagation.run()` 产出 beliefs
 - `libs/storage/models.py` -- `BeliefSnapshot`
-- `libs/graph_ir/models.py` -- `Strategy`（四种实体之一，BP 编译的输入）
+- `libs/graph_ir/models.py` -- `Strategy`（三种实体之一，BP 编译的输入）
