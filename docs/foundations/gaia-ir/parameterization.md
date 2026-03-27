@@ -80,6 +80,8 @@ BP 引擎在运行前验证组装结果的完整性：
 - `None`（通用）：完整 CPT（2^K 参数），默认 MaxEnt 0.5，由 review 赋值
 - `infer`（noisy-AND）：单参数 [q]，由 review 赋值，反映推理本身的可信度
 - `soft_implication`：[p₁, p₂]，由 review 赋值
+- `independent_evidence`：[q]，声明 premises 之间独立支持关系（conclusion=None），确认后编译为 Operator
+- `contradiction`：[q]，声明两个 premises 矛盾（conclusion=None），确认后编译为 Operator
 - `toolcall` / `proof`：可根据计算的可复现性打分（具体策略后续定义）
 - Canonicalization 确认的 equivalence Operator 是独立结构关系（顶层 operators），不需要 StrategyParamRecord
 

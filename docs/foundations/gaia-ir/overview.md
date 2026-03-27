@@ -161,6 +161,8 @@ Global 层 Knowledge 通常不存储 content（通过 `representative_lcn` 引�
 | **elimination** | — | 是 | FormalStrategy |
 | **mathematical_induction** | — | 是 | FormalStrategy |
 | **case_analysis** | — | 是 | FormalStrategy |
+| **independent_evidence** | [q] | 是 | Strategy（conclusion=None） |
+| **contradiction** | [q] | 是 | Strategy（conclusion=None） |
 | **toolcall** | 另行定义 | 否 | Strategy |
 | **proof** | 另行定义 | 否 | Strategy |
 
