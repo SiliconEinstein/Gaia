@@ -592,13 +592,24 @@ Global 层**通常不存储内容**：
 
 Global 层是**结构索引**，local 层是**内容仓库**。
 
-### 4.7 FormalExpr 层级规则
+### 4.7 Strategy 形态与层级规则
 
-- FormalStrategy（及其 FormalExpr）**只在 global 层产生**。Local 层的 Strategy 没有 formal_expr。
-- FormalExpr 中新创建的中间 Knowledge 由 LKM 直接写在 global 层（content 存在 global Knowledge 上）。
-- 确定性策略的 FormalExpr 可以在分类确认时**自动生成**（微观结构由 type 决定）。
-- 非确定性策略的 FormalExpr 需要 reviewer/agent **手动创建**中间 Knowledge 并赋先验。
-- CompositeStrategy 可以在 local 层或 global 层出现（作者可以在包内构造层次化论证）。
+**三种形态均可出现在 local 和 global 层：**
+
+- **基本 Strategy**：local 层（compiler 产出）和 global 层（提升后）均可。
+- **CompositeStrategy**：local 层（作者在包内构造层次化论证）和 global 层（reviewer/agent 分解）均可。
+- **FormalStrategy**：local 层（compiler 识别 type 后自动生成 FormalExpr）和 global 层（reviewer/agent 分类后生成）均可。
+
+**中间 Knowledge 的归属：**
+
+- FormalExpr 展开时可能创建中间 Knowledge（FormalExpr 中引用但不在 premises/conclusion 中的 Knowledge ID）。
+- Local 层的中间 Knowledge 获得 `lcn_` ID，归属于当前包。
+- Global 层的中间 Knowledge 获得 `gcn_` ID，由 LKM 直接创建，content 存在 global Knowledge 上（§4.6 的例外情况）。
+
+**FormalExpr 的生成方式：**
+
+- **确定性策略**（deduction, reductio, elimination, mathematical_induction, case_analysis）：FormalExpr 由 type 唯一确定，可在分类确认时**自动生成**（compiler 或 reviewer 均可触发）。
+- **非确定性策略**（abduction, induction, analogy, extrapolation）：表达为 CompositeStrategy，其 sub_strategies 中的 FormalStrategy 子部分可自动生成，但 CompositeStrategy 的整体分解结构（哪些子策略、哪些中间 Knowledge）需要 reviewer/agent 判断。中间 Knowledge 的先验概率通过 parameterization 层的 PriorRecord 赋值，不在 IR 中指定。
 
 ---
 
