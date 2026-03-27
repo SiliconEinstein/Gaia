@@ -45,14 +45,14 @@ Knowledge:
 | 字段 | Local | Global |
 |------|-------|--------|
 | `id` | `lcn_` 前缀，SHA-256 包+内容寻址 | `gcn_` 前缀，注册中心分配 |
-| `content` | 有值（唯一存储位置） | 通常为 None（FormalStrategy 的 FormalExpr 中间 Knowledge 例外） |
+| `content` | 有值（唯一存储位置） | 通常为 None（LKM 直接创建的 Knowledge 例外，包括 FormalExpr 中间 Knowledge） |
 | `provenance` | 有值（来源包） | 有值（贡献包列表） |
 | `representative_lcn` | None | 有值（引用 local Knowledge 获取内容） |
 | `local_members` | None | 有值（所有映射到此的 local Knowledge） |
 
 **身份规则**：local 层 `id = lcn_{SHA-256(package_id + type + content + sorted(parameters))[:16]}`。ID 包含 `package_id`，因此不同包中相同内容的节点有**不同的** lcn_id。跨包的语义等价由 global canonicalization 通过 embedding 相似度判定，而非 ID 相等。
 
-**内容存储**：所有知识内容存储在 local 层的 `content` 字段上。Global 层通过 `representative_lcn` 引用获取内容，不重复存储。唯一例外是 FormalStrategy 的 FormalExpr 展开时新创建的中间 Knowledge（无 local 来源，content 直接存在 global Knowledge 上）。
+**内容存储**：所有知识内容存储在 local 层的 `content` 字段上。Global 层通过 `representative_lcn` 引用获取内容，不重复存储。LKM 服务器直接创建的 global Knowledge（包括 FormalExpr 展开的中间 Knowledge）无 local 来源，content 直接存在 global 层。
 
 ### 1.2 四种知识类型
 
@@ -576,7 +576,7 @@ FormalExpr:
 ### 4.5 FormalExpr 层级规则
 
 - FormalStrategy（及其 FormalExpr）**只在 global 层产生**。Local 层的 Strategy 没有 formal_expr。
-- FormalExpr 中新创建的中间 Knowledge 直接写在 global 层（content 存在 global Knowledge 上，这是 global 层存储 content 的唯一例外）。
+- FormalExpr 中新创建的中间 Knowledge 由 LKM 直接写在 global 层（content 存在 global Knowledge 上）。
 - 确定性策略的 FormalExpr 可以在分类确认时**自动生成**（微观结构由 type 决定）。
 - 非确定性策略的 FormalExpr 需要 reviewer/agent **手动创建**中间 Knowledge 并赋先验。
 - CompositeStrategy 可以在 local 层或 global 层出现（作者可以在包内构造层次化论证）。
@@ -587,22 +587,29 @@ FormalExpr:
 
 规范化是将 local canonical 实体映射到 global canonical 实体的过程——从包内身份到跨包身份。
 
-### 5.1 映射决策：premise 与 conclusion 的区别
+### 5.1 映射决策：身份映射与等价声明
+
+规范化中存在两种本质不同的关系：
+
+- **CanonicalBinding（身份映射）**：local Knowledge 和 global Knowledge 是**同一个命题**的不同表示。纯引用关系，不提供新证据，不创建图结构，不影响 BP。
+- **Equivalence Operator（等价声明）**：两个独立的 global Knowledge 被声明为**等价**。两条独立推理链得出相同结论，这本身是新证据——创建确定性因子，BP 在两者之间传播 belief。
+
+Gaia IR 提供这种区分的结构基础。具体的匹配判定和等价确认由 review 服务和后续 agent 研究等方法实现——IR 层不规定判定策略。
 
 当新包中的 local Knowledge 与全局图中已有 Knowledge 语义匹配时，处理方式取决于**该 Knowledge 在 local 图中的角色**：
 
-**作为 premise 的 Knowledge → 直接 merge**
+**作为 premise 的 Knowledge → CanonicalBinding（身份映射，无新证据）**
 
-如果 local Knowledge 在 local 图中仅作为 premise 使用，且与已有 global Knowledge 匹配，则直接绑定到该 global Knowledge。全局图上的 prior 和 belief 保持不变，不因为新包的加入而更新。
+如果 local Knowledge 在 local 图中仅作为 premise（或 background）使用，且与已有 global Knowledge 匹配，则直接绑定到该 global Knowledge。全局图上的 prior 和 belief 保持不变，不因为新包的加入而更新。
 
-**作为 conclusion 的 Knowledge → 创建 equivalence candidate Operator**
+**作为 conclusion 的 Knowledge → Equivalence candidate（等价声明，新证据）**
 
 如果 local Knowledge 在 local 图中作为某个 Strategy 的 conclusion，且与已有 global Knowledge 匹配，**不**直接 merge 为同一个 global Knowledge。而是：
 
 1. 为 local conclusion 创建新的 global Knowledge
 2. 在新旧两个 global Knowledge 之间提议一个 equivalence Operator（候选项由 review 层管理，确认后写入 IR）
 
-理由：两个不同包独立得出的结论语义相似，不代表它们是同一个命题。它们之间的等价关系需要经过 review 确认后才能升格为 permanent。直接 merge 会跳过这一审查步骤。
+理由：两个不同包独立得出的结论语义相似，不代表它们是同一个命题。等价关系一旦确认，BP 会在两者之间传播 belief——这是新证据，不是简单的身份合并。
 
 Canonicalization 步骤同时创建 placeholder 参数记录：新 global claim Knowledge 的 PriorRecord（placeholder prior）。具体值由后续 review 步骤确定。
 
@@ -664,9 +671,9 @@ Global 层**通常不存储内容**——Knowledge 的 content 通过 `represent
 - **Global Knowledge** 通过 `representative_lcn` 引用 local canonical Knowledge 获取 content。当多个 local Knowledge 映射到同一 global Knowledge 时，选择一个作为代表，所有映射记录在 `local_members` 中。
 - **Global Strategy** 不携带 `steps`（§5.5）。推理过程的文本保留在 local 层的 Strategy 中。
 
-**例外：FormalStrategy 的 FormalExpr 创建的中间 Knowledge。** FormalExpr 展开时新创建的 Knowledge（如 prediction）没有 local 来源，其 content 直接存储在 global Knowledge 上（见 §4.5）。
+**例外：LKM 直接创建的 global Knowledge。** LKM 服务器直接创建的 Knowledge（包括 FormalExpr 展开的中间 Knowledge，见 §4.5）没有 local 来源，其 content 直接存储在 global Knowledge 上。
 
-需要查看具体内容时，通过 CanonicalBinding 回溯到 local 层。Global 层是**结构索引**，local 层是**内容仓库**——FormalExpr 中间 Knowledge 是唯一的例外。
+需要查看具体内容时，通过 CanonicalBinding 回溯到 local 层。Global 层是**结构索引**，local 层是**内容仓库**——LKM 直接创建的 Knowledge 是例外。
 
 ---
 
