@@ -137,7 +137,7 @@ metadata: {schema: universal_law, domain: "凝聚态物理"}
 
 ## 2. Operator（结构约束）
 
-Operator 表示两个或多个 Knowledge 之间的**确定性逻辑关系**。所有 Operator 都是确定性的（ψ∈{0,1}，无自由参数）——系统中唯一的连续参数在 [parameterization](parameterization.md) 层。
+Operator 表示两个或多个 Knowledge 之间的**确定性逻辑关系**（ψ∈{0,1}，无自由参数）。
 
 Operator 对应 theory Layer 3（[因子图层](../theory/06-factor-graphs.md)）的势函数，以及 [命题算子](../theory/03-propositional-operators.md) 中定义的六种逻辑关系。
 
