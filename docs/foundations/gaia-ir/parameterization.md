@@ -21,7 +21,7 @@ PriorRecord:
 
 StrategyParamRecord:
     strategy_id:            str              # 全局 Strategy ID (gcs_ 前缀)
-    conditional_probabilities: list[float]   # None(通用): 2^K; infer(noisy-AND): [q]; soft_implication: [p₁, p₂]
+    conditional_probabilities: list[float]   # infer(通用 CPT): 2^K; noisy_and: [p]; 其余命名策略按折叠模板解释
     source_id:              str              # 哪个 ParameterizationSource 产出的
     created_at:             str              # ISO 8601
 
@@ -77,11 +77,9 @@ BP 引擎在运行前验证组装结果的完整性：
 
 ## Strategy probability 来源
 
-- `None`（通用）：完整 CPT（2^K 参数），默认 MaxEnt 0.5，由 review 赋值
-- `infer`（noisy-AND）：单参数 [q]，由 review 赋值，反映推理本身的可信度
-- `soft_implication`：[p₁, p₂]，由 review 赋值
-- `independent_evidence`：[q]，声明 premises 之间独立支持关系（conclusion=None），确认后编译为 Operator
-- `contradiction`：[q]，声明两个 premises 矛盾（conclusion=None），确认后编译为 Operator
+- `infer`：完整 CPT（2^K 参数），默认 MaxEnt 0.5，由 review 赋值。旧 `soft_implication` 可视为其单前提/低维特例
+- `noisy_and`：单参数 `[p]`，由 review 赋值，反映联合必要前提上的推理可信度
+- 命名策略（`deduction` / `abduction` / `induction` / ...）：折叠模式下仍通过 `conditional_probabilities` 提供 coarse 参数；展开模式下则转为子结构和中间 claim 的 prior
 - `toolcall` / `proof`：可根据计算的可复现性打分（具体策略后续定义）
 - Canonicalization 确认的 equivalence Operator 是独立结构关系（顶层 operators），不需要 StrategyParamRecord
 

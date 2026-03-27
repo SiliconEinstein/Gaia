@@ -133,6 +133,23 @@ metadata: {schema: universal_law, domain: "凝聚态物理"}
 
 示例：未解决的科学问题、后续调查目标。
 
+### 1.3 Helper Claim
+
+Helper claim **不是新的 Knowledge 类型**。它仍然是普通的 `claim`，只是承担了中间推理、关系节点化或模板化复用的角色。
+
+两类 helper claim：
+
+- **语义型 helper claim**：如 `prediction`、`instance`、`bridge`、`continuity`。这些 claim 有独立科学语义，可被 review、引用、复用、反驳。
+- **结构型 helper claim**：由 Operator 自动产出的标准结果 claim，如 `not_both_true(A,B)`、`same_truth(A,B)`、`A∧B`。它们主要用于将结构关系节点化，使后续 Strategy/Operator 可以直接引用。
+
+编码规则：
+
+- helper claim 仍使用 `Knowledge(type=claim)`
+- 如需参数化模式，直接使用 `parameters`
+- 建议在 `metadata.helper_kind` 中标记 helper 种类
+
+标准 helper claim 列表与命名约定见 [helper-claims.md](helper-claims.md)。
+
 ---
 
 ## 2. Operator（结构约束）
@@ -150,20 +167,25 @@ Operator:
 
     operator:       str              # 算子类型（见 §2.2）
     variables:      list[str]        # 连接的 Knowledge IDs（有序）
-    conclusion:     str | None       # 有向算子的输出（无向算子为 None）
+    conclusion:     str              # canonical result claim / helper claim
 
     metadata:       dict | None      # 含 refs: list[str] 等
 ```
+
+`conclusion` 的语义是：**该 Operator 在图中的标准结果 claim**。它总是一个 `claim`。
+
+- 对 `implication` / `conjunction`，`conclusion` 延续现有用法，表示推理链中的输出 claim
+- 对 `equivalence` / `contradiction` / `complement` / `disjunction`，`conclusion` 是 compiler-generated 的 helper claim，使这些结构关系也能被后续工作引用
 
 ### 2.2 算子类型与真值表
 
 | operator | 符号 | variables | conclusion | 真值约束 | 说明 |
 |----------|------|-----------|------------|---------|------|
 | **implication** | → | [A, B] | B | A=1 时 B 必须=1 | A 成立则 B 必须成立 |
-| **equivalence** | ↔ | [A, B] | None | A=B | 真值必须一致 |
-| **contradiction** | ⊗ | [A, B] | None | ¬(A=1 ∧ B=1) | 不能同时为真 |
-| **complement** | ⊕ | [A, B] | None | A≠B | 真值必须相反（XOR） |
-| **disjunction** | ∨ | [A₁,...,Aₖ] | None | ¬(all Aᵢ=0) | 至少一个为真 |
+| **equivalence** | ↔ | [A, B] | helper claim（如 `same_truth(A,B)`） | A=B | 真值必须一致 |
+| **contradiction** | ⊗ | [A, B] | helper claim（如 `not_both_true(A,B)`） | ¬(A=1 ∧ B=1) | 不能同时为真 |
+| **complement** | ⊕ | [A, B] | helper claim（如 `opposite_truth(A,B)`） | A≠B | 真值必须相反（XOR） |
+| **disjunction** | ∨ | [A₁,...,Aₖ] | helper claim（如 `any_true(A₁,...,Aₖ)`） | ¬(all Aᵢ=0) | 至少一个为真 |
 | **conjunction** | ∧ | [A₁,...,Aₖ,M] | M | M=(A₁∧...∧Aₖ) | M 等于所有 Aᵢ 的合取 |
 
 **关键性质：** Operator 没有概率参数——它编码的是逻辑结构（"A 和 B 矛盾"），不是推理判断（"作者认为 A 蕴含 B"）。后者由 Strategy 承载。
@@ -185,11 +207,11 @@ Operator 可以出现在两个位置：
 
 1. `variables` 中的所有 ID 必须引用同 graph 中存在的 Knowledge
 2. `variables` 中的 Knowledge 类型必须是 `claim`（Operator 只连接有真值的命题）
-3. `conclusion`（如非 None）必须在 `variables` 中
-4. `equivalence`、`contradiction`、`complement`：`conclusion = None`（无向）
-5. `implication`：`conclusion` 必填（有向，`conclusion = variables[-1]`）
-6. `conjunction`：`conclusion` 必填（`conclusion = variables[-1]` = M）
-7. `disjunction`：`conclusion = None`（无向约束）
+3. `conclusion` 必须引用同 graph 中存在的 `claim`
+4. `implication`：`conclusion = variables[-1]`
+5. `conjunction`：`conclusion = variables[-1]` = M
+6. `equivalence` / `contradiction` / `complement` / `disjunction`：`conclusion` 必须是标准 helper claim，且**不**要求出现在 `variables` 中
+7. 关系型 Operator 的 `conclusion` 由编译器或 reviewer 按标准命名约定生成，不允许作者借此手写任意主观结论
 
 ---
 
@@ -256,7 +278,12 @@ FormalExpr:
     operators:       list[Operator]  # 只包含确定性 Operator
 ```
 
-FormalExpr 中的中间 Knowledge 不需要显式列出——从 operators 的 variables 推导：`{所有 Knowledge ID} - {premises} - {conclusion}`。
+FormalExpr 中涉及的中间 Knowledge 分两类：
+
+- **显式 helper claim**：凡是由 `Operator.conclusion` 暴露出来、需要被其他 Strategy/Operator 引用的 helper claim，应写入顶层 `knowledges`
+- **纯局部结构节点**：如仅服务于单个 FormalExpr 的内部辅助节点，可由 compiler 自动生成
+
+当前 v2 的推荐做法是：**只要某个中间 claim 需要跨 operator 复用、被后续步骤引用或未来可能参与概率传播，就应显式进入 `knowledges`。**
 
 **各层字段使用：**
 
@@ -286,7 +313,7 @@ FormalExpr 中的中间 Knowledge 不需要显式列出——从 operators 的 v
 | **`toolcall`** | 另行定义 | Strategy |
 | **`proof`** | 另行定义 | Strategy |
 
-> **设计决策：** `independent_evidence` 和 `contradiction` 不作为 Strategy 类型——它们是结构关系，直接用 Operator（equivalence / contradiction）表达。原 `soft_implication` 合并到 `noisy_and`（k=1 的特例）。原 `None` 合并到 `infer`。
+> **设计决策：** `independent_evidence` 和 `contradiction` 不作为 Strategy 类型——它们是结构关系，直接用 Operator（equivalence / contradiction）表达。原 `soft_implication` 归并到 `infer`（单前提/低维特例）。原 `None` 合并到 `infer`。
 
 ### 3.4 参数化语义
 
@@ -359,18 +386,18 @@ FormalStrategy(type=mathematical_induction):
 FormalStrategy(type=reductio):
   formal_expr:
     - implication([P, Q], conclusion=Q)
-    - contradiction([Q, R])
-    - complement([P, ¬P])
+    - contradiction([Q, R], conclusion=Contra_Q_R)
+    - complement([P, ¬P], conclusion=Comp_P_notP)
 ```
 
 **排除（elimination）**：`premises=[E₁, E₂, Exhaustiveness], conclusion=H₃`
 ```
 FormalStrategy(type=elimination):
   formal_expr:
-    - contradiction([H₁, E₁])
-    - contradiction([H₂, E₂])
-    - complement([H₁, ¬H₁])
-    - complement([H₂, ¬H₂])
+    - contradiction([H₁, E₁], conclusion=Contra_H₁_E₁)
+    - contradiction([H₂, E₂], conclusion=Contra_H₂_E₂)
+    - complement([H₁, ¬H₁], conclusion=Comp_H₁_notH₁)
+    - complement([H₂, ¬H₂], conclusion=Comp_H₂_notH₂)
     - conjunction([¬H₁, ¬H₂, M], conclusion=M)
     - implication([M, H₃], conclusion=H₃)
 ```
@@ -379,7 +406,7 @@ FormalStrategy(type=elimination):
 ```
 FormalStrategy(type=case_analysis):
   formal_expr:
-    - disjunction([A₁,...,Aₖ])
+    - disjunction([A₁,...,Aₖ], conclusion=Disj_A₁_..._Aₖ)
     - conjunction([A₁, P₁, M₁], conclusion=M₁), implication([M₁, C], conclusion=C)
     - conjunction([A₂, P₂, M₂], conclusion=M₂), implication([M₂, C], conclusion=C)
     - ...（每个 case 一对 conjunction + implication）
@@ -388,6 +415,8 @@ FormalStrategy(type=case_analysis):
 #### 非确定性策略 → CompositeStrategy（含 FormalStrategy 子部分）
 
 前提独立贡献或推理过程非确定性。不确定的 ↝ 部分用 Strategy 子节点表达，确定的结构用 FormalStrategy 子节点表达。
+
+以下示例中，`Eq_*` / `Contra_*` / `Comp_*` / `Disj_*` 表示由对应 Operator 自动生成的 helper claim。
 
 **溯因（abduction）**：`premises=[supporting_knowledge], conclusion=H`
 
@@ -399,7 +428,7 @@ CompositeStrategy(type=abduction, premises=[supporting_knowledge], conclusion=H)
     - Strategy(type=noisy_and, premises=[H], conclusion=O)        ← 不确定的 ↝
     - FormalStrategy(formal_expr:
         - implication([H, O], conclusion=O)
-        - equivalence([O, Obs])
+        - equivalence([O, Obs], conclusion=Eq_O_Obs)
       )                                                            ← 确定的结构
 ```
 
@@ -412,11 +441,11 @@ CompositeStrategy(type=induction, premises=[Obs₁,...,Obsₙ], conclusion=Law):
   sub_strategies:
     - FormalStrategy(formal_expr:
         - implication([Law, Instance₁], conclusion=Instance₁)
-        - equivalence([Instance₁, Obs₁])
+        - equivalence([Instance₁, Obs₁], conclusion=Eq_Instance₁_Obs₁)
       )
     - FormalStrategy(formal_expr:
         - implication([Law, Instance₂], conclusion=Instance₂)
-        - equivalence([Instance₂, Obs₂])
+        - equivalence([Instance₂, Obs₂], conclusion=Eq_Instance₂_Obs₂)
       )
     - ...（每个观测一组 implication + equivalence）
 ```
@@ -603,6 +632,7 @@ Global 层是**结构索引**，local 层是**内容仓库**。
 **中间 Knowledge 的归属：**
 
 - FormalExpr 展开时可能创建中间 Knowledge（FormalExpr 中引用但不在 premises/conclusion 中的 Knowledge ID）。
+- 对关系型 Operator，`conclusion` 对应的 helper claim 应优先作为显式 `Knowledge(type=claim)` 落图，以便后续引用。
 - Local 层的中间 Knowledge 获得 `lcn_` ID，归属于当前包。
 - Global 层的中间 Knowledge 获得 `gcn_` ID，由 LKM 直接创建，content 存在 global Knowledge 上（§4.6 的例外情况）。
 
@@ -626,12 +656,14 @@ Gaia IR 中没有 retraction 类型。撤回是一个**操作**：为目标 Know
 | Knowledge 三种类型（删除 template） | Issue #231：全称命题（∀{x}.P({x})）有真值，应携带概率。统一为 claim with parameters。Template 概念保留在 Gaia Language 编写层 |
 | Operator 从 Strategy 分离 | ↔/⊗/⊕ 是确定性命题算子，不是推理声明。Operator 无概率参数，Strategy 有 |
 | independent_evidence / contradiction 用 Operator 表达 | 它们是结构关系，不是推理判断。直接用 equivalence / contradiction Operator |
-| Strategy type 合并 | 原 None 合并到 infer，原 soft_implication 合并到 noisy_and（k=1 特例） |
+| Operator 统一产出 result/helper claim | 关系型 Operator 也需要可引用的标准结果 claim，因此 `conclusion` 不再只服务于有向算子 |
+| Strategy type 合并 | 原 None 合并到 infer，原 soft_implication 归并到 infer（单前提/低维特例） |
 | infer vs noisy_and 区分 | infer = 完整 CPT（2^k 参数），noisy_and = ∧ + 单参数 p。大多数推理使用 noisy_and |
 | noisy_and 仅限联合必要场景 | 归纳/溯因的前提是独立贡献的，不能用 noisy_and。必须用 CompositeStrategy 分解为并行子结构 |
 | Strategy 三形态类层级 | Strategy（叶子 ↝）、CompositeStrategy（递归嵌套）、FormalStrategy（确定性展开）——形态由结构决定，type 与形态正交 |
 | FormalExpr 只包含 Operator | 不确定部分留在 CompositeStrategy 的 sub_strategies 中，FormalExpr 纯确定性 |
 | FormalExpr 作为 FormalStrategy 的嵌入字段 | 1:1 关系，不需要独立实体；FormalExpr 无独立 ID 和 lifecycle |
+| helper claim 仍是 claim | 不新增实体类型；helper catalog 单独维护 |
 | conditional_probabilities 在 parameterization 层 | 概率参数不属于图结构；通过 StrategyParamRecord 存储。type 决定参数数量 |
 | 多分辨率展开 | 任何 Strategy 折叠时均表达为单条 ↝；展开时进入内部结构。具体推理算法由 bp/ 层定义 |
 | 图的不可变性 | 撤回通过参数操作（conditional_probabilities → ε）实现，不删除图结构 |
@@ -643,6 +675,7 @@ Gaia IR 中没有 retraction 类型。撤回是一个**操作**：为目标 Know
 | **α-equivalence（Issue #234）** | 含 parameters 的 claim 匹配时需要忽略变量名 | Canonicalization 精度 |
 | **Gaia IR Validator（Issue #233）** | 每次 IR 更新时的结构验证 | 数据完整性 |
 | **Compiler dispatch（Issue #236）** | Gaia Language template → IR 知识类型的编译规则 | CLI 端实现 |
+| **helper claim catalog** | 需要收敛标准 helper claim 的最小列表和命名规则 | 跨文档一致性 |
 
 ---
 
@@ -657,7 +690,7 @@ Gaia IR 中没有 retraction 类型。撤回是一个**操作**：为目标 Know
 | reasoning_type=equivalent | **Operator**(operator=equivalence) | 从推理声明移为结构约束 |
 | reasoning_type=contradict | **Operator**(operator=contradiction) | 从推理声明移为结构约束 |
 | — | **Operator**(operator=complement, disjunction, conjunction, implication) | 新增 |
-| soft_implication | 合并到 noisy_and | k=1 的 noisy_and 特例 |
+| soft_implication | 合并到 infer | infer 的单前提/低维特例 |
 | None (type) | 合并到 infer | 未分类推理统一用 infer |
 | independent_evidence (Strategy type) | 直接用 Operator(equivalence) | 结构关系，不是推理声明 |
 | contradiction (Strategy type) | 直接用 Operator(contradiction) | 结构关系，不是推理声明 |
