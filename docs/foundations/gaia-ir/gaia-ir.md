@@ -628,15 +628,21 @@ FormalExpr:
 
 **未增加独立证据 → Binding**
 
-新的推理路径绑定到已有 global Knowledge，作为指向同一 conclusion 的另一条 Strategy。如果多条推理路径的推理方式不同，可以用 CompositeStrategy 组织。
+结论 Knowledge 绑定到已有 global Knowledge（CanonicalBinding, decision=match_existing）。
+
+Strategy 的处理分两步：
+
+1. **Canonicalization 默认行为**：新包的 Strategy 提升到全局图后，直接指向已有的 global Knowledge 作为 conclusion。全局图中自然形成多条 Strategy 指向同一个 Knowledge 的结构——无需特殊的 merge 操作。
+
+2. **Review 可选操作**：如果 reviewer 认为多条指向同一结论的 Strategy 应被视为"同一推理的不同实现"，可以将它们包装为 CompositeStrategy。这提供了多分辨率支持——折叠时视为一条 ↝，展开时看到各条路径。CompositeStrategy 包装是可选的组织行为，不是 canonicalization 的必要步骤。
 
 典型场景：
 - 相同前提，不同推理方法（如同一组观测数据，用不同统计方法分析）
-- 仅引用（local Knowledge 只作为 premise 或 background，不是任何 Strategy 的 conclusion）
+- 仅引用（local Knowledge 只作为 premise 或 background，不是任何 Strategy 的 conclusion——此时无新 Strategy 需要处理）
 
 **增加了独立证据 → Equivalence**
 
-为新结论创建新的 global Knowledge，在新旧两个 global Knowledge 之间提议一个 equivalence Operator（候选项由 review 层管理，确认后写入 IR）。两个 Knowledge 节点各自通过自己的 Strategy chain 获得 belief，equivalence Operator 让 belief 互相传导。
+为新结论创建新的 global Knowledge（CanonicalBinding, decision=equivalent_candidate），在新旧两个 global Knowledge 之间提议一个 equivalence Operator（候选项由 review 层管理，确认后写入 IR）。两个 Knowledge 节点各自通过自己的 Strategy chain 获得 belief，equivalence Operator 让 belief 互相传导——正确建模了"独立验证增强可信度"。
 
 典型场景：
 - 不同前提推出相同结论（如 [开普勒定律] → "F∝1/r²" vs [爱因斯坦场方程 + 弱场极限] → "F∝1/r²"）
@@ -644,7 +650,7 @@ FormalExpr:
 
 **无匹配 → create_new**
 
-为前所未见的命题创建新的 global Knowledge。
+为前所未见的命题创建新的 global Knowledge（CanonicalBinding, decision=create_new）。
 
 **判断方式**
 
