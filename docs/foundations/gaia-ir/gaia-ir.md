@@ -622,9 +622,9 @@ FormalExpr:
 - **CanonicalBinding（身份映射）**：local Knowledge 和 global Knowledge 是**同一个命题**的不同表示。纯引用关系，不提供新证据，不创建图结构。多条从相同前提出发的推理路径收敛到同一个 Knowledge，以不同的 Strategy 表达。
 - **Equivalence Operator（等价声明）**：两个独立的 global Knowledge 被声明为**等价**。从不同前提独立推出相同结论——这本身是新证据（独立验证），概率推理会在两者之间传播 belief。
 
-**区分标准：新的 Strategy 是否为结论提供了独立证据。**
+**Binding 与 Equivalence 的判断发生在 Strategy（推理链）层面，而非 Knowledge（结论）层面。** 核心问题不是"这个结论和已有结论是不是一样"，而是"这条新的推理链是否为该结论提供了独立证据"。相同语义的结论，可能因为推理链的独立性不同，走向 binding 或 equivalence 两种完全不同的路径。
 
-当新包中的 local Knowledge 与全局图中已有 Knowledge 语义匹配时，核心问题是：新的推理链是否**增加了对该结论的独立证据**？
+当新包中的 local Knowledge 与全局图中已有 Knowledge 语义匹配时，核心问题是：新的 Strategy 是否**增加了对该结论的独立证据**？
 
 **未增加独立证据 → Binding**
 
