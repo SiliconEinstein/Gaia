@@ -630,11 +630,7 @@ FormalExpr:
 
 结论 Knowledge 绑定到已有 global Knowledge（CanonicalBinding, decision=match_existing）。
 
-Strategy 的处理分两步：
-
-1. **Canonicalization 默认行为**：新包的 Strategy 提升到全局图后，直接指向已有的 global Knowledge 作为 conclusion。全局图中自然形成多条 Strategy 指向同一个 Knowledge 的结构——无需特殊的 merge 操作。
-
-2. **Review 可选操作**：如果 reviewer 认为多条指向同一结论的 Strategy 应被视为"同一推理的不同实现"，可以将它们包装为 CompositeStrategy。这提供了多分辨率支持——折叠时视为一条 ↝，展开时看到各条路径。CompositeStrategy 包装是可选的组织行为，不是 canonicalization 的必要步骤。
+**Strategy 的处理：合并为 CompositeStrategy。** 当新包的 Strategy（提升到全局后）与已有 Strategy 共享相同前提和结论时，必须合并为 CompositeStrategy，不能让多条独立 Strategy 并列指向同一 Knowledge——否则概率推理会对同一组证据 double counting。合并后折叠时只有一个因子，展开时可以比较各条路径的单独贡献。
 
 典型场景：
 - 相同前提，不同推理方法（如同一组观测数据，用不同统计方法分析）
