@@ -622,36 +622,33 @@ FormalExpr:
 - **CanonicalBinding（身份映射）**：local Knowledge 和 global Knowledge 是**同一个命题**的不同表示。纯引用关系，不提供新证据，不创建图结构。多条从相同前提出发的推理路径收敛到同一个 Knowledge，以不同的 Strategy 表达。
 - **Equivalence Operator（等价声明）**：两个独立的 global Knowledge 被声明为**等价**。从不同前提独立推出相同结论——这本身是新证据（独立验证），概率推理会在两者之间传播 belief。
 
-**区分标准：前提是否独立。**
+**区分标准：新的 Strategy 是否为结论提供了独立证据。**
 
-当新包中的 local Knowledge 与全局图中已有 Knowledge 语义匹配时，判断依据是**推理链的前提是否与已有推理链共享**：
+当新包中的 local Knowledge 与全局图中已有 Knowledge 语义匹配时，核心问题是：新的推理链是否**增加了对该结论的独立证据**？
 
-**相同前提 → Binding（同一命题，不同推理路径）**
+**未增加独立证据 → Binding**
 
-如果新包中推导出该 Knowledge 的 Strategy 的前提（映射到 global 后）与已有 Strategy 的前提相同或高度重叠，则直接绑定到已有 global Knowledge。新的推理路径作为指向同一 conclusion 的另一条 Strategy 存在。如果多条推理路径的推理方式不同，可以用 CompositeStrategy 组织。
+新的推理路径绑定到已有 global Knowledge，作为指向同一 conclusion 的另一条 Strategy。如果多条推理路径的推理方式不同，可以用 CompositeStrategy 组织。
 
-理由：相同的前提通过不同路径到达相同结论，是推理的冗余或互补——不是独立证据。
+典型场景：
+- 相同前提，不同推理方法（如同一组观测数据，用不同统计方法分析）
+- 仅引用（local Knowledge 只作为 premise 或 background，不是任何 Strategy 的 conclusion）
 
-**不同前提 → Equivalence（独立证据，新信息）**
+**增加了独立证据 → Equivalence**
 
-如果新包的 Strategy 使用了与已有推理链**不同的前提**推导出语义相同的结论，则：
+为新结论创建新的 global Knowledge，在新旧两个 global Knowledge 之间提议一个 equivalence Operator（候选项由 review 层管理，确认后写入 IR）。两个 Knowledge 节点各自通过自己的 Strategy chain 获得 belief，equivalence Operator 让 belief 互相传导。
 
-1. 为新结论创建新的 global Knowledge
-2. 在新旧两个 global Knowledge 之间提议一个 equivalence Operator（候选项由 review 层管理，确认后写入 IR）
-
-理由：不同前提独立推出相同结论 = 独立证据。两个 Knowledge 节点各自通过自己的 Strategy chain 获得 belief，equivalence Operator 让 belief 互相传导。
-
-**仅引用（无推导） → Binding**
-
-如果 local Knowledge 在当前包中仅作为 premise 或 background 引用（不是任何 Strategy 的 conclusion），且匹配到已有 global Knowledge，则直接绑定。
+典型场景：
+- 不同前提推出相同结论（如 [开普勒定律] → "F∝1/r²" vs [爱因斯坦场方程 + 弱场极限] → "F∝1/r²"）
+- 不同实验方法独立验证同一假说
 
 **无匹配 → create_new**
 
 为前所未见的命题创建新的 global Knowledge。
 
-**边界情况：部分重叠的前提**
+**判断方式**
 
-当新旧推理链的前提部分重叠时，独立性判断需要 review 层介入。Canonicalization 可以基于 global premise ID 集合的重叠度做默认判断，review 可以 override。具体的阈值和判断逻辑是实现层面的问题，IR 层不规定。
+"是否增加独立证据"是语义判断，IR 层不规定具体判定策略。前提集合的重叠度是最重要的结构信号（不同前提通常意味着独立证据），但不是唯一判据——推理方法的差异、证据来源的独立性等也可能构成独立证据。Canonicalization 可以基于前提重叠度做默认判断，review 层可以 override。
 
 ### 5.2 参与规范化的 Knowledge 类型
 
