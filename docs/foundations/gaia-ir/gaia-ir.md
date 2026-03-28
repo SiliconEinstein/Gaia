@@ -615,39 +615,43 @@ FormalExpr:
 
 规范化是将 local canonical 实体映射到 global canonical 实体的过程——从包内身份到跨包身份。
 
-### 5.1 映射决策：身份映射与等价声明
+### 5.1 映射决策：Binding 与 Equivalence
 
 规范化中存在两种本质不同的关系：
 
-- **CanonicalBinding（身份映射）**：local Knowledge 和 global Knowledge 是**同一个命题**的不同表示。纯引用关系，不提供新证据，不创建图结构，不影响 BP。
-- **Equivalence Operator（等价声明）**：两个独立的 global Knowledge 被声明为**等价**。两条独立推理链得出相同结论，这本身是新证据——创建确定性因子，BP 在两者之间传播 belief。
+- **CanonicalBinding（身份映射）**：local Knowledge 和 global Knowledge 是**同一个命题**的不同表示。纯引用关系，不提供新证据，不创建图结构。多条从相同前提出发的推理路径收敛到同一个 Knowledge，以不同的 Strategy 表达。
+- **Equivalence Operator（等价声明）**：两个独立的 global Knowledge 被声明为**等价**。从不同前提独立推出相同结论——这本身是新证据（独立验证），概率推理会在两者之间传播 belief。
 
-Gaia IR 提供这种区分的结构基础。具体的匹配判定和等价确认由 review 服务和后续 agent 研究等方法实现——IR 层不规定判定策略。
+**区分标准：前提是否独立。**
 
-当新包中的 local Knowledge 与全局图中已有 Knowledge 语义匹配时，处理方式取决于**该 Knowledge 在 local 图中的角色**：
+当新包中的 local Knowledge 与全局图中已有 Knowledge 语义匹配时，判断依据是**推理链的前提是否与已有推理链共享**：
 
-**作为 premise 的 Knowledge → CanonicalBinding（身份映射，无新证据）**
+**相同前提 → Binding（同一命题，不同推理路径）**
 
-如果 local Knowledge 在 local 图中仅作为 premise（或 background）使用，且与已有 global Knowledge 匹配，则直接绑定到该 global Knowledge。全局图上的 prior 和 belief 保持不变，不因为新包的加入而更新。
+如果新包中推导出该 Knowledge 的 Strategy 的前提（映射到 global 后）与已有 Strategy 的前提相同或高度重叠，则直接绑定到已有 global Knowledge。新的推理路径作为指向同一 conclusion 的另一条 Strategy 存在。如果多条推理路径的推理方式不同，可以用 CompositeStrategy 组织。
 
-**作为 conclusion 的 Knowledge → Equivalence candidate（等价声明，新证据）**
+理由：相同的前提通过不同路径到达相同结论，是推理的冗余或互补——不是独立证据。
 
-如果 local Knowledge 在 local 图中作为某个 Strategy 的 conclusion，且与已有 global Knowledge 匹配，**不**直接 merge 为同一个 global Knowledge。而是：
+**不同前提 → Equivalence（独立证据，新信息）**
 
-1. 为 local conclusion 创建新的 global Knowledge
+如果新包的 Strategy 使用了与已有推理链**不同的前提**推导出语义相同的结论，则：
+
+1. 为新结论创建新的 global Knowledge
 2. 在新旧两个 global Knowledge 之间提议一个 equivalence Operator（候选项由 review 层管理，确认后写入 IR）
 
-理由：两个不同包独立得出的结论语义相似，不代表它们是同一个命题。等价关系一旦确认，BP 会在两者之间传播 belief——这是新证据，不是简单的身份合并。
+理由：不同前提独立推出相同结论 = 独立证据。两个 Knowledge 节点各自通过自己的 Strategy chain 获得 belief，equivalence Operator 让 belief 互相传导。
 
-Canonicalization 步骤同时创建 placeholder 参数记录：新 global claim Knowledge 的 PriorRecord（placeholder prior）。具体值由后续 review 步骤确定。
+**仅引用（无推导） → Binding**
 
-**同时作为 premise 和 conclusion 的 Knowledge → 走 conclusion 路径**
-
-如果一个 local Knowledge 既是某个 Strategy 的 conclusion，又是另一个 Strategy 的 premise，按 conclusion 规则处理（创建新 global Knowledge + equivalence candidate Operator）。理由：该 Knowledge 有独立的推理来源，不应静默合并。
+如果 local Knowledge 在当前包中仅作为 premise 或 background 引用（不是任何 Strategy 的 conclusion），且匹配到已有 global Knowledge，则直接绑定。
 
 **无匹配 → create_new**
 
 为前所未见的命题创建新的 global Knowledge。
+
+**边界情况：部分重叠的前提**
+
+当新旧推理链的前提部分重叠时，独立性判断需要 review 层介入。Canonicalization 可以基于 global premise ID 集合的重叠度做默认判断，review 可以 override。具体的阈值和判断逻辑是实现层面的问题，IR 层不规定。
 
 ### 5.2 参与规范化的 Knowledge 类型
 
