@@ -13,7 +13,12 @@ from gaia.gaia_ir import (
     LocalCanonicalGraph,
     GlobalCanonicalGraph,
 )
-from gaia.gaia_ir.validator import validate_local_graph, validate_global_graph
+from gaia.gaia_ir.validator import (
+    validate_local_graph,
+    validate_global_graph,
+    validate_parameterization,
+    validate_bindings,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -355,4 +360,225 @@ class TestGraphLevelValidation:
 
     def test_empty_global_valid(self):
         r = validate_global_graph(_global_graph())
+        assert r.valid
+
+
+# ---------------------------------------------------------------------------
+# 5. Parameterization completeness
+# ---------------------------------------------------------------------------
+
+
+class TestParameterizationValidation:
+    def _graph(self):
+        return _global_graph(
+            knowledges=[_claim("gcn_a"), _claim("gcn_b"), _setting("gcn_s")],
+            strategies=[
+                Strategy(scope="global", type="noisy_and", premises=["gcn_a"], conclusion="gcn_b"),
+            ],
+        )
+
+    def test_complete_parameterization(self):
+        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+        g = self._graph()
+        sid = g.strategies[0].strategy_id
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.7, source_id="s"),
+            ],
+            strategy_params=[
+                StrategyParamRecord(strategy_id=sid, conditional_probabilities=[0.85], source_id="s"),
+            ],
+        )
+        assert r.valid
+
+    def test_missing_prior(self):
+        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+        g = self._graph()
+        sid = g.strategies[0].strategy_id
+        r = validate_parameterization(
+            g,
+            priors=[PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s")],
+            strategy_params=[
+                StrategyParamRecord(strategy_id=sid, conditional_probabilities=[0.85], source_id="s"),
+            ],
+        )
+        assert not r.valid
+        assert any("gcn_b" in e and "missing PriorRecord" in e for e in r.errors)
+
+    def test_missing_strategy_param(self):
+        from gaia.gaia_ir import PriorRecord
+        g = self._graph()
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.7, source_id="s"),
+            ],
+            strategy_params=[],
+        )
+        assert not r.valid
+        assert any("missing StrategyParamRecord" in e for e in r.errors)
+
+    def test_setting_does_not_need_prior(self):
+        """Settings don't carry probability — no PriorRecord needed."""
+        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+        g = self._graph()
+        sid = g.strategies[0].strategy_id
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.7, source_id="s"),
+            ],
+            strategy_params=[
+                StrategyParamRecord(strategy_id=sid, conditional_probabilities=[0.85], source_id="s"),
+            ],
+        )
+        assert r.valid  # gcn_s (setting) doesn't need a prior
+
+    def test_cromwell_bounds_on_priors(self):
+        """PriorRecord auto-clamps, so raw values within bounds should pass."""
+        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+        g = _global_graph(
+            knowledges=[_claim("gcn_a")],
+            strategies=[],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s")],
+            strategy_params=[],
+        )
+        assert r.valid
+
+    def test_dangling_prior_warning(self):
+        from gaia.gaia_ir import PriorRecord
+        g = _global_graph(knowledges=[_claim("gcn_a")])
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_nonexistent", value=0.5, source_id="s"),
+            ],
+            strategy_params=[],
+        )
+        assert r.valid  # warning, not error
+        assert any("non-existent" in w for w in r.warnings)
+
+    def test_dangling_strategy_param_warning(self):
+        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+        g = _global_graph(knowledges=[_claim("gcn_a")])
+        r = validate_parameterization(
+            g,
+            priors=[PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s")],
+            strategy_params=[
+                StrategyParamRecord(strategy_id="gcs_ghost", conditional_probabilities=[0.5], source_id="s"),
+            ],
+        )
+        assert r.valid
+        assert any("non-existent" in w for w in r.warnings)
+
+    def test_empty_graph_no_requirements(self):
+        r = validate_parameterization(_global_graph(), [], [])
+        assert r.valid
+
+
+# ---------------------------------------------------------------------------
+# 6. CanonicalBinding validation
+# ---------------------------------------------------------------------------
+
+
+class TestBindingValidation:
+    def test_valid_bindings(self):
+        from gaia.gaia_ir import CanonicalBinding, BindingDecision
+        local = _local_graph(knowledges=[_claim("lcn_a"), _claim("lcn_b")])
+        global_ = _global_graph(knowledges=[_claim("gcn_x"), _claim("gcn_y")])
+        bindings = [
+            CanonicalBinding(
+                local_canonical_id="lcn_a", global_canonical_id="gcn_x",
+                package_id="pkg", version="1", decision=BindingDecision.MATCH_EXISTING,
+                reason="similarity 0.95",
+            ),
+            CanonicalBinding(
+                local_canonical_id="lcn_b", global_canonical_id="gcn_y",
+                package_id="pkg", version="1", decision=BindingDecision.CREATE_NEW,
+                reason="no match",
+            ),
+        ]
+        r = validate_bindings(bindings, local, global_)
+        assert r.valid
+
+    def test_missing_binding(self):
+        from gaia.gaia_ir import CanonicalBinding, BindingDecision
+        local = _local_graph(knowledges=[_claim("lcn_a"), _claim("lcn_b")])
+        global_ = _global_graph(knowledges=[_claim("gcn_x")])
+        bindings = [
+            CanonicalBinding(
+                local_canonical_id="lcn_a", global_canonical_id="gcn_x",
+                package_id="pkg", version="1", decision=BindingDecision.MATCH_EXISTING,
+                reason="match",
+            ),
+        ]
+        r = validate_bindings(bindings, local, global_)
+        assert not r.valid
+        assert any("lcn_b" in e and "no CanonicalBinding" in e for e in r.errors)
+
+    def test_duplicate_binding(self):
+        from gaia.gaia_ir import CanonicalBinding, BindingDecision
+        local = _local_graph(knowledges=[_claim("lcn_a")])
+        global_ = _global_graph(knowledges=[_claim("gcn_x"), _claim("gcn_y")])
+        bindings = [
+            CanonicalBinding(
+                local_canonical_id="lcn_a", global_canonical_id="gcn_x",
+                package_id="pkg", version="1", decision=BindingDecision.MATCH_EXISTING,
+                reason="first",
+            ),
+            CanonicalBinding(
+                local_canonical_id="lcn_a", global_canonical_id="gcn_y",
+                package_id="pkg", version="1", decision=BindingDecision.CREATE_NEW,
+                reason="second",
+            ),
+        ]
+        r = validate_bindings(bindings, local, global_)
+        assert not r.valid
+        assert any("2 bindings" in e for e in r.errors)
+
+    def test_binding_dangling_local(self):
+        from gaia.gaia_ir import CanonicalBinding, BindingDecision
+        local = _local_graph(knowledges=[_claim("lcn_a")])
+        global_ = _global_graph(knowledges=[_claim("gcn_x")])
+        bindings = [
+            CanonicalBinding(
+                local_canonical_id="lcn_a", global_canonical_id="gcn_x",
+                package_id="pkg", version="1", decision=BindingDecision.MATCH_EXISTING,
+                reason="ok",
+            ),
+            CanonicalBinding(
+                local_canonical_id="lcn_ghost", global_canonical_id="gcn_x",
+                package_id="pkg", version="1", decision=BindingDecision.MATCH_EXISTING,
+                reason="dangling",
+            ),
+        ]
+        r = validate_bindings(bindings, local, global_)
+        assert not r.valid
+        assert any("not found in local" in e for e in r.errors)
+
+    def test_binding_dangling_global(self):
+        from gaia.gaia_ir import CanonicalBinding, BindingDecision
+        local = _local_graph(knowledges=[_claim("lcn_a")])
+        global_ = _global_graph(knowledges=[])
+        bindings = [
+            CanonicalBinding(
+                local_canonical_id="lcn_a", global_canonical_id="gcn_ghost",
+                package_id="pkg", version="1", decision=BindingDecision.CREATE_NEW,
+                reason="dangling global",
+            ),
+        ]
+        r = validate_bindings(bindings, local, global_)
+        assert not r.valid
+        assert any("not found in global" in e for e in r.errors)
+
+    def test_empty_bindings_for_empty_graph(self):
+        r = validate_bindings([], _local_graph(), _global_graph())
         assert r.valid

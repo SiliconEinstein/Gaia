@@ -12,6 +12,12 @@ from gaia.gaia_ir.knowledge import Knowledge, KnowledgeType
 from gaia.gaia_ir.operator import Operator, OperatorType
 from gaia.gaia_ir.strategy import Strategy, CompositeStrategy, FormalStrategy
 from gaia.gaia_ir.graphs import LocalCanonicalGraph, GlobalCanonicalGraph, _canonical_json
+from gaia.gaia_ir.parameterization import (
+    CROMWELL_EPS,
+    PriorRecord,
+    StrategyParamRecord,
+)
+from gaia.gaia_ir.binding import CanonicalBinding
 
 
 @dataclass
@@ -255,5 +261,132 @@ def validate_global_graph(graph: GlobalCanonicalGraph) -> ValidationResult:
     _validate_operators(graph.operators, knowledge_lookup, result)
     _validate_strategies(graph.strategies, knowledge_lookup, "global", result)
     _validate_scope_consistency(knowledge_lookup, graph.operators, graph.strategies, "global", result)
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# 5. Parameterization completeness (pre-BP)
+# ---------------------------------------------------------------------------
+
+
+def validate_parameterization(
+    graph: GlobalCanonicalGraph,
+    priors: list[PriorRecord],
+    strategy_params: list[StrategyParamRecord],
+) -> ValidationResult:
+    """Validate parameterization completeness before BP run.
+
+    Checks that every claim Knowledge has at least one PriorRecord and every
+    Strategy has at least one StrategyParamRecord, and all values are within
+    Cromwell bounds.
+    """
+    result = ValidationResult()
+
+    # collect claim gcn_ids
+    claim_ids = {k.id for k in graph.knowledges if k.type == KnowledgeType.CLAIM and k.id}
+
+    # collect strategy ids
+    strategy_ids: set[str] = set()
+    for s in graph.strategies:
+        if s.strategy_id:
+            strategy_ids.add(s.strategy_id)
+
+    # check prior coverage
+    prior_gcn_ids = {r.gcn_id for r in priors}
+    for cid in claim_ids:
+        if cid not in prior_gcn_ids:
+            result.error(f"Claim '{cid}': missing PriorRecord")
+
+    # check strategy param coverage
+    param_strategy_ids = {r.strategy_id for r in strategy_params}
+    for sid in strategy_ids:
+        if sid not in param_strategy_ids:
+            result.error(f"Strategy '{sid}': missing StrategyParamRecord")
+
+    # Cromwell bounds on priors
+    for r in priors:
+        if r.value < CROMWELL_EPS or r.value > 1 - CROMWELL_EPS:
+            result.error(
+                f"PriorRecord '{r.gcn_id}': value {r.value} outside Cromwell bounds "
+                f"[{CROMWELL_EPS}, {1 - CROMWELL_EPS}]"
+            )
+
+    # Cromwell bounds on strategy params
+    for r in strategy_params:
+        for i, p in enumerate(r.conditional_probabilities):
+            if p < CROMWELL_EPS or p > 1 - CROMWELL_EPS:
+                result.error(
+                    f"StrategyParamRecord '{r.strategy_id}': "
+                    f"conditional_probabilities[{i}]={p} outside Cromwell bounds"
+                )
+
+    # dangling references: priors for non-existent claims
+    all_knowledge_ids = {k.id for k in graph.knowledges if k.id}
+    for r in priors:
+        if r.gcn_id not in all_knowledge_ids:
+            result.warn(f"PriorRecord '{r.gcn_id}': references non-existent Knowledge")
+
+    # dangling references: params for non-existent strategies
+    for r in strategy_params:
+        if r.strategy_id not in strategy_ids:
+            result.warn(
+                f"StrategyParamRecord '{r.strategy_id}': references non-existent Strategy"
+            )
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# 6. CanonicalBinding validation
+# ---------------------------------------------------------------------------
+
+
+def validate_bindings(
+    bindings: list[CanonicalBinding],
+    local_graph: LocalCanonicalGraph,
+    global_graph: GlobalCanonicalGraph,
+) -> ValidationResult:
+    """Validate CanonicalBindings between local and global graphs.
+
+    Checks completeness (every local Knowledge has exactly one binding) and
+    reference validity (both local and global IDs exist).
+    """
+    result = ValidationResult()
+
+    local_ids = {k.id for k in local_graph.knowledges if k.id}
+    global_ids = {k.id for k in global_graph.knowledges if k.id}
+
+    # track which local IDs have bindings
+    bound_local_ids: dict[str, int] = {}
+    for b in bindings:
+        bound_local_ids[b.local_canonical_id] = bound_local_ids.get(b.local_canonical_id, 0) + 1
+
+    # every local Knowledge must have exactly one binding
+    for lid in local_ids:
+        count = bound_local_ids.get(lid, 0)
+        if count == 0:
+            result.error(f"Knowledge '{lid}': no CanonicalBinding")
+        elif count > 1:
+            result.error(f"Knowledge '{lid}': {count} bindings (expected exactly 1)")
+
+    # binding references must be valid
+    for b in bindings:
+        if b.local_canonical_id not in local_ids:
+            result.error(
+                f"CanonicalBinding: local_canonical_id '{b.local_canonical_id}' "
+                f"not found in local graph"
+            )
+        if b.global_canonical_id not in global_ids:
+            result.error(
+                f"CanonicalBinding: global_canonical_id '{b.global_canonical_id}' "
+                f"not found in global graph"
+            )
+
+    # bindings for IDs not in local graph
+    for b in bindings:
+        if b.local_canonical_id not in local_ids:
+            # already reported above, skip duplicate
+            pass
 
     return result
