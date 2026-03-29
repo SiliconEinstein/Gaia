@@ -2,9 +2,9 @@
 
 > **Status:** Current canonical
 
-本文档描述 Review Service 和 Curation Service 的业务逻辑——新证据如何被审核激活，跨包关系如何被自动发现和维护。
+本文档描述 Review Server 和 Curation Server 的业务逻辑——新证据如何被审核激活，跨包关系如何被自动发现和维护。
 
-## Review Service
+## Review Server
 
 ### 为什么需要 Review
 
@@ -16,7 +16,7 @@
 
 ### 谁来审核
 
-Reviewer 可以是人类专家或 AI agent。Review Service 为 reviewer 提供工具支持：
+Reviewer 可以是人类专家或 AI agent。Review Server 为 reviewer 提供工具支持：
 
 - 展示新推理链的前提、结论、推理过程
 - 展示 official repo 中已有的相关推理链，方便对比
@@ -42,7 +42,7 @@ Reviewer 面对的核心问题是：**这条新推理和 official repo 中已有
 ```
 1. Reviewer 查看待审队列中的新推理链
      ↓
-2. Review Service 展示：
+2. Review Server 展示：
    - 新推理链的前提、结论、推理过程（steps）
    - 该结论在 official repo 中已有的其他推理链
    - 前提重叠度分析（辅助信息，不是判定依据）
@@ -87,7 +87,7 @@ Reviewer 面对的核心问题是：**这条新推理和 official repo 中已有
 → 展开视图：可以看到 A 内部的细化步骤（更精细的分析）
 ```
 
-## Curation Service
+## Curation Server
 
 ### 为什么需要自动策展
 
@@ -100,15 +100,15 @@ Reviewer 面对的核心问题是：**这条新推理和 official repo 中已有
 
 这些需要一个能看到全局知识网络的自动化服务。
 
-### Curation Service 的运作方式
+### Curation Server 的运作方式
 
-**核心原则：Curation Service 没有特殊权限。** 它和普通贡献者一样，通过 PR 与 official repo 交互。它的"自动发现"以**提交新包或 PR 的方式**贡献给 official repo，而不是直接修改数据。
+**核心原则：Curation Server 没有特殊权限。** 它和普通贡献者一样，通过 PR 与 official repo 交互。它的"自动发现"以**提交新包或 PR 的方式**贡献给 official repo，而不是直接修改数据。
 
 ### 策展操作一：发现语义重复命题
 
 ```
 运行方式：
-  Curation Service 定期扫描 official repo 中所有命题
+  Curation Server 定期扫描 official repo 中所有命题
   使用 embedding 模型计算语义相似度
   发现命题 A ≈ 命题 B（措辞不同但语义相同）
     ↓
@@ -134,11 +134,11 @@ Reviewer 审核 merge PR：
 
 ```
 运行方式：
-  Curation Service 分析知识图谱中的命题和推理链
+  Curation Server 分析知识图谱中的命题和推理链
   发现 Package X 的结论和 Package Y 的前提高度相关
   但 X 和 Y 之间没有依赖关系
     ↓
-Curation Service 创建一个 curation 包：
+Curation Server 创建一个 curation 包：
   - 声明 X 的结论和 Y 的前提之间的关系
   - 可能是等价关系、支持关系或矛盾关系
     ↓
@@ -147,17 +147,17 @@ Curation Service 创建一个 curation 包：
 进入待审队列 → Reviewer 审核 → 正常流程
 ```
 
-**关键设计：Curation Service 以提交新包的方式贡献**，而不是直接修改已有包。这保持了数据的不可变性和审计性。
+**关键设计：Curation Server 以提交新包的方式贡献**，而不是直接修改已有包。这保持了数据的不可变性和审计性。
 
 ### 策展操作三：矛盾检测
 
 ```
 运行方式：
-  Curation Service 分析命题之间的语义关系
+  Curation Server 分析命题之间的语义关系
   发现命题 P 和命题 Q 互相矛盾
   （如 "Tc = 92K" vs "Tc = 89K"）
     ↓
-Curation Service 创建一个 curation 包：
+Curation Server 创建一个 curation 包：
   - 声明 P 和 Q 的矛盾关系
   - 附带检测依据
     ↓
@@ -171,7 +171,7 @@ Reviewer 确认矛盾 → 推理引擎自动压低双方的可信度
 ### 策展操作四：知识图健康维护
 
 ```
-Curation Service 定期检查：
+Curation Server 定期检查：
   - 孤岛命题（没有任何推理链连接）→ 标记，提醒社区
   - 断裂的依赖（引用的包不再可用）→ 标记，提醒维护者
   - 陈旧的引用（依赖的包有重大更新但下游未跟进）→ 提醒下游
@@ -180,15 +180,15 @@ Curation Service 定期检查：
 
 这些是信息性的，不修改数据。
 
-## Review Service 和 Curation Service 的关系
+## Review Server 和 Curation Server 的关系
 
-| | Review Service | Curation Service |
+| | Review Server | Curation Server |
 |---|---|---|
 | **触发** | 新推理链进入待审队列 | 定期扫描 + 事件触发 |
 | **视角** | 单条推理链 vs 已有推理 | 全局知识网络 |
-| **判断主体** | Reviewer（人类/agent），Service 辅助 | Service 自动发现，Reviewer 确认 |
+| **判断主体** | Reviewer（人类/agent），Server 辅助 | Server 自动发现，Reviewer 确认 |
 | **产出** | review PR（参数赋值） | curation PR / curation 包 |
 | **与 official repo 的交互** | PR | PR / 标准注册流程 |
 | **权限** | 无特权，和普通贡献者一样 | 无特权，和普通贡献者一样 |
 
-两者互补：Review Service 处理"已知的新证据"（有人主动提交了），Curation Service 发现"未知的关系"（没人主动建立，但全局视角下存在）。
+两者互补：Review Server 处理"已知的新证据"（有人主动提交了），Curation Server 发现"未知的关系"（没人主动建立，但全局视角下存在）。

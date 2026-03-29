@@ -135,6 +135,11 @@ official-repo/
 │   │   └── Deps.toml      # 依赖
 │   └── package-b/
 │       └── ...
+├── reviewers/             # reviewer 注册信息
+│   ├── alice/
+│   │   └── Reviewer.toml  # 身份, 专长领域, 担保人
+│   └── bob/
+│       └── Reviewer.toml
 ├── reviews/               # 审核记录
 │   ├── sources.jsonl      # 审核来源信息
 │   ├── priors/            # 命题的先验赋值
@@ -145,8 +150,8 @@ official-repo/
 ├── merges/                # 迟发现合并记录
 │   └── merges.jsonl
 └── .github/workflows/
-    ├── register.yml       # 注册验证
-    ├── review.yml         # review 合规检查
+    ├── register.yml       # 包和 reviewer 注册验证
+    ├── review.yml         # review 合规检查（含 reviewer 身份验证）
     └── incremental-bp.yml # 增量推理
 ```
 
