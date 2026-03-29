@@ -48,7 +48,7 @@ Gaia Lang 与 BP 之间的结构中间表示。一个一等提交制品，具有
 
 ## LKM Repo
 
-LKM Server 的运营仓库。通过 Issues 管理 research tasks——LKM 在全局推理中发现的候选关系（equivalence、contradiction、connection）的发布、调查和分拣。人类研究者可浏览和参与。详见 [03-decentralized-architecture.md](03-decentralized-architecture.md)。
+各 LKM Server 各自维护的运营仓库。通过 Issues 管理该 LKM 的 research tasks——在全局推理中发现的候选关系（equivalence、contradiction、connection）的发布、调查和分拣。人类研究者可浏览不同 LKM 的 repo 寻找研究机会。详见 [03-decentralized-architecture.md](03-decentralized-architecture.md)。
 
 ## Research Task
 
