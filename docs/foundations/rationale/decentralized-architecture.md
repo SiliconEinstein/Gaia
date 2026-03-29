@@ -25,9 +25,9 @@ Review Server 和 Curation Server **不是 LKM Server 的组件**，而是独立
 - **无特权：** 和普通贡献者一样，通过 PR 与 Official Repo 交互。
 - **格式约束：** 只要输出符合 Official Repo 规定的格式，任何实现都可以参与。
 
-## GitHub 作为通用交互面
+## Git 作为通用交互面
 
-所有参与者通过 GitHub 交互——一切都是 git commit，一切通过 PR，一切可审计：
+所有参与者通过 git 交互——一切都是 git commit，一切通过 PR（merge request），一切可审计。本文档以 GitHub 为例描述流程，但架构本身只依赖 git + PR 语义，不绑定 GitHub。私有部署的 GitLab、Gitea 等同样适用——只需将 "GitHub Actions" 替换为对应的 CI 系统（GitLab CI、Drone 等），"GitHub App" 替换为对应的 webhook/bot 机制。
 
 | 参与者 | 交互方式 |
 |--------|---------|
