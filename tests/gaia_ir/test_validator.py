@@ -1,6 +1,5 @@
 """Tests for Gaia IR validator."""
 
-import pytest
 from gaia.gaia_ir import (
     Knowledge,
     KnowledgeType,
@@ -9,7 +8,6 @@ from gaia.gaia_ir import (
     CompositeStrategy,
     FormalStrategy,
     FormalExpr,
-    StrategyType,
     LocalCanonicalGraph,
     GlobalCanonicalGraph,
 )
@@ -83,6 +81,7 @@ class TestKnowledgeValidation:
 
     def test_claim_with_representative_lcn_ok(self):
         from gaia.gaia_ir import LocalCanonicalRef
+
         k = Knowledge(
             id="gcn_ok",
             type=KnowledgeType.CLAIM,
@@ -204,8 +203,10 @@ class TestStrategyValidation:
             knowledges=[_claim("lcn_a"), _claim("lcn_b")],
             strategies=[
                 Strategy(
-                    scope="local", type="noisy_and",
-                    premises=["lcn_a"], conclusion="lcn_b",
+                    scope="local",
+                    type="noisy_and",
+                    premises=["lcn_a"],
+                    conclusion="lcn_b",
                     background=["lcn_nonexistent"],
                 )
             ],
@@ -216,12 +217,15 @@ class TestStrategyValidation:
 
     def test_global_strategy_rejects_steps(self):
         from gaia.gaia_ir import Step
+
         g = _global_graph(
             knowledges=[_claim("gcn_a"), _claim("gcn_b")],
             strategies=[
                 Strategy(
-                    scope="global", type="infer",
-                    premises=["gcn_a"], conclusion="gcn_b",
+                    scope="global",
+                    type="infer",
+                    premises=["gcn_a"],
+                    conclusion="gcn_b",
                     steps=[Step(reasoning="should not be here")],
                 )
             ],
@@ -236,8 +240,10 @@ class TestStrategyValidation:
             strategies=[
                 Strategy(
                     strategy_id="gcs_wrong",
-                    scope="local", type="infer",
-                    premises=["lcn_a"], conclusion="lcn_b",
+                    scope="local",
+                    type="infer",
+                    premises=["lcn_a"],
+                    conclusion="lcn_b",
                 )
             ],
         )
@@ -252,10 +258,14 @@ class TestCompositeStrategyValidation:
             knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_c")],
             strategies=[
                 CompositeStrategy(
-                    scope="local", type="abduction",
-                    premises=["lcn_a"], conclusion="lcn_c",
+                    scope="local",
+                    type="abduction",
+                    premises=["lcn_a"],
+                    conclusion="lcn_c",
                     sub_strategies=[
-                        Strategy(scope="local", type="noisy_and", premises=["lcn_a"], conclusion="lcn_b"),
+                        Strategy(
+                            scope="local", type="noisy_and", premises=["lcn_a"], conclusion="lcn_b"
+                        ),
                     ],
                 )
             ],
@@ -268,10 +278,17 @@ class TestCompositeStrategyValidation:
             knowledges=[_claim("lcn_a"), _claim("lcn_c")],
             strategies=[
                 CompositeStrategy(
-                    scope="local", type="induction",
-                    premises=["lcn_a"], conclusion="lcn_c",
+                    scope="local",
+                    type="induction",
+                    premises=["lcn_a"],
+                    conclusion="lcn_c",
                     sub_strategies=[
-                        Strategy(scope="local", type="noisy_and", premises=["lcn_missing"], conclusion="lcn_c"),
+                        Strategy(
+                            scope="local",
+                            type="noisy_and",
+                            premises=["lcn_missing"],
+                            conclusion="lcn_c",
+                        ),
                     ],
                 )
             ],
@@ -286,12 +303,24 @@ class TestFormalStrategyValidation:
             knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_m"), _claim("lcn_c")],
             strategies=[
                 FormalStrategy(
-                    scope="local", type="deduction",
-                    premises=["lcn_a", "lcn_b"], conclusion="lcn_c",
-                    formal_expr=FormalExpr(operators=[
-                        Operator(operator="conjunction", variables=["lcn_a", "lcn_b", "lcn_m"], conclusion="lcn_m"),
-                        Operator(operator="implication", variables=["lcn_m", "lcn_c"], conclusion="lcn_c"),
-                    ]),
+                    scope="local",
+                    type="deduction",
+                    premises=["lcn_a", "lcn_b"],
+                    conclusion="lcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="conjunction",
+                                variables=["lcn_a", "lcn_b", "lcn_m"],
+                                conclusion="lcn_m",
+                            ),
+                            Operator(
+                                operator="implication",
+                                variables=["lcn_m", "lcn_c"],
+                                conclusion="lcn_c",
+                            ),
+                        ]
+                    ),
                 )
             ],
         )
@@ -303,11 +332,19 @@ class TestFormalStrategyValidation:
             knowledges=[_claim("lcn_a"), _claim("lcn_c")],
             strategies=[
                 FormalStrategy(
-                    scope="local", type="deduction",
-                    premises=["lcn_a"], conclusion="lcn_c",
-                    formal_expr=FormalExpr(operators=[
-                        Operator(operator="implication", variables=["lcn_missing", "lcn_c"], conclusion="lcn_c"),
-                    ]),
+                    scope="local",
+                    type="deduction",
+                    premises=["lcn_a"],
+                    conclusion="lcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="implication",
+                                variables=["lcn_missing", "lcn_c"],
+                                conclusion="lcn_c",
+                            ),
+                        ]
+                    ),
                 )
             ],
         )
@@ -379,6 +416,7 @@ class TestParameterizationValidation:
 
     def test_complete_parameterization(self):
         from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+
         g = self._graph()
         sid = g.strategies[0].strategy_id
         r = validate_parameterization(
@@ -388,20 +426,25 @@ class TestParameterizationValidation:
                 PriorRecord(gcn_id="gcn_b", value=0.7, source_id="s"),
             ],
             strategy_params=[
-                StrategyParamRecord(strategy_id=sid, conditional_probabilities=[0.85], source_id="s"),
+                StrategyParamRecord(
+                    strategy_id=sid, conditional_probabilities=[0.85], source_id="s"
+                ),
             ],
         )
         assert r.valid
 
     def test_missing_prior(self):
         from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+
         g = self._graph()
         sid = g.strategies[0].strategy_id
         r = validate_parameterization(
             g,
             priors=[PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s")],
             strategy_params=[
-                StrategyParamRecord(strategy_id=sid, conditional_probabilities=[0.85], source_id="s"),
+                StrategyParamRecord(
+                    strategy_id=sid, conditional_probabilities=[0.85], source_id="s"
+                ),
             ],
         )
         assert not r.valid
@@ -409,6 +452,7 @@ class TestParameterizationValidation:
 
     def test_missing_strategy_param(self):
         from gaia.gaia_ir import PriorRecord
+
         g = self._graph()
         r = validate_parameterization(
             g,
@@ -424,6 +468,7 @@ class TestParameterizationValidation:
     def test_setting_does_not_need_prior(self):
         """Settings don't carry probability — no PriorRecord needed."""
         from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+
         g = self._graph()
         sid = g.strategies[0].strategy_id
         r = validate_parameterization(
@@ -433,14 +478,17 @@ class TestParameterizationValidation:
                 PriorRecord(gcn_id="gcn_b", value=0.7, source_id="s"),
             ],
             strategy_params=[
-                StrategyParamRecord(strategy_id=sid, conditional_probabilities=[0.85], source_id="s"),
+                StrategyParamRecord(
+                    strategy_id=sid, conditional_probabilities=[0.85], source_id="s"
+                ),
             ],
         )
         assert r.valid  # gcn_s (setting) doesn't need a prior
 
     def test_cromwell_bounds_on_priors(self):
         """PriorRecord auto-clamps, so raw values within bounds should pass."""
-        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+        from gaia.gaia_ir import PriorRecord
+
         g = _global_graph(
             knowledges=[_claim("gcn_a")],
             strategies=[],
@@ -454,6 +502,7 @@ class TestParameterizationValidation:
 
     def test_dangling_prior_warning(self):
         from gaia.gaia_ir import PriorRecord
+
         g = _global_graph(knowledges=[_claim("gcn_a")])
         r = validate_parameterization(
             g,
@@ -468,12 +517,15 @@ class TestParameterizationValidation:
 
     def test_dangling_strategy_param_warning(self):
         from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+
         g = _global_graph(knowledges=[_claim("gcn_a")])
         r = validate_parameterization(
             g,
             priors=[PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s")],
             strategy_params=[
-                StrategyParamRecord(strategy_id="gcs_ghost", conditional_probabilities=[0.5], source_id="s"),
+                StrategyParamRecord(
+                    strategy_id="gcs_ghost", conditional_probabilities=[0.5], source_id="s"
+                ),
             ],
         )
         assert r.valid
@@ -492,17 +544,24 @@ class TestParameterizationValidation:
 class TestBindingValidation:
     def test_valid_bindings(self):
         from gaia.gaia_ir import CanonicalBinding, BindingDecision
+
         local = _local_graph(knowledges=[_claim("lcn_a"), _claim("lcn_b")])
         global_ = _global_graph(knowledges=[_claim("gcn_x"), _claim("gcn_y")])
         bindings = [
             CanonicalBinding(
-                local_canonical_id="lcn_a", global_canonical_id="gcn_x",
-                package_id="pkg", version="1", decision=BindingDecision.MATCH_EXISTING,
+                local_canonical_id="lcn_a",
+                global_canonical_id="gcn_x",
+                package_id="pkg",
+                version="1",
+                decision=BindingDecision.MATCH_EXISTING,
                 reason="similarity 0.95",
             ),
             CanonicalBinding(
-                local_canonical_id="lcn_b", global_canonical_id="gcn_y",
-                package_id="pkg", version="1", decision=BindingDecision.CREATE_NEW,
+                local_canonical_id="lcn_b",
+                global_canonical_id="gcn_y",
+                package_id="pkg",
+                version="1",
+                decision=BindingDecision.CREATE_NEW,
                 reason="no match",
             ),
         ]
@@ -511,12 +570,16 @@ class TestBindingValidation:
 
     def test_missing_binding(self):
         from gaia.gaia_ir import CanonicalBinding, BindingDecision
+
         local = _local_graph(knowledges=[_claim("lcn_a"), _claim("lcn_b")])
         global_ = _global_graph(knowledges=[_claim("gcn_x")])
         bindings = [
             CanonicalBinding(
-                local_canonical_id="lcn_a", global_canonical_id="gcn_x",
-                package_id="pkg", version="1", decision=BindingDecision.MATCH_EXISTING,
+                local_canonical_id="lcn_a",
+                global_canonical_id="gcn_x",
+                package_id="pkg",
+                version="1",
+                decision=BindingDecision.MATCH_EXISTING,
                 reason="match",
             ),
         ]
@@ -526,17 +589,24 @@ class TestBindingValidation:
 
     def test_duplicate_binding(self):
         from gaia.gaia_ir import CanonicalBinding, BindingDecision
+
         local = _local_graph(knowledges=[_claim("lcn_a")])
         global_ = _global_graph(knowledges=[_claim("gcn_x"), _claim("gcn_y")])
         bindings = [
             CanonicalBinding(
-                local_canonical_id="lcn_a", global_canonical_id="gcn_x",
-                package_id="pkg", version="1", decision=BindingDecision.MATCH_EXISTING,
+                local_canonical_id="lcn_a",
+                global_canonical_id="gcn_x",
+                package_id="pkg",
+                version="1",
+                decision=BindingDecision.MATCH_EXISTING,
                 reason="first",
             ),
             CanonicalBinding(
-                local_canonical_id="lcn_a", global_canonical_id="gcn_y",
-                package_id="pkg", version="1", decision=BindingDecision.CREATE_NEW,
+                local_canonical_id="lcn_a",
+                global_canonical_id="gcn_y",
+                package_id="pkg",
+                version="1",
+                decision=BindingDecision.CREATE_NEW,
                 reason="second",
             ),
         ]
@@ -546,17 +616,24 @@ class TestBindingValidation:
 
     def test_binding_dangling_local(self):
         from gaia.gaia_ir import CanonicalBinding, BindingDecision
+
         local = _local_graph(knowledges=[_claim("lcn_a")])
         global_ = _global_graph(knowledges=[_claim("gcn_x")])
         bindings = [
             CanonicalBinding(
-                local_canonical_id="lcn_a", global_canonical_id="gcn_x",
-                package_id="pkg", version="1", decision=BindingDecision.MATCH_EXISTING,
+                local_canonical_id="lcn_a",
+                global_canonical_id="gcn_x",
+                package_id="pkg",
+                version="1",
+                decision=BindingDecision.MATCH_EXISTING,
                 reason="ok",
             ),
             CanonicalBinding(
-                local_canonical_id="lcn_ghost", global_canonical_id="gcn_x",
-                package_id="pkg", version="1", decision=BindingDecision.MATCH_EXISTING,
+                local_canonical_id="lcn_ghost",
+                global_canonical_id="gcn_x",
+                package_id="pkg",
+                version="1",
+                decision=BindingDecision.MATCH_EXISTING,
                 reason="dangling",
             ),
         ]
@@ -566,12 +643,16 @@ class TestBindingValidation:
 
     def test_binding_dangling_global(self):
         from gaia.gaia_ir import CanonicalBinding, BindingDecision
+
         local = _local_graph(knowledges=[_claim("lcn_a")])
         global_ = _global_graph(knowledges=[])
         bindings = [
             CanonicalBinding(
-                local_canonical_id="lcn_a", global_canonical_id="gcn_ghost",
-                package_id="pkg", version="1", decision=BindingDecision.CREATE_NEW,
+                local_canonical_id="lcn_a",
+                global_canonical_id="gcn_ghost",
+                package_id="pkg",
+                version="1",
+                decision=BindingDecision.CREATE_NEW,
                 reason="dangling global",
             ),
         ]
