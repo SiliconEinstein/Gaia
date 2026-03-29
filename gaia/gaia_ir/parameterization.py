@@ -1,7 +1,6 @@
-"""Parameterization models — PriorRecord, FactorParamRecord, ResolutionPolicy.
+"""Parameterization — probability parameters on GlobalCanonicalGraph.
 
-Implements the parameterization layer on GlobalCanonicalGraph as defined in
-docs/foundations/graph-ir/parameterization.md.
+Implements docs/foundations/gaia-ir/parameterization.md.
 """
 
 from __future__ import annotations
@@ -11,35 +10,19 @@ from typing import Any
 
 from pydantic import BaseModel, model_validator
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
 CROMWELL_EPS: float = 1e-3
 """Cromwell's rule epsilon — all probabilities clamped to [EPS, 1-EPS]."""
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
 def _clamp(value: float) -> float:
-    """Clamp value to (CROMWELL_EPS, 1 - CROMWELL_EPS)."""
     return max(CROMWELL_EPS, min(1 - CROMWELL_EPS, value))
 
 
-# ---------------------------------------------------------------------------
-# Records
-# ---------------------------------------------------------------------------
-
-
 class PriorRecord(BaseModel):
-    """A single prior assignment for a global claim node.
+    """Prior probability for a global claim Knowledge.
 
-    Values are Cromwell-clamped to [CROMWELL_EPS, 1 - CROMWELL_EPS] on
-    creation. Multiple records for the same gcn_id may exist from different
-    sources; resolution policy selects which one BP uses.
+    Only type=claim Knowledge has PriorRecord. Values are Cromwell-clamped.
+    Multiple records for the same gcn_id may exist from different sources.
     """
 
     gcn_id: str
@@ -53,26 +36,28 @@ class PriorRecord(BaseModel):
         object.__setattr__(self, "value", _clamp(self.value))
 
 
-class FactorParamRecord(BaseModel):
-    """A single probability assignment for a global factor node.
+class StrategyParamRecord(BaseModel):
+    """Conditional probability parameters for a global Strategy.
 
-    Covers infer, toolcall, and proof factors. Values are Cromwell-clamped.
+    Parameter count depends on Strategy type:
+    - infer: 2^k values (full CPT, one per premise truth-value combination)
+    - noisy_and: 1 value (P(conclusion=true | all premises=true))
+    - named strategies: 1 value (folded conditional probability)
+    - toolcall/proof: defined separately
+
+    All values are Cromwell-clamped.
     """
 
-    factor_id: str
-    probability: float
+    strategy_id: str  # gcs_ prefix
+    conditional_probabilities: list[float]
     source_id: str
     created_at: datetime = None  # type: ignore[assignment]
 
     def model_post_init(self, __context: Any) -> None:
         if self.created_at is None:
             object.__setattr__(self, "created_at", datetime.now(timezone.utc))
-        object.__setattr__(self, "probability", _clamp(self.probability))
-
-
-# ---------------------------------------------------------------------------
-# Source
-# ---------------------------------------------------------------------------
+        clamped = [_clamp(p) for p in self.conditional_probabilities]
+        object.__setattr__(self, "conditional_probabilities", clamped)
 
 
 class ParameterizationSource(BaseModel):
@@ -85,21 +70,15 @@ class ParameterizationSource(BaseModel):
     created_at: datetime
 
 
-# ---------------------------------------------------------------------------
-# Resolution Policy
-# ---------------------------------------------------------------------------
-
-
 class ResolutionPolicy(BaseModel):
     """Policy for resolving multiple parameterization records before BP runs.
 
     Strategies:
-    - ``"latest"``: pick the most recent record per node/factor.
-    - ``"source"``: use only records from a specific ParameterizationSource;
-      requires ``source_id`` to be set.
+    - "latest": pick the most recent record per Knowledge/Strategy.
+    - "source": use only records from a specific ParameterizationSource.
 
-    ``prior_cutoff`` filters records to those created before the given
-    timestamp, enabling reproducible BP runs.
+    prior_cutoff filters records to those created before the given timestamp,
+    enabling reproducible BP runs.
     """
 
     strategy: str  # "latest" | "source"
