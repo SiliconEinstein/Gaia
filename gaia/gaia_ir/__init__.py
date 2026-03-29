@@ -1,8 +1,8 @@
 """Gaia data models — Python implementation of docs/foundations/graph-ir/."""
 
-from gaia.models.belief_state import BeliefState
-from gaia.models.binding import BindingDecision, CanonicalBinding
-from gaia.models.graph_ir import (
+from gaia.gaia_ir.belief_state import BeliefState
+from gaia.gaia_ir.binding import BindingDecision, CanonicalBinding
+from gaia.gaia_ir.graph_ir import (
     FactorCategory,
     FactorNode,
     FactorStage,
@@ -17,7 +17,7 @@ from gaia.models.graph_ir import (
     SourceRef,
     Step,
 )
-from gaia.models.parameterization import (
+from gaia.gaia_ir.parameterization import (
     CROMWELL_EPS,
     FactorParamRecord,
     ParameterizationSource,
