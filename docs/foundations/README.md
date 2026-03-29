@@ -25,7 +25,6 @@ Gaia 的规范参考文档，按架构层级组织。
 
 - [产品范围](ecosystem/01-product-scope.md) — Gaia 是什么、为何存在
 - [架构概览](gaia-ir/00-pipeline-overview.md) — 三层管线、CLI↔LKM 契约
-- [领域词汇表](ecosystem/02-domain-vocabulary.md) — Knowledge、Chain、Module、Package
 - [去中心化架构](ecosystem/03-decentralized-architecture.md) — 去中心化包管理和推理架构
 - [包的创建与发布](ecosystem/04-authoring-and-publishing.md) — 作者从创建包到发布的旅程
 - [Registry 运作](ecosystem/05-registry-operations.md) — 注册、去重、推理链激活
