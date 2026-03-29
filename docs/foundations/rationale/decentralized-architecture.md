@@ -8,22 +8,35 @@
 
 | 参与者 | 性质 | 职责 |
 |--------|------|------|
-| **作者**（人类或 AI agent） | 用户侧 | 创建知识包，声明依赖，编译，本地推理，发布 |
-| **作者的 GitHub 仓库** | 用户侧 | 托管知识包源码、编译产物和 review report |
-| **Official Repo**（官方注册仓库） | GitHub | 注册包和 reviewer 的元数据，存储推理结果 |
+| **作者**（人类或 AI agent） | 贡献者 | 创建知识包，声明依赖，编译，本地推理，发布 |
+| **LKM Server** | 贡献者 + 全局推理 | 十亿节点全局推理；构建全局图时发现跨包关系，以 curation 包的形式贡献 |
 | **Review Server** | 独立部署 | LLM/agent 自动审核员。审核包内部推理逻辑，给出条件概率初始值。可多实例 |
-| **Curation Server** | 独立部署 | 关系扫描机器人。自动发现跨包关系，通过 PR 贡献。可多实例 |
-| **LKM Server** | 中心计算 | 十亿节点全局推理引擎 |
+| **Git Repo（Package）** | 用户侧 | 托管知识包源码、编译产物和 review report |
+| **Git Repo（Official Registry）** | 注册中心 | 注册包、reviewer、LKM 的元数据，存储推理结果 |
 
-### Review Server 和 Curation Server 的定位
+### 两类贡献者
 
-Review Server 和 Curation Server **不是 LKM Server 的组件**，而是独立部署的机器人：
+Gaia 有两类并列的贡献者，走同样的流程（创建包 → review → 注册）：
 
-- **Review Server 就是 reviewer：** 用 LLM/agent 实现的自动审核员，审核包内部推理过程的逻辑可靠性，给出条件概率初始值。作者可以和 Review Server 来回 rebuttal。
-- **Curation Server 是扫描机器人：** 定期扫描 Official Repo，发现跨包关系（语义重复、矛盾、连接），以 PR 或注册新包的方式贡献。
-- **可多实例：** 不同机构可以各自部署自己的 Review Server 或 Curation Server。
-- **无特权：** 和普通贡献者一样，通过 PR 与 Official Repo 交互。
-- **格式约束：** 只要输出符合 Official Repo 规定的格式，任何实现都可以参与。
+| | 人类 / AI agent | LKM Server |
+|---|---|---|
+| **创建什么** | 知识包（从研究中得出的命题和推理链） | Curation 包（从全局图分析中发现的跨包关系） |
+| **知识来源** | 实验、理论、分析 | 全局图构建过程中的发现（语义重复、矛盾、跨包连接） |
+| **审核** | Review Server 审核推理逻辑 | 同样经 Review Server 审核 |
+| **注册** | 向 Official Registry 提交 PR | 同样向 Official Registry 提交 PR |
+| **特权** | 无 | 无——和普通贡献者走同样的流程 |
+
+**LKM 是特殊地位的 research agent：** 它能看到整个知识网络（这是普通作者看不到的），因此能发现跨包关系。但它的发现仍然要走标准流程——创建 curation 包，经 Review Server 审核，注册到 Official Registry。没有捷径。
+
+### Review Server 的定位
+
+Review Server 是独立部署的 LLM/agent 审核员，为所有贡献者服务：
+
+- **为人类/agent 的包审核推理逻辑，给条件概率**
+- **同样为 LKM 的 curation 包审核**
+- **可多实例：** 不同机构可以各自部署
+- **无特权：** 通过标准流程贡献
+- **格式约束：** 只要 review report 符合格式，任何实现都可以
 
 ## Git 作为通用交互面
 
@@ -31,30 +44,37 @@ Review Server 和 Curation Server **不是 LKM Server 的组件**，而是独立
 
 | 参与者 | 交互方式 |
 |--------|---------|
-| 作者 | git push 到自己的包仓库；向 official repo 请求注册 |
+| 作者 | git push 到自己的包仓库；向 Official Registry 请求注册 |
+| LKM Server | 创建 curation 包仓库；同样向 Official Registry 请求注册 |
 | Review Server | 审核包内部推理 → review report 存入包仓库 |
-| Curation Server | 向 official repo 提交 curation PR（发现的关系、合并提议等） |
-| LKM Server | 读取 official repo 的推理图，回写全局推理结果 |
 
 ## 整体架构图
 
 ```mermaid
 graph TB
     %% ═══════════════════════════════════════════════════
-    %% 上层：作者（左）  Review Server（右）
+    %% 上层：两类贡献者（并列）
     %% ═══════════════════════════════════════════════════
     subgraph row_top[" "]
         direction LR
         Author["👤 <b>作者</b><br/>人类 / AI agent"]
-        subgraph RSBox["Review Server ×N"]
-            RS["LLM/agent 审核员<br/>审核推理逻辑<br/>给条件概率初始值"]
+        subgraph LKM["LKM Server"]
+            GBP["全局推理引擎<br/>+ curation（发现跨包关系）"]
         end
     end
 
     %% ═══════════════════════════════════════════════════
-    %% 中层：Package Repo（左）  Registry Repo（右）
+    %% 中层左：Review Server
+    %% 中层右：（连接上下）
     %% ═══════════════════════════════════════════════════
-    subgraph row_mid[" "]
+    subgraph RSBox["Review Server ×N（独立部署）"]
+        RS["LLM/agent 审核员<br/>审核推理逻辑 · 给条件概率"]
+    end
+
+    %% ═══════════════════════════════════════════════════
+    %% 下层：两个 Git Repo（并列）
+    %% ═══════════════════════════════════════════════════
+    subgraph row_bot[" "]
         direction LR
         subgraph L0["Git Repo（Package）"]
             PKG["源码 · 编译产物<br/>依赖 · review report"]
@@ -62,51 +82,37 @@ graph TB
             Infer["gaia infer"]
         end
         subgraph L1["Git Repo（Official Registry）"]
-            OR["packages/ · reviewers/<br/>reviews/ · beliefs/"]
+            OR["packages/ · reviewers/<br/>lkm/ · beliefs/"]
             CI["CI Workflows"]
             IBP["增量推理"]
         end
     end
 
     %% ═══════════════════════════════════════════════════
-    %% 下层：LKM Server（左）  Curation Server（右）
+    %% 连线 — 作者流
     %% ═══════════════════════════════════════════════════
-    subgraph row_bot[" "]
-        direction LR
-        subgraph LKM["LKM Server"]
-            GBP["全局推理引擎<br/>十亿节点 · 定期全量"]
-        end
-        subgraph CSBox["Curation Server ×N"]
-            CS["关系扫描机器人<br/>语义重复 · 矛盾 · 跨包连接"]
-        end
-    end
-
-    %% ═══════════════════════════════════════════════════
-    %% 连线
-    %% ═══════════════════════════════════════════════════
-
-    %% 作者 ↔ Package
     Author -->|"创建 · 编写"| PKG
     PKG --> Build --> Infer
     Infer -.->|"可信度预览"| Author
-
-    %% 作者 ↔ Review Server
     Author -->|"① 请求审核"| RS
     RS -->|"② review report"| PKG
     Author -.->|"rebuttal"| RS
-
-    %% 注册流
     Author -->|"③ 注册（含 review）"| OR
+
+    %% ═══════════════════════════════════════════════════
+    %% 连线 — LKM 流
+    %% ═══════════════════════════════════════════════════
+    OR -->|"全局图数据"| GBP
+    GBP -->|"④ 全局可信度"| OR
+    GBP -->|"⑤ 发现关系 →<br/>创建 curation 包"| PKG
+    GBP -->|"curation 包审核"| RS
+
+    %% ═══════════════════════════════════════════════════
+    %% 连线 — Registry 内部
+    %% ═══════════════════════════════════════════════════
     OR --> CI -->|"验证通过"| OR
-    OR -->|"④ 去重"| IBP
-    IBP -->|"⑤ 增量推理"| OR
-
-    %% Curation → Registry
-    CS -->|"⑥ curation PR"| OR
-
-    %% 全局推理
-    OR -->|"同步"| GBP
-    GBP -->|"⑦ 全局可信度"| OR
+    OR -->|"⑥ 去重 + 增量推理"| IBP
+    IBP --> OR
 
     %% 可信度回流
     OR -.->|"拉取最新可信度"| Infer
@@ -114,20 +120,14 @@ graph TB
     %% ═══════════════════════════════════════════════════
     %% 样式
     %% ═══════════════════════════════════════════════════
-
-    %% 行容器透明
     style row_top fill:none,stroke:none
-    style row_mid fill:none,stroke:none
     style row_bot fill:none,stroke:none
 
-    %% 实体框
     style L0 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
     style L1 fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000
     style LKM fill:#fce4ec,stroke:#c62828,stroke-width:2px,color:#000
     style RSBox fill:#fff3e0,stroke:#e65100,stroke-width:2px,stroke-dasharray:5 5,color:#000
-    style CSBox fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,stroke-dasharray:5 5,color:#000
 
-    %% 节点
     style Author fill:#fff,stroke:#333,color:#000
     style PKG fill:#fff,stroke:#333,color:#000
     style Build fill:#fff,stroke:#333,color:#000
@@ -136,46 +136,52 @@ graph TB
     style CI fill:#fff,stroke:#333,color:#000
     style IBP fill:#fff,stroke:#333,color:#000
     style RS fill:#fff,stroke:#333,color:#000
-    style CS fill:#fff,stroke:#333,color:#000
     style GBP fill:#fff,stroke:#333,color:#000
 ```
 
-**布局：** 上层 = 人与审核交互，中层 = 两个 git 仓库（包 / 注册中心），下层 = 后台服务。实线 = 数据流，虚线 = 拉取/辅助。虚线框 = 独立部署（可多实例）。
+**布局：** 上层 = 两类贡献者（人类/agent 与 LKM 并列），中层 = Review Server（为两者服务），下层 = 两个 git 仓库（包 / 注册中心）。实线 = 数据流，虚线 = 拉取。
 
 ## 架构分层
 
 | 层 | 组成 | 性质 |
 |----|------|------|
-| **Package** | 作者的 git 仓库 | 完全自治，可离线工作 |
-| **Official Repo** | GitHub 仓库 | 可选的聚合层，注册包和 reviewer，存储推理结果 |
-| **Review Server** | 独立部署的 LLM/agent 审核员 | 可多实例，审核包内部推理逻辑，给条件概率 |
-| **Curation Server** | 独立部署的扫描机器人 | 可多实例，发现跨包关系 |
-| **LKM Server** | 全局推理引擎 | 十亿节点 BP，定期全量 + 事件增量 |
+| **Package** | 作者或 LKM 的 git 仓库 | 完全自治，可离线工作 |
+| **Official Registry** | Git 仓库 | 可选的聚合层，注册包、reviewer、LKM，存储推理结果 |
+| **Review Server** | 独立部署的 LLM/agent 审核员 | 可多实例，审核所有来源的包 |
+| **LKM Server** | 全局推理 + curation | 全局 BP + 发现跨包关系并以 curation 包贡献 |
 
 - **Package** 是基础——两个人各建一个包，互相引用，就能在本地推理中让可信度流动。
-- **Review Server** 在包发布前审核推理逻辑，给出条件概率初始值。
-- **Official Repo** 提供跨包的去重、审核记录和增量推理。
-- **Curation Server** 围绕 Official Repo 运行，发现跨包关系。
-- **LKM Server** 提供十亿节点级别的全局推理。
+- **Review Server** 审核所有包（人类的和 LKM 的），给出条件概率初始值。
+- **Official Registry** 提供跨包的去重、审核记录和增量推理。
+- **LKM Server** 提供全局推理，同时在构建全局图的过程中发现跨包关系并以 curation 包的形式贡献。
 
 每一层都是可选增强。用户可以只用 Package 层完全离线工作。
 
-## Reviewer 注册
+## 注册
 
-Official Repo 注册两类实体：包和 reviewer（Review Server 实例）。Reviewer 注册采用和包注册相同的 PR 模型：
+Official Registry 注册三类实体，全部采用相同的 PR 模型：
+
+### 注册结构
 
 ```
-official-repo/
-├── packages/              # 包注册
-│   └── my-package/
+official-registry/
+├── packages/              # 知识包注册（人类和 LKM 的包都在这里）
+│   ├── my-research/
+│   │   ├── Package.toml
+│   │   ├── Versions.toml
+│   │   └── Deps.toml
+│   └── curation-ybco-merge/      # LKM 提交的 curation 包
 │       ├── Package.toml
 │       ├── Versions.toml
 │       └── Deps.toml
-├── reviewers/             # reviewer（Review Server）注册
+├── reviewers/             # Review Server 注册
 │   ├── review-server-alpha/
 │   │   └── Reviewer.toml
 │   └── review-server-beta/
 │       └── Reviewer.toml
+├── lkm/                   # LKM Server 注册
+│   └── lkm-gaia-official/
+│       └── LKM.toml
 ├── reviews/               # 审核记录
 ├── beliefs/               # 推理结果
 ├── merges/                # 合并记录
@@ -187,56 +193,98 @@ official-repo/
 ```toml
 [reviewer]
 id = "uuid"
-github = "review-server-alpha"        # GitHub handle / bot account
+github = "review-server-alpha"
 name = "Alpha Review Server"
-operator = "MIT Physics Department"   # 运营方
+operator = "MIT Physics Department"
 registered = 2026-03-15
 
 [specialization]
 domains = ["condensed-matter", "superconductivity"]
 
 [endorsement]
-endorsed_by = ["review-server-beta"]  # 担保方（已注册的 reviewer）
+endorsed_by = ["review-server-beta"]
 ```
 
-### 注册流程
+### LKM.toml
+
+```toml
+[lkm]
+id = "uuid"
+github = "lkm-gaia-official"
+name = "Gaia Official LKM"
+operator = "Gaia Foundation"
+registered = 2026-03-15
+
+[capabilities]
+global_inference = true
+curation = true           # 是否提交 curation 包
+```
+
+### 注册流程（对所有实体通用）
 
 ```
-运营方提交 PR：添加 reviewers/<name>/Reviewer.toml
+提交 PR：添加对应目录下的 TOML 文件
   ↓
-CI 验证：格式合法、GitHub handle 有效、担保方已注册
+CI 验证：格式合法、身份有效、担保方已注册
   ↓
 等待期（社区审查）
   ↓
-合并 → 该 Review Server 的 review report 被 CI 认可
+合并 → 该实体的贡献被 CI 认可
 ```
 
-### 为什么注册 reviewer
+## LKM 的 Curation 流程
 
-1. **审核有效性保证：** CI 在验证包的 review report 时检查 reviewer 是否已注册，未注册 reviewer 的 report 不被认可
-2. **专长匹配：** `domains` 字段帮助作者选择合适的 Review Server
-3. **审核历史可追溯：** 哪个 Review Server 审核过哪些包，从 git history 可查
-4. **质量从历史涌现：** reviewer 的 track record 自然积累，不需要预设信任分
+LKM 在构建全局图的过程中，自然会发现跨包关系。这些发现以 curation 包的形式贡献，走和普通包完全一样的流程：
+
+```
+LKM 全局推理过程中发现：
+  - 命题 A ≈ 命题 B（语义重复，注册时漏掉了）
+  - 命题 P 和 Q 互相矛盾
+  - Package X 的结论与 Package Y 的前提高度相关
+    ↓
+LKM 创建 curation 包：
+  - 声明发现的关系（等价、矛盾、连接）
+  - 附带检测依据和置信度
+    ↓
+curation 包经 Review Server 审核
+  ↓
+带 review report 注册到 Official Registry
+  ↓
+CI 验证 → 等待期 → 合并 → 增量推理
+```
+
+**LKM 没有捷径。** 它发现的关系不会直接生效——必须走完建包 → 审核 → 注册的完整流程。这保证了所有知识变更都有审计记录，且经过独立审核。
 
 ## 业务流程总览
 
 架构图中的编号对应以下主流程：
 
+**人类/Agent 流：**
+
 | 步骤 | 描述 | 详见 |
 |------|------|------|
 | ① 请求审核 | 作者向 Review Server 提交包的审核请求 | [review-and-curation.md](review-and-curation.md) |
-| ② review report | Review Server 审核推理逻辑，给出条件概率初始值，存入包内 | [review-and-curation.md](review-and-curation.md) |
-| ③ 请求注册 | 作者带着 review report 向 Official Repo 请求注册 | [registry-operations.md](registry-operations.md) |
-| ④ 去重 | embedding 匹配，区分前提引用 vs 独立结论 | [registry-operations.md](registry-operations.md) |
-| ⑤ 增量推理 | 局部子图重算，秒级更新可信度 | [belief-flow-and-quality.md](belief-flow-and-quality.md) |
-| ⑥ Curation 发现 | 语义重复、跨包连接、矛盾检测 | [review-and-curation.md](review-and-curation.md) |
-| ⑦ 全局推理 | 十亿节点全量推理，跨 Registry 传播 | [belief-flow-and-quality.md](belief-flow-and-quality.md) |
+| ② review report | Review Server 审核推理逻辑，给条件概率初始值，存入包内 | [review-and-curation.md](review-and-curation.md) |
+| ③ 请求注册 | 作者带着 review report 向 Official Registry 请求注册 | [registry-operations.md](registry-operations.md) |
+
+**LKM 流：**
+
+| 步骤 | 描述 | 详见 |
+|------|------|------|
+| ④ 全局推理 | LKM 读取全局图，运行十亿节点 BP，回写可信度 | [belief-flow-and-quality.md](belief-flow-and-quality.md) |
+| ⑤ Curation 发现 | LKM 在构建全局图时发现跨包关系，创建 curation 包 | [review-and-curation.md](review-and-curation.md) |
+
+**共同流：**
+
+| 步骤 | 描述 | 详见 |
+|------|------|------|
+| ⑥ 去重 + 增量推理 | Registry CI 去重、验证、增量推理 | [registry-operations.md](registry-operations.md)，[belief-flow-and-quality.md](belief-flow-and-quality.md) |
 
 各环节的详细业务逻辑：
 
 - [包的创建与发布](authoring-and-publishing.md) — 作者从创建包到审核、发布的完整旅程
 - [Official Repo 的运作](registry-operations.md) — 注册、去重、推理链激活
-- [审核与策展](review-and-curation.md) — Review Server 和 Curation Server 的业务逻辑
+- [审核与策展](review-and-curation.md) — Review Server 审核 + LKM curation 的业务逻辑
 - [多级推理与质量涌现](belief-flow-and-quality.md) — 三级推理、错误修正、质量如何涌现
 
 ## 设计原则
@@ -244,15 +292,15 @@ CI 验证：格式合法、GitHub handle 有效、担保方已注册
 | 原则 | 体现 |
 |------|------|
 | 包即 git 仓库 | 不依赖任何中心服务 |
-| Git 是通用协议 | 作者、机器人全部通过 PR / git 交互；兼容 GitHub、GitLab、Gitea |
-| Official Repo 可选 | 增值服务，不是基础设施；可 fork 可联邦 |
-| Review 在包级别 | 审核发生在提交 Official Repo 之前，report 存入包内 |
+| Git 是通用协议 | 作者、LKM、Review Server 全部通过 PR / git 交互；兼容 GitHub、GitLab、Gitea |
+| Official Registry 可选 | 增值服务，不是基础设施；可 fork 可联邦 |
+| 两类贡献者并列 | 人类/agent 和 LKM 走同样的流程，LKM 没有捷径 |
+| LKM = research agent | 全局推理 + curation 是同一个过程的两个产出 |
+| Review 在包级别 | 审核发生在提交 Registry 之前，report 存入包内 |
 | Review Server 就是 reviewer | LLM/agent 自动审核，作者可 rebuttal |
-| 机器人无特权 | Review Server 和 Curation Server 通过标准流程贡献 |
-| 机器人可多实例 | 任何人可以部署自己的 Review / Curation Server |
-| Reviewer 需注册 | 审核来源可追溯，质量从历史涌现 |
+| 所有实体需注册 | 包、reviewer、LKM 都在 Registry 注册，审计可追溯 |
 | 新推理链需有参数才生效 | 没有 review = 没有条件概率 = 推理引擎跳过 |
-| 多级推理 | 包级 + Official Repo 增量 + LKM 全局 |
+| 多级推理 | 包级 + Registry 增量 + LKM 全局 |
 | 错误可修正 | 合并重复命题 + 暂停受影响的推理 + re-review |
 
 ## 参考文献

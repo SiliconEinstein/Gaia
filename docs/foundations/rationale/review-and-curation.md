@@ -120,38 +120,43 @@ Review report 包含：
 
 这意味着 review 不是注册的前提条件，而是推理链"激活"的前提条件。作者可以先注册再找 Review Server 审核，review report 通过后续 PR 补充。
 
-## Curation Server
+## LKM 的 Curation 角色
 
-### 为什么需要自动策展
+### 为什么 curation 是 LKM 的一部分
 
 Review Server 处理的是单个包内部的推理质量。但有些跨包关系需要在全局视角下才能发现：
 
 1. **语义重复命题**——两个命题措辞不同但含义相同，注册时 embedding 匹配漏掉了
 2. **跨包连接**——两个包讨论相关话题但互相不知道对方的存在
 3. **矛盾检测**——两个命题互相矛盾，但各自的作者不知道对方
-4. **知识图健康**——孤岛节点、断裂的推理链、陈旧的引用
 
-这些需要一个能看到全局知识网络的自动化机器人。
+这些发现需要能看到整个知识网络的全局视角——而 LKM 在构建全局图、运行全局推理的过程中，天然具备这个视角。Curation 不是一个独立的服务，而是 LKM 全局推理过程的**副产品**。
 
-### Curation Server 的运作方式
+### LKM 作为 research agent
 
-**核心原则：Curation Server 没有特殊权限。** 它和普通贡献者一样，通过 PR 与 official repo 交互。它的"自动发现"以**提交新包或 PR 的方式**贡献给 official repo，而不是直接修改数据。
+LKM 和人类/agent 是两类并列的贡献者。区别在于知识来源：
 
-### 策展操作一：发现语义重复命题
+- **人类/agent：** 从实验、理论、分析中创建知识包
+- **LKM：** 从全局图构建过程中发现跨包关系，创建 curation 包
+
+但两者走**完全相同的流程**：创建包 → Review Server 审核 → 注册到 Official Registry。LKM 没有捷径。
+
+### Curation 包的类型
+
+LKM 在全局推理过程中可能发现以下关系，每种都以 curation 包的形式提交：
+
+**发现一：语义重复命题**
 
 ```
-运行方式：
-  Curation Server 定期扫描 official repo 中所有命题
-  使用 embedding 模型计算语义相似度
-  发现命题 A ≈ 命题 B（措辞不同但语义相同）
+LKM 构建全局图时发现：
+  命题 A（"YBCO 在 92K 以下超导"）≈ 命题 B（"YBa₂Cu₃O₇ 的 Tc 为 92±1K"）
+  注册时的 embedding 匹配漏掉了
     ↓
-提交 merge PR 到 official repo：
-  - 提议将 B 合并到 A（或反过来）
+LKM 创建 curation 包：
+  - 声明 A 和 B 的等价关系
   - 附带相似度分数和理由
     ↓
-社区审核 merge PR：
-  - 确认两个命题确实是同一个
-  - 或拒绝（措辞相似但含义不同）
+curation 包经 Review Server 审核 → 注册到 Official Registry
     ↓
 合并后的处理：
   a. B 的所有引用重定向到 A
@@ -163,67 +168,52 @@ Review Server 处理的是单个包内部的推理质量。但有些跨包关系
 
 **为什么暂停参数：** 合并后，原本指向 A 和 B 两个独立命题的推理链现在都指向 A。如果之前它们被判定为"独立证据"，现在需要重新评估——因为它们可能实际上是在讨论同一个命题，不应该 double counting。暂停参数确保在 re-review 完成前回退到保守状态（可能少算证据，但不会多算）。
 
-### 策展操作二：发现跨包连接
+**发现二：跨包连接**
 
 ```
-运行方式：
-  Curation Server 分析知识图谱中的命题和推理链
-  发现 Package X 的结论和 Package Y 的前提高度相关
+LKM 构建全局图时发现：
+  Package X 的结论和 Package Y 的前提高度相关
   但 X 和 Y 之间没有依赖关系
     ↓
-Curation Server 创建一个 curation 包：
+LKM 创建 curation 包：
   - 声明 X 的结论和 Y 的前提之间的关系
   - 可能是等价关系、支持关系或矛盾关系
     ↓
-以标准注册流程提交到 official repo
-  ↓
-社区审核 → 正常流程
+curation 包经 Review Server 审核 → 注册到 Official Registry
 ```
 
-**关键设计：Curation Server 以提交新包的方式贡献**，而不是直接修改已有包。这保持了数据的不可变性和审计性。
-
-### 策展操作三：矛盾检测
+**发现三：矛盾检测**
 
 ```
-运行方式：
-  Curation Server 分析命题之间的语义关系
-  发现命题 P 和命题 Q 互相矛盾
-  （如 "Tc = 92K" vs "Tc = 89K"）
+LKM 构建全局图时发现：
+  命题 P（"Tc = 92K"）和命题 Q（"Tc = 89K"）互相矛盾
     ↓
-Curation Server 创建一个 curation 包：
+LKM 创建 curation 包：
   - 声明 P 和 Q 的矛盾关系
   - 附带检测依据
     ↓
-以标准注册流程提交到 official repo
-  ↓
-社区确认矛盾 → 推理引擎自动压低双方的可信度
+curation 包经 Review Server 审核 → 注册到 Official Registry
+    ↓
+确认矛盾 → 推理引擎自动压低双方的可信度
 ```
 
 **矛盾是结构性事实，不是判断。** 一旦确认两个命题矛盾，推理引擎保证它们不会同时具有高可信度——这是逻辑一致性的自动维护。
 
-### 策展操作四：知识图健康维护
+### Curation 包的关键设计
 
-```
-Curation Server 定期检查：
-  - 孤岛命题（没有任何推理链连接）→ 标记，提醒社区
-  - 断裂的依赖（引用的包不再可用）→ 标记，提醒维护者
-  - 陈旧的引用（依赖的包有重大更新但下游未跟进）→ 提醒下游
-  - 未审核的包积压过多 → 提醒 Review Server 运营者
-```
+- **以包的形式贡献：** LKM 不直接修改已有包或 Registry 数据，而是创建新的 curation 包。这保持了数据的不可变性和审计性。
+- **经过 Review：** curation 包和人类的知识包一样，需要经过 Review Server 审核才能注册。
+- **LKM 无特权：** LKM 在 Official Registry 注册了身份，但不享有任何快速通道。它的 curation 包和普通包走完全相同的流程。
 
-这些是信息性的，不修改数据。
+## Review Server 和 LKM 的关系
 
-## Review Server 和 Curation Server 的关系
-
-| | Review Server | Curation Server |
+| | Review Server | LKM Server |
 |---|---|---|
-| **审核时机** | 包提交 Official Repo 之前 | 包注册到 Official Repo 之后 |
+| **本质** | LLM/agent 审核员 | 全局推理引擎 + research agent |
+| **审核时机** | 包提交 Registry 之前 | 全局推理过程中 |
 | **视角** | 单个包内部的推理逻辑 | 全局知识网络 |
-| **本质** | LLM/agent 自动审核员 | 关系扫描机器人 |
-| **产出** | review report（条件概率初始值） | curation PR / curation 包 |
-| **存储位置** | 包内部的指定文件夹 | Official Repo |
-| **与作者的交互** | 直接交互（rebuttal） | 不直接交互（通过 PR） |
-| **与 Official Repo 的交互** | review report 随包提交 | 通过 PR 贡献 |
+| **产出** | review report（条件概率初始值） | 全局可信度 + curation 包 |
+| **与 Registry 的交互** | review report 随包提交 | 回写可信度 + 注册 curation 包 |
 | **权限** | 无特权 | 无特权 |
 
-两者互补：Review Server 在包发布前保证内部推理质量（条件概率），Curation Server 在注册后发现跨包关系（去重、矛盾、连接）。
+两者互补：Review Server 保证每个包的内部推理质量（条件概率），LKM 保证全局知识网络的一致性（发现跨包关系、矛盾、重复）。
