@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from gaia.libs.models.parameterization import (
+from gaia.models.parameterization import (
     CROMWELL_EPS,
     FactorParamRecord,
     ParameterizationSource,

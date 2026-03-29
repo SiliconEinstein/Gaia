@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from gaia.libs.models.belief_state import BeliefState
-from gaia.libs.models.binding import CanonicalBinding
-from gaia.libs.models.graph_ir import FactorNode, KnowledgeNode
-from gaia.libs.models.parameterization import (
+from gaia.models.belief_state import BeliefState
+from gaia.models.binding import CanonicalBinding
+from gaia.models.graph_ir import FactorNode, KnowledgeNode
+from gaia.models.parameterization import (
     FactorParamRecord,
     ParameterizationSource,
     PriorRecord,

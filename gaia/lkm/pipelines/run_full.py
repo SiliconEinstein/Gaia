@@ -9,7 +9,7 @@ from pathlib import Path
 
 from gaia.core.local_params import LocalParameterization
 from gaia.libs.embedding import DPEmbeddingModel
-from gaia.libs.models.graph_ir import LocalCanonicalGraph
+from gaia.models.graph_ir import LocalCanonicalGraph
 from gaia.libs.storage.config import StorageConfig
 from gaia.libs.storage.manager import StorageManager
 from gaia.lkm.pipelines.run_global_bp import run_global_bp

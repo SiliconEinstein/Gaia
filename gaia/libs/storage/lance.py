@@ -15,10 +15,10 @@ from typing import Any
 import lancedb
 import pyarrow as pa
 
-from gaia.libs.models.belief_state import BeliefState
-from gaia.libs.models.binding import CanonicalBinding
-from gaia.libs.models.graph_ir import FactorNode, KnowledgeNode
-from gaia.libs.models.parameterization import (
+from gaia.models.belief_state import BeliefState
+from gaia.models.binding import CanonicalBinding
+from gaia.models.graph_ir import FactorNode, KnowledgeNode
+from gaia.models.parameterization import (
     FactorParamRecord,
     ParameterizationSource,
     PriorRecord,
@@ -275,7 +275,7 @@ class LanceContentStore(ContentStore):
 
     @staticmethod
     def _row_to_knowledge_node(row: dict[str, Any]) -> KnowledgeNode:
-        from gaia.libs.models.graph_ir import (
+        from gaia.models.graph_ir import (
             LocalCanonicalRef,
             PackageRef,
             Parameter,
@@ -352,7 +352,7 @@ class LanceContentStore(ContentStore):
     def _row_to_factor_node(row: dict[str, Any]) -> FactorNode:
         import json
 
-        from gaia.libs.models.graph_ir import SourceRef, Step
+        from gaia.models.graph_ir import SourceRef, Step
 
         steps = _from_json_or_none(row["steps_json"], Step, is_list=True) or None
         weak_points = json.loads(row["weak_points_json"]) if row["weak_points_json"] else None

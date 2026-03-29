@@ -8,7 +8,7 @@ from __future__ import annotations
 import neo4j
 import neo4j.exceptions
 
-from gaia.libs.models.graph_ir import FactorNode, KnowledgeNode
+from gaia.models.graph_ir import FactorNode, KnowledgeNode
 from gaia.libs.storage.base import GraphStore
 
 

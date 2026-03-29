@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from gaia.libs.models import (
+from gaia.models import (
     BeliefState,
     BindingDecision,
     CanonicalBinding,
@@ -70,7 +70,7 @@ class TestKnowledgeNodeStorage:
 
     async def test_write_global_nodes(self, store):
         """Global nodes have gcn_ prefix."""
-        from gaia.libs.models import KnowledgeNode, KnowledgeType, SourceRef
+        from gaia.models import KnowledgeNode, KnowledgeType, SourceRef
 
         gcn = KnowledgeNode(
             id="gcn_abc123",
@@ -123,7 +123,7 @@ class TestFactorNodeStorage:
         assert len(factors) == 7
 
     async def test_write_global_factors(self, store):
-        from gaia.libs.models import (
+        from gaia.models import (
             FactorCategory,
             FactorNode,
             FactorStage,

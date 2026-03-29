@@ -17,8 +17,8 @@ from datetime import datetime, timezone
 from gaia.core.local_params import LocalParameterization
 from gaia.core.matching import find_best_match
 from gaia.libs.embedding import EmbeddingModel
-from gaia.libs.models.binding import BindingDecision, CanonicalBinding
-from gaia.libs.models.graph_ir import (
+from gaia.models.binding import BindingDecision, CanonicalBinding
+from gaia.models.graph_ir import (
     FactorNode,
     GlobalCanonicalGraph,
     KnowledgeNode,
@@ -27,7 +27,7 @@ from gaia.libs.models.graph_ir import (
     LocalCanonicalRef,
     PackageRef,
 )
-from gaia.libs.models.parameterization import (
+from gaia.models.parameterization import (
     FactorParamRecord,
     ParameterizationSource,
     PriorRecord,

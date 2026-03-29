@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from gaia.core.local_params import LocalParameterization
-from gaia.libs.models.graph_ir import LocalCanonicalGraph
+from gaia.models.graph_ir import LocalCanonicalGraph
 from gaia.lkm.pipelines.run_ingest import run_ingest
 from gaia.lkm.services import deps as deps_module
 

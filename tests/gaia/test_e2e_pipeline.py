@@ -3,8 +3,8 @@
 import pytest
 
 from gaia.libs.embedding import StubEmbeddingModel
-from gaia.libs.models import KnowledgeType
-from gaia.libs.models.parameterization import CROMWELL_EPS, ResolutionPolicy
+from gaia.models import KnowledgeType
+from gaia.models.parameterization import CROMWELL_EPS, ResolutionPolicy
 from gaia.libs.storage.config import StorageConfig
 from gaia.libs.storage.manager import StorageManager
 from gaia.lkm.pipelines.run_global_bp import run_global_bp

@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from gaia.libs.models.parameterization import ResolutionPolicy
+from gaia.models.parameterization import ResolutionPolicy
 from gaia.lkm.pipelines.run_global_bp import run_global_bp
 from gaia.lkm.services import deps as deps_module
 

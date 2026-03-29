@@ -4,7 +4,7 @@ import pytest
 
 from gaia.core.matching import compute_similarity, find_best_match
 from gaia.libs.embedding import StubEmbeddingModel
-from gaia.libs.models import KnowledgeNode, KnowledgeType, Parameter, SourceRef
+from gaia.models import KnowledgeNode, KnowledgeType, Parameter, SourceRef
 
 
 def _node(

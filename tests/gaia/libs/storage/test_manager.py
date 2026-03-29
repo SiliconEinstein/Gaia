@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from gaia.libs.models import (
+from gaia.models import (
     BindingDecision,
     CanonicalBinding,
     FactorParamRecord,
@@ -225,7 +225,7 @@ class TestWriteOnlyDelegation:
         await manager.write_param_source(source)
 
     async def test_write_belief_state(self, manager):
-        from gaia.libs.models import BeliefState
+        from gaia.models import BeliefState
 
         now = datetime.now(timezone.utc)
         state = BeliefState(

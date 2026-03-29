@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from gaia.core.global_bp import run_global_bp as _run_bp
-from gaia.libs.models.graph_ir import GlobalCanonicalGraph
-from gaia.libs.models.parameterization import ResolutionPolicy
-from gaia.libs.models.belief_state import BeliefState
+from gaia.models.graph_ir import GlobalCanonicalGraph
+from gaia.models.parameterization import ResolutionPolicy
+from gaia.models.belief_state import BeliefState
 from gaia.libs.storage.manager import StorageManager
 
 

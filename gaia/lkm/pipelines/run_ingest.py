@@ -5,7 +5,7 @@ from __future__ import annotations
 from gaia.core.canonicalize import CanonicalizationResult, canonicalize_package
 from gaia.core.local_params import LocalParameterization
 from gaia.libs.embedding import EmbeddingModel
-from gaia.libs.models.graph_ir import GlobalCanonicalGraph, LocalCanonicalGraph
+from gaia.models.graph_ir import GlobalCanonicalGraph, LocalCanonicalGraph
 from gaia.libs.storage.manager import StorageManager
 
 

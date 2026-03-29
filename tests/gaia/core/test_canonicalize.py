@@ -6,7 +6,7 @@ import pytest
 
 from gaia.core.canonicalize import CanonicalizationResult, canonicalize_package
 from gaia.libs.embedding import StubEmbeddingModel
-from gaia.libs.models import (
+from gaia.models import (
     FactorNode,
     GlobalCanonicalGraph,
     KnowledgeNode,
@@ -15,7 +15,7 @@ from gaia.libs.models import (
     ReasoningType,
     SourceRef,
 )
-from gaia.libs.models.binding import BindingDecision
+from gaia.models.binding import BindingDecision
 from tests.gaia.fixtures.graphs import (
     make_einstein_equivalence,
     make_galileo_falling_bodies,

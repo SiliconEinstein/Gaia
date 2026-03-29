@@ -1,6 +1,6 @@
 """Tests for CanonicalBinding and BindingDecision models."""
 
-from gaia.libs.models.binding import BindingDecision, CanonicalBinding
+from gaia.models.binding import BindingDecision, CanonicalBinding
 
 
 class TestBindingDecision:

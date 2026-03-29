@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 
 from gaia.core.global_bp import assemble_parameterization, run_global_bp
 from gaia.core.canonicalize import canonicalize_package
-from gaia.libs.models import GlobalCanonicalGraph, KnowledgeNode, KnowledgeType, BeliefState
-from gaia.libs.models.parameterization import (
+from gaia.models import GlobalCanonicalGraph, KnowledgeNode, KnowledgeType, BeliefState
+from gaia.models.parameterization import (
     PriorRecord,
     ResolutionPolicy,
     CROMWELL_EPS,

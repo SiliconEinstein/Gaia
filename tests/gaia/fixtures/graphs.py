@@ -8,7 +8,7 @@ for uniform parameterisation).
 """
 
 from gaia.core.local_params import LocalParameterization
-from gaia.libs.models import (
+from gaia.models import (
     FactorCategory,
     FactorNode,
     FactorStage,

@@ -10,7 +10,7 @@ from tests.gaia.fixtures.graphs import (
 )
 from tests.gaia.fixtures.parameterizations import make_default_local_params
 
-from gaia.libs.models import KnowledgeType, LocalCanonicalGraph
+from gaia.models import KnowledgeType, LocalCanonicalGraph
 
 
 class TestGalileoFallingBodies:

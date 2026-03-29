@@ -3,7 +3,7 @@
 import pytest
 
 from gaia.libs.embedding import StubEmbeddingModel
-from gaia.libs.models.binding import BindingDecision
+from gaia.models.binding import BindingDecision
 from gaia.libs.storage.config import StorageConfig
 from gaia.libs.storage.manager import StorageManager
 from gaia.lkm.pipelines.run_ingest import run_ingest

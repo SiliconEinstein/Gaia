@@ -56,7 +56,7 @@ async def graph_store():
 
 
 def _make_knowledge_node(node_id: str, type_: str = "claim"):
-    from gaia.libs.models.graph_ir import KnowledgeNode, KnowledgeType, SourceRef
+    from gaia.models.graph_ir import KnowledgeNode, KnowledgeType, SourceRef
 
     return KnowledgeNode(
         id=node_id,
@@ -67,7 +67,7 @@ def _make_knowledge_node(node_id: str, type_: str = "claim"):
 
 
 def _make_factor(factor_id: str, premises: list[str], conclusion: str | None):
-    from gaia.libs.models.graph_ir import (
+    from gaia.models.graph_ir import (
         FactorCategory,
         FactorNode,
         FactorStage,

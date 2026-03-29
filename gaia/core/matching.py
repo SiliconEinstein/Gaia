@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 
 from gaia.libs.embedding import EmbeddingModel
-from gaia.libs.models.graph_ir import KnowledgeNode, KnowledgeType
+from gaia.models.graph_ir import KnowledgeNode, KnowledgeType
 
 
 async def find_best_match(

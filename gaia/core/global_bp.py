@@ -10,14 +10,15 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
-from gaia.bp import BeliefPropagation, FactorGraph
-from gaia.libs.models.belief_state import BeliefState
-from gaia.libs.models.graph_ir import (
+from libs.inference.bp import BeliefPropagation
+from libs.inference.factor_graph import FactorGraph
+from gaia.models.belief_state import BeliefState
+from gaia.models.graph_ir import (
     GlobalCanonicalGraph,
     KnowledgeType,
     ReasoningType,
 )
-from gaia.libs.models.parameterization import (
+from gaia.models.parameterization import (
     FactorParamRecord,
     PriorRecord,
     ResolutionPolicy,

@@ -1,7 +1,7 @@
 """Parameterization fixtures for testing."""
 
 from gaia.core.local_params import LocalParameterization
-from gaia.libs.models import KnowledgeType, LocalCanonicalGraph
+from gaia.models import KnowledgeType, LocalCanonicalGraph
 
 
 def make_default_local_params(
