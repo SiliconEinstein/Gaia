@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from gaia.models.graph_ir import (
+from gaia.gaia_ir.graph_ir import (
     FactorCategory,
     FactorNode,
     FactorStage,

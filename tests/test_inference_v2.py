@@ -1,33 +1,33 @@
-"""Tests for libs.inference_v2 — covers factor_graph, potentials, bp, exact, jt, gbp, engine."""
+"""Tests for gaia.bp — covers factor_graph, potentials, bp, exact, jt, gbp, engine."""
 
 from __future__ import annotations
 
 
 import pytest
 
-from libs.inference_v2.factor_graph import (
+from gaia.bp.factor_graph import (
     CROMWELL_EPS,
     Factor,
     FactorGraph,
     FactorType,
     _cromwell_clamp,
 )
-from libs.inference_v2.potentials import (
+from gaia.bp.potentials import (
     contradiction_potential,
     entailment_potential,
     equivalence_potential,
     evaluate_potential,
     noisy_and_potential,
 )
-from libs.inference_v2.bp import (
+from gaia.bp.bp import (
     BeliefPropagation,
     BPDiagnostics,
     _normalize,
     _prior_to_msg,
     _uniform_msg,
 )
-from libs.inference_v2.exact import exact_inference, comparison_table
-from libs.inference_v2.junction_tree import (
+from gaia.bp.exact import exact_inference, comparison_table
+from gaia.bp.junction_tree import (
     JunctionTreeInference,
     jt_treewidth,
     _build_moral_graph,
@@ -35,12 +35,12 @@ from libs.inference_v2.junction_tree import (
     _maximal_cliques,
     _build_junction_tree,
 )
-from libs.inference_v2.gbp import (
+from gaia.bp.gbp import (
     GeneralizedBeliefPropagation,
     detect_short_cycles,
     build_region_graph,
 )
-from libs.inference_v2.engine import InferenceEngine, EngineConfig
+from gaia.bp.engine import InferenceEngine, EngineConfig
 
 
 # ===================================================================
@@ -649,7 +649,7 @@ class TestGBPHelpers:
 
 class TestGBPAssignment:
     def test_assign_factors_intra_only(self):
-        from libs.inference_v2.gbp import _assign_factors_to_regions
+        from gaia.bp.gbp import _assign_factors_to_regions
 
         fg = _simple_entailment_graph()
         regions = [frozenset(fg.variables.keys())]
@@ -658,7 +658,7 @@ class TestGBPAssignment:
         assert cross == []
 
     def test_assign_factors_cross_region(self):
-        from libs.inference_v2.gbp import _assign_factors_to_regions
+        from gaia.bp.gbp import _assign_factors_to_regions
 
         fg = _chain_graph()
         regions = [frozenset(["A", "B"]), frozenset(["C"])]
@@ -666,7 +666,7 @@ class TestGBPAssignment:
         assert len(cross) >= 1  # f2 (B→C) crosses regions
 
     def test_solve_region(self):
-        from libs.inference_v2.gbp import _solve_region
+        from gaia.bp.gbp import _solve_region
 
         fg = _simple_entailment_graph()
         jt = JunctionTreeInference()
@@ -676,7 +676,7 @@ class TestGBPAssignment:
             assert 0 < beliefs[v] < 1
 
     def test_build_cross_region_graph(self):
-        from libs.inference_v2.gbp import (
+        from gaia.bp.gbp import (
             _assign_factors_to_regions,
             _build_cross_region_graph,
         )
@@ -690,7 +690,7 @@ class TestGBPAssignment:
         assert len(cross_fg.factors) >= 1
 
     def test_combine_beliefs(self):
-        from libs.inference_v2.gbp import _combine_beliefs
+        from gaia.bp.gbp import _combine_beliefs
 
         fg = _chain_graph()
         regions = [frozenset(["A", "B"]), frozenset(["C"])]
@@ -703,7 +703,7 @@ class TestGBPAssignment:
         assert "C" in final
 
     def test_combine_beliefs_no_cross(self):
-        from libs.inference_v2.gbp import _combine_beliefs
+        from gaia.bp.gbp import _combine_beliefs
 
         fg = _simple_entailment_graph()
         regions = [frozenset(fg.variables.keys())]

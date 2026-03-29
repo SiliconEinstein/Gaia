@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from gaia.models.belief_state import BeliefState
+from gaia.gaia_ir.belief_state import BeliefState
 
 
 class TestBeliefStateCreation:
