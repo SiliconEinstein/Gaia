@@ -61,40 +61,48 @@ graph TD
     %% ═══════ 第 2 层：Review Server ═══════
     RS(["⚙ Review Server ×N<br/>审核推理 · 给条件概率"])
 
-    %% ═══════ 第 3 层：Git Server 包含三个 Repo（左中右对齐）═══════
+    %% ═══════ 第 3 层：Git Server 大框套三个小框 ═══════
     subgraph GIT["🌐 Git Server（GitHub / GitLab / Gitea）"]
-        direction LR
-        PKG(["📦 Knowledge Repo<br/>用户知识包"])
-        REG(["📋 Official Registry<br/>注册中心"])
-        LKMR(["🔬 LKM Repo<br/>研究任务"])
-        PKG ~~~ REG ~~~ LKMR
+        subgraph PKG["📦 Knowledge Repo"]
+            pkgd["源码 · 编译产物<br/>review report"]
+        end
+        subgraph REG["📋 Official Registry"]
+            regd["packages · reviewers<br/>lkm · beliefs"]
+        end
+        subgraph LKMR["🔬 LKM Repo"]
+            lkmrd["研究任务 Issues<br/>equivalence · contradiction<br/>connection"]
+        end
+        pkgd ~~~ regd ~~~ lkmrd
     end
 
     %% ─── 作者流（偏左）───
-    Author -- "① 创建包" --> PKG
+    Author -- "① 创建包" --> pkgd
     Author -- "② 请求审核" --> RS
-    RS -- "③ review report" --> PKG
-    PKG -- "④ 注册" --> REG
-    Author -. "浏览研究任务" .-> LKMR
+    RS -- "③ review report" --> pkgd
+    pkgd -- "④ 注册" --> regd
+    Author -. "浏览研究任务" .-> lkmrd
 
     %% ─── LKM 流（偏右）───
-    LKM -- "⑤ 发布 research task" --> LKMR
-    LKM -- "⑥ 创建 curation 包" --> PKG
+    LKM -- "⑤ 发布 research task" --> lkmrd
+    LKM -- "⑥ 创建 curation 包" --> pkgd
     LKM -- "⑦ curation 包审核" --> RS
-    LKM -- "⑧ 回写可信度" --> REG
-    REG -. "全局图数据" .-> LKM
+    LKM -- "⑧ 回写可信度" --> regd
+    regd -. "全局图数据" .-> LKM
 
     %% ─── Repo 间数据流 ───
-    REG -. "拉取可信度" .-> PKG
+    regd -. "拉取可信度" .-> pkgd
 
     %% ═══════ 样式 ═══════
     style GIT fill:#fafafa,stroke:#bdbdbd,stroke-width:1.5px,stroke-dasharray:6 3,color:#616161
+    style PKG fill:#e8f5e9,stroke:#388e3c,stroke-width:1.5px,color:#000
+    style REG fill:#e3f2fd,stroke:#1565c0,stroke-width:1.5px,color:#000
+    style LKMR fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1.5px,color:#000
+    style pkgd fill:#fff,stroke:none,color:#333
+    style regd fill:#fff,stroke:none,color:#333
+    style lkmrd fill:#fff,stroke:none,color:#333
     style Author fill:#fff,stroke:#333,stroke-width:2px,color:#000
     style LKM fill:#fce4ec,stroke:#c62828,stroke-width:2px,color:#000
     style RS fill:#fff3e0,stroke:#e65100,stroke-width:2px,stroke-dasharray:5 5,color:#000
-    style PKG fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
-    style LKMR fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
-    style REG fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000
 ```
 
 **布局说明：**
