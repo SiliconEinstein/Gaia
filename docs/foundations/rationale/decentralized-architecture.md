@@ -45,11 +45,14 @@ graph TB
         GBP["全局推理引擎<br/><i>十亿节点 · 定期全量<br/>跨 Registry 传播</i>"]
     end
 
-    %% ── 独立机器人 ──────────────────────────────────
-    subgraph Bots["<b>独立部署 · 可多实例</b>"]
-        direction LR
-        RS["Review Server ×N<br/><i>LLM/agent 审核员<br/>审核推理逻辑 · 给条件概率</i>"]
-        CS["Curation Server ×N<br/><i>关系扫描机器人<br/>语义重复 · 矛盾 · 跨包连接</i>"]
+    %% ── Review Server（独立部署）─────────────────────
+    subgraph RSBox["<b>Review Server ×N（独立部署）</b>"]
+        RS["LLM/agent 审核员<br/><i>审核推理逻辑<br/>给条件概率初始值</i>"]
+    end
+
+    %% ── Curation Server（独立部署）────────────────────
+    subgraph CSBox["<b>Curation Server ×N（独立部署）</b>"]
+        CS["关系扫描机器人<br/><i>语义重复 · 矛盾<br/>跨包连接</i>"]
     end
 
     %% ── Official Repo ────────────────────────────────
@@ -101,7 +104,8 @@ graph TB
     style L0 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
     style L1 fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
     style LKM fill:#fce4ec,stroke:#c62828,stroke-width:2px
-    style Bots fill:#fff3e0,stroke:#e65100,stroke-width:2px,stroke-dasharray: 5 5
+    style RSBox fill:#fff3e0,stroke:#e65100,stroke-width:2px,stroke-dasharray: 5 5
+    style CSBox fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,stroke-dasharray: 5 5
     style Author fill:#fff,stroke:#388e3c
     style PKG fill:#fff,stroke:#388e3c
     style Build fill:#fff,stroke:#388e3c
@@ -110,11 +114,11 @@ graph TB
     style CI fill:#fff,stroke:#1565c0
     style IBP fill:#fff,stroke:#1565c0
     style RS fill:#fff,stroke:#e65100
-    style CS fill:#fff,stroke:#e65100
+    style CS fill:#fff,stroke:#6a1b9a
     style GBP fill:#fff,stroke:#c62828
 ```
 
-**图例：** 实线 = 数据/控制流，虚线 = 辅助/拉取。橙色虚线框 = 独立部署的机器人（可多实例）。
+**图例：** 实线 = 数据/控制流，虚线 = 辅助/拉取。虚线框 = 独立部署（可多实例），橙色 = Review Server，紫色 = Curation Server。
 
 ## 架构分层
 
