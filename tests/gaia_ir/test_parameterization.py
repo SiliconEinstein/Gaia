@@ -79,6 +79,7 @@ class TestStrategyParamRecord:
 class TestParameterizationSource:
     def test_creation(self):
         from datetime import datetime, timezone
+
         s = ParameterizationSource(
             source_id="src_001",
             model="gpt-5-mini",
@@ -90,6 +91,7 @@ class TestParameterizationSource:
 
     def test_optional_fields(self):
         from datetime import datetime, timezone
+
         s = ParameterizationSource(
             source_id="src_002",
             model="claude-opus",
@@ -115,6 +117,7 @@ class TestResolutionPolicy:
 
     def test_with_prior_cutoff(self):
         from datetime import datetime, timezone
+
         cutoff = datetime(2026, 3, 29, tzinfo=timezone.utc)
         p = ResolutionPolicy(strategy="latest", prior_cutoff=cutoff)
         assert p.prior_cutoff == cutoff

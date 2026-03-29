@@ -13,7 +13,9 @@ class TestLocalCanonicalGraph:
     def test_auto_hash(self):
         g = LocalCanonicalGraph(
             knowledges=[Knowledge(id="lcn_1", type="claim", content="A")],
-            strategies=[Strategy(scope="local", type="infer", premises=["lcn_1"], conclusion="lcn_1")],
+            strategies=[
+                Strategy(scope="local", type="infer", premises=["lcn_1"], conclusion="lcn_1")
+            ],
         )
         assert g.ir_hash.startswith("sha256:")
 
@@ -22,6 +24,7 @@ class TestLocalCanonicalGraph:
             return LocalCanonicalGraph(
                 knowledges=[Knowledge(id="lcn_1", type="claim", content="A")],
             )
+
         assert make().ir_hash == make().ir_hash
 
     def test_different_content_different_hash(self):
@@ -68,7 +71,9 @@ class TestGlobalCanonicalGraph:
         g = GlobalCanonicalGraph(
             knowledges=[Knowledge(id="gcn_a", type="claim"), Knowledge(id="gcn_b", type="claim")],
             operators=[Operator(operator="equivalence", variables=["gcn_a", "gcn_b"])],
-            strategies=[Strategy(scope="global", type="infer", premises=["gcn_a"], conclusion="gcn_b")],
+            strategies=[
+                Strategy(scope="global", type="infer", premises=["gcn_a"], conclusion="gcn_b")
+            ],
         )
         assert len(g.knowledges) == 2
         assert len(g.operators) == 1
