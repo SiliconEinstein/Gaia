@@ -2,12 +2,8 @@
 
 from gaia.gaia_ir import (
     Knowledge,
-    KnowledgeType,
     Operator,
     Strategy,
-    StrategyType,
-    FormalStrategy,
-    FormalExpr,
     LocalCanonicalGraph,
     GlobalCanonicalGraph,
 )
