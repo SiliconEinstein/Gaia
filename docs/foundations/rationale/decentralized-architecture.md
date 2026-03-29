@@ -65,18 +65,18 @@ flowchart TB
         PKG ~~~ REG ~~~ LKMR
     end
 
-    Author -->|"①"| PKG
-    Author -.->|"②"| RS
-    RS -.->|"③"| PKG
-    PKG -->|"④"| REG
-    Author -.->|"浏览"| LKMR
-    Author -.->|"提问"| REG
-    LKM -->|"⑤"| LKMR
-    LKM -->|"⑥"| PKG
-    LKM -.->|"⑦"| RS
-    LKM -->|"⑧"| REG
-    REG -.->|"数据"| LKM
-    REG -.->|"可信度"| PKG
+    Author -->|"① 创建包"| PKG
+    Author -.->|"② 请求审核"| RS
+    RS -.->|"③ review report"| PKG
+    PKG -->|"④ 注册"| REG
+    Author -.->|"浏览 research task"| LKMR
+    Author -.->|"提交 open question"| REG
+    LKM -->|"⑤ 发布 research task"| LKMR
+    LKM -->|"⑥ 创建 curation 包"| PKG
+    LKM -.->|"⑦ 请求审核"| RS
+    LKM -->|"⑧ 回写可信度"| REG
+    REG -.->|"拉取全局图"| LKM
+    REG -.->|"拉取可信度"| PKG
 
     classDef actor fill:#DBEAFE,stroke:#2563EB,stroke-width:2px,color:#1E3A5F
     classDef review fill:#FEF9C4,stroke:#CA8A04,stroke-width:2px,color:#854D0E
