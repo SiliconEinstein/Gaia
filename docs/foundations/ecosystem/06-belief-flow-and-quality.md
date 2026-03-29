@@ -11,13 +11,14 @@
 - **只有包级推理：** 作者只能看到自己的直接依赖图。两个独立研究者各自得出相同结论，但彼此不知道对方的存在——它们的证据无法汇聚。
 - **只有全局推理：** 每次任何包更新都要重算全部节点（十亿级），延迟不可接受。而且全局推理依赖服务器，断网就不能工作。
 
-Gaia 采用三级推理，每级处理不同粒度的更新，逐层放大：
+Gaia 采用两级推理：
 
 ```
 Level 0: 包级推理（作者本地，gaia infer）
-Level 1: LKM Snapshot（LKM Server 的快速发布视图）
-Level 2: LKM Global（LKM Server 的全量收敛视图）
+Level 1: LKM 推理（LKM Server，包含增量 snapshot 和全量收敛）
 ```
+
+LKM 内部可能区分快速增量更新（snapshot）和定期全量收敛（global），但这是 LKM 的实现策略，不是架构层面的分级。
 
 ## Level 0：包级推理（本地）
 
@@ -45,100 +46,52 @@ Level 2: LKM Global（LKM Server 的全量收敛视图）
 - 如果选择了某个 LKM snapshot，它只是你选定视角下的结果，不是单一官方真理
 - 没有跨包去重，相同命题在不同包中是独立实体
 
-## Level 1：LKM Snapshot（快速发布）
+## Level 1：LKM 推理
 
 ### 什么时候运行
 
-当某个 LKM 观察到以下事件时，会在自己的基础设施里快速更新一个 snapshot：
+当某个 LKM 观察到以下事件时，会更新自己的推理结果：
 
-1. **带合格 assigned review reports 的包版本被 Official Registry 接收** — 新命题的 prior 和推理链参数进入官方输入
+1. **带合格 assigned review reports 的包版本被 Official Registry 接收** — 新命题的 prior 和推理链参数进入输入
 2. **curation 包合并** — duplicate / contradiction / refinement / connection 的结构变更进入图
-3. **撤回 / 修正合并** — 已有参数或结构被回收，需要快速回到保守状态
+3. **撤回 / 修正合并** — 已有参数或结构被回收，需要回到保守状态
+4. **定期全量收敛** — 处理增量更新无法完整覆盖的长链传播和跨 Registry 关系
 
 ### 做什么
 
 ```
-事件触发（package merge with valid assigned review reports / curation merge / retraction）
+事件触发（package merge / curation merge / retraction / 定期全量）
   ↓
-确定受影响的局部子图：
-  - 从变更点出发，沿推理链向下游传播
-  - 找到所有直接或间接受影响的命题
+确定受影响的范围：
+  - 增量：从变更点出发，沿推理链找到受影响的局部子图
+  - 全量：整个知识网络
   ↓
-只在受影响的子图上运行概率推理
+在对应范围上运行概率推理
   ↓
-更新受影响命题的可信度
+更新命题的可信度
   ↓
-把更新后的结果发布成某个 LKM Repo 的 belief snapshot
+发布到该 LKM Repo 的 belief snapshot
 ```
 
-### 为什么先发 snapshot 再做全量
-
-- **效率：** 一次带合格 assigned review reports 的 package merge 或 curation merge 通常只影响少量命题。重算整个知识网络既浪费又慢。
-- **可预测：** 快速 snapshot 的影响范围可以精确界定，研究者能预见变更波及面。
-- **适合发布参考结果：** 人类 / agent 可以很快拿到一个新 snapshot，用于继续研究和写作。
-
-### Snapshot 更新的触发场景
+### 触发场景
 
 | 触发事件 | 影响范围 | 预期效果 |
 |----------|---------|---------|
-| package merge with valid assigned review reports | 该包版本导出的命题 + 下游 | 新 prior / strategy 开始生效 |
+| 包入库（带合格 review reports） | 该包版本导出的命题 + 下游 | 新 prior / strategy 开始生效 |
 | duplicate / contradiction / connection 确认 | 相关命题及其下游 | 重新评估独立性或约束 |
 | 推理链撤回 | 被撤回推理链的结论 + 下游 | 结论失去该推理链的支持，可信度可能降低 |
+| 定期全量 | 整个知识网络 | 长链传播收敛、跨 Registry 关系处理 |
 
-### Snapshot 更新的结果
+### 增量 vs 全量是 LKM 的内部策略
 
-snapshot 更新完成后：
+LKM 内部通常区分两种更新模式：
 
-1. 受影响命题的可信度已更新
-2. 更新后的可信度发布到该 LKM Repo（人类 / agent 可拉取该 snapshot）
-3. 如果可信度变化超过阈值，可以通知订阅该 LKM 的研究者或下游包维护者
+- **增量更新：** 事件驱动，只处理受影响的局部子图，秒到分钟级延迟。适合快速发布可参考的结果。
+- **全量收敛：** 定期运行，处理整个知识网络，分钟到小时级延迟。处理增量无法覆盖的长链传播和跨 Registry 可信度传播。
 
-## Level 2：全局推理（LKM Server）
+两种模式都运行在同一个 LKM Server 上，产出发布到同一个 LKM Repo。用户通常只需要关注最新的 belief snapshot，不需要区分它来自增量还是全量。只有在长链传播或跨 Registry 关系密集的区域，全量结果才可能与增量结果有显著差异。
 
-### 什么时候运行
-
-LKM Server 上的全局推理在以下时机运行：
-
-1. **定期全量：** 每隔一段时间（如每天）对整个知识网络重新运行一次推理
-2. **事件触发补算：** 在 snapshot 更新后，必要时做更大范围的重新收敛
-
-### 做什么
-
-全局推理处理的是 Level 1 snapshot 无法完整覆盖的场景：
-
-- **跨 Registry 的可信度传播：** 不同 Registry（如物理学、化学、生物学）之间的命题可能有关系，但各自的 snapshot 只覆盖局部输入
-- **长链传播收敛：** snapshot 每次只处理局部，长依赖链的可信度变化可能需要多轮传播才能收敛。全局推理一次性处理所有节点
-- **十亿节点级别：** LKM Server 有专门的计算资源，可以处理大规模图
-
-### 全局推理 vs Snapshot
-
-| | Snapshot（Level 1） | 全局推理（Level 2） |
-|---|---|---|
-| **运行环境** | LKM Server | LKM Server |
-| **触发方式** | 事件驱动（package merge with valid assigned review reports / curation merge） | 定期 + 事件 |
-| **范围** | 受影响的局部子图 | 整个知识网络 |
-| **延迟** | 低（秒到分钟） | 高（分钟到小时） |
-| **必要性** | 快速发布可研究的参考结果 | 处理长链传播和跨 Registry 关系 |
-| **可用性** | 依赖对应的 LKM Server | 依赖 LKM Server |
-
-### 两级推理的协作
-
-```
-Official Registry 合并带合格 assigned review reports 的 package / curation 变更
-  ↓
-Level 1（snapshot）：立即更新局部子图，发布快速参考结果
-  ↓
-Level 2（全局）：下一轮定期推理时，将 snapshot 输入纳入全局图，处理跨域传播
-  ↓
-同一 LKM 内更充分收敛的结果 = 该 LKM 的全局推理结果
-```
-
-用户看到的可信度可能有两个版本：
-
-- **即时版本：** 某个 LKM snapshot（更快，但可能不完全收敛）
-- **全局版本：** 同一 LKM 的全局结果（更慢，但更充分收敛）
-
-两者之间的差异通常很小。只有在长链传播或跨 Registry 关系密集的区域，全局推理才会产生显著不同的结果。不同 LKM 之间也可能并存不同 snapshot；用户需要显式选择信任哪个 LKM 视角。
+不同 LKM 之间也可能并存不同的 belief snapshot；用户需要显式选择信任哪个 LKM 的视角。
 
 ## 错误修正
 
@@ -321,18 +274,18 @@ Review Server（LLM/agent）评估推理逻辑并把 prior / strategy 写进 rev
 
 没有任何单一机制能保证质量。质量来自于这些机制的组合——每个机制处理一种失败模式，组合起来形成自我修正的知识网络。
 
-## 三级推理与两个 Server 的关系
+## 两级推理与两个 Server 的关系
 
-| | Level 0（包级） | Level 1（snapshot） | Level 2（全局） |
-|---|---|---|---|
-| **运行环境** | 作者本地 | LKM Server（snapshot） | LKM Server |
-| **触发** | `gaia infer` | package merge with valid assigned review reports / curation / retraction | 定期 + 事件 |
-| **范围** | 本包 + 直接依赖 | 受影响的局部子图 | 整个知识网络 |
-| **Review Server** | 本地 self-review 仅供预览 | 随包入库并通过 assignment + 校验的 review reports 进入 snapshot 输入 | 同一套官方参数进入全局收敛 |
-| **LKM** | 不涉及 | 发布 belief snapshot | 全局推理 + curation（发现跨包关系） |
-| **可用性** | 完全离线 | 需要 LKM Server | 需要 LKM Server |
+| | Level 0（包级） | Level 1（LKM） |
+|---|---|---|
+| **运行环境** | 作者本地 | LKM Server |
+| **触发** | `gaia infer` | 事件驱动（增量）+ 定期（全量） |
+| **范围** | 本包 + 直接依赖 | 局部子图（增量）或整个知识网络（全量） |
+| **Review Server** | 本地 self-review 仅供预览 | 入库时通过 assignment + 校验的 review reports 作为推理输入 |
+| **LKM** | 不涉及 | 推理 + belief snapshot 发布 + curation（发现跨包关系） |
+| **可用性** | 完全离线 | 需要 LKM Server |
 
-每一层都是可选增强。用户可以只用 Level 0（完全离线），再选择一个 LKM Repo 的 snapshot 作为共享 belief 参考，最后再看对应 LKM 的全局结果以获得更充分的收敛。
+每一层都是可选增强。用户可以只用 Level 0（完全离线），再选择一个 LKM Repo 的 belief snapshot 作为共享参考。
 
 ## 相关文档
 
