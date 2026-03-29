@@ -43,43 +43,37 @@ Stage 6: Research Tasks         Generate actionable research tasks from graph an
 
 ### Stage 1: Paper Ingestion（XML → Gaia IR）
 
-**输入**：论文 XML（含标题、摘要、正文、引用、图表）
+**输入**：论文 XML（已结构化标注：前提、推理、结论、prior、条件概率）
 **输出**：`LocalCanonicalGraph` + `LocalParameterization` (per paper)
 
 **子步骤**：
 
 ```
-XML → LLM extraction → structured YAML/JSON → compiler → RawGraph → LocalCanonicalGraph
+XML → rule-based parser → LocalCanonicalGraph + LocalParameterization
 ```
 
-1. **LLM 抽取**：从 XML 文本中抽取结构化知识
-   - Claims：论文的核心断言（实验结果、理论预测、推导结论）
-   - Settings：研究背景、实验条件、近似方法
-   - Questions：论文提出的未解决问题
-   - Strategies：claims 之间的推理关系（哪些前提支持哪个结论）
-   - 参数化：prior（断言可信度）和 conditional probability（推理可信度）
+XML 输入已经包含结构化标注（Knowledge 类型、推理关系、概率参数），不需要 LLM 抽取或中间表示层（YAML/JSON）。转换是**纯 rule-based** 的确定性操作：
 
-2. **Compiler**：将结构化输出编译为 Gaia IR
-   - 分配 Knowledge IDs（lcn_ content-addressed）
-   - 分配 Strategy IDs（lcs_）
+1. **XML 解析**：从 XML 中提取已标注的 Knowledge（claims/settings/questions）和 Strategy（推理关系）
+2. **IR 构建**：
+   - 分配 Knowledge IDs（`lcn_{SHA-256(package_id + type + content + sorted(parameters))[:16]}`）
+   - 分配 Strategy IDs（`lcs_`）
    - 构建 LocalCanonicalGraph
-   - 生成 LocalParameterization
+3. **参数化**：从 XML 标注中提取 prior 和 conditional probability，构建 LocalParameterization
 
 **规模考虑**：
-- 10 万篇论文的 LLM 抽取是最耗时的步骤（~100K LLM 调用）
-- 需要并发处理（batch parallelism，~100 concurrent）
+- Rule-based 转换速度快（CPU bound，非 IO bound），单机可处理 10 万篇
+- 需要并发处理（多进程/多线程）
 - 需要断点续传（记录已处理的论文）
-- 需要质量控制（抽样 review LLM 输出）
 
-**模块位置**：`gaia/lkm/pipelines/paper_ingestion/`
+**模块位置**：算法逻辑在 `gaia/core/`，批量编排在 `gaia/lkm/pipelines/`
 
 ```
-paper_ingestion/
-  xml_parser.py           # XML → 结构化文本（标题、段落、引用）
-  llm_extractor.py        # LLM 抽取 claims/settings/questions/strategies
-  compiler.py             # 结构化输出 → LocalCanonicalGraph
-  batch_runner.py         # 并发批量处理 + 断点续传
-  quality_sampler.py      # 抽样质量检查
+core/
+  xml_to_ir.py              # XML → LocalCanonicalGraph + LocalParameterization（核心转换逻辑）
+
+lkm/pipelines/
+  run_paper_ingest.py       # 批量编排：遍历 XML 目录，调用 core/xml_to_ir + run_ingest
 ```
 
 ### Stage 2: Storage（Gaia IR → 数据库）
@@ -259,6 +253,7 @@ gaia/
 
   core/                              # 领域算法
     local_params.py
+    xml_to_ir.py                     # XML → LocalCanonicalGraph + LocalParameterization（新）
     matching.py                      # Embedding + TF-IDF
     canonicalize.py                  # Binding / Equivalence / CompositeStrategy merge
     global_bp.py                     # Multi-resolution inference
@@ -277,12 +272,8 @@ gaia/
     partitioner.py                   # 图分区（新，大规模 BP）
 
   lkm/
-    pipelines/                       # 批量入口
-      paper_ingestion/               # XML → Gaia IR（新）
-        xml_parser.py
-        llm_extractor.py
-        compiler.py
-        batch_runner.py
+    pipelines/                       # 批量入口（薄编排层，调用 core/）
+      run_paper_ingest.py            # 批量 XML → IR → Storage（新，编排 core/xml_to_ir + run_ingest）
       run_ingest.py                  # Gaia IR → Storage + Canonicalize
       run_global_bp.py               # Global BP
       run_curation.py                # Curation（新）
@@ -310,7 +301,7 @@ gaia/
 |--------|------|------|
 | **P0** | Models v2 (Knowledge/Strategy/Operator) | 无 |
 | **P0** | Storage v2 (表结构迁移) | Models |
-| **P1** | Paper Ingestion (XML → Gaia IR) | Models |
+| **P1** | Paper Ingestion (XML → Gaia IR, rule-based) | Models |
 | **P1** | Canonicalize v2 (独立证据判断 + CompositeStrategy merge) | Models + Storage |
 | **P1** | Global BP v2 (多分辨率 + adapter) | Models + Storage |
 | **P2** | ByteHouse 存储后端 | Storage |
@@ -324,7 +315,7 @@ gaia/
 
 | 风险 | 影响 | 缓解 |
 |------|------|------|
-| LLM 抽取质量不稳定 | 垃圾进垃圾出 | 质量抽样 + 分层 review |
+| XML 标注质量不一致 | 部分论文标注不完整 | 验证器检查 + 跳过不合格论文 |
 | 100 万命题的 canonicalization 性能 | O(N²) matching 不可行 | Embedding ANN 索引 + 增量处理 |
 | 大规模 BP 不收敛 | 无有效 belief | 图分区 + 分层 BP + 收敛监控 |
 | CompositeStrategy merge 逻辑复杂 | 实现 bug | 充分测试（galileo/newton/einstein fixtures） |
