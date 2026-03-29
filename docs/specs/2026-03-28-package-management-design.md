@@ -4,30 +4,16 @@
 |---------|---|
 | 状态 | **Proposal** |
 | 日期 | 2026-03-28 |
-| 关联文档 | [gaia-ir.md](../foundations/gaia-ir/gaia-ir.md), [overview.md](../foundations/gaia-ir/overview.md), [parameterization.md](../foundations/gaia-ir/parameterization.md), [package-model.md](../foundations/gaia-lang/package-model.md) |
+| 设计决策 | [decentralized-architecture.md](../foundations/rationale/decentralized-architecture.md) |
+| 关联文档 | [gaia-ir.md](../foundations/gaia-ir/gaia-ir.md), [package-model.md](../foundations/gaia-lang/package-model.md) |
 
 ## 1. 目的
 
-定义 Gaia 的去中心化包管理架构和证据系统。核心目标：
+定义 Gaia 去中心化包管理架构的具体实现方案。设计决策和原则见 [decentralized-architecture.md](../foundations/rationale/decentralized-architecture.md)。
 
-- 包作为 git 仓库独立存在，不依赖中心服务
-- 概率（beliefs）通过依赖图在包级别自然流动；Registry 提供增量 BP 作为快速反馈；LKM 保留全局 BP 能力
-- Registry 是可选的聚合层，提供增值服务
-- Canonicalization 按 gaia-ir v2 设计执行（embedding 匹配 + 角色区分 premise/conclusion）；独立性等模糊判断归 review 层
+## 2. 包模型
 
-## 2. 基础架构：三层分离
-
-```
-Layer 0: Package = git 仓库（完全自治，不依赖任何服务）
-Layer 1: Registry = GitHub 仓库（可选的聚合层，可有多个）
-Layer 2: Belief = 多级 BP（包级 local BP + Registry 增量 BP + LKM 全局 BP）
-```
-
-Layer 0 是基础——两个人在 GitHub 上各建一个包，互相引用，`gaia build && gaia infer` 就能让 belief 流动。Layer 1 和 Layer 2 是可选增强。
-
-## 3. 包模型
-
-### 3.1 身份与版本
+### 2.1 身份与版本
 
 **身份：UUID + 人类可读名（Julia 模型）。** 不同作者可能创建同名包，UUID 避免冲突，也为未来多 registry 做准备。
 
@@ -47,7 +33,7 @@ version = "4.0.0"
 | MINOR | 新增 claim/strategy，已有导出不变 | 增加新实验证据 |
 | PATCH | 措辞修正、metadata 更新，语义不变 | 修正错别字 |
 
-### 3.2 依赖声明
+### 2.2 依赖声明
 
 依赖直接指向 git 仓库，不依赖注册表：
 
@@ -63,7 +49,7 @@ vacuum_prediction:
 
 `role` 是作者的可选声明（默认 `premise`），表达"我的工作和这个已有 claim 是什么关系"。这是效率辅助（帮 reviewer 快速定位），不是安全机制——系统正确性不依赖作者诚实。
 
-### 3.3 锁文件
+### 2.3 锁文件
 
 ```yaml
 # gaia-lock.yml（自动生成，纳入 VCS）
@@ -85,7 +71,7 @@ resolved:
 
 **可重现性保证**：source + gaia-deps.yml + gaia-lock.yml → 确定性 LocalCanonicalGraph → ir_hash 可验证。
 
-### 3.4 编译产物
+### 2.4 编译产物
 
 ```
 my-package/
@@ -100,11 +86,9 @@ my-package/
     beliefs.json                # 导出 claim 的 beliefs
 ```
 
-## 4. 多级概率流动
+## 3. 包级概率流动
 
-Beliefs 在三个层级流动：包级（local BP）、Registry 级（增量 BP）、LKM 级（全局 BP）。包级不需要中央服务器。
-
-### 4.1 `gaia build` + `gaia infer` 流程
+### 3.1 `gaia build` + `gaia infer` 流程
 
 `gaia build` 是确定性编译，不运行 BP。`gaia infer` 在编译产物上运行 local BP。
 
@@ -120,7 +104,7 @@ gaia infer:
   6. 输出 .gaia/beliefs.json
 ```
 
-### 4.2 流动示例
+### 3.2 流动示例
 
 ```
 Package A (基础实验)          Package B (理论推导)         Package C (应用预测)
@@ -132,7 +116,7 @@ B 重新 build + infer → claim₃: 0.86
 C 重新 build + infer → claim₅: 0.74
 ```
 
-### 4.3 更新传播
+### 3.3 更新传播
 
 | 模式 | 触发方式 | 适用场景 |
 |------|---------|---------|
@@ -140,27 +124,9 @@ C 重新 build + infer → claim₅: 0.74
 | Pull | CI 定期检查依赖 beliefs 变化 | GitHub Actions cron |
 | Push | 上游发布时 webhook 通知 | 活跃维护的包 |
 
-### 4.4 Registry 的增值：证据汇聚
+## 4. Registry 实现
 
-纯去中心化的局限：每个包只看到直接依赖图。如果两条独立推理链指向同一个 claim 但彼此不知道，belief 不能汇聚。
-
-```
-纯去中心化：
-  A ──► X ◄── B        A 和 B 各自独立 build + infer
-                        X 在 A 的视角 = 0.80
-                        X 在 B 的视角 = 0.75
-                        没有汇聚
-
-有 Registry：
-  A ──► X ◄─�� B        Registry 同时看到 A 和 B
-                        X 的 belief = 0.92（独立证据汇聚）
-```
-
-Registry 不是必需的，但它提供"全局视野"的 belief——更准确，因为看到了更多的证据汇聚。
-
-## 5. Registry = GitHub 仓库
-
-### 5.1 仓库结构
+### 4.1 仓库结构
 
 ```
 github.com/gaia-project/registry/
@@ -171,27 +137,22 @@ github.com/gaia-project/registry/
 │   │   └── Deps.toml                  # 每个版本的依赖
 │   └── newton-principia/
 │       └── ...
-├── canonical/                         # 规范化映射
-│   ├── bindings.jsonl                 # CanonicalBinding 记录
-│   └── composites.jsonl               # CompositeStrategy 归类
-├── reviews/                           # 参数化记���
+├── reviews/                           # 参数化记录
 │   ├── sources.jsonl                  # ParameterizationSource
 │   ├── priors/                        # PriorRecord（按 content_hash 分文件）
-│   ��── strategies/                    # StrategyParamRecord
+│   └── strategies/                    # StrategyParamRecord
 ├── beliefs/                           # 增量 BP 输出（按 shard 存储）
 │   ├── index.json                     # content_hash → belief 索引
 │   └── shards/
 ├── merges/                            # 迟发现合并记录
 │   └── merges.jsonl
 └── .github/workflows/
-    ├── register.yml                   # 注册验证 + canonicalization
+    ├── register.yml                   # 注册验证
     ├── review.yml                     # review 合规检查
     └── incremental-bp.yml             # 增量局部 BP
 ```
 
-一切都是 git commit，一切通过 PR，一切可审计。
-
-### 5.2 注册流程
+### 4.2 注册流程
 
 ```
 作者在包仓库 release tag v4.0.0
@@ -207,14 +168,13 @@ CI 自动验证（register.yml）：
   ✓ 克隆包仓库，重新编译 IR，验证 ir_hash
   ✓ 依赖全部在 registry 中可解析
   ✓ Schema 合法
-  ✓ Canonicalization（§6）
   ↓
 等待期（新包 3 天，版本更新 1 小时）
   ↓
 自动合并
 ```
 
-### 5.3 Review 流程
+### 4.3 Review 流程
 
 任何人通过 PR 提交 review：
 
@@ -230,58 +190,56 @@ CI 自动验证（register.yml）：
 
 CI 验证（review.yml）：content_hash 存在、value ∈ [ε, 1-ε]（Cromwell's rule）、source 信息完整。合并后自动触发增量 BP。
 
-### 5.4 可 fork、可联邦
+## 5. Registry 增量 BP
 
-Registry 就是 git 仓库，任何人可以 fork 出自己的 registry，有自己的 review 标准和 belief。不同学科、不同机构可以运营不同的 registry。
+Registry 层提供增量局部 BP 作为快速反馈机制。每次变更只需计算受影响的局部子图，无需等待 LKM 全局 BP。LKM 的全局 BP 仍然存在，用于十亿节点规模的完整证据汇聚（参见 [global-inference.md](../foundations/lkm/global-inference.md)）。
 
-## 6. Canonicalization
+### 5.1 触发与范围
 
-Canonicalization 遵循 gaia-ir v2 (`gaia-ir.md` §4) 的设计。本节不重复定义，仅说明在去中心化包管理架构下的适配。
+```yaml
+# incremental-bp.yml
+on:
+  push:
+    paths: ['reviews/**']
 
-### 6.1 Knowledge 处理
+steps:
+  - name: Identify affected subgraph
+    run: gaia affected-subgraph --change $CHANGE --hops 3
 
-按 gaia-ir v2 §4.1 的角色区分规则：
+  - name: Run local BP on subgraph
+    run: gaia incremental-bp --subgraph affected.json --threshold 1e-4
 
-| 情况 | 操作 |
-|------|------|
-| 作为 premise 的 Knowledge 匹配已有 gcn | **CanonicalBinding**（身份映射，无新证据） |
-| 作为 conclusion 的 Knowledge 匹配已有 gcn | 创建**新** gcn + 提议 **equivalence Operator**（独立推理得出相同结论 = 新证据） |
-| 同时作为 premise 和 conclusion | 走 conclusion 路径 |
-| 无匹配 | 创建新 gcn |
-
-### 6.2 匹配策略
-
-按 gaia-ir v2 §4.3：embedding 余弦相似度（阈值 0.90），TF-IDF 回退。
-
-**Registry CI 环境的适配：** Registry 的 CI workflow 需要配置 embedding 模型访问。如果 CI 环境暂时无法运行 embedding，可降级为 TF-IDF 或 content hash 精确匹配，漏掉的语义重复由后续 curation 操作（merge，§9）处理。
-
-### 6.3 Strategy 处理 + CompositeStrategy 归类
-
-Knowledge 映射完成后，local Strategy 提升到全局图（按 gaia-ir v2 §4.5）。本提案在此基础上新增 **CompositeStrategy 自动归类**：
-
-| 情况 | 操作 |
-|------|------|
-| 该 conclusion 已有 CompositeStrategy | 追加为 sub_strategy |
-| 该 conclusion 已有单个 Strategy（首次出现第二条） | 创建 CompositeStrategy，将已有 + 新 Strategy 都放入 |
-| 该 conclusion 是新创建的 | 作为普通 Strategy 添加 |
-
-**关键规则：每个有多条推理路径的 conclusion 有且只有一个 CompositeStrategy 作为入口。** 所有指向该结论的 Strategy 都是它的 sub_strategies。
-
-```
-gcn_C: "g = 9.81 m/s²"
-  └─ gcs_comp → gcn_C  (CompositeStrategy，唯一入口)
-      ├─ gcs_A: [P₁, P₂] → C   (钟摆实验)
-      ├─ gcs_B: [P₃, P₄] → C   (自由落体)
-      └─ gcs_C: [P₁, P₂] → C   (数值模拟)
+  - name: Update changed beliefs
+    run: gaia update-beliefs --output beliefs/shards/
 ```
 
-新 Strategy 没有 StrategyParamRecord → BP 不可见。新证据默认"待审"。
+| 触发 | 子图大小 | 耗时 |
+|------|---------|------|
+| 新包注册 | ~100-500 nodes | 毫秒 |
+| 新 review | ~50-200 nodes | 毫秒 |
+| 合并操作 | ~200-1000 nodes | 几十毫秒 |
 
-## 7. Review（人工判断层）
+计算量与总图大小无关。高连接度节点用 lazy propagation（截断传播，按需计算）。
+
+### 5.2 beliefs 存储
+
+按 Knowledge 分片存储：
+
+```
+beliefs/
+  index.json                    # content_hash → belief 索引
+  shards/
+    00/sha256_00a1...json       # 单个 Knowledge 的 belief
+    01/...
+```
+
+包 `gaia infer` 时只拉取自己依赖的那几个 belief 文件。
+
+## 6. Review 流程
 
 Reviewer 对每条待审 Strategy 做两件事：标注关系、赋参数。
 
-### 7.1 sub_strategy 关系标注
+### 6.1 sub_strategy 关系标注
 
 CompositeStrategy 内部的 sub_strategies 之间的关系：
 
@@ -293,7 +251,7 @@ CompositeStrategy 内部的 sub_strategies 之间的关系：
 
 标注依据不是 premises 是否相同，而是推理过程本身是否独立——这在 Strategy 的 steps 中，只有 reviewer 能判断。
 
-### 7.2 参数赋值
+### 6.2 参数赋值
 
 | 对象 | 操作 |
 |------|------|
@@ -302,7 +260,7 @@ CompositeStrategy 内部的 sub_strategies 之间的关系：
 | refinement sub_strategy | 升级被细化的 Strategy 为 FormalStrategy/CompositeStrategy |
 | CompositeStrategy 本身 | 赋折叠参数（综合内部结构） |
 
-### 7.3 判断流程
+### 6.3 判断流程
 
 ```
 Reviewer 审查新 sub_strategy gcs_B：
@@ -322,64 +280,19 @@ Q1: gcs_B 的推理和已有 sub_strategies 的关系？
     → 展开时成为新 factor
 ```
 
-### 7.4 作者声明的角色
+### 6.4 作者声明的角色
 
 作者在 `gaia-deps.yml` 中的 `role` 声明是帮助 reviewer 的线索：
 
 - 有声明 → reviewer 验证声明是否准确
-- 无声明（作者不知道已有工作）→ canonicalization 通过 content hash 仍能去重 Knowledge，Strategy 仍进 review queue
+- 无声明（作者不知道已有工作）→ canonicalization 仍能匹配 Knowledge，Strategy 仍进 review queue
 - 虚假声明 → 无害，reviewer 会纠正
 
-## 8. Registry 增量 BP
+## 7. 迟发现合并
 
-Registry 层提供增量局部 BP 作为快速反馈机制。每次变更只需计算受影响的局部子图，无需等待 LKM 全局 BP。LKM 的全局 BP 仍然存在，用于十亿节点规模的完整证据汇聚（参见 [global-inference.md](../foundations/lkm/global-inference.md)）。
+措辞不同但语义相同的 Knowledge 可能漏过匹配。这是正常的，不是异常。
 
-### 8.1 触发与范围
-
-```yaml
-# incremental-bp.yml
-on:
-  push:
-    paths: ['canonical/**', 'reviews/**']
-
-steps:
-  - name: Identify affected subgraph
-    run: gaia affected-subgraph --change $CHANGE --hops 3
-
-  - name: Run local BP on subgraph
-    run: gaia incremental-bp --subgraph affected.json --threshold 1e-4
-
-  - name: Update changed beliefs
-    run: gaia update-beliefs --output beliefs/shards/
-```
-
-| 触发 | 子图大小 | 耗时 |
-|------|---------|------|
-| 新包注册 | ~100-500 nodes | 毫秒 |
-| 新 review | ~50-200 nodes | 毫秒 |
-| 合并操作 | ~200-1000 nodes | 几十毫秒 |
-
-���算量与总图大小无关。高连接度节点用 lazy propagation（截断传播，按需计算）。
-
-### 8.2 beliefs 存储
-
-按 Knowledge 分片存储，不是一个巨大的文件：
-
-```
-beliefs/
-  index.json                    # content_hash → belief 索引
-  shards/
-    00/sha256_00a1...json       # 单个 Knowledge 的 belief
-    01/...
-```
-
-包 `gaia infer` 时只拉取自己依赖的那几个 belief 文件。
-
-## 9. 错误修正：迟发现合并
-
-措辞不同但语义相同的 Knowledge 可能漏过 hash 去重。这是正常的，不是异常。
-
-### 9.1 合并流程
+### 7.1 合并流程
 
 ```
 1. 发现 gcn_A ≈ gcn_B（reviewer / agent / 社区成员）
@@ -393,7 +306,7 @@ beliefs/
 6. 增量 BP
 ```
 
-### 9.2 记录格式
+### 7.2 记录格式
 
 ```jsonl
 // merges/merges.jsonl
@@ -410,19 +323,7 @@ beliefs/
 
 暂停参数这一步确保系统在 re-review 完成前回退到保守状态——可能少算证据，但不会 double counting。
 
-## 10. 质量控制 = 涌现而非门槛
-
-| 层 | 机制 |
-|----|------|
-| 编译门槛 | IR 必须合法（schema、ir_hash，自动） |
-| 参数门控 | 无 StrategyParamRecord → BP 不可见（新证据默认待审） |
-| Review | 独立性判断 + 参数赋值（人工/agent） |
-| BP 自筛 | 弱推理 → 低 belief；独立证据汇聚 → 高 belief |
-| 矛盾检测 | contradiction Strategy → BP 压低双方 belief |
-
-任何人可以发布包（低门槛），但新证据默认不影响 belief（parameterization 门控），直到 reviewer 确认。
-
-## 11. 多分辨率与 CompositeStrategy
+## 8. 多分辨率与 CompositeStrategy
 
 CompositeStrategy 折叠/展开支持多分辨率 BP：
 
@@ -439,26 +340,3 @@ CompositeStrategy 折叠/展开支持多分辨率 BP：
 ```
 
 新包的细化工作（为已有粗 Strategy 提供内部结构）也通过 CompositeStrategy 处理——升级已有 Strategy 的内部结构，折叠视图不变，展开视图更精细。
-
-## 12. 与当前 gaia-ir 的关系
-
-本设计遵循 gaia-ir v2 的 canonicalization 规则（conclusion 处理、匹配策略、CanonicalBinding schema）。以下是本提案**新增**的内容，需要作为独立 PR 补充到 gaia-ir 中：
-
-| 新增点 | gaia-ir v2 现状 | 本提案新增 |
-|--------|----------------|-----------|
-| CompositeStrategy 自动归类 | §4.5 只做 Strategy 提升，无归类 | 按 conclusion 自动归入 CompositeStrategy |
-| 独立性判断的显式化 | 隐含在 premise/conclusion 角色区分中 | Review 层显式标注（independent / duplicate / refinement） |
-
-## 13. 设计原则
-
-| 原则 | 体现 |
-|------|------|
-| 包即 git 仓库 | 不依赖任何中心服务 |
-| 身份 content-addressed | Knowledge hash 去中心化去重 |
-| Registry 可选 | 增值服务，不是基础设施 |
-| Canonicalization 遵循 gaia-ir v2 | embedding 匹配 + 角色区分（premise→binding, conclusion→equivalence）+ CompositeStrategy 归类 |
-| 模糊判断归 review | 独立性、重复性、细化关系等需要语义理解的判断由 reviewer 决定 |
-| 新证据默认静默 | 无参数 = 不参与 BP，reviewer 确认后激活 |
-| CompositeStrategy 归类 | 每个结论一个入口，折叠/展开支持多分辨率 |
-| 多级 BP | 包级 local BP + Registry 增量 BP + LKM 全局 BP，各层各司其职 |
-| 错误可修正 | merge 操作 + 暂停参数 + re-review |
