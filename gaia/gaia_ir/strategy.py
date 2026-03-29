@@ -66,7 +66,9 @@ def _sha256_hex(data: str, length: int = 16) -> str:
     return hashlib.sha256(data.encode()).hexdigest()[:length]
 
 
-def _compute_strategy_id(scope: str, type_: str, premises: list[str], conclusion: str | None) -> str:
+def _compute_strategy_id(
+    scope: str, type_: str, premises: list[str], conclusion: str | None
+) -> str:
     """Deterministic strategy ID: {lcs_|gcs_}_{sha256(scope + type + sorted(premises) + conclusion)[:16]}."""
     prefix = "lcs_" if scope == "local" else "gcs_"
     payload = f"{scope}|{type_}|{sorted(premises)}|{conclusion}"

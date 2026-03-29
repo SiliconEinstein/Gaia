@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from gaia.gaia_ir.knowledge import Knowledge, KnowledgeType
-from gaia.gaia_ir.operator import Operator, OperatorType
+from gaia.gaia_ir.operator import Operator
 from gaia.gaia_ir.strategy import Strategy, CompositeStrategy, FormalStrategy
 from gaia.gaia_ir.graphs import LocalCanonicalGraph, GlobalCanonicalGraph, _canonical_json
 from gaia.gaia_ir.parameterization import (
@@ -72,9 +72,7 @@ def _validate_knowledges(
         # claim content completeness
         if k.type == KnowledgeType.CLAIM:
             if k.content is None and k.representative_lcn is None:
-                result.error(
-                    f"Knowledge '{k.id}': claim must have content or representative_lcn"
-                )
+                result.error(f"Knowledge '{k.id}': claim must have content or representative_lcn")
 
     return lookup
 
@@ -94,9 +92,7 @@ def _validate_operators(
         # reference completeness
         for var_id in op.variables:
             if var_id not in knowledge_lookup:
-                result.error(
-                    f"Operator '{op.operator_id}': variable '{var_id}' not found in graph"
-                )
+                result.error(f"Operator '{op.operator_id}': variable '{var_id}' not found in graph")
             elif knowledge_lookup[var_id].type != KnowledgeType.CLAIM:
                 result.error(
                     f"Operator '{op.operator_id}': variable '{var_id}' is "
@@ -136,9 +132,7 @@ def _validate_strategy(
     # conclusion reference + type
     if strategy.conclusion is not None:
         if strategy.conclusion not in knowledge_lookup:
-            result.error(
-                f"Strategy '{sid}': conclusion '{strategy.conclusion}' not found in graph"
-            )
+            result.error(f"Strategy '{sid}': conclusion '{strategy.conclusion}' not found in graph")
         elif knowledge_lookup[strategy.conclusion].type != KnowledgeType.CLAIM:
             result.error(
                 f"Strategy '{sid}': conclusion '{strategy.conclusion}' is "
@@ -181,9 +175,7 @@ def _validate_strategies(
     for s in strategies:
         # ID prefix
         if s.strategy_id and not s.strategy_id.startswith(prefix):
-            result.error(
-                f"Strategy '{s.strategy_id}': expected {prefix} prefix in {scope} graph"
-            )
+            result.error(f"Strategy '{s.strategy_id}': expected {prefix} prefix in {scope} graph")
 
         # uniqueness
         if s.strategy_id and s.strategy_id in seen_ids:
@@ -240,15 +232,20 @@ def validate_local_graph(graph: LocalCanonicalGraph) -> ValidationResult:
     knowledge_lookup = _validate_knowledges(graph.knowledges, "local", result)
     _validate_operators(graph.operators, knowledge_lookup, result)
     _validate_strategies(graph.strategies, knowledge_lookup, "local", result)
-    _validate_scope_consistency(knowledge_lookup, graph.operators, graph.strategies, "local", result)
+    _validate_scope_consistency(
+        knowledge_lookup, graph.operators, graph.strategies, "local", result
+    )
 
     # hash consistency
     if graph.ir_hash is not None:
         recomputed = _canonical_json(graph.knowledges, graph.operators, graph.strategies)
         import hashlib
+
         expected = f"sha256:{hashlib.sha256(recomputed.encode()).hexdigest()}"
         if graph.ir_hash != expected:
-            result.error(f"LocalCanonicalGraph ir_hash mismatch: stored={graph.ir_hash}, computed={expected}")
+            result.error(
+                f"LocalCanonicalGraph ir_hash mismatch: stored={graph.ir_hash}, computed={expected}"
+            )
 
     return result
 
@@ -260,7 +257,9 @@ def validate_global_graph(graph: GlobalCanonicalGraph) -> ValidationResult:
     knowledge_lookup = _validate_knowledges(graph.knowledges, "global", result)
     _validate_operators(graph.operators, knowledge_lookup, result)
     _validate_strategies(graph.strategies, knowledge_lookup, "global", result)
-    _validate_scope_consistency(knowledge_lookup, graph.operators, graph.strategies, "global", result)
+    _validate_scope_consistency(
+        knowledge_lookup, graph.operators, graph.strategies, "global", result
+    )
 
     return result
 
@@ -330,9 +329,7 @@ def validate_parameterization(
     # dangling references: params for non-existent strategies
     for r in strategy_params:
         if r.strategy_id not in strategy_ids:
-            result.warn(
-                f"StrategyParamRecord '{r.strategy_id}': references non-existent Strategy"
-            )
+            result.warn(f"StrategyParamRecord '{r.strategy_id}': references non-existent Strategy")
 
     return result
 

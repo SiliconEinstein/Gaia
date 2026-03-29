@@ -98,7 +98,9 @@ class TestKnowledgeLocalGlobal:
                 version="1.0",
             ),
             local_members=[
-                LocalCanonicalRef(local_canonical_id="lcn_xyz", package_id="pkg_001", version="1.0"),
+                LocalCanonicalRef(
+                    local_canonical_id="lcn_xyz", package_id="pkg_001", version="1.0"
+                ),
             ],
         )
         assert k.content is None

@@ -7,8 +7,12 @@ from gaia.gaia_ir import Operator, OperatorType
 class TestOperatorType:
     def test_six_types(self):
         assert set(OperatorType) == {
-            "implication", "equivalence", "contradiction",
-            "complement", "disjunction", "conjunction",
+            "implication",
+            "equivalence",
+            "contradiction",
+            "complement",
+            "disjunction",
+            "conjunction",
         }
 
 

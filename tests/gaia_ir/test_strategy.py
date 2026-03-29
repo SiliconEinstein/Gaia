@@ -105,7 +105,9 @@ class TestCompositeStrategy:
             type="infer",
             premises=["a"],
             conclusion="b",
-            sub_strategies=[Strategy(scope="global", type="noisy_and", premises=["a"], conclusion="b")],
+            sub_strategies=[
+                Strategy(scope="global", type="noisy_and", premises=["a"], conclusion="b")
+            ],
         )
         outer = CompositeStrategy(
             scope="global",
@@ -124,9 +126,13 @@ class TestCompositeStrategy:
             type="deduction",
             premises=["gcn_a"],
             conclusion="gcn_b",
-            formal_expr=FormalExpr(operators=[
-                Operator(operator="implication", variables=["gcn_a", "gcn_b"], conclusion="gcn_b"),
-            ]),
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(
+                        operator="implication", variables=["gcn_a", "gcn_b"], conclusion="gcn_b"
+                    ),
+                ]
+            ),
         )
         cs = CompositeStrategy(
             scope="global",
@@ -147,10 +153,18 @@ class TestFormalStrategy:
             type="deduction",
             premises=["lcn_a", "lcn_b"],
             conclusion="lcn_c",
-            formal_expr=FormalExpr(operators=[
-                Operator(operator="conjunction", variables=["lcn_a", "lcn_b", "lcn_m"], conclusion="lcn_m"),
-                Operator(operator="implication", variables=["lcn_m", "lcn_c"], conclusion="lcn_c"),
-            ]),
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(
+                        operator="conjunction",
+                        variables=["lcn_a", "lcn_b", "lcn_m"],
+                        conclusion="lcn_m",
+                    ),
+                    Operator(
+                        operator="implication", variables=["lcn_m", "lcn_c"], conclusion="lcn_c"
+                    ),
+                ]
+            ),
         )
         assert fs.type == StrategyType.DEDUCTION
         assert len(fs.formal_expr.operators) == 2
@@ -163,11 +177,15 @@ class TestFormalStrategy:
             type="reductio",
             premises=["lcn_r"],
             conclusion="lcn_not_p",
-            formal_expr=FormalExpr(operators=[
-                Operator(operator="implication", variables=["lcn_p", "lcn_q"], conclusion="lcn_q"),
-                Operator(operator="contradiction", variables=["lcn_q", "lcn_r"]),
-                Operator(operator="complement", variables=["lcn_p", "lcn_not_p"]),
-            ]),
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(
+                        operator="implication", variables=["lcn_p", "lcn_q"], conclusion="lcn_q"
+                    ),
+                    Operator(operator="contradiction", variables=["lcn_q", "lcn_r"]),
+                    Operator(operator="complement", variables=["lcn_p", "lcn_not_p"]),
+                ]
+            ),
         )
         assert fs.type == StrategyType.REDUCTIO
         assert len(fs.formal_expr.operators) == 3
