@@ -2,78 +2,83 @@
 
 > **Status:** Current canonical
 
-本文档记录 Gaia 的去中心化包管理和推理架构的设计决策。
+本文档是 Gaia 去中心化包管理和推理架构的总纲。具体的业务流程见各子文档。
+
+## 参与者
+
+| 参与者 | 性质 | 职责 |
+|--------|------|------|
+| **作者**（人类或 AI agent） | 用户侧 | 创建知识包，声明依赖，编译，本地推理，发布 |
+| **Reviewer**（人类或 AI agent） | 用户侧 | 审核新证据，判定推理关系，赋予参数 |
+| **作者的 GitHub 仓库** | 用户侧 | 托管知识包源码和编译产物 |
+| **Official Repo**（官方注册仓库） | GitHub | 注册所有包的元数据，存储审核记录和推理结果 |
+| **Review Service** | LKM 服务器 | 为 reviewer 提供工具支持，自动化部分审核决策 |
+| **Curation Service** | LKM 服务器 | 自动发现包之间的关系，以提交新包的方式维护 official repo |
 
 ## GitHub 作为通用交互面
 
-Gaia 的所有角色通过 GitHub 交互：
+所有参与者通过 GitHub 交互——一切都是 git commit，一切通过 PR，一切可审计：
 
-| 角色 | 交互方式 |
-|------|---------|
-| **Gaia Lang 作者** | git push 到包仓库 |
-| **Registry** | GitHub 仓库（Julia General 模型），注册/去重/推理 通过 CI workflow |
-| **Reviewer** | 向 registry 仓库提交 PR |
+| 参与者 | 交互方式 |
+|--------|---------|
+| 作者 | git push 到自己的包仓库；向 official repo 请求注册 |
+| Reviewer | 向 official repo 提交 review PR |
+| Review Service | 自动验证 review PR 的合规性；为 reviewer 提供建议 |
+| Curation Service | 向 official repo 提交 curation PR（发现的关系、合并提议等） |
 
-一切都是 git commit，一切通过 PR，一切可审计。
+服务器上的 Review Service 和 Curation Service **没有特殊权限**——它们和普通贡献者一样通过 PR 与 official repo 交互。
 
 ## 三层分离
 
 ```
-Layer 0: Package = git 仓库（完全自治，不依赖任何服务）
-Layer 1: Registry = GitHub 仓库（可选的聚合层，可有多个）
-Layer 2: Belief = 多级 BP（包级 local BP + Registry 增量 BP + LKM 全局 BP）
+Layer 0: Package（作者的 git 仓库，完全自治）
+Layer 1: Official Repo（GitHub 仓库，可选的聚合层）
+Layer 2: LKM Server（Review Service + Curation Service + 全局推理）
 ```
 
-- **Layer 0** 是基础——两个人在 GitHub 上各建一个包，互相引用，`gaia build && gaia infer` 就能让 belief 流动。
-- **Layer 1 和 Layer 2** 是可选增强。
+- **Layer 0** 是基础——两个人各建一个包，互相引用，就能在本地推理中让可信度流动。
+- **Layer 1** 提供跨包的去重、审核记录和增量推理。
+- **Layer 2** 提供自动化审核、策展和十亿节点的全局推理。
 
-## Registry = 可选的 GitHub 仓库
+每一层都是可选增强。用户可以只用 Layer 0 完全离线工作。
 
-Registry 采用 Julia General registry 模型——一个 GitHub 仓库，通过 PR 注册包、提交 review、触发 CI。
+## 业务流程总览
 
-**关键性质：**
+```
+作者创建包 → 编译 → 本地推理预览 → 发布到 GitHub
+    ↓
+注册到 Official Repo → CI 验证 → 去重 → 等待期 → 合并
+    ↓
+新证据进入待审队列（不影响已有推理结果）
+    ↓
+Review Service / Reviewer 审核 → 判定关系 → 赋予参数 → 触发增量推理
+    ↓
+Curation Service 自动发现跨包关系 → 提交 curation PR → 审核 → 合并
+    ↓
+LKM 全局推理 → 所有命题的可信度更新
+```
 
-- Registry 是增值服务，不是基础设施。用户可以完全不用 Registry。
-- Registry 就是 git 仓库，任何人可以 fork 出自己的 registry，有自己的 review 标准和 belief。不同学科、不同机构可以运营不同的 registry。
+各环节的详细业务逻辑：
 
-## 多级 BP
-
-Beliefs 在三个层级流动，各层各司其职：
-
-| 层级 | 触发方式 | 范围 | 目的 |
-|------|---------|------|------|
-| **包级 local BP** | `gaia infer` | 单个包 + 拉取的依赖 beliefs | 作者本地预览 |
-| **Registry 增量 BP** | CI workflow（注册/review 后自动触发） | 受影响的局部子图 | 快速反馈，无需等全局 BP |
-| **LKM 全局 BP** | 服务端推理服务 | 所有已注册的包 | 十亿节点规模的完整证据汇聚 |
-
-纯去中心化的局限：每个包只看到直接依赖图。如果两条独立推理链指向同一个 claim 但彼此不知道，belief 不能汇聚。Registry 和 LKM 的全局视野解决这个问题。
-
-## 质量 = 涌现而非门槛
-
-| 层 | 机制 |
-|----|------|
-| 编译门槛 | 包必须通过结构验证（自动） |
-| 参数门控 | 未经审核的新推理不影响推理结果（新证据默认待审） |
-| Review | 独立性判断 + 参数赋值（人工/agent） |
-| BP 自筛 | 弱推理 → 低可信度；独立证据汇聚 → 高可信度 |
-| 矛盾检测 | 互相矛盾的命题被自动压低可信度 |
-
-任何人可以发布包（低门槛），但新证据默认不影响推理结果，直到 reviewer 确认。
+- [包的创建与发布](authoring-and-publishing.md) — 作者从创建包到发布的完整旅程
+- [Official Repo 的运作](registry-operations.md) — 注册、去重、待审队列
+- [审核与策展](review-and-curation.md) — Review Service 和 Curation Service 的业务逻辑
+- [多级推理与质量涌现](belief-flow-and-quality.md) — 三级推理、错误修正、质量如何涌现
 
 ## 设计原则
 
 | 原则 | 体现 |
 |------|------|
 | 包即 git 仓库 | 不依赖任何中心服务 |
-| GitHub 是通用协议 | 作者 git push、registry CI、reviewer PR |
-| Registry 可选 | 增值服务，不是基础设施；可 fork 可联邦 |
-| 模糊判断归 review | 独立性、重复性、细化关系等需要语义理解的判断由 reviewer 决定 |
+| GitHub 是通用协议 | 作者、reviewer、服务全部通过 PR 交互 |
+| Official Repo 可选 | 增值服务，不是基础设施；可 fork 可联邦 |
+| 服务器无特权 | Review Service 和 Curation Service 通过 PR 贡献，和人类一样 |
 | 新证据默认静默 | 未经审核的推理不影响结果，reviewer 确认后激活 |
-| 多级 BP | 包级 + Registry 增量 + LKM 全局，各层各司其职 |
+| 模糊判断归 review | 独立性、重复性等需要理解推理过程的判断由 reviewer 决定 |
+| 多级推理 | 包级 + Official Repo 增量 + LKM 全局，各层各司其职 |
 | 错误可修正 | 合并重复命题 + 暂停受影响的推理 + re-review |
 
 ## 参考文献
 
-- [architecture-overview.md](architecture-overview.md) — 三层编译管线和两个产品表面
+- [architecture-overview.md](architecture-overview.md) — 三层编译管线（Gaia Lang → Gaia IR → BP）
 - [product-scope.md](product-scope.md) — 产品定位（CLI 优先，服务器增强）
-- `docs/specs/2026-03-28-package-management-design.md` — 具体实现方案
