@@ -113,13 +113,46 @@ C 重新 build + infer → claim₅: 0.74
 
 **为什么默认是 Lazy：** 去中心化系统中，下游包的作者决定何时、是否接受上游的更新。这和 npm/cargo 的依赖更新模型一致。
 
+## 审核（Review）
+
+本地推理预览满意后，作者在发布前请 Review Server 审核推理的逻辑可靠性。
+
+### 为什么需要审核
+
+作者的 `gaia infer` 只能给出可信度预览，但条件概率的初始值需要独立评估。Review Server（LLM/agent）审核的是推理过程的逻辑可靠性，不是前提本身是否正确。
+
+### 审核流程
+
+```
+作者向 Review Server 提交审核请求
+  ↓
+Review Server 分析推理结构 → 生成 review report：
+  - 每条推理链的逻辑评估
+  - 条件概率初始值：P(conclusion | premises) = ?
+  - 发现的问题和建议
+  ↓
+Review report 存入包内：.gaia/reviews/
+  ↓
+作者查看 review report：
+  a. 同意 → 审核完成
+  b. 不同意 → rebuttal（来回讨论直到达成一致）
+  ↓
+最终 review report（含 rebuttal 历史）存入包内
+```
+
+审核的详细业务逻辑见 [review-and-curation.md](review-and-curation.md)。
+
+### 没有 review 也能发布
+
+Review 不是发布的前提条件。作者可以先发布、先注册，后续再补充 review。但没有 review report 的推理链不会有条件概率参数，推理引擎会跳过它们——等于推理链注册了但未激活。
+
 ## 发布
 
-作者满意后，发布包：
+审核完成后（或选择跳过审核），作者发布包：
 
 ```
 发布流程：
-  1. 提交所有源码和编译产物到 git
+  1. 提交所有源码、编译产物和 review report 到 git
   2. 创建 release tag（如 v4.0.0）
   3.（可选）向 official repo 请求注册（见 registry-operations.md）
 ```
