@@ -46,6 +46,17 @@ def _sha256_hex(data: str, length: int = 16) -> str:
     return hashlib.sha256(data.encode()).hexdigest()[:length]
 
 
+def _compute_content_hash(type_: str, content: str, parameters: list[Parameter]) -> str:
+    """Content fingerprint: SHA-256(type + content + sorted(parameters)), no package_id.
+
+    Same content in different packages produces the same content_hash.
+    Used for canonicalization fast-path (exact match) and curation dedup.
+    """
+    sorted_params = sorted((p.name, p.type) for p in parameters)
+    payload = f"{type_}|{content}|{sorted_params}"
+    return _sha256_hex(payload, length=64)
+
+
 def _compute_knowledge_id(
     package_id: str, type_: str, content: str, parameters: list[Parameter]
 ) -> str:
@@ -65,6 +76,7 @@ class Knowledge(BaseModel):
     id: str | None = None
     type: KnowledgeType
     content: str | None = None
+    content_hash: str | None = None
     parameters: list[Parameter] = []
     metadata: dict[str, Any] | None = None
 
@@ -79,7 +91,12 @@ class Knowledge(BaseModel):
     local_members: list[LocalCanonicalRef] | None = None
 
     @model_validator(mode="after")
-    def _compute_id(self) -> Knowledge:
+    def _compute_derived_fields(self) -> Knowledge:
+        # Auto-compute content_hash when content is available
+        if self.content_hash is None and self.content is not None:
+            self.content_hash = _compute_content_hash(self.type, self.content, self.parameters)
+
+        # Auto-compute ID for local nodes
         if self.id is None:
             if self.content is not None and self.package_id is not None:
                 self.id = _compute_knowledge_id(

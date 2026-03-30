@@ -37,6 +37,26 @@ class TestKnowledgeCreation:
         k2 = Knowledge(type="claim", content="test", package_id="pkg_b")
         assert k1.id != k2.id
 
+    def test_different_package_same_content_hash(self):
+        k1 = Knowledge(type="claim", content="test", package_id="pkg_a")
+        k2 = Knowledge(type="claim", content="test", package_id="pkg_b")
+        assert k1.content_hash == k2.content_hash
+
+    def test_content_hash_auto_computed(self):
+        k = Knowledge(type="claim", content="test", package_id="pkg")
+        assert k.content_hash is not None
+        assert len(k.content_hash) == 64  # full SHA-256 hex
+
+    def test_different_content_different_content_hash(self):
+        k1 = Knowledge(type="claim", content="A", package_id="pkg")
+        k2 = Knowledge(type="claim", content="B", package_id="pkg")
+        assert k1.content_hash != k2.content_hash
+
+    def test_different_type_different_content_hash(self):
+        k1 = Knowledge(type="claim", content="X", package_id="pkg")
+        k2 = Knowledge(type="setting", content="X", package_id="pkg")
+        assert k1.content_hash != k2.content_hash
+
     def test_different_content_different_id(self):
         k1 = Knowledge(type="claim", content="A", package_id="pkg")
         k2 = Knowledge(type="claim", content="B", package_id="pkg")
@@ -104,7 +124,17 @@ class TestKnowledgeLocalGlobal:
             ],
         )
         assert k.content is None
+        assert k.content_hash is None  # no content -> no auto content_hash
         assert k.representative_lcn.local_canonical_id == "lcn_xyz"
+
+    def test_global_with_explicit_content_hash(self):
+        """Global node can have content_hash set explicitly (synced from representative)."""
+        k = Knowledge(
+            id="gcn_abc123",
+            type="claim",
+            content_hash="abcd1234" * 8,
+        )
+        assert k.content_hash == "abcd1234" * 8
 
     def test_global_with_direct_content(self):
         """LKM-created Knowledge (e.g. FormalExpr intermediate) can have content at global."""
