@@ -70,9 +70,17 @@ class TestOperatorValidation:
         with pytest.raises(ValueError, match="exactly 2"):
             Operator(operator="implication", variables=["a", "b", "c"], conclusion="c")
 
+    def test_implication_requires_conclusion_as_last_variable(self):
+        with pytest.raises(ValueError, match="variables\\[-1\\]"):
+            Operator(operator="implication", variables=["a", "b"], conclusion="a")
+
     def test_conjunction_requires_conclusion(self):
         with pytest.raises(ValueError, match="requires conclusion"):
             Operator(operator="conjunction", variables=["a", "b", "m"])
+
+    def test_conjunction_requires_conclusion_as_last_variable(self):
+        with pytest.raises(ValueError, match="variables\\[-1\\]"):
+            Operator(operator="conjunction", variables=["a", "b", "m"], conclusion="a")
 
     def test_conclusion_must_be_in_variables(self):
         with pytest.raises(ValueError, match="must appear in variables"):
@@ -99,3 +107,7 @@ class TestOperatorScope:
         op = Operator(operator="implication", variables=["a", "b"], conclusion="b")
         assert op.scope is None
         assert op.operator_id is None
+
+    def test_invalid_scope_rejected(self):
+        with pytest.raises(ValueError, match="scope must be one of"):
+            Operator(scope="detached", operator="equivalence", variables=["a", "b"])

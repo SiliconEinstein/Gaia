@@ -62,6 +62,35 @@ class FormalExpr(BaseModel):
     operators: list[Operator]
 
 
+_LEAF_STRATEGY_TYPES = frozenset(
+    {
+        StrategyType.INFER,
+        StrategyType.NOISY_AND,
+        StrategyType.TOOLCALL,
+        StrategyType.PROOF,
+    }
+)
+
+_COMPOSITE_STRATEGY_TYPES = frozenset(
+    {
+        StrategyType.ABDUCTION,
+        StrategyType.INDUCTION,
+        StrategyType.ANALOGY,
+        StrategyType.EXTRAPOLATION,
+    }
+)
+
+_FORMAL_STRATEGY_TYPES = frozenset(
+    {
+        StrategyType.DEDUCTION,
+        StrategyType.REDUCTIO,
+        StrategyType.ELIMINATION,
+        StrategyType.MATHEMATICAL_INDUCTION,
+        StrategyType.CASE_ANALYSIS,
+    }
+)
+
+
 def _sha256_hex(data: str, length: int = 16) -> str:
     return hashlib.sha256(data.encode()).hexdigest()[:length]
 
@@ -96,9 +125,31 @@ class Strategy(BaseModel):
 
     @model_validator(mode="after")
     def _compute_id_and_validate(self) -> Strategy:
+        if self.scope not in {"local", "global"}:
+            raise ValueError("scope must be one of: 'local', 'global'")
+
+        if self.scope == "global" and self.steps is not None:
+            raise ValueError("global Strategy must not carry steps")
+
+        if self.strategy_id is not None:
+            expected_prefix = "lcs_" if self.scope == "local" else "gcs_"
+            if not self.strategy_id.startswith(expected_prefix):
+                raise ValueError(
+                    f"{self.scope} strategies must use a strategy_id with {expected_prefix} prefix"
+                )
+
         if self.strategy_id is None:
             self.strategy_id = _compute_strategy_id(
                 self.scope, self.type, self.premises, self.conclusion
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_leaf_form(self) -> Strategy:
+        if self.__class__ is Strategy and self.type not in _LEAF_STRATEGY_TYPES:
+            allowed = ", ".join(sorted(t.value for t in _LEAF_STRATEGY_TYPES))
+            raise ValueError(
+                f"Strategy form only allows types: {allowed}; got {self.type.value}"
             )
         return self
 
@@ -116,6 +167,11 @@ class CompositeStrategy(Strategy):
     def _validate_sub_strategies(self) -> CompositeStrategy:
         if not self.sub_strategies:
             raise ValueError("CompositeStrategy requires at least one sub_strategy")
+        if self.type not in _COMPOSITE_STRATEGY_TYPES:
+            allowed = ", ".join(sorted(t.value for t in _COMPOSITE_STRATEGY_TYPES))
+            raise ValueError(
+                f"CompositeStrategy form only allows types: {allowed}; got {self.type.value}"
+            )
         return self
 
 
@@ -132,4 +188,9 @@ class FormalStrategy(Strategy):
     def _validate_formal_expr(self) -> FormalStrategy:
         if not self.formal_expr.operators:
             raise ValueError("FormalStrategy requires at least one operator in formal_expr")
+        if self.type not in _FORMAL_STRATEGY_TYPES:
+            allowed = ", ".join(sorted(t.value for t in _FORMAL_STRATEGY_TYPES))
+            raise ValueError(
+                f"FormalStrategy form only allows types: {allowed}; got {self.type.value}"
+            )
         return self
