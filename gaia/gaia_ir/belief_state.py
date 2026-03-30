@@ -1,39 +1,41 @@
-"""BeliefState model — BP output on the GlobalCanonicalGraph.
+"""BeliefState — BP output on GlobalCanonicalGraph.
 
-Implements the schema defined in docs/foundations/graph-ir/belief-state.md.
+Implements docs/foundations/gaia-ir/belief-state.md.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 
 def _utc_now() -> datetime:
-    """Return current UTC datetime."""
     return datetime.now(timezone.utc)
 
 
 class BeliefState(BaseModel):
-    """BP run output — posterior beliefs on claim nodes.
+    """BP run output — posterior beliefs on claim Knowledge.
 
-    Records both the belief values and the reproduction conditions
-    (resolution_policy + prior_cutoff) so that the run can be replayed.
-    Only nodes with ``type=claim`` appear in ``beliefs``.
+    Records reproduction conditions (resolution_policy + prior_cutoff) so the
+    run can be replayed. Only type=claim Knowledge appears in beliefs.
     """
 
     bp_run_id: str
     created_at: datetime = Field(default_factory=_utc_now)
 
-    # Reproduction conditions
+    # reproduction conditions
     resolution_policy: str  # "latest" | "source:<source_id>"
-    prior_cutoff: datetime  # Only records before this timestamp were used
+    prior_cutoff: datetime
 
-    # Beliefs: gcn_ ID → posterior probability (claims only)
+    # beliefs: gcn_ ID → posterior probability (claims only)
     beliefs: dict[str, float]
 
-    # Diagnostics
+    # compilation info (optional diagnostics)
+    compilation_summary: dict[str, Any] | None = None  # strategy_id → compilation path
+
+    # diagnostics
     converged: bool
     iterations: int
     max_residual: float

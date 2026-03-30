@@ -1,50 +1,70 @@
-"""Gaia data models — Python implementation of docs/foundations/graph-ir/."""
+"""Gaia IR — data models for the Gaia reasoning hypergraph.
 
-from gaia.gaia_ir.belief_state import BeliefState
-from gaia.gaia_ir.binding import BindingDecision, CanonicalBinding
-from gaia.gaia_ir.graph_ir import (
-    FactorCategory,
-    FactorNode,
-    FactorStage,
-    GlobalCanonicalGraph,
-    KnowledgeNode,
+Three entities: Knowledge (propositions), Operator (deterministic constraints),
+Strategy (reasoning declarations with three forms).
+
+Parameterization (probability parameters) and BeliefState (BP output) act on
+GlobalCanonicalGraph. CanonicalBinding tracks local→global mapping.
+
+Spec: docs/foundations/gaia-ir/
+"""
+
+from gaia.gaia_ir.knowledge import (
+    Knowledge,
     KnowledgeType,
-    LocalCanonicalGraph,
     LocalCanonicalRef,
     PackageRef,
     Parameter,
-    ReasoningType,
-    SourceRef,
-    Step,
 )
+from gaia.gaia_ir.operator import Operator, OperatorType
+from gaia.gaia_ir.strategy import (
+    CompositeStrategy,
+    FormalExpr,
+    FormalStrategy,
+    Step,
+    Strategy,
+    StrategyType,
+)
+from gaia.gaia_ir.graphs import GlobalCanonicalGraph, LocalCanonicalGraph
 from gaia.gaia_ir.parameterization import (
     CROMWELL_EPS,
-    FactorParamRecord,
     ParameterizationSource,
     PriorRecord,
     ResolutionPolicy,
+    StrategyParamRecord,
 )
+from gaia.gaia_ir.belief_state import BeliefState
+from gaia.gaia_ir.binding import BindingDecision, CanonicalBinding
 
 __all__ = [
-    "BeliefState",
-    "BindingDecision",
-    "CROMWELL_EPS",
-    "CanonicalBinding",
-    "FactorCategory",
-    "FactorNode",
-    "FactorParamRecord",
-    "FactorStage",
-    "GlobalCanonicalGraph",
-    "KnowledgeNode",
+    # Knowledge
+    "Knowledge",
     "KnowledgeType",
-    "LocalCanonicalGraph",
     "LocalCanonicalRef",
     "PackageRef",
     "Parameter",
+    # Operator
+    "Operator",
+    "OperatorType",
+    # Strategy
+    "CompositeStrategy",
+    "FormalExpr",
+    "FormalStrategy",
+    "Step",
+    "Strategy",
+    "StrategyType",
+    # Graphs
+    "GlobalCanonicalGraph",
+    "LocalCanonicalGraph",
+    # Parameterization
+    "CROMWELL_EPS",
     "ParameterizationSource",
     "PriorRecord",
-    "ReasoningType",
     "ResolutionPolicy",
-    "SourceRef",
-    "Step",
+    "StrategyParamRecord",
+    # BeliefState
+    "BeliefState",
+    # Binding
+    "BindingDecision",
+    "CanonicalBinding",
 ]
