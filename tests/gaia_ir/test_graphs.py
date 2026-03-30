@@ -48,6 +48,16 @@ class TestLocalCanonicalGraph:
         g = LocalCanonicalGraph(knowledges=[])
         assert g.scope == "local"
 
+    def test_hash_independent_of_entity_order(self):
+        k1 = Knowledge(id="lcn_1", type="claim", content="A")
+        k2 = Knowledge(id="lcn_2", type="claim", content="B")
+        s = Strategy(scope="local", type="infer", premises=["lcn_1"], conclusion="lcn_2")
+
+        g1 = LocalCanonicalGraph(knowledges=[k1, k2], strategies=[s])
+        g2 = LocalCanonicalGraph(knowledges=[k2, k1], strategies=[s])
+
+        assert g1.ir_hash == g2.ir_hash
+
 
 class TestGlobalCanonicalGraph:
     def test_no_hash(self):
