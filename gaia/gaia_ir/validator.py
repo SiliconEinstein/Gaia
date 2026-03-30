@@ -94,10 +94,18 @@ def _validate_knowledges(
 def _validate_operators(
     operators: list[Operator],
     knowledge_lookup: dict[str, Knowledge],
+    scope: str,
     result: ValidationResult,
 ) -> None:
     """Validate top-level Operators against the knowledge set."""
     for op in operators:
+        # operator scope must be compatible with graph scope
+        if op.scope is not None and op.scope != scope:
+            result.error(
+                f"Operator '{op.operator_id}': scope '{op.scope}' incompatible "
+                f"with {scope} graph"
+            )
+
         # reference completeness
         for var_id in op.variables:
             if var_id not in knowledge_lookup:
@@ -168,7 +176,7 @@ def _validate_strategy(
             _validate_strategy(sub, knowledge_lookup, scope, result)
 
     if isinstance(strategy, FormalStrategy):
-        _validate_operators(strategy.formal_expr.operators, knowledge_lookup, result)
+        _validate_operators(strategy.formal_expr.operators, knowledge_lookup, scope, result)
 
 
 def _validate_strategies(
@@ -239,7 +247,7 @@ def validate_local_graph(graph: LocalCanonicalGraph) -> ValidationResult:
     result = ValidationResult()
 
     knowledge_lookup = _validate_knowledges(graph.knowledges, "local", result)
-    _validate_operators(graph.operators, knowledge_lookup, result)
+    _validate_operators(graph.operators, knowledge_lookup, "local", result)
     _validate_strategies(graph.strategies, knowledge_lookup, "local", result)
     _validate_scope_consistency(
         knowledge_lookup, graph.operators, graph.strategies, "local", result
@@ -264,7 +272,7 @@ def validate_global_graph(graph: GlobalCanonicalGraph) -> ValidationResult:
     result = ValidationResult()
 
     knowledge_lookup = _validate_knowledges(graph.knowledges, "global", result)
-    _validate_operators(graph.operators, knowledge_lookup, result)
+    _validate_operators(graph.operators, knowledge_lookup, "global", result)
     _validate_strategies(graph.strategies, knowledge_lookup, "global", result)
     _validate_scope_consistency(
         knowledge_lookup, graph.operators, graph.strategies, "global", result

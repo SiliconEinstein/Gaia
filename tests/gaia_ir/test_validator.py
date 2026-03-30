@@ -161,6 +161,24 @@ class TestOperatorValidation:
         assert not r.valid
         assert any("must be claim" in e for e in r.errors)
 
+    def test_local_graph_rejects_global_scoped_operator(self):
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            operators=[Operator(scope="global", operator="equivalence", variables=["lcn_a", "lcn_b"])],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("scope" in e.lower() for e in r.errors)
+
+    def test_global_graph_rejects_local_scoped_operator(self):
+        g = _global_graph(
+            knowledges=[_claim("gcn_a"), _claim("gcn_b")],
+            operators=[Operator(scope="local", operator="equivalence", variables=["gcn_a", "gcn_b"])],
+        )
+        r = validate_global_graph(g)
+        assert not r.valid
+        assert any("scope" in e.lower() for e in r.errors)
+
 
 # ---------------------------------------------------------------------------
 # 3. Strategy validation
@@ -251,40 +269,31 @@ class TestStrategyValidation:
         assert any("background" in w for w in r.warnings)
 
     def test_global_strategy_rejects_steps(self):
+        """Pydantic model validation rejects steps on global Strategy at construction time."""
+        import pytest
         from gaia.gaia_ir import Step
 
-        g = _global_graph(
-            knowledges=[_claim("gcn_a"), _claim("gcn_b")],
-            strategies=[
-                Strategy(
-                    scope="global",
-                    type="infer",
-                    premises=["gcn_a"],
-                    conclusion="gcn_b",
-                    steps=[Step(reasoning="should not be here")],
-                )
-            ],
-        )
-        r = validate_global_graph(g)
-        assert not r.valid
-        assert any("steps" in e for e in r.errors)
+        with pytest.raises(Exception, match="global Strategy must not carry steps"):
+            Strategy(
+                scope="global",
+                type="infer",
+                premises=["gcn_a"],
+                conclusion="gcn_b",
+                steps=[Step(reasoning="should not be here")],
+            )
 
     def test_strategy_prefix_check(self):
-        g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
-            strategies=[
-                Strategy(
-                    strategy_id="gcs_wrong",
-                    scope="local",
-                    type="infer",
-                    premises=["lcn_a"],
-                    conclusion="lcn_b",
-                )
-            ],
-        )
-        r = validate_local_graph(g)
-        assert not r.valid
-        assert any("prefix" in e for e in r.errors)
+        """Pydantic model validation rejects wrong ID prefix at construction time."""
+        import pytest
+
+        with pytest.raises(Exception, match="lcs_ prefix"):
+            Strategy(
+                strategy_id="gcs_wrong",
+                scope="local",
+                type="infer",
+                premises=["lcn_a"],
+                conclusion="lcn_b",
+            )
 
 
 class TestCompositeStrategyValidation:
