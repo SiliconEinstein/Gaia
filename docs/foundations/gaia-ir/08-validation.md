@@ -68,9 +68,10 @@ validation 的职责是**验证结构合法性**。
 5. `implication` 必须满足 `conclusion = variables[-1]`
 6. `conjunction` 必须满足 `conclusion = variables[-1]`
 7. `equivalence / contradiction / complement / disjunction`
-   - `conclusion` 必须是标准 helper claim
+   - `conclusion` 必须语义上对应其结构型 helper claim
    - `conclusion` 不要求出现在 `variables` 中
 8. 关系型 Operator 的 `conclusion` 不允许被作者借来手写任意主观结论
+9. 若 `metadata.canonical_name` 缺失或未采用推荐 functor 形式，当前更适合作为 warning / lint，而不是 hard error
 
 helper claim 的命名纪律见 [04-helper-claims.md](04-helper-claims.md)。
 

@@ -69,7 +69,7 @@ SHA-256(type + content + sorted(parameters))
 ### 3.1 典型用途
 
 - **Canonicalization 快速路径**
-  新 local Knowledge 进入全局图时，先用 `content_hash` 做精确匹配；命中则直接 `match_existing`
+  新 local Knowledge 进入全局图时，先用 `content_hash` 做精确匹配；命中则直接进入 exact same proposition 候选路径
 - **查询与去重索引**
   global 层保存一份从 `representative_lcn` 同步来的 `content_hash`，供 canonicalization / curation 查询
 

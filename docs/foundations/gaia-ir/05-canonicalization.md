@@ -18,20 +18,40 @@ Canonicalization 负责：
 - 将 local Strategy 提升到 global graph
 - 决定何时做 binding，何时创建 equivalence 候选
 
-## 2. Binding 与 Equivalence
+## 2. Knowledge 身份映射与 Strategy 集成
 
-Canonicalization 中存在两种本质不同的关系：
+Canonicalization 里有两个不同问题，不能混在一起：
 
-- **CanonicalBinding（身份映射）**：local Knowledge 和 global Knowledge 是**同一个命题**的不同表示。纯引用关系，不提供新证据，不创建图结构。多条从相同前提出发的推理路径收敛到同一个 Knowledge，以不同的 Strategy 表达。
-- **Equivalence Operator（等价声明）**：两个独立的 global Knowledge 被声明为**等价**。从不同前提独立推出相同结论，这本身是新证据（独立验证），概率推理会在两者之间传播 belief。
+- **Knowledge 身份映射**：这个 local Knowledge 是否与某个 existing global Knowledge 表达的是**同一个 proposition**
+- **Strategy 集成**：在结论已经绑定到某个 global Knowledge 之后，这条新的推理链应如何接到全局图里
 
-**Binding 与 Equivalence 的判断发生在 Strategy（推理链）层面，而非 Knowledge（结论）层面。** 核心问题不是“这个结论和已有结论是不是一样”，而是“这条新的推理链是否为该结论提供了独立证据”。
+这两层分离后，`content_hash` 快速路径、binding、equivalence 和证据独立性就不会互相打架。
 
-### 2.1 未增加独立证据 → Binding
+### 2.1 同一个 proposition → Binding
 
-结论 Knowledge 绑定到已有 global Knowledge（`CanonicalBinding.decision = "match_existing"`）。
+若 local Knowledge 与某个 global Knowledge 表达的是**同一个 proposition**，则做 CanonicalBinding（`decision = "match_existing"`）。
 
-当新包的 Strategy（提升到全局后）与已有 Strategy 共享相同前提和结论时，**必须合并为 CompositeStrategy**，不能让多条独立 Strategy 并列指向同一 Knowledge，否则概率推理会对同一组证据 double count。
+- 这是**节点身份**问题
+- 它回答的是“这是不是同一个命题节点”
+- 它不直接回答“这条新推理链是否提供了独立证据”
+
+exact content match（如 `content_hash` 相同）是最强的同一 proposition 信号；无 exact match 时，再由 embedding / review 判断是否仍应 bind 到现有 global Knowledge。
+
+### 2.2 不同 proposition 但 truth-coupled → Equivalence
+
+Equivalence Operator 只用于**不同 proposition** 之间的 truth-coupling：
+
+- 它们不是同一个 canonical Knowledge
+- 但 review 认为它们在 truth 上应联动
+- 这时保留两个 global Knowledge，并在它们之间建立 equivalence
+
+换句话说，equivalence 不是“同一 proposition 的第二条证据链”的表达方式；同一 proposition 的额外支持路径仍然应该汇聚到同一个 global Knowledge。
+
+### 2.3 Binding 后的 Strategy 集成
+
+当 local conclusion 已绑定到某个 global Knowledge 后，再处理这条 local Strategy 如何进入全局图。
+
+如果新包的 Strategy（提升到全局后）与已有 Strategy 共享相同前提和结论，**必须合并为 CompositeStrategy**，不能让多条独立 Strategy 并列指向同一 Knowledge，否则概率推理会对同一组证据 double count。
 
 ```text
 合并前（double counting，错误）：
@@ -45,16 +65,22 @@ Canonicalization 中存在两种本质不同的关系：
       - Strategy_B
 ```
 
-如果已有 Strategy 尚未被包装为 CompositeStrategy，canonicalization 在发现第二条 Strategy 时创建 CompositeStrategy 并将两者放入 `sub_strategies`。后续新包的 Strategy 追加到同一 CompositeStrategy。
+如果已有 Strategy 尚未被包装为 CompositeStrategy，canonicalization 在发现第二条 Strategy 时创建 CompositeStrategy 并将两者放入 `sub_strategies`。后续同 premise-set / conclusion 的 Strategy 追加到同一 CompositeStrategy。
 
 典型场景：
 
 - 相同前提，不同推理方法
 - 仅引用（local Knowledge 只作为 premise 或 background，不是任何 Strategy 的 conclusion）
 
-### 2.2 增加独立证据 → Equivalence
+如果新的 Strategy 指向**同一个 bound global Knowledge**，但 premise-set 不同、证据来源独立，则它应作为**另一条支持路径**接入同一个结论节点，而不是创建新的 global Knowledge。
 
-为新结论创建新的 global Knowledge（`CanonicalBinding.decision = "equivalent_candidate"`），在新旧两个 global Knowledge 之间提议一个 equivalence Operator（候选项由 review 层管理，确认后写入 IR）。
+### 2.4 无匹配 → create_new
+
+若没有合适的 existing global Knowledge，则为前所未见的 proposition 创建新的 global Knowledge（`decision = "create_new"`）。
+
+### 2.5 review 候选：equivalent_candidate
+
+若 canonicalization 认为“它不是同一个 proposition，但可能与现有某个 proposition truth-coupled”，则可记为 `equivalent_candidate`，留给 review 决定是否创建 equivalence Operator。
 
 ```text
 全局图：
@@ -63,15 +89,16 @@ Canonicalization 中存在两种本质不同的关系：
   Operator: equivalence(C1, C2)
 ```
 
-两个 Knowledge 节点各自通过自己的 Strategy chain 获得 belief，equivalence Operator 让 belief 互相传导，正确建模“独立验证增强可信度”。
+两个 Knowledge 节点各自通过自己的 Strategy chain 获得 belief，equivalence Operator 让 belief 互相传导。
 
-### 2.3 无匹配 → create_new
+### 2.6 判断方式
 
-为前所未见的命题创建新的 global Knowledge（`CanonicalBinding.decision = "create_new"`）。
+“是否为同一个 proposition”与“是否为独立证据”是两个不同判断：
 
-### 2.4 判断方式
+- proposition identity 主要用于决定 `match_existing` 还是 `create_new`
+- evidence independence 主要用于决定 binding 后如何集成新的 Strategy
 
-“是否增加独立证据”是语义判断，IR 层不规定具体判定策略。前提集合的重叠度是最重要的结构信号，但不是唯一判据；推理方法差异、证据来源独立性等也可能构成独立证据。Canonicalization 可以基于前提重叠度做默认判断，review 层可以 override。
+前提集合的重叠度、推理方法差异、证据来源独立性等，主要影响的是后者；review 层可以 override 默认策略。
 
 ## 3. 参与规范化的 Knowledge 类型
 
@@ -85,11 +112,11 @@ Canonicalization 中存在两种本质不同的关系：
 
 匹配按优先级依次尝试：
 
-1. **Content hash 精确匹配（快速路径）**：`content_hash` 相同 → 直接 `match_existing`，跳过 embedding。
+1. **Content hash 精确匹配（快速路径）**：`content_hash` 相同 → 直接命中“exact same proposition”候选，跳过 embedding 检索。
 2. **Embedding 相似度（主要）**：余弦相似度，阈值 0.90。
 3. **TF-IDF 回退**：无 embedding 模型时使用。
 
-`content_hash` 使用 `SHA-256(type + content + sorted(parameters))`，不含 `package_id`；因此它适合做跨包同内容的精确命中，但不替代最终的 global `id`。
+`content_hash` 使用 `SHA-256(type + content + sorted(parameters))`，不含 `package_id`；因此它适合做跨包同内容的精确命中，但不替代最终的 global `id`，也不替代 binding 后的 Strategy 集成判断。
 
 **过滤规则：**
 

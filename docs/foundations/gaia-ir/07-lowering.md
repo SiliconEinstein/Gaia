@@ -16,15 +16,21 @@ BP 的具体运行时图和消息传递细节见 [../bp/inference.md](../bp/infe
 
 一个 lowering 过程的最小输入是：
 
-- 一个 `LocalCanonicalGraph` 或 `GlobalCanonicalGraph`
-- 与之匹配的参数输入
+- 一个 Gaia IR graph（`LocalCanonicalGraph` 或 `GlobalCanonicalGraph`）
 - 一个展开策略（哪些 Strategy 保持折叠，哪些进入内部结构）
 
-对需要参数的运行时后端，常见还会额外输入：
+对**需要概率参数**的运行时后端，常见还会额外输入：
 
+- 与 graph 匹配的参数输入
 - `ResolutionPolicy`
 - `prior_cutoff`
 - backend 自己的运行配置
+
+当前 Gaia IR 核心参数契约只定义在 global 层。因此：
+
+- 对采用 [06-parameterization.md](06-parameterization.md) 的 probabilistic backend，规范输入是 `GlobalCanonicalGraph + Parameterization`
+- `LocalCanonicalGraph` 仍可被 structure-only backend 消费
+- 若某个 local-only probabilistic workflow 需要临时参数，它属于 backend-private / ephemeral 机制，不属于本目录的持久化参数 contract
 
 lowering 的输出不是新的 Gaia IR，而是**后端私有的运行时表示**。  
 在当前 BP 后端里，这个输出是 `FactorGraph`；在其他后端里，也可以是别的 runtime graph。
@@ -164,6 +170,8 @@ Lowering 只消费参数层，不定义参数层。
 - 参数化 Strategy 从 `StrategyParamRecord` 读取外部条件参数
 - 普通 claim 从 `PriorRecord` 读取外部 prior
 - 结构型 helper claim 默认不作为新的独立 prior 输入口
+
+若 backend 严格采用 Gaia IR 核心 parameterization contract，那么这些记录只定义在 global graph 上；local-only 的临时参数来源不由本文件规定。
 
 对直接 FormalStrategy：
 
