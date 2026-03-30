@@ -39,11 +39,12 @@ class PriorRecord(BaseModel):
 class StrategyParamRecord(BaseModel):
     """Conditional probability parameters for a global Strategy.
 
-    Parameter count depends on Strategy type:
+    Only parameterized strategies need StrategyParamRecord:
     - infer: 2^k values (full CPT, one per premise truth-value combination)
     - noisy_and: 1 value (P(conclusion=true | all premises=true))
-    - named strategies: 1 value (folded conditional probability)
-    - toolcall/proof: defined separately
+
+    FormalStrategy types (deduction, abduction, etc.) derive behavior from
+    FormalExpr + claim priors — no independent StrategyParamRecord.
 
     All values are Cromwell-clamped.
     """
