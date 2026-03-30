@@ -258,12 +258,14 @@ def _validate_formal_expr_closure(
     knowledge_lookup: dict[str, Knowledge],
     result: ValidationResult,
 ) -> None:
-    """Validate FormalExpr reference closure (§5 of 08-validation.md).
+    """Validate FormalExpr reference closure and DAG (§5 of 08-validation.md).
 
     Each Operator's variables/conclusion must reference one of:
     - The FormalStrategy's premises (interface input)
     - The FormalStrategy's conclusion (interface output)
     - Another Operator's conclusion in the same FormalExpr (internal intermediate)
+
+    Operator conclusion dependencies must form a DAG (no cycles).
     """
     sid = strategy.strategy_id or "<no-id>"
     allowed: set[str] = set(strategy.premises)
@@ -289,6 +291,36 @@ def _validate_formal_expr_closure(
                 f"FormalStrategy '{sid}': operator conclusion '{op.conclusion}' not in "
                 f"strategy premises/conclusion or operator conclusions (reference closure)"
             )
+
+    # DAG check: operator conclusion dependencies must not cycle (§5.3)
+    # Build adjacency: conclusion -> set of conclusions it depends on (via variables)
+    conclusion_to_deps: dict[str, set[str]] = {}
+    for op in strategy.formal_expr.operators:
+        deps = {v for v in op.variables if v in operator_conclusions}
+        conclusion_to_deps[op.conclusion] = deps
+
+    WHITE, GRAY, BLACK = 0, 1, 2
+    color: dict[str, int] = {c: WHITE for c in conclusion_to_deps}
+
+    def dfs(node: str) -> bool:
+        color[node] = GRAY
+        for dep in conclusion_to_deps.get(node, set()):
+            if dep not in color:
+                continue
+            if color[dep] == GRAY:
+                result.error(
+                    f"FormalStrategy '{sid}': FormalExpr cycle detected "
+                    f"involving '{node}' -> '{dep}'"
+                )
+                return True
+            if color[dep] == WHITE and dfs(dep):
+                return True
+        color[node] = BLACK
+        return False
+
+    for c in conclusion_to_deps:
+        if color[c] == WHITE:
+            dfs(c)
 
 
 def _validate_private_node_isolation(
@@ -456,14 +488,28 @@ def validate_parameterization(
 ) -> ValidationResult:
     """Validate parameterization completeness before BP run.
 
-    Checks that every claim Knowledge has at least one PriorRecord and every
-    parameterized Strategy (infer/noisy_and) has a StrategyParamRecord.
+    Checks that every non-helper claim Knowledge has at least one PriorRecord
+    and every parameterized Strategy (infer/noisy_and) has a StrategyParamRecord.
     FormalStrategy types derive behavior from FormalExpr — no params needed.
+    Private helper claims (FormalExpr operator conclusions not in strategy interface)
+    are PROHIBITED from having independent PriorRecords (§4, §6 of spec).
     """
     result = ValidationResult()
 
     # collect claim gcn_ids
     claim_ids = {k.id for k in graph.knowledges if k.type == KnowledgeType.CLAIM and k.id}
+
+    # identify private helper claims: FormalExpr operator conclusions not in
+    # the owning FormalStrategy's premises/conclusion interface
+    private_helper_ids: set[str] = set()
+    for s in graph.strategies:
+        if isinstance(s, FormalStrategy):
+            own_interface: set[str] = set(s.premises)
+            if s.conclusion is not None:
+                own_interface.add(s.conclusion)
+            for op in s.formal_expr.operators:
+                if op.conclusion not in own_interface:
+                    private_helper_ids.add(op.conclusion)
 
     # collect strategy ids, split by parameterized vs not
     parameterized_ids: set[str] = set()
@@ -474,11 +520,21 @@ def validate_parameterization(
             if s.type in _PARAMETERIZED_TYPES:
                 parameterized_ids.add(s.strategy_id)
 
-    # check prior coverage
+    # check prior coverage (exclude private helper claims)
     prior_gcn_ids = {r.gcn_id for r in priors}
     for cid in claim_ids:
+        if cid in private_helper_ids:
+            continue  # private helpers don't need priors
         if cid not in prior_gcn_ids:
             result.error(f"Claim '{cid}': missing PriorRecord")
+
+    # private helper claims must NOT have PriorRecords (spec §4, §6)
+    for r_prior in priors:
+        if r_prior.gcn_id in private_helper_ids:
+            result.error(
+                f"PriorRecord '{r_prior.gcn_id}': private helper claim must not have "
+                f"independent PriorRecord (value determined by Operator constraints)"
+            )
 
     # check strategy param coverage — only for parameterized types
     param_strategy_ids = {r.strategy_id for r in strategy_params}

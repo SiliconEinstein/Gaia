@@ -170,12 +170,8 @@ class Strategy(BaseModel):
             )
         return self
 
-    @model_validator(mode="after")
-    def _validate_leaf_form(self) -> Strategy:
-        if self.__class__ is Strategy and self.type not in _LEAF_STRATEGY_TYPES:
-            allowed = ", ".join(sorted(t.value for t in _LEAF_STRATEGY_TYPES))
-            raise ValueError(f"Strategy form only allows types: {allowed}; got {self.type.value}")
-        return self
+    # No leaf type restriction — per §3.5.1, named strategies (deduction, abduction,
+    # etc.) can exist as leaf Strategy before being formalized into FormalStrategy.
 
 
 class CompositeStrategy(Strategy):

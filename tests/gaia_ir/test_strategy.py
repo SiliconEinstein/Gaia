@@ -105,9 +105,11 @@ class TestStrategyCreation:
                 steps=[Step(reasoning="should stay local")],
             )
 
-    def test_leaf_rejects_named_strategy_type(self):
-        with pytest.raises(ValueError, match="Strategy form only allows types"):
-            Strategy(scope="global", type="deduction", premises=["gcn_a"], conclusion="gcn_b")
+    def test_leaf_allows_named_strategy_type(self):
+        """Per §3.5.1, named strategies can exist as leaf before formalization."""
+        s = Strategy(scope="global", type="deduction", premises=["gcn_a"], conclusion="gcn_b")
+        assert s.type == StrategyType.DEDUCTION
+        assert s.strategy_id.startswith("gcs_")
 
     def test_leaf_structure_hash_empty(self):
         """Leaf strategies have empty structure hash."""

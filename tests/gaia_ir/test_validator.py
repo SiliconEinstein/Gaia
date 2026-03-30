@@ -680,6 +680,67 @@ class TestFormalStrategyValidation:
         r = validate_local_graph(g)
         assert r.valid
 
+    def test_formal_expr_cycle_detected(self):
+        """FormalExpr operators that form a cycle: A->B and B->A."""
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_c")],
+            strategies=[
+                FormalStrategy(
+                    scope="local",
+                    type="deduction",
+                    premises=["lcn_a"],
+                    conclusion="lcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="implication",
+                                variables=["lcn_b"],
+                                conclusion="lcn_c",
+                            ),
+                            Operator(
+                                operator="implication",
+                                variables=["lcn_c"],
+                                conclusion="lcn_b",
+                            ),
+                        ]
+                    ),
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("cycle" in e.lower() for e in r.errors)
+
+    def test_formal_expr_no_cycle_valid(self):
+        """Linear chain A->M->C has no cycle."""
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_m"), _claim("lcn_c")],
+            strategies=[
+                FormalStrategy(
+                    scope="local",
+                    type="deduction",
+                    premises=["lcn_a"],
+                    conclusion="lcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="implication",
+                                variables=["lcn_a"],
+                                conclusion="lcn_m",
+                            ),
+                            Operator(
+                                operator="implication",
+                                variables=["lcn_m"],
+                                conclusion="lcn_c",
+                            ),
+                        ]
+                    ),
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert r.valid
+
 
 # ---------------------------------------------------------------------------
 # 4. Graph-level validation
@@ -835,6 +896,7 @@ class TestParameterizationValidation:
                 ),
             ],
         )
+        # gcn_m is not referenced by any FormalExpr operator, so it's a regular claim
         r = validate_parameterization(
             g,
             priors=[
@@ -845,6 +907,101 @@ class TestParameterizationValidation:
             strategy_params=[],  # no params needed for deduction
         )
         assert r.valid
+
+    def test_private_helper_claim_no_prior_needed(self):
+        """Private helper claims (FormalExpr internal) don't need PriorRecord."""
+        from gaia.gaia_ir import PriorRecord
+
+        g = _global_graph(
+            knowledges=[
+                _claim("gcn_a"),
+                _claim("gcn_b"),
+                _claim("gcn_m"),  # private helper: conjunction result
+                _claim("gcn_c"),
+            ],
+            strategies=[
+                FormalStrategy(
+                    scope="global",
+                    type="deduction",
+                    premises=["gcn_a", "gcn_b"],
+                    conclusion="gcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="conjunction",
+                                variables=["gcn_a", "gcn_b"],
+                                conclusion="gcn_m",
+                            ),
+                            Operator(
+                                operator="implication",
+                                variables=["gcn_m"],
+                                conclusion="gcn_c",
+                            ),
+                        ]
+                    ),
+                ),
+            ],
+        )
+        # gcn_m is private (operator conclusion, not in premises/conclusion)
+        # → no PriorRecord needed
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_c", value=0.5, source_id="s"),
+                # no prior for gcn_m
+            ],
+            strategy_params=[],
+        )
+        assert r.valid
+
+    def test_private_helper_claim_prior_prohibited(self):
+        """Providing PriorRecord for a private helper claim is an error."""
+        from gaia.gaia_ir import PriorRecord
+
+        g = _global_graph(
+            knowledges=[
+                _claim("gcn_a"),
+                _claim("gcn_b"),
+                _claim("gcn_m"),
+                _claim("gcn_c"),
+            ],
+            strategies=[
+                FormalStrategy(
+                    scope="global",
+                    type="deduction",
+                    premises=["gcn_a", "gcn_b"],
+                    conclusion="gcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="conjunction",
+                                variables=["gcn_a", "gcn_b"],
+                                conclusion="gcn_m",
+                            ),
+                            Operator(
+                                operator="implication",
+                                variables=["gcn_m"],
+                                conclusion="gcn_c",
+                            ),
+                        ]
+                    ),
+                ),
+            ],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_c", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_m", value=0.5, source_id="s"),  # prohibited!
+            ],
+            strategy_params=[],
+        )
+        assert not r.valid
+        assert any("private helper claim" in e for e in r.errors)
 
     def test_param_for_non_parameterized_type_warns(self):
         """StrategyParamRecord for a FormalStrategy type should warn."""
