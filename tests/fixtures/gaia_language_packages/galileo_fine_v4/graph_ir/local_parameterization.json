@@ -1,0 +1,78 @@
+{
+  "factor_parameters": {
+    "f_0a5b637a75324b99": {
+      "conditional_probability": 1.0
+    },
+    "f_1104cd5e54f6cfc0": {
+      "conditional_probability": 1.0
+    },
+    "f_344e9c948cfd11cc": {
+      "conditional_probability": 1.0
+    },
+    "f_53fcc8fb38ef7b4c": {
+      "conditional_probability": 1.0
+    },
+    "f_606c8d0e2911e0c0": {
+      "conditional_probability": 1.0
+    },
+    "f_961726c5bc52c082": {
+      "conditional_probability": 1.0
+    },
+    "f_a18688c006b53eb1": {
+      "conditional_probability": 1.0
+    },
+    "f_a8782785b00f7150": {
+      "conditional_probability": 1.0
+    },
+    "f_c3351578d42a2144": {
+      "conditional_probability": 1.0
+    },
+    "f_ca03257d85d881d0": {
+      "conditional_probability": 1.0
+    },
+    "f_deb88a3430b2abd6": {
+      "conditional_probability": 1.0
+    },
+    "f_e7c621cf7ae4bdc8": {
+      "conditional_probability": 1.0
+    },
+    "f_f202ce6a05fb9249": {
+      "conditional_probability": 1.0
+    }
+  },
+  "graph_hash": "sha256:1ea7ebb709764e2c29b5dcd93791c9a5d99454cb19c91b0405200a7bf885140f",
+  "graph_scope": "local",
+  "metadata": null,
+  "node_priors": {
+    "lcn_0b4e0bc5a8c4088c": 0.5,
+    "lcn_0df483ef735cb18a": 0.5,
+    "lcn_3a12bdc318b1e143": 0.5,
+    "lcn_3c2214cb9b3e3452": 0.5,
+    "lcn_45e8e0719b2e219f": 0.9,
+    "lcn_48d26cbbf9f893bb": 0.5,
+    "lcn_54b5d36da4dc191b": 0.5,
+    "lcn_564fe97acf4e4471": 0.5,
+    "lcn_5b74d2284e5fbd42": 0.5,
+    "lcn_65a8531832f7d964": 0.5,
+    "lcn_67e1ba66ac639395": 0.5,
+    "lcn_7f692075bbea4b97": 0.5,
+    "lcn_86a858f571e3f9d1": 0.5,
+    "lcn_9fbcfb2d336b0f63": 0.5,
+    "lcn_a765f53c1463c784": 0.9,
+    "lcn_b5128005caa37c46": 0.5,
+    "lcn_b90cbc4beb7522d6": 0.5,
+    "lcn_c4d6063e85de8863": 0.9,
+    "lcn_cb3e3e3ffee15cf4": 1.0,
+    "lcn_d88f7a12919c6ec3": 0.5,
+    "lcn_dd0f6642c038d195": 0.5,
+    "lcn_ddc1c70a54b98d6d": 0.5,
+    "lcn_e713a8d8ca496f0b": 0.9,
+    "lcn_ed702d0acb8a3590": 0.5,
+    "lcn_eda57da6e2b97e07": 1.0,
+    "lcn_f23487ef6193ab6f": 0.5,
+    "lcn_f23e5760b1ad37f2": 0.5,
+    "lcn_f3db8ee23301df87": 0.9,
+    "lcn_fdf81d397aa04347": 0.5
+  },
+  "schema_version": "1.0"
+}

@@ -1,0 +1,272 @@
+{
+  "prior_records": [
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_611d440099b0fba0",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.9
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_cc85bf6ddeaf6fb7",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.9
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_d821c4862cd968b7",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.9
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_7ad03407f44fbdc8",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.9
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_7a542c0f2dfcf2c9",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.9
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_f067c3f8031d47ab",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_00f0f1731a41a613",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_b117c15f71a2e1d3",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_fb2245ed6b7cd8be",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_0c4b4ddf8d0d747f",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_98b160e6e14f4312",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_5ad774dec563ff1c",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_9ad1a35ba6915eae",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_23b194093c1bfd7c",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_4585ddfd442411b1",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_a7dd4f4659beae79",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_93fec22a70088ee6",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_a4ac5f81cefde243",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_9b4eb7e711d775f4",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_9356d0a0fcdd0843",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_fa5f53326bb61cba",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_807e25560a8ec0b8",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_aa44e170a91f7f55",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_1f98792e989168a4",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_e527f64fbec5c520",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_553b2a3d44258d6a",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    },
+    {
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "gcn_id": "lcn_e8357e6268ad5dde",
+      "source_id": "pipeline:build_gaia_ir",
+      "value": 0.5
+    }
+  ],
+  "strategy_param_records": [
+    {
+      "conditional_probabilities": [
+        0.999
+      ],
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "source_id": "pipeline:build_gaia_ir",
+      "strategy_id": "lcs_3a89afb8af138601"
+    },
+    {
+      "conditional_probabilities": [
+        0.999
+      ],
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "source_id": "pipeline:build_gaia_ir",
+      "strategy_id": "lcs_e9fb22102297fa2d"
+    },
+    {
+      "conditional_probabilities": [
+        0.999
+      ],
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "source_id": "pipeline:build_gaia_ir",
+      "strategy_id": "lcs_555c144dcc525ec8"
+    },
+    {
+      "conditional_probabilities": [
+        0.999
+      ],
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "source_id": "pipeline:build_gaia_ir",
+      "strategy_id": "lcs_4a7a85ef731cf879"
+    },
+    {
+      "conditional_probabilities": [
+        0.999
+      ],
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "source_id": "pipeline:build_gaia_ir",
+      "strategy_id": "lcs_7338ec76f4a70630"
+    },
+    {
+      "conditional_probabilities": [
+        0.999
+      ],
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "source_id": "pipeline:build_gaia_ir",
+      "strategy_id": "lcs_3b4e440436e8066a"
+    },
+    {
+      "conditional_probabilities": [
+        0.999
+      ],
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "source_id": "pipeline:build_gaia_ir",
+      "strategy_id": "lcs_5df03375e2971497"
+    },
+    {
+      "conditional_probabilities": [
+        0.999
+      ],
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "source_id": "pipeline:build_gaia_ir",
+      "strategy_id": "lcs_6b71acb338a79cfb"
+    },
+    {
+      "conditional_probabilities": [
+        0.999
+      ],
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "source_id": "pipeline:build_gaia_ir",
+      "strategy_id": "lcs_c06dc06e12207f48"
+    },
+    {
+      "conditional_probabilities": [
+        0.999
+      ],
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "source_id": "pipeline:build_gaia_ir",
+      "strategy_id": "lcs_d8882f7445dc9f96"
+    },
+    {
+      "conditional_probabilities": [
+        0.999
+      ],
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "source_id": "pipeline:build_gaia_ir",
+      "strategy_id": "lcs_36322cbc1ba34a08"
+    },
+    {
+      "conditional_probabilities": [
+        0.999
+      ],
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "source_id": "pipeline:build_gaia_ir",
+      "strategy_id": "lcs_d2538a3c8c6ab25a"
+    },
+    {
+      "conditional_probabilities": [
+        0.999
+      ],
+      "created_at": "2026-03-30T03:42:49.504073Z",
+      "source_id": "pipeline:build_gaia_ir",
+      "strategy_id": "lcs_0e3fd98de3ad4ac9"
+    }
+  ]
+}

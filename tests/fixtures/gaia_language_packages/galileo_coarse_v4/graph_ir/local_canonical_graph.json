@@ -1,0 +1,501 @@
+{
+  "factor_nodes": [
+    {
+      "conclusion": "lcn_bddf62e54d7106d8",
+      "contexts": [],
+      "factor_id": "f_46838419c7a7f4c7",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "lcn_e4300768df6f57d5"
+      ],
+      "source_ref": {
+        "knowledge_name": "hyp.A",
+        "module": "default",
+        "package": "galileo_coarse",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "lcn_ba9a674a8f546af6",
+      "contexts": [],
+      "factor_id": "f_f202ce6a05fb9249",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "lcn_bddf62e54d7106d8"
+      ],
+      "source_ref": {
+        "knowledge_name": "hyp.T1",
+        "module": "default",
+        "package": "galileo_coarse",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "lcn_7bfcb014c923d6a8",
+      "contexts": [],
+      "factor_id": "f_0a5b637a75324b99",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "lcn_bddf62e54d7106d8"
+      ],
+      "source_ref": {
+        "knowledge_name": "hyp.T2",
+        "module": "default",
+        "package": "galileo_coarse",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "lcn_15df8f11f840dd49",
+      "contexts": [],
+      "factor_id": "f_961726c5bc52c082",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "lcn_bddf62e54d7106d8",
+        "lcn_86270d21d50899d4"
+      ],
+      "source_ref": {
+        "knowledge_name": "hyp.A_vac",
+        "module": "default",
+        "package": "galileo_coarse",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "lcn_6c654a0532e34831",
+      "contexts": [],
+      "factor_id": "f_2558d4478679cf8e",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "lcn_029f2ee9195dfa4a",
+        "lcn_0553ca83e6ce5ea9",
+        "lcn_86270d21d50899d4"
+      ],
+      "source_ref": {
+        "knowledge_name": "hyp.V_w2",
+        "module": "default",
+        "package": "galileo_coarse",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "lcn_4a22b97fdb4a1b99",
+      "contexts": [],
+      "factor_id": "f_c01f0a66721bc512",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "lcn_02672d99af87f8b7",
+        "lcn_bca8ebfe9aa00743"
+      ],
+      "source_ref": {
+        "knowledge_name": "hyp.V_w3",
+        "module": "default",
+        "package": "galileo_coarse",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "lcn_8fe69bf77824f686",
+      "contexts": [],
+      "factor_id": "f_350d80faa612f007",
+      "metadata": {
+        "edge_type": "relation_contradiction"
+      },
+      "premises": [
+        "lcn_ba9a674a8f546af6",
+        "lcn_7bfcb014c923d6a8"
+      ],
+      "source_ref": {
+        "knowledge_name": "rel.T1_contra_T2",
+        "module": "default",
+        "package": "galileo_coarse",
+        "version": "4.0.0"
+      },
+      "type": "contradiction"
+    },
+    {
+      "conclusion": "lcn_5e47cba3928b97a2",
+      "contexts": [],
+      "factor_id": "f_abd074911bdfcd55",
+      "metadata": {
+        "edge_type": "relation_equivalence"
+      },
+      "premises": [
+        "lcn_6c654a0532e34831",
+        "lcn_4a22b97fdb4a1b99"
+      ],
+      "source_ref": {
+        "knowledge_name": "rel.V_equiv",
+        "module": "default",
+        "package": "galileo_coarse",
+        "version": "4.0.0"
+      },
+      "type": "equivalence"
+    },
+    {
+      "conclusion": "lcn_fe9fb2d1acdb9955",
+      "contexts": [],
+      "factor_id": "f_4165b5e88b6eb16d",
+      "metadata": {
+        "edge_type": "relation_contradiction"
+      },
+      "premises": [
+        "lcn_15df8f11f840dd49",
+        "lcn_6c654a0532e34831"
+      ],
+      "source_ref": {
+        "knowledge_name": "rel.Avac_contra_V",
+        "module": "default",
+        "package": "galileo_coarse",
+        "version": "4.0.0"
+      },
+      "type": "contradiction"
+    }
+  ],
+  "knowledge_nodes": [
+    {
+      "kind": null,
+      "knowledge_type": "setting",
+      "local_canonical_id": "lcn_86270d21d50899d4",
+      "member_raw_node_ids": [
+        "raw_ab78404c32608954"
+      ],
+      "metadata": null,
+      "package": "galileo_coarse",
+      "parameters": [],
+      "representative_content": "真空是完全没有阻力的介质（介质密度为零）。",
+      "source_refs": [
+        {
+          "knowledge_name": "setting.vacuum",
+          "module": "default",
+          "package": "galileo_coarse",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "setting",
+      "local_canonical_id": "lcn_bca8ebfe9aa00743",
+      "member_raw_node_ids": [
+        "raw_80477297a554f879"
+      ],
+      "metadata": null,
+      "package": "galileo_coarse",
+      "parameters": [],
+      "representative_content": "斜面沟槽经抛光处理，衬以羊皮纸，使用坚硬光滑的青铜球——摩擦和空气阻力可忽略。",
+      "source_refs": [
+        {
+          "knowledge_name": "setting.plane",
+          "module": "default",
+          "package": "galileo_coarse",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "kind": "observation",
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_e4300768df6f57d5",
+      "member_raw_node_ids": [
+        "raw_93752d842dd5e1d9"
+      ],
+      "metadata": {
+        "prior": 0.9
+      },
+      "package": "galileo_coarse",
+      "parameters": [],
+      "representative_content": "日常生活中，石头比羽毛下落更快，铁球比木球更快。",
+      "source_refs": [
+        {
+          "knowledge_name": "obs.daily",
+          "module": "default",
+          "package": "galileo_coarse",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "kind": "observation",
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_029f2ee9195dfa4a",
+      "member_raw_node_ids": [
+        "raw_45d13455b1e41ca3"
+      ],
+      "metadata": {
+        "prior": 0.9
+      },
+      "package": "galileo_coarse",
+      "parameters": [],
+      "representative_content": "在不同介质中比较轻重物体的下落，介质越稠密速度差异越明显；越稀薄差异越不明显。",
+      "source_refs": [
+        {
+          "knowledge_name": "obs.media",
+          "module": "default",
+          "package": "galileo_coarse",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "kind": "observation",
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_0553ca83e6ce5ea9",
+      "member_raw_node_ids": [
+        "raw_0b9e14832a912361"
+      ],
+      "metadata": {
+        "prior": 0.9
+      },
+      "package": "galileo_coarse",
+      "parameters": [],
+      "representative_content": "在空气中，金球、铅球、铜球等重材料球从100腕尺落下，金球领先铜球不超过四指。",
+      "source_refs": [
+        {
+          "knowledge_name": "obs.air",
+          "module": "default",
+          "package": "galileo_coarse",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "kind": "observation",
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_02672d99af87f8b7",
+      "member_raw_node_ids": [
+        "raw_5e564c2d5cad350c"
+      ],
+      "metadata": {
+        "prior": 0.9
+      },
+      "package": "galileo_coarse",
+      "parameters": [],
+      "representative_content": "斜面实验：不同重量的球沿抛光沟槽滚下，所经距离之比等于时间之比的平方，与球重量无关。",
+      "source_refs": [
+        {
+          "knowledge_name": "obs.theta",
+          "module": "default",
+          "package": "galileo_coarse",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_bddf62e54d7106d8",
+      "member_raw_node_ids": [
+        "raw_d0099d7032e8da7f"
+      ],
+      "metadata": null,
+      "package": "galileo_coarse",
+      "parameters": [],
+      "representative_content": "物体下落速度与其重量成正比：重物比轻物下落更快。",
+      "source_refs": [
+        {
+          "knowledge_name": "hyp.A",
+          "module": "default",
+          "package": "galileo_coarse",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_ba9a674a8f546af6",
+      "member_raw_node_ids": [
+        "raw_d342625139e06e59"
+      ],
+      "metadata": null,
+      "package": "galileo_coarse",
+      "parameters": [],
+      "representative_content": "假设重物下落更快，将重球H与轻球L绑在一起，L拖拽H，复合体HL速度应慢于H单独下落。",
+      "source_refs": [
+        {
+          "knowledge_name": "hyp.T1",
+          "module": "default",
+          "package": "galileo_coarse",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_7bfcb014c923d6a8",
+      "member_raw_node_ids": [
+        "raw_e32921ed6aa47710"
+      ],
+      "metadata": null,
+      "package": "galileo_coarse",
+      "parameters": [],
+      "representative_content": "假设重物下落更快，复合体HL总重量大于H，因此HL速度应快于H单独下落。",
+      "source_refs": [
+        {
+          "knowledge_name": "hyp.T2",
+          "module": "default",
+          "package": "galileo_coarse",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "contradiction",
+      "local_canonical_id": "lcn_8fe69bf77824f686",
+      "member_raw_node_ids": [
+        "raw_1f0e716922088e0a"
+      ],
+      "metadata": {
+        "between": [
+          "hyp.T1",
+          "hyp.T2"
+        ]
+      },
+      "package": "galileo_coarse",
+      "parameters": [],
+      "representative_content": "T1与T2互相矛盾：复合体HL不能同时慢于H又快于H。",
+      "source_refs": [
+        {
+          "knowledge_name": "rel.T1_contra_T2",
+          "module": "default",
+          "package": "galileo_coarse",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_15df8f11f840dd49",
+      "member_raw_node_ids": [
+        "raw_ca58d6d2768560c6"
+      ],
+      "metadata": null,
+      "package": "galileo_coarse",
+      "parameters": [],
+      "representative_content": "在真空中也应重者更快（A的推论应用于真空条件）。",
+      "source_refs": [
+        {
+          "knowledge_name": "hyp.A_vac",
+          "module": "default",
+          "package": "galileo_coarse",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_6c654a0532e34831",
+      "member_raw_node_ids": [
+        "raw_1450596204e16360"
+      ],
+      "metadata": null,
+      "package": "galileo_coarse",
+      "parameters": [],
+      "representative_content": "介质实验与空气实验的证据表明，在真空中不同重量的物体以相同速率下落。",
+      "source_refs": [
+        {
+          "knowledge_name": "hyp.V_w2",
+          "module": "default",
+          "package": "galileo_coarse",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "claim",
+      "local_canonical_id": "lcn_4a22b97fdb4a1b99",
+      "member_raw_node_ids": [
+        "raw_fe9272559cf738f8"
+      ],
+      "metadata": null,
+      "package": "galileo_coarse",
+      "parameters": [],
+      "representative_content": "斜面实验的证据表明，在真空中不同重量的物体以相同速率下落。",
+      "source_refs": [
+        {
+          "knowledge_name": "hyp.V_w3",
+          "module": "default",
+          "package": "galileo_coarse",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "equivalence",
+      "local_canonical_id": "lcn_5e47cba3928b97a2",
+      "member_raw_node_ids": [
+        "raw_0953f65031655cfa"
+      ],
+      "metadata": {
+        "between": [
+          "hyp.V_w2",
+          "hyp.V_w3"
+        ]
+      },
+      "package": "galileo_coarse",
+      "parameters": [],
+      "representative_content": "V _w2与V _w3是等价命题：两条独立证据链得出相同的真空等速结论。",
+      "source_refs": [
+        {
+          "knowledge_name": "rel.V_equiv",
+          "module": "default",
+          "package": "galileo_coarse",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "kind": null,
+      "knowledge_type": "contradiction",
+      "local_canonical_id": "lcn_fe9fb2d1acdb9955",
+      "member_raw_node_ids": [
+        "raw_12d4a8a15e950885"
+      ],
+      "metadata": {
+        "between": [
+          "hyp.A_vac",
+          "hyp.V_w2"
+        ]
+      },
+      "package": "galileo_coarse",
+      "parameters": [],
+      "representative_content": "A _vac与V之间存在矛盾：真空中不能同时重者更快又等速下落。",
+      "source_refs": [
+        {
+          "knowledge_name": "rel.Avac_contra_V",
+          "module": "default",
+          "package": "galileo_coarse",
+          "version": "4.0.0"
+        }
+      ]
+    }
+  ],
+  "package": "galileo_coarse",
+  "schema_version": "1.0",
+  "version": "4.0.0"
+}

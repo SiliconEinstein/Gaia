@@ -1,0 +1,595 @@
+{
+  "ir_hash": "sha256:6cf03ecfc5190d47bc9409cdd958dc8d9b8c1e43a02ae7186db8b7ad7dc16f8e",
+  "knowledges": [
+    {
+      "content": "真空是完全没有阻力的介质（介质密度为零）。",
+      "content_hash": "312fa770688155acb317f7ad5d347dbb2711ae8e0d7669353c5f2eb76fd9dcf3",
+      "id": "lcn_d9040cb542aec833",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "setting"
+    },
+    {
+      "content": "斜面沟槽经抛光处理，衬以羊皮纸，使用坚硬光滑的青铜球——摩擦和空气阻力可忽略。",
+      "content_hash": "1f0bf015094c0e1e12800da494297e5f5c94c3661d889d0cbf208760651bdddc",
+      "id": "lcn_967becf10811d482",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "setting"
+    },
+    {
+      "content": "日常生活中，石头比羽毛下落更快，铁球比木球更快。",
+      "content_hash": "8499553e7996a31e7e7ca509ea6657455696f32518ac9326479a6c1fd19e16b5",
+      "id": "lcn_611d440099b0fba0",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "在不同介质中比较轻重物体的下落，介质越稠密速度差异越明显；越稀薄差异越不明显。",
+      "content_hash": "9e090334d4bb55c4b3090d50a016f1e15bbbfeb65ff4c11997260f16137c0ddd",
+      "id": "lcn_cc85bf6ddeaf6fb7",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "在空气中，金球、铅球、铜球等重材料球从100腕尺落下，金球领先铜球不超过四指。",
+      "content_hash": "00b33ea8900677cdc7959dba51969adf5d49916cdd9a4e47f0676b6d9d974564",
+      "id": "lcn_d821c4862cd968b7",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "斜面实验1：不同重量的球沿抛光沟槽滚下，所经距离之比等于时间之比的平方，与球重量无关。",
+      "content_hash": "f5afb76d7414671a5b4255085525ba170ab6a5ef2c802512dee11b123317b562",
+      "id": "lcn_7ad03407f44fbdc8",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "斜面实验2：重复实验百余次，结果偏差不超过脉搏一次，高度可重复。",
+      "content_hash": "faab13fe0630d91c370a8915cd2aab68a9eb6c3168ce37a6b22be1091a101289",
+      "id": "lcn_7a542c0f2dfcf2c9",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "物体下落速度与其重量成正比：重物比轻物下落更快。",
+      "content_hash": "04d12524a96aa62d944af0e7ea05f62354523b8141297a61293708f5f3893381",
+      "id": "lcn_f067c3f8031d47ab",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "A的预测：日常应观察到重者更快。",
+      "content_hash": "04cea86cabf66b3f484f2b970423cc0f0c0b4b0777eb4451e46ab2a90477a15b",
+      "id": "lcn_00f0f1731a41a613",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "B _daily与O _daily是等价命题：A的预测即日常观察。",
+      "content_hash": "ad3cda8b96c188f1024d9b806dcd2eb39c64bed5ca8efe44019b36ab88bc31fd",
+      "id": "lcn_b117c15f71a2e1d3",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "假设重物下落更快，将重球H与轻球L绑在一起，L拖拽H，复合体HL速度应慢于H。",
+      "content_hash": "72e26582b62753ac3257bba349965004402279d689b38c34e24366f2e2a9681b",
+      "id": "lcn_fb2245ed6b7cd8be",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "假设重物下落更快，复合体HL总重量大于H，因此HL速度应快于H。",
+      "content_hash": "ce41006a5f51d974da97d430761daea3fddd82704db95476d83b0c82a14b9ae5",
+      "id": "lcn_0c4b4ddf8d0d747f",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "T1与T2互相矛盾：复合体HL不能同时慢于H又快于H。",
+      "content_hash": "62c0ad9a1d5021a3a7f89ebc4374350ad47ed1fb07fa2f67fffc56a56d745b4a",
+      "id": "lcn_98b160e6e14f4312",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "A与真空条件的合取成立。",
+      "content_hash": "a4efdf18678017d38bbdb268d568d22fa32e74e6e9e13439a53b1a8c34806aae",
+      "id": "lcn_5ad774dec563ff1c",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "在真空中也应重者更快（A的推论应用于真空的推论）。",
+      "content_hash": "cb4368aa0392b8cfa91dd2fa7ac7f22e520b526de76dfb70a02e9535e35b2c37",
+      "id": "lcn_9ad1a35ba6915eae",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "空气阻力是造成下落速度差异的主要原因。",
+      "content_hash": "4462b606eec9f2454887e839dc4f14d2121edd5ccdfa116cc9d203c7cb945b69",
+      "id": "lcn_23b194093c1bfd7c",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "G的预测：介质密度影响下落速度差异。",
+      "content_hash": "48820e8f2d0ed5743e53d2454f796bf7347b342c70b8a86e33e329db77bbff40",
+      "id": "lcn_4585ddfd442411b1",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "B _media与O _media是等价命题。",
+      "content_hash": "be6214a3ebbc9e427ff42ae32d9a9baf37247ccfb34dc967686cada7cce61373",
+      "id": "lcn_a7dd4f4659beae79",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "G的预测：空气中重材料球落差极小。",
+      "content_hash": "c22f52b729fbc730871978b7fb7faf77b2617251c2b2a8aaa45a6a129be6a7d5",
+      "id": "lcn_93fec22a70088ee6",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "B _air与O _air是等价命题。",
+      "content_hash": "90be48402535b03c384c1cfa1af881bc66e2a40ea33b2638234b473d6c4f1eac",
+      "id": "lcn_a4ac5f81cefde243",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "G与真空条件的合取成立。",
+      "content_hash": "26fe0a2917aa3cab670fb865b4b67251baa0c19fcccb31fbc9226e638161c06a",
+      "id": "lcn_9b4eb7e711d775f4",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "在真空中，不同重量的物体以相同速率下落。",
+      "content_hash": "434db8dc8065d20a9ea06194a4c0235d588d8cec4def25d81c0ce741368590bb",
+      "id": "lcn_9356d0a0fcdd0843",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "V与斜面条件的合取成立（实验1）。",
+      "content_hash": "d83ef302d2f6fd108c429d7730d4cdc24b8262dbac96278892e5accfbde385de",
+      "id": "lcn_fa5f53326bb61cba",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "V的预测1：斜面实验中不同重量球加速一致。",
+      "content_hash": "3d08e087374fb276a457aceaeac068123db9487a7668e0e349fe4070ac1232ae",
+      "id": "lcn_807e25560a8ec0b8",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "B _theta1与E _theta1是等价命题。",
+      "content_hash": "5c6204498b1786b509879639f4bccd99a45cd1030e7544c7712579bafc63d577",
+      "id": "lcn_aa44e170a91f7f55",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "V与斜面条件的合取成立（实验2）。",
+      "content_hash": "ad3f86fe2de797db0bb5eaf7e55503f98228f6d2d4dc1d0a7f253cb58a2bc3b9",
+      "id": "lcn_1f98792e989168a4",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "V的预测2：重复实验结果高度一致。",
+      "content_hash": "33e52b54e18353d2770e61b917ddcd15fc963a5240f20c74a7da657d5b7b411a",
+      "id": "lcn_e527f64fbec5c520",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "B _theta2与E _theta2是等价命题。",
+      "content_hash": "2f4bffc17367d24892798c7e8c7becdd6525c27bc69c0fd49aeb8ec77d5dba1a",
+      "id": "lcn_553b2a3d44258d6a",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    },
+    {
+      "content": "A _vac与V之间存在矛盾。",
+      "content_hash": "2102f1638af956cdf81329c4e0f7e87ba7f445bfda058cdf5eec807669dc7bfe",
+      "id": "lcn_e8357e6268ad5dde",
+      "local_members": null,
+      "metadata": null,
+      "package_id": "galileo_fine",
+      "parameters": [],
+      "provenance": null,
+      "representative_lcn": null,
+      "type": "claim"
+    }
+  ],
+  "operators": [
+    {
+      "conclusion": null,
+      "metadata": null,
+      "operator": "equivalence",
+      "operator_id": null,
+      "scope": "local",
+      "variables": [
+        "lcn_00f0f1731a41a613",
+        "lcn_611d440099b0fba0"
+      ]
+    },
+    {
+      "conclusion": null,
+      "metadata": null,
+      "operator": "contradiction",
+      "operator_id": null,
+      "scope": "local",
+      "variables": [
+        "lcn_fb2245ed6b7cd8be",
+        "lcn_0c4b4ddf8d0d747f"
+      ]
+    },
+    {
+      "conclusion": null,
+      "metadata": null,
+      "operator": "equivalence",
+      "operator_id": null,
+      "scope": "local",
+      "variables": [
+        "lcn_4585ddfd442411b1",
+        "lcn_cc85bf6ddeaf6fb7"
+      ]
+    },
+    {
+      "conclusion": null,
+      "metadata": null,
+      "operator": "equivalence",
+      "operator_id": null,
+      "scope": "local",
+      "variables": [
+        "lcn_93fec22a70088ee6",
+        "lcn_d821c4862cd968b7"
+      ]
+    },
+    {
+      "conclusion": null,
+      "metadata": null,
+      "operator": "equivalence",
+      "operator_id": null,
+      "scope": "local",
+      "variables": [
+        "lcn_807e25560a8ec0b8",
+        "lcn_7ad03407f44fbdc8"
+      ]
+    },
+    {
+      "conclusion": null,
+      "metadata": null,
+      "operator": "equivalence",
+      "operator_id": null,
+      "scope": "local",
+      "variables": [
+        "lcn_e527f64fbec5c520",
+        "lcn_7a542c0f2dfcf2c9"
+      ]
+    },
+    {
+      "conclusion": null,
+      "metadata": null,
+      "operator": "contradiction",
+      "operator_id": null,
+      "scope": "local",
+      "variables": [
+        "lcn_9ad1a35ba6915eae",
+        "lcn_9356d0a0fcdd0843"
+      ]
+    }
+  ],
+  "scope": "local",
+  "strategies": [
+    {
+      "background": null,
+      "conclusion": "lcn_00f0f1731a41a613",
+      "metadata": null,
+      "premises": [
+        "lcn_f067c3f8031d47ab"
+      ],
+      "scope": "local",
+      "steps": null,
+      "strategy_id": "lcs_3a89afb8af138601",
+      "type": "infer"
+    },
+    {
+      "background": null,
+      "conclusion": "lcn_fb2245ed6b7cd8be",
+      "metadata": null,
+      "premises": [
+        "lcn_f067c3f8031d47ab"
+      ],
+      "scope": "local",
+      "steps": null,
+      "strategy_id": "lcs_e9fb22102297fa2d",
+      "type": "infer"
+    },
+    {
+      "background": null,
+      "conclusion": "lcn_0c4b4ddf8d0d747f",
+      "metadata": null,
+      "premises": [
+        "lcn_f067c3f8031d47ab"
+      ],
+      "scope": "local",
+      "steps": null,
+      "strategy_id": "lcs_555c144dcc525ec8",
+      "type": "infer"
+    },
+    {
+      "background": null,
+      "conclusion": "lcn_5ad774dec563ff1c",
+      "metadata": null,
+      "premises": [
+        "lcn_f067c3f8031d47ab",
+        "lcn_d9040cb542aec833"
+      ],
+      "scope": "local",
+      "steps": null,
+      "strategy_id": "lcs_4a7a85ef731cf879",
+      "type": "infer"
+    },
+    {
+      "background": null,
+      "conclusion": "lcn_9ad1a35ba6915eae",
+      "metadata": null,
+      "premises": [
+        "lcn_5ad774dec563ff1c"
+      ],
+      "scope": "local",
+      "steps": null,
+      "strategy_id": "lcs_7338ec76f4a70630",
+      "type": "infer"
+    },
+    {
+      "background": null,
+      "conclusion": "lcn_4585ddfd442411b1",
+      "metadata": null,
+      "premises": [
+        "lcn_23b194093c1bfd7c"
+      ],
+      "scope": "local",
+      "steps": null,
+      "strategy_id": "lcs_3b4e440436e8066a",
+      "type": "infer"
+    },
+    {
+      "background": null,
+      "conclusion": "lcn_93fec22a70088ee6",
+      "metadata": null,
+      "premises": [
+        "lcn_23b194093c1bfd7c"
+      ],
+      "scope": "local",
+      "steps": null,
+      "strategy_id": "lcs_5df03375e2971497",
+      "type": "infer"
+    },
+    {
+      "background": null,
+      "conclusion": "lcn_9b4eb7e711d775f4",
+      "metadata": null,
+      "premises": [
+        "lcn_23b194093c1bfd7c",
+        "lcn_d9040cb542aec833"
+      ],
+      "scope": "local",
+      "steps": null,
+      "strategy_id": "lcs_6b71acb338a79cfb",
+      "type": "infer"
+    },
+    {
+      "background": null,
+      "conclusion": "lcn_9356d0a0fcdd0843",
+      "metadata": null,
+      "premises": [
+        "lcn_9b4eb7e711d775f4"
+      ],
+      "scope": "local",
+      "steps": null,
+      "strategy_id": "lcs_c06dc06e12207f48",
+      "type": "infer"
+    },
+    {
+      "background": null,
+      "conclusion": "lcn_fa5f53326bb61cba",
+      "metadata": null,
+      "premises": [
+        "lcn_9356d0a0fcdd0843",
+        "lcn_967becf10811d482"
+      ],
+      "scope": "local",
+      "steps": null,
+      "strategy_id": "lcs_d8882f7445dc9f96",
+      "type": "infer"
+    },
+    {
+      "background": null,
+      "conclusion": "lcn_807e25560a8ec0b8",
+      "metadata": null,
+      "premises": [
+        "lcn_fa5f53326bb61cba"
+      ],
+      "scope": "local",
+      "steps": null,
+      "strategy_id": "lcs_36322cbc1ba34a08",
+      "type": "infer"
+    },
+    {
+      "background": null,
+      "conclusion": "lcn_1f98792e989168a4",
+      "metadata": null,
+      "premises": [
+        "lcn_9356d0a0fcdd0843",
+        "lcn_967becf10811d482"
+      ],
+      "scope": "local",
+      "steps": null,
+      "strategy_id": "lcs_d2538a3c8c6ab25a",
+      "type": "infer"
+    },
+    {
+      "background": null,
+      "conclusion": "lcn_e527f64fbec5c520",
+      "metadata": null,
+      "premises": [
+        "lcn_1f98792e989168a4"
+      ],
+      "scope": "local",
+      "steps": null,
+      "strategy_id": "lcs_0e3fd98de3ad4ac9",
+      "type": "infer"
+    }
+  ]
+}
