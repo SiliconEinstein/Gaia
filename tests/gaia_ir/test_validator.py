@@ -347,6 +347,30 @@ class TestCompositeStrategyValidation:
         r = validate_local_graph(g)
         assert r.valid
 
+    def test_nested_scope_mismatch_rejected(self):
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_c")],
+            strategies=[
+                CompositeStrategy(
+                    scope="local",
+                    type="abduction",
+                    premises=["lcn_a"],
+                    conclusion="lcn_c",
+                    sub_strategies=[
+                        Strategy(
+                            scope="global",
+                            type="noisy_and",
+                            premises=["lcn_a"],
+                            conclusion="lcn_b",
+                        ),
+                    ],
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("scope" in e.lower() and "incompatible" in e.lower() for e in r.errors)
+
     def test_sub_strategy_dangling_ref(self):
         g = _local_graph(
             knowledges=[_claim("lcn_a"), _claim("lcn_c")],
@@ -607,6 +631,93 @@ class TestParameterizationValidation:
 
     def test_empty_graph_no_requirements(self):
         r = validate_parameterization(_global_graph(), [], [])
+        assert r.valid
+
+    def test_noisy_and_wrong_arity_rejected(self):
+        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+
+        g = self._graph()
+        sid = g.strategies[0].strategy_id
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.7, source_id="s"),
+            ],
+            strategy_params=[
+                StrategyParamRecord(
+                    strategy_id=sid,
+                    conditional_probabilities=[0.2, 0.3, 0.4, 0.5],
+                    source_id="s",
+                ),
+            ],
+        )
+        assert not r.valid
+        assert any("noisy_and" in e and "requires 1" in e for e in r.errors)
+
+    def test_infer_wrong_arity_rejected(self):
+        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+
+        g = _global_graph(
+            knowledges=[_claim("gcn_a"), _claim("gcn_b"), _claim("gcn_c")],
+            strategies=[
+                Strategy(
+                    scope="global",
+                    type="infer",
+                    premises=["gcn_a", "gcn_b"],
+                    conclusion="gcn_c",
+                ),
+            ],
+        )
+        sid = g.strategies[0].strategy_id
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_c", value=0.5, source_id="s"),
+            ],
+            strategy_params=[
+                StrategyParamRecord(
+                    strategy_id=sid,
+                    conditional_probabilities=[0.8, 0.9],  # needs 2^2=4
+                    source_id="s",
+                ),
+            ],
+        )
+        assert not r.valid
+        assert any("2^2=4" in e for e in r.errors)
+
+    def test_infer_correct_arity_passes(self):
+        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+
+        g = _global_graph(
+            knowledges=[_claim("gcn_a"), _claim("gcn_b"), _claim("gcn_c")],
+            strategies=[
+                Strategy(
+                    scope="global",
+                    type="infer",
+                    premises=["gcn_a", "gcn_b"],
+                    conclusion="gcn_c",
+                ),
+            ],
+        )
+        sid = g.strategies[0].strategy_id
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_c", value=0.5, source_id="s"),
+            ],
+            strategy_params=[
+                StrategyParamRecord(
+                    strategy_id=sid,
+                    conditional_probabilities=[0.8, 0.7, 0.6, 0.9],
+                    source_id="s",
+                ),
+            ],
+        )
         assert r.valid
 
 

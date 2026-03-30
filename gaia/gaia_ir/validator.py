@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 from gaia.gaia_ir.knowledge import Knowledge, KnowledgeType
 from gaia.gaia_ir.operator import Operator
-from gaia.gaia_ir.strategy import Strategy, CompositeStrategy, FormalStrategy
+from gaia.gaia_ir.strategy import Strategy, CompositeStrategy, FormalStrategy, StrategyType
 from gaia.gaia_ir.graphs import LocalCanonicalGraph, GlobalCanonicalGraph, _canonical_json
 from gaia.gaia_ir.parameterization import (
     CROMWELL_EPS,
@@ -169,6 +169,13 @@ def _validate_strategy(
     if scope == "global" and strategy.steps is not None:
         result.error(f"Strategy '{sid}': global strategy must not have steps")
 
+    # scope/prefix checks (applied to nested strategies too, not just top-level)
+    prefix = "lcs_" if scope == "local" else "gcs_"
+    if strategy.scope != scope:
+        result.error(f"Strategy '{sid}': scope '{strategy.scope}' incompatible with {scope} graph")
+    if strategy.strategy_id and not strategy.strategy_id.startswith(prefix):
+        result.error(f"Strategy '{sid}': expected {prefix} prefix in {scope} graph")
+
     # form-specific validation
     if isinstance(strategy, CompositeStrategy):
         for sub in strategy.sub_strategies:
@@ -185,26 +192,16 @@ def _validate_strategies(
     result: ValidationResult,
 ) -> None:
     """Validate all top-level Strategies."""
-    prefix = "lcs_" if scope == "local" else "gcs_"
     seen_ids: set[str] = set()
 
     for s in strategies:
-        # ID prefix
-        if s.strategy_id and not s.strategy_id.startswith(prefix):
-            result.error(f"Strategy '{s.strategy_id}': expected {prefix} prefix in {scope} graph")
-
-        # uniqueness
+        # uniqueness (top-level only)
         if s.strategy_id and s.strategy_id in seen_ids:
             result.error(f"Strategy '{s.strategy_id}': duplicate ID")
         if s.strategy_id:
             seen_ids.add(s.strategy_id)
 
-        # strategy scope must match graph scope
-        if s.scope != scope:
-            result.error(
-                f"Strategy '{s.strategy_id}': scope '{s.scope}' incompatible with {scope} graph"
-            )
-
+        # _validate_strategy handles scope, prefix, references, and recursion
         _validate_strategy(s, knowledge_lookup, scope, result)
 
 
@@ -325,6 +322,35 @@ def validate_parameterization(
         if sid not in param_strategy_ids:
             result.error(f"Strategy '{sid}': missing StrategyParamRecord")
 
+    # check conditional_probabilities arity
+    strategy_lookup = {s.strategy_id: s for s in graph.strategies if s.strategy_id}
+    for r in strategy_params:
+        s = strategy_lookup.get(r.strategy_id)
+        if s is None:
+            continue  # dangling ref handled below
+        actual = len(r.conditional_probabilities)
+        if s.type == StrategyType.INFER:
+            expected = 2 ** len(s.premises)
+            if actual != expected:
+                result.error(
+                    f"StrategyParamRecord '{r.strategy_id}': infer strategy with "
+                    f"{len(s.premises)} premises requires 2^{len(s.premises)}={expected} "
+                    f"conditional_probabilities, got {actual}"
+                )
+        elif s.type == StrategyType.NOISY_AND:
+            if actual != 1:
+                result.error(
+                    f"StrategyParamRecord '{r.strategy_id}': noisy_and strategy "
+                    f"requires 1 conditional_probability, got {actual}"
+                )
+        else:
+            # named strategies (folded): 1 parameter
+            if actual != 1:
+                result.error(
+                    f"StrategyParamRecord '{r.strategy_id}': {s.type} strategy "
+                    f"requires 1 conditional_probability, got {actual}"
+                )
+
     # Cromwell bounds on priors
     for r in priors:
         if r.value < CROMWELL_EPS or r.value > 1 - CROMWELL_EPS:
@@ -401,11 +427,5 @@ def validate_bindings(
                 f"CanonicalBinding: global_canonical_id '{b.global_canonical_id}' "
                 f"not found in global graph"
             )
-
-    # bindings for IDs not in local graph
-    for b in bindings:
-        if b.local_canonical_id not in local_ids:
-            # already reported above, skip duplicate
-            pass
 
     return result
