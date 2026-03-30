@@ -38,7 +38,7 @@ requires = ["setuptools>=69.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["libs*", "services*", "cli*"]
+include = ["gaia*", "libs*", "services*", "cli*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
