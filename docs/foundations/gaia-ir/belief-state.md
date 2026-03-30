@@ -38,7 +38,7 @@ BeliefState:
 - **可重现**：`resolution_policy` + `prior_cutoff` 完整定义了参数组装条件。`prior_cutoff` 记录 BP 运行时的时间点，确保用 `latest` policy 重跑时只取该时间之前的记录，结果可重现。
 - **可多次运行**：同一 resolution policy + prior_cutoff 可以有多次 BP 运行（不同调度策略、阻尼系数等），每次产出不同的 BeliefState。
 - **belief 是后验**：belief 是 BP 计算后的后验信念值，不是 prior。
-- **组装完整性**：组装时每个 Strategy 都必须有 conditional_probabilities 值；任何被展开的 FormalStrategy 都必须带有对应的 FormalExpr。否则 BP 拒绝运行。
+- **组装完整性**：组装时每个参数化 Strategy 都必须有 conditional_probabilities 值；直接 FormalStrategy 则必须带有对应的 FormalExpr，且其显式中间 claim 必须有可用 prior。否则 BP 拒绝运行。
 - **compilation_summary**：记录每个 Strategy 的编译路径——direct（折叠为 ↝ 因子）、composite（递归展开子策略）或 formal_expr（通过 FormalExpr 在 Operator 层运行），用于诊断和可重现性。
 
 ## 诊断字段
