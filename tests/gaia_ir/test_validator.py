@@ -93,6 +93,41 @@ class TestKnowledgeValidation:
         r = validate_global_graph(g)
         assert r.valid
 
+    def test_local_knowledge_must_have_content(self):
+        k = Knowledge(id="lcn_a", type=KnowledgeType.CLAIM)
+        g = _local_graph(knowledges=[k])
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("content" in e for e in r.errors)
+
+    def test_local_knowledge_must_not_have_representative_lcn(self):
+        from gaia.gaia_ir import LocalCanonicalRef
+
+        k = Knowledge(
+            id="lcn_a", type=KnowledgeType.CLAIM, content="test",
+            representative_lcn=LocalCanonicalRef(
+                local_canonical_id="lcn_x", package_id="pkg", version="1"
+            ),
+        )
+        g = _local_graph(knowledges=[k])
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("representative_lcn" in e for e in r.errors)
+
+    def test_local_knowledge_must_not_have_local_members(self):
+        from gaia.gaia_ir import LocalCanonicalRef
+
+        k = Knowledge(
+            id="lcn_a", type=KnowledgeType.CLAIM, content="test",
+            local_members=[LocalCanonicalRef(
+                local_canonical_id="lcn_x", package_id="pkg", version="1"
+            )],
+        )
+        g = _local_graph(knowledges=[k])
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("local_members" in e for e in r.errors)
+
 
 # ---------------------------------------------------------------------------
 # 2. Operator validation

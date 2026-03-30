@@ -74,6 +74,15 @@ def _validate_knowledges(
             if k.content is None and k.representative_lcn is None:
                 result.error(f"Knowledge '{k.id}': claim must have content or representative_lcn")
 
+        # local-layer shape rules
+        if scope == "local":
+            if k.content is None:
+                result.error(f"Knowledge '{k.id}': local layer requires content")
+            if k.representative_lcn is not None:
+                result.error(f"Knowledge '{k.id}': local layer must not set representative_lcn")
+            if k.local_members is not None:
+                result.error(f"Knowledge '{k.id}': local layer must not set local_members")
+
     return lookup
 
 
