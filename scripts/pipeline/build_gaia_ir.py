@@ -60,8 +60,14 @@ def _knowledge_name(node) -> str:
     return node.local_canonical_id
 
 
-def convert_package(pkg_dir: Path) -> bool:
-    """Convert a single package from graph_ir/ to gaia_ir/. Returns True on success."""
+def convert_package(pkg_dir: Path, *, model: str = "noisy_and", output_suffix: str = "") -> bool:
+    """Convert a single package from graph_ir/ to gaia_ir/. Returns True on success.
+
+    model: "noisy_and" — all infer factors use INDUCTION (noisy-AND + leak, target model).
+           "silence"   — deterministic infer factors use ENTAILMENT (silence, current impl),
+                         soft infer factors use INDUCTION.
+    output_suffix: appended to "gaia_ir" for the output directory name.
+    """
     graph_dir = pkg_dir / "graph_ir"
     lcg_path = graph_dir / "local_canonical_graph.json"
     params_path = graph_dir / "local_parameterization.json"
@@ -154,14 +160,23 @@ def convert_package(pkg_dir: Path) -> bool:
             if not premise_new_ids or conclusion_new_id is None:
                 continue
 
-            # All reasoning factors use INDUCTION (noisy-AND + leak) per
-            # docs/foundations/bp/potentials.md "target model". This gives
-            # correct backward propagation (C2) and forward suppression (C4)
-            # for both coarse and fine graphs. See also
-            # specs/2026-03-27-entailment-silence-analysis.md §2.3-§2.4.
             is_soft = base_prob < (1.0 - CROMWELL_EPS)
-            stype = StrategyType.NOISY_AND if is_soft else StrategyType.INFER
-            bp_type = FactorType.INDUCTION
+
+            if model == "noisy_and":
+                # Target model: all infer factors use INDUCTION (noisy-AND + leak).
+                # See docs/foundations/bp/potentials.md and
+                # specs/2026-03-27-entailment-silence-analysis.md §2.3-§2.4.
+                stype = StrategyType.NOISY_AND if is_soft else StrategyType.INFER
+                bp_type = FactorType.INDUCTION
+            else:
+                # Silence model (current impl): deterministic → ENTAILMENT,
+                # soft → INDUCTION.
+                if is_soft:
+                    stype = StrategyType.NOISY_AND
+                    bp_type = FactorType.INDUCTION
+                else:
+                    stype = StrategyType.INFER
+                    bp_type = FactorType.ENTAILMENT
 
             s = Strategy(
                 scope="local",
@@ -250,7 +265,8 @@ def convert_package(pkg_dir: Path) -> bool:
     )
 
     # --- 5. Write outputs ---
-    gaia_dir = pkg_dir / "gaia_ir"
+    dir_name = f"gaia_ir{output_suffix}" if output_suffix else "gaia_ir"
+    gaia_dir = pkg_dir / dir_name
     gaia_dir.mkdir(exist_ok=True)
 
     def _dump(obj, path):
@@ -286,6 +302,17 @@ def convert_package(pkg_dir: Path) -> bool:
 def main():
     parser = argparse.ArgumentParser(description="Convert graph_ir/ to gaia_ir/ with new BP engine")
     parser.add_argument("pkg_dirs", type=Path, nargs="+", help="Package directories")
+    parser.add_argument(
+        "--model",
+        choices=["noisy_and", "silence"],
+        default="noisy_and",
+        help="Factor model: noisy_and (target, all INDUCTION) or silence (ENTAILMENT for deterministic)",
+    )
+    parser.add_argument(
+        "--output-suffix",
+        default="",
+        help="Suffix appended to 'gaia_ir' for output directory (e.g. '_silence' → gaia_ir_silence/)",
+    )
     args = parser.parse_args()
 
     succeeded = 0
@@ -293,9 +320,9 @@ def main():
     for pkg_dir in args.pkg_dirs:
         if not pkg_dir.is_dir():
             continue
-        print(f"Processing: {pkg_dir.name}")
+        print(f"Processing: {pkg_dir.name} (model={args.model})")
         try:
-            if convert_package(pkg_dir):
+            if convert_package(pkg_dir, model=args.model, output_suffix=args.output_suffix):
                 succeeded += 1
         except Exception as e:
             import traceback
