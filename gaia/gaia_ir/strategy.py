@@ -4,13 +4,14 @@ Implements docs/foundations/gaia-ir/gaia-ir.md §3.
 
 Three forms (class hierarchy):
 - Strategy: leaf reasoning (single ↝)
-- CompositeStrategy: contains sub-strategies, supports recursive nesting
+- CompositeStrategy: contains sub-strategies (by reference), supports recursive nesting
 - FormalStrategy: contains deterministic Operator expansion (FormalExpr)
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 from enum import StrEnum
 from typing import Any
 
@@ -32,15 +33,11 @@ class StrategyType(StrEnum):
     MATHEMATICAL_INDUCTION = "mathematical_induction"
     CASE_ANALYSIS = "case_analysis"
 
-    # Named strategies — non-deterministic (CompositeStrategy with FormalStrategy parts)
+    # Named strategies — non-deterministic (FormalStrategy)
     ABDUCTION = "abduction"
     INDUCTION = "induction"
     ANALOGY = "analogy"
     EXTRAPOLATION = "extrapolation"
-
-    # Special
-    TOOLCALL = "toolcall"
-    PROOF = "proof"
 
 
 class Step(BaseModel):
@@ -67,11 +64,15 @@ def _sha256_hex(data: str, length: int = 16) -> str:
 
 
 def _compute_strategy_id(
-    scope: str, type_: str, premises: list[str], conclusion: str | None
+    scope: str,
+    type_: str,
+    premises: list[str],
+    conclusion: str | None,
+    structure_hash: str = "",
 ) -> str:
-    """Deterministic strategy ID: {lcs_|gcs_}_{sha256(scope + type + sorted(premises) + conclusion)[:16]}."""
+    """Deterministic strategy ID: {lcs_|gcs_}_{sha256(scope + type + sorted(premises) + conclusion + structure_hash)[:16]}."""
     prefix = "lcs_" if scope == "local" else "gcs_"
-    payload = f"{scope}|{type_}|{sorted(premises)}|{conclusion}"
+    payload = f"{scope}|{type_}|{sorted(premises)}|{conclusion}|{structure_hash}"
     return f"{prefix}{_sha256_hex(payload)}"
 
 
@@ -79,17 +80,6 @@ _LEAF_STRATEGY_TYPES = frozenset(
     {
         StrategyType.INFER,
         StrategyType.NOISY_AND,
-        StrategyType.TOOLCALL,
-        StrategyType.PROOF,
-    }
-)
-
-_COMPOSITE_STRATEGY_TYPES = frozenset(
-    {
-        StrategyType.ABDUCTION,
-        StrategyType.INDUCTION,
-        StrategyType.ANALOGY,
-        StrategyType.EXTRAPOLATION,
     }
 )
 
@@ -100,14 +90,32 @@ _FORMAL_STRATEGY_TYPES = frozenset(
         StrategyType.ELIMINATION,
         StrategyType.MATHEMATICAL_INDUCTION,
         StrategyType.CASE_ANALYSIS,
+        StrategyType.ABDUCTION,
+        StrategyType.INDUCTION,
+        StrategyType.ANALOGY,
+        StrategyType.EXTRAPOLATION,
     }
 )
+
+
+def _canonical_formal_expr(formal_expr: FormalExpr) -> str:
+    """Canonical JSON representation of a FormalExpr for hashing."""
+    ops = []
+    for op in formal_expr.operators:
+        ops.append(
+            {
+                "operator": op.operator.value,
+                "variables": op.variables,
+                "conclusion": op.conclusion,
+            }
+        )
+    return json.dumps(ops, sort_keys=True, separators=(",", ":"))
 
 
 class Strategy(BaseModel):
     """Base strategy — leaf reasoning (single ↝).
 
-    Can be instantiated directly for basic strategies (infer, noisy_and, toolcall, proof).
+    Can be instantiated directly for basic strategies (infer, noisy_and).
     """
 
     strategy_id: str | None = None
@@ -124,6 +132,13 @@ class Strategy(BaseModel):
 
     # traceability
     metadata: dict[str, Any] | None = None
+
+    def _structure_hash(self) -> str:
+        """Compute the structure hash component for strategy ID.
+
+        Leaf strategies have empty structure hash.
+        """
+        return ""
 
     @model_validator(mode="after")
     def _compute_id_and_validate(self) -> Strategy:
@@ -142,7 +157,11 @@ class Strategy(BaseModel):
 
         if self.strategy_id is None:
             self.strategy_id = _compute_strategy_id(
-                self.scope, self.type, self.premises, self.conclusion
+                self.scope,
+                self.type,
+                self.premises,
+                self.conclusion,
+                structure_hash=self._structure_hash(),
             )
         return self
 
@@ -155,34 +174,39 @@ class Strategy(BaseModel):
 
 
 class CompositeStrategy(Strategy):
-    """Strategy with sub-strategies, supporting recursive nesting.
+    """Strategy with sub-strategies (by reference), supporting recursive nesting.
 
-    Used for non-deterministic named strategies (abduction, induction, analogy,
-    extrapolation) and for merging duplicate reasoning chains during canonicalization.
+    Generic container — any StrategyType is allowed. Sub-strategies are
+    referenced by strategy_id strings, not embedded objects.
     """
 
-    sub_strategies: list[Strategy]
+    sub_strategies: list[str]  # strategy_id references
+
+    def _structure_hash(self) -> str:
+        """SHA-256 of sorted sub_strategy IDs."""
+        payload = str(sorted(self.sub_strategies))
+        return _sha256_hex(payload)
 
     @model_validator(mode="after")
     def _validate_sub_strategies(self) -> CompositeStrategy:
         if not self.sub_strategies:
             raise ValueError("CompositeStrategy requires at least one sub_strategy")
-        if self.type not in _COMPOSITE_STRATEGY_TYPES:
-            allowed = ", ".join(sorted(t.value for t in _COMPOSITE_STRATEGY_TYPES))
-            raise ValueError(
-                f"CompositeStrategy form only allows types: {allowed}; got {self.type.value}"
-            )
         return self
 
 
 class FormalStrategy(Strategy):
     """Strategy with deterministic Operator expansion.
 
-    Used for deterministic named strategies (deduction, reductio, elimination,
-    mathematical_induction, case_analysis) and as sub-parts of CompositeStrategy.
+    Used for named strategies (deduction, reductio, elimination,
+    mathematical_induction, case_analysis, abduction, induction, analogy,
+    extrapolation) and as sub-parts of CompositeStrategy.
     """
 
     formal_expr: FormalExpr
+
+    def _structure_hash(self) -> str:
+        """SHA-256 of canonical formal expression."""
+        return _sha256_hex(_canonical_formal_expr(self.formal_expr))
 
     @model_validator(mode="after")
     def _validate_formal_expr(self) -> FormalStrategy:
