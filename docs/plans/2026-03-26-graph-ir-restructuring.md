@@ -20,7 +20,7 @@
 ### Task 1: gaia-ir.md — §1 Knowledge（原 §1 KnowledgeNode）
 
 **Files:**
-- Modify: `docs/foundations/gaia-ir/gaia-ir.md:1-145`
+- Modify: `docs/foundations/gaia-ir/02-gaia-ir.md:1-145`
 
 - [ ] **Step 1: 更新文档头和导航**
 
@@ -62,7 +62,7 @@ Knowledge:
 - [ ] **Step 5: 提交**
 
 ```bash
-git add docs/foundations/gaia-ir/gaia-ir.md
+git add docs/foundations/gaia-ir/02-gaia-ir.md
 git commit -m "docs(gaia-ir): rename KnowledgeNode to Knowledge in §1"
 ```
 
@@ -71,7 +71,7 @@ git commit -m "docs(gaia-ir): rename KnowledgeNode to Knowledge in §1"
 ### Task 2: gaia-ir.md — §2 Strategy（原 §2 FactorNode）
 
 **Files:**
-- Modify: `docs/foundations/gaia-ir/gaia-ir.md:146-356`
+- Modify: `docs/foundations/gaia-ir/02-gaia-ir.md:146-356`
 
 - [ ] **Step 1: 重写 §2 标题和引导文字**
 
@@ -181,7 +181,7 @@ stage=permanent
 - [ ] **Step 9: 提交**
 
 ```bash
-git add docs/foundations/gaia-ir/gaia-ir.md
+git add docs/foundations/gaia-ir/02-gaia-ir.md
 git commit -m "docs(gaia-ir): replace FactorNode with Strategy in §2, unify type system"
 ```
 
@@ -190,7 +190,7 @@ git commit -m "docs(gaia-ir): replace FactorNode with Strategy in §2, unify typ
 ### Task 3: gaia-ir.md — §3 Operator + §4 FormalExpr（新章节）
 
 **Files:**
-- Modify: `docs/foundations/gaia-ir/gaia-ir.md`（在 §2 之后新增 §3 和 §4）
+- Modify: `docs/foundations/gaia-ir/02-gaia-ir.md`（在 §2 之后新增 §3 和 §4）
 
 - [ ] **Step 1: 新增 §3 Operator（结构约束）**
 
@@ -265,7 +265,7 @@ else:
 - [ ] **Step 5: 提交**
 
 ```bash
-git add docs/foundations/gaia-ir/gaia-ir.md
+git add docs/foundations/gaia-ir/02-gaia-ir.md
 git commit -m "docs(gaia-ir): add Operator §3 and FormalExpr §4 entities"
 ```
 
@@ -274,7 +274,7 @@ git commit -m "docs(gaia-ir): add Operator §3 and FormalExpr §4 entities"
 ### Task 4: gaia-ir.md — §5 规范化更新 + §6 撤回更新 + 映射表
 
 **Files:**
-- Modify: `docs/foundations/gaia-ir/gaia-ir.md`（原 §3 规范化节→新 §5，原 §2.7 撤回→新 §6）
+- Modify: `docs/foundations/gaia-ir/02-gaia-ir.md`（原 §3 规范化节→新 §5，原 §2.7 撤回→新 §6）
 
 - [ ] **Step 1: 更新规范化章节编号和术语**
 
@@ -324,7 +324,7 @@ git commit -m "docs(gaia-ir): add Operator §3 and FormalExpr §4 entities"
 - [ ] **Step 8: 提交**
 
 ```bash
-git add docs/foundations/gaia-ir/gaia-ir.md
+git add docs/foundations/gaia-ir/02-gaia-ir.md
 git commit -m "docs(gaia-ir): update canonicalization, retraction, add mapping and design decisions"
 ```
 
@@ -335,7 +335,7 @@ git commit -m "docs(gaia-ir): update canonicalization, retraction, add mapping a
 ### Task 5: overview.md 更新
 
 **Files:**
-- Modify: `docs/foundations/gaia-ir/overview.md`
+- Modify: `docs/foundations/gaia-ir/01-overview.md`
 
 - [ ] **Step 1: 更新 §一 Gaia IR 结构描述**
 
@@ -376,7 +376,7 @@ git commit -m "docs(gaia-ir): update canonicalization, retraction, add mapping a
 - [ ] **Step 7: 提交**
 
 ```bash
-git add docs/foundations/gaia-ir/overview.md
+git add docs/foundations/gaia-ir/01-overview.md
 git commit -m "docs(gaia-ir): update overview for four-entity architecture"
 ```
 
@@ -385,7 +385,7 @@ git commit -m "docs(gaia-ir): update overview for four-entity architecture"
 ### Task 6: parameterization.md 更新
 
 **Files:**
-- Modify: `docs/foundations/gaia-ir/parameterization.md`
+- Modify: `docs/foundations/gaia-ir/06-parameterization.md`
 
 - [ ] **Step 1: 更新 FactorParamRecord → StrategyParamRecord**
 
@@ -425,7 +425,7 @@ StrategyParamRecord:
 - [ ] **Step 7: 提交**
 
 ```bash
-git add docs/foundations/gaia-ir/parameterization.md
+git add docs/foundations/gaia-ir/06-parameterization.md
 git commit -m "docs(gaia-ir): update parameterization for Strategy + Operator model"
 ```
 

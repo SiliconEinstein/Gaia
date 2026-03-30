@@ -6,9 +6,9 @@
 
 Parameterization 是 Gaia IR 上的概率参数层。它由一组**原子记录**构成——每条记录是一个 Knowledge 的先验概率，或一个**需要外部概率参数的 Strategy** 的条件概率。不同 review 来源（不同模型、不同策略）产出不同的记录，推理运行前按 resolution policy 组装成完整参数集。
 
-Gaia IR 结构定义见 [gaia-ir.md](gaia-ir.md)。推理输出见 [../bp/belief-state.md](../bp/belief-state.md)。三者的关系见 [overview.md](overview.md)。
+Gaia IR 结构定义见 [02-gaia-ir.md](02-gaia-ir.md)。推理输出见 [../bp/belief-state.md](../bp/belief-state.md)。三者的关系见 [01-overview.md](01-overview.md)。
 
-backend-facing lowering 如何消费这些参数，见 [lowering.md](lowering.md)。
+backend-facing lowering 如何消费这些参数，见 [07-lowering.md](07-lowering.md)。
 
 ## 存储层：原子记录
 

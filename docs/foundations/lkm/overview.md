@@ -98,7 +98,7 @@ Storage
 ## 关键设计决策
 
 - **Gaia IR 作为接口边界。** LKM 接收 Gaia IR（原始图、本地规范图）——从不接收 Typst 源码。这将编写 DSL 与注册中心解耦。
-- **结构与参数分离。** Gaia IR 存储结构关系。先验、信念和 factor 参数存储在 GlobalInferenceState 中。参见 [../gaia-ir/parameterization.md](../gaia-ir/parameterization.md)。
+- **结构与参数分离。** Gaia IR 存储结构关系。先验、信念和 factor 参数存储在 GlobalInferenceState 中。参见 [../gaia-ir/06-parameterization.md](../gaia-ir/06-parameterization.md)。
 - **三次写入原子性。** 包摄入写入 content（真实来源）、graph（拓扑）和 vector（embedding），带可见性门控。参见 [storage.md](storage.md)。
 - **优雅降级。** Graph 和 vector 存储是可选的。系统仅凭 content 存储即可运行。
 

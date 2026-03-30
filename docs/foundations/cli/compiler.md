@@ -2,7 +2,7 @@
 
 > **Status:** Current canonical
 
-本文档描述驱动 `gaia build` 的 Gaia IR 编译管线。Gaia IR 模式定义参见 [../gaia-ir/overview.md](../gaia-ir/overview.md)。
+本文档描述驱动 `gaia build` 的 Gaia IR 编译管线。Gaia IR 模式定义参见 [../gaia-ir/01-overview.md](../gaia-ir/01-overview.md)。
 
 ## 概览
 
@@ -41,7 +41,7 @@ typst query --root <repo-root> lib.typ 'figure.where(kind: "gaia-ext")'
 
 4. **约束因子**：带有 `between:` 的 `#relation` 声明生成 `contradiction` 或 `equivalence` 因子。
 
-因子类型定义参见 [../gaia-ir/gaia-ir.md](../gaia-ir/gaia-ir.md)。
+因子类型定义参见 [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md)。
 
 ## 步骤三：局部规范化
 
@@ -49,7 +49,7 @@ typst query --root <repo-root> lib.typ 'figure.where(kind: "gaia-ext")'
 
 目前实现单例规范化：每个原始节点精确映射到一个 `LocalCanonicalNode`，不进行合并。原始到局部的映射记录在 `CanonicalizationLogEntry` 中以便审计。
 
-规范化标识模型参见 [../gaia-ir/canonicalization.md](../gaia-ir/canonicalization.md)。
+规范化标识模型参见 [../gaia-ir/05-canonicalization.md](../gaia-ir/05-canonicalization.md)。
 
 ## 步骤四：局部参数化
 
@@ -62,7 +62,7 @@ typst query --root <repo-root> lib.typ 'figure.where(kind: "gaia-ext")'
 
 参数化通过 `graph_hash` 绑定到特定图。
 
-参数化模型参见 [../gaia-ir/parameterization.md](../gaia-ir/parameterization.md)。
+参数化模型参见 [../gaia-ir/06-parameterization.md](../gaia-ir/06-parameterization.md)。
 
 ## 节点标识
 
@@ -76,7 +76,7 @@ typst query --root <repo-root> lib.typ 'figure.where(kind: "gaia-ext")'
 
 外部节点使用 `ext:{package}/{node}` 格式而非基于哈希的 ID。
 
-全局规范 ID（`gcn_`）参见 [../gaia-ir/gaia-ir.md](../gaia-ir/gaia-ir.md)。
+全局规范 ID（`gcn_`）参见 [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md)。
 
 ## 代码路径
 

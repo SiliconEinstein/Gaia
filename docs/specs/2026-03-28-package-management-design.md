@@ -5,7 +5,7 @@
 | 状态 | **Proposal** |
 | 日期 | 2026-03-28 |
 | 设计决策 | [decentralized-architecture.md](../foundations/ecosystem/03-decentralized-architecture.md) |
-| 关联文档 | [gaia-ir.md](../foundations/gaia-ir/gaia-ir.md), [package-model.md](../foundations/gaia-lang/package-model.md) |
+| 关联文档 | [02-gaia-ir.md](../foundations/gaia-ir/02-gaia-ir.md), [package-model.md](../foundations/gaia-lang/package-model.md) |
 
 ## 1. 目的
 

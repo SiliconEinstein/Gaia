@@ -139,11 +139,11 @@ validator 至少应检查：
 3. global `Knowledge` 若保存了 `content_hash`，它是否与当前代表内容保持同步
 4. `ir_hash` 若定义，是否与 canonical serialization 一致
 
-这些检查的细分边界见 [validation.md](validation.md)。
+这些检查的细分边界见 [08-validation.md](08-validation.md)。
 
 ## 8. 与其他文档的分工
 
-- [gaia-ir.md](gaia-ir.md)：定义对象字段本身
-- [canonicalization.md](canonicalization.md)：定义如何利用 `content_hash` 做匹配与提升
-- [validation.md](validation.md)：定义应如何校验这些字段
-- [overview.md](overview.md)：给出高层总览
+- [02-gaia-ir.md](02-gaia-ir.md)：定义对象字段本身
+- [05-canonicalization.md](05-canonicalization.md)：定义如何利用 `content_hash` 做匹配与提升
+- [08-validation.md](08-validation.md)：定义应如何校验这些字段
+- [01-overview.md](01-overview.md)：给出高层总览

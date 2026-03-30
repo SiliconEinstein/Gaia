@@ -72,7 +72,7 @@ validation 的职责是**验证结构合法性**。
    - `conclusion` 不要求出现在 `variables` 中
 8. 关系型 Operator 的 `conclusion` 不允许被作者借来手写任意主观结论
 
-helper claim 的命名纪律见 [helper-claims.md](helper-claims.md)。
+helper claim 的命名纪律见 [04-helper-claims.md](04-helper-claims.md)。
 
 ## 4. Strategy 校验
 
@@ -112,7 +112,7 @@ helper claim 的命名纪律见 [helper-claims.md](helper-claims.md)。
 4. `ir_hash` 若定义，则必须与 canonical serialization 一致
 5. 同一 graph 内不应出现重复 ID
 
-identity 与 hashing 的细节见 [identity-and-hashing.md](identity-and-hashing.md)。
+identity 与 hashing 的细节见 [03-identity-and-hashing.md](03-identity-and-hashing.md)。
 
 ## 7. Local / Global 层级校验
 
@@ -143,8 +143,8 @@ identity 与 hashing 的细节见 [identity-and-hashing.md](identity-and-hashing
 
 这些分别见：
 
-- [parameterization.md](parameterization.md)
-- [lowering.md](lowering.md)
+- [06-parameterization.md](06-parameterization.md)
+- [07-lowering.md](07-lowering.md)
 - [../bp/inference.md](../bp/inference.md)
 
 ## 9. 推荐输出形式

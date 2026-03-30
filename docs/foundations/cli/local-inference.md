@@ -52,7 +52,7 @@
 - **BP 算法**（消息传递、收敛、诊断）：参见 [../bp/inference.md](../bp/inference.md)
 - **因子势函数**（每种因子类型如何约束置信值）：参见 [../bp/potentials.md](../bp/potentials.md)
 - **本地与全局 BP**（相同算法，不同范围）：参见 [../bp/local-vs-global.md](../bp/local-vs-global.md)
-- **参数化模型**（结构与概率的分离）：参见 [../gaia-ir/parameterization.md](../gaia-ir/parameterization.md)
+- **参数化模型**（结构与概率的分离）：参见 [../gaia-ir/06-parameterization.md](../gaia-ir/06-parameterization.md)
 
 ## 代码路径
 

@@ -6,7 +6,7 @@
 
 BeliefState 是 BP 在 GlobalCanonicalGraph 上的纯输出——后验信念值。它记录产生它的条件（resolution policy），使结果可重现。
 
-Gaia IR 结构定义见 [../gaia-ir/gaia-ir.md](../gaia-ir/gaia-ir.md)。概率参数见 [../gaia-ir/parameterization.md](../gaia-ir/parameterization.md)。三者的关系见 [../gaia-ir/overview.md](../gaia-ir/overview.md)。
+Gaia IR 结构定义见 [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md)。概率参数见 [../gaia-ir/06-parameterization.md](../gaia-ir/06-parameterization.md)。三者的关系见 [../gaia-ir/01-overview.md](../gaia-ir/01-overview.md)。
 
 ## Schema
 

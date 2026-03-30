@@ -70,8 +70,8 @@ Package (1)
 
 ## 跨层引用
 
-- **节点标识层**（raw、local canonical、global canonical）：参见 [../gaia-ir/gaia-ir.md](../gaia-ir/gaia-ir.md)
-- **包的 Gaia IR 表示**：参见 [../gaia-ir/overview.md](../gaia-ir/overview.md)
+- **节点标识层**（raw、local canonical、global canonical）：参见 [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md)
+- **包的 Gaia IR 表示**：参见 [../gaia-ir/01-overview.md](../gaia-ir/01-overview.md)
 - **持久化模型的存储模式**：参见 [../lkm/storage.md](../lkm/storage.md)
 
 ## 源码

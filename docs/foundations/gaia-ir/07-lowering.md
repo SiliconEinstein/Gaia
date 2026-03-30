@@ -187,10 +187,10 @@ Lowering 只消费参数层，不定义参数层。
 
 ## 8. 与其他文档的分工
 
-- [gaia-ir.md](gaia-ir.md)：定义 Gaia IR 本体结构
-- [helper-claims.md](helper-claims.md)：定义结构型 helper claim 的 public/private 边界
-- [parameterization.md](parameterization.md)：定义参数输入层
-- [canonicalization.md](canonicalization.md)：定义 local/global 身份映射
+- [02-gaia-ir.md](02-gaia-ir.md)：定义 Gaia IR 本体结构
+- [04-helper-claims.md](04-helper-claims.md)：定义结构型 helper claim 的 public/private 边界
+- [06-parameterization.md](06-parameterization.md)：定义参数输入层
+- [05-canonicalization.md](05-canonicalization.md)：定义 local/global 身份映射
 - [../bp/inference.md](../bp/inference.md)：定义当前 BP backend 如何把 lowering 结果跑起来
 
 ## 9. 当前仍待细化的点

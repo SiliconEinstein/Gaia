@@ -3,7 +3,7 @@
 > **Status:** Current canonical
 
 > 相关文档：
-> - [overview.md](../gaia-ir/overview.md)
+> - [01-overview.md](../gaia-ir/01-overview.md)
 > - [../theory/04-reasoning-strategies.md](../theory/04-reasoning-strategies.md)
 > - [../gaia-lang/spec.md](../gaia-lang/spec.md)
 
