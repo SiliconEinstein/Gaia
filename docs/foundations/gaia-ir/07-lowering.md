@@ -107,7 +107,7 @@ Strategy 是不确定性承载层。lowering 时，需要决定：
 
 - `infer`
 - `noisy_and`
-- 未再细化的 leaf `toolcall` / `proof`
+- 未再细化的 leaf Strategy（`toolcall` / `proof` 未引入）
 
 它们的外部行为由：
 

@@ -150,4 +150,4 @@ Global 层是**结构索引**，local 层是**内容仓库**。
 
 - **确定性命名策略**（`deduction`、`reductio`、`elimination`、`mathematical_induction`、`case_analysis`）：FormalExpr 骨架通常由 type 唯一确定，可在分类确认时自动生成
 - **带隐式桥接/预测/实例的命名策略**（`abduction`、`induction`、`analogy`、`extrapolation`）：当 prediction、instance、bridge/continuity claim 等中间 Knowledge 已显式存在时，可直接生成对应的 FormalExpr。若更大的论证需要保留 hierarchy，则再由外层 CompositeStrategy 组合这些 leaf FormalStrategy
-- **`toolcall` / `proof`**：当前没有稳定 canonical FormalExpr，默认保留为 CompositeStrategy
+- **`toolcall` / `proof`**：deferred，未引入
