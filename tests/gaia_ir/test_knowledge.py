@@ -47,6 +47,15 @@ class TestKnowledgeCreation:
         assert k.content_hash is not None
         assert len(k.content_hash) == 64  # full SHA-256 hex
 
+    def test_local_explicit_wrong_content_hash_rejected(self):
+        with pytest.raises(ValueError, match="content_hash"):
+            Knowledge(
+                type="claim",
+                content="test",
+                package_id="pkg",
+                content_hash="0" * 64,
+            )
+
     def test_different_content_different_content_hash(self):
         k1 = Knowledge(type="claim", content="A", package_id="pkg")
         k2 = Knowledge(type="claim", content="B", package_id="pkg")

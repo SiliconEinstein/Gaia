@@ -92,9 +92,18 @@ class Knowledge(BaseModel):
 
     @model_validator(mode="after")
     def _compute_derived_fields(self) -> Knowledge:
-        # Auto-compute content_hash when content is available
-        if self.content_hash is None and self.content is not None:
-            self.content_hash = _compute_content_hash(self.type, self.content, self.parameters)
+        # Local content_hash is a derived fingerprint and must stay consistent
+        # with the node's actual content.
+        if self.content is not None:
+            expected_content_hash = _compute_content_hash(self.type, self.content, self.parameters)
+            if self.package_id is not None:
+                if self.content_hash is not None and self.content_hash != expected_content_hash:
+                    raise ValueError(
+                        "local content_hash must match the derived content fingerprint"
+                    )
+                self.content_hash = expected_content_hash
+            elif self.content_hash is None:
+                self.content_hash = expected_content_hash
 
         # Auto-compute ID for local nodes
         if self.id is None:
