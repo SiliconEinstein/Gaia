@@ -434,7 +434,7 @@ git commit -m "docs(gaia-ir): update parameterization for Strategy + Operator mo
 ### Task 7: belief-state.md 更新
 
 **Files:**
-- Modify: `docs/foundations/gaia-ir/belief-state.md`
+- Modify: `docs/foundations/bp/belief-state.md`
 
 - [ ] **Step 1: 更新 Schema 中的术语**
 
@@ -460,7 +460,7 @@ git commit -m "docs(gaia-ir): update parameterization for Strategy + Operator mo
 - [ ] **Step 5: 提交**
 
 ```bash
-git add docs/foundations/gaia-ir/belief-state.md
+git add docs/foundations/bp/belief-state.md
 git commit -m "docs(gaia-ir): update belief-state for compilation path tracking"
 ```
 

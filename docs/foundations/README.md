@@ -34,12 +34,11 @@ Gaia 的规范参考文档，按架构层级组织。
 
 ## Gaia IR — CLI 与 LKM 之间的共享契约
 
-- [概述](gaia-ir/overview.md) — 三部分总览（Gaia IR + Parameterization + BeliefState）
+- [概述](gaia-ir/overview.md) — Gaia IR 与相邻层总览
 - [结构定义](gaia-ir/gaia-ir.md) — Knowledge、Strategy、Operator、FormalExpr
 - [Helper Claims](gaia-ir/helper-claims.md) — 中间 claim 的 public/private 边界与命名约定
 - [规范化](gaia-ir/canonicalization.md) — local canonical 到 global canonical 的映射契约
 - [参数定义](gaia-ir/parameterization.md) — 原子记录、resolution policy
-- [信念定义](gaia-ir/belief-state.md) — BP 输出、可重现性
 
 ## Gaia Lang — 编著语言
 
@@ -52,6 +51,7 @@ Gaia 的规范参考文档，按架构层级组织。
 - [因子势函数](bp/potentials.md) — 各因子类型的势函数
 - [推理](bp/inference.md) — BP 算法应用于 Gaia IR
 - [局部与全局](bp/local-vs-global.md) — CLI 局部推理 vs LKM 全局推理
+- [BeliefState](bp/belief-state.md) — BP 输出、可重现性
 
 ## Review — 审查管线
 

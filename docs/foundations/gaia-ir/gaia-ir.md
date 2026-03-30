@@ -6,7 +6,7 @@
 
 Gaia IR 编码推理超图的拓扑结构——**什么连接什么**。它不包含任何概率值。
 
-概率参数见 [parameterization.md](parameterization.md)。推理输出见 [belief-state.md](belief-state.md)。三者的关系见 [overview.md](overview.md)。具体的概率推理算法见 [bp/](../bp/) 层。
+概率参数见 [parameterization.md](parameterization.md)。推理输出见 [../bp/belief-state.md](../bp/belief-state.md)。三者的关系见 [overview.md](overview.md)。具体的概率推理算法见 [bp/](../bp/) 层。
 
 Gaia IR 由三种实体构成：
 

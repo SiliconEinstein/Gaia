@@ -317,7 +317,7 @@ BeliefState 是 BP 在 GlobalCanonicalGraph 上的纯输出——后验信念值
 - **可重现**：`resolution_policy` + `prior_cutoff` 完整定义参数组装条件，可重跑 BP。
 - **可多次运行**：同一 resolution policy 可以有多次 BP 运行。
 
-详细设计见 [belief-state.md](belief-state.md)。
+详细设计见 [../bp/belief-state.md](../bp/belief-state.md)。
 
 ## 完备性
 
