@@ -1,6 +1,6 @@
 """CanonicalBinding model — local-to-global node mapping decision.
 
-Implements the schema defined in docs/foundations/graph-ir/graph-ir.md §3.4.
+Implements the schema defined in docs/foundations/gaia-ir/gaia-ir.md §4.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 
 class BindingDecision(StrEnum):
-    """Outcome of the canonicalization matching step (graph-ir.md §3.4)."""
+    """Outcome of the canonicalization matching step (gaia-ir.md §4)."""
 
     MATCH_EXISTING = "match_existing"
     CREATE_NEW = "create_new"
@@ -23,7 +23,7 @@ class CanonicalBinding(BaseModel):
 
     Created during ``canonicalize_package()`` for every local knowledge node.
     The ``decision`` field captures whether the node was merged with an existing
-    global node, created fresh, or linked via a candidate equivalent factor.
+    global node, created fresh, or linked via a candidate equivalence relation.
     """
 
     local_canonical_id: str
