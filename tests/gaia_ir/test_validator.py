@@ -104,7 +104,9 @@ class TestKnowledgeValidation:
         from gaia.gaia_ir import LocalCanonicalRef
 
         k = Knowledge(
-            id="lcn_a", type=KnowledgeType.CLAIM, content="test",
+            id="lcn_a",
+            type=KnowledgeType.CLAIM,
+            content="test",
             representative_lcn=LocalCanonicalRef(
                 local_canonical_id="lcn_x", package_id="pkg", version="1"
             ),
@@ -118,10 +120,12 @@ class TestKnowledgeValidation:
         from gaia.gaia_ir import LocalCanonicalRef
 
         k = Knowledge(
-            id="lcn_a", type=KnowledgeType.CLAIM, content="test",
-            local_members=[LocalCanonicalRef(
-                local_canonical_id="lcn_x", package_id="pkg", version="1"
-            )],
+            id="lcn_a",
+            type=KnowledgeType.CLAIM,
+            content="test",
+            local_members=[
+                LocalCanonicalRef(local_canonical_id="lcn_x", package_id="pkg", version="1")
+            ],
         )
         g = _local_graph(knowledges=[k])
         r = validate_local_graph(g)
@@ -164,7 +168,9 @@ class TestOperatorValidation:
     def test_local_graph_rejects_global_scoped_operator(self):
         g = _local_graph(
             knowledges=[_claim("lcn_a"), _claim("lcn_b")],
-            operators=[Operator(scope="global", operator="equivalence", variables=["lcn_a", "lcn_b"])],
+            operators=[
+                Operator(scope="global", operator="equivalence", variables=["lcn_a", "lcn_b"])
+            ],
         )
         r = validate_local_graph(g)
         assert not r.valid
@@ -173,7 +179,9 @@ class TestOperatorValidation:
     def test_global_graph_rejects_local_scoped_operator(self):
         g = _global_graph(
             knowledges=[_claim("gcn_a"), _claim("gcn_b")],
-            operators=[Operator(scope="local", operator="equivalence", variables=["gcn_a", "gcn_b"])],
+            operators=[
+                Operator(scope="local", operator="equivalence", variables=["gcn_a", "gcn_b"])
+            ],
         )
         r = validate_global_graph(g)
         assert not r.valid
@@ -298,7 +306,9 @@ class TestStrategyValidation:
     def test_local_graph_rejects_global_scoped_strategy(self):
         g = _local_graph(
             knowledges=[_claim("lcn_a"), _claim("lcn_b")],
-            strategies=[Strategy(scope="global", type="infer", premises=["lcn_a"], conclusion="lcn_b")],
+            strategies=[
+                Strategy(scope="global", type="infer", premises=["lcn_a"], conclusion="lcn_b")
+            ],
         )
         r = validate_local_graph(g)
         assert not r.valid
@@ -307,7 +317,9 @@ class TestStrategyValidation:
     def test_global_graph_rejects_local_scoped_strategy(self):
         g = _global_graph(
             knowledges=[_claim("gcn_a"), _claim("gcn_b")],
-            strategies=[Strategy(scope="local", type="infer", premises=["gcn_a"], conclusion="gcn_b")],
+            strategies=[
+                Strategy(scope="local", type="infer", premises=["gcn_a"], conclusion="gcn_b")
+            ],
         )
         r = validate_global_graph(g)
         assert not r.valid

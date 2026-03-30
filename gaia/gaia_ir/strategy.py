@@ -75,21 +75,33 @@ def _compute_strategy_id(
     return f"{prefix}{_sha256_hex(payload)}"
 
 
-_LEAF_STRATEGY_TYPES = frozenset({
-    StrategyType.INFER, StrategyType.NOISY_AND,
-    StrategyType.TOOLCALL, StrategyType.PROOF,
-})
+_LEAF_STRATEGY_TYPES = frozenset(
+    {
+        StrategyType.INFER,
+        StrategyType.NOISY_AND,
+        StrategyType.TOOLCALL,
+        StrategyType.PROOF,
+    }
+)
 
-_COMPOSITE_STRATEGY_TYPES = frozenset({
-    StrategyType.ABDUCTION, StrategyType.INDUCTION,
-    StrategyType.ANALOGY, StrategyType.EXTRAPOLATION,
-})
+_COMPOSITE_STRATEGY_TYPES = frozenset(
+    {
+        StrategyType.ABDUCTION,
+        StrategyType.INDUCTION,
+        StrategyType.ANALOGY,
+        StrategyType.EXTRAPOLATION,
+    }
+)
 
-_FORMAL_STRATEGY_TYPES = frozenset({
-    StrategyType.DEDUCTION, StrategyType.REDUCTIO,
-    StrategyType.ELIMINATION, StrategyType.MATHEMATICAL_INDUCTION,
-    StrategyType.CASE_ANALYSIS,
-})
+_FORMAL_STRATEGY_TYPES = frozenset(
+    {
+        StrategyType.DEDUCTION,
+        StrategyType.REDUCTIO,
+        StrategyType.ELIMINATION,
+        StrategyType.MATHEMATICAL_INDUCTION,
+        StrategyType.CASE_ANALYSIS,
+    }
+)
 
 
 class Strategy(BaseModel):
@@ -138,9 +150,7 @@ class Strategy(BaseModel):
     def _validate_leaf_form(self) -> Strategy:
         if self.__class__ is Strategy and self.type not in _LEAF_STRATEGY_TYPES:
             allowed = ", ".join(sorted(t.value for t in _LEAF_STRATEGY_TYPES))
-            raise ValueError(
-                f"Strategy form only allows types: {allowed}; got {self.type.value}"
-            )
+            raise ValueError(f"Strategy form only allows types: {allowed}; got {self.type.value}")
         return self
 
 

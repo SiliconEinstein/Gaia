@@ -102,8 +102,7 @@ def _validate_operators(
         # operator scope must be compatible with graph scope
         if op.scope is not None and op.scope != scope:
             result.error(
-                f"Operator '{op.operator_id}': scope '{op.scope}' incompatible "
-                f"with {scope} graph"
+                f"Operator '{op.operator_id}': scope '{op.scope}' incompatible with {scope} graph"
             )
 
         # reference completeness
@@ -203,8 +202,7 @@ def _validate_strategies(
         # strategy scope must match graph scope
         if s.scope != scope:
             result.error(
-                f"Strategy '{s.strategy_id}': scope '{s.scope}' incompatible "
-                f"with {scope} graph"
+                f"Strategy '{s.strategy_id}': scope '{s.scope}' incompatible with {scope} graph"
             )
 
         _validate_strategy(s, knowledge_lookup, scope, result)

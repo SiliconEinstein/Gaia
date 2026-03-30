@@ -119,13 +119,17 @@ class TestOperatorScope:
     def test_local_scope_requires_lco_prefix(self):
         with pytest.raises(ValueError, match="lco_ prefix"):
             Operator(
-                operator_id="gco_wrong", scope="local",
-                operator="equivalence", variables=["a", "b"],
+                operator_id="gco_wrong",
+                scope="local",
+                operator="equivalence",
+                variables=["a", "b"],
             )
 
     def test_global_scope_requires_gco_prefix(self):
         with pytest.raises(ValueError, match="gco_ prefix"):
             Operator(
-                operator_id="lco_wrong", scope="global",
-                operator="equivalence", variables=["a", "b"],
+                operator_id="lco_wrong",
+                scope="global",
+                operator="equivalence",
+                variables=["a", "b"],
             )

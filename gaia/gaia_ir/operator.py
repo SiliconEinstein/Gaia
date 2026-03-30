@@ -43,10 +43,18 @@ class Operator(BaseModel):
         if self.scope not in (None, "local", "global"):
             raise ValueError("scope must be one of: None, 'local', 'global'")
 
-        if self.scope == "local" and self.operator_id is not None and not self.operator_id.startswith("lco_"):
+        if (
+            self.scope == "local"
+            and self.operator_id is not None
+            and not self.operator_id.startswith("lco_")
+        ):
             raise ValueError("local operators must use an operator_id with lco_ prefix")
 
-        if self.scope == "global" and self.operator_id is not None and not self.operator_id.startswith("gco_"):
+        if (
+            self.scope == "global"
+            and self.operator_id is not None
+            and not self.operator_id.startswith("gco_")
+        ):
             raise ValueError("global operators must use an operator_id with gco_ prefix")
 
         # §2.4: conclusion rules by operator type

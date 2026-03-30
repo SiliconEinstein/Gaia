@@ -123,7 +123,9 @@ class TestCompositeStrategy:
                 type="infer",
                 premises=["gcn_a"],
                 conclusion="gcn_b",
-                sub_strategies=[Strategy(scope="global", type="infer", premises=["gcn_a"], conclusion="gcn_b")],
+                sub_strategies=[
+                    Strategy(scope="global", type="infer", premises=["gcn_a"], conclusion="gcn_b")
+                ],
             )
 
     def test_nested_composite(self):
@@ -235,9 +237,11 @@ class TestFormalStrategy:
                 type="induction",
                 premises=["a"],
                 conclusion="b",
-                formal_expr=FormalExpr(operators=[
-                    Operator(operator="implication", variables=["a", "b"], conclusion="b"),
-                ]),
+                formal_expr=FormalExpr(
+                    operators=[
+                        Operator(operator="implication", variables=["a", "b"], conclusion="b"),
+                    ]
+                ),
             )
 
 
