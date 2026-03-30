@@ -2,7 +2,7 @@
 
 > **Status:** Current canonical
 
-本文档定义了每种 factor 类型的计算语义（potential 函数）。结构定义（schema、字段、编译规则）见 [../gaia-ir/gaia-ir.md](../gaia-ir/gaia-ir.md)。
+本文档定义了每种 factor 类型的计算语义（potential 函数）。结构定义（schema、字段、编译规则）见 [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md)。
 
 Factor potential 是一个函数，接受其所连接变量的联合赋值并返回一个非负权重，编码该赋值与约束的兼容程度。Potential 不是概率——它们无需归一化。仅比值有意义。
 
@@ -92,7 +92,9 @@ P(C=1) = p * pi_1 * pi_2 + epsilon * (1 - pi_1 * pi_2)
 - **不一致削弱 relation**：当 A 和 B 出现分歧时，BP 降低 R 的信念——系统质疑等价关系是否成立。
 - **N 元分解**：对于 3 个以上节点的等价关系，分解为成对 factor `(R, A, B)`、`(R, A, C)`、`(R, B, C)`，全部共享同一 relation 节点 R。这意味着任何一对之间的不一致都会削弱整体等价关系。
 
-## Retraction
+## Retraction（未引入）
+
+> **注意：** Retraction 尚未作为 Gaia IR 实体或 Strategy 类型引入。以下是概念性设计，待 review / curation / provenance 层明确后再正式定义。见 [02-gaia-ir.md §5](../gaia-ir/02-gaia-ir.md#5-retraction-deferred)。
 
 由以下操作生成：`type: "retraction"` 的 chain。前提是反对结论的证据。
 
@@ -152,7 +154,7 @@ V_schema ---- F_inst_1 ---- V_ground_1 (belief=0.9)
 | `instantiation` | `instantiation` | `deterministic_entailment` | 确定性蕴含 |
 | `mutex_constraint` | `contradiction` / `relation_contradiction` | `constraint` | 全真惩罚 |
 | `equiv_constraint` | `equivalence` / `relation_equivalence` | `constraint` | 一致/不一致 |
-| `retraction` | `retraction` | `reasoning_support`（反向） | 反向条件 |
+| `retraction`（未引入） | `retraction` | `reasoning_support`（反向） | 反向条件 |
 
 ## 当前实现与目标对比
 
@@ -170,4 +172,4 @@ V_schema ---- F_inst_1 ---- V_ground_1 (belief=0.9)
 - `libs/inference/bp.py` -- `_evaluate_potential()`, `BeliefPropagation`
 - `libs/inference/factor_graph.py` -- `FactorGraph`, `CROMWELL_EPS`
 - `docs/foundations/theory/07-belief-propagation.md` -- 纯 BP 算法
-- [../gaia-ir/gaia-ir.md](../gaia-ir/gaia-ir.md) -- factor 结构定义
+- [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md) -- factor 结构定义

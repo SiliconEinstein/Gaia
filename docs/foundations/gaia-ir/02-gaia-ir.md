@@ -1,0 +1,699 @@
+# Gaia IR — 结构定义
+
+> **Status:** Target design — 基于 [theory](../theory/) 层设计，整合 Issue #231（template → claim with parameters）
+>
+> **⚠️ Protected Contract Layer** — 本目录定义 CLI↔LKM 结构契约。变更需要独立 PR 并经负责人审查批准。
+
+Gaia IR 编码推理超图的拓扑结构——**什么连接什么**。它不包含任何概率值。
+
+概率参数见 [06-parameterization.md](06-parameterization.md)。推理输出见 [../bp/belief-state.md](../bp/belief-state.md)。三者的关系见 [01-overview.md](01-overview.md)。backend-facing lowering 语义见 [07-lowering.md](07-lowering.md)。具体的概率推理算法见 [bp/](../bp/) 层。
+
+Gaia IR 由三种实体构成：
+
+| 实体 | 角色 | 语义 |
+|------|------|------|
+| **Knowledge** | 命题 | 表达科学断言、背景或问题 |
+| **Operator** | 确定性逻辑约束 | 表达命题间的逻辑关系（真值表完全确定） |
+| **Strategy** | 不确定推理声明 | 表达"前提以某种概率支持结论"的推理判断 |
+
+读者先理解图中有什么节点（Knowledge），再理解节点之间的确定性结构关系（Operator），最后理解不确定的推理如何建模（Strategy）。完整的结构校验边界见 [08-validation.md](08-validation.md)。
+
+---
+
+## 1. Knowledge（知识）
+
+Knowledge 表示命题。**Claim 是唯一携带概率（prior + belief）的类型。**
+
+### 1.1 Schema
+
+Local 和 global 使用同一个 data class，字段按层级使用：
+
+```
+Knowledge:
+    id:                     str              # lcn_ 或 gcn_ 前缀
+    type:                   str              # claim | setting | question
+    content_hash:           str | None       # SHA-256(type + content + sorted(parameters))，不含 package_id
+    parameters:             list[Parameter]  # 全称命题的量化变量（封闭命题为空列表）
+    metadata:               dict | None      # 含 refs: list[str]（相关 Knowledge IDs、来源引用等）
+
+    # ── local 层 ──
+    content:                str | None       # 知识内容（local 层存储，global 层通常为 None）
+
+    # ── 来源追溯 ──
+    provenance:             list[PackageRef] | None   # 贡献包列表
+
+    # ── global 层 ──
+    representative_lcn:     LocalCanonicalRef | None  # 代表性 local Knowledge（内容从此获取）
+    local_members:          list[LocalCanonicalRef] | None  # 所有映射到此的 local Knowledge
+```
+
+**各层字段使用：**
+
+| 字段 | Local | Global |
+|------|-------|--------|
+| `id` | `lcn_` 前缀，SHA-256 包+内容寻址（含 `package_id`） | `gcn_` 前缀，注册中心分配的稳定 canonical identity |
+| `content_hash` | SHA-256(type + content + sorted(params))，不含 `package_id` | 从 `representative_lcn` 同步的 denormalized 指纹；representative 变更时更新 |
+| `content` | 有值（唯一存储位置） | 通常为 None（LKM 直接创建的 Knowledge 例外，包括 FormalExpr 中间 Knowledge） |
+| `provenance` | 有值（来源包） | 有值（贡献包列表） |
+| `representative_lcn` | None | 有值（引用 local Knowledge 获取内容） |
+| `local_members` | None | 有值（所有映射到此的 local Knowledge） |
+
+**对象身份**：local 层 `id = lcn_{SHA-256(package_id + type + content + sorted(parameters))[:16]}`。ID 包含 `package_id`，因此不同包中相同内容的节点有**不同的** lcn_id。global 层 `gcn_id` 是稳定的 canonical identity；它不随着 representative 或 content_hash 变化而重写。
+
+**内容指纹**：`content_hash = SHA-256(type + content + sorted(parameters))`，不含 `package_id`。同一内容在不同包中产生相同的 `content_hash`。用途：
+
+- **Canonicalization 快速路径**：新 local node 进入全局图时，先用 `content_hash` 精确匹配已有 global node，命中则直接 `match_existing`，跳过 embedding 计算。
+- **Global 层 denormalized index**：global node 的 `content_hash` 从 `representative_lcn` 同步，供 canonicalization 和 curation 查询。Representative 变更时更新此字段，global `id` 不变。
+
+**内容存储**：所有知识内容存储在 local 层的 `content` 字段上。Global 层通过 `representative_lcn` 引用获取内容，不重复存储。LKM 服务器直接创建的 global Knowledge（包括 FormalExpr 展开的中间 Knowledge）无 local 来源，content 直接存在 global 层。
+
+完整的身份、内容指纹与图哈希规则见 [03-identity-and-hashing.md](03-identity-and-hashing.md)。
+
+### 1.2 三种知识类型
+
+| type | 说明 | 携带概率 | 可作为 |
+|------|------|---------|--------|
+| **claim** | 科学断言（封闭或全称） | 是（唯一携带 prior + belief 的类型） | premise, background, conclusion, refs |
+| **setting** | 背景信息 | 否 | background, refs |
+| **question** | 待研究方向 | 否 | background, refs |
+
+#### claim（断言）
+
+具有真值的科学断言。唯一携带概率（prior + belief）的知识类型。
+
+Claim 分为两类，由 `parameters` 字段区分：
+
+- **封闭 claim**（`parameters=[]`）：所有变量已绑定的具体命题。如 "YBCO 在 90K 以下超导"。
+- **全称 claim**（`parameters` 非空）：含量化变量的通用定律。如 `∀{x}. superconductor({x}) → zero_resistance({x})`。全称 claim 有真值（可被反例推翻），携带概率，可通过 induction 获得支持，通过 deduction 实例化为封闭 claim。
+
+> **设计决策（Issue #231）：** 原 `template` 类型统一为 claim with parameters。理由：全称命题天然具有真值，应携带概率。"template" 概念保留在 Gaia Language 编写层作为语法工具，编译到 Gaia IR 时按语义分流为 claim、setting 或 question。
+
+Claim 可以携带描述其产生方式的结构化元数据（`metadata` 字段）。以下是概念性示例，不构成封闭分类。Gaia IR 层不限制 `metadata` 的结构。
+
+```yaml
+# 观测
+content: "该样本在 90 K 以下表现出超导性"
+metadata: {schema: observation, instrument: "四探针电阻率测量"}
+
+# 定量测量
+content: "YBa₂Cu₃O₇ 的超导转变温度为 92 ± 1 K"
+metadata: {schema: measurement, value: 92, unit: "K", uncertainty: 1}
+
+# 计算结果
+content: "DFT 计算预测该材料的带隙为 1.2 eV"
+metadata: {schema: computation, software: "VASP 6.4", functional: "PBE"}
+
+# 经验规律
+content: "金属的电阻率与温度成线性关系（Bloch-Grüneisen 高温极限）"
+metadata: {schema: empirical_law, domain: "固态物理", validity: "T >> Debye 温度"}
+
+# 全称 claim（原 template）
+content: "∀{x}. superconductor({x}) → zero_resistance({x})"
+parameters: [{name: "x", type: "material"}]
+metadata: {schema: universal_law, domain: "凝聚态物理"}
+```
+
+#### 全称 claim 的实例化
+
+全称 claim 通过 deduction Strategy（条件概率=1.0）实例化为封闭 claim：
+
+```
+全称 claim:  "∀{x}. superconductor({x}) → zero_resistance({x})"  (claim, parameters=[x:material])
+绑定:        "x = YBCO"                                            (setting, background)
+                ↓ Strategy(type=deduction, p=1.0)
+封闭 claim:  "superconductor(YBCO) → zero_resistance(YBCO)"       (claim, parameters=[])
+```
+
+全称 claim 和封闭 claim 之间形成自然的归纳-演绎循环：
+
+- **归纳**：多个封闭实例通过 induction Strategy 支持全称 claim → 全称的 belief 上升
+- **演绎**：全称 claim 通过 deduction Strategy 预测新封闭实例 → 实例的 belief 跟随全称
+- **反例**：发现与全称矛盾的封闭 claim → contradiction Operator → 全称的 belief 下降
+
+#### setting（背景设定）
+
+研究的背景信息或动机性叙述。不携带概率。可作为 Strategy 的 background（上下文依赖）或 refs（弱引用）。
+
+示例：某个领域的研究现状、实验动机、未解决挑战、近似方法或理论框架、全称 claim 实例化时的变量绑定（如 "x = YBCO"）。
+
+#### question（问题）
+
+探究制品，表达待研究的方向。不携带概率。可作为 Strategy 的 background 或 refs。
+
+示例：未解决的科学问题、后续调查目标。
+
+### 1.3 Helper Claim
+
+Helper claim **不是新的 Knowledge 类型**。它仍然是普通的 `claim`，只是承担了结构结果节点的角色。
+
+当前文档里的 `helper claim` 专指**结构型 result claim**，例如 `conjunction` 结果 `M`，以及 `equivalence` / `contradiction` / `complement` / `disjunction` 的标准结果 claim。
+
+在当前 contract 下：
+
+- helper claim 一旦进入 Gaia IR，就仍然编码为 `Knowledge(type=claim)`
+- 顶层 Operator 的 conclusion（如 `equivalence` 的结果）是图中的普通可见节点，可以被任何 Strategy 引用
+- FormalExpr 内部的中间 claim 是该 FormalStrategy 的**私有节点**，禁止被外部 Strategy 引用（保证 FormalStrategy 可折叠）
+
+像 `prediction`、`instance`、`BridgeClaim`、`ContinuityClaim` 这类语义中间命题，目前仍按普通 `claim` 处理，不在 helper claim 术语里单独归类。
+
+详细约定见 [04-helper-claims.md](04-helper-claims.md)。
+
+---
+
+## 2. Operator（结构约束）
+
+Operator 表示两个或多个 Knowledge 之间的**确定性逻辑关系**——真值表完全确定，无自由参数。
+
+theory 推导见 [命题算子](../theory/03-propositional-operators.md)。
+
+### 2.1 Schema
+
+```
+Operator:
+    operator_id:    str              # lco_ 或 gco_ 前缀（local/global canonical operator）
+    scope:          str              # "local" | "global"
+
+    operator:       str              # 算子类型（见 §2.2）
+    variables:      list[str]        # 连接的 Knowledge IDs（有序）
+    conclusion:     str              # 该 Operator 的标准结果 claim / helper claim
+
+    metadata:       dict | None      # 含 refs: list[str] 等
+```
+
+`conclusion` 的语义是：**该 Operator 在图中的标准结果 claim**。
+
+- 对 `implication` / `conjunction`，它延续原有语义，表示 operator 的输出 claim
+- 对 `equivalence` / `contradiction` / `complement` / `disjunction`，它是结构型 helper claim，使这些关系本身也能被后续结构直接引用
+
+### 2.2 算子类型与真值表
+
+| operator | 符号 | variables | conclusion | 真值约束 | 说明 |
+|----------|------|-----------|------------|---------|------|
+| **implication** | → | [A] | B | A=1 时 B 必须=1 | A 成立则 B 必须成立 |
+| **equivalence** | ↔ | [A, B] | helper claim（如 `same_truth(A,B)`） | A=B | 真值必须一致 |
+| **contradiction** | ⊗ | [A, B] | helper claim（如 `not_both_true(A,B)`） | ¬(A=1 ∧ B=1) | 不能同时为真 |
+| **complement** | ⊕ | [A, B] | helper claim（如 `opposite_truth(A,B)`） | A≠B | 真值必须相反（XOR） |
+| **disjunction** | ∨ | [A₁,...,Aₖ] | helper claim（如 `any_true(A₁,...,Aₖ)`） | ¬(all Aᵢ=0) | 至少一个为真 |
+| **conjunction** | ∧ | [A₁,...,Aₖ] | M | M=(A₁∧...∧Aₖ) | M 等于所有 Aᵢ 的合取 |
+
+**关键性质：** Operator 没有概率参数——它编码的是逻辑结构（"A 和 B 矛盾"），不是推理判断（"作者认为 A 蕴含 B"）。后者由 Strategy 承载。
+
+### 2.3 存在位置
+
+Operator 可以出现在两个位置：
+
+- **顶层 `operators` 数组**：独立的结构关系。例如：
+  - 人工标注的 contradiction（"GR 预测 1.75 角秒"⊗"牛顿预测 0.87 角秒"）
+  - 规范化确认的 equivalence（跨包同义命题）
+  - Review 发现的 implication
+
+- **FormalStrategy 内部的 `formal_expr.operators`**：FormalExpr 展开产生的算子，嵌入在 FormalStrategy 中，不独立存在。
+
+位置即来源，不需要额外的 `source` 字段。
+
+### 2.4 不变量
+
+`variables` 只包含输入变量，`conclusion` 独立承载输出，两者不重叠。
+
+Operator 分为两类：
+
+| 类别 | Operator 类型 | conclusion 语义 |
+|------|-------------|----------------|
+| **Directed**（有向） | `implication`, `conjunction` | 输出 claim（如蕴含的结果、合取结果 M） |
+| **Relation**（关系） | `equivalence`, `contradiction`, `complement`, `disjunction` | 结构型 helper claim |
+
+具体规则：
+
+1. `variables` 中的所有 ID 必须引用同 graph 中存在的 Knowledge
+2. `variables` 中的 Knowledge 类型必须是 `claim`（Operator 只连接有真值的命题）
+3. `conclusion` 必须引用同 graph 中存在的 `claim`
+4. `conclusion` **不出现在** `variables` 中——`variables` 只放输入，`conclusion` 独立承载输出
+5. 关系型 Operator 的 `conclusion` 应语义上对应其结构型 helper claim，不允许借此手写任意主观结论
+6. 推荐在 `metadata.canonical_name` 中记录函数式命名（如 `not_both_true(A,B)`、`same_truth(A,B)`）；这是不同实现之间建议统一的命名惯例，不作为 hard validation
+
+完整 validator 视角的检查清单见 [08-validation.md](08-validation.md)。
+
+---
+
+## 3. Strategy（推理声明）
+
+Strategy 表示推理声明——前提通过某种推理支持结论。Strategy 是不确定性的载体：**所有概率参数都在 Strategy 层**（通过 [parameterization](06-parameterization.md)），Operator 层纯确定性。
+
+### 3.1 基本概念
+
+一个基本 Strategy 表达一条概率性推理：
+
+```
+premises  ——↝(p)——→  conclusion
+```
+
+其中 ↝ 表示"前提以条件概率 p 支持结论"。
+
+Strategy 有三种形态（类层级），支持多分辨率推理——同一图可在不同粒度上做概率推理：
+
+| 形态 | 说明 | 独有字段 |
+|------|------|---------|
+| **Strategy**（基类，可实例化） | 叶子推理（单条 ↝） | — |
+| **CompositeStrategy**(Strategy) | 含子策略，可递归嵌套 | `sub_strategies` |
+| **FormalStrategy**(Strategy) | 含确定性 Operator 展开 | `formal_expr` |
+
+所有形态折叠时均可视为单条 ↝。对 `infer` / `noisy_and`，其参数直接来自 parameterization 层；对直接 `FormalStrategy`，若需要折叠视图，则由 `FormalExpr` + 相关显式 claim prior 现算导出。
+
+`type` 与 `形态` 是两个不同维度：
+
+- `type` 表示这条推理属于哪一种**语义家族**（如 deduction、abduction、analogy）
+- `形态` 表示它当前以哪一种**展开程度/组织方式**存储（叶子、层次化、完全形式化）
+
+二者并非完全绑定。命名策略本体可以直接是 `FormalStrategy`；如果更大的论证需要保留层次边界，则由外层 `CompositeStrategy` 组合这些子结构。
+
+**从第一性原理看，这样分层的原因是：**
+
+- IR 首先要表达的是**推理语义是什么**，其次才是**这些推理单元如何组织**
+- `abduction`、`induction`、`analogy`、`extrapolation` 在 theory 中都有各自的 canonical 微观 skeleton，因此一旦识别出该结构，本体就应直接落为 `FormalStrategy`
+- `CompositeStrategy` 不是另一种 reasoning family；它只负责组合多个 strategy-level 子结构，保留更大论证树的 hierarchy
+- “步骤多”不等于“必须 Composite”。只要一个命名推理仍然对应单一 canonical skeleton，它就仍然是一个 `FormalStrategy`
+- 当需要把多个命名或未命名推理单元拼成更大论证时，才引入 `CompositeStrategy`
+
+### 3.2 Schema
+
+**Strategy（基类）**：
+
+```
+Strategy:
+    strategy_id:    str              # lcs_ 或 gcs_ 前缀
+    scope:          str              # "local" | "global"
+    type:           str              # 见 §3.3
+
+    # ── 连接 ──
+    premises:       list[str]        # claim Knowledge IDs（参与概率推理）
+    conclusion:     str | None       # 单个输出 Knowledge（必须是 claim）
+    background:     list[str] | None # 上下文 Knowledge IDs（任意类型，不参与概率推理）
+
+    # ── local 层 ──
+    steps:          list[Step] | None  # 推理过程的分步描述
+
+    # ── 追溯 ──
+    metadata:       dict | None
+```
+
+**CompositeStrategy(Strategy)**——新增：
+
+```
+CompositeStrategy(Strategy):
+    sub_strategies:  list[str]       # 子策略的 strategy_id 列表（可引用 Strategy / CompositeStrategy / FormalStrategy）
+```
+
+**FormalStrategy(Strategy)**——新增：
+
+```
+FormalStrategy(Strategy):
+    formal_expr:     FormalExpr      # 确定性 Operator 展开（必填）
+
+FormalExpr:
+    operators:       list[Operator]  # 只包含确定性 Operator
+```
+
+FormalExpr 只引用 Knowledge ID，不创建 Knowledge。展开操作需要的中间 Knowledge（如 abduction 的 prediction、deduction 的 conjunction 结果）由执行展开的 compiler/reviewer/agent 显式创建，作为独立的 `claim` 节点存在于图中；这些节点的封装规则见 [04-helper-claims.md](04-helper-claims.md)。
+
+**接口边界规则：**
+
+- `premises` / `conclusion` 定义一个 Strategy 对外暴露的输入输出接口
+- `FormalExpr` 中引入但不出现在任何 Strategy 的 `premises` / `conclusion` 中的 Knowledge，属于该 FormalStrategy 的**私有节点**
+- 私有节点**禁止**被外部 Strategy 引用。原因：FormalStrategy 的折叠（marginalization）要求对内部变量做变量消去，如果外部依赖这些变量的身份，消去就不安全。私有节点的不可引用性保证了 FormalStrategy 总是可以被折叠的
+- 如果某个中间结果需要被多个 Strategy 共享，应重构图结构——把它作为 Strategy 之间的显式接口节点，而不是引用另一个 FormalStrategy 的内部变量
+
+**各层字段使用：**
+
+| 字段 | Local | Global |
+|------|-------|--------|
+| `strategy_id` | `lcs_` 前缀 | `gcs_` 前缀 |
+| `premises`/`conclusion` | `lcn_` ID | `gcn_` ID |
+| `steps` | 有值 | None（保留在 local 层） |
+
+**身份规则**：`strategy_id` 的 hash 输入包含接口信息和内部结构摘要，确保不同结构的同接口策略不会 ID 碰撞：
+
+```
+strategy_id = {lcs_|gcs_}_{SHA-256(scope + type + sorted(premises) + conclusion + structure_hash)[:16]}
+```
+
+其中 `structure_hash` 按形态决定：
+
+| 形态 | structure_hash |
+|------|---------------|
+| 叶子 Strategy | `""` （空字符串） |
+| CompositeStrategy | `SHA-256(sorted(sub_strategies))` |
+| FormalStrategy | `SHA-256(canonical(formal_expr))` |
+
+`canonical(formal_expr)` 是对 FormalExpr 内 Operator 列表的确定性序列化（按 operator_id 或结构排序）。具体序列化算法待实现时细化。
+
+### 3.3 类型字段
+
+| type | 显式外部参数模型 | 典型/默认形态 | 说明 |
+|------|----------------|--------------|------|
+| **`infer`** | 完整条件概率表（CPT）：2^k 参数（默认 MaxEnt 0.5） | Strategy | 未分类的粗推理；`↝` 摘要的默认承载形态 |
+| **`noisy_and`** | ∧ + 单参数 p | Strategy | 前提联合必要的叶子推理 |
+| **`deduction`** | 无独立 strategy-level 参数 | FormalStrategy | 条件行为由 conjunction + implication skeleton 直接确定 |
+| **`abduction`** | 无独立 strategy-level 参数 | FormalStrategy | 有效条件概率由 H→O、O↔Obs 与相关 prior 现算导出 |
+| **`induction`** | 无独立 strategy-level 参数 | FormalStrategy | 有效条件概率由 Law→Instanceᵢ、Instanceᵢ↔Obsᵢ 与相关 prior 现算导出 |
+| **`analogy`** | 无独立 strategy-level 参数 | FormalStrategy | 有效条件概率由 skeleton + BridgeClaim prior 现算导出 |
+| **`extrapolation`** | 无独立 strategy-level 参数 | FormalStrategy | 有效条件概率由 skeleton + ContinuityClaim prior 现算导出 |
+| **`reductio`** | 无独立 strategy-level 参数 | FormalStrategy | 条件行为由 implication + contradiction + complement skeleton 直接确定 |
+| **`elimination`** | 无独立 strategy-level 参数 | FormalStrategy | 条件行为由 contradiction / complement / implication skeleton 直接确定 |
+| **`mathematical_induction`** | 无独立 strategy-level 参数 | FormalStrategy | 条件行为由其 formal skeleton 直接确定 |
+| **`case_analysis`** | 无独立 strategy-level 参数 | FormalStrategy | 条件行为由 disjunction + conjunction / implication skeleton 直接确定 |
+| **`toolcall`**（deferred） | — | — | 未引入。待后续设计 |
+| **`proof`**（deferred） | — | — | 未引入。待后续设计 |
+
+> **设计决策：** `independent_evidence` 和 `contradiction` 不作为 Strategy 类型——它们是结构关系，直接用 Operator（equivalence / contradiction）表达。原 `soft_implication` 合并到 `noisy_and`（k=1 的特例）。原 `None` 合并到 `infer`。
+
+### 3.4 参数化语义
+
+只有需要外部概率参数的 Strategy 才在 [parameterization](06-parameterization.md) 层携带 `StrategyParamRecord`。直接 `FormalStrategy` 的命名策略没有独立的 strategy-level 条件概率；其有效条件行为由 `FormalExpr` 和显式中间 Knowledge 的 prior 导出。
+
+**三层处理：**
+
+1. **IR 层（source of truth）**
+   `FormalStrategy` 的真实定义是 `FormalExpr` + 外部接口节点（`premises` / `conclusion`）+ 私有中间节点；这里不额外存一份手工填写的 `conditional_probabilities`。
+2. **持久化 parameterization 输入层**
+   只对需要外部概率参数的 Strategy 存 `StrategyParamRecord`，例如 `infer` / `noisy_and`。
+3. **运行时 compiled / assembled 层**
+   每个 Strategy 都可以关联一份等效的 `conditional_probabilities` 视图：
+   - 参数化 Strategy：直接读取持久化参数
+   - 直接 FormalStrategy：由 `FormalExpr` + 私有中间节点 prior 现算导出
+
+FormalExpr 内部的中间节点是严格私有的（禁止被外部引用），因此 FormalStrategy **总是可以被折叠**——对私有中间变量做变量消去，导出等效的 P(conclusion | premises)。折叠还是展开由推理引擎的 `expand_set` 决定。
+
+更完整的 backend-facing lowering 边界见 [07-lowering.md](07-lowering.md)。
+
+#### `infer`（通用条件概率表）
+
+未分类的通用推理。k 个前提需要 2^k 个条件概率参数——每种前提真值组合对应一个 P(conclusion | 前提组合)。按最大熵原则，默认值全为 0.5（无信息先验）。
+
+实践中很少使用——大多数推理会被分类为 `noisy_and` 或命名策略。`StrategyParamRecord.conditional_probabilities: list[float]` 已支持变长列表，可存储 2^k 参数。
+
+#### `noisy_and`（∧ + 单参数 p）
+
+**最常用的 Strategy 类型。** 所有前提先 AND（联合必要条件），再以条件概率 p 推出结论：
+
+```
+P(conclusion=true | all premises=true) = p
+P(conclusion=true | any premise=false) = ε    （Cromwell leak）
+```
+
+单参数 p 表达推理本身的可信度，前提的可信度由各自的 prior 表达。
+
+**适用范围：前提是联合必要条件的推理。** 适合表达一条没有继续细化的局部推理。
+
+**不适用于把整条归纳/溯因语义压平成单条 generic noisy_and。** 归纳、溯因、类比、外推在 theory 中都有各自的命名微观结构；如果要保留这些语义，应使用对应的命名 `type` 并直接 formalize 为 FormalStrategy。若更大论证需要保留 hierarchy，则由外层 CompositeStrategy 组合这些结构。
+
+### 3.5 三种形态
+
+#### 3.5.1 基本 Strategy（叶子 ↝）
+
+最简单的形态——内部结构不透明（opaque），没有 `formal_expr`，也没有 `sub_strategies`。叶子策略包括 `infer`、`noisy_and` 等参数化类型，也包括命名策略（如 `deduction`）尚未展开为 FormalStrategy 的形态。当未来发现更明确的内在结构时，叶子策略可以被进一步 refine 为 FormalStrategy。
+
+对参数化叶子（`infer` / `noisy_and`），外部概率参数由 parameterization 层提供；在运行时 compiled 层，它们也对应一份直接读取的 `conditional_probabilities` 视图。
+
+#### 3.5.2 CompositeStrategy（保留层次边界的分解容器）
+
+将一个较大的推理组织为多个子策略。`sub_strategies` 存储子策略的 `strategy_id` 列表；这些 child strategy 本身仍然是同 graph 中的独立 Strategy 对象，且可以是任意形态（Strategy / CompositeStrategy / FormalStrategy）。
+
+CompositeStrategy 的作用是**保留分解边界**。它组合的是多个 strategy-level 子结构，而不是直接组合 Operator。其典型子节点可以是 `Strategy`、`FormalStrategy`，或更深一层的 `CompositeStrategy`。
+
+换句话说，CompositeStrategy 解决的是“这些推理单元如何组成更大的论证树”，不是“单个命名推理的微观 skeleton 是什么”。
+
+典型用途：
+
+- 大型证明或工具调用的多步结构
+- 只展开局部而保留其余部分折叠的 partial expansion
+- 为更大的论证树保留语义上的组合边界
+- 同一结论下对多条子路径做分组、审查或展示
+
+当一个较大的论证逐步 formalize 时，典型会经历三个阶段：
+
+1. **Strategy**：尚未分解，只有一条粗粒度 ↝
+2. **CompositeStrategy（混合态）**：已有部分子结构被 formalize，`sub_strategies` 引用到的 child 里同时存在 `Strategy` 和 `FormalStrategy`
+3. **CompositeStrategy（全 formal 叶子）**：层次结构仍保留，但所有叶子都已变成 `FormalStrategy`
+
+折叠时（不展开）：整体仍表达为单条 ↝。展开时：递归进入每个子策略的内部结构。
+
+#### 3.5.3 FormalStrategy + FormalExpr（完全展开）
+
+当某个**原子子结构**已经被展开为确定性 Operator skeleton 时，使用 FormalStrategy。`formal_expr` 只包含 Operator（确定性），不包含不确定的 ↝。
+
+对命名策略本体，`FormalStrategy` 就是 canonical fully-expanded form。若它出现在更大的论证树中，则通常作为 CompositeStrategy 的叶子。
+
+换句话说，FormalStrategy 回答的是“这个命名推理单元内部到底由哪些确定性关系构成”，而不是“它在整篇论证里处于哪一层”。
+
+**关键约束：FormalExpr 只包含确定性 Operator，不包含概率参数。展开后的不确定性通过显式中间 Knowledge 的先验 π 表达（在 parameterization 层赋值）；不再额外引入独立的、持久化的 strategy-level conditional probability。若运行时需要 `conditional_probabilities` 视图，应由内部结构现算导出。**
+
+### 3.6 命名策略的典型表示
+
+#### 典型 fully expanded 形态
+
+所有命名策略在**未展开**时都可以先作为叶子 Strategy 存在。下面给出它们在识别出命名结构后的直接 FormalStrategy 写法；若要保留更大的 hierarchy，再由外层 CompositeStrategy 组合这些 FormalStrategy。
+
+对纯确定性家族，FormalExpr 骨架通常几乎是唯一的：
+
+**演绎（deduction）**：`premises=[A₁,...,Aₖ], conclusion=C`
+```
+FormalStrategy(type=deduction):
+  formal_expr:
+    - conjunction([A₁,...,Aₖ], conclusion=M)
+    - implication([M], conclusion=C)
+```
+
+**数学归纳（mathematical_induction）**：`premises=[Base, Step], conclusion=Law`
+```
+FormalStrategy(type=mathematical_induction):
+  formal_expr:
+    - conjunction([Base, Step], conclusion=M)
+    - implication([M], conclusion=Law)
+```
+结构与演绎相同。语义区分：Base=P(0), Step=∀n(P(n)→P(n+1)), Law=∀n.P(n)。
+
+**归谬（reductio）**：`premises=[R], conclusion=¬P`
+```
+FormalStrategy(type=reductio):
+  formal_expr:
+    - implication([P], conclusion=Q)
+    - contradiction([Q, R], conclusion=Contra_Q_R)
+    - complement([P, ¬P], conclusion=Comp_P_notP)
+```
+
+**排除（elimination）**：`premises=[E₁, E₂, Exhaustiveness], conclusion=H₃`
+```
+FormalStrategy(type=elimination):
+  formal_expr:
+    - contradiction([H₁, E₁], conclusion=Contra_H₁_E₁)
+    - contradiction([H₂, E₂], conclusion=Contra_H₂_E₂)
+    - complement([H₁, ¬H₁], conclusion=Comp_H₁_notH₁)
+    - complement([H₂, ¬H₂], conclusion=Comp_H₂_notH₂)
+    - conjunction([¬H₁, ¬H₂], conclusion=M)
+    - implication([M], conclusion=H₃)
+```
+
+**分情况讨论（case_analysis）**：`premises=[Exhaustiveness, P₁,...,Pₖ], conclusion=C`
+```
+FormalStrategy(type=case_analysis):
+  formal_expr:
+    - disjunction([A₁,...,Aₖ], conclusion=Disj_A₁_..._Aₖ)
+    - conjunction([A₁, P₁], conclusion=M₁), implication([M₁], conclusion=C)
+    - conjunction([A₂, P₂], conclusion=M₂), implication([M₂], conclusion=C)
+    - ...（每个 case 一对 conjunction + implication）
+```
+
+`abduction`、`induction`、`analogy`、`extrapolation` 虽然宏观上不是纯演绎，但在 theory 中都对应确定性的微观 skeleton。一旦识别出这些命名结构，本体就可以直接表示为 FormalStrategy。
+
+**溯因（abduction）**：`premises=[Obs], conclusion=H`
+
+溯因的不确定性在于 H 和 prediction O 的先验，不在骨架中的 Operator。需要显式中间 claim：prediction `O`；`premises` 通常包含实际观测到的 claim（这里记为 `Obs`）。`O` 是普通中间 claim；只有像 `Eq_O_Obs` 这样的结构结果才属于 helper claim。
+
+```
+FormalStrategy(type=abduction, premises=[Obs], conclusion=H):
+  formal_expr:
+    - implication([H], conclusion=O)
+    - equivalence([O, Obs], conclusion=Eq_O_Obs)
+```
+
+**归纳（induction）**：`premises=[Obs₁,...,Obsₙ], conclusion=Law`
+
+归纳是多个 abduction-like 单元的并行重复。需要显式中间 claim：`Instance₁ ... Instanceₙ`。这些 `Instanceᵢ` 是普通中间 claim，不单独归到 helper claim 术语里。
+
+```
+FormalStrategy(type=induction, premises=[Obs₁,...,Obsₙ], conclusion=Law):
+  formal_expr:
+    - implication([Law], conclusion=Instance₁)
+    - equivalence([Instance₁, Obs₁], conclusion=Eq_Instance₁_Obs₁)
+    - implication([Law], conclusion=Instance₂)
+    - equivalence([Instance₂, Obs₂], conclusion=Eq_Instance₂_Obs₂)
+    - ...（每个观测一组 implication + equivalence）
+```
+
+累积效应由多条独立证据的概率在 Law 节点上汇聚实现——更多一致的观测 → Law 的 belief 自然上升。单个反例（Obs 与 Instance 不一致）通过 equivalence Operator 传播，削弱 Law 的 belief。
+
+**类比（analogy）**：`premises=[SourceLaw, BridgeClaim], conclusion=Target`
+
+不确定性集中在 BridgeClaim 的先验 π(BridgeClaim)，不在骨架本身。`BridgeClaim` 是普通 `premise claim`；合取中间项 `M` 是私有结构型 helper claim。
+
+```
+FormalStrategy(type=analogy, premises=[SourceLaw, BridgeClaim], conclusion=Target):
+  formal_expr:
+    - conjunction([SourceLaw, BridgeClaim], conclusion=M)
+    - implication([M], conclusion=Target)
+```
+
+**外推（extrapolation）**：`premises=[KnownLaw, ContinuityClaim], conclusion=Extended`
+
+与类比结构相同。不确定性在 ContinuityClaim 的先验。`ContinuityClaim` 是普通 `premise claim`；合取中间项 `M` 是私有结构型 helper claim。
+
+```
+FormalStrategy(type=extrapolation, premises=[KnownLaw, ContinuityClaim], conclusion=Extended):
+  formal_expr:
+    - conjunction([KnownLaw, ContinuityClaim], conclusion=M)
+    - implication([M], conclusion=Extended)
+```
+
+#### 需要保留 hierarchy 时 → CompositeStrategy
+
+当一个更大的论证由多个命名或未命名子结构组成、且你希望保留组合边界时，用 CompositeStrategy 作为外层容器。常见场景：
+
+- 很大的归纳或证明需要按章节/lemma 分组
+- `toolcall` / `proof` 未引入，待后续设计
+- 只想展开局部 skeleton，其余部分仍保留折叠
+- 需要把多个 FormalStrategy / Strategy 组合成更大的 hierarchy
+
+### 3.7 多分辨率展开
+
+Strategy 的三种形态支持同一图在不同粒度上推理。给定一个"展开集合"（需要进入内部结构的 Strategy ID 集合），推理引擎可以选择：
+
+- **不展开**：将 Strategy 视为单条 ↝，使用 parameterization 层的条件概率参数
+- **展开 CompositeStrategy**：递归进入子策略
+- **展开 FormalStrategy**：进入 FormalExpr 内的确定性 Operator 结构
+
+具体的推理算法实现见 [bp/](../bp/) 层。
+
+### 3.8 Lifecycle
+
+Strategy 的形态即状态——不需要 `initial` / `candidate` / `permanent` 阶段标签：
+
+```
+Strategy(type=infer)                          ← 初始：通用推理
+  ├── reviewer 分类为命名策略，保持叶子 Strategy
+  ├── reviewer 确认为 noisy_and → type=noisy_and
+  ├── reviewer 识别命名微观结构 → FormalStrategy + formal_expr
+  ├── reviewer 开始分解 → CompositeStrategy（mixed Strategy / FormalStrategy children）
+  ├── reviewer 继续 formalize → CompositeStrategy（all leaves FormalStrategy）
+  └── 保持 type=infer
+```
+
+IR 中所有 Strategy 都是已确认的结构——候选项由 review 层管理。
+
+### 3.9 Premise / Background / Refs
+
+| 字段 | 类型约束 | 参与概率推理 | 说明 |
+|------|---------|-------------|------|
+| **premises** | 仅 claim | 是 | 推理的形式前提，条件概率的输入变量 |
+| **background** | 任意类型 | 否 | 上下文依赖（setting、全称 claim 实例化的绑定等） |
+| **refs** (metadata) | 任意 | 否 | 弱相关来源引用 |
+
+- **Premise**：推理成立的必要条件，必须是 claim。Review 在评估 Strategy 条件概率时应同时考虑 premises 和 background 的内容。
+- **Premise 只放外部接口输入**：例如 abduction 的 `Obs`、induction 的 `Obs₁...Obsₙ`、analogy 的 `SourceLaw` 与 `BridgeClaim`、extrapolation 的 `KnownLaw` 与 `ContinuityClaim`。像 prediction `O`、Instanceᵢ、合取中间项 `M` 这类仅为 FormalExpr 服务的节点，不应直接放进 `premises`。
+- **Background**：上下文依赖，任意类型。不参与概率推理。
+- **Refs**：存储在 `metadata.refs` 中的 ID 列表。不参与图结构。
+
+### 3.10 不变量
+
+1. `premises` 中的 Knowledge 类型必须是 `claim`
+2. `conclusion` 的 Knowledge 类型必须是 `claim`（如果非 None）
+3. `background` 中的 Knowledge 类型可以是任意（claim / setting / question）
+4. FormalStrategy 的 `formal_expr` 必填；CompositeStrategy 的 `sub_strategies` 必填且非空
+5. `sub_strategies` 和 `formal_expr` 不同时出现（形态互斥由类层级保证）
+6. `sub_strategies` 引用关系必须构成 DAG（从任意 Strategy 沿 `sub_strategies` 不能回到自身）
+7. FormalExpr 只包含 Operator（不包含 Strategy）；FormalExpr 内 Operator 按 conclusion 依赖关系必须构成 DAG（不允许循环依赖）
+8. `noisy_and` 仅用于前提联合必要的场景；对归纳、溯因、类比、外推等命名推理，应优先使用相应 `type` 并直接表示为 FormalStrategy，而不是把整体语义压平成 generic `noisy_and`
+9. FormalExpr 内部产生但不出现在任何 Strategy 的 `premises` / `conclusion` 中的中间 claim，属于该 FormalStrategy 的**私有节点**，**禁止**被外部 Strategy 引用。私有节点的不可引用性保证了 FormalStrategy 总是可以被折叠（marginalize 内部变量导出等效条件概率）。如果某个中间结果需要被共享，应重构图结构（见 [04-helper-claims.md §3.3](04-helper-claims.md#33-如果需要共享中间结果)）
+10. helper claim 仍然是 `claim`，不引入新的 Knowledge primitive；当前 helper claim 术语只用于结构型 result claim，并额外区分 public/private 角色
+
+完整 validator 视角的检查清单见 [08-validation.md](08-validation.md)。
+
+---
+
+## 4. 规范化（Canonicalization）
+
+Canonicalization 已拆分到独立文档：[05-canonicalization.md](05-canonicalization.md)。
+
+在 Gaia IR 主规范里，关于 canonicalization 只保留三个结论：
+
+- local canonical 与 global canonical 是两个不同身份层
+- `Knowledge.id` 与 `Knowledge.content_hash` 是两个不同概念：前者是对象身份，后者是跨包内容指纹
+- binding / equivalence 的判断发生在 **Strategy chain** 层，而不是单个结论文本层
+- local Strategy 提升到 global graph 时，只提升结构，不复制 local `steps`
+
+完整内容，包括：
+
+- Binding vs Equivalence
+- CanonicalBinding record
+- matching strategy
+- Strategy 提升
+- global content 引用
+- local/global 层中的 Strategy 形态规则
+
+见 [05-canonicalization.md](05-canonicalization.md)。
+
+---
+
+## 5. Retraction Deferred
+
+`retraction` 不属于 Gaia IR contract。Gaia IR 只描述结构及其参数化接口，不定义“撤回如何表示/执行”的官方机制。
+
+撤回相关设计延后到 review / curation / provenance 层处理；在该设计明确之前，Gaia IR 主规范不再规定任何 retraction 语义。
+
+---
+
+## 6. 设计决策记录
+
+| 决策 | 理由 |
+|------|------|
+| Knowledge 三种类型（删除 template） | Issue #231：全称命题（∀{x}.P({x})）有真值，应携带概率。统一为 claim with parameters。Template 概念保留在 Gaia Language 编写层 |
+| Operator 从 Strategy 分离 | ↔/⊗/⊕ 是确定性命题算子，不是推理声明。Operator 无概率参数，Strategy 有 |
+| independent_evidence / contradiction 用 Operator 表达 | 它们是结构关系，不是推理判断。直接用 equivalence / contradiction Operator |
+| 所有 Operator 都有标准结果 claim | 关系型 Operator 也需要可引用的结构结论，因此 `conclusion` 不再只服务于 implication / conjunction |
+| Strategy type 合并 | 原 None 合并到 infer，原 soft_implication 合并到 noisy_and（k=1 特例） |
+| infer vs noisy_and 区分 | infer = 完整 CPT（2^k 参数），noisy_and = ∧ + 单参数 p。大多数推理使用 noisy_and |
+| noisy_and 仅限联合必要场景 | 不应把归纳/溯因/类比/外推的整体语义压平成 generic noisy_and；应保留对应命名 type |
+| type 与形态解耦 | type 表达推理语义家族，形态表达展开程度/组织方式。命名策略本体可以直接是 FormalStrategy；CompositeStrategy 负责组合这些子结构 |
+| FormalExpr 只包含 Operator | fully expanded 后的不确定性转移到显式中间 Knowledge 的 prior，FormalExpr 本身纯确定性 |
+| FormalExpr 作为 FormalStrategy 的嵌入字段 | 1:1 关系，不需要独立实体；FormalExpr 无独立 ID 和 lifecycle |
+| helper claim 仍是 claim | 不新增 Knowledge primitive；当前 helper claim 术语只用于结构型 result claim，并用 helper catalog 约束其 public/private 边界 |
+| 对象身份与内容指纹分离 | `Knowledge.id` 负责对象身份；`content_hash` 负责跨包内容指纹与 canonicalization 快速路径；`ir_hash` 负责 local graph 完整性 |
+| conditional_probabilities 三层处理 | 持久化层只存外部参数；运行时 compiled 层允许每个 Strategy 拥有等效 `conditional_probabilities` 视图；直接 FormalStrategy 的该视图由 FormalExpr 与相关显式 claim prior 导出 |
+| 多分辨率展开 | 任意 Strategy 都可在运行时获得折叠视图；参数化 Strategy 直接读外部参数，直接 FormalStrategy 的折叠行为由内部结构现算导出 |
+| retraction deferred | 撤回不属于 Gaia IR contract，延后到 review / curation / provenance 层定义 |
+
+### 已知 Future Work
+
+| 缺口 | 说明 | 影响 |
+|------|------|------|
+| **α-equivalence（Issue #234）** | 含 parameters 的 claim 匹配时需要忽略变量名 | Canonicalization 精度 |
+| **Gaia IR Validator（Issue #233）** | 每次 IR 更新时的结构验证 | 数据完整性 |
+| **Compiler dispatch（Issue #236）** | Gaia Language template → IR 知识类型的编译规则 | CLI 端实现 |
+
+---
+
+## 与原 Gaia IR 的概念映射
+
+| 原概念 | 新概念 | 变更说明 |
+|--------|--------|---------|
+| KnowledgeNode | **Knowledge** | 去掉 Node 后缀；删除 template 类型，统一为 claim with parameters |
+| FactorNode | **Strategy** | 改名 + 重构（统一 type，三形态类层级） |
+| FactorNode.category + reasoning_type | Strategy.type | 合并为单一字段 |
+| FactorNode.subgraph | **FormalExpr**（FormalStrategy 嵌入字段） | 从 FactorNode 字段提取为 data class |
+| reasoning_type=equivalent | **Operator**(operator=equivalence) | 从推理声明移为结构约束 |
+| reasoning_type=contradict | **Operator**(operator=contradiction) | 从推理声明移为结构约束 |
+| — | **Operator**(operator=complement, disjunction, conjunction, implication) | 新增 |
+| infer（旧，noisy-AND 语义） | **noisy_and** | 重命名；旧 infer 的 noisy-AND 语义现在叫 noisy_and |
+| soft_implication | 合并到 noisy_and | k=1 的 noisy_and 特例 |
+| None (type) | **infer** | 重命名；未分类推理统一用 infer（通用 CPT） |
+| independent_evidence (Strategy type) | 直接用 Operator(equivalence) | 结构关系，不是推理声明 |
+| contradiction (Strategy type) | 直接用 Operator(contradiction) | 结构关系，不是推理声明 |

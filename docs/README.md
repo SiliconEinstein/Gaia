@@ -17,7 +17,7 @@ Start with the [Quick Start](for-users/quick-start.md), then read the [Language 
 ### I want to develop Gaia
 > You're a developer working on the codebase.
 
-Start with the [Architecture Overview](foundations/gaia-ir/00-pipeline-overview.md), then explore:
+Start with the [Gaia IR Overview](foundations/gaia-ir/01-overview.md), then explore:
 - [CLI surface](foundations/cli/) — local authoring, compilation, inference
 - [LKM surface](foundations/lkm/) — server-side review, curation, global inference
 - [Gaia IR contract](foundations/gaia-ir/) — the shared intermediate representation

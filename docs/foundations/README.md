@@ -24,7 +24,7 @@ Gaia 的规范参考文档，按架构层级组织。
 ## 生态系统 — 设计哲学（极少变更）
 
 - [产品范围](ecosystem/01-product-scope.md) — Gaia 是什么、为何存在
-- [架构概览](gaia-ir/00-pipeline-overview.md) — 三层管线、CLI↔LKM 契约
+- [架构概览](gaia-ir/01-overview.md) — 三层管线、CLI↔LKM 契约、IR/参数/信念分层
 - [去中心化架构](ecosystem/02-decentralized-architecture.md) — 去中心化包管理和推理架构
 - [包的创建与发布](ecosystem/03-authoring-and-publishing.md) — 作者从创建包到发布的旅程
 - [Registry 运作](ecosystem/04-registry-operations.md) — 注册、去重、推理链激活
@@ -34,10 +34,14 @@ Gaia 的规范参考文档，按架构层级组织。
 
 ## Gaia IR — CLI 与 LKM 之间的共享契约
 
-- [概述](gaia-ir/overview.md) — 三部分总览（Gaia IR + Parameterization + BeliefState）
-- [结构定义](gaia-ir/gaia-ir.md) — KnowledgeNode、FactorNode、规范化
-- [参数定义](gaia-ir/parameterization.md) — 原子记录、resolution policy
-- [信念定义](gaia-ir/belief-state.md) — BP 输出、可重现性
+- [概述](gaia-ir/01-overview.md) — Gaia IR 与相邻层总览
+- [结构定义](gaia-ir/02-gaia-ir.md) — Knowledge、Strategy、Operator、FormalExpr
+- [Identity And Hashing](gaia-ir/03-identity-and-hashing.md) — 对象身份、内容指纹与图哈希的边界
+- [Helper Claims](gaia-ir/04-helper-claims.md) — 中间 claim 的 public/private 边界与命名约定
+- [规范化](gaia-ir/05-canonicalization.md) — local canonical 到 global canonical 的映射契约
+- [参数定义](gaia-ir/06-parameterization.md) — 原子记录、resolution policy
+- [Lowering](gaia-ir/07-lowering.md) — Gaia IR 被 backend 消费时的 lowering 边界
+- [Validation](gaia-ir/08-validation.md) — Gaia IR 的结构校验与分层边界
 
 ## Gaia Lang — 编著语言
 
@@ -50,6 +54,7 @@ Gaia 的规范参考文档，按架构层级组织。
 - [因子势函数](bp/potentials.md) — 各因子类型的势函数
 - [推理](bp/inference.md) — BP 算法应用于 Gaia IR
 - [局部与全局](bp/local-vs-global.md) — CLI 局部推理 vs LKM 全局推理
+- [BeliefState](bp/belief-state.md) — BP 输出、可重现性
 
 ## Review — 审查管线
 
