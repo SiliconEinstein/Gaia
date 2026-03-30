@@ -103,7 +103,7 @@ helper claim 的命名纪律见 [04-helper-claims.md](04-helper-claims.md)。
 2. 所有内部 Operator 满足各自的 Operator 校验规则
 3. 内部 Operator 引用关系必须构成 DAG（无环）
 4. 其引用到的中间 claim 必须在同 graph 中显式存在
-5. 私有中间节点（不出现在任何 Strategy 的 `premises`/`conclusion` 中）**禁止**被外部 Strategy 直接引用——违反时报 error（判定规则见 [04-helper-claims.md §3](04-helper-claims.md#3-public--private-边界)）
+5. 私有中间节点（不出现在任何 Strategy 的 `premises`/`conclusion` 中）**禁止**被外部 Strategy 引用——违反时报 error（见 [04-helper-claims.md §3](04-helper-claims.md#3-formalexpr-内部-claim-的封装)）
 
 ## 6. Graph 校验
 

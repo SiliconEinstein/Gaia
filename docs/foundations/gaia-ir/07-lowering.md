@@ -46,7 +46,7 @@ Gaia IR 提供：
 - 命题节点
 - 推理声明
 - 确定性结构约束
-- public/private helper 边界
+- FormalExpr 内部节点封装边界
 
 runtime graph 则由后端按自己的执行模型构造。
 
@@ -134,21 +134,23 @@ lowering 时有两种合法方式：
 
 FormalStrategy 表示一个已经给出确定性 skeleton 的命名推理单元。
 
-lowering 时也有两种方式：
+FormalExpr 内部节点是严格私有的（禁止外部引用），因此 FormalStrategy 总是可以被折叠。lowering 时有两种方式：
 
-- **折叠**：把它消费成一个等效的 backend-level support unit
+- **折叠**：对私有中间变量做变量消去，整个 FormalStrategy 等效为 P(conclusion | premises)
 - **展开**：进入 `formal_expr`，把内部 Operator 结构显式 lower
 
-这两种方式都合法，但折叠存在一个关键前提：
+两种方式都合法，选择由 `expand_set` 决定
 
-- 只有当其内部私有中间节点可以安全被 marginalize 时，才允许把整个 FormalStrategy 折成单个黑盒行为
+## 5. FormalExpr 内部节点与 Lowering
 
-## 5. Public / Private 节点与 Lowering
+FormalExpr 内部节点是严格私有的（禁止外部引用），因此 FormalStrategy 总是可以被折叠。封装规则和概率语义见 [04-helper-claims.md §3](04-helper-claims.md#3-formalexpr-内部-claim-的封装) 和 [06-parameterization.md](06-parameterization.md)。
 
-Private/public 的判定规则和概率语义见 [04-helper-claims.md §3](04-helper-claims.md#3-public--private-边界) 和 [06-parameterization.md](06-parameterization.md)。对 lowering 的影响：
+Lowering 时，后端对每个 FormalStrategy 可以选择：
 
-- **私有节点**（不出现在任何 Strategy 的 premises/conclusion 中）：后端可以保留为 runtime node，也可以 marginalize 掉
-- **公共节点**：后端不能 marginalize，必须保持为可共享的 runtime identity；包含它的 FormalStrategy 不再允许折叠
+- **折叠**：对私有中间变量做变量消去，整个 FormalStrategy 等效为 P(conclusion | premises)
+- **展开**：保留内部节点作为 runtime node，在展开后的图上推理
+
+两种方式都合法。选择哪种由 `expand_set` 决定
 
 ## 6. 参数层如何参与 Lowering
 

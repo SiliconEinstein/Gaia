@@ -108,11 +108,11 @@ P(C=1 | A₁, A₂) = Σ_m P(C=1 | M=m) × P(M=m | A₁, A₂)
 
 对含不确定性的命名策略（如 abduction），中间 claim（prediction O）可能承载不确定先验 π(O)，marginalization 会把 π(O) 和 Operator 约束综合起来导出 P(H | Obs)。
 
-这是精确的数学操作，属于 IR 的概率语义定义；具体推理后端可以用精确或近似算法实现（见 [bp/](../bp/) 层）。只有私有节点才允许被消去——公共节点被外部依赖，消去会破坏图结构
+这是精确的数学操作，属于 IR 的概率语义定义；具体推理后端可以用精确或近似算法实现（见 [bp/](../bp/) 层）。
 
-如果某个中间节点被提升为公共 Knowledge 并被外部 Strategy 复用，就不应再把该 FormalStrategy 压成单个等效条件概率视图，而应保持展开。
+由于 FormalExpr 内部节点是严格私有的（禁止外部引用，见 [04-helper-claims.md §3](04-helper-claims.md#3-formalexpr-内部-claim-的封装)），FormalStrategy **总是可以被折叠的**——所有内部变量都可以安全消去。
 
-哪些 Strategy 展开、哪些折叠，由推理引擎的 `expand_set` 决定。对直接 FormalStrategy，如果运行时需要折叠视图，应由其内部结构现算出等效行为，而不是读取独立的 StrategyParamRecord。具体的推理算法见 [bp/](../bp/) 层。
+哪些 Strategy 折叠、哪些展开，由推理引擎的 `expand_set` 决定。对直接 FormalStrategy，折叠视图应由其内部结构现算出等效行为，而不是读取独立的 StrategyParamRecord。
 
 ## 完整性检查
 
