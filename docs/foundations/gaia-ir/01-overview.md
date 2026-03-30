@@ -6,51 +6,31 @@
 
 ## 目的
 
-Gaia IR 是 Gaia 推理超图的完备数据表示。读完本文档，你应当知道一个完整的 Gaia 知识体系由哪几部分信息构成。
+Gaia IR 是 Gaia 推理超图的**中间表示**（Intermediate Representation）。
 
-它同时也是 Gaia 三层编译管线中的共享中间表示：
+类比 LLVM：LLVM IR 将 M 个语言前端与 N 个硬件后端解耦，使得每一端只需要关心”如何编译到 / 消费 IR”，而不需要知道另一端的存在。Gaia IR 在知识推理领域扮演同样的角色——将**生产知识的前端**与**消费知识的后端**解耦。
 
-```text
-Gaia Lang (authored surface)
-    |
-    v  gaia build
-Gaia IR (shared structural contract)
-    |
-    v  gaia infer / server BP
-Belief Propagation
-```
+### 前端与后端
 
-在这个分层里：
+- **前端**：任何将外部格式编译为 Gaia IR 的组件。例如 Typst compiler（`.typ` → IR）、XML/JSON importer、AI agent 自动生成等。
+- **后端**：任何消费 Gaia IR 的组件。例如 Belief Propagation 概率推理、Obsidian Markdown 持久化、PDF 渲染、图数据库存储等。
 
-- **Gaia Lang** 是 CLI 的编写表面，确定性编译到 Gaia IR
-- **Gaia IR** 是 CLI 和 LKM 之间的共享结构契约
-- **Belief Propagation** 在 Gaia IR 上做概率推理
+生态系统的参与者（本地用户 CLI、LKM 服务器、Review Server 等）互相之间交换的不一定是 Gaia IR 本身，但每个参与者的**内部架构**都以 IR 为中心——不同的前端编译到同一个 IR，不同的后端从同一个 IR 消费。这就是 IR 作为解耦契约层的价值。
 
-因此 Gaia IR 既要回答“图长什么样”，也要回答“CLI 交给 LKM 的制品边界是什么”。
+### IR 与 Parameterization
 
-Gaia 的数据由三个独立对象组成：
+Gaia 的数据由两个独立部分组成：
 
 ```
-Gaia IR（结构）    ×    Parameterization（参数）    →    BeliefState（信念）
-什么连接什么               每个 Knowledge/Strategy 多可信     BP 计算的后验信念
-编译时确定                  review 产出                     BP 产出
+Gaia IR（结构）    ×    Parameterization（参数）
+什么连接什么               每个 Knowledge/Strategy 多可信
+编译时确定                  review 产出
 ```
 
-三者严格分离。Gaia IR 有 local 和 global 两层。Parameterization 和 BeliefState 只作用在 GlobalCanonicalGraph 上。
+- **Gaia IR** 编码推理超图的拓扑——Knowledge 之间通过 Strategy 和 Operator 连接，不包含任何概率值。
+- **Parameterization** 是 GlobalCanonicalGraph 上的概率参数层——review 过程为每个 Knowledge 和 Strategy 赋予可信度。
 
-### 两个产品表面
-
-Gaia IR 处在 Gaia 的两个产品表面之间：
-
-| | CLI | LKM（服务器） |
-|---|---|---|
-| **范围** | 本地，单个包 | 全局，多包 |
-| **输入** | Gaia Lang 源文件（`.typ`） | 已发布的 Gaia IR |
-| **编译** | Gaia Lang -> Gaia IR | 不适用，接收 Gaia IR |
-| **推理** | 本地 canonical graph 上运行 BP | 全局 canonical graph 上运行 BP |
-| **附加职责** | 编译、预览、发布 | 审查、策展、全局规范化 |
-
-CLI 是 Gaia IR 的前端；LKM 不直接处理 Gaia Lang，只处理 Gaia IR。
+二者严格分离。Gaia IR 有 local 和 global 两层；Parameterization 只作用在 GlobalCanonicalGraph 上。
 
 ## 一、Gaia IR — 结构
 
