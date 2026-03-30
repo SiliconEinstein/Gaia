@@ -73,6 +73,24 @@ class TestStrategyCreation:
         )
         assert len(s.steps) == 1
 
+    def test_invalid_scope_rejected(self):
+        with pytest.raises(ValueError, match="scope must be one of"):
+            Strategy(scope="detached", type="infer", premises=["a"], conclusion="b")
+
+    def test_global_steps_rejected(self):
+        with pytest.raises(ValueError, match="must not carry steps"):
+            Strategy(
+                scope="global",
+                type="infer",
+                premises=["gcn_a"],
+                conclusion="gcn_b",
+                steps=[Step(reasoning="should stay local")],
+            )
+
+    def test_leaf_rejects_named_strategy_type(self):
+        with pytest.raises(ValueError, match="Strategy form only allows types"):
+            Strategy(scope="global", type="deduction", premises=["gcn_a"], conclusion="gcn_b")
+
 
 class TestCompositeStrategy:
     def test_creation(self):
@@ -98,11 +116,21 @@ class TestCompositeStrategy:
                 sub_strategies=[],
             )
 
+    def test_composite_rejects_leaf_type(self):
+        with pytest.raises(ValueError, match="CompositeStrategy form only allows types"):
+            CompositeStrategy(
+                scope="global",
+                type="infer",
+                premises=["gcn_a"],
+                conclusion="gcn_b",
+                sub_strategies=[Strategy(scope="global", type="infer", premises=["gcn_a"], conclusion="gcn_b")],
+            )
+
     def test_nested_composite(self):
         """CompositeStrategy can contain CompositeStrategy (recursive)."""
         inner = CompositeStrategy(
             scope="global",
-            type="infer",
+            type="abduction",
             premises=["a"],
             conclusion="b",
             sub_strategies=[
@@ -198,6 +226,18 @@ class TestFormalStrategy:
                 premises=["a"],
                 conclusion="b",
                 formal_expr=FormalExpr(operators=[]),
+            )
+
+    def test_formal_rejects_composite_type(self):
+        with pytest.raises(ValueError, match="FormalStrategy form only allows types"):
+            FormalStrategy(
+                scope="local",
+                type="induction",
+                premises=["a"],
+                conclusion="b",
+                formal_expr=FormalExpr(operators=[
+                    Operator(operator="implication", variables=["a", "b"], conclusion="b"),
+                ]),
             )
 
 
