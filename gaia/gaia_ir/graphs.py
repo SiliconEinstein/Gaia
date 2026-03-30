@@ -33,13 +33,11 @@ def _canonicalize_knowledge_dump(data: dict[str, Any]) -> dict[str, Any]:
 def _canonicalize_operator_dump(data: dict[str, Any]) -> dict[str, Any]:
     canonical = dict(data)
     variables = list(canonical.get("variables", []))
-    conclusion = canonical.get("conclusion")
     operator = canonical.get("operator")
-    if operator in {"equivalence", "contradiction", "complement", "disjunction"}:
+    # §2.4: variables are inputs only (conclusion is separate), sort for canonical order
+    if operator in {"equivalence", "contradiction", "complement", "disjunction", "conjunction"}:
         canonical["variables"] = sorted(variables)
-    elif operator == "conjunction" and conclusion is not None:
-        premises = sorted(v for v in variables if v != conclusion)
-        canonical["variables"] = premises + [conclusion]
+    # implication: single variable, no sorting needed
     return canonical
 
 
@@ -49,10 +47,8 @@ def _canonicalize_strategy_dump(data: dict[str, Any]) -> dict[str, Any]:
     if canonical.get("background") is not None:
         canonical["background"] = sorted(canonical["background"])
     if canonical.get("sub_strategies") is not None:
-        canonical["sub_strategies"] = sorted(
-            [_canonicalize_strategy_dump(sub) for sub in canonical["sub_strategies"]],
-            key=_json_sort_key,
-        )
+        # sub_strategies are now string IDs, not embedded dicts
+        canonical["sub_strategies"] = sorted(canonical["sub_strategies"])
     if canonical.get("formal_expr") is not None:
         formal_expr = dict(canonical["formal_expr"])
         formal_expr["operators"] = sorted(

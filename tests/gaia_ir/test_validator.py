@@ -139,37 +139,97 @@ class TestKnowledgeValidation:
 
 
 class TestOperatorValidation:
-    def test_valid_operator(self):
+    def test_valid_operator_equivalence(self):
+        """Equivalence: 2 variables + conclusion (helper claim)."""
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
-            operators=[Operator(operator="equivalence", variables=["lcn_a", "lcn_b"])],
+            knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_h")],
+            operators=[
+                Operator(operator="equivalence", variables=["lcn_a", "lcn_b"], conclusion="lcn_h")
+            ],
         )
         r = validate_local_graph(g)
         assert r.valid
 
-    def test_dangling_reference(self):
+    def test_valid_operator_implication(self):
+        """Implication: 1 variable + conclusion."""
         g = _local_graph(
-            knowledges=[_claim("lcn_a")],
-            operators=[Operator(operator="equivalence", variables=["lcn_a", "lcn_missing"])],
+            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            operators=[Operator(operator="implication", variables=["lcn_a"], conclusion="lcn_b")],
+        )
+        r = validate_local_graph(g)
+        assert r.valid
+
+    def test_valid_operator_conjunction(self):
+        """Conjunction: >=2 variables + conclusion."""
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_m")],
+            operators=[
+                Operator(operator="conjunction", variables=["lcn_a", "lcn_b"], conclusion="lcn_m")
+            ],
+        )
+        r = validate_local_graph(g)
+        assert r.valid
+
+    def test_dangling_variable_reference(self):
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_h")],
+            operators=[
+                Operator(
+                    operator="equivalence",
+                    variables=["lcn_a", "lcn_missing"],
+                    conclusion="lcn_h",
+                )
+            ],
         )
         r = validate_local_graph(g)
         assert not r.valid
         assert any("not found" in e for e in r.errors)
 
-    def test_operator_on_non_claim(self):
+    def test_dangling_conclusion_reference(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _setting("lcn_s")],
-            operators=[Operator(operator="equivalence", variables=["lcn_a", "lcn_s"])],
+            knowledges=[_claim("lcn_a")],
+            operators=[
+                Operator(operator="implication", variables=["lcn_a"], conclusion="lcn_missing")
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("conclusion" in e and "not found" in e for e in r.errors)
+
+    def test_operator_variable_on_non_claim(self):
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _setting("lcn_s"), _claim("lcn_h")],
+            operators=[
+                Operator(
+                    operator="equivalence",
+                    variables=["lcn_a", "lcn_s"],
+                    conclusion="lcn_h",
+                )
+            ],
         )
         r = validate_local_graph(g)
         assert not r.valid
         assert any("must be claim" in e for e in r.errors)
 
+    def test_operator_conclusion_on_non_claim(self):
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _setting("lcn_s")],
+            operators=[Operator(operator="implication", variables=["lcn_a"], conclusion="lcn_s")],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("conclusion" in e and "must be claim" in e for e in r.errors)
+
     def test_local_graph_rejects_global_scoped_operator(self):
         g = _local_graph(
             knowledges=[_claim("lcn_a"), _claim("lcn_b")],
             operators=[
-                Operator(scope="global", operator="equivalence", variables=["lcn_a", "lcn_b"])
+                Operator(
+                    scope="global",
+                    operator="implication",
+                    variables=["lcn_a"],
+                    conclusion="lcn_b",
+                )
             ],
         )
         r = validate_local_graph(g)
@@ -180,12 +240,33 @@ class TestOperatorValidation:
         g = _global_graph(
             knowledges=[_claim("gcn_a"), _claim("gcn_b")],
             operators=[
-                Operator(scope="local", operator="equivalence", variables=["gcn_a", "gcn_b"])
+                Operator(
+                    scope="local",
+                    operator="implication",
+                    variables=["gcn_a"],
+                    conclusion="gcn_b",
+                )
             ],
         )
         r = validate_global_graph(g)
         assert not r.valid
         assert any("scope" in e.lower() for e in r.errors)
+
+    def test_operator_conclusion_scope_prefix_check(self):
+        """Operator conclusion should have correct scope prefix."""
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            operators=[
+                Operator(
+                    operator="implication",
+                    variables=["lcn_a"],
+                    conclusion="gcn_wrong",
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("wrong prefix" in e or "not found" in e for e in r.errors)
 
 
 # ---------------------------------------------------------------------------
@@ -327,51 +408,27 @@ class TestStrategyValidation:
 
 
 class TestCompositeStrategyValidation:
-    def test_valid_composite(self):
+    def test_valid_composite_with_string_refs(self):
+        """CompositeStrategy with sub_strategies as string references."""
+        sub = Strategy(scope="local", type="noisy_and", premises=["lcn_a"], conclusion="lcn_b")
         g = _local_graph(
             knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_c")],
             strategies=[
+                sub,
                 CompositeStrategy(
                     scope="local",
                     type="abduction",
                     premises=["lcn_a"],
                     conclusion="lcn_c",
-                    sub_strategies=[
-                        Strategy(
-                            scope="local", type="noisy_and", premises=["lcn_a"], conclusion="lcn_b"
-                        ),
-                    ],
-                )
+                    sub_strategies=[sub.strategy_id],
+                ),
             ],
         )
         r = validate_local_graph(g)
         assert r.valid
 
-    def test_nested_scope_mismatch_rejected(self):
-        g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_c")],
-            strategies=[
-                CompositeStrategy(
-                    scope="local",
-                    type="abduction",
-                    premises=["lcn_a"],
-                    conclusion="lcn_c",
-                    sub_strategies=[
-                        Strategy(
-                            scope="global",
-                            type="noisy_and",
-                            premises=["lcn_a"],
-                            conclusion="lcn_b",
-                        ),
-                    ],
-                )
-            ],
-        )
-        r = validate_local_graph(g)
-        assert not r.valid
-        assert any("scope" in e.lower() and "incompatible" in e.lower() for e in r.errors)
-
-    def test_sub_strategy_dangling_ref(self):
+    def test_sub_strategy_ref_not_found(self):
+        """CompositeStrategy referencing a non-existent sub_strategy ID."""
         g = _local_graph(
             knowledges=[_claim("lcn_a"), _claim("lcn_c")],
             strategies=[
@@ -380,19 +437,61 @@ class TestCompositeStrategyValidation:
                     type="induction",
                     premises=["lcn_a"],
                     conclusion="lcn_c",
-                    sub_strategies=[
-                        Strategy(
-                            scope="local",
-                            type="noisy_and",
-                            premises=["lcn_missing"],
-                            conclusion="lcn_c",
-                        ),
-                    ],
-                )
+                    sub_strategies=["lcs_nonexistent"],
+                ),
             ],
         )
         r = validate_local_graph(g)
         assert not r.valid
+        assert any("sub_strategy" in e and "not found" in e for e in r.errors)
+
+    def test_composite_cycle_detected(self):
+        """CompositeStrategy cycle: A references B, B references A."""
+        # We need to manually construct IDs to create a cycle
+        # Build two composites that reference each other
+        # First create a leaf strategy for valid sub_strategies
+        leaf = Strategy(scope="local", type="noisy_and", premises=["lcn_a"], conclusion="lcn_b")
+
+        comp_a = CompositeStrategy(
+            strategy_id="lcs_comp_a",
+            scope="local",
+            type="abduction",
+            premises=["lcn_a"],
+            conclusion="lcn_b",
+            sub_strategies=["lcs_comp_b"],
+        )
+        comp_b = CompositeStrategy(
+            strategy_id="lcs_comp_b",
+            scope="local",
+            type="induction",
+            premises=["lcn_a"],
+            conclusion="lcn_b",
+            sub_strategies=["lcs_comp_a"],
+        )
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            strategies=[leaf, comp_a, comp_b],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("cycle" in e.lower() for e in r.errors)
+
+    def test_composite_no_cycle_valid(self):
+        """CompositeStrategy DAG (no cycle) should pass."""
+        leaf = Strategy(scope="local", type="noisy_and", premises=["lcn_a"], conclusion="lcn_b")
+        comp = CompositeStrategy(
+            scope="local",
+            type="abduction",
+            premises=["lcn_a"],
+            conclusion="lcn_b",
+            sub_strategies=[leaf.strategy_id],
+        )
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            strategies=[leaf, comp],
+        )
+        r = validate_local_graph(g)
+        assert r.valid
 
 
 class TestFormalStrategyValidation:
@@ -409,12 +508,12 @@ class TestFormalStrategyValidation:
                         operators=[
                             Operator(
                                 operator="conjunction",
-                                variables=["lcn_a", "lcn_b", "lcn_m"],
+                                variables=["lcn_a", "lcn_b"],
                                 conclusion="lcn_m",
                             ),
                             Operator(
                                 operator="implication",
-                                variables=["lcn_m", "lcn_c"],
+                                variables=["lcn_m"],
                                 conclusion="lcn_c",
                             ),
                         ]
@@ -438,7 +537,7 @@ class TestFormalStrategyValidation:
                         operators=[
                             Operator(
                                 operator="implication",
-                                variables=["lcn_missing", "lcn_c"],
+                                variables=["lcn_missing"],
                                 conclusion="lcn_c",
                             ),
                         ]
@@ -448,6 +547,287 @@ class TestFormalStrategyValidation:
         )
         r = validate_local_graph(g)
         assert not r.valid
+
+    def test_formal_expr_reference_closure_valid(self):
+        """All operator refs within premises/conclusion/other operator conclusions."""
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_m"), _claim("lcn_c")],
+            strategies=[
+                FormalStrategy(
+                    scope="local",
+                    type="deduction",
+                    premises=["lcn_a", "lcn_b"],
+                    conclusion="lcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="conjunction",
+                                variables=["lcn_a", "lcn_b"],
+                                conclusion="lcn_m",
+                            ),
+                            Operator(
+                                operator="implication",
+                                variables=["lcn_m"],
+                                conclusion="lcn_c",
+                            ),
+                        ]
+                    ),
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert r.valid
+
+    def test_formal_expr_reference_closure_violation(self):
+        """Operator variable not in premises/conclusion/operator conclusions."""
+        g = _local_graph(
+            knowledges=[
+                _claim("lcn_a"),
+                _claim("lcn_c"),
+                _claim("lcn_outside"),
+            ],
+            strategies=[
+                FormalStrategy(
+                    scope="local",
+                    type="deduction",
+                    premises=["lcn_a"],
+                    conclusion="lcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="implication",
+                                variables=["lcn_outside"],
+                                conclusion="lcn_c",
+                            ),
+                        ]
+                    ),
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("reference closure" in e for e in r.errors)
+
+    def test_formal_expr_private_node_isolation(self):
+        """Private internal node must not be referenced by another strategy."""
+        # lcn_m is a private intermediate in the FormalStrategy
+        # Another strategy should not reference it
+        formal = FormalStrategy(
+            scope="local",
+            type="deduction",
+            premises=["lcn_a"],
+            conclusion="lcn_c",
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(
+                        operator="implication",
+                        variables=["lcn_a"],
+                        conclusion="lcn_m",
+                    ),
+                    Operator(
+                        operator="implication",
+                        variables=["lcn_m"],
+                        conclusion="lcn_c",
+                    ),
+                ]
+            ),
+        )
+        # lcn_m is private: it's an operator conclusion but NOT in any top-level
+        # strategy's premises/conclusion. Another strategy references it — violation.
+        other = Strategy(
+            scope="local",
+            type="noisy_and",
+            premises=["lcn_m"],
+            conclusion="lcn_c",
+        )
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_c"), _claim("lcn_m")],
+            strategies=[formal, other],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("private internal node" in e for e in r.errors)
+
+    def test_formal_expr_non_private_node_ok(self):
+        """An operator conclusion that IS in the owning strategy's interface is not private."""
+        # lcn_c is both an operator conclusion and the FormalStrategy's conclusion,
+        # so it's NOT private. Another strategy can reference it freely.
+        formal = FormalStrategy(
+            scope="local",
+            type="deduction",
+            premises=["lcn_a"],
+            conclusion="lcn_c",
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(
+                        operator="implication",
+                        variables=["lcn_a"],
+                        conclusion="lcn_c",
+                    ),
+                ]
+            ),
+        )
+        other = Strategy(
+            scope="local",
+            type="noisy_and",
+            premises=["lcn_c"],
+            conclusion="lcn_d",
+        )
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_c"), _claim("lcn_d")],
+            strategies=[formal, other],
+        )
+        r = validate_local_graph(g)
+        assert r.valid
+
+    def test_formal_expr_cycle_detected(self):
+        """FormalExpr operators that form a cycle: A->B and B->A."""
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_c")],
+            strategies=[
+                FormalStrategy(
+                    scope="local",
+                    type="deduction",
+                    premises=["lcn_a"],
+                    conclusion="lcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="implication",
+                                variables=["lcn_b"],
+                                conclusion="lcn_c",
+                            ),
+                            Operator(
+                                operator="implication",
+                                variables=["lcn_c"],
+                                conclusion="lcn_b",
+                            ),
+                        ]
+                    ),
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("cycle" in e.lower() for e in r.errors)
+
+    def test_formal_expr_no_cycle_valid(self):
+        """Linear chain A->M->C has no cycle."""
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_m"), _claim("lcn_c")],
+            strategies=[
+                FormalStrategy(
+                    scope="local",
+                    type="deduction",
+                    premises=["lcn_a"],
+                    conclusion="lcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="implication",
+                                variables=["lcn_a"],
+                                conclusion="lcn_m",
+                            ),
+                            Operator(
+                                operator="implication",
+                                variables=["lcn_m"],
+                                conclusion="lcn_c",
+                            ),
+                        ]
+                    ),
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert r.valid
+
+    def test_private_node_referenced_by_top_level_operator_variable(self):
+        """Top-level operator referencing a FormalExpr private node as variable is an error."""
+        formal = FormalStrategy(
+            scope="local",
+            type="deduction",
+            premises=["lcn_a", "lcn_b"],
+            conclusion="lcn_c",
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(
+                        operator="conjunction",
+                        variables=["lcn_a", "lcn_b"],
+                        conclusion="lcn_m",
+                    ),
+                    Operator(
+                        operator="implication",
+                        variables=["lcn_m"],
+                        conclusion="lcn_c",
+                    ),
+                ]
+            ),
+        )
+        # Top-level operator uses private node lcn_m as a variable
+        top_op = Operator(
+            operator_id="lco_bad",
+            scope="local",
+            operator="implication",
+            variables=["lcn_m"],
+            conclusion="lcn_c",
+        )
+        g = _local_graph(
+            knowledges=[
+                _claim("lcn_a"),
+                _claim("lcn_b"),
+                _claim("lcn_c"),
+                _claim("lcn_m"),
+            ],
+            operators=[top_op],
+            strategies=[formal],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("private internal node" in e for e in r.errors)
+
+    def test_private_node_referenced_by_top_level_operator_conclusion(self):
+        """Top-level operator using a FormalExpr private node as conclusion is an error."""
+        formal = FormalStrategy(
+            scope="local",
+            type="deduction",
+            premises=["lcn_a", "lcn_b"],
+            conclusion="lcn_c",
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(
+                        operator="conjunction",
+                        variables=["lcn_a", "lcn_b"],
+                        conclusion="lcn_m",
+                    ),
+                    Operator(
+                        operator="implication",
+                        variables=["lcn_m"],
+                        conclusion="lcn_c",
+                    ),
+                ]
+            ),
+        )
+        # Top-level operator outputs to private node lcn_m
+        top_op = Operator(
+            operator_id="lco_bad",
+            scope="local",
+            operator="implication",
+            variables=["lcn_a"],
+            conclusion="lcn_m",
+        )
+        g = _local_graph(
+            knowledges=[
+                _claim("lcn_a"),
+                _claim("lcn_b"),
+                _claim("lcn_c"),
+                _claim("lcn_m"),
+            ],
+            operators=[top_op],
+            strategies=[formal],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("private internal node" in e for e in r.errors)
 
 
 # ---------------------------------------------------------------------------
@@ -476,6 +856,56 @@ class TestGraphLevelValidation:
         )
         r = validate_global_graph(g)
         assert not r.valid
+
+    def test_operator_conclusion_scope_prefix(self):
+        """Operator conclusion with wrong prefix is caught in scope consistency."""
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            operators=[
+                Operator(
+                    operator="implication",
+                    variables=["lcn_a"],
+                    conclusion="gcn_wrong",
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        # Should have wrong prefix error for conclusion
+        assert any("wrong prefix" in e or "not found" in e for e in r.errors)
+
+    def test_formal_expr_operator_scope_prefix(self):
+        """FormalExpr-embedded operators with wrong prefix are caught in scope consistency."""
+        # lcn_a and lcn_c exist in local graph, but FormalExpr internally
+        # references gcn_wrong which has a global prefix in a local graph.
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_c"), _claim("lcn_m")],
+            strategies=[
+                FormalStrategy(
+                    scope="local",
+                    type="deduction",
+                    premises=["lcn_a"],
+                    conclusion="lcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="implication",
+                                variables=["lcn_a"],
+                                conclusion="lcn_m",
+                            ),
+                            Operator(
+                                operator="implication",
+                                variables=["gcn_wrong"],
+                                conclusion="lcn_c",
+                            ),
+                        ]
+                    ),
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("wrong prefix" in e and "FormalStrategy" in e for e in r.errors)
 
     def test_hash_consistency(self):
         g = _local_graph(knowledges=[_claim("lcn_a")])
@@ -548,7 +978,7 @@ class TestParameterizationValidation:
         assert not r.valid
         assert any("gcn_b" in e and "missing PriorRecord" in e for e in r.errors)
 
-    def test_missing_strategy_param(self):
+    def test_missing_strategy_param_for_parameterized(self):
         from gaia.gaia_ir import PriorRecord
 
         g = self._graph()
@@ -562,6 +992,177 @@ class TestParameterizationValidation:
         )
         assert not r.valid
         assert any("missing StrategyParamRecord" in e for e in r.errors)
+
+    def test_formal_strategy_without_params_passes(self):
+        """FormalStrategy types do not need StrategyParamRecord."""
+        from gaia.gaia_ir import PriorRecord
+
+        g = _global_graph(
+            knowledges=[_claim("gcn_a"), _claim("gcn_b"), _claim("gcn_m")],
+            strategies=[
+                FormalStrategy(
+                    scope="global",
+                    type="deduction",
+                    premises=["gcn_a"],
+                    conclusion="gcn_b",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="implication",
+                                variables=["gcn_a"],
+                                conclusion="gcn_b",
+                            ),
+                        ]
+                    ),
+                ),
+            ],
+        )
+        # gcn_m is not referenced by any FormalExpr operator, so it's a regular claim
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_m", value=0.5, source_id="s"),
+            ],
+            strategy_params=[],  # no params needed for deduction
+        )
+        assert r.valid
+
+    def test_private_helper_claim_no_prior_needed(self):
+        """Private helper claims (FormalExpr internal) don't need PriorRecord."""
+        from gaia.gaia_ir import PriorRecord
+
+        g = _global_graph(
+            knowledges=[
+                _claim("gcn_a"),
+                _claim("gcn_b"),
+                _claim("gcn_m"),  # private helper: conjunction result
+                _claim("gcn_c"),
+            ],
+            strategies=[
+                FormalStrategy(
+                    scope="global",
+                    type="deduction",
+                    premises=["gcn_a", "gcn_b"],
+                    conclusion="gcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="conjunction",
+                                variables=["gcn_a", "gcn_b"],
+                                conclusion="gcn_m",
+                            ),
+                            Operator(
+                                operator="implication",
+                                variables=["gcn_m"],
+                                conclusion="gcn_c",
+                            ),
+                        ]
+                    ),
+                ),
+            ],
+        )
+        # gcn_m is private (operator conclusion, not in premises/conclusion)
+        # → no PriorRecord needed
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_c", value=0.5, source_id="s"),
+                # no prior for gcn_m
+            ],
+            strategy_params=[],
+        )
+        assert r.valid
+
+    def test_private_helper_claim_prior_prohibited(self):
+        """Providing PriorRecord for a private helper claim is an error."""
+        from gaia.gaia_ir import PriorRecord
+
+        g = _global_graph(
+            knowledges=[
+                _claim("gcn_a"),
+                _claim("gcn_b"),
+                _claim("gcn_m"),
+                _claim("gcn_c"),
+            ],
+            strategies=[
+                FormalStrategy(
+                    scope="global",
+                    type="deduction",
+                    premises=["gcn_a", "gcn_b"],
+                    conclusion="gcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="conjunction",
+                                variables=["gcn_a", "gcn_b"],
+                                conclusion="gcn_m",
+                            ),
+                            Operator(
+                                operator="implication",
+                                variables=["gcn_m"],
+                                conclusion="gcn_c",
+                            ),
+                        ]
+                    ),
+                ),
+            ],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_c", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_m", value=0.5, source_id="s"),  # prohibited!
+            ],
+            strategy_params=[],
+        )
+        assert not r.valid
+        assert any("private helper claim" in e for e in r.errors)
+
+    def test_param_for_non_parameterized_type_warns(self):
+        """StrategyParamRecord for a FormalStrategy type should warn."""
+        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+
+        g = _global_graph(
+            knowledges=[_claim("gcn_a"), _claim("gcn_b")],
+            strategies=[
+                FormalStrategy(
+                    scope="global",
+                    type="deduction",
+                    premises=["gcn_a"],
+                    conclusion="gcn_b",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="implication",
+                                variables=["gcn_a"],
+                                conclusion="gcn_b",
+                            ),
+                        ]
+                    ),
+                ),
+            ],
+        )
+        sid = g.strategies[0].strategy_id
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.5, source_id="s"),
+            ],
+            strategy_params=[
+                StrategyParamRecord(
+                    strategy_id=sid, conditional_probabilities=[0.5], source_id="s"
+                ),
+            ],
+        )
+        assert r.valid  # warning, not error
+        assert any("not parameterized" in w for w in r.warnings)
 
     def test_setting_does_not_need_prior(self):
         """Settings don't carry probability — no PriorRecord needed."""

@@ -37,9 +37,14 @@ class TestLocalCanonicalGraph:
             knowledges=[
                 Knowledge(id="lcn_a", type="claim"),
                 Knowledge(id="lcn_b", type="claim"),
+                Knowledge(id="lcn_eq", type="claim"),
             ],
             operators=[
-                Operator(operator="equivalence", variables=["lcn_a", "lcn_b"]),
+                Operator(
+                    operator="equivalence",
+                    variables=["lcn_a", "lcn_b"],
+                    conclusion="lcn_eq",
+                ),
             ],
         )
         assert len(g.operators) == 1
@@ -79,12 +84,22 @@ class TestGlobalCanonicalGraph:
 
     def test_three_entity_types(self):
         g = GlobalCanonicalGraph(
-            knowledges=[Knowledge(id="gcn_a", type="claim"), Knowledge(id="gcn_b", type="claim")],
-            operators=[Operator(operator="equivalence", variables=["gcn_a", "gcn_b"])],
+            knowledges=[
+                Knowledge(id="gcn_a", type="claim"),
+                Knowledge(id="gcn_b", type="claim"),
+                Knowledge(id="gcn_eq", type="claim"),
+            ],
+            operators=[
+                Operator(
+                    operator="equivalence",
+                    variables=["gcn_a", "gcn_b"],
+                    conclusion="gcn_eq",
+                )
+            ],
             strategies=[
                 Strategy(scope="global", type="infer", premises=["gcn_a"], conclusion="gcn_b")
             ],
         )
-        assert len(g.knowledges) == 2
+        assert len(g.knowledges) == 3
         assert len(g.operators) == 1
         assert len(g.strategies) == 1

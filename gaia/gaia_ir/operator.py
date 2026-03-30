@@ -33,8 +33,8 @@ class Operator(BaseModel):
     scope: str | None = None  # "local" | "global" (None when embedded in FormalExpr)
 
     operator: OperatorType
-    variables: list[str]  # ordered Knowledge IDs
-    conclusion: str | None = None  # directed operators only
+    variables: list[str]  # ordered input Knowledge IDs (conclusion never appears here)
+    conclusion: str  # output Knowledge ID (separate from variables for all types)
 
     metadata: dict[str, Any] | None = None
 
@@ -57,44 +57,32 @@ class Operator(BaseModel):
         ):
             raise ValueError("global operators must use an operator_id with gco_ prefix")
 
-        # §2.4: conclusion rules by operator type
-        if self.operator in (
+        # §2.4: conclusion must NEVER appear in variables (inputs-only separation)
+        if self.conclusion in self.variables:
+            raise ValueError(
+                f"conclusion '{self.conclusion}' must not appear in variables "
+                f"(variables are inputs only)"
+            )
+
+        # §2.4: arity constraints per operator type
+        if self.operator == OperatorType.IMPLICATION:
+            if len(self.variables) != 1:
+                raise ValueError("operator=implication requires exactly 1 variable (input)")
+
+        elif self.operator == OperatorType.CONJUNCTION:
+            if len(self.variables) < 2:
+                raise ValueError("operator=conjunction requires at least 2 variables (inputs)")
+
+        elif self.operator in (
             OperatorType.EQUIVALENCE,
             OperatorType.CONTRADICTION,
             OperatorType.COMPLEMENT,
-            OperatorType.DISJUNCTION,
         ):
-            if self.conclusion is not None:
-                raise ValueError(f"operator={self.operator} must have conclusion=None")
-
-        if self.operator == OperatorType.IMPLICATION:
-            if self.conclusion is None:
-                raise ValueError("operator=implication requires conclusion")
-            if len(self.variables) != 2:
-                raise ValueError("operator=implication requires exactly 2 variables")
-            if self.conclusion not in self.variables:
-                raise ValueError(f"conclusion {self.conclusion} must appear in variables")
-            if self.conclusion != self.variables[-1]:
-                raise ValueError("operator=implication requires conclusion=variables[-1]")
-
-        if self.operator == OperatorType.CONJUNCTION:
-            if self.conclusion is None:
-                raise ValueError("operator=conjunction requires conclusion (the conjunct M)")
-            if self.conclusion not in self.variables:
-                raise ValueError(f"conclusion {self.conclusion} must appear in variables")
-            if self.conclusion != self.variables[-1]:
-                raise ValueError("operator=conjunction requires conclusion=variables[-1]")
-
-        if self.operator in (OperatorType.EQUIVALENCE, OperatorType.COMPLEMENT):
             if len(self.variables) != 2:
                 raise ValueError(f"operator={self.operator} requires exactly 2 variables")
 
-        # conclusion must be in variables (catch-all for future types)
-        if (
-            self.conclusion is not None
-            and self.operator not in (OperatorType.IMPLICATION, OperatorType.CONJUNCTION)
-            and self.conclusion not in self.variables
-        ):
-            raise ValueError(f"conclusion {self.conclusion} must appear in variables")
+        elif self.operator == OperatorType.DISJUNCTION:
+            if len(self.variables) < 2:
+                raise ValueError("operator=disjunction requires at least 2 variables")
 
         return self

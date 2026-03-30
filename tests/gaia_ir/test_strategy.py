@@ -13,14 +13,32 @@ from gaia.gaia_ir import (
 
 
 class TestStrategyType:
-    def test_thirteen_types(self):
-        assert len(StrategyType) == 13
-        assert "infer" in set(StrategyType)
-        assert "noisy_and" in set(StrategyType)
-        assert "deduction" in set(StrategyType)
-        assert "abduction" in set(StrategyType)
-        assert "induction" in set(StrategyType)
-        assert "toolcall" in set(StrategyType)
+    def test_eleven_types(self):
+        assert len(StrategyType) == 11
+        expected = {
+            "infer",
+            "noisy_and",
+            "deduction",
+            "reductio",
+            "elimination",
+            "mathematical_induction",
+            "case_analysis",
+            "abduction",
+            "induction",
+            "analogy",
+            "extrapolation",
+        }
+        assert set(StrategyType) == expected
+
+    def test_no_toolcall(self):
+        """toolcall is deferred per spec."""
+        with pytest.raises(ValueError):
+            StrategyType("toolcall")
+
+    def test_no_proof(self):
+        """proof is deferred per spec."""
+        with pytest.raises(ValueError):
+            StrategyType("proof")
 
     def test_no_soft_implication(self):
         """soft_implication merged into noisy_and per spec."""
@@ -87,23 +105,29 @@ class TestStrategyCreation:
                 steps=[Step(reasoning="should stay local")],
             )
 
-    def test_leaf_rejects_named_strategy_type(self):
-        with pytest.raises(ValueError, match="Strategy form only allows types"):
-            Strategy(scope="global", type="deduction", premises=["gcn_a"], conclusion="gcn_b")
+    def test_leaf_allows_named_strategy_type(self):
+        """Per §3.5.1, named strategies can exist as leaf before formalization."""
+        s = Strategy(scope="global", type="deduction", premises=["gcn_a"], conclusion="gcn_b")
+        assert s.type == StrategyType.DEDUCTION
+        assert s.strategy_id.startswith("gcs_")
+
+    def test_leaf_structure_hash_empty(self):
+        """Leaf strategies have empty structure hash."""
+        s = Strategy(scope="local", type="infer", premises=["a"], conclusion="b")
+        assert s._structure_hash() == ""
 
 
 class TestCompositeStrategy:
-    def test_creation(self):
-        sub1 = Strategy(scope="global", type="noisy_and", premises=["gcn_h"], conclusion="gcn_o")
-        sub2 = Strategy(scope="global", type="noisy_and", premises=["gcn_a"], conclusion="gcn_b")
+    def test_creation_with_string_refs(self):
         cs = CompositeStrategy(
             scope="global",
             type="abduction",
             premises=["gcn_obs"],
             conclusion="gcn_h",
-            sub_strategies=[sub1, sub2],
+            sub_strategies=["gcs_abc123", "gcs_def456"],
         )
         assert len(cs.sub_strategies) == 2
+        assert cs.sub_strategies[0] == "gcs_abc123"
         assert isinstance(cs, Strategy)
 
     def test_empty_sub_strategies_rejected(self):
@@ -116,63 +140,66 @@ class TestCompositeStrategy:
                 sub_strategies=[],
             )
 
-    def test_composite_rejects_leaf_type(self):
-        with pytest.raises(ValueError, match="CompositeStrategy form only allows types"):
-            CompositeStrategy(
+    def test_any_type_allowed(self):
+        """CompositeStrategy is a generic container -- any type is valid."""
+        for type_ in StrategyType:
+            cs = CompositeStrategy(
                 scope="global",
-                type="infer",
+                type=type_,
                 premises=["gcn_a"],
                 conclusion="gcn_b",
-                sub_strategies=[
-                    Strategy(scope="global", type="infer", premises=["gcn_a"], conclusion="gcn_b")
-                ],
+                sub_strategies=["gcs_abc123"],
             )
+            assert cs.type == type_
 
-    def test_nested_composite(self):
-        """CompositeStrategy can contain CompositeStrategy (recursive)."""
-        inner = CompositeStrategy(
+    def test_structure_hash_from_sorted_sub_strategies(self):
+        """structure_hash is based on sorted sub_strategy IDs."""
+        cs1 = CompositeStrategy(
             scope="global",
-            type="abduction",
+            type="infer",
             premises=["a"],
             conclusion="b",
-            sub_strategies=[
-                Strategy(scope="global", type="noisy_and", premises=["a"], conclusion="b")
-            ],
+            sub_strategies=["gcs_x", "gcs_y"],
         )
-        outer = CompositeStrategy(
+        cs2 = CompositeStrategy(
             scope="global",
-            type="induction",
+            type="infer",
             premises=["a"],
-            conclusion="c",
-            sub_strategies=[inner],
+            conclusion="b",
+            sub_strategies=["gcs_y", "gcs_x"],
         )
-        assert isinstance(outer.sub_strategies[0], CompositeStrategy)
+        # Same sorted sub_strategies => same ID
+        assert cs1.strategy_id == cs2.strategy_id
 
-    def test_mixed_sub_strategies(self):
-        """CompositeStrategy can mix Strategy and FormalStrategy."""
-        leaf = Strategy(scope="global", type="noisy_and", premises=["gcn_h"], conclusion="gcn_o")
-        formal = FormalStrategy(
+    def test_different_sub_strategies_different_id(self):
+        """Different sub_strategies produce different strategy IDs."""
+        cs1 = CompositeStrategy(
             scope="global",
-            type="deduction",
-            premises=["gcn_a"],
-            conclusion="gcn_b",
-            formal_expr=FormalExpr(
-                operators=[
-                    Operator(
-                        operator="implication", variables=["gcn_a", "gcn_b"], conclusion="gcn_b"
-                    ),
-                ]
-            ),
+            type="infer",
+            premises=["a"],
+            conclusion="b",
+            sub_strategies=["gcs_x"],
         )
-        cs = CompositeStrategy(
+        cs2 = CompositeStrategy(
             scope="global",
-            type="abduction",
-            premises=["gcn_obs"],
-            conclusion="gcn_h",
-            sub_strategies=[leaf, formal],
+            type="infer",
+            premises=["a"],
+            conclusion="b",
+            sub_strategies=["gcs_z"],
         )
-        assert isinstance(cs.sub_strategies[0], Strategy)
-        assert isinstance(cs.sub_strategies[1], FormalStrategy)
+        assert cs1.strategy_id != cs2.strategy_id
+
+    def test_structure_hash_affects_id(self):
+        """CompositeStrategy ID differs from leaf Strategy ID with same scope/type/premises/conclusion."""
+        leaf = Strategy(scope="local", type="infer", premises=["a"], conclusion="b")
+        comp = CompositeStrategy(
+            scope="local",
+            type="infer",
+            premises=["a"],
+            conclusion="b",
+            sub_strategies=["lcs_sub1"],
+        )
+        assert leaf.strategy_id != comp.strategy_id
 
 
 class TestFormalStrategy:
@@ -187,12 +214,10 @@ class TestFormalStrategy:
                 operators=[
                     Operator(
                         operator="conjunction",
-                        variables=["lcn_a", "lcn_b", "lcn_m"],
+                        variables=["lcn_a", "lcn_b"],
                         conclusion="lcn_m",
                     ),
-                    Operator(
-                        operator="implication", variables=["lcn_m", "lcn_c"], conclusion="lcn_c"
-                    ),
+                    Operator(operator="implication", variables=["lcn_m"], conclusion="lcn_c"),
                 ]
             ),
         )
@@ -209,16 +234,84 @@ class TestFormalStrategy:
             conclusion="lcn_not_p",
             formal_expr=FormalExpr(
                 operators=[
+                    Operator(operator="implication", variables=["lcn_p"], conclusion="lcn_q"),
                     Operator(
-                        operator="implication", variables=["lcn_p", "lcn_q"], conclusion="lcn_q"
+                        operator="contradiction",
+                        variables=["lcn_q", "lcn_r"],
+                        conclusion="lcn_contra",
                     ),
-                    Operator(operator="contradiction", variables=["lcn_q", "lcn_r"]),
-                    Operator(operator="complement", variables=["lcn_p", "lcn_not_p"]),
+                    Operator(
+                        operator="complement",
+                        variables=["lcn_p", "lcn_not_p"],
+                        conclusion="lcn_comp",
+                    ),
                 ]
             ),
         )
         assert fs.type == StrategyType.REDUCTIO
         assert len(fs.formal_expr.operators) == 3
+
+    def test_abduction_is_formal(self):
+        """Abduction is now a FormalStrategy type."""
+        fs = FormalStrategy(
+            scope="global",
+            type="abduction",
+            premises=["gcn_obs"],
+            conclusion="gcn_h",
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(operator="implication", variables=["gcn_h"], conclusion="gcn_obs"),
+                ]
+            ),
+        )
+        assert fs.type == StrategyType.ABDUCTION
+
+    def test_induction_is_formal(self):
+        """Induction is now a FormalStrategy type."""
+        fs = FormalStrategy(
+            scope="global",
+            type="induction",
+            premises=["gcn_a"],
+            conclusion="gcn_b",
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(operator="implication", variables=["gcn_a"], conclusion="gcn_b"),
+                ]
+            ),
+        )
+        assert fs.type == StrategyType.INDUCTION
+
+    def test_analogy_is_formal(self):
+        """Analogy is now a FormalStrategy type."""
+        fs = FormalStrategy(
+            scope="global",
+            type="analogy",
+            premises=["gcn_a"],
+            conclusion="gcn_b",
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(
+                        operator="equivalence", variables=["gcn_a", "gcn_b"], conclusion="gcn_eq"
+                    ),
+                ]
+            ),
+        )
+        assert fs.type == StrategyType.ANALOGY
+
+    def test_extrapolation_is_formal(self):
+        """Extrapolation is now a FormalStrategy type."""
+        fs = FormalStrategy(
+            scope="global",
+            type="extrapolation",
+            premises=["gcn_a"],
+            conclusion="gcn_b",
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(operator="implication", variables=["gcn_a"], conclusion="gcn_b"),
+                ]
+            ),
+        )
+        assert fs.type == StrategyType.EXTRAPOLATION
 
     def test_empty_formal_expr_rejected(self):
         with pytest.raises(ValueError, match="at least one operator"):
@@ -230,19 +323,80 @@ class TestFormalStrategy:
                 formal_expr=FormalExpr(operators=[]),
             )
 
-    def test_formal_rejects_composite_type(self):
+    def test_formal_rejects_leaf_type(self):
         with pytest.raises(ValueError, match="FormalStrategy form only allows types"):
             FormalStrategy(
                 scope="local",
-                type="induction",
+                type="infer",
                 premises=["a"],
                 conclusion="b",
                 formal_expr=FormalExpr(
                     operators=[
-                        Operator(operator="implication", variables=["a", "b"], conclusion="b"),
+                        Operator(operator="implication", variables=["a"], conclusion="b"),
                     ]
                 ),
             )
+
+    def test_structure_hash_from_formal_expr(self):
+        """FormalStrategy structure_hash is derived from canonical formal expression."""
+        fs = FormalStrategy(
+            scope="local",
+            type="deduction",
+            premises=["a"],
+            conclusion="b",
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(operator="implication", variables=["a"], conclusion="b"),
+                ]
+            ),
+        )
+        assert fs._structure_hash() != ""
+
+    def test_different_formal_expr_different_id(self):
+        """Different formal expressions produce different strategy IDs."""
+        fs1 = FormalStrategy(
+            scope="local",
+            type="deduction",
+            premises=["a"],
+            conclusion="b",
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(operator="implication", variables=["a"], conclusion="b"),
+                ]
+            ),
+        )
+        fs2 = FormalStrategy(
+            scope="local",
+            type="deduction",
+            premises=["a"],
+            conclusion="b",
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(operator="implication", variables=["a"], conclusion="b"),
+                    Operator(operator="implication", variables=["b"], conclusion="c"),
+                ]
+            ),
+        )
+        assert fs1.strategy_id != fs2.strategy_id
+
+    def test_structure_hash_affects_id_vs_leaf(self):
+        """FormalStrategy ID differs from hypothetical leaf with same scope/type/premises/conclusion."""
+        fs = FormalStrategy(
+            scope="local",
+            type="deduction",
+            premises=["a"],
+            conclusion="b",
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(operator="implication", variables=["a"], conclusion="b"),
+                ]
+            ),
+        )
+        # A leaf with same inputs but empty structure_hash would get a different ID
+        from gaia.gaia_ir.strategy import _compute_strategy_id
+
+        leaf_id = _compute_strategy_id("local", "deduction", ["a"], "b", structure_hash="")
+        assert fs.strategy_id != leaf_id
 
 
 class TestStrategyNoLifecycleStages:
