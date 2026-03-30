@@ -32,6 +32,7 @@ Local 和 global 使用同一个 data class，字段按层级使用：
 Knowledge:
     id:                     str              # lcn_ 或 gcn_ 前缀
     type:                   str              # claim | setting | question
+    content_hash:           str | None       # SHA-256(type + content + sorted(parameters))，不含 package_id
     parameters:             list[Parameter]  # 全称命题的量化变量（封闭命题为空列表）
     metadata:               dict | None      # 含 refs: list[str]（相关 Knowledge IDs、来源引用等）
 
@@ -50,15 +51,23 @@ Knowledge:
 
 | 字段 | Local | Global |
 |------|-------|--------|
-| `id` | `lcn_` 前缀，SHA-256 包+内容寻址 | `gcn_` 前缀，注册中心分配 |
+| `id` | `lcn_` 前缀，SHA-256 包+内容寻址（含 `package_id`） | `gcn_` 前缀，注册中心分配的稳定 canonical identity |
+| `content_hash` | SHA-256(type + content + sorted(params))，不含 `package_id` | 从 `representative_lcn` 同步的 denormalized 指纹；representative 变更时更新 |
 | `content` | 有值（唯一存储位置） | 通常为 None（LKM 直接创建的 Knowledge 例外，包括 FormalExpr 中间 Knowledge） |
 | `provenance` | 有值（来源包） | 有值（贡献包列表） |
 | `representative_lcn` | None | 有值（引用 local Knowledge 获取内容） |
 | `local_members` | None | 有值（所有映射到此的 local Knowledge） |
 
-**身份规则**：local 层 `id = lcn_{SHA-256(package_id + type + content + sorted(parameters))[:16]}`。ID 包含 `package_id`，因此不同包中相同内容的节点有**不同的** lcn_id。跨包的语义等价由 global canonicalization 通过 embedding 相似度判定，而非 ID 相等。
+**对象身份**：local 层 `id = lcn_{SHA-256(package_id + type + content + sorted(parameters))[:16]}`。ID 包含 `package_id`，因此不同包中相同内容的节点有**不同的** lcn_id。global 层 `gcn_id` 是稳定的 canonical identity；它不随着 representative 或 content_hash 变化而重写。
+
+**内容指纹**：`content_hash = SHA-256(type + content + sorted(parameters))`，不含 `package_id`。同一内容在不同包中产生相同的 `content_hash`。用途：
+
+- **Canonicalization 快速路径**：新 local node 进入全局图时，先用 `content_hash` 精确匹配已有 global node，命中则直接 `match_existing`，跳过 embedding 计算。
+- **Global 层 denormalized index**：global node 的 `content_hash` 从 `representative_lcn` 同步，供 canonicalization 和 curation 查询。Representative 变更时更新此字段，global `id` 不变。
 
 **内容存储**：所有知识内容存储在 local 层的 `content` 字段上。Global 层通过 `representative_lcn` 引用获取内容，不重复存储。LKM 服务器直接创建的 global Knowledge（包括 FormalExpr 展开的中间 Knowledge）无 local 来源，content 直接存在 global 层。
+
+完整的身份、内容指纹与图哈希规则见 [identity-and-hashing.md](identity-and-hashing.md)。
 
 ### 1.2 三种知识类型
 
@@ -590,6 +599,7 @@ Canonicalization 已拆分到独立文档：[canonicalization.md](canonicalizati
 在 Gaia IR 主规范里，关于 canonicalization 只保留三个结论：
 
 - local canonical 与 global canonical 是两个不同身份层
+- `Knowledge.id` 与 `Knowledge.content_hash` 是两个不同概念：前者是对象身份，后者是跨包内容指纹
 - binding / equivalence 的判断发生在 **Strategy chain** 层，而不是单个结论文本层
 - local Strategy 提升到 global graph 时，只提升结构，不复制 local `steps`
 
@@ -629,6 +639,7 @@ Canonicalization 已拆分到独立文档：[canonicalization.md](canonicalizati
 | FormalExpr 只包含 Operator | fully expanded 后的不确定性转移到显式中间 Knowledge 的 prior，FormalExpr 本身纯确定性 |
 | FormalExpr 作为 FormalStrategy 的嵌入字段 | 1:1 关系，不需要独立实体；FormalExpr 无独立 ID 和 lifecycle |
 | helper claim 仍是 claim | 不新增 Knowledge primitive；当前 helper claim 术语只用于结构型 result claim，并用 helper catalog 约束其 public/private 边界 |
+| 对象身份与内容指纹分离 | `Knowledge.id` 负责对象身份；`content_hash` 负责跨包内容指纹与 canonicalization 快速路径；`ir_hash` 负责 local graph 完整性 |
 | conditional_probabilities 三层处理 | 持久化层只存外部参数；运行时 compiled 层允许每个 Strategy 拥有等效 `conditional_probabilities` 视图；直接 FormalStrategy 的该视图由 FormalExpr 与相关显式 claim prior 导出 |
 | 多分辨率展开 | 任意 Strategy 都可在运行时获得折叠视图；参数化 Strategy 直接读外部参数，直接 FormalStrategy 的折叠行为由内部结构现算导出 |
 | retraction deferred | 撤回不属于 Gaia IR contract，延后到 review / curation / provenance 层定义 |

@@ -14,6 +14,7 @@ Canonicalization 负责：
 
 - 将 `lcn_` / `lcs_` / `lco_` 映射到 `gcn_` / `gcs_` / `gco_`
 - 统一跨包语义等价的 Knowledge 身份
+- 利用 `content_hash` 提供同内容节点的精确匹配快速路径
 - 将 local Strategy 提升到 global graph
 - 决定何时做 binding，何时创建 equivalence 候选
 
@@ -82,9 +83,13 @@ Canonicalization 中存在两种本质不同的关系：
 
 ## 4. 匹配策略
 
-**Embedding 相似度（主要）**：余弦相似度，阈值 0.90。
+匹配按优先级依次尝试：
 
-**TF-IDF 回退**：无 embedding 模型时使用。
+1. **Content hash 精确匹配（快速路径）**：`content_hash` 相同 → 直接 `match_existing`，跳过 embedding。
+2. **Embedding 相似度（主要）**：余弦相似度，阈值 0.90。
+3. **TF-IDF 回退**：无 embedding 模型时使用。
+
+`content_hash` 使用 `SHA-256(type + content + sorted(parameters))`，不含 `package_id`；因此它适合做跨包同内容的精确命中，但不替代最终的 global `id`。
 
 **过滤规则：**
 
@@ -119,6 +124,7 @@ Knowledge 规范化完成后，local Strategy 提升到全局图：
 Global 层**通常不存储内容**：
 
 - **Global Knowledge** 通过 `representative_lcn` 引用 local canonical Knowledge 获取 content。当多个 local Knowledge 映射到同一 global Knowledge 时，选择一个作为代表，所有映射记录在 `local_members` 中。
+- **Global Knowledge** 可额外保存一份从 `representative_lcn` 同步来的 `content_hash`，作为 denormalized 查询索引；representative 变更时更新该字段，但 `gcn_id` 不变。
 - **Global Strategy** 不携带 `steps`。推理过程文本保留在 local 层。
 
 **例外：** LKM 服务器直接创建的 Knowledge（包括 FormalExpr 展开的中间 Knowledge）没有 local 来源，其 content 直接存储在 global Knowledge 上。

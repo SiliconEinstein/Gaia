@@ -49,9 +49,11 @@ validation 的职责是**验证结构合法性**。
    - `claim`
    - `setting`
    - `question`
-3. 若某处把它当作可取真值命题引用，则其 `type` 必须是 `claim`
-4. 含 `parameters` 的 claim 仍然是 claim，不是独立类型
-5. helper claim 仍然是 `claim`，不能引入新的 Knowledge primitive
+3. `content_hash` 若存在，必须与 `type + content + sorted(parameters)` 的标准计算一致
+4. global `Knowledge` 若从 `representative_lcn` 同步 `content_hash`，则其值必须与当前代表内容一致
+5. 若某处把它当作可取真值命题引用，则其 `type` 必须是 `claim`
+6. 含 `parameters` 的 claim 仍然是 claim，不是独立类型
+7. helper claim 仍然是 `claim`，不能引入新的 Knowledge primitive
 
 ## 3. Operator 校验
 
@@ -110,7 +112,7 @@ helper claim 的命名纪律见 [helper-claims.md](helper-claims.md)。
 4. `ir_hash` 若定义，则必须与 canonical serialization 一致
 5. 同一 graph 内不应出现重复 ID
 
-identity 与 hashing 的细节见未来的 `identity-and-hashing.md`。
+identity 与 hashing 的细节见 [identity-and-hashing.md](identity-and-hashing.md)。
 
 ## 7. Local / Global 层级校验
 
