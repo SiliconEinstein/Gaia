@@ -1,0 +1,859 @@
+{
+  "factor_nodes": [
+    {
+      "conclusion": "raw_470baf867c094c94",
+      "contexts": [],
+      "factor_id": "f_46838419c7a7f4c7",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "raw_912541efd5c7bd54"
+      ],
+      "source_ref": {
+        "knowledge_name": "hyp.A",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "raw_703995ce4492a684",
+      "contexts": [],
+      "factor_id": "f_606c8d0e2911e0c0",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "raw_470baf867c094c94"
+      ],
+      "source_ref": {
+        "knowledge_name": "pred.B_daily",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "raw_d68a8c70f765e0bf",
+      "contexts": [],
+      "factor_id": "f_f202ce6a05fb9249",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "raw_470baf867c094c94"
+      ],
+      "source_ref": {
+        "knowledge_name": "hyp.T1",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "raw_7460aeb0725a2fce",
+      "contexts": [],
+      "factor_id": "f_0a5b637a75324b99",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "raw_470baf867c094c94"
+      ],
+      "source_ref": {
+        "knowledge_name": "hyp.T2",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "raw_326c3af36353796a",
+      "contexts": [],
+      "factor_id": "f_961726c5bc52c082",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "raw_470baf867c094c94",
+        "raw_2d0ee5ac9ba17963"
+      ],
+      "source_ref": {
+        "knowledge_name": "hyp.A_vac",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "raw_5c93319d530fc1cf",
+      "contexts": [],
+      "factor_id": "f_e3b5306c5a7f4d52",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "raw_d739fb40247f788d",
+        "raw_26a40422258e749f"
+      ],
+      "source_ref": {
+        "knowledge_name": "hyp.G",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "raw_b2d5cff64bb85061",
+      "contexts": [],
+      "factor_id": "f_a8782785b00f7150",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "raw_5c93319d530fc1cf"
+      ],
+      "source_ref": {
+        "knowledge_name": "pred.B_media",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "raw_21ed9cb61b31e0a3",
+      "contexts": [],
+      "factor_id": "f_344e9c948cfd11cc",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "raw_5c93319d530fc1cf"
+      ],
+      "source_ref": {
+        "knowledge_name": "pred.B_air",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "raw_24805ba1dc2d6a84",
+      "contexts": [],
+      "factor_id": "f_53fcc8fb38ef7b4c",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "raw_5c93319d530fc1cf",
+        "raw_2d0ee5ac9ba17963"
+      ],
+      "source_ref": {
+        "knowledge_name": "hyp.V",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "raw_7919bcf6abf920c5",
+      "contexts": [],
+      "factor_id": "f_941f81947a692dd0",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "raw_cf2c19e95668ad9c",
+        "raw_bf430f6cdaea0705"
+      ],
+      "source_ref": {
+        "knowledge_name": "hyp.V_t1",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "raw_2dd91ad191a136db",
+      "contexts": [],
+      "factor_id": "f_deb88a3430b2abd6",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "raw_7919bcf6abf920c5"
+      ],
+      "source_ref": {
+        "knowledge_name": "pred.B_theta1",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "raw_da8109ce59331a4c",
+      "contexts": [],
+      "factor_id": "f_77f12b83382c0726",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "raw_bfd44b08803a7c3d",
+        "raw_bf430f6cdaea0705"
+      ],
+      "source_ref": {
+        "knowledge_name": "hyp.V_t2",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "raw_b45a3deb431ac0a3",
+      "contexts": [],
+      "factor_id": "f_a18688c006b53eb1",
+      "metadata": {
+        "edge_type": "deduction"
+      },
+      "premises": [
+        "raw_da8109ce59331a4c"
+      ],
+      "source_ref": {
+        "knowledge_name": "pred.B_theta2",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "infer"
+    },
+    {
+      "conclusion": "raw_cce9506adf791643",
+      "contexts": [],
+      "factor_id": "f_7962057b8f208347",
+      "metadata": {
+        "edge_type": "relation_equivalence"
+      },
+      "premises": [
+        "raw_703995ce4492a684",
+        "raw_912541efd5c7bd54"
+      ],
+      "source_ref": {
+        "knowledge_name": "rel.Bdaily_eq_Odaily",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "equivalence"
+    },
+    {
+      "conclusion": "raw_d04bfb70a9bb50ed",
+      "contexts": [],
+      "factor_id": "f_350d80faa612f007",
+      "metadata": {
+        "edge_type": "relation_contradiction"
+      },
+      "premises": [
+        "raw_d68a8c70f765e0bf",
+        "raw_7460aeb0725a2fce"
+      ],
+      "source_ref": {
+        "knowledge_name": "rel.T1_contra_T2",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "contradiction"
+    },
+    {
+      "conclusion": "raw_3d484bb9c768abdd",
+      "contexts": [],
+      "factor_id": "f_76ca8b69360a815a",
+      "metadata": {
+        "edge_type": "relation_equivalence"
+      },
+      "premises": [
+        "raw_b2d5cff64bb85061",
+        "raw_d739fb40247f788d"
+      ],
+      "source_ref": {
+        "knowledge_name": "rel.Bmedia_eq_Omedia",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "equivalence"
+    },
+    {
+      "conclusion": "raw_871fd88bf8a1061a",
+      "contexts": [],
+      "factor_id": "f_19ea7aef3b92c879",
+      "metadata": {
+        "edge_type": "relation_equivalence"
+      },
+      "premises": [
+        "raw_21ed9cb61b31e0a3",
+        "raw_26a40422258e749f"
+      ],
+      "source_ref": {
+        "knowledge_name": "rel.Bair_eq_Oair",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "equivalence"
+    },
+    {
+      "conclusion": "raw_cf66e8c2160ed0bf",
+      "contexts": [],
+      "factor_id": "f_0248a98da2c21ba8",
+      "metadata": {
+        "edge_type": "relation_equivalence"
+      },
+      "premises": [
+        "raw_2dd91ad191a136db",
+        "raw_cf2c19e95668ad9c"
+      ],
+      "source_ref": {
+        "knowledge_name": "rel.Bt1_eq_Ot1",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "equivalence"
+    },
+    {
+      "conclusion": "raw_6599e9ad65c23fa3",
+      "contexts": [],
+      "factor_id": "f_1b11b7821562f36e",
+      "metadata": {
+        "edge_type": "relation_equivalence"
+      },
+      "premises": [
+        "raw_b45a3deb431ac0a3",
+        "raw_bfd44b08803a7c3d"
+      ],
+      "source_ref": {
+        "knowledge_name": "rel.Bt2_eq_Ot2",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "equivalence"
+    },
+    {
+      "conclusion": "raw_49efc5eb4ea4ee7e",
+      "contexts": [],
+      "factor_id": "f_4165b5e88b6eb16d",
+      "metadata": {
+        "edge_type": "relation_contradiction"
+      },
+      "premises": [
+        "raw_326c3af36353796a",
+        "raw_24805ba1dc2d6a84"
+      ],
+      "source_ref": {
+        "knowledge_name": "rel.Avac_contra_V",
+        "module": "default",
+        "package": "galileo_fine",
+        "version": "4.0.0"
+      },
+      "type": "contradiction"
+    }
+  ],
+  "knowledge_nodes": [
+    {
+      "content": "理想化的无空气阻力真空环境，只保留重力作用。",
+      "kind": null,
+      "knowledge_type": "setting",
+      "metadata": null,
+      "parameters": [],
+      "raw_node_id": "raw_2d0ee5ac9ba17963",
+      "source_refs": [
+        {
+          "knowledge_name": "setting.vacuum",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "伽利略斜面实验的精确受控环境。",
+      "kind": null,
+      "knowledge_type": "setting",
+      "metadata": null,
+      "parameters": [],
+      "raw_node_id": "raw_bf430f6cdaea0705",
+      "source_refs": [
+        {
+          "knowledge_name": "setting.plane",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "日常经验中，重的石头确实比轻的羽毛下落得快。",
+      "kind": "observation",
+      "knowledge_type": "claim",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "raw_node_id": "raw_912541efd5c7bd54",
+      "source_refs": [
+        {
+          "knowledge_name": "obs.daily",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "在水、油等不同介质中比较轻重物体下落，   介质越稠密速度差异越大，越稀薄差异越小。",
+      "kind": "observation",
+      "knowledge_type": "claim",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "raw_node_id": "raw_d739fb40247f788d",
+      "source_refs": [
+        {
+          "knowledge_name": "obs.media",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "在空气中做精细实验，重量差异较大的物体   几乎同时落地，轻微差异可归因于空气阻力。",
+      "kind": "observation",
+      "knowledge_type": "claim",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "raw_node_id": "raw_26a40422258e749f",
+      "source_refs": [
+        {
+          "knowledge_name": "obs.air",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "斜面实验第一组：不同重量小球在 30° 斜面   呈现近似一致加速趋势。",
+      "kind": "observation",
+      "knowledge_type": "claim",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "raw_node_id": "raw_cf2c19e95668ad9c",
+      "source_refs": [
+        {
+          "knowledge_name": "obs.theta1",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "斜面实验第二组：60° 斜面重复实验，   结果一致确认等加速。",
+      "kind": "observation",
+      "knowledge_type": "claim",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "raw_node_id": "raw_bfd44b08803a7c3d",
+      "source_refs": [
+        {
+          "knowledge_name": "obs.theta2",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "物体下落速度与重量成正比：重物比轻物下落更快。",
+      "kind": null,
+      "knowledge_type": "claim",
+      "metadata": null,
+      "parameters": [],
+      "raw_node_id": "raw_470baf867c094c94",
+      "source_refs": [
+        {
+          "knowledge_name": "hyp.A",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "亚里士多德定律预测：日常中重物应比轻物下落更快。",
+      "kind": null,
+      "knowledge_type": "claim",
+      "metadata": null,
+      "parameters": [],
+      "raw_node_id": "raw_703995ce4492a684",
+      "source_refs": [
+        {
+          "knowledge_name": "pred.B_daily",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "亚里士多德的日常预测与日常观测一致。",
+      "kind": null,
+      "knowledge_type": "equivalence",
+      "metadata": {
+        "between": [
+          "pred.B_daily",
+          "obs.daily"
+        ]
+      },
+      "parameters": [],
+      "raw_node_id": "raw_cce9506adf791643",
+      "source_refs": [
+        {
+          "knowledge_name": "rel.Bdaily_eq_Odaily",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "假设重物下落更快，将重球 H 与轻球 L 绑在一起，   L 拖拽 H，复合体 HL 速度应慢于 H 单独下落。",
+      "kind": null,
+      "knowledge_type": "claim",
+      "metadata": null,
+      "parameters": [],
+      "raw_node_id": "raw_d68a8c70f765e0bf",
+      "source_refs": [
+        {
+          "knowledge_name": "hyp.T1",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "假设重物下落更快，复合体 HL 总重量大于 H，   因此 HL 速度应快于 H 单独下落。",
+      "kind": null,
+      "knowledge_type": "claim",
+      "metadata": null,
+      "parameters": [],
+      "raw_node_id": "raw_7460aeb0725a2fce",
+      "source_refs": [
+        {
+          "knowledge_name": "hyp.T2",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "T1 与 T2 互相矛盾：复合体 HL 不能同时慢于 H 又快于 H。",
+      "kind": null,
+      "knowledge_type": "contradiction",
+      "metadata": {
+        "between": [
+          "hyp.T1",
+          "hyp.T2"
+        ]
+      },
+      "parameters": [],
+      "raw_node_id": "raw_d04bfb70a9bb50ed",
+      "source_refs": [
+        {
+          "knowledge_name": "rel.T1_contra_T2",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "按亚里士多德定律，在真空中也应重者下落更快。",
+      "kind": null,
+      "knowledge_type": "claim",
+      "metadata": null,
+      "parameters": [],
+      "raw_node_id": "raw_326c3af36353796a",
+      "source_refs": [
+        {
+          "knowledge_name": "hyp.A_vac",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "日常观察到的速度差异由空气阻力造成，   而非重量本身决定。",
+      "kind": null,
+      "knowledge_type": "claim",
+      "metadata": null,
+      "parameters": [],
+      "raw_node_id": "raw_5c93319d530fc1cf",
+      "source_refs": [
+        {
+          "knowledge_name": "hyp.G",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "空气阻力假说预测：在不同密度介质中，   密度越低则轻重物体速度差越小。",
+      "kind": null,
+      "knowledge_type": "claim",
+      "metadata": null,
+      "parameters": [],
+      "raw_node_id": "raw_b2d5cff64bb85061",
+      "source_refs": [
+        {
+          "knowledge_name": "pred.B_media",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "介质预测与介质观测一致。",
+      "kind": null,
+      "knowledge_type": "equivalence",
+      "metadata": {
+        "between": [
+          "pred.B_media",
+          "obs.media"
+        ]
+      },
+      "parameters": [],
+      "raw_node_id": "raw_3d484bb9c768abdd",
+      "source_refs": [
+        {
+          "knowledge_name": "rel.Bmedia_eq_Omedia",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "空气阻力假说预测：在空气中做精细实验，   应观测到轻重物体几乎同速。",
+      "kind": null,
+      "knowledge_type": "claim",
+      "metadata": null,
+      "parameters": [],
+      "raw_node_id": "raw_21ed9cb61b31e0a3",
+      "source_refs": [
+        {
+          "knowledge_name": "pred.B_air",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "空气预测与空气实验一致。",
+      "kind": null,
+      "knowledge_type": "equivalence",
+      "metadata": {
+        "between": [
+          "pred.B_air",
+          "obs.air"
+        ]
+      },
+      "parameters": [],
+      "raw_node_id": "raw_871fd88bf8a1061a",
+      "source_refs": [
+        {
+          "knowledge_name": "rel.Bair_eq_Oair",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "如果速度差异纯由空气阻力造成，   则在真空中不同重量物体应等速下落。",
+      "kind": null,
+      "knowledge_type": "claim",
+      "metadata": null,
+      "parameters": [],
+      "raw_node_id": "raw_24805ba1dc2d6a84",
+      "source_refs": [
+        {
+          "knowledge_name": "hyp.V",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "第一组斜面实验支持真空等速下落。",
+      "kind": null,
+      "knowledge_type": "claim",
+      "metadata": null,
+      "parameters": [],
+      "raw_node_id": "raw_7919bcf6abf920c5",
+      "source_refs": [
+        {
+          "knowledge_name": "hyp.V_t1",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "等速假说预测第一组斜面实验应呈等加速。",
+      "kind": null,
+      "knowledge_type": "claim",
+      "metadata": null,
+      "parameters": [],
+      "raw_node_id": "raw_2dd91ad191a136db",
+      "source_refs": [
+        {
+          "knowledge_name": "pred.B_theta1",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "第一组斜面预测与观测一致。",
+      "kind": null,
+      "knowledge_type": "equivalence",
+      "metadata": {
+        "between": [
+          "pred.B_theta1",
+          "obs.theta1"
+        ]
+      },
+      "parameters": [],
+      "raw_node_id": "raw_cf66e8c2160ed0bf",
+      "source_refs": [
+        {
+          "knowledge_name": "rel.Bt1_eq_Ot1",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "第二组斜面实验支持真空等速下落。",
+      "kind": null,
+      "knowledge_type": "claim",
+      "metadata": null,
+      "parameters": [],
+      "raw_node_id": "raw_da8109ce59331a4c",
+      "source_refs": [
+        {
+          "knowledge_name": "hyp.V_t2",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "等速假说预测第二组斜面实验应呈等加速。",
+      "kind": null,
+      "knowledge_type": "claim",
+      "metadata": null,
+      "parameters": [],
+      "raw_node_id": "raw_b45a3deb431ac0a3",
+      "source_refs": [
+        {
+          "knowledge_name": "pred.B_theta2",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "第二组斜面预测与观测一致。",
+      "kind": null,
+      "knowledge_type": "equivalence",
+      "metadata": {
+        "between": [
+          "pred.B_theta2",
+          "obs.theta2"
+        ]
+      },
+      "parameters": [],
+      "raw_node_id": "raw_6599e9ad65c23fa3",
+      "source_refs": [
+        {
+          "knowledge_name": "rel.Bt2_eq_Ot2",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    },
+    {
+      "content": "真空中不能同时 \" 重者更快 \" 又 \" 等速下落 \" 。",
+      "kind": null,
+      "knowledge_type": "contradiction",
+      "metadata": {
+        "between": [
+          "hyp.A_vac",
+          "hyp.V"
+        ]
+      },
+      "parameters": [],
+      "raw_node_id": "raw_49efc5eb4ea4ee7e",
+      "source_refs": [
+        {
+          "knowledge_name": "rel.Avac_contra_V",
+          "module": "default",
+          "package": "galileo_fine",
+          "version": "4.0.0"
+        }
+      ]
+    }
+  ],
+  "metadata": null,
+  "package": "galileo_fine",
+  "schema_version": "1.0",
+  "version": "4.0.0"
+}

@@ -1,0 +1,42 @@
+{
+  "factor_parameters": {
+    "f_0a5b637a75324b99": {
+      "conditional_probability": 1.0
+    },
+    "f_46838419c7a7f4c7": {
+      "conditional_probability": 1.0
+    },
+    "f_53fcc8fb38ef7b4c": {
+      "conditional_probability": 1.0
+    },
+    "f_7604a3711da1cdcc": {
+      "conditional_probability": 1.0
+    },
+    "f_961726c5bc52c082": {
+      "conditional_probability": 1.0
+    },
+    "f_f202ce6a05fb9249": {
+      "conditional_probability": 1.0
+    }
+  },
+  "graph_hash": "sha256:ecaf1fe6fe27ef5a58defbc2093f35407e1b544c03ceaacd841ec19dc3379c5d",
+  "graph_scope": "local",
+  "metadata": null,
+  "node_priors": {
+    "lcn_3474da2e431fc876": 0.5,
+    "lcn_34d282d8ac086c86": 0.9,
+    "lcn_4c31b557d800ff6d": 0.5,
+    "lcn_5e06ea6ef0fe79a2": 1.0,
+    "lcn_63e5cbdfb8721f30": 0.9,
+    "lcn_697dd443c0ed0d34": 0.5,
+    "lcn_6ccceca381944c5c": 0.5,
+    "lcn_80f630e94173ce7e": 0.5,
+    "lcn_83f8e3f7844b534e": 0.5,
+    "lcn_9ab5ae07c783dcf8": 0.5,
+    "lcn_9eec5148de2ea873": 0.5,
+    "lcn_a8bef4187c3086bb": 0.9,
+    "lcn_bf505f091ac74fa3": 0.5,
+    "lcn_d74c29c4cabb982e": 0.9
+  },
+  "schema_version": "1.0"
+}

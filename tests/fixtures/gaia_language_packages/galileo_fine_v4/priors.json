@@ -1,0 +1,7 @@
+{
+  "obs.daily": 0.9,
+  "obs.media": 0.9,
+  "obs.air": 0.9,
+  "obs.theta1": 0.9,
+  "obs.theta2": 0.9
+}
