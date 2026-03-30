@@ -291,7 +291,7 @@ Strategy:
 
 ```
 CompositeStrategy(Strategy):
-    sub_strategies:  list[Strategy]  # 子策略（可包含 Strategy / CompositeStrategy / FormalStrategy）
+    sub_strategies:  list[str]       # 子策略的 strategy_id 列表（可引用 Strategy / CompositeStrategy / FormalStrategy）
 ```
 
 **FormalStrategy(Strategy)**——新增：
@@ -391,7 +391,7 @@ P(conclusion=true | any premise=false) = ε    （Cromwell leak）
 
 #### 3.5.2 CompositeStrategy（保留层次边界的分解容器）
 
-将一个较大的推理组织为多个子策略。`sub_strategies` 可以包含任意形态（Strategy / CompositeStrategy / FormalStrategy），支持递归嵌套。
+将一个较大的推理组织为多个子策略。`sub_strategies` 存储子策略的 `strategy_id` 列表；这些 child strategy 本身仍然是同 graph 中的独立 Strategy 对象，且可以是任意形态（Strategy / CompositeStrategy / FormalStrategy）。
 
 CompositeStrategy 的作用是**保留分解边界**。它组合的是多个 strategy-level 子结构，而不是直接组合 Operator。其典型子节点可以是 `Strategy`、`FormalStrategy`，或更深一层的 `CompositeStrategy`。
 
@@ -407,7 +407,7 @@ CompositeStrategy 的作用是**保留分解边界**。它组合的是多个 str
 当一个较大的论证逐步 formalize 时，典型会经历三个阶段：
 
 1. **Strategy**：尚未分解，只有一条粗粒度 ↝
-2. **CompositeStrategy（混合态）**：已有部分子结构被 formalize，`sub_strategies` 里同时存在 `Strategy` 和 `FormalStrategy`
+2. **CompositeStrategy（混合态）**：已有部分子结构被 formalize，`sub_strategies` 引用到的 child 里同时存在 `Strategy` 和 `FormalStrategy`
 3. **CompositeStrategy（全 formal 叶子）**：层次结构仍保留，但所有叶子都已变成 `FormalStrategy`
 
 折叠时（不展开）：整体仍表达为单条 ↝。展开时：递归进入每个子策略的内部结构。

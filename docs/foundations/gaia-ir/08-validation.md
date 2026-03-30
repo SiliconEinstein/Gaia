@@ -91,8 +91,9 @@ helper claim 的命名纪律见 [04-helper-claims.md](04-helper-claims.md)。
    - `CompositeStrategy`：必须有非空 `sub_strategies`
    - `FormalStrategy`：必须有 `formal_expr`
 7. `sub_strategies` 与 `formal_expr` 不得同时出现
-8. `FormalExpr` 中间节点默认不得越过外部接口边界
-9. `noisy_and` 不应用来压平命名策略的整体语义
+8. `sub_strategies` 中的每个值都必须引用同 graph 中存在的 `strategy_id`
+9. `FormalExpr` 中间节点默认不得越过外部接口边界
+10. `noisy_and` 不应用来压平命名策略的整体语义
 
 ## 5. FormalExpr 校验
 

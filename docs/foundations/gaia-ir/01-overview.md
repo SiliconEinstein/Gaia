@@ -195,28 +195,7 @@ Gaia IR 由三种实体构成：**Knowledge**（命题）、**Strategy**（推�
       "type": "infer",
       "premises": ["gcn_a1...", "gcn_b2..."],
       "conclusion": "gcn_d4...",
-      "sub_strategies": [
-        {
-          "strategy_id": "gcs_s2a...",
-          "type": "infer",
-          "premises": ["gcn_a1..."],
-          "conclusion": "gcn_b2..."
-        },
-        {
-          "strategy_id": "gcs_s2b...",
-          "type": "deduction",
-          "premises": ["gcn_a1...", "gcn_b2..."],
-          "conclusion": "gcn_d4...",
-          "formal_expr": {
-            "operators": [
-              {"operator_id": "gco_3...", "operator": "conjunction",
-               "variables": ["gcn_a1...", "gcn_b2...", "gcn_m1..."], "conclusion": "gcn_m1..."},
-              {"operator_id": "gco_4...", "operator": "implication",
-               "variables": ["gcn_m1...", "gcn_d4..."], "conclusion": "gcn_d4..."}
-            ]
-          }
-        }
-      ]
+      "sub_strategies": ["gcs_s1...", "gcs_s3..."]
     },
     {
       "_comment": "FormalStrategy（确定性展开）",
@@ -271,7 +250,7 @@ Global 层 Knowledge 通常不存储 content（通过 `representative_lcn` 引�
 | 形态 | 说明 | 独有字段 |
 |------|------|---------|
 | **Strategy**（基类，可实例化） | 叶子推理，编译为 ↝ | — |
-| **CompositeStrategy**(Strategy) | 含子策略，可递归嵌套 | `sub_strategies: list[Strategy]` |
+| **CompositeStrategy**(Strategy) | 含子策略，可递归嵌套 | `sub_strategies: list[str]`（child `strategy_id` 列表） |
 | **FormalStrategy**(Strategy) | 含确定性 Operator 展开 | `formal_expr: FormalExpr` |
 
 所有形态折叠时均编译为 ↝（概率参数来自 [parameterization](06-parameterization.md) 层）。展开时进入内部结构（子策略或确定性 Operator）。这支持**多分辨率 BP**——同一图在不同粒度做推理。
