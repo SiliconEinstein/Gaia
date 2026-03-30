@@ -200,6 +200,13 @@ def _validate_strategies(
         if s.strategy_id:
             seen_ids.add(s.strategy_id)
 
+        # strategy scope must match graph scope
+        if s.scope != scope:
+            result.error(
+                f"Strategy '{s.strategy_id}': scope '{s.scope}' incompatible "
+                f"with {scope} graph"
+            )
+
         _validate_strategy(s, knowledge_lookup, scope, result)
 
 

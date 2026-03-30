@@ -295,6 +295,24 @@ class TestStrategyValidation:
                 conclusion="lcn_b",
             )
 
+    def test_local_graph_rejects_global_scoped_strategy(self):
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            strategies=[Strategy(scope="global", type="infer", premises=["lcn_a"], conclusion="lcn_b")],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("scope" in e.lower() for e in r.errors)
+
+    def test_global_graph_rejects_local_scoped_strategy(self):
+        g = _global_graph(
+            knowledges=[_claim("gcn_a"), _claim("gcn_b")],
+            strategies=[Strategy(scope="local", type="infer", premises=["gcn_a"], conclusion="gcn_b")],
+        )
+        r = validate_global_graph(g)
+        assert not r.valid
+        assert any("scope" in e.lower() for e in r.errors)
+
 
 class TestCompositeStrategyValidation:
     def test_valid_composite(self):
