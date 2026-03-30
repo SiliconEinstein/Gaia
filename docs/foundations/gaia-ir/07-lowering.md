@@ -147,6 +147,8 @@ lowering 时也有两种方式：
 
 Private/public 的判定由图结构确定性决定，具体规则见 [04-helper-claims.md §3](04-helper-claims.md#3-public--private-边界)。
 
+这个边界对 lowering 的核心意义是：**只有私有节点才能被安全 marginalize**。Marginalization 是把 FormalStrategy 折叠成等效条件概率视图的前提——如果一个中间节点被外部依赖，消去它会破坏外部引用。
+
 ### 5.1 私有中间节点
 
 一个节点若同时满足以下条件，则为私有中间节点：
@@ -154,21 +156,18 @@ Private/public 的判定由图结构确定性决定，具体规则见 [04-helper
 - 它不出现在**任何** Strategy 的 `premises` / `conclusion` 中
 - 它只被其所属 `FormalStrategy` 的 `formal_expr.operators` 引用
 
-私有中间节点：
+私有节点**禁止**被外部 Strategy 直接引用。Lowering 时：
 
 - 可以在 lowering 后仍然保留为 backend runtime node
-- 也可以在满足条件时被该 Strategy 局部 marginalize 掉
-
-关键是：这种处理只在该 Strategy 的封装边界内部合法。
+- 也可以被该 FormalStrategy 局部 marginalize 掉
 
 ### 5.2 公共节点
 
-一个节点若不满足上述私有条件（即出现在某 Strategy 的 `premises`/`conclusion` 中，或被多个 Strategy/FormalExpr 引用），则为公共节点：
+一个节点若已出现在某 Strategy 的 `premises`/`conclusion` 中，或被多个 Strategy/FormalExpr 引用，则为公共节点：
 
-- 后端不能再把它当作”只属于单个 Strategy 的可随意消去节点”
-- 若别的结构也引用它，它就必须在 lowering 后保持为可共享的 runtime identity
-
-这条规则同样适用于公共 helper claim。
+- 后端不能把它 marginalize 掉
+- 它必须在 lowering 后保持为可共享的 runtime identity
+- 包含它的 FormalStrategy 不再允许折叠为黑盒
 
 ## 6. 参数层如何参与 Lowering
 

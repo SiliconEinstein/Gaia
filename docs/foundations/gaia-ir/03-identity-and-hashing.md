@@ -88,14 +88,27 @@ SHA-256(type + content + sorted(parameters))
 - `Strategy` 只有 `strategy_id`
 - `Operator` 只有 `operator_id`
 
-它们没有独立的 `content_hash` 概念。
+它们没有独立的 `content_hash` 概念。Strategy 与 Operator 的主要身份来自图结构角色，而不是一段可独立去重的内容文本。
 
-原因是：
+### 4.1 Strategy ID 计算
 
-- Knowledge 有自然的“文本 / 参数内容”
-- Strategy 与 Operator 的主要身份来自图结构角色，而不是一段可独立去重的内容文本
+`strategy_id` 的 hash 输入包含**接口信息和内部结构摘要**，确保不同结构的同接口策略不会 ID 碰撞：
 
-是否需要为 Strategy / Operator 引入独立内容指纹，当前不属于 Gaia IR contract。
+```text
+strategy_id = {lcs_|gcs_}_{SHA-256(scope + type + sorted(premises) + conclusion + structure_hash)[:16]}
+```
+
+其中 `structure_hash` 按形态决定：
+
+| 形态 | structure_hash |
+|------|---------------|
+| 叶子 Strategy | `””` （空字符串） |
+| CompositeStrategy | `SHA-256(sorted(sub_strategies))` |
+| FormalStrategy | `SHA-256(canonical(formal_expr))` |
+
+`canonical(formal_expr)` 是对 FormalExpr 内 Operator 列表的确定性序列化。具体序列化算法待实现时细化。
+
+这意味着：同一组 premises/conclusion/type，如果内部结构不同（如 leaf vs FormalStrategy），会产生不同的 `strategy_id`。
 
 ## 5. 图哈希
 
