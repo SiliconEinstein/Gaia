@@ -128,6 +128,8 @@ lowering 时有两种合法方式：
 
 具体选哪种，由 backend 的展开策略决定。
 
+> **Open question：CompositeStrategy 折叠时的参数来源。** 当前 contract 只定义了参数化 leaf Strategy（读 StrategyParamRecord）和 FormalStrategy（从 FormalExpr + claim prior 导出）的折叠路径。CompositeStrategy 折叠为单个单元时的条件概率来源尚未定义——是需要显式 StrategyParamRecord，还是从 sub_strategies 自动 marginalize，或禁止折叠？待后续设计明确。
+
 ### 4.3 FormalStrategy
 
 FormalStrategy 表示一个已经给出确定性 skeleton 的命名推理单元。
@@ -143,20 +145,27 @@ lowering 时也有两种方式：
 
 ## 5. Public / Private 节点与 Lowering
 
+Private/public 的判定由图结构确定性决定，具体规则见 [04-helper-claims.md §3](04-helper-claims.md#3-public--private-边界)。
+
 ### 5.1 私有中间节点
 
-一个节点若是某个 FormalStrategy 的私有内部节点，则：
+一个节点若同时满足以下条件，则为私有中间节点：
 
-- 它可以在 lowering 后仍然保留为 backend runtime node
+- 它不出现在**任何** Strategy 的 `premises` / `conclusion` 中
+- 它只被其所属 `FormalStrategy` 的 `formal_expr.operators` 引用
+
+私有中间节点：
+
+- 可以在 lowering 后仍然保留为 backend runtime node
 - 也可以在满足条件时被该 Strategy 局部 marginalize 掉
 
 关键是：这种处理只在该 Strategy 的封装边界内部合法。
 
 ### 5.2 公共节点
 
-一个节点若已提升为公共 `claim`，则：
+一个节点若不满足上述私有条件（即出现在某 Strategy 的 `premises`/`conclusion` 中，或被多个 Strategy/FormalExpr 引用），则为公共节点：
 
-- 后端不能再把它当作“只属于单个 Strategy 的可随意消去节点”
+- 后端不能再把它当作”只属于单个 Strategy 的可随意消去节点”
 - 若别的结构也引用它，它就必须在 lowering 后保持为可共享的 runtime identity
 
 这条规则同样适用于公共 helper claim。
@@ -169,7 +178,7 @@ Lowering 只消费参数层，不定义参数层。
 
 - 参数化 Strategy 从 `StrategyParamRecord` 读取外部条件参数
 - 普通 claim 从 `PriorRecord` 读取外部 prior
-- 结构型 helper claim 默认不作为新的独立 prior 输入口
+- 结构型 helper claim **禁止**携带独立 PriorRecord（见 [04-helper-claims.md §6](04-helper-claims.md#6-与-parameterization-的关系)）
 
 若 backend 严格采用 Gaia IR 核心 parameterization contract，那么这些记录只定义在 global graph 上；local-only 的临时参数来源不由本文件规定。
 

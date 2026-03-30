@@ -61,25 +61,26 @@ Knowledge(type=claim)
 
 Helper claim 的核心不是“有没有科学语义”，而是它是否越过了 strategy 的外部接口。
 
-### 3.1 私有 Helper Claim
+### 3.1 判定规则（基于图结构）
 
-私有 helper claim 满足：
+Private/public 的判定由图结构确定性决定，不依赖可选 metadata：
 
-- 它是某个 `FormalStrategy` 内部 skeleton 的一部分
-- 它不出现在该 Strategy 的 `premises` / `conclusion` 中
-- 其他外部 Strategy 默认**不能**直接把它当作 `premises` 使用
+**私有 helper claim** 同时满足以下条件：
 
-例如 `conjunction([A, B, M], conclusion=M)` 里的 `M`，如果只服务于单个 `FormalStrategy`，就属于私有 helper claim。
+- 它不出现在**任何** Strategy 的 `premises` / `conclusion` 中
+- 它只被其所属 `FormalStrategy` 的 `formal_expr.operators` 引用
 
-### 3.2 公共 Helper Claim
+**公共 helper claim** 不满足上述任一条件，即：
 
-公共 helper claim 满足以下任一条件：
+- 它出现在某个 Strategy 的 `premises` 或 `conclusion` 中，或
+- 它被多个 Strategy / FormalExpr 引用，或
+- 它需要被单独审查、canonicalize 或比较
 
-- 它本来就是某个 Strategy 的外部 `premise` 或 `conclusion`
-- 它需要被多个 Strategy 共享
-- 它需要被单独审查、引用、canonicalize 或比较
+`metadata.helper_visibility` 可以作为缓存/提示，但 source of truth 是图结构本身。
 
-一旦满足这些条件，它就不再只是“内部中间节点”，而应被视为显式公共 `claim`。
+### 3.2 示例
+
+例如 `conjunction([A, B, M], conclusion=M)` 里的 `M`，如果只被单个 `FormalStrategy` 的 `formal_expr` 引用，就是私有 helper claim。一旦另一个 Strategy 把 `M` 放入 `premises`，它就自动变为公共 claim。
 
 ### 3.3 提升规则
 
@@ -129,11 +130,11 @@ any_true(A,B,...)
 
 Helper claim 不引入新的 `StrategyParamRecord` 规则。
 
-当前默认是：
+**硬性规则：**
 
-- helper claim 仍然是 `claim`
-- 但结构型 helper claim 默认**不**成为新的独立 prior 输入口
-- 它们的值默认由对应的 Operator 或 formal skeleton 决定
+- 结构型 helper claim **禁止**携带独立的 `PriorRecord`。它们不引入新的中间命题或新的前提，因此不需要额外的 prior
+- 它们的值完全由对应的 Operator 或 formal skeleton 确定性决定
+- helper claim 仍然是 `claim`，但在 parameterization 层不作为自由参数入口
 
 因此，对直接 `FormalStrategy` 来说：
 

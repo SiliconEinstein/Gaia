@@ -54,6 +54,7 @@ validation 的职责是**验证结构合法性**。
 5. 若某处把它当作可取真值命题引用，则其 `type` 必须是 `claim`
 6. 含 `parameters` 的 claim 仍然是 claim，不是独立类型
 7. helper claim 仍然是 `claim`，不能引入新的 Knowledge primitive
+8. 结构型 helper claim **禁止**携带独立的 `PriorRecord`——它们不引入新的中间命题或新的前提，其值由 Operator 确定性决定（见 [04-helper-claims.md §6](04-helper-claims.md#6-与-parameterization-的关系)）
 
 ## 3. Operator 校验
 
@@ -67,9 +68,9 @@ validation 的职责是**验证结构合法性**。
 4. `conclusion` 必须引用同 graph 中存在的 `claim`
 5. `implication` 必须满足 `conclusion = variables[-1]`
 6. `conjunction` 必须满足 `conclusion = variables[-1]`
-7. `equivalence / contradiction / complement / disjunction`
-   - `conclusion` 必须语义上对应其结构型 helper claim
-   - `conclusion` 不要求出现在 `variables` 中
+7. Operator 分为两类（见 [02-gaia-ir.md §2.4](02-gaia-ir.md#24-operator-分类)）：
+   - **Directed（`implication`、`conjunction`）**：`conclusion = variables[-1]`，conclusion 在 variables 中
+   - **Relation（`equivalence`、`contradiction`、`complement`、`disjunction`）**：`conclusion` 是结构型 helper claim，不要求出现在 `variables` 中
 8. 关系型 Operator 的 `conclusion` 不允许被作者借来手写任意主观结论
 9. 若 `metadata.canonical_name` 缺失或未采用推荐 functor 形式，当前更适合作为 warning / lint，而不是 hard error
 
@@ -92,8 +93,10 @@ helper claim 的命名纪律见 [04-helper-claims.md](04-helper-claims.md)。
    - `FormalStrategy`：必须有 `formal_expr`
 7. `sub_strategies` 与 `formal_expr` 不得同时出现
 8. `sub_strategies` 中的每个值都必须引用同 graph 中存在的 `strategy_id`
-9. `FormalExpr` 中间节点默认不得越过外部接口边界
-10. `noisy_and` 不应用来压平命名策略的整体语义
+9. `sub_strategies` 引用关系必须构成 DAG（无环）
+10. `FormalExpr` 中间节点默认不得越过外部接口边界
+11. `noisy_and` 不应用来压平命名策略的整体语义
+12. 叶子命名策略（`type` 为具名推理家族但无 `formal_expr`）：视为过渡状态，隐含 `p ≈ 1.0 − ε`，建议发 warning 提示未来应细化为 FormalStrategy
 
 ## 5. FormalExpr 校验
 
@@ -101,8 +104,9 @@ helper claim 的命名纪律见 [04-helper-claims.md](04-helper-claims.md)。
 
 1. 只包含 `Operator`
 2. 所有内部 Operator 满足各自的 Operator 校验规则
-3. 其引用到的中间 claim 必须在同 graph 中显式存在
-4. 私有中间节点若被其他外部 Strategy 复用，就不再满足“私有”前提，应要求其提升为公共 claim
+3. 内部 Operator 引用关系必须构成 DAG（无环）
+4. 其引用到的中间 claim 必须在同 graph 中显式存在
+5. 私有中间节点若被其他外部 Strategy 复用，就不再满足”私有”前提，应要求其提升为公共 claim（判定规则见 [04-helper-claims.md §3](04-helper-claims.md#3-public--private-边界)）
 
 ## 6. Graph 校验
 
