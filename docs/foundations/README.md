@@ -38,6 +38,7 @@ Gaia 的规范参考文档，按架构层级组织。
 - [结构定义](gaia-ir/gaia-ir.md) — Knowledge、Strategy、Operator、FormalExpr
 - [Helper Claims](gaia-ir/helper-claims.md) — 中间 claim 的 public/private 边界与命名约定
 - [Lowering](gaia-ir/lowering.md) — Gaia IR 被 backend 消费时的 lowering 边界
+- [Validation](gaia-ir/validation.md) — Gaia IR 的结构校验与分层边界
 - [规范化](gaia-ir/canonicalization.md) — local canonical 到 global canonical 的映射契约
 - [参数定义](gaia-ir/parameterization.md) — 原子记录、resolution policy
 

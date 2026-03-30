@@ -251,6 +251,8 @@ backend 如何消费这些结构，见 [lowering.md](lowering.md)。
 
 LocalCanonicalGraph 有确定性哈希 `ir_hash = SHA-256(canonical JSON)`，用于编译完整性校验——审查引擎重新编译并验证匹配。GlobalCanonicalGraph 是增量变化的，不使用整体哈希。
 
+结构校验的分层视图见 [validation.md](validation.md)。
+
 ## 二、Parameterization — 参数
 
 Parameterization 是 GlobalCanonicalGraph 上的概率参数层。它由**原子记录**构成，不同 review 来源（不同模型、不同策略）产出不同的记录。
