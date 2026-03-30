@@ -24,7 +24,7 @@ BeliefState:
                                            # 只有 type=claim 的 Knowledge 有 belief
 
     # ── 编译信息（可选诊断） ──
-    compilation_summary:  dict | None      # Strategy → 编译路径（"direct" 或 "formal_expr"）
+    compilation_summary:  dict | None      # Strategy → 编译路径（"direct" / "composite" / "formal_expr"）
 
     # ── 诊断 ──
     converged:            bool
@@ -34,19 +34,19 @@ BeliefState:
 
 ## 关键规则
 
-- **beliefs 只对 Claim**：只有 `type=claim` 的 Knowledge 有 belief。Setting、Question、Template 没有 belief。
+- **beliefs 只对 Claim**：只有 `type=claim` 的 Knowledge 有 belief。Setting 和 Question 没有 belief。
 - **可重现**：`resolution_policy` + `prior_cutoff` 完整定义了参数组装条件。`prior_cutoff` 记录 BP 运行时的时间点，确保用 `latest` policy 重跑时只取该时间之前的记录，结果可重现。
 - **可多次运行**：同一 resolution policy + prior_cutoff 可以有多次 BP 运行（不同调度策略、阻尼系数等），每次产出不同的 BeliefState。
 - **belief 是后验**：belief 是 BP 计算后的后验信念值，不是 prior。
-- **组装完整性**：组装时每个 Strategy（type=infer 或 soft_implication）都必须有 conditional_probabilities 值；9 种命名策略必须有对应的 FormalExpr。否则 BP 拒绝运行。
-- **compilation_summary**：记录每个 Strategy 的编译路径——direct（编译为 ↝ 因子）或 formal_expr（通过 FormalExpr 在 Operator 层运行），用于诊断和可重现性。
+- **组装完整性**：组装时每个 Strategy 都必须有 conditional_probabilities 值；任何被展开的 FormalStrategy 都必须带有对应的 FormalExpr。否则 BP 拒绝运行。
+- **compilation_summary**：记录每个 Strategy 的编译路径——direct（折叠为 ↝ 因子）、composite（递归展开子策略）或 formal_expr（通过 FormalExpr 在 Operator 层运行），用于诊断和可重现性。
 
 ## 诊断字段
 
 - `converged`：BP 是否在容差内收敛
 - `iterations`：实际运行的迭代数
 - `max_residual`：停止时的最大消息变化量
-- `compilation_summary`：每个 Strategy 的 BP 编译路径（direct 或 formal_expr），便于诊断推理链路
+- `compilation_summary`：每个 Strategy 的 BP 编译路径（direct / composite / formal_expr），便于诊断推理链路
 
 这些字段用于判断 belief 的可靠性。未收敛的 BeliefState 仍然有效，但应标记为近似值。
 
