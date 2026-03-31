@@ -50,7 +50,7 @@ Gaia IR 提供：
 
 runtime graph 则由后端按自己的执行模型构造。
 
-backend 在 runtime 层保留的是**对象 identity**（如 `gcn_...` / `lcn_...`），不是 `content_hash`。`content_hash` 主要服务于 canonicalization 和查询，不应替代 runtime node identity。
+backend 在 runtime 层保留的是**对象 identity**（如 Knowledge QID / `gcn_...`、Strategy `lcs_...` / `gcs_...`），不是 `content_hash`。`content_hash` 主要服务于 canonicalization 和查询，不应替代 runtime node identity。
 
 ### 2.2 Lowering 是消费，不是反向定义
 
