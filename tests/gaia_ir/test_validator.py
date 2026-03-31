@@ -1175,7 +1175,101 @@ class TestParameterizationValidation:
             strategy_params=[],
         )
         assert not r.valid
-        assert any("structural helper claim" in e for e in r.errors)
+        assert any("private or structural helper claim" in e for e in r.errors)
+
+    def test_implication_private_node_prior_prohibited(self):
+        """Any FormalExpr private node (not just structural helpers) must not have PriorRecord."""
+        from gaia.gaia_ir import PriorRecord
+
+        # gcn_mid is an implication conclusion inside FormalExpr, NOT in the
+        # strategy's interface (premises/conclusion). Even though implication is
+        # not a "structural helper" operator type, gcn_mid is still private.
+        g = _global_graph(
+            knowledges=[
+                _claim("gcn_a"),
+                _claim("gcn_mid"),
+                _claim("gcn_final"),
+                _claim("gcn_c"),
+            ],
+            strategies=[
+                FormalStrategy(
+                    scope="global",
+                    type="deduction",
+                    premises=["gcn_a"],
+                    conclusion="gcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="implication",
+                                variables=["gcn_a"],
+                                conclusion="gcn_mid",
+                            ),
+                            Operator(
+                                operator="implication",
+                                variables=["gcn_mid"],
+                                conclusion="gcn_c",
+                            ),
+                        ]
+                    ),
+                ),
+            ],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_c", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_final", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_mid", value=0.5, source_id="s"),  # prohibited!
+            ],
+            strategy_params=[],
+        )
+        assert not r.valid
+        assert any("gcn_mid" in e and "private or structural helper" in e for e in r.errors)
+
+    def test_implication_private_node_no_prior_needed(self):
+        """FormalExpr private implication nodes don't need PriorRecord."""
+        from gaia.gaia_ir import PriorRecord
+
+        g = _global_graph(
+            knowledges=[
+                _claim("gcn_a"),
+                _claim("gcn_mid"),
+                _claim("gcn_c"),
+            ],
+            strategies=[
+                FormalStrategy(
+                    scope="global",
+                    type="deduction",
+                    premises=["gcn_a"],
+                    conclusion="gcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="implication",
+                                variables=["gcn_a"],
+                                conclusion="gcn_mid",
+                            ),
+                            Operator(
+                                operator="implication",
+                                variables=["gcn_mid"],
+                                conclusion="gcn_c",
+                            ),
+                        ]
+                    ),
+                ),
+            ],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_c", value=0.5, source_id="s"),
+                # gcn_mid is private — no prior needed
+            ],
+            strategy_params=[],
+        )
+        assert r.valid
 
     def test_abduction_generated_interface_claim_requires_prior(self):
         """Auto-generated alternative explanations are public interface claims with priors."""
@@ -1334,7 +1428,7 @@ class TestParameterizationValidation:
             strategy_params=[],
         )
         assert not r.valid
-        assert any("gcn_eq" in e and "structural helper claim" in e for e in r.errors)
+        assert any("gcn_eq" in e and "private or structural helper claim" in e for e in r.errors)
 
     def test_param_for_non_parameterized_type_warns(self):
         """StrategyParamRecord for a FormalStrategy type should warn."""

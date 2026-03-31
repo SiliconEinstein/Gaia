@@ -535,33 +535,47 @@ def validate_parameterization(
 ) -> ValidationResult:
     """Validate parameterization completeness before BP run.
 
-    Checks that every non-helper claim Knowledge has at least one PriorRecord
+    Checks that every non-private claim Knowledge has at least one PriorRecord
     and every parameterized Strategy (infer/noisy_and) has a StrategyParamRecord.
     FormalStrategy types derive behavior from FormalExpr — no params needed.
-    Structural helper claims (top-level or FormalExpr operator conclusions produced
-    by conjunction/disjunction/equivalence/contradiction/complement) are PROHIBITED
-    from having independent PriorRecords (§4, §6 of spec). Generated public
-    interface claims (for example abduction's alternative explanation claim)
-    remain ordinary claim inputs and therefore still require PriorRecord.
+
+    Two categories of claims are excluded from PriorRecord requirements and
+    PROHIBITED from having independent PriorRecords:
+    1. Top-level structural helper claims — conclusions of top-level Operators
+       with structural types (conjunction/disjunction/equivalence/contradiction/
+       complement). Their truth value is fully determined by the Operator.
+    2. FormalExpr private nodes — ANY operator conclusion inside a FormalExpr
+       that is NOT in the owning FormalStrategy's premises/conclusion interface.
+       Per spec §4 of 04-helper-claims.md, private nodes must not carry
+       independent PriorRecord regardless of the operator type.
+
+    Generated public interface claims (e.g. abduction's AlternativeExplanationForObs)
+    are part of the strategy interface, so they remain ordinary claim inputs and
+    still require PriorRecord.
     """
     result = ValidationResult()
 
     # collect claim gcn_ids
     claim_ids = {k.id for k in graph.knowledges if k.type == KnowledgeType.CLAIM and k.id}
 
-    # identify structural helper claims. These are deterministic operator results
-    # that are not free probability inputs, regardless of whether they are top-level
-    # or internal to a FormalStrategy.
-    helper_claim_ids: set[str] = set()
+    # identify claims that must not have independent PriorRecords:
+
+    # (a) top-level structural helper claims — conclusions of structural operators
+    no_prior_ids: set[str] = set()
     for op in graph.operators:
         if op.operator in _STRUCTURAL_HELPER_OPERATOR_TYPES:
-            helper_claim_ids.add(op.conclusion)
+            no_prior_ids.add(op.conclusion)
 
+    # (b) FormalExpr private nodes — ALL operator conclusions inside FormalExpr
+    #     that are NOT in the owning strategy's premises/conclusion interface
     for s in graph.strategies:
         if isinstance(s, FormalStrategy):
+            own_interface: set[str] = set(s.premises)
+            if s.conclusion is not None:
+                own_interface.add(s.conclusion)
             for op in s.formal_expr.operators:
-                if op.operator in _STRUCTURAL_HELPER_OPERATOR_TYPES:
-                    helper_claim_ids.add(op.conclusion)
+                if op.conclusion not in own_interface:
+                    no_prior_ids.add(op.conclusion)
 
     # collect strategy ids, split by parameterized vs not
     parameterized_ids: set[str] = set()
@@ -572,20 +586,20 @@ def validate_parameterization(
             if s.type in _PARAMETERIZED_TYPES:
                 parameterized_ids.add(s.strategy_id)
 
-    # check prior coverage (exclude structural helper claims)
+    # check prior coverage (exclude private/helper claims)
     prior_gcn_ids = {r.gcn_id for r in priors}
     for cid in claim_ids:
-        if cid in helper_claim_ids:
-            continue  # helper claims don't need priors
+        if cid in no_prior_ids:
+            continue  # private or structural helper — no prior needed
         if cid not in prior_gcn_ids:
             result.error(f"Claim '{cid}': missing PriorRecord")
 
-    # structural helper claims must NOT have PriorRecords (spec §4, §6)
+    # private/helper claims must NOT have PriorRecords (spec §4 of 04-helper-claims.md)
     for r_prior in priors:
-        if r_prior.gcn_id in helper_claim_ids:
+        if r_prior.gcn_id in no_prior_ids:
             result.error(
-                f"PriorRecord '{r_prior.gcn_id}': structural helper claim must not have "
-                f"independent PriorRecord (value determined by Operator constraints)"
+                f"PriorRecord '{r_prior.gcn_id}': private or structural helper claim "
+                f"must not have independent PriorRecord"
             )
 
     # check strategy param coverage — only for parameterized types
