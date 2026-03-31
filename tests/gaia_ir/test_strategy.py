@@ -57,7 +57,9 @@ class TestStrategyType:
 
 class TestStrategyCreation:
     def test_basic_strategy(self):
-        s = Strategy(scope="local", type="noisy_and", premises=["lcn_a"], conclusion="lcn_b")
+        s = Strategy(
+            scope="local", type="noisy_and", premises=["reg:test::a"], conclusion="reg:test::b"
+        )
         assert s.strategy_id.startswith("lcs_")
         assert s.type == StrategyType.NOISY_AND
 
@@ -79,18 +81,18 @@ class TestStrategyCreation:
         s = Strategy(
             scope="local",
             type="noisy_and",
-            premises=["lcn_a"],
-            conclusion="lcn_b",
-            background=["lcn_setting"],
+            premises=["reg:test::a"],
+            conclusion="reg:test::b",
+            background=["reg:test::setting"],
         )
-        assert s.background == ["lcn_setting"]
+        assert s.background == ["reg:test::setting"]
 
     def test_with_steps(self):
         s = Strategy(
             scope="local",
             type="infer",
-            premises=["lcn_a"],
-            conclusion="lcn_b",
+            premises=["reg:test::a"],
+            conclusion="reg:test::b",
             steps=[Step(reasoning="observed correlation")],
         )
         assert len(s.steps) == 1
@@ -212,16 +214,20 @@ class TestFormalStrategy:
         fs = FormalStrategy(
             scope="local",
             type="deduction",
-            premises=["lcn_a", "lcn_b"],
-            conclusion="lcn_c",
+            premises=["reg:test::a", "reg:test::b"],
+            conclusion="reg:test::c",
             formal_expr=FormalExpr(
                 operators=[
                     Operator(
                         operator="conjunction",
-                        variables=["lcn_a", "lcn_b"],
-                        conclusion="lcn_m",
+                        variables=["reg:test::a", "reg:test::b"],
+                        conclusion="reg:test::m",
                     ),
-                    Operator(operator="implication", variables=["lcn_m"], conclusion="lcn_c"),
+                    Operator(
+                        operator="implication",
+                        variables=["reg:test::m"],
+                        conclusion="reg:test::c",
+                    ),
                 ]
             ),
         )
@@ -234,20 +240,24 @@ class TestFormalStrategy:
             FormalStrategy(
                 scope="local",
                 type="reductio",
-                premises=["lcn_r"],
-                conclusion="lcn_not_p",
+                premises=["reg:test::r"],
+                conclusion="reg:test::not_p",
                 formal_expr=FormalExpr(
                     operators=[
-                        Operator(operator="implication", variables=["lcn_p"], conclusion="lcn_q"),
+                        Operator(
+                            operator="implication",
+                            variables=["reg:test::p"],
+                            conclusion="reg:test::q",
+                        ),
                         Operator(
                             operator="contradiction",
-                            variables=["lcn_q", "lcn_r"],
-                            conclusion="lcn_contra",
+                            variables=["reg:test::q", "reg:test::r"],
+                            conclusion="reg:test::contra",
                         ),
                         Operator(
                             operator="complement",
-                            variables=["lcn_p", "lcn_not_p"],
-                            conclusion="lcn_comp",
+                            variables=["reg:test::p", "reg:test::not_p"],
+                            conclusion="reg:test::comp",
                         ),
                     ]
                 ),

@@ -38,17 +38,17 @@ class TestStrategyFormalize:
         leaf = Strategy(
             scope="local",
             type="deduction",
-            premises=["lcn_a", "lcn_b"],
-            conclusion="lcn_c",
-            background=["lcn_ctx"],
+            premises=["reg:test::a", "reg:test::b"],
+            conclusion="reg:test::c",
+            background=["reg:test::ctx"],
             steps=[Step(reasoning="combine the two premises")],
             metadata={"source": "unit-test"},
         )
 
-        result = leaf.formalize()
+        result = leaf.formalize(namespace="reg", package_name="test")
 
         assert isinstance(result.strategy, FormalStrategy)
-        assert result.strategy.background == ["lcn_ctx"]
+        assert result.strategy.background == ["reg:test::ctx"]
         assert len(result.strategy.steps or []) == 1
         assert result.strategy.steps[0].reasoning == "combine the two premises"
         assert result.strategy.metadata["source"] == "unit-test"
@@ -59,7 +59,9 @@ class TestStrategyFormalize:
         assert len(result.knowledges) == 1
 
         conjunction = result.knowledges[0]
-        assert conjunction.id.startswith("lcn_")
+        assert conjunction.id.startswith("reg:test::__")
+        assert conjunction.label is not None
+        assert conjunction.label.startswith("__")
         assert conjunction.type == KnowledgeType.CLAIM
         assert conjunction.metadata["generated_kind"] == "helper_claim"
         assert conjunction.metadata["intermediate_role"] == "conjunction_result"
@@ -89,22 +91,26 @@ class TestStrategyFormalize:
         formal = FormalStrategy(
             scope="local",
             type="deduction",
-            premises=["lcn_a", "lcn_b"],
-            conclusion="lcn_c",
+            premises=["reg:test::a", "reg:test::b"],
+            conclusion="reg:test::c",
             formal_expr=FormalExpr(
                 operators=[
                     Operator(
                         operator="conjunction",
-                        variables=["lcn_a", "lcn_b"],
-                        conclusion="lcn_m",
+                        variables=["reg:test::a", "reg:test::b"],
+                        conclusion="reg:test::m",
                     ),
-                    Operator(operator="implication", variables=["lcn_m"], conclusion="lcn_c"),
+                    Operator(
+                        operator="implication",
+                        variables=["reg:test::m"],
+                        conclusion="reg:test::c",
+                    ),
                 ]
             ),
         )
 
         with pytest.raises(TypeError, match="already formalized"):
-            formal.formalize()
+            formal.formalize(namespace="reg", package_name="test")
 
 
 class TestFormalizeNamedStrategy:

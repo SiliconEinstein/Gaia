@@ -138,8 +138,14 @@ class Strategy(BaseModel):
         """
         return ""
 
-    def formalize(self) -> FormalizationResult:
-        """Expand a named leaf Strategy into generated intermediates + FormalStrategy."""
+    def formalize(
+        self, *, namespace: str | None = None, package_name: str | None = None
+    ) -> FormalizationResult:
+        """Expand a named leaf Strategy into generated intermediates + FormalStrategy.
+
+        For local scope, ``namespace`` and ``package_name`` are required so that
+        generated intermediate Knowledge IDs use QID format.
+        """
         from gaia.gaia_ir.formalize import formalize_named_strategy
 
         if isinstance(self, CompositeStrategy):
@@ -154,6 +160,8 @@ class Strategy(BaseModel):
             type_=self.type,
             premises=self.premises,
             conclusion=self.conclusion,
+            namespace=namespace,
+            package_name=package_name,
             background=self.background,
             steps=self.steps,
             metadata=self.metadata,

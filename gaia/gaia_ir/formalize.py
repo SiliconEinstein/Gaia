@@ -12,7 +12,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 
-from gaia.gaia_ir.knowledge import Knowledge, KnowledgeType
+from gaia.gaia_ir.knowledge import Knowledge, KnowledgeType, make_qid
 from gaia.gaia_ir.operator import Operator
 from gaia.gaia_ir.strategy import (
     FormalExpr,
@@ -50,10 +50,22 @@ def _generated_claim_id(
     conclusion: str,
     role: str,
     index: int,
-) -> str:
-    prefix = "lcn_" if scope == "local" else "gcn_"
+    *,
+    namespace: str | None = None,
+    package_name: str | None = None,
+) -> tuple[str, str | None]:
+    """Return (id, label) for a generated intermediate claim.
+
+    Local scope returns a QID built from namespace:package_name::__{role}_{hash8}.
+    Global scope returns (gcn_{hash16}, None).
+    """
     payload = f"{scope}|{strategy_type.value}|{premises}|{conclusion}|{role}|{index}"
-    return f"{prefix}{_sha256_hex(payload)}"
+    if scope == "local":
+        hash8 = _sha256_hex(payload, length=8)
+        label = f"__{role}_{hash8}"
+        return make_qid(namespace, package_name, label), label  # type: ignore[arg-type]
+    else:
+        return f"gcn_{_sha256_hex(payload)}", None
 
 
 def _generated_interface_claim_id(
@@ -63,10 +75,22 @@ def _generated_interface_claim_id(
     conclusion: str,
     role: str,
     index: int,
-) -> str:
-    prefix = "lcn_" if scope == "local" else "gcn_"
+    *,
+    namespace: str | None = None,
+    package_name: str | None = None,
+) -> tuple[str, str | None]:
+    """Return (id, label) for a generated interface claim.
+
+    Local scope returns a QID built from namespace:package_name::__{role}_{hash8}.
+    Global scope returns (gcn_{hash16}, None).
+    """
     payload = f"{scope}|{strategy_type.value}|{anchor}|{conclusion}|{role}|{index}"
-    return f"{prefix}{_sha256_hex(payload)}"
+    if scope == "local":
+        hash8 = _sha256_hex(payload, length=8)
+        label = f"__{role}_{hash8}"
+        return make_qid(namespace, package_name, label), label  # type: ignore[arg-type]
+    else:
+        return f"gcn_{_sha256_hex(payload)}", None
 
 
 class _TemplateBuilder:
@@ -76,11 +100,16 @@ class _TemplateBuilder:
         strategy_type: StrategyType,
         premises: list[str],
         conclusion: str,
+        *,
+        namespace: str | None = None,
+        package_name: str | None = None,
     ):
         self.scope = scope
         self.strategy_type = strategy_type
         self.premises = list(premises)
         self.conclusion = conclusion
+        self.namespace = namespace
+        self.package_name = package_name
         self.knowledges: list[Knowledge] = []
         self._role_counters: dict[str, int] = defaultdict(int)
         self.interface_roles: dict[str, list[str]] = defaultdict(list)
@@ -92,6 +121,16 @@ class _TemplateBuilder:
         index = self._role_counters[role]
         self._role_counters[role] += 1
 
+        claim_id, label = _generated_interface_claim_id(
+            self.scope,
+            self.strategy_type,
+            anchor,
+            self.conclusion,
+            role,
+            index,
+            namespace=self.namespace,
+            package_name=self.package_name,
+        )
         metadata: dict[str, Any] = {
             "generated": True,
             "generated_kind": "interface_claim",
@@ -101,14 +140,8 @@ class _TemplateBuilder:
             "owning_strategy_type": self.strategy_type.value,
         }
         knowledge = Knowledge(
-            id=_generated_interface_claim_id(
-                self.scope,
-                self.strategy_type,
-                anchor,
-                self.conclusion,
-                role,
-                index,
-            ),
+            id=claim_id,
+            label=label,
             type=KnowledgeType.CLAIM,
             content=canonical_name,
             metadata=metadata,
@@ -136,6 +169,16 @@ class _TemplateBuilder:
         index = self._role_counters[role]
         self._role_counters[role] += 1
 
+        claim_id, label = _generated_claim_id(
+            self.scope,
+            self.strategy_type,
+            self.premises,
+            self.conclusion,
+            role,
+            index,
+            namespace=self.namespace,
+            package_name=self.package_name,
+        )
         metadata: dict[str, Any] = {
             "generated": True,
             "generated_kind": kind,
@@ -149,14 +192,8 @@ class _TemplateBuilder:
             metadata["helper_visibility"] = "formal_internal"
 
         knowledge = Knowledge(
-            id=_generated_claim_id(
-                self.scope,
-                self.strategy_type,
-                self.premises,
-                self.conclusion,
-                role,
-                index,
-            ),
+            id=claim_id,
+            label=label,
             type=KnowledgeType.CLAIM,
             content=canonical_name,
             metadata=metadata,
@@ -412,11 +449,23 @@ def formalize_named_strategy(
     type_: StrategyType | str,
     premises: list[str],
     conclusion: str,
+    namespace: str | None = None,
+    package_name: str | None = None,
     background: list[str] | None = None,
     steps: list[Step] | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> FormalizationResult:
-    """Generate the canonical FormalStrategy skeleton for a named strategy family."""
+    """Generate the canonical FormalStrategy skeleton for a named strategy family.
+
+    For local scope, ``namespace`` and ``package_name`` are required so that
+    generated intermediate Knowledge IDs use the QID format
+    ({namespace}:{package_name}::__{role}_{hash8}).
+    For global scope they are ignored (``gcn_`` IDs are used).
+    """
+    if scope == "local" and (namespace is None or package_name is None):
+        raise ValueError(
+            "formalize_named_strategy with scope='local' requires namespace and package_name"
+        )
     if type_ == "reductio":
         raise ValueError(
             "reductio is deferred in Gaia IR core; the public-interface contract for "
@@ -440,6 +489,8 @@ def formalize_named_strategy(
         strategy_type=strategy_type,
         premises=premises,
         conclusion=conclusion,
+        namespace=namespace,
+        package_name=package_name,
     )
     if strategy_type == StrategyType.CASE_ANALYSIS and (metadata or {}).get(
         "include_other_relevant_case"

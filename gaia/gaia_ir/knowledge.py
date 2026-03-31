@@ -6,10 +6,23 @@ Implements docs/foundations/gaia-ir/gaia-ir.md §1.
 from __future__ import annotations
 
 import hashlib
+import re
 from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, model_validator
+
+_QID_RE = re.compile(r"^[a-z][a-z0-9_]*:[a-z0-9][a-z0-9_\-]*::[a-z_][a-z0-9_]*$")
+
+
+def make_qid(namespace: str, package_name: str, label: str) -> str:
+    """Compose a Qualified Node ID: {namespace}:{package_name}::{label}."""
+    return f"{namespace}:{package_name}::{label}"
+
+
+def is_qid(id_: str) -> bool:
+    """Check if an ID string matches QID format."""
+    return bool(_QID_RE.match(id_))
 
 
 class KnowledgeType(StrEnum):
@@ -57,31 +70,20 @@ def _compute_content_hash(type_: str, content: str, parameters: list[Parameter])
     return _sha256_hex(payload, length=64)
 
 
-def _compute_knowledge_id(
-    package_id: str, type_: str, content: str, parameters: list[Parameter]
-) -> str:
-    """Deterministic local canonical ID: lcn_{sha256(package_id + type + content + sorted(params))[:16]}."""
-    sorted_params = sorted((p.name, p.type) for p in parameters)
-    payload = f"{package_id}|{type_}|{content}|{sorted_params}"
-    return f"lcn_{_sha256_hex(payload)}"
-
-
 class Knowledge(BaseModel):
     """Knowledge node — unified data class for local and global layers.
 
-    Local layer: id has lcn_ prefix, content is populated.
+    Local layer: id is a QID ({namespace}:{package_name}::{label}), content is populated.
     Global layer: id has gcn_ prefix, content is usually None (retrieved via representative_lcn).
     """
 
     id: str | None = None
+    label: str | None = None
     type: KnowledgeType
     content: str | None = None
     content_hash: str | None = None
     parameters: list[Parameter] = []
     metadata: dict[str, Any] | None = None
-
-    # local layer
-    package_id: str | None = None  # needed for ID computation
 
     # provenance
     provenance: list[PackageRef] | None = None
@@ -92,28 +94,16 @@ class Knowledge(BaseModel):
 
     @model_validator(mode="after")
     def _compute_derived_fields(self) -> Knowledge:
-        # Local content_hash is a derived fingerprint and must stay consistent
+        # Knowledge is valid if it has id OR label (or both).
+        if self.id is None and self.label is None:
+            raise ValueError("Knowledge requires at least one of `id` or `label`.")
+
+        # Content_hash is a derived fingerprint and must stay consistent
         # with the node's actual content.
         if self.content is not None:
             expected_content_hash = _compute_content_hash(self.type, self.content, self.parameters)
-            if self.package_id is not None:
-                if self.content_hash is not None and self.content_hash != expected_content_hash:
-                    raise ValueError(
-                        "local content_hash must match the derived content fingerprint"
-                    )
-                self.content_hash = expected_content_hash
-            elif self.content_hash is None:
-                self.content_hash = expected_content_hash
+            if self.content_hash is not None and self.content_hash != expected_content_hash:
+                raise ValueError("content_hash must match the derived content fingerprint")
+            self.content_hash = expected_content_hash
 
-        # Auto-compute ID for local nodes
-        if self.id is None:
-            if self.content is not None and self.package_id is not None:
-                self.id = _compute_knowledge_id(
-                    self.package_id, self.type, self.content, self.parameters
-                )
-            else:
-                raise ValueError(
-                    "Knowledge requires either an explicit `id` or both `content` and "
-                    "`package_id` for content-addressed ID computation."
-                )
         return self

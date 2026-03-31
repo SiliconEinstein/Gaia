@@ -15,6 +15,7 @@ from gaia.gaia_ir.knowledge import (
     LocalCanonicalRef,
     PackageRef,
     Parameter,
+    make_qid,
 )
 from gaia.gaia_ir.operator import Operator, OperatorType
 from gaia.gaia_ir.strategy import (
@@ -44,6 +45,7 @@ __all__ = [
     "LocalCanonicalRef",
     "PackageRef",
     "Parameter",
+    "make_qid",
     # Operator
     "Operator",
     "OperatorType",

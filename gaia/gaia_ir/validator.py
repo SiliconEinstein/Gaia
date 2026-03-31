@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from gaia.gaia_ir.knowledge import Knowledge, KnowledgeType
+from gaia.gaia_ir.knowledge import Knowledge, KnowledgeType, is_qid
 from gaia.gaia_ir.operator import Operator, OperatorType
 from gaia.gaia_ir.strategy import Strategy, CompositeStrategy, FormalStrategy, StrategyType
 from gaia.gaia_ir.graphs import LocalCanonicalGraph, GlobalCanonicalGraph, _canonical_json
@@ -61,13 +61,19 @@ def _validate_knowledges(
     result: ValidationResult,
 ) -> dict[str, Knowledge]:
     """Validate Knowledge nodes and return id→Knowledge lookup."""
-    prefix = "lcn_" if scope == "local" else "gcn_"
     lookup: dict[str, Knowledge] = {}
 
     for k in knowledges:
-        # ID prefix
-        if k.id and not k.id.startswith(prefix):
-            result.error(f"Knowledge '{k.id}': expected {prefix} prefix in {scope} graph")
+        # ID format check
+        if scope == "local":
+            if k.id and not is_qid(k.id):
+                result.error(
+                    f"Knowledge '{k.id}': expected QID format "
+                    f"(namespace:package_name::label) in local graph"
+                )
+        else:
+            if k.id and not k.id.startswith("gcn_"):
+                result.error(f"Knowledge '{k.id}': expected gcn_ prefix in {scope} graph")
 
         # uniqueness
         if k.id in lookup:
@@ -92,6 +98,16 @@ def _validate_knowledges(
                 result.error(f"Knowledge '{k.id}': local layer must not set representative_lcn")
             if k.local_members is not None:
                 result.error(f"Knowledge '{k.id}': local layer must not set local_members")
+
+    # label uniqueness check for local scope
+    if scope == "local":
+        labels = [k.label for k in knowledges if k.label]
+        if len(labels) != len(set(labels)):
+            seen: set[str] = set()
+            for label in labels:
+                if label in seen:
+                    result.error(f"Knowledge label '{label}': duplicate in local graph")
+                seen.add(label)
 
     return lookup
 
@@ -444,39 +460,43 @@ def _validate_scope_consistency(
     scope: str,
     result: ValidationResult,
 ) -> None:
-    """Ensure all references use the correct ID prefix for the scope."""
-    prefix = "lcn_" if scope == "local" else "gcn_"
+    """Ensure all references use the correct ID format for the scope."""
+
+    def _check_id_format(id_: str, context: str) -> None:
+        if scope == "local":
+            if id_ and not is_qid(id_):
+                result.error(
+                    f"{context} has wrong format for {scope} graph "
+                    f"(expected QID namespace:package::label)"
+                )
+        else:
+            if id_ and not id_.startswith("gcn_"):
+                result.error(f"{context} has wrong prefix for {scope} graph")
 
     for s in strategies:
         for pid in s.premises:
-            if pid and not pid.startswith(prefix):
-                result.error(
-                    f"Strategy '{s.strategy_id}': premise '{pid}' has wrong prefix for {scope} graph"
-                )
-        if s.conclusion and not s.conclusion.startswith(prefix):
-            result.error(
-                f"Strategy '{s.strategy_id}': conclusion '{s.conclusion}' has wrong prefix for {scope} graph"
+            _check_id_format(pid, f"Strategy '{s.strategy_id}': premise '{pid}'")
+        if s.conclusion:
+            _check_id_format(
+                s.conclusion, f"Strategy '{s.strategy_id}': conclusion '{s.conclusion}'"
             )
 
-    def _check_operator_prefix(op: Operator, context: str) -> None:
+    def _check_operator_ids(op: Operator, context: str) -> None:
         for var_id in op.variables:
-            if var_id and not var_id.startswith(prefix):
-                result.error(
-                    f"{context} '{op.operator_id}': variable '{var_id}' has wrong prefix for {scope} graph"
-                )
-        if op.conclusion and not op.conclusion.startswith(prefix):
-            result.error(
-                f"{context} '{op.operator_id}': conclusion '{op.conclusion}' has wrong prefix for {scope} graph"
+            _check_id_format(var_id, f"{context} '{op.operator_id}': variable '{var_id}'")
+        if op.conclusion:
+            _check_id_format(
+                op.conclusion, f"{context} '{op.operator_id}': conclusion '{op.conclusion}'"
             )
 
     for op in operators:
-        _check_operator_prefix(op, "Operator")
+        _check_operator_ids(op, "Operator")
 
     # Also check FormalExpr-embedded operators
     for s in strategies:
         if isinstance(s, FormalStrategy):
             for op in s.formal_expr.operators:
-                _check_operator_prefix(op, f"FormalStrategy '{s.strategy_id}' operator")
+                _check_operator_ids(op, f"FormalStrategy '{s.strategy_id}' operator")
 
 
 # ---------------------------------------------------------------------------
