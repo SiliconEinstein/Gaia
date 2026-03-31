@@ -4,22 +4,33 @@
 
 本文档描述 belief propagation 如何在 Gaia IR 上运行。纯 BP 算法（sum-product 消息传递、damping、收敛）见 [../theory/07-belief-propagation.md](../theory/07-belief-propagation.md)。Factor potential 函数见 [potentials.md](potentials.md)。Local 与 global 推理的区别见 [local-vs-global.md](local-vs-global.md)。backend-facing lowering 边界见 [../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md)。
 
-## Factor Graph 构建
+## FactorGraph
 
-见 `libs/inference/factor_graph.py`。
+### 概念
 
-BP 不直接运行在原始 Gaia IR 上。它运行在从 local canonical graph（或 global canonical graph）加参数化覆盖层构建而成的 `FactorGraph` 上。
+FactorGraph 是 variable node（变量节点）和 factor node（因子节点）之间的二部图。它是 BP 算法操作的数据结构，由 Gaia IR 经过 [lowering](../gaia-ir/07-lowering.md) 产生。
 
-### FactorGraph 结构
+FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
+- CLI 本地推理时，FactorGraph 在内存中临时构建
+- LKM 全局推理时，FactorGraph 持久化在存储中，BP 引擎从中读取
 
-`FactorGraph` 是 variable node（变量节点）和 factor node（因子节点）之间的二部图：
+### 结构
 
-- **Variables**：`dict[int, float]`，将整数节点 ID 映射到先验信念 `p(x=1)`。每个 knowledge 节点成为一个二值变量。
+- **Variable nodes**：每个 knowledge 节点成为一个二值变量，携带先验信念 `p(x=1)`。
+- **Factor nodes**：每个包含 `premises`、`conclusion`、`factor_type`（strategy/operator）、`subtype`，以及条件概率（仅 strategy 类型）。
+
+### 当前实现
+
+见 `libs/inference/factor_graph.py`。当前实现使用 int 索引作为内部优化：
+
+- **Variables**：`dict[int, float]`，将整数节点 ID 映射到先验信念。
 - **Factors**：`list[dict]`，其中每个 factor 包含 `edge_id`、`premises: list[int]`、`conclusions: list[int]`、`probability: float`、`edge_type: str`，以及可选的 `gate_var: int`。
 
-### 适配层
+Int 索引是 BP 引擎的实现细节，用于高效数组运算。外部系统使用字符串 ID 标识 variable 和 factor。
 
-适配器（`libs/graph_ir/adapter.py`）从 Gaia IR 构建 `FactorGraph`：
+### 从 Gaia IR 构建
+
+适配器（`libs/graph_ir/adapter.py`）从 Gaia IR 构建 FactorGraph：
 
 1. 将 `LocalCanonicalNode` ID 映射为整数变量 ID。
 2. 将每个 `FactorNode` 映射为具有整数键 premise 和 conclusion 的 factor 字典。
