@@ -18,7 +18,7 @@
 @dataclass
 class ReviewOutput:
     review: dict              # 原始审查数据
-    node_priors: dict[str, float]    # lcn_id → 先验概率
+    node_priors: dict[str, float]    # Knowledge QID → 先验概率
     factor_params: dict[str, FactorParams]  # factor_id → 因子参数
     model: str                # 产生审查的 LLM 模型名称
     source_fingerprint: str | None = None  # 可选的源码指纹

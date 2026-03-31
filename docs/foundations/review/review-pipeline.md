@@ -39,7 +39,7 @@ Mock 审查被所有 CLI 命令（`gaia infer`、`gaia publish --local`）和测
 
 1. 如果 `mock=True`，调用 `MockReviewClient.review_from_graph_data(graph_data)`
 2. 如果 `mock=False`，从图数据渲染 markdown，调用 `ReviewClient.areview_package()`
-3. 从 LocalCanonicalGraph 知识节点构建 `node_priors`，使用基于类型的默认值
+3. 从 LocalCanonicalGraph 的 Knowledge 节点（以 QID 标识）构建 `node_priors`，使用基于类型的默认值
 4. 通过本地图将审查链结论映射回 factor ID 来构建 `factor_params`
 5. 返回 ReviewOutput
 
@@ -50,7 +50,7 @@ Mock 审查被所有 CLI 命令（`gaia infer`、`gaia publish --local`）和测
 目标架构用服务端 ReviewService 替代 CLI 端审查，该服务将：
 
 1. **验证** -- 独立重新编译提交的源码；与提交的 `raw_graph.json` 进行差异对比。
-2. **审计规范化** -- 检查每个 LocalCanonicalNode 的分组决策。
+2. **审计规范化** -- 检查每个 Knowledge 节点（QID）的分组决策。
 3. **多 agent 审查** -- 多个独立的 LLM agent 并行评估，生成 `PeerReviewReport`。
 4. **反驳周期** -- 阻塞性发现触发最多 5 轮作者反驳。
 5. **守门人** -- 综合结果做出接受/拒绝决策，触发全局规范化和集成。

@@ -145,6 +145,7 @@ Global 层是**结构索引**，local 层是**内容仓库**。
 
 在当前 IR API 中，这一步通常通过专门的 formalization 入口一次性完成：调用方提供 leaf `Strategy`（或等价输入），IR 侧生成中间 Knowledge 与 canonical `FormalExpr`，再落成最终 `FormalStrategy`。也就是说，**中间 Knowledge 仍然是显式对象，但一般不要求用户手写每个 Operator 与中间 claim ID。**
 
+
 - Local 层：中间 Knowledge 获得 QID（`{ns}:{pkg}::{generated_label}`），归属于当前包
 - Global 层：中间 Knowledge 获得 `gcn_` ID，content 直接存在 global Knowledge 上
 

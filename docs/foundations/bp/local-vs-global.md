@@ -45,7 +45,7 @@ Global 推理的 FactorGraph 是持久化的——integrate 时写入存储，BP
 | 方面 | Local | Global |
 |---|---|---|
 | **图范围** | 单个包的 local FactorGraph | 所有包的 global FactorGraph |
-| **ID 命名空间** | `local_canonical_id` | global variable/factor ID |
+| **ID 命名空间** | Knowledge QID（`{ns}:{pkg}::{label}`） | global variable/factor ID |
 | **参数化来源** | `LocalParameterization`（作者生成的覆盖层） | PriorRecord / FactorParamRecord（按 resolution_policy 解析） |
 | **跨包证据** | 无（隔离的） | 有（共享的 schema 节点、已规范化的 claim） |
 | **持久性** | 临时预览 | 持久化 FactorGraph + BeliefSnapshot |
@@ -55,7 +55,7 @@ Global 推理的 FactorGraph 是持久化的——integrate 时写入存储，BP
 
 ### Local
 
-`LocalParameterization` 覆盖层以 `local_canonical_id` 为键存储节点先验概率，以 `factor_id` 为键存储 factor 参数。它通过 `graph_hash` 引用 local canonical graph。覆盖层在本地生成（由 agent skill 或手动），不在发布时提交。
+`LocalParameterization` 覆盖层以 Knowledge QID 为键存储节点先验概率，以 `factor_id` 为键存储 factor 参数。它通过 `graph_hash` 引用 local canonical graph。覆盖层在本地生成（由 agent skill 或手动），不在发布时提交。
 
 ### Global
 
