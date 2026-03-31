@@ -31,9 +31,7 @@ Local 和 global 使用同一个 data class，字段按层级使用：
 ```
 Knowledge:
     id:                     str              # QID（local）或 gcn_ 前缀（global）
-    label:                  str              # 包内唯一的人类可读标签
-    package_name:           str              # 所属包名
-    namespace:              str              # reg | paper
+    label:                  str              # 包内唯一的人类可读标签（local 层；global 层可为 None）
     type:                   str              # claim | setting | question
     content_hash:           str | None       # SHA-256(type + content + sorted(parameters))，不含 package_id
     parameters:             list[Parameter]  # 全称命题的量化变量（封闭命题为空列表）
@@ -61,7 +59,7 @@ Knowledge:
 | `representative_lcn` | None | 有值（引用 local Knowledge 获取内容） |
 | `local_members` | None | 有值（所有映射到此的 local Knowledge） |
 
-**对象身份**：local 层 `id` 使用 QID 格式 `{namespace}:{package_name}::{label}`，是 name-addressed identity。`(namespace, package_name, label)` 三元组唯一标识一个 Knowledge 节点。Label 在包内唯一（编译期/提取期强制保证）。不同包中相同内容的节点有**不同的** QID（不同 `package_name`）。global 层 `gcn_id` 是稳定的 canonical identity；它不随着 representative 或 content_hash 变化而重写。
+**对象身份**：local 层 `id` 使用 QID 格式 `{namespace}:{package_name}::{label}`，是 name-addressed identity。其中 `namespace` 和 `package_name` 来自所属 `LocalCanonicalGraph`，`label` 是 Knowledge 自身的包内唯一标签（编译期/提取期强制保证）。不同包中相同内容的节点有**不同的** QID（不同 `package_name`）。global 层 `gcn_id` 是稳定的 canonical identity；它不随着 representative 或 content_hash 变化而重写。
 
 **内容指纹**：`content_hash = SHA-256(type + content + sorted(parameters))`，不含 `package_id`。同一内容在不同包中产生相同的 `content_hash`。用途：
 

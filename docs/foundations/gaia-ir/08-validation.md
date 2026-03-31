@@ -56,8 +56,7 @@ validation 的职责是**验证结构合法性**。
 7. helper claim 仍然是 `claim`，不能引入新的 Knowledge primitive
 8. 结构型 helper claim **禁止**携带独立的 `PriorRecord`——它们不引入新的中间命题或新的前提，其值由 Operator 确定性决定（见 [04-helper-claims.md §6](04-helper-claims.md#6-与-parameterization-的关系)）
 9. （仅 local）`label` 在同一 `LocalCanonicalGraph` 内必须唯一
-10. （仅 local）`namespace` 必须属于允许集合（`reg` | `paper`）
-11. （仅 local）`package_name` 必须与所属 `LocalCanonicalGraph.package` 一致
+10. （仅 local）QID 中的 `namespace` 和 `package_name` 必须与所属 `LocalCanonicalGraph` 的 `namespace` 和 `package` 一致
 
 ## 3. Operator 校验
 
@@ -116,11 +115,12 @@ helper claim 的命名纪律见 [04-helper-claims.md](04-helper-claims.md)。
 
 对每个 graph，至少应检查：
 
-1. `scope` 与所有对象 ID 前缀一致
+1. `scope` 与所有对象 ID 格式一致
 2. 图内所有引用都闭合
 3. 不允许引用跨 graph 不存在的本地对象
 4. `ir_hash` 若定义，则必须与 canonical serialization 一致
 5. 同一 graph 内不应出现重复 ID
+6. `namespace` 必须属于允许集合（`reg` | `paper`）
 
 identity 与 hashing 的细节见 [03-identity-and-hashing.md](03-identity-and-hashing.md)。
 

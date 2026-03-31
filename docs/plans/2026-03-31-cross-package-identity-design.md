@@ -139,12 +139,10 @@ Label 一旦生成即锁定，不随提取逻辑变化而变化。
      type:                   str              # claim | setting | question
      content_hash:           str | None       # SHA-256(type + content + sorted(parameters))
 +    label:                  str              # 包内唯一的人类可读标签
-+    package_name:           str              # 所属包名
-+    namespace:              str              # reg | paper
      ...
 ```
 
-`label`、`package_name`、`namespace` 三个字段联合构成 QID，也可由 `id` 解析得到。冗余存储是为了查询便利。
+`label` 是 Knowledge 自身的字段；`package_name` 和 `namespace` 存储在 `LocalCanonicalGraph` 层级上，不在每个 Knowledge 上重复。QID 由 graph 的 `(namespace, package)` + Knowledge 的 `label` 联合构成。
 
 ### 4.2 LocalCanonicalGraph
 
