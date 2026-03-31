@@ -11,7 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel, model_validator
 
-from gaia.gaia_ir.knowledge import Knowledge
+from gaia.gaia_ir.knowledge import Knowledge, make_qid
 from gaia.gaia_ir.operator import Operator
 from gaia.gaia_ir.strategy import Strategy
 
@@ -86,8 +86,11 @@ class LocalCanonicalGraph(BaseModel):
     """Local canonical graph — single package, content-addressed hash.
 
     Stores complete content + Strategy steps (content repository).
+    Auto-assigns QIDs to Knowledge nodes that have a label but no id.
     """
 
+    namespace: str
+    package_name: str
     scope: str = "local"
     ir_hash: str | None = None
     knowledges: list[Knowledge]
@@ -96,6 +99,11 @@ class LocalCanonicalGraph(BaseModel):
 
     @model_validator(mode="after")
     def _compute_hash(self) -> LocalCanonicalGraph:
+        # Auto-assign QIDs to Knowledge nodes with label but no id
+        for k in self.knowledges:
+            if k.id is None and k.label is not None:
+                k.id = make_qid(self.namespace, self.package_name, k.label)
+
         if self.ir_hash is None:
             canonical = _canonical_json(self.knowledges, self.operators, self.strategies)
             digest = hashlib.sha256(canonical.encode()).hexdigest()
