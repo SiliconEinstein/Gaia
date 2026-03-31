@@ -18,7 +18,7 @@ Gaia IR 里至少有三类容易混淆的“标识”：
 
 | 名称 | 作用 | 作用域 | 是否跨包稳定 | 是否可随 representative 变化 |
 |------|------|--------|--------------|------------------------------|
-| `Knowledge.id` | 标识一个具体 Knowledge 对象 | local / global | local: 否；global: 是 | 否 |
+| `Knowledge.id` | 标识一个具体 Knowledge 对象 | local: QID / global: `gcn_` | local: 否（含 package_name）；global: 是 | 否 |
 | `Knowledge.content_hash` | 标识 Knowledge 的内容指纹 | local / global | 是 | 是 |
 | `LocalCanonicalGraph.ir_hash` | 标识整个 local graph 的 canonical serialization | local graph | 不适用 | 不适用 |
 
@@ -26,19 +26,27 @@ Gaia IR 里至少有三类容易混淆的“标识”：
 
 ### 2.1 Local Knowledge
 
-local `Knowledge.id` 是**包上下文敏感**的：
+local `Knowledge.id` 使用 **QID**（Qualified Node ID）格式，是 **name-addressed** identity：
 
 ```text
-lcn_{SHA-256(package_id + type + content + sorted(parameters))[:16]}
+{namespace}:{package_name}::{label}
 ```
+
+其中：
+
+- **namespace**：知识来源命名空间（`reg` = 注册表包，`paper` = 提取的论文）
+- **package_name**：包名（`reg` 由 registry 保证唯一，`paper` 由数据库 metadata ID 保证唯一）
+- **label**：包内唯一的人类可读标签（编译期/提取期强制保证唯一）
+
+示例：`reg:galileo_falling_bodies::vacuum_prediction`、`paper:{metadata_id}::cmb_power_spectrum`
 
 因此：
 
-- 同包、同内容、同参数结构 → 相同 `lcn_id`
-- 不同包、同内容 → 不同 `lcn_id`
-- 同包、内容变化 → `lcn_id` 变化
+- 同包、同 label → 相同 QID（即使内容因版本更新而变化）
+- 不同包、同 label → 不同 QID（不同 `package_name`）
+- 同包、label 改名 → 不同 QID（breaking change，所有引用方需要更新）
 
-local `id` 是对象身份，不是跨包去重键。
+QID 是 name-addressed 身份，不是 content-addressed。内容变化不影响 QID；label 变化才会。
 
 ### 2.2 Global Knowledge
 
@@ -85,10 +93,12 @@ SHA-256(type + content + sorted(parameters))
 
 当前 contract 下：
 
-- `Strategy` 只有 `strategy_id`
-- `Operator` 只有 `operator_id`
+- `Strategy` 只有 `strategy_id`（hash-based，`lcs_`/`gcs_` 前缀）
+- `Operator` 只有 `operator_id`（hash-based，`lco_`/`gco_` 前缀）
 
 它们没有独立的 `content_hash` 概念。Strategy 与 Operator 的主要身份来自图结构角色，而不是一段可独立去重的内容文本。
+
+**注意**：Strategy 和 Operator 中对 Knowledge 的引用（`premises`、`conclusion`、`variables`）在 local 层使用 QID，在 global 层使用 `gcn_` ID。
 
 ### 4.1 Strategy ID 计算
 
@@ -134,20 +144,20 @@ strategy_id = {lcs_|gcs_}_{SHA-256(scope + type + sorted(premises) + conclusion 
 
 一个最常见的场景：
 
-1. 作者在包 A 中写出一个 claim，生成 `lcn_A...`
-2. 作者在包 B 中写出同样内容的 claim，生成 `lcn_B...`
-3. 两者 `id` 不同，因为 `package_id` 不同
+1. 作者在包 A 中写出一个 claim，label 为 `vacuum_prediction` → QID `reg:galileo_falling_bodies::vacuum_prediction`
+2. 作者在包 B 中写出同样内容的 claim，label 也为 `vacuum_prediction` → QID `reg:newton_principia::vacuum_prediction`
+3. 两者 QID 不同，因为 `package_name` 不同
 4. 两者 `content_hash` 相同，因为内容一致
 5. canonicalization 用 `content_hash` 命中快速路径，把它们都绑定到同一个 `gcn_...`
-6. 这个 global 节点未来即使更换 `representative_lcn`，`gcn_id` 仍不变
+6. 这个 global 节点未来即使更换 representative，`gcn_id` 仍不变
 
-这正是“对象身份”和“内容指纹”必须分离的原因。
+这正是”对象身份”和”内容指纹”必须分离的原因。QID 是 name-addressed（”我叫什么”），`content_hash` 是 content-addressed（”我长什么样”），两者不能混用。
 
 ## 7. Validation 要点
 
 validator 至少应检查：
 
-1. local `Knowledge.id` 是否满足 local ID 规则
+1. local `Knowledge.id` 是否为有效 QID 格式（`{namespace}:{package_name}::{label}`）
 2. `content_hash` 若存在，是否与 `type + content + sorted(parameters)` 一致
 3. global `Knowledge` 若保存了 `content_hash`，它是否与当前代表内容保持同步
 4. `ir_hash` 若定义，是否与 canonical serialization 一致

@@ -315,7 +315,7 @@ Gaia 基础文档应归入以下四个主要层次之一。
 1. 先以独立文档或 issue 形式提出变更提案
 2. 获得负责人显式批准后方可编辑规范性文件
 3. 以独立 PR 提交——不得与实现变更混合
-4. 合并后验证所有下游引用（bp/、cli/、lkm/）仍然一致
+4. 合并后验证所有下游引用（bp/、cli/）仍然一致（LKM 文档在 [dp-gaia](https://github.com/SiliconEinstein/dp-gaia) 仓库维护）
 
 **AI Agent 特别规则：**
 

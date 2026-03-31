@@ -2,7 +2,7 @@
 
 > **Status:** Current canonical
 
-本文档描述 CLI 在本地开发和 `gaia publish --local` 中使用的嵌入式存储配置。服务器端存储架构参见 [../lkm/storage.md](../lkm/storage.md)。
+本文档描述 CLI 在本地开发和 `gaia publish --local` 中使用的嵌入式存储配置。服务器端存储架构参见 [dp-gaia](https://github.com/SiliconEinstein/dp-gaia) 仓库。
 
 ## 嵌入式后端
 

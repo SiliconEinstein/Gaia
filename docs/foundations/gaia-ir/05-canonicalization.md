@@ -6,13 +6,13 @@
 
 Canonicalization 定义如何将 local canonical 实体映射到 global canonical 实体，即从包内身份提升到跨包身份。
 
-Gaia IR 的核心结构定义见 [02-gaia-ir.md](02-gaia-ir.md)。全局规范化服务端流程见 [../lkm/global-canonicalization.md](../lkm/global-canonicalization.md)。
+Gaia IR 的核心结构定义见 [02-gaia-ir.md](02-gaia-ir.md)。全局规范化服务端流程见 [dp-gaia 04-curation.md](https://github.com/SiliconEinstein/dp-gaia/blob/main/docs/foundations/lkm/04-curation.md)。
 
 ## 1. 作用
 
 Canonicalization 负责：
 
-- 将 `lcn_` / `lcs_` / `lco_` 映射到 `gcn_` / `gcs_` / `gco_`
+- 将 local Knowledge QID / `lcs_` / `lco_` 映射到 `gcn_` / `gcs_` / `gco_`
 - 统一跨包语义等价的 Knowledge 身份
 - 利用 `content_hash` 提供同内容节点的精确匹配快速路径
 - 将 local Strategy 提升到 global graph
@@ -100,8 +100,8 @@ Canonicalization 中存在两种本质不同的关系：
 
 ```text
 CanonicalBinding:
-    local_canonical_id:     str
-    global_canonical_id:    str
+    local_id:               str    # Knowledge: QID; Strategy: lcs_; Operator: lco_
+    global_id:              str    # Knowledge: gcn_; Strategy: gcs_; Operator: gco_
     package_id:             str
     version:                str
     decision:               str    # "match_existing" | "create_new" | "equivalent_candidate"
@@ -112,8 +112,8 @@ CanonicalBinding:
 
 Knowledge 规范化完成后，local Strategy 提升到全局图：
 
-1. 从 CanonicalBinding 构建 `lcn_ -> gcn_` 映射
-2. 从全局 Knowledge 元数据构建 `ext: -> gcn_` 映射（跨包引用解析）
+1. 从 CanonicalBinding 构建 `QID -> gcn_` 映射（本包 Knowledge）
+2. 跨包引用的 QID 直接查找已有 global Knowledge（无需 `ext:` 特殊处理）
 3. 对每个 local Strategy，解析所有 premise、conclusion 和 background ID
 4. 含未解析引用的 Strategy 被丢弃（记录在 `unresolved_cross_refs` 中）
 
@@ -145,7 +145,7 @@ Global 层是**结构索引**，local 层是**内容仓库**。
 
 在当前 IR API 中，这一步通常通过专门的 formalization 入口一次性完成：调用方提供 leaf `Strategy`（或等价输入），IR 侧生成中间 Knowledge 与 canonical `FormalExpr`，再落成最终 `FormalStrategy`。也就是说，**中间 Knowledge 仍然是显式对象，但一般不要求用户手写每个 Operator 与中间 claim ID。**
 
-- Local 层：中间 Knowledge 获得 `lcn_` ID，归属于当前包
+- Local 层：中间 Knowledge 获得 QID（`{ns}:{pkg}::{generated_label}`），归属于当前包
 - Global 层：中间 Knowledge 获得 `gcn_` ID，content 直接存在 global Knowledge 上
 
 ### 8.2 FormalExpr 的生成方式
