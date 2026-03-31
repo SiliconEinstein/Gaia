@@ -32,8 +32,8 @@ BP 的具体运行时图和消息传递细节见 [../bp/inference.md](../bp/infe
 - `LocalCanonicalGraph` 仍可被 structure-only backend 消费
 - 若某个 local-only probabilistic workflow 需要临时参数，它属于 backend-private / ephemeral 机制，不属于本目录的持久化参数 contract
 
-lowering 的输出不是新的 Gaia IR，而是**后端私有的运行时表示**。  
-在当前 BP 后端里，这个输出是 `FactorGraph`；在其他后端里，也可以是别的 runtime graph。
+lowering 的输出不是新的 Gaia IR，而是**后端的数据表示**。
+在当前 BP 后端里，这个输出是 `FactorGraph`（variable nodes + factor nodes 的二部图）；在其他后端里，也可以是别的表示。FactorGraph 可以是临时构建的（CLI 本地推理），也可以是持久化的（LKM 全局推理）——这取决于后端的存储策略，不由 lowering 契约规定。
 
 ## 2. 基本原则
 
