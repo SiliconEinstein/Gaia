@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from gaia.gaia_ir.knowledge import Knowledge, KnowledgeType
-from gaia.gaia_ir.operator import Operator
+from gaia.gaia_ir.operator import Operator, OperatorType
 from gaia.gaia_ir.strategy import Strategy, CompositeStrategy, FormalStrategy, StrategyType
 from gaia.gaia_ir.graphs import LocalCanonicalGraph, GlobalCanonicalGraph, _canonical_json
 from gaia.gaia_ir.parameterization import (
@@ -21,6 +21,13 @@ from gaia.gaia_ir.binding import CanonicalBinding
 
 
 _PARAMETERIZED_TYPES = {StrategyType.INFER, StrategyType.NOISY_AND}
+_STRUCTURAL_HELPER_OPERATOR_TYPES = {
+    OperatorType.CONJUNCTION,
+    OperatorType.DISJUNCTION,
+    OperatorType.EQUIVALENCE,
+    OperatorType.CONTRADICTION,
+    OperatorType.COMPLEMENT,
+}
 
 
 @dataclass
@@ -99,9 +106,17 @@ def _validate_operators(
     knowledge_lookup: dict[str, Knowledge],
     scope: str,
     result: ValidationResult,
+    *,
+    top_level: bool,
 ) -> None:
     """Validate top-level Operators against the knowledge set."""
     for op in operators:
+        if top_level and (op.operator_id is None or op.scope is None):
+            result.error(
+                "Top-level Operator must set both operator_id and scope "
+                "(embedded FormalExpr operators may omit them)"
+            )
+
         # operator scope must be compatible with graph scope
         if op.scope is not None and op.scope != scope:
             result.error(
@@ -196,7 +211,13 @@ def _validate_strategy(
         _validate_composite_sub_strategies(strategy, strategy_lookup, result)
 
     if isinstance(strategy, FormalStrategy):
-        _validate_operators(strategy.formal_expr.operators, knowledge_lookup, scope, result)
+        _validate_operators(
+            strategy.formal_expr.operators,
+            knowledge_lookup,
+            scope,
+            result,
+            top_level=False,
+        )
         _validate_formal_expr_closure(strategy, knowledge_lookup, result)
 
 
@@ -468,7 +489,7 @@ def validate_local_graph(graph: LocalCanonicalGraph) -> ValidationResult:
     result = ValidationResult()
 
     knowledge_lookup = _validate_knowledges(graph.knowledges, "local", result)
-    _validate_operators(graph.operators, knowledge_lookup, "local", result)
+    _validate_operators(graph.operators, knowledge_lookup, "local", result, top_level=True)
     _validate_strategies(graph.strategies, graph.operators, knowledge_lookup, "local", result)
     _validate_scope_consistency(
         knowledge_lookup, graph.operators, graph.strategies, "local", result
@@ -493,7 +514,7 @@ def validate_global_graph(graph: GlobalCanonicalGraph) -> ValidationResult:
     result = ValidationResult()
 
     knowledge_lookup = _validate_knowledges(graph.knowledges, "global", result)
-    _validate_operators(graph.operators, knowledge_lookup, "global", result)
+    _validate_operators(graph.operators, knowledge_lookup, "global", result, top_level=True)
     _validate_strategies(graph.strategies, graph.operators, knowledge_lookup, "global", result)
     _validate_scope_consistency(
         knowledge_lookup, graph.operators, graph.strategies, "global", result
@@ -517,25 +538,30 @@ def validate_parameterization(
     Checks that every non-helper claim Knowledge has at least one PriorRecord
     and every parameterized Strategy (infer/noisy_and) has a StrategyParamRecord.
     FormalStrategy types derive behavior from FormalExpr — no params needed.
-    Private helper claims (FormalExpr operator conclusions not in strategy interface)
-    are PROHIBITED from having independent PriorRecords (§4, §6 of spec).
+    Structural helper claims (top-level or FormalExpr operator conclusions produced
+    by conjunction/disjunction/equivalence/contradiction/complement) are PROHIBITED
+    from having independent PriorRecords (§4, §6 of spec). Generated public
+    interface claims (for example abduction's alternative explanation claim)
+    remain ordinary claim inputs and therefore still require PriorRecord.
     """
     result = ValidationResult()
 
     # collect claim gcn_ids
     claim_ids = {k.id for k in graph.knowledges if k.type == KnowledgeType.CLAIM and k.id}
 
-    # identify private helper claims: FormalExpr operator conclusions not in
-    # the owning FormalStrategy's premises/conclusion interface
-    private_helper_ids: set[str] = set()
+    # identify structural helper claims. These are deterministic operator results
+    # that are not free probability inputs, regardless of whether they are top-level
+    # or internal to a FormalStrategy.
+    helper_claim_ids: set[str] = set()
+    for op in graph.operators:
+        if op.operator in _STRUCTURAL_HELPER_OPERATOR_TYPES:
+            helper_claim_ids.add(op.conclusion)
+
     for s in graph.strategies:
         if isinstance(s, FormalStrategy):
-            own_interface: set[str] = set(s.premises)
-            if s.conclusion is not None:
-                own_interface.add(s.conclusion)
             for op in s.formal_expr.operators:
-                if op.conclusion not in own_interface:
-                    private_helper_ids.add(op.conclusion)
+                if op.operator in _STRUCTURAL_HELPER_OPERATOR_TYPES:
+                    helper_claim_ids.add(op.conclusion)
 
     # collect strategy ids, split by parameterized vs not
     parameterized_ids: set[str] = set()
@@ -546,19 +572,19 @@ def validate_parameterization(
             if s.type in _PARAMETERIZED_TYPES:
                 parameterized_ids.add(s.strategy_id)
 
-    # check prior coverage (exclude private helper claims)
+    # check prior coverage (exclude structural helper claims)
     prior_gcn_ids = {r.gcn_id for r in priors}
     for cid in claim_ids:
-        if cid in private_helper_ids:
-            continue  # private helpers don't need priors
+        if cid in helper_claim_ids:
+            continue  # helper claims don't need priors
         if cid not in prior_gcn_ids:
             result.error(f"Claim '{cid}': missing PriorRecord")
 
-    # private helper claims must NOT have PriorRecords (spec §4, §6)
+    # structural helper claims must NOT have PriorRecords (spec §4, §6)
     for r_prior in priors:
-        if r_prior.gcn_id in private_helper_ids:
+        if r_prior.gcn_id in helper_claim_ids:
             result.error(
-                f"PriorRecord '{r_prior.gcn_id}': private helper claim must not have "
+                f"PriorRecord '{r_prior.gcn_id}': structural helper claim must not have "
                 f"independent PriorRecord (value determined by Operator constraints)"
             )
 

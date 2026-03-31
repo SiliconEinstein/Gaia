@@ -75,7 +75,9 @@
 
 ```mermaid
 graph LR
-    A("A 假说") --> f(["ent p≈1"]) --> B("B 预测")
+    A("A 假说") --> or{{"∨"}}
+    Alt("AltExp_B<br/>其他解释") --> or
+    or --> B("B 现象")
     B --- eq{{"≡"}} --- Bp("B' 观测 ✓")
 
     classDef obs fill:#e8f5e9,stroke:#4caf50
@@ -83,24 +85,28 @@ graph LR
 ```
 
 - A：假说（self-contained claim）
-- B：从 A 推导出的理论预测（self-contained claim）
+- `AltExp_B`：除 A 之外也能导致该现象的替代解释
+- B：待解释的现象（self-contained claim）
 - B'：实际观测到的事实（self-contained claim）
-- A→B 是 entailment（"假说为真时，预期此观测"几乎是假说定义的一部分）
+- `A ∨ AltExp_B -> B` 表示现象可能来自目标假说，也可能来自其他解释
 - B 和 B' 内容相近但表述独立，通过 equivalence 连接
 
-推理效果：B' 的高 belief 通过 equivalence 传递给 B，再通过 entailment 的**反向消息**提升 A 的 belief。
+推理效果：B' 的高 belief 通过 equivalence 传递给 B，再与 `AltExp_B` 形成 explaining-away 竞争，最后提升 A 的 belief。
 
-如果存在竞争假说 A'，也会通过 A'→B'' + B''≡B' 连接到同一组观测。explaining away 自动处理竞争 — 能解释更多观测的假说获得更高 belief。
+如果存在竞争假说 A'，也会通过自己的 `A' ∨ AltExp_B' -> B` 路径连接到同一组观测。explaining away 自动处理竞争 — 能解释更多观测、且替代解释 base rate 更低的假说获得更高 belief。
 
 #### Induction 模式（归纳）
 
-归纳是"从多个实例推断一般规律"（参见 [04-reasoning-strategies.md](04-reasoning-strategies.md) §2.3）。本质上是**重复的 abduction** — 一般规律是"假说"，每个实例是一个"预测+观测"对：
+归纳是"从多个实例推断一般规律"（参见 [04-reasoning-strategies.md](04-reasoning-strategies.md) §2.3）。本质上是**重复的 abduction** — 一般规律是"假说"，每个实例是一个"现象+替代解释"对：
 
 ```mermaid
 graph TD
-    G("G 一般规律") --> f1(["ent p≈1"]) --> B1("B₁")
-    G --> f2(["ent p≈1"]) --> B2("B₂")
-    G --> fn(["ent p≈1"]) --> Bn("Bₙ")
+    G("G 一般规律") --> or1{{"∨"}} --> B1("B₁")
+    Alt1("AltExp₁") --> or1
+    G --> or2{{"∨"}} --> B2("B₂")
+    Alt2("AltExp₂") --> or2
+    G --> orn{{"∨"}} --> Bn("Bₙ")
+    Altn("AltExpₙ") --> orn
     B1 --- eq1{{"≡"}} --- Bp1("B'₁ ✓")
     B2 --- eq2{{"≡"}} --- Bp2("B'₂ ✓")
     Bn --- eqn{{"≡"}} --- Bpn("B'ₙ ✓")
@@ -109,7 +115,7 @@ graph TD
     class Bp1,Bp2,Bpn obs
 ```
 
-每个 Bᵢ 和 B'ᵢ 都是 self-contained claim。推理效果：每个 equivalence 贡献一条反向消息支撑 G。实例越多，G 的 belief 越高。如果某个实例失败（B'ₖ 的 belief 低），对应的 equivalence 不再支撑 G — 系统自动处理反例。
+每个 Bᵢ 和 B'ᵢ 都是 self-contained claim，而 `AltExpᵢ` 表示该实例在没有一般规律时也可能成立的替代解释。推理效果：每个 equivalence 都通过 explaining-away 抑制 `AltExpᵢ`，进而支撑 G。实例越多，G 的 belief 越高。如果某个实例失败（B'ₖ 的 belief 低），对应的单元不再支撑 G — 系统自动处理反例。
 
 #### Analogy 模式（类比）
 
@@ -321,11 +327,11 @@ graph TD
 
 W₂ 分解为 abduction + entailment 两步。
 
-**Abduction vs Induction：** W₁ 和 W₃ 是 induction — 假说只是观测 pattern 的泛化（A = "重者更快"，V 的斜面预测 = "s∝t²"），不超出数据本身。W₂ 是 abduction — G 不仅编码了"密度↓差异↓"的 pattern，还主张阻力是速度差异的**唯一原因**（因果机制）。这个因果主张超出了观测，是一个解释性假说。在命题网络层面，abduction 和 induction 的结构完全相同（假说 → entailment → 预测 ≡ 观测），区别仅在于假说内容是 pattern 还是 causal mechanism。
+**Abduction vs Induction：** W₁ 和 W₃ 是 induction — 假说只是观测 pattern 的泛化（A = "重者更快"，V 的斜面预测 = "s∝t²"），不超出数据本身。W₂ 是 abduction — G 不仅编码了"密度↓差异↓"的 pattern，还主张阻力是速度差异的**唯一原因**（因果机制）。这个因果主张超出了观测，是一个解释性假说。在命题网络层面，abduction 和 induction 都可写成“假说或规律 + 替代解释共同解释观测”的结构；区别在于假说内容是 pattern 还是 causal mechanism。
 
 **Part a — Abduction：O_media + O_air → G**
 
-G："不同重量物体的下落速度差异由介质阻力**决定** — 阻力越大差异越大，阻力越小差异越小"。两组观测是 G 的预测+观测对：
+G："不同重量物体的下落速度差异由介质阻力**决定** — 阻力越大差异越大，阻力越小差异越小"。下图画的是在强控制假设下、把 `AltExp_*` 视为已单独压低后的特例；完整 generic 模式仍是 `Obs ≡ (G ∨ AltExp_Obs)`：
 
 ```mermaid
 graph TD
@@ -360,7 +366,7 @@ graph LR
 
 #### W₃：斜面实验 → V（Induction 模式，参见 [04-reasoning-strategies.md](04-reasoning-strategies.md) §2.3）
 
-V 是"假说"，每个斜面实验条件是一个预测+观测对：
+V 是"假说"。下图同样省略了 generic induction 模式中的 `AltExpᵢ` 节点，表示实验设计已尽量排除替代解释；完整 generic 模式仍是 `Obsᵢ ≡ (V ∨ AltExpᵢ)`：
 
 ```mermaid
 graph TD
@@ -456,8 +462,8 @@ graph TD
 | 原始推理类型 | 归约为 | p 值 |
 |------------|-------|------|
 | entailment | 不变 | ≈ 1（逻辑蕴含） |
-| abduction | entailment + observation + equivalence | ≈ 1（假说→预测是蕴含） |
-| induction | 重复 abduction | ≈ 1（规律→实例是蕴含） |
+| abduction | 替代解释 + disjunction + observation equivalence | ≈ 1（解释结构给定后） |
+| induction | 重复 abduction | ≈ 1（每个实例都服从同一解释结构） |
 | analogy | 源域规律 + 显式类比桥梁 + entailment | ≈ 1（桥梁与条件给定后） |
 | contradiction | 不变 | 结构约束 |
 | equivalence | 不变 | 结构约束 |

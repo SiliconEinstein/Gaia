@@ -26,6 +26,7 @@ from gaia.gaia_ir.strategy import (
     StrategyType,
 )
 from gaia.gaia_ir.graphs import GlobalCanonicalGraph, LocalCanonicalGraph
+from gaia.gaia_ir.formalize import FormalizationResult, formalize_named_strategy
 from gaia.gaia_ir.parameterization import (
     CROMWELL_EPS,
     ParameterizationSource,
@@ -56,6 +57,9 @@ __all__ = [
     # Graphs
     "GlobalCanonicalGraph",
     "LocalCanonicalGraph",
+    # Formalization
+    "FormalizationResult",
+    "formalize_named_strategy",
     # Parameterization
     "CROMWELL_EPS",
     "ParameterizationSource",

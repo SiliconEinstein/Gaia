@@ -144,7 +144,13 @@ class TestOperatorValidation:
         g = _local_graph(
             knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_h")],
             operators=[
-                Operator(operator="equivalence", variables=["lcn_a", "lcn_b"], conclusion="lcn_h")
+                Operator(
+                    operator_id="lco_eq",
+                    scope="local",
+                    operator="equivalence",
+                    variables=["lcn_a", "lcn_b"],
+                    conclusion="lcn_h",
+                )
             ],
         )
         r = validate_local_graph(g)
@@ -154,7 +160,15 @@ class TestOperatorValidation:
         """Implication: 1 variable + conclusion."""
         g = _local_graph(
             knowledges=[_claim("lcn_a"), _claim("lcn_b")],
-            operators=[Operator(operator="implication", variables=["lcn_a"], conclusion="lcn_b")],
+            operators=[
+                Operator(
+                    operator_id="lco_impl",
+                    scope="local",
+                    operator="implication",
+                    variables=["lcn_a"],
+                    conclusion="lcn_b",
+                )
+            ],
         )
         r = validate_local_graph(g)
         assert r.valid
@@ -164,7 +178,13 @@ class TestOperatorValidation:
         g = _local_graph(
             knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_m")],
             operators=[
-                Operator(operator="conjunction", variables=["lcn_a", "lcn_b"], conclusion="lcn_m")
+                Operator(
+                    operator_id="lco_and",
+                    scope="local",
+                    operator="conjunction",
+                    variables=["lcn_a", "lcn_b"],
+                    conclusion="lcn_m",
+                )
             ],
         )
         r = validate_local_graph(g)
@@ -175,6 +195,8 @@ class TestOperatorValidation:
             knowledges=[_claim("lcn_a"), _claim("lcn_h")],
             operators=[
                 Operator(
+                    operator_id="lco_eq",
+                    scope="local",
                     operator="equivalence",
                     variables=["lcn_a", "lcn_missing"],
                     conclusion="lcn_h",
@@ -189,7 +211,13 @@ class TestOperatorValidation:
         g = _local_graph(
             knowledges=[_claim("lcn_a")],
             operators=[
-                Operator(operator="implication", variables=["lcn_a"], conclusion="lcn_missing")
+                Operator(
+                    operator_id="lco_impl",
+                    scope="local",
+                    operator="implication",
+                    variables=["lcn_a"],
+                    conclusion="lcn_missing",
+                )
             ],
         )
         r = validate_local_graph(g)
@@ -201,6 +229,8 @@ class TestOperatorValidation:
             knowledges=[_claim("lcn_a"), _setting("lcn_s"), _claim("lcn_h")],
             operators=[
                 Operator(
+                    operator_id="lco_eq",
+                    scope="local",
                     operator="equivalence",
                     variables=["lcn_a", "lcn_s"],
                     conclusion="lcn_h",
@@ -214,7 +244,15 @@ class TestOperatorValidation:
     def test_operator_conclusion_on_non_claim(self):
         g = _local_graph(
             knowledges=[_claim("lcn_a"), _setting("lcn_s")],
-            operators=[Operator(operator="implication", variables=["lcn_a"], conclusion="lcn_s")],
+            operators=[
+                Operator(
+                    operator_id="lco_impl",
+                    scope="local",
+                    operator="implication",
+                    variables=["lcn_a"],
+                    conclusion="lcn_s",
+                )
+            ],
         )
         r = validate_local_graph(g)
         assert not r.valid
@@ -225,6 +263,7 @@ class TestOperatorValidation:
             knowledges=[_claim("lcn_a"), _claim("lcn_b")],
             operators=[
                 Operator(
+                    operator_id="gco_bad",
                     scope="global",
                     operator="implication",
                     variables=["lcn_a"],
@@ -241,6 +280,7 @@ class TestOperatorValidation:
             knowledges=[_claim("gcn_a"), _claim("gcn_b")],
             operators=[
                 Operator(
+                    operator_id="lco_bad",
                     scope="local",
                     operator="implication",
                     variables=["gcn_a"],
@@ -258,6 +298,8 @@ class TestOperatorValidation:
             knowledges=[_claim("lcn_a"), _claim("lcn_b")],
             operators=[
                 Operator(
+                    operator_id="lco_impl",
+                    scope="local",
                     operator="implication",
                     variables=["lcn_a"],
                     conclusion="gcn_wrong",
@@ -267,6 +309,15 @@ class TestOperatorValidation:
         r = validate_local_graph(g)
         assert not r.valid
         assert any("wrong prefix" in e or "not found" in e for e in r.errors)
+
+    def test_top_level_operator_requires_scope_and_id(self):
+        g = _local_graph(
+            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            operators=[Operator(operator="implication", variables=["lcn_a"], conclusion="lcn_b")],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("Top-level Operator must set both operator_id and scope" in e for e in r.errors)
 
 
 # ---------------------------------------------------------------------------
@@ -434,7 +485,7 @@ class TestCompositeStrategyValidation:
             strategies=[
                 CompositeStrategy(
                     scope="local",
-                    type="induction",
+                    type="abduction",
                     premises=["lcn_a"],
                     conclusion="lcn_c",
                     sub_strategies=["lcs_nonexistent"],
@@ -463,7 +514,7 @@ class TestCompositeStrategyValidation:
         comp_b = CompositeStrategy(
             strategy_id="lcs_comp_b",
             scope="local",
-            type="induction",
+            type="abduction",
             premises=["lcn_a"],
             conclusion="lcn_b",
             sub_strategies=["lcs_comp_a"],
@@ -863,6 +914,8 @@ class TestGraphLevelValidation:
             knowledges=[_claim("lcn_a"), _claim("lcn_b")],
             operators=[
                 Operator(
+                    operator_id="lco_impl",
+                    scope="local",
                     operator="implication",
                     variables=["lcn_a"],
                     conclusion="gcn_wrong",
@@ -1122,7 +1175,166 @@ class TestParameterizationValidation:
             strategy_params=[],
         )
         assert not r.valid
-        assert any("private helper claim" in e for e in r.errors)
+        assert any("structural helper claim" in e for e in r.errors)
+
+    def test_abduction_generated_interface_claim_requires_prior(self):
+        """Auto-generated alternative explanations are public interface claims with priors."""
+        from gaia.gaia_ir import PriorRecord
+
+        formalized = Strategy(
+            scope="global",
+            type="abduction",
+            premises=["gcn_obs"],
+            conclusion="gcn_h",
+        ).formalize()
+        alternative_explanation = next(
+            knowledge
+            for knowledge in formalized.knowledges
+            if knowledge.metadata.get("interface_role") == "alternative_explanation"
+        )
+
+        g = _global_graph(
+            knowledges=[_claim("gcn_obs"), _claim("gcn_h"), *formalized.knowledges],
+            strategies=[formalized.strategy],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_obs", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_h", value=0.5, source_id="s"),
+            ],
+            strategy_params=[],
+        )
+        assert not r.valid
+        assert any(alternative_explanation.id in e and "missing PriorRecord" in e for e in r.errors)
+
+    def test_abduction_generated_interface_claim_prior_allowed(self):
+        """The generated alternative explanation can be parameterized like any public claim."""
+        from gaia.gaia_ir import PriorRecord
+
+        formalized = Strategy(
+            scope="global",
+            type="abduction",
+            premises=["gcn_obs"],
+            conclusion="gcn_h",
+        ).formalize()
+        alternative_explanation = next(
+            knowledge
+            for knowledge in formalized.knowledges
+            if knowledge.metadata.get("interface_role") == "alternative_explanation"
+        )
+
+        g = _global_graph(
+            knowledges=[_claim("gcn_obs"), _claim("gcn_h"), *formalized.knowledges],
+            strategies=[formalized.strategy],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_obs", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_h", value=0.5, source_id="s"),
+                PriorRecord(gcn_id=alternative_explanation.id, value=0.5, source_id="s"),
+            ],
+            strategy_params=[],
+        )
+        assert r.valid
+
+    def test_elimination_only_requires_interface_priors(self):
+        """Strict elimination should not introduce hidden prior-bearing internal claims."""
+        from gaia.gaia_ir import PriorRecord
+
+        formalized = Strategy(
+            scope="global",
+            type="elimination",
+            premises=[
+                "gcn_exhaustive",
+                "gcn_h1",
+                "gcn_e1",
+                "gcn_h2",
+                "gcn_e2",
+            ],
+            conclusion="gcn_h3",
+        ).formalize()
+
+        g = _global_graph(
+            knowledges=[
+                _claim("gcn_exhaustive"),
+                _claim("gcn_h1"),
+                _claim("gcn_e1"),
+                _claim("gcn_h2"),
+                _claim("gcn_e2"),
+                _claim("gcn_h3"),
+                *formalized.knowledges,
+            ],
+            strategies=[formalized.strategy],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_exhaustive", value=0.9, source_id="s"),
+                PriorRecord(gcn_id="gcn_h1", value=0.2, source_id="s"),
+                PriorRecord(gcn_id="gcn_e1", value=0.9, source_id="s"),
+                PriorRecord(gcn_id="gcn_h2", value=0.2, source_id="s"),
+                PriorRecord(gcn_id="gcn_e2", value=0.9, source_id="s"),
+                PriorRecord(gcn_id="gcn_h3", value=0.2, source_id="s"),
+            ],
+            strategy_params=[],
+        )
+        assert r.valid
+
+    def test_top_level_helper_claim_no_prior_needed(self):
+        """Top-level structural helper claims should also be excluded from prior coverage."""
+        from gaia.gaia_ir import PriorRecord
+
+        g = _global_graph(
+            knowledges=[_claim("gcn_a"), _claim("gcn_b"), _claim("gcn_eq")],
+            operators=[
+                Operator(
+                    operator_id="gco_eq",
+                    scope="global",
+                    operator="equivalence",
+                    variables=["gcn_a", "gcn_b"],
+                    conclusion="gcn_eq",
+                ),
+            ],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.5, source_id="s"),
+            ],
+            strategy_params=[],
+        )
+        assert r.valid
+
+    def test_top_level_helper_claim_prior_prohibited(self):
+        """Top-level structural helper claims must not accept independent priors."""
+        from gaia.gaia_ir import PriorRecord
+
+        g = _global_graph(
+            knowledges=[_claim("gcn_a"), _claim("gcn_b"), _claim("gcn_eq")],
+            operators=[
+                Operator(
+                    operator_id="gco_eq",
+                    scope="global",
+                    operator="equivalence",
+                    variables=["gcn_a", "gcn_b"],
+                    conclusion="gcn_eq",
+                ),
+            ],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_eq", value=0.5, source_id="s"),
+            ],
+            strategy_params=[],
+        )
+        assert not r.valid
+        assert any("gcn_eq" in e and "structural helper claim" in e for e in r.errors)
 
     def test_param_for_non_parameterized_type_warns(self):
         """StrategyParamRecord for a FormalStrategy type should warn."""

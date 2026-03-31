@@ -44,7 +44,7 @@ class StrategyParamRecord(BaseModel):
     - noisy_and: 1 value (P(conclusion=true | all premises=true))
 
     FormalStrategy types (deduction, abduction, etc.) derive behavior from
-    FormalExpr + claim priors — no independent StrategyParamRecord.
+    FormalExpr + interface-claim priors — no independent StrategyParamRecord.
 
     All values are Cromwell-clamped.
     """
