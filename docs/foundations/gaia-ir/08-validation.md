@@ -42,9 +42,9 @@ validation 的职责是**验证结构合法性**。
 
 对每个 `Knowledge`，至少应检查：
 
-1. `id` 前缀与 graph scope 一致
-   - local: `lcn_`
-   - global: `gcn_`
+1. `id` 格式与 graph scope 一致
+   - local: 有效 QID 格式 `{namespace}:{package_name}::{label}`
+   - global: `gcn_` 前缀
 2. `type` 属于允许集合
    - `claim`
    - `setting`
@@ -55,6 +55,9 @@ validation 的职责是**验证结构合法性**。
 6. 含 `parameters` 的 claim 仍然是 claim，不是独立类型
 7. helper claim 仍然是 `claim`，不能引入新的 Knowledge primitive
 8. 结构型 helper claim **禁止**携带独立的 `PriorRecord`——它们不引入新的中间命题或新的前提，其值由 Operator 确定性决定（见 [04-helper-claims.md §6](04-helper-claims.md#6-与-parameterization-的关系)）
+9. `label` 在同一 `LocalCanonicalGraph` 内必须唯一
+10. `namespace` 必须属于允许集合（`reg` | `paper`）
+11. `package_name` 必须与所属 `LocalCanonicalGraph.package` 一致
 
 ## 3. Operator 校验
 
@@ -129,7 +132,7 @@ identity 与 hashing 的细节见 [03-identity-and-hashing.md](03-identity-and-h
 
 1. `steps` 允许存在
 2. local 内容字段允许完整保留
-3. local 对象一律使用 `lcn_ / lcs_ / lco_`
+3. local Knowledge 使用 QID 格式；local Strategy 使用 `lcs_`；local Operator 使用 `lco_`
 
 ### 7.2 GlobalCanonicalGraph
 
