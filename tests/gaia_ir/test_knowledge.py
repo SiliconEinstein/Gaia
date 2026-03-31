@@ -20,6 +20,12 @@ class TestIsQid:
     def test_valid_paper_qid(self):
         assert is_qid("paper:article_123::finding_a")
 
+    def test_valid_doi_derived_package(self):
+        assert is_qid("paper:10_1038_abc::cmb_spectrum")
+
+    def test_valid_generated_label(self):
+        assert is_qid("reg:test::__conjunction_result_a1b2c3d4")
+
     def test_invalid_gcn(self):
         assert not is_qid("gcn_abc123")
 

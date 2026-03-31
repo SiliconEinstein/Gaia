@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, model_validator
 
-_QID_RE = re.compile(r"^[a-z][a-z0-9_]*:[a-z][a-z0-9_\-]*::[a-z][a-z0-9_]*$")
+_QID_RE = re.compile(r"^[a-z][a-z0-9_]*:[a-z0-9][a-z0-9_\-]*::[a-z_][a-z0-9_]*$")
 
 
 def make_qid(namespace: str, package_name: str, label: str) -> str:
