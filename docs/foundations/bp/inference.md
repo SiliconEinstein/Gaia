@@ -32,7 +32,7 @@ Int 索引是 BP 引擎的实现细节，用于高效数组运算。外部系统
 
 适配器（`libs/graph_ir/adapter.py`）从 Gaia IR 构建 FactorGraph：
 
-1. 将 `LocalCanonicalNode` ID 映射为整数变量 ID。
+1. 将 Knowledge QID 映射为整数变量 ID。
 2. 将每个 `FactorNode` 映射为具有整数键 premise 和 conclusion 的 factor 字典。
 3. 查找参数化：从覆盖层获取节点先验概率，从覆盖层获取 factor 条件概率。
 4. 对所有先验概率和概率值应用 Cromwell 钳制。

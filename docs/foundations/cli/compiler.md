@@ -35,7 +35,7 @@ typst query --root <repo-root> lib.typ 'figure.where(kind: "gaia-ext")'
 
 1. **知识节点**：每个非外部节点成为一个 `RawKnowledgeNode`。v4 类型映射解析 `setting`、`question`、`claim`、`action`。关系节点（`contradiction`、`equivalence`）从约束映射获取其类型。
 
-2. **外部节点**：来自 `gaia-bibliography` 的节点成为带有 `ext:package/node` ID 的 `RawKnowledgeNode`，保留跨包引用。
+2. **外部节点**：来自 `gaia-bibliography` 的节点成为 `RawKnowledgeNode`，编译后使用与本包节点相同的 QID 格式（`ext:` 前缀是 Gaia Lang 语法糖，编译到 IR 后消失）。
 
 3. **推理因子**：每个 `from:` 参数生成一个类型为 `infer` 的 `FactorNode`，将前提节点链接到结论。
 
@@ -47,7 +47,7 @@ typst query --root <repo-root> lib.typ 'figure.where(kind: "gaia-ext")'
 
 参见 `libs/graph_ir/build_utils.py:build_singleton_local_graph()`。
 
-目前实现单例规范化：每个原始节点精确映射到一个 `LocalCanonicalNode`，不进行合并。原始到局部的映射记录在 `CanonicalizationLogEntry` 中以便审计。
+目前实现单例规范化：每个原始节点精确映射到一个 `Knowledge` 节点（使用 QID 标识），不进行合并。原始到局部的映射记录在 `CanonicalizationLogEntry` 中以便审计。
 
 规范化标识模型参见 [../gaia-ir/05-canonicalization.md](../gaia-ir/05-canonicalization.md)。
 
@@ -71,10 +71,10 @@ typst query --root <repo-root> lib.typ 'figure.where(kind: "gaia-ext")'
 | ID 类型 | 格式 | 生成方式 |
 |---------|--------|------------|
 | `raw_node_id` | `raw_{sha256[:16]}` | SHA-256 of `(package, version, module, name, type, kind, content, parameters)` |
-| `local_canonical_id` | `lcn_{sha256[:16]}` | SHA-256 of the raw_node_id |
+| Knowledge QID | `{ns}:{pkg}::{label}` | 由 graph 的 (namespace, package) + node label 构成 |
 | `factor_id` | `f_{sha256[:16]}` | SHA-256 of `(kind, module, name[, suffix])` |
 
-外部节点使用 `ext:{package}/{node}` 格式而非基于哈希的 ID。
+外部节点在编译后与本包节点使用相同的 QID 格式（`ext:` 前缀是 Gaia Lang 语法糖，编译到 IR 后消失）。
 
 全局规范 ID（`gcn_`）参见 [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md)。
 
