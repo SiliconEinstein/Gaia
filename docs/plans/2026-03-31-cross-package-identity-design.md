@@ -76,9 +76,9 @@ Paper namespace 的具体 ID 格式（DOI、arXiv ID、内部 metadata ID）由 
 
 Knowledge 是唯一需要 QID 的实体。Strategy 和 Operator 保持现有 hash-based 方案不变。
 
-### 3.3 IR 层统一使用 QID
+### 3.3 Local IR 层统一使用 QID
 
-编译到 IR 后，所有 Knowledge 节点统一使用 QID，不区分 local/external：
+编译到 IR 后，local 层的所有 Knowledge 节点统一使用 QID，不区分本包/外部引用：
 
 ```
 reg:galileo_falling_bodies::vacuum_prediction   ← 本包定义的节点

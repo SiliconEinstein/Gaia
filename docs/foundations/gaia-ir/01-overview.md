@@ -401,8 +401,8 @@ Parameterization 是 GlobalCanonicalGraph 上的概率参数层。它由**原子
 | 对象 | 内容 | 变化频率 |
 |------|------|---------|
 | **LocalCanonicalGraph** | 包内 Knowledge + Strategy（含 steps）+ 完整文本 | 每次 build 更新 |
-| **GlobalCanonicalGraph** | 跨包 Knowledge（引用 lcn）+ 全局 Strategy（无 steps，FormalStrategy 含 FormalExpr）+ Operator | 每次 ingest/curation 更新 |
-| **CanonicalBinding** | lcn → gcn 映射记录 | 每次 ingest 更新 |
+| **GlobalCanonicalGraph** | 跨包 Knowledge（引用 local QID）+ 全局 Strategy（无 steps，FormalStrategy 含 FormalExpr）+ Operator | 每次 ingest/curation 更新 |
+| **CanonicalBinding** | QID → gcn 映射记录 | 每次 ingest 更新 |
 | **PriorRecord** | 全局 claim 的 prior（每条记录携带 source） | 每次 review 追加 |
 | **StrategyParamRecord** | 全局参数化 Strategy 的 conditional_probabilities（每条记录携带 source） | 每次 review 追加 |
 | **ParameterizationSource** | review 来源信息（模型、策略、配置） | 每次 review 创建 |
