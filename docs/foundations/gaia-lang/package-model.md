@@ -57,7 +57,7 @@ inferred   -> gaia infer: local BP preview with local parameterization
 published  -> gaia publish: submitted to registry for peer review
 ```
 
-发布之后的流程参见 [../lkm/lifecycle.md](../lkm/lifecycle.md)。
+发布之后的流程参见 [dp-gaia](https://github.com/SiliconEinstein/dp-gaia) 仓库的 LKM 文档。
 
 ## 层级间关系
 
@@ -72,7 +72,7 @@ Package (1)
 
 - **节点标识层**（raw、local canonical、global canonical）：参见 [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md)
 - **包的 Gaia IR 表示**：参见 [../gaia-ir/01-overview.md](../gaia-ir/01-overview.md)
-- **持久化模型的存储模式**：参见 [../lkm/storage.md](../lkm/storage.md)
+- **持久化模型的存储模式**：参见 [dp-gaia](https://github.com/SiliconEinstein/dp-gaia) 仓库的 LKM 存储文档
 
 ## 源码
 

@@ -69,12 +69,4 @@ Gaia 的规范参考文档，按架构层级组织。
 
 ## LKM — 计算注册中心（服务端）
 
-- [概述](lkm/overview.md) — 写入/读取侧架构
-- [全局规范化](lkm/global-canonicalization.md) — 跨包节点映射
-- [整理](lkm/curation.md) — 聚类、去重、冲突检测
-- [全局推理](lkm/global-inference.md) — 服务端 BP
-- [管线](lkm/pipeline.md) — 7 阶段批处理编排
-- [存储](lkm/storage.md) — 三后端架构
-- [API](lkm/api.md) — HTTP API 契约
-- [Agent 信用](lkm/agent-credit.md) — Agent 可靠性追踪
-- [生命周期](lkm/lifecycle.md) — review → curate → integrate
+> LKM 文档已迁移至 [dp-gaia](https://github.com/SiliconEinstein/dp-gaia) 仓库维护。

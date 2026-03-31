@@ -58,4 +58,4 @@ CLI 端反驳报告保存为 `.gaia/review/rebuttal.json`。
 ## 跨层引用
 
 - **审查报告契约**（反驳所针对的审查报告格式）：参见 [review-report.md](review-report.md)
-- **审查 Pipeline**（反驳周期的完整流程）：参见 [../lkm/review-pipeline.md](../lkm/review-pipeline.md)
+- **审查 Pipeline**（反驳周期的完整流程）：参见 [dp-gaia](https://github.com/SiliconEinstein/dp-gaia) 仓库
