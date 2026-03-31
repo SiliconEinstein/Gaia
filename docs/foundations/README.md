@@ -69,4 +69,4 @@ Gaia 的规范参考文档，按架构层级组织。
 
 ## LKM — 计算注册中心（服务端）
 
-> LKM 文档已迁移至 [dp-gaia](https://github.com/SiliconEinstein/dp-gaia) 仓库维护。
+> LKM 文档已迁移至 [dp-gaia](https://github.com/SiliconEinstein/dp-gaia/tree/main/docs/foundations/lkm/) 仓库维护。

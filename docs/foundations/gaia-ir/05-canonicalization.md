@@ -6,7 +6,7 @@
 
 Canonicalization 定义如何将 local canonical 实体映射到 global canonical 实体，即从包内身份提升到跨包身份。
 
-Gaia IR 的核心结构定义见 [02-gaia-ir.md](02-gaia-ir.md)。全局规范化服务端流程见 [dp-gaia](https://github.com/SiliconEinstein/dp-gaia) 仓库。
+Gaia IR 的核心结构定义见 [02-gaia-ir.md](02-gaia-ir.md)。全局规范化服务端流程见 [dp-gaia 04-curation.md](https://github.com/SiliconEinstein/dp-gaia/blob/main/docs/foundations/lkm/04-curation.md)。
 
 ## 1. 作用
 
