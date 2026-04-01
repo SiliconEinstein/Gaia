@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from gaia.gaia_ir.knowledge import Knowledge, KnowledgeType
-from gaia.gaia_ir.operator import Operator
+from gaia.gaia_ir.knowledge import Knowledge, KnowledgeType, is_qid
+from gaia.gaia_ir.operator import Operator, OperatorType
 from gaia.gaia_ir.strategy import Strategy, CompositeStrategy, FormalStrategy, StrategyType
 from gaia.gaia_ir.graphs import LocalCanonicalGraph, GlobalCanonicalGraph, _canonical_json
 from gaia.gaia_ir.parameterization import (
@@ -21,6 +21,13 @@ from gaia.gaia_ir.binding import CanonicalBinding
 
 
 _PARAMETERIZED_TYPES = {StrategyType.INFER, StrategyType.NOISY_AND}
+_STRUCTURAL_HELPER_OPERATOR_TYPES = {
+    OperatorType.CONJUNCTION,
+    OperatorType.DISJUNCTION,
+    OperatorType.EQUIVALENCE,
+    OperatorType.CONTRADICTION,
+    OperatorType.COMPLEMENT,
+}
 
 
 @dataclass
@@ -54,13 +61,19 @@ def _validate_knowledges(
     result: ValidationResult,
 ) -> dict[str, Knowledge]:
     """Validate Knowledge nodes and return id→Knowledge lookup."""
-    prefix = "lcn_" if scope == "local" else "gcn_"
     lookup: dict[str, Knowledge] = {}
 
     for k in knowledges:
-        # ID prefix
-        if k.id and not k.id.startswith(prefix):
-            result.error(f"Knowledge '{k.id}': expected {prefix} prefix in {scope} graph")
+        # ID format check
+        if scope == "local":
+            if k.id and not is_qid(k.id):
+                result.error(
+                    f"Knowledge '{k.id}': expected QID format "
+                    f"(namespace:package_name::label) in local graph"
+                )
+        else:
+            if k.id and not k.id.startswith("gcn_"):
+                result.error(f"Knowledge '{k.id}': expected gcn_ prefix in {scope} graph")
 
         # uniqueness
         if k.id in lookup:
@@ -86,6 +99,16 @@ def _validate_knowledges(
             if k.local_members is not None:
                 result.error(f"Knowledge '{k.id}': local layer must not set local_members")
 
+    # label uniqueness check for local scope
+    if scope == "local":
+        labels = [k.label for k in knowledges if k.label]
+        if len(labels) != len(set(labels)):
+            seen: set[str] = set()
+            for label in labels:
+                if label in seen:
+                    result.error(f"Knowledge label '{label}': duplicate in local graph")
+                seen.add(label)
+
     return lookup
 
 
@@ -99,9 +122,17 @@ def _validate_operators(
     knowledge_lookup: dict[str, Knowledge],
     scope: str,
     result: ValidationResult,
+    *,
+    top_level: bool,
 ) -> None:
     """Validate top-level Operators against the knowledge set."""
     for op in operators:
+        if top_level and (op.operator_id is None or op.scope is None):
+            result.error(
+                "Top-level Operator must set both operator_id and scope "
+                "(embedded FormalExpr operators may omit them)"
+            )
+
         # operator scope must be compatible with graph scope
         if op.scope is not None and op.scope != scope:
             result.error(
@@ -196,7 +227,13 @@ def _validate_strategy(
         _validate_composite_sub_strategies(strategy, strategy_lookup, result)
 
     if isinstance(strategy, FormalStrategy):
-        _validate_operators(strategy.formal_expr.operators, knowledge_lookup, scope, result)
+        _validate_operators(
+            strategy.formal_expr.operators,
+            knowledge_lookup,
+            scope,
+            result,
+            top_level=False,
+        )
         _validate_formal_expr_closure(strategy, knowledge_lookup, result)
 
 
@@ -423,39 +460,43 @@ def _validate_scope_consistency(
     scope: str,
     result: ValidationResult,
 ) -> None:
-    """Ensure all references use the correct ID prefix for the scope."""
-    prefix = "lcn_" if scope == "local" else "gcn_"
+    """Ensure all references use the correct ID format for the scope."""
+
+    def _check_id_format(id_: str, context: str) -> None:
+        if scope == "local":
+            if id_ and not is_qid(id_):
+                result.error(
+                    f"{context} has wrong format for {scope} graph "
+                    f"(expected QID namespace:package::label)"
+                )
+        else:
+            if id_ and not id_.startswith("gcn_"):
+                result.error(f"{context} has wrong prefix for {scope} graph")
 
     for s in strategies:
         for pid in s.premises:
-            if pid and not pid.startswith(prefix):
-                result.error(
-                    f"Strategy '{s.strategy_id}': premise '{pid}' has wrong prefix for {scope} graph"
-                )
-        if s.conclusion and not s.conclusion.startswith(prefix):
-            result.error(
-                f"Strategy '{s.strategy_id}': conclusion '{s.conclusion}' has wrong prefix for {scope} graph"
+            _check_id_format(pid, f"Strategy '{s.strategy_id}': premise '{pid}'")
+        if s.conclusion:
+            _check_id_format(
+                s.conclusion, f"Strategy '{s.strategy_id}': conclusion '{s.conclusion}'"
             )
 
-    def _check_operator_prefix(op: Operator, context: str) -> None:
+    def _check_operator_ids(op: Operator, context: str) -> None:
         for var_id in op.variables:
-            if var_id and not var_id.startswith(prefix):
-                result.error(
-                    f"{context} '{op.operator_id}': variable '{var_id}' has wrong prefix for {scope} graph"
-                )
-        if op.conclusion and not op.conclusion.startswith(prefix):
-            result.error(
-                f"{context} '{op.operator_id}': conclusion '{op.conclusion}' has wrong prefix for {scope} graph"
+            _check_id_format(var_id, f"{context} '{op.operator_id}': variable '{var_id}'")
+        if op.conclusion:
+            _check_id_format(
+                op.conclusion, f"{context} '{op.operator_id}': conclusion '{op.conclusion}'"
             )
 
     for op in operators:
-        _check_operator_prefix(op, "Operator")
+        _check_operator_ids(op, "Operator")
 
     # Also check FormalExpr-embedded operators
     for s in strategies:
         if isinstance(s, FormalStrategy):
             for op in s.formal_expr.operators:
-                _check_operator_prefix(op, f"FormalStrategy '{s.strategy_id}' operator")
+                _check_operator_ids(op, f"FormalStrategy '{s.strategy_id}' operator")
 
 
 # ---------------------------------------------------------------------------
@@ -468,7 +509,7 @@ def validate_local_graph(graph: LocalCanonicalGraph) -> ValidationResult:
     result = ValidationResult()
 
     knowledge_lookup = _validate_knowledges(graph.knowledges, "local", result)
-    _validate_operators(graph.operators, knowledge_lookup, "local", result)
+    _validate_operators(graph.operators, knowledge_lookup, "local", result, top_level=True)
     _validate_strategies(graph.strategies, graph.operators, knowledge_lookup, "local", result)
     _validate_scope_consistency(
         knowledge_lookup, graph.operators, graph.strategies, "local", result
@@ -493,7 +534,7 @@ def validate_global_graph(graph: GlobalCanonicalGraph) -> ValidationResult:
     result = ValidationResult()
 
     knowledge_lookup = _validate_knowledges(graph.knowledges, "global", result)
-    _validate_operators(graph.operators, knowledge_lookup, "global", result)
+    _validate_operators(graph.operators, knowledge_lookup, "global", result, top_level=True)
     _validate_strategies(graph.strategies, graph.operators, knowledge_lookup, "global", result)
     _validate_scope_consistency(
         knowledge_lookup, graph.operators, graph.strategies, "global", result
@@ -514,20 +555,39 @@ def validate_parameterization(
 ) -> ValidationResult:
     """Validate parameterization completeness before BP run.
 
-    Checks that every non-helper claim Knowledge has at least one PriorRecord
+    Checks that every non-private claim Knowledge has at least one PriorRecord
     and every parameterized Strategy (infer/noisy_and) has a StrategyParamRecord.
     FormalStrategy types derive behavior from FormalExpr — no params needed.
-    Private helper claims (FormalExpr operator conclusions not in strategy interface)
-    are PROHIBITED from having independent PriorRecords (§4, §6 of spec).
+
+    Two categories of claims are excluded from PriorRecord requirements and
+    PROHIBITED from having independent PriorRecords:
+    1. Top-level structural helper claims — conclusions of top-level Operators
+       with structural types (conjunction/disjunction/equivalence/contradiction/
+       complement). Their truth value is fully determined by the Operator.
+    2. FormalExpr private nodes — ANY operator conclusion inside a FormalExpr
+       that is NOT in the owning FormalStrategy's premises/conclusion interface.
+       Per spec §4 of 04-helper-claims.md, private nodes must not carry
+       independent PriorRecord regardless of the operator type.
+
+    Generated public interface claims (e.g. abduction's AlternativeExplanationForObs)
+    are part of the strategy interface, so they remain ordinary claim inputs and
+    still require PriorRecord.
     """
     result = ValidationResult()
 
     # collect claim gcn_ids
     claim_ids = {k.id for k in graph.knowledges if k.type == KnowledgeType.CLAIM and k.id}
 
-    # identify private helper claims: FormalExpr operator conclusions not in
-    # the owning FormalStrategy's premises/conclusion interface
-    private_helper_ids: set[str] = set()
+    # identify claims that must not have independent PriorRecords:
+
+    # (a) top-level structural helper claims — conclusions of structural operators
+    no_prior_ids: set[str] = set()
+    for op in graph.operators:
+        if op.operator in _STRUCTURAL_HELPER_OPERATOR_TYPES:
+            no_prior_ids.add(op.conclusion)
+
+    # (b) FormalExpr private nodes — ALL operator conclusions inside FormalExpr
+    #     that are NOT in the owning strategy's premises/conclusion interface
     for s in graph.strategies:
         if isinstance(s, FormalStrategy):
             own_interface: set[str] = set(s.premises)
@@ -535,7 +595,7 @@ def validate_parameterization(
                 own_interface.add(s.conclusion)
             for op in s.formal_expr.operators:
                 if op.conclusion not in own_interface:
-                    private_helper_ids.add(op.conclusion)
+                    no_prior_ids.add(op.conclusion)
 
     # collect strategy ids, split by parameterized vs not
     parameterized_ids: set[str] = set()
@@ -546,20 +606,20 @@ def validate_parameterization(
             if s.type in _PARAMETERIZED_TYPES:
                 parameterized_ids.add(s.strategy_id)
 
-    # check prior coverage (exclude private helper claims)
+    # check prior coverage (exclude private/helper claims)
     prior_gcn_ids = {r.gcn_id for r in priors}
     for cid in claim_ids:
-        if cid in private_helper_ids:
-            continue  # private helpers don't need priors
+        if cid in no_prior_ids:
+            continue  # private or structural helper — no prior needed
         if cid not in prior_gcn_ids:
             result.error(f"Claim '{cid}': missing PriorRecord")
 
-    # private helper claims must NOT have PriorRecords (spec §4, §6)
+    # private/helper claims must NOT have PriorRecords (spec §4 of 04-helper-claims.md)
     for r_prior in priors:
-        if r_prior.gcn_id in private_helper_ids:
+        if r_prior.gcn_id in no_prior_ids:
             result.error(
-                f"PriorRecord '{r_prior.gcn_id}': private helper claim must not have "
-                f"independent PriorRecord (value determined by Operator constraints)"
+                f"PriorRecord '{r_prior.gcn_id}': private or structural helper claim "
+                f"must not have independent PriorRecord"
             )
 
     # check strategy param coverage — only for parameterized types

@@ -17,25 +17,18 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 ### 结构
 
 - **Variable nodes**：每个 knowledge 节点成为一个二值变量，携带先验信念 `p(x=1)`。
-- **Factor nodes**：每个包含 `premises`、`conclusion`、`factor_type`（strategy/operator）、`subtype`，以及条件概率（仅 strategy 类型）。
+- **Factor nodes**：每个包含 `variables`、`conclusion`、`factor_type`，以及参数化因子的 `p1`/`p2`（SOFT_ENTAILMENT）或 `cpt`（CONDITIONAL）。
 
-### 当前实现
+### 实现
 
-见 `libs/inference/factor_graph.py`。当前实现使用 int 索引作为内部优化：
+**v1（Graph IR 管线）**：`libs/inference/factor_graph.py`，使用 int 索引、`premises`/`conclusions`/`edge_type` 字符串。供 `scripts/pipeline/run_local_bp.py` 等包内 BP 使用。
 
-- **Variables**：`dict[int, float]`，将整数节点 ID 映射到先验信念。
-- **Factors**：`list[dict]`，其中每个 factor 包含 `edge_id`、`premises: list[int]`、`conclusions: list[int]`、`probability: float`、`edge_type: str`，以及可选的 `gate_var: int`。
-
-Int 索引是 BP 引擎的实现细节，用于高效数组运算。外部系统使用字符串 ID 标识 variable 和 factor。
+**v2（理论对齐 BP 引擎）**：`gaia/bp/factor_graph.py`，使用字符串 ID、八种 `FactorType`（六种确定性 + SOFT_ENTAILMENT + CONDITIONAL）、`variables` + `conclusion` 结构。势函数见 [potentials.md](potentials.md)。包含 loopy BP、Junction Tree、GBP、exact brute-force、`InferenceEngine` 自动选择。
 
 ### 从 Gaia IR 构建
 
-适配器（`libs/graph_ir/adapter.py`）从 Gaia IR 构建 FactorGraph：
-
-1. 将 `LocalCanonicalNode` ID 映射为整数变量 ID。
-2. 将每个 `FactorNode` 映射为具有整数键 premise 和 conclusion 的 factor 字典。
-3. 查找参数化：从覆盖层获取节点先验概率，从覆盖层获取 factor 条件概率。
-4. 对所有先验概率和概率值应用 Cromwell 钳制。
+- **Graph IR → v1**：适配器 `libs/graph_ir/adapter.py`，将 Knowledge QID 映射为整数 ID。
+- **Gaia IR（`LocalCanonicalGraph`）→ v2**：`gaia.bp.lowering.lower_local_graph()`，契约见 [../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md)。Operator → 确定性因子；`noisy_and` → CONJUNCTION + SOFT_ENTAILMENT；`infer` → CONDITIONAL 或可选 degraded ∧+↝；FormalStrategy → expand（内部 Operator 逐一 lower）或 fold（NotImplementedError，待设计）。
 
 ### Cromwell's rule
 

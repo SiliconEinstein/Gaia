@@ -33,7 +33,13 @@ def _setting(id: str) -> Knowledge:
 
 
 def _local_graph(**kwargs) -> LocalCanonicalGraph:
-    defaults = {"knowledges": [], "operators": [], "strategies": []}
+    defaults = {
+        "namespace": "reg",
+        "package_name": "test",
+        "knowledges": [],
+        "operators": [],
+        "strategies": [],
+    }
     defaults.update(kwargs)
     return LocalCanonicalGraph(**defaults)
 
@@ -51,7 +57,7 @@ def _global_graph(**kwargs) -> GlobalCanonicalGraph:
 
 class TestKnowledgeValidation:
     def test_valid_local(self):
-        g = _local_graph(knowledges=[_claim("lcn_a")])
+        g = _local_graph(knowledges=[_claim("reg:test::a")])
         r = validate_local_graph(g)
         assert r.valid
 
@@ -59,7 +65,7 @@ class TestKnowledgeValidation:
         g = _local_graph(knowledges=[_claim("gcn_wrong")])
         r = validate_local_graph(g)
         assert not r.valid
-        assert any("prefix" in e for e in r.errors)
+        assert any("QID format" in e for e in r.errors)
 
     def test_wrong_prefix_global(self):
         g = _global_graph(knowledges=[_claim("lcn_wrong")])
@@ -67,7 +73,7 @@ class TestKnowledgeValidation:
         assert not r.valid
 
     def test_duplicate_id(self):
-        g = _local_graph(knowledges=[_claim("lcn_a"), _claim("lcn_a", "other")])
+        g = _local_graph(knowledges=[_claim("reg:test::a"), _claim("reg:test::a", "other")])
         r = validate_local_graph(g)
         assert not r.valid
         assert any("duplicate" in e for e in r.errors)
@@ -86,7 +92,7 @@ class TestKnowledgeValidation:
             id="gcn_ok",
             type=KnowledgeType.CLAIM,
             representative_lcn=LocalCanonicalRef(
-                local_canonical_id="lcn_x", package_id="pkg", version="1"
+                local_canonical_id="reg:test::x", package_id="pkg", version="1"
             ),
         )
         g = _global_graph(knowledges=[k])
@@ -94,7 +100,7 @@ class TestKnowledgeValidation:
         assert r.valid
 
     def test_local_knowledge_must_have_content(self):
-        k = Knowledge(id="lcn_a", type=KnowledgeType.CLAIM)
+        k = Knowledge(id="reg:test::a", type=KnowledgeType.CLAIM)
         g = _local_graph(knowledges=[k])
         r = validate_local_graph(g)
         assert not r.valid
@@ -104,11 +110,11 @@ class TestKnowledgeValidation:
         from gaia.gaia_ir import LocalCanonicalRef
 
         k = Knowledge(
-            id="lcn_a",
+            id="reg:test::a",
             type=KnowledgeType.CLAIM,
             content="test",
             representative_lcn=LocalCanonicalRef(
-                local_canonical_id="lcn_x", package_id="pkg", version="1"
+                local_canonical_id="reg:test::x", package_id="pkg", version="1"
             ),
         )
         g = _local_graph(knowledges=[k])
@@ -120,17 +126,28 @@ class TestKnowledgeValidation:
         from gaia.gaia_ir import LocalCanonicalRef
 
         k = Knowledge(
-            id="lcn_a",
+            id="reg:test::a",
             type=KnowledgeType.CLAIM,
             content="test",
             local_members=[
-                LocalCanonicalRef(local_canonical_id="lcn_x", package_id="pkg", version="1")
+                LocalCanonicalRef(local_canonical_id="reg:test::x", package_id="pkg", version="1")
             ],
         )
         g = _local_graph(knowledges=[k])
         r = validate_local_graph(g)
         assert not r.valid
         assert any("local_members" in e for e in r.errors)
+
+    def test_duplicate_label_rejected(self):
+        g = _local_graph(
+            knowledges=[
+                Knowledge(id="reg:test::x", type=KnowledgeType.CLAIM, content="first", label="x"),
+                Knowledge(id="reg:test2::x", type=KnowledgeType.CLAIM, content="second", label="x"),
+            ]
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("duplicate" in e and "label" in e for e in r.errors)
 
 
 # ---------------------------------------------------------------------------
@@ -142,9 +159,15 @@ class TestOperatorValidation:
     def test_valid_operator_equivalence(self):
         """Equivalence: 2 variables + conclusion (helper claim)."""
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_h")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::b"), _claim("reg:test::h")],
             operators=[
-                Operator(operator="equivalence", variables=["lcn_a", "lcn_b"], conclusion="lcn_h")
+                Operator(
+                    operator_id="lco_eq",
+                    scope="local",
+                    operator="equivalence",
+                    variables=["reg:test::a", "reg:test::b"],
+                    conclusion="reg:test::h",
+                )
             ],
         )
         r = validate_local_graph(g)
@@ -153,8 +176,16 @@ class TestOperatorValidation:
     def test_valid_operator_implication(self):
         """Implication: 1 variable + conclusion."""
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
-            operators=[Operator(operator="implication", variables=["lcn_a"], conclusion="lcn_b")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::b")],
+            operators=[
+                Operator(
+                    operator_id="lco_impl",
+                    scope="local",
+                    operator="implication",
+                    variables=["reg:test::a"],
+                    conclusion="reg:test::b",
+                )
+            ],
         )
         r = validate_local_graph(g)
         assert r.valid
@@ -162,9 +193,15 @@ class TestOperatorValidation:
     def test_valid_operator_conjunction(self):
         """Conjunction: >=2 variables + conclusion."""
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_m")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::b"), _claim("reg:test::m")],
             operators=[
-                Operator(operator="conjunction", variables=["lcn_a", "lcn_b"], conclusion="lcn_m")
+                Operator(
+                    operator_id="lco_and",
+                    scope="local",
+                    operator="conjunction",
+                    variables=["reg:test::a", "reg:test::b"],
+                    conclusion="reg:test::m",
+                )
             ],
         )
         r = validate_local_graph(g)
@@ -172,12 +209,14 @@ class TestOperatorValidation:
 
     def test_dangling_variable_reference(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_h")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::h")],
             operators=[
                 Operator(
+                    operator_id="lco_eq",
+                    scope="local",
                     operator="equivalence",
-                    variables=["lcn_a", "lcn_missing"],
-                    conclusion="lcn_h",
+                    variables=["reg:test::a", "reg:test::missing"],
+                    conclusion="reg:test::h",
                 )
             ],
         )
@@ -187,9 +226,15 @@ class TestOperatorValidation:
 
     def test_dangling_conclusion_reference(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_a")],
+            knowledges=[_claim("reg:test::a")],
             operators=[
-                Operator(operator="implication", variables=["lcn_a"], conclusion="lcn_missing")
+                Operator(
+                    operator_id="lco_impl",
+                    scope="local",
+                    operator="implication",
+                    variables=["reg:test::a"],
+                    conclusion="reg:test::missing",
+                )
             ],
         )
         r = validate_local_graph(g)
@@ -198,12 +243,14 @@ class TestOperatorValidation:
 
     def test_operator_variable_on_non_claim(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _setting("lcn_s"), _claim("lcn_h")],
+            knowledges=[_claim("reg:test::a"), _setting("reg:test::s"), _claim("reg:test::h")],
             operators=[
                 Operator(
+                    operator_id="lco_eq",
+                    scope="local",
                     operator="equivalence",
-                    variables=["lcn_a", "lcn_s"],
-                    conclusion="lcn_h",
+                    variables=["reg:test::a", "reg:test::s"],
+                    conclusion="reg:test::h",
                 )
             ],
         )
@@ -213,8 +260,16 @@ class TestOperatorValidation:
 
     def test_operator_conclusion_on_non_claim(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _setting("lcn_s")],
-            operators=[Operator(operator="implication", variables=["lcn_a"], conclusion="lcn_s")],
+            knowledges=[_claim("reg:test::a"), _setting("reg:test::s")],
+            operators=[
+                Operator(
+                    operator_id="lco_impl",
+                    scope="local",
+                    operator="implication",
+                    variables=["reg:test::a"],
+                    conclusion="reg:test::s",
+                )
+            ],
         )
         r = validate_local_graph(g)
         assert not r.valid
@@ -222,13 +277,14 @@ class TestOperatorValidation:
 
     def test_local_graph_rejects_global_scoped_operator(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::b")],
             operators=[
                 Operator(
+                    operator_id="gco_bad",
                     scope="global",
                     operator="implication",
-                    variables=["lcn_a"],
-                    conclusion="lcn_b",
+                    variables=["reg:test::a"],
+                    conclusion="reg:test::b",
                 )
             ],
         )
@@ -241,6 +297,7 @@ class TestOperatorValidation:
             knowledges=[_claim("gcn_a"), _claim("gcn_b")],
             operators=[
                 Operator(
+                    operator_id="lco_bad",
                     scope="local",
                     operator="implication",
                     variables=["gcn_a"],
@@ -255,18 +312,33 @@ class TestOperatorValidation:
     def test_operator_conclusion_scope_prefix_check(self):
         """Operator conclusion should have correct scope prefix."""
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::b")],
             operators=[
                 Operator(
+                    operator_id="lco_impl",
+                    scope="local",
                     operator="implication",
-                    variables=["lcn_a"],
+                    variables=["reg:test::a"],
                     conclusion="gcn_wrong",
                 )
             ],
         )
         r = validate_local_graph(g)
         assert not r.valid
-        assert any("wrong prefix" in e or "not found" in e for e in r.errors)
+        assert any("wrong format" in e or "not found" in e for e in r.errors)
+
+    def test_top_level_operator_requires_scope_and_id(self):
+        g = _local_graph(
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::b")],
+            operators=[
+                Operator(
+                    operator="implication", variables=["reg:test::a"], conclusion="reg:test::b"
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("Top-level Operator must set both operator_id and scope" in e for e in r.errors)
 
 
 # ---------------------------------------------------------------------------
@@ -277,9 +349,14 @@ class TestOperatorValidation:
 class TestStrategyValidation:
     def test_valid_strategy(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::b")],
             strategies=[
-                Strategy(scope="local", type="noisy_and", premises=["lcn_a"], conclusion="lcn_b")
+                Strategy(
+                    scope="local",
+                    type="noisy_and",
+                    premises=["reg:test::a"],
+                    conclusion="reg:test::b",
+                )
             ],
         )
         r = validate_local_graph(g)
@@ -287,9 +364,14 @@ class TestStrategyValidation:
 
     def test_dangling_premise(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_b")],
+            knowledges=[_claim("reg:test::b")],
             strategies=[
-                Strategy(scope="local", type="infer", premises=["lcn_missing"], conclusion="lcn_b")
+                Strategy(
+                    scope="local",
+                    type="infer",
+                    premises=["reg:test::missing"],
+                    conclusion="reg:test::b",
+                )
             ],
         )
         r = validate_local_graph(g)
@@ -298,9 +380,14 @@ class TestStrategyValidation:
 
     def test_dangling_conclusion(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_a")],
+            knowledges=[_claim("reg:test::a")],
             strategies=[
-                Strategy(scope="local", type="infer", premises=["lcn_a"], conclusion="lcn_missing")
+                Strategy(
+                    scope="local",
+                    type="infer",
+                    premises=["reg:test::a"],
+                    conclusion="reg:test::missing",
+                )
             ],
         )
         r = validate_local_graph(g)
@@ -309,9 +396,11 @@ class TestStrategyValidation:
 
     def test_premise_must_be_claim(self):
         g = _local_graph(
-            knowledges=[_setting("lcn_s"), _claim("lcn_b")],
+            knowledges=[_setting("reg:test::s"), _claim("reg:test::b")],
             strategies=[
-                Strategy(scope="local", type="infer", premises=["lcn_s"], conclusion="lcn_b")
+                Strategy(
+                    scope="local", type="infer", premises=["reg:test::s"], conclusion="reg:test::b"
+                )
             ],
         )
         r = validate_local_graph(g)
@@ -320,9 +409,11 @@ class TestStrategyValidation:
 
     def test_conclusion_must_be_claim(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _setting("lcn_s")],
+            knowledges=[_claim("reg:test::a"), _setting("reg:test::s")],
             strategies=[
-                Strategy(scope="local", type="infer", premises=["lcn_a"], conclusion="lcn_s")
+                Strategy(
+                    scope="local", type="infer", premises=["reg:test::a"], conclusion="reg:test::s"
+                )
             ],
         )
         r = validate_local_graph(g)
@@ -331,9 +422,11 @@ class TestStrategyValidation:
 
     def test_self_loop_rejected(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_a")],
+            knowledges=[_claim("reg:test::a")],
             strategies=[
-                Strategy(scope="local", type="infer", premises=["lcn_a"], conclusion="lcn_a")
+                Strategy(
+                    scope="local", type="infer", premises=["reg:test::a"], conclusion="reg:test::a"
+                )
             ],
         )
         r = validate_local_graph(g)
@@ -342,14 +435,14 @@ class TestStrategyValidation:
 
     def test_background_warning_if_missing(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::b")],
             strategies=[
                 Strategy(
                     scope="local",
                     type="noisy_and",
-                    premises=["lcn_a"],
-                    conclusion="lcn_b",
-                    background=["lcn_nonexistent"],
+                    premises=["reg:test::a"],
+                    conclusion="reg:test::b",
+                    background=["reg:test::nonexistent"],
                 )
             ],
         )
@@ -380,15 +473,17 @@ class TestStrategyValidation:
                 strategy_id="gcs_wrong",
                 scope="local",
                 type="infer",
-                premises=["lcn_a"],
-                conclusion="lcn_b",
+                premises=["reg:test::a"],
+                conclusion="reg:test::b",
             )
 
     def test_local_graph_rejects_global_scoped_strategy(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::b")],
             strategies=[
-                Strategy(scope="global", type="infer", premises=["lcn_a"], conclusion="lcn_b")
+                Strategy(
+                    scope="global", type="infer", premises=["reg:test::a"], conclusion="reg:test::b"
+                )
             ],
         )
         r = validate_local_graph(g)
@@ -410,16 +505,18 @@ class TestStrategyValidation:
 class TestCompositeStrategyValidation:
     def test_valid_composite_with_string_refs(self):
         """CompositeStrategy with sub_strategies as string references."""
-        sub = Strategy(scope="local", type="noisy_and", premises=["lcn_a"], conclusion="lcn_b")
+        sub = Strategy(
+            scope="local", type="noisy_and", premises=["reg:test::a"], conclusion="reg:test::b"
+        )
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_c")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::b"), _claim("reg:test::c")],
             strategies=[
                 sub,
                 CompositeStrategy(
                     scope="local",
                     type="abduction",
-                    premises=["lcn_a"],
-                    conclusion="lcn_c",
+                    premises=["reg:test::a"],
+                    conclusion="reg:test::c",
                     sub_strategies=[sub.strategy_id],
                 ),
             ],
@@ -430,13 +527,13 @@ class TestCompositeStrategyValidation:
     def test_sub_strategy_ref_not_found(self):
         """CompositeStrategy referencing a non-existent sub_strategy ID."""
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_c")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::c")],
             strategies=[
                 CompositeStrategy(
                     scope="local",
-                    type="induction",
-                    premises=["lcn_a"],
-                    conclusion="lcn_c",
+                    type="abduction",
+                    premises=["reg:test::a"],
+                    conclusion="reg:test::c",
                     sub_strategies=["lcs_nonexistent"],
                 ),
             ],
@@ -450,26 +547,28 @@ class TestCompositeStrategyValidation:
         # We need to manually construct IDs to create a cycle
         # Build two composites that reference each other
         # First create a leaf strategy for valid sub_strategies
-        leaf = Strategy(scope="local", type="noisy_and", premises=["lcn_a"], conclusion="lcn_b")
+        leaf = Strategy(
+            scope="local", type="noisy_and", premises=["reg:test::a"], conclusion="reg:test::b"
+        )
 
         comp_a = CompositeStrategy(
             strategy_id="lcs_comp_a",
             scope="local",
             type="abduction",
-            premises=["lcn_a"],
-            conclusion="lcn_b",
+            premises=["reg:test::a"],
+            conclusion="reg:test::b",
             sub_strategies=["lcs_comp_b"],
         )
         comp_b = CompositeStrategy(
             strategy_id="lcs_comp_b",
             scope="local",
-            type="induction",
-            premises=["lcn_a"],
-            conclusion="lcn_b",
+            type="abduction",
+            premises=["reg:test::a"],
+            conclusion="reg:test::b",
             sub_strategies=["lcs_comp_a"],
         )
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::b")],
             strategies=[leaf, comp_a, comp_b],
         )
         r = validate_local_graph(g)
@@ -478,16 +577,18 @@ class TestCompositeStrategyValidation:
 
     def test_composite_no_cycle_valid(self):
         """CompositeStrategy DAG (no cycle) should pass."""
-        leaf = Strategy(scope="local", type="noisy_and", premises=["lcn_a"], conclusion="lcn_b")
+        leaf = Strategy(
+            scope="local", type="noisy_and", premises=["reg:test::a"], conclusion="reg:test::b"
+        )
         comp = CompositeStrategy(
             scope="local",
             type="abduction",
-            premises=["lcn_a"],
-            conclusion="lcn_b",
+            premises=["reg:test::a"],
+            conclusion="reg:test::b",
             sub_strategies=[leaf.strategy_id],
         )
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::b")],
             strategies=[leaf, comp],
         )
         r = validate_local_graph(g)
@@ -497,24 +598,29 @@ class TestCompositeStrategyValidation:
 class TestFormalStrategyValidation:
     def test_valid_formal(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_m"), _claim("lcn_c")],
+            knowledges=[
+                _claim("reg:test::a"),
+                _claim("reg:test::b"),
+                _claim("reg:test::m"),
+                _claim("reg:test::c"),
+            ],
             strategies=[
                 FormalStrategy(
                     scope="local",
                     type="deduction",
-                    premises=["lcn_a", "lcn_b"],
-                    conclusion="lcn_c",
+                    premises=["reg:test::a", "reg:test::b"],
+                    conclusion="reg:test::c",
                     formal_expr=FormalExpr(
                         operators=[
                             Operator(
                                 operator="conjunction",
-                                variables=["lcn_a", "lcn_b"],
-                                conclusion="lcn_m",
+                                variables=["reg:test::a", "reg:test::b"],
+                                conclusion="reg:test::m",
                             ),
                             Operator(
                                 operator="implication",
-                                variables=["lcn_m"],
-                                conclusion="lcn_c",
+                                variables=["reg:test::m"],
+                                conclusion="reg:test::c",
                             ),
                         ]
                     ),
@@ -526,19 +632,19 @@ class TestFormalStrategyValidation:
 
     def test_formal_expr_dangling_ref(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_c")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::c")],
             strategies=[
                 FormalStrategy(
                     scope="local",
                     type="deduction",
-                    premises=["lcn_a"],
-                    conclusion="lcn_c",
+                    premises=["reg:test::a"],
+                    conclusion="reg:test::c",
                     formal_expr=FormalExpr(
                         operators=[
                             Operator(
                                 operator="implication",
-                                variables=["lcn_missing"],
-                                conclusion="lcn_c",
+                                variables=["reg:test::missing"],
+                                conclusion="reg:test::c",
                             ),
                         ]
                     ),
@@ -551,24 +657,29 @@ class TestFormalStrategyValidation:
     def test_formal_expr_reference_closure_valid(self):
         """All operator refs within premises/conclusion/other operator conclusions."""
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_m"), _claim("lcn_c")],
+            knowledges=[
+                _claim("reg:test::a"),
+                _claim("reg:test::b"),
+                _claim("reg:test::m"),
+                _claim("reg:test::c"),
+            ],
             strategies=[
                 FormalStrategy(
                     scope="local",
                     type="deduction",
-                    premises=["lcn_a", "lcn_b"],
-                    conclusion="lcn_c",
+                    premises=["reg:test::a", "reg:test::b"],
+                    conclusion="reg:test::c",
                     formal_expr=FormalExpr(
                         operators=[
                             Operator(
                                 operator="conjunction",
-                                variables=["lcn_a", "lcn_b"],
-                                conclusion="lcn_m",
+                                variables=["reg:test::a", "reg:test::b"],
+                                conclusion="reg:test::m",
                             ),
                             Operator(
                                 operator="implication",
-                                variables=["lcn_m"],
-                                conclusion="lcn_c",
+                                variables=["reg:test::m"],
+                                conclusion="reg:test::c",
                             ),
                         ]
                     ),
@@ -582,22 +693,22 @@ class TestFormalStrategyValidation:
         """Operator variable not in premises/conclusion/operator conclusions."""
         g = _local_graph(
             knowledges=[
-                _claim("lcn_a"),
-                _claim("lcn_c"),
-                _claim("lcn_outside"),
+                _claim("reg:test::a"),
+                _claim("reg:test::c"),
+                _claim("reg:test::outside"),
             ],
             strategies=[
                 FormalStrategy(
                     scope="local",
                     type="deduction",
-                    premises=["lcn_a"],
-                    conclusion="lcn_c",
+                    premises=["reg:test::a"],
+                    conclusion="reg:test::c",
                     formal_expr=FormalExpr(
                         operators=[
                             Operator(
                                 operator="implication",
-                                variables=["lcn_outside"],
-                                conclusion="lcn_c",
+                                variables=["reg:test::outside"],
+                                conclusion="reg:test::c",
                             ),
                         ]
                     ),
@@ -610,38 +721,38 @@ class TestFormalStrategyValidation:
 
     def test_formal_expr_private_node_isolation(self):
         """Private internal node must not be referenced by another strategy."""
-        # lcn_m is a private intermediate in the FormalStrategy
+        # reg:test::m is a private intermediate in the FormalStrategy
         # Another strategy should not reference it
         formal = FormalStrategy(
             scope="local",
             type="deduction",
-            premises=["lcn_a"],
-            conclusion="lcn_c",
+            premises=["reg:test::a"],
+            conclusion="reg:test::c",
             formal_expr=FormalExpr(
                 operators=[
                     Operator(
                         operator="implication",
-                        variables=["lcn_a"],
-                        conclusion="lcn_m",
+                        variables=["reg:test::a"],
+                        conclusion="reg:test::m",
                     ),
                     Operator(
                         operator="implication",
-                        variables=["lcn_m"],
-                        conclusion="lcn_c",
+                        variables=["reg:test::m"],
+                        conclusion="reg:test::c",
                     ),
                 ]
             ),
         )
-        # lcn_m is private: it's an operator conclusion but NOT in any top-level
+        # reg:test::m is private: it's an operator conclusion but NOT in any top-level
         # strategy's premises/conclusion. Another strategy references it — violation.
         other = Strategy(
             scope="local",
             type="noisy_and",
-            premises=["lcn_m"],
-            conclusion="lcn_c",
+            premises=["reg:test::m"],
+            conclusion="reg:test::c",
         )
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_c"), _claim("lcn_m")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::c"), _claim("reg:test::m")],
             strategies=[formal, other],
         )
         r = validate_local_graph(g)
@@ -650,19 +761,19 @@ class TestFormalStrategyValidation:
 
     def test_formal_expr_non_private_node_ok(self):
         """An operator conclusion that IS in the owning strategy's interface is not private."""
-        # lcn_c is both an operator conclusion and the FormalStrategy's conclusion,
+        # reg:test::c is both an operator conclusion and the FormalStrategy's conclusion,
         # so it's NOT private. Another strategy can reference it freely.
         formal = FormalStrategy(
             scope="local",
             type="deduction",
-            premises=["lcn_a"],
-            conclusion="lcn_c",
+            premises=["reg:test::a"],
+            conclusion="reg:test::c",
             formal_expr=FormalExpr(
                 operators=[
                     Operator(
                         operator="implication",
-                        variables=["lcn_a"],
-                        conclusion="lcn_c",
+                        variables=["reg:test::a"],
+                        conclusion="reg:test::c",
                     ),
                 ]
             ),
@@ -670,11 +781,11 @@ class TestFormalStrategyValidation:
         other = Strategy(
             scope="local",
             type="noisy_and",
-            premises=["lcn_c"],
-            conclusion="lcn_d",
+            premises=["reg:test::c"],
+            conclusion="reg:test::d",
         )
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_c"), _claim("lcn_d")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::c"), _claim("reg:test::d")],
             strategies=[formal, other],
         )
         r = validate_local_graph(g)
@@ -683,24 +794,24 @@ class TestFormalStrategyValidation:
     def test_formal_expr_cycle_detected(self):
         """FormalExpr operators that form a cycle: A->B and B->A."""
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b"), _claim("lcn_c")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::b"), _claim("reg:test::c")],
             strategies=[
                 FormalStrategy(
                     scope="local",
                     type="deduction",
-                    premises=["lcn_a"],
-                    conclusion="lcn_c",
+                    premises=["reg:test::a"],
+                    conclusion="reg:test::c",
                     formal_expr=FormalExpr(
                         operators=[
                             Operator(
                                 operator="implication",
-                                variables=["lcn_b"],
-                                conclusion="lcn_c",
+                                variables=["reg:test::b"],
+                                conclusion="reg:test::c",
                             ),
                             Operator(
                                 operator="implication",
-                                variables=["lcn_c"],
-                                conclusion="lcn_b",
+                                variables=["reg:test::c"],
+                                conclusion="reg:test::b",
                             ),
                         ]
                     ),
@@ -714,24 +825,24 @@ class TestFormalStrategyValidation:
     def test_formal_expr_no_cycle_valid(self):
         """Linear chain A->M->C has no cycle."""
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_m"), _claim("lcn_c")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::m"), _claim("reg:test::c")],
             strategies=[
                 FormalStrategy(
                     scope="local",
                     type="deduction",
-                    premises=["lcn_a"],
-                    conclusion="lcn_c",
+                    premises=["reg:test::a"],
+                    conclusion="reg:test::c",
                     formal_expr=FormalExpr(
                         operators=[
                             Operator(
                                 operator="implication",
-                                variables=["lcn_a"],
-                                conclusion="lcn_m",
+                                variables=["reg:test::a"],
+                                conclusion="reg:test::m",
                             ),
                             Operator(
                                 operator="implication",
-                                variables=["lcn_m"],
-                                conclusion="lcn_c",
+                                variables=["reg:test::m"],
+                                conclusion="reg:test::c",
                             ),
                         ]
                     ),
@@ -746,37 +857,37 @@ class TestFormalStrategyValidation:
         formal = FormalStrategy(
             scope="local",
             type="deduction",
-            premises=["lcn_a", "lcn_b"],
-            conclusion="lcn_c",
+            premises=["reg:test::a", "reg:test::b"],
+            conclusion="reg:test::c",
             formal_expr=FormalExpr(
                 operators=[
                     Operator(
                         operator="conjunction",
-                        variables=["lcn_a", "lcn_b"],
-                        conclusion="lcn_m",
+                        variables=["reg:test::a", "reg:test::b"],
+                        conclusion="reg:test::m",
                     ),
                     Operator(
                         operator="implication",
-                        variables=["lcn_m"],
-                        conclusion="lcn_c",
+                        variables=["reg:test::m"],
+                        conclusion="reg:test::c",
                     ),
                 ]
             ),
         )
-        # Top-level operator uses private node lcn_m as a variable
+        # Top-level operator uses private node reg:test::m as a variable
         top_op = Operator(
             operator_id="lco_bad",
             scope="local",
             operator="implication",
-            variables=["lcn_m"],
-            conclusion="lcn_c",
+            variables=["reg:test::m"],
+            conclusion="reg:test::c",
         )
         g = _local_graph(
             knowledges=[
-                _claim("lcn_a"),
-                _claim("lcn_b"),
-                _claim("lcn_c"),
-                _claim("lcn_m"),
+                _claim("reg:test::a"),
+                _claim("reg:test::b"),
+                _claim("reg:test::c"),
+                _claim("reg:test::m"),
             ],
             operators=[top_op],
             strategies=[formal],
@@ -790,37 +901,37 @@ class TestFormalStrategyValidation:
         formal = FormalStrategy(
             scope="local",
             type="deduction",
-            premises=["lcn_a", "lcn_b"],
-            conclusion="lcn_c",
+            premises=["reg:test::a", "reg:test::b"],
+            conclusion="reg:test::c",
             formal_expr=FormalExpr(
                 operators=[
                     Operator(
                         operator="conjunction",
-                        variables=["lcn_a", "lcn_b"],
-                        conclusion="lcn_m",
+                        variables=["reg:test::a", "reg:test::b"],
+                        conclusion="reg:test::m",
                     ),
                     Operator(
                         operator="implication",
-                        variables=["lcn_m"],
-                        conclusion="lcn_c",
+                        variables=["reg:test::m"],
+                        conclusion="reg:test::c",
                     ),
                 ]
             ),
         )
-        # Top-level operator outputs to private node lcn_m
+        # Top-level operator outputs to private node reg:test::m
         top_op = Operator(
             operator_id="lco_bad",
             scope="local",
             operator="implication",
-            variables=["lcn_a"],
-            conclusion="lcn_m",
+            variables=["reg:test::a"],
+            conclusion="reg:test::m",
         )
         g = _local_graph(
             knowledges=[
-                _claim("lcn_a"),
-                _claim("lcn_b"),
-                _claim("lcn_c"),
-                _claim("lcn_m"),
+                _claim("reg:test::a"),
+                _claim("reg:test::b"),
+                _claim("reg:test::c"),
+                _claim("reg:test::m"),
             ],
             operators=[top_op],
             strategies=[formal],
@@ -838,14 +949,16 @@ class TestFormalStrategyValidation:
 class TestGraphLevelValidation:
     def test_scope_consistency_local(self):
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::b")],
             strategies=[
-                Strategy(scope="local", type="infer", premises=["gcn_wrong"], conclusion="lcn_b")
+                Strategy(
+                    scope="local", type="infer", premises=["gcn_wrong"], conclusion="reg:test::b"
+                )
             ],
         )
         r = validate_local_graph(g)
         assert not r.valid
-        assert any("wrong prefix" in e for e in r.errors)
+        assert any("wrong format" in e for e in r.errors)
 
     def test_scope_consistency_global(self):
         g = _global_graph(
@@ -860,43 +973,45 @@ class TestGraphLevelValidation:
     def test_operator_conclusion_scope_prefix(self):
         """Operator conclusion with wrong prefix is caught in scope consistency."""
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_b")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::b")],
             operators=[
                 Operator(
+                    operator_id="lco_impl",
+                    scope="local",
                     operator="implication",
-                    variables=["lcn_a"],
+                    variables=["reg:test::a"],
                     conclusion="gcn_wrong",
                 )
             ],
         )
         r = validate_local_graph(g)
         assert not r.valid
-        # Should have wrong prefix error for conclusion
-        assert any("wrong prefix" in e or "not found" in e for e in r.errors)
+        # Should have wrong format error for conclusion
+        assert any("wrong format" in e or "not found" in e for e in r.errors)
 
     def test_formal_expr_operator_scope_prefix(self):
         """FormalExpr-embedded operators with wrong prefix are caught in scope consistency."""
-        # lcn_a and lcn_c exist in local graph, but FormalExpr internally
+        # reg:test::a and reg:test::c exist in local graph, but FormalExpr internally
         # references gcn_wrong which has a global prefix in a local graph.
         g = _local_graph(
-            knowledges=[_claim("lcn_a"), _claim("lcn_c"), _claim("lcn_m")],
+            knowledges=[_claim("reg:test::a"), _claim("reg:test::c"), _claim("reg:test::m")],
             strategies=[
                 FormalStrategy(
                     scope="local",
                     type="deduction",
-                    premises=["lcn_a"],
-                    conclusion="lcn_c",
+                    premises=["reg:test::a"],
+                    conclusion="reg:test::c",
                     formal_expr=FormalExpr(
                         operators=[
                             Operator(
                                 operator="implication",
-                                variables=["lcn_a"],
-                                conclusion="lcn_m",
+                                variables=["reg:test::a"],
+                                conclusion="reg:test::m",
                             ),
                             Operator(
                                 operator="implication",
                                 variables=["gcn_wrong"],
-                                conclusion="lcn_c",
+                                conclusion="reg:test::c",
                             ),
                         ]
                     ),
@@ -905,15 +1020,15 @@ class TestGraphLevelValidation:
         )
         r = validate_local_graph(g)
         assert not r.valid
-        assert any("wrong prefix" in e and "FormalStrategy" in e for e in r.errors)
+        assert any("wrong format" in e and "FormalStrategy" in e for e in r.errors)
 
     def test_hash_consistency(self):
-        g = _local_graph(knowledges=[_claim("lcn_a")])
+        g = _local_graph(knowledges=[_claim("reg:test::a")])
         r = validate_local_graph(g)
         assert r.valid  # auto-computed hash should match
 
     def test_hash_mismatch(self):
-        g = _local_graph(knowledges=[_claim("lcn_a")])
+        g = _local_graph(knowledges=[_claim("reg:test::a")])
         g.ir_hash = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
         r = validate_local_graph(g)
         assert not r.valid
@@ -1122,7 +1237,260 @@ class TestParameterizationValidation:
             strategy_params=[],
         )
         assert not r.valid
-        assert any("private helper claim" in e for e in r.errors)
+        assert any("private or structural helper claim" in e for e in r.errors)
+
+    def test_implication_private_node_prior_prohibited(self):
+        """Any FormalExpr private node (not just structural helpers) must not have PriorRecord."""
+        from gaia.gaia_ir import PriorRecord
+
+        # gcn_mid is an implication conclusion inside FormalExpr, NOT in the
+        # strategy's interface (premises/conclusion). Even though implication is
+        # not a "structural helper" operator type, gcn_mid is still private.
+        g = _global_graph(
+            knowledges=[
+                _claim("gcn_a"),
+                _claim("gcn_mid"),
+                _claim("gcn_final"),
+                _claim("gcn_c"),
+            ],
+            strategies=[
+                FormalStrategy(
+                    scope="global",
+                    type="deduction",
+                    premises=["gcn_a"],
+                    conclusion="gcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="implication",
+                                variables=["gcn_a"],
+                                conclusion="gcn_mid",
+                            ),
+                            Operator(
+                                operator="implication",
+                                variables=["gcn_mid"],
+                                conclusion="gcn_c",
+                            ),
+                        ]
+                    ),
+                ),
+            ],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_c", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_final", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_mid", value=0.5, source_id="s"),  # prohibited!
+            ],
+            strategy_params=[],
+        )
+        assert not r.valid
+        assert any("gcn_mid" in e and "private or structural helper" in e for e in r.errors)
+
+    def test_implication_private_node_no_prior_needed(self):
+        """FormalExpr private implication nodes don't need PriorRecord."""
+        from gaia.gaia_ir import PriorRecord
+
+        g = _global_graph(
+            knowledges=[
+                _claim("gcn_a"),
+                _claim("gcn_mid"),
+                _claim("gcn_c"),
+            ],
+            strategies=[
+                FormalStrategy(
+                    scope="global",
+                    type="deduction",
+                    premises=["gcn_a"],
+                    conclusion="gcn_c",
+                    formal_expr=FormalExpr(
+                        operators=[
+                            Operator(
+                                operator="implication",
+                                variables=["gcn_a"],
+                                conclusion="gcn_mid",
+                            ),
+                            Operator(
+                                operator="implication",
+                                variables=["gcn_mid"],
+                                conclusion="gcn_c",
+                            ),
+                        ]
+                    ),
+                ),
+            ],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_c", value=0.5, source_id="s"),
+                # gcn_mid is private — no prior needed
+            ],
+            strategy_params=[],
+        )
+        assert r.valid
+
+    def test_abduction_generated_interface_claim_requires_prior(self):
+        """Auto-generated alternative explanations are public interface claims with priors."""
+        from gaia.gaia_ir import PriorRecord
+
+        formalized = Strategy(
+            scope="global",
+            type="abduction",
+            premises=["gcn_obs"],
+            conclusion="gcn_h",
+        ).formalize()
+        alternative_explanation = next(
+            knowledge
+            for knowledge in formalized.knowledges
+            if knowledge.metadata.get("interface_role") == "alternative_explanation"
+        )
+
+        g = _global_graph(
+            knowledges=[_claim("gcn_obs"), _claim("gcn_h"), *formalized.knowledges],
+            strategies=[formalized.strategy],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_obs", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_h", value=0.5, source_id="s"),
+            ],
+            strategy_params=[],
+        )
+        assert not r.valid
+        assert any(alternative_explanation.id in e and "missing PriorRecord" in e for e in r.errors)
+
+    def test_abduction_generated_interface_claim_prior_allowed(self):
+        """The generated alternative explanation can be parameterized like any public claim."""
+        from gaia.gaia_ir import PriorRecord
+
+        formalized = Strategy(
+            scope="global",
+            type="abduction",
+            premises=["gcn_obs"],
+            conclusion="gcn_h",
+        ).formalize()
+        alternative_explanation = next(
+            knowledge
+            for knowledge in formalized.knowledges
+            if knowledge.metadata.get("interface_role") == "alternative_explanation"
+        )
+
+        g = _global_graph(
+            knowledges=[_claim("gcn_obs"), _claim("gcn_h"), *formalized.knowledges],
+            strategies=[formalized.strategy],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_obs", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_h", value=0.5, source_id="s"),
+                PriorRecord(gcn_id=alternative_explanation.id, value=0.5, source_id="s"),
+            ],
+            strategy_params=[],
+        )
+        assert r.valid
+
+    def test_elimination_only_requires_interface_priors(self):
+        """Strict elimination should not introduce hidden prior-bearing internal claims."""
+        from gaia.gaia_ir import PriorRecord
+
+        formalized = Strategy(
+            scope="global",
+            type="elimination",
+            premises=[
+                "gcn_exhaustive",
+                "gcn_h1",
+                "gcn_e1",
+                "gcn_h2",
+                "gcn_e2",
+            ],
+            conclusion="gcn_h3",
+        ).formalize()
+
+        g = _global_graph(
+            knowledges=[
+                _claim("gcn_exhaustive"),
+                _claim("gcn_h1"),
+                _claim("gcn_e1"),
+                _claim("gcn_h2"),
+                _claim("gcn_e2"),
+                _claim("gcn_h3"),
+                *formalized.knowledges,
+            ],
+            strategies=[formalized.strategy],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_exhaustive", value=0.9, source_id="s"),
+                PriorRecord(gcn_id="gcn_h1", value=0.2, source_id="s"),
+                PriorRecord(gcn_id="gcn_e1", value=0.9, source_id="s"),
+                PriorRecord(gcn_id="gcn_h2", value=0.2, source_id="s"),
+                PriorRecord(gcn_id="gcn_e2", value=0.9, source_id="s"),
+                PriorRecord(gcn_id="gcn_h3", value=0.2, source_id="s"),
+            ],
+            strategy_params=[],
+        )
+        assert r.valid
+
+    def test_top_level_helper_claim_no_prior_needed(self):
+        """Top-level structural helper claims should also be excluded from prior coverage."""
+        from gaia.gaia_ir import PriorRecord
+
+        g = _global_graph(
+            knowledges=[_claim("gcn_a"), _claim("gcn_b"), _claim("gcn_eq")],
+            operators=[
+                Operator(
+                    operator_id="gco_eq",
+                    scope="global",
+                    operator="equivalence",
+                    variables=["gcn_a", "gcn_b"],
+                    conclusion="gcn_eq",
+                ),
+            ],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.5, source_id="s"),
+            ],
+            strategy_params=[],
+        )
+        assert r.valid
+
+    def test_top_level_helper_claim_prior_prohibited(self):
+        """Top-level structural helper claims must not accept independent priors."""
+        from gaia.gaia_ir import PriorRecord
+
+        g = _global_graph(
+            knowledges=[_claim("gcn_a"), _claim("gcn_b"), _claim("gcn_eq")],
+            operators=[
+                Operator(
+                    operator_id="gco_eq",
+                    scope="global",
+                    operator="equivalence",
+                    variables=["gcn_a", "gcn_b"],
+                    conclusion="gcn_eq",
+                ),
+            ],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(gcn_id="gcn_a", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_b", value=0.5, source_id="s"),
+                PriorRecord(gcn_id="gcn_eq", value=0.5, source_id="s"),
+            ],
+            strategy_params=[],
+        )
+        assert not r.valid
+        assert any("gcn_eq" in e and "private or structural helper claim" in e for e in r.errors)
 
     def test_param_for_non_parameterized_type_warns(self):
         """StrategyParamRecord for a FormalStrategy type should warn."""
@@ -1331,11 +1699,11 @@ class TestBindingValidation:
     def test_valid_bindings(self):
         from gaia.gaia_ir import CanonicalBinding, BindingDecision
 
-        local = _local_graph(knowledges=[_claim("lcn_a"), _claim("lcn_b")])
+        local = _local_graph(knowledges=[_claim("reg:test::a"), _claim("reg:test::b")])
         global_ = _global_graph(knowledges=[_claim("gcn_x"), _claim("gcn_y")])
         bindings = [
             CanonicalBinding(
-                local_canonical_id="lcn_a",
+                local_canonical_id="reg:test::a",
                 global_canonical_id="gcn_x",
                 package_id="pkg",
                 version="1",
@@ -1343,7 +1711,7 @@ class TestBindingValidation:
                 reason="similarity 0.95",
             ),
             CanonicalBinding(
-                local_canonical_id="lcn_b",
+                local_canonical_id="reg:test::b",
                 global_canonical_id="gcn_y",
                 package_id="pkg",
                 version="1",
@@ -1357,11 +1725,11 @@ class TestBindingValidation:
     def test_missing_binding(self):
         from gaia.gaia_ir import CanonicalBinding, BindingDecision
 
-        local = _local_graph(knowledges=[_claim("lcn_a"), _claim("lcn_b")])
+        local = _local_graph(knowledges=[_claim("reg:test::a"), _claim("reg:test::b")])
         global_ = _global_graph(knowledges=[_claim("gcn_x")])
         bindings = [
             CanonicalBinding(
-                local_canonical_id="lcn_a",
+                local_canonical_id="reg:test::a",
                 global_canonical_id="gcn_x",
                 package_id="pkg",
                 version="1",
@@ -1371,16 +1739,16 @@ class TestBindingValidation:
         ]
         r = validate_bindings(bindings, local, global_)
         assert not r.valid
-        assert any("lcn_b" in e and "no CanonicalBinding" in e for e in r.errors)
+        assert any("reg:test::b" in e and "no CanonicalBinding" in e for e in r.errors)
 
     def test_duplicate_binding(self):
         from gaia.gaia_ir import CanonicalBinding, BindingDecision
 
-        local = _local_graph(knowledges=[_claim("lcn_a")])
+        local = _local_graph(knowledges=[_claim("reg:test::a")])
         global_ = _global_graph(knowledges=[_claim("gcn_x"), _claim("gcn_y")])
         bindings = [
             CanonicalBinding(
-                local_canonical_id="lcn_a",
+                local_canonical_id="reg:test::a",
                 global_canonical_id="gcn_x",
                 package_id="pkg",
                 version="1",
@@ -1388,7 +1756,7 @@ class TestBindingValidation:
                 reason="first",
             ),
             CanonicalBinding(
-                local_canonical_id="lcn_a",
+                local_canonical_id="reg:test::a",
                 global_canonical_id="gcn_y",
                 package_id="pkg",
                 version="1",
@@ -1403,11 +1771,11 @@ class TestBindingValidation:
     def test_binding_dangling_local(self):
         from gaia.gaia_ir import CanonicalBinding, BindingDecision
 
-        local = _local_graph(knowledges=[_claim("lcn_a")])
+        local = _local_graph(knowledges=[_claim("reg:test::a")])
         global_ = _global_graph(knowledges=[_claim("gcn_x")])
         bindings = [
             CanonicalBinding(
-                local_canonical_id="lcn_a",
+                local_canonical_id="reg:test::a",
                 global_canonical_id="gcn_x",
                 package_id="pkg",
                 version="1",
@@ -1415,7 +1783,7 @@ class TestBindingValidation:
                 reason="ok",
             ),
             CanonicalBinding(
-                local_canonical_id="lcn_ghost",
+                local_canonical_id="reg:test::ghost",
                 global_canonical_id="gcn_x",
                 package_id="pkg",
                 version="1",
@@ -1430,11 +1798,11 @@ class TestBindingValidation:
     def test_binding_dangling_global(self):
         from gaia.gaia_ir import CanonicalBinding, BindingDecision
 
-        local = _local_graph(knowledges=[_claim("lcn_a")])
+        local = _local_graph(knowledges=[_claim("reg:test::a")])
         global_ = _global_graph(knowledges=[])
         bindings = [
             CanonicalBinding(
-                local_canonical_id="lcn_a",
+                local_canonical_id="reg:test::a",
                 global_canonical_id="gcn_ghost",
                 package_id="pkg",
                 version="1",

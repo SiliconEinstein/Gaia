@@ -13,8 +13,8 @@ from gaia.gaia_ir import (
 
 
 class TestStrategyType:
-    def test_eleven_types(self):
-        assert len(StrategyType) == 11
+    def test_ten_types(self):
+        assert len(StrategyType) == 10
         expected = {
             "infer",
             "noisy_and",
@@ -24,7 +24,6 @@ class TestStrategyType:
             "mathematical_induction",
             "case_analysis",
             "abduction",
-            "induction",
             "analogy",
             "extrapolation",
         }
@@ -50,10 +49,17 @@ class TestStrategyType:
         with pytest.raises(ValueError):
             StrategyType("independent_evidence")
 
+    def test_induction_deferred(self):
+        """induction is deferred in Gaia IR core and may return as authoring sugar later."""
+        with pytest.raises(ValueError):
+            StrategyType("induction")
+
 
 class TestStrategyCreation:
     def test_basic_strategy(self):
-        s = Strategy(scope="local", type="noisy_and", premises=["lcn_a"], conclusion="lcn_b")
+        s = Strategy(
+            scope="local", type="noisy_and", premises=["reg:test::a"], conclusion="reg:test::b"
+        )
         assert s.strategy_id.startswith("lcs_")
         assert s.type == StrategyType.NOISY_AND
 
@@ -75,18 +81,18 @@ class TestStrategyCreation:
         s = Strategy(
             scope="local",
             type="noisy_and",
-            premises=["lcn_a"],
-            conclusion="lcn_b",
-            background=["lcn_setting"],
+            premises=["reg:test::a"],
+            conclusion="reg:test::b",
+            background=["reg:test::setting"],
         )
-        assert s.background == ["lcn_setting"]
+        assert s.background == ["reg:test::setting"]
 
     def test_with_steps(self):
         s = Strategy(
             scope="local",
             type="infer",
-            premises=["lcn_a"],
-            conclusion="lcn_b",
+            premises=["reg:test::a"],
+            conclusion="reg:test::b",
             steps=[Step(reasoning="observed correlation")],
         )
         assert len(s.steps) == 1
@@ -134,7 +140,7 @@ class TestCompositeStrategy:
         with pytest.raises(ValueError, match="at least one"):
             CompositeStrategy(
                 scope="global",
-                type="induction",
+                type="abduction",
                 premises=["gcn_a"],
                 conclusion="gcn_b",
                 sub_strategies=[],
@@ -208,16 +214,20 @@ class TestFormalStrategy:
         fs = FormalStrategy(
             scope="local",
             type="deduction",
-            premises=["lcn_a", "lcn_b"],
-            conclusion="lcn_c",
+            premises=["reg:test::a", "reg:test::b"],
+            conclusion="reg:test::c",
             formal_expr=FormalExpr(
                 operators=[
                     Operator(
                         operator="conjunction",
-                        variables=["lcn_a", "lcn_b"],
-                        conclusion="lcn_m",
+                        variables=["reg:test::a", "reg:test::b"],
+                        conclusion="reg:test::m",
                     ),
-                    Operator(operator="implication", variables=["lcn_m"], conclusion="lcn_c"),
+                    Operator(
+                        operator="implication",
+                        variables=["reg:test::m"],
+                        conclusion="reg:test::c",
+                    ),
                 ]
             ),
         )
@@ -225,93 +235,93 @@ class TestFormalStrategy:
         assert len(fs.formal_expr.operators) == 2
         assert isinstance(fs, Strategy)
 
-    def test_reductio(self):
-        """Reductio: implication + contradiction + complement."""
-        fs = FormalStrategy(
-            scope="local",
-            type="reductio",
-            premises=["lcn_r"],
-            conclusion="lcn_not_p",
-            formal_expr=FormalExpr(
-                operators=[
-                    Operator(operator="implication", variables=["lcn_p"], conclusion="lcn_q"),
-                    Operator(
-                        operator="contradiction",
-                        variables=["lcn_q", "lcn_r"],
-                        conclusion="lcn_contra",
-                    ),
-                    Operator(
-                        operator="complement",
-                        variables=["lcn_p", "lcn_not_p"],
-                        conclusion="lcn_comp",
-                    ),
-                ]
-            ),
-        )
-        assert fs.type == StrategyType.REDUCTIO
-        assert len(fs.formal_expr.operators) == 3
+    def test_reductio_formal_strategy_deferred(self):
+        with pytest.raises(ValueError, match="FormalStrategy form only allows types"):
+            FormalStrategy(
+                scope="local",
+                type="reductio",
+                premises=["reg:test::r"],
+                conclusion="reg:test::not_p",
+                formal_expr=FormalExpr(
+                    operators=[
+                        Operator(
+                            operator="implication",
+                            variables=["reg:test::p"],
+                            conclusion="reg:test::q",
+                        ),
+                        Operator(
+                            operator="contradiction",
+                            variables=["reg:test::q", "reg:test::r"],
+                            conclusion="reg:test::contra",
+                        ),
+                        Operator(
+                            operator="complement",
+                            variables=["reg:test::p", "reg:test::not_p"],
+                            conclusion="reg:test::comp",
+                        ),
+                    ]
+                ),
+            )
 
     def test_abduction_is_formal(self):
-        """Abduction is now a FormalStrategy type."""
-        fs = FormalStrategy(
+        """Named leaf strategies can be formalized into canonical FormalStrategy skeletons."""
+        leaf = Strategy(
             scope="global",
             type="abduction",
             premises=["gcn_obs"],
             conclusion="gcn_h",
-            formal_expr=FormalExpr(
-                operators=[
-                    Operator(operator="implication", variables=["gcn_h"], conclusion="gcn_obs"),
-                ]
-            ),
         )
-        assert fs.type == StrategyType.ABDUCTION
+        result = leaf.formalize()
+        assert result.strategy.type == StrategyType.ABDUCTION
+        assert len(result.strategy.formal_expr.operators) == 2
+        assert len(result.strategy.premises) == 2
+        assert result.strategy.metadata["interface_roles"]["observation"] == ["gcn_obs"]
+        assert result.strategy.metadata["interface_roles"]["alternative_explanation"] == [
+            result.strategy.premises[1]
+        ]
 
-    def test_induction_is_formal(self):
-        """Induction is now a FormalStrategy type."""
-        fs = FormalStrategy(
+    def test_reductio_formalization_deferred(self):
+        leaf = Strategy(
             scope="global",
-            type="induction",
-            premises=["gcn_a"],
-            conclusion="gcn_b",
-            formal_expr=FormalExpr(
-                operators=[
-                    Operator(operator="implication", variables=["gcn_a"], conclusion="gcn_b"),
-                ]
-            ),
+            type="reductio",
+            premises=["gcn_r"],
+            conclusion="gcn_not_p",
         )
-        assert fs.type == StrategyType.INDUCTION
+        with pytest.raises(ValueError, match="reductio is deferred in Gaia IR core"):
+            leaf.formalize()
+
+    def test_case_analysis_open_world_deferred(self):
+        leaf = Strategy(
+            scope="global",
+            type="case_analysis",
+            premises=["gcn_exhaustive", "gcn_a1", "gcn_p1", "gcn_a2", "gcn_p2"],
+            conclusion="gcn_c",
+            metadata={"include_other_relevant_case": True},
+        )
+        with pytest.raises(ValueError, match="open-world case_analysis is deferred"):
+            leaf.formalize()
 
     def test_analogy_is_formal(self):
-        """Analogy is now a FormalStrategy type."""
-        fs = FormalStrategy(
+        leaf = Strategy(
             scope="global",
             type="analogy",
-            premises=["gcn_a"],
-            conclusion="gcn_b",
-            formal_expr=FormalExpr(
-                operators=[
-                    Operator(
-                        operator="equivalence", variables=["gcn_a", "gcn_b"], conclusion="gcn_eq"
-                    ),
-                ]
-            ),
+            premises=["gcn_source_law", "gcn_bridge"],
+            conclusion="gcn_target",
         )
-        assert fs.type == StrategyType.ANALOGY
+        result = leaf.formalize()
+        assert result.strategy.type == StrategyType.ANALOGY
+        assert len(result.strategy.formal_expr.operators) == 2
 
     def test_extrapolation_is_formal(self):
-        """Extrapolation is now a FormalStrategy type."""
-        fs = FormalStrategy(
+        leaf = Strategy(
             scope="global",
             type="extrapolation",
-            premises=["gcn_a"],
-            conclusion="gcn_b",
-            formal_expr=FormalExpr(
-                operators=[
-                    Operator(operator="implication", variables=["gcn_a"], conclusion="gcn_b"),
-                ]
-            ),
+            premises=["gcn_known_law", "gcn_continuity"],
+            conclusion="gcn_extended",
         )
-        assert fs.type == StrategyType.EXTRAPOLATION
+        result = leaf.formalize()
+        assert result.strategy.type == StrategyType.EXTRAPOLATION
+        assert len(result.strategy.formal_expr.operators) == 2
 
     def test_empty_formal_expr_rejected(self):
         with pytest.raises(ValueError, match="at least one operator"):

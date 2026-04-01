@@ -15,6 +15,7 @@ from gaia.gaia_ir.knowledge import (
     LocalCanonicalRef,
     PackageRef,
     Parameter,
+    make_qid,
 )
 from gaia.gaia_ir.operator import Operator, OperatorType
 from gaia.gaia_ir.strategy import (
@@ -26,6 +27,7 @@ from gaia.gaia_ir.strategy import (
     StrategyType,
 )
 from gaia.gaia_ir.graphs import GlobalCanonicalGraph, LocalCanonicalGraph
+from gaia.gaia_ir.formalize import FormalizationResult, formalize_named_strategy
 from gaia.gaia_ir.parameterization import (
     CROMWELL_EPS,
     ParameterizationSource,
@@ -43,6 +45,7 @@ __all__ = [
     "LocalCanonicalRef",
     "PackageRef",
     "Parameter",
+    "make_qid",
     # Operator
     "Operator",
     "OperatorType",
@@ -56,6 +59,9 @@ __all__ = [
     # Graphs
     "GlobalCanonicalGraph",
     "LocalCanonicalGraph",
+    # Formalization
+    "FormalizationResult",
+    "formalize_named_strategy",
     # Parameterization
     "CROMWELL_EPS",
     "ParameterizationSource",

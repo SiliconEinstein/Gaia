@@ -12,7 +12,7 @@
 - 它由结构关系或 formal skeleton 确定性地产生
 - 它的作用是让这些结构结果也能被图中的其他部分直接引用
 
-本文件不再把 `prediction`、`instance`、`bridge`、`continuity` 这类语义中间命题统称为 helper claim。它们在当前 contract 下仍然只是普通 `claim`，必要时作为中间 claim 显式出现。
+本文件不再把 `AlternativeExplanationForObs`、`BridgeClaim`、`ContinuityClaim` 这类语义接口命题统称为 helper claim。它们虽然也可能由 formalization 自动补齐，但因为可能承载独立 prior、也可能被其他 Strategy 支撑，所以必须保持为 **public interface claim**。
 
 如果未来确实有必要，再单独引入“semantic helper claim”这一更宽的分类。
 
@@ -46,16 +46,18 @@ Knowledge(type=claim)
 | `equivalence_result` | equivalence | `Eq = same_truth(A,B)` |
 | `contradiction_result` | contradiction | `Contra = not_both_true(A,B)` |
 | `complement_result` | complement | `Comp = opposite_truth(A,B)` |
-| `formal_intermediate` | 其他 FormalExpr 局部步骤 | 某个仅为继续布线而显式存在的中间项 |
 
 这些 helper claim 的共同点是：
 
 - 它们通常由 compiler / reviewer 按 operator 结构确定性生成
 - 它们本身仍是 `claim`
 - 它们默认不是新的自由参数入口
+- 它们若保持 private，就必须能被安全 marginalize，而不能偷偷引入新的 prior 自由度
 
 当前 contract 下，**每个 Operator 都有 `conclusion`**。  
 对 `equivalence` / `contradiction` / `complement` / `disjunction`，这个 `conclusion` 就是结构型 helper claim。
+
+不是所有 formalization 自动生成的 claim 都属于本表。例如 abduction 自动补齐的 `AlternativeExplanationForObs` 是 public interface claim，因为它可能带 prior，也可能被别的 Strategy 支撑。
 
 ## 3. FormalExpr 内部 claim 的封装
 
@@ -69,6 +71,8 @@ Helper claim 出现在两个位置，规则不同：
 FormalExpr 内部产生但不出现在任何 Strategy 的 `premises` / `conclusion` 中的中间 claim，属于该 FormalStrategy 的私有节点。
 
 **硬约束：私有节点禁止被外部 Strategy 引用。**
+
+**硬约束：私有节点不得承载独立 PriorRecord。** 任何需要独立 prior 的 claim，必须提升为该 Strategy 的接口节点（`premises` 或 `conclusion`），而不能藏在 `formal_expr` 私有层。
 
 **为什么？** FormalStrategy 的核心价值是封装——它可以被折叠（marginalization）为一个等效的 P(conclusion | premises)，对外只暴露接口。折叠要求对内部变量做变量消去（求和消掉），这只有在没有外部代码依赖这些内部变量的身份时才是安全的。如果允许外部引用内部变量，消去就会破坏外部引用，折叠就不可能了。
 
@@ -140,6 +144,7 @@ Helper claim 不引入新的 `StrategyParamRecord` 规则。
 
 - 结构型 helper claim **禁止**携带独立的 `PriorRecord`
 - helper claim 仍然是 `claim`，但在 parameterization 层不作为自由参数入口
+- 需要独立 prior 的自动生成节点（如 abduction 的 `AlternativeExplanationForObs`）不属于 helper claim；它们必须保持为 public interface claim
 
 **为什么禁止？** 因为 helper claim 的概率分布没有自由度——它完全被 Operator 的确定性约束（真值表）决定。
 

@@ -11,7 +11,7 @@ class TestBindingDecision:
 class TestCanonicalBinding:
     def test_match_existing(self):
         b = CanonicalBinding(
-            local_canonical_id="lcn_abc",
+            local_canonical_id="reg:test::a",
             global_canonical_id="gcn_xyz",
             package_id="pkg_001",
             version="1.0",
@@ -22,7 +22,7 @@ class TestCanonicalBinding:
 
     def test_create_new(self):
         b = CanonicalBinding(
-            local_canonical_id="lcn_abc",
+            local_canonical_id="reg:test::b",
             global_canonical_id="gcn_new",
             package_id="pkg_001",
             version="1.0",
@@ -33,7 +33,7 @@ class TestCanonicalBinding:
 
     def test_equivalent_candidate(self):
         b = CanonicalBinding(
-            local_canonical_id="lcn_abc",
+            local_canonical_id="reg:test::c",
             global_canonical_id="gcn_equiv",
             package_id="pkg_002",
             version="2.0",

@@ -184,10 +184,11 @@ def _solve_region(
         mini.add_factor(
             factor.factor_id,
             factor.factor_type,
-            factor.premises,
-            factor.conclusions,
-            factor.p,
-            factor.relation_var,
+            factor.variables,
+            factor.conclusion,
+            p1=factor.p1,
+            p2=factor.p2,
+            cpt=factor.cpt,
         )
     result = jt.run(mini)
     return result.beliefs
@@ -232,10 +233,11 @@ def _build_cross_region_graph(
         cross_fg.add_factor(
             factor.factor_id + "_cross",
             factor.factor_type,
-            factor.premises,
-            factor.conclusions,
-            factor.p,
-            factor.relation_var,
+            factor.variables,
+            factor.conclusion,
+            p1=factor.p1,
+            p2=factor.p2,
+            cpt=factor.cpt,
         )
 
     return cross_fg

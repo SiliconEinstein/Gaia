@@ -22,7 +22,7 @@
 
 适配器通过以下方式从 Gaia IR 构建 `FactorGraph`：
 
-1. 将每个 `LocalCanonicalNode` ID 映射为整数变量 ID。
+1. 将每个 Knowledge QID 映射为整数变量 ID。
 2. 从 `LocalParameterization`（或 `ReviewOutput.node_priors`）设置先验。
 3. 将每个 `FactorNode` 映射为包含 `premises`、`conclusions`、`probability` 和 `edge_type` 的因子字典。
 4. 应用 Cromwell 规则：所有先验和因子概率限制在 `[epsilon, 1 - epsilon]` 范围内。

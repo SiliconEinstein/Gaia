@@ -139,7 +139,12 @@ FormalExpr 内部节点是严格私有的（禁止外部引用），因此 Forma
 - **折叠**：对私有中间变量做变量消去，整个 FormalStrategy 等效为 P(conclusion | premises)
 - **展开**：进入 `formal_expr`，把内部 Operator 结构显式 lower
 
-两种方式都合法，选择由 `expand_set` 决定
+两种方式都合法，选择由 `expand_set` 决定。
+
+对 `abduction` 这类带自动补齐 interface claim 的命名策略，这两条路都必须保留同一语义：
+
+- **折叠**：把 `Obs`、`AlternativeExplanationForObs` 等接口 claim 与内部 helper skeleton 一起消去为一个等效条件单元
+- **展开**：保留 public interface claim，显式 lower `disjunction` / `equivalence` 等 helper 结构
 
 ## 5. FormalExpr 内部节点与 Lowering
 
@@ -167,7 +172,7 @@ Lowering 只消费参数层，不定义参数层。
 对直接 FormalStrategy：
 
 - 不读取独立的持久化 strategy-level `conditional_probabilities`
-- 其折叠行为若需要等效条件视图，应从内部结构与相关显式 claim prior 导出
+- 其折叠行为若需要等效条件视图，应从内部结构与相关 interface claim prior 导出
 
 ## 7. 当前 BP 后端的特化
 

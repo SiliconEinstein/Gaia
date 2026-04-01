@@ -1,53 +1,38 @@
-"""BP v2 — theory-compliant belief propagation engine.
+"""BP v2 — belief propagation aligned with theory and Gaia IR.
 
-This package implements sum-product loopy Belief Propagation strictly
-following the formalized theory in docs/foundations/theory/:
+Theory: docs/foundations/theory/06-factor-graphs.md, 07-belief-propagation.md
+IR lowering: docs/foundations/gaia-ir/07-lowering.md
 
-  belief-propagation.md  — algorithm specification (§3) and potentials (§2)
-  reasoning-hypergraph.md — operator types (§7.3) and factor graph (§5)
-  plausible-reasoning.md  — four weak syllogisms (§1.3) that the model satisfies
-
-Key differences from libs/inference (v1):
-  - ENTAILMENT uses silence model (bp.md §2.6: C4 = "通常沉默")
-  - INDUCTION/ABDUCTION use noisy-AND + leak (bp.md §2.1: C4 ✓)
-  - CONTRADICTION/EQUIVALENCE use fixed-eps strength (not a free parameter)
-  - Relation variables are full BP participants (no gate_var hack)
-  - Five explicit FactorTypes (ENTAILMENT/INDUCTION/ABDUCTION/CONTRADICTION/EQUIVALENCE)
-  - String variable IDs throughout
-  - BPDiagnostics always populated
-  - Junction Tree for exact inference, GBP for region decomposition
-  - Unified InferenceEngine auto-selects best algorithm by treewidth
-
-Public API:
-  FactorGraph      — bipartite factor graph construction
-  FactorType       — enum of five operator types
-  CROMWELL_EPS     — system constant ε = 1e-3 (Cromwell's rule)
-  BeliefPropagation — loopy BP runner
-  BPDiagnostics    — per-variable belief history and convergence info
-  BPResult         — return value of BeliefPropagation.run()
+Eight factor types: six deterministic operators (IR OperatorType), SOFT_ENTAILMENT
+(↝ with p1,p2), CONDITIONAL (full CPT for infer). String variable IDs, Cromwell
+clamping, Junction Tree / GBP / loopy BP / exact enumeration, InferenceEngine.
 """
 
-from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
+from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
 from gaia.bp.bp import BeliefPropagation, BPDiagnostics, BPResult
-from gaia.bp.exact import exact_inference, comparison_table
-from gaia.bp.junction_tree import JunctionTreeInference, jt_treewidth
+from gaia.bp.exact import comparison_table, exact_inference
+from gaia.bp.engine import EngineConfig, InferenceEngine, InferenceResult
 from gaia.bp.gbp import GeneralizedBeliefPropagation, detect_short_cycles
-from gaia.bp.engine import InferenceEngine, EngineConfig, InferenceResult
+from gaia.bp.junction_tree import JunctionTreeInference, jt_treewidth
+from gaia.bp.lowering import lower_local_graph, lower_operator
 
 __all__ = [
-    "FactorGraph",
-    "FactorType",
-    "CROMWELL_EPS",
     "BeliefPropagation",
     "BPDiagnostics",
     "BPResult",
-    "exact_inference",
-    "comparison_table",
-    "JunctionTreeInference",
-    "jt_treewidth",
-    "GeneralizedBeliefPropagation",
-    "detect_short_cycles",
-    "InferenceEngine",
+    "CROMWELL_EPS",
     "EngineConfig",
+    "Factor",
+    "FactorGraph",
+    "FactorType",
+    "GeneralizedBeliefPropagation",
+    "InferenceEngine",
     "InferenceResult",
+    "JunctionTreeInference",
+    "comparison_table",
+    "detect_short_cycles",
+    "exact_inference",
+    "jt_treewidth",
+    "lower_local_graph",
+    "lower_operator",
 ]
