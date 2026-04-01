@@ -1,0 +1,329 @@
+{
+  "scope": "local",
+  "ir_hash": "sha256:2e0ba455c59f6611dfafe016b793dd27edc24cb0f5404aba500ca2ab209fdca3",
+  "knowledges": [
+    {
+      "id": "reg:einstein_gravity::prior_knowledge.eotvos_experiment",
+      "type": "claim",
+      "content": "Eötvös 1889年扭摆实验以10^(-9)精度验证：物体的惯性质量与引力质量在实验可区分范围内相等。",
+      "content_hash": "74e7531c7a0898f6cb0312e5faa9ec7aff15b23e52a324cece6a8b720ac63f06",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:einstein_gravity::prior_knowledge.maxwell_electromagnetism",
+      "type": "claim",
+      "content": "麦克斯韦电磁理论：光是电磁波，在真空中以恒定速度c传播，与光源运动状态无关。",
+      "content_hash": "c4b597490a3391c7603fc799fa6713ed3828f250e60e22a46aee3a33351092a2",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:einstein_gravity::prior_knowledge.soldner_deflection",
+      "type": "claim",
+      "content": "Soldner 1801年基于牛顿力学将光视为质点（微粒说），计算得光线掠过太阳表面时偏折约0.87角秒。",
+      "content_hash": "31b457f2a80840afaca892246b9e41aca2f11009a8fe71cdfd3209193050ddce",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:einstein_gravity::equivalence_principle.equivalence_principle",
+      "type": "claim",
+      "content": "爱因斯坦等价原理：在足够小的时空区域内，均匀引力场的效应与匀加速参考系的效应不可区分。",
+      "content_hash": "eada356104661b695b7e8eb2b02d9c26d124f3b52d76555d125a90ba78212349",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:einstein_gravity::equivalence_principle.light_bends_in_gravity",
+      "type": "claim",
+      "content": "光线在引力场中会发生弯曲。",
+      "content_hash": "9ea7e973e724873d1a5c1a0844d04e37fed047a74b5b59f140cd65edf3b038d7",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:einstein_gravity::general_relativity.einstein_field_equations",
+      "type": "claim",
+      "content": "爱因斯坦场方程：引力不是超距力，而是质能分布导致的时空弯曲。G_μν + Λg_μν = (8πG/c⁴)T_μν",
+      "content_hash": "531ddc2cf667588e10664ebe600e1e05593debb8300e2931324783bbf11f703b",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:einstein_gravity::general_relativity.gr_light_deflection",
+      "type": "claim",
+      "content": "广义相对论预测：光线掠过太阳表面时偏折1.75角秒。",
+      "content_hash": "4b7887e31570a8a4d4e682f5dfe89f268106d495ae0e995a11f73d03a4e89fc2",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:einstein_gravity::general_relativity.mercury_perihelion",
+      "type": "claim",
+      "content": "天文观测显示水星近日点每世纪有约43角秒的异常进动，牛顿引力理论在扣除其他行星摄动后无法解释这一剩余量。",
+      "content_hash": "9f122f1b28adfd8440960ec0b5bf32ca84912a35538e34cb6fc6a3f3d1e78e45",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:einstein_gravity::general_relativity.gr_mercury_precession",
+      "type": "claim",
+      "content": "广义相对论精确解释了水星近日点每世纪43角秒的异常进动，无需引入任何新参数。",
+      "content_hash": "a1f5a291940cf580cb3bc0ae26d106618d805e2abd4b0408b059fbf838017938",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:einstein_gravity::observation.eddington_sobral",
+      "type": "claim",
+      "content": "1919年5月29日日全食期间，巴西Sobral观测站测得恒星光线经过太阳附近时偏折：1.98±0.16角秒。",
+      "content_hash": "0b39ec2fd6c51903b10f635a434020d0c7558281f889e8af37a0f53c47579c57",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:einstein_gravity::observation.eddington_principe",
+      "type": "claim",
+      "content": "同一次日全食期间，西非Príncipe岛观测站测得恒星光线偏折：1.61±0.30角秒。",
+      "content_hash": "b64d110d1846ca67bbbf71bb20259c68a61a041a4f514c6bc4ab2484da470458",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:einstein_gravity::observation.eddington_confirms_gr",
+      "type": "claim",
+      "content": "1919年日食观测数据支持广义相对论的1.75角秒光线偏折预测，排除牛顿微粒说的0.87角秒预测。",
+      "content_hash": "d384c2f4b025a4a1673cba184bda8de88b7d841754396dd4e19d91f533a1df10",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:einstein_gravity::observation.gr_dual_confirmation",
+      "type": "claim",
+      "content": "光线偏折与水星进动是广义相对论的两个独立预测，分别被不同类型的观测所证实。",
+      "content_hash": "71262293cd17eeb0452976a5e8d183bb95608daab83ad6626ddbf1c02e4fcbb8",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:einstein_gravity::general_relativity.deflection_contradiction_result",
+      "type": "claim",
+      "content": "广义相对论预测光线偏折1.75角秒与牛顿微粒说预测0.87角秒不可能同时正确。",
+      "content_hash": "5fb24ca2d6da3c98a8179e4d5dbd095dc2eeda99485e5fcd4a74e723166a30b2",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:einstein_gravity::equivalence_principle.elevator_env",
+      "type": "setting",
+      "content": "密闭电梯思想实验：电梯中的观察者无法看到外界，需要判断自己是静止在引力场中还是在无引力空间中匀加速上升。",
+      "content_hash": "97ed8cc92aafae920fcc7ddbe24ccc65c6ab673a7b5b4c1e4c94bc34c1f3f3ca",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:einstein_gravity::follow_up.gravitational_waves_question",
+      "type": "question",
+      "content": "广义相对论预测时空曲率的扰动以引力波形式传播。能否直接探测到引力波，为时空弯曲提供独立于光线偏折的验证？",
+      "content_hash": "db3b215ec30810bf57611dbd5a03ade0fe93e8cda87f033c35cddf5198122395",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "einstein_gravity",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    }
+  ],
+  "operators": [
+    {
+      "operator_id": null,
+      "scope": "local",
+      "operator": "contradiction",
+      "variables": [
+        "reg:einstein_gravity::general_relativity.gr_light_deflection",
+        "reg:einstein_gravity::prior_knowledge.soldner_deflection"
+      ],
+      "conclusion": "reg:einstein_gravity::general_relativity.deflection_contradiction_result",
+      "metadata": null
+    }
+  ],
+  "strategies": [
+    {
+      "strategy_id": "lcs_a648f67c58253f6f",
+      "scope": "local",
+      "type": "infer",
+      "premises": [
+        "reg:einstein_gravity::prior_knowledge.eotvos_experiment"
+      ],
+      "conclusion": "reg:einstein_gravity::equivalence_principle.equivalence_principle",
+      "background": [
+        "reg:einstein_gravity::equivalence_principle.elevator_env"
+      ],
+      "steps": [
+        {
+          "reasoning": "惯性质量=引力质量 → 引力场与加速不可区分。",
+          "premises": null,
+          "conclusion": null
+        }
+      ],
+      "metadata": null
+    },
+    {
+      "strategy_id": "lcs_edfa8ec8d86ea254",
+      "scope": "local",
+      "type": "infer",
+      "premises": [
+        "reg:einstein_gravity::equivalence_principle.equivalence_principle",
+        "reg:einstein_gravity::prior_knowledge.maxwell_electromagnetism"
+      ],
+      "conclusion": "reg:einstein_gravity::equivalence_principle.light_bends_in_gravity",
+      "background": null,
+      "steps": [
+        {
+          "reasoning": "加速电梯中光线弯曲 + 等价原理 → 引力场中光线也弯曲。",
+          "premises": null,
+          "conclusion": null
+        }
+      ],
+      "metadata": null
+    },
+    {
+      "strategy_id": "lcs_b420f3042b6754de",
+      "scope": "local",
+      "type": "infer",
+      "premises": [
+        "reg:einstein_gravity::equivalence_principle.light_bends_in_gravity",
+        "reg:einstein_gravity::general_relativity.einstein_field_equations"
+      ],
+      "conclusion": "reg:einstein_gravity::general_relativity.gr_light_deflection",
+      "background": null,
+      "steps": [
+        {
+          "reasoning": "场方程精确计算得偏折角为1.75角秒。",
+          "premises": null,
+          "conclusion": null
+        }
+      ],
+      "metadata": null
+    },
+    {
+      "strategy_id": "lcs_303107cb207fc97e",
+      "scope": "local",
+      "type": "infer",
+      "premises": [
+        "reg:einstein_gravity::general_relativity.einstein_field_equations",
+        "reg:einstein_gravity::general_relativity.mercury_perihelion"
+      ],
+      "conclusion": "reg:einstein_gravity::general_relativity.gr_mercury_precession",
+      "background": null,
+      "steps": [
+        {
+          "reasoning": "场方程精确解给出43角秒/世纪的进动。",
+          "premises": null,
+          "conclusion": null
+        }
+      ],
+      "metadata": null
+    },
+    {
+      "strategy_id": "lcs_b327b5e6e92c27aa",
+      "scope": "local",
+      "type": "infer",
+      "premises": [
+        "reg:einstein_gravity::observation.eddington_sobral",
+        "reg:einstein_gravity::observation.eddington_principe",
+        "reg:einstein_gravity::general_relativity.gr_light_deflection"
+      ],
+      "conclusion": "reg:einstein_gravity::observation.eddington_confirms_gr",
+      "background": null,
+      "steps": [
+        {
+          "reasoning": "两个观测站结果都更接近GR的1.75角秒。",
+          "premises": null,
+          "conclusion": null
+        }
+      ],
+      "metadata": null
+    },
+    {
+      "strategy_id": "lcs_3a51b943c91a87eb",
+      "scope": "local",
+      "type": "infer",
+      "premises": [
+        "reg:einstein_gravity::observation.eddington_confirms_gr",
+        "reg:einstein_gravity::general_relativity.gr_mercury_precession"
+      ],
+      "conclusion": "reg:einstein_gravity::observation.gr_dual_confirmation",
+      "background": null,
+      "steps": [
+        {
+          "reasoning": "光偏折和水星进动独立验证同一理论。",
+          "premises": null,
+          "conclusion": null
+        }
+      ],
+      "metadata": null
+    }
+  ]
+}

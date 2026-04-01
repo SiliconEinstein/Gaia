@@ -1,12 +1,14 @@
 """LKM test fixtures — load package data from JSON files.
 
-Usage:
-    from tests.fixtures.lkm import load_package
+Two formats:
+- LKM format (M3 output): load_package("galileo") → PackageFixture
+- Gaia IR format (M3 input): load_ir("galileo") → LocalCanonicalGraph
 
-    pkg = load_package("galileo")
-    pkg.package_id      # "galileo_falling_bodies"
-    pkg.local_variables  # list[LocalVariableNode]
-    pkg.local_factors    # list[LocalFactorNode]
+Usage:
+    from tests.fixtures.lkm import load_package, load_ir
+
+    pkg = load_package("galileo")       # LKM models
+    ir = load_ir("galileo")             # Gaia IR LocalCanonicalGraph
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from gaia.gaia_ir.graphs import LocalCanonicalGraph
 from gaia.lkm.models import LocalFactorNode, LocalVariableNode
 
 _FIXTURES_DIR = Path(__file__).parent
@@ -29,7 +32,7 @@ class PackageFixture:
 
 
 def load_package(name: str) -> PackageFixture:
-    """Load a package fixture from JSON by short name (e.g. 'galileo')."""
+    """Load an LKM-format fixture (M3 output) by short name."""
     path = _FIXTURES_DIR / f"{name}.json"
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
@@ -39,3 +42,11 @@ def load_package(name: str) -> PackageFixture:
         local_variables=[LocalVariableNode(**v) for v in data["local_variables"]],
         local_factors=[LocalFactorNode(**f) for f in data["local_factors"]],
     )
+
+
+def load_ir(name: str) -> LocalCanonicalGraph:
+    """Load a Gaia IR fixture (M3 input) by short name."""
+    path = _FIXTURES_DIR / f"{name}_ir.json"
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    return LocalCanonicalGraph.model_validate(data)

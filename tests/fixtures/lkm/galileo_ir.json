@@ -1,0 +1,274 @@
+{
+  "scope": "local",
+  "ir_hash": "sha256:d207a488aade1e3fd7557e11c9b337b54c520d57006e5b1ca3de5a2a00e3dbb2",
+  "knowledges": [
+    {
+      "id": "reg:galileo_falling_bodies::aristotle.everyday_observation",
+      "type": "claim",
+      "content": "日常生活中，石头比羽毛下落更快、铁球比木球更快，似乎重者总是先着地。",
+      "content_hash": "bb4a753394d6e7b170dea66c569301748e33aec7e4e60903839d318f4086c089",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "galileo_falling_bodies",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:galileo_falling_bodies::aristotle.heavier_falls_faster",
+      "type": "claim",
+      "content": "物体下落的速度与其重量成正比——重者下落更快。",
+      "content_hash": "db2ff34baace353929e4c27ab0d81202c2cb125dfb357849e34ddebd074aebfd",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "galileo_falling_bodies",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:galileo_falling_bodies::galileo.medium_density_observation",
+      "type": "claim",
+      "content": "在水、油、空气等不同介质中比较轻重物体的下落，会发现介质越稠密，速度差异越明显；介质越稀薄，差异越不明显。",
+      "content_hash": "08c8e0280125998cd699ba1a4205887b7a5e39f997dd026b396c7548625bfdea",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "galileo_falling_bodies",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:galileo_falling_bodies::galileo.inclined_plane_observation",
+      "type": "claim",
+      "content": "伽利略的斜面实验把下落过程放慢到可测量尺度后显示：不同重量的小球在相同斜面条件下呈现近似一致的加速趋势，与\"重量越大速度越大\"的简单比例律并不相符。",
+      "content_hash": "df111702df66aa6935c2b4154f24129e2d03f85630843b77a98141b0d46189bf",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "galileo_falling_bodies",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:galileo_falling_bodies::galileo.composite_is_slower",
+      "type": "claim",
+      "content": "假设\"重者下落更快\"，将重球（H）与轻球（L）绑成复合体（HL），则HL的下落速度慢于H单独下落。",
+      "content_hash": "19cb59513858020e0c5a688433df2efaca625d6026ef3f4803286f178afaa872",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "galileo_falling_bodies",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:galileo_falling_bodies::galileo.composite_is_faster",
+      "type": "claim",
+      "content": "假设\"重者下落更快\"，将重球（H）与轻球（L）绑成复合体（HL），则HL的下落速度快于H单独下落。",
+      "content_hash": "ab361cd914162d0ef0407df8cd0aeef955f217cebed6839b81a00d30204459a7",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "galileo_falling_bodies",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:galileo_falling_bodies::galileo.air_resistance_is_confound",
+      "type": "claim",
+      "content": "日常观察到的速度差异更应被解释为介质阻力造成的表象，而不是重量本身决定自由落体速度的证据。",
+      "content_hash": "4bb4cdab1f0a37d9310b7d661d4a0d12d0f775d6108fe1fc5e42dd26535ff900",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "galileo_falling_bodies",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:galileo_falling_bodies::galileo.vacuum_prediction",
+      "type": "claim",
+      "content": "在真空中，不同重量的物体应以相同速率下落。",
+      "content_hash": "28e892e1e3ec91f7a3dadace666dbab9251bcebd7145a05e2021188e08584075",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "galileo_falling_bodies",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:galileo_falling_bodies::galileo.tied_balls_contradiction_result",
+      "type": "claim",
+      "content": "假设\"重者下落更快\"导致自相矛盾：同一复合体的速度既快于又慢于重球单独下落。",
+      "content_hash": "eee03e5c3ae1b3abfc284c68edf1370e99da0410473a7f616fa52094b6a96f02",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "galileo_falling_bodies",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:galileo_falling_bodies::setting.thought_experiment_env",
+      "type": "setting",
+      "content": "想象一个重球H和一个轻球L从同一高度落下。先分别考虑它们各自的\"自然下落速度\"，再考虑把二者用细绳绑成复合体HL后一起下落，会得到什么结果。",
+      "content_hash": "781f2093e7ce7659bb0d3f7cf160a4ce5ad19c92bc819ad85508f998f33cd378",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "galileo_falling_bodies",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:galileo_falling_bodies::setting.vacuum_env",
+      "type": "setting",
+      "content": "一个理想化的无空气阻力环境，只保留重力作用，不让介质阻力参与落体过程。",
+      "content_hash": "ba8f0acad3daf3cd2634f34bfb3297058b16b84c879dbd6b53fd531926648751",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "galileo_falling_bodies",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:galileo_falling_bodies::motivation.main_question",
+      "type": "question",
+      "content": "下落的速率是否真正取决于物体的重量？如果\"重者下落更快\"只是空气阻力造成的表象，那么在思想实验、控制条件实验以及真空极限下，应当分别看到怎样的结果？",
+      "content_hash": "d1d9786510983ebfe99da54346cd4945ded0be2ea88872dff70d1d17e30a5882",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "galileo_falling_bodies",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:galileo_falling_bodies::follow_up.follow_up_question",
+      "type": "question",
+      "content": "能否在足够接近真空的条件下直接比较重球与轻球的下落时间？如果日常差异确实来自空气阻力，那么真正决定性的实验应当在几乎无介质的环境中完成。",
+      "content_hash": "0da1a74ab9f13ceca95f9a33a576234f8dd740086794863aff9dbe10f6b1b752",
+      "parameters": [],
+      "metadata": null,
+      "package_id": "galileo_falling_bodies",
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    }
+  ],
+  "operators": [
+    {
+      "operator_id": null,
+      "scope": "local",
+      "operator": "contradiction",
+      "variables": [
+        "reg:galileo_falling_bodies::galileo.composite_is_slower",
+        "reg:galileo_falling_bodies::galileo.composite_is_faster"
+      ],
+      "conclusion": "reg:galileo_falling_bodies::galileo.tied_balls_contradiction_result",
+      "metadata": null
+    }
+  ],
+  "strategies": [
+    {
+      "strategy_id": "lcs_1c810bb9bd50540f",
+      "scope": "local",
+      "type": "infer",
+      "premises": [
+        "reg:galileo_falling_bodies::aristotle.everyday_observation"
+      ],
+      "conclusion": "reg:galileo_falling_bodies::aristotle.heavier_falls_faster",
+      "background": null,
+      "steps": [
+        {
+          "reasoning": "日常观察归纳出重者下落更快的经验规律。",
+          "premises": null,
+          "conclusion": null
+        }
+      ],
+      "metadata": null
+    },
+    {
+      "strategy_id": "lcs_cefad6edccfd8973",
+      "scope": "local",
+      "type": "infer",
+      "premises": [
+        "reg:galileo_falling_bodies::aristotle.heavier_falls_faster"
+      ],
+      "conclusion": "reg:galileo_falling_bodies::galileo.composite_is_slower",
+      "background": [
+        "reg:galileo_falling_bodies::setting.thought_experiment_env"
+      ],
+      "steps": [
+        {
+          "reasoning": "L的拖拽效应使HL比H慢。",
+          "premises": null,
+          "conclusion": null
+        }
+      ],
+      "metadata": null
+    },
+    {
+      "strategy_id": "lcs_1c3da31828bcd6c0",
+      "scope": "local",
+      "type": "infer",
+      "premises": [
+        "reg:galileo_falling_bodies::aristotle.heavier_falls_faster"
+      ],
+      "conclusion": "reg:galileo_falling_bodies::galileo.composite_is_faster",
+      "background": [
+        "reg:galileo_falling_bodies::setting.thought_experiment_env"
+      ],
+      "steps": [
+        {
+          "reasoning": "HL总质量大于H，应比H更快。",
+          "premises": null,
+          "conclusion": null
+        }
+      ],
+      "metadata": null
+    },
+    {
+      "strategy_id": "lcs_712d6c597022fea7",
+      "scope": "local",
+      "type": "infer",
+      "premises": [
+        "reg:galileo_falling_bodies::galileo.medium_density_observation"
+      ],
+      "conclusion": "reg:galileo_falling_bodies::galileo.air_resistance_is_confound",
+      "background": null,
+      "steps": [
+        {
+          "reasoning": "介质越稀薄差异越小，说明差异来自介质阻力。",
+          "premises": null,
+          "conclusion": null
+        }
+      ],
+      "metadata": null
+    },
+    {
+      "strategy_id": "lcs_7773b1752a5fbe7c",
+      "scope": "local",
+      "type": "infer",
+      "premises": [
+        "reg:galileo_falling_bodies::galileo.air_resistance_is_confound",
+        "reg:galileo_falling_bodies::galileo.inclined_plane_observation"
+      ],
+      "conclusion": "reg:galileo_falling_bodies::galileo.vacuum_prediction",
+      "background": [
+        "reg:galileo_falling_bodies::setting.vacuum_env"
+      ],
+      "steps": [
+        {
+          "reasoning": "矛盾否定假设；阻力解释差异；斜面实验支持。因此真空中等速下落。",
+          "premises": null,
+          "conclusion": null
+        }
+      ],
+      "metadata": null
+    }
+  ]
+}
