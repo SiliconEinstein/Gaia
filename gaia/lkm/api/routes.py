@@ -39,31 +39,53 @@ async def stats(storage: StorageManager = Depends(get_storage)):
 
 @router.get("/variables")
 async def list_variables(
+    layer: str = "global",
     type: str | None = None,
     visibility: str = "public",
-    limit: int = 100,
+    source_package: str | None = None,
+    limit: int = 200,
     storage: StorageManager = Depends(get_storage),
 ):
-    """List global variables with content resolved via representative_lcn."""
-    global_vars = await storage.content.list_global_variables(
-        type_filter=type, visibility=visibility, limit=limit
-    )
-    results = []
-    for gv in global_vars:
-        local = await storage.get_local_variable(gv.representative_lcn.local_id)
-        results.append(
-            {
-                "id": gv.id,
-                "type": gv.type,
-                "visibility": gv.visibility,
-                "content": local.content if local else None,
-                "content_hash": gv.content_hash,
-                "parameters": [p.model_dump() for p in gv.parameters],
-                "local_members": [m.model_dump() for m in gv.local_members],
-                "representative_lcn": gv.representative_lcn.model_dump(),
-            }
+    """List variables. layer=global (default) or layer=local."""
+    if layer == "local":
+        local_vars = (
+            await storage.content.get_local_variables_by_package(source_package, merged_only=True)
+            if source_package
+            else await _list_all_local_vars(storage, type, limit)
         )
-    return results
+        return [v.model_dump() for v in local_vars]
+    else:
+        global_vars = await storage.content.list_global_variables(
+            type_filter=type, visibility=visibility, limit=limit
+        )
+        results = []
+        for gv in global_vars:
+            local = await storage.get_local_variable(gv.representative_lcn.local_id)
+            results.append(
+                {
+                    "id": gv.id,
+                    "type": gv.type,
+                    "visibility": gv.visibility,
+                    "content": local.content if local else None,
+                    "content_hash": gv.content_hash,
+                    "parameters": [p.model_dump() for p in gv.parameters],
+                    "local_members": [m.model_dump() for m in gv.local_members],
+                    "representative_lcn": gv.representative_lcn.model_dump(),
+                }
+            )
+        return results
+
+
+async def _list_all_local_vars(storage: StorageManager, type_filter: str | None, limit: int):
+    """List all merged local variables across packages."""
+    from gaia.lkm.storage._serialization import _q, row_to_local_variable
+
+    table = storage.content._db.open_table("local_variable_nodes")
+    where = "ingest_status = 'merged'"
+    if type_filter:
+        where += f" AND type = '{_q(type_filter)}'"
+    results = await storage.content._run(lambda: table.search().where(where).limit(limit).to_list())
+    return [row_to_local_variable(r) for r in results]
 
 
 @router.get("/variables/{gcn_id}")
@@ -117,29 +139,47 @@ async def get_variable(
 
 @router.get("/factors")
 async def list_factors(
+    layer: str = "global",
     factor_type: str | None = None,
-    limit: int = 100,
+    limit: int = 200,
     storage: StorageManager = Depends(get_storage),
 ):
-    """List global factors with steps resolved."""
-    global_factors = await storage.content.list_global_factors(factor_type=factor_type, limit=limit)
-    results = []
-    for gf in global_factors:
-        local_factor = await storage.content.get_local_factor(gf.representative_lfn)
-        results.append(
-            {
-                "id": gf.id,
-                "factor_type": gf.factor_type,
-                "subtype": gf.subtype,
-                "premises": gf.premises,
-                "conclusion": gf.conclusion,
-                "source_package": gf.source_package,
-                "steps": [s.model_dump() for s in local_factor.steps]
-                if local_factor and local_factor.steps
-                else None,
-            }
+    """List factors. layer=global (default) or layer=local."""
+    if layer == "local":
+        local_factors = await _list_all_local_factors(storage, factor_type, limit)
+        return [f.model_dump() for f in local_factors]
+    else:
+        global_factors = await storage.content.list_global_factors(
+            factor_type=factor_type, limit=limit
         )
-    return results
+        results = []
+        for gf in global_factors:
+            local_factor = await storage.content.get_local_factor(gf.representative_lfn)
+            results.append(
+                {
+                    "id": gf.id,
+                    "factor_type": gf.factor_type,
+                    "subtype": gf.subtype,
+                    "premises": gf.premises,
+                    "conclusion": gf.conclusion,
+                    "source_package": gf.source_package,
+                    "steps": [s.model_dump() for s in local_factor.steps]
+                    if local_factor and local_factor.steps
+                    else None,
+                }
+            )
+        return results
+
+
+async def _list_all_local_factors(storage: StorageManager, type_filter: str | None, limit: int):
+    from gaia.lkm.storage._serialization import _q, row_to_local_factor
+
+    table = storage.content._db.open_table("local_factor_nodes")
+    where = "ingest_status = 'merged'"
+    if type_filter:
+        where += f" AND factor_type = '{_q(type_filter)}'"
+    results = await storage.content._run(lambda: table.search().where(where).limit(limit).to_list())
+    return [row_to_local_factor(r) for r in results]
 
 
 @router.get("/factors/{gfac_id}")
