@@ -10,7 +10,7 @@ Gaia IR 结构定义见 [02-gaia-ir.md](02-gaia-ir.md)。推理输出见 [../bp/
 
 backend-facing lowering 如何消费这些参数，见 [07-lowering.md](07-lowering.md)。
 
-本文件定义 **parameterization contract**——参数化模型可用于 local 和 global 两层。IR 代码当前在 `LocalCanonicalGraph` 上实现参数化；global 层的持久化参数管理（在 `GlobalCanonicalGraph` 上）由 LKM 负责。
+本文件定义 **parameterization contract**——参数化模型在 `LocalCanonicalGraph` 上实现参数化。
 
 ## 存储层：原子记录
 
@@ -18,13 +18,13 @@ backend-facing lowering 如何消费这些参数，见 [07-lowering.md](07-lower
 
 ```
 PriorRecord:
-    knowledge_id:       str              # claim Knowledge ID（IR 代码中使用此通用字段名；global 层为 gcn_ ID，由 LKM 负责）
+    knowledge_id:       str              # claim Knowledge QID
     value:              float            # ∈ (ε, 1-ε)
     source_id:          str              # 哪个 ParameterizationSource 产出的
     created_at:         str              # ISO 8601
 
 StrategyParamRecord:
-    strategy_id:                str          # Strategy ID（local 层 lcs_ 前缀，global 层 gcs_ 前缀；仅对参数化 Strategy）
+    strategy_id:                str          # Strategy ID（lcs_ 前缀；仅对参数化 Strategy）
     conditional_probabilities:  list[float]  # 参数数量由 type 决定（见下表）
     source_id:                  str          # 哪个 ParameterizationSource 产出的
     created_at:                 str          # ISO 8601
@@ -132,7 +132,7 @@ P(C=1 | A₁, A₂) = Σ_m P(C=1 | M=m) × P(M=m | A₁, A₂)
 
 ## Prior 来源
 
-每个 claim Knowledge 的 prior 由 review 赋值。不存在聚合逻辑——canonicalization 对 premise Knowledge 直接复用已有 global Knowledge（prior 不变），对 conclusion Knowledge 创建新的 global Knowledge（prior 由 review 独立赋值）。
+每个 claim Knowledge 的 prior 由 review 赋值。
 
 ## Strategy 条件概率来源
 

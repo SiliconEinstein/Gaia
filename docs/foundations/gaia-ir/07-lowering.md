@@ -16,7 +16,7 @@ BP 的具体运行时图和消息传递细节见 [../bp/inference.md](../bp/infe
 
 一个 lowering 过程的最小输入是：
 
-- 一个 Gaia IR graph（`LocalCanonicalGraph` 或 `GlobalCanonicalGraph`）
+- 一个 `LocalCanonicalGraph`
 - 一个展开策略（哪些 Strategy 保持折叠，哪些进入内部结构）
 
 对**需要概率参数**的运行时后端，常见还会额外输入：
@@ -26,14 +26,10 @@ BP 的具体运行时图和消息传递细节见 [../bp/inference.md](../bp/infe
 - `prior_cutoff`
 - backend 自己的运行配置
 
-IR 代码当前只实现 `LocalCanonicalGraph` 的 lowering。因此：
-
-- 对采用 [06-parameterization.md](06-parameterization.md) 的 probabilistic backend，IR 代码的规范输入是 `LocalCanonicalGraph + Parameterization`
-- `GlobalCanonicalGraph` 的 lowering 由 LKM 负责，IR 代码不直接操作
-- 本文件定义的 lowering 语义对两层均适用，但 IR 代码当前只覆盖 local 层
+对采用 [06-parameterization.md](06-parameterization.md) 的 probabilistic backend，规范输入是 `LocalCanonicalGraph + Parameterization`。
 
 lowering 的输出不是新的 Gaia IR，而是**后端的数据表示**。
-在当前 BP 后端里，这个输出是 `FactorGraph`（variable nodes + factor nodes 的二部图）；在其他后端里，也可以是别的表示。FactorGraph 可以是临时构建的（CLI 本地推理），也可以是持久化的（LKM 全局推理）——这取决于后端的存储策略，不由 lowering 契约规定。
+在当前 BP 后端里，这个输出是 `FactorGraph`（variable nodes + factor nodes 的二部图）；在其他后端里，也可以是别的表示。
 
 ## 2. 基本原则
 
@@ -50,7 +46,7 @@ Gaia IR 提供：
 
 runtime graph 则由后端按自己的执行模型构造。
 
-backend 在 runtime 层保留的是**对象 identity**（如 Knowledge QID / `gcn_...`、Strategy `lcs_...` / `gcs_...`），不是 `content_hash`。`content_hash` 主要服务于 canonicalization 和查询，不应替代 runtime node identity。
+backend 在 runtime 层保留的是**对象 identity**（如 Knowledge QID、Strategy `lcs_...`），不是 `content_hash`。`content_hash` 主要服务于去重和匹配，不应替代 runtime node identity。
 
 ### 2.2 Lowering 是消费，不是反向定义
 
@@ -166,8 +162,6 @@ Lowering 只消费参数层，不定义参数层。
 - 参数化 Strategy 从 `StrategyParamRecord` 读取外部条件参数
 - 普通 claim 从 `PriorRecord` 读取外部 prior
 - 结构型 helper claim **禁止**携带独立 PriorRecord（见 [04-helper-claims.md §6](04-helper-claims.md#6-与-parameterization-的关系)）
-
-Parameterization contract 的参数模型适用于 local 和 global 两层。IR 代码在 local graph 上实现参数化；global graph 的参数管理由 LKM 负责。
 
 对直接 FormalStrategy：
 

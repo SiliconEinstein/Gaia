@@ -25,46 +25,39 @@ validation 的职责是**验证结构合法性**。
 
 ## 1. 校验分层
 
-建议把校验分成 4 层：
+建议把校验分成 3 层：
 
 1. **对象级校验**
    单个 `Knowledge` / `Operator` / `Strategy` / `FormalExpr` 是否自洽
 2. **图级校验**
-   一个 `LocalCanonicalGraph` / `GlobalCanonicalGraph`（LKM 层） 内部引用是否闭合、scope 是否一致
-3. **层级校验**
-   local 与 global 的字段约束是否满足
-4. **相邻层完整性校验**
+   一个 `LocalCanonicalGraph` 内部引用是否闭合、scope 是否一致
+3. **相邻层完整性校验**
    例如 parameterization completeness、lowering preconditions
 
-本文件主要定义前 3 层。第 4 层只做边界说明。
+本文件主要定义前 2 层。第 3 层只做边界说明。
 
 ## 2. Knowledge 校验
 
 对每个 `Knowledge`，至少应检查：
 
-1. `id` 格式与 graph scope 一致
-   - local: 有效 QID 格式 `{namespace}:{package_name}::{label}`
-   - global: `gcn_` 前缀
+1. `id` 必须为有效 QID 格式 `{namespace}:{package_name}::{label}`
 2. `type` 属于允许集合
    - `claim`
    - `setting`
    - `question`
 3. `content_hash` 若存在，必须与 `type + content + sorted(parameters)` 的标准计算一致
-4. global `Knowledge`（LKM 层）若从 `representative_lcn` 同步 `content_hash`，则其值必须与当前代表内容一致
-5. 若某处把它当作可取真值命题引用，则其 `type` 必须是 `claim`
-6. 含 `parameters` 的 claim 仍然是 claim，不是独立类型
-7. helper claim 仍然是 `claim`，不能引入新的 Knowledge primitive
-8. 结构型 helper claim **禁止**携带独立的 `PriorRecord`——它们不引入新的中间命题或新的前提，其值由 Operator 确定性决定（见 [04-helper-claims.md §6](04-helper-claims.md#6-与-parameterization-的关系)）
-9. （仅 local）`label` 在同一 `LocalCanonicalGraph` 内必须唯一
-10. （仅 local）QID 中的 `namespace` 和 `package_name` 必须与所属 `LocalCanonicalGraph` 的 `namespace` 和 `package` 一致
+4. 若某处把它当作可取真值命题引用，则其 `type` 必须是 `claim`
+5. 含 `parameters` 的 claim 仍然是 claim，不是独立类型
+6. helper claim 仍然是 `claim`，不能引入新的 Knowledge primitive
+7. 结构型 helper claim **禁止**携带独立的 `PriorRecord`——它们不引入新的中间命题或新的前提，其值由 Operator 确定性决定（见 [04-helper-claims.md §6](04-helper-claims.md#6-与-parameterization-的关系)）
+8. `label` 在同一 `LocalCanonicalGraph` 内必须唯一
+9. QID 中的 `namespace` 和 `package_name` 必须与所属 `LocalCanonicalGraph` 的 `namespace` 和 `package` 一致
 
 ## 3. Operator 校验
 
 对每个 `Operator`，至少应检查：
 
-1. `operator_id` 前缀与 graph scope 一致
-   - local: `lco_`
-   - global: `gco_`
+1. `operator_id` 必须使用 `lco_` 前缀
 2. `variables` 中所有 ID 都必须引用同 graph 中存在的 Knowledge
 3. `variables` 中的 Knowledge 必须全部是 `claim`
 4. `conclusion` 必须引用同 graph 中存在的 `claim`
@@ -81,9 +74,7 @@ helper claim 的命名纪律见 [04-helper-claims.md](04-helper-claims.md)。
 
 对每个 `Strategy`，至少应检查：
 
-1. `strategy_id` 前缀与 graph scope 一致
-   - local: `lcs_`
-   - global: `gcs_`
+1. `strategy_id` 必须使用 `lcs_` 前缀
 2. `premises` 中的 Knowledge 必须全部是 `claim`
 3. `conclusion` 若非空，必须引用 `claim`
 4. `background` 可引用任意允许类型
@@ -124,25 +115,13 @@ helper claim 的命名纪律见 [04-helper-claims.md](04-helper-claims.md)。
 
 identity 与 hashing 的细节见 [03-identity-and-hashing.md](03-identity-and-hashing.md)。
 
-## 7. Local / Global 层级校验
-
-### 7.1 LocalCanonicalGraph
+## 7. LocalCanonicalGraph 校验
 
 至少应检查：
 
 1. `steps` 允许存在
-2. local 内容字段允许完整保留
-3. local Knowledge 使用 QID 格式；local Strategy 使用 `lcs_`；local Operator 使用 `lco_`
-
-### 7.2 GlobalCanonicalGraph（LKM 层）
-
-> **注意：** `validate_global_graph` 已从 IR 代码中移除，global 层校验由 LKM 负责。以下规则作为设计规范保留。
-
-至少应检查：
-
-1. `steps` 不应存在于 global Strategy 上
-2. global 对象一律使用 `gcn_ / gcs_ / gco_`
-3. global graph 只保留结构，不复制 local `steps`
+2. 内容字段允许完整保留
+3. Knowledge 使用 QID 格式；Strategy 使用 `lcs_`；Operator 使用 `lco_`
 
 ## 8. 与相邻层的边界
 
