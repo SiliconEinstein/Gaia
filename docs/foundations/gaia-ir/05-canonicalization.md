@@ -25,7 +25,7 @@ Gaia IR 只管理 **local package 内部的结构表示**。
 | registered package versions | Official Registry | 哪些 package 版本进入官方索引 |
 | validated review reports | Official Registry + package repo | reviewer 提交并通过 gate 的 review artifacts |
 | relation reports / research tasks | Official Registry Issues / LKM Repo | 人类或 LKM 提交的关系线索与调查入口 |
-| curation / investigation packages | package repo + Registry index | 对 duplicate / refinement / contradiction 等关系的公开主张 |
+| public relation packages（非正式统称） | package repo + Registry index | 以 cross-package relation 为主要内容的公开 package 提交 |
 
 **边界原则：**
 
@@ -33,6 +33,9 @@ Gaia IR 只管理 **local package 内部的结构表示**。
 - Official Registry 负责索引 package、assignment、review gate 与 issue 入口，而不是替所有人做最终关系判断
 - user、Review Server、LKM curation service 通过 package / review finding / issue 把跨包关系带入公共记录
 - 任意下游 LKM 基于这些公开信息，自行构建不 double count 的全局图
+
+本文用 **public relation package** 作为一个**非正式统称**：指任何以 cross-package relation 为主要公开主张的 Gaia package。  
+它不是新的 IR primitive，也不预设 artifact profile 一定是 `knowledge`、`investigation` 还是别的生态层分类；Gaia IR 只关心它最终编译成什么 graph。
 
 ## 2. Gaia IR 需要保留什么信息
 
@@ -117,7 +120,14 @@ package 内的 `metadata`、`background`、`provenance` 等字段，需要尽可
 - contradiction
 - unresolved
 
-这类判断本身应通过新的 Gaia package（例如 investigation / review / curation artifact），或通过 review finding / relation report / LKM research task 进入公共记录。
+这类判断本身应通过新的 Gaia package，或通过 review finding / relation report / LKM research task 进入公共记录。
+
+其中：
+
+- review finding / relation report / research task 是**发现入口**
+- public relation package 是**公开提交的关系主张**
+
+前者负责把候选关系带进公共记录；后者负责把一个可审查的、可被引用的关系论证真正落成 package。
 
 core IR 在这里的职责不是直接“合并图”，而是保证这些公开制品至少能够：
 
@@ -125,18 +135,47 @@ core IR 在这里的职责不是直接“合并图”，而是保证这些公开
 - 提供可审查的论证内容
 - 保留产生该主张或 finding 的 provenance
 
+### 4.1 Public Relation Package 的最小 IR Contract
+
+在 Gaia IR 层，一个 public relation package 仍然只是普通 `LocalCanonicalGraph`。  
+如果它要对 cross-package relation 提出可审查主张，最少需要显式保留：
+
+1. **subject occurrences**
+   把被讨论的外部 occurrence 以 foreign QID 的 `Knowledge` 节点显式带入 graph，而不是只在自由文本里提到
+2. **relation-bearing graph objects**
+   用现有 IR primitive 表达真正提交的关系内容：
+   - 可直接落为结构约束的关系，用 `Operator`（如 `equivalence`、`contradiction`）
+   - 不能简化为单个 core Operator 的判断，用普通 `claim` + `Strategy` 表达其关系主张与支撑论证
+3. **support structure**
+   关系主张本身为什么成立，必须有可审查的 `Strategy` / `Operator` 支撑，而不是把 verdict 藏在 package metadata 里
+4. **provenance and context**
+   通过 `metadata`、`background`、`provenance`、`refs` 等字段保留来源包、review finding、issue 线索、调查上下文
+
+这四类信息一起保证：下游实现即使不同，也至少能看到“你在讨论哪几个 occurrence”“你主张了什么关系”“你的依据是什么”。
+
+### 4.2 Gaia IR 在这里不承诺什么
+
+Gaia IR 不承诺以下内容：
+
+- 这个 public relation package 在生态层究竟属于哪一种 artifact profile
+- duplicate / refinement / connection / independent evidence 在某个下游 LKM 中会如何 materialize
+- 是否需要暂停参数、重定向引用、触发 re-review
+- 哪一个 relation verdict 应该直接改变全局图，哪一个只应停留在 review fiber 或 issue 讨论层
+
+这些都属于生态流程、review 结论和下游实现策略，不属于 Gaia IR 的 core contract。
+
 公共协作生态至少应公开暴露：
 
 - 已注册的 package 版本
 - occurrence 引用（package/version/qid）
 - validated review reports 与其中的 relevant findings
 - Official Registry issues / LKM Repo research tasks
-- 已公开的 curation / investigation packages，以及它们声明的 supersession / refinement / rebuttal / duplicate 等关系
+- 已公开的 public relation packages，以及它们声明的 supersession / refinement / rebuttal / duplicate 等关系
 
 这些是下游 LKM 构建 anti-double-counting graph 的充分输入。  
 具体如何 materialize 成内部图结构，不由 Gaia IR 本体规定。
 
-> **Future work:** imported reference 的附加 metadata / provenance schema 仍待单独设计。当前文档先固定边界：cross-package duplicate handling 不在 core IR 内伪装成新的 Strategy type。
+> **Future work:** imported reference 的附加 metadata / provenance schema 仍待单独设计。当前文档先固定边界：cross-package duplicate handling 不在 core IR 内伪装成新的 Strategy type；public relation package 也不引入新的 graph schema 变体。
 
 ## 5. `content_hash` 的角色
 

@@ -114,6 +114,13 @@ Gaia IR（结构）    ×    Parameterization（参数）
 它**不**意味着“所有被引用节点都必须由当前 package 本地声明”。  
 一个 `LocalCanonicalGraph` 可以显式包含 imported external occurrences，只要这些外部 occurrence 作为普通 `Knowledge` 节点出现在 graph 中并参与引用闭合。
 
+同一个 IR schema 同时适用于：
+
+- 普通研究内容的 package
+- 以 cross-package relation 为主的公开 package 提交
+
+区别只体现在这些 package 想表达的内容和生态层的制品语义，不体现在 Gaia IR 另有一套专门 graph 变体。
+
 ### 封装边界
 
 FormalStrategy 内部的 **private claims 必须保持封装**——它们不应与其他子图中的 claim 合并或被外部引用。
