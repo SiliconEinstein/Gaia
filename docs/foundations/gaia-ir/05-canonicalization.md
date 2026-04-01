@@ -9,6 +9,13 @@
 Gaia IR 只管理 **local package 内部的结构表示**。  
 跨 package 的“是不是同一个命题”“是不是旧论证的改写”“会不会 double count”属于 **公共协作生态中的发现、调查与公开制品**，不是 core IR 里的 runtime primitive，也不是 Official Registry 自身直接算出的 judgment。
 
+这里首先要固定一个前提：
+
+- **local-only IR** 指的是 local ownership
+- **不是** local-only reference closure
+
+也就是说，一个 `LocalCanonicalGraph` 可以合法地把 external occurrences 显式带入图中；canonicalization 真正要解决的，是这些跨包 occurrence 之间后续如何被公开发现、讨论和使用。
+
 | 概念 | 所属层 | 说明 |
 |------|--------|------|
 | QID（name-addressed identity） | IR | `{namespace}:{package_name}::{label}`，标识 package 内的一次 Knowledge occurrence |
@@ -135,12 +142,12 @@ core IR 在这里的职责不是直接“合并图”，而是保证这些公开
 
 | 用途 | 说明 |
 |------|------|
-| 跨包同内容精确匹配 | registry 审查 duplicate 候选的快速路径 |
+| 跨包同内容精确匹配 | review / curation 发现 duplicate 候选的快速路径 |
 | 包内变更检测 | 同一 label 的 content 变更时 hash 变化 |
 | 去重候选筛选 | 作为 embedding/semantic match 前的预过滤 |
 
 `content_hash` 不是身份，QID 才是 occurrence identity。  
-registry 的 canonicalization 判断必须建立在公开可审查的 package 与 review 记录上，而不是单纯建立在 hash 命中上。
+公共生态中的 canonicalization 判断必须建立在公开可审查的 package 与 review 记录上，而不是单纯建立在 hash 命中上。
 
 ## 6. FormalExpr 中间 Knowledge 的创建
 

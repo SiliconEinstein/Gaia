@@ -53,6 +53,7 @@ validation 的职责是**验证结构合法性**。
 7. 结构型 helper claim **禁止**携带独立的 `PriorRecord`——它们不引入新的中间命题或新的前提，其值由 Operator 确定性决定（见 [04-helper-claims.md §6](04-helper-claims.md#6-与-parameterization-的关系)）
 8. `label` 在同一 `LocalCanonicalGraph` 内必须唯一
 9. `LocalCanonicalGraph.namespace` / `package_name` 约束自动生成的本地 QID；显式写入的 foreign QID 允许作为 external reference 出现在 graph 中
+10. graph-level closure 的对象是“显式出现在 graph 中的节点集合”，因此 imported external occurrence 若被引用，也必须作为 `Knowledge` 显式存在于该 graph 中
 
 ## 3. Operator 校验
 
@@ -68,6 +69,9 @@ validation 的职责是**验证结构合法性**。
    - **Relation（`equivalence`、`contradiction`、`complement`、`disjunction`）**：`conclusion` 是结构型 helper claim
 7. 关系型 Operator 的 `conclusion` 不允许被作者借来手写任意主观结论
 9. 若 `metadata.canonical_name` 缺失或未采用推荐 functor 形式，当前更适合作为 warning / lint，而不是 hard error
+
+这里的 “同 graph 中存在” 指的是 **引用闭合**，不是 **ownership 相同**。  
+也就是说，Operator 可以连接 imported claim，只要这些 imported claim 已被显式放入 graph。
 
 helper claim 的命名纪律见 [04-helper-claims.md](04-helper-claims.md)。
 
@@ -89,6 +93,8 @@ helper claim 的命名纪律见 [04-helper-claims.md](04-helper-claims.md)。
 9. `sub_strategies` 引用关系必须构成 DAG（无环）
 10. `noisy_and` 不应用来压平命名策略的整体语义
 
+与 Operator 一样，Strategy 的 `premises` / `conclusion` / `background` 只检查图内闭合和类型约束，不检查这些 Knowledge 是否都属于当前 graph owner。
+
 ## 5. FormalExpr 校验
 
 对每个 `FormalExpr`，至少应检查：
@@ -109,7 +115,7 @@ helper claim 的命名纪律见 [04-helper-claims.md](04-helper-claims.md)。
 
 1. `scope` 与所有对象 ID 格式一致
 2. 图内所有引用都闭合
-3. 不允许引用跨 graph 不存在的本地对象
+3. 不允许引用未在当前 graph 中显式物化的对象；external reference 若参与引用，也必须先作为 `Knowledge` 出现在当前 graph 中
 4. `ir_hash` 若定义，则必须与 canonical serialization 一致
 5. 同一 graph 内不应出现重复 ID
 6. `namespace` 必须属于允许集合（`reg` | `paper`）
