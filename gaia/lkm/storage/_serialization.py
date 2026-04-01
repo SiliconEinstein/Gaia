@@ -43,6 +43,7 @@ def local_variable_to_row(node: LocalVariableNode, ingest_status: str = "prepari
         "content_hash": node.content_hash,
         "parameters": json.dumps([p.model_dump() for p in node.parameters]),
         "source_package": node.source_package,
+        "version": node.version,
         "metadata": json.dumps(node.metadata) if node.metadata else "",
         "ingest_status": ingest_status,
     }
@@ -59,6 +60,7 @@ def row_to_local_variable(row: dict) -> LocalVariableNode:
         content_hash=row["content_hash"],
         parameters=[Parameter(**p) for p in json.loads(params_raw)] if params_raw else [],
         source_package=row["source_package"],
+        version=row.get("version", ""),
         metadata=json.loads(meta_raw) if meta_raw else None,
     )
 
@@ -76,6 +78,7 @@ def local_factor_to_row(node: LocalFactorNode, ingest_status: str = "preparing")
         "background": json.dumps(node.background) if node.background else "",
         "steps": json.dumps([s.model_dump() for s in node.steps]) if node.steps else "",
         "source_package": node.source_package,
+        "version": node.version,
         "metadata": json.dumps(node.metadata) if node.metadata else "",
         "ingest_status": ingest_status,
     }
@@ -94,6 +97,7 @@ def row_to_local_factor(row: dict) -> LocalFactorNode:
         background=json.loads(bg_raw) if bg_raw else None,
         steps=[Step(**s) for s in json.loads(steps_raw)] if steps_raw else None,
         source_package=row["source_package"],
+        version=row.get("version", ""),
         metadata=json.loads(meta_raw) if meta_raw else None,
     )
 

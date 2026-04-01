@@ -31,6 +31,7 @@ class LocalFactorNode(BaseModel):
     background: list[str] | None = None  # context IDs (strategy only)
     steps: list[Step] | None = None  # reasoning steps (strategy only)
     source_package: str
+    version: str = ""  # package version — (source_package, version) identifies the local graph
     metadata: dict | None = None
 
 

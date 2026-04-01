@@ -45,31 +45,22 @@ async def list_variables(
     storage: StorageManager = Depends(get_storage),
 ):
     """List global variables with content resolved via representative_lcn."""
-    table = storage.content._db.open_table("global_variable_nodes")
-    where = f"visibility = '{visibility}'"
-    if type:
-        where += f" AND type = '{type}'"
-    rows = table.search().where(where).limit(limit).to_list()
-
+    global_vars = await storage.content.list_global_variables(
+        type_filter=type, visibility=visibility, limit=limit
+    )
     results = []
-    for r in rows:
-        import json
-
-        # Resolve content via representative_lcn
-        lcn = json.loads(r["representative_lcn"])
-        local = await storage.get_local_variable(lcn["local_id"])
-        content = local.content if local else None
-
+    for gv in global_vars:
+        local = await storage.get_local_variable(gv.representative_lcn.local_id)
         results.append(
             {
-                "id": r["id"],
-                "type": r["type"],
-                "visibility": r["visibility"],
-                "content": content,
-                "content_hash": r["content_hash"],
-                "parameters": json.loads(r["parameters"]),
-                "local_members": json.loads(r["local_members"]),
-                "representative_lcn": lcn,
+                "id": gv.id,
+                "type": gv.type,
+                "visibility": gv.visibility,
+                "content": local.content if local else None,
+                "content_hash": gv.content_hash,
+                "parameters": [p.model_dump() for p in gv.parameters],
+                "local_members": [m.model_dump() for m in gv.local_members],
+                "representative_lcn": gv.representative_lcn.model_dump(),
             }
         )
     return results
@@ -85,37 +76,29 @@ async def get_variable(
     if not gvar:
         raise HTTPException(404, f"Variable {gcn_id} not found")
 
-    # Resolve content
     local = await storage.get_local_variable(gvar.representative_lcn.local_id)
     content = local.content if local else None
 
-    # Find connected factors (where this variable is premise or conclusion)
-    import json
-
-    factor_table = storage.content._db.open_table("global_factor_nodes")
-    all_factors = factor_table.search().limit(10000).to_list()
-
+    # Find connected factors
+    all_factors = await storage.content.list_global_factors(limit=10000)
     connected_factors = []
-    for f in all_factors:
-        premises = json.loads(f["premises"])
-        if gcn_id in premises or f["conclusion"] == gcn_id:
-            # Resolve steps via representative_lfn
-            local_factor = await storage.content.get_local_factor(f["representative_lfn"])
+    for gf in all_factors:
+        if gcn_id in gf.premises or gf.conclusion == gcn_id:
+            local_factor = await storage.content.get_local_factor(gf.representative_lfn)
             connected_factors.append(
                 {
-                    "id": f["id"],
-                    "factor_type": f["factor_type"],
-                    "subtype": f["subtype"],
-                    "premises": premises,
-                    "conclusion": f["conclusion"],
+                    "id": gf.id,
+                    "factor_type": gf.factor_type,
+                    "subtype": gf.subtype,
+                    "premises": gf.premises,
+                    "conclusion": gf.conclusion,
                     "steps": [s.model_dump() for s in local_factor.steps]
                     if local_factor and local_factor.steps
                     else None,
-                    "role": "premise" if gcn_id in premises else "conclusion",
+                    "role": "premise" if gcn_id in gf.premises else "conclusion",
                 }
             )
 
-    # Find bindings
     bindings = await storage.find_bindings_by_global_id(gcn_id)
 
     return {
@@ -139,25 +122,18 @@ async def list_factors(
     storage: StorageManager = Depends(get_storage),
 ):
     """List global factors with steps resolved."""
-    import json
-
-    table = storage.content._db.open_table("global_factor_nodes")
-    if factor_type:
-        rows = table.search().where(f"factor_type = '{factor_type}'").limit(limit).to_list()
-    else:
-        rows = table.search().limit(limit).to_list()
-
+    global_factors = await storage.content.list_global_factors(factor_type=factor_type, limit=limit)
     results = []
-    for r in rows:
-        local_factor = await storage.content.get_local_factor(r["representative_lfn"])
+    for gf in global_factors:
+        local_factor = await storage.content.get_local_factor(gf.representative_lfn)
         results.append(
             {
-                "id": r["id"],
-                "factor_type": r["factor_type"],
-                "subtype": r["subtype"],
-                "premises": json.loads(r["premises"]),
-                "conclusion": r["conclusion"],
-                "source_package": r["source_package"],
+                "id": gf.id,
+                "factor_type": gf.factor_type,
+                "subtype": gf.subtype,
+                "premises": gf.premises,
+                "conclusion": gf.conclusion,
+                "source_package": gf.source_package,
                 "steps": [s.model_dump() for s in local_factor.steps]
                 if local_factor and local_factor.steps
                 else None,
@@ -176,7 +152,6 @@ async def get_factor(
     if not gfac:
         raise HTTPException(404, f"Factor {gfac_id} not found")
 
-    # Resolve steps
     local_factor = await storage.content.get_local_factor(gfac.representative_lfn)
     steps = (
         [s.model_dump() for s in local_factor.steps]
@@ -184,7 +159,6 @@ async def get_factor(
         else None
     )
 
-    # Resolve premise/conclusion content
     async def resolve_var(gcn_id: str) -> dict:
         gv = await storage.get_global_variable(gcn_id)
         if not gv:
@@ -214,31 +188,10 @@ async def list_bindings(
     storage: StorageManager = Depends(get_storage),
 ):
     """List canonical bindings with optional filters."""
-    table = storage.content._db.open_table("canonical_bindings")
-    conditions = []
-    if package_id:
-        conditions.append(f"package_id = '{package_id}'")
-    if binding_type:
-        conditions.append(f"binding_type = '{binding_type}'")
-
-    if conditions:
-        where = " AND ".join(conditions)
-        rows = table.search().where(where).limit(limit).to_list()
-    else:
-        rows = table.search().limit(limit).to_list()
-
-    return [
-        {
-            "local_id": r["local_id"],
-            "global_id": r["global_id"],
-            "binding_type": r["binding_type"],
-            "package_id": r["package_id"],
-            "version": r["version"],
-            "decision": r["decision"],
-            "reason": r["reason"],
-        }
-        for r in rows
-    ]
+    bindings = await storage.content.list_bindings(
+        package_id=package_id, binding_type=binding_type, limit=limit
+    )
+    return [b.model_dump() for b in bindings]
 
 
 @router.get("/graph")
@@ -246,45 +199,35 @@ async def get_graph(
     storage: StorageManager = Depends(get_storage),
 ):
     """Get full graph structure for visualization — nodes + edges."""
-    import json
-
-    # All global variables
-    var_table = storage.content._db.open_table("global_variable_nodes")
-    var_rows = var_table.search().limit(10000).to_list()
+    global_vars = await storage.content.list_global_variables(limit=10000)
+    global_factors = await storage.content.list_global_factors(limit=10000)
 
     nodes = []
-    for r in var_rows:
-        lcn = json.loads(r["representative_lcn"])
-        local = await storage.get_local_variable(lcn["local_id"])
+    for gv in global_vars:
+        local = await storage.get_local_variable(gv.representative_lcn.local_id)
         nodes.append(
             {
-                "id": r["id"],
+                "id": gv.id,
                 "type": "variable",
-                "subtype": r["type"],
-                "visibility": r["visibility"],
+                "subtype": gv.type,
+                "visibility": gv.visibility,
                 "content": local.content if local else None,
-                "local_members_count": len(json.loads(r["local_members"])),
+                "local_members_count": len(gv.local_members),
             }
         )
 
-    # All global factors
-    fac_table = storage.content._db.open_table("global_factor_nodes")
-    fac_rows = fac_table.search().limit(10000).to_list()
-
     edges = []
-    for r in fac_rows:
-        premises = json.loads(r["premises"])
-        factor_node = {
-            "id": r["id"],
-            "type": "factor",
-            "subtype": r["subtype"],
-            "factor_type": r["factor_type"],
-        }
-        nodes.append(factor_node)
-        # premise → factor edges
-        for p in premises:
-            edges.append({"source": p, "target": r["id"], "type": "premise"})
-        # factor → conclusion edge
-        edges.append({"source": r["id"], "target": r["conclusion"], "type": "conclusion"})
+    for gf in global_factors:
+        nodes.append(
+            {
+                "id": gf.id,
+                "type": "factor",
+                "subtype": gf.subtype,
+                "factor_type": gf.factor_type,
+            }
+        )
+        for p in gf.premises:
+            edges.append({"source": p, "target": gf.id, "type": "premise"})
+        edges.append({"source": gf.id, "target": gf.conclusion, "type": "conclusion"})
 
     return {"nodes": nodes, "edges": edges}

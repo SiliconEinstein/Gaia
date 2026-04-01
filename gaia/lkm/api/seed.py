@@ -57,7 +57,7 @@ async def _ingest_package(
     await storage.ingest_local_graph(package_id, version, local_vars, local_factors)
 
     # 2. Commit (merged)
-    await storage.commit_package(package_id)
+    await storage.commit_package(package_id, version)
 
     # 3. Integrate variables — dedup by content_hash
     new_globals = []
@@ -184,8 +184,13 @@ async def seed(db_path: str):
 
     for name in packages:
         data = _load_fixture(fixtures_dir, name)
-        local_vars = [LocalVariableNode(**v) for v in data["local_variables"]]
-        local_factors = [LocalFactorNode(**f) for f in data["local_factors"]]
+        version = data["version"]
+        local_vars = [
+            LocalVariableNode(**{**v, "version": version}) for v in data["local_variables"]
+        ]
+        local_factors = [
+            LocalFactorNode(**{**f, "version": version}) for f in data["local_factors"]
+        ]
 
         new_vars, new_facs, bindings = await _ingest_package(
             storage, data["package_id"], data["version"], local_vars, local_factors

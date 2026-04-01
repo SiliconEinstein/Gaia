@@ -15,6 +15,7 @@ LOCAL_VARIABLE_NODES = pa.schema(
         pa.field("content_hash", pa.string()),
         pa.field("parameters", pa.string()),  # JSON list[Parameter]
         pa.field("source_package", pa.string()),
+        pa.field("version", pa.string()),  # package version
         pa.field("metadata", pa.string()),  # JSON dict | ""
         pa.field("ingest_status", pa.string()),  # "preparing" | "merged"
     ]
@@ -30,6 +31,7 @@ LOCAL_FACTOR_NODES = pa.schema(
         pa.field("background", pa.string()),  # JSON list[str] | ""
         pa.field("steps", pa.string()),  # JSON list[Step] | ""
         pa.field("source_package", pa.string()),
+        pa.field("version", pa.string()),  # package version
         pa.field("metadata", pa.string()),
         pa.field("ingest_status", pa.string()),
     ]

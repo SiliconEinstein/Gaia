@@ -54,9 +54,9 @@ class StorageManager:
         await self.content.write_local_variables(variable_nodes)
         await self.content.write_local_factors(factor_nodes)
 
-    async def commit_package(self, source_package: str) -> None:
-        """Step 7: Flip ingest_status from 'preparing' to 'merged'."""
-        await self.content.commit_ingest(source_package)
+    async def commit_package(self, source_package: str, version: str = "") -> None:
+        """Step 7: Flip ingest_status from 'preparing' to 'merged' for (package, version)."""
+        await self.content.commit_ingest(source_package, version)
 
     async def integrate_global_graph(
         self,

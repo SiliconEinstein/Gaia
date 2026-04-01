@@ -31,6 +31,7 @@ def _make_local_var(
     package: str,
     type_: str = "claim",
     visibility: str = "public",
+    version: str = "1.0.0",
 ) -> LocalVariableNode:
     """Helper to construct a LocalVariableNode with computed content_hash."""
     qid = f"reg:{package}::{label}"
@@ -43,6 +44,7 @@ def _make_local_var(
         content_hash=ch,
         parameters=[],
         source_package=package,
+        version=version,
     )
 
 
@@ -75,7 +77,7 @@ class TestIngestVisibility:
         """After commit, nodes should be visible."""
         node = _make_local_var("claim1", "test content", "pkg_a")
         await storage.ingest_local_graph("pkg_a", "1.0.0", [node], [])
-        await storage.commit_package("pkg_a")
+        await storage.commit_package("pkg_a", "1.0.0")
 
         result = await storage.get_local_variable("reg:pkg_a::claim1")
         assert result is not None
@@ -148,10 +150,11 @@ class TestWriteReadRoundtrip:
             content_hash=ch,
             parameters=params,
             source_package="pkg",
+            version="1.0.0",
             metadata={"key": "value"},
         )
         await storage.ingest_local_graph("pkg", "1.0.0", [node], [])
-        await storage.commit_package("pkg")
+        await storage.commit_package("pkg", "1.0.0")
 
         result = await storage.get_local_variable("reg:pkg::c1")
         assert result is not None
@@ -170,9 +173,10 @@ class TestWriteReadRoundtrip:
             background=["reg:pkg::setting1"],
             steps=[Step(reasoning="Because reasons", premises=["reg:pkg::p1"])],
             source_package="pkg",
+            version="1.0.0",
         )
         await storage.ingest_local_graph("pkg", "1.0.0", [], [factor])
-        await storage.commit_package("pkg")
+        await storage.commit_package("pkg", "1.0.0")
 
         result = await storage.content.get_local_factor("lfac_test123")
         assert result is not None

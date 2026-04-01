@@ -36,11 +36,14 @@ def load_package(name: str) -> PackageFixture:
     path = _FIXTURES_DIR / f"{name}.json"
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
+    version = data["version"]
     return PackageFixture(
         package_id=data["package_id"],
-        version=data["version"],
-        local_variables=[LocalVariableNode(**v) for v in data["local_variables"]],
-        local_factors=[LocalFactorNode(**f) for f in data["local_factors"]],
+        version=version,
+        local_variables=[
+            LocalVariableNode(**{**v, "version": version}) for v in data["local_variables"]
+        ],
+        local_factors=[LocalFactorNode(**{**f, "version": version}) for f in data["local_factors"]],
     )
 
 

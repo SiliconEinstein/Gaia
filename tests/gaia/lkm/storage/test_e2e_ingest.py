@@ -36,7 +36,7 @@ async def _ingest_and_integrate(
 ) -> tuple[list[GlobalVariableNode], list[CanonicalBinding]]:
     """Full ingest→commit→integrate flow. Returns new globals and bindings."""
     await storage.ingest_local_graph(package_id, version, local_vars, local_factors)
-    await storage.commit_package(package_id)
+    await storage.commit_package(package_id, version)
 
     new_globals = []
     all_bindings = []
@@ -185,6 +185,6 @@ class TestE2EIngest:
         assert result is None
 
         # After commit — visible
-        await storage.commit_package(galileo.package_id)
+        await storage.commit_package(galileo.package_id, galileo.version)
         result = await storage.get_local_variable(galileo.local_variables[0].id)
         assert result is not None

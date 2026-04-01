@@ -35,6 +35,7 @@ class LocalVariableNode(BaseModel):
     content_hash: str  # SHA-256, excludes package_id
     parameters: list[Parameter] = []
     source_package: str
+    version: str = ""  # package version — (source_package, version) identifies the local graph
     metadata: dict | None = None
 
     def recompute_content_hash(self) -> str:

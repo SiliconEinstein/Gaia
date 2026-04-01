@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json as _json
 from functools import partial
 from typing import Any
 
@@ -81,54 +82,62 @@ class LanceContentStore:
                 table = self._db.open_table(table_name)
                 await self._run(table.create_scalar_index, column, replace=True)
             except Exception:
-                # Index creation may fail on empty tables — that's OK,
-                # we'll retry after first data write
                 pass
 
-    # ── Local node writes ──
+    # ── Local node writes (idempotent: delete-then-add) ──
 
     async def write_local_variables(self, nodes: list[LocalVariableNode]) -> None:
-        """Batch write local variable nodes with ingest_status='preparing'."""
+        """Batch write local variable nodes with ingest_status='preparing'.
+
+        Idempotent: deletes any existing rows for the same (source_package, version)
+        before writing, so retries and re-seeds don't produce duplicates.
+        """
         if not nodes:
             return
         table = self._db.open_table("local_variable_nodes")
+        # Delete existing rows for this (package, version) to ensure idempotency
+        pkg = _q(nodes[0].source_package)
+        ver = _q(nodes[0].version)
+        await self._run(table.delete, f"source_package = '{pkg}' AND version = '{ver}'")
         rows = [local_variable_to_row(n, ingest_status="preparing") for n in nodes]
         await self._run(table.add, rows)
 
     async def write_local_factors(self, nodes: list[LocalFactorNode]) -> None:
-        """Batch write local factor nodes with ingest_status='preparing'."""
+        """Batch write local factor nodes with ingest_status='preparing'.
+
+        Idempotent: deletes any existing rows for the same (source_package, version).
+        """
         if not nodes:
             return
         table = self._db.open_table("local_factor_nodes")
+        pkg = _q(nodes[0].source_package)
+        ver = _q(nodes[0].version)
+        await self._run(table.delete, f"source_package = '{pkg}' AND version = '{ver}'")
         rows = [local_factor_to_row(n, ingest_status="preparing") for n in nodes]
         await self._run(table.add, rows)
 
-    async def commit_ingest(self, source_package: str) -> None:
-        """Flip ingest_status from 'preparing' to 'merged' for a package."""
-        escaped = _q(source_package)
+    async def commit_ingest(self, source_package: str, version: str) -> None:
+        """Flip ingest_status from 'preparing' to 'merged' for a specific (package, version)."""
+        escaped_pkg = _q(source_package)
+        escaped_ver = _q(version)
+        where = (
+            f"source_package = '{escaped_pkg}' AND version = '{escaped_ver}' "
+            f"AND ingest_status = 'preparing'"
+        )
         for table_name in ("local_variable_nodes", "local_factor_nodes"):
             table = self._db.open_table(table_name)
             preparing = await self._run(
-                lambda t=table, sp=escaped: (
-                    t.search()
-                    .where(f"source_package = '{sp}' AND ingest_status = 'preparing'")
-                    .limit(_MAX_SCAN)
-                    .to_list()
-                )
+                lambda t=table, w=where: t.search().where(w).limit(_MAX_SCAN).to_list()
             )
             if preparing:
                 for row in preparing:
                     row["ingest_status"] = "merged"
-                await self._run(
-                    table.delete,
-                    f"source_package = '{escaped}' AND ingest_status = 'preparing'",
-                )
+                await self._run(table.delete, where)
                 await self._run(table.add, preparing)
 
     # ── Global node writes ──
 
     async def write_global_variables(self, nodes: list[GlobalVariableNode]) -> None:
-        """Batch write global variable nodes (append-only, idempotent)."""
         if not nodes:
             return
         table = self._db.open_table("global_variable_nodes")
@@ -136,7 +145,6 @@ class LanceContentStore:
         await self._run(table.add, rows)
 
     async def write_global_factors(self, nodes: list[GlobalFactorNode]) -> None:
-        """Batch write global factor nodes (append-only)."""
         if not nodes:
             return
         table = self._db.open_table("global_factor_nodes")
@@ -144,7 +152,6 @@ class LanceContentStore:
         await self._run(table.add, rows)
 
     async def write_bindings(self, bindings: list[CanonicalBinding]) -> None:
-        """Batch write canonical bindings (append-only, immutable)."""
         if not bindings:
             return
         table = self._db.open_table("canonical_bindings")
@@ -174,7 +181,6 @@ class LanceContentStore:
     # ── Reads: local nodes ──
 
     async def get_local_variable(self, local_id: str) -> LocalVariableNode | None:
-        """Get a merged local variable by ID."""
         table = self._db.open_table("local_variable_nodes")
         escaped = _q(local_id)
         results = await self._run(
@@ -190,7 +196,6 @@ class LanceContentStore:
     async def get_local_variables_by_package(
         self, source_package: str, merged_only: bool = True
     ) -> list[LocalVariableNode]:
-        """Get all local variables for a package."""
         table = self._db.open_table("local_variable_nodes")
         escaped = _q(source_package)
         where = f"source_package = '{escaped}'"
@@ -200,7 +205,6 @@ class LanceContentStore:
         return [row_to_local_variable(r) for r in results]
 
     async def get_local_factor(self, factor_id: str) -> LocalFactorNode | None:
-        """Get a merged local factor by ID."""
         table = self._db.open_table("local_factor_nodes")
         escaped = _q(factor_id)
         results = await self._run(
@@ -223,10 +227,23 @@ class LanceContentStore:
         )
         return row_to_global_variable(results[0]) if results else None
 
+    async def list_global_variables(
+        self,
+        type_filter: str | None = None,
+        visibility: str = "public",
+        limit: int = 100,
+    ) -> list[GlobalVariableNode]:
+        """List global variables with optional filters. Async-safe."""
+        table = self._db.open_table("global_variable_nodes")
+        where = f"visibility = '{_q(visibility)}'"
+        if type_filter:
+            where += f" AND type = '{_q(type_filter)}'"
+        results = await self._run(lambda: table.search().where(where).limit(limit).to_list())
+        return [row_to_global_variable(r) for r in results]
+
     async def find_global_by_content_hash(
         self, content_hash: str, visibility: str = "public"
     ) -> GlobalVariableNode | None:
-        """O(1) indexed lookup by content_hash. Core dedup operation."""
         table = self._db.open_table("global_variable_nodes")
         escaped = _q(content_hash)
         results = await self._run(
@@ -247,6 +264,20 @@ class LanceContentStore:
         )
         return row_to_global_factor(results[0]) if results else None
 
+    async def list_global_factors(
+        self,
+        factor_type: str | None = None,
+        limit: int = 100,
+    ) -> list[GlobalFactorNode]:
+        """List global factors with optional filter. Async-safe."""
+        table = self._db.open_table("global_factor_nodes")
+        if factor_type:
+            where = f"factor_type = '{_q(factor_type)}'"
+            results = await self._run(lambda: table.search().where(where).limit(limit).to_list())
+        else:
+            results = await self._run(lambda: table.search().limit(limit).to_list())
+        return [row_to_global_factor(r) for r in results]
+
     async def find_global_factor_exact(
         self,
         premises: list[str],
@@ -254,9 +285,6 @@ class LanceContentStore:
         factor_type: str,
         subtype: str,
     ) -> GlobalFactorNode | None:
-        """Find a global factor by exact structure match."""
-        import json as _json
-
         table = self._db.open_table("global_factor_nodes")
         escaped_conclusion = _q(conclusion)
         escaped_type = _q(factor_type)
@@ -297,6 +325,26 @@ class LanceContentStore:
         )
         return [row_to_binding(r) for r in results]
 
+    async def list_bindings(
+        self,
+        package_id: str | None = None,
+        binding_type: str | None = None,
+        limit: int = 200,
+    ) -> list[CanonicalBinding]:
+        """List bindings with optional filters. Async-safe."""
+        table = self._db.open_table("canonical_bindings")
+        conditions = []
+        if package_id:
+            conditions.append(f"package_id = '{_q(package_id)}'")
+        if binding_type:
+            conditions.append(f"binding_type = '{_q(binding_type)}'")
+        if conditions:
+            where = " AND ".join(conditions)
+            results = await self._run(lambda: table.search().where(where).limit(limit).to_list())
+        else:
+            results = await self._run(lambda: table.search().limit(limit).to_list())
+        return [row_to_binding(r) for r in results]
+
     # ── Reads: parameterization ──
 
     async def get_prior_records(self, variable_id: str) -> list[PriorRecord]:
@@ -315,20 +363,18 @@ class LanceContentStore:
         )
         return row_to_param_source(results[0]) if results else None
 
-    # ── Update: global variable local_members ──
+    # ── Update ──
 
     async def update_global_variable_members(
         self, gcn_id: str, updated_node: GlobalVariableNode
     ) -> None:
-        """Replace a global variable node (for appending to local_members)."""
         table = self._db.open_table("global_variable_nodes")
         escaped = _q(gcn_id)
         await self._run(table.delete, f"id = '{escaped}'")
         await self._run(table.add, [global_variable_to_row(updated_node)])
 
-    # ── Table counts (for verification) ──
+    # ── Table counts ──
 
     async def count(self, table_name: str) -> int:
-        """Return row count for a table."""
         table = self._db.open_table(table_name)
         return await self._run(lambda: table.count_rows())
