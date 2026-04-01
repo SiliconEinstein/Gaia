@@ -1,6 +1,6 @@
 """E2E test: ingest galileo → einstein → newton, verify dedup on shared content.
 
-Uses fixture data from tests/fixtures/lkm/ (derived from Typst v4 packages).
+Uses JSON fixture data from tests/fixtures/lkm/ (derived from Typst v4 packages).
 Newton references Galileo's vacuum_prediction — content_hash dedup should merge them.
 """
 
@@ -16,7 +16,7 @@ from gaia.lkm.models import (
     new_gcn_id,
 )
 from gaia.lkm.storage import StorageConfig, StorageManager
-from tests.fixtures.lkm import einstein, galileo, newton
+from tests.fixtures.lkm import load_package
 
 
 @pytest.fixture
@@ -29,21 +29,21 @@ async def storage(tmp_path):
 
 async def _ingest_and_integrate(
     storage: StorageManager,
-    package: str,
+    package_id: str,
     version: str,
     local_vars: list[LocalVariableNode],
     local_factors: list[LocalFactorNode],
 ) -> tuple[list[GlobalVariableNode], list[CanonicalBinding]]:
     """Full ingest→commit→integrate flow. Returns new globals and bindings."""
-    await storage.ingest_local_graph(package, version, local_vars, local_factors)
-    await storage.commit_package(package)
+    await storage.ingest_local_graph(package_id, version, local_vars, local_factors)
+    await storage.commit_package(package_id)
 
     new_globals = []
     all_bindings = []
 
     for lv in local_vars:
         existing = await storage.find_global_by_content_hash(lv.content_hash)
-        ref = LocalCanonicalRef(local_id=lv.id, package_id=package, version=version)
+        ref = LocalCanonicalRef(local_id=lv.id, package_id=package_id, version=version)
 
         if existing is not None:
             updated_members = existing.local_members + [ref]
@@ -62,7 +62,7 @@ async def _ingest_and_integrate(
                     local_id=lv.id,
                     global_id=existing.id,
                     binding_type="variable",
-                    package_id=package,
+                    package_id=package_id,
                     version=version,
                     decision="match_existing",
                     reason="content_hash exact match",
@@ -85,7 +85,7 @@ async def _ingest_and_integrate(
                     local_id=lv.id,
                     global_id=gcn_id,
                     binding_type="variable",
-                    package_id=package,
+                    package_id=package_id,
                     version=version,
                     decision="create_new",
                     reason="no matching global node",
@@ -98,51 +98,54 @@ async def _ingest_and_integrate(
 
 class TestE2EIngest:
     async def test_three_package_ingest_with_dedup(self, storage):
-        """Ingest galileo (12 vars, 6 factors) → einstein (15 vars, 7 factors)
-        → newton (16 vars, 7 factors). Newton's vacuum_prediction dedup's against Galileo's.
+        """Ingest galileo → einstein → newton.
+        Newton's vacuum_prediction dedup's against Galileo's.
         """
+        galileo = load_package("galileo")
+        einstein = load_package("einstein")
+        newton = load_package("newton")
+
         # ── Ingest galileo ──
         g_globals, g_bindings = await _ingest_and_integrate(
             storage,
-            galileo.PACKAGE_ID,
-            galileo.VERSION,
-            galileo.LOCAL_VARIABLES,
-            galileo.LOCAL_FACTORS,
+            galileo.package_id,
+            galileo.version,
+            galileo.local_variables,
+            galileo.local_factors,
         )
-        assert len(g_globals) == len(galileo.LOCAL_VARIABLES)
+        assert len(g_globals) == len(galileo.local_variables)
         assert all(b.decision == "create_new" for b in g_bindings)
 
         # ── Ingest einstein ──
         e_globals, e_bindings = await _ingest_and_integrate(
             storage,
-            einstein.PACKAGE_ID,
-            einstein.VERSION,
-            einstein.LOCAL_VARIABLES,
-            einstein.LOCAL_FACTORS,
+            einstein.package_id,
+            einstein.version,
+            einstein.local_variables,
+            einstein.local_factors,
         )
-        assert len(e_globals) == len(einstein.LOCAL_VARIABLES)
+        assert len(e_globals) == len(einstein.local_variables)
         assert all(b.decision == "create_new" for b in e_bindings)
 
         # ── Ingest newton ──
         n_globals, n_bindings = await _ingest_and_integrate(
             storage,
-            newton.PACKAGE_ID,
-            newton.VERSION,
-            newton.LOCAL_VARIABLES,
-            newton.LOCAL_FACTORS,
+            newton.package_id,
+            newton.version,
+            newton.local_variables,
+            newton.local_factors,
         )
-        # Newton's ext.vacuum_prediction has same content as galileo's → match_existing
         match_bindings = [b for b in n_bindings if b.decision == "match_existing"]
         create_bindings = [b for b in n_bindings if b.decision == "create_new"]
         assert len(match_bindings) == 1, "vacuum_prediction should match galileo's"
         assert match_bindings[0].local_id == "reg:newton_principia::ext.vacuum_prediction"
-        assert len(create_bindings) == len(newton.LOCAL_VARIABLES) - 1
+        assert len(create_bindings) == len(newton.local_variables) - 1
 
         # ── Verify final counts ──
         total_local = (
-            len(galileo.LOCAL_VARIABLES)
-            + len(einstein.LOCAL_VARIABLES)
-            + len(newton.LOCAL_VARIABLES)
+            len(galileo.local_variables)
+            + len(einstein.local_variables)
+            + len(newton.local_variables)
         )
         total_global = total_local - 1  # one dedup'd
 
@@ -162,25 +165,26 @@ class TestE2EIngest:
 
         # ── Verify factors were ingested ──
         total_factors = (
-            len(galileo.LOCAL_FACTORS) + len(einstein.LOCAL_FACTORS) + len(newton.LOCAL_FACTORS)
+            len(galileo.local_factors) + len(einstein.local_factors) + len(newton.local_factors)
         )
         factor_count = await storage.content.count("local_factor_nodes")
         assert factor_count == total_factors
 
     async def test_preparing_invisible_during_ingest(self, storage):
         """During ingest (before commit), local nodes should not appear in reads."""
+        galileo = load_package("galileo")
         await storage.ingest_local_graph(
-            galileo.PACKAGE_ID,
-            galileo.VERSION,
-            galileo.LOCAL_VARIABLES[:1],
+            galileo.package_id,
+            galileo.version,
+            galileo.local_variables[:1],
             [],
         )
 
         # Before commit — invisible
-        result = await storage.get_local_variable(galileo.LOCAL_VARIABLES[0].id)
+        result = await storage.get_local_variable(galileo.local_variables[0].id)
         assert result is None
 
         # After commit — visible
-        await storage.commit_package(galileo.PACKAGE_ID)
-        result = await storage.get_local_variable(galileo.LOCAL_VARIABLES[0].id)
+        await storage.commit_package(galileo.package_id)
+        result = await storage.get_local_variable(galileo.local_variables[0].id)
         assert result is not None
