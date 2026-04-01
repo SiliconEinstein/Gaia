@@ -1,175 +1,86 @@
 # Factor Potential 函数
 
-> **Status:** Current canonical
+> **Status:** Current canonical（与 `gaia/bp/` v2 实现及 theory 对齐）
 
-本文档定义了每种 factor 类型的计算语义（potential 函数）。结构定义（schema、字段、编译规则）见 [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md)。
+本文档定义 `gaia.bp` 中每种 **FactorType** 的势函数语义。理论依据：[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)。IR 算子与 lowering 契约：[../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md)、[../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md)。
 
-Factor potential 是一个函数，接受其所连接变量的联合赋值并返回一个非负权重，编码该赋值与约束的兼容程度。Potential 不是概率——它们无需归一化。仅比值有意义。
+势函数对因子所连变量的联合赋值返回非负权重；无需归一化，仅比值有意义。所有经验概率遵守 Cromwell 规则（`CROMWELL_EPS = 1e-3`）。
 
-## Reasoning Factor
+## Factor 结构（variables + conclusion）
 
-覆盖 deduction（高 p）、induction（中等 p）和 abstraction（过渡性的）。所有类型使用相同的 potential 形状；chain 类型决定条件概率参数的期望范围，而非不同的 potential 函数。
+每个因子有：
 
-### 当前实现——条件 potential
+- `variables`：输入变量 ID 列表（有序；对 CONDITIONAL，顺序决定 CPT 行索引）。
+- `conclusion`：输出变量 ID（与 `variables` 不交）。
+- 参数化因子额外携带：`SOFT_ENTAILMENT` 使用 `p1`, `p2`；`CONDITIONAL` 使用 `cpt`（长度 `2^k`）。
 
-| 所有前提为真？ | 结论值 | Potential |
+## 确定性算子（Cromwell 软化）
+
+真值表一致时 ψ = `1 - CROMWELL_EPS`，否则 ψ = `CROMWELL_EPS`（代替硬 0/1）。
+
+| FactorType | 语义 | 理论参照 |
+|------------|------|---------|
+| **IMPLICATION** | `variables=[A]`, `conclusion=B`：禁止 A=1 且 B=0 | 06-factor-graphs §3.3 |
+| **CONJUNCTION** | `variables=[A₁,…,Aₖ]`, `conclusion=M`：M = ∧ Aᵢ | §3.2 |
+| **DISJUNCTION** | `variables=[A₁,…,Aₖ]`, `conclusion=D`：D = ∨ Aᵢ | §3.6 补充 |
+| **EQUIVALENCE** | `variables=[A,B]`, `conclusion=H`：H = 1 当且仅当 A=B | §3.4 |
+| **CONTRADICTION** | `variables=[A,B]`, `conclusion=H`：H = 0 当且仅当 A=B=1；否则 H=1 | §3.5 |
+| **COMPLEMENT** | `variables=[A,B]`, `conclusion=H`：H = XOR(A,B) | §3.1 / §3.6 |
+
+注意：**EQUIVALENCE / CONTRADICTION / COMPLEMENT** 的 `conclusion` 是 helper claim（IR `02-gaia-ir.md` §2.2 "关系型"算子），等价于旧实现中的 `relation_var`。当 `conclusion` 先验接近 1.0 时，约束处于活跃状态，行为与理论中的纯二变量确定性因子一致。
+
+## SOFT_ENTAILMENT（软蕴含 ↝）
+
+`variables=[M]`（单前提），`conclusion=C`，参数 `p1`, `p2`（须满足 `p1 + p2 > 1`）。
+
+| M | C | ψ |
 |---|---|---|
-| 是 | 1 | `p`（条件概率） |
-| 是 | 0 | `1 - p` |
-| 否 | 任意 | `1.0`（无约束） |
+| 1 | 1 | p1 |
+| 1 | 0 | 1−p1 |
+| 0 | 0 | p2 |
+| 0 | 1 | 1−p2 |
 
-当任何前提为假时，当前运行时不施加约束——factor 保持沉默，结论停留在其先验值。这是**当前**的 local BP 契约。
+理论参照：06-factor-graphs §3.7。
 
-参数化输入：`factor_parameters[factor_id].conditional_probability`
+- `p2 = 0.5`：前提为假时对 C 无信息（MaxEnt 默认；对应原「沉默」行为）。
+- `p2 = 1 − ε`：前提为假时强烈压低 C=1（noisy-AND + leak 的 ↝ 部分）。
 
-### 目标模型——粗推理算子 potential（合取 + leak）
+### 多前提 noisy_and 分解
 
-当前的全有或全无门控违反了 Jaynes 第四三段论（弱否认，参见 [03-propositional-operators.md](../theory/03-propositional-operators.md) §3）：当前提为假时，结论应变得更不可信，而不仅仅是回到先验值。目标模型用 leak 概率替换沉默回退：
+多前提 `noisy_and` 在 lowering 中分解为 **CONJUNCTION(A₁,…,Aₖ → M)** 再 **SOFT_ENTAILMENT(M → C)**（理论 §3.8）。`k=1` 时省略 CONJUNCTION。
 
-| 所有前提为真？ | 结论值 | Potential |
-|---|---|---|
-| 是 | 1 | `p` |
-| 是 | 0 | `1 - p` |
-| 否 | 1 | `epsilon`（leak——接近零） |
-| 否 | 0 | `1 - epsilon` |
+### 四个弱三段论
 
-**Leak 概率**（Henrion 1989）编码"即使前提不全为真，结论成立的背景概率"。对于 Gaia 的推理链，前提是结论的近似必要条件，因此 leak 应该极小。默认值：`epsilon = Cromwell 下界 (1e-3)`。
+SOFT_ENTAILMENT 在 `p1 + p2 > 1` 时满足 07-belief-propagation.md §2.3 的全部四个弱三段论：
 
-这一 potential 形式对应概率图模型文献中的 **noisy-AND + leak** 模型（Pearl 1988, Henrion 1989），是 noisy-OR 的对偶。Noisy-OR 用于析取因果模型（任何原因都可产生效果）；noisy-AND 用于合取因果模型（所有条件必须成立）。完整 CPT 需要 2^n 个参数（n 个前提）；此模型仅需 2 个：`p` 和 `epsilon`。在 theory 层，这一模型被称为**粗推理算子**（参见 [03-propositional-operators.md](../theory/03-propositional-operators.md)）。
+- **C1**（modus ponens 方向）：增强 M 的信念提升 C。
+- **C2**（弱确认）：C 为真时提升 M 的信念。
+- **C3**（modus tollens 方向）：C 为假时降低 M 的信念。
+- **C4**（弱否认）：M 为假时降低 C 的信念。当 `p2 > 0.5` 时 C4 生效；`p2 = 0.5` 时 C4 保持中性（沉默）。
 
-### 四个三段论验证
+## CONDITIONAL（IR `infer` 完整 CPT）
 
-以 `pi_1=0.9, pi_2=0.8, p=0.9, epsilon=0.001` 为例：
+`variables=[A₁,…,Aₖ]`, `conclusion=C`, `cpt` 长度 `2^k`。
 
-**C 的边际概率**：
-```
-P(C=1) = p * pi_1 * pi_2 + epsilon * (1 - pi_1 * pi_2)
-       = 0.9 * 0.72 + 0.001 * 0.28
-       = 0.648
-```
+- 行索引：`idx = Σᵢ assignment[Aᵢ] · 2^i`（与 `variables` 顺序一致）。
+- `ψ = cpt[idx]` 当 C=1，否则 `ψ = 1 − cpt[idx]`。
 
-- **三段论 1**（modus ponens）：P(C=1 | P1=1, P2=1) = p = 0.9
-- **三段论 2**（弱确认）：P(P1=1 | C=1) = 0.9997 > 0.9（结论为真提升前提信念）
-- **三段论 3**（modus tollens）：P(P1=1 | C=0) = 0.716 < 0.9（结论为假降低前提信念）
-- **三段论 4**（弱否认）：P(C=1 | P1=0) = epsilon = 0.001（前提为假强烈降低结论——旧模型会给出 0.5）
+IR 参照：02-gaia-ir §3.4 `infer` 类型。
 
-## Contradiction（mutex_constraint）
+可选 **degraded** lowering：用全为真/全为假两行压缩为 ∧ + ↝（信息损失）；默认使用 CONDITIONAL 保留完整 CPT。
 
-由以下声明生成：`#relation(type: "contradiction", between: (<A>, <B>))`。Relation 节点 R 作为 `premises[0]` 参与。
+## 与旧五类因子的迁移对照
 
-### Potential
+| 旧 FactorType | 新表示 |
+|---------------|--------|
+| ENTAILMENT（沉默，单参数 p） | SOFT_ENTAILMENT，`p1=p, p2=0.5` |
+| INDUCTION / ABDUCTION（noisy-AND） | CONJUNCTION + SOFT_ENTAILMENT，`p1=p, p2=1−ε` |
+| CONTRADICTION（relation_var） | CONTRADICTION，`variables=[A,B], conclusion=R`（原 relation_var 即 conclusion） |
+| EQUIVALENCE（relation_var） | EQUIVALENCE，同上 |
 
-| R（relation） | 所有被约束的 claim | Potential |
-|---|---|---|
-| 1 | 全部为真 | `epsilon`（接近零——几乎不可能） |
-| 其他任意组合 | | `1.0`（无约束） |
+## 参考
 
-其中 `epsilon = CROMWELL_EPS (1e-3)`。
-
-### BP 行为
-
-当 relation 处于活跃状态（R 具有高信念值）且两个矛盾的 claim 都有证据时，factor 发送抑制性反向消息：
-
-1. **弱证据先屈服**：具有较低先验几率的 claim 被相同的抑制消息更强烈地压制，因为似然比在几率空间中运算。
-2. **双方都有压倒性证据**：当两个 claim 都有非常强的证据时，factor 降低 relation 节点自身的信念——"质疑矛盾本身"。R 的似然比趋近 `1 - b_A * b_B`，当两个信念都趋近 1 时该值趋近零。
-3. **Relation 节点作为参与者**：在目标设计中，R 是完全的 BP 参与者（非只读门控），支持双向信息流。当前运行时已将 R 放在 `premises[0]`，允许此行为。
-
-## Equivalence（equiv_constraint）
-
-由以下声明生成：`#relation(type: "equivalence", between: (<A>, <B>))`。Relation 节点 R 作为 `premises[0]` 参与。
-
-### Potential
-
-| R（relation） | Claim A | Claim B | Potential |
-|---|---|---|---|
-| 1 | A = B（一致） | | `1 - epsilon`（高兼容性） |
-| 1 | A != B（不一致） | | `epsilon`（低兼容性） |
-| 0 | 任意 | 任意 | `1.0`（无约束） |
-
-### BP 行为
-
-- **一致增强 relation**：当 A 和 B 具有相似信念值时，等价关系得到确认，R 的信念被推高。
-- **不一致削弱 relation**：当 A 和 B 出现分歧时，BP 降低 R 的信念——系统质疑等价关系是否成立。
-- **N 元分解**：对于 3 个以上节点的等价关系，分解为成对 factor `(R, A, B)`、`(R, A, C)`、`(R, B, C)`，全部共享同一 relation 节点 R。这意味着任何一对之间的不一致都会削弱整体等价关系。
-
-## Retraction（未引入）
-
-> **注意：** Retraction 尚未作为 Gaia IR 实体或 Strategy 类型引入。以下是概念性设计，待 review / curation / provenance 层明确后再正式定义。见 [02-gaia-ir.md §5](../gaia-ir/02-gaia-ir.md#5-retraction-deferred)。
-
-由以下操作生成：`type: "retraction"` 的 chain。前提是反对结论的证据。
-
-### Potential
-
-| 所有前提为真？ | 结论值 | Potential |
-|---|---|---|
-| 是 | 1 | `1 - p`（被抑制） |
-| 是 | 0 | `p` |
-| 否 | 任意 | `1.0`（无约束） |
-
-Retraction 是反向条件：当撤回证据存在时，结论被抑制而非被支持。撤回证据的缺席不是支持的证据——factor 保持沉默。
-
-**为何沉默对 retraction C4 是正确的**：retraction 证据 E 不存在意味着这个针对 C 的特定论证消失。C 的信念值随后由其其他支持/反对 factor 决定。"没有反对证据"不等于"有支持证据"。
-
-## Instantiation
-
-由以下操作生成：schema 节点（参数化 knowledge）展开为 ground 实例。建模逻辑蕴含 forall x.P(x) -> P(a)。
-
-### Potential
-
-| Schema（前提） | Instance（结论） | Potential |
-|---|---|---|
-| 1（forall x.P(x) 成立） | 1（P(a) 成立） | `1.0` |
-| 1（forall x.P(x) 成立） | 0（P(a) 不成立） | `0.0`（矛盾） |
-| 0（forall x.P(x) 不成立） | 1（P(a) 成立） | `1.0`（实例可独立成立） |
-| 0（forall x.P(x) 不成立） | 0（P(a) 不成立） | `1.0` |
-
-这是确定性蕴含——不需要参数化的 `conditional_probability`。它强制执行：
-
-- **正向（演绎）**：schema 被相信 -> 实例必须被相信。
-- **反向（反例）**：实例被不信 -> schema 必须被不信。
-- **无逆向归纳**：实例被相信 -> 对 schema 无约束（一个例子不能证明全称命题）。
-
-### 通过 BP 消息聚合实现归纳强化
-
-```
-V_schema ---- F_inst_1 ---- V_ground_1 (belief=0.9)
-         ---- F_inst_2 ---- V_ground_2 (belief=0.85)
-         ---- F_inst_3 ---- V_ground_3 (belief=0.1)   <-- counterexample
-```
-
-每个 instantiation factor 向 V_schema 发送反向消息。BP 在共享的 schema 节点处聚合这些消息：
-
-- V_ground_3 信念值低 -> 通过 F_inst_3 的反向消息推低 V_schema。
-- V_schema 信念值下降 -> 通过 F_inst_1、F_inst_2 的正向消息削弱这些实例。
-- 净效果：一个强反例削弱全称命题及其所有实例。
-
-归纳推理自然地从 BP 的消息聚合中涌现——无需特殊逻辑。这是 Popper/Jaynes 的观点：一个反例强烈证伪全称命题，但任何数量的确认实例仅能渐进地支持它。
-
-## Factor 类型总结
-
-| Factor 类型 | 当前运行时名称 | 目标 BP 家族 | Potential 形状 |
-|---|---|---|---|
-| `reasoning` | `infer` / `deduction` / `induction` | `reasoning_support` | 条件（当前）/ 粗推理算子 potential（目标） |
-| `abstraction` | `abstraction` | `deterministic_entailment`（过渡性） | 与 reasoning 相同（当前） |
-| `instantiation` | `instantiation` | `deterministic_entailment` | 确定性蕴含 |
-| `mutex_constraint` | `contradiction` / `relation_contradiction` | `constraint` | 全真惩罚 |
-| `equiv_constraint` | `equivalence` / `relation_equivalence` | `constraint` | 一致/不一致 |
-| `retraction`（未引入） | `retraction` | `reasoning_support`（反向） | 反向条件 |
-
-## 当前实现与目标对比
-
-| 方面 | 当前 | 目标 |
-|---|---|---|
-| Reasoning potential | 全有或全无门控（任何前提为假时沉默） | 粗推理算子 potential（合取 + leak，前提为假时抑制结论） |
-| Relation 节点 | 门控变量（当前运行时有 `gate_var` 机制） | 完全 BP 参与者（无门控；双向消息） |
-| 约束强度 | 由 relation 节点当前信念值固定 | 动态，由 BP 证据更新 |
-| Abstraction | 独立的 factor 类型，使用类 infer 核 | 被接受的 abstraction 降级为 `deterministic_entailment` |
-
-核心消息传递框架在当前实现和目标之间不变。仅 factor potential 函数和门控机制有所不同。
-
-## 源代码
-
-- `libs/inference/bp.py` -- `_evaluate_potential()`, `BeliefPropagation`
-- `libs/inference/factor_graph.py` -- `FactorGraph`, `CROMWELL_EPS`
-- `docs/foundations/theory/07-belief-propagation.md` -- 纯 BP 算法
-- [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md) -- factor 结构定义
+- 消息传递与弱三段论：[../theory/07-belief-propagation.md](../theory/07-belief-propagation.md)
+- 算子到势函数映射：[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)
+- Lowering 契约：[../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md)
+- 推理入口：[inference.md](inference.md)
