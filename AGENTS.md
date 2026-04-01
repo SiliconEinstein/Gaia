@@ -52,6 +52,12 @@ Usage notes:
 </skill>
 
 <skill>
+<name>gaia-ir-authoring</name>
+<description>Use when constructing a Gaia IR LocalCanonicalGraph from source material — teaches how to build valid knowledge graphs using existing gaia.gaia_ir models, validate them, and run BP inference</description>
+<location>project</location>
+</skill>
+
+<skill>
 <name>meeting</name>
 <description>Use when a decision needs structured multi-party deliberation with external AI agents before the user decides. Triggers include architecture discussions, design trade-offs, naming decisions, or any topic where independent perspectives improve decision quality.</description>
 <location>project</location>
