@@ -151,6 +151,16 @@
       "parameters": [],
       "source_package": "einstein_gravity",
       "metadata": null
+    },
+    {
+      "id": "reg:einstein_gravity::general_relativity.deflection_contradiction_result",
+      "type": "claim",
+      "visibility": "public",
+      "content": "广义相对论预测光线偏折1.75角秒与牛顿微粒说预测0.87角秒不可能同时正确。",
+      "content_hash": "5fb24ca2d6da3c98a8179e4d5dbd095dc2eeda99485e5fcd4a74e723166a30b2",
+      "parameters": [],
+      "source_package": "einstein_gravity",
+      "metadata": null
     }
   ],
   "local_factors": [
@@ -284,7 +294,7 @@
         "reg:einstein_gravity::general_relativity.gr_light_deflection",
         "reg:einstein_gravity::prior_knowledge.soldner_deflection"
       ],
-      "conclusion": "reg:einstein_gravity::prior_knowledge.soldner_deflection",
+      "conclusion": "reg:einstein_gravity::general_relativity.deflection_contradiction_result",
       "background": null,
       "steps": null,
       "source_package": "einstein_gravity",

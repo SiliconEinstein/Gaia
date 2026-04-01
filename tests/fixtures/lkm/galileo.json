@@ -121,6 +121,16 @@
       "parameters": [],
       "source_package": "galileo_falling_bodies",
       "metadata": null
+    },
+    {
+      "id": "reg:galileo_falling_bodies::galileo.tied_balls_contradiction_result",
+      "type": "claim",
+      "visibility": "public",
+      "content": "假设\"重者下落更快\"导致自相矛盾：同一复合体的速度既快于又慢于重球单独下落。",
+      "content_hash": "eee03e5c3ae1b3abfc284c68edf1370e99da0410473a7f616fa52094b6a96f02",
+      "parameters": [],
+      "source_package": "galileo_falling_bodies",
+      "metadata": null
     }
   ],
   "local_factors": [
@@ -244,7 +254,7 @@
         "reg:galileo_falling_bodies::galileo.composite_is_slower",
         "reg:galileo_falling_bodies::galileo.composite_is_faster"
       ],
-      "conclusion": "reg:galileo_falling_bodies::galileo.composite_is_slower",
+      "conclusion": "reg:galileo_falling_bodies::galileo.tied_balls_contradiction_result",
       "background": null,
       "steps": null,
       "source_package": "galileo_falling_bodies",

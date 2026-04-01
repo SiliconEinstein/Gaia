@@ -91,6 +91,16 @@
       "parameters": [],
       "source_package": "dark_energy",
       "metadata": null
+    },
+    {
+      "id": "reg:dark_energy::vacuum_catastrophe_result",
+      "type": "claim",
+      "visibility": "public",
+      "content": "The cosmological constant interpretation differs from QFT vacuum energy by 120 orders of magnitude.",
+      "content_hash": "98a030668a68bc2b2a1eed7c18b74539be7f44922dcb5f0931c03f4c729fcac4",
+      "parameters": [],
+      "source_package": "dark_energy",
+      "metadata": null
     }
   ],
   "local_factors": [
@@ -150,7 +160,7 @@
         "reg:dark_energy::dark_energy_fraction",
         "reg:dark_energy::qft_vacuum_energy"
       ],
-      "conclusion": "reg:dark_energy::qft_vacuum_energy",
+      "conclusion": "reg:dark_energy::vacuum_catastrophe_result",
       "background": null,
       "steps": null,
       "source_package": "dark_energy",
