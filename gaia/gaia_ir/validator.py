@@ -255,20 +255,6 @@ def _validate_strategy(
     if strategy.strategy_id and not strategy.strategy_id.startswith(prefix):
         result.error(f"Strategy '{sid}': expected {prefix} prefix in {scope} graph")
 
-    # binding-specific validation
-    if strategy.type == StrategyType.BINDING:
-        if isinstance(strategy, (CompositeStrategy, FormalStrategy)):
-            result.error(f"Strategy '{sid}': binding must be a leaf Strategy")
-        if len(strategy.premises) < 2:
-            result.error(f"Strategy '{sid}': binding requires at least 2 premises")
-        if strategy.conclusion is None:
-            result.error(f"Strategy '{sid}': binding requires a conclusion")
-
-    # independent_evidence-specific validation
-    if strategy.type == StrategyType.INDEPENDENT_EVIDENCE:
-        if not isinstance(strategy, CompositeStrategy):
-            result.error(f"Strategy '{sid}': independent_evidence must be a CompositeStrategy")
-
     # form-specific validation
     if isinstance(strategy, CompositeStrategy):
         _validate_composite_sub_strategies(strategy, strategy_lookup, result)
@@ -487,20 +473,6 @@ def _validate_strategies(
             seen_ids.add(s.strategy_id)
 
         _validate_strategy(s, knowledge_lookup, scope, result, strategy_lookup)
-
-    # independent_evidence: sub-strategies must share the same conclusion
-    for s in strategies:
-        if isinstance(s, CompositeStrategy) and s.type == StrategyType.INDEPENDENT_EVIDENCE:
-            sid = s.strategy_id or "<no-id>"
-            if s.conclusion is not None and strategy_lookup:
-                for sub_id in s.sub_strategies:
-                    sub = strategy_lookup.get(sub_id)
-                    if sub is not None and sub.conclusion != s.conclusion:
-                        result.error(
-                            f"CompositeStrategy '{sid}': sub-strategy '{sub_id}' conclusion "
-                            f"'{sub.conclusion}' does not match independent_evidence conclusion "
-                            f"'{s.conclusion}'"
-                        )
 
     # DAG check for CompositeStrategy references
     _validate_composite_dag(strategies, result)

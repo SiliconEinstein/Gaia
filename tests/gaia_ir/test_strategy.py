@@ -13,8 +13,8 @@ from gaia.gaia_ir import (
 
 
 class TestStrategyType:
-    def test_twelve_types(self):
-        assert len(StrategyType) == 12
+    def test_ten_types(self):
+        assert len(StrategyType) == 10
         expected = {
             "infer",
             "noisy_and",
@@ -26,8 +26,6 @@ class TestStrategyType:
             "abduction",
             "analogy",
             "extrapolation",
-            "binding",
-            "independent_evidence",
         }
         assert set(StrategyType) == expected
 
@@ -46,13 +44,15 @@ class TestStrategyType:
         with pytest.raises(ValueError):
             StrategyType("soft_implication")
 
-    def test_binding_type_exists(self):
-        """binding is a valid StrategyType."""
-        assert StrategyType("binding") == StrategyType.BINDING
+    def test_binding_deferred(self):
+        """binding is deferred outside Gaia IR core."""
+        with pytest.raises(ValueError):
+            StrategyType("binding")
 
-    def test_independent_evidence_type_exists(self):
-        """independent_evidence is a valid StrategyType."""
-        assert StrategyType("independent_evidence") == StrategyType.INDEPENDENT_EVIDENCE
+    def test_independent_evidence_deferred(self):
+        """independent_evidence is deferred outside Gaia IR core."""
+        with pytest.raises(ValueError):
+            StrategyType("independent_evidence")
 
     def test_induction_deferred(self):
         """induction is deferred in Gaia IR core and may return as authoring sugar later."""
@@ -412,50 +412,6 @@ class TestFormalStrategy:
 
         leaf_id = _compute_strategy_id("local", "deduction", ["a"], "b", structure_hash="")
         assert fs.strategy_id != leaf_id
-
-
-class TestBindingStrategy:
-    def test_binding_leaf_strategy(self):
-        """Creating a binding leaf Strategy works."""
-        s = Strategy(
-            scope="local",
-            type="binding",
-            premises=["reg:test::a", "reg:test::b"],
-            conclusion="reg:test::c",
-        )
-        assert s.type == StrategyType.BINDING
-        assert s.strategy_id.startswith("lcs_")
-        assert len(s.premises) == 2
-
-    def test_binding_not_in_formal_strategy_types(self):
-        """Binding is not a FormalStrategy type — FormalStrategy rejects it."""
-        with pytest.raises(ValueError, match="FormalStrategy form only allows types"):
-            FormalStrategy(
-                scope="local",
-                type="binding",
-                premises=["a", "b"],
-                conclusion="c",
-                formal_expr=FormalExpr(
-                    operators=[
-                        Operator(operator="implication", variables=["a"], conclusion="c"),
-                    ]
-                ),
-            )
-
-
-class TestIndependentEvidenceStrategy:
-    def test_independent_evidence_composite(self):
-        """Creating an independent_evidence CompositeStrategy works."""
-        cs = CompositeStrategy(
-            scope="local",
-            type="independent_evidence",
-            premises=["reg:test::a", "reg:test::b"],
-            conclusion="reg:test::c",
-            sub_strategies=["lcs_sub1", "lcs_sub2"],
-        )
-        assert cs.type == StrategyType.INDEPENDENT_EVIDENCE
-        assert cs.strategy_id.startswith("lcs_")
-        assert len(cs.sub_strategies) == 2
 
 
 class TestStrategyNoLifecycleStages:

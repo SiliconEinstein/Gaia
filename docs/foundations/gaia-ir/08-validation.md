@@ -20,6 +20,7 @@ validation 的职责是**验证结构合法性**。
 - 参数值如何选择
 - BP 是否收敛
 - 某个 backend 的运行时诊断
+- 跨 package 的同题判断、重复计数审查或 registry 侧对齐结论
 
 这些属于相邻层。
 
@@ -78,7 +79,7 @@ helper claim 的命名纪律见 [04-helper-claims.md](04-helper-claims.md)。
 2. `premises` 中的 Knowledge 必须全部是 `claim`
 3. `conclusion` 若非空，必须引用 `claim`
 4. `background` 可引用任意允许类型
-5. `type` 必须属于允许集合：`infer` | `noisy_and` | `deduction` | `abduction` | `analogy` | `extrapolation` | `elimination` | `mathematical_induction` | `case_analysis` | `reductio`（deferred）| `binding` | `independent_evidence`
+5. `type` 必须属于允许集合：`infer` | `noisy_and` | `deduction` | `abduction` | `analogy` | `extrapolation` | `elimination` | `mathematical_induction` | `case_analysis` | `reductio`（deferred）
 6. 三种形态互斥：
    - 基本 Strategy：无 `sub_strategies`，无 `formal_expr`
    - `CompositeStrategy`：必须有非空 `sub_strategies`
