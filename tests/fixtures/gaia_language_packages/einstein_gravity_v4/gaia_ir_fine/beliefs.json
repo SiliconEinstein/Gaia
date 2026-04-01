@@ -1,0 +1,16 @@
+{
+  "reg:einstein_gravity::equivalence_principle__equivalence_principle": 0.34803310615910243,
+  "reg:einstein_gravity::equivalence_principle__light_bends_in_gravity": 0.4997645773180961,
+  "reg:einstein_gravity::general_relativity__deflection_contradiction": 0.715439283485877,
+  "reg:einstein_gravity::general_relativity__einstein_field_equations": 0.3511185506386096,
+  "reg:einstein_gravity::general_relativity__gr_light_deflection": 0.5682579489260982,
+  "reg:einstein_gravity::general_relativity__gr_mercury_precession": 0.5586038190108459,
+  "reg:einstein_gravity::general_relativity__mercury_perihelion": 0.4416752033171684,
+  "reg:einstein_gravity::observation__eddington_confirms_gr": 0.12222052416024518,
+  "reg:einstein_gravity::observation__eddington_principe": 0.49999999999999994,
+  "reg:einstein_gravity::observation__eddington_sobral": 0.49999999999999994,
+  "reg:einstein_gravity::observation__gr_dual_confirmation": 0.06101303539812474,
+  "reg:einstein_gravity::prior_knowledge__eotvos_experiment": 0.432737308106347,
+  "reg:einstein_gravity::prior_knowledge__maxwell_electromagnetism": 0.43257885653533723,
+  "reg:einstein_gravity::prior_knowledge__soldner_deflection": 0.5
+}

@@ -1,0 +1,10 @@
+{
+  "reg:dark_energy::cmb_data": 0.4999999999999999,
+  "reg:dark_energy::cmb_power_spectrum": 0.4999999999999998,
+  "reg:dark_energy::cross_validation": 0.09237241559949996,
+  "reg:dark_energy::dark_energy_fraction": 0.21367449999999993,
+  "reg:dark_energy::mcmc_fit": 0.4254999999999999,
+  "reg:dark_energy::qft_vacuum_energy": 0.5,
+  "reg:dark_energy::sn_observation": 0.5,
+  "reg:dark_energy::vacuum_catastrophe": 0.8923764245
+}

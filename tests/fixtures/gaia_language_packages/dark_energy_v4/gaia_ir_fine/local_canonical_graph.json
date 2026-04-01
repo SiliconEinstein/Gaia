@@ -1,0 +1,207 @@
+{
+  "namespace": "reg",
+  "package_name": "dark_energy",
+  "scope": "local",
+  "ir_hash": "sha256:797e50c09a6a70e37ded712762ddd081ed18cd8590d62e68af660c195857f2b4",
+  "knowledges": [
+    {
+      "id": "reg:dark_energy::flat_universe",
+      "label": "flat_universe",
+      "type": "setting",
+      "content": "The universe is spatially flat on large scales.",
+      "content_hash": "76ff25d7cadd5dcd5a8fc75e382ec9f66540d8db0ebe93e6703ce7df9161df5f",
+      "parameters": [],
+      "metadata": null,
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:dark_energy::gr_valid",
+      "label": "gr_valid",
+      "type": "setting",
+      "content": "General relativity is valid at cosmological scales.",
+      "content_hash": "41f07c814b8dc7b9abc30b2c3efa82246e729bbc1af1e06a47be0ee13bf3b0b2",
+      "parameters": [],
+      "metadata": null,
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:dark_energy::main_question",
+      "label": "main_question",
+      "type": "question",
+      "content": "What is the physical nature of dark energy?",
+      "content_hash": "b4b78d0127295631decd8b2000218a7fd363648786962b6be84c12453239b434",
+      "parameters": [],
+      "metadata": null,
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:dark_energy::sn_observation",
+      "label": "sn_observation",
+      "type": "claim",
+      "content": "Type Ia supernovae data shows the universe \" s expansion is accelerating.",
+      "content_hash": "be30142e53d1b150f8886f4723860c2b27b1d77886abcbdc466b67ef6a442ee4",
+      "parameters": [],
+      "metadata": {
+        "kind": "observation"
+      },
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:dark_energy::cmb_data",
+      "label": "cmb_data",
+      "type": "claim",
+      "content": "CMB anisotropy data is consistent with a flat universe model.",
+      "content_hash": "255dac0bb5075ba17d835c8fa958c9f2889b3072e339f7fb3eef4a499400a458",
+      "parameters": [],
+      "metadata": {
+        "kind": "observation"
+      },
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:dark_energy::mcmc_fit",
+      "label": "mcmc_fit",
+      "type": "claim",
+      "content": "MCMC fitting of Type Ia supernovae data using emcee   to obtain the posterior distribution of the dark energy density parameter.",
+      "content_hash": "ca9b13cf57150c8165f941578faf0e6c347aa907045f8626e6c7f7daa11c1b79",
+      "parameters": [],
+      "metadata": {
+        "kind": "python"
+      },
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:dark_energy::dark_energy_fraction",
+      "label": "dark_energy_fraction",
+      "type": "claim",
+      "content": "Dark energy accounts for approximately 68% of the total energy density of the universe.",
+      "content_hash": "6fbc0127119f353d93373491a53c8d7b83e5e1b0cf5bc5c858bcd2059ae78ba6",
+      "parameters": [],
+      "metadata": null,
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:dark_energy::qft_vacuum_energy",
+      "label": "qft_vacuum_energy",
+      "type": "claim",
+      "content": "Quantum field theory predicts a vacuum energy density roughly 120 orders of magnitude   larger than the observed dark energy density.",
+      "content_hash": "1267d3c1c51393e5b79435f380956b310829adc2c97de0d6227afcc35fb526ec",
+      "parameters": [],
+      "metadata": null,
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:dark_energy::vacuum_catastrophe",
+      "label": "vacuum_catastrophe",
+      "type": "claim",
+      "content": "The cosmological constant interpretation of dark energy differs from   quantum field theory \" s vacuum energy prediction by 120 orders of magnitude.",
+      "content_hash": "c69828edbff80fb91ca85ec190527052186c4354d3e3a1570be9c18a56eea587",
+      "parameters": [],
+      "metadata": {
+        "helper_kind": "contradiction_result",
+        "helper_visibility": "top_level",
+        "generated": true,
+        "generated_kind": "helper_claim"
+      },
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:dark_energy::cross_validation",
+      "label": "cross_validation",
+      "type": "claim",
+      "content": "The dark energy fraction is consistent with independent CMB power spectrum analysis.",
+      "content_hash": "65dba5c305f586b7faa655e6d42729f95a7b769b6e5969cc02e3a55c87a46f24",
+      "parameters": [],
+      "metadata": null,
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    },
+    {
+      "id": "reg:dark_energy::cmb_power_spectrum",
+      "label": "cmb_power_spectrum",
+      "type": "claim",
+      "content": "CMB power spectrum analysis from Planck satellite data",
+      "content_hash": "0e55f0b6f944926576c110e3075365c86a407a97b7776ce72ec92ba87b61eba7",
+      "parameters": [],
+      "metadata": null,
+      "provenance": null,
+      "representative_lcn": null,
+      "local_members": null
+    }
+  ],
+  "operators": [
+    {
+      "operator_id": "lco_0001",
+      "scope": "local",
+      "operator": "contradiction",
+      "variables": [
+        "reg:dark_energy::dark_energy_fraction",
+        "reg:dark_energy::qft_vacuum_energy"
+      ],
+      "conclusion": "reg:dark_energy::vacuum_catastrophe",
+      "metadata": null
+    }
+  ],
+  "strategies": [
+    {
+      "strategy_id": "lcs_5a3cc1708bd8ca8f",
+      "scope": "local",
+      "type": "noisy_and",
+      "premises": [
+        "reg:dark_energy::sn_observation"
+      ],
+      "conclusion": "reg:dark_energy::mcmc_fit",
+      "background": null,
+      "steps": null,
+      "metadata": null
+    },
+    {
+      "strategy_id": "lcs_076f7be6d6b73e41",
+      "scope": "local",
+      "type": "noisy_and",
+      "premises": [
+        "reg:dark_energy::sn_observation",
+        "reg:dark_energy::cmb_data"
+      ],
+      "conclusion": "reg:dark_energy::dark_energy_fraction",
+      "background": [
+        "reg:dark_energy::flat_universe",
+        "reg:dark_energy::gr_valid"
+      ],
+      "steps": null,
+      "metadata": null
+    },
+    {
+      "strategy_id": "lcs_367245176d9879db",
+      "scope": "local",
+      "type": "noisy_and",
+      "premises": [
+        "reg:dark_energy::dark_energy_fraction",
+        "reg:dark_energy::cmb_power_spectrum"
+      ],
+      "conclusion": "reg:dark_energy::cross_validation",
+      "background": null,
+      "steps": null,
+      "metadata": null
+    }
+  ]
+}
