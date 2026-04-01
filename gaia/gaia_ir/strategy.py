@@ -41,6 +41,7 @@ class StrategyType(StrEnum):
     ANALOGY = "analogy"
     EXTRAPOLATION = "extrapolation"
 
+
 class Step(BaseModel):
     """A single reasoning step (local layer only)."""
 
