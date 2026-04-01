@@ -91,12 +91,21 @@ pytest tests/gaia/lkm/models/ -v
 **测试位置：** `tests/gaia/lkm/storage/`  
 **依赖：** M1
 
-**核心交付：**
+**M2 首期交付（8 张核心表 + StorageManager 骨架）：**
 - `config.py`: StorageConfig (env prefix `LKM_`)
-- `lance_store.py`: LanceContentStore（10 张表，BM25/FTS）
-- `graph_store.py`: GraphStore 抽象 + Neo4j/Kuzu 实现
-- `vector_store.py`: VectorStore 抽象 + Lance 实现
-- `manager.py`: StorageManager facade
+- `_serialization.py`: model ↔ row 序列化工具
+- `lance_store.py`: LanceContentStore（8 张表：local/global variable/factor nodes, canonical_bindings, prior_records, factor_param_records, param_sources）
+- `manager.py`: StorageManager facade（ingest_local_graph, integrate_global_graph, commit_package, find_global_by_content_hash）
+
+**M2 延后项（在后续 milestone 按需加入）：**
+
+| 延后项 | 加入时机 | 原因 |
+|--------|---------|------|
+| `belief_snapshots` 表 | M7 (Global BP) | BP 运行才写入 |
+| `node_embeddings` 表 + VectorStore | M6 (Curation) | 语义去重才需要 embedding |
+| GraphStore (Neo4j/Kuzu) | M6/M8 | 子图查询才需要，M5 integrate 不依赖 |
+| BM25 全文搜索 | M8 (API) | API 搜索端点才需要 |
+| 向量搜索 | M6 (Curation) | 语义相似度搜索 |
 
 **验证闭环：**
 ```bash
@@ -104,21 +113,34 @@ pytest tests/gaia/lkm/models/ -v
 pytest tests/gaia/lkm/storage/ -v
 
 # 关键测试点：
-# 1. 10 张表创建 + schema 验证
+# 1. 8 张表创建 + schema 验证
 # 2. 写入 → 读取往返一致
 # 3. preparing → merged 可见性翻转
 # 4. content_hash 索引 O(1) 查找
-# 5. BM25 全文搜索
-# 6. batch 写入（一次 table.add）
-# 7. run_in_executor 异步包装
-# 8. 无 GraphStore 时的降级行为
+# 5. batch 写入（一次 table.add）
+# 6. run_in_executor 异步包装
 ```
 
 **前端检查方式：** N/A  
 **后端 E2E 方式：**
-```python
-# 脚本：写入一批 LocalVariableNode → 读回 → 验证完整性
-# 脚本：写入重复 content_hash → 验证 O(1) 命中
+```
+E2E 脚本用 galileo/einstein/newton 三个包的真实内容构造 fixture：
+
+1. 摄入 galileo 包：
+   - 写入 local nodes (preparing) → commit → 变 merged
+   - 写入 global nodes + bindings (all create_new)
+2. 摄入 einstein 包：
+   - 写入 local nodes → commit
+   - 写入 global nodes + bindings (all create_new，无重叠)
+3. 摄入 newton 包（有跨包依赖 galileo::vacuum_prediction）：
+   - 写入 local nodes → commit
+   - 写入 global nodes + bindings
+   - galileo::vacuum_prediction 的 content_hash 命中 → match_existing
+4. 验证：
+   - 库里有 3 个包的 local nodes (all merged)
+   - global_variable_nodes 去重正确（vacuum_prediction 只有 1 个 gcn）
+   - canonical_bindings 双向查询正确
+   - content_hash 索引查找 O(1)
 ```
 
 ---
