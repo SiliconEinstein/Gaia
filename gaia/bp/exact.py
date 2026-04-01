@@ -1,17 +1,4 @@
-"""Exact inference by brute-force enumeration — for verifying BP.
-
-Computes exact marginal beliefs by enumerating all 2^n joint states,
-evaluating the full joint distribution P(x) ∝ ∏_v prior(v) × ∏_f ψ_f(x),
-then marginalizing each variable.
-
-This is O(2^n × (n + m)) where n = #variables, m = #factors.
-Practical for n ≤ ~25 (33M states). Uses numpy vectorization with chunked
-processing to keep memory bounded.
-
-Usage:
-    from gaia.bp.exact import exact_inference
-    beliefs, Z = exact_inference(graph)
-"""
+"""Exact inference by brute-force enumeration — for verifying BP."""
 
 from __future__ import annotations
 
@@ -19,124 +6,113 @@ import numpy as np
 
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
 
-__all__ = ["exact_inference"]
+__all__ = ["exact_inference", "comparison_table"]
 
-CHUNK_BITS = 20  # Process 2^20 = 1M states per chunk (≈24MB per chunk)
+CHUNK_BITS = 20
 
 
 def _factor_log_potentials(
     factor: Factor,
-    states: np.ndarray,  # (chunk_size, n) int8
+    states: np.ndarray,
     var_idx: dict[str, int],
 ) -> np.ndarray:
-    """Compute log-potential for a factor across all states in a chunk.
-
-    Returns shape (chunk_size,) float64 array of log-potentials.
-    Fully vectorized — no Python loops over states.
-    """
     cs = states.shape[0]
-    eps = CROMWELL_EPS
+    h = 1.0 - CROMWELL_EPS
+    lo = CROMWELL_EPS
     ft = factor.factor_type
+    vids = factor.variables
+    concl = factor.conclusion
 
-    if ft == FactorType.ENTAILMENT:
-        # bp.md §2.6: entailment is SILENT when premises are false.
-        # log(1.0) = 0 → no contribution when any premise is false.
-        p = factor.p
-        premise_idxs = [var_idx[v] for v in factor.premises]
-        conclusion_idxs = [var_idx[v] for v in factor.conclusions]
+    if ft == FactorType.IMPLICATION:
+        a_idx = var_idx[vids[0]]
+        b_idx = var_idx[concl]
+        a = states[:, a_idx]
+        b = states[:, b_idx]
+        pot = np.where((a == 1) & (b == 0), lo, h)
+        return np.log(pot)
 
-        all_prem_true = np.ones(cs, dtype=bool)
-        for pi in premise_idxs:
-            all_prem_true &= states[:, pi] == 1
+    if ft == FactorType.CONJUNCTION:
+        idxs = [var_idx[x] for x in vids]
+        m_idx = var_idx[concl]
+        all_one = np.ones(cs, dtype=bool)
+        for ii in idxs:
+            all_one &= states[:, ii] == 1
+        m = states[:, m_idx]
+        ok = (all_one & (m == 1)) | ((~all_one) & (m == 0))
+        pot = np.where(ok, h, lo)
+        return np.log(pot)
 
-        log_pot = np.zeros(cs, dtype=np.float64)
-        for ci in conclusion_idxs:
-            c_val = states[:, ci]
-            # When premises are false: potential = 1.0, log = 0 (silent)
-            # When premises are true:  potential = p or 1-p
-            pot_val = np.where(
-                all_prem_true,
-                np.where(c_val == 1, p, 1.0 - p),
-                1.0,
-            )
-            log_pot += np.log(pot_val)
-        return log_pot
+    if ft == FactorType.DISJUNCTION:
+        idxs = [var_idx[x] for x in vids]
+        d_idx = var_idx[concl]
+        any_one = np.zeros(cs, dtype=bool)
+        for ii in idxs:
+            any_one |= states[:, ii] == 1
+        d = states[:, d_idx]
+        ok = (any_one & (d == 1)) | ((~any_one) & (d == 0))
+        pot = np.where(ok, h, lo)
+        return np.log(pot)
 
-    elif ft in (FactorType.INDUCTION, FactorType.ABDUCTION):
-        # bp.md §2.1: noisy-AND + leak. C4 satisfied via eps.
-        p = factor.p
-        premise_idxs = [var_idx[v] for v in factor.premises]
-        conclusion_idxs = [var_idx[v] for v in factor.conclusions]
+    if ft == FactorType.EQUIVALENCE:
+        a_idx = var_idx[vids[0]]
+        b_idx = var_idx[vids[1]]
+        h_idx = var_idx[concl]
+        target = (states[:, a_idx] == states[:, b_idx]).astype(np.int8)
+        ok = states[:, h_idx] == target
+        pot = np.where(ok, h, lo)
+        return np.log(pot)
 
-        all_prem_true = np.ones(cs, dtype=bool)
-        for pi in premise_idxs:
-            all_prem_true &= states[:, pi] == 1
+    if ft == FactorType.CONTRADICTION:
+        a_idx = var_idx[vids[0]]
+        b_idx = var_idx[vids[1]]
+        h_idx = var_idx[concl]
+        both = (states[:, a_idx] == 1) & (states[:, b_idx] == 1)
+        target = np.where(both, 0, 1).astype(np.int8)
+        ok = states[:, h_idx] == target
+        pot = np.where(ok, h, lo)
+        return np.log(pot)
 
-        log_pot = np.zeros(cs, dtype=np.float64)
-        for ci in conclusion_idxs:
-            c_val = states[:, ci]
-            pot_val = np.where(
-                all_prem_true,
-                np.where(c_val == 1, p, 1.0 - p),
-                np.where(c_val == 1, eps, 1.0 - eps),
-            )
-            log_pot += np.log(pot_val)
-        return log_pot
+    if ft == FactorType.COMPLEMENT:
+        a_idx = var_idx[vids[0]]
+        b_idx = var_idx[vids[1]]
+        h_idx = var_idx[concl]
+        xor = states[:, a_idx] != states[:, b_idx]
+        target = xor.astype(np.int8)
+        ok = states[:, h_idx] == target
+        pot = np.where(ok, h, lo)
+        return np.log(pot)
 
-    elif ft == FactorType.CONTRADICTION:
-        r_idx = var_idx[factor.relation_var]
-        claim_idxs = [var_idx[v] for v in factor.premises]
-
-        r_val = states[:, r_idx]
-        all_claims_true = np.ones(cs, dtype=bool)
-        for ci in claim_idxs:
-            all_claims_true &= states[:, ci] == 1
-
-        pot_val = np.where((r_val == 1) & all_claims_true, eps, 1.0)
-        return np.log(pot_val)
-
-    elif ft == FactorType.EQUIVALENCE:
-        r_idx = var_idx[factor.relation_var]
-        a_idx = var_idx[factor.premises[0]]
-        b_idx = var_idx[factor.premises[1]]
-
-        r_val = states[:, r_idx]
-        a_val = states[:, a_idx]
-        b_val = states[:, b_idx]
-
-        pot_val = np.where(
-            r_val == 0,
-            1.0,
-            np.where(a_val == b_val, 1.0 - eps, eps),
+    if ft == FactorType.SOFT_ENTAILMENT:
+        assert factor.p1 is not None and factor.p2 is not None
+        p1, p2 = factor.p1, factor.p2
+        m_idx = var_idx[vids[0]]
+        c_idx = var_idx[concl]
+        m = states[:, m_idx]
+        cv = states[:, c_idx]
+        pot = np.where(
+            m == 1,
+            np.where(cv == 1, p1, 1.0 - p1),
+            np.where(cv == 0, p2, 1.0 - p2),
         )
-        return np.log(pot_val)
+        return np.log(pot)
 
-    else:
-        raise ValueError(f"Unknown FactorType: {ft}")
+    if ft == FactorType.CONDITIONAL:
+        assert factor.cpt is not None
+        idxs = [var_idx[x] for x in vids]
+        c_idx = var_idx[concl]
+        cpt = np.array(factor.cpt, dtype=np.float64)
+        idx = np.zeros(cs, dtype=np.int64)
+        for i, ii in enumerate(idxs):
+            idx |= states[:, ii].astype(np.int64) << i
+        p_sel = cpt[idx]
+        cv = states[:, c_idx]
+        pot = np.where(cv == 1, p_sel, 1.0 - p_sel)
+        return np.log(pot)
+
+    raise ValueError(f"Unknown FactorType: {ft}")
 
 
-def exact_inference(
-    graph: FactorGraph,
-) -> tuple[dict[str, float], float]:
-    """Compute exact marginal beliefs by brute-force enumeration.
-
-    Parameters
-    ----------
-    graph:
-        A validated FactorGraph. Max ~25 variables (2^25 ≈ 33M states).
-
-    Returns
-    -------
-    tuple[dict[str, float], float]
-        (beliefs, Z) where:
-        - beliefs: {var_id: P(v=1)} exact marginal for each variable
-        - Z: partition function (sum of all unnormalized joint probabilities)
-
-    Raises
-    ------
-    ValueError
-        If the graph has more than 26 variables (would require >2B states).
-    """
+def exact_inference(graph: FactorGraph) -> tuple[dict[str, float], float]:
     var_ids = sorted(graph.variables.keys())
     n = len(var_ids)
 
@@ -147,48 +123,38 @@ def exact_inference(
         )
 
     var_idx = {v: i for i, v in enumerate(var_ids)}
-    N = 1 << n  # total number of joint states
+    N = 1 << n
 
-    # Precompute log-priors
     priors = np.array([graph.variables[v] for v in var_ids], dtype=np.float64)
-    log_p1 = np.log(priors)  # log P(v=1)
-    log_p0 = np.log(1.0 - priors)  # log P(v=0)
+    log_p1 = np.log(priors)
+    log_p0 = np.log(1.0 - priors)
 
-    # Process in chunks to bound memory
     chunk_size = min(N, 1 << CHUNK_BITS)
-
-    # Store all log-joint values (N float64 ≈ 8N bytes)
     all_log_joints = np.empty(N, dtype=np.float64)
 
     for chunk_start in range(0, N, chunk_size):
         chunk_end = min(chunk_start + chunk_size, N)
         cs = chunk_end - chunk_start
 
-        # Generate binary assignments for this chunk
         arange = np.arange(chunk_start, chunk_end, dtype=np.int64)
         states = np.empty((cs, n), dtype=np.int8)
         for i in range(n):
             states[:, i] = (arange >> i) & 1
 
-        # Log-prior contribution: Σ_i [s_i * log(π_i) + (1-s_i) * log(1-π_i)]
         log_j = (states * log_p1 + (1 - states) * log_p0).sum(axis=1)
 
-        # Factor potential contributions
         for factor in graph.factors:
             log_j += _factor_log_potentials(factor, states, var_idx)
 
         all_log_joints[chunk_start:chunk_end] = log_j
 
-    # Log-sum-exp for numerical stability
     log_max = all_log_joints.max()
     joint = np.exp(all_log_joints - log_max)
     Z_shifted = joint.sum()
 
-    # True partition function
     log_Z = log_max + np.log(Z_shifted)
-    Z = np.exp(log_Z)
+    Z = float(np.exp(log_Z))
 
-    # Marginals: P(v_i=1) = Σ_{states where v_i=1} joint[s] / Z_total
     full_arange = np.arange(N, dtype=np.int64)
     beliefs: dict[str, float] = {}
     for i, vid in enumerate(var_ids):
@@ -206,21 +172,6 @@ def comparison_table(
     title: str = "Exact vs BP Comparison",
     tolerance: float = 0.02,
 ) -> str:
-    """Format a comparison table between exact and BP beliefs.
-
-    Parameters
-    ----------
-    graph: FactorGraph for variable names and priors
-    exact_beliefs: from exact_inference
-    bp_beliefs: from BeliefPropagation.run()
-    Z: partition function from exact_inference
-    title: table title
-    tolerance: max allowed |exact - bp| for a "match" (✓)
-
-    Returns
-    -------
-    str: formatted table ready for printing
-    """
     var_ids = sorted(graph.variables.keys())
 
     lines = []

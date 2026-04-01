@@ -1,19 +1,7 @@
-"""Factor graph representation for BP v2 — strictly follows theory docs.
+"""Factor graph representation for BP — aligned with theory and Gaia IR.
 
-Theory reference: docs/foundations/theory/belief-propagation.md
-                  docs/foundations/theory/reasoning-hypergraph.md
-
-Design decisions mandated by theory:
-- Binary variables only: each Claim is x ∈ {0, 1}
-- Cromwell's rule: all priors and probabilities clamped to (eps, 1-eps)
-- Five operator types: ENTAILMENT, INDUCTION, ABDUCTION, CONTRADICTION, EQUIVALENCE
-- String variable IDs throughout (no int-mapping layer)
-- For CONTRADICTION and EQUIVALENCE: the relation variable is a full BP
-  participant with its own prior, not a read-only gate. This implements the
-  theory requirement (bp.md §2.5) that relation nodes receive bidirectional
-  messages.
-- For reasoning operators: ENTAILMENT uses silence (bp.md §2.6, C4 = "通常沉默"),
-  INDUCTION/ABDUCTION use noisy-AND + leak (bp.md §2.1, C4 ✓). See potentials.py.
+Theory: docs/foundations/theory/06-factor-graphs.md (operator to potential mapping)
+IR: docs/foundations/gaia-ir/02-gaia-ir.md (Operator variables + conclusion)
 """
 
 from __future__ import annotations
@@ -25,17 +13,10 @@ from typing import Sequence
 
 logger = logging.getLogger(__name__)
 
-# Cromwell's rule: never assign P=0 or P=1 to any empirical proposition.
-# bp.md §4 enforces this at construction AND inside potentials (leak=eps).
 CROMWELL_EPS: float = 1e-3
 
 
 def _cromwell_clamp(value: float, label: str = "") -> float:
-    """Clamp a probability to (eps, 1-eps) per Cromwell's rule.
-
-    Logs a debug message if clamping occurs so the caller can detect
-    when inputs violate the rule.
-    """
     clamped = max(CROMWELL_EPS, min(1.0 - CROMWELL_EPS, value))
     if clamped != value and label:
         logger.debug("Cromwell clamp: %s %.6g -> %.6g", label, value, clamped)
@@ -43,176 +24,180 @@ def _cromwell_clamp(value: float, label: str = "") -> float:
 
 
 class FactorType(Enum):
-    """Operator types from reasoning-hypergraph.md §7.3.
-
-    Five types mapping to three potential families (potentials.py):
-      - ENTAILMENT: silence model (bp.md §2.6, C4 = "通常沉默")
-        Premise false → factor silent (potential = 1.0).
-      - INDUCTION / ABDUCTION: noisy-AND + leak (bp.md §2.1, C4 ✓)
-        Premise false → conclusion suppressed (potential = eps).
-      - CONTRADICTION / EQUIVALENCE: fixed-eps constraints (bp.md §2.5)
-        Constraint strength fixed by Cromwell, not a free parameter.
-    """
-
-    ENTAILMENT = auto()  # Deterministic implication, p ≈ 1
-    INDUCTION = auto()  # Pattern → general law, p < 1
-    ABDUCTION = auto()  # Observation → causal hypothesis, p < 1
-    CONTRADICTION = auto()  # Mutual exclusion constraint
-    EQUIVALENCE = auto()  # True-value consistency constraint
+    IMPLICATION = auto()
+    CONJUNCTION = auto()
+    DISJUNCTION = auto()
+    EQUIVALENCE = auto()
+    CONTRADICTION = auto()
+    COMPLEMENT = auto()
+    SOFT_ENTAILMENT = auto()
+    CONDITIONAL = auto()
 
 
-@dataclass
+@dataclass(frozen=True)
 class Factor:
-    """A single factor node in the bipartite factor graph.
-
-    For ENTAILMENT / INDUCTION / ABDUCTION:
-      - premises: list of variable IDs that are joint necessary conditions
-      - conclusions: list of variable IDs that are jointly supported
-      - p: P(all conclusions=1 | all premises=1), the author-supplied strength
-      - relation_var: None
-
-    For CONTRADICTION:
-      - premises: the constrained claim variable IDs
-      - conclusions: []
-      - p: unused (potential uses CROMWELL_EPS directly)
-      - relation_var: ID of the relation variable (full BP participant).
-        The relation variable is included in the factor's participant set;
-        it is also a regular variable node in FactorGraph.variables.
-
-    For EQUIVALENCE:
-      - premises: exactly two claim variable IDs [A, B]
-      - conclusions: []
-      - p: unused (potential uses CROMWELL_EPS directly)
-      - relation_var: ID of the relation variable (full BP participant).
-    """
-
     factor_id: str
     factor_type: FactorType
-    premises: list[str]
-    conclusions: list[str]
-    p: float  # Cromwell-clamped at construction
-    relation_var: str | None = None  # For CONTRADICTION / EQUIVALENCE
+    variables: list[str]
+    conclusion: str
+    p1: float | None = None
+    p2: float | None = None
+    cpt: tuple[float, ...] | None = None
 
     @property
     def all_vars(self) -> list[str]:
-        """All variable IDs involved in this factor, including relation_var."""
-        base = self.premises + self.conclusions
-        if self.relation_var is not None:
-            base = [self.relation_var] + base
-        return base
+        seen: set[str] = set()
+        out: list[str] = []
+        for v in (*self.variables, self.conclusion):
+            if v not in seen:
+                seen.add(v)
+                out.append(v)
+        return out
 
 
 class FactorGraph:
-    """Bipartite factor graph for belief propagation.
-
-    Implements the structure from reasoning-hypergraph.md §5:
-      - Variable nodes: binary propositions with a prior belief π ∈ (eps, 1-eps)
-      - Factor nodes: reasoning operators encoding the joint constraint
-
-    All five operator types from §7.3 are supported. The graph never deletes
-    variables or factors once added (immutability per reasoning-hypergraph.md §8).
-
-    String IDs are used throughout (no int-to-str mapping needed).
-
-    Usage example:
-        fg = FactorGraph()
-        fg.add_variable("A", prior=0.5)
-        fg.add_variable("B", prior=0.5)
-        fg.add_factor("f1", FactorType.ENTAILMENT, premises=["A"],
-                       conclusions=["B"], p=0.999)
-    """
-
     def __init__(self) -> None:
-        # variable_id -> Cromwell-clamped prior π(x=1)
         self.variables: dict[str, float] = {}
-        # ordered list of Factor objects
         self.factors: list[Factor] = []
 
-    # ------------------------------------------------------------------
-    # Construction
-    # ------------------------------------------------------------------
-
     def add_variable(self, var_id: str, prior: float) -> None:
-        """Register a variable node with its prior belief π(x=1).
+        self.variables[var_id] = _cromwell_clamp(prior, label=f"variable '{var_id}' prior")
 
-        Cromwell's rule is enforced: prior is clamped to (eps, 1-eps).
-        Adding the same variable twice updates its prior (last write wins).
+    def observe(self, var_id: str, value: int) -> None:
+        """Hard evidence: clamp variable to observed value (07-bp §1.7).
+
+        Implemented by setting prior to near-0 or near-1 (Cromwell-bounded).
+        This is equivalent to adding a unary delta factor.
         """
-        clamped = _cromwell_clamp(prior, label=f"variable '{var_id}' prior")
-        self.variables[var_id] = clamped
+        if var_id not in self.variables:
+            raise KeyError(f"Variable '{var_id}' not registered.")
+        if value not in (0, 1):
+            raise ValueError(f"observe() value must be 0 or 1, got {value}.")
+        self.variables[var_id] = 1.0 - CROMWELL_EPS if value == 1 else CROMWELL_EPS
+
+    def add_likelihood(
+        self,
+        var_id: str,
+        likelihood_ratio: float,
+    ) -> None:
+        """Soft evidence: multiply variable's prior by likelihood ratio (07-bp §1.7).
+
+        P_new(x=1) = normalize(π * lr, (1-π) * 1) where lr = P(E|x=1)/P(E|x=0).
+        """
+        if var_id not in self.variables:
+            raise KeyError(f"Variable '{var_id}' not registered.")
+        if likelihood_ratio <= 0:
+            raise ValueError(f"likelihood_ratio must be > 0, got {likelihood_ratio}.")
+        pi = self.variables[var_id]
+        odds = pi / (1.0 - pi) * likelihood_ratio
+        new_pi = odds / (1.0 + odds)
+        self.variables[var_id] = _cromwell_clamp(new_pi, label=f"likelihood '{var_id}'")
 
     def add_factor(
         self,
         factor_id: str,
         factor_type: FactorType,
-        premises: Sequence[str],
-        conclusions: Sequence[str],
-        p: float,
-        relation_var: str | None = None,
+        variables: Sequence[str],
+        conclusion: str,
+        *,
+        p1: float | None = None,
+        p2: float | None = None,
+        cpt: Sequence[float] | None = None,
     ) -> None:
-        """Add a factor node to the graph.
+        v_list = list(variables)
+        if conclusion in v_list:
+            raise ValueError(
+                f"Factor '{factor_id}': conclusion '{conclusion}' must not appear in variables."
+            )
 
-        Parameters
-        ----------
-        factor_id:
-            Unique string identifier for this factor.
-        factor_type:
-            One of the five FactorType values.
-        premises:
-            Variable IDs that are the joint antecedents.
-        conclusions:
-            Variable IDs that are jointly supported (empty for constraints).
-        p:
-            For reasoning operators: P(all conclusions=1 | all premises=1).
-            Cromwell-clamped. Unused for CONTRADICTION/EQUIVALENCE (the
-            potential uses CROMWELL_EPS directly, making the constraint
-            strength a system constant, not a free parameter — per bp.md §2.5).
-        relation_var:
-            For CONTRADICTION/EQUIVALENCE: the relation variable ID. Must
-            already be registered via add_variable(), or will raise KeyError
-            when BP runs. The relation_var is a full participant receiving
-            and sending messages bidirectionally.
-        """
-        clamped_p = _cromwell_clamp(p, label=f"factor '{factor_id}' p")
+        ft = factor_type
+        fp1: float | None = None
+        fp2: float | None = None
+        fcpt: tuple[float, ...] | None = None
 
-        # Validate that constraint factors have the right structure
-        if factor_type in (FactorType.CONTRADICTION, FactorType.EQUIVALENCE):
-            if relation_var is None:
-                raise ValueError(
-                    f"Factor '{factor_id}' of type {factor_type.name} requires a relation_var."
-                )
-            if conclusions:
-                raise ValueError(
-                    f"Factor '{factor_id}' of type {factor_type.name} "
-                    "must have empty conclusions list."
-                )
-            if factor_type == FactorType.EQUIVALENCE and len(premises) != 2:
-                raise ValueError(
-                    f"EQUIVALENCE factor '{factor_id}' requires exactly "
-                    f"2 premises, got {len(premises)}."
-                )
+        if ft in (
+            FactorType.IMPLICATION,
+            FactorType.CONJUNCTION,
+            FactorType.DISJUNCTION,
+            FactorType.EQUIVALENCE,
+            FactorType.CONTRADICTION,
+            FactorType.COMPLEMENT,
+        ):
+            if p1 is not None or p2 is not None or cpt is not None:
+                raise ValueError(f"Deterministic factor '{factor_id}' must not set p1/p2/cpt.")
+            self._validate_deterministic(factor_id, ft, v_list)
 
-        factor = Factor(
-            factor_id=factor_id,
-            factor_type=factor_type,
-            premises=list(premises),
-            conclusions=list(conclusions),
-            p=clamped_p,
-            relation_var=relation_var,
+        elif ft == FactorType.SOFT_ENTAILMENT:
+            if cpt is not None:
+                raise ValueError(f"SOFT_ENTAILMENT '{factor_id}' must not set cpt.")
+            if len(v_list) != 1:
+                raise ValueError(
+                    f"SOFT_ENTAILMENT '{factor_id}' requires exactly 1 premise variable, "
+                    f"got {len(v_list)}."
+                )
+            if p1 is None or p2 is None:
+                raise ValueError(f"SOFT_ENTAILMENT '{factor_id}' requires p1 and p2.")
+            p1c = _cromwell_clamp(p1, label=f"factor '{factor_id}' p1")
+            p2c = _cromwell_clamp(p2, label=f"factor '{factor_id}' p2")
+            if p1c + p2c <= 1.0:
+                raise ValueError(
+                    f"SOFT_ENTAILMENT '{factor_id}' requires p1 + p2 > 1 "
+                    f"(after Cromwell clamp got {p1c + p2c})."
+                )
+            fp1, fp2 = p1c, p2c
+
+        elif ft == FactorType.CONDITIONAL:
+            if p1 is not None or p2 is not None:
+                raise ValueError(f"CONDITIONAL '{factor_id}' must not set p1/p2.")
+            if not v_list:
+                raise ValueError(
+                    f"CONDITIONAL '{factor_id}' requires at least one premise variable."
+                )
+            if cpt is None:
+                raise ValueError(f"CONDITIONAL '{factor_id}' requires cpt.")
+            expected = 1 << len(v_list)
+            fcpt = tuple(_cromwell_clamp(float(x), label=f"cpt[{i}]") for i, x in enumerate(cpt))
+            if len(fcpt) != expected:
+                raise ValueError(
+                    f"CONDITIONAL '{factor_id}': cpt length must be 2^k = {expected}, "
+                    f"got {len(fcpt)}."
+                )
+        else:
+            raise ValueError(f"Unknown FactorType: {ft!r}")
+
+        self.factors.append(
+            Factor(
+                factor_id=factor_id,
+                factor_type=factor_type,
+                variables=v_list,
+                conclusion=conclusion,
+                p1=fp1,
+                p2=fp2,
+                cpt=fcpt,
+            )
         )
-        self.factors.append(factor)
 
-    # ------------------------------------------------------------------
-    # Graph queries
-    # ------------------------------------------------------------------
+    @staticmethod
+    def _validate_deterministic(factor_id: str, ft: FactorType, v_list: list[str]) -> None:
+        if ft == FactorType.IMPLICATION and len(v_list) != 1:
+            raise ValueError(
+                f"IMPLICATION '{factor_id}' requires exactly 1 variable, got {len(v_list)}."
+            )
+        if ft == FactorType.CONJUNCTION and len(v_list) < 2:
+            raise ValueError(
+                f"CONJUNCTION '{factor_id}' requires at least 2 variables, got {len(v_list)}."
+            )
+        if ft == FactorType.DISJUNCTION and len(v_list) < 2:
+            raise ValueError(
+                f"DISJUNCTION '{factor_id}' requires at least 2 variables, got {len(v_list)}."
+            )
+        if ft in (FactorType.EQUIVALENCE, FactorType.CONTRADICTION, FactorType.COMPLEMENT):
+            if len(v_list) != 2:
+                raise ValueError(
+                    f"{ft.name} '{factor_id}' requires exactly 2 variables, got {len(v_list)}."
+                )
 
     def get_var_to_factors(self) -> dict[str, list[int]]:
-        """Build reverse index: variable_id -> list of factor indices.
-
-        Every variable that appears in a factor's all_vars list is mapped
-        to that factor's index. Used by the BP engine to implement the
-        exclude-self rule efficiently.
-        """
         index: dict[str, list[int]] = {vid: [] for vid in self.variables}
         for fi, factor in enumerate(self.factors):
             for vid in factor.all_vars:
@@ -227,13 +212,6 @@ class FactorGraph:
         return index
 
     def validate(self) -> list[str]:
-        """Return a list of validation errors (empty if graph is consistent).
-
-        Checks:
-        - All variables referenced by factors are registered
-        - CONTRADICTION/EQUIVALENCE relation_var is registered
-        - No factor has duplicate variable IDs in all_vars
-        """
         errors: list[str] = []
         for fi, factor in enumerate(self.factors):
             seen: set[str] = set()
@@ -251,18 +229,19 @@ class FactorGraph:
         return errors
 
     def summary(self) -> str:
-        """Human-readable summary of the graph for debugging."""
         lines = [f"FactorGraph: {len(self.variables)} variables, {len(self.factors)} factors"]
         lines.append("Variables:")
         for vid, prior in sorted(self.variables.items()):
             lines.append(f"  {vid:30s}  prior={prior:.4f}")
         lines.append("Factors:")
         for factor in self.factors:
-            rel = f"  relation={factor.relation_var}" if factor.relation_var else ""
+            extra = ""
+            if factor.p1 is not None and factor.p2 is not None:
+                extra = f"  p1={factor.p1:.4f}  p2={factor.p2:.4f}"
+            if factor.cpt is not None:
+                extra += f"  cpt_len={len(factor.cpt)}"
             lines.append(
-                f"  [{factor.factor_type.name:15s}] {factor.factor_id}"
-                f"  premises={factor.premises}"
-                f"  conclusions={factor.conclusions}"
-                f"  p={factor.p:.4f}{rel}"
+                f"  [{factor.factor_type.name:18s}] {factor.factor_id}"
+                f"  variables={factor.variables}  conclusion={factor.conclusion}{extra}"
             )
         return "\n".join(lines)
