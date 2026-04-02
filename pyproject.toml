@@ -21,6 +21,8 @@ dependencies = [
     "typer[all]>=0.12",
     "typst>=0.12",
     "scikit-learn>=1.8.0",
+    "tos>=2.7",
+    "clickhouse-connect>=0.7",
 ]
 
 [project.optional-dependencies]
