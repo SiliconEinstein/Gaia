@@ -8,11 +8,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
-from gaia.gaia_ir.formalize import formalize_named_strategy
-from gaia.gaia_ir.graphs import LocalCanonicalGraph
-from gaia.gaia_ir.knowledge import KnowledgeType
-from gaia.gaia_ir.operator import Operator, OperatorType
-from gaia.gaia_ir.strategy import (
+from gaia.ir.formalize import formalize_named_strategy
+from gaia.ir.graphs import LocalCanonicalGraph
+from gaia.ir.knowledge import KnowledgeType
+from gaia.ir.operator import Operator, OperatorType
+from gaia.ir.strategy import (
     _FORMAL_STRATEGY_TYPES,
     CompositeStrategy,
     FormalStrategy,

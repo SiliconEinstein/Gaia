@@ -40,9 +40,9 @@ class TestContentHash:
         assert h1 != h2
 
     def test_matches_upstream(self):
-        """Must produce same hash as gaia.gaia_ir.knowledge._compute_content_hash."""
-        from gaia.gaia_ir.knowledge import Parameter as IRParameter
-        from gaia.gaia_ir.knowledge import _compute_content_hash as upstream_hash
+        """Must produce same hash as gaia.ir.knowledge._compute_content_hash."""
+        from gaia.ir.knowledge import Parameter as IRParameter
+        from gaia.ir.knowledge import _compute_content_hash as upstream_hash
 
         lkm_hash = compute_content_hash("claim", "test", [("a", "material"), ("b", "temp")])
         upstream = upstream_hash(

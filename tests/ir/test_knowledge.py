@@ -1,8 +1,8 @@
 """Tests for Knowledge data model."""
 
 import pytest
-from gaia.gaia_ir import Knowledge, KnowledgeType, Parameter, PackageRef
-from gaia.gaia_ir.knowledge import make_qid, is_qid
+from gaia.ir import Knowledge, KnowledgeType, Parameter, PackageRef
+from gaia.ir.knowledge import make_qid, is_qid
 
 
 class TestMakeQid:

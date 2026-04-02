@@ -17,7 +17,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from gaia.gaia_ir.graphs import LocalCanonicalGraph
+from gaia.ir.graphs import LocalCanonicalGraph
 from gaia.lkm.models import LocalFactorNode, LocalVariableNode
 
 _FIXTURES_DIR = Path(__file__).parent

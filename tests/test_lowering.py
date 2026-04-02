@@ -7,7 +7,7 @@ import pytest
 from gaia.bp import FactorType, lower_local_graph, lower_operator
 from gaia.bp.factor_graph import FactorGraph
 from gaia.bp.exact import exact_inference
-from gaia.gaia_ir import Knowledge, Operator, Strategy, LocalCanonicalGraph
+from gaia.ir import Knowledge, Operator, Strategy, LocalCanonicalGraph
 
 NS, PKG = "reg", "lowertest"
 
@@ -148,7 +148,7 @@ def test_infer_conditional_lowering():
 
 
 def test_formal_strategy_expand_implication():
-    from gaia.gaia_ir.strategy import FormalExpr, FormalStrategy
+    from gaia.ir.strategy import FormalExpr, FormalStrategy
 
     fs = FormalStrategy(
         scope="local",
@@ -177,7 +177,7 @@ def test_formal_strategy_expand_implication():
 
 
 def test_formal_fold_not_implemented():
-    from gaia.gaia_ir.strategy import FormalExpr, FormalStrategy
+    from gaia.ir.strategy import FormalExpr, FormalStrategy
 
     fs = FormalStrategy(
         scope="local",

@@ -17,10 +17,10 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, model_validator
 
-from gaia.gaia_ir.operator import Operator
+from gaia.ir.operator import Operator
 
 if TYPE_CHECKING:
-    from gaia.gaia_ir.formalize import FormalizationResult
+    from gaia.ir.formalize import FormalizationResult
 
 
 class StrategyType(StrEnum):
@@ -146,7 +146,7 @@ class Strategy(BaseModel):
         For local scope, ``namespace`` and ``package_name`` are required so that
         generated intermediate Knowledge IDs use QID format.
         """
-        from gaia.gaia_ir.formalize import formalize_named_strategy
+        from gaia.ir.formalize import formalize_named_strategy
 
         if isinstance(self, CompositeStrategy):
             raise TypeError("CompositeStrategy cannot be directly formalized")

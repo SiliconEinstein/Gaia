@@ -1,6 +1,6 @@
 """Tests for Gaia IR validator."""
 
-from gaia.gaia_ir import (
+from gaia.ir import (
     Knowledge,
     KnowledgeType,
     Operator,
@@ -10,7 +10,7 @@ from gaia.gaia_ir import (
     FormalExpr,
     LocalCanonicalGraph,
 )
-from gaia.gaia_ir.validator import (
+from gaia.ir.validator import (
     validate_local_graph,
     validate_parameterization,
 )
@@ -989,7 +989,7 @@ class TestParameterizationValidation:
         )
 
     def test_complete_parameterization(self):
-        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+        from gaia.ir import PriorRecord, StrategyParamRecord
 
         g = self._graph()
         sid = g.strategies[0].strategy_id
@@ -1008,7 +1008,7 @@ class TestParameterizationValidation:
         assert r.valid
 
     def test_missing_prior(self):
-        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+        from gaia.ir import PriorRecord, StrategyParamRecord
 
         g = self._graph()
         sid = g.strategies[0].strategy_id
@@ -1025,7 +1025,7 @@ class TestParameterizationValidation:
         assert any("reg:test::b" in e and "missing PriorRecord" in e for e in r.errors)
 
     def test_missing_strategy_param_for_parameterized(self):
-        from gaia.gaia_ir import PriorRecord
+        from gaia.ir import PriorRecord
 
         g = self._graph()
         r = validate_parameterization(
@@ -1041,7 +1041,7 @@ class TestParameterizationValidation:
 
     def test_formal_strategy_without_params_passes(self):
         """FormalStrategy types do not need StrategyParamRecord."""
-        from gaia.gaia_ir import PriorRecord
+        from gaia.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1081,7 +1081,7 @@ class TestParameterizationValidation:
 
     def test_private_helper_claim_no_prior_needed(self):
         """Private helper claims (FormalExpr internal) don't need PriorRecord."""
-        from gaia.gaia_ir import PriorRecord
+        from gaia.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1129,7 +1129,7 @@ class TestParameterizationValidation:
 
     def test_private_helper_claim_prior_prohibited(self):
         """Providing PriorRecord for a private helper claim is an error."""
-        from gaia.gaia_ir import PriorRecord
+        from gaia.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1176,7 +1176,7 @@ class TestParameterizationValidation:
 
     def test_implication_private_node_prior_prohibited(self):
         """Any FormalExpr private node (not just structural helpers) must not have PriorRecord."""
-        from gaia.gaia_ir import PriorRecord
+        from gaia.ir import PriorRecord
 
         # reg:test::mid is an implication conclusion inside FormalExpr, NOT in the
         # strategy's interface (premises/conclusion). Even though implication is
@@ -1226,7 +1226,7 @@ class TestParameterizationValidation:
 
     def test_implication_private_node_no_prior_needed(self):
         """FormalExpr private implication nodes don't need PriorRecord."""
-        from gaia.gaia_ir import PriorRecord
+        from gaia.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1270,7 +1270,7 @@ class TestParameterizationValidation:
 
     def test_abduction_generated_interface_claim_requires_prior(self):
         """Auto-generated alternative explanations are public interface claims with priors."""
-        from gaia.gaia_ir import PriorRecord
+        from gaia.ir import PriorRecord
 
         formalized = Strategy(
             scope="local",
@@ -1305,7 +1305,7 @@ class TestParameterizationValidation:
 
     def test_abduction_generated_interface_claim_prior_allowed(self):
         """The generated alternative explanation can be parameterized like any public claim."""
-        from gaia.gaia_ir import PriorRecord
+        from gaia.ir import PriorRecord
 
         formalized = Strategy(
             scope="local",
@@ -1340,7 +1340,7 @@ class TestParameterizationValidation:
 
     def test_elimination_only_requires_interface_priors(self):
         """Strict elimination should not introduce hidden prior-bearing internal claims."""
-        from gaia.gaia_ir import PriorRecord
+        from gaia.ir import PriorRecord
 
         formalized = Strategy(
             scope="local",
@@ -1383,7 +1383,7 @@ class TestParameterizationValidation:
 
     def test_top_level_helper_claim_no_prior_needed(self):
         """Top-level structural helper claims should also be excluded from prior coverage."""
-        from gaia.gaia_ir import PriorRecord
+        from gaia.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1413,7 +1413,7 @@ class TestParameterizationValidation:
 
     def test_top_level_helper_claim_prior_prohibited(self):
         """Top-level structural helper claims must not accept independent priors."""
-        from gaia.gaia_ir import PriorRecord
+        from gaia.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1447,7 +1447,7 @@ class TestParameterizationValidation:
 
     def test_param_for_non_parameterized_type_warns(self):
         """StrategyParamRecord for a FormalStrategy type should warn."""
-        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+        from gaia.ir import PriorRecord, StrategyParamRecord
 
         g = _local_graph(
             knowledges=[_claim("reg:test::a"), _claim("reg:test::b")],
@@ -1487,7 +1487,7 @@ class TestParameterizationValidation:
 
     def test_setting_does_not_need_prior(self):
         """Settings don't carry probability -- no PriorRecord needed."""
-        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+        from gaia.ir import PriorRecord, StrategyParamRecord
 
         g = self._graph()
         sid = g.strategies[0].strategy_id
@@ -1507,7 +1507,7 @@ class TestParameterizationValidation:
 
     def test_cromwell_bounds_on_priors(self):
         """PriorRecord auto-clamps, so raw values within bounds should pass."""
-        from gaia.gaia_ir import PriorRecord
+        from gaia.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[_claim("reg:test::a")],
@@ -1521,7 +1521,7 @@ class TestParameterizationValidation:
         assert r.valid
 
     def test_dangling_prior_warning(self):
-        from gaia.gaia_ir import PriorRecord
+        from gaia.ir import PriorRecord
 
         g = _local_graph(knowledges=[_claim("reg:test::a")])
         r = validate_parameterization(
@@ -1536,7 +1536,7 @@ class TestParameterizationValidation:
         assert any("non-existent" in w for w in r.warnings)
 
     def test_dangling_strategy_param_warning(self):
-        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+        from gaia.ir import PriorRecord, StrategyParamRecord
 
         g = _local_graph(knowledges=[_claim("reg:test::a")])
         r = validate_parameterization(
@@ -1556,7 +1556,7 @@ class TestParameterizationValidation:
         assert r.valid
 
     def test_noisy_and_wrong_arity_rejected(self):
-        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+        from gaia.ir import PriorRecord, StrategyParamRecord
 
         g = self._graph()
         sid = g.strategies[0].strategy_id
@@ -1578,7 +1578,7 @@ class TestParameterizationValidation:
         assert any("noisy_and" in e and "requires 1" in e for e in r.errors)
 
     def test_infer_wrong_arity_rejected(self):
-        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+        from gaia.ir import PriorRecord, StrategyParamRecord
 
         g = _local_graph(
             knowledges=[
@@ -1615,7 +1615,7 @@ class TestParameterizationValidation:
         assert any("2^2=4" in e for e in r.errors)
 
     def test_infer_correct_arity_passes(self):
-        from gaia.gaia_ir import PriorRecord, StrategyParamRecord
+        from gaia.ir import PriorRecord, StrategyParamRecord
 
         g = _local_graph(
             knowledges=[

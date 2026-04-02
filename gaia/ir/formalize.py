@@ -12,9 +12,9 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 
-from gaia.gaia_ir.knowledge import Knowledge, KnowledgeType, make_qid
-from gaia.gaia_ir.operator import Operator
-from gaia.gaia_ir.strategy import (
+from gaia.ir.knowledge import Knowledge, KnowledgeType, make_qid
+from gaia.ir.operator import Operator
+from gaia.ir.strategy import (
     FormalExpr,
     FormalStrategy,
     Step,

@@ -11,9 +11,9 @@ from typing import Any
 
 from pydantic import BaseModel, model_validator
 
-from gaia.gaia_ir.knowledge import Knowledge, make_qid
-from gaia.gaia_ir.operator import Operator
-from gaia.gaia_ir.strategy import Strategy
+from gaia.ir.knowledge import Knowledge, make_qid
+from gaia.ir.operator import Operator
+from gaia.ir.strategy import Strategy
 
 
 def _json_sort_key(value: Any) -> str:

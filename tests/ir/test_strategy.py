@@ -1,7 +1,7 @@
 """Tests for Strategy data model (Strategy, CompositeStrategy, FormalStrategy)."""
 
 import pytest
-from gaia.gaia_ir import (
+from gaia.ir import (
     Strategy,
     CompositeStrategy,
     FormalStrategy,
@@ -406,7 +406,7 @@ class TestFormalStrategy:
             ),
         )
         # A leaf with same inputs but empty structure_hash would get a different ID
-        from gaia.gaia_ir.strategy import _compute_strategy_id
+        from gaia.ir.strategy import _compute_strategy_id
 
         leaf_id = _compute_strategy_id("local", "deduction", ["a"], "b", structure_hash="")
         assert fs.strategy_id != leaf_id

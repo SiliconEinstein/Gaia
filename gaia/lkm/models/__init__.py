@@ -1,6 +1,6 @@
 """LKM data models — internal storage format.
 
-These models are independent of upstream gaia.gaia_ir.* (which is the ingest
+These models are independent of upstream gaia.ir.* (which is the ingest
 input format, not the storage format).
 """
 

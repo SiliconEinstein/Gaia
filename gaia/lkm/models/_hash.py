@@ -12,7 +12,7 @@ def compute_content_hash(type_: str, content: str, parameters: list[tuple[str, s
     Parameters are pre-sorted (name, type) tuples — caller is responsible
     for extracting from Parameter models.
 
-    Matches upstream gaia.gaia_ir.knowledge._compute_content_hash algorithm.
+    Matches upstream gaia.ir.knowledge._compute_content_hash algorithm.
     """
     sorted_params = sorted(parameters)
     payload = f"{type_}|{content}|{sorted_params}"

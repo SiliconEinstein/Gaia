@@ -1,7 +1,7 @@
 """Gaia IR → LKM lowering: convert LocalCanonicalGraph to LKM local nodes.
 
 Deterministic: same input always produces same output.
-Upstream objects are read-only — no modifications to gaia.gaia_ir instances.
+Upstream objects are read-only — no modifications to gaia.ir instances.
 """
 
 from __future__ import annotations
@@ -9,10 +9,10 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 
-from gaia.gaia_ir.graphs import LocalCanonicalGraph
-from gaia.gaia_ir.knowledge import Knowledge
-from gaia.gaia_ir.operator import Operator
-from gaia.gaia_ir.strategy import Strategy
+from gaia.ir.graphs import LocalCanonicalGraph
+from gaia.ir.knowledge import Knowledge
+from gaia.ir.operator import Operator
+from gaia.ir.strategy import Strategy
 from gaia.lkm.models import (
     LocalFactorNode,
     LocalVariableNode,

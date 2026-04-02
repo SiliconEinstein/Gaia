@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from gaia.gaia_ir.graphs import LocalCanonicalGraph
+from gaia.ir.graphs import LocalCanonicalGraph
 from gaia.lkm.core.lower import LoweringResult, lower
 
 

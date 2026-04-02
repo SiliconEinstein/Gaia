@@ -8,11 +8,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from gaia.gaia_ir.knowledge import Knowledge, KnowledgeType, is_qid
-from gaia.gaia_ir.operator import Operator, OperatorType
-from gaia.gaia_ir.strategy import Strategy, CompositeStrategy, FormalStrategy, StrategyType
-from gaia.gaia_ir.graphs import LocalCanonicalGraph, _canonical_json
-from gaia.gaia_ir.parameterization import (
+from gaia.ir.knowledge import Knowledge, KnowledgeType, is_qid
+from gaia.ir.operator import Operator, OperatorType
+from gaia.ir.strategy import Strategy, CompositeStrategy, FormalStrategy, StrategyType
+from gaia.ir.graphs import LocalCanonicalGraph, _canonical_json
+from gaia.ir.parameterization import (
     CROMWELL_EPS,
     PriorRecord,
     StrategyParamRecord,

@@ -1,6 +1,6 @@
 """Tests for LocalCanonicalGraph."""
 
-from gaia.gaia_ir import (
+from gaia.ir import (
     Knowledge,
     Operator,
     Strategy,

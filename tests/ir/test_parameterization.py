@@ -1,7 +1,7 @@
 """Tests for Parameterization data models."""
 
 import pytest
-from gaia.gaia_ir import (
+from gaia.ir import (
     PriorRecord,
     StrategyParamRecord,
     ParameterizationSource,
