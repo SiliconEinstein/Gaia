@@ -23,8 +23,12 @@ class StorageConfig(BaseSettings):
     tos_secret_key: str = ""
     tos_endpoint: str = "tos-s3-cn-beijing.volces.com"
 
-    # Graph backend (deferred — placeholder for M6/M8)
-    graph_backend: str = "none"  # "neo4j" | "kuzu" | "none"
+    # Graph backend
+    graph_backend: str = "none"  # "neo4j" | "none"
+    neo4j_uri: str = "bolt://localhost:7687"
+    neo4j_user: str = "neo4j"
+    neo4j_password: str = ""
+    neo4j_database: str = "neo4j"
 
     model_config = {"env_prefix": "LKM_"}
 

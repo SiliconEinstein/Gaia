@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from gaia.lkm.models import (
     CanonicalBinding,
@@ -24,18 +25,23 @@ logger = logging.getLogger(__name__)
 class StorageManager:
     """Unified storage facade for LKM.
 
-    Delegates to LanceContentStore (required) and optional backends
-    (GraphStore, VectorStore — added in later milestones).
+    Delegates to LanceContentStore (required) and optional Neo4j graph store.
     """
 
     def __init__(self, config: StorageConfig) -> None:
         self._config = config
         self._content: LanceContentStore | None = None
+        self._graph: Any | None = None  # Neo4jGraphStore or None
 
     @property
     def content(self) -> LanceContentStore:
         assert self._content is not None, "StorageManager not initialized — call initialize() first"
         return self._content
+
+    @property
+    def graph(self) -> Any | None:
+        """Neo4j graph store, or None if graph_backend='none'."""
+        return self._graph
 
     async def initialize(self) -> None:
         """Initialize all storage backends."""
@@ -45,9 +51,22 @@ class StorageManager:
         )
         await self._content.initialize()
 
+        if self._config.graph_backend == "neo4j":
+            import neo4j
+
+            from gaia.lkm.storage.neo4j_store import Neo4jGraphStore
+
+            driver = neo4j.AsyncGraphDatabase.driver(
+                self._config.neo4j_uri,
+                auth=(self._config.neo4j_user, self._config.neo4j_password),
+            )
+            self._graph = Neo4jGraphStore(driver, self._config.neo4j_database)
+            await self._graph.initialize_schema()
+
     async def close(self) -> None:
-        """Close storage backends. LanceDB needs no explicit close."""
-        pass
+        """Close storage backends."""
+        if self._graph is not None:
+            await self._graph.close()
 
     # ── Ingest protocol ──
 
@@ -94,7 +113,7 @@ class StorageManager:
         prior_records: list[PriorRecord] | None = None,
         factor_param_records: list[FactorParamRecord] | None = None,
     ) -> None:
-        """Steps 2-4: Write global nodes, bindings, and parameters."""
+        """Steps 2-4: Write global nodes, bindings, parameters, and graph topology."""
         logger.info(
             "Integrating global graph: %d variables, %d factors, %d bindings",
             len(variable_nodes),
@@ -108,6 +127,10 @@ class StorageManager:
             await self.content.write_prior_records(prior_records)
         if factor_param_records:
             await self.content.write_factor_param_records(factor_param_records)
+
+        # Write to graph store if configured
+        if self._graph is not None:
+            await self._graph.write_global_graph(variable_nodes, factor_nodes)
 
     # ── Parameterization ──
 
@@ -186,6 +209,20 @@ class StorageManager:
 
     async def get_import_status(self, package_id: str) -> ImportStatusRecord | None:
         return await self.content.get_import_status(package_id)
+
+    # ── Reads: graph ──
+
+    async def get_subgraph(self, gcn_id: str, hops: int = 2) -> dict:
+        """Get N-hop subgraph. Uses Neo4j if available, else empty."""
+        if self._graph is not None:
+            return await self._graph.get_subgraph(gcn_id, hops)
+        return {"nodes": [], "edges": []}
+
+    async def get_neighbors(self, gcn_id: str, direction: str = "both") -> list[dict]:
+        """Get direct neighbors. Uses Neo4j if available, else empty."""
+        if self._graph is not None:
+            return await self._graph.get_neighbors(gcn_id, direction)
+        return []
 
     # ── Update ──
 

@@ -317,6 +317,19 @@ async def get_graph(
     return {"nodes": nodes, "edges": edges}
 
 
+@router.get("/graph/subgraph/{gcn_id}")
+async def get_subgraph(
+    gcn_id: str,
+    hops: int = 2,
+    storage: StorageManager = Depends(get_storage),
+):
+    """Get N-hop subgraph around a global variable. Requires Neo4j."""
+    result = await storage.get_subgraph(gcn_id, hops)
+    if not result["nodes"]:
+        return {"nodes": [], "edges": [], "note": "No graph backend or node not found"}
+    return result
+
+
 @router.get("/graph/local/{source_package}")
 async def get_local_graph(
     source_package: str,
