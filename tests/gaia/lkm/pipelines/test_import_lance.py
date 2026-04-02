@@ -1,8 +1,5 @@
 """Tests for pipelines/import_lance.py — Checkpoint + merge logic."""
 
-import json
-from pathlib import Path
-
 from gaia.lkm.pipelines.import_lance import Checkpoint
 from gaia.lkm.storage.source_lance import merge_xmls
 
