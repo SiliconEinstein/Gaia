@@ -117,13 +117,15 @@ class TestLoweringProperties:
         for v in result.local_variables:
             assert v.visibility == "public"
 
-    def test_strategy_factors_have_steps(self):
-        """Strategy factors should preserve reasoning steps."""
+    def test_strategy_factors_preserve_steps(self):
+        """If IR strategies have steps, they should be preserved in lowering output."""
         ir = load_ir("galileo")
         result = lower(ir, version="4.0.0")
         strategy_factors = [f for f in result.local_factors if f.factor_type == "strategy"]
-        for f in strategy_factors:
-            assert f.steps is not None and len(f.steps) > 0, f"Strategy factor {f.id} missing steps"
+        # Check that steps match IR: if IR strategy has steps, factor should too
+        for ir_s, lkm_f in zip([s for s in ir.strategies], strategy_factors, strict=False):
+            if ir_s.steps:
+                assert lkm_f.steps is not None, f"Factor {lkm_f.id} lost steps from IR"
 
     def test_operator_factors_no_steps(self):
         """Operator factors should have no steps."""

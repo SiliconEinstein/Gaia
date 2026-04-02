@@ -55,16 +55,16 @@ def _lfac_id(metadata_id: str, conclusion_id: str) -> str:
 
 def _extract_review(
     review_xml: str, metadata_id: str, package_id: str, version: str
-) -> tuple[list[LocalVariableNode], list[PriorRecord], dict[str, list[str]]]:
-    """Parse review.xml → premise variables + prior records.
+) -> tuple[list[LocalVariableNode], list[PriorRecord], dict[str, list[str]], dict[str, float]]:
+    """Parse review.xml → premise variables + prior records + conclusion conditional probs.
 
-    Returns (variables, priors, conclusion_premises_map).
-    conclusion_premises_map: {conclusion_id: [premise_qid, ...]}
+    Returns (variables, priors, conclusion_premises_map, conclusion_cond_probs).
     """
     root = ET.fromstring(review_xml)
     variables = []
     priors = []
     conclusion_premises: dict[str, list[str]] = {}
+    conclusion_cond_probs: dict[str, float] = {}
 
     for premise in root.iter("premise"):
         name = premise.get("name", premise.get("id", ""))
@@ -101,7 +101,14 @@ def _extract_review(
         if conclusion_id:
             conclusion_premises.setdefault(conclusion_id, []).append(qid)
 
-    return variables, priors, conclusion_premises
+    # Extract conditional_probability from conclusion elements
+    for conclusion in root.iter("conclusion"):
+        cid = conclusion.get("id", "")
+        cond_prob = conclusion.get("conditional_probability")
+        if cid and cond_prob:
+            conclusion_cond_probs[cid] = float(cond_prob)
+
+    return variables, priors, conclusion_premises, conclusion_cond_probs
 
 
 def _extract_reasoning_chain(
@@ -110,11 +117,14 @@ def _extract_reasoning_chain(
     package_id: str,
     version: str,
     conclusion_premises: dict[str, list[str]],
-) -> tuple[list[LocalVariableNode], list[LocalFactorNode]]:
-    """Parse reasoning_chain.xml → conclusion variables + strategy factors."""
+    conclusion_cond_probs: dict[str, float] | None = None,
+) -> tuple[list[LocalVariableNode], list[LocalFactorNode], list[FactorParamRecord]]:
+    """Parse reasoning_chain.xml → conclusion variables + strategy factors + factor params."""
     root = ET.fromstring(reasoning_xml)
     variables = []
     factors = []
+    factor_params = []
+    cond_probs = conclusion_cond_probs or {}
 
     for cr in root.iter("conclusion_reasoning"):
         conclusion_id = cr.get("conclusion_id", "")
@@ -149,11 +159,12 @@ def _extract_reasoning_chain(
             # Create strategy factor: premises → conclusion
             premises = conclusion_premises.get(conclusion_id, [])
             if premises:
+                factor_id = _lfac_id(metadata_id, conclusion_id)
                 factors.append(
                     LocalFactorNode(
-                        id=_lfac_id(metadata_id, conclusion_id),
+                        id=factor_id,
                         factor_type="strategy",
-                        subtype="infer",
+                        subtype="noisy_and",
                         premises=premises,
                         conclusion=qid,
                         steps=steps if steps else None,
@@ -162,7 +173,18 @@ def _extract_reasoning_chain(
                     )
                 )
 
-    return variables, factors
+                # Create FactorParamRecord if conditional_probability available
+                if conclusion_id in cond_probs:
+                    factor_params.append(
+                        FactorParamRecord(
+                            factor_id=factor_id,
+                            conditional_probabilities=[cond_probs[conclusion_id]],
+                            source_id=f"extract_paper_{metadata_id}",
+                            created_at=datetime.now(timezone.utc),
+                        )
+                    )
+
+    return variables, factors, factor_params
 
 
 def _extract_problem(
@@ -215,19 +237,25 @@ def extract(
     version = "1.0.0"
     result = ExtractionResult(package_id=package_id, version=version)
 
-    # 1. Extract premises + priors from review.xml
-    premise_vars, priors, conclusion_premises = _extract_review(
+    # 1. Extract premises + priors + conclusion conditional probs from review.xml
+    premise_vars, priors, conclusion_premises, conclusion_cond_probs = _extract_review(
         review_xml, metadata_id, package_id, version
     )
     result.local_variables.extend(premise_vars)
     result.prior_records.extend(priors)
 
-    # 2. Extract conclusions + factors from reasoning_chain.xml
-    conclusion_vars, factors = _extract_reasoning_chain(
-        reasoning_chain_xml, metadata_id, package_id, version, conclusion_premises
+    # 2. Extract conclusions + factors + factor params from reasoning_chain.xml
+    conclusion_vars, factors, factor_params = _extract_reasoning_chain(
+        reasoning_chain_xml,
+        metadata_id,
+        package_id,
+        version,
+        conclusion_premises,
+        conclusion_cond_probs,
     )
     result.local_variables.extend(conclusion_vars)
     result.local_factors.extend(factors)
+    result.factor_param_records.extend(factor_params)
 
     # 3. Extract research problem from select_conclusion.xml
     problem_vars = _extract_problem(select_conclusion_xml, metadata_id, package_id, version)
