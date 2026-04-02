@@ -1,12 +1,13 @@
 """Integrate local FactorGraph into global FactorGraph.
 
-Per-package, synchronous. Includes content_hash dedup and CanonicalBinding creation.
+Per-package and batch integration with content_hash dedup and CanonicalBinding creation.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from gaia.lkm.core.extract import ExtractionResult
 from gaia.lkm.models import (
     CanonicalBinding,
     FactorParamRecord,
@@ -243,3 +244,259 @@ async def integrate(
             await storage.write_param_source(ps)
 
     return result
+
+
+@dataclass
+class BatchIntegrateResult:
+    """Output of batch-integrating multiple papers."""
+
+    packages: int = 0
+    total_local_variables: int = 0
+    total_local_factors: int = 0
+    new_global_variables: int = 0
+    new_global_factors: int = 0
+    dedup_within_batch: int = 0
+    dedup_with_existing: int = 0
+    bindings: int = 0
+    unresolved_cross_refs: list[dict] = field(default_factory=list)
+
+
+async def batch_integrate(
+    storage: StorageManager,
+    results: list[ExtractionResult],
+) -> BatchIntegrateResult:
+    """Integrate multiple papers at once with in-batch dedup.
+
+    Unlike per-paper integrate(), this deduplicates variables across the entire
+    batch before writing globals, avoiding race conditions under concurrency
+    and reducing storage queries.
+
+    Flow:
+    1. Write all local nodes per package (preparing → merged)
+    2. Group variables by content_hash → one global per unique hash
+    3. Check storage for existing globals (cross-batch dedup)
+    4. Build global factors with resolved gcn_ids
+    5. Write globals + bindings + params in one pass
+    """
+    stats = BatchIntegrateResult(packages=len(results))
+
+    # ── Step 1: Write and commit all local nodes ──
+    for r in results:
+        await storage.ingest_local_graph(
+            r.package_id, r.version, r.local_variables, r.local_factors
+        )
+        await storage.commit_package(r.package_id, r.version)
+        stats.total_local_variables += len(r.local_variables)
+        stats.total_local_factors += len(r.local_factors)
+
+    # ── Step 2: In-batch variable dedup by content_hash ──
+    # Group all local variables across all papers by content_hash.
+    # Each unique content_hash gets one global node; all locals with that hash
+    # become local_members.
+    hash_to_locals: dict[str, list[tuple[LocalVariableNode, str, str]]] = {}
+    # (variable, package_id, version)
+    for r in results:
+        for lv in r.local_variables:
+            hash_to_locals.setdefault(lv.content_hash, []).append((lv, r.package_id, r.version))
+
+    all_bindings: list[CanonicalBinding] = []
+    all_new_globals: list[GlobalVariableNode] = []
+    qid_to_gcn: dict[str, str] = {}  # local QID → gcn_id (across all papers)
+
+    for content_hash, entries in hash_to_locals.items():
+        if len(entries) > 1:
+            stats.dedup_within_batch += len(entries) - 1
+
+        # Check if this content_hash already exists globally
+        first_var = entries[0][0]
+        existing = None
+        if first_var.visibility == "public":
+            existing = await storage.find_global_by_content_hash(content_hash)
+
+        if existing is not None:
+            # Match existing global node — append all locals as members
+            stats.dedup_with_existing += len(entries)
+            new_members = [
+                LocalCanonicalRef(local_id=lv.id, package_id=pkg, version=ver)
+                for lv, pkg, ver in entries
+            ]
+            updated = GlobalVariableNode(
+                id=existing.id,
+                type=existing.type,
+                visibility=existing.visibility,
+                content_hash=existing.content_hash,
+                parameters=existing.parameters,
+                representative_lcn=existing.representative_lcn,
+                local_members=existing.local_members + new_members,
+            )
+            await storage.update_global_variable_members(existing.id, updated)
+            for lv, pkg, ver in entries:
+                qid_to_gcn[lv.id] = existing.id
+                all_bindings.append(
+                    CanonicalBinding(
+                        local_id=lv.id,
+                        global_id=existing.id,
+                        binding_type="variable",
+                        package_id=pkg,
+                        version=ver,
+                        decision="match_existing",
+                        reason="content_hash exact match (batch)",
+                    )
+                )
+        else:
+            # Create new global node with all locals as members
+            gcn_id = new_gcn_id()
+            refs = [
+                LocalCanonicalRef(local_id=lv.id, package_id=pkg, version=ver)
+                for lv, pkg, ver in entries
+            ]
+            gv = GlobalVariableNode(
+                id=gcn_id,
+                type=first_var.type,
+                visibility=first_var.visibility,
+                content_hash=content_hash,
+                parameters=first_var.parameters,
+                representative_lcn=refs[0],
+                local_members=refs,
+            )
+            all_new_globals.append(gv)
+            for lv, pkg, ver in entries:
+                qid_to_gcn[lv.id] = gcn_id
+                all_bindings.append(
+                    CanonicalBinding(
+                        local_id=lv.id,
+                        global_id=gcn_id,
+                        binding_type="variable",
+                        package_id=pkg,
+                        version=ver,
+                        decision="create_new" if lv is first_var else "match_batch",
+                        reason="batch dedup by content_hash",
+                    )
+                )
+
+    stats.new_global_variables = len(all_new_globals)
+
+    # ── Step 3: Factor integration ──
+    all_new_factors: list[GlobalFactorNode] = []
+    all_prior_records: list[PriorRecord] = []
+    all_factor_params: list[FactorParamRecord] = []
+    lfac_to_gfac: dict[str, str] = {}
+
+    for r in results:
+        for lf in r.local_factors:
+            # Map premises/conclusion QIDs to gcn_ids
+            mapped_premises = []
+            unresolved = False
+            for p in lf.premises:
+                if p in qid_to_gcn:
+                    mapped_premises.append(qid_to_gcn[p])
+                else:
+                    binding = await storage.find_canonical_binding(p)
+                    if binding:
+                        mapped_premises.append(binding.global_id)
+                        qid_to_gcn[p] = binding.global_id
+                    else:
+                        stats.unresolved_cross_refs.append(
+                            {"factor_id": lf.id, "unresolved_qid": p, "role": "premise"}
+                        )
+                        unresolved = True
+
+            mapped_conclusion = qid_to_gcn.get(lf.conclusion)
+            if not mapped_conclusion:
+                binding = await storage.find_canonical_binding(lf.conclusion)
+                if binding:
+                    mapped_conclusion = binding.global_id
+                    qid_to_gcn[lf.conclusion] = binding.global_id
+                else:
+                    stats.unresolved_cross_refs.append(
+                        {"factor_id": lf.id, "unresolved_qid": lf.conclusion, "role": "conclusion"}
+                    )
+                    unresolved = True
+
+            if unresolved:
+                continue
+
+            existing_factor = await storage.find_global_factor_exact(
+                mapped_premises, mapped_conclusion, lf.factor_type, lf.subtype
+            )
+            if existing_factor:
+                lfac_to_gfac[lf.id] = existing_factor.id
+                all_bindings.append(
+                    CanonicalBinding(
+                        local_id=lf.id,
+                        global_id=existing_factor.id,
+                        binding_type="factor",
+                        package_id=r.package_id,
+                        version=r.version,
+                        decision="match_existing",
+                        reason="structure exact match",
+                    )
+                )
+            else:
+                gfac_id = new_gfac_id()
+                all_new_factors.append(
+                    GlobalFactorNode(
+                        id=gfac_id,
+                        factor_type=lf.factor_type,
+                        subtype=lf.subtype,
+                        premises=mapped_premises,
+                        conclusion=mapped_conclusion,
+                        representative_lfn=lf.id,
+                        source_package=r.package_id,
+                    )
+                )
+                lfac_to_gfac[lf.id] = gfac_id
+                all_bindings.append(
+                    CanonicalBinding(
+                        local_id=lf.id,
+                        global_id=gfac_id,
+                        binding_type="factor",
+                        package_id=r.package_id,
+                        version=r.version,
+                        decision="create_new",
+                        reason="no matching global factor",
+                    )
+                )
+
+    stats.new_global_factors = len(all_new_factors)
+
+    # ── Step 4: Remap param IDs (QID → gcn, lfac → gfac) ──
+    for r in results:
+        for pr in r.prior_records:
+            gcn_id = qid_to_gcn.get(pr.variable_id)
+            if gcn_id:
+                all_prior_records.append(
+                    PriorRecord(
+                        variable_id=gcn_id,
+                        value=pr.value,
+                        source_id=pr.source_id,
+                        created_at=pr.created_at,
+                    )
+                )
+        for fpr in r.factor_param_records:
+            gfac_id = lfac_to_gfac.get(fpr.factor_id)
+            if gfac_id:
+                all_factor_params.append(
+                    FactorParamRecord(
+                        factor_id=gfac_id,
+                        conditional_probabilities=fpr.conditional_probabilities,
+                        source_id=fpr.source_id,
+                        created_at=fpr.created_at,
+                    )
+                )
+
+    # ── Step 5: Write everything ──
+    await storage.integrate_global_graph(
+        all_new_globals,
+        all_new_factors,
+        all_bindings,
+        all_prior_records or None,
+        all_factor_params or None,
+    )
+
+    for r in results:
+        for ps in r.param_sources:
+            await storage.write_param_source(ps)
+
+    stats.bindings = len(all_bindings)
+    return stats

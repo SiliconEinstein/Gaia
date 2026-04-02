@@ -17,11 +17,11 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from gaia.lkm.pipelines.extract import run_extract
+from gaia.lkm.core.extract import ExtractionResult, extract
+from gaia.lkm.pipelines.extract import run_extract_batch
 from gaia.lkm.storage import StorageConfig, StorageManager
 from gaia.lkm.storage.source_lance import (
     ByteHouseConfig,
-    PaperXMLs,
     TOSConfig,
     connect_bytehouse,
     download_paper_xmls,
@@ -138,32 +138,9 @@ async def run_batch_import(
     storage = StorageManager(config)
     await storage.initialize()
 
-    # 5. Process papers with concurrency limit
-    semaphore = asyncio.Semaphore(concurrency)
-
-    async def _process_one(paper_id: str, xmls: PaperXMLs) -> bool:
-        async with semaphore:
-            try:
-                review_xml = merge_xmls(xmls.review_xmls) if xmls.review_xmls else None
-                reasoning_xml = merge_xmls(xmls.reasoning_chain_xmls)
-
-                await run_extract(
-                    review_xml=review_xml,
-                    reasoning_chain_xml=reasoning_xml,
-                    select_conclusion_xml=xmls.select_conclusion_xml,
-                    metadata_id=paper_id,
-                    storage=storage,
-                )
-
-                checkpoint.update(paper_id, "ingested")
-                return True
-            except Exception as e:
-                logger.error("Failed %s: %s", paper_id, e)
-                checkpoint.update(paper_id, f"failed:{e.__class__.__name__}")
-                stats.errors[paper_id] = str(e)
-                return False
-
-    tasks = []
+    # 5. Extract all papers (pure computation, safe to parallelize)
+    extraction_results: list[ExtractionResult] = []
+    extracted_ids: list[str] = []
     for pid in pending:
         xmls = downloaded.get(pid)
         if xmls is None:
@@ -171,13 +148,35 @@ async def run_batch_import(
             checkpoint.update(pid, "failed:download")
             stats.failed += 1
             continue
-        tasks.append(_process_one(pid, xmls))
+        try:
+            review_xml = merge_xmls(xmls.review_xmls) if xmls.review_xmls else None
+            reasoning_xml = merge_xmls(xmls.reasoning_chain_xmls)
+            result = extract(review_xml, reasoning_xml, xmls.select_conclusion_xml, pid)
+            extraction_results.append(result)
+            extracted_ids.append(pid)
+        except Exception as e:
+            logger.error("Extract failed %s: %s", pid, e)
+            checkpoint.update(pid, f"failed:{e.__class__.__name__}")
+            stats.errors[pid] = str(e)
+            stats.failed += 1
 
-    results = await asyncio.gather(*tasks)
-    stats.succeeded = sum(1 for r in results if r)
-    stats.failed += sum(1 for r in results if not r)
+    # 6. Batch integrate (dedup within batch + against existing globals)
+    if extraction_results:
+        logger.info("Integrating %d papers (batch dedup)...", len(extraction_results))
+        batch_result = await run_extract_batch(extraction_results, storage)
+        logger.info(
+            "Batch integrate: %d new globals, %d new factors, "
+            "%d dedup within batch, %d dedup with existing",
+            batch_result.new_global_variables,
+            batch_result.new_global_factors,
+            batch_result.dedup_within_batch,
+            batch_result.dedup_with_existing,
+        )
+        stats.succeeded = len(extracted_ids)
+        for pid in extracted_ids:
+            checkpoint.update(pid, "ingested")
 
-    # 6. Summary
+    # 7. Summary
     await storage.close()
     logger.info(
         "Done: %d succeeded, %d failed, %d skipped (of %d total)",

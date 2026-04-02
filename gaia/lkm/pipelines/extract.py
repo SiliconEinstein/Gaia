@@ -7,8 +7,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from gaia.lkm.core.extract import extract
-from gaia.lkm.core.integrate import IntegrateResult, integrate
+from gaia.lkm.core.extract import ExtractionResult, extract
+from gaia.lkm.core.integrate import (
+    BatchIntegrateResult,
+    IntegrateResult,
+    batch_integrate,
+    integrate,
+)
 from gaia.lkm.storage import StorageManager
 
 
@@ -40,6 +45,18 @@ async def run_extract(
     )
 
 
+async def run_extract_batch(
+    extraction_results: list[ExtractionResult],
+    storage: StorageManager,
+) -> BatchIntegrateResult:
+    """Batch extract+integrate: dedup across papers, then write once.
+
+    Use this instead of multiple run_extract() calls to avoid race conditions
+    and reduce storage queries.
+    """
+    return await batch_integrate(storage, extraction_results)
+
+
 async def run_extract_from_dir(
     paper_dir: str | Path,
     metadata_id: str | None,
@@ -47,13 +64,15 @@ async def run_extract_from_dir(
 ) -> IntegrateResult:
     """Convenience: read XMLs from a directory and run extraction + integration.
 
-    Expects paper_dir to contain: review.xml, reasoning_chain.xml, select_conclusion.xml
+    Expects paper_dir to contain: reasoning_chain.xml, select_conclusion.xml,
+    and optionally review.xml.
     """
     paper_dir = Path(paper_dir)
     if metadata_id is None:
         metadata_id = paper_dir.name
 
-    review_xml = (paper_dir / "review.xml").read_text(encoding="utf-8")
+    review_path = paper_dir / "review.xml"
+    review_xml = review_path.read_text(encoding="utf-8") if review_path.exists() else None
     reasoning_xml = (paper_dir / "reasoning_chain.xml").read_text(encoding="utf-8")
     select_xml = (paper_dir / "select_conclusion.xml").read_text(encoding="utf-8")
 
