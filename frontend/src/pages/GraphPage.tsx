@@ -35,7 +35,7 @@ interface GraphNode {
 interface GraphEdge {
   source: string;
   target: string;
-  type: "premise" | "conclusion";
+  type: "premise" | "conclusion" | "background";
 }
 
 interface GraphData {
@@ -73,11 +73,10 @@ export default function GraphPage() {
   const [data, setData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const transformRef = useRef({ x: 0, y: 0, scale: 1 });
   const dragRef = useRef({
-    dragging: false,
+    active: false,
     startX: 0,
     startY: 0,
     startTx: 0,
@@ -106,18 +105,12 @@ export default function GraphPage() {
   useEffect(() => {
     if (!data || !svgRef.current) return;
     transformRef.current = { x: 0, y: 0, scale: 1 };
-    renderGraph(data, svgRef.current, handleNodeClick);
+    renderGraph(data, svgRef.current, (node) => setSelectedNode(node));
     applyTransform();
   }, [data]);
 
-  const handleNodeClick = useCallback((node: GraphNode) => {
-    setSelectedNode(node);
-  }, []);
-
   const applyTransform = useCallback(() => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    const g = svg.querySelector("#graph-content") as SVGGElement;
+    const g = svgRef.current?.querySelector("#graph-content") as SVGGElement;
     if (!g) return;
     const { x, y, scale } = transformRef.current;
     g.setAttribute("transform", `translate(${x},${y}) scale(${scale})`);
@@ -125,59 +118,50 @@ export default function GraphPage() {
 
   const zoom = useCallback(
     (delta: number) => {
-      const t = transformRef.current;
-      t.scale = Math.max(0.2, Math.min(3, t.scale + delta));
+      transformRef.current.scale = Math.max(
+        0.2,
+        Math.min(3, transformRef.current.scale + delta)
+      );
       applyTransform();
     },
     [applyTransform]
   );
 
-  const resetView = useCallback(() => {
-    transformRef.current = { x: 0, y: 0, scale: 1 };
-    applyTransform();
-  }, [applyTransform]);
-
-  // Wheel zoom
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const handler = (e: WheelEvent) => {
-      e.preventDefault();
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      e.stopPropagation();
       zoom(e.deltaY > 0 ? -0.1 : 0.1);
-    };
-    container.addEventListener("wheel", handler, { passive: false });
-    return () => container.removeEventListener("wheel", handler);
-  }, [zoom]);
+    },
+    [zoom]
+  );
 
-  // Pan drag
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const onDown = (e: MouseEvent) => {
-      if ((e.target as Element)?.closest(".graph-node")) return;
-      dragRef.current = {
-        dragging: true,
-        startX: e.clientX,
-        startY: e.clientY,
-        startTx: transformRef.current.x,
-        startTy: transformRef.current.y,
-      };
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if ((e.target as Element)?.closest(".graph-node")) return;
+    e.preventDefault();
+    dragRef.current = {
+      active: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      startTx: transformRef.current.x,
+      startTy: transformRef.current.y,
     };
+  }, []);
+
+  useEffect(() => {
     const onMove = (e: MouseEvent) => {
-      const d = dragRef.current;
-      if (!d.dragging) return;
-      transformRef.current.x = d.startTx + (e.clientX - d.startX);
-      transformRef.current.y = d.startTy + (e.clientY - d.startY);
+      if (!dragRef.current.active) return;
+      transformRef.current.x =
+        dragRef.current.startTx + (e.clientX - dragRef.current.startX);
+      transformRef.current.y =
+        dragRef.current.startTy + (e.clientY - dragRef.current.startY);
       applyTransform();
     };
     const onUp = () => {
-      dragRef.current.dragging = false;
+      dragRef.current.active = false;
     };
-    container.addEventListener("mousedown", onDown);
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => {
-      container.removeEventListener("mousedown", onDown);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
@@ -270,6 +254,18 @@ export default function GraphPage() {
                   />
                   factor
                 </span>
+                <span>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      width: 20,
+                      borderTop: "2px dashed #52c41a",
+                      marginRight: 4,
+                      verticalAlign: "middle",
+                    }}
+                  />
+                  background
+                </span>
               </div>
             </Card>
           </Col>
@@ -280,22 +276,27 @@ export default function GraphPage() {
         <Spin size="large" />
       ) : (
         <div style={{ display: "flex", gap: 16 }}>
-          {/* Graph area */}
+          {/* Graph */}
           <div
-            ref={containerRef}
             style={{
               flex: 1,
+              minWidth: 0,
               position: "relative",
               border: "1px solid #f0f0f0",
               borderRadius: 8,
               overflow: "hidden",
-              cursor: "grab",
               background: "#fafafa",
-              minHeight: 700,
             }}
           >
-            <svg ref={svgRef} width="100%" height="700" />
-            {/* Floating controls */}
+            <svg
+              ref={svgRef}
+              width="100%"
+              height="700"
+              style={{ cursor: dragRef.current.active ? "grabbing" : "grab" }}
+              onWheel={handleWheel}
+              onMouseDown={handleMouseDown}
+            />
+            {/* Floating zoom controls */}
             <div
               style={{
                 position: "absolute",
@@ -322,7 +323,10 @@ export default function GraphPage() {
               <Button
                 size="small"
                 icon={<ExpandOutlined />}
-                onClick={resetView}
+                onClick={() => {
+                  transformRef.current = { x: 0, y: 0, scale: 1 };
+                  applyTransform();
+                }}
               />
             </div>
           </div>
@@ -350,9 +354,7 @@ export default function GraphPage() {
                 }}
               >
                 <h4 style={{ margin: 0 }}>
-                  {selectedNode.type === "variable"
-                    ? "Variable"
-                    : "Factor"}
+                  {selectedNode.type === "variable" ? "Variable" : "Factor"}
                 </h4>
                 <Button
                   type="text"
@@ -380,7 +382,9 @@ export default function GraphPage() {
                       </Descriptions.Item>
                     )}
                     <Descriptions.Item label="QID">
-                      <code style={{ fontSize: 10, wordBreak: "break-all" }}>
+                      <code
+                        style={{ fontSize: 10, wordBreak: "break-all" }}
+                      >
                         {selectedNode.id}
                       </code>
                     </Descriptions.Item>
@@ -425,6 +429,7 @@ export default function GraphPage() {
                       const edge = connectedEdges.find(
                         (e) => e.source === n.id || e.target === n.id
                       );
+                      const edgeType = edge?.type ?? "";
                       const isInput = edge?.target === selectedNode?.id;
                       return (
                         <List.Item style={{ padding: "4px 0" }}>
@@ -440,8 +445,20 @@ export default function GraphPage() {
                               ? n.label
                               : `[${n.subtype}]`}
                           </span>
-                          <Tag color={isInput ? "green" : "orange"}>
-                            {isInput ? "← in" : "→ out"}
+                          <Tag
+                            color={
+                              edgeType === "background"
+                                ? "cyan"
+                                : isInput
+                                  ? "green"
+                                  : "orange"
+                            }
+                          >
+                            {edgeType === "background"
+                              ? "bg"
+                              : isInput
+                                ? "← in"
+                                : "→ out"}
                           </Tag>
                         </List.Item>
                       );
@@ -481,8 +498,12 @@ function renderGraph(
     });
   }
 
+  // Build edge map for styling
+  const edgeTypeMap = new Map<string, string>();
   for (const edge of data.edges) {
     if (g.hasNode(edge.source) && g.hasNode(edge.target)) {
+      const key = `${edge.source}|${edge.target}`;
+      edgeTypeMap.set(key, edge.type);
       g.setEdge(edge.source, edge.target);
     }
   }
@@ -491,27 +512,29 @@ function renderGraph(
 
   svg.innerHTML = "";
 
-  // Defs
+  // Defs: two arrow markers (solid + dashed)
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-  const marker = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "marker"
-  );
-  marker.setAttribute("id", "arrow");
-  marker.setAttribute("viewBox", "0 0 10 10");
-  marker.setAttribute("refX", "10");
-  marker.setAttribute("refY", "5");
-  marker.setAttribute("markerWidth", "8");
-  marker.setAttribute("markerHeight", "8");
-  marker.setAttribute("orient", "auto");
-  const arrowPath = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "path"
-  );
-  arrowPath.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
-  arrowPath.setAttribute("fill", "#999");
-  marker.appendChild(arrowPath);
-  defs.appendChild(marker);
+  for (const [id, color] of [
+    ["arrow", "#999"],
+    ["arrow-bg", "#52c41a"],
+  ]) {
+    const marker = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "marker"
+    );
+    marker.setAttribute("id", id);
+    marker.setAttribute("viewBox", "0 0 10 10");
+    marker.setAttribute("refX", "10");
+    marker.setAttribute("refY", "5");
+    marker.setAttribute("markerWidth", "8");
+    marker.setAttribute("markerHeight", "8");
+    marker.setAttribute("orient", "auto");
+    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    p.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+    p.setAttribute("fill", color);
+    marker.appendChild(p);
+    defs.appendChild(marker);
+  }
   svg.appendChild(defs);
 
   const contentGroup = document.createElementNS(
@@ -524,15 +547,23 @@ function renderGraph(
   g.edges().forEach((e) => {
     const edge = g.edge(e);
     if (!edge?.points) return;
+    const key = `${e.v}|${e.w}`;
+    const edgeType = edgeTypeMap.get(key) ?? "premise";
+    const isBg = edgeType === "background";
+
     const pathStr = edge.points
       .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
       .join(" ");
     const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
     line.setAttribute("d", pathStr);
-    line.setAttribute("stroke", "#999");
-    line.setAttribute("stroke-width", "1.5");
+    line.setAttribute("stroke", isBg ? "#52c41a" : "#999");
+    line.setAttribute("stroke-width", isBg ? "1.5" : "1.5");
     line.setAttribute("fill", "none");
-    line.setAttribute("marker-end", "url(#arrow)");
+    line.setAttribute("marker-end", isBg ? "url(#arrow-bg)" : "url(#arrow)");
+    if (isBg) {
+      line.setAttribute("stroke-dasharray", "6,4");
+      line.setAttribute("opacity", "0.7");
+    }
     contentGroup.appendChild(line);
   });
 

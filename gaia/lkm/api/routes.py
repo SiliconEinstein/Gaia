@@ -392,6 +392,10 @@ async def get_local_graph(
         for p in lf.premises:
             if p in var_ids:
                 edges.append({"source": p, "target": lf.id, "type": "premise"})
+        if lf.background:
+            for b in lf.background:
+                if b in var_ids:
+                    edges.append({"source": b, "target": lf.id, "type": "background"})
         if lf.conclusion in var_ids:
             edges.append({"source": lf.id, "target": lf.conclusion, "type": "conclusion"})
 
