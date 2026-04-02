@@ -1,6 +1,6 @@
 """Gaia Lang v5 — Strategy functions (reasoning declarations)."""
 
-from gaia.lang.core import Knowledge, Operator, Strategy
+from gaia.lang.runtime import Knowledge, Operator, Strategy
 
 
 def noisy_and(

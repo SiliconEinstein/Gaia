@@ -6,7 +6,7 @@ import hashlib
 import json
 from typing import Any
 
-from gaia.lang.core import Knowledge, Operator, Package, Strategy
+from gaia.lang.runtime import Knowledge, Operator, Package, Strategy
 
 
 def _content_hash(k: Knowledge) -> str:

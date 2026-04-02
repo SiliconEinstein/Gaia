@@ -58,8 +58,8 @@ def compile_command(
         raise typer.Exit(1)
 
     # Find the Package object
-    from gaia.lang.core import Knowledge
-    from gaia.lang.core import Package as GaiaPackage
+    from gaia.lang.runtime import Knowledge
+    from gaia.lang.runtime import Package as GaiaPackage
 
     pkg = None
     for attr in dir(mod):

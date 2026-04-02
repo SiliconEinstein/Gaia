@@ -1,6 +1,6 @@
 """Gaia Lang v5 — Python DSL for knowledge authoring."""
 
-from gaia.lang.core import Knowledge, Operator, Package, Strategy
+from gaia.lang.runtime import Knowledge, Operator, Package, Strategy
 from gaia.lang.operators import complement, contradiction, disjunction, equivalence
 from gaia.lang.strategies import (
     abduction,

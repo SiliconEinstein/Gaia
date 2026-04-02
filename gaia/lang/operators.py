@@ -1,6 +1,6 @@
 """Gaia Lang v5 — Operator functions (deterministic logical constraints)."""
 
-from gaia.lang.core import Knowledge, Operator
+from gaia.lang.runtime import Knowledge, Operator
 
 
 def contradiction(a: Knowledge, b: Knowledge, *, reason: str = "") -> Knowledge:

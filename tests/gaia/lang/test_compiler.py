@@ -114,7 +114,7 @@ def test_formal_internal_helpers_not_marked_as_input():
 
 def test_foreign_knowledge_preserves_identity():
     """Bug fix: imported claims should keep their original identity, not get rewritten."""
-    from gaia.lang.core import Knowledge
+    from gaia.lang.runtime import Knowledge
 
     # Simulate a foreign claim (created outside any Package context)
     foreign_claim = Knowledge(content="Foreign assertion.", type="claim")
