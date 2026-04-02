@@ -32,7 +32,7 @@ The Gaia Official Registry is a **GitHub repository** that serves as the central
                    │                                  │
                    │  GitHub Pages (gh-pages branch)  │
                    │    simple/  (auto-generated)     │
-                   │      gaia-pkg-galileo/           │
+                   │      galileo-falling-bodies-gaia/│
                    │        index.html  (PEP 503)    │
                    └─────────────────────────────────┘
                          ↑                    ↑
@@ -86,8 +86,8 @@ gaia-registry/
 ```toml
 uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 name = "galileo-falling-bodies"
-pypi_name = "gaia-pkg-galileo-falling-bodies"    # Python package name
-repo = "https://github.com/galileo/falling-bodies"
+pypi_name = "galileo-falling-bodies-gaia"    # PyPI name (-gaia suffix)
+repo = "https://github.com/kunyuan/GalileoFallingBodies.gaia"
 description = "Galileo's falling bodies argument"
 created_at = "2026-04-02T10:00:00Z"
 ```
@@ -100,28 +100,28 @@ ir_hash = "sha256:a1b2c3d4..."
 wheel_hash = "sha256:f9e8d7c6..."    # SHA-256 of the .whl file (for PEP 503)
 git_tag = "v4.0.0"
 registered_at = "2026-04-02T10:30:00Z"
-wheel = "gaia_pkg_galileo_falling_bodies-4.0.0-py3-none-any.whl"
+wheel = "galileo_falling_bodies_gaia-4.0.0-py3-none-any.whl"
 
 [versions."4.1.0"]
 ir_hash = "sha256:e5f6g7h8..."
 wheel_hash = "sha256:b5a4c3d2..."
 git_tag = "v4.1.0"
 registered_at = "2026-04-10T15:00:00Z"
-wheel = "gaia_pkg_galileo_falling_bodies-4.1.0-py3-none-any.whl"
+wheel = "galileo_falling_bodies_gaia-4.1.0-py3-none-any.whl"
 ```
 
 **Deps.toml** — dependencies per version (auto-generated from `pyproject.toml` by `gaia register`, verified by CI):
 
 ```toml
 [deps."4.0.0"]
-"gaia-pkg-aristotle-mechanics" = ">= 1.0.0"
+"aristotle-mechanics-gaia" = ">= 1.0.0"
 
 [deps."4.1.0"]
-"gaia-pkg-aristotle-mechanics" = ">= 1.0.0"
-"gaia-pkg-newton-mechanics" = ">= 2.0.0"
+"aristotle-mechanics-gaia" = ">= 1.0.0"
+"newton-mechanics-gaia" = ">= 2.0.0"
 ```
 
-`Deps.toml` is derived from the package's `pyproject.toml` (filtered to `gaia-pkg-*` dependencies only). `gaia register` generates it automatically; CI verifies consistency with the source `pyproject.toml`.
+`Deps.toml` is derived from the package's `pyproject.toml` (filtered to `*-gaia` dependencies only). `gaia register` generates it automatically; CI verifies consistency with the source `pyproject.toml`.
 
 ### 2.2 Global Config
 
@@ -130,7 +130,7 @@ wheel = "gaia_pkg_galileo_falling_bodies-4.1.0-py3-none-any.whl"
 ```toml
 [registry]
 name = "Gaia Official Registry"
-url = "https://gaia-registry.github.io/registry/simple/"
+url = "https://siliconeinstein.github.io/gaia-registry/simple/"
 
 [policy]
 new_package_wait_hours = 72      # 3 days for new packages
@@ -140,7 +140,7 @@ min_review_count = 0             # Phase 1: no reviews required
 
 [index]
 github_pages_branch = "gh-pages"
-releases_repo = "gaia-registry/registry"  # Where wheels are stored as Releases
+releases_repo = "SiliconEinstein/gaia-registry"  # Where wheels are stored as Releases
 ```
 
 ---
@@ -177,7 +177,7 @@ gaia register                     # Creates PR to Registry repo
 PR body template:
 
 ```markdown
-## Register: gaia-pkg-galileo-falling-bodies v4.0.0
+## Register: galileo-falling-bodies-gaia v4.0.0
 
 - **Repository:** https://github.com/galileo/falling-bodies
 - **Tag:** v4.0.0
@@ -188,7 +188,7 @@ PR body template:
 - `air_resistance` — Observed speed differences are caused by air resistance.
 
 ### Dependencies
-- gaia-pkg-aristotle-mechanics >= 1.0.0
+- aristotle-mechanics-gaia >= 1.0.0
 ```
 
 ### 3.3 CI Validation (`register.yml`)
@@ -228,7 +228,7 @@ jobs:
 
       - name: Dependency check
         run: |
-          # Verify all gaia-pkg-* dependencies are registered in this registry
+          # Verify all *-gaia dependencies are registered in this registry
           python scripts/check_deps_registered.py \
             --deps pkg/pyproject.toml \
             --registry packages/
@@ -309,7 +309,7 @@ jobs:
             # Upload wheel as GitHub Release asset (release/ prefix avoids git tag collision)
             gh release create "release/${PKG_NAME}-${VERSION}" \
               $WHEEL_FILE \
-              --repo gaia-registry/registry \
+              --repo SiliconEinstein/gaia-registry \
               --title "${PKG_NAME} ${VERSION}" \
               --notes "Auto-published by registry CI"
 
@@ -369,9 +369,9 @@ GitHub Pages serves a standard [PEP 503](https://peps.python.org/pep-0503/) Simp
 ```
 simple/
 ├── index.html                              # Root: lists all packages
-├── gaia-pkg-galileo-falling-bodies/
+├── galileo-falling-bodies-gaia/
 │   └── index.html                          # Per-package: lists all versions
-├── gaia-pkg-aristotle-mechanics/
+├── aristotle-mechanics-gaia/
 │   └── index.html
 └── ...
 ```
@@ -381,8 +381,8 @@ simple/
 ```html
 <!DOCTYPE html>
 <html><body>
-<a href="/gaia-pkg-galileo-falling-bodies/">gaia-pkg-galileo-falling-bodies</a>
-<a href="/gaia-pkg-aristotle-mechanics/">gaia-pkg-aristotle-mechanics</a>
+<a href="/galileo-falling-bodies-gaia/">galileo-falling-bodies-gaia</a>
+<a href="/aristotle-mechanics-gaia/">aristotle-mechanics-gaia</a>
 </body></html>
 ```
 
@@ -391,11 +391,11 @@ simple/
 ```html
 <!DOCTYPE html>
 <html><body>
-<a href="https://github.com/gaia-registry/registry/releases/download/release/gaia-pkg-galileo-falling-bodies-4.0.0/gaia_pkg_galileo_falling_bodies-4.0.0-py3-none-any.whl#sha256=f9e8d7c6">
-  gaia_pkg_galileo_falling_bodies-4.0.0-py3-none-any.whl
+<a href="https://github.com/SiliconEinstein/gaia-registry/releases/download/release/galileo-falling-bodies-gaia-4.0.0/galileo_falling_bodies_gaia-4.0.0-py3-none-any.whl#sha256=f9e8d7c6">
+  galileo_falling_bodies_gaia-4.0.0-py3-none-any.whl
 </a>
-<a href="https://github.com/gaia-registry/registry/releases/download/release/gaia-pkg-galileo-falling-bodies-4.1.0/gaia_pkg_galileo_falling_bodies-4.1.0-py3-none-any.whl#sha256=b5a4c3d2">
-  gaia_pkg_galileo_falling_bodies-4.1.0-py3-none-any.whl
+<a href="https://github.com/SiliconEinstein/gaia-registry/releases/download/release/galileo-falling-bodies-gaia-4.1.0/galileo_falling_bodies_gaia-4.1.0-py3-none-any.whl#sha256=b5a4c3d2">
+  galileo_falling_bodies_gaia-4.1.0-py3-none-any.whl
 </a>
 </body></html>
 ```
@@ -412,7 +412,7 @@ import re
 import tomllib
 from pathlib import Path
 
-REGISTRY_REPO = "gaia-registry/registry"
+REGISTRY_REPO = "SiliconEinstein/gaia-registry"
 RELEASES_URL = f"https://github.com/{REGISTRY_REPO}/releases/download"
 
 def normalize(name: str) -> str:
@@ -471,20 +471,20 @@ def generate():
 # Consumer's pyproject.toml
 [[tool.uv.index]]
 name = "gaia"
-url = "https://gaia-registry.github.io/registry/simple/"
+url = "https://siliconeinstein.github.io/gaia-registry/simple/"
 ```
 
 ### 5.2 Installing Packages
 
 ```bash
-uv add gaia-pkg-galileo-falling-bodies
-# 1. uv queries https://gaia-registry.github.io/registry/simple/gaia-pkg-galileo-falling-bodies/
+uv add galileo-falling-bodies-gaia
+# 1. uv queries https://siliconeinstein.github.io/gaia-registry/simple/galileo-falling-bodies-gaia/
 # 2. Gets HTML with download links pointing to GitHub Releases
 # 3. Downloads wheel, verifies hash
 # 4. Installs into .venv
 
 # Version pinning works as expected
-uv add "gaia-pkg-galileo-falling-bodies >= 4.0.0, < 5.0.0"
+uv add "galileo-falling-bodies-gaia >= 4.0.0, < 5.0.0"
 ```
 
 ### 5.3 Cross-Package References
@@ -504,7 +504,7 @@ with Package("my_analysis") as pkg:
 ### 6.1 Trust Chain
 
 ```
-Consumer does `uv add gaia-pkg-galileo`
+Consumer does `uv add galileo-falling-bodies-gaia`
     ↓
 uv queries GitHub Pages index (served from gh-pages branch)
     ↓ Only Registry CI (publish.yml) can write to gh-pages
@@ -545,8 +545,8 @@ gaia register                  # Create PR to Registry repo
 gaia register --check          # Dry-run: validate locally before submitting
 
 # Consumer-side (standard uv)
-uv add gaia-pkg-galileo        # Install from registry
-uv add --upgrade gaia-pkg-galileo  # Upgrade to latest
+uv add galileo-falling-bodies-gaia        # Install from registry
+uv add --upgrade galileo-falling-bodies-gaia  # Upgrade to latest
 
 # Registry admin
 gaia registry rebuild-index    # Regenerate full PEP 503 index from metadata
@@ -607,9 +607,9 @@ LKM pulls newly registered packages, runs global inference, publishes belief sna
 # === Author side ===
 
 # Create package
-uv init --lib gaia-pkg-my-research
+uv init --lib my-research-gaia
 uv add gaia-lang
-uv add gaia-pkg-galileo-falling-bodies  # Cross-package dependency
+uv add galileo-falling-bodies-gaia  # Cross-package dependency
 
 # Write knowledge
 cat > my_research/__init__.py << 'EOF'
@@ -636,18 +636,18 @@ git push origin main v1.0.0
 
 # Register
 gaia register
-# → Creates PR to gaia-registry/registry
+# → Creates PR to SiliconEinstein/gaia-registry
 
 # === Registry CI (automatic) ===
 # 1. Clones https://github.com/author/my-research @ v1.0.0
 # 2. gaia compile . → verifies ir_hash
 # 3. gaia check . → schema valid
-# 4. Checks gaia-pkg-galileo-falling-bodies is registered → ✓
+# 4. Checks galileo-falling-bodies-gaia is registered → ✓
 # 5. Labels PR "ci-passed"
 # 6. After 72h waiting period → auto-merge
 # 7. Builds wheel, uploads to GitHub Releases
 # 8. Regenerates PEP 503 index, deploys to GitHub Pages
 
 # === Consumer side ===
-uv add gaia-pkg-my-research    # Just works
+uv add my-research-gaia    # Just works
 ```
