@@ -35,7 +35,7 @@ class TestMergeXmls:
     def test_merge_single(self):
         xml = '<premise name="x">content</premise>'
         result = merge_xmls([xml])
-        assert result == "<inference_unit><premise name=\"x\">content</premise></inference_unit>"
+        assert result == '<inference_unit><premise name="x">content</premise></inference_unit>'
 
     def test_merge_multiple(self):
         xmls = [
@@ -43,12 +43,10 @@ class TestMergeXmls:
             '<?xml version="1.0" encoding="UTF-8"?>\n<!-- comment -->\n<premise id="2">b</premise>',
         ]
         result = merge_xmls(xmls)
-        assert "<premise id=\"1\">a</premise>" in result
-        assert "<premise id=\"2\">b</premise>" in result
+        assert '<premise id="1">a</premise>' in result
+        assert '<premise id="2">b</premise>' in result
         assert "<?xml" not in result
         assert "<!-- comment -->" not in result
 
     def test_merge_empty(self):
         assert merge_xmls([]) == "<inference_unit></inference_unit>"
-
-

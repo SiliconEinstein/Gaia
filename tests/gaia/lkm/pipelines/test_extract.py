@@ -51,7 +51,5 @@ class TestRunExtract:
 
     async def test_from_dir(self, storage):
         """run_extract_from_dir should work with fixture directories."""
-        result = await run_extract_from_dir(
-            PAPERS_DIR / "363056a0", "363056a0", storage
-        )
+        result = await run_extract_from_dir(PAPERS_DIR / "363056a0", "363056a0", storage)
         assert len(result.new_global_variables) > 0
