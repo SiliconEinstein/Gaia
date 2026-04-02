@@ -341,12 +341,13 @@ async def get_local_graph(
     )
     local_factors = [row_to_local_factor(r) for r in factor_rows]
 
-    # Get priors for this package's variables
+    # Get priors and gcn_ids for this package's variables
     prior_map: dict[str, float] = {}
+    gcn_map: dict[str, str] = {}
     for lv in local_vars:
-        # Check if this variable has a prior via its global binding
         binding = await storage.find_canonical_binding(lv.id)
         if binding:
+            gcn_map[lv.id] = binding.global_id
             priors = await storage.get_prior_records(binding.global_id)
             if priors:
                 prior_map[lv.id] = priors[0].value
@@ -364,6 +365,7 @@ async def get_local_graph(
                 "label": label,
                 "content": lv.content[:60] + "..." if len(lv.content) > 60 else lv.content,
                 "prior": prior_map.get(lv.id),
+                "gcn_id": gcn_map.get(lv.id),
             }
         )
 

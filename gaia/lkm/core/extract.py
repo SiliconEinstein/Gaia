@@ -164,7 +164,7 @@ def _extract_reasoning_chain(
                     LocalFactorNode(
                         id=factor_id,
                         factor_type="strategy",
-                        subtype="infer",
+                        subtype="noisy_and",
                         premises=premises,
                         conclusion=qid,
                         steps=steps if steps else None,

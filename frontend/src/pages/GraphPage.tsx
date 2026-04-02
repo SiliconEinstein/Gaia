@@ -11,6 +11,7 @@ interface GraphNode {
   label: string;
   content?: string;
   prior?: number | null;
+  gcn_id?: string;
   factor_type?: string;
 }
 
@@ -238,11 +239,13 @@ export default function GraphPage() {
                 <Descriptions.Item label="Prior">{selectedNode.prior.toFixed(3)}</Descriptions.Item>
               )}
             </Descriptions>
-            <div style={{ marginTop: 16 }}>
-              <Link to={`/variables/${encodeURIComponent(selectedNode.id)}`}>
-                <Button type="link">View in Variables table →</Button>
-              </Link>
-            </div>
+            {selectedNode.gcn_id && (
+              <div style={{ marginTop: 16 }}>
+                <Link to={`/variables/${encodeURIComponent(selectedNode.gcn_id)}`}>
+                  <Button type="link">View in Variables table →</Button>
+                </Link>
+              </div>
+            )}
           </>
         )}
         {selectedNode && selectedNode.type === "factor" && (
