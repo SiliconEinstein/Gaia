@@ -10,7 +10,7 @@ from gaia.lkm.core.integrate import integrate
 from gaia.lkm.core.lower import lower
 from gaia.lkm.models import compute_content_hash
 from gaia.lkm.storage import StorageConfig, StorageManager
-from tests.fixtures.lkm import load_ir, load_package
+from tests.fixtures.lkm import load_ir
 
 
 @pytest.fixture
