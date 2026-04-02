@@ -4,6 +4,8 @@ import {
   NodeIndexOutlined,
   LinkOutlined,
   DashboardOutlined,
+  ExperimentOutlined,
+  ApartmentOutlined,
 } from "@ant-design/icons";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import StatsPage from "./pages/StatsPage";
@@ -12,6 +14,8 @@ import VariableDetailPage from "./pages/VariableDetailPage";
 import FactorsPage from "./pages/FactorsPage";
 import FactorDetailPage from "./pages/FactorDetailPage";
 import BindingsPage from "./pages/BindingsPage";
+import PriorsPage from "./pages/PriorsPage";
+import GraphPage from "./pages/GraphPage";
 
 const { Header, Content, Sider } = Layout;
 
@@ -20,6 +24,8 @@ const menuItems = [
   { key: "/variables", icon: <DatabaseOutlined />, label: "Variables" },
   { key: "/factors", icon: <NodeIndexOutlined />, label: "Factors" },
   { key: "/bindings", icon: <LinkOutlined />, label: "Bindings" },
+  { key: "/priors", icon: <ExperimentOutlined />, label: "Priors" },
+  { key: "/graph", icon: <ApartmentOutlined />, label: "Graph" },
 ];
 
 export default function App() {
@@ -71,6 +77,8 @@ export default function App() {
             <Route path="/factors" element={<FactorsPage />} />
             <Route path="/factors/:id" element={<FactorDetailPage />} />
             <Route path="/bindings" element={<BindingsPage />} />
+            <Route path="/priors" element={<PriorsPage />} />
+            <Route path="/graph" element={<GraphPage />} />
           </Routes>
         </Content>
       </Layout>

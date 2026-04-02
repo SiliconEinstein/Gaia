@@ -1,7 +1,7 @@
 """Tests for Knowledge data model."""
 
 import pytest
-from gaia.gaia_ir import Knowledge, KnowledgeType, Parameter, LocalCanonicalRef, PackageRef
+from gaia.gaia_ir import Knowledge, KnowledgeType, Parameter, PackageRef
 from gaia.gaia_ir.knowledge import make_qid, is_qid
 
 
@@ -57,10 +57,6 @@ class TestKnowledgeCreation:
         assert k.id == "reg:pkg::x"
         assert k.label == "x"
 
-    def test_explicit_global_id(self):
-        k = Knowledge(id="gcn_abc123", type=KnowledgeType.CLAIM)
-        assert k.id == "gcn_abc123"
-
     def test_label_only_defers_id(self):
         """Knowledge with label but no id — id assigned later by graph."""
         k = Knowledge(label="x", type=KnowledgeType.CLAIM, content="test")
@@ -107,20 +103,17 @@ class TestKnowledgeCreation:
         k2 = Knowledge(id="reg:pkg::b", type="setting", content="X", label="b")
         assert k1.content_hash != k2.content_hash
 
-    def test_global_no_content_no_hash(self):
-        k = Knowledge(id="gcn_abc", type="claim")
-        assert k.content_hash is None
-
 
 class TestKnowledgeParameters:
     def test_closed_claim_empty_params(self):
-        k = Knowledge(id="gcn_1", type="claim", parameters=[])
+        k = Knowledge(id="reg:test::k1", type="claim", content="test", parameters=[])
         assert k.parameters == []
 
     def test_universal_claim_with_params(self):
         k = Knowledge(
-            id="gcn_2",
+            id="reg:test::k2",
             type="claim",
+            content="P({x})",
             parameters=[Parameter(name="x", type="material")],
         )
         assert len(k.parameters) == 1
@@ -148,35 +141,14 @@ class TestKnowledgeLocalGlobal:
         )
         assert k.id == "reg:pkg::vacuum_prediction"
         assert k.label == "vacuum_prediction"
-        assert k.representative_lcn is None
-
-    def test_global_knowledge(self):
-        k = Knowledge(
-            id="gcn_abc123",
-            type="claim",
-            representative_lcn=LocalCanonicalRef(
-                local_canonical_id="reg:pkg::x",
-                package_id="pkg",
-                version="1.0",
-            ),
-        )
-        assert k.content is None
-        assert k.representative_lcn.local_canonical_id == "reg:pkg::x"
-
-    def test_global_with_explicit_content_hash(self):
-        k = Knowledge(id="gcn_abc123", type="claim", content_hash="abcd1234" * 8)
-        assert k.content_hash == "abcd1234" * 8
-
-    def test_global_with_direct_content(self):
-        k = Knowledge(id="gcn_direct", type="claim", content="conjunction result")
-        assert k.content == "conjunction result"
 
 
 class TestKnowledgeMetadata:
     def test_metadata_refs(self):
         k = Knowledge(
-            id="gcn_1",
+            id="reg:test::k1",
             type="claim",
-            metadata={"refs": ["gcn_2", "gcn_3"]},
+            content="test",
+            metadata={"refs": ["reg:test::k2", "reg:test::k3"]},
         )
-        assert k.metadata["refs"] == ["gcn_2", "gcn_3"]
+        assert k.metadata["refs"] == ["reg:test::k2", "reg:test::k3"]

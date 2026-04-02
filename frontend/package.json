@@ -10,8 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ant-design/graphs": "^2.1.1",
     "@ant-design/icons": "^6.1.1",
+    "@types/dagre": "^0.7.54",
     "antd": "^6.3.5",
+    "dagre": "^0.8.5",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.2"

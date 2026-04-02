@@ -3,8 +3,7 @@
 Three entities: Knowledge (propositions), Operator (deterministic constraints),
 Strategy (reasoning declarations with three forms).
 
-Parameterization (probability parameters) and BeliefState (BP output) act on
-GlobalCanonicalGraph. CanonicalBinding tracks local→global mapping.
+Parameterization (probability parameters) acts on LocalCanonicalGraph.
 
 Spec: docs/foundations/gaia-ir/
 """
@@ -12,7 +11,6 @@ Spec: docs/foundations/gaia-ir/
 from gaia.gaia_ir.knowledge import (
     Knowledge,
     KnowledgeType,
-    LocalCanonicalRef,
     PackageRef,
     Parameter,
     make_qid,
@@ -26,7 +24,7 @@ from gaia.gaia_ir.strategy import (
     Strategy,
     StrategyType,
 )
-from gaia.gaia_ir.graphs import GlobalCanonicalGraph, LocalCanonicalGraph
+from gaia.gaia_ir.graphs import LocalCanonicalGraph
 from gaia.gaia_ir.formalize import FormalizationResult, formalize_named_strategy
 from gaia.gaia_ir.parameterization import (
     CROMWELL_EPS,
@@ -35,14 +33,11 @@ from gaia.gaia_ir.parameterization import (
     ResolutionPolicy,
     StrategyParamRecord,
 )
-from gaia.gaia_ir.belief_state import BeliefState
-from gaia.gaia_ir.binding import BindingDecision, CanonicalBinding
 
 __all__ = [
     # Knowledge
     "Knowledge",
     "KnowledgeType",
-    "LocalCanonicalRef",
     "PackageRef",
     "Parameter",
     "make_qid",
@@ -57,7 +52,6 @@ __all__ = [
     "Strategy",
     "StrategyType",
     # Graphs
-    "GlobalCanonicalGraph",
     "LocalCanonicalGraph",
     # Formalization
     "FormalizationResult",
@@ -68,9 +62,4 @@ __all__ = [
     "PriorRecord",
     "ResolutionPolicy",
     "StrategyParamRecord",
-    # BeliefState
-    "BeliefState",
-    # Binding
-    "BindingDecision",
-    "CanonicalBinding",
 ]

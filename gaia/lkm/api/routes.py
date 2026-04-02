@@ -234,6 +234,50 @@ async def list_bindings(
     return [b.model_dump() for b in bindings]
 
 
+@router.get("/priors")
+async def list_priors(
+    limit: int = 200,
+    storage: StorageManager = Depends(get_storage),
+):
+    """List all prior records."""
+    from gaia.lkm.storage._serialization import row_to_prior
+
+    table = storage.content._db.open_table("prior_records")
+    results = await storage.content._run(lambda: table.search().limit(limit).to_list())
+    priors = [row_to_prior(r) for r in results]
+
+    # Resolve variable content for display
+    out = []
+    for pr in priors:
+        gv = await storage.get_global_variable(pr.variable_id)
+        content = None
+        if gv:
+            local = await storage.get_local_variable(gv.representative_lcn.local_id)
+            content = local.content if local else None
+        out.append(
+            {
+                "variable_id": pr.variable_id,
+                "value": pr.value,
+                "source_id": pr.source_id,
+                "created_at": pr.created_at.isoformat(),
+                "content": content,
+            }
+        )
+    return out
+
+
+@router.get("/param-sources")
+async def list_param_sources(
+    storage: StorageManager = Depends(get_storage),
+):
+    """List all parameterization sources."""
+    from gaia.lkm.storage._serialization import row_to_param_source
+
+    table = storage.content._db.open_table("param_sources")
+    results = await storage.content._run(lambda: table.search().limit(100).to_list())
+    return [row_to_param_source(r).model_dump() for r in results]
+
+
 @router.get("/graph")
 async def get_graph(
     storage: StorageManager = Depends(get_storage),
@@ -271,3 +315,105 @@ async def get_graph(
         edges.append({"source": gf.id, "target": gf.conclusion, "type": "conclusion"})
 
     return {"nodes": nodes, "edges": edges}
+
+
+@router.get("/graph/local/{source_package}")
+async def get_local_graph(
+    source_package: str,
+    storage: StorageManager = Depends(get_storage),
+):
+    """Get a local graph for a specific package — variables + factors + edges."""
+    local_vars = await storage.content.get_local_variables_by_package(source_package)
+    from gaia.lkm.storage._serialization import row_to_local_factor
+
+    # Get local factors for this package
+    table = storage.content._db.open_table("local_factor_nodes")
+    from gaia.lkm.storage._serialization import _q
+
+    escaped = _q(source_package)
+    factor_rows = await storage.content._run(
+        lambda: (
+            table.search()
+            .where(f"source_package = '{escaped}' AND ingest_status = 'merged'")
+            .limit(10000)
+            .to_list()
+        )
+    )
+    local_factors = [row_to_local_factor(r) for r in factor_rows]
+
+    # Get priors and gcn_ids for this package's variables
+    prior_map: dict[str, float] = {}
+    gcn_map: dict[str, str] = {}
+    for lv in local_vars:
+        binding = await storage.find_canonical_binding(lv.id)
+        if binding:
+            gcn_map[lv.id] = binding.global_id
+            priors = await storage.get_prior_records(binding.global_id)
+            if priors:
+                prior_map[lv.id] = priors[0].value
+
+    # Build graph
+    nodes = []
+    var_ids = {lv.id for lv in local_vars}
+    for lv in local_vars:
+        label = lv.id.split("::")[-1] if "::" in lv.id else lv.id
+        nodes.append(
+            {
+                "id": lv.id,
+                "type": "variable",
+                "subtype": lv.type,
+                "label": label,
+                "content": lv.content[:60] + "..." if len(lv.content) > 60 else lv.content,
+                "prior": prior_map.get(lv.id),
+                "gcn_id": gcn_map.get(lv.id),
+            }
+        )
+
+    edges = []
+    for lf in local_factors:
+        # Factor symbol
+        symbol = {
+            "noisy_and": "∧",
+            "infer": "→",
+            "contradiction": "⊗",
+            "deduction": "⊢",
+            "equivalence": "≡",
+            "implication": "⇒",
+        }.get(lf.subtype, "f")
+        nodes.append(
+            {
+                "id": lf.id,
+                "type": "factor",
+                "subtype": lf.subtype,
+                "factor_type": lf.factor_type,
+                "label": symbol,
+            }
+        )
+        for p in lf.premises:
+            if p in var_ids:
+                edges.append({"source": p, "target": lf.id, "type": "premise"})
+        if lf.background:
+            for b in lf.background:
+                if b in var_ids:
+                    edges.append({"source": b, "target": lf.id, "type": "background"})
+        if lf.conclusion in var_ids:
+            edges.append({"source": lf.id, "target": lf.conclusion, "type": "conclusion"})
+
+    return {"package_id": source_package, "nodes": nodes, "edges": edges}
+
+
+@router.get("/packages")
+async def list_packages(
+    storage: StorageManager = Depends(get_storage),
+):
+    """List all ingested packages (distinct source_package values)."""
+
+    table = storage.content._db.open_table("local_variable_nodes")
+    rows = await storage.content._run(
+        lambda: table.search().where("ingest_status = 'merged'").limit(100000).to_list()
+    )
+    packages = {}
+    for r in rows:
+        pkg = r["source_package"]
+        packages[pkg] = packages.get(pkg, 0) + 1
+    return [{"package_id": k, "variable_count": v} for k, v in sorted(packages.items())]

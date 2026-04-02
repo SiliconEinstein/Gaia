@@ -1,4 +1,4 @@
-"""Parameterization — probability parameters on GlobalCanonicalGraph.
+"""Parameterization — probability parameters for Gaia IR graphs.
 
 Implements docs/foundations/gaia-ir/parameterization.md.
 """
@@ -19,13 +19,13 @@ def _clamp(value: float) -> float:
 
 
 class PriorRecord(BaseModel):
-    """Prior probability for a global claim Knowledge.
+    """Prior probability for a claim Knowledge.
 
     Only type=claim Knowledge has PriorRecord. Values are Cromwell-clamped.
-    Multiple records for the same gcn_id may exist from different sources.
+    Multiple records for the same knowledge_id may exist from different sources.
     """
 
-    gcn_id: str
+    knowledge_id: str
     value: float
     source_id: str
     created_at: datetime = None  # type: ignore[assignment]
@@ -37,7 +37,7 @@ class PriorRecord(BaseModel):
 
 
 class StrategyParamRecord(BaseModel):
-    """Conditional probability parameters for a global Strategy.
+    """Conditional probability parameters for a Strategy.
 
     Only parameterized strategies need StrategyParamRecord:
     - infer: 2^k values (full CPT, one per premise truth-value combination)
@@ -49,7 +49,7 @@ class StrategyParamRecord(BaseModel):
     All values are Cromwell-clamped.
     """
 
-    strategy_id: str  # gcs_ prefix
+    strategy_id: str  # lcs_ prefix
     conditional_probabilities: list[float]
     source_id: str
     created_at: datetime = None  # type: ignore[assignment]

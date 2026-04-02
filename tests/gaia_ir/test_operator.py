@@ -137,14 +137,14 @@ class TestConclusionRequired:
 class TestOperatorScope:
     def test_standalone_with_id(self):
         op = Operator(
-            operator_id="gco_abc",
-            scope="global",
+            operator_id="lco_abc",
+            scope="local",
             operator="equivalence",
-            variables=["gcn_a", "gcn_b"],
-            conclusion="gcn_h",
+            variables=["reg:test::a", "reg:test::b"],
+            conclusion="reg:test::h",
         )
-        assert op.operator_id == "gco_abc"
-        assert op.scope == "global"
+        assert op.operator_id == "lco_abc"
+        assert op.scope == "local"
 
     def test_embedded_no_scope(self):
         """Operators inside FormalExpr don't need scope or id."""
@@ -156,21 +156,15 @@ class TestOperatorScope:
         with pytest.raises(ValueError, match="scope must be one of"):
             Operator(scope="detached", operator="equivalence", variables=["a", "b"], conclusion="h")
 
+    def test_global_scope_rejected(self):
+        with pytest.raises(ValueError, match="scope must be one of"):
+            Operator(scope="global", operator="equivalence", variables=["a", "b"], conclusion="h")
+
     def test_local_scope_requires_lco_prefix(self):
         with pytest.raises(ValueError, match="lco_ prefix"):
             Operator(
                 operator_id="gco_wrong",
                 scope="local",
-                operator="equivalence",
-                variables=["a", "b"],
-                conclusion="h",
-            )
-
-    def test_global_scope_requires_gco_prefix(self):
-        with pytest.raises(ValueError, match="gco_ prefix"):
-            Operator(
-                operator_id="lco_wrong",
-                scope="global",
                 operator="equivalence",
                 variables=["a", "b"],
                 conclusion="h",

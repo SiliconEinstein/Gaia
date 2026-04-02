@@ -17,25 +17,25 @@ class TestCromwellEps:
 
 class TestPriorRecord:
     def test_creation(self):
-        r = PriorRecord(gcn_id="gcn_abc", value=0.7, source_id="src_001")
-        assert r.gcn_id == "gcn_abc"
+        r = PriorRecord(knowledge_id="reg:test::abc", value=0.7, source_id="src_001")
+        assert r.knowledge_id == "reg:test::abc"
         assert r.value == 0.7
         assert r.created_at is not None
 
     def test_cromwell_clamp_low(self):
-        r = PriorRecord(gcn_id="gcn_1", value=0.0, source_id="s")
+        r = PriorRecord(knowledge_id="reg:test::k1", value=0.0, source_id="s")
         assert r.value == CROMWELL_EPS
 
     def test_cromwell_clamp_high(self):
-        r = PriorRecord(gcn_id="gcn_1", value=1.0, source_id="s")
+        r = PriorRecord(knowledge_id="reg:test::k1", value=1.0, source_id="s")
         assert r.value == 1 - CROMWELL_EPS
 
     def test_negative_clamped(self):
-        r = PriorRecord(gcn_id="gcn_1", value=-0.5, source_id="s")
+        r = PriorRecord(knowledge_id="reg:test::k1", value=-0.5, source_id="s")
         assert r.value == CROMWELL_EPS
 
     def test_in_range_unchanged(self):
-        r = PriorRecord(gcn_id="gcn_1", value=0.5, source_id="s")
+        r = PriorRecord(knowledge_id="reg:test::k1", value=0.5, source_id="s")
         assert r.value == 0.5
 
 
@@ -43,7 +43,7 @@ class TestStrategyParamRecord:
     def test_single_param(self):
         """noisy_and: single conditional probability."""
         r = StrategyParamRecord(
-            strategy_id="gcs_abc",
+            strategy_id="lcs_abc",
             conditional_probabilities=[0.85],
             source_id="src_001",
         )
@@ -52,7 +52,7 @@ class TestStrategyParamRecord:
     def test_multi_param_cpt(self):
         """infer with 2 premises: 2^2 = 4 parameters."""
         r = StrategyParamRecord(
-            strategy_id="gcs_abc",
+            strategy_id="lcs_abc",
             conditional_probabilities=[0.9, 0.3, 0.4, 0.1],
             source_id="src_001",
         )
@@ -60,7 +60,7 @@ class TestStrategyParamRecord:
 
     def test_cromwell_clamping(self):
         r = StrategyParamRecord(
-            strategy_id="gcs_1",
+            strategy_id="lcs_1",
             conditional_probabilities=[0.0, 1.0],
             source_id="s",
         )
@@ -69,7 +69,7 @@ class TestStrategyParamRecord:
 
     def test_auto_timestamp(self):
         r = StrategyParamRecord(
-            strategy_id="gcs_1",
+            strategy_id="lcs_1",
             conditional_probabilities=[0.5],
             source_id="s",
         )

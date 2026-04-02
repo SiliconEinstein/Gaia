@@ -44,8 +44,13 @@ class TestStrategyType:
         with pytest.raises(ValueError):
             StrategyType("soft_implication")
 
-    def test_no_independent_evidence(self):
-        """independent_evidence uses Operator(equivalence) per spec."""
+    def test_binding_deferred(self):
+        """binding is deferred outside Gaia IR core."""
+        with pytest.raises(ValueError):
+            StrategyType("binding")
+
+    def test_independent_evidence_deferred(self):
+        """independent_evidence is deferred outside Gaia IR core."""
         with pytest.raises(ValueError):
             StrategyType("independent_evidence")
 
@@ -63,9 +68,9 @@ class TestStrategyCreation:
         assert s.strategy_id.startswith("lcs_")
         assert s.type == StrategyType.NOISY_AND
 
-    def test_global_strategy(self):
-        s = Strategy(scope="global", type="infer", premises=["gcn_a"], conclusion="gcn_b")
-        assert s.strategy_id.startswith("gcs_")
+    def test_global_scope_rejected(self):
+        with pytest.raises(ValueError, match="scope must be 'local'"):
+            Strategy(scope="global", type="infer", premises=["gcn_a"], conclusion="gcn_b")
 
     def test_auto_id_deterministic(self):
         s1 = Strategy(scope="local", type="infer", premises=["a", "b"], conclusion="c")
@@ -98,24 +103,16 @@ class TestStrategyCreation:
         assert len(s.steps) == 1
 
     def test_invalid_scope_rejected(self):
-        with pytest.raises(ValueError, match="scope must be one of"):
+        with pytest.raises(ValueError, match="scope must be 'local'"):
             Strategy(scope="detached", type="infer", premises=["a"], conclusion="b")
-
-    def test_global_steps_rejected(self):
-        with pytest.raises(ValueError, match="must not carry steps"):
-            Strategy(
-                scope="global",
-                type="infer",
-                premises=["gcn_a"],
-                conclusion="gcn_b",
-                steps=[Step(reasoning="should stay local")],
-            )
 
     def test_leaf_allows_named_strategy_type(self):
         """Per §3.5.1, named strategies can exist as leaf before formalization."""
-        s = Strategy(scope="global", type="deduction", premises=["gcn_a"], conclusion="gcn_b")
+        s = Strategy(
+            scope="local", type="deduction", premises=["reg:test::a"], conclusion="reg:test::b"
+        )
         assert s.type == StrategyType.DEDUCTION
-        assert s.strategy_id.startswith("gcs_")
+        assert s.strategy_id.startswith("lcs_")
 
     def test_leaf_structure_hash_empty(self):
         """Leaf strategies have empty structure hash."""
@@ -126,23 +123,23 @@ class TestStrategyCreation:
 class TestCompositeStrategy:
     def test_creation_with_string_refs(self):
         cs = CompositeStrategy(
-            scope="global",
+            scope="local",
             type="abduction",
-            premises=["gcn_obs"],
-            conclusion="gcn_h",
-            sub_strategies=["gcs_abc123", "gcs_def456"],
+            premises=["reg:test::obs"],
+            conclusion="reg:test::h",
+            sub_strategies=["lcs_abc123", "lcs_def456"],
         )
         assert len(cs.sub_strategies) == 2
-        assert cs.sub_strategies[0] == "gcs_abc123"
+        assert cs.sub_strategies[0] == "lcs_abc123"
         assert isinstance(cs, Strategy)
 
     def test_empty_sub_strategies_rejected(self):
         with pytest.raises(ValueError, match="at least one"):
             CompositeStrategy(
-                scope="global",
+                scope="local",
                 type="abduction",
-                premises=["gcn_a"],
-                conclusion="gcn_b",
+                premises=["reg:test::a"],
+                conclusion="reg:test::b",
                 sub_strategies=[],
             )
 
@@ -150,29 +147,29 @@ class TestCompositeStrategy:
         """CompositeStrategy is a generic container -- any type is valid."""
         for type_ in StrategyType:
             cs = CompositeStrategy(
-                scope="global",
+                scope="local",
                 type=type_,
-                premises=["gcn_a"],
-                conclusion="gcn_b",
-                sub_strategies=["gcs_abc123"],
+                premises=["reg:test::a"],
+                conclusion="reg:test::b",
+                sub_strategies=["lcs_abc123"],
             )
             assert cs.type == type_
 
     def test_structure_hash_from_sorted_sub_strategies(self):
         """structure_hash is based on sorted sub_strategy IDs."""
         cs1 = CompositeStrategy(
-            scope="global",
+            scope="local",
             type="infer",
             premises=["a"],
             conclusion="b",
-            sub_strategies=["gcs_x", "gcs_y"],
+            sub_strategies=["lcs_x", "lcs_y"],
         )
         cs2 = CompositeStrategy(
-            scope="global",
+            scope="local",
             type="infer",
             premises=["a"],
             conclusion="b",
-            sub_strategies=["gcs_y", "gcs_x"],
+            sub_strategies=["lcs_y", "lcs_x"],
         )
         # Same sorted sub_strategies => same ID
         assert cs1.strategy_id == cs2.strategy_id
@@ -180,18 +177,18 @@ class TestCompositeStrategy:
     def test_different_sub_strategies_different_id(self):
         """Different sub_strategies produce different strategy IDs."""
         cs1 = CompositeStrategy(
-            scope="global",
+            scope="local",
             type="infer",
             premises=["a"],
             conclusion="b",
-            sub_strategies=["gcs_x"],
+            sub_strategies=["lcs_x"],
         )
         cs2 = CompositeStrategy(
-            scope="global",
+            scope="local",
             type="infer",
             premises=["a"],
             conclusion="b",
-            sub_strategies=["gcs_z"],
+            sub_strategies=["lcs_z"],
         )
         assert cs1.strategy_id != cs2.strategy_id
 
@@ -266,60 +263,66 @@ class TestFormalStrategy:
     def test_abduction_is_formal(self):
         """Named leaf strategies can be formalized into canonical FormalStrategy skeletons."""
         leaf = Strategy(
-            scope="global",
+            scope="local",
             type="abduction",
-            premises=["gcn_obs"],
-            conclusion="gcn_h",
+            premises=["reg:test::obs"],
+            conclusion="reg:test::h",
         )
-        result = leaf.formalize()
+        result = leaf.formalize(namespace="reg", package_name="test")
         assert result.strategy.type == StrategyType.ABDUCTION
         assert len(result.strategy.formal_expr.operators) == 2
         assert len(result.strategy.premises) == 2
-        assert result.strategy.metadata["interface_roles"]["observation"] == ["gcn_obs"]
+        assert result.strategy.metadata["interface_roles"]["observation"] == ["reg:test::obs"]
         assert result.strategy.metadata["interface_roles"]["alternative_explanation"] == [
             result.strategy.premises[1]
         ]
 
     def test_reductio_formalization_deferred(self):
         leaf = Strategy(
-            scope="global",
+            scope="local",
             type="reductio",
-            premises=["gcn_r"],
-            conclusion="gcn_not_p",
+            premises=["reg:test::r"],
+            conclusion="reg:test::not_p",
         )
         with pytest.raises(ValueError, match="reductio is deferred in Gaia IR core"):
-            leaf.formalize()
+            leaf.formalize(namespace="reg", package_name="test")
 
     def test_case_analysis_open_world_deferred(self):
         leaf = Strategy(
-            scope="global",
+            scope="local",
             type="case_analysis",
-            premises=["gcn_exhaustive", "gcn_a1", "gcn_p1", "gcn_a2", "gcn_p2"],
-            conclusion="gcn_c",
+            premises=[
+                "reg:test::exhaustive",
+                "reg:test::a1",
+                "reg:test::p1",
+                "reg:test::a2",
+                "reg:test::p2",
+            ],
+            conclusion="reg:test::c",
             metadata={"include_other_relevant_case": True},
         )
         with pytest.raises(ValueError, match="open-world case_analysis is deferred"):
-            leaf.formalize()
+            leaf.formalize(namespace="reg", package_name="test")
 
     def test_analogy_is_formal(self):
         leaf = Strategy(
-            scope="global",
+            scope="local",
             type="analogy",
-            premises=["gcn_source_law", "gcn_bridge"],
-            conclusion="gcn_target",
+            premises=["reg:test::source_law", "reg:test::bridge"],
+            conclusion="reg:test::target",
         )
-        result = leaf.formalize()
+        result = leaf.formalize(namespace="reg", package_name="test")
         assert result.strategy.type == StrategyType.ANALOGY
         assert len(result.strategy.formal_expr.operators) == 2
 
     def test_extrapolation_is_formal(self):
         leaf = Strategy(
-            scope="global",
+            scope="local",
             type="extrapolation",
-            premises=["gcn_known_law", "gcn_continuity"],
-            conclusion="gcn_extended",
+            premises=["reg:test::known_law", "reg:test::continuity"],
+            conclusion="reg:test::extended",
         )
-        result = leaf.formalize()
+        result = leaf.formalize(namespace="reg", package_name="test")
         assert result.strategy.type == StrategyType.EXTRAPOLATION
         assert len(result.strategy.formal_expr.operators) == 2
 
