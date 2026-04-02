@@ -60,21 +60,20 @@ The Gaia Official Registry is a **GitHub repository** that serves as the central
 
 ```
 gaia-registry/
-├── packages/
+├── packages/                     # Package metadata (changes here trigger publish.yml)
 │   ├── galileo-falling-bodies/
 │   │   ├── Package.toml
-│   │   ├── Versions.toml
+│   │   ├── Versions.toml         # Includes git_sha pinned at validation time
 │   │   └── Deps.toml
 │   ├── aristotle-mechanics/
-│   │   ├── Package.toml
-│   │   ├── Versions.toml
-│   │   └── Deps.toml
+│   │   └── ...
 │   └── ...
+├── metadata/                     # Post-publish data (does NOT trigger publish.yml)
+│   └── wheel-hashes.toml         # wheel_hash records, written by trusted publisher
 ├── .github/
 │   └── workflows/
-│       ├── register.yml          # PR validation
-│       ├── publish.yml           # Build wheel + upload to Releases + update index
-│       └── index.yml             # Regenerate full PEP 503 index
+│       ├── register.yml          # PR validation (sandbox + trusted gate)
+│       └── publish.yml           # Build + publish (untrusted builder + trusted publisher)
 ├── registry.toml                 # Global registry config
 └── README.md
 ```
@@ -99,6 +98,7 @@ created_at = "2026-04-02T10:00:00Z"
 ir_hash = "sha256:a1b2c3d4..."
 wheel_hash = "sha256:f9e8d7c6..."    # SHA-256 of the .whl file (for PEP 503)
 git_tag = "v4.0.0"
+git_sha = "abc123def456..."           # Immutable commit SHA — pinned at validation time
 registered_at = "2026-04-02T10:30:00Z"
 wheel = "galileo_falling_bodies_gaia-4.0.0-py3-none-any.whl"
 
@@ -106,6 +106,7 @@ wheel = "galileo_falling_bodies_gaia-4.0.0-py3-none-any.whl"
 ir_hash = "sha256:e5f6g7h8..."
 wheel_hash = "sha256:b5a4c3d2..."
 git_tag = "v4.1.0"
+git_sha = "789abc012def..."
 registered_at = "2026-04-10T15:00:00Z"
 wheel = "galileo_falling_bodies_gaia-4.1.0-py3-none-any.whl"
 ```
@@ -193,6 +194,10 @@ PR body template:
 
 ### 3.3 CI Validation (`register.yml`)
 
+Two jobs: an **untrusted sandbox** (no write permissions) that executes author code, and a **trusted gate** (no code execution) that records results.
+
+> **Security design:** `gaia compile` executes author Python code via `importlib.import_module()`. This MUST run in a job with no write credentials. The trusted gate job only reads validation artifacts — it never touches third-party code.
+
 ```yaml
 name: Validate Registration
 on:
@@ -200,8 +205,12 @@ on:
     paths: ['packages/**']
 
 jobs:
-  validate:
+  # ── Job 1: Untrusted sandbox (NO write permissions) ──
+  # Executes author code in isolation. Cannot modify registry.
+  sandbox-validate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read         # Read-only: no write to releases/pages
     steps:
       - uses: actions/checkout@v4
 
@@ -209,18 +218,26 @@ jobs:
         id: parse
         run: python scripts/parse_registration_pr.py
 
-      - name: Clone package repo
-        run: git clone ${{ steps.parse.outputs.repo_url }} pkg
-             && cd pkg && git checkout ${{ steps.parse.outputs.git_tag }}
+      - name: Clone and pin to immutable commit SHA
+        id: pin
+        run: |
+          git clone ${{ steps.parse.outputs.repo_url }} pkg
+          cd pkg && git checkout ${{ steps.parse.outputs.git_tag }}
+          # Record the resolved commit SHA (immutable, unlike tags)
+          echo "git_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          # Verify tag points to declared SHA (if PR includes git_sha)
+          if [ -n "${{ steps.parse.outputs.git_sha }}" ]; then
+            [ "$(git rev-parse HEAD)" = "${{ steps.parse.outputs.git_sha }}" ] \
+              || { echo "ERROR: tag moved since registration!"; exit 1; }
+          fi
 
       - name: Install gaia-lang
         run: uv sync
 
-      - name: Reproducible build
+      - name: Reproducible build (executes author code — sandboxed)
         run: |
           cd pkg
           gaia compile .
-          # Verify ir_hash matches what author declared
           diff <(cat .gaia/ir_hash) <(echo "${{ steps.parse.outputs.ir_hash }}")
 
       - name: Schema validation
@@ -228,35 +245,54 @@ jobs:
 
       - name: Dependency check
         run: |
-          # Verify all *-gaia dependencies are registered in this registry
           python scripts/check_deps_registered.py \
             --deps pkg/pyproject.toml \
             --registry packages/
 
+    outputs:
+      git_sha: ${{ steps.pin.outputs.git_sha }}
+
+  # ── Job 2: Trusted gate (has label/merge permissions, NO code execution) ──
+  trusted-gate:
+    needs: sandbox-validate
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write   # For labeling/merging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse registration PR
+        id: parse
+        run: python scripts/parse_registration_pr.py
+
       - name: UUID uniqueness check
         run: |
-          # Verify UUID is not already taken by a different package
           python scripts/check_uuid_unique.py \
             --package ${{ steps.parse.outputs.package_name }} \
             --registry packages/
 
       - name: Repository ownership check
         run: |
-          # Verify PR author has write access to the declared repository
           gh api repos/${{ steps.parse.outputs.repo_owner_and_name }}/collaborators/${{ github.event.pull_request.user.login }}/permission \
             --jq '.permission' | grep -qE 'admin|write'
 
-      - name: Label and schedule auto-merge
-        if: success()
+      - name: Record pinned git_sha in PR
         run: |
-          # Determine waiting period
+          echo "Validated commit: ${{ needs.sandbox-validate.outputs.git_sha }}"
+          # Write git_sha into Versions.toml if not already present
+          python scripts/pin_git_sha.py \
+            --package ${{ steps.parse.outputs.package_name }} \
+            --version ${{ steps.parse.outputs.version }} \
+            --sha ${{ needs.sandbox-validate.outputs.git_sha }}
+
+      - name: Label and schedule auto-merge
+        run: |
           if [ "${{ steps.parse.outputs.is_new_package }}" = "true" ]; then
             WAIT_HOURS=72
           else
             WAIT_HOURS=1
           fi
           gh pr label ${{ github.event.pull_request.number }} --add "ci-passed"
-          # Custom bot/action enforces waiting period before merge
           python scripts/schedule_auto_merge.py \
             --pr ${{ github.event.pull_request.number }} \
             --wait-hours $WAIT_HOURS
@@ -264,66 +300,104 @@ jobs:
 
 ### 3.4 Build & Publish (`publish.yml`)
 
-Triggered when a registration PR is merged:
+Triggered when a registration PR is merged. Two jobs: an **untrusted builder** (read-only, executes package code) that produces wheel artifacts, and a **trusted publisher** (write access, no code execution) that uploads to Releases and updates GitHub Pages.
+
+> **Security design:** The builder job checks out author code by **pinned commit SHA** (not tag) and builds the wheel, but has no write permissions. The publisher job only handles pre-built artifacts — it never executes third-party code.
+>
+> **Self-trigger prevention:** The publisher writes `wheel_hash` to `metadata/` (not `packages/`), so it does not match the `packages/**` trigger path. The workflow is idempotent: `detect_changed_versions.py` only selects versions without an existing GitHub Release.
 
 ```yaml
 name: Build and Publish
 on:
   push:
     branches: [main]
-    paths: ['packages/**']
+    paths: ['packages/**']       # Only triggers on registration merges, NOT metadata/ writes
 concurrency:
-  group: publish          # Serialize all publish runs to avoid index races
+  group: publish
   cancel-in-progress: false
 
 jobs:
-  publish:
+  # ── Job 1: Untrusted builder (read-only, executes author code) ──
+  build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write    # For creating Releases
-      pages: write       # For updating GitHub Pages
+      contents: read             # Read-only: cannot modify registry
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect changed packages
+      - name: Detect changed packages (skip already-published versions)
         id: changed
         run: python scripts/detect_changed_versions.py
 
-      - name: Clone, build, upload
+      - name: Clone by pinned SHA, build wheel
         run: |
           for pkg_info in ${{ steps.changed.outputs.packages }}; do
             REPO_URL=$(echo $pkg_info | jq -r .repo)
-            GIT_TAG=$(echo $pkg_info | jq -r .tag)
+            GIT_SHA=$(echo $pkg_info | jq -r .git_sha)    # Immutable SHA, not tag
             PKG_NAME=$(echo $pkg_info | jq -r .pypi_name)
             VERSION=$(echo $pkg_info | jq -r .version)
 
-            # Clone and build
+            # Clone and checkout by SHA (immutable — cannot be moved)
             git clone $REPO_URL build_pkg
-            cd build_pkg && git checkout $GIT_TAG
+            cd build_pkg && git checkout $GIT_SHA
+
+            # Build wheel (executes author code — but we are read-only)
             uv build --wheel
 
-            # Compute wheel file hash for PEP 503
+            # Compute wheel hash
             WHEEL_FILE=$(ls dist/*.whl)
             WHEEL_HASH=$(sha256sum $WHEEL_FILE | cut -d' ' -f1)
 
-            # Upload wheel as GitHub Release asset (release/ prefix avoids git tag collision)
-            gh release create "release/${PKG_NAME}-${VERSION}" \
-              $WHEEL_FILE \
-              --repo SiliconEinstein/gaia-registry \
-              --title "${PKG_NAME} ${VERSION}" \
-              --notes "Auto-published by registry CI"
-
-            # Record wheel_hash in Versions.toml
-            python scripts/update_wheel_hash.py \
-              --package $PKG_NAME --version $VERSION --hash $WHEEL_HASH
+            # Stage artifact for upload
+            mkdir -p /tmp/wheels
+            cp $WHEEL_FILE /tmp/wheels/
+            echo "${PKG_NAME}|${VERSION}|${WHEEL_HASH}|$(basename $WHEEL_FILE)" >> /tmp/wheels/manifest.txt
 
             cd .. && rm -rf build_pkg
           done
 
-      - name: Commit wheel hashes
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels
+          path: /tmp/wheels/
+
+  # ── Job 2: Trusted publisher (write access, NO code execution) ──
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write            # For creating Releases + pushing metadata
+      pages: write               # For updating GitHub Pages
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: wheels
+          path: /tmp/wheels/
+
+      - name: Upload to GitHub Releases and record hashes
         run: |
-          git add packages/
-          git commit -m "ci: record wheel hashes" || true
+          while IFS='|' read -r PKG_NAME VERSION WHEEL_HASH WHEEL_FILE; do
+            # Create Release (idempotent: skip if already exists)
+            gh release create "release/${PKG_NAME}-${VERSION}" \
+              "/tmp/wheels/${WHEEL_FILE}" \
+              --repo SiliconEinstein/gaia-registry \
+              --title "${PKG_NAME} ${VERSION}" \
+              --notes "Auto-published by registry CI" \
+              2>/dev/null || echo "Release already exists, skipping"
+
+            # Record wheel_hash in metadata/ (NOT packages/ — avoids self-trigger)
+            python scripts/update_wheel_hash.py \
+              --package $PKG_NAME --version $VERSION --hash $WHEEL_HASH
+          done < /tmp/wheels/manifest.txt
+
+      - name: Commit wheel hashes to metadata/
+        run: |
+          git add metadata/ packages/
+          git commit -m "ci: record wheel hashes [skip ci]" || true
           git push
 
       - name: Regenerate PEP 503 index
@@ -507,16 +581,22 @@ with Package("my_analysis") as pkg:
 Consumer does `uv add galileo-falling-bodies-gaia`
     ↓
 uv queries GitHub Pages index (served from gh-pages branch)
-    ↓ Only Registry CI (publish.yml) can write to gh-pages
+    ↓ Only the trusted publisher job can write to gh-pages
 Download link points to GitHub Releases
-    ↓ Only Registry CI can create Releases
-Wheel was built by Registry CI from verified source
-    ↓ register.yml verified: ir_hash match, schema valid, deps registered
-Source is author's git repo at specific tag
-    ↓ Immutable git tag, auditable
+    ↓ Only the trusted publisher job can create Releases
+Wheel was built by the untrusted builder job (read-only, sandboxed)
+    ↓ Builder checks out by pinned commit SHA (immutable)
+    ↓ Builder produces wheel artifact, passed to publisher via Actions artifact
+Source was validated by sandbox-validate job in register.yml
+    ↓ Verified: ir_hash match, schema valid, deps registered
+    ↓ Pinned commit SHA recorded in Versions.toml at validation time
 ```
 
-**Guarantee:** Every package on the index was compiled and verified by Registry CI. No package can enter the index without passing validation.
+**Guarantees:**
+- Every package on the index was compiled and verified by Registry CI.
+- Author code never executes in a job with write permissions (sandbox isolation).
+- Source is pinned by commit SHA at validation time — tag mutation after validation cannot affect published artifacts.
+- The publish workflow is idempotent and non-self-triggering (`metadata/` writes don't match `packages/**` trigger).
 
 ### 6.2 What Phase 1 Does NOT Guarantee
 
