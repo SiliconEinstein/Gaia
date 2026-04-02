@@ -217,15 +217,15 @@ def _extract_problem(
 
 
 def extract(
-    review_xml: str,
+    review_xml: str | None,
     reasoning_chain_xml: str,
     select_conclusion_xml: str,
     metadata_id: str,
 ) -> ExtractionResult:
-    """Extract a paper's 3 XMLs → LKM local nodes + parameters.
+    """Extract a paper's XMLs → LKM local nodes + parameters.
 
     Args:
-        review_xml: Content of review.xml
+        review_xml: Content of review.xml (None if not available — premises/priors skipped).
         reasoning_chain_xml: Content of reasoning_chain.xml
         select_conclusion_xml: Content of select_conclusion.xml
         metadata_id: Unique paper identifier (e.g. "363056a0")
@@ -237,12 +237,15 @@ def extract(
     version = "1.0.0"
     result = ExtractionResult(package_id=package_id, version=version)
 
-    # 1. Extract premises + priors + conclusion conditional probs from review.xml
-    premise_vars, priors, conclusion_premises, conclusion_cond_probs = _extract_review(
-        review_xml, metadata_id, package_id, version
-    )
-    result.local_variables.extend(premise_vars)
-    result.prior_records.extend(priors)
+    # 1. Extract premises + priors + conclusion conditional probs from review.xml (if available)
+    conclusion_premises: dict[str, list[str]] = {}
+    conclusion_cond_probs: dict[str, float] = {}
+    if review_xml:
+        premise_vars, priors, conclusion_premises, conclusion_cond_probs = _extract_review(
+            review_xml, metadata_id, package_id, version
+        )
+        result.local_variables.extend(premise_vars)
+        result.prior_records.extend(priors)
 
     # 2. Extract conclusions + factors + factor params from reasoning_chain.xml
     conclusion_vars, factors, factor_params = _extract_reasoning_chain(
