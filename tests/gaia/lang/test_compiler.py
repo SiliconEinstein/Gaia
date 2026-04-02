@@ -1,7 +1,5 @@
-from gaia.lang import Package, claim, question, setting
+from gaia.lang import Package, claim, contradiction, deduction, question, setting
 from gaia.lang.compiler import compile_package
-from gaia.lang.operators import contradiction
-from gaia.lang.strategies import deduction
 
 
 def test_compile_produces_valid_ir():

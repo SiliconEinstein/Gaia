@@ -1,5 +1,13 @@
-from gaia.lang import Package, claim, setting
-from gaia.lang.strategies import noisy_and, deduction, abduction, analogy, extrapolation
+from gaia.lang import (
+    Package,
+    abduction,
+    analogy,
+    claim,
+    deduction,
+    extrapolation,
+    noisy_and,
+    setting,
+)
 
 
 def test_noisy_and_explicit():
