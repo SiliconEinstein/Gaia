@@ -1,0 +1,102 @@
+{
+  "canonicalization_log": [
+    {
+      "local_canonical_id": "lcn_5e06ea6ef0fe79a2",
+      "members": [
+        "raw_7cb2cd1fcc29c300"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_a8bef4187c3086bb",
+      "members": [
+        "raw_e951ad3967e72014"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_d74c29c4cabb982e",
+      "members": [
+        "raw_28cef2d83203bb1d"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_63e5cbdfb8721f30",
+      "members": [
+        "raw_f51f07c2cd23fa08"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_34d282d8ac086c86",
+      "members": [
+        "raw_3a8b4c5691b7875a"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_3474da2e431fc876",
+      "members": [
+        "raw_2e2762bf27535603"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_83f8e3f7844b534e",
+      "members": [
+        "raw_39caaacc70ea5355"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_6ccceca381944c5c",
+      "members": [
+        "raw_57630db8b7a6ae3c"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_9eec5148de2ea873",
+      "members": [
+        "raw_0c93352125171984"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_bf505f091ac74fa3",
+      "members": [
+        "raw_49b6c4db6dd2b9fe"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_4c31b557d800ff6d",
+      "members": [
+        "raw_f758caaeaa2b8241"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_697dd443c0ed0d34",
+      "members": [
+        "raw_c2d990723ea82a5b"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_80f630e94173ce7e",
+      "members": [
+        "raw_4e9a0a3853a8526b"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    },
+    {
+      "local_canonical_id": "lcn_9ab5ae07c783dcf8",
+      "members": [
+        "raw_3a1a71702ec631fa"
+      ],
+      "reason": "singleton: no local semantic merge applied"
+    }
+  ]
+}

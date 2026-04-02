@@ -1,0 +1,19 @@
+{
+  "graph_hash": "sha256:ecaf1fe6fe27ef5a58defbc2093f35407e1b544c03ceaacd841ec19dc3379c5d",
+  "node_beliefs": {
+    "lcn_3474da2e431fc876": 0.335349,
+    "lcn_34d282d8ac086c86": 0.841598,
+    "lcn_4c31b557d800ff6d": 0.855384,
+    "lcn_5e06ea6ef0fe79a2": 0.998392,
+    "lcn_63e5cbdfb8721f30": 0.838602,
+    "lcn_697dd443c0ed0d34": 0.934553,
+    "lcn_6ccceca381944c5c": 0.619585,
+    "lcn_80f630e94173ce7e": 0.419191,
+    "lcn_83f8e3f7844b534e": 0.619585,
+    "lcn_9ab5ae07c783dcf8": 0.266619,
+    "lcn_9eec5148de2ea873": 0.285907,
+    "lcn_a8bef4187c3086bb": 0.307713,
+    "lcn_bf505f091ac74fa3": 0.569907,
+    "lcn_d74c29c4cabb982e": 0.838602
+  }
+}
