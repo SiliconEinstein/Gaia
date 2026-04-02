@@ -23,10 +23,12 @@ class Knowledge:
     metadata: dict[str, Any] = field(default_factory=dict)
     label: str | None = None
     strategy: Strategy | None = None
+    _package: Package | None = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self):
         pkg = _current_package.get()
         if pkg is not None:
+            self._package = pkg
             pkg._register_knowledge(self)
 
 

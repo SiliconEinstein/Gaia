@@ -49,13 +49,17 @@ def deduction(
     reason: str = "",
 ) -> Strategy:
     """Deduction: conjunction + implication. Auto-expands FormalExpr."""
-    _m = Knowledge(
-        content=f"all_true({', '.join(p.label or f'P{i}' for i, p in enumerate(premises))})",
-        type="claim",
-        metadata={"helper_kind": "conjunction_result", "helper_visibility": "formal_internal"},
-    )
-    conj = Operator(operator="conjunction", variables=premises, conclusion=_m)
-    impl = Operator(operator="implication", variables=[_m], conclusion=conclusion)
+    if len(premises) == 1:
+        formal_expr = [Operator(operator="implication", variables=premises, conclusion=conclusion)]
+    else:
+        _m = Knowledge(
+            content=f"all_true({', '.join(p.label or f'P{i}' for i, p in enumerate(premises))})",
+            type="claim",
+            metadata={"helper_kind": "conjunction_result", "helper_visibility": "formal_internal"},
+        )
+        conj = Operator(operator="conjunction", variables=premises, conclusion=_m)
+        impl = Operator(operator="implication", variables=[_m], conclusion=conclusion)
+        formal_expr = [conj, impl]
 
     s = Strategy(
         type="deduction",
@@ -63,7 +67,7 @@ def deduction(
         conclusion=conclusion,
         background=background or [],
         reason=reason,
-        formal_expr=[conj, impl],
+        formal_expr=formal_expr,
     )
     conclusion.strategy = s
     return s

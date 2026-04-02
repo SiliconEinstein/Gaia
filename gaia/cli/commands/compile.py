@@ -42,14 +42,18 @@ def compile_command(
     project_name = config["project"]["name"]
     import_name = project_name.removesuffix("-gaia").replace("-", "_")
 
-    pkg_src = pkg_path / import_name
-    if not pkg_src.exists():
+    pkg_roots = [pkg_path, pkg_path / "src"]
+    pkg_src = next(
+        (root / import_name for root in pkg_roots if (root / import_name).exists()), None
+    )
+    if pkg_src is None:
         typer.echo(f"Error: package source directory '{import_name}/' not found.", err=True)
         raise typer.Exit(1)
 
     # Add to sys.path and import
-    if str(pkg_path) not in sys.path:
-        sys.path.insert(0, str(pkg_path))
+    source_root = str(pkg_src.parent)
+    if source_root not in sys.path:
+        sys.path.insert(0, source_root)
 
     try:
         mod = importlib.import_module(import_name)
@@ -73,9 +77,10 @@ def compile_command(
         raise typer.Exit(1)
 
     # Assign labels from module-level variable names
+    local_knowledge_ids = {id(k) for k in pkg.knowledge}
     for attr in dir(mod):
         obj = getattr(mod, attr)
-        if isinstance(obj, Knowledge) and obj.label is None:
+        if isinstance(obj, Knowledge) and id(obj) in local_knowledge_ids and obj.label is None:
             obj.label = attr
 
     # Override package metadata from pyproject.toml
@@ -96,7 +101,7 @@ def compile_command(
     (gaia_dir / "ir_hash").write_text(ir["ir_hash"])
 
     typer.echo(
-        f"Compiled {len(ir['knowledge'])} knowledge, "
+        f"Compiled {len(ir['knowledges'])} knowledge, "
         f"{len(ir['strategies'])} strategies, "
         f"{len(ir['operators'])} operators"
     )

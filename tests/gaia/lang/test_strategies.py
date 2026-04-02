@@ -25,9 +25,10 @@ def test_noisy_and_explicit():
 def test_deduction():
     with Package("test_pkg"):
         law = claim("∀x. P(x)", parameters=[{"name": "x", "type": "material"}])
+        premise = claim("YBCO is in scope.")
         binding = setting("x = YBCO")
         instance = claim("P(YBCO)")
-        s = deduction(premises=[law], conclusion=instance, background=[binding])
+        s = deduction(premises=[law, premise], conclusion=instance, background=[binding])
     assert s.type == "deduction"
     assert s.formal_expr is not None
     assert len(s.formal_expr) == 2  # conjunction + implication
