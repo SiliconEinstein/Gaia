@@ -1,6 +1,7 @@
 """Gaia Lang v5 — Python DSL for knowledge authoring."""
 
 from gaia.lang.core import Knowledge, Operator, Package, Strategy
+from gaia.lang.operators import complement, contradiction, disjunction, equivalence
 
 __all__ = [
     "Knowledge",
@@ -8,6 +9,10 @@ __all__ = [
     "Package",
     "Strategy",
     "claim",
+    "complement",
+    "contradiction",
+    "disjunction",
+    "equivalence",
     "question",
     "setting",
 ]
