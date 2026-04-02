@@ -56,16 +56,12 @@ def _generated_claim_id(
 ) -> tuple[str, str | None]:
     """Return (id, label) for a generated intermediate claim.
 
-    Local scope returns a QID built from namespace:package_name::__{role}_{hash8}.
-    Global scope returns (gcn_{hash16}, None).
+    Returns a QID built from namespace:package_name::__{role}_{hash8}.
     """
     payload = f"{scope}|{strategy_type.value}|{premises}|{conclusion}|{role}|{index}"
-    if scope == "local":
-        hash8 = _sha256_hex(payload, length=8)
-        label = f"__{role}_{hash8}"
-        return make_qid(namespace, package_name, label), label  # type: ignore[arg-type]
-    else:
-        return f"gcn_{_sha256_hex(payload)}", None
+    hash8 = _sha256_hex(payload, length=8)
+    label = f"__{role}_{hash8}"
+    return make_qid(namespace, package_name, label), label  # type: ignore[arg-type]
 
 
 def _generated_interface_claim_id(
@@ -81,16 +77,12 @@ def _generated_interface_claim_id(
 ) -> tuple[str, str | None]:
     """Return (id, label) for a generated interface claim.
 
-    Local scope returns a QID built from namespace:package_name::__{role}_{hash8}.
-    Global scope returns (gcn_{hash16}, None).
+    Returns a QID built from namespace:package_name::__{role}_{hash8}.
     """
     payload = f"{scope}|{strategy_type.value}|{anchor}|{conclusion}|{role}|{index}"
-    if scope == "local":
-        hash8 = _sha256_hex(payload, length=8)
-        label = f"__{role}_{hash8}"
-        return make_qid(namespace, package_name, label), label  # type: ignore[arg-type]
-    else:
-        return f"gcn_{_sha256_hex(payload)}", None
+    hash8 = _sha256_hex(payload, length=8)
+    label = f"__{role}_{hash8}"
+    return make_qid(namespace, package_name, label), label  # type: ignore[arg-type]
 
 
 class _TemplateBuilder:
@@ -457,15 +449,14 @@ def formalize_named_strategy(
 ) -> FormalizationResult:
     """Generate the canonical FormalStrategy skeleton for a named strategy family.
 
-    For local scope, ``namespace`` and ``package_name`` are required so that
-    generated intermediate Knowledge IDs use the QID format
+    ``namespace`` and ``package_name`` are required so that generated
+    intermediate Knowledge IDs use the QID format
     ({namespace}:{package_name}::__{role}_{hash8}).
-    For global scope they are ignored (``gcn_`` IDs are used).
     """
-    if scope == "local" and (namespace is None or package_name is None):
-        raise ValueError(
-            "formalize_named_strategy with scope='local' requires namespace and package_name"
-        )
+    if scope != "local":
+        raise ValueError("formalize_named_strategy only supports scope='local'")
+    if namespace is None or package_name is None:
+        raise ValueError("formalize_named_strategy requires namespace and package_name")
     if type_ == "reductio":
         raise ValueError(
             "reductio is deferred in Gaia IR core; the public-interface contract for "

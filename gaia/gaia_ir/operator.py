@@ -29,8 +29,8 @@ class Operator(BaseModel):
     They can appear standalone (top-level operators array) or embedded in FormalExpr.
     """
 
-    operator_id: str | None = None  # lco_ or gco_ prefix
-    scope: str | None = None  # "local" | "global" (None when embedded in FormalExpr)
+    operator_id: str | None = None  # lco_ prefix
+    scope: str | None = None  # "local" (None when embedded in FormalExpr)
 
     operator: OperatorType
     variables: list[str]  # ordered input Knowledge IDs (conclusion never appears here)
@@ -40,8 +40,8 @@ class Operator(BaseModel):
 
     @model_validator(mode="after")
     def _validate_invariants(self) -> Operator:
-        if self.scope not in (None, "local", "global"):
-            raise ValueError("scope must be one of: None, 'local', 'global'")
+        if self.scope not in (None, "local"):
+            raise ValueError("scope must be one of: None, 'local'")
 
         if (
             self.scope == "local"
@@ -49,13 +49,6 @@ class Operator(BaseModel):
             and not self.operator_id.startswith("lco_")
         ):
             raise ValueError("local operators must use an operator_id with lco_ prefix")
-
-        if (
-            self.scope == "global"
-            and self.operator_id is not None
-            and not self.operator_id.startswith("gco_")
-        ):
-            raise ValueError("global operators must use an operator_id with gco_ prefix")
 
         # §2.4: conclusion must NEVER appear in variables (inputs-only separation)
         if self.conclusion in self.variables:

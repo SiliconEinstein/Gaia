@@ -16,7 +16,7 @@ BP 的具体运行时图和消息传递细节见 [../bp/inference.md](../bp/infe
 
 一个 lowering 过程的最小输入是：
 
-- 一个 Gaia IR graph（`LocalCanonicalGraph` 或 `GlobalCanonicalGraph`）
+- 一个 `LocalCanonicalGraph`
 - 一个展开策略（哪些 Strategy 保持折叠，哪些进入内部结构）
 
 对**需要概率参数**的运行时后端，常见还会额外输入：
@@ -26,14 +26,10 @@ BP 的具体运行时图和消息传递细节见 [../bp/inference.md](../bp/infe
 - `prior_cutoff`
 - backend 自己的运行配置
 
-当前 Gaia IR 核心参数契约只定义在 global 层。因此：
-
-- 对采用 [06-parameterization.md](06-parameterization.md) 的 probabilistic backend，规范输入是 `GlobalCanonicalGraph + Parameterization`
-- `LocalCanonicalGraph` 仍可被 structure-only backend 消费
-- 若某个 local-only probabilistic workflow 需要临时参数，它属于 backend-private / ephemeral 机制，不属于本目录的持久化参数 contract
+对采用 [06-parameterization.md](06-parameterization.md) 的 probabilistic backend，规范输入是 `LocalCanonicalGraph + Parameterization`。
 
 lowering 的输出不是新的 Gaia IR，而是**后端的数据表示**。
-在当前 BP 后端里，这个输出是 `FactorGraph`（variable nodes + factor nodes 的二部图）；在其他后端里，也可以是别的表示。FactorGraph 可以是临时构建的（CLI 本地推理），也可以是持久化的（LKM 全局推理）——这取决于后端的存储策略，不由 lowering 契约规定。
+在当前 BP 后端里，这个输出是 `FactorGraph`（variable nodes + factor nodes 的二部图）；在其他后端里，也可以是别的表示。
 
 ## 2. 基本原则
 
@@ -50,7 +46,7 @@ Gaia IR 提供：
 
 runtime graph 则由后端按自己的执行模型构造。
 
-backend 在 runtime 层保留的是**对象 identity**（如 Knowledge QID / `gcn_...`、Strategy `lcs_...` / `gcs_...`），不是 `content_hash`。`content_hash` 主要服务于 canonicalization 和查询，不应替代 runtime node identity。
+backend 在 runtime 层保留的是**对象 identity**（如 Knowledge QID、Strategy `lcs_...`），不是 `content_hash`。`content_hash` 主要服务于去重和匹配，不应替代 runtime node identity。
 
 ### 2.2 Lowering 是消费，不是反向定义
 
@@ -167,8 +163,6 @@ Lowering 只消费参数层，不定义参数层。
 - 普通 claim 从 `PriorRecord` 读取外部 prior
 - 结构型 helper claim **禁止**携带独立 PriorRecord（见 [04-helper-claims.md §6](04-helper-claims.md#6-与-parameterization-的关系)）
 
-若 backend 严格采用 Gaia IR 核心 parameterization contract，那么这些记录只定义在 global graph 上；local-only 的临时参数来源不由本文件规定。
-
 对直接 FormalStrategy：
 
 - 不读取独立的持久化 strategy-level `conditional_probabilities`
@@ -194,7 +188,7 @@ Lowering 只消费参数层，不定义参数层。
 - [02-gaia-ir.md](02-gaia-ir.md)：定义 Gaia IR 本体结构
 - [04-helper-claims.md](04-helper-claims.md)：定义结构型 helper claim 的 public/private 边界
 - [06-parameterization.md](06-parameterization.md)：定义参数输入层
-- [05-canonicalization.md](05-canonicalization.md)：定义 local/global 身份映射
+- [05-canonicalization.md](05-canonicalization.md)：定义 `content_hash` 角色，以及 Gaia IR 为 registry-side canonicalization 保留哪些信息
 - [../bp/inference.md](../bp/inference.md)：定义当前 BP backend 如何把 lowering 结果跑起来
 
 ## 9. 当前仍待细化的点

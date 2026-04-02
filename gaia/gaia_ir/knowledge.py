@@ -40,14 +40,6 @@ class Parameter(BaseModel):
     type: str
 
 
-class LocalCanonicalRef(BaseModel):
-    """Reference to a local canonical Knowledge."""
-
-    local_canonical_id: str
-    package_id: str
-    version: str
-
-
 class PackageRef(BaseModel):
     """Reference to a package version."""
 
@@ -71,10 +63,9 @@ def _compute_content_hash(type_: str, content: str, parameters: list[Parameter])
 
 
 class Knowledge(BaseModel):
-    """Knowledge node — unified data class for local and global layers.
+    """Knowledge node — a proposition in the Gaia reasoning hypergraph.
 
-    Local layer: id is a QID ({namespace}:{package_name}::{label}), content is populated.
-    Global layer: id has gcn_ prefix, content is usually None (retrieved via representative_lcn).
+    id is a QID ({namespace}:{package_name}::{label}), content is populated.
     """
 
     id: str | None = None
@@ -87,10 +78,6 @@ class Knowledge(BaseModel):
 
     # provenance
     provenance: list[PackageRef] | None = None
-
-    # global layer
-    representative_lcn: LocalCanonicalRef | None = None
-    local_members: list[LocalCanonicalRef] | None = None
 
     @model_validator(mode="after")
     def _compute_derived_fields(self) -> Knowledge:

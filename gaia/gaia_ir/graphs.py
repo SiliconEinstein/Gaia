@@ -1,4 +1,4 @@
-"""Graph containers — LocalCanonicalGraph and GlobalCanonicalGraph.
+"""Graph containers — LocalCanonicalGraph.
 
 Implements docs/foundations/gaia-ir/gaia-ir.md §4 (graphs) and overview.md.
 """
@@ -25,8 +25,6 @@ def _canonicalize_knowledge_dump(data: dict[str, Any]) -> dict[str, Any]:
     canonical["parameters"] = sorted(canonical.get("parameters", []), key=_json_sort_key)
     if canonical.get("provenance") is not None:
         canonical["provenance"] = sorted(canonical["provenance"], key=_json_sort_key)
-    if canonical.get("local_members") is not None:
-        canonical["local_members"] = sorted(canonical["local_members"], key=_json_sort_key)
     return canonical
 
 
@@ -109,17 +107,3 @@ class LocalCanonicalGraph(BaseModel):
             digest = hashlib.sha256(canonical.encode()).hexdigest()
             self.ir_hash = f"sha256:{digest}"
         return self
-
-
-class GlobalCanonicalGraph(BaseModel):
-    """Global canonical graph — cross-package structure index.
-
-    Knowledge content is retrieved via representative_lcn (not stored here).
-    Strategies have no steps at global layer.
-    Incremental — no overall hash.
-    """
-
-    scope: str = "global"
-    knowledges: list[Knowledge] = []
-    operators: list[Operator] = []
-    strategies: list[Strategy] = []

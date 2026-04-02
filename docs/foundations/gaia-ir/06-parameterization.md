@@ -10,7 +10,7 @@ Gaia IR 结构定义见 [02-gaia-ir.md](02-gaia-ir.md)。推理输出见 [../bp/
 
 backend-facing lowering 如何消费这些参数，见 [07-lowering.md](07-lowering.md)。
 
-本文件只定义 **global parameterization contract**。若某些 local-only backend 需要临时 local 参数输入，那属于 backend-private / ephemeral workflow，不属于这里的持久化记录模型。
+本文件定义 **parameterization contract**——参数化模型在 `LocalCanonicalGraph` 上实现参数化。
 
 ## 存储层：原子记录
 
@@ -18,13 +18,13 @@ backend-facing lowering 如何消费这些参数，见 [07-lowering.md](07-lower
 
 ```
 PriorRecord:
-    gcn_id:             str              # 全局 claim Knowledge ID
+    knowledge_id:       str              # claim Knowledge QID
     value:              float            # ∈ (ε, 1-ε)
     source_id:          str              # 哪个 ParameterizationSource 产出的
     created_at:         str              # ISO 8601
 
 StrategyParamRecord:
-    strategy_id:                str          # 全局 Strategy ID (gcs_ 前缀，仅对参数化 Strategy)
+    strategy_id:                str          # Strategy ID（lcs_ 前缀；仅对参数化 Strategy）
     conditional_probabilities:  list[float]  # 参数数量由 type 决定（见下表）
     source_id:                  str          # 哪个 ParameterizationSource 产出的
     created_at:                 str          # ISO 8601
@@ -118,7 +118,7 @@ P(C=1 | A₁, A₂) = Σ_m P(C=1 | M=m) × P(M=m | A₁, A₂)
 
 推理运行前验证组装结果的完整性：
 
-- 全局图中每个承载外生不确定性的 `type=claim` Knowledge 都必须有对应的 PriorRecord
+- 图中每个承载外生不确定性的 `type=claim` Knowledge 都必须有对应的 PriorRecord
 - 每个参数化 Strategy 都必须有 StrategyParamRecord
 - 每个直接 FormalStrategy 所依赖的相关 interface claim 都必须有 PriorRecord；这包括 formalization 自动补齐的 public interface claim（如 abduction 的 `AlternativeExplanationForObs`）
 
@@ -132,7 +132,7 @@ P(C=1 | A₁, A₂) = Σ_m P(C=1 | M=m) × P(M=m | A₁, A₂)
 
 ## Prior 来源
 
-每个 global claim Knowledge 的 prior 由 review 赋值。不存在聚合逻辑——canonicalization 对 premise Knowledge 直接复用已有 global Knowledge（prior 不变），对 conclusion Knowledge 创建新的 global Knowledge（prior 由 review 独立赋值）。
+每个 claim Knowledge 的 prior 由 review 赋值。
 
 ## Strategy 条件概率来源
 

@@ -11,13 +11,23 @@ from dataclasses import dataclass, field
 from gaia.gaia_ir.knowledge import Knowledge, KnowledgeType, is_qid
 from gaia.gaia_ir.operator import Operator, OperatorType
 from gaia.gaia_ir.strategy import Strategy, CompositeStrategy, FormalStrategy, StrategyType
-from gaia.gaia_ir.graphs import LocalCanonicalGraph, GlobalCanonicalGraph, _canonical_json
+from gaia.gaia_ir.graphs import LocalCanonicalGraph, _canonical_json
 from gaia.gaia_ir.parameterization import (
     CROMWELL_EPS,
     PriorRecord,
     StrategyParamRecord,
 )
-from gaia.gaia_ir.binding import CanonicalBinding
+
+
+def _parse_qid(qid: str) -> tuple[str, str, str] | None:
+    """Parse QID into (namespace, package_name, label). Returns None if not valid QID."""
+    parts = qid.split("::", 1)
+    if len(parts) != 2:
+        return None
+    prefix_parts = parts[0].split(":", 1)
+    if len(prefix_parts) != 2:
+        return None
+    return (prefix_parts[0], prefix_parts[1], parts[1])
 
 
 _PARAMETERIZED_TYPES = {StrategyType.INFER, StrategyType.NOISY_AND}
@@ -59,6 +69,9 @@ def _validate_knowledges(
     knowledges: list[Knowledge],
     scope: str,
     result: ValidationResult,
+    *,
+    graph_namespace: str | None = None,
+    graph_package_name: str | None = None,
 ) -> dict[str, Knowledge]:
     """Validate Knowledge nodes and return id→Knowledge lookup."""
     lookup: dict[str, Knowledge] = {}
@@ -71,9 +84,6 @@ def _validate_knowledges(
                     f"Knowledge '{k.id}': expected QID format "
                     f"(namespace:package_name::label) in local graph"
                 )
-        else:
-            if k.id and not k.id.startswith("gcn_"):
-                result.error(f"Knowledge '{k.id}': expected gcn_ prefix in {scope} graph")
 
         # uniqueness
         if k.id in lookup:
@@ -85,19 +95,10 @@ def _validate_knowledges(
         if k.type not in set(KnowledgeType):
             result.error(f"Knowledge '{k.id}': invalid type '{k.type}'")
 
-        # claim content completeness
-        if k.type == KnowledgeType.CLAIM:
-            if k.content is None and k.representative_lcn is None:
-                result.error(f"Knowledge '{k.id}': claim must have content or representative_lcn")
-
         # local-layer shape rules
         if scope == "local":
             if k.content is None:
                 result.error(f"Knowledge '{k.id}': local layer requires content")
-            if k.representative_lcn is not None:
-                result.error(f"Knowledge '{k.id}': local layer must not set representative_lcn")
-            if k.local_members is not None:
-                result.error(f"Knowledge '{k.id}': local layer must not set local_members")
 
     # label uniqueness check for local scope
     if scope == "local":
@@ -108,6 +109,14 @@ def _validate_knowledges(
                 if label in seen:
                     result.error(f"Knowledge label '{label}': duplicate in local graph")
                 seen.add(label)
+
+    # graph namespace sanity check (local scope only)
+    if scope == "local" and graph_namespace is not None:
+        allowed_namespaces = {"reg", "paper"}
+        if graph_namespace not in allowed_namespaces:
+            result.error(
+                f"Graph namespace '{graph_namespace}' must be one of: {allowed_namespaces}"
+            )
 
     return lookup
 
@@ -132,6 +141,10 @@ def _validate_operators(
                 "Top-level Operator must set both operator_id and scope "
                 "(embedded FormalExpr operators may omit them)"
             )
+
+        if top_level and op.operator_id is not None:
+            if not op.operator_id.startswith("lco_"):
+                result.error(f"Operator '{op.operator_id}': expected lco_ prefix in {scope} graph")
 
         # operator scope must be compatible with graph scope
         if op.scope is not None and op.scope != scope:
@@ -211,16 +224,11 @@ def _validate_strategy(
             if bid not in knowledge_lookup:
                 result.warn(f"Strategy '{sid}': background '{bid}' not found in graph")
 
-    # global strategies must not have steps
-    if scope == "global" and strategy.steps is not None:
-        result.error(f"Strategy '{sid}': global strategy must not have steps")
-
     # scope/prefix checks
-    prefix = "lcs_" if scope == "local" else "gcs_"
     if strategy.scope != scope:
         result.error(f"Strategy '{sid}': scope '{strategy.scope}' incompatible with {scope} graph")
-    if strategy.strategy_id and not strategy.strategy_id.startswith(prefix):
-        result.error(f"Strategy '{sid}': expected {prefix} prefix in {scope} graph")
+    if strategy.strategy_id and not strategy.strategy_id.startswith("lcs_"):
+        result.error(f"Strategy '{sid}': expected lcs_ prefix in {scope} graph")
 
     # form-specific validation
     if isinstance(strategy, CompositeStrategy):
@@ -463,15 +471,11 @@ def _validate_scope_consistency(
     """Ensure all references use the correct ID format for the scope."""
 
     def _check_id_format(id_: str, context: str) -> None:
-        if scope == "local":
-            if id_ and not is_qid(id_):
-                result.error(
-                    f"{context} has wrong format for {scope} graph "
-                    f"(expected QID namespace:package::label)"
-                )
-        else:
-            if id_ and not id_.startswith("gcn_"):
-                result.error(f"{context} has wrong prefix for {scope} graph")
+        if id_ and not is_qid(id_):
+            result.error(
+                f"{context} has wrong format for {scope} graph "
+                f"(expected QID namespace:package::label)"
+            )
 
     for s in strategies:
         for pid in s.premises:
@@ -508,7 +512,13 @@ def validate_local_graph(graph: LocalCanonicalGraph) -> ValidationResult:
     """Validate a LocalCanonicalGraph."""
     result = ValidationResult()
 
-    knowledge_lookup = _validate_knowledges(graph.knowledges, "local", result)
+    knowledge_lookup = _validate_knowledges(
+        graph.knowledges,
+        "local",
+        result,
+        graph_namespace=graph.namespace,
+        graph_package_name=graph.package_name,
+    )
     _validate_operators(graph.operators, knowledge_lookup, "local", result, top_level=True)
     _validate_strategies(graph.strategies, graph.operators, knowledge_lookup, "local", result)
     _validate_scope_consistency(
@@ -529,27 +539,13 @@ def validate_local_graph(graph: LocalCanonicalGraph) -> ValidationResult:
     return result
 
 
-def validate_global_graph(graph: GlobalCanonicalGraph) -> ValidationResult:
-    """Validate a GlobalCanonicalGraph."""
-    result = ValidationResult()
-
-    knowledge_lookup = _validate_knowledges(graph.knowledges, "global", result)
-    _validate_operators(graph.operators, knowledge_lookup, "global", result, top_level=True)
-    _validate_strategies(graph.strategies, graph.operators, knowledge_lookup, "global", result)
-    _validate_scope_consistency(
-        knowledge_lookup, graph.operators, graph.strategies, "global", result
-    )
-
-    return result
-
-
 # ---------------------------------------------------------------------------
 # 5. Parameterization completeness (pre-BP)
 # ---------------------------------------------------------------------------
 
 
 def validate_parameterization(
-    graph: GlobalCanonicalGraph,
+    graph: LocalCanonicalGraph,
     priors: list[PriorRecord],
     strategy_params: list[StrategyParamRecord],
 ) -> ValidationResult:
@@ -575,7 +571,7 @@ def validate_parameterization(
     """
     result = ValidationResult()
 
-    # collect claim gcn_ids
+    # collect claim knowledge_ids
     claim_ids = {k.id for k in graph.knowledges if k.type == KnowledgeType.CLAIM and k.id}
 
     # identify claims that must not have independent PriorRecords:
@@ -607,18 +603,18 @@ def validate_parameterization(
                 parameterized_ids.add(s.strategy_id)
 
     # check prior coverage (exclude private/helper claims)
-    prior_gcn_ids = {r.gcn_id for r in priors}
+    prior_knowledge_ids = {r.knowledge_id for r in priors}
     for cid in claim_ids:
         if cid in no_prior_ids:
             continue  # private or structural helper — no prior needed
-        if cid not in prior_gcn_ids:
+        if cid not in prior_knowledge_ids:
             result.error(f"Claim '{cid}': missing PriorRecord")
 
     # private/helper claims must NOT have PriorRecords (spec §4 of 04-helper-claims.md)
     for r_prior in priors:
-        if r_prior.gcn_id in no_prior_ids:
+        if r_prior.knowledge_id in no_prior_ids:
             result.error(
-                f"PriorRecord '{r_prior.gcn_id}': private or structural helper claim "
+                f"PriorRecord '{r_prior.knowledge_id}': private or structural helper claim "
                 f"must not have independent PriorRecord"
             )
 
@@ -665,7 +661,7 @@ def validate_parameterization(
     for r in priors:
         if r.value < CROMWELL_EPS or r.value > 1 - CROMWELL_EPS:
             result.error(
-                f"PriorRecord '{r.gcn_id}': value {r.value} outside Cromwell bounds "
+                f"PriorRecord '{r.knowledge_id}': value {r.value} outside Cromwell bounds "
                 f"[{CROMWELL_EPS}, {1 - CROMWELL_EPS}]"
             )
 
@@ -681,61 +677,12 @@ def validate_parameterization(
     # dangling references: priors for non-existent claims
     all_knowledge_ids = {k.id for k in graph.knowledges if k.id}
     for r in priors:
-        if r.gcn_id not in all_knowledge_ids:
-            result.warn(f"PriorRecord '{r.gcn_id}': references non-existent Knowledge")
+        if r.knowledge_id not in all_knowledge_ids:
+            result.warn(f"PriorRecord '{r.knowledge_id}': references non-existent Knowledge")
 
     # dangling references: params for non-existent strategies
     for r in strategy_params:
         if r.strategy_id not in all_strategy_ids:
             result.warn(f"StrategyParamRecord '{r.strategy_id}': references non-existent Strategy")
-
-    return result
-
-
-# ---------------------------------------------------------------------------
-# 6. CanonicalBinding validation
-# ---------------------------------------------------------------------------
-
-
-def validate_bindings(
-    bindings: list[CanonicalBinding],
-    local_graph: LocalCanonicalGraph,
-    global_graph: GlobalCanonicalGraph,
-) -> ValidationResult:
-    """Validate CanonicalBindings between local and global graphs.
-
-    Checks completeness (every local Knowledge has exactly one binding) and
-    reference validity (both local and global IDs exist).
-    """
-    result = ValidationResult()
-
-    local_ids = {k.id for k in local_graph.knowledges if k.id}
-    global_ids = {k.id for k in global_graph.knowledges if k.id}
-
-    # track which local IDs have bindings
-    bound_local_ids: dict[str, int] = {}
-    for b in bindings:
-        bound_local_ids[b.local_canonical_id] = bound_local_ids.get(b.local_canonical_id, 0) + 1
-
-    # every local Knowledge must have exactly one binding
-    for lid in local_ids:
-        count = bound_local_ids.get(lid, 0)
-        if count == 0:
-            result.error(f"Knowledge '{lid}': no CanonicalBinding")
-        elif count > 1:
-            result.error(f"Knowledge '{lid}': {count} bindings (expected exactly 1)")
-
-    # binding references must be valid
-    for b in bindings:
-        if b.local_canonical_id not in local_ids:
-            result.error(
-                f"CanonicalBinding: local_canonical_id '{b.local_canonical_id}' "
-                f"not found in local graph"
-            )
-        if b.global_canonical_id not in global_ids:
-            result.error(
-                f"CanonicalBinding: global_canonical_id '{b.global_canonical_id}' "
-                f"not found in global graph"
-            )
 
     return result

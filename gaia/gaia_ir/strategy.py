@@ -72,8 +72,8 @@ def _compute_strategy_id(
     conclusion: str | None,
     structure_hash: str = "",
 ) -> str:
-    """Deterministic strategy ID: {lcs_|gcs_}_{sha256(scope + type + sorted(premises) + conclusion + structure_hash)[:16]}."""
-    prefix = "lcs_" if scope == "local" else "gcs_"
+    """Deterministic strategy ID: lcs_{sha256(scope + type + sorted(premises) + conclusion + structure_hash)[:16]}."""
+    prefix = "lcs_"
     payload = f"{scope}|{type_}|{sorted(premises)}|{conclusion}|{structure_hash}"
     return f"{prefix}{_sha256_hex(payload)}"
 
@@ -117,7 +117,7 @@ class Strategy(BaseModel):
     """
 
     strategy_id: str | None = None
-    scope: str  # "local" | "global"
+    scope: str  # "local"
     type: StrategyType
 
     # connections
@@ -169,18 +169,12 @@ class Strategy(BaseModel):
 
     @model_validator(mode="after")
     def _compute_id_and_validate(self) -> Strategy:
-        if self.scope not in {"local", "global"}:
-            raise ValueError("scope must be one of: 'local', 'global'")
-
-        if self.scope == "global" and self.steps is not None:
-            raise ValueError("global Strategy must not carry steps")
+        if self.scope != "local":
+            raise ValueError("scope must be 'local'")
 
         if self.strategy_id is not None:
-            expected_prefix = "lcs_" if self.scope == "local" else "gcs_"
-            if not self.strategy_id.startswith(expected_prefix):
-                raise ValueError(
-                    f"{self.scope} strategies must use a strategy_id with {expected_prefix} prefix"
-                )
+            if not self.strategy_id.startswith("lcs_"):
+                raise ValueError("local strategies must use a strategy_id with lcs_ prefix")
 
         if self.strategy_id is None:
             self.strategy_id = _compute_strategy_id(

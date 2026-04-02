@@ -1,11 +1,10 @@
-"""Tests for LocalCanonicalGraph and GlobalCanonicalGraph."""
+"""Tests for LocalCanonicalGraph."""
 
 from gaia.gaia_ir import (
     Knowledge,
     Operator,
     Strategy,
     LocalCanonicalGraph,
-    GlobalCanonicalGraph,
 )
 
 NS = "reg"
@@ -113,44 +112,3 @@ class TestLocalCanonicalGraph:
         g = _local_graph(knowledges=[])
         assert g.namespace == NS
         assert g.package_name == PKG
-
-
-class TestGlobalCanonicalGraph:
-    def test_no_hash(self):
-        """Global graph is incremental — no overall hash."""
-        g = GlobalCanonicalGraph(
-            knowledges=[Knowledge(id="gcn_1", type="claim")],
-        )
-        assert not hasattr(g, "ir_hash") or getattr(g, "ir_hash", None) is None
-
-    def test_scope_default(self):
-        g = GlobalCanonicalGraph()
-        assert g.scope == "global"
-
-    def test_empty_defaults(self):
-        g = GlobalCanonicalGraph()
-        assert g.knowledges == []
-        assert g.operators == []
-        assert g.strategies == []
-
-    def test_three_entity_types(self):
-        g = GlobalCanonicalGraph(
-            knowledges=[
-                Knowledge(id="gcn_a", type="claim"),
-                Knowledge(id="gcn_b", type="claim"),
-                Knowledge(id="gcn_eq", type="claim"),
-            ],
-            operators=[
-                Operator(
-                    operator="equivalence",
-                    variables=["gcn_a", "gcn_b"],
-                    conclusion="gcn_eq",
-                )
-            ],
-            strategies=[
-                Strategy(scope="global", type="infer", premises=["gcn_a"], conclusion="gcn_b")
-            ],
-        )
-        assert len(g.knowledges) == 3
-        assert len(g.operators) == 1
-        assert len(g.strategies) == 1

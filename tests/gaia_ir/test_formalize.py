@@ -70,22 +70,22 @@ class TestStrategyFormalize:
         assert result.strategy.formal_expr.operators[0].conclusion == conjunction.id
 
     def test_formalize_rejects_strategy_without_conclusion(self):
-        leaf = Strategy(scope="global", type="deduction", premises=["gcn_a", "gcn_b"])
+        leaf = Strategy(scope="local", type="deduction", premises=["reg:test::a", "reg:test::b"])
 
         with pytest.raises(ValueError, match="requires the strategy to set a conclusion"):
-            leaf.formalize()
+            leaf.formalize(namespace="reg", package_name="test")
 
     def test_formalize_rejects_composite_strategy(self):
         composite = CompositeStrategy(
-            scope="global",
+            scope="local",
             type="abduction",
-            premises=["gcn_obs"],
-            conclusion="gcn_h",
-            sub_strategies=["gcs_child"],
+            premises=["reg:test::obs"],
+            conclusion="reg:test::h",
+            sub_strategies=["lcs_child"],
         )
 
         with pytest.raises(TypeError, match="CompositeStrategy cannot be directly formalized"):
-            composite.formalize()
+            composite.formalize(namespace="reg", package_name="test")
 
     def test_formalize_rejects_already_formal_strategy(self):
         formal = FormalStrategy(
@@ -116,16 +116,20 @@ class TestStrategyFormalize:
 class TestFormalizeNamedStrategy:
     def test_deterministic_output(self):
         result_a = formalize_named_strategy(
-            scope="global",
+            scope="local",
             type_="abduction",
-            premises=["gcn_obs"],
-            conclusion="gcn_h",
+            premises=["reg:test::obs"],
+            conclusion="reg:test::h",
+            namespace="reg",
+            package_name="test",
         )
         result_b = formalize_named_strategy(
-            scope="global",
+            scope="local",
             type_="abduction",
-            premises=["gcn_obs"],
-            conclusion="gcn_h",
+            premises=["reg:test::obs"],
+            conclusion="reg:test::h",
+            namespace="reg",
+            package_name="test",
         )
 
         assert [knowledge.id for knowledge in result_a.knowledges] == [
@@ -139,18 +143,20 @@ class TestFormalizeNamedStrategy:
     @pytest.mark.parametrize(
         ("type_", "premises"),
         [
-            ("deduction", ["gcn_a", "gcn_b"]),
-            ("mathematical_induction", ["gcn_base", "gcn_step"]),
-            ("analogy", ["gcn_source_law", "gcn_bridge"]),
-            ("extrapolation", ["gcn_known_law", "gcn_continuity"]),
+            ("deduction", ["reg:test::a", "reg:test::b"]),
+            ("mathematical_induction", ["reg:test::base", "reg:test::step"]),
+            ("analogy", ["reg:test::source_law", "reg:test::bridge"]),
+            ("extrapolation", ["reg:test::known_law", "reg:test::continuity"]),
         ],
     )
     def test_conjunction_templates(self, type_: str, premises: list[str]):
         result = formalize_named_strategy(
-            scope="global",
+            scope="local",
             type_=type_,
             premises=premises,
-            conclusion="gcn_out",
+            conclusion="reg:test::out",
+            namespace="reg",
+            package_name="test",
         )
 
         assert _operator_names(result.strategy) == ["conjunction", "implication"]
@@ -163,10 +169,12 @@ class TestFormalizeNamedStrategy:
 
     def test_abduction_template(self):
         result = formalize_named_strategy(
-            scope="global",
+            scope="local",
             type_="abduction",
-            premises=["gcn_obs"],
-            conclusion="gcn_h",
+            premises=["reg:test::obs"],
+            conclusion="reg:test::h",
+            namespace="reg",
+            package_name="test",
         )
 
         assert _operator_names(result.strategy) == ["disjunction", "equivalence"]
@@ -179,9 +187,9 @@ class TestFormalizeNamedStrategy:
         )
         assert result.strategy.metadata["interface_roles"] == {
             "alternative_explanation": [result.strategy.premises[1]],
-            "observation": ["gcn_obs"],
+            "observation": ["reg:test::obs"],
         }
-        assert result.strategy.premises[0] == "gcn_obs"
+        assert result.strategy.premises[0] == "reg:test::obs"
 
         alternative_explanation = _knowledge_for_role(result.knowledges, "alternative_explanation")
         disjunction = _knowledge_for_role(result.knowledges, "disjunction_result")
@@ -191,21 +199,26 @@ class TestFormalizeNamedStrategy:
         assert alternative_explanation.metadata["visibility"] == "strategy_interface"
         assert equivalence.metadata["generated_kind"] == "helper_claim"
         assert equivalence.metadata["helper_kind"] == "equivalence_result"
-        assert result.strategy.premises == ["gcn_obs", alternative_explanation.id]
+        assert result.strategy.premises == ["reg:test::obs", alternative_explanation.id]
         assert result.strategy.formal_expr.operators[0].variables == [
-            "gcn_h",
+            "reg:test::h",
             alternative_explanation.id,
         ]
         assert result.strategy.formal_expr.operators[0].conclusion == disjunction.id
-        assert result.strategy.formal_expr.operators[1].variables == [disjunction.id, "gcn_obs"]
+        assert result.strategy.formal_expr.operators[1].variables == [
+            disjunction.id,
+            "reg:test::obs",
+        ]
         assert result.strategy.formal_expr.operators[1].conclusion == equivalence.id
 
     def test_abduction_reuses_explicit_alternative_explanation(self):
         result = formalize_named_strategy(
-            scope="global",
+            scope="local",
             type_="abduction",
-            premises=["gcn_obs", "gcn_alt"],
-            conclusion="gcn_h",
+            premises=["reg:test::obs", "reg:test::alt"],
+            conclusion="reg:test::h",
+            namespace="reg",
+            package_name="test",
         )
 
         assert _operator_names(result.strategy) == ["disjunction", "equivalence"]
@@ -215,42 +228,48 @@ class TestFormalizeNamedStrategy:
                 "equivalence_result": 1,
             }
         )
-        assert result.strategy.premises == ["gcn_obs", "gcn_alt"]
+        assert result.strategy.premises == ["reg:test::obs", "reg:test::alt"]
         assert result.strategy.metadata["interface_roles"] == {
-            "alternative_explanation": ["gcn_alt"],
-            "observation": ["gcn_obs"],
+            "alternative_explanation": ["reg:test::alt"],
+            "observation": ["reg:test::obs"],
         }
 
     def test_induction_deferred(self):
         with pytest.raises(ValueError, match="deferred in Gaia IR core"):
             formalize_named_strategy(
-                scope="global",
+                scope="local",
                 type_="induction",
-                premises=["gcn_obs_1", "gcn_obs_2"],
-                conclusion="gcn_law",
+                premises=["reg:test::obs_1", "reg:test::obs_2"],
+                conclusion="reg:test::law",
+                namespace="reg",
+                package_name="test",
             )
 
     def test_reductio_deferred(self):
         with pytest.raises(ValueError, match="reductio is deferred in Gaia IR core"):
             formalize_named_strategy(
-                scope="global",
+                scope="local",
                 type_="reductio",
-                premises=["gcn_r"],
-                conclusion="gcn_not_p",
+                premises=["reg:test::r"],
+                conclusion="reg:test::not_p",
+                namespace="reg",
+                package_name="test",
             )
 
     def test_elimination_template(self):
         result = formalize_named_strategy(
-            scope="global",
+            scope="local",
             type_="elimination",
             premises=[
-                "gcn_exhaustive",
-                "gcn_h1",
-                "gcn_e1",
-                "gcn_h2",
-                "gcn_e2",
+                "reg:test::exhaustive",
+                "reg:test::h1",
+                "reg:test::e1",
+                "reg:test::h2",
+                "reg:test::e2",
             ],
-            conclusion="gcn_h3",
+            conclusion="reg:test::h3",
+            namespace="reg",
+            package_name="test",
         )
 
         assert _operator_names(result.strategy) == [
@@ -270,17 +289,25 @@ class TestFormalizeNamedStrategy:
             }
         )
         assert result.strategy.metadata["interface_roles"] == {
-            "eliminated_candidate": ["gcn_h1", "gcn_h2"],
-            "elimination_evidence": ["gcn_e1", "gcn_e2"],
-            "exhaustiveness": ["gcn_exhaustive"],
+            "eliminated_candidate": ["reg:test::h1", "reg:test::h2"],
+            "elimination_evidence": ["reg:test::e1", "reg:test::e2"],
+            "exhaustiveness": ["reg:test::exhaustive"],
         }
 
     def test_case_analysis_template(self):
         result = formalize_named_strategy(
-            scope="global",
+            scope="local",
             type_="case_analysis",
-            premises=["gcn_exhaustive", "gcn_a1", "gcn_p1", "gcn_a2", "gcn_p2"],
-            conclusion="gcn_c",
+            premises=[
+                "reg:test::exhaustive",
+                "reg:test::a1",
+                "reg:test::p1",
+                "reg:test::a2",
+                "reg:test::p2",
+            ],
+            conclusion="reg:test::c",
+            namespace="reg",
+            package_name="test",
         )
 
         assert _operator_names(result.strategy) == [
@@ -299,26 +326,45 @@ class TestFormalizeNamedStrategy:
             }
         )
         assert result.strategy.metadata["interface_roles"] == {
-            "case": ["gcn_a1", "gcn_a2"],
-            "case_support": ["gcn_p1", "gcn_p2"],
-            "exhaustiveness": ["gcn_exhaustive"],
+            "case": ["reg:test::a1", "reg:test::a2"],
+            "case_support": ["reg:test::p1", "reg:test::p2"],
+            "exhaustiveness": ["reg:test::exhaustive"],
         }
 
     def test_case_analysis_open_world_variant_deferred(self):
         with pytest.raises(ValueError, match="open-world case_analysis is deferred"):
             formalize_named_strategy(
-                scope="global",
+                scope="local",
                 type_="case_analysis",
-                premises=["gcn_exhaustive", "gcn_a1", "gcn_p1", "gcn_a2", "gcn_p2"],
-                conclusion="gcn_c",
+                premises=[
+                    "reg:test::exhaustive",
+                    "reg:test::a1",
+                    "reg:test::p1",
+                    "reg:test::a2",
+                    "reg:test::p2",
+                ],
+                conclusion="reg:test::c",
+                namespace="reg",
+                package_name="test",
                 metadata={"include_other_relevant_case": True},
             )
 
     def test_rejects_non_named_strategy_type(self):
         with pytest.raises(ValueError, match="only supports named FormalStrategy types"):
             formalize_named_strategy(
-                scope="global",
+                scope="local",
                 type_="infer",
-                premises=["gcn_a"],
-                conclusion="gcn_b",
+                premises=["reg:test::a"],
+                conclusion="reg:test::b",
+                namespace="reg",
+                package_name="test",
+            )
+
+    def test_rejects_global_scope(self):
+        with pytest.raises(ValueError, match="only supports scope='local'"):
+            formalize_named_strategy(
+                scope="global",
+                type_="deduction",
+                premises=["gcn_a", "gcn_b"],
+                conclusion="gcn_c",
             )
