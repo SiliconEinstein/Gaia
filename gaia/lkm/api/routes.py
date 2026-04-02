@@ -315,3 +315,99 @@ async def get_graph(
         edges.append({"source": gf.id, "target": gf.conclusion, "type": "conclusion"})
 
     return {"nodes": nodes, "edges": edges}
+
+
+@router.get("/graph/local/{source_package}")
+async def get_local_graph(
+    source_package: str,
+    storage: StorageManager = Depends(get_storage),
+):
+    """Get a local graph for a specific package — variables + factors + edges."""
+    local_vars = await storage.content.get_local_variables_by_package(source_package)
+    from gaia.lkm.storage._serialization import row_to_local_factor
+
+    # Get local factors for this package
+    table = storage.content._db.open_table("local_factor_nodes")
+    from gaia.lkm.storage._serialization import _q
+
+    escaped = _q(source_package)
+    factor_rows = await storage.content._run(
+        lambda: (
+            table.search()
+            .where(f"source_package = '{escaped}' AND ingest_status = 'merged'")
+            .limit(10000)
+            .to_list()
+        )
+    )
+    local_factors = [row_to_local_factor(r) for r in factor_rows]
+
+    # Get priors for this package's variables
+    prior_map: dict[str, float] = {}
+    for lv in local_vars:
+        # Check if this variable has a prior via its global binding
+        binding = await storage.find_canonical_binding(lv.id)
+        if binding:
+            priors = await storage.get_prior_records(binding.global_id)
+            if priors:
+                prior_map[lv.id] = priors[0].value
+
+    # Build graph
+    nodes = []
+    var_ids = {lv.id for lv in local_vars}
+    for lv in local_vars:
+        label = lv.id.split("::")[-1] if "::" in lv.id else lv.id
+        nodes.append(
+            {
+                "id": lv.id,
+                "type": "variable",
+                "subtype": lv.type,
+                "label": label,
+                "content": lv.content[:60] + "..." if len(lv.content) > 60 else lv.content,
+                "prior": prior_map.get(lv.id),
+            }
+        )
+
+    edges = []
+    for lf in local_factors:
+        # Factor symbol
+        symbol = {
+            "noisy_and": "∧",
+            "infer": "→",
+            "contradiction": "⊗",
+            "deduction": "⊢",
+            "equivalence": "≡",
+            "implication": "⇒",
+        }.get(lf.subtype, "f")
+        nodes.append(
+            {
+                "id": lf.id,
+                "type": "factor",
+                "subtype": lf.subtype,
+                "factor_type": lf.factor_type,
+                "label": symbol,
+            }
+        )
+        for p in lf.premises:
+            if p in var_ids:
+                edges.append({"source": p, "target": lf.id, "type": "premise"})
+        if lf.conclusion in var_ids:
+            edges.append({"source": lf.id, "target": lf.conclusion, "type": "conclusion"})
+
+    return {"package_id": source_package, "nodes": nodes, "edges": edges}
+
+
+@router.get("/packages")
+async def list_packages(
+    storage: StorageManager = Depends(get_storage),
+):
+    """List all ingested packages (distinct source_package values)."""
+
+    table = storage.content._db.open_table("local_variable_nodes")
+    rows = await storage.content._run(
+        lambda: table.search().where("ingest_status = 'merged'").limit(100000).to_list()
+    )
+    packages = {}
+    for r in rows:
+        pkg = r["source_package"]
+        packages[pkg] = packages.get(pkg, 0) + 1
+    return [{"package_id": k, "variable_count": v} for k, v in sorted(packages.items())]
