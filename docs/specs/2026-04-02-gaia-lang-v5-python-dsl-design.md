@@ -78,10 +78,6 @@ include = ["galileo_falling_bodies*"]    # Import name omits -gaia suffix
 namespace = "galileo"
 type = "knowledge-package"
 uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
-
-[[tool.uv.index]]
-name = "gaia"
-url = "https://siliconeinstein.github.io/gaia-registry/simple/"
 ```
 
 **Naming convention (Julia-style `.gaia` suffix):**
@@ -136,8 +132,10 @@ with Package("my_analysis") as pkg:
 
 Dependency management:
 ```bash
-uv add aristotle-mechanics-gaia
+uv add "aristotle-mechanics-gaia @ git+https://github.com/example/AristotleMechanics.gaia@v1.0.0"
 ```
+
+Phase 1 assumes a GitHub-backed source registry, not an installable package index. Cross-package dependencies are therefore pinned as standard Python direct references (or handled via local workspace paths in a monorepo).
 
 ### 2.6 Workspace (Monorepo)
 
@@ -867,11 +865,14 @@ uv init --lib galileo-falling-bodies-gaia
 uv add gaia-lang
 # ... write knowledge ...
 gaia compile .
-gaia check --show-inputs       # See what reviewer needs to parameterize
+gaia check .
 # ... reviewer writes .gaia/params/review_alice.py ...
-gaia check --params            # Verify completeness
-gaia infer . --policy source:alice
-gaia publish
+# ... optional future infer workflow ...
+git add . && git commit -m "Prepare v1.0.0"
+git push origin main
+git tag v1.0.0
+git push origin v1.0.0
+gaia register
 ```
 
 ---
@@ -887,8 +888,8 @@ gaia publish
 | Cross-package reference | Hand-written YAML label | Python `import` |
 | Version management | typst.toml version field | `uv version --bump` |
 | Local build | `gaia build` → .gaia/ir.json | `gaia compile` → .gaia/ir.json |
-| Publish | git push + manual registration | `uv publish --index gaia` |
-| Private registry | Not designed | `[[tool.uv.index]]` + auth |
+| Registration | git push + manual registration | `git push` + `git tag` + `gaia register` |
+| Private source registry | Not designed | Git-hosted metadata repo + direct Git dependencies |
 | Workspace | Not supported | `[tool.uv.workspace]` |
 | Lockfile | ir_hash only | uv.lock + ir_hash |
 
