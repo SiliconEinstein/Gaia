@@ -234,6 +234,50 @@ async def list_bindings(
     return [b.model_dump() for b in bindings]
 
 
+@router.get("/priors")
+async def list_priors(
+    limit: int = 200,
+    storage: StorageManager = Depends(get_storage),
+):
+    """List all prior records."""
+    from gaia.lkm.storage._serialization import row_to_prior
+
+    table = storage.content._db.open_table("prior_records")
+    results = await storage.content._run(lambda: table.search().limit(limit).to_list())
+    priors = [row_to_prior(r) for r in results]
+
+    # Resolve variable content for display
+    out = []
+    for pr in priors:
+        gv = await storage.get_global_variable(pr.variable_id)
+        content = None
+        if gv:
+            local = await storage.get_local_variable(gv.representative_lcn.local_id)
+            content = local.content if local else None
+        out.append(
+            {
+                "variable_id": pr.variable_id,
+                "value": pr.value,
+                "source_id": pr.source_id,
+                "created_at": pr.created_at.isoformat(),
+                "content": content,
+            }
+        )
+    return out
+
+
+@router.get("/param-sources")
+async def list_param_sources(
+    storage: StorageManager = Depends(get_storage),
+):
+    """List all parameterization sources."""
+    from gaia.lkm.storage._serialization import row_to_param_source
+
+    table = storage.content._db.open_table("param_sources")
+    results = await storage.content._run(lambda: table.search().limit(100).to_list())
+    return [row_to_param_source(r).model_dump() for r in results]
+
+
 @router.get("/graph")
 async def get_graph(
     storage: StorageManager = Depends(get_storage),
