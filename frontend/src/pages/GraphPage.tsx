@@ -1,6 +1,23 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Spin, Card, Select, Space, Row, Col, Statistic, Drawer, Descriptions, Tag, Button, List } from "antd";
-import { ZoomInOutlined, ZoomOutOutlined, ExpandOutlined } from "@ant-design/icons";
+import {
+  Spin,
+  Card,
+  Select,
+  Space,
+  Row,
+  Col,
+  Statistic,
+  Descriptions,
+  Tag,
+  Button,
+  List,
+} from "antd";
+import {
+  ZoomInOutlined,
+  ZoomOutOutlined,
+  ExpandOutlined,
+  CloseOutlined,
+} from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import dagre from "dagre";
 
@@ -32,7 +49,10 @@ interface Package {
   variable_count: number;
 }
 
-const VAR_STYLES: Record<string, { fill: string; stroke: string; dash?: boolean }> = {
+const VAR_STYLES: Record<
+  string,
+  { fill: string; stroke: string; dash?: boolean }
+> = {
   claim: { fill: "#f0f0f0", stroke: "#666" },
   setting: { fill: "#e6f7e6", stroke: "#52c41a" },
   question: { fill: "#fff7e6", stroke: "#faad14", dash: true },
@@ -53,11 +73,16 @@ export default function GraphPage() {
   const [data, setData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const transformRef = useRef({ x: 0, y: 0, scale: 1 });
-  const dragRef = useRef({ dragging: false, startX: 0, startY: 0, startTx: 0, startTy: 0 });
+  const dragRef = useRef({
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    startTx: 0,
+    startTy: 0,
+  });
 
   useEffect(() => {
     fetch("/api/packages")
@@ -71,6 +96,7 @@ export default function GraphPage() {
   useEffect(() => {
     if (!selectedPkg) return;
     setLoading(true);
+    setSelectedNode(null);
     fetch(`/api/graph/local/${encodeURIComponent(selectedPkg)}`)
       .then((r) => r.json())
       .then(setData)
@@ -86,7 +112,6 @@ export default function GraphPage() {
 
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedNode(node);
-    setDrawerOpen(true);
   }, []);
 
   const applyTransform = useCallback(() => {
@@ -98,11 +123,14 @@ export default function GraphPage() {
     g.setAttribute("transform", `translate(${x},${y}) scale(${scale})`);
   }, []);
 
-  const zoom = useCallback((delta: number) => {
-    const t = transformRef.current;
-    t.scale = Math.max(0.2, Math.min(3, t.scale + delta));
-    applyTransform();
-  }, [applyTransform]);
+  const zoom = useCallback(
+    (delta: number) => {
+      const t = transformRef.current;
+      t.scale = Math.max(0.2, Math.min(3, t.scale + delta));
+      applyTransform();
+    },
+    [applyTransform]
+  );
 
   const resetView = useCallback(() => {
     transformRef.current = { x: 0, y: 0, scale: 1 };
@@ -115,8 +143,7 @@ export default function GraphPage() {
     if (!container) return;
     const handler = (e: WheelEvent) => {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      zoom(delta);
+      zoom(e.deltaY > 0 ? -0.1 : 0.1);
     };
     container.addEventListener("wheel", handler, { passive: false });
     return () => container.removeEventListener("wheel", handler);
@@ -126,9 +153,8 @@ export default function GraphPage() {
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
     const onDown = (e: MouseEvent) => {
-      if ((e.target as Element)?.closest(".graph-node")) return; // Don't drag when clicking nodes
+      if ((e.target as Element)?.closest(".graph-node")) return;
       dragRef.current = {
         dragging: true,
         startX: e.clientX,
@@ -144,8 +170,9 @@ export default function GraphPage() {
       transformRef.current.y = d.startTy + (e.clientY - d.startY);
       applyTransform();
     };
-    const onUp = () => { dragRef.current.dragging = false; };
-
+    const onUp = () => {
+      dragRef.current.dragging = false;
+    };
     container.addEventListener("mousedown", onDown);
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
@@ -159,13 +186,18 @@ export default function GraphPage() {
   const varNodes = data?.nodes.filter((n) => n.type === "variable") ?? [];
   const facNodes = data?.nodes.filter((n) => n.type === "factor") ?? [];
 
-  // Find connected edges for selected node
-  const connectedEdges = selectedNode && data
-    ? data.edges.filter((e) => e.source === selectedNode.id || e.target === selectedNode.id)
-    : [];
-  const connectedNodeIds = new Set(connectedEdges.flatMap((e) => [e.source, e.target]));
+  const connectedEdges =
+    selectedNode && data
+      ? data.edges.filter(
+          (e) => e.source === selectedNode.id || e.target === selectedNode.id
+        )
+      : [];
+  const connectedNodeIds = new Set(
+    connectedEdges.flatMap((e) => [e.source, e.target])
+  );
   connectedNodeIds.delete(selectedNode?.id ?? "");
-  const connectedNodes = data?.nodes.filter((n) => connectedNodeIds.has(n.id)) ?? [];
+  const connectedNodes =
+    data?.nodes.filter((n) => connectedNodeIds.has(n.id)) ?? [];
 
   return (
     <>
@@ -180,33 +212,62 @@ export default function GraphPage() {
             label: `${p.package_id} (${p.variable_count} vars)`,
           }))}
         />
-        <Button icon={<ZoomInOutlined />} onClick={() => zoom(0.2)} />
-        <Button icon={<ZoomOutOutlined />} onClick={() => zoom(-0.2)} />
-        <Button icon={<ExpandOutlined />} onClick={resetView}>Reset</Button>
       </Space>
 
       {data && (
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col span={6}>
-            <Card size="small"><Statistic title="Variables" value={varNodes.length} /></Card>
-          </Col>
-          <Col span={6}>
-            <Card size="small"><Statistic title="Factors" value={facNodes.length} /></Card>
-          </Col>
-          <Col span={6}>
-            <Card size="small"><Statistic title="Edges" value={data.edges.length} /></Card>
+            <Card size="small">
+              <Statistic title="Variables" value={varNodes.length} />
+            </Card>
           </Col>
           <Col span={6}>
             <Card size="small">
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 12 }}>
+              <Statistic title="Factors" value={facNodes.length} />
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card size="small">
+              <Statistic title="Edges" value={data.edges.length} />
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card size="small">
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  flexWrap: "wrap",
+                  fontSize: 12,
+                }}
+              >
                 {Object.entries(VAR_STYLES).map(([k, s]) => (
                   <span key={k}>
-                    <span style={{ display: "inline-block", width: 12, height: 12, backgroundColor: s.fill, border: `2px ${s.dash ? "dashed" : "solid"} ${s.stroke}`, marginRight: 4 }} />
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 12,
+                        height: 12,
+                        backgroundColor: s.fill,
+                        border: `2px ${s.dash ? "dashed" : "solid"} ${s.stroke}`,
+                        marginRight: 4,
+                      }}
+                    />
                     {k}
                   </span>
                 ))}
                 <span>
-                  <span style={{ display: "inline-block", width: 12, height: 12, borderRadius: "50%", backgroundColor: "#e0e0e0", border: "2px solid #999", marginRight: 4 }} />
+                  <span
+                    style={{
+                      display: "inline-block",
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      backgroundColor: "#e0e0e0",
+                      border: "2px solid #999",
+                      marginRight: 4,
+                    }}
+                  />
                   factor
                 </span>
               </div>
@@ -218,68 +279,180 @@ export default function GraphPage() {
       {loading ? (
         <Spin size="large" />
       ) : (
-        <Card style={{ overflow: "hidden", cursor: "grab" }} ref={containerRef}>
-          <svg ref={svgRef} width="100%" height="700" />
-        </Card>
-      )}
-
-      <Drawer
-        title={selectedNode ? (selectedNode.type === "variable" ? "Variable Detail" : "Factor Detail") : ""}
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        width={500}
-      >
-        {selectedNode && selectedNode.type === "variable" && (
-          <>
-            <Descriptions column={1} bordered size="small">
-              <Descriptions.Item label="ID"><code>{selectedNode.id}</code></Descriptions.Item>
-              <Descriptions.Item label="Type"><Tag>{selectedNode.subtype}</Tag></Descriptions.Item>
-              <Descriptions.Item label="Content">{selectedNode.content}</Descriptions.Item>
-              {selectedNode.prior != null && (
-                <Descriptions.Item label="Prior">{selectedNode.prior.toFixed(3)}</Descriptions.Item>
-              )}
-            </Descriptions>
-            {selectedNode.gcn_id && (
-              <div style={{ marginTop: 16 }}>
-                <Link to={`/variables/${encodeURIComponent(selectedNode.gcn_id)}`}>
-                  <Button type="link">View in Variables table →</Button>
-                </Link>
-              </div>
-            )}
-          </>
-        )}
-        {selectedNode && selectedNode.type === "factor" && (
-          <>
-            <Descriptions column={1} bordered size="small">
-              <Descriptions.Item label="ID"><code>{selectedNode.id}</code></Descriptions.Item>
-              <Descriptions.Item label="Type"><Tag>{selectedNode.factor_type}</Tag></Descriptions.Item>
-              <Descriptions.Item label="Subtype"><Tag>{selectedNode.subtype}</Tag></Descriptions.Item>
-            </Descriptions>
-          </>
-        )}
-        {connectedNodes.length > 0 && (
-          <div style={{ marginTop: 16 }}>
-            <h4>Connected Nodes</h4>
-            <List
-              size="small"
-              dataSource={connectedNodes}
-              renderItem={(n) => {
-                const edge = connectedEdges.find((e) => e.source === n.id || e.target === n.id);
-                const role = edge?.source === selectedNode?.id ? "→ output" : "← input";
-                return (
-                  <List.Item>
-                    <Tag color={n.type === "variable" ? "blue" : "purple"}>{n.type}</Tag>
-                    <span style={{ flex: 1 }}>
-                      {n.type === "variable" ? n.label : `[${n.subtype}]`}
-                    </span>
-                    <Tag>{role}</Tag>
-                  </List.Item>
-                );
+        <div style={{ display: "flex", gap: 16 }}>
+          {/* Graph area */}
+          <div
+            ref={containerRef}
+            style={{
+              flex: 1,
+              position: "relative",
+              border: "1px solid #f0f0f0",
+              borderRadius: 8,
+              overflow: "hidden",
+              cursor: "grab",
+              background: "#fafafa",
+              minHeight: 700,
+            }}
+          >
+            <svg ref={svgRef} width="100%" height="700" />
+            {/* Floating controls */}
+            <div
+              style={{
+                position: "absolute",
+                top: 12,
+                right: 12,
+                display: "flex",
+                gap: 4,
+                background: "rgba(255,255,255,0.9)",
+                borderRadius: 6,
+                padding: 4,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
               }}
-            />
+            >
+              <Button
+                size="small"
+                icon={<ZoomInOutlined />}
+                onClick={() => zoom(0.2)}
+              />
+              <Button
+                size="small"
+                icon={<ZoomOutOutlined />}
+                onClick={() => zoom(-0.2)}
+              />
+              <Button
+                size="small"
+                icon={<ExpandOutlined />}
+                onClick={resetView}
+              />
+            </div>
           </div>
-        )}
-      </Drawer>
+
+          {/* Detail panel */}
+          {selectedNode && (
+            <div
+              style={{
+                width: 360,
+                flexShrink: 0,
+                border: "1px solid #f0f0f0",
+                borderRadius: 8,
+                padding: 16,
+                background: "#fff",
+                overflowY: "auto",
+                maxHeight: 700,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 12,
+                }}
+              >
+                <h4 style={{ margin: 0 }}>
+                  {selectedNode.type === "variable"
+                    ? "Variable"
+                    : "Factor"}
+                </h4>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CloseOutlined />}
+                  onClick={() => setSelectedNode(null)}
+                />
+              </div>
+
+              {selectedNode.type === "variable" && (
+                <>
+                  <Descriptions column={1} bordered size="small">
+                    <Descriptions.Item label="Label">
+                      <strong>{selectedNode.label}</strong>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Type">
+                      <Tag>{selectedNode.subtype}</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Content">
+                      {selectedNode.content}
+                    </Descriptions.Item>
+                    {selectedNode.prior != null && (
+                      <Descriptions.Item label="Prior">
+                        {selectedNode.prior.toFixed(3)}
+                      </Descriptions.Item>
+                    )}
+                    <Descriptions.Item label="QID">
+                      <code style={{ fontSize: 10, wordBreak: "break-all" }}>
+                        {selectedNode.id}
+                      </code>
+                    </Descriptions.Item>
+                  </Descriptions>
+                  {selectedNode.gcn_id && (
+                    <div style={{ marginTop: 12 }}>
+                      <Link
+                        to={`/variables/${encodeURIComponent(selectedNode.gcn_id)}`}
+                      >
+                        <Button type="primary" size="small" block>
+                          View global detail →
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {selectedNode.type === "factor" && (
+                <Descriptions column={1} bordered size="small">
+                  <Descriptions.Item label="ID">
+                    <code style={{ fontSize: 10 }}>{selectedNode.id}</code>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Type">
+                    <Tag>{selectedNode.factor_type}</Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Subtype">
+                    <Tag>{selectedNode.subtype}</Tag>
+                  </Descriptions.Item>
+                </Descriptions>
+              )}
+
+              {connectedNodes.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <h4 style={{ marginBottom: 8 }}>
+                    Connected ({connectedNodes.length})
+                  </h4>
+                  <List
+                    size="small"
+                    dataSource={connectedNodes}
+                    renderItem={(n) => {
+                      const edge = connectedEdges.find(
+                        (e) => e.source === n.id || e.target === n.id
+                      );
+                      const isInput = edge?.target === selectedNode?.id;
+                      return (
+                        <List.Item style={{ padding: "4px 0" }}>
+                          <Tag
+                            color={
+                              n.type === "variable" ? "blue" : "purple"
+                            }
+                          >
+                            {n.type === "variable" ? n.subtype : n.subtype}
+                          </Tag>
+                          <span style={{ flex: 1, fontSize: 12 }}>
+                            {n.type === "variable"
+                              ? n.label
+                              : `[${n.subtype}]`}
+                          </span>
+                          <Tag color={isInput ? "green" : "orange"}>
+                            {isInput ? "← in" : "→ out"}
+                          </Tag>
+                        </List.Item>
+                      );
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }
@@ -287,20 +460,25 @@ export default function GraphPage() {
 function renderGraph(
   data: GraphData,
   svg: SVGSVGElement,
-  onNodeClick: (node: GraphNode) => void,
+  onNodeClick: (node: GraphNode) => void
 ) {
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: "TB", ranksep: 80, nodesep: 40, marginx: 40, marginy: 40 });
+  g.setGraph({
+    rankdir: "TB",
+    ranksep: 80,
+    nodesep: 40,
+    marginx: 40,
+    marginy: 40,
+  });
   g.setDefaultEdgeLabel(() => ({}));
 
   const nodeMap = new Map<string, GraphNode>();
   for (const node of data.nodes) {
     nodeMap.set(node.id, node);
-    if (node.type === "variable") {
-      g.setNode(node.id, { width: 180, height: 50 });
-    } else {
-      g.setNode(node.id, { width: 30, height: 30 });
-    }
+    g.setNode(node.id, {
+      width: node.type === "variable" ? 180 : 30,
+      height: node.type === "variable" ? 50 : 30,
+    });
   }
 
   for (const edge of data.edges) {
@@ -311,20 +489,14 @@ function renderGraph(
 
   dagre.layout(g);
 
-  let maxX = 0, maxY = 0;
-  g.nodes().forEach((id) => {
-    const n = g.node(id);
-    if (n) {
-      maxX = Math.max(maxX, n.x + n.width / 2);
-      maxY = Math.max(maxY, n.y + n.height / 2);
-    }
-  });
-
   svg.innerHTML = "";
 
   // Defs
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-  const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+  const marker = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "marker"
+  );
   marker.setAttribute("id", "arrow");
   marker.setAttribute("viewBox", "0 0 10 10");
   marker.setAttribute("refX", "10");
@@ -332,22 +504,29 @@ function renderGraph(
   marker.setAttribute("markerWidth", "8");
   marker.setAttribute("markerHeight", "8");
   marker.setAttribute("orient", "auto");
-  const arrowPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  const arrowPath = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "path"
+  );
   arrowPath.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
   arrowPath.setAttribute("fill", "#999");
   marker.appendChild(arrowPath);
   defs.appendChild(marker);
   svg.appendChild(defs);
 
-  // Content group (for zoom/pan)
-  const contentGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  const contentGroup = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "g"
+  );
   contentGroup.setAttribute("id", "graph-content");
 
   // Edges
   g.edges().forEach((e) => {
     const edge = g.edge(e);
     if (!edge?.points) return;
-    const pathStr = edge.points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+    const pathStr = edge.points
+      .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
+      .join(" ");
     const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
     line.setAttribute("d", pathStr);
     line.setAttribute("stroke", "#999");
@@ -374,9 +553,13 @@ function renderGraph(
 
     if (node.type === "variable") {
       const style = VAR_STYLES[node.subtype] || VAR_STYLES.claim;
-      const w = layout.width, h = layout.height;
+      const w = layout.width,
+        h = layout.height;
 
-      const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      const rect = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "rect"
+      );
       rect.setAttribute("x", String(-w / 2));
       rect.setAttribute("y", String(-h / 2));
       rect.setAttribute("width", String(w));
@@ -388,20 +571,30 @@ function renderGraph(
       if (style.dash) rect.setAttribute("stroke-dasharray", "6,3");
       group.appendChild(rect);
 
-      // Hover highlight
-      group.addEventListener("mouseenter", () => rect.setAttribute("stroke-width", "3"));
-      group.addEventListener("mouseleave", () => rect.setAttribute("stroke-width", "2"));
+      group.addEventListener("mouseenter", () =>
+        rect.setAttribute("stroke-width", "3")
+      );
+      group.addEventListener("mouseleave", () =>
+        rect.setAttribute("stroke-width", "2")
+      );
 
-      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      const label = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "text"
+      );
       label.setAttribute("text-anchor", "middle");
       label.setAttribute("y", node.prior != null ? "-4" : "4");
       label.setAttribute("font-size", "11");
       label.setAttribute("font-family", "system-ui, sans-serif");
-      label.textContent = node.label.length > 22 ? node.label.slice(0, 20) + "…" : node.label;
+      label.textContent =
+        node.label.length > 22 ? node.label.slice(0, 20) + "…" : node.label;
       group.appendChild(label);
 
       if (node.prior != null) {
-        const val = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        const val = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "text"
+        );
         val.setAttribute("text-anchor", "middle");
         val.setAttribute("y", "14");
         val.setAttribute("font-size", "10");
@@ -411,7 +604,10 @@ function renderGraph(
       }
     } else {
       const r = 14;
-      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      const circle = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "circle"
+      );
       circle.setAttribute("r", String(r));
       const isCont = node.subtype === "contradiction";
       circle.setAttribute("fill", isCont ? "#fff0f0" : "#e8e8e8");
@@ -419,10 +615,17 @@ function renderGraph(
       circle.setAttribute("stroke-width", "2");
       group.appendChild(circle);
 
-      group.addEventListener("mouseenter", () => circle.setAttribute("stroke-width", "3"));
-      group.addEventListener("mouseleave", () => circle.setAttribute("stroke-width", "2"));
+      group.addEventListener("mouseenter", () =>
+        circle.setAttribute("stroke-width", "3")
+      );
+      group.addEventListener("mouseleave", () =>
+        circle.setAttribute("stroke-width", "2")
+      );
 
-      const sym = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      const sym = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "text"
+      );
       sym.setAttribute("text-anchor", "middle");
       sym.setAttribute("y", "5");
       sym.setAttribute("font-size", "14");
