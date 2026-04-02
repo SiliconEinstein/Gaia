@@ -42,7 +42,7 @@ Gaia Lang v5 is a **Python internal DSL** for declaratively authoring knowledge 
 Each Gaia knowledge package is a standard Python library package:
 
 ```
-gaia-pkg-galileo-falling-bodies/
+galileo-falling-bodies-gaia/
 ├── pyproject.toml
 ├── galileo_falling_bodies/
 │   ├── __init__.py          # Package entry: exports + Package definition
@@ -61,15 +61,18 @@ gaia-pkg-galileo-falling-bodies/
 
 ```toml
 [project]
-name = "gaia-pkg-galileo-falling-bodies"
+name = "galileo-falling-bodies-gaia"
 version = "4.0.0"
 description = "Galileo's falling bodies argument"
 authors = [{name = "Galileo Galilei"}]
 requires-python = ">=3.12"
 dependencies = [
     "gaia-lang >= 2.0.0",
-    "gaia-pkg-aristotle-mechanics >= 1.0.0",
+    "aristotle-mechanics-gaia >= 1.0.0",
 ]
+
+[tool.setuptools.packages.find]
+include = ["galileo_falling_bodies*"]    # Import name omits -gaia suffix
 
 [tool.gaia]
 namespace = "galileo"
@@ -77,11 +80,20 @@ type = "knowledge-package"
 
 [[tool.uv.index]]
 name = "gaia"
-url = "https://gaia-registry.example.com/simple"
+url = "https://siliconeinstein.github.io/gaia-registry/simple/"
 ```
 
+**Naming convention (Julia-style `.gaia` suffix):**
+
+| Layer | Format | Example |
+|-------|--------|---------|
+| GitHub repo | `<CamelCase>.gaia` | `GalileoFallingBodies.gaia` |
+| PyPI package | `<kebab-case>-gaia` | `galileo-falling-bodies-gaia` |
+| Python import | `<snake_case>` (no suffix) | `galileo_falling_bodies` |
+| Source directory | `<snake_case>/` | `galileo_falling_bodies/` |
+
 **Conventions:**
-- Package names use `gaia-pkg-<name>` prefix to distinguish from regular Python packages.
+- Package names use `<name>-gaia` suffix to identify Gaia knowledge packages (like Julia's `.jl` convention).
 - `[tool.gaia].namespace` is used for QID generation: `{namespace}:{package_name}::{label}`. The compiler maps this to IR v2's allowed namespace set (`reg` for registry-bound packages, `paper` for extracted packages).
 - Cross-package dependencies are standard Python dependencies in `[project].dependencies`.
 
@@ -123,7 +135,7 @@ with Package("my_analysis") as pkg:
 
 Dependency management:
 ```bash
-uv add gaia-pkg-aristotle-mechanics
+uv add aristotle-mechanics-gaia
 ```
 
 ### 2.6 Workspace (Monorepo)
@@ -139,9 +151,9 @@ lab-knowledge/
 ├── pyproject.toml
 ├── uv.lock                          # Shared lockfile
 ├── packages/
-│   ├── gaia-pkg-ybco-superconductor/
-│   ├── gaia-pkg-bscco-superconductor/
-│   └── gaia-pkg-high-tc-review/     # References the above two
+│   ├── YBCOSuperconductor.gaia/
+│   ├── BSCCOSuperconductor.gaia/
+│   └── HighTcReview.gaia/           # References the above two
 ```
 
 ---
@@ -685,7 +697,7 @@ Implementation: `Package.__exit__` inspects the caller's `locals()` or uses desc
 ```bash
 # ── Create ──
 gaia init my-research          # Scaffold: pyproject.toml + package dir + __init__.py template
-                                # Internally calls: uv init --lib gaia-pkg-my-research
+                                # Internally calls: uv init --lib my-research-gaia
 
 # ── Compile ──
 gaia compile [path]            # Compile → .gaia/ir.json + ir_hash
@@ -860,7 +872,7 @@ with source(model="gpt-5-mini", reviewer="alice", policy="conservative") as src:
 ### 6.3 Workflow
 
 ```bash
-uv init --lib gaia-pkg-galileo-falling-bodies
+uv init --lib galileo-falling-bodies-gaia
 uv add gaia-lang
 # ... write knowledge ...
 gaia compile .

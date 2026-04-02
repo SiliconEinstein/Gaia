@@ -4,7 +4,7 @@
 
 **Goal:** Stand up the Gaia Registry GitHub repo, create a sample knowledge package, and walk through the full register → CI → publish → install flow.
 
-**Architecture:** Two GitHub repos — (1) `gaia-registry` with Julia-style metadata, GitHub Actions CI, GitHub Releases for wheels, GitHub Pages for PEP 503 index; (2) a sample `gaia-pkg-galileo-falling-bodies` package using the Python DSL stub. The `gaia` CLI gets new `compile`, `check`, and `register` commands.
+**Architecture:** Two GitHub repos — (1) `gaia-registry` with Julia-style metadata, GitHub Actions CI, GitHub Releases for wheels, GitHub Pages for PEP 503 index; (2) a sample `galileo-falling-bodies-gaia` package using the Python DSL stub. The `gaia` CLI gets new `compile`, `check`, and `register` commands.
 
 **Tech Stack:** Python 3.12+, Typer (existing CLI), Pydantic v2 (existing IR models), GitHub Actions, GitHub Pages, `gh` CLI, `uv`
 
@@ -40,7 +40,7 @@ tests/gaia/lang/
 └── test_e2e_galileo.py           # Full Galileo example end-to-end
 ```
 
-### Registry repo (separate GitHub repo: `gaia-registry/registry`)
+### Registry repo (separate GitHub repo: `SiliconEinstein/gaia-registry`)
 
 ```
 gaia-registry/
@@ -62,7 +62,7 @@ gaia-registry/
 ### Sample package repo (separate GitHub repo)
 
 ```
-gaia-pkg-galileo-falling-bodies/
+galileo-falling-bodies-gaia/
 ├── pyproject.toml
 ├── galileo_falling_bodies/
 │   ├── __init__.py
@@ -1166,7 +1166,7 @@ def test_compile_creates_ir_json(tmp_path):
     pkg_dir = tmp_path / "test_pkg"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(
-        '[project]\nname = "gaia-pkg-test"\nversion = "1.0.0"\n'
+        '[project]\nname = "test-gaia"\nversion = "1.0.0"\n'
         '[tool.gaia]\nnamespace = "test"\ntype = "knowledge-package"\n'
     )
     pkg_src = pkg_dir / "test_pkg"
@@ -1234,8 +1234,8 @@ def compile_command(
 
     # Find the Python package directory
     project_name = config["project"]["name"]
-    # Convert gaia-pkg-foo-bar to foo_bar (Python import name)
-    import_name = project_name.removeprefix("gaia-pkg-").replace("-", "_")
+    # Convert foo-bar-gaia to foo_bar (Python import name: strip -gaia suffix, replace - with _)
+    import_name = project_name.removesuffix("-gaia").replace("-", "_")
 
     pkg_src = pkg_path / import_name
     if not pkg_src.exists():
@@ -1318,7 +1318,7 @@ git commit -m "feat(cli): add gaia compile command"
 
 ### Task 7: Create Registry GitHub repo
 
-**Files:** All in the new `gaia-registry/registry` GitHub repo.
+**Files:** All in the new `SiliconEinstein/gaia-registry` GitHub repo.
 
 - [ ] **Step 1: Create the GitHub repo**
 
@@ -1329,7 +1329,7 @@ gh repo create gaia-registry --public --description "Gaia Official Registry — 
 - [ ] **Step 2: Initialize repo structure**
 
 ```bash
-cd /tmp && git clone https://github.com/<org>/gaia-registry.git
+cd /tmp && git clone https://github.com/SiliconEinstein/gaia-registry.git
 cd gaia-registry
 
 mkdir -p packages .github/workflows scripts
@@ -1362,7 +1362,7 @@ Use the workflow from the spec with concurrency control, wheel hash computation,
 - [ ] **Step 6: Enable GitHub Pages on the repo (gh-pages branch)**
 
 ```bash
-gh api repos/<org>/gaia-registry/pages -X POST -f source.branch=gh-pages -f source.path=/
+gh api repos/SiliconEinstein/gaia-registry/pages -X POST -f source.branch=gh-pages -f source.path=/
 ```
 
 - [ ] **Step 7: Commit and push**
@@ -1379,14 +1379,14 @@ git push origin main
 - [ ] **Step 1: Create the sample package repo**
 
 ```bash
-gh repo create gaia-pkg-galileo-falling-bodies --public --description "Galileo's falling bodies argument"
+gh repo create galileo-falling-bodies-gaia --public --description "Galileo's falling bodies argument"
 ```
 
 - [ ] **Step 2: Initialize with uv and write the knowledge**
 
 ```bash
-cd /tmp && git clone https://github.com/<org>/gaia-pkg-galileo-falling-bodies.git
-cd gaia-pkg-galileo-falling-bodies
+cd /tmp && git clone https://github.com/kunyuan/GalileoFallingBodies.gaia.git
+cd galileo-falling-bodies-gaia
 uv init --lib
 ```
 
@@ -1419,24 +1419,24 @@ gaia register
 - [ ] **Step 6: Verify CI passes on the registry PR**
 
 ```bash
-gh run list --repo <org>/gaia-registry --limit 1
+gh run list --repo SiliconEinstein/gaia-registry --limit 1
 gh run view <run-id> --log
 ```
 
 - [ ] **Step 7: Merge PR (manually for first test)**
 
 ```bash
-gh pr merge <pr-number> --repo <org>/gaia-registry --squash
+gh pr merge <pr-number> --repo SiliconEinstein/gaia-registry --squash
 ```
 
 - [ ] **Step 8: Verify publish workflow ran**
 
 ```bash
 # Check GitHub Releases
-gh release list --repo <org>/gaia-registry
+gh release list --repo SiliconEinstein/gaia-registry
 
 # Check GitHub Pages index
-curl https://<org>.github.io/gaia-registry/simple/gaia-pkg-galileo-falling-bodies/
+curl https://<org>.github.io/gaia-registry/simple/galileo-falling-bodies-gaia/
 ```
 
 - [ ] **Step 9: Test consumer install**
@@ -1452,7 +1452,7 @@ name = "gaia"
 url = "https://<org>.github.io/gaia-registry/simple/"
 EOF
 
-uv add gaia-pkg-galileo-falling-bodies
+uv add galileo-falling-bodies-gaia
 python -c "from galileo_falling_bodies import vacuum_prediction; print(vacuum_prediction.content)"
 ```
 
