@@ -298,6 +298,85 @@ class LanceContentStore:
         table = self._db.open_table("param_sources")
         await self._run(table.add, [param_source_to_row(source)])
 
+    # ── Batch reads (for batch_integrate) ──
+
+    async def find_globals_by_content_hashes(
+        self, hashes: set[str]
+    ) -> dict[str, GlobalVariableNode]:
+        """Find existing global variables for a set of content_hashes. One query."""
+        if not hashes:
+            return {}
+        table = self._db.open_table("global_variable_nodes")
+        # Build IN clause in batches of 500 to avoid query size limits
+        result_map: dict[str, GlobalVariableNode] = {}
+        hash_list = list(hashes)
+        for i in range(0, len(hash_list), 500):
+            batch = hash_list[i : i + 500]
+            in_clause = ", ".join(f"'{_q(h)}'" for h in batch)
+            results = await self._run(
+                lambda ic=in_clause: (
+                    table.search()
+                    .where(f"content_hash IN ({ic})")
+                    .limit(len(batch) + 100)
+                    .to_list()
+                )
+            )
+            for r in results:
+                gv = row_to_global_variable(r)
+                result_map[gv.content_hash] = gv
+        logger.info("Batch content_hash lookup: %d queried, %d found", len(hashes), len(result_map))
+        return result_map
+
+    async def find_bindings_by_local_ids(
+        self, local_ids: set[str]
+    ) -> dict[str, CanonicalBinding]:
+        """Find existing bindings for a set of local_ids. One query."""
+        if not local_ids:
+            return {}
+        table = self._db.open_table("canonical_bindings")
+        result_map: dict[str, CanonicalBinding] = {}
+        id_list = list(local_ids)
+        for i in range(0, len(id_list), 500):
+            batch = id_list[i : i + 500]
+            in_clause = ", ".join(f"'{_q(lid)}'" for lid in batch)
+            results = await self._run(
+                lambda ic=in_clause: (
+                    table.search()
+                    .where(f"local_id IN ({ic})")
+                    .limit(len(batch) + 100)
+                    .to_list()
+                )
+            )
+            for r in results:
+                b = row_to_binding(r)
+                result_map[b.local_id] = b
+        return result_map
+
+    async def find_global_factors_by_conclusions(
+        self, conclusions: set[str]
+    ) -> list[GlobalFactorNode]:
+        """Find existing global factors by conclusion set. Memory filter for premises."""
+        if not conclusions:
+            return []
+        table = self._db.open_table("global_factor_nodes")
+        all_results: list[GlobalFactorNode] = []
+        conc_list = list(conclusions)
+        for i in range(0, len(conc_list), 500):
+            batch = conc_list[i : i + 500]
+            in_clause = ", ".join(f"'{_q(c)}'" for c in batch)
+            results = await self._run(
+                lambda ic=in_clause: (
+                    table.search()
+                    .where(f"conclusion IN ({ic})")
+                    .limit(_MAX_SCAN)
+                    .to_list()
+                )
+            )
+            all_results.extend(row_to_global_factor(r) for r in results)
+        logger.info("Batch factor lookup: %d conclusions queried, %d factors found",
+                     len(conclusions), len(all_results))
+        return all_results
+
     # ── Reads: local nodes ──
 
     async def get_local_variable(self, local_id: str) -> LocalVariableNode | None:

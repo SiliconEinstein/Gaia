@@ -153,6 +153,23 @@ class StorageManager:
     async def find_bindings_by_global_id(self, global_id: str) -> list[CanonicalBinding]:
         return await self.content.find_bindings_by_global_id(global_id)
 
+    # ── Batch reads (for batch_integrate) ──
+
+    async def find_globals_by_content_hashes(
+        self, hashes: set[str]
+    ) -> dict[str, GlobalVariableNode]:
+        return await self.content.find_globals_by_content_hashes(hashes)
+
+    async def find_bindings_by_local_ids(
+        self, local_ids: set[str]
+    ) -> dict[str, CanonicalBinding]:
+        return await self.content.find_bindings_by_local_ids(local_ids)
+
+    async def find_global_factors_by_conclusions(
+        self, conclusions: set[str]
+    ) -> list[GlobalFactorNode]:
+        return await self.content.find_global_factors_by_conclusions(conclusions)
+
     # ── Reads: parameterization ──
 
     async def get_prior_records(self, variable_id: str) -> list[PriorRecord]:
