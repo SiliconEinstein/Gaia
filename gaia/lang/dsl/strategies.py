@@ -1,13 +1,76 @@
 """Gaia Lang v5 — Strategy functions (reasoning declarations)."""
 
-from gaia.lang.runtime import Knowledge, Operator, Strategy
+from typing import Any
+
+from gaia.lang.runtime import Knowledge, Strategy
+
+StepInput = str | dict[str, Any]
+
+
+def _named_strategy(
+    type_: str,
+    *,
+    premises: list[Knowledge],
+    conclusion: Knowledge,
+    background: list[Knowledge] | None = None,
+    steps: list[StepInput] | None = None,
+    reason: str = "",
+) -> Strategy:
+    strategy = Strategy(
+        type=type_,
+        premises=list(premises),
+        conclusion=conclusion,
+        background=background or [],
+        steps=steps or [],
+        reason=reason,
+    )
+    conclusion.strategy = strategy
+    return strategy
+
+
+def _composite_strategy(
+    *,
+    type_: str,
+    premises: list[Knowledge],
+    conclusion: Knowledge,
+    sub_strategies: list[Strategy],
+    background: list[Knowledge] | None = None,
+    steps: list[StepInput] | None = None,
+    reason: str = "",
+) -> Strategy:
+    if not sub_strategies:
+        raise ValueError("composite() requires at least one sub-strategy")
+    strategy = Strategy(
+        type=type_,
+        premises=list(premises),
+        conclusion=conclusion,
+        background=background or [],
+        steps=steps or [],
+        reason=reason,
+        sub_strategies=list(sub_strategies),
+    )
+    conclusion.strategy = strategy
+    return strategy
+
+
+def _flatten_pairs(
+    pairs: list[tuple[Knowledge, Knowledge]],
+    *,
+    name: str,
+) -> list[Knowledge]:
+    if not pairs:
+        raise ValueError(f"{name}() requires at least one pair")
+    flattened: list[Knowledge] = []
+    for left, right in pairs:
+        flattened.extend([left, right])
+    return flattened
 
 
 def noisy_and(
     premises: list[Knowledge],
     conclusion: Knowledge,
     *,
-    steps: list[str] | None = None,
+    steps: list[StepInput] | None = None,
     reason: str = "",
 ) -> Strategy:
     """All premises jointly necessary, supporting conclusion with conditional probability p."""
@@ -26,7 +89,7 @@ def infer(
     premises: list[Knowledge],
     conclusion: Knowledge,
     *,
-    steps: list[str] | None = None,
+    steps: list[StepInput] | None = None,
     reason: str = "",
 ) -> Strategy:
     """General CPT reasoning (2^k parameters). Rarely used directly."""
@@ -46,31 +109,20 @@ def deduction(
     conclusion: Knowledge,
     *,
     background: list[Knowledge] | None = None,
+    steps: list[StepInput] | None = None,
     reason: str = "",
 ) -> Strategy:
-    """Deduction: conjunction + implication. Auto-expands FormalExpr."""
-    if len(premises) == 1:
-        formal_expr = [Operator(operator="implication", variables=premises, conclusion=conclusion)]
-    else:
-        _m = Knowledge(
-            content=f"all_true({', '.join(p.label or f'P{i}' for i, p in enumerate(premises))})",
-            type="claim",
-            metadata={"helper_kind": "conjunction_result", "helper_visibility": "formal_internal"},
-        )
-        conj = Operator(operator="conjunction", variables=premises, conclusion=_m)
-        impl = Operator(operator="implication", variables=[_m], conclusion=conclusion)
-        formal_expr = [conj, impl]
-
-    s = Strategy(
-        type="deduction",
+    """Deduction lowered via the canonical IR formalizer at compile time."""
+    if len(premises) < 2:
+        raise ValueError("deduction() requires at least 2 premises")
+    return _named_strategy(
+        "deduction",
         premises=premises,
         conclusion=conclusion,
-        background=background or [],
+        background=background,
+        steps=steps,
         reason=reason,
-        formal_expr=formal_expr,
     )
-    conclusion.strategy = s
-    return s
 
 
 def abduction(
@@ -78,40 +130,20 @@ def abduction(
     hypothesis: Knowledge,
     alternative: Knowledge | None = None,
     *,
+    steps: list[StepInput] | None = None,
     reason: str = "",
 ) -> Strategy:
-    """Abduction: disjunction + equivalence. Auto-expands FormalExpr per IR v2."""
-    if alternative is None:
-        alternative = Knowledge(
-            content=f"Alternative explanation for {observation.label or 'observation'}",
-            type="claim",
-            metadata={"auto_generated": True},
-        )
-
-    _disj = Knowledge(
-        content=f"any_true({hypothesis.label or 'H'}, {alternative.label or 'Alt'})",
-        type="claim",
-        metadata={"helper_kind": "disjunction_result", "helper_visibility": "formal_internal"},
-    )
-    _eq = Knowledge(
-        content=f"same_truth(explains, {observation.label or 'Obs'})",
-        type="claim",
-        metadata={"helper_kind": "equivalence_result", "helper_visibility": "formal_internal"},
-    )
-    disj_op = Operator(
-        operator="disjunction", variables=[hypothesis, alternative], conclusion=_disj
-    )
-    eq_op = Operator(operator="equivalence", variables=[_disj, observation], conclusion=_eq)
-
-    s = Strategy(
-        type="abduction",
-        premises=[observation, alternative],
+    """Abduction lowered via the canonical IR formalizer at compile time."""
+    premises = [observation]
+    if alternative is not None:
+        premises.append(alternative)
+    return _named_strategy(
+        "abduction",
+        premises=premises,
         conclusion=hypothesis,
+        steps=steps,
         reason=reason,
-        formal_expr=[disj_op, eq_op],
     )
-    hypothesis.strategy = s
-    return s
 
 
 def analogy(
@@ -119,26 +151,17 @@ def analogy(
     target: Knowledge,
     bridge: Knowledge,
     *,
+    steps: list[StepInput] | None = None,
     reason: str = "",
 ) -> Strategy:
-    """Analogy: conjunction([source, bridge]) + implication -> target."""
-    _m = Knowledge(
-        content=f"all_true({source.label or 'Source'}, {bridge.label or 'Bridge'})",
-        type="claim",
-        metadata={"helper_kind": "conjunction_result", "helper_visibility": "formal_internal"},
-    )
-    conj = Operator(operator="conjunction", variables=[source, bridge], conclusion=_m)
-    impl = Operator(operator="implication", variables=[_m], conclusion=target)
-
-    s = Strategy(
-        type="analogy",
+    """Analogy lowered via the canonical IR formalizer at compile time."""
+    return _named_strategy(
+        "analogy",
         premises=[source, bridge],
         conclusion=target,
+        steps=steps,
         reason=reason,
-        formal_expr=[conj, impl],
     )
-    target.strategy = s
-    return s
 
 
 def extrapolation(
@@ -146,23 +169,90 @@ def extrapolation(
     target: Knowledge,
     continuity: Knowledge,
     *,
+    steps: list[StepInput] | None = None,
     reason: str = "",
 ) -> Strategy:
-    """Extrapolation: same skeleton as analogy, semantically marks cross-range transfer."""
-    _m = Knowledge(
-        content=f"all_true({source.label or 'Source'}, {continuity.label or 'Continuity'})",
-        type="claim",
-        metadata={"helper_kind": "conjunction_result", "helper_visibility": "formal_internal"},
-    )
-    conj = Operator(operator="conjunction", variables=[source, continuity], conclusion=_m)
-    impl = Operator(operator="implication", variables=[_m], conclusion=target)
-
-    s = Strategy(
-        type="extrapolation",
+    """Extrapolation lowered via the canonical IR formalizer at compile time."""
+    return _named_strategy(
+        "extrapolation",
         premises=[source, continuity],
         conclusion=target,
+        steps=steps,
         reason=reason,
-        formal_expr=[conj, impl],
     )
-    target.strategy = s
-    return s
+
+
+def elimination(
+    exhaustiveness: Knowledge,
+    excluded: list[tuple[Knowledge, Knowledge]],
+    survivor: Knowledge,
+    *,
+    steps: list[StepInput] | None = None,
+    reason: str = "",
+) -> Strategy:
+    """Elimination lowered via the canonical IR formalizer at compile time."""
+    return _named_strategy(
+        "elimination",
+        premises=[exhaustiveness, *_flatten_pairs(excluded, name="elimination")],
+        conclusion=survivor,
+        steps=steps,
+        reason=reason,
+    )
+
+
+def case_analysis(
+    exhaustiveness: Knowledge,
+    cases: list[tuple[Knowledge, Knowledge]],
+    conclusion: Knowledge,
+    *,
+    steps: list[StepInput] | None = None,
+    reason: str = "",
+) -> Strategy:
+    """Case analysis lowered via the canonical IR formalizer at compile time."""
+    return _named_strategy(
+        "case_analysis",
+        premises=[exhaustiveness, *_flatten_pairs(cases, name="case_analysis")],
+        conclusion=conclusion,
+        steps=steps,
+        reason=reason,
+    )
+
+
+def mathematical_induction(
+    base: Knowledge,
+    step: Knowledge,
+    conclusion: Knowledge,
+    *,
+    steps: list[StepInput] | None = None,
+    reason: str = "",
+) -> Strategy:
+    """Mathematical induction lowered via the canonical IR formalizer at compile time."""
+    return _named_strategy(
+        "mathematical_induction",
+        premises=[base, step],
+        conclusion=conclusion,
+        steps=steps,
+        reason=reason,
+    )
+
+
+def composite(
+    premises: list[Knowledge],
+    conclusion: Knowledge,
+    *,
+    sub_strategies: list[Strategy],
+    background: list[Knowledge] | None = None,
+    steps: list[StepInput] | None = None,
+    reason: str = "",
+    type: str = "infer",
+) -> Strategy:
+    """Hierarchical composition lowered to IR CompositeStrategy."""
+    return _composite_strategy(
+        type_=type,
+        premises=premises,
+        conclusion=conclusion,
+        sub_strategies=sub_strategies,
+        background=background,
+        steps=steps,
+        reason=reason,
+    )

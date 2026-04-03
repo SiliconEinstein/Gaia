@@ -5,12 +5,24 @@ from gaia.lang.runtime import Knowledge, Strategy
 
 def setting(content: str, **metadata) -> Knowledge:
     """Declare a background assumption. No probability, no BP participation."""
-    return Knowledge(content=content.strip(), type="setting", metadata=metadata)
+    provenance = metadata.pop("provenance", None)
+    return Knowledge(
+        content=content.strip(),
+        type="setting",
+        provenance=provenance or [],
+        metadata=metadata,
+    )
 
 
 def question(content: str, **metadata) -> Knowledge:
     """Declare a research question. No probability, no BP participation."""
-    return Knowledge(content=content.strip(), type="question", metadata=metadata)
+    provenance = metadata.pop("provenance", None)
+    return Knowledge(
+        content=content.strip(),
+        type="question",
+        provenance=provenance or [],
+        metadata=metadata,
+    )
 
 
 def claim(
@@ -19,6 +31,7 @@ def claim(
     given: list[Knowledge] | None = None,
     background: list[Knowledge] | None = None,
     parameters: list[dict] | None = None,
+    provenance: list[dict[str, str]] | None = None,
     **metadata,
 ) -> Knowledge:
     """Declare a scientific assertion. The only type carrying probability."""
@@ -27,6 +40,7 @@ def claim(
         type="claim",
         background=background or [],
         parameters=parameters or [],
+        provenance=provenance or [],
         metadata=metadata,
     )
     if given:

@@ -42,5 +42,17 @@ def test_universal_claim_with_parameters():
     assert u.parameters[0]["name"] == "x"
 
 
+def test_claim_supports_provenance():
+    c = claim(
+        "A sourced scientific assertion.",
+        provenance=[{"package_id": "paper:galileo", "version": "1.0.0"}],
+    )
+    assert c.provenance == [{"package_id": "paper:galileo", "version": "1.0.0"}]
+
+
 def test_public_api_does_not_export_package():
     assert "Package" not in gaia_lang_exports
+    assert "elimination" in gaia_lang_exports
+    assert "case_analysis" in gaia_lang_exports
+    assert "mathematical_induction" in gaia_lang_exports
+    assert "composite" in gaia_lang_exports
