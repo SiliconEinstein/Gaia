@@ -196,6 +196,7 @@ def row_to_binding(row: dict) -> CanonicalBinding:
 
 def prior_to_row(r: PriorRecord) -> dict:
     return {
+        "id": f"{r.variable_id}::{r.source_id}",
         "variable_id": r.variable_id,
         "value": r.value,
         "source_id": r.source_id,
@@ -217,6 +218,7 @@ def row_to_prior(row: dict) -> PriorRecord:
 
 def factor_param_to_row(r: FactorParamRecord) -> dict:
     return {
+        "id": f"{r.factor_id}::{r.source_id}",
         "factor_id": r.factor_id,
         "conditional_probabilities": json.dumps(r.conditional_probabilities),
         "source_id": r.source_id,

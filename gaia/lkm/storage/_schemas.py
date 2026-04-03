@@ -84,6 +84,7 @@ CANONICAL_BINDINGS = pa.schema(
 
 PRIOR_RECORDS = pa.schema(
     [
+        pa.field("id", pa.string()),  # "{variable_id}::{source_id}"
         pa.field("variable_id", pa.string()),
         pa.field("value", pa.float64()),
         pa.field("source_id", pa.string()),
@@ -93,6 +94,7 @@ PRIOR_RECORDS = pa.schema(
 
 FACTOR_PARAM_RECORDS = pa.schema(
     [
+        pa.field("id", pa.string()),  # "{factor_id}::{source_id}"
         pa.field("factor_id", pa.string()),
         pa.field("conditional_probabilities", pa.string()),  # JSON list[float]
         pa.field("source_id", pa.string()),

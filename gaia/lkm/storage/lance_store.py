@@ -90,7 +90,9 @@ class LanceContentStore:
             ("canonical_bindings", "local_id"),
             ("canonical_bindings", "global_id"),
             ("canonical_bindings", "binding_type"),
+            ("prior_records", "id"),
             ("prior_records", "variable_id"),
+            ("factor_param_records", "id"),
             ("factor_param_records", "factor_id"),
             ("param_sources", "source_id"),
             ("import_status", "package_id"),
@@ -294,16 +296,14 @@ class LanceContentStore:
     async def write_prior_records(self, records: list[PriorRecord]) -> None:
         if not records:
             return
-        table = self._db.open_table("prior_records")
         rows = [prior_to_row(r) for r in records]
-        await self._run(table.add, rows)
+        await self._upsert("prior_records", TABLE_SCHEMAS["prior_records"], rows)
 
     async def write_factor_param_records(self, records: list[FactorParamRecord]) -> None:
         if not records:
             return
-        table = self._db.open_table("factor_param_records")
         rows = [factor_param_to_row(r) for r in records]
-        await self._run(table.add, rows)
+        await self._upsert("factor_param_records", TABLE_SCHEMAS["factor_param_records"], rows)
 
     async def write_param_source(self, source: ParameterizationSource) -> None:
         table = self._db.open_table("param_sources")
