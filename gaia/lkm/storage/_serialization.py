@@ -24,6 +24,7 @@ from gaia.lkm.models import (
     PriorRecord,
     Step,
 )
+from gaia.lkm.models.import_status import ImportStatusRecord
 
 
 def _q(s: str) -> str:
@@ -255,4 +256,35 @@ def row_to_param_source(row: dict) -> ParameterizationSource:
         policy=row["policy"] or None,
         config=json.loads(config_raw) if config_raw else None,
         created_at=datetime.fromisoformat(row["created_at"]),
+    )
+
+
+# ── ImportStatusRecord ──
+
+
+def import_status_to_row(r: ImportStatusRecord) -> dict:
+    return {
+        "package_id": r.package_id,
+        "status": r.status,
+        "variable_count": r.variable_count,
+        "factor_count": r.factor_count,
+        "prior_count": r.prior_count,
+        "factor_param_count": r.factor_param_count,
+        "started_at": r.started_at.isoformat(),
+        "completed_at": r.completed_at.isoformat(),
+        "error": r.error,
+    }
+
+
+def row_to_import_status(row: dict) -> ImportStatusRecord:
+    return ImportStatusRecord(
+        package_id=row["package_id"],
+        status=row["status"],
+        variable_count=row["variable_count"],
+        factor_count=row["factor_count"],
+        prior_count=row["prior_count"],
+        factor_param_count=row["factor_param_count"],
+        started_at=datetime.fromisoformat(row["started_at"]),
+        completed_at=datetime.fromisoformat(row["completed_at"]),
+        error=row.get("error", ""),
     )

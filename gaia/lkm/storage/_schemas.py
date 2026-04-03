@@ -111,6 +111,22 @@ PARAM_SOURCES = pa.schema(
     ]
 )
 
+# ── Import status ──
+
+IMPORT_STATUS = pa.schema(
+    [
+        pa.field("package_id", pa.string()),
+        pa.field("status", pa.string()),
+        pa.field("variable_count", pa.int32()),
+        pa.field("factor_count", pa.int32()),
+        pa.field("prior_count", pa.int32()),
+        pa.field("factor_param_count", pa.int32()),
+        pa.field("started_at", pa.string()),
+        pa.field("completed_at", pa.string()),
+        pa.field("error", pa.string()),
+    ]
+)
+
 # ── Registry ──
 
 TABLE_SCHEMAS: dict[str, pa.Schema] = {
@@ -122,4 +138,5 @@ TABLE_SCHEMAS: dict[str, pa.Schema] = {
     "prior_records": PRIOR_RECORDS,
     "factor_param_records": FACTOR_PARAM_RECORDS,
     "param_sources": PARAM_SOURCES,
+    "import_status": IMPORT_STATUS,
 }

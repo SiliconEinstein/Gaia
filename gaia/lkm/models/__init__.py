@@ -7,6 +7,7 @@ input format, not the storage format).
 from gaia.lkm.models._hash import compute_content_hash, new_gcn_id, new_gfac_id
 from gaia.lkm.models.binding import CanonicalBinding
 from gaia.lkm.models.factor import GlobalFactorNode, LocalFactorNode, Step
+from gaia.lkm.models.import_status import ImportStatusRecord
 from gaia.lkm.models.inference import BeliefSnapshot
 from gaia.lkm.models.parameterization import (
     CROMWELL_EPS,
@@ -44,6 +45,8 @@ __all__ = [
     "PriorRecord",
     "FactorParamRecord",
     "ParameterizationSource",
+    # import status
+    "ImportStatusRecord",
     # inference
     "BeliefSnapshot",
 ]
