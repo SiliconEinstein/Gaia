@@ -129,19 +129,29 @@ class Neo4jGraphStore:
     # ── Reads ──
 
     async def get_subgraph(self, gcn_id: str, hops: int = 2) -> dict[str, Any]:
-        """Get N-hop subgraph around a variable node."""
+        """Get N-hop subgraph around a variable node.
+
+        Returns the seed node even if it has no edges (isolated variable).
+        The hops bound is inlined into the Cypher text because Neo4j does not
+        support parameterized variable-length path bounds.
+        """
+        hops = int(hops)  # sanitize — must be a literal integer in Cypher
         async with self._driver.session(database=self._database) as session:
             result = await session.run(
-                """
-                MATCH path = (start:Variable {gcn_id: $gcn_id})-[*1..$hops]-(n)
-                WITH nodes(path) AS ns, relationships(path) AS rs
+                f"""
+                MATCH (start:Variable {{gcn_id: $gcn_id}})
+                OPTIONAL MATCH path = (start)-[*1..{hops}]-(n)
+                WITH start,
+                     CASE WHEN path IS NOT NULL THEN nodes(path) ELSE [start] END AS ns,
+                     CASE WHEN path IS NOT NULL THEN relationships(path) ELSE [] END AS rs
                 UNWIND ns AS node
+                UNWIND CASE WHEN size(rs) > 0 THEN rs ELSE [null] END AS rel
                 WITH COLLECT(DISTINCT node) AS all_nodes,
-                     COLLECT(DISTINCT rs) AS all_rels
-                RETURN all_nodes, all_rels
+                     COLLECT(DISTINCT rel) AS all_rels_raw
+                RETURN all_nodes,
+                       [r IN all_rels_raw WHERE r IS NOT NULL] AS all_rels
                 """,
                 gcn_id=gcn_id,
-                hops=hops,
             )
             record = await result.single()
             if not record:
@@ -170,20 +180,19 @@ class Neo4jGraphStore:
                     )
 
             edges = []
-            for rel_list in record["all_rels"]:
-                for rel in rel_list:
-                    start_node = rel.start_node
-                    end_node = rel.end_node
-                    source = start_node.get("gcn_id") or start_node.get("gfac_id")
-                    target = end_node.get("gcn_id") or end_node.get("gfac_id")
-                    if source and target:
-                        edges.append(
-                            {
-                                "source": source,
-                                "target": target,
-                                "type": rel.type.lower(),
-                            }
-                        )
+            for rel in record["all_rels"]:
+                start_node = rel.start_node
+                end_node = rel.end_node
+                source = start_node.get("gcn_id") or start_node.get("gfac_id")
+                target = end_node.get("gcn_id") or end_node.get("gfac_id")
+                if source and target:
+                    edges.append(
+                        {
+                            "source": source,
+                            "target": target,
+                            "type": rel.type.lower(),
+                        }
+                    )
 
             return {"nodes": nodes, "edges": edges}
 
