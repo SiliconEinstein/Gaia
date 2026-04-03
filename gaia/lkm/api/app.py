@@ -8,12 +8,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from gaia.lkm.api.routes import router
+from gaia.lkm.logging import configure_logging
 from gaia.lkm.storage import StorageConfig, StorageManager
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize storage on startup, close on shutdown."""
+    configure_logging()
     config = StorageConfig()
     mgr = StorageManager(config)
     await mgr.initialize()
