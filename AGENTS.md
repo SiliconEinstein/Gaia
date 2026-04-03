@@ -53,7 +53,7 @@ Usage notes:
 
 <skill>
 <name>gaia-ir-authoring</name>
-<description>Use when constructing a Gaia IR LocalCanonicalGraph from source material — teaches how to build valid knowledge graphs using existing gaia.gaia_ir models, validate them, and run BP inference</description>
+<description>Use when constructing a Gaia knowledge package or LocalCanonicalGraph — teaches Python DSL authoring, compilation, validation, registration, and BP inference using gaia.lang + gaia.ir + gaia.bp</description>
 <location>project</location>
 </skill>
 
