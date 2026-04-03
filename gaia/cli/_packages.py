@@ -10,7 +10,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
-from gaia.lang.runtime import Knowledge
+from gaia.lang.runtime import Knowledge, Strategy
 from gaia.lang.runtime.package import CollectedPackage
 from gaia.lang.runtime.package import get_inferred_package, reset_inferred_package
 
@@ -54,6 +54,7 @@ def _import_fresh(import_name: str) -> ModuleType:
 
 def _assign_labels(module: ModuleType, pkg: CollectedPackage) -> None:
     local_knowledge_ids = {id(k) for k in pkg.knowledge}
+    local_strategy_ids = {id(s) for s in pkg.strategies}
     export_names = getattr(module, "__all__", None)
     if isinstance(export_names, list) and all(isinstance(name, str) for name in export_names):
         names = export_names
@@ -62,6 +63,10 @@ def _assign_labels(module: ModuleType, pkg: CollectedPackage) -> None:
     for attr in names:
         obj = getattr(module, attr, None)
         if isinstance(obj, Knowledge) and id(obj) in local_knowledge_ids and obj.label is None:
+            obj.label = attr
+    for attr in [name for name in dir(module) if not name.startswith("_")]:
+        obj = getattr(module, attr, None)
+        if isinstance(obj, Strategy) and id(obj) in local_strategy_ids and obj.label is None:
             obj.label = attr
 
 
@@ -138,6 +143,13 @@ def compile_loaded_package(loaded: LoadedGaiaPackage) -> dict[str, Any]:
     from gaia.lang.compiler import compile_package
 
     return compile_package(loaded.package)
+
+
+def compile_loaded_package_artifact(loaded: LoadedGaiaPackage):
+    """Compile an already loaded Gaia package to IR plus runtime mappings."""
+    from gaia.lang.compiler import compile_package_artifact
+
+    return compile_package_artifact(loaded.package)
 
 
 def write_compiled_artifacts(pkg_path: Path, ir: dict[str, Any]) -> Path:

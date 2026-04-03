@@ -1,0 +1,218 @@
+"""Shared review sidecar loading utilities for Gaia CLI commands."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from gaia.cli._packages import GaiaCliError, LoadedGaiaPackage, _import_fresh
+from gaia.ir import ParameterizationSource, PriorRecord, ResolutionPolicy, StrategyParamRecord
+from gaia.review import ClaimReview, GeneratedClaimReview, ReviewBundle, StrategyReview
+
+
+@dataclass
+class LoadedGaiaReview:
+    module_path: Path
+    bundle: ReviewBundle
+
+
+@dataclass
+class ResolvedGaiaReview:
+    source: ParameterizationSource
+    resolution_policy: ResolutionPolicy
+    objects: list[dict[str, Any]]
+    priors: list[PriorRecord]
+    strategy_params: list[StrategyParamRecord]
+
+    def to_json(self, *, ir_hash: str) -> dict[str, Any]:
+        return {
+            "ir_hash": ir_hash,
+            "source": self.source.model_dump(mode="json", exclude_none=True),
+            "resolution_policy": self.resolution_policy.model_dump(
+                mode="json",
+                exclude_none=True,
+            ),
+            "objects": self.objects,
+            "priors": [
+                record.model_dump(mode="json", exclude_none=True) for record in self.priors
+            ],
+            "strategy_params": [
+                record.model_dump(mode="json", exclude_none=True) for record in self.strategy_params
+            ],
+        }
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def load_gaia_review(loaded: LoadedGaiaPackage) -> LoadedGaiaReview | None:
+    """Load `<package>.review` if present."""
+    review_path = loaded.source_root / loaded.import_name / "review.py"
+    if not review_path.exists():
+        return None
+
+    module_name = f"{loaded.import_name}.review"
+    try:
+        module = _import_fresh(module_name)
+    except ModuleNotFoundError as exc:
+        if exc.name == module_name:
+            return None
+        raise GaiaCliError(f"Error importing review sidecar: {exc}") from exc
+    except Exception as exc:
+        raise GaiaCliError(f"Error importing review sidecar: {exc}") from exc
+
+    bundle = getattr(module, "REVIEW", None)
+    if not isinstance(bundle, ReviewBundle):
+        raise GaiaCliError(
+            "Error: review.py must export REVIEW = ReviewBundle(...)."
+        )
+    return LoadedGaiaReview(module_path=review_path, bundle=bundle)
+
+
+def resolve_gaia_review(loaded_review, compiled) -> ResolvedGaiaReview:
+    """Resolve runtime review objects to IR parameterization records."""
+    source = ParameterizationSource(
+        source_id=loaded_review.bundle.source_id,
+        model=loaded_review.bundle.model or "agent-authored",
+        policy=loaded_review.bundle.policy,
+        config=loaded_review.bundle.config,
+        created_at=_utc_now(),
+    )
+    resolution_policy = ResolutionPolicy(strategy="source", source_id=source.source_id)
+
+    priors: list[PriorRecord] = []
+    strategy_params: list[StrategyParamRecord] = []
+    objects: list[dict[str, Any]] = []
+
+    for review in loaded_review.bundle.objects:
+        if isinstance(review, ClaimReview):
+            knowledge_id = compiled.knowledge_ids_by_object.get(id(review.subject))
+            if knowledge_id is None:
+                raise GaiaCliError("Error: review_claim() references a Knowledge outside this package.")
+            if review.prior is not None:
+                priors.append(
+                    PriorRecord(
+                        knowledge_id=knowledge_id,
+                        value=review.prior,
+                        source_id=source.source_id,
+                    )
+                )
+            objects.append(
+                {
+                    "kind": "claim",
+                    "knowledge_id": knowledge_id,
+                    "label": review.subject.label,
+                    "judgment": review.judgment,
+                    "justification": review.justification,
+                    "prior": review.prior,
+                    "metadata": review.metadata or None,
+                }
+            )
+            continue
+
+        if isinstance(review, GeneratedClaimReview):
+            strategy = compiled.strategies_by_object.get(id(review.subject))
+            if strategy is None:
+                raise GaiaCliError(
+                    "Error: review_generated_claim() references a Strategy outside this package."
+                )
+            interface_roles = (strategy.metadata or {}).get("interface_roles", {})
+            if not isinstance(interface_roles, dict):
+                raise GaiaCliError(
+                    f"Error: strategy '{strategy.strategy_id}' does not expose interface roles."
+                )
+            targets = interface_roles.get(review.role)
+            if not isinstance(targets, list) or review.occurrence >= len(targets):
+                raise GaiaCliError(
+                    f"Error: strategy '{strategy.strategy_id}' has no interface role "
+                    f"{review.role!r} at occurrence {review.occurrence}."
+                )
+            knowledge_id = targets[review.occurrence]
+            if review.prior is not None:
+                priors.append(
+                    PriorRecord(
+                        knowledge_id=knowledge_id,
+                        value=review.prior,
+                        source_id=source.source_id,
+                    )
+                )
+            objects.append(
+                {
+                    "kind": "generated_claim",
+                    "strategy_id": strategy.strategy_id,
+                    "strategy_label": review.subject.label,
+                    "knowledge_id": knowledge_id,
+                    "role": review.role,
+                    "occurrence": review.occurrence,
+                    "judgment": review.judgment,
+                    "justification": review.justification,
+                    "prior": review.prior,
+                    "metadata": review.metadata or None,
+                }
+            )
+            continue
+
+        if isinstance(review, StrategyReview):
+            strategy = compiled.strategies_by_object.get(id(review.subject))
+            if strategy is None:
+                raise GaiaCliError(
+                    "Error: review_strategy() references a Strategy outside this package."
+                )
+
+            conditional_probabilities: list[float] | None = None
+            strategy_type = str(strategy.type)
+            if review.conditional_probability is not None or review.conditional_probabilities is not None:
+                if strategy_type == "noisy_and":
+                    conditional_probabilities = (
+                        list(review.conditional_probabilities)
+                        if review.conditional_probabilities is not None
+                        else [review.conditional_probability]
+                    )
+                elif strategy_type == "infer":
+                    if review.conditional_probabilities is None:
+                        raise GaiaCliError(
+                            "Error: infer strategies require "
+                            "review_strategy(..., conditional_probabilities=[...])."
+                        )
+                    conditional_probabilities = list(review.conditional_probabilities)
+                else:
+                    raise GaiaCliError(
+                        f"Error: strategy '{strategy.strategy_id}' has type '{strategy_type}' and "
+                        "does not accept conditional probabilities."
+                    )
+
+            if conditional_probabilities is not None:
+                strategy_params.append(
+                    StrategyParamRecord(
+                        strategy_id=strategy.strategy_id,
+                        conditional_probabilities=conditional_probabilities,
+                        source_id=source.source_id,
+                    )
+                )
+
+            objects.append(
+                {
+                    "kind": "strategy",
+                    "strategy_id": strategy.strategy_id,
+                    "label": review.subject.label,
+                    "type": strategy_type,
+                    "judgment": review.judgment,
+                    "justification": review.justification,
+                    "conditional_probabilities": conditional_probabilities,
+                    "metadata": review.metadata or None,
+                }
+            )
+            continue
+
+        raise GaiaCliError(f"Error: unsupported review object type {type(review)!r}.")
+
+    return ResolvedGaiaReview(
+        source=source,
+        resolution_policy=resolution_policy,
+        objects=objects,
+        priors=priors,
+        strategy_params=strategy_params,
+    )

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from dataclasses import dataclass
 from typing import Any
 
 from gaia.ir import (
@@ -35,6 +36,18 @@ _COMPILE_TIME_FORMAL_STRATEGIES = frozenset(
         "extrapolation",
     }
 )
+
+
+@dataclass
+class CompiledPackage:
+    """Compiled Gaia package plus runtime-object to IR-ID mappings."""
+
+    graph: LocalCanonicalGraph
+    knowledge_ids_by_object: dict[int, str]
+    strategies_by_object: dict[int, IrStrategy]
+
+    def to_json(self) -> dict[str, Any]:
+        return self.graph.model_dump(mode="json", exclude_none=True, serialize_as_any=True)
 
 
 def _content_hash(k: Knowledge) -> str:
@@ -185,8 +198,8 @@ def _ir_steps(
     return ir_steps
 
 
-def compile_package(pkg: CollectedPackage) -> dict[str, Any]:
-    """Compile collected declarations into LocalCanonicalGraph JSON."""
+def compile_package_artifact(pkg: CollectedPackage) -> CompiledPackage:
+    """Compile collected declarations into Gaia IR plus runtime mappings."""
     # Build knowledge closure: local declarations + referenced foreign nodes.
     knowledge_nodes: list[Knowledge] = []
     seen_knowledge: set[int] = set()
@@ -321,4 +334,13 @@ def compile_package(pkg: CollectedPackage) -> dict[str, Any]:
         strategies=ir_strategies,
     )
 
-    return graph.model_dump(mode="json", exclude_none=True, serialize_as_any=True)
+    return CompiledPackage(
+        graph=graph,
+        knowledge_ids_by_object=dict(knowledge_map),
+        strategies_by_object=dict(compiled_strategies),
+    )
+
+
+def compile_package(pkg: CollectedPackage) -> dict[str, Any]:
+    """Compile collected declarations into LocalCanonicalGraph JSON."""
+    return compile_package_artifact(pkg).to_json()
