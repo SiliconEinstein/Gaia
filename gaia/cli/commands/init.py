@@ -27,7 +27,12 @@ def _run_uv(
     cwd: Path,
     check: bool = True,
 ) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(args, cwd=cwd, text=True, capture_output=True)
+    try:
+        result = subprocess.run(args, cwd=cwd, text=True, capture_output=True)
+    except FileNotFoundError:
+        raise GaiaCliError(
+            "uv is not installed. Install it with: curl -LsSf https://astral.sh/uv/install.sh | sh"
+        )
     if check and result.returncode != 0:
         stderr = result.stderr.strip() or result.stdout.strip() or "command failed"
         raise GaiaCliError(f"Error running {' '.join(args)}: {stderr}")

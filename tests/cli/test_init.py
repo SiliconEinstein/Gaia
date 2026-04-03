@@ -154,3 +154,16 @@ def test_init_gitignore_not_duplicated(tmp_path, monkeypatch):
     assert result.exit_code == 0
     gitignore = (tmp_path / "dedup-gaia" / ".gitignore").read_text()
     assert gitignore.count(".gaia/") == 1
+
+
+def test_init_missing_uv_shows_install_hint(tmp_path, monkeypatch):
+    """Missing uv binary gives a helpful error message."""
+    monkeypatch.chdir(tmp_path)
+    with patch(
+        "gaia.cli.commands.init.subprocess.run",
+        side_effect=FileNotFoundError("uv"),
+    ):
+        result = runner.invoke(app, ["init", "missing-uv-gaia"])
+
+    assert result.exit_code != 0
+    assert "uv is not installed" in result.output

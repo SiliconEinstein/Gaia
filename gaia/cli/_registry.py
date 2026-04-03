@@ -39,10 +39,16 @@ def _github_headers() -> dict[str, str]:
 
 def _fetch_file(registry: str, path: str) -> str:
     url = f"https://api.github.com/repos/{registry}/contents/{path}"
-    resp = httpx.get(url, headers=_github_headers(), timeout=15)
+    try:
+        resp = httpx.get(url, headers=_github_headers(), timeout=15)
+    except httpx.HTTPError as exc:
+        raise GaiaCliError(f"Failed to reach registry: {exc}") from exc
     if resp.status_code == 404:
         raise GaiaCliError(f"Not found in registry: {path}")
-    resp.raise_for_status()
+    if resp.status_code == 403:
+        raise GaiaCliError("GitHub API rate limit exceeded. Set GITHUB_TOKEN to authenticate.")
+    if resp.status_code >= 400:
+        raise GaiaCliError(f"Registry API error ({resp.status_code}): {resp.text[:200]}")
     content = resp.json().get("content", "")
     return base64.b64decode(content).decode()
 
@@ -65,7 +71,9 @@ def resolve_package(
         raise GaiaCliError(f"No versions found for package '{name}'.")
 
     if version is None:
-        version = list(versions)[-1]
+        from packaging.version import Version
+
+        version = max(versions, key=Version)
 
     if version not in versions:
         available = ", ".join(versions)

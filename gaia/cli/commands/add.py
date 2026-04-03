@@ -11,7 +11,12 @@ from gaia.cli._registry import DEFAULT_REGISTRY, resolve_package
 
 
 def _run_uv(args: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(args, text=True, capture_output=True, **kwargs)
+    try:
+        return subprocess.run(args, text=True, capture_output=True, **kwargs)
+    except FileNotFoundError:
+        raise GaiaCliError(
+            "uv is not installed. Install it with: curl -LsSf https://astral.sh/uv/install.sh | sh"
+        )
 
 
 def add_command(
@@ -26,10 +31,16 @@ def add_command(
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)
 
-    dep_spec = f"{package} @ git+{resolved.repo}@{resolved.git_sha}"
+    # Normalize: ensure -gaia suffix for the dep spec
+    canonical_name = package if package.endswith("-gaia") else f"{package}-gaia"
+    dep_spec = f"{canonical_name} @ git+{resolved.repo}@{resolved.git_sha}"
     typer.echo(f"Resolved {package} v{resolved.version} → {resolved.git_sha[:8]}")
 
-    result = _run_uv(["uv", "add", dep_spec])
+    try:
+        result = _run_uv(["uv", "add", dep_spec])
+    except GaiaCliError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1)
     if result.returncode != 0:
         stderr = result.stderr.strip() or result.stdout.strip()
         typer.echo(f"Error: uv add failed: {stderr}", err=True)
