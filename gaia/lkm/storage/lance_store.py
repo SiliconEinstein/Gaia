@@ -200,7 +200,11 @@ class LanceContentStore:
         rows: list[dict],
         merge_key: str = "id",
     ) -> None:
-        """Synchronous batch upsert via merge_insert. Called from executor."""
+        """Synchronous batch upsert via merge_insert. Called from executor.
+
+        If the target table is empty, uses plain add() (faster, no HashJoin).
+        Otherwise uses merge_insert for idempotent upsert.
+        """
         if not rows:
             return
         # Deduplicate rows by merge_key (last wins) — merge_insert rejects
@@ -214,28 +218,42 @@ class LanceContentStore:
                 len(rows), len(seen), merge_key, table_name,
             )
             rows = [rows[i] for i in sorted(seen.values())]
-        batches = self._split_rows_by_size(rows, schema)
-        table = self._db.open_table(table_name)
-        idx_name = f"{merge_key}_idx"
 
-        for batch_table in batches:
-            self._wait_for_index_ready(table, idx_name)
-            (
-                table.merge_insert(merge_key)
-                .when_matched_update_all()
-                .when_not_matched_insert_all()
-                .execute(batch_table)
-            )
+        table = self._db.open_table(table_name)
+        is_empty = table.count_rows() == 0
+
+        if is_empty:
+            # Fast path: empty table, just add
+            batches = self._split_rows_by_size(rows, schema)
+            for batch_table in batches:
+                table.add(batch_table)
             try:
                 table.optimize()
             except Exception:
                 pass
+        else:
+            # Incremental path: merge_insert for idempotent upsert
+            batches = self._split_rows_by_size(rows, schema)
+            idx_name = f"{merge_key}_idx"
+            for batch_table in batches:
+                self._wait_for_index_ready(table, idx_name)
+                (
+                    table.merge_insert(merge_key)
+                    .when_matched_update_all()
+                    .when_not_matched_insert_all()
+                    .execute(batch_table)
+                )
+                try:
+                    table.optimize()
+                except Exception:
+                    pass
 
         logger.info(
-            "Upserted %d rows into %s (%d batches)",
+            "Upserted %d rows into %s (%d batches, %s)",
             len(rows),
             table_name,
             len(batches),
+            "add" if is_empty else "merge_insert",
         )
 
     async def _upsert(
