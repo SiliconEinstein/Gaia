@@ -41,7 +41,7 @@ requires = ["setuptools>=69.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["gaia.ir*", "gaia.lang*", "gaia.bp*", "gaia.cli*"]
+include = ["gaia.ir*", "gaia.lang*", "gaia.bp*", "gaia.cli*", "gaia.review*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
