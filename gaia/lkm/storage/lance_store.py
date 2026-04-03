@@ -298,6 +298,12 @@ class LanceContentStore:
         table = self._db.open_table("param_sources")
         await self._run(table.add, [param_source_to_row(source)])
 
+    async def write_param_sources_batch(self, sources: list[ParameterizationSource]) -> None:
+        if not sources:
+            return
+        rows = [param_source_to_row(s) for s in sources]
+        await self._upsert("param_sources", TABLE_SCHEMAS["param_sources"], rows, merge_key="source_id")
+
     # ── Batch reads (for batch_integrate) ──
 
     async def find_globals_by_content_hashes(

@@ -527,9 +527,9 @@ async def batch_integrate(
         all_factor_params or None,
     )
 
-    for r in results:
-        for ps in r.param_sources:
-            await storage.write_param_source(ps)
+    all_param_sources = [ps for r in results for ps in r.param_sources]
+    if all_param_sources:
+        await storage.write_param_sources_batch(all_param_sources)
 
     stats.bindings = len(all_bindings)
     logger.info(

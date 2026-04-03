@@ -114,6 +114,9 @@ class StorageManager:
     async def write_param_source(self, source: ParameterizationSource) -> None:
         await self.content.write_param_source(source)
 
+    async def write_param_sources_batch(self, sources: list[ParameterizationSource]) -> None:
+        await self.content.write_param_sources_batch(sources)
+
     async def write_prior_records(self, records: list[PriorRecord]) -> None:
         await self.content.write_prior_records(records)
 
