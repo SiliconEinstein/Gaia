@@ -62,34 +62,43 @@ def search_papers(
     *,
     keywords: str | None = None,
     areas: str | None = None,
+    require_stages: tuple[str, ...] = (
+        "is_extract_conclusion",
+        "is_extract_reasoning",
+        "is_review",
+    ),
     limit: int = 1000,
 ) -> list[dict]:
-    """Search papers in ByteHouse paper_data.paper_metadata.
+    """Search papers in ByteHouse, filtered by extraction stage completion.
+
+    Joins paper_metadata with task_status to ensure only papers with
+    all required stages completed are returned.
 
     Args:
         client: clickhouse-connect client.
-        keywords: Token search on en_title (e.g. "nuclear fusion").
-        areas: Filter by areas partition (e.g. "Physics").
+        keywords: Token search on en_title.
+        areas: Filter by areas partition.
+        require_stages: Stage columns that must be true in task_status.
         limit: Max results.
-
-    Returns:
-        List of dicts with id, doi, en_title, areas, research_categories.
     """
     where_parts = []
     if keywords:
         safe_kw = keywords.replace("'", "\\'")
-        where_parts.append(f"hasTokens(en_title, '{safe_kw}')")
+        where_parts.append(f"hasTokens(m.en_title, '{safe_kw}')")
     if areas:
         safe_areas = areas.replace("'", "\\'")
-        where_parts.append(f"areas = '{safe_areas}'")
+        where_parts.append(f"m.areas = '{safe_areas}'")
+    for stage in require_stages:
+        where_parts.append(f"t.{stage} = true")
 
     where_clause = " AND ".join(where_parts) if where_parts else "1=1"
 
     sql = (
-        f"SELECT id, doi, en_title, areas\n"
-        f"FROM paper_data.paper_metadata\n"
+        f"SELECT m.id, m.doi, m.en_title, m.areas\n"
+        f"FROM paper_data.paper_metadata m\n"
+        f"JOIN paper_data.task_status t ON toString(m.id) = t.pdf_id\n"
         f"WHERE {where_clause}\n"
-        f"ORDER BY id DESC\n"
+        f"ORDER BY m.id DESC\n"
         f"LIMIT {limit}\n"
         f"SETTINGS enable_inverted_index_push_down = 1, "
         f"enable_optimizer = 0, optimize_lazy_materialization = 1"
