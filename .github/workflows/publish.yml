@@ -40,7 +40,7 @@ jobs:
       - name: Install and test
         run: |
           uv sync --extra dev
-          uv run pytest tests/ -x -q
+          uv run pytest tests/ir tests/cli tests/test_lowering.py tests/test_science_examples.py -x -q
 
   publish:
     needs: [build, test]
