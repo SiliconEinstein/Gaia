@@ -42,14 +42,16 @@ cd Gaia && uv sync
 ## CLI Workflow
 
 ```
-gaia compile   →   gaia check   →   gaia infer   →   gaia register
-  (DSL → IR)      (validate)      (BP preview)      (registry PR)
+gaia init → gaia compile → gaia check → gaia add → gaia infer → gaia register
+(scaffold)   (DSL → IR)    (validate)  (add deps)  (BP preview)  (registry PR)
 ```
 
 | Command | Purpose |
 |---------|---------|
+| `gaia init <name>` | Scaffold a new Gaia knowledge package |
 | `gaia compile [path]` | Compile Python DSL to Gaia IR (`.gaia/ir.json`) |
 | `gaia check [path]` | Validate package structure and IR consistency |
+| `gaia add <package>` | Install a registered Gaia package from the [official registry](https://github.com/SiliconEinstein/gaia-registry) |
 | `gaia infer [path]` | Run belief propagation with a review sidecar |
 | `gaia register [path]` | Submit package to the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry) |
 
@@ -58,29 +60,15 @@ gaia compile   →   gaia check   →   gaia infer   →   gaia register
 **1. Initialize**
 
 ```bash
-uv init --lib galileo-falling-bodies-gaia
+gaia init galileo-falling-bodies-gaia
 cd galileo-falling-bodies-gaia
-uv add gaia-lang
-mv src/galileo_falling_bodies_gaia src/galileo_falling_bodies
 ```
 
-**2. Configure `pyproject.toml`**
+This scaffolds a complete package with `pyproject.toml` (including `[tool.gaia]`
+config and a generated UUID), the correct `src/` directory layout, and a DSL
+template. Package name must end with `-gaia`.
 
-```toml
-[project]
-name = "galileo-falling-bodies-gaia"
-version = "1.0.0"
-
-[tool.gaia]
-type = "knowledge-package"
-uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-```
-
-- Package name must end with `-gaia`
-- `type` must be `"knowledge-package"`
-- `uuid` is required for registry submission
-
-**3. Write DSL declarations** in `src/galileo_falling_bodies/__init__.py`
+**2. Write DSL declarations** in `src/galileo_falling_bodies/__init__.py`
 
 ```python
 from gaia.lang import claim, setting, contradiction
@@ -100,18 +88,34 @@ __all__ = ["aristotle", "heavy_faster", "composite_slower",
            "composite_faster", "paradox", "vacuum_law"]
 ```
 
-**4. Compile and validate**
+**3. Compile and validate**
 
 ```bash
 gaia compile .
 gaia check .
 ```
 
-**5. Publish**
+**4. Publish**
 
 ```bash
 git tag v1.0.0 && git push origin main --tags
 gaia register . --registry-dir ../gaia-registry --create-pr
+```
+
+## Install a Package
+
+Add a registered Gaia knowledge package as a dependency:
+
+```bash
+gaia add galileo-falling-bodies-gaia
+```
+
+This queries the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry)
+for the package metadata, resolves the latest version, and calls `uv add` with
+a pinned git URL. Use `--version` to pin a specific version:
+
+```bash
+gaia add galileo-falling-bodies-gaia --version 1.0.0
 ```
 
 ## DSL Surface
@@ -155,7 +159,7 @@ gaia/
 ├── lang/       DSL runtime, declarations, and compiler
 ├── ir/         Gaia IR schema, validation, formalization
 ├── bp/         Belief propagation engine (4 backends)
-├── cli/        CLI commands (compile, check, infer, register)
+├── cli/        CLI commands (init, compile, check, add, infer, register)
 └── review/     Review sidecar model
 ```
 

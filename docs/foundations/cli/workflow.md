@@ -8,22 +8,43 @@ since: v5-phase-1
 
 ## Overview
 
-The Gaia CLI is a knowledge package authoring toolkit. It provides a four-command
-pipeline that takes a Python DSL package from source code to registry registration:
+The Gaia CLI is a knowledge package authoring toolkit. It provides a six-command
+pipeline that takes a Python DSL package from scaffolding to registry registration:
 
 ```
-author source --> gaia compile --> gaia check --> gaia infer --> git tag --> gaia register
-                  (DSL -> IR)     (validate)     (BP preview)              (registry PR)
+gaia init --> gaia compile --> gaia check --> gaia add --> gaia infer --> git tag --> gaia register
+(scaffold)    (DSL -> IR)     (validate)   (add deps)   (BP preview)              (registry PR)
 ```
 
 Entry point: installed as the `gaia` CLI command via `pyproject.toml`
 `[project.scripts]`, backed by a Typer app at `gaia.cli.main:app`.
 
-`gaia init` is planned but not yet implemented. Currently authors scaffold
-packages with `uv init` and manual `[tool.gaia]` configuration.
-
 
 ## Commands
+
+### `gaia init <NAME>`
+
+Scaffold a new Gaia knowledge package.
+
+```
+gaia init <NAME>
+```
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `NAME`   | (required) | Package name (must end with `-gaia`) |
+
+**What it does:**
+
+1. Runs `uv init --lib` under the hood to create the package directory.
+2. Adds `[tool.gaia]` configuration to `pyproject.toml` (with `type = "knowledge-package"` and a generated `uuid`).
+3. Renames the `src/` subdirectory to match the Gaia import name convention (strips the `-gaia` suffix, replaces hyphens with underscores).
+4. Writes a DSL template into the package module's `__init__.py`.
+
+The resulting directory is a complete Gaia knowledge package ready for `gaia compile`.
+
+**Key output:** a new directory `<NAME>/` containing `pyproject.toml`, `src/<import_name>/__init__.py` with DSL template code.
+
 
 ### `gaia compile [PATH]`
 
@@ -81,6 +102,33 @@ printed but do not fail the check.
 **Key output:** none (validation only, prints pass/fail summary).
 
 Reference: [Compilation](compilation.md) for validation details.
+
+
+### `gaia add <PACKAGE> [OPTIONS]`
+
+Install a registered Gaia knowledge package from the official registry.
+
+```
+gaia add <PACKAGE> [--version VERSION] [--registry REPO]
+```
+
+| Argument / Option | Default | Description |
+|-------------------|---------|-------------|
+| `PACKAGE`         | (required) | Package name (e.g., `galileo-falling-bodies-gaia`) |
+| `--version VERSION` | latest | Specific version to install |
+| `--registry REPO` | `SiliconEinstein/gaia-registry` | Custom registry repo slug |
+
+**What it does:**
+
+1. Queries registry metadata via the GitHub API to resolve the package and version.
+2. Resolves the version to a specific git tag and SHA.
+3. Calls `uv add` with a pinned git URL pointing to the resolved tag.
+
+The package is added as a standard Python dependency in `pyproject.toml` and
+installed into the project environment.
+
+**Key output:** updated `pyproject.toml` `[project].dependencies` and
+`uv.lock` with the pinned Gaia package dependency.
 
 
 ### `gaia infer [PATH] [--review NAME]`
@@ -177,9 +225,10 @@ Reference: [Registration](registration.md) for details.
 
 | Stage    | Command          | Key Artifacts |
 |----------|------------------|---------------|
-| Create   | `uv init` + manual config | `pyproject.toml` with `[tool.gaia]`, `src/<import_name>/__init__.py` |
+| Init     | `gaia init`      | `pyproject.toml` with `[tool.gaia]`, `src/<import_name>/__init__.py` with DSL template |
 | Compile  | `gaia compile`   | `.gaia/ir.json`, `.gaia/ir_hash` |
 | Check    | `gaia check`     | (validation only) |
+| Add      | `gaia add`       | Updated `pyproject.toml` dependencies, `uv.lock` |
 | Infer    | `gaia infer`     | `.gaia/reviews/<name>/parameterization.json`, `.gaia/reviews/<name>/beliefs.json` |
 | Register | `gaia register`  | `packages/<name>/Package.toml`, `Versions.toml`, `Deps.toml` (in registry repo) |
 
@@ -203,32 +252,32 @@ replace hyphens with underscores (e.g., `galileo-falling-bodies-gaia` becomes
 ## Quick Start
 
 ```bash
-# 1. Scaffold a package (gaia init not yet available)
-uv init galileo-falling-bodies-gaia
+# 1. Scaffold a package
+gaia init galileo-falling-bodies-gaia
 cd galileo-falling-bodies-gaia
-# Add [tool.gaia] to pyproject.toml:
-#   [tool.gaia]
-#   type = "knowledge-package"
-#   uuid = "<generate-a-uuid>"
-# Add gaia-lang as a dependency, write DSL code in src/galileo_falling_bodies/
 
-# 2. Compile DSL to IR
+# 2. Write DSL declarations in src/galileo_falling_bodies/__init__.py
+
+# 3. Compile DSL to IR
 gaia compile .
 
-# 3. Validate package
+# 4. Validate package
 gaia check .
 
-# 4. Preview beliefs (optional)
+# 5. Add dependencies from the registry (optional)
+gaia add some-prerequisite-gaia
+
+# 6. Preview beliefs (optional)
 gaia infer . --review self_review
 
-# 5. Tag and push
+# 7. Tag and push
 git add -A && git commit -m "initial package"
 git tag v0.1.0
 git push origin main --tags
 
-# 6. Dry-run registration (prints JSON plan)
+# 8. Dry-run registration (prints JSON plan)
 gaia register .
 
-# 7. Write to registry and open PR
+# 9. Write to registry and open PR
 gaia register . --registry-dir ../gaia-registry --create-pr
 ```
