@@ -5,7 +5,7 @@ from pathlib import Path
 from libs.lang.proof_state import analyze_proof_state
 from libs.lang.typst_loader import load_typst_package_v4
 
-_FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "gaia_language_packages"
+_FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "ir"
 GALILEO_V4 = _FIXTURES / "galileo_falling_bodies_v4"
 NEWTON_V4 = _FIXTURES / "newton_principia_v4"
 DARK_ENERGY_V4 = _FIXTURES / "dark_energy_v4"

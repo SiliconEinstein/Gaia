@@ -17,7 +17,7 @@ from libs.storage.manager import StorageManager
 
 pytestmark = pytest.mark.usefixtures("fresh_lancedb_loop")
 
-FIXTURES = Path(__file__).parent / "fixtures" / "gaia_language_packages"
+FIXTURES = Path(__file__).parent / "fixtures" / "ir"
 GALILEO_V4 = FIXTURES / "galileo_falling_bodies_v4"
 NEWTON_V4 = FIXTURES / "newton_principia_v4"
 EINSTEIN_V4 = FIXTURES / "einstein_gravity_v4"

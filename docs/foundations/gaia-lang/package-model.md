@@ -53,27 +53,44 @@ Package 执行时会收集三类运行时对象：
 - `Strategy`
 - `Operator`
 
-这些对象由 `with Package(...) as pkg:` 作用域中的 DSL 调用注册进包上下文，然后由 `gaia compile` 降低为 Gaia IR。
+这些对象由模块执行时的 DSL 调用自动注册进包上下文，然后由 `gaia compile` 降低为 Gaia IR。包身份来自 `pyproject.toml`。
+
+当前作者侧常用表面包括：
+
+- `claim()` / `setting()` / `question()`
+- `claim(..., given=[...])` 作为 `noisy_and` 的语法糖
+- `noisy_and()` / `infer()`
+- named strategies：`deduction()`、`abduction()`、`analogy()`、`extrapolation()`、`elimination()`、`case_analysis()`、`mathematical_induction()`
+- `composite()` 用于层级式组合多个 sub-strategies
+- top-level operators：`contradiction()`、`equivalence()`、`complement()`、`disjunction()`
+
+另外：
+
+- Knowledge 可携带 `provenance=[...]`
+- Strategy 的 `steps` 可以是字符串列表，也可以是结构化 step 记录
+- `__all__` 决定 package 的公开 surface；未导出的局部声明仍可参与本包编译
 
 ```python
-from gaia.lang import Package, claim, contradiction, deduction, setting
+from gaia.lang import claim, contradiction, deduction, setting
 
+vacuum = setting("The experiment is conducted in a vacuum.")
+observation = claim("Objects of different mass fall at the same rate in a vacuum.")
+conclusion = claim("Mass alone does not determine falling speed.")
 
-with Package("galileo_falling_bodies", namespace="reg", version="4.0.3") as pkg:
-    vacuum = setting("The experiment is conducted in a vacuum.")
-    observation = claim("Objects of different mass fall at the same rate in a vacuum.")
-    conclusion = claim("Mass alone does not determine falling speed.")
+deduction(
+    premises=[vacuum, observation],
+    conclusion=conclusion,
+    reason="The controlled observation removes drag as a confounder.",
+)
 
-    deduction(
-        premises=[vacuum, observation],
-        conclusion=conclusion,
-        reason="The controlled observation removes drag as a confounder.",
-    )
+heavier_bodies_fall_faster = claim("Heavier bodies necessarily fall faster.")
+conflict = contradiction(
+    conclusion,
+    heavier_bodies_fall_faster,
+    reason="The two claims cannot both be true under the same experimental setup.",
+)
 
-    contradiction(
-        variables=[conclusion, claim("Heavier bodies necessarily fall faster.")],
-        reason="The two claims cannot both be true under the same experimental setup.",
-    )
+__all__ = ["vacuum", "observation", "conclusion", "heavier_bodies_fall_faster", "conflict"]
 ```
 
 ## 生命周期

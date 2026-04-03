@@ -12,10 +12,8 @@ from libs.pipeline import (
     pipeline_review,
 )
 
-GALILEO_V4 = (
-    Path(__file__).parent / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies_v4"
-)
-NEWTON_V4 = Path(__file__).parent / "fixtures" / "gaia_language_packages" / "newton_principia_v4"
+GALILEO_V4 = Path(__file__).parent / "fixtures" / "ir" / "galileo_falling_bodies_v4"
+NEWTON_V4 = Path(__file__).parent / "fixtures" / "ir" / "newton_principia_v4"
 
 
 # ── Shared fixture to avoid rebuilding the pipeline 9 times ──
@@ -197,8 +195,6 @@ async def test_render_markdown_includes_external_content():
 
 @pytest.mark.asyncio
 async def test_render_markdown_preserves_v4_observation_kind():
-    build = await pipeline_build(
-        Path(__file__).parent / "fixtures" / "gaia_language_packages" / "dark_energy_v4"
-    )
+    build = await pipeline_build(Path(__file__).parent / "fixtures" / "ir" / "dark_energy_v4")
     md = render_markdown_from_graph_data(build.graph_data)
     assert "claim, kind=observation" in md

@@ -7,9 +7,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from gaia.lang.runtime.package import Package
+    from gaia.lang.runtime.package import CollectedPackage
 
-_current_package: ContextVar[Package | None] = ContextVar("_current_package", default=None)
+_current_package: ContextVar[CollectedPackage | None] = ContextVar("_current_package", default=None)
 
 
 @dataclass
@@ -20,13 +20,18 @@ class Knowledge:
     type: str  # "claim" | "setting" | "question"
     background: list[Knowledge] = field(default_factory=list)
     parameters: list[dict] = field(default_factory=list)
+    provenance: list[dict[str, str]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     label: str | None = None
     strategy: Strategy | None = None
-    _package: Package | None = field(default=None, init=False, repr=False, compare=False)
+    _package: CollectedPackage | None = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self):
         pkg = _current_package.get()
+        if pkg is None:
+            from gaia.lang.runtime.package import infer_package_from_callstack
+
+            pkg = infer_package_from_callstack()
         if pkg is not None:
             self._package = pkg
             pkg._register_knowledge(self)
@@ -40,7 +45,7 @@ class Strategy:
     premises: list[Knowledge] = field(default_factory=list)
     conclusion: Knowledge | None = None
     background: list[Knowledge] = field(default_factory=list)
-    steps: list[str] = field(default_factory=list)
+    steps: list[str | dict[str, Any]] = field(default_factory=list)
     reason: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
     label: str | None = None
@@ -49,6 +54,10 @@ class Strategy:
 
     def __post_init__(self):
         pkg = _current_package.get()
+        if pkg is None:
+            from gaia.lang.runtime.package import infer_package_from_callstack
+
+            pkg = infer_package_from_callstack()
         if pkg is not None:
             pkg._register_strategy(self)
 
@@ -65,5 +74,9 @@ class Operator:
 
     def __post_init__(self):
         pkg = _current_package.get()
+        if pkg is None:
+            from gaia.lang.runtime.package import infer_package_from_callstack
+
+            pkg = infer_package_from_callstack()
         if pkg is not None:
             pkg._register_operator(self)

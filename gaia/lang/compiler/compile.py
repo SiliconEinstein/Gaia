@@ -1,24 +1,53 @@
-"""Gaia Lang v5 — compile Package to Gaia IR v2 JSON."""
+"""Gaia Lang v5 — compile collected module declarations to Gaia IR v2 JSON."""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import re
+from dataclasses import dataclass
 from typing import Any
 
 from gaia.ir import (
+    CompositeStrategy as IrCompositeStrategy,
     FormalExpr as IrFormalExpr,
     FormalStrategy as IrFormalStrategy,
     Knowledge as IrKnowledge,
     LocalCanonicalGraph,
     Operator as IrOperator,
     Parameter as IrParameter,
+    PackageRef as IrPackageRef,
     Step as IrStep,
     Strategy as IrStrategy,
+    formalize_named_strategy,
     make_qid,
 )
-from gaia.lang.runtime import Knowledge, Operator, Package
+from gaia.lang.runtime import Knowledge, Operator
+from gaia.lang.runtime.package import CollectedPackage
+
+_COMPILE_TIME_FORMAL_STRATEGIES = frozenset(
+    {
+        "deduction",
+        "elimination",
+        "mathematical_induction",
+        "case_analysis",
+        "abduction",
+        "analogy",
+        "extrapolation",
+    }
+)
+
+
+@dataclass
+class CompiledPackage:
+    """Compiled Gaia package plus runtime-object to IR-ID mappings."""
+
+    graph: LocalCanonicalGraph
+    knowledge_ids_by_object: dict[int, str]
+    strategies_by_object: dict[int, IrStrategy]
+
+    def to_json(self) -> dict[str, Any]:
+        return self.graph.model_dump(mode="json", exclude_none=True, serialize_as_any=True)
 
 
 def _content_hash(k: Knowledge) -> str:
@@ -48,14 +77,14 @@ def _make_qid(namespace: str, package_name: str, label: str) -> str:
     return make_qid(namespace, package_name, label)
 
 
-def _is_local(k: Knowledge, pkg: Package) -> bool:
+def _is_local(k: Knowledge, pkg: CollectedPackage) -> bool:
     """Check if a Knowledge node belongs to this package (vs imported from another)."""
     return k in pkg.knowledge
 
 
 def _knowledge_id(
     k: Knowledge,
-    pkg: Package,
+    pkg: CollectedPackage,
     *,
     local_anon_counter: int,
 ) -> tuple[str, int]:
@@ -80,6 +109,12 @@ def _knowledge_id(
 def _knowledge_metadata(k: Knowledge) -> dict[str, Any] | None:
     metadata = dict(k.metadata)
     return metadata or None
+
+
+def _knowledge_provenance(k: Knowledge) -> list[IrPackageRef] | None:
+    if not k.provenance:
+        return None
+    return [IrPackageRef(**item) for item in k.provenance]
 
 
 def _metadata_with_reason(metadata: dict[str, Any], reason: str) -> dict[str, Any] | None:
@@ -114,11 +149,61 @@ def _operator_id(o: Operator, knowledge_map: dict[int, str]) -> str:
     return f"lco_{hashlib.sha256(raw.encode()).hexdigest()[:16]}"
 
 
-def compile_package(pkg: Package) -> dict[str, Any]:
-    """Compile a Package into Gaia IR-compatible LocalCanonicalGraph JSON."""
+def _step_ref(
+    value: Knowledge | str | None,
+    knowledge_map: dict[int, str],
+) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, Knowledge):
+        return knowledge_map[id(value)]
+    if isinstance(value, str):
+        return value
+    raise ValueError(f"Unsupported step reference type: {type(value)!r}")
+
+
+def _step_refs(
+    values: list[Knowledge | str] | None,
+    knowledge_map: dict[int, str],
+) -> list[str] | None:
+    if not values:
+        return None
+    refs = [_step_ref(value, knowledge_map) for value in values]
+    return [ref for ref in refs if ref is not None]
+
+
+def _ir_steps(
+    steps: list[str | dict[str, Any]],
+    knowledge_map: dict[int, str],
+) -> list[IrStep] | None:
+    if not steps:
+        return None
+    ir_steps: list[IrStep] = []
+    for step in steps:
+        if isinstance(step, str):
+            ir_steps.append(IrStep(reasoning=step))
+            continue
+        if not isinstance(step, dict):
+            raise ValueError(f"Unsupported step type: {type(step)!r}")
+        reasoning = step.get("reasoning")
+        if not isinstance(reasoning, str) or not reasoning:
+            raise ValueError("Structured step requires a non-empty 'reasoning' field")
+        ir_steps.append(
+            IrStep(
+                reasoning=reasoning,
+                premises=_step_refs(step.get("premises"), knowledge_map),
+                conclusion=_step_ref(step.get("conclusion"), knowledge_map),
+            )
+        )
+    return ir_steps
+
+
+def compile_package_artifact(pkg: CollectedPackage) -> CompiledPackage:
+    """Compile collected declarations into Gaia IR plus runtime mappings."""
     # Build knowledge closure: local declarations + referenced foreign nodes.
     knowledge_nodes: list[Knowledge] = []
     seen_knowledge: set[int] = set()
+    formal_operators: set[int] = set()
 
     def register_knowledge(k: Knowledge) -> None:
         key = id(k)
@@ -127,22 +212,27 @@ def compile_package(pkg: Package) -> dict[str, Any]:
         knowledge_nodes.append(k)
         seen_knowledge.add(key)
 
+    def register_strategy_knowledge(strategy: Any) -> None:
+        for premise in strategy.premises:
+            register_knowledge(premise)
+        for background in strategy.background:
+            register_knowledge(background)
+        if strategy.conclusion is not None:
+            register_knowledge(strategy.conclusion)
+        if strategy.formal_expr:
+            for op in strategy.formal_expr:
+                formal_operators.add(id(op))
+                for variable in op.variables:
+                    register_knowledge(variable)
+                if op.conclusion is not None:
+                    register_knowledge(op.conclusion)
+        for sub_strategy in strategy.sub_strategies:
+            register_strategy_knowledge(sub_strategy)
+
     for k in pkg.knowledge:
         register_knowledge(k)
     for s in pkg.strategies:
-        for premise in s.premises:
-            register_knowledge(premise)
-        for background in s.background:
-            register_knowledge(background)
-        if s.conclusion is not None:
-            register_knowledge(s.conclusion)
-        for sub_strategy in s.sub_strategies:
-            for premise in sub_strategy.premises:
-                register_knowledge(premise)
-            for background in sub_strategy.background:
-                register_knowledge(background)
-            if sub_strategy.conclusion is not None:
-                register_knowledge(sub_strategy.conclusion)
+        register_strategy_knowledge(s)
     for o in pkg.operators:
         for variable in o.variables:
             register_knowledge(variable)
@@ -158,22 +248,6 @@ def compile_package(pkg: Package) -> dict[str, Any]:
         )
         knowledge_map[id(k)] = knowledge_id
 
-    strategy_conclusion_ids = {id(s.conclusion) for s in pkg.strategies if s.conclusion}
-    operator_conclusion_ids = {id(o.conclusion) for o in pkg.operators if o.conclusion}
-    helper_ids = {
-        id(k)
-        for k in pkg.knowledge
-        if k.metadata.get("helper_kind") or k.metadata.get("helper_visibility") == "formal_internal"
-    }
-    input_ids = {
-        knowledge_map[id(k)]
-        for k in pkg.knowledge
-        if k.type == "claim"
-        and id(k) not in strategy_conclusion_ids
-        and id(k) not in operator_conclusion_ids
-        and id(k) not in helper_ids
-    }
-
     ir_knowledges = [
         IrKnowledge(
             id=knowledge_map[id(k)],
@@ -181,16 +255,11 @@ def compile_package(pkg: Package) -> dict[str, Any]:
             type=k.type,
             content=k.content,
             parameters=[IrParameter(**p) for p in k.parameters],
+            provenance=_knowledge_provenance(k),
             metadata=_knowledge_metadata(k),
         )
         for k in knowledge_nodes
     ]
-
-    formal_operators: set[int] = set()
-    for s in pkg.strategies:
-        if s.formal_expr:
-            for op in s.formal_expr:
-                formal_operators.add(id(op))
 
     ir_operators = [
         _operator_to_ir(o, knowledge_map, top_level=True)
@@ -199,37 +268,79 @@ def compile_package(pkg: Package) -> dict[str, Any]:
     ]
 
     ir_strategies: list[IrStrategy] = []
-    for s in pkg.strategies:
+    generated_knowledges: list[IrKnowledge] = []
+    compiled_strategies: dict[int, IrStrategy] = {}
+
+    def compile_strategy(s) -> IrStrategy:
+        strategy_key = id(s)
+        if strategy_key in compiled_strategies:
+            return compiled_strategies[strategy_key]
+
+        steps = _ir_steps(s.steps, knowledge_map)
         payload: dict[str, Any] = {
             "scope": "local",
             "type": s.type,
             "premises": [knowledge_map[id(p)] for p in s.premises],
             "conclusion": knowledge_map[id(s.conclusion)] if s.conclusion else None,
             "background": [knowledge_map[id(b)] for b in s.background] or None,
-            "steps": [IrStep(reasoning=step) for step in s.steps] or None,
+            "steps": steps,
             "metadata": _metadata_with_reason(s.metadata, s.reason),
         }
-        if s.formal_expr:
+        if s.sub_strategies:
+            payload["sub_strategies"] = [
+                compile_strategy(sub_strategy).strategy_id for sub_strategy in s.sub_strategies
+            ]
+            ir_strategy = IrCompositeStrategy(**payload)
+        elif s.formal_expr:
             payload["formal_expr"] = IrFormalExpr(
                 operators=[
                     _operator_to_ir(op, knowledge_map, top_level=False) for op in s.formal_expr
                 ]
             )
-            ir_strategies.append(IrFormalStrategy(**payload))
+            ir_strategy = IrFormalStrategy(**payload)
+        elif s.type in _COMPILE_TIME_FORMAL_STRATEGIES:
+            result = formalize_named_strategy(
+                scope="local",
+                type_=s.type,
+                premises=payload["premises"],
+                conclusion=payload["conclusion"],
+                namespace=pkg.namespace,
+                package_name=pkg.name,
+                background=payload["background"],
+                steps=steps,
+                metadata=payload["metadata"],
+            )
+            generated_knowledges.extend(result.knowledges)
+            ir_strategy = result.strategy
         else:
-            ir_strategies.append(IrStrategy(**payload))
+            ir_strategy = IrStrategy(**payload)
+
+        compiled_strategies[strategy_key] = ir_strategy
+        return ir_strategy
+
+    emitted_strategies: set[int] = set()
+    for s in pkg.strategies:
+        strategy_key = id(s)
+        if strategy_key in emitted_strategies:
+            continue
+        ir_strategies.append(compile_strategy(s))
+        emitted_strategies.add(strategy_key)
 
     graph = LocalCanonicalGraph(
         namespace=pkg.namespace,
         package_name=pkg.name,
-        knowledges=ir_knowledges,
+        knowledges=[*ir_knowledges, *generated_knowledges],
         operators=ir_operators,
         strategies=ir_strategies,
     )
 
-    ir = graph.model_dump(mode="json", exclude_none=True)
-    ir["package"] = {"name": pkg.name, "namespace": pkg.namespace, "version": pkg.version}
-    for knowledge in ir["knowledges"]:
-        knowledge["is_input"] = knowledge["id"] in input_ids
+    return CompiledPackage(
+        graph=graph,
+        knowledge_ids_by_object=dict(knowledge_map),
+        strategies_by_object=dict(compiled_strategies),
+    )
 
-    return ir
+
+def compile_package(pkg: CollectedPackage) -> dict[str, Any]:
+    """Compile collected declarations into LocalCanonicalGraph JSON."""
+    return compile_package_artifact(pkg).to_json()

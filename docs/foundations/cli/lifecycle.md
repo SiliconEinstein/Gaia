@@ -20,7 +20,7 @@ author source
 
 - `pyproject.toml`
 - Python package source
-- `with Package(...)` 声明的 Knowledge / Strategy / Operator
+- 模块顶层声明的 Knowledge / Strategy / Operator
 
 输出：
 

@@ -10,8 +10,9 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
-from gaia.lang.runtime import Knowledge
-from gaia.lang.runtime import Package as GaiaPackage
+from gaia.lang.runtime import Knowledge, Strategy
+from gaia.lang.runtime.package import CollectedPackage
+from gaia.lang.runtime.package import get_inferred_package, reset_inferred_package
 
 try:
     import tomllib
@@ -33,7 +34,7 @@ class LoadedGaiaPackage:
     import_name: str
     source_root: Path
     module: ModuleType
-    package: GaiaPackage
+    package: CollectedPackage
 
 
 def _import_fresh(import_name: str) -> ModuleType:
@@ -51,19 +52,21 @@ def _import_fresh(import_name: str) -> ModuleType:
         sys.dont_write_bytecode = previous
 
 
-def _find_package_object(module: ModuleType) -> GaiaPackage | None:
-    for attr in dir(module):
-        obj = getattr(module, attr)
-        if isinstance(obj, GaiaPackage):
-            return obj
-    return None
-
-
-def _assign_labels(module: ModuleType, pkg: GaiaPackage) -> None:
+def _assign_labels(module: ModuleType, pkg: CollectedPackage) -> None:
     local_knowledge_ids = {id(k) for k in pkg.knowledge}
-    for attr in dir(module):
-        obj = getattr(module, attr)
+    local_strategy_ids = {id(s) for s in pkg.strategies}
+    export_names = getattr(module, "__all__", None)
+    if isinstance(export_names, list) and all(isinstance(name, str) for name in export_names):
+        names = export_names
+    else:
+        names = [name for name in dir(module) if not name.startswith("_")]
+    for attr in names:
+        obj = getattr(module, attr, None)
         if isinstance(obj, Knowledge) and id(obj) in local_knowledge_ids and obj.label is None:
+            obj.label = attr
+    for attr in [name for name in dir(module) if not name.startswith("_")]:
+        obj = getattr(module, attr, None)
+        if isinstance(obj, Strategy) and id(obj) in local_strategy_ids and obj.label is None:
             obj.label = attr
 
 
@@ -93,6 +96,7 @@ def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
         raise GaiaCliError("Error: [project].version is required.")
 
     import_name = project_name.removesuffix("-gaia").replace("-", "_")
+    reset_inferred_package(pyproject, module_name=import_name)
     package_roots = [pkg_path, pkg_path / "src"]
     source_root = next((root for root in package_roots if (root / import_name).exists()), None)
     if source_root is None:
@@ -107,12 +111,16 @@ def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
     except Exception as exc:
         raise GaiaCliError(f"Error importing package: {exc}") from exc
 
-    pkg = _find_package_object(module)
+    pkg = get_inferred_package(pyproject)
     if pkg is None:
-        raise GaiaCliError("Error: no Package object found in module.")
+        raise GaiaCliError(
+            "Error: no Gaia declarations found. Declare Knowledge/Strategy/Operator objects "
+            "directly in the module and export the public surface via __all__ when needed."
+        )
 
     _assign_labels(module, pkg)
 
+    pkg.name = import_name
     pkg.version = version
     if "namespace" in gaia_config:
         pkg.namespace = gaia_config["namespace"]
@@ -135,6 +143,13 @@ def compile_loaded_package(loaded: LoadedGaiaPackage) -> dict[str, Any]:
     from gaia.lang.compiler import compile_package
 
     return compile_package(loaded.package)
+
+
+def compile_loaded_package_artifact(loaded: LoadedGaiaPackage):
+    """Compile an already loaded Gaia package to IR plus runtime mappings."""
+    from gaia.lang.compiler import compile_package_artifact
+
+    return compile_package_artifact(loaded.package)
 
 
 def write_compiled_artifacts(pkg_path: Path, ir: dict[str, Any]) -> Path:
