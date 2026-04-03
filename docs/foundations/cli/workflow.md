@@ -12,8 +12,8 @@ The Gaia CLI is a knowledge package authoring toolkit. It provides a six-command
 pipeline that takes a Python DSL package from scaffolding to registry registration:
 
 ```
-gaia init --> gaia compile --> gaia check --> gaia add --> gaia infer --> git tag --> gaia register
-(scaffold)    (DSL -> IR)     (validate)   (add deps)   (BP preview)              (registry PR)
+gaia init --> gaia add --> write package --> gaia compile --> write review --> gaia infer --> git tag --> gaia register
+(scaffold)   (add deps)    (DSL code)      (DSL -> IR)     (self-review)   (BP preview)              (registry PR)
 ```
 
 Entry point: installed as the `gaia` CLI command via `pyproject.toml`

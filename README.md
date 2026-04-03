@@ -46,16 +46,16 @@ cd Gaia && uv sync
 ## CLI Workflow
 
 ```
-gaia init → gaia compile → gaia check → gaia add → gaia infer → gaia register
-(scaffold)   (DSL → IR)    (validate)  (add deps)  (BP preview)  (registry PR)
+gaia init → gaia add → write package → gaia compile → write review → gaia infer → gaia register
+(scaffold)  (add deps)   (DSL code)     (DSL → IR)   (self-review)  (BP preview)  (registry PR)
 ```
 
 | Command | Purpose |
 |---------|---------|
 | `gaia init <name>` | Scaffold a new Gaia knowledge package |
-| `gaia compile [path]` | Compile Python DSL to Gaia IR (`.gaia/ir.json`) |
-| `gaia check [path]` | Validate package structure and IR consistency |
 | `gaia add <package>` | Install a registered Gaia package from the [official registry](https://github.com/SiliconEinstein/gaia-registry) |
+| `gaia compile [path]` | Compile Python DSL to Gaia IR (`.gaia/ir.json`) |
+| `gaia check [path]` | Validate package structure and IR consistency (used by registry CI) |
 | `gaia infer [path]` | Run belief propagation with a review sidecar |
 | `gaia register [path]` | Submit package to the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry) |
 
