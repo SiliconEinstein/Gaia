@@ -165,13 +165,21 @@ gaia infer .
 The engine compiles the IR into a factor graph, automatically selects the best algorithm (exact junction tree for small graphs, loopy BP for larger ones), and writes results to `.gaia/reviews/self_review/`:
 
 ```
-Inferred 4 beliefs from 4 priors and 0 strategy parameter records
-BP converged: True after 12 iterations
+Inferred 6 beliefs from 4 priors and 0 strategy parameter records
+BP converged: True after 23 iterations
 Review: self_review
 Output: .gaia/reviews/self_review/beliefs.json
 ```
 
-`beliefs.json` contains the posterior probability for each claim after propagation — for example, `vacuum_law` should rise above its 0.3 prior because the deductive argument from the contradiction supports it.
+`beliefs.json` contains the posterior probability for each claim after propagation:
+
+| Claim | Prior | Posterior |
+|-------|-------|-----------|
+| `vacuum_law` | 0.30 | **0.68** — deduction from the contradiction raises belief |
+| `paradox` | 0.999 | **0.999** — contradiction constraint holds firm |
+| `heavy_faster` | 0.80 | **0.55** — pulled down as a premise of the contradiction |
+| `composite_slower` | 0.60 | **0.38** — contradiction forces mutual exclusion |
+| `composite_faster` | 0.60 | **0.38** — symmetric with `composite_slower` |
 
 If multiple reviews exist, specify which one: `gaia infer --review self_review .`
 
