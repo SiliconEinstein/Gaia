@@ -21,9 +21,13 @@ composite_faster = claim("A tied composite should fall faster (greater total mas
 paradox = contradiction(composite_slower, composite_faster,
     reason="Same premise yields opposite predictions")
 
-# Reasoning
-vacuum_law = claim("In vacuum all bodies fall at the same rate.",
-    given=[paradox, heavy_faster])
+# Reasoning strategy
+vacuum_law = claim("In vacuum all bodies fall at the same rate.")
+galileo_argument = deduction(
+    premises=[paradox, heavy_faster],
+    conclusion=vacuum_law,
+    reason="Contradiction in Aristotle's doctrine forces a new law",
+)
 ```
 
 ## Install
@@ -68,24 +72,49 @@ This scaffolds a complete package with `pyproject.toml` (including `[tool.gaia]`
 config and a generated UUID), the correct `src/` directory layout, and a DSL
 template. Package name must end with `-gaia`.
 
-**2. Write DSL declarations** in `src/galileo_falling_bodies/__init__.py`
+**2. Write DSL declarations**
+
+Organize your knowledge in separate modules under the package directory. `gaia compile` imports the top-level package, so any file transitively imported from `__init__.py` is automatically discovered.
+
+`src/galileo_falling_bodies/knowledge.py` — declare propositions:
 
 ```python
-from gaia.lang import claim, setting, contradiction
+from gaia.lang import claim, setting
 
 aristotle = setting("Aristotle: heavier objects fall faster.")
 heavy_faster = claim("Heavy stones fall faster in air.")
-composite_slower = claim("Tied composite should be slower.")
-composite_faster = claim("Tied composite should be faster.")
+composite_slower = claim("Tied composite should be slower (light drags heavy).")
+composite_faster = claim("Tied composite should be faster (greater total mass).")
+vacuum_law = claim("In vacuum all bodies fall at the same rate.")
+```
+
+`src/galileo_falling_bodies/reasoning.py` — declare constraints and strategies:
+
+```python
+from gaia.lang import contradiction, deduction
+from .knowledge import composite_slower, composite_faster, heavy_faster, vacuum_law
 
 paradox = contradiction(composite_slower, composite_faster,
     reason="Same premise yields opposite conclusions")
 
-vacuum_law = claim("In vacuum all bodies fall at the same rate.",
-    given=[paradox, heavy_faster])
+galileo_argument = deduction(
+    premises=[paradox, heavy_faster],
+    conclusion=vacuum_law,
+    reason="Contradiction in Aristotle's doctrine forces a new law",
+)
+```
 
-__all__ = ["aristotle", "heavy_faster", "composite_slower",
-           "composite_faster", "paradox", "vacuum_law"]
+`src/galileo_falling_bodies/__init__.py` — re-export all declarations:
+
+```python
+from .knowledge import aristotle, heavy_faster, composite_slower, composite_faster, vacuum_law
+from .reasoning import paradox, galileo_argument
+
+__all__ = [
+    "aristotle", "heavy_faster", "composite_slower",
+    "composite_faster", "vacuum_law",
+    "paradox", "galileo_argument",
+]
 ```
 
 **3. Compile and validate**
@@ -95,7 +124,58 @@ gaia compile .
 gaia check .
 ```
 
-**4. Publish**
+**4. Write a review sidecar** to assign priors and strategy parameters for inference.
+
+Reviews live in `src/galileo_falling_bodies/reviews/`. Each review is a Python file exporting a `REVIEW` bundle — different reviewers can assign different priors to the same knowledge.
+
+`src/galileo_falling_bodies/reviews/self_review.py`:
+
+```python
+from gaia.review import ReviewBundle, review_claim, review_strategy
+from .. import heavy_faster, composite_slower, composite_faster, vacuum_law, galileo_argument
+
+REVIEW = ReviewBundle(
+    source_id="self_review",
+    objects=[
+        review_claim(heavy_faster, prior=0.8,
+            judgment="supporting",
+            justification="Well-documented observation in air."),
+        review_claim(composite_slower, prior=0.6,
+            judgment="tentative",
+            justification="Plausible under Aristotelian framework."),
+        review_claim(composite_faster, prior=0.6,
+            judgment="tentative",
+            justification="Also plausible under Aristotelian framework."),
+        review_claim(vacuum_law, prior=0.3,
+            judgment="tentative",
+            justification="Not yet established — the argument should raise this."),
+        review_strategy(galileo_argument,
+            judgment="formalized",
+            justification="Classic reductio ad absurdum."),
+    ],
+)
+```
+
+**5. Run belief propagation**
+
+```bash
+gaia infer .
+```
+
+The engine compiles the IR into a factor graph, automatically selects the best algorithm (exact junction tree for small graphs, loopy BP for larger ones), and writes results to `.gaia/reviews/self_review/`:
+
+```
+Inferred 4 beliefs from 4 priors and 0 strategy parameter records
+BP converged: True after 12 iterations
+Review: self_review
+Output: .gaia/reviews/self_review/beliefs.json
+```
+
+`beliefs.json` contains the posterior probability for each claim after propagation — for example, `vacuum_law` should rise above its 0.3 prior because the deductive argument from the contradiction supports it.
+
+If multiple reviews exist, specify which one: `gaia infer --review self_review .`
+
+**6. Publish**
 
 ```bash
 git tag v1.0.0 && git push origin main --tags
