@@ -39,7 +39,10 @@ class StorageManager:
 
     async def initialize(self) -> None:
         """Initialize all storage backends."""
-        self._content = LanceContentStore(self._config.effective_lancedb_uri)
+        self._content = LanceContentStore(
+            self._config.effective_lancedb_uri,
+            storage_options=self._config.storage_options,
+        )
         await self._content.initialize()
 
     async def close(self) -> None:

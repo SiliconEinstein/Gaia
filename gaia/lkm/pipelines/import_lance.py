@@ -138,7 +138,7 @@ async def run_batch_import(
     logger.info("Downloading XMLs for %d papers...", len(pending))
     downloaded = await download_paper_xmls(tos_config, pending)
 
-    # 4. Init target StorageManager
+    # 4. Init target StorageManager (picks up TOS_* creds from env)
     config = StorageConfig(lancedb_uri=lkm_db_uri)
     storage = StorageManager(config)
     await storage.initialize()

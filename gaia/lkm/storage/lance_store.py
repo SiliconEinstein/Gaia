@@ -51,8 +51,11 @@ class LanceContentStore:
     All LanceDB calls are synchronous — wrapped via run_in_executor.
     """
 
-    def __init__(self, uri: str) -> None:
-        self._db = lancedb.connect(uri)
+    def __init__(self, uri: str, storage_options: dict[str, str] | None = None) -> None:
+        kwargs: dict[str, Any] = {}
+        if storage_options:
+            kwargs["storage_options"] = storage_options
+        self._db = lancedb.connect(uri, **kwargs)
 
     async def _run(self, fn: Any, *args: Any, **kwargs: Any) -> Any:
         """Run a synchronous function in the default executor."""
