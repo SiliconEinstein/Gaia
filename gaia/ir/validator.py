@@ -546,19 +546,24 @@ def validate_parameterization(
 ) -> ValidationResult:
     """Validate parameterization completeness before BP run.
 
-    Checks that every non-private claim Knowledge has at least one PriorRecord
+    Checks that every independent claim Knowledge has at least one PriorRecord
     and every parameterized Strategy (infer/noisy_and) has a StrategyParamRecord.
     FormalStrategy types derive behavior from FormalExpr — no params needed.
 
-    Two categories of claims are excluded from PriorRecord requirements and
-    PROHIBITED from having independent PriorRecords:
-    1. Top-level structural helper claims — conclusions of top-level Operators
+    Three categories of claims are excluded from PriorRecord requirements:
+
+    1. **Strategy conclusions** — claims that appear as the conclusion of any
+       Strategy. Their belief is derived from premises via BP; they do not need
+       independent priors (but may optionally have them).
+    2. **Top-level structural helper claims** — conclusions of top-level Operators
        with structural types (conjunction/disjunction/equivalence/contradiction/
        complement). Their truth value is fully determined by the Operator.
-    2. FormalExpr private nodes — ANY operator conclusion inside a FormalExpr
+       These are PROHIBITED from having independent PriorRecords.
+    3. **FormalExpr private nodes** — ANY operator conclusion inside a FormalExpr
        that is NOT in the owning FormalStrategy's premises/conclusion interface.
        Per spec §4 of 04-helper-claims.md, private nodes must not carry
        independent PriorRecord regardless of the operator type.
+       These are PROHIBITED from having independent PriorRecords.
 
     Generated public interface claims (e.g. abduction's AlternativeExplanationForObs)
     are part of the strategy interface, so they remain ordinary claim inputs and
@@ -569,16 +574,18 @@ def validate_parameterization(
     # collect claim knowledge_ids
     claim_ids = {k.id for k in graph.knowledges if k.type == KnowledgeType.CLAIM and k.id}
 
-    # identify claims that must not have independent PriorRecords:
+    # --- Identify claims exempt from PriorRecord requirements ---
 
-    # (a) top-level structural helper claims — conclusions of structural operators
-    no_prior_ids: set[str] = set()
+    # (a) Claims that MUST NOT have PriorRecords (prohibited)
+    no_prior_allowed: set[str] = set()
+
+    # Top-level structural helper claims — conclusions of structural operators
     for op in graph.operators:
         if op.operator in _STRUCTURAL_HELPER_OPERATOR_TYPES:
-            no_prior_ids.add(op.conclusion)
+            no_prior_allowed.add(op.conclusion)
 
-    # (b) FormalExpr private nodes — ALL operator conclusions inside FormalExpr
-    #     that are NOT in the owning strategy's premises/conclusion interface
+    # FormalExpr private nodes — operator conclusions inside FormalExpr
+    # that are NOT in the owning strategy's premises/conclusion interface
     for s in graph.strategies:
         if isinstance(s, FormalStrategy):
             own_interface: set[str] = set(s.premises)
@@ -586,7 +593,17 @@ def validate_parameterization(
                 own_interface.add(s.conclusion)
             for op in s.formal_expr.operators:
                 if op.conclusion not in own_interface:
-                    no_prior_ids.add(op.conclusion)
+                    no_prior_allowed.add(op.conclusion)
+
+    # (b) Claims that don't NEED PriorRecords but may optionally have them
+    # Strategy conclusions — their belief derives from premises via BP
+    strategy_conclusions: set[str] = set()
+    for s in graph.strategies:
+        if s.conclusion is not None:
+            strategy_conclusions.add(s.conclusion)
+
+    # Combined: all claims exempt from the "must have prior" check
+    prior_exempt = no_prior_allowed | strategy_conclusions
 
     # collect strategy ids, split by parameterized vs not
     parameterized_ids: set[str] = set()
@@ -597,17 +614,17 @@ def validate_parameterization(
             if s.type in _PARAMETERIZED_TYPES:
                 parameterized_ids.add(s.strategy_id)
 
-    # check prior coverage (exclude private/helper claims)
+    # check prior coverage (exclude exempt claims)
     prior_knowledge_ids = {r.knowledge_id for r in priors}
     for cid in claim_ids:
-        if cid in no_prior_ids:
-            continue  # private or structural helper — no prior needed
+        if cid in prior_exempt:
+            continue  # derived or structural — no prior needed
         if cid not in prior_knowledge_ids:
             result.error(f"Claim '{cid}': missing PriorRecord")
 
-    # private/helper claims must NOT have PriorRecords (spec §4 of 04-helper-claims.md)
+    # prohibited claims must NOT have PriorRecords (spec §4 of 04-helper-claims.md)
     for r_prior in priors:
-        if r_prior.knowledge_id in no_prior_ids:
+        if r_prior.knowledge_id in no_prior_allowed:
             result.error(
                 f"PriorRecord '{r_prior.knowledge_id}': private or structural helper claim "
                 f"must not have independent PriorRecord"

@@ -70,6 +70,7 @@ def noisy_and(
     premises: list[Knowledge],
     conclusion: Knowledge,
     *,
+    background: list[Knowledge] | None = None,
     steps: list[StepInput] | None = None,
     reason: str = "",
 ) -> Strategy:
@@ -78,6 +79,7 @@ def noisy_and(
         type="noisy_and",
         premises=premises,
         conclusion=conclusion,
+        background=background or [],
         steps=steps or [],
         reason=reason,
     )
@@ -89,6 +91,7 @@ def infer(
     premises: list[Knowledge],
     conclusion: Knowledge,
     *,
+    background: list[Knowledge] | None = None,
     steps: list[StepInput] | None = None,
     reason: str = "",
 ) -> Strategy:
@@ -97,6 +100,7 @@ def infer(
         type="infer",
         premises=premises,
         conclusion=conclusion,
+        background=background or [],
         steps=steps or [],
         reason=reason,
     )
@@ -130,6 +134,7 @@ def abduction(
     hypothesis: Knowledge,
     alternative: Knowledge | None = None,
     *,
+    background: list[Knowledge] | None = None,
     steps: list[StepInput] | None = None,
     reason: str = "",
 ) -> Strategy:
@@ -141,6 +146,7 @@ def abduction(
         "abduction",
         premises=premises,
         conclusion=hypothesis,
+        background=background,
         steps=steps,
         reason=reason,
     )
@@ -151,6 +157,7 @@ def analogy(
     target: Knowledge,
     bridge: Knowledge,
     *,
+    background: list[Knowledge] | None = None,
     steps: list[StepInput] | None = None,
     reason: str = "",
 ) -> Strategy:
@@ -159,6 +166,7 @@ def analogy(
         "analogy",
         premises=[source, bridge],
         conclusion=target,
+        background=background,
         steps=steps,
         reason=reason,
     )
@@ -169,6 +177,7 @@ def extrapolation(
     target: Knowledge,
     continuity: Knowledge,
     *,
+    background: list[Knowledge] | None = None,
     steps: list[StepInput] | None = None,
     reason: str = "",
 ) -> Strategy:
@@ -177,6 +186,7 @@ def extrapolation(
         "extrapolation",
         premises=[source, continuity],
         conclusion=target,
+        background=background,
         steps=steps,
         reason=reason,
     )
@@ -187,6 +197,7 @@ def elimination(
     excluded: list[tuple[Knowledge, Knowledge]],
     survivor: Knowledge,
     *,
+    background: list[Knowledge] | None = None,
     steps: list[StepInput] | None = None,
     reason: str = "",
 ) -> Strategy:
@@ -195,6 +206,7 @@ def elimination(
         "elimination",
         premises=[exhaustiveness, *_flatten_pairs(excluded, name="elimination")],
         conclusion=survivor,
+        background=background,
         steps=steps,
         reason=reason,
     )
@@ -205,6 +217,7 @@ def case_analysis(
     cases: list[tuple[Knowledge, Knowledge]],
     conclusion: Knowledge,
     *,
+    background: list[Knowledge] | None = None,
     steps: list[StepInput] | None = None,
     reason: str = "",
 ) -> Strategy:
@@ -213,6 +226,7 @@ def case_analysis(
         "case_analysis",
         premises=[exhaustiveness, *_flatten_pairs(cases, name="case_analysis")],
         conclusion=conclusion,
+        background=background,
         steps=steps,
         reason=reason,
     )
@@ -223,6 +237,7 @@ def mathematical_induction(
     step: Knowledge,
     conclusion: Knowledge,
     *,
+    background: list[Knowledge] | None = None,
     steps: list[StepInput] | None = None,
     reason: str = "",
 ) -> Strategy:
@@ -231,6 +246,7 @@ def mathematical_induction(
         "mathematical_induction",
         premises=[base, step],
         conclusion=conclusion,
+        background=background,
         steps=steps,
         reason=reason,
     )

@@ -1058,11 +1058,13 @@ class TestParameterizationValidation:
         )
         assert r.valid
 
-    def test_missing_prior(self):
+    def test_strategy_conclusion_does_not_require_prior(self):
+        """Strategy conclusions are exempt from PriorRecord requirement."""
         from gaia.ir import PriorRecord, StrategyParamRecord
 
         g = self._graph()
         sid = g.strategies[0].strategy_id
+        # b is the conclusion of a noisy_and — no prior needed
         r = validate_parameterization(
             g,
             priors=[PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s")],
@@ -1072,8 +1074,26 @@ class TestParameterizationValidation:
                 ),
             ],
         )
+        assert r.valid, r.errors
+
+    def test_missing_prior_for_independent_premise(self):
+        """Independent premises (not strategy conclusions) still require priors."""
+        from gaia.ir import StrategyParamRecord
+
+        g = self._graph()
+        sid = g.strategies[0].strategy_id
+        # a is an independent premise — missing prior should be an error
+        r = validate_parameterization(
+            g,
+            priors=[],
+            strategy_params=[
+                StrategyParamRecord(
+                    strategy_id=sid, conditional_probabilities=[0.85], source_id="s"
+                ),
+            ],
+        )
         assert not r.valid
-        assert any("github:test::b" in e and "missing PriorRecord" in e for e in r.errors)
+        assert any("github:test::a" in e and "missing PriorRecord" in e for e in r.errors)
 
     def test_missing_strategy_param_for_parameterized(self):
         from gaia.ir import PriorRecord
