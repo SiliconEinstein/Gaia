@@ -11,6 +11,7 @@ Deterministic: same XML → same output.
 from __future__ import annotations
 
 import hashlib
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from xml.etree import ElementTree as ET
@@ -24,6 +25,8 @@ from gaia.lkm.models import (
     Step,
     compute_content_hash,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -274,4 +277,12 @@ def extract(
         )
     )
 
+    logger.debug(
+        "Extracted paper %s: %d variables, %d factors, %d priors, %d factor_params",
+        metadata_id,
+        len(result.local_variables),
+        len(result.local_factors),
+        len(result.prior_records),
+        len(result.factor_param_records),
+    )
     return result

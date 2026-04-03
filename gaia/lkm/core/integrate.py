@@ -5,6 +5,7 @@ Per-package and batch integration with content_hash dedup and CanonicalBinding c
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 
 from gaia.lkm.core.extract import ExtractionResult
@@ -22,6 +23,8 @@ from gaia.lkm.models import (
     new_gfac_id,
 )
 from gaia.lkm.storage import StorageManager
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -243,6 +246,14 @@ async def integrate(
         for ps in param_sources:
             await storage.write_param_source(ps)
 
+    logger.info(
+        "Integrated %s: %d new globals, %d matched, %d new factors, %d unresolved",
+        package_id,
+        len(result.new_global_variables),
+        len(result.updated_global_variables),
+        len(result.new_global_factors),
+        len(result.unresolved_cross_refs),
+    )
     return result
 
 
@@ -499,4 +510,14 @@ async def batch_integrate(
             await storage.write_param_source(ps)
 
     stats.bindings = len(all_bindings)
+    logger.info(
+        "Batch integrated %d packages: %d new global vars, %d new global factors, "
+        "%d dedup within batch, %d dedup with existing, %d unresolved",
+        stats.packages,
+        stats.new_global_variables,
+        stats.new_global_factors,
+        stats.dedup_within_batch,
+        stats.dedup_with_existing,
+        len(stats.unresolved_cross_refs),
+    )
     return stats

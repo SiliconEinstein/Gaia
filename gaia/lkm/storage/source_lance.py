@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import logging
 import os
 import re
 from dataclasses import dataclass
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 # ── ByteHouse search ──
@@ -230,8 +233,17 @@ async def download_paper_xmls(
             try:
                 results[pid] = await future
             except Exception:
+                logger.warning("Download failed for paper %s", pid, exc_info=True)
                 results[pid] = None
 
+    downloaded_count = sum(1 for v in results.values() if v is not None)
+    failed_count = sum(1 for v in results.values() if v is None)
+    logger.info(
+        "Downloaded XMLs: %d succeeded, %d failed (of %d)",
+        downloaded_count,
+        failed_count,
+        len(paper_ids),
+    )
     return results
 
 

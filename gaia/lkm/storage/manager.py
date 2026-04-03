@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from gaia.lkm.models import (
     CanonicalBinding,
     FactorParamRecord,
@@ -15,6 +17,8 @@ from gaia.lkm.models import (
 from gaia.lkm.models.import_status import ImportStatusRecord
 from gaia.lkm.storage.config import StorageConfig
 from gaia.lkm.storage.lance_store import LanceContentStore
+
+logger = logging.getLogger(__name__)
 
 
 class StorageManager:
@@ -52,6 +56,13 @@ class StorageManager:
         factor_nodes: list[LocalFactorNode],
     ) -> None:
         """Step 1: Write local nodes with ingest_status='preparing'."""
+        logger.info(
+            "Ingesting local graph %s@%s: %d variables, %d factors",
+            package_id,
+            version,
+            len(variable_nodes),
+            len(factor_nodes),
+        )
         await self.content.write_local_variables(variable_nodes)
         await self.content.write_local_factors(factor_nodes)
 
@@ -68,6 +79,12 @@ class StorageManager:
         factor_param_records: list[FactorParamRecord] | None = None,
     ) -> None:
         """Steps 2-4: Write global nodes, bindings, and parameters."""
+        logger.info(
+            "Integrating global graph: %d variables, %d factors, %d bindings",
+            len(variable_nodes),
+            len(factor_nodes),
+            len(bindings),
+        )
         await self.content.write_global_variables(variable_nodes)
         await self.content.write_global_factors(factor_nodes)
         await self.content.write_bindings(bindings)
