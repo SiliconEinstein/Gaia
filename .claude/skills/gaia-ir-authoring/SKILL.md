@@ -1,256 +1,258 @@
 ---
 name: gaia-ir-authoring
-description: "Use when constructing a Gaia IR LocalCanonicalGraph from source material — teaches how to build valid knowledge graphs using existing gaia.gaia_ir models, validate them, and run BP inference."
+description: "Use when constructing a Gaia knowledge package or LocalCanonicalGraph — teaches Python DSL authoring, compilation, validation, registration, and BP inference using the current gaia.lang + gaia.ir + gaia.bp stack."
 ---
 
 # Gaia IR Authoring
 
-Construct valid `LocalCanonicalGraph` instances using the existing data models in `gaia/gaia_ir/`, validate with `validate_local_graph`, and run inference via `gaia/bp/`.
+Author Gaia knowledge packages using the Python DSL, compile to validated IR, and optionally run BP inference or register with the official registry.
 
 ## When to use
 
-- Building **local** Gaia IR graphs for reasoning experiments, tests, or tooling.
-- Translating a scientific argument or knowledge structure into Gaia IR.
-- Running local BP inference on a hand-built graph.
+- Creating a new Gaia knowledge package from source material.
+- Adding claims, operators, or strategies to an existing package.
+- Compiling, validating, or registering a package.
+- Running local BP inference on a package's IR.
 
-Do **not** use for: Typst package authoring (`gaia init` / `gaia build`), modifying core IR in `gaia/gaia_ir/` or BP in `gaia/bp/`, review workflows.
-
-## Imports
-
-```python
-from gaia.gaia_ir import (
-    Knowledge, KnowledgeType, Operator, OperatorType,
-    Strategy, StrategyType, LocalCanonicalGraph, make_qid,
-)
-from gaia.gaia_ir.validator import validate_local_graph
-from gaia.bp import lower_local_graph
-from gaia.bp.exact import exact_inference
-from gaia.bp.bp import BeliefPropagation
-```
+Do **not** use for: modifying `gaia/ir/`, `gaia/bp/`, or `gaia/lang/` internals; review workflows; LKM server operations.
 
 ## Process
 
-### 1. Define identity
+You MUST follow these steps in order. Do not skip validation or compilation.
 
-Pick `namespace` and `package_name`. All Knowledge IDs use QID format: `{namespace}:{package_name}::{label}`.
+### Step 1: Scaffold the package
 
-```python
-NS, PKG = "my_ns", "my_pkg"
+Every Gaia package is a standard Python package with `[tool.gaia]` metadata.
 
-def qid(label: str) -> str:
-    return make_qid(NS, PKG, label)
+```
+my-package-gaia/
+├── pyproject.toml
+├── my_package/
+│   └── __init__.py
+└── .gaia/               # Created by `gaia compile` — git tracked
+    ├── ir.json
+    └── ir_hash
 ```
 
-### 2. Create Knowledge nodes
+**pyproject.toml** (all fields required):
 
-Three types per `02-gaia-ir.md` §1.2:
+```toml
+[project]
+name = "my-package-gaia"          # Must end with -gaia
+version = "1.0.0"
+description = "..."
+authors = [{name = "..."}]
+requires-python = ">=3.12"
+dependencies = []                  # Other *-gaia packages if needed
 
-| Type | Role | Carries probability |
-|------|------|---------------------|
-| `claim` | Scientific assertions, hypotheses, observations | Yes (only type with prior + belief) |
-| `setting` | Background / frame assumptions | No |
-| `question` | Open problems | No |
+[tool.setuptools.packages.find]
+include = ["my_package*"]
+
+[tool.gaia]
+namespace = "reg"                  # "reg" for registry, "paper" for papers
+type = "knowledge-package"         # Required exactly
+uuid = "..."                       # Unique UUID v4
+
+[build-system]
+requires = ["setuptools>=69.0"]
+build-backend = "setuptools.build_meta"
+```
+
+**Naming convention:**
+
+| Layer | Format | Example |
+|-------|--------|---------|
+| GitHub repo | `CamelCase.gaia` | `MendelGenetics.gaia` |
+| PyPI name | `kebab-case-gaia` | `mendel-genetics-gaia` |
+| Python import | `snake_case` | `mendel_genetics` |
+
+### Step 2: Declare knowledge
+
+Write declarations directly at module top level. Do NOT use a `Package` context manager — the runtime infers package membership automatically from `pyproject.toml`.
 
 ```python
-k1 = Knowledge(id=qid("observation_a"), type="claim", content="描述")
-k2 = Knowledge(id=qid("background"), type="setting", content="背景")
-k3 = Knowledge(id=qid("open_problem"), type="question", content="问题")
+# my_package/__init__.py
+from gaia.lang import claim, setting, question, contradiction
+
+# Settings — background, no probability
+env = setting("Experimental conditions described here.")
+env.label = "env"
+
+# Claims — propositions with truth values
+obs_a = claim("Observation A holds under conditions described.")
+obs_a.label = "obs_a"
+
+# Claims derived from premises (auto-creates noisy_and strategy)
+conclusion = claim("Derived conclusion.", given=[obs_a])
+conclusion.label = "conclusion"
 ```
 
 **Rules:**
-- Labels must be unique within the package (enforced by validator).
-- Labels must match `[a-z_][a-z0-9_]*` (lowercase + underscores).
-- `content` stores the proposition text (local layer).
-- `LocalCanonicalGraph` auto-assigns QIDs for nodes that have `label` but no `id`, but explicit `id=qid(...)` is recommended.
+- Every Knowledge object MUST have `.label` set (assign after creation).
+- Labels must be valid Python identifiers (`[a-z_][a-z0-9_]*`).
+- Labels must be unique within the package.
+- Only `claim` carries probability; `setting` and `question` do not participate in BP.
+- `claim(given=[...])` is sugar for `noisy_and(premises, conclusion)`.
 
-### 3. Add Operators (structural constraints)
+### Step 3: Add structural operators
 
-Operators encode **deterministic** logical relations between claims. **No probability parameters.** Per `02-gaia-ir.md` §2:
-
-| Operator | Variables | Conclusion | Semantics |
-|----------|-----------|------------|-----------|
-| `implication` | `[A]` | `B` | A=1 → B=1 |
-| `conjunction` | `[A₁,...,Aₖ]` (≥2) | `M` | M = A₁ ∧ ... ∧ Aₖ |
-| `disjunction` | `[A₁,...,Aₖ]` (≥2) | helper | ¬(all=0) |
-| `equivalence` | `[A, B]` | helper | A=B |
-| `contradiction` | `[A, B]` | helper | ¬(A=1 ∧ B=1) |
-| `complement` | `[A, B]` | helper | A≠B (XOR) |
-
-**Top-level operators MUST have `operator_id` (prefix `lco_`) and `scope="local"`** — the validator rejects them otherwise:
+Operators encode deterministic logical relations. Each operator function creates the operator AND returns a helper claim.
 
 ```python
-contra_helper = Knowledge(
-    id=qid("deflection_contradiction_h"), type="claim",
-    content="GR与牛顿预测矛盾",
-    metadata={
-        "helper_kind": "contradiction_result",
-        "helper_visibility": "top_level",
-        "canonical_name": "not_both_true(gr_deflection,soldner_deflection)",
-        "generated": True,
-        "generated_kind": "helper_claim",
-    },
-)
-contra_op = Operator(
-    operator_id="lco_001", scope="local",
-    operator="contradiction",
-    variables=[qid("gr_deflection"), qid("soldner_deflection")],
-    conclusion=contra_helper.id,
-)
+from gaia.lang import contradiction, equivalence, complement, disjunction
+
+# Contradiction: ¬(A ∧ B) — cannot both be true
+helper = contradiction(claim_a, claim_b, reason="Why they conflict")
+helper.label = "a_vs_b_contradiction"
+
+# Equivalence: A = B — same truth value
+eq = equivalence(claim_x, claim_y, reason="Why they are equivalent")
+eq.label = "x_eq_y"
+
+# Complement: A ⊕ B — opposite truth values (XOR)
+comp = complement(claim_p, claim_q, reason="Why they are opposites")
+comp.label = "p_xor_q"
+
+# Disjunction: at least one true
+disj = disjunction(hyp_a, hyp_b, hyp_c, reason="At least one mechanism")
+disj.label = "some_mechanism"
 ```
 
-**Helper claim metadata** per `04-helper-claims.md` §4–§5:
+The returned helper claim can be used as a premise in subsequent strategies.
 
-| Field | Value |
-|-------|-------|
-| `helper_kind` | `conjunction_result` / `disjunction_result` / `equivalence_result` / `contradiction_result` / `complement_result` |
-| `helper_visibility` | `top_level` (for graph-level operators) or `formal_internal` (inside FormalExpr) |
-| `canonical_name` | Stable function-style name: `not_both_true(A,B)`, `same_truth(A,B)`, `all_true(A,B)`, `any_true(A,B,...)`, `opposite_truth(A,B)` |
+### Step 4: Add explicit strategies (when `given=` is not enough)
 
-**Key invariant:** `conclusion` must NOT appear in `variables` — variables are inputs only.
-
-### 4. Add Strategies (reasoning declarations)
-
-Strategies carry **all probability** — per `02-gaia-ir.md` §3. Premises must reference `claim` Knowledge IDs.
-
-| Type | Use | Parameters |
-|------|-----|------------|
-| `noisy_and` | Premises jointly support conclusion | 1 float (strength p) |
-| `infer` | General CPT | 2^k floats |
-| `deduction` | Deterministic derivation | None (auto-formalized at lowering) |
-| `abduction` | Observation → hypothesis | None (auto-formalized) |
-| `analogy` | 2 premises → target | None |
-| `extrapolation` | 2 premises → target | None |
-| `elimination` | `[exhaustiveness, cand₁, ev₁, ...]` → conclusion | None |
-| `case_analysis` | `[exhaustiveness, case₁, sup₁, ...]` → conclusion | None |
-| `mathematical_induction` | 2 premises → law | None |
+Use explicit strategy functions when you need a specific reasoning type beyond `noisy_and`:
 
 ```python
-s = Strategy(
-    scope="local", type="noisy_and",
-    premises=[qid("premise_a"), qid("premise_b")],
-    conclusion=qid("conclusion_c"),
+from gaia.lang import deduction, abduction, analogy, extrapolation
+from gaia.lang import elimination, case_analysis, mathematical_induction
+
+# Deduction: conjunction + implication (deterministic, ≥2 premises)
+deduction([premise_a, premise_b], derived_claim)
+
+# Abduction: observation → hypothesis (with optional alternative)
+abduction(observation, hypothesis)
+abduction(observation, hypothesis, alternative_explanation)
+
+# Analogy: source + bridge → target
+analogy(source_claim, target_claim, bridge_claim)
+
+# Extrapolation: source + continuity → target
+extrapolation(source_claim, target_claim, continuity_claim)
+
+# Elimination: exhaustiveness + [(candidate, evidence), ...] → survivor
+elimination(
+    exhaustiveness_claim,
+    [(candidate_1, evidence_1), (candidate_2, evidence_2)],
+    survivor_claim,
 )
+
+# Case analysis: exhaustiveness + [(case, support), ...] → conclusion
+case_analysis(
+    exhaustiveness_claim,
+    [(case_1, support_1), (case_2, support_2)],
+    conclusion_claim,
+)
+
+# Mathematical induction: base + step → law
+mathematical_induction(base_case, inductive_step, law_claim)
 ```
 
-**Named strategies** (`deduction`, `abduction`, etc.) are stored as leaf `Strategy` and **auto-formalized** by `lower_local_graph` into `FormalStrategy` with generated intermediate claims — you do NOT need to build `FormalExpr` by hand.
+All named strategies are automatically formalized into `FormalStrategy` with `FormalExpr` at compile time via the canonical IR formalizer. Do NOT build `FormalExpr` by hand.
 
-`setting` and `question` can appear in `background` but **not** in `premises` (validator rejects non-claim premises).
-
-### 5. Assemble the graph
+### Step 5: Export public interface
 
 ```python
-graph = LocalCanonicalGraph(
-    namespace=NS,
-    package_name=PKG,
-    knowledges=[k1, k2, ...],
-    operators=[op1, ...],       # may be empty
-    strategies=[s1, s2, ...],
-)
+__all__ = ["obs_a", "conclusion", "helper"]
 ```
 
-`ir_hash` is auto-computed (SHA-256 of canonical JSON).
+Three visibility levels:
+- **exported** (`__all__`): cross-package interface
+- **public** (no `_` prefix): visible to review
+- **private** (`_` prefix): package-internal
 
-### 6. Validate
+### Step 6: Compile and validate
+
+```bash
+gaia compile .    # Writes .gaia/ir.json + .gaia/ir_hash
+gaia check .      # Validates structure + artifact consistency
+```
+
+Or programmatically:
 
 ```python
-from gaia.gaia_ir.validator import validate_local_graph
+from gaia.cli._packages import load_gaia_package, compile_loaded_package, write_compiled_artifacts
+from gaia.ir import LocalCanonicalGraph
+from gaia.ir.validator import validate_local_graph
 
+loaded = load_gaia_package("path/to/package")
+ir = compile_loaded_package(loaded)
+gaia_dir = write_compiled_artifacts(loaded.pkg_path, ir)
+
+graph = LocalCanonicalGraph(**ir)
 result = validate_local_graph(graph)
-if not result.valid:
-    for err in result.errors:
-        print(f"ERROR: {err}")
-    raise SystemExit(1)
+assert result.valid, result.errors
 ```
 
-`validate_local_graph` checks (~80 rules per `08-validation.md`):
-- QID format, label uniqueness, type constraints
-- Operator variable/conclusion references exist and are claims
-- Strategy premises are claims, conclusion exists
-- No cycles in operator dependency graph
-- `ir_hash` consistency (if pre-set)
-
-### 7. Lower and run inference
+### Step 7: Run inference (optional, local)
 
 ```python
 from gaia.bp import lower_local_graph
-from gaia.bp.exact import exact_inference
+from gaia.bp.engine import InferenceEngine
 
-fg = lower_local_graph(
-    graph,
-    node_priors={"ns:pkg::label": 0.9, ...},            # claim priors
-    strategy_conditional_params={s.strategy_id: [0.85]}, # noisy_and: 1 param
-)
+# Assign MaxEnt priors to input claims
+input_ids = [k["id"] for k in ir["knowledges"]
+             if k["type"] == "claim" and k.get("is_input")]
+node_priors = {cid: 0.5 for cid in input_ids}
 
-beliefs, _ = exact_inference(fg)
-for node, belief in sorted(beliefs.items()):
-    print(f"  {node}: {belief:.4f}")
-```
+# noisy_and strategies need a strength parameter
+strat_params = {
+    s.strategy_id: [0.85]
+    for s in graph.strategies
+    if s.type.value in ("noisy_and", "infer") and s.strategy_id
+}
 
-For loopy BP (larger graphs):
+fg = lower_local_graph(graph,
+    node_priors=node_priors,
+    strategy_conditional_params=strat_params)
 
-```python
-from gaia.bp.bp import BeliefPropagation
-
-bp = BeliefPropagation(damping=0.5, max_iterations=100)
-result = bp.run(fg)
-assert result.diagnostics.converged
+engine = InferenceEngine()
+result = engine.run(fg)  # Auto-selects JT (exact) or loopy BP
 beliefs = result.beliefs
 ```
 
-## Complete example — Galileo coarse
+### Step 8: Register with official registry (optional)
 
-```python
-from gaia.gaia_ir import Knowledge, Strategy, LocalCanonicalGraph, make_qid
-from gaia.gaia_ir.validator import validate_local_graph
-from gaia.bp import lower_local_graph
-from gaia.bp.exact import exact_inference
+Requires a GitHub repository with the package source + `.gaia/` artifacts, tagged with a version.
 
-NS, PKG = "reg", "galileo"
-def qid(label): return make_qid(NS, PKG, label)
-def claim(label, content): return Knowledge(id=qid(label), type="claim", content=content)
-
-tied = claim("tied_balls_contradiction", "绑球矛盾")
-air  = claim("air_resistance_is_confound", "介质阻力是混淆因素")
-inc  = claim("inclined_plane_observation", "斜面实验")
-venv = claim("vacuum_env", "真空环境设定")
-pred = claim("vacuum_prediction", "真空中等速下落")
-
-s = Strategy(
-    scope="local", type="noisy_and",
-    premises=[tied.id, air.id, inc.id, venv.id],
-    conclusion=pred.id,
-)
-
-graph = LocalCanonicalGraph(
-    namespace=NS, package_name=PKG,
-    knowledges=[tied, air, inc, venv, pred],
-    strategies=[s],
-)
-
-result = validate_local_graph(graph)
-assert result.valid, result.errors
-
-fg = lower_local_graph(graph, node_priors={
-    tied.id: 0.9, air.id: 0.85, inc.id: 0.95, venv.id: 0.99,
-}, strategy_conditional_params={s.strategy_id: [0.9]})
-
-beliefs, _ = exact_inference(fg)
-assert beliefs[pred.id] > 0.6
+```bash
+git tag v1.0.0
+git push origin main v1.0.0
+gaia register . --registry-dir /path/to/gaia-registry --create-pr
 ```
 
 ## Anti-patterns
 
-- **Omitting `operator_id` / `scope` on top-level Operators** — validator rejects them. Use `operator_id="lco_001"` (or any `lco_` prefix), `scope="local"`.
-- **Using `setting` or `question` as Strategy premise** — must be `claim`.
-- **Putting conclusion in variables** — variables are inputs only; conclusion is separate.
-- **Forgetting helper claims for relation operators** — `contradiction`, `equivalence`, `complement`, `disjunction` need a conclusion claim node in the graph.
-- **Manually building FormalExpr for named strategies** — `lower_local_graph` auto-formalizes `deduction`, `abduction`, etc. Just use leaf `Strategy`.
-- **Skipping validation** — always call `validate_local_graph` before lowering.
+<HARD-GATE>
+Do NOT do any of the following. These are not style preferences — they produce invalid packages.
+</HARD-GATE>
+
+- **Using `Package(...)` context manager** — Removed in v5. The runtime infers package membership from `pyproject.toml`. Using it causes `load_gaia_package` to fail.
+- **Forgetting `.label = "name"` on Knowledge objects** — Unlabeled nodes get anonymous IDs. Labels are required for readable QIDs and cross-package references.
+- **Using `setting` or `question` as strategy premises** — Validator rejects non-claim premises. Use `background=` parameter instead.
+- **Single-premise `deduction()`** — Requires at least 2 premises. For single-premise derivation, use `claim(given=[premise])` (noisy_and).
+- **Building `FormalExpr` by hand** — The compiler calls `formalize_named_strategy` from `gaia.ir.formalize`. Do not replicate its logic.
+- **Importing from `gaia.gaia_ir`** — Renamed to `gaia.ir`. Old path does not exist.
+- **Setting `dependencies = ["gaia-lang >= 2.0.0"]`** — In CI, the Gaia CLI is provided externally. Set `dependencies = []` (or only list other `*-gaia` packages).
+- **Omitting `[build-system]`** — Required for `uv sync` in CI. Use `requires = ["setuptools>=69.0"]`.
+- **Duplicate UUIDs** — Every package must have a globally unique UUID. The registry CI checks this.
 
 ## Spec pointers
 
-- `docs/foundations/gaia-ir/02-gaia-ir.md` — Knowledge / Operator / Strategy schemas and invariants
+- `docs/specs/2026-04-02-gaia-lang-v5-python-dsl-design.md` — Canonical DSL spec (package model, API, lifecycle)
+- `docs/specs/2026-04-02-gaia-registry-design.md` — Registry structure and registration flow
+- `docs/foundations/gaia-ir/02-gaia-ir.md` — Knowledge / Operator / Strategy schemas
 - `docs/foundations/gaia-ir/04-helper-claims.md` — Helper claim metadata conventions
-- `docs/foundations/gaia-ir/08-validation.md` — Full validation rule set
-- `docs/foundations/gaia-ir/07-lowering.md` — Lowering contract (IR → FactorGraph)
-- `tests/test_science_examples.py` — Galileo / Newton / Einstein end-to-end references
+- `docs/foundations/gaia-ir/08-validation.md` — Structural validation rules
+- `docs/foundations/gaia-ir/07-lowering.md` — IR → FactorGraph lowering contract
