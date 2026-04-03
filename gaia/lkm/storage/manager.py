@@ -73,6 +73,19 @@ class StorageManager:
         """Step 7: Flip ingest_status from 'preparing' to 'merged' for (package, version)."""
         await self.content.commit_ingest(source_package, version)
 
+    async def batch_upsert_local_nodes(
+        self,
+        variables: list[LocalVariableNode],
+        factors: list[LocalFactorNode],
+    ) -> None:
+        """Batch upsert local nodes directly as 'merged'. For batch import."""
+        logger.info(
+            "Batch upserting local nodes: %d variables, %d factors",
+            len(variables),
+            len(factors),
+        )
+        await self.content.batch_upsert_local_nodes(variables, factors)
+
     async def integrate_global_graph(
         self,
         variable_nodes: list[GlobalVariableNode],

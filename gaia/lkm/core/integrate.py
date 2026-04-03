@@ -283,7 +283,7 @@ async def batch_integrate(
     and reducing storage queries.
 
     Flow:
-    1. Write all local nodes per package (preparing → merged)
+    1. Batch upsert all local nodes (directly as merged)
     2. Group variables by content_hash → one global per unique hash
     3. Check storage for existing globals (cross-batch dedup)
     4. Build global factors with resolved gcn_ids
@@ -291,14 +291,15 @@ async def batch_integrate(
     """
     stats = BatchIntegrateResult(packages=len(results))
 
-    # ── Step 1: Write and commit all local nodes ──
+    # ── Step 1: Batch upsert all local nodes ──
+    all_variables: list[LocalVariableNode] = []
+    all_factors: list[LocalFactorNode] = []
     for r in results:
-        await storage.ingest_local_graph(
-            r.package_id, r.version, r.local_variables, r.local_factors
-        )
-        await storage.commit_package(r.package_id, r.version)
+        all_variables.extend(r.local_variables)
+        all_factors.extend(r.local_factors)
         stats.total_local_variables += len(r.local_variables)
         stats.total_local_factors += len(r.local_factors)
+    await storage.batch_upsert_local_nodes(all_variables, all_factors)
 
     # ── Step 2: In-batch variable dedup by content_hash ──
     # Group all local variables across all papers by content_hash.
