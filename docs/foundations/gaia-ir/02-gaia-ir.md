@@ -515,13 +515,13 @@ FormalStrategy(type=elimination):
 Strategy(
   type="elimination",
   premises=[
-    "reg:diagnosis::diagnosis_exhaustive",
-    "reg:diagnosis::bacterial_infection",
-    "reg:diagnosis::antibiotics_negative_excludes_bacterial",
-    "reg:diagnosis::viral_infection",
-    "reg:diagnosis::viral_test_negative_excludes_viral",
+    "github:diagnosis::diagnosis_exhaustive",
+    "github:diagnosis::bacterial_infection",
+    "github:diagnosis::antibiotics_negative_excludes_bacterial",
+    "github:diagnosis::viral_infection",
+    "github:diagnosis::viral_test_negative_excludes_viral",
   ],
-  conclusion="reg:diagnosis::autoimmune_reaction",
+  conclusion="github:diagnosis::autoimmune_reaction",
 )
 ```
 
@@ -545,13 +545,13 @@ FormalStrategy(type=case_analysis):
 Strategy(
   type="case_analysis",
   premises=[
-    "reg:number_theory::integer_parity_exhaustive",
-    "reg:number_theory::n_even",
-    "reg:number_theory::even_case_supports_evenness",
-    "reg:number_theory::n_odd",
-    "reg:number_theory::odd_case_supports_evenness",
+    "github:number_theory::integer_parity_exhaustive",
+    "github:number_theory::n_even",
+    "github:number_theory::even_case_supports_evenness",
+    "github:number_theory::n_odd",
+    "github:number_theory::odd_case_supports_evenness",
   ],
-  conclusion="reg:number_theory::n2_plus_n_even",
+  conclusion="github:number_theory::n2_plus_n_even",
 )
 ```
 

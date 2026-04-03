@@ -38,7 +38,7 @@ Gaia IR 里至少有三类容易混淆的“标识”：
 - **package_name**：包名（`reg` 由 registry 保证唯一，`paper` 由数据库 metadata ID 保证唯一）
 - **label**：QID 自身携带的人类可读句柄。对本地声明，它通常就是包内标签；对 imported external reference，则应保留外部 QID 中已有的 label
 
-示例：`reg:galileo_falling_bodies::vacuum_prediction`、`paper:{metadata_id}::cmb_power_spectrum`
+示例：`github:galileo_falling_bodies::vacuum_prediction`、`paper:{metadata_id}::cmb_power_spectrum`
 
 **字符集约束：**
 - `namespace`：以小写字母开头，后续为小写字母、数字或下划线（`[a-z][a-z0-9_]*`）
@@ -159,15 +159,15 @@ strategy_id = lcs_{SHA-256(scope + type + sorted(premises) + conclusion + struct
 
 一个最常见的场景：
 
-1. 作者在包 A 中写出一个 claim，label 为 `vacuum_prediction` → QID `reg:galileo_falling_bodies::vacuum_prediction`
-2. 作者在包 B 中写出同样内容的 claim，label 也为 `vacuum_prediction` → QID `reg:newton_principia::vacuum_prediction`
+1. 作者在包 A 中写出一个 claim，label 为 `vacuum_prediction` → QID `github:galileo_falling_bodies::vacuum_prediction`
+2. 作者在包 B 中写出同样内容的 claim，label 也为 `vacuum_prediction` → QID `github:newton_principia::vacuum_prediction`
 3. 两者 QID 不同，因为 `package_name` 不同
 4. 两者 `content_hash` 相同，因为内容一致
 5. 下游系统可以用 `content_hash` 发现这两个节点代表相同内容
 
 另一个常见场景：
 
-1. 包 C 在自己的 `LocalCanonicalGraph` 中显式引用 `reg:galileo_falling_bodies::vacuum_prediction`
+1. 包 C 在自己的 `LocalCanonicalGraph` 中显式引用 `github:galileo_falling_bodies::vacuum_prediction`
 2. 这个 foreign QID 仍然保持 Galileo 包中的对象身份
 3. 包 C 可以围绕它新增本地 Strategy / Operator
 4. 但包 C 并没有因为“把它写进自己的 graph”就铸造一个新的本地 claim identity
