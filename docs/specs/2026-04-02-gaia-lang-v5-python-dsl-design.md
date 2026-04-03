@@ -1,10 +1,12 @@
 # Gaia Lang v5 — Python DSL Design
 
-> **Status:** Target design
+> **Status:** Current canonical for Phase 1 structural authoring
 >
 > **Replaces:** [2026-03-20-typst-dsl-v4-design.md](2026-03-20-typst-dsl-v4-design.md), [2026-03-25-gaia-lang-alignment-design.md](2026-03-25-gaia-lang-alignment-design.md)
 >
 > **Depends on:** [Gaia IR v2](../foundations/gaia-ir/02-gaia-ir.md), [Parameterization](../foundations/gaia-ir/06-parameterization.md), [Ecosystem](../foundations/ecosystem/)
+>
+> **Current implementation boundary:** Sections 1-3 and 6-8 describe the current author-side workflow. Section 4 (parameterization) is still a planned extension and is not part of the current CLI contract.
 
 ## 1. Overview
 
@@ -44,18 +46,19 @@ Each Gaia knowledge package is a standard Python library package:
 ```
 galileo-falling-bodies-gaia/
 ├── pyproject.toml
-├── galileo_falling_bodies/
-│   ├── __init__.py          # Package entry: exports + Package definition
-│   ├── premises.py          # Module: background + observations
-│   └── reasoning.py         # Module: reasoning chains
+├── src/
+│   └── galileo_falling_bodies/
+│       ├── __init__.py      # Package entry: exports + DSL declarations
+│       ├── premises.py      # Module: background + observations
+│       └── reasoning.py     # Module: reasoning chains
 └── .gaia/                   # Compiled artifacts (git tracked)
-    ├── ir.json              # LocalCanonicalGraph (structure only)
-    ├── ir_hash              # Integrity checksum
-    ├── params/
-    │   ├── author.json      # Author's suggested parameters (optional)
-    │   └── review_alice.json  # Reviewer's parameterization
-    └── reviews/             # Review reports
+    ├── ir.json              # Pure LocalCanonicalGraph JSON
+    └── ir_hash              # Integrity checksum
 ```
+
+`src/` layout is recommended, but the current compiler also accepts a flat `<repo>/<import_name>/` layout.
+
+Earlier sketches in this document showed optional `.gaia/params/` and review artifacts. Those are not part of the current Phase 1 CLI contract.
 
 ### 2.2 pyproject.toml
 

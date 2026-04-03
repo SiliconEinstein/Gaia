@@ -96,21 +96,40 @@ Create `src/galileo_falling_bodies/__init__.py`:
 ```python
 from gaia.lang import claim, deduction, setting
 
-vacuum = setting("The experiment is conducted in a vacuum.")
+vacuum = setting(
+    "The experiment is conducted in a vacuum.",
+    provenance=[{"package_id": "paper:galileo-dialogues", "version": "1638"}],
+)
 observation = claim("Objects of different mass fall at the same rate in a vacuum.")
 conclusion = claim("Mass alone does not determine falling speed.")
 
-deduction(
+support = deduction(
     premises=[vacuum, observation],
     conclusion=conclusion,
+    steps=[
+        {
+            "reasoning": "The experiment controls away drag and isolates mass.",
+            "premises": [vacuum, observation],
+            "conclusion": conclusion,
+        }
+    ],
     reason="The controlled observation rules out the Aristotelian explanation.",
 )
 
 
-__all__ = ["vacuum", "observation", "conclusion"]
+__all__ = ["vacuum", "observation", "conclusion", "support"]
 ```
 
 The important part is that the module declares `Knowledge` / `Strategy` / `Operator` objects directly. Package identity comes from `pyproject.toml`, not from a `Package(...)` block in the DSL.
+
+Current authoring surface includes:
+
+- `claim()`, `setting()`, `question()`
+- `claim(..., given=[...])` as shorthand for a local `noisy_and` support edge
+- top-level operators such as `contradiction()` and `equivalence()`
+- strategies such as `noisy_and()`, `deduction()`, `abduction()`, `elimination()`, `case_analysis()`, `mathematical_induction()`, and `composite()`
+- optional `provenance=[...]` on knowledge declarations
+- `steps=[...]` as either simple strings or structured `{reasoning, premises, conclusion}` records
 
 ### 4. Compile and validate
 
@@ -130,6 +149,7 @@ This writes:
 What the commands do:
 
 - `gaia compile` executes the Python package, collects `Knowledge` / `Strategy` / `Operator`, and writes a `LocalCanonicalGraph`
+- named strategies are formalized through `gaia.ir`'s canonical formalizer at compile time
 - `gaia check` recompiles from source and validates schema legality, artifact consistency, and registration preconditions
 
 ## Submit to the Official Registry

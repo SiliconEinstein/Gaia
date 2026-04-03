@@ -1,10 +1,10 @@
 # 知识类型
 
-> **Status:** Target design — 对齐 theory/ 和 gaia-ir/ 基准
+> **Superseded for Gaia Lang v5 Phase 1:** 本页保留的是更早期 Typst-oriented 术语说明，不是当前 Python DSL 的 surface contract。
 >
-> 基于 [2026-03-25-gaia-lang-alignment-design.md](../../specs/2026-03-25-gaia-lang-alignment-design.md) 更新。
+> **Current canonical:** [../../specs/2026-04-02-gaia-lang-v5-python-dsl-design.md](../../specs/2026-04-02-gaia-lang-v5-python-dsl-design.md)
 
-Gaia 有三种知识对象的**声明类型**。每种类型对应一个 Typst 表面函数。
+Gaia 有三种知识对象的**声明类型**。当前 Python DSL 中对应的是 `claim()`、`setting()`、`question()`；本文其余部分主要保留早期 Typst 设计背景。
 
 关系类型（contradiction、equivalence）不是知识类型——它们编译为 FactorNode（`reasoning_type: contradict | equivalent`）。参见 [spec.md](spec.md) 中的 `#relation` 语法。
 
