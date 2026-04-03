@@ -12,6 +12,7 @@ from gaia.lkm.models import (
     ParameterizationSource,
     PriorRecord,
 )
+from gaia.lkm.models.import_status import ImportStatusRecord
 from gaia.lkm.storage.config import StorageConfig
 from gaia.lkm.storage.lance_store import LanceContentStore
 
@@ -126,6 +127,14 @@ class StorageManager:
 
     async def get_param_source(self, source_id: str) -> ParameterizationSource | None:
         return await self.content.get_param_source(source_id)
+
+    # ── Import status ──
+
+    async def write_import_status_batch(self, records: list[ImportStatusRecord]) -> None:
+        await self.content.write_import_status_batch(records)
+
+    async def get_import_status(self, package_id: str) -> ImportStatusRecord | None:
+        return await self.content.get_import_status(package_id)
 
     # ── Update ──
 

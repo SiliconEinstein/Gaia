@@ -19,6 +19,7 @@ from gaia.lkm.models import (
     ParameterizationSource,
     PriorRecord,
 )
+from gaia.lkm.models.import_status import ImportStatusRecord
 from gaia.lkm.storage._schemas import TABLE_SCHEMAS
 from gaia.lkm.storage._serialization import (
     _q,
@@ -26,6 +27,7 @@ from gaia.lkm.storage._serialization import (
     factor_param_to_row,
     global_factor_to_row,
     global_variable_to_row,
+    import_status_to_row,
     local_factor_to_row,
     local_variable_to_row,
     param_source_to_row,
@@ -33,6 +35,7 @@ from gaia.lkm.storage._serialization import (
     row_to_binding,
     row_to_global_factor,
     row_to_global_variable,
+    row_to_import_status,
     row_to_local_factor,
     row_to_local_variable,
     row_to_param_source,
@@ -372,6 +375,24 @@ class LanceContentStore:
         escaped = _q(gcn_id)
         await self._run(table.delete, f"id = '{escaped}'")
         await self._run(table.add, [global_variable_to_row(updated_node)])
+
+    # ── Import status ──
+
+    async def write_import_status_batch(self, records: list[ImportStatusRecord]) -> None:
+        """Batch write import status records."""
+        if not records:
+            return
+        table = self._db.open_table("import_status")
+        rows = [import_status_to_row(r) for r in records]
+        await self._run(table.add, rows)
+
+    async def get_import_status(self, package_id: str) -> ImportStatusRecord | None:
+        table = self._db.open_table("import_status")
+        escaped = _q(package_id)
+        results = await self._run(
+            lambda: table.search().where(f"package_id = '{escaped}'").limit(1).to_list()
+        )
+        return row_to_import_status(results[0]) if results else None
 
     # ── Table counts ──
 

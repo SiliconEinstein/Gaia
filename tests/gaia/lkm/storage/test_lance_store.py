@@ -137,6 +137,45 @@ class TestBindings:
         assert found_list[0].local_id == "reg:galileo::claim1"
 
 
+class TestImportStatus:
+    async def test_write_and_read_import_status(self, storage: StorageManager):
+        """Batch write import_status records and read them back."""
+        from gaia.lkm.models import ImportStatusRecord
+
+        records = [
+            ImportStatusRecord(
+                package_id="paper:aaa",
+                status="ingested",
+                variable_count=10,
+                factor_count=3,
+                prior_count=8,
+                factor_param_count=2,
+            ),
+            ImportStatusRecord(
+                package_id="paper:bbb",
+                status="failed:download",
+                variable_count=0,
+                factor_count=0,
+                prior_count=0,
+                factor_param_count=0,
+                error="TOS timeout",
+            ),
+        ]
+        await storage.write_import_status_batch(records)
+
+        result = await storage.get_import_status("paper:aaa")
+        assert result is not None
+        assert result.status == "ingested"
+        assert result.variable_count == 10
+
+        result2 = await storage.get_import_status("paper:bbb")
+        assert result2 is not None
+        assert result2.status == "failed:download"
+
+        missing = await storage.get_import_status("paper:zzz")
+        assert missing is None
+
+
 class TestWriteReadRoundtrip:
     async def test_local_variable_roundtrip(self, storage):
         """Write + commit + read should preserve all fields."""
