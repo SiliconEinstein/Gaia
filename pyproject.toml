@@ -2,12 +2,30 @@
 name = "gaia-lang"
 version = "0.1.0"
 description = "Gaia Lang — Python DSL for knowledge authoring, compilation, and inference"
+readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.12"
+authors = [
+    {name = "SiliconEinstein"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
 dependencies = [
     "pydantic>=2.0",
     "typer[all]>=0.12",
     "numpy>=1.26",
 ]
+
+[project.urls]
+Homepage = "https://github.com/SiliconEinstein/Gaia"
+Repository = "https://github.com/SiliconEinstein/Gaia"
+Issues = "https://github.com/SiliconEinstein/Gaia/issues"
 
 [project.optional-dependencies]
 dev = [
@@ -41,7 +59,7 @@ requires = ["setuptools>=69.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["gaia.ir*", "gaia.lang*", "gaia.bp*", "gaia.cli*", "gaia.review*"]
+include = ["gaia", "gaia.ir*", "gaia.lang*", "gaia.bp*", "gaia.cli*", "gaia.review*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
