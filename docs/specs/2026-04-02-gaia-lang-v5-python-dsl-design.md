@@ -1,10 +1,12 @@
 # Gaia Lang v5 — Python DSL Design
 
-> **Status:** Target design
+> **Status:** Current canonical for Phase 1 structural authoring
 >
 > **Replaces:** [2026-03-20-typst-dsl-v4-design.md](2026-03-20-typst-dsl-v4-design.md), [2026-03-25-gaia-lang-alignment-design.md](2026-03-25-gaia-lang-alignment-design.md)
 >
 > **Depends on:** [Gaia IR v2](../foundations/gaia-ir/02-gaia-ir.md), [Parameterization](../foundations/gaia-ir/06-parameterization.md), [Ecosystem](../foundations/ecosystem/)
+>
+> **Future extensions:** [2026-04-03-gaia-lang-future-extensions-design.md](2026-04-03-gaia-lang-future-extensions-design.md)
 
 ## 1. Overview
 
@@ -44,18 +46,19 @@ Each Gaia knowledge package is a standard Python library package:
 ```
 galileo-falling-bodies-gaia/
 ├── pyproject.toml
-├── galileo_falling_bodies/
-│   ├── __init__.py          # Package entry: exports + Package definition
-│   ├── premises.py          # Module: background + observations
-│   └── reasoning.py         # Module: reasoning chains
+├── src/
+│   └── galileo_falling_bodies/
+│       ├── __init__.py      # Package entry: exports + DSL declarations
+│       ├── premises.py      # Module: background + observations
+│       └── reasoning.py     # Module: reasoning chains
 └── .gaia/                   # Compiled artifacts (git tracked)
-    ├── ir.json              # LocalCanonicalGraph (structure only)
-    ├── ir_hash              # Integrity checksum
-    ├── params/
-    │   ├── author.json      # Author's suggested parameters (optional)
-    │   └── review_alice.json  # Reviewer's parameterization
-    └── reviews/             # Review reports
+    ├── ir.json              # Pure LocalCanonicalGraph JSON
+    └── ir_hash              # Integrity checksum
 ```
+
+`src/` layout is recommended, but the current compiler also accepts a flat `<repo>/<import_name>/` layout.
+
+Earlier sketches in this document showed optional `.gaia/params/` and review artifacts. Those are not part of the current Phase 1 CLI contract.
 
 ### 2.2 pyproject.toml
 
@@ -512,131 +515,9 @@ galileo_argument = composite(
 
 ---
 
-## 4. Parameterization Layer
+## 4. Compilation & Tooling
 
-Probability values are **independent from structural declarations**, aligning with Gaia IR v2 [06-parameterization.md](../foundations/gaia-ir/06-parameterization.md). Authors declare structure; reviewers assign probabilities.
-
-### 4.1 Minimal Complete Set
-
-A reviewer only needs to parameterize two things:
-
-| What | Record type | Why |
-|------|-------------|-----|
-| **Input claims** (not derived from any in-package strategy) | PriorRecord | Package's assumption entry points — not derivable, need external judgment |
-| **FormalStrategy auto-generated interface claims** (e.g., `AlternativeExplanationForObs` in abduction) | PriorRecord | Public interface claims that carry independent uncertainty |
-| **Parameterized strategies** (noisy_and, infer) | StrategyParamRecord | Reasoning link strength — "how strongly do premises support conclusion" |
-
-**Not needed:**
-- External package claims — already parameterized by their own reviewers
-- Derived claims (those with `given`) — belief computed by BP from inputs + strategy params
-- Settings / questions — no BP participation
-- Helper claims (structural, e.g., `not_both_true`) — deterministically determined by Operators
-- FormalStrategies — no independent strategy-level parameters; behavior derived from skeleton + interface claim priors
-
-### 4.2 Parameterization API
-
-```python
-from gaia.lang.params import parameterize, source
-
-with source(
-    model: str,                     # "gpt-5-mini" | "claude-opus" | "human"
-    policy: str | None = None,      # "conservative" | "aggressive" | custom
-    reviewer: str | None = None,    # Reviewer identifier
-    **config,                       # Additional configuration
-) as src:
-    # Assign prior to a claim → PriorRecord
-    parameterize(some_claim, prior=0.85)
-
-    # Assign conditional probability to strategy → StrategyParamRecord
-    parameterize(some_claim.strategy, p=0.9)         # noisy_and: scalar
-    parameterize(some_claim.strategy, cpt=[...])     # infer: full CPT
-
-# Note on `.strategy` accessor:
-# `claim.strategy` refers to the strategy created by the `given=` shorthand on that claim.
-# If a claim is the conclusion of multiple strategies, use direct variable references instead:
-#   parameterize(my_noisy_and_strategy, p=0.85)
-# When a claim has exactly one strategy (the common case with `given=`), `.strategy` is unambiguous.
-```
-
-### 4.3 CPT Tensor Interface
-
-Strategy conditional probabilities vary by type:
-
-| Strategy type | # premises | Parameter shape | Example |
-|---|---|---|---|
-| `noisy_and` | k | **scalar** `p` | `p=0.85` |
-| `infer` | 1 | **2 values** | `cpt=[0.1, 0.9]` |
-| `infer` | 2 | **2×2 table** | `cpt=[[0.01, 0.3], [0.4, 0.9]]` |
-| `infer` | k | **2^k values** | Full CPT tensor |
-
-Three input formats, all accepted:
-
-```python
-# Format A: nested list (axes align with premises order)
-parameterize(s, cpt=[
-    [0.01, 0.3],   # premise_a=F: [P(C|a=F,b=F), P(C|a=F,b=T)]
-    [0.4,  0.9],   # premise_a=T: [P(C|a=T,b=F), P(C|a=T,b=T)]
-])
-
-# Format B: dict with boolean tuples (human-readable)
-parameterize(s, cpt={
-    (False, False): 0.01,
-    (False, True):  0.3,
-    (True,  False): 0.4,
-    (True,  True):  0.9,
-})
-
-# Format C: numpy array (programmatic / batch generation)
-parameterize(s, cpt=np.array([[0.01, 0.3], [0.4, 0.9]]))
-```
-
-Internally all formats convert to `list[float]` (flat, binary counting order: `(F,...,F)=0, (F,...,T)=1, ...`), matching IR v2's `StrategyParamRecord.conditional_probabilities` field. Axis order follows the strategy's `premises` list order.
-
-### 4.4 Constraints
-
-- All values clamped to `[ε, 1-ε]`, ε=0.001 (Cromwell's rule)
-- Only `claim` can receive `prior`; `setting`/`question` raises error
-- Only `noisy_and`/`infer` strategies accept StrategyParamRecord
-- FormalStrategies (deduction/abduction/analogy/...) reject StrategyParamRecord
-- Helper claims (Operator conclusions) reject independent PriorRecord
-
-### 4.5 Example
-
-```python
-# .gaia/params/review_alice.py
-from gaia.lang.params import parameterize, source
-from galileo_falling_bodies import (
-    heavy_falls_faster, composite_slower, composite_faster,
-    air_resistance, vacuum_prediction,
-)
-
-with source(model="gpt-5-mini", reviewer="alice", policy="conservative") as src:
-
-    # 1. Input claim priors
-    parameterize(heavy_falls_faster, prior=0.95)
-    parameterize(composite_slower, prior=0.9)
-    parameterize(composite_faster, prior=0.9)
-
-    # 2. Strategy conditional probabilities
-    parameterize(air_resistance.strategy, p=0.8)
-    parameterize(vacuum_prediction.strategy, p=0.85)
-```
-
-### 4.6 Resolution at Inference Time (Future Extension)
-
-Phase 1 does not yet expose a user-facing `gaia infer` command.
-
-Parameterization resolution remains a future extension point. When local or server-side inference is reintroduced, resolution policy can select:
-
-- the latest accepted records
-- records from a specific reviewer or source
-- registry-approved records only
-
----
-
-## 5. Compilation & Tooling
-
-### 5.1 Compilation Pipeline
+### 4.1 Compilation Pipeline
 
 ```
 .py files (Python DSL)
@@ -674,7 +555,7 @@ FormalStrategy expansion auto-creates helper claims and internal Operators, mark
 - Compute `operator_id = lco_{SHA-256(operator + sorted(variables) + conclusion)[:16]}`
 - Compute `ir_hash` (SHA-256 of deterministic whole-graph serialization)
 
-### 5.2 Variable Name as Label
+### 4.2 Variable Name as Label
 
 Python variable names automatically become IR labels:
 
@@ -691,7 +572,7 @@ Implementation: after import, the compiler inspects the loaded module and uses `
 - Reassignment to the same variable name: the last assignment wins; previous Knowledge becomes anonymous.
 - Claims created in loops or comprehensions: use explicit `label=` parameter to override auto-detection when needed.
 
-### 5.3 CLI Commands
+### 4.3 CLI Commands
 
 ```bash
 gaia compile [path]            # Compile → .gaia/ir.json + ir_hash
@@ -710,7 +591,7 @@ Phase 1 keeps the author-side lifecycle intentionally small:
 
 `gaia register` is **not** direct publication of artifacts. It creates or prepares a metadata PR against the official registry for a GitHub-tagged source release.
 
-### 5.4 Validation (`gaia check`)
+### 4.4 Validation (`gaia check`)
 
 Three levels, aligning with Gaia IR v2 [08-validation.md](../foundations/gaia-ir/08-validation.md):
 
@@ -728,31 +609,9 @@ Three levels, aligning with Gaia IR v2 [08-validation.md](../foundations/gaia-ir
 - FormalExpr private nodes not referenced by external Strategies
 - All names in `__all__` exist
 
-**Future parameterization checks (not yet an active Phase 1 CLI surface):**
-- Every input claim has a PriorRecord
-- Every `noisy_and`/`infer` Strategy has a StrategyParamRecord
-- Every FormalStrategy's public interface claims have PriorRecords
-- No helper claim carries independent PriorRecord
-- All values in `[ε, 1-ε]` range
+Parameterization, inference, and rendering are intentionally excluded from the current Phase 1 CLI contract. See [2026-04-03-gaia-lang-future-extensions-design.md](2026-04-03-gaia-lang-future-extensions-design.md).
 
-### 5.5 Document Rendering (Decoupled)
-
-Document output is an **IR → rendering** pipeline, independent from DSL compilation:
-
-```
-.gaia/ir.json
-    │
-    ↓  gaia render
-    │
-    ├──→ Typst template  → PDF (academic paper style)
-    ├──→ LaTeX template  → PDF
-    ├──→ HTML template   → Web page
-    └──→ Markdown        → Preview
-```
-
-The renderer reads IR JSON and fills templates (Jinja2). LaTeX math strings in content pass through to Typst/LaTeX directly.
-
-### 5.6 Test Support
+### 4.5 Test Support
 
 Standard pytest for structural assertions:
 
@@ -772,9 +631,9 @@ def test_compiled_graph_has_no_cycles(tmp_path):
 
 ---
 
-## 6. Complete Example
+## 5. Complete Structural Example
 
-### 6.1 Structural Layer (Author)
+### 5.1 Structural Layer (Author)
 
 ```python
 # galileo_falling_bodies/__init__.py
@@ -829,28 +688,7 @@ vacuum_prediction = claim(r"""
 """, given=[tied_ball, heavy_falls_faster])
 ```
 
-### 6.2 Parameterization Layer (Reviewer)
-
-```python
-# .gaia/params/review_alice.py
-from gaia.lang.params import parameterize, source
-from galileo_falling_bodies.premises import (
-    heavy_falls_faster, composite_slower, composite_faster,
-)
-from galileo_falling_bodies.reasoning import air_resistance, vacuum_prediction
-
-with source(model="gpt-5-mini", reviewer="alice", policy="conservative") as src:
-    # Input claim priors
-    parameterize(heavy_falls_faster, prior=0.95)
-    parameterize(composite_slower, prior=0.9)
-    parameterize(composite_faster, prior=0.9)
-
-    # Strategy conditional probabilities
-    parameterize(air_resistance.strategy, p=0.8)
-    parameterize(vacuum_prediction.strategy, p=0.85)
-```
-
-### 6.3 Workflow
+### 5.2 Workflow
 
 ```bash
 uv init --lib galileo-falling-bodies-gaia
@@ -867,9 +705,9 @@ gaia register
 
 ---
 
-## 7. Ecosystem Integration
+## 6. Ecosystem Integration
 
-### 7.1 Mapping to Ecosystem Workflows
+### 6.1 Mapping to Ecosystem Workflows
 
 | Ecosystem concept | v4 design | v5 (Python DSL + uv) |
 |---|---|---|
@@ -883,7 +721,7 @@ gaia register
 | Workspace | Not supported | `[tool.uv.workspace]` |
 | Lockfile | ir_hash only | uv.lock + ir_hash |
 
-### 7.2 What uv Handles vs What Gaia Builds
+### 6.2 What uv Handles vs What Gaia Builds
 
 **uv handles (solved infrastructure):**
 - Package creation and packaging scaffolding
@@ -897,20 +735,15 @@ gaia register
 - `gaia check` — IR validation and artifact consistency checks
 - `gaia register` — source-release registration PR generation
 
-**Future extension points (not yet current Phase 1 CLI):**
-- parameterization resolution
-- local or server-side inference
-- rendering flows
-- richer registry review gates
-- LKM integration and cross-package relationship discovery
+Future extensions such as parameterization resolution, inference, and rendering are tracked separately in [2026-04-03-gaia-lang-future-extensions-design.md](2026-04-03-gaia-lang-future-extensions-design.md).
 
-> **Note:** The ecosystem foundation docs (`docs/foundations/ecosystem/`) still reference Typst-based authoring. Upon implementation, those docs will need updating to reflect the Python DSL workflow.
+> **Note:** The ecosystem foundation docs (`docs/foundations/ecosystem/`) still reference Typst-based authoring. They remain higher-level protected docs and will need a coordinated update later.
 
 ---
 
-## 8. Migration from v4
+## 7. Migration from v4
 
-### 8.1 What Changes
+### 7.1 What Changes
 
 | v4 artifact | v5 replacement |
 |---|---|
@@ -921,7 +754,7 @@ gaia register
 | `libs/lang/typst_loader.py` | `gaia.lang.compiler` |
 | `typst query` extraction | Python import + `pkg.compile()` |
 
-### 8.2 What Stays
+### 7.2 What Stays
 
 - `.gaia/` artifact directory structure
 - `ir.json` output format (Gaia IR v2, unchanged)

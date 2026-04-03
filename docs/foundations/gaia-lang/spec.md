@@ -1,10 +1,10 @@
 # 语言规范
 
-> **Status:** Target design
+> **Superseded for Gaia Lang v5 Phase 1:** 本文档描述的是更早期的 Typst-based Gaia Language v4，不是当前 Python DSL 的 author-side contract。
 >
-> **对齐基准：** `docs/specs/2026-03-25-gaia-lang-alignment-design.md`
+> **Current canonical:** [../../specs/2026-04-02-gaia-lang-v5-python-dsl-design.md](../../specs/2026-04-02-gaia-lang-v5-python-dsl-design.md)
 
-本文档概述 Gaia Language v4 Typst DSL —— 知识包的创作界面。完整细节参见 `docs/archive/foundations-v2/language/gaia-language-spec.md`。
+本文档保留为历史背景材料。当前 Gaia Lang v5 已改为 Python internal DSL，包模型、编译流程和 CLI 语义都与本文不同。
 
 ## 概览
 

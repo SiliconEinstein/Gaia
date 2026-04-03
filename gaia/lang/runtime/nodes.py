@@ -20,6 +20,7 @@ class Knowledge:
     type: str  # "claim" | "setting" | "question"
     background: list[Knowledge] = field(default_factory=list)
     parameters: list[dict] = field(default_factory=list)
+    provenance: list[dict[str, str]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     label: str | None = None
     strategy: Strategy | None = None
@@ -44,7 +45,7 @@ class Strategy:
     premises: list[Knowledge] = field(default_factory=list)
     conclusion: Knowledge | None = None
     background: list[Knowledge] = field(default_factory=list)
-    steps: list[str] = field(default_factory=list)
+    steps: list[str | dict[str, Any]] = field(default_factory=list)
     reason: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
     label: str | None = None

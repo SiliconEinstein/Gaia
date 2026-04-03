@@ -13,7 +13,7 @@ from pydantic import BaseModel, model_validator
 
 from gaia.ir.knowledge import Knowledge, make_qid
 from gaia.ir.operator import Operator
-from gaia.ir.strategy import Strategy
+from gaia.ir.strategy import CompositeStrategy, FormalStrategy, Strategy
 
 
 def _json_sort_key(value: Any) -> str:
@@ -93,7 +93,7 @@ class LocalCanonicalGraph(BaseModel):
     ir_hash: str | None = None
     knowledges: list[Knowledge]
     operators: list[Operator] = []
-    strategies: list[Strategy] = []
+    strategies: list[CompositeStrategy | FormalStrategy | Strategy] = []
 
     @model_validator(mode="after")
     def _compute_hash(self) -> LocalCanonicalGraph:

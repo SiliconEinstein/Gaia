@@ -6,6 +6,8 @@ import typer
 
 from gaia.cli._packages import GaiaCliError, compile_loaded_package, load_gaia_package
 from gaia.cli._packages import write_compiled_artifacts
+from gaia.ir import LocalCanonicalGraph
+from gaia.ir.validator import validate_local_graph
 
 
 def compile_command(
@@ -15,10 +17,19 @@ def compile_command(
     try:
         loaded = load_gaia_package(path)
         ir = compile_loaded_package(loaded)
-        gaia_dir = write_compiled_artifacts(loaded.pkg_path, ir)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)
+
+    validation = validate_local_graph(LocalCanonicalGraph(**ir))
+    for warning in validation.warnings:
+        typer.echo(f"Warning: {warning}")
+    if validation.errors:
+        for error in validation.errors:
+            typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1)
+
+    gaia_dir = write_compiled_artifacts(loaded.pkg_path, ir)
 
     typer.echo(
         f"Compiled {len(ir['knowledges'])} knowledge, "

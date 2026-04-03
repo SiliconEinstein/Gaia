@@ -49,10 +49,12 @@ Python package source
 
 ## 步骤三：构建 graph closure
 
-编译器会遍历：
+编译器会递归遍历：
 
 - 包内显式声明的知识对象
 - strategy 的前提、背景、结论
+- nested `sub_strategies`
+- strategy 内嵌 `formal_expr` 使用到的 helper operator / knowledge
 - operator 的变量与辅助结论
 - 外部引用形成的必要 closure
 
@@ -69,9 +71,12 @@ Python package source
 
 编译器还负责：
 
+- 对 named strategies 调用 `gaia.ir.formalize`，生成 canonical `formal_expr`
 - 保证 QID 形状合法
 - 为 foreign knowledge 生成可验证的引用
 - 将最终结构序列化到 `.gaia/ir.json`
+
+当前 `.gaia/ir.json` 是纯 `LocalCanonicalGraph` dump，不再混入 Lang 专用的顶层 `package` 或 per-knowledge `is_input` 字段。
 
 ## 步骤五：图哈希
 
