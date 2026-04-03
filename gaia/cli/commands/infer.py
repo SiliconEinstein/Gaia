@@ -114,6 +114,7 @@ def infer_command(
                 "belief": belief,
             }
             for knowledge_id, belief in sorted(result.beliefs.items())
+            if knowledge_id in knowledge_by_id
         ],
         "diagnostics": asdict(result.diagnostics),
     }
