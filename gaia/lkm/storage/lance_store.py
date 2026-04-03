@@ -201,6 +201,17 @@ class LanceContentStore:
         """Synchronous batch upsert via merge_insert. Called from executor."""
         if not rows:
             return
+        # Deduplicate rows by merge_key (last wins) — merge_insert rejects
+        # batches where multiple source rows match the same target key.
+        seen: dict[str, int] = {}
+        for i, row in enumerate(rows):
+            seen[row[merge_key]] = i
+        if len(seen) < len(rows):
+            logger.info(
+                "Deduped %d → %d rows by %s for %s",
+                len(rows), len(seen), merge_key, table_name,
+            )
+            rows = [rows[i] for i in sorted(seen.values())]
         batches = self._split_rows_by_size(rows, schema)
         table = self._db.open_table(table_name)
         idx_name = f"{merge_key}_idx"
@@ -581,12 +592,13 @@ class LanceContentStore:
     # ── Import status ──
 
     async def write_import_status_batch(self, records: list[ImportStatusRecord]) -> None:
-        """Batch write import status records."""
+        """Batch upsert import status records (idempotent by package_id)."""
         if not records:
             return
-        table = self._db.open_table("import_status")
         rows = [import_status_to_row(r) for r in records]
-        await self._run(table.add, rows)
+        await self._upsert(
+            "import_status", TABLE_SCHEMAS["import_status"], rows, merge_key="package_id"
+        )
 
     async def get_import_status(self, package_id: str) -> ImportStatusRecord | None:
         table = self._db.open_table("import_status")
