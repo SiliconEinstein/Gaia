@@ -17,7 +17,10 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from datetime import datetime, timezone
+
 from gaia.lkm.core.extract import ExtractionResult, extract
+from gaia.lkm.models import ImportStatusRecord
 from gaia.lkm.pipelines.extract import run_extract_batch
 from gaia.lkm.storage import StorageConfig, StorageManager
 from gaia.lkm.storage.source_lance import (
@@ -95,6 +98,8 @@ async def run_batch_import(
        merge XMLs → run_extract() → checkpoint
     6. Return summary stats
     """
+    batch_started_at = datetime.now(timezone.utc)
+    failed_statuses: list[ImportStatusRecord] = []
     stats = ImportStats()
 
     # 1. Search ByteHouse
@@ -141,11 +146,21 @@ async def run_batch_import(
     # 5. Extract all papers (pure computation, safe to parallelize)
     extraction_results: list[ExtractionResult] = []
     extracted_ids: list[str] = []
-    for pid in pending:
+    for i, pid in enumerate(pending):
+        if i > 0 and i % 100 == 0:
+            logger.info("Extraction progress: %d/%d papers", i, len(pending))
         xmls = downloaded.get(pid)
         if xmls is None:
             logger.warning("No XMLs downloaded for %s, skipping", pid)
             checkpoint.update(pid, "failed:download")
+            failed_statuses.append(
+                ImportStatusRecord(
+                    package_id=f"paper:{pid}",
+                    status="failed:download",
+                    started_at=batch_started_at,
+                    completed_at=datetime.now(timezone.utc),
+                )
+            )
             stats.failed += 1
             continue
         try:
@@ -157,6 +172,15 @@ async def run_batch_import(
         except Exception as e:
             logger.error("Extract failed %s: %s", pid, e)
             checkpoint.update(pid, f"failed:{e.__class__.__name__}")
+            failed_statuses.append(
+                ImportStatusRecord(
+                    package_id=f"paper:{pid}",
+                    status=f"failed:{e.__class__.__name__}",
+                    error=str(e),
+                    started_at=batch_started_at,
+                    completed_at=datetime.now(timezone.utc),
+                )
+            )
             stats.errors[pid] = str(e)
             stats.failed += 1
 
@@ -172,9 +196,28 @@ async def run_batch_import(
             batch_result.dedup_within_batch,
             batch_result.dedup_with_existing,
         )
+        status_records = [
+            ImportStatusRecord(
+                package_id=ext_result.package_id,
+                status="ingested",
+                variable_count=len(ext_result.local_variables),
+                factor_count=len(ext_result.local_factors),
+                prior_count=len(ext_result.prior_records),
+                factor_param_count=len(ext_result.factor_param_records),
+                started_at=batch_started_at,
+                completed_at=datetime.now(timezone.utc),
+            )
+            for ext_result in extraction_results
+        ]
+        await storage.write_import_status_batch(status_records)
+        logger.info("Wrote %d import_status records", len(status_records))
         stats.succeeded = len(extracted_ids)
         for pid in extracted_ids:
             checkpoint.update(pid, "ingested")
+
+    if failed_statuses:
+        await storage.write_import_status_batch(failed_statuses)
+        logger.info("Wrote %d failed import_status records", len(failed_statuses))
 
     # 7. Summary
     await storage.close()
@@ -237,10 +280,9 @@ def main() -> None:
 
     load_dotenv()
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
+    from gaia.lkm.logging import configure_logging
+
+    configure_logging(level="INFO", log_file=args.output_dir / "import.log")
 
     stats = asyncio.run(
         run_batch_import(
