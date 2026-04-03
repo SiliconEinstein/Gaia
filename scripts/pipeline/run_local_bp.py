@@ -5,8 +5,8 @@ Reads graph_ir/local_canonical_graph.json + local_parameterization.json,
 runs loopy BP, writes graph_ir/local_beliefs.json.
 
 Usage:
-    python scripts/run_local_bp.py tests/fixtures/gaia_language_packages/galileo_falling_bodies
-    python scripts/run_local_bp.py tests/fixtures/gaia_language_packages/*
+    python scripts/run_local_bp.py tests/fixtures/ir/galileo_falling_bodies
+    python scripts/run_local_bp.py tests/fixtures/ir/*
 """
 
 from __future__ import annotations

@@ -13,7 +13,7 @@ Usage:
     python scripts/upload_fixtures.py paper_10_1038332139a0_1988_natu
 
     # Pipeline mode: specific packages dir
-    python scripts/upload_fixtures.py --packages-dir tests/fixtures/gaia_language_packages
+    python scripts/upload_fixtures.py --packages-dir tests/fixtures/ir
 
     # Fixtures mode: load JSON fixtures (backward compat)
     python scripts/upload_fixtures.py --from-fixtures
@@ -47,7 +47,7 @@ from libs.storage.models import (
     factors_from_chains,
 )
 
-DEFAULT_PACKAGES_DIR = Path("tests/fixtures/gaia_language_packages")
+DEFAULT_PACKAGES_DIR = Path("tests/fixtures/ir")
 DEFAULT_FIXTURES_DIR = Path("tests/fixtures/storage/papers")
 
 

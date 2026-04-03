@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures" / "gaia_language_packages"
+FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures" / "ir"
 TYPST_PACKAGES = ["galileo_falling_bodies_v4", "newton_principia_v4", "einstein_gravity_v4"]
 
 pytestmark = pytest.mark.integration_api

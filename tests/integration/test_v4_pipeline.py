@@ -12,7 +12,7 @@ import pytest
 
 from libs.pipeline import pipeline_build, pipeline_infer, pipeline_review
 
-FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "gaia_language_packages"
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "ir"
 
 GALILEO = FIXTURES / "galileo_falling_bodies_v4"
 NEWTON = FIXTURES / "newton_principia_v4"

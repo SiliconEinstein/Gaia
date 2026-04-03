@@ -7,7 +7,7 @@ import pytest
 from libs.pipeline import InferResult, pipeline_build, pipeline_infer, pipeline_review
 
 GALILEO_V4 = (
-    Path(__file__).parent / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies_v4"
+    Path(__file__).parent / "fixtures" / "ir" / "galileo_falling_bodies_v4"
 )
 
 

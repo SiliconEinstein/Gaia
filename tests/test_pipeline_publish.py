@@ -9,7 +9,7 @@ from libs.pipeline import pipeline_build, pipeline_infer, pipeline_publish, pipe
 pytestmark = pytest.mark.usefixtures("fresh_lancedb_loop")
 
 GALILEO_V4 = (
-    Path(__file__).parent / "fixtures" / "gaia_language_packages" / "galileo_falling_bodies_v4"
+    Path(__file__).parent / "fixtures" / "ir" / "galileo_falling_bodies_v4"
 )
 
 
