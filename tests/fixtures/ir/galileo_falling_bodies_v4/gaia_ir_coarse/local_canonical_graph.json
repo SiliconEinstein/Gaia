@@ -2,7 +2,7 @@
   "namespace": "github",
   "package_name": "galileo_falling_bodies",
   "scope": "local",
-  "ir_hash": "sha256:4001a7540be338c80f83aa7ee4385fabcc4fb4cca5e9b604fc1872a90be354cf",
+  "ir_hash": "sha256:731e9bda5c8af1b76812cb97e46e6db4e9041d8c0bf36a043fb6b4ce3bb92e0a",
   "knowledges": [
     {
       "id": "github:galileo_falling_bodies::motivation__main_question",

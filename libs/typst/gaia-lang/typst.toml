@@ -1,6 +1,0 @@
-[package]
-name = "gaia-lang"
-version = "0.1.0"
-entrypoint = "lib.typ"
-authors = ["Gaia Project"]
-description = "Gaia knowledge language primitives for Typst"

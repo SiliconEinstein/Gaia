@@ -2,7 +2,7 @@
   "namespace": "github",
   "package_name": "dark_energy",
   "scope": "local",
-  "ir_hash": "sha256:6f2cb35f03acc693d7f747b992a3a1f9684bcd749f471897ef3409de81e6899e",
+  "ir_hash": "sha256:a9d527132e58b303ecc78772ff9df4ac296edb0a6fb0f36400a978f78b413bc1",
   "knowledges": [
     {
       "id": "github:dark_energy::flat_universe",

@@ -2,7 +2,7 @@
   "namespace": "github",
   "package_name": "newton_principia",
   "scope": "local",
-  "ir_hash": "sha256:d93c9cced90a8fe9d7a17810a529e8ea16ce8307976e0dddb02b3ed320c0324f",
+  "ir_hash": "sha256:3dcfe8c55038847b64e343e3f232f18b351cc9ced70840c060302f428d3de1c2",
   "knowledges": [
     {
       "id": "github:newton_principia::motivation__main_question",
