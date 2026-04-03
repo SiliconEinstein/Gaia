@@ -6,7 +6,7 @@ import pytest
 
 from libs.lang.typst_loader import load_typst_package_v4
 
-FIXTURE = Path(__file__).parents[2] / "fixtures" / "gaia_language_packages" / "dark_energy_v4"
+FIXTURE = Path(__file__).parents[2] / "fixtures" / "ir" / "dark_energy_v4"
 
 
 @pytest.fixture(scope="module")

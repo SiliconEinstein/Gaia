@@ -2,7 +2,7 @@
 
 Usage:
     # Ingest Gaia IR packages
-    python -m gaia.lkm.scripts.ingest --pipeline a --source tests/fixtures/gaia_language_packages/galileo_falling_bodies_v4/gaia_ir_fine
+    python -m gaia.lkm.scripts.ingest --pipeline a --source tests/fixtures/ir/galileo_falling_bodies_v4/gaia_ir_fine
 
     # Ingest paper XMLs
     python -m gaia.lkm.scripts.ingest --pipeline b --source tests/fixtures/inputs/papers/363056a0
@@ -116,7 +116,7 @@ async def ingest_all(db_path: str) -> None:
     # Pipeline A: Gaia IR packages
     print("Pipeline A (Gaia IR):")
     for pkg_dir, version in GAIA_IR_PACKAGES:
-        ir_dir = fixtures_root / "gaia_language_packages" / pkg_dir / "gaia_ir_fine"
+        ir_dir = fixtures_root / "ir" / pkg_dir / "gaia_ir_fine"
         await ingest_gaia_ir(storage, ir_dir, version)
 
     # Pipeline B: Paper XMLs

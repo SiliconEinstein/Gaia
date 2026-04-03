@@ -8,8 +8,8 @@ Reads typst.toml + *.typ files, generates:
   graph_ir/local_parameterization.json
 
 Usage:
-    python scripts/pipeline/build_graph_ir.py tests/fixtures/gaia_language_packages/galileo_falling_bodies_v4
-    python scripts/pipeline/build_graph_ir.py tests/fixtures/gaia_language_packages/*
+    python scripts/pipeline/build_graph_ir.py tests/fixtures/ir/galileo_falling_bodies_v4
+    python scripts/pipeline/build_graph_ir.py tests/fixtures/ir/*
 """
 
 from __future__ import annotations

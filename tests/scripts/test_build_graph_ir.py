@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parents[2] / "scripts" / "pipeline"))
 
 from scripts.pipeline.build_graph_ir import build_package_graph_ir
 
-FIXTURES_DIR = Path(__file__).parents[1] / "fixtures" / "gaia_language_packages"
+FIXTURES_DIR = Path(__file__).parents[1] / "fixtures" / "ir"
 TYPST_PKG = FIXTURES_DIR / "galileo_falling_bodies_v4"
 
 
