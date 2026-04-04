@@ -40,6 +40,26 @@ def _is_helper(label: str) -> bool:
     return label.startswith("__")
 
 
+def _anchor_id(label: str) -> str:
+    return label
+
+
+def _module_key(k: dict) -> str:
+    module = k.get("module")
+    return module if module else "Root"
+
+
+def _module_segments(nodes: list[dict]) -> list[tuple[str, list[dict]]]:
+    segments: list[tuple[str, list[dict]]] = []
+    for node in nodes:
+        module_key = _module_key(node)
+        if segments and segments[-1][0] == module_key:
+            segments[-1][1].append(node)
+            continue
+        segments.append((module_key, [node]))
+    return segments
+
+
 # ── Mermaid rendering ──
 
 
@@ -238,6 +258,8 @@ def _render_node(
     knowledge_by_id: dict[str, dict],
     beliefs: dict[str, float],
     priors: dict[str, float],
+    *,
+    emit_anchor: bool = True,
 ) -> list[str]:
     """Render a single knowledge node as markdown lines."""
     label = k.get("label", "")
@@ -250,7 +272,11 @@ def _render_node(
     marker = " \u2605" if exported else ""
     ktype = k.get("type", "claim")
 
-    # Heading: title (with label as anchor for linking)
+    # Keep a stable label-based anchor even when the visible heading uses title.
+    if emit_anchor and label:
+        lines.append(f'<a id="{_anchor_id(label)}"></a>')
+        lines.append("")
+
     lines.append(f"#### {title}{marker}")
     lines.append("")
 
@@ -282,7 +308,7 @@ def _render_node(
             p_label = pk.get("label", p.split("::")[-1])
             p_title = pk.get("title") or p_label
             if not _is_helper(p_label):
-                premise_links.append(f"[{p_title}](#{p_label})")
+                premise_links.append(f"[{p_title}](#{_anchor_id(p_label)})")
         lines.append(f"\U0001f517 **{stype}**({', '.join(premise_links)})")
         lines.append("")
         reason = (s.get("metadata") or {}).get("reason", "")
@@ -303,11 +329,11 @@ def _render_introduction(
     beliefs: dict[str, float],
     priors: dict[str, float],
 ) -> list[str]:
-    """Render an Introduction section from exported conclusions.
+    """Render an Introduction section from exported knowledge.
 
     Only used when there is NO motivation module (since the motivation module
     itself serves as the introduction). When no motivation module exists,
-    show exported conclusions as a summary.
+    show exported knowledge as a summary.
     """
     # If a motivation module exists, it IS the introduction — skip this section
     module_order = ir.get("module_order") or []
@@ -328,7 +354,16 @@ def _render_introduction(
 
     lines = ["## Introduction", ""]
     for k in exported:
-        lines.extend(_render_node(k, strategy_for, knowledge_by_id, beliefs, priors))
+        lines.extend(
+            _render_node(
+                k,
+                strategy_for,
+                knowledge_by_id,
+                beliefs,
+                priors,
+                emit_anchor=False,
+            )
+        )
     return lines
 
 
@@ -347,48 +382,40 @@ def render_knowledge_nodes(
         if s.get("conclusion"):
             strategy_for[s["conclusion"]] = s
 
-    ordered = _narrative_order(ir)
     module_order = ir.get("module_order")
-    has_modules = module_order and any(k.get("module") for k in ordered)
+    has_modules = module_order and any(k.get("module") for k in knowledge_by_id.values())
     sections: list[str] = []
 
     if has_modules:
-        # Group nodes by module
-        module_nodes: dict[str, list[dict]] = defaultdict(list)
-        for k in ordered:
-            mod = k.get("module") or "Root"
-            module_nodes[mod].append(k)
-
-        # Render each module as a section with its own Mermaid diagram
+        ordered_nodes = [k for k in ir["knowledges"] if not _is_helper(k.get("label", ""))]
+        segments = _module_segments(ordered_nodes)
         module_titles = ir.get("module_titles") or {}
-        for mod in module_order or []:
-            nodes = module_nodes.get(mod, [])
-            if not nodes:
-                continue
+        segment_counts: dict[str, int] = defaultdict(int)
 
-            heading = module_titles.get(mod, mod)
+        for mod, nodes in segments:
+            count = segment_counts[mod]
+            if mod == "Root":
+                heading = "Root"
+            else:
+                heading = module_titles.get(mod, mod)
+            if count:
+                heading = f"{heading} (continued)"
+            segment_counts[mod] += 1
+
             sections.append(f"## {heading}")
             sections.append("")
 
-            # Per-module Mermaid: nodes in this module + external premises
-            mod_ids = {k["id"] for k in nodes}
-            mermaid = render_mermaid(ir, beliefs=beliefs, node_ids=mod_ids)
-            sections.append(mermaid)
-            sections.append("")
+            if mod != "Root":
+                mod_ids = {k["id"] for k in nodes}
+                mermaid = render_mermaid(ir, beliefs=beliefs, node_ids=mod_ids)
+                sections.append(mermaid)
+                sections.append("")
 
-            # Render each node
             for k in nodes:
-                sections.extend(_render_node(k, strategy_for, knowledge_by_id, beliefs, priors))
-
-        # Root nodes (no module)
-        root_nodes = module_nodes.get("Root", [])
-        if root_nodes:
-            sections.append("## Root")
-            sections.append("")
-            for k in root_nodes:
                 sections.extend(_render_node(k, strategy_for, knowledge_by_id, beliefs, priors))
     else:
         # Single-file/legacy: one global diagram + type-based grouping
+        ordered = _narrative_order(ir)
         sections.append("## Knowledge Graph")
         sections.append("")
         sections.append(render_mermaid(ir, beliefs=beliefs))
@@ -449,7 +476,7 @@ def render_inference_results(
             role = "independent"
         else:
             role = "orphaned"
-        lines.append(f"| [{label}](#{label}) | {ktype} | {prior} | {belief} | {role} |")
+        lines.append(f"| [{label}](#{_anchor_id(label)}) | {ktype} | {prior} | {belief} | {role} |")
 
     lines.append("")
     return "\n".join(lines)
@@ -483,7 +510,7 @@ def generate_readme(
         parts.append(desc)
         parts.append("")
 
-    # Introduction: motivation module or exported conclusions
+    # Introduction: motivation module or exported knowledge
     intro = _render_introduction(ir, beliefs or {}, priors or {})
     if intro:
         parts.extend(intro)

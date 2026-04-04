@@ -152,7 +152,13 @@ def test_render_knowledge_nodes_narrative_order():
 def test_render_knowledge_nodes_hyperlinks():
     ir = {
         "knowledges": [
-            {"id": "ns:p::a", "label": "a", "type": "claim", "content": "A."},
+            {
+                "id": "ns:p::a",
+                "label": "a",
+                "title": "Alpha Title",
+                "type": "claim",
+                "content": "A.",
+            },
             {"id": "ns:p::b", "label": "b", "type": "claim", "content": "B."},
         ],
         "strategies": [
@@ -166,7 +172,8 @@ def test_render_knowledge_nodes_hyperlinks():
         "operators": [],
     }
     md = render_knowledge_nodes(ir)
-    assert "[a](#a)" in md
+    assert '<a id="a"></a>' in md
+    assert "[Alpha Title](#a)" in md
 
 
 def test_render_knowledge_nodes_with_beliefs():
@@ -317,6 +324,43 @@ def test_module_sections_with_per_module_mermaid():
     assert "x" in sec_b_section.split("```")[1]  # x appears in sec_b's mermaid
 
 
+def test_module_sections_preserve_root_segments():
+    ir = {
+        "module_order": ["sec_a"],
+        "knowledges": [
+            {
+                "id": "ns:p::intro",
+                "label": "intro",
+                "type": "setting",
+                "content": "Intro.",
+                "module": None,
+                "declaration_index": 0,
+            },
+            {
+                "id": "ns:p::x",
+                "label": "x",
+                "type": "claim",
+                "content": "X.",
+                "module": "sec_a",
+                "declaration_index": 0,
+            },
+            {
+                "id": "ns:p::outro",
+                "label": "outro",
+                "type": "claim",
+                "content": "Outro.",
+                "module": None,
+                "declaration_index": 1,
+            },
+        ],
+        "strategies": [],
+        "operators": [],
+    }
+    md = render_knowledge_nodes(ir)
+    assert md.index("## Root") < md.index("## sec_a") < md.index("## Root (continued)")
+    assert md.index("#### intro") < md.index("#### x") < md.index("#### outro")
+
+
 def test_exported_marker():
     ir = {
         "module_order": ["mod"],
@@ -348,8 +392,8 @@ def test_exported_marker():
     assert "\u2605" not in md.split("#### b")[1]
 
 
-def test_introduction_with_exported():
-    """Introduction shows exported conclusions when no motivation module."""
+def test_introduction_with_exported_knowledge():
+    """Introduction shows exported knowledge when no motivation module."""
     from gaia.cli.commands._readme import generate_readme
 
     ir = {
@@ -361,6 +405,13 @@ def test_introduction_with_exported():
                 "label": "main_result",
                 "type": "claim",
                 "content": "The main conclusion.",
+                "exported": True,
+            },
+            {
+                "id": "ns:p::context",
+                "label": "context",
+                "type": "setting",
+                "content": "Shared context.",
                 "exported": True,
             },
             {
@@ -377,6 +428,7 @@ def test_introduction_with_exported():
     md = generate_readme(ir, {"name": "test-gaia", "description": "Test."})
     assert "## Introduction" in md
     assert "The main conclusion." in md
+    assert "Shared context." in md
     # Internal claim should NOT be in introduction
     intro = md.split("## Introduction")[1].split("##")[0]
     assert "An internal claim." not in intro
