@@ -40,12 +40,14 @@ class ByteHouseEmbeddingStore:
             database: Target database name.
             secure: Whether to use TLS.
         """
+        self._database = database
         self._client = clickhouse_connect.get_client(
             host=host,
             user=user,
             password=password,
             database=database,
             secure=secure,
+            compress=False,  # ByteHouse doesn't support lz4
         )
 
     def ensure_table(self) -> None:
@@ -53,7 +55,14 @@ class ByteHouseEmbeddingStore:
 
         Uses HaUniqueMergeTree so that gcn_id acts as a unique key —
         duplicate inserts are deduplicated automatically.
+
+        ByteHouse requires explicit shard/replica path args for
+        HaUniqueMergeTree (it's backed by ReplicatedMergeTree).
         """
+        # ByteHouse requires explicit shard/replica path for HaUniqueMergeTree.
+        # Pattern from existing paper_metadata table:
+        #   HaUniqueMergeTree('/clickhouse/<id>/<db>.<table>/{shard}', '{replica}')
+        table_fqn = f"{self._database}.{self.TABLE}"
         ddl = f"""
         CREATE TABLE IF NOT EXISTS {self.TABLE} (
             gcn_id      String,
@@ -63,9 +72,13 @@ class ByteHouseEmbeddingStore:
             source_id   String,
             created_at  DateTime DEFAULT now()
         )
-        ENGINE = HaUniqueMergeTree()
+        ENGINE = HaUniqueMergeTree(
+            '/clickhouse/2100109874/sciencepedia_new/{table_fqn}/{{shard}}',
+            '{{replica}}'
+        )
         ORDER BY gcn_id
         UNIQUE KEY gcn_id
+        SETTINGS index_granularity = 128
         """
         self._client.command(ddl)
 

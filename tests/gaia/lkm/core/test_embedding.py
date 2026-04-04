@@ -139,10 +139,9 @@ class TestComputeEmbeddings:
         local_id = f"{pkg}::label_{gcn_id}"
         rep_lcn = json.dumps({"local_id": local_id, "package_id": pkg, "version": "1.0"})
         return {
-            "gcn_id": gcn_id,
-            "node_type": node_type,
+            "id": gcn_id,
+            "type": node_type,
             "representative_lcn": rep_lcn,
-            "source_id": pkg,
         }
 
     async def test_skips_already_embedded(self, config):
