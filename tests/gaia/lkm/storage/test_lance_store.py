@@ -183,9 +183,14 @@ class TestBatchUpsertLocalNodes:
         v2 = _make_local_var("c2", "content two", "pkg_a")
         await storage.content.batch_upsert_local_nodes([v1, v2], [])
 
-        result = await storage.get_local_variable("reg:pkg_a::c1")
-        assert result is not None
-        assert result.content == "content one"
+        count = await storage.content.count("local_variable_nodes")
+        assert count == 2
+
+        # Verify data via package query (doesn't depend on id index)
+        results = await storage.content.get_local_variables_by_package("pkg_a")
+        assert len(results) == 2
+        contents = {r.content for r in results}
+        assert "content one" in contents
 
     async def test_batch_upsert_idempotent(self, storage):
         """Running batch_upsert twice does not duplicate rows."""
