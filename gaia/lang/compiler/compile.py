@@ -251,6 +251,7 @@ def compile_package_artifact(pkg: CollectedPackage) -> CompiledPackage:
         )
         knowledge_map[id(k)] = knowledge_id
 
+    exported_labels = getattr(pkg, "_exported_labels", set())
     ir_knowledges = [
         IrKnowledge(
             id=knowledge_map[id(k)],
@@ -260,6 +261,9 @@ def compile_package_artifact(pkg: CollectedPackage) -> CompiledPackage:
             parameters=[IrParameter(**p) for p in k.parameters],
             provenance=_knowledge_provenance(k),
             metadata=_knowledge_metadata(k),
+            module=getattr(k, "_source_module", None),
+            declaration_index=getattr(k, "_declaration_index", None),
+            exported=k.label in exported_labels if k.label else False,
         )
         for k in knowledge_nodes
     ]
@@ -329,12 +333,14 @@ def compile_package_artifact(pkg: CollectedPackage) -> CompiledPackage:
         ir_strategies.append(compile_strategy(s))
         emitted_strategies.add(strategy_key)
 
+    module_order = pkg._module_order if pkg._module_order else None
     graph = LocalCanonicalGraph(
         namespace=pkg.namespace,
         package_name=pkg.name,
         knowledges=[*ir_knowledges, *generated_knowledges],
         operators=ir_operators,
         strategies=ir_strategies,
+        module_order=module_order,
     )
 
     return CompiledPackage(
