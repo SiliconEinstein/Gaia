@@ -1,7 +1,46 @@
 # LKM 重构开发路线图
 
-**Status:** Active | **Created:** 2026-04-01  
+**Status:** Active | **Created:** 2026-04-01 | **Last updated:** 2026-04-04
 **Goal:** 基于最新 spec (M1-M8) 在 `gaia/lkm/` 下重建 LKM 模块，与上游 `gaia/bp/`、`gaia/gaia_ir/` 解耦
+
+---
+
+## 进度总览
+
+| Milestone | 名称 | 状态 | Spec | PR |
+|-----------|------|------|------|-----|
+| M1 | Data Models | ✅ Done | — | #284 |
+| M2 | Storage Layer | ✅ Done | `2026-04-01-m2-lkm-storage.md` | #284 |
+| M3 | Pipeline A (Gaia IR Lowering) | ✅ Done | — | #288 |
+| M4 | Pipeline B (XML Extraction) | ✅ Done | — | #290 |
+| M5 | Integrate (Local → Global) | ✅ Done | — | #290 |
+| — | Batch Import Pipeline | ✅ Done | `2026-04-03-import-pipeline-hardening.md` | #307 |
+| — | Neo4j Graph Store | ✅ Done | — | #297 |
+| **M6** | **Semantic Discovery** | **Next** | `2026-04-04-m6-semantic-discovery.md` | — |
+| M6b | Relation Analysis | Spec written | `2026-04-04-relation-analysis.md` | — |
+| M6c | Graph Health | Placeholder | `2026-04-04-m6c-graph-health.md` | — |
+| M7 | Global BP | Not started | — | — |
+| M8 | HTTP API | Partial (routes exist) | — | — |
+
+### 依赖关系
+
+```
+M1 → M2 → M3 ─┐
+          M4 ─┤→ M5 → M6 → M6b
+               │         ↘
+               │          M7 → M6c (conflict detection needs BP)
+               │               ↓
+               └──────────── M8
+```
+
+### 额外完成的工作（不在原 M1-M8 计划中）
+
+| 工作 | 说明 | PR |
+|------|------|-----|
+| Batch import pipeline | ByteHouse → TOS → LKM 批量导入，14,157 篇 paper 在 9.5 分钟完成 | #296, #307 |
+| Import pipeline hardening | 统一 logging、ImportStatusRecord、ByteHouse stage filter、batch upsert (merge_insert)、batch IN-clause 查询、幂等导入 | #307 |
+| Neo4j graph store | Global layer 拓扑存储（Variable → Factor → Variable） | #297 |
+| CI coverage fix | pytest --cov=gaia、codecov ignore 配置 | #307 |
 
 ---
 
@@ -265,40 +304,50 @@ python -m gaia.lkm.scripts.test_integrate_e2e
 
 ---
 
-### M6: Curation Discovery — 语义去重 & 冲突检测
+### M6: Semantic Discovery — Embedding + FAISS 聚类
 
-**代码位置：** `gaia/lkm/core/curation.py`  
-**测试位置：** `tests/gaia/lkm/core/test_curation.py`  
-**依赖：** M2 + M5（需要全局图数据）
+**Spec:** `docs/specs/2026-04-04-m6-semantic-discovery.md`  
+**代码位置：** `gaia/lkm/core/discovery.py`, `gaia/lkm/storage/bytehouse_store.py`  
+**测试位置：** `tests/gaia/lkm/core/test_discovery.py`  
+**依赖：** M2 + M5（需要 global graph 数据）
 
 **核心交付：**
-- `curation.py`:
-  - CanonicalizationDiscovery: embedding 相似度 → BindingProposal / EquivalenceProposal
-  - ConflictDetection: BP 诊断 + 结构异常
-  - StructuralAudit: 孤立节点、悬空因子、未解析引用
+- Embedding 生成：dashscope API → ByteHouse `node_embeddings` 表（增量）
+- FAISS 聚类：IndexFlatIP + Union-Find → SemanticCluster 列表
+- 只做发现，不做关系判断
 
-**验证闭环：**
-```bash
-pytest tests/gaia/lkm/core/test_curation.py -v
+**关键技术决策：**
+- Embedding 存 ByteHouse（不存 LanceDB），和上游论文数据统一管理
+- 搜索用 FAISS 内存索引（不用 ByteHouse cosineDistance）
+- 表引擎 HaUniqueMergeTree（和现有 paper_metadata 一致）
 
-# 关键测试点：
-# 1. 两个语义相似但文本不同的 claim → 发现候选
-# 2. 前提重叠高 → BindingProposal
-# 3. 前提独立 → EquivalenceProposal
-# 4. 只处理 public 变量
-# 5. StructuralAudit 检出孤立节点
-```
+---
 
-**前端检查方式：**
-- API `POST /curation/run` → 返回 CurationReport
-- 前端展示发现的候选对和审计结果
+### M6b: Relation Analysis — LLM 关系分析 + Package 生成
 
-**后端 E2E 方式：**
-```bash
-# 摄入多个包后运行 curation：
-python -m gaia.lkm.scripts.run_curation
-# 输出：发现的 binding 候选数、equivalence 候选数、矛盾数、审计警告
-```
+**Spec:** `docs/specs/2026-04-04-relation-analysis.md`  
+**代码位置：** `gaia/lkm/core/relation_analysis.py`  
+**依赖：** M6（clustering 结果）
+
+**核心交付：**
+- 对每个 cluster 做 group-level LLM 关系分析（不是 pairwise）
+- 四种关系类型 → 四种 IR 结构：
+  - Partial overlap → join node + subsumption
+  - Equivalence → common conclusion + equivalence operators
+  - Contradiction → contradiction operators + 可选 join
+  - Unrelated → 丢弃
+- 生成 Gaia Lang package 作为 relation proposal
+
+---
+
+### M6c: Graph Health — 冲突检测 + 结构审计
+
+**Spec:** `docs/specs/2026-04-04-m6c-graph-health.md`（placeholder）  
+**依赖：** M6 + M7（conflict detection 需要 BP 诊断数据）
+
+**核心交付：**
+- Conflict Detection：BP 振荡/高残差信号分析
+- Structural Audit：孤立节点、悬空因子、未解析引用、参数缺失
 
 ---
 
@@ -389,15 +438,17 @@ open http://localhost:8001/docs
 ### 开发顺序
 
 ```
-Phase 1: M1 → M2（基础，顺序执行）
+Phase 1: M1 → M2（基础，顺序执行）                    ✅ Done
          ↓
-Phase 2: M3 + M5（先跑通 Gaia IR → 全局图的端到端流程）
-         M4 可并行或延后
+Phase 2: M3 + M4 + M5 + Batch Import + Neo4j           ✅ Done
          ↓
-Phase 3: M7（全局 BP，有了数据就能推理）
-         M6 可并行或延后
+Phase 3: M6（embedding + clustering）                   ← Next
          ↓
-Phase 4: M8（API 暴露所有功能）
+Phase 4: M6b（LLM 关系分析 + package 生成）
+         M7（全局 BP）可并行
+         ↓
+Phase 5: M6c（conflict detection，依赖 M7）
+         M8（API 暴露所有功能）
 ```
 
 ### 测试策略：E2E 优先，Unit Test 按需

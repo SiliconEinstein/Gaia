@@ -123,26 +123,33 @@ global_factor_nodes:
 ## 四、模块拆分与执行顺序
 
 ```
-Phase 1（基础）
+Phase 1（基础）                                          ✅ Done
   [M1] LKM 数据模型（Pydantic models）
-  [M2] Storage layer（LanceDB + Neo4j/Kuzu + StorageManager）
+  [M2] Storage layer（LanceDB + Neo4j + StorageManager）
     └── 依赖 M1
 
-Phase 2（Ingest，M1+M2 完成后可并行）
+Phase 2（Ingest）                                         ✅ Done
   [M3] Pipeline A：Gaia IR lowering
     └── 依赖 M1
   [M4] Pipeline B：XML extraction
     └── 依赖 M1
   [M5] Integrate（dedup + CanonicalBinding + 写入）
-    └── 依赖 M1 + M2 + M3（M4 可后接）
+    └── 依赖 M1 + M2 + M3/M4
+  [—] Batch import pipeline + Neo4j graph store
 
-Phase 3（推理）
-  [M6] Curation Discovery（异步）
+Phase 3（语义发现）                                       ← Next
+  [M6] Semantic Discovery（embedding + FAISS clustering）
     └── 依赖 M2 + M5
+  [M6b] Relation Analysis（LLM group 分析 + package 生成）
+    └── 依赖 M6
+
+Phase 4（推理）
   [M7] Global BP
     └── 依赖 M2 + M5
+  [M6c] Graph Health（conflict detection + structural audit）
+    └── 依赖 M6 + M7
 
-Phase 4（对外）
+Phase 5（对外）
   [M8] HTTP API
     └── 依赖 M2 + M5（M6/M7 可选）
 ```
@@ -317,34 +324,44 @@ Phase 4（对外）
 
 ---
 
-### M6 — Curation Discovery
+### M6 — Semantic Discovery（Embedding + Clustering）
 
-**设计文档**：`docs/foundations/lkm/04-curation.md`
+**Spec**：`docs/specs/2026-04-04-m6-semantic-discovery.md`
 
-**职责**：异步批量发现语义重复、冲突、结构问题，产出结构化提案报告。**不直接修改 global graph**。
+**职责**：对 global variable nodes 生成 embedding，通过 FAISS 向量相似度聚类，输出语义相似的 variable 组。**只做发现，不做关系判断。**
 
-**三个发现任务**：
+**关键技术决策**：
+- Embedding 存 ByteHouse `node_embeddings` 表（不存 LanceDB）
+- 搜索用 FAISS 内存索引（IndexFlatIP + Union-Find）
+- Embedding API：`https://openapi.dp.tech/openapi/v1/test/vectorize`（dashscope，512 维）
 
-1. **Canonicalization（语义去重）**：
-   - Embedding 余弦相似度 > 0.90 → 等价候选
-   - 同 type + 参数结构匹配（对齐 `05-canonicalization.md §4`）
-   - 共享 premises → Binding 提案；独立 premises → Equivalence 提案
+---
 
-2. **Conflict Detection**：
-   - BP 诊断：振荡 / 高残差 → 矛盾候选 → Contradiction 提案
-   - 拓扑异常（不一致的 instantiation 关系等）
+### M6b — Relation Analysis（LLM 关系分析 + Package 生成）
 
-3. **Structural Audit**：
-   - 孤立 variable nodes、悬空 factor 引用、unresolved_cross_refs
+**Spec**：`docs/specs/2026-04-04-relation-analysis.md`
+
+**职责**：对 M6 输出的每个 cluster 做 group-level LLM 关系分析（不是 pairwise），根据关系类型生成 Gaia Lang package 作为 relation proposal。
+
+**四种 group 关系类型**：
+- **Partial Overlap** → 新建 join node，每个结论 subsume join
+- **Equivalence** → 新建 common conclusion，equivalence operators
+- **Contradiction** → contradiction operators + 可选 join
+- **Unrelated** → 丢弃
 
 **上游参考**：
-- `Gaia/docs/foundations/ecosystem/05-review-and-curation.md`：curation package 流程、LKM 与 registry 的分工
-- `Gaia/docs/foundations/gaia-ir/05-canonicalization.md §2`：Binding vs Equivalence 判断逻辑
+- `propositional_logic_analysis/clustering/prompts/join_symmetric.md`：prompt 写法参考
+- `Gaia/docs/foundations/gaia-ir/05-canonicalization.md §2`：Binding vs Equivalence 语义
 
-**旧代码参考**：
-- `propositional_logic_analysis/clustering/src/clustering.py`：贪心余弦相似度聚类、ANN（LSH）实现，可参考 embedding 搜索加速思路
-- `propositional_logic_analysis/clustering/src/faiss_clusterer.py`：FAISS 封装参考
-- LanceDB vector search（`table.search(query_vector).limit(k)`）作为简单实现起点
+---
+
+### M6c — Graph Health（Conflict Detection + Structural Audit）
+
+**Spec**：`docs/specs/2026-04-04-m6c-graph-health.md`（placeholder）
+
+**职责**：图健康检查。依赖 M7（conflict detection 需要 BP 诊断数据）。
+- Conflict Detection：BP 振荡/高残差信号
+- Structural Audit：孤立节点、悬空因子、未解析引用
 
 ---
 
@@ -400,16 +417,19 @@ Phase 4（对外）
 
 ## 六、各模块对应 Spec 文件
 
-| 模块 | Spec 文件（待创建） |
-|------|-------------------|
-| M1 数据模型 | `2026-03-31-m1-data-models.md` |
-| M2 Storage layer | `2026-03-31-m2-storage.md` |
-| M3 Pipeline A (Lowering) | `2026-03-31-m3-pipeline-a.md` |
-| M4 Pipeline B (XML) | `2026-03-31-m4-pipeline-b.md` |
-| M5 Integrate | `2026-03-31-m5-integrate.md` |
-| M6 Curation Discovery | `2026-03-31-m6-curation.md` |
-| M7 Global BP | `2026-03-31-m7-global-bp.md` |
-| M8 HTTP API | `2026-03-31-m8-api.md` |
+| 模块 | Spec 文件 | 状态 |
+|------|----------|------|
+| M1 数据模型 | （内嵌于 master plan） | ✅ Done |
+| M2 Storage layer | `2026-04-01-m2-lkm-storage.md` | ✅ Done |
+| M3 Pipeline A (Lowering) | （内嵌于 master plan） | ✅ Done |
+| M4 Pipeline B (XML) | （内嵌于 master plan） | ✅ Done |
+| M5 Integrate | （内嵌于 master plan） | ✅ Done |
+| — Batch Import Hardening | `2026-04-03-import-pipeline-hardening.md` | ✅ Done |
+| M6 Semantic Discovery | `2026-04-04-m6-semantic-discovery.md` | **Next** |
+| M6b Relation Analysis | `2026-04-04-relation-analysis.md` | Spec written |
+| M6c Graph Health | `2026-04-04-m6c-graph-health.md` | Placeholder |
+| M7 Global BP | 待创建 | Not started |
+| M8 HTTP API | 待创建 | Partial |
 
 ---
 
