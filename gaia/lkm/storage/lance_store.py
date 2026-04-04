@@ -475,6 +475,27 @@ class LanceContentStore:
         results = await self._run(lambda: table.search().where(where).limit(limit).to_list())
         return [row_to_global_variable(r) for r in results]
 
+    async def list_all_public_global_ids(self) -> list[dict]:
+        """List all public global variable IDs with type and representative_lcn.
+
+        Returns list of dicts: {id, type, representative_lcn (JSON string)}.
+        No limit — scans the full table.
+        """
+        table = self._db.open_table("global_variable_nodes")
+        results = await self._run(
+            lambda: (
+                table.search()
+                .where("visibility = 'public'")
+                .select(["id", "type", "representative_lcn"])
+                .limit(_MAX_SCAN)
+                .to_list()
+            )
+        )
+        return [
+            {"id": r["id"], "type": r["type"], "representative_lcn": r["representative_lcn"]}
+            for r in results
+        ]
+
     async def find_global_by_content_hash(
         self, content_hash: str, visibility: str = "public"
     ) -> GlobalVariableNode | None:

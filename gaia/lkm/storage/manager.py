@@ -159,6 +159,10 @@ class StorageManager:
     ) -> GlobalVariableNode | None:
         return await self.content.find_global_by_content_hash(content_hash, visibility)
 
+    async def list_all_public_global_ids(self) -> list[dict]:
+        """List all public global variable IDs with type and representative_lcn."""
+        return await self.content.list_all_public_global_ids()
+
     # ── Reads: factors ──
 
     async def get_global_factor(self, gfac_id: str) -> GlobalFactorNode | None:
