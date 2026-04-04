@@ -1,3 +1,3 @@
-from gaia.lang.runtime.nodes import Knowledge, Operator, Strategy
+from gaia.lang.runtime.nodes import Knowledge, Operator, Step, Strategy
 
-__all__ = ["Knowledge", "Operator", "Strategy"]
+__all__ = ["Knowledge", "Operator", "Step", "Strategy"]

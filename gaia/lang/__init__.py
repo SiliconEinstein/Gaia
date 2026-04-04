@@ -19,11 +19,12 @@ from gaia.lang.dsl import (
     question,
     setting,
 )
-from gaia.lang.runtime import Knowledge, Operator, Strategy
+from gaia.lang.runtime import Knowledge, Operator, Step, Strategy
 
 __all__ = [
     "Knowledge",
     "Operator",
+    "Step",
     "Strategy",
     "abduction",
     "analogy",

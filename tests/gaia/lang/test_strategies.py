@@ -1,6 +1,7 @@
 import pytest
 
 from gaia.lang import (
+    Step,
     abduction,
     analogy,
     case_analysis,
@@ -19,11 +20,12 @@ def test_noisy_and_explicit():
     a = claim("A.")
     b = claim("B.")
     c = claim("C.")
-    s = noisy_and(premises=[a, b], conclusion=c, steps=["Step 1", "Step 2"])
+    s = noisy_and(premises=[a, b], conclusion=c, reason=["Step 1", "Step 2"])
     assert s.type == "noisy_and"
     assert s.conclusion is c
     assert len(s.premises) == 2
-    assert len(s.steps) == 2
+    assert isinstance(s.reason, list)
+    assert len(s.reason) == 2
 
 
 def test_noisy_and_structured_steps():
@@ -33,17 +35,33 @@ def test_noisy_and_structured_steps():
     s = noisy_and(
         premises=[a, b],
         conclusion=c,
-        steps=[
-            {
-                "reasoning": "A and B jointly support C.",
-                "premises": [a, b],
-                "conclusion": c,
-            }
+        reason=[
+            Step(reason="A and B jointly support C.", premises=[a, b]),
         ],
     )
-    assert s.steps[0]["reasoning"] == "A and B jointly support C."
-    assert s.steps[0]["premises"] == [a, b]
-    assert s.steps[0]["conclusion"] is c
+    assert isinstance(s.reason[0], Step)
+    assert s.reason[0].reason == "A and B jointly support C."
+    assert s.reason[0].premises == [a, b]
+
+
+def test_noisy_and_simple_reason():
+    a = claim("A.")
+    c = claim("C.")
+    s = noisy_and(premises=[a], conclusion=c, reason="Because A implies C.")
+    assert s.reason == "Because A implies C."
+
+
+def test_step_premise_validation():
+    a = claim("A.")
+    b = claim("B.")
+    c = claim("C.")
+    outside = claim("Not a premise.")
+    with pytest.raises(ValueError, match="not in the strategy's premise list"):
+        noisy_and(
+            premises=[a, b],
+            conclusion=c,
+            reason=[Step(reason="Bad step", premises=[outside])],
+        )
 
 
 def test_deduction():
@@ -55,19 +73,20 @@ def test_deduction():
         premises=[law, premise],
         conclusion=instance,
         background=[binding],
-        steps=[{"reasoning": "Instantiate the universal law.", "premises": [law, premise]}],
+        reason=[Step(reason="Instantiate the universal law.", premises=[law, premise])],
     )
     assert s.type == "deduction"
     assert s.formal_expr is None
     assert s.background == [binding]
-    assert s.steps[0]["reasoning"] == "Instantiate the universal law."
+    assert s.reason[0].reason == "Instantiate the universal law."
 
 
-def test_deduction_requires_at_least_two_premises():
+def test_deduction_single_premise():
     law = claim("forall x. P(x)")
     instance = claim("P(a)")
-    with pytest.raises(ValueError, match="at least 2 premises"):
-        deduction(premises=[law], conclusion=instance)
+    s = deduction(premises=[law], conclusion=instance)
+    assert s.type == "deduction"
+    assert len(s.premises) == 1
 
 
 def test_abduction():

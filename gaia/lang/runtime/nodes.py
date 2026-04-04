@@ -38,6 +38,19 @@ class Knowledge:
 
 
 @dataclass
+class Step:
+    """A single reasoning step with optional premise references."""
+
+    reason: str
+    premises: list[Knowledge] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+# Accepted types for the ``reason`` parameter on strategy functions.
+ReasonInput = str | list[str | Step]
+
+
+@dataclass
 class Strategy:
     """A reasoning declaration."""
 
@@ -45,8 +58,7 @@ class Strategy:
     premises: list[Knowledge] = field(default_factory=list)
     conclusion: Knowledge | None = None
     background: list[Knowledge] = field(default_factory=list)
-    steps: list[str | dict[str, Any]] = field(default_factory=list)
-    reason: str = ""
+    reason: ReasonInput = ""
     metadata: dict[str, Any] = field(default_factory=dict)
     label: str | None = None
     formal_expr: list | None = None

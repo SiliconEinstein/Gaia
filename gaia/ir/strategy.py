@@ -47,7 +47,6 @@ class Step(BaseModel):
 
     reasoning: str
     premises: list[str] | None = None
-    conclusion: str | None = None
 
 
 class FormalExpr(BaseModel):

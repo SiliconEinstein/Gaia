@@ -149,14 +149,14 @@ def test_compile_preserves_structured_steps_and_provenance(tmp_path):
     pkg_src = pkg_dir / "step_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, noisy_and\n\n"
+        "from gaia.lang import Step, claim, noisy_and\n\n"
         'evidence_a = claim("Evidence A.", provenance=[{"package_id": "paper:alpha", "version": "1.0.0"}])\n'
         'evidence_b = claim("Evidence B.")\n'
         'hypothesis = claim("Hypothesis.")\n'
         "support = noisy_and(\n"
         "    premises=[evidence_a, evidence_b],\n"
         "    conclusion=hypothesis,\n"
-        '    steps=[{"reasoning": "Combine both evidence lines.", "premises": [evidence_a, evidence_b], "conclusion": hypothesis}],\n'
+        '    reason=[Step(reason="Combine both evidence lines.", premises=[evidence_a, evidence_b])],\n'
         ")\n"
         '__all__ = ["evidence_a", "evidence_b", "hypothesis", "support"]\n'
     )
@@ -175,7 +175,6 @@ def test_compile_preserves_structured_steps_and_provenance(tmp_path):
         {
             "reasoning": "Combine both evidence lines.",
             "premises": ["github:step_pkg::evidence_a", "github:step_pkg::evidence_b"],
-            "conclusion": "github:step_pkg::hypothesis",
         }
     ]
 

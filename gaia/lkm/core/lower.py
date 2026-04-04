@@ -64,12 +64,7 @@ def _lower_knowledge(k: Knowledge, package_id: str, version: str) -> LocalVariab
 def _lower_strategy(s: Strategy, package_id: str, version: str) -> LocalFactorNode:
     """Lower a leaf Strategy to a LocalFactorNode."""
     steps = (
-        [
-            Step(reasoning=st.reasoning, premises=st.premises, conclusion=st.conclusion)
-            for st in s.steps
-        ]
-        if s.steps
-        else None
+        [Step(reasoning=st.reasoning, premises=st.premises) for st in s.steps] if s.steps else None
     )
     return LocalFactorNode(
         id=_lfac_id_from_str(s.strategy_id),

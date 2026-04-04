@@ -117,9 +117,11 @@ def _knowledge_provenance(k: Knowledge) -> list[IrPackageRef] | None:
     return [IrPackageRef(**item) for item in k.provenance]
 
 
-def _metadata_with_reason(metadata: dict[str, Any], reason: str) -> dict[str, Any] | None:
+def _metadata_with_reason(
+    metadata: dict[str, Any], reason: str | list | None
+) -> dict[str, Any] | None:
     merged = dict(metadata)
-    if reason:
+    if isinstance(reason, str) and reason:
         merged["reason"] = reason
     return merged or None
 
@@ -172,30 +174,31 @@ def _step_refs(
     return [ref for ref in refs if ref is not None]
 
 
-def _ir_steps(
-    steps: list[str | dict[str, Any]],
+def _compile_reason(
+    reason: str | list,
     knowledge_map: dict[int, str],
 ) -> list[IrStep] | None:
-    if not steps:
+    """Compile a reason (str or list[str | Step]) into IR Steps."""
+    if isinstance(reason, str):
+        return None  # simple string goes to metadata.reason, not steps
+    if not reason:
         return None
+    from gaia.lang.runtime.nodes import Step as DslStep
+
     ir_steps: list[IrStep] = []
-    for step in steps:
-        if isinstance(step, str):
-            ir_steps.append(IrStep(reasoning=step))
-            continue
-        if not isinstance(step, dict):
-            raise ValueError(f"Unsupported step type: {type(step)!r}")
-        reasoning = step.get("reasoning")
-        if not isinstance(reasoning, str) or not reasoning:
-            raise ValueError("Structured step requires a non-empty 'reasoning' field")
-        ir_steps.append(
-            IrStep(
-                reasoning=reasoning,
-                premises=_step_refs(step.get("premises"), knowledge_map),
-                conclusion=_step_ref(step.get("conclusion"), knowledge_map),
+    for entry in reason:
+        if isinstance(entry, str):
+            ir_steps.append(IrStep(reasoning=entry))
+        elif isinstance(entry, DslStep):
+            ir_steps.append(
+                IrStep(
+                    reasoning=entry.reason,
+                    premises=_step_refs(entry.premises, knowledge_map) if entry.premises else None,
+                )
             )
-        )
-    return ir_steps
+        else:
+            raise ValueError(f"Unsupported reason entry type: {type(entry)!r}")
+    return ir_steps or None
 
 
 def compile_package_artifact(pkg: CollectedPackage) -> CompiledPackage:
@@ -276,7 +279,7 @@ def compile_package_artifact(pkg: CollectedPackage) -> CompiledPackage:
         if strategy_key in compiled_strategies:
             return compiled_strategies[strategy_key]
 
-        steps = _ir_steps(s.steps, knowledge_map)
+        steps = _compile_reason(s.reason, knowledge_map)
         payload: dict[str, Any] = {
             "scope": "local",
             "type": s.type,

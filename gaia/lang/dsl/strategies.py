@@ -1,10 +1,27 @@
 """Gaia Lang v5 — Strategy functions (reasoning declarations)."""
 
-from typing import Any
+from __future__ import annotations
 
-from gaia.lang.runtime import Knowledge, Strategy
+from gaia.lang.runtime import Knowledge, Step, Strategy
+from gaia.lang.runtime.nodes import ReasonInput
 
-StepInput = str | dict[str, Any]
+
+def _validate_step_premises(
+    reason: ReasonInput,
+    strategy_premises: list[Knowledge],
+) -> None:
+    """Validate that every Step.premises reference exists in the strategy's premise list."""
+    if isinstance(reason, str):
+        return
+    premise_ids = {id(p) for p in strategy_premises}
+    for i, entry in enumerate(reason):
+        if isinstance(entry, Step) and entry.premises:
+            for p in entry.premises:
+                if id(p) not in premise_ids:
+                    raise ValueError(
+                        f"Step {i}: premise {p.label or p.content[:40]!r} "
+                        f"is not in the strategy's premise list"
+                    )
 
 
 def _named_strategy(
@@ -13,15 +30,14 @@ def _named_strategy(
     premises: list[Knowledge],
     conclusion: Knowledge,
     background: list[Knowledge] | None = None,
-    steps: list[StepInput] | None = None,
-    reason: str = "",
+    reason: ReasonInput = "",
 ) -> Strategy:
+    _validate_step_premises(reason, premises)
     strategy = Strategy(
         type=type_,
         premises=list(premises),
         conclusion=conclusion,
         background=background or [],
-        steps=steps or [],
         reason=reason,
     )
     conclusion.strategy = strategy
@@ -35,17 +51,16 @@ def _composite_strategy(
     conclusion: Knowledge,
     sub_strategies: list[Strategy],
     background: list[Knowledge] | None = None,
-    steps: list[StepInput] | None = None,
-    reason: str = "",
+    reason: ReasonInput = "",
 ) -> Strategy:
     if not sub_strategies:
         raise ValueError("composite() requires at least one sub-strategy")
+    _validate_step_premises(reason, premises)
     strategy = Strategy(
         type=type_,
         premises=list(premises),
         conclusion=conclusion,
         background=background or [],
-        steps=steps or [],
         reason=reason,
         sub_strategies=list(sub_strategies),
     )
@@ -71,16 +86,15 @@ def noisy_and(
     conclusion: Knowledge,
     *,
     background: list[Knowledge] | None = None,
-    steps: list[StepInput] | None = None,
-    reason: str = "",
+    reason: ReasonInput = "",
 ) -> Strategy:
     """All premises jointly necessary, supporting conclusion with conditional probability p."""
+    _validate_step_premises(reason, premises)
     s = Strategy(
         type="noisy_and",
         premises=premises,
         conclusion=conclusion,
         background=background or [],
-        steps=steps or [],
         reason=reason,
     )
     conclusion.strategy = s
@@ -92,16 +106,15 @@ def infer(
     conclusion: Knowledge,
     *,
     background: list[Knowledge] | None = None,
-    steps: list[StepInput] | None = None,
-    reason: str = "",
+    reason: ReasonInput = "",
 ) -> Strategy:
     """General CPT reasoning (2^k parameters). Rarely used directly."""
+    _validate_step_premises(reason, premises)
     s = Strategy(
         type="infer",
         premises=premises,
         conclusion=conclusion,
         background=background or [],
-        steps=steps or [],
         reason=reason,
     )
     conclusion.strategy = s
@@ -113,8 +126,7 @@ def deduction(
     conclusion: Knowledge,
     *,
     background: list[Knowledge] | None = None,
-    steps: list[StepInput] | None = None,
-    reason: str = "",
+    reason: ReasonInput = "",
 ) -> Strategy:
     """Deduction lowered via the canonical IR formalizer at compile time."""
     if len(premises) < 1:
@@ -124,7 +136,6 @@ def deduction(
         premises=premises,
         conclusion=conclusion,
         background=background,
-        steps=steps,
         reason=reason,
     )
 
@@ -135,8 +146,7 @@ def abduction(
     alternative: Knowledge | None = None,
     *,
     background: list[Knowledge] | None = None,
-    steps: list[StepInput] | None = None,
-    reason: str = "",
+    reason: ReasonInput = "",
 ) -> Strategy:
     """Abduction lowered via the canonical IR formalizer at compile time."""
     premises = [observation]
@@ -147,7 +157,6 @@ def abduction(
         premises=premises,
         conclusion=hypothesis,
         background=background,
-        steps=steps,
         reason=reason,
     )
 
@@ -158,8 +167,7 @@ def analogy(
     bridge: Knowledge,
     *,
     background: list[Knowledge] | None = None,
-    steps: list[StepInput] | None = None,
-    reason: str = "",
+    reason: ReasonInput = "",
 ) -> Strategy:
     """Analogy lowered via the canonical IR formalizer at compile time."""
     return _named_strategy(
@@ -167,7 +175,6 @@ def analogy(
         premises=[source, bridge],
         conclusion=target,
         background=background,
-        steps=steps,
         reason=reason,
     )
 
@@ -178,8 +185,7 @@ def extrapolation(
     continuity: Knowledge,
     *,
     background: list[Knowledge] | None = None,
-    steps: list[StepInput] | None = None,
-    reason: str = "",
+    reason: ReasonInput = "",
 ) -> Strategy:
     """Extrapolation lowered via the canonical IR formalizer at compile time."""
     return _named_strategy(
@@ -187,7 +193,6 @@ def extrapolation(
         premises=[source, continuity],
         conclusion=target,
         background=background,
-        steps=steps,
         reason=reason,
     )
 
@@ -198,8 +203,7 @@ def elimination(
     survivor: Knowledge,
     *,
     background: list[Knowledge] | None = None,
-    steps: list[StepInput] | None = None,
-    reason: str = "",
+    reason: ReasonInput = "",
 ) -> Strategy:
     """Elimination lowered via the canonical IR formalizer at compile time."""
     return _named_strategy(
@@ -207,7 +211,6 @@ def elimination(
         premises=[exhaustiveness, *_flatten_pairs(excluded, name="elimination")],
         conclusion=survivor,
         background=background,
-        steps=steps,
         reason=reason,
     )
 
@@ -218,8 +221,7 @@ def case_analysis(
     conclusion: Knowledge,
     *,
     background: list[Knowledge] | None = None,
-    steps: list[StepInput] | None = None,
-    reason: str = "",
+    reason: ReasonInput = "",
 ) -> Strategy:
     """Case analysis lowered via the canonical IR formalizer at compile time."""
     return _named_strategy(
@@ -227,7 +229,6 @@ def case_analysis(
         premises=[exhaustiveness, *_flatten_pairs(cases, name="case_analysis")],
         conclusion=conclusion,
         background=background,
-        steps=steps,
         reason=reason,
     )
 
@@ -238,8 +239,7 @@ def mathematical_induction(
     conclusion: Knowledge,
     *,
     background: list[Knowledge] | None = None,
-    steps: list[StepInput] | None = None,
-    reason: str = "",
+    reason: ReasonInput = "",
 ) -> Strategy:
     """Mathematical induction lowered via the canonical IR formalizer at compile time."""
     return _named_strategy(
@@ -247,7 +247,6 @@ def mathematical_induction(
         premises=[base, step],
         conclusion=conclusion,
         background=background,
-        steps=steps,
         reason=reason,
     )
 
@@ -258,8 +257,7 @@ def composite(
     *,
     sub_strategies: list[Strategy],
     background: list[Knowledge] | None = None,
-    steps: list[StepInput] | None = None,
-    reason: str = "",
+    reason: ReasonInput = "",
     type: str = "infer",
 ) -> Strategy:
     """Hierarchical composition lowered to IR CompositeStrategy."""
@@ -269,6 +267,5 @@ def composite(
         conclusion=conclusion,
         sub_strategies=sub_strategies,
         background=background,
-        steps=steps,
         reason=reason,
     )
