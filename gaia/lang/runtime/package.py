@@ -25,6 +25,9 @@ class CollectedPackage:
         self.strategies: list[Strategy] = []
         self.operators: list[Operator] = []
         self._token = None
+        self._module_counters: dict[str | None, int] = {}
+        self._module_order: list[str] = []
+        self._exported_labels: set[str] = set()
 
     def __enter__(self):
         self._token = _current_package.set(self)
@@ -36,6 +39,13 @@ class CollectedPackage:
 
     def _register_knowledge(self, k: Knowledge):
         self.knowledge.append(k)
+        module = k._source_module
+        if module not in self._module_counters:
+            if module is not None:
+                self._module_order.append(module)
+            self._module_counters[module] = 0
+        k._declaration_index = self._module_counters[module]
+        self._module_counters[module] += 1
 
     def _register_strategy(self, s: Strategy):
         self.strategies.append(s)
@@ -129,15 +139,31 @@ def _caller_module_name() -> str | None:
 
 
 def infer_package_from_callstack() -> CollectedPackage | None:
+    pkg, _ = infer_package_and_module()
+    return pkg
+
+
+def infer_package_and_module() -> tuple[CollectedPackage | None, str | None]:
+    """Infer package and relative module name from the call stack."""
     module_name = _caller_module_name()
     if not module_name:
-        return None
+        return None, None
 
     pyproject = _pyproject_for_module(module_name)
     if pyproject is None:
-        return None
+        return None, None
 
-    return _load_inferred_package(pyproject)
+    pkg = _load_inferred_package(pyproject)
+    if pkg is None:
+        return None, None
+
+    # Compute relative module name: strip package prefix
+    # e.g. "my_package.s3_downfolding" → "s3_downfolding"
+    # "my_package" or "my_package.__init__" → None (root module)
+    if module_name == pkg.name or module_name.endswith(".__init__"):
+        return pkg, None
+    relative = module_name.removeprefix(f"{pkg.name}.")
+    return pkg, relative
 
 
 def get_inferred_package(pyproject: Path) -> CollectedPackage | None:

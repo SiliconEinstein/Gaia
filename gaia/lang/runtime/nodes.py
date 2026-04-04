@@ -25,14 +25,18 @@ class Knowledge:
     label: str | None = None
     strategy: Strategy | None = None
     _package: CollectedPackage | None = field(default=None, init=False, repr=False, compare=False)
+    _source_module: str | None = field(default=None, init=False, repr=False, compare=False)
+    _declaration_index: int | None = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self):
         pkg = _current_package.get()
+        source_module = None
         if pkg is None:
-            from gaia.lang.runtime.package import infer_package_from_callstack
+            from gaia.lang.runtime.package import infer_package_and_module
 
-            pkg = infer_package_from_callstack()
+            pkg, source_module = infer_package_and_module()
         if pkg is not None:
+            self._source_module = source_module
             self._package = pkg
             pkg._register_knowledge(self)
 
