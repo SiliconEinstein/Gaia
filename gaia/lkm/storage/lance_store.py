@@ -215,7 +215,10 @@ class LanceContentStore:
         if len(seen) < len(rows):
             logger.info(
                 "Deduped %d → %d rows by %s for %s",
-                len(rows), len(seen), merge_key, table_name,
+                len(rows),
+                len(seen),
+                merge_key,
+                table_name,
             )
             rows = [rows[i] for i in sorted(seen.values())]
 
@@ -331,7 +334,9 @@ class LanceContentStore:
         if not sources:
             return
         rows = [param_source_to_row(s) for s in sources]
-        await self._upsert("param_sources", TABLE_SCHEMAS["param_sources"], rows, merge_key="source_id")
+        await self._upsert(
+            "param_sources", TABLE_SCHEMAS["param_sources"], rows, merge_key="source_id"
+        )
 
     # ── Batch reads (for batch_integrate) ──
 
@@ -362,9 +367,7 @@ class LanceContentStore:
         logger.info("Batch content_hash lookup: %d queried, %d found", len(hashes), len(result_map))
         return result_map
 
-    async def find_bindings_by_local_ids(
-        self, local_ids: set[str]
-    ) -> dict[str, CanonicalBinding]:
+    async def find_bindings_by_local_ids(self, local_ids: set[str]) -> dict[str, CanonicalBinding]:
         """Find existing bindings for a set of local_ids. One query."""
         if not local_ids:
             return {}
@@ -376,10 +379,7 @@ class LanceContentStore:
             in_clause = ", ".join(f"'{_q(lid)}'" for lid in batch)
             results = await self._run(
                 lambda ic=in_clause: (
-                    table.search()
-                    .where(f"local_id IN ({ic})")
-                    .limit(len(batch) + 100)
-                    .to_list()
+                    table.search().where(f"local_id IN ({ic})").limit(len(batch) + 100).to_list()
                 )
             )
             for r in results:
@@ -401,15 +401,15 @@ class LanceContentStore:
             in_clause = ", ".join(f"'{_q(c)}'" for c in batch)
             results = await self._run(
                 lambda ic=in_clause: (
-                    table.search()
-                    .where(f"conclusion IN ({ic})")
-                    .limit(_MAX_SCAN)
-                    .to_list()
+                    table.search().where(f"conclusion IN ({ic})").limit(_MAX_SCAN).to_list()
                 )
             )
             all_results.extend(row_to_global_factor(r) for r in results)
-        logger.info("Batch factor lookup: %d conclusions queried, %d factors found",
-                     len(conclusions), len(all_results))
+        logger.info(
+            "Batch factor lookup: %d conclusions queried, %d factors found",
+            len(conclusions),
+            len(all_results),
+        )
         return all_results
 
     # ── Reads: local nodes ──

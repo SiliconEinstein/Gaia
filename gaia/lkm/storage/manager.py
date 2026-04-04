@@ -163,9 +163,7 @@ class StorageManager:
     ) -> dict[str, GlobalVariableNode]:
         return await self.content.find_globals_by_content_hashes(hashes)
 
-    async def find_bindings_by_local_ids(
-        self, local_ids: set[str]
-    ) -> dict[str, CanonicalBinding]:
+    async def find_bindings_by_local_ids(self, local_ids: set[str]) -> dict[str, CanonicalBinding]:
         return await self.content.find_bindings_by_local_ids(local_ids)
 
     async def find_global_factors_by_conclusions(
