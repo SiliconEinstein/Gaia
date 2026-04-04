@@ -10,5 +10,6 @@ coverage:
 ignore:
   - "gaia/lkm/pipelines/import_lance.py"  # CLI orchestrator, requires ByteHouse/TOS
   - "gaia/lkm/storage/source_lance.py"    # ByteHouse + TOS SDK integration
-  - "gaia/lkm/api/app.py"                 # FastAPI startup
+  - "gaia/lkm/api/**"                     # FastAPI app, routes, deps (integration)
   - "gaia/lkm/scripts/**"                 # seed/utility scripts
+  - "gaia/lkm/pipelines/lower.py"         # thin adapter, 5 lines
