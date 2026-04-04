@@ -70,6 +70,7 @@ class Knowledge(BaseModel):
 
     id: str | None = None
     label: str | None = None
+    title: str | None = None
     type: KnowledgeType
     content: str | None = None
     content_hash: str | None = None

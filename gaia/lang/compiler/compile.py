@@ -256,6 +256,7 @@ def compile_package_artifact(pkg: CollectedPackage) -> CompiledPackage:
         IrKnowledge(
             id=knowledge_map[id(k)],
             label=k.label,
+            title=getattr(k, "title", None),
             type=k.type,
             content=k.content,
             parameters=[IrParameter(**p) for p in k.parameters],
@@ -334,6 +335,7 @@ def compile_package_artifact(pkg: CollectedPackage) -> CompiledPackage:
         emitted_strategies.add(strategy_key)
 
     module_order = pkg._module_order if pkg._module_order else None
+    module_titles = getattr(pkg, "_module_titles", None) or None
     graph = LocalCanonicalGraph(
         namespace=pkg.namespace,
         package_name=pkg.name,
@@ -341,6 +343,7 @@ def compile_package_artifact(pkg: CollectedPackage) -> CompiledPackage:
         operators=ir_operators,
         strategies=ir_strategies,
         module_order=module_order,
+        module_titles=module_titles if module_titles else None,
     )
 
     return CompiledPackage(

@@ -18,6 +18,7 @@ class Knowledge:
 
     content: str
     type: str  # "claim" | "setting" | "question"
+    title: str | None = None
     background: list[Knowledge] = field(default_factory=list)
     parameters: list[dict] = field(default_factory=list)
     provenance: list[dict[str, str]] = field(default_factory=list)

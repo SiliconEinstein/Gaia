@@ -119,6 +119,19 @@ def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
     if isinstance(export_names, list) and all(isinstance(n, str) for n in export_names):
         pkg._exported_labels = set(export_names)
 
+    # Extract module docstrings as titles
+    module_titles: dict[str, str] = {}
+    for mod_name in pkg._module_order:
+        full_name = f"{import_name}.{mod_name}"
+        sub = sys.modules.get(full_name)
+        if sub is not None:
+            doc = getattr(sub, "__doc__", None)
+            if isinstance(doc, str) and doc.strip():
+                # Use first line of docstring as title
+                module_titles[mod_name] = doc.strip().split("\n")[0].strip()
+    if module_titles:
+        pkg._module_titles = module_titles
+
     pkg.name = import_name
     pkg.version = version
     if "namespace" in gaia_config:

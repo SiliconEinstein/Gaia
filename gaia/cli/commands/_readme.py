@@ -72,9 +72,11 @@ def _mermaid_node_line(
     strategy_premises: set[str],
     beliefs: dict[str, float] | None,
     *,
+    title: str | None = None,
     css_class_override: str | None = None,
 ) -> str:
-    display = f"{label} ({beliefs[kid]:.2f})" if beliefs and kid in beliefs else label
+    display_name = title or label
+    display = f"{display_name} ({beliefs[kid]:.2f})" if beliefs and kid in beliefs else display_name
     display = display.replace('"', "#quot;")
     if css_class_override:
         css = css_class_override
@@ -148,6 +150,7 @@ def render_mermaid(
                 strategy_conclusions,
                 strategy_premises,
                 beliefs,
+                title=k.get("title"),
                 css_class_override=css_override,
             )
         )
@@ -243,34 +246,53 @@ def _render_node(
     exported = k.get("exported", False)
     lines: list[str] = []
 
+    title = k.get("title") or label
     marker = " \u2605" if exported else ""
-    lines.append(f"#### {label}{marker}")
-    lines.append("")
-    lines.append(content)
+    ktype = k.get("type", "claim")
+
+    # Heading: title (with label as anchor for linking)
+    lines.append(f"#### {title}{marker}")
     lines.append("")
 
+    # Type + label badge line
+    type_emoji = {"setting": "\U0001f4cb", "claim": "\U0001f4cc", "question": "\u2753"}.get(
+        ktype, ""
+    )
+    badge_parts = [f"{type_emoji} `{label}`"]
+    if kid in priors:
+        badge_parts.append(f"Prior: {priors[kid]:.2f}")
+    if kid in beliefs:
+        badge_parts.append(f"Belief: **{beliefs[kid]:.2f}**")
+    lines.append(" \u00a0\u00a0|\u00a0\u00a0 ".join(badge_parts))
+    lines.append("")
+
+    # Content in blockquote
+    if content:
+        for content_line in content.split("\n"):
+            lines.append(f"> {content_line}")
+        lines.append("")
+
+    # Derivation
     if kid in strategy_for:
         s = strategy_for[kid]
         stype = s.get("type", "")
-        premise_labels = []
+        premise_links = []
         for p in s.get("premises", []):
-            p_label = knowledge_by_id.get(p, {}).get("label", p.split("::")[-1])
+            pk = knowledge_by_id.get(p, {})
+            p_label = pk.get("label", p.split("::")[-1])
+            p_title = pk.get("title") or p_label
             if not _is_helper(p_label):
-                premise_labels.append(f"[{p_label}](#{p_label})")
-        lines.append(f"**Derived via:** {stype}({', '.join(premise_labels)})")
-
-    meta_parts = []
-    if kid in priors:
-        meta_parts.append(f"**Prior:** {priors[kid]:.2f}")
-    if kid in beliefs:
-        meta_parts.append(f"**Belief:** {beliefs[kid]:.2f}")
-    if meta_parts:
-        lines.append(" \u00b7 ".join(meta_parts))
-
-    if kid in strategy_for:
-        reason = (strategy_for[kid].get("metadata") or {}).get("reason", "")
+                premise_links.append(f"[{p_title}](#{p_label})")
+        lines.append(f"\U0001f517 **{stype}**({', '.join(premise_links)})")
+        lines.append("")
+        reason = (s.get("metadata") or {}).get("reason", "")
         if reason:
-            lines.append(f"**Reason:** {reason}")
+            lines.append("<details><summary>Reasoning</summary>")
+            lines.append("")
+            lines.append(reason)
+            lines.append("")
+            lines.append("</details>")
+            lines.append("")
 
     lines.append("")
     return lines
@@ -338,12 +360,14 @@ def render_knowledge_nodes(
             module_nodes[mod].append(k)
 
         # Render each module as a section with its own Mermaid diagram
+        module_titles = ir.get("module_titles") or {}
         for mod in module_order or []:
             nodes = module_nodes.get(mod, [])
             if not nodes:
                 continue
 
-            sections.append(f"## {mod}")
+            heading = module_titles.get(mod, mod)
+            sections.append(f"## {heading}")
             sections.append("")
 
             # Per-module Mermaid: nodes in this module + external premises
