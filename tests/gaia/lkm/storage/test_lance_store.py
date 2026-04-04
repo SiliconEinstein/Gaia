@@ -176,6 +176,91 @@ class TestImportStatus:
         assert missing is None
 
 
+class TestBatchUpsertLocalNodes:
+    async def test_batch_upsert_writes_as_merged(self, storage):
+        """batch_upsert_local_nodes writes directly as 'merged'."""
+        v1 = _make_local_var("c1", "content one", "pkg_a")
+        v2 = _make_local_var("c2", "content two", "pkg_a")
+        await storage.content.batch_upsert_local_nodes([v1, v2], [])
+
+        result = await storage.get_local_variable("reg:pkg_a::c1")
+        assert result is not None
+        assert result.content == "content one"
+
+    async def test_batch_upsert_idempotent(self, storage):
+        """Running batch_upsert twice does not duplicate rows."""
+        v1 = _make_local_var("c1", "content", "pkg_a")
+        await storage.content.batch_upsert_local_nodes([v1], [])
+        count1 = await storage.content.count("local_variable_nodes")
+
+        await storage.content.batch_upsert_local_nodes([v1], [])
+        count2 = await storage.content.count("local_variable_nodes")
+        assert count1 == count2
+
+
+class TestBatchReads:
+    async def test_find_globals_by_content_hashes(self, storage):
+        """Batch content_hash lookup returns matching globals."""
+        ch1 = compute_content_hash("claim", "fact one", [])
+        ch2 = compute_content_hash("claim", "fact two", [])
+        ref = LocalCanonicalRef(local_id="x", package_id="p", version="1")
+        g1 = GlobalVariableNode(
+            id=new_gcn_id(),
+            type="claim",
+            visibility="public",
+            content_hash=ch1,
+            parameters=[],
+            representative_lcn=ref,
+            local_members=[ref],
+        )
+        g2 = GlobalVariableNode(
+            id=new_gcn_id(),
+            type="claim",
+            visibility="public",
+            content_hash=ch2,
+            parameters=[],
+            representative_lcn=ref,
+            local_members=[ref],
+        )
+        await storage.integrate_global_graph([g1, g2], [], [])
+
+        result = await storage.find_globals_by_content_hashes({ch1, ch2, "nonexistent"})
+        assert ch1 in result
+        assert ch2 in result
+        assert "nonexistent" not in result
+
+    async def test_find_globals_empty_set(self, storage):
+        result = await storage.find_globals_by_content_hashes(set())
+        assert result == {}
+
+    async def test_find_bindings_by_local_ids(self, storage):
+        """Batch binding lookup by local_id."""
+        b1 = CanonicalBinding(
+            local_id="l1",
+            global_id="g1",
+            binding_type="variable",
+            package_id="p",
+            version="1",
+            decision="create_new",
+            reason="test",
+        )
+        b2 = CanonicalBinding(
+            local_id="l2",
+            global_id="g2",
+            binding_type="variable",
+            package_id="p",
+            version="1",
+            decision="create_new",
+            reason="test",
+        )
+        await storage.content.write_bindings([b1, b2])
+
+        result = await storage.find_bindings_by_local_ids({"l1", "l2", "missing"})
+        assert "l1" in result
+        assert "l2" in result
+        assert "missing" not in result
+
+
 class TestWriteReadRoundtrip:
     async def test_local_variable_roundtrip(self, storage):
         """Write + commit + read should preserve all fields."""
