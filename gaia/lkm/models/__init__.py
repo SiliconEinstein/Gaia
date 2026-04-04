@@ -6,6 +6,12 @@ input format, not the storage format).
 
 from gaia.lkm.models._hash import compute_content_hash, new_gcn_id, new_gfac_id
 from gaia.lkm.models.binding import CanonicalBinding
+from gaia.lkm.models.discovery import (
+    ClusteringResult,
+    ClusteringStats,
+    DiscoveryConfig,
+    SemanticCluster,
+)
 from gaia.lkm.models.factor import GlobalFactorNode, LocalFactorNode, Step
 from gaia.lkm.models.import_status import ImportStatusRecord
 from gaia.lkm.models.inference import BeliefSnapshot
@@ -49,4 +55,9 @@ __all__ = [
     "ImportStatusRecord",
     # inference
     "BeliefSnapshot",
+    # discovery
+    "SemanticCluster",
+    "ClusteringStats",
+    "ClusteringResult",
+    "DiscoveryConfig",
 ]
