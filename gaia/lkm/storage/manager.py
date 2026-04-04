@@ -234,3 +234,18 @@ class StorageManager:
         self, gcn_id: str, updated_node: GlobalVariableNode
     ) -> None:
         await self.content.update_global_variable_members(gcn_id, updated_node)
+
+    # ── ByteHouse ──
+
+    def create_bytehouse_store(self):
+        """Create a ByteHouseEmbeddingStore from config. Returns None if not configured."""
+        from gaia.lkm.storage.bytehouse_store import ByteHouseEmbeddingStore
+
+        if not self._config.bytehouse_host:
+            return None
+        return ByteHouseEmbeddingStore(
+            host=self._config.bytehouse_host,
+            user=self._config.bytehouse_user,
+            password=self._config.bytehouse_password,
+            database=self._config.bytehouse_database,
+        )
