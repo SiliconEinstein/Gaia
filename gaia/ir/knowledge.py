@@ -79,6 +79,11 @@ class Knowledge(BaseModel):
     # provenance
     provenance: list[PackageRef] | None = None
 
+    # narrative (presentational, excluded from content hash)
+    module: str | None = None
+    declaration_index: int | None = None
+    exported: bool = False
+
     @model_validator(mode="after")
     def _compute_derived_fields(self) -> Knowledge:
         # Knowledge is valid if it has id OR label (or both).
