@@ -84,6 +84,7 @@ CANONICAL_BINDINGS = pa.schema(
 
 PRIOR_RECORDS = pa.schema(
     [
+        pa.field("id", pa.string()),  # "{variable_id}::{source_id}"
         pa.field("variable_id", pa.string()),
         pa.field("value", pa.float64()),
         pa.field("source_id", pa.string()),
@@ -93,6 +94,7 @@ PRIOR_RECORDS = pa.schema(
 
 FACTOR_PARAM_RECORDS = pa.schema(
     [
+        pa.field("id", pa.string()),  # "{factor_id}::{source_id}"
         pa.field("factor_id", pa.string()),
         pa.field("conditional_probabilities", pa.string()),  # JSON list[float]
         pa.field("source_id", pa.string()),
@@ -111,6 +113,22 @@ PARAM_SOURCES = pa.schema(
     ]
 )
 
+# ── Import status ──
+
+IMPORT_STATUS = pa.schema(
+    [
+        pa.field("package_id", pa.string()),
+        pa.field("status", pa.string()),
+        pa.field("variable_count", pa.int32()),
+        pa.field("factor_count", pa.int32()),
+        pa.field("prior_count", pa.int32()),
+        pa.field("factor_param_count", pa.int32()),
+        pa.field("started_at", pa.string()),
+        pa.field("completed_at", pa.string()),
+        pa.field("error", pa.string()),
+    ]
+)
+
 # ── Registry ──
 
 TABLE_SCHEMAS: dict[str, pa.Schema] = {
@@ -122,4 +140,5 @@ TABLE_SCHEMAS: dict[str, pa.Schema] = {
     "prior_records": PRIOR_RECORDS,
     "factor_param_records": FACTOR_PARAM_RECORDS,
     "param_sources": PARAM_SOURCES,
+    "import_status": IMPORT_STATUS,
 }

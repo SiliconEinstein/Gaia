@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from gaia.lkm.models import (
     CanonicalBinding,
     FactorParamRecord,
@@ -12,8 +14,11 @@ from gaia.lkm.models import (
     ParameterizationSource,
     PriorRecord,
 )
+from gaia.lkm.models.import_status import ImportStatusRecord
 from gaia.lkm.storage.config import StorageConfig
 from gaia.lkm.storage.lance_store import LanceContentStore
+
+logger = logging.getLogger(__name__)
 
 
 class StorageManager:
@@ -34,7 +39,10 @@ class StorageManager:
 
     async def initialize(self) -> None:
         """Initialize all storage backends."""
-        self._content = LanceContentStore(self._config.effective_lancedb_uri)
+        self._content = LanceContentStore(
+            self._config.effective_lancedb_uri,
+            storage_options=self._config.storage_options,
+        )
         await self._content.initialize()
 
     async def close(self) -> None:
@@ -51,12 +59,32 @@ class StorageManager:
         factor_nodes: list[LocalFactorNode],
     ) -> None:
         """Step 1: Write local nodes with ingest_status='preparing'."""
+        logger.info(
+            "Ingesting local graph %s@%s: %d variables, %d factors",
+            package_id,
+            version,
+            len(variable_nodes),
+            len(factor_nodes),
+        )
         await self.content.write_local_variables(variable_nodes)
         await self.content.write_local_factors(factor_nodes)
 
     async def commit_package(self, source_package: str, version: str = "") -> None:
         """Step 7: Flip ingest_status from 'preparing' to 'merged' for (package, version)."""
         await self.content.commit_ingest(source_package, version)
+
+    async def batch_upsert_local_nodes(
+        self,
+        variables: list[LocalVariableNode],
+        factors: list[LocalFactorNode],
+    ) -> None:
+        """Batch upsert local nodes directly as 'merged'. For batch import."""
+        logger.info(
+            "Batch upserting local nodes: %d variables, %d factors",
+            len(variables),
+            len(factors),
+        )
+        await self.content.batch_upsert_local_nodes(variables, factors)
 
     async def integrate_global_graph(
         self,
@@ -67,6 +95,12 @@ class StorageManager:
         factor_param_records: list[FactorParamRecord] | None = None,
     ) -> None:
         """Steps 2-4: Write global nodes, bindings, and parameters."""
+        logger.info(
+            "Integrating global graph: %d variables, %d factors, %d bindings",
+            len(variable_nodes),
+            len(factor_nodes),
+            len(bindings),
+        )
         await self.content.write_global_variables(variable_nodes)
         await self.content.write_global_factors(factor_nodes)
         await self.content.write_bindings(bindings)
@@ -79,6 +113,9 @@ class StorageManager:
 
     async def write_param_source(self, source: ParameterizationSource) -> None:
         await self.content.write_param_source(source)
+
+    async def write_param_sources_batch(self, sources: list[ParameterizationSource]) -> None:
+        await self.content.write_param_sources_batch(sources)
 
     async def write_prior_records(self, records: list[PriorRecord]) -> None:
         await self.content.write_prior_records(records)
@@ -119,6 +156,21 @@ class StorageManager:
     async def find_bindings_by_global_id(self, global_id: str) -> list[CanonicalBinding]:
         return await self.content.find_bindings_by_global_id(global_id)
 
+    # ── Batch reads (for batch_integrate) ──
+
+    async def find_globals_by_content_hashes(
+        self, hashes: set[str]
+    ) -> dict[str, GlobalVariableNode]:
+        return await self.content.find_globals_by_content_hashes(hashes)
+
+    async def find_bindings_by_local_ids(self, local_ids: set[str]) -> dict[str, CanonicalBinding]:
+        return await self.content.find_bindings_by_local_ids(local_ids)
+
+    async def find_global_factors_by_conclusions(
+        self, conclusions: set[str]
+    ) -> list[GlobalFactorNode]:
+        return await self.content.find_global_factors_by_conclusions(conclusions)
+
     # ── Reads: parameterization ──
 
     async def get_prior_records(self, variable_id: str) -> list[PriorRecord]:
@@ -126,6 +178,14 @@ class StorageManager:
 
     async def get_param_source(self, source_id: str) -> ParameterizationSource | None:
         return await self.content.get_param_source(source_id)
+
+    # ── Import status ──
+
+    async def write_import_status_batch(self, records: list[ImportStatusRecord]) -> None:
+        await self.content.write_import_status_batch(records)
+
+    async def get_import_status(self, package_id: str) -> ImportStatusRecord | None:
+        return await self.content.get_import_status(package_id)
 
     # ── Update ──
 

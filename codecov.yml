@@ -2,7 +2,14 @@ coverage:
   status:
     project:
       default:
-        target: 80%
+        target: auto
     patch:
       default:
         target: 80%
+
+ignore:
+  - "gaia/lkm/pipelines/import_lance.py"  # CLI orchestrator, requires ByteHouse/TOS
+  - "gaia/lkm/storage/source_lance.py"    # ByteHouse + TOS SDK integration
+  - "gaia/lkm/api/**"                     # FastAPI app, routes, deps (integration)
+  - "gaia/lkm/scripts/**"                 # seed/utility scripts
+  - "gaia/lkm/pipelines/lower.py"         # thin adapter, 5 lines

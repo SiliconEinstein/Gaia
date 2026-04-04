@@ -5,6 +5,7 @@ Per-package and batch integration with content_hash dedup and CanonicalBinding c
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 
 from gaia.lkm.core.extract import ExtractionResult
@@ -22,6 +23,8 @@ from gaia.lkm.models import (
     new_gfac_id,
 )
 from gaia.lkm.storage import StorageManager
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -243,6 +246,14 @@ async def integrate(
         for ps in param_sources:
             await storage.write_param_source(ps)
 
+    logger.info(
+        "Integrated %s: %d new globals, %d matched, %d new factors, %d unresolved",
+        package_id,
+        len(result.new_global_variables),
+        len(result.updated_global_variables),
+        len(result.new_global_factors),
+        len(result.unresolved_cross_refs),
+    )
     return result
 
 
@@ -272,7 +283,7 @@ async def batch_integrate(
     and reducing storage queries.
 
     Flow:
-    1. Write all local nodes per package (preparing → merged)
+    1. Batch upsert all local nodes (directly as merged)
     2. Group variables by content_hash → one global per unique hash
     3. Check storage for existing globals (cross-batch dedup)
     4. Build global factors with resolved gcn_ids
@@ -280,41 +291,41 @@ async def batch_integrate(
     """
     stats = BatchIntegrateResult(packages=len(results))
 
-    # ── Step 1: Write and commit all local nodes ──
+    # ── Step 1: Batch upsert all local nodes ──
+    all_variables: list[LocalVariableNode] = []
+    all_factors: list[LocalFactorNode] = []
     for r in results:
-        await storage.ingest_local_graph(
-            r.package_id, r.version, r.local_variables, r.local_factors
-        )
-        await storage.commit_package(r.package_id, r.version)
+        all_variables.extend(r.local_variables)
+        all_factors.extend(r.local_factors)
         stats.total_local_variables += len(r.local_variables)
         stats.total_local_factors += len(r.local_factors)
+    await storage.batch_upsert_local_nodes(all_variables, all_factors)
 
     # ── Step 2: In-batch variable dedup by content_hash ──
-    # Group all local variables across all papers by content_hash.
-    # Each unique content_hash gets one global node; all locals with that hash
-    # become local_members.
     hash_to_locals: dict[str, list[tuple[LocalVariableNode, str, str]]] = {}
-    # (variable, package_id, version)
     for r in results:
         for lv in r.local_variables:
             hash_to_locals.setdefault(lv.content_hash, []).append((lv, r.package_id, r.version))
 
+    # Batch fetch existing globals for all content_hashes (one query)
+    public_hashes = {
+        h for h, entries in hash_to_locals.items() if entries[0][0].visibility == "public"
+    }
+    existing_globals_map = await storage.find_globals_by_content_hashes(public_hashes)
+
     all_bindings: list[CanonicalBinding] = []
     all_new_globals: list[GlobalVariableNode] = []
-    qid_to_gcn: dict[str, str] = {}  # local QID → gcn_id (across all papers)
+    updated_globals: list[GlobalVariableNode] = []
+    qid_to_gcn: dict[str, str] = {}
 
     for content_hash, entries in hash_to_locals.items():
         if len(entries) > 1:
             stats.dedup_within_batch += len(entries) - 1
 
-        # Check if this content_hash already exists globally
         first_var = entries[0][0]
-        existing = None
-        if first_var.visibility == "public":
-            existing = await storage.find_global_by_content_hash(content_hash)
+        existing = existing_globals_map.get(content_hash)
 
         if existing is not None:
-            # Match existing global node — append all locals as members
             stats.dedup_with_existing += len(entries)
             new_members = [
                 LocalCanonicalRef(local_id=lv.id, package_id=pkg, version=ver)
@@ -329,7 +340,7 @@ async def batch_integrate(
                 representative_lcn=existing.representative_lcn,
                 local_members=existing.local_members + new_members,
             )
-            await storage.update_global_variable_members(existing.id, updated)
+            updated_globals.append(updated)
             for lv, pkg, ver in entries:
                 qid_to_gcn[lv.id] = existing.id
                 all_bindings.append(
@@ -344,7 +355,6 @@ async def batch_integrate(
                     )
                 )
         else:
-            # Create new global node with all locals as members
             gcn_id = new_gcn_id()
             refs = [
                 LocalCanonicalRef(local_id=lv.id, package_id=pkg, version=ver)
@@ -377,6 +387,33 @@ async def batch_integrate(
     stats.new_global_variables = len(all_new_globals)
 
     # ── Step 3: Factor integration ──
+    # Batch fetch bindings for cross-package refs (one query)
+    all_qids_in_factors: set[str] = set()
+    for r in results:
+        for lf in r.local_factors:
+            for p in lf.premises:
+                if p not in qid_to_gcn:
+                    all_qids_in_factors.add(p)
+            if lf.conclusion not in qid_to_gcn:
+                all_qids_in_factors.add(lf.conclusion)
+    existing_bindings_map = await storage.find_bindings_by_local_ids(all_qids_in_factors)
+    for lid, binding in existing_bindings_map.items():
+        qid_to_gcn[lid] = binding.global_id
+
+    # Batch fetch existing factors by conclusion (one query)
+    all_conclusions: set[str] = set()
+    for r in results:
+        for lf in r.local_factors:
+            mapped_c = qid_to_gcn.get(lf.conclusion)
+            if mapped_c:
+                all_conclusions.add(mapped_c)
+    existing_factors_list = await storage.find_global_factors_by_conclusions(all_conclusions)
+    # Index by (sorted_premises, conclusion, factor_type, subtype) for exact match
+    existing_factors_index: dict[tuple, GlobalFactorNode] = {}
+    for gf in existing_factors_list:
+        key = (tuple(sorted(gf.premises)), gf.conclusion, gf.factor_type, gf.subtype)
+        existing_factors_index[key] = gf
+
     all_new_factors: list[GlobalFactorNode] = []
     all_prior_records: list[PriorRecord] = []
     all_factor_params: list[FactorParamRecord] = []
@@ -384,41 +421,34 @@ async def batch_integrate(
 
     for r in results:
         for lf in r.local_factors:
-            # Map premises/conclusion QIDs to gcn_ids
             mapped_premises = []
             unresolved = False
             for p in lf.premises:
                 if p in qid_to_gcn:
                     mapped_premises.append(qid_to_gcn[p])
                 else:
-                    binding = await storage.find_canonical_binding(p)
-                    if binding:
-                        mapped_premises.append(binding.global_id)
-                        qid_to_gcn[p] = binding.global_id
-                    else:
-                        stats.unresolved_cross_refs.append(
-                            {"factor_id": lf.id, "unresolved_qid": p, "role": "premise"}
-                        )
-                        unresolved = True
+                    stats.unresolved_cross_refs.append(
+                        {"factor_id": lf.id, "unresolved_qid": p, "role": "premise"}
+                    )
+                    unresolved = True
 
             mapped_conclusion = qid_to_gcn.get(lf.conclusion)
             if not mapped_conclusion:
-                binding = await storage.find_canonical_binding(lf.conclusion)
-                if binding:
-                    mapped_conclusion = binding.global_id
-                    qid_to_gcn[lf.conclusion] = binding.global_id
-                else:
-                    stats.unresolved_cross_refs.append(
-                        {"factor_id": lf.id, "unresolved_qid": lf.conclusion, "role": "conclusion"}
-                    )
-                    unresolved = True
+                stats.unresolved_cross_refs.append(
+                    {"factor_id": lf.id, "unresolved_qid": lf.conclusion, "role": "conclusion"}
+                )
+                unresolved = True
 
             if unresolved:
                 continue
 
-            existing_factor = await storage.find_global_factor_exact(
-                mapped_premises, mapped_conclusion, lf.factor_type, lf.subtype
+            factor_key = (
+                tuple(sorted(mapped_premises)),
+                mapped_conclusion,
+                lf.factor_type,
+                lf.subtype,
             )
+            existing_factor = existing_factors_index.get(factor_key)
             if existing_factor:
                 lfac_to_gfac[lf.id] = existing_factor.id
                 all_bindings.append(
@@ -434,17 +464,18 @@ async def batch_integrate(
                 )
             else:
                 gfac_id = new_gfac_id()
-                all_new_factors.append(
-                    GlobalFactorNode(
-                        id=gfac_id,
-                        factor_type=lf.factor_type,
-                        subtype=lf.subtype,
-                        premises=mapped_premises,
-                        conclusion=mapped_conclusion,
-                        representative_lfn=lf.id,
-                        source_package=r.package_id,
-                    )
+                gf = GlobalFactorNode(
+                    id=gfac_id,
+                    factor_type=lf.factor_type,
+                    subtype=lf.subtype,
+                    premises=mapped_premises,
+                    conclusion=mapped_conclusion,
+                    representative_lfn=lf.id,
+                    source_package=r.package_id,
                 )
+                all_new_factors.append(gf)
+                # Also index newly created factor for within-batch dedup
+                existing_factors_index[factor_key] = gf
                 lfac_to_gfac[lf.id] = gfac_id
                 all_bindings.append(
                     CanonicalBinding(
@@ -486,17 +517,29 @@ async def batch_integrate(
                 )
 
     # ── Step 5: Write everything ──
+    # Combine new + updated globals into one write (upsert handles both)
+    all_globals_to_write = all_new_globals + updated_globals
     await storage.integrate_global_graph(
-        all_new_globals,
+        all_globals_to_write,
         all_new_factors,
         all_bindings,
         all_prior_records or None,
         all_factor_params or None,
     )
 
-    for r in results:
-        for ps in r.param_sources:
-            await storage.write_param_source(ps)
+    all_param_sources = [ps for r in results for ps in r.param_sources]
+    if all_param_sources:
+        await storage.write_param_sources_batch(all_param_sources)
 
     stats.bindings = len(all_bindings)
+    logger.info(
+        "Batch integrated %d packages: %d new global vars, %d new global factors, "
+        "%d dedup within batch, %d dedup with existing, %d unresolved",
+        stats.packages,
+        stats.new_global_variables,
+        stats.new_global_factors,
+        stats.dedup_within_batch,
+        stats.dedup_with_existing,
+        len(stats.unresolved_cross_refs),
+    )
     return stats

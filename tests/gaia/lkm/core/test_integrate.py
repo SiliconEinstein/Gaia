@@ -6,7 +6,7 @@ Uses real Gaia IR fine-grained compilations as fixtures.
 
 import pytest
 
-from gaia.lkm.core.integrate import integrate
+from gaia.lkm.core.integrate import batch_integrate, integrate
 from gaia.lkm.core.lower import lower
 from gaia.lkm.models import compute_content_hash
 from gaia.lkm.storage import StorageConfig, StorageManager
@@ -128,3 +128,105 @@ class TestIntegrateE2E:
             (b.local_id, b.decision) for b in r1.bindings if b.binding_type == "variable"
         )
         assert all(d == "create_new" for _, d in var_decisions)
+
+
+class TestBatchIntegrate:
+    """Tests for batch_integrate — the batch import path."""
+
+    async def test_batch_first_import(self, storage):
+        """Batch import of multiple packages: all create_new on empty DB."""
+        from gaia.lkm.core.extract import ExtractionResult
+
+        results = []
+        for name in ["galileo", "einstein", "newton"]:
+            ir = load_ir(name)
+            version = "1.0.0" if "dark_energy" in name else "4.0.0"
+            lowered = lower(ir, version=version)
+            results.append(
+                ExtractionResult(
+                    package_id=lowered.package_id,
+                    version=lowered.version,
+                    local_variables=lowered.local_variables,
+                    local_factors=lowered.local_factors,
+                )
+            )
+
+        stats = await batch_integrate(storage, results)
+
+        assert stats.packages == 3
+        assert stats.total_local_variables > 0
+        assert stats.total_local_factors > 0
+        # Newton shares vacuum_prediction with galileo
+        assert stats.dedup_within_batch >= 1
+        assert stats.new_global_variables > 0
+        assert stats.bindings > 0
+
+        # Verify counts in storage
+        local_count = await storage.content.count("local_variable_nodes")
+        global_count = await storage.content.count("global_variable_nodes")
+        assert local_count == stats.total_local_variables
+        assert global_count == stats.new_global_variables
+
+    async def test_batch_idempotent(self, storage):
+        """Running batch_integrate twice produces same counts (upsert)."""
+        from gaia.lkm.core.extract import ExtractionResult
+
+        ir = load_ir("galileo")
+        lowered = lower(ir, version="4.0.0")
+        results = [
+            ExtractionResult(
+                package_id=lowered.package_id,
+                version=lowered.version,
+                local_variables=lowered.local_variables,
+                local_factors=lowered.local_factors,
+            )
+        ]
+
+        await batch_integrate(storage, results)
+        count_after_first = await storage.content.count("global_variable_nodes")
+
+        # Second run: same data
+        stats2 = await batch_integrate(storage, results)
+        count_after_second = await storage.content.count("global_variable_nodes")
+
+        assert count_after_first == count_after_second
+        assert stats2.dedup_with_existing == stats2.total_local_variables
+
+    async def test_batch_incremental(self, storage):
+        """Second batch adds new globals, dedup existing overlaps."""
+        from gaia.lkm.core.extract import ExtractionResult
+
+        ir_gal = load_ir("galileo")
+        lowered_gal = lower(ir_gal, version="4.0.0")
+        await batch_integrate(
+            storage,
+            [
+                ExtractionResult(
+                    package_id=lowered_gal.package_id,
+                    version=lowered_gal.version,
+                    local_variables=lowered_gal.local_variables,
+                    local_factors=lowered_gal.local_factors,
+                )
+            ],
+        )
+
+        count_before = await storage.content.count("global_variable_nodes")
+
+        # Newton has one overlap (vacuum_prediction)
+        ir_new = load_ir("newton")
+        lowered_new = lower(ir_new, version="4.0.0")
+        stats2 = await batch_integrate(
+            storage,
+            [
+                ExtractionResult(
+                    package_id=lowered_new.package_id,
+                    version=lowered_new.version,
+                    local_variables=lowered_new.local_variables,
+                    local_factors=lowered_new.local_factors,
+                )
+            ],
+        )
+
+        count_after = await storage.content.count("global_variable_nodes")
+        assert stats2.dedup_with_existing >= 1
+        assert count_after == count_before + stats2.new_global_variables
