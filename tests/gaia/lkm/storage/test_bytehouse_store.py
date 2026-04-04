@@ -43,6 +43,7 @@ def test_constructor_connects():
             password="pw",
             database="mydb",
             secure=False,
+            compress=False,
         )
     assert store._client is mock_client
 
