@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import typer
 
 from gaia.cli._packages import GaiaCliError, compile_loaded_package, load_gaia_package
@@ -12,6 +14,7 @@ from gaia.ir.validator import validate_local_graph
 
 def compile_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
+    readme: bool = typer.Option(False, "--readme", help="Generate README.md at package root"),
 ) -> None:
     """Compile a knowledge package to .gaia/ir.json."""
     try:
@@ -38,3 +41,31 @@ def compile_command(
     )
     typer.echo(f"IR hash: {ir['ir_hash'][:16]}...")
     typer.echo(f"Output: {gaia_dir / 'ir.json'}")
+
+    if readme:
+        from gaia.cli.commands._readme import generate_readme
+
+        beliefs_data = None
+        param_data = None
+        reviews_dir = loaded.pkg_path / ".gaia" / "reviews"
+        if reviews_dir.exists():
+            review_dirs = sorted(
+                (d for d in reviews_dir.iterdir() if d.is_dir()),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
+            for rd in review_dirs:
+                beliefs_path = rd / "beliefs.json"
+                if beliefs_path.exists():
+                    beliefs_data = json.loads(beliefs_path.read_text())
+                    param_path = rd / "parameterization.json"
+                    if param_path.exists():
+                        param_data = json.loads(param_path.read_text())
+                    break
+
+        content = generate_readme(
+            ir, loaded.project_config, beliefs_data=beliefs_data, param_data=param_data
+        )
+        readme_path = loaded.pkg_path / "README.md"
+        readme_path.write_text(content)
+        typer.echo(f"README: {readme_path}")
