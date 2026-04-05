@@ -13,8 +13,8 @@ from gaia.ir import (
 
 
 class TestStrategyType:
-    def test_ten_types(self):
-        assert len(StrategyType) == 10
+    def test_eleven_types(self):
+        assert len(StrategyType) == 11
         expected = {
             "infer",
             "noisy_and",
@@ -26,6 +26,7 @@ class TestStrategyType:
             "abduction",
             "analogy",
             "extrapolation",
+            "induction",
         }
         assert set(StrategyType) == expected
 
@@ -54,10 +55,9 @@ class TestStrategyType:
         with pytest.raises(ValueError):
             StrategyType("independent_evidence")
 
-    def test_induction_deferred(self):
-        """induction is deferred in Gaia IR core and may return as authoring sugar later."""
-        with pytest.raises(ValueError):
-            StrategyType("induction")
+    def test_induction_exists(self):
+        """induction is a valid CompositeStrategy type."""
+        assert StrategyType("induction") == StrategyType.INDUCTION
 
 
 class TestStrategyCreation:

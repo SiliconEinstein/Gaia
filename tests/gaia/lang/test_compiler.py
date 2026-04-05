@@ -4,7 +4,17 @@ import pytest
 
 import warnings
 
-from gaia.lang import Step, claim, infer, noisy_and, setting, composite, abduction, contradiction
+from gaia.lang import (
+    Step,
+    claim,
+    infer,
+    noisy_and,
+    setting,
+    composite,
+    abduction,
+    contradiction,
+    induction,
+)
 from gaia.lang.compiler.compile import (
     compile_package_artifact,
     _compile_reason,
@@ -364,3 +374,56 @@ def test_at_label_in_background_ok():
         compile_package_artifact(pkg)
         at_warnings = [x for x in w if "@" in str(x.message)]
         assert len(at_warnings) == 0
+
+
+def test_induction_reason_at_labels_do_not_warn_on_sub_abductions():
+    pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
+    with pkg:
+        law = claim("Law.")
+        law.label = "law"
+        obs1 = claim("Observation 1.")
+        obs1.label = "obs1"
+        obs2 = claim("Observation 2.")
+        obs2.label = "obs2"
+        induction([obs1, obs2], law, reason="Generalizes from @obs1 and @obs2.")
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        compile_package_artifact(pkg)
+        at_warnings = [x for x in w if "@" in str(x.message)]
+        assert len(at_warnings) == 0
+
+
+def test_compile_induction():
+    """Induction compiles to CompositeStrategy + FormalStrategy sub-abductions."""
+    pkg = CollectedPackage("test_induction", namespace="github", version="1.0.0")
+    with pkg:
+        law = claim("All metals expand when heated.")
+        law.label = "law"
+        obs1 = claim("Iron expands when heated.")
+        obs1.label = "obs1"
+        obs2 = claim("Copper expands when heated.")
+        obs2.label = "obs2"
+        alt1 = claim("Iron expansion has local cause.")
+        alt1.label = "alt1"
+
+        induction([obs1, obs2], law, alt_exps=[alt1, None])
+
+    result = compile_package_artifact(pkg)
+
+    # Find the CompositeStrategy (type=induction)
+    composites = [
+        s for s in result.graph.strategies if hasattr(s, "sub_strategies") and s.sub_strategies
+    ]
+    assert len(composites) == 1
+    comp = composites[0]
+    assert comp.type == "induction"
+
+    # It should reference 2 sub-strategies
+    assert len(comp.sub_strategies) == 2
+
+    # Sub-strategies should be FormalStrategy(type=abduction)
+    strategy_by_id = {s.strategy_id: s for s in result.graph.strategies}
+    for sub_id in comp.sub_strategies:
+        sub = strategy_by_id[sub_id]
+        assert sub.type == "abduction"
+        assert hasattr(sub, "formal_expr")  # formalized at compile time

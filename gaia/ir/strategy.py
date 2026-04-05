@@ -41,6 +41,9 @@ class StrategyType(StrEnum):
     ANALOGY = "analogy"
     EXTRAPOLATION = "extrapolation"
 
+    # Composite strategies — non-atomic
+    INDUCTION = "induction"  # CompositeStrategy wrapping shared-conclusion abductions
+
 
 class Step(BaseModel):
     """A single reasoning step (local layer only)."""

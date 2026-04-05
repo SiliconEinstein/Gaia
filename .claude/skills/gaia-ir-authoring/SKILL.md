@@ -124,6 +124,7 @@ Use explicit strategy functions when you need a specific reasoning type beyond `
 ```python
 from gaia.lang import deduction, abduction, analogy, extrapolation
 from gaia.lang import elimination, case_analysis, mathematical_induction
+from gaia.lang import induction
 
 # Deduction: strict deterministic derivation (math proofs, logical syllogisms).
 # The reasoning step itself is error-free — uncertainty comes ONLY from premises.
@@ -157,9 +158,19 @@ case_analysis(
 
 # Mathematical induction: base + step → law
 mathematical_induction(base_case, inductive_step, law_claim)
+
+# Induction: multiple observations → law (CompositeStrategy wrapping abductions)
+# Top-down: pass observations, auto-generates abduction sub-strategies
+induction([obs_1, obs_2, obs_3], law_claim)
+# With explicit alternative explanations:
+induction([obs_1, obs_2], law_claim, alt_exps=[alt_1, alt_2])
+# Bottom-up: bundle existing abductions
+abd1 = abduction(obs_1, law_claim, alt_1)
+abd2 = abduction(obs_2, law_claim, alt_2)
+induction([abd1, abd2])
 ```
 
-All named strategies are automatically formalized into `FormalStrategy` with `FormalExpr` at compile time via the canonical IR formalizer. Do NOT build `FormalExpr` by hand.
+All named strategies (except `induction`) are automatically formalized into `FormalStrategy` with `FormalExpr` at compile time via the canonical IR formalizer. `induction` compiles to a `CompositeStrategy` wrapping its sub-abductions, each of which is independently formalized. Do NOT build `FormalExpr` by hand.
 
 ### Step 5: Export public interface
 
