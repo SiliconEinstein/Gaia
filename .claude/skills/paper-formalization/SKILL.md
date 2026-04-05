@@ -304,7 +304,7 @@ digraph refine {
 | 观察 → 假说 | `abduction` | 由 formal_expr 确定 |
 | 源 → 目标类比 | `analogy` | 由 formal_expr 确定 |
 | 外推 | `extrapolation` | 由 formal_expr 确定 |
-| 归纳（精确极限 + 数值→通则） | `infer`（暂） | 需要完整 CPT |
+| 归纳（多观测→通则） | `induction` | 由子 abduction 的 formal_expr 确定 |
 
 **关键区分：deduction vs noisy_and**
 
