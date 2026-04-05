@@ -41,8 +41,14 @@ class Embedder:
                         headers=self._headers,
                     )
                     response.raise_for_status()
-                    return response.json()["data"]["vector"]
-            except (httpx.HTTPError, KeyError) as exc:
+                    body = response.json()
+                    if "data" not in body:
+                        raise ValueError(
+                            f"API returned no 'data' field: {body.get('code')}, "
+                            f"{body.get('error', {}).get('msg', 'unknown')}"
+                        )
+                    return body["data"]["vector"]
+            except (httpx.HTTPError, KeyError, ValueError) as exc:
                 last_exc = exc
                 if attempt < self._config.embedding_max_retries - 1:
                     await asyncio.sleep(0.5 * (attempt + 1))
@@ -81,11 +87,16 @@ async def _batch_fetch_content(
     logger.info("Batch-fetching content for %d unique local variables...", len(unique_local_ids))
     local_vars = await storage.get_local_variables_by_ids(unique_local_ids)
 
-    # Map back to gcn_ids
+    # Map back to gcn_ids — skip empty/placeholder content
+    skipped_empty = 0
     for gcn_id, local_id in items:
         lv = local_vars.get(local_id)
-        if lv and lv.content:
+        if lv and lv.content and len(lv.content.strip()) > 10:
             gcn_to_content[gcn_id] = lv.content
+        else:
+            skipped_empty += 1
+    if skipped_empty:
+        logger.info("Skipped %d variables with empty/short content", skipped_empty)
 
     logger.info(
         "Content fetch: %d requested, %d unique local, %d found",
