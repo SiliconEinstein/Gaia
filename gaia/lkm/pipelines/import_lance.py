@@ -4,7 +4,7 @@ Processes papers in chunked batches to stay memory-bounded at any scale.
 
 Usage:
     # Fast local import (空表 → add() 快路径, ~100s/1000篇)
-    python -m gaia.lkm.pipelines.import_lance import \
+    python -m gaia.lkm.pipelines.import_lance \
         --lkm-db-uri ./data/lancedb/lkm-bulk \
         --max-papers 300000
 
@@ -14,12 +14,12 @@ Usage:
         --s3-uri s3://datainfra-test/gaia_server_test
 
     # Direct S3 import (slower, for incremental updates)
-    python -m gaia.lkm.pipelines.import_lance import \
+    python -m gaia.lkm.pipelines.import_lance \
         --lkm-db-uri s3://datainfra-test/gaia_server_test \
         --max-papers 100
 
     # Dry run
-    python -m gaia.lkm.pipelines.import_lance import \
+    python -m gaia.lkm.pipelines.import_lance \
         --lkm-db-uri ./data/lancedb/lkm-bulk \
         --dry-run
 """
@@ -356,13 +356,17 @@ async def run_batch_import(
 # ── Upload local → S3 ──
 
 
-def upload_local_to_s3(local_path: str, s3_uri: str) -> None:
-    """Upload a local LanceDB directory to S3 by copying all lance table data.
+_UPLOAD_BATCH_SIZE = 50_000  # rows per upload batch to avoid OOM
 
-    Opens both databases and copies each table from local to remote via
-    LanceDB's add() (pure append, fast for bulk upload).
+
+def upload_local_to_s3(local_path: str, s3_uri: str) -> None:
+    """Upload a local LanceDB directory to S3 by streaming table data in batches.
+
+    Reads each table in batches of _UPLOAD_BATCH_SIZE rows to stay memory-bounded,
+    even for tables with millions of rows.
     """
     import lancedb as _lancedb
+    import pyarrow as pa
 
     from gaia.lkm.storage.config import StorageConfig
 
@@ -382,9 +386,6 @@ def upload_local_to_s3(local_path: str, s3_uri: str) -> None:
             logger.info("Skipping empty table: %s", table_name)
             continue
 
-        data = local_table.to_arrow()
-        logger.info("Uploading %s: %d rows (%.1f MB)...", table_name, row_count, data.nbytes / 1e6)
-
         if table_name in remote_tables:
             remote_table = remote_db.open_table(table_name)
             existing = remote_table.count_rows()
@@ -396,11 +397,22 @@ def upload_local_to_s3(local_path: str, s3_uri: str) -> None:
                     existing,
                 )
                 continue
-            remote_table.add(data)
-        else:
-            remote_db.create_table(table_name, data)
 
-        logger.info("Uploaded %s ✓", table_name)
+        logger.info(
+            "Uploading %s: %d rows in batches of %d...", table_name, row_count, _UPLOAD_BATCH_SIZE
+        )
+        uploaded = 0
+        for batch in local_table.to_lance().to_batches(batch_size=_UPLOAD_BATCH_SIZE):
+            batch_table = pa.Table.from_batches([batch], schema=batch.schema)
+            if table_name not in remote_tables:
+                remote_db.create_table(table_name, batch_table)
+                remote_tables.add(table_name)
+            else:
+                remote_db.open_table(table_name).add(batch_table)
+            uploaded += batch_table.num_rows
+            logger.info("  %s: %d/%d rows uploaded", table_name, uploaded, row_count)
+
+        logger.info("Uploaded %s ✓ (%d rows)", table_name, uploaded)
 
     logger.info("Upload complete: %d tables", len(local_tables))
 
@@ -412,48 +424,47 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Batch import papers from ByteHouse/TOS into LKM")
     sub = parser.add_subparsers(dest="command")
 
-    # ── import (default) ──
-    p_import = sub.add_parser("import", help="Import papers into LanceDB")
-    p_import.add_argument(
+    # ── import: args on main parser so bare invocation works ──
+    parser.add_argument(
         "--keywords",
         default=None,
         help="Token search on en_title (e.g. 'nuclear fusion')",
     )
-    p_import.add_argument(
+    parser.add_argument(
         "--areas",
         default=None,
         help="Filter by areas partition (e.g. 'Physics')",
     )
-    p_import.add_argument(
+    parser.add_argument(
         "--lkm-db-uri",
-        required=True,
+        default=None,
         help="Target LanceDB URI (local path for fast import, or s3://...)",
     )
-    p_import.add_argument(
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path("./output/import"),
         help="Output directory for checkpoint and logs (default: ./output/import)",
     )
-    p_import.add_argument(
+    parser.add_argument(
         "--chunk-size",
         type=int,
         default=1000,
         help="Papers per chunk (download+extract+integrate) (default: 1000)",
     )
-    p_import.add_argument(
+    parser.add_argument(
         "--max-papers",
         type=int,
         default=None,
         help="Limit number of papers to import",
     )
-    p_import.add_argument(
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Query and print matching papers without importing",
     )
 
-    # ── upload ──
+    # ── upload subcommand ──
     p_upload = sub.add_parser("upload", help="Upload local LanceDB to S3")
     p_upload.add_argument(
         "--local-path",
@@ -472,12 +483,6 @@ def main() -> None:
 
     load_dotenv()
 
-    # Default to 'import' when no subcommand given but --lkm-db-uri is passed
-    if args.command is None:
-        # Re-parse as import for backward compatibility
-        args = p_import.parse_args()
-        args.command = "import"
-
     if args.command == "upload":
         logging.basicConfig(
             level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
@@ -485,7 +490,10 @@ def main() -> None:
         upload_local_to_s3(args.local_path, args.s3_uri)
         return
 
-    # command == "import"
+    # command is None or "import" → run import
+    if not args.lkm_db_uri:
+        parser.error("--lkm-db-uri is required for import")
+
     from gaia.lkm.logging import configure_logging
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
