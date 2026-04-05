@@ -105,13 +105,15 @@ def _split_cluster(
 ) -> list[list[int]]:
     """Split a list of indices into chunks of at most max_size.
 
-    Simple greedy split — just partition sequentially.
+    If the last chunk has only 1 element, merge it into the previous chunk
+    (which may then exceed max_size by 1) to avoid silently dropping nodes.
     """
     chunks = []
     for start in range(0, len(indices), max_size):
-        chunk = indices[start : start + max_size]
-        if len(chunk) >= 2:
-            chunks.append(chunk)
+        chunks.append(indices[start : start + max_size])
+    # Merge lone remainder into previous chunk to avoid dropping it
+    if len(chunks) >= 2 and len(chunks[-1]) == 1:
+        chunks[-2].extend(chunks.pop())
     return chunks
 
 
@@ -146,7 +148,8 @@ def cluster_embeddings(
     index = faiss.IndexFlatIP(dim)
     index.add(normed)
 
-    k = min(config.faiss_k, n)
+    # Search k+1 because IndexFlatIP returns the query itself as the top hit
+    k = min(config.faiss_k + 1, n)
     similarities, neighbor_indices = index.search(normed, k)
     # similarities shape: (N, k), neighbor_indices shape: (N, k)
 

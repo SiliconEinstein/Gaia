@@ -23,6 +23,10 @@ class ByteHouseEmbeddingStore:
 
     _COLUMNS = ["gcn_id", "content", "node_type", "embedding", "source_id"]
 
+    # Default replication root used by the ByteHouse instance.
+    # Override via replication_root param for staging/test environments.
+    _DEFAULT_REPLICATION_ROOT = "/clickhouse/2100109874/sciencepedia_new"
+
     def __init__(
         self,
         host: str,
@@ -30,6 +34,7 @@ class ByteHouseEmbeddingStore:
         password: str,
         database: str = "paper_data",
         secure: bool = True,
+        replication_root: str | None = None,
     ) -> None:
         """Connect to ByteHouse/ClickHouse.
 
@@ -41,6 +46,7 @@ class ByteHouseEmbeddingStore:
             secure: Whether to use TLS.
         """
         self._database = database
+        self._replication_root = replication_root or self._DEFAULT_REPLICATION_ROOT
         self._client = clickhouse_connect.get_client(
             host=host,
             user=user,
@@ -73,7 +79,7 @@ class ByteHouseEmbeddingStore:
             created_at  DateTime DEFAULT now()
         )
         ENGINE = HaUniqueMergeTree(
-            '/clickhouse/2100109874/sciencepedia_new/{table_fqn}/{{shard}}',
+            '{self._replication_root}/{table_fqn}/{{shard}}',
             '{{replica}}'
         )
         ORDER BY gcn_id

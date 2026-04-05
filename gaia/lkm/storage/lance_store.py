@@ -504,15 +504,16 @@ class LanceContentStore:
         """List all public global variable IDs with type and representative_lcn.
 
         Returns list of dicts: {id, type, representative_lcn (JSON string)}.
-        No limit — scans the full table.
+        Scans the full table — uses count_rows() to set the limit.
         """
         table = self._db.open_table("global_variable_nodes")
+        total = await self._run(table.count_rows)
         results = await self._run(
             lambda: (
                 table.search()
                 .where("visibility = 'public'")
                 .select(["id", "type", "representative_lcn"])
-                .limit(_MAX_SCAN)
+                .limit(max(total, _MAX_SCAN))
                 .to_list()
             )
         )

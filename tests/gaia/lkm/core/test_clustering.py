@@ -105,6 +105,27 @@ def test_max_cluster_size_enforced():
     assert all_covered == set(gcn_ids)
 
 
+def test_max_cluster_size_no_dropped_remainder():
+    """21 near-identical vectors with max_cluster_size=20 → no node is dropped.
+
+    Regression test: a remainder of 1 node must be merged into the last chunk,
+    not silently discarded.
+    """
+    from gaia.lkm.core._clustering import cluster_embeddings
+
+    np.random.seed(99)
+    n = 21
+    base = np.random.randn(512).astype(np.float32)
+    matrix = np.stack([base + np.random.randn(512).astype(np.float32) * 0.01 for _ in range(n)])
+    gcn_ids = [f"node_{i}" for i in range(n)]
+
+    config = _make_config(similarity_threshold=0.80, max_cluster_size=20, faiss_k=30)
+    clusters = cluster_embeddings(gcn_ids, matrix, config)
+
+    all_covered = {gid for c in clusters for gid in c.gcn_ids}
+    assert all_covered == set(gcn_ids), f"Missing nodes: {set(gcn_ids) - all_covered}"
+
+
 def test_exclude_same_factor():
     """Two similar vectors sharing a factor are NOT merged into a cluster."""
     from gaia.lkm.core._clustering import cluster_embeddings
