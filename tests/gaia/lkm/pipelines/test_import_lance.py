@@ -18,6 +18,7 @@ class TestCheckpoint:
         path = tmp_path / "cp.json"
         cp1 = Checkpoint(path)
         cp1.update("paper1", "ingested")
+        cp1.flush()
 
         cp2 = Checkpoint(path)
         assert cp2.status("paper1") == "ingested"
@@ -29,6 +30,11 @@ class TestCheckpoint:
 
         pending = cp.pending(["p1", "p2", "p3"])
         assert pending == ["p2", "p3"]
+
+    def test_flush_noop_when_clean(self, tmp_path):
+        cp = Checkpoint(tmp_path / "cp.json")
+        cp.flush()  # should not crash on empty, non-dirty state
+        assert not (tmp_path / "cp.json").exists()
 
 
 class TestMergeXmls:
