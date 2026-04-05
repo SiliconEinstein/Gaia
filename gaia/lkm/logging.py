@@ -31,6 +31,8 @@ def configure_logging(
 
     if log_file is not None:
         log_file.parent.mkdir(parents=True, exist_ok=True)
+        # Unbuffered writes so `tail -f` shows progress in real time
         fh = logging.FileHandler(log_file)
         fh.setFormatter(formatter)
+        fh.stream.reconfigure(line_buffering=True)
         root_logger.addHandler(fh)
