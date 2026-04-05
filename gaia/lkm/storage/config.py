@@ -30,16 +30,41 @@ class StorageConfig(BaseSettings):
     neo4j_password: str = ""
     neo4j_database: str = "neo4j"
 
+    # ByteHouse (ClickHouse-compatible)
+    bytehouse_host: str = ""
+    bytehouse_user: str = ""
+    bytehouse_password: str = ""
+    bytehouse_database: str = "paper_data"
+    bytehouse_replication_root: str = ""  # ZooKeeper path prefix for HaUniqueMergeTree
+
+    # Embedding API
+    embedding_access_key: str = ""
+
     model_config = {"env_prefix": "LKM_"}
 
     def model_post_init(self, __context: object) -> None:
-        """Fall back to TOS_* env vars if LKM_TOS_* not set."""
+        """Fall back to TOS_* / BYTEHOUSE_* / ACCESS_KEY env vars if LKM_* not set."""
         if not self.tos_access_key:
             self.tos_access_key = os.environ.get("TOS_ACCESS_KEY", "")
         if not self.tos_secret_key:
             self.tos_secret_key = os.environ.get("TOS_SECRET_KEY", "")
         if self.tos_endpoint == "tos-s3-cn-beijing.volces.com":
             self.tos_endpoint = os.environ.get("TOS_ENDPOINT", self.tos_endpoint)
+        # ByteHouse fallbacks from BYTEHOUSE_* env vars
+        if not self.bytehouse_host:
+            self.bytehouse_host = os.environ.get("BYTEHOUSE_HOST", "")
+        if not self.bytehouse_user:
+            self.bytehouse_user = os.environ.get("BYTEHOUSE_USER", "")
+        if not self.bytehouse_password:
+            self.bytehouse_password = os.environ.get("BYTEHOUSE_PASSWORD", "")
+        bh_db = os.environ.get("BYTEHOUSE_DATABASE", "")
+        if bh_db:
+            self.bytehouse_database = bh_db
+        if not self.bytehouse_replication_root:
+            self.bytehouse_replication_root = os.environ.get("BYTEHOUSE_REPLICATION_ROOT", "")
+        # Embedding API key fallback
+        if not self.embedding_access_key:
+            self.embedding_access_key = os.environ.get("ACCESS_KEY", "")
 
     @property
     def effective_lancedb_uri(self) -> str:

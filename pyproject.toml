@@ -21,6 +21,7 @@ dependencies = [
     "typer[all]>=0.12",
     "numpy>=1.26,<2.4",  # numpy 2.4 breaks pytest-cov (double-import C extension)
     "httpx>=0.27",
+    "faiss-cpu>=1.7",
 ]
 
 [project.urls]

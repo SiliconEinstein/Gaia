@@ -151,6 +151,12 @@ class StorageManager:
     async def get_local_variable(self, local_id: str) -> LocalVariableNode | None:
         return await self.content.get_local_variable(local_id)
 
+    async def get_local_variables_by_ids(
+        self, local_ids: list[str]
+    ) -> dict[str, LocalVariableNode]:
+        """Batch-fetch local variables by ID list."""
+        return await self.content.get_local_variables_by_ids(local_ids)
+
     async def get_global_variable(self, gcn_id: str) -> GlobalVariableNode | None:
         return await self.content.get_global_variable(gcn_id)
 
@@ -158,6 +164,10 @@ class StorageManager:
         self, content_hash: str, visibility: str = "public"
     ) -> GlobalVariableNode | None:
         return await self.content.find_global_by_content_hash(content_hash, visibility)
+
+    async def list_all_public_global_ids(self) -> list[dict]:
+        """List all public global variable IDs with type and representative_lcn."""
+        return await self.content.list_all_public_global_ids()
 
     # ── Reads: factors ──
 
@@ -233,3 +243,19 @@ class StorageManager:
         self, gcn_id: str, updated_node: GlobalVariableNode
     ) -> None:
         await self.content.update_global_variable_members(gcn_id, updated_node)
+
+    # ── ByteHouse ──
+
+    def create_bytehouse_store(self):
+        """Create a ByteHouseEmbeddingStore from config. Returns None if not configured."""
+        from gaia.lkm.storage.bytehouse_store import ByteHouseEmbeddingStore
+
+        if not self._config.bytehouse_host:
+            return None
+        return ByteHouseEmbeddingStore(
+            host=self._config.bytehouse_host,
+            user=self._config.bytehouse_user,
+            password=self._config.bytehouse_password,
+            database=self._config.bytehouse_database,
+            replication_root=self._config.bytehouse_replication_root,
+        )
