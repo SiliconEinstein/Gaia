@@ -130,6 +130,7 @@ Support (base)
 ├── Infer
 │   └── NoisyAnd
 └── Composite                  # sub_supports
+    └── Induction              # sub_supports 全是 Abduction
 ```
 
 ### 3.3 类定义
@@ -202,11 +203,28 @@ class NoisyAnd(Infer):
 @dataclass
 class Composite(Support):
     sub_supports: list[Support] = field(default_factory=list)
+
+@dataclass
+class Induction(Composite):
+    """sub_supports 全是 Abduction"""
+    pass
 ```
 
-### 3.4 `claim.support` 基数
+### 3.4 `claim.support` 基数与自动聚合
 
-单值。多条独立 support 通过 `Composite` 聚合。
+`claim.support` 单值。当同一个 Claim 被附加多条 support 时，自动聚合为 `Composite`：
+
+```python
+c = claim("C")
+deduction(c, given=[a, b])              # c.support = Deduction(...)
+induction(c, observations=[obs1, obs2]) # c.support 自动变为 Composite(sub_supports=[Deduction, Induction])
+```
+
+规则：
+
+1. 第一次附加 → `claim.support = s`
+2. 第二次附加 → `claim.support = Composite(sub_supports=[原 support, 新 support])`
+3. 后续附加 → 追加到 `claim.support.sub_supports`
 
 ---
 
@@ -214,23 +232,26 @@ class Composite(Support):
 
 ### 4.1 核心原则
 
-所有 support 构造器返回 `Claim`（Claim in, Claim out）：
+**Claim in, Claim out。** 第一个参数可以是 `str`（创建新 Claim）或 `Claim`（附加 support 到已有 Claim）：
 
 ```python
+# 模式 1：str → 创建新 Claim 并附加 support
 c = deduction("C", given=[a, b])
-c = abduction("H", observation=obs)
-c = induction("L", observations=[obs1, obs2])
-c = analogy("T", source=s, bridge=b)
-c = claim("C", given=[a, b])  # → NoisyAnd
-c = infer("C", given=[a, b])  # → Infer
+
+# 模式 2：Claim → 附加 support 到已有 Claim（多条自动聚合为 Composite）
+c = claim("C")
+deduction(c, given=[a, b])
+induction(c, observations=[obs1, obs2])
+# c.support 现在是 Composite(sub_supports=[Deduction, Induction])
 ```
 
-内部动作统一为：
+内部动作：
 
-1. 创建 Claim
+1. 若第一个参数是 `str` → 创建 Claim
 2. 创建对应 Support 子类实例
-3. 赋给 `claim.support`
+3. 附加到 `claim.support`（多条自动聚合，见 §3.4）
 4. 注册到 package
+5. 返回 Claim
 
 ### 4.2 Knowledge 构造器
 
@@ -244,31 +265,27 @@ def question(content, *, title=None, **metadata) -> Question
 
 ### 4.3 Formal 构造器
 
+所有第一参数类型为 `str | Claim`：
+
 ```python
-def deduction(content, /, *, given: list[Claim], background=None, reason="", title=None, label=None, **metadata) -> Claim
-def abduction(content, /, *, observation: Claim, alternative: Claim | None = None, background=None, reason="", title=None, label=None, **metadata) -> Claim
-def induction(content, /, *, observations: list[Claim], alternatives: list[Claim | None] | None = None, background=None, reason="", title=None, label=None, **metadata) -> Claim
-def analogy(content, /, *, source: Claim, bridge: Claim, background=None, reason="", title=None, label=None, **metadata) -> Claim
-def extrapolation(content, /, *, source: Claim, continuity: Claim, background=None, reason="", title=None, label=None, **metadata) -> Claim
-def elimination(content, /, *, exhaustiveness: Claim, excluded: list[tuple[Claim, Claim]], background=None, reason="", title=None, label=None, **metadata) -> Claim
-def case_analysis(content, /, *, exhaustiveness: Claim, cases: list[tuple[Claim, Claim]], background=None, reason="", title=None, label=None, **metadata) -> Claim
-def mathematical_induction(content, /, *, base: Claim, step: Claim, background=None, reason="", title=None, label=None, **metadata) -> Claim
+def deduction(target, /, *, given: list[Claim], ...) -> Claim
+def abduction(target, /, *, observation: Claim, alternative: Claim | None = None, ...) -> Claim
+def induction(target, /, *, observations: list[Claim], alternatives: list[Claim | None] | None = None, ...) -> Claim
+def analogy(target, /, *, source: Claim, bridge: Claim, ...) -> Claim
+def extrapolation(target, /, *, source: Claim, continuity: Claim, ...) -> Claim
+def elimination(target, /, *, exhaustiveness: Claim, excluded: list[tuple[Claim, Claim]], ...) -> Claim
+def case_analysis(target, /, *, exhaustiveness: Claim, cases: list[tuple[Claim, Claim]], ...) -> Claim
+def mathematical_induction(target, /, *, base: Claim, step: Claim, ...) -> Claim
 ```
+
+`induction()` 内部创建 `Induction(Composite)` 实例，sub_supports 全是 Abduction。
 
 ### 4.4 Infer 构造器
 
 ```python
-def noisy_and(content, /, *, given: list[Claim], background=None, reason="", title=None, label=None, **metadata) -> Claim
-def infer(content, /, *, given: list[Claim], background=None, reason="", title=None, label=None, **metadata) -> Claim
+def noisy_and(target, /, *, given: list[Claim], ...) -> Claim
+def infer(target, /, *, given: list[Claim], ...) -> Claim
 ```
-
-### 4.5 Composite 构造器
-
-```python
-def composite_support(*, premises: list[Claim], conclusion: Claim, sub_supports: list[Support], background=None, reason="", label=None, **metadata) -> Support
-```
-
-返回 `Support`，不返回 `Claim`（escape hatch）。
 
 ### 4.6 Operator（不变）
 

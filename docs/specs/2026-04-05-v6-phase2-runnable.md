@@ -16,8 +16,8 @@
 
 ```
 Support
-├── Formal / Infer / Composite  (Phase 1)
-└── Runnable                     ← 本阶段新增
+├── Formal / Infer / Composite (incl. Induction)  (Phase 1)
+└── Runnable                                       ← 本阶段新增
     ├── Execution
     ├── Check
     └── FormalProof
