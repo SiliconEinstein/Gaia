@@ -49,7 +49,7 @@ from gaia.lkm.storage.source_lance import (
     search_papers,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("gaia.lkm.pipelines.import_lance")
 
 
 # ── Checkpoint ──
