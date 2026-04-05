@@ -87,10 +87,15 @@ _ROLE_TO_CSS = {
 }
 
 # Strategy type classification for visual rendering
-_DETERMINISTIC_STRATEGIES = frozenset({
-    "deduction", "reductio", "elimination",
-    "mathematical_induction", "case_analysis",
-})
+_DETERMINISTIC_STRATEGIES = frozenset(
+    {
+        "deduction",
+        "reductio",
+        "elimination",
+        "mathematical_induction",
+        "case_analysis",
+    }
+)
 
 # Operator symbol mapping for Mermaid hexagon nodes
 _OPERATOR_SYMBOLS = {
@@ -447,9 +452,7 @@ def _render_overview_graph(
         label = k.get("label", "")
         kid = k["id"]
         title = k.get("title") or label
-        display = (
-            f"{title} ({beliefs[kid]:.2f})" if beliefs and kid in beliefs else title
-        )
+        display = f"{title} ({beliefs[kid]:.2f})" if beliefs and kid in beliefs else title
         display = display.replace('"', "#quot;")
         role = node_role(kid, k["type"], c)
         css = _ROLE_TO_CSS.get(role, "orphan")
