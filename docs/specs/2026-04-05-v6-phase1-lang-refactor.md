@@ -287,13 +287,37 @@ def noisy_and(target, /, *, given: list[Claim], ...) -> Claim
 def infer(target, /, *, given: list[Claim], ...) -> Claim
 ```
 
-### 4.6 Operator（不变）
+### 4.5 Operator（不变）
 
 `contradiction()` / `equivalence()` / `complement()` / `disjunction()` 保持 v5 语义不变。
 
 ---
 
-## 5. Review
+## 5. 语法糖：自动 label
+
+模块级变量自动获得与变量名相同的 label，不用重复写：
+
+```python
+# v5：需要手动写 label
+obs1 = claim("铝在 1.2K 以下出现零电阻", label="obs1")
+
+# v6：自动推断
+obs1 = claim("铝在 1.2K 以下出现零电阻")
+# obs1.label 自动设为 "obs1"
+```
+
+实现机制：package 收集时，通过模块 `__dict__` 反查变量名，赋给 `label`（仅当 `label is None` 时）。v5 已有 `_declaration_index` 的自动追踪，label 推断类似。
+
+手动设置的 label 优先：
+
+```python
+obs1 = claim("铝在 1.2K 以下出现零电阻", label="al_zero_resistance")
+# obs1.label == "al_zero_resistance"（不被覆盖）
+```
+
+---
+
+## 6. Review
 
 ### 5.1 rename
 
@@ -312,7 +336,7 @@ def infer(target, /, *, given: list[Claim], ...) -> Claim
 
 ---
 
-## 6. v5 兼容
+## 7. v5 兼容
 
 ### 6.1 双入口
 
@@ -347,7 +371,7 @@ Knowledge.type  # 保留，用于序列化兼容
 
 ---
 
-## 7. 不在本阶段做的事
+## 8. 不在本阶段做的事
 
 - Runnable（execute / check / formal_proof）→ Phase 2
 - Package 结构重组（gaia/ 目录）→ Phase 3

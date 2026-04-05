@@ -56,13 +56,13 @@ class Execution(Runnable):
     execution_backend: str | None = None  # python / shell / remote
 ```
 
-构造器：
+构造器（第一参数统一为 `str | Claim`，与 Phase 1 所有构造器一致）：
 
 ```python
 def execute(
-    fn: Callable | str, /, *,
+    target: str | Claim, /, *,
+    fn: Callable | str,
     given: list[Claim],
-    returns: str,
     background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
     title: str | None = None,
@@ -79,9 +79,9 @@ def execute(
 solver_validated = claim("该 CFD 求解器在低 Re 方腔流中已通过基准验证")
 
 pressure = execute(
-    run_cfd,
+    "CFD 计算得到方腔内的压力场 P",
+    fn=run_cfd,
     given=[geometry, bc, solver_validated],
-    returns="CFD 计算得到方腔内的压力场 P",
 )
 ```
 
@@ -98,9 +98,9 @@ class Check(Runnable):
 
 ```python
 def check(
-    checker: Callable | str, /, *,
+    target: str | Claim, /, *,
+    fn: Callable | str,
     given: list[Claim],
-    returns: str,
     background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
     title: str | None = None,
@@ -117,9 +117,9 @@ def check(
 suite_covers_target = claim("回归测试集覆盖了目标 Re 数范围")
 
 solver_ok = check(
-    run_regression_tests,
+    "求解器在回归测试集上通过了所有精度检查",
+    fn=run_regression_tests,
     given=[spec, suite_covers_target],
-    returns="求解器在回归测试集上通过了所有精度检查",
 )
 ```
 
@@ -137,7 +137,7 @@ class FormalProof(Runnable):
 
 ```python
 def formal_proof(
-    content: str, /, *,
+    target: str | Claim, /, *,
     system: str,
     theorem_ref: str,
     given: list[Claim] | None = None,
