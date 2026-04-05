@@ -54,23 +54,15 @@
 ```python
 @dataclass
 class Claim(Knowledge):
-    supports: list[Support] = field(default_factory=list)
-
-    @property
-    def primary_support(self) -> Support | None:
-        """The first registered support, or None."""
-        return self.supports[0] if self.supports else None
+    support: Support | None = None
 ```
 
-**基数说明：** 一个 Claim 可以拥有多条 Support（例如同一结论通过 deduction 和 induction 两条独立路径获得支撑）。在 v5 中，`Knowledge.strategy` 是单值 back-reference（last-writer-wins）——如果两条 strategy 共享同一个 conclusion，后者会覆盖前者。v6 通过列表消除这一缺陷。
+**基数说明：`claim.support` 保持单值。** 如果同一个结论需要多条独立的 support 路径，应使用 `composite_support` 将它们聚合为一条 composite support（通过 `sub_supports` 持有子 support），再挂到 claim 上。这与 v5 的 `Strategy.sub_strategies` 聚合模式一致——聚合发生在 support 层，不在 claim 层维护列表。
 
-`primary_support` 是最常用的访问路径。大多数 claim 只有一条 support。
-
-Phase 1 兼容实现允许继续复用现有 runtime dataclass，并保留 `.strategy` 字段。v6 authoring API 在底层将 `.strategy` 映射为 `supports[0]`：
+Phase 1 兼容实现允许继续复用现有 runtime dataclass，并保留 `.strategy` 字段；v6 authoring API 应新增或文档化 `.support` 作为首选访问路径：
 
 ```python
-# Phase 1 兼容
-claim.strategy is claim.primary_support
+claim.support is claim.strategy
 ```
 
 ## 3.2 Support
@@ -145,7 +137,7 @@ thm = formal_proof("P(a) holds.", system="lean", theorem_ref="MyPkg.theorem_a")
 
 1. 创建 conclusion claim
 2. 创建 support
-3. 将 support 追加到 `claim.supports` 列表
+3. 将 support 赋给 `claim.support`
 4. 自动注册 claim / support
 
 ### 4.2 Introspection rule
@@ -153,11 +145,16 @@ thm = formal_proof("P(a) holds.", system="lean", theorem_ref="MyPkg.theorem_a")
 调用方如果需要操作 support，应通过：
 
 ```python
-c.primary_support       # 最常用：获取主 support
-c.supports              # 完整列表：获取所有 support
+c.support
 ```
 
 而不是把构造器本身做成返回 `Support`。
+
+如果一个 claim 有多条独立 support 路径，它们已被聚合在 `c.support`（一个 composite support）的 `sub_supports` 中：
+
+```python
+c.support.sub_supports  # 访问聚合后的各条子 support
+```
 
 ### 4.3 Escape hatch
 
@@ -303,7 +300,7 @@ law = composite_support(
     family="induction",
     premises=[obs1, obs2],
     conclusion=claim("Law L"),
-    sub_supports=[s1.primary_support, s2.primary_support],
+    sub_supports=[s1.support, s2.support],
 )
 ```
 
@@ -729,8 +726,7 @@ v6 推荐：
 
 ```python
 c = deduction("C", given=[a, b])
-# c is Claim; c.primary_support is the deduction support
-# c.supports == [deduction_support]
+# c is Claim; c.support is the deduction support
 ```
 
 兼容策略：
@@ -738,7 +734,7 @@ c = deduction("C", given=[a, b])
 - Phase 1 继续接受 v5 调用形式
 - 发出 `DeprecationWarning`
 - 内部统一转成 claim-returning surface semantics
-- `Knowledge.strategy` 属性保留为 `claim.primary_support` 的别名
+- `Knowledge.strategy` 属性保留为 `claim.support` 的别名
 
 ## 11.2 与 `claim(..., given=[...])` 的关系
 
@@ -818,9 +814,9 @@ REVIEW = ReviewBundle(
     source_id="self_review",
     objects=[
         review_claim(model_validity_assumption, prior=0.8),
-        review_support(prediction_ok.primary_support, judgment="good",
+        review_support(prediction_ok.support, judgment="good",
                        justification="Bridge from simulation result to hypothesis is appropriate."),
-        review_witness(pressure_field.primary_support.witnesses[0], trust=0.85,
+        review_witness(pressure_field.support.witnesses[0], trust=0.85,
                        justification="CFD tool is validated for this flow regime."),
     ],
 )
@@ -850,7 +846,7 @@ gaia migrate v5-to-v6 path/to/package/
 | `c = claim("C"); abduction(obs, c, alt)` | `c = abduction("C", observation=obs, alternative=alt)` |
 | `c = claim("C"); noisy_and([a,b], c)` | `c = claim("C", given=[a, b])` 或 `c = noisy_and("C", given=[a, b])` |
 | `review_strategy(s, ...)` | `review_support(s, ...)` |
-| `c.strategy` | `c.primary_support` |
+| `c.strategy` | `c.support` |
 
 不自动转换的情况（需人工处理）：
 - `induction()` bottom-up 模式 → `composite_support()`

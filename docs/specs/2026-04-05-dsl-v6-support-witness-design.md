@@ -159,12 +159,27 @@ Support 是一等对象，原因有三：
 2. 它需要被 review
 3. 它需要被组合、折叠、展开
 
-在 v6 authoring surface 中，函数可以返回 `Claim`，但底层必须仍显式创建 `Support` 对象，并注册到 `claim.supports` 列表中。  
+在 v6 authoring surface 中，函数可以返回 `Claim`，但底层必须仍显式创建 `Support` 对象，并挂到 `claim.support` 上。  
 “返回 Claim”是语法糖；”Support 是一等对象”是语义骨架。
 
-**基数说明：一个 Claim 可以拥有多条 Support。** 例如同一个结论既可以通过 deduction 获得支撑，又可以通过 induction 获得独立支撑。在 v5 中，`Knowledge.strategy` 是单值的——如果两条 strategy 共享同一个 conclusion，后者会覆盖前者的 back-reference（虽然两条 strategy 都会注册到 package 中）。v6 应消除这一缺陷：`claim.supports` 是一个列表，所有指向该 claim 的 support 都被保留。
+**基数说明：一个 Claim 只挂一条 Support。** 如果同一个结论需要多条独立的 support 路径（例如既通过 deduction 又通过 induction 获得支撑），应使用 `composite_support` 将它们聚合为一条 composite support，再挂到 claim 上。这与 v5 的 `Strategy.sub_strategies` 模式一致——聚合发生在 support 层，而不是在 claim 层维护列表。
 
-为方便 authoring，提供 `claim.primary_support` 属性，返回 `supports[0]`（即最先注册的那条 support）。大多数 claim 只有一条 support，因此 `primary_support` 是最常用的访问路径。
+```python
+# 错误：两条 support 分别挂到同一个 claim
+c = claim(“C”)
+deduction(“C”, given=[a, b])     # 覆盖 c.support
+induction(“C”, observations=[...])  # 再次覆盖
+
+# 正确：通过 composite_support 聚合
+s1 = support(family=”deduction”, premises=[a, b], conclusion=c)
+s2 = support(family=”induction”, premises=[obs1, obs2], conclusion=c)
+composite_support(
+    family=”converging”,
+    premises=[a, b, obs1, obs2],
+    conclusion=c,
+    sub_supports=[s1, s2],
+)
+```
 
 ### 3.3 Witness
 
@@ -479,11 +494,7 @@ thm = formal_proof("P(x) holds.", system="lean", theorem_ref="MyPkg.my_theorem")
 
 ```python
 class Claim(Knowledge):
-    supports: list[Support] = []
-
-    @property
-    def primary_support(self) -> Support | None:
-        return self.supports[0] if self.supports else None
+    support: Support | None = None
 
 
 class Support:
@@ -493,7 +504,7 @@ class Support:
     background: list[Knowledge]
     witnesses: list[Witness]
     reason: ReasonInput
-    sub_supports: list[Support] = []  # for composite (e.g. induction)
+    sub_supports: list[Support] = []  # for composite (e.g. induction, converging)
 
 
 class Witness:
@@ -502,8 +513,10 @@ class Witness:
     label: str | None = None
 ```
 
+`claim.support` 保持单值，与 v5 的 `Knowledge.strategy` 一致。多条独立 support 的聚合通过 `composite_support` 的 `sub_supports` 实现，不在 claim 层维护列表。
+
 `Support` 是 v6 authoring terminology。  
-在 Phase 1 兼容实现里，`Support` 可先只是 `gaia.lang.runtime.Strategy` 的别名或 DSL-facing rename。`claim.supports` 对应现有 v5 中 package 级别的 strategy registry（而非 `Knowledge.strategy` 单值 back-reference）。
+在 Phase 1 兼容实现里，`Support` 可先只是 `gaia.lang.runtime.Strategy` 的别名或 DSL-facing rename。
 
 ### 7.3 `claim(..., given=[...])` 的地位
 
@@ -562,7 +575,7 @@ v6 authoring objects 到现有 IR 的最小映射：
 | `abduction(obs, hyp, alt) -> Strategy` | `abduction(“H”, observation=obs) -> Claim` | 返回类型 + 参数风格 |
 | `induction(items, law) -> Strategy` | `induction(“L”, observations=[...]) -> Claim` | 返回类型 + 参数风格 |
 | `claim(“C”, given=[a, b]) -> Knowledge` | `claim(“C”, given=[a, b]) -> Claim` | 返回类型细化（兼容） |
-| `Knowledge.strategy: Strategy \| None` | `Claim.supports: list[Support]` | 单值→列表 |
+| `Knowledge.strategy: Strategy \| None` | `Claim.support: Support \| None` | rename（语义不变） |
 | `review_strategy(...)` | `review_support(...)` | rename |
 
 ### 9.2 迁移原则
@@ -592,7 +605,7 @@ law = composite_support(
     family=”induction”,
     premises=[obs1, obs2],
     conclusion=claim(“Law L”),
-    sub_supports=[s1.primary_support, s2.primary_support],
+    sub_supports=[s1.support, s2.support],
 )
 ```
 
@@ -604,7 +617,7 @@ law = composite_support(
 |------|------|
 | `Strategy` 是否改名 | 在 v6 authoring 术语中改为 `Support` |
 | “函数返回 Claim”是否意味着 support 消失 | 否。Support 仍是一等对象，返回 Claim 只是 surface sugar |
-| `claim.support` 是单值还是列表 | 列表（`supports: list[Support]`），消除 v5 的 last-writer-wins 问题 |
+| `claim.support` 是单值还是列表 | 单值。多条独立 support 通过 `composite_support` 聚合，不在 claim 层维护列表 |
 | `execute` / `check` / `formal_proof` 是不是新的 knowledge type | 否。它们是同一 execution-backed support 模型上的不同 constructor sugar |
 | `execute` 是否直接产出最终 scientific claim | 通常不应如此；更自然是先产出 result claim |
 | `check` 是否等于科学证明 | 否。它主要支撑 validity claim |
