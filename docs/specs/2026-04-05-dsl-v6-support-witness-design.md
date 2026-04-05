@@ -585,30 +585,6 @@ v6 authoring objects 到现有 IR 的最小映射：
 3. **按需迁移**：新 package 推荐 v6 syntax；旧 package 在下次 major revision 时迁移
 4. **工具辅助**：提供 `gaia migrate v5-to-v6` CLI 命令做机械化转换（重命名 + 参数重排），不做语义推断
 
-### 9.3 induction() 的 v5 双模式保留
-
-v5 的 `induction()` 支持两种使用模式：
-
-- **Top-down**：`induction(observations, law, alt_exps=...)` — 给定 observations 和 law，自动生成 abduction sub-strategies
-- **Bottom-up**：`induction(existing_abduction_strategies)` — 给定已有 abduction strategies，bundle 成 composite
-
-v6 推荐 top-down claim-returning surface（`induction(“L”, observations=[...])`），但必须保留 bottom-up escape hatch，供需要精细控制 sub-support 结构的高级用法：
-
-```python
-# v6 top-down (推荐)
-law = induction(“Law L”, observations=[obs1, obs2, obs3])
-
-# v6 bottom-up (escape hatch)
-s1 = abduction(“H”, observation=obs1)
-s2 = abduction(“H”, observation=obs2)
-law = composite_support(
-    family=”induction”,
-    premises=[obs1, obs2],
-    conclusion=claim(“Law L”),
-    sub_supports=[s1.support, s2.support],
-)
-```
-
 ---
 
 ## 10. 设计决策摘要

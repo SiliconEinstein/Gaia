@@ -262,10 +262,6 @@ def abduction(
 
 ### 6.3 `induction()`
 
-v5 的 `induction()` 支持两种模式（top-down 和 bottom-up），它们解决不同的使用场景。v6 保留双模式，但将 top-down 模式改为 claim-returning surface：
-
-#### Top-down form（推荐，author-facing）
-
 ```python
 def induction(
     content: str,
@@ -289,26 +285,9 @@ def induction(
 - 每个 observation lowering 为 shared-conclusion abduction sub-support
 - `alternatives` 对应 v5 的 `alt_exps`（每个 observation 的 alternative explanation）
 
-#### Bottom-up form（escape hatch，高级用法）
+v5 的 bottom-up 模式（传入已有 abduction strategies 进行 bundle）不再作为 `induction()` 的重载形式。需要精细控制 sub-support 结构时，直接使用 `composite_support()`（§9.2）。
 
-当作者需要精细控制每条 abduction sub-support 的结构时，使用 `composite_support()`：
-
-```python
-s1 = abduction("Law L", observation=obs1)
-s2 = abduction("Law L", observation=obs2)
-law = composite_support(
-    family="induction",
-    premises=[obs1, obs2],
-    conclusion=claim("Law L"),
-    sub_supports=[s1.support, s2.support],
-)
-```
-
-这对应 v5 的 `induction(existing_abduction_strategies)` 模式，但使用显式的 `composite_support()` 而不是重载 `induction()` 的参数类型。
-
-#### v5 兼容
-
-v5 的 `induction(items: list[Knowledge], law)` 和 `induction(items: list[Strategy])` 在 Phase 1 仍可用，发出 `DeprecationWarning`。
+v5 兼容：`induction(items: list[Knowledge], law)` 在 Phase 1 仍可用，发出 `DeprecationWarning`。
 
 ### 6.4 其他 formal families
 
