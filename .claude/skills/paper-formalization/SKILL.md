@@ -83,11 +83,23 @@ Module 的 docstring 用作该章节的标题。每个 knowledge 都应有 `titl
 
 motivation 中的 claim 完全可以被后面的 module 作为 premise 或 background 引用——它们不受 module 归属的限制。setting 和 question 通常通过 `background=` 引用。
 
-### The Claim Principle
+### Setting vs Claim 分类指南
 
-**如果不确定是 setting 还是 claim，标记为 claim。**
+**原则：如果不确定是 setting 还是 claim，标记为 claim。**
 
-判断标准：该命题是否可以被质疑、被推翻、或需要论文提供论证？如果是，就是 claim。只有真正不可能被质疑的事实（如数学定义、已确立的物理常数、实验装置描述）才是 setting。
+| Category | Type | Examples |
+|----------|------|---------|
+| 精确数学恒等式/分解 | **setting** | 配对传播子分解 $GG = \Pi + \phi$（定义式，不可能错） |
+| 已确立的物理常数/定义 | **setting** | BCS 配对机制、Coulomb 势 $v_q = 4\pi e^2/q^2$ |
+| 物理条件是否成立 | **claim** | 绝热近似 $\omega_D/E_F \ll 1$（对高压氢化物可能不成立） |
+| 依赖条件的理论框架 | **claim** | Migdal-Eliashberg 框架（依赖绝热条件） |
+| 教科书级别理论结果 | **claim** | BTS 重整化关系（可被推导，也可被质疑） |
+| 数值计算结果 | **claim** | vDiagMC 计算的 $\mu_{E_F}$ 值 |
+| 实验观测 | **claim** | $T_c^{\mathrm{exp}} = 1.2$ K |
+
+**关键判断标准：** 该命题是否可以被质疑？是 → claim。只有数学恒等式和纯定义才是 setting。
+
+**依赖链：** 如果 A 是 setting，B 依赖 A 的成立——B 通常是 claim。例如：绝热条件（claim）→ Migdal 定理成立（claim）→ BSE 核可分解（claim）。
 
 论文自己推导的内容——即使推导很严格——也应该是 claim，因为推导过程本身可能有误。
 
@@ -137,15 +149,20 @@ mu_values = claim("μ_EF 的数值结果：rs=1 时 0.28(1)，...", title="μ_EF
 - **hypothesis**: 理论框架/预测是正确的（如 ab initio workflow 给出 Tc = 0.96 K，偏差 20%）
 
 ```python
-# 实验结果和理论预测分别是独立的 claim
+# 实验结果、理论预测、传统理论预测分别是独立的 claim
 tc_al_exp = claim("铝的实验超导转变温度 $T_c^{\\mathrm{exp}} = 1.2$ K。")
 tc_al_pred = claim("ab initio 工作流预测铝 $T_c^{\\mathrm{EFT}} = 0.96$ K。")
+tc_al_pheno = claim("McMillan + μ*=0.1 预测铝 $T_c = 1.9$ K。")
 
-# 用 abduction 连接：实验观测支撑理论预测
-abduction(observation=tc_al_exp, hypothesis=tc_al_pred,
-          reason="理论预测偏差仅 20%，远优于唯象方法的 58% 偏差，"
-          "支持 ab initio 工作流的有效性。")
+# abduction 必须提供 alternative_explanation（替代理论）
+_strat = abduction(
+    observation=tc_al_exp,
+    hypothesis=tc_al_pred,
+    alternative=tc_al_pheno,  # 传统唯象理论作为替代解释
+    reason="理论预测偏差仅 20%，远优于唯象方法的 58% 偏差。")
 ```
+
+**注意：** `abduction()` 返回 Strategy（不是 Knowledge）。需要将返回值赋给变量（如 `_strat`）以便 review sidecar 中引用。`abduction` 会自动生成 `alternative_explanation` 接口 claim（如果不提供 `alternative` 参数）。
 
 ### Content 必须自含
 
@@ -228,7 +245,7 @@ Pass 1 只提取原子化、自含的 knowledge 节点。**不要标注哪��
 
 `infer` 是 Gaia 中**最通用的** strategy type——它不预设任何特定推理模式（如 deduction、abduction），仅表达"从 premises 推出 conclusion"。Pass 2 使用 `infer` 作为所有推理连接的草稿形式；具体的 strategy type 在 Pass 4 中细化。
 
-对 Pass 1 中标注为 `[DERIVED]` 的每个 claim，写一个 `infer` strategy：
+对每个"由其他 claim 支撑"的 claim，写一个 `infer` strategy（哪些 claim 需要 strategy 在 Pass 2 中逐个判断——如果论文中对它有论证过程，它就需要）：
 
 1. **写详细的 reason**：从论文中总结推导过程，不是一句话概括，而是完整的推理链路。reason 应该让一个领域内的读者能够理解"为什么这些前提能推出这个结论"。
 
@@ -337,17 +354,20 @@ digraph refine {
 
 ### Case 1: 1-2 个 premise
 
-优先考虑 formal strategy，按以下顺序检查是否匹配：
+先判断推理性质，再选择 strategy type：
 
-| Pattern | Strategy | Example |
-|---------|----------|---------|
-| 观察 → 假说 | `abduction` | "观测到大的 μ 值 → 假设 vertex corrections 是原因" |
-| 数学前提 → 定理 | `deduction` | "分解 + 压制条件 → downfolded BSE" |
-| 源系统 → 目标系统 | `analogy` | "UEG 结果 → 真实金属" |
-| 已知区间 → 未知区间 | `extrapolation` | "常压 Tc → 高压 Tc" |
-| 基础情况 + 递推 → 通则 | `mathematical_induction` | 数学归纳 |
+| 推理性质 | Strategy | 条件概率 | Example |
+|----------|----------|---------|---------|
+| 严格数学推导 | `deduction` | 确定性（无需参数） | 绝热条件 → Migdal 定理；μ 定义 → BTS 关系 |
+| 数值计算/应用 | `noisy_and` | 需要 conditional_prob | vDiagMC + homotopic → μ 数值；workflow → Tc 预测 |
+| 观察 → 假说 | `abduction` | 由 formal_expr 确定 | full BSE 结果 → downfolded BSE 解释 |
+| 源 → 目标类比 | `analogy` | 由 formal_expr 确定 | UEG 结果 → 真实金属 |
+| 外推 | `extrapolation` | 由 formal_expr 确定 | 常压 Tc → 高压 Tc |
+| 归纳（精确极限 + 数值→通则） | `infer`（暂） | 需要完整 CPT | Ward identity + vDiagMC → Γ₃ 近似 |
 
-如果不匹配任何 formal strategy pattern，使用 `noisy_and` 或 `claim(given=[...])` 作为 leaf strategy。
+**关键区分：deduction vs noisy_and** — 如果前提成立时结论**必然**成立（数学定理、定义读出），用 `deduction`。如果有计算误差或经验不确定性，用 `noisy_and`。
+
+**Strategy 变量命名：** 所有需要在 review sidecar 中引用的 strategy 必须赋给变量（`_strat_xxx = noisy_and(...)`）。deduction 不需要参数，可以匿名调用。
 
 ### Case 2: 3+ 个 premise
 
@@ -393,18 +413,38 @@ Operators 编码确定性逻辑约束，与 strategy 正交：
 
 ## Write DSL Code
 
-四遍完成后，用 Gaia DSL 写代码。参考 gaia-ir-authoring skill。
+每个 pass 完成后就写代码、编译、检查。参考 gaia-ir-authoring skill。
+
+### 实践要点
+
+- **Labels 自动从变量名推断**——不要手动设置 `.label`
+- **Strategy 变量名**：需要 review 参数的 strategy 必须赋给 `_strat_xxx` 变量；deduction 可匿名
+- **Import 跨 module 的 claim**：后面的 module 可以 import motivation 中的 claim 作为 premise
+- **`abduction()` 返回 Strategy**——赋给变量用于 review sidecar 引用
+- **`contradiction()` 返回 Knowledge**（helper claim）——赋给变量并可被其他 strategy 引用
 
 ## Write Review Sidecar
 
-### 核心原则：只对独立前提给 prior
+### 核心原则
 
 | Node Type | Prior | Notes |
 |-----------|-------|-------|
 | 独立前提（叶节点） | reviewer 判断（0.5–0.95） | 反映证据强度 |
 | 推导结论 | 不设 prior | belief 完全由 BP 传播决定 |
-| Strategy | conditional_probability | 反映推理强度 |
-| Generated claims | reviewer 判断 | `review_generated_claim` |
+| Orphaned claims（background-only） | 需要设 prior（validator 要求） | 通常 0.90–0.95 |
+| deduction strategy | 确定性，不需要参数 | |
+| noisy_and strategy | `conditional_probability`（单值） | 反映计算/推理可靠性 |
+| infer strategy（N premises） | `conditional_probabilities`（2^N 个值，CPT） | 完整条件概率表 |
+| composite strategy | top-level 需要 CPT（2^N 个值） | 用于折叠模式 |
+| Generated claims（abduction alternative） | reviewer 判断 | `review_generated_claim` |
+
+### 实践要点
+
+1. **所有 claim 都需要 prior**——包括 orphaned/background-only 节点，否则 `gaia infer` 报错
+2. **Strategy 必须有变量名**才能在 review 中引用：`_strat = noisy_and(...)` 而不是匿名调用
+3. **`infer` 的 CPT**：N 个 premise 需要 $2^N$ 个条件概率值，顺序为 $[P(\text{conc}|F...F), ..., P(\text{conc}|T...T)]$
+4. **Composite 的 top-level CPT**：sub-strategies 有自己的参数，但 composite 的 top-level `infer` 也需要 CPT
+5. **`abduction` 返回 Strategy**（不是 Knowledge），需赋给变量以便 `review_generated_claim` 引用
 
 ```python
 from gaia.review import ReviewBundle, review_claim, review_strategy, review_generated_claim
@@ -412,16 +452,21 @@ from gaia.review import ReviewBundle, review_claim, review_strategy, review_gene
 REVIEW = ReviewBundle(
     source_id="self_review",
     objects=[
-        # 独立前提 — 根据证据强度给 prior
+        # 独立前提
         review_claim(observation_a, prior=0.90, justification="直接观测结果。"),
+        # orphaned claim（validator 仍要求 prior）
+        review_claim(background_fact, prior=0.95, justification="背景知识。"),
 
-        # 策略 — 条件概率
-        review_strategy(my_strategy, conditional_probability=0.88,
-                        justification="如果前提成立，结论大概率成立。"),
+        # noisy_and 策略（单值）
+        review_strategy(_strat_computation, conditional_probability=0.88,
+                        justification="计算可靠性。"),
+        # infer 策略（完整 CPT，2 premises → 4 values）
+        review_strategy(_infer_gamma, conditional_probabilities=[0.05, 0.20, 0.30, 0.85],
+                        justification="FF=0.05, TF=0.20, FT=0.30, TT=0.85"),
 
-        # abduction 生成的 interface claim
-        review_generated_claim(abduction_strategy, "alternative_explanation",
-                               prior=0.25, justification="替代解释不太可能。"),
+        # abduction 生成的 alternative_explanation
+        review_generated_claim(_strat_abduction, "alternative_explanation",
+                               prior=0.10, justification="替代解释不太可能。"),
     ],
 )
 ```
@@ -455,14 +500,19 @@ REVIEW = ReviewBundle(
 
 | Mistake | Consequence | Fix |
 |---------|-------------|-----|
-| 理论预测与实验结果混在一个 claim | 无法用 equivalence 建模验证关系 | 分离为两个 claim |
-| reason 写得太简略（一句话） | 推理过程不可追溯 | 详细总结推导步骤 |
-| 3+ premise 的 flat noisy_and | BP 乘法效应严重 | 用 composite 分解 |
-| Content 不自含 | Reviewer 无法独立判断 | 完整陈述命题 |
-| 将可质疑的命题标为 setting | 该命题无法通过 BP 更新 | 疑则标 claim |
-| 给推导结论高 prior（如 0.85） | BP 传播效果被掩盖 | 推导结论不设 prior |
-| contradiction 两边 prior 都高 | BP 两边都压低 | 降低被质疑一方 |
-| 遗漏推理中的隐含前提 | knowledge graph 不完整 | Pass 3 仔细检查 |
+| 理论预测与实验结果混在一个 claim | 无法用 abduction 建模验证关系 | 分离为两个 claim + abduction |
+| abduction 不提供 alternative_explanation | 缺少替代理论的比较 | 提供传统/唯象理论作为 alternative |
+| reason 写得太简略（一句话） | 推理过程不可追溯 | 详细总结推导步骤，用 @label 引用 |
+| 4+ premise 的 flat noisy_and | BP 乘法效应严重 | 用 composite 分解为 ≤3 premise 子步骤 |
+| Content 不自含（符号/缩写未解释） | Reviewer 无法独立判断 | 每个 claim 独立解释所有符号和缩写 |
+| 将可质疑的命题标为 setting | 该命题无法通过 BP 更新 | 疑则标 claim；只有数学恒等式才是 setting |
+| 将依赖条件的理论框架标为 setting | 框架不参与 BP | ME framework 依赖绝热条件→应为 claim |
+| 数学演绎用 noisy_and | 确定性推导不应有概率参数 | 用 deduction（不需要 cond_prob） |
+| 数值计算用 deduction | 计算有不确定性 | 用 noisy_and（需要 cond_prob） |
+| Strategy 匿名调用 | review sidecar 无法引用 | 赋给 `_strat_xxx` 变量 |
+| 手动设置 `.label` | 冗余且可能和变量名不一致 | 不设，由 `gaia compile` 自动推断 |
+| 遗漏 orphaned claim 的 prior | `gaia infer` 报错 | 所有 claim（含 orphaned）都需要 prior |
+| 遗漏推理中的隐含前提 | knowledge graph 不完整 | Pass 3 用 `gaia check` + 手动审查 |
 | 数值不核实 | 数据错误 | 每个数值对照论文原文 |
 
 ## Spec Pointers
