@@ -296,7 +296,7 @@ def induction(
         raise ValueError("induction() requires a non-empty list")
 
     if isinstance(items[0], Strategy):
-        return _induction_bottom_up(items, law, reason=reason)
+        return _induction_bottom_up(items, law, background=background, reason=reason)
     elif isinstance(items[0], Knowledge):
         if law is None:
             raise ValueError("induction() top-down mode requires law argument")
@@ -327,17 +327,11 @@ def _induction_top_down(
 
     for i, obs in enumerate(observations):
         alt = alt_exps[i] if alt_exps is not None else None
-        premises = [obs]
         if alt is not None:
-            premises.append(alt)
             all_premises.append(alt)
-        sub = Strategy(
-            type="abduction",
-            premises=premises,
-            conclusion=law,
-            background=background or [],
-            reason=reason,
-        )
+        # Reuse abduction() to get step premise validation and standard behavior.
+        # Each call temporarily sets law.strategy; _composite_strategy overwrites it.
+        sub = abduction(obs, law, alt, background=background, reason=reason)
         sub_strategies.append(sub)
 
     return _composite_strategy(
@@ -354,6 +348,7 @@ def _induction_bottom_up(
     strategies: list,
     law: Knowledge | None = None,
     *,
+    background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
 ) -> Strategy:
     if len(strategies) < 2:
@@ -392,5 +387,6 @@ def _induction_bottom_up(
         premises=all_premises,
         conclusion=inferred_law,
         sub_strategies=strategies,
+        background=background,
         reason=reason,
     )
