@@ -61,9 +61,7 @@ class StorageConfig(BaseSettings):
         if bh_db:
             self.bytehouse_database = bh_db
         if not self.bytehouse_replication_root:
-            self.bytehouse_replication_root = os.environ.get(
-                "BYTEHOUSE_REPLICATION_ROOT", ""
-            )
+            self.bytehouse_replication_root = os.environ.get("BYTEHOUSE_REPLICATION_ROOT", "")
         # Embedding API key fallback
         if not self.embedding_access_key:
             self.embedding_access_key = os.environ.get("ACCESS_KEY", "")

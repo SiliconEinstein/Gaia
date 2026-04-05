@@ -89,7 +89,9 @@ async def _batch_fetch_content(
 
     logger.info(
         "Content fetch: %d requested, %d unique local, %d found",
-        len(pending), len(unique_local_ids), len(gcn_to_content),
+        len(pending),
+        len(unique_local_ids),
+        len(gcn_to_content),
     )
     return gcn_to_content
 
@@ -144,9 +146,7 @@ async def compute_embeddings(
             continue
         work_items.append((gcn_id, gcn_to_content[gcn_id], meta.get("type", "")))
 
-    logger.info(
-        "%d items with content, %d without content", len(work_items), content_failed
-    )
+    logger.info("%d items with content, %d without content", len(work_items), content_failed)
 
     # 4. Compute embeddings with bounded concurrency
     embedder = Embedder(config, access_key)
@@ -183,14 +183,19 @@ async def compute_embeddings(
     for i in range(0, len(results), _BATCH_SIZE):
         chunk = results[i : i + _BATCH_SIZE]
         await loop.run_in_executor(None, bytehouse.upsert_embeddings, chunk)
-        logger.info("Wrote batch %d/%d to ByteHouse", i // _BATCH_SIZE + 1,
-                     (len(results) + _BATCH_SIZE - 1) // _BATCH_SIZE)
+        logger.info(
+            "Wrote batch %d/%d to ByteHouse",
+            i // _BATCH_SIZE + 1,
+            (len(results) + _BATCH_SIZE - 1) // _BATCH_SIZE,
+        )
 
     computed = len(results)
     failed = content_failed + embed_failed
 
     logger.info(
         "Embedding complete: %d computed, %d skipped, %d failed",
-        computed, skipped, failed,
+        computed,
+        skipped,
+        failed,
     )
     return {"total": total, "computed": computed, "skipped": skipped, "failed": failed}

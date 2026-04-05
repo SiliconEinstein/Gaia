@@ -25,6 +25,7 @@ async def main(threshold: float = 0.85, dry_run: bool = False) -> None:
         logger.error("ByteHouse not configured — set BYTEHOUSE_HOST env var")
         sys.exit(1)
     bytehouse.ensure_table()
+    bytehouse.ensure_discovery_tables()
 
     discovery_config = DiscoveryConfig(similarity_threshold=threshold)
 

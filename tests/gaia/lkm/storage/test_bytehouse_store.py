@@ -132,6 +132,68 @@ def test_load_embeddings_empty(store):
     assert matrix.shape == (0,)
 
 
+def test_ensure_discovery_tables(store):
+    """ensure_discovery_tables creates both runs and clusters tables."""
+    s, mock_client = store
+    s.ensure_discovery_tables()
+    assert mock_client.command.call_count == 2
+    ddls = [call[0][0] for call in mock_client.command.call_args_list]
+    assert any("discovery_runs" in d for d in ddls)
+    assert any("discovery_clusters" in d for d in ddls)
+
+
+def test_save_discovery_result(store):
+    """save_discovery_result writes run metadata and cluster rows."""
+    from datetime import datetime, timezone
+    from gaia.lkm.models.discovery import (
+        ClusteringResult,
+        ClusteringStats,
+        DiscoveryConfig,
+        SemanticCluster,
+    )
+
+    s, mock_client = store
+    result = ClusteringResult(
+        clusters=[
+            SemanticCluster(
+                cluster_id="cl_001",
+                node_type="claim",
+                gcn_ids=["gcn_a", "gcn_b"],
+                centroid_gcn_id="gcn_a",
+                avg_similarity=0.9,
+                min_similarity=0.85,
+            ),
+        ],
+        stats=ClusteringStats(
+            total_variables_scanned=100,
+            total_embeddings_computed=10,
+            total_clusters=1,
+            cluster_size_distribution={2: 1},
+            elapsed_seconds=5.0,
+        ),
+        timestamp=datetime.now(timezone.utc),
+    )
+    config = DiscoveryConfig(similarity_threshold=0.85, faiss_k=100)
+
+    run_id = s.save_discovery_result(result, config)
+
+    assert len(run_id) == 16
+    # Should have 2 insert calls: 1 for run, 1 for clusters
+    assert mock_client.insert.call_count == 2
+
+
+def test_load_clusters_by_run(store):
+    """load_clusters_by_run returns cluster dicts."""
+    s, mock_client = store
+    mock_client.query.return_value.result_rows = [
+        ("cl_001", "claim", ["gcn_a", "gcn_b"], "gcn_a", 0.9, 0.85),
+    ]
+    clusters = s.load_clusters_by_run("run123")
+    assert len(clusters) == 1
+    assert clusters[0]["cluster_id"] == "cl_001"
+    assert clusters[0]["gcn_ids"] == ["gcn_a", "gcn_b"]
+
+
 def test_close(store):
     """close() calls client.close()."""
     s, mock_client = store

@@ -133,8 +133,20 @@ async def run_semantic_discovery(
         elapsed_seconds=elapsed,
     )
 
-    return ClusteringResult(
+    result = ClusteringResult(
         clusters=all_clusters,
         stats=stats,
         timestamp=datetime.now(timezone.utc),
     )
+
+    # Persist result to ByteHouse
+    if all_clusters:
+        try:
+            run_id = await loop.run_in_executor(
+                None, bytehouse.save_discovery_result, result, config
+            )
+            logger.info("Discovery result saved: run_id=%s, %d clusters", run_id, len(all_clusters))
+        except Exception:
+            logger.warning("Failed to save discovery result to ByteHouse", exc_info=True)
+
+    return result

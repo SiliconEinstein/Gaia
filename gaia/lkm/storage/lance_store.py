@@ -449,7 +449,9 @@ class LanceContentStore:
             for r in results:
                 lv = row_to_local_variable(r)
                 result_map[lv.id] = lv
-        logger.info("Batch local variable lookup: %d queried, %d found", len(local_ids), len(result_map))
+        logger.info(
+            "Batch local variable lookup: %d queried, %d found", len(local_ids), len(result_map)
+        )
         return result_map
 
     async def get_local_variables_by_package(
