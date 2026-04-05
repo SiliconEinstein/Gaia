@@ -300,8 +300,6 @@ def test_overview_graph_shows_transitive_deps():
     assert "a --> b" in md
     # mid is not exported, so it should NOT appear
     assert "mid" not in md
-    # c is exported but independent — no edges to/from c, so not in the graph
-    # (overview only shows nodes that have edges)
 
 
 def test_overview_graph_stops_at_nearest_exported():
@@ -336,8 +334,7 @@ def test_overview_graph_empty_when_no_deps():
         "strategies": [],
         "operators": [],
     }
-    lines = _render_overview_graph(ir)
-    assert lines == []
+    assert _render_overview_graph(ir) == []
 
 
 def test_overview_graph_empty_when_single_export():
@@ -349,8 +346,7 @@ def test_overview_graph_empty_when_single_export():
         "strategies": [],
         "operators": [],
     }
-    lines = _render_overview_graph(ir)
-    assert lines == []
+    assert _render_overview_graph(ir) == []
 
 
 # ── module narrative ──
@@ -395,17 +391,14 @@ def test_module_sections_with_per_module_mermaid():
         "operators": [],
     }
     md = render_knowledge_nodes(ir)
-    # Module section headings
     assert "## sec_a" in md
     assert "## sec_b" in md
-    # Order: sec_a nodes before sec_b
     assert md.index("#### x") < md.index("#### z")
     assert md.index("#### y") < md.index("#### z")
     # First module (sec_a) skips Mermaid; sec_b gets one
     assert md.count("```mermaid") == 1
-    # sec_b's diagram should show x as external premise
     sec_b_section = md.split("## sec_b")[1]
-    assert "x" in sec_b_section.split("```")[1]  # x appears in sec_b's mermaid
+    assert "x" in sec_b_section.split("```")[1]
 
 
 def test_module_sections_preserve_root_segments():
