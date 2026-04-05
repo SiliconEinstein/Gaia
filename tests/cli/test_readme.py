@@ -92,7 +92,11 @@ def test_mermaid_basic():
     assert "obs[" in md
     assert "hyp[" in md
     assert "env[" in md
-    assert "obs -->|noisy_and| hyp" in md
+    # Strategy rendered as intermediate stadium node
+    assert '(["noisy_and"])' in md
+    assert "obs --> strat_0" in md
+    assert "strat_0 --> hyp" in md
+    assert ":::weak" in md  # noisy_and is a weakpoint
     assert ":::setting" in md
 
 
@@ -490,7 +494,12 @@ def test_mermaid_operator_edges():
         ],
     }
     md = render_mermaid(ir)
-    assert "a -.-|contradiction| c" in md
+    # Contradiction rendered as hexagon node with ⊗ symbol
+    assert "\u2297" in md  # ⊗ symbol
+    assert ":::contra" in md
+    assert "a --- oper_0" in md
+    assert "b --- oper_0" in md
+    assert "oper_0 --- c" in md  # non-helper conclusion shown
 
 
 def test_generate_readme_with_inference_results():
@@ -543,6 +552,128 @@ def test_single_file_fallback_has_global_graph():
     assert "```mermaid" in md
     assert "### Settings" in md
     assert "### Claims" in md
+
+
+def test_mermaid_deduction_deterministic():
+    """Deduction strategy renders without :::weak styling."""
+    ir = {
+        "knowledges": [
+            {"id": "ns:p::a", "label": "a", "type": "claim", "content": "A."},
+            {"id": "ns:p::b", "label": "b", "type": "claim", "content": "B."},
+            {"id": "ns:p::c", "label": "c", "type": "claim", "content": "C."},
+        ],
+        "strategies": [
+            {"premises": ["ns:p::a", "ns:p::b"], "conclusion": "ns:p::c", "type": "deduction"},
+        ],
+        "operators": [],
+    }
+    md = render_mermaid(ir)
+    assert '(["deduction"])' in md
+    # deduction is deterministic — no :::weak on the strategy node
+    strat_line = [line for line in md.split("\n") if "strat_0" in line and '(["' in line][0]
+    assert ":::weak" not in strat_line
+    assert "a --> strat_0" in md
+    assert "b --> strat_0" in md
+    assert "strat_0 --> c" in md
+
+
+def test_mermaid_background_dashed_edge():
+    """Background claims connect to strategy nodes with dashed edges."""
+    ir = {
+        "knowledges": [
+            {"id": "ns:p::ctx", "label": "ctx", "type": "setting", "content": "Context."},
+            {"id": "ns:p::a", "label": "a", "type": "claim", "content": "A."},
+            {"id": "ns:p::b", "label": "b", "type": "claim", "content": "B."},
+        ],
+        "strategies": [
+            {
+                "premises": ["ns:p::a"],
+                "conclusion": "ns:p::b",
+                "type": "noisy_and",
+                "background": ["ns:p::ctx"],
+            },
+        ],
+        "operators": [],
+    }
+    md = render_mermaid(ir)
+    assert "a --> strat_0" in md  # premise: solid arrow
+    assert "ctx -.-> strat_0" in md  # background: dashed arrow
+    assert "strat_0 --> b" in md
+
+
+def test_mermaid_equivalence_undirected():
+    """Equivalence operator uses undirected (---) edges."""
+    ir = {
+        "knowledges": [
+            {"id": "ns:p::a", "label": "a", "type": "claim", "content": "A."},
+            {"id": "ns:p::b", "label": "b", "type": "claim", "content": "B."},
+            {"id": "ns:p::__eq_ab", "label": "__eq_ab", "type": "claim", "content": "helper"},
+        ],
+        "strategies": [],
+        "operators": [
+            {
+                "operator": "equivalence",
+                "variables": ["ns:p::a", "ns:p::b"],
+                "conclusion": "ns:p::__eq_ab",
+            },
+        ],
+    }
+    md = render_mermaid(ir)
+    assert "\u2261" in md  # ≡ symbol
+    assert "a --- oper_0" in md
+    assert "b --- oper_0" in md
+    # Helper conclusion hidden — no edge to __eq_ab
+    assert "__eq_ab" not in md
+
+
+def test_mermaid_disjunction_directed():
+    """Disjunction operator uses directed (-->) edges."""
+    ir = {
+        "knowledges": [
+            {"id": "ns:p::h1", "label": "h1", "type": "claim", "content": "H1."},
+            {"id": "ns:p::h2", "label": "h2", "type": "claim", "content": "H2."},
+            {"id": "ns:p::disj", "label": "disj", "type": "claim", "content": "Disj."},
+        ],
+        "strategies": [],
+        "operators": [
+            {
+                "operator": "disjunction",
+                "variables": ["ns:p::h1", "ns:p::h2"],
+                "conclusion": "ns:p::disj",
+            },
+        ],
+    }
+    md = render_mermaid(ir)
+    assert "\u2228" in md  # ∨ symbol
+    assert "h1 --> oper_0" in md
+    assert "h2 --> oper_0" in md
+    assert "oper_0 --> disj" in md
+
+
+def test_mermaid_operator_cross_module_visibility():
+    """Operators pull in cross-module variables when one variable is in node_ids."""
+    ir = {
+        "knowledges": [
+            {"id": "ns:p::a", "label": "a", "type": "claim", "content": "A."},
+            {"id": "ns:p::b", "label": "b", "type": "claim", "content": "B."},
+            {"id": "ns:p::__c_ab", "label": "__c_ab", "type": "claim", "content": "helper"},
+        ],
+        "strategies": [],
+        "operators": [
+            {
+                "operator": "contradiction",
+                "variables": ["ns:p::a", "ns:p::b"],
+                "conclusion": "ns:p::__c_ab",
+            },
+        ],
+    }
+    # Only a is in this module; b should be pulled in as external
+    md = render_mermaid(ir, node_ids={"ns:p::a"})
+    assert "a[" in md
+    assert "b[" in md  # pulled in via operator
+    assert ":::external" in md  # b is external
+    assert "a --- oper_0" in md
+    assert "b --- oper_0" in md
 
 
 def test_mermaid_with_node_ids_filter():
