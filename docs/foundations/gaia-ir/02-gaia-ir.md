@@ -354,7 +354,7 @@ strategy_id = lcs_{SHA-256(scope + type + sorted(premises) + conclusion + struct
 |------|----------------|--------------|------|
 | **`infer`** | 完整条件概率表（CPT）：2^k 参数（默认 MaxEnt 0.5） | Strategy | 未分类的粗推理；`↝` 摘要的默认承载形态 |
 | **`noisy_and`** | ∧ + 单参数 p | Strategy | 前提联合必要的叶子推理 |
-| **`deduction`** | 无独立 strategy-level 参数 | FormalStrategy | 条件行为由 conjunction + implication skeleton 直接确定 |
+| **`deduction`** | 无独立 strategy-level 参数 | FormalStrategy | 严格确定性推导（数学证明、逻辑三段论）。条件行为由 conjunction + implication skeleton 直接确定。推导步骤本身不引入不确定性——不确定性仅来自前提的 prior。如果推理有不确定性（计算误差、经验推断、省略前提），应使用 `noisy_and` |
 | **`abduction`** | 无独立 strategy-level 参数 | FormalStrategy | 有效条件概率由 `Obs ≡ (H ∨ AlternativeExplanationForObs)` 与相关 interface prior 现算导出 |
 | **`induction`**（deferred） | — | — | theory 中保留；Gaia IR core 当前不设独立 primitive，可先展开成多条共享结论的 `abduction` |
 | **`analogy`** | 无独立 strategy-level 参数 | FormalStrategy | 有效条件概率由 skeleton + BridgeClaim prior 现算导出 |

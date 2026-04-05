@@ -125,7 +125,10 @@ Use explicit strategy functions when you need a specific reasoning type beyond `
 from gaia.lang import deduction, abduction, analogy, extrapolation
 from gaia.lang import elimination, case_analysis, mathematical_induction
 
-# Deduction: conjunction + implication (deterministic, ≥2 premises)
+# Deduction: strict deterministic derivation (math proofs, logical syllogisms).
+# The reasoning step itself is error-free — uncertainty comes ONLY from premises.
+# If the reasoning has any uncertainty (approximations, empirical judgments,
+# omitted premises), use noisy_and instead.
 deduction([premise_a, premise_b], derived_claim)
 
 # Abduction: observation → hypothesis (with optional alternative)

@@ -306,7 +306,19 @@ digraph refine {
 | 外推 | `extrapolation` | 由 formal_expr 确定 |
 | 归纳（精确极限 + 数值→通则） | `infer`（暂） | 需要完整 CPT |
 
-**关键区分：deduction vs noisy_and** — 如果前提成立时结论**必然**成立（数学定理、定义读出），用 `deduction`。如果有计算误差或经验不确定性，用 `noisy_and`。
+**关键区分：deduction vs noisy_and**
+
+`deduction` 表示**纯确定性的数学推导**——推导步骤本身无误差，不确定性仅来自前提是否成立。在 BP 中，deduction 的 potential 是确定性的（conjunction + implication，Cromwell softened），不携带可调参数。
+
+判断标准："如果前提全部为真，这条推导是否在数学上**必然**成立？"
+
+- **是** → `deduction`。例：数学证明、逻辑三段论、定义直接读出
+- **否** → `noisy_and`。例：数值计算有近似误差、经验判断、省略了某些前提、"通常成立但有例外"
+
+常见误判：
+- 论文中的推导看起来"很严格"但省略了条件 → 用 `noisy_and`（省略的条件 = 隐含的不确定性）
+- 从定义直接读出结论（如"A 定义为 B，因此 A=B"）→ 用 `deduction`
+- 数值 DFT/MD 计算得出结果 → 用 `noisy_and`（计算方法本身有不确定性）
 
 **Strategy 变量命名：** 所有需要在 review sidecar 中引用的 strategy 必须赋给变量（`_strat_xxx = noisy_and(...)`）。deduction 不需要参数，可以匿名调用。
 
@@ -402,8 +414,9 @@ Operators 编码确定性逻辑约束，与 strategy 正交：
 | Content 不自含（符号/缩写未解释） | Reviewer 无法独立判断 | 每个 claim 独立解释所有符号和缩写 |
 | 将可质疑的命题标为 setting | 该命题无法通过 BP 更新 | 疑则标 claim；只有数学定义才是 setting |
 | 将依赖条件的理论框架标为 setting | 框架不参与 BP | 依赖条件的推论应为 claim |
-| 数学演绎用 noisy_and | 确定性推导不应有概率参数 | 用 deduction（不需要 cond_prob） |
-| 数值计算用 deduction | 计算有不确定性 | 用 noisy_and（需要 cond_prob） |
+| 数学演绎用 noisy_and | 确定性推导不应有概率参数 | 用 deduction（纯确定性，不需要 cond_prob） |
+| 数值计算/近似推理用 deduction | 计算有不确定性，但 deduction 是纯确定性的 | 用 noisy_and（需要 cond_prob 表示推理强度） |
+| "看起来严格"的推导用 deduction | 论文省略了前提或条件 | 省略前提 = 隐含不确定性 → 用 noisy_and |
 | Strategy 匿名调用 | review sidecar 无法引用 | 赋给 `_strat_xxx` 变量 |
 | 手动设置 `.label` | 冗余且可能和变量名不一致 | 不设，由 `gaia compile` 自动推断 |
 | 遗漏 orphaned claim 的 prior | `gaia infer` 报错 | 所有 claim（含 orphaned）都需要 prior |
