@@ -340,7 +340,7 @@ Typical uses:
 
 Purpose:
 
-- expose an execution result as a result claim via ExecutionSupport
+- expose an execution result as a result claim via Execution
 
 Typical uses:
 
@@ -377,7 +377,7 @@ Typical uses:
 - Coq proof artifacts
 - Isabelle developments
 
-`formal_proof` stays inside the same Support inheritance tree as a `FormalProofSupport` subclass. It is stronger than ordinary `ExecutionSupport` or `CheckSupport`, but it is still not a separate top-level ontology.
+`formal_proof` stays inside the same Support inheritance tree as a `FormalProof` subclass. It is stronger than ordinary `Execution` or `Check`, but it is still not a separate top-level ontology.
 
 ## 7.5 Bridge Support
 

@@ -35,12 +35,12 @@
 |--------|------|------------------|
 | `Claim` | 被支撑的命题 | `Knowledge(type="claim")` |
 | `Support` | 支撑基类 | `Strategy` |
-| `FormalSupport` | 有 canonical skeleton 的 support | 现有 named strategy |
-| `InferSupport` | 参数化 support | `infer` / `noisy_and` |
-| `ExecutionSupport` | 运行计算产出 result | 先在 Lang 侧定义 |
-| `CheckSupport` | 验证满足规范 | 先在 Lang 侧定义 |
-| `FormalProofSupport` | 形式证明验证通过 | 先在 Lang 侧定义 |
-| `CompositeSupport` | 聚合多条子 support | `Strategy(sub_strategies=[...])` |
+| `Formal` | 有 canonical skeleton 的 support | 现有 named strategy |
+| `Infer` | 参数化 support | `infer` / `noisy_and` |
+| `Execution` | 运行计算产出 result | 先在 Lang 侧定义 |
+| `Check` | 验证满足规范 | 先在 Lang 侧定义 |
+| `FormalProof` | 形式证明验证通过 | 先在 Lang 侧定义 |
+| `Composite` | 聚合多条子 support | `Strategy(sub_strategies=[...])` |
 
 ---
 
@@ -61,40 +61,40 @@ class Support:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-# FormalSupport 子类 — 每个 formal family 一个子类
-class FormalSupport(Support): ...
-class DeductionSupport(FormalSupport): ...
-class AbductionSupport(FormalSupport):
+# Formal 子类 — 每个 formal family 一个子类
+class Formal(Support): ...
+class Deduction(Formal): ...
+class Abduction(Formal):
     observation: Claim
     alternative: Claim | None = None
-class AnalogySupport(FormalSupport):
+class Analogy(Formal):
     source: Claim
     bridge: Claim
 # ... 其余 formal families 见概念 spec §6.1
 
 
-# InferSupport
-class InferSupport(Support): ...      # infer() — general CPT
-class NoisyAndSupport(InferSupport): ...  # noisy_and(), claim(..., given=[...])
+# Infer
+class Infer(Support): ...      # infer() — general CPT
+class NoisyAnd(Infer): ...  # noisy_and(), claim(..., given=[...])
 
 
 # Execution-backed 子类
-class ExecutionSupport(Support):
+class Execution(Support):
     callable_ref: Callable | str = ""
     execution_backend: str | None = None
 
-class CheckSupport(Support):
+class Check(Support):
     checker_ref: Callable | str = ""
     checker_args: dict[str, Any] = field(default_factory=dict)
 
-class FormalProofSupport(Support):
+class FormalProof(Support):
     system: str = ""
     theorem_ref: str = ""
     proof_args: dict[str, Any] = field(default_factory=dict)
 
 
 # Composite
-class CompositeSupport(Support):
+class Composite(Support):
     sub_supports: list[Support] = field(default_factory=list)
 ```
 
@@ -108,7 +108,7 @@ class Claim(Knowledge):
     support: Support | None = None
 ```
 
-`claim.support` 保持单值。多条独立 support 通过 `CompositeSupport` 聚合。
+`claim.support` 保持单值。多条独立 support 通过 `Composite` 聚合。
 
 Phase 1 兼容：`claim.strategy` 保留为 `claim.support` 的别名。
 
@@ -145,7 +145,7 @@ thm = formal_proof("P(a) holds.", system="lean", theorem_ref="MyPkg.theorem_a")
 
 ```python
 c.support                  # 访问 support
-c.support.sub_supports     # 若为 CompositeSupport，访问子 support
+c.support.sub_supports     # 若为 Composite，访问子 support
 ```
 
 ### 4.3 Escape hatch
@@ -182,7 +182,7 @@ def claim(
 ) -> Claim
 ```
 
-若给 `given=...`，内部创建 `NoisyAndSupport`。
+若给 `given=...`，内部创建 `NoisyAnd`。
 
 ### 5.2 `setting()` / `question()`
 
@@ -193,9 +193,9 @@ def question(content: str, *, title: str | None = None, **metadata) -> Question
 
 ---
 
-## 6. FormalSupport Constructors
+## 6. Formal Constructors
 
-所有返回 `Claim`，内部创建对应的 `FormalSupport` 子类。
+所有返回 `Claim`，内部创建对应的 `Formal` 子类。
 
 ### 6.1 `deduction()`
 
@@ -241,7 +241,7 @@ def induction(
 ) -> Claim
 ```
 
-内部创建 `CompositeSupport(sub_supports=[AbductionSupport_1, AbductionSupport_2, ...])`。
+内部创建 `Composite(sub_supports=[Abduction_1, Abduction_2, ...])`。
 
 需要精细控制 sub-support 结构时，直接使用 `composite_support()`（§9）。
 
@@ -259,7 +259,7 @@ def mathematical_induction(content: str, /, *, base: Claim, step: Claim, ...)
 
 ## 7. Infer Constructors
 
-### 7.1 `noisy_and()`（→ NoisyAndSupport）
+### 7.1 `noisy_and()`（→ NoisyAnd）
 
 ```python
 def noisy_and(
@@ -275,7 +275,7 @@ def noisy_and(
 
 `claim(..., given=[...])` 的显式版本。
 
-### 7.2 `infer()`（→ InferSupport）
+### 7.2 `infer()`（→ Infer）
 
 ```python
 def infer(
@@ -298,7 +298,7 @@ def infer(
 所有 execution-backed constructors：
 
 1. 返回 `Claim`
-2. 内部创建对应的 Support 子类（`ExecutionSupport` / `CheckSupport` / `FormalProofSupport`）
+2. 内部创建对应的 Support 子类（`Execution` / `Check` / `FormalProof`）
 3. Phase 1 不直接执行外部过程——只声明 support 结构
 4. 对推理有影响的假设（solver 已验证、测试集有代表性等）必须作为 `given` 中的 Claim
 
@@ -320,7 +320,7 @@ def execute(
 ```
 
 - `returns` 描述 result claim content
-- `fn`、`execution_backend`、`execution_args` 记入 `ExecutionSupport` 的类型安全字段
+- `fn`、`execution_backend`、`execution_args` 记入 `Execution` 的类型安全字段
 - 运行时长、库版本等 provenance 自动记入 `support.metadata`
 
 示例：
@@ -352,7 +352,7 @@ def check(
 ```
 
 - `returns` 描述 validity claim
-- `checker`、`checker_args` 记入 `CheckSupport` 的类型安全字段
+- `checker`、`checker_args` 记入 `Check` 的类型安全字段
 
 示例：
 
@@ -383,7 +383,7 @@ def formal_proof(
 ) -> Claim
 ```
 
-- `system`、`theorem_ref`、`proof_args` 记入 `FormalProofSupport` 的类型安全字段
+- `system`、`theorem_ref`、`proof_args` 记入 `FormalProof` 的类型安全字段
 
 示例：
 
@@ -398,7 +398,7 @@ stability = formal_proof(
 
 ---
 
-## 9. CompositeSupport Constructor
+## 9. Composite Constructor
 
 ```python
 def composite_support(
@@ -448,10 +448,10 @@ def review_support(
 
 | Support 子类 | reviewer 怎么评估 |
 |-------------|------------------|
-| FormalSupport | judgment + justification |
-| InferSupport | conditional probability |
-| ExecutionSupport / CheckSupport / FormalProofSupport | review 前提 claims 的 prior |
-| CompositeSupport | 递归 review 各条 sub_support |
+| Formal | judgment + justification |
+| Infer | conditional probability |
+| Execution / Check / FormalProof | review 前提 claims 的 prior |
+| Composite | 递归 review 各条 sub_support |
 
 ---
 
@@ -546,7 +546,7 @@ Phase 1 继续接受 v5 形式，发出 `DeprecationWarning`。
 
 ### 12.2 与 `claim(..., given=[...])` 的关系
 
-保持兼容，内部创建 `InferSupport(family="noisy_and")`。
+保持兼容，内部创建 `NoisyAnd`。
 
 ### 12.3 与现有 review sidecar 的关系
 
@@ -594,4 +594,4 @@ Phase 1 继续接受 v5 形式，发出 `DeprecationWarning`。
 
 ## 15. 一句话版本
 
-> 作者看到的永远是 **Claim in, Claim out**。不同的支撑方式由 Support 继承树的子类区分（FormalSupport、InferSupport、ExecutionSupport、CheckSupport、FormalProofSupport、CompositeSupport），内部自动创建，挂在 `claim.support` 上。
+> 作者看到的永远是 **Claim in, Claim out**。不同的支撑方式由 Support 继承树的子类区分（Formal、Infer、Execution、Check、FormalProof、Composite），内部自动创建，挂在 `claim.support` 上。
