@@ -158,7 +158,7 @@ Named strategies express recognized reasoning patterns. At compile time, the IR 
 
 #### `deduction(premises, conclusion, *, background=None, steps=None, reason="")`
 
-Premises logically entail the conclusion. Requires at least 2 premises (`ValueError` otherwise). Typical use: instantiating a universal claim.
+Premises logically entail the conclusion. Requires at least 1 premise (`ValueError` otherwise). Typical use: instantiating a universal claim or deriving a consequence from a single axiom.
 
 ```python
 law = claim("forall {x}. P({x})", parameters=[{"name": "x", "type": "material"}])
