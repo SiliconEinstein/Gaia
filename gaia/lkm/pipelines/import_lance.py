@@ -30,6 +30,7 @@ import argparse
 import asyncio
 import json
 import logging
+import shutil
 import signal
 import time
 from dataclasses import dataclass, field
@@ -256,6 +257,7 @@ async def run_batch_import(
     tos_config: TOSConfig | None = None,
     max_papers: int | None = None,
     chunk_size: int = 1000,
+    min_disk_gb: int = 0,
     dry_run: bool = False,
 ) -> ImportStats:
     """Batch import papers from ByteHouse/TOS into LKM.
@@ -330,6 +332,19 @@ async def run_batch_import(
         if _shutdown_requested:
             logger.info("Shutdown requested — stopping before chunk %d", i // chunk_size + 1)
             break
+
+        # Check disk space before each chunk
+        if min_disk_gb > 0:
+            free_bytes = shutil.disk_usage(Path(lkm_db_uri).resolve().parent).free
+            free_gb = free_bytes / (1024**3)
+            if free_gb < min_disk_gb:
+                logger.info(
+                    "Disk space low (%.1fGB < %dGB) — stopping before chunk %d",
+                    free_gb,
+                    min_disk_gb,
+                    i // chunk_size + 1,
+                )
+                break
 
         chunk = pending[i : i + chunk_size]
         chunk_num = i // chunk_size + 1
@@ -495,6 +510,12 @@ def main() -> None:
         help="Limit number of papers to import",
     )
     parser.add_argument(
+        "--min-disk-gb",
+        type=int,
+        default=10,
+        help="Stop importing when free disk drops below this (GB, default: 10, 0=disable)",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Query and print matching papers without importing",
@@ -548,6 +569,7 @@ def main() -> None:
             areas=args.areas,
             chunk_size=args.chunk_size,
             max_papers=args.max_papers,
+            min_disk_gb=args.min_disk_gb,
             dry_run=args.dry_run,
         )
     )
