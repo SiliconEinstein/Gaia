@@ -356,7 +356,7 @@ strategy_id = lcs_{SHA-256(scope + type + sorted(premises) + conclusion + struct
 | **`noisy_and`** | ∧ + 单参数 p | Strategy | 前提联合必要的叶子推理 |
 | **`deduction`** | 无独立 strategy-level 参数 | FormalStrategy | 严格确定性推导（数学证明、逻辑三段论）。条件行为由 conjunction + implication skeleton 直接确定。推导步骤本身不引入不确定性——不确定性仅来自前提的 prior。如果推理有不确定性（计算误差、经验推断、省略前提），应使用 `noisy_and` |
 | **`abduction`** | 无独立 strategy-level 参数 | FormalStrategy | 有效条件概率由 `Obs ≡ (H ∨ AlternativeExplanationForObs)` 与相关 interface prior 现算导出 |
-| **`induction`**（deferred） | — | — | theory 中保留；Gaia IR core 当前不设独立 primitive，可先展开成多条共享结论的 `abduction` |
+| **`induction`** | 无独立 strategy-level 参数 | CompositeStrategy | 包装 n 条共享同一 conclusion 的 `abduction` 子策略；归纳效应（观测累积→Law 置信度上升）由因子图拓扑涌现 |
 | **`analogy`** | 无独立 strategy-level 参数 | FormalStrategy | 有效条件概率由 skeleton + BridgeClaim prior 现算导出 |
 | **`extrapolation`** | 无独立 strategy-level 参数 | FormalStrategy | 有效条件概率由 skeleton + ContinuityClaim prior 现算导出 |
 | **`reductio`**（deferred） | — | — | theory 中保留；Gaia IR core 当前暂不固化其 hypothetical assumption / consequence 的接口契约 |
@@ -570,20 +570,22 @@ FormalStrategy(type=abduction, premises=[Obs, AlternativeExplanationForObs], con
 
 `Disj_Explains_Obs` 与 `Eq_Explains_Obs` 是结构型 helper claim。`Obs` 和 `AlternativeExplanationForObs` 则是外部接口 claim。
 
-**归纳（induction）**：theory 中保留，但 Gaia IR core 当前 **defer**
+**归纳（induction）**：`CompositeStrategy(type=induction, sub_strategies=[abd₁, abd₂, ..., abdₙ], conclusion=Law)`
 
-原因是它与 abduction 在语义上不正交：归纳可直接表示为多条共享同一 `Law` 结论的 abduction 单元。为了保持 core primitive 最小且正交，当前 Gaia IR 不引入独立的 `type=induction` FormalStrategy。
-
-若需要表达归纳，当前建议在 IR 中直接写成：
+归纳 = n 条共享同一 `Law` 结论的 abduction 子策略的组合。每条子策略是独立的 `FormalStrategy(type=abduction)`，各自有自己的 `Obsᵢ` 和 `AltExpᵢ`（可自动生成 interface claim）。
 
 ```
-abduction(Obs₁, AlternativeExplanationForObs₁ -> Law)
-abduction(Obs₂, AlternativeExplanationForObs₂ -> Law)
-...
-abduction(Obsₙ, AlternativeExplanationForObsₙ -> Law)
+CompositeStrategy(type=induction, conclusion=Law):
+  sub_strategies:
+    - FormalStrategy(type=abduction, premises=[Obs₁, AltExp₁], conclusion=Law)
+    - FormalStrategy(type=abduction, premises=[Obs₂, AltExp₂], conclusion=Law)
+    - ...
+    - FormalStrategy(type=abduction, premises=[Obsₙ, AltExpₙ], conclusion=Law)
 ```
 
-未来若 authoring / reviewer 层确有需要，可以把这组 repeated abduction 再包装回 induction 语法糖；但 core IR 仍以展开后的 abduction 集合作为 source of truth。
+归纳效应由因子图拓扑的 emergent property 产生：n 条 abduction 共享 Law 节点，BP 自然算出累积后验 `P(Law=1 | all Obsᵢ=1) = π(Law) / [π(Law) + (1−π(Law))·∏ᵢ ρᵢ]`（假设各 AltExpᵢ 条件独立）。CompositeStrategy 不直接 formalize——子 abduction 各自独立走 `_build_abduction` 路径。
+
+全局替代解释（GlobalAltExp）不属于归纳的原子定义——它是独立的建模选择，作者可通过其他已有机制（Operator、Strategy）在论证图中表达。
 
 **类比（analogy）**：`premises=[SourceLaw, BridgeClaim], conclusion=Target`
 
