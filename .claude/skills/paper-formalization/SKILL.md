@@ -89,17 +89,20 @@ motivation 中的 claim 完全可以被后面的 module 作为 premise 或 backg
 
 | Category | Type | Examples |
 |----------|------|---------|
-| 精确数学恒等式/分解 | **setting** | 配对传播子分解 $GG = \Pi + \phi$（定义式，不可能错） |
-| 已确立的物理常数/定义 | **setting** | BCS 配对机制、Coulomb 势 $v_q = 4\pi e^2/q^2$ |
-| 物理条件是否成立 | **claim** | 绝热近似 $\omega_D/E_F \ll 1$（对高压氢化物可能不成立） |
-| 依赖条件的理论框架 | **claim** | Migdal-Eliashberg 框架（依赖绝热条件） |
-| 教科书级别理论结果 | **claim** | BTS 重整化关系（可被推导，也可被质疑） |
-| 数值计算结果 | **claim** | vDiagMC 计算的 $\mu_{E_F}$ 值 |
-| 实验观测 | **claim** | $T_c^{\mathrm{exp}} = 1.2$ K |
+| 数学定义/形式设定 | **setting** | 坐标系选择、变量分解定义（如将函数拆为高低频部分）、Coulomb 势形式 $v_q = 4\pi e^2/q^2$ |
+| 已确立的物理常数/基本原理 | **setting** | BCS 配对机制、Pauli 不相容原理 |
+| 标准近似的定义（不含其适用性断言） | **setting** | RPA 的数学定义（$W_{\mathrm{RPA}} = v_q/(1-v_q\Pi^0)$） |
+| 物理条件是否成立 | **claim** | 绝热近似对某类材料是否满足 |
+| 依赖条件的理论框架 | **claim** | 某个定理在特定条件下成立（如"绝热条件 → Migdal 定理"） |
+| 教科书级别理论结果 | **claim** | 重整化关系、标度律（可被推导，也可被质疑） |
+| 数值计算结果 | **claim** | 从计算方法得到的数值 |
+| 实验观测 | **claim** | 实验测量值 |
 
-**关键判断标准：** 该命题是否可以被质疑？是 → claim。只有数学恒等式和纯定义才是 setting。
+**关键判断标准：** 该命题是否可以被质疑？是 → claim。只有数学定义和形式设定才是 setting。
 
-**依赖链：** 如果 A 是 setting，B 依赖 A 的成立——B 通常是 claim。例如：绝热条件（claim）→ Migdal 定理成立（claim）→ BSE 核可分解（claim）。
+**注意区分定义和断言：** "RPA 的数学定义"是 setting，但"RPA 在 $r_s > 2$ 时不可靠"是 claim。"将变量分解为高低频部分"是 setting（数学操作），但"高频部分的贡献可忽略"是 claim（物理断言）。
+
+**依赖链：** 如果 A 是 setting，B 依赖 A 成立且包含物理断言——B 通常是 claim。
 
 论文自己推导的内容——即使推导很严格——也应该是 claim，因为推导过程本身可能有误。
 
