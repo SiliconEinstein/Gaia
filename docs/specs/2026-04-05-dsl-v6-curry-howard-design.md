@@ -206,6 +206,131 @@ def contradiction(a: Claim, b: Claim, *, reason: str = "") -> Claim:
     return helper
 ```
 
+### 2.7 Class 即 Claim（命题即类型，程序即证明）
+
+Python class 可以直接注册为 knowledge node。这是 CH 在 Python 中最自然的体现：
+
+| Curry-Howard | Python | Gaia |
+|-------------|--------|------|
+| 命题 | `class`（类型定义） | Knowledge node |
+| 证明 | `instance`（程序跑通） | 执行记录 |
+| 证明验证 | `pytest`（测试通过） | Review / check |
+| 推导新命题 | 方法返回值 | Derived claim |
+
+通过 `Claim.from_class()` 将已有 Python class 注册为 Claim：
+
+```python
+from gaia.lang import Claim
+
+# 已有的物理库 class
+class NewtonianGravity:
+    """F = G * m1 * m2 / r^2"""
+    G = 6.674e-11
+
+    def force(self, m1: float, m2: float, r: float) -> float:
+        return self.G * m1 * m2 / r**2
+
+# 注册为 knowledge node
+gravity = Claim.from_class(NewtonianGravity)
+# gravity.content = "F = G * m1 * m2 / r^2" (from docstring)
+# gravity.metadata["source_class"] = NewtonianGravity
+```
+
+class 的存在性（可实例化、测试通过）就是 proof。其他 claim 可以引用它作为前提：
+
+```python
+from gaia.lang import deduction
+
+prediction = deduction(
+    "Heavy and light objects hit ground at different times in air.",
+    given=[gravity, air_resistance],
+    reason="Gravity is mass-independent but air resistance is not",
+)
+```
+
+### 2.8 Tool Call（外部计算作为推理）
+
+工具调用遵循和 `contradiction` 相同的模式：输入若干 Claim，产出一个 helper Claim。工具函数是一个 `Callable[..., Claim]`——签名和策略完全同构。
+
+```python
+def toolcall(
+    tool: Callable[..., Claim],
+    /,
+    *,
+    given: list[Claim],
+    reason: str = "",
+) -> Claim
+```
+
+工具函数定义：
+
+```python
+def cfd_simulation(reynolds: Claim, geometry: Claim) -> Claim:
+    """Compute drag coefficient via OpenFOAM CFD."""
+    result = run_openfoam(reynolds.content, geometry.content)
+    return Claim(
+        f"Drag coefficient = {result.cd} ± {result.unc}",
+        parameters={"cd": result.cd, "uncertainty": result.unc},
+        provenance=[{"tool": "OpenFOAM", "version": "v2312"}],
+    )
+```
+
+在知识包中使用：
+
+```python
+from gaia.lang import Claim, toolcall
+
+reynolds = Claim("Reynolds number = 1e6")
+geometry = Claim("Sphere, diameter 0.1m")
+
+drag = toolcall(cfd_simulation, given=[reynolds, geometry])
+# drag 是 helper Claim: "cfd_simulation(reynolds, geometry)"
+# 声明时工具未执行，helper 是占位节点
+# gaia run 时执行工具，helper 的 content/parameters 被实际结果填充
+```
+
+内部实现：
+
+```python
+def toolcall(
+    tool: Callable[..., Claim],
+    /,
+    *,
+    given: list[Claim],
+    reason: str = "",
+) -> Claim:
+    labels = ", ".join(c.label or "?" for c in given)
+    helper = Claim(
+        content=f"{tool.__name__}({labels})",
+        metadata={
+            "helper_kind": "toolcall_result",
+            "tool": tool.__name__,
+            "tool_fn": tool,
+        },
+    )
+    Strategy(type="toolcall", premises=list(given),
+             conclusion=helper, reason=reason or tool.__doc__ or "")
+    return helper
+```
+
+生命周期：
+
+| 阶段 | helper Claim 状态 |
+|------|------------------|
+| `gaia compile` | content = `"cfd_simulation(reynolds, geometry)"`（占位），parameters 为空 |
+| `gaia run` | 执行工具，content = `"Drag coefficient = 0.47 ± 0.02"`，parameters 填充 |
+| `gaia infer` | reviewer 赋 conditional_probability 表达对工具的信任度，BP 计算后验 |
+
+`toolcall` 和 `contradiction` 的对称性：
+
+| | `contradiction` | `toolcall` |
+|---|---|---|
+| 输入 | 两个 Claim | 若干 Claim |
+| 产出 | helper Claim | helper Claim |
+| 底层对象 | Operator | Strategy(type="toolcall") |
+| content | 自动生成 `"not_both_true(a, b)"` | 自动生成 `"tool_name(inputs)"` |
+| 执行时机 | 声明即确定 | `gaia run` 时填充 |
+
 ---
 
 ## 3. 使用示例
@@ -290,7 +415,73 @@ conclusion = noisy_and("Main hypothesis confirmed.",
 # 自动存在于对象图中，不需要显式 composite()
 ```
 
-### 3.3 Review sidecar
+### 3.3 Class 作为 Knowledge Node
+
+```python
+"""galileo_falling_bodies/models.py — Python class 即 knowledge"""
+from gaia.lang import Claim
+
+class AristotleModel:
+    """Heavier objects fall faster in proportion to their weight."""
+    def predict_fall_time(self, mass: float, height: float) -> float:
+        return height / mass  # simplistic
+
+class GalileoModel:
+    """All objects fall at the same rate regardless of mass."""
+    def predict_fall_time(self, mass: float, height: float) -> float:
+        g = 9.81
+        return (2 * height / g) ** 0.5
+
+aristotle_model = Claim.from_class(AristotleModel)
+galileo_model = Claim.from_class(GalileoModel)
+```
+
+```python
+"""galileo_falling_bodies/reasoning.py — 引用 class-as-claim"""
+from gaia.lang import deduction
+from .models import aristotle_model, galileo_model
+
+model_comparison = deduction(
+    "Galileo's model matches experimental data; Aristotle's does not.",
+    given=[aristotle_model, galileo_model],
+    reason="Both models tested against Leaning Tower experiments",
+)
+```
+
+### 3.4 Tool Call
+
+```python
+"""galileo_falling_bodies/tools.py"""
+from gaia.lang import Claim
+
+def drop_experiment(model: Claim, height: Claim) -> Claim:
+    """Run drop experiment simulation."""
+    # actual computation here
+    return Claim(
+        "Heavy ball and light ball hit ground within 0.01s of each other.",
+        parameters={"delta_t": 0.01, "height": 10.0},
+    )
+```
+
+```python
+"""galileo_falling_bodies/reasoning.py — 使用 toolcall"""
+from gaia.lang import Claim, toolcall, deduction
+from .models import galileo_model
+from .tools import drop_experiment
+
+tower_height = Claim("Leaning Tower of Pisa, height = 56m")
+
+experiment_result = toolcall(drop_experiment,
+    given=[galileo_model, tower_height])
+
+final_conclusion = deduction(
+    "Galileo's law of falling bodies is confirmed by experiment.",
+    given=[experiment_result, model_comparison],
+    reason="Simulation matches prediction within measurement error",
+)
+```
+
+### 3.5 Review sidecar
 
 ```python
 """galileo_falling_bodies/reviews/self_review.py"""
@@ -332,11 +523,11 @@ REVIEW = ReviewBundle(
 | 模块 | 改动 |
 |------|------|
 | `gaia/lang/runtime/nodes.py` | Knowledge 拆为 Claim/Setting/Question 子类；Claim 新增 operator 字段 |
-| `gaia/lang/dsl/strategies.py` | 所有策略函数改签名（content 第一参数，given 替代 premises，返回 Claim） |
+| `gaia/lang/dsl/strategies.py` | 所有策略函数改签名（content 第一参数，given 替代 premises，返回 Claim）；新增 `toolcall()` |
 | `gaia/lang/dsl/operators.py` | 类型标注从 Knowledge 收窄为 Claim |
-| `gaia/lang/dsl/knowledge.py` | `claim()` 返回 `Claim`，`setting()` 返回 `Setting`，`question()` 返回 `Question` |
-| `gaia/lang/compiler/compile.py` | 适配子类：`isinstance(k, Claim)` 替代 `k.type == "claim"` |
-| `gaia/lang/__init__.py` | 导出新类型 |
+| `gaia/lang/dsl/knowledge.py` | `claim()` 返回 `Claim`，`setting()` 返回 `Setting`，`question()` 返回 `Question`；新增 `Claim.from_class()` |
+| `gaia/lang/compiler/compile.py` | 适配子类：`isinstance(k, Claim)` 替代 `k.type == "claim"`；处理 `toolcall` 策略类型 |
+| `gaia/lang/__init__.py` | 导出新类型 (`Claim`, `Setting`, `Question`, `toolcall`) |
 
 ### 4.3 IR 映射
 
@@ -344,9 +535,11 @@ REVIEW = ReviewBundle(
 |----------|----------|
 | `Claim(content="X")` | `Knowledge(id="...", type="claim", content="X")` |
 | `Setting(content="X")` | `Knowledge(id="...", type="setting", content="X")` |
+| `Claim.from_class(MyClass)` | `Knowledge(type="claim", content=MyClass.__doc__)` + metadata 记录 class 引用 |
 | `deduction("C", given=[a,b])` 返回的 Claim | `Knowledge(type="claim")` + `Strategy(type="deduction", premises=[...], conclusion=...)` |
+| `toolcall(fn, given=[a,b])` 返回的 helper Claim | `Knowledge(type="claim")` + `Strategy(type="toolcall", premises=[...], conclusion=...)` |
 
-编译器将 DSL 的 `Claim`/`Setting`/`Question` 统一映射到 IR 的 `Knowledge(type=...)`，IR 层无需区分子类。
+编译器将 DSL 的 `Claim`/`Setting`/`Question` 统一映射到 IR 的 `Knowledge(type=...)`，IR 层无需区分子类。`toolcall` 在 IR 中是 `Strategy(type="toolcall")`，lowering 时按 `noisy_and` 处理（reviewer 赋 conditional_probability 表达信任度）。
 
 ---
 
@@ -413,4 +606,7 @@ def deduction(
 | 推理链 | 链式 `noisy_and` 自动形成对象图，`gaia infer` 结果正确 |
 | 向后兼容 | 旧写法 `deduction(premises=[a], conclusion=c)` 发出 warning 但正常工作 |
 | Review | 策略产出的 Claim 不要求 PriorRecord |
+| Claim.from_class | `Claim.from_class(SomeClass)` 生成 Claim，content 取自 docstring，metadata 记录 class |
+| toolcall | `toolcall(fn, given=[a])` 返回 helper Claim，Strategy(type="toolcall") 已注册 |
+| toolcall 编译 | toolcall 编译为 IR Strategy(type="toolcall")，lowering 按 noisy_and 处理 |
 | E2E | Galileo 例子端到端：compile → check → infer → beliefs.json |
