@@ -127,7 +127,7 @@ class TestDiscoveryConfigDefaults:
         assert cfg.embedding_api_url == "https://openapi.dp.tech/openapi/v1/test/vectorize"
         assert cfg.embedding_provider == "dashscope"
         assert cfg.embedding_dim == 512
-        assert cfg.embedding_concurrency == 24
+        assert cfg.embedding_concurrency == 150
         assert cfg.embedding_max_retries == 3
         assert cfg.embedding_http_timeout == 30
         assert cfg.similarity_threshold == 0.85

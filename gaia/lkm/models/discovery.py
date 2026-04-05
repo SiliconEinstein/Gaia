@@ -87,7 +87,7 @@ class DiscoveryConfig:
     embedding_api_url: str = "https://openapi.dp.tech/openapi/v1/test/vectorize"
     embedding_provider: str = "dashscope"
     embedding_dim: int = 512
-    embedding_concurrency: int = 24
+    embedding_concurrency: int = 150
     embedding_max_retries: int = 3
     embedding_http_timeout: int = 30
     # Clustering

@@ -95,10 +95,22 @@ M6 依赖 M2（存储层）+ M5（integrate 完成后的 global graph）。
 - Response: `{"data": {"vector": [float * 512]}}`
 - 维度: 512
 
-**并发控制（参考 propositional_logic_analysis）：**
+**并发控制：**
 - `asyncio.gather()` + `Semaphore(N)`
-- 专用 writer 线程做 ByteHouse 批量写入，避免阻塞 embedding 计算
 - 失败重试（3 次 + exponential backoff）
+- 推荐并发 150（实测最优区间 100-200）
+
+**Embedding API 吞吐实测（2026-04-05，200 请求 × 5 组）：**
+
+| 并发 | RPS | 失败率 | 备注 |
+|------|-----|--------|------|
+| 24 | 23 | 0% | 默认保守值 |
+| 50 | 55 | 0% | |
+| 100 | 126 | 0% | 最优区间起点 |
+| 200 | 128 | 0% | 接近饱和 |
+| 400 | 62 | 0% | 过载，延迟上升 |
+
+推算：254k variables / 128 RPS ≈ 33 分钟（embedding only）。
 
 **ByteHouse 表结构：**
 
