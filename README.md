@@ -166,7 +166,7 @@ The engine compiles the IR into a factor graph, automatically selects the best a
 
 ```
 Inferred 6 beliefs from 4 priors and 0 strategy parameter records
-BP converged: True after 23 iterations
+Method: JT (exact), 2ms
 Review: self_review
 Output: .gaia/reviews/self_review/beliefs.json
 ```
@@ -238,6 +238,7 @@ gaia add galileo-falling-bodies-gaia --version 1.0.0
 | `elimination(exhaustiveness, excluded, survivor)` | Process of elimination |
 | `case_analysis(exhaustiveness, cases, conclusion)` | Case-by-case reasoning |
 | `mathematical_induction(base, step, conclusion)` | Inductive proof |
+| `induction(observations, law)` | Multiple observations supporting a general law |
 | `composite(premises, conclusion, sub_strategies)` | Hierarchical composition |
 
 ## Architecture
