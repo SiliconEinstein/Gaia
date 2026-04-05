@@ -84,11 +84,11 @@ export default function GraphPage() {
   });
 
   useEffect(() => {
-    fetch("/api/packages")
+    fetch("/api/packages?limit=20")
       .then((r) => r.json())
-      .then((pkgs: Package[]) => {
-        setPackages(pkgs);
-        if (pkgs.length > 0) setSelectedPkg(pkgs[0].package_id);
+      .then((resp: { items: Package[]; total: number }) => {
+        setPackages(resp.items);
+        if (resp.items.length > 0) setSelectedPkg(resp.items[0].package_id);
       });
   }, []);
 
@@ -188,13 +188,25 @@ export default function GraphPage() {
       <Space style={{ marginBottom: 16 }}>
         <span>Package:</span>
         <Select
-          style={{ width: 350 }}
+          showSearch
+          style={{ width: 400 }}
           value={selectedPkg}
           onChange={setSelectedPkg}
+          filterOption={false}
+          onSearch={(val) => {
+            const params = new URLSearchParams({ limit: "20" });
+            if (val) params.set("q", val);
+            fetch(`/api/packages?${params}`)
+              .then((r) => r.json())
+              .then((resp: { items: Package[]; total: number }) =>
+                setPackages(resp.items)
+              );
+          }}
           options={packages.map((p) => ({
             value: p.package_id,
             label: `${p.package_id} (${p.variable_count} vars)`,
           }))}
+          placeholder="Search packages..."
         />
       </Space>
 
