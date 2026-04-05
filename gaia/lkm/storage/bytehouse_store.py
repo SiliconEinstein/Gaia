@@ -23,10 +23,6 @@ class ByteHouseEmbeddingStore:
 
     _COLUMNS = ["gcn_id", "content", "node_type", "embedding", "source_id"]
 
-    # Default replication root used by the ByteHouse instance.
-    # Override via replication_root param for staging/test environments.
-    _DEFAULT_REPLICATION_ROOT = "/clickhouse/2100109874/sciencepedia_new"
-
     def __init__(
         self,
         host: str,
@@ -34,7 +30,7 @@ class ByteHouseEmbeddingStore:
         password: str,
         database: str = "paper_data",
         secure: bool = True,
-        replication_root: str | None = None,
+        replication_root: str = "",
     ) -> None:
         """Connect to ByteHouse/ClickHouse.
 
@@ -44,9 +40,11 @@ class ByteHouseEmbeddingStore:
             password: Password for authentication.
             database: Target database name.
             secure: Whether to use TLS.
+            replication_root: ZooKeeper path prefix for HaUniqueMergeTree DDL.
+                Set via BYTEHOUSE_REPLICATION_ROOT env var.
         """
         self._database = database
-        self._replication_root = replication_root or self._DEFAULT_REPLICATION_ROOT
+        self._replication_root = replication_root
         self._client = clickhouse_connect.get_client(
             host=host,
             user=user,
@@ -65,9 +63,12 @@ class ByteHouseEmbeddingStore:
         ByteHouse requires explicit shard/replica path args for
         HaUniqueMergeTree (it's backed by ReplicatedMergeTree).
         """
-        # ByteHouse requires explicit shard/replica path for HaUniqueMergeTree.
-        # Pattern from existing paper_metadata table:
-        #   HaUniqueMergeTree('/clickhouse/<id>/<db>.<table>/{shard}', '{replica}')
+        if not self._replication_root:
+            raise ValueError(
+                "bytehouse_replication_root is required for HaUniqueMergeTree DDL. "
+                "Set BYTEHOUSE_REPLICATION_ROOT env var."
+            )
+        # Pattern: HaUniqueMergeTree('<root>/<db>.<table>/{shard}', '{replica}')
         table_fqn = f"{self._database}.{self.TABLE}"
         ddl = f"""
         CREATE TABLE IF NOT EXISTS {self.TABLE} (

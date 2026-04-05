@@ -254,4 +254,5 @@ class StorageManager:
             user=self._config.bytehouse_user,
             password=self._config.bytehouse_password,
             database=self._config.bytehouse_database,
+            replication_root=self._config.bytehouse_replication_root,
         )

@@ -35,6 +35,7 @@ class StorageConfig(BaseSettings):
     bytehouse_user: str = ""
     bytehouse_password: str = ""
     bytehouse_database: str = "paper_data"
+    bytehouse_replication_root: str = ""  # ZooKeeper path prefix for HaUniqueMergeTree
 
     # Embedding API
     embedding_access_key: str = ""
@@ -59,6 +60,10 @@ class StorageConfig(BaseSettings):
         bh_db = os.environ.get("BYTEHOUSE_DATABASE", "")
         if bh_db:
             self.bytehouse_database = bh_db
+        if not self.bytehouse_replication_root:
+            self.bytehouse_replication_root = os.environ.get(
+                "BYTEHOUSE_REPLICATION_ROOT", ""
+            )
         # Embedding API key fallback
         if not self.embedding_access_key:
             self.embedding_access_key = os.environ.get("ACCESS_KEY", "")

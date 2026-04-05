@@ -22,6 +22,7 @@ def store(mock_client):
             password="secret",
             database="paper_data",
             secure=True,
+            replication_root="/clickhouse/test/root",
         )
     return s, mock_client
 
@@ -36,6 +37,7 @@ def test_constructor_connects():
             password="pw",
             database="mydb",
             secure=False,
+            replication_root="/clickhouse/test/root",
         )
         mock_get.assert_called_once_with(
             host="bh-host",
