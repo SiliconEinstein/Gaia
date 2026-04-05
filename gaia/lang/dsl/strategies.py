@@ -81,6 +81,21 @@ def _flatten_pairs(
     return flattened
 
 
+def _validate_induction_items(
+    items: list[Knowledge] | list[Strategy],
+    *,
+    expected_type: type[Knowledge] | type[Strategy],
+) -> None:
+    """Reject mixed Knowledge/Strategy lists with a clear DSL-level error."""
+    expected_name = expected_type.__name__
+    for i, item in enumerate(items):
+        if not isinstance(item, expected_type):
+            actual_name = type(item).__name__
+            raise TypeError(
+                f"induction() items must all be {expected_name}; item {i} is {actual_name}"
+            )
+
+
 def noisy_and(
     premises: list[Knowledge],
     conclusion: Knowledge,
@@ -296,8 +311,10 @@ def induction(
         raise ValueError("induction() requires a non-empty list")
 
     if isinstance(items[0], Strategy):
+        _validate_induction_items(items, expected_type=Strategy)
         return _induction_bottom_up(items, law, background=background, reason=reason)
     elif isinstance(items[0], Knowledge):
+        _validate_induction_items(items, expected_type=Knowledge)
         if law is None:
             raise ValueError("induction() top-down mode requires law argument")
         return _induction_top_down(
@@ -308,7 +325,7 @@ def induction(
 
 
 def _induction_top_down(
-    observations: list,
+    observations: list[Knowledge],
     law: Knowledge,
     *,
     alt_exps: list[Knowledge | None] | None = None,
@@ -329,9 +346,9 @@ def _induction_top_down(
         alt = alt_exps[i] if alt_exps is not None else None
         if alt is not None:
             all_premises.append(alt)
-        # Reuse abduction() to get step premise validation and standard behavior.
-        # Each call temporarily sets law.strategy; _composite_strategy overwrites it.
-        sub = abduction(obs, law, alt, background=background, reason=reason)
+        # Reuse abduction() to get standard behavior, but keep induction-level
+        # reasoning attached to the outer CompositeStrategy only.
+        sub = abduction(obs, law, alt, background=background)
         sub_strategies.append(sub)
 
     return _composite_strategy(
@@ -345,7 +362,7 @@ def _induction_top_down(
 
 
 def _induction_bottom_up(
-    strategies: list,
+    strategies: list[Strategy],
     law: Knowledge | None = None,
     *,
     background: list[Knowledge] | None = None,

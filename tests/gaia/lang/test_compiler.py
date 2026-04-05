@@ -376,6 +376,23 @@ def test_at_label_in_background_ok():
         assert len(at_warnings) == 0
 
 
+def test_induction_reason_at_labels_do_not_warn_on_sub_abductions():
+    pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
+    with pkg:
+        law = claim("Law.")
+        law.label = "law"
+        obs1 = claim("Observation 1.")
+        obs1.label = "obs1"
+        obs2 = claim("Observation 2.")
+        obs2.label = "obs2"
+        induction([obs1, obs2], law, reason="Generalizes from @obs1 and @obs2.")
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        compile_package_artifact(pkg)
+        at_warnings = [x for x in w if "@" in str(x.message)]
+        assert len(at_warnings) == 0
+
+
 def test_compile_induction():
     """Induction compiles to CompositeStrategy + FormalStrategy sub-abductions."""
     pkg = CollectedPackage("test_induction", namespace="github", version="1.0.0")

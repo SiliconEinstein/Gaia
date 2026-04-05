@@ -245,6 +245,19 @@ def test_induction_top_down_mixed_alt_exps():
     assert len(s.sub_strategies[1].premises) == 1
 
 
+def test_induction_top_down_reason_stays_on_composite():
+    """Induction-level reason text should not be copied to each sub-abduction."""
+    law = claim("Law.")
+    obs1 = claim("Obs 1.")
+    obs2 = claim("Obs 2.")
+    reason = [Step(reason="Combine both observations.", premises=[obs1, obs2])]
+
+    s = induction([obs1, obs2], law, reason=reason)
+
+    assert s.reason == reason
+    assert all(sub.reason == "" for sub in s.sub_strategies)
+
+
 def test_induction_bottom_up():
     """Bottom-up: bundle existing abductions."""
     law = claim("Law.")
@@ -318,6 +331,15 @@ def test_induction_bottom_up_non_abduction():
     s2 = noisy_and(premises=[b], conclusion=law)
     with pytest.raises(ValueError, match="must be abduction"):
         induction([s1, s2])
+
+
+def test_induction_rejects_mixed_item_types():
+    """Mixed Knowledge/Strategy input should fail at the DSL boundary."""
+    law = claim("Law.")
+    obs = claim("Obs.")
+    abd = abduction(claim("Other obs."), law)
+    with pytest.raises(TypeError, match="must all be Knowledge"):
+        induction([obs, abd], law)
 
 
 def test_induction_bottom_up_law_mismatch():
