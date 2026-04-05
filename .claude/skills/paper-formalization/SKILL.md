@@ -150,6 +150,12 @@ _strat = abduction(
 
 **注意：** `abduction()` 返回 Strategy（不是 Knowledge）。需要将返回值赋给变量（如 `_strat`）以便 review sidecar 中引用。
 
+**π(Alt) 的语义——至关重要：** 在 abduction 中，`alternative_explanation` 的 prior π(Alt) 表示的是：**"不靠 H，Alt 本身就能解释 Obs 的概率"**——而不是 Alt 这个 claim 本身是否正确。
+
+例如：如果 Obs = "实验 Tc = 1.2K"，Alt = "唯象理论预测 Tc = 1.9K"，那么虽然 Alt 的计算本身没有错（计算确实给出 1.9K），但 1.9K 并不能解释 1.2K 这个观测值。因此 π(Alt) 应该**低**（如 0.3），而不是因为"计算正确"就设为 0.9。
+
+**经验法则：** 如果 π(Alt) ≥ π(H)，说明替代理论的解释力不弱于假说——这要么意味着 abduction 对 H 的支持很弱，要么意味着 π(Alt) 被高估了。Reviewer 应仔细检查。
+
 ### Content 必须自含
 
 每个节点的 content 必须是完整的、独立可理解的命题。Reviewer 读到它不需要看上下文就能判断。
@@ -369,6 +375,7 @@ Operators 编码确定性逻辑约束，与 strategy 正交：
 | infer strategy（N premises） | `conditional_probabilities`（2^N 个值，CPT） | 完整条件概率表 |
 | composite strategy | top-level 需要 CPT（2^N 个值） | 用于折叠模式 |
 | Generated claims（abduction alternative） | reviewer 判断 | `review_generated_claim` |
+| Explicit abduction alternative | prior 反映**解释力**而非计算正确性 | `review_claim` |
 
 ### 实践要点
 
@@ -409,6 +416,7 @@ Operators 编码确定性逻辑约束，与 strategy 正交：
 |---------|-------------|-----|
 | 理论预测与实验结果混在一个 claim | 无法用 abduction 建模验证关系 | 分离为两个 claim + abduction |
 | abduction 不提供 alternative | 缺少替代理论的比较 | 提供已有理论作为 alternative |
+| abduction alternative 的 prior 反映"计算正确性"而非"解释力" | π(Alt) 过高，削弱 abduction 对 H 的支持 | π(Alt) 应回答"Alt 能否独立解释 Obs"，而非"Alt 的计算是否正确" |
 | reason 写得太简略（一句话） | 推理过程不可追溯 | 详细总结推导步骤，用 @label 引用 |
 | 4+ premise 的 flat noisy_and | BP 乘法效应严重 | 用 composite 分解为 ≤3 premise 子步骤 |
 | Content 不自含（符号/缩写未解释） | Reviewer 无法独立判断 | 每个 claim 独立解释所有符号和缩写 |
