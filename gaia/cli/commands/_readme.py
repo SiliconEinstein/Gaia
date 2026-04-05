@@ -123,7 +123,7 @@ def _mermaid_node_line(
 ) -> str:
     display_name = title or label
     display = f"{display_name} ({beliefs[kid]:.2f})" if beliefs and kid in beliefs else display_name
-    display = display.replace('"', "#quot;")
+    display = display.replace('"', "#quot;").replace("*", "#ast;")
     if css_class_override:
         css = css_class_override
     else:
@@ -453,7 +453,7 @@ def _render_overview_graph(
         kid = k["id"]
         title = k.get("title") or label
         display = f"{title} ({beliefs[kid]:.2f})" if beliefs and kid in beliefs else title
-        display = display.replace('"', "#quot;")
+        display = display.replace('"', "#quot;").replace("*", "#ast;")
         role = node_role(kid, k["type"], c)
         css = _ROLE_TO_CSS.get(role, "orphan")
         lines.append(f'    {label}["{display}"]:::{css}')
