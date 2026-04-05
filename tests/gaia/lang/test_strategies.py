@@ -10,6 +10,7 @@ from gaia.lang import (
     deduction,
     elimination,
     extrapolation,
+    induction,
     mathematical_induction,
     noisy_and,
     setting,
@@ -198,3 +199,47 @@ def test_composite_requires_sub_strategies():
     conclusion = claim("Conclusion.")
     with pytest.raises(ValueError, match="at least one sub-strategy"):
         composite(premises=[evidence], conclusion=conclusion, sub_strategies=[])
+
+
+def test_induction_top_down_basic():
+    """Top-down: pass Knowledge list, auto-generate AltExps."""
+    law = claim("All metals expand when heated.")
+    obs1 = claim("Iron expands when heated.")
+    obs2 = claim("Copper expands when heated.")
+    obs3 = claim("Silver expands when heated.")
+
+    s = induction([obs1, obs2, obs3], law)
+    assert s.type == "induction"
+    assert s.conclusion is law
+    assert len(s.sub_strategies) == 3
+    for sub in s.sub_strategies:
+        assert sub.type == "abduction"
+        assert sub.conclusion is law
+    assert law.strategy is s
+
+
+def test_induction_top_down_with_alt_exps():
+    """Top-down: explicit AltExps provided."""
+    law = claim("Drug X cures disease Y.")
+    obs1 = claim("Patient 1 recovered.")
+    obs2 = claim("Patient 2 recovered.")
+    alt1 = claim("Patient 1 recovered spontaneously.")
+    alt2 = claim("Patient 2 recovered spontaneously.")
+
+    s = induction([obs1, obs2], law, alt_exps=[alt1, alt2])
+    assert s.type == "induction"
+    assert len(s.sub_strategies) == 2
+    assert alt1 in s.sub_strategies[0].premises
+    assert alt2 in s.sub_strategies[1].premises
+
+
+def test_induction_top_down_mixed_alt_exps():
+    """Top-down: some AltExps explicit, some None (auto-generated)."""
+    law = claim("Law.")
+    obs1 = claim("Obs 1.")
+    obs2 = claim("Obs 2.")
+    alt1 = claim("Alt 1.")
+
+    s = induction([obs1, obs2], law, alt_exps=[alt1, None])
+    assert alt1 in s.sub_strategies[0].premises
+    assert len(s.sub_strategies[1].premises) == 1

@@ -269,3 +269,130 @@ def composite(
         background=background,
         reason=reason,
     )
+
+
+def induction(
+    items: list[Knowledge] | list[Strategy],
+    law: Knowledge | None = None,
+    *,
+    alt_exps: list[Knowledge | None] | None = None,
+    background: list[Knowledge] | None = None,
+    reason: ReasonInput = "",
+) -> Strategy:
+    """Induction: multiple observations jointly supporting a law.
+
+    Two modes, detected from the type of items[0]:
+
+    Top-down (items = list[Knowledge]):
+        Creates n abduction sub-strategies internally.
+        law is required. alt_exps is optional (auto-generated if omitted).
+
+    Bottom-up (items = list[Strategy]):
+        Bundles existing abduction strategies.
+        law is inferred from shared conclusion (validated if provided).
+        alt_exps is ignored.
+    """
+    if not items:
+        raise ValueError("induction() requires a non-empty list")
+
+    if isinstance(items[0], Strategy):
+        return _induction_bottom_up(items, law, reason=reason)
+    elif isinstance(items[0], Knowledge):
+        if law is None:
+            raise ValueError("induction() top-down mode requires law argument")
+        return _induction_top_down(
+            items, law, alt_exps=alt_exps, background=background, reason=reason
+        )
+    else:
+        raise TypeError(
+            f"induction() items must be Knowledge or Strategy, got {type(items[0])!r}"
+        )
+
+
+def _induction_top_down(
+    observations: list,
+    law: Knowledge,
+    *,
+    alt_exps: list[Knowledge | None] | None = None,
+    background: list[Knowledge] | None = None,
+    reason: ReasonInput = "",
+) -> Strategy:
+    if len(observations) < 2:
+        raise ValueError("induction() requires at least 2 observations")
+    if alt_exps is not None and len(alt_exps) != len(observations):
+        raise ValueError(
+            f"alt_exps length ({len(alt_exps)}) must match observations ({len(observations)})"
+        )
+
+    sub_strategies: list[Strategy] = []
+    all_premises: list[Knowledge] = list(observations)
+
+    for i, obs in enumerate(observations):
+        alt = alt_exps[i] if alt_exps is not None else None
+        premises = [obs]
+        if alt is not None:
+            premises.append(alt)
+            all_premises.append(alt)
+        sub = Strategy(
+            type="abduction",
+            premises=premises,
+            conclusion=law,
+            background=background or [],
+            reason=reason,
+        )
+        sub_strategies.append(sub)
+
+    return _composite_strategy(
+        type_="induction",
+        premises=all_premises,
+        conclusion=law,
+        sub_strategies=sub_strategies,
+        background=background,
+        reason=reason,
+    )
+
+
+def _induction_bottom_up(
+    strategies: list,
+    law: Knowledge | None = None,
+    *,
+    reason: ReasonInput = "",
+) -> Strategy:
+    if len(strategies) < 2:
+        raise ValueError("induction() requires at least 2 sub-strategies")
+    conclusions: set[int] = set()
+    for s in strategies:
+        if not isinstance(s, Strategy):
+            raise TypeError(f"induction() bottom-up items must be Strategy, got {type(s)!r}")
+        if s.type != "abduction":
+            raise ValueError(
+                f"induction() bottom-up sub-strategies must be abduction, got '{s.type}'"
+            )
+        if s.conclusion is None:
+            raise ValueError("induction() sub-strategy has no conclusion")
+        conclusions.add(id(s.conclusion))
+
+    if len(conclusions) != 1:
+        raise ValueError(
+            "induction() all sub-strategies must share the same conclusion (by identity)"
+        )
+
+    inferred_law = strategies[0].conclusion
+    if law is not None and law is not inferred_law:
+        raise ValueError("induction() law does not match sub-strategies' shared conclusion")
+
+    all_premises: list[Knowledge] = []
+    seen: set[int] = set()
+    for s in strategies:
+        for p in s.premises:
+            if id(p) not in seen:
+                all_premises.append(p)
+                seen.add(id(p))
+
+    return _composite_strategy(
+        type_="induction",
+        premises=all_premises,
+        conclusion=inferred_law,
+        sub_strategies=strategies,
+        reason=reason,
+    )
