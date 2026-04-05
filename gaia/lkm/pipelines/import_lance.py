@@ -366,7 +366,6 @@ def upload_local_to_s3(local_path: str, s3_uri: str) -> None:
     even for tables with millions of rows.
     """
     import lancedb as _lancedb
-    import pyarrow as pa
 
     from gaia.lkm.storage.config import StorageConfig
 
@@ -402,14 +401,18 @@ def upload_local_to_s3(local_path: str, s3_uri: str) -> None:
             "Uploading %s: %d rows in batches of %d...", table_name, row_count, _UPLOAD_BATCH_SIZE
         )
         uploaded = 0
-        for batch in local_table.to_lance().to_batches(batch_size=_UPLOAD_BATCH_SIZE):
-            batch_table = pa.Table.from_batches([batch], schema=batch.schema)
+        offset = 0
+        while offset < row_count:
+            batch_table = local_table.search().offset(offset).limit(_UPLOAD_BATCH_SIZE).to_arrow()
+            if batch_table.num_rows == 0:
+                break
             if table_name not in remote_tables:
                 remote_db.create_table(table_name, batch_table)
                 remote_tables.add(table_name)
             else:
                 remote_db.open_table(table_name).add(batch_table)
             uploaded += batch_table.num_rows
+            offset += _UPLOAD_BATCH_SIZE
             logger.info("  %s: %d/%d rows uploaded", table_name, uploaded, row_count)
 
         logger.info("Uploaded %s ✓ (%d rows)", table_name, uploaded)
