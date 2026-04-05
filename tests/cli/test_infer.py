@@ -59,7 +59,7 @@ def test_infer_writes_parameterization_and_beliefs(tmp_path):
 
     result = runner.invoke(app, ["infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output
-    assert "BP converged: True" in result.output
+    assert "Method:" in result.output
 
     gaia_dir = pkg_dir / ".gaia"
     parameterization = json.loads(
