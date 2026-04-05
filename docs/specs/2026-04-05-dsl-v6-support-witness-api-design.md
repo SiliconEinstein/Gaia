@@ -48,6 +48,8 @@
 
 ### 3.1 Support 继承树
 
+完整继承树见概念 spec §3.2 和 §6.1。这里列出 API 签名涉及的关键子类：
+
 ```python
 @dataclass
 class Support:
@@ -59,44 +61,40 @@ class Support:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass
-class FormalSupport(Support):
-    """deduction / abduction / analogy / extrapolation / elimination / ..."""
-    family: str = "deduction"
+# FormalSupport 子类 — 每个 formal family 一个子类
+class FormalSupport(Support): ...
+class DeductionSupport(FormalSupport): ...
+class AbductionSupport(FormalSupport):
+    observation: Claim
+    alternative: Claim | None = None
+class AnalogySupport(FormalSupport):
+    source: Claim
+    bridge: Claim
+# ... 其余 formal families 见概念 spec §6.1
 
 
-@dataclass
-class InferSupport(Support):
-    """noisy_and / infer"""
-    family: str = "noisy_and"
+# InferSupport 子类
+class NoisyAndSupport(Support): ...
+class GeneralInferSupport(Support): ...
 
 
-@dataclass
+# Execution-backed 子类
 class ExecutionSupport(Support):
-    """execute()"""
     callable_ref: Callable | str = ""
     execution_backend: str | None = None
-    execution_args: dict[str, Any] = field(default_factory=dict)
 
-
-@dataclass
 class CheckSupport(Support):
-    """check()"""
     checker_ref: Callable | str = ""
     checker_args: dict[str, Any] = field(default_factory=dict)
 
-
-@dataclass
 class FormalProofSupport(Support):
-    """formal_proof()"""
     system: str = ""
     theorem_ref: str = ""
     proof_args: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass
+# Composite
 class CompositeSupport(Support):
-    """聚合多条子 support"""
     sub_supports: list[Support] = field(default_factory=list)
 ```
 
@@ -184,7 +182,7 @@ def claim(
 ) -> Claim
 ```
 
-若给 `given=...`，内部创建 `InferSupport(family="noisy_and")`。
+若给 `given=...`，内部创建 `NoisyAndSupport`。
 
 ### 5.2 `setting()` / `question()`
 
@@ -197,7 +195,7 @@ def question(content: str, *, title: str | None = None, **metadata) -> Question
 
 ## 6. FormalSupport Constructors
 
-所有返回 `Claim`，内部创建 `FormalSupport`。
+所有返回 `Claim`，内部创建对应的 `FormalSupport` 子类。
 
 ### 6.1 `deduction()`
 
@@ -243,7 +241,7 @@ def induction(
 ) -> Claim
 ```
 
-内部创建 `CompositeSupport(sub_supports=[abduction_1, abduction_2, ...])`。
+内部创建 `CompositeSupport(sub_supports=[AbductionSupport_1, AbductionSupport_2, ...])`。
 
 需要精细控制 sub-support 结构时，直接使用 `composite_support()`（§9）。
 
@@ -259,9 +257,9 @@ def mathematical_induction(content: str, /, *, base: Claim, step: Claim, ...)
 
 ---
 
-## 7. InferSupport Constructors
+## 7. Infer Constructors
 
-### 7.1 `noisy_and()`
+### 7.1 `noisy_and()`（→ NoisyAndSupport）
 
 ```python
 def noisy_and(
@@ -277,7 +275,7 @@ def noisy_and(
 
 `claim(..., given=[...])` 的显式版本。
 
-### 7.2 `infer()`
+### 7.2 `infer()`（→ GeneralInferSupport）
 
 ```python
 def infer(
