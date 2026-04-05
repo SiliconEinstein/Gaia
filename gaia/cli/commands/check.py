@@ -41,9 +41,6 @@ def _knowledge_diagnostics(ir: dict) -> list[str]:
         for v in o.get("variables", []):
             operator_variables.add(v)
 
-    # All referenced IDs (premise, background, or operator variable)
-    all_referenced = strategy_premises | strategy_background | operator_variables
-
     # Classify claims
     independent = []  # leaf nodes — need reviewer prior
     derived = []  # strategy conclusions — BP propagates belief
