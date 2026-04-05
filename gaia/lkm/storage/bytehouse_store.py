@@ -140,8 +140,8 @@ class ByteHouseEmbeddingStore:
 
     # ── Discovery results persistence ──
 
-    _RUNS_TABLE = "discovery_runs"
-    _CLUSTERS_TABLE = "discovery_clusters"
+    _RUNS_TABLE = "discovery_runs_v2"
+    _CLUSTERS_TABLE = "discovery_clusters_v2"
 
     def ensure_discovery_tables(self) -> None:
         """Create discovery_runs and discovery_clusters tables if not exist."""
@@ -158,6 +158,9 @@ class ByteHouseEmbeddingStore:
             run_id          String,
             threshold       Float32,
             faiss_k         UInt32,
+            scope           String,
+            embedding_count UInt32,
+            type_counts     String,
             total_scanned   UInt32,
             total_computed  UInt32,
             total_clusters  UInt32,
@@ -192,19 +195,30 @@ class ByteHouseEmbeddingStore:
         SETTINGS index_granularity = 128
         """)
 
-    def save_discovery_result(self, result, config) -> str:
+    def save_discovery_result(
+        self,
+        result,
+        config,
+        scope: str = "full",
+        type_counts: dict[str, int] | None = None,
+    ) -> str:
         """Persist a ClusteringResult to ByteHouse.
 
         Args:
             result: ClusteringResult from run_semantic_discovery().
             config: DiscoveryConfig used for this run.
+            scope: Data scope label, e.g. "full", "subset:10000".
+            type_counts: Per-type embedding counts, e.g. {"claim": 9385, "question": 615}.
 
         Returns:
             The run_id assigned to this result.
         """
+        import json as _json
         import uuid
 
         run_id = uuid.uuid4().hex[:16]
+        embedding_count = sum((type_counts or {}).values())
+        type_counts_json = _json.dumps(type_counts or {})
 
         # Write run metadata
         self._client.insert(
@@ -214,6 +228,9 @@ class ByteHouseEmbeddingStore:
                     run_id,
                     config.similarity_threshold,
                     config.faiss_k,
+                    scope,
+                    embedding_count,
+                    type_counts_json,
                     result.stats.total_variables_scanned,
                     result.stats.total_embeddings_computed,
                     result.stats.total_clusters,
@@ -224,6 +241,9 @@ class ByteHouseEmbeddingStore:
                 "run_id",
                 "threshold",
                 "faiss_k",
+                "scope",
+                "embedding_count",
+                "type_counts",
                 "total_scanned",
                 "total_computed",
                 "total_clusters",

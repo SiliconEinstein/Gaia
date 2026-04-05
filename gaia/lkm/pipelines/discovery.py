@@ -100,10 +100,13 @@ def run_cluster_only(
     try:
         all_clusters: list[SemanticCluster] = []
         total_scanned = 0
+        type_counts: dict[str, int] = {}
 
         for node_type in _NODE_TYPES:
             gcn_ids, matrix = bytehouse.load_embeddings_by_type(node_type)
             total_scanned += len(gcn_ids)
+            if gcn_ids:
+                type_counts[node_type] = len(gcn_ids)
             if len(gcn_ids) < 2:
                 continue
             clusters = cluster_embeddings(gcn_ids, matrix, config)
@@ -128,7 +131,12 @@ def run_cluster_only(
         )
 
         if all_clusters:
-            run_id = bytehouse.save_discovery_result(result, config)
+            run_id = bytehouse.save_discovery_result(
+                result,
+                config,
+                scope="full",
+                type_counts=type_counts,
+            )
             logger.info("Saved run_id=%s, %d clusters in %.1fs", run_id, len(all_clusters), elapsed)
 
         return result
