@@ -58,44 +58,34 @@ async def _batch_fetch_content(
 ) -> dict[str, str]:
     """Batch-fetch content for pending globals via local variable lookup.
 
+    Uses storage.get_local_variables_by_ids() for efficient batch queries
+    (one LanceDB query per 500 IDs instead of one per ID).
+
     Returns {gcn_id: content_text} for items where content was found.
-    Fetches sequentially in batches to avoid overwhelming remote LanceDB.
     """
     gcn_to_content: dict[str, str] = {}
 
-    # Group by local_id to avoid redundant lookups (many globals may share local vars)
-    items: list[tuple[str, str, str]] = []  # (gcn_id, local_id, node_type)
+    # Parse representative_lcn to get local_ids
+    items: list[tuple[str, str]] = []  # (gcn_id, local_id)
     for meta in pending:
         try:
             rep_lcn = json.loads(meta["representative_lcn"])
             local_id = rep_lcn["local_id"]
-            items.append((meta["id"], local_id, meta.get("type", "")))
+            items.append((meta["id"], local_id))
         except (KeyError, json.JSONDecodeError):
             logger.warning("Cannot parse representative_lcn for %s", meta["id"])
 
     # Deduplicate local_ids
-    unique_local_ids = list({local_id for _, local_id, _ in items})
-    local_id_to_content: dict[str, str] = {}
+    unique_local_ids = list({local_id for _, local_id in items})
 
-    # Batch fetch in chunks
-    for i in range(0, len(unique_local_ids), _CONTENT_BATCH_SIZE):
-        batch_ids = unique_local_ids[i : i + _CONTENT_BATCH_SIZE]
-        logger.info(
-            "Fetching content batch %d/%d (%d ids)...",
-            i // _CONTENT_BATCH_SIZE + 1,
-            (len(unique_local_ids) + _CONTENT_BATCH_SIZE - 1) // _CONTENT_BATCH_SIZE,
-            len(batch_ids),
-        )
-        # Fetch individually but sequentially within batch (LanceDB is sync underneath)
-        for lid in batch_ids:
-            local_var = await storage.get_local_variable(lid)
-            if local_var and local_var.content:
-                local_id_to_content[lid] = local_var.content
+    logger.info("Batch-fetching content for %d unique local variables...", len(unique_local_ids))
+    local_vars = await storage.get_local_variables_by_ids(unique_local_ids)
 
     # Map back to gcn_ids
-    for gcn_id, local_id, _ in items:
-        if local_id in local_id_to_content:
-            gcn_to_content[gcn_id] = local_id_to_content[local_id]
+    for gcn_id, local_id in items:
+        lv = local_vars.get(local_id)
+        if lv and lv.content:
+            gcn_to_content[gcn_id] = lv.content
 
     logger.info(
         "Content fetch: %d requested, %d unique local, %d found",

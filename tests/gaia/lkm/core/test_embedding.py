@@ -119,12 +119,15 @@ class TestComputeEmbeddings:
         storage = MagicMock()
         storage.list_all_public_global_ids = AsyncMock(return_value=globals_list)
 
-        async def get_local_variable(local_id):
-            node = MagicMock()
-            node.content = f"content for {local_id}"
-            return node
+        async def get_local_variables_by_ids(local_ids):
+            result = {}
+            for lid in local_ids:
+                node = MagicMock()
+                node.content = f"content for {lid}"
+                result[lid] = node
+            return result
 
-        storage.get_local_variable = get_local_variable
+        storage.get_local_variables_by_ids = get_local_variables_by_ids
         return storage
 
     def _make_bytehouse(self, existing_ids=None):

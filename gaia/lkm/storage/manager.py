@@ -151,6 +151,12 @@ class StorageManager:
     async def get_local_variable(self, local_id: str) -> LocalVariableNode | None:
         return await self.content.get_local_variable(local_id)
 
+    async def get_local_variables_by_ids(
+        self, local_ids: list[str]
+    ) -> dict[str, LocalVariableNode]:
+        """Batch-fetch local variables by ID list."""
+        return await self.content.get_local_variables_by_ids(local_ids)
+
     async def get_global_variable(self, gcn_id: str) -> GlobalVariableNode | None:
         return await self.content.get_global_variable(gcn_id)
 
