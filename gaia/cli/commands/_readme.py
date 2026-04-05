@@ -65,15 +65,15 @@ def _module_segments(nodes: list[dict]) -> list[tuple[str, list[dict]]]:
 # ── Mermaid rendering ──
 
 _MERMAID_STYLES = """\
-    classDef setting fill:#f0f0f0,stroke:#999
-    classDef premise fill:#ddeeff,stroke:#4488bb
-    classDef derived fill:#ddffdd,stroke:#44bb44
-    classDef question fill:#fff3dd,stroke:#cc9944
-    classDef background fill:#f5f5f5,stroke:#bbb,stroke-dasharray: 5 5
-    classDef orphan fill:#fff,stroke:#ccc,stroke-dasharray: 5 5
-    classDef external fill:#fff,stroke:#aaa,stroke-dasharray: 3 3
-    classDef weak fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 5 5
-    classDef contra fill:#ffebee,stroke:#c62828"""
+    classDef setting fill:#f0f0f0,stroke:#999,color:#333
+    classDef premise fill:#ddeeff,stroke:#4488bb,color:#333
+    classDef derived fill:#ddffdd,stroke:#44bb44,color:#333
+    classDef question fill:#fff3dd,stroke:#cc9944,color:#333
+    classDef background fill:#f5f5f5,stroke:#bbb,stroke-dasharray: 5 5,color:#333
+    classDef orphan fill:#fff,stroke:#ccc,stroke-dasharray: 5 5,color:#333
+    classDef external fill:#fff,stroke:#aaa,stroke-dasharray: 3 3,color:#333
+    classDef weak fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 5 5,color:#333
+    classDef contra fill:#ffebee,stroke:#c62828,color:#333"""
 
 # Map node_role() output to Mermaid CSS class names
 _ROLE_TO_CSS = {
@@ -123,7 +123,7 @@ def _mermaid_node_line(
 ) -> str:
     display_name = title or label
     display = f"{display_name} ({beliefs[kid]:.2f})" if beliefs and kid in beliefs else display_name
-    display = display.replace('"', "#quot;")
+    display = display.replace('"', "#quot;").replace("*", "#ast;")
     if css_class_override:
         css = css_class_override
     else:
@@ -453,7 +453,7 @@ def _render_overview_graph(
         kid = k["id"]
         title = k.get("title") or label
         display = f"{title} ({beliefs[kid]:.2f})" if beliefs and kid in beliefs else title
-        display = display.replace('"', "#quot;")
+        display = display.replace('"', "#quot;").replace("*", "#ast;")
         role = node_role(kid, k["type"], c)
         css = _ROLE_TO_CSS.get(role, "orphan")
         lines.append(f'    {label}["{display}"]:::{css}')
