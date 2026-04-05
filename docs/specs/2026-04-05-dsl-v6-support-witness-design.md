@@ -159,8 +159,12 @@ Support 是一等对象，原因有三：
 2. 它需要被 review
 3. 它需要被组合、折叠、展开
 
-在 v6 authoring surface 中，函数可以返回 `Claim`，但底层必须仍显式创建 `Support` 对象，并挂到 `claim.support` 上。  
-“返回 Claim”是语法糖；“Support 是一等对象”是语义骨架。
+在 v6 authoring surface 中，函数可以返回 `Claim`，但底层必须仍显式创建 `Support` 对象，并注册到 `claim.supports` 列表中。  
+“返回 Claim”是语法糖；”Support 是一等对象”是语义骨架。
+
+**基数说明：一个 Claim 可以拥有多条 Support。** 例如同一个结论既可以通过 deduction 获得支撑，又可以通过 induction 获得独立支撑。在 v5 中，`Knowledge.strategy` 是单值的——如果两条 strategy 共享同一个 conclusion，后者会覆盖前者的 back-reference（虽然两条 strategy 都会注册到 package 中）。v6 应消除这一缺陷：`claim.supports` 是一个列表，所有指向该 claim 的 support 都被保留。
+
+为方便 authoring，提供 `claim.primary_support` 属性，返回 `supports[0]`（即最先注册的那条 support）。大多数 claim 只有一条 support，因此 `primary_support` 是最常用的访问路径。
 
 ### 3.3 Witness
 
@@ -179,6 +183,25 @@ Witness 可能是：
 - benchmark report
 
 Witness 不一定直接对应一个单独的 claim，但通常应能被解释或提升为一个或多个显式 claim。
+
+**Witness 保留 vs 提升为 Claim 的判定规则：**
+
+Witness 应**保留为 witness metadata** 的情况：
+
+- 该 witness 仅在当前 support 内使用，不被其他 support / claim 引用
+- 该 witness 的可信度不需要独立 review（例如，已知可靠的标准库函数的返回值）
+- 该 witness 是一次性的 execution artifact（日志、中间数据），不参与后续推理
+
+Witness 应**提升为显式 Claim** 的情况：
+
+- 该 witness 的某个属性会被其他 support 作为前提引用（可复用性）
+- 该 witness 的可信度需要独立评估（可审计性）
+- 该 witness 可能被质疑或反驳（可反驳性）
+- 该 witness 的适用域需要被声明和限定（有界性）
+
+一句话判定：
+
+> 如果一个 witness 属性需要被 review、复用或反驳，它就不应只存在于 metadata 中。
 
 ### 3.4 Execution
 
@@ -409,18 +432,29 @@ effective_cp = f(
 
 ### 6.4 Witness 何时应提升为显式 Claim
 
-下面这些内容通常应提升为显式 claim，而不是只留在 witness metadata 中：
+§3.3 给出了 witness 保留 vs 提升的通用判定规则。以下是常见的需要提升为显式 claim 的 witness 属性：
 
-- `tool_is_calibrated`
-- `run_completed_successfully`
-- `artifact_is_not_corrupted`
-- `test_suite_is_representative`
-- `checker_matches_the_stated_spec`
-- `simulation_model_is_valid_under_assumption_H`
+| Witness 属性 | 为什么需要提升 |
+|-------------|--------------|
+| `tool_is_calibrated` | 会被多个 execution 复用，需要独立 review |
+| `run_completed_successfully` | 可能被质疑（运行环境差异） |
+| `artifact_is_not_corrupted` | 需要独立校验 |
+| `test_suite_is_representative` | 是 bridge claim 的关键前提，需要独立评估 |
+| `checker_matches_the_stated_spec` | 可能被反驳（规范不匹配） |
+| `simulation_model_is_valid_under_assumption_H` | 有界性——适用域需要声明 |
 
-提升为显式 claim 的原则是：
+相反，以下 witness 属性通常**不需要**提升：
 
-> 只要一个 witness 属性会被复用、会被反驳、会被单独 review，就不应只藏在 metadata 里。
+| Witness 属性 | 为什么保留为 metadata |
+|-------------|---------------------|
+| `execution_duration_ms` | 纯 provenance 信息，不参与推理 |
+| `output_file_path` | 技术 artifact 定位信息 |
+| `random_seed` | 可复现性记录，不影响结论 |
+| `library_version` | 除非版本差异影响结果，否则只是 provenance |
+
+提升的根本原则（重申 §3.3）：
+
+> 如果一个 witness 属性需要被 review、复用或反驳，它就不应只存在于 metadata 中。
 
 ---
 
@@ -445,7 +479,11 @@ thm = formal_proof("P(x) holds.", system="lean", theorem_ref="MyPkg.my_theorem")
 
 ```python
 class Claim(Knowledge):
-    support: Support | None = None
+    supports: list[Support] = []
+
+    @property
+    def primary_support(self) -> Support | None:
+        return self.supports[0] if self.supports else None
 
 
 class Support:
@@ -455,6 +493,7 @@ class Support:
     background: list[Knowledge]
     witnesses: list[Witness]
     reason: ReasonInput
+    sub_supports: list[Support] = []  # for composite (e.g. induction)
 
 
 class Witness:
@@ -464,7 +503,7 @@ class Witness:
 ```
 
 `Support` 是 v6 authoring terminology。  
-在 Phase 1 兼容实现里，`Support` 可先只是 `gaia.lang.runtime.Strategy` 的别名或 DSL-facing rename。
+在 Phase 1 兼容实现里，`Support` 可先只是 `gaia.lang.runtime.Strategy` 的别名或 DSL-facing rename。`claim.supports` 对应现有 v5 中 package 级别的 strategy registry（而非 `Knowledge.strategy` 单值 back-reference）。
 
 ### 7.3 `claim(..., given=[...])` 的地位
 
@@ -513,22 +552,71 @@ v6 authoring objects 到现有 IR 的最小映射：
 
 ---
 
-## 9. 设计决策摘要
+## 9. 与 v5 的兼容性和迁移
+
+### 9.1 API 签名变化总结
+
+| v5 签名 | v6 签名 | 变化性质 |
+|---------|--------|---------|
+| `deduction(premises, conclusion) -> Strategy` | `deduction(“C”, given=[a, b]) -> Claim` | 返回类型 + 参数风格 |
+| `abduction(obs, hyp, alt) -> Strategy` | `abduction(“H”, observation=obs) -> Claim` | 返回类型 + 参数风格 |
+| `induction(items, law) -> Strategy` | `induction(“L”, observations=[...]) -> Claim` | 返回类型 + 参数风格 |
+| `claim(“C”, given=[a, b]) -> Knowledge` | `claim(“C”, given=[a, b]) -> Claim` | 返回类型细化（兼容） |
+| `Knowledge.strategy: Strategy \| None` | `Claim.supports: list[Support]` | 单值→列表 |
+| `review_strategy(...)` | `review_support(...)` | rename |
+
+### 9.2 迁移原则
+
+1. **Phase 1 双入口**：v5 签名继续可用，发出 `DeprecationWarning`，内部统一转为 v6 语义
+2. **不强制 re-author**：已发布的 v5 packages（galileo, superconductivity 等）可在不修改源码的情况下继续 compile
+3. **按需迁移**：新 package 推荐 v6 syntax；旧 package 在下次 major revision 时迁移
+4. **工具辅助**：提供 `gaia migrate v5-to-v6` CLI 命令做机械化转换（重命名 + 参数重排），不做语义推断
+
+### 9.3 induction() 的 v5 双模式保留
+
+v5 的 `induction()` 支持两种使用模式：
+
+- **Top-down**：`induction(observations, law, alt_exps=...)` — 给定 observations 和 law，自动生成 abduction sub-strategies
+- **Bottom-up**：`induction(existing_abduction_strategies)` — 给定已有 abduction strategies，bundle 成 composite
+
+v6 推荐 top-down claim-returning surface（`induction(“L”, observations=[...])`），但必须保留 bottom-up escape hatch，供需要精细控制 sub-support 结构的高级用法：
+
+```python
+# v6 top-down (推荐)
+law = induction(“Law L”, observations=[obs1, obs2, obs3])
+
+# v6 bottom-up (escape hatch)
+s1 = abduction(“H”, observation=obs1)
+s2 = abduction(“H”, observation=obs2)
+law = composite_support(
+    family=”induction”,
+    premises=[obs1, obs2],
+    conclusion=claim(“Law L”),
+    sub_supports=[s1.primary_support, s2.primary_support],
+)
+```
+
+---
+
+## 10. 设计决策摘要
 
 | 决策 | 结论 |
 |------|------|
 | `Strategy` 是否改名 | 在 v6 authoring 术语中改为 `Support` |
 | “函数返回 Claim”是否意味着 support 消失 | 否。Support 仍是一等对象，返回 Claim 只是 surface sugar |
+| `claim.support` 是单值还是列表 | 列表（`supports: list[Support]`），消除 v5 的 last-writer-wins 问题 |
 | `execute` / `check` / `formal_proof` 是不是新的 knowledge type | 否。它们是同一 execution-backed support 模型上的不同 constructor sugar |
 | `execute` 是否直接产出最终 scientific claim | 通常不应如此；更自然是先产出 result claim |
 | `check` 是否等于科学证明 | 否。它主要支撑 validity claim |
 | `formal_proof` 是否应另开 ontology | 否。它是 specialized witness form，但仍在同一框架内 |
 | review 时是否把 support+witness 直接绑成一个 cp | source-of-truth 中不直接绑死；compiled view 可折叠为 effective cp |
 | Curry-Howard 主要覆盖哪里 | `Claim / Support / Witness`，不直接覆盖 `Execution` |
+| Witness 何时保留 vs 提升为 Claim | 需要 review/复用/反驳 → 提升；纯 provenance → 保留为 metadata |
+| v5 已发布 packages 是否需要重写 | 否。Phase 1 双入口保证 v5 语法继续可用 |
 
 ---
 
-## 10. 非目标
+## 11. 非目标
 
 本文不试图在本轮同时解决：
 
@@ -542,7 +630,7 @@ v6 authoring objects 到现有 IR 的最小映射：
 
 ---
 
-## 11. 推荐实施顺序
+## 12. 推荐实施顺序
 
 ### Phase 1: 术语与 surface syntax
 
@@ -568,7 +656,7 @@ v6 authoring objects 到现有 IR 的最小映射：
 
 ---
 
-## 12. 一句话版本
+## 13. 一句话版本
 
 Gaia v6 的核心不是“程序直接变成 claim”，而是：
 

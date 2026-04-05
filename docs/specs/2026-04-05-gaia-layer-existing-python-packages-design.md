@@ -485,11 +485,68 @@ This is the intended v6 layering:
 
 ---
 
-## 9. Review Model For Package-Local Gaia Layers
+## 9. Discovery Mechanism
+
+A critical question the original draft left unanswered: how does Gaia CLI or LKM **discover** that a Python package has a Gaia layer?
+
+### 9.1 Three Discovery Paths
+
+| Method | When to use | How it works |
+|--------|------------|--------------|
+| **Convention-based** | In-package `gaia/` layer | CLI scans for `<pkg>/gaia/__init__.py` or `<pkg>/gaia/claims.py` |
+| **Entry point** | Sidecar or bridge packages | `pyproject.toml` declares `[project.entry-points."gaia.layers"]` |
+| **Explicit import** | Direct authoring | Author imports the Gaia layer module directly in their package script |
+
+### 9.2 Convention-based discovery
+
+For packages that follow the in-package `gaia/` pattern (§3.1), CLI can auto-discover:
+
+```
+gaia compile fluidlab/
+```
+
+Discovery logic:
+1. Find `fluidlab/gaia/__init__.py`
+2. Import it as the Gaia layer entrypoint
+3. Collect claims, supports, witnesses from the package registry
+
+No configuration needed. Convention is sufficient.
+
+### 9.3 Entry-point discovery
+
+For sidecar packages (§3.2) and workspace bridges (§3.3), use Python entry points:
+
+```toml
+# original_pkg_gaia/pyproject.toml
+[project.entry-points."gaia.layers"]
+original_pkg = "original_pkg_gaia:register"
+```
+
+CLI discovery logic:
+1. Scan installed packages for `gaia.layers` entry points
+2. Call `register()` to load the Gaia layer
+3. Collect claims, supports, witnesses
+
+### 9.4 LKM-side discovery
+
+LKM operates on compiled Gaia IR, not on Python source. Discovery at the LKM level is via:
+
+- Package manifest in gaia-registry (declares Gaia layer presence)
+- Compiled IR artifacts (produced by `gaia compile`)
+
+LKM does not need to discover or import Python packages directly.
+
+### 9.5 Phase 1 scope
+
+Phase 1 only requires convention-based discovery (§9.2) and explicit import. Entry-point discovery (§9.3) is a Phase 2 goal.
+
+---
+
+## 10. Review Model For Package-Local Gaia Layers
 
 The Gaia layer should make review possible at three levels.
 
-## 9.1 Claim Review
+## 10.1 Claim Review
 
 Examples:
 
@@ -497,14 +554,14 @@ Examples:
 - the scheme assumptions are valid
 - the benchmark setup is relevant
 
-## 9.2 Support Review
+## 10.2 Support Review
 
 Examples:
 
 - the bridge from simulation result to scientific claim is reasonable
 - the `noisy_and` support strength is appropriate
 
-## 9.3 Witness Review
+## 10.3 Witness Review
 
 Examples:
 
@@ -516,9 +573,48 @@ This is why support-returning wrappers alone are not enough. The Gaia layer must
 
 ---
 
-## 10. Packaging Guidance
+## 11. Migration for Existing v5 Packages
 
-## 10.1 Recommended Export Surface
+Existing v5 packages (e.g., galileo, superconductivity) are authored as flat Python modules with v5 DSL calls. They do not have a `gaia/` sub-layer because v5 packages **are** the Gaia layer.
+
+### 11.1 v5 packages without execution-backed support
+
+Most existing v5 packages only use formal and parameterized support (deduction, abduction, induction, noisy_and). For these:
+
+1. **No structural change needed for Phase 1** — v5 syntax continues to compile
+2. **Optional migration** — run `gaia migrate v5-to-v6` to adopt claim-returning syntax
+3. **No `gaia/` sub-layer needed** — the package itself remains the Gaia layer
+
+### 11.2 v5 packages that want to add execution-backed support
+
+If an existing v5 package wants to add `execute()` / `check()` / `formal_proof()`:
+
+1. Add a `gaia/` sub-directory following §3.1
+2. Keep existing v5 claims and supports in the main module
+3. Add execution-backed constructors and bridge claims in `gaia/supports.py` and `gaia/bridges.py`
+4. The two layers coexist — v5 core + v6 execution layer
+
+### 11.3 Example: migrating galileo
+
+```text
+# Before (v5, unchanged)
+galileo/
+  __init__.py       # claim(), deduction(), induction() calls
+  review.py         # review_claim(), review_strategy() calls
+
+# After (v6, optional migration)
+galileo/
+  __init__.py       # deduction("C", given=[...]) calls
+  review.py         # review_claim(), review_support() calls
+```
+
+The migration is purely syntactic — no new files, no structural reorganization.
+
+---
+
+## 12. Packaging Guidance
+
+## 12.1 Recommended Export Surface
 
 The package's Gaia entrypoint should usually export:
 
@@ -528,7 +624,7 @@ The package's Gaia entrypoint should usually export:
 
 It should not necessarily export every low-level wrapper.
 
-## 10.2 Naming Guidance
+## 12.2 Naming Guidance
 
 Recommended naming:
 
@@ -543,7 +639,7 @@ Recommended naming:
 
 This keeps the call graph readable.
 
-## 10.3 Versioning Guidance
+## 12.3 Versioning Guidance
 
 Adding a Gaia layer to an existing package should usually be treated as:
 
@@ -552,7 +648,7 @@ Adding a Gaia layer to an existing package should usually be treated as:
 
 ---
 
-## 11. Non-Goals
+## 13. Non-Goals
 
 This document does not define:
 
@@ -566,7 +662,7 @@ Those belong to later layers.
 
 ---
 
-## 12. Summary
+## 14. Summary
 
 Gaia v6 should make it natural to say:
 

@@ -54,13 +54,23 @@
 ```python
 @dataclass
 class Claim(Knowledge):
-    support: Support | None = None
+    supports: list[Support] = field(default_factory=list)
+
+    @property
+    def primary_support(self) -> Support | None:
+        """The first registered support, or None."""
+        return self.supports[0] if self.supports else None
 ```
 
-Phase 1 兼容实现允许继续复用现有 runtime dataclass，并保留 `.strategy` 字段；但 v6 authoring API 应新增或文档化 `.support` 作为首选访问路径：
+**基数说明：** 一个 Claim 可以拥有多条 Support（例如同一结论通过 deduction 和 induction 两条独立路径获得支撑）。在 v5 中，`Knowledge.strategy` 是单值 back-reference（last-writer-wins）——如果两条 strategy 共享同一个 conclusion，后者会覆盖前者。v6 通过列表消除这一缺陷。
+
+`primary_support` 是最常用的访问路径。大多数 claim 只有一条 support。
+
+Phase 1 兼容实现允许继续复用现有 runtime dataclass，并保留 `.strategy` 字段。v6 authoring API 在底层将 `.strategy` 映射为 `supports[0]`：
 
 ```python
-claim.support is claim.strategy
+# Phase 1 兼容
+claim.strategy is claim.primary_support
 ```
 
 ## 3.2 Support
@@ -75,6 +85,7 @@ class Support:
     witnesses: list[Witness]
     reason: ReasonInput
     metadata: dict[str, Any]
+    sub_supports: list[Support] = field(default_factory=list)
 ```
 
 要求：
@@ -83,8 +94,9 @@ class Support:
 - `conclusion` 必须是 `Claim`
 - `background` 可接受任意 `Knowledge`
 - `witnesses` 缺省为空列表
+- `sub_supports` 用于 composite support（如 induction），缺省为空列表
 
-Phase 1 中，`family` 直接对应现有 `Strategy.type`。
+Phase 1 中，`family` 直接对应现有 `Strategy.type`，`sub_supports` 对应 `Strategy.sub_strategies`。
 
 ## 3.3 Witness
 
@@ -107,6 +119,13 @@ class Witness:
 - `dataset`
 - `benchmark`
 
+**Witness 保留 vs 提升为 Claim 的判定规则**（详见概念 spec §3.3）：
+
+- **保留为 metadata**：仅在当前 support 内使用、不需要独立 review、纯 provenance 信息（如 `execution_duration_ms`、`random_seed`）
+- **提升为显式 Claim**：需要被其他 support 引用、需要独立 review、可能被反驳、适用域需要声明（如 `tool_is_calibrated`、`test_suite_is_representative`）
+
+一句话判定：需要 review/复用/反驳 → 提升为 Claim；纯 provenance → 保留为 witness metadata。
+
 ---
 
 ## 4. Authoring API 总则
@@ -126,7 +145,7 @@ thm = formal_proof("P(a) holds.", system="lean", theorem_ref="MyPkg.theorem_a")
 
 1. 创建 conclusion claim
 2. 创建 support
-3. 将 support 赋给 `claim.support`
+3. 将 support 追加到 `claim.supports` 列表
 4. 自动注册 claim / support
 
 ### 4.2 Introspection rule
@@ -134,7 +153,8 @@ thm = formal_proof("P(a) holds.", system="lean", theorem_ref="MyPkg.theorem_a")
 调用方如果需要操作 support，应通过：
 
 ```python
-c.support
+c.primary_support       # 最常用：获取主 support
+c.supports              # 完整列表：获取所有 support
 ```
 
 而不是把构造器本身做成返回 `Support`。
@@ -245,7 +265,9 @@ def abduction(
 
 ### 6.3 `induction()`
 
-为避免 API 混乱，v6 只保留一个 author-facing top-down form：
+v5 的 `induction()` 支持两种模式（top-down 和 bottom-up），它们解决不同的使用场景。v6 保留双模式，但将 top-down 模式改为 claim-returning surface：
+
+#### Top-down form（推荐，author-facing）
 
 ```python
 def induction(
@@ -268,6 +290,28 @@ def induction(
 - 返回 law claim
 - 内部创建 `family="induction"` 的 composite support
 - 每个 observation lowering 为 shared-conclusion abduction sub-support
+- `alternatives` 对应 v5 的 `alt_exps`（每个 observation 的 alternative explanation）
+
+#### Bottom-up form（escape hatch，高级用法）
+
+当作者需要精细控制每条 abduction sub-support 的结构时，使用 `composite_support()`：
+
+```python
+s1 = abduction("Law L", observation=obs1)
+s2 = abduction("Law L", observation=obs2)
+law = composite_support(
+    family="induction",
+    premises=[obs1, obs2],
+    conclusion=claim("Law L"),
+    sub_supports=[s1.primary_support, s2.primary_support],
+)
+```
+
+这对应 v5 的 `induction(existing_abduction_strategies)` 模式，但使用显式的 `composite_support()` 而不是重载 `induction()` 的参数类型。
+
+#### v5 兼容
+
+v5 的 `induction(items: list[Knowledge], law)` 和 `induction(items: list[Strategy])` 在 Phase 1 仍可用，发出 `DeprecationWarning`。
 
 ### 6.4 其他 formal families
 
@@ -678,12 +722,15 @@ v5：
 ```python
 c = claim("C")
 s = deduction(premises=[a, b], conclusion=c)
+# s is Strategy; c.strategy is s (last-writer-wins back-reference)
 ```
 
 v6 推荐：
 
 ```python
 c = deduction("C", given=[a, b])
+# c is Claim; c.primary_support is the deduction support
+# c.supports == [deduction_support]
 ```
 
 兼容策略：
@@ -691,6 +738,7 @@ c = deduction("C", given=[a, b])
 - Phase 1 继续接受 v5 调用形式
 - 发出 `DeprecationWarning`
 - 内部统一转成 claim-returning surface semantics
+- `Knowledge.strategy` 属性保留为 `claim.primary_support` 的别名
 
 ## 11.2 与 `claim(..., given=[...])` 的关系
 
@@ -770,9 +818,9 @@ REVIEW = ReviewBundle(
     source_id="self_review",
     objects=[
         review_claim(model_validity_assumption, prior=0.8),
-        review_support(prediction_ok.support, judgment="good",
+        review_support(prediction_ok.primary_support, judgment="good",
                        justification="Bridge from simulation result to hypothesis is appropriate."),
-        review_witness(pressure_field.support.witnesses[0], trust=0.85,
+        review_witness(pressure_field.primary_support.witnesses[0], trust=0.85,
                        justification="CFD tool is validated for this flow regime."),
     ],
 )
@@ -780,7 +828,53 @@ REVIEW = ReviewBundle(
 
 ---
 
-## 13. Phase 1 实施范围
+## 13. v5 → v6 迁移策略
+
+### 13.1 迁移工具
+
+提供 `gaia migrate v5-to-v6` CLI 命令，执行机械化转换：
+
+```bash
+# 预览变更（dry-run）
+gaia migrate v5-to-v6 --dry-run path/to/package/
+
+# 执行迁移
+gaia migrate v5-to-v6 path/to/package/
+```
+
+转换规则（机械化，不做语义推断）：
+
+| v5 模式 | v6 转换 |
+|---------|--------|
+| `c = claim("C"); deduction([a,b], c)` | `c = deduction("C", given=[a, b])` |
+| `c = claim("C"); abduction(obs, c, alt)` | `c = abduction("C", observation=obs, alternative=alt)` |
+| `c = claim("C"); noisy_and([a,b], c)` | `c = claim("C", given=[a, b])` 或 `c = noisy_and("C", given=[a, b])` |
+| `review_strategy(s, ...)` | `review_support(s, ...)` |
+| `c.strategy` | `c.primary_support` |
+
+不自动转换的情况（需人工处理）：
+- `induction()` bottom-up 模式 → `composite_support()`
+- 跨模块引用 strategy 对象的代码
+- 自定义 strategy 子类或 monkey-patching
+
+### 13.2 已发布 packages 的迁移时机
+
+| Package | 状态 | 建议 |
+|---------|------|------|
+| 已在 gaia-registry 的 v5 packages | 可继续 compile | 下次 major revision 时迁移 |
+| 新 package | — | 直接使用 v6 syntax |
+| 正在开发中的 package | — | 视完成度决定，>80% 完成建议先用 v5 发布再迁移 |
+
+### 13.3 Deprecation 时间线
+
+- **v6.0**（Phase 1）：v5 API 发出 `DeprecationWarning`，功能完全保留
+- **v7.0**（未来）：移除 v5 API，仅保留 v6
+
+不设固定日期，以 v6 在实际 packages 中的采用率为判断标准。
+
+---
+
+## 14. Phase 1 实施范围
 
 本 API spec 推荐的 Phase 1 实施只包括：
 
@@ -799,7 +893,7 @@ REVIEW = ReviewBundle(
 
 ---
 
-## 14. 一句话版本
+## 15. 一句话版本
 
 v6 API 的最小原则是：
 
