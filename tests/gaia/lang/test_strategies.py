@@ -243,3 +243,113 @@ def test_induction_top_down_mixed_alt_exps():
     s = induction([obs1, obs2], law, alt_exps=[alt1, None])
     assert alt1 in s.sub_strategies[0].premises
     assert len(s.sub_strategies[1].premises) == 1
+
+
+def test_induction_bottom_up():
+    """Bottom-up: bundle existing abductions."""
+    law = claim("Law.")
+    obs1 = claim("Obs 1.")
+    obs2 = claim("Obs 2.")
+    alt1 = claim("Alt 1.")
+    alt2 = claim("Alt 2.")
+
+    abd1 = abduction(obs1, law, alt1)
+    abd2 = abduction(obs2, law, alt2)
+    assert law.strategy is abd2
+
+    s = induction([abd1, abd2])
+    assert s.type == "induction"
+    assert s.conclusion is law
+    assert len(s.sub_strategies) == 2
+    assert s.sub_strategies[0] is abd1
+    assert s.sub_strategies[1] is abd2
+    assert law.strategy is s
+
+
+def test_induction_bottom_up_with_law():
+    """Bottom-up: law explicitly provided, validated for consistency."""
+    law = claim("Law.")
+    obs1 = claim("Obs 1.")
+    obs2 = claim("Obs 2.")
+
+    abd1 = abduction(obs1, law)
+    abd2 = abduction(obs2, law)
+
+    s = induction([abd1, abd2], law)
+    assert s.conclusion is law
+
+
+def test_induction_too_few_observations():
+    """Top-down with fewer than 2 observations."""
+    law = claim("Law.")
+    obs = claim("Single obs.")
+    with pytest.raises(ValueError, match="at least 2"):
+        induction([obs], law)
+
+
+def test_induction_alt_exps_length_mismatch():
+    """alt_exps length doesn't match observations."""
+    law = claim("Law.")
+    obs1 = claim("Obs 1.")
+    obs2 = claim("Obs 2.")
+    alt1 = claim("Alt 1.")
+    with pytest.raises(ValueError, match="alt_exps length"):
+        induction([obs1, obs2], law, alt_exps=[alt1])
+
+
+def test_induction_bottom_up_different_conclusions():
+    """Bottom-up: sub-strategies with different conclusions."""
+    law1 = claim("Law 1.")
+    law2 = claim("Law 2.")
+    obs1 = claim("Obs 1.")
+    obs2 = claim("Obs 2.")
+    abd1 = abduction(obs1, law1)
+    abd2 = abduction(obs2, law2)
+    with pytest.raises(ValueError, match="same conclusion"):
+        induction([abd1, abd2])
+
+
+def test_induction_bottom_up_non_abduction():
+    """Bottom-up: sub-strategy is not abduction."""
+    law = claim("Law.")
+    a = claim("A.")
+    b = claim("B.")
+    s1 = noisy_and(premises=[a], conclusion=law)
+    s2 = noisy_and(premises=[b], conclusion=law)
+    with pytest.raises(ValueError, match="must be abduction"):
+        induction([s1, s2])
+
+
+def test_induction_bottom_up_law_mismatch():
+    """Bottom-up: explicit law doesn't match sub-strategies."""
+    law = claim("Law.")
+    other_law = claim("Other law.")
+    obs1 = claim("Obs 1.")
+    obs2 = claim("Obs 2.")
+    abd1 = abduction(obs1, law)
+    abd2 = abduction(obs2, law)
+    with pytest.raises(ValueError, match="does not match"):
+        induction([abd1, abd2], other_law)
+
+
+def test_induction_empty_list():
+    """Empty items list."""
+    with pytest.raises(ValueError, match="non-empty"):
+        induction([])
+
+
+def test_induction_top_down_no_law():
+    """Top-down mode without law raises ValueError."""
+    obs1 = claim("Obs 1.")
+    obs2 = claim("Obs 2.")
+    with pytest.raises(ValueError, match="requires law"):
+        induction([obs1, obs2])
+
+
+def test_induction_bottom_up_single():
+    """Bottom-up with fewer than 2 strategies."""
+    law = claim("Law.")
+    obs = claim("Obs.")
+    abd = abduction(obs, law)
+    with pytest.raises(ValueError, match="at least 2"):
+        induction([abd])
