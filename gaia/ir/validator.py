@@ -611,6 +611,8 @@ def validate_parameterization(
     for s in graph.strategies:
         if s.strategy_id:
             all_strategy_ids.add(s.strategy_id)
+            if isinstance(s, CompositeStrategy):
+                continue  # composite delegates to sub-strategies, no own params
             if s.type in _PARAMETERIZED_TYPES:
                 parameterized_ids.add(s.strategy_id)
 

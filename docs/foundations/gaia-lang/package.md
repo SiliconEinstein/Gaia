@@ -10,24 +10,14 @@ A Gaia knowledge package is a standard Python library that declares knowledge (c
 
 ## Package Creation
 
-### Manual Setup (current)
-
-There is no `gaia init` scaffold command yet. Create a package manually using `uv`:
+### `gaia init`
 
 ```bash
-uv init galileo-falling-bodies-gaia
+gaia init galileo-falling-bodies-gaia
 cd galileo-falling-bodies-gaia
 ```
 
-Then configure the project:
-
-1. Add the `[tool.gaia]` section to `pyproject.toml` (see below).
-2. Add `gaia-lang` to `[project].dependencies`.
-3. Create `src/galileo_falling_bodies/__init__.py` with DSL imports and declarations.
-
-### Future: `gaia init`
-
-`gaia init <name>` will generate the `pyproject.toml`, `src/` layout, and `.gitignore` automatically. Until then, use the manual steps above.
+This scaffolds the complete package: `pyproject.toml` (with `[tool.gaia]` config and a generated UUID), the `src/` directory layout, a DSL template in `__init__.py`, and `.gitignore` with `.gaia/` entry. Package name must end with `-gaia`.
 
 ## pyproject.toml Structure
 
@@ -224,14 +214,17 @@ The `.gaia/` directory should be git-tracked so that compiled artifacts travel w
 ## Package Lifecycle
 
 ```
-authored --> compiled --> checked --> tagged --> registered
+init --> authored --> compiled --> checked --> reviewed --> inferred --> tagged --> registered
 ```
 
 | Stage | Command | What happens |
 |-------|---------|-------------|
+| **Init** | `gaia init <name>` | Scaffolds package directory, `pyproject.toml`, `src/` layout, and DSL template. |
 | **Authored** | (manual) | DSL declarations written in Python modules. |
 | **Compiled** | `gaia compile` | Source is imported, declarations collected, IR emitted to `.gaia/ir.json`. The IR is validated against the Gaia IR schema before writing. |
 | **Checked** | `gaia check` | Validates naming (`-gaia` suffix), IR structural correctness, and artifact freshness (ir_hash matches current source). |
+| **Reviewed** | (manual) | Write a review sidecar (`reviews/<name>.py`) assigning priors to claims and parameters to leaf strategies. CompositeStrategy does not need parameters — its CPT is derived from sub-strategies automatically. |
+| **Inferred** | `gaia infer` | Loads review sidecar, lowers IR to factor graph (folding composites to derived CPTs), runs BP, writes beliefs to `.gaia/reviews/<name>/beliefs.json`. |
 | **Tagged** | `git tag v<version> && git push origin v<version>` | A git tag marks the release. The tag must point to HEAD and be pushed to origin before registration. |
 | **Registered** | `gaia register` | Prepares (or submits) a metadata PR against the official Gaia registry. Requires a valid `[tool.gaia].uuid`, clean git worktree, and pushed tag. |
 

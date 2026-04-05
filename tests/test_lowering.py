@@ -7,7 +7,8 @@ import pytest
 from gaia.bp import FactorType, lower_local_graph, lower_operator
 from gaia.bp.factor_graph import FactorGraph
 from gaia.bp.exact import exact_inference
-from gaia.ir import Knowledge, Operator, Strategy, LocalCanonicalGraph
+from gaia.bp.lowering import fold_composite_to_cpt
+from gaia.ir import Knowledge, Operator, Strategy, CompositeStrategy, LocalCanonicalGraph
 
 NS, PKG = "github", "lowertest"
 
@@ -369,3 +370,117 @@ def test_named_leaf_node_priors_respected():
     # Second pass: supply a custom prior for the auto-generated claim
     fg1 = lower_local_graph(g, node_priors={alt_id: 0.1})
     assert fg1.variables[alt_id] == pytest.approx(0.1)
+
+
+def test_composite_strategy_expands_sub_strategies():
+    """CompositeStrategy default lowering recursively expands sub-strategies."""
+    sub1 = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:lowertest::a"],
+        conclusion="github:lowertest::m",
+    )
+    sub2 = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:lowertest::m"],
+        conclusion="github:lowertest::c",
+    )
+    comp = CompositeStrategy(
+        scope="local",
+        type="infer",
+        premises=["github:lowertest::a"],
+        conclusion="github:lowertest::c",
+        sub_strategies=[sub1.strategy_id, sub2.strategy_id],
+    )
+    g = _lg(
+        knowledges=[
+            Knowledge(id="github:lowertest::a", type="claim", content="A"),
+            Knowledge(id="github:lowertest::m", type="claim", content="M"),
+            Knowledge(id="github:lowertest::c", type="claim", content="C"),
+        ],
+        strategies=[sub1, sub2, comp],
+    )
+    fg = lower_local_graph(
+        g,
+        strategy_conditional_params={
+            sub1.strategy_id: [0.9],
+            sub2.strategy_id: [0.8],
+        },
+    )
+    # Default: sub-strategies are expanded (sub1/sub2 lowered as top-level AND
+    # again via the composite), producing SOFT_ENTAILMENT factors.
+    se_factors = [f for f in fg.factors if f.factor_type == FactorType.SOFT_ENTAILMENT]
+    assert len(se_factors) >= 2
+    # Intermediate variable M is visible in the factor graph
+    assert "github:lowertest::m" in fg.variables
+    # No CONDITIONAL factor — composite does not fold by default
+    cond_factors = [f for f in fg.factors if f.factor_type == FactorType.CONDITIONAL]
+    assert len(cond_factors) == 0
+
+
+def test_fold_composite_to_cpt_directly():
+    """fold_composite_to_cpt returns a CPT derived from sub-strategies."""
+    sub = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:lowertest::a", "github:lowertest::b"],
+        conclusion="github:lowertest::c",
+    )
+    comp = CompositeStrategy(
+        scope="local",
+        type="infer",
+        premises=["github:lowertest::a", "github:lowertest::b"],
+        conclusion="github:lowertest::c",
+        sub_strategies=[sub.strategy_id],
+    )
+    strat_by_id = {sub.strategy_id: sub, comp.strategy_id: comp}
+    cpt = fold_composite_to_cpt(
+        comp,
+        strat_by_id,
+        {sub.strategy_id: [0.85]},
+    )
+    assert len(cpt) == 4  # 2^2 entries
+    # (A=0, B=0): both premises false → conclusion low
+    assert cpt[0] < 0.1
+    # (A=1, B=0) and (A=0, B=1): one premise false → conjunction fails → low
+    assert cpt[1] < 0.1
+    assert cpt[2] < 0.1
+    # (A=1, B=1): both true → noisy_and fires with p=0.85 → high
+    assert cpt[3] > 0.7
+
+
+def test_fold_composite_to_cpt_chain():
+    """fold_composite_to_cpt derives CPT for a two-step chain A → M → C."""
+    sub1 = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:lowertest::a"],
+        conclusion="github:lowertest::m",
+    )
+    sub2 = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:lowertest::m"],
+        conclusion="github:lowertest::c",
+    )
+    comp = CompositeStrategy(
+        scope="local",
+        type="infer",
+        premises=["github:lowertest::a"],
+        conclusion="github:lowertest::c",
+        sub_strategies=[sub1.strategy_id, sub2.strategy_id],
+    )
+    strat_by_id = {
+        sub1.strategy_id: sub1,
+        sub2.strategy_id: sub2,
+        comp.strategy_id: comp,
+    }
+    cpt = fold_composite_to_cpt(
+        comp,
+        strat_by_id,
+        {sub1.strategy_id: [0.9], sub2.strategy_id: [0.8]},
+    )
+    assert len(cpt) == 2  # 2^1 = 2 entries (single premise A)
+    assert cpt[0] < 0.1  # A=0 → M low → C low
+    assert cpt[1] > 0.5  # A=1 → M≈0.9 → C≈0.72

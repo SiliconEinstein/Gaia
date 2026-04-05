@@ -226,7 +226,7 @@ mathematical_induction(base=base, step=step, conclusion=conclusion)
 
 #### `composite(premises, conclusion, *, sub_strategies, background=None, steps=None, reason="", type="infer")`
 
-Hierarchical composition of sub-strategies. Requires at least one (`ValueError` otherwise). Sub-strategies can nest recursively.
+Hierarchical composition of sub-strategies. Requires at least one (`ValueError` otherwise). Sub-strategies can nest recursively. At lowering time, sub-strategies are expanded into the factor graph. No `review_strategy()` call is needed for the composite itself — only leaf sub-strategies require parameters. Use `fold_composite_to_cpt()` to compute the composite's aggregate CPT for analysis.
 
 ```python
 obs = claim("Observation.")
@@ -235,6 +235,9 @@ final = claim("Final conclusion.")
 s1 = abduction(observation=obs, hypothesis=hyp)
 s2 = noisy_and(premises=[hyp], conclusion=final)
 composite(premises=[obs], conclusion=final, sub_strategies=[s1, s2])
+# In the review sidecar, only s2 (noisy_and) needs a conditional_probability.
+# s1 (abduction) is formalized to deterministic operators.
+# The composite itself needs no parameters.
 ```
 
 ---
