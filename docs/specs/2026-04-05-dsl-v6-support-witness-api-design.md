@@ -73,9 +73,9 @@ class AnalogySupport(FormalSupport):
 # ... 其余 formal families 见概念 spec §6.1
 
 
-# InferSupport 子类
-class NoisyAndSupport(Support): ...
-class GeneralInferSupport(Support): ...
+# InferSupport
+class InferSupport(Support): ...      # infer() — general CPT
+class NoisyAndSupport(InferSupport): ...  # noisy_and(), claim(..., given=[...])
 
 
 # Execution-backed 子类
@@ -275,7 +275,7 @@ def noisy_and(
 
 `claim(..., given=[...])` 的显式版本。
 
-### 7.2 `infer()`（→ GeneralInferSupport）
+### 7.2 `infer()`（→ InferSupport）
 
 ```python
 def infer(

@@ -109,9 +109,8 @@ Support (base)
 │   ├── EliminationSupport      # exhaustiveness, excluded
 │   ├── CaseAnalysisSupport     # exhaustiveness, cases
 │   └── MathInductionSupport    # base, step
-├── InferSupport
-│   ├── NoisyAndSupport
-│   └── GeneralInferSupport
+├── InferSupport                # infer() — general CPT
+│   └── NoisyAndSupport         # noisy_and(), claim(..., given=[...])
 ├── ExecutionSupport
 ├── CheckSupport
 ├── FormalProofSupport
@@ -123,7 +122,7 @@ Support (base)
 ```python
 c = deduction("C", given=[a, b])              # → Claim (DeductionSupport)
 c = abduction("H", observation=obs)           # → Claim (AbductionSupport)
-c = infer("C", given=[a, b])                  # → Claim (GeneralInferSupport)
+c = infer("C", given=[a, b])                  # → Claim (InferSupport)
 c = execute(run_cfd, given=[...], returns="…") # → Claim (ExecutionSupport)
 c = check(run_tests, given=[...], returns="…") # → Claim (CheckSupport)
 c = formal_proof("…", system="lean", ...)      # → Claim (FormalProofSupport)
@@ -178,10 +177,7 @@ reviewer 不直接给 cp，而是 review premise/interface claim 的 prior 和 r
 
 没有稳定 canonical skeleton 的粗粒度 support：
 
-| 子类 | 说明 |
-|------|------|
-| `NoisyAndSupport` | 所有前提联合必要，`claim(..., given=[...])` 的默认 lowering |
-| `GeneralInferSupport` | 通用 CPT（2^k 参数），很少直接使用 |
+`InferSupport` 本身就是通用 CPT（2^k 参数），`infer()` 直接创建它。`NoisyAndSupport` 是它的特化——所有前提联合必要，由 `noisy_and()` 和 `claim(..., given=[...])` 创建。
 
 reviewer 直接给 support-level 条件概率。
 
@@ -360,14 +356,16 @@ class MathInductionSupport(FormalSupport):
     step: Claim
 
 
-# --- InferSupport 及其子类 ---
+# --- InferSupport ---
 
 @dataclass
-class NoisyAndSupport(Support):
+class InferSupport(Support):
+    """infer() — general CPT"""
     pass
 
 @dataclass
-class GeneralInferSupport(Support):
+class NoisyAndSupport(InferSupport):
+    """noisy_and(), claim(..., given=[...])"""
     pass
 
 
