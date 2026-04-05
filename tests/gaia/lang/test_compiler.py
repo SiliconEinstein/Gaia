@@ -4,7 +4,17 @@ import pytest
 
 import warnings
 
-from gaia.lang import Step, claim, infer, noisy_and, setting, composite, abduction, contradiction, induction
+from gaia.lang import (
+    Step,
+    claim,
+    infer,
+    noisy_and,
+    setting,
+    composite,
+    abduction,
+    contradiction,
+    induction,
+)
 from gaia.lang.compiler.compile import (
     compile_package_artifact,
     _compile_reason,
@@ -384,7 +394,9 @@ def test_compile_induction():
     result = compile_package_artifact(pkg)
 
     # Find the CompositeStrategy (type=induction)
-    composites = [s for s in result.graph.strategies if hasattr(s, "sub_strategies") and s.sub_strategies]
+    composites = [
+        s for s in result.graph.strategies if hasattr(s, "sub_strategies") and s.sub_strategies
+    ]
     assert len(composites) == 1
     comp = composites[0]
     assert comp.type == "induction"

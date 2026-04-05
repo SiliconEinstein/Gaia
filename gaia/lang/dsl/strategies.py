@@ -304,9 +304,7 @@ def induction(
             items, law, alt_exps=alt_exps, background=background, reason=reason
         )
     else:
-        raise TypeError(
-            f"induction() items must be Knowledge or Strategy, got {type(items[0])!r}"
-        )
+        raise TypeError(f"induction() items must be Knowledge or Strategy, got {type(items[0])!r}")
 
 
 def _induction_top_down(
