@@ -78,16 +78,20 @@ class Infer(Support): ...      # infer() — general CPT
 class NoisyAnd(Infer): ...  # noisy_and(), claim(..., given=[...])
 
 
-# Execution-backed 子类
-class Execution(Support):
+# Runnable 及其子类
+class Runnable(Support):
+    estimated_duration: float | None = None
+    run_env: str | None = None
+
+class Execution(Runnable):
     callable_ref: Callable | str = ""
     execution_backend: str | None = None
 
-class Check(Support):
+class Check(Runnable):
     checker_ref: Callable | str = ""
     checker_args: dict[str, Any] = field(default_factory=dict)
 
-class FormalProof(Support):
+class FormalProof(Runnable):
     system: str = ""
     theorem_ref: str = ""
     proof_args: dict[str, Any] = field(default_factory=dict)
@@ -298,7 +302,7 @@ def infer(
 所有 execution-backed constructors：
 
 1. 返回 `Claim`
-2. 内部创建对应的 Support 子类（`Execution` / `Check` / `FormalProof`）
+2. 内部创建对应的 Runnable 子类（`Execution` / `Check` / `FormalProof`）
 3. Phase 1 不直接执行外部过程——只声明 support 结构
 4. 对推理有影响的假设（solver 已验证、测试集有代表性等）必须作为 `given` 中的 Claim
 
@@ -450,7 +454,7 @@ def review_support(
 |-------------|------------------|
 | Formal | judgment + justification |
 | Infer | conditional probability |
-| Execution / Check / FormalProof | review 前提 claims 的 prior |
+| Runnable (Execution / Check / FormalProof) | review 前提 claims 的 prior |
 | Composite | 递归 review 各条 sub_support |
 
 ---
@@ -594,4 +598,4 @@ Phase 1 继续接受 v5 形式，发出 `DeprecationWarning`。
 
 ## 15. 一句话版本
 
-> 作者看到的永远是 **Claim in, Claim out**。不同的支撑方式由 Support 继承树的子类区分（Formal、Infer、Execution、Check、FormalProof、Composite），内部自动创建，挂在 `claim.support` 上。
+> 作者看到的永远是 **Claim in, Claim out**。不同的支撑方式由 Support 继承树的子类区分（Formal、Infer、Runnable → Execution / Check / FormalProof、Composite），内部自动创建，挂在 `claim.support` 上。
