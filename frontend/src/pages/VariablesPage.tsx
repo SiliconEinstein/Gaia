@@ -74,7 +74,8 @@ export default function VariablesPage() {
       dataIndex: "local_members",
       key: "sources",
       width: 80,
-      render: (members: Variable["local_members"]) => members.length,
+      render: (_: unknown, record: Variable) =>
+        record.local_members?.length ?? record.local_members_count ?? 0,
     },
     {
       title: "Hash",

@@ -58,22 +58,17 @@ async def list_variables(
         global_vars = await storage.content.list_global_variables(
             type_filter=type, visibility=visibility, limit=limit
         )
-        results = []
-        for gv in global_vars:
-            local = await storage.get_local_variable(gv.representative_lcn.local_id)
-            results.append(
-                {
-                    "id": gv.id,
-                    "type": gv.type,
-                    "visibility": gv.visibility,
-                    "content": local.content if local else None,
-                    "content_hash": gv.content_hash,
-                    "parameters": [p.model_dump() for p in gv.parameters],
-                    "local_members": [m.model_dump() for m in gv.local_members],
-                    "representative_lcn": gv.representative_lcn.model_dump(),
-                }
-            )
-        return results
+        return [
+            {
+                "id": gv.id,
+                "type": gv.type,
+                "visibility": gv.visibility,
+                "content_hash": gv.content_hash,
+                "local_members_count": len(gv.local_members),
+                "representative_lcn": gv.representative_lcn.model_dump(),
+            }
+            for gv in global_vars
+        ]
 
 
 async def _list_all_local_vars(storage: StorageManager, type_filter: str | None, limit: int):
@@ -152,23 +147,17 @@ async def list_factors(
         global_factors = await storage.content.list_global_factors(
             factor_type=factor_type, limit=limit
         )
-        results = []
-        for gf in global_factors:
-            local_factor = await storage.content.get_local_factor(gf.representative_lfn)
-            results.append(
-                {
-                    "id": gf.id,
-                    "factor_type": gf.factor_type,
-                    "subtype": gf.subtype,
-                    "premises": gf.premises,
-                    "conclusion": gf.conclusion,
-                    "source_package": gf.source_package,
-                    "steps": [s.model_dump() for s in local_factor.steps]
-                    if local_factor and local_factor.steps
-                    else None,
-                }
-            )
-        return results
+        return [
+            {
+                "id": gf.id,
+                "factor_type": gf.factor_type,
+                "subtype": gf.subtype,
+                "premises": gf.premises,
+                "conclusion": gf.conclusion,
+                "source_package": gf.source_package,
+            }
+            for gf in global_factors
+        ]
 
 
 async def _list_all_local_factors(storage: StorageManager, type_filter: str | None, limit: int):
@@ -239,31 +228,19 @@ async def list_priors(
     limit: int = 200,
     storage: StorageManager = Depends(get_storage),
 ):
-    """List all prior records."""
-    from gaia.lkm.storage._serialization import row_to_prior
+    """List prior records (no content resolution — use /variables/{id} for details)."""
 
     table = storage.content._db.open_table("prior_records")
     results = await storage.content._run(lambda: table.search().limit(limit).to_list())
-    priors = [row_to_prior(r) for r in results]
-
-    # Resolve variable content for display
-    out = []
-    for pr in priors:
-        gv = await storage.get_global_variable(pr.variable_id)
-        content = None
-        if gv:
-            local = await storage.get_local_variable(gv.representative_lcn.local_id)
-            content = local.content if local else None
-        out.append(
-            {
-                "variable_id": pr.variable_id,
-                "value": pr.value,
-                "source_id": pr.source_id,
-                "created_at": pr.created_at.isoformat(),
-                "content": content,
-            }
-        )
-    return out
+    return [
+        {
+            "variable_id": r["variable_id"],
+            "value": r["value"],
+            "source_id": r["source_id"],
+            "created_at": r["created_at"],
+        }
+        for r in results
+    ]
 
 
 @router.get("/param-sources")
@@ -288,14 +265,12 @@ async def get_graph(
 
     nodes = []
     for gv in global_vars:
-        local = await storage.get_local_variable(gv.representative_lcn.local_id)
         nodes.append(
             {
                 "id": gv.id,
                 "type": "variable",
                 "subtype": gv.type,
                 "visibility": gv.visibility,
-                "content": local.content if local else None,
                 "local_members_count": len(gv.local_members),
             }
         )
@@ -417,16 +392,34 @@ async def get_local_graph(
 
 @router.get("/packages")
 async def list_packages(
+    q: str | None = None,
+    offset: int = 0,
+    limit: int = 50,
     storage: StorageManager = Depends(get_storage),
 ):
-    """List all ingested packages (distinct source_package values)."""
+    """List ingested packages from import_status with pagination and search.
 
-    table = storage.content._db.open_table("local_variable_nodes")
+    Args:
+        q: Search filter on package_id (substring match).
+        offset: Skip first N results.
+        limit: Max results to return (default 50, max 200).
+    """
+    limit = min(limit, 200)
+
+    table = storage.content._db.open_table("import_status")
     rows = await storage.content._run(
-        lambda: table.search().where("ingest_status = 'merged'").limit(100000).to_list()
+        lambda: table.search().where("status = 'ingested'").limit(50_000).to_list()
     )
-    packages = {}
-    for r in rows:
-        pkg = r["source_package"]
-        packages[pkg] = packages.get(pkg, 0) + 1
-    return [{"package_id": k, "variable_count": v} for k, v in sorted(packages.items())]
+    items = [{"package_id": r["package_id"], "variable_count": r["variable_count"]} for r in rows]
+    if q:
+        q_lower = q.lower()
+        items = [i for i in items if q_lower in i["package_id"].lower()]
+
+    total = len(items)
+    page = items[offset : offset + limit]
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "items": page,
+    }
