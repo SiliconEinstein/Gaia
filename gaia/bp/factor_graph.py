@@ -39,7 +39,7 @@ class Factor:
     factor_id: str
     factor_type: FactorType
     variables: list[str]
-    conclusion: str
+    conclusion: str | None = None  # None for binary constraint factors
     p1: float | None = None
     p2: float | None = None
     cpt: tuple[float, ...] | None = None
@@ -48,7 +48,8 @@ class Factor:
     def all_vars(self) -> list[str]:
         seen: set[str] = set()
         out: list[str] = []
-        for v in (*self.variables, self.conclusion):
+        tail = (self.conclusion,) if self.conclusion is not None else ()
+        for v in (*self.variables, *tail):
             if v not in seen:
                 seen.add(v)
                 out.append(v)
@@ -98,14 +99,14 @@ class FactorGraph:
         factor_id: str,
         factor_type: FactorType,
         variables: Sequence[str],
-        conclusion: str,
+        conclusion: str | None = None,
         *,
         p1: float | None = None,
         p2: float | None = None,
         cpt: Sequence[float] | None = None,
     ) -> None:
         v_list = list(variables)
-        if conclusion in v_list:
+        if conclusion is not None and conclusion in v_list:
             raise ValueError(
                 f"Factor '{factor_id}': conclusion '{conclusion}' must not appear in variables."
             )

@@ -64,6 +64,29 @@ def complement_potential(assignment: Assignment, a: str, b: str, conclusion: str
     return _HIGH if assignment[conclusion] == target else _LOW
 
 
+# ── Binary constraint potentials (no conclusion variable) ──
+
+
+def binary_equivalence_potential(assignment: Assignment, a: str, b: str) -> float:
+    """Direct constraint: A = B."""
+    return _HIGH if assignment[a] == assignment[b] else _LOW
+
+
+def binary_contradiction_potential(assignment: Assignment, a: str, b: str) -> float:
+    """Direct constraint: NOT(A AND B)."""
+    return _LOW if (assignment[a] == 1 and assignment[b] == 1) else _HIGH
+
+
+def binary_complement_potential(assignment: Assignment, a: str, b: str) -> float:
+    """Direct constraint: A XOR B."""
+    return _HIGH if assignment[a] != assignment[b] else _LOW
+
+
+def binary_disjunction_potential(assignment: Assignment, inputs: list[str]) -> float:
+    """Direct constraint: OR(inputs) = 1."""
+    return _HIGH if any(assignment[v] == 1 for v in inputs) else _LOW
+
+
 def soft_entailment_potential(
     assignment: Assignment,
     premise: str,
@@ -99,6 +122,19 @@ def evaluate_potential(factor: Factor, assignment: Assignment) -> float:
     v = factor.variables
     c = factor.conclusion
 
+    # Binary constraint factors (conclusion=None)
+    if c is None:
+        if ft == FactorType.EQUIVALENCE:
+            return binary_equivalence_potential(assignment, v[0], v[1])
+        if ft == FactorType.CONTRADICTION:
+            return binary_contradiction_potential(assignment, v[0], v[1])
+        if ft == FactorType.COMPLEMENT:
+            return binary_complement_potential(assignment, v[0], v[1])
+        if ft == FactorType.DISJUNCTION:
+            return binary_disjunction_potential(assignment, v)
+        raise ValueError(f"Binary factor not supported for {ft!r}")
+
+    # Ternary factors (with conclusion variable)
     if ft == FactorType.IMPLICATION:
         return implication_potential(assignment, v[0], c)
 
