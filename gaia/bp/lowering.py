@@ -229,11 +229,27 @@ def _lower_strategy(
                 "FormalStrategy fold (marginalize to CONDITIONAL) is not implemented yet. "
                 "See docs/foundations/bp/inference.md and docs/foundations/gaia-ir/07-lowering.md §9."
             )
+        # Detect dead-end conclusions: conclusions not referenced by any other
+        # operator's variables or by the strategy's external interface.
+        # Dead-ends get binary factors (conclusion=None in FG) to avoid the
+        # marginalization bug. See formal-strategy-lowering.md §1-2.
+        referenced_as_var: set[str] = set()
+        for op in s.formal_expr.operators:
+            referenced_as_var.update(op.variables)
+        # Strategy premises/conclusion are external references (not dead-ends)
+        referenced_as_var.update(s.premises)
+        if s.conclusion:
+            referenced_as_var.add(s.conclusion)
         for i, op in enumerate(s.formal_expr.operators):
             fid = _next_fid(f"fs_{s.strategy_id}_{i}", ctr)
             ft = _OPERATOR_MAP[op.operator]
-            fg.add_factor(fid, ft, op.variables, op.conclusion)
-            for vid in (*op.variables, op.conclusion):
+            is_dead_end = op.conclusion not in referenced_as_var
+            if is_dead_end:
+                fg.add_factor(fid, ft, op.variables, None)
+            else:
+                fg.add_factor(fid, ft, op.variables, op.conclusion)
+                _ensure_claim_var(fg, op.conclusion, priors, claim_ids)
+            for vid in op.variables:
                 _ensure_claim_var(fg, vid, priors, claim_ids)
         return
 

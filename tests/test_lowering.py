@@ -298,9 +298,17 @@ def test_abduction_leaf_strategy_generates_interface_claim():
     fg = lower_local_graph(g)
     assert not fg.validate()
     ftypes = {f.factor_type for f in fg.factors}
-    # abduction skeleton: disjunction(H, Alt -> ExplainUnion) + equivalence(ExplainUnion, Obs -> EqH)
+    # Abduction FormalExpr: disjunction (ternary, D is intermediate) + equivalence (binary, Eq is dead-end)
     assert FactorType.DISJUNCTION in ftypes
     assert FactorType.EQUIVALENCE in ftypes
+    # Dead-end equivalence becomes binary factor (conclusion=None in FG)
+    equiv_factors = [f for f in fg.factors if f.factor_type == FactorType.EQUIVALENCE]
+    assert len(equiv_factors) == 1
+    assert equiv_factors[0].conclusion is None  # binary factor, dead-end eliminated
+    # Disjunction helper D is intermediate (connected to both factors) — not dead-end
+    disj_factors = [f for f in fg.factors if f.factor_type == FactorType.DISJUNCTION]
+    assert len(disj_factors) == 1
+    assert disj_factors[0].conclusion is not None
     # The auto-generated AlternativeExplanationForObs must appear as a variable
     alt_vars = [v for v in fg.variables if "alternative_explanation" in v]
     assert len(alt_vars) == 1
