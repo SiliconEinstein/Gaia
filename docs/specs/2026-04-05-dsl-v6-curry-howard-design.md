@@ -33,10 +33,10 @@
 
 请改为阅读下面三份新 spec：
 
-1. 概念总纲：
+1. 概念总纲（Claim + Support 继承树）：
    [2026-04-05-dsl-v6-support-witness-design.md](2026-04-05-dsl-v6-support-witness-design.md)
 
-2. 最小 authoring / review API：
+2. 最小 authoring API：
    [2026-04-05-dsl-v6-support-witness-api-design.md](2026-04-05-dsl-v6-support-witness-api-design.md)
 
 3. 现有 Python package 的 Gaia layer 集成：

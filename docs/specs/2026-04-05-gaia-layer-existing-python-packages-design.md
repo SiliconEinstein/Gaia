@@ -14,7 +14,7 @@ Gaia v6 should make it natural to take an existing Python package and add a thin
 
 - exposes selected package concepts as `Claim`s
 - exposes selected package procedures as Gaia support constructors
-- records enough support / witness structure for review and inference
+- records enough support structure for review and inference
 
 This document defines that integration pattern.
 
@@ -25,7 +25,7 @@ existing_python_package
     + explicit gaia layer
     -> claim graph
     -> support graph
-    -> witness-bearing declarations
+    -> support declarations
 ```
 
 without requiring the original package internals to be rewritten in Gaia-native style.
@@ -237,7 +237,6 @@ The reason is ergonomic: claim-returning constructors compose naturally.
 Even though the constructor returns a claim, the system must still create:
 
 - a `Support`
-- optional `Witness` entries
 - explicit premise / conclusion structure
 
 This preserves reviewability and IR lowering.
@@ -341,7 +340,7 @@ Typical uses:
 
 Purpose:
 
-- expose an execution result as a result claim backed by an execution witness
+- expose an execution result as a result claim via ExecutionSupport
 
 Typical uses:
 
@@ -378,7 +377,7 @@ Typical uses:
 - Coq proof artifacts
 - Isabelle developments
 
-`formal_proof` stays inside the same execution-backed support model. It is stronger than ordinary execution or validation witnesses, but it is still not a separate top-level ontology.
+`formal_proof` stays inside the same Support inheritance tree as a `FormalProofSupport` subclass. It is stronger than ordinary `ExecutionSupport` or `CheckSupport`, but it is still not a separate top-level ontology.
 
 ## 7.5 Bridge Support
 
@@ -508,7 +507,7 @@ gaia compile fluidlab/
 Discovery logic:
 1. Find `fluidlab/gaia/__init__.py`
 2. Import it as the Gaia layer entrypoint
-3. Collect claims, supports, witnesses from the package registry
+3. Collect claims and supports from the package registry
 
 No configuration needed. Convention is sufficient.
 
@@ -525,7 +524,7 @@ original_pkg = "original_pkg_gaia:register"
 CLI discovery logic:
 1. Scan installed packages for `gaia.layers` entry points
 2. Call `register()` to load the Gaia layer
-3. Collect claims, supports, witnesses
+3. Collect claims and supports
 
 ### 9.4 LKM-side discovery
 
@@ -561,15 +560,7 @@ Examples:
 - the bridge from simulation result to scientific claim is reasonable
 - the `noisy_and` support strength is appropriate
 
-## 10.3 Witness Review
-
-Examples:
-
-- the execution backend is trustworthy in this regime
-- the checker is aligned with the stated specification
-- the run artifact is valid and complete
-
-This is why support-returning wrappers alone are not enough. The Gaia layer must preserve the witness path.
+Note: assumptions about execution trustworthiness, checker alignment, and artifact validity should be expressed as explicit Claims in `given`, not hidden in metadata. This is the v6 principle: anything that affects reasoning must be a Claim.
 
 ---
 
@@ -654,7 +645,7 @@ This document does not define:
 
 - automatic introspection of arbitrary package functions
 - execution cache protocols
-- witness persistence schema
+- execution provenance persistence schema
 - `gaia run` runtime artifact contract
 - protected IR representation for execution-backed support
 
@@ -672,5 +663,5 @@ That is the right level of Curry-Howard influence:
 
 - author-facing constructors return claims
 - support remains explicit underneath
-- witness remains reviewable
-- execution remains an external producer of witness, not the logical core itself
+- assumptions affecting reasoning are explicit Claims, not hidden metadata
+- execution provenance is recorded but does not replace explicit reasoning

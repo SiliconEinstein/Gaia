@@ -1,4 +1,4 @@
-# Gaia DSL v6: Support / Witness API 设计
+# Gaia DSL v6: Authoring API 设计
 
 > **Status:** Draft
 >
@@ -12,23 +12,20 @@
 
 ## 1. 设计目标
 
-本文将 v6 的概念模型收束为一套**最小 API**，目标是回答五个问题：
+本文将 v6 的概念模型收束为一套**最小 API**，目标是回答四个问题：
 
-1. v6 author-facing API 是否继续“函数返回 Claim”？
-2. `Support` 在运行时如何体现？
+1. v6 author-facing API 是否继续"函数返回 Claim"？
+2. Support 继承树在运行时如何体现？
 3. `execute()` / `check()` / `formal_proof()` 的最小签名是什么？
-4. review 侧如何区分 `claim / support / witness`？
-5. 如何在不修改 protected IR 的前提下平滑落地？
+4. 如何在不修改 protected IR 的前提下平滑落地？
 
 结论先行：
 
-- **是**，v6 继续采用“构造函数返回 `Claim`”的 surface syntax
-- 但底层必须显式创建 `Support`，并挂到 `claim.support`
-- `execute()` 返回 result claim
-- `check()` 返回 validity claim
-- `formal_proof()` 返回 proof-backed claim
-- review surface 扩展为 `review_claim / review_support / review_witness`
-- Phase 1 只在 Gaia Lang 侧引入这些 authoring APIs；IR 侧暂时把 `Support` 映射回 `Strategy`
+- **是**，v6 所有 support 构造器都返回 `Claim`（Claim in, Claim out）
+- 底层创建对应的 Support 子类实例，挂到 `claim.support`
+- `execute()` 返回 result claim，`check()` 返回 validity claim，`formal_proof()` 返回 proof-backed claim
+- review surface 为 `review_claim` + `review_support`（后者按子类 dispatch）
+- Phase 1 在 Gaia Lang 侧引入 Support 继承树；IR 侧暂时映射回 `Strategy`
 
 ---
 
@@ -37,19 +34,75 @@
 | v6 术语 | 含义 | Phase 1 对应现状 |
 |--------|------|------------------|
 | `Claim` | 被支撑的命题 | `Knowledge(type="claim")` |
-| `Support` | 从前提到结论的支撑结构 | `Strategy` |
-| `Witness` | 支撑背后的具体可审计对象 | 暂无独立 runtime type，先挂在 metadata |
-| `Execution` | 生产 witness 的过程 | 暂不进入 IR contract |
-
-在 v6 文档和 API 中，优先使用 `Support`；在兼容实现中，它可以是现有 `Strategy` 的 DSL-facing rename。
+| `Support` | 支撑基类 | `Strategy` |
+| `FormalSupport` | 有 canonical skeleton 的 support | 现有 named strategy |
+| `InferSupport` | 参数化 support | `infer` / `noisy_and` |
+| `ExecutionSupport` | 运行计算产出 result | 先在 Lang 侧定义 |
+| `CheckSupport` | 验证满足规范 | 先在 Lang 侧定义 |
+| `FormalProofSupport` | 形式证明验证通过 | 先在 Lang 侧定义 |
+| `CompositeSupport` | 聚合多条子 support | `Strategy(sub_strategies=[...])` |
 
 ---
 
 ## 3. 运行时对象
 
-## 3.1 Claim
+### 3.1 Support 继承树
 
-概念上，v6 目标对象为：
+```python
+@dataclass
+class Support:
+    """基类"""
+    premises: list[Claim]
+    conclusion: Claim
+    background: list[Knowledge] = field(default_factory=list)
+    reason: ReasonInput = ""
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class FormalSupport(Support):
+    """deduction / abduction / analogy / extrapolation / elimination / ..."""
+    family: str = "deduction"
+
+
+@dataclass
+class InferSupport(Support):
+    """noisy_and / infer"""
+    family: str = "noisy_and"
+
+
+@dataclass
+class ExecutionSupport(Support):
+    """execute()"""
+    callable_ref: Callable | str = ""
+    execution_backend: str | None = None
+    execution_args: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class CheckSupport(Support):
+    """check()"""
+    checker_ref: Callable | str = ""
+    checker_args: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class FormalProofSupport(Support):
+    """formal_proof()"""
+    system: str = ""
+    theorem_ref: str = ""
+    proof_args: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class CompositeSupport(Support):
+    """聚合多条子 support"""
+    sub_supports: list[Support] = field(default_factory=list)
+```
+
+Phase 1 中，所有子类可先作为 `Strategy` 的 thin wrapper 实现。
+
+### 3.2 Claim
 
 ```python
 @dataclass
@@ -57,66 +110,16 @@ class Claim(Knowledge):
     support: Support | None = None
 ```
 
-**基数说明：`claim.support` 保持单值。** 如果同一个结论需要多条独立的 support 路径，应使用 `composite_support` 将它们聚合为一条 composite support（通过 `sub_supports` 持有子 support），再挂到 claim 上。这与 v5 的 `Strategy.sub_strategies` 聚合模式一致——聚合发生在 support 层，不在 claim 层维护列表。
+`claim.support` 保持单值。多条独立 support 通过 `CompositeSupport` 聚合。
 
-Phase 1 兼容实现允许继续复用现有 runtime dataclass，并保留 `.strategy` 字段；v6 authoring API 应新增或文档化 `.support` 作为首选访问路径：
+Phase 1 兼容：`claim.strategy` 保留为 `claim.support` 的别名。
 
-```python
-claim.support is claim.strategy
-```
+### 3.3 对推理有影响的假设必须是 Claim
 
-## 3.2 Support
+v6 不设"介于 Claim 和 metadata 之间"的灰色地带：
 
-```python
-@dataclass
-class Support:
-    family: str
-    premises: list[Claim]
-    conclusion: Claim
-    background: list[Knowledge]
-    witnesses: list[Witness]
-    reason: ReasonInput
-    metadata: dict[str, Any]
-    sub_supports: list[Support] = field(default_factory=list)
-```
-
-要求：
-
-- `premises` 只接受 `Claim`
-- `conclusion` 必须是 `Claim`
-- `background` 可接受任意 `Knowledge`
-- `witnesses` 缺省为空列表
-- `sub_supports` 用于 composite support（如 induction），缺省为空列表
-
-Phase 1 中，`family` 直接对应现有 `Strategy.type`，`sub_supports` 对应 `Strategy.sub_strategies`。
-
-## 3.3 Witness
-
-```python
-@dataclass
-class Witness:
-    kind: str
-    payload: dict[str, Any]
-    label: str | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)
-```
-
-`payload` 是 authoring-layer object payload，不等同于持久化 schema。常见 `kind`：
-
-- `formal`
-- `execution_result`
-- `validation_result`
-- `formal_proof`
-- `experiment`
-- `dataset`
-- `benchmark`
-
-**Witness 保留 vs 提升为 Claim 的判定规则**（详见概念 spec §3.3）：
-
-- **保留为 metadata**：仅在当前 support 内使用、不需要独立 review、纯 provenance 信息（如 `execution_duration_ms`、`random_seed`）
-- **提升为显式 Claim**：需要被其他 support 引用、需要独立 review、可能被反驳、适用域需要声明（如 `tool_is_calibrated`、`test_suite_is_representative`）
-
-一句话判定：需要 review/复用/反驳 → 提升为 Claim；纯 provenance → 保留为 witness metadata。
+- 对推理有影响 → 必须是 `given` 中的 Claim（solver 已验证、测试集覆盖目标场景等）
+- 纯 provenance → `support.metadata`（运行时长、文件路径、random seed 等）
 
 ---
 
@@ -124,7 +127,7 @@ class Witness:
 
 ### 4.1 Surface rule
 
-v6 所有“创建新结论”的 DSL 构造器都返回 `Claim`：
+v6 所有 support 构造器都返回 `Claim`：
 
 ```python
 c = deduction("C", given=[a, b])
@@ -136,29 +139,20 @@ thm = formal_proof("P(a) holds.", system="lean", theorem_ref="MyPkg.theorem_a")
 内部动作统一为：
 
 1. 创建 conclusion claim
-2. 创建 support
+2. 创建对应 Support 子类实例
 3. 将 support 赋给 `claim.support`
 4. 自动注册 claim / support
 
 ### 4.2 Introspection rule
 
-调用方如果需要操作 support，应通过：
-
 ```python
-c.support
-```
-
-而不是把构造器本身做成返回 `Support`。
-
-如果一个 claim 有多条独立 support 路径，它们已被聚合在 `c.support`（一个 composite support）的 `sub_supports` 中：
-
-```python
-c.support.sub_supports  # 访问聚合后的各条子 support
+c.support                  # 访问 support
+c.support.sub_supports     # 若为 CompositeSupport，访问子 support
 ```
 
 ### 4.3 Escape hatch
 
-保留显式 support constructor，供高级用法或 migration 使用：
+保留显式 support constructor，供高级用法或 migration：
 
 ```python
 support(
@@ -190,15 +184,7 @@ def claim(
 ) -> Claim
 ```
 
-语义：
-
-- 纯显式 claim constructor
-- 若给 `given=...`，则自动创建 `noisy_and` support
-
-约束：
-
-- `given` 只接受 `Claim`
-- `background` 不进入 BP 前提集
+若给 `given=...`，内部创建 `InferSupport(family="noisy_and")`。
 
 ### 5.2 `setting()` / `question()`
 
@@ -207,21 +193,17 @@ def setting(content: str, *, title: str | None = None, **metadata) -> Setting
 def question(content: str, *, title: str | None = None, **metadata) -> Question
 ```
 
-保持 v5 语义，不参与 support premise typing。
-
 ---
 
-## 6. Formal Support Constructors
+## 6. FormalSupport Constructors
 
-这些 family 都返回 `Claim`，而不是 `Support`。
+所有返回 `Claim`，内部创建 `FormalSupport`。
 
 ### 6.1 `deduction()`
 
 ```python
 def deduction(
-    content: str,
-    /,
-    *,
+    content: str, /, *,
     given: list[Claim],
     background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
@@ -231,19 +213,11 @@ def deduction(
 ) -> Claim
 ```
 
-行为：
-
-- 创建 `Claim(content=...)`
-- 创建 `Support(family="deduction", premises=given, conclusion=claim, ...)`
-- 返回该 claim
-
 ### 6.2 `abduction()`
 
 ```python
 def abduction(
-    content: str,
-    /,
-    *,
+    content: str, /, *,
     observation: Claim,
     alternative: Claim | None = None,
     background: list[Knowledge] | None = None,
@@ -254,19 +228,11 @@ def abduction(
 ) -> Claim
 ```
 
-语义：
-
-- `content` 描述 hypothesis claim
-- 返回 hypothesis claim
-- `alternative=None` 时，后端可继续沿用现有 public interface claim auto-generation 语义
-
 ### 6.3 `induction()`
 
 ```python
 def induction(
-    content: str,
-    /,
-    *,
+    content: str, /, *,
     observations: list[Claim],
     alternatives: list[Claim | None] | None = None,
     background: list[Knowledge] | None = None,
@@ -277,21 +243,11 @@ def induction(
 ) -> Claim
 ```
 
-语义：
+内部创建 `CompositeSupport(sub_supports=[abduction_1, abduction_2, ...])`。
 
-- `content` 描述 law claim
-- 返回 law claim
-- 内部创建 `family="induction"` 的 composite support
-- 每个 observation lowering 为 shared-conclusion abduction sub-support
-- `alternatives` 对应 v5 的 `alt_exps`（每个 observation 的 alternative explanation）
-
-v5 的 bottom-up 模式（传入已有 abduction strategies 进行 bundle）不再作为 `induction()` 的重载形式。需要精细控制 sub-support 结构时，直接使用 `composite_support()`（§9.2）。
-
-v5 兼容：`induction(items: list[Knowledge], law)` 在 Phase 1 仍可用，发出 `DeprecationWarning`。
+需要精细控制 sub-support 结构时，直接使用 `composite_support()`（§9）。
 
 ### 6.4 其他 formal families
-
-同样采用“内容作为第一个参数，返回 claim”的模式：
 
 ```python
 def analogy(content: str, /, *, source: Claim, bridge: Claim, ...)
@@ -301,19 +257,15 @@ def case_analysis(content: str, /, *, exhaustiveness: Claim, cases: list[tuple[C
 def mathematical_induction(content: str, /, *, base: Claim, step: Claim, ...)
 ```
 
-`content` 始终描述返回的 conclusion claim。
-
 ---
 
-## 7. Parameterized Support Constructors
+## 7. InferSupport Constructors
 
 ### 7.1 `noisy_and()`
 
 ```python
 def noisy_and(
-    content: str,
-    /,
-    *,
+    content: str, /, *,
     given: list[Claim],
     background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
@@ -323,15 +275,13 @@ def noisy_and(
 ) -> Claim
 ```
 
-这是 `claim(..., given=[...])` 的显式版本。
+`claim(..., given=[...])` 的显式版本。
 
 ### 7.2 `infer()`
 
 ```python
 def infer(
-    content: str,
-    /,
-    *,
+    content: str, /, *,
     given: list[Claim],
     background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
@@ -341,36 +291,24 @@ def infer(
 ) -> Claim
 ```
 
-用于粗粒度、未分类 support。
-
 ---
 
-## 8. Execution-Backed Support Constructors
+## 8. Execution-Backed Constructors
 
-## 8.1 共同原则
+### 8.1 共同原则
 
-所有 execution-backed constructors 都：
+所有 execution-backed constructors：
 
-1. 返回一个 `Claim`
-2. 在 support 上附带至少一个 witness
-3. 不直接执行外部过程（Phase 1）
-4. 只声明“存在一个待执行或已记录的 execution-backed support”
+1. 返回 `Claim`
+2. 内部创建对应的 Support 子类（`ExecutionSupport` / `CheckSupport` / `FormalProofSupport`）
+3. Phase 1 不直接执行外部过程——只声明 support 结构
+4. 对推理有影响的假设（solver 已验证、测试集有代表性等）必须作为 `given` 中的 Claim
 
-Execution 本身属于 `gaia run` 或后续 pipeline，不属于纯结构 authoring。
-
-其中返回 claim 的常见语义有三种：
-
-- `execute()` 返回 result claim
-- `check()` 返回 validity claim
-- `formal_proof()` 返回 proof-backed claim
-
-## 8.2 `execute()`
+### 8.2 `execute()`
 
 ```python
 def execute(
-    fn: Callable[..., Any] | str,
-    /,
-    *,
+    fn: Callable[..., Any] | str, /, *,
     given: list[Claim],
     returns: str,
     background: list[Knowledge] | None = None,
@@ -383,61 +321,27 @@ def execute(
 ) -> Claim
 ```
 
-返回值：
-
 - `returns` 描述 result claim content
-- 函数返回该 result claim
-
-附带 witness：
-
-```python
-Witness(
-    kind="execution_result",
-    payload={
-        "callable_name": getattr(fn, "__name__", str(fn)),
-        "callable_ref": fn,
-        "execution_backend": execution_backend,
-        "execution_args": execution_args or {},
-        "declared_returns": returns,
-    },
-)
-```
-
-生成的 support：
-
-```python
-Support(
-    family="execute",
-    premises=given,
-    conclusion=result_claim,
-    witnesses=[...],
-)
-```
-
-说明：
-
-- `execute()` 默认产出的是 **execution result claim**
-- `execution_backend` 只描述执行边界，不引入新的 ontology-level category
-- 如果作者想直接把某次 execution output 当成高层 scientific claim，也允许，但不推荐
+- `fn`、`execution_backend`、`execution_args` 记入 `ExecutionSupport` 的类型安全字段
+- 运行时长、库版本等 provenance 自动记入 `support.metadata`
 
 示例：
 
 ```python
-pressure_field = execute(
+solver_validated = claim("该 CFD 求解器在低 Re 方腔流中已通过基准验证")
+
+pressure = execute(
     run_cfd,
-    given=[geometry, boundary_condition],
-    returns="The CFD run produced pressure field P for the stated geometry and boundary condition.",
-    execution_backend="python",
+    given=[geometry, bc, solver_validated],
+    returns="CFD 计算得到方腔内的压力场 P",
 )
 ```
 
-## 8.3 `check()`
+### 8.3 `check()`
 
 ```python
 def check(
-    checker: Callable[..., Any],
-    /,
-    *,
+    checker: Callable[..., Any], /, *,
     given: list[Claim],
     returns: str,
     background: list[Knowledge] | None = None,
@@ -449,47 +353,26 @@ def check(
 ) -> Claim
 ```
 
-返回值：
-
-- `returns` 描述 implementation-validity claim
-- 返回该 claim
-
-附带 witness：
-
-```python
-Witness(
-    kind="validation_result",
-    payload={
-        "checker_name": checker.__name__,
-        "checker_ref": checker,
-        "checker_args": checker_args or {},
-        "declared_returns": returns,
-    },
-)
-```
-
-推荐语义：
-
-- `check()` 优先用于支撑“实现满足规范 / 在已测 regime 内行为正确 / artifact 通过校验”之类的 claim
-- 不建议直接把它当成高层 scientific claim 的终点
+- `returns` 描述 validity claim
+- `checker`、`checker_args` 记入 `CheckSupport` 的类型安全字段
 
 示例：
 
 ```python
+suite_covers_target = claim("回归测试集覆盖了目标 Re 数范围")
+
 solver_ok = check(
-    check_solver_against_spec,
-    given=[scheme_spec, test_suite],
-    returns="The solver implementation satisfies the stated numerical specification on the tested regime.",
+    run_regression_tests,
+    given=[spec, suite_covers_target],
+    returns="求解器在回归测试集上通过了所有精度检查",
 )
 ```
 
-## 8.4 `formal_proof()`
+### 8.4 `formal_proof()`
 
 ```python
 def formal_proof(
-    content: str,
-    /,
-    *,
+    content: str, /, *,
     system: str,
     theorem_ref: str,
     given: list[Claim] | None = None,
@@ -502,130 +385,47 @@ def formal_proof(
 ) -> Claim
 ```
 
-返回值：
-
-- `content` 描述被证明的命题 claim
-- 返回该 claim
-
-附带 witness：
-
-```python
-Witness(
-    kind="formal_proof",
-    payload={
-        "system": system,
-        "theorem_ref": theorem_ref,
-        "proof_args": proof_args or {},
-    },
-)
-```
-
-生成的 support：
-
-```python
-Support(
-    family="execute",
-    premises=list(given or []),
-    conclusion=proved_claim,
-    witnesses=[...],
-)
-```
-
-说明：
-
-- `formal_proof()` 不是新的 ontology-level category
-- 它是 execution-backed support 中最强的一类 witness form
-- 它比一般 `execute()` / `check()` 更接近 Curry-Howard，但仍可能需要 bridge claims 才能从形式模型走到科学命题
+- `system`、`theorem_ref`、`proof_args` 记入 `FormalProofSupport` 的类型安全字段
 
 示例：
 
 ```python
-stability_theorem = formal_proof(
-    "Under assumptions H, scheme S is stable.",
+stability = formal_proof(
+    "在假设 H 下，格式 S 是稳定的",
     system="lean",
     theorem_ref="FluidLab.Stability.main",
     given=[scheme_spec, assumption_h],
 )
 ```
 
-## 8.5 Historical aliases
-
-为兼容此前讨论，可保留历史别名，但不作为核心 ontology：
-
-```python
-toolcall(...) == execute(..., execution_backend="external")
-```
-
-`checked_code` 不建议保留为核心名字；优先统一为 `check(...)`。
-
 ---
 
-## 9. Explicit Support Constructor
-
-### 9.1 `support()`
-
-```python
-def support(
-    *,
-    family: str,
-    premises: list[Claim],
-    conclusion: Claim,
-    background: list[Knowledge] | None = None,
-    witnesses: list[Witness] | None = None,
-    reason: ReasonInput = "",
-    label: str | None = None,
-    **metadata,
-) -> Support
-```
-
-用途：
-
-- migration
-- advanced authoring
-- explicit composition
-
-### 9.2 `composite_support()`
+## 9. CompositeSupport Constructor
 
 ```python
 def composite_support(
     *,
-    family: str = "infer",
     premises: list[Claim],
     conclusion: Claim,
     sub_supports: list[Support],
     background: list[Knowledge] | None = None,
-    witnesses: list[Witness] | None = None,
     reason: ReasonInput = "",
     label: str | None = None,
     **metadata,
 ) -> Support
 ```
 
-它是作者显式构造 composite support 的 escape hatch。  
-普通 author-facing 情况下，`induction()` 应优先走上文的 claim-returning surface API。
+用途：聚合多条子 support（induction bundle、converging evidence 等）。返回 `Support`，不返回 `Claim`。
 
 ---
 
 ## 10. Review API
 
-## 10.1 设计原则
-
-review surface 必须允许分开评估：
-
-- claim prior
-- support 结构强度 / judgment
-- witness 质量
-
-同时允许 inference engine 在运行时把它们折叠成 effective cp。
-
-## 10.2 `review_claim()`
-
-继续保持现有语义：
+### 10.1 `review_claim()`
 
 ```python
 def review_claim(
-    subject: Claim,
-    *,
+    subject: Claim, *,
     prior: float | None = None,
     judgment: str | None = None,
     justification: str = "",
@@ -633,12 +433,11 @@ def review_claim(
 ) -> ClaimReview
 ```
 
-## 10.3 `review_support()`
+### 10.2 `review_support()`
 
 ```python
 def review_support(
-    subject: Support,
-    *,
+    subject: Support, *,
     conditional_probability: float | None = None,
     conditional_probabilities: list[float] | None = None,
     judgment: str | None = None,
@@ -647,159 +446,114 @@ def review_support(
 ) -> SupportReview
 ```
 
-规则：
+行为按 Support 子类 dispatch：
 
-- 对 `infer` / `noisy_and`，可直接给条件概率
-- 对 formal families，通常只给 `judgment / justification`
-- 对 execution-backed families，可给高层 bridge judgment，但不要求把 witness 质量压成同一个数
-
-## 10.4 `review_witness()`
-
-```python
-def review_witness(
-    subject: Witness | tuple[Support, int],
-    *,
-    trust: float | None = None,
-    judgment: str | None = None,
-    scope: str | None = None,
-    justification: str = "",
-    metadata: dict[str, Any] | None = None,
-) -> WitnessReview
-```
-
-`subject` 可以直接是 witness 对象；若 implementation 还没有独立 witness object identity，也可暂时通过 `(support, witness_index)` 寻址。
-
-`trust` 不要求直接等于 support cp。它表达：
-
-- 这份 witness 有多可信
-- 它的适用域有多大
-- 是否覆盖目标 regime
-
-## 10.5 Folded assembled semantics
-
-review source-of-truth 中，support 和 witness 分开存。  
-运行时允许形成：
-
-```text
-effective_support_strength =
-    fold(support_review, witness_reviews, premise_priors, bridge_claim_priors)
-```
-
-这份 folded strength 属于 compiled / assembled semantics，不是 authoring source-of-truth。
+| Support 子类 | reviewer 怎么评估 |
+|-------------|------------------|
+| FormalSupport | judgment + justification |
+| InferSupport | conditional probability |
+| ExecutionSupport / CheckSupport / FormalProofSupport | review 前提 claims 的 prior |
+| CompositeSupport | 递归 review 各条 sub_support |
 
 ---
 
-## 11. 兼容性
+## 11. 最小例子
 
-## 11.1 与 v5 显式 API 的关系
-
-v5：
-
-```python
-c = claim("C")
-s = deduction(premises=[a, b], conclusion=c)
-# s is Strategy; c.strategy is s (last-writer-wins back-reference)
-```
-
-v6 推荐：
-
-```python
-c = deduction("C", given=[a, b])
-# c is Claim; c.support is the deduction support
-```
-
-兼容策略：
-
-- Phase 1 继续接受 v5 调用形式
-- 发出 `DeprecationWarning`
-- 内部统一转成 claim-returning surface semantics
-- `Knowledge.strategy` 属性保留为 `claim.support` 的别名
-
-## 11.2 与 `claim(..., given=[...])` 的关系
-
-保持兼容，并继续 lowering 到 `noisy_and`。
-
-## 11.3 与现有 review sidecar 的关系
-
-Phase 1 中：
-
-- `review_support()` 可暂时是 `review_strategy()` 的 rename / alias
-- `SupportReview` 可先复用 `StrategyReview`
-- `review_witness()` 是新增设计目标，不要求本轮立即落地到 protected contract
-- `toolcall()` 可暂时作为 `execute()` 的兼容 alias
-
----
-
-## 12. 最小例子
-
-### 12.1 Formal support
+### 11.1 Formal support
 
 ```python
 paradox = contradiction(composite_slower, composite_faster)
 
 vacuum_law = deduction(
-    "In vacuum all bodies fall at the same rate.",
+    "在真空中所有物体以相同速度下落",
     given=[paradox, heavy_faster],
-    reason="Galileo's contradiction argument rejects the heavier-falls-faster doctrine.",
+    reason="伽利略的矛盾论证",
 )
 ```
 
-### 12.2 Execution-backed result claim
+### 11.2 Execution → bridge → 科学结论
 
 ```python
-pressure_field = execute(
+solver_validated = claim("该 CFD 求解器在低 Re 方腔流中已通过基准验证")
+
+pressure = execute(
     run_cfd,
-    given=[geometry, boundary_condition],
-    returns="The CFD run produced pressure field P for the stated geometry.",
-    execution_backend="python",
+    given=[geometry, bc, solver_validated],
+    returns="CFD 计算得到方腔内的压力场 P",
 )
 
-prediction_ok = deduction(
-    "The simulated pressure profile matches the hypothesis.",
-    given=[pressure_field, bridge_claim],
+match_criterion = claim("压力场与参考解 L2 误差 < 1% 即视为吻合")
+
+conclusion = deduction(
+    "模拟结果支持方腔流在 Re=100 下存在稳定涡结构",
+    given=[pressure, match_criterion],
 )
 ```
 
-### 12.3 Validation claim
+### 11.3 Check → bridge → 科学结论
 
 ```python
+suite_covers_target = claim("回归测试集覆盖了目标 Re 数范围")
+
 solver_ok = check(
-    check_solver_against_spec,
-    given=[scheme_spec, regression_suite],
-    returns="The solver implementation satisfies the stated numerical specification on the tested regime.",
+    run_regression_tests,
+    given=[spec, suite_covers_target],
+    returns="求解器在回归测试集上通过了所有精度检查",
 )
 
-science_claim = deduction(
-    "The computed phase boundary is trustworthy under the stated assumptions.",
-    given=[solver_ok, model_validity_assumption, run_result_claim],
+model_assumptions = claim("不可压 NS 方程在目标条件下适用")
+
+trustworthy = deduction(
+    "该求解器的计算结果在目标条件下可信",
+    given=[solver_ok, model_assumptions],
 )
 ```
 
-### 12.4 Formal-proof-backed claim
+### 11.4 Formal proof
 
 ```python
-stability_theorem = formal_proof(
-    "Under assumptions H, scheme S is stable.",
+stability = formal_proof(
+    "在假设 H 下，格式 S 是稳定的",
     system="lean",
     theorem_ref="FluidLab.Stability.main",
     given=[scheme_spec, assumption_h],
 )
 ```
 
-### 12.5 Review side
+### 11.5 Review
 
 ```python
 REVIEW = ReviewBundle(
     source_id="self_review",
     objects=[
-        review_claim(model_validity_assumption, prior=0.8),
-        review_support(prediction_ok.support, judgment="good",
+        review_claim(solver_validated, prior=0.9,
+                     justification="在 Ghia 1982 基准上偏差 < 0.5%"),
+        review_claim(match_criterion, prior=0.85),
+        review_support(conclusion.support, judgment="good",
                        justification="Bridge from simulation result to hypothesis is appropriate."),
-        review_witness(pressure_field.support.witnesses[0], trust=0.85,
-                       justification="CFD tool is validated for this flow regime."),
     ],
 )
 ```
+
+---
+
+## 12. 兼容性
+
+### 12.1 与 v5 显式 API 的关系
+
+v5：`deduction(premises=[a, b], conclusion=c) -> Strategy`
+v6：`deduction("C", given=[a, b]) -> Claim`
+
+Phase 1 继续接受 v5 形式，发出 `DeprecationWarning`。
+
+### 12.2 与 `claim(..., given=[...])` 的关系
+
+保持兼容，内部创建 `InferSupport(family="noisy_and")`。
+
+### 12.3 与现有 review sidecar 的关系
+
+- `review_support()` = `review_strategy()` 的 rename
+- `SupportReview` 可先复用 `StrategyReview`
 
 ---
 
@@ -807,62 +561,34 @@ REVIEW = ReviewBundle(
 
 ### 13.1 迁移工具
 
-提供 `gaia migrate v5-to-v6` CLI 命令，执行机械化转换：
-
-```bash
-# 预览变更（dry-run）
-gaia migrate v5-to-v6 --dry-run path/to/package/
-
-# 执行迁移
-gaia migrate v5-to-v6 path/to/package/
-```
-
-转换规则（机械化，不做语义推断）：
+`gaia migrate v5-to-v6` CLI 命令，机械化转换：
 
 | v5 模式 | v6 转换 |
 |---------|--------|
 | `c = claim("C"); deduction([a,b], c)` | `c = deduction("C", given=[a, b])` |
 | `c = claim("C"); abduction(obs, c, alt)` | `c = abduction("C", observation=obs, alternative=alt)` |
-| `c = claim("C"); noisy_and([a,b], c)` | `c = claim("C", given=[a, b])` 或 `c = noisy_and("C", given=[a, b])` |
 | `review_strategy(s, ...)` | `review_support(s, ...)` |
 | `c.strategy` | `c.support` |
 
-不自动转换的情况（需人工处理）：
-- `induction()` bottom-up 模式 → `composite_support()`
-- 跨模块引用 strategy 对象的代码
-- 自定义 strategy 子类或 monkey-patching
+### 13.2 Deprecation 时间线
 
-### 13.2 已发布 packages 的迁移时机
-
-| Package | 状态 | 建议 |
-|---------|------|------|
-| 已在 gaia-registry 的 v5 packages | 可继续 compile | 下次 major revision 时迁移 |
-| 新 package | — | 直接使用 v6 syntax |
-| 正在开发中的 package | — | 视完成度决定，>80% 完成建议先用 v5 发布再迁移 |
-
-### 13.3 Deprecation 时间线
-
-- **v6.0**（Phase 1）：v5 API 发出 `DeprecationWarning`，功能完全保留
-- **v7.0**（未来）：移除 v5 API，仅保留 v6
-
-不设固定日期，以 v6 在实际 packages 中的采用率为判断标准。
+- **v6.0**：v5 API 发 `DeprecationWarning`，功能保留
+- **v7.0**：移除 v5 API
 
 ---
 
 ## 14. Phase 1 实施范围
 
-本 API spec 推荐的 Phase 1 实施只包括：
+包括：
 
-1. 将 `Support` 作为 `Strategy` 的 DSL-facing rename
-2. 为 claim-returning constructors 建立统一 surface syntax
-3. 为 `execute()` / `check()` / `formal_proof()` 建立 authoring-layer declaration API
-4. 为 review surface 定义 `review_support()` alias
-5. 暂时把 witness 存在 support metadata 或 runtime attachment 上
+1. Support 继承树（六个子类）
+2. Claim-returning constructors
+3. `execute()` / `check()` / `formal_proof()` authoring-layer API
+4. `review_support()` alias
 
 不包括：
 
 - execution 真正执行
-- witness 独立持久化 schema
 - protected IR contract 更新
 - `gaia run` artifact protocol
 
@@ -870,6 +596,4 @@ gaia migrate v5-to-v6 path/to/package/
 
 ## 15. 一句话版本
 
-v6 API 的最小原则是：
-
-> 作者看到的是“构造器返回 Claim”；系统内部维护的是“Claim 挂着 Support，Support 带着 Witness”；review 则分别评估 claim、support 和 witness，并在运行时折叠出等效支持强度。
+> 作者看到的永远是 **Claim in, Claim out**。不同的支撑方式由 Support 继承树的子类区分（FormalSupport、InferSupport、ExecutionSupport、CheckSupport、FormalProofSupport、CompositeSupport），内部自动创建，挂在 `claim.support` 上。
