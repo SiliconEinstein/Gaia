@@ -1,6 +1,7 @@
 """Tests for gaia wiki page generation."""
 
 from gaia.cli.commands._wiki import (
+    generate_all_wiki,
     generate_wiki_home,
     generate_wiki_inference,
     generate_wiki_module,
@@ -167,3 +168,24 @@ def test_wiki_inference_results():
     assert "Converged" in md
     assert "0.80" in md  # prior
     assert "0.90" in md  # belief
+
+
+def test_generate_all_wiki_returns_dict_of_pages():
+    ir = {
+        "package_name": "test_pkg",
+        "namespace": "github",
+        "knowledges": [
+            {
+                "id": "github:test_pkg::a",
+                "label": "a",
+                "type": "claim",
+                "content": "A.",
+                "module": "motivation",
+            },
+        ],
+        "strategies": [],
+        "operators": [],
+    }
+    pages = generate_all_wiki(ir, beliefs_data=None, param_data=None)
+    assert "Home.md" in pages
+    assert any(k.startswith("Module-") for k in pages)

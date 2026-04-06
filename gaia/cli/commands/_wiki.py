@@ -109,6 +109,41 @@ def generate_wiki_inference(
     return "\n".join(lines)
 
 
+def generate_all_wiki(
+    ir: dict,
+    beliefs_data: dict | None = None,
+    param_data: dict | None = None,
+) -> dict[str, str]:
+    """Generate all wiki pages and return them as ``{filename: markdown_content}``.
+
+    Produces:
+    - ``Home.md`` — package overview and claim index
+    - ``Module-{name}.md`` — one page per unique module
+    - ``Inference-Results.md`` — if *beliefs_data* is provided
+    """
+    pages: dict[str, str] = {}
+
+    pages["Home.md"] = generate_wiki_home(ir, beliefs_data=beliefs_data)
+
+    # Collect unique modules
+    modules: set[str] = set()
+    for k in ir["knowledges"]:
+        modules.add(k.get("module", "Root"))
+
+    for mod in sorted(modules):
+        page_name = f"Module-{mod.replace('_', '-')}.md"
+        pages[page_name] = generate_wiki_module(
+            ir, mod, beliefs_data=beliefs_data, param_data=param_data
+        )
+
+    if beliefs_data is not None:
+        pages["Inference-Results.md"] = generate_wiki_inference(
+            ir, beliefs_data, param_data=param_data
+        )
+
+    return pages
+
+
 def generate_wiki_module(
     ir: dict,
     module_name: str,
