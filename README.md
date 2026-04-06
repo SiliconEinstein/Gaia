@@ -110,7 +110,7 @@ Gaia provides a [Claude Code](https://claude.ai/code) plugin with a **formalizat
 /plugin marketplace add SiliconEinstein/Gaia
 
 # 2. Install the gaia plugin
-/plugin install gaia@gaia-marketplace
+/plugin install gaia
 
 # 3. Start formalizing a source
 /gaia:formalization
