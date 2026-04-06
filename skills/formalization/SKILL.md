@@ -163,6 +163,34 @@ For example: If Obs = "experimental Tc = 1.2K" and Alt = "phenomenological theor
 
 **Rule of thumb:** If pi(Alt) >= pi(H), it means the alternative theory's explanatory power is no weaker than the hypothesis -- this either means the abduction provides weak support for H, or pi(Alt) has been overestimated. The reviewer should examine carefully.
 
+### Figures and Tables
+
+When the source contains figures or tables with important data:
+
+**Tables:** Transcribe the data directly into the claim content. The claim must be self-contained — a reviewer should not need to open the original figure.
+
+```python
+tc_data = claim(
+    "Measured superconducting transition temperatures: "
+    "LaH10 at 250K (200 GPa), H3S at 203K (150 GPa), YH6 at 224K (166 GPa).",
+    title="Tc measurements",
+    metadata={"source_table": "artifacts/paper.pdf, Table 2"},
+)
+```
+
+**Figures:** Describe the key quantitative information (values, trends, comparisons) in the claim content. Reference the original figure in metadata for traceability.
+
+```python
+phase_diagram = claim(
+    "The Tc vs pressure curve shows a dome shape with maximum Tc = 250K at 200 GPa, "
+    "decreasing to 200K at 250 GPa and 180K at 150 GPa.",
+    title="Tc-pressure phase diagram",
+    metadata={"figure": "artifacts/fig3.png"},
+)
+```
+
+**Key principle:** The claim content carries all information needed for judgment. The metadata figure/table reference is for traceability, not for conveying information.
+
 ### Content Must Be Self-Contained
 
 Each node's content must be a complete, independently understandable proposition. A reviewer reading it should not need additional context to make a judgment.
@@ -202,6 +230,14 @@ After extracting all modules, check each claim against the following:
 - Can a reader understand what this claim says by reading only this one claim?
 - Are conditions and applicable ranges clear?
 - Do numerical values include units and error bars?
+
+### Pass 1 Reflection
+
+After the review checklist, ask yourself:
+
+- **Theory vs experiment separated?** For every result where the source compares theory to experiment, do I have separate claims for the theoretical prediction and the experimental measurement? If they're mixed in one claim, I can't use abduction in Pass 2.
+- **Figures and tables transcribed?** Are all key numerical values from figures and tables written into claim content (not just referenced)?
+- **Each claim independently judgeable?** Can a reviewer assess each claim without reading any other claim?
 
 ### Marking Exported Conclusions
 
@@ -245,6 +281,14 @@ Nodes referenced by `@label` must appear in the strategy's `premises` or `backgr
 ### Key Point for Pass 2: Do Not Miss Implicit Premises
 
 Sources often have implicit premises. When writing the reason, if you discover the derivation depends on a knowledge node already extracted in Pass 1, be sure to add it to premises or background and reference it with `@label` in the reason.
+
+### Pass 2 Reflection
+
+Before moving to Pass 3, verify:
+
+- **Theory-experiment pairs use abduction?** Every place the source compares a theoretical prediction against an experimental observation should be connected via `abduction(observation=exp, hypothesis=theory, alternative=old_theory)`, not `noisy_and` or `infer`. The relationship is explanatory ("which theory better explains the data?"), not inferential ("premises imply conclusion").
+- **Multiple observations → one law use induction?** If several independent observations all support the same general rule, use `induction([obs1, obs2, ...], law)`, not a flat `noisy_and` with all observations as premises.
+- **No missing alternatives?** Every abduction should have a meaningful alternative — what would explain the observation if the hypothesis were wrong?
 
 ## Pass 3: Check Completeness
 
@@ -349,6 +393,14 @@ Common misjudgments:
 - **3 premises**: Acceptable to keep as `infer` or `noisy_and`
 - **4+ premises**: Must decompose, otherwise the BP multiplicative effect will severely suppress belief
 
+### Pass 4 Reflection
+
+After refining all strategies, verify:
+
+- **Every abduction has a meaningful alternative?** The alternative should be a real competing explanation, not a placeholder. If there's no natural alternative, consider whether abduction is the right pattern.
+- **Abduction alternatives will be reviewed — are they set up correctly?** Each abduction's alternative will need a prior in the review sidecar. Remember: π(Alt) = "Can Alt alone explain Obs?" (explanatory power), NOT "Is Alt correct?". Flag any abduction where this distinction might be tricky for the reviewer.
+- **Each induction's sub-abductions independent?** For `induction([obs1, obs2], law)`, each observation should provide independent evidence. If the observations are dependent, consider whether a single abduction with stronger evidence is more appropriate.
+
 ### Operator Usage
 
 For operator semantics and syntax, see the **gaia-lang** skill.
@@ -362,6 +414,8 @@ After completing each pass, write code, compile, and check. For DSL syntax, see 
 The review sidecar assigns priors to claims and conditional probabilities to strategies.
 
 For how to write review sidecars, assign priors, and evaluate strategy parameters, see the **review** skill.
+
+**Abduction review deserves special attention.** The most common and consequential mistake in review is setting π(Alt) based on whether the alternative's calculation is correct, rather than whether it explains the observation. Before finalizing the review sidecar, go through every abduction and ask: "Does this alternative's prediction actually match the observation?" If not, π(Alt) should be low regardless of the alternative's theoretical validity.
 
 ## Generate README
 
