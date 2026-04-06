@@ -39,6 +39,10 @@ digraph formalization {
 }
 ```
 
+## Scope
+
+Formalize the **complete** source — not just the main result. A partial formalization leaves reasoning gaps: premises without support, alternatives without comparison, intermediate steps without justification. If the source is too large (e.g., a full textbook), formalize one chapter at a time, each as a separate Gaia package.
+
 ## Pass 0: Prepare Artifacts
 
 Copy the original source materials into the package's `artifacts/` directory:
@@ -443,7 +447,47 @@ After compiling and running inference, check:
 | Derived conclusions | belief > 0.5 (pulled up) | belief < 0.5 → see below |
 | Contradiction | One side high, one side low ("picks a side") | Both sides low → prior assignment issue |
 
-For detailed BP troubleshooting and parameter adjustment, see the **review** skill.
+If results are clearly wrong (e.g., a well-supported conclusion has belief < 0.3, or a contradiction doesn't pick a side), go back and check:
+
+1. **Structural issue?** (→ revisit Pass 1-4) Missing premises, wrong strategy type, missing abduction alternative
+2. **Parameter issue?** (→ revisit review sidecar) Priors too low/high, conditional_probability miscalibrated, π(Alt) reflecting correctness instead of explanatory power
+
+For detailed BP troubleshooting, see the **review** skill.
+
+## Critical Analysis
+
+After BP results stabilize, produce a **critical analysis** of the source. This is the analytical payoff of formalization — by building the knowledge graph, you now understand the argument's structure well enough to identify its strengths and weaknesses.
+
+### Weak Points
+
+Identify claims and reasoning steps that are structurally vulnerable:
+
+| Signal | What it means |
+|--------|---------------|
+| Derived conclusion with low belief (< 0.5) | Weak premise support or fragile reasoning chain |
+| Long reasoning chain (4+ hops from leaf to conclusion) | Multiplicative effect — small uncertainties compound |
+| Abduction where π(Alt) ≈ π(H) | Alternative is equally plausible — evidence doesn't distinguish |
+| Leaf claim with low prior and many downstream dependents | A single weak foundation supporting many conclusions |
+| `noisy_and` with low conditional_probability | Reviewer flagged this reasoning step as unreliable |
+| Claim marked as setting that could be questioned | Hidden assumption not subject to BP updating |
+
+### Evidence Gaps
+
+Identify where additional evidence would most strengthen the argument:
+
+- **Unsupported leaf claims**: Claims with no reasoning support that the source takes as given — what evidence could back them up?
+- **Weak abductions**: Where the alternative nearly matches the hypothesis in explanatory power — what new observation could break the tie?
+- **Missing comparisons**: Theoretical predictions without experimental validation — what experiment could test them?
+- **Single-observation inductions**: Laws supported by only one observation — what additional observations would strengthen the induction?
+
+### Output
+
+Write the critical analysis as a section in the package README (before or after the knowledge graph), or as a separate `ANALYSIS.md` in the package root. Include:
+
+1. **Summary**: One paragraph on the argument's overall structure and strength
+2. **Weak points**: Numbered list with specific claims/strategies and their BP beliefs
+3. **Evidence gaps**: What's missing and what would help
+4. **Confidence assessment**: Overall confidence in the core conclusions, informed by BP results
 
 ## Common Mistakes
 
