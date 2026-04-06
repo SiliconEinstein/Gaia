@@ -106,13 +106,13 @@ cd Gaia && uv sync
 Gaia provides a [Claude Code](https://claude.ai/code) plugin with a **formalization** skill that guides you through converting any knowledge source (scientific papers, textbooks, technical reports) into a Gaia knowledge package.
 
 ```bash
-# In Claude Code, add the Gaia marketplace
+# 1. Add the Gaia marketplace (one-time setup)
 /plugin marketplace add SiliconEinstein/Gaia
 
-# Install the gaia plugin
-/plugin install gaia
+# 2. Install the gaia plugin
+/plugin install gaia@gaia-marketplace
 
-# Start formalizing a source
+# 3. Start formalizing a source
 /gaia:formalization
 ```
 
