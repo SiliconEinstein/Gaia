@@ -75,4 +75,63 @@ describe('ClaimDetail', () => {
     fireEvent.click(screen.getByRole('button', { name: /close/i }))
     expect(onClose).toHaveBeenCalledOnce()
   })
+
+  it('shows abduction comparison with hypothesis vs alternative', () => {
+    const hypothesis: GraphNode = {
+      id: 'h1',
+      label: 'Gravity Hypothesis',
+      type: 'claim',
+      content: 'Objects fall due to gravity.',
+      prior: 0.7,
+      belief: 0.82,
+      exported: false,
+      metadata: {},
+    }
+    const alternative: GraphNode = {
+      id: 'h2',
+      label: 'Impetus Hypothesis',
+      type: 'claim',
+      content: 'Objects fall due to impetus.',
+      prior: 0.3,
+      belief: 0.18,
+      exported: false,
+      metadata: {},
+    }
+    const conclusion: GraphNode = {
+      id: 'obs1',
+      label: 'Falling Observation',
+      type: 'claim',
+      content: 'Heavy and light objects hit the ground at the same time.',
+      prior: 0.9,
+      belief: 0.95,
+      exported: true,
+      metadata: {},
+    }
+    const abductionNodes: Record<string, GraphNode> = {
+      h1: hypothesis,
+      h2: alternative,
+      obs1: conclusion,
+    }
+    const abductionEdges: GraphEdge[] = [
+      { source: 'h1', target: 'obs1', type: 'strategy', strategy_type: 'abduction' },
+      { source: 'h2', target: 'obs1', type: 'strategy', strategy_type: 'abduction' },
+    ]
+
+    render(
+      <ClaimDetail
+        node={hypothesis}
+        edges={abductionEdges}
+        nodesById={abductionNodes}
+        onClose={() => {}}
+      />,
+    )
+
+    expect(screen.getByText('Abduction Comparison')).toBeInTheDocument()
+    expect(screen.getByText('Hypothesis:')).toBeInTheDocument()
+    expect(screen.getByText('Alternative:')).toBeInTheDocument()
+    expect(screen.getByText('vs')).toBeInTheDocument()
+    // "Gravity Hypothesis" appears both in the header and in the comparison row
+    expect(screen.getAllByText('Gravity Hypothesis')).toHaveLength(2)
+    expect(screen.getByText('Impetus Hypothesis')).toBeInTheDocument()
+  })
 })

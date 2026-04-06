@@ -105,3 +105,44 @@
 .closeBtn:hover {
   color: #222;
 }
+
+.abduction {
+  margin-bottom: 16px;
+}
+
+.abduction h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #7c3aed;
+}
+
+.abductionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  margin-bottom: 6px;
+  background: #f5f0ff;
+  border-radius: 4px;
+  border-left: 3px solid #7c3aed;
+  font-size: 13px;
+}
+
+.abductionHypothesis,
+.abductionAlternative {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.abductionLabel {
+  font-weight: 600;
+  color: #7c3aed;
+}
+
+.abductionVs {
+  font-weight: 700;
+  color: #666;
+  font-size: 12px;
+}

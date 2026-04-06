@@ -24,7 +24,11 @@ function beliefColor(belief?: number | null): string {
 
 function edgeStyle(edge: GraphEdge): { lineStyle: string; lineColor: string } {
   if (edge.type === 'strategy') {
-    const deterministic = ['deduction', 'analogy', 'abduction']
+    // Abduction: dashed purple to highlight hypothesis-vs-alternative
+    if (edge.strategy_type === 'abduction') {
+      return { lineStyle: 'dashed', lineColor: '#7c3aed' }
+    }
+    const deterministic = ['deduction', 'analogy']
     const isDeterministic = edge.strategy_type != null && deterministic.includes(edge.strategy_type)
     return {
       lineStyle: isDeterministic ? 'solid' : 'dashed',
