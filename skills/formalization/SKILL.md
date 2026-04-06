@@ -443,6 +443,27 @@ _strat_2 = induction([noise_free, motif_not_from_training], benchmark_performanc
 
 For `induction([obs1, obs2, obs3], law)`, each observation should come from a different experiment, sample, or measurement technique. If obs1 and obs2 share systematic errors (same sample, same instrument calibration), they are not independent and the induction overcounts.
 
+You cannot create new experiments — you formalize what the paper provides. When observations are not independent, adjust the modeling:
+
+| Relationship | Modeling approach |
+|-------------|-------------------|
+| Truly independent (different samples, different labs) | `induction` — BP independence assumption holds |
+| Partially independent (same sample, different measurement methods) | `noisy_and` with lower `conditional_probability` to reflect correlation, or model the shared dependency explicitly as a premise |
+| Completely redundant (same data rephrased) | Merge into a single claim |
+
+```python
+# Partially independent: same sample, different methods → noisy_and, not induction
+obs_resistivity = claim("Sample A: Tc = 39K by resistivity")
+obs_susceptibility = claim("Sample A: Tc = 39K by susceptibility")
+# These share sample-level systematic errors but measurement methods differ
+noisy_and(
+    [obs_resistivity, obs_susceptibility], conclusion,
+    reason="Both methods agree on Tc = 39K; different error sources but shared sample.",
+)
+# In the review sidecar, set conditional_probability lower (~0.80) to reflect
+# the shared sample dependency — not as strong as two independent experiments.
+```
+
 **Check 3: Equivalence does not create evidence loops.**
 
 `equivalence(a, b)` tightly couples two claims. If both A and B receive evidence from the same underlying source, that source's influence is amplified through the equivalence coupling. Only use `equivalence` when A and B are independently supported.
