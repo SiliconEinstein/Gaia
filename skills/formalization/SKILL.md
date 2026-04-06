@@ -213,11 +213,16 @@ phase_diagram = claim(
     "The Tc vs pressure curve shows a dome shape with maximum Tc = 250K at 200 GPa, "
     "decreasing to 200K at 250 GPa and 180K at 150 GPa.",
     title="Tc-pressure phase diagram",
-    metadata={"figure": "artifacts/fig3.png"},
+    metadata={
+        "figure": "artifacts/images/fig3.png",
+        "caption": "Fig. 3 | Tc-pressure phase diagram showing dome-shaped dependence.",
+    },
 )
 ```
 
 **Key principle:** The claim content carries all information needed for judgment. The metadata figure/table reference is for traceability, not for conveying information.
+
+**Always include `caption` in figure metadata.** Copy the figure caption from the source into metadata so reviewers can verify the claim against the original figure without opening the PDF. Strategies whose `reason` references figure data should also include `metadata={"figure": ...}` pointing to the relevant figure.
 
 ### Content Must Be Self-Contained
 
@@ -258,6 +263,11 @@ After extracting all modules, check each claim against the following:
 - Can a reader understand what this claim says by reading only this one claim?
 - Are conditions and applicable ranges clear?
 - Do numerical values include units and error bars?
+
+**Figure/table references:**
+- Every claim whose content comes from a figure or table must have `metadata={"figure": "artifacts/images/...", "caption": "..."}` with the figure caption copied from the source
+- Verify the file path exists in `artifacts/`
+- Strategy `reason` text that references figure data should also carry `metadata` pointing to the relevant figure
 
 ### Pass 1 Reflection
 
@@ -345,6 +355,15 @@ Use the output of `gaia check` to see if any claim should have reasoning support
 - Isolated nodes indicate they do not participate in the reasoning graph -- either they should not exist, or a strategy referencing them was missed
 
 The most common mistake at this step is **assuming certain knowledge does not need explicit references**. In Gaia, if the reasoning process depends on a fact, that fact must be a node in the knowledge graph.
+
+### 3d. Check Figure/Table References
+
+Review all claims and strategies for figure metadata:
+
+1. **Coverage**: Every claim whose content comes from a specific figure or table should have `metadata={"figure": "...", "caption": "..."}`. Check each module against the source to identify missing references.
+2. **Path validity**: Verify each referenced file path actually exists in `artifacts/`. Run: `ls artifacts/images/` and cross-check.
+3. **Caption accuracy**: Each `caption` value should match the source's figure caption (abbreviated is OK, but the figure number and key content must be correct).
+4. **Strategy metadata**: Strategies whose `reason` text discusses figure data (e.g., "as shown in Fig. 3...") should also carry `metadata` pointing to the figure.
 
 ## Pass 4: Refine Strategy Types
 
