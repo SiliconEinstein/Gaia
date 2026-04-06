@@ -1,7 +1,7 @@
 """Orchestrate GitHub output generation for a compiled Gaia package.
 
 Combines wiki pages, graph.json, manifest.json, assets, section placeholders,
-and a README skeleton into a single ``.github-output/`` directory.
+a React SPA template, and a README skeleton into a single ``.github-output/`` directory.
 """
 
 from __future__ import annotations
@@ -16,6 +16,51 @@ from gaia.cli.commands._simplified_mermaid import render_simplified_mermaid
 from gaia.cli.commands._wiki import generate_all_wiki
 
 
+def _copy_react_template(docs_dir: Path) -> None:
+    """Copy the React SPA template from ``gaia.cli.templates.pages`` to *docs_dir*.
+
+    The template provides the scaffold (``package.json``, ``src/``, ``index.html``,
+    etc.) on top of which data files (``public/data/``, ``public/assets/``) are
+    overlaid by the caller.
+
+    ``node_modules``, ``dist``, ``package-lock.json``, and Python bytecode are
+    excluded from the copy so the output stays lightweight and reproducible.
+    """
+    import gaia.cli.templates.pages as pages_pkg
+
+    template_path = Path(pages_pkg.__file__).parent
+
+    if docs_dir.exists():
+        shutil.rmtree(docs_dir)
+
+    shutil.copytree(
+        template_path,
+        docs_dir,
+        ignore=shutil.ignore_patterns(
+            "node_modules", "dist", "package-lock.json", "__pycache__", "*.pyc"
+        ),
+    )
+
+
+def _write_meta_json(
+    data_dir: Path,
+    ir: dict,
+    pkg_metadata: dict,
+) -> None:
+    """Write ``meta.json`` with package identity and description."""
+    meta = {
+        "package_name": ir.get("package_name", ""),
+        "namespace": ir.get("namespace", ""),
+        "name": pkg_metadata.get("name", ir.get("package_name", "")),
+        "description": pkg_metadata.get("description", ""),
+    }
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "meta.json").write_text(
+        json.dumps(meta, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
 def generate_github_output(
     ir: dict,
     pkg_path: Path,
@@ -28,7 +73,8 @@ def generate_github_output(
     """Generate the full ``.github-output/`` tree and return its path.
 
     Steps:
-    1. Create directory structure under ``pkg_path / .github-output``
+    0. Copy React SPA template to ``docs/``
+    1. Create remaining directory structure
     2. Write wiki pages
     3. Write ``docs/public/data/graph.json``
     4. Copy ``beliefs.json`` if beliefs_data is available
@@ -43,12 +89,16 @@ def generate_github_output(
     metadata = pkg_metadata or {}
 
     output_dir = pkg_path / ".github-output"
+    docs_dir = output_dir / "docs"
     wiki_dir = output_dir / "wiki"
-    data_dir = output_dir / "docs" / "public" / "data"
-    assets_dir = output_dir / "docs" / "public" / "assets"
+    data_dir = docs_dir / "public" / "data"
+    assets_dir = docs_dir / "public" / "assets"
     sections_dir = data_dir / "sections"
 
-    # Create directory structure
+    # ── 0. Copy React template (provides package.json, src/, index.html, …) ──
+    _copy_react_template(docs_dir)
+
+    # Create remaining directory structure (template may already provide some)
     for d in (wiki_dir, data_dir, assets_dir, sections_dir):
         d.mkdir(parents=True, exist_ok=True)
 
@@ -74,14 +124,7 @@ def generate_github_output(
         )
 
     # ── 4. meta.json ──
-    meta = {
-        "name": metadata.get("name", ir.get("package_name", "")),
-        "description": metadata.get("description", ""),
-    }
-    (data_dir / "meta.json").write_text(
-        json.dumps(meta, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
+    _write_meta_json(data_dir, ir, metadata)
 
     # ── 5. Copy artifacts to assets (recursive) ──
     artifacts_dir = pkg_path / "artifacts"

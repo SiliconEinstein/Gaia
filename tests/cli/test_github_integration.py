@@ -93,6 +93,8 @@ def test_meta_json_written(tmp_path: Path):
     meta = json.loads(meta_path.read_text())
     assert meta["name"] == "Test Package"
     assert meta["description"] == "A test."
+    assert meta["package_name"] == "test_pkg"
+    assert meta["namespace"] == "github"
 
 
 def test_beliefs_json_copied(tmp_path: Path):

@@ -62,12 +62,16 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["gaia", "gaia.ir*", "gaia.lang*", "gaia.bp*", "gaia.cli*", "gaia.review*"]
 
+[tool.setuptools.package-data]
+"gaia.cli.templates.pages" = ["**/*"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "neo4j: tests requiring a running Neo4j instance",
     "integration_api: tests requiring real LLM/embedding API credentials",
+    "slow: slow tests (e.g. npm build)",
 ]
 
 [project.scripts]
