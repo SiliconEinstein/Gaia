@@ -7,13 +7,13 @@ description: Use when formalizing a knowledge source (scientific paper, textbook
 
 Extract the knowledge structure from a source (scientific paper, textbook, technical report, etc.) into a Gaia knowledge package with claims, reasoning strategies, and review sidecars.
 
-**REQUIRED:** Use gaia-ir-authoring for compilation, validation, and registration mechanics. This skill covers the intellectual process upstream of that.
+**REQUIRED:** Use gaia-cli skill for CLI commands (compile, check, infer, register) and gaia-lang skill for DSL syntax (claim, setting, strategies, operators).
 
 ## Overview
 
 Formalization is a **four-pass** process. Each pass builds on the previous one. Do NOT skip passes or combine them.
 
-**关键原则：Formalization 是渐进的。** 每完成一个 pass 就写代码、编译、检查。不要把所有 pass 做完才开始写代码。`gaia compile` 和 `gaia check` 的反馈是下一个 pass 的重要输入。
+**Key principle: Formalization is incremental.** After completing each pass, write code, compile, and check. Do not wait until all passes are done before writing code. Feedback from `gaia compile` and `gaia check` is critical input for the next pass.
 
 ```dot
 digraph formalization {
@@ -24,7 +24,7 @@ digraph formalization {
     r1 [label="gaia compile + gaia check"];
     p2 [label="Pass 2: Connect\n→ add strategies"];
     r2 [label="gaia compile + gaia check"];
-    p3 [label="Pass 3: Check completeness\n(gaia check 反馈 + 手动审查)"];
+    p3 [label="Pass 3: Check completeness\n(gaia check feedback + manual review)"];
     p4 [label="Pass 4: Refine\n→ update strategy types"];
     r4 [label="gaia compile + gaia check"];
     review [label="Write review sidecar"];
@@ -41,14 +41,14 @@ digraph formalization {
 
 ## Pass 0: Prepare Artifacts
 
-将原始材料拷贝到 package 的 `artifacts/` 目录：
+Copy the original source materials into the package's `artifacts/` directory:
 
 ```
 my-package-gaia/
-├── artifacts/              # 原始材料
-│   ├── paper.pdf           # PDF 原文，或
-│   ├── paper.md            # markdown 版本，或
-│   └── chapter3.md         # 教科书章节等
+├── artifacts/              # Original source materials
+│   ├── paper.pdf           # PDF original, or
+│   ├── paper.md            # markdown version, or
+│   └── chapter3.md         # textbook chapter, etc.
 ├── src/
 │   └── my_package/
 │       ├── __init__.py
@@ -57,7 +57,7 @@ my-package-gaia/
 └── pyproject.toml
 ```
 
-支持 PDF 或 markdown 格式。Formalization 过程中应始终参考 `artifacts/` 中的原文，确保数值、公式、论证步骤都与原始材料一致。
+Both PDF and markdown formats are supported. Throughout the formalization process, always refer back to the originals in `artifacts/` to ensure that numbers, formulas, and reasoning steps are consistent with the source material.
 
 ## Pass 1: Extract Knowledge Nodes
 
@@ -65,395 +65,397 @@ Read the source **section by section**. For each section, identify:
 
 | Type | Criterion | Examples |
 |------|-----------|---------|
-| **setting** | 不可被质疑的背景事实 | 数学定义、形式设定、基本原理 |
-| **claim** | 可被质疑、可被还原的命题 | 计算结果、理论推导、预测、实验观测 |
-| **question** | 要回答的问题 | 研究问题 |
+| **setting** | Background facts that cannot be questioned | Mathematical definitions, formal setups, fundamental principles |
+| **claim** | Propositions that can be questioned or falsified | Computation results, theoretical derivations, predictions, experimental observations |
+| **question** | Questions to be answered | Research questions |
 
 ### Organizing by Module
 
-每个章节对应一个 Gaia module（Python 文件）：
+Each section corresponds to a Gaia module (Python file):
 
 - Introduction → `motivation.py`
 - Section II → `s2_xxx.py`
 - ...
 
-Module 的 docstring 用作该章节的标题。每个 knowledge 都应有 `title` 参数。
+The module's docstring serves as the section heading. Each knowledge node should have a `title` parameter.
 
-### Knowledge 放在最早出现的 module
+### Place Knowledge in the Earliest Module
 
-每个 knowledge 放在原文中**最早出现**的 section 对应的 module。Introduction 中的内容放在 `motivation.py`。
+Each knowledge node belongs in the module corresponding to the section where it **first appears** in the source. Content from the Introduction goes into `motivation.py`.
 
-motivation 中的 claim 完全可以被后面的 module 作为 premise 或 background 引用——它们不受 module 归属的限制。setting 和 question 通常通过 `background=` 引用。
+Claims in motivation can be freely referenced as premises or background by later modules — they are not restricted by module membership. Settings and questions are typically referenced via `background=`.
 
-### Setting vs Claim 分类指南
+### Setting vs Claim Classification Guide
 
-**原则：如果不确定是 setting 还是 claim，标记为 claim。**
+**Principle: When in doubt between setting and claim, mark it as claim.**
 
 | Category | Type | Examples |
 |----------|------|---------|
-| 数学定义/形式设定 | **setting** | 坐标系选择、变量分解定义、势函数的数学形式 |
-| 已确立的基本原理 | **setting** | 守恒律、不相容原理、热力学定律 |
-| 标准近似/方法的定义（不含适用性断言） | **setting** | 某种近似的数学表达式（仅定义，不断言其适用） |
-| 适用条件是否成立 | **claim** | 某种近似是否对特定系统适用 |
-| 依赖条件的理论框架 | **claim** | 当 A 成立时 B 定理成立 |
-| 理论推导结果 | **claim** | 重整化关系、标度律、渐近行为 |
-| 数值计算结果 | **claim** | 从计算方法得到的数值 |
-| 实验观测 | **claim** | 实验测量值 |
+| Mathematical definitions / formal setups | **setting** | Coordinate system choice, variable decomposition definitions, mathematical form of potentials |
+| Established fundamental principles | **setting** | Conservation laws, exclusion principle, laws of thermodynamics |
+| Standard approximation/method definitions (without applicability assertions) | **setting** | Mathematical expression of an approximation (definition only, not asserting applicability) |
+| Whether applicability conditions hold | **claim** | Whether a certain approximation is applicable to a specific system |
+| Theoretical frameworks dependent on conditions | **claim** | Theorem B holds when A is satisfied |
+| Theoretical derivation results | **claim** | Renormalization relations, scaling laws, asymptotic behavior |
+| Numerical computation results | **claim** | Values obtained from computational methods |
+| Experimental observations | **claim** | Experimental measurements |
 
-**关键判断标准：** 该命题是否可以被质疑？是 → claim。只有数学定义和形式设定才是 setting。
+**Key criterion:** Can this proposition be questioned? If yes → claim. Only mathematical definitions and formal setups qualify as settings.
 
-**注意区分定义和断言：** 某种近似的数学定义是 setting，但"该近似在某些条件下不可靠"是 claim。"将变量分解为高低频部分"是 setting（数学操作），但"高频部分的贡献可忽略"是 claim（物理断言）。
+**Distinguish definitions from assertions:** The mathematical definition of an approximation is a setting, but "this approximation is unreliable under certain conditions" is a claim. "Decompose the variable into high- and low-frequency parts" is a setting (mathematical operation), but "the contribution of the high-frequency part is negligible" is a claim (physical assertion).
 
-**依赖链：** 如果 A 是 setting，B 依赖 A 成立且包含物理断言——B 通常是 claim。
+**Dependency chains:** If A is a setting and B depends on A being true while containing a physical assertion — B is typically a claim.
 
-原文自己推导的内容——即使推导很严格——也应该是 claim，因为推导过程本身可能有误。
+Content that the source itself derives — even if the derivation is rigorous — should be a claim, because the derivation process itself may contain errors.
 
 ### Atomicity Principle
 
-每个 claim 必须是**原子命题**——一个 claim 只表达一件事。
+Each claim must be an **atomic proposition** — one claim expresses one thing.
 
-**核心规则：理论预言必须与实验结果分离。**
+**Core rule: Theoretical predictions must be separated from experimental results.**
 
 ```python
-# ❌ 混合理论和实验
-result = claim("模型预测值为 X，实验值为 Y，偏差 Z%。")
+# ❌ Mixing theory and experiment
+result = claim("The model predicts X, the experimental value is Y, deviation Z%.")
 
-# ✅ 分离为独立的 claim
-prediction = claim("基于 XX 方法，模型预测某物理量为 X。", title="Model prediction")
-experiment = claim("某物理量的实验测量值为 Y。", title="Experimental value")
+# ✅ Separated into independent claims
+prediction = claim("Based on method XX, the model predicts a certain quantity as X.", title="Model prediction")
+experiment = claim("The experimental measurement of a certain quantity is Y.", title="Experimental value")
 ```
 
-类似地，**方法描述**和**方法应用结果**应该分离：
+Similarly, **method descriptions** and **method application results** should be separated:
 
 ```python
-# ❌ 方法和结果混在一起
-result = claim("用 XX 方法计算 YY，得到 ZZ。")
+# ❌ Method and result mixed together
+result = claim("Using method XX to compute YY yields ZZ.")
 
-# ✅ 分离
-method = claim("XX 方法采用 ... 策略 ...", title="Method description")
-result = claim("YY 的数值结果为 ZZ ± δ。", title="Numerical result")
+# ✅ Separated
+method = claim("Method XX employs ... strategy ...", title="Method description")
+result = claim("The numerical result for YY is ZZ ± δ.", title="Numerical result")
 ```
 
 ### Theory-Experiment Comparison → Abduction
 
-当理论预测与实验数据进行比较时，使用 **abduction** 模式：
+When a theoretical prediction is compared with experimental data, use the **abduction** pattern:
 
-- **observation**: 实验结果
-- **hypothesis**: 新理论的预测
-- **alternative**: 传统/已有理论的预测（替代解释）
+- **observation**: experimental result
+- **hypothesis**: prediction from the new theory
+- **alternative**: prediction from the conventional/existing theory (alternative explanation)
 
 ```python
-# abduction 必须提供 alternative_explanation（替代理论）
+# abduction must provide an alternative (alternative theory)
 _strat = abduction(
     observation=experimental_value,
     hypothesis=new_theory_prediction,
-    alternative=old_theory_prediction,  # 传统理论作为替代解释
-    reason="新理论偏差仅 X%，远优于旧理论的 Y% 偏差。")
+    alternative=old_theory_prediction,  # conventional theory as alternative explanation
+    reason="The new theory's deviation is only X%, far better than the old theory's Y% deviation.")
 ```
 
-**注意：** `abduction()` 返回 Strategy（不是 Knowledge）。需要将返回值赋给变量（如 `_strat`）以便 review sidecar 中引用。
+**Note:** `abduction()` returns a Strategy (not a Knowledge). You must assign the return value to a variable (e.g., `_strat`) so it can be referenced in the review sidecar.
 
-**π(Alt) 的语义——至关重要：** 在 abduction 中，`alternative_explanation` 的 prior π(Alt) 表示的是：**"不靠 H，Alt 本身就能解释 Obs 的概率"**——而不是 Alt 这个 claim 本身是否正确。
+**Semantics of π(Alt) — critical:** In abduction, the prior π(Alt) of the `alternative` represents: **"the probability that Alt alone can explain Obs without H"** — not whether Alt's calculation is correct.
 
-例如：如果 Obs = "实验 Tc = 1.2K"，Alt = "唯象理论预测 Tc = 1.9K"，那么虽然 Alt 的计算本身没有错（计算确实给出 1.9K），但 1.9K 并不能解释 1.2K 这个观测值。因此 π(Alt) 应该**低**（如 0.3），而不是因为"计算正确"就设为 0.9。
+For example: If Obs = "experimental Tc = 1.2K" and Alt = "phenomenological theory predicts Tc = 1.9K", then although Alt's calculation itself is not wrong (the calculation indeed gives 1.9K), 1.9K cannot explain the observation of 1.2K. Therefore π(Alt) should be **low** (e.g., 0.3), rather than high just because "the calculation is correct."
 
-**经验法则：** 如果 π(Alt) ≥ π(H)，说明替代理论的解释力不弱于假说——这要么意味着 abduction 对 H 的支持很弱，要么意味着 π(Alt) 被高估了。Reviewer 应仔细检查。
+**Rule of thumb:** If π(Alt) >= π(H), it means the alternative theory's explanatory power is no weaker than the hypothesis — this either means the abduction provides weak support for H, or π(Alt) has been overestimated. The reviewer should examine carefully.
 
-### Content 必须自含
+### Content Must Be Self-Contained
 
-每个节点的 content 必须是完整的、独立可理解的命题。Reviewer 读到它不需要看上下文就能判断。
+Each node's content must be a complete, independently understandable proposition. A reviewer reading it should not need additional context to make a judgment.
 
 ```python
-# ❌ 需要上下文才能理解
-result = claim("计算结果显著超出传统估计。")
+# ❌ Requires context to understand
+result = claim("The computed result significantly exceeds conventional estimates.")
 
-# ✅ 自含的命题
+# ✅ Self-contained proposition
 result = claim(
-    "利用 XX 方法计算 YY 在 ZZ 条件下的值为 A ± δ，"
-    "相比传统方法 WW 的估计值 B，偏差约 C 倍。",
+    "Using method XX to compute YY under condition ZZ yields A ± δ, "
+    "compared to the estimate B from conventional method WW, a deviation of approximately C-fold.",
     title="Result description",
 )
 ```
 
 ### Pass 1 Review Checklist
 
-提取完所有 module 后，逐个 claim 检查以下内容：
+After extracting all modules, check each claim against the following:
 
-**符号自解释：**
-- 每个数学符号在该 claim 中首次出现时必须有简要说明
-- 例：不写 "$\alpha \ll 1$"，写 "参数 $\alpha$（表示 XX 与 YY 之比）远小于 1"
-- 下标/上标的物理含义必须明确
+**Symbols must be self-explanatory:**
+- Every mathematical symbol must have a brief explanation on its first appearance in that claim
+- Example: Do not write "$\alpha \ll 1$"; write "the parameter $\alpha$ (ratio of XX to YY) is much less than 1"
+- The physical meaning of subscripts/superscripts must be explicit
 
-**缩写展开：**
-- 每个缩写在该 claim 中首次出现时必须展开
-- 例：不写 "XXX 计算 $\lambda$"，写 "某某方法（XXX）计算耦合常数 $\lambda$"
-- 即使缩写在其他 claim 中已经展开过，每个 claim 独立，必须重新展开
+**Abbreviations must be expanded:**
+- Every abbreviation must be expanded on its first appearance in that claim
+- Example: Do not write "XXX computes $\lambda$"; write "the such-and-such method (XXX) computes the coupling constant $\lambda$"
+- Even if an abbreviation has been expanded in another claim, each claim is independent and must expand it again
 
-**无比较性断言：**
-- 不写"显著大于 X"——读者不知道比较对象是什么
-- 不写"近乎精确一致"——读者不知道跟什么一致
-- 数值比较必须同时给出双方数据
+**No comparative assertions without reference:**
+- Do not write "significantly larger than X" — the reader does not know what is being compared
+- Do not write "nearly exact agreement" — the reader does not know what it agrees with
+- Numerical comparisons must provide both values
 
-**细节充分：**
-- 读者只看这一个 claim，能否理解它在说什么？
-- 条件、适用范围是否清楚？
-- 数值是否带单位和误差？
+**Sufficient detail:**
+- Can a reader understand what this claim says by reading only this one claim?
+- Are conditions and applicable ranges clear?
+- Do numerical values include units and error bars?
 
 ### Marking Exported Conclusions
 
-原文的**核心贡献**（新理论结果、新数值计算结果、新实验发现、关键论点）应在 `__all__` 中标记为 exported conclusion。这些是这个 knowledge package 对外的接口——其他 package 可以引用它们。
+The source's **core contributions** (new theoretical results, new numerical computation results, new experimental findings, key arguments) should be marked as exported conclusions in `__all__`. These are this knowledge package's external interface — other packages can reference them.
 
-判断标准：如果这个结果从原文中移除，原文就失去了核心价值。
+Criterion: If this result were removed from the source, the source would lose its core value.
 
 ### Pass 1 Deliverable
 
-每个 module 一个 claim/setting/question 列表。
+One claim/setting/question list per module.
 
-Pass 1 只提取原子化、自含的 knowledge 节点。**不要预判哪些是"推导结论"**——一个 claim 是独立前提还是被推导的，取决于 Pass 2 中如何建立推理连接，不是 claim 本身的属性。
+Pass 1 only extracts atomic, self-contained knowledge nodes. **Do not prejudge which are "derived conclusions"** — whether a claim is an independent premise or a derived one depends on how reasoning connections are established in Pass 2, not on the claim itself.
 
 ## Pass 2: Connect — Write Infer Strategies
 
-`infer` 是 Gaia 中**最通用的** strategy type——它不预设任何特定推理模式（如 deduction、abduction），仅表达"从 premises 推出 conclusion"。Pass 2 使用 `infer` 作为所有推理连接的草稿形式；具体的 strategy type 在 Pass 4 中细化。
+`infer` is the **most general** strategy type in Gaia — it does not presume any specific reasoning pattern (such as deduction, abduction), and merely expresses "from premises, derive conclusion." Pass 2 uses `infer` as the draft form for all reasoning connections; specific strategy types are refined in Pass 4.
 
-对每个"由其他 claim 支撑"的 claim，写一个 `infer` strategy（哪些 claim 需要 strategy 在 Pass 2 中逐个判断——如果原文中对它有论证过程，它就需要）：
+For each claim "supported by other claims," write an `infer` strategy (which claims need a strategy is determined case-by-case in Pass 2 — if the source provides an argument for it, it needs one):
 
-1. **写详细的 reason**：从原文中总结推导过程，不是一句话概括，而是完整的推理链路。reason 应该让一个领域内的读者能够理解"为什么这些前提能推出这个结论"。
+1. **Write a detailed reason**: Summarize the derivation process from the source — not a one-sentence summary, but a complete reasoning chain. The reason should enable a domain reader to understand "why these premises lead to this conclusion."
 
-2. **识别 premises 和 background**：
-   - 推导过程中用到的 **claim** → `premises`
-   - 推导过程中���到的 **setting/question** → `background`
+2. **Identify premises and background**:
+   - **Claims** used in the derivation → `premises`
+   - **Settings/questions** used in the derivation → `background`
 
-### Reason 中用 @label 引用 knowledge 节点
+### Use @label References in Reasons
 
-在 reason 文本中，用 `@label` 语法显式引用推导过程中用到的 knowledge 节点：
+In the reason text, use `@label` syntax to explicitly reference knowledge nodes used in the derivation:
 
 ```python
 reason=(
-    "基于 XX 框架（@framework_claim），在 YY 条件下（@condition_claim），"
-    "可以推导出 ZZ 结论。推导利用了 WW 的性质（@property_setting）。"
+    "Based on the XX framework (@framework_claim), under condition YY (@condition_claim), "
+    "conclusion ZZ can be derived. The derivation uses the property of WW (@property_setting)."
 )
 ```
 
-`@label` 中引用的节点必须出现在该 strategy 的 `premises` 或 `background` 列表中。Pass 3 中逐一检查这一点。
+Nodes referenced by `@label` must appear in the strategy's `premises` or `background` list. This is verified in Pass 3.
 
-### Pass 2 的关键：不要遗漏隐含前提
+### Key Point for Pass 2: Do Not Miss Implicit Premises
 
-原文中经常有些前提是隐含的。在写 reason 时，如果发现推导依赖了某个 Pass 1 中已经提取的 knowledge，一定要把它加入 premises 或 background，并在 reason 中用 `@label` 引用。
+Sources often have implicit premises. When writing the reason, if you discover the derivation depends on a knowledge node already extracted in Pass 1, be sure to add it to premises or background and reference it with `@label` in the reason.
 
 ## Pass 3: Check Completeness
 
-**前置条件：** Pass 1-2 的代码已写好并通过 `gaia compile` 和 `gaia check`。Pass 3 结合 `gaia check` ��反馈和手动审查。
+**Prerequisite:** Code from Pass 1-2 has been written and passes `gaia compile` and `gaia check`. Pass 3 combines `gaia check` feedback with manual review.
 
-### 3a. 检查 @label 引用一致性
+### 3a. Check @label Reference Consistency
 
-逐一审查每个 infer strategy 的 reason：
+Review each infer strategy's reason one by one:
 
-1. **re-read reason**：仔细阅读 reason 中的每一句话
-2. **检查 @label 覆盖**：reason 中每个 `@label` 都必须出现在 premises 或 background 中
-3. **反向检查**：premises/background 中的每个 node 都应该在 reason 中被 `@label` 引用（否则为什么它是 premise？）
-4. **检查是否需要补充 knowledge**：如果 reason 中提到了一个重要事实但没有对应 `@label`，回到 Pass 1 补充
+1. **Re-read the reason**: Carefully read every sentence in the reason
+2. **Check @label coverage**: Every `@label` in the reason must appear in premises or background
+3. **Reverse check**: Every node in premises/background should be referenced by `@label` in the reason (otherwise, why is it a premise?)
+4. **Check if additional knowledge is needed**: If the reason mentions an important fact without a corresponding `@label`, go back to Pass 1 to add it
 
-### 3b. 检查是否有 claim 缺少 reasoning
+### 3b. Check for Claims Missing Reasoning
 
-利用 `gaia check` 的输出，检查是否有 claim 应该有推理支撑但还没有 strategy：
+Use the output of `gaia check` to see if any claim should have reasoning support but lacks a strategy:
 
-- `gaia check` 会报告没有被任何 strategy 作为 conclusion 的 claim（即叶节点）
-- 逐一审视每个叶节点：它真的是独立前提吗？还是应该有一个 infer strategy？
-- 判断标准：如果原文中对这个 claim 有论证过程（而不仅仅是陈述），它就应该有 strategy
+- `gaia check` reports claims that are not the conclusion of any strategy (i.e., leaf nodes)
+- Review each leaf node: Is it truly an independent premise? Or should it have an infer strategy?
+- Criterion: If the source provides an argument for this claim (not just a statement), it should have a strategy
 
-### 3c. 检查孤立节点
+### 3c. Check for Isolated Nodes
 
-- 有没有 claim 既不是任何 strategy 的 premise/background，也不是任何 strategy 的 conclusion？
-- 孤立节点说明它没有参与推理图——要么它不应该存在，要么遗漏了引用它的 strategy
+- Are there claims that are neither a premise/background of any strategy nor a conclusion of any strategy?
+- Isolated nodes indicate they do not participate in the reasoning graph — either they should not exist, or a strategy referencing them was missed
 
-这一步最容易犯的错误是**默认某些知识不需要显式引用**。在 Gaia 中，如果推理过程依赖了某个事实，那个事实必须是 knowledge graph 中的一个节点。
+The most common mistake at this step is **assuming certain knowledge does not need explicit references**. In Gaia, if the reasoning process depends on a fact, that fact must be a node in the knowledge graph.
 
 ## Pass 4: Refine Strategy Types
 
-Pass 2-3 产出的是通用 `infer` strategy。Pass 4 将每个 `infer` 细化为具体的 strategy type。
+Passes 2-3 produce generic `infer` strategies. Pass 4 refines each `infer` into a specific strategy type.
 
 ### Decision Tree
 
 ```dot
 digraph refine {
     node [shape=diamond];
-    q1 [label="几个 premise？"];
-    q2 [label="推理性质？"];
-    q3 [label="是否为\ncase_analysis？"];
-    q4 [label="能否找到\n有意义的中间命题？"];
+    q1 [label="How many\npremises?"];
+    q2 [label="Nature of\nreasoning?"];
+    q3 [label="Is it a\ncase_analysis?"];
+    q4 [label="Can meaningful\nintermediate propositions\nbe found?"];
 
     node [shape=box];
     formal [label="formal strategy\n(deduction/abduction/...)"];
     noisy [label="noisy_and"];
     case [label="case_analysis"];
-    composite [label="composite strategy\n分解为子步骤"];
-    recurse [label="对每个子步骤\n递归应用此流程"];
-    keep [label="保留 infer（通用）\n或 noisy_and"];
+    composite [label="composite strategy\ndecompose into sub-steps"];
+    recurse [label="Recursively apply\nthis process to\neach sub-step"];
+    keep [label="Keep infer (generic)\nor noisy_and"];
 
-    q1 -> q2 [label="1-2 个"];
-    q1 -> q3 [label="3+ 个"];
-    q2 -> formal [label="数学演绎/溯因/\n类比/外推"];
-    q2 -> noisy [label="数值计算/应用"];
-    q3 -> case [label="是"];
-    q3 -> q4 [label="否"];
-    q4 -> composite [label="是"];
-    q4 -> keep [label="否（3 个 premise 可接受）"];
+    q1 -> q2 [label="1-2"];
+    q1 -> q3 [label="3+"];
+    q2 -> formal [label="mathematical deduction/\nabduction/analogy/\nextrapolation"];
+    q2 -> noisy [label="numerical computation/\napplication"];
+    q3 -> case [label="yes"];
+    q3 -> q4 [label="no"];
+    q4 -> composite [label="yes"];
+    q4 -> keep [label="no (3 premises is acceptable)"];
     composite -> recurse;
 }
 ```
 
-### Case 1: 1-2 个 premise
+### Case 1: 1-2 Premises
 
-先判断推理性质，再选择 strategy type：
+First determine the nature of reasoning, then choose the strategy type:
 
-| 推理性质 | Strategy | 条件概率 |
-|----------|----------|---------|
-| 严格数学推导（前提成立则结论必然成立） | `deduction` | 确定性（无需参数） |
-| 数值计算/应用（有计算误差或经验不确定性） | `noisy_and` | 需要 conditional_prob |
-| 观察 → 假说 | `abduction` | 由 formal_expr 确定 |
-| 源 → 目标类比 | `analogy` | 由 formal_expr 确定 |
-| 外推 | `extrapolation` | 由 formal_expr 确定 |
-| 归纳（多观测→通则） | `induction` | 由子 abduction 的 formal_expr 确定 |
+| Nature of Reasoning | Strategy | Conditional Probability |
+|---------------------|----------|------------------------|
+| Strict mathematical derivation (conclusion necessarily follows from premises) | `deduction` | Deterministic (no parameters needed) |
+| Numerical computation / application (computational error or empirical uncertainty) | `noisy_and` | Requires conditional_prob |
+| Observation → hypothesis | `abduction` | Determined by strategy semantics |
+| Source → target analogy | `analogy` | Determined by strategy semantics |
+| Extrapolation | `extrapolation` | Determined by strategy semantics |
+| Induction (multiple observations → general rule) | `induction` | Determined by sub-abduction semantics |
+| Process of elimination (exhaustiveness + excluded candidates → survivor) | `elimination` | Determined by strategy semantics |
+| Inductive proof (base case + inductive step → law) | `mathematical_induction` | Determined by strategy semantics |
 
-**关键区分：deduction vs noisy_and**
+**Key distinction: deduction vs noisy_and**
 
-`deduction` 表示**纯确定性的数学推导**——推导步骤本身无误差，不确定性仅来自前提是否成立。在 BP 中，deduction 的 potential 是确定性的（conjunction + implication，Cromwell softened），不携带可调参数。
+`deduction` represents **purely deterministic mathematical derivation** — the derivation steps themselves are error-free, and uncertainty comes only from whether the premises hold. In BP, the deduction potential is deterministic (conjunction + implication, Cromwell softened), carrying no adjustable parameters.
 
-判断标准："如果前提全部为真，这条推导是否在数学上**必然**成立？"
+Criterion: "If all premises are true, does this derivation **necessarily** hold mathematically?"
 
-- **是** → `deduction`。例：数学证明、逻辑三段论、定义直接读出
-- **否** → `noisy_and`。例：数值计算有近似误差、经验判断、省略了某些前提、"通常成立但有例外"
+- **Yes** → `deduction`. Examples: mathematical proofs, logical syllogisms, reading directly from a definition
+- **No** → `noisy_and`. Examples: numerical computations with approximation errors, empirical judgments, omitted premises, "usually holds but has exceptions"
 
-常见误判：
-- 原文中的推导看起来"很严格"但省略了条件 → 用 `noisy_and`（省略的条件 = 隐含的不确定性）
-- 从定义直接读出结论（如"A 定义为 B，因此 A=B"）→ 用 `deduction`
-- 数值 DFT/MD 计算得出结果 → 用 `noisy_and`（计算方法本身有不确定性）
+Common misjudgments:
+- A derivation in the source looks "rigorous" but omits conditions → use `noisy_and` (omitted conditions = implicit uncertainty)
+- Conclusion read directly from a definition (e.g., "A is defined as B, therefore A=B") → use `deduction`
+- Numerical DFT/MD computation yields a result → use `noisy_and` (the computational method itself has uncertainty)
 
-**Strategy 变量命名：** 所有需要在 review sidecar 中引用的 strategy 必须赋给变量（`_strat_xxx = noisy_and(...)`）。deduction 不需要参数，可以匿名调用。
+**Strategy variable naming:** All strategies that need to be referenced in the review sidecar must be assigned to variables (`_strat_xxx = noisy_and(...)`). Deduction does not need parameters and can be called anonymously.
 
-### Case 2: 3+ 个 premise
+### Case 2: 3+ Premises
 
-**首先检查**：是否为 `case_analysis` 模式？
+**First check**: Is this a `case_analysis` pattern?
 
-**如果不是 case_analysis**：尝试分解为 `composite` strategy。分解时引入的中间 claim 应该是有意义的命题，不是纯粹为了拆分而造的。Composite 的粗图（top-level premises → conclusion）保留原始 `infer` 的视角，细图（sub-strategies）提供分步推导。
+**If not case_analysis**: Try decomposing into a `composite` strategy. Intermediate claims introduced during decomposition should be meaningful propositions, not created purely for the sake of splitting. The composite's coarse graph (top-level premises → conclusion) preserves the original `infer`'s perspective, while the fine graph (sub-strategies) provides step-by-step derivation.
 
-**如果找不到有意义的中间命题**（即分解会很牵强）：
-- **3 个 premise**：可以保留为 `infer` 或 `noisy_and`
-- **4+ 个 premise**：必须分解，否则 BP 乘法效应会严重压低 belief
+**If no meaningful intermediate propositions can be found** (i.e., decomposition would be forced):
+- **3 premises**: Acceptable to keep as `infer` or `noisy_and`
+- **4+ premises**: Must decompose, otherwise the BP multiplicative effect will severely suppress belief
 
-### Operator 用法
+### Operator Usage
 
-Operators 编码确定性逻辑约束，与 strategy 正交：
+Operators encode deterministic logical constraints, orthogonal to strategies:
 
 | Operator | Meaning | When |
 |----------|---------|------|
-| `contradiction(a, b)` | ¬(A ∧ B) | 两个互斥的理论/预测 |
-| `equivalence(a, b)` | A = B | 两种表述等价（如微观推导 = 历史公式） |
-| `complement(a, b)` | A ⊕ B | 互补命题 |
-| `disjunction(*args)` | ∨ | 穷举候选 |
+| `contradiction(a, b)` | ¬(A ∧ B) | Two mutually exclusive theories/predictions |
+| `equivalence(a, b)` | A = B | Two formulations are equivalent (e.g., microscopic derivation = historical formula) |
+| `complement(a, b)` | A ⊕ B | Complementary propositions |
+| `disjunction(*args)` | ∨ | Exhaustive candidates |
 
 ## Write DSL Code
 
-每个 pass 完成后就写代码、编译、检查。参考 gaia-ir-authoring skill。
+After completing each pass, write code, compile, and check. Refer to the gaia-cli and gaia-lang skills.
 
-### 实践要点
+### Practical Tips
 
-- **Labels 自动从变量名推断**——不要手动设置 `.label`
-- **Strategy 变量名**：需要 review 参数的 strategy 必须赋给 `_strat_xxx` 变量；deduction 可匿名
-- **Import 跨 module 的 claim**：后面的 module 可以 import motivation 中的 claim 作为 premise
-- **`abduction()` 返回 Strategy**——赋给变量用于 review sidecar 引用
-- **`contradiction()` 返回 Knowledge**（helper claim）——赋给变量并可被其他 strategy 引用
+- **Labels are automatically inferred from variable names** — do not manually set `.label`
+- **Strategy variable names**: Strategies that need review parameters must be assigned to `_strat_xxx` variables; deduction can be anonymous
+- **Import cross-module claims**: Later modules can import claims from motivation as premises
+- **`abduction()` returns a Strategy** — assign to a variable for review sidecar reference
+- **`contradiction()` returns a Knowledge** (helper claim) — assign to a variable; can be referenced by other strategies
 
 ## Write Review Sidecar
 
-### 核心原则
+### Core Principles
 
 | Node Type | Prior | Notes |
 |-----------|-------|-------|
-| 独立前提（叶节点） | reviewer 判断（0.5–0.95） | 反映证据强度 |
-| 推导结论 | 不设 prior | belief 完全由 BP 传播决定 |
-| Orphaned claims（background-only） | 需要设 prior（validator 要求） | 通常 0.90–0.95 |
-| deduction strategy | 确定性，不需要参数 | |
-| noisy_and strategy | `conditional_probability`（单值） | 反映计算/推理可靠��� |
-| infer strategy（N premises） | `conditional_probabilities`（2^N 个值，CPT） | 完整条件概率表 |
-| composite strategy | top-level 需要 CPT（2^N 个值） | 用于折叠模式 |
-| Generated claims（abduction alternative） | reviewer 判断 | `review_generated_claim` |
-| Explicit abduction alternative | prior 反映**解释力**而非计算正确性 | `review_claim` |
+| Independent premises (leaf nodes) | Reviewer's judgment (0.5-0.95) | Reflects evidence strength |
+| Derived conclusions | Do not set prior | Belief is entirely determined by BP propagation |
+| Orphaned claims (background-only) | Must set prior (validator requires it) | Typically 0.90-0.95 |
+| deduction strategy | Deterministic, no parameters needed | |
+| noisy_and strategy | `conditional_probability` (single value) | Reflects computation/reasoning reliability |
+| infer strategy (N premises) | `conditional_probabilities` (2^N values, CPT) | Full conditional probability table |
+| composite strategy | Top-level needs CPT (2^N values) | For collapsed mode |
+| Generated claims (abduction alternative) | Reviewer's judgment | `review_generated_claim` |
+| Explicit abduction alternative | Prior reflects **explanatory power**, not computational correctness | `review_claim` |
 
-### 实践要点
+### Practical Tips
 
-1. **所有 claim 都需要 prior**——包括 orphaned/background-only 节点，否则 `gaia infer` 报错
-2. **Strategy 必须有变量名**才能在 review 中引用：`_strat = noisy_and(...)` 而不是匿名调用
-3. **`infer` 的 CPT**：N 个 premise 需要 $2^N$ 个条件概率值，顺序为 $[P(\text{conc}|F...F), ..., P(\text{conc}|T...T)]$
-4. **Composite 的 top-level CPT**：sub-strategies 有自己的参数，但 composite 的 top-level `infer` 也需要 CPT
-5. **`abduction` 返回 Strategy**（不是 Knowledge），需赋给变量以便 `review_generated_claim` 引用
+1. **All claims need priors** — including orphaned/background-only nodes, otherwise `gaia infer` will error
+2. **Strategies must have variable names** to be referenced in review: `_strat = noisy_and(...)` not an anonymous call
+3. **`infer` CPT**: N premises require $2^N$ conditional probability values, ordered as $[P(\text{conc}|F...F), ..., P(\text{conc}|T...T)]$
+4. **Composite top-level CPT**: Sub-strategies have their own parameters, but the composite's top-level `infer` also needs a CPT
+5. **`abduction` returns a Strategy** (not a Knowledge); must be assigned to a variable for `review_generated_claim` reference
 
 ## Interpret BP Results
 
-编译并运行推理后，检查：
+After compiling and running inference, check:
 
 | Check | Normal | Abnormal |
 |-------|--------|----------|
-| 独立前提 | belief ≈ prior（变化小） | belief 被显著拉低 → 下游约束冲突 |
-| 推导结论 | belief > 0.5（被拉高） | belief < 0.5 → 见下文 |
-| Contradiction | 一边高一边低（"选边"） | 两边都低 → prior 分配有问题 |
+| Independent premises | belief ≈ prior (small change) | belief significantly pulled down → downstream constraint conflict |
+| Derived conclusions | belief > 0.5 (pulled up) | belief < 0.5 → see below |
+| Contradiction | One side high, one side low ("picks a side") | Both sides low → prior assignment issue |
 
-### 常见问题与修复
+### Common Issues and Fixes
 
-**推导结论的 belief 过低（< 0.3）：**
-- **原因 A：** 推理链太深，乘法效应压低。检查 Pass 4 是否用了 composite 来控制层级。
-- **原因 B：** premise 的 prior 不够高。重新审视 review sidecar。
-- **原因 C：** strategy 的 conditional_probability 不合理。
+**Derived conclusion belief too low (< 0.3):**
+- **Cause A:** Reasoning chain too deep, multiplicative effect suppresses belief. Check if Pass 4 used composite to control depth.
+- **Cause B:** Premise priors not high enough. Re-examine the review sidecar.
+- **Cause C:** Strategy's conditional_probability is unreasonable.
 
-**Contradiction 没有正确"选边"：**
-- **原因：** 两边的 prior 设置没有反映实际证据强度差异。
-- **修复：** 降低应被推翻那一方的 prior。
+**Contradiction does not correctly "pick a side":**
+- **Cause:** The priors on both sides do not reflect the actual difference in evidence strength.
+- **Fix:** Lower the prior of the side that should be overturned.
 
-**推导结论 belief ≈ 0.5（没有被拉高）：**
-- **原因：** 推理链断裂，某个 strategy 缺少 conditional_probability。
-- **修复：** 检查 review sidecar 是否遗漏了 strategy review。
+**Derived conclusion belief ≈ 0.5 (not pulled up):**
+- **Cause:** Reasoning chain is broken; some strategy is missing its conditional_probability.
+- **Fix:** Check if the review sidecar is missing a strategy review.
 
 ## Common Mistakes
 
 | Mistake | Consequence | Fix |
 |---------|-------------|-----|
-| 理论预测与实验结果混在一个 claim | 无法用 abduction 建模验证关系 | 分离为两个 claim + abduction |
-| abduction 不提供 alternative | 缺少替代理论的比较 | 提供已有理论作为 alternative |
-| abduction alternative 的 prior 反映"计算正确性"而非"解释力" | π(Alt) 过高，削弱 abduction 对 H 的支持 | π(Alt) 应回答"Alt 能否独立解释 Obs"，而非"Alt 的计算是否正确" |
-| reason 写得太简略（一句话） | 推理过程不可追溯 | 详细总结推导步骤，用 @label 引用 |
-| 4+ premise 的 flat noisy_and | BP 乘法效应严重 | 用 composite 分解为 ≤3 premise 子步骤 |
-| Content 不自含（符号/缩写未解释） | Reviewer 无法独立判断 | 每个 claim 独立解释所有符号和缩写 |
-| 将可质疑的命题标为 setting | 该命题无法通过 BP 更新 | 疑则标 claim；只有数学定义才是 setting |
-| 将依赖条件的理论框架标为 setting | 框架不参与 BP | 依赖条件的推论应为 claim |
-| 数学演绎用 noisy_and | 确定性推导不应有概率参数 | 用 deduction（纯确定性，不需要 cond_prob） |
-| 数值计算/近似推理用 deduction | 计算有不确定性，但 deduction 是纯确定性的 | 用 noisy_and（需要 cond_prob 表示推理强度） |
-| "看起来严格"的推导用 deduction | 原文省略了前提或条件 | 省略前提 = 隐含不确定性 → 用 noisy_and |
-| Strategy 匿名调用 | review sidecar 无法引用 | 赋给 `_strat_xxx` 变量 |
-| 手动设置 `.label` | 冗余且可能和变量名不一致 | 不设，由 `gaia compile` 自动推断 |
-| 遗漏 orphaned claim 的 prior | `gaia infer` 报错 | 所有 claim（含 orphaned）都需要 prior |
-| 遗漏推理中的隐含前提 | knowledge graph 不完整 | Pass 3 用 `gaia check` + 手动审查 |
-| 数值不核实 | 数据错误 | 每个数值对照原文 |
+| Theoretical prediction and experimental result mixed in one claim | Cannot model the verification relationship with abduction | Separate into two claims + abduction |
+| Abduction without providing an alternative | Missing comparison with alternative theory | Provide existing theory as alternative |
+| Abduction alternative's prior reflects "computational correctness" instead of "explanatory power" | π(Alt) too high, weakens abduction's support for H | π(Alt) should answer "Can Alt independently explain Obs?", not "Is Alt's calculation correct?" |
+| Reason written too briefly (one sentence) | Reasoning process is untraceable | Summarize derivation steps in detail, reference with @label |
+| 4+ premise flat noisy_and | Severe BP multiplicative effect | Use composite to decompose into sub-steps with ≤3 premises |
+| Content not self-contained (symbols/abbreviations unexplained) | Reviewer cannot judge independently | Each claim must independently explain all symbols and abbreviations |
+| Marking a questionable proposition as setting | That proposition cannot be updated via BP | When in doubt, mark as claim; only mathematical definitions are settings |
+| Marking a condition-dependent theoretical framework as setting | Framework does not participate in BP | Condition-dependent conclusions should be claims |
+| Using noisy_and for mathematical deduction | Deterministic derivation should not have probability parameters | Use deduction (purely deterministic, no cond_prob needed) |
+| Using deduction for numerical computation/approximate reasoning | Computation has uncertainty, but deduction is purely deterministic | Use noisy_and (needs cond_prob to express reasoning strength) |
+| Using deduction for "seemingly rigorous" derivation | Source omits premises or conditions | Omitted premises = implicit uncertainty → use noisy_and |
+| Anonymous strategy call | Review sidecar cannot reference it | Assign to `_strat_xxx` variable |
+| Manually setting `.label` | Redundant and may conflict with variable name | Do not set; let `gaia compile` infer automatically |
+| Missing prior for orphaned claim | `gaia infer` errors | All claims (including orphaned) need priors |
+| Missing implicit premises in reasoning | Knowledge graph is incomplete | Use `gaia check` + manual review in Pass 3 |
+| Not verifying numerical values | Data errors | Cross-check every value against the source |
 
 ## Generate README
 
-BP 结果稳定后，生成 README：
+After BP results are stable, generate the README:
 
 ```bash
-gaia infer .              # 确保 beliefs 是最新的
-gaia compile . --readme   # 生成/覆盖 README.md
+gaia infer .              # Ensure beliefs are up to date
+gaia compile . --readme   # Generate/overwrite README.md
 ```
 
-README 包含：
-- **Overview graph**：exported conclusions 的 Mermaid 图（含 belief 数值）
-- **Knowledge Graph**：完整 Mermaid 图（所有 node、strategy、operator）
-- **Knowledge Nodes**：每个 claim 的 content、prior、belief、derivation 和 reasoning
-- **Inference Results**：belief 汇总表
+The README contains:
+- **Overview graph**: Mermaid diagram of exported conclusions (with belief values)
+- **Knowledge Graph**: Complete Mermaid diagram (all nodes, strategies, operators)
+- **Knowledge Nodes**: Each claim's content, prior, belief, derivation, and reasoning
+- **Inference Results**: Belief summary table
 
-**注意**：必须先 `gaia infer .` 再 `gaia compile . --readme`，否则 README 不包含 belief 数值。
+**Note**: You must run `gaia infer .` before `gaia compile . --readme`, otherwise the README will not include belief values.
 
 ## Spec Pointers
 
-- **gaia-ir-authoring** — 编译、验证、注册的操作指南（含 README 生成步骤）
-- `docs/foundations/gaia-lang/dsl.md` — DSL 完整参考
-- `docs/foundations/gaia-lang/knowledge-and-reasoning.md` — 知识类型与推理语义
-- `docs/foundations/cli/inference.md` — 推理管线（review sidecar、BP）
+- **gaia-cli** — CLI commands and review sidecar reference
+- **gaia-lang** — DSL syntax and API reference
+- `docs/foundations/gaia-lang/knowledge-and-reasoning.md` — Knowledge types and reasoning semantics
+- `docs/foundations/cli/inference.md` — Inference pipeline (review sidecar, BP)
