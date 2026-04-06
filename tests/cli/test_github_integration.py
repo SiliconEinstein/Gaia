@@ -1,11 +1,16 @@
-"""Tests for _github.py orchestrator."""
+"""Tests for _github.py orchestrator and --github CLI flag."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
+from typer.testing import CliRunner
+
 from gaia.cli.commands._github import generate_github_output
+from gaia.cli.main import app
+
+runner = CliRunner()
 
 
 def test_github_output_creates_expected_structure(tmp_path: Path):
@@ -235,3 +240,140 @@ def test_wiki_inference_page_when_beliefs(tmp_path: Path):
         ir, pkg_path, beliefs_data=beliefs_data, param_data=None, exported_ids=set()
     )
     assert (output_dir / "wiki" / "Inference-Results.md").exists()
+
+
+# ── CLI --github flag integration ──
+
+
+def test_compile_github_flag(tmp_path):
+    """gaia compile --github generates .github-output/ with expected structure."""
+    pkg_dir = tmp_path / "github_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "github-pkg-gaia"\nversion = "1.0.0"\n'
+        'description = "A test package."\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "github_pkg"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import claim, noisy_and\n\n"
+        'a = claim("Premise A.")\n'
+        'b = claim("Premise B.")\n'
+        'c = claim("Conclusion.")\n'
+        "noisy_and([a, b], c)\n"
+        '__all__ = ["a", "b", "c"]\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(pkg_dir), "--github"])
+    assert result.exit_code == 0, f"Failed: {result.output}"
+    assert "GitHub output:" in result.output
+
+    output_dir = pkg_dir / ".github-output"
+    assert (output_dir / "wiki" / "Home.md").exists()
+    assert (output_dir / "manifest.json").exists()
+    assert (output_dir / "docs" / "public" / "data" / "graph.json").exists()
+    assert (output_dir / "README.md").exists()
+
+
+def test_github_output_with_real_package(tmp_path):
+    """Compile a Galileo-like package with --github and verify full structure.
+
+    Creates a multi-module package with claims, deduction, contradiction,
+    and exported conclusions, then verifies all GitHub output artifacts.
+    """
+    pkg_dir = tmp_path / "galileo_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "galileo-pkg-gaia"\nversion = "1.0.0"\n'
+        'description = "Galileo falling bodies analysis."\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+
+    # Create a multi-module package
+    pkg_src = pkg_dir / "galileo_pkg"
+    pkg_src.mkdir()
+
+    # Module: motivation
+    (pkg_src / "motivation.py").write_text(
+        '"""Motivation and Background"""\n'
+        "from gaia.lang import setting, claim\n\n"
+        'context = setting("Galileo observed objects falling near Earth surface.")\n'
+        'obs_equal_time = claim("Heavy and light objects fall in approximately equal time.")\n'
+    )
+
+    # Module: analysis
+    (pkg_src / "analysis.py").write_text(
+        '"""Analysis of Falling Bodies"""\n'
+        "from gaia.lang import claim, deduction, contradiction\n"
+        "from galileo_pkg.motivation import obs_equal_time\n\n"
+        'aristotle_hyp = claim("Heavier objects fall faster (Aristotle).")\n'
+        'galileo_hyp = claim("All objects fall at the same rate in vacuum.")\n'
+        "deduction([obs_equal_time], galileo_hyp)\n"
+        "contradiction(aristotle_hyp, galileo_hyp)\n"
+    )
+
+    # __init__.py: re-export with module order
+    (pkg_src / "__init__.py").write_text(
+        "from galileo_pkg.motivation import *  # noqa: F403\n"
+        "from galileo_pkg.analysis import *  # noqa: F403\n\n"
+        "from galileo_pkg.motivation import context, obs_equal_time\n"
+        "from galileo_pkg.analysis import aristotle_hyp, galileo_hyp\n\n"
+        '__all__ = ["obs_equal_time", "galileo_hyp"]\n'
+    )
+
+    # Create an artifact file to test asset copying
+    artifacts_dir = pkg_dir / "artifacts"
+    artifacts_dir.mkdir()
+    (artifacts_dir / "diagram.svg").write_text("<svg>test</svg>")
+
+    result = runner.invoke(app, ["compile", str(pkg_dir), "--github"])
+    assert result.exit_code == 0, f"Failed: {result.output}"
+    assert "GitHub output:" in result.output
+
+    output_dir = pkg_dir / ".github-output"
+
+    # ── Wiki structure ──
+    assert (output_dir / "wiki" / "Home.md").exists()
+    home_md = (output_dir / "wiki" / "Home.md").read_text()
+    assert "galileo" in home_md.lower() or "Galileo" in home_md
+
+    # Module pages should exist for each module
+    wiki_dir = output_dir / "wiki"
+    wiki_files = {f.name for f in wiki_dir.iterdir()}
+    assert "Home.md" in wiki_files
+    # At least one module page should exist
+    module_pages = [f for f in wiki_files if f.startswith("Module-")]
+    assert len(module_pages) >= 1, f"Expected module pages, got: {wiki_files}"
+
+    # ── graph.json ──
+    graph_path = output_dir / "docs" / "public" / "data" / "graph.json"
+    assert graph_path.exists()
+    graph = json.loads(graph_path.read_text())
+    assert "nodes" in graph
+    assert "edges" in graph
+    # Should have at least 4 non-helper knowledge nodes
+    non_helper_nodes = [n for n in graph["nodes"] if not n.get("label", "").startswith("__")]
+    assert len(non_helper_nodes) >= 4, f"Expected >= 4 nodes, got {len(non_helper_nodes)}"
+    # Should have edges (deduction + contradiction)
+    assert len(graph["edges"]) >= 1, f"Expected edges, got {graph['edges']}"
+
+    # ── manifest.json ──
+    manifest_path = output_dir / "manifest.json"
+    assert manifest_path.exists()
+    manifest = json.loads(manifest_path.read_text())
+    assert "wiki_pages" in manifest
+    assert "exported_conclusions" in manifest
+    assert "total_claims" in manifest
+    # Exported conclusions should include our __all__ exports
+    assert len(manifest["exported_conclusions"]) >= 1
+
+    # ── README.md ──
+    readme_path = output_dir / "README.md"
+    assert readme_path.exists()
+    readme_text = readme_path.read_text()
+    assert "galileo" in readme_text.lower() or "Galileo" in readme_text
+
+    # ── Assets copied ──
+    assets_dir_out = output_dir / "docs" / "public" / "assets"
+    assert (assets_dir_out / "diagram.svg").exists()
