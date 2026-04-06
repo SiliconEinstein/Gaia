@@ -1,6 +1,6 @@
 """Gaia Lang v5 — Knowledge DSL functions (claim, setting, question)."""
 
-from gaia.lang.runtime import Knowledge, Strategy
+from gaia.lang.runtime import Knowledge
 
 
 def setting(content: str, *, title: str | None = None, **metadata) -> Knowledge:
