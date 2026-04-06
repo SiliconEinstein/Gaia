@@ -419,6 +419,87 @@ def test_composite_strategy_expands_sub_strategies():
     assert len(cond_factors) == 0
 
 
+def test_formal_expr_relation_conclusion_gets_assertion_prior():
+    """FormalExpr internal relation operator conclusions must get π=1-ε (assertion),
+    not the default 0.5.  Bug: lowering.py FormalExpr expand path uses
+    _ensure_claim_var for all conclusions, which defaults to 0.5."""
+    from gaia.bp.factor_graph import CROMWELL_EPS
+    from gaia.ir.strategy import FormalExpr, FormalStrategy
+
+    # Build a FormalStrategy that contains an equivalence operator internally
+    # (mimics elimination's equivalence([D, Exh]) → Eq)
+    fs = FormalStrategy(
+        scope="local",
+        type="elimination",
+        premises=[
+            "github:lowertest::exh",
+            "github:lowertest::c1",
+            "github:lowertest::e1",
+        ],
+        conclusion="github:lowertest::s",
+        formal_expr=FormalExpr(
+            operators=[
+                Operator(
+                    operator="disjunction",
+                    variables=[
+                        "github:lowertest::c1",
+                        "github:lowertest::s",
+                    ],
+                    conclusion="github:lowertest::_d",
+                ),
+                Operator(
+                    operator="equivalence",
+                    variables=[
+                        "github:lowertest::_d",
+                        "github:lowertest::exh",
+                    ],
+                    conclusion="github:lowertest::_eq",
+                ),
+                Operator(
+                    operator="contradiction",
+                    variables=[
+                        "github:lowertest::c1",
+                        "github:lowertest::e1",
+                    ],
+                    conclusion="github:lowertest::_contra",
+                ),
+                Operator(
+                    operator="conjunction",
+                    variables=[
+                        "github:lowertest::exh",
+                        "github:lowertest::e1",
+                    ],
+                    conclusion="github:lowertest::_g",
+                ),
+                Operator(
+                    operator="implication",
+                    variables=["github:lowertest::_g"],
+                    conclusion="github:lowertest::s",
+                ),
+            ],
+        ),
+    )
+    g = _lg(
+        knowledges=[
+            Knowledge(id="github:lowertest::exh", type="claim", content="Exh"),
+            Knowledge(id="github:lowertest::c1", type="claim", content="C1"),
+            Knowledge(id="github:lowertest::e1", type="claim", content="E1"),
+            Knowledge(id="github:lowertest::s", type="claim", content="S"),
+        ],
+        strategies=[fs],
+    )
+    fg = lower_local_graph(g, expand_formal=True)
+
+    # Relation operator conclusions (_eq, _contra) must have assertion prior 1-ε
+    assert fg.variables["github:lowertest::_eq"] == pytest.approx(1.0 - CROMWELL_EPS)
+    assert fg.variables["github:lowertest::_contra"] == pytest.approx(1.0 - CROMWELL_EPS)
+
+    # Disjunction is in _RELATION_OPS (IR §2.4 classification) → assertion prior
+    assert fg.variables["github:lowertest::_d"] == pytest.approx(1.0 - CROMWELL_EPS)
+    # Directed operator conclusions (_g) must have computation prior 0.5
+    assert fg.variables["github:lowertest::_g"] == pytest.approx(0.5)
+
+
 def test_fold_composite_to_cpt_directly():
     """fold_composite_to_cpt returns a CPT derived from sub-strategies."""
     sub = Strategy(
