@@ -420,7 +420,34 @@ contradiction(
 2. Can both claims be false simultaneously? If no → should be `complement` (XOR), not `contradiction` (NAND)
 3. Is this just "in tension" rather than logically exclusive? Informal tension (e.g., "comprehensive improvement" + "one area lacks validation") should NOT be modeled as `contradiction` — both can be true
 
-### 3e. Check Figure/Table References
+### 3e. Check Evidence Independence
+
+BP assumes that evidence entering a claim through different paths is **independent**. If the same leaf claim or the same underlying data influences a conclusion through multiple paths, its evidence is double-counted and the belief is inflated. This is one of the most insidious errors — the package compiles and checks cleanly, but beliefs are wrong.
+
+**Check 1: No shared premises across strategies targeting the same conclusion.**
+
+If claim C is the conclusion of two strategies S1 and S2, their premise sets must not overlap. If leaf claim L appears in both S1's and S2's premise chains, L's evidence is counted twice.
+
+```python
+# BAD: motif_not_from_training enters benchmark_performance through TWO paths
+_strat_1 = abduction(motif_not_from_training, benchmark_performance, ...)
+_strat_2 = induction([noise_free, motif_not_from_training], benchmark_performance, ...)
+# FIX: remove _strat_1, let motif_not_from_training enter only through _strat_2
+
+# OK: different premises, genuinely independent evidence
+_strat_1 = noisy_and([pipeline, hallucination_benchmark], benchmark_performance, ...)
+_strat_2 = induction([noise_free, motif_not_from_training], benchmark_performance, ...)
+```
+
+**Check 2: Induction observations must be independently obtained.**
+
+For `induction([obs1, obs2, obs3], law)`, each observation should come from a different experiment, sample, or measurement technique. If obs1 and obs2 share systematic errors (same sample, same instrument calibration), they are not independent and the induction overcounts.
+
+**Check 3: Equivalence does not create evidence loops.**
+
+`equivalence(a, b)` tightly couples two claims. If both A and B receive evidence from the same underlying source, that source's influence is amplified through the equivalence coupling. Only use `equivalence` when A and B are independently supported.
+
+### 3f. Check Figure/Table References
 
 Review all claims and strategies for figure metadata:
 
