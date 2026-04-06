@@ -46,8 +46,8 @@ cd Gaia && uv sync
 ## CLI Workflow
 
 ```
-gaia init → gaia add → write package → gaia compile → write review → gaia infer → gaia register
-(scaffold)  (add deps)   (DSL code)     (DSL → IR)   (self-review)  (BP preview)  (registry PR)
+gaia init → gaia add → write package → gaia compile → write review → gaia infer → gaia compile --readme → gaia register
+(scaffold)  (add deps)   (DSL code)     (DSL → IR)   (self-review)  (BP preview)  (gen README)           (registry PR)
 ```
 
 | Command | Purpose |
@@ -55,6 +55,7 @@ gaia init → gaia add → write package → gaia compile → write review → g
 | `gaia init <name>` | Scaffold a new Gaia knowledge package |
 | `gaia add <package>` | Install a registered Gaia package from the [official registry](https://github.com/SiliconEinstein/gaia-registry) |
 | `gaia compile [path]` | Compile Python DSL to Gaia IR (`.gaia/ir.json`) |
+| `gaia compile --readme [path]` | Compile and generate `README.md` with Mermaid graph + belief results |
 | `gaia check [path]` | Validate package structure and IR consistency (used by registry CI) |
 | `gaia infer [path]` | Run belief propagation with a review sidecar |
 | `gaia register [path]` | Submit package to the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry) |
@@ -183,7 +184,21 @@ Output: .gaia/reviews/self_review/beliefs.json
 
 If multiple reviews exist, specify which one: `gaia infer --review self_review .`
 
-**6. Publish**
+**6. Generate README**
+
+```bash
+gaia compile . --readme
+```
+
+Generates a `README.md` at the package root with:
+- Overview Mermaid graph of exported conclusions (with belief values)
+- Full knowledge graph diagram (all nodes, strategies, operators)
+- Each knowledge node with content, prior, belief, derivation, and reasoning
+- Inference results summary table
+
+Run `gaia infer .` first so the README includes up-to-date belief values.
+
+**7. Publish**
 
 ```bash
 git tag v1.0.0 && git push origin main --tags
