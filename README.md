@@ -8,27 +8,58 @@ A Python DSL for authoring machine-readable scientific knowledge. Gaia Lang lets
 
 ## Quick Example
 
+Galileo's thought experiment: tie a heavy stone 🪨 to a light stone 🪶. Does the composite fall faster or slower?
+
 ```python
 from gaia.lang import claim, setting, contradiction, deduction
 
-# Declare knowledge
+# 📚 The setup — Aristotle says heavier = faster
 aristotle = setting("Aristotle's doctrine: heavier objects fall faster.")
-heavy_faster = claim("Observations show heavier stones fall faster in air.")
-composite_slower = claim("A tied composite should fall slower (light part drags heavy).")
-composite_faster = claim("A tied composite should fall faster (greater total mass).")
+heavy_faster = claim("🪨 A heavy stone falls faster than 🪶 a light one in air.")
 
-# Logical constraint
+# 🤔 Now tie them together — two contradictory predictions!
+composite_slower = claim("🪨🪶 The composite falls SLOWER — the light stone drags the heavy one back.")
+composite_faster = claim("🪨🪶 The composite falls FASTER — it's heavier than either stone alone.")
+
+# ⚔️ Same premise, opposite conclusions — that's a contradiction!
 paradox = contradiction(composite_slower, composite_faster,
-    reason="Same premise yields opposite predictions")
+    reason="Aristotle's own logic predicts both faster AND slower")
 
-# Reasoning strategy
-vacuum_law = claim("In vacuum all bodies fall at the same rate.")
+# 💡 The only escape: heaviness doesn't matter
+vacuum_law = claim("In vacuum, all bodies fall at the same rate — regardless of weight.")
 galileo_argument = deduction(
     premises=[paradox, heavy_faster],
     conclusion=vacuum_law,
-    reason="Contradiction in Aristotle's doctrine forces a new law",
+    reason="The contradiction in Aristotle's doctrine forces a new law",
 )
 ```
+
+`gaia compile . && gaia infer .` compiles this into a factor graph and runs belief propagation:
+
+```mermaid
+graph TD
+    aristotle["📚 Aristotle's doctrine"]:::setting
+    heavy_faster["🪨 Heavy falls faster (0.55)"]:::premise
+    composite_slower["🪨🪶 Composite slower (0.38)"]:::premise
+    composite_faster["🪨🪶 Composite faster (0.38)"]:::premise
+    vacuum_law["💡 Vacuum law (0.68)"]:::derived
+    paradox["⚔️ paradox (1.00)"]:::derived
+    strat_0(["🧠 deduction"])
+    paradox --> strat_0
+    heavy_faster --> strat_0
+    strat_0 --> vacuum_law
+    oper_0{{"⊗ contradiction"}}:::contra
+    composite_slower --- oper_0
+    composite_faster --- oper_0
+    oper_0 --- paradox
+
+    classDef setting fill:#f0f0f0,stroke:#999,color:#333
+    classDef premise fill:#ddeeff,stroke:#4488bb,color:#333
+    classDef derived fill:#ddffdd,stroke:#44bb44,color:#333
+    classDef contra fill:#ffebee,stroke:#c62828,color:#333
+```
+
+> ⚔️ The contradiction forces both predictions down (0.60 → 0.38) — Aristotle's logic defeats itself. Meanwhile 🧠 the deduction lifts Galileo's vacuum law from 0.30 → **0.68**.
 
 ## Install
 
@@ -255,6 +286,29 @@ gaia add galileo-falling-bodies-gaia --version 1.0.0
 | `mathematical_induction(base, step, conclusion)` | Inductive proof |
 | `induction(observations, law)` | Multiple observations supporting a general law |
 | `composite(premises, conclusion, sub_strategies)` | Hierarchical composition |
+
+## Claude Code Plugin
+
+Gaia provides a [Claude Code](https://claude.ai/code) plugin with a **formalization** skill that guides you through converting any knowledge source (scientific papers, textbooks, technical reports) into a Gaia knowledge package.
+
+**Install:**
+
+```bash
+# In Claude Code, add the Gaia marketplace
+/plugin marketplace add SiliconEinstein/Gaia
+
+# Install the formalization plugin
+/plugin install formalization
+```
+
+**Use:**
+
+```bash
+# Start formalizing a source
+/formalization
+```
+
+The skill walks you through a four-pass process: extract knowledge nodes, connect reasoning strategies, check completeness, and refine strategy types. It also covers review sidecar authoring and BP result interpretation.
 
 ## Architecture
 

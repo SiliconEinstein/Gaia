@@ -1,0 +1,14 @@
+{
+  "name": "gaia-marketplace",
+  "owner": {
+    "name": "SiliconEinstein"
+  },
+  "plugins": [
+    {
+      "name": "formalization",
+      "source": "./plugins/formalization",
+      "description": "Formalize knowledge sources (papers, textbooks, reports) into Gaia knowledge packages",
+      "version": "0.1.0"
+    }
+  ]
+}
