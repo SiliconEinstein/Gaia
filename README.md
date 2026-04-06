@@ -48,11 +48,11 @@ galileo_argument = deduction(
 
 ```mermaid
 graph TD
-    aristotle["🏛️ Aristotle's doctrine (0.02)"]:::premise
-    heavy_faster["🪨 Heavy falls faster (0.55)"]:::premise
-    composite_slower["🪨🪶 Composite slower (0.39)"]:::derived
-    composite_faster["🪨🪶 Composite faster (0.39)"]:::derived
-    vacuum_law["💡 Vacuum law (0.68)"]:::derived
+    aristotle["🏛️ Aristotle: heavier = faster (0.90 → 0.02 📉)"]:::premise
+    heavy_faster["🪨 Heavy falls faster (0.80 → 0.55 📉)"]:::premise
+    composite_slower["🪨🪶 < 🪨 Composite slower (0.60 → 0.39 📉)"]:::derived
+    composite_faster["🪨🪶 > 🪨 Composite faster (0.60 → 0.39 📉)"]:::derived
+    vacuum_law["💡 Vacuum law (0.30 → 0.68 📈)"]:::derived
     paradox["⚔️ paradox (0.99)"]:::derived
     strat_0(["🧠 deduction"])
     aristotle --> strat_0
