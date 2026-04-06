@@ -6,8 +6,55 @@ Selects a bounded set of the most informative nodes and renders a compact
 
 from __future__ import annotations
 
+from gaia.cli.commands._classify import classify_ir, node_role
 
-# ── Node selection ──
+# ── Mermaid CSS class definitions (self-contained, not imported from _readme) ──
+
+_MERMAID_STYLES = """\
+    classDef setting fill:#f0f0f0,stroke:#999,color:#333
+    classDef premise fill:#ddeeff,stroke:#4488bb,color:#333
+    classDef derived fill:#ddffdd,stroke:#44bb44,color:#333
+    classDef question fill:#fff3dd,stroke:#cc9944,color:#333
+    classDef background fill:#f5f5f5,stroke:#bbb,stroke-dasharray: 5 5,color:#333
+    classDef orphan fill:#fff,stroke:#ccc,stroke-dasharray: 5 5,color:#333
+    classDef exported fill:#d4edda,stroke:#28a745,stroke-width:2px,color:#333
+    classDef weak fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 5 5,color:#333
+    classDef contra fill:#ffebee,stroke:#c62828,color:#333"""
+
+_ROLE_TO_CSS = {
+    "setting": "setting",
+    "question": "question",
+    "derived": "derived",
+    "structural": "derived",
+    "independent": "premise",
+    "background": "background",
+    "orphaned": "orphan",
+}
+
+# Operators rendered with undirected (---) edges between variables
+_UNDIRECTED_OPERATORS = frozenset({"equivalence", "contradiction", "complement"})
+
+_OPERATOR_SYMBOLS = {
+    "contradiction": "\u2297",
+    "equivalence": "\u2261",
+    "complement": "\u2295",
+    "disjunction": "\u2228",
+    "conjunction": "\u2227",
+    "implication": "\u2192",
+}
+
+_DETERMINISTIC_STRATEGIES = frozenset(
+    {
+        "deduction",
+        "reductio",
+        "elimination",
+        "mathematical_induction",
+        "case_analysis",
+    }
+)
+
+
+# ── Node selection (Task 6) ──
 
 
 def select_simplified_nodes(
@@ -35,3 +82,137 @@ def select_simplified_nodes(
     for _, kid in candidates[: max(0, remaining)]:
         selected.add(kid)
     return selected
+
+
+# ── Mermaid rendering (Task 7) ──
+
+
+def _is_helper(label: str | None) -> bool:
+    if not label:
+        return True
+    return label.startswith("__") or label.startswith("_anon")
+
+
+def render_simplified_mermaid(
+    ir: dict,
+    beliefs: dict[str, float],
+    priors: dict[str, float],
+    exported_ids: set[str],
+    max_nodes: int = 15,
+) -> str:
+    """Render a simplified Mermaid ``graph TD`` diagram.
+
+    Each node shows ``Label ★ (prior → belief)`` for exported conclusions
+    and ``Label (prior → belief)`` for others.  Only edges whose both
+    endpoints are in the selected set are included.
+    """
+    selected = select_simplified_nodes(beliefs, priors, exported_ids, max_nodes)
+
+    knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
+    c = classify_ir(ir)
+
+    lines = ["```mermaid", "graph TD"]
+
+    # Render knowledge nodes
+    for k in ir["knowledges"]:
+        kid = k["id"]
+        if kid not in selected:
+            continue
+        label = k.get("label", "")
+        if _is_helper(label):
+            continue
+
+        title = k.get("title") or label
+        is_exported = kid in exported_ids
+        star = " \u2605" if is_exported else ""
+
+        prior_val = priors.get(kid, 0.5)
+        belief_val = beliefs.get(kid, prior_val)
+        annotation = f"{prior_val:.2f} \u2192 {belief_val:.2f}"
+
+        display = f"{title}{star} ({annotation})"
+        display = display.replace('"', "#quot;").replace("*", "#ast;")
+
+        if is_exported:
+            css = "exported"
+        else:
+            role = node_role(kid, k["type"], c)
+            css = _ROLE_TO_CSS.get(role, "orphan")
+
+        lines.append(f'    {label}["{display}"]:::{css}')
+
+    # Render strategy edges between selected nodes
+    for i, s in enumerate(ir.get("strategies", [])):
+        conclusion = s.get("conclusion")
+        if not conclusion or conclusion not in selected:
+            continue
+        conc_label = knowledge_by_id.get(conclusion, {}).get("label", "")
+        if _is_helper(conc_label):
+            continue
+
+        stype = s.get("type", "")
+        sid = f"strat_{i}"
+
+        visible_premises: list[str] = []
+        for p in s.get("premises", []):
+            if p not in selected:
+                continue
+            p_label = knowledge_by_id.get(p, {}).get("label", "")
+            if p_label and not _is_helper(p_label):
+                visible_premises.append(p_label)
+
+        visible_bg: list[str] = []
+        for b in s.get("background") or []:
+            if b not in selected:
+                continue
+            b_label = knowledge_by_id.get(b, {}).get("label", "")
+            if b_label and not _is_helper(b_label):
+                visible_bg.append(b_label)
+
+        if not visible_premises and not visible_bg:
+            continue
+
+        css = "" if stype in _DETERMINISTIC_STRATEGIES else ":::weak"
+        lines.append(f'    {sid}(["{stype}"]){css}')
+
+        for p_label in visible_premises:
+            lines.append(f"    {p_label} --> {sid}")
+        for b_label in visible_bg:
+            lines.append(f"    {b_label} -.-> {sid}")
+        lines.append(f"    {sid} --> {conc_label}")
+
+    # Render operator edges between selected nodes
+    for i, o in enumerate(ir.get("operators", [])):
+        conclusion = o.get("conclusion")
+        conc_label = knowledge_by_id.get(conclusion, {}).get("label", "") if conclusion else ""
+        conc_visible = conclusion and conclusion in selected and not _is_helper(conc_label)
+
+        otype = o.get("operator", "")
+        symbol = _OPERATOR_SYMBOLS.get(otype, otype)
+        oid = f"oper_{i}"
+        is_undirected = otype in _UNDIRECTED_OPERATORS
+
+        visible_vars: list[str] = []
+        for v in o.get("variables", []):
+            if v not in selected:
+                continue
+            v_label = knowledge_by_id.get(v, {}).get("label", "")
+            if v_label and not _is_helper(v_label):
+                visible_vars.append(v_label)
+
+        if not visible_vars and not conc_visible:
+            continue
+
+        css = ":::contra" if otype == "contradiction" else ""
+        lines.append(f'    {oid}{{{{"{symbol}"}}}}{css}')
+
+        edge = " --- " if is_undirected else " --> "
+        for v_label in visible_vars:
+            lines.append(f"    {v_label}{edge}{oid}")
+        if conc_visible:
+            lines.append(f"    {oid}{edge}{conc_label}")
+
+    lines.append("")
+    lines.append(_MERMAID_STYLES)
+    lines.append("```")
+    return "\n".join(lines)

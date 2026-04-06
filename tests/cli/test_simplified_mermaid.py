@@ -1,11 +1,14 @@
-"""Tests for simplified Mermaid node selection."""
+"""Tests for simplified Mermaid node selection and rendering."""
 
 from __future__ import annotations
 
-from gaia.cli.commands._simplified_mermaid import select_simplified_nodes
+from gaia.cli.commands._simplified_mermaid import (
+    render_simplified_mermaid,
+    select_simplified_nodes,
+)
 
 
-# ── select_simplified_nodes ──
+# ── Task 6: select_simplified_nodes ──
 
 
 def test_exported_always_included():
@@ -56,3 +59,101 @@ def test_default_prior_for_missing():
     exported: set[str] = set()
     selected = select_simplified_nodes(beliefs, priors, exported, max_nodes=5)
     assert "a" in selected
+
+
+# ── Task 7: render_simplified_mermaid ──
+
+
+def test_render_simplified_mermaid_shows_prior_and_belief():
+    ir = {
+        "knowledges": [
+            {
+                "id": "a",
+                "label": "hypothesis",
+                "type": "claim",
+                "content": "H.",
+                "title": "Hypothesis",
+            },
+        ],
+        "strategies": [],
+        "operators": [],
+    }
+    beliefs = {"a": 0.85}
+    priors = {"a": 0.5}
+    exported = {"a"}
+    mermaid = render_simplified_mermaid(ir, beliefs, priors, exported)
+    assert "0.50" in mermaid and "0.85" in mermaid  # prior → belief shown
+    assert "⭐" in mermaid or "★" in mermaid  # exported marker
+
+
+def test_render_simplified_mermaid_non_exported_no_star():
+    ir = {
+        "knowledges": [
+            {"id": "a", "label": "obs", "type": "setting", "content": "Observation."},
+        ],
+        "strategies": [],
+        "operators": [],
+    }
+    beliefs = {"a": 0.7}
+    priors = {"a": 0.5}
+    exported: set[str] = set()
+    mermaid = render_simplified_mermaid(ir, beliefs, priors, exported)
+    assert "0.50" in mermaid and "0.70" in mermaid
+    assert "⭐" not in mermaid and "★" not in mermaid
+
+
+def test_render_simplified_mermaid_includes_strategy_edges():
+    ir = {
+        "knowledges": [
+            {"id": "a", "label": "premise_a", "type": "claim", "content": "P."},
+            {"id": "b", "label": "conclusion_b", "type": "claim", "content": "C."},
+        ],
+        "strategies": [
+            {"type": "deduction", "premises": ["a"], "conclusion": "b"},
+        ],
+        "operators": [],
+    }
+    beliefs = {"a": 0.9, "b": 0.85}
+    priors = {"a": 0.9, "b": 0.5}
+    exported = {"a", "b"}
+    mermaid = render_simplified_mermaid(ir, beliefs, priors, exported)
+    assert "premise_a" in mermaid
+    assert "conclusion_b" in mermaid
+    assert "-->" in mermaid
+
+
+def test_render_simplified_mermaid_includes_operator_edges():
+    ir = {
+        "knowledges": [
+            {"id": "a", "label": "var_a", "type": "claim", "content": "A."},
+            {"id": "b", "label": "var_b", "type": "claim", "content": "B."},
+        ],
+        "strategies": [],
+        "operators": [
+            {"operator": "contradiction", "variables": ["a", "b"], "conclusion": None},
+        ],
+    }
+    beliefs = {"a": 0.9, "b": 0.1}
+    priors = {"a": 0.5, "b": 0.5}
+    exported = {"a", "b"}
+    mermaid = render_simplified_mermaid(ir, beliefs, priors, exported)
+    assert "var_a" in mermaid
+    assert "var_b" in mermaid
+    # contradiction → undirected edges
+    assert "---" in mermaid or "-->" in mermaid
+
+
+def test_render_simplified_mermaid_graph_td():
+    ir = {
+        "knowledges": [
+            {"id": "a", "label": "node_a", "type": "claim", "content": "A."},
+        ],
+        "strategies": [],
+        "operators": [],
+    }
+    beliefs = {"a": 0.8}
+    priors = {"a": 0.5}
+    exported = {"a"}
+    mermaid = render_simplified_mermaid(ir, beliefs, priors, exported)
+    assert "graph TD" in mermaid
+    assert "```mermaid" in mermaid
