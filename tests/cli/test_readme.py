@@ -258,7 +258,7 @@ def test_compile_readme_flag_generates_readme(tmp_path):
         'a = claim("Premise A.")\n'
         'b = claim("Premise B.")\n'
         'c = claim("Conclusion.")\n'
-        'noisy_and([a, b], c)\n'
+        "noisy_and([a, b], c)\n"
         '__all__ = ["a", "b", "c"]\n'
     )
 
