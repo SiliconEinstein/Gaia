@@ -11,22 +11,32 @@ A Python DSL for authoring machine-readable scientific knowledge. Gaia Lang lets
 Galileo's thought experiment: tie a heavy stone 🪨 to a light stone 🪶. Does the composite fall faster or slower?
 
 ```python
-from gaia.lang import claim, setting, contradiction, deduction
+from gaia.lang import claim, contradiction, deduction
 
-# 📚 The setup — Aristotle says heavier = faster
-aristotle = setting("Aristotle's doctrine: heavier objects fall faster.")
+# 🏛️ Aristotle's doctrine — a claim, not a fact, because it CAN be wrong
+aristotle = claim("🏛️ Aristotle's doctrine: the heavier an object is, the faster it falls.")
 heavy_faster = claim("🪨 A heavy stone falls faster than 🪶 a light one in air.")
 
-# 🤔 Now tie them together — two contradictory predictions!
-composite_slower = claim("🪨🪶 The composite falls SLOWER — the light stone drags the heavy one back.")
-composite_faster = claim("🪨🪶 The composite falls FASTER — it's heavier than either stone alone.")
+# 🤔 Two predictions follow from Aristotle — but they contradict each other!
+composite_slower = claim(
+    "🪨🪶 The composite should fall SLOWER than the heavy stone alone "
+    "— because the slower light stone acts as a drag, holding the heavy one back.")
+composite_faster = claim(
+    "🪨🪶 The composite should fall FASTER than either stone alone "
+    "— because the combined weight is greater than the heavy stone's weight.")
+
+# Aristotle's doctrine implies both predictions
+deduction(premises=[aristotle], conclusion=composite_slower,
+    reason="If heavier = faster, then the light stone must slow down the heavy one.")
+deduction(premises=[aristotle], conclusion=composite_faster,
+    reason="If heavier = faster, then the heavier composite must fall faster.")
 
 # ⚔️ Same premise, opposite conclusions — that's a contradiction!
 paradox = contradiction(composite_slower, composite_faster,
     reason="Aristotle's own logic predicts both faster AND slower")
 
 # 💡 The only escape: heaviness doesn't matter
-vacuum_law = claim("In vacuum, all bodies fall at the same rate — regardless of weight.")
+vacuum_law = claim("💡 In vacuum, all bodies fall at the same rate — regardless of weight.")
 galileo_argument = deduction(
     premises=[paradox, heavy_faster],
     conclusion=vacuum_law,
@@ -38,16 +48,22 @@ galileo_argument = deduction(
 
 ```mermaid
 graph TD
-    aristotle["📚 Aristotle's doctrine"]:::setting
+    aristotle["🏛️ Aristotle's doctrine (0.02)"]:::premise
     heavy_faster["🪨 Heavy falls faster (0.55)"]:::premise
-    composite_slower["🪨🪶 Composite slower (0.38)"]:::premise
-    composite_faster["🪨🪶 Composite faster (0.38)"]:::premise
+    composite_slower["🪨🪶 Composite slower (0.39)"]:::derived
+    composite_faster["🪨🪶 Composite faster (0.39)"]:::derived
     vacuum_law["💡 Vacuum law (0.68)"]:::derived
-    paradox["⚔️ paradox (1.00)"]:::derived
+    paradox["⚔️ paradox (0.99)"]:::derived
     strat_0(["🧠 deduction"])
-    paradox --> strat_0
-    heavy_faster --> strat_0
-    strat_0 --> vacuum_law
+    aristotle --> strat_0
+    strat_0 --> composite_slower
+    strat_1(["🧠 deduction"])
+    aristotle --> strat_1
+    strat_1 --> composite_faster
+    strat_2(["🧠 deduction"])
+    paradox --> strat_2
+    heavy_faster --> strat_2
+    strat_2 --> vacuum_law
     oper_0{{"⊗ contradiction"}}:::contra
     composite_slower --- oper_0
     composite_faster --- oper_0
@@ -59,7 +75,13 @@ graph TD
     classDef contra fill:#ffebee,stroke:#c62828,color:#333
 ```
 
-> ⚔️ The contradiction forces both predictions down (0.60 → 0.38) — Aristotle's logic defeats itself. Meanwhile 🧠 the deduction lifts Galileo's vacuum law from 0.30 → **0.68**.
+| Claim | Prior | → | Belief | |
+|-------|------:|---|-------:|---|
+| 🏛️ Aristotle's doctrine | 0.90 | → | **0.02** | ⬇️ contradiction propagates back, undermining the premise |
+| 🪨🪶 Composite slower | 0.60 | → | **0.39** | ⬇️ contradiction forces mutual exclusion |
+| 🪨🪶 Composite faster | 0.60 | → | **0.39** | ⬇️ symmetric with composite slower |
+| 🪨 Heavy falls faster | 0.80 | → | **0.55** | ⬇️ pulled down by the deduction chain |
+| 💡 Vacuum law | 0.30 | → | **0.68** | ⬆️ the only survivor — Galileo wins |
 
 ## Install
 
@@ -111,12 +133,12 @@ Organize your knowledge in separate modules under the package directory. `gaia c
 `src/galileo_falling_bodies/knowledge.py` — declare propositions:
 
 ```python
-from gaia.lang import claim, setting
+from gaia.lang import claim
 
-aristotle = setting("Aristotle: heavier objects fall faster.")
-heavy_faster = claim("Heavy stones fall faster in air.")
-composite_slower = claim("Tied composite should be slower (light drags heavy).")
-composite_faster = claim("Tied composite should be faster (greater total mass).")
+aristotle = claim("Aristotle's doctrine: the heavier an object is, the faster it falls.")
+heavy_faster = claim("A heavy stone falls faster than a light one in air.")
+composite_slower = claim("The composite should fall slower — the light stone drags the heavy one back.")
+composite_faster = claim("The composite should fall faster — the combined weight is greater.")
 vacuum_law = claim("In vacuum all bodies fall at the same rate.")
 ```
 
@@ -124,7 +146,12 @@ vacuum_law = claim("In vacuum all bodies fall at the same rate.")
 
 ```python
 from gaia.lang import contradiction, deduction
-from .knowledge import composite_slower, composite_faster, heavy_faster, vacuum_law
+from .knowledge import aristotle, composite_slower, composite_faster, heavy_faster, vacuum_law
+
+deduction(premises=[aristotle], conclusion=composite_slower,
+    reason="If heavier = faster, then the light stone must slow down the heavy one.")
+deduction(premises=[aristotle], conclusion=composite_faster,
+    reason="If heavier = faster, then the heavier composite must fall faster.")
 
 paradox = contradiction(composite_slower, composite_faster,
     reason="Same premise yields opposite conclusions")
@@ -164,11 +191,14 @@ Reviews live in `src/galileo_falling_bodies/reviews/`. Each review is a Python f
 
 ```python
 from gaia.review import ReviewBundle, review_claim, review_strategy
-from .. import heavy_faster, composite_slower, composite_faster, vacuum_law, galileo_argument
+from .. import aristotle, heavy_faster, composite_slower, composite_faster, vacuum_law, galileo_argument
 
 REVIEW = ReviewBundle(
     source_id="self_review",
     objects=[
+        review_claim(aristotle, prior=0.9,
+            judgment="supporting",
+            justification="Widely accepted for 2000 years, matches everyday experience."),
         review_claim(heavy_faster, prior=0.8,
             judgment="supporting",
             justification="Well-documented observation in air."),
@@ -205,13 +235,13 @@ Output: .gaia/reviews/self_review/beliefs.json
 
 `beliefs.json` contains the posterior probability for each claim after propagation:
 
-| Claim | Prior | Posterior |
-|-------|-------|-----------|
-| `vacuum_law` | 0.30 | **0.68** — deduction from the contradiction raises belief |
-| `paradox` | 0.999 | **0.999** — contradiction constraint holds firm |
-| `heavy_faster` | 0.80 | **0.55** — pulled down as a premise of the contradiction |
-| `composite_slower` | 0.60 | **0.38** — contradiction forces mutual exclusion |
-| `composite_faster` | 0.60 | **0.38** — symmetric with `composite_slower` |
+| Claim | Prior | → | Posterior | |
+|-------|------:|---|----------:|---|
+| `aristotle` | 0.90 | → | **0.02** | ⬇️ contradiction propagates back — Aristotle refuted |
+| `vacuum_law` | 0.30 | → | **0.68** | ⬆️ deduction from the contradiction raises belief |
+| `heavy_faster` | 0.80 | → | **0.55** | ⬇️ pulled down by the deduction chain |
+| `composite_slower` | 0.60 | → | **0.39** | ⬇️ contradiction forces mutual exclusion |
+| `composite_faster` | 0.60 | → | **0.39** | ⬇️ symmetric with `composite_slower` |
 
 If multiple reviews exist, specify which one: `gaia infer --review self_review .`
 
