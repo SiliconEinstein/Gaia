@@ -101,6 +101,23 @@ git clone https://github.com/SiliconEinstein/Gaia.git
 cd Gaia && uv sync
 ```
 
+### Claude Code Plugin
+
+Gaia provides a [Claude Code](https://claude.ai/code) plugin with a **formalization** skill that guides you through converting any knowledge source (scientific papers, textbooks, technical reports) into a Gaia knowledge package.
+
+```bash
+# In Claude Code, add the Gaia marketplace
+/plugin marketplace add SiliconEinstein/Gaia
+
+# Install the formalization plugin
+/plugin install formalization
+
+# Start formalizing a source
+/formalization
+```
+
+The skill walks you through a four-pass process: extract knowledge nodes, connect reasoning strategies, check completeness, and refine strategy types.
+
 ## CLI Workflow
 
 ```
@@ -321,29 +338,6 @@ gaia add galileo-falling-bodies-gaia --version 1.0.0
 | `mathematical_induction(base, step, conclusion)` | Inductive proof |
 | `induction(observations, law)` | Multiple observations supporting a general law |
 | `composite(premises, conclusion, sub_strategies)` | Hierarchical composition |
-
-## Claude Code Plugin
-
-Gaia provides a [Claude Code](https://claude.ai/code) plugin with a **formalization** skill that guides you through converting any knowledge source (scientific papers, textbooks, technical reports) into a Gaia knowledge package.
-
-**Install:**
-
-```bash
-# In Claude Code, add the Gaia marketplace
-/plugin marketplace add SiliconEinstein/Gaia
-
-# Install the formalization plugin
-/plugin install formalization
-```
-
-**Use:**
-
-```bash
-# Start formalizing a source
-/formalization
-```
-
-The skill walks you through a four-pass process: extract knowledge nodes, connect reasoning strategies, check completeness, and refine strategy types. It also covers review sidecar authoring and BP result interpretation.
 
 ## Architecture
 
