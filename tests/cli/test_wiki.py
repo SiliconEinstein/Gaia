@@ -1,6 +1,6 @@
-"""Tests for gaia wiki Home.md generation."""
+"""Tests for gaia wiki page generation."""
 
-from gaia.cli.commands._wiki import generate_wiki_home
+from gaia.cli.commands._wiki import generate_wiki_home, generate_wiki_module
 
 
 def test_wiki_home_has_title_and_index():
@@ -97,3 +97,48 @@ def test_em_dash_for_missing_beliefs():
     ir = _make_ir()
     md = generate_wiki_home(ir, beliefs_data=None)
     assert "\u2014" in md
+
+
+def test_wiki_module_page_has_structured_claims():
+    ir = {
+        "package_name": "test_pkg",
+        "namespace": "github",
+        "knowledges": [
+            {
+                "id": "github:test_pkg::hyp",
+                "label": "hyp",
+                "type": "claim",
+                "content": "Hypothesis.",
+                "module": "motivation",
+                "metadata": {"figure": "artifacts/fig1.png"},
+            },
+        ],
+        "strategies": [
+            {
+                "type": "deduction",
+                "premises": ["github:test_pkg::a"],
+                "conclusion": "github:test_pkg::hyp",
+                "reason": "Derived from A.",
+            },
+        ],
+        "operators": [],
+    }
+    beliefs_data = {
+        "beliefs": [
+            {"knowledge_id": "github:test_pkg::hyp", "belief": 0.85, "label": "hyp"},
+        ]
+    }
+    param_data = {
+        "priors": [
+            {"knowledge_id": "github:test_pkg::hyp", "value": 0.5},
+        ]
+    }
+    md = generate_wiki_module(ir, "motivation", beliefs_data=beliefs_data, param_data=param_data)
+    assert "# Module: motivation" in md
+    assert "### hyp" in md
+    assert "**QID:**" in md
+    assert "**Content:** Hypothesis." in md
+    assert "**Prior:** 0.50" in md
+    assert "**Belief:** 0.85" in md
+    assert "**Derived from:** deduction" in md
+    assert "**Reasoning:** Derived from A." in md
