@@ -18,12 +18,8 @@ aristotle = claim("🏛️ Aristotle's doctrine: the heavier an object is, the f
 heavy_faster = claim("🪨 A heavy stone falls faster than 🪶 a light one in air.")
 
 # 🤔 Two predictions follow from Aristotle — but they contradict each other!
-composite_slower = claim(
-    "🪨🪶 The composite should fall SLOWER than the heavy stone alone "
-    "— because the slower light stone acts as a drag, holding the heavy one back.")
-composite_faster = claim(
-    "🪨🪶 The composite should fall FASTER than either stone alone "
-    "— because the combined weight is greater than the heavy stone's weight.")
+composite_slower = claim("🪨🪶 The composite falls SLOWER than the heavy stone alone.")
+composite_faster = claim("🪨🪶 The composite falls FASTER than either stone alone.")
 
 # Aristotle's doctrine implies both predictions
 deduction(premises=[aristotle], conclusion=composite_slower,
