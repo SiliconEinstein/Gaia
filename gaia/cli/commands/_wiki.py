@@ -47,6 +47,68 @@ def generate_wiki_home(ir: dict, beliefs_data: dict | None = None) -> str:
     return "\n".join(lines)
 
 
+def generate_wiki_inference(
+    ir: dict,
+    beliefs_data: dict,
+    param_data: dict | None = None,
+) -> str:
+    """Generate an Inference Results wiki page with diagnostics and a belief table.
+
+    Shows convergence diagnostics and a full table of non-helper nodes sorted by
+    belief descending, with columns: Label, Type, Prior, Belief, Role.
+    """
+    classification = classify_ir(ir)
+
+    # Build lookup maps
+    beliefs: dict[str, float] = {}
+    belief_labels: dict[str, str] = {}
+    if beliefs_data:
+        for b in beliefs_data.get("beliefs", []):
+            beliefs[b["knowledge_id"]] = b["belief"]
+            if "label" in b:
+                belief_labels[b["knowledge_id"]] = b["label"]
+
+    priors: dict[str, float] = {}
+    if param_data:
+        priors = {p["knowledge_id"]: p["value"] for p in param_data.get("priors", [])}
+
+    lines = ["# Inference Results", ""]
+
+    # Diagnostics section
+    diag = beliefs_data.get("diagnostics", {}) if beliefs_data else {}
+    converged = diag.get("converged")
+    iterations = diag.get("iterations_run")
+
+    lines.append("## Diagnostics")
+    lines.append("")
+    if converged is not None:
+        lines.append(f"- **Converged:** {'Yes' if converged else 'No'}")
+    if iterations is not None:
+        lines.append(f"- **Iterations:** {iterations}")
+    lines.append("")
+
+    # Belief table — sorted by belief descending, skip helpers
+    knowledges = [k for k in ir["knowledges"] if not k.get("label", "").startswith("__")]
+    knowledges.sort(key=lambda k: beliefs.get(k["id"], 0.0), reverse=True)
+
+    lines.append("## Beliefs")
+    lines.append("")
+    lines.append("| Label | Type | Prior | Belief | Role |")
+    lines.append("|-------|------|-------|--------|------|")
+
+    for k in knowledges:
+        kid = k["id"]
+        label = k.get("label", kid)
+        ktype = k["type"]
+        role = node_role(kid, ktype, classification)
+        prior = f"{priors[kid]:.2f}" if kid in priors else "\u2014"
+        belief = f"{beliefs[kid]:.2f}" if kid in beliefs else "\u2014"
+        lines.append(f"| {label} | {ktype} | {prior} | {belief} | {role} |")
+
+    lines.append("")
+    return "\n".join(lines)
+
+
 def generate_wiki_module(
     ir: dict,
     module_name: str,

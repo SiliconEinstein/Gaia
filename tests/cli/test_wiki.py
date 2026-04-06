@@ -1,6 +1,10 @@
 """Tests for gaia wiki page generation."""
 
-from gaia.cli.commands._wiki import generate_wiki_home, generate_wiki_module
+from gaia.cli.commands._wiki import (
+    generate_wiki_home,
+    generate_wiki_inference,
+    generate_wiki_module,
+)
 
 
 def test_wiki_home_has_title_and_index():
@@ -142,3 +146,24 @@ def test_wiki_module_page_has_structured_claims():
     assert "**Belief:** 0.85" in md
     assert "**Derived from:** deduction" in md
     assert "**Reasoning:** Derived from A." in md
+
+
+def test_wiki_inference_results():
+    ir = {
+        "knowledges": [
+            {"id": "github:test_pkg::a", "label": "a", "type": "claim", "content": "A."},
+        ],
+        "strategies": [],
+        "operators": [],
+        "package_name": "test_pkg",
+        "namespace": "github",
+    }
+    beliefs_data = {
+        "beliefs": [{"knowledge_id": "github:test_pkg::a", "belief": 0.9, "label": "a"}],
+        "diagnostics": {"converged": True, "iterations_run": 2},
+    }
+    param_data = {"priors": [{"knowledge_id": "github:test_pkg::a", "value": 0.8}]}
+    md = generate_wiki_inference(ir, beliefs_data, param_data)
+    assert "Converged" in md
+    assert "0.80" in md  # prior
+    assert "0.90" in md  # belief
