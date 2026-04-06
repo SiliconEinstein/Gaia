@@ -48,4 +48,11 @@ describe('App', () => {
     render(<App />)
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
   })
+
+  it('uses app-layout CSS grid container', async () => {
+    const { container } = render(<App />)
+    await waitFor(() => expect(screen.getByText('test-pkg')).toBeInTheDocument())
+    const layout = container.querySelector('.app-layout')
+    expect(layout).toBeInTheDocument()
+  })
 })

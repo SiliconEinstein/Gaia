@@ -1,0 +1,21 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+.app-layout {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas: "header header" "graph detail" "sections sections";
+  min-height: 100vh;
+}
+.app-header { grid-area: header; padding: 1rem 2rem; border-bottom: 1px solid #eee; }
+.graph-panel { grid-area: graph; min-height: 400px; }
+.detail-panel { grid-area: detail; }
+.section-panel { grid-area: sections; padding: 2rem; }
+
+@media (max-width: 768px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas: "header" "graph" "detail" "sections";
+  }
+}

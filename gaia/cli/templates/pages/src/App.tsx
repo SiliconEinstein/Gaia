@@ -46,7 +46,12 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      <h1>{meta.package_name}</h1>
+      <div className="app-header">
+        <h1>{meta.package_name}</h1>
+        <div data-testid="language-switch">
+          {/* LanguageSwitch placeholder */}
+        </div>
+      </div>
 
       <div className="graph-panel" data-testid="graph-panel">
         {/* KnowledgeGraph placeholder */}
@@ -58,10 +63,6 @@ export default function App() {
 
       <div className="section-panel" data-testid="section-panel">
         {/* SectionView placeholder */}
-      </div>
-
-      <div data-testid="language-switch">
-        {/* LanguageSwitch placeholder */}
       </div>
 
       {/* Expose state setters for future child components */}
