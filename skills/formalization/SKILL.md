@@ -321,6 +321,27 @@ Nodes referenced by `@label` must appear in the strategy's `premises` or `backgr
 
 Sources often have implicit premises. When writing the reason, if you discover the derivation depends on a knowledge node already extracted in Pass 1, be sure to add it to premises or background and reference it with `@label` in the reason.
 
+### Model Contradictions with `contradiction()`
+
+After writing strategies, model contradictions between claims. These were identified in Pass 1 Reflection as contradictory claim pairs; now formalize them as `contradiction(a, b)` operators.
+
+Two types to look for:
+
+**(1) Explicit contradictions claimed by the source.** When the source argues "new method succeeds where old method fails," or "hypothesis A is incompatible with hypothesis B," these are informative constraints. `contradiction()` forces BP to "pick a side" — one claim's belief goes up, the other must go down.
+
+```python
+# Example: the paper claims RFdiffusion succeeds on tasks where Hallucination fails
+not_both = contradiction(
+    rfdiffusion_solves_large_proteins,
+    hallucination_solves_large_proteins,
+    reason="The paper shows Hallucination fails beyond 100 AA while RFdiffusion succeeds up to 600 AA.",
+)
+```
+
+**(2) Internal tensions within the source.** Look for places where the source's own claims are in tension. For example, claiming "comprehensive improvement" while one application area lacks experimental validation. These may not be formal contradictions (both could be true), but if they are genuinely mutually exclusive, model them.
+
+Contradictions are especially valuable in BP because they create strong coupling between nodes. A well-placed `contradiction()` can propagate more information than multiple `noisy_and` strategies.
+
 ### Pass 2 Reflection
 
 Before moving to Pass 3, verify:
@@ -328,13 +349,7 @@ Before moving to Pass 3, verify:
 - **Theory-experiment pairs use abduction?** Every place the source compares a theoretical prediction against an experimental observation should be connected via `abduction(observation=exp, hypothesis=theory, alternative=old_theory)`, not `noisy_and` or `infer`. The relationship is explanatory ("which theory better explains the data?"), not inferential ("premises imply conclusion").
 - **Multiple observations → one law use induction?** If several independent observations all support the same general rule, use `induction([obs1, obs2, ...], law)`, not a flat `noisy_and` with all observations as premises.
 - **No missing alternatives?** Every abduction should have a meaningful alternative — what would explain the observation if the hypothesis were wrong?
-- **Contradictions identified?** Check for two types of contradictions that should be modeled with `contradiction(a, b)`:
-
-  (1) **Explicit contradictions claimed by the source**: When the source argues "new method succeeds where old method fails," or "hypothesis A is incompatible with hypothesis B," these are informative constraints. Model them with `contradiction()` so BP is forced to "pick a side." Example: if the paper claims RFdiffusion outperforms Hallucination on motif scaffolding, and these represent genuinely competing approaches, a contradiction between their capability claims constrains the graph.
-
-  (2) **Internal tensions within the source**: Look for places where the source's own claims are in tension. For example, claiming "comprehensive improvement" while one application area lacks experimental validation is a tension worth flagging. These may not be formal contradictions (both could be true), but if they are genuinely mutually exclusive, model them.
-
-  Contradictions are especially valuable in BP because they create strong coupling between nodes — when one side's belief goes up, the other must go down. A well-placed `contradiction()` can propagate more information than multiple `noisy_and` strategies.
+- **Contradictions modeled?** Every contradictory claim pair identified in Pass 1 should now have a `contradiction()` operator. Also check: did any new contradictions emerge while writing strategies?
 
 ## Pass 3: Check Completeness
 
