@@ -107,6 +107,13 @@ Common errors:
 - Stale compiled artifacts (`.gaia/ir_hash` mismatch)
 - IR structural validation errors (missing references, duplicate IDs)
 
+### Diagnostic output
+
+`gaia check` also reports informational diagnostics (not errors) useful for completeness checking during formalization:
+
+- **Leaf nodes** — claims that are not concluded by any strategy. These need `prior` values in the review sidecar.
+- **Orphaned claims** — claims not referenced by any strategy as either premise or conclusion. These may indicate incomplete formalization or leftover declarations.
+
 ## 6. Review sidecar
 
 Reviews live in `src/<package>/reviews/self_review.py` and supply the priors and conditional probabilities needed for inference.
@@ -137,10 +144,19 @@ REVIEW = ReviewBundle(
 | What to review | Function | Required parameters |
 |---------------|----------|-------------------|
 | Leaf claim (not derived by any strategy) | `review_claim` | `prior` (float) |
-| `deduction` strategy | No review needed | Deterministic — no parameters |
+| `deduction` strategy | No review needed | Deterministic — auto-formalized at compile time |
 | `noisy_and` strategy | `review_strategy` | `conditional_probability` (single float) |
 | `infer` strategy | `review_strategy` | `conditional_probabilities` (list of 2^N floats, full CPT) |
 | `abduction` auto-generated alternative | `review_generated_claim` | `prior` (float) |
+| `analogy` strategy | No review needed | Deterministic — auto-formalized at compile time |
+| `extrapolation` strategy | No review needed | Deterministic — auto-formalized at compile time |
+| `elimination` strategy | No review needed | Deterministic — auto-formalized at compile time |
+| `case_analysis` strategy | No review needed | Deterministic — auto-formalized at compile time |
+| `mathematical_induction` strategy | No review needed | Deterministic — auto-formalized at compile time |
+| `induction` strategy | No direct review | Sub-strategies (abductions) are reviewed individually |
+| `composite` strategy | No direct review | Leaf sub-strategies need their own review parameters |
+
+All named strategies (`deduction`, `abduction`, `analogy`, `extrapolation`, `elimination`, `case_analysis`, `mathematical_induction`) are auto-formalized into deterministic internal factors at compile time. Only `noisy_and` and `infer` require explicit review parameters. For `induction` and `composite`, review the leaf sub-strategies rather than the parent.
 
 ### Important semantics
 

@@ -7,7 +7,7 @@ description: Use when formalizing a knowledge source (scientific paper, textbook
 
 Extract the knowledge structure from a source (scientific paper, textbook, technical report, etc.) into a Gaia knowledge package with claims, reasoning strategies, and review sidecars.
 
-**REQUIRED:** Use gaia-cli skill for CLI commands (compile, check, infer, register) and gaia-lang skill for DSL syntax (claim, setting, strategies, operators).
+**REQUIRED:** Use **gaia-cli** skill for CLI commands (compile, check, infer, register) and **gaia-lang** skill for DSL syntax (claim, setting, strategies, operators).
 
 ## Overview
 
@@ -115,10 +115,10 @@ Each claim must be an **atomic proposition** — one claim expresses one thing.
 **Core rule: Theoretical predictions must be separated from experimental results.**
 
 ```python
-# ❌ Mixing theory and experiment
+# BAD: Mixing theory and experiment
 result = claim("The model predicts X, the experimental value is Y, deviation Z%.")
 
-# ✅ Separated into independent claims
+# GOOD: Separated into independent claims
 prediction = claim("Based on method XX, the model predicts a certain quantity as X.", title="Model prediction")
 experiment = claim("The experimental measurement of a certain quantity is Y.", title="Experimental value")
 ```
@@ -126,12 +126,12 @@ experiment = claim("The experimental measurement of a certain quantity is Y.", t
 Similarly, **method descriptions** and **method application results** should be separated:
 
 ```python
-# ❌ Method and result mixed together
+# BAD: Method and result mixed together
 result = claim("Using method XX to compute YY yields ZZ.")
 
-# ✅ Separated
+# GOOD: Separated
 method = claim("Method XX employs ... strategy ...", title="Method description")
-result = claim("The numerical result for YY is ZZ ± δ.", title="Numerical result")
+result = claim("The numerical result for YY is ZZ +/- delta.", title="Numerical result")
 ```
 
 ### Theory-Experiment Comparison → Abduction
@@ -153,23 +153,23 @@ _strat = abduction(
 
 **Note:** `abduction()` returns a Strategy (not a Knowledge). You must assign the return value to a variable (e.g., `_strat`) so it can be referenced in the review sidecar.
 
-**Semantics of π(Alt) — critical:** In abduction, the prior π(Alt) of the `alternative` represents: **"the probability that Alt alone can explain Obs without H"** — not whether Alt's calculation is correct.
+**Semantics of pi(Alt) -- critical:** In abduction, the prior pi(Alt) of the `alternative` represents: **"the probability that Alt alone can explain Obs without H"** -- not whether Alt's calculation is correct.
 
-For example: If Obs = "experimental Tc = 1.2K" and Alt = "phenomenological theory predicts Tc = 1.9K", then although Alt's calculation itself is not wrong (the calculation indeed gives 1.9K), 1.9K cannot explain the observation of 1.2K. Therefore π(Alt) should be **low** (e.g., 0.3), rather than high just because "the calculation is correct."
+For example: If Obs = "experimental Tc = 1.2K" and Alt = "phenomenological theory predicts Tc = 1.9K", then although Alt's calculation itself is not wrong (the calculation indeed gives 1.9K), 1.9K cannot explain the observation of 1.2K. Therefore pi(Alt) should be **low** (e.g., 0.3), rather than high just because "the calculation is correct."
 
-**Rule of thumb:** If π(Alt) >= π(H), it means the alternative theory's explanatory power is no weaker than the hypothesis — this either means the abduction provides weak support for H, or π(Alt) has been overestimated. The reviewer should examine carefully.
+**Rule of thumb:** If pi(Alt) >= pi(H), it means the alternative theory's explanatory power is no weaker than the hypothesis -- this either means the abduction provides weak support for H, or pi(Alt) has been overestimated. The reviewer should examine carefully.
 
 ### Content Must Be Self-Contained
 
 Each node's content must be a complete, independently understandable proposition. A reviewer reading it should not need additional context to make a judgment.
 
 ```python
-# ❌ Requires context to understand
+# BAD: Requires context to understand
 result = claim("The computed result significantly exceeds conventional estimates.")
 
-# ✅ Self-contained proposition
+# GOOD: Self-contained proposition
 result = claim(
-    "Using method XX to compute YY under condition ZZ yields A ± δ, "
+    "Using method XX to compute YY under condition ZZ yields A +/- delta, "
     "compared to the estimate B from conventional method WW, a deviation of approximately C-fold.",
     title="Result description",
 )
@@ -190,8 +190,8 @@ After extracting all modules, check each claim against the following:
 - Even if an abbreviation has been expanded in another claim, each claim is independent and must expand it again
 
 **No comparative assertions without reference:**
-- Do not write "significantly larger than X" — the reader does not know what is being compared
-- Do not write "nearly exact agreement" — the reader does not know what it agrees with
+- Do not write "significantly larger than X" -- the reader does not know what is being compared
+- Do not write "nearly exact agreement" -- the reader does not know what it agrees with
 - Numerical comparisons must provide both values
 
 **Sufficient detail:**
@@ -201,7 +201,7 @@ After extracting all modules, check each claim against the following:
 
 ### Marking Exported Conclusions
 
-The source's **core contributions** (new theoretical results, new numerical computation results, new experimental findings, key arguments) should be marked as exported conclusions in `__all__`. These are this knowledge package's external interface — other packages can reference them.
+The source's **core contributions** (new theoretical results, new numerical computation results, new experimental findings, key arguments) should be marked as exported conclusions in `__all__`. These are this knowledge package's external interface -- other packages can reference them.
 
 Criterion: If this result were removed from the source, the source would lose its core value.
 
@@ -209,15 +209,15 @@ Criterion: If this result were removed from the source, the source would lose it
 
 One claim/setting/question list per module.
 
-Pass 1 only extracts atomic, self-contained knowledge nodes. **Do not prejudge which are "derived conclusions"** — whether a claim is an independent premise or a derived one depends on how reasoning connections are established in Pass 2, not on the claim itself.
+Pass 1 only extracts atomic, self-contained knowledge nodes. **Do not prejudge which are "derived conclusions"** -- whether a claim is an independent premise or a derived one depends on how reasoning connections are established in Pass 2, not on the claim itself.
 
-## Pass 2: Connect — Write Infer Strategies
+## Pass 2: Connect -- Write Infer Strategies
 
-`infer` is the **most general** strategy type in Gaia — it does not presume any specific reasoning pattern (such as deduction, abduction), and merely expresses "from premises, derive conclusion." Pass 2 uses `infer` as the draft form for all reasoning connections; specific strategy types are refined in Pass 4.
+`infer` is the **most general** strategy type in Gaia -- it does not presume any specific reasoning pattern (such as deduction, abduction), and merely expresses "from premises, derive conclusion." Pass 2 uses `infer` as the draft form for all reasoning connections; specific strategy types are refined in Pass 4.
 
-For each claim "supported by other claims," write an `infer` strategy (which claims need a strategy is determined case-by-case in Pass 2 — if the source provides an argument for it, it needs one):
+For each claim "supported by other claims," write an `infer` strategy (which claims need a strategy is determined case-by-case in Pass 2 -- if the source provides an argument for it, it needs one):
 
-1. **Write a detailed reason**: Summarize the derivation process from the source — not a one-sentence summary, but a complete reasoning chain. The reason should enable a domain reader to understand "why these premises lead to this conclusion."
+1. **Write a detailed reason**: Summarize the derivation process from the source -- not a one-sentence summary, but a complete reasoning chain. The reason should enable a domain reader to understand "why these premises lead to this conclusion."
 
 2. **Identify premises and background**:
    - **Claims** used in the derivation → `premises`
@@ -264,7 +264,7 @@ Use the output of `gaia check` to see if any claim should have reasoning support
 ### 3c. Check for Isolated Nodes
 
 - Are there claims that are neither a premise/background of any strategy nor a conclusion of any strategy?
-- Isolated nodes indicate they do not participate in the reasoning graph — either they should not exist, or a strategy referencing them was missed
+- Isolated nodes indicate they do not participate in the reasoning graph -- either they should not exist, or a strategy referencing them was missed
 
 The most common mistake at this step is **assuming certain knowledge does not need explicit references**. In Gaia, if the reasoning process depends on a fact, that fact must be a node in the knowledge graph.
 
@@ -319,7 +319,7 @@ First determine the nature of reasoning, then choose the strategy type:
 
 **Key distinction: deduction vs noisy_and**
 
-`deduction` represents **purely deterministic mathematical derivation** — the derivation steps themselves are error-free, and uncertainty comes only from whether the premises hold. In BP, the deduction potential is deterministic (conjunction + implication, Cromwell softened), carrying no adjustable parameters.
+`deduction` represents **purely deterministic mathematical derivation** -- the derivation steps themselves are error-free, and uncertainty comes only from whether the premises hold. In BP, the deduction potential is deterministic (conjunction + implication, Cromwell softened), carrying no adjustable parameters.
 
 Criterion: "If all premises are true, does this derivation **necessarily** hold mathematically?"
 
@@ -345,30 +345,15 @@ Common misjudgments:
 
 ### Operator Usage
 
-Operators encode deterministic logical constraints, orthogonal to strategies:
-
-| Operator | Meaning | When |
-|----------|---------|------|
-| `contradiction(a, b)` | ¬(A ∧ B) | Two mutually exclusive theories/predictions |
-| `equivalence(a, b)` | A = B | Two formulations are equivalent (e.g., microscopic derivation = historical formula) |
-| `complement(a, b)` | A ⊕ B | Complementary propositions |
-| `disjunction(*args)` | ∨ | Exhaustive candidates |
+For operator semantics and syntax, see the **gaia-lang** skill.
 
 ## Write DSL Code
 
-After completing each pass, write code, compile, and check. Refer to the gaia-cli and gaia-lang skills.
-
-### Practical Tips
-
-- **Labels are automatically inferred from variable names** — do not manually set `.label`
-- **Strategy variable names**: Strategies that need review parameters must be assigned to `_strat_xxx` variables; deduction can be anonymous
-- **Import cross-module claims**: Later modules can import claims from motivation as premises
-- **`abduction()` returns a Strategy** — assign to a variable for review sidecar reference
-- **`contradiction()` returns a Knowledge** (helper claim) — assign to a variable; can be referenced by other strategies
+After completing each pass, write code, compile, and check. For DSL syntax, see the **gaia-lang** skill.
 
 ## Write Review Sidecar
 
-### Core Principles
+The review sidecar assigns priors to claims and conditional probabilities to strategies. These are the parameters that drive BP inference.
 
 | Node Type | Prior | Notes |
 |-----------|-------|-------|
@@ -382,13 +367,11 @@ After completing each pass, write code, compile, and check. Refer to the gaia-cl
 | Generated claims (abduction alternative) | Reviewer's judgment | `review_generated_claim` |
 | Explicit abduction alternative | Prior reflects **explanatory power**, not computational correctness | `review_claim` |
 
-### Practical Tips
+For review sidecar API details, see the **gaia-cli** skill.
 
-1. **All claims need priors** — including orphaned/background-only nodes, otherwise `gaia infer` will error
-2. **Strategies must have variable names** to be referenced in review: `_strat = noisy_and(...)` not an anonymous call
-3. **`infer` CPT**: N premises require $2^N$ conditional probability values, ordered as $[P(\text{conc}|F...F), ..., P(\text{conc}|T...T)]$
-4. **Composite top-level CPT**: Sub-strategies have their own parameters, but the composite's top-level `infer` also needs a CPT
-5. **`abduction` returns a Strategy** (not a Knowledge); must be assigned to a variable for `review_generated_claim` reference
+## Generate README
+
+Run `gaia infer .` then `gaia compile . --readme` to generate a README with Mermaid graph and belief values. See the **gaia-cli** skill for details.
 
 ## Interpret BP Results
 
@@ -396,7 +379,7 @@ After compiling and running inference, check:
 
 | Check | Normal | Abnormal |
 |-------|--------|----------|
-| Independent premises | belief ≈ prior (small change) | belief significantly pulled down → downstream constraint conflict |
+| Independent premises | belief approx prior (small change) | belief significantly pulled down → downstream constraint conflict |
 | Derived conclusions | belief > 0.5 (pulled up) | belief < 0.5 → see below |
 | Contradiction | One side high, one side low ("picks a side") | Both sides low → prior assignment issue |
 
@@ -411,7 +394,7 @@ After compiling and running inference, check:
 - **Cause:** The priors on both sides do not reflect the actual difference in evidence strength.
 - **Fix:** Lower the prior of the side that should be overturned.
 
-**Derived conclusion belief ≈ 0.5 (not pulled up):**
+**Derived conclusion belief approx 0.5 (not pulled up):**
 - **Cause:** Reasoning chain is broken; some strategy is missing its conditional_probability.
 - **Fix:** Check if the review sidecar is missing a strategy review.
 
@@ -421,9 +404,9 @@ After compiling and running inference, check:
 |---------|-------------|-----|
 | Theoretical prediction and experimental result mixed in one claim | Cannot model the verification relationship with abduction | Separate into two claims + abduction |
 | Abduction without providing an alternative | Missing comparison with alternative theory | Provide existing theory as alternative |
-| Abduction alternative's prior reflects "computational correctness" instead of "explanatory power" | π(Alt) too high, weakens abduction's support for H | π(Alt) should answer "Can Alt independently explain Obs?", not "Is Alt's calculation correct?" |
+| Abduction alternative's prior reflects "computational correctness" instead of "explanatory power" | pi(Alt) too high, weakens abduction's support for H | pi(Alt) should answer "Can Alt independently explain Obs?", not "Is Alt's calculation correct?" |
 | Reason written too briefly (one sentence) | Reasoning process is untraceable | Summarize derivation steps in detail, reference with @label |
-| 4+ premise flat noisy_and | Severe BP multiplicative effect | Use composite to decompose into sub-steps with ≤3 premises |
+| 4+ premise flat noisy_and | Severe BP multiplicative effect | Use composite to decompose into sub-steps with 3 or fewer premises |
 | Content not self-contained (symbols/abbreviations unexplained) | Reviewer cannot judge independently | Each claim must independently explain all symbols and abbreviations |
 | Marking a questionable proposition as setting | That proposition cannot be updated via BP | When in doubt, mark as claim; only mathematical definitions are settings |
 | Marking a condition-dependent theoretical framework as setting | Framework does not participate in BP | Condition-dependent conclusions should be claims |
@@ -431,31 +414,11 @@ After compiling and running inference, check:
 | Using deduction for numerical computation/approximate reasoning | Computation has uncertainty, but deduction is purely deterministic | Use noisy_and (needs cond_prob to express reasoning strength) |
 | Using deduction for "seemingly rigorous" derivation | Source omits premises or conditions | Omitted premises = implicit uncertainty → use noisy_and |
 | Anonymous strategy call | Review sidecar cannot reference it | Assign to `_strat_xxx` variable |
-| Manually setting `.label` | Redundant and may conflict with variable name | Do not set; let `gaia compile` infer automatically |
 | Missing prior for orphaned claim | `gaia infer` errors | All claims (including orphaned) need priors |
 | Missing implicit premises in reasoning | Knowledge graph is incomplete | Use `gaia check` + manual review in Pass 3 |
 | Not verifying numerical values | Data errors | Cross-check every value against the source |
 
-## Generate README
+## Reference
 
-After BP results are stable, generate the README:
-
-```bash
-gaia infer .              # Ensure beliefs are up to date
-gaia compile . --readme   # Generate/overwrite README.md
-```
-
-The README contains:
-- **Overview graph**: Mermaid diagram of exported conclusions (with belief values)
-- **Knowledge Graph**: Complete Mermaid diagram (all nodes, strategies, operators)
-- **Knowledge Nodes**: Each claim's content, prior, belief, derivation, and reasoning
-- **Inference Results**: Belief summary table
-
-**Note**: You must run `gaia infer .` before `gaia compile . --readme`, otherwise the README will not include belief values.
-
-## Spec Pointers
-
-- **gaia-cli** — CLI commands and review sidecar reference
-- **gaia-lang** — DSL syntax and API reference
-- `docs/foundations/gaia-lang/knowledge-and-reasoning.md` — Knowledge types and reasoning semantics
-- `docs/foundations/cli/inference.md` — Inference pipeline (review sidecar, BP)
+- **gaia-lang** skill -- DSL syntax, knowledge types, operators, and API reference
+- **gaia-cli** skill -- CLI commands (compile, check, infer, register) and review sidecar API
