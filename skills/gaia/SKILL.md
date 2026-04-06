@@ -25,6 +25,9 @@ pip install gaia-lang
 **"How do I compile/infer/publish?"**
 → Use the **gaia-cli** skill (`/gaia:gaia-cli`). CLI commands, package structure, review sidecars, and the full workflow.
 
+**"How do I write a review sidecar / assign priors?"**
+→ Use the **review** skill (`/gaia:review`). Covers ReviewBundle API, prior assignment, conditional probabilities, and BP result interpretation.
+
 ## Typical Workflow
 
 1. `gaia init my-paper-gaia` — scaffold a package

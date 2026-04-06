@@ -353,21 +353,9 @@ After completing each pass, write code, compile, and check. For DSL syntax, see 
 
 ## Write Review Sidecar
 
-The review sidecar assigns priors to claims and conditional probabilities to strategies. These are the parameters that drive BP inference.
+The review sidecar assigns priors to claims and conditional probabilities to strategies.
 
-| Node Type | Prior | Notes |
-|-----------|-------|-------|
-| Independent premises (leaf nodes) | Reviewer's judgment (0.5-0.95) | Reflects evidence strength |
-| Derived conclusions | Do not set prior | Belief is entirely determined by BP propagation |
-| Orphaned claims (background-only) | Must set prior (validator requires it) | Typically 0.90-0.95 |
-| deduction strategy | Deterministic, no parameters needed | |
-| noisy_and strategy | `conditional_probability` (single value) | Reflects computation/reasoning reliability |
-| infer strategy (N premises) | `conditional_probabilities` (2^N values, CPT) | Full conditional probability table |
-| composite strategy | Top-level needs CPT (2^N values) | For collapsed mode |
-| Generated claims (abduction alternative) | Reviewer's judgment | `review_generated_claim` |
-| Explicit abduction alternative | Prior reflects **explanatory power**, not computational correctness | `review_claim` |
-
-For review sidecar API details, see the **gaia-cli** skill.
+For how to write review sidecars, assign priors, and evaluate strategy parameters, see the **review** skill.
 
 ## Generate README
 
@@ -383,20 +371,7 @@ After compiling and running inference, check:
 | Derived conclusions | belief > 0.5 (pulled up) | belief < 0.5 → see below |
 | Contradiction | One side high, one side low ("picks a side") | Both sides low → prior assignment issue |
 
-### Common Issues and Fixes
-
-**Derived conclusion belief too low (< 0.3):**
-- **Cause A:** Reasoning chain too deep, multiplicative effect suppresses belief. Check if Pass 4 used composite to control depth.
-- **Cause B:** Premise priors not high enough. Re-examine the review sidecar.
-- **Cause C:** Strategy's conditional_probability is unreasonable.
-
-**Contradiction does not correctly "pick a side":**
-- **Cause:** The priors on both sides do not reflect the actual difference in evidence strength.
-- **Fix:** Lower the prior of the side that should be overturned.
-
-**Derived conclusion belief approx 0.5 (not pulled up):**
-- **Cause:** Reasoning chain is broken; some strategy is missing its conditional_probability.
-- **Fix:** Check if the review sidecar is missing a strategy review.
+For detailed BP troubleshooting and parameter adjustment, see the **review** skill.
 
 ## Common Mistakes
 

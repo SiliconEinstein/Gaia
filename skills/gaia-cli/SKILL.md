@@ -124,46 +124,14 @@ from gaia.review import ReviewBundle, review_claim, review_strategy, review_gene
 REVIEW = ReviewBundle(
     source_id="self_review",
     objects=[
-        review_claim(some_claim, prior=0.8,
-            judgment="supporting",
-            justification="Why this prior."),
-        review_strategy(some_strategy,
-            conditional_probability=0.85,
-            judgment="formalized",
-            justification="Why this strength."),
-        review_generated_claim(some_abduction, "alternative_explanation",
-            prior=0.3,
-            judgment="tentative",
-            justification="Why this alternative prior."),
+        review_claim(some_claim, prior=0.8, judgment="supporting", justification="..."),
+        review_strategy(some_strategy, conditional_probability=0.85, judgment="formalized", justification="..."),
+        review_generated_claim(some_abduction, "alternative_explanation", prior=0.3, judgment="tentative", justification="..."),
     ],
 )
 ```
 
-### Rules for review objects
-
-| What to review | Function | Required parameters |
-|---------------|----------|-------------------|
-| Leaf claim (not derived by any strategy) | `review_claim` | `prior` (float) |
-| `deduction` strategy | No review needed | Deterministic — auto-formalized at compile time |
-| `noisy_and` strategy | `review_strategy` | `conditional_probability` (single float) |
-| `infer` strategy | `review_strategy` | `conditional_probabilities` (list of 2^N floats, full CPT) |
-| `abduction` auto-generated alternative | `review_generated_claim` | `prior` (float) |
-| `analogy` strategy | No review needed | Deterministic — auto-formalized at compile time |
-| `extrapolation` strategy | No review needed | Deterministic — auto-formalized at compile time |
-| `elimination` strategy | No review needed | Deterministic — auto-formalized at compile time |
-| `case_analysis` strategy | No review needed | Deterministic — auto-formalized at compile time |
-| `mathematical_induction` strategy | No review needed | Deterministic — auto-formalized at compile time |
-| `induction` strategy | No direct review | Sub-strategies (abductions) are reviewed individually |
-| `composite` strategy | No direct review | Leaf sub-strategies need their own review parameters |
-
-All named strategies (`deduction`, `abduction`, `analogy`, `extrapolation`, `elimination`, `case_analysis`, `mathematical_induction`) are auto-formalized into deterministic internal factors at compile time. Only `noisy_and` and `infer` require explicit review parameters. For `induction` and `composite`, review the leaf sub-strategies rather than the parent.
-
-### Important semantics
-
-- Every leaf claim (not concluded by any strategy) **must** have a `review_claim` with a `prior`.
-- Orphaned claims used only as `background` still need priors.
-- `abduction` strategies auto-generate an alternative explanation claim. Use `review_generated_claim` to set its prior.
-- The prior on an abduction alternative reflects **explanatory power** ("can this alternative alone explain the observation?"), NOT "is the alternative's calculation correct?"
+For complete review API, prior assignment guide, and BP interpretation, see the **review** skill.
 
 ## 7. gaia infer
 
