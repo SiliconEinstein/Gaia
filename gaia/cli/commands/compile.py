@@ -14,7 +14,7 @@ from gaia.ir.validator import validate_local_graph
 
 def compile_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
-    readme: bool = typer.Option(False, "--readme", help="Generate README.md at package root"),
+    readme: bool = typer.Option(False, "--readme", help="(Legacy) Generate README.md. Prefer --github for richer output."),
     github: bool = typer.Option(
         False, "--github", help="Generate GitHub presentation (.github-output/)"
     ),
