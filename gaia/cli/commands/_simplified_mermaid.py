@@ -112,6 +112,7 @@ def render_simplified_mermaid(
     c = classify_ir(ir)
 
     lines = ["```mermaid", "graph TD"]
+    _rendered_labels: set[str] = set()
 
     # Render knowledge nodes
     for k in ir["knowledges"]:
@@ -140,6 +141,7 @@ def render_simplified_mermaid(
             css = _ROLE_TO_CSS.get(role, "orphan")
 
         lines.append(f'    {label}["{display}"]:::{css}')
+        _rendered_labels.add(label)
 
     # Render strategy edges between selected nodes
     for i, s in enumerate(ir.get("strategies", [])):
@@ -181,7 +183,9 @@ def render_simplified_mermaid(
             lines.append(f"    {b_label} -.-> {sid}")
         lines.append(f"    {sid} --> {conc_label}")
 
-    # Render operator edges between selected nodes
+    # Render operator edges between selected nodes.
+    # When an operator has at least one selected variable, pull in the
+    # missing variables so the constraint renders completely.
     for i, o in enumerate(ir.get("operators", [])):
         conclusion = o.get("conclusion")
         conc_label = knowledge_by_id.get(conclusion, {}).get("label", "") if conclusion else ""
@@ -192,22 +196,39 @@ def render_simplified_mermaid(
         oid = f"oper_{i}"
         is_undirected = otype in _UNDIRECTED_OPERATORS
 
-        visible_vars: list[str] = []
+        # Collect all non-helper variable labels for this operator
+        all_vars: list[tuple[str, str]] = []  # (kid, label)
+        any_selected = False
         for v in o.get("variables", []):
-            if v not in selected:
-                continue
             v_label = knowledge_by_id.get(v, {}).get("label", "")
             if v_label and not _is_helper(v_label):
-                visible_vars.append(v_label)
+                all_vars.append((v, v_label))
+                if v in selected:
+                    any_selected = True
 
-        if not visible_vars and not conc_visible:
+        if not any_selected and not conc_visible:
             continue
 
         css = ":::contra" if otype == "contradiction" else ""
         lines.append(f'    {oid}{{{{"{symbol}"}}}}{css}')
 
+        # Render all variables (pull in unselected ones so the constraint
+        # is complete — e.g. both sides of a contradiction are shown)
         edge = " --- " if is_undirected else " --> "
-        for v_label in visible_vars:
+        for v_kid, v_label in all_vars:
+            # Ensure pulled-in nodes have a node definition
+            if v_kid not in selected and v_label not in _rendered_labels:
+                k = knowledge_by_id.get(v_kid, {})
+                title = k.get("title") or v_label
+                prior_val = priors.get(v_kid, 0.5)
+                belief_val = beliefs.get(v_kid, prior_val)
+                annotation = f"{prior_val:.2f} \u2192 {belief_val:.2f}"
+                display = f"{title} ({annotation})"
+                display = display.replace('"', "#quot;").replace("*", "#ast;")
+                role = node_role(v_kid, k.get("type", "claim"), c)
+                node_css = _ROLE_TO_CSS.get(role, "orphan")
+                lines.append(f'    {v_label}["{display}"]:::{node_css}')
+                _rendered_labels.add(v_label)
             lines.append(f"    {v_label}{edge}{oid}")
         if conc_visible:
             lines.append(f"    {oid}{edge}{conc_label}")
