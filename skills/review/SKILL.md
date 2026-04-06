@@ -77,9 +77,7 @@ Assign a prior to an auto-generated claim (e.g., abduction's alternative).
 | `induction` | No direct review | Review sub-strategies individually |
 | `composite` | No direct review | Review leaf sub-strategies |
 
-**Derived conclusions** (claims that ARE the conclusion of a strategy): do NOT set a prior. Their belief is entirely determined by BP propagation.
-
-**Derived conclusions — prior = 0.5 or omit.** If you set a prior on a derived claim, use 0.5 (uninformative). A high prior (e.g., 0.85) double-counts evidence: the reviewer's judgment and the reasoning chain both reflect the same data. Let BP determine derived beliefs from leaf priors and strategy parameters alone.
+**Derived conclusions** (claims that ARE the conclusion of a strategy): do NOT set a prior. The inference engine automatically assigns uninformative priors (0.5); their beliefs are entirely determined by BP propagation. Setting an explicit prior double-counts evidence.
 
 ## 5. Prior Assignment Guide
 

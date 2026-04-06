@@ -457,7 +457,7 @@ The review sidecar assigns priors to claims and conditional probabilities to str
 
 For how to write review sidecars, assign priors, and evaluate strategy parameters, see the **review** skill.
 
-**Derived claim priors should be 0.5 (uninformative).** If you assign a high prior (e.g., 0.85) to a derived claim, you double-count evidence: the reviewer's judgment AND the reasoning chain both reflect the same underlying evidence. Set derived claim priors to 0.5 so belief is determined entirely by BP propagation from leaf premises. This produces more honest assessments of the argument's strength.
+**Do NOT set priors for derived claims.** The inference engine automatically assigns uninformative priors (0.5) to derived claims. Their beliefs are determined entirely by BP propagation from leaf premises. Setting an explicit prior on a derived claim double-counts evidence: the reviewer's judgment and the reasoning chain both reflect the same underlying data. Only set priors for independent (leaf) claims that are not the conclusion of any strategy.
 
 **Abduction review deserves special attention.** The most common and consequential mistake in review is setting π(Alt) based on whether the alternative's calculation is correct, rather than whether it explains the observation. Before finalizing the review sidecar, go through every abduction and ask: "Does this alternative's prediction actually match the observation?" If not, π(Alt) should be low regardless of the alternative's theoretical validity.
 
