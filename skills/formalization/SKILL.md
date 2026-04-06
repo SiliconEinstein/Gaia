@@ -169,6 +169,18 @@ _strat = abduction(
 
 **Note:** `abduction()` returns a Strategy (not a Knowledge). You must assign the return value to a variable (e.g., `_strat`) so it can be referenced in the review sidecar.
 
+**`induction` requires explicit `alt_exps`.** When using `induction([obs1, obs2, ...], law)`, always provide the `alt_exps` parameter with one alternative per observation. Without `alt_exps`, the compiler auto-generates anonymous alternatives that are difficult to reference in the review sidecar.
+
+```python
+# CORRECT: explicit alternatives for each observation
+alt1 = claim("Alternative explanation for obs1")
+alt2 = claim("Alternative explanation for obs2")
+induction([obs1, obs2], law, alt_exps=[alt1, alt2], reason="...")
+
+# AVOID: auto-generated alternatives are hard to review
+induction([obs1, obs2], law, reason="...")
+```
+
 **Semantics of pi(Alt) -- critical:** In abduction, the prior pi(Alt) of the `alternative` represents: **"the probability that Alt alone can explain Obs without H"** -- not whether Alt's calculation is correct.
 
 For example: If Obs = "experimental Tc = 1.2K" and Alt = "phenomenological theory predicts Tc = 1.9K", then although Alt's calculation itself is not wrong (the calculation indeed gives 1.9K), 1.9K cannot explain the observation of 1.2K. Therefore pi(Alt) should be **low** (e.g., 0.3), rather than high just because "the calculation is correct."
@@ -417,6 +429,20 @@ After refining all strategies, verify:
 - **Abduction alternatives will be reviewed — are they set up correctly?** Each abduction's alternative will need a prior in the review sidecar. Remember: π(Alt) = "Can Alt alone explain Obs?" (explanatory power), NOT "Is Alt correct?". Flag any abduction where this distinction might be tricky for the reviewer.
 - **Each induction's sub-abductions independent?** For `induction([obs1, obs2], law)`, each observation should provide independent evidence. If the observations are dependent, consider whether a single abduction with stronger evidence is more appropriate.
 
+### Post-Refinement Check
+
+After refining all strategies, check the **strategy type distribution**:
+
+- If `noisy_and` accounts for more than 70% of strategies, review whether some should be `abduction` (observation → best explanation) or `induction` (multiple independent observations → general law)
+- Papers with extensive experimental validation typically have many abductions
+- Discussion/conclusion sections that synthesize multiple results often use induction
+
+Also check **reasoning chain depth** (hops from leaf to exported conclusion):
+
+- Maximum recommended depth: **3 hops**
+- If a derived conclusion has belief < 0.4, the chain is likely too deep
+- Fix by flattening: make intermediate claims into leaf premises, or restructure into wider (more premises per strategy) rather than deeper (more strategies in series)
+
 ### Operator Usage
 
 For operator semantics and syntax, see the **gaia-lang** skill.
@@ -430,6 +456,8 @@ After completing each pass, write code, compile, and check. For DSL syntax, see 
 The review sidecar assigns priors to claims and conditional probabilities to strategies.
 
 For how to write review sidecars, assign priors, and evaluate strategy parameters, see the **review** skill.
+
+**Derived claim priors should be 0.5 (uninformative).** If you assign a high prior (e.g., 0.85) to a derived claim, you double-count evidence: the reviewer's judgment AND the reasoning chain both reflect the same underlying evidence. Set derived claim priors to 0.5 so belief is determined entirely by BP propagation from leaf premises. This produces more honest assessments of the argument's strength.
 
 **Abduction review deserves special attention.** The most common and consequential mistake in review is setting π(Alt) based on whether the alternative's calculation is correct, rather than whether it explains the observation. Before finalizing the review sidecar, go through every abduction and ask: "Does this alternative's prediction actually match the observation?" If not, π(Alt) should be low regardless of the alternative's theoretical validity.
 

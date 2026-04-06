@@ -79,6 +79,8 @@ Assign a prior to an auto-generated claim (e.g., abduction's alternative).
 
 **Derived conclusions** (claims that ARE the conclusion of a strategy): do NOT set a prior. Their belief is entirely determined by BP propagation.
 
+**Derived conclusions — prior = 0.5 or omit.** If you set a prior on a derived claim, use 0.5 (uninformative). A high prior (e.g., 0.85) double-counts evidence: the reviewer's judgment and the reasoning chain both reflect the same data. Let BP determine derived beliefs from leaf priors and strategy parameters alone.
+
 ## 5. Prior Assignment Guide
 
 ### How to choose priors
@@ -108,10 +110,12 @@ The prior on an abduction alternative represents **explanatory power**: "Can Alt
 - NOT "Is Alt true in general?"
 - But: "Does Alt account for the specific observation?"
 
-Example: Obs = "experimental Tc = 1.2K", Alt = "phenomenological theory predicts Tc = 1.9K"
+Example: Obs = "patient's symptoms resolved after taking the drug", H = "the drug is effective", Alt = "placebo effect"
 
-- Alt's calculation is correct (1.9K is right), BUT 1.9K does not explain 1.2K
-- So pi(Alt) should be LOW (e.g., 0.3), not high
+- The question is: can the placebo effect **alone explain this specific observation**?
+- If Obs is a mild subjective improvement (e.g., reduced pain score): π(Alt) should be moderate (~0.5), because placebo effect commonly produces such outcomes
+- If Obs is a large objective change (e.g., tumor shrank 80%): π(Alt) should be very low (~0.1), because placebo effect cannot explain this magnitude of change
+- Key: π(Alt) is NOT "does the placebo effect exist?" (it does) — it is "can it account for **this specific observation**?"
 
 **Rule of thumb:** If pi(Alt) >= pi(H), the abduction provides little support for H. Either the evidence is genuinely weak, or pi(Alt) is overestimated.
 

@@ -119,6 +119,8 @@ noisy_and(
 )
 ```
 
+**Single-premise `noisy_and` is semantically degenerate.** If you have only one premise, consider whether the relationship is better modeled as `abduction` (if there is a natural alternative explanation) rather than a trivial AND-gate with one input.
+
 #### `infer(premises, conclusion, *, reason="", background=None)`
 
 General CPT with 2^k entries. Rarely used directly.
@@ -332,6 +334,8 @@ from .s3_results import *
 from .s4_discussion import *
 ```
 
+**WARNING: Do NOT define `__all__` in submodules.** If a submodule defines `__all__: list[str] = []`, then `from .module import *` imports nothing, and all claims in that module get anonymous labels (`_anon_xxx`). Only define `__all__` in `__init__.py` to control the package's cross-package exports.
+
 ## 6. Exports and Labels
 
 `__all__` controls visibility:
@@ -345,6 +349,16 @@ __all__ = ["main_theorem", "key_observation"]  # exported
 main_theorem = claim("...")           # exported (in __all__)
 supporting_lemma = claim("...")       # public (no underscore, not in __all__)
 _helper = claim("...")                # private (underscore prefix)
+```
+
+**Abduction alternatives must be public.** Claims used as `alternative=` in abduction calls need proper labels for the review sidecar to reference them. Use `alt_` prefix (not `_alt_`):
+
+```python
+# CORRECT: public, gets label "alt_nonspecific_binding"
+alt_nonspecific_binding = claim("Non-specific binding could explain...")
+
+# WRONG: private, gets anonymous label, cannot be reviewed
+_alt_nonspecific_binding = claim("Non-specific binding could explain...")
 ```
 
 Labels are auto-assigned from Python variable names by `gaia compile`. NEVER set `.label` manually.
