@@ -11,7 +11,7 @@ A Python DSL for authoring machine-readable scientific knowledge. Gaia Lang lets
 Galileo's thought experiment: tie a heavy stone 🪨 to a light stone 🪶. Does the composite fall faster or slower?
 
 ```python
-from gaia.lang import claim, contradiction, deduction
+from gaia.lang import claim, contradiction, deduction, abduction
 
 # 🏛️ Aristotle's doctrine — a claim, not a fact, because it CAN be wrong
 aristotle = claim("🏛️ Aristotle's doctrine: the heavier an object is, the faster it falls.")
@@ -31,35 +31,43 @@ deduction(premises=[aristotle], conclusion=composite_faster,
 paradox = contradiction(composite_slower, composite_faster,
     reason="Aristotle's own logic predicts both faster AND slower")
 
-# 💡 The only escape: heaviness doesn't matter
-vacuum_law = claim("💡 In vacuum, all bodies fall at the same rate — regardless of weight.")
-galileo_argument = deduction(
-    premises=[paradox, heavy_faster],
-    conclusion=vacuum_law,
-    reason="The contradiction in Aristotle's doctrine forces a new law",
-)
+# 🤔 Why DO heavy things fall faster in air? Two competing explanations:
+air_resistance = claim("The speed difference in air is caused by air resistance, not by weight.")
+abduction(observation=heavy_faster, hypothesis=air_resistance, alternative=aristotle,
+    reason="Both explain why heavy falls faster in air, "
+    "but Aristotle's doctrine leads to a paradox — air resistance doesn't.")
+
+# 💡 Remove the air, remove the difference
+vacuum_law = claim("💡 In vacuum, all bodies fall at the same rate.")
+deduction(premises=[air_resistance], conclusion=vacuum_law,
+    reason="If weight doesn't matter and air resistance is removed, "
+    "nothing distinguishes the objects.")
 ```
 
 `gaia compile . && gaia infer .` compiles this into a factor graph and runs belief propagation:
 
 ```mermaid
 graph TD
-    aristotle["🏛️ Aristotle: heavier = faster (0.90 → 0.02 📉)"]:::premise
-    heavy_faster["🪨 Heavy falls faster (0.80 → 0.55 📉)"]:::premise
-    composite_slower["🪨🪶 < 🪨 Composite slower (0.60 → 0.39 📉)"]:::derived
-    composite_faster["🪨🪶 > 🪨 Composite faster (0.60 → 0.39 📉)"]:::derived
-    vacuum_law["💡 Vacuum law (0.30 → 0.68 📈)"]:::derived
-    paradox["⚔️ paradox (0.99)"]:::derived
+    aristotle["🏛️ Aristotle: heavier = faster (0.90 → 0.07 📉)"]:::premise
+    heavy_faster["🪨 Heavy falls faster (0.80 → 1.00 📈)"]:::premise
+    composite_slower["🪨🪶 < 🪨 Composite slower (0.60 → 0.40 📉)"]:::derived
+    composite_faster["🪨🪶 > 🪨 Composite faster (0.60 → 0.40 📉)"]:::derived
+    paradox["⚔️ paradox (0.98)"]:::derived
+    air_resistance["🌬️ Air resistance (0.50 → 0.94 📈)"]:::derived
+    vacuum_law["💡 Vacuum law (0.30 → 0.96 📈)"]:::derived
     strat_0(["🧠 deduction"])
     aristotle --> strat_0
     strat_0 --> composite_slower
     strat_1(["🧠 deduction"])
     aristotle --> strat_1
     strat_1 --> composite_faster
-    strat_2(["🧠 deduction"])
-    paradox --> strat_2
+    strat_2(["🔍 abduction"])
     heavy_faster --> strat_2
-    strat_2 --> vacuum_law
+    aristotle --> strat_2
+    strat_2 --> air_resistance
+    strat_3(["🧠 deduction"])
+    air_resistance --> strat_3
+    strat_3 --> vacuum_law
     oper_0{{"⊗ contradiction"}}:::contra
     composite_slower --- oper_0
     composite_faster --- oper_0
@@ -73,11 +81,12 @@ graph TD
 
 | Claim | Prior | → | Belief | |
 |-------|------:|---|-------:|---|
-| 🏛️ Aristotle's doctrine | 0.90 | → | **0.02** | ⬇️ contradiction propagates back, undermining the premise |
-| 🪨🪶 Composite slower | 0.60 | → | **0.39** | ⬇️ contradiction forces mutual exclusion |
-| 🪨🪶 Composite faster | 0.60 | → | **0.39** | ⬇️ symmetric with composite slower |
-| 🪨 Heavy falls faster | 0.80 | → | **0.55** | ⬇️ pulled down by the deduction chain |
-| 💡 Vacuum law | 0.30 | → | **0.68** | ⬆️ the only survivor — Galileo wins |
+| 🏛️ Aristotle's doctrine | 0.90 | → | **0.07** | 📉 contradiction propagates back — Aristotle refuted |
+| 🪨🪶 Composite slower | 0.60 | → | **0.40** | 📉 contradiction forces mutual exclusion |
+| 🪨🪶 Composite faster | 0.60 | → | **0.40** | 📉 symmetric with composite slower |
+| 🌬️ Air resistance | 0.50 | → | **0.94** | 📈 abduction: the better explanation wins |
+| 🪨 Heavy falls faster | 0.80 | → | **1.00** | 📈 supported by both explanations |
+| 💡 Vacuum law | 0.30 | → | **0.96** | 📈 Galileo wins — remove air, all fall equally |
 
 ## Install
 
