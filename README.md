@@ -213,7 +213,7 @@ Reviews live in `src/galileo_falling_bodies/reviews/`. Each review is a Python f
 
 ```python
 from gaia.review import ReviewBundle, review_claim, review_strategy
-from .. import aristotle, heavy_faster, composite_slower, composite_faster, vacuum_law, galileo_argument
+from .. import aristotle, heavy_faster, galileo_argument
 
 REVIEW = ReviewBundle(
     source_id="self_review",
@@ -224,15 +224,6 @@ REVIEW = ReviewBundle(
         review_claim(heavy_faster, prior=0.8,
             judgment="supporting",
             justification="Well-documented observation in air."),
-        review_claim(composite_slower, prior=0.6,
-            judgment="tentative",
-            justification="Plausible under Aristotelian framework."),
-        review_claim(composite_faster, prior=0.6,
-            judgment="tentative",
-            justification="Also plausible under Aristotelian framework."),
-        review_claim(vacuum_law, prior=0.3,
-            judgment="tentative",
-            justification="Not yet established — the argument should raise this."),
         review_strategy(galileo_argument,
             judgment="formalized",
             justification="Classic reductio ad absurdum."),
@@ -249,7 +240,7 @@ gaia infer .
 The engine compiles the IR into a factor graph, automatically selects the best algorithm (exact junction tree for small graphs, loopy BP for larger ones), and writes results to `.gaia/reviews/self_review/`:
 
 ```
-Inferred 6 beliefs from 4 priors and 0 strategy parameter records
+Inferred 5 beliefs from 2 priors and 0 strategy parameter records
 Method: JT (exact), 2ms
 Review: self_review
 Output: .gaia/reviews/self_review/beliefs.json
@@ -259,11 +250,11 @@ Output: .gaia/reviews/self_review/beliefs.json
 
 | Claim | Prior | → | Posterior | |
 |-------|------:|---|----------:|---|
-| `aristotle` | 0.90 | → | **0.02** | ⬇️ contradiction propagates back — Aristotle refuted |
-| `vacuum_law` | 0.30 | → | **0.68** | ⬆️ deduction from the contradiction raises belief |
-| `heavy_faster` | 0.80 | → | **0.55** | ⬇️ pulled down by the deduction chain |
-| `composite_slower` | 0.60 | → | **0.39** | ⬇️ contradiction forces mutual exclusion |
-| `composite_faster` | 0.60 | → | **0.39** | ⬇️ symmetric with `composite_slower` |
+| `aristotle` | 0.90 | → | **0.01** | ⬇️ contradiction propagates back — Aristotle refuted |
+| `heavy_faster` | 0.80 | → | **0.67** | ⬇️ pulled down by the deduction chain |
+| `composite_slower` | — | → | **0.34** | ⬇️ contradiction forces mutual exclusion |
+| `composite_faster` | — | → | **0.34** | ⬇️ symmetric with `composite_slower` |
+| `vacuum_law` | — | → | **0.83** | ⬆️ deduction from the contradiction raises belief |
 
 If multiple reviews exist, specify which one: `gaia infer --review self_review .`
 

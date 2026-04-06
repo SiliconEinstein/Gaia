@@ -35,6 +35,9 @@ tc_prediction = claim(
     given=[bcs_theory, mgb2_phonon_spectrum],
 )
 
+# The auto-created strategy is accessible via .strategy
+# In review sidecar: review_strategy(tc_prediction.strategy, conditional_probability=0.85, ...)
+
 # Claim with background context (settings/questions, not logical premises)
 result = claim(
     "The ball reaches the ground in 1.4s",
@@ -56,6 +59,16 @@ imported = claim(
 # Claim with title
 titled = claim("H = p^2/2m + V(x)", title="Hamiltonian of the system")
 ```
+
+When `given=` is used, the auto-created strategy is accessible via the claim's `.strategy` attribute. Use this to reference it in the review sidecar:
+
+```python
+h = claim("Hypothesis.", given=[evidence_a, evidence_b])
+# In review sidecar:
+# review_strategy(h.strategy, conditional_probability=0.85, ...)
+```
+
+**When to use `given=` vs explicit strategy:** Use `given=` for simple derivations where you don't need to customize the strategy (e.g., reason text, background). Use explicit `noisy_and()` when you need to set `reason=`, `background=`, or want a named variable for clarity.
 
 ### `setting(content, *, title=None, **metadata)`
 

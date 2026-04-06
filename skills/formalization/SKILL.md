@@ -57,6 +57,8 @@ my-package-gaia/
 └── pyproject.toml
 ```
 
+Note: `gaia init` does not create the `artifacts/` directory. Create it manually: `mkdir artifacts/`
+
 Both PDF and markdown formats are supported. Throughout the formalization process, always refer back to the originals in `artifacts/` to ensure that numbers, formulas, and reasoning steps are consistent with the source material.
 
 ## Pass 1: Extract Knowledge Nodes
@@ -136,6 +138,8 @@ result = claim("The numerical result for YY is ZZ +/- delta.", title="Numerical 
 
 ### Theory-Experiment Comparison → Abduction
 
+**Note:** This pattern is applied during Pass 2 (Connect), not Pass 1. It is documented here because the observation/hypothesis/alternative structure influences how you extract knowledge nodes in Pass 1.
+
 When a theoretical prediction is compared with experimental data, use the **abduction** pattern:
 
 - **observation**: experimental result
@@ -214,6 +218,8 @@ Pass 1 only extracts atomic, self-contained knowledge nodes. **Do not prejudge w
 ## Pass 2: Connect -- Write Infer Strategies
 
 `infer` is the **most general** strategy type in Gaia -- it does not presume any specific reasoning pattern (such as deduction, abduction), and merely expresses "from premises, derive conclusion." Pass 2 uses `infer` as the draft form for all reasoning connections; specific strategy types are refined in Pass 4.
+
+In Pass 4, most `infer` calls should be refined to specific strategy types (`noisy_and`, `deduction`, `abduction`, etc.). If no specific type fits, `infer` can remain as the final type -- but note that `infer` requires a full CPT (2^N conditional probabilities) in the review sidecar, which is more work than `noisy_and` (single value). Prefer `noisy_and` when all premises are jointly necessary.
 
 For each claim "supported by other claims," write an `infer` strategy (which claims need a strategy is determined case-by-case in Pass 2 -- if the source provides an argument for it, it needs one):
 
