@@ -109,11 +109,11 @@ Gaia provides a [Claude Code](https://claude.ai/code) plugin with a **formalizat
 # In Claude Code, add the Gaia marketplace
 /plugin marketplace add SiliconEinstein/Gaia
 
-# Install the formalization plugin
-/plugin install formalization
+# Install the gaia plugin
+/plugin install gaia
 
 # Start formalizing a source
-/formalization
+/gaia:formalization
 ```
 
 The skill walks you through a four-pass process: extract knowledge nodes, connect reasoning strategies, check completeness, and refine strategy types.

@@ -5,9 +5,9 @@
   },
   "plugins": [
     {
-      "name": "formalization",
-      "source": "./plugins/formalization",
-      "description": "Formalize knowledge sources (papers, textbooks, reports) into Gaia knowledge packages",
+      "name": "gaia",
+      "source": "./plugins/gaia",
+      "description": "Gaia knowledge formalization skills",
       "version": "0.1.0"
     }
   ]
