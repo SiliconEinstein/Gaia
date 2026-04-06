@@ -48,4 +48,8 @@ data/
 # Frontend
 frontend/node_modules/
 frontend/dist/
+
+# Template node_modules & lock file (installed for validation only)
+gaia/cli/templates/pages/node_modules/
+gaia/cli/templates/pages/package-lock.json
 pipeline.local.toml
