@@ -529,12 +529,14 @@ Identify where additional evidence would most strengthen the argument:
 
 ### Output
 
-Write the critical analysis as a section in the package README (before or after the knowledge graph), or as a separate `ANALYSIS.md` in the package root. Include:
+Write the critical analysis as `ANALYSIS.md` in the package root. This is a **required deliverable** — do not skip it. Include:
 
 1. **Summary**: One paragraph on the argument's overall structure and strength
-2. **Weak points**: Numbered list with specific claims/strategies and their BP beliefs
-3. **Evidence gaps**: What's missing and what would help
-4. **Confidence assessment**: Overall confidence in the core conclusions, informed by BP results
+2. **Weak points**: Table with columns: claim, belief, issue. Include all derived claims with belief < 0.8 and any alternative explanations with belief > 0.25
+3. **Evidence gaps**: Tables covering (a) missing experimental validations, (b) untested conditions, (c) competing explanations not fully resolved
+4. **Confidence assessment**: Tier the exported claims into confidence levels (very high / high / moderate / tentative) with belief ranges
+
+The critical analysis is the analytical payoff of formalization — it transforms a qualitative reading of the paper into a quantitative structural assessment. Every knowledge package should ship with one.
 
 ## Common Mistakes
 
