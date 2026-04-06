@@ -121,8 +121,8 @@ The skill walks you through a four-pass process: extract knowledge nodes, connec
 ## CLI Workflow
 
 ```
-gaia init → gaia add → write package → gaia compile → write review → gaia infer → gaia compile --readme → gaia register
-(scaffold)  (add deps)   (DSL code)     (DSL → IR)   (self-review)  (BP preview)  (gen README)           (registry PR)
+gaia init → gaia add → write package → gaia compile → write review → gaia infer → gaia compile --github → /gaia:publish → gaia register
+(scaffold)  (add deps)   (DSL code)     (DSL → IR)   (self-review)  (BP preview)  (GitHub skeleton)      (fill narrative) (registry PR)
 ```
 
 | Command | Purpose |
@@ -130,7 +130,8 @@ gaia init → gaia add → write package → gaia compile → write review → g
 | `gaia init <name>` | Scaffold a new Gaia knowledge package |
 | `gaia add <package>` | Install a registered Gaia package from the [official registry](https://github.com/SiliconEinstein/gaia-registry) |
 | `gaia compile [path]` | Compile Python DSL to Gaia IR (`.gaia/ir.json`) |
-| `gaia compile --readme [path]` | Compile and generate `README.md` with Mermaid graph + belief results |
+| `gaia compile --github [path]` | Generate GitHub presentation skeleton (`.github-output/`): wiki, README, React Pages, graph.json |
+| `gaia compile --readme [path]` | *(legacy)* Generate `README.md` with Mermaid graph + belief results |
 | `gaia check [path]` | Validate package structure and IR consistency (used by registry CI) |
 | `gaia infer [path]` | Run belief propagation with a review sidecar |
 | `gaia register [path]` | Submit package to the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry) |
