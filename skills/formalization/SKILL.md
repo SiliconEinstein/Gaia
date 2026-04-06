@@ -110,6 +110,14 @@ Claims in motivation can be freely referenced as premises or background by later
 
 Content that the source itself derives — even if the derivation is rigorous — should be a claim, because the derivation process itself may contain errors.
 
+### Content Format
+
+Claim content supports **markdown**. Use it for structure:
+- Tables: markdown tables for structured data
+- Math: `$...$` for inline, `$$...$$` for display equations
+- Lists: bullet points for enumerating conditions or items
+- Bold/italic: for emphasis on key values or terms
+
 ### Atomicity Principle
 
 Each claim must be an **atomic proposition** — one claim expresses one thing.
@@ -167,12 +175,16 @@ For example: If Obs = "experimental Tc = 1.2K" and Alt = "phenomenological theor
 
 When the source contains figures or tables with important data:
 
-**Tables:** Transcribe the data directly into the claim content. The claim must be self-contained — a reviewer should not need to open the original figure.
+**Tables:** Use markdown table format in the claim content. The claim must be self-contained — a reviewer should not need to open the original.
 
 ```python
 tc_data = claim(
-    "Measured superconducting transition temperatures: "
-    "LaH10 at 250K (200 GPa), H3S at 203K (150 GPa), YH6 at 224K (166 GPa).",
+    "Measured superconducting transition temperatures:\n\n"
+    "| Material | $T_c$ (K) | Pressure (GPa) |\n"
+    "|----------|-----------|----------------|\n"
+    "| LaH10    | 250       | 200            |\n"
+    "| H3S      | 203       | 150            |\n"
+    "| YH6      | 224       | 166            |",
     title="Tc measurements",
     metadata={"source_table": "artifacts/paper.pdf, Table 2"},
 )
