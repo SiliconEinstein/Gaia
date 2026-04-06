@@ -321,26 +321,40 @@ Nodes referenced by `@label` must appear in the strategy's `premises` or `backgr
 
 Sources often have implicit premises. When writing the reason, if you discover the derivation depends on a knowledge node already extracted in Pass 1, be sure to add it to premises or background and reference it with `@label` in the reason.
 
-### Model Contradictions with `contradiction()`
+### Model Contradictions and Complements
 
-After writing strategies, model contradictions between claims. These were identified in Pass 1 Reflection as contradictory claim pairs; now formalize them as `contradiction(a, b)` operators.
+After writing strategies, model logical constraints between claims using operators. These claim pairs were identified in Pass 1 Reflection; now formalize them.
 
-Two types to look for:
+**Key distinction — get this right, it matters for BP:**
 
-**(1) Explicit contradictions claimed by the source.** When the source argues "new method succeeds where old method fails," or "hypothesis A is incompatible with hypothesis B," these are informative constraints. `contradiction()` forces BP to "pick a side" — one claim's belief goes up, the other must go down.
+- `contradiction(a, b)` = NOT (A AND B): both cannot be true, but both CAN be false
+- `complement(a, b)` = A XOR B: exactly one must be true (exhaustive + mutually exclusive)
+
+**When to use `contradiction()`:** The source argues two claims are incompatible — they cannot both hold. Example: two competing hypotheses about a mechanism, where accepting one rules out the other, but a third option might exist.
 
 ```python
-# Example: the paper claims RFdiffusion succeeds on tasks where Hallucination fails
+# Correct: these are genuinely mutually exclusive
 not_both = contradiction(
-    rfdiffusion_solves_large_proteins,
-    hallucination_solves_large_proteins,
-    reason="The paper shows Hallucination fails beyond 100 AA while RFdiffusion succeeds up to 600 AA.",
+    claim("The pairing mechanism is phonon-mediated"),
+    claim("The pairing mechanism is magnon-mediated"),
+    reason="Phonon and magnon mechanisms produce incompatible signatures; the data matches only one.",
 )
 ```
 
-**(2) Internal tensions within the source.** Look for places where the source's own claims are in tension. For example, claiming "comprehensive improvement" while one application area lacks experimental validation. These may not be formal contradictions (both could be true), but if they are genuinely mutually exclusive, model them.
+**When to use `complement()`:** Exactly two exhaustive, mutually exclusive options. One MUST be true.
 
-Contradictions are especially valuable in BP because they create strong coupling between nodes. A well-placed `contradiction()` can propagate more information than multiple `noisy_and` strategies.
+```python
+# Correct: exhaustive binary
+one_of = complement(
+    claim("RFdiffusion outperforms Hallucination on this benchmark"),
+    claim("Hallucination outperforms or matches RFdiffusion on this benchmark"),
+    reason="On the same benchmark with the same metric, one must be better or equal.",
+)
+```
+
+**When NOT to use either:** Two claims that are "in tension" but can both be true. Example: "comprehensive improvement across all areas" and "enzyme scaffolding lacks experimental validation" — both can be true (comprehensive improvement does not require every area to have wet-lab validation). Do NOT model these as `contradiction()`. Flag them in the Critical Analysis as unmodeled tensions instead.
+
+Contradictions and complements are especially valuable in BP because they create strong coupling between nodes — when one side's belief goes up, the other must go down. But a **wrong** contradiction silently distorts all downstream beliefs, so always verify semantics in Pass 3.
 
 ### Pass 2 Reflection
 
@@ -379,7 +393,34 @@ Use the output of `gaia check` to see if any claim should have reasoning support
 
 The most common mistake at this step is **assuming certain knowledge does not need explicit references**. In Gaia, if the reasoning process depends on a fact, that fact must be a node in the knowledge graph.
 
-### 3d. Check Figure/Table References
+### 3d. Verify Contradiction and Operator Semantics
+
+Review every `contradiction()`, `complement()`, `equivalence()`, and `disjunction()` operator for semantic correctness. These are hard constraints in BP — a wrong operator silently distorts all downstream beliefs.
+
+**`contradiction(a, b)` = NOT (A AND B)**: A and B cannot both be true, but both **can** be false. Use only when the claims are genuinely mutually exclusive. Common mistake:
+
+```python
+# WRONG: these are both true — no contradiction!
+contradiction(
+    claim("RFdiffusion succeeds at designing large proteins"),
+    claim("Hallucination fails at designing large proteins"),
+)
+
+# CORRECT: these cannot both be true
+contradiction(
+    claim("RFdiffusion is inferior to Hallucination on this task"),
+    claim("RFdiffusion outperforms Hallucination on this task"),
+)
+```
+
+**`complement(a, b)` = A XOR B**: Exactly one must be true. Stronger than contradiction — use when there are exactly two exhaustive, mutually exclusive possibilities. Example: "The mechanism is phonon-mediated" vs "The mechanism is not phonon-mediated."
+
+**Check each operator against these questions:**
+1. Can both claims be true simultaneously? If yes → not a `contradiction`, remove it
+2. Can both claims be false simultaneously? If no → should be `complement` (XOR), not `contradiction` (NAND)
+3. Is this just "in tension" rather than logically exclusive? Informal tension (e.g., "comprehensive improvement" + "one area lacks validation") should NOT be modeled as `contradiction` — both can be true
+
+### 3e. Check Figure/Table References
 
 Review all claims and strategies for figure metadata:
 
