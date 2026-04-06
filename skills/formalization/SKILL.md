@@ -276,6 +276,7 @@ After the review checklist, ask yourself:
 - **Theory vs experiment separated?** For every result where the source compares theory to experiment, do I have separate claims for the theoretical prediction and the experimental measurement? If they're mixed in one claim, I can't use abduction in Pass 2.
 - **Figures and tables transcribed?** Are all key numerical values from figures and tables written into claim content (not just referenced)?
 - **Each claim independently judgeable?** Can a reviewer assess each claim without reading any other claim?
+- **Contradictory claims identified?** When the source argues "A succeeds where B fails," or compares competing methods/hypotheses, have I extracted both sides as separate claims? These pairs will become `contradiction()` operators in Pass 2, providing strong BP constraints.
 
 ### Marking Exported Conclusions
 
@@ -327,6 +328,13 @@ Before moving to Pass 3, verify:
 - **Theory-experiment pairs use abduction?** Every place the source compares a theoretical prediction against an experimental observation should be connected via `abduction(observation=exp, hypothesis=theory, alternative=old_theory)`, not `noisy_and` or `infer`. The relationship is explanatory ("which theory better explains the data?"), not inferential ("premises imply conclusion").
 - **Multiple observations → one law use induction?** If several independent observations all support the same general rule, use `induction([obs1, obs2, ...], law)`, not a flat `noisy_and` with all observations as premises.
 - **No missing alternatives?** Every abduction should have a meaningful alternative — what would explain the observation if the hypothesis were wrong?
+- **Contradictions identified?** Check for two types of contradictions that should be modeled with `contradiction(a, b)`:
+
+  (1) **Explicit contradictions claimed by the source**: When the source argues "new method succeeds where old method fails," or "hypothesis A is incompatible with hypothesis B," these are informative constraints. Model them with `contradiction()` so BP is forced to "pick a side." Example: if the paper claims RFdiffusion outperforms Hallucination on motif scaffolding, and these represent genuinely competing approaches, a contradiction between their capability claims constrains the graph.
+
+  (2) **Internal tensions within the source**: Look for places where the source's own claims are in tension. For example, claiming "comprehensive improvement" while one application area lacks experimental validation is a tension worth flagging. These may not be formal contradictions (both could be true), but if they are genuinely mutually exclusive, model them.
+
+  Contradictions are especially valuable in BP because they create strong coupling between nodes — when one side's belief goes up, the other must go down. A well-placed `contradiction()` can propagate more information than multiple `noisy_and` strategies.
 
 ## Pass 3: Check Completeness
 
@@ -531,10 +539,12 @@ Identify where additional evidence would most strengthen the argument:
 
 Write the critical analysis as `ANALYSIS.md` in the package root. This is a **required deliverable** — do not skip it. Include:
 
-1. **Summary**: One paragraph on the argument's overall structure and strength
-2. **Weak points**: Table with columns: claim, belief, issue. Include all derived claims with belief < 0.8 and any alternative explanations with belief > 0.25
-3. **Evidence gaps**: Tables covering (a) missing experimental validations, (b) untested conditions, (c) competing explanations not fully resolved
-4. **Confidence assessment**: Tier the exported claims into confidence levels (very high / high / moderate / tentative) with belief ranges
+1. **Package statistics**: Knowledge graph counts, strategy type distribution, claim classification, figure reference coverage, BP result summary
+2. **Summary**: One paragraph on the argument's overall structure and strength
+3. **Weak points**: Table with columns: claim, belief, issue. Include all derived claims with belief < 0.8 and any alternative explanations with belief > 0.25
+4. **Evidence gaps**: Tables covering (a) missing experimental validations, (b) untested conditions, (c) competing explanations not fully resolved
+5. **Contradictions**: (a) explicit contradictions modeled with `contradiction()` and how BP resolved them (which side won), (b) internal tensions in the source that were not modeled as formal contradictions but are worth flagging
+6. **Confidence assessment**: Tier the exported claims into confidence levels (very high / high / moderate / tentative) with belief ranges
 
 The critical analysis is the analytical payoff of formalization — it transforms a qualitative reading of the paper into a quantitative structural assessment. Every knowledge package should ship with one.
 
