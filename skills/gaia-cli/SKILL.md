@@ -93,6 +93,17 @@ gaia compile . --readme
 
 Generates `README.md` with a Mermaid knowledge graph and belief values. Run `gaia infer .` first so the README includes computed beliefs.
 
+Note: `--readme` is legacy. Prefer `--github` for GitHub-hosted packages.
+
+### Generate GitHub presentation skeleton
+
+```bash
+gaia compile . --github
+```
+
+Generates `.github-output/` with wiki pages, README skeleton, React Pages template, `graph.json`, and manifest.
+After generation, use `/gaia:publish` to fill narrative content.
+
 ## 5. gaia check
 
 ```bash
@@ -190,8 +201,9 @@ gaia init
       → gaia check .
         → write review sidecar
           → gaia infer .
-            → gaia compile . --readme
-              → gaia register . --registry-dir ../gaia-registry --create-pr
+            → gaia compile . --github
+              → /gaia:publish
+                → gaia register . --registry-dir ../gaia-registry --create-pr
 ```
 
 1. **Scaffold** — `gaia init my-package-gaia`
@@ -200,5 +212,5 @@ gaia init
 4. **Validate** — `gaia check .` to catch structural errors early
 5. **Review** — Write `reviews/self_review.py` with priors and strategy parameters
 6. **Infer** — `gaia infer .` to compute posterior beliefs
-7. **Document** — `gaia compile . --readme` to generate a README with beliefs
+7. **Present** — `gaia compile . --github` to generate GitHub presentation skeleton, then `/gaia:publish` to fill narrative content
 8. **Publish** — Tag, push, and `gaia register` to submit to the registry
