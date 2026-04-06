@@ -72,7 +72,7 @@ Write declarations directly at module top level. Do NOT use a `Package` context 
 
 ```python
 # my_package/__init__.py
-from gaia.lang import claim, setting, question, contradiction
+from gaia.lang import claim, setting, question, contradiction, noisy_and
 
 # Settings — background, no probability
 env = setting("Experimental conditions described here.")
@@ -80,8 +80,9 @@ env = setting("Experimental conditions described here.")
 # Claims — propositions with truth values
 obs_a = claim("Observation A holds under conditions described.")
 
-# Claims derived from premises (auto-creates noisy_and strategy)
-conclusion = claim("Derived conclusion.", given=[obs_a])
+# Derive a conclusion from premises using an explicit strategy
+conclusion = claim("Derived conclusion.")
+noisy_and([obs_a], conclusion)
 ```
 
 **Rules:**
@@ -89,7 +90,7 @@ conclusion = claim("Derived conclusion.", given=[obs_a])
 - Variable names must be valid Python identifiers (`[a-z_][a-z0-9_]*`).
 - Variable names must be unique within the package.
 - Only `claim` carries probability; `setting` and `question` do not participate in BP.
-- `claim(given=[...])` is sugar for `noisy_and(premises, conclusion)`.
+- Use explicit strategies (`noisy_and`, `deduction`, etc.) to connect claims via reasoning.
 
 ### Step 3: Add structural operators
 
@@ -117,9 +118,9 @@ disj.label = "some_mechanism"
 
 The returned helper claim can be used as a premise in subsequent strategies.
 
-### Step 4: Add explicit strategies (when `given=` is not enough)
+### Step 4: Add reasoning strategies
 
-Use explicit strategy functions when you need a specific reasoning type beyond `noisy_and`:
+Use strategy functions to express how premises support conclusions:
 
 ```python
 from gaia.lang import deduction, abduction, analogy, extrapolation
@@ -269,7 +270,7 @@ Do NOT do any of the following. These are not style preferences — they produce
 - **Using `Package(...)` context manager** — Removed in v5. The runtime infers package membership from `pyproject.toml`. Using it causes `load_gaia_package` to fail.
 - **Manually setting `.label = "name"`** — Labels are auto-assigned from Python variable names by `gaia compile`. Manual assignment is redundant and risks inconsistency with the variable name.
 - **Using `setting` or `question` as strategy premises** — Validator rejects non-claim premises. Use `background=` parameter instead.
-- **Single-premise `deduction()`** — Requires at least 2 premises. For single-premise derivation, use `claim(given=[premise])` (noisy_and).
+- **Single-premise `deduction()`** — Requires at least 2 premises. For single-premise derivation, use `noisy_and([premise], conclusion)`.
 - **Building `FormalExpr` by hand** — The compiler calls `formalize_named_strategy` from `gaia.ir.formalize`. Do not replicate its logic.
 - **Importing from `gaia.gaia_ir`** — Renamed to `gaia.ir`. Old path does not exist.
 - **Setting `dependencies = ["gaia-lang >= 2.0.0"]`** — In CI, the Gaia CLI is provided externally. Set `dependencies = []` (or only list other `*-gaia` packages).

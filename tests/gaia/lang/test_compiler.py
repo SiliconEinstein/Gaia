@@ -153,8 +153,9 @@ def test_compile_basic_package():
     with pkg:
         a = claim("Claim A.")
         a.label = "a"
-        b = claim("Claim B.", given=[a])
+        b = claim("Claim B.")
         b.label = "b"
+        noisy_and([a], b)
     result = compile_package_artifact(pkg)
     assert result.graph.namespace == "github"
     assert result.graph.package_name == "test_pkg"
