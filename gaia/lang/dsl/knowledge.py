@@ -31,14 +31,13 @@ def claim(
     content: str,
     *,
     title: str | None = None,
-    given: list[Knowledge] | None = None,
     background: list[Knowledge] | None = None,
     parameters: list[dict] | None = None,
     provenance: list[dict[str, str]] | None = None,
     **metadata,
 ) -> Knowledge:
     """Declare a scientific assertion. The only type carrying probability."""
-    k = Knowledge(
+    return Knowledge(
         content=content.strip(),
         type="claim",
         title=title,
@@ -47,12 +46,3 @@ def claim(
         provenance=provenance or [],
         metadata=metadata,
     )
-    if given:
-        s = Strategy(
-            type="noisy_and",
-            premises=list(given),
-            conclusion=k,
-            background=background or [],
-        )
-        k.strategy = s
-    return k

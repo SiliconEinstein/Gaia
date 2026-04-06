@@ -21,22 +21,13 @@ from gaia.lang import (
 
 ## 2. Knowledge Types
 
-### `claim(content, *, title=None, given=None, background=None, parameters=None, provenance=None, **metadata)`
+### `claim(content, *, title=None, background=None, parameters=None, provenance=None, **metadata)`
 
-The only type that carries probability in BP.
+The only type that carries probability in BP. Use explicit strategies (`noisy_and`, `deduction`, etc.) to connect claims via reasoning.
 
 ```python
 # Simple claim
 tc = claim("Tc of MgB2 is 39K")
-
-# Claim with sugar: given= auto-creates a noisy_and strategy
-tc_prediction = claim(
-    "BCS theory predicts Tc ~ 39K for MgB2",
-    given=[bcs_theory, mgb2_phonon_spectrum],
-)
-
-# The auto-created strategy is accessible via .strategy
-# In review sidecar: review_strategy(tc_prediction.strategy, conditional_probability=0.85, ...)
 
 # Claim with background context (settings/questions, not logical premises)
 result = claim(
@@ -59,16 +50,6 @@ imported = claim(
 # Claim with title
 titled = claim("H = p^2/2m + V(x)", title="Hamiltonian of the system")
 ```
-
-When `given=` is used, the auto-created strategy is accessible via the claim's `.strategy` attribute. Use this to reference it in the review sidecar:
-
-```python
-h = claim("Hypothesis.", given=[evidence_a, evidence_b])
-# In review sidecar:
-# review_strategy(h.strategy, conditional_probability=0.85, ...)
-```
-
-**When to use `given=` vs explicit strategy:** Use `given=` for simple derivations where you don't need to customize the strategy (e.g., reason text, background). Use explicit `noisy_and()` when you need to set `reason=`, `background=`, or want a named variable for clarity.
 
 ### `setting(content, *, title=None, **metadata)`
 
@@ -119,13 +100,13 @@ at_least_one = disjunction(
 
 ## 4. Strategies
 
-All strategies set `conclusion.strategy` and auto-register. All accept optional `reason: str | list = ""` and `background: list[Knowledge] | None = None`.
+All strategies auto-register. All accept optional `reason: str | list = ""` and `background: list[Knowledge] | None = None`.
 
 ### Direct Strategies (map to IR without formalization)
 
 #### `noisy_and(premises, conclusion, *, reason="", background=None)`
 
-All premises jointly support conclusion with conditional probability p. This is what `claim(given=[...])` creates implicitly. Most common strategy type.
+All premises jointly support conclusion with conditional probability p. Most common strategy type.
 
 Review requires: `conditional_probability` (single float).
 

@@ -19,10 +19,13 @@ def test_question_creates_knowledge():
     assert q.type == "question"
 
 
-def test_claim_with_given_creates_strategy():
+def test_claim_with_explicit_noisy_and():
     a = claim("Premise A.")
     b = claim("Premise B.")
-    c = claim("Conclusion.", given=[a, b])
+    c = claim("Conclusion.")
+    from gaia.lang import noisy_and
+
+    noisy_and([a, b], c)
     assert c.type == "claim"
     assert c.strategy is not None
     assert c.strategy.type == "noisy_and"

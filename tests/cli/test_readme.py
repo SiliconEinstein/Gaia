@@ -257,7 +257,8 @@ def test_compile_readme_flag_generates_readme(tmp_path):
         "from gaia.lang import claim, noisy_and\n\n"
         'a = claim("Premise A.")\n'
         'b = claim("Premise B.")\n'
-        'c = claim("Conclusion.", given=[a, b])\n'
+        'c = claim("Conclusion.")\n'
+        'noisy_and([a, b], c)\n'
         '__all__ = ["a", "b", "c"]\n'
     )
 

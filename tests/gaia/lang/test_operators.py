@@ -1,6 +1,6 @@
 """Tests for Gaia Lang v5 operator functions."""
 
-from gaia.lang import claim, contradiction, complement, disjunction, equivalence
+from gaia.lang import claim, contradiction, complement, disjunction, equivalence, noisy_and
 
 
 def test_contradiction_creates_helper_claim():
@@ -11,11 +11,12 @@ def test_contradiction_creates_helper_claim():
     assert "not_both_true" in helper.content
 
 
-def test_contradiction_helper_usable_in_given():
+def test_contradiction_helper_usable_as_premise():
     a = claim("A.")
     b = claim("B.")
     contra = contradiction(a, b, reason="conflict")
-    c = claim("C.", given=[contra])
+    c = claim("C.")
+    noisy_and([contra], c)
     assert contra in c.strategy.premises
 
 
