@@ -83,14 +83,17 @@ def generate_github_output(
         encoding="utf-8",
     )
 
-    # ── 5. Copy artifacts to assets ──
+    # ── 5. Copy artifacts to assets (recursive) ──
     artifacts_dir = pkg_path / "artifacts"
     asset_names: list[str] = []
     if artifacts_dir.is_dir():
-        for item in sorted(artifacts_dir.iterdir()):
+        for item in sorted(artifacts_dir.rglob("*")):
             if item.is_file():
-                shutil.copy2(item, assets_dir / item.name)
-                asset_names.append(item.name)
+                rel = item.relative_to(artifacts_dir)
+                dest = assets_dir / rel
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(item, dest)
+                asset_names.append(str(rel))
 
     # ── 6. Section placeholders (one per unique module) ──
     modules: set[str] = set()
