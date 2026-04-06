@@ -500,6 +500,37 @@ def test_formal_expr_relation_conclusion_gets_assertion_prior():
     assert fg.variables["github:lowertest::_g"] == pytest.approx(0.5)
 
 
+def test_auto_formalized_abduction_relation_conclusions_get_assertion_prior():
+    """Named strategy auto-formalization path: formalize_named_strategy generates
+    helper claims that are registered via _ensure_claim_var (π=0.5) BEFORE the
+    FormalStrategy expand path runs.  Relation conclusions must still get π=1-ε."""
+    from gaia.bp.factor_graph import CROMWELL_EPS
+
+    s = Strategy(
+        scope="local",
+        type="abduction",
+        premises=["github:lowertest::obs3"],
+        conclusion="github:lowertest::hyp3",
+    )
+    g = _lg(
+        knowledges=[
+            Knowledge(id="github:lowertest::obs3", type="claim", content="Obs3"),
+            Knowledge(id="github:lowertest::hyp3", type="claim", content="Hyp3"),
+        ],
+        strategies=[s],
+    )
+    fg = lower_local_graph(g, expand_formal=True)
+
+    # Find the equivalence conclusions (auto-generated helper claims)
+    eq_vars = [v for v in fg.variables if "equivalence_result" in v]
+
+    # Equivalence conclusion is a relation operator → must have assertion prior 1-ε
+    for v in eq_vars:
+        assert fg.variables[v] == pytest.approx(1.0 - CROMWELL_EPS), (
+            f"Relation conclusion {v} should have prior 1-ε, got {fg.variables[v]}"
+        )
+
+
 def test_fold_composite_to_cpt_directly():
     """fold_composite_to_cpt returns a CPT derived from sub-strategies."""
     sub = Strategy(

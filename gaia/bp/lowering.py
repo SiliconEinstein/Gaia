@@ -239,6 +239,11 @@ def _lower_strategy(
             if concl not in fg.variables:
                 default = 1.0 - CROMWELL_EPS if op.operator in _RELATION_OPS else 0.5
                 fg.add_variable(concl, priors.get(concl, default))
+            elif op.operator in _RELATION_OPS and concl not in priors:
+                # Variable was pre-registered with wrong default (0.5) by
+                # _ensure_claim_var during auto-formalization.  Override to
+                # assertion prior for relation operator conclusions.
+                fg.variables[concl] = 1.0 - CROMWELL_EPS
         return
 
     # Leaf Strategy
