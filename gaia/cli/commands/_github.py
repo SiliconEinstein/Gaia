@@ -12,7 +12,7 @@ from pathlib import Path
 
 from gaia.cli.commands._graph_json import generate_graph_json
 from gaia.cli.commands._manifest import generate_manifest
-from gaia.cli.commands._simplified_mermaid import render_simplified_mermaid
+from gaia.ir.coarsen import coarsen_ir
 from gaia.cli.commands._wiki import generate_all_wiki
 
 
@@ -174,6 +174,55 @@ def generate_github_output(
     return output_dir
 
 
+def _render_coarse_mermaid(
+    ir: dict,
+    beliefs: dict[str, float],
+    priors: dict[str, float],
+    exported_ids: set[str],
+) -> str:
+    """Render a coarse-grained Mermaid graph: leaf premises → exported conclusions."""
+    coarse = coarsen_ir(ir, exported_ids)
+    kid_to_k = {k["id"]: k for k in coarse["knowledges"]}
+
+    lines = ["```mermaid", "graph TB"]
+
+    for k in coarse["knowledges"]:
+        kid = k["id"]
+        label = k.get("title") or k.get("label", "?")
+        safe = k.get("label", "x").replace("-", "_")
+        b = beliefs.get(kid)
+        p = priors.get(kid)
+        is_exp = kid in exported_ids
+
+        if is_exp:
+            ann = f"→ {b:.2f}" if b is not None else ""
+            display = f"★ {label}\\n({ann})" if ann else f"★ {label}"
+            css = ":::exported"
+        else:
+            parts = []
+            if p is not None:
+                parts.append(f"{p:.2f}")
+            parts.append(f"→ {b:.2f}" if b is not None else "")
+            ann = " ".join(parts).strip()
+            display = f"{label}\\n({ann})" if ann else label
+            css = ":::premise"
+
+        display = display.replace('"', "#quot;").replace("*", "#ast;")
+        lines.append(f'    {safe}["{display}"]{css}')
+
+    for s in coarse["strategies"]:
+        conc = kid_to_k.get(s["conclusion"], {}).get("label", "?").replace("-", "_")
+        for p in s["premises"]:
+            prem = kid_to_k.get(p, {}).get("label", "?").replace("-", "_")
+            lines.append(f"    {prem} --> {conc}")
+
+    lines.append("")
+    lines.append("    classDef premise fill:#ddeeff,stroke:#4488bb,color:#333")
+    lines.append("    classDef exported fill:#d4edda,stroke:#28a745,stroke-width:2px,color:#333")
+    lines.append("```")
+    return "\n".join(lines)
+
+
 def _generate_readme_skeleton(
     ir: dict,
     *,
@@ -213,7 +262,7 @@ def _generate_readme_skeleton(
     if beliefs:
         lines.append("## Overview")
         lines.append("")
-        mermaid = render_simplified_mermaid(ir, beliefs, priors, exported)
+        mermaid = _render_coarse_mermaid(ir, beliefs, priors, exported)
         lines.append(mermaid)
         lines.append("")
 
