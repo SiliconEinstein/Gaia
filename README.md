@@ -124,6 +124,16 @@ Gaia provides a [Claude Code](https://claude.ai/code) plugin with skills that gu
 | `/gaia:review` | Write review sidecars — assign priors, judge strategies, parameterize inference |
 | `/gaia:publish` | Generate GitHub presentation (`--github` skeleton → narrative README → push) |
 
+### Formalize a Paper End-to-End
+
+With the plugin installed, formalizing a scientific paper into a Gaia knowledge package is a three-step process:
+
+1. **`/gaia:formalization`** — Point Claude at your paper (PDF or text in `artifacts/`). The skill guides a four-pass process: extract knowledge nodes, connect reasoning strategies, check completeness, and refine strategy types. Output: a compilable Gaia package with review sidecar.
+
+2. **`/gaia:publish`** — After `gaia compile . --github` generates the skeleton, this skill fills in the narrative README, writes section summaries, and pushes to GitHub. Your repo gets a human-readable presentation of the formalized knowledge with interactive graphs.
+
+3. **`gaia register`** — Submit the package to the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry) so others can `gaia add` it as a dependency.
+
 ## CLI Workflow
 
 ```
