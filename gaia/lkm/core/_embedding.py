@@ -37,9 +37,11 @@ class Embedder:
         self._config = config
         self._client = httpx.AsyncClient(timeout=config.embedding_http_timeout)
         self._headers = {"accessKey": access_key, "Content-Type": "application/json"}
-        # Workers = concurrency setting; sleep = 1/rate per worker
         self._n_workers = config.embedding_concurrency
-        self._sleep = self._n_workers / config.embedding_concurrency  # = 1.0s per worker
+        # Target ~30 RPS: each worker calls API (~50ms) + sleeps.
+        # With N workers, actual RPS ≈ N / (sleep + api_latency).
+        # N=30, sleep=1.5s → 30/1.55 ≈ 19 RPS. Conservative but zero 429s.
+        self._sleep = 1.5
 
     async def _call_api(self, text: str) -> list[float]:
         """Single API call with retry + jitter backoff."""
