@@ -38,6 +38,32 @@ export default function App() {
       })
   }, [])
 
+  // All hooks MUST be called before any early return (Rules of Hooks)
+  const graph = state.status === 'ready' ? state.graph : null
+  const meta = state.status === 'ready' ? state.meta : null
+
+  const nodesById = useMemo(() => {
+    if (!graph) return {}
+    const map: Record<string, GraphNode> = {}
+    for (const n of graph.nodes) {
+      map[n.id] = n
+    }
+    return map
+  }, [graph])
+
+  const sections = useMemo(() => {
+    if (!graph) return []
+    const seen = new Set<string>()
+    for (const n of graph.nodes) {
+      if (n.module && !seen.has(n.module)) {
+        seen.add(n.module)
+      }
+    }
+    return Array.from(seen)
+  }, [graph])
+
+  const selectedNode = selectedNodeId ? nodesById[selectedNodeId] ?? null : null
+
   if (state.status === 'loading') {
     return <div>Loading...</div>
   }
@@ -46,47 +72,24 @@ export default function App() {
     return <div role="alert">{state.message}</div>
   }
 
-  const { graph, meta } = state
-
-  const nodesById = useMemo(() => {
-    const map: Record<string, GraphNode> = {}
-    for (const n of graph.nodes) {
-      map[n.id] = n
-    }
-    return map
-  }, [graph.nodes])
-
-  const selectedNode = selectedNodeId ? nodesById[selectedNodeId] ?? null : null
-
-  // Extract unique module names for sections
-  const sections = useMemo(() => {
-    const seen = new Set<string>()
-    for (const n of graph.nodes) {
-      if (n.module && !seen.has(n.module)) {
-        seen.add(n.module)
-      }
-    }
-    return Array.from(seen)
-  }, [graph.nodes])
-
   return (
     <div className="app-layout">
       <div className="app-header">
-        <h1>{meta.package_name}</h1>
+        <h1>{meta!.package_name}</h1>
         <LanguageSwitch lang={lang} onChange={setLang} />
       </div>
 
       <div className="graph-panel">
         <KnowledgeGraph
-          nodes={graph.nodes}
-          edges={graph.edges}
+          nodes={graph!.nodes}
+          edges={graph!.edges}
           onSelectNode={(id) => setSelectedNodeId(id)}
         />
       </div>
 
       <ClaimDetail
         node={selectedNode}
-        edges={graph.edges}
+        edges={graph!.edges}
         nodesById={nodesById}
         onClose={() => setSelectedNodeId(null)}
       />

@@ -1,5 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+
+// Mock cytoscape (no canvas in jsdom)
+vi.mock('cytoscape', () => ({
+  default: Object.assign(
+    vi.fn(() => ({
+      on: vi.fn(),
+      layout: () => ({ run: vi.fn() }),
+      fit: vi.fn(),
+      destroy: vi.fn(),
+      nodes: () => ({ length: 0 }),
+    })),
+    { use: vi.fn() },
+  ),
+}))
+vi.mock('cytoscape-dagre', () => ({ default: vi.fn() }))
+
 import App from '../App'
 
 const mockGraph = {
@@ -31,13 +47,11 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('test-pkg')).toBeInTheDocument())
   })
 
-  it('renders all placeholder panels when ready', async () => {
+  it('renders graph and language switch when ready', async () => {
     render(<App />)
     await waitFor(() => expect(screen.getByText('test-pkg')).toBeInTheDocument())
-    expect(screen.getByTestId('graph-panel')).toBeInTheDocument()
-    expect(screen.getByTestId('detail-panel')).toBeInTheDocument()
-    expect(screen.getByTestId('section-panel')).toBeInTheDocument()
-    expect(screen.getByTestId('language-switch')).toBeInTheDocument()
+    expect(screen.getByTestId('cy-container')).toBeInTheDocument()
+    expect(screen.getByText('EN')).toBeInTheDocument()
   })
 
   it('shows error on fetch failure', async () => {

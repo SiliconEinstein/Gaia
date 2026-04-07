@@ -4,8 +4,8 @@ import dagre from 'cytoscape-dagre'
 import type { GraphNode, GraphEdge } from '../types'
 import styles from './KnowledgeGraph.module.css'
 
-// Register dagre layout
-cytoscape.use(dagre)
+// Register dagre layout (guard against double-registration in HMR)
+try { cytoscape.use(dagre) } catch { /* already registered */ }
 
 interface Props {
   nodes: GraphNode[]
@@ -15,27 +15,20 @@ interface Props {
 
 function beliefColor(belief?: number | null): string {
   if (belief == null) return '#999'
-  if (belief >= 0.7)
-    return `rgb(${Math.round(40 + (1 - belief) * 200)}, ${Math.round(160 + belief * 40)}, 40)`
-  if (belief >= 0.4)
-    return `rgb(${Math.round(200 + (0.7 - belief) * 180)}, ${Math.round(180 - (0.7 - belief) * 80)}, 40)`
-  return `rgb(200, ${Math.round(60 + belief * 200)}, 40)`
+  if (belief >= 0.7) return '#4caf50'
+  if (belief >= 0.4) return '#ff9800'
+  return '#f44336'
 }
 
 function edgeStyle(edge: GraphEdge): { lineStyle: string; lineColor: string } {
   if (edge.type === 'strategy') {
-    // Abduction: dashed purple to highlight hypothesis-vs-alternative
     if (edge.strategy_type === 'abduction') {
       return { lineStyle: 'dashed', lineColor: '#7c3aed' }
     }
     const deterministic = ['deduction', 'analogy']
     const isDeterministic = edge.strategy_type != null && deterministic.includes(edge.strategy_type)
-    return {
-      lineStyle: isDeterministic ? 'solid' : 'dashed',
-      lineColor: '#666',
-    }
+    return { lineStyle: isDeterministic ? 'solid' : 'dashed', lineColor: '#666' }
   }
-  // operator edges
   if (edge.operator_type === 'contradiction') {
     return { lineStyle: 'dashed', lineColor: '#c00' }
   }
@@ -49,17 +42,19 @@ export default function KnowledgeGraph({ nodes, edges, onSelectNode }: Props) {
   useEffect(() => {
     if (!containerRef.current) return
 
+    const nodeIds = new Set(nodes.map((n) => n.id))
+
     const cyNodes = nodes.map((n) => ({
       data: {
         id: n.id,
-        label: n.label,
-        belief: n.belief,
-        exported: n.exported,
-        nodeType: n.type,
+        label: n.title || n.label,
+        bgColor: beliefColor(n.belief),
+        borderWidth: n.exported ? 4 : 1,
       },
     }))
 
-    const cyEdges = edges.map((e, i) => {
+    const validEdges = edges.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target))
+    const cyEdges = validEdges.map((e, i) => {
       const style = edgeStyle(e)
       return {
         data: {
@@ -79,39 +74,38 @@ export default function KnowledgeGraph({ nodes, edges, onSelectNode }: Props) {
         {
           selector: 'node',
           style: {
-            label: 'data(label)',
-            'background-color': ((ele: cytoscape.NodeSingular) =>
-              beliefColor(ele.data('belief'))) as unknown as string,
-            'border-width': ((ele: cytoscape.NodeSingular) =>
-              ele.data('exported') ? 4 : 1) as unknown as number,
+            'label': 'data(label)',
+            'background-color': 'data(bgColor)',
+            'border-width': 'data(borderWidth)',
             'border-color': '#333',
-            color: '#222',
-            'font-size': '12px',
-            'text-valign': 'center',
+            'color': '#222',
+            'font-size': '11px',
+            'text-valign': 'bottom',
             'text-halign': 'center',
-            width: 60,
-            height: 60,
-            'text-wrap': 'wrap' as const,
-            'text-max-width': '80px',
-          } as cytoscape.Css.Node,
+            'text-margin-y': 4,
+            'width': 40,
+            'height': 40,
+            'text-wrap': 'wrap',
+            'text-max-width': '100px',
+          },
         },
         {
           selector: 'edge',
           style: {
-            width: 2,
+            'width': 2,
             'line-color': 'data(lineColor)',
             'target-arrow-color': 'data(lineColor)',
             'target-arrow-shape': 'triangle',
             'curve-style': 'bezier',
-            'line-style': 'data(lineStyle)' as cytoscape.Css.LineStyle,
-          } as cytoscape.Css.Edge,
+            'line-style': 'data(lineStyle)' as unknown as cytoscape.Css.LineStyle,
+          },
         },
       ],
-      layout: {
-        name: 'dagre',
-        rankDir: 'TB',
-      } as cytoscape.LayoutOptions,
     })
+
+    // Run dagre layout
+    cy.layout({ name: 'dagre', rankDir: 'TB', nodeSep: 50, rankSep: 80 } as cytoscape.LayoutOptions).run()
+    cy.fit(undefined, 20)
 
     cy.on('tap', 'node', (evt) => {
       const nodeId = evt.target.data('id') as string
