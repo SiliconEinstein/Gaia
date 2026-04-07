@@ -11,7 +11,7 @@ def setting(content: str, *, title: str | None = None, **metadata) -> Knowledge:
         type="setting",
         title=title,
         provenance=provenance or [],
-        metadata=metadata,
+        metadata=_flatten_metadata(metadata),
     )
 
 
@@ -23,8 +23,15 @@ def question(content: str, *, title: str | None = None, **metadata) -> Knowledge
         type="question",
         title=title,
         provenance=provenance or [],
-        metadata=metadata,
+        metadata=_flatten_metadata(metadata),
     )
+
+
+def _flatten_metadata(metadata: dict) -> dict:
+    """Unwrap nested metadata={"metadata": {...}} into a flat dict."""
+    if "metadata" in metadata and isinstance(metadata["metadata"], dict) and len(metadata) == 1:
+        return metadata["metadata"]
+    return metadata
 
 
 def claim(
@@ -44,5 +51,5 @@ def claim(
         background=background or [],
         parameters=parameters or [],
         provenance=provenance or [],
-        metadata=metadata,
+        metadata=_flatten_metadata(metadata),
     )

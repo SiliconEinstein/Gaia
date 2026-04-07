@@ -210,6 +210,9 @@ def compute_coarse_cpts(
     For each coarse strategy, clamp its premises to all 2^k assignments
     and run BP on the **full** factor graph to get P(conclusion=1 | assignment).
 
+    Optimization: the factor graph is built once per strategy; only premise
+    priors are updated between assignments.
+
     Returns a dict mapping strategy index to CPT (list of 2^k floats).
     """
     from gaia.bp.bp import BeliefPropagation
@@ -221,9 +224,19 @@ def compute_coarse_cpts(
 
     priors = dict(node_priors or {})
     strat_params = dict(strategy_params or {})
+    indices = (
+        strategy_indices
+        if strategy_indices is not None
+        else set(range(len(coarse["strategies"])))
+    )
+
+    # Build the canonical graph once (shared across all strategies)
+    canon = LocalCanonicalGraph(
+        **{key: ir[key] for key in
+           ("knowledges", "strategies", "operators", "namespace", "package_name")}
+    )
 
     result: dict[int, list[float]] = {}
-    indices = strategy_indices if strategy_indices is not None else set(range(len(coarse["strategies"])))
 
     for i, s in enumerate(coarse["strategies"]):
         if i not in indices:
@@ -234,18 +247,14 @@ def compute_coarse_cpts(
         cpt: list[float] = []
 
         for assignment in range(1 << k):
-            # Clamp premise priors
+            # Clamp premise priors for this assignment
             clamped = dict(priors)
             for bit, pid in enumerate(premises):
                 clamped[pid] = CLAMP_HI if (assignment >> bit) & 1 else CLAMP_LO
 
-            # Build and run BP on the full IR
-            graph = LocalCanonicalGraph(**{
-                key: ir[key] for key in
-                ("knowledges", "strategies", "operators", "namespace", "package_name")
-            })
+            # Build factor graph with clamped priors and run BP
             fg = lower_local_graph(
-                graph,
+                canon,
                 node_priors=clamped,
                 strategy_conditional_params=strat_params,
             )

@@ -179,19 +179,9 @@ def generate_github_output(
                     sp[sid] = s["conditional_probabilities"]
                 elif s.get("conditional_probability") is not None:
                     sp[sid] = [s["conditional_probability"]]
-        # Only compute CPTs for strategies with ≤ 6 premises (2^6 = 64 BP runs max)
-        MAX_PREMISES_FOR_CPT = 6
-        small_strats = {
-            i for i, s in enumerate(coarse_for_outline["strategies"])
-            if len(s["premises"]) <= MAX_PREMISES_FOR_CPT
-        }
-        cpts = {}
-        if small_strats:
-            all_cpts = compute_coarse_cpts(
-                ir, coarse_for_outline, node_priors=node_priors, strategy_params=sp,
-                strategy_indices=small_strats,
-            )
-            cpts = all_cpts
+        cpts = compute_coarse_cpts(
+            ir, coarse_for_outline, node_priors=node_priors, strategy_params=sp,
+        )
         mi_map = {}
         for i, s in enumerate(coarse_for_outline["strategies"]):
             if i in cpts:
@@ -277,15 +267,10 @@ def _render_coarse_mermaid(
                         strat_params[sid] = sp["conditional_probabilities"]
                     elif sp.get("conditional_probability") is not None:
                         strat_params[sid] = [sp["conditional_probability"]]
-            small = {
-                i for i, s in enumerate(coarse["strategies"])
-                if len(s["premises"]) <= 6
-            }
             coarse_cpts = compute_coarse_cpts(
                 ir, coarse,
                 node_priors=node_priors_for_cpt,
                 strategy_params=strat_params,
-                strategy_indices=small,
             )
         except Exception:
             pass
