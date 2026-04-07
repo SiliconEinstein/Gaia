@@ -39,8 +39,8 @@ pip install gaia-lang
 4. `gaia compile .` + `gaia check .` — compile and validate
 5. Write review sidecar with priors (see **gaia-cli** skill)
 6. `gaia infer .` — run belief propagation
-7. `gaia compile . --github` — generate GitHub presentation skeleton
-8. `/gaia:publish` — fill narrative content in `.github-output/`
+7. `gaia compile . --github` + `/gaia:publish` — generate and fill README
+8. `gaia compile . --module-graphs` — generate per-module reasoning graphs
 9. `gaia register .` — publish to the official registry
 
 For guided formalization of a knowledge source, use `/gaia:formalization`.

@@ -30,7 +30,8 @@ digraph formalization {
     review [label="Write review sidecar"];
     compile [label="gaia infer"];
     interpret [label="Interpret BP results"];
-    github [label="gaia compile . --github\n+ /gaia:publish"];
+    analysis [label="Write ANALYSIS.md"];
+    readme [label="gaia compile . --github\n+ /gaia:publish"];
 
     p1 -> r1 -> p2 -> r2 -> p3 -> p4 -> r4 -> review -> compile -> interpret;
     interpret -> p1 [label="structural issues" style=dashed];
@@ -435,7 +436,11 @@ For how to write review sidecars, assign priors, and evaluate strategy parameter
 
 ## Generate GitHub Presentation
 
-Run `gaia infer .` then `gaia compile . --github` to generate the GitHub presentation skeleton (`.github-output/` with wiki pages, README, React Pages template, `graph.json`, and manifest). Then use `/gaia:publish` to fill narrative content. See the **gaia-cli** skill for details.
+Run `gaia infer .` then:
+- `gaia compile . --github` + `/gaia:publish` to generate the README with narrative and reasoning graph
+- `gaia compile . --module-graphs` to generate per-module detailed reasoning graphs in `docs/detailed-reasoning.md`
+
+See the **gaia-cli** and **publish** skills for details.
 
 ## Interpret BP Results
 

@@ -168,15 +168,32 @@ Verify:
 - [ ] Weak Points are scientific critiques, not graph-structure descriptions
 - [ ] Bibliographic header present
 
-## Step 5: Push to GitHub
+## Step 5: Generate Per-Module Graphs
 
 ```bash
-git add README.md
+gaia compile . --module-graphs
+```
+
+This writes `docs/detailed-reasoning.md` with per-module Mermaid reasoning graphs and full claim details. Add a collapsible link in the README after the overview Mermaid graph:
+
+```markdown
+<details>
+<summary><b>Per-module reasoning graphs with full claim details</b></summary>
+
+See [docs/detailed-reasoning.md](docs/detailed-reasoning.md) for the complete per-section reasoning graphs with every claim, strategy, and belief value.
+
+</details>
+```
+
+## Step 6: Push to GitHub
+
+```bash
+git add README.md ANALYSIS.md docs/detailed-reasoning.md
 git commit -m "docs: update README via /gaia:publish"
 git push origin main
 ```
 
-Optionally also push wiki and docs:
+Optionally also push wiki and Pages template:
 
 ```bash
 cp -r .github-output/wiki .

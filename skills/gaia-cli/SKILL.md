@@ -85,15 +85,15 @@ Imports the top-level package, collects all DSL declarations, and writes:
 - `.gaia/ir.json` — the compiled Gaia IR
 - `.gaia/ir_hash` — content hash for integrity checks
 
-### Generate README with knowledge graph
+### Generate per-module reasoning graphs
 
 ```bash
-gaia compile . --readme
+gaia compile . --module-graphs
 ```
 
-Generates `README.md` with a Mermaid knowledge graph and belief values. Run `gaia infer .` first so the README includes computed beliefs.
+Generates `docs/detailed-reasoning.md` with per-module Mermaid reasoning graphs and full claim details. Run `gaia infer .` first so the output includes computed beliefs.
 
-Note: `--readme` is legacy. Prefer `--github` for GitHub-hosted packages.
+Note: `--readme` is a deprecated alias that writes to `README.md` instead. Prefer `--github` for the main README (generates a skeleton for `/gaia:publish`) and `--module-graphs` for detailed reference.
 
 ### Generate GitHub presentation skeleton
 
@@ -203,7 +203,8 @@ gaia init
           → gaia infer .
             → gaia compile . --github
               → /gaia:publish
-                → gaia register . --registry-dir ../gaia-registry --create-pr
+                → gaia compile . --module-graphs
+                  → gaia register . --registry-dir ../gaia-registry --create-pr
 ```
 
 1. **Scaffold** — `gaia init my-package-gaia`
@@ -213,4 +214,5 @@ gaia init
 5. **Review** — Write `reviews/self_review.py` with priors and strategy parameters
 6. **Infer** — `gaia infer .` to compute posterior beliefs
 7. **Present** — `gaia compile . --github` to generate GitHub presentation skeleton, then `/gaia:publish` to fill narrative content
-8. **Publish** — Tag, push, and `gaia register` to submit to the registry
+8. **Detail** — `gaia compile . --module-graphs` to generate per-module reasoning graphs
+9. **Publish** — Tag, push, and `gaia register` to submit to the registry
