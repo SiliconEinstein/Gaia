@@ -31,13 +31,16 @@ This produces `.github-output/` containing:
 
 ## Step 2: Read Inputs
 
+Primary inputs (drive the narrative):
 ```bash
-cat .github-output/narrative-outline.md  # Your writing backbone
+cat .github-output/narrative-outline.md  # Writing backbone from graph structure
 cat .github-output/manifest.json         # Exported conclusions list
 cat .gaia/reviews/*/beliefs.json         # BP results
-cat .github-output/docs/public/data/graph.json  # Check metadata.figure for images
-ls src/<package>/*.py                    # DSL source code
+cat .github-output/docs/public/data/graph.json  # Figure metadata + graph data
+ls src/<package>/*.py                    # DSL source code (claims, strategies, reasons)
 ```
+
+Optional — read `artifacts/` (original paper, figures) for factual grounding (equations, experimental numbers, figure context). But be careful: the README is an **analysis driven by the reasoning graph**, not a paper summary. The graph may assign low belief to claims the paper presents confidently, or reveal structural weaknesses the paper glosses over. Trust the graph's assessment over the paper's rhetoric.
 
 ## Step 3: Write README
 
@@ -51,6 +54,9 @@ The README must start with a proper citation of the original source material. Re
 > **Original work:** [Author1, Author2, et al.] "[Paper Title]." *Journal Name* Volume, Pages (Year). [DOI/arXiv link]
 
 [badges]
+
+> [!NOTE]
+> This README is an AI-generated analysis based on a [Gaia](https://github.com/SiliconEinstein/Gaia) reasoning graph formalization of the original work. Belief values reflect the graph's probabilistic assessment of each claim's support, not the original authors' confidence. See [ANALYSIS.md](ANALYSIS.md) for detailed verification results.
 ```
 
 The agent should find authors, title, journal from the package's `pyproject.toml` description, module docstrings, or `artifacts/paper.md`. This citation is used for figure attributions later.
@@ -96,15 +102,14 @@ The Mermaid graph and conclusions table already provide the technical Gaia view.
 
 ### Embedding Figures
 
-Check `graph.json` nodes for `metadata.figure` and `metadata.caption`. For each figure:
-1. Embed it in the Reasoning Structure subsection where that claim appears
-2. Use the original caption from `metadata.caption`
-3. Add attribution: "Adapted from [Author et al., Year]" referencing the bibliographic header
+Search `graph.json` nodes for `metadata.figure` and `metadata.caption` fields. The `figure` value is the image path relative to the package root (e.g. `artifacts/images/fig1.jpg`). For each figure found:
+1. Embed it in the Reasoning Structure subsection where that claim's topic appears
+2. Use the caption from `metadata.caption`
+3. Add attribution referencing the bibliographic header
 
 ```markdown
-![Fig. 1 | Protein design using RFdiffusion. Diffusion models trained to recover 
-corrupted structures via iterative denoising.](docs/public/assets/images/fig1.jpg)
-*Adapted from Watson et al., Nature 2023.*
+![Fig. 4 | Dimensionless bare Coulomb pseudopotential as a function of r_s.](artifacts/images/8_0.jpg)
+*Adapted from Cai et al., arXiv:2512.19382v2.*
 ```
 
 If `metadata.caption` is absent, write a descriptive caption based on the claim content.
@@ -124,6 +129,17 @@ Cite belief values parenthetically as quantitative support for your critique, e.
 ### Evidence Gaps (YOU WRITE)
 
 2-3 places where additional evidence would help. Name specific missing evidence and which claims it would strengthen.
+
+### Link to ANALYSIS.md
+
+If the package has an `ANALYSIS.md` (generated during formalization Pass 5/6), add a final section linking to it:
+
+```markdown
+## Detailed Analysis
+
+For structural integrity verification (Pass 5), standalone readability checks (Pass 6),
+and complete package statistics, see [ANALYSIS.md](ANALYSIS.md).
+```
 
 ## Step 4: Preview Before Pushing
 
@@ -168,16 +184,3 @@ git commit -m "docs: add wiki pages and GitHub Pages template"
 git push origin main
 ```
 
-## Ralph Loop Integration
-
-For iterative refinement:
-
-```
-/ralph-loop "Read .github-output/narrative-outline.md and manifest.json.
-Write README.md following /gaia:publish skill structure: bibliographic header,
-summary, reasoning structure (rewrite outline group names as readable titles),
-embed figures with captions and attribution, weak points with mechanisms,
-evidence gaps. Preview and verify before pushing.
-Output <promise>PUBLISH COMPLETE</promise> when quality checklist passes."
---max-iterations 5
-```
