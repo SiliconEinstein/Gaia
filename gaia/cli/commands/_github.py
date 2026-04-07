@@ -293,10 +293,7 @@ def _render_coarse_mermaid(
     lines.append("    classDef weak fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 5 5,color:#333")
     lines.append("    classDef contra fill:#ffebee,stroke:#c62828,color:#333")
     lines.append("```")
-    if total_mi > 0:
-        lines.append("")
-        lines.append(f"> Total information gain: **{total_mi:.2f} bits**")
-    return "\n".join(lines)
+    return "\n".join(lines), total_mi
 
 
 def _generate_readme_skeleton(
@@ -338,7 +335,17 @@ def _generate_readme_skeleton(
     if beliefs:
         lines.append("## Overview")
         lines.append("")
-        mermaid = _render_coarse_mermaid(ir, beliefs, priors, exported, param_data=param_data)
+        mermaid, total_mi = _render_coarse_mermaid(
+            ir, beliefs, priors, exported, param_data=param_data,
+        )
+        if total_mi > 0:
+            lines.append(
+                f"This knowledge graph provides **{total_mi:.1f} bits** of "
+                f"information gain — the total mutual information between "
+                f"leaf premises and exported conclusions, measuring how much "
+                f"the reasoning structure reduces uncertainty about the results."
+            )
+            lines.append("")
         lines.append(mermaid)
         lines.append("")
 
