@@ -3,6 +3,18 @@
 from gaia.lang.runtime import Knowledge
 
 
+def _flatten_metadata(metadata: dict) -> dict:
+    """Unwrap nested metadata={"metadata": {...}} into a flat dict.
+
+    When users write ``claim(..., metadata={"figure": "..."})``, Python's
+    ``**kwargs`` captures it as ``{"metadata": {"figure": "..."}}``.
+    This function detects and unwraps that single-key nesting.
+    """
+    if "metadata" in metadata and isinstance(metadata["metadata"], dict) and len(metadata) == 1:
+        return metadata["metadata"]
+    return metadata
+
+
 def setting(content: str, *, title: str | None = None, **metadata) -> Knowledge:
     """Declare a background assumption. No probability, no BP participation."""
     provenance = metadata.pop("provenance", None)
@@ -11,7 +23,7 @@ def setting(content: str, *, title: str | None = None, **metadata) -> Knowledge:
         type="setting",
         title=title,
         provenance=provenance or [],
-        metadata=metadata,
+        metadata=_flatten_metadata(metadata),
     )
 
 
@@ -23,7 +35,7 @@ def question(content: str, *, title: str | None = None, **metadata) -> Knowledge
         type="question",
         title=title,
         provenance=provenance or [],
-        metadata=metadata,
+        metadata=_flatten_metadata(metadata),
     )
 
 
@@ -44,5 +56,5 @@ def claim(
         background=background or [],
         parameters=parameters or [],
         provenance=provenance or [],
-        metadata=metadata,
+        metadata=_flatten_metadata(metadata),
     )
