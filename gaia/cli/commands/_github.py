@@ -179,6 +179,7 @@ def _render_coarse_mermaid(
     beliefs: dict[str, float],
     priors: dict[str, float],
     exported_ids: set[str],
+    param_data: dict | None = None,
 ) -> str:
     """Render a coarse-grained Mermaid graph: leaf premises → exported conclusions."""
     coarse = coarsen_ir(ir, exported_ids)
@@ -216,14 +217,51 @@ def _render_coarse_mermaid(
         display = display.replace('"', "#quot;").replace("*", "#ast;")
         lines.append(f'    {safe}["{display}"]{css}')
 
-    # Strategy intermediate nodes (stadium shape)
+    # Strategy intermediate nodes (stadium shape) with CPT annotation
     _DETERMINISTIC = {"deduction", "reductio", "elimination", "mathematical_induction", "case_analysis"}
+
+    # Compute coarse CPTs if beliefs are available
+    coarse_cpts: dict[int, list[float]] = {}
+    if beliefs:
+        try:
+            from gaia.ir.coarsen import compute_coarse_cpts
+            node_priors_for_cpt = {kid: priors.get(kid, 0.5) for kid in beliefs}
+            strat_params: dict[str, list[float]] = {}
+            if param_data:
+                for sp in param_data.get("strategy_params", []):
+                    sid = sp.get("strategy_id", "")
+                    if sp.get("conditional_probabilities"):
+                        strat_params[sid] = sp["conditional_probabilities"]
+                    elif sp.get("conditional_probability") is not None:
+                        strat_params[sid] = [sp["conditional_probability"]]
+            coarse_cpts = compute_coarse_cpts(
+                ir, coarse,
+                node_priors=node_priors_for_cpt,
+                strategy_params=strat_params,
+            )
+        except Exception:
+            pass  # Fall back to no CPT annotation
+
     for i, s in enumerate(coarse["strategies"]):
         stype = s.get("type", "infer")
         sid = f"strat_{i}"
         conc = kid_to_k.get(s["conclusion"], {}).get("label", "?").replace("-", "_")
         css = "" if stype in _DETERMINISTIC else ":::weak"
-        lines.append(f'    {sid}(["{stype}"]){css}')
+
+        # CPT annotation: P(all false) → P(all true), likelihood ratio
+        cpt = coarse_cpts.get(i)
+        if cpt and len(cpt) >= 2:
+            p_false = cpt[0]
+            p_true = cpt[-1]
+            if p_false > 1e-4:
+                lr = p_true / p_false
+                ann = f"{stype}\\n{p_false:.2f}→{p_true:.2f} ({lr:.0f}×)"
+            else:
+                ann = f"{stype}\\n{p_false:.2f}→{p_true:.2f}"
+        else:
+            ann = stype
+
+        lines.append(f'    {sid}(["{ann}"]){css}')
         for p in s["premises"]:
             prem = kid_to_k.get(p, {}).get("label", "?").replace("-", "_")
             lines.append(f"    {prem} --> {sid}")
@@ -298,7 +336,7 @@ def _generate_readme_skeleton(
     if beliefs:
         lines.append("## Overview")
         lines.append("")
-        mermaid = _render_coarse_mermaid(ir, beliefs, priors, exported)
+        mermaid = _render_coarse_mermaid(ir, beliefs, priors, exported, param_data=param_data)
         lines.append(mermaid)
         lines.append("")
 
