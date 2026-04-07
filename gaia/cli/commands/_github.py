@@ -161,7 +161,37 @@ def generate_github_output(
     )
     (output_dir / "manifest.json").write_text(manifest_json, encoding="utf-8")
 
-    # ── 8. README.md skeleton ──
+    # ── 8. Narrative outline (for agent consumption) ──
+    try:
+        from gaia.ir.coarsen import compute_coarse_cpts, mutual_information
+        from gaia.ir.linearize import linearize_narrative, render_narrative_outline
+
+        coarse_for_outline = coarsen_ir(ir, exported)
+        node_priors = {kid: 0.5 for k in ir["knowledges"] for kid in [k["id"]]}
+        if param_data:
+            for p in param_data.get("priors", []):
+                node_priors[p["knowledge_id"]] = p["value"]
+        sp: dict[str, list[float]] = {}
+        if param_data:
+            for s in param_data.get("strategy_params", []):
+                sid = s.get("strategy_id", "")
+                if s.get("conditional_probabilities"):
+                    sp[sid] = s["conditional_probabilities"]
+                elif s.get("conditional_probability") is not None:
+                    sp[sid] = [s["conditional_probability"]]
+        cpts = compute_coarse_cpts(ir, coarse_for_outline, node_priors=node_priors, strategy_params=sp)
+        mi_map = {}
+        for i, s in enumerate(coarse_for_outline["strategies"]):
+            pp = [node_priors.get(p, 0.5) for p in s["premises"]]
+            mi_map[i] = mutual_information(cpts[i], pp)
+        b = {x["knowledge_id"]: x["belief"] for x in beliefs_data.get("beliefs", [])} if beliefs_data else {}
+        sections = linearize_narrative(coarse_for_outline, beliefs=b, priors=node_priors, mi_per_strategy=mi_map)
+        outline = render_narrative_outline(sections)
+        (output_dir / "narrative-outline.md").write_text(outline, encoding="utf-8")
+    except Exception:
+        pass  # Non-critical: outline generation failed
+
+    # ── 9. README.md skeleton ──
     readme = _generate_readme_skeleton(
         ir,
         beliefs_data=beliefs_data,
