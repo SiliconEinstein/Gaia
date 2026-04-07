@@ -1,7 +1,8 @@
 """Embedding computer for M6 Semantic Discovery.
 
-Fetches embeddings for all public global variable nodes that are not yet
-stored in ByteHouse, using bounded concurrency and batch writes.
+Streaming pipeline: process pending variables in chunks of CHUNK_SIZE.
+Each chunk: fetch content → compute embeddings → write to ByteHouse → free memory.
+Constant memory usage regardless of total pending count.
 """
 
 from __future__ import annotations
@@ -16,8 +17,8 @@ from gaia.lkm.models.discovery import DiscoveryConfig
 
 logger = logging.getLogger(__name__)
 
-_BATCH_SIZE = 200
-_CONTENT_BATCH_SIZE = 500  # batch size for LanceDB content lookups
+_CHUNK_SIZE = 5000  # variables per pipeline chunk (content + embed + write)
+_BH_BATCH_SIZE = 200  # ByteHouse insert batch size
 
 
 class Embedder:
@@ -58,119 +59,59 @@ class Embedder:
         await self._client.aclose()
 
 
-async def _batch_fetch_content(
+async def _fetch_content_for_chunk(
     storage,
-    pending: list[dict],
-) -> dict[str, str]:
-    """Batch-fetch content for pending globals via local variable lookup.
+    chunk: list[dict],
+) -> list[tuple[str, str, str]]:
+    """Fetch content for a chunk of pending globals.
 
-    Uses storage.get_local_variables_by_ids() for efficient batch queries
-    (one LanceDB query per 500 IDs instead of one per ID).
-
-    Returns {gcn_id: content_text} for items where content was found.
+    Returns list of (gcn_id, content, node_type) for items with valid content.
     """
-    gcn_to_content: dict[str, str] = {}
-
-    # Parse representative_lcn to get local_ids
-    items: list[tuple[str, str]] = []  # (gcn_id, local_id)
-    for meta in pending:
+    # Parse representative_lcn → local_id
+    items: list[tuple[str, str, str]] = []  # (gcn_id, local_id, node_type)
+    for meta in chunk:
         try:
             rep_lcn = json.loads(meta["representative_lcn"])
             local_id = rep_lcn["local_id"]
-            items.append((meta["id"], local_id))
+            items.append((meta["id"], local_id, meta.get("type", "")))
         except (KeyError, json.JSONDecodeError):
-            logger.warning("Cannot parse representative_lcn for %s", meta["id"])
+            pass
 
-    # Deduplicate local_ids
-    unique_local_ids = list({local_id for _, local_id in items})
+    if not items:
+        return []
 
-    logger.info("Batch-fetching content for %d unique local variables...", len(unique_local_ids))
+    # Batch fetch from LanceDB
+    unique_local_ids = list({lid for _, lid, _ in items})
     local_vars = await storage.get_local_variables_by_ids(unique_local_ids)
 
-    # Map back to gcn_ids — skip empty/placeholder content
-    skipped_empty = 0
-    for gcn_id, local_id in items:
+    # Map back, skip empty content
+    work_items = []
+    for gcn_id, local_id, node_type in items:
         lv = local_vars.get(local_id)
         if lv and lv.content and len(lv.content.strip()) > 10:
-            gcn_to_content[gcn_id] = lv.content
-        else:
-            skipped_empty += 1
-    if skipped_empty:
-        logger.info("Skipped %d variables with empty/short content", skipped_empty)
+            work_items.append((gcn_id, lv.content, node_type))
 
-    logger.info(
-        "Content fetch: %d requested, %d unique local, %d found",
-        len(pending),
-        len(unique_local_ids),
-        len(gcn_to_content),
-    )
-    return gcn_to_content
+    return work_items
 
 
-async def compute_embeddings(
-    storage,
+async def _embed_and_write_chunk(
+    embedder: Embedder,
     bytehouse,
+    work_items: list[tuple[str, str, str]],
     config: DiscoveryConfig,
-    access_key: str,
-) -> dict:
-    """Orchestrate embedding computation for all un-embedded public globals.
+) -> tuple[int, int]:
+    """Embed a chunk and write results to ByteHouse.
 
-    Flow:
-    1. Get all public global variable metadata
-    2. Find pending (not in ByteHouse)
-    3. Batch-fetch content from LanceDB
-    4. Compute embeddings with bounded concurrency
-    5. Batch-write to ByteHouse
-
-    Returns stats dict: {total, computed, skipped, failed}.
+    Returns (computed, failed) counts.
     """
     loop = asyncio.get_running_loop()
-
-    # 1. Retrieve all public global variable metadata
-    globals_list: list[dict] = await storage.list_all_public_global_ids()
-    total = len(globals_list)
-
-    if total == 0:
-        return {"total": 0, "computed": 0, "skipped": 0, "failed": 0}
-
-    # 2. Find pending
-    existing_ids: set[str] = await loop.run_in_executor(None, bytehouse.get_existing_gcn_ids)
-    pending = [g for g in globals_list if g["id"] not in existing_ids]
-    skipped = total - len(pending)
-
-    if not pending:
-        logger.info("No pending embeddings to compute")
-        return {"total": total, "computed": 0, "skipped": skipped, "failed": 0}
-
-    logger.info("Computing embeddings for %d/%d variables", len(pending), total)
-
-    # 3. Batch-fetch content
-    gcn_to_content = await _batch_fetch_content(storage, pending)
-
-    # Build work items: (gcn_id, content, node_type)
-    work_items = []
-    content_failed = 0
-    for meta in pending:
-        gcn_id = meta["id"]
-        if gcn_id not in gcn_to_content:
-            content_failed += 1
-            continue
-        work_items.append((gcn_id, gcn_to_content[gcn_id], meta.get("type", "")))
-
-    logger.info("%d items with content, %d without content", len(work_items), content_failed)
-
-    # 4. Compute embeddings with bounded concurrency
-    embedder = Embedder(config, access_key)
-    results: list[dict] = []
-    embed_failed = 0
-
-    sem = asyncio.Semaphore(config.embedding_concurrency)
+    computed = 0
+    failed = 0
 
     async def _embed_one(gcn_id: str, content: str, node_type: str) -> dict | None:
-        nonlocal embed_failed
+        nonlocal failed
         try:
-            async with sem:
-                vector = await embedder.embed(content)
+            vector = await embedder.embed(content)
             return {
                 "gcn_id": gcn_id,
                 "content": content,
@@ -180,33 +121,116 @@ async def compute_embeddings(
             }
         except Exception as exc:
             logger.warning("Embedding failed for %s: %s", gcn_id, exc)
-            embed_failed += 1
+            failed += 1
             return None
 
-    # Run with bounded concurrency
-    tasks = [_embed_one(gid, content, ntype) for gid, content, ntype in work_items]
-    raw_results = await asyncio.gather(*tasks)
-    results = [r for r in raw_results if r is not None]
+    # Compute embeddings (concurrency bounded by Embedder's semaphore)
+    raw = await asyncio.gather(*[_embed_one(g, c, t) for g, c, t in work_items])
+    results = [r for r in raw if r is not None]
+    computed = len(results)
+
+    # Write to ByteHouse in sub-batches
+    for i in range(0, len(results), _BH_BATCH_SIZE):
+        sub = results[i : i + _BH_BATCH_SIZE]
+        await loop.run_in_executor(None, bytehouse.upsert_embeddings, sub)
+
+    return computed, failed
+
+
+async def compute_embeddings(
+    storage,
+    bytehouse,
+    config: DiscoveryConfig,
+    access_key: str,
+) -> dict:
+    """Streaming embedding pipeline.
+
+    Processes pending variables in chunks of CHUNK_SIZE:
+      fetch content → compute embeddings → write ByteHouse → free memory
+
+    Memory usage is constant (~CHUNK_SIZE * avg_content_size) regardless
+    of total pending count.
+
+    Returns stats dict: {total, computed, skipped, failed}.
+    """
+    loop = asyncio.get_running_loop()
+
+    # 1. Get all public global variable metadata (just IDs, small)
+    globals_list: list[dict] = await storage.list_all_public_global_ids()
+    total = len(globals_list)
+
+    if total == 0:
+        return {"total": 0, "computed": 0, "skipped": 0, "failed": 0}
+
+    # 2. Find pending (not in ByteHouse)
+    existing_ids: set[str] = await loop.run_in_executor(None, bytehouse.get_existing_gcn_ids)
+    pending = [g for g in globals_list if g["id"] not in existing_ids]
+    skipped = total - len(pending)
+
+    # Free globals_list — we only need pending from here
+    del globals_list
+
+    if not pending:
+        logger.info("No pending embeddings to compute")
+        return {"total": total, "computed": 0, "skipped": skipped, "failed": 0}
+
+    n_chunks = (len(pending) + _CHUNK_SIZE - 1) // _CHUNK_SIZE
+    logger.info(
+        "Computing embeddings for %d/%d variables in %d chunks of %d",
+        len(pending),
+        total,
+        n_chunks,
+        _CHUNK_SIZE,
+    )
+
+    # 3. Streaming pipeline: chunk by chunk
+    embedder = Embedder(config, access_key)
+    total_computed = 0
+    total_failed = 0
+
+    for chunk_idx in range(n_chunks):
+        start = chunk_idx * _CHUNK_SIZE
+        chunk = pending[start : start + _CHUNK_SIZE]
+
+        # Fetch content for this chunk
+        work_items = await _fetch_content_for_chunk(storage, chunk)
+        content_skipped = len(chunk) - len(work_items)
+
+        # Embed and write
+        if work_items:
+            computed, failed = await _embed_and_write_chunk(
+                embedder,
+                bytehouse,
+                work_items,
+                config,
+            )
+            total_computed += computed
+            total_failed += failed + content_skipped
+        else:
+            total_failed += content_skipped
+
+        logger.info(
+            "Chunk %d/%d: %d content → %d embedded, %d failed | cumulative: %d/%d",
+            chunk_idx + 1,
+            n_chunks,
+            len(work_items),
+            computed if work_items else 0,
+            (failed if work_items else 0) + content_skipped,
+            total_computed,
+            len(pending),
+        )
 
     await embedder.close()
 
-    # 5. Batch-write to ByteHouse
-    for i in range(0, len(results), _BATCH_SIZE):
-        chunk = results[i : i + _BATCH_SIZE]
-        await loop.run_in_executor(None, bytehouse.upsert_embeddings, chunk)
-        logger.info(
-            "Wrote batch %d/%d to ByteHouse",
-            i // _BATCH_SIZE + 1,
-            (len(results) + _BATCH_SIZE - 1) // _BATCH_SIZE,
-        )
-
-    computed = len(results)
-    failed = content_failed + embed_failed
-
     logger.info(
-        "Embedding complete: %d computed, %d skipped, %d failed",
-        computed,
+        "Embedding complete: %d computed, %d skipped (existing), %d failed",
+        total_computed,
         skipped,
-        failed,
+        total_failed,
     )
-    return {"total": total, "computed": computed, "skipped": skipped, "failed": failed}
+    return {
+        "total": total,
+        "computed": total_computed,
+        "skipped": skipped,
+        "failed": total_failed,
+    }
