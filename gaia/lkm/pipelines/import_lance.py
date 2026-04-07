@@ -258,6 +258,7 @@ async def run_batch_import(
     max_papers: int | None = None,
     chunk_size: int = 1000,
     min_disk_gb: int = 0,
+    seed_from: str | None = None,
     dry_run: bool = False,
 ) -> ImportStats:
     """Batch import papers from ByteHouse/TOS into LKM.
@@ -291,17 +292,20 @@ async def run_batch_import(
         print(f"\nTotal: {len(papers)} papers (dry run, no import)")
         return stats
 
-    # 2. Filter via checkpoint (seed from import_status if empty)
+    # 2. Filter via checkpoint (seed from remote import_status if empty)
     output_dir.mkdir(parents=True, exist_ok=True)
     checkpoint = Checkpoint(output_dir / "checkpoint.json")
-    if checkpoint.ingested_count == 0:
-        config = StorageConfig(lancedb_uri=lkm_db_uri)
-        storage_for_seed = StorageManager(config)
+    if checkpoint.ingested_count == 0 and seed_from:
+        logger.info("Checkpoint empty — seeding from %s ...", seed_from)
+        seed_config = StorageConfig(lancedb_uri=seed_from)
+        storage_for_seed = StorageManager(seed_config)
         await storage_for_seed.initialize()
         seeded = await _seed_checkpoint_from_import_status(storage_for_seed, checkpoint)
         await storage_for_seed.close()
         if seeded:
             logger.info("Seeded checkpoint from import_status: %d papers already ingested", seeded)
+        else:
+            logger.info("No existing import_status found in %s", seed_from)
     pending = checkpoint.pending(paper_ids)
     stats.skipped = len(paper_ids) - len(pending)
     if stats.skipped:
@@ -516,6 +520,11 @@ def main() -> None:
         help="Stop importing when free disk drops below this (GB, default: 10, 0=disable)",
     )
     parser.add_argument(
+        "--seed-from",
+        default=None,
+        help="LanceDB URI to seed checkpoint from (e.g. s3://datainfra-test/gaia_server_test)",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Query and print matching papers without importing",
@@ -570,6 +579,7 @@ def main() -> None:
             chunk_size=args.chunk_size,
             max_papers=args.max_papers,
             min_disk_gb=args.min_disk_gb,
+            seed_from=args.seed_from,
             dry_run=args.dry_run,
         )
     )
