@@ -73,7 +73,7 @@ class DiscoveryConfig:
         embedding_api_url: HTTP endpoint for the embedding API.
         embedding_provider: Provider tag passed to the embedding API.
         embedding_dim: Dimensionality of embedding vectors.
-        embedding_concurrency: Max concurrent embedding requests.
+        embedding_concurrency: Target RPS for embedding API (token bucket rate limiter).
         embedding_max_retries: Max retry attempts per embedding request.
         embedding_http_timeout: HTTP timeout in seconds for embedding calls.
         similarity_threshold: Minimum cosine similarity to form a cluster edge.
@@ -87,7 +87,7 @@ class DiscoveryConfig:
     embedding_api_url: str = "https://openapi.dp.tech/openapi/v1/test/vectorize"
     embedding_provider: str = "dashscope"
     embedding_dim: int = 512
-    embedding_concurrency: int = 30  # API limit: 50 RPS, use 30 for zero-failure margin
+    embedding_concurrency: int = 40  # target RPS (token bucket); API hard limit is 50 RPS
     embedding_max_retries: int = 3
     embedding_http_timeout: int = 30
     # Clustering

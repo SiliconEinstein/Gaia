@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import random
 import time
 
 import httpx
@@ -24,38 +25,70 @@ _CHUNK_SIZE = 5000  # variables per pipeline chunk
 _BH_BATCH_SIZE = 200  # ByteHouse insert batch size
 
 
+class _TokenBucket:
+    """Async token bucket rate limiter.
+
+    Guarantees no more than `rate` requests per second, with burst up to `rate`.
+    Much better than Semaphore for API rate limiting — Semaphore limits concurrency
+    but not RPS, so retries can cause thundering herd.
+    """
+
+    def __init__(self, rate: float) -> None:
+        self._rate = rate
+        self._tokens = rate
+        self._max = rate
+        self._last = time.monotonic()
+        self._lock = asyncio.Lock()
+
+    async def acquire(self) -> None:
+        while True:
+            async with self._lock:
+                now = time.monotonic()
+                elapsed = now - self._last
+                self._tokens = min(self._max, self._tokens + elapsed * self._rate)
+                self._last = now
+                if self._tokens >= 1.0:
+                    self._tokens -= 1.0
+                    return
+            # Wait a bit before retrying — stagger to avoid thundering herd
+            await asyncio.sleep(1.0 / self._rate + random.uniform(0, 0.01))
+
+
 class Embedder:
-    """Low-level async embedding API caller with retry logic."""
+    """Low-level async embedding API caller with token-bucket rate limiting."""
 
     def __init__(self, config: DiscoveryConfig, access_key: str) -> None:
         self._config = config
-        self._sem = asyncio.Semaphore(config.embedding_concurrency)
+        # Token bucket at configured RPS (not semaphore — avoids retry storms)
+        self._bucket = _TokenBucket(rate=config.embedding_concurrency)
         self._client = httpx.AsyncClient(timeout=config.embedding_http_timeout)
         self._headers = {"accessKey": access_key, "Content-Type": "application/json"}
 
     async def embed(self, text: str) -> list[float]:
-        """Embed a single text string with retry."""
+        """Embed a single text string with retry + jitter backoff."""
         last_exc: Exception | None = None
         for attempt in range(self._config.embedding_max_retries):
             try:
-                async with self._sem:
-                    response = await self._client.post(
-                        self._config.embedding_api_url,
-                        json={"text": text, "provider": self._config.embedding_provider},
-                        headers=self._headers,
+                await self._bucket.acquire()
+                response = await self._client.post(
+                    self._config.embedding_api_url,
+                    json={"text": text, "provider": self._config.embedding_provider},
+                    headers=self._headers,
+                )
+                response.raise_for_status()
+                body = response.json()
+                if "data" not in body:
+                    raise ValueError(
+                        f"API returned no 'data' field: {body.get('code')}, "
+                        f"{body.get('error', {}).get('msg', 'unknown')}"
                     )
-                    response.raise_for_status()
-                    body = response.json()
-                    if "data" not in body:
-                        raise ValueError(
-                            f"API returned no 'data' field: {body.get('code')}, "
-                            f"{body.get('error', {}).get('msg', 'unknown')}"
-                        )
-                    return body["data"]["vector"]
+                return body["data"]["vector"]
             except (httpx.HTTPError, KeyError, ValueError) as exc:
                 last_exc = exc
                 if attempt < self._config.embedding_max_retries - 1:
-                    await asyncio.sleep(0.5 * (attempt + 1))
+                    # Jitter backoff: base * 2^attempt + random
+                    delay = (0.5 * (2**attempt)) + random.uniform(0, 0.5)
+                    await asyncio.sleep(delay)
         raise last_exc  # type: ignore[misc]
 
     async def close(self) -> None:
