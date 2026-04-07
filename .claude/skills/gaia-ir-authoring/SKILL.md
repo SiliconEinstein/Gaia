@@ -72,27 +72,25 @@ Write declarations directly at module top level. Do NOT use a `Package` context 
 
 ```python
 # my_package/__init__.py
-from gaia.lang import claim, setting, question, contradiction
+from gaia.lang import claim, setting, question, contradiction, noisy_and
 
 # Settings — background, no probability
 env = setting("Experimental conditions described here.")
-env.label = "env"
 
 # Claims — propositions with truth values
 obs_a = claim("Observation A holds under conditions described.")
-obs_a.label = "obs_a"
 
-# Claims derived from premises (auto-creates noisy_and strategy)
-conclusion = claim("Derived conclusion.", given=[obs_a])
-conclusion.label = "conclusion"
+# Derive a conclusion from premises using an explicit strategy
+conclusion = claim("Derived conclusion.")
+noisy_and([obs_a], conclusion)
 ```
 
 **Rules:**
-- Every Knowledge object MUST have `.label` set (assign after creation).
-- Labels must be valid Python identifiers (`[a-z_][a-z0-9_]*`).
-- Labels must be unique within the package.
+- Labels are **automatically assigned from Python variable names** by `gaia compile`. Do NOT set `.label` manually.
+- Variable names must be valid Python identifiers (`[a-z_][a-z0-9_]*`).
+- Variable names must be unique within the package.
 - Only `claim` carries probability; `setting` and `question` do not participate in BP.
-- `claim(given=[...])` is sugar for `noisy_and(premises, conclusion)`.
+- Use explicit strategies (`noisy_and`, `deduction`, etc.) to connect claims via reasoning.
 
 ### Step 3: Add structural operators
 
@@ -120,15 +118,19 @@ disj.label = "some_mechanism"
 
 The returned helper claim can be used as a premise in subsequent strategies.
 
-### Step 4: Add explicit strategies (when `given=` is not enough)
+### Step 4: Add reasoning strategies
 
-Use explicit strategy functions when you need a specific reasoning type beyond `noisy_and`:
+Use strategy functions to express how premises support conclusions:
 
 ```python
 from gaia.lang import deduction, abduction, analogy, extrapolation
 from gaia.lang import elimination, case_analysis, mathematical_induction
+from gaia.lang import induction
 
-# Deduction: conjunction + implication (deterministic, ≥2 premises)
+# Deduction: strict deterministic derivation (math proofs, logical syllogisms).
+# The reasoning step itself is error-free — uncertainty comes ONLY from premises.
+# If the reasoning has any uncertainty (approximations, empirical judgments,
+# omitted premises), use noisy_and instead.
 deduction([premise_a, premise_b], derived_claim)
 
 # Abduction: observation → hypothesis (with optional alternative)
@@ -157,9 +159,19 @@ case_analysis(
 
 # Mathematical induction: base + step → law
 mathematical_induction(base_case, inductive_step, law_claim)
+
+# Induction: multiple observations → law (CompositeStrategy wrapping abductions)
+# Top-down: pass observations, auto-generates abduction sub-strategies
+induction([obs_1, obs_2, obs_3], law_claim)
+# With explicit alternative explanations:
+induction([obs_1, obs_2], law_claim, alt_exps=[alt_1, alt_2])
+# Bottom-up: bundle existing abductions
+abd1 = abduction(obs_1, law_claim, alt_1)
+abd2 = abduction(obs_2, law_claim, alt_2)
+induction([abd1, abd2])
 ```
 
-All named strategies are automatically formalized into `FormalStrategy` with `FormalExpr` at compile time via the canonical IR formalizer. Do NOT build `FormalExpr` by hand.
+All named strategies (except `induction`) are automatically formalized into `FormalStrategy` with `FormalExpr` at compile time via the canonical IR formalizer. `induction` compiles to a `CompositeStrategy` wrapping its sub-abductions, each of which is independently formalized. Do NOT build `FormalExpr` by hand.
 
 ### Step 5: Export public interface
 
@@ -222,7 +234,24 @@ result = engine.run(fg)  # Auto-selects JT (exact) or loopy BP
 beliefs = result.beliefs
 ```
 
-### Step 8: Register with official registry (optional)
+### Step 8: Generate README (optional)
+
+After inference, regenerate the README with belief results and a Mermaid knowledge graph:
+
+```bash
+gaia infer .              # Run inference first (beliefs appear in README)
+gaia compile . --readme   # Generates/overwrites README.md at package root
+```
+
+The generated README includes:
+- **Overview graph**: exported conclusions with belief values
+- **Knowledge Graph**: full Mermaid diagram with all nodes, strategies, and operators
+- **Knowledge Nodes**: each claim with content, prior, belief, derivation, and reasoning
+- **Inference Results**: summary table of all beliefs
+
+Always run `gaia infer .` before `gaia compile . --readme` so the README includes up-to-date belief values.
+
+### Step 9: Register with official registry (optional)
 
 Requires a GitHub repository with the package source + `.gaia/` artifacts, tagged with a version.
 
@@ -239,9 +268,9 @@ Do NOT do any of the following. These are not style preferences — they produce
 </HARD-GATE>
 
 - **Using `Package(...)` context manager** — Removed in v5. The runtime infers package membership from `pyproject.toml`. Using it causes `load_gaia_package` to fail.
-- **Forgetting `.label = "name"` on Knowledge objects** — Unlabeled nodes get anonymous IDs. Labels are required for readable QIDs and cross-package references.
+- **Manually setting `.label = "name"`** — Labels are auto-assigned from Python variable names by `gaia compile`. Manual assignment is redundant and risks inconsistency with the variable name.
 - **Using `setting` or `question` as strategy premises** — Validator rejects non-claim premises. Use `background=` parameter instead.
-- **Single-premise `deduction()`** — Requires at least 2 premises. For single-premise derivation, use `claim(given=[premise])` (noisy_and).
+- **Single-premise `deduction()`** — Requires at least 2 premises. For single-premise derivation, use `noisy_and([premise], conclusion)`.
 - **Building `FormalExpr` by hand** — The compiler calls `formalize_named_strategy` from `gaia.ir.formalize`. Do not replicate its logic.
 - **Importing from `gaia.gaia_ir`** — Renamed to `gaia.ir`. Old path does not exist.
 - **Setting `dependencies = ["gaia-lang >= 2.0.0"]`** — In CI, the Gaia CLI is provided externally. Set `dependencies = []` (or only list other `*-gaia` packages).

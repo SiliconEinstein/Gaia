@@ -3,6 +3,7 @@
 from typer.testing import CliRunner
 
 from gaia.cli.commands._readme import (
+    _render_overview_graph,
     generate_readme,
     render_knowledge_nodes,
     render_mermaid,
@@ -92,7 +93,11 @@ def test_mermaid_basic():
     assert "obs[" in md
     assert "hyp[" in md
     assert "env[" in md
-    assert "obs -->|noisy_and| hyp" in md
+    # Strategy rendered as intermediate stadium node
+    assert '(["noisy_and"])' in md
+    assert "obs --> strat_0" in md
+    assert "strat_0 --> hyp" in md
+    assert ":::weak" in md  # noisy_and is a weakpoint
     assert ":::setting" in md
 
 
@@ -252,7 +257,8 @@ def test_compile_readme_flag_generates_readme(tmp_path):
         "from gaia.lang import claim, noisy_and\n\n"
         'a = claim("Premise A.")\n'
         'b = claim("Premise B.")\n'
-        'c = claim("Conclusion.", given=[a, b])\n'
+        'c = claim("Conclusion.")\n'
+        "noisy_and([a, b], c)\n"
         '__all__ = ["a", "b", "c"]\n'
     )
 
@@ -269,11 +275,86 @@ def test_compile_readme_flag_generates_readme(tmp_path):
     assert "[a](#a)" in readme or "[b](#b)" in readme
 
 
+# ── overview graph ──
+
+
+def test_overview_graph_shows_transitive_deps():
+    """Overview graph connects exported conclusions through non-exported intermediates."""
+    ir = {
+        "knowledges": [
+            {"id": "ns:p::a", "label": "a", "type": "claim", "content": "A.", "exported": True},
+            {"id": "ns:p::mid", "label": "mid", "type": "claim", "content": "Mid."},
+            {"id": "ns:p::b", "label": "b", "type": "claim", "content": "B.", "exported": True},
+            {"id": "ns:p::c", "label": "c", "type": "claim", "content": "C.", "exported": True},
+        ],
+        "strategies": [
+            {"premises": ["ns:p::a"], "conclusion": "ns:p::mid", "type": "noisy_and"},
+            {"premises": ["ns:p::mid"], "conclusion": "ns:p::b", "type": "noisy_and"},
+        ],
+        "operators": [],
+    }
+    lines = _render_overview_graph(ir)
+    md = "\n".join(lines)
+    assert "## Overview" in md
+    assert "graph LR" in md
+    # a → mid → b, so overview shows a --> b (transitive through mid)
+    assert "a --> b" in md
+    # mid is not exported, so it should NOT appear
+    assert "mid" not in md
+
+
+def test_overview_graph_stops_at_nearest_exported():
+    """Overview graph stops at nearest exported dependency — no redundant transitive edges."""
+    ir = {
+        "knowledges": [
+            {"id": "ns:p::a", "label": "a", "type": "claim", "content": "A.", "exported": True},
+            {"id": "ns:p::b", "label": "b", "type": "claim", "content": "B.", "exported": True},
+            {"id": "ns:p::c", "label": "c", "type": "claim", "content": "C.", "exported": True},
+        ],
+        "strategies": [
+            {"premises": ["ns:p::a"], "conclusion": "ns:p::b", "type": "noisy_and"},
+            {"premises": ["ns:p::b"], "conclusion": "ns:p::c", "type": "noisy_and"},
+        ],
+        "operators": [],
+    }
+    lines = _render_overview_graph(ir)
+    md = "\n".join(lines)
+    assert "a --> b" in md
+    assert "b --> c" in md
+    # a --> c should NOT appear (redundant — a→b→c already shown)
+    assert "a --> c" not in md
+
+
+def test_overview_graph_empty_when_no_deps():
+    """Overview graph returns empty when exported nodes are all independent."""
+    ir = {
+        "knowledges": [
+            {"id": "ns:p::a", "label": "a", "type": "claim", "content": "A.", "exported": True},
+            {"id": "ns:p::b", "label": "b", "type": "claim", "content": "B.", "exported": True},
+        ],
+        "strategies": [],
+        "operators": [],
+    }
+    assert _render_overview_graph(ir) == []
+
+
+def test_overview_graph_empty_when_single_export():
+    """Overview graph returns empty with fewer than 2 exported nodes."""
+    ir = {
+        "knowledges": [
+            {"id": "ns:p::a", "label": "a", "type": "claim", "content": "A.", "exported": True},
+        ],
+        "strategies": [],
+        "operators": [],
+    }
+    assert _render_overview_graph(ir) == []
+
+
 # ── module narrative ──
 
 
 def test_module_sections_with_per_module_mermaid():
-    """Multi-module: each module gets its own section with Mermaid diagram."""
+    """Multi-module: first module skips Mermaid, subsequent modules get diagrams."""
     ir = {
         "module_order": ["sec_a", "sec_b"],
         "knowledges": [
@@ -311,17 +392,14 @@ def test_module_sections_with_per_module_mermaid():
         "operators": [],
     }
     md = render_knowledge_nodes(ir)
-    # Module section headings
     assert "## sec_a" in md
     assert "## sec_b" in md
-    # Order: sec_a nodes before sec_b
     assert md.index("#### x") < md.index("#### z")
     assert md.index("#### y") < md.index("#### z")
-    # Per-module Mermaid diagrams
-    assert md.count("```mermaid") == 2
-    # sec_b's diagram should show x as external premise
+    # First module (sec_a) skips Mermaid; sec_b gets one
+    assert md.count("```mermaid") == 1
     sec_b_section = md.split("## sec_b")[1]
-    assert "x" in sec_b_section.split("```")[1]  # x appears in sec_b's mermaid
+    assert "x" in sec_b_section.split("```")[1]
 
 
 def test_module_sections_preserve_root_segments():
@@ -490,7 +568,12 @@ def test_mermaid_operator_edges():
         ],
     }
     md = render_mermaid(ir)
-    assert "a -.-|contradiction| c" in md
+    # Contradiction rendered as hexagon node with ⊗ symbol
+    assert "\u2297" in md  # ⊗ symbol
+    assert ":::contra" in md
+    assert "a --- oper_0" in md
+    assert "b --- oper_0" in md
+    assert "oper_0 --- c" in md  # non-helper conclusion shown
 
 
 def test_generate_readme_with_inference_results():
@@ -543,6 +626,128 @@ def test_single_file_fallback_has_global_graph():
     assert "```mermaid" in md
     assert "### Settings" in md
     assert "### Claims" in md
+
+
+def test_mermaid_deduction_deterministic():
+    """Deduction strategy renders without :::weak styling."""
+    ir = {
+        "knowledges": [
+            {"id": "ns:p::a", "label": "a", "type": "claim", "content": "A."},
+            {"id": "ns:p::b", "label": "b", "type": "claim", "content": "B."},
+            {"id": "ns:p::c", "label": "c", "type": "claim", "content": "C."},
+        ],
+        "strategies": [
+            {"premises": ["ns:p::a", "ns:p::b"], "conclusion": "ns:p::c", "type": "deduction"},
+        ],
+        "operators": [],
+    }
+    md = render_mermaid(ir)
+    assert '(["deduction"])' in md
+    # deduction is deterministic — no :::weak on the strategy node
+    strat_line = [line for line in md.split("\n") if "strat_0" in line and '(["' in line][0]
+    assert ":::weak" not in strat_line
+    assert "a --> strat_0" in md
+    assert "b --> strat_0" in md
+    assert "strat_0 --> c" in md
+
+
+def test_mermaid_background_dashed_edge():
+    """Background claims connect to strategy nodes with dashed edges."""
+    ir = {
+        "knowledges": [
+            {"id": "ns:p::ctx", "label": "ctx", "type": "setting", "content": "Context."},
+            {"id": "ns:p::a", "label": "a", "type": "claim", "content": "A."},
+            {"id": "ns:p::b", "label": "b", "type": "claim", "content": "B."},
+        ],
+        "strategies": [
+            {
+                "premises": ["ns:p::a"],
+                "conclusion": "ns:p::b",
+                "type": "noisy_and",
+                "background": ["ns:p::ctx"],
+            },
+        ],
+        "operators": [],
+    }
+    md = render_mermaid(ir)
+    assert "a --> strat_0" in md  # premise: solid arrow
+    assert "ctx -.-> strat_0" in md  # background: dashed arrow
+    assert "strat_0 --> b" in md
+
+
+def test_mermaid_equivalence_undirected():
+    """Equivalence operator uses undirected (---) edges."""
+    ir = {
+        "knowledges": [
+            {"id": "ns:p::a", "label": "a", "type": "claim", "content": "A."},
+            {"id": "ns:p::b", "label": "b", "type": "claim", "content": "B."},
+            {"id": "ns:p::__eq_ab", "label": "__eq_ab", "type": "claim", "content": "helper"},
+        ],
+        "strategies": [],
+        "operators": [
+            {
+                "operator": "equivalence",
+                "variables": ["ns:p::a", "ns:p::b"],
+                "conclusion": "ns:p::__eq_ab",
+            },
+        ],
+    }
+    md = render_mermaid(ir)
+    assert "\u2261" in md  # ≡ symbol
+    assert "a --- oper_0" in md
+    assert "b --- oper_0" in md
+    # Helper conclusion hidden — no edge to __eq_ab
+    assert "__eq_ab" not in md
+
+
+def test_mermaid_disjunction_directed():
+    """Disjunction operator uses directed (-->) edges."""
+    ir = {
+        "knowledges": [
+            {"id": "ns:p::h1", "label": "h1", "type": "claim", "content": "H1."},
+            {"id": "ns:p::h2", "label": "h2", "type": "claim", "content": "H2."},
+            {"id": "ns:p::disj", "label": "disj", "type": "claim", "content": "Disj."},
+        ],
+        "strategies": [],
+        "operators": [
+            {
+                "operator": "disjunction",
+                "variables": ["ns:p::h1", "ns:p::h2"],
+                "conclusion": "ns:p::disj",
+            },
+        ],
+    }
+    md = render_mermaid(ir)
+    assert "\u2228" in md  # ∨ symbol
+    assert "h1 --> oper_0" in md
+    assert "h2 --> oper_0" in md
+    assert "oper_0 --> disj" in md
+
+
+def test_mermaid_operator_cross_module_visibility():
+    """Operators pull in cross-module variables when one variable is in node_ids."""
+    ir = {
+        "knowledges": [
+            {"id": "ns:p::a", "label": "a", "type": "claim", "content": "A."},
+            {"id": "ns:p::b", "label": "b", "type": "claim", "content": "B."},
+            {"id": "ns:p::__c_ab", "label": "__c_ab", "type": "claim", "content": "helper"},
+        ],
+        "strategies": [],
+        "operators": [
+            {
+                "operator": "contradiction",
+                "variables": ["ns:p::a", "ns:p::b"],
+                "conclusion": "ns:p::__c_ab",
+            },
+        ],
+    }
+    # Only a is in this module; b should be pulled in as external
+    md = render_mermaid(ir, node_ids={"ns:p::a"})
+    assert "a[" in md
+    assert "b[" in md  # pulled in via operator
+    assert ":::external" in md  # b is external
+    assert "a --- oper_0" in md
+    assert "b --- oper_0" in md
 
 
 def test_mermaid_with_node_ids_filter():

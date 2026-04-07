@@ -693,6 +693,21 @@ class LanceContentStore:
         )
         return row_to_import_status(results[0]) if results else None
 
+    async def list_ingested_package_ids(self) -> list[str]:
+        """Return all package_ids with status='ingested' from import_status."""
+        table = self._db.open_table("import_status")
+
+        def _read() -> list[str]:
+            df = (
+                table.search()
+                .select(["package_id", "status"])
+                .limit(table.count_rows())
+                .to_pandas()
+            )
+            return df.loc[df["status"] == "ingested", "package_id"].tolist()
+
+        return await self._run(_read)
+
     # ── Table counts ──
 
     async def count(self, table_name: str) -> int:

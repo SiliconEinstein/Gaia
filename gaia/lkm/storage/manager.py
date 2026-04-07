@@ -220,6 +220,9 @@ class StorageManager:
     async def get_import_status(self, package_id: str) -> ImportStatusRecord | None:
         return await self.content.get_import_status(package_id)
 
+    async def list_ingested_package_ids(self) -> list[str]:
+        return await self.content.list_ingested_package_ids()
+
     # ── Reads: graph ──
 
     async def get_subgraph(self, gcn_id: str, hops: int = 2) -> dict:

@@ -236,8 +236,9 @@ class TestFormalizeNamedStrategy:
             "observation": ["github:test::obs"],
         }
 
-    def test_induction_deferred(self):
-        with pytest.raises(ValueError, match="deferred in Gaia IR core"):
+    def test_induction_not_formal_strategy(self):
+        """Induction is a CompositeStrategy, not a FormalStrategy — formalize rejects it."""
+        with pytest.raises(ValueError, match="only supports named FormalStrategy types"):
             formalize_named_strategy(
                 scope="local",
                 type_="induction",

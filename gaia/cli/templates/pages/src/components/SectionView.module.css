@@ -1,0 +1,41 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.section {
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+  overflow-y: auto;
+}
+
+.section h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  color: #374151;
+  text-transform: capitalize;
+}
+
+.section img {
+  max-width: 100%;
+}
+
+.section table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.section th,
+.section td {
+  border: 1px solid #d1d5db;
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.section th {
+  background: #f3f4f6;
+}

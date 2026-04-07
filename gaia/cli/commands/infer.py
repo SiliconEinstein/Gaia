@@ -7,7 +7,8 @@ from dataclasses import asdict
 
 import typer
 
-from gaia.bp import BeliefPropagation, lower_local_graph
+from gaia.bp import lower_local_graph
+from gaia.bp.engine import InferenceEngine
 from gaia.cli._packages import GaiaCliError, compile_loaded_package_artifact, load_gaia_package
 from gaia.cli._reviews import load_gaia_review, resolve_gaia_review
 from gaia.ir.validator import validate_local_graph, validate_parameterization
@@ -99,7 +100,9 @@ def infer_command(
             typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(1)
 
-    result = BeliefPropagation(damping=0.5, max_iterations=100).run(factor_graph)
+    engine = InferenceEngine()
+    inference_result = engine.run(factor_graph)
+    result = inference_result.bp_result
 
     gaia_dir = loaded.pkg_path / ".gaia"
     gaia_dir.mkdir(exist_ok=True)
@@ -132,9 +135,13 @@ def infer_command(
         f"{len(resolved_review.priors)} priors and "
         f"{len(resolved_review.strategy_params)} strategy parameter records"
     )
-    typer.echo(
-        f"BP converged: {result.diagnostics.converged} "
-        f"after {result.diagnostics.iterations_run} iterations"
-    )
+    method_label = inference_result.method_used.upper()
+    exact_label = " (exact)" if inference_result.is_exact else ""
+    typer.echo(f"Method: {method_label}{exact_label}, {inference_result.elapsed_ms:.0f}ms")
+    if result.diagnostics.iterations_run:
+        typer.echo(
+            f"Converged: {result.diagnostics.converged} "
+            f"after {result.diagnostics.iterations_run} iterations"
+        )
     typer.echo(f"Review: {loaded_review.name}")
     typer.echo(f"Output: {review_dir / 'beliefs.json'}")

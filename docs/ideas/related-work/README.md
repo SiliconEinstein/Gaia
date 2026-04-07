@@ -13,7 +13,7 @@
 | [02-statistical-relational-learning.md](02-statistical-relational-learning.md) | 统计关系学习与概率逻辑编程 | MLN, ProbLog, DeepProbLog, PSL, BLOG, DeepDive, Tuffy |
 | [03-probabilistic-argumentation.md](03-probabilistic-argumentation.md) | 概率论证框架 | Dung, ASPIC+, Epistemic Graphs, Hunter & Thimm, Carneades, Toulmin |
 | [04-probabilistic-programming.md](04-probabilistic-programming.md) | 概率编程语言 | Stan, Gen, Church/WebPPL, FACTORIE, Infer.NET, ForneyLab, PGMax |
-| [05-scientific-knowledge.md](05-scientific-knowledge.md) | 科学知识形式化 | Stewart & Buehler, 证明助手, AlphaProof, Nanopub, ORKG |
+| [05-scientific-knowledge.md](05-scientific-knowledge.md) | 科学知识形式化 | Stewart & Buehler（超图知识表示）, 证明助手, AlphaProof, Nanopub, ORKG |
 | [06-uncertain-knowledge-graphs.md](06-uncertain-knowledge-graphs.md) | 不确定知识图谱 | UKGE, BEUrRE, PR-OWL, 综述 |
 | [07-bp-applications.md](07-bp-applications.md) | BP 的非传统应用 | Yedidia/GBP, Survey Propagation, 知识编译 |
 | [08-computational-philosophy.md](08-computational-philosophy.md) | 计算科学哲学 | Henderson, Grim, Sprenger & Hartmann, Pease/Lakatos, BEWA |

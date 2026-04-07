@@ -33,7 +33,7 @@ All knowledge functions return a `Knowledge` dataclass. The three types correspo
 ```python
 def claim(
     content: str, *,
-    given: list[Knowledge] | None = None,
+    title: str | None = None,
     background: list[Knowledge] | None = None,
     parameters: list[dict] | None = None,
     provenance: list[dict[str, str]] | None = None,
@@ -41,15 +41,15 @@ def claim(
 ) -> Knowledge
 ```
 
-The only knowledge type carrying probability in BP. When `given` is provided, a `noisy_and` strategy is auto-created linking those premises to this claim. `background` attaches setting context without making it a logical premise. `parameters` enables universal quantification (e.g., `[{"name": "x", "type": "material"}]`). `provenance` records source attribution as `[{"package_id": ..., "version": ...}]`.
+The only knowledge type carrying probability in BP. `background` attaches setting context without making it a logical premise. `parameters` enables universal quantification (e.g., `[{"name": "x", "type": "material"}]`). `provenance` records source attribution as `[{"package_id": ..., "version": ...}]`. Use explicit strategy functions (`noisy_and`, `deduction`, etc.) to connect claims.
 
 ```python
 orbit = claim("The Earth orbits the Sun.")
 
-# given= auto-creates noisy_and strategy
+# Connect claims with explicit strategies
 evidence = claim("Stellar parallax is observed.")
-heliocentric = claim("The heliocentric model is correct.", given=[evidence])
-# heliocentric.strategy.type == "noisy_and"
+heliocentric = claim("The heliocentric model is correct.")
+noisy_and([evidence], heliocentric, reason="Parallax confirms orbital motion.")
 
 # Universal claim
 bcs = claim(
@@ -139,7 +139,7 @@ Map directly to IR without compile-time formalization.
 
 #### `noisy_and(premises, conclusion, *, steps=None, reason="")`
 
-All premises jointly necessary, supporting conclusion with conditional probability p. This is what `claim(..., given=[...])` creates implicitly. The most common strategy type.
+All premises jointly necessary, supporting conclusion with conditional probability p. The most common strategy type.
 
 ```python
 a = claim("Evidence A.")
@@ -158,7 +158,7 @@ Named strategies express recognized reasoning patterns. At compile time, the IR 
 
 #### `deduction(premises, conclusion, *, background=None, steps=None, reason="")`
 
-Premises logically entail the conclusion. Requires at least 2 premises (`ValueError` otherwise). Typical use: instantiating a universal claim.
+Premises logically entail the conclusion. Requires at least 1 premise (`ValueError` otherwise). Typical use: instantiating a universal claim or deriving a consequence from a single axiom.
 
 ```python
 law = claim("forall {x}. P({x})", parameters=[{"name": "x", "type": "material"}])
@@ -226,7 +226,7 @@ mathematical_induction(base=base, step=step, conclusion=conclusion)
 
 #### `composite(premises, conclusion, *, sub_strategies, background=None, steps=None, reason="", type="infer")`
 
-Hierarchical composition of sub-strategies. Requires at least one (`ValueError` otherwise). Sub-strategies can nest recursively.
+Hierarchical composition of sub-strategies. Requires at least one (`ValueError` otherwise). Sub-strategies can nest recursively. At lowering time, sub-strategies are expanded into the factor graph. No `review_strategy()` call is needed for the composite itself — only leaf sub-strategies require parameters. Use `fold_composite_to_cpt()` to compute the composite's aggregate CPT for analysis.
 
 ```python
 obs = claim("Observation.")
@@ -235,6 +235,9 @@ final = claim("Final conclusion.")
 s1 = abduction(observation=obs, hypothesis=hyp)
 s2 = noisy_and(premises=[hyp], conclusion=final)
 composite(premises=[obs], conclusion=final, sub_strategies=[s1, s2])
+# In the review sidecar, only s2 (noisy_and) needs a conditional_probability.
+# s1 (abduction) is formalized to deterministic operators.
+# The composite itself needs no parameters.
 ```
 
 ---
@@ -273,7 +276,7 @@ type = "knowledge-package"
 
 ```python
 """Galileo's tied-balls thought experiment against Aristotelian physics."""
-from gaia.lang import claim, contradiction, deduction, setting
+from gaia.lang import claim, contradiction, deduction, noisy_and, setting
 
 aristotelian = setting("In Aristotelian physics, heavier objects fall faster.")
 
@@ -281,8 +284,10 @@ heavy_fast = claim("A heavy ball falls faster than a light ball.")
 light_slow = claim("A light ball falls slower than a heavy ball.")
 
 tied_heavier = claim("A heavy+light tied system is heavier than the heavy ball alone.")
-tied_faster = claim("The tied system falls faster.", given=[tied_heavier, heavy_fast])
-drag_slower = claim("The light ball drags, so tied system falls slower.", given=[light_slow, heavy_fast])
+tied_faster = claim("The tied system falls faster.")
+noisy_and([tied_heavier, heavy_fast], tied_faster, reason="Heavier system should fall faster.")
+drag_slower = claim("The light ball drags, so tied system falls slower.")
+noisy_and([light_slow, heavy_fast], drag_slower, reason="Light ball acts as drag.")
 
 paradox = contradiction(tied_faster, drag_slower, reason="Opposite predictions from same premises.")
 

@@ -1,0 +1,148 @@
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 400px;
+  height: 100vh;
+  overflow-y: auto;
+  background: #fff;
+  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  padding: 24px;
+  transform: translateX(0);
+  transition: transform 0.3s ease;
+}
+
+.hidden {
+  transform: translateX(100%);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.exported {
+  color: #b45309;
+  font-size: 14px;
+}
+
+.probBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #555;
+}
+
+.probValue {
+  font-weight: 600;
+  font-family: monospace;
+}
+
+.content {
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.reasoning {
+  margin-bottom: 16px;
+}
+
+.reasoning h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+.chainItem {
+  padding: 8px;
+  margin-bottom: 6px;
+  background: #f8f8f8;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.strategyType {
+  font-weight: 600;
+  color: #4338ca;
+}
+
+.figure img {
+  max-width: 100%;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.closeBtn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #666;
+}
+
+.closeBtn:hover {
+  color: #222;
+}
+
+.abduction {
+  margin-bottom: 16px;
+}
+
+.abduction h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #7c3aed;
+}
+
+.abductionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  margin-bottom: 6px;
+  background: #f5f0ff;
+  border-radius: 4px;
+  border-left: 3px solid #7c3aed;
+  font-size: 13px;
+}
+
+.abductionHypothesis,
+.abductionAlternative {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.abductionLabel {
+  font-weight: 600;
+  color: #7c3aed;
+}
+
+.abductionVs {
+  font-weight: 700;
+  color: #666;
+  font-size: 12px;
+}

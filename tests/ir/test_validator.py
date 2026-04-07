@@ -1724,3 +1724,43 @@ class TestParameterizationValidation:
             ],
         )
         assert r.valid
+
+    def test_composite_strategy_does_not_require_strategy_param(self):
+        """CompositeStrategy delegates to sub-strategies; no own params needed."""
+        from gaia.ir import PriorRecord, StrategyParamRecord
+
+        sub = Strategy(
+            scope="local",
+            type="noisy_and",
+            premises=["github:test::a"],
+            conclusion="github:test::b",
+        )
+        comp = CompositeStrategy(
+            scope="local",
+            type="infer",
+            premises=["github:test::a"],
+            conclusion="github:test::b",
+            sub_strategies=[sub.strategy_id],
+        )
+        g = _local_graph(
+            knowledges=[
+                Knowledge(id="github:test::a", content="A", type="claim", label="a"),
+                Knowledge(id="github:test::b", content="B", type="claim", label="b"),
+            ],
+            strategies=[sub, comp],
+        )
+        # Only provide param for the leaf sub-strategy, not the composite
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
+            ],
+            strategy_params=[
+                StrategyParamRecord(
+                    strategy_id=sub.strategy_id,
+                    conditional_probabilities=[0.9],
+                    source_id="s",
+                ),
+            ],
+        )
+        assert r.valid, r.errors

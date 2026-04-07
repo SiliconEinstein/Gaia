@@ -40,5 +40,6 @@ The [Foundations](foundations/README.md) directory contains Gaia's canonical ref
 | Directory | Contents |
 |-----------|----------|
 | `archive/` | Historical design docs, previous foundations versions, completed plans |
-| `design/` | Scaling belief propagation, related work |
+| `design/` | Scaling belief propagation, [engineering related work](design/related_work.md) |
+| `ideas/` | Design ideas, [academic related work survey](ideas/related-work/README.md) (43 references, detailed comparison) |
 | `examples/` | Worked examples (Einstein elevator, Galileo tied-balls) |

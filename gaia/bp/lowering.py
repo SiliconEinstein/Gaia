@@ -131,6 +131,65 @@ def _ensure_claim_var(
     fg.add_variable(vid, priors.get(vid, 0.5))
 
 
+def fold_composite_to_cpt(
+    s: CompositeStrategy,
+    strat_by_id: dict[str, Strategy],
+    strat_params: dict[str, list[float]],
+    expand_formal: bool = True,
+) -> list[float]:
+    """Compute the effective CPT of a CompositeStrategy by marginalization.
+
+    Builds a temporary factor graph from the sub-strategies, then for each
+    assignment of the composite's premises, clamps premise priors and runs BP
+    to obtain P(conclusion=1 | assignment).
+
+    Returns a list of 2^k floats (k = number of premises), indexed by the
+    binary encoding of the premise assignment (bit 0 = first premise).
+    """
+    from gaia.bp.bp import BeliefPropagation
+
+    k = len(s.premises)
+    cpt: list[float] = []
+    CLAMP_HI = 1.0 - 1e-6
+    CLAMP_LO = 1e-6
+
+    for assignment in range(1 << k):
+        # Build a fresh mini factor graph for this assignment.
+        mini = FactorGraph()
+        ctr = [0]
+        claim_ids: set[str] = set()
+
+        # Clamp premise priors according to this assignment.
+        clamped: dict[str, float] = {}
+        for bit, pid in enumerate(s.premises):
+            clamped[pid] = CLAMP_HI if (assignment >> bit) & 1 else CLAMP_LO
+
+        # Lower each sub-strategy into the mini graph.
+        for sid in s.sub_strategies:
+            sub = strat_by_id.get(sid)
+            if sub is None:
+                raise KeyError(f"CompositeStrategy references missing strategy_id {sid!r}")
+            _lower_strategy(
+                mini,
+                sub,
+                strat_by_id,
+                clamped,
+                strat_params,
+                expand_formal,
+                infer_degraded=False,
+                ctr=ctr,
+                claim_ids=claim_ids,
+                namespace="",
+                package_name="",
+            )
+
+        # Run BP on the mini graph.
+        result = BeliefPropagation(damping=0.5, max_iterations=200).run(mini)
+        cpt.append(result.beliefs.get(s.conclusion, 0.5))
+
+    return cpt
+
+
 def _lower_strategy(
     fg: FactorGraph,
     s: Strategy,
@@ -174,8 +233,17 @@ def _lower_strategy(
             fid = _next_fid(f"fs_{s.strategy_id}_{i}", ctr)
             ft = _OPERATOR_MAP[op.operator]
             fg.add_factor(fid, ft, op.variables, op.conclusion)
-            for vid in (*op.variables, op.conclusion):
+            for vid in op.variables:
                 _ensure_claim_var(fg, vid, priors, claim_ids)
+            concl = op.conclusion
+            if concl not in fg.variables:
+                default = 1.0 - CROMWELL_EPS if op.operator in _RELATION_OPS else 0.5
+                fg.add_variable(concl, priors.get(concl, default))
+            elif op.operator in _RELATION_OPS and concl not in priors:
+                # Variable was pre-registered with wrong default (0.5) by
+                # _ensure_claim_var during auto-formalization.  Override to
+                # assertion prior for relation operator conclusions.
+                fg.variables[concl] = 1.0 - CROMWELL_EPS
         return
 
     # Leaf Strategy

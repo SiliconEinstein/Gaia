@@ -14,7 +14,17 @@ from gaia.ir.validator import validate_local_graph
 
 def compile_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
-    readme: bool = typer.Option(False, "--readme", help="Generate README.md at package root"),
+    module_graphs: bool = typer.Option(
+        False,
+        "--module-graphs",
+        help="Generate per-module detailed reasoning graphs (Mermaid + claim details).",
+    ),
+    readme: bool = typer.Option(
+        False, "--readme", hidden=True, help="Deprecated alias for --module-graphs."
+    ),
+    github: bool = typer.Option(
+        False, "--github", help="Generate GitHub presentation (.github-output/)"
+    ),
 ) -> None:
     """Compile a knowledge package to .gaia/ir.json."""
     try:
@@ -42,11 +52,10 @@ def compile_command(
     typer.echo(f"IR hash: {ir['ir_hash'][:16]}...")
     typer.echo(f"Output: {gaia_dir / 'ir.json'}")
 
-    if readme:
-        from gaia.cli.commands._readme import generate_readme
-
-        beliefs_data = None
-        param_data = None
+    # Load beliefs/param data from latest review (shared by --readme and --github)
+    beliefs_data = None
+    param_data = None
+    if module_graphs or readme or github:
         reviews_dir = loaded.pkg_path / ".gaia" / "reviews"
         if reviews_dir.exists():
             review_dirs = sorted(
@@ -63,9 +72,35 @@ def compile_command(
                         param_data = json.loads(param_path.read_text())
                     break
 
+    if module_graphs or readme:
+        from gaia.cli.commands._readme import generate_readme
+
         content = generate_readme(
             ir, loaded.project_config, beliefs_data=beliefs_data, param_data=param_data
         )
-        readme_path = loaded.pkg_path / "README.md"
-        readme_path.write_text(content)
-        typer.echo(f"README: {readme_path}")
+        if module_graphs:
+            out_path = loaded.pkg_path / "docs" / "detailed-reasoning.md"
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(content)
+            typer.echo(f"Module graphs: {out_path}")
+        else:
+            # Deprecated --readme: write to README.md for backwards compat
+            out_path = loaded.pkg_path / "README.md"
+            out_path.write_text(content)
+            typer.echo(f"README: {out_path}")
+
+    if github:
+        from gaia.cli.commands._github import generate_github_output
+
+        # Collect exported IDs from the compiled IR
+        exported_ids = {k["id"] for k in ir.get("knowledges", []) if k.get("exported")}
+
+        output_dir = generate_github_output(
+            ir,
+            loaded.pkg_path,
+            beliefs_data=beliefs_data,
+            param_data=param_data,
+            exported_ids=exported_ids,
+            pkg_metadata=loaded.project_config,
+        )
+        typer.echo(f"GitHub output: {output_dir}")

@@ -471,11 +471,6 @@ def formalize_named_strategy(
             "reductio is deferred in Gaia IR core; the public-interface contract for "
             "hypothetical assumption/consequence nodes is not yet fixed"
         )
-    if type_ == "induction":
-        raise ValueError(
-            "induction is deferred in Gaia IR core; express it as repeated abduction "
-            "with a shared conclusion instead"
-        )
     strategy_type = StrategyType(type_)
     if strategy_type not in _FORMAL_STRATEGY_TYPES:
         allowed = ", ".join(sorted(t.value for t in _FORMAL_STRATEGY_TYPES))

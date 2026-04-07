@@ -20,10 +20,11 @@ export interface Variable {
   id: string;
   type: string;
   visibility: string;
-  content: string | null;
+  content?: string | null;
   content_hash: string;
-  parameters: { name: string; type: string }[];
-  local_members: LocalMember[];
+  parameters?: { name: string; type: string }[];
+  local_members?: LocalMember[];
+  local_members_count?: number;
   representative_lcn: LocalMember;
 }
 

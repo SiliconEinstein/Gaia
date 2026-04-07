@@ -52,9 +52,9 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 
 5. **检查收敛**：如果任何信念值的最大绝对变化低于阈值，则停止。
 
-### 只读门控变量
+### Conclusion 先验与约束激活
 
-Relation factor 支持可选的 `gate_var`——一个其当前信念值用作有效约束强度 `p` 的变量，但不从该 factor 接收消息。这可防止当前运行时中 relation 节点与其约束之间的反馈循环。在目标设计中，门控变量被移除，relation 节点成为完全的 BP 参与者。
+所有 Operator 统一为 CONDITIONAL 三元因子。Relation operator（equivalence / contradiction / complement）的 conclusion 使用 $\pi = 1-\varepsilon$（断言"关系成立"），约束自然激活，不需要 gate_var 或其他门控机制。Directed operator（conjunction / disjunction / implication）的 conclusion 使用 $\pi = 0.5$（计算输出），belief 由 variables 决定。详见 [formal-strategy-lowering.md §2](formal-strategy-lowering.md)。
 
 ## 参数
 

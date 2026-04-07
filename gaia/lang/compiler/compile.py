@@ -174,6 +174,69 @@ def _step_refs(
     return [ref for ref in refs if ref is not None]
 
 
+_AT_LABEL_RE = re.compile(r"@([a-z_][a-z0-9_]*)")
+
+
+def _extract_at_labels(reason: str | list | None) -> set[str]:
+    """Extract all @label references from a reason string or list."""
+    if reason is None:
+        return set()
+    texts: list[str] = []
+    if isinstance(reason, str):
+        texts.append(reason)
+    elif isinstance(reason, list):
+        from gaia.lang.runtime.nodes import Step as DslStep
+
+        for entry in reason:
+            if isinstance(entry, str):
+                texts.append(entry)
+            elif isinstance(entry, DslStep):
+                texts.append(entry.reason)
+    return {m.group(1) for t in texts for m in _AT_LABEL_RE.finditer(t)}
+
+
+def _validate_at_labels(
+    strategy,
+    knowledge_map: dict[int, str],
+    label_to_id: dict[str, str],
+    warnings: list[str],
+) -> None:
+    """Validate @label references in strategy reason text."""
+    labels = _extract_at_labels(strategy.reason)
+    if not labels:
+        return
+
+    # Build set of QIDs referenced by this strategy's premises + background + conclusion
+    referenced_qids: set[str] = set()
+    for k in strategy.premises:
+        qid = knowledge_map.get(id(k))
+        if qid:
+            referenced_qids.add(qid)
+    for k in strategy.background:
+        qid = knowledge_map.get(id(k))
+        if qid:
+            referenced_qids.add(qid)
+    if strategy.conclusion:
+        qid = knowledge_map.get(id(strategy.conclusion))
+        if qid:
+            referenced_qids.add(qid)
+
+    conclusion_label = getattr(strategy.conclusion, "label", None) or ""
+
+    for label in labels:
+        qid = label_to_id.get(label)
+        if qid is None:
+            warnings.append(
+                f"Strategy → {conclusion_label}: @{label} in reason does not "
+                f"match any knowledge label in this package"
+            )
+        elif qid not in referenced_qids:
+            warnings.append(
+                f"Strategy → {conclusion_label}: @{label} in reason is not in "
+                f"premises or background"
+            )
+
+
 def _compile_reason(
     reason: str | list,
     knowledge_map: dict[int, str],
@@ -333,6 +396,20 @@ def compile_package_artifact(pkg: CollectedPackage) -> CompiledPackage:
             continue
         ir_strategies.append(compile_strategy(s))
         emitted_strategies.add(strategy_key)
+
+    # Validate @label references in reason text
+    label_to_id: dict[str, str] = {}
+    for k in knowledge_nodes:
+        if k.label:
+            label_to_id[k.label] = knowledge_map[id(k)]
+    at_label_warnings: list[str] = []
+    for s in pkg.strategies:
+        _validate_at_labels(s, knowledge_map, label_to_id, at_label_warnings)
+    if at_label_warnings:
+        import warnings as _warnings
+
+        for w in at_label_warnings:
+            _warnings.warn(w, stacklevel=2)
 
     module_order = pkg._module_order if pkg._module_order else None
     module_titles = getattr(pkg, "_module_titles", None) or None

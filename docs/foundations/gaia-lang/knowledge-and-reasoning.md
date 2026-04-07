@@ -298,7 +298,11 @@ for each (Casei, Supporti):
 
 `CompositeStrategy` references sub-strategies by `strategy_id`. It does not introduce new operators directly -- it organizes multiple strategy-level sub-structures into a larger argument tree.
 
-At lowering time, composite strategies are recursively expanded: each sub-strategy is resolved to its own `FormalStrategy` or leaf `Strategy`, and the full factor graph is assembled from all of them.
+At lowering time, composite strategies are **recursively expanded** by default: each sub-strategy is resolved to its own `FormalStrategy` or leaf `Strategy`, and the full factor graph is assembled from all of them. Intermediate variables remain visible in the factor graph and participate in BP.
+
+A utility function `fold_composite_to_cpt()` is also provided to compute the composite's effective CPT by marginalization. It builds a temporary factor graph from the sub-strategies, then for each assignment of the composite's premises, runs BP to compute P(conclusion=1 | assignment). This produces a 2^k CPT (k = number of premises) that captures the composite's aggregate reasoning behavior — useful for analysis or for collapsing a composite into a single `CONDITIONAL` factor.
+
+Composite strategies **do not require** `review_strategy()` parameters in the review sidecar — only the leaf sub-strategies (if they are `infer` or `noisy_and` type) need parameterization. FormalStrategy sub-strategies (deduction, abduction, etc.) are deterministic and need no parameters at all.
 
 ### 3.4 Deferred Strategy Types
 
@@ -319,7 +323,7 @@ The compiler (`gaia/lang/compiler/compile.py`) transforms collected DSL objects 
 |----------|---------|-------------------|
 | `gaia.lang.Knowledge` | `gaia.ir.Knowledge` | QID assigned (`{namespace}:{package_name}::{label}`), `content_hash` computed as SHA-256(type + content + sorted(parameters)) |
 | `gaia.lang.Strategy` (leaf) | `gaia.ir.Strategy` | For `infer`/`noisy_and`: direct mapping. For named types: `formalize_named_strategy()` produces `FormalStrategy` + generated `Knowledge` nodes |
-| `gaia.lang.Strategy` (with sub_strategies) | `gaia.ir.CompositeStrategy` | Sub-strategies compiled recursively; referenced by `strategy_id` |
+| `gaia.lang.Strategy` (with sub_strategies) | `gaia.ir.CompositeStrategy` | Sub-strategies compiled recursively; referenced by `strategy_id`. At lowering, expanded into sub-strategy factors. `fold_composite_to_cpt()` available for deriving aggregate CPT. |
 | `gaia.lang.Strategy` (with formal_expr) | `gaia.ir.FormalStrategy` | Operators mapped to IR operators; embedded (no `operator_id` / `scope`) |
 | `gaia.lang.Operator` | `gaia.ir.Operator` | Top-level: `operator_id` with `lco_` prefix, `scope="local"`. Within `formal_expr`: no ID/scope |
 | `gaia.lang.CollectedPackage` | `gaia.ir.LocalCanonicalGraph` | All knowledge (local + referenced foreign), operators, and strategies assembled |

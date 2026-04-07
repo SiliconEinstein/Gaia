@@ -55,6 +55,8 @@ class CollectedPackage:
 
     @property
     def exported(self) -> list[str]:
+        if self._exported_labels:
+            return [k.label for k in self.knowledge if k.label in self._exported_labels]
         return [k.label for k in self.knowledge if k.label is not None]
 
 

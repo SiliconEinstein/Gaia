@@ -27,7 +27,7 @@
 | **CONTRADICTION** | `variables=[A,B]`, `conclusion=H`：H = 0 当且仅当 A=B=1；否则 H=1 | §3.5 |
 | **COMPLEMENT** | `variables=[A,B]`, `conclusion=H`：H = XOR(A,B) | §3.1 / §3.6 |
 
-注意：**EQUIVALENCE / CONTRADICTION / COMPLEMENT** 的 `conclusion` 是 helper claim（IR `02-gaia-ir.md` §2.2 "关系型"算子），等价于旧实现中的 `relation_var`。当 `conclusion` 先验接近 1.0 时，约束处于活跃状态，行为与理论中的纯二变量确定性因子一致。
+所有确定性算子在因子图中统一为 **CONDITIONAL 三元因子**，上表中的真值语义对应各自的 CPT 模板。Conclusion 的先验决定其角色：**relation operator**（EQUIVALENCE / CONTRADICTION / COMPLEMENT）的 conclusion 是断言（$\pi = 1-\varepsilon$，激活约束）；**directed operator**（CONJUNCTION / DISJUNCTION / IMPLICATION）的 conclusion 是计算输出（$\pi = 0.5$，belief 由 variables 决定）。详见 [formal-strategy-lowering.md §2](formal-strategy-lowering.md)。
 
 ## SOFT_ENTAILMENT（软蕴含 ↝）
 

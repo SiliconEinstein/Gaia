@@ -15,6 +15,9 @@ from gaia.lkm.storage import StorageConfig, StorageManager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize storage on startup, close on shutdown."""
+    from dotenv import load_dotenv
+
+    load_dotenv()
     configure_logging()
     config = StorageConfig()
     mgr = StorageManager(config)
