@@ -25,60 +25,27 @@ _CHUNK_SIZE = 5000  # variables per pipeline chunk
 _BH_BATCH_SIZE = 200  # ByteHouse insert batch size
 
 
-class _RateLimiter:
-    """Async rate limiter using a background token dispenser.
-
-    A background task puts tokens into a queue at `rate` per second.
-    Callers await queue.get() — no busy-wait, no CPU spin.
-    """
-
-    def __init__(self, rate: float) -> None:
-        self._rate = rate
-        self._queue: asyncio.Queue[None] = asyncio.Queue()
-        self._task: asyncio.Task | None = None
-
-    def start(self) -> None:
-        """Start the background token dispenser."""
-        self._task = asyncio.create_task(self._dispense())
-
-    async def _dispense(self) -> None:
-        interval = 1.0 / self._rate
-        while True:
-            await asyncio.sleep(interval)
-            try:
-                self._queue.put_nowait(None)
-            except asyncio.QueueFull:
-                pass
-
-    async def acquire(self) -> None:
-        """Wait for a token (blocks until next available slot)."""
-        await self._queue.get()
-
-    async def stop(self) -> None:
-        if self._task:
-            self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
-
-
 class Embedder:
-    """Low-level async embedding API caller with queue-based rate limiting."""
+    """Async embedding API caller with worker-pool rate control.
+
+    Uses N worker coroutines (not N*chunk_size), each sleeping 1/rate seconds
+    between calls. This gives ~N * (1/latency) RPS when N is small, capped at
+    `rate` RPS by the sleep. No busy-wait, no thundering herd.
+    """
 
     def __init__(self, config: DiscoveryConfig, access_key: str) -> None:
         self._config = config
-        self._limiter = _RateLimiter(rate=config.embedding_concurrency)
-        self._limiter.start()
         self._client = httpx.AsyncClient(timeout=config.embedding_http_timeout)
         self._headers = {"accessKey": access_key, "Content-Type": "application/json"}
+        # Workers = concurrency setting; sleep = 1/rate per worker
+        self._n_workers = config.embedding_concurrency
+        self._sleep = self._n_workers / config.embedding_concurrency  # = 1.0s per worker
 
-    async def embed(self, text: str) -> list[float]:
-        """Embed a single text string with retry + jitter backoff."""
+    async def _call_api(self, text: str) -> list[float]:
+        """Single API call with retry + jitter backoff."""
         last_exc: Exception | None = None
         for attempt in range(self._config.embedding_max_retries):
             try:
-                await self._limiter.acquire()
                 response = await self._client.post(
                     self._config.embedding_api_url,
                     json={"text": text, "provider": self._config.embedding_provider},
@@ -95,13 +62,57 @@ class Embedder:
             except (httpx.HTTPError, KeyError, ValueError) as exc:
                 last_exc = exc
                 if attempt < self._config.embedding_max_retries - 1:
-                    # Jitter backoff: base * 2^attempt + random
                     delay = (0.5 * (2**attempt)) + random.uniform(0, 0.5)
                     await asyncio.sleep(delay)
         raise last_exc  # type: ignore[misc]
 
+    async def embed_batch(
+        self,
+        items: list[tuple[str, str, str]],
+        on_result,
+        on_error,
+    ) -> None:
+        """Embed a batch using a fixed worker pool.
+
+        Args:
+            items: List of (gcn_id, content, node_type).
+            on_result: async callback(record_dict) for each success.
+            on_error: async callback(gcn_id, exc) for each failure.
+        """
+        queue: asyncio.Queue[tuple[str, str, str] | None] = asyncio.Queue()
+
+        # Fill queue
+        for item in items:
+            queue.put_nowait(item)
+        # Sentinel for each worker
+        for _ in range(self._n_workers):
+            queue.put_nowait(None)
+
+        async def worker():
+            while True:
+                item = await queue.get()
+                if item is None:
+                    return
+                gcn_id, content, node_type = item
+                try:
+                    vector = await self._call_api(content)
+                    await on_result(
+                        {
+                            "gcn_id": gcn_id,
+                            "content": content,
+                            "node_type": node_type,
+                            "embedding": vector,
+                            "source_id": self._config.embedding_provider,
+                        }
+                    )
+                except Exception as exc:
+                    await on_error(gcn_id, exc)
+                # Rate control: each worker sleeps to collectively hit target RPS
+                await asyncio.sleep(self._sleep)
+
+        await asyncio.gather(*[worker() for _ in range(self._n_workers)])
+
     async def close(self) -> None:
-        await self._limiter.stop()
         await self._client.aclose()
 
 
@@ -143,10 +154,7 @@ async def _embed_and_write_chunk(
     work_items: list[tuple[str, str, str]],
     config: DiscoveryConfig,
 ) -> tuple[int, int]:
-    """Embed a chunk and stream results to ByteHouse as they complete.
-
-    Writes to ByteHouse in batches of _BH_BATCH_SIZE as embeddings arrive,
-    instead of waiting for all embeddings to finish first.
+    """Embed a chunk using worker pool and stream-write to ByteHouse.
 
     Returns (computed, failed) counts.
     """
@@ -161,28 +169,20 @@ async def _embed_and_write_chunk(
             buffer.clear()
             await loop.run_in_executor(None, bytehouse.upsert_embeddings, batch)
 
-    async def _embed_one(gcn_id: str, content: str, node_type: str) -> None:
-        nonlocal computed, failed
-        try:
-            vector = await embedder.embed(content)
-            buffer.append(
-                {
-                    "gcn_id": gcn_id,
-                    "content": content,
-                    "node_type": node_type,
-                    "embedding": vector,
-                    "source_id": config.embedding_provider,
-                }
-            )
-            computed += 1
-            if len(buffer) >= _BH_BATCH_SIZE:
-                await _flush()
-        except Exception as exc:
-            logger.warning("Embedding failed for %s: %s", gcn_id, exc)
-            failed += 1
+    async def on_result(record: dict) -> None:
+        nonlocal computed
+        buffer.append(record)
+        computed += 1
+        if len(buffer) >= _BH_BATCH_SIZE:
+            await _flush()
 
-    await asyncio.gather(*[_embed_one(g, c, t) for g, c, t in work_items])
-    await _flush()  # write remaining
+    async def on_error(gcn_id: str, exc: Exception) -> None:
+        nonlocal failed
+        logger.warning("Embedding failed for %s: %s", gcn_id, exc)
+        failed += 1
+
+    await embedder.embed_batch(work_items, on_result, on_error)
+    await _flush()
 
     return computed, failed
 
