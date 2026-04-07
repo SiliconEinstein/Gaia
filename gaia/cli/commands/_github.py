@@ -186,17 +186,28 @@ def generate_github_output(
                     elif s.get("conditional_probability") is not None:
                         sp[sid] = [s["conditional_probability"]]
             cpts = compute_coarse_cpts(
-                ir, coarse_for_outline, node_priors=node_priors, strategy_params=sp,
+                ir,
+                coarse_for_outline,
+                node_priors=node_priors,
+                strategy_params=sp,
             )
             for i in cpts:
-                pp = [node_priors.get(p, 0.5) for p in coarse_for_outline["strategies"][i]["premises"]]
+                pp = [
+                    node_priors.get(p, 0.5) for p in coarse_for_outline["strategies"][i]["premises"]
+                ]
                 mi_map[i] = mutual_information(cpts[i], pp)
         except Exception:
             pass  # MI computation failed — outline still works without it
 
         # Phase 2: generate outline (always works, with or without MI)
-        b = {x["knowledge_id"]: x["belief"] for x in beliefs_data.get("beliefs", [])} if beliefs_data else {}
-        sections = linearize_narrative(coarse_for_outline, beliefs=b, priors=node_priors, mi_per_strategy=mi_map)
+        b = (
+            {x["knowledge_id"]: x["belief"] for x in beliefs_data.get("beliefs", [])}
+            if beliefs_data
+            else {}
+        )
+        sections = linearize_narrative(
+            coarse_for_outline, beliefs=b, priors=node_priors, mi_per_strategy=mi_map
+        )
         outline = render_narrative_outline(sections)
         (output_dir / "narrative-outline.md").write_text(outline, encoding="utf-8")
     except Exception:
@@ -259,13 +270,20 @@ def _render_coarse_mermaid(
         lines.append(f'    {safe}["{display}"]{css}')
 
     # Strategy intermediate nodes (stadium shape) with CPT annotation
-    _DETERMINISTIC = {"deduction", "reductio", "elimination", "mathematical_induction", "case_analysis"}
+    _DETERMINISTIC = {
+        "deduction",
+        "reductio",
+        "elimination",
+        "mathematical_induction",
+        "case_analysis",
+    }
 
     # Compute coarse CPTs + mutual information if beliefs are available
     coarse_cpts: dict[int, list[float]] = {}
     if beliefs:
         try:
             from gaia.ir.coarsen import compute_coarse_cpts
+
             node_priors_for_cpt = {kid: priors.get(kid, 0.5) for kid in beliefs}
             strat_params: dict[str, list[float]] = {}
             if param_data:
@@ -276,7 +294,8 @@ def _render_coarse_mermaid(
                     elif sp.get("conditional_probability") is not None:
                         strat_params[sid] = [sp["conditional_probability"]]
             coarse_cpts = compute_coarse_cpts(
-                ir, coarse,
+                ir,
+                coarse,
                 node_priors=node_priors_for_cpt,
                 strategy_params=strat_params,
             )
@@ -294,6 +313,7 @@ def _render_coarse_mermaid(
         cpt = coarse_cpts.get(i)
         if cpt and len(cpt) >= 2:
             from gaia.ir.coarsen import mutual_information
+
             premise_priors_list = [priors.get(p, 0.5) for p in s["premises"]]
             mi = mutual_information(cpt, premise_priors_list)
             total_mi += mi
@@ -309,8 +329,10 @@ def _render_coarse_mermaid(
 
     # Operator nodes (hexagon shape)
     _OP_SYMBOLS = {
-        "contradiction": "\u2297", "equivalence": "\u2261",
-        "complement": "\u2295", "disjunction": "\u2228",
+        "contradiction": "\u2297",
+        "equivalence": "\u2261",
+        "complement": "\u2295",
+        "disjunction": "\u2228",
     }
     _UNDIRECTED = {"equivalence", "contradiction", "complement"}
     for i, o in enumerate(coarse.get("operators", [])):
@@ -377,13 +399,15 @@ def _generate_readme_skeleton(
         lines.append("## Overview")
         lines.append("")
         mermaid, total_mi = _render_coarse_mermaid(
-            ir, beliefs, priors, exported, param_data=param_data,
+            ir,
+            beliefs,
+            priors,
+            exported,
+            param_data=param_data,
         )
         if total_mi > 0:
             lines.append("> [!TIP]")
-            lines.append(
-                f"> **Reasoning graph information gain: `{total_mi:.1f} bits`**"
-            )
+            lines.append(f"> **Reasoning graph information gain: `{total_mi:.1f} bits`**")
             lines.append(">")
             lines.append(
                 "> Total mutual information between leaf premises and "

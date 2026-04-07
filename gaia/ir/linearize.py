@@ -110,8 +110,7 @@ def linearize_narrative(
                 backward.setdefault(conc, []).append(v)
 
     # Topological sort → layer assignment
-    all_kids = {k["id"] for k in coarse["knowledges"]
-                if not k.get("label", "").startswith("__")}
+    all_kids = {k["id"] for k in coarse["knowledges"] if not k.get("label", "").startswith("__")}
     in_degree: dict[str, int] = {kid: 0 for kid in all_kids}
     for conc, plist in backward.items():
         if conc in all_kids:
@@ -155,17 +154,13 @@ def linearize_narrative(
         if kid in strategy_for_conclusion:
             s = strategy_for_conclusion[kid]
             stype = s.get("type", "")
-            derived_labels = [
-                kid_to_k[p].get("label", "?")
-                for p in s["premises"] if p in kid_to_k
-            ]
+            derived_labels = [kid_to_k[p].get("label", "?") for p in s["premises"] if p in kid_to_k]
             idx = strategy_idx_for_conclusion.get(kid)
             if idx is not None:
                 mi = mi_map.get(idx, 0.0)
 
         supports_labels = [
-            kid_to_k[c].get("label", "?")
-            for c in forward.get(kid, []) if c in kid_to_k
+            kid_to_k[c].get("label", "?") for c in forward.get(kid, []) if c in kid_to_k
         ]
 
         entries_by_kid[kid] = NarrativeEntry(
@@ -215,9 +210,10 @@ def linearize_narrative(
 
         groups = _union_find_group(layer_kids, affinity_edges)
 
-        for group in sorted(groups, key=lambda g: min(
-            entries_by_kid[k].belief or 0 for k in g if k in entries_by_kid
-        )):
+        for group in sorted(
+            groups,
+            key=lambda g: min(entries_by_kid[k].belief or 0 for k in g if k in entries_by_kid),
+        ):
             # Name the group by its most prominent entry
             group_entries = [entries_by_kid[kid] for kid in group if kid in entries_by_kid]
             group_entries.sort(key=lambda e: (e.exported, e.belief or 0))
@@ -226,11 +222,13 @@ def linearize_narrative(
             name_entry = group_entries[-1] if group_entries else None
             group_title = name_entry.title if name_entry else f"Layer {lyr}"
 
-            sections.append(NarrativeSection(
-                title=group_title,
-                layer=lyr,
-                entries=group_entries,
-            ))
+            sections.append(
+                NarrativeSection(
+                    title=group_title,
+                    layer=lyr,
+                    entries=group_entries,
+                )
+            )
 
     return sections
 
@@ -259,21 +257,17 @@ def render_narrative_outline(sections: list[NarrativeSection]) -> str:
             belief_str = f"{entry.belief:.2f}" if entry.belief is not None else "—"
 
             lines.append(
-                f"{entry_num}. **{entry.title}{star}** "
-                f"(prior: {prior_str} → belief: {belief_str})"
+                f"{entry_num}. **{entry.title}{star}** (prior: {prior_str} → belief: {belief_str})"
             )
 
             if entry.derived_from:
                 mi_str = f" [{entry.mi_bits:.2f} bits]" if entry.mi_bits > 0 else ""
                 lines.append(
-                    f"   - ← {entry.strategy_type}({', '.join(entry.derived_from)})"
-                    f"{mi_str}"
+                    f"   - ← {entry.strategy_type}({', '.join(entry.derived_from)}){mi_str}"
                 )
 
             if entry.supports:
-                lines.append(
-                    f"   - → supports: {', '.join(entry.supports)}"
-                )
+                lines.append(f"   - → supports: {', '.join(entry.supports)}")
 
             lines.append("")
 

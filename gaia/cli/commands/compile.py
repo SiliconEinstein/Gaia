@@ -14,8 +14,14 @@ from gaia.ir.validator import validate_local_graph
 
 def compile_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
-    module_graphs: bool = typer.Option(False, "--module-graphs", help="Generate per-module detailed reasoning graphs (Mermaid + claim details)."),
-    readme: bool = typer.Option(False, "--readme", hidden=True, help="Deprecated alias for --module-graphs."),
+    module_graphs: bool = typer.Option(
+        False,
+        "--module-graphs",
+        help="Generate per-module detailed reasoning graphs (Mermaid + claim details).",
+    ),
+    readme: bool = typer.Option(
+        False, "--readme", hidden=True, help="Deprecated alias for --module-graphs."
+    ),
     github: bool = typer.Option(
         False, "--github", help="Generate GitHub presentation (.github-output/)"
     ),

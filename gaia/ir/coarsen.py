@@ -111,12 +111,14 @@ def coarsen_ir(ir: dict, exported_ids: set[str]) -> dict:
         by_conclusion.setdefault(dst, []).append(src)
 
     for conc, premises in by_conclusion.items():
-        coarse_strategies.append({
-            "type": "infer",
-            "premises": sorted(premises),
-            "conclusion": conc,
-            "reason": "",
-        })
+        coarse_strategies.append(
+            {
+                "type": "infer",
+                "premises": sorted(premises),
+                "conclusion": conc,
+                "reason": "",
+            }
+        )
 
     # 9. Preserve operators whose variables/conclusion touch keep_ids.
     #    Also pull in any operator variables not yet in keep_ids so the
@@ -151,6 +153,7 @@ def coarsen_ir(ir: dict, exported_ids: set[str]) -> dict:
 def _binary_entropy(p: float) -> float:
     """H(Bernoulli(p)) in bits."""
     import math
+
     if p <= 0 or p >= 1:
         return 0.0
     return -(p * math.log2(p) + (1 - p) * math.log2(1 - p))
@@ -188,7 +191,7 @@ def mutual_information(
             if (assignment >> bit) & 1:
                 p_assignment *= pi
             else:
-                p_assignment *= (1 - pi)
+                p_assignment *= 1 - pi
 
         p_c1_given_a = cpt[assignment]
         p_c1 += p_assignment * p_c1_given_a
@@ -225,15 +228,15 @@ def compute_coarse_cpts(
     priors = dict(node_priors or {})
     strat_params = dict(strategy_params or {})
     indices = (
-        strategy_indices
-        if strategy_indices is not None
-        else set(range(len(coarse["strategies"])))
+        strategy_indices if strategy_indices is not None else set(range(len(coarse["strategies"])))
     )
 
     # Build the canonical graph once (shared across all strategies)
     canon = LocalCanonicalGraph(
-        **{key: ir[key] for key in
-           ("knowledges", "strategies", "operators", "namespace", "package_name")}
+        **{
+            key: ir[key]
+            for key in ("knowledges", "strategies", "operators", "namespace", "package_name")
+        }
     )
 
     result: dict[int, list[float]] = {}
