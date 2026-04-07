@@ -184,7 +184,16 @@ def _render_coarse_mermaid(
     coarse = coarsen_ir(ir, exported_ids)
     kid_to_k = {k["id"]: k for k in coarse["knowledges"]}
 
-    lines = ["```mermaid", "graph TB"]
+    lines = [
+        "```mermaid",
+        "---",
+        "config:",
+        "  flowchart:",
+        "    rankSpacing: 80",
+        "    nodeSpacing: 30",
+        "---",
+        "graph TB",
+    ]
 
     for k in coarse["knowledges"]:
         kid = k["id"]
