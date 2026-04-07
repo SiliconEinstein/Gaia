@@ -146,3 +146,59 @@ def coarsen_ir(ir: dict, exported_ids: set[str]) -> dict:
         "strategies": coarse_strategies,
         "operators": coarse_operators,
     }
+
+
+def compute_coarse_cpts(
+    ir: dict,
+    coarse: dict,
+    node_priors: dict[str, float] | None = None,
+    strategy_params: dict[str, list[float]] | None = None,
+) -> dict[int, list[float]]:
+    """Compute effective CPTs for coarse infer strategies by marginalization.
+
+    For each coarse strategy, clamp its premises to all 2^k assignments
+    and run BP on the **full** factor graph to get P(conclusion=1 | assignment).
+
+    Returns a dict mapping strategy index to CPT (list of 2^k floats).
+    """
+    from gaia.bp.bp import BeliefPropagation
+    from gaia.bp.lowering import lower_local_graph
+    from gaia.ir.graphs import LocalCanonicalGraph
+
+    CLAMP_HI = 1.0 - 1e-6
+    CLAMP_LO = 1e-6
+
+    priors = dict(node_priors or {})
+    strat_params = dict(strategy_params or {})
+
+    result: dict[int, list[float]] = {}
+
+    for i, s in enumerate(coarse["strategies"]):
+        premises = s["premises"]
+        conclusion = s["conclusion"]
+        k = len(premises)
+        cpt: list[float] = []
+
+        for assignment in range(1 << k):
+            # Clamp premise priors
+            clamped = dict(priors)
+            for bit, pid in enumerate(premises):
+                clamped[pid] = CLAMP_HI if (assignment >> bit) & 1 else CLAMP_LO
+
+            # Build and run BP on the full IR
+            graph = LocalCanonicalGraph(**{
+                key: ir[key] for key in
+                ("knowledges", "strategies", "operators", "namespace", "package_name")
+            })
+            fg = lower_local_graph(
+                graph,
+                node_priors=clamped,
+                strategy_conditional_params=strat_params,
+            )
+            bp = BeliefPropagation(damping=0.5, max_iterations=200)
+            bp_result = bp.run(fg)
+            cpt.append(bp_result.beliefs.get(conclusion, 0.5))
+
+        result[i] = cpt
+
+    return result
