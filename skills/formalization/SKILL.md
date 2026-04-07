@@ -514,12 +514,12 @@ For operator semantics and syntax, see the **gaia-lang** skill.
 
 BP assumes that evidence entering a claim through different paths is **independent**. If the same leaf claim or the same underlying data influences a conclusion through multiple paths, its evidence is double-counted and the belief is inflated. This is one of the most insidious errors — the package compiles and checks cleanly, but beliefs are wrong.
 
-**Check: No shared premises across strategies targeting the same conclusion.**
+**How to check:** For every claim C that is the conclusion of 2+ strategies, list the premise sets of each strategy. Flag any leaf claim that appears in more than one strategy's premises.
 
-If claim C is the conclusion of two strategies S1 and S2, their premise sets must not overlap. If leaf claim L appears in both S1's and S2's premise chains, L's evidence is counted twice.
+**Important: ignore induction-internal overlaps.** `induction()` internally generates sub-abductions that share premises with the parent induction. These show up as overlaps in the IR but are NOT double-counting — they are the internal structure of one composite strategy. Only flag overlaps between **separately written** strategies (e.g., a user-written `abduction` AND an `induction` that both use the same observation).
 
 ```python
-# BAD: motif_not_from_training enters benchmark_performance through TWO paths
+# BAD: motif_not_from_training enters benchmark_performance through TWO user-written strategies
 _strat_1 = abduction(motif_not_from_training, benchmark_performance, ...)
 _strat_2 = induction([noise_free, motif_not_from_training], benchmark_performance, ...)
 # FIX: remove _strat_1, let motif_not_from_training enter only through _strat_2
@@ -527,6 +527,7 @@ _strat_2 = induction([noise_free, motif_not_from_training], benchmark_performanc
 # OK: different premises, genuinely independent evidence
 _strat_1 = noisy_and([pipeline, hallucination_benchmark], benchmark_performance, ...)
 _strat_2 = induction([noise_free, motif_not_from_training], benchmark_performance, ...)
+# No shared premises between _strat_1 and _strat_2
 ```
 
 ### 5b. Check Induction Observation Independence
