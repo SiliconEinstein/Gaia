@@ -13,3 +13,8 @@ ignore:
   - "gaia/lkm/api/**"                     # FastAPI app, routes, deps (integration)
   - "gaia/lkm/scripts/**"                 # seed/utility scripts
   - "gaia/lkm/pipelines/lower.py"         # thin adapter, 5 lines
+  - "gaia/lkm/pipelines/discovery.py"     # CLI orchestrator, requires ByteHouse
+  - "gaia/lkm/core/_embedding.py"         # requires external embedding API
+  - "gaia/lkm/core/discovery.py"          # orchestrator, requires ByteHouse + LanceDB
+  - "gaia/lkm/storage/bytehouse_store.py" # requires ByteHouse connection
+  - "scripts/**"                          # ad-hoc runner scripts
