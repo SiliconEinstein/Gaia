@@ -340,10 +340,13 @@ def _generate_readme_skeleton(
         )
         if total_mi > 0:
             lines.append(
-                f"This knowledge graph provides **{total_mi:.1f} bits** of "
-                f"information gain — the total mutual information between "
-                f"leaf premises and exported conclusions, measuring how much "
-                f"the reasoning structure reduces uncertainty about the results."
+                f"> **Reasoning graph information gain: `{total_mi:.1f} bits`**"
+            )
+            lines.append(">")
+            lines.append(
+                "> <sub>Total mutual information between leaf premises and "
+                "exported conclusions — measures how much the reasoning "
+                "structure reduces uncertainty about the results.</sub>"
             )
             lines.append("")
         lines.append(mermaid)
