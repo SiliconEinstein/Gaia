@@ -382,6 +382,31 @@ The most common mistake at this step is **assuming certain knowledge does not ne
 
 Passes 2-3 produce generic `infer` strategies. Pass 4 refines each `infer` into a specific strategy type.
 
+### Complete Strategy Reference
+
+| Strategy | Semantics | When to use | Review needs |
+|----------|-----------|-------------|--------------|
+| `noisy_and` | All premises jointly support conclusion with probability p | Default for "premises imply conclusion" with uncertainty | `conditional_probability` (single float) |
+| `deduction` | If all premises true, conclusion necessarily true | Strict math proofs, logical syllogisms, definitions | None (deterministic) |
+| `abduction` | Observation best explained by hypothesis over alternative | Theory-experiment comparison, inference to best explanation | Prior on alternative claim |
+| `induction` | Multiple independent observations → general law | Repeated experimental confirmations across conditions | Per-observation alternative (`alt_exps`) |
+| `analogy` | Source + structural similarity → target | Cross-system reasoning ("works for A, similar to B, so works for B") | None (auto-formalized) |
+| `extrapolation` | Source + continuity → target | Predicting beyond measured range | None (auto-formalized) |
+| `elimination` | Exhaustive options + excluded candidates → survivor | Process of elimination | None (auto-formalized) |
+| `case_analysis` | Exhaustive cases, each implies conclusion → conclusion | Proof by cases | None (auto-formalized) |
+| `mathematical_induction` | Base case + inductive step → for-all law | Inductive proofs in mathematics | None (auto-formalized) |
+| `composite` | Hierarchical: sub-strategies compose into one argument | Complex reasoning with meaningful intermediate steps | Review leaf sub-strategies only |
+| `infer` | General CPT with 2^N entries | Last resort when no specific type fits | `conditional_probabilities` (2^N floats) |
+
+Also available as **operators** (modeled in Pass 2, not strategies):
+
+| Operator | Semantics | When to use |
+|----------|-----------|-------------|
+| `contradiction(a, b)` | NOT (A AND B) — cannot both be true | Incompatible hypotheses |
+| `complement(a, b)` | A XOR B — exactly one true | Exhaustive binary choice |
+| `equivalence(a, b)` | A = B — same truth value | Logically equivalent formulations |
+| `disjunction(*claims)` | At least one true | Exhaustive possibilities |
+
 ### Decision Tree
 
 ```dot
