@@ -48,7 +48,6 @@ async def main():
     from gaia.lkm.storage.bytehouse_store import ByteHouseEmbeddingStore
     from gaia.lkm.storage.config import StorageConfig
     from gaia.lkm.storage.lance_store import LanceContentStore
-    from gaia.lkm.storage.manager import StorageManager
     from collections import Counter
     from datetime import datetime, timezone
 

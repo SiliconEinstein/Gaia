@@ -6,7 +6,6 @@ Usage: python scripts/try_discovery.py [--limit 10000] [--dry-run]
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 import sys
@@ -19,8 +18,8 @@ load_dotenv()
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from gaia.lkm.models.discovery import DiscoveryConfig
-from gaia.lkm.storage import StorageConfig, StorageManager
+from gaia.lkm.models.discovery import DiscoveryConfig  # noqa: E402
+from gaia.lkm.storage import StorageConfig, StorageManager  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -97,7 +96,7 @@ async def main(limit: int = 10000, dry_run: bool = False, threshold: float = 0.8
         embedding_concurrency=24,
     )
 
-    from gaia.lkm.core._embedding import Embedder, compute_embeddings
+    from gaia.lkm.core._embedding import compute_embeddings
 
     # Override list_all_public_global_ids to return only our subset
     original_method = storage.list_all_public_global_ids
@@ -132,7 +131,6 @@ async def main(limit: int = 10000, dry_run: bool = False, threshold: float = 0.8
             mask = [i for i, gid in enumerate(gcn_ids) if gid in subset_ids]
             if len(mask) < 2:
                 continue
-            import numpy as np
             gcn_ids = [gcn_ids[i] for i in mask]
             matrix = matrix[mask]
 
