@@ -510,25 +510,30 @@ For operator semantics and syntax, see the **gaia-lang** skill.
 
 **Prerequisite:** Pass 4 is complete — all strategy types are finalized. This pass checks that the factor graph's structural assumptions are met. It must happen after Pass 4 because strategy type refinement (especially induction) changes the graph's independence structure.
 
-### 5a. Check Evidence Independence
+### 5a. Check for Redundant Reasoning Paths
 
-BP assumes that evidence entering a claim through different paths is **independent**. If the same leaf claim or the same underlying data influences a conclusion through multiple paths, its evidence is double-counted and the belief is inflated. This is one of the most insidious errors — the package compiles and checks cleanly, but beliefs are wrong.
+Gaia uses Junction Tree (exact inference) — there is no algorithmic "double-counting" from shared premises. Having the same claim L as a premise in two strategies targeting the same conclusion C is **fine** if the strategies represent genuinely different reasoning paths.
 
-**How to check:** For every claim C that is the conclusion of 2+ strategies, list the premise sets of each strategy. Flag any leaf claim that appears in more than one strategy's premises.
+The real issue is **model redundancy**: when the same reasoning from L to C is expressed twice, the model incorrectly claims two independent reasoning paths exist. This inflates C's belief because the factor graph contains two factors encoding the same argument.
 
-**Important: ignore induction-internal overlaps.** `induction()` internally generates sub-abductions that share premises with the parent induction. These show up as overlaps in the IR but are NOT double-counting — they are the internal structure of one composite strategy. Only flag overlaps between **separately written** strategies (e.g., a user-written `abduction` AND an `induction` that both use the same observation).
+**How to check:** For every claim C with 2+ incoming strategies, ask: does each strategy represent a genuinely **different** reasoning path to C? Two strategies that differ only in packaging (e.g., a standalone `abduction(obs, C)` plus an `induction` that internally creates the same `abduction(obs, C)`) are redundant.
 
 ```python
-# BAD: motif_not_from_training enters benchmark_performance through TWO user-written strategies
+# BAD: same reasoning (obs → C) expressed twice
 _strat_1 = abduction(motif_not_from_training, benchmark_performance, ...)
 _strat_2 = induction([noise_free, motif_not_from_training], benchmark_performance, ...)
-# FIX: remove _strat_1, let motif_not_from_training enter only through _strat_2
+# The induction internally creates a sub-abduction for motif_not_from_training → benchmark_performance.
+# _strat_1 duplicates this exact reasoning. Remove _strat_1.
 
-# OK: different premises, genuinely independent evidence
+# OK: shared premise L, but genuinely different reasoning paths
 _strat_1 = noisy_and([pipeline, hallucination_benchmark], benchmark_performance, ...)
 _strat_2 = induction([noise_free, motif_not_from_training], benchmark_performance, ...)
-# No shared premises between _strat_1 and _strat_2
+# _strat_1 argues "the pipeline + competitor comparison → performance"
+# _strat_2 argues "two technical observations inductively → performance"
+# Different reasoning, no redundancy — shared upstream claims (if any) are fine.
 ```
+
+**Shared premises are NOT automatically a problem.** Two strategies may legitimately share a premise if they use it in different reasoning contexts. The question is whether the **strategies themselves** duplicate each other's argument.
 
 ### 5b. Check Induction Observation Independence
 
