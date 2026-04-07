@@ -27,42 +27,44 @@ This produces `.github-output/` containing:
 - `narrative-outline.md` — auto-generated writing backbone (sections grouped by graph connectivity)
 - `manifest.json` — checklist of exported conclusions and placeholders
 
-## Step 2: Read Inputs
+**Important:** Only copy the skeleton to `README.md` the FIRST time. On subsequent runs, read the new `.github-output/` data (beliefs, outline) but do NOT overwrite the existing README — update it in place.
 
-Read these files to understand the package:
+## Step 2: Read Inputs
 
 ```bash
 cat .github-output/narrative-outline.md  # Your writing backbone
 cat .github-output/manifest.json         # Exported conclusions list
 cat .gaia/reviews/*/beliefs.json         # BP results
+cat .github-output/docs/public/data/graph.json  # Check metadata.figure for images
 ls src/<package>/*.py                    # DSL source code
 ```
 
-Also read `.github-output/README.md` to see the auto-generated skeleton you'll extend.
-
 ## Step 3: Write README
 
-Copy the skeleton and fill the placeholders:
+### Bibliographic Header
 
-```bash
-cp .github-output/README.md README.md
+The README must start with a proper citation of the original source material. Read `pyproject.toml` for the description, and the DSL source's module docstring or `artifacts/` for full bibliographic details.
+
+```markdown
+# Package Title
+
+> **Original work:** [Author1, Author2, et al.] "[Paper Title]." *Journal Name* Volume, Pages (Year). [DOI/arXiv link]
+
+[badges]
 ```
 
-The final README structure:
+The agent should find authors, title, journal from the package's `pyproject.toml` description, module docstrings, or `artifacts/paper.md`. This citation is used for figure attributions later.
 
-### Title + Badges (auto-generated, keep as-is)
+### Badges
 
-Replace `<!-- badges:start --><!-- badges:end -->` with badges linking to Pages and Wiki if they exist.
+Replace `<!-- badges:start --><!-- badges:end -->` with links to Pages and Wiki if they exist.
 
 ### Summary (YOU WRITE)
 
-Add `## Summary` after badges, before the Overview section. One paragraph (3-5 sentences):
+One paragraph (3-5 sentences):
 - What the source material investigates and why it matters
 - Core innovation or methodology
 - Key results — name exported conclusions with belief values
-
-**Bad:** "This package contains 42 claims organized into 6 modules..."
-**Good:** "This paper develops a parameter-free framework for predicting superconducting Tc by computing the Coulomb pseudopotential from first principles. The predicted values for Al (belief 0.93), Zn (0.93), and Li (0.96) closely match experiment..."
 
 ### MI + Mermaid graph (auto-generated, keep as-is)
 
@@ -70,38 +72,69 @@ Add `## Summary` after badges, before the Overview section. One paragraph (3-5 s
 
 Add `## Reasoning Structure` after the Mermaid graph. Create ONE `###` subsection per group in `narrative-outline.md`.
 
+**Section titles:** The outline's group names come from the most prominent claim and may be too long or awkward. Rewrite them as concise, readable section titles that describe what the group is about. Example: outline says "Noise-free reverse trajectories often improve success" → rewrite as "Method Validation and Benchmarks".
+
 For each subsection, write 4-8 sentences of prose:
 - What question does this group of claims address?
-- What are the key premises and their confidence (prior → belief)?
-- How does the reasoning connect them to the conclusion?
-- What did BP reveal — which beliefs shifted most and why?
+- Key premises and their confidence (prior → belief)
+- How the reasoning connects them to conclusions
+- What BP revealed — which beliefs shifted most and why
 - Inline MI for key edges: "this derivation provides 0.30 bits"
-- If a claim has `metadata.figure`, embed: `![Caption](docs/public/assets/path)`
 
-**Bad:** "This section contains adiabatic_approx (prior 0.95, belief 0.90) and cross_term_suppressed (prior 0.90, belief 0.69). They support downfolded_bse."
+### Embedding Figures
 
-**Good:** "The downfolding derivation starts from the adiabatic separation of energy scales (0.95 → 0.90) and the suppression of cross-channel terms (0.90 → 0.69). Together they yield the downfolded BSE (belief 0.76), providing 0.10 bits of information. The moderate belief reflects the cross-term estimate's reliance on a plasmon-pole argument..."
+Check `graph.json` nodes for `metadata.figure` and `metadata.caption`. For each figure:
+1. Embed it in the Reasoning Structure subsection where that claim appears
+2. Use the original caption from `metadata.caption`
+3. Add attribution: "Adapted from [Author et al., Year]" referencing the bibliographic header
+
+```markdown
+![Fig. 1 | Protein design using RFdiffusion. Diffusion models trained to recover 
+corrupted structures via iterative denoising.](docs/public/assets/images/fig1.jpg)
+*Adapted from Watson et al., Nature 2023.*
+```
+
+If `metadata.caption` is absent, write a descriptive caption based on the claim content.
 
 ### Key Findings table (auto-generated, keep as-is)
 
 ### Weak Points (YOU WRITE)
 
-Replace `<!-- content:start --><!-- content:end -->` with `## Weak Points` (3-4 items).
-
-For each weak claim, explain the MECHANISM:
+3-4 structurally vulnerable claims. For each, explain the MECHANISM:
 - Long derivation chain → multiplicative belief erosion
 - Contradiction draining probability from both sides
 - Low MI edge → premises barely reduce uncertainty
-- High prior dropping to low belief → downstream constraints pulling it down
-
-**Bad:** "mu_vdiagmc_values has belief 0.50."
-**Good:** "μ* from vDiagMC (belief 0.50) is the weakest exported conclusion. It depends on two computational premises via a noisy-AND (0.09 bits), and participates in a contradiction with the RPA prediction, which drains probability from both sides."
+- High prior dropping to low belief → constraints pulling it down
 
 ### Evidence Gaps (YOU WRITE)
 
-Add `## Evidence Gaps` (2-3 items). For each: what evidence is missing, and which claims it would strengthen.
+2-3 places where additional evidence would help. Name specific missing evidence and which claims it would strengthen.
 
-## Step 4: Push to GitHub
+## Step 4: Preview Before Pushing
+
+Before pushing, verify the README renders correctly:
+
+```bash
+# Quick check: search for unfilled placeholders
+grep -n "<!-- " README.md
+
+# Preview in terminal (if glow is installed)
+glow README.md
+
+# Or open in browser
+open README.md  # macOS
+```
+
+Verify:
+- [ ] No `<!-- ... -->` placeholder comments remain
+- [ ] All exported conclusions from manifest mentioned in Summary
+- [ ] Reasoning Structure has one subsection per outline group
+- [ ] All subsections tell stories, no claim-listing
+- [ ] Figures embedded with captions and attribution
+- [ ] Weak Points explain mechanisms
+- [ ] Bibliographic header present
+
+## Step 5: Push to GitHub
 
 ```bash
 git add README.md
@@ -109,7 +142,7 @@ git commit -m "docs: update README via /gaia:publish"
 git push origin main
 ```
 
-If wiki/ and docs/ from `.github-output/` should also be pushed:
+Optionally also push wiki and docs:
 
 ```bash
 cp -r .github-output/wiki .
@@ -119,25 +152,16 @@ git commit -m "docs: add wiki pages and GitHub Pages template"
 git push origin main
 ```
 
-## Quality Checklist
-
-Before pushing, verify:
-- [ ] All `exported_conclusions` from manifest mentioned in Summary
-- [ ] No `<!-- ... -->` placeholder comments remain in README
-- [ ] Reasoning Structure has one subsection per narrative-outline group
-- [ ] Each subsection tells a story — no claim-listing
-- [ ] Figures from `metadata.figure` embedded where relevant
-- [ ] Weak Points explain WHY (mechanism), not just belief values
-- [ ] Evidence Gaps name specific missing evidence and affected claims
-
 ## Ralph Loop Integration
 
 For iterative refinement:
 
 ```
 /ralph-loop "Read .github-output/narrative-outline.md and manifest.json.
-Write README.md: Summary, Reasoning Structure (one subsection per outline
-group), Weak Points with mechanisms, Evidence Gaps. Push to GitHub.
+Write README.md following /gaia:publish skill structure: bibliographic header,
+summary, reasoning structure (rewrite outline group names as readable titles),
+embed figures with captions and attribution, weak points with mechanisms,
+evidence gaps. Preview and verify before pushing.
 Output <promise>PUBLISH COMPLETE</promise> when quality checklist passes."
 --max-iterations 5
 ```
