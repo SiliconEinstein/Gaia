@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import time
 from argparse import ArgumentParser
 
 import neo4j
@@ -86,9 +88,19 @@ def main() -> None:
 
     load_dotenv()
 
+    _LOG_DIR = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "logs"
+    )
+    os.makedirs(_LOG_DIR, exist_ok=True)
+    _LOG_FILE = os.path.join(_LOG_DIR, f"backfill_neo4j-{time.strftime('%Y%m%d-%H%M%S')}.log")
+
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler(_LOG_FILE),
+        ],
     )
 
     config = StorageConfig()

@@ -14,6 +14,8 @@ import argparse
 import asyncio
 import json
 import logging
+import os
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -280,9 +282,20 @@ def main() -> None:
 
     load_dotenv()
 
-    from gaia.lkm.logging import configure_logging
+    _LOG_DIR = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "logs"
+    )
+    os.makedirs(_LOG_DIR, exist_ok=True)
+    _LOG_FILE = os.path.join(_LOG_DIR, f"import_lance-{time.strftime('%Y%m%d-%H%M%S')}.log")
 
-    configure_logging(level="INFO", log_file=args.output_dir / "import.log")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler(_LOG_FILE),
+        ],
+    )
 
     stats = asyncio.run(
         run_batch_import(
