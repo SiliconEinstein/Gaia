@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml/badge.svg)](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/SiliconEinstein/Gaia/graph/badge.svg)](https://codecov.io/gh/SiliconEinstein/Gaia)
+[![PyPI](https://img.shields.io/pypi/v/gaia-lang.svg)](https://pypi.org/project/gaia-lang/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A Python DSL for authoring machine-readable scientific knowledge. Gaia Lang lets researchers declare propositions, logical constraints, and reasoning strategies as Python objects, then compiles them into a canonical intermediate representation (Gaia IR) for inference via belief propagation.
@@ -153,6 +154,8 @@ gaia init → gaia add → write package → gaia compile → write review → g
 | `gaia register [path]` | Submit package to the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry) |
 
 ## Create a Knowledge Package
+
+The tutorial below uses a simplified version of the Galileo example (without abduction) to focus on the package authoring workflow.
 
 **1. Initialize**
 
@@ -318,7 +321,7 @@ gaia add galileo-falling-bodies-gaia --version 1.0.0
 
 | Function | Description |
 |----------|-------------|
-| `claim(content, *, given, background, parameters, provenance)` | Scientific assertion — the only type carrying probability |
+| `claim(content, *, title, background, parameters, provenance)` | Scientific assertion — the only type carrying probability |
 | `setting(content)` | Background context — no probability, no BP participation |
 | `question(content)` | Open research inquiry |
 
@@ -353,7 +356,7 @@ gaia add galileo-falling-bodies-gaia --version 1.0.0
 gaia/
 ├── lang/       DSL runtime, declarations, and compiler
 ├── ir/         Gaia IR schema, validation, formalization
-├── bp/         Belief propagation engine (4 backends)
+├── bp/         Belief propagation engine (loopy BP, junction tree, generalized BP)
 ├── cli/        CLI commands (init, compile, check, add, infer, register)
 └── review/     Review sidecar model
 ```
