@@ -508,73 +508,20 @@ For operator semantics and syntax, see the **gaia-lang** skill.
 
 ## Pass 5: Verify Structural Integrity
 
-**Prerequisite:** Pass 4 is complete — all strategy types are finalized. This pass checks that the factor graph's structural assumptions are met. It must happen after Pass 4 because strategy type refinement (especially induction) changes the graph's independence structure.
+**Prerequisite:** Pass 4 is complete — all strategy types are finalized. This pass checks that the factor graph correctly represents the source's reasoning structure. It must happen after Pass 4 because strategy type refinement (especially induction) changes the graph topology.
 
-### 5a. Check for Redundant Reasoning Paths
+**Background:** Gaia uses Junction Tree (exact inference). There is no algorithmic double-counting — given any factor graph, JT computes correct posteriors. All issues in this pass are about whether the **model** correctly represents reality: each factor (strategy/operator) should represent a genuinely independent constraint, and each operator's logical semantics should match the actual relationship.
 
-Gaia uses Junction Tree (exact inference) — there is no algorithmic "double-counting" from shared premises. Having the same claim L as a premise in two strategies targeting the same conclusion C is **fine** if the strategies represent genuinely different reasoning paths.
+### 5a. Verify Operator Semantics
 
-The real issue is **model redundancy**: when the same reasoning from L to C is expressed twice, the model incorrectly claims two independent reasoning paths exist. This inflates C's belief because the factor graph contains two factors encoding the same argument.
+Check operators first — if the graph's hard constraints are wrong, everything downstream is wrong too.
 
-**How to check:** For every claim C with 2+ incoming strategies, ask: does each strategy represent a genuinely **different** reasoning path to C? Two strategies that differ only in packaging (e.g., a standalone `abduction(obs, C)` plus an `induction` that internally creates the same `abduction(obs, C)`) are redundant.
+Review every `contradiction()`, `complement()`, `equivalence()`, and `disjunction()` operator:
 
-```python
-# BAD: same reasoning (obs → C) expressed twice
-_strat_1 = abduction(motif_not_from_training, benchmark_performance, ...)
-_strat_2 = induction([noise_free, motif_not_from_training], benchmark_performance, ...)
-# The induction internally creates a sub-abduction for motif_not_from_training → benchmark_performance.
-# _strat_1 duplicates this exact reasoning. Remove _strat_1.
-
-# OK: shared premise L, but genuinely different reasoning paths
-_strat_1 = noisy_and([pipeline, hallucination_benchmark], benchmark_performance, ...)
-_strat_2 = induction([noise_free, motif_not_from_training], benchmark_performance, ...)
-# _strat_1 argues "the pipeline + competitor comparison → performance"
-# _strat_2 argues "two technical observations inductively → performance"
-# Different reasoning, no redundancy — shared upstream claims (if any) are fine.
-```
-
-**Shared premises are NOT automatically a problem.** Two strategies may legitimately share a premise if they use it in different reasoning contexts. The question is whether the **strategies themselves** duplicate each other's argument.
-
-### 5b. Check Induction Observation Independence
-
-For `induction([obs1, obs2, obs3], law)`, each observation should come from a different experiment, sample, or measurement technique. If obs1 and obs2 share systematic errors (same sample, same instrument calibration), they are not independent and the induction overcounts.
-
-You cannot create new experiments — you formalize what the paper provides. When observations share a common dependency, **extract the shared factor as an explicit claim** so BP can correctly model the conditional independence:
+**`contradiction(a, b)` = NOT (A AND B)**: Both cannot be true, but both CAN be false.
 
 ```python
-# Partially independent: same sample, different methods
-# Extract the shared dependency explicitly
-sample_quality = claim("Sample A is a high-quality single crystal, confirmed by XRD")
-obs_resistivity = claim("Sample A: Tc = 39K by four-probe resistivity")
-obs_susceptibility = claim("Sample A: Tc = 39K by SQUID magnetometry")
-
-# Each observation depends on sample quality (shared) + measurement method (independent)
-_strat_obs1 = noisy_and([sample_quality], obs_resistivity,
-    reason="Resistivity measurement depends on @sample_quality.")
-_strat_obs2 = noisy_and([sample_quality], obs_susceptibility,
-    reason="Susceptibility measurement depends on @sample_quality.")
-
-# Now the observations are conditionally independent given sample_quality
-# BP correctly propagates sample_quality uncertainty to both
-_strat_law = induction([obs_resistivity, obs_susceptibility], law, ...)
-```
-
-The general principle:
-
-| Observation relationship | Modeling approach |
-|--------------------------|-------------------|
-| Truly independent (different samples, different labs) | `induction` directly — BP independence assumption holds |
-| Partially independent (shared dependency + independent components) | Extract shared dependency as explicit claim; observations are conditionally independent given it |
-| Completely redundant (same data rephrased) | Merge into a single claim |
-
-### 5c. Verify Contradiction and Operator Semantics
-
-Review every `contradiction()`, `complement()`, `equivalence()`, and `disjunction()` operator for semantic correctness. These are hard constraints in BP — a wrong operator silently distorts all downstream beliefs.
-
-**`contradiction(a, b)` = NOT (A AND B)**: A and B cannot both be true, but both **can** be false. Use only when the claims are genuinely mutually exclusive. Common mistake:
-
-```python
-# WRONG: these are both true — no contradiction!
+# WRONG: these can both be true — no contradiction!
 contradiction(
     claim("RFdiffusion succeeds at designing large proteins"),
     claim("Hallucination fails at designing large proteins"),
@@ -587,20 +534,104 @@ contradiction(
 )
 ```
 
-**`complement(a, b)` = A XOR B**: Exactly one must be true. Stronger than contradiction — use when there are exactly two exhaustive, mutually exclusive possibilities. Example: "The mechanism is phonon-mediated" vs "The mechanism is not phonon-mediated."
+**`complement(a, b)` = A XOR B**: Exactly one must be true. Stronger than contradiction.
 
-**Check each operator against these questions:**
+**Three-question checklist for each operator:**
 1. Can both claims be true simultaneously? If yes → not a `contradiction`, remove it
 2. Can both claims be false simultaneously? If no → should be `complement` (XOR), not `contradiction` (NAND)
 3. Is this just "in tension" rather than logically exclusive? Informal tension should NOT be modeled as `contradiction` — flag in Critical Analysis instead
 
-### 5d. Check Equivalence Does Not Create Evidence Loops
+### 5b. Eliminate Double Counting
 
-`equivalence(a, b)` tightly couples two claims. If both A and B receive evidence from the same underlying source, that source's influence is amplified through the equivalence coupling. Only use `equivalence` when A and B are independently supported.
+Each factor in the factor graph represents an **independent constraint**. If the same argument appears as two factors, the model claims two independent constraints exist when there is only one. This inflates beliefs — not because JT miscalculates, but because the model is wrong.
 
-### 5e. Re-compile and Verify
+**The unified principle:** every factor must bring genuinely new information that no other factor already provides. When implicit dependencies exist, make them explicit as variables in the graph so JT can correctly reason about them.
 
-After any structural changes in Pass 5, run `gaia compile` + `gaia check` + `gaia infer` and compare beliefs to before. If a belief drops significantly, the previous value was inflated by double-counting.
+**Pattern 1 — Redundant strategies (same reasoning expressed twice):**
+
+```python
+# 1a. Exact duplicate: standalone abduction + induction's internal sub-abduction
+abduction(obs, law, alt, ...)                          # reasoning: obs → law
+induction([obs, other], law, alt_exps=[alt, alt2], ...) # internally also creates: obs → law
+# FIX: remove the standalone abduction
+
+# 1b. Transitive shortcut: A→B→C chain + A→C that is just the chain compressed
+noisy_and([A], B, ...)
+noisy_and([B], C, ...)
+noisy_and([A], C, reason="A implies B implies C")  # redundant with the chain
+# FIX: remove the shortcut, OR confirm it represents a genuinely different argument
+
+# 1c. Derived premise redundancy: A→B, then noisy_and([A, B], C) where A supports C only through B
+noisy_and([A], B, ...)
+noisy_and([A, B], C, reason="A leads to B which leads to C")
+# FIX: remove A from C's premises → noisy_and([B], C, ...)
+```
+
+**Pattern 2 — Hidden evidence in reason text:**
+
+Two strategies with identical premises but different `reason` text. The different reasoning contains evidence not captured as premises — extract it.
+
+```python
+# BEFORE: same premises, different reasoning angles
+noisy_and([sample, obs_R], law, reason="Zero resistance = hallmark of SC")
+noisy_and([sample, obs_R], law, reason="Transition width < 0.5K = bulk SC")
+# The "transition width < 0.5K" is evidence hidden in the reason text
+
+# AFTER: extract hidden evidence as a claim
+transition_sharpness = claim("Resistivity transition width < 0.5K")
+noisy_and([sample, obs_R], law, reason="Zero resistance = hallmark of SC")
+noisy_and([sample, transition_sharpness], law, reason="Sharp transition = bulk SC")
+```
+
+**Pattern 3 — Unmodeled shared dependencies:**
+
+Two observations share a common cause (same sample, same instrument) but the cause isn't in the graph. The model treats them as unconditionally independent, losing their correlation.
+
+```python
+# BEFORE: shared sample quality is implicit — correlation lost
+obs_R = claim("Sample A: Tc = 39K by resistivity")
+obs_chi = claim("Sample A: Tc = 39K by susceptibility")
+induction([obs_R, obs_chi], law, ...)
+
+# AFTER: extract shared dependency — correlation preserved
+sample_quality = claim("Sample A is high-quality single crystal, confirmed by XRD")
+noisy_and([sample_quality], obs_R, reason="Resistivity depends on @sample_quality")
+noisy_and([sample_quality], obs_chi, reason="Susceptibility depends on @sample_quality")
+induction([obs_R, obs_chi], law, ...)  # conditionally independent given sample_quality
+```
+
+You cannot create new experiments — you formalize what the paper provides. The table below guides the modeling choice:
+
+| Observation relationship | Modeling approach |
+|--------------------------|-------------------|
+| Truly independent (different samples, different labs) | `induction` directly |
+| Partially independent (shared dependency + independent components) | Extract shared dependency as explicit claim |
+| Completely redundant (same data rephrased) | Merge into a single claim |
+
+**Pattern 4 — Equivalence + separate strategies:**
+
+`equivalence(a, b)` couples two claims. If both sides have strategies to the same target, check whether each strategy brings information beyond what equivalence already propagates.
+
+```python
+equivalence(claim_A, claim_B)
+noisy_and([claim_A], law, reason="argument from A's perspective")
+noisy_and([claim_B], law, reason="argument from B's perspective")
+
+# Ask: does the B→law strategy add information that A→law + equivalence doesn't already provide?
+# If NO: remove B→law
+# If YES: extract the additional information as a new premise
+```
+
+**How to check (procedure):**
+1. List every claim with 2+ incoming strategies
+2. For each pair of strategies: "does each bring genuinely independent new information?"
+3. For each `induction`: "do the observations share unmodeled dependencies?"
+4. For each `equivalence`: "do both sides need their own strategies to the same target?"
+5. For all strategies: "does the reason text contain evidence not captured as premises?"
+
+### 5c. Re-compile and Verify
+
+After any structural changes in Pass 5, run `gaia compile` + `gaia check` + `gaia infer` and compare beliefs to before. A significant belief drop after removing a strategy suggests the previous value was inflated by double counting.
 
 ## Pass 6: Polish for Standalone Readability
 
