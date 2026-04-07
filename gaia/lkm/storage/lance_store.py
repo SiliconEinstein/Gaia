@@ -631,7 +631,12 @@ class LanceContentStore:
         table = self._db.open_table("import_status")
 
         def _read() -> list[str]:
-            df = table.to_pandas(columns=["package_id", "status"])
+            df = (
+                table.search()
+                .select(["package_id", "status"])
+                .limit(table.count_rows())
+                .to_pandas()
+            )
             return df.loc[df["status"] == "ingested", "package_id"].tolist()
 
         return await self._run(_read)
