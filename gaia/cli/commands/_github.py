@@ -162,8 +162,8 @@ def generate_github_output(
     (output_dir / "manifest.json").write_text(manifest_json, encoding="utf-8")
 
     # ── 8. Narrative outline (for agent consumption) ──
+    # Split into two phases: outline (always fast) and MI (may be slow)
     try:
-        from gaia.ir.coarsen import compute_coarse_cpts, mutual_information
         from gaia.ir.linearize import linearize_narrative, render_narrative_outline
 
         coarse_for_outline = coarsen_ir(ir, exported)
@@ -171,28 +171,42 @@ def generate_github_output(
         if param_data:
             for p in param_data.get("priors", []):
                 node_priors[p["knowledge_id"]] = p["value"]
-        sp: dict[str, list[float]] = {}
-        if param_data:
-            for s in param_data.get("strategy_params", []):
-                sid = s.get("strategy_id", "")
-                if s.get("conditional_probabilities"):
-                    sp[sid] = s["conditional_probabilities"]
-                elif s.get("conditional_probability") is not None:
-                    sp[sid] = [s["conditional_probability"]]
-        cpts = compute_coarse_cpts(
-            ir, coarse_for_outline, node_priors=node_priors, strategy_params=sp,
-        )
-        mi_map = {}
-        for i, s in enumerate(coarse_for_outline["strategies"]):
-            if i in cpts:
-                pp = [node_priors.get(p, 0.5) for p in s["premises"]]
-                mi_map[i] = mutual_information(cpts[i], pp)
+
+        # Phase 1: compute MI for small strategies (fast)
+        mi_map: dict[int, float] = {}
+        try:
+            from gaia.ir.coarsen import compute_coarse_cpts, mutual_information
+
+            sp: dict[str, list[float]] = {}
+            if param_data:
+                for s in param_data.get("strategy_params", []):
+                    sid = s.get("strategy_id", "")
+                    if s.get("conditional_probabilities"):
+                        sp[sid] = s["conditional_probabilities"]
+                    elif s.get("conditional_probability") is not None:
+                        sp[sid] = [s["conditional_probability"]]
+            computable = {
+                i for i, s in enumerate(coarse_for_outline["strategies"])
+                if len(s["premises"]) <= 8
+            }
+            if computable:
+                cpts = compute_coarse_cpts(
+                    ir, coarse_for_outline, node_priors=node_priors, strategy_params=sp,
+                    strategy_indices=computable,
+                )
+                for i in cpts:
+                    pp = [node_priors.get(p, 0.5) for p in coarse_for_outline["strategies"][i]["premises"]]
+                    mi_map[i] = mutual_information(cpts[i], pp)
+        except Exception:
+            pass  # MI computation failed — outline still works without it
+
+        # Phase 2: generate outline (always works, with or without MI)
         b = {x["knowledge_id"]: x["belief"] for x in beliefs_data.get("beliefs", [])} if beliefs_data else {}
         sections = linearize_narrative(coarse_for_outline, beliefs=b, priors=node_priors, mi_per_strategy=mi_map)
         outline = render_narrative_outline(sections)
         (output_dir / "narrative-outline.md").write_text(outline, encoding="utf-8")
     except Exception:
-        pass  # Non-critical: outline generation failed
+        pass  # Outline generation failed entirely
 
     # ── 9. README.md skeleton ──
     readme = _generate_readme_skeleton(
@@ -267,10 +281,15 @@ def _render_coarse_mermaid(
                         strat_params[sid] = sp["conditional_probabilities"]
                     elif sp.get("conditional_probability") is not None:
                         strat_params[sid] = [sp["conditional_probability"]]
+            computable_strats = {
+                i for i, s in enumerate(coarse["strategies"])
+                if len(s["premises"]) <= 8
+            }
             coarse_cpts = compute_coarse_cpts(
                 ir, coarse,
                 node_priors=node_priors_for_cpt,
                 strategy_params=strat_params,
+                strategy_indices=computable_strats,
             )
         except Exception:
             pass
