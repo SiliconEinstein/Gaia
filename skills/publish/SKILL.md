@@ -61,25 +61,38 @@ Replace `<!-- badges:start --><!-- badges:end -->` with links to Pages and Wiki 
 
 ### Summary (YOU WRITE)
 
-One paragraph (3-5 sentences):
+One paragraph (3-5 sentences) readable by any scientist:
 - What the source material investigates and why it matters
 - Core innovation or methodology
-- Key results — name exported conclusions with belief values
+- Key results with concrete numbers from the paper (e.g. "predicts Tc(Al) = 0.96 K vs experimental 1.2 K")
+- Belief values may be cited parenthetically for the most important conclusions, but the summary should make sense without them
 
 ### MI + Mermaid graph (auto-generated, keep as-is)
 
 ### Reasoning Structure (YOU WRITE)
 
-Add `## Reasoning Structure` after the Mermaid graph. Create ONE `###` subsection per group in `narrative-outline.md`.
+Add `## Reasoning Structure` after the Mermaid graph. This is the heart of the README — a standalone scientific narrative that a domain expert can read without knowing what Gaia, belief propagation, or factor graphs are.
 
-**Section titles:** The outline's group names come from the most prominent claim and may be too long or awkward. Rewrite them as concise, readable section titles that describe what the group is about. Example: outline says "Noise-free reverse trajectories often improve success" → rewrite as "Method Validation and Benchmarks".
+**Audience:** A researcher in the paper's field. They understand the science but have not read this specific paper. They should come away understanding what the paper argues, why the argument is convincing, and where it is weak.
 
-For each subsection, write 4-8 sentences of prose:
-- What question does this group of claims address?
-- Key premises and their confidence (prior → belief)
-- How the reasoning connects them to conclusions
-- What BP revealed — which beliefs shifted most and why
-- Inline MI for key edges: "this derivation provides 0.30 bits"
+**Organizing principle:** Follow the paper's intellectual arc, not the factor graph topology. Use `narrative-outline.md` as a starting point for grouping, but reorganize freely — merge small groups, split large ones, reorder to match the paper's logical flow. Typical arc: motivation/problem → method → validation → results → implications.
+
+**Section titles:** Concise, descriptive. Example: outline says "Noise-free reverse trajectories often improve success" → rewrite as "Benchmarking Against Prior Methods".
+
+For each subsection, write 4-8 sentences of prose that:
+- Explain the scientific question and why it matters
+- Walk through the key evidence and reasoning **in the paper's own terms** (equations, experimental results, comparisons)
+- Note where the argument is strongest or weakest, citing specific numbers from the paper
+- Parenthetically cite belief values as supporting quantification, e.g. "...validated by the 0.2% agreement between full and downfolded BSE calculations (belief 0.76)"
+
+**What NOT to do:**
+- Do not organize around "premises → conclusion" or "strategy type"
+- Do not lead with "(prior → belief)" annotations — they are parenthetical support, not the story
+- Do not use Gaia-specific terms: "noisy_and", "abduction", "factor", "BP", "NAND constraint", "information gain bits" in the prose
+- Do not describe the graph structure ("this claim is derived from two premises via...")
+- Do not list claims — tell a story that connects them
+
+The Mermaid graph and conclusions table already provide the technical Gaia view. The prose should complement them by telling the **scientific** story that the graph encodes.
 
 ### Embedding Figures
 
@@ -100,11 +113,13 @@ If `metadata.caption` is absent, write a descriptive caption based on the claim 
 
 ### Weak Points (YOU WRITE)
 
-3-4 structurally vulnerable claims. For each, explain the MECHANISM:
-- Long derivation chain → multiplicative belief erosion
-- Contradiction draining probability from both sides
-- Low MI edge → premises barely reduce uncertainty
-- High prior dropping to low belief → constraints pulling it down
+3-4 places where the paper's argument is weakest, written as a scientist would critique it:
+- What is the weakest link in the reasoning, and why?
+- What assumption is most likely to fail, and what would break?
+- Where does the paper extrapolate beyond its evidence?
+- What competing explanation has not been fully ruled out?
+
+Cite belief values parenthetically as quantitative support for your critique, e.g. "The cross-term suppression assumption is the most vulnerable foundation (belief drops from prior 0.90 to 0.69 under downstream constraints)." Do not frame weak points in terms of graph structure — frame them in terms of scientific reasoning.
 
 ### Evidence Gaps (YOU WRITE)
 
@@ -127,11 +142,12 @@ open README.md  # macOS
 
 Verify:
 - [ ] No `<!-- ... -->` placeholder comments remain
-- [ ] All exported conclusions from manifest mentioned in Summary
-- [ ] Reasoning Structure has one subsection per outline group
-- [ ] All subsections tell stories, no claim-listing
+- [ ] All exported conclusions from manifest mentioned in Summary or Reasoning Structure
+- [ ] Reasoning Structure reads as a scientific narrative — a domain expert can understand it without knowing what Gaia is
+- [ ] No Gaia jargon in prose (no "noisy_and", "abduction", "factor graph", "BP", "NAND constraint")
+- [ ] Belief values appear only parenthetically, never as the subject of a sentence
 - [ ] Figures embedded with captions and attribution
-- [ ] Weak Points explain mechanisms
+- [ ] Weak Points are scientific critiques, not graph-structure descriptions
 - [ ] Bibliographic header present
 
 ## Step 5: Push to GitHub
