@@ -3,6 +3,7 @@ coverage:
     project:
       default:
         target: auto
+        threshold: 2%  # allow up to 2% drop for new external-service code
     patch:
       default:
         target: 80%
