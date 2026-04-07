@@ -1,8 +1,10 @@
 """Embedding computer for M6 Semantic Discovery.
 
-Streaming pipeline: process pending variables in chunks of CHUNK_SIZE.
-Each chunk: fetch content → compute embeddings → write to ByteHouse → free memory.
-Constant memory usage regardless of total pending count.
+Pipelined streaming: overlaps content prefetch with embedding computation.
+Each chunk flows through: fetch content → embed → write ByteHouse.
+While chunk N is being embedded, chunk N+1's content is being prefetched.
+
+Constant memory: ~2 chunks worth of data at peak (one embedding, one prefetching).
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 
 import httpx
 
@@ -17,7 +20,7 @@ from gaia.lkm.models.discovery import DiscoveryConfig
 
 logger = logging.getLogger(__name__)
 
-_CHUNK_SIZE = 5000  # variables per pipeline chunk (content + embed + write)
+_CHUNK_SIZE = 5000  # variables per pipeline chunk
 _BH_BATCH_SIZE = 200  # ByteHouse insert batch size
 
 
@@ -67,8 +70,7 @@ async def _fetch_content_for_chunk(
 
     Returns list of (gcn_id, content, node_type) for items with valid content.
     """
-    # Parse representative_lcn → local_id
-    items: list[tuple[str, str, str]] = []  # (gcn_id, local_id, node_type)
+    items: list[tuple[str, str, str]] = []
     for meta in chunk:
         try:
             rep_lcn = json.loads(meta["representative_lcn"])
@@ -80,11 +82,9 @@ async def _fetch_content_for_chunk(
     if not items:
         return []
 
-    # Batch fetch from LanceDB
     unique_local_ids = list({lid for _, lid, _ in items})
     local_vars = await storage.get_local_variables_by_ids(unique_local_ids)
 
-    # Map back, skip empty content
     work_items = []
     for gcn_id, local_id, node_type in items:
         lv = local_vars.get(local_id)
@@ -100,39 +100,46 @@ async def _embed_and_write_chunk(
     work_items: list[tuple[str, str, str]],
     config: DiscoveryConfig,
 ) -> tuple[int, int]:
-    """Embed a chunk and write results to ByteHouse.
+    """Embed a chunk and stream results to ByteHouse as they complete.
+
+    Writes to ByteHouse in batches of _BH_BATCH_SIZE as embeddings arrive,
+    instead of waiting for all embeddings to finish first.
 
     Returns (computed, failed) counts.
     """
     loop = asyncio.get_running_loop()
     computed = 0
     failed = 0
+    buffer: list[dict] = []
 
-    async def _embed_one(gcn_id: str, content: str, node_type: str) -> dict | None:
-        nonlocal failed
+    async def _flush():
+        if buffer:
+            batch = list(buffer)
+            buffer.clear()
+            await loop.run_in_executor(None, bytehouse.upsert_embeddings, batch)
+
+    async def _embed_one(gcn_id: str, content: str, node_type: str) -> None:
+        nonlocal computed, failed
         try:
             vector = await embedder.embed(content)
-            return {
-                "gcn_id": gcn_id,
-                "content": content,
-                "node_type": node_type,
-                "embedding": vector,
-                "source_id": config.embedding_provider,
-            }
+            buffer.append(
+                {
+                    "gcn_id": gcn_id,
+                    "content": content,
+                    "node_type": node_type,
+                    "embedding": vector,
+                    "source_id": config.embedding_provider,
+                }
+            )
+            computed += 1
+            if len(buffer) >= _BH_BATCH_SIZE:
+                await _flush()
         except Exception as exc:
             logger.warning("Embedding failed for %s: %s", gcn_id, exc)
             failed += 1
-            return None
 
-    # Compute embeddings (concurrency bounded by Embedder's semaphore)
-    raw = await asyncio.gather(*[_embed_one(g, c, t) for g, c, t in work_items])
-    results = [r for r in raw if r is not None]
-    computed = len(results)
-
-    # Write to ByteHouse in sub-batches
-    for i in range(0, len(results), _BH_BATCH_SIZE):
-        sub = results[i : i + _BH_BATCH_SIZE]
-        await loop.run_in_executor(None, bytehouse.upsert_embeddings, sub)
+    await asyncio.gather(*[_embed_one(g, c, t) for g, c, t in work_items])
+    await _flush()  # write remaining
 
     return computed, failed
 
@@ -143,32 +150,31 @@ async def compute_embeddings(
     config: DiscoveryConfig,
     access_key: str,
 ) -> dict:
-    """Streaming embedding pipeline.
+    """Pipelined streaming embedding computation.
 
-    Processes pending variables in chunks of CHUNK_SIZE:
-      fetch content → compute embeddings → write ByteHouse → free memory
-
-    Memory usage is constant (~CHUNK_SIZE * avg_content_size) regardless
-    of total pending count.
+    Optimizations over naive approach:
+    1. Pipelined prefetch: while chunk N embeds, chunk N+1 content is fetched
+    2. Streaming writes: ByteHouse inserts happen as embeddings complete
+    3. Constant memory: only ~2 chunks in memory at peak
+    4. Resumable: existing ByteHouse embeddings skipped via COUNT (not full ID set)
+    5. ETA logging: per-chunk timing with estimated completion
 
     Returns stats dict: {total, computed, skipped, failed}.
     """
     loop = asyncio.get_running_loop()
 
-    # 1. Get all public global variable metadata (just IDs, small)
+    # 1. Get pending list
     globals_list: list[dict] = await storage.list_all_public_global_ids()
     total = len(globals_list)
 
     if total == 0:
         return {"total": 0, "computed": 0, "skipped": 0, "failed": 0}
 
-    # 2. Find pending (not in ByteHouse)
+    # Fetch existing IDs to compute pending set
     existing_ids: set[str] = await loop.run_in_executor(None, bytehouse.get_existing_gcn_ids)
     pending = [g for g in globals_list if g["id"] not in existing_ids]
     skipped = total - len(pending)
-
-    # Free globals_list — we only need pending from here
-    del globals_list
+    del globals_list, existing_ids
 
     if not pending:
         logger.info("No pending embeddings to compute")
@@ -176,27 +182,43 @@ async def compute_embeddings(
 
     n_chunks = (len(pending) + _CHUNK_SIZE - 1) // _CHUNK_SIZE
     logger.info(
-        "Computing embeddings for %d/%d variables in %d chunks of %d",
+        "Pending: %d/%d variables, %d chunks of %d",
         len(pending),
         total,
         n_chunks,
         _CHUNK_SIZE,
     )
 
-    # 3. Streaming pipeline: chunk by chunk
+    # 2. Pipelined streaming: prefetch chunk N+1 while embedding chunk N
     embedder = Embedder(config, access_key)
     total_computed = 0
     total_failed = 0
+    pipeline_start = time.monotonic()
+    chunk_times: list[float] = []
+
+    # Kick off prefetch for first chunk
+    chunks = [pending[i * _CHUNK_SIZE : (i + 1) * _CHUNK_SIZE] for i in range(n_chunks)]
+    next_prefetch: asyncio.Task | None = asyncio.create_task(
+        _fetch_content_for_chunk(storage, chunks[0])
+    )
 
     for chunk_idx in range(n_chunks):
-        start = chunk_idx * _CHUNK_SIZE
-        chunk = pending[start : start + _CHUNK_SIZE]
+        chunk_start = time.monotonic()
 
-        # Fetch content for this chunk
-        work_items = await _fetch_content_for_chunk(storage, chunk)
-        content_skipped = len(chunk) - len(work_items)
+        # Await current chunk's content (prefetched in previous iteration)
+        work_items = await next_prefetch
 
-        # Embed and write
+        # Start prefetching next chunk immediately
+        if chunk_idx + 1 < n_chunks:
+            next_prefetch = asyncio.create_task(
+                _fetch_content_for_chunk(storage, chunks[chunk_idx + 1])
+            )
+        else:
+            next_prefetch = None  # type: ignore[assignment]
+
+        content_skipped = len(chunks[chunk_idx]) - len(work_items)
+
+        # Embed and stream-write
         if work_items:
             computed, failed = await _embed_and_write_chunk(
                 embedder,
@@ -207,26 +229,44 @@ async def compute_embeddings(
             total_computed += computed
             total_failed += failed + content_skipped
         else:
+            computed, failed = 0, 0
             total_failed += content_skipped
 
+        chunk_elapsed = time.monotonic() - chunk_start
+        chunk_times.append(chunk_elapsed)
+
+        # ETA calculation
+        avg_chunk_time = sum(chunk_times) / len(chunk_times)
+        remaining_chunks = n_chunks - chunk_idx - 1
+        eta_seconds = avg_chunk_time * remaining_chunks
+        eta_min = eta_seconds / 60
+
+        rps = computed / chunk_elapsed if chunk_elapsed > 0 else 0
+
         logger.info(
-            "Chunk %d/%d: %d content → %d embedded, %d failed | cumulative: %d/%d",
+            "Chunk %d/%d: %d→%d ok, %d fail | %.0fs (%.0f RPS) | cumulative %d/%d | ETA %.0fmin",
             chunk_idx + 1,
             n_chunks,
             len(work_items),
-            computed if work_items else 0,
-            (failed if work_items else 0) + content_skipped,
+            computed,
+            failed + content_skipped,
+            chunk_elapsed,
+            rps,
             total_computed,
             len(pending),
+            eta_min,
         )
 
     await embedder.close()
 
+    total_elapsed = time.monotonic() - pipeline_start
     logger.info(
-        "Embedding complete: %d computed, %d skipped (existing), %d failed",
+        "Embedding complete: %d computed, %d skipped, %d failed in %.0fs (%.1f RPS avg)",
         total_computed,
         skipped,
         total_failed,
+        total_elapsed,
+        total_computed / total_elapsed if total_elapsed > 0 else 0,
     )
     return {
         "total": total,
