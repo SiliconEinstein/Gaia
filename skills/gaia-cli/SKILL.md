@@ -181,6 +181,15 @@ Registry CI validates:
 - Namespace is valid
 - UUID is unique across the registry
 
+**Note:** `gaia register --create-pr` creates the registry branch locally but does not automatically push it to your fork. After running the command, you must manually push and create the PR:
+
+```bash
+cd <registry-dir>
+git push origin register/<name>-<version>
+gh pr create --repo SiliconEinstein/gaia-registry --base main \
+  --head <your-user>:register/<name>-<version> --title "register: <name> <version>" --body "..."
+```
+
 ## 9. gaia add
 
 Install a registered package from the official registry.

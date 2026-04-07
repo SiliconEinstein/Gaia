@@ -53,6 +53,7 @@ while true; do
         --output-dir "$OUTPUT_DIR" \
         --max-papers "$MAX_PAPERS" \
         --chunk-size "$CHUNK_SIZE" \
+        --seed-from "$S3_URI" \
         || true  # don't exit on Ctrl+C or error
 
     new_ingested=$(checkpoint_count)

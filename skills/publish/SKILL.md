@@ -174,15 +174,13 @@ Verify:
 gaia compile . --module-graphs
 ```
 
-This writes `docs/detailed-reasoning.md` with per-module Mermaid reasoning graphs and full claim details. Add a collapsible link in the README after the overview Mermaid graph:
+This writes `docs/detailed-reasoning.md` with per-module Mermaid reasoning graphs and full claim details. Add a `[!NOTE]` callout in the README after the overview Mermaid graph:
 
 ```markdown
-<details>
-<summary><b>Per-module reasoning graphs with full claim details</b></summary>
-
-See [docs/detailed-reasoning.md](docs/detailed-reasoning.md) for the complete per-section reasoning graphs with every claim, strategy, and belief value.
-
-</details>
+> [!NOTE]
+> **[Per-module reasoning graphs with full claim details →](docs/detailed-reasoning.md)**
+>
+> 6 Mermaid diagrams (one per section) with every claim, strategy, and belief value.
 ```
 
 ## Step 6: Push to GitHub

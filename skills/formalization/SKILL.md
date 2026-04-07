@@ -1,6 +1,6 @@
 ---
 name: formalization
-description: Use when formalizing a knowledge source (scientific paper, textbook chapter, technical report, etc.) into a Gaia knowledge package — four-pass process extracting propositions, connecting reasoning, checking completeness, and refining strategy types.
+description: Use when formalizing a knowledge source (scientific paper, textbook chapter, technical report, etc.) into a Gaia knowledge package — six-pass process extracting propositions, connecting reasoning, checking completeness, refining strategy types, verifying structural integrity, and polishing for standalone readability.
 ---
 
 # Knowledge Formalization
@@ -11,7 +11,7 @@ Extract the knowledge structure from a source (scientific paper, textbook, techn
 
 ## Overview
 
-Formalization is a **four-pass** process. Each pass builds on the previous one. Do NOT skip passes or combine them.
+Formalization is a **six-pass** process. Each pass builds on the previous one. Do NOT skip passes or combine them.
 
 **Key principle: Formalization is incremental.** After completing each pass, write code, compile, and check. Do not wait until all passes are done before writing code. Feedback from `gaia compile` and `gaia check` is critical input for the next pass.
 
@@ -22,23 +22,38 @@ digraph formalization {
 
     p1 [label="Pass 1: Extract\n→ write DSL code"];
     r1 [label="gaia compile + gaia check"];
-    p2 [label="Pass 2: Connect\n→ add strategies"];
+    p2 [label="Pass 2: Connect\n→ add strategies + operators"];
     r2 [label="gaia compile + gaia check"];
-    p3 [label="Pass 3: Check completeness\n(gaia check feedback + manual review)"];
-    p4 [label="Pass 4: Refine\n→ update strategy types"];
+    p3 [label="Pass 3: Check Completeness\n(@labels, missing reasoning, isolated nodes)"];
+    r3 [label="gaia compile + gaia check"];
+    p4 [label="Pass 4: Refine Strategy Types\n(infer → specific types)"];
     r4 [label="gaia compile + gaia check"];
+    p5 [label="Pass 5: Verify Structural Integrity\n(evidence independence, operator semantics)"];
+    r5 [label="gaia compile + gaia check"];
+    p6 [label="Pass 6: Polish for Standalone Readability\n(self-containedness, figures, formatting)"];
+    r6 [label="gaia compile + gaia check"];
     review [label="Write review sidecar"];
-    compile [label="gaia infer"];
+    infer [label="gaia infer"];
     interpret [label="Interpret BP results"];
     analysis [label="Write ANALYSIS.md"];
     readme [label="gaia compile . --github\n+ /gaia:publish"];
 
-    p1 -> r1 -> p2 -> r2 -> p3 -> p4 -> r4 -> review -> compile -> interpret;
+    p1 -> r1 -> p2 -> r2 -> p3 -> r3 -> p4 -> r4 -> p5 -> r5 -> p6 -> r6;
+    r6 -> review -> infer -> interpret;
     interpret -> p1 [label="structural issues" style=dashed];
     interpret -> review [label="prior/cond_prob issues" style=dashed];
-    interpret -> github;
+    interpret -> analysis -> readme;
 }
 ```
+
+| Pass | Focus | Core question |
+|------|-------|---------------|
+| 1 | Content extraction | Are claims/settings extracted? Atomic? |
+| 2 | Reasoning connections | Are strategies, operators, and contradictions modeled? |
+| 3 | Content completeness | Any missing premises, orphans, or @label errors? |
+| 4 | Strategy precision | Are strategy types correct (noisy_and/abduction/induction/...)? |
+| 5 | Structural integrity | Is evidence independent? Are operator semantics correct? |
+| 6 | Standalone readability | Can a reviewer understand everything without the original source? |
 
 ## Scope
 
@@ -170,6 +185,18 @@ _strat = abduction(
 
 **Note:** `abduction()` returns a Strategy (not a Knowledge). You must assign the return value to a variable (e.g., `_strat`) so it can be referenced in the review sidecar.
 
+**`induction` requires explicit `alt_exps`.** When using `induction([obs1, obs2, ...], law)`, always provide the `alt_exps` parameter with one alternative per observation. Without `alt_exps`, the compiler auto-generates anonymous alternatives that are difficult to reference in the review sidecar.
+
+```python
+# CORRECT: explicit alternatives for each observation
+alt1 = claim("Alternative explanation for obs1")
+alt2 = claim("Alternative explanation for obs2")
+induction([obs1, obs2], law, alt_exps=[alt1, alt2], reason="...")
+
+# AVOID: auto-generated alternatives are hard to review
+induction([obs1, obs2], law, reason="...")
+```
+
 **Semantics of pi(Alt) -- critical:** In abduction, the prior pi(Alt) of the `alternative` represents: **"the probability that Alt alone can explain Obs without H"** -- not whether Alt's calculation is correct.
 
 For example: If Obs = "experimental Tc = 1.2K" and Alt = "phenomenological theory predicts Tc = 1.9K", then although Alt's calculation itself is not wrong (the calculation indeed gives 1.9K), 1.9K cannot explain the observation of 1.2K. Therefore pi(Alt) should be **low** (e.g., 0.3), rather than high just because "the calculation is correct."
@@ -202,7 +229,10 @@ phase_diagram = claim(
     "The Tc vs pressure curve shows a dome shape with maximum Tc = 250K at 200 GPa, "
     "decreasing to 200K at 250 GPa and 180K at 150 GPa.",
     title="Tc-pressure phase diagram",
-    metadata={"figure": "artifacts/fig3.png"},
+    metadata={
+        "figure": "artifacts/images/fig3.png",
+        "caption": "Fig. 3 | Tc-pressure phase diagram showing dome-shaped dependence.",
+    },
 )
 ```
 
@@ -224,37 +254,14 @@ result = claim(
 )
 ```
 
-### Pass 1 Review Checklist
-
-After extracting all modules, check each claim against the following:
-
-**Symbols must be self-explanatory:**
-- Every mathematical symbol must have a brief explanation on its first appearance in that claim
-- Example: Do not write "$\alpha \ll 1$"; write "the parameter $\alpha$ (ratio of XX to YY) is much less than 1"
-- The physical meaning of subscripts/superscripts must be explicit
-
-**Abbreviations must be expanded:**
-- Every abbreviation must be expanded on its first appearance in that claim
-- Example: Do not write "XXX computes $\lambda$"; write "the such-and-such method (XXX) computes the coupling constant $\lambda$"
-- Even if an abbreviation has been expanded in another claim, each claim is independent and must expand it again
-
-**No comparative assertions without reference:**
-- Do not write "significantly larger than X" -- the reader does not know what is being compared
-- Do not write "nearly exact agreement" -- the reader does not know what it agrees with
-- Numerical comparisons must provide both values
-
-**Sufficient detail:**
-- Can a reader understand what this claim says by reading only this one claim?
-- Are conditions and applicable ranges clear?
-- Do numerical values include units and error bars?
-
 ### Pass 1 Reflection
 
-After the review checklist, ask yourself:
+After extracting all modules, ask yourself:
 
 - **Theory vs experiment separated?** For every result where the source compares theory to experiment, do I have separate claims for the theoretical prediction and the experimental measurement? If they're mixed in one claim, I can't use abduction in Pass 2.
 - **Figures and tables transcribed?** Are all key numerical values from figures and tables written into claim content (not just referenced)?
 - **Each claim independently judgeable?** Can a reviewer assess each claim without reading any other claim?
+- **Contradictory claims identified?** When the source argues "A succeeds where B fails," or compares competing methods/hypotheses, have I extracted both sides as separate claims? These pairs will become `contradiction()` operators in Pass 2, providing strong BP constraints.
 
 ### Marking Exported Conclusions
 
@@ -299,6 +306,41 @@ Nodes referenced by `@label` must appear in the strategy's `premises` or `backgr
 
 Sources often have implicit premises. When writing the reason, if you discover the derivation depends on a knowledge node already extracted in Pass 1, be sure to add it to premises or background and reference it with `@label` in the reason.
 
+### Model Contradictions and Complements
+
+After writing strategies, model logical constraints between claims using operators. These claim pairs were identified in Pass 1 Reflection; now formalize them.
+
+**Key distinction — get this right, it matters for BP:**
+
+- `contradiction(a, b)` = NOT (A AND B): both cannot be true, but both CAN be false
+- `complement(a, b)` = A XOR B: exactly one must be true (exhaustive + mutually exclusive)
+
+**When to use `contradiction()`:** The source argues two claims are incompatible — they cannot both hold. Example: two competing hypotheses about a mechanism, where accepting one rules out the other, but a third option might exist.
+
+```python
+# Correct: these are genuinely mutually exclusive
+not_both = contradiction(
+    claim("The pairing mechanism is phonon-mediated"),
+    claim("The pairing mechanism is magnon-mediated"),
+    reason="Phonon and magnon mechanisms produce incompatible signatures; the data matches only one.",
+)
+```
+
+**When to use `complement()`:** Exactly two exhaustive, mutually exclusive options. One MUST be true.
+
+```python
+# Correct: exhaustive binary
+one_of = complement(
+    claim("RFdiffusion outperforms Hallucination on this benchmark"),
+    claim("Hallucination outperforms or matches RFdiffusion on this benchmark"),
+    reason="On the same benchmark with the same metric, one must be better or equal.",
+)
+```
+
+**When NOT to use either:** Two claims that are "in tension" but can both be true. Example: "comprehensive improvement across all areas" and "enzyme scaffolding lacks experimental validation" — both can be true (comprehensive improvement does not require every area to have wet-lab validation). Do NOT model these as `contradiction()`. Flag them in the Critical Analysis as unmodeled tensions instead.
+
+Contradictions and complements are especially valuable in BP because they create strong coupling between nodes — when one side's belief goes up, the other must go down. But a **wrong** contradiction silently distorts all downstream beliefs, so always verify semantics in Pass 5.
+
 ### Pass 2 Reflection
 
 Before moving to Pass 3, verify:
@@ -306,6 +348,7 @@ Before moving to Pass 3, verify:
 - **Theory-experiment pairs use abduction?** Every place the source compares a theoretical prediction against an experimental observation should be connected via `abduction(observation=exp, hypothesis=theory, alternative=old_theory)`, not `noisy_and` or `infer`. The relationship is explanatory ("which theory better explains the data?"), not inferential ("premises imply conclusion").
 - **Multiple observations → one law use induction?** If several independent observations all support the same general rule, use `induction([obs1, obs2, ...], law)`, not a flat `noisy_and` with all observations as premises.
 - **No missing alternatives?** Every abduction should have a meaningful alternative — what would explain the observation if the hypothesis were wrong?
+- **Contradictions modeled?** Every contradictory claim pair identified in Pass 1 should now have a `contradiction()` operator. Also check: did any new contradictions emerge while writing strategies?
 
 ## Pass 3: Check Completeness
 
@@ -338,6 +381,31 @@ The most common mistake at this step is **assuming certain knowledge does not ne
 ## Pass 4: Refine Strategy Types
 
 Passes 2-3 produce generic `infer` strategies. Pass 4 refines each `infer` into a specific strategy type.
+
+### Complete Strategy Reference
+
+| Strategy | Semantics | When to use | Review needs |
+|----------|-----------|-------------|--------------|
+| `noisy_and` | All premises jointly support conclusion with probability p | Default for "premises imply conclusion" with uncertainty | `conditional_probability` (single float) |
+| `deduction` | If all premises true, conclusion necessarily true | Strict math proofs, logical syllogisms, definitions | None (deterministic) |
+| `abduction` | Observation best explained by hypothesis over alternative | Theory-experiment comparison, inference to best explanation | Prior on alternative claim |
+| `induction` | Multiple independent observations → general law. Internally a composite of abductions: each observation abduces the law against its own alternative. This is why (a) each observation needs an `alt_exps` entry and (b) observations must be independent (Pass 5). | Repeated experimental confirmations across conditions | Per-observation alternative (`alt_exps`) |
+| `analogy` | Source + structural similarity → target | Cross-system reasoning ("works for A, similar to B, so works for B") | None (auto-formalized) |
+| `extrapolation` | Source + continuity → target | Predicting beyond measured range | None (auto-formalized) |
+| `elimination` | Exhaustive options + excluded candidates → survivor | Process of elimination | None (auto-formalized) |
+| `case_analysis` | Exhaustive cases, each implies conclusion → conclusion | Proof by cases | None (auto-formalized) |
+| `mathematical_induction` | Base case + inductive step → for-all law | Inductive proofs in mathematics | None (auto-formalized) |
+| `composite` | Hierarchical: sub-strategies compose into one argument | Complex reasoning with meaningful intermediate steps | Review leaf sub-strategies only |
+| `infer` | General CPT with 2^N entries | Last resort when no specific type fits | `conditional_probabilities` (2^N floats) |
+
+Also available as **operators** (modeled in Pass 2, not strategies):
+
+| Operator | Semantics | When to use |
+|----------|-----------|-------------|
+| `contradiction(a, b)` | NOT (A AND B) — cannot both be true | Incompatible hypotheses |
+| `complement(a, b)` | A XOR B — exactly one true | Exhaustive binary choice |
+| `equivalence(a, b)` | A = B — same truth value | Logically equivalent formulations |
+| `disjunction(*claims)` | At least one true | Exhaustive possibilities |
 
 ### Decision Tree
 
@@ -398,6 +466,8 @@ Common misjudgments:
 - Conclusion read directly from a definition (e.g., "A is defined as B, therefore A=B") → use `deduction`
 - Numerical DFT/MD computation yields a result → use `noisy_and` (the computational method itself has uncertainty)
 
+**Single-premise `noisy_and` is semantically degenerate.** If you have only one premise, consider whether the relationship is better modeled as `abduction` (if there is a natural alternative explanation) rather than a trivial AND-gate with one input.
+
 **Strategy variable naming:** All strategies that need to be referenced in the review sidecar must be assigned to variables (`_strat_xxx = noisy_and(...)`). Deduction does not need parameters and can be called anonymously.
 
 ### Case 2: 3+ Premises
@@ -418,9 +488,207 @@ After refining all strategies, verify:
 - **Abduction alternatives will be reviewed — are they set up correctly?** Each abduction's alternative will need a prior in the review sidecar. Remember: π(Alt) = "Can Alt alone explain Obs?" (explanatory power), NOT "Is Alt correct?". Flag any abduction where this distinction might be tricky for the reviewer.
 - **Each induction's sub-abductions independent?** For `induction([obs1, obs2], law)`, each observation should provide independent evidence. If the observations are dependent, consider whether a single abduction with stronger evidence is more appropriate.
 
+### Post-Refinement Check
+
+After refining all strategies, check the **strategy type distribution**:
+
+- If `noisy_and` accounts for more than 70% of strategies, review whether some should be `abduction` (observation → best explanation) or `induction` (multiple independent observations → general law)
+- Papers with extensive experimental validation typically have many abductions
+- Discussion/conclusion sections that synthesize multiple results often use induction
+
+Also check **reasoning chain depth** (hops from leaf to exported conclusion):
+
+- Maximum recommended depth: **3 hops**
+- If a derived conclusion has belief < 0.4, the chain is likely too deep
+- Fix by flattening: make intermediate claims into leaf premises, or restructure into wider (more premises per strategy) rather than deeper (more strategies in series)
+
 ### Operator Usage
 
 For operator semantics and syntax, see the **gaia-lang** skill.
+
+## Pass 5: Verify Structural Integrity
+
+**Prerequisite:** Pass 4 is complete — all strategy types are finalized. This pass checks that the factor graph correctly represents the source's reasoning structure. It must happen after Pass 4 because strategy type refinement (especially induction) changes the graph topology.
+
+**Background:** Gaia uses Junction Tree (exact inference). There is no algorithmic double-counting — given any factor graph, JT computes correct posteriors. All issues in this pass are about whether the **model** correctly represents reality: each factor (strategy/operator) should represent a genuinely independent constraint, and each operator's logical semantics should match the actual relationship.
+
+### 5a. Verify Operator Semantics
+
+Check operators first — if the graph's hard constraints are wrong, everything downstream is wrong too.
+
+Review every `contradiction()`, `complement()`, `equivalence()`, and `disjunction()` operator:
+
+**`contradiction(a, b)` = NOT (A AND B)**: Both cannot be true, but both CAN be false.
+
+```python
+# WRONG: these can both be true — no contradiction!
+contradiction(
+    claim("RFdiffusion succeeds at designing large proteins"),
+    claim("Hallucination fails at designing large proteins"),
+)
+
+# CORRECT: these cannot both be true
+contradiction(
+    claim("RFdiffusion is inferior to Hallucination on this task"),
+    claim("RFdiffusion outperforms Hallucination on this task"),
+)
+```
+
+**`complement(a, b)` = A XOR B**: Exactly one must be true. Stronger than contradiction.
+
+**Three-question checklist for each operator:**
+1. Can both claims be true simultaneously? If yes → not a `contradiction`, remove it
+2. Can both claims be false simultaneously? If no → should be `complement` (XOR), not `contradiction` (NAND)
+3. Is this just "in tension" rather than logically exclusive? Informal tension should NOT be modeled as `contradiction` — flag in Critical Analysis instead
+
+### 5b. Eliminate Double Counting
+
+Each factor in the factor graph represents an **independent constraint**. If the same argument appears as two factors, the model claims two independent constraints exist when there is only one. This inflates beliefs — not because JT miscalculates, but because the model is wrong.
+
+**The unified principle:** every factor must bring genuinely new information that no other factor already provides. When implicit dependencies exist, make them explicit as variables in the graph so JT can correctly reason about them.
+
+**Pattern 1 — Redundant strategies (same reasoning expressed twice):**
+
+```python
+# 1a. Exact duplicate: standalone abduction + induction's internal sub-abduction
+abduction(obs, law, alt, ...)                          # reasoning: obs → law
+induction([obs, other], law, alt_exps=[alt, alt2], ...) # internally also creates: obs → law
+# FIX: remove the standalone abduction
+
+# 1b. Transitive shortcut: A→B→C chain + A→C that is just the chain compressed
+noisy_and([A], B, ...)
+noisy_and([B], C, ...)
+noisy_and([A], C, reason="A implies B implies C")  # redundant with the chain
+# FIX: remove the shortcut, OR confirm it represents a genuinely different argument
+
+# 1c. Derived premise redundancy: A→B, then noisy_and([A, B], C) where A supports C only through B
+noisy_and([A], B, ...)
+noisy_and([A, B], C, reason="A leads to B which leads to C")
+# FIX: remove A from C's premises → noisy_and([B], C, ...)
+```
+
+**Pattern 2 — Hidden evidence in reason text:**
+
+Two strategies with identical premises but different `reason` text. The different reasoning contains evidence not captured as premises — extract it.
+
+```python
+# BEFORE: same premises, different reasoning angles
+noisy_and([sample, obs_R], law, reason="Zero resistance = hallmark of SC")
+noisy_and([sample, obs_R], law, reason="Transition width < 0.5K = bulk SC")
+# The "transition width < 0.5K" is evidence hidden in the reason text
+
+# AFTER: extract hidden evidence as a claim
+transition_sharpness = claim("Resistivity transition width < 0.5K")
+noisy_and([sample, obs_R], law, reason="Zero resistance = hallmark of SC")
+noisy_and([sample, transition_sharpness], law, reason="Sharp transition = bulk SC")
+```
+
+**Pattern 3 — Unmodeled shared dependencies:**
+
+Two observations share a common cause (same sample, same instrument) but the cause isn't in the graph. The model treats them as unconditionally independent, losing their correlation.
+
+```python
+# BEFORE: shared sample quality is implicit — correlation lost
+obs_R = claim("Sample A: Tc = 39K by resistivity")
+obs_chi = claim("Sample A: Tc = 39K by susceptibility")
+induction([obs_R, obs_chi], law, ...)
+
+# AFTER: extract shared dependency — correlation preserved
+sample_quality = claim("Sample A is high-quality single crystal, confirmed by XRD")
+noisy_and([sample_quality], obs_R, reason="Resistivity depends on @sample_quality")
+noisy_and([sample_quality], obs_chi, reason="Susceptibility depends on @sample_quality")
+induction([obs_R, obs_chi], law, ...)  # conditionally independent given sample_quality
+```
+
+You cannot create new experiments — you formalize what the paper provides. The table below guides the modeling choice:
+
+| Observation relationship | Modeling approach |
+|--------------------------|-------------------|
+| Truly independent (different samples, different labs) | `induction` directly |
+| Partially independent (shared dependency + independent components) | Extract shared dependency as explicit claim |
+| Completely redundant (same data rephrased) | Merge into a single claim |
+
+**Pattern 4 — Equivalence + separate strategies:**
+
+`equivalence(a, b)` couples two claims. If both sides have strategies to the same target, check whether each strategy brings information beyond what equivalence already propagates.
+
+```python
+equivalence(claim_A, claim_B)
+noisy_and([claim_A], law, reason="argument from A's perspective")
+noisy_and([claim_B], law, reason="argument from B's perspective")
+
+# Ask: does the B→law strategy add information that A→law + equivalence doesn't already provide?
+# If NO: remove B→law
+# If YES: extract the additional information as a new premise
+```
+
+**How to check (procedure):**
+1. List every claim with 2+ incoming strategies
+2. For each pair of strategies: "does each bring genuinely independent new information?"
+3. For each `induction`: "do the observations share unmodeled dependencies?"
+4. For each `equivalence`: "do both sides need their own strategies to the same target?"
+5. For all strategies: "does the reason text contain evidence not captured as premises?"
+
+### 5c. Re-compile and Verify
+
+After any structural changes in Pass 5, run `gaia compile` + `gaia check` + `gaia infer` and compare beliefs to before. A significant belief drop after removing a strategy suggests the previous value was inflated by double counting.
+
+## Pass 6: Polish for Standalone Readability
+
+**Prerequisite:** The knowledge graph is structurally correct (Pass 5 complete). Pass 6 ensures that every claim, reason, and metadata entry is independently understandable without access to the original source.
+
+### 6a. Claim Self-Containedness
+
+Review every claim for standalone readability:
+
+**Symbols must be self-explanatory:**
+- Every mathematical symbol must have a brief explanation on its first appearance in that claim
+- Example: Do not write "$\alpha \ll 1$"; write "the parameter $\alpha$ (ratio of XX to YY) is much less than 1"
+- The physical meaning of subscripts/superscripts must be explicit
+
+**Abbreviations must be expanded:**
+- Every abbreviation must be expanded on its first appearance in that claim
+- Example: Do not write "XXX computes $\lambda$"; write "the such-and-such method (XXX) computes the coupling constant $\lambda$"
+- Even if an abbreviation has been expanded in another claim, each claim is independent and must expand it again
+
+**No comparative assertions without reference:**
+- Do not write "significantly larger than X" -- the reader does not know what is being compared
+- Do not write "nearly exact agreement" -- the reader does not know what it agrees with
+- Numerical comparisons must provide both values
+
+**Sufficient detail:**
+- Can a reader understand what this claim says by reading only this one claim?
+- Are conditions and applicable ranges clear?
+- Do numerical values include units and error bars?
+
+### 6b. Data Formatting
+
+- Tabular data should use markdown tables in claim content
+- Key numerical values from figures must be transcribed into the claim text (not just referenced)
+- Trends described in prose should include specific data points
+
+### 6c. Reason Standalone Readability
+
+Review every strategy's `reason` text:
+
+- The reason should be a complete reasoning chain, not "see Section 3 of the paper"
+- Specific numbers, method names, and conditions should be stated, not implied
+- Every `@label` reference should have enough surrounding context that a reader unfamiliar with the label can follow the argument
+
+### 6d. Figure and Table References
+
+Add `metadata={"figure": "...", "caption": "..."}` to every claim whose content comes from a specific figure or table:
+
+1. **Coverage**: Check each module against the source for missing references
+2. **Path validity**: Verify each file path exists in `artifacts/`
+3. **Caption accuracy**: Copy the figure caption from the source (abbreviated OK, but figure number and key content must be correct)
+4. **Strategy metadata**: Strategies whose `reason` references figure data should also carry `metadata`
+
+### 6e. Format Consistency
+
+- Metadata format should be consistent across all claims (same key names, same path conventions)
+- Titles should follow a consistent naming style
+- Cross-module import patterns should be uniform
 
 ## Write DSL Code
 
@@ -431,6 +699,8 @@ After completing each pass, write code, compile, and check. For DSL syntax, see 
 The review sidecar assigns priors to claims and conditional probabilities to strategies.
 
 For how to write review sidecars, assign priors, and evaluate strategy parameters, see the **review** skill.
+
+**Do NOT set priors for derived claims.** The inference engine automatically assigns uninformative priors (0.5) to derived claims. Their beliefs are determined entirely by BP propagation from leaf premises. Setting an explicit prior on a derived claim double-counts evidence: the reviewer's judgment and the reasoning chain both reflect the same underlying data. Only set priors for independent (leaf) claims that are not the conclusion of any strategy.
 
 **Abduction review deserves special attention.** The most common and consequential mistake in review is setting π(Alt) based on whether the alternative's calculation is correct, rather than whether it explains the observation. Before finalizing the review sidecar, go through every abduction and ask: "Does this alternative's prediction actually match the observation?" If not, π(Alt) should be low regardless of the alternative's theoretical validity.
 
@@ -454,7 +724,7 @@ After compiling and running inference, check:
 
 If results are clearly wrong (e.g., a well-supported conclusion has belief < 0.3, or a contradiction doesn't pick a side), go back and check:
 
-1. **Structural issue?** (→ revisit Pass 1-4) Missing premises, wrong strategy type, missing abduction alternative
+1. **Structural issue?** (→ revisit Pass 1-5) Missing premises, wrong strategy type, missing abduction alternative, evidence double-counting
 2. **Parameter issue?** (→ revisit review sidecar) Priors too low/high, conditional_probability miscalibrated, π(Alt) reflecting correctness instead of explanatory power
 
 For detailed BP troubleshooting, see the **review** skill.
@@ -487,12 +757,16 @@ Identify where additional evidence would most strengthen the argument:
 
 ### Output
 
-Write the critical analysis as a section in the package README (before or after the knowledge graph), or as a separate `ANALYSIS.md` in the package root. Include:
+Write the critical analysis as `ANALYSIS.md` in the package root. This is a **required deliverable** — do not skip it. Include:
 
-1. **Summary**: One paragraph on the argument's overall structure and strength
-2. **Weak points**: Numbered list with specific claims/strategies and their BP beliefs
-3. **Evidence gaps**: What's missing and what would help
-4. **Confidence assessment**: Overall confidence in the core conclusions, informed by BP results
+1. **Package statistics**: Knowledge graph counts, strategy type distribution, claim classification, figure reference coverage, BP result summary
+2. **Summary**: One paragraph on the argument's overall structure and strength
+3. **Weak points**: Table with columns: claim, belief, issue. Include all derived claims with belief < 0.8 and any alternative explanations with belief > 0.25
+4. **Evidence gaps**: Tables covering (a) missing experimental validations, (b) untested conditions, (c) competing explanations not fully resolved
+5. **Contradictions**: (a) explicit contradictions modeled with `contradiction()` and how BP resolved them (which side won), (b) internal tensions in the source that were not modeled as formal contradictions but are worth flagging
+6. **Confidence assessment**: Tier the exported claims into confidence levels (very high / high / moderate / tentative) with belief ranges
+
+The critical analysis is the analytical payoff of formalization — it transforms a qualitative reading of the paper into a quantitative structural assessment. Every knowledge package should ship with one.
 
 ## Common Mistakes
 
@@ -513,6 +787,10 @@ Write the critical analysis as a section in the package README (before or after 
 | Missing prior for orphaned claim | `gaia infer` errors | All claims (including orphaned) need priors |
 | Missing implicit premises in reasoning | Knowledge graph is incomplete | Use `gaia check` + manual review in Pass 3 |
 | Not verifying numerical values | Data errors | Cross-check every value against the source |
+| Same claim in multiple paths to same conclusion | Evidence double-counted, inflated belief | Ensure each leaf enters a conclusion through exactly one path (Pass 5) |
+| Induction with non-independent observations | Overcounted evidence | Extract shared dependencies as explicit claims (Pass 5) |
+| Wrong contradiction (claims can both be true) | BP forced to suppress one side incorrectly | Verify operator semantics in Pass 5 |
+| Setting prior on derived claim | Double-counts evidence | Do not set priors for derived claims; inference engine defaults to 0.5 |
 
 ## Reference
 
