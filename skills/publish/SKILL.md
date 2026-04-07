@@ -73,7 +73,9 @@ One paragraph (3-5 sentences) readable by any scientist:
 - Key results with concrete numbers from the paper (e.g. "predicts Tc(Al) = 0.96 K vs experimental 1.2 K")
 - Belief values may be cited parenthetically for the most important conclusions, but the summary should make sense without them
 
-### MI + Mermaid graph (auto-generated, keep as-is)
+### MI callout + Mermaid graph (auto-generated, keep as-is)
+
+The skeleton includes a `[!TIP]` callout with the total mutual information and a Mermaid reasoning graph. Keep both as generated.
 
 ### Reasoning Structure (YOU WRITE)
 

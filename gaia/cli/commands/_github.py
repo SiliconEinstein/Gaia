@@ -185,18 +185,12 @@ def generate_github_output(
                         sp[sid] = s["conditional_probabilities"]
                     elif s.get("conditional_probability") is not None:
                         sp[sid] = [s["conditional_probability"]]
-            computable = {
-                i for i, s in enumerate(coarse_for_outline["strategies"])
-                if len(s["premises"]) <= 8
-            }
-            if computable:
-                cpts = compute_coarse_cpts(
-                    ir, coarse_for_outline, node_priors=node_priors, strategy_params=sp,
-                    strategy_indices=computable,
-                )
-                for i in cpts:
-                    pp = [node_priors.get(p, 0.5) for p in coarse_for_outline["strategies"][i]["premises"]]
-                    mi_map[i] = mutual_information(cpts[i], pp)
+            cpts = compute_coarse_cpts(
+                ir, coarse_for_outline, node_priors=node_priors, strategy_params=sp,
+            )
+            for i in cpts:
+                pp = [node_priors.get(p, 0.5) for p in coarse_for_outline["strategies"][i]["premises"]]
+                mi_map[i] = mutual_information(cpts[i], pp)
         except Exception:
             pass  # MI computation failed — outline still works without it
 
@@ -281,15 +275,10 @@ def _render_coarse_mermaid(
                         strat_params[sid] = sp["conditional_probabilities"]
                     elif sp.get("conditional_probability") is not None:
                         strat_params[sid] = [sp["conditional_probability"]]
-            computable_strats = {
-                i for i, s in enumerate(coarse["strategies"])
-                if len(s["premises"]) <= 8
-            }
             coarse_cpts = compute_coarse_cpts(
                 ir, coarse,
                 node_priors=node_priors_for_cpt,
                 strategy_params=strat_params,
-                strategy_indices=computable_strats,
             )
         except Exception:
             pass
@@ -391,14 +380,15 @@ def _generate_readme_skeleton(
             ir, beliefs, priors, exported, param_data=param_data,
         )
         if total_mi > 0:
+            lines.append("> [!TIP]")
             lines.append(
                 f"> **Reasoning graph information gain: `{total_mi:.1f} bits`**"
             )
             lines.append(">")
             lines.append(
-                "> <sub>Total mutual information between leaf premises and "
+                "> Total mutual information between leaf premises and "
                 "exported conclusions — measures how much the reasoning "
-                "structure reduces uncertainty about the results.</sub>"
+                "structure reduces uncertainty about the results."
             )
             lines.append("")
         lines.append(mermaid)
