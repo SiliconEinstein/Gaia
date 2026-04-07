@@ -203,6 +203,7 @@ def compute_coarse_cpts(
     coarse: dict,
     node_priors: dict[str, float] | None = None,
     strategy_params: dict[str, list[float]] | None = None,
+    strategy_indices: set[int] | None = None,
 ) -> dict[int, list[float]]:
     """Compute effective CPTs for coarse infer strategies by marginalization.
 
@@ -222,8 +223,11 @@ def compute_coarse_cpts(
     strat_params = dict(strategy_params or {})
 
     result: dict[int, list[float]] = {}
+    indices = strategy_indices if strategy_indices is not None else set(range(len(coarse["strategies"])))
 
     for i, s in enumerate(coarse["strategies"]):
+        if i not in indices:
+            continue
         premises = s["premises"]
         conclusion = s["conclusion"]
         k = len(premises)
