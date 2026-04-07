@@ -48,6 +48,7 @@ async def main(limit: int = 10000, dry_run: bool = False, threshold: float = 0.8
 
     # Show type distribution
     from collections import Counter
+
     type_dist = Counter(g["type"] for g in all_public)
     logger.info("Type distribution: %s", dict(type_dist))
 
@@ -87,7 +88,9 @@ async def main(limit: int = 10000, dry_run: bool = False, threshold: float = 0.8
     pending_ids = subset_ids - existing
     logger.info(
         "Subset: %d total, %d already embedded, %d pending",
-        len(subset), len(subset_ids) - len(pending_ids), len(pending_ids),
+        len(subset),
+        len(subset_ids) - len(pending_ids),
+        len(pending_ids),
     )
 
     # Compute embeddings for pending
@@ -108,7 +111,9 @@ async def main(limit: int = 10000, dry_run: bool = False, threshold: float = 0.8
 
     t0 = time.time()
     emb_stats = await compute_embeddings(
-        storage, bytehouse, discovery_config,
+        storage,
+        bytehouse,
+        discovery_config,
         access_key=config.embedding_access_key,
     )
     t_emb = time.time() - t0
@@ -143,9 +148,7 @@ async def main(limit: int = 10000, dry_run: bool = False, threshold: float = 0.8
         for c in clusters:
             c.node_type = node_type
         all_clusters.extend(clusters)
-        logger.info(
-            "  → %d clusters in %.1fs", len(clusters), time.time() - t1
-        )
+        logger.info("  → %d clusters in %.1fs", len(clusters), time.time() - t1)
 
     # Print results
     total_time = time.time() - t0
@@ -161,9 +164,11 @@ async def main(limit: int = 10000, dry_run: bool = False, threshold: float = 0.8
     # Show sample clusters with content
     print("\n--- Sample clusters (first 10) ---")
     for c in all_clusters[:10]:
-        print(f"\nCluster {c.cluster_id} ({c.node_type}): "
-              f"{len(c.gcn_ids)} nodes, avg_sim={c.avg_similarity:.3f}, "
-              f"min_sim={c.min_similarity:.3f}")
+        print(
+            f"\nCluster {c.cluster_id} ({c.node_type}): "
+            f"{len(c.gcn_ids)} nodes, avg_sim={c.avg_similarity:.3f}, "
+            f"min_sim={c.min_similarity:.3f}"
+        )
         # Load content for first 3 members
         for gid in c.gcn_ids[:3]:
             gvar = await storage.get_global_variable(gid)

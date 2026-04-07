@@ -134,18 +134,23 @@ async def main():
     run_id = bh.save_discovery_result(result, config, scope="full", type_counts=type_counts)
     logger.info("[%.0fs] Saved run_id=%s", time.time() - t0, run_id)
 
-    print(json.dumps({
-        "run_id": run_id,
-        "scope": "full",
-        "total_scanned": total_scanned,
-        "embeddings_computed": emb_stats.get("computed", 0),
-        "embeddings_skipped": emb_stats.get("skipped", 0),
-        "embeddings_failed": emb_stats.get("failed", 0),
-        "total_clusters": len(all_clusters),
-        "type_counts": type_counts,
-        "cluster_sizes": dict(sorted(size_dist.items())),
-        "elapsed_seconds": round(elapsed, 1),
-    }, indent=2))
+    print(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "scope": "full",
+                "total_scanned": total_scanned,
+                "embeddings_computed": emb_stats.get("computed", 0),
+                "embeddings_skipped": emb_stats.get("skipped", 0),
+                "embeddings_failed": emb_stats.get("failed", 0),
+                "total_clusters": len(all_clusters),
+                "type_counts": type_counts,
+                "cluster_sizes": dict(sorted(size_dist.items())),
+                "elapsed_seconds": round(elapsed, 1),
+            },
+            indent=2,
+        )
+    )
 
     bh.close()
 
