@@ -1,6 +1,6 @@
 {
   "name": "gaia",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Gaia knowledge formalization skills — convert scientific papers, textbooks, or any knowledge source into Gaia knowledge packages.",
   "author": {
     "name": "SiliconEinstein"
