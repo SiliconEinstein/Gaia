@@ -137,7 +137,7 @@ gaia init → gaia add → write package → gaia compile → write review → g
 | `gaia add <package>` | Install a registered Gaia package from the [official registry](https://github.com/SiliconEinstein/gaia-registry) |
 | `gaia compile [path]` | Compile Python DSL to Gaia IR (`.gaia/ir.json`) |
 | `gaia compile --github [path]` | Generate GitHub presentation skeleton (`.github-output/`): wiki, README, React Pages, graph.json |
-| `gaia compile --readme [path]` | *(legacy)* Generate `README.md` with Mermaid graph + belief results |
+| `gaia compile --module-graphs [path]` | Generate per-module detailed reasoning graphs to `docs/detailed-reasoning.md` |
 | `gaia check [path]` | Validate package structure and IR consistency (used by registry CI) |
 | `gaia infer [path]` | Run belief propagation with a review sidecar |
 | `gaia register [path]` | Submit package to the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry) |
