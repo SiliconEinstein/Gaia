@@ -25,42 +25,51 @@ _CHUNK_SIZE = 5000  # variables per pipeline chunk
 _BH_BATCH_SIZE = 200  # ByteHouse insert batch size
 
 
-class _TokenBucket:
-    """Async token bucket rate limiter.
+class _RateLimiter:
+    """Async rate limiter using a background token dispenser.
 
-    Guarantees no more than `rate` requests per second, with burst up to `rate`.
-    Much better than Semaphore for API rate limiting — Semaphore limits concurrency
-    but not RPS, so retries can cause thundering herd.
+    A background task puts tokens into a queue at `rate` per second.
+    Callers await queue.get() — no busy-wait, no CPU spin.
     """
 
     def __init__(self, rate: float) -> None:
         self._rate = rate
-        self._tokens = rate
-        self._max = rate
-        self._last = time.monotonic()
-        self._lock = asyncio.Lock()
+        self._queue: asyncio.Queue[None] = asyncio.Queue()
+        self._task: asyncio.Task | None = None
+
+    def start(self) -> None:
+        """Start the background token dispenser."""
+        self._task = asyncio.create_task(self._dispense())
+
+    async def _dispense(self) -> None:
+        interval = 1.0 / self._rate
+        while True:
+            await asyncio.sleep(interval)
+            try:
+                self._queue.put_nowait(None)
+            except asyncio.QueueFull:
+                pass
 
     async def acquire(self) -> None:
-        while True:
-            async with self._lock:
-                now = time.monotonic()
-                elapsed = now - self._last
-                self._tokens = min(self._max, self._tokens + elapsed * self._rate)
-                self._last = now
-                if self._tokens >= 1.0:
-                    self._tokens -= 1.0
-                    return
-            # Wait a bit before retrying — stagger to avoid thundering herd
-            await asyncio.sleep(1.0 / self._rate + random.uniform(0, 0.01))
+        """Wait for a token (blocks until next available slot)."""
+        await self._queue.get()
+
+    async def stop(self) -> None:
+        if self._task:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
 
 
 class Embedder:
-    """Low-level async embedding API caller with token-bucket rate limiting."""
+    """Low-level async embedding API caller with queue-based rate limiting."""
 
     def __init__(self, config: DiscoveryConfig, access_key: str) -> None:
         self._config = config
-        # Token bucket at configured RPS (not semaphore — avoids retry storms)
-        self._bucket = _TokenBucket(rate=config.embedding_concurrency)
+        self._limiter = _RateLimiter(rate=config.embedding_concurrency)
+        self._limiter.start()
         self._client = httpx.AsyncClient(timeout=config.embedding_http_timeout)
         self._headers = {"accessKey": access_key, "Content-Type": "application/json"}
 
@@ -69,7 +78,7 @@ class Embedder:
         last_exc: Exception | None = None
         for attempt in range(self._config.embedding_max_retries):
             try:
-                await self._bucket.acquire()
+                await self._limiter.acquire()
                 response = await self._client.post(
                     self._config.embedding_api_url,
                     json={"text": text, "provider": self._config.embedding_provider},
@@ -92,6 +101,7 @@ class Embedder:
         raise last_exc  # type: ignore[misc]
 
     async def close(self) -> None:
+        await self._limiter.stop()
         await self._client.aclose()
 
 
