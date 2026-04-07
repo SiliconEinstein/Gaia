@@ -106,7 +106,6 @@ def coarsen_ir(ir: dict, exported_ids: set[str]) -> dict:
 
     # 8. Build coarse strategies (one infer per edge)
     coarse_strategies = []
-    # Group edges by conclusion for cleaner output
     by_conclusion: dict[str, list[str]] = {}
     for src, dst in unique_edges:
         by_conclusion.setdefault(dst, []).append(src)
@@ -119,10 +118,31 @@ def coarsen_ir(ir: dict, exported_ids: set[str]) -> dict:
             "reason": "",
         })
 
+    # 9. Preserve operators whose variables/conclusion touch keep_ids.
+    #    Also pull in any operator variables not yet in keep_ids so the
+    #    constraint renders completely.
+    coarse_operators = []
+    for o in ir.get("operators", []):
+        conc = o.get("conclusion")
+        variables = o.get("variables", [])
+        all_nodes = set(variables)
+        if conc:
+            all_nodes.add(conc)
+        # Keep operator if at least one endpoint is in keep_ids
+        if all_nodes & keep_ids:
+            coarse_operators.append(o)
+            # Pull in any missing variables/conclusion
+            for nid in all_nodes:
+                if nid not in keep_ids:
+                    keep_ids.add(nid)
+                    k = next((k for k in ir["knowledges"] if k["id"] == nid), None)
+                    if k and not k.get("label", "").startswith("__"):
+                        coarse_knowledges.append(k)
+
     return {
         "package_name": ir.get("package_name", ""),
         "namespace": ir.get("namespace", ""),
         "knowledges": coarse_knowledges,
         "strategies": coarse_strategies,
-        "operators": [],
+        "operators": coarse_operators,
     }

@@ -216,15 +216,45 @@ def _render_coarse_mermaid(
         display = display.replace('"', "#quot;").replace("*", "#ast;")
         lines.append(f'    {safe}["{display}"]{css}')
 
-    for s in coarse["strategies"]:
+    # Strategy intermediate nodes (stadium shape)
+    _DETERMINISTIC = {"deduction", "reductio", "elimination", "mathematical_induction", "case_analysis"}
+    for i, s in enumerate(coarse["strategies"]):
+        stype = s.get("type", "infer")
+        sid = f"strat_{i}"
         conc = kid_to_k.get(s["conclusion"], {}).get("label", "?").replace("-", "_")
+        css = "" if stype in _DETERMINISTIC else ":::weak"
+        lines.append(f'    {sid}(["{stype}"]){css}')
         for p in s["premises"]:
             prem = kid_to_k.get(p, {}).get("label", "?").replace("-", "_")
-            lines.append(f"    {prem} --> {conc}")
+            lines.append(f"    {prem} --> {sid}")
+        lines.append(f"    {sid} --> {conc}")
+
+    # Operator nodes (hexagon shape)
+    _OP_SYMBOLS = {
+        "contradiction": "\u2297", "equivalence": "\u2261",
+        "complement": "\u2295", "disjunction": "\u2228",
+    }
+    _UNDIRECTED = {"equivalence", "contradiction", "complement"}
+    for i, o in enumerate(coarse.get("operators", [])):
+        otype = o.get("operator", "")
+        symbol = _OP_SYMBOLS.get(otype, otype)
+        oid = f"oper_{i}"
+        css = ":::contra" if otype == "contradiction" else ""
+        lines.append(f'    {oid}{{{{"{symbol}"}}}}{css}')
+        edge = " --- " if otype in _UNDIRECTED else " --> "
+        for v in o.get("variables", []):
+            v_label = kid_to_k.get(v, {}).get("label", "?").replace("-", "_")
+            lines.append(f"    {v_label}{edge}{oid}")
+        conc = o.get("conclusion")
+        if conc:
+            c_label = kid_to_k.get(conc, {}).get("label", "?").replace("-", "_")
+            lines.append(f"    {oid}{edge}{c_label}")
 
     lines.append("")
     lines.append("    classDef premise fill:#ddeeff,stroke:#4488bb,color:#333")
     lines.append("    classDef exported fill:#d4edda,stroke:#28a745,stroke-width:2px,color:#333")
+    lines.append("    classDef weak fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 5 5,color:#333")
+    lines.append("    classDef contra fill:#ffebee,stroke:#c62828,color:#333")
     lines.append("```")
     return "\n".join(lines)
 
