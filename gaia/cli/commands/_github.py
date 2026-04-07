@@ -281,17 +281,17 @@ def _generate_readme_skeleton(
     if exported_nodes:
         lines.append("## Conclusions")
         lines.append("")
-        lines.append("| Label | Content | Belief |")
-        lines.append("|-------|---------|--------|")
+        lines.append("| Label | Content | Prior | Belief |")
+        lines.append("|-------|---------|-------|--------|")
         for k in exported_nodes:
             label = k.get("label", "")
             content = k.get("content", "")
-            # Truncate long content for table readability
             if len(content) > 80:
                 content = content[:77] + "..."
             kid = k["id"]
+            prior = f"{priors[kid]:.2f}" if kid in priors else "\u2014"
             belief = f"{beliefs[kid]:.2f}" if kid in beliefs else "\u2014"
-            lines.append(f"| {label} | {content} | {belief} |")
+            lines.append(f"| {label} | {content} | {prior} | {belief} |")
         lines.append("")
 
     # Placeholder markers
