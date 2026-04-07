@@ -148,6 +148,56 @@ def coarsen_ir(ir: dict, exported_ids: set[str]) -> dict:
     }
 
 
+def _binary_entropy(p: float) -> float:
+    """H(Bernoulli(p)) in bits."""
+    import math
+    if p <= 0 or p >= 1:
+        return 0.0
+    return -(p * math.log2(p) + (1 - p) * math.log2(1 - p))
+
+
+def mutual_information(
+    cpt: list[float],
+    premise_priors: list[float],
+) -> float:
+    """Compute I(premises; conclusion) in bits from a coarse CPT.
+
+    Parameters
+    ----------
+    cpt:
+        CPT of length 2^k, indexed by binary encoding of premise assignment.
+    premise_priors:
+        Prior probability of each premise being true (length k).
+
+    Returns
+    -------
+    Mutual information in bits.
+    """
+    k = len(premise_priors)
+    assert len(cpt) == (1 << k)
+
+    # P(C=1) marginal and conditional entropy H(C|P)
+    p_c1 = 0.0
+    h_c_given_p = 0.0
+
+    for assignment in range(1 << k):
+        # P(assignment) = product of premise marginals
+        p_assignment = 1.0
+        for bit in range(k):
+            pi = premise_priors[bit]
+            if (assignment >> bit) & 1:
+                p_assignment *= pi
+            else:
+                p_assignment *= (1 - pi)
+
+        p_c1_given_a = cpt[assignment]
+        p_c1 += p_assignment * p_c1_given_a
+        h_c_given_p += p_assignment * _binary_entropy(p_c1_given_a)
+
+    h_c = _binary_entropy(p_c1)
+    return max(0.0, h_c - h_c_given_p)
+
+
 def compute_coarse_cpts(
     ir: dict,
     coarse: dict,

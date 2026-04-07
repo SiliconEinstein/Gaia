@@ -220,7 +220,7 @@ def _render_coarse_mermaid(
     # Strategy intermediate nodes (stadium shape) with CPT annotation
     _DETERMINISTIC = {"deduction", "reductio", "elimination", "mathematical_induction", "case_analysis"}
 
-    # Compute coarse CPTs if beliefs are available
+    # Compute coarse CPTs + mutual information if beliefs are available
     coarse_cpts: dict[int, list[float]] = {}
     if beliefs:
         try:
@@ -240,24 +240,23 @@ def _render_coarse_mermaid(
                 strategy_params=strat_params,
             )
         except Exception:
-            pass  # Fall back to no CPT annotation
+            pass
 
+    total_mi = 0.0
     for i, s in enumerate(coarse["strategies"]):
         stype = s.get("type", "infer")
         sid = f"strat_{i}"
         conc = kid_to_k.get(s["conclusion"], {}).get("label", "?").replace("-", "_")
         css = "" if stype in _DETERMINISTIC else ":::weak"
 
-        # CPT annotation: P(all false) → P(all true), likelihood ratio
+        # Mutual information annotation
         cpt = coarse_cpts.get(i)
         if cpt and len(cpt) >= 2:
-            p_false = cpt[0]
-            p_true = cpt[-1]
-            if p_false > 1e-4:
-                lr = p_true / p_false
-                ann = f"{stype}\\n{p_false:.2f}→{p_true:.2f} ({lr:.0f}×)"
-            else:
-                ann = f"{stype}\\n{p_false:.2f}→{p_true:.2f}"
+            from gaia.ir.coarsen import mutual_information
+            premise_priors_list = [priors.get(p, 0.5) for p in s["premises"]]
+            mi = mutual_information(cpt, premise_priors_list)
+            total_mi += mi
+            ann = f"{stype}\\n{mi:.2f} bits"
         else:
             ann = stype
 
@@ -294,6 +293,9 @@ def _render_coarse_mermaid(
     lines.append("    classDef weak fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 5 5,color:#333")
     lines.append("    classDef contra fill:#ffebee,stroke:#c62828,color:#333")
     lines.append("```")
+    if total_mi > 0:
+        lines.append("")
+        lines.append(f"> Total information gain: **{total_mi:.2f} bits**")
     return "\n".join(lines)
 
 
