@@ -389,7 +389,7 @@ Passes 2-3 produce generic `infer` strategies. Pass 4 refines each `infer` into 
 | `noisy_and` | All premises jointly support conclusion with probability p | Default for "premises imply conclusion" with uncertainty | `conditional_probability` (single float) |
 | `deduction` | If all premises true, conclusion necessarily true | Strict math proofs, logical syllogisms, definitions | None (deterministic) |
 | `abduction` | Observation best explained by hypothesis over alternative | Theory-experiment comparison, inference to best explanation | Prior on alternative claim |
-| `induction` | Multiple independent observations → general law | Repeated experimental confirmations across conditions | Per-observation alternative (`alt_exps`) |
+| `induction` | Multiple independent observations → general law. Internally a composite of abductions: each observation abduces the law against its own alternative. This is why (a) each observation needs an `alt_exps` entry and (b) observations must be independent (Pass 5). | Repeated experimental confirmations across conditions | Per-observation alternative (`alt_exps`) |
 | `analogy` | Source + structural similarity → target | Cross-system reasoning ("works for A, similar to B, so works for B") | None (auto-formalized) |
 | `extrapolation` | Source + continuity → target | Predicting beyond measured range | None (auto-formalized) |
 | `elimination` | Exhaustive options + excluded candidates → survivor | Process of elimination | None (auto-formalized) |
