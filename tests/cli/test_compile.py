@@ -497,7 +497,7 @@ def test_compile_emits_bridge_manifest_for_direct_fill(tmp_path, monkeypatch):
     assert bridge["source_qid"] == "github:fill_pkg::b_result"
     assert bridge["target_hole_qid"] == "github:dep_hole_pkg::key_missing_lemma"
     assert bridge["target_package"] == "dep-hole-pkg"
-    assert bridge["target_version_req"] == ">=1.4.0,<2.0.0"
+    assert bridge["target_version_req"] == "<2.0.0,>=1.4.0"
     assert bridge["declared_by_owner_of_source"] is True
     assert bridge["justification"] == "Theorem 3 proves the missing lemma."
 
@@ -551,7 +551,47 @@ def test_compile_emits_bridge_manifest_for_zero_local_bridge_package(tmp_path, m
     assert bridge["source_qid"] == "github:bridge_dep_b::b_result"
     assert bridge["target_hole_qid"] == "github:bridge_dep_a::key_missing_lemma"
     assert bridge["declared_by_owner_of_source"] is False
-    assert bridge["target_version_req"] == ">=1.4.0,<2.0.0"
+    assert bridge["target_version_req"] == "<2.0.0,>=1.4.0"
+
+
+def test_compile_emits_bridge_manifest_for_conditional_infer_fill(tmp_path, monkeypatch):
+    dep_dir, _ = _write_package(
+        tmp_path / "conditional_dep_hole_pkg",
+        project_name="conditional-dep-hole-pkg-gaia",
+        body=(
+            "from gaia.lang import hole\n\n"
+            'key_missing_lemma = hole("A missing premise.")\n'
+            '__all__ = ["key_missing_lemma"]\n'
+        ),
+    )
+    pkg_dir, _ = _write_package(
+        tmp_path / "conditional_fill_pkg",
+        project_name="conditional-fill-pkg-gaia",
+        dependencies=["conditional-dep-hole-pkg-gaia>=0.4.0,<1.0.0"],
+        body=(
+            "from gaia.lang import claim, fills\n"
+            "from conditional_dep_hole_pkg import key_missing_lemma\n\n"
+            'b_result = claim("B theorem.")\n'
+            'fills(source=b_result, hole=key_missing_lemma, strength="conditional", '
+            'mode="infer", reason="The theorem partially supports the missing lemma.")\n'
+            '__all__ = ["b_result"]\n'
+        ),
+    )
+
+    monkeypatch.syspath_prepend(str(dep_dir / "src"))
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code == 0, f"Failed: {result.output}"
+
+    bridges = _read_manifest(pkg_dir, "bridges.json")
+    assert len(bridges["bridges"]) == 1
+    bridge = bridges["bridges"][0]
+    assert bridge["relation_type"] == "fills"
+    assert bridge["source_qid"] == "github:conditional_fill_pkg::b_result"
+    assert bridge["target_hole_qid"] == "github:conditional_dep_hole_pkg::key_missing_lemma"
+    assert bridge["target_version_req"] == "<1.0.0,>=0.4.0"
+    assert bridge["strength"] == "conditional"
+    assert bridge["mode"] == "infer"
+    assert bridge["justification"] == "The theorem partially supports the missing lemma."
 
 
 def test_compile_rejects_foreign_fill_without_dependency_constraint(tmp_path, monkeypatch):
