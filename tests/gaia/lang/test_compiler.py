@@ -19,6 +19,7 @@ from gaia.lang import (
 )
 from gaia.lang.runtime import Strategy
 from gaia.lang.compiler.compile import (
+    CompileValidationError,
     compile_package_artifact,
     _compile_reason,
     _extract_at_labels,
@@ -329,7 +330,7 @@ def test_compile_rejects_duplicate_fills_for_same_pair():
         missing.label = "missing"
         fills(source=result, hole=missing, strength="exact")
         fills(source=result, hole=missing, strength="partial")
-    with pytest.raises(ValueError, match="Duplicate fills declaration"):
+    with pytest.raises(CompileValidationError, match="Duplicate fills declaration"):
         compile_package_artifact(pkg)
 
 

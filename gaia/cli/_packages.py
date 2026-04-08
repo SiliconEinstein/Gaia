@@ -384,16 +384,22 @@ def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
 
 def compile_loaded_package(loaded: LoadedGaiaPackage) -> dict[str, Any]:
     """Compile an already loaded Gaia package to IR JSON."""
-    from gaia.lang.compiler import compile_package
+    from gaia.lang.compiler import CompileValidationError, compile_package
 
-    return compile_package(loaded.package)
+    try:
+        return compile_package(loaded.package)
+    except CompileValidationError as exc:
+        raise GaiaCliError(f"Error: {exc}") from exc
 
 
 def compile_loaded_package_artifact(loaded: LoadedGaiaPackage):
     """Compile an already loaded Gaia package to IR plus runtime mappings."""
-    from gaia.lang.compiler import compile_package_artifact
+    from gaia.lang.compiler import CompileValidationError, compile_package_artifact
 
-    return compile_package_artifact(loaded.package)
+    try:
+        return compile_package_artifact(loaded.package)
+    except CompileValidationError as exc:
+        raise GaiaCliError(f"Error: {exc}") from exc
 
 
 def write_compiled_artifacts(

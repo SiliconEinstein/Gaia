@@ -50,6 +50,10 @@ class CompiledPackage:
         return self.graph.model_dump(mode="json", exclude_none=True, serialize_as_any=True)
 
 
+class CompileValidationError(ValueError):
+    """User-fixable compile-time validation error."""
+
+
 def _content_hash(k: Knowledge) -> str:
     """SHA-256(type + content + sorted(parameters))."""
     params_str = json.dumps(sorted(k.parameters, key=lambda p: p.get("name", "")), sort_keys=True)
@@ -162,7 +166,7 @@ def _validate_fills_strategies(
         target_qid = knowledge_map[id(target)]
         pair = (source_qid, target_qid)
         if pair in seen_pairs:
-            raise ValueError(
+            raise CompileValidationError(
                 "Duplicate fills declaration for "
                 f"{source_qid} -> {target_qid}; merge into a single relation"
             )
