@@ -39,6 +39,9 @@ class LoadedGaiaPackage:
     package: CollectedPackage
 
 
+MANIFEST_FILENAMES = ("exports.json", "holes.json", "bridges.json")
+
+
 def _project_to_registry_name(project_name: str) -> str:
     return project_name.removesuffix("-gaia")
 
@@ -294,6 +297,10 @@ def _assign_labels_for_loaded_packages() -> None:
         if pkg is None:
             continue
         _assign_labels(module, pkg)
+
+
+def manifest_dir_for_package(pkg_path: Path) -> Path:
+    return pkg_path / ".gaia" / "manifests"
 
 
 def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:

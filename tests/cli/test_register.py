@@ -96,6 +96,11 @@ def test_register_dry_run_emits_registration_plan(tmp_path):
     assert plan["version"]["git_tag"] == "v1.2.0"
     assert plan["version"]["ir_hash"].startswith("sha256:")
     assert plan["deps"] == {"aristotle-mechanics-gaia": ">= 1.0.0"}
+    exports_path = "packages/register-demo/releases/1.2.0/exports.json"
+    assert exports_path in plan["files"]
+    exports = json.loads(plan["files"][exports_path])
+    assert exports["package"] == "register-demo"
+    assert [item["label"] for item in exports["exports"]] == ["exported_claim"]
 
 
 def test_register_writes_registry_metadata_to_local_checkout(tmp_path):
@@ -133,7 +138,41 @@ def test_register_writes_registry_metadata_to_local_checkout(tmp_path):
     assert 'name = "register-demo"' in (package_dir / "Package.toml").read_text()
     assert 'git_tag = "v1.2.0"' in (package_dir / "Versions.toml").read_text()
     assert '"aristotle-mechanics-gaia" = ">= 1.0.0"' in (package_dir / "Deps.toml").read_text()
+    exports_path = package_dir / "releases" / "1.2.0" / "exports.json"
+    assert exports_path.exists()
+    exports = json.loads(exports_path.read_text())
+    assert [item["label"] for item in exports["exports"]] == ["exported_claim"]
     assert (
         _run(["git", "branch", "--show-current"], cwd=registry_dir)
         == "register/register-demo-1.2.0"
     )
+
+
+def test_register_fails_when_exports_manifest_is_stale(tmp_path):
+    pkg_dir = tmp_path / "register_demo"
+    remote_dir = tmp_path / "register_demo_remote.git"
+    _write_package(pkg_dir)
+    _init_git_repo(pkg_dir, remote_dir)
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    exports_path = pkg_dir / ".gaia" / "manifests" / "exports.json"
+    exports = json.loads(exports_path.read_text())
+    exports["exports"][0]["content"] = "tampered"
+    exports_path.write_text(json.dumps(exports, indent=2, sort_keys=True))
+
+    _run(["git", "tag", "v1.2.0"], cwd=pkg_dir)
+    _run(["git", "push", "origin", "v1.2.0"], cwd=pkg_dir)
+
+    result = runner.invoke(
+        app,
+        [
+            "register",
+            str(pkg_dir),
+            "--repo",
+            "https://github.com/example/RegisterDemo.gaia",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "exports manifest is stale" in result.output.lower()

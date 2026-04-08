@@ -52,3 +52,40 @@ def test_check_fails_when_compiled_artifacts_are_stale(tmp_path):
     result = runner.invoke(app, ["check", str(pkg_dir)])
     assert result.exit_code != 0
     assert "stale" in result.output.lower()
+
+
+def test_check_fails_when_manifest_is_missing(tmp_path):
+    pkg_dir = tmp_path / "check_demo"
+    _write_package(pkg_dir)
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    (pkg_dir / ".gaia" / "manifests" / "exports.json").unlink()
+
+    result = runner.invoke(app, ["check", str(pkg_dir)])
+    assert result.exit_code != 0
+    assert "missing compiled manifest" in result.output.lower()
+
+
+def test_check_warns_for_unused_exported_hole(tmp_path):
+    pkg_dir = tmp_path / "hole_demo"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "hole-demo-gaia"\nversion = "1.2.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "hole_demo"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import hole\n\n"
+        'key_missing_lemma = hole("A missing premise.")\n'
+        '__all__ = ["key_missing_lemma"]\n'
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["check", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    assert "has no downstream local use" in result.output

@@ -6,7 +6,14 @@ import json
 
 import typer
 
-from gaia.cli._packages import GaiaCliError, compile_loaded_package, load_gaia_package
+from gaia.cli._packages import (
+    GaiaCliError,
+    MANIFEST_FILENAMES,
+    build_compiled_manifests,
+    compile_loaded_package,
+    load_gaia_package,
+    manifest_dir_for_package,
+)
 from gaia.cli.commands._classify import classify_ir, node_role
 from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
@@ -105,14 +112,23 @@ def check_command(
     errors.extend(validation.errors)
     warnings.extend(validation.warnings)
 
+    try:
+        expected_manifests = build_compiled_manifests(loaded, ir)
+    except GaiaCliError as exc:
+        errors.append(str(exc))
+        expected_manifests = {}
+
     ir_hash_path = loaded.pkg_path / ".gaia" / "ir_hash"
     ir_json_path = loaded.pkg_path / ".gaia" / "ir.json"
+    manifest_dir = manifest_dir_for_package(loaded.pkg_path)
     if ir_hash_path.exists():
         stored_hash = ir_hash_path.read_text().strip()
         if stored_hash != ir["ir_hash"]:
             errors.append("Compiled artifacts are stale; run `gaia compile` again.")
         if not ir_json_path.exists():
             errors.append("Found .gaia/ir_hash but missing .gaia/ir.json.")
+        if not manifest_dir.exists():
+            errors.append("Found compiled IR but missing .gaia/manifests; run `gaia compile` again.")
     else:
         warnings.append("Compiled artifacts missing; run `gaia compile` before `gaia register`.")
 
@@ -126,6 +142,33 @@ def check_command(
                 errors.append(
                     "Stored .gaia/ir.json does not match current source; run `gaia compile`."
                 )
+
+    for filename in MANIFEST_FILENAMES:
+        expected = expected_manifests.get(filename)
+        if expected is None:
+            continue
+        path = manifest_dir / filename
+        if not path.exists():
+            errors.append(f"Missing compiled manifest .gaia/manifests/{filename}.")
+            continue
+        try:
+            stored = json.loads(path.read_text())
+        except json.JSONDecodeError as exc:
+            errors.append(f".gaia/manifests/{filename} is not valid JSON: {exc}")
+            continue
+        if stored != expected:
+            errors.append(
+                f"Stored .gaia/manifests/{filename} does not match current source; "
+                "run `gaia compile`."
+            )
+
+    holes_manifest = expected_manifests.get("holes.json", {})
+    for hole in holes_manifest.get("holes", []):
+        if not hole.get("required_by"):
+            label = hole.get("label") or hole.get("qid", "<unknown>")
+            warnings.append(
+                f"Exported hole '{label}' has no downstream local use."
+            )
 
     for warning in warnings:
         typer.echo(f"Warning: {warning}")

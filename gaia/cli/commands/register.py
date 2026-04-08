@@ -13,8 +13,10 @@ import typer
 from gaia.cli._packages import (
     GaiaCliError,
     _parse_gaia_dependencies,
+    build_compiled_manifests,
     compile_loaded_package,
     load_gaia_package,
+    manifest_dir_for_package,
 )
 from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
@@ -197,6 +199,28 @@ def register_command(
         typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
         raise typer.Exit(1)
 
+    try:
+        manifests = build_compiled_manifests(loaded, ir)
+    except GaiaCliError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1)
+
+    exports_manifest_path = manifest_dir_for_package(loaded.pkg_path) / "exports.json"
+    if not exports_manifest_path.exists():
+        typer.echo("Error: missing .gaia/manifests/exports.json; run `gaia compile` first.", err=True)
+        raise typer.Exit(1)
+    try:
+        stored_exports_manifest = json.loads(exports_manifest_path.read_text())
+    except json.JSONDecodeError as exc:
+        typer.echo(f"Error: .gaia/manifests/exports.json is not valid JSON: {exc}", err=True)
+        raise typer.Exit(1)
+    if stored_exports_manifest != manifests["exports.json"]:
+        typer.echo(
+            "Error: compiled exports manifest is stale; run `gaia compile` again.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
     gaia_uuid = loaded.gaia_config.get("uuid")
     if not isinstance(gaia_uuid, str) or not gaia_uuid:
         typer.echo("Error: [tool.gaia].uuid is required for registration.", err=True)
@@ -278,6 +302,9 @@ def register_command(
         }
     }
     deps_payload = {version: deps}
+    exports_manifest_json = json.dumps(
+        manifests["exports.json"], ensure_ascii=False, indent=2, sort_keys=True
+    )
 
     plan = {
         "package": {
@@ -299,6 +326,7 @@ def register_command(
             f"packages/{package_name}/Package.toml": package_toml,
             f"packages/{package_name}/Versions.toml": _render_versions_toml(versions),
             f"packages/{package_name}/Deps.toml": _render_deps_toml(deps_payload),
+            f"packages/{package_name}/releases/{version}/exports.json": exports_manifest_json,
         },
         "pull_request": {"title": pr_title, "body": pr_body},
     }
@@ -331,9 +359,12 @@ def register_command(
 
     package_dir = registry_path / "packages" / package_name
     package_dir.mkdir(parents=True, exist_ok=True)
+    release_dir = package_dir / "releases" / version
+    release_dir.mkdir(parents=True, exist_ok=True)
     package_toml_path = package_dir / "Package.toml"
     versions_toml_path = package_dir / "Versions.toml"
     deps_toml_path = package_dir / "Deps.toml"
+    exports_manifest_registry_path = release_dir / "exports.json"
 
     if package_toml_path.exists():
         existing_package = tomllib.loads(package_toml_path.read_text())
@@ -353,6 +384,7 @@ def register_command(
     existing_deps = _load_existing_deps(deps_toml_path)
     existing_deps[version] = deps
     deps_toml_path.write_text(_render_deps_toml(existing_deps))
+    exports_manifest_registry_path.write_text(exports_manifest_json)
 
     try:
         _run(["git", "add", str(package_dir.relative_to(registry_path))], cwd=registry_path)
