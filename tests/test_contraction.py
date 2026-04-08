@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from gaia.bp.contraction import factor_to_tensor
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
 
@@ -178,3 +180,55 @@ def test_factor_to_tensor_conditional():
     # (A=1, B=1): cpt[3]
     assert _almost(t[1, 1, 1], 0.95)
     assert _almost(t[1, 1, 0], 0.05)
+
+
+def test_factor_to_tensor_soft_entailment_missing_params_raises():
+    # Construct a raw Factor (bypass FactorGraph validation)
+    f = Factor(
+        factor_id="fse",
+        factor_type=FactorType.SOFT_ENTAILMENT,
+        variables=["A"],
+        conclusion="C",
+        p1=None,
+        p2=None,
+    )
+    with pytest.raises(ValueError, match="missing p1/p2"):
+        factor_to_tensor(f)
+
+
+def test_factor_to_tensor_conditional_missing_cpt_raises():
+    f = Factor(
+        factor_id="fc",
+        factor_type=FactorType.CONDITIONAL,
+        variables=["A", "B"],
+        conclusion="C",
+        cpt=None,
+    )
+    with pytest.raises(ValueError, match="missing cpt"):
+        factor_to_tensor(f)
+
+
+def test_factor_to_tensor_conditional_wrong_length_raises():
+    f = Factor(
+        factor_id="fc",
+        factor_type=FactorType.CONDITIONAL,
+        variables=["A", "B"],
+        conclusion="C",
+        cpt=(0.1, 0.2),  # wrong length: 2 instead of 2^2=4
+    )
+    with pytest.raises(ValueError, match="cpt length 2 != 2\\^k=4"):
+        factor_to_tensor(f)
+
+
+def test_factor_to_tensor_unknown_factor_type_raises():
+    class _FakeFt:
+        name = "FAKE"
+
+    f = Factor(
+        factor_id="fbogus",
+        factor_type=_FakeFt(),  # type: ignore[arg-type]
+        variables=["A"],
+        conclusion="B",
+    )
+    with pytest.raises(ValueError, match="Unknown FactorType"):
+        factor_to_tensor(f)

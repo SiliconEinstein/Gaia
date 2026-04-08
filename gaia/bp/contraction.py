@@ -48,55 +48,47 @@ def factor_to_tensor(f: Factor) -> tuple[np.ndarray, list[str]]:
         return t, axes
 
     if ft == FactorType.CONJUNCTION:
-        t = np.full(shape, _LOW, dtype=np.float64)
-        for idx in np.ndindex(*shape):
-            inputs = idx[:-1]
-            concl = idx[-1]
-            target = 1 if all(v == 1 for v in inputs) else 0
-            if concl == target:
-                t[idx] = _HIGH
+        grids = np.indices(shape)  # shape: (n, 2, 2, ..., 2)
+        inputs_all_one = grids[:-1].all(axis=0)
+        concl = grids[-1].astype(bool)
+        t = np.where(concl == inputs_all_one, _HIGH, _LOW).astype(np.float64)
         return t, axes
 
     if ft == FactorType.DISJUNCTION:
-        t = np.full(shape, _LOW, dtype=np.float64)
-        for idx in np.ndindex(*shape):
-            inputs = idx[:-1]
-            concl = idx[-1]
-            target = 1 if any(v == 1 for v in inputs) else 0
-            if concl == target:
-                t[idx] = _HIGH
+        grids = np.indices(shape)
+        inputs_any_one = grids[:-1].any(axis=0)
+        concl = grids[-1].astype(bool)
+        t = np.where(concl == inputs_any_one, _HIGH, _LOW).astype(np.float64)
         return t, axes
 
     if ft == FactorType.EQUIVALENCE:
-        t = np.full(shape, _LOW, dtype=np.float64)
-        for a in (0, 1):
-            for b in (0, 1):
-                target = 1 if a == b else 0
-                t[a, b, target] = _HIGH
+        grids = np.indices(shape)
+        # Helper concl == (A == B)
+        target = grids[0] == grids[1]
+        t = np.where(grids[2].astype(bool) == target, _HIGH, _LOW).astype(np.float64)
         return t, axes
 
     if ft == FactorType.CONTRADICTION:
-        t = np.full(shape, _LOW, dtype=np.float64)
-        for a in (0, 1):
-            for b in (0, 1):
-                target = 0 if (a == 1 and b == 1) else 1
-                t[a, b, target] = _HIGH
+        grids = np.indices(shape)
+        # Helper concl == NOT(A AND B)
+        target = ~((grids[0] == 1) & (grids[1] == 1))
+        t = np.where(grids[2].astype(bool) == target, _HIGH, _LOW).astype(np.float64)
         return t, axes
 
     if ft == FactorType.COMPLEMENT:
-        t = np.full(shape, _LOW, dtype=np.float64)
-        for a in (0, 1):
-            for b in (0, 1):
-                target = 1 if a != b else 0
-                t[a, b, target] = _HIGH
+        grids = np.indices(shape)
+        # Helper concl == (A XOR B)
+        target = grids[0] != grids[1]
+        t = np.where(grids[2].astype(bool) == target, _HIGH, _LOW).astype(np.float64)
         return t, axes
 
     if ft == FactorType.SOFT_ENTAILMENT:
         if f.p1 is None or f.p2 is None:
             raise ValueError(f"SOFT_ENTAILMENT {f.factor_id!r} missing p1/p2")
         p1, p2 = f.p1, f.p2
-        t = np.empty(shape, dtype=np.float64)
+        # p1 = P(C=1 | premise=1); p2 = P(C=0 | premise=0)
         # Axes: [premise, conclusion]
+        t = np.empty(shape, dtype=np.float64)
         t[0, 0] = p2
         t[0, 1] = 1.0 - p2
         t[1, 0] = 1.0 - p1
@@ -106,21 +98,21 @@ def factor_to_tensor(f: Factor) -> tuple[np.ndarray, list[str]]:
     if ft == FactorType.CONDITIONAL:
         if f.cpt is None:
             raise ValueError(f"CONDITIONAL {f.factor_id!r} missing cpt")
-        cpt = np.asarray(f.cpt, dtype=np.float64)
         k = len(f.variables)
         expected = 1 << k
-        if cpt.shape != (expected,):
+        if len(f.cpt) != expected:
             raise ValueError(
-                f"CONDITIONAL {f.factor_id!r}: cpt length {cpt.shape[0]} != 2^k={expected}"
+                f"CONDITIONAL {f.factor_id!r}: cpt length {len(f.cpt)} != 2^k={expected}"
             )
-        t = np.empty(shape, dtype=np.float64)
-        for idx in np.ndindex(*shape):
-            prem_idx = 0
-            for bit, v in enumerate(idx[:-1]):
-                if v == 1:
-                    prem_idx |= 1 << bit
-            p = cpt[prem_idx]
-            t[idx] = p if idx[-1] == 1 else (1.0 - p)
+        cpt_arr = np.asarray(f.cpt, dtype=np.float64)
+        grids = np.indices(shape)
+        # Build the flat premise index: sum(v_i << i) over input axes
+        prem_idx = np.zeros(shape, dtype=np.int64)
+        for bit in range(k):
+            prem_idx |= grids[bit].astype(np.int64) << bit
+        p = cpt_arr[prem_idx]
+        concl = grids[-1]
+        t = np.where(concl == 1, p, 1.0 - p)
         return t, axes
 
     raise ValueError(f"Unknown FactorType: {ft!r}")
