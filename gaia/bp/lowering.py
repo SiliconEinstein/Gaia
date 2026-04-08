@@ -18,12 +18,17 @@ from gaia.ir.strategy import (
     StrategyType,
 )
 
+# Operators whose conclusion is a "relation assertion" (the operator
+# DECLARES that the relation holds) — their helper claim should be
+# pinned to ``1 - CROMWELL_EPS`` (asserted true).  DISJUNCTION is
+# compositional (``h = a OR b`` is a derived value), so its helper
+# stays at the neutral 0.5 default and the factor potential drives
+# the marginal.
 _RELATION_OPS = frozenset(
     {
         OperatorType.EQUIVALENCE,
         OperatorType.CONTRADICTION,
         OperatorType.COMPLEMENT,
-        OperatorType.DISJUNCTION,
     }
 )
 
@@ -69,6 +74,19 @@ def lower_local_graph(
         all-true / all-false CPT entries (information loss for general CPT).
     """
     priors = node_priors or {}
+    # Auto-formalized helper claims (labels starting with ``__``, e.g.
+    # ``__disjunction_result_<hash>``, ``__equivalence_result_<hash>``)
+    # are persisted into ``ir["knowledges"]`` and consequently appear in
+    # most callers' ``node_priors`` (which default-fill every claim id).
+    # Their priors should NOT come from the user — they're determined by
+    # the operator semantics (relation operators → asserted; compositional
+    # operators → neutral 0.5).  Filter them out so the lowering branches
+    # below can apply the correct default.
+    helper_ids = {
+        k.id for k in canonical.knowledges if k.id and k.label and k.label.startswith("__")
+    }
+    if helper_ids:
+        priors = {k: v for k, v in priors.items() if k not in helper_ids}
     strat_params = strategy_conditional_params or {}
     fg = FactorGraph()
     ctr = [0]
@@ -100,6 +118,7 @@ def lower_local_graph(
             fg.add_variable(concl, priors.get(concl, default))
         fg.add_factor(fid, ft, op.variables, concl)
 
+    seen_strategies: set[str] = set()
     for s in canonical.strategies:
         _lower_strategy(
             fg,
@@ -113,6 +132,7 @@ def lower_local_graph(
             claim_ids,
             canonical.namespace,
             canonical.package_name,
+            seen_strategies=seen_strategies,
         )
 
     return fg
@@ -175,7 +195,19 @@ def _lower_strategy(
     claim_ids: set[str],
     namespace: str,
     package_name: str,
+    seen_strategies: set[str] | None = None,
 ) -> None:
+    # Dedup: when ``seen_strategies`` is provided (lower_local_graph
+    # passes a fresh set), skip strategies that have already been
+    # lowered.  Composite strategies recursively lower their
+    # sub-strategies, but those subs are also top-level entries in
+    # ``canonical.strategies``, so without dedup the same strategy's
+    # factors get added twice.
+    if seen_strategies is not None and s.strategy_id:
+        if s.strategy_id in seen_strategies:
+            return
+        seen_strategies.add(s.strategy_id)
+
     if isinstance(s, CompositeStrategy):
         for sid in s.sub_strategies:
             sub = strat_by_id.get(sid)
@@ -193,6 +225,7 @@ def _lower_strategy(
                 claim_ids,
                 namespace,
                 package_name,
+                seen_strategies=seen_strategies,
             )
         return
 
@@ -342,6 +375,7 @@ def _lower_strategy(
             claim_ids,
             namespace,
             package_name,
+            seen_strategies=seen_strategies,
         )
         return
 

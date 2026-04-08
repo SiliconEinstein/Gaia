@@ -494,8 +494,10 @@ def test_formal_expr_relation_conclusion_gets_assertion_prior():
     assert fg.variables["github:lowertest::_eq"] == pytest.approx(1.0 - CROMWELL_EPS)
     assert fg.variables["github:lowertest::_contra"] == pytest.approx(1.0 - CROMWELL_EPS)
 
-    # Disjunction is in _RELATION_OPS (IR §2.4 classification) → assertion prior
-    assert fg.variables["github:lowertest::_d"] == pytest.approx(1.0 - CROMWELL_EPS)
+    # Disjunction is COMPOSITIONAL (h = a OR b is a derived value), not a relation
+    # assertion.  Its helper stays at neutral 0.5; the factor potential drives the
+    # marginal.  DISJUNCTION was incorrectly in _RELATION_OPS before Fix 1.
+    assert fg.variables["github:lowertest::_d"] == pytest.approx(0.5)
     # Directed operator conclusions (_g) must have computation prior 0.5
     assert fg.variables["github:lowertest::_g"] == pytest.approx(0.5)
 
