@@ -316,7 +316,15 @@ async def run_batch_import(
         logger.info("All papers already ingested")
         return stats
 
-    logger.info("Will process %d pending papers in chunks of %d", len(pending), chunk_size)
+    if max_per_round > 0:
+        logger.info(
+            "Will process up to %d papers this round (of %d pending) in chunks of %d",
+            min(max_per_round, len(pending)),
+            len(pending),
+            chunk_size,
+        )
+    else:
+        logger.info("Will process %d pending papers in chunks of %d", len(pending), chunk_size)
 
     # 3. Init resources
     if tos_config is None:
@@ -332,7 +340,9 @@ async def run_batch_import(
     prev_sigterm = signal.signal(signal.SIGTERM, _request_shutdown)
 
     # 5. Process in chunks
-    n_chunks = (len(pending) + chunk_size - 1) // chunk_size
+    # n_chunks reflects max_per_round cap so the progress bar matches reality
+    effective_n = min(len(pending), max_per_round) if max_per_round > 0 else len(pending)
+    n_chunks = (effective_n + chunk_size - 1) // chunk_size
     for i in range(0, len(pending), chunk_size):
         if _shutdown_requested:
             logger.info("Shutdown requested — stopping before chunk %d", i // chunk_size + 1)
