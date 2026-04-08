@@ -5,8 +5,14 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from gaia.bp.contraction import contract_to_cpt, factor_to_tensor
+from gaia.bp.contraction import (
+    contract_to_cpt,
+    cpt_tensor_to_list,
+    factor_to_tensor,
+    strategy_cpt,
+)
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
+from gaia.ir.strategy import Strategy
 
 _HIGH = 1.0 - CROMWELL_EPS
 _LOW = CROMWELL_EPS
@@ -334,3 +340,159 @@ def test_contract_to_cpt_many_variables():
     cpt = contract_to_cpt(factors, free_vars=[var_names[0], var_names[-1]], unary_priors=priors)
     assert cpt.shape == (2, 2)
     assert _np.all(_np.isfinite(cpt))
+
+
+def test_strategy_cpt_leaf_infer():
+    """Leaf INFER strategy: CPT should be the raw strat_params reshape."""
+    s = Strategy(
+        scope="local",
+        type="infer",
+        premises=["github:t::a", "github:t::b"],
+        conclusion="github:t::c",
+    )
+    strat_by_id = {s.strategy_id: s}
+    cpt_tensor, axes = strategy_cpt(
+        s,
+        strat_by_id=strat_by_id,
+        strat_params={s.strategy_id: [0.1, 0.3, 0.7, 0.95]},
+        var_priors={},
+        namespace="",
+        package_name="",
+        cache={},
+    )
+    assert axes == ["github:t::a", "github:t::b", "github:t::c"]
+    # Cromwell-clamped values may differ from exact input by a few ε.
+    assert _almost(cpt_tensor[0, 0, 1], 0.1, eps=5e-3)
+    assert _almost(cpt_tensor[1, 0, 1], 0.3, eps=5e-3)
+    assert _almost(cpt_tensor[0, 1, 1], 0.7, eps=5e-3)
+    assert _almost(cpt_tensor[1, 1, 1], 0.95, eps=5e-3)
+
+
+def test_strategy_cpt_leaf_noisy_and_single_premise():
+    """NOISY_AND with one premise → SOFT_ENTAILMENT, no internal vars."""
+    s = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:t::a"],
+        conclusion="github:t::c",
+    )
+    cpt_tensor, axes = strategy_cpt(
+        s,
+        strat_by_id={s.strategy_id: s},
+        strat_params={s.strategy_id: [0.85]},
+        var_priors={},
+        namespace="",
+        package_name="",
+        cache={},
+    )
+    assert axes == ["github:t::a", "github:t::c"]
+    # P(C=1|A=1) ≈ 0.85
+    assert cpt_tensor[1, 1] > 0.84 and cpt_tensor[1, 1] < 0.86
+    # P(C=1|A=0) ≈ ε (Cromwell)
+    assert cpt_tensor[0, 1] < 0.01
+
+
+def test_strategy_cpt_leaf_noisy_and_two_premises():
+    """NOISY_AND with two premises → CONJUNCTION + SOFT_ENTAILMENT via intermediate m.
+
+    The intermediate m is registered in the mini fg with prior 0.5 and then
+    marginalized.  Expected CPT matches test_fold_composite_to_cpt_directly.
+    """
+    s = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:t::a", "github:t::b"],
+        conclusion="github:t::c",
+    )
+    cpt_tensor, axes = strategy_cpt(
+        s,
+        strat_by_id={s.strategy_id: s},
+        strat_params={s.strategy_id: [0.85]},
+        var_priors={},
+        namespace="",
+        package_name="",
+        cache={},
+    )
+    assert axes == ["github:t::a", "github:t::b", "github:t::c"]
+    assert cpt_tensor[0, 0, 1] < 0.05
+    assert cpt_tensor[1, 0, 1] < 0.05
+    assert cpt_tensor[0, 1, 1] < 0.05
+    assert cpt_tensor[1, 1, 1] > 0.83
+
+
+def test_strategy_cpt_caches_by_strategy_id():
+    s = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:t::a"],
+        conclusion="github:t::c",
+    )
+    cache: dict = {}
+    t1, a1 = strategy_cpt(
+        s,
+        strat_by_id={s.strategy_id: s},
+        strat_params={s.strategy_id: [0.9]},
+        var_priors={},
+        namespace="",
+        package_name="",
+        cache=cache,
+    )
+    assert s.strategy_id in cache
+    t2, a2 = strategy_cpt(
+        s,
+        strat_by_id={s.strategy_id: s},
+        strat_params={s.strategy_id: [0.9]},
+        var_priors={},
+        namespace="",
+        package_name="",
+        cache=cache,
+    )
+    # Same tensor object returned from cache.
+    assert t1 is t2
+    assert a1 == a2
+
+
+def test_strategy_cpt_composite_raises_not_implemented_yet():
+    """Task 5 will fill this in; Task 4 only handles leaves."""
+    from gaia.ir.strategy import CompositeStrategy
+
+    sub = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:t::a"],
+        conclusion="github:t::c",
+    )
+    comp = CompositeStrategy(
+        scope="local",
+        type="infer",
+        premises=["github:t::a"],
+        conclusion="github:t::c",
+        sub_strategies=[sub.strategy_id],
+    )
+    with pytest.raises(NotImplementedError, match="Task 5"):
+        strategy_cpt(
+            comp,
+            strat_by_id={sub.strategy_id: sub, comp.strategy_id: comp},
+            strat_params={sub.strategy_id: [0.9]},
+            var_priors={},
+            namespace="",
+            package_name="",
+            cache={},
+        )
+
+
+def test_cpt_tensor_to_list_bit_ordering():
+    """Bit ordering: bit 0 = first premise."""
+    t = np.zeros((2, 2, 2))
+    t[0, 0, 1] = 0.11
+    t[0, 0, 0] = 0.89
+    t[1, 0, 1] = 0.22
+    t[1, 0, 0] = 0.78
+    t[0, 1, 1] = 0.33
+    t[0, 1, 0] = 0.67
+    t[1, 1, 1] = 0.44
+    t[1, 1, 0] = 0.56
+    axes = ["A", "B", "C"]
+    cpt_list = cpt_tensor_to_list(t, axes, premises=["A", "B"], conclusion="C")
+    # index = (A << 0) | (B << 1)
+    assert cpt_list == [0.11, 0.22, 0.33, 0.44]

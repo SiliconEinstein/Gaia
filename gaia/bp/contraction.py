@@ -222,3 +222,98 @@ def contract_to_cpt(
             "graph may have contradictory deterministic factors."
         )
     return joint / totals
+
+
+def cpt_tensor_to_list(
+    tensor: np.ndarray,
+    axes: list[str],
+    premises: list[str],
+    conclusion: str,
+) -> list[float]:
+    """Flatten a normalized CPT tensor to the bit-indexed list format.
+
+    ``tensor`` must have shape ``(2,) * len(axes)`` and be normalized
+    along the conclusion axis.  The output has length ``2 ** len(premises)``
+    and is indexed by ``sum(v_i << i for i, v_i in enumerate(premises))``.
+    Bit 0 corresponds to the first premise (matching the existing
+    ``fold_composite_to_cpt`` convention and ``FactorType.CONDITIONAL``).
+    """
+    k = len(premises)
+    target_order = [*premises, conclusion]
+    perm = [axes.index(name) for name in target_order]
+    t = np.transpose(tensor, perm)
+    out: list[float] = []
+    for assignment in range(1 << k):
+        idx = tuple(((assignment >> bit) & 1) for bit in range(k)) + (1,)
+        out.append(float(t[idx]))
+    return out
+
+
+def strategy_cpt(
+    s,
+    strat_by_id: dict,
+    strat_params: dict[str, list[float]],
+    var_priors: dict[str, float],
+    namespace: str,
+    package_name: str,
+    cache: dict,
+) -> tuple[np.ndarray, list[str]]:
+    """Compute the effective CPT tensor of a single Gaia IR strategy.
+
+    Layer-by-layer variable elimination:
+    - Leaf strategies (INFER, NOISY_AND, FormalStrategy, auto-formalized named
+      strategies): build a mini FactorGraph via the existing ``_lower_strategy``
+      dispatch, convert its factors to tensors, and contract them with unary
+      priors from the mini fg's ``variables`` dict.
+    - CompositeStrategy: recursion (implemented in Task 5).
+
+    The returned tuple is ``(cpt_tensor, axes)`` where axes =
+    ``[*s.premises, s.conclusion]``.
+
+    ``cache`` is mutated: keyed by ``strategy_id``, values are
+    ``(cpt_tensor, axes)`` pairs.  Callers pass a fresh dict per top-level
+    invocation to scope the cache to that call.
+
+    ``var_priors`` is forwarded to ``_lower_strategy`` so that it can honor
+    non-default priors on claim variables (e.g., when called from
+    ``compute_coarse_cpts`` with the global factor graph's variables).
+    Pass ``{}`` for isolated composite folding.
+    """
+    from gaia.bp.factor_graph import FactorGraph
+    from gaia.bp.lowering import _lower_strategy
+    from gaia.ir.strategy import CompositeStrategy
+
+    if s.strategy_id in cache:
+        return cache[s.strategy_id]
+
+    if isinstance(s, CompositeStrategy):
+        raise NotImplementedError("strategy_cpt: CompositeStrategy handling is added in Task 5.")
+
+    # Leaf: build a mini FactorGraph via the existing _lower_strategy dispatch.
+    mini = FactorGraph()
+    ctr = [0]
+    claim_ids: set[str] = set()
+    _lower_strategy(
+        mini,
+        s,
+        strat_by_id,
+        var_priors,
+        strat_params,
+        expand_formal=True,
+        infer_degraded=False,
+        ctr=ctr,
+        claim_ids=claim_ids,
+        namespace=namespace,
+        package_name=package_name,
+    )
+
+    tensors = [factor_to_tensor(f) for f in mini.factors]
+    free = [*s.premises, s.conclusion]
+    free_set = set(free)
+    # Unary priors for every variable in the mini fg that is NOT a free axis.
+    non_free = {v: p for v, p in mini.variables.items() if v not in free_set}
+
+    cpt_tensor = contract_to_cpt(tensors, free_vars=free, unary_priors=non_free)
+    result = (cpt_tensor, free)
+    cache[s.strategy_id] = result
+    return result
