@@ -12,7 +12,7 @@ from gaia.bp.contraction import (
     strategy_cpt,
 )
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
-from gaia.ir.strategy import Strategy
+from gaia.ir.strategy import CompositeStrategy, Strategy
 
 _HIGH = 1.0 - CROMWELL_EPS
 _LOW = CROMWELL_EPS
@@ -452,35 +452,6 @@ def test_strategy_cpt_caches_by_strategy_id():
     assert a1 == a2
 
 
-def test_strategy_cpt_composite_raises_not_implemented_yet():
-    """Task 5 will fill this in; Task 4 only handles leaves."""
-    from gaia.ir.strategy import CompositeStrategy
-
-    sub = Strategy(
-        scope="local",
-        type="noisy_and",
-        premises=["github:t::a"],
-        conclusion="github:t::c",
-    )
-    comp = CompositeStrategy(
-        scope="local",
-        type="infer",
-        premises=["github:t::a"],
-        conclusion="github:t::c",
-        sub_strategies=[sub.strategy_id],
-    )
-    with pytest.raises(NotImplementedError, match="Task 5"):
-        strategy_cpt(
-            comp,
-            strat_by_id={sub.strategy_id: sub, comp.strategy_id: comp},
-            strat_params={sub.strategy_id: [0.9]},
-            var_priors={},
-            namespace="",
-            package_name="",
-            cache={},
-        )
-
-
 def test_cpt_tensor_to_list_bit_ordering():
     """Bit ordering: bit 0 = first premise."""
     t = np.zeros((2, 2, 2))
@@ -496,3 +467,142 @@ def test_cpt_tensor_to_list_bit_ordering():
     cpt_list = cpt_tensor_to_list(t, axes, premises=["A", "B"], conclusion="C")
     # index = (A << 0) | (B << 1)
     assert cpt_list == [0.11, 0.22, 0.33, 0.44]
+
+
+def test_strategy_cpt_composite_single_sub():
+    """Composite wrapping a single NOISY_AND sub — CPT should match the sub."""
+    sub = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:t::a", "github:t::b"],
+        conclusion="github:t::c",
+    )
+    comp = CompositeStrategy(
+        scope="local",
+        type="infer",
+        premises=["github:t::a", "github:t::b"],
+        conclusion="github:t::c",
+        sub_strategies=[sub.strategy_id],
+    )
+    strat_by_id = {sub.strategy_id: sub, comp.strategy_id: comp}
+    cpt_tensor, axes = strategy_cpt(
+        comp,
+        strat_by_id=strat_by_id,
+        strat_params={sub.strategy_id: [0.85]},
+        var_priors={},
+        namespace="",
+        package_name="",
+        cache={},
+    )
+    assert axes == ["github:t::a", "github:t::b", "github:t::c"]
+    assert cpt_tensor[0, 0, 1] < 0.05
+    assert cpt_tensor[1, 0, 1] < 0.05
+    assert cpt_tensor[0, 1, 1] < 0.05
+    assert cpt_tensor[1, 1, 1] > 0.83
+
+
+def test_strategy_cpt_composite_chain_with_bridge_var():
+    """Chain A → M → C with two sub-strategies bridged by M.
+
+    Matches test_fold_composite_to_cpt_chain in tests/test_lowering.py but
+    exercises strategy_cpt directly.
+    """
+    sub1 = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:t::a"],
+        conclusion="github:t::m",
+    )
+    sub2 = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:t::m"],
+        conclusion="github:t::c",
+    )
+    comp = CompositeStrategy(
+        scope="local",
+        type="infer",
+        premises=["github:t::a"],
+        conclusion="github:t::c",
+        sub_strategies=[sub1.strategy_id, sub2.strategy_id],
+    )
+    strat_by_id = {
+        sub1.strategy_id: sub1,
+        sub2.strategy_id: sub2,
+        comp.strategy_id: comp,
+    }
+    cpt_tensor, axes = strategy_cpt(
+        comp,
+        strat_by_id=strat_by_id,
+        strat_params={sub1.strategy_id: [0.9], sub2.strategy_id: [0.8]},
+        var_priors={},
+        namespace="",
+        package_name="",
+        cache={},
+    )
+    assert axes == ["github:t::a", "github:t::c"]
+    assert cpt_tensor[0, 1] < 0.1  # A=0 → C≈0
+    # A=1 → M≈0.9 → C ≈ 0.9*0.8 + 0.1*ε ≈ 0.72
+    assert cpt_tensor[1, 1] > 0.65 and cpt_tensor[1, 1] < 0.80
+
+
+def test_strategy_cpt_composite_populates_cache_for_subs():
+    """After folding a composite, all its sub-strategies are in the cache."""
+    sub1 = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:t::a"],
+        conclusion="github:t::m",
+    )
+    sub2 = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:t::m"],
+        conclusion="github:t::c",
+    )
+    comp = CompositeStrategy(
+        scope="local",
+        type="infer",
+        premises=["github:t::a"],
+        conclusion="github:t::c",
+        sub_strategies=[sub1.strategy_id, sub2.strategy_id],
+    )
+    cache: dict = {}
+    strategy_cpt(
+        comp,
+        strat_by_id={
+            sub1.strategy_id: sub1,
+            sub2.strategy_id: sub2,
+            comp.strategy_id: comp,
+        },
+        strat_params={sub1.strategy_id: [0.9], sub2.strategy_id: [0.8]},
+        var_priors={},
+        namespace="",
+        package_name="",
+        cache=cache,
+    )
+    # All three strategy_ids should now be in cache.
+    assert sub1.strategy_id in cache
+    assert sub2.strategy_id in cache
+    assert comp.strategy_id in cache
+
+
+def test_strategy_cpt_composite_missing_sub_raises():
+    """If a sub_strategy_id is not in strat_by_id, raise KeyError."""
+    comp = CompositeStrategy(
+        scope="local",
+        type="infer",
+        premises=["github:t::a"],
+        conclusion="github:t::c",
+        sub_strategies=["lcs_does_not_exist"],
+    )
+    with pytest.raises(KeyError, match="references missing strategy_id"):
+        strategy_cpt(
+            comp,
+            strat_by_id={comp.strategy_id: comp},
+            strat_params={},
+            var_priors={},
+            namespace="",
+            package_name="",
+            cache={},
+        )

@@ -304,7 +304,42 @@ def strategy_cpt(
         return cache[s.strategy_id]
 
     if isinstance(s, CompositeStrategy):
-        raise NotImplementedError("strategy_cpt: CompositeStrategy handling is added in Task 5.")
+        child_tensors: list[tuple[np.ndarray, list[str]]] = []
+        for sid in s.sub_strategies:
+            sub = strat_by_id.get(sid)
+            if sub is None:
+                raise KeyError(
+                    f"CompositeStrategy {s.strategy_id!r} references missing strategy_id {sid!r}"
+                )
+            sub_tensor, sub_axes = strategy_cpt(
+                sub,
+                strat_by_id,
+                strat_params,
+                var_priors,
+                namespace,
+                package_name,
+                cache,
+            )
+            child_tensors.append((sub_tensor, sub_axes))
+
+        free = [*s.premises, s.conclusion]
+        free_set = set(free)
+
+        # Bridge variables: any child axis that isn't a composite free var.
+        # Each bridge gets a unary prior at this layer (default 0.5 if not
+        # in var_priors).  Internal helper claims marginalized inside a
+        # child's CPT do NOT appear in any child's axes and are correctly
+        # skipped here.
+        bridges: dict[str, float] = {}
+        for _, axes in child_tensors:
+            for v in axes:
+                if v not in free_set and v not in bridges:
+                    bridges[v] = var_priors.get(v, 0.5)
+
+        cpt_tensor = contract_to_cpt(child_tensors, free_vars=free, unary_priors=bridges)
+        result = (cpt_tensor, free)
+        cache[s.strategy_id] = result
+        return result
 
     # Leaf: build a mini FactorGraph via the existing _lower_strategy dispatch.
     mini = FactorGraph()
