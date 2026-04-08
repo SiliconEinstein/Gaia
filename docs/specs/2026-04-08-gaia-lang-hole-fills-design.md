@@ -57,7 +57,7 @@ hole(...)
 而不是只靠：
 
 ```python
-claim(..., metadata={"proof_state": "hole"})
+claim(..., metadata={"gaia": {"role": "hole"}})
 ```
 
 原因：
@@ -124,7 +124,7 @@ claim(
     background=background,
     parameters=parameters,
     provenance=provenance,
-    proof_state="hole",
+    metadata={"gaia": {"role": "hole"}},
     **metadata,
 )
 ```
@@ -132,11 +132,14 @@ claim(
 也就是说：
 
 - 不新增 KnowledgeType
-- 只是在 metadata 上固化 `proof_state = "hole"`
+- 只是在 namespaced metadata 上固化 `metadata["gaia"]["role"] = "hole"`
+- 不占用通用 `proof_state` key，避免和未来更一般的证明状态语义冲突
 
 ### 4.3 Restrictions
 
 `hole()` 不接受 `given=...`。
+
+这里的 `given=` 是 [2026-04-02-gaia-lang-v5-python-dsl-design.md](2026-04-02-gaia-lang-v5-python-dsl-design.md) 中规划的 target-design 参数；当前主线实现还没有该参数，这里先把约束定清楚。
 
 理由：
 
@@ -231,10 +234,12 @@ def fills(
 
 ```python
 {
-  "ecosystem_relation": {
-    "type": "fills",
-    "strength": "exact",
-    "target_role": "hole"
+  "gaia": {
+    "relation": {
+      "type": "fills",
+      "strength": "exact",
+      "target_role": "hole"
+    }
   }
 }
 ```
@@ -260,13 +265,34 @@ def fills(
 
 - `source.type == "claim"`
 - `hole.type == "claim"`
+- `hole` 对应的 local 或 foreign `Knowledge.metadata["gaia"]["role"] == "hole"`
 
 在 package / registry 层进一步校验：
 
 - 若 `hole` 是 foreign reference，则它应解析到对方 package 的 exported hole
 - 若不是 foreign hole，则该 relation 不进入 registry bridge index
 
-### 5.6 Example: B directly fills A
+如果 target 不带 canonical hole marker，`gaia compile` 应直接报错，而不是等到 registry 阶段才拒绝。
+
+### 5.6 Uniqueness Rule
+
+同一个 package version 内，`fills` 对同一组 `(source_qid, target_hole_qid)` 最多只能声明一次。
+
+也就是说，下列写法应被视为非法：
+
+```python
+fills(source=b_result, hole=a_hole, strength="exact")
+fills(source=b_result, hole=a_hole, strength="conditional", mode="infer")
+```
+
+原因：
+
+- `fills` 是生态 relation declaration，不是同一对节点上的多重边容器
+- 同一对 `(source, hole)` 的多次声明会在当前 IR `strategy_id` 规则下产生冲突
+
+如果作者想改变 `strength` 或 `mode`，应修改同一条 relation，而不是在同一 package version 内重复声明。
+
+### 5.7 Example: B directly fills A
 
 ```python
 from gaia.lang import claim, fills
@@ -284,7 +310,9 @@ fills(
 __all__ = ["b_result"]
 ```
 
-### 5.7 Example: C publishes a bridge package
+### 5.8 Example: C publishes a bridge package
+
+bridge package 通常不需要 import `claim`。
 
 ```python
 from gaia.lang import fills
@@ -405,7 +433,7 @@ fills(
 如果只允许：
 
 ```python
-claim(..., metadata={"proof_state": "hole"})
+claim(..., metadata={"gaia": {"role": "hole"}})
 deduction(..., conclusion=foreign_hole)
 ```
 
@@ -494,6 +522,8 @@ from gaia.lang import (
 3. **`fills` 用独立 DSL 构造，但不新增 runtime strategy type。**
 4. **`fills` 的逻辑强度继续复用 `deduction` / `infer`。**
 5. **public hole 由 `hole(...) + export` 共同决定。**
+6. **hole marker 使用 namespaced metadata：`metadata["gaia"]["role"] = "hole"`。**
+7. **同一 package version 内禁止重复声明同一 `(source_qid, target_hole_qid)` 的 `fills` relation。**
 
 ## 11. Open Questions
 

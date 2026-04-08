@@ -64,8 +64,8 @@
 规则保持简单：
 
 - exported = 在 `__all__`
-- public hole = exported claim + `proof_state = "hole"`
-- bridge relation = local strategy metadata 中声明 `ecosystem_relation.type = "fills"`
+- public hole = exported claim + `metadata["gaia"]["role"] = "hole"`
+- bridge relation = local strategy metadata 中声明 `metadata["gaia"]["relation"]["type"] = "fills"`
 
 ### 3.3 Bridge package 不是新的 package type
 
@@ -138,7 +138,7 @@ type = "knowledge-package"
       "label": "main_result",
       "type": "claim",
       "content": "B's main theorem.",
-      "content_hash": "sha256:..."
+      "content_hash": "2fd4e1c67a2d28fced849ee1bb76e7391b93eb12f4f4a0a2b9f7f1c4d5e6a7b8"
     }
   ]
 }
@@ -149,6 +149,7 @@ type = "knowledge-package"
 - 来自 IR 中 `exported = true` 的 `Knowledge`
 - 包含 `claim / setting / question`
 - registry 侧目前重点消费 `claim`，但 manifest 保留完整 exported knowledge surface
+- `content_hash` 与 IR `Knowledge.content_hash` 保持一致，使用裸的 64 位 hex；只有 `ir_hash` 使用 `sha256:` 前缀
 
 ### 5.2 `holes.json`
 
@@ -165,7 +166,7 @@ type = "knowledge-package"
       "qid": "github:package_a::key_missing_lemma",
       "label": "key_missing_lemma",
       "content": "A missing premise required by the main theorem.",
-      "content_hash": "sha256:...",
+      "content_hash": "7f6a5b4c3d2e1f0099887766554433221100ffeeddccbbaa9988776655443322",
       "required_by": ["github:package_a::main_theorem"]
     }
   ]
@@ -175,7 +176,7 @@ type = "knowledge-package"
 提取规则：
 
 - 仅从 IR 中 `exported = true` 的 claim 提取
-- 且其 metadata 标记 `proof_state = "hole"`
+- 且其 metadata 标记 `metadata["gaia"]["role"] = "hole"`
 - `required_by` 由图结构派生，不由作者手填
 
 ### 5.2.1 `required_by` 的最小规则
@@ -199,10 +200,12 @@ Phase 1 先用最简单的可解释规则：
   "generated_at": "2026-04-08T12:00:00Z",
   "bridges": [
     {
-      "relation_id": "bridge_sha256_...",
+      "relation_id": "bridge_4a1f9d3c2b7e8f10",
       "relation_type": "fills",
       "source_qid": "github:package_b::main_result",
       "target_hole_qid": "github:package_a::key_missing_lemma",
+      "target_package": "package-a",
+      "target_version_req": ">=1.4.0,<2.0.0",
       "strength": "exact",
       "mode": "deduction",
       "declared_by_owner_of_source": true,
@@ -212,12 +215,25 @@ Phase 1 先用最简单的可解释规则：
 }
 ```
 
+`relation_id` 的稳定规则定义为：
+
+```text
+relation_id = "bridge_" + sha256(
+  declaring_package + "|" + declaring_version + "|" +
+  source_qid + "|" + target_hole_qid + "|" + relation_type
+)[:16]
+```
+
 提取规则：
 
 - 扫描 local strategies
-- 找出 metadata 中 `ecosystem_relation.type == "fills"` 的 strategy
+- 找出 metadata 中 `gaia.relation.type == "fills"` 的 strategy
 - 提取其 `conclusion` 作为 `target_hole_qid`
 - 提取其唯一 premise 作为 `source_qid`
+- `target_package` 来自 `target_hole_qid` 中的 package 段
+- `target_version_req` 来自当前 package `pyproject.toml` 中对 `target_package` 的依赖约束；若 target 为 foreign hole 且没有对应依赖约束，`gaia compile` / `gaia check` 应报错
+- `declared_by_owner_of_source = (QID(source_qid).package == current_package.name)`，由编译器自动计算
+- 同一 package version 内，若出现重复的 `(source_qid, target_hole_qid)`，编译器应直接报错
 
 如果 `fills` 后续允许 richer metadata，则按 metadata 补全 `strength / mode / justification`。
 
@@ -295,6 +311,8 @@ package C bridge 编译后：
 
 这里 `declared_by_owner_of_source = false`，因为 relation 由第三方声明。
 
+在纯 bridge package 场景下，`exports.json` 的空数组是合法的；package 的主要对外产物是 `bridges.json`，不是 exported claims。
+
 ### 7.3 Boundary Condition: A did not export a hole
 
 如果 A 没有公开 hole interface：
@@ -335,13 +353,19 @@ package 的稳定 API 仍然首先由 exported nodes 决定。
 
 ## 9. `gaia compile` Changes
 
-推荐 `gaia compile` 扩展为：
+推荐 `gaia compile` 在目标稳态下扩展为：
 
 1. 正常生成 `.gaia/ir.json`
 2. 正常生成 `.gaia/ir_hash`
 3. 额外生成 `.gaia/manifests/exports.json`
 4. 额外生成 `.gaia/manifests/holes.json`
 5. 额外生成 `.gaia/manifests/bridges.json`
+
+与 registry rollout 的对齐规则是：
+
+- **Phase 1**：`exports.json` 是必须产物；`holes.json` / `bridges.json` 可以作为本地 preview artifact 存在，但不会被 `gaia register` 上传
+- **Phase 2**：`holes.json` 成为正式 contract
+- **Phase 3**：`bridges.json` 成为正式 contract
 
 ### 9.1 Why compile, not register
 
@@ -369,8 +393,11 @@ package 的稳定 API 仍然首先由 exported nodes 决定。
 - every fills relation has exactly one `source_qid`
 - `source_qid` resolves to claim
 - `target_hole_qid` resolves to claim
+- every target knowledge, local or foreign, carries the canonical hole marker `metadata["gaia"]["role"] = "hole"`
 - if target is local and not exported hole, do not emit to bridge manifest
 - if target is foreign, dependency resolution must succeed
+- if target is foreign, `target_version_req` must be derivable from the package dependency spec
+- duplicate `(source_qid, target_hole_qid)` fills declarations are hard errors
 
 ## 11. `gaia register` Changes
 
@@ -380,13 +407,17 @@ package 的稳定 API 仍然首先由 exported nodes 决定。
 - `Versions.toml`
 - `Deps.toml`
 
-推荐扩展为同时携带：
+推荐扩展为分阶段携带：
 
-- `packages/<name>/releases/<version>/exports.json`
-- `packages/<name>/releases/<version>/holes.json`
-- `packages/<name>/releases/<version>/bridges.json`
+- **Phase 1**：`packages/<name>/releases/<version>/exports.json`
+- **Phase 2**：再加 `packages/<name>/releases/<version>/holes.json`
+- **Phase 3**：再加 `packages/<name>/releases/<version>/bridges.json`
+
+也就是说，本地 compile 可以先于 registry rollout 生成 preview manifests，但 `gaia register` 只会上传当前 phase 正式支持的那部分文件。
 
 ### 11.1 Register payload shape
+
+Phase 3 的完整 payload 形态是：
 
 计划输出中新增：
 
@@ -427,6 +458,59 @@ bridge package 在 registry 中的 discoverability，主要依靠：
 
 而不是依赖 exported claims。
 
+### 12.3 Zero-Local-Knowledge Bridge Packages
+
+纯 bridge package 是允许的。一个最小例子可以是：
+
+- 没有本地 exported claim
+- 只有 foreign `source_qid`
+- 只有 foreign `target_hole_qid`
+- 以及一条本地声明的 `fills` relation
+
+其期望产物形态是：
+
+```json
+// .gaia/manifests/exports.json
+{
+  "package": "package-c-bridge",
+  "version": "0.1.0",
+  "exports": []
+}
+```
+
+```json
+// .gaia/manifests/holes.json
+{
+  "package": "package-c-bridge",
+  "version": "0.1.0",
+  "holes": []
+}
+```
+
+```json
+// .gaia/manifests/bridges.json
+{
+  "package": "package-c-bridge",
+  "version": "0.1.0",
+  "bridges": [
+    {
+      "relation_id": "bridge_4a1f9d3c2b7e8f10",
+      "relation_type": "fills",
+      "source_qid": "github:package_b::b_result",
+      "target_hole_qid": "github:package_a::key_missing_lemma",
+      "target_package": "package-a",
+      "target_version_req": ">=1.4.0,<2.0.0",
+      "strength": "conditional",
+      "mode": "infer",
+      "declared_by_owner_of_source": false,
+      "justification": "..."
+    }
+  ]
+}
+```
+
+实现 rollout 的 acceptance criteria 之一应是：一个真实的零本地 bridge package 能走通 `gaia compile && gaia check`，并在 Phase 3 走通 `gaia register`。
+
 ## 13. Why This Package Layer Matters
 
 ### 13.1 Thought Experiment: no local manifests
@@ -454,6 +538,8 @@ bridge package 在 registry 中的 discoverability，主要依靠：
 3. **`.gaia/manifests/` 新增 `exports / holes / bridges`。**
 4. **这些 manifests 由 `gaia compile` 生成，而不是 `gaia register` 临时拼。**
 5. **bridge package 仍然是普通 `knowledge-package`，不是新的 package type。**
+6. **`content_hash` 与 IR 保持同格式：裸 64 位 hex，不带 `sha256:` 前缀。**
+7. **同一 package version 内禁止重复声明同一 `(source_qid, target_hole_qid)` 的 `fills` relation。**
 
 ## 15. Open Questions
 
