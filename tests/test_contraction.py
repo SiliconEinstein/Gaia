@@ -11,6 +11,7 @@ from gaia.bp.contraction import (
     factor_to_tensor,
     strategy_cpt,
 )
+from gaia.bp.exact import _factor_log_potentials
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
 from gaia.ir.strategy import CompositeStrategy, Strategy
 
@@ -707,3 +708,153 @@ def test_strategy_cpt_cycle_detection():
             package_name="",
             cache={},
         )
+
+
+# ---------------------------------------------------------------------------
+# Equivalence tests: tensor contraction vs exact_inference ground truth
+# ---------------------------------------------------------------------------
+
+
+def _run_exact_with_premise_clamps(
+    fg: FactorGraph,
+    premises: list[str],
+    conclusion: str,
+) -> list[float]:
+    """Reference CPT via brute-force exact conditional marginalization.
+
+    Enumerates all 2^n joint states once, using the un-clamped priors in
+    ``fg.variables``.  For each of the 2^k premise assignments, filters the
+    joint to states consistent with that assignment and reads
+    P(conclusion=1 | premises=assignment) by summing the filtered joint.
+
+    This computes the TRUE conditional — the same quantity that
+    ``contract_to_cpt`` computes via variable elimination — so both methods
+    are guaranteed to agree within floating-point tolerance on any factor
+    graph whose potentials are finite and whose joint is not zero.
+    """
+    var_ids = sorted(fg.variables.keys())
+    n = len(var_ids)
+    var_idx = {v: i for i, v in enumerate(var_ids)}
+    priors = np.array([fg.variables[v] for v in var_ids], dtype=np.float64)
+
+    N = 1 << n
+    arange = np.arange(N, dtype=np.int64)
+    states = np.empty((N, n), dtype=np.int8)
+    for i in range(n):
+        states[:, i] = (arange >> i) & 1
+
+    # Log-joint under the un-clamped priors + all factors
+    log_p1 = np.log(np.clip(priors, 1e-300, None))
+    log_p0 = np.log(np.clip(1.0 - priors, 1e-300, None))
+    log_j = (states * log_p1 + (1 - states) * log_p0).sum(axis=1)
+
+    for fac in fg.factors:
+        log_j += _factor_log_potentials(fac, states, var_idx)
+
+    joint = np.exp(log_j - log_j.max())  # numerically stable unnormalized joint
+
+    k = len(premises)
+    prem_idxs = [var_idx[p] for p in premises]
+    concl_idx = var_idx[conclusion]
+    cpt: list[float] = []
+    for assignment in range(1 << k):
+        # Build a boolean mask for all states consistent with this premise assignment
+        mask = np.ones(N, dtype=bool)
+        for bit, pidx in enumerate(prem_idxs):
+            val = (assignment >> bit) & 1
+            mask &= states[:, pidx] == val
+        w = joint[mask]
+        w_concl1 = joint[mask & (states[:, concl_idx] == 1)]
+        cpt.append(float(w_concl1.sum() / w.sum()))
+    return cpt
+
+
+def _cpt_via_contraction(
+    fg: FactorGraph,
+    premises: list[str],
+    conclusion: str,
+) -> list[float]:
+    """Tensor-contraction CPT: all factors in fg, premises free, others priored."""
+    tensors = [factor_to_tensor(f) for f in fg.factors]
+    free = [*premises, conclusion]
+    free_set = set(free)
+    unary_priors = {v: p for v, p in fg.variables.items() if v not in free_set}
+    cpt_tensor = contract_to_cpt(tensors, free_vars=free, unary_priors=unary_priors)
+    return cpt_tensor_to_list(cpt_tensor, free, premises, conclusion)
+
+
+def test_equivalence_single_implication():
+    fg = FactorGraph()
+    fg.add_variable("A", 0.5)
+    fg.add_variable("B", 0.5)
+    fg.add_factor("f1", FactorType.IMPLICATION, ["A"], "B")
+    ref = _run_exact_with_premise_clamps(fg, ["A"], "B")
+    ours = _cpt_via_contraction(fg, ["A"], "B")
+    np.testing.assert_allclose(ours, ref, atol=1e-6)
+
+
+def test_equivalence_conjunction_plus_soft_entailment():
+    """NOISY_AND-like: CONJ(A,B) → M, SE(M → C)."""
+    fg = FactorGraph()
+    fg.add_variable("A", 0.5)
+    fg.add_variable("B", 0.5)
+    fg.add_variable("M", 0.5)
+    fg.add_variable("C", 0.5)
+    fg.add_factor("f1", FactorType.CONJUNCTION, ["A", "B"], "M")
+    fg.add_factor("f2", FactorType.SOFT_ENTAILMENT, ["M"], "C", p1=0.85, p2=1.0 - CROMWELL_EPS)
+    ref = _run_exact_with_premise_clamps(fg, ["A", "B"], "C")
+    ours = _cpt_via_contraction(fg, ["A", "B"], "C")
+    np.testing.assert_allclose(ours, ref, atol=1e-6)
+
+
+def test_equivalence_conditional_factor():
+    fg = FactorGraph()
+    fg.add_variable("A", 0.5)
+    fg.add_variable("B", 0.5)
+    fg.add_variable("C", 0.5)
+    fg.add_factor("f1", FactorType.CONDITIONAL, ["A", "B"], "C", cpt=[0.1, 0.4, 0.6, 0.95])
+    ref = _run_exact_with_premise_clamps(fg, ["A", "B"], "C")
+    ours = _cpt_via_contraction(fg, ["A", "B"], "C")
+    np.testing.assert_allclose(ours, ref, atol=1e-6)
+
+
+def test_equivalence_relation_operator_equivalence():
+    """EQUIVALENCE relation with 1-ε assertion prior on helper."""
+    fg = FactorGraph()
+    fg.add_variable("A", 0.5)
+    fg.add_variable("B", 0.5)
+    fg.add_variable("H", 1.0 - CROMWELL_EPS)  # assert "A == B"
+    fg.add_factor("f1", FactorType.EQUIVALENCE, ["A", "B"], "H")
+    # Query: P(B | A) under the assertion H=1
+    ref = _run_exact_with_premise_clamps(fg, ["A"], "B")
+    ours = _cpt_via_contraction(fg, ["A"], "B")
+    np.testing.assert_allclose(ours, ref, atol=1e-6)
+
+
+def test_equivalence_chain_with_nonuniform_intermediate_prior():
+    """Non-default prior on intermediate must be honored."""
+    fg = FactorGraph()
+    fg.add_variable("A", 0.5)
+    fg.add_variable("M", 0.3)  # non-default
+    fg.add_variable("C", 0.5)
+    fg.add_factor("f1", FactorType.SOFT_ENTAILMENT, ["A"], "M", p1=0.9, p2=0.95)
+    fg.add_factor("f2", FactorType.SOFT_ENTAILMENT, ["M"], "C", p1=0.8, p2=0.95)
+    ref = _run_exact_with_premise_clamps(fg, ["A"], "C")
+    ours = _cpt_via_contraction(fg, ["A"], "C")
+    np.testing.assert_allclose(ours, ref, atol=1e-6)
+
+
+def test_equivalence_disjunction_and_contradiction():
+    """Two relation operators and a soft entailment in a small graph."""
+    fg = FactorGraph()
+    fg.add_variable("A", 0.5)
+    fg.add_variable("B", 0.5)
+    fg.add_variable("C", 0.5)
+    fg.add_variable("D_OR", 1.0 - CROMWELL_EPS)
+    fg.add_variable("H_NOT", 1.0 - CROMWELL_EPS)
+    fg.add_factor("fd", FactorType.DISJUNCTION, ["A", "B"], "D_OR")
+    fg.add_factor("fn", FactorType.CONTRADICTION, ["A", "B"], "H_NOT")
+    fg.add_factor("fse", FactorType.SOFT_ENTAILMENT, ["A"], "C", p1=0.7, p2=0.9)
+    ref = _run_exact_with_premise_clamps(fg, ["A", "B"], "C")
+    ours = _cpt_via_contraction(fg, ["A", "B"], "C")
+    np.testing.assert_allclose(ours, ref, atol=1e-6)
