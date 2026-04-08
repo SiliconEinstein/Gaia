@@ -139,10 +139,17 @@ def contract_to_cpt(
 ) -> np.ndarray:
     """Contract a list of factor tensors down to a conditional CPT tensor.
 
-    Uses manual pairwise variable elimination with per-step rescaling to
-    prevent raw-probability underflow on deep graphs.  The final CPT is a
-    ratio (``joint / sum_along_conclusion``), so rescaling intermediates by
-    any positive constant preserves the result exactly.
+    Uses ``opt_einsum.contract_path`` to plan an optimal contraction order,
+    then executes each pairwise step manually with per-step rescaling.
+    Rescaling divides each intermediate tensor by its max, keeping values in
+    ``[0, 1]`` and preventing raw-float64 underflow on deep graphs.  The
+    final CPT is a ratio (``joint / sum_along_conclusion``), so rescaling
+    intermediates by any positive constant preserves the result exactly.
+
+    Because each pairwise step involves at most two operands whose combined
+    axes are small, ``numpy.einsum`` has no trouble with the 52-symbol
+    alphabet at any individual step — even when the global variable count
+    exceeds 52.
 
     Parameters
     ----------
@@ -153,8 +160,8 @@ def contract_to_cpt(
         Variables that remain as axes in the output, in output order.
         Typically ``[*premises, conclusion]``.  The last entry is the
         conclusion and is the axis along which the output is normalized.
-        A free variable that does not appear in any input tensor is
-        handled as a degenerate constant axis (uniform contribution).
+        A free variable that does not appear in any input tensor is handled
+        as a degenerate constant axis (uniform contribution).
     unary_priors:
         Variables that must be marginalized out and have a prior
         ``[1-π, π]`` applied as a unary tensor.  Every non-free variable
@@ -174,10 +181,13 @@ def contract_to_cpt(
         for some premise assignment even after per-step rescaling
         (indicates contradictory deterministic factors).
     """
+    import opt_einsum as oe
+
     if not free_vars:
         raise ValueError("free_vars must be non-empty (need at least a conclusion axis)")
 
-    # Collect all distinct variable names across all tensors.
+    # Collect all distinct variable names across the input tensors, preserving
+    # first-seen order for deterministic integer-index assignment.
     all_vars: list[str] = []
     seen: set[str] = set()
     for _, axes in tensors:
@@ -195,65 +205,91 @@ def contract_to_cpt(
             "The caller must supply a prior for every non-free variable."
         )
 
-    # Build the working set: all factor tensors + unary prior tensors for
-    # non-free variables + uniform degenerate tensors for any free variable
-    # that doesn't appear in any input tensor (so it becomes a constant axis
-    # in the output — valid for composites with unused interface premises).
-    work: list[tuple[np.ndarray, list[str]]] = [(np.asarray(t), list(ax)) for t, ax in tensors]
+    # Build the full operand list:
+    #   1) Original factor tensors
+    #   2) Unary prior tensors for non-free variables
+    #   3) Degenerate uniform tensors for free variables not in any input
+    #      (legitimate case: CompositeStrategy with unused interface premises)
+    operands: list[np.ndarray] = []
+    operand_axes: list[list[str]] = []
 
-    # Unary prior tensors for non-free vars.
+    for t, ax in tensors:
+        operands.append(np.asarray(t, dtype=np.float64))
+        operand_axes.append(list(ax))
+
     for v in all_vars:
         if v in free_set:
             continue
         pi = unary_priors[v]
-        work.append((np.array([1.0 - pi, pi], dtype=np.float64), [v]))
+        operands.append(np.array([1.0 - pi, pi], dtype=np.float64))
+        operand_axes.append([v])
 
-    # Degenerate uniform tensors for free vars not in any input.
     for v in free_vars:
         if v not in seen:
-            work.append((np.array([0.5, 0.5], dtype=np.float64), [v]))
+            operands.append(np.array([0.5, 0.5], dtype=np.float64))
+            operand_axes.append([v])
             seen.add(v)
             all_vars.append(v)
 
-    # Sequentially eliminate each non-free variable.  For each variable,
-    # multiply all tensors mentioning it pairwise (with per-step max
-    # rescaling to prevent float64 underflow), then sum it out.
-    vars_to_eliminate = [v for v in all_vars if v not in free_set]
-    for v in vars_to_eliminate:
-        with_v = [(t, ax) for t, ax in work if v in ax]
-        without_v = [(t, ax) for t, ax in work if v not in ax]
+    # Assign unique integer indices to each distinct variable.
+    var_to_idx: dict[str, int] = {v: i for i, v in enumerate(all_vars)}
 
-        if not with_v:
-            continue
+    # Build the opt_einsum args: alternating (operand, [integer axis indices]),
+    # then a final list with the output index order.
+    args: list[object] = []
+    for op, ax in zip(operands, operand_axes):
+        args.append(op)
+        args.append([var_to_idx[v] for v in ax])
+    args.append([var_to_idx[v] for v in free_vars])
 
-        acc_t, acc_ax = with_v[0]
-        for next_t, next_ax in with_v[1:]:
-            acc_t, acc_ax = _pairwise_contract(acc_t, acc_ax, next_t, next_ax)
-            acc_t = _rescale(acc_t)
+    # Let opt_einsum plan an optimal contraction order.  ``contract_path``
+    # returns ``(path, PathInfo)`` where ``PathInfo.contraction_list`` has
+    # the per-step subscript strings we need to execute ourselves.
+    _, path_info = oe.contract_path(*args, optimize="greedy")
 
-        # Sum out v.
-        v_axis = acc_ax.index(v)
-        acc_t = acc_t.sum(axis=v_axis)
-        acc_ax = [a for a in acc_ax if a != v]
-        acc_t = _rescale(acc_t)
+    # ASCII alphabet for per-step einsum subscript remapping.
+    _ASCII52 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-        without_v.append((acc_t, acc_ax))
-        work = without_v
+    # Execute the path step by step.  Each step contracts exactly two
+    # operands via a small np.einsum call (well within the 52-symbol
+    # alphabet) and the result is rescaled to prevent underflow.
+    working: list[np.ndarray] = list(operands)
+    for step in path_info.contraction_list:
+        inds = step[0]
+        einsum_str = step[2]
 
-    # Combine remaining tensors (all over free vars only).
-    if not work:
-        joint = np.ones((2,) * len(free_vars), dtype=np.float64)
-        final_axes = list(free_vars)
-    else:
-        acc_t, acc_ax = work[0]
-        for next_t, next_ax in work[1:]:
-            acc_t, acc_ax = _pairwise_contract(acc_t, acc_ax, next_t, next_ax)
-            acc_t = _rescale(acc_t)
-        # Transpose to match free_vars order.
-        perm = [acc_ax.index(v) for v in free_vars]
-        joint = np.transpose(acc_t, perm)
-        final_axes = list(free_vars)
-    del final_axes  # silence unused (we only need the values in free_vars order)
+        # Collect operands in the order specified by ``inds`` — this matches
+        # the operand order encoded in ``einsum_str``.  Then remove them from
+        # ``working`` highest-index-first so lower indices stay valid.
+        popped = [working[i] for i in inds]
+        for i in sorted(inds, reverse=True):
+            working.pop(i)
+
+        # opt_einsum may use non-ASCII characters in its internal symbol pool
+        # when the global variable count exceeds 52.  Numpy's einsum only
+        # accepts ASCII letters.  Since each pairwise step uses at most a
+        # handful of distinct axis symbols, we remap them to 'a','b','c',...
+        # before calling np.einsum.
+        special = [c for c in dict.fromkeys(einsum_str) if c not in "->,"]
+        if any(ord(c) > 127 for c in special):
+            mapping = {c: _ASCII52[i] for i, c in enumerate(special)}
+            einsum_str = "".join(mapping.get(c, c) for c in einsum_str)
+
+        result = np.einsum(einsum_str, *popped)
+
+        # Per-step rescale: divide by the max to keep values in [0, 1].
+        # The final CPT is a ratio, so this cancels out in the final
+        # normalization along the conclusion axis.
+        m = float(result.max())
+        if m > 0:
+            result = result / m
+
+        working.append(result)
+
+    # After all steps, exactly one operand remains: the joint over free vars
+    # in the requested order (opt_einsum's final step includes any output
+    # transpose needed).
+    joint = working[0]
 
     # Normalize along the conclusion axis (last free axis).
     totals = joint.sum(axis=-1, keepdims=True)
@@ -263,46 +299,6 @@ def contract_to_cpt(
             "graph may have contradictory deterministic factors."
         )
     return joint / totals
-
-
-def _pairwise_contract(
-    a_t: np.ndarray,
-    a_ax: list[str],
-    b_t: np.ndarray,
-    b_ax: list[str],
-) -> tuple[np.ndarray, list[str]]:
-    """Contract two tensors keeping the union of their axes.
-
-    Uses ``np.einsum`` with a small alphabet derived from the combined
-    axes.  Since any pair has at most ~8 axes in practice, we are well
-    under numpy's 52-symbol limit on each pairwise call.
-    """
-    merged = list(a_ax)
-    for v in b_ax:
-        if v not in merged:
-            merged.append(v)
-    sym = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    if len(merged) > len(sym):
-        raise ValueError(f"_pairwise_contract: combined axes {len(merged)} exceeds 52-symbol limit")
-    ax_to_sym = {a: sym[i] for i, a in enumerate(merged)}
-    lhs = "".join(ax_to_sym[a] for a in a_ax)
-    rhs = "".join(ax_to_sym[a] for a in b_ax)
-    out = "".join(ax_to_sym[a] for a in merged)
-    result = np.einsum(f"{lhs},{rhs}->{out}", a_t, b_t)
-    return result, merged
-
-
-def _rescale(t: np.ndarray) -> np.ndarray:
-    """Divide a tensor by its max to keep values in [0, 1].
-
-    The final CPT is a ratio (joint / sum_along_conclusion), so rescaling
-    intermediates by any positive constant preserves the result exactly.
-    This prevents raw-probability underflow on deep graphs.
-    """
-    m = float(t.max())
-    if m > 0:
-        return t / m
-    return t
 
 
 def cpt_tensor_to_list(
