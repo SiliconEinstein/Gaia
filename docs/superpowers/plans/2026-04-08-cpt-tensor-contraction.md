@@ -6,11 +6,23 @@
 
 **Architecture:** New module `gaia/bp/contraction.py` provides three shared primitives: `factor_to_tensor` (Factor → ndarray), `contract_to_cpt` (einsum-based variable elimination with unary priors), and `strategy_cpt` (recursive per-strategy CPT with per-call cache). Both entry points become thin wrappers around these primitives. For composite strategies, recursion matches the `CompositeStrategy` tree — each layer contracts child CPT tensors along shared (bridge) variables. Each variable's unary prior is applied at exactly one layer (the layer where it gets marginalized), matching the semantics of the current BP-based implementation and `exact_inference`.
 
-**Tech Stack:** Python 3.12, NumPy (einsum with list-of-indices form to avoid 52-char limit), existing `gaia.bp.factor_graph.FactorGraph`/`Factor`/`FactorType`, existing `gaia.bp.lowering._lower_strategy`, existing `gaia.ir.strategy.{Strategy, CompositeStrategy, FormalStrategy}`.
+**Tech Stack:** Python 3.12, `opt_einsum` (see deviation note below), existing `gaia.bp.factor_graph.FactorGraph`/`Factor`/`FactorType`, existing `gaia.bp.lowering._lower_strategy`, existing `gaia.ir.strategy.{Strategy, CompositeStrategy, FormalStrategy}`.
 
 **GitHub issue:** SiliconEinstein/Gaia#357
 
 **Working directory:** `.worktrees/cpt-tensor` on branch `feature/cpt-tensor-contraction`.
+
+---
+
+## Post-implementation deviations from this plan
+
+These items were discovered during execution and are recorded here so the plan remains a faithful record of what was shipped. The ordering below matches when they were discovered.
+
+1. **Task 1 scaffold shrunk** — the plan's Task 1 scaffold eagerly imported `numpy`, `Factor`, `FactorGraph`, `FactorType`, `CROMWELL_EPS`, and forward-declared `__all__`. Ruff rejected this (F401 unused, F822 undefined names). Task 1 was shrunk to just `"""docstring"""` + `from __future__ import annotations`. Imports and constants are added progressively in Tasks 2-5 as they land. `__all__` was restored in Task 4's fix once all four public functions existed.
+
+2. **`np.einsum` → `opt_einsum.contract`** — Invariant 5 of this plan said "All contractions must use `np.einsum(tensor, indices, ...)` list-of-indices form, so the number of variables is not bounded by 52." That assertion is wrong. Verified empirically: numpy's einsum internally maps every index (integer or string) to the same 52-character symbol pool `a-zA-Z`, so the list-of-indices form raises `IndexError: string index out of range` at 60 variables. After discussion, the user approved adding `opt-einsum>=3.3` as a new project dependency. `contract_to_cpt` now uses `opt_einsum.contract(*args, optimize="greedy")` which has no variable-count limit and does genuine path optimization. The primitive is unchanged in shape (~70 lines); only the contraction engine differs.
+
+3. **Task 8 reference computation rewritten** — the plan's Task 8 `_run_exact_with_premise_clamps` helper clamped premise priors to `1-ε`/`ε` and called `exact_inference`. That is *soft conditioning* (the premise is treated as strong prior evidence, not as a strict observation) and differs from `contract_to_cpt`'s result by `O(CROMWELL_EPS) ≈ 10^-3`, which exceeds the 10^-6 equivalence tolerance. The fix: the helper now enumerates the joint over `fg.variables` (un-clamped) + all factor potentials once, then for each premise assignment filters the joint to states consistent with that assignment and computes the *true* conditional `P(C=1|P=v)` by summing the filtered mass. This is the same true conditional `contract_to_cpt` computes, so both agree to ~10^-15.
 
 ---
 
