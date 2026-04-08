@@ -137,57 +137,35 @@ def fold_composite_to_cpt(
     strat_params: dict[str, list[float]],
     expand_formal: bool = True,
 ) -> list[float]:
-    """Compute the effective CPT of a CompositeStrategy by marginalization.
+    """Compute the effective CPT of a CompositeStrategy via tensor contraction.
 
-    Builds a temporary factor graph from the sub-strategies, then for each
-    assignment of the composite's premises, clamps premise priors and runs BP
-    to obtain P(conclusion=1 | assignment).
+    Layer-by-layer variable elimination: each sub-strategy's CPT is computed
+    recursively (cached by strategy_id), then child CPTs are contracted along
+    shared bridge variables.  Exact, no BP iterations.
 
     Returns a list of 2^k floats (k = number of premises), indexed by the
     binary encoding of the premise assignment (bit 0 = first premise).
     """
-    from gaia.bp.bp import BeliefPropagation
+    from gaia.bp.contraction import cpt_tensor_to_list, strategy_cpt
 
-    k = len(s.premises)
-    cpt: list[float] = []
-    CLAMP_HI = 1.0 - 1e-6
-    CLAMP_LO = 1e-6
+    if not expand_formal:
+        raise NotImplementedError(
+            "fold_composite_to_cpt with expand_formal=False is not supported "
+            "by the tensor-contraction path. See "
+            "docs/foundations/gaia-ir/07-lowering.md §9."
+        )
 
-    for assignment in range(1 << k):
-        # Build a fresh mini factor graph for this assignment.
-        mini = FactorGraph()
-        ctr = [0]
-        claim_ids: set[str] = set()
-
-        # Clamp premise priors according to this assignment.
-        clamped: dict[str, float] = {}
-        for bit, pid in enumerate(s.premises):
-            clamped[pid] = CLAMP_HI if (assignment >> bit) & 1 else CLAMP_LO
-
-        # Lower each sub-strategy into the mini graph.
-        for sid in s.sub_strategies:
-            sub = strat_by_id.get(sid)
-            if sub is None:
-                raise KeyError(f"CompositeStrategy references missing strategy_id {sid!r}")
-            _lower_strategy(
-                mini,
-                sub,
-                strat_by_id,
-                clamped,
-                strat_params,
-                expand_formal,
-                infer_degraded=False,
-                ctr=ctr,
-                claim_ids=claim_ids,
-                namespace="",
-                package_name="",
-            )
-
-        # Run BP on the mini graph.
-        result = BeliefPropagation(damping=0.5, max_iterations=200).run(mini)
-        cpt.append(result.beliefs.get(s.conclusion, 0.5))
-
-    return cpt
+    cache: dict = {}
+    cpt_tensor, axes = strategy_cpt(
+        s,
+        strat_by_id=strat_by_id,
+        strat_params=strat_params,
+        var_priors={},
+        namespace="",
+        package_name="",
+        cache=cache,
+    )
+    return cpt_tensor_to_list(cpt_tensor, axes, list(s.premises), s.conclusion)
 
 
 def _lower_strategy(
