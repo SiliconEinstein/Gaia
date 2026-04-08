@@ -95,7 +95,7 @@ def test_register_dry_run_emits_registration_plan(tmp_path):
     assert plan["package"]["pypi_name"] == "register-demo-gaia"
     assert plan["version"]["git_tag"] == "v1.2.0"
     assert plan["version"]["ir_hash"].startswith("sha256:")
-    assert plan["deps"] == {"aristotle-mechanics-gaia": ">= 1.0.0"}
+    assert plan["deps"] == {"aristotle-mechanics-gaia": ">=1.0.0"}
 
 
 def test_register_writes_registry_metadata_to_local_checkout(tmp_path):
@@ -132,7 +132,7 @@ def test_register_writes_registry_metadata_to_local_checkout(tmp_path):
     assert (package_dir / "Deps.toml").exists()
     assert 'name = "register-demo"' in (package_dir / "Package.toml").read_text()
     assert 'git_tag = "v1.2.0"' in (package_dir / "Versions.toml").read_text()
-    assert '"aristotle-mechanics-gaia" = ">= 1.0.0"' in (package_dir / "Deps.toml").read_text()
+    assert '"aristotle-mechanics-gaia" = ">=1.0.0"' in (package_dir / "Deps.toml").read_text()
     assert (
         _run(["git", "branch", "--show-current"], cwd=registry_dir)
         == "register/register-demo-1.2.0"

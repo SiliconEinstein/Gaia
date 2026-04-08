@@ -11,6 +11,8 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+from packaging.requirements import InvalidRequirement, Requirement
+
 from gaia.lang.runtime import Knowledge, Strategy
 from gaia.lang.runtime.package import CollectedPackage
 from gaia.lang.runtime.package import get_inferred_package, reset_inferred_package
@@ -50,14 +52,12 @@ def _project_to_import_name(project_name: str) -> str:
 def _parse_gaia_dependencies(dependencies: list[str]) -> dict[str, str]:
     deps: dict[str, str] = {}
     for dep in dependencies:
-        requirement = dep.split(";", 1)[0].strip()
-        idx = 0
-        while idx < len(requirement) and requirement[idx] not in " <>=!~[":
-            idx += 1
-        name = requirement[:idx]
-        specifier = requirement[idx:].strip() or "*"
-        if name.endswith("-gaia"):
-            deps[name] = specifier
+        try:
+            requirement = Requirement(dep)
+        except InvalidRequirement as exc:
+            raise GaiaCliError(f"Error: invalid dependency requirement '{dep}': {exc}") from exc
+        if requirement.name.endswith("-gaia"):
+            deps[requirement.name] = str(requirement.specifier) or "*"
     return deps
 
 
