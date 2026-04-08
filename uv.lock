@@ -603,12 +603,13 @@ wheels = [
 
 [[package]]
 name = "gaia-lang"
-version = "0.2.2"
+version = "0.2.6"
 source = { editable = "." }
 dependencies = [
     { name = "faiss-cpu" },
     { name = "httpx" },
     { name = "numpy" },
+    { name = "opt-einsum" },
     { name = "pydantic" },
     { name = "typer" },
 ]
@@ -652,6 +653,7 @@ requires-dist = [
     { name = "lxml", marker = "extra == 'server'", specifier = ">=5.0" },
     { name = "neo4j", marker = "extra == 'server'", specifier = ">=5.0" },
     { name = "numpy", specifier = ">=1.26,<2.4" },
+    { name = "opt-einsum", specifier = ">=3.3" },
     { name = "pandas", marker = "extra == 'server'", specifier = ">=2.0" },
     { name = "pyarrow", marker = "extra == 'server'", specifier = ">=15.0" },
     { name = "pydantic", specifier = ">=2.0" },
@@ -1395,6 +1397,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d7/91/2a06c4e9597c338cac1e5e5a8dd6f29e1836fc229c4c523529dca387fda8/openai-2.26.0.tar.gz", hash = "sha256:b41f37c140ae0034a6e92b0c509376d907f3a66109935fba2c1b471a7c05a8fb", size = 666702, upload-time = "2026-03-05T23:17:35.874Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c6/2e/3f73e8ca53718952222cacd0cf7eecc9db439d020f0c1fe7ae717e4e199a/openai-2.26.0-py3-none-any.whl", hash = "sha256:6151bf8f83802f036117f06cc8a57b3a4da60da9926826cc96747888b57f394f", size = 1136409, upload-time = "2026-03-05T23:17:34.072Z" },
+]
+
+[[package]]
+name = "opt-einsum"
+version = "3.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8c/b9/2ac072041e899a52f20cf9510850ff58295003aa75525e58343591b0cbfb/opt_einsum-3.4.0.tar.gz", hash = "sha256:96ca72f1b886d148241348783498194c577fa30a8faac108586b14f1ba4473ac", size = 63004, upload-time = "2024-09-26T14:33:24.483Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/23/cd/066e86230ae37ed0be70aae89aabf03ca8d9f39c8aea0dec8029455b5540/opt_einsum-3.4.0-py3-none-any.whl", hash = "sha256:69bb92469f86a1565195ece4ac0323943e83477171b91d24c35afe028a90d7cd", size = 71932, upload-time = "2024-09-26T14:33:23.039Z" },
 ]
 
 [[package]]
