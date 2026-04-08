@@ -300,7 +300,7 @@ for each (Casei, Supporti):
 
 At lowering time, composite strategies are **recursively expanded** by default: each sub-strategy is resolved to its own `FormalStrategy` or leaf `Strategy`, and the full factor graph is assembled from all of them. Intermediate variables remain visible in the factor graph and participate in BP.
 
-A utility function `fold_composite_to_cpt()` is also provided to compute the composite's effective CPT by marginalization. It builds a temporary factor graph from the sub-strategies, then for each assignment of the composite's premises, runs BP to compute P(conclusion=1 | assignment). This produces a 2^k CPT (k = number of premises) that captures the composite's aggregate reasoning behavior — useful for analysis or for collapsing a composite into a single `CONDITIONAL` factor.
+A utility function `fold_composite_to_cpt()` is also provided to compute the composite's effective CPT by marginalization. It recursively computes each sub-strategy's effective CPT via tensor contraction, then contracts child CPTs along shared bridge variables to produce the composite's CPT. Exact, no BP iterations. This produces a 2^k CPT (k = number of premises) that captures the composite's aggregate reasoning behavior — useful for analysis or for collapsing a composite into a single `CONDITIONAL` factor.
 
 Composite strategies **do not require** `review_strategy()` parameters in the review sidecar — only the leaf sub-strategies (if they are `infer` or `noisy_and` type) need parameterization. FormalStrategy sub-strategies (deduction, abduction, etc.) are deterministic and need no parameters at all.
 

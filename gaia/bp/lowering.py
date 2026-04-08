@@ -5,8 +5,6 @@ Spec: docs/foundations/gaia-ir/07-lowering.md
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
 from gaia.ir.formalize import formalize_named_strategy
 from gaia.ir.graphs import LocalCanonicalGraph
@@ -20,17 +18,19 @@ from gaia.ir.strategy import (
     StrategyType,
 )
 
+# Operators whose conclusion is a "relation assertion" (the operator
+# DECLARES that the relation holds) — their helper claim should be
+# pinned to ``1 - CROMWELL_EPS`` (asserted true).  DISJUNCTION is
+# compositional (``h = a OR b`` is a derived value), so its helper
+# stays at the neutral 0.5 default and the factor potential drives
+# the marginal.
 _RELATION_OPS = frozenset(
     {
         OperatorType.EQUIVALENCE,
         OperatorType.CONTRADICTION,
         OperatorType.COMPLEMENT,
-        OperatorType.DISJUNCTION,
     }
 )
-
-if TYPE_CHECKING:
-    pass
 
 _OPERATOR_MAP: dict[OperatorType, FactorType] = {
     OperatorType.IMPLICATION: FactorType.IMPLICATION,
@@ -74,6 +74,19 @@ def lower_local_graph(
         all-true / all-false CPT entries (information loss for general CPT).
     """
     priors = node_priors or {}
+    # Auto-formalized helper claims (labels starting with ``__``, e.g.
+    # ``__disjunction_result_<hash>``, ``__equivalence_result_<hash>``)
+    # are persisted into ``ir["knowledges"]`` and consequently appear in
+    # most callers' ``node_priors`` (which default-fill every claim id).
+    # Their priors should NOT come from the user — they're determined by
+    # the operator semantics (relation operators → asserted; compositional
+    # operators → neutral 0.5).  Filter them out so the lowering branches
+    # below can apply the correct default.
+    helper_ids = {
+        k.id for k in canonical.knowledges if k.id and k.label and k.label.startswith("__")
+    }
+    if helper_ids:
+        priors = {k: v for k, v in priors.items() if k not in helper_ids}
     strat_params = strategy_conditional_params or {}
     fg = FactorGraph()
     ctr = [0]
@@ -105,6 +118,7 @@ def lower_local_graph(
             fg.add_variable(concl, priors.get(concl, default))
         fg.add_factor(fid, ft, op.variables, concl)
 
+    seen_strategies: set[str] = set()
     for s in canonical.strategies:
         _lower_strategy(
             fg,
@@ -118,6 +132,7 @@ def lower_local_graph(
             claim_ids,
             canonical.namespace,
             canonical.package_name,
+            seen_strategies=seen_strategies,
         )
 
     return fg
@@ -137,57 +152,35 @@ def fold_composite_to_cpt(
     strat_params: dict[str, list[float]],
     expand_formal: bool = True,
 ) -> list[float]:
-    """Compute the effective CPT of a CompositeStrategy by marginalization.
+    """Compute the effective CPT of a CompositeStrategy via tensor contraction.
 
-    Builds a temporary factor graph from the sub-strategies, then for each
-    assignment of the composite's premises, clamps premise priors and runs BP
-    to obtain P(conclusion=1 | assignment).
+    Layer-by-layer variable elimination: each sub-strategy's CPT is computed
+    recursively (cached by strategy_id), then child CPTs are contracted along
+    shared bridge variables.  Exact, no BP iterations.
 
     Returns a list of 2^k floats (k = number of premises), indexed by the
     binary encoding of the premise assignment (bit 0 = first premise).
     """
-    from gaia.bp.bp import BeliefPropagation
+    from gaia.bp.contraction import cpt_tensor_to_list, strategy_cpt
 
-    k = len(s.premises)
-    cpt: list[float] = []
-    CLAMP_HI = 1.0 - 1e-6
-    CLAMP_LO = 1e-6
+    if not expand_formal:
+        raise NotImplementedError(
+            "fold_composite_to_cpt with expand_formal=False is not supported "
+            "by the tensor-contraction path. See "
+            "docs/foundations/gaia-ir/07-lowering.md §9."
+        )
 
-    for assignment in range(1 << k):
-        # Build a fresh mini factor graph for this assignment.
-        mini = FactorGraph()
-        ctr = [0]
-        claim_ids: set[str] = set()
-
-        # Clamp premise priors according to this assignment.
-        clamped: dict[str, float] = {}
-        for bit, pid in enumerate(s.premises):
-            clamped[pid] = CLAMP_HI if (assignment >> bit) & 1 else CLAMP_LO
-
-        # Lower each sub-strategy into the mini graph.
-        for sid in s.sub_strategies:
-            sub = strat_by_id.get(sid)
-            if sub is None:
-                raise KeyError(f"CompositeStrategy references missing strategy_id {sid!r}")
-            _lower_strategy(
-                mini,
-                sub,
-                strat_by_id,
-                clamped,
-                strat_params,
-                expand_formal,
-                infer_degraded=False,
-                ctr=ctr,
-                claim_ids=claim_ids,
-                namespace="",
-                package_name="",
-            )
-
-        # Run BP on the mini graph.
-        result = BeliefPropagation(damping=0.5, max_iterations=200).run(mini)
-        cpt.append(result.beliefs.get(s.conclusion, 0.5))
-
-    return cpt
+    cache: dict = {}
+    cpt_tensor, axes = strategy_cpt(
+        s,
+        strat_by_id=strat_by_id,
+        strat_params=strat_params,
+        var_priors={},
+        namespace="",
+        package_name="",
+        cache=cache,
+    )
+    return cpt_tensor_to_list(cpt_tensor, axes, list(s.premises), s.conclusion)
 
 
 def _lower_strategy(
@@ -202,7 +195,19 @@ def _lower_strategy(
     claim_ids: set[str],
     namespace: str,
     package_name: str,
+    seen_strategies: set[str] | None = None,
 ) -> None:
+    # Dedup: when ``seen_strategies`` is provided (lower_local_graph
+    # passes a fresh set), skip strategies that have already been
+    # lowered.  Composite strategies recursively lower their
+    # sub-strategies, but those subs are also top-level entries in
+    # ``canonical.strategies``, so without dedup the same strategy's
+    # factors get added twice.
+    if seen_strategies is not None and s.strategy_id:
+        if s.strategy_id in seen_strategies:
+            return
+        seen_strategies.add(s.strategy_id)
+
     if isinstance(s, CompositeStrategy):
         for sid in s.sub_strategies:
             sub = strat_by_id.get(sid)
@@ -220,6 +225,7 @@ def _lower_strategy(
                 claim_ids,
                 namespace,
                 package_name,
+                seen_strategies=seen_strategies,
             )
         return
 
@@ -369,6 +375,7 @@ def _lower_strategy(
             claim_ids,
             namespace,
             package_name,
+            seen_strategies=seen_strategies,
         )
         return
 

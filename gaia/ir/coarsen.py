@@ -208,22 +208,24 @@ def compute_coarse_cpts(
     strategy_params: dict[str, list[float]] | None = None,
     strategy_indices: set[int] | None = None,
 ) -> dict[int, list[float]]:
-    """Compute effective CPTs for coarse infer strategies by marginalization.
+    """Compute effective CPTs for coarse infer strategies via tensor contraction.
 
-    For each coarse strategy, clamp its premises to all 2^k assignments
-    and run BP on the **full** factor graph to get P(conclusion=1 | assignment).
-
-    Optimization: the factor graph is built once per strategy; only premise
-    priors are updated between assignments.
+    Lowers the canonical graph once, precomputes each IR strategy's effective
+    CPT via ``strategy_cpt`` (sharing a cache across coarse strategies), and
+    contracts strategy CPTs + operator tensors + unary priors for each coarse
+    strategy.  Exact — no BP iterations.
 
     Returns a dict mapping strategy index to CPT (list of 2^k floats).
     """
-    from gaia.bp.bp import BeliefPropagation
-    from gaia.bp.lowering import lower_local_graph
+    from gaia.bp.contraction import (
+        contract_to_cpt,
+        cpt_tensor_to_list,
+        factor_to_tensor,
+        strategy_cpt,
+    )
+    from gaia.bp.factor_graph import Factor
+    from gaia.bp.lowering import _OPERATOR_MAP, lower_local_graph
     from gaia.ir.graphs import LocalCanonicalGraph
-
-    CLAMP_HI = 1.0 - 1e-6
-    CLAMP_LO = 1e-6
 
     priors = dict(node_priors or {})
     strat_params = dict(strategy_params or {})
@@ -231,40 +233,91 @@ def compute_coarse_cpts(
         strategy_indices if strategy_indices is not None else set(range(len(coarse["strategies"])))
     )
 
-    # Build the canonical graph once (shared across all strategies)
+    # Build the canonical graph and lower it once.  The lowered fg carries
+    # every variable's prior (including ones set by _lower_strategy for
+    # relation-operator conclusions or auto-formalized helper claims).
     canon = LocalCanonicalGraph(
         **{
             key: ir[key]
             for key in ("knowledges", "strategies", "operators", "namespace", "package_name")
         }
     )
+    fg = lower_local_graph(
+        canon,
+        node_priors=priors,
+        strategy_conditional_params=strat_params,
+    )
+
+    # Build operator tensors directly from canon.operators.  Each operator
+    # becomes one factor tensor using the same FactorType mapping as
+    # lower_local_graph's operator pass.
+    operator_tensors: list[tuple] = []
+    for op in canon.operators:
+        op_factor = Factor(
+            factor_id=f"op_{op.conclusion}",
+            factor_type=_OPERATOR_MAP[op.operator],
+            variables=list(op.variables),
+            conclusion=op.conclusion,
+        )
+        operator_tensors.append(factor_to_tensor(op_factor))
+
+    # Precompute every IR strategy's effective CPT once, shared cache.
+    from gaia.ir.strategy import CompositeStrategy
+
+    strat_by_id = {s.strategy_id: s for s in canon.strategies if s.strategy_id}
+    cache: dict = {}
+    strategy_tensors: list[tuple] = []
+    for s in canon.strategies:
+        # CompositeStrategy organizes sub-strategies; its CPT is already a
+        # contraction of its children's CPTs.  Including it as a separate
+        # tensor would double-count every path through the composite.
+        # The children themselves are iterated normally below / above.
+        if isinstance(s, CompositeStrategy):
+            continue
+        sub_tensor, sub_axes = strategy_cpt(
+            s,
+            strat_by_id=strat_by_id,
+            strat_params=strat_params,
+            var_priors=fg.variables,
+            namespace=canon.namespace,
+            package_name=canon.package_name,
+            cache=cache,
+        )
+        strategy_tensors.append((sub_tensor, sub_axes))
+
+    all_tensors = strategy_tensors + operator_tensors
+
+    # Union of all axis labels touched by any tensor.
+    all_axes: set[str] = set()
+    for _, axes in all_tensors:
+        all_axes.update(axes)
 
     result: dict[int, list[float]] = {}
 
     for i, s in enumerate(coarse["strategies"]):
         if i not in indices:
             continue
-        premises = s["premises"]
-        conclusion = s["conclusion"]
-        k = len(premises)
-        cpt: list[float] = []
+        coarse_premises = list(s["premises"])
+        coarse_conclusion = s["conclusion"]
+        free = [*coarse_premises, coarse_conclusion]
+        free_set = set(free)
 
-        for assignment in range(1 << k):
-            # Clamp premise priors for this assignment
-            clamped = dict(priors)
-            for bit, pid in enumerate(premises):
-                clamped[pid] = CLAMP_HI if (assignment >> bit) & 1 else CLAMP_LO
+        # Unary priors for every variable that:
+        #   - appears in at least one collected tensor's axes
+        #   - is not a coarse free variable
+        #   - exists in fg.variables (has a registered prior)
+        # Helper claims absorbed inside a strategy CPT do NOT appear in
+        # all_axes and so are correctly skipped here (their priors were
+        # already applied inside the strategy CPT).
+        unary_priors = {
+            v: fg.variables[v] for v in all_axes if v not in free_set and v in fg.variables
+        }
 
-            # Build factor graph with clamped priors and run BP
-            fg = lower_local_graph(
-                canon,
-                node_priors=clamped,
-                strategy_conditional_params=strat_params,
-            )
-            bp = BeliefPropagation(damping=0.5, max_iterations=200)
-            bp_result = bp.run(fg)
-            cpt.append(bp_result.beliefs.get(conclusion, 0.5))
-
-        result[i] = cpt
+        cpt_tensor = contract_to_cpt(
+            all_tensors,
+            free_vars=free,
+            unary_priors=unary_priors,
+        )
+        result[i] = cpt_tensor_to_list(cpt_tensor, free, coarse_premises, coarse_conclusion)
 
     return result

@@ -226,7 +226,7 @@ mathematical_induction(base=base, step=step, conclusion=conclusion)
 
 #### `composite(premises, conclusion, *, sub_strategies, background=None, steps=None, reason="", type="infer")`
 
-Hierarchical composition of sub-strategies. Requires at least one (`ValueError` otherwise). Sub-strategies can nest recursively. At lowering time, sub-strategies are expanded into the factor graph. No `review_strategy()` call is needed for the composite itself — only leaf sub-strategies require parameters. Use `fold_composite_to_cpt()` to compute the composite's aggregate CPT for analysis.
+Hierarchical composition of sub-strategies. Requires at least one (`ValueError` otherwise). Sub-strategies can nest recursively. At lowering time, sub-strategies are expanded into the factor graph. No `review_strategy()` call is needed for the composite itself — only leaf sub-strategies require parameters. Use `fold_composite_to_cpt()` to compute the composite's aggregate CPT via tensor contraction (exact, no BP iterations).
 
 ```python
 obs = claim("Observation.")
