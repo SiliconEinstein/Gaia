@@ -10,6 +10,7 @@
 #   OUTPUT_DIR    — checkpoint/log dir (default: ./output/import-287k)
 #   MAX_PAPERS    — total papers to import (default: 300000)
 #   DISK_LIMIT_GB — stop importing when free disk drops below this (default: 10)
+#   MAX_PER_ROUND — max papers per round before upload (default: 20000)
 #   CHUNK_SIZE    — papers per chunk (default: 1000)
 
 set -euo pipefail
@@ -19,6 +20,7 @@ S3_URI="${S3_URI:-s3://datainfra-test/gaia_server_test}"
 OUTPUT_DIR="${OUTPUT_DIR:-./output/import-287k}"
 MAX_PAPERS="${MAX_PAPERS:-300000}"
 DISK_LIMIT_GB="${DISK_LIMIT_GB:-10}"
+MAX_PER_ROUND="${MAX_PER_ROUND:-20000}"
 CHUNK_SIZE="${CHUNK_SIZE:-1000}"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
@@ -53,6 +55,7 @@ while true; do
         --output-dir "$OUTPUT_DIR" \
         --max-papers "$MAX_PAPERS" \
         --chunk-size "$CHUNK_SIZE" \
+        --max-per-round "$MAX_PER_ROUND" \
         --seed-from "$S3_URI" \
         || true  # don't exit on Ctrl+C or error
 

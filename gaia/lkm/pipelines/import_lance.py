@@ -258,6 +258,7 @@ async def run_batch_import(
     max_papers: int | None = None,
     chunk_size: int = 1000,
     min_disk_gb: int = 0,
+    max_per_round: int = 0,
     seed_from: str | None = None,
     dry_run: bool = False,
 ) -> ImportStats:
@@ -335,6 +336,14 @@ async def run_batch_import(
     for i in range(0, len(pending), chunk_size):
         if _shutdown_requested:
             logger.info("Shutdown requested — stopping before chunk %d", i // chunk_size + 1)
+            break
+
+        # Check per-round limit
+        if max_per_round > 0 and stats.succeeded >= max_per_round:
+            logger.info(
+                "Reached per-round limit (%d papers) — stopping for upload",
+                max_per_round,
+            )
             break
 
         # Check disk space before each chunk
@@ -520,6 +529,12 @@ def main() -> None:
         help="Stop importing when free disk drops below this (GB, default: 10, 0=disable)",
     )
     parser.add_argument(
+        "--max-per-round",
+        type=int,
+        default=0,
+        help="Max papers per round before stopping for upload (0=no limit)",
+    )
+    parser.add_argument(
         "--seed-from",
         default=None,
         help="LanceDB URI to seed checkpoint from (e.g. s3://datainfra-test/gaia_server_test)",
@@ -579,6 +594,7 @@ def main() -> None:
             chunk_size=args.chunk_size,
             max_papers=args.max_papers,
             min_disk_gb=args.min_disk_gb,
+            max_per_round=args.max_per_round,
             seed_from=args.seed_from,
             dry_run=args.dry_run,
         )
