@@ -340,7 +340,9 @@ async def run_batch_import(
     prev_sigterm = signal.signal(signal.SIGTERM, _request_shutdown)
 
     # 5. Process in chunks
-    n_chunks = (len(pending) + chunk_size - 1) // chunk_size
+    # n_chunks reflects max_per_round cap so the progress bar matches reality
+    effective_n = min(len(pending), max_per_round) if max_per_round > 0 else len(pending)
+    n_chunks = (effective_n + chunk_size - 1) // chunk_size
     for i in range(0, len(pending), chunk_size):
         if _shutdown_requested:
             logger.info("Shutdown requested — stopping before chunk %d", i // chunk_size + 1)
