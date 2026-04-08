@@ -1,7 +1,6 @@
 """Tests for gaia compile command."""
 
 import json
-
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
@@ -9,6 +8,37 @@ from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
 
 runner = CliRunner()
+
+
+def _write_package(
+    root,
+    *,
+    project_name: str,
+    body: str,
+    dependencies: list[str] | None = None,
+    src_layout: bool = True,
+):
+    root.mkdir()
+    deps_block = ""
+    if dependencies:
+        deps_lines = ",\n".join(f'  "{dep}"' for dep in dependencies)
+        deps_block = f"dependencies = [\n{deps_lines}\n]\n\n"
+    (root / "pyproject.toml").write_text(
+        f'[project]\nname = "{project_name}"\nversion = "1.0.0"\n{deps_block}'
+        '\n[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    import_name = project_name.removesuffix("-gaia").replace("-", "_")
+    package_root = root / ("src" if src_layout else "")
+    if src_layout:
+        package_root.mkdir()
+    pkg_src = package_root / import_name
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(body)
+    return root, pkg_src
+
+
+def _read_manifest(pkg_dir, name: str) -> dict:
+    return json.loads((pkg_dir / ".gaia" / "manifests" / name).read_text())
 
 
 def test_compile_creates_ir_json(tmp_path):
@@ -31,11 +61,21 @@ def test_compile_creates_ir_json(tmp_path):
     gaia_dir = pkg_dir / ".gaia"
     assert (gaia_dir / "ir.json").exists()
     assert (gaia_dir / "ir_hash").exists()
+    assert (gaia_dir / "manifests" / "exports.json").exists()
+    assert (gaia_dir / "manifests" / "holes.json").exists()
+    assert (gaia_dir / "manifests" / "bridges.json").exists()
 
     ir = json.loads((gaia_dir / "ir.json").read_text())
+    exports = _read_manifest(pkg_dir, "exports.json")
+    holes = _read_manifest(pkg_dir, "holes.json")
+    bridges = _read_manifest(pkg_dir, "bridges.json")
     assert ir["package_name"] == "test_pkg"
     assert len(ir["knowledges"]) >= 1
     assert ir["ir_hash"] is not None
+    assert exports["package"] == "test-pkg"
+    assert exports["exports"][0]["label"] == "my_claim"
+    assert holes["holes"] == []
+    assert bridges["bridges"] == []
     result = validate_local_graph(LocalCanonicalGraph(**ir))
     assert result.valid, result.errors
 
@@ -389,3 +429,155 @@ def test_compile_nested_composite_strategy_collects_recursive_knowledge(tmp_path
     assert "github:nested_composite_pkg::hypothesis" in knowledge_ids
     result = validate_local_graph(LocalCanonicalGraph(**ir))
     assert result.valid, result.errors
+
+
+def test_compile_emits_holes_manifest_with_required_by(tmp_path):
+    pkg_dir, _ = _write_package(
+        tmp_path / "hole_pkg",
+        project_name="hole-pkg-gaia",
+        body=(
+            "from gaia.lang import claim, deduction, hole\n\n"
+            'main_theorem = claim("Main theorem.")\n'
+            'key_missing_lemma = hole("A missing lemma.")\n'
+            "deduction(premises=[key_missing_lemma], conclusion=main_theorem)\n"
+            '__all__ = ["main_theorem", "key_missing_lemma"]\n'
+        ),
+    )
+
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code == 0, f"Failed: {result.output}"
+
+    exports = _read_manifest(pkg_dir, "exports.json")
+    holes = _read_manifest(pkg_dir, "holes.json")
+    assert [item["label"] for item in exports["exports"]] == ["main_theorem", "key_missing_lemma"]
+    assert holes["holes"] == [
+        {
+            "qid": "github:hole_pkg::key_missing_lemma",
+            "label": "key_missing_lemma",
+            "content": "A missing lemma.",
+            "content_hash": holes["holes"][0]["content_hash"],
+            "required_by": ["github:hole_pkg::main_theorem"],
+        }
+    ]
+
+
+def test_compile_emits_bridge_manifest_for_direct_fill(tmp_path, monkeypatch):
+    dep_dir, _ = _write_package(
+        tmp_path / "dep_hole_pkg",
+        project_name="dep-hole-pkg-gaia",
+        body=(
+            "from gaia.lang import hole\n\n"
+            'key_missing_lemma = hole("A missing premise.")\n'
+            '__all__ = ["key_missing_lemma"]\n'
+        ),
+    )
+    pkg_dir, _ = _write_package(
+        tmp_path / "fill_pkg",
+        project_name="fill-pkg-gaia",
+        dependencies=["dep-hole-pkg-gaia>=1.4.0,<2.0.0"],
+        body=(
+            "from gaia.lang import claim, fills\n"
+            "from dep_hole_pkg import key_missing_lemma\n\n"
+            'b_result = claim("B theorem.")\n'
+            'fills(source=b_result, hole=key_missing_lemma, reason="Theorem 3 proves the missing lemma.")\n'
+            '__all__ = ["b_result"]\n'
+        ),
+    )
+
+    monkeypatch.syspath_prepend(str(dep_dir / "src"))
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code == 0, f"Failed: {result.output}"
+
+    bridges = _read_manifest(pkg_dir, "bridges.json")
+    exports = _read_manifest(pkg_dir, "exports.json")
+    assert [item["label"] for item in exports["exports"]] == ["b_result"]
+    assert len(bridges["bridges"]) == 1
+    bridge = bridges["bridges"][0]
+    assert bridge["relation_id"].startswith("bridge_")
+    assert bridge["relation_type"] == "fills"
+    assert bridge["source_qid"] == "github:fill_pkg::b_result"
+    assert bridge["target_hole_qid"] == "github:dep_hole_pkg::key_missing_lemma"
+    assert bridge["target_package"] == "dep-hole-pkg"
+    assert bridge["target_version_req"] == ">=1.4.0,<2.0.0"
+    assert bridge["declared_by_owner_of_source"] is True
+    assert bridge["justification"] == "Theorem 3 proves the missing lemma."
+
+
+def test_compile_emits_bridge_manifest_for_zero_local_bridge_package(tmp_path, monkeypatch):
+    dep_a_dir, _ = _write_package(
+        tmp_path / "bridge_dep_a",
+        project_name="bridge-dep-a-gaia",
+        body=(
+            "from gaia.lang import hole\n\n"
+            'key_missing_lemma = hole("A missing premise.")\n'
+            '__all__ = ["key_missing_lemma"]\n'
+        ),
+    )
+    dep_b_dir, _ = _write_package(
+        tmp_path / "bridge_dep_b",
+        project_name="bridge-dep-b-gaia",
+        body=(
+            "from gaia.lang import claim\n\n"
+            'b_result = claim("B theorem.")\n'
+            '__all__ = ["b_result"]\n'
+        ),
+    )
+    pkg_dir, _ = _write_package(
+        tmp_path / "bridge_pkg",
+        project_name="bridge-pkg-gaia",
+        dependencies=[
+            "bridge-dep-a-gaia>=1.4.0,<2.0.0",
+            "bridge-dep-b-gaia>=2.1.0,<3.0.0",
+        ],
+        body=(
+            "from gaia.lang import fills\n"
+            "from bridge_dep_a import key_missing_lemma\n"
+            "from bridge_dep_b import b_result\n\n"
+            'fills(source=b_result, hole=key_missing_lemma, reason="Bridge package links B to A.")\n'
+        ),
+    )
+
+    monkeypatch.syspath_prepend(str(dep_a_dir / "src"))
+    monkeypatch.syspath_prepend(str(dep_b_dir / "src"))
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code == 0, f"Failed: {result.output}"
+
+    exports = _read_manifest(pkg_dir, "exports.json")
+    holes = _read_manifest(pkg_dir, "holes.json")
+    bridges = _read_manifest(pkg_dir, "bridges.json")
+    assert exports["exports"] == []
+    assert holes["holes"] == []
+    assert len(bridges["bridges"]) == 1
+    bridge = bridges["bridges"][0]
+    assert bridge["source_qid"] == "github:bridge_dep_b::b_result"
+    assert bridge["target_hole_qid"] == "github:bridge_dep_a::key_missing_lemma"
+    assert bridge["declared_by_owner_of_source"] is False
+    assert bridge["target_version_req"] == ">=1.4.0,<2.0.0"
+
+
+def test_compile_rejects_foreign_fill_without_dependency_constraint(tmp_path, monkeypatch):
+    dep_dir, _ = _write_package(
+        tmp_path / "missing_dep_hole_pkg",
+        project_name="missing-dep-hole-pkg-gaia",
+        body=(
+            "from gaia.lang import hole\n\n"
+            'key_missing_lemma = hole("A missing premise.")\n'
+            '__all__ = ["key_missing_lemma"]\n'
+        ),
+    )
+    pkg_dir, _ = _write_package(
+        tmp_path / "bad_fill_pkg",
+        project_name="bad-fill-pkg-gaia",
+        body=(
+            "from gaia.lang import claim, fills\n"
+            "from missing_dep_hole_pkg import key_missing_lemma\n\n"
+            'b_result = claim("B theorem.")\n'
+            "fills(source=b_result, hole=key_missing_lemma)\n"
+            '__all__ = ["b_result"]\n'
+        ),
+    )
+
+    monkeypatch.syspath_prepend(str(dep_dir / "src"))
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code != 0
+    assert "requires a Gaia dependency constraint" in result.output

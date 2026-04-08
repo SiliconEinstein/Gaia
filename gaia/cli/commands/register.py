@@ -10,7 +10,12 @@ from uuid import UUID
 
 import typer
 
-from gaia.cli._packages import GaiaCliError, compile_loaded_package, load_gaia_package
+from gaia.cli._packages import (
+    GaiaCliError,
+    _parse_gaia_dependencies,
+    compile_loaded_package,
+    load_gaia_package,
+)
 from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
 
@@ -50,21 +55,6 @@ def _normalize_github_url(url: str) -> str:
     if value.endswith(".git"):
         value = value[:-4]
     return value.rstrip("/")
-
-
-def _parse_gaia_dependencies(dependencies: list[str]) -> dict[str, str]:
-    deps: dict[str, str] = {}
-    for dep in dependencies:
-        requirement = dep.split(";", 1)[0].strip()
-        idx = 0
-        while idx < len(requirement) and requirement[idx] not in " <>=!~[":
-            idx += 1
-        name = requirement[:idx]
-        specifier = requirement[idx:].strip() or "*"
-        if name.endswith("-gaia"):
-            deps[name] = specifier
-    return deps
-
 
 def _render_package_toml(
     *,
