@@ -262,10 +262,18 @@ def compute_coarse_cpts(
         operator_tensors.append(factor_to_tensor(op_factor))
 
     # Precompute every IR strategy's effective CPT once, shared cache.
+    from gaia.ir.strategy import CompositeStrategy
+
     strat_by_id = {s.strategy_id: s for s in canon.strategies if s.strategy_id}
     cache: dict = {}
     strategy_tensors: list[tuple] = []
     for s in canon.strategies:
+        # CompositeStrategy organizes sub-strategies; its CPT is already a
+        # contraction of its children's CPTs.  Including it as a separate
+        # tensor would double-count every path through the composite.
+        # The children themselves are iterated normally below / above.
+        if isinstance(s, CompositeStrategy):
+            continue
         sub_tensor, sub_axes = strategy_cpt(
             s,
             strat_by_id=strat_by_id,

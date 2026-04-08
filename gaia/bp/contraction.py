@@ -139,10 +139,10 @@ def contract_to_cpt(
 ) -> np.ndarray:
     """Contract a list of factor tensors down to a conditional CPT tensor.
 
-    Uses ``opt_einsum`` to perform variable elimination: all factor
-    tensors and unary prior tensors are multiplied and summed over every
-    non-free variable in a single call, with an automatically-optimized
-    contraction order.
+    Uses manual pairwise variable elimination with per-step rescaling to
+    prevent raw-probability underflow on deep graphs.  The final CPT is a
+    ratio (``joint / sum_along_conclusion``), so rescaling intermediates by
+    any positive constant preserves the result exactly.
 
     Parameters
     ----------
@@ -153,6 +153,8 @@ def contract_to_cpt(
         Variables that remain as axes in the output, in output order.
         Typically ``[*premises, conclusion]``.  The last entry is the
         conclusion and is the axis along which the output is normalized.
+        A free variable that does not appear in any input tensor is
+        handled as a degenerate constant axis (uniform contribution).
     unary_priors:
         Variables that must be marginalized out and have a prior
         ``[1-π, π]`` applied as a unary tensor.  Every non-free variable
@@ -168,16 +170,14 @@ def contract_to_cpt(
     ValueError
         If ``free_vars`` is empty, if a unary prior is missing for a
         variable that appears in some tensor but is neither free nor
-        covered by ``unary_priors``, or if the contracted joint is zero
-        for some premise assignment (would produce NaN after normalizing).
+        covered by ``unary_priors``, or if the normalized joint is zero
+        for some premise assignment even after per-step rescaling
+        (indicates contradictory deterministic factors).
     """
-    import opt_einsum as oe
-
     if not free_vars:
         raise ValueError("free_vars must be non-empty (need at least a conclusion axis)")
 
-    # Collect all distinct variable names across all tensors, preserving
-    # first-seen order for determinism.
+    # Collect all distinct variable names across all tensors.
     all_vars: list[str] = []
     seen: set[str] = set()
     for _, axes in tensors:
@@ -185,16 +185,8 @@ def contract_to_cpt(
             if v not in seen:
                 seen.add(v)
                 all_vars.append(v)
-    for v in free_vars:
-        if v not in seen:
-            raise ValueError(
-                f"contract_to_cpt: free variable {v!r} does not appear in any "
-                "input tensor. Every free variable must be a conclusion or "
-                "premise of at least one factor tensor."
-            )
 
     # Every non-free variable that appears in some tensor needs a prior.
-    # Free variables never get priors (we want P(C|P), not P(C,P)).
     free_set = set(free_vars)
     missing = [v for v in all_vars if v not in free_set and v not in unary_priors]
     if missing:
@@ -203,32 +195,67 @@ def contract_to_cpt(
             "The caller must supply a prior for every non-free variable."
         )
 
-    # Assign a unique integer index to each variable.  opt_einsum accepts
-    # arbitrary hashable labels in the list-of-indices form and does not
-    # suffer from numpy.einsum's 52-symbol alphabet limit.
-    var_to_idx: dict[str, int] = {v: i for i, v in enumerate(all_vars)}
+    # Build the working set: all factor tensors + unary prior tensors for
+    # non-free variables + uniform degenerate tensors for any free variable
+    # that doesn't appear in any input tensor (so it becomes a constant axis
+    # in the output — valid for composites with unused interface premises).
+    work: list[tuple[np.ndarray, list[str]]] = [(np.asarray(t), list(ax)) for t, ax in tensors]
 
-    # Build the opt_einsum argument list: alternating (tensor, [axis_indices]).
-    args: list[object] = []
-    for t, axes in tensors:
-        args.append(t)
-        args.append([var_to_idx[v] for v in axes])
-
-    # Add unary prior tensors for each non-free variable.
+    # Unary prior tensors for non-free vars.
     for v in all_vars:
         if v in free_set:
             continue
         pi = unary_priors[v]
-        args.append(np.array([1.0 - pi, pi], dtype=np.float64))
-        args.append([var_to_idx[v]])
+        work.append((np.array([1.0 - pi, pi], dtype=np.float64), [v]))
 
-    # Output indices = free_vars in requested order.
-    out_indices = [var_to_idx[v] for v in free_vars]
-    args.append(out_indices)
+    # Degenerate uniform tensors for free vars not in any input.
+    for v in free_vars:
+        if v not in seen:
+            work.append((np.array([0.5, 0.5], dtype=np.float64), [v]))
+            seen.add(v)
+            all_vars.append(v)
 
-    joint = oe.contract(*args, optimize="greedy")
+    # Sequentially eliminate each non-free variable.  For each variable,
+    # multiply all tensors mentioning it pairwise (with per-step max
+    # rescaling to prevent float64 underflow), then sum it out.
+    vars_to_eliminate = [v for v in all_vars if v not in free_set]
+    for v in vars_to_eliminate:
+        with_v = [(t, ax) for t, ax in work if v in ax]
+        without_v = [(t, ax) for t, ax in work if v not in ax]
 
-    # Normalize along the last axis (conclusion).
+        if not with_v:
+            continue
+
+        acc_t, acc_ax = with_v[0]
+        for next_t, next_ax in with_v[1:]:
+            acc_t, acc_ax = _pairwise_contract(acc_t, acc_ax, next_t, next_ax)
+            acc_t = _rescale(acc_t)
+
+        # Sum out v.
+        v_axis = acc_ax.index(v)
+        acc_t = acc_t.sum(axis=v_axis)
+        acc_ax = [a for a in acc_ax if a != v]
+        acc_t = _rescale(acc_t)
+
+        without_v.append((acc_t, acc_ax))
+        work = without_v
+
+    # Combine remaining tensors (all over free vars only).
+    if not work:
+        joint = np.ones((2,) * len(free_vars), dtype=np.float64)
+        final_axes = list(free_vars)
+    else:
+        acc_t, acc_ax = work[0]
+        for next_t, next_ax in work[1:]:
+            acc_t, acc_ax = _pairwise_contract(acc_t, acc_ax, next_t, next_ax)
+            acc_t = _rescale(acc_t)
+        # Transpose to match free_vars order.
+        perm = [acc_ax.index(v) for v in free_vars]
+        joint = np.transpose(acc_t, perm)
+        final_axes = list(free_vars)
+    del final_axes  # silence unused (we only need the values in free_vars order)
+
+    # Normalize along the conclusion axis (last free axis).
     totals = joint.sum(axis=-1, keepdims=True)
     if np.any(totals <= 0):
         raise ValueError(
@@ -236,6 +263,46 @@ def contract_to_cpt(
             "graph may have contradictory deterministic factors."
         )
     return joint / totals
+
+
+def _pairwise_contract(
+    a_t: np.ndarray,
+    a_ax: list[str],
+    b_t: np.ndarray,
+    b_ax: list[str],
+) -> tuple[np.ndarray, list[str]]:
+    """Contract two tensors keeping the union of their axes.
+
+    Uses ``np.einsum`` with a small alphabet derived from the combined
+    axes.  Since any pair has at most ~8 axes in practice, we are well
+    under numpy's 52-symbol limit on each pairwise call.
+    """
+    merged = list(a_ax)
+    for v in b_ax:
+        if v not in merged:
+            merged.append(v)
+    sym = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    if len(merged) > len(sym):
+        raise ValueError(f"_pairwise_contract: combined axes {len(merged)} exceeds 52-symbol limit")
+    ax_to_sym = {a: sym[i] for i, a in enumerate(merged)}
+    lhs = "".join(ax_to_sym[a] for a in a_ax)
+    rhs = "".join(ax_to_sym[a] for a in b_ax)
+    out = "".join(ax_to_sym[a] for a in merged)
+    result = np.einsum(f"{lhs},{rhs}->{out}", a_t, b_t)
+    return result, merged
+
+
+def _rescale(t: np.ndarray) -> np.ndarray:
+    """Divide a tensor by its max to keep values in [0, 1].
+
+    The final CPT is a ratio (joint / sum_along_conclusion), so rescaling
+    intermediates by any positive constant preserves the result exactly.
+    This prevents raw-probability underflow on deep graphs.
+    """
+    m = float(t.max())
+    if m > 0:
+        return t / m
+    return t
 
 
 def cpt_tensor_to_list(

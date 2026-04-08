@@ -858,3 +858,135 @@ def test_equivalence_disjunction_and_contradiction():
     ref = _run_exact_with_premise_clamps(fg, ["A", "B"], "C")
     ours = _cpt_via_contraction(fg, ["A", "B"], "C")
     np.testing.assert_allclose(ours, ref, atol=1e-6)
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for Codex review fixes (#361)
+# ---------------------------------------------------------------------------
+
+
+def test_compute_coarse_cpts_skips_composite_strategies():
+    """Regression for Codex P1: compute_coarse_cpts must NOT add a composite
+    CPT as a separate factor, because the composite is just an organizational
+    wrapper around its sub-strategies.  Including it double-counts every path
+    through the composite.
+
+    We build a minimal IR dict with one leaf noisy_and and one composite that
+    wraps it, then call compute_coarse_cpts and compare the coarse CPT to the
+    CPT we'd get from the leaf alone.
+    """
+    from gaia.ir.coarsen import compute_coarse_cpts, coarsen_ir
+
+    leaf = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:t::a", "github:t::b"],
+        conclusion="github:t::c",
+    )
+    comp = CompositeStrategy(
+        scope="local",
+        type="infer",
+        premises=["github:t::a", "github:t::b"],
+        conclusion="github:t::c",
+        sub_strategies=[leaf.strategy_id],
+    )
+
+    ir = {
+        "knowledges": [
+            {"id": "github:t::a", "label": "a", "type": "claim", "content": "a"},
+            {"id": "github:t::b", "label": "b", "type": "claim", "content": "b"},
+            {"id": "github:t::c", "label": "c", "type": "claim", "content": "c"},
+        ],
+        "strategies": [
+            leaf.model_dump(mode="json"),
+            comp.model_dump(mode="json"),
+        ],
+        "operators": [],
+        "namespace": "github",
+        "package_name": "t",
+    }
+
+    exported = {"github:t::c"}
+    coarse = coarsen_ir(ir, exported)
+
+    cpts = compute_coarse_cpts(
+        ir,
+        coarse,
+        node_priors={"github:t::a": 0.5, "github:t::b": 0.5, "github:t::c": 0.5},
+        strategy_params={leaf.strategy_id: [0.85]},
+    )
+
+    # There should be at least one coarse strategy.
+    assert len(cpts) >= 1
+    # For any returned CPT: if composites were double-counted, the "both
+    # premises on" probability would get squared-ish and drift away from
+    # the expected single-noisy_and value of ~0.85.  With the fix, it
+    # should stay close to 0.85.
+    # Find the CPT for the coarse strategy whose premises are {a, b}.
+    for idx, cpt in cpts.items():
+        coarse_strat = coarse["strategies"][idx]
+        if set(coarse_strat["premises"]) == {"github:t::a", "github:t::b"}:
+            # cpt is 2^2 = 4 floats.  Index 3 (both=1) should be ≈ 0.85.
+            assert 0.80 < cpt[3] < 0.90, (
+                f"Composite double-counted: cpt[3]={cpt[3]} (expected ~0.85)"
+            )
+            break
+    else:
+        pytest.fail("No coarse strategy with premises {a, b} found")
+
+
+def test_contract_to_cpt_deep_chain_no_underflow():
+    """Regression for Codex P2: contract_to_cpt must handle deep chains of
+    Cromwell-low factors without the intermediate joint underflowing to 0.
+
+    Builds a 150-factor IMPLICATION chain.  Each IMPLICATION factor has one
+    cell at _LOW = 1e-3, so naively multiplying 150 of them would push a
+    particular slice below float64 normal range (~1e-450), triggering a
+    false 'zero partition function' error.  With per-step rescaling, the
+    intermediate stays bounded and the final CPT is computable.
+    """
+    n = 150
+    var_names = [f"v{i}" for i in range(n)]
+    factors = []
+    for i in range(n - 1):
+        f = Factor(
+            factor_id=f"f{i}",
+            factor_type=FactorType.IMPLICATION,
+            variables=[var_names[i]],
+            conclusion=var_names[i + 1],
+        )
+        factors.append(factor_to_tensor(f))
+    priors = {v: 0.5 for v in var_names[1:-1]}
+    # Should NOT raise, and should produce a valid CPT.
+    cpt = contract_to_cpt(factors, free_vars=[var_names[0], var_names[-1]], unary_priors=priors)
+    assert cpt.shape == (2, 2)
+    assert np.all(np.isfinite(cpt))
+    # Each row should sum to 1 (conclusion normalization).
+    np.testing.assert_allclose(cpt.sum(axis=-1), np.ones(2), atol=1e-9)
+
+
+def test_contract_to_cpt_allows_degenerate_free_var():
+    """Regression for Codex P2 (the third finding): a free variable that
+    doesn't appear in any input tensor must be handled gracefully as a
+    constant axis (uniform along that axis), not rejected with ValueError.
+
+    This happens for CompositeStrategy with interface premises that no
+    sub-strategy actually touches.
+    """
+    fg = FactorGraph()
+    fg.add_variable("A", 0.5)
+    fg.add_variable("C", 0.5)
+    fg.add_factor("f1", FactorType.SOFT_ENTAILMENT, ["A"], "C", p1=0.8, p2=0.9)
+    t, axes = factor_to_tensor(fg.factors[0])
+    # "B" is a "free var" but does not appear in any tensor.
+    cpt = contract_to_cpt(
+        [(t, axes)],
+        free_vars=["A", "B", "C"],  # B is the degenerate axis
+        unary_priors={},
+    )
+    assert cpt.shape == (2, 2, 2)
+    # CPT should be CONSTANT along the B axis (same value for B=0 and B=1).
+    np.testing.assert_allclose(cpt[:, 0, :], cpt[:, 1, :], atol=1e-9)
+    # And P(C=1|A=1, B=any) should still be ≈ 0.8
+    assert _almost(cpt[1, 0, 1], 0.8, eps=5e-3)
+    assert _almost(cpt[1, 1, 1], 0.8, eps=5e-3)
