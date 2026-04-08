@@ -166,6 +166,8 @@ def check_command(
     for hole in holes_manifest.get("holes", []):
         if not hole.get("required_by"):
             label = hole.get("label") or hole.get("qid", "<unknown>")
+            # TODO: add an explicit suppression mechanism for intentionally
+            # public-but-currently-unfilled holes once the manifest contract exists.
             warnings.append(
                 f"Exported hole '{label}' has no downstream local use."
             )
