@@ -187,11 +187,11 @@ def contract_to_cpt(
                 all_vars.append(v)
     for v in free_vars:
         if v not in seen:
-            # A free variable that doesn't appear in any tensor would produce
-            # a degenerate axis in the output. Track it so opt_einsum emits
-            # the expected shape (the unary path leaves it as a size-2 axis).
-            seen.add(v)
-            all_vars.append(v)
+            raise ValueError(
+                f"contract_to_cpt: free variable {v!r} does not appear in any "
+                "input tensor. Every free variable must be a conclusion or "
+                "premise of at least one factor tensor."
+            )
 
     # Every non-free variable that appears in some tensor needs a prior.
     # Free variables never get priors (we want P(C|P), not P(C,P)).

@@ -5,8 +5,6 @@ Spec: docs/foundations/gaia-ir/07-lowering.md
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
 from gaia.ir.formalize import formalize_named_strategy
 from gaia.ir.graphs import LocalCanonicalGraph
@@ -28,9 +26,6 @@ _RELATION_OPS = frozenset(
         OperatorType.DISJUNCTION,
     }
 )
-
-if TYPE_CHECKING:
-    pass
 
 _OPERATOR_MAP: dict[OperatorType, FactorType] = {
     OperatorType.IMPLICATION: FactorType.IMPLICATION,
