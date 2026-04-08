@@ -137,3 +137,67 @@ def test_register_writes_registry_metadata_to_local_checkout(tmp_path):
         _run(["git", "branch", "--show-current"], cwd=registry_dir)
         == "register/register-demo-1.2.0"
     )
+
+
+def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
+    dep_dir = tmp_path / "dep_register_missing_root"
+    dep_dir.mkdir()
+    (dep_dir / "pyproject.toml").write_text(
+        '[project]\nname = "dep-register-missing-gaia"\nversion = "0.4.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    dep_src = dep_dir / "src" / "dep_register_missing"
+    dep_src.mkdir(parents=True)
+    (dep_src / "__init__.py").write_text(
+        "from gaia.lang import claim, deduction\n\n"
+        'missing_lemma = claim("A missing lemma.")\n'
+        'main_theorem = claim("Main theorem.")\n'
+        "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
+        '__all__ = ["main_theorem"]\n'
+    )
+    monkeypatch.syspath_prepend(str(dep_dir / "src"))
+
+    pkg_dir = tmp_path / "register_demo"
+    remote_dir = tmp_path / "register_demo_remote.git"
+    _write_package(pkg_dir)
+    (pkg_dir / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "register-demo-gaia"\n'
+        'version = "1.2.0"\n'
+        'description = "Registration demo"\n'
+        "dependencies = [\n"
+        '  "gaia-lang>=0.1.0",\n'
+        '  "dep-register-missing-gaia >= 0.4.0",\n'
+        "]\n\n"
+        "[tool.gaia]\n"
+        'namespace = "github"\n'
+        'type = "knowledge-package"\n'
+        'uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"\n'
+    )
+    (pkg_dir / "register_demo" / "__init__.py").write_text(
+        "from gaia.lang import claim, fills\n"
+        "from dep_register_missing import missing_lemma\n\n"
+        'exported_claim = claim("A release-ready claim.")\n'
+        "fills(source=exported_claim, target=missing_lemma)\n"
+        '__all__ = ["exported_claim"]\n'
+    )
+    _init_git_repo(pkg_dir, remote_dir)
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code != 0
+    assert "missing .gaia/manifests/premises.json" in compile_result.output
+
+    _run(["git", "tag", "v1.2.0"], cwd=pkg_dir)
+    _run(["git", "push", "origin", "v1.2.0"], cwd=pkg_dir)
+
+    result = runner.invoke(
+        app,
+        [
+            "register",
+            str(pkg_dir),
+            "--repo",
+            "https://github.com/example/RegisterDemo.gaia",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "missing .gaia/manifests/premises.json" in result.output

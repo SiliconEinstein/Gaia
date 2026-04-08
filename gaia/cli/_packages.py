@@ -16,6 +16,7 @@ from gaia.lang.runtime import Knowledge, Strategy
 from gaia.lang.runtime.package import CollectedPackage
 from gaia.lang.runtime.package import _pyproject_for_module
 from gaia.lang.runtime.package import get_inferred_package, reset_inferred_package
+from packaging.requirements import InvalidRequirement, Requirement
 
 try:
     import tomllib
@@ -219,6 +220,161 @@ def _interface_hash(
     )
 
 
+def _distribution_name(import_name: str) -> str:
+    return f"{import_name.replace('_', '-')}-gaia"
+
+
+def _parse_gaia_dependencies(project_config: dict[str, Any]) -> dict[str, str]:
+    dependencies = project_config.get("dependencies", [])
+    if not isinstance(dependencies, list):
+        raise GaiaCliError("Error: [project].dependencies must be a list if set.")
+    parsed: dict[str, str] = {}
+    for raw in dependencies:
+        if not isinstance(raw, str):
+            raise GaiaCliError("Error: [project].dependencies entries must be strings.")
+        try:
+            requirement = Requirement(raw)
+        except InvalidRequirement as exc:
+            raise GaiaCliError(f"Error: invalid dependency requirement '{raw}': {exc}") from exc
+        if requirement.name.endswith("-gaia"):
+            parsed[requirement.name] = str(requirement.specifier) or "*"
+    return parsed
+
+
+def _import_module(import_name: str) -> ModuleType:
+    module = sys.modules.get(import_name)
+    if module is not None:
+        return module
+    return importlib.import_module(import_name)
+
+
+def _load_json_file(path: Path, *, description: str) -> dict[str, Any]:
+    try:
+        return json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        raise GaiaCliError(f"Error: {description} is not valid JSON: {exc}") from exc
+
+
+def _locate_dependency_manifest_root(import_name: str) -> Path | None:
+    pyproject = _pyproject_for_module(import_name)
+    if pyproject is not None:
+        return pyproject.parent
+
+    module = _import_module(import_name)
+    module_file = getattr(module, "__file__", None)
+    if not module_file:
+        return None
+    module_path = Path(module_file).resolve()
+    package_dir = module_path.parent
+    candidates = [package_dir, package_dir.parent, package_dir.parent.parent]
+    for candidate in candidates:
+        if (candidate / ".gaia" / "manifests" / "premises.json").exists():
+            return candidate
+    return None
+
+
+def _validate_dependency_manifest_freshness(import_name: str, root: Path, stored_ir_hash: str) -> None:
+    pyproject = root / "pyproject.toml"
+    if not pyproject.exists():
+        return
+    loaded = load_gaia_package(root)
+    compiled = compile_loaded_package_artifact(loaded)
+    current_ir_hash = compiled.graph.ir_hash or ""
+    if current_ir_hash != stored_ir_hash:
+        raise GaiaCliError(
+            f"Error: dependency '{import_name}' has stale .gaia manifests; "
+            f"run `gaia compile` in {root}."
+        )
+
+
+def _resolve_dependency_premises_manifest(import_name: str) -> tuple[Path, dict[str, Any]]:
+    root = _locate_dependency_manifest_root(import_name)
+    if root is None:
+        raise GaiaCliError(
+            f"Error: could not locate Gaia package root for dependency '{import_name}'."
+        )
+    premises_path = root / ".gaia" / "manifests" / "premises.json"
+    if not premises_path.exists():
+        raise GaiaCliError(
+            f"Error: dependency '{import_name}' is missing .gaia/manifests/premises.json; "
+            f"run `gaia compile` in {root}."
+        )
+    premises_manifest = _load_json_file(
+        premises_path,
+        description=f"{import_name} dependency manifest {premises_path}",
+    )
+    stored_ir_hash = premises_manifest.get("ir_hash")
+    if not isinstance(stored_ir_hash, str) or not stored_ir_hash:
+        raise GaiaCliError(f"Error: dependency manifest {premises_path} is missing ir_hash.")
+    _validate_dependency_manifest_freshness(import_name, root, stored_ir_hash)
+    return root, premises_manifest
+
+
+def _validate_fills_relations(loaded: LoadedGaiaPackage, compiled) -> None:
+    dependency_specs = _parse_gaia_dependencies(loaded.project_config)
+    local_package = loaded.package
+
+    for strategy in loaded.package.strategies:
+        relation = strategy.metadata.get("gaia", {}).get("relation", {})
+        if relation.get("type") != "fills":
+            continue
+        if len(strategy.premises) != 1 or strategy.conclusion is None:
+            raise GaiaCliError("Error: fills() strategies must have exactly one source and one target.")
+
+        source = strategy.premises[0]
+        target = strategy.conclusion
+        source_owner = source._package
+        target_owner = target._package
+
+        if target_owner is None or target_owner == local_package:
+            raise GaiaCliError(
+                "Error: fills() target must be a foreign claim resolved from a dependency package."
+            )
+
+        if source_owner is not None and source_owner != local_package:
+            source_dist = _distribution_name(source_owner.name)
+            if source_dist not in dependency_specs:
+                raise GaiaCliError(
+                    f"Error: fills() source dependency '{source_dist}' is not declared in "
+                    "[project].dependencies."
+                )
+
+        target_dist = _distribution_name(target_owner.name)
+        if target_dist not in dependency_specs:
+            raise GaiaCliError(
+                f"Error: fills() target dependency '{target_dist}' is not declared in "
+                "[project].dependencies."
+            )
+
+        _, premises_manifest = _resolve_dependency_premises_manifest(target_owner.name)
+        premises = premises_manifest.get("premises", [])
+        if not isinstance(premises, list):
+            raise GaiaCliError("Error: dependency premises manifest must contain a premises list.")
+
+        target_qid = compiled.knowledge_ids_by_object.get(id(target))
+        if target_qid is None:
+            raise GaiaCliError("Error: could not resolve fills() target QID during compile.")
+
+        entry = next(
+            (
+                premise
+                for premise in premises
+                if isinstance(premise, dict) and premise.get("qid") == target_qid
+            ),
+            None,
+        )
+        if entry is None:
+            raise GaiaCliError(
+                f"Error: fills() target '{target_qid}' is not a public premise in dependency "
+                f"'{target_owner.name}'."
+            )
+        if entry.get("role") != "local_hole":
+            raise GaiaCliError(
+                f"Error: fills() target '{target_qid}' must resolve to a dependency local_hole, "
+                f"found role={entry.get('role')!r}."
+            )
+
+
 def _knowledge_manifest_entry(knowledge) -> dict[str, Any]:
     entry = {
         "qid": knowledge.id,
@@ -235,6 +391,7 @@ def _knowledge_manifest_entry(knowledge) -> dict[str, Any]:
 
 def build_package_manifests(loaded: LoadedGaiaPackage, compiled) -> dict[str, dict[str, Any]]:
     """Build package-level interface manifests from compiled IR plus runtime package state."""
+    _validate_fills_relations(loaded, compiled)
     graph = compiled.graph
     knowledge_by_qid = {knowledge.id: knowledge for knowledge in graph.knowledges if knowledge.id}
     exported_qids = {

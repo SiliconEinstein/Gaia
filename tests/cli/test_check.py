@@ -52,3 +52,45 @@ def test_check_fails_when_compiled_artifacts_are_stale(tmp_path):
     result = runner.invoke(app, ["check", str(pkg_dir)])
     assert result.exit_code != 0
     assert "stale" in result.output.lower()
+
+
+def test_check_fails_on_invalid_fills_target(tmp_path, monkeypatch):
+    dep_dir = tmp_path / "dep_check_missing_root"
+    dep_dir.mkdir()
+    (dep_dir / "pyproject.toml").write_text(
+        '[project]\nname = "dep-check-missing-gaia"\nversion = "0.4.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    dep_src = dep_dir / "src" / "dep_check_missing"
+    dep_src.mkdir(parents=True)
+    (dep_src / "__init__.py").write_text(
+        "from gaia.lang import claim, deduction\n\n"
+        'missing_lemma = claim("A missing lemma.")\n'
+        'main_theorem = claim("Main theorem.")\n'
+        "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
+        '__all__ = ["main_theorem"]\n'
+    )
+    monkeypatch.syspath_prepend(str(dep_dir / "src"))
+
+    pkg_dir = tmp_path / "check_demo"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "check-demo-gaia"\n'
+        'version = "1.2.0"\n'
+        'dependencies = ["dep-check-missing-gaia>=0.4.0"]\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "check_demo"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import claim, fills\n"
+        "from dep_check_missing import missing_lemma\n\n"
+        'main_claim = claim("A test claim.")\n'
+        "fills(source=main_claim, target=missing_lemma)\n"
+        '__all__ = ["main_claim"]\n'
+    )
+
+    result = runner.invoke(app, ["check", str(pkg_dir)])
+    assert result.exit_code != 0
+    assert "missing .gaia/manifests/premises.json" in result.output

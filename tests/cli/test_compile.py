@@ -365,6 +365,266 @@ def test_compile_interface_hash_is_deterministic(tmp_path):
     assert first_hash == second_hash
 
 
+def test_compile_fills_validates_foreign_local_hole_target(tmp_path, monkeypatch):
+    dep_dir = tmp_path / "dep_pkg_root"
+    dep_dir.mkdir()
+    (dep_dir / "pyproject.toml").write_text(
+        '[project]\nname = "dep-pkg-gaia"\nversion = "0.4.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    dep_src = dep_dir / "src" / "dep_pkg"
+    dep_src.mkdir(parents=True)
+    (dep_src / "__init__.py").write_text(
+        "from gaia.lang import claim, deduction\n\n"
+        'missing_lemma = claim("A missing lemma.")\n'
+        'main_theorem = claim("Main theorem.")\n'
+        "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
+        '__all__ = ["main_theorem"]\n'
+    )
+    monkeypatch.syspath_prepend(str(dep_dir / "src"))
+    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    assert dep_compile.exit_code == 0, dep_compile.output
+
+    consumer_dir = tmp_path / "consumer_pkg"
+    consumer_dir.mkdir()
+    (consumer_dir / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "consumer-pkg-gaia"\n'
+        'version = "1.0.0"\n'
+        'dependencies = ["dep-pkg-gaia>=0.4.0"]\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    consumer_src = consumer_dir / "consumer_pkg"
+    consumer_src.mkdir()
+    (consumer_src / "__init__.py").write_text(
+        "from gaia.lang import claim, fills\n"
+        "from dep_pkg import missing_lemma\n\n"
+        'b_result = claim("B theorem.")\n'
+        'bridge = fills(source=b_result, target=missing_lemma, reason="Theorem 3 establishes A.")\n'
+        '__all__ = ["b_result", "bridge"]\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(consumer_dir)])
+    assert result.exit_code == 0, result.output
+
+
+def test_compile_fills_requires_dependency_manifest(tmp_path, monkeypatch):
+    dep_dir = tmp_path / "dep_missing_root"
+    dep_dir.mkdir()
+    (dep_dir / "pyproject.toml").write_text(
+        '[project]\nname = "dep-missing-gaia"\nversion = "0.4.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    dep_src = dep_dir / "src" / "dep_missing"
+    dep_src.mkdir(parents=True)
+    (dep_src / "__init__.py").write_text(
+        "from gaia.lang import claim, deduction\n\n"
+        'missing_lemma = claim("A missing lemma.")\n'
+        'main_theorem = claim("Main theorem.")\n'
+        "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
+        '__all__ = ["main_theorem"]\n'
+    )
+    monkeypatch.syspath_prepend(str(dep_dir / "src"))
+
+    consumer_dir = tmp_path / "consumer_pkg"
+    consumer_dir.mkdir()
+    (consumer_dir / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "consumer-pkg-gaia"\n'
+        'version = "1.0.0"\n'
+        'dependencies = ["dep-missing-gaia>=0.4.0"]\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    consumer_src = consumer_dir / "consumer_pkg"
+    consumer_src.mkdir()
+    (consumer_src / "__init__.py").write_text(
+        "from gaia.lang import claim, fills\n"
+        "from dep_missing import missing_lemma\n\n"
+        'b_result = claim("B theorem.")\n'
+        "fills(source=b_result, target=missing_lemma)\n"
+        '__all__ = ["b_result"]\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(consumer_dir)])
+    assert result.exit_code != 0
+    assert "missing .gaia/manifests/premises.json" in result.output
+
+
+def test_compile_fills_rejects_stale_dependency_manifest(tmp_path, monkeypatch):
+    dep_dir = tmp_path / "dep_pkg_root"
+    dep_dir.mkdir()
+    (dep_dir / "pyproject.toml").write_text(
+        '[project]\nname = "dep-pkg-gaia"\nversion = "0.4.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    dep_src = dep_dir / "src" / "dep_pkg"
+    dep_src.mkdir(parents=True)
+    dep_init = dep_src / "__init__.py"
+    dep_init.write_text(
+        "from gaia.lang import claim, deduction\n\n"
+        'missing_lemma = claim("A missing lemma.")\n'
+        'main_theorem = claim("Main theorem.")\n'
+        "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
+        '__all__ = ["main_theorem"]\n'
+    )
+    monkeypatch.syspath_prepend(str(dep_dir / "src"))
+    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    assert dep_compile.exit_code == 0, dep_compile.output
+
+    dep_init.write_text(
+        "from gaia.lang import claim, deduction\n\n"
+        'missing_lemma = claim("An updated missing lemma.")\n'
+        'main_theorem = claim("Main theorem.")\n'
+        "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
+        '__all__ = ["main_theorem"]\n'
+    )
+
+    consumer_dir = tmp_path / "consumer_pkg"
+    consumer_dir.mkdir()
+    (consumer_dir / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "consumer-pkg-gaia"\n'
+        'version = "1.0.0"\n'
+        'dependencies = ["dep-pkg-gaia>=0.4.0"]\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    consumer_src = consumer_dir / "consumer_pkg"
+    consumer_src.mkdir()
+    (consumer_src / "__init__.py").write_text(
+        "from gaia.lang import claim, fills\n"
+        "from dep_pkg import missing_lemma\n\n"
+        'b_result = claim("B theorem.")\n'
+        "fills(source=b_result, target=missing_lemma)\n"
+        '__all__ = ["b_result"]\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(consumer_dir)])
+    assert result.exit_code != 0
+    assert "stale .gaia manifests" in result.output
+
+
+def test_compile_fills_rejects_target_that_is_not_public_hole(tmp_path, monkeypatch):
+    dep_dir = tmp_path / "dep_pkg_root"
+    dep_dir.mkdir()
+    (dep_dir / "pyproject.toml").write_text(
+        '[project]\nname = "dep-pkg-gaia"\nversion = "0.4.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    dep_src = dep_dir / "src" / "dep_pkg"
+    dep_src.mkdir(parents=True)
+    (dep_src / "__init__.py").write_text(
+        'from gaia.lang import claim\n\n'
+        'dep_result = claim("Dependency theorem.")\n'
+        '__all__ = ["dep_result"]\n'
+    )
+    monkeypatch.syspath_prepend(str(dep_dir / "src"))
+    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    assert dep_compile.exit_code == 0, dep_compile.output
+
+    consumer_dir = tmp_path / "consumer_pkg"
+    consumer_dir.mkdir()
+    (consumer_dir / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "consumer-pkg-gaia"\n'
+        'version = "1.0.0"\n'
+        'dependencies = ["dep-pkg-gaia>=0.4.0"]\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    consumer_src = consumer_dir / "consumer_pkg"
+    consumer_src.mkdir()
+    (consumer_src / "__init__.py").write_text(
+        "from gaia.lang import claim, fills\n"
+        "from dep_pkg import dep_result\n\n"
+        'b_result = claim("B theorem.")\n'
+        "fills(source=b_result, target=dep_result)\n"
+        '__all__ = ["b_result"]\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(consumer_dir)])
+    assert result.exit_code != 0
+    assert "is not a public premise" in result.output
+
+
+def test_compile_fills_requires_foreign_target(tmp_path):
+    pkg_dir = tmp_path / "local_fills_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "local-fills-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "local_fills_pkg"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import claim, fills\n\n"
+        'source_claim = claim("Source theorem.")\n'
+        'target_claim = claim("Local target.")\n'
+        "fills(source=source_claim, target=target_claim)\n"
+        '__all__ = ["source_claim"]\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code != 0
+    assert "target must be a foreign claim" in result.output
+
+
+def test_compile_bridge_package_requires_source_dependency_declaration(tmp_path, monkeypatch):
+    dep_a_dir = tmp_path / "dep_a_root"
+    dep_a_dir.mkdir()
+    (dep_a_dir / "pyproject.toml").write_text(
+        '[project]\nname = "dep-a-gaia"\nversion = "0.4.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    dep_a_src = dep_a_dir / "src" / "dep_a"
+    dep_a_src.mkdir(parents=True)
+    (dep_a_src / "__init__.py").write_text(
+        "from gaia.lang import claim, deduction\n\n"
+        'missing_lemma = claim("A missing lemma.")\n'
+        'main_theorem = claim("Main theorem.")\n'
+        "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
+        '__all__ = ["main_theorem"]\n'
+    )
+
+    dep_b_dir = tmp_path / "dep_b_root"
+    dep_b_dir.mkdir()
+    (dep_b_dir / "pyproject.toml").write_text(
+        '[project]\nname = "dep-b-gaia"\nversion = "0.5.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    dep_b_src = dep_b_dir / "src" / "dep_b"
+    dep_b_src.mkdir(parents=True)
+    (dep_b_src / "__init__.py").write_text(
+        'from gaia.lang import claim\n\n'
+        'b_result = claim("B theorem.")\n'
+        '__all__ = ["b_result"]\n'
+    )
+    monkeypatch.syspath_prepend(str(dep_a_dir / "src"))
+    monkeypatch.syspath_prepend(str(dep_b_dir / "src"))
+    assert runner.invoke(app, ["compile", str(dep_a_dir)]).exit_code == 0
+    assert runner.invoke(app, ["compile", str(dep_b_dir)]).exit_code == 0
+
+    bridge_dir = tmp_path / "bridge_pkg"
+    bridge_dir.mkdir()
+    (bridge_dir / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "bridge-pkg-gaia"\n'
+        'version = "1.0.0"\n'
+        'dependencies = ["dep-a-gaia>=0.4.0"]\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    bridge_src = bridge_dir / "bridge_pkg"
+    bridge_src.mkdir()
+    (bridge_src / "__init__.py").write_text(
+        "from gaia.lang import fills\n"
+        "from dep_a import missing_lemma\n"
+        "from dep_b import b_result\n\n"
+        "fills(source=b_result, target=missing_lemma)\n"
+    )
+
+    result = runner.invoke(app, ["compile", str(bridge_dir)])
+    assert result.exit_code != 0
+    assert "source dependency 'dep-b-gaia' is not declared" in result.output
+
+
 def test_compile_named_strategy_uses_ir_canonical_formalization(tmp_path):
     """Named strategies should be formalized through gaia.ir.formalize during compile."""
     pkg_dir = tmp_path / "abduction_pkg"
