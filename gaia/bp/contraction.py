@@ -17,17 +17,3 @@ Spec: github.com/SiliconEinstein/Gaia/issues/357
 """
 
 from __future__ import annotations
-
-import numpy as np
-
-from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
-
-__all__ = [
-    "factor_to_tensor",
-    "contract_to_cpt",
-    "strategy_cpt",
-    "cpt_tensor_to_list",
-]
-
-_HIGH: float = 1.0 - CROMWELL_EPS
-_LOW: float = CROMWELL_EPS
