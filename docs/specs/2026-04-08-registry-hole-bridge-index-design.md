@@ -1,4 +1,4 @@
-# Gaia Registry Hole / Bridge Index Design
+# Gaia Registry Public Premise / Bridge Index Design
 
 > **Status:** Proposal
 >
@@ -10,125 +10,151 @@
 
 ## 1. Problem
 
-Gaia 的 Official Registry 在当前设计里是一个 GitHub repo，主要记录：
+在新的 package 设计里：
 
-- package identity
-- version -> git tag / git sha / ir_hash
-- explicit dependencies
+- `hole` 不再是作者显式 source marker
+- 而是某个 release 上编译出来的 `public premise` 角色
 
-这足够支持“已知包名 -> 拉元数据 -> 安装 / 引用”，但不够支持下面这些生态问题：
+这会直接改变 registry 要存什么、索引什么：
 
-1. A 包公开了一个可复用的缺口，未来谁能补它？
-2. B 包已经知道自己的结论可以填 A 的 hole，如何让别人发现？
-3. C 后来发现 “B.result fills A.hole”，如何在不改 A/B 的情况下公开这个关系？
-4. 当 package 很多时，如何避免每次查询都扫描整个 registry repo？
+1. 不能只存 “exported holes”
+   因为 hole 身份可能跨版本变化
+2. 不能只让 bridge relation 指向 `target_hole_qid`
+   因为 QID 相同并不保证 interface 状态相同
+3. 不能把 package manifests 简化成 `exports / holes / bridges`
+   因为 `premises` 才是 bridge 目标验证的真正 source of truth
 
-本设计不引入 global canonicalization，也不要求运行时数据库。前提保持不变：
+因此，registry 需要从旧的：
 
-- Registry 仍然只是一个 GitHub repo
-- package 仍然是 authoring / publishing 的基本单位
-- bridge relation 只是显式关系，不是 identity merge 或裁决
+- package-local hole list
+- static hole -> fillers index
+
+升级成：
+
+- versioned public premise snapshots
+- hole history
+- bridge relations keyed by target interface snapshot
 
 ## 2. Design Goals
 
-### 2.1 必须满足
-
 1. **GitHub-native**
-   一切 source of truth 都是 git 文件，所有变更都通过 PR。
+   source of truth 仍然全部是 git 文件，通过 PR 维护。
 
-2. **Package-owned authoring**
-   作者只需要在 package 或 bridge package 中声明关系，不直接手改全局索引。
+2. **Release-scoped semantics**
+   registry 必须保留“某个 qid 在某个 release 上扮演什么接口角色”。
 
-3. **Static-query friendly**
-   查询 `hole -> fillers`、`claim -> filled holes` 时，客户端不能靠全仓扫描。
+3. **No second registry**
+   仍然只有一个 registry repo，不拆独立 bridge registry。
 
-4. **No central semantic adjudication**
-   Registry 记录谁声明了什么关系，但不在注册阶段裁决“这是否真的是同一个命题”。
+4. **Static query friendliness**
+   查询不能靠扫描所有 package manifests，必须有 bot 生成的静态索引。
 
-5. **Conflict-resistant**
-   注册很多 package 后，PR 不能频繁碰撞到同一个全局文件。
-
-### 2.2 明确不做
-
-- 不做 duplicate merge / equivalence merge
-- 不做 single official bridge truth
-- 不要求桥接关系必须由 source package 作者本人声明
-- 不把 fuzzy discovery 变成注册时的硬 gate
+5. **Historical correctness**
+   A 的 hole 在新版本消失后，旧 bridge 仍应作为历史记录保留。
 
 ## 3. Core Idea
 
-核心分层是：
+registry 继续保持三层：
 
-1. **package 内声明**
-   `hole` 和 `bridge relation` 写在 package 里。
+1. **package-local manifests**
+   - 注册 PR 只提交自己 package release 的 manifests
 
-2. **registry 内保存 package-local manifests**
-   注册时把该版本的 `exports / holes / bridges` 作为静态 manifest 记录下来。
+2. **derived indexes**
+   - merge 后由 bot 生成
 
-3. **bot 生成 derived indexes**
-   merge 后由 GitHub Action 生成全局静态索引文件，供 CLI / 网站 / 人类查询。
+3. **query layer**
+   - CLI / Web 只查静态索引，不全仓扫描
 
-一句话：
+但 source manifests 现在变成：
 
-**package 是写关系的地方，registry 是找关系的地方。**
+- `exports.json`
+- `premises.json`
+- `holes.json`
+- `bridges.json`
+
+其中：
+
+- `premises.json` 是 interface source of truth
+- `holes.json` 只是 `premises.json` 的 `local_hole` 子集
 
 ## 4. Object Model
 
-### 4.1 Exported Hole
+### 4.1 Exported Node
 
-`hole` 是作者显式导出的公共缺口，不是自动从所有叶子前提推导出来的。
+`exports.json` 记录作者显式导出的节点。
 
-一个 node 只有同时满足下面条件，才应被导出为 `hole`：
+它回答：
 
-1. 它是某条公开结论链的 load-bearing premise
-2. 当前 package 没有在本包内部把它证明完
-3. 作者希望未来其他 package 能显式填补它
-4. 它的语义足够稳定，值得成为公共接口
+- “这个 release 想公开哪些节点？”
 
-因此：
+它不回答：
 
-- 不是所有 leaf premise 都是 hole
-- hole 是 package API 的一部分
-- hole 可以被别的 package import / fill
+- 哪些节点是 public premises
+- 哪些节点是 holes
 
-### 4.2 Bridge Relation
+### 4.2 Public Premise Snapshot
 
-`bridge relation` 是一个显式生态断言：
+`premises.json` 里的每一条记录，都是一个 **release-scoped premise interface snapshot**。
 
-- 某个 `source claim`
-- 可以填补某个 `target hole`
-- 这个主张由某个 `declaring package` 给出
+它回答：
 
-它不是新的逻辑 primitive，也不是 global identity claim。它只是一个 package-level relation record。
+- 某个 qid 在这个 release 上是不是 public premise
+- 如果是，它的角色是什么
+- 它的 interface identity 是什么
 
 最小字段：
 
-- `relation_type = "fills"`
+- `qid`
+- `role`
+  - `local_hole`
+  - `foreign_dependency`
+- `interface_hash`
+- `required_by`
+- `exported`
+
+### 4.3 Hole History
+
+`holes.json` 不是单独的语义来源，只是为 discovery 优化的 subset。
+
+hole 的真正语义应通过：
+
+- `premises.json` 中 `role == "local_hole"`
+
+来判定。
+
+这样同一个 qid 才能自然经历：
+
+- `A@1.0.0`: `local_hole`
+- `A@1.1.0`: no longer public premise
+- `A@1.2.0`: `foreign_dependency`
+
+### 4.4 Bridge Relation
+
+bridge relation 是显式生态断言：
+
+- 某个 source claim
+- fills 某个 target premise snapshot
+
+最小字段：
+
 - `source_qid`
-- `target_hole_qid`
+- `source_content_hash`
+- `target_qid`
+- `target_resolved_version`
+- `target_interface_hash`
+- `target_role`
 - `declaring_package`
 - `declaring_version`
-- `strength`
-- `justification`
 
-### 4.3 Declaring Package
+它不是：
 
-`bridge relation` 可以来自两类 package：
-
-1. **paper package**
-   B 自己知道 `B.result fills A.hole`，于是直接在 B 内声明
-
-2. **bridge package**
-   后来 C 发现 `B.result fills A.hole`，由 C 发布一个小 package 专门声明该关系
-
-Registry 不区分“哪类更真”，只记录声明来源。
+- global canonicalization
+- semantic adjudication
+- “这两个 claim 永远等价”的官方结论
 
 ## 5. Repository Layout
 
-在当前 registry 目录结构基础上，新增两层：
-
-- `packages/<name>/releases/<version>/...`：该 package version 的 source manifests
-- `index/...`：bot 生成的全局静态索引
+推荐目录：
 
 ```text
 gaia-registry/
@@ -140,19 +166,23 @@ gaia-registry/
 │   │   └── releases/
 │   │       ├── 1.0.0/
 │   │       │   ├── exports.json
+│   │       │   ├── premises.json
 │   │       │   ├── holes.json
 │   │       │   └── bridges.json
-│   │       └── 1.1.0/
-│   │           └── ...
+│   │       └── ...
 │   └── package-b/
 │       └── ...
 ├── index/
+│   ├── premises/
+│   │   ├── by-package/
+│   │   └── by-qid/
 │   ├── holes/
 │   │   ├── by-package/
 │   │   └── by-qid/
 │   ├── bridges/
-│   │   ├── by-target/
-│   │   ├── by-source/
+│   │   ├── by-target-qid/
+│   │   ├── by-target-interface/
+│   │   ├── by-source-qid/
 │   │   └── by-declaring-package/
 │   └── manifests/
 │       └── stats.json
@@ -163,46 +193,28 @@ gaia-registry/
 
 ## 6. Package-Local Source Manifests
 
-这些文件是 source of truth，由 `gaia register` 生成或拷贝到 registry PR 中。作者 PR 只修改自己 package 的目录。
-
 ### 6.1 `exports.json`
 
-记录该版本公开导出的 node interface。
+与 package layer 一致，记录该 release 的 author-declared exports。
 
-```json
-{
-  "package": "package-b",
-  "version": "2.1.0",
-  "generated_at": "2026-04-08T12:00:00Z",
-  "exports": [
-    {
-      "qid": "github:package_b::main_result",
-      "label": "main_result",
-      "type": "claim",
-      "content": "B's main theorem.",
-      "content_hash": "2fd4e1c67a2d28fced849ee1bb76e7391b93eb12f4f4a0a2b9f7f1c4d5e6a7b8"
-    }
-  ]
-}
-```
+### 6.2 `premises.json`
 
-这里的 `content_hash` 与 IR `Knowledge.content_hash` 保持同格式，使用裸 64 位 hex；只有 `ir_hash` 使用 `sha256:` 前缀。
+这是 registry 验证 bridge target 的核心文件。
 
-### 6.2 `holes.json`
-
-只列出作者显式公开的 hole。
+示例：
 
 ```json
 {
   "package": "package-a",
   "version": "1.4.0",
-  "generated_at": "2026-04-08T12:00:00Z",
-  "holes": [
+  "ir_hash": "sha256:...",
+  "premises": [
     {
       "qid": "github:package_a::key_missing_lemma",
-      "label": "key_missing_lemma",
-      "content": "A missing premise required by the main theorem.",
-      "content_hash": "7f6a5b4c3d2e1f0099887766554433221100ffeeddccbbaa9988776655443322",
+      "role": "local_hole",
+      "content_hash": "7f6a5b...",
+      "interface_hash": "sha256:...",
+      "exported": false,
       "required_by": [
         "github:package_a::main_theorem"
       ]
@@ -211,384 +223,245 @@ gaia-registry/
 }
 ```
 
-约束：
+### 6.3 `holes.json`
 
-- `holes.json` 中的每个 hole 必须也是该版本的 exported claim
-- hole 不能是自动扫描产物，必须来自作者显式标记
-- `required_by` 的生成规则与 package-level extraction 保持一致，见 [2026-04-08-gaia-package-hole-bridge-design.md](2026-04-08-gaia-package-hole-bridge-design.md) §5.2.1
+`holes.json` 只保留 `premises.json` 中 `role == "local_hole"` 的条目。
 
-### 6.3 `bridges.json`
+它的主要价值是：
 
-记录该版本声明的 bridge relations。
+- 让 CLI / Web 快速发现“当前 release 上有哪些 local holes”
+
+### 6.4 `bridges.json`
+
+bridge relation 示例：
 
 ```json
 {
   "package": "package-b",
   "version": "2.1.0",
-  "generated_at": "2026-04-08T12:00:00Z",
+  "ir_hash": "sha256:...",
   "bridges": [
     {
       "relation_id": "bridge_4a1f9d3c2b7e8f10",
       "relation_type": "fills",
-      "source_qid": "github:package_b::main_result",
-      "target_hole_qid": "github:package_a::key_missing_lemma",
+      "source_qid": "github:package_b::b_result",
+      "source_content_hash": "88aa77...",
+      "target_qid": "github:package_a::key_missing_lemma",
       "target_package": "package-a",
-      "target_version_req": ">=1.4.0,<2.0.0",
+      "target_dependency_req": ">=1.4.0,<2.0.0",
+      "target_resolved_version": "1.4.0",
+      "target_role": "local_hole",
+      "target_interface_hash": "sha256:...",
       "strength": "exact",
-      "justification": "Theorem 3 in package B proves exactly the missing premise exposed by package A.",
-      "declared_by_owner_of_source": true
+      "mode": "deduction",
+      "declared_by_owner_of_source": true,
+      "justification": "Theorem 3 proves A's missing lemma."
     }
   ]
 }
 ```
 
-第三方 bridge package 也用同样格式，只是：
-
-- `source_qid` 可能是 foreign
-- `declared_by_owner_of_source = false`
-
-其中：
-
-- `relation_id` 使用 package-level 规定的稳定 hash 规则，见 [2026-04-08-gaia-package-hole-bridge-design.md](2026-04-08-gaia-package-hole-bridge-design.md) §5.3
-- `target_version_req` 来自 declaring package 对 `target_package` 的依赖约束
-- `declared_by_owner_of_source = (QID(source_qid).package == declaring_package)`
-
 ## 7. Validation Rules
 
-`register.yml` 在现有校验基础上，新增以下机械规则。
+### 7.1 `premises.json`
 
-### 7.1 `exports.json`
+`register.yml` 应新增：
 
-- 每个 `qid` 必须存在于该 package version 的 compiled IR
-- 每个导出必须属于本 package namespace
-- `exports: []` 是合法的；纯 bridge package 可以没有 exported claims
+- premise `qid` 必须存在于 compiled IR closure 中
+- `role == "local_hole"` 时，qid 必须属于当前 package
+- `role == "foreign_dependency"` 时，qid 必须属于 foreign package
+- `interface_hash` 必须与 registry 当前 schema version 的计算规则一致
 
 ### 7.2 `holes.json`
 
-- 每个 `hole.qid` 必须出现在 `exports.json`
-- 每个 `required_by` 必须是本 package version 中存在的 exported claim
-- 同一版本内 `hole.qid` 不可重复
+- 每个 hole 必须在同版本 `premises.json` 中存在
+- 且其 role 必须是 `local_hole`
+- 同一版本内不可重复
 
 ### 7.3 `bridges.json`
 
 - `source_qid` 必须可解析
-  - 若属于 declaring package，则必须在该版本 `exports.json` 中
-  - 若属于 foreign package，则该 package / version requirement 必须出现在 dependencies 中
-- `target_hole_qid` 必须可解析到一个已注册 package 的 exported hole
-- `target_version_req` 必须来自对 `target_package` 的依赖约束，并且可满足至少一个已注册版本
-- `relation_type` 当前只允许 `fills`
-- `strength` 当前只允许 `exact | partial | conditional`
-- 对同一 `declaring_package@declaring_version`，重复的 `(source_qid, target_hole_qid)` relation 必须被拒绝
+- 若 source 属于 declaring package，则必须在本 release 的 `exports.json` 中
+- 若 source 属于 foreign package，则必须可由依赖约束解析
+- `target_qid` 必须可解析到某个 package release 的 `premises.json`
+- `target_resolved_version` 必须真实存在
+- `target_interface_hash` 必须与该 release 上的 premise snapshot 一致
+- `target_role` 当前只允许 `local_hole`
+- `target_dependency_req` 必须来自 declaring package 对 target package 的依赖约束
 
 ### 7.4 PR Ownership Rule
 
-注册 package version 的 PR：
+作者 PR：
 
-- **允许**修改 `packages/<self>/**`
-- **禁止**手工修改 `index/**`
+- **允许**改 `packages/<self>/**`
+- **禁止**手改 `index/**`
 
-这样可以避免所有作者 PR 同时争抢全局索引文件。
+所有 `index/**` 都由 merge 后 bot 生成。
 
 ## 8. Derived Indexes
 
-`index/**` 不是 author-authored source of truth，而是 merge 到 `main` 后由 bot 生成的派生文件。
+### 8.1 `index/premises/by-package/<package>.json`
 
-### 8.1 Hole Index
-
-#### `index/holes/by-package/<package>.json`
+按 package 查看各 release 的 premise snapshots。
 
 ```json
 {
   "package": "package-a",
-  "holes": [
-    {
-      "qid": "github:package_a::key_missing_lemma",
-      "introduced_in": "1.4.0",
-      "latest_version": "1.6.0"
+  "versions": {
+    "1.4.0": {
+      "premises": [
+        {
+          "qid": "github:package_a::key_missing_lemma",
+          "role": "local_hole",
+          "interface_hash": "sha256:..."
+        }
+      ]
     }
-  ]
+  }
 }
 ```
 
-#### `index/holes/by-qid/<shard>/<encoded-qid>.json`
+### 8.2 `index/premises/by-qid/<shard>/<encoded-qid>.json`
+
+按 qid 查看跨版本 interface history。
 
 ```json
 {
   "qid": "github:package_a::key_missing_lemma",
-  "owner_package": "package-a",
-  "versions": [
+  "history": [
     {
+      "package": "package-a",
       "version": "1.4.0",
-      "content": "A missing premise required by the main theorem.",
-      "required_by": ["github:package_a::main_theorem"]
+      "role": "local_hole",
+      "interface_hash": "sha256:..."
+    },
+    {
+      "package": "package-a",
+      "version": "1.5.0",
+      "role": "foreign_dependency",
+      "interface_hash": "sha256:..."
     }
   ]
 }
 ```
 
-### 8.2 Bridge Index
+### 8.3 `index/holes/by-qid/<shard>/<encoded-qid>.json`
 
-#### `index/bridges/by-target/<shard>/<encoded-hole-qid>.json`
-
-这是最核心的查询入口：`hole -> who claims to fill it`
+只索引 hole history：
 
 ```json
 {
-  "target_hole_qid": "github:package_a::key_missing_lemma",
-  "bridges": [
+  "qid": "github:package_a::key_missing_lemma",
+  "hole_versions": [
     {
-      "relation_id": "bridge_4a1f9d3c2b7e8f10",
-      "source_qid": "github:package_b::main_result",
-      "declaring_package": "package-b",
-      "declaring_version": "2.1.0",
-      "strength": "exact",
-      "declared_by_owner_of_source": true,
-      "justification": "..."
-    },
-    {
-      "relation_id": "bridge_95c62be0ad1f4e23",
-      "source_qid": "github:bridge_c::adapter_claim",
-      "declaring_package": "package-c-bridge",
-      "declaring_version": "0.1.0",
-      "strength": "conditional",
-      "declared_by_owner_of_source": false,
-      "justification": "..."
+      "version": "1.4.0",
+      "interface_hash": "sha256:..."
     }
   ]
 }
 ```
 
-#### `index/bridges/by-source/<shard>/<encoded-claim-qid>.json`
+### 8.4 `index/bridges/by-target-qid/<shard>/<encoded-qid>.json`
 
-反向查询：`claim -> what holes does it claim to fill`
+按 target qid 聚合所有 bridge declarations。
 
-#### `index/bridges/by-declaring-package/<package>.json`
+```json
+{
+  "target_qid": "github:package_a::key_missing_lemma",
+  "bridges": [
+    {
+      "declaring_package": "package-b",
+      "declaring_version": "2.1.0",
+      "source_qid": "github:package_b::b_result",
+      "target_resolved_version": "1.4.0",
+      "target_interface_hash": "sha256:..."
+    }
+  ]
+}
+```
 
-查看某 package 发布过哪些 bridge relations。
+### 8.5 `index/bridges/by-target-interface/<shard>/<interface-hash>.json`
 
-## 9. Build Flow
+这是“当前这个具体 hole snapshot 有哪些 fillers”最稳的查询入口。
 
-### 9.1 Registration PR
+```json
+{
+  "target_interface_hash": "sha256:...",
+  "target_qid": "github:package_a::key_missing_lemma",
+  "bridges": [
+    {
+      "declaring_package": "package-b",
+      "declaring_version": "2.1.0",
+      "source_qid": "github:package_b::b_result",
+      "relation_id": "bridge_4a1f9d3c2b7e8f10"
+    }
+  ]
+}
+```
 
-作者或 bot 提交 package version PR 时：
+## 9. Query Semantics
 
-1. 更新 `Package.toml / Versions.toml / Deps.toml`
-2. 按 rollout phase 新增 `releases/<version>/...` manifests
-3. 不修改 `index/**`
+### 9.1 “A 这个 hole 现在谁能填？”
 
-phase 对应关系是：
+正确流程不是：
 
-- **Phase 1**：只提交 `exports.json`
-- **Phase 2**：再提交 `holes.json`
-- **Phase 3**：再提交 `bridges.json`
+- 只按 `target_qid` 查 bridge
 
-package 本地编译可以先行生成后续 phase 的 preview manifests，但 registry 只接收当前 phase 正式支持的文件。
+而是：
 
-### 9.2 Post-Merge Index Build
+1. 先查 `premises/holes` index，定位 A 最新 release 上该 qid 是否仍是 `local_hole`
+2. 若是，拿到当前 `interface_hash`
+3. 再查 `index/bridges/by-target-interface/<interface_hash>.json`
 
-`build-index.yml` 在 `main` 上运行：
+这样才能避免旧 bridge 被错误地投射到新 release。
 
-1. 遍历 `packages/*/releases/*/{holes,bridges}.json`
-2. 重建 `index/holes/**`
-3. 重建 `index/bridges/**`
-4. 更新 `index/manifests/stats.json`
-5. 由 bot commit 回 registry repo
+### 9.2 “历史上谁填过这个 qid？”
 
-这意味着：
+查：
 
-- package PR merge 不依赖热点索引文件冲突
-- 索引是 deterministic derived artifact
-- 任意人都可以在本地重建并审计
+- `index/bridges/by-target-qid/<qid>.json`
 
-## 10. Worked Scenarios
+这给的是历史视角，不是 current compatibility 视角。
 
-### 10.1 Scenario A: B immediately knows it fills A
+### 9.3 “B 的某个结果被拿去填了哪些 holes？”
 
-前提：
+查：
 
-- A 已注册，并公开了 `key_missing_lemma` 这个 exported hole
-- B 在自己的 package 里直接声明 `fills(b_result, key_missing_lemma)`
+- `index/bridges/by-source-qid/<qid>.json`
 
-authoring example 见 [2026-04-08-gaia-lang-hole-fills-design.md](2026-04-08-gaia-lang-hole-fills-design.md) §6.1。
+## 10. Scenario Walkthroughs
 
-那么 registry 层会看到：
+### 10.1 Scenario A: B 直接声明 fills A 的缺口
 
-1. `packages/package-a/releases/<version>/holes.json`
-   含 `github:package_a::key_missing_lemma`
-2. `packages/package-b/releases/<version>/bridges.json`
-   含 `source_qid = github:package_b::b_result`
-   和 `target_hole_qid = github:package_a::key_missing_lemma`
-3. bot 生成：
-   `index/bridges/by-target/.../github:package_a::key_missing_lemma.json`
+registry 中会出现：
 
-该 index 文件中，这条 relation 的：
+- `packages/package-a/releases/1.4.0/premises.json`
+  - `key_missing_lemma`, role=`local_hole`
+- `packages/package-b/releases/2.1.0/bridges.json`
+  - 指向 `A@1.4.0` 的 interface snapshot
 
-- `declaring_package = package-b`
-- `declared_by_owner_of_source = true`
+如果 `A@1.5.0` 把它内部证明掉：
 
-### 10.2 Scenario B: B did not notice, later C discovers it
+- `index/premises/by-qid/...` 会反映 role 改变
+- `index/bridges/by-target-qid/...` 仍保留历史 bridge
+- `index/bridges/by-target-interface/...` 不会把 `A@1.5.0` 和旧 bridge 混起来
 
-前提：
+### 10.2 Scenario B: C 作为第三方 bridge package
 
-- A 已注册，并公开了 `key_missing_lemma`
-- B 已注册，只导出了 `b_result`，但没有 bridge relation
-- 后来 C 发布 bridge package，声明 `fills(package_b::b_result, package_a::key_missing_lemma)`
+C 发布 `bridge-package` 后：
 
-authoring example 见 [2026-04-08-gaia-lang-hole-fills-design.md](2026-04-08-gaia-lang-hole-fills-design.md) §6.2。
+- source of truth 仍然是 `packages/bridge-package/releases/.../bridges.json`
+- derived indexes 会把这条关系同时挂到：
+  - target qid 视图
+  - target interface 视图
+  - source qid 视图
+  - declaring package 视图
 
-那么 registry 层会看到：
+A 和 B 本身都不需要修改。
 
-1. `packages/package-b/releases/<version>/bridges.json`
-   仍然为空
-2. `packages/package-c-bridge/releases/<version>/bridges.json`
-   含这条 relation
-3. bot 重建 `index/bridges/by-target/.../github:package_a::key_missing_lemma.json`
+## 11. Non-Goals
 
-于是最终查询 A 的 hole 时，仍然能看到这条 bridge，只是：
-
-- `declaring_package = package-c-bridge`
-- `declared_by_owner_of_source = false`
-
-这里不需要修改 A 或 B 的 registry 目录。
-
-### 10.3 Boundary Condition: A did not export a hole
-
-如果 A 没有在自己的 package manifests 中公开某个 hole：
-
-- registry 不会为它建立 `index/holes/by-qid/...`
-- B 或 C 也不能把指向它的关系注册成正式 bridge relation
-
-所以 registry 只索引：
-
-- 明确公开的 hole interfaces
-- 明确声明的 fills relations
-
-不会自动把任意 premise 升格成公共 hole。
-
-## 11. Why This Works on a GitHub Repo
-
-### 11.1 思想实验 A: 1000 个 packages
-
-如果没有全局静态索引：
-
-- 查询一个 hole 是否被填，需要扫所有 package manifests
-
-这对人类和 CLI 都很差。
-
-有 `index/bridges/by-target/<hole>.json` 后：
-
-- 只要一次精确 fetch
-
-所以这个规模下，静态派生索引已经值得做。
-
-### 11.2 思想实验 B: 5 万个 packages
-
-如果每个注册 PR 都直接改一个全局 `bridges.json`：
-
-- 热门 hole 会让 PR 冲突频发
-- bot 和人类都很难稳定合并
-
-所以全局 bridge index 不能是 PR-authored 文件，只能是 post-merge derived artifact。
-
-### 11.3 思想实验 C: 20 万条 bridge relations
-
-如果只有单个总文件：
-
-- diff 很大
-- 下载成本高
-- GitHub API 单文件读取变笨重
-
-所以索引必须分片。推荐：
-
-- 按 encoded qid 的 hash prefix 做二级 shard
-- 单文件只服务一个 key 的精确查询
-
-这样 GitHub repo 仍然能承载这个业务逻辑，因为它处理的是：
-
-- 很多小的静态文件
-- 低冲突写入
-- 高频精确读取
-
-而不是动态 join 查询。
-
-### 11.4 思想实验 D: “帮我发现可能能填这个 hole 的包”
-
-这是 discovery，不是 registry source-of-truth。
-
-正确做法是：
-
-- 离线 job 跑 embedding / text match / dependency heuristics
-- 把结果写成 suggestion artifacts 或 GitHub issues
-- 由人或 agent 再决定是否写成正式 bridge relation
-
-不应该把这类 fuzzy logic 塞进注册主路径。
-
-## 12. Query Model
-
-在 GitHub-backed registry 下，推荐的读取模式是：
-
-1. **精确定位 package**
-   继续走 `packages/<name>/...`
-
-2. **精确定位 hole**
-   读取 `index/holes/by-qid/...`
-
-3. **精确定位 bridge target**
-   读取 `index/bridges/by-target/...`
-
-4. **精确定位 bridge source**
-   读取 `index/bridges/by-source/...`
-
-不推荐：
-
-- 运行时扫描全仓
-- 在客户端做跨 package join
-- 把 GitHub code search 当主要 API
-
-GitHub code search 可以作为人类 fallback，不应成为 CLI 的基础协议。
-
-## 13. Migration Path
-
-建议分三步落地。
-
-### Phase 1
-
-- 仅支持 `exports.json`
-- 为未来 `holes` / `bridges` 留目录结构
-- local compiler MAY already emit preview `holes.json` / `bridges.json`，但 registry 不消费
-
-### Phase 2
-
-- 支持 `holes.json`
-- 生成 `index/holes/**`
-
-### Phase 3
-
-- 支持 `bridges.json`
-- 生成 `index/bridges/**`
-- 提供 CLI / 网页查询
-
-这样不会一次把 package DSL、registry CI、discovery、网站全部绑死。
-
-## 14. Decisions
-
-1. **需要 bridge layer，但不需要第二个 registry**
-   仍然是一个统一 GitHub repo。
-
-2. **bridge relation 来源在 package，查询不靠扫 package**
-   关系写在 package manifests 中，读取走 derived indexes。
-
-3. **所有全局索引必须是 bot 生成，不允许作者 PR 直接改**
-   否则规模一上来一定产生 merge hotspot。
-
-4. **hole 是显式公共接口，不是自动叶子前提枚举**
-   否则 registry 会充满 package 内部建模细节，无法作为生态接口。
-
-5. **registry 记录声明，不裁决真理**
-   多个 package 可以同时声称填同一个 hole。
-
-## 15. Open Questions
-
-1. `strength = partial / conditional` 时，是否需要结构化 `conditions` 字段？
-2. bridge package 是否应该有更轻量的模板与 semver 规则？
-3. registry 是否需要额外的 `suggestions/` 目录来承接未确认 discovery 结果？
+- 不做 global canonicalization
+- 不在 registry 层裁决“哪个 bridge 才是真的”
+- 不要求 hole 身份跨版本稳定
+- 不让作者 PR 直接维护全局索引文件
