@@ -32,6 +32,13 @@ __all__ = [
     "cpt_tensor_to_list",
 ]
 
+# Sentinel used by ``strategy_cpt`` to detect cycles while the recursion is
+# in progress.  When a composite is first visited, we write this sentinel to
+# the cache before recursing into its sub-strategies; if the recursion hits
+# the same strategy_id again before it completes, we raise instead of looping
+# forever.
+_IN_PROGRESS = object()
+
 
 def factor_to_tensor(f: Factor) -> tuple[np.ndarray, list[str]]:
     """Build a dense tensor representation of a Factor.
@@ -300,10 +307,18 @@ def strategy_cpt(
     from gaia.bp.lowering import _lower_strategy
     from gaia.ir.strategy import CompositeStrategy
 
-    if s.strategy_id in cache:
-        return cache[s.strategy_id]
+    cached = cache.get(s.strategy_id)
+    if cached is _IN_PROGRESS:
+        raise ValueError(
+            f"strategy_cpt: cycle detected — strategy_id {s.strategy_id!r} "
+            "is its own ancestor in the composite recursion."
+        )
+    if cached is not None:
+        return cached
 
     if isinstance(s, CompositeStrategy):
+        # Mark this composite as in-progress so recursive calls detect cycles.
+        cache[s.strategy_id] = _IN_PROGRESS
         child_tensors: list[tuple[np.ndarray, list[str]]] = []
         for sid in s.sub_strategies:
             sub = strat_by_id.get(sid)

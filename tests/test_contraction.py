@@ -547,7 +547,8 @@ def test_strategy_cpt_composite_chain_with_bridge_var():
 
 
 def test_strategy_cpt_composite_populates_cache_for_subs():
-    """After folding a composite, all its sub-strategies are in the cache."""
+    """After folding a composite, all sub-strategies are in the cache,
+    and re-calling strategy_cpt on a sub returns the cached tensor object."""
     sub1 = Strategy(
         scope="local",
         type="noisy_and",
@@ -567,24 +568,38 @@ def test_strategy_cpt_composite_populates_cache_for_subs():
         conclusion="github:t::c",
         sub_strategies=[sub1.strategy_id, sub2.strategy_id],
     )
+    strat_by_id = {
+        sub1.strategy_id: sub1,
+        sub2.strategy_id: sub2,
+        comp.strategy_id: comp,
+    }
     cache: dict = {}
     strategy_cpt(
         comp,
-        strat_by_id={
-            sub1.strategy_id: sub1,
-            sub2.strategy_id: sub2,
-            comp.strategy_id: comp,
-        },
+        strat_by_id=strat_by_id,
         strat_params={sub1.strategy_id: [0.9], sub2.strategy_id: [0.8]},
         var_priors={},
         namespace="",
         package_name="",
         cache=cache,
     )
-    # All three strategy_ids should now be in cache.
     assert sub1.strategy_id in cache
     assert sub2.strategy_id in cache
     assert comp.strategy_id in cache
+
+    # Object identity on re-call: second invocation returns the cached tuple.
+    cached_sub1 = cache[sub1.strategy_id]
+    t2, a2 = strategy_cpt(
+        sub1,
+        strat_by_id=strat_by_id,
+        strat_params={sub1.strategy_id: [0.9], sub2.strategy_id: [0.8]},
+        var_priors={},
+        namespace="",
+        package_name="",
+        cache=cache,
+    )
+    assert t2 is cached_sub1[0]
+    assert a2 is cached_sub1[1]
 
 
 def test_strategy_cpt_composite_missing_sub_raises():
@@ -601,6 +616,92 @@ def test_strategy_cpt_composite_missing_sub_raises():
             comp,
             strat_by_id={comp.strategy_id: comp},
             strat_params={},
+            var_priors={},
+            namespace="",
+            package_name="",
+            cache={},
+        )
+
+
+def test_strategy_cpt_nested_composite():
+    """Composite containing a composite: C_outer wraps C_inner wraps leaf.
+
+    Verifies recursion handles at least two layers of nesting and that
+    all strategy_ids are cached correctly.
+    """
+    leaf = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:t::a"],
+        conclusion="github:t::c",
+    )
+    inner = CompositeStrategy(
+        scope="local",
+        type="infer",
+        premises=["github:t::a"],
+        conclusion="github:t::c",
+        sub_strategies=[leaf.strategy_id],
+    )
+    outer = CompositeStrategy(
+        scope="local",
+        type="infer",
+        premises=["github:t::a"],
+        conclusion="github:t::c",
+        sub_strategies=[inner.strategy_id],
+    )
+    cache: dict = {}
+    cpt_tensor, axes = strategy_cpt(
+        outer,
+        strat_by_id={
+            leaf.strategy_id: leaf,
+            inner.strategy_id: inner,
+            outer.strategy_id: outer,
+        },
+        strat_params={leaf.strategy_id: [0.85]},
+        var_priors={},
+        namespace="",
+        package_name="",
+        cache=cache,
+    )
+    assert axes == ["github:t::a", "github:t::c"]
+    # P(C=1|A=1) ≈ 0.85 (unchanged by pass-through composites)
+    assert cpt_tensor[1, 1] > 0.83
+    assert cpt_tensor[0, 1] < 0.05
+    # All three levels cached
+    assert leaf.strategy_id in cache
+    assert inner.strategy_id in cache
+    assert outer.strategy_id in cache
+
+
+def test_strategy_cpt_cycle_detection():
+    """A composite that references itself (via a manually forged strategy_id)
+    must raise ValueError instead of looping forever."""
+    # Build a composite that references itself by reusing the same strategy_id
+    # in its sub_strategies.  Since _compute_strategy_id is content-addressed,
+    # the default auto-computed ID cannot be self-referential.  We construct
+    # the composite with sub_strategies=[] first (to get a valid auto-ID),
+    # then patch sub_strategies in place to include that ID — simulating a
+    # malformed IR bypass.
+    leaf = Strategy(
+        scope="local",
+        type="noisy_and",
+        premises=["github:t::a"],
+        conclusion="github:t::c",
+    )
+    comp = CompositeStrategy(
+        scope="local",
+        type="infer",
+        premises=["github:t::a"],
+        conclusion="github:t::c",
+        sub_strategies=[leaf.strategy_id],
+    )
+    # Inject the cycle: comp now references itself in addition to leaf.
+    comp.sub_strategies = [leaf.strategy_id, comp.strategy_id]
+    with pytest.raises(ValueError, match="cycle detected"):
+        strategy_cpt(
+            comp,
+            strat_by_id={leaf.strategy_id: leaf, comp.strategy_id: comp},
+            strat_params={leaf.strategy_id: [0.9]},
             var_priors={},
             namespace="",
             package_name="",
