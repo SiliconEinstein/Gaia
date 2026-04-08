@@ -25,6 +25,13 @@ from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorType
 _HIGH: float = 1.0 - CROMWELL_EPS
 _LOW: float = CROMWELL_EPS
 
+__all__ = [
+    "factor_to_tensor",
+    "contract_to_cpt",
+    "strategy_cpt",
+    "cpt_tensor_to_list",
+]
+
 
 def factor_to_tensor(f: Factor) -> tuple[np.ndarray, list[str]]:
     """Build a dense tensor representation of a Factor.
@@ -278,6 +285,16 @@ def strategy_cpt(
     non-default priors on claim variables (e.g., when called from
     ``compute_coarse_cpts`` with the global factor graph's variables).
     Pass ``{}`` for isolated composite folding.
+
+    Note
+    ----
+    The ``cache`` is keyed by ``s.strategy_id``, which encodes
+    ``(scope, type, premises, conclusion)``.  It does NOT encode
+    ``var_priors`` or ``strat_params``.  Callers MUST pass a fresh
+    ``cache`` dict for each top-level invocation; reusing a cache
+    across calls with different priors or strat_params will return
+    stale results for ``FormalStrategy`` and auto-formalized leaves
+    whose internal helper claims have non-default priors.
     """
     from gaia.bp.factor_graph import FactorGraph
     from gaia.bp.lowering import _lower_strategy
