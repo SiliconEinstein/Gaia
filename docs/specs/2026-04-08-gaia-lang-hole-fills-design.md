@@ -7,6 +7,8 @@
 > **Companion docs:** [2026-04-08-gaia-package-hole-bridge-design.md](2026-04-08-gaia-package-hole-bridge-design.md), [2026-04-08-registry-hole-bridge-index-design.md](2026-04-08-registry-hole-bridge-index-design.md)
 >
 > **Depends on:** [2026-04-02-gaia-lang-v5-python-dsl-design.md](2026-04-02-gaia-lang-v5-python-dsl-design.md), [../foundations/gaia-ir/02-gaia-ir.md](../foundations/gaia-ir/02-gaia-ir.md)
+>
+> **Supersedes:** the earlier hole / fills proposal merged via PRs #362 and #364. Open implementation PRs #365 / #366 / #367 target the superseded design and should be replaced rather than merged as-is.
 
 ## 1. Problem
 
@@ -72,13 +74,19 @@
 
 ### 3.2 `hole` 是 release-scoped interface role，不是 source primitive
 
-本设计不再把 `hole(...)` 作为协议核心。
+本设计不再把 `hole(...)` 作为协议核心，并且明确决定将其从主线 authoring surface 中移除。
 
-如果未来保留 `hole(...)`，它也只能是 authoring convenience sugar，不能成为 registry contract 的来源。真正的 hole 身份由编译结果决定：
+真正的 hole 身份由编译结果决定：
 
 - 对 exported claims 的依赖分析结果
 - 相对于某个具体 release
 - 以 manifest 中的 `role = "local_hole"` 体现
+
+因此：
+
+- 唯一稳定的 source primitive 仍然是 `claim(...)`
+- 作者不能通过 `hole(...)` 直接“声明” hole 身份
+- 旧原型实现若已存在，应在 replacement implementation 中删除
 
 ### 3.3 `fills` 仍然保留，但 target 不再语义化为“永久 hole object”
 
@@ -219,6 +227,8 @@ lowering 规则保持不变：
 }
 ```
 
+本 lowering 规则与上一版 proposal 的强弱映射保持一致，不把这次 redesign 的成本扩散到 BP 语义层。
+
 ### 5.3 Compile-Time Validation
 
 `fills(source, target)` 在 compile 时必须通过两层校验：
@@ -239,6 +249,28 @@ lowering 规则保持不变：
 - 已被后续版本内部消解的旧 hole
 
 则该 `fills` 不成立，编译应报错或要求更新 target snapshot。
+
+### 5.4 `target_resolved_version` Resolution Rule
+
+当 `fills(target=foreign_claim)` 指向依赖包时，compile 必须同时确定：
+
+- 作者声明的 dependency range
+- 当前环境实际验证到的 dependency release
+
+本设计明确采用：
+
+- `target_dependency_req`
+  - 来自 `pyproject.toml` 的依赖约束
+- `target_resolved_version`
+  - 来自当前 Python 环境中实际安装并被 import 解析到的 dependency version
+
+也就是说，Phase 1 不做：
+
+- “满足约束的最新 registry 版本”查询
+- “满足约束的最低版本”推断
+- 离线情况下的 registry lookup
+
+compile 只对“当前环境里实际被解析到的那个依赖 release”负责。
 
 ## 6. Release-Scoped Target Binding
 
@@ -363,12 +395,13 @@ fills(
 
 ### 8.1 Earlier `hole()` Prototype
 
-如果代码库里已经存在 `hole(...)` 原型实现，应将其降级为：
+如果代码库里已经存在 `hole(...)` 原型实现，本设计的明确迁移决策是：
 
-- transitional authoring sugar
-- 或 internal annotation aid
+- 删除 `hole()` 作为公开 source primitive
+- 删除相关 DSL 校验与测试
+- 不提供“作者声明 hole 身份”的兼容语义
 
-但不能继续作为 package / registry 协议的 source of truth。
+这样可以避免 source marker 和 compiler 派生角色发生分歧。
 
 ### 8.2 Earlier `fills(..., hole=...)`
 
@@ -383,6 +416,8 @@ fills(source=..., hole=...)
 - 参数名改成 `target`
 - compile validation 改成查 target interface manifest
 - 不再要求 imported object 自带 hole marker
+
+因为旧实现尚未合入主线，本设计不提供 `hole=` -> `target=` 的长期兼容 alias。
 
 ## 9. Non-Goals
 

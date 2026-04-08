@@ -7,6 +7,8 @@
 > **Companion docs:** [2026-04-08-gaia-lang-hole-fills-design.md](2026-04-08-gaia-lang-hole-fills-design.md), [2026-04-08-registry-hole-bridge-index-design.md](2026-04-08-registry-hole-bridge-index-design.md)
 >
 > **Depends on:** [../foundations/gaia-lang/package.md](../foundations/gaia-lang/package.md), [2026-04-02-gaia-registry-design.md](2026-04-02-gaia-registry-design.md)
+>
+> **Supersedes:** the earlier hole / bridge package proposal merged via PRs #362 and #364. Open implementation PRs #365 / #366 / #367 target the superseded design and should be replaced rather than merged as-is.
 
 ## 1. Problem
 
@@ -109,6 +111,7 @@ package manifests 不再以：
 
 ```json
 {
+  "manifest_schema_version": 1,
   "package": "package-a",
   "version": "1.4.0",
   "ir_hash": "sha256:...",
@@ -136,6 +139,7 @@ package manifests 不再以：
 
 ```json
 {
+  "manifest_schema_version": 1,
   "package": "package-a",
   "version": "1.4.0",
   "ir_hash": "sha256:...",
@@ -164,7 +168,8 @@ package manifests 不再以：
 - `interface_hash`
   - package/manifest 层派生字段，不进入 Gaia IR
 - `exported`
-  - 该 premise 是否也在 `__all__` 中
+  - 当且仅当该 claim 同时出现在同版本的 `exports.json` 中时为 `true`
+  - `false` 表示它只是被派生为 public premise，不是作者显式导出的 public conclusion
 - `required_by`
   - 当前 release 上最接近的 exported claims roots
 
@@ -174,6 +179,7 @@ package manifests 不再以：
 
 ```json
 {
+  "manifest_schema_version": 1,
   "package": "package-a",
   "version": "1.4.0",
   "ir_hash": "sha256:...",
@@ -203,6 +209,7 @@ bridge relation 必须绑定 target interface snapshot。
 
 ```json
 {
+  "manifest_schema_version": 1,
   "package": "package-b",
   "version": "2.1.0",
   "ir_hash": "sha256:...",
@@ -234,6 +241,16 @@ bridge relation 必须绑定 target interface snapshot。
 - 新增 `target_interface_hash`
 - `target_role` 是编译时验证结果，不来自 source marker
 
+其中 `target_resolved_version` 的定义是：
+
+- compile 当前环境里实际 import 解析到的 dependency release version
+
+而不是：
+
+- 满足约束的最新 registry version
+- 满足约束的最低 version
+- 作者手工填写的任意版本号
+
 ## 5. Derivation Rules
 
 ### 5.1 Export Roots
@@ -262,13 +279,16 @@ Phase 1 先把所有 exported claims 当作 export roots。
 
 Phase 1 规则：
 
-- 记录该 public premise 所支撑的 exported claim roots
+- 对每个 public premise，自底向下做 BFS
+- 遇到 exported claim root 时停止该分支
+- 记录这些“最接近的下游 exported roots”
 - 去重后排序输出
 
 注意：
 
 - `required_by` 不进入 `interface_hash`
 - 否则新增一个 exported conclusion 就会让所有旧 bridge 全部失效
+- 这是一种有意的简化；代价是同一 premise 在不同 release 上服务于不同 exported roots 集合时，仍可能被视为同一接口
 
 ### 5.4 `interface_hash`
 
@@ -278,7 +298,7 @@ Phase 1 规则：
 - `content_hash`
 - `role`
 - `parameters`
-- `schema_version`
+- `manifest_schema_version`
 
 明确不包含：
 
@@ -292,7 +312,70 @@ Phase 1 规则：
 - 不是 whole-release hash
 - 更不应该被无关展示字段污染
 
-### 5.5 `relation_id`
+这里的 `manifest_schema_version` 指的是 manifest 协议版本，而不是：
+
+- `gaia-lang` 的包版本
+- Gaia IR schema 版本
+- package 自己的 semver
+
+当前固定定义为：
+
+- `manifest_schema_version = 1`
+
+并且应写入所有 package-level manifests 的顶层。
+
+变化矩阵：
+
+| 变化 | `interface_hash` 是否变化 |
+|------|---------------------------|
+| claim content 改动 | 变化 |
+| claim parameters 改动 | 变化 |
+| role 从 `local_hole` 变为 `foreign_dependency` | 变化 |
+| `required_by` 改动 | 不变化 |
+| `manifest_schema_version` bump | 变化 |
+| `gaia-lang` 升级 | 不变化 |
+| Gaia IR 升级 | 不变化 |
+
+Trade-off:
+
+- `required_by` 被排除在 `interface_hash` 之外，避免“新增一个 exported conclusion 就让所有 bridge 全部 stale”
+- 代价是同一 premise 在不同 release 上被更多 exported roots 复用时，仍可能被看作同一接口
+- Phase 1 接受这个 trade-off；若未来发现 bridge 语义漂移是实际问题，可新增 `context_hash` 或更显式的 root-targeting relation
+
+### 5.5 Dependency Manifest Resolution
+
+当 package compile 遇到：
+
+```python
+fills(source=..., target=foreign_claim)
+```
+
+时，必须读取 dependency 的 compiled premise interface manifests。
+
+Phase 1 规则：
+
+1. 先根据当前 Python import 实际解析到的 dependency module 定位安装路径
+2. 若该 dependency 是 editable/source install，则优先使用该 source tree 下的：
+   - `.gaia/manifests/premises.json`
+   - `.gaia/manifests/holes.json`
+3. 若该 dependency 是 wheel/site-packages install，则读取对应安装目录中的同名 manifest
+
+缺失策略：
+
+- 如果 dependency manifest 不存在，compile 应 hard error
+- 错误消息应明确要求作者先在 dependency package 上运行 `gaia compile`
+
+staleness 策略：
+
+- compile 应把 dependency manifest 的 `ir_hash` 与该 dependency 当前 source/build 的 compile 结果对比
+- 若 manifest stale，应 hard error，而不是静默写入过期的 `target_interface_hash`
+
+兼容旧包策略：
+
+- 对于 manifest schema 引入前发布的旧 package，需要显式迁移后才能作为 `fills` target
+- Phase 1 不做“无 manifest 时降级 warning”或“自动编译 dependency”
+
+### 5.6 `relation_id`
 
 `relation_id` 推荐定义为：
 
@@ -335,6 +418,32 @@ relation_id = "bridge_" + sha256(
 - `target_interface_hash` 必须与 target release 的 `premises.json` / `holes.json` 对应
 - `target_role` 当前必须是 `local_hole`
 - 同一 package version 内，重复 `(source_qid, target_qid, target_interface_hash)` 必须报错
+
+### 6.4 Phase Rollout
+
+旧方案的 phased rollout 是：
+
+- Phase 1: `exports.json`
+- Phase 2: `holes.json`
+- Phase 3: `bridges.json`
+
+新方案下必须对齐为：
+
+- **Phase 1**
+  - 生成并上传 `exports.json`
+  - 生成并上传 `premises.json`
+- **Phase 2**
+  - 生成并上传 `holes.json`
+  - 开始建设 `index/premises/**` 与 `index/holes/**`
+- **Phase 3**
+  - 生成并上传 `bridges.json`
+  - 开始建设 `index/bridges/**`
+
+原因：
+
+- `premises.json` 是 `holes.json` 的 source of truth
+- `premises.json` 也是 bridge target validation 的 source of truth
+- 因此它不能晚于 `holes.json` 和 `bridges.json`
 
 ## 7. Scenario Walkthroughs
 
@@ -418,6 +527,7 @@ fills(source=b_result, target=key_missing_lemma, reason="...")
 - 新增 `premises.json`
 - 先从 dependency closure 自动推出 premise role
 - `holes.json` 退化成 `premises.json` 的 subset
+- 删除 `hole()` 作为主线 source primitive
 
 ### 8.2 Why `target_dependency_req` and `target_resolved_version` must coexist
 

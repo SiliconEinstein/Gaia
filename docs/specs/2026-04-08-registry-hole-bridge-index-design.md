@@ -7,6 +7,8 @@
 > **Companion docs:** [2026-04-08-gaia-lang-hole-fills-design.md](2026-04-08-gaia-lang-hole-fills-design.md), [2026-04-08-gaia-package-hole-bridge-design.md](2026-04-08-gaia-package-hole-bridge-design.md)
 >
 > **Depends on:** [2026-04-02-gaia-registry-design.md](2026-04-02-gaia-registry-design.md), [../foundations/ecosystem/04-registry-operations.md](../foundations/ecosystem/04-registry-operations.md)
+>
+> **Supersedes:** the earlier hole / bridge registry proposal merged via PRs #362 and #364. Open implementation PRs #365 / #366 / #367 target the superseded design and should be replaced rather than merged as-is.
 
 ## 1. Problem
 
@@ -205,6 +207,7 @@ gaia-registry/
 
 ```json
 {
+  "manifest_schema_version": 1,
   "package": "package-a",
   "version": "1.4.0",
   "ir_hash": "sha256:...",
@@ -237,6 +240,7 @@ bridge relation 示例：
 
 ```json
 {
+  "manifest_schema_version": 1,
   "package": "package-b",
   "version": "2.1.0",
   "ir_hash": "sha256:...",
@@ -270,7 +274,8 @@ bridge relation 示例：
 - premise `qid` 必须存在于 compiled IR closure 中
 - `role == "local_hole"` 时，qid 必须属于当前 package
 - `role == "foreign_dependency"` 时，qid 必须属于 foreign package
-- `interface_hash` 必须与 registry 当前 schema version 的计算规则一致
+- `manifest_schema_version` 当前必须等于 `1`
+- `interface_hash` 必须与 registry 当前 `manifest_schema_version` 的计算规则一致
 
 ### 7.2 `holes.json`
 
@@ -361,6 +366,8 @@ bridge relation 示例：
 }
 ```
 
+`index/holes/by-qid/` 是 `index/premises/by-qid/` 在 `role == "local_hole"` 条件下的派生 filter view，不是独立 source of truth。
+
 ### 8.4 `index/bridges/by-target-qid/<shard>/<encoded-qid>.json`
 
 按 target qid 聚合所有 bridge declarations。
@@ -429,7 +436,81 @@ bridge relation 示例：
 
 - `index/bridges/by-source-qid/<qid>.json`
 
-## 10. Scenario Walkthroughs
+## 10. Scale Notes
+
+### 10.1 `index/premises/by-package/<package>.json`
+
+这个文件会随着 release 数量线性增长。
+
+Phase 1 先接受：
+
+- 单 package 一个聚合文件
+
+但应预留触发条件：
+
+- 当单文件超过约 1 MB
+- 或单 package 历史 release 超过约 100 个
+
+时，升级为 version-sharded layout，例如：
+
+```text
+index/premises/by-package/<package>/<version>.json
+```
+
+### 10.2 `index/bridges/by-target-interface/`
+
+`by-target-interface/` 会随着 interface 演化不断产生新文件。
+
+Phase 1 接受这种 key-space 爆炸，因为它换来了最稳的 current-compatibility 查询。  
+但应预留 compacted view：
+
+```text
+index/bridges/by-target-qid/<qid>/all-interfaces.json
+```
+
+用于在单个 qid 拥有大量历史 `interface_hash` 时集中展示 history。
+
+### 10.3 Rebuild Cost
+
+bot 重建 index 的成本最终取决于：
+
+- package 数量
+- 每个 release 的 public premise 数量
+- bridge relation 数量
+
+Phase 1 不要求提前做到精确容量规划，但 registry 设计必须承认：
+
+- `premises` 和 `bridges` 两个 index 族都可能成为高 churn 区域
+- 一旦出现 rebuild 时间或单文件体积问题，优先通过分片与 compacted views 解决，而不是回退到 client-side 全仓扫描
+
+## 11. Phase Rollout
+
+旧的 phased rollout 是：
+
+- Phase 1: `exports.json`
+- Phase 2: `holes.json`
+- Phase 3: `bridges.json`
+
+在新设计下应改为：
+
+- **Phase 1**
+  - 接收 `exports.json`
+  - 接收 `premises.json`
+- **Phase 2**
+  - 接收 `holes.json`
+  - 生成 `index/premises/**` 与 `index/holes/**`
+- **Phase 3**
+  - 接收 `bridges.json`
+  - 生成 `index/bridges/**`
+
+原因：
+
+- `premises.json` 是 `holes.json` 的 source of truth
+- `premises.json` 也是 bridge target validation 的 source of truth
+
+因此 registry 不应再维持“Phase 1 only exports.json”的旧假设。
+
+## 12. Scenario Walkthroughs
 
 ### 10.1 Scenario A: B 直接声明 fills A 的缺口
 
@@ -459,7 +540,7 @@ C 发布 `bridge-package` 后：
 
 A 和 B 本身都不需要修改。
 
-## 11. Non-Goals
+## 13. Non-Goals
 
 - 不做 global canonicalization
 - 不在 registry 层裁决“哪个 bridge 才是真的”
