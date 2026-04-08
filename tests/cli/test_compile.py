@@ -389,3 +389,27 @@ def test_compile_nested_composite_strategy_collects_recursive_knowledge(tmp_path
     assert "github:nested_composite_pkg::hypothesis" in knowledge_ids
     result = validate_local_graph(LocalCanonicalGraph(**ir))
     assert result.valid, result.errors
+
+
+def test_compile_rejects_duplicate_fills_without_traceback(tmp_path):
+    pkg_dir = tmp_path / "dup_fills"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "dup-fills-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "dup_fills"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import claim, fills, hole\n\n"
+        'result = claim("B theorem.")\n'
+        'missing = hole("A missing lemma.")\n'
+        'fills(source=result, hole=missing, strength="exact")\n'
+        'fills(source=result, hole=missing, strength="partial")\n'
+        '__all__ = ["result", "missing"]\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code != 0
+    assert "Duplicate fills declaration" in result.output
+    assert "Traceback" not in result.output
