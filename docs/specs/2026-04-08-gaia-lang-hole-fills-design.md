@@ -1,200 +1,191 @@
-# Gaia Lang Hole / Fills Design
+# Gaia Lang Public Premise / Fills Design
 
 > **Status:** Proposal
 >
 > **Date:** 2026-04-08
 >
-> **Companion docs:** [2026-04-08-registry-hole-bridge-index-design.md](2026-04-08-registry-hole-bridge-index-design.md)
+> **Companion docs:** [2026-04-08-gaia-package-hole-bridge-design.md](2026-04-08-gaia-package-hole-bridge-design.md), [2026-04-08-registry-hole-bridge-index-design.md](2026-04-08-registry-hole-bridge-index-design.md)
 >
 > **Depends on:** [2026-04-02-gaia-lang-v5-python-dsl-design.md](2026-04-02-gaia-lang-v5-python-dsl-design.md), [../foundations/gaia-ir/02-gaia-ir.md](../foundations/gaia-ir/02-gaia-ir.md)
+>
+> **Supersedes:** the earlier hole / fills proposal merged via PRs #362 and #364. Open implementation PRs #365 / #366 / #367 target the superseded design and should be replaced rather than merged as-is.
 
 ## 1. Problem
 
-当前 Gaia Lang v5 只有：
+前一版 hole / fills 设计把 `hole` 当成作者显式写出来的 source-level object：
 
-- `claim()`
-- `setting()`
-- `question()`
-- 一组 reasoning strategies
+- `hole(...)`
+- `fills(source=..., hole=...)`
 
-这足够表达“论文内部怎么推理”，但不够清楚地表达两类生态语义：
+这在 authoring 上直观，但有两个根本问题：
 
-1. **这个 claim 是一个公开缺口（hole）**
-2. **这个 package 在声明：某个结果 fills 某个外部 hole**
+1. **`hole` 不是永久本体类型**
+   同一个 claim 在 `A@1.0.0` 里可能是未解前提，在 `A@1.1.0` 里可能已被内部证明，在 `A@1.2.0` 里甚至可能变成 foreign dependency。  
+   所以 `hole` 更像某个 package release 上的接口角色，而不是 IR 里永久存在的 node type。
 
-今天作者当然可以用普通 `claim()` 和普通 `deduction()` 勉强表达这些意思，但会有两个问题：
+2. **公开缺口不应依赖作者手工标注**
+   对一篇 package 来说，凡是被 exported claims 依赖、且没有在本包内部 discharge 的 boundary premise，本质上就是这篇工作的公开前提接口。  
+   如果这些东西只有作者手写 `hole(...)` 才出现，协议会偏离论文结构本身。
 
-- 对人类作者和 reviewer 来说，意图不够显式
-- 对 package / registry 来说，难以稳定抽取 hole / bridge manifests
+因此，本设计改用下面的核心模型：
+
+- 源码里继续用普通 `claim(...)`
+- `__all__` 继续表示作者显式公开的结果面
+- 编译器从 export surface 自动推出 `public premises`
+- `public premises` 再按当前 release 分类成：
+  - `local_hole`
+  - `foreign_dependency`
+- `fills` 绑定的是 **release-scoped premise interface snapshot**，不是“永远叫 hole 的对象”
 
 ## 2. Design Goals
 
-1. **Author-facing clarity**
-   作者要能直接写出“这是一个 hole”和“我在 fills 某个 hole”。
+1. **First-principles package semantics**
+   公开缺口来自 exported claims 的推理边界，而不是来自作者额外写了什么 marker。
 
-2. **No new core IR primitive**
-   Gaia IR 不新增 `HoleKnowledge` 或 `FillsStrategy` 这类 runtime schema。
+2. **No new core IR node type**
+   Gaia IR 里不引入 `HoleKnowledge`。`hole` 是 manifest / registry 层的 release-scoped role。
 
-3. **Registry-extractable**
-   package 和 registry 可以机械地抽取 `holes.json` / `bridges.json`。
+3. **Stable cross-package relations**
+   `fills` 必须绑定到具体 release 的 premise interface，而不是漂浮的 source symbol。
 
-4. **Cross-package explicitness**
-   `fills` 必须建立在显式 foreign reference 之上，而不是自由文本。
+4. **Keep authoring simple**
+   作者继续写普通 `claim()` 和普通推理；bridge 作者只需显式声明 `fills(...)`。
 
-5. **Keep BP semantics separate**
-   “这是在补洞”是生态意图；“补得有多强”仍然由已有 strategy semantics 决定。
+5. **Separate reasoning from packaging**
+   `content_hash` / `ir_hash` 仍属于 IR；interface-level hashing 留在 package manifests，不进入 core IR。
 
 ## 3. Key Decisions
 
-### 3.1 `hole` 是独立 authoring API
+### 3.1 `__all__` 只表示 author-declared public exports
 
-推荐新增：
+`__all__` 仍然是 package 作者显式声明的 public surface。
 
-```python
-hole(...)
-```
+它不直接等价于：
 
-而不是只靠：
+- holes
+- public premises
+- bridge targets
 
-```python
-claim(..., metadata={"gaia": {"role": "hole"}})
-```
+它只回答一个问题：
 
-原因：
+- “这个 package 想把哪些知识节点当成公开结果 / 公开接口暴露出去？”
 
-- 这是作者会高频直接用到的语义，不应埋在 metadata 里
-- 代码审阅时一眼可见
-- 编译器和 registry 提取规则更直接
+后续哪些节点构成 `public premises`，由编译器从这些 exports 的依赖闭包中自动推出。
 
-但在 lowering 层，`hole()` 仍然编译成普通 `Knowledge(type="claim")`，只是 metadata 中带上 hole 标记。
+### 3.2 `hole` 是 release-scoped interface role，不是 source primitive
 
-### 3.2 `fills` 是 author-facing relation intent
+本设计不再把 `hole(...)` 作为协议核心，并且明确决定将其从主线 authoring surface 中移除。
 
-推荐新增：
+真正的 hole 身份由编译结果决定：
 
-```python
-fills(...)
-```
+- 对 exported claims 的依赖分析结果
+- 相对于某个具体 release
+- 以 manifest 中的 `role = "local_hole"` 体现
 
-但它**不是**新的 core strategy type。它只是作者层的 intent wrapper。
+因此：
 
-编译后仍然是普通 strategy：
+- 唯一稳定的 source primitive 仍然是 `claim(...)`
+- 作者不能通过 `hole(...)` 直接“声明” hole 身份
+- 旧原型实现若已存在，应在 replacement implementation 中删除
 
-- `deduction`
-- 或 `infer`
+### 3.3 `fills` 仍然保留，但 target 不再语义化为“永久 hole object”
 
-外加 relation metadata，供 package / registry 抽取 bridge relation。
-
-### 3.3 不新增 `Hole` 或 `Bridge` 的 IR schema
-
-Gaia IR 继续保持现有边界：
-
-- imported / exported / cross-package relation 不进入 core schema 变体
-- `hole` 仍然是 `claim`
-- `fills` 仍然是普通 strategy + metadata
-
-这和现有 “foreign QID 是普通 Knowledge，不新增特殊 imported node type” 的边界保持一致。
-
-## 4. `hole()` Design
-
-### 4.1 API
+推荐的 author-facing API 改成：
 
 ```python
-def hole(
-    content: str,
-    *,
-    title: str | None = None,
-    background: list[Knowledge] | None = None,
-    parameters: list[dict] | None = None,
-    provenance: list[dict[str, str]] | None = None,
-    **metadata,
-) -> Knowledge
+fills(source=..., target=...)
 ```
 
-返回值仍然是普通 `Knowledge(type="claim")`。
-
-### 4.2 Lowered Form
-
-`hole()` 在运行时等价于：
+而不是：
 
 ```python
-claim(
-    content,
-    title=title,
-    background=background,
-    parameters=parameters,
-    provenance=provenance,
-    metadata={"gaia": {"role": "hole"}},
-    **metadata,
-)
+fills(source=..., hole=...)
 ```
 
-也就是说：
+原因不是“target 可以不是 hole”，而是：
 
-- 不新增 KnowledgeType
-- 只是在 namespaced metadata 上固化 `metadata["gaia"]["role"] = "hole"`
-- 不占用通用 `proof_state` key，避免和未来更一般的证明状态语义冲突
+- target 在 source 层只是一个 claim reference
+- 它是否属于可填补的 public premise
+- 以及它在当前 release 上是不是 `local_hole`
 
-### 4.3 Restrictions
+都应由编译阶段根据 manifests 决定，而不是依赖 imported Python object 上有没有 hole marker。
 
-`hole()` 不接受 `given=...`。
+### 3.4 `public premise` 与 `exported conclusion` 必须区分
 
-这里的 `given=` 是 [2026-04-02-gaia-lang-v5-python-dsl-design.md](2026-04-02-gaia-lang-v5-python-dsl-design.md) 中规划的 target-design 参数；当前主线实现还没有该参数，这里先把约束定清楚。
+同一个 claim 在 package 接口里可能同时扮演两个角色：
 
-理由：
+- 它是作者显式 export 的 public claim
+- 它又是另一个 exported claim 的 boundary premise
 
-- `given=` 会自动创建 in-package support strategy
-- 一个已经被本包直接支撑起来的 claim，通常不应再声明成“公开缺口”
+因此 manifest 层必须允许同一 QID 同时出现在：
 
-如果作者既想表达“这是当前论文的公开缺口”，又想附上一些弱背景支持，应该用：
+- `exports.json`
+- `premises.json`
 
-- `background=[...]`
-- 或普通 `claim(...)`，而不是 `hole(...)`
+角色不是互斥的，而是相对于接口视角定义的。
 
-### 4.4 Export Semantics
+## 4. Public Premise Derivation
 
-`hole` 只有在进入 `__all__` 时，才成为**公开 hole interface**。
+### 4.1 Definitions
 
-因此有三种层次：
+对某个 package release：
 
-1. `hole(...)` 但不 export
-   只是 package 内部未解子目标
+- **export root**
+  - 任何出现在 `__all__` 中的 claim
+- **local support**
+  - 当前 package 内某条 strategy 的 `conclusion == claim`
+- **boundary premise**
+  - 位于某个 export root 上游依赖闭包中，但没有被本包继续向上 discharge 的 claim
 
-2. `hole(...)` 且 export
-   成为 registry 可索引的 public hole
+boundary premise 再分成：
 
-3. 普通 `claim(...)`
-   不是 hole，即使它当前没有被证明
+- `local_hole`
+  - boundary premise 是本包本地 claim
+- `foreign_dependency`
+  - boundary premise 是 foreign imported claim
 
-这很重要，因为我们不希望系统把所有叶子前提都自动暴露成公共接口。
+### 4.2 Phase 1 Algorithm
 
-### 4.5 Example
+对每个 exported claim root：
 
-```python
-from gaia.lang import claim, deduction, hole
+1. 从该 root 反向收集所有 local supporting strategies
+2. 对这些 strategies 的 `premises` 递归继续向上追溯
+3. 遇到没有 local support 的 claim 时停止
+4. 将其记为一个 `public premise`
 
-main_theorem = claim("Main theorem of package A.")
-key_missing_lemma = hole("A still-missing lemma required by the main theorem.")
+分类规则：
 
-deduction(
-    premises=[key_missing_lemma],
-    conclusion=main_theorem,
-    reason="If the missing lemma were established, the main theorem would follow.",
-)
+- `qid.package == current_package` -> `local_hole`
+- `qid.package != current_package` -> `foreign_dependency`
 
-__all__ = ["main_theorem", "key_missing_lemma"]
-```
+Phase 1 只分析 claim premises，不把 `background` 自动升级成 public premise。
+
+### 4.3 Important Consequences
+
+1. **不是所有 leaf 都公开**
+   只有落在 exported claims 依赖闭包中的 boundary premise 才进入 public premise surface。
+
+2. **不是所有 public premise 都是 hole**
+   foreign imported claim 是 `foreign_dependency`，不是 `local_hole`。
+
+3. **hole 会过时**
+   同一个 QID 在不同 release 上可以：
+   - 是 `local_hole`
+   - 不是 public premise
+   - 是 `foreign_dependency`
+
+因此 bridge 不能只绑定 QID，必须绑定 interface snapshot。
 
 ## 5. `fills()` Design
 
 ### 5.1 API
 
-推荐最小 API：
+推荐的最小 author-facing API：
 
 ```python
 def fills(
     source: Knowledge,
-    hole: Knowledge,
+    target: Knowledge,
     *,
     mode: Literal["deduction", "infer"] | None = None,
     strength: Literal["exact", "partial", "conditional"] = "exact",
@@ -203,34 +194,26 @@ def fills(
 ) -> Strategy
 ```
 
-### 5.2 Why `source` is singular
+其中：
 
-`fills` 的接口刻意只接受一个 `source` claim，而不是 `premises=[...]`。
+- `source` 是支持性结果
+- `target` 是一个 claim reference
+- `target` 是否真的是可填补 hole，不由 source object 决定，而由 compile-time interface validation 决定
 
-原因：
+### 5.2 Lowering Rule
 
-- 生态层的 bridge relation 应该连的是“公开 claim -> 公开 hole”
-- 如果 B 需要多个本地前提，应该先在包内推出一个本地 `source` result
-- 然后再显式声明 `source fills hole`
+`fills()` 仍然不是新的 core strategy primitive。
 
-这样 registry relation 结构最稳定，查询时也最清楚。
+lowering 规则保持不变：
 
-### 5.3 Lowering Rule
+- `mode="deduction"` -> lower 成 `deduction`
+- `mode="infer"` -> lower 成 `infer`
+- `mode is None`
+  - `exact` -> `deduction`
+  - `partial` -> `infer`
+  - `conditional` -> `infer`
 
-`fills()` 本身不是新的 strategy primitive，而是 lowering sugar：
-
-- `mode="deduction"` 时：
-  - lower 成 `deduction(premises=[source], conclusion=hole, ...)`
-- `mode="infer"` 时：
-  - lower 成 `infer(premises=[source], conclusion=hole, ...)`
-
-若 `mode is None`，则按 `strength` 推断：
-
-- `exact` -> `deduction`
-- `partial` -> `infer`
-- `conditional` -> `infer`
-
-同时写入 strategy metadata：
+同时写入 namespaced relation metadata：
 
 ```python
 {
@@ -238,295 +221,207 @@ def fills(
     "relation": {
       "type": "fills",
       "strength": "exact",
-      "target_role": "hole"
+      "mode": "deduction"
     }
   }
 }
 ```
 
-### 5.4 Why not make `fills` a new BP primitive
+本 lowering 规则与上一版 proposal 的强弱映射保持一致，不把这次 redesign 的成本扩散到 BP 语义层。
 
-因为这里其实有两个正交维度：
+### 5.3 Compile-Time Validation
 
-1. **生态意图**
-   这是在填别人的 hole
+`fills(source, target)` 在 compile 时必须通过两层校验：
 
-2. **逻辑强度**
-   这是严格证明、弱支持，还是条件性支持
+1. **source 校验**
+   - `source` 必须是 claim
+   - 若 source 是 foreign claim，则其 package 必须出现在依赖约束中
 
-前者适合 authoring / registry metadata。  
-后者适合继续复用已有的 `deduction` / `infer`。
+2. **target 校验**
+   - `target` 必须是 claim
+   - 编译器不能只看 source object metadata
+   - 必须根据当前 release 对应的 interface manifests，确认 target 在被引用 release 上是 `local_hole`
 
-如果把两者混成一个新的 runtime primitive，反而会污染 core IR。
+如果 target 当前只是：
 
-### 5.5 Validation Intent
+- 普通 exported claim
+- foreign dependency
+- 已被后续版本内部消解的旧 hole
 
-`fills(source, hole)` 在 authoring / compile 时应至少校验：
+则该 `fills` 不成立，编译应报错或要求更新 target snapshot。
 
-- `source.type == "claim"`
-- `hole.type == "claim"`
-- `hole` 对应的 local 或 foreign `Knowledge.metadata["gaia"]["role"] == "hole"`
+### 5.4 `target_resolved_version` Resolution Rule
 
-在 package / registry 层进一步校验：
+当 `fills(target=foreign_claim)` 指向依赖包时，compile 必须同时确定：
 
-- 若 `hole` 是 foreign reference，则它应解析到对方 package 的 exported hole
-- 若不是 foreign hole，则该 relation 不进入 registry bridge index
+- 作者声明的 dependency range
+- 当前环境实际验证到的 dependency release
 
-如果 target 不带 canonical hole marker，`gaia compile` 应直接报错，而不是等到 registry 阶段才拒绝。
+本设计明确采用：
 
-### 5.6 Uniqueness Rule
+- `target_dependency_req`
+  - 来自 `pyproject.toml` 的依赖约束
+- `target_resolved_version`
+  - 来自当前 Python 环境中实际安装并被 import 解析到的 dependency version
 
-同一个 package version 内，`fills` 对同一组 `(source_qid, target_hole_qid)` 最多只能声明一次。
+也就是说，Phase 1 不做：
 
-也就是说，下列写法应被视为非法：
+- “满足约束的最新 registry 版本”查询
+- “满足约束的最低版本”推断
+- 离线情况下的 registry lookup
 
-```python
-fills(source=b_result, hole=a_hole, strength="exact")
-fills(source=b_result, hole=a_hole, strength="conditional", mode="infer")
-```
+compile 只对“当前环境里实际被解析到的那个依赖 release”负责。
+
+## 6. Release-Scoped Target Binding
+
+### 6.1 Why QID Alone Is Not Enough
+
+只记录：
+
+- `target_qid = github:package_a::key_missing_lemma`
+
+是不够的，因为下面三种情况都会发生：
+
+1. `A@1.0.0` 中它是 `local_hole`
+2. `A@1.1.0` 中它已被内部证明，不再是 hole
+3. `A@1.2.0` 中内容改写了，但 QID 没变
+
+所以 `fills` 必须绑定到一个 **premise interface snapshot**。
+
+### 6.2 Target Snapshot Fields
+
+bridge relation 的 target 至少要携带：
+
+- `target_qid`
+- `target_resolved_version`
+- `target_interface_hash`
+
+其中：
+
+- `target_qid` 标识“这是哪个 claim”
+- `target_resolved_version` 标识“这是哪个 release”
+- `target_interface_hash` 标识“在这个 release 上它的接口状态是什么”
+
+### 6.3 `interface_hash` 不进入 Gaia IR
+
+`interface_hash` 属于 package / manifest 层，而不是 Gaia IR。
 
 原因：
 
-- `fills` 是生态 relation declaration，不是同一对节点上的多重边容器
-- 同一对 `(source, hole)` 的多次声明会在当前 IR `strategy_id` 规则下产生冲突
+- 它依赖 `public premise` 分类结果
+- 它是 release-scoped
+- 它是为了 package compatibility / bridge stability 服务
 
-如果作者想改变 `strength` 或 `mode`，应修改同一条 relation，而不是在同一 package version 内重复声明。
+因此边界应是：
 
-### 5.7 Example: B directly fills A
+- `content_hash`: node IR
+- `ir_hash`: graph IR
+- `interface_hash`: manifest
 
-```python
-from gaia.lang import claim, fills
-from package_a import key_missing_lemma
+## 7. Scenario Walkthroughs
 
-b_result = claim("Theorem 3 in package B.")
+### 7.1 Scenario A: B 直接 fills A 的缺口
 
-fills(
-    source=b_result,
-    hole=key_missing_lemma,
-    strength="exact",
-    reason="Theorem 3 proves exactly the missing lemma exposed by package A.",
-)
-
-__all__ = ["b_result"]
-```
-
-### 5.8 Example: C publishes a bridge package
-
-bridge package 通常不需要 import `claim`。
+A 的源码只需要正常表达论文结构：
 
 ```python
-from gaia.lang import fills
-from package_a import key_missing_lemma
-from package_b import b_result
+from gaia.lang import claim, deduction
 
-fills(
-    source=b_result,
-    hole=key_missing_lemma,
-    strength="conditional",
-    mode="infer",
-    reason="Under the assumptions compared in this package, B.result is sufficient to fill A.hole.",
-)
-```
-
-这里 package C 可以没有本地 theorem claim。  
-它的主要公开内容就是 cross-package relation 本身。
-
-## 6. Worked Scenarios
-
-### 6.1 Scenario A: B immediately knows it fills A
-
-这个场景里：
-
-- A 已经把缺失前提写成 exported `hole`
-- B 在 formalize 时就知道自己的结论能填这个 hole
-
-作者层的最小写法是：
-
-```python
-# package_a
-from gaia.lang import claim, deduction, hole
-
-main_theorem = claim("Main theorem of package A.")
-key_missing_lemma = hole("A still-missing lemma required by the main theorem.")
+main_theorem = claim("Main theorem.")
+key_missing_lemma = claim("A missing lemma.")
 
 deduction(
     premises=[key_missing_lemma],
     conclusion=main_theorem,
-    reason="If the missing lemma were established, the main theorem would follow.",
+    reason="Main theorem depends on the lemma.",
 )
 
-__all__ = ["main_theorem", "key_missing_lemma"]
+__all__ = ["main_theorem"]
 ```
 
+编译 A 后：
+
+- `exports.json` 中有 `main_theorem`
+- `premises.json` 中自动出现 `key_missing_lemma`
+- 且其 role 为 `local_hole`
+
+B 写：
+
 ```python
-# package_b
 from gaia.lang import claim, fills
 from package_a import key_missing_lemma
 
-b_result = claim("Theorem 3 in package B.")
+b_result = claim("Theorem 3 proves the missing lemma.")
 
 fills(
     source=b_result,
-    hole=key_missing_lemma,
-    strength="exact",
-    reason="Theorem 3 proves exactly the missing lemma exposed by package A.",
+    target=key_missing_lemma,
+    reason="Theorem 3 establishes A's missing premise.",
 )
 
 __all__ = ["b_result"]
 ```
 
-这里不需要单独 bridge package。  
-B 自己就是 relation 的 declaring package。
+compile B 时：
 
-### 6.2 Scenario B: B did not notice, later C discovers it
+- 读取 A 在依赖版本上的 premise interface manifest
+- 确认 `key_missing_lemma` 在该 release 上是 `local_hole`
+- 在 B 的 `bridges.json` 中记录一条 release-scoped bridge relation
 
-这个场景里：
+### 7.2 Scenario B: B 没发现，后来 C 才发现
 
-- A 已经公开了 hole
-- B 只发布了自己的 paper package，没有写 `fills`
-- 后来 C 发现 `B.result fills A.hole`
+B 只是正常发布自己的 package。
 
-那么：
-
-```python
-# package_b
-from gaia.lang import claim
-
-b_result = claim("Theorem 3 in package B.")
-__all__ = ["b_result"]
-```
+后来 C 做一个小 bridge package：
 
 ```python
-# package_c_bridge
 from gaia.lang import fills
 from package_a import key_missing_lemma
 from package_b import b_result
 
 fills(
     source=b_result,
-    hole=key_missing_lemma,
-    strength="conditional",
-    mode="infer",
-    reason="Under the assumptions compared in this bridge package, B.result is sufficient to fill A.hole.",
+    target=key_missing_lemma,
+    reason="B's result fills A's public premise interface.",
 )
 ```
 
-这里：
+这个 package 可以没有本地 claim。  
+它的价值完全在于：
 
-- B 不需要回头修改自己的 package
-- C 用普通 `knowledge-package` 就能发布这条 relation
-- `declared_by_owner_of_source = false` 将在 package / registry 层体现
+- 将 `B.result -> A@version.premise_snapshot` 公开成 bridge relation
 
-### 6.3 Boundary Condition: A did not export a hole
+## 8. Compatibility / Migration
 
-如果 A 只是有一个内部前提，但没有把它显式写成 exported `hole`：
+### 8.1 Earlier `hole()` Prototype
 
-- B 仍然可以 import A 的普通 exported claim
-- 但不能把这条关系当成正式的 `fills(hole=...)` 进入 hole/bridge 协议
+如果代码库里已经存在 `hole(...)` 原型实现，本设计的明确迁移决策是：
 
-也就是说，`fills` 的目标必须是显式公开的 hole interface，而不是任意 premise。
+- 删除 `hole()` 作为公开 source primitive
+- 删除相关 DSL 校验与测试
+- 不提供“作者声明 hole 身份”的兼容语义
 
-## 7. Why Separate APIs Are Better
+这样可以避免 source marker 和 compiler 派生角色发生分歧。
 
-### 7.1 Thought Experiment: hidden metadata only
+### 8.2 Earlier `fills(..., hole=...)`
 
-如果只允许：
-
-```python
-claim(..., metadata={"gaia": {"role": "hole"}})
-deduction(..., conclusion=foreign_hole)
-```
-
-机器当然能跑，但有三个问题：
-
-- 代码一眼看不出作者 intent
-- registry 很难稳定区分普通 cross-package deduction 和 fills relation
-- reviewer 很难快速扫出 package 的 public holes
-
-### 7.2 Thought Experiment: dedicated APIs
-
-如果作者能直接写：
+如果已有实现使用：
 
 ```python
-hole(...)
-fills(...)
+fills(source=..., hole=...)
 ```
 
-那么：
+迁移方向应是：
 
-- 代码层 intent 清晰
-- package manifest 提取是机械的
-- registry index 构建也不需要猜测
+- 参数名改成 `target`
+- compile validation 改成查 target interface manifest
+- 不再要求 imported object 自带 hole marker
 
-因此作者层应该有显式 API，runtime 层再 lower 到旧 primitive。
+因为旧实现尚未合入主线，本设计不提供 `hole=` -> `target=` 的长期兼容 alias。
 
-## 8. Interaction with Existing Gaia Lang
+## 9. Non-Goals
 
-### 8.1 `claim`
-
-- 继续是默认的科学断言构造
-- 不自动推断 hole
-
-### 8.2 `__all__`
-
-- 仍然是唯一的 package public surface
-- `hole` 是否公开，只取决于是否 export
-
-### 8.3 Cross-package import
-
-`fills` 不引入新 import 机制。仍然是：
-
-```python
-from package_a import exported_hole
-```
-
-即显式 foreign reference，而不是 registry 层自动绑定。
-
-### 8.4 Review / BP
-
-这次设计不改变 review / BP 核心规则：
-
-- `hole` 仍然是 claim
-- `fills` 仍然是 ordinary strategy
-- package / registry 只是额外理解其生态意图
-
-## 9. Proposed Minimal Runtime Surface
-
-语言层建议新增：
-
-```python
-from gaia.lang import hole, fills
-```
-
-其中：
-
-- `hole` 放在 `gaia.lang.dsl.knowledge`
-- `fills` 放在 `gaia.lang.dsl.strategies`
-
-作者默认导入面变成：
-
-```python
-from gaia.lang import (
-    claim, hole, setting, question,
-    contradiction, equivalence, complement, disjunction,
-    noisy_and, infer, deduction, fills, abduction, analogy,
-    extrapolation, elimination, case_analysis,
-    mathematical_induction, composite,
-)
-```
-
-## 10. Decisions
-
-1. **`hole` 用独立 DSL 构造，不埋在 metadata-only 约定里。**
-2. **`hole` lower 成普通 claim，不新增 IR node type。**
-3. **`fills` 用独立 DSL 构造，但不新增 runtime strategy type。**
-4. **`fills` 的逻辑强度继续复用 `deduction` / `infer`。**
-5. **public hole 由 `hole(...) + export` 共同决定。**
-6. **hole marker 使用 namespaced metadata：`metadata["gaia"]["role"] = "hole"`。**
-7. **同一 package version 内禁止重复声明同一 `(source_qid, target_hole_qid)` 的 `fills` relation。**
-
-## 11. Open Questions
-
-1. `conditional` fills 是否需要结构化 `conditions=` 字段，而不只是自由文本 `reason`？
-2. 是否需要额外的 `weak_fills()` / `refines_hole()` author sugar，还是统一留给 `fills(..., strength=...)`？
-3. bridge package 如果完全没有本地 claim，README / narrative 应该如何渲染得更自然？
+- 不在 Lang 层引入 global canonicalization
+- 不把 bridge relation 变成新的 BP primitive
+- 不要求作者显式枚举所有 premise interfaces
+- 不要求 `hole` 身份跨版本稳定
