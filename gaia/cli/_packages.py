@@ -318,27 +318,24 @@ def build_package_manifests(loaded: LoadedGaiaPackage, compiled) -> dict[str, di
         if knowledge is None or knowledge.content_hash is None:
             continue
         role = "local_hole" if id(premise) in local_knowledge_ids else "foreign_dependency"
-        if premise_qid in exported_claim_qids:
-            required_by = [premise_qid]
-        else:
-            queue: deque[Knowledge] = deque([premise])
-            seen_claims = {id(premise)}
-            required_by_set: set[str] = set()
-            while queue:
-                current = queue.popleft()
-                for conclusion in downstream_conclusions_by_premise.get(id(current), []):
-                    conclusion_id = id(conclusion)
-                    if conclusion_id in seen_claims:
-                        continue
-                    seen_claims.add(conclusion_id)
-                    conclusion_qid = compiled.knowledge_ids_by_object.get(conclusion_id)
-                    if conclusion_qid is None:
-                        continue
-                    if conclusion_qid in exported_claim_qids:
-                        required_by_set.add(conclusion_qid)
-                        continue
-                    queue.append(conclusion)
-            required_by = sorted(required_by_set)
+        queue: deque[Knowledge] = deque([premise])
+        seen_claims = {id(premise)}
+        required_by_set: set[str] = set()
+        while queue:
+            current = queue.popleft()
+            for conclusion in downstream_conclusions_by_premise.get(id(current), []):
+                conclusion_id = id(conclusion)
+                if conclusion_id in seen_claims:
+                    continue
+                seen_claims.add(conclusion_id)
+                conclusion_qid = compiled.knowledge_ids_by_object.get(conclusion_id)
+                if conclusion_qid is None:
+                    continue
+                if conclusion_qid in exported_claim_qids:
+                    required_by_set.add(conclusion_qid)
+                    continue
+                queue.append(conclusion)
+        required_by = sorted(required_by_set)
 
         parameters = [parameter.model_dump(mode="json") for parameter in knowledge.parameters]
         entry = {
