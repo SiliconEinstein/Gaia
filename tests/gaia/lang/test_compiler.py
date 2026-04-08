@@ -13,8 +13,11 @@ from gaia.lang import (
     composite,
     abduction,
     contradiction,
+    fills,
+    hole,
     induction,
 )
+from gaia.lang.runtime import Strategy
 from gaia.lang.compiler.compile import (
     compile_package_artifact,
     _compile_reason,
@@ -290,6 +293,61 @@ def test_compile_module_titles():
         a.label = "a"
     result = compile_package_artifact(pkg)
     assert result.graph.module_titles == {"intro": "Introduction"}
+
+
+def test_compile_hole_preserves_metadata():
+    pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
+    with pkg:
+        missing = hole("Missing lemma.")
+        missing.label = "missing"
+    result = compile_package_artifact(pkg)
+    ir_missing = next(k for k in result.graph.knowledges if k.label == "missing")
+    assert ir_missing.metadata["gaia"]["role"] == "hole"
+
+
+def test_compile_fills_preserves_relation_metadata():
+    pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
+    with pkg:
+        result = claim("B theorem.")
+        result.label = "result"
+        missing = hole("Missing lemma.")
+        missing.label = "missing"
+        fills(source=result, hole=missing, strength="partial")
+    compiled = compile_package_artifact(pkg)
+    relation = compiled.graph.strategies[0].metadata["gaia"]["relation"]
+    assert relation["type"] == "fills"
+    assert relation["strength"] == "partial"
+    assert relation["mode"] == "infer"
+
+
+def test_compile_rejects_duplicate_fills_for_same_pair():
+    pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
+    with pkg:
+        result = claim("B theorem.")
+        result.label = "result"
+        missing = hole("Missing lemma.")
+        missing.label = "missing"
+        fills(source=result, hole=missing, strength="exact")
+        fills(source=result, hole=missing, strength="partial")
+    with pytest.raises(ValueError, match="Duplicate fills declaration"):
+        compile_package_artifact(pkg)
+
+
+def test_compile_rejects_relation_target_without_hole_marker():
+    pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
+    with pkg:
+        result = claim("B theorem.")
+        result.label = "result"
+        not_hole = claim("Ordinary claim.")
+        not_hole.label = "ordinary"
+        Strategy(
+            type="deduction",
+            premises=[result],
+            conclusion=not_hole,
+            metadata={"gaia": {"relation": {"type": "fills"}}},
+        )
+    with pytest.raises(ValueError, match="must carry metadata\\['gaia'\\]\\['role'\\] == 'hole'"):
+        compile_package_artifact(pkg)
 
 
 # ── @label validation ──

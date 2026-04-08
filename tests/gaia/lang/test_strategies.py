@@ -10,11 +10,14 @@ from gaia.lang import (
     deduction,
     elimination,
     extrapolation,
+    fills,
+    hole,
     induction,
     mathematical_induction,
     noisy_and,
     setting,
 )
+from gaia.lang.runtime.package import CollectedPackage
 
 
 def test_noisy_and_explicit():
@@ -88,6 +91,69 @@ def test_deduction_single_premise():
     s = deduction(premises=[law], conclusion=instance)
     assert s.type == "deduction"
     assert len(s.premises) == 1
+
+
+def test_fills_exact_uses_deduction_with_relation_metadata():
+    result = claim("B theorem.")
+    missing = hole("A missing lemma.")
+    s = fills(source=result, hole=missing, strength="exact")
+    assert s.type == "deduction"
+    assert s.premises == [result]
+    assert s.conclusion is missing
+    assert s.metadata["gaia"]["relation"] == {
+        "type": "fills",
+        "strength": "exact",
+        "target_role": "hole",
+        "mode": "deduction",
+    }
+
+
+def test_fills_partial_defaults_to_infer():
+    result = claim("B theorem.")
+    missing = hole("A missing lemma.")
+    s = fills(source=result, hole=missing, strength="partial")
+    assert s.type == "infer"
+    assert s.metadata["gaia"]["relation"]["mode"] == "infer"
+
+
+def test_fills_rejects_non_hole_target():
+    result = claim("B theorem.")
+    not_a_hole = claim("Just a claim.")
+    with pytest.raises(ValueError, match="target must carry metadata"):
+        fills(source=result, hole=not_a_hole)
+
+
+def test_fills_rejects_invalid_mode():
+    result = claim("B theorem.")
+    missing = hole("A missing lemma.")
+    with pytest.raises(ValueError, match="mode must be one of"):
+        fills(source=result, hole=missing, mode="maybe")  # type: ignore[arg-type]
+
+
+def test_fills_rejects_invalid_strength():
+    result = claim("B theorem.")
+    missing = hole("A missing lemma.")
+    with pytest.raises(ValueError, match="strength must be one of"):
+        fills(source=result, hole=missing, strength="weak")  # type: ignore[arg-type]
+
+
+def test_fills_does_not_override_foreign_conclusion_strategy():
+    foreign_pkg = CollectedPackage("package_a", namespace="github", version="1.0.0")
+    with foreign_pkg:
+        source_hole = hole("A missing lemma.")
+        source_hole.label = "missing"
+        original_source = claim("Original support.")
+        original_source.label = "src"
+        original = deduction(premises=[original_source], conclusion=source_hole)
+
+    local_pkg = CollectedPackage("package_b", namespace="github", version="1.0.0")
+    with local_pkg:
+        local_result = claim("B theorem.")
+        local_result.label = "result"
+        bridge = fills(source=local_result, hole=source_hole)
+
+    assert source_hole.strategy is original
+    assert bridge.conclusion is source_hole
 
 
 def test_abduction():

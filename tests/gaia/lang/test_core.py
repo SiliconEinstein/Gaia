@@ -1,5 +1,5 @@
 from gaia.lang import __all__ as gaia_lang_exports
-from gaia.lang import claim, question, setting
+from gaia.lang import claim, hole, question, setting
 
 
 def test_setting_creates_knowledge():
@@ -17,6 +17,12 @@ def test_claim_creates_knowledge():
 def test_question_creates_knowledge():
     q = question("An open question?")
     assert q.type == "question"
+
+
+def test_hole_creates_claim_with_hole_role():
+    h = hole("A missing lemma.")
+    assert h.type == "claim"
+    assert h.metadata["gaia"]["role"] == "hole"
 
 
 def test_claim_with_explicit_noisy_and():
@@ -59,3 +65,5 @@ def test_public_api_does_not_export_package():
     assert "case_analysis" in gaia_lang_exports
     assert "mathematical_induction" in gaia_lang_exports
     assert "composite" in gaia_lang_exports
+    assert "hole" in gaia_lang_exports
+    assert "fills" in gaia_lang_exports

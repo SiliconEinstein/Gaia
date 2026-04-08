@@ -111,6 +111,64 @@ def _knowledge_metadata(k: Knowledge) -> dict[str, Any] | None:
     return metadata or None
 
 
+def _gaia_metadata(metadata: dict[str, Any] | None) -> dict[str, Any]:
+    gaia = (metadata or {}).get("gaia")
+    return gaia if isinstance(gaia, dict) else {}
+
+
+def _fills_relation_metadata(strategy: Any) -> dict[str, Any] | None:
+    relation = _gaia_metadata(getattr(strategy, "metadata", None)).get("relation")
+    if isinstance(relation, dict) and relation.get("type") == "fills":
+        return relation
+    return None
+
+
+def _is_hole_knowledge(knowledge: Knowledge) -> bool:
+    return _gaia_metadata(knowledge.metadata).get("role") == "hole"
+
+
+def _knowledge_ref(knowledge: Knowledge, knowledge_map: dict[int, str]) -> str:
+    return getattr(knowledge, "label", None) or knowledge_map[id(knowledge)]
+
+
+def _validate_fills_strategies(
+    strategies: list[Any],
+    knowledge_map: dict[int, str],
+) -> None:
+    seen_pairs: dict[tuple[str, str], str] = {}
+    for strategy in strategies:
+        relation = _fills_relation_metadata(strategy)
+        if relation is None:
+            continue
+
+        if len(strategy.premises) != 1:
+            raise ValueError("fills relations must have exactly one source premise")
+        if strategy.conclusion is None:
+            raise ValueError("fills relations must set a target hole conclusion")
+
+        source = strategy.premises[0]
+        target = strategy.conclusion
+        if source.type != "claim":
+            raise ValueError("fills relations require source.type == 'claim'")
+        if target.type != "claim":
+            raise ValueError("fills relations require target_hole.type == 'claim'")
+        if not _is_hole_knowledge(target):
+            raise ValueError(
+                f"fills target {_knowledge_ref(target, knowledge_map)!r} must carry "
+                "metadata['gaia']['role'] == 'hole'"
+            )
+
+        source_qid = knowledge_map[id(source)]
+        target_qid = knowledge_map[id(target)]
+        pair = (source_qid, target_qid)
+        if pair in seen_pairs:
+            raise ValueError(
+                "Duplicate fills declaration for "
+                f"{source_qid} -> {target_qid}; merge into a single relation"
+            )
+        seen_pairs[pair] = getattr(strategy, "label", None) or source_qid
+
+
 def _knowledge_provenance(k: Knowledge) -> list[IrPackageRef] | None:
     if not k.provenance:
         return None
@@ -313,6 +371,8 @@ def compile_package_artifact(pkg: CollectedPackage) -> CompiledPackage:
             k, pkg, local_anon_counter=local_anon_counter
         )
         knowledge_map[id(k)] = knowledge_id
+
+    _validate_fills_strategies(pkg.strategies, knowledge_map)
 
     exported_labels = getattr(pkg, "_exported_labels", set())
     ir_knowledges = [

@@ -3,6 +3,19 @@
 from gaia.lang.runtime import Knowledge
 
 
+def _gaia_metadata(metadata: dict) -> dict:
+    flat = dict(_flatten_metadata(metadata))
+    gaia = flat.get("gaia")
+    if gaia is None:
+        gaia_dict: dict = {}
+    elif isinstance(gaia, dict):
+        gaia_dict = dict(gaia)
+    else:
+        raise TypeError("metadata['gaia'] must be a dict")
+    flat["gaia"] = gaia_dict
+    return flat
+
+
 def setting(content: str, *, title: str | None = None, **metadata) -> Knowledge:
     """Declare a background assumption. No probability, no BP participation."""
     provenance = metadata.pop("provenance", None)
@@ -52,4 +65,27 @@ def claim(
         parameters=parameters or [],
         provenance=provenance or [],
         metadata=_flatten_metadata(metadata),
+    )
+
+
+def hole(
+    content: str,
+    *,
+    title: str | None = None,
+    background: list[Knowledge] | None = None,
+    parameters: list[dict] | None = None,
+    provenance: list[dict[str, str]] | None = None,
+    **metadata,
+) -> Knowledge:
+    """Declare a public-facing missing claim interface."""
+    merged = _gaia_metadata(metadata)
+    merged["gaia"]["role"] = "hole"
+    return Knowledge(
+        content=content.strip(),
+        type="claim",
+        title=title,
+        background=background or [],
+        parameters=parameters or [],
+        provenance=provenance or [],
+        metadata=merged,
     )
