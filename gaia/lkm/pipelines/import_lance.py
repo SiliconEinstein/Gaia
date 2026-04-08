@@ -316,7 +316,15 @@ async def run_batch_import(
         logger.info("All papers already ingested")
         return stats
 
-    logger.info("Will process %d pending papers in chunks of %d", len(pending), chunk_size)
+    if max_per_round > 0:
+        logger.info(
+            "Will process up to %d papers this round (of %d pending) in chunks of %d",
+            min(max_per_round, len(pending)),
+            len(pending),
+            chunk_size,
+        )
+    else:
+        logger.info("Will process %d pending papers in chunks of %d", len(pending), chunk_size)
 
     # 3. Init resources
     if tos_config is None:
