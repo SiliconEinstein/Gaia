@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
-from gaia.bp.contraction import factor_to_tensor
+from gaia.bp.contraction import contract_to_cpt, factor_to_tensor
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
 
 _HIGH = 1.0 - CROMWELL_EPS
@@ -232,3 +233,104 @@ def test_factor_to_tensor_unknown_factor_type_raises():
     )
     with pytest.raises(ValueError, match="Unknown FactorType"):
         factor_to_tensor(f)
+
+
+def test_contract_to_cpt_single_soft_entailment():
+    """Single SE factor: CPT should match the factor's raw probabilities."""
+    fg = FactorGraph()
+    fg.add_variable("A", 0.5)
+    fg.add_variable("C", 0.5)
+    fg.add_factor("f1", FactorType.SOFT_ENTAILMENT, ["A"], "C", p1=0.8, p2=0.9)
+    t, axes = factor_to_tensor(fg.factors[0])
+    # No internal vars to marginalize; free = [A, C]
+    cpt = contract_to_cpt([(t, axes)], free_vars=["A", "C"], unary_priors={})
+    assert cpt.shape == (2, 2)
+    # P(C=1|A=0) = 1 - p2 = 0.1
+    assert _almost(cpt[0, 1], 0.1)
+    assert _almost(cpt[0, 0], 0.9)
+    # P(C=1|A=1) = p1 = 0.8
+    assert _almost(cpt[1, 1], 0.8)
+    assert _almost(cpt[1, 0], 0.2)
+
+
+def test_contract_to_cpt_chain_marginalizes_bridge_var():
+    """A → M → C chain with uniform M prior; verify P(C|A)."""
+    fg = FactorGraph()
+    fg.add_variable("A", 0.5)
+    fg.add_variable("M", 0.5)
+    fg.add_variable("C", 0.5)
+    fg.add_factor("f1", FactorType.SOFT_ENTAILMENT, ["A"], "M", p1=0.9, p2=1.0 - CROMWELL_EPS)
+    fg.add_factor("f2", FactorType.SOFT_ENTAILMENT, ["M"], "C", p1=0.8, p2=1.0 - CROMWELL_EPS)
+    tensors = [factor_to_tensor(f) for f in fg.factors]
+    cpt = contract_to_cpt(
+        tensors,
+        free_vars=["A", "C"],
+        unary_priors={"M": 0.5},
+    )
+    assert cpt.shape == (2, 2)
+    # A=1 → M≈0.9 → C≈0.9*0.8 ≈ 0.72 (within Cromwell slack)
+    assert cpt[1, 1] > 0.6 and cpt[1, 1] < 0.85
+    # A=0 → M≈ε → C≈ε
+    assert cpt[0, 1] < 0.1
+
+
+def test_contract_to_cpt_normalizes_along_conclusion_axis():
+    """Every (premise assignment, conclusion=0/1) pair must sum to 1."""
+    fg = FactorGraph()
+    fg.add_variable("A", 0.5)
+    fg.add_variable("B", 0.5)
+    fg.add_variable("C", 0.5)
+    fg.add_factor("f1", FactorType.CONDITIONAL, ["A", "B"], "C", cpt=[0.1, 0.3, 0.7, 0.95])
+    t, axes = factor_to_tensor(fg.factors[0])
+    cpt = contract_to_cpt([(t, axes)], free_vars=["A", "B", "C"], unary_priors={})
+    # Sum over conclusion axis for every (A,B) assignment == 1
+    sums = cpt.sum(axis=-1)
+    np.testing.assert_allclose(sums, np.ones((2, 2)), atol=1e-9)
+
+
+def test_contract_to_cpt_empty_free_vars_raises():
+    """If free_vars is empty we cannot produce a CPT — raise."""
+    with pytest.raises(ValueError, match="free_vars must be non-empty"):
+        contract_to_cpt([], free_vars=[], unary_priors={})
+
+
+def test_contract_to_cpt_missing_prior_raises():
+    """Non-free variable without a prior should raise with a descriptive message."""
+    fg = FactorGraph()
+    fg.add_variable("A", 0.5)
+    fg.add_variable("M", 0.5)
+    fg.add_variable("C", 0.5)
+    fg.add_factor("f1", FactorType.SOFT_ENTAILMENT, ["A"], "M", p1=0.9, p2=1.0 - CROMWELL_EPS)
+    fg.add_factor("f2", FactorType.SOFT_ENTAILMENT, ["M"], "C", p1=0.8, p2=1.0 - CROMWELL_EPS)
+    tensors = [factor_to_tensor(f) for f in fg.factors]
+    with pytest.raises(ValueError, match="unary prior missing"):
+        contract_to_cpt(
+            tensors,
+            free_vars=["A", "C"],
+            unary_priors={},  # missing M
+        )
+
+
+def test_contract_to_cpt_many_variables():
+    """Ensure einsum list form handles more than 52 variables.
+
+    Uses a chain of 60 variables connected by IMPLICATION factors.  We just
+    need the contraction to run without alphabet exhaustion.
+    """
+    import numpy as _np  # local alias to avoid clashing with module-level np
+
+    n = 60
+    var_names = [f"v{i}" for i in range(n)]
+    factors = []
+    for i in range(n - 1):
+        f = Factor(
+            factor_id=f"f{i}",
+            factor_type=FactorType.IMPLICATION,
+            variables=[var_names[i]],
+            conclusion=var_names[i + 1],
+        )
+        factors.append(factor_to_tensor(f))
+    priors = {v: 0.5 for v in var_names[1:-1]}
+    cpt = contract_to_cpt(factors, free_vars=[var_names[0], var_names[-1]], unary_priors=priors)
+    assert cpt.shape == (2, 2)
+    assert _np.all(_np.isfinite(cpt))
