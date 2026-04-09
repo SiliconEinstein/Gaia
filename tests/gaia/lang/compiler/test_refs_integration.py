@@ -140,3 +140,35 @@ def test_compile_scans_sub_strategy_reasons(tmp_path: Path) -> None:
     # so this should fail. (Verifies sub_strategy recursion works.)
     assert result.exit_code != 0, f"Expected error but got: {result.output}"
     assert "missing_key" in result.output
+
+
+def test_compile_records_provenance_metadata(tmp_path: Path) -> None:
+    """Provenance metadata records both cited_refs and referenced_claims."""
+    pkg = _write_package(
+        tmp_path,
+        name="provenance_pkg",
+        module_body=(
+            "from gaia.lang import claim, deduction\n\n"
+            'lemma_a = claim("A helper lemma.")\n'
+            'main_result = claim("Main result depends on [@lemma_a] and [@Bell1964].")\n'
+            "deduction(premises=[lemma_a], conclusion=main_result)\n"
+            '__all__ = ["main_result", "lemma_a"]\n'
+        ),
+        references_json={"Bell1964": {"type": "article-journal", "title": "On EPR"}},
+    )
+    result = runner.invoke(app, ["compile", str(pkg)])
+    assert result.exit_code == 0, result.output
+
+    ir_path = pkg / ".gaia" / "ir.json"
+    assert ir_path.exists(), f"Expected compiled IR at {ir_path}"
+    ir = json.loads(ir_path.read_text())
+
+    main_nodes = [k for k in ir["knowledges"] if k["id"].endswith("::main_result")]
+    assert len(main_nodes) == 1, f"Expected exactly one main_result node, got {len(main_nodes)}"
+    main_node = main_nodes[0]
+
+    metadata = main_node.get("metadata", {})
+    gaia_meta = metadata.get("gaia", {})
+    provenance = gaia_meta.get("provenance", {})
+    assert provenance.get("cited_refs") == ["Bell1964"]
+    assert provenance.get("referenced_claims") == ["lemma_a"]

@@ -401,20 +401,42 @@ def compile_package_artifact(
     # Spec §3.5: fail-fast on label / citation-key collision.
     check_collisions(label_to_id, references)
 
-    # Spec §3.2 + §3.3: scan all text for references
+    # Spec §3.2 + §3.3: scan all text for references and accumulate per-node.
     # Strategy reasons can be str, list[str | Step], or None.
     from gaia.lang.runtime.nodes import Step as DslStep
 
+    # Accumulate (knowledge_refs, citation_refs) per Knowledge node by id().
+    refs_by_knowledge: dict[int, tuple[set[str], set[str]]] = {}
+
+    def _accumulate(k: Knowledge, text: str | None) -> None:
+        if not text:
+            return
+        k_refs, c_refs = _collect_refs_from_text(text, label_to_id, references)
+        if k_refs or c_refs:
+            current = refs_by_knowledge.setdefault(id(k), (set(), set()))
+            current[0].update(k_refs)
+            current[1].update(c_refs)
+
     def _scan_strategy_refs(s) -> None:
         """Recursively scan strategy and its sub_strategies for references."""
+        target = s.conclusion  # Knowledge node whose metadata carries refs from this strategy
         if isinstance(s.reason, str):
-            _collect_refs_from_text(s.reason, label_to_id, references)
+            if target is not None:
+                _accumulate(target, s.reason)
+            else:
+                _collect_refs_from_text(s.reason, label_to_id, references)
         elif isinstance(s.reason, list):
             for entry in s.reason:
                 if isinstance(entry, str):
-                    _collect_refs_from_text(entry, label_to_id, references)
+                    if target is not None:
+                        _accumulate(target, entry)
+                    else:
+                        _collect_refs_from_text(entry, label_to_id, references)
                 elif isinstance(entry, DslStep):
-                    _collect_refs_from_text(entry.reason, label_to_id, references)
+                    if target is not None:
+                        _accumulate(target, entry.reason)
+                    else:
+                        _collect_refs_from_text(entry.reason, label_to_id, references)
         for sub in s.sub_strategies:
             _scan_strategy_refs(sub)
 
@@ -422,7 +444,31 @@ def compile_package_artifact(
         _scan_strategy_refs(s)
 
     for k in knowledge_nodes:
-        _collect_refs_from_text(k.content, label_to_id, references)
+        _accumulate(k, k.content)
+
+    # Write provenance metadata onto IR knowledge nodes.
+    for k in knowledge_nodes:
+        refs = refs_by_knowledge.get(id(k))
+        if not refs:
+            continue
+        k_refs, c_refs = refs
+        if not k_refs and not c_refs:
+            continue
+        qid = knowledge_map[id(k)]
+        for i, ir_k in enumerate(ir_knowledges):
+            if ir_k.id != qid:
+                continue
+            metadata = dict(ir_k.metadata) if ir_k.metadata else {}
+            gaia_meta = dict(metadata.get("gaia", {}))
+            provenance: dict[str, Any] = dict(gaia_meta.get("provenance", {}))
+            if c_refs:
+                provenance["cited_refs"] = sorted(c_refs)
+            if k_refs:
+                provenance["referenced_claims"] = sorted(k_refs)
+            gaia_meta["provenance"] = provenance
+            metadata["gaia"] = gaia_meta
+            ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
+            break
 
     module_order = pkg._module_order if pkg._module_order else None
     module_titles = getattr(pkg, "_module_titles", None) or None
