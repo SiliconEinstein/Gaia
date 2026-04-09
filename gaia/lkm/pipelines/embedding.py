@@ -42,58 +42,58 @@ def _create_bytehouse(config=None):
 
 
 def _build_role_map(db, gcn_set: set[str], t0: float) -> dict[str, str]:
-    """Scan global_factor_nodes to build {gcn_id: role}.
+    """Build {gcn_id: role} for the given gcn_set.
 
-    role = 'conclusion' if the gcn appears as conclusion in ANY factor,
-    else 'premise' if it appears as premise in any factor, else ''.
+    Strategy: query global_factor_nodes WHERE conclusion IN (gcn_set) — fast,
+    avoids scanning the full factor table. Defaults all gcn_ids to "premise"
+    and overrides matches to "conclusion".
 
-    Only tracks gcn_ids in gcn_set.
+    Rationale: every public gcn_id is either a premise or a conclusion of
+    some factor (variables don't exist in isolation). We can't query the
+    premises array column directly (stored as JSON string), so we default
+    to "premise" and use conclusion-IN query to identify the conclusions.
+
+    This may slightly mis-label fully orphan variables as "premise", which
+    is acceptable.
     """
-    logger.info("[%.0fs] Building role map — opening global_factor_nodes...", time.time() - t0)
+    logger.info("[%.0fs] Building role map for %d gcn_ids...", time.time() - t0, len(gcn_set))
     gfac_table = db.open_table("global_factor_nodes")
-    total = gfac_table.count_rows()
-    logger.info("[%.0fs] Scanning %d global factor nodes...", time.time() - t0, total)
 
     conclusions: set[str] = set()
-    premises: set[str] = set()
-    processed = 0
-    for batch in (
-        gfac_table.search()
-        .select(["premises", "conclusion"])
-        .limit(max(total, 100000))
-        .to_batches(10000)
-    ):
-        for row in batch.to_pylist():
-            try:
-                c = row["conclusion"]
-                if c and c in gcn_set:
-                    conclusions.add(c)
-                for p in json.loads(row["premises"]):
-                    if p in gcn_set:
-                        premises.add(p)
-            except (KeyError, json.JSONDecodeError, TypeError):
-                pass
-        processed += len(batch)
-        if processed % 100000 == 0 or processed >= total:
+    gcn_list = list(gcn_set)
+    batch_size = 500
+    n_batches = (len(gcn_list) + batch_size - 1) // batch_size
+
+    for i in range(0, len(gcn_list), batch_size):
+        batch = gcn_list[i : i + batch_size]
+        in_clause = ", ".join(f"'{g}'" for g in batch)
+        rows = (
+            gfac_table.search()
+            .where(f"conclusion IN ({in_clause})")
+            .select(["conclusion"])
+            .limit(len(batch) * 2 + 100)
+            .to_list()
+        )
+        for r in rows:
+            c = r.get("conclusion")
+            if c:
+                conclusions.add(c)
+        if (i // batch_size + 1) % 10 == 0 or i + batch_size >= len(gcn_list):
             logger.info(
-                "[%.0fs] factor scan: %d/%d, conclusions=%d, premises=%d",
+                "[%.0fs] role map: %d/%d batches, %d conclusions found",
                 time.time() - t0,
-                processed,
-                total,
+                i // batch_size + 1,
+                n_batches,
                 len(conclusions),
-                len(premises),
             )
 
-    # conclusion takes priority over premise
-    role_map = {}
+    # Default everyone to "premise", override matches to "conclusion"
+    role_map = {gcn_id: "premise" for gcn_id in gcn_set}
     for gcn_id in conclusions:
         role_map[gcn_id] = "conclusion"
-    for gcn_id in premises:
-        if gcn_id not in role_map:
-            role_map[gcn_id] = "premise"
 
     logger.info(
-        "[%.0fs] Role map built: %d total (%d conclusions, %d premise-only)",
+        "[%.0fs] Role map built: %d total (%d conclusions, %d premise default)",
         time.time() - t0,
         len(role_map),
         len(conclusions),
@@ -274,8 +274,16 @@ if __name__ == "__main__":
     import argparse
     import os
 
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    # Resolve log dir to project root (4 levels up from gaia/lkm/pipelines/embedding.py)
     _LOG_DIR = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "logs"
+        os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        ),
+        "logs",
     )
     os.makedirs(_LOG_DIR, exist_ok=True)
     _LOG_FILE = os.path.join(_LOG_DIR, f"embedding-{time.strftime('%Y%m%d-%H%M%S')}.log")
