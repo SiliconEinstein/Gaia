@@ -18,6 +18,7 @@ from gaia.lkm.models import (
 from gaia.lkm.models.import_status import ImportStatusRecord
 from gaia.lkm.storage.config import StorageConfig
 from gaia.lkm.storage.lance_store import LanceContentStore
+from gaia.lkm.storage.protocol import LkmContentStore
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +31,11 @@ class StorageManager:
 
     def __init__(self, config: StorageConfig) -> None:
         self._config = config
-        self._content: LanceContentStore | None = None
+        self._content: LkmContentStore | None = None
         self._graph: Any | None = None  # Neo4jGraphStore or None
 
     @property
-    def content(self) -> LanceContentStore:
+    def content(self) -> LkmContentStore:
         assert self._content is not None, "StorageManager not initialized — call initialize() first"
         return self._content
 
@@ -44,11 +45,33 @@ class StorageManager:
         return self._graph
 
     async def initialize(self) -> None:
-        """Initialize all storage backends."""
-        self._content = LanceContentStore(
-            self._config.effective_lancedb_uri,
-            storage_options=self._config.storage_options,
-        )
+        """Initialize all storage backends.
+
+        The LKM content backend is selected by ``StorageConfig.lkm_backend``:
+        ``"lance"`` (default) → :class:`LanceContentStore`,
+        ``"bytehouse"`` → :class:`BytehouseLkmStore`.
+        """
+        backend = self._config.lkm_backend
+        if backend == "lance":
+            self._content = LanceContentStore(
+                self._config.effective_lancedb_uri,
+                storage_options=self._config.storage_options,
+            )
+        elif backend == "bytehouse":
+            from gaia.lkm.storage.bytehouse_lkm_store import BytehouseLkmStore
+
+            if not self._config.bytehouse_host:
+                raise ValueError("lkm_backend='bytehouse' requires BYTEHOUSE_HOST to be set")
+            self._content = BytehouseLkmStore(
+                host=self._config.bytehouse_host,
+                user=self._config.bytehouse_user,
+                password=self._config.bytehouse_password,
+                database=self._config.bytehouse_database,
+                replication_root=self._config.bytehouse_replication_root,
+                table_prefix=self._config.bytehouse_table_prefix,
+            )
+        else:
+            raise ValueError(f"Unknown lkm_backend: {backend!r}")
         await self._content.initialize()
 
         if self._config.graph_backend == "neo4j":

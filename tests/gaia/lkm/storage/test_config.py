@@ -1,5 +1,7 @@
 """Unit tests for StorageConfig ByteHouse and embedding fields."""
 
+import pytest
+
 from gaia.lkm.storage.config import StorageConfig
 
 
@@ -50,3 +52,25 @@ def test_bytehouse_database_default_not_overridden_by_empty_env(monkeypatch):
     config = StorageConfig()
 
     assert config.bytehouse_database == "paper_data"
+
+
+def test_lkm_backend_default_lance():
+    """Default backend is lance."""
+    assert StorageConfig().lkm_backend == "lance"
+
+
+def test_lkm_backend_from_env(monkeypatch):
+    """LKM_BACKEND env var selects the backend (LKM_ prefix from BaseSettings)."""
+    monkeypatch.setenv("LKM_BACKEND", "bytehouse")
+    assert StorageConfig().lkm_backend == "bytehouse"
+
+
+def test_lkm_backend_invalid_raises():
+    """Unknown backend value is rejected at construction time."""
+    with pytest.raises(ValueError, match="lkm_backend"):
+        StorageConfig(lkm_backend="postgres")
+
+
+def test_bytehouse_table_prefix_default():
+    """ByteHouse table prefix defaults to 'lkm_'."""
+    assert StorageConfig().bytehouse_table_prefix == "lkm_"
