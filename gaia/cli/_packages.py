@@ -310,9 +310,47 @@ def _resolve_dependency_premises_manifest(import_name: str) -> tuple[Path, dict[
     return root, premises_manifest
 
 
-def _validate_fills_relations(loaded: LoadedGaiaPackage, compiled) -> None:
+def _reason_to_text(reason: Any) -> str | None:
+    if isinstance(reason, str):
+        return reason or None
+    if not isinstance(reason, list):
+        return None
+    parts: list[str] = []
+    for entry in reason:
+        if isinstance(entry, str):
+            if entry:
+                parts.append(entry)
+            continue
+        text = getattr(entry, "reason", None)
+        if isinstance(text, str) and text:
+            parts.append(text)
+    return "\n\n".join(parts) or None
+
+
+def _relation_id(
+    *,
+    declaring_package: str,
+    declaring_version: str,
+    source_qid: str,
+    source_content_hash: str,
+    target_qid: str,
+    target_interface_hash: str,
+    relation_type: str,
+) -> str:
+    raw = (
+        f"{declaring_package}|{declaring_version}|{source_qid}|{source_content_hash}|"
+        f"{target_qid}|{target_interface_hash}|{relation_type}"
+    )
+    return f"bridge_{hashlib.sha256(raw.encode()).hexdigest()[:16]}"
+
+
+def _resolve_fills_relations(loaded: LoadedGaiaPackage, compiled) -> list[dict[str, Any]]:
     dependency_specs = _parse_gaia_dependencies(loaded.project_config)
     local_package = loaded.package
+    knowledge_by_qid = {knowledge.id: knowledge for knowledge in compiled.graph.knowledges if knowledge.id}
+    dependency_manifest_cache: dict[str, dict[str, Any]] = {}
+    relations: list[dict[str, Any]] = []
+    seen_relation_keys: set[tuple[str, str, str]] = set()
 
     for strategy in loaded.package.strategies:
         relation = strategy.metadata.get("gaia", {}).get("relation", {})
@@ -346,14 +384,22 @@ def _validate_fills_relations(loaded: LoadedGaiaPackage, compiled) -> None:
                 "[project].dependencies."
             )
 
-        _, premises_manifest = _resolve_dependency_premises_manifest(target_owner.name)
+        premises_manifest = dependency_manifest_cache.get(target_owner.name)
+        if premises_manifest is None:
+            _, premises_manifest = _resolve_dependency_premises_manifest(target_owner.name)
+            dependency_manifest_cache[target_owner.name] = premises_manifest
         premises = premises_manifest.get("premises", [])
         if not isinstance(premises, list):
             raise GaiaCliError("Error: dependency premises manifest must contain a premises list.")
 
+        source_qid = compiled.knowledge_ids_by_object.get(id(source))
         target_qid = compiled.knowledge_ids_by_object.get(id(target))
-        if target_qid is None:
-            raise GaiaCliError("Error: could not resolve fills() target QID during compile.")
+        if source_qid is None or target_qid is None:
+            raise GaiaCliError("Error: could not resolve fills() source/target QID during compile.")
+
+        source_knowledge = knowledge_by_qid.get(source_qid)
+        if source_knowledge is None or source_knowledge.content_hash is None:
+            raise GaiaCliError(f"Error: could not resolve source content hash for '{source_qid}'.")
 
         entry = next(
             (
@@ -374,6 +420,61 @@ def _validate_fills_relations(loaded: LoadedGaiaPackage, compiled) -> None:
                 f"found role={entry.get('role')!r}."
             )
 
+        target_interface_hash = entry.get("interface_hash")
+        if not isinstance(target_interface_hash, str) or not target_interface_hash:
+            raise GaiaCliError(
+                f"Error: dependency premise '{target_qid}' is missing interface_hash."
+            )
+        target_resolved_version = premises_manifest.get("version")
+        if not isinstance(target_resolved_version, str) or not target_resolved_version:
+            raise GaiaCliError(
+                f"Error: dependency premises manifest for '{target_owner.name}' is missing version."
+            )
+        target_package = premises_manifest.get("package")
+        if not isinstance(target_package, str) or not target_package:
+            raise GaiaCliError(
+                f"Error: dependency premises manifest for '{target_owner.name}' is missing package."
+            )
+
+        relation_key = (source_qid, target_qid, target_interface_hash)
+        if relation_key in seen_relation_keys:
+            raise GaiaCliError(
+                f"Error: duplicate fills() relation for source '{source_qid}' and target "
+                f"'{target_qid}' on interface '{target_interface_hash}'."
+            )
+        seen_relation_keys.add(relation_key)
+
+        relation_type = str(relation.get("type"))
+        justification = _reason_to_text(strategy.reason)
+        relation_record = {
+            "relation_id": _relation_id(
+                declaring_package=_manifest_package_name(loaded),
+                declaring_version=loaded.project_config["version"],
+                source_qid=source_qid,
+                source_content_hash=source_knowledge.content_hash,
+                target_qid=target_qid,
+                target_interface_hash=target_interface_hash,
+                relation_type=relation_type,
+            ),
+            "relation_type": relation_type,
+            "source_qid": source_qid,
+            "source_content_hash": source_knowledge.content_hash,
+            "target_qid": target_qid,
+            "target_package": target_package,
+            "target_dependency_req": dependency_specs[target_dist],
+            "target_resolved_version": target_resolved_version,
+            "target_role": entry["role"],
+            "target_interface_hash": target_interface_hash,
+            "strength": relation.get("strength"),
+            "mode": relation.get("mode"),
+            "declared_by_owner_of_source": source_owner == local_package,
+        }
+        if justification:
+            relation_record["justification"] = justification
+        relations.append(relation_record)
+
+    return sorted(relations, key=lambda item: item["relation_id"])
+
 
 def _knowledge_manifest_entry(knowledge) -> dict[str, Any]:
     entry = {
@@ -391,7 +492,7 @@ def _knowledge_manifest_entry(knowledge) -> dict[str, Any]:
 
 def build_package_manifests(loaded: LoadedGaiaPackage, compiled) -> dict[str, dict[str, Any]]:
     """Build package-level interface manifests from compiled IR plus runtime package state."""
-    _validate_fills_relations(loaded, compiled)
+    fills_relations = _resolve_fills_relations(loaded, compiled)
     graph = compiled.graph
     knowledge_by_qid = {knowledge.id: knowledge for knowledge in graph.knowledges if knowledge.id}
     exported_qids = {
@@ -514,6 +615,16 @@ def build_package_manifests(loaded: LoadedGaiaPackage, compiled) -> dict[str, di
             entry["parameters"] = parameters
         premises.append(entry)
 
+    holes = [
+        {
+            key: value
+            for key, value in premise.items()
+            if key != "role" and key != "exported"
+        }
+        for premise in premises
+        if premise["role"] == "local_hole"
+    ]
+
     manifests = {
         "exports.json": {
             **_manifest_base(loaded, ir_hash=graph.ir_hash or ""),
@@ -522,6 +633,14 @@ def build_package_manifests(loaded: LoadedGaiaPackage, compiled) -> dict[str, di
         "premises.json": {
             **_manifest_base(loaded, ir_hash=graph.ir_hash or ""),
             "premises": premises,
+        },
+        "holes.json": {
+            **_manifest_base(loaded, ir_hash=graph.ir_hash or ""),
+            "holes": holes,
+        },
+        "bridges.json": {
+            **_manifest_base(loaded, ir_hash=graph.ir_hash or ""),
+            "bridges": fills_relations,
         },
     }
     return manifests
