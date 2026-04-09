@@ -9,7 +9,12 @@ import typer
 
 from gaia.bp import lower_local_graph
 from gaia.bp.engine import InferenceEngine
-from gaia.cli._packages import GaiaCliError, compile_loaded_package_artifact, load_gaia_package
+from gaia.cli._packages import (
+    GaiaCliError,
+    compile_loaded_package_artifact,
+    gaia_lang_version,
+    load_gaia_package,
+)
 from gaia.cli._reviews import load_gaia_review, resolve_gaia_review
 from gaia.ir.validator import validate_local_graph, validate_parameterization
 
@@ -109,14 +114,24 @@ def infer_command(
     review_dir = gaia_dir / "reviews" / loaded_review.name
     review_dir.mkdir(parents=True, exist_ok=True)
 
+    # Provenance: stamp both artifacts with the infer environment's gaia-lang
+    # version and a canonical hash of the review content. The version lets
+    # downstream tooling detect BP engine drift; the content hash lets
+    # `gaia render` detect when a review sidecar has been edited between infer
+    # and render (which otherwise leaves the IR hash unchanged).
+    gaia_ver = gaia_lang_version()
+    review_content_hash = resolved_review.content_hash()
+
     _write_json(
         review_dir / "parameterization.json",
-        resolved_review.to_json(ir_hash=compiled.graph.ir_hash),
+        resolved_review.to_json(ir_hash=compiled.graph.ir_hash, gaia_lang_version=gaia_ver),
     )
 
     knowledge_by_id = {knowledge.id: knowledge for knowledge in compiled.graph.knowledges}
     beliefs_payload = {
         "ir_hash": compiled.graph.ir_hash,
+        "gaia_lang_version": gaia_ver,
+        "review_content_hash": review_content_hash,
         "beliefs": [
             {
                 "knowledge_id": knowledge_id,

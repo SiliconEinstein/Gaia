@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,9 +30,45 @@ class ResolvedGaiaReview:
     priors: list[PriorRecord]
     strategy_params: list[StrategyParamRecord]
 
-    def to_json(self, *, ir_hash: str) -> dict[str, Any]:
-        return {
+    def content_hash(self) -> str:
+        """Canonical hash of the resolved review's inference-relevant content.
+
+        Includes only the fields that affect BP outputs: (knowledge_id, prior_value)
+        for priors, (strategy_id, conditional_probabilities) for strategy params.
+        Deliberately excludes source_id, policy metadata, judgments, justifications,
+        and timestamps — those are bookkeeping that should not invalidate a render.
+
+        Used by `gaia infer` to stamp `beliefs.json` with a content hash, and by
+        `gaia render` to detect when a review sidecar has been edited between
+        infer and render (the IR hash alone cannot catch this because review
+        priors/params are not part of the IR).
+        """
+        payload = {
+            "priors": sorted(
+                [
+                    {"knowledge_id": record.knowledge_id, "value": record.value}
+                    for record in self.priors
+                ],
+                key=lambda item: item["knowledge_id"],
+            ),
+            "strategy_params": sorted(
+                [
+                    {
+                        "strategy_id": record.strategy_id,
+                        "conditional_probabilities": list(record.conditional_probabilities),
+                    }
+                    for record in self.strategy_params
+                ],
+                key=lambda item: item["strategy_id"],
+            ),
+        }
+        canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+    def to_json(self, *, ir_hash: str, gaia_lang_version: str | None = None) -> dict[str, Any]:
+        payload: dict[str, Any] = {
             "ir_hash": ir_hash,
+            "review_content_hash": self.content_hash(),
             "source": self.source.model_dump(mode="json", exclude_none=True),
             "resolution_policy": self.resolution_policy.model_dump(
                 mode="json",
@@ -42,6 +80,9 @@ class ResolvedGaiaReview:
                 record.model_dump(mode="json", exclude_none=True) for record in self.strategy_params
             ],
         }
+        if gaia_lang_version is not None:
+            payload["gaia_lang_version"] = gaia_lang_version
+        return payload
 
 
 def _utc_now() -> datetime:

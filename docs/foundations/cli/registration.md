@@ -113,15 +113,31 @@ ir_hash = "sha256:a1b2c3d4..."
 git_tag = "v4.0.0"
 git_sha = "abc123def456..."
 registered_at = "2026-04-02T10:30:00Z"
+gaia_lang_version = "0.2.5"
 
 [versions."4.1.0"]
 ir_hash = "sha256:e5f6g7h8..."
 git_tag = "v4.1.0"
 git_sha = "789abc012def..."
 registered_at = "2026-04-10T15:00:00Z"
+gaia_lang_version = "0.2.7"
 ```
 
 Versions are sorted lexicographically by version string in the rendered output.
+
+**Fields:**
+
+| Field | Source | Notes |
+|-------|--------|-------|
+| `ir_hash` | `.gaia/ir_hash` | Content hash of the compiled IR — structural identity |
+| `git_tag` | `--tag` / derived from pyproject version | Must exist and point to HEAD |
+| `git_sha` | `git rev-parse <tag>` | Commit the tag points to |
+| `registered_at` | `datetime.utcnow()` at register time | UTC, ISO-8601 |
+| `gaia_lang_version` | `.gaia/compile_metadata.json` (written at `gaia compile` time) | Which `gaia-lang` compiled the IR being registered. Read from the committed compile metadata file, **not** from the live process environment — this decouples the registered provenance from whatever version happens to be installed when `gaia register` runs. When the metadata file is missing or malformed (e.g. legacy packages compiled before the field was introduced), the value is emitted as `"unknown"` and a warning is printed. Consumers can use this to detect BP engine version drift across patch releases that keep `ir_hash` stable but refine numerical inference. |
+
+Older entries that pre-date the `gaia_lang_version` field are preserved as-is when the registry file is re-rendered — the renderer emits only keys present in the payload. This keeps historical entries stable across registrations.
+
+**Forward-compat note:** The renderer respects native TOML types for canonical and unknown fields alike — a future `gaia-lang` that adds a boolean or integer field to `Versions.toml` can safely coexist with older CLIs reading the same file. Complex types (arrays, nested tables, datetimes) are explicitly rejected rather than silently coerced.
 
 ### Deps.toml
 

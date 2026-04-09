@@ -12,7 +12,7 @@ from gaia.cli._packages import (
     compile_loaded_package_artifact,
     load_gaia_package,
 )
-from gaia.cli._reviews import load_gaia_review
+from gaia.cli._reviews import load_gaia_review, resolve_gaia_review
 from gaia.cli.commands._detailed_reasoning import generate_detailed_reasoning
 from gaia.cli.commands._github import generate_github_output
 from gaia.ir.validator import validate_local_graph
@@ -136,6 +136,36 @@ def render_command(
                     err=True,
                 )
                 raise typer.Exit(1)
+
+            # Review-content freshness: resolve the CURRENT review sidecar (which
+            # may have been edited after the last `gaia infer`) and compare its
+            # canonical content hash with the one persisted at infer time. The
+            # IR hash alone cannot catch this because review priors and strategy
+            # params are not part of the compiled IR — a user can edit
+            # `reviews/<name>.py` and leave `ir_hash` unchanged. Without this
+            # check, render would silently publish results that contradict the
+            # current review sidecar.
+            stored_review_hash = beliefs_data.get("review_content_hash")
+            if stored_review_hash is not None:
+                try:
+                    current_resolved = resolve_gaia_review(loaded_review, compiled)
+                except GaiaCliError as exc:
+                    typer.echo(
+                        f"Error: could not resolve review {loaded_review.name!r} to "
+                        f"verify freshness: {exc}",
+                        err=True,
+                    )
+                    raise typer.Exit(1)
+                current_review_hash = current_resolved.content_hash()
+                if current_review_hash != stored_review_hash:
+                    typer.echo(
+                        f"Error: review {loaded_review.name!r} has changed since the "
+                        f"last `gaia infer` (review_content_hash mismatch). "
+                        f"Re-run `gaia infer --review {loaded_review.name}` to refresh "
+                        f"beliefs against the current review sidecar.",
+                        err=True,
+                    )
+                    raise typer.Exit(1)
 
             if param_path.exists():
                 try:

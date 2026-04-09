@@ -26,6 +26,31 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def _read_gaia_lang_version_from_compile_metadata(pkg_path: Path) -> str:
+    """Read `gaia_lang_version` from `.gaia/compile_metadata.json`.
+
+    This is the source of truth for "which gaia-lang produced the IR we are
+    about to register", pinned at compile time. We deliberately do NOT read
+    the live `importlib.metadata.version("gaia-lang")` here — that would
+    record the register-time environment, which can differ from the
+    compile/infer environment if the operator upgraded gaia-lang between
+    compile and register, and would silently misrepresent the BP engine
+    provenance of the registered content.
+
+    Returns "unknown" when the file is missing or malformed; register will
+    still succeed, but a warning is printed by the caller.
+    """
+    metadata_path = pkg_path / ".gaia" / "compile_metadata.json"
+    if not metadata_path.exists():
+        return "unknown"
+    try:
+        data = json.loads(metadata_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return "unknown"
+    version = data.get("gaia_lang_version")
+    return version if isinstance(version, str) else "unknown"
+
+
 def _run(
     args: list[str],
     *,
@@ -90,13 +115,57 @@ def _render_package_toml(
     )
 
 
-def _render_versions_toml(versions: dict[str, dict[str, str]]) -> str:
+_VERSIONS_CANONICAL_KEYS = (
+    "ir_hash",
+    "git_tag",
+    "git_sha",
+    "registered_at",
+    "gaia_lang_version",
+)
+
+
+def _render_toml_scalar(value: object) -> str:
+    """Render a Python scalar as a TOML literal.
+
+    Handles the common scalar types that might appear in a Versions.toml
+    entry: strings, bools, ints, and floats. Raises ValueError on complex
+    types (arrays, tables, datetimes) — rather than silently coercing them
+    to strings, which would corrupt forward-compat extra fields if a future
+    registry release adds any non-string field that an older CLI is asked
+    to re-emit.
+    """
+    if isinstance(value, bool):
+        # Must precede int check: bool is a subclass of int in Python.
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return repr(value)
+    if isinstance(value, str):
+        # Escape backslashes and double quotes — matches TOML basic string rules
+        # for the scalar shapes we actually emit (ASCII, no control chars).
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped}"'
+    raise ValueError(
+        f"Cannot render Versions.toml value of type {type(value).__name__} "
+        f"({value!r}) as a TOML scalar. Supported types: str, bool, int, float."
+    )
+
+
+def _render_versions_toml(versions: dict[str, dict[str, object]]) -> str:
     lines: list[str] = []
     for version in sorted(versions):
         payload = versions[version]
         lines.append(f'[versions."{version}"]')
-        for key in ("ir_hash", "git_tag", "git_sha", "registered_at"):
-            lines.append(f'{key} = "{payload[key]}"')
+        for key in _VERSIONS_CANONICAL_KEYS:
+            if key in payload:
+                lines.append(f"{key} = {_render_toml_scalar(payload[key])}")
+        # Preserve any extra keys not in the canonical list. This guards
+        # against silently dropping or corrupting fields added by future gaia
+        # versions when an older gaia reads and re-emits the same file.
+        for key in sorted(payload):
+            if key not in _VERSIONS_CANONICAL_KEYS:
+                lines.append(f"{key} = {_render_toml_scalar(payload[key])}")
         lines.append("")
     return "\n".join(lines)
 
@@ -283,12 +352,20 @@ def register_command(
         description=description,
         created_at=registered_at,
     )
+    gaia_ver = _read_gaia_lang_version_from_compile_metadata(loaded.pkg_path)
+    if gaia_ver == "unknown":
+        typer.echo(
+            "Warning: .gaia/compile_metadata.json is missing or malformed; "
+            "Versions.toml will record gaia_lang_version as 'unknown'. "
+            "Re-run `gaia compile` to generate the metadata file.",
+        )
     versions = {
         version: {
             "ir_hash": ir["ir_hash"],
             "git_tag": tag_name,
             "git_sha": tag_sha,
             "registered_at": registered_at,
+            "gaia_lang_version": gaia_ver,
         }
     }
     deps_payload = {version: deps}

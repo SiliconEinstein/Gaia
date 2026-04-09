@@ -8,6 +8,9 @@ import json
 import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -704,6 +707,45 @@ def build_package_manifests(loaded: LoadedGaiaPackage, compiled) -> dict[str, di
     return manifests
 
 
+def gaia_lang_version() -> str:
+    """Return the installed gaia-lang version, or 'unknown' for dev checkouts.
+
+    Used by compile (to stamp `.gaia/compile_metadata.json`) and by tests. We
+    deliberately return a string sentinel instead of raising so that running
+    `gaia compile` inside an un-built editable checkout still produces a valid
+    metadata file — downstream consumers can detect 'unknown' and decide.
+    """
+    try:
+        return _pkg_version("gaia-lang")
+    except PackageNotFoundError:
+        return "unknown"
+
+
+def _utc_now_iso() -> str:
+    """UTC timestamp in ISO-8601 with Z suffix and second precision."""
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _render_compile_metadata(ir_hash: str) -> str:
+    """Build the `.gaia/compile_metadata.json` payload.
+
+    This file is the canonical provenance anchor for a compiled IR: it records
+    which `gaia-lang` version produced the IR, pinned to the IR hash the
+    metadata file sits next to. `gaia infer` copies the version into its
+    output artifacts so beliefs can be correlated back to the compile
+    environment, and `gaia register` reads this file to populate
+    `Versions.toml`'s `gaia_lang_version` field without depending on the live
+    process environment (which may have been upgraded between compile and
+    register).
+    """
+    payload = {
+        "gaia_lang_version": gaia_lang_version(),
+        "compiled_at": _utc_now_iso(),
+        "ir_hash": ir_hash,
+    }
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
 def write_compiled_artifacts(
     pkg_path: Path, ir: dict[str, Any], *, manifests: dict[str, dict[str, Any]] | None = None
 ) -> Path:
@@ -713,6 +755,7 @@ def write_compiled_artifacts(
     ir_json = json.dumps(ir, ensure_ascii=False, indent=2, sort_keys=True)
     (gaia_dir / "ir.json").write_text(ir_json)
     (gaia_dir / "ir_hash").write_text(ir["ir_hash"])
+    (gaia_dir / "compile_metadata.json").write_text(_render_compile_metadata(ir["ir_hash"]))
     if manifests:
         manifests_dir = gaia_dir / "manifests"
         manifests_dir.mkdir(exist_ok=True)

@@ -191,6 +191,12 @@ On success, `write_compiled_artifacts()` (`gaia/cli/_packages.py`) writes:
 
 - `.gaia/ir.json` -- the full `LocalCanonicalGraph` serialized as indented, sorted-keys JSON
 - `.gaia/ir_hash` -- the bare hash string
+- `.gaia/compile_metadata.json` -- provenance of the compile run:
+  - `gaia_lang_version` -- which `gaia-lang` produced the IR (`"unknown"` when running from an editable/unbuilt dev checkout)
+  - `compiled_at` -- ISO-8601 UTC timestamp with second precision
+  - `ir_hash` -- duplicated from `.gaia/ir_hash` so the metadata file is self-contained
+
+`compile_metadata.json` is the authoritative source of truth for "which gaia-lang compiled this IR". It is intended to be committed to git alongside `ir.json` and `ir_hash`, and is read at register time to populate `Versions.toml`'s `gaia_lang_version` field. The metadata is deliberately decoupled from `ir.json` content: adding it to `ir.json` directly would change `ir_hash` across gaia versions even when the structural IR is identical, breaking the "same source → same hash" invariant.
 
 Source: `gaia/cli/commands/compile.py`
 

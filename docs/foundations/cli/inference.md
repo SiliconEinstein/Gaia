@@ -266,6 +266,8 @@ The resolved parameterization input, produced by
 ```json
 {
   "ir_hash": "sha256:...",
+  "review_content_hash": "sha256:...",
+  "gaia_lang_version": "0.2.7",
   "source": {
     "source_id": "self_review",
     "model": "agent-authored",
@@ -310,6 +312,8 @@ Posterior beliefs and BP diagnostics:
 ```json
 {
   "ir_hash": "sha256:...",
+  "gaia_lang_version": "0.2.7",
+  "review_content_hash": "sha256:...",
   "beliefs": [
     {
       "knowledge_id": "github:my_pkg::my_claim",
@@ -334,3 +338,14 @@ Posterior beliefs and BP diagnostics:
 
 The `beliefs` array is sorted by `knowledge_id` and includes only knowledge
 nodes present in the compiled graph (internal auxiliary variables are excluded).
+
+### Provenance fields
+
+Both output files carry three provenance fields that let downstream commands
+verify freshness and trace back to the producing environment:
+
+| Field | Meaning |
+|-------|---------|
+| `ir_hash` | Content hash of the compiled IR these beliefs were produced against. Must match the current `.gaia/ir_hash` when `gaia render` / `gaia register` is invoked, else the artifact is considered stale. |
+| `review_content_hash` | Canonical hash of the resolved review's inference-relevant content (sorted priors + sorted strategy params). `gaia render` re-resolves the current review sidecar and compares its hash with this stored value — a mismatch means the review was edited between `gaia infer` and `gaia render`, so beliefs no longer reflect the current sidecar. `ir_hash` alone cannot catch this because review priors and strategy params are not part of the IR. |
+| `gaia_lang_version` | Which `gaia-lang` version's BP engine produced these beliefs. Useful for detecting numerical drift: the same `ir_hash` + same `review_content_hash` can still produce slightly different beliefs across gaia-lang patch releases when the BP engine is refined. |

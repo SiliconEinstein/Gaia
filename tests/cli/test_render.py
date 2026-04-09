@@ -387,3 +387,40 @@ def test_render_target_all_is_default(tmp_path):
     assert result.exit_code == 0, result.output
     assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
     assert (pkg_dir / ".github-output" / "manifest.json").exists()
+
+
+def test_render_fails_when_review_sidecar_edited_after_infer(tmp_path):
+    """Editing a review sidecar between `gaia infer` and `gaia render` must
+    be detected. The IR hash is unchanged (review params are not part of IR),
+    but the persisted `review_content_hash` in beliefs.json will mismatch the
+    hash computed from the current sidecar — render must hard-error.
+
+    Regression test for Codex adversarial review Finding 1 (high).
+    """
+    pkg_dir = _prepare_inferred_package(tmp_path, name="review_edit")
+
+    # Sanity: baseline render succeeds (review unchanged since infer)
+    baseline = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
+    assert baseline.exit_code == 0, baseline.output
+
+    # Edit the review sidecar — change priors from the originals. This does
+    # NOT touch the IR (priors are review-layer data, not IR structure).
+    review_path = pkg_dir / "review_edit" / "reviews" / "self_review.py"
+    original = review_path.read_text()
+    # Originals are 0.9/0.8/0.4; bump each by +0.05 to produce a different content hash
+    edited = (
+        original.replace("prior=0.9", "prior=0.95")
+        .replace("prior=0.8", "prior=0.85")
+        .replace("prior=0.4", "prior=0.45")
+    )
+    assert edited != original, "fixture priors didn't match expected substrings"
+    review_path.write_text(edited)
+
+    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
+    assert result.exit_code != 0, (
+        "render should have rejected the stale beliefs after review edit; "
+        f"got exit={result.exit_code} output={result.output}"
+    )
+    assert "review" in result.output.lower()
+    assert "changed" in result.output.lower() or "content_hash" in result.output.lower()
+    assert "gaia infer" in result.output
