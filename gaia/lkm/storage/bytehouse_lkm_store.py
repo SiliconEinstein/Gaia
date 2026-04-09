@@ -620,10 +620,19 @@ class BytehouseLkmStore:
     # ── Test helpers ──
 
     async def drop_all_tables(self) -> None:
-        """Drop every LKM table managed by this store. Test/integration only."""
+        """Drop every LKM table managed by this store. Test/integration only.
+
+        Uses ``DROP TABLE ... SYNC`` so that HaUniqueMergeTree replica
+        data in ZooKeeper is fully cleaned up before returning. Without
+        SYNC, a subsequent ``CREATE TABLE IF NOT EXISTS`` with the same
+        ZK path would silently re-attach to the old replica, bringing
+        back both the old data and the old schema — a nasty footgun.
+        """
         for ddl_key in LKM_TABLES:
             physical = self._phys(ddl_key)
-            await self._run(self._client.command, f"DROP TABLE IF EXISTS {physical}")
+            await self._run(
+                self._client.command, f"DROP TABLE IF EXISTS {physical} SYNC"
+            )
 
 
 __all__ = ["BytehouseLkmStore", "LANCE_TO_BH_TABLE"]
