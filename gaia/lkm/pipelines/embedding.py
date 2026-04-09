@@ -1,17 +1,23 @@
 """Pipeline: compute embeddings for all pending public global variables.
 
 Incremental: skips gcn_ids already in ByteHouse.
+Writes embedding with package_id and role (conclusion/premise).
 After completion, refreshes embedding_status table.
 
 Usage:
-    python -m gaia.lkm.pipelines.embedding
-    python -m gaia.lkm.pipelines.embedding --dry-run
+    python -m gaia.lkm.pipelines.embedding                    # full run
+    python -m gaia.lkm.pipelines.embedding --limit 1000        # small test
+    python -m gaia.lkm.pipelines.embedding --dry-run           # check status
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import time
+
+import lancedb
 
 from gaia.lkm.models.discovery import DiscoveryConfig
 
@@ -35,59 +41,201 @@ def _create_bytehouse(config=None):
     ), cfg
 
 
+def _build_role_map(db, gcn_set: set[str], t0: float) -> dict[str, str]:
+    """Scan global_factor_nodes to build {gcn_id: role}.
+
+    role = 'conclusion' if the gcn appears as conclusion in ANY factor,
+    else 'premise' if it appears as premise in any factor, else ''.
+
+    Only tracks gcn_ids in gcn_set.
+    """
+    logger.info("[%.0fs] Building role map — opening global_factor_nodes...", time.time() - t0)
+    gfac_table = db.open_table("global_factor_nodes")
+    total = gfac_table.count_rows()
+    logger.info("[%.0fs] Scanning %d global factor nodes...", time.time() - t0, total)
+
+    conclusions: set[str] = set()
+    premises: set[str] = set()
+    processed = 0
+    for batch in (
+        gfac_table.search()
+        .select(["premises", "conclusion"])
+        .limit(max(total, 100000))
+        .to_batches(10000)
+    ):
+        for row in batch.to_pylist():
+            try:
+                c = row["conclusion"]
+                if c and c in gcn_set:
+                    conclusions.add(c)
+                for p in json.loads(row["premises"]):
+                    if p in gcn_set:
+                        premises.add(p)
+            except (KeyError, json.JSONDecodeError, TypeError):
+                pass
+        processed += len(batch)
+        if processed % 100000 == 0 or processed >= total:
+            logger.info(
+                "[%.0fs] factor scan: %d/%d, conclusions=%d, premises=%d",
+                time.time() - t0,
+                processed,
+                total,
+                len(conclusions),
+                len(premises),
+            )
+
+    # conclusion takes priority over premise
+    role_map = {}
+    for gcn_id in conclusions:
+        role_map[gcn_id] = "conclusion"
+    for gcn_id in premises:
+        if gcn_id not in role_map:
+            role_map[gcn_id] = "premise"
+
+    logger.info(
+        "[%.0fs] Role map built: %d total (%d conclusions, %d premise-only)",
+        time.time() - t0,
+        len(role_map),
+        len(conclusions),
+        len(role_map) - len(conclusions),
+    )
+    return role_map
+
+
 async def run_embedding_pipeline(
     config: DiscoveryConfig | None = None,
+    limit: int | None = None,
 ) -> dict:
     """Compute embeddings for all pending public global variables.
 
-    1. Init LanceDB (skip Neo4j) + ByteHouse
-    2. Compute embeddings incrementally
-    3. Refresh embedding_status table
+    Args:
+        config: Discovery config. Uses defaults if None.
+        limit: If set, only process first N pending variables (for testing).
 
     Returns stats dict: {total, computed, skipped, failed}.
     """
     from gaia.lkm.core._embedding import compute_embeddings
     from gaia.lkm.storage.config import StorageConfig
-    from gaia.lkm.storage.lance_store import LanceContentStore
 
+    t0 = time.time()
     if config is None:
         config = DiscoveryConfig()
 
     cfg = StorageConfig()
+    logger.info("Starting embedding pipeline. LanceDB: %s", cfg.effective_lancedb_uri)
 
-    # Init LanceDB only (skip Neo4j — embedding doesn't need graph)
-    lance = LanceContentStore(cfg.effective_lancedb_uri, storage_options=cfg.storage_options)
-    await lance.initialize()
-    logger.info("LanceDB ready")
+    # Direct LanceDB connect (no initialize() — slow index creation on remote S3)
+    logger.info("Connecting to LanceDB...")
+    db = lancedb.connect(cfg.effective_lancedb_uri, storage_options=cfg.storage_options)
+    logger.info("[%.0fs] LanceDB connected", time.time() - t0)
 
     bytehouse, _ = _create_bytehouse(cfg)
     bytehouse.ensure_all_tables()
-    logger.info("ByteHouse ready")
+    logger.info("[%.0fs] ByteHouse ready", time.time() - t0)
 
-    # Minimal storage wrapper (compute_embeddings needs list_all_public_global_ids
-    # and get_local_variables_by_ids)
-    class _LanceOnlyStorage:
-        def __init__(self, content):
-            self._content = content
+    # Build storage wrapper
+    class _LanceStorage:
+        def __init__(self, lance_db, limit_val):
+            self._db = lance_db
+            self._limit = limit_val
 
-        async def list_all_public_global_ids(self):
-            return await self._content.list_all_public_global_ids()
+        async def list_all_public_global_ids(self) -> list[dict]:
+            logger.info("[%.0fs] Listing public global variables...", time.time() - t0)
+            t = self._db.open_table("global_variable_nodes")
+            total = t.count_rows()
+            logger.info("[%.0fs] Total global_variable_nodes: %d", time.time() - t0, total)
+
+            q = (
+                t.search()
+                .where("visibility = 'public'")
+                .select(["id", "type", "representative_lcn"])
+                .limit(self._limit if self._limit else max(total, 100000))
+            )
+            result = q.to_list()
+            logger.info("[%.0fs] Loaded %d public global ids", time.time() - t0, len(result))
+            return [
+                {"id": r["id"], "type": r["type"], "representative_lcn": r["representative_lcn"]}
+                for r in result
+            ]
 
         async def get_local_variables_by_ids(self, local_ids, concurrency=4):
-            return await self._content.get_local_variables_by_ids(local_ids, concurrency)
+            # Import lazily to avoid LanceContentStore.initialize()
+            from gaia.lkm.storage._serialization import row_to_local_variable
 
-    storage = _LanceOnlyStorage(lance)
+            if not local_ids:
+                return {}
+
+            t = self._db.open_table("local_variable_nodes")
+            result_map = {}
+            loop = asyncio.get_running_loop()
+
+            async def fetch_batch(batch_ids):
+                in_clause = ", ".join(f"'{lid}'" for lid in batch_ids)
+
+                def q():
+                    return (
+                        t.search()
+                        .where(f"id IN ({in_clause}) AND ingest_status = 'merged'")
+                        .limit(len(batch_ids) + 100)
+                        .to_list()
+                    )
+
+                rows = await loop.run_in_executor(None, q)
+                return [row_to_local_variable(r) for r in rows]
+
+            sem = asyncio.Semaphore(concurrency)
+
+            async def bounded(batch_ids):
+                async with sem:
+                    return await fetch_batch(batch_ids)
+
+            batches = [local_ids[i : i + 500] for i in range(0, len(local_ids), 500)]
+            batch_results = await asyncio.gather(*[bounded(b) for b in batches])
+            for lvs in batch_results:
+                for lv in lvs:
+                    result_map[lv.id] = lv
+            return result_map
+
+    storage = _LanceStorage(db, limit)
 
     try:
-        stats = await compute_embeddings(
-            storage, bytehouse, config, access_key=cfg.embedding_access_key
+        # Build role_map first (before embedding, so we can tag each record)
+        pending_list = await storage.list_all_public_global_ids()
+        existing = bytehouse.get_existing_gcn_ids()
+        pending_gcn_ids = {g["id"] for g in pending_list if g["id"] not in existing}
+        logger.info(
+            "[%.0fs] Pending: %d (total: %d, existing: %d)",
+            time.time() - t0,
+            len(pending_gcn_ids),
+            len(pending_list),
+            len(existing),
         )
-        logger.info("Embedding complete: %s", stats)
+
+        if not pending_gcn_ids:
+            logger.info("Nothing to embed")
+            return {
+                "total": len(pending_list),
+                "computed": 0,
+                "skipped": len(existing),
+                "failed": 0,
+            }
+
+        role_map = _build_role_map(db, pending_gcn_ids, t0)
+
+        # Now compute embeddings
+        stats = await compute_embeddings(
+            storage,
+            bytehouse,
+            config,
+            access_key=cfg.embedding_access_key,
+            role_map=role_map,
+        )
+        logger.info("[%.0fs] Embedding complete: %s", time.time() - t0, stats)
 
         # Refresh per-package status
         loop = asyncio.get_running_loop()
         status = await loop.run_in_executor(None, bytehouse.refresh_embedding_status)
-        logger.info("Embedding status refreshed: %s", status)
+        logger.info("[%.0fs] Embedding status refreshed: %s", time.time() - t0, status)
 
         return stats
     finally:
@@ -97,26 +245,25 @@ async def run_embedding_pipeline(
 async def dry_run() -> dict:
     """Report embedding status without computing anything."""
     from gaia.lkm.storage.config import StorageConfig
-    from gaia.lkm.storage.lance_store import LanceContentStore
 
     cfg = StorageConfig()
-    lance = LanceContentStore(cfg.effective_lancedb_uri, storage_options=cfg.storage_options)
-    await lance.initialize()
+    db = lancedb.connect(cfg.effective_lancedb_uri, storage_options=cfg.storage_options)
 
     bytehouse, _ = _create_bytehouse(cfg)
     bytehouse.ensure_table()
 
     try:
-        ids = await lance.list_all_public_global_ids()
-        loop = asyncio.get_running_loop()
-        existing = await loop.run_in_executor(None, bytehouse.get_existing_gcn_ids)
+        t = db.open_table("global_variable_nodes")
+        total = t.count_rows()
+        public = t.search().where("visibility = 'public'").select(["id"]).limit(total).to_list()
+        existing = bytehouse.get_existing_gcn_ids()
 
         summary = bytehouse.get_embedding_status_summary()
 
         return {
-            "public_globals": len(ids),
+            "public_globals": len(public),
             "already_embedded": len(existing),
-            "pending": len(ids) - len(existing),
+            "pending": len(public) - len(existing),
             "packages_tracked": summary.get("total_packages", 0),
         }
     finally:
@@ -125,9 +272,7 @@ async def dry_run() -> dict:
 
 if __name__ == "__main__":
     import argparse
-    import json
     import os
-    import time
 
     _LOG_DIR = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "logs"
@@ -138,16 +283,17 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler(_LOG_FILE),
-        ],
+        handlers=[logging.StreamHandler(), logging.FileHandler(_LOG_FILE)],
         force=True,
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    logger.info("Log file: %s", _LOG_FILE)
 
     parser = argparse.ArgumentParser(description="Compute embeddings for pending variables")
     parser.add_argument("--dry-run", action="store_true", help="Report status without computing")
+    parser.add_argument(
+        "--limit", type=int, default=None, help="Only process first N pending (test)"
+    )
     args = parser.parse_args()
 
     async def main():
@@ -155,7 +301,7 @@ if __name__ == "__main__":
             stats = await dry_run()
             print(json.dumps(stats, indent=2))
         else:
-            stats = await run_embedding_pipeline()
+            stats = await run_embedding_pipeline(limit=args.limit)
             print(json.dumps(stats, indent=2))
 
     asyncio.run(main())

@@ -43,7 +43,7 @@ class TestEmbedder:
             mock_post.return_value = mock_response
             embedder = Embedder(config, access_key="test-key")
             await embedder.embed_batch(
-                [("gcn_1", "some text", "claim", "pkg1")], on_result, on_error
+                [("gcn_1", "some text", "claim", "pkg1", "conclusion")], on_result, on_error
             )
 
         assert len(results) == 1
@@ -68,7 +68,7 @@ class TestEmbedder:
             mock_post.return_value = mock_response
             embedder = Embedder(config, access_key="my-secret-key")
             await embedder.embed_batch(
-                [("gcn_1", "hello world", "claim", "pkg1")], on_result, on_error
+                [("gcn_1", "hello world", "claim", "pkg1", "conclusion")], on_result, on_error
             )
 
         mock_post.assert_called()
@@ -107,7 +107,7 @@ class TestEmbedder:
         with patch("httpx.AsyncClient.post", side_effect=flaky_post):
             embedder = Embedder(config, access_key="key")
             await embedder.embed_batch(
-                [("gcn_1", "retry test", "claim", "pkg1")], on_result, on_error
+                [("gcn_1", "retry test", "claim", "pkg1", "conclusion")], on_result, on_error
             )
 
         assert len(results) == 1
@@ -130,7 +130,7 @@ class TestEmbedder:
         with patch("httpx.AsyncClient.post", side_effect=always_fail):
             embedder = Embedder(config, access_key="key")
             await embedder.embed_batch(
-                [("gcn_1", "will fail", "claim", "pkg1")], on_result, on_error
+                [("gcn_1", "will fail", "claim", "pkg1", "conclusion")], on_result, on_error
             )
 
         assert len(errors) == 1
@@ -160,7 +160,7 @@ class TestComputeEmbeddings:
         bh = MagicMock()
         bh.get_existing_gcn_ids = MagicMock(return_value=set(existing_ids or []))
         bh.upsert_embeddings = MagicMock()
-        bh.TABLE = "node_embeddings_v2"
+        bh.TABLE = "gcn_embeddings"
         bh._client = MagicMock()
         bh._client.query.return_value.result_rows = [(0,)]
         return bh

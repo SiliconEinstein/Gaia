@@ -23,8 +23,7 @@ class ByteHouseEmbeddingStore:
     gcn_id performs an upsert (deduplication on primary key).
     """
 
-    TABLE = "node_embeddings_v3"
-    _LEGACY_TABLE = "node_embeddings"  # v1 without package_id/role
+    TABLE = "gcn_embeddings"
 
     _COLUMNS = ["gcn_id", "package_id", "content", "node_type", "role", "embedding", "source_id"]
 
@@ -66,7 +65,7 @@ class ByteHouseEmbeddingStore:
     # ── Table creation ──
 
     def ensure_table(self) -> None:
-        """Create node_embeddings_v2 table (with package_id column)."""
+        """Create node_embeddings table with package_id and role columns."""
         self._require_replication_root()
         table_fqn = f"{self._database}.{self.TABLE}"
         self._client.command(f"""
@@ -110,42 +109,6 @@ class ByteHouseEmbeddingStore:
         self.ensure_table()
         self.ensure_embedding_status_table()
         self.ensure_discovery_tables()
-
-    # ── Migration ──
-
-    def migrate_from_v1(self) -> int:
-        """Migrate data from node_embeddings (v1) to node_embeddings_v2.
-
-        Copies all rows with package_id=''. Returns number of rows migrated.
-        Safe to call multiple times (UNIQUE KEY deduplicates).
-        """
-        # Check if v1 table exists
-        tables = self._client.query("SHOW TABLES").result_rows
-        table_names = {r[0] for r in tables}
-        if self._LEGACY_TABLE not in table_names:
-            logger.info("No legacy table %s, skipping migration", self._LEGACY_TABLE)
-            return 0
-
-        v1_count = self._client.query(f"SELECT count() FROM {self._LEGACY_TABLE}").result_rows[0][0]
-
-        v2_count = self._client.query(f"SELECT count() FROM {self.TABLE}").result_rows[0][0]
-
-        if v2_count >= v1_count:
-            logger.info(
-                "v2 already has %d rows (v1 has %d), skipping migration", v2_count, v1_count
-            )
-            return 0
-
-        logger.info("Migrating %d rows from %s to %s...", v1_count, self._LEGACY_TABLE, self.TABLE)
-        self._client.command(f"""
-        INSERT INTO {self.TABLE} (gcn_id, package_id, content, node_type, role, embedding, source_id, created_at)
-        SELECT gcn_id, '' as package_id, content, node_type, '' as role, embedding, source_id, created_at
-        FROM {self._LEGACY_TABLE}
-        """)
-
-        new_count = self._client.query(f"SELECT count() FROM {self.TABLE}").result_rows[0][0]
-        logger.info("Migration complete: %d rows in v2", new_count)
-        return new_count
 
     # ── Embedding CRUD ──
 
@@ -193,7 +156,7 @@ class ByteHouseEmbeddingStore:
     # ── Embedding status tracking ──
 
     def refresh_embedding_status(self) -> dict:
-        """Refresh embedding_status from node_embeddings_v2.
+        """Refresh embedding_status from node_embeddings.
 
         Groups by package_id, counts embedded variables, writes to
         embedding_status table. Returns summary stats.
@@ -248,8 +211,8 @@ class ByteHouseEmbeddingStore:
 
     # ── Discovery results persistence ──
 
-    _RUNS_TABLE = "discovery_runs_v2"
-    _CLUSTERS_TABLE = "discovery_clusters_v2"
+    _RUNS_TABLE = "clustering_runs"
+    _CLUSTERS_TABLE = "clustering_results"
 
     def ensure_discovery_tables(self) -> None:
         """Create discovery_runs and discovery_clusters tables if not exist."""

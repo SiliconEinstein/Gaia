@@ -56,7 +56,7 @@ def test_ensure_table_executes_ddl(store):
     s.ensure_table()
     mock_client.command.assert_called_once()
     ddl = mock_client.command.call_args[0][0]
-    assert "node_embeddings" in ddl
+    assert "gcn_embeddings" in ddl
     assert "HaUniqueMergeTree" in ddl
 
 
@@ -69,7 +69,7 @@ def test_get_existing_gcn_ids(store):
     mock_client.query.assert_called_once()
     sql = mock_client.query.call_args[0][0]
     assert "gcn_id" in sql
-    assert "node_embeddings" in sql
+    assert "gcn_embeddings" in sql
 
 
 def test_upsert_embeddings(store):
@@ -140,8 +140,8 @@ def test_ensure_discovery_tables(store):
     s.ensure_discovery_tables()
     assert mock_client.command.call_count == 2
     ddls = [call[0][0] for call in mock_client.command.call_args_list]
-    assert any("discovery_runs" in d for d in ddls)
-    assert any("discovery_clusters" in d for d in ddls)
+    assert any("clustering_runs" in d for d in ddls)
+    assert any("clustering_results" in d for d in ddls)
 
 
 def test_save_discovery_result(store):

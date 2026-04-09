@@ -70,18 +70,18 @@ class Embedder:
 
     async def embed_batch(
         self,
-        items: list[tuple[str, str, str, str]],
+        items: list[tuple[str, str, str, str, str]],
         on_result,
         on_error,
     ) -> None:
         """Embed a batch using a fixed worker pool.
 
         Args:
-            items: List of (gcn_id, content, node_type, package_id).
+            items: List of (gcn_id, content, node_type, package_id, role).
             on_result: async callback(record_dict) for each success.
             on_error: async callback(gcn_id, exc) for each failure.
         """
-        queue: asyncio.Queue[tuple[str, str, str, str] | None] = asyncio.Queue()
+        queue: asyncio.Queue[tuple[str, str, str, str, str] | None] = asyncio.Queue()
 
         for item in items:
             queue.put_nowait(item)
@@ -93,7 +93,7 @@ class Embedder:
                 item = await queue.get()
                 if item is None:
                     return
-                gcn_id, content, node_type, package_id = item
+                gcn_id, content, node_type, package_id, role = item
                 try:
                     vector = await self._call_api(content)
                     await on_result(
@@ -102,6 +102,7 @@ class Embedder:
                             "package_id": package_id,
                             "content": content,
                             "node_type": node_type,
+                            "role": role,
                             "embedding": vector,
                             "source_id": self._config.embedding_provider,
                         }
@@ -119,10 +120,12 @@ class Embedder:
 async def _fetch_content_for_chunk(
     storage,
     chunk: list[dict],
-) -> list[tuple[str, str, str, str]]:
+    role_map: dict[str, str] | None = None,
+) -> list[tuple[str, str, str, str, str]]:
     """Fetch content for a chunk of pending globals.
 
-    Returns list of (gcn_id, content, node_type, package_id) for items with valid content.
+    Returns list of (gcn_id, content, node_type, package_id, role).
+    role is looked up in role_map; defaults to empty string if not found.
     """
     items: list[tuple[str, str, str, str]] = []  # (gcn_id, local_id, node_type, package_id)
     for meta in chunk:
@@ -141,10 +144,12 @@ async def _fetch_content_for_chunk(
     local_vars = await storage.get_local_variables_by_ids(unique_local_ids)
 
     work_items = []
+    role_lookup = role_map or {}
     for gcn_id, local_id, node_type, package_id in items:
         lv = local_vars.get(local_id)
         if lv and lv.content and len(lv.content.strip()) > 10:
-            work_items.append((gcn_id, lv.content, node_type, package_id))
+            role = role_lookup.get(gcn_id, "")
+            work_items.append((gcn_id, lv.content, node_type, package_id, role))
 
     return work_items
 
@@ -152,7 +157,7 @@ async def _fetch_content_for_chunk(
 async def _embed_and_write_chunk(
     embedder: Embedder,
     bytehouse,
-    work_items: list[tuple[str, str, str, str]],
+    work_items: list[tuple[str, str, str, str, str]],
     config: DiscoveryConfig,
 ) -> tuple[int, int]:
     """Embed a chunk using worker pool and stream-write to ByteHouse.
@@ -193,6 +198,7 @@ async def compute_embeddings(
     bytehouse,
     config: DiscoveryConfig,
     access_key: str,
+    role_map: dict[str, str] | None = None,
 ) -> dict:
     """Pipelined streaming embedding computation.
 
@@ -243,7 +249,7 @@ async def compute_embeddings(
     # Kick off prefetch for first chunk
     chunks = [pending[i * _CHUNK_SIZE : (i + 1) * _CHUNK_SIZE] for i in range(n_chunks)]
     next_prefetch: asyncio.Task | None = asyncio.create_task(
-        _fetch_content_for_chunk(storage, chunks[0])
+        _fetch_content_for_chunk(storage, chunks[0], role_map)
     )
 
     for chunk_idx in range(n_chunks):
@@ -255,7 +261,7 @@ async def compute_embeddings(
         # Start prefetching next chunk immediately
         if chunk_idx + 1 < n_chunks:
             next_prefetch = asyncio.create_task(
-                _fetch_content_for_chunk(storage, chunks[chunk_idx + 1])
+                _fetch_content_for_chunk(storage, chunks[chunk_idx + 1], role_map)
             )
         else:
             next_prefetch = None  # type: ignore[assignment]
