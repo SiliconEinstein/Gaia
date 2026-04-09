@@ -202,6 +202,10 @@ def _canonical_json_hash(payload: dict[str, Any]) -> str:
     return f"sha256:{hashlib.sha256(raw.encode()).hexdigest()}"
 
 
+def render_manifest_json(payload: dict[str, Any]) -> str:
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
 def _interface_hash(
     *,
     qid: str,
@@ -659,6 +663,5 @@ def write_compiled_artifacts(
         manifests_dir = gaia_dir / "manifests"
         manifests_dir.mkdir(exist_ok=True)
         for filename, payload in manifests.items():
-            rendered = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
-            (manifests_dir / filename).write_text(rendered)
+            (manifests_dir / filename).write_text(render_manifest_json(payload))
     return gaia_dir

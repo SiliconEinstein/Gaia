@@ -12,6 +12,7 @@ import typer
 
 from gaia.cli._packages import GaiaCliError, build_package_manifests, load_gaia_package
 from gaia.cli._packages import compile_loaded_package_artifact
+from gaia.cli._packages import render_manifest_json
 from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
 
@@ -108,12 +109,6 @@ def _render_deps_toml(deps: dict[str, dict[str, str]]) -> str:
             lines.append(f'"{name}" = "{deps[version][name]}"')
         lines.append("")
     return "\n".join(lines)
-
-
-def _render_manifest_json(payload: dict[str, object]) -> str:
-    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-
-
 def _build_pr_body(
     *,
     pypi_name: str,
@@ -297,7 +292,7 @@ def register_command(
     deps_payload = {version: deps}
     release_dir = f"packages/{package_name}/releases/{version}"
     release_files = {
-        f"{release_dir}/{filename}": _render_manifest_json(payload)
+        f"{release_dir}/{filename}": render_manifest_json(payload)
         for filename, payload in manifests.items()
     }
 
@@ -386,7 +381,7 @@ def register_command(
 
     release_path.mkdir(parents=True, exist_ok=False)
     for filename, payload in manifests.items():
-        (release_path / filename).write_text(_render_manifest_json(payload))
+        (release_path / filename).write_text(render_manifest_json(payload))
 
     try:
         _run(["git", "add", str(package_dir.relative_to(registry_path))], cwd=registry_path)
