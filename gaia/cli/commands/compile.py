@@ -76,9 +76,9 @@ def compile_command(
                     break
 
     if module_graphs or readme:
-        from gaia.cli.commands._readme import generate_readme
+        from gaia.cli.commands._detailed_reasoning import generate_detailed_reasoning
 
-        content = generate_readme(
+        content = generate_detailed_reasoning(
             ir, loaded.project_config, beliefs_data=beliefs_data, param_data=param_data
         )
         if module_graphs:

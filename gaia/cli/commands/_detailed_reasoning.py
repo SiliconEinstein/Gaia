@@ -1,4 +1,4 @@
-"""gaia compile --readme: generate README.md from compiled IR."""
+"""Generate docs/detailed-reasoning.md — per-module reasoning doc — from compiled IR."""
 
 from __future__ import annotations
 
@@ -632,13 +632,13 @@ def render_inference_results(
 # ── Top-level assembler ──
 
 
-def generate_readme(
+def generate_detailed_reasoning(
     ir: dict,
     pkg_metadata: dict,
     beliefs_data: dict | None = None,
     param_data: dict | None = None,
 ) -> str:
-    """Generate full README.md content from compiled IR and optional inference results."""
+    """Generate detailed-reasoning.md content from compiled IR and optional inference results."""
     beliefs: dict[str, float] | None = None
     priors: dict[str, float] | None = None
 
