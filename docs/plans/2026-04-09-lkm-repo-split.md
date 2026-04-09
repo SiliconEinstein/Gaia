@@ -80,6 +80,53 @@ SiliconEinstein/gaia-lkm    (new)
 
 **Action before migration:** Verify `gaia.lang`, `gaia.ir`, `gaia.bp` are cleanly installable as a package (no hidden cross-imports into `gaia.lkm`). This is a prerequisite gate.
 
+### Cross-Repo Doc References
+
+**Decision: Option B — pinned-tag GitHub URLs.** No docs site infrastructure in the initial split. Defer mkdocs/Sphinx to a later phase if doc volume justifies it.
+
+Rationale: Sphinx's `intersphinx` is the only tool that gives true build-time verification of cross-repo references, but it requires both sides to be Sphinx projects. mkdocs has no equivalent. Since markdown + external links is the lowest-friction path and doc volume is modest, we accept manual URL maintenance in exchange for zero infrastructure.
+
+**Conventions in `gaia-lkm` docs:**
+
+1. **Pin cross-repo links to the same tag as `gaia-lang` dependency.** If `pyproject.toml` has `gaia-lang==0.2.1`, all upstream doc URLs must use `...Gaia/blob/v0.2.1/...` (not `main`).
+
+2. **Use reference-style links at the top of each doc** to centralize URLs:
+   ```markdown
+   [gaia-ir]: https://github.com/SiliconEinstein/Gaia/tree/v0.2.1/docs/foundations/gaia-ir
+   [factor-nodes]: https://github.com/SiliconEinstein/Gaia/blob/v0.2.1/docs/foundations/gaia-ir/factor-nodes.md
+   [bp-potentials]: https://github.com/SiliconEinstein/Gaia/blob/v0.2.1/docs/foundations/bp/potentials.md
+
+   LKM stores [FactorNode instances][factor-nodes] in LanceDB...
+   ```
+
+3. **Central upstream index** at `gaia-lkm/docs/upstream-contract.md` listing every referenced upstream doc with its pinned URL and a one-line description. Single source of truth for "what contracts does LKM depend on." Upgrade flow edits this file + `pyproject.toml` in lockstep.
+
+4. **Bump script** `scripts/bump-gaia-lang.sh` does a simple sed replace across all docs when upgrading:
+   ```bash
+   #!/bin/bash
+   OLD=$1
+   NEW=$2
+   find docs -name '*.md' -exec sed -i '' "s|Gaia/blob/v${OLD}/|Gaia/blob/v${NEW}/|g" {} +
+   find docs -name '*.md' -exec sed -i '' "s|Gaia/tree/v${OLD}/|Gaia/tree/v${NEW}/|g" {} +
+   sed -i '' "s|gaia-lang==${OLD}|gaia-lang==${NEW}|g" pyproject.toml
+   ```
+
+5. **CI link checker** catches drift:
+   ```yaml
+   # .github/workflows/ci.yml
+   - name: Check doc links
+     run: npx markdown-link-check docs/**/*.md --config .linkcheck.json
+   ```
+   Config ignores rate-limited hosts and localhost.
+
+**Reverse direction (Gaia → gaia-lkm)**: Gaia rarely references LKM (LKM is a consumer, not a contract provider). When it does (e.g., ecosystem docs citing LKM as reference implementation), use `main` branch URLs — Gaia does not depend on LKM versions, so drift is acceptable.
+
+**Revisit criteria:** Switch to a docs site (mkdocs-material recommended) if any of these become true:
+- Cross-repo reference count exceeds ~30 (manual maintenance burden)
+- End users want unified search across both projects
+- Team wants versioned docs accessible without navigating raw GitHub
+- API reference (autodoc) becomes worth investing in
+
 ## Phased Execution
 
 ### Phase 0 — Prep (Week 0)
@@ -214,6 +261,7 @@ Alternative (heavier): use a tool like `github-migration-tool` to re-create issu
 ## Decision Log
 
 - [ ] Shared contract strategy: A / B / C (decided on ____ by ____)
+- [x] **Cross-repo doc references: Option B — pinned-tag GitHub URLs** (decided on 2026-04-09, defer docs site until volume justifies it)
 - [ ] Package registry: PyPI / internal / git+ URL (decided on ____ by ____)
 - [ ] Freeze window dates: ____ to ____
 - [ ] New repo name: `gaia-lkm` / other: ____
