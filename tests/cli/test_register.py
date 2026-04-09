@@ -254,9 +254,7 @@ def test_register_dry_run_emits_nonempty_release_manifests(tmp_path, monkeypatch
     bridges_manifest = json.loads(plan["files"][f"{release_dir}/bridges.json"])
 
     assert premises_manifest["premises"][0]["role"] == "local_hole"
-    assert premises_manifest["premises"][0]["required_by"] == [
-        "github:register_bridge::main_claim"
-    ]
+    assert premises_manifest["premises"][0]["required_by"] == ["github:register_bridge::main_claim"]
     assert holes_manifest["holes"][0]["qid"] == "github:register_bridge::local_premise"
     assert bridges_manifest["bridges"][0]["target_qid"] == "github:dep_bridge::missing_lemma"
     assert bridges_manifest["bridges"][0]["target_interface_hash"].startswith("sha256:")

@@ -109,6 +109,8 @@ def _render_deps_toml(deps: dict[str, dict[str, str]]) -> str:
             lines.append(f'"{name}" = "{deps[version][name]}"')
         lines.append("")
     return "\n".join(lines)
+
+
 def _build_pr_body(
     *,
     pypi_name: str,
