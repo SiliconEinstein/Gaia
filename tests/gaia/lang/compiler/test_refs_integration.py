@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
@@ -172,3 +173,142 @@ def test_compile_records_provenance_metadata(tmp_path: Path) -> None:
     provenance = gaia_meta.get("provenance", {})
     assert provenance.get("cited_refs") == ["Bell1964"]
     assert provenance.get("referenced_claims") == ["lemma_a"]
+
+
+# ---------------------------------------------------------------------------
+# §3.1 regression: imported foreign labels must resolve in the symbol table
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def two_package_setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Set up refs_dep_pkg (compiled) and return (dep_dir, main_dir, main_src) paths.
+
+    The dep package exposes ``foreign_lemma`` via ``__all__``.
+    The consumer package imports it and uses it as a deduction premise.
+
+    Uses ``refs_dep_pkg`` as the module name (not ``dep_pkg``) to avoid
+    collisions with other tests that also create a ``dep_pkg`` module.
+    """
+    # --- refs_dep_pkg ------------------------------------------------------
+    dep_dir = tmp_path / "refs_dep_pkg_root"
+    dep_dir.mkdir()
+    (dep_dir / "pyproject.toml").write_text(
+        '[project]\nname = "refs-dep-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    dep_src = dep_dir / "src" / "refs_dep_pkg"
+    dep_src.mkdir(parents=True)
+    (dep_src / "__init__.py").write_text(
+        "from gaia.lang import claim\n\n"
+        'foreign_lemma = claim("A foundational lemma from a dependency package.")\n'
+        '__all__ = ["foreign_lemma"]\n'
+    )
+    monkeypatch.syspath_prepend(str(dep_dir / "src"))
+
+    # Compile refs_dep_pkg so its exports manifest is available.
+    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    assert dep_compile.exit_code == 0, f"refs_dep_pkg compile failed:\n{dep_compile.output}"
+
+    # --- refs_main_pkg -----------------------------------------------------
+    main_dir = tmp_path / "refs_main_pkg"
+    main_dir.mkdir()
+    (main_dir / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "refs-main-pkg-gaia"\n'
+        'version = "1.0.0"\n'
+        'dependencies = ["refs-dep-pkg-gaia>=1.0.0"]\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    main_src = main_dir / "refs_main_pkg"
+    main_src.mkdir()
+
+    return dep_dir, main_dir, main_src
+
+
+def test_imported_foreign_label_resolves_in_strict_form(
+    two_package_setup: tuple,
+) -> None:
+    """Spec §3.1 regression: foreign label imported into the compile closure
+    must resolve in strict ``[@foreign_lemma]`` form.
+
+    If someone later narrows label_to_id to local-only labels, the strict
+    form will raise an "unknown reference key" error — this test is the
+    tripwire that catches that regression.
+    """
+    _dep_dir, main_dir, main_src = two_package_setup
+    (main_src / "__init__.py").write_text(
+        "from gaia.lang import claim, deduction\n"
+        "from refs_dep_pkg import foreign_lemma\n\n"
+        "main_result = claim(\n"
+        '    "Main result. This follows from [@foreign_lemma]."\n'
+        ")\n"
+        "deduction(premises=[foreign_lemma], conclusion=main_result)\n"
+        '__all__ = ["main_result"]\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(main_dir)])
+    assert result.exit_code == 0, (
+        f"Strict form [@foreign_lemma] failed to compile — "
+        f"the symbol table may not include the full closure.\n{result.output}"
+    )
+
+    ir_path = main_dir / ".gaia" / "ir.json"
+    assert ir_path.exists()
+    ir = json.loads(ir_path.read_text())
+
+    main_nodes = [k for k in ir["knowledges"] if k["id"].endswith("::main_result")]
+    assert len(main_nodes) == 1
+    main_node = main_nodes[0]
+
+    provenance = main_node.get("metadata", {}).get("gaia", {}).get("provenance", {})
+    assert "foreign_lemma" in provenance.get("referenced_claims", []), (
+        f"Expected 'foreign_lemma' in referenced_claims provenance metadata, got: {provenance}"
+    )
+
+
+def test_imported_foreign_label_resolves_in_opportunistic_form(
+    two_package_setup: tuple,
+) -> None:
+    """Spec §3.1 regression: foreign label imported into the compile closure
+    must also resolve in opportunistic ``@foreign_lemma`` form (bare @-ref in
+    a strategy reason).
+
+    In opportunistic form an unknown key becomes a literal, so if the symbol
+    table is missing the foreign label the reference silently disappears from
+    provenance — no error, but wrong metadata. This test asserts the label IS
+    present in provenance (i.e. it was resolved, not treated as a literal miss).
+    """
+    _dep_dir, main_dir, main_src = two_package_setup
+    (main_src / "__init__.py").write_text(
+        "from gaia.lang import claim, deduction\n"
+        "from refs_dep_pkg import foreign_lemma\n\n"
+        'main_result = claim("Main result.")\n'
+        "deduction(\n"
+        "    premises=[foreign_lemma],\n"
+        "    conclusion=main_result,\n"
+        '    reason="Follows directly from @foreign_lemma.",\n'
+        ")\n"
+        '__all__ = ["main_result"]\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(main_dir)])
+    assert result.exit_code == 0, (
+        f"Opportunistic form @foreign_lemma failed to compile.\n{result.output}"
+    )
+
+    ir_path = main_dir / ".gaia" / "ir.json"
+    assert ir_path.exists()
+    ir = json.loads(ir_path.read_text())
+
+    main_nodes = [k for k in ir["knowledges"] if k["id"].endswith("::main_result")]
+    assert len(main_nodes) == 1
+    main_node = main_nodes[0]
+
+    provenance = main_node.get("metadata", {}).get("gaia", {}).get("provenance", {})
+    assert "foreign_lemma" in provenance.get("referenced_claims", []), (
+        "Expected 'foreign_lemma' in referenced_claims provenance metadata — "
+        "opportunistic @-ref was not resolved (treated as literal miss, "
+        "which means the foreign label is not in the symbol table). "
+        f"Got: {provenance}"
+    )
