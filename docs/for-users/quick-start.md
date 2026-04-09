@@ -169,3 +169,4 @@ python cli/main.py search --id "reasoning.equal_fall_time"
 
 - [Language Reference](language-reference.md) — full cheat sheet for all declaration types, labels, cross-package references
 - [CLI Commands](cli-commands.md) — complete reference for all `gaia` commands and options
+- [Hole And Bridge Tutorial](hole-bridge-tutorial.md) — minimal end-to-end example for automatic `local_hole` discovery and downstream `fills`

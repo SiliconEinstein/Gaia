@@ -12,7 +12,7 @@ Start with [What is Gaia?](for-visitors/what-is-gaia.md), then see a [Worked Exa
 ### I want to use Gaia to author knowledge packages
 > You're a researcher or research agent using the Gaia CLI.
 
-Start with the [Quick Start](for-users/quick-start.md), then read the [Language Reference](for-users/language-reference.md) and [CLI Commands](for-users/cli-commands.md).
+Start with the [Quick Start](for-users/quick-start.md), then read the [Hole And Bridge Tutorial](for-users/hole-bridge-tutorial.md), [Language Reference](for-users/language-reference.md), and [CLI Commands](for-users/cli-commands.md).
 
 ### I want to develop Gaia
 > You're a developer working on the codebase.
