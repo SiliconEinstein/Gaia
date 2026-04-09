@@ -312,3 +312,68 @@ def test_imported_foreign_label_resolves_in_opportunistic_form(
         "which means the foreign label is not in the symbol table). "
         f"Got: {provenance}"
     )
+
+
+def test_consumer_compile_tolerates_dep_content_with_unknown_refs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression for Codex review P1: consumer must not re-validate the
+    content of foreign (imported) knowledge nodes against its own symbol
+    table.
+
+    Scenario:
+      - dep_pkg has a claim whose content contains ``[@Bell1964]``, a
+        reference that is valid in the dep's own references.json
+      - consumer_pkg imports that claim and uses it as a premise, but has
+        no references.json of its own
+      - consumer_pkg should compile successfully — the dep's content is
+        the dep author's responsibility, not the consumer's
+    """
+    # --- dep_pkg with a citation in its own content -----------------------
+    dep_dir = tmp_path / "refs_dep_p1_root"
+    dep_dir.mkdir()
+    (dep_dir / "pyproject.toml").write_text(
+        '[project]\nname = "refs-dep-p1-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    (dep_dir / "references.json").write_text(
+        json.dumps({"Bell1964": {"type": "article-journal", "title": "On EPR"}})
+    )
+    dep_src = dep_dir / "src" / "refs_dep_p1"
+    dep_src.mkdir(parents=True)
+    (dep_src / "__init__.py").write_text(
+        "from gaia.lang import claim\n\n"
+        'foreign_lemma = claim("An important lemma [@Bell1964].")\n'
+        '__all__ = ["foreign_lemma"]\n'
+    )
+    monkeypatch.syspath_prepend(str(dep_dir / "src"))
+
+    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    assert dep_compile.exit_code == 0, f"dep compile failed:\n{dep_compile.output}"
+
+    # --- consumer_pkg WITHOUT references.json -----------------------------
+    main_dir = tmp_path / "refs_consumer_p1"
+    main_dir.mkdir()
+    (main_dir / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "refs-consumer-p1-gaia"\n'
+        'version = "1.0.0"\n'
+        'dependencies = ["refs-dep-p1-gaia>=1.0.0"]\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    main_src = main_dir / "refs_consumer_p1"
+    main_src.mkdir()
+    (main_src / "__init__.py").write_text(
+        "from gaia.lang import claim, deduction\n"
+        "from refs_dep_p1 import foreign_lemma\n\n"
+        'main_result = claim("Main result.")\n'
+        "deduction(premises=[foreign_lemma], conclusion=main_result)\n"
+        '__all__ = ["main_result"]\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(main_dir)])
+    assert result.exit_code == 0, (
+        f"Consumer compile failed because it re-validated the dep's content "
+        f"against its own (empty) references.json. Foreign node content is "
+        f"the dep author's responsibility, not the consumer's.\n{result.output}"
+    )

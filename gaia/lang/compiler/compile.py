@@ -443,8 +443,13 @@ def compile_package_artifact(
     for s in pkg.strategies:
         _scan_strategy_refs(s)
 
+    # Only scan content of LOCAL knowledge nodes. Foreign (imported) nodes
+    # were already validated when the dependency was compiled; re-validating
+    # them against the consumer's symbol table would break cross-package
+    # imports the moment a dep adopts the new reference syntax.
     for k in knowledge_nodes:
-        _accumulate(k, k.content)
+        if _is_local(k, pkg):
+            _accumulate(k, k.content)
 
     # Write provenance metadata onto IR knowledge nodes.
     for k in knowledge_nodes:
