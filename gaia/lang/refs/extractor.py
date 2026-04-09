@@ -35,22 +35,22 @@ _BARE_AT_RE = re.compile(
     re.VERBOSE,
 )
 
-# Pandoc bracket group: starts with `[`, must contain at least one `@key`,
-# cannot contain nested brackets.
+# Pandoc bracket group: starts with `[`, must contain at least one unescaped
+# `@key`, cannot contain nested brackets.
 _BRACKET_GROUP_RE = re.compile(
     r"""
     (?<!\\)              # opening `[` not escaped
     \[
     ([^\[\]]*            # group body, no nested brackets
-     @[A-Za-z0-9_]       # must contain at least one @key start
+     (?<!\\)@[A-Za-z0-9_]   # at least one unescaped @key start
      [^\[\]]*)
     \]
     """,
     re.VERBOSE,
 )
 
-# Inside a bracket group, extract all @keys.
-_INNER_KEY_RE = re.compile(rf"@({_KEY})")
+# Inside a bracket group, extract all unescaped @keys. A `\@key` is a literal.
+_INNER_KEY_RE = re.compile(rf"(?<!\\)@({_KEY})")
 
 
 def extract(text: str) -> ExtractionResult:

@@ -130,3 +130,28 @@ def test_extract_bracket_no_at_not_group() -> None:
     result = extract("The range is [1, 10] here.")
     assert result.groups == ()
     assert result.markers == ()
+
+
+def test_extract_escaped_at_inside_brackets() -> None:
+    """Regression for Codex review P2: `\\@` escape must work inside
+    bracketed groups too, not just bare form. This lets authors write
+    literal `[@key]` examples in documentation without triggering the
+    strict-form error."""
+    result = extract("Literal example: [\\@Bell1964] is a strict ref.")
+    assert result.groups == ()
+    assert result.markers == ()
+
+
+def test_extract_mixed_escaped_and_real_inside_brackets() -> None:
+    """Only unescaped keys are extracted from a group."""
+    result = extract("[see @Bell1964 and \\@footnote for details]")
+    assert len(result.groups) == 1
+    assert len(result.markers) == 1
+    assert result.markers[0].key == "Bell1964"
+    assert result.markers[0].strict is True
+
+
+def test_extract_escaped_bracket_opens_not_group() -> None:
+    """An escaped opening bracket prevents group matching."""
+    result = extract("Literal \\[@Bell1964] here.")
+    assert result.groups == ()
