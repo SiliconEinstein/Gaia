@@ -133,3 +133,63 @@ def test_load_software_type(tmp_path: Path) -> None:
     )
     refs = load_references(path)
     assert refs["NumPy"]["type"] == "software"
+
+
+# ---------------------------------------------------------------------------
+# Codex review P3: citation keys must match the Pandoc @-syntax grammar so
+# that they are actually reachable by the extractor. Keys with spaces or
+# trailing punctuation load silently today but can never be cited.
+# ---------------------------------------------------------------------------
+
+
+def test_load_rejects_key_with_whitespace(tmp_path: Path) -> None:
+    path = tmp_path / "references.json"
+    path.write_text(json.dumps({"Bell 1964": {"type": "article-journal", "title": "On EPR"}}))
+    with pytest.raises(ReferenceError) as exc:
+        load_references(path)
+    assert "Bell 1964" in str(exc.value)
+
+
+def test_load_rejects_key_ending_with_period(tmp_path: Path) -> None:
+    path = tmp_path / "references.json"
+    path.write_text(json.dumps({"Bell1964.": {"type": "article-journal", "title": "On EPR"}}))
+    with pytest.raises(ReferenceError) as exc:
+        load_references(path)
+    assert "Bell1964." in str(exc.value)
+
+
+def test_load_rejects_key_ending_with_exclamation(tmp_path: Path) -> None:
+    path = tmp_path / "references.json"
+    path.write_text(json.dumps({"Bell1964!": {"type": "article-journal", "title": "On EPR"}}))
+    with pytest.raises(ReferenceError) as exc:
+        load_references(path)
+    assert "Bell1964!" in str(exc.value)
+
+
+def test_load_rejects_empty_key(tmp_path: Path) -> None:
+    path = tmp_path / "references.json"
+    path.write_text(json.dumps({"": {"type": "article-journal", "title": "X"}}))
+    with pytest.raises(ReferenceError):
+        load_references(path)
+
+
+def test_load_accepts_valid_pandoc_keys(tmp_path: Path) -> None:
+    """Keys that fully match the Pandoc @-syntax grammar should all load."""
+    path = tmp_path / "references.json"
+    path.write_text(
+        json.dumps(
+            {
+                "Bell1964": {"type": "article-journal", "title": "A"},
+                "smith_2004": {"type": "article-journal", "title": "B"},
+                "arxiv:2401.12345": {"type": "article", "title": "C"},
+                "doi:10.1103/PhysRev.47.777": {
+                    "type": "article-journal",
+                    "title": "D",
+                },
+                "X": {"type": "book", "title": "E"},  # single char
+                "EPR1935": {"type": "article-journal", "title": "F"},
+            }
+        )
+    )
+    refs = load_references(path)
+    assert len(refs) == 6

@@ -26,6 +26,11 @@ _KEY = (
     r"|[A-Za-z0-9_])"
 )
 
+# Anchored form of _KEY, for validating standalone identifiers
+# (e.g. top-level citation keys in references.json). The loader imports this
+# to ensure every declared key is actually reachable via the @-syntax.
+CITATION_KEY_RE = re.compile(rf"^{_KEY}$")
+
 _BARE_AT_RE = re.compile(
     rf"""
     (?<!\\)              # not preceded by a backslash (escape)

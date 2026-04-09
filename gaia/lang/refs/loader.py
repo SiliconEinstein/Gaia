@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from gaia.lang.refs.errors import ReferenceError
+from gaia.lang.refs.extractor import CITATION_KEY_RE
 
 # CSL 1.0.2 type allowlist.
 # Source: https://github.com/citation-style-language/schema
@@ -107,10 +108,26 @@ def _validate_entry(key: str, entry: Any, *, location: str) -> None:
     """Validate a single CSL-JSON entry.
 
     Minimum requirements (spec §4.5):
+      - key must match the Pandoc @-syntax grammar (so the extractor can
+        actually reach it via `[@key]` or bare `@key`)
       - must be a dict
       - must have `type` matching CSL 1.0.2 allowlist
       - must have `title`
     """
+    # Key grammar check — without this, entries like "Bell 1964" or
+    # "Bell1964." would load silently but never be reachable by the
+    # extractor, producing confusing unknown-key errors downstream.
+    if not CITATION_KEY_RE.match(key):
+        raise ReferenceError(
+            f"reference key '{key}' cannot be cited via the @-syntax. "
+            f"citation keys must start and end with a letter/digit/underscore "
+            f"and may only contain letters, digits, underscores, and the "
+            f"middle punctuation characters ':.#$%&+?<>~/-'. "
+            f"rename this entry (e.g. replace spaces with underscores and "
+            f"strip trailing punctuation).",
+            location=location,
+        )
+
     if not isinstance(entry, dict):
         raise ReferenceError(
             f"reference entry '{key}' must be an object, got {type(entry).__name__}",
