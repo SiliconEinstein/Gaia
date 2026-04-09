@@ -10,11 +10,13 @@ from gaia.lang import (
     deduction,
     elimination,
     extrapolation,
+    fills,
     induction,
     mathematical_induction,
     noisy_and,
     setting,
 )
+from gaia.lang.runtime.package import CollectedPackage
 
 
 def test_noisy_and_explicit():
@@ -127,6 +129,94 @@ def test_extrapolation():
     s = extrapolation(source=source, target=target, continuity=cont)
     assert s.type == "extrapolation"
     assert s.formal_expr is None
+
+
+def test_fills_exact_defaults_to_deduction():
+    source = claim("Source theorem.")
+    target = claim("Target premise.")
+    s = fills(source=source, target=target, reason="Source proves target.")
+    assert s.type == "deduction"
+    assert s.premises == [source]
+    assert s.conclusion is target
+    assert s.metadata["gaia"]["relation"] == {
+        "type": "fills",
+        "strength": "exact",
+        "mode": "deduction",
+    }
+
+
+def test_fills_partial_defaults_to_infer():
+    source = claim("Source theorem.")
+    target = claim("Target premise.")
+    s = fills(source=source, target=target, strength="partial")
+    assert s.type == "infer"
+    assert s.metadata["gaia"]["relation"]["strength"] == "partial"
+    assert s.metadata["gaia"]["relation"]["mode"] == "infer"
+
+
+def test_fills_conditional_defaults_to_infer():
+    source = claim("Source theorem.")
+    target = claim("Target premise.")
+    s = fills(source=source, target=target, strength="conditional")
+    assert s.type == "infer"
+    assert s.metadata["gaia"]["relation"]["strength"] == "conditional"
+    assert s.metadata["gaia"]["relation"]["mode"] == "infer"
+
+
+def test_fills_explicit_mode_overrides_strength_default():
+    source = claim("Source theorem.")
+    target = claim("Target premise.")
+    s = fills(source=source, target=target, strength="partial", mode="deduction")
+    assert s.type == "deduction"
+    assert s.metadata["gaia"]["relation"] == {
+        "type": "fills",
+        "strength": "partial",
+        "mode": "deduction",
+    }
+
+
+def test_fills_rejects_non_claim_source():
+    source = setting("Background.")
+    target = claim("Target premise.")
+    with pytest.raises(ValueError, match="source.type == 'claim'"):
+        fills(source=source, target=target)
+
+
+def test_fills_rejects_non_claim_target():
+    source = claim("Source theorem.")
+    target = setting("Background.")
+    with pytest.raises(ValueError, match="target.type == 'claim'"):
+        fills(source=source, target=target)
+
+
+def test_fills_rejects_invalid_mode():
+    source = claim("Source theorem.")
+    target = claim("Target premise.")
+    with pytest.raises(ValueError, match="mode must be one of"):
+        fills(source=source, target=target, mode="maybe")  # type: ignore[arg-type]
+
+
+def test_fills_rejects_invalid_strength():
+    source = claim("Source theorem.")
+    target = claim("Target premise.")
+    with pytest.raises(ValueError, match="strength must be one of"):
+        fills(source=source, target=target, strength="weak")  # type: ignore[arg-type]
+
+
+def test_fills_does_not_mutate_foreign_target_strategy():
+    foreign_pkg = CollectedPackage("foreign_pkg", namespace="github", version="1.0.0")
+    with foreign_pkg:
+        foreign_target = claim("Foreign target.")
+        foreign_target.label = "foreign_target"
+
+    local_pkg = CollectedPackage("local_pkg", namespace="github", version="1.0.0")
+    with local_pkg:
+        local_source = claim("Local theorem.")
+        local_source.label = "local_source"
+        bridge = fills(source=local_source, target=foreign_target)
+
+    assert bridge.conclusion is foreign_target
+    assert foreign_target.strategy is None
 
 
 def test_elimination():

@@ -59,3 +59,4 @@ def test_public_api_does_not_export_package():
     assert "case_analysis" in gaia_lang_exports
     assert "mathematical_induction" in gaia_lang_exports
     assert "composite" in gaia_lang_exports
+    assert "fills" in gaia_lang_exports

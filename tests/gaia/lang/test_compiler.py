@@ -13,6 +13,7 @@ from gaia.lang import (
     composite,
     abduction,
     contradiction,
+    fills,
     induction,
 )
 from gaia.lang.compiler.compile import (
@@ -259,6 +260,30 @@ def test_compile_exported_labels():
     by_label = {k.label: k for k in result.graph.knowledges}
     assert by_label["a"].exported is False
     assert by_label["b"].exported is True
+
+
+def test_compile_fills_preserves_relation_metadata_and_foreign_target():
+    foreign_pkg = CollectedPackage("dep_pkg", namespace="github", version="1.4.0")
+    with foreign_pkg:
+        target = claim("Missing premise.")
+        target.label = "target"
+
+    pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
+    with pkg:
+        result = claim("B theorem.")
+        result.label = "result"
+        fills(source=result, target=target, strength="conditional", mode="infer")
+
+    compiled = compile_package_artifact(pkg)
+    strat = compiled.graph.strategies[0]
+    assert strat.type == "infer"
+    assert strat.premises == ["github:test_pkg::result"]
+    assert strat.conclusion == "github:dep_pkg::target"
+    assert strat.metadata["gaia"]["relation"] == {
+        "type": "fills",
+        "strength": "conditional",
+        "mode": "infer",
+    }
 
 
 def test_compile_title_preserved():
