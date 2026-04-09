@@ -277,7 +277,9 @@ def _locate_dependency_manifest_root(import_name: str) -> Path | None:
     return None
 
 
-def _validate_dependency_manifest_freshness(import_name: str, root: Path, stored_ir_hash: str) -> None:
+def _validate_dependency_manifest_freshness(
+    import_name: str, root: Path, stored_ir_hash: str
+) -> None:
     pyproject = root / "pyproject.toml"
     if not pyproject.exists():
         return
@@ -351,7 +353,9 @@ def _relation_id(
 def _resolve_fills_relations(loaded: LoadedGaiaPackage, compiled) -> list[dict[str, Any]]:
     dependency_specs = _parse_gaia_dependencies(loaded.project_config)
     local_package = loaded.package
-    knowledge_by_qid = {knowledge.id: knowledge for knowledge in compiled.graph.knowledges if knowledge.id}
+    knowledge_by_qid = {
+        knowledge.id: knowledge for knowledge in compiled.graph.knowledges if knowledge.id
+    }
     dependency_manifest_cache: dict[str, dict[str, Any]] = {}
     relations: list[dict[str, Any]] = []
     seen_relation_keys: set[tuple[str, str, str]] = set()
@@ -361,7 +365,9 @@ def _resolve_fills_relations(loaded: LoadedGaiaPackage, compiled) -> list[dict[s
         if relation.get("type") != "fills":
             continue
         if len(strategy.premises) != 1 or strategy.conclusion is None:
-            raise GaiaCliError("Error: fills() strategies must have exactly one source and one target.")
+            raise GaiaCliError(
+                "Error: fills() strategies must have exactly one source and one target."
+            )
 
         source = strategy.premises[0]
         target = strategy.conclusion
@@ -500,7 +506,9 @@ def build_package_manifests(loaded: LoadedGaiaPackage, compiled) -> dict[str, di
     graph = compiled.graph
     knowledge_by_qid = {knowledge.id: knowledge for knowledge in graph.knowledges if knowledge.id}
     exported_qids = {
-        knowledge.id for knowledge in graph.knowledges if knowledge.id is not None and knowledge.exported
+        knowledge.id
+        for knowledge in graph.knowledges
+        if knowledge.id is not None and knowledge.exported
     }
     exported_claim_qids = {
         knowledge.id
@@ -547,7 +555,9 @@ def build_package_manifests(loaded: LoadedGaiaPackage, compiled) -> dict[str, di
                 if premise.type != "claim":
                     continue
                 premise_id = id(premise)
-                if premise_id in local_knowledge_ids and local_supports_by_conclusion.get(premise_id):
+                if premise_id in local_knowledge_ids and local_supports_by_conclusion.get(
+                    premise_id
+                ):
                     if premise_id in visited_supported_claims:
                         continue
                     visited_supported_claims.add(premise_id)
@@ -620,11 +630,7 @@ def build_package_manifests(loaded: LoadedGaiaPackage, compiled) -> dict[str, di
         premises.append(entry)
 
     holes = [
-        {
-            key: value
-            for key, value in premise.items()
-            if key != "role" and key != "exported"
-        }
+        {key: value for key, value in premise.items() if key != "role" and key != "exported"}
         for premise in premises
         if premise["role"] == "local_hole"
     ]
