@@ -92,11 +92,25 @@ def render_command(
         raise typer.Exit(1)
 
     # ── Load review sidecar (optional for --target docs; required for --target github) ──
+    # Propagation rules for review-loading failures (ambiguous candidates,
+    # unknown `--review NAME`, broken review module imports):
+    #   - explicit `--review NAME` → always hard error (user asked specifically)
+    #   - `--target github` → always hard error (site without beliefs is misleading)
+    #   - otherwise (`--target docs` / `--target all` in auto-select mode) →
+    #     warn and fall back to no-beliefs rendering, so accumulated alternate
+    #     or broken sidecars don't block the IR-only authoring workflow
     try:
         loaded_review = load_gaia_review(loaded, review_name=review)
     except GaiaCliError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        if review is not None or target == RenderTarget.github:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(1)
+        typer.echo(f"Warning: could not load review sidecar: {exc}")
+        typer.echo(
+            "Warning: falling back to no-beliefs rendering. "
+            "Pass `--review <name>` to select a specific sidecar."
+        )
+        loaded_review = None
 
     # ── Load inference results if available ──
     # Both beliefs.json and parameterization.json are optional at load time,

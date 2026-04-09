@@ -251,19 +251,94 @@ def _write_second_review(pkg_dir, package_name: str, review_name: str) -> None:
     )
 
 
-def test_render_fails_when_multiple_reviews_without_flag(tmp_path):
-    """Two review sidecars and no --review → error listing candidates."""
-    pkg_dir = _prepare_inferred_package(tmp_path, name="multi_review")
-    _write_second_review(pkg_dir, "multi_review", "alt_review")
-    # Run infer for the second review so both have beliefs on disk
+def test_render_target_all_degrades_when_multiple_reviews(tmp_path):
+    """Two review sidecars + no --review + default target → docs rendered, github skipped.
+
+    Accumulating an alternate/experimental review sidecar must not block the
+    IR-only authoring workflow. Docs should still render from the compiled IR,
+    with warnings pointing the user at `--review <name>` to unlock github.
+    """
+    pkg_dir = _prepare_inferred_package(tmp_path, name="multi_review_all")
+    _write_second_review(pkg_dir, "multi_review_all", "alt_review")
     alt_infer = runner.invoke(app, ["infer", str(pkg_dir), "--review", "alt_review"])
     assert alt_infer.exit_code == 0, alt_infer.output
 
     result = runner.invoke(app, ["render", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
+    assert not (pkg_dir / ".github-output").exists()
+    assert "multiple review sidecars" in result.output
+    assert "--review <name>" in result.output
+
+
+def test_render_target_docs_degrades_when_multiple_reviews(tmp_path):
+    """Explicit --target docs + multiple reviews + no --review → warn and render."""
+    pkg_dir = _prepare_inferred_package(tmp_path, name="multi_review_docs")
+    _write_second_review(pkg_dir, "multi_review_docs", "alt_review")
+    alt_infer = runner.invoke(app, ["infer", str(pkg_dir), "--review", "alt_review"])
+    assert alt_infer.exit_code == 0, alt_infer.output
+
+    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
+    assert result.exit_code == 0, result.output
+    assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
+    assert "multiple review sidecars" in result.output
+
+
+def test_render_target_github_fails_when_multiple_reviews(tmp_path):
+    """Explicit --target github + multiple reviews + no --review → hard error."""
+    pkg_dir = _prepare_inferred_package(tmp_path, name="multi_review_gh")
+    _write_second_review(pkg_dir, "multi_review_gh", "alt_review")
+    alt_infer = runner.invoke(app, ["infer", str(pkg_dir), "--review", "alt_review"])
+    assert alt_infer.exit_code == 0, alt_infer.output
+
+    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "github"])
     assert result.exit_code != 0
     assert "multiple review sidecars" in result.output
-    assert "self_review" in result.output
-    assert "alt_review" in result.output
+
+
+def test_render_target_docs_degrades_when_review_broken(tmp_path):
+    """Broken review module (syntax error) → docs still renders with a warning.
+
+    A malformed review.py must not block the IR-only docs workflow — render
+    should fall back to no-beliefs rendering when the review module can't be
+    imported. This is the second half of the ``--target docs`` contract.
+    """
+    pkg_dir = tmp_path / "broken_review_docs"
+    _write_base_package(pkg_dir, name="broken_review_docs")
+    _write_minimal_source(pkg_dir, "broken_review_docs")
+
+    # Write a review that will fail to import cleanly (syntax error)
+    reviews_dir = pkg_dir / "broken_review_docs" / "reviews"
+    reviews_dir.mkdir()
+    (reviews_dir / "broken.py").write_text("this is not valid python !!!\n")
+
+    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
+
+    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
+    assert result.exit_code == 0, result.output
+    assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
+    assert "could not load review sidecar" in result.output
+
+
+def test_render_explicit_review_errors_when_unknown(tmp_path):
+    """`--review NAME` with unknown name → always hard error, even for --target docs.
+
+    When the user passes an explicit `--review` flag they are making a
+    specific request; silently ignoring it and rendering without beliefs
+    would be surprising and unsafe.
+    """
+    pkg_dir = _prepare_inferred_package(tmp_path, name="unknown_review")
+
+    result = runner.invoke(
+        app, ["render", str(pkg_dir), "--target", "docs", "--review", "does_not_exist"]
+    )
+    assert result.exit_code != 0
+    assert "unknown review sidecar" in result.output
+    # Docs should NOT be regenerated since the user's explicit request failed
+    # (the file may exist from the _prepare_inferred_package setup... actually
+    # _prepare_inferred_package does NOT run render, so the docs file should
+    # not exist at all)
+    assert not (pkg_dir / "docs" / "detailed-reasoning.md").exists()
 
 
 def test_render_selects_named_review(tmp_path):

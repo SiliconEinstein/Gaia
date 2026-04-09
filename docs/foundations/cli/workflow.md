@@ -190,7 +190,8 @@ gaia render [PATH] [--review NAME] [--target docs|github|all]
   `beliefs.json` and `parameterization.json` are available they are loaded and
   used to enrich the output; otherwise a warning is emitted and the docs are
   written without belief values. This is the author-facing workflow — useful
-  during iteration on DSL code before a review sidecar exists.
+  during iteration on DSL code before a review sidecar exists, or when the
+  package has accumulated alternate/broken review sidecars.
 - `--target github`: strictly requires a review sidecar plus a matching
   `beliefs.json`. Missing or stale inference results are hard errors. This is
   the external-presentation workflow — a published site without belief values
@@ -198,6 +199,16 @@ gaia render [PATH] [--review NAME] [--target docs|github|all]
 - `--target all` (default): always renders docs, and adds the GitHub target
   when inference results are available. When beliefs are missing, it degrades
   to docs-only with a warning rather than failing.
+
+**Review sidecar load failures** (ambiguous candidates with no `--review`,
+unknown `--review NAME`, broken review module imports) propagate as follows:
+
+- Explicit `--review NAME` → always a hard error. An explicit request deserves
+  an explicit failure.
+- `--target github` → always a hard error, even in auto-select mode.
+- `--target docs` / `--target all` in auto-select mode → warn and fall back to
+  no-beliefs rendering. Accumulated experimental sidecars or a temporarily
+  broken review module must not block the IR-only authoring workflow.
 
 **What it does:**
 
