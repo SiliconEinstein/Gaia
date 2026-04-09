@@ -180,8 +180,13 @@ def compile_loaded_package(loaded: LoadedGaiaPackage) -> dict[str, Any]:
 def compile_loaded_package_artifact(loaded: LoadedGaiaPackage):
     """Compile an already loaded Gaia package to IR plus runtime mappings."""
     from gaia.lang.compiler import compile_package_artifact
+    from gaia.lang.refs import ReferenceError, load_references
 
-    return compile_package_artifact(loaded.package)
+    try:
+        references = load_references(loaded.pkg_path / "references.json")
+        return compile_package_artifact(loaded.package, references=references)
+    except ReferenceError as e:
+        raise GaiaCliError(str(e)) from e
 
 
 def _manifest_package_name(loaded: LoadedGaiaPackage) -> str:

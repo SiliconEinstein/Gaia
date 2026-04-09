@@ -2,12 +2,9 @@
 
 import pytest
 
-import warnings
-
 from gaia.lang import (
     Step,
     claim,
-    infer,
     noisy_and,
     setting,
     composite,
@@ -19,7 +16,6 @@ from gaia.lang import (
 from gaia.lang.compiler.compile import (
     compile_package_artifact,
     _compile_reason,
-    _extract_at_labels,
     _knowledge_id,
     _normalize_label,
     _anonymous_label,
@@ -315,108 +311,6 @@ def test_compile_module_titles():
         a.label = "a"
     result = compile_package_artifact(pkg)
     assert result.graph.module_titles == {"intro": "Introduction"}
-
-
-# ── @label validation ──
-
-
-def test_extract_at_labels_string():
-    labels = _extract_at_labels("Based on @premise_a and @premise_b, we conclude...")
-    assert labels == {"premise_a", "premise_b"}
-
-
-def test_extract_at_labels_none():
-    assert _extract_at_labels(None) == set()
-
-
-def test_extract_at_labels_list():
-    labels = _extract_at_labels(["Step using @claim_x.", Step(reason="Also @claim_y.")])
-    assert labels == {"claim_x", "claim_y"}
-
-
-def test_at_label_valid_no_warning():
-    pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
-    with pkg:
-        a = claim("A.")
-        a.label = "a"
-        b = claim("B.")
-        b.label = "b"
-        infer(premises=[a], conclusion=b, reason="Derived from @a.")
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        compile_package_artifact(pkg)
-        at_warnings = [x for x in w if "@" in str(x.message)]
-        assert len(at_warnings) == 0
-
-
-def test_at_label_unknown_warns():
-    pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
-    with pkg:
-        a = claim("A.")
-        a.label = "a"
-        b = claim("B.")
-        b.label = "b"
-        infer(premises=[a], conclusion=b, reason="Uses @nonexistent.")
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        compile_package_artifact(pkg)
-        at_warnings = [x for x in w if "nonexistent" in str(x.message)]
-        assert len(at_warnings) == 1
-        assert "does not match any knowledge label" in str(at_warnings[0].message)
-
-
-def test_at_label_not_in_premises_warns():
-    pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
-    with pkg:
-        a = claim("A.")
-        a.label = "a"
-        b = claim("B.")
-        b.label = "b"
-        c = claim("C.")
-        c.label = "c"
-        infer(premises=[a], conclusion=b, reason="Uses @a and @c.")
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        compile_package_artifact(pkg)
-        at_warnings = [x for x in w if "@c" in str(x.message)]
-        assert len(at_warnings) == 1
-        assert "not in premises or background" in str(at_warnings[0].message)
-
-
-def test_at_label_in_background_ok():
-    pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
-    with pkg:
-        ctx = setting("Context.")
-        ctx.label = "ctx"
-        a = claim("A.")
-        a.label = "a"
-        b = claim("B.")
-        b.label = "b"
-        infer(
-            premises=[a], conclusion=b, background=[ctx], reason="Given @a under conditions @ctx."
-        )
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        compile_package_artifact(pkg)
-        at_warnings = [x for x in w if "@" in str(x.message)]
-        assert len(at_warnings) == 0
-
-
-def test_induction_reason_at_labels_do_not_warn_on_sub_abductions():
-    pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
-    with pkg:
-        law = claim("Law.")
-        law.label = "law"
-        obs1 = claim("Observation 1.")
-        obs1.label = "obs1"
-        obs2 = claim("Observation 2.")
-        obs2.label = "obs2"
-        induction([obs1, obs2], law, reason="Generalizes from @obs1 and @obs2.")
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        compile_package_artifact(pkg)
-        at_warnings = [x for x in w if "@" in str(x.message)]
-        assert len(at_warnings) == 0
 
 
 def test_compile_induction():
