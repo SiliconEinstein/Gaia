@@ -106,11 +106,13 @@ Gaia is agent-ready. A [Claude Code](https://claude.ai/code) plugin provides ski
 
 ### Formalize a Paper End-to-End
 
-1. **`/gaia:formalization`** — Point Claude at your paper (PDF or text in `artifacts/`). The skill guides a six-pass process: extract knowledge nodes, connect reasoning strategies, check completeness, refine strategy types, verify structural integrity, and polish for readability. Output: a compilable Gaia package with review sidecar.
+1. **`/gaia:formalization`** — Point Claude at your paper (PDF or text in `artifacts/`). The skill guides a six-pass process: extract knowledge nodes, connect reasoning strategies, check completeness, refine strategy types, verify structural integrity, and polish for readability. Output: a compilable Gaia package with a draft review sidecar.
 
-2. **`/gaia:publish`** — After `gaia render --target github` generates the skeleton, this skill fills in the narrative README, writes section summaries, and pushes to GitHub. Your repo gets a human-readable presentation of the formalized knowledge with interactive graphs.
+2. **`/gaia:review`** — Refine the review sidecar after inspecting BP results. Use this when you want to iterate on priors / strategy parameters, re-run `gaia infer`, and watch how beliefs change. Formalization delegates to this skill for the initial draft; you come back to it whenever the numbers need tuning.
 
-3. **`gaia register`** — Submit the package to the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry) so others can `gaia add` it as a dependency.
+3. **`/gaia:publish`** — After `gaia render --target github` generates the skeleton, this skill fills in the narrative README, writes section summaries, and pushes to GitHub. Your repo gets a human-readable presentation of the formalized knowledge with interactive graphs.
+
+4. **`gaia register`** — Submit the package to the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry) so others can `gaia add` it as a dependency.
 
 ### All Skills
 
@@ -149,9 +151,11 @@ Published Gaia knowledge packages:
 ## CLI Workflow
 
 ```
-gaia init → gaia add → write package → gaia compile → write review → gaia infer → gaia render → /gaia:publish → gaia register
-(scaffold)  (add deps)   (DSL code)     (DSL → IR)   (self-review)  (BP preview)  (present)     (fill narrative) (registry PR)
+gaia init → gaia add → /gaia:formalization → gaia compile → gaia infer → gaia render → /gaia:publish → gaia register
+(scaffold)  (add deps)  (author DSL + review)  (DSL → IR)   (BP preview)  (present)    (fill narrative) (registry PR)
 ```
+
+`gaia ...` steps are CLI commands; `/gaia:...` steps are [Claude Code](https://claude.ai/code) skills provided by this repo's plugin (see "All Skills" above) — invoke them by typing the slash command in a Claude Code session.
 
 | Command | Purpose |
 |---------|---------|
