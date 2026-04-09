@@ -114,34 +114,91 @@ def test_render_fails_when_ir_stale(tmp_path):
     assert "stale" in result.output.lower()
 
 
-def test_render_fails_when_no_review_sidecar(tmp_path):
-    """render when no review.py / reviews/*.py exists → missing review error."""
-    pkg_dir = tmp_path / "no_review"
-    _write_base_package(pkg_dir, name="no_review")
-    _write_minimal_source(pkg_dir, "no_review")
+def test_render_target_github_fails_when_no_review_sidecar(tmp_path):
+    """--target github hard-errors when no review.py / reviews/*.py exists."""
+    pkg_dir = tmp_path / "no_review_gh"
+    _write_base_package(pkg_dir, name="no_review_gh")
+    _write_minimal_source(pkg_dir, "no_review_gh")
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
-    assert compile_result.exit_code == 0
+    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
+
+    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "github"])
+    assert result.exit_code != 0
+    assert "review" in result.output.lower() or "inference" in result.output.lower()
+
+
+def test_render_target_docs_succeeds_without_review_sidecar(tmp_path):
+    """--target docs renders from compiled IR alone when no review sidecar exists."""
+    pkg_dir = tmp_path / "no_review_docs"
+    _write_base_package(pkg_dir, name="no_review_docs")
+    _write_minimal_source(pkg_dir, "no_review_docs")
+
+    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
+
+    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
+    assert result.exit_code == 0, result.output
+    assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
+    assert "warning" in result.output.lower()
+
+
+def test_render_target_all_degrades_to_docs_without_review_sidecar(tmp_path):
+    """--target all falls back to docs-only with a warning when no review sidecar."""
+    pkg_dir = tmp_path / "no_review_all"
+    _write_base_package(pkg_dir, name="no_review_all")
+    _write_minimal_source(pkg_dir, "no_review_all")
+
+    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
 
     result = runner.invoke(app, ["render", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
+    assert not (pkg_dir / ".github-output").exists()
+    assert "skipping" in result.output.lower()
+
+
+def test_render_target_github_fails_when_beliefs_missing(tmp_path):
+    """--target github hard-errors when review exists but infer has not been run."""
+    pkg_dir = tmp_path / "no_infer_gh"
+    _write_base_package(pkg_dir, name="no_infer_gh")
+    _write_minimal_source(pkg_dir, "no_infer_gh")
+    _write_review(pkg_dir, "no_infer_gh", "self_review")
+
+    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
+
+    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "github"])
     assert result.exit_code != 0
-    assert "review" in result.output.lower()
+    assert "inference" in result.output.lower() or "gaia infer" in result.output
 
 
-def test_render_fails_when_beliefs_missing(tmp_path):
-    """render after compile but before infer → missing beliefs error."""
-    pkg_dir = tmp_path / "no_infer"
-    _write_base_package(pkg_dir, name="no_infer")
-    _write_minimal_source(pkg_dir, "no_infer")
-    _write_review(pkg_dir, "no_infer", "self_review")
+def test_render_target_docs_warns_when_beliefs_missing(tmp_path):
+    """--target docs renders docs with a warning when review exists but beliefs don't."""
+    pkg_dir = tmp_path / "no_infer_docs"
+    _write_base_package(pkg_dir, name="no_infer_docs")
+    _write_minimal_source(pkg_dir, "no_infer_docs")
+    _write_review(pkg_dir, "no_infer_docs", "self_review")
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
-    assert compile_result.exit_code == 0
+    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
+
+    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
+    assert result.exit_code == 0, result.output
+    assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
+    assert "warning" in result.output.lower()
+
+
+def test_render_target_all_degrades_when_beliefs_missing(tmp_path):
+    """--target all renders docs and skips github with a warning when beliefs missing."""
+    pkg_dir = tmp_path / "no_infer_all"
+    _write_base_package(pkg_dir, name="no_infer_all")
+    _write_minimal_source(pkg_dir, "no_infer_all")
+    _write_review(pkg_dir, "no_infer_all", "self_review")
+
+    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
 
     result = runner.invoke(app, ["render", str(pkg_dir)])
-    assert result.exit_code != 0
-    assert "beliefs" in result.output.lower()
-    assert "gaia infer" in result.output
+    assert result.exit_code == 0, result.output
+    assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
+    assert not (pkg_dir / ".github-output").exists()
+    assert "skipping" in result.output.lower()
 
 
 def test_render_fails_when_beliefs_stale(tmp_path):
@@ -156,6 +213,25 @@ def test_render_fails_when_beliefs_stale(tmp_path):
     assert result.exit_code != 0
     assert "stale" in result.output.lower()
     assert "beliefs" in result.output.lower()
+
+
+def test_render_fails_when_parameterization_stale(tmp_path):
+    """render when parameterization.json has a wrong ir_hash → stale param error.
+
+    beliefs.json is kept fresh to prove the parameterization check is
+    independent: without it, a stale parameterization.json would silently
+    feed old priors into the rendered output.
+    """
+    pkg_dir = _prepare_inferred_package(tmp_path, name="stale_param")
+    param_path = pkg_dir / ".gaia" / "reviews" / "self_review" / "parameterization.json"
+    param = json.loads(param_path.read_text())
+    param["ir_hash"] = "not-the-real-hash"
+    param_path.write_text(json.dumps(param))
+
+    result = runner.invoke(app, ["render", str(pkg_dir)])
+    assert result.exit_code != 0
+    assert "stale" in result.output.lower()
+    assert "parameterization" in result.output.lower()
 
 
 def _write_second_review(pkg_dir, package_name: str, review_name: str) -> None:

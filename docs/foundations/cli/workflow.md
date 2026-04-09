@@ -172,7 +172,7 @@ Reference: [Inference](inference.md) for internals.
 ### `gaia render [PATH] [--review NAME] [--target TARGET]`
 
 Render presentation outputs (detailed-reasoning docs and/or a GitHub presentation
-site) from a compiled and inferred package.
+site) from a compiled package.
 
 ```
 gaia render [PATH] [--review NAME] [--target docs|github|all]
@@ -182,28 +182,41 @@ gaia render [PATH] [--review NAME] [--target docs|github|all]
 |-------------------|---------|-------------|
 | `PATH`            | `.`     | Path to knowledge package directory |
 | `--review NAME`   | `None`  | Review sidecar name (as with `gaia infer`). Auto-selected when only one review exists. |
-| `--target TARGET` | `all`   | `docs` writes `docs/detailed-reasoning.md`; `github` writes `.github-output/`; `all` (default) writes both. |
+| `--target TARGET` | `all`   | `docs` writes `docs/detailed-reasoning.md`; `github` writes `.github-output/`; `all` (default) writes both when possible. |
+
+**Strictness by target:**
+
+- `--target docs`: renders from the compiled IR alone. When a fresh
+  `beliefs.json` and `parameterization.json` are available they are loaded and
+  used to enrich the output; otherwise a warning is emitted and the docs are
+  written without belief values. This is the author-facing workflow — useful
+  during iteration on DSL code before a review sidecar exists.
+- `--target github`: strictly requires a review sidecar plus a matching
+  `beliefs.json`. Missing or stale inference results are hard errors. This is
+  the external-presentation workflow — a published site without belief values
+  would be misleading.
+- `--target all` (default): always renders docs, and adds the GitHub target
+  when inference results are available. When beliefs are missing, it degrades
+  to docs-only with a warning rather than failing.
 
 **What it does:**
 
 1. Loads and compiles the package (same gate as `gaia compile`).
 2. Verifies `.gaia/ir_hash` and `.gaia/ir.json` are present and not stale.
-3. Discovers the review sidecar via the same mechanism as `gaia infer`.
-4. Requires `.gaia/reviews/<NAME>/beliefs.json` to exist and match the current
-   `ir_hash` — errors otherwise (no silent fallback).
-5. Loads `beliefs.json` and (if present) `parameterization.json`.
-6. When `--target` includes `docs`, invokes the detailed-reasoning renderer and
-   writes `docs/detailed-reasoning.md`.
-7. When `--target` includes `github`, invokes the GitHub presentation renderer
-   and writes `.github-output/` (React SPA scaffold, wiki pages, `graph.json`,
-   `manifest.json`, README skeleton).
+3. Discovers the review sidecar via the same mechanism as `gaia infer`
+   (optional for `--target docs`).
+4. If `beliefs.json` is present, verifies its `ir_hash` matches the current
+   compiled graph; same check applied to `parameterization.json` if present.
+   Any stale artifact is a hard error.
+5. Dispatches to the selected targets, emitting warnings when `--target all`
+   or `--target docs` runs without inference results.
 
-**Prerequisites:** `gaia compile` and `gaia infer` must have been run first.
-Missing or stale artifacts are hard errors.
+**Prerequisites:** `gaia compile` must have been run. `gaia infer` must have
+been run for `--target github` and for the `github` portion of `--target all`.
 
 **Key output:**
 - `docs/detailed-reasoning.md` (when target includes `docs`)
-- `.github-output/` (when target includes `github`)
+- `.github-output/` (when target includes `github` and beliefs are available)
 
 
 ### `gaia register [PATH] [OPTIONS]`

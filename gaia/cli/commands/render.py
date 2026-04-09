@@ -37,12 +37,22 @@ def render_command(
     target: RenderTarget = typer.Option(
         RenderTarget.all,
         "--target",
-        help="What to render: 'docs', 'github', or 'all' (default).",
+        help=(
+            "What to render: 'docs' (renders from compiled IR alone; enriched "
+            "when beliefs are available), 'github' (requires beliefs from "
+            "`gaia infer`), or 'all' (default; docs unconditionally + github "
+            "when beliefs are available)."
+        ),
     ),
 ) -> None:
-    """Render presentation outputs (docs and/or GitHub site) from a reviewed package.
+    """Render presentation outputs from a compiled package.
 
-    Requires `gaia compile` and `gaia infer` to have been run successfully first.
+    `--target docs` renders `docs/detailed-reasoning.md` from the compiled IR
+    alone; when `gaia infer` has also been run, the output is enriched with
+    belief and prior values. `--target github` strictly requires inference
+    results and emits the full `.github-output/` presentation site.
+    `--target all` (default) always renders docs and adds github when
+    inference results are available, emitting a warning when they are not.
     """
     try:
         loaded = load_gaia_package(path)
@@ -81,56 +91,87 @@ def render_command(
         typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
         raise typer.Exit(1)
 
-    # ── Load review sidecar (auto-select if only one exists) ──
+    # ── Load review sidecar (optional for --target docs; required for --target github) ──
     try:
         loaded_review = load_gaia_review(loaded, review_name=review)
-        if loaded_review is None:
-            raise GaiaCliError(
-                "Error: missing review sidecar. Create <package>/review.py or "
-                "<package>/reviews/<name>.py with REVIEW = ReviewBundle(...), "
-                "then run `gaia infer` before `gaia render`."
-            )
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)
 
-    # ── Require inference results on disk (strict — no silent None) ──
-    review_dir = gaia_dir / "reviews" / loaded_review.name
-    beliefs_path = review_dir / "beliefs.json"
-    param_path = review_dir / "parameterization.json"
-    if not beliefs_path.exists():
-        typer.echo(
-            f"Error: missing beliefs for review {loaded_review.name!r}; "
-            f"run `gaia infer --review {loaded_review.name}` first.",
-            err=True,
-        )
-        raise typer.Exit(1)
-
-    try:
-        beliefs_data = json.loads(beliefs_path.read_text())
-    except json.JSONDecodeError as exc:
-        typer.echo(f"Error: {beliefs_path} is not valid JSON: {exc}", err=True)
-        raise typer.Exit(1)
-
-    if beliefs_data.get("ir_hash") != compiled.graph.ir_hash:
-        typer.echo(
-            f"Error: beliefs for review {loaded_review.name!r} are stale; "
-            f"run `gaia infer --review {loaded_review.name}` again.",
-            err=True,
-        )
-        raise typer.Exit(1)
-
+    # ── Load inference results if available ──
+    # Both beliefs.json and parameterization.json are optional at load time,
+    # but if present they MUST be fresh (ir_hash matches compiled graph).
+    # --target github additionally requires beliefs; --target docs degrades gracefully.
+    beliefs_data: dict | None = None
     param_data: dict | None = None
-    if param_path.exists():
-        try:
-            param_data = json.loads(param_path.read_text())
-        except json.JSONDecodeError as exc:
-            typer.echo(f"Error: {param_path} is not valid JSON: {exc}", err=True)
-            raise typer.Exit(1)
+    if loaded_review is not None:
+        review_dir = gaia_dir / "reviews" / loaded_review.name
+        beliefs_path = review_dir / "beliefs.json"
+        param_path = review_dir / "parameterization.json"
 
-    # ── Dispatch to generators ──
+        if beliefs_path.exists():
+            try:
+                beliefs_data = json.loads(beliefs_path.read_text())
+            except json.JSONDecodeError as exc:
+                typer.echo(f"Error: {beliefs_path} is not valid JSON: {exc}", err=True)
+                raise typer.Exit(1)
+            if beliefs_data.get("ir_hash") != compiled.graph.ir_hash:
+                typer.echo(
+                    f"Error: beliefs for review {loaded_review.name!r} are stale; "
+                    f"run `gaia infer --review {loaded_review.name}` again.",
+                    err=True,
+                )
+                raise typer.Exit(1)
+
+            if param_path.exists():
+                try:
+                    param_data = json.loads(param_path.read_text())
+                except json.JSONDecodeError as exc:
+                    typer.echo(f"Error: {param_path} is not valid JSON: {exc}", err=True)
+                    raise typer.Exit(1)
+                if param_data.get("ir_hash") != compiled.graph.ir_hash:
+                    typer.echo(
+                        f"Error: parameterization for review {loaded_review.name!r} "
+                        f"is stale; run `gaia infer --review {loaded_review.name}` again.",
+                        err=True,
+                    )
+                    raise typer.Exit(1)
+
+    # ── Decide which targets to attempt ──
     want_docs = target in (RenderTarget.docs, RenderTarget.all)
     want_github = target in (RenderTarget.github, RenderTarget.all)
+
+    # github strictly requires beliefs: hard error if explicit, warn+skip if 'all'.
+    if want_github and beliefs_data is None:
+        if target == RenderTarget.github:
+            if loaded_review is None:
+                typer.echo(
+                    "Error: --target github requires a review sidecar and inference "
+                    "results. Create <package>/reviews/<name>.py, then run "
+                    "`gaia infer` before `gaia render`.",
+                    err=True,
+                )
+            else:
+                typer.echo(
+                    f"Error: --target github requires inference results; "
+                    f"run `gaia infer --review {loaded_review.name}` first.",
+                    err=True,
+                )
+            raise typer.Exit(1)
+        # --target all: degrade to docs-only with a warning.
+        typer.echo(
+            "Warning: no inference results found; skipping --target github. "
+            "Run `gaia infer` to include the GitHub presentation.",
+        )
+        want_github = False
+
+    # docs target renders even without beliefs — warn once so the user knows why
+    # the output is missing belief values.
+    if want_docs and beliefs_data is None:
+        typer.echo(
+            "Warning: rendering docs without inference results; "
+            "run `gaia infer` to include belief values.",
+        )
 
     if want_docs:
         content = generate_detailed_reasoning(
@@ -156,4 +197,5 @@ def render_command(
         )
         typer.echo(f"GitHub: {github_out}")
 
-    typer.echo(f"Review: {loaded_review.name}")
+    if loaded_review is not None:
+        typer.echo(f"Review: {loaded_review.name}")
