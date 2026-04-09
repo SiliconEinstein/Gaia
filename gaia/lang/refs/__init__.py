@@ -20,12 +20,12 @@ from gaia.lang.refs.types import (
 )
 
 from gaia.lang.refs.extractor import extract
+from gaia.lang.refs.resolver import (
+    check_collisions,
+    resolve,
+    validate_groups,
+)
 
-# TODO(task-3): from gaia.lang.refs.resolver import (
-#     check_collisions,
-#     resolve,
-#     validate_groups,
-# )
 # TODO(task-4): from gaia.lang.refs.loader import load_references
 
 __all__ = [
@@ -35,8 +35,8 @@ __all__ = [
     "RefMarker",
     "ReferenceError",
     "extract",
-    # TODO(task-3): "check_collisions",
-    # TODO(task-3): "resolve",
-    # TODO(task-3): "validate_groups",
+    "check_collisions",
+    "resolve",
+    "validate_groups",
     # TODO(task-4): "load_references",
 ]
