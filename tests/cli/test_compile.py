@@ -668,6 +668,37 @@ def test_compile_fills_requires_foreign_target(tmp_path):
     assert "target must be a foreign claim" in result.output
 
 
+def test_compile_rejects_fills_strategy_with_multiple_premises(tmp_path):
+    """Bypass the fills() DSL to construct a bad strategy with 2 premises,
+    and verify compile rejects it with the 'exactly one source and one target' error."""
+    pkg_dir = tmp_path / "bad_fills_arity_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "bad-fills-arity-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "bad_fills_arity_pkg"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import claim\n"
+        "from gaia.lang.runtime.nodes import Strategy\n\n"
+        'source_a = claim("Source A.")\n'
+        'source_b = claim("Source B.")\n'
+        'target = claim("Target.")\n'
+        "Strategy(\n"
+        '    type="deduction",\n'
+        "    premises=[source_a, source_b],\n"
+        "    conclusion=target,\n"
+        '    metadata={"gaia": {"relation": {"type": "fills", "strength": "exact", "mode": "deduction"}}},\n'
+        ")\n"
+        '__all__ = ["source_a", "source_b", "target"]\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code != 0
+    assert "exactly one source and one target" in result.output
+
+
 def test_compile_bridge_package_requires_source_dependency_declaration(tmp_path, monkeypatch):
     dep_a_dir = tmp_path / "dep_a_root"
     dep_a_dir.mkdir()
