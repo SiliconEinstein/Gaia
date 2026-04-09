@@ -421,29 +421,35 @@ relation_id = "bridge_" + sha256(
 
 ### 6.4 Phase Rollout
 
-旧方案的 phased rollout 是：
+PR 369 的 redesign 之后，旧的 phased rollout 计划已经不再适用。
 
-- Phase 1: `exports.json`
-- Phase 2: `holes.json`
-- Phase 3: `bridges.json`
+在当前设计里，四份 manifest 共同组成 release-scoped package interface：
 
-新方案下必须对齐为：
+- `exports.json`
+  - author-declared public surface
+- `premises.json`
+  - compiler-derived public premise interface
+  - 是 hole classification 和 bridge target validation 的 source of truth
+- `holes.json`
+  - `premises.json` 中 `role == "local_hole"` 的 convenience subset
+- `bridges.json`
+  - 本 release 声明的 fills relations
 
-- **Phase 1**
-  - 生成并上传 `exports.json`
-  - 生成并上传 `premises.json`
-- **Phase 2**
-  - 生成并上传 `holes.json`
-  - 开始建设 `index/premises/**` 与 `index/holes/**`
-- **Phase 3**
-  - 生成并上传 `bridges.json`
-  - 开始建设 `index/bridges/**`
+因此当前 contract 应对齐为：
+
+- `gaia compile`
+  - 生成全部四份 manifest
+- `gaia register`
+  - 一次性上传全部四份 manifest 到 `packages/<name>/releases/<version>/`
+- registry index builder
+  - 以 `premises.json` 为 source of truth
+  - 派生 `index/premises/**`、`index/holes/**`、`index/bridges/**`
 
 原因：
 
-- `premises.json` 是 `holes.json` 的 source of truth
-- `premises.json` 也是 bridge target validation 的 source of truth
-- 因此它不能晚于 `holes.json` 和 `bridges.json`
+- 没有 `premises.json`，registry 无法验证 bridge target 的 interface snapshot
+- `holes.json` 只是 `premises.json` 的 filter view，单独 phase 化没有技术意义
+- `bridges.json` 的 target validation 依赖同版本的 `premises.json`
 
 ## 7. Scenario Walkthroughs
 

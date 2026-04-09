@@ -45,6 +45,7 @@ def test_compile_creates_ir_json(tmp_path):
     assert premises_manifest["manifest_schema_version"] == 1
     holes_manifest = json.loads((gaia_dir / "manifests" / "holes.json").read_text())
     bridges_manifest = json.loads((gaia_dir / "manifests" / "bridges.json").read_text())
+    assert (gaia_dir / "manifests" / "exports.json").read_text().endswith("\n")
     assert exports_manifest["package"] == "test-pkg"
     assert exports_manifest["version"] == "1.0.0"
     assert exports_manifest["exports"] == [

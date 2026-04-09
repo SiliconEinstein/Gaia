@@ -12,6 +12,7 @@ import typer
 
 from gaia.cli._packages import GaiaCliError, build_package_manifests, load_gaia_package
 from gaia.cli._packages import compile_loaded_package_artifact
+from gaia.cli._packages import render_manifest_json
 from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
 
@@ -108,8 +109,6 @@ def _render_deps_toml(deps: dict[str, dict[str, str]]) -> str:
             lines.append(f'"{name}" = "{deps[version][name]}"')
         lines.append("")
     return "\n".join(lines)
-
-
 def _build_pr_body(
     *,
     pypi_name: str,
@@ -190,7 +189,7 @@ def register_command(
         loaded = load_gaia_package(path)
         compiled = compile_loaded_package_artifact(loaded)
         ir = compiled.to_json()
-        build_package_manifests(loaded, compiled)
+        manifests = build_package_manifests(loaded, compiled)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)
@@ -291,6 +290,11 @@ def register_command(
         }
     }
     deps_payload = {version: deps}
+    release_dir = f"packages/{package_name}/releases/{version}"
+    release_files = {
+        f"{release_dir}/{filename}": render_manifest_json(payload)
+        for filename, payload in manifests.items()
+    }
 
     plan = {
         "package": {
@@ -312,6 +316,7 @@ def register_command(
             f"packages/{package_name}/Package.toml": package_toml,
             f"packages/{package_name}/Versions.toml": _render_versions_toml(versions),
             f"packages/{package_name}/Deps.toml": _render_deps_toml(deps_payload),
+            **release_files,
         },
         "pull_request": {"title": pr_title, "body": pr_body},
     }
@@ -344,6 +349,7 @@ def register_command(
 
     package_dir = registry_path / "packages" / package_name
     package_dir.mkdir(parents=True, exist_ok=True)
+    release_path = package_dir / "releases" / version
     package_toml_path = package_dir / "Package.toml"
     versions_toml_path = package_dir / "Versions.toml"
     deps_toml_path = package_dir / "Deps.toml"
@@ -360,12 +366,22 @@ def register_command(
     if version in existing_versions:
         typer.echo(f"Error: version already exists in registry metadata: {version}", err=True)
         raise typer.Exit(1)
+    if release_path.exists():
+        typer.echo(
+            f"Error: release metadata already exists in registry checkout: {release_path}",
+            err=True,
+        )
+        raise typer.Exit(1)
     existing_versions[version] = versions[version]
     versions_toml_path.write_text(_render_versions_toml(existing_versions))
 
     existing_deps = _load_existing_deps(deps_toml_path)
     existing_deps[version] = deps
     deps_toml_path.write_text(_render_deps_toml(existing_deps))
+
+    release_path.mkdir(parents=True, exist_ok=False)
+    for filename, payload in manifests.items():
+        (release_path / filename).write_text(render_manifest_json(payload))
 
     try:
         _run(["git", "add", str(package_dir.relative_to(registry_path))], cwd=registry_path)
