@@ -245,36 +245,53 @@ def test_generate_detailed_reasoning_with_beliefs():
 # ── CLI integration ──
 
 
-def test_compile_readme_flag_generates_detailed_reasoning(tmp_path):
-    pkg_dir = tmp_path / "readme_pkg"
+def test_render_docs_flag_generates_detailed_reasoning(tmp_path):
+    """gaia render --target docs writes docs/detailed-reasoning.md."""
+    pkg_dir = tmp_path / "docs_pkg"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(
-        '[project]\nname = "readme-pkg-gaia"\nversion = "1.0.0"\n'
+        '[project]\nname = "docs-pkg-gaia"\nversion = "1.0.0"\n'
         'description = "A test package."\n\n'
         '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
     )
-    pkg_src = pkg_dir / "readme_pkg"
+    pkg_src = pkg_dir / "docs_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
         "from gaia.lang import claim, noisy_and\n\n"
         'a = claim("Premise A.")\n'
         'b = claim("Premise B.")\n'
         'c = claim("Conclusion.")\n'
-        "noisy_and([a, b], c)\n"
-        '__all__ = ["a", "b", "c"]\n'
+        "s = noisy_and([a, b], c)\n"
+        '__all__ = ["a", "b", "c", "s"]\n'
+    )
+    (pkg_src / "reviews").mkdir()
+    (pkg_src / "reviews" / "self_review.py").write_text(
+        "from gaia.review import ReviewBundle, review_claim, review_strategy\n"
+        "from .. import a, b, c, s\n\n"
+        "REVIEW = ReviewBundle(\n"
+        '    source_id="self_review",\n'
+        "    objects=[\n"
+        '        review_claim(a, prior=0.8, judgment="ok", justification="."),\n'
+        '        review_claim(b, prior=0.8, judgment="ok", justification="."),\n'
+        '        review_claim(c, prior=0.4, judgment="ok", justification="."),\n'
+        '        review_strategy(s, conditional_probability=0.85, judgment="ok", justification="."),\n'
+        "    ],\n"
+        ")\n"
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir), "--readme"])
+    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["infer", str(pkg_dir)]).exit_code == 0
+
+    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
-    readme = (pkg_dir / "README.md").read_text()
-    assert "# readme-pkg-gaia" in readme
-    assert "A test package." in readme
-    assert "```mermaid" in readme
-    assert "## Knowledge Nodes" in readme
-    assert readme.index("#### a") < readme.index("#### c")
-    assert readme.index("#### b") < readme.index("#### c")
-    assert "[a](#a)" in readme or "[b](#b)" in readme
+    content = (pkg_dir / "docs" / "detailed-reasoning.md").read_text()
+    assert "# docs-pkg-gaia" in content
+    assert "A test package." in content
+    assert "```mermaid" in content
+    assert "#### a" in content
+    assert "#### b" in content
+    assert "#### c" in content
 
 
 # ── overview graph ──

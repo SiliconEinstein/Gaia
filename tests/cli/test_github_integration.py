@@ -247,8 +247,8 @@ def test_wiki_inference_page_when_beliefs(tmp_path: Path):
 # ── CLI --github flag integration ──
 
 
-def test_compile_github_flag(tmp_path):
-    """gaia compile --github generates .github-output/ with expected structure."""
+def test_render_github_flag(tmp_path):
+    """gaia render --target github generates .github-output/ with expected structure."""
     pkg_dir = tmp_path / "github_pkg"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(
@@ -263,13 +263,31 @@ def test_compile_github_flag(tmp_path):
         'a = claim("Premise A.")\n'
         'b = claim("Premise B.")\n'
         'c = claim("Conclusion.")\n'
-        "noisy_and([a, b], c)\n"
-        '__all__ = ["a", "b", "c"]\n'
+        "s = noisy_and([a, b], c)\n"
+        '__all__ = ["a", "b", "c", "s"]\n'
+    )
+    reviews_dir = pkg_src / "reviews"
+    reviews_dir.mkdir()
+    (reviews_dir / "self_review.py").write_text(
+        "from gaia.review import ReviewBundle, review_claim, review_strategy\n"
+        "from .. import a, b, c, s\n\n"
+        "REVIEW = ReviewBundle(\n"
+        '    source_id="self_review",\n'
+        "    objects=[\n"
+        '        review_claim(a, prior=0.8, judgment="ok", justification="."),\n'
+        '        review_claim(b, prior=0.8, judgment="ok", justification="."),\n'
+        '        review_claim(c, prior=0.4, judgment="ok", justification="."),\n'
+        '        review_strategy(s, conditional_probability=0.85, judgment="ok", justification="."),\n'
+        "    ],\n"
+        ")\n"
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir), "--github"])
+    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["infer", str(pkg_dir)]).exit_code == 0
+
+    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "github"])
     assert result.exit_code == 0, f"Failed: {result.output}"
-    assert "GitHub output:" in result.output
+    assert "GitHub:" in result.output
 
     output_dir = pkg_dir / ".github-output"
     assert (output_dir / "wiki" / "Home.md").exists()
@@ -278,8 +296,8 @@ def test_compile_github_flag(tmp_path):
     assert (output_dir / "README.md").exists()
 
 
-def test_github_output_with_real_package(tmp_path):
-    """Compile a Galileo-like package with --github and verify full structure.
+def test_render_github_with_real_package(tmp_path):
+    """Render a Galileo-like package with --target github and verify full structure.
 
     Creates a multi-module package with claims, deduction, contradiction,
     and exported conclusions, then verifies all GitHub output artifacts.
@@ -324,14 +342,33 @@ def test_github_output_with_real_package(tmp_path):
         '__all__ = ["obs_equal_time", "galileo_hyp"]\n'
     )
 
+    # Review sidecar — required for render
+    (pkg_src / "reviews").mkdir()
+    (pkg_src / "reviews" / "self_review.py").write_text(
+        "from gaia.review import ReviewBundle, review_claim\n"
+        "from ..motivation import context, obs_equal_time\n"
+        "from ..analysis import aristotle_hyp, galileo_hyp\n\n"
+        "REVIEW = ReviewBundle(\n"
+        '    source_id="self_review",\n'
+        "    objects=[\n"
+        '        review_claim(context, prior=0.95, judgment="ok", justification="."),\n'
+        '        review_claim(obs_equal_time, prior=0.9, judgment="ok", justification="."),\n'
+        '        review_claim(aristotle_hyp, prior=0.2, judgment="ok", justification="."),\n'
+        '        review_claim(galileo_hyp, prior=0.6, judgment="ok", justification="."),\n'
+        "    ],\n"
+        ")\n"
+    )
+
     # Create an artifact file to test asset copying
     artifacts_dir = pkg_dir / "artifacts"
     artifacts_dir.mkdir()
     (artifacts_dir / "diagram.svg").write_text("<svg>test</svg>")
 
-    result = runner.invoke(app, ["compile", str(pkg_dir), "--github"])
+    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["infer", str(pkg_dir)]).exit_code == 0
+    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "github"])
     assert result.exit_code == 0, f"Failed: {result.output}"
-    assert "GitHub output:" in result.output
+    assert "GitHub:" in result.output
 
     output_dir = pkg_dir / ".github-output"
 
