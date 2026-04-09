@@ -234,22 +234,22 @@ result = engine.run(fg)  # Auto-selects JT (exact) or loopy BP
 beliefs = result.beliefs
 ```
 
-### Step 8: Generate README (optional)
+### Step 8: Generate reasoning docs (optional)
 
-After inference, regenerate the README with belief results and a Mermaid knowledge graph:
+After inference, generate `docs/detailed-reasoning.md` with belief results and per-module Mermaid reasoning graphs:
 
 ```bash
-gaia infer .              # Run inference first (beliefs appear in README)
-gaia compile . --readme   # Generates/overwrites README.md at package root
+gaia infer .                      # Run inference first (beliefs appear in the doc)
+gaia render . --target docs       # Writes docs/detailed-reasoning.md
 ```
 
-The generated README includes:
+The generated doc includes:
 - **Overview graph**: exported conclusions with belief values
-- **Knowledge Graph**: full Mermaid diagram with all nodes, strategies, and operators
-- **Knowledge Nodes**: each claim with content, prior, belief, derivation, and reasoning
+- **Per-module Mermaid graphs**: focused diagrams scoped to each module
+- **Knowledge nodes**: each claim with content, prior, belief, derivation, and reasoning
 - **Inference Results**: summary table of all beliefs
 
-Always run `gaia infer .` before `gaia compile . --readme` so the README includes up-to-date belief values.
+`gaia render --target docs` works without inference results too (author iteration mode) but emits a warning and omits belief values when `gaia infer` hasn't been run. Run `gaia infer .` first for enriched output.
 
 ### Step 9: Register with official registry (optional)
 
