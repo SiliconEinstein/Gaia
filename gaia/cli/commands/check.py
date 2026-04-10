@@ -6,7 +6,7 @@ import json
 
 import typer
 
-from gaia.cli._packages import GaiaCliError, build_package_manifests, load_gaia_package
+from gaia.cli._packages import GaiaCliError, load_gaia_package, validate_fills_relations
 from gaia.cli._packages import compile_loaded_package_artifact
 from gaia.cli.commands._classify import classify_ir, node_role
 from gaia.ir import LocalCanonicalGraph
@@ -93,7 +93,7 @@ def check_command(
         loaded = load_gaia_package(path)
         compiled = compile_loaded_package_artifact(loaded)
         ir = compiled.to_json()
-        build_package_manifests(loaded, compiled)
+        validate_fills_relations(loaded, compiled)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)

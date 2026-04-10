@@ -49,7 +49,7 @@ dependencies = []                  # Other *-gaia packages if needed
 include = ["my_package*"]
 
 [tool.gaia]
-namespace = "reg"                  # "reg" for registry, "paper" for papers
+namespace = "github"               # Source registry namespace
 type = "knowledge-package"         # Required exactly
 uuid = "..."                       # Unique UUID v4
 
