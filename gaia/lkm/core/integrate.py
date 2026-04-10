@@ -313,16 +313,6 @@ async def batch_integrate(
     }
     existing_globals_map = await storage.find_globals_by_content_hashes(public_hashes)
 
-    # Batch fetch existing bindings for private local_ids (idempotency on re-run)
-    private_local_ids: set[str] = set()
-    for h, entries in hash_to_locals.items():
-        if entries[0][0].visibility != "public":
-            for lv, _pkg, _ver in entries:
-                private_local_ids.add(lv.id)
-    existing_private_bindings = (
-        await storage.find_bindings_by_local_ids(private_local_ids) if private_local_ids else {}
-    )
-
     all_bindings: list[CanonicalBinding] = []
     all_new_globals: list[GlobalVariableNode] = []
     updated_globals: list[GlobalVariableNode] = []
@@ -331,44 +321,9 @@ async def batch_integrate(
     for content_hash, entries in hash_to_locals.items():
         first_var = entries[0][0]
 
-        # Private helper claims never participate in cross-package dedup but
-        # still need global nodes so that factors referencing them resolve.
+        # Private helper claims (structural encoding artifacts) are stored
+        # locally but must not create or match global nodes.
         if first_var.visibility != "public":
-            # Re-run: reuse existing global if binding exists
-            existing_binding = existing_private_bindings.get(first_var.id)
-            if existing_binding:
-                for lv, _pkg, _ver in entries:
-                    qid_to_gcn[lv.id] = existing_binding.global_id
-                continue
-
-            gcn_id = new_gcn_id()
-            refs = [
-                LocalCanonicalRef(local_id=lv.id, package_id=pkg, version=ver)
-                for lv, pkg, ver in entries
-            ]
-            gv = GlobalVariableNode(
-                id=gcn_id,
-                type=first_var.type,
-                visibility=first_var.visibility,
-                content_hash=content_hash,
-                parameters=first_var.parameters,
-                representative_lcn=refs[0],
-                local_members=refs,
-            )
-            all_new_globals.append(gv)
-            for lv, pkg, ver in entries:
-                qid_to_gcn[lv.id] = gcn_id
-                all_bindings.append(
-                    CanonicalBinding(
-                        local_id=lv.id,
-                        global_id=gcn_id,
-                        binding_type="variable",
-                        package_id=pkg,
-                        version=ver,
-                        decision="create_new",
-                        reason="private variable (no dedup)",
-                    )
-                )
             continue
 
         if len(entries) > 1:
