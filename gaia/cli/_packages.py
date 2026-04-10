@@ -17,7 +17,7 @@ from typing import Any
 
 from gaia.lang.runtime import Knowledge, Strategy
 from gaia.lang.runtime.package import CollectedPackage
-from gaia.lang.runtime.package import _pyproject_for_module
+from gaia.lang.runtime.package import pyproject_for_module
 from gaia.lang.runtime.package import get_inferred_package, reset_inferred_package
 from packaging.requirements import InvalidRequirement, Requirement
 
@@ -78,7 +78,7 @@ def _assign_labels_for_loaded_modules() -> None:
     for module_name, module in list(sys.modules.items()):
         if module is None or not isinstance(module_name, str):
             continue
-        pyproject = _pyproject_for_module(module_name)
+        pyproject = pyproject_for_module(module_name)
         if pyproject is None:
             continue
         pkg = get_inferred_package(pyproject)
@@ -268,7 +268,7 @@ def _load_json_file(path: Path, *, description: str) -> dict[str, Any]:
 
 
 def _locate_dependency_manifest_root(import_name: str) -> Path | None:
-    pyproject = _pyproject_for_module(import_name)
+    pyproject = pyproject_for_module(import_name)
     if pyproject is not None:
         return pyproject.parent
 

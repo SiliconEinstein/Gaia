@@ -74,7 +74,6 @@ def _composite_strategy(
     sub_strategies: list[Strategy],
     background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
-    metadata: dict | None = None,
 ) -> Strategy:
     if not sub_strategies:
         raise ValueError("composite() requires at least one sub-strategy")
@@ -86,7 +85,7 @@ def _composite_strategy(
         background=background or [],
         reason=reason,
         sub_strategies=list(sub_strategies),
-        metadata=deepcopy(metadata) if metadata is not None else {},
+        metadata={},
     )
     _attach_strategy(conclusion, strategy)
     return strategy

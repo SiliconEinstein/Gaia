@@ -76,7 +76,7 @@ def _find_pyproject(start: Path) -> Path | None:
     return None
 
 
-def _pyproject_for_module(module_name: str) -> Path | None:
+def pyproject_for_module(module_name: str) -> Path | None:
     if module_name in _module_pyproject_cache:
         return _module_pyproject_cache[module_name]
 
@@ -151,7 +151,7 @@ def infer_package_and_module() -> tuple[CollectedPackage | None, str | None]:
     if not module_name:
         return None, None
 
-    pyproject = _pyproject_for_module(module_name)
+    pyproject = pyproject_for_module(module_name)
     if pyproject is None:
         return None, None
 
