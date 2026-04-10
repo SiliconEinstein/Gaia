@@ -234,6 +234,35 @@ def test_render_fails_when_parameterization_stale(tmp_path):
     assert "parameterization" in result.output.lower()
 
 
+def test_render_target_github_fails_when_parameterization_missing(tmp_path):
+    """Regression for #398: --target github with beliefs but missing
+    parameterization.json must error instead of silently using 0.5 defaults."""
+    pkg_dir = _prepare_inferred_package(tmp_path, name="missing_param")
+    param_path = pkg_dir / ".gaia" / "reviews" / "self_review" / "parameterization.json"
+    param_path.unlink()  # delete parameterization but keep beliefs
+
+    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "github"])
+    assert result.exit_code != 0, (
+        f"Expected error when parameterization.json is missing but beliefs.json "
+        f"is present. Without it, github output would show default 0.5 priors. "
+        f"Got: {result.output}"
+    )
+    assert "parameterization" in result.output.lower()
+
+
+def test_render_target_all_degrades_when_parameterization_missing(tmp_path):
+    """--target all with beliefs but missing parameterization → skip github, render docs."""
+    pkg_dir = _prepare_inferred_package(tmp_path, name="missing_param_all")
+    param_path = pkg_dir / ".gaia" / "reviews" / "self_review" / "parameterization.json"
+    param_path.unlink()
+
+    result = runner.invoke(app, ["render", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
+    assert "parameterization" in result.output.lower()
+    assert "skipping" in result.output.lower()
+
+
 def _write_second_review(pkg_dir, package_name: str, review_name: str) -> None:
     reviews_dir = pkg_dir / package_name / "reviews"
     (reviews_dir / f"{review_name}.py").write_text(

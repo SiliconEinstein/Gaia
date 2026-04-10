@@ -209,6 +209,30 @@ def render_command(
         )
         want_github = False
 
+    # github strictly requires parameterization alongside beliefs (#398):
+    # without it, the presentation code falls back to 0.5 defaults for
+    # priors/params, producing a published site whose prior columns don't
+    # match the review that produced the beliefs.
+    if want_github and beliefs_data is not None and param_data is None:
+        if target == RenderTarget.github:
+            review_name = loaded_review.name if loaded_review else "unknown"
+            typer.echo(
+                f"Error: --target github requires both beliefs.json and "
+                f"parameterization.json, but parameterization.json is missing "
+                f"for review {review_name!r}. Without it, the published site "
+                f"would show default 0.5 priors instead of the actual review "
+                f"parameters. Run `gaia infer --review {review_name}` to "
+                f"regenerate both files.",
+                err=True,
+            )
+            raise typer.Exit(1)
+        # --target all: degrade to docs-only with a warning.
+        typer.echo(
+            "Warning: missing parameterization.json; skipping --target github "
+            "to avoid publishing with default priors.",
+        )
+        want_github = False
+
     # docs target renders even without beliefs — warn once so the user knows why
     # the output is missing belief values.
     if want_docs and beliefs_data is None:
