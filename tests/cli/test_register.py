@@ -353,7 +353,7 @@ def test_register_fails_when_release_dir_already_exists(tmp_path):
         ],
     )
     assert result.exit_code != 0
-    assert "release metadata already exists in registry checkout" in result.output
+    assert "release directory already exists" in result.output
 
 
 def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
