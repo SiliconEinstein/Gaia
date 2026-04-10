@@ -319,10 +319,16 @@ async def batch_integrate(
     qid_to_gcn: dict[str, str] = {}
 
     for content_hash, entries in hash_to_locals.items():
+        first_var = entries[0][0]
+
+        # Private helper claims (structural encoding artifacts) are stored
+        # locally but must not create or match global nodes.
+        if first_var.visibility != "public":
+            continue
+
         if len(entries) > 1:
             stats.dedup_within_batch += len(entries) - 1
 
-        first_var = entries[0][0]
         existing = existing_globals_map.get(content_hash)
 
         if existing is not None:

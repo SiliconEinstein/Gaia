@@ -190,7 +190,10 @@ class TestBatchIntegrate:
         count_after_second = await storage.content.count("global_variable_nodes")
 
         assert count_after_first == count_after_second
-        assert stats2.dedup_with_existing == stats2.total_local_variables
+        # Private helper claims are stored locally but don't participate in
+        # global dedup, so dedup_with_existing may be less than total_local_variables.
+        assert stats2.dedup_with_existing <= stats2.total_local_variables
+        assert stats2.dedup_with_existing > 0
 
     async def test_batch_incremental(self, storage):
         """Second batch adds new globals, dedup existing overlaps."""

@@ -232,15 +232,20 @@ def _interface_hash(
     )
 
 
-def _distribution_name(import_name: str) -> str:
-    return f"{import_name.replace('_', '-')}-gaia"
+def _parse_gaia_dependencies(
+    project_config: dict[str, Any],
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Parse [project].dependencies and return (specs, import_to_dist).
 
-
-def _parse_gaia_dependencies(project_config: dict[str, Any]) -> dict[str, str]:
+    Returns:
+        specs: dict mapping distribution name → version specifier string
+        import_to_dist: dict mapping inferred import name → distribution name
+    """
     dependencies = project_config.get("dependencies", [])
     if not isinstance(dependencies, list):
         raise GaiaCliError("Error: [project].dependencies must be a list if set.")
-    parsed: dict[str, str] = {}
+    specs: dict[str, str] = {}
+    import_to_dist: dict[str, str] = {}
     for raw in dependencies:
         if not isinstance(raw, str):
             raise GaiaCliError("Error: [project].dependencies entries must be strings.")
@@ -249,8 +254,11 @@ def _parse_gaia_dependencies(project_config: dict[str, Any]) -> dict[str, str]:
         except InvalidRequirement as exc:
             raise GaiaCliError(f"Error: invalid dependency requirement '{raw}': {exc}") from exc
         if requirement.name.endswith("-gaia"):
-            parsed[requirement.name] = str(requirement.specifier) or "*"
-    return parsed
+            dist_name = requirement.name
+            specs[dist_name] = str(requirement.specifier) or "*"
+            import_name = dist_name.removesuffix("-gaia").replace("-", "_")
+            import_to_dist[import_name] = dist_name
+    return specs, import_to_dist
 
 
 def _import_module(import_name: str) -> ModuleType:
@@ -361,7 +369,7 @@ def _relation_id(
 
 
 def _resolve_fills_relations(loaded: LoadedGaiaPackage, compiled) -> list[dict[str, Any]]:
-    dependency_specs = _parse_gaia_dependencies(loaded.project_config)
+    dependency_specs, import_to_dist = _parse_gaia_dependencies(loaded.project_config)
     local_package = loaded.package
     knowledge_by_qid = {
         knowledge.id: knowledge for knowledge in compiled.graph.knowledges if knowledge.id
@@ -390,18 +398,18 @@ def _resolve_fills_relations(loaded: LoadedGaiaPackage, compiled) -> list[dict[s
             )
 
         if source_owner is not None and source_owner != local_package:
-            source_dist = _distribution_name(source_owner.name)
-            if source_dist not in dependency_specs:
+            source_dist = import_to_dist.get(source_owner.name)
+            if source_dist is None or source_dist not in dependency_specs:
                 raise GaiaCliError(
-                    f"Error: fills() source dependency '{source_dist}' is not declared in "
-                    "[project].dependencies."
+                    f"Error: fills() source dependency '{source_owner.name}' is not declared in "
+                    "[project].dependencies (no matching *-gaia distribution found)."
                 )
 
-        target_dist = _distribution_name(target_owner.name)
-        if target_dist not in dependency_specs:
+        target_dist = import_to_dist.get(target_owner.name)
+        if target_dist is None or target_dist not in dependency_specs:
             raise GaiaCliError(
-                f"Error: fills() target dependency '{target_dist}' is not declared in "
-                "[project].dependencies."
+                f"Error: fills() target dependency '{target_owner.name}' is not declared in "
+                "[project].dependencies (no matching *-gaia distribution found)."
             )
 
         premises_manifest = dependency_manifest_cache.get(target_owner.name)
