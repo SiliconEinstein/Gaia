@@ -1,6 +1,6 @@
 [project]
 name = "gaia-lang"
-version = "0.2.7"
+version = "0.3.0"
 description = "Gaia Lang — Python DSL for knowledge authoring, compilation, and inference"
 readme = "README.md"
 license = {text = "MIT"}
