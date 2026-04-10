@@ -508,6 +508,16 @@ def _knowledge_manifest_entry(knowledge) -> dict[str, Any]:
     return entry
 
 
+def validate_fills_relations(loaded: LoadedGaiaPackage, compiled) -> None:
+    """Validate fills() relations without building full manifests.
+
+    Raises GaiaCliError if any fills() strategy has an invalid source,
+    target, or dependency configuration. Use this for ``gaia check``
+    where manifests are not needed — only validation matters.
+    """
+    _resolve_fills_relations(loaded, compiled)
+
+
 def build_package_manifests(loaded: LoadedGaiaPackage, compiled) -> dict[str, dict[str, Any]]:
     """Build package-level interface manifests from compiled IR plus runtime package state.
 
