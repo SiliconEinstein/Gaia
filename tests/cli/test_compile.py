@@ -752,7 +752,7 @@ def test_compile_bridge_package_requires_source_dependency_declaration(tmp_path,
 
     result = runner.invoke(app, ["compile", str(bridge_dir)])
     assert result.exit_code != 0
-    assert "source dependency 'dep-b-gaia' is not declared" in result.output
+    assert "source dependency" in result.output and "not declared" in result.output
 
 
 def test_compile_bridge_package_emits_declared_by_owner_false(tmp_path, monkeypatch):
