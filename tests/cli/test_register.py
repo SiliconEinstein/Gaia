@@ -356,6 +356,60 @@ def test_register_fails_when_release_dir_already_exists(tmp_path):
     assert "release directory already exists" in result.output
 
 
+def test_register_no_orphan_branch_on_validation_failure(tmp_path):
+    """Regression: validation failures must not leave an orphan branch.
+
+    Previously the branch was created before release-dir/version/UUID checks,
+    so a conflict left a dangling branch that blocked retries.
+    """
+    pkg_dir = tmp_path / "register_demo"
+    remote_dir = tmp_path / "register_demo_remote.git"
+    registry_dir = tmp_path / "gaia-registry"
+    _write_package(pkg_dir)
+    _init_git_repo(pkg_dir, remote_dir)
+    _init_registry_repo(registry_dir)
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    # Pre-create the release dir to trigger a validation failure
+    package_dir = registry_dir / "packages" / "register-demo"
+    release_dir = package_dir / "releases" / "1.2.0"
+    release_dir.mkdir(parents=True)
+    (release_dir / "exports.json").write_text("{}\n")
+    _run(["git", "add", "."], cwd=registry_dir)
+    _run(["git", "commit", "-m", "precreate release dir"], cwd=registry_dir)
+
+    _run(["git", "tag", "v1.2.0"], cwd=pkg_dir)
+    _run(["git", "push", "origin", "v1.2.0"], cwd=pkg_dir)
+
+    # First attempt: should fail on release dir exists
+    result = runner.invoke(
+        app,
+        [
+            "register",
+            str(pkg_dir),
+            "--repo",
+            "https://github.com/example/RegisterDemo.gaia",
+            "--registry-dir",
+            str(registry_dir),
+        ],
+    )
+    assert result.exit_code != 0
+
+    # The branch should NOT have been created
+    branch_check = subprocess.run(
+        ["git", "show-ref", "--verify", "--quiet", "refs/heads/register/register-demo-1.2.0"],
+        cwd=registry_dir,
+        capture_output=True,
+    )
+    assert branch_check.returncode != 0, "Orphan branch should not exist after validation failure"
+
+    # Registry should still be on the original branch (no checkout happened)
+    current_branch = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=registry_dir)
+    assert current_branch != "register/register-demo-1.2.0"
+
+
 def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     dep_dir = tmp_path / "dep_register_missing_root"
     dep_dir.mkdir()

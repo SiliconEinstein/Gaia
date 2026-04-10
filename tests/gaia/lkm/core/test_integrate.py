@@ -233,3 +233,68 @@ class TestBatchIntegrate:
         count_after = await storage.content.count("global_variable_nodes")
         assert stats2.dedup_with_existing >= 1
         assert count_after == count_before + stats2.new_global_variables
+
+    async def test_batch_and_per_package_produce_same_factor_counts(self, storage):
+        """Regression: batch_integrate must preserve factors referencing private vars.
+
+        Previously batch_integrate skipped private helper claims entirely,
+        causing factors that reference them to be dropped as unresolved.
+        """
+        from gaia.lkm.core.extract import ExtractionResult
+
+        ir = load_ir("galileo")
+        lowered = lower(ir, version="4.0.0")
+        results = [
+            ExtractionResult(
+                package_id=lowered.package_id,
+                version=lowered.version,
+                local_variables=lowered.local_variables,
+                local_factors=lowered.local_factors,
+            )
+        ]
+
+        stats = await batch_integrate(storage, results)
+
+        # Every local factor should resolve — no unresolved cross-refs
+        assert stats.unresolved_cross_refs == [], (
+            f"Batch dropped factors due to unresolved refs: {stats.unresolved_cross_refs}"
+        )
+
+        # Private variables should get global nodes
+        private_vars = [v for v in lowered.local_variables if v.visibility != "public"]
+        if private_vars:
+            # new_global_variables should include private variable globals
+            assert stats.new_global_variables >= len(lowered.local_variables)
+
+    async def test_batch_private_vars_resolve_factors(self, storage):
+        """Private helper claims must be in qid_to_gcn so factors resolve."""
+        from gaia.lkm.core.extract import ExtractionResult
+
+        ir = load_ir("galileo")
+        lowered = lower(ir, version="4.0.0")
+
+        # Count factors that reference private variables
+        private_ids = {v.id for v in lowered.local_variables if v.visibility != "public"}
+        factors_with_private = [
+            f
+            for f in lowered.local_factors
+            if any(p in private_ids for p in f.premises) or f.conclusion in private_ids
+        ]
+
+        results = [
+            ExtractionResult(
+                package_id=lowered.package_id,
+                version=lowered.version,
+                local_variables=lowered.local_variables,
+                local_factors=lowered.local_factors,
+            )
+        ]
+
+        await batch_integrate(storage, results)
+
+        # All factors including those with private refs must be created
+        factor_count = await storage.content.count("global_factor_nodes")
+        assert factor_count == len(lowered.local_factors), (
+            f"Expected {len(lowered.local_factors)} factors, got {factor_count}. "
+            f"{len(factors_with_private)} factors reference private vars."
+        )

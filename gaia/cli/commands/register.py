@@ -409,6 +409,9 @@ def register_command(
         typer.echo(f"Error: registry directory does not exist: {registry_path}", err=True)
         raise typer.Exit(1)
 
+    # ── Pre-branch validation ──
+    # All read-only checks run BEFORE creating the branch so that failures
+    # don't leave an orphan branch that blocks retries.
     try:
         registry_status = _run(["git", "status", "--short"], cwd=registry_path)
         if registry_status.stdout.strip():
@@ -421,13 +424,11 @@ def register_command(
         )
         if branch_exists.returncode == 0:
             raise GaiaCliError(f"Error: registry branch already exists: {branch_name}")
-        _run(["git", "checkout", "-b", branch_name], cwd=registry_path)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)
 
     package_dir = registry_path / "packages" / package_name
-    package_dir.mkdir(parents=True, exist_ok=True)
     release_path = package_dir / "releases" / version
     package_toml_path = package_dir / "Package.toml"
     versions_toml_path = package_dir / "Versions.toml"
@@ -444,20 +445,24 @@ def register_command(
         typer.echo(f"Error: version already exists in registry metadata: {version}", err=True)
         raise typer.Exit(1)
 
-    # Acquire the release directory BEFORE writing ANY metadata (including
-    # Package.toml). If the directory already exists, we exit without having
-    # touched anything, keeping the registry checkout clean for retry.
-    try:
-        release_path.mkdir(parents=True, exist_ok=False)
-    except FileExistsError:
+    if release_path.exists():
         typer.echo(
             f"Error: release directory already exists: {release_path}",
             err=True,
         )
         raise typer.Exit(1)
 
-    # All validation passed and the release directory is ours.
-    # Now write metadata files.
+    # ── All validation passed — create branch and write ──
+    try:
+        _run(["git", "checkout", "-b", branch_name], cwd=registry_path)
+    except GaiaCliError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1)
+
+    package_dir.mkdir(parents=True, exist_ok=True)
+    release_path.mkdir(parents=True, exist_ok=False)
+
+    # Write metadata files.
     if not package_toml_path.exists():
         package_toml_path.write_text(package_toml)
 
