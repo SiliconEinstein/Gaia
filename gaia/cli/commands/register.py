@@ -438,19 +438,29 @@ def register_command(
         if existing_package.get("uuid") != gaia_uuid:
             typer.echo("Error: registry package UUID does not match [tool.gaia].uuid.", err=True)
             raise typer.Exit(1)
-    else:
-        package_toml_path.write_text(package_toml)
 
     existing_versions = _load_existing_versions(versions_toml_path)
     if version in existing_versions:
         typer.echo(f"Error: version already exists in registry metadata: {version}", err=True)
         raise typer.Exit(1)
-    if release_path.exists():
+
+    # Acquire the release directory BEFORE writing ANY metadata (including
+    # Package.toml). If the directory already exists, we exit without having
+    # touched anything, keeping the registry checkout clean for retry.
+    try:
+        release_path.mkdir(parents=True, exist_ok=False)
+    except FileExistsError:
         typer.echo(
-            f"Error: release metadata already exists in registry checkout: {release_path}",
+            f"Error: release directory already exists: {release_path}",
             err=True,
         )
         raise typer.Exit(1)
+
+    # All validation passed and the release directory is ours.
+    # Now write metadata files.
+    if not package_toml_path.exists():
+        package_toml_path.write_text(package_toml)
+
     existing_versions[version] = versions[version]
     versions_toml_path.write_text(_render_versions_toml(existing_versions))
 
@@ -458,7 +468,6 @@ def register_command(
     existing_deps[version] = deps
     deps_toml_path.write_text(_render_deps_toml(existing_deps))
 
-    release_path.mkdir(parents=True, exist_ok=False)
     for filename, payload in manifests.items():
         (release_path / filename).write_text(render_manifest_json(payload))
 
