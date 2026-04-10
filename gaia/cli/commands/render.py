@@ -21,6 +21,7 @@ from gaia.ir.validator import validate_local_graph
 class RenderTarget(str, Enum):
     docs = "docs"
     github = "github"
+    obsidian = "obsidian"
     all = "all"
 
 
@@ -241,6 +242,8 @@ def render_command(
             "run `gaia infer` to include belief values.",
         )
 
+    want_obsidian = target == RenderTarget.obsidian
+
     if want_docs:
         content = generate_detailed_reasoning(
             ir,
@@ -264,6 +267,20 @@ def render_command(
             pkg_metadata=loaded.project_config,
         )
         typer.echo(f"GitHub: {github_out}")
+
+    if want_obsidian:
+        from gaia.cli.commands._obsidian import generate_obsidian_vault
+
+        obsidian_pages = generate_obsidian_vault(
+            ir, beliefs_data=beliefs_data, param_data=param_data
+        )
+        wiki_dir = loaded.pkg_path / ".gaia-wiki"
+        wiki_dir.mkdir(exist_ok=True)
+        for rel_path, page_content in obsidian_pages.items():
+            out = wiki_dir / rel_path
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(page_content)
+        typer.echo(f"Obsidian: {wiki_dir} ({len(obsidian_pages)} pages)")
 
     if loaded_review is not None:
         typer.echo(f"Review: {loaded_review.name}")
