@@ -86,9 +86,11 @@ def test_init_creates_package(tmp_path, monkeypatch):
     pkg_dir = tmp_path / "my-research-gaia"
     assert pkg_dir.exists()
 
-    # pyproject.toml has [tool.gaia] section
+    # pyproject.toml has [tool.hatch] wheel config and [tool.gaia] section
     pyproject = pkg_dir / "pyproject.toml"
     config = tomllib.loads(pyproject.read_text())
+    # Regression for #349: hatch wheel packages must be present
+    assert config["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == ["src/my_research"]
     assert config["tool"]["gaia"]["type"] == "knowledge-package"
     assert "uuid" in config["tool"]["gaia"]
     # uuid should be a valid UUID string
