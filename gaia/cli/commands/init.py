@@ -63,15 +63,23 @@ def init_command(
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)
 
-    # --- patch pyproject.toml with [tool.gaia] section -------------------------
+    # --- compute import name early (needed for both pyproject patch and rename) --
+    import_name = name.removesuffix("-gaia").replace("-", "_")
+
+    # --- patch pyproject.toml with [tool.hatch] + [tool.gaia] sections ---------
     pyproject_path = pkg_dir / "pyproject.toml"
     gaia_uuid = str(uuid.uuid4())
-    gaia_section = f'\n[tool.gaia]\ntype = "knowledge-package"\nuuid = "{gaia_uuid}"\n'
+    extra_sections = (
+        f"\n[tool.hatch.build.targets.wheel]\n"
+        f'packages = ["src/{import_name}"]\n'
+        f"\n[tool.gaia]\n"
+        f'type = "knowledge-package"\n'
+        f'uuid = "{gaia_uuid}"\n'
+    )
     with open(pyproject_path, "a") as f:
-        f.write(gaia_section)
+        f.write(extra_sections)
 
     # --- rename src/<uv_default_name>/ → src/<import_name>/ --------------------
-    import_name = name.removesuffix("-gaia").replace("-", "_")
     uv_default_name = name.replace("-", "_")
     src_dir = pkg_dir / "src"
     uv_pkg_dir = src_dir / uv_default_name
