@@ -110,12 +110,22 @@ class TestLoweringDeterminism:
 
 
 class TestLoweringProperties:
-    def test_all_variables_public(self):
-        """All Knowledge nodes lower to public visibility (no FormalStrategy in fixtures)."""
+    def test_helper_claims_private_others_public(self):
+        """Helper claims (generated_kind=helper_claim) lower to private visibility,
+        all other nodes lower to public. Regression for #267."""
         ir = load_ir("galileo")
         result = lower(ir, version="4.0.0")
         for v in result.local_variables:
-            assert v.visibility == "public"
+            ir_k = next((k for k in ir.knowledges if k.id == v.id), None)
+            meta = ir_k.metadata if ir_k else {}
+            if isinstance(meta, dict) and meta.get("generated_kind") == "helper_claim":
+                assert v.visibility == "private", (
+                    f"Helper claim {v.id} should be private, got {v.visibility}"
+                )
+            else:
+                assert v.visibility == "public", (
+                    f"Non-helper {v.id} should be public, got {v.visibility}"
+                )
 
     def test_strategy_factors_preserve_steps(self):
         """If IR strategies have steps, they should be preserved in lowering output."""

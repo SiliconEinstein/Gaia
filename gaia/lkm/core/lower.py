@@ -49,10 +49,19 @@ def _lower_knowledge(k: Knowledge, package_id: str, version: str) -> LocalVariab
     """Lower a Knowledge node to a LocalVariableNode."""
     params = [Parameter(name=p.name, type=p.type) for p in k.parameters]
     ch = compute_content_hash(k.type, k.content, [(p.name, p.type) for p in k.parameters])
+    # Auto-generated claims from formalize_named_strategy come in two kinds:
+    # - "helper_claim" (e.g. __disjunction_result_xxx): structural encoding
+    #   artifacts, should be private.
+    # - "interface_claim" (e.g. __alternative_explanation_xxx): public-facing
+    #   nodes that require priors, should stay public.
+    # Key off metadata["generated_kind"], not the __ prefix, because both
+    # kinds use __ prefixed QIDs.
+    meta = k.metadata or {}
+    visibility = "private" if meta.get("generated_kind") == "helper_claim" else "public"
     return LocalVariableNode(
         id=k.id,
         type=k.type,
-        visibility="public",
+        visibility=visibility,
         content=k.content,
         content_hash=ch,
         parameters=params,
