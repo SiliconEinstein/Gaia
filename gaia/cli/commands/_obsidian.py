@@ -345,11 +345,10 @@ def _generate_strategy_page(
     inlined_id_to_module: dict[str, str],
 ) -> str:
     """Generate a reasoning page for a complex strategy."""
-    sid = s.get("strategy_id", "")
     stype = s.get("type", "unknown")
-    s_label = sid.removeprefix("lcs_") if sid else stype
     conc = s.get("conclusion", "")
     conc_label = label_for_id.get(conc, conc.split("::")[-1])
+    s_label = f"{stype}_{conc_label}"
     premises = s.get("premises", [])
 
     def wl(target_id: str) -> str:
@@ -496,6 +495,26 @@ def _generate_index(
             mod = k.get("module", "Root")
             belief = f"{beliefs[k['id']]:.2f}" if k["id"] in beliefs else "—"
             lines.append(f"| [[{label}]] | {belief} | [[{mod}]] |")
+        lines.append("")
+
+    # Reading path (argument arc)
+    module_order = ir.get("module_order") or list(modules.keys())
+    # Filter out Root if it has no visible claims
+    reading_modules = [
+        m
+        for m in module_order
+        if m in modules
+        and sum(
+            1
+            for k in ir["knowledges"]
+            if k.get("module", "Root") == m and not _is_helper(k.get("label", ""))
+        )
+        > 0
+    ]
+    if len(reading_modules) > 1:
+        lines.append("## Reading Path")
+        lines.append("")
+        lines.append(" → ".join(f"[[{m}]]" for m in reading_modules))
         lines.append("")
 
     # Quick links
@@ -645,7 +664,13 @@ def generate_obsidian_vault(
     for s in ir.get("strategies", []):
         if _is_complex_strategy(s):
             sid = s.get("strategy_id", "")
-            s_label = sid.removeprefix("lcs_") if sid else s.get("type", "strategy")
+            stype = s.get("type", "strategy")
+            conc = s.get("conclusion", "")
+            conc_label = label_for_id.get(conc, conc.split("::")[-1])
+            s_label = f"{stype}_{conc_label}"
+            # Update label_for_id so wikilinks to this strategy use the readable name
+            if sid:
+                label_for_id[sid] = s_label
             pages[f"reasoning/{s_label}.md"] = _generate_strategy_page(
                 s,
                 label_for_id,

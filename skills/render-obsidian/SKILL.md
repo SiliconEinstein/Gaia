@@ -194,6 +194,25 @@ $T_c = 1.9$ K，偏差 58%。
 
 The good version reproduces the actual calculation steps, intermediate values, and equations — the reader can follow the derivation without opening the paper.
 
+### Figure embeds
+
+Every `![[filename]]` embed MUST have a caption on the next line:
+
+```markdown
+![[8_0.jpg]]
+*图 4：vDiagMC 计算的 $\mu_{E_F}(r_s)$（圆圈带误差棒），与 RPA（虚线）的对比。改编自 Cai et al., arXiv:2512.19382。*
+```
+
+Never embed an image without a descriptive caption. The caption should describe what the figure shows and cite the source.
+
+### Module vs conclusion page content
+
+Avoid duplicating full derivations in both the module page and the conclusion page:
+- **Module page**: provides an overview of each claim with key results and brief derivation context. Links to the conclusion page for full details.
+- **Conclusion page**: contains the complete, detailed derivation.
+
+If a claim is exported (has its own conclusion page), the module page should summarize it and use `[[label]]` to link to the full treatment. Don't reproduce the entire derivation in both places.
+
 ### DO NOT
 
 - Leave any page with only skeleton English content
@@ -202,6 +221,7 @@ The good version reproduces the actual calculation steps, intermediate values, a
 - Describe graph structure ("this claim derives from two premises via...")
 - Modify frontmatter or wikilink targets
 - Skip evidence pages — they are important for completeness
+- Embed images without captions
 
 ### Handling missing information
 
