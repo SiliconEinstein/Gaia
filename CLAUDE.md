@@ -194,6 +194,37 @@ litellm.api_base = os.getenv("OPENAI_API_BASE")
 - **不确定就问**：对设计方案的任何偏离，无论多小，都要在实现前提出。
 - **Plan 必须覆盖 spec 的每一步**：写 implementation plan 时，逐条核对 spec 中的每个步骤/流程，确保每一步都有对应的 task。遗漏步骤等于悄悄砍需求。
 
+## Scripts & Pipelines: Logging Is Mandatory
+
+所有 CLI 脚本（`scripts/*.py`、`gaia/lkm/pipelines/*.py` 有 `__main__` 的）**必须**符合以下规范，否则后台运行时会变成黑盒：
+
+1. **双 handler 日志**：同时输出到 console 和 `logs/{name}-{timestamp}.log`
+2. **`force=True`**：`logging.basicConfig` 必须加 `force=True` 覆盖任何已有配置（如 import 时被 LanceDB/httpx 初始化过的）
+3. **每阶段打点**：每个步骤的开始/结束都要 log，不能只在最后 summary
+4. **第一行输出 log 文件路径**：让用户立即知道去哪看日志
+5. **print() 用 flush=True**：logging 自动 flush，但普通 print 不会
+
+模板（直接复制）：
+
+```python
+import logging, os, time
+
+_LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
+os.makedirs(_LOG_DIR, exist_ok=True)
+_LOG_FILE = os.path.join(_LOG_DIR, f"{script_name}-{time.strftime('%Y%m%d-%H%M%S')}.log")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    handlers=[logging.StreamHandler(), logging.FileHandler(_LOG_FILE)],
+    force=True,  # IMPORTANT: override prior logging config
+)
+logger = logging.getLogger(__name__)
+logger.info("Log file: %s", _LOG_FILE)
+```
+
+**禁止**：后台跑脚本时不看日志。总是跑完后 tail 一下确认有输出。
+
 ## Design Documents
 
 Current specs live in `docs/foundations/` organized by architectural layer:

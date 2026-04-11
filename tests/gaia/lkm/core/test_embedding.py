@@ -42,7 +42,9 @@ class TestEmbedder:
         with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
             mock_post.return_value = mock_response
             embedder = Embedder(config, access_key="test-key")
-            await embedder.embed_batch([("gcn_1", "some text", "claim")], on_result, on_error)
+            await embedder.embed_batch(
+                [("gcn_1", "some text", "claim", "pkg1", "conclusion")], on_result, on_error
+            )
 
         assert len(results) == 1
         assert results[0]["gcn_id"] == "gcn_1"
@@ -65,7 +67,9 @@ class TestEmbedder:
         with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
             mock_post.return_value = mock_response
             embedder = Embedder(config, access_key="my-secret-key")
-            await embedder.embed_batch([("gcn_1", "hello world", "claim")], on_result, on_error)
+            await embedder.embed_batch(
+                [("gcn_1", "hello world", "claim", "pkg1", "conclusion")], on_result, on_error
+            )
 
         mock_post.assert_called()
         call_kwargs = mock_post.call_args
@@ -102,7 +106,9 @@ class TestEmbedder:
 
         with patch("httpx.AsyncClient.post", side_effect=flaky_post):
             embedder = Embedder(config, access_key="key")
-            await embedder.embed_batch([("gcn_1", "retry test", "claim")], on_result, on_error)
+            await embedder.embed_batch(
+                [("gcn_1", "retry test", "claim", "pkg1", "conclusion")], on_result, on_error
+            )
 
         assert len(results) == 1
         assert call_count == 3
@@ -123,7 +129,9 @@ class TestEmbedder:
 
         with patch("httpx.AsyncClient.post", side_effect=always_fail):
             embedder = Embedder(config, access_key="key")
-            await embedder.embed_batch([("gcn_1", "will fail", "claim")], on_result, on_error)
+            await embedder.embed_batch(
+                [("gcn_1", "will fail", "claim", "pkg1", "conclusion")], on_result, on_error
+            )
 
         assert len(errors) == 1
         assert errors[0][0] == "gcn_1"
@@ -152,7 +160,7 @@ class TestComputeEmbeddings:
         bh = MagicMock()
         bh.get_existing_gcn_ids = MagicMock(return_value=set(existing_ids or []))
         bh.upsert_embeddings = MagicMock()
-        bh.TABLE = "node_embeddings"
+        bh.TABLE = "gcn_embeddings"
         bh._client = MagicMock()
         bh._client.query.return_value.result_rows = [(0,)]
         return bh

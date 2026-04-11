@@ -101,6 +101,7 @@ def main() -> None:
             logging.StreamHandler(),
             logging.FileHandler(_LOG_FILE),
         ],
+        force=True,
     )
 
     config = StorageConfig()

@@ -86,7 +86,9 @@ class LanceContentStore:
             ("local_factor_nodes", "id"),
             ("global_variable_nodes", "id"),
             ("global_variable_nodes", "content_hash"),
+            ("global_variable_nodes", "visibility"),
             ("global_factor_nodes", "id"),
+            ("global_factor_nodes", "conclusion"),
             ("canonical_bindings", "local_id"),
             ("canonical_bindings", "global_id"),
             ("canonical_bindings", "binding_type"),
@@ -675,26 +677,43 @@ class LanceContentStore:
         await self._run(table.add, [global_variable_to_row(updated_node)])
 
     # ── Import status ──
+    #
+    # ``import_status`` is an **attempt log**: one row per ingest attempt,
+    # keyed logically by ``(package_id, started_at)``. The same package can
+    # legitimately have many rows for retries and failures. Writes are
+    # therefore append-only (plain ``add()``, not ``merge_insert``).
 
     async def write_import_status_batch(self, records: list[ImportStatusRecord]) -> None:
-        """Batch upsert import status records (idempotent by package_id)."""
+        """Append-only batch write of import status records.
+
+        Every call adds new rows; duplicate ``(package_id, started_at)`` pairs
+        are the caller's responsibility to avoid. In practice each ingest
+        attempt has a fresh ``started_at`` so collisions don't happen.
+        """
         if not records:
             return
+        table = self._db.open_table("import_status")
         rows = [import_status_to_row(r) for r in records]
-        await self._upsert(
-            "import_status", TABLE_SCHEMAS["import_status"], rows, merge_key="package_id"
-        )
+        batches = self._split_rows_by_size(rows, TABLE_SCHEMAS["import_status"])
+        for batch_table in batches:
+            await self._run(table.add, batch_table)
+        logger.info("Appended %d import_status rows (%d batches)", len(rows), len(batches))
 
     async def get_import_status(self, package_id: str) -> ImportStatusRecord | None:
+        """Return the latest ingest attempt for ``package_id`` (by started_at)."""
         table = self._db.open_table("import_status")
         escaped = _q(package_id)
         results = await self._run(
-            lambda: table.search().where(f"package_id = '{escaped}'").limit(1).to_list()
+            lambda: table.search().where(f"package_id = '{escaped}'").limit(_MAX_SCAN).to_list()
         )
-        return row_to_import_status(results[0]) if results else None
+        if not results:
+            return None
+        # Lance doesn't support ORDER BY in search; pick the max in-memory.
+        latest = max(results, key=lambda r: r.get("started_at") or "")
+        return row_to_import_status(latest)
 
     async def list_ingested_package_ids(self) -> list[str]:
-        """Return all package_ids with status='ingested' from import_status."""
+        """Return the unique set of package_ids whose latest attempt succeeded."""
         table = self._db.open_table("import_status")
 
         def _read() -> list[str]:
@@ -704,7 +723,8 @@ class LanceContentStore:
                 .limit(table.count_rows())
                 .to_pandas()
             )
-            return df.loc[df["status"] == "ingested", "package_id"].tolist()
+            ingested = df.loc[df["status"] == "ingested", "package_id"]
+            return ingested.drop_duplicates().tolist()
 
         return await self._run(_read)
 

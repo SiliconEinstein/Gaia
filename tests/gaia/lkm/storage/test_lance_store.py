@@ -177,6 +177,58 @@ class TestImportStatus:
         missing = await storage.get_import_status("paper:zzz")
         assert missing is None
 
+    async def test_import_status_is_append_only_attempt_log(self, storage: StorageManager):
+        """Multiple attempts for the same package_id must all be preserved.
+
+        Earlier the lance store used merge_key='package_id' which silently
+        overwrote previous attempts. The table is semantically an attempt
+        log keyed on (package_id, started_at) — this test pins the
+        append-only contract.
+        """
+        from datetime import datetime, timedelta, timezone
+
+        from gaia.lkm.models import ImportStatusRecord
+
+        t0 = datetime(2026, 4, 8, 6, 0, 0, tzinfo=timezone.utc)
+        attempts = [
+            ImportStatusRecord(
+                package_id="paper:retry",
+                status="failed:ValueError",
+                started_at=t0 + timedelta(minutes=15 * i),
+                completed_at=t0 + timedelta(minutes=15 * i, seconds=30),
+                error=f"attempt {i}",
+            )
+            for i in range(3)
+        ]
+        # Final attempt succeeds
+        attempts.append(
+            ImportStatusRecord(
+                package_id="paper:retry",
+                status="ingested",
+                variable_count=5,
+                started_at=t0 + timedelta(minutes=60),
+                completed_at=t0 + timedelta(minutes=60, seconds=10),
+            )
+        )
+
+        # Write in two batches to exercise cross-call append-only behavior
+        await storage.write_import_status_batch(attempts[:2])
+        await storage.write_import_status_batch(attempts[2:])
+
+        # All 4 rows must be present
+        total = await storage.content.count("import_status")
+        assert total == 4
+
+        # get_import_status returns the latest attempt (the successful one)
+        latest = await storage.get_import_status("paper:retry")
+        assert latest is not None
+        assert latest.status == "ingested"
+        assert latest.variable_count == 5
+
+        # list_ingested_package_ids dedupes
+        ingested = await storage.list_ingested_package_ids()
+        assert ingested.count("paper:retry") == 1
+
 
 class TestBatchUpsertLocalNodes:
     async def test_batch_upsert_writes_as_merged(self, storage):

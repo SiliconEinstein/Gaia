@@ -30,12 +30,16 @@ class StorageConfig(BaseSettings):
     neo4j_password: str = ""
     neo4j_database: str = "neo4j"
 
+    # LKM content backend selection: "lance" (default) or "bytehouse"
+    lkm_backend: str = "lance"
+
     # ByteHouse (ClickHouse-compatible)
     bytehouse_host: str = ""
     bytehouse_user: str = ""
     bytehouse_password: str = ""
     bytehouse_database: str = "paper_data"
     bytehouse_replication_root: str = ""  # ZooKeeper path prefix for HaUniqueMergeTree
+    bytehouse_table_prefix: str = "lkm_"
 
     # Embedding API
     embedding_access_key: str = ""
@@ -65,6 +69,16 @@ class StorageConfig(BaseSettings):
         # Embedding API key fallback
         if not self.embedding_access_key:
             self.embedding_access_key = os.environ.get("ACCESS_KEY", "")
+        # LKM backend selection: LKM_BACKEND env var (sits outside the LKM_
+        # prefix scheme so it stays a single, obvious knob).
+        env_backend = os.environ.get("LKM_BACKEND", "")
+        if env_backend and self.lkm_backend == "lance":
+            self.lkm_backend = env_backend
+        # Validate backend choice
+        if self.lkm_backend not in ("lance", "bytehouse"):
+            raise ValueError(
+                f"lkm_backend must be 'lance' or 'bytehouse', got {self.lkm_backend!r}"
+            )
 
     @property
     def effective_lancedb_uri(self) -> str:
@@ -82,4 +96,5 @@ class StorageConfig(BaseSettings):
             "secret_access_key": self.tos_secret_key,
             "endpoint": f"https://{bucket}.{self.tos_endpoint}",
             "virtual_hosted_style_request": "true",
+            "region": "cn-beijing",
         }

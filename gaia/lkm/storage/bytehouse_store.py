@@ -7,9 +7,13 @@ calling from async contexts.
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 
 import clickhouse_connect
+
+logger = logging.getLogger(__name__)
 
 
 class ByteHouseEmbeddingStore:
@@ -19,9 +23,11 @@ class ByteHouseEmbeddingStore:
     gcn_id performs an upsert (deduplication on primary key).
     """
 
-    TABLE = "node_embeddings"
+    TABLE = "gcn_embeddings"
 
-    _COLUMNS = ["gcn_id", "content", "node_type", "embedding", "source_id"]
+    _COLUMNS = ["gcn_id", "package_id", "content", "node_type", "role", "embedding", "source_id"]
+
+    _EMBEDDING_STATUS_TABLE = "embedding_status"
 
     def __init__(
         self,
@@ -32,17 +38,6 @@ class ByteHouseEmbeddingStore:
         secure: bool = True,
         replication_root: str = "",
     ) -> None:
-        """Connect to ByteHouse/ClickHouse.
-
-        Args:
-            host: ClickHouse server hostname.
-            user: Username for authentication.
-            password: Password for authentication.
-            database: Target database name.
-            secure: Whether to use TLS.
-            replication_root: ZooKeeper path prefix for HaUniqueMergeTree DDL.
-                Set via BYTEHOUSE_REPLICATION_ROOT env var.
-        """
         self._database = database
         self._replication_root = replication_root
         self._client = clickhouse_connect.get_client(
@@ -51,81 +46,101 @@ class ByteHouseEmbeddingStore:
             password=password,
             database=database,
             secure=secure,
-            compress=False,  # ByteHouse doesn't support lz4
+            compress=False,
         )
 
-    def ensure_table(self) -> None:
-        """Create the node_embeddings table if it does not exist.
-
-        Uses HaUniqueMergeTree so that gcn_id acts as a unique key —
-        duplicate inserts are deduplicated automatically.
-
-        ByteHouse requires explicit shard/replica path args for
-        HaUniqueMergeTree (it's backed by ReplicatedMergeTree).
-        """
+    def _require_replication_root(self) -> None:
         if not self._replication_root:
             raise ValueError(
                 "bytehouse_replication_root is required for HaUniqueMergeTree DDL. "
                 "Set BYTEHOUSE_REPLICATION_ROOT env var."
             )
-        # Pattern: HaUniqueMergeTree('<root>/<db>.<table>/{shard}', '{replica}')
+
+    def _engine_ddl(self, table_fqn: str) -> str:
+        return (
+            f"ENGINE = HaUniqueMergeTree("
+            f"'{self._replication_root}/{table_fqn}/{{shard}}', '{{replica}}')"
+        )
+
+    # ── Table creation ──
+
+    def ensure_table(self) -> None:
+        """Create node_embeddings table with package_id and role columns."""
+        self._require_replication_root()
         table_fqn = f"{self._database}.{self.TABLE}"
-        ddl = f"""
+        self._client.command(f"""
         CREATE TABLE IF NOT EXISTS {self.TABLE} (
             gcn_id      String,
+            package_id  String DEFAULT '',
             content     String,
             node_type   String,
+            role        String DEFAULT '',
             embedding   Array(Float32),
             source_id   String,
             created_at  DateTime DEFAULT now()
         )
-        ENGINE = HaUniqueMergeTree(
-            '{self._replication_root}/{table_fqn}/{{shard}}',
-            '{{replica}}'
-        )
+        {self._engine_ddl(table_fqn)}
         ORDER BY gcn_id
         UNIQUE KEY gcn_id
         SETTINGS index_granularity = 128
-        """
-        self._client.command(ddl)
+        """)
+
+    def ensure_embedding_status_table(self) -> None:
+        """Create embedding_status table for per-package tracking."""
+        self._require_replication_root()
+        table_fqn = f"{self._database}.{self._EMBEDDING_STATUS_TABLE}"
+        self._client.command(f"""
+        CREATE TABLE IF NOT EXISTS {self._EMBEDDING_STATUS_TABLE} (
+            package_id      String,
+            status          String DEFAULT 'pending',
+            total_variables UInt32 DEFAULT 0,
+            embedded_count  UInt32 DEFAULT 0,
+            failed_count    UInt32 DEFAULT 0,
+            updated_at      DateTime DEFAULT now()
+        )
+        {self._engine_ddl(table_fqn)}
+        ORDER BY package_id
+        UNIQUE KEY package_id
+        SETTINGS index_granularity = 128
+        """)
+
+    def ensure_all_tables(self) -> None:
+        """Create all required tables."""
+        self.ensure_table()
+        self.ensure_embedding_status_table()
+        self.ensure_discovery_tables()
+
+    # ── Embedding CRUD ──
 
     def get_existing_gcn_ids(self) -> set[str]:
-        """Return the set of all gcn_ids already stored in the table.
-
-        Returns:
-            Set of gcn_id strings currently in the table.
-        """
+        """Return the set of all gcn_ids already stored."""
         result = self._client.query(f"SELECT gcn_id FROM {self.TABLE}")
         return {row[0] for row in result.result_rows}
 
     def upsert_embeddings(self, records: list[dict]) -> None:
         """Batch insert embedding records.
 
-        HaUniqueMergeTree handles deduplication on gcn_id, so re-inserting
-        an existing gcn_id will overwrite the old record.
-
-        Args:
-            records: List of dicts, each with keys:
-                gcn_id, content, node_type, embedding, source_id.
+        Each record: {gcn_id, package_id, content, node_type, embedding, source_id}.
+        package_id is optional (defaults to '').
         """
         if not records:
             return
         data = [
-            [r["gcn_id"], r["content"], r["node_type"], r["embedding"], r["source_id"]]
+            [
+                r["gcn_id"],
+                r.get("package_id", ""),
+                r["content"],
+                r["node_type"],
+                r.get("role", ""),
+                r["embedding"],
+                r["source_id"],
+            ]
             for r in records
         ]
         self._client.insert(self.TABLE, data, column_names=self._COLUMNS)
 
     def load_embeddings_by_type(self, node_type: str) -> tuple[list[str], np.ndarray]:
-        """Load all embeddings for a given node type.
-
-        Args:
-            node_type: Node type to filter by (e.g. "claim", "question").
-
-        Returns:
-            Tuple of (gcn_ids, matrix) where matrix has shape (N, dim) and
-            dtype float32. Returns ([], np.array([])) when no rows exist.
-        """
+        """Load all embeddings for a given node type."""
         result = self._client.query(
             f"SELECT gcn_id, embedding FROM {self.TABLE} WHERE node_type = %(node_type)s",
             parameters={"node_type": node_type},
@@ -138,18 +153,70 @@ class ByteHouseEmbeddingStore:
         matrix = np.array([row[1] for row in rows], dtype=np.float32)
         return gcn_ids, matrix
 
+    # ── Embedding status tracking ──
+
+    def refresh_embedding_status(self) -> dict:
+        """Refresh embedding_status from node_embeddings.
+
+        Groups by package_id, counts embedded variables, writes to
+        embedding_status table. Returns summary stats.
+        """
+        # Get per-package counts from embeddings
+        result = self._client.query(f"""
+        SELECT package_id, count() as cnt
+        FROM {self.TABLE}
+        WHERE package_id != ''
+        GROUP BY package_id
+        """)
+
+        if not result.result_rows:
+            return {"packages": 0, "updated": 0}
+
+        rows = [[row[0], "completed", 0, row[1], 0] for row in result.result_rows]
+
+        # Batch insert (HaUniqueMergeTree deduplicates on package_id)
+        for i in range(0, len(rows), 500):
+            self._client.insert(
+                self._EMBEDDING_STATUS_TABLE,
+                rows[i : i + 500],
+                column_names=[
+                    "package_id",
+                    "status",
+                    "total_variables",
+                    "embedded_count",
+                    "failed_count",
+                ],
+            )
+
+        logger.info("Refreshed embedding_status: %d packages", len(rows))
+        return {"packages": len(rows), "updated": len(rows)}
+
+    def get_embedding_status_summary(self) -> dict:
+        """Get summary of embedding status."""
+        result = self._client.query(f"""
+        SELECT
+            count() as total_packages,
+            sum(embedded_count) as total_embedded,
+            countIf(status = 'completed') as completed_packages
+        FROM {self._EMBEDDING_STATUS_TABLE}
+        """)
+        if not result.result_rows:
+            return {"total_packages": 0, "total_embedded": 0, "completed_packages": 0}
+        r = result.result_rows[0]
+        return {
+            "total_packages": r[0],
+            "total_embedded": r[1],
+            "completed_packages": r[2],
+        }
+
     # ── Discovery results persistence ──
 
-    _RUNS_TABLE = "discovery_runs_v2"
-    _CLUSTERS_TABLE = "discovery_clusters_v2"
+    _RUNS_TABLE = "clustering_runs"
+    _CLUSTERS_TABLE = "clustering_results"
 
     def ensure_discovery_tables(self) -> None:
         """Create discovery_runs and discovery_clusters tables if not exist."""
-        if not self._replication_root:
-            raise ValueError(
-                "bytehouse_replication_root is required for HaUniqueMergeTree DDL. "
-                "Set BYTEHOUSE_REPLICATION_ROOT env var."
-            )
+        self._require_replication_root()
         db = self._database
         root = self._replication_root
 
@@ -202,17 +269,7 @@ class ByteHouseEmbeddingStore:
         scope: str = "full",
         type_counts: dict[str, int] | None = None,
     ) -> str:
-        """Persist a ClusteringResult to ByteHouse.
-
-        Args:
-            result: ClusteringResult from run_semantic_discovery().
-            config: DiscoveryConfig used for this run.
-            scope: Data scope label, e.g. "full", "subset:10000".
-            type_counts: Per-type embedding counts, e.g. {"claim": 9385, "question": 615}.
-
-        Returns:
-            The run_id assigned to this result.
-        """
+        """Persist a ClusteringResult to ByteHouse."""
         import json as _json
         import uuid
 
@@ -220,7 +277,6 @@ class ByteHouseEmbeddingStore:
         embedding_count = sum((type_counts or {}).values())
         type_counts_json = _json.dumps(type_counts or {})
 
-        # Write run metadata
         self._client.insert(
             self._RUNS_TABLE,
             [
@@ -251,7 +307,6 @@ class ByteHouseEmbeddingStore:
             ],
         )
 
-        # Write clusters in batches
         if result.clusters:
             rows = [
                 [
@@ -283,10 +338,7 @@ class ByteHouseEmbeddingStore:
         return run_id
 
     def load_latest_clusters(self) -> list[dict]:
-        """Load clusters from the most recent discovery run.
-
-        Returns list of dicts with cluster fields, or [] if no runs exist.
-        """
+        """Load clusters from the most recent discovery run."""
         run_result = self._client.query(
             f"SELECT run_id FROM {self._RUNS_TABLE} ORDER BY created_at DESC LIMIT 1"
         )
