@@ -48,21 +48,21 @@ services/gateway/        → FastAPI HTTP API (routes, dependency injection)
 libs/storage/            → Storage backends (LanceDB content, Neo4j/Kuzu graph, LanceDB vector)
 libs/storage/models.py   → Core Pydantic models (Knowledge, Chain, Module, Package, etc.)
 libs/inference/          → BP algorithm (factor graph, belief propagation)
-libs/lang/               → Gaia Language v4 Typst DSL loader, compiler, and proof state analysis
+gaia/lang/               → Gaia Language v5 Python DSL (knowledge declarations, operators, strategies)
 ```
 
 Dependencies flow downward only. `libs` has no service dependencies.
 
-### Gaia Language v4 DSL
+### Gaia Language v5 Python DSL
 
-Packages are authored as Typst projects (each with a `typst.toml` manifest).
+Packages are authored as Python modules (each with a `pyproject.toml` manifest, `[tool.gaia] type = "knowledge-package"`).
 
-- **Declarations:** `#setting`, `#question`, `#claim`, `#action`, `#relation` -- each emits a `figure(kind: "gaia-node")` in the Typst document.
-- **Labels:** follow `<filename.label_name>` convention for cross-referencing within a package.
-- **Reasoning links:** `from:` parameter lists premises on claims; `between:` parameter defines relation endpoints.
-- **Cross-package deps:** `#gaia-bibliography(yaml("gaia-deps.yml"))` declares external knowledge references.
-- **Gaia IR extraction:** `typst query` extracts `gaia-node` figures into Gaia IR (no `#export-graph()` call needed).
-- **Runtime files:** Typst function definitions live in `libs/typst/gaia-lang-v4/`.
+- **Knowledge:** `setting()`, `question()`, `claim()` — function calls at module scope, auto-register via `contextvars`
+- **Operators:** `contradiction()`, `equivalence()`, `complement()`, `disjunction()` — return helper claims
+- **Strategies:** `deduction()`, `abduction()`, `elimination()`, `case_analysis()`, `induction()`, `noisy_and()`, `analogy()`, `extrapolation()`, `mathematical_induction()`, `composite()`, `infer()`, `fills()`
+- **Labels:** module-level variables in `__all__` become labels, expanded to `{namespace}:{package}::{label}` at compile time
+- **Package:** `gaia-lang` v0.3.0 on PyPI, source in `gaia/lang/`
+- **Docs:** `docs/foundations/gaia-lang/dsl.md` (current canonical)
 
 ### Storage Layer (`libs/storage/`)
 
