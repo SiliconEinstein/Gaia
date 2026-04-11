@@ -96,4 +96,5 @@ class StorageConfig(BaseSettings):
             "secret_access_key": self.tos_secret_key,
             "endpoint": f"https://{bucket}.{self.tos_endpoint}",
             "virtual_hosted_style_request": "true",
+            "region": "cn-beijing",
         }
