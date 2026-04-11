@@ -514,6 +514,83 @@ class TestIndexAndOverview:
         pages = generate_obsidian_vault(ir)
         assert "[[c1]]" in pages["_index.md"]
 
+    def test_index_has_reading_path(self):
+        ir = _make_ir(
+            knowledges=[
+                {
+                    "id": "github:test_pkg::a",
+                    "label": "a",
+                    "type": "claim",
+                    "content": "A.",
+                    "module": "intro",
+                    "exported": True,
+                },
+                {
+                    "id": "github:test_pkg::b",
+                    "label": "b",
+                    "type": "claim",
+                    "content": "B.",
+                    "module": "results",
+                    "exported": True,
+                },
+            ]
+        )
+        ir["module_order"] = ["intro", "results"]
+        pages = generate_obsidian_vault(ir)
+        index = pages["_index.md"]
+        assert "## Reading Path" in index
+        assert "[[intro]] → [[results]]" in index
+
+    def test_strategy_page_has_readable_name(self):
+        ir = _make_ir(
+            knowledges=[
+                {
+                    "id": "github:test_pkg::p1",
+                    "label": "p1",
+                    "type": "claim",
+                    "content": "P1.",
+                    "module": "m",
+                },
+                {
+                    "id": "github:test_pkg::p2",
+                    "label": "p2",
+                    "type": "claim",
+                    "content": "P2.",
+                    "module": "m",
+                },
+                {
+                    "id": "github:test_pkg::p3",
+                    "label": "p3",
+                    "type": "claim",
+                    "content": "P3.",
+                    "module": "m",
+                },
+                {
+                    "id": "github:test_pkg::c1",
+                    "label": "c1",
+                    "type": "claim",
+                    "content": "C.",
+                    "module": "m",
+                    "exported": True,
+                },
+            ],
+            strategies=[
+                {
+                    "strategy_id": "lcs_abc123",
+                    "type": "induction",
+                    "premises": [
+                        "github:test_pkg::p1",
+                        "github:test_pkg::p2",
+                        "github:test_pkg::p3",
+                    ],
+                    "conclusion": "github:test_pkg::c1",
+                },
+            ],
+        )
+        pages = generate_obsidian_vault(ir)
+        assert "reasoning/induction_c1.md" in pages
+        assert "reasoning/abc123.md" not in pages
+
     def test_overview_has_mermaid(self):
         ir = _make_ir(
             knowledges=[
