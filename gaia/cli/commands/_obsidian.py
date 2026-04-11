@@ -24,6 +24,51 @@ def _is_helper(label: str | None) -> bool:
     return label.startswith("__") or label.startswith("_anon")
 
 
+def _build_page_set(
+    conclusions: list[dict],
+    evidence: list[dict],
+    module_inlined: list[dict],
+) -> tuple[set[str], dict[str, str]]:
+    """Build (ids_with_pages, id_to_module) for wikilink resolution.
+
+    Returns:
+    - ids_with_pages: set of knowledge IDs that have their own page
+    - inlined_id_to_module: kid → module name for nodes inlined in module pages
+    """
+    ids_with_pages: set[str] = set()
+    for k in conclusions:
+        ids_with_pages.add(k["id"])
+    for k in evidence:
+        ids_with_pages.add(k["id"])
+
+    inlined_id_to_module: dict[str, str] = {}
+    for k in module_inlined:
+        inlined_id_to_module[k["id"]] = k.get("module", "Root")
+
+    return ids_with_pages, inlined_id_to_module
+
+
+def _wikilink(
+    kid: str,
+    label_for_id: dict[str, str],
+    ids_with_pages: set[str],
+    inlined_id_to_module: dict[str, str],
+) -> str:
+    """Generate a wikilink for a knowledge ID.
+
+    If the target has its own page: ``[[label]]``
+    If the target is inlined in a module page: ``[[module#label|label]]``
+    Otherwise: plain ``label`` (no link).
+    """
+    label = label_for_id.get(kid, kid.split("::")[-1])
+    if kid in ids_with_pages:
+        return f"[[{label}]]"
+    if kid in inlined_id_to_module:
+        mod = inlined_id_to_module[kid]
+        return f"[[{mod}#{label}|{label}]]"
+    return label
+
+
 def _is_complex_strategy(s: dict) -> bool:
     """A strategy gets its own page if complex (induction/elimination/case_analysis or ≥3 premises)."""
     complex_types = {"induction", "elimination", "case_analysis"}
@@ -107,6 +152,8 @@ def _generate_claim_page(
     strategies_by_conclusion: dict[str, list[dict]],
     strategies_by_premise: dict[str, list[dict]],
     label_for_id: dict[str, str],
+    ids_with_pages: set[str],
+    inlined_id_to_module: dict[str, str],
 ) -> str:
     """Generate a conclusion page (exported claim or question)."""
     kid = k["id"]
@@ -114,6 +161,9 @@ def _generate_claim_page(
     title = k.get("title") or label.replace("_", " ")
     content = k.get("content", "")
     module = k.get("module", "Root")
+
+    def wl(target_id: str) -> str:
+        return _wikilink(target_id, label_for_id, ids_with_pages, inlined_id_to_module)
 
     strategy_for = strategies_by_conclusion.get(kid, [])
     strategy_type = strategy_for[0]["type"] if strategy_for else None
@@ -151,8 +201,7 @@ def _generate_claim_page(
         if premises:
             lines.append("- **Premises**:")
             for p in premises:
-                p_label = label_for_id.get(p, p.split("::")[-1])
-                lines.append(f"  - [[{p_label}]]")
+                lines.append(f"  - {wl(p)}")
         reason = (s.get("metadata") or {}).get("reason", "") or s.get("reason", "")
         if reason:
             lines.append("")
@@ -165,8 +214,7 @@ def _generate_claim_page(
         lines.append("## Supports")
         for s in strategies_by_premise[kid]:
             conc = s.get("conclusion", "")
-            c_label = label_for_id.get(conc, conc.split("::")[-1])
-            lines.append(f"- → [[{c_label}]] via {s['type']}")
+            lines.append(f"- → {wl(conc)} via {s['type']}")
         lines.append("")
 
     # Module link
@@ -183,6 +231,8 @@ def _generate_evidence_page(
     priors: dict[str, float],
     strategies_by_premise: dict[str, list[dict]],
     label_for_id: dict[str, str],
+    ids_with_pages: set[str],
+    inlined_id_to_module: dict[str, str],
 ) -> str:
     """Generate an evidence page (leaf premise)."""
     kid = k["id"]
@@ -190,6 +240,9 @@ def _generate_evidence_page(
     title = k.get("title") or label.replace("_", " ")
     content = k.get("content", "")
     module = k.get("module", "Root")
+
+    def wl(target_id: str) -> str:
+        return _wikilink(target_id, label_for_id, ids_with_pages, inlined_id_to_module)
 
     fm = _render_frontmatter(
         {
@@ -209,8 +262,7 @@ def _generate_evidence_page(
         lines.append("## Supports")
         for s in strategies_by_premise[kid]:
             conc = s.get("conclusion", "")
-            c_label = label_for_id.get(conc, conc.split("::")[-1])
-            lines.append(f"- → [[{c_label}]] via {s['type']}")
+            lines.append(f"- → {wl(conc)} via {s['type']}")
         lines.append("")
 
     lines.append("## Module")
@@ -227,10 +279,15 @@ def _generate_module_page(
     priors: dict[str, float],
     strategies_by_conclusion: dict[str, list[dict]],
     label_for_id: dict[str, str],
+    ids_with_pages: set[str],
+    inlined_id_to_module: dict[str, str],
     module_title: str | None = None,
 ) -> str:
     """Generate a module page with inlined non-exported claims and settings."""
     title = module_title or module_name.replace("_", " ").title()
+
+    def wl(target_id: str) -> str:
+        return _wikilink(target_id, label_for_id, ids_with_pages, inlined_id_to_module)
 
     module_nodes = [
         k
@@ -275,10 +332,7 @@ def _generate_module_page(
             if kid in strategies_by_conclusion:
                 s = strategies_by_conclusion[kid][0]
                 premises = s.get("premises", [])
-                p_labels = [label_for_id.get(p, p.split("::")[-1]) for p in premises]
-                lines.append(
-                    f"Derived via {s['type']} from: " + ", ".join(f"[[{la}]]" for la in p_labels)
-                )
+                lines.append(f"Derived via {s['type']} from: " + ", ".join(wl(p) for p in premises))
                 lines.append("")
 
     return "\n".join(lines)
@@ -287,6 +341,8 @@ def _generate_module_page(
 def _generate_strategy_page(
     s: dict,
     label_for_id: dict[str, str],
+    ids_with_pages: set[str],
+    inlined_id_to_module: dict[str, str],
 ) -> str:
     """Generate a reasoning page for a complex strategy."""
     sid = s.get("strategy_id", "")
@@ -295,6 +351,9 @@ def _generate_strategy_page(
     conc = s.get("conclusion", "")
     conc_label = label_for_id.get(conc, conc.split("::")[-1])
     premises = s.get("premises", [])
+
+    def wl(target_id: str) -> str:
+        return _wikilink(target_id, label_for_id, ids_with_pages, inlined_id_to_module)
 
     fm = _render_frontmatter(
         {
@@ -308,14 +367,13 @@ def _generate_strategy_page(
     )
 
     lines = [fm, "", f"# {stype}: {s_label}", ""]
-    lines.append(f"**Conclusion:** [[{conc_label}]]")
+    lines.append(f"**Conclusion:** {wl(conc)}")
     lines.append("")
 
     if premises:
         lines.append("## Premises")
         for p in premises:
-            p_label = label_for_id.get(p, p.split("::")[-1])
-            lines.append(f"- [[{p_label}]]")
+            lines.append(f"- {wl(p)}")
         lines.append("")
 
     reason = (s.get("metadata") or {}).get("reason", "") or s.get("reason", "")
@@ -331,6 +389,9 @@ def _generate_beliefs_page(
     ir: dict,
     beliefs: dict[str, float],
     priors: dict[str, float],
+    label_for_id: dict[str, str],
+    ids_with_pages: set[str],
+    inlined_id_to_module: dict[str, str],
 ) -> str:
     """Generate meta/beliefs.md with a sortable belief table."""
     classification = classify_ir(ir)
@@ -343,12 +404,12 @@ def _generate_beliefs_page(
 
     for k in knowledges:
         kid = k["id"]
-        label = k.get("label", "")
         ktype = k["type"]
         role = node_role(kid, ktype, classification)
         prior = f"{priors[kid]:.2f}" if kid in priors else "—"
         belief = f"{beliefs[kid]:.2f}" if kid in beliefs else "—"
-        lines.append(f"| [[{label}]] | {ktype} | {prior} | {belief} | {role} |")
+        link = _wikilink(kid, label_for_id, ids_with_pages, inlined_id_to_module)
+        lines.append(f"| {link} | {ktype} | {prior} | {belief} | {role} |")
 
     lines.append("")
     return "\n".join(lines)
@@ -527,20 +588,36 @@ def generate_obsidian_vault(
             label_for_id[sid] = sid.removeprefix("lcs_")
 
     # Classify nodes
-    conclusions, evidence, _module_inlined = _classify_pages(ir)
+    conclusions, evidence, module_inlined = _classify_pages(ir)
+
+    # Build page-ownership map for wikilink resolution
+    ids_with_pages, inlined_id_to_module = _build_page_set(conclusions, evidence, module_inlined)
 
     # Conclusion pages
     for k in conclusions:
         label = k.get("label", "")
         pages[f"conclusions/{label}.md"] = _generate_claim_page(
-            k, beliefs, priors, strategies_by_conclusion, strategies_by_premise, label_for_id
+            k,
+            beliefs,
+            priors,
+            strategies_by_conclusion,
+            strategies_by_premise,
+            label_for_id,
+            ids_with_pages,
+            inlined_id_to_module,
         )
 
     # Evidence pages
     for k in evidence:
         label = k.get("label", "")
         pages[f"evidence/{label}.md"] = _generate_evidence_page(
-            k, beliefs, priors, strategies_by_premise, label_for_id
+            k,
+            beliefs,
+            priors,
+            strategies_by_premise,
+            label_for_id,
+            ids_with_pages,
+            inlined_id_to_module,
         )
 
     # Module pages
@@ -553,7 +630,15 @@ def generate_obsidian_vault(
 
     for mod, mod_title in modules.items():
         pages[f"modules/{mod}.md"] = _generate_module_page(
-            mod, ir, beliefs, priors, strategies_by_conclusion, label_for_id, mod_title
+            mod,
+            ir,
+            beliefs,
+            priors,
+            strategies_by_conclusion,
+            label_for_id,
+            ids_with_pages,
+            inlined_id_to_module,
+            mod_title,
         )
 
     # Strategy pages (complex only)
@@ -561,11 +646,23 @@ def generate_obsidian_vault(
         if _is_complex_strategy(s):
             sid = s.get("strategy_id", "")
             s_label = sid.removeprefix("lcs_") if sid else s.get("type", "strategy")
-            pages[f"reasoning/{s_label}.md"] = _generate_strategy_page(s, label_for_id)
+            pages[f"reasoning/{s_label}.md"] = _generate_strategy_page(
+                s,
+                label_for_id,
+                ids_with_pages,
+                inlined_id_to_module,
+            )
 
     # Meta pages
     if beliefs:
-        pages["meta/beliefs.md"] = _generate_beliefs_page(ir, beliefs, priors)
+        pages["meta/beliefs.md"] = _generate_beliefs_page(
+            ir,
+            beliefs,
+            priors,
+            label_for_id,
+            ids_with_pages,
+            inlined_id_to_module,
+        )
     pages["meta/holes.md"] = _generate_holes_page(evidence)
 
     # Index and overview
