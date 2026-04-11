@@ -274,7 +274,7 @@ def render_command(
         obsidian_pages = generate_obsidian_vault(
             ir, beliefs_data=beliefs_data, param_data=param_data
         )
-        wiki_dir = loaded.pkg_path / ".gaia-wiki"
+        wiki_dir = loaded.pkg_path / "gaia-wiki"
         wiki_dir.mkdir(exist_ok=True)
         for rel_path, page_content in obsidian_pages.items():
             out = wiki_dir / rel_path

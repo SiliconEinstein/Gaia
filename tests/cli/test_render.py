@@ -453,3 +453,24 @@ def test_render_fails_when_review_sidecar_edited_after_infer(tmp_path):
     assert "review" in result.output.lower()
     assert "changed" in result.output.lower() or "content_hash" in result.output.lower()
     assert "gaia infer" in result.output
+
+
+def test_render_target_obsidian_writes_vault(tmp_path):
+    """Obsidian target creates gaia-wiki/ with _index.md and module pages."""
+    pkg_dir = _prepare_inferred_package(tmp_path, name="obsidian_demo")
+    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "obsidian"])
+    assert result.exit_code == 0, result.output
+    wiki_dir = pkg_dir / "gaia-wiki"
+    assert wiki_dir.is_dir()
+    assert (wiki_dir / "_index.md").exists()
+    assert (wiki_dir / "overview.md").exists()
+    assert (wiki_dir / ".obsidian" / "graph.json").exists()
+    assert "Obsidian:" in result.output
+
+
+def test_render_target_all_does_not_include_obsidian(tmp_path):
+    """Obsidian is opt-in — --target all should NOT create gaia-wiki/."""
+    pkg_dir = _prepare_inferred_package(tmp_path, name="all_no_obsidian")
+    result = runner.invoke(app, ["render", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    assert not (pkg_dir / "gaia-wiki").exists()
