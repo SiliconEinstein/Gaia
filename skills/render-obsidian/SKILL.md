@@ -79,7 +79,7 @@ Rewrite into a complete article about this claim.
 
 **Section ordering (top to bottom):**
 
-1. **Title**: Translate the `# heading`
+1. **Title**: Write a descriptive, reader-friendly `# heading` in the user's language. Don't just translate the label — write a title that tells the reader what this page is about (e.g., "铝的第一性原理超导转变温度预测" instead of "tc_al_predicted"). The filename stays unchanged (wikilinks are not affected).
 2. **Content**: Replace the terse blockquote with a full explanation of the claim. Include ALL relevant numbers, equations, experimental conditions.
 3. **Background** (新增, 放在推导之前): The complete scientific context for this claim. What problem does it address? What is known from prior work? What gap exists? Embed relevant figures from `artifacts/images/`. This section sets up the reader to understand the derivation that follows.
 4. **Derivation** (核心, 最详尽的部分): Reproduce the paper's full argument for this claim — not a summary but a readable rewrite of the original derivation. Include:
@@ -97,10 +97,11 @@ Rewrite into a complete article about this claim.
 
 Rewrite into a complete source documentation page. Evidence pages are leaf nodes — they represent facts the paper takes as given or demonstrates directly.
 
-1. **Content**: Full statement of the evidence with all quantitative details, equations, and conditions.
-2. **Background**: Scientific context — why this evidence matters, what it establishes, how it was obtained. Reproduce the paper's full discussion of this point including any appendix material.
-3. **Source**: Experimental method, measurement conditions, precision, error bars, known limitations. Embed relevant figures and data tables from the paper.
-4. **Supports**: Which conclusions depend on this evidence — explain the logical connection, not just list names.
+1. **Title**: Write a descriptive `# heading` in the user's language (e.g., "Ward 恒等式（长波极限）" instead of "ward_identity"). Filename stays unchanged.
+2. **Content**: Full statement of the evidence with all quantitative details, equations, and conditions.
+3. **Background**: Scientific context — why this evidence matters, what it establishes, how it was obtained. Reproduce the paper's full discussion of this point including any appendix material.
+4. **Source**: Experimental method, measurement conditions, precision, error bars, known limitations. Embed relevant figures and data tables from the paper.
+5. **Supports**: Which conclusions depend on this evidence — explain the logical connection, not just list names.
 
 #### Module pages (`modules/*.md`)
 

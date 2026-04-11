@@ -155,6 +155,7 @@ def _generate_claim_page(
     label_for_id: dict[str, str],
     ids_with_pages: set[str],
     inlined_id_to_module: dict[str, str],
+    module_titles: dict[str, str] | None = None,
 ) -> str:
     """Generate a conclusion page (exported claim or question)."""
     kid = k["id"]
@@ -220,7 +221,8 @@ def _generate_claim_page(
 
     # Module link
     lines.append("## Module")
-    lines.append(f"[[{module}]]")
+    mod_title = (module_titles or {}).get(module)
+    lines.append(f"[[{module}|{mod_title}]]" if mod_title else f"[[{module}]]")
     lines.append("")
 
     return "\n".join(lines)
@@ -234,6 +236,7 @@ def _generate_evidence_page(
     label_for_id: dict[str, str],
     ids_with_pages: set[str],
     inlined_id_to_module: dict[str, str],
+    module_titles: dict[str, str] | None = None,
 ) -> str:
     """Generate an evidence page (leaf premise)."""
     kid = k["id"]
@@ -267,7 +270,8 @@ def _generate_evidence_page(
         lines.append("")
 
     lines.append("## Module")
-    lines.append(f"[[{module}]]")
+    mod_title = (module_titles or {}).get(module)
+    lines.append(f"[[{module}|{mod_title}]]" if mod_title else f"[[{module}]]")
     lines.append("")
 
     return "\n".join(lines)
@@ -480,6 +484,13 @@ def _generate_index(
     lines.append(f"| Leaf premises | {len(evidence)} |")
     lines.append("")
 
+    def mod_link(mod_name: str) -> str:
+        """Module wikilink with title as display text."""
+        title = modules.get(mod_name)
+        if title:
+            return f"[[{mod_name}|{title}]]"
+        return f"[[{mod_name}]]"
+
     # Module navigation
     lines.append("## Modules")
     lines.append("")
@@ -491,7 +502,7 @@ def _generate_index(
             for k in all_k
             if k.get("module", "Root") == mod and not _is_helper(k.get("label", ""))
         )
-        lines.append(f"| [[{mod}]] | {count} |")
+        lines.append(f"| {mod_link(mod)} | {count} |")
     lines.append("")
 
     # Exported conclusions
@@ -505,7 +516,24 @@ def _generate_index(
             label = k.get("label", "")
             mod = k.get("module", "Root")
             belief = f"{beliefs[k['id']]:.2f}" if k["id"] in beliefs else "—"
-            lines.append(f"| [[{label}]] | {belief} | [[{mod}]] |")
+            lines.append(f"| [[{label}]] | {belief} | {mod_link(mod)} |")
+        lines.append("")
+
+    # Reading path (argument arc with titles)
+    module_order = ir.get("module_order") or list(modules.keys())
+    reading_modules = [
+        m
+        for m in module_order
+        if m in modules
+        and sum(
+            1 for k in all_k if k.get("module", "Root") == m and not _is_helper(k.get("label", ""))
+        )
+        > 0
+    ]
+    if len(reading_modules) > 1:
+        lines.append("## Reading Path")
+        lines.append("")
+        lines.append(" → ".join(mod_link(m) for m in reading_modules))
         lines.append("")
 
     # Reading path (argument arc)
@@ -637,6 +665,9 @@ def generate_obsidian_vault(
     # Build page-ownership map for wikilink resolution
     ids_with_pages, inlined_id_to_module = _build_page_set(conclusions, evidence, module_inlined)
 
+    # Module titles (needed by claim/evidence pages for module links)
+    module_titles: dict[str, str] = ir.get("module_titles") or {}
+
     # Conclusion pages
     for k in conclusions:
         label = k.get("label", "")
@@ -649,6 +680,7 @@ def generate_obsidian_vault(
             label_for_id,
             ids_with_pages,
             inlined_id_to_module,
+            module_titles,
         )
 
     # Evidence pages
@@ -662,11 +694,11 @@ def generate_obsidian_vault(
             label_for_id,
             ids_with_pages,
             inlined_id_to_module,
+            module_titles,
         )
 
     # Module pages
     modules: dict[str, str | None] = {}
-    module_titles = ir.get("module_titles") or {}
     for k in ir["knowledges"]:
         mod = k.get("module", "Root")
         if mod not in modules:
