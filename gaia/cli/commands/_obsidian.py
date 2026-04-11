@@ -11,6 +11,7 @@ import json
 
 from gaia.cli.commands._classify import classify_ir, node_role
 from gaia.cli.commands._detailed_reasoning import render_mermaid
+from gaia.cli.commands._simplified_mermaid import render_simplified_mermaid
 
 
 # ---------------------------------------------------------------------------
@@ -308,7 +309,17 @@ def _generate_module_page(
         }
     )
 
-    lines = [fm, "", f"# {title}", "", "## Claims", ""]
+    lines = [fm, "", f"# {title}", ""]
+
+    # Per-module reasoning graph
+    mod_ids = {k["id"] for k in module_nodes}
+    if mod_ids:
+        mermaid = render_mermaid(ir, beliefs=beliefs, node_ids=mod_ids)
+        lines.append(mermaid)
+        lines.append("")
+
+    lines.append("## Claims")
+    lines.append("")
 
     for k in module_nodes:
         kid = k["id"]
@@ -529,13 +540,27 @@ def _generate_index(
     return "\n".join(lines)
 
 
-def _generate_overview(ir: dict) -> str:
-    """Generate overview.md with Mermaid reasoning graph."""
+def _generate_overview(
+    ir: dict,
+    beliefs: dict[str, float],
+    priors: dict[str, float],
+) -> str:
+    """Generate overview.md with simplified Mermaid reasoning graph.
+
+    Uses the simplified graph (conclusions + key premises) when beliefs
+    are available, falling back to the full graph otherwise.
+    """
     pkg = ir.get("package_name", "Package")
     lines = ["---", "type: overview", "tags: [overview]", "---", ""]
     lines.append(f"# {pkg} — Overview")
     lines.append("")
-    lines.append(render_mermaid(ir))
+
+    if beliefs:
+        exported_ids = {k["id"] for k in ir.get("knowledges", []) if k.get("exported")}
+        lines.append(render_simplified_mermaid(ir, beliefs, priors, exported_ids))
+    else:
+        lines.append(render_mermaid(ir))
+
     lines.append("")
     return "\n".join(lines)
 
@@ -692,7 +717,7 @@ def generate_obsidian_vault(
 
     # Index and overview
     pages["_index.md"] = _generate_index(ir, conclusions, evidence, beliefs, modules)
-    pages["overview.md"] = _generate_overview(ir)
+    pages["overview.md"] = _generate_overview(ir, beliefs, priors)
     pages[".obsidian/graph.json"] = _generate_obsidian_config()
 
     return pages
