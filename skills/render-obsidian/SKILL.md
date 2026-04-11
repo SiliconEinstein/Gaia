@@ -1,11 +1,11 @@
 ---
 name: render-obsidian
-description: "Use when user wants a browsable Obsidian wiki from a Gaia knowledge package — generates skeleton, fills narrative from IR and original sources, audits cross-references."
+description: "Use when user wants a browsable Obsidian wiki from a Gaia knowledge package — generates skeleton, rewrites all pages as rich knowledge documents from IR and original sources, audits cross-references."
 ---
 
 # Render Obsidian Wiki
 
-Generate a rich, browsable Obsidian vault (`gaia-wiki/`) from a Gaia knowledge package. The agent drives the full pipeline: skeleton generation, narrative filling, and cross-reference audit.
+Generate a rich, browsable Obsidian vault (`gaia-wiki/`) from a Gaia knowledge package. The agent drives the full pipeline: skeleton generation, full rewrite into human-readable knowledge documents, and cross-reference audit.
 
 ## Full Pipeline
 
@@ -14,28 +14,18 @@ Generate a rich, browsable Obsidian vault (`gaia-wiki/`) from a Gaia knowledge p
   ↓
 Step 1: gaia compile + gaia infer (if review exists)
 Step 2: gaia render --target obsidian → gaia-wiki/ skeleton
-Step 3: Read inputs (IR, beliefs, artifacts/)
-Step 4: Fill narrative per page (agent writes directly)
+Step 3: Read inputs (IR, beliefs, artifacts/, DSL source)
+Step 4: Rewrite every page as a complete knowledge document
 Step 5: Cross-reference audit
 Step 6: Report
 ```
 
 ## Step 1: Ensure Compile + Infer
 
-Run in the package directory:
-
 ```bash
 gaia compile .
+ls reviews/ && gaia infer .   # run inference if review exists
 ```
-
-If a review sidecar exists, also run inference:
-
-```bash
-ls reviews/          # check for review sidecars
-gaia infer .         # run if review exists
-```
-
-If compile or infer fails, stop and report the error.
 
 ## Step 2: Generate Skeleton
 
@@ -43,188 +33,180 @@ If compile or infer fails, stop and report the error.
 gaia render . --target obsidian
 ```
 
-This produces `gaia-wiki/` containing:
-- `_index.md` — master navigation with statistics
-- `overview.md` — Mermaid reasoning graph
-- `conclusions/{label}.md` — one page per exported claim / question
-- `evidence/{label}.md` — one page per leaf premise
-- `modules/{module}.md` — one page per module (non-exported claims inlined)
-- `reasoning/{strategy}.md` — one page per complex strategy
-- `meta/beliefs.md` — belief table (if infer was run)
-- `meta/holes.md` — leaf premises summary
-- `.obsidian/graph.json` — graph view color config
-
-All pages have YAML frontmatter and wikilinks. The skeleton is browsable but thin.
+This produces `gaia-wiki/` with YAML frontmatter, wikilinks, and Mermaid graphs on every page. The skeleton provides **structure only** — all prose content will be rewritten by the agent.
 
 ## Step 3: Read Inputs
 
-Read these files to prepare for narrative filling:
+Read thoroughly before writing:
 
 ```bash
-cat .gaia/ir.json                          # Full IR (knowledges, strategies, operators)
-cat .gaia/reviews/*/beliefs.json           # BP results (if available)
-cat .gaia/reviews/*/parameterization.json  # Review priors + strategy params
-ls src/<package>/*.py                      # DSL source (claims, strategies, reasons)
+cat .gaia/ir.json                          # Full IR
+cat .gaia/reviews/*/beliefs.json           # BP results
+cat .gaia/reviews/*/parameterization.json  # Priors + strategy params
+cat src/<package>/*.py                     # DSL source (claims, reasons, strategies)
 ls artifacts/                              # Original paper, figures, data
 ```
 
-Build a mental model of:
-- The package's overall argument (what is it trying to establish?)
-- The reasoning chains (which premises support which conclusions?)
-- The evidence quality (where are beliefs strong vs weak?)
-- The original source material (what context does the paper provide?)
+Read the original source material in `artifacts/` cover-to-cover. The agent must understand the paper's argument, data, and figures before writing any page.
 
-## Step 4: Fill Narrative Per Page
+## Step 4: Rewrite Every Page
 
-For each page in `gaia-wiki/`, enrich the skeleton with narrative content. **Do NOT modify frontmatter or wikilinks** — only add prose sections.
+**Core principle:** The skeleton is scaffolding, not content. The agent rewrites every page into a complete, self-contained knowledge document. After reading a page, the reader should understand the topic **without needing the original source**.
 
-**Core principle:** Each wiki page is a self-contained knowledge document. After reading a page, the reader should understand the claim, its evidence, and its role in the argument **without needing to read the original source**. The wiki replaces reading the paper, not summarizes it.
+**Language:** Follow the user's language. If the user speaks Chinese, write all prose in Chinese. Frontmatter keys, wikilinks `[[label]]`, and Mermaid diagrams stay in English (they are structural identifiers).
 
-### Quality standard: thin vs rich
+### What to preserve vs rewrite
 
-**BAD (thin)** — the agent's default tendency:
-```markdown
-## Context
-Aluminum has r_s = 2.07 and the ab initio prediction is 0.96 K,
-close to the experimental value of 1.2 K.
+| Element | Action |
+|---------|--------|
+| YAML frontmatter | **Preserve exactly** — never modify |
+| Wikilinks `[[label]]` | **Preserve exactly** — never change targets |
+| Mermaid diagrams | **Preserve exactly** |
+| `.obsidian/graph.json` | **Preserve exactly** |
+| Section headings (`## Derivation`, etc.) | **Translate** to user's language |
+| Claim content blockquotes (`> ...`) | **Rewrite** — expand terse claims into full explanations |
+| `> [!REASONING]` callouts | **Rewrite** — translate and expand the reasoning |
+| Premise/conclusion lists | **Rewrite** — keep wikilinks but add explanatory text |
+| Everything else | **Write from scratch** |
+
+### Per-page rewrite guide
+
+#### Conclusion pages (`conclusions/*.md`)
+
+Rewrite into a complete article about this claim:
+
+1. **Title**: Keep or translate the `# heading`
+2. **Content**: Replace the terse blockquote with 2-3 paragraphs fully explaining the claim — what it states, what evidence supports it, what method produced it. Include specific numbers, equations, experimental conditions.
+3. **Derivation**: Rewrite in prose. Don't just list premises — explain the logical chain: WHY each premise supports this conclusion. Keep wikilinks but wrap them in explanatory sentences.
+4. **Supports**: Rewrite as prose — what downstream conclusions depend on this claim and why.
+5. **Context**: Add 2-3 paragraphs explaining the claim's scientific context from `artifacts/`. Include figures with `![[filename]]`.
+6. **Significance**: 1-2 paragraphs on why this matters for the overall argument.
+7. **Caveats**: Note limitations, alternative explanations, sources of uncertainty.
+
+Target: 500-800 words per conclusion page.
+
+#### Evidence pages (`evidence/*.md`)
+
+Rewrite into a source documentation page:
+
+1. **Content**: Expand the terse blockquote into a full description of the evidence.
+2. **Source**: Where does this evidence come from? Specific experiment, dataset, calculation, or literature. Method, precision, known limitations.
+3. **Supports**: Which conclusions depend on this evidence and why.
+4. **Figures**: Embed relevant figures from `artifacts/images/`.
+
+Target: 200-400 words per evidence page.
+
+#### Module pages (`modules/*.md`)
+
+Rewrite into a chapter-level overview:
+
+1. **Overview**: 2-3 paragraphs — what scientific question this module addresses, what approach is taken, key results. Write as a review paper section introduction.
+2. **Transition**: How this module connects to adjacent modules.
+3. **Claims section**: For each claim listed:
+   - Exported claims (with `[[link]] ★`): expand the one-line description into 2-3 sentences.
+   - Inlined claims: rewrite the content and derivation info into readable prose. Don't just say "Derived via X from Y" — explain the reasoning.
+
+Target: 400-800 words per module page.
+
+#### Strategy pages (`reasoning/*.md`)
+
+Rewrite into a reasoning explanation:
+
+1. **Overview**: What type of reasoning is this and what does it establish?
+2. **Premises → Conclusion**: For each premise, explain WHY it supports the conclusion. Include the mathematical or physical argument.
+3. **Strength assessment**: How strong is this reasoning? What could weaken it?
+
+Target: 300-500 words per strategy page.
+
+#### Overview page (`overview.md`)
+
+1. **Citation**: Add proper bibliographic reference to original work.
+2. **Abstract**: 3-4 paragraphs summarizing the entire package — central question, methodology, key quantitative results, limitations.
+3. **Reasoning graph**: Keep the Mermaid diagram as-is.
+
+Target: 300-500 words.
+
+#### `_index.md`
+
+Add a package description (3-5 sentences) with the most striking quantitative results. Keep all statistics tables and navigation as-is.
+
+#### Meta pages (`meta/*.md`)
+
+- `beliefs.md`: Add a brief introduction explaining what the table shows.
+- `holes.md`: Add a brief introduction explaining what leaf premises are and why they matter.
+
+### Quality bar
+
+**Every page must include:**
+- Specific numerical values (with units, error bars where available)
+- Key equations in LaTeX where they clarify the argument
+- Cross-references via wikilinks to related pages
+- At least one figure embed from `artifacts/images/` if relevant figures exist
+
+**BAD — thin rewrite:**
+```
+## 背景
+铝的 r_s = 2.07，预测 T_c = 0.96 K，接近实验值 1.2 K。
 ```
 
-**GOOD (rich)** — what the reader actually needs:
-```markdown
-## Context
-Aluminum is the benchmark test for any superconductivity theory. With
-Wigner-Seitz radius $r_s = 2.07$ and band mass $m_b = 1.05$, it sits
-in the weak-coupling regime where the competition between phonon
-attraction ($\lambda = 0.44$ from DFPT, using $\omega_{\log} = 320$ K)
-and Coulomb repulsion ($\mu^* = 0.13$ from vDiagMC at $r_s = 2.07$
-with BTS renormalization) leaves a small net pairing interaction.
+**GOOD — rich rewrite:**
+```
+## 背景
 
-The phenomenological prediction of $T_c = 1.9$ K overshoots the
-experimental $T_c = 1.2$ K by 58%, primarily because the conventional
-$\mu^* \approx 0.10$ underestimates Coulomb repulsion. The ab initio
-value $\mu^* = 0.13$ increases the repulsion just enough to bring
-$T_c$ down to 0.96 K — within 20% of experiment. The remaining
-discrepancy likely reflects the UEG-to-material mapping approximation
-and band structure effects beyond the free-electron model.
+铝是超导理论的基准测试材料。Wigner-Seitz 半径 $r_s = 2.07$，
+带质量 $m_b = 1.05$，处于弱耦合区间。声子吸引（$\lambda = 0.44$，
+来自 DFPT 计算，$\omega_{\log} = 320$ K）与 Coulomb 排斥
+（$\mu^* = 0.13$，来自 [[mu_vdiagmc_values]] 在 $r_s = 2.07$
+处的值经 BTS 重正化）之间的竞争仅留下很小的净配对相互作用。
+
+唯象方法预测 $T_c = 1.9$ K，比实验值 1.2 K 高估 58%——根本
+原因是传统取值 $\mu^* \approx 0.10$ 低估了 Coulomb 排斥。
+第一性原理值 $\mu^* = 0.13$ 恰好增大了足够的排斥，将 $T_c$
+降低到 0.96 K，偏差在 20% 以内。
 
 ![[8_0.jpg]]
-*Fig. 4: Dimensionless bare Coulomb pseudopotential $\mu_{E_F}(r_s)$
-from vDiagMC (circles with error bars), compared with static RPA
-(dashed), dynamic RPA (dotted), and Morel-Anderson constant (dash-dot).
-Adapted from Cai et al., arXiv:2512.19382.*
+*图 4：vDiagMC 计算的 $\mu_{E_F}(r_s)$（圆圈带误差棒），
+与静态 RPA（虚线）、动态 RPA（点线）和 Morel-Anderson 常数
+（点划线）的对比。改编自 Cai et al., arXiv:2512.19382。*
 ```
 
-The difference: the rich version includes all the numbers ($r_s$, $m_b$, $\lambda$, $\omega_{\log}$, $\mu^*$), explains the mechanism (why the prediction differs from phenomenology), embeds figures, and gives the reader enough context to evaluate the claim independently.
+### DO NOT
 
-### Claim pages (`conclusions/*.md`)
-
-Add after the existing skeleton content:
-
-**Context** (3-5 paragraphs, ~300-500 words):
-- **Paragraph 1**: What is this claim about? Set the scientific context — what question is being answered, what method is used, what physical regime.
-- **Paragraph 2**: The specific data and results. Include ALL relevant numbers: material parameters, computed values with error bars, comparisons with experiment and prior theory. Reproduce key equations if they clarify the argument.
-- **Paragraph 3**: How the result was obtained — what computation, what approximations, what input data. The reader should be able to trace the derivation.
-- **Paragraph 4 (if applicable)**: Caveats, limitations, comparison with alternative approaches.
-- Embed relevant figures from `artifacts/images/` with captions and attribution.
-
-**Significance** (1-2 paragraphs): Why this claim matters for the package's overall argument. What breaks if this claim is wrong? What does it enable downstream?
-
-```markdown
-> [!NOTE]
-> Context expanded from [Author et al.], Section X, pp. Y-Z.
-> See `artifacts/paper.md` for full details.
-```
-
-### Module pages (`modules/*.md`)
-
-Add at the top (after frontmatter, before Claims):
-
-**Overview** (2-3 paragraphs, ~200-400 words): What scientific question this module addresses, what approach is taken, and what the key results are. Write as you would a section introduction in a review paper — the reader should understand the module's contribution after reading just the overview.
-
-**Transition** (2-3 sentences): How this module builds on the previous one and what it enables for the next. Name the specific concepts that flow between modules.
-
-### Evidence pages (`evidence/*.md`)
-
-**Source** (1-2 paragraphs): Where this evidence comes from — specific experiment, dataset, calculation, or literature reference. Include: who measured/computed it, what method, what precision, and any known limitations. Cite from `artifacts/` if available.
-
-### Strategy pages (`reasoning/*.md`)
-
-Expand the Reasoning section into **Explanation** (2-3 paragraphs): For each premise → conclusion link, explain the scientific logic of WHY the premise supports the conclusion. Include the mathematical or physical argument, not just "A implies B." The reader should understand the chain of reasoning as clearly as if they read the relevant section of the paper.
-
-### Overview page (`overview.md`)
-
-**Abstract** (2-3 paragraphs, ~200-300 words): A self-contained summary of the entire knowledge package. What is the central question? What new methodology is introduced? What are the key quantitative results? What are the limitations? A domain expert should be able to decide whether to explore further based on this abstract alone.
-
-### `_index.md`
-
-**Package Description** (3-5 sentences): What this package formalizes, what the source material is, and what the main findings are. Include the most striking quantitative result.
-
-## Narrative Guidelines
-
-**Audience:** A domain expert who hasn't read the original source material but understands the field. They should be able to evaluate the claims based solely on the wiki pages.
-
-**Voice:** Scientific, precise, but readable. Third-person. Write as you would for a review article or an extended encyclopedia entry.
-
-**Content depth:** Every page should include:
-- Specific numerical values (with units and error bars where available)
-- Key equations (in LaTeX) where they clarify the argument
-- Comparison with alternative approaches or prior results
-- Figure embeds from `artifacts/images/` with descriptive captions
-
-**DO:**
-- Read `artifacts/` thoroughly — find the section corresponding to each claim and extract concrete details
-- Ground every claim in specific data (not "good agreement" but "0.874 K vs 0.875 K, 0.1% error")
-- Embed figures with `![[filename]]` and write informative captions
-- Cross-reference other pages via wikilinks: `[[label]]`
-- Use Obsidian callouts: `> [!NOTE]` for source citations, `> [!WARNING]` for caveats
-
-**DO NOT:**
-- Write thin summaries that could apply to any paper in the field
+- Leave any page with only skeleton English content
+- Write thin summaries — every page should be a substantive knowledge document
 - Use Gaia jargon (noisy_and, abduction, factor graph, BP, NAND)
 - Describe graph structure ("this claim derives from two premises via...")
-- Modify frontmatter or existing wikilink sections
-- Remove any skeleton content — only add
-- Leave a page without at least one specific number or equation
+- Modify frontmatter or wikilink targets
+- Skip evidence pages — they are important for completeness
 
-### Handling Missing Information
+### Handling missing information
 
 | Missing | Action | Annotation |
 |---------|--------|------------|
-| Terse claim content (< 20 words) | Expand from `artifacts/` — read the relevant section and write a full explanation | `> [!NOTE] Content expanded from source` |
-| Strategy has no `reason` field | Reconstruct the scientific argument from premises + source material | `> [!NOTE] Reasoning reconstructed from source` |
-| No beliefs (infer not run) | Write structural description only | `> [!WARNING] Beliefs not available — run gaia infer` |
-| No `artifacts/` directory | Write from IR content only, note the gap prominently | `> [!WARNING] Original source not available — narrative is based on IR content only` |
+| Terse claim (< 20 words) | Read `artifacts/`, find relevant section, write full explanation | `> [!NOTE] 内容根据原文扩展` |
+| No `reason` in strategy | Reconstruct from premises + source | `> [!NOTE] 推理根据原文重构` |
+| No beliefs | Write structural description, note gap | `> [!WARNING] 未运行推断` |
+| No `artifacts/` | Write from IR only, note prominently | `> [!WARNING] 原始文献不可用` |
 
 ## Step 5: Cross-Reference Audit
 
-After filling all pages, verify:
-
 ```bash
-# Check for broken wikilinks
 grep -roh '\[\[[^]]*\]\]' gaia-wiki/ | sort -u | while read link; do
-  name=$(echo "$link" | sed 's/\[\[//;s/\]\]//')
+  name=$(echo "$link" | sed 's/\[\[//;s/\]\]//' | sed 's/#.*//' | sed 's/|.*//')
   if ! find gaia-wiki -name "${name}.md" | grep -q .; then
     echo "BROKEN: $link"
   fi
 done
 ```
 
-Fix any broken wikilinks. Update `_index.md` statistics if page count changed.
-
 ## Step 6: Report
 
-Summarize what was done:
-
 ```
-Obsidian wiki generated at gaia-wiki/
+Obsidian wiki: gaia-wiki/
 - X pages total (Y conclusions, Z evidence, W modules)
-- Narrative filled for N pages
+- All pages rewritten in [language]
 - Figures embedded: M
 - Broken wikilinks: 0
-```
 
-Suggest opening in Obsidian:
-```
 Open in Obsidian: File → Open Vault → select gaia-wiki/
-Graph view will show the reasoning structure color-coded by node type.
 ```
