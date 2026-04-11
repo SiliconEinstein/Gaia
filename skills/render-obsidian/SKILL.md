@@ -78,91 +78,122 @@ Build a mental model of:
 
 For each page in `gaia-wiki/`, enrich the skeleton with narrative content. **Do NOT modify frontmatter or wikilinks** — only add prose sections.
 
-### Claim pages (`conclusions/*.md`)
+**Core principle:** Each wiki page is a self-contained knowledge document. After reading a page, the reader should understand the claim, its evidence, and its role in the argument **without needing to read the original source**. The wiki replaces reading the paper, not summarizes it.
 
-Add these sections after the existing skeleton content:
+### Quality standard: thin vs rich
 
-**Context** (2-3 paragraphs): Explain the claim in the context of the original work. Include relevant data, experimental conditions, and figures from `artifacts/`. Write for a domain expert who hasn't read the paper.
-
+**BAD (thin)** — the agent's default tendency:
 ```markdown
 ## Context
-
-The authors tested RFdiffusion-designed binders against five protein targets
-of therapeutic interest...
-
-> [!NOTE]
-> Context expanded from Watson et al. 2023, Extended Data Fig. 5.
-> See `artifacts/paper.pdf` pp. 8-10.
+Aluminum has r_s = 2.07 and the ab initio prediction is 0.96 K,
+close to the experimental value of 1.2 K.
 ```
 
-**Significance** (1 paragraph): Why this claim matters for the package's overall argument. How does it connect to the exported conclusions?
-
-If `artifacts/` has relevant figures, embed them:
+**GOOD (rich)** — what the reader actually needs:
 ```markdown
-![[figure-4-binder-results.png]]
+## Context
+Aluminum is the benchmark test for any superconductivity theory. With
+Wigner-Seitz radius $r_s = 2.07$ and band mass $m_b = 1.05$, it sits
+in the weak-coupling regime where the competition between phonon
+attraction ($\lambda = 0.44$ from DFPT, using $\omega_{\log} = 320$ K)
+and Coulomb repulsion ($\mu^* = 0.13$ from vDiagMC at $r_s = 2.07$
+with BTS renormalization) leaves a small net pairing interaction.
+
+The phenomenological prediction of $T_c = 1.9$ K overshoots the
+experimental $T_c = 1.2$ K by 58%, primarily because the conventional
+$\mu^* \approx 0.10$ underestimates Coulomb repulsion. The ab initio
+value $\mu^* = 0.13$ increases the repulsion just enough to bring
+$T_c$ down to 0.96 K — within 20% of experiment. The remaining
+discrepancy likely reflects the UEG-to-material mapping approximation
+and band structure effects beyond the free-electron model.
+
+![[8_0.jpg]]
+*Fig. 4: Dimensionless bare Coulomb pseudopotential $\mu_{E_F}(r_s)$
+from vDiagMC (circles with error bars), compared with static RPA
+(dashed), dynamic RPA (dotted), and Morel-Anderson constant (dash-dot).
+Adapted from Cai et al., arXiv:2512.19382.*
+```
+
+The difference: the rich version includes all the numbers ($r_s$, $m_b$, $\lambda$, $\omega_{\log}$, $\mu^*$), explains the mechanism (why the prediction differs from phenomenology), embeds figures, and gives the reader enough context to evaluate the claim independently.
+
+### Claim pages (`conclusions/*.md`)
+
+Add after the existing skeleton content:
+
+**Context** (3-5 paragraphs, ~300-500 words):
+- **Paragraph 1**: What is this claim about? Set the scientific context — what question is being answered, what method is used, what physical regime.
+- **Paragraph 2**: The specific data and results. Include ALL relevant numbers: material parameters, computed values with error bars, comparisons with experiment and prior theory. Reproduce key equations if they clarify the argument.
+- **Paragraph 3**: How the result was obtained — what computation, what approximations, what input data. The reader should be able to trace the derivation.
+- **Paragraph 4 (if applicable)**: Caveats, limitations, comparison with alternative approaches.
+- Embed relevant figures from `artifacts/images/` with captions and attribution.
+
+**Significance** (1-2 paragraphs): Why this claim matters for the package's overall argument. What breaks if this claim is wrong? What does it enable downstream?
+
+```markdown
+> [!NOTE]
+> Context expanded from [Author et al.], Section X, pp. Y-Z.
+> See `artifacts/paper.md` for full details.
 ```
 
 ### Module pages (`modules/*.md`)
 
 Add at the top (after frontmatter, before Claims):
 
-**Overview** (1-2 paragraphs): What this module covers and how it fits in the larger argument.
+**Overview** (2-3 paragraphs, ~200-400 words): What scientific question this module addresses, what approach is taken, and what the key results are. Write as you would a section introduction in a review paper — the reader should understand the module's contribution after reading just the overview.
 
-**Transition** (1-2 sentences): How this module connects to previous and next modules in the argument arc.
+**Transition** (2-3 sentences): How this module builds on the previous one and what it enables for the next. Name the specific concepts that flow between modules.
 
 ### Evidence pages (`evidence/*.md`)
 
-Add:
-
-**Source** (1 paragraph): Where this evidence comes from — specific experiment, dataset, observation, or literature reference. Cite from `artifacts/` if available.
+**Source** (1-2 paragraphs): Where this evidence comes from — specific experiment, dataset, calculation, or literature reference. Include: who measured/computed it, what method, what precision, and any known limitations. Cite from `artifacts/` if available.
 
 ### Strategy pages (`reasoning/*.md`)
 
-Expand the existing Reasoning section:
-
-**Explanation** (1-2 paragraphs): For each premise → conclusion link, explain WHY the premise supports the conclusion. Don't just list the premises — tell the reasoning story.
+Expand the Reasoning section into **Explanation** (2-3 paragraphs): For each premise → conclusion link, explain the scientific logic of WHY the premise supports the conclusion. Include the mathematical or physical argument, not just "A implies B." The reader should understand the chain of reasoning as clearly as if they read the relevant section of the paper.
 
 ### Overview page (`overview.md`)
 
-Add:
-
-**Abstract** (1-2 paragraphs): Summarize the entire knowledge package. What question does it address, what does it conclude, and how confident is the reasoning?
+**Abstract** (2-3 paragraphs, ~200-300 words): A self-contained summary of the entire knowledge package. What is the central question? What new methodology is introduced? What are the key quantitative results? What are the limitations? A domain expert should be able to decide whether to explore further based on this abstract alone.
 
 ### `_index.md`
 
-Add after the existing navigation:
-
-**Package Description** (2-3 sentences): Brief description from `pyproject.toml` or module docstrings.
+**Package Description** (3-5 sentences): What this package formalizes, what the source material is, and what the main findings are. Include the most striking quantitative result.
 
 ## Narrative Guidelines
 
-**Audience:** A domain expert who hasn't read the original source material but understands the field.
+**Audience:** A domain expert who hasn't read the original source material but understands the field. They should be able to evaluate the claims based solely on the wiki pages.
 
-**Voice:** Scientific, precise, but readable. Third-person. Cite specific numbers from the paper.
+**Voice:** Scientific, precise, but readable. Third-person. Write as you would for a review article or an extended encyclopedia entry.
+
+**Content depth:** Every page should include:
+- Specific numerical values (with units and error bars where available)
+- Key equations (in LaTeX) where they clarify the argument
+- Comparison with alternative approaches or prior results
+- Figure embeds from `artifacts/images/` with descriptive captions
 
 **DO:**
-- Ground claims in concrete data (numbers, experiments, comparisons)
-- Cite figures from `artifacts/` with `![[filename]]` syntax
-- Use Obsidian callouts for annotation:
-  - `> [!NOTE]` — context expanded from source
-  - `> [!WARNING]` — information unavailable or uncertain
-  - `> [!REASONING]` — expanded reasoning explanation
-- Reference other pages via wikilinks: `[[label]]`
+- Read `artifacts/` thoroughly — find the section corresponding to each claim and extract concrete details
+- Ground every claim in specific data (not "good agreement" but "0.874 K vs 0.875 K, 0.1% error")
+- Embed figures with `![[filename]]` and write informative captions
+- Cross-reference other pages via wikilinks: `[[label]]`
+- Use Obsidian callouts: `> [!NOTE]` for source citations, `> [!WARNING]` for caveats
 
 **DO NOT:**
+- Write thin summaries that could apply to any paper in the field
 - Use Gaia jargon (noisy_and, abduction, factor graph, BP, NAND)
 - Describe graph structure ("this claim derives from two premises via...")
 - Modify frontmatter or existing wikilink sections
 - Remove any skeleton content — only add
+- Leave a page without at least one specific number or equation
 
 ### Handling Missing Information
 
 | Missing | Action | Annotation |
 |---------|--------|------------|
-| Terse claim content (< 20 words) | Expand from `artifacts/` | `> [!NOTE] Content expanded from source` |
-| Strategy has no `reason` field | Reconstruct from premises + source | `> [!NOTE] Reasoning reconstructed from source` |
-| No beliefs (infer not run) | Write structural description only | `> [!WARNING] Beliefs not available` |
-| No `artifacts/` directory | Write from IR content only | `> [!WARNING] Original source not available` |
+| Terse claim content (< 20 words) | Expand from `artifacts/` — read the relevant section and write a full explanation | `> [!NOTE] Content expanded from source` |
+| Strategy has no `reason` field | Reconstruct the scientific argument from premises + source material | `> [!NOTE] Reasoning reconstructed from source` |
+| No beliefs (infer not run) | Write structural description only | `> [!WARNING] Beliefs not available — run gaia infer` |
+| No `artifacts/` directory | Write from IR content only, note the gap prominently | `> [!WARNING] Original source not available — narrative is based on IR content only` |
 
 ## Step 5: Cross-Reference Audit
 
