@@ -36,7 +36,7 @@ What's missing is a **browsable, interlinked knowledge wiki** — one page per c
         ├── beliefs.json        BP results
         └── parameterization.json
 
-.gaia-wiki/                     Human layer (browsing, reading, navigation)
+gaia-wiki/                     Human layer (browsing, reading, navigation)
 ├── _index.md                   Global navigation (3-hop entry point)
 ├── overview.md                 Package overview + Mermaid
 ├── modules/                    One page per module (chapter-level view)
@@ -76,7 +76,7 @@ Phase 2 is optional — Phase 1 alone produces a usable (if thin) wiki. This mat
 ### Directory layout
 
 ```
-.gaia-wiki/
+gaia-wiki/
 ├── .obsidian/                          Obsidian vault config (graph view settings, etc.)
 │   └── graph.json                      Graph view color groups by node type
 ├── _index.md                           Master index
@@ -414,12 +414,12 @@ The wiki layer supports:
    SORT belief ASC
    ```
 3. **Obsidian graph view**: visual exploration of the wikilink graph (which IS the reasoning graph).
-4. **grep**: `grep -r "binder" .gaia-wiki/` always works.
+4. **grep**: `grep -r "binder" gaia-wiki/` always works.
 
 ### IR → Wiki bridging
 
 Every IR node's `label` is also the wiki page's filename (slug). This means:
-- MCP query returns `label: "binder_success_rate"` → human opens `.gaia-wiki/conclusions/binder_success_rate.md`
+- MCP query returns `label: "binder_success_rate"` → human opens `gaia-wiki/conclusions/binder_success_rate.md`
 - Dataview query returns a row → clicking opens the page → page has `qid` in frontmatter → links back to IR
 - Obsidian graph view shows the same topology as the IR reasoning graph (because wikilinks mirror strategy edges)
 
@@ -445,7 +445,7 @@ Extend the existing publish skill to support Obsidian output:
 
 ```bash
 /gaia:publish              # existing: fill .github-output/ narrative
-/gaia:publish --obsidian   # new: fill .gaia-wiki/ narrative
+/gaia:publish --obsidian   # new: fill gaia-wiki/ narrative
 /gaia:publish --all        # both
 ```
 
@@ -466,7 +466,7 @@ Consistent with the existing differentiated strictness model:
 |---|---|---|---|---|
 | `--target docs` | Single `detailed-reasoning.md` | No | No (linear read) | Quick structural check after compile |
 | `--target github` | `.github-output/` (React SPA + wiki + README) | Yes (via `/gaia:publish`) | Yes (React SPA) | Publishing to GitHub for external readers |
-| `--target obsidian` | `.gaia-wiki/` (Obsidian vault) | Yes (via `/gaia:publish --obsidian`) | Yes (Obsidian native) | Personal/team browsing, iterative exploration |
+| `--target obsidian` | `gaia-wiki/` (Obsidian vault) | Yes (via `/gaia:publish --obsidian`) | Yes (Obsidian native) | Personal/team browsing, iterative exploration |
 
 `docs` is the lightweight check. `github` is the public-facing publication. `obsidian` is the working knowledge base.
 
@@ -475,7 +475,7 @@ Consistent with the existing differentiated strictness model:
 ### Phase 1 output (skeleton)
 
 ```
-.gaia-wiki/
+gaia-wiki/
 ├── .obsidian/graph.json          (4 lines — color groups)
 ├── _index.md                     (~50 lines — stats + navigation tables)
 ├── overview.md                   (~30 lines — Mermaid + package abstract stub)
@@ -557,7 +557,7 @@ Same files, but each page now has 2-5 paragraphs of LLM-written narrative, embed
 
 1. **Should `obsidian` be part of `--target all`?** Currently `all` = `docs` + `github`. Adding `obsidian` would create a directory tree every time. Recommendation: keep it opt-in (`--target obsidian` explicit).
 
-2. **Where does `.gaia-wiki/` live?** Inside the package directory (committed to git) or outside (personal/ephemeral)? Recommendation: inside, but add to `.gitignore` template — it's a derived view, not source.
+2. **Where does `gaia-wiki/` live?** Inside the package directory (committed to git) or outside (personal/ephemeral)? Recommendation: inside, but add to `.gitignore` template — it's a derived view, not source.
 
 3. **Should we support incremental wiki updates?** Currently `gaia render` regenerates everything. For large packages, incremental would be valuable. Recommendation: defer to v2 — regeneration is fast for Phase 1, and Phase 2 (LLM) can be incremental by checking which pages' IR data has changed.
 

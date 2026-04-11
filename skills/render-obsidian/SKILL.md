@@ -5,7 +5,7 @@ description: "Use when user wants a browsable Obsidian wiki from a Gaia knowledg
 
 # Render Obsidian Wiki
 
-Generate a rich, browsable Obsidian vault (`.gaia-wiki/`) from a Gaia knowledge package. The agent drives the full pipeline: skeleton generation, narrative filling, and cross-reference audit.
+Generate a rich, browsable Obsidian vault (`gaia-wiki/`) from a Gaia knowledge package. The agent drives the full pipeline: skeleton generation, narrative filling, and cross-reference audit.
 
 ## Full Pipeline
 
@@ -13,7 +13,7 @@ Generate a rich, browsable Obsidian vault (`.gaia-wiki/`) from a Gaia knowledge 
 /gaia:render-obsidian
   ↓
 Step 1: gaia compile + gaia infer (if review exists)
-Step 2: gaia render --target obsidian → .gaia-wiki/ skeleton
+Step 2: gaia render --target obsidian → gaia-wiki/ skeleton
 Step 3: Read inputs (IR, beliefs, artifacts/)
 Step 4: Fill narrative per page (agent writes directly)
 Step 5: Cross-reference audit
@@ -43,7 +43,7 @@ If compile or infer fails, stop and report the error.
 gaia render . --target obsidian
 ```
 
-This produces `.gaia-wiki/` containing:
+This produces `gaia-wiki/` containing:
 - `_index.md` — master navigation with statistics
 - `overview.md` — Mermaid reasoning graph
 - `conclusions/{label}.md` — one page per exported claim / question
@@ -76,7 +76,7 @@ Build a mental model of:
 
 ## Step 4: Fill Narrative Per Page
 
-For each page in `.gaia-wiki/`, enrich the skeleton with narrative content. **Do NOT modify frontmatter or wikilinks** — only add prose sections.
+For each page in `gaia-wiki/`, enrich the skeleton with narrative content. **Do NOT modify frontmatter or wikilinks** — only add prose sections.
 
 ### Claim pages (`conclusions/*.md`)
 
@@ -170,9 +170,9 @@ After filling all pages, verify:
 
 ```bash
 # Check for broken wikilinks
-grep -roh '\[\[[^]]*\]\]' .gaia-wiki/ | sort -u | while read link; do
+grep -roh '\[\[[^]]*\]\]' gaia-wiki/ | sort -u | while read link; do
   name=$(echo "$link" | sed 's/\[\[//;s/\]\]//')
-  if ! find .gaia-wiki -name "${name}.md" | grep -q .; then
+  if ! find gaia-wiki -name "${name}.md" | grep -q .; then
     echo "BROKEN: $link"
   fi
 done
@@ -185,7 +185,7 @@ Fix any broken wikilinks. Update `_index.md` statistics if page count changed.
 Summarize what was done:
 
 ```
-Obsidian wiki generated at .gaia-wiki/
+Obsidian wiki generated at gaia-wiki/
 - X pages total (Y conclusions, Z evidence, W modules)
 - Narrative filled for N pages
 - Figures embedded: M
@@ -194,6 +194,6 @@ Obsidian wiki generated at .gaia-wiki/
 
 Suggest opening in Obsidian:
 ```
-Open in Obsidian: File → Open Vault → select .gaia-wiki/
+Open in Obsidian: File → Open Vault → select gaia-wiki/
 Graph view will show the reasoning structure color-coded by node type.
 ```
