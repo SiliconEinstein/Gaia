@@ -13,11 +13,10 @@ Generate a rich, browsable Obsidian vault (`gaia-wiki/`) from a Gaia knowledge p
 gaia-wiki/
 ├── claims/                 One page per claim, numbered by topological order
 │   ├── 01 - BCS Theory.md              (layer 0, leaf)
-│   ├── ...
 │   └── 59 - Tc Prediction.md ★         (highest layer, conclusion)
-├── modules/                Chapter narrative, numbered by paper order
-│   ├── 01 - Introduction.md
-│   └── ...06 - Results.md
+├── sections/               Narrative sections, grouped by reasoning connectivity
+│   ├── 01 - Tc(Li) Experimental.md     (layer 0, evidence group)
+│   └── 13 - Tc(Al) Ab Initio.md       (layer 4, conclusion group)
 ├── meta/                   beliefs table, holes list
 ├── _index.md               Master index with numbered claim table
 ├── overview.md             Simplified Mermaid graph
@@ -25,7 +24,7 @@ gaia-wiki/
 ```
 
 - **Claims** = atomic content units. Numbered by topological order (small=leaves, large=conclusions). Each has full derivation/reasoning.
-- **Modules** = reading chapters. Narrative organized by claim numbers, linking to claim pages. No full derivation duplication.
+- **Sections** = narrative chapters, auto-grouped by reasoning graph connectivity (high cohesion, low coupling). Ordered from evidence (layer 0) to conclusions (highest layer). Skeleton titles default to the most prominent claim — agent rewrites them into descriptive narrative titles (e.g., "Computing μ* from First Principles").
 - **Wikilinks** use labels (`[[tc_al_predicted]]`). Filenames use titles. `aliases` in frontmatter bridges them.
 
 ## Pipeline
@@ -50,7 +49,7 @@ cat src/<package>/reviews/*.py             # Review sidecars (justifications!)
 ls artifacts/                              # Original paper, figures
 ```
 
-Read `artifacts/` cover-to-cover. Read review sidecar for `justification` fields — these explain WHY each prior was chosen.
+Read `artifacts/` cover-to-cover. Read review sidecar for `justification` fields.
 
 ## Step 4: Rewrite Every Page
 
@@ -61,6 +60,8 @@ Read `artifacts/` cover-to-cover. Read review sidecar for `justification` fields
 ### Claim pages (`claims/*.md`)
 
 Self-contained articles. The `#XX` number shows position in reasoning chain.
+
+**Completeness:** If the paper devotes 3 pages to a derivation, reproduce them in readable form.
 
 **Section ordering:**
 
@@ -73,20 +74,20 @@ Self-contained articles. The `#XX` number shows position in reasoning chain.
 7. **Significance**: Why it matters.
 8. **Caveats**: Limitations, alternatives.
 
-### Module pages (`modules/*.md`)
+### Section pages (`sections/*.md`)
 
-Narrative chapters linking to claim pages.
+Sections are **narrative chapters** grouped by reasoning connectivity. Skeleton title is the most prominent claim — agent rewrites it into a descriptive narrative title (like README: "Computing μ* from First Principles", "Why DFPT Gets the Phonon Coupling Right").
 
-1. **Overview**: Scientific question, approach, key results (review paper style).
-2. **Transition**: Connection to previous/next modules.
-3. **Per-module Mermaid**: Keep as-is.
-4. **Claims list**: For each claim, 2-3 sentence summary + `[[label|#XX title]]` link. Don't duplicate derivations.
+1. **Title**: Rewrite `# XX - ...` into a descriptive narrative title in user's language. Keep number prefix.
+2. **Overview**: 2-3 paragraphs — what scientific question, key insight, connection to overall argument.
+3. **Per-section Mermaid**: Keep as-is.
+4. **Claims list**: For each claim, 2-3 sentence narrative summary + `[[label|#XX title]]` link. Don't duplicate derivations — claim pages carry detailed content.
 
 ### Overview, _index, meta
 
 - **Overview**: Citation + abstract + Mermaid graph
-- **_index**: Package description + statistics + Claim Index table + Reading Path
-- **Meta**: Chinese introductions + tables
+- **_index**: Package description + statistics + Claim Index table + Sections table + Reading Path
+- **Meta**: Introductions + tables (beliefs, holes)
 
 ### Quality bar
 
@@ -109,7 +110,16 @@ Every `![[filename]]` MUST have italic caption:
 - Use Gaia jargon (noisy_and, abduction, factor graph, BP)
 - Modify frontmatter or wikilink targets
 - Embed images without captions
-- Duplicate full derivations in module pages
+- Duplicate full derivations in section pages
+
+### Missing information
+
+| Missing | Action | Annotation |
+|---------|--------|------------|
+| Terse claim | Expand from `artifacts/` | `> [!NOTE] 内容根据原文扩展` |
+| No reason | Reconstruct from source | `> [!NOTE] 推理根据原文重构` |
+| No beliefs | Structural description | `> [!WARNING] 未运行推断` |
+| No artifacts | IR only | `> [!WARNING] 原始文献不可用` |
 
 ## Step 5: Cross-Reference Audit
 
@@ -124,7 +134,7 @@ grep -roh '\[\[[^]!]*\]\]' gaia-wiki/ --include="*.md" | sed 's/\[\[//;s/\]\]/;s
 
 ```
 Obsidian wiki: gaia-wiki/
-- X claim pages (01-XX), Y module pages (01-YY)
+- X claim pages (01-XX), Y section pages (01-YY)
 - All rewritten in [language]
 - Figures: M, Broken links: 0
 ```
