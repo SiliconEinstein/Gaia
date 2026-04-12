@@ -115,6 +115,9 @@ def lower_local_graph(
             _ensure_claim_var(fg, vid, priors, claim_ids)
         concl = op.conclusion
         if concl not in fg.variables:
+            # TODO(warrant-redesign): when review tools are ready (Phase 5),
+            # change relation operator default to 0.5 (awaiting reviewer audit).
+            # Currently 1-ε for backward compat — assumes author's assertion holds.
             default = 1.0 - CROMWELL_EPS if op.operator in _RELATION_OPS else 0.5
             fg.add_variable(concl, priors.get(concl, default))
         fg.add_factor(fid, ft, op.variables, concl)
@@ -244,6 +247,7 @@ def _lower_strategy(
                 _ensure_claim_var(fg, vid, priors, claim_ids)
             concl = op.conclusion
             if concl not in fg.variables:
+                # TODO(warrant-redesign): same as above — change to 0.5 in Phase 5.
                 default = 1.0 - CROMWELL_EPS if op.operator in _RELATION_OPS else 0.5
                 fg.add_variable(concl, priors.get(concl, default))
             elif op.operator in _RELATION_OPS and concl not in priors:
