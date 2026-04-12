@@ -28,6 +28,7 @@ class PriorRecord(BaseModel):
     knowledge_id: str
     value: float
     source_id: str
+    justification: str = ""
     created_at: datetime = None  # type: ignore[assignment]
 
     def model_post_init(self, __context: Any) -> None:
@@ -52,6 +53,7 @@ class StrategyParamRecord(BaseModel):
     strategy_id: str  # lcs_ prefix
     conditional_probabilities: list[float]
     source_id: str
+    justification: str = ""
     created_at: datetime = None  # type: ignore[assignment]
 
     def model_post_init(self, __context: Any) -> None:

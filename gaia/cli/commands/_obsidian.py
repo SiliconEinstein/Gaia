@@ -89,6 +89,7 @@ def _generate_claim_page(
     num: int,
     beliefs: dict[str, float],
     priors: dict[str, float],
+    justifications: dict[str, str],
     strategies_by_conclusion: dict[str, list[dict]],
     strategies_by_premise: dict[str, list[dict]],
     label_for_id: dict[str, str],
@@ -144,6 +145,20 @@ def _generate_claim_page(
             lines.append("")
             lines.append("> [!REASONING]")
             lines.append(f"> {reason}")
+        lines.append("")
+
+    # Review
+    justification = justifications.get(kid, "")
+    prior_val = priors.get(kid)
+    belief_val = beliefs.get(kid)
+    if prior_val is not None or justification:
+        lines.append("## Review")
+        if prior_val is not None:
+            lines.append(f"**Prior**: {prior_val:.2f}")
+        if justification:
+            lines.append(f"**Justification**: {justification}")
+        if belief_val is not None:
+            lines.append(f"**Belief**: {belief_val:.2f}")
         lines.append("")
 
     if kid in strategies_by_premise:
@@ -405,8 +420,12 @@ def generate_obsidian_vault(
     if beliefs_data:
         beliefs = {b["knowledge_id"]: b["belief"] for b in beliefs_data.get("beliefs", [])}
     priors: dict[str, float] = {}
+    justifications: dict[str, str] = {}
     if param_data:
-        priors = {p["knowledge_id"]: p["value"] for p in param_data.get("priors", [])}
+        for p in param_data.get("priors", []):
+            priors[p["knowledge_id"]] = p["value"]
+            if p.get("justification"):
+                justifications[p["knowledge_id"]] = p["justification"]
 
     strategies_by_conclusion: dict[str, list[dict]] = {}
     strategies_by_premise: dict[str, list[dict]] = {}
@@ -449,6 +468,7 @@ def generate_obsidian_vault(
             cn,
             beliefs,
             priors,
+            justifications,
             strategies_by_conclusion,
             strategies_by_premise,
             label_for_id,
@@ -492,9 +512,81 @@ def generate_obsidian_vault(
             label_for_id,
         )
 
-    # Leaves for holes page
+    # Weak Points section — claims with lowest belief
+    if beliefs:
+        sec_num += 1
+        weak = sorted(
+            [k for k in all_claims if k["id"] in beliefs],
+            key=lambda k: beliefs[k["id"]],
+        )[:10]  # bottom 10
+        weak_lines = [
+            "---",
+            "type: section",
+            "section_number: " + str(sec_num),
+            "title: Weak Points",
+            "tags: [section, weak-points]",
+            "---",
+            "",
+            f"# {sec_num:02d} - Weak Points",
+            "",
+            "Claims with the lowest posterior belief — potential weak links in the reasoning.",
+            "",
+            "| # | Claim | Prior | Belief | Justification |",
+            "|---|-------|-------|--------|---------------|",
+        ]
+        for k in weak:
+            kid = k["id"]
+            label = k.get("label", "")
+            num = claim_numbers.get(kid, 0)
+            prior = f"{priors[kid]:.2f}" if kid in priors else "—"
+            belief = f"{beliefs[kid]:.2f}"
+            just = justifications.get(kid, "")
+            weak_lines.append(f"| {num:02d} | [[{label}]] | {prior} | {belief} | {just} |")
+        weak_lines.append("")
+        pages[f"sections/{sec_num:02d} - Weak Points.md"] = "\n".join(weak_lines)
+
+    # Open Questions section — leaf premises (holes) + questions
+    sec_num += 1
     conclusion_ids = {s.get("conclusion") for s in ir.get("strategies", []) if s.get("conclusion")}
     leaves = [k for k in all_claims if k["id"] not in conclusion_ids and k["type"] != "setting"]
+    questions = [k for k in all_claims if k["type"] == "question"]
+    oq_lines = [
+        "---",
+        "type: section",
+        "section_number: " + str(sec_num),
+        "title: Open Questions",
+        "tags: [section, open-questions]",
+        "---",
+        "",
+        f"# {sec_num:02d} - Open Questions",
+        "",
+        "Leaf premises that could be strengthened and open questions for future work.",
+        "",
+    ]
+    if questions:
+        oq_lines.append("## Questions")
+        oq_lines.append("")
+        for k in questions:
+            label = k.get("label", "")
+            num = claim_numbers.get(k["id"], 0)
+            content = k.get("content", "")
+            oq_lines.append(f"- [[{label}|#{num:02d} {label}]]: {content}")
+        oq_lines.append("")
+    oq_lines.append("## Leaf Premises (Holes)")
+    oq_lines.append("")
+    oq_lines.append("| # | Claim | Module | Content |")
+    oq_lines.append("|---|-------|--------|---------|")
+    sorted_leaves = sorted(leaves, key=lambda k: claim_numbers.get(k["id"], 0))
+    for k in sorted_leaves:
+        label = k.get("label", "")
+        mod = k.get("module", "Root")
+        num = claim_numbers.get(k["id"], 0)
+        content = k.get("content", "")
+        if len(content) > 60:
+            content = content[:60] + "..."
+        oq_lines.append(f"| {num:02d} | [[{label}]] | [[{mod}]] | {content} |")
+    oq_lines.append("")
+    pages[f"sections/{sec_num:02d} - Open Questions.md"] = "\n".join(oq_lines)
 
     # Meta
     if beliefs:
@@ -508,6 +600,9 @@ def generate_obsidian_vault(
         if mod_count > 0:
             t = module_titles.get(mod) or mod.replace("_", " ").title()
             section_list.append((mod, t, mod_count))
+    if beliefs:
+        section_list.append(("weak-points", "Weak Points", len(weak)))
+    section_list.append(("open-questions", "Open Questions", len(leaves) + len(questions)))
 
     # Index + overview + config
     pages["_index.md"] = _generate_index(ir, all_claims, claim_numbers, beliefs, section_list)
