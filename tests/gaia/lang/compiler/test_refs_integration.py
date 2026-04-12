@@ -125,14 +125,14 @@ def test_compile_scans_sub_strategy_reasons(tmp_path: Path) -> None:
         tmp_path,
         name="sub_strategy_refs_pkg",
         module_body=(
-            "from gaia.lang import claim, abduction, induction\n\n"
+            "from gaia.lang import claim, support, induction\n\n"
             'obs1 = claim("First observation.")\n'
             'obs2 = claim("Second observation.")\n'
             'law = claim("A general law.")\n'
             # Create sub-strategies manually to test recursion
-            "sub1 = abduction(obs1, law)\n"
-            "sub2 = abduction(obs2, law, reason='Justification [@missing_key]')\n"
-            "induction([sub1, sub2])\n"
+            "sub1 = support(premises=[obs1], conclusion=law)\n"
+            "sub2 = support(premises=[obs2], conclusion=law, reason='Justification [@missing_key]')\n"
+            "induction(sub1, sub2, law)\n"
             '__all__ = ["law", "obs1", "obs2"]\n'
         ),
     )

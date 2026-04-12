@@ -864,21 +864,26 @@ def test_compile_rejects_duplicate_fills_relation(tmp_path, monkeypatch):
 
 
 def test_compile_named_strategy_uses_ir_canonical_formalization(tmp_path):
-    """Named strategies should be formalized through gaia.ir.formalize during compile."""
-    pkg_dir = tmp_path / "abduction_pkg"
+    """Named strategies should be formalized through gaia.ir.formalize during compile.
+
+    Uses deduction as the canonical named strategy example (abduction is now a
+    binary CompositeStrategy and no longer hits the _COMPILE_TIME_FORMAL_STRATEGIES
+    path directly).
+    """
+    pkg_dir = tmp_path / "deduction_pkg"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(
-        '[project]\nname = "abduction-pkg-gaia"\nversion = "0.2.0"\n\n'
+        '[project]\nname = "deduction-pkg-gaia"\nversion = "0.2.0"\n\n'
         '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
     )
-    pkg_src = pkg_dir / "abduction_pkg"
+    pkg_src = pkg_dir / "deduction_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import abduction, claim\n\n"
-        'observation = claim("Observation.")\n'
-        'hypothesis = claim("Hypothesis.")\n'
-        'best_explanation = abduction(observation=observation, hypothesis=hypothesis, reason="fit")\n'
-        '__all__ = ["observation", "hypothesis", "best_explanation"]\n'
+        "from gaia.lang import deduction, claim\n\n"
+        'law = claim("forall x. P(x)")\n'
+        'instance = claim("P(a)")\n'
+        'proof = deduction(premises=[law], conclusion=instance, reason="instantiate")\n'
+        '__all__ = ["law", "instance", "proof"]\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -887,24 +892,10 @@ def test_compile_named_strategy_uses_ir_canonical_formalization(tmp_path):
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
     assert len(ir["strategies"]) == 1
     strategy = ir["strategies"][0]
-    assert strategy["type"] == "abduction"
-    assert strategy["metadata"]["reason"] == "fit"
+    assert strategy["type"] == "deduction"
+    assert strategy["metadata"]["reason"] == "instantiate"
     assert strategy["metadata"]["generated_formal_expr"] is True
-    assert strategy["metadata"]["formalization_template"] == "abduction"
-    assert "alternative_explanation" in strategy["metadata"]["interface_roles"]
-    assert len(strategy["premises"]) == 2
-    assert [op["operator"] for op in strategy["formal_expr"]["operators"]] == [
-        "disjunction",
-        "equivalence",
-    ]
-
-    interface_claims = [
-        knowledge
-        for knowledge in ir["knowledges"]
-        if knowledge.get("metadata", {}).get("generated_kind") == "interface_claim"
-    ]
-    assert len(interface_claims) == 1
-    assert "is_input" not in interface_claims[0]
+    assert strategy["metadata"]["formalization_template"] == "deduction"
 
 
 def test_compile_emits_pure_local_canonical_graph(tmp_path):
@@ -1000,19 +991,19 @@ def test_compile_composite_strategy_preserves_sub_strategy_references(tmp_path):
     pkg_src = pkg_dir / "composite_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import abduction, claim, composite, noisy_and\n\n"
-        'observation = claim("Observation.")\n'
-        'hypothesis = claim("Hypothesis.")\n'
+        "from gaia.lang import claim, composite, support\n\n"
+        'evidence = claim("Evidence.")\n'
+        'intermediate = claim("Intermediate.")\n'
         'final_claim = claim("Final claim.")\n'
-        "best_explanation = abduction(observation=observation, hypothesis=hypothesis)\n"
-        "support = noisy_and(premises=[hypothesis], conclusion=final_claim)\n"
+        "step1 = support(premises=[evidence], conclusion=intermediate)\n"
+        "step2 = support(premises=[intermediate], conclusion=final_claim)\n"
         "argument = composite(\n"
-        "    premises=[observation],\n"
+        "    premises=[evidence],\n"
         "    conclusion=final_claim,\n"
-        "    sub_strategies=[best_explanation, support],\n"
-        '    reason="Compose the abductive and support sub-arguments.",\n'
+        "    sub_strategies=[step1, step2],\n"
+        '    reason="Compose the two support sub-arguments.",\n'
         ")\n"
-        '__all__ = ["observation", "hypothesis", "final_claim", "best_explanation", "support", "argument"]\n'
+        '__all__ = ["evidence", "intermediate", "final_claim", "step1", "step2", "argument"]\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -1024,7 +1015,7 @@ def test_compile_composite_strategy_preserves_sub_strategy_references(tmp_path):
         strategy for strategy in ir["strategies"] if strategy.get("sub_strategies") is not None
     )
     assert composite_strategy["type"] == "infer"
-    assert composite_strategy["premises"] == ["github:composite_pkg::observation"]
+    assert composite_strategy["premises"] == ["github:composite_pkg::evidence"]
     assert composite_strategy["conclusion"] == "github:composite_pkg::final_claim"
     assert len(composite_strategy["sub_strategies"]) == 2
     for child_id in composite_strategy["sub_strategies"]:
@@ -1044,25 +1035,25 @@ def test_compile_nested_composite_strategy_collects_recursive_knowledge(tmp_path
     pkg_src = pkg_dir / "nested_composite_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import abduction, claim, composite, noisy_and\n\n"
-        'observation = claim("Observation.")\n'
+        "from gaia.lang import claim, composite, support\n\n"
+        'evidence = claim("Evidence.")\n'
         'hypothesis = claim("Hypothesis.")\n'
         'intermediate = claim("Intermediate.")\n'
         'final_claim = claim("Final claim.")\n'
-        "best_explanation = abduction(observation=observation, hypothesis=hypothesis)\n"
-        "support = noisy_and(premises=[hypothesis], conclusion=intermediate)\n"
+        "step1 = support(premises=[evidence], conclusion=hypothesis)\n"
+        "step2 = support(premises=[hypothesis], conclusion=intermediate)\n"
         "inner = composite(\n"
-        "    premises=[observation],\n"
+        "    premises=[evidence],\n"
         "    conclusion=intermediate,\n"
-        "    sub_strategies=[best_explanation, support],\n"
+        "    sub_strategies=[step1, step2],\n"
         ")\n"
-        "final_support = noisy_and(premises=[intermediate], conclusion=final_claim)\n"
+        "final_support = support(premises=[intermediate], conclusion=final_claim)\n"
         "argument = composite(\n"
-        "    premises=[observation],\n"
+        "    premises=[evidence],\n"
         "    conclusion=final_claim,\n"
         "    sub_strategies=[inner, final_support],\n"
         ")\n"
-        '__all__ = ["observation", "hypothesis", "intermediate", "final_claim", "best_explanation", "support", "inner", "final_support", "argument"]\n'
+        '__all__ = ["evidence", "hypothesis", "intermediate", "final_claim", "step1", "step2", "inner", "final_support", "argument"]\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])

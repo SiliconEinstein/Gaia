@@ -68,6 +68,7 @@ class Strategy:
     label: str | None = None
     formal_expr: list | None = None
     sub_strategies: list[Strategy] = field(default_factory=list)
+    composition_warrant: Knowledge | None = None
 
     def __post_init__(self):
         pkg = _current_package.get()

@@ -127,21 +127,6 @@ def _flatten_pairs(
     return flattened
 
 
-def _validate_induction_items(
-    items: list[Knowledge] | list[Strategy],
-    *,
-    expected_type: type[Knowledge] | type[Strategy],
-) -> None:
-    """Reject mixed Knowledge/Strategy lists with a clear DSL-level error."""
-    expected_name = expected_type.__name__
-    for i, item in enumerate(items):
-        if not isinstance(item, expected_type):
-            actual_name = type(item).__name__
-            raise TypeError(
-                f"induction() items must all be {expected_name}; item {i} is {actual_name}"
-            )
-
-
 def noisy_and(
     premises: list[Knowledge],
     conclusion: Knowledge,
@@ -309,24 +294,70 @@ def deduction(
 
 
 def abduction(
+    support_h: Strategy,
+    support_alt: Strategy,
     observation: Knowledge,
-    hypothesis: Knowledge,
-    alternative: Knowledge | None = None,
     *,
     background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
 ) -> Strategy:
-    """Abduction lowered via the canonical IR formalizer at compile time."""
-    premises = [observation]
-    if alternative is not None:
-        premises.append(alternative)
-    return _named_strategy(
-        "abduction",
-        premises=premises,
-        conclusion=hypothesis,
+    """Binary CompositeStrategy (IBE): compare two support arguments.
+
+    Args:
+        support_h: Strategy for the claimed-better theory.
+        support_alt: Strategy for the alternative theory.
+        observation: The shared observation being explained.
+        background: Optional background knowledge.
+        reason: Warrant text for the composition validity.
+
+    Returns:
+        CompositeStrategy whose conclusion is the auto-generated comparison claim.
+    """
+    if not isinstance(support_h, Strategy):
+        raise TypeError(f"abduction() support_h must be a Strategy, got {type(support_h).__name__}")
+    if not isinstance(support_alt, Strategy):
+        raise TypeError(
+            f"abduction() support_alt must be a Strategy, got {type(support_alt).__name__}"
+        )
+
+    # Auto-create the compare sub-strategy
+    compare_strategy = compare(
+        support_h.conclusion,
+        support_alt.conclusion,
+        observation,
         background=background,
-        reason=reason,
     )
+
+    # Auto-create composition warrant
+    warrant_metadata: dict = {"helper_kind": "composition_validity", "generated": True}
+    if isinstance(reason, str) and reason:
+        warrant_metadata["warrant"] = reason
+    composition_warrant = Knowledge(
+        content="Are both predictions about the same observation?",
+        type="claim",
+        metadata=warrant_metadata,
+    )
+
+    # Collect all premises from sub-strategies
+    all_premises: list[Knowledge] = []
+    seen: set[int] = set()
+    for s in [support_h, support_alt, compare_strategy]:
+        for p in s.premises:
+            if id(p) not in seen:
+                all_premises.append(p)
+                seen.add(id(p))
+
+    strategy = Strategy(
+        type="abduction",
+        premises=all_premises,
+        conclusion=compare_strategy.conclusion,
+        background=background or [],
+        reason=reason,
+        sub_strategies=[support_h, support_alt, compare_strategy],
+        composition_warrant=composition_warrant,
+    )
+    _attach_strategy(compare_strategy.conclusion, strategy)
+    return strategy
 
 
 def analogy(
@@ -440,123 +471,59 @@ def composite(
 
 
 def induction(
-    items: list[Knowledge] | list[Strategy],
-    law: Knowledge | None = None,
-    *,
-    alt_exps: list[Knowledge | None] | None = None,
-    background: list[Knowledge] | None = None,
-    reason: ReasonInput = "",
-) -> Strategy:
-    """Induction: multiple observations jointly supporting a law.
-
-    Two modes, detected from the type of items[0]:
-
-    Top-down (items = list[Knowledge]):
-        Creates n abduction sub-strategies internally.
-        law is required. alt_exps is optional (auto-generated if omitted).
-
-    Bottom-up (items = list[Strategy]):
-        Bundles existing abduction strategies.
-        law is inferred from shared conclusion (validated if provided).
-        alt_exps is ignored.
-    """
-    if not items:
-        raise ValueError("induction() requires a non-empty list")
-
-    if isinstance(items[0], Strategy):
-        _validate_induction_items(items, expected_type=Strategy)
-        return _induction_bottom_up(items, law, background=background, reason=reason)
-    elif isinstance(items[0], Knowledge):
-        _validate_induction_items(items, expected_type=Knowledge)
-        if law is None:
-            raise ValueError("induction() top-down mode requires law argument")
-        return _induction_top_down(
-            items, law, alt_exps=alt_exps, background=background, reason=reason
-        )
-    else:
-        raise TypeError(f"induction() items must be Knowledge or Strategy, got {type(items[0])!r}")
-
-
-def _induction_top_down(
-    observations: list[Knowledge],
+    support_1: Strategy,
+    support_2: Strategy,
     law: Knowledge,
     *,
-    alt_exps: list[Knowledge | None] | None = None,
     background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
 ) -> Strategy:
-    if len(observations) < 2:
-        raise ValueError("induction() requires at least 2 observations")
-    if alt_exps is not None and len(alt_exps) != len(observations):
-        raise ValueError(
-            f"alt_exps length ({len(alt_exps)}) must match observations ({len(observations)})"
-        )
+    """Binary CompositeStrategy: two supports jointly confirm a law.
 
-    sub_strategies: list[Strategy] = []
-    all_premises: list[Knowledge] = list(observations)
+    Chains via ``induction(prev_induction, new_support, law)``.
 
-    for i, obs in enumerate(observations):
-        alt = alt_exps[i] if alt_exps is not None else None
-        if alt is not None:
-            all_premises.append(alt)
-        # Reuse abduction() to get standard behavior, but keep induction-level
-        # reasoning attached to the outer CompositeStrategy only.
-        sub = abduction(obs, law, alt, background=background)
-        sub_strategies.append(sub)
+    Args:
+        support_1: First support (FormalStrategy or previous induction).
+        support_2: Second support (FormalStrategy).
+        law: The Knowledge being supported.
+        background: Optional background knowledge.
+        reason: Warrant text for the composition validity.
 
-    return _composite_strategy(
-        type_="induction",
-        premises=all_premises,
-        conclusion=law,
-        sub_strategies=sub_strategies,
-        background=background,
-        reason=reason,
+    Returns:
+        CompositeStrategy whose conclusion is *law*.
+    """
+    if not isinstance(support_1, Strategy):
+        raise TypeError(f"induction() support_1 must be a Strategy, got {type(support_1).__name__}")
+    if not isinstance(support_2, Strategy):
+        raise TypeError(f"induction() support_2 must be a Strategy, got {type(support_2).__name__}")
+
+    # Auto-create composition warrant
+    warrant_metadata: dict = {"helper_kind": "composition_validity", "generated": True}
+    if isinstance(reason, str) and reason:
+        warrant_metadata["warrant"] = reason
+    composition_warrant = Knowledge(
+        content="Are observations independent? Do they support the same law?",
+        type="claim",
+        metadata=warrant_metadata,
     )
 
-
-def _induction_bottom_up(
-    strategies: list[Strategy],
-    law: Knowledge | None = None,
-    *,
-    background: list[Knowledge] | None = None,
-    reason: ReasonInput = "",
-) -> Strategy:
-    if len(strategies) < 2:
-        raise ValueError("induction() requires at least 2 sub-strategies")
-    conclusions: set[int] = set()
-    for s in strategies:
-        if not isinstance(s, Strategy):
-            raise TypeError(f"induction() bottom-up items must be Strategy, got {type(s)!r}")
-        if s.type != "abduction":
-            raise ValueError(
-                f"induction() bottom-up sub-strategies must be abduction, got '{s.type}'"
-            )
-        if s.conclusion is None:
-            raise ValueError("induction() sub-strategy has no conclusion")
-        conclusions.add(id(s.conclusion))
-
-    if len(conclusions) != 1:
-        raise ValueError(
-            "induction() all sub-strategies must share the same conclusion (by identity)"
-        )
-
-    inferred_law = strategies[0].conclusion
-    if law is not None and law is not inferred_law:
-        raise ValueError("induction() law does not match sub-strategies' shared conclusion")
-
+    # Collect all premises from sub-strategies
     all_premises: list[Knowledge] = []
     seen: set[int] = set()
-    for s in strategies:
+    for s in [support_1, support_2]:
         for p in s.premises:
             if id(p) not in seen:
                 all_premises.append(p)
                 seen.add(id(p))
 
-    return _composite_strategy(
-        type_="induction",
+    strategy = Strategy(
+        type="induction",
         premises=all_premises,
-        conclusion=inferred_law,
-        sub_strategies=strategies,
-        background=background,
+        conclusion=law,
+        background=background or [],
         reason=reason,
+        sub_strategies=[support_1, support_2],
+        composition_warrant=composition_warrant,
     )
+    _attach_strategy(law, strategy)
+    return strategy
