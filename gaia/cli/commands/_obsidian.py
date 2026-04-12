@@ -531,6 +531,7 @@ def generate_obsidian_vault(
         weak_lines = [
             "---",
             "type: section",
+            "aliases: [weak-points]",
             "section_number: " + str(sec_num),
             "title: Weak Points",
             "tags: [section, weak-points]",
@@ -562,6 +563,7 @@ def generate_obsidian_vault(
     oq_lines = [
         "---",
         "type: section",
+        "aliases: [open-questions]",
         "section_number: " + str(sec_num),
         "title: Open Questions",
         "tags: [section, open-questions]",
