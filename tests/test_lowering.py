@@ -706,11 +706,12 @@ def test_e2e_single_premise_deduction_binary_implication():
     assert beliefs["github:lowertest::q"] > 0.5
 
 
-def test_relation_helper_ignores_node_priors():
-    """Regression: relation operator helper claims ignore node_priors.
+def test_relation_helper_defaults_to_assertion_prior():
+    """Relation operator helper claims default to 1-ε when absent from node_priors.
 
-    Even if node_priors includes the implication helper at 0.5,
-    lowering must override to 1-ε (structural assertion).
+    Callers that generate node_priors should set relation helpers to 1-ε
+    (not 0.5). When the helper is absent from node_priors, lowering falls
+    back to the structural default 1-ε.
     """
     s = Strategy(
         scope="local",
@@ -726,32 +727,31 @@ def test_relation_helper_ignores_node_priors():
         strategies=[s],
     )
 
-    # First lower to discover the helper claim ID
-    fg_ref = lower_local_graph(
-        g,
-        node_priors={
-            "github:lowertest::a": 0.8,
-            "github:lowertest::b": 0.5,
-        },
-    )
-    impl_f = [f for f in fg_ref.factors if f.factor_type == FactorType.IMPLICATION][0]
-    helper_id = impl_f.conclusion
+    from gaia.bp.factor_graph import CROMWELL_EPS
 
-    # Now lower again WITH the helper in node_priors at 0.5
+    # Case 1: helper NOT in node_priors → lowering uses 1-ε default
     fg = lower_local_graph(
         g,
         node_priors={
             "github:lowertest::a": 0.8,
             "github:lowertest::b": 0.5,
-            helper_id: 0.5,  # attacker tries to neutralize the relation
         },
     )
-
-    from gaia.bp.factor_graph import CROMWELL_EPS
-
-    # Helper must still be at 1-ε regardless of node_priors
+    impl_f = [f for f in fg.factors if f.factor_type == FactorType.IMPLICATION][0]
+    helper_id = impl_f.conclusion
     assert fg.variables[helper_id] == pytest.approx(1.0 - CROMWELL_EPS)
 
-    # BP should still propagate: B > 0.5
+    # Case 2: helper in node_priors at 1-ε (correct generation) → lowering uses it
+    fg2 = lower_local_graph(
+        g,
+        node_priors={
+            "github:lowertest::a": 0.8,
+            "github:lowertest::b": 0.5,
+            helper_id: 1.0 - CROMWELL_EPS,
+        },
+    )
+    assert fg2.variables[helper_id] == pytest.approx(1.0 - CROMWELL_EPS)
+
+    # Both cases: BP propagates correctly
     beliefs, _ = exact_inference(fg)
     assert beliefs["github:lowertest::b"] > 0.5
