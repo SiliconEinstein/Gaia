@@ -101,33 +101,112 @@ Each claim is a self-contained article. `#XX` number = position in reasoning cha
 
 Sections are **narrative chapters** that tell the paper's story. Claims within each section are sorted by topological order (evidence → derivation → conclusion).
 
-1. **Title** — Rewrite skeleton title into a descriptive narrative title in user's language (e.g., "Computing μ* from First Principles", "Why DFPT Gets the Phonon Coupling Right"). Keep number prefix.
-2. **Overview** — 2-3 paragraphs telling the section's story: what scientific question, what approach, what key insight, how it connects to the overall argument. Write as a review paper section.
+**Goal:** A reader who reads sections 01 through 06 in order should understand the paper's complete argument without ever opening the original paper. Each section is a self-contained chapter of a "textbook rewrite" of the paper.
+
+1. **Title** — Rewrite skeleton title into a descriptive narrative title in user's language (e.g., "从第一性原理计算库仑赝势", "为什么 DFPT 能给出正确的声子耦合"). Keep number prefix.
+
+2. **Overview** — 2-3 paragraphs telling the section's story:
+   - What scientific question does this section answer?
+   - Why is this question important for the overall argument?
+   - What is the key insight or result?
+   - How does it build on previous sections and enable the next?
+
 3. **Per-section Mermaid** — Keep as-is.
-4. **Claims list** — For each claim, write 2-3 sentences of narrative summary with key numbers, linking to the full claim page. Don't duplicate derivations. The narrative should flow — each claim summary connects to the next, telling a coherent story.
+
+4. **Claims list** — This is the heart of the section. For each claim (in topo order), write a **narrative paragraph** (not a bullet point) that:
+   - Explains what this claim says in plain language
+   - Gives the key quantitative result (numbers, equations)
+   - Explains why this result matters for the section's argument
+   - Transitions naturally to the next claim
+
+   The claims should flow as a connected story. Example (bad vs good):
+
+   **BAD** (isolated bullet points):
+   ```
+   ### [[adiabatic_approx|#02 绝热近似]]
+   > 传统金属中 ωD/EF ~ 0.005。
+   Prior: 0.95 → Belief: 0.71
+   ```
+
+   **GOOD** (narrative flow):
+   ```
+   ### [[adiabatic_approx|#02 绝热近似]]
+
+   整个下折叠理论的基础是绝热近似——在传统金属中，Debye 频率
+   与 Fermi 能之比 $\omega_D/E_F \sim 0.005$，声子的能标远小于
+   电子的能标。这一巨大的能标分离使得 Migdal 定理成立：高阶
+   电声顶角修正被压低至 $O(\omega_D/E_F)$，从而保证了 BSE
+   积分核的可分离性（详见 [[downfolded_bse|#43 下折叠 BSE]]）。
+
+   这一前提的 belief 从先验 0.95 下降到后验 0.71，反映了下折叠
+   链上的不确定性积累——虽然绝热近似本身很可靠，但它作为多个
+   推导步骤的共同前提，其不确定性被放大了。
+   ```
+
+   The good version tells a story: what the claim says → why it matters → what the belief change means.
 
 #### Weak Points section
 
-The skeleton lists the 10 lowest-belief claims. Agent should rewrite into:
+**Goal:** A reader should understand WHERE the argument is weakest, WHY it's weak, and WHAT could fix it. This is a critical assessment, not a data dump.
 
-1. **Overview** — What are the weakest links in the reasoning and why they matter.
-2. **For each weak claim** — Don't just cite the low belief. Explain:
-   - WHY the belief is low (what the BP propagation reveals about structural weakness)
-   - What assumption is most vulnerable
-   - What evidence would strengthen it
-   - What competing explanation hasn't been ruled out
-3. **Systemic risks** — Are there patterns? (e.g., "all downfolding claims have low belief because they depend on cross-term suppression at 1%")
+The skeleton provides a table of the 10 lowest-belief claims. Agent should rewrite into a structured analysis:
+
+1. **Executive summary** (1 paragraph) — The single most important takeaway. What is the weakest link in the entire reasoning chain? If you had to bet on which claim will fail, which one and why?
+
+2. **Structural analysis** — Group weak points by their position in the reasoning graph:
+   - **Foundation weaknesses** — Are any leaf premises (holes) controversial? If a widely-accepted fact turns out to be wrong, what collapses?
+   - **Bottleneck weaknesses** — Are there single claims that many conclusions depend on? A low-belief bottleneck is more dangerous than a low-belief leaf.
+   - **Propagation effects** — Does the reasoning graph amplify uncertainty? (e.g., "the downfolded BSE has belief 0.33 not because it's intrinsically unreliable, but because it depends on cross-term suppression which has belief 0.50, and the uncertainty propagates through 3 derivation steps")
+
+3. **For each major weak point** (top 3-5), write a full paragraph:
+   - What the claim says and where it sits in the reasoning chain
+   - WHY the belief is low — trace the reasoning graph backwards to find the root cause
+   - What the reviewer's justification says about the uncertainty
+   - What competing explanation or alternative approach exists
+   - What specific evidence or experiment would resolve the uncertainty
+   - What downstream conclusions would be affected if this claim fails
+
+4. **Comparison with the paper's own assessment** — Does the paper acknowledge these weaknesses? Does the reasoning graph reveal weaknesses the paper doesn't discuss?
 
 #### Open Questions section
 
+**Goal:** A reader should know exactly what work remains to be done, prioritized by impact. This is a research roadmap derived from the reasoning graph.
+
 The skeleton lists holes and questions. Agent should rewrite into:
 
-1. **Overview** — What are the most important gaps and future directions.
-2. **For each category of hole** — Group by theme (experimental, computational, theoretical). For each:
-   - What additional evidence would help
-   - Which conclusions would be most affected
-   - Feasibility of obtaining this evidence
-3. **Future extensions** — What the paper suggests as next steps. What the reasoning graph suggests as most impactful improvements.
+1. **Overview** (1-2 paragraphs) — The big picture: what would make this knowledge package "complete"? What's the most impactful single improvement?
+
+2. **Open questions from the paper** — If the IR has `type: question` nodes, explain each:
+   - What the question asks
+   - Why it matters for the overall argument
+   - What the paper suggests (if anything) as an approach
+   - What the reasoning graph says about its impact (which conclusions depend on it?)
+
+3. **Evidence gaps** (grouped by theme):
+
+   **Experimental gaps:**
+   - What measurements are missing or imprecise?
+   - Which claims rely on the weakest experimental evidence?
+   - What experiments would most reduce uncertainty?
+
+   **Computational gaps:**
+   - What calculations are approximate that could be made exact?
+   - What parameters have the largest error bars?
+   - What computational advances would help?
+
+   **Theoretical gaps:**
+   - What derivations rely on uncontrolled approximations?
+   - Where does the theory break down (validity limits)?
+   - What extensions would broaden applicability?
+
+4. **Impact analysis** — For each gap, trace forward through the reasoning graph:
+   - If this hole were filled with higher confidence, which conclusions would improve?
+   - Rank the holes by "information value": how much would filling this hole reduce overall uncertainty?
+
+5. **Suggested next steps** — Prioritized list of 3-5 actionable research directions, each with:
+   - What to do
+   - Why it's high-impact (which conclusions it would strengthen)
+   - Estimated difficulty/feasibility
 
 ---
 
