@@ -44,10 +44,13 @@ cat .gaia/ir.json                          # Full IR
 cat .gaia/reviews/*/beliefs.json           # BP results
 cat .gaia/reviews/*/parameterization.json  # Priors + strategy params
 cat src/<package>/*.py                     # DSL source (claims, reasons, strategies)
+cat src/<package>/reviews/*.py             # Review sidecars (justifications!)
 ls artifacts/                              # Original paper, figures, data
 ```
 
 Read the original source material in `artifacts/` cover-to-cover. The agent must understand the paper's argument, data, and figures before writing any page.
+
+**Important:** The review sidecar (`reviews/*.py`) contains `justification` fields for each prior and strategy parameter — these explain WHY the reviewer assigned a particular probability. Include these justifications in every claim and evidence page where they are available.
 
 ## Step 4: Rewrite Every Page
 
@@ -89,9 +92,14 @@ Rewrite into a complete article about this claim.
    - Numerical validations cited in the paper
    - Appendix material that supports this derivation
    - Keep wikilinks to premises but embed them in explanatory prose
-5. **Supports**: What downstream conclusions depend on this claim.
-6. **Significance**: Why this matters. What breaks if wrong?
-7. **Caveats**: Limitations, alternative explanations, uncertainty sources.
+5. **Review**: If the review sidecar has a `justification` for this claim's prior, include it:
+   - Prior value and the reviewer's justification for choosing it
+   - Posterior belief (from BP inference) and what changed
+   - If a strategy has a `justification` for its conditional probability, include that too
+   - Format: `**Prior**: 0.95 — "omega_D/E_F ~ 0.005 for simple metals; Migdal theorem validated."`
+6. **Supports**: What downstream conclusions depend on this claim.
+7. **Significance**: Why this matters. What breaks if wrong?
+8. **Caveats**: Limitations, alternative explanations, uncertainty sources.
 
 #### Evidence pages (`evidence/*.md`)
 
@@ -101,7 +109,8 @@ Rewrite into a complete source documentation page. Evidence pages are leaf nodes
 2. **Content**: Full statement of the evidence with all quantitative details, equations, and conditions.
 3. **Background**: Scientific context — why this evidence matters, what it establishes, how it was obtained. Reproduce the paper's full discussion of this point including any appendix material.
 4. **Source**: Experimental method, measurement conditions, precision, error bars, known limitations. Embed relevant figures and data tables from the paper.
-5. **Supports**: Which conclusions depend on this evidence — explain the logical connection, not just list names.
+5. **Review**: If the review sidecar has a `justification` for this evidence's prior, include the prior value and justification.
+6. **Supports**: Which conclusions depend on this evidence — explain the logical connection, not just list names.
 
 #### Module pages (`modules/*.md`)
 
