@@ -15,6 +15,7 @@ from gaia.lang import (
     mathematical_induction,
     noisy_and,
     setting,
+    support,
 )
 from gaia.lang.runtime.package import CollectedPackage
 
@@ -23,8 +24,13 @@ def test_noisy_and_explicit():
     a = claim("A.")
     b = claim("B.")
     c = claim("C.")
-    s = noisy_and(premises=[a, b], conclusion=c, reason=["Step 1", "Step 2"])
-    assert s.type == "noisy_and"
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        s = noisy_and(premises=[a, b], conclusion=c, reason=["Step 1", "Step 2"])
+    # noisy_and now delegates to support()
+    assert s.type == "support"
     assert s.conclusion is c
     assert len(s.premises) == 2
     assert isinstance(s.reason, list)
@@ -35,13 +41,17 @@ def test_noisy_and_structured_steps():
     a = claim("A.")
     b = claim("B.")
     c = claim("C.")
-    s = noisy_and(
-        premises=[a, b],
-        conclusion=c,
-        reason=[
-            Step(reason="A and B jointly support C.", premises=[a, b]),
-        ],
-    )
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        s = noisy_and(
+            premises=[a, b],
+            conclusion=c,
+            reason=[
+                Step(reason="A and B jointly support C.", premises=[a, b]),
+            ],
+        )
     assert isinstance(s.reason[0], Step)
     assert s.reason[0].reason == "A and B jointly support C."
     assert s.reason[0].premises == [a, b]
@@ -50,7 +60,11 @@ def test_noisy_and_structured_steps():
 def test_noisy_and_simple_reason():
     a = claim("A.")
     c = claim("C.")
-    s = noisy_and(premises=[a], conclusion=c, reason="Because A implies C.")
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        s = noisy_and(premises=[a], conclusion=c, reason="Because A implies C.")
     assert s.reason == "Because A implies C."
 
 
@@ -59,12 +73,16 @@ def test_step_premise_validation():
     b = claim("B.")
     c = claim("C.")
     outside = claim("Not a premise.")
-    with pytest.raises(ValueError, match="not in the strategy's premise list"):
-        noisy_and(
-            premises=[a, b],
-            conclusion=c,
-            reason=[Step(reason="Bad step", premises=[outside])],
-        )
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        with pytest.raises(ValueError, match="not in the strategy's premise list"):
+            noisy_and(
+                premises=[a, b],
+                conclusion=c,
+                reason=[Step(reason="Bad step", premises=[outside])],
+            )
 
 
 def test_deduction():
@@ -270,8 +288,8 @@ def test_composite():
     evidence = claim("Evidence.")
     intermediate = claim("Intermediate.")
     conclusion = claim("Conclusion.")
-    s1 = noisy_and(premises=[evidence], conclusion=intermediate)
-    s2 = noisy_and(premises=[intermediate], conclusion=conclusion)
+    s1 = support(premises=[evidence], conclusion=intermediate)
+    s2 = support(premises=[intermediate], conclusion=conclusion)
     composite_strategy = composite(
         premises=[evidence],
         conclusion=conclusion,
@@ -417,8 +435,8 @@ def test_induction_bottom_up_non_abduction():
     law = claim("Law.")
     a = claim("A.")
     b = claim("B.")
-    s1 = noisy_and(premises=[a], conclusion=law)
-    s2 = noisy_and(premises=[b], conclusion=law)
+    s1 = support(premises=[a], conclusion=law)
+    s2 = support(premises=[b], conclusion=law)
     with pytest.raises(ValueError, match="must be abduction"):
         induction([s1, s2])
 

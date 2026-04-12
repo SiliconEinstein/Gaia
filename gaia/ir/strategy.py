@@ -40,6 +40,7 @@ class StrategyType(StrEnum):
     ABDUCTION = "abduction"
     ANALOGY = "analogy"
     EXTRAPOLATION = "extrapolation"
+    SUPPORT = "support"  # bidirectional implication (sufficiency + necessity)
 
     # Composite strategies — non-atomic
     INDUCTION = "induction"  # CompositeStrategy wrapping shared-conclusion abductions
@@ -89,6 +90,7 @@ _FORMAL_STRATEGY_TYPES = frozenset(
         StrategyType.ABDUCTION,
         StrategyType.ANALOGY,
         StrategyType.EXTRAPOLATION,
+        StrategyType.SUPPORT,
     }
 )
 

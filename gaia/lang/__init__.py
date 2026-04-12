@@ -20,6 +20,7 @@ from gaia.lang.dsl import (
     noisy_and,
     question,
     setting,
+    support,
 )
 from gaia.lang.runtime import Knowledge, Operator, Step, Strategy
 
@@ -47,4 +48,5 @@ __all__ = [
     "noisy_and",
     "question",
     "setting",
+    "support",
 ]
