@@ -30,26 +30,26 @@ def test_infer_writes_parameterization_and_beliefs(tmp_path):
     pkg_dir = tmp_path / "infer_demo"
     _write_base_package(pkg_dir, name="infer_demo")
     (pkg_dir / "infer_demo" / "__init__.py").write_text(
-        "from gaia.lang import claim, noisy_and\n\n"
+        "from gaia.lang import claim, deduction\n\n"
         'evidence_a = claim("Observed evidence A.")\n'
         'evidence_b = claim("Observed evidence B.")\n'
         'hypothesis = claim("Main hypothesis.")\n'
-        "support = noisy_and(premises=[evidence_a, evidence_b], conclusion=hypothesis)\n"
-        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "support"]\n'
+        "s = deduction(premises=[evidence_a, evidence_b], conclusion=hypothesis)\n"
+        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "s"]\n'
     )
     _write_review(
         pkg_dir,
         "infer_demo",
         "self_review",
         "from gaia.review import ReviewBundle, review_claim, review_strategy\n"
-        "from .. import evidence_a, evidence_b, hypothesis, support\n\n"
+        "from .. import evidence_a, evidence_b, hypothesis, s\n\n"
         "REVIEW = ReviewBundle(\n"
         '    source_id="self_review",\n'
         "    objects=[\n"
         '        review_claim(evidence_a, prior=0.9, judgment="strong", justification="Direct observation."),\n'
         '        review_claim(evidence_b, prior=0.8, judgment="supporting", justification="A second reinforcing observation."),\n'
         '        review_claim(hypothesis, prior=0.4, judgment="tentative", justification="Base rate before support."),\n'
-        '        review_strategy(support, conditional_probability=0.85, judgment="good", justification="The evidence usually supports the hypothesis."),\n'
+        '        review_strategy(s, judgment="good", justification="The evidence usually supports the hypothesis."),\n'
         "    ],\n"
         ")\n",
     )
@@ -69,7 +69,6 @@ def test_infer_writes_parameterization_and_beliefs(tmp_path):
 
     assert parameterization["source"]["source_id"] == "self_review"
     assert len(parameterization["priors"]) == 3
-    assert len(parameterization["strategy_params"]) == 1
 
     belief_by_label = {item["label"]: item["belief"] for item in beliefs["beliefs"]}
     assert all(not item["knowledge_id"].startswith("_m_") for item in beliefs["beliefs"])

@@ -13,8 +13,8 @@ from gaia.ir import (
 
 
 class TestStrategyType:
-    def test_eleven_types(self):
-        assert len(StrategyType) == 11
+    def test_twelve_types(self):
+        assert len(StrategyType) == 12
         expected = {
             "infer",
             "noisy_and",
@@ -27,6 +27,7 @@ class TestStrategyType:
             "analogy",
             "extrapolation",
             "induction",
+            "support",
         }
         assert set(StrategyType) == expected
 

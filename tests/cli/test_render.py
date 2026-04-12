@@ -23,12 +23,12 @@ def _write_base_package(pkg_dir, *, name: str, version: str = "1.0.0") -> None:
 
 def _write_minimal_source(pkg_dir, name: str) -> None:
     (pkg_dir / name / "__init__.py").write_text(
-        "from gaia.lang import claim, noisy_and\n\n"
+        "from gaia.lang import claim, deduction\n\n"
         'evidence_a = claim("Observed evidence A.")\n'
         'evidence_b = claim("Observed evidence B.")\n'
         'hypothesis = claim("Main hypothesis.")\n'
-        "support = noisy_and(premises=[evidence_a, evidence_b], conclusion=hypothesis)\n"
-        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "support"]\n'
+        "s = deduction(premises=[evidence_a, evidence_b], conclusion=hypothesis)\n"
+        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "s"]\n'
     )
 
 
@@ -37,14 +37,14 @@ def _write_review(pkg_dir, package_name: str, review_name: str) -> None:
     reviews_dir.mkdir(exist_ok=True)
     (reviews_dir / f"{review_name}.py").write_text(
         "from gaia.review import ReviewBundle, review_claim, review_strategy\n"
-        "from .. import evidence_a, evidence_b, hypothesis, support\n\n"
+        "from .. import evidence_a, evidence_b, hypothesis, s\n\n"
         "REVIEW = ReviewBundle(\n"
         f'    source_id="{review_name}",\n'
         "    objects=[\n"
         '        review_claim(evidence_a, prior=0.9, judgment="strong", justification="Direct observation."),\n'
         '        review_claim(evidence_b, prior=0.8, judgment="supporting", justification="A second reinforcing observation."),\n'
         '        review_claim(hypothesis, prior=0.4, judgment="tentative", justification="Base rate before support."),\n'
-        '        review_strategy(support, conditional_probability=0.85, judgment="good", justification="The evidence usually supports the hypothesis."),\n'
+        '        review_strategy(s, judgment="good", justification="The evidence usually supports the hypothesis."),\n'
         "    ],\n"
         ")\n"
     )
@@ -101,12 +101,12 @@ def test_render_fails_when_ir_stale(tmp_path):
 
     # Mutate source so re-compile yields a different ir_hash
     (pkg_dir / "stale_ir" / "__init__.py").write_text(
-        "from gaia.lang import claim, noisy_and\n\n"
+        "from gaia.lang import claim, deduction\n\n"
         'evidence_a = claim("Observed evidence A (edited).")\n'
         'evidence_b = claim("Observed evidence B.")\n'
         'hypothesis = claim("Main hypothesis.")\n'
-        "support = noisy_and(premises=[evidence_a, evidence_b], conclusion=hypothesis)\n"
-        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "support"]\n'
+        "s = deduction(premises=[evidence_a, evidence_b], conclusion=hypothesis)\n"
+        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "s"]\n'
     )
 
     result = runner.invoke(app, ["render", str(pkg_dir)])
@@ -267,14 +267,14 @@ def _write_second_review(pkg_dir, package_name: str, review_name: str) -> None:
     reviews_dir = pkg_dir / package_name / "reviews"
     (reviews_dir / f"{review_name}.py").write_text(
         "from gaia.review import ReviewBundle, review_claim, review_strategy\n"
-        "from .. import evidence_a, evidence_b, hypothesis, support\n\n"
+        "from .. import evidence_a, evidence_b, hypothesis, s\n\n"
         "REVIEW = ReviewBundle(\n"
         f'    source_id="{review_name}",\n'
         "    objects=[\n"
         '        review_claim(evidence_a, prior=0.5, judgment="tentative", justification="Alt."),\n'
         '        review_claim(evidence_b, prior=0.5, judgment="tentative", justification="Alt."),\n'
         '        review_claim(hypothesis, prior=0.5, judgment="tentative", justification="Alt."),\n'
-        '        review_strategy(support, conditional_probability=0.5, judgment="weak", justification="Alt."),\n'
+        '        review_strategy(s, judgment="weak", justification="Alt."),\n'
         "    ],\n"
         ")\n"
     )
