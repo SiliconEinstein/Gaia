@@ -453,7 +453,7 @@ def generate_obsidian_vault(
             return "conclusions"
         if kid in conclusion_ids:
             return "intermediate"
-        return "premises"
+        return "holes"
 
     # Claim pages (sorted into role subdirectories)
     for k in all_claims:

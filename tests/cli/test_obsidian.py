@@ -194,8 +194,8 @@ class TestNumbering:
         # Leaf (premise) has lower number than derived (conclusion)
         assert "01 -" in leaf_path
         assert "02 -" in derived_path
-        # Leaf in premises/, derived in conclusions/
-        assert "premises/" in leaf_path
+        # Leaf in holes/, derived in conclusions/
+        assert "holes/" in leaf_path
         assert "conclusions/" in derived_path
 
     def test_claim_page_title_has_number(self):
