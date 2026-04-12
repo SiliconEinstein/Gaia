@@ -443,17 +443,26 @@ def generate_obsidian_vault(
     claim_numbers = _assign_claim_numbers(ir)
     all_claims = [k for k in ir["knowledges"] if not _is_helper(k.get("label"))]
 
-    # Classify claims into roles
-    conclusion_ids = {s.get("conclusion") for s in ir.get("strategies", []) if s.get("conclusion")}
+    # Classify claims into roles using node_role from _classify.py
     exported_ids = {k["id"] for k in ir["knowledges"] if k.get("exported")}
+    classification = classify_ir(ir)
+
+    _ROLE_TO_DIR = {
+        "independent": "holes",  # premise but not conclusion — true holes
+        "derived": "intermediate",  # conclusion of strategy, not exported
+        "setting": "context",  # background settings
+        "background": "context",  # background knowledge
+        "structural": "context",  # operator conclusions
+        "orphaned": "context",  # not referenced by any strategy
+        "question": "conclusions",  # questions are interesting
+    }
 
     def _claim_role(k: dict) -> str:
         kid = k["id"]
         if kid in exported_ids:
             return "conclusions"
-        if kid in conclusion_ids:
-            return "intermediate"
-        return "holes"
+        role = node_role(kid, k["type"], classification)
+        return _ROLE_TO_DIR.get(role, "context")
 
     # Claim pages (sorted into role subdirectories)
     for k in all_claims:
