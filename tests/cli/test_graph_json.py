@@ -1,4 +1,4 @@
-"""Tests for graph.json generator."""
+"""Tests for graph.json generator (v2: strategy/operator as nodes)."""
 
 from __future__ import annotations
 
@@ -7,169 +7,184 @@ import json
 from gaia.cli.commands._graph_json import generate_graph_json
 
 
-def test_graph_json_has_nodes_and_edges():
-    ir = {
+def _make_ir(
+    knowledges: list[dict] | None = None,
+    strategies: list[dict] | None = None,
+    operators: list[dict] | None = None,
+    module_order: list[str] | None = None,
+) -> dict:
+    return {
         "package_name": "test_pkg",
         "namespace": "github",
-        "knowledges": [
-            {
-                "id": "github:test_pkg::a",
-                "label": "a",
-                "type": "claim",
-                "content": "Claim A.",
-                "module": "motivation",
-                "metadata": {"figure": "artifacts/fig1.png"},
-            },
-            {
-                "id": "github:test_pkg::b",
-                "label": "b",
-                "type": "claim",
-                "content": "Claim B.",
-                "module": "motivation",
-            },
-        ],
-        "strategies": [
-            {
-                "type": "deduction",
-                "premises": ["github:test_pkg::a"],
-                "conclusion": "github:test_pkg::b",
-                "reason": "A implies B.",
-            },
-        ],
-        "operators": [],
+        "knowledges": knowledges or [],
+        "strategies": strategies or [],
+        "operators": operators or [],
+        "module_order": module_order or [],
     }
-    beliefs = {
-        "beliefs": [
-            {"knowledge_id": "github:test_pkg::a", "belief": 0.9, "label": "a"},
-            {"knowledge_id": "github:test_pkg::b", "belief": 0.8, "label": "b"},
-        ]
-    }
-    exported = {"github:test_pkg::b"}
-    result = generate_graph_json(ir, beliefs_data=beliefs, exported_ids=exported)
-    data = json.loads(result)
-    assert len(data["nodes"]) == 2
-    assert len(data["edges"]) == 1
-    node_b = next(n for n in data["nodes"] if n["label"] == "b")
-    assert node_b["belief"] == 0.8
-    assert node_b["exported"] is True
-    edge = data["edges"][0]
-    assert edge["strategy_type"] == "deduction"
 
 
-def test_operator_edges():
-    """Operator entries produce edges with operator_type."""
-    ir = {
-        "package_name": "test_pkg",
-        "namespace": "github",
-        "knowledges": [
-            {
-                "id": "github:test_pkg::x",
-                "label": "x",
-                "type": "claim",
-                "content": "X.",
-                "module": "m",
-            },
-            {
-                "id": "github:test_pkg::not_x",
-                "label": "not_x",
-                "type": "claim",
-                "content": "NOT X.",
-                "module": "m",
-            },
+def test_knowledge_nodes_emitted():
+    ir = _make_ir(
+        knowledges=[
+            {"id": "github:test_pkg::a", "label": "a", "title": "Claim A",
+             "type": "claim", "content": "Claim A.", "module": "m1",
+             "metadata": {"figure": "fig.png"}},
         ],
-        "strategies": [],
-        "operators": [
-            {
-                "operator": "NOT",
-                "variables": ["github:test_pkg::x"],
-                "conclusion": "github:test_pkg::not_x",
-                "reason": "negation of x",
-            },
+        module_order=["m1"],
+    )
+    beliefs = {"beliefs": [{"knowledge_id": "github:test_pkg::a", "belief": 0.9, "label": "a"}]}
+    params = {"priors": [{"knowledge_id": "github:test_pkg::a", "value": 0.7}]}
+    exported = {"github:test_pkg::a"}
+    data = json.loads(generate_graph_json(ir, beliefs_data=beliefs, param_data=params, exported_ids=exported))
+    nodes = [n for n in data["nodes"] if n["type"] != "strategy"]
+    assert len(nodes) == 1
+    n = nodes[0]
+    assert n["id"] == "github:test_pkg::a"
+    assert n["belief"] == 0.9
+    assert n["prior"] == 0.7
+    assert n["exported"] is True
+    assert n["module"] == "m1"
+
+
+def test_strategy_becomes_node_with_role_edges():
+    ir = _make_ir(
+        knowledges=[
+            {"id": "github:test_pkg::a", "label": "a", "type": "claim", "content": "A.", "module": "m1"},
+            {"id": "github:test_pkg::b", "label": "b", "type": "claim", "content": "B.", "module": "m1"},
         ],
-    }
-    result = generate_graph_json(ir)
-    data = json.loads(result)
-    assert len(data["edges"]) == 1
-    edge = data["edges"][0]
-    assert edge["type"] == "operator"
-    assert edge["operator_type"] == "NOT"
-    assert edge["source"] == "github:test_pkg::x"
-    assert edge["target"] == "github:test_pkg::not_x"
-
-
-def test_helper_node_filtering():
-    """Nodes with labels starting with __ are filtered out."""
-    ir = {
-        "package_name": "test_pkg",
-        "namespace": "github",
-        "knowledges": [
-            {
-                "id": "github:test_pkg::a",
-                "label": "a",
-                "type": "claim",
-                "content": "Claim A.",
-                "module": "m",
-            },
-            {
-                "id": "github:test_pkg::__helper",
-                "label": "__helper",
-                "type": "claim",
-                "content": "Helper node.",
-                "module": "m",
-            },
+        strategies=[
+            {"type": "deduction", "premises": ["github:test_pkg::a"],
+             "background": [], "conclusion": "github:test_pkg::b", "reason": "A implies B."},
         ],
-        "strategies": [],
-        "operators": [],
-    }
-    result = generate_graph_json(ir)
-    data = json.loads(result)
-    assert len(data["nodes"]) == 1
-    assert data["nodes"][0]["label"] == "a"
+        module_order=["m1"],
+    )
+    data = json.loads(generate_graph_json(ir))
+    strat_nodes = [n for n in data["nodes"] if n["type"] == "strategy"]
+    assert len(strat_nodes) == 1
+    sn = strat_nodes[0]
+    assert sn["strategy_type"] == "deduction"
+    assert sn["module"] == "m1"
+    premise_edges = [e for e in data["edges"] if e["role"] == "premise"]
+    concl_edges = [e for e in data["edges"] if e["role"] == "conclusion"]
+    assert len(premise_edges) == 1
+    assert premise_edges[0]["source"] == "github:test_pkg::a"
+    assert premise_edges[0]["target"] == sn["id"]
+    assert len(concl_edges) == 1
+    assert concl_edges[0]["source"] == sn["id"]
+    assert concl_edges[0]["target"] == "github:test_pkg::b"
 
 
-def test_param_data_priors():
-    """Prior values from param_data are included in nodes."""
-    ir = {
-        "package_name": "test_pkg",
-        "namespace": "github",
-        "knowledges": [
-            {
-                "id": "github:test_pkg::a",
-                "label": "a",
-                "type": "claim",
-                "content": "Claim A.",
-                "module": "m",
-            },
+def test_background_edges_have_background_role():
+    ir = _make_ir(
+        knowledges=[
+            {"id": "github:test_pkg::a", "label": "a", "type": "claim", "content": "A.", "module": "m1"},
+            {"id": "github:test_pkg::bg", "label": "bg", "type": "setting", "content": "BG.", "module": "m1"},
+            {"id": "github:test_pkg::b", "label": "b", "type": "claim", "content": "B.", "module": "m1"},
         ],
-        "strategies": [],
-        "operators": [],
-    }
-    param_data = {"priors": [{"knowledge_id": "github:test_pkg::a", "value": 0.7}]}
-    result = generate_graph_json(ir, param_data=param_data)
-    data = json.loads(result)
-    assert data["nodes"][0]["prior"] == 0.7
+        strategies=[
+            {"type": "deduction", "premises": ["github:test_pkg::a"],
+             "background": ["github:test_pkg::bg"],
+             "conclusion": "github:test_pkg::b", "reason": ""},
+        ],
+        module_order=["m1"],
+    )
+    data = json.loads(generate_graph_json(ir))
+    bg_edges = [e for e in data["edges"] if e["role"] == "background"]
+    assert len(bg_edges) == 1
+    assert bg_edges[0]["source"] == "github:test_pkg::bg"
+
+
+def test_operator_becomes_node():
+    ir = _make_ir(
+        knowledges=[
+            {"id": "github:test_pkg::x", "label": "x", "type": "claim", "content": "X.", "module": "m1"},
+            {"id": "github:test_pkg::not_x", "label": "not_x", "type": "claim", "content": "NOT X.", "module": "m1"},
+        ],
+        operators=[
+            {"operator": "NOT", "variables": ["github:test_pkg::x"],
+             "conclusion": "github:test_pkg::not_x", "reason": "negation"},
+        ],
+        module_order=["m1"],
+    )
+    data = json.loads(generate_graph_json(ir))
+    op_nodes = [n for n in data["nodes"] if n["type"] == "operator"]
+    assert len(op_nodes) == 1
+    assert op_nodes[0]["operator_type"] == "NOT"
+    var_edges = [e for e in data["edges"] if e["role"] == "variable"]
+    concl_edges = [e for e in data["edges"] if e["role"] == "conclusion"]
+    assert len(var_edges) == 1
+    assert len(concl_edges) == 1
+
+
+def test_modules_array():
+    ir = _make_ir(
+        knowledges=[
+            {"id": "github:test_pkg::a", "label": "a", "type": "claim", "content": "A.", "module": "m1"},
+            {"id": "github:test_pkg::b", "label": "b", "type": "claim", "content": "B.", "module": "m1"},
+            {"id": "github:test_pkg::c", "label": "c", "type": "claim", "content": "C.", "module": "m2"},
+        ],
+        strategies=[
+            {"type": "deduction", "premises": ["github:test_pkg::a"],
+             "background": [], "conclusion": "github:test_pkg::b", "reason": ""},
+        ],
+        module_order=["m1", "m2"],
+    )
+    data = json.loads(generate_graph_json(ir))
+    modules = data["modules"]
+    assert len(modules) == 2
+    m1 = next(m for m in modules if m["id"] == "m1")
+    assert m1["order"] == 0
+    assert m1["node_count"] == 2
+    assert m1["strategy_count"] == 1
+    m2 = next(m for m in modules if m["id"] == "m2")
+    assert m2["order"] == 1
+    assert m2["node_count"] == 1
+    assert m2["strategy_count"] == 0
+
+
+def test_cross_module_edges():
+    ir = _make_ir(
+        knowledges=[
+            {"id": "github:test_pkg::a", "label": "a", "type": "claim", "content": "A.", "module": "m1"},
+            {"id": "github:test_pkg::b", "label": "b", "type": "claim", "content": "B.", "module": "m2"},
+        ],
+        strategies=[
+            {"type": "deduction", "premises": ["github:test_pkg::a"],
+             "background": [], "conclusion": "github:test_pkg::b", "reason": ""},
+        ],
+        module_order=["m1", "m2"],
+    )
+    data = json.loads(generate_graph_json(ir))
+    xmod = data["cross_module_edges"]
+    assert len(xmod) == 1
+    assert xmod[0]["from_module"] == "m1"
+    assert xmod[0]["to_module"] == "m2"
+    assert xmod[0]["count"] == 1
+
+
+def test_helper_nodes_filtered():
+    ir = _make_ir(
+        knowledges=[
+            {"id": "github:test_pkg::a", "label": "a", "type": "claim", "content": "A.", "module": "m1"},
+            {"id": "github:test_pkg::__helper", "label": "__helper", "type": "claim",
+             "content": "Helper.", "module": "m1"},
+        ],
+        module_order=["m1"],
+    )
+    data = json.loads(generate_graph_json(ir))
+    knowledge_nodes = [n for n in data["nodes"] if n["type"] not in ("strategy", "operator")]
+    assert len(knowledge_nodes) == 1
+    assert knowledge_nodes[0]["label"] == "a"
 
 
 def test_no_beliefs_or_params():
-    """generate_graph_json works with no beliefs or param data."""
-    ir = {
-        "package_name": "test_pkg",
-        "namespace": "github",
-        "knowledges": [
-            {
-                "id": "github:test_pkg::a",
-                "label": "a",
-                "type": "claim",
-                "content": "Claim A.",
-                "module": "m",
-            },
+    ir = _make_ir(
+        knowledges=[
+            {"id": "github:test_pkg::a", "label": "a", "type": "claim", "content": "A.", "module": "m1"},
         ],
-        "strategies": [],
-        "operators": [],
-    }
-    result = generate_graph_json(ir)
-    data = json.loads(result)
-    assert len(data["nodes"]) == 1
+        module_order=["m1"],
+    )
+    data = json.loads(generate_graph_json(ir))
     assert data["nodes"][0]["belief"] is None
     assert data["nodes"][0]["prior"] is None
     assert data["nodes"][0]["exported"] is False
