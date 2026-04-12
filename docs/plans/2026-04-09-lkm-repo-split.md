@@ -1,7 +1,8 @@
 # LKM Repo Split — Migration Plan
 
-**Status:** Proposal
+**Status:** In progress — Phase 1-2 done, Phase 3 pending
 **Date:** 2026-04-09
+**Last updated:** 2026-04-12
 **Owner:** TBD
 
 ## Motivation
@@ -130,6 +131,35 @@ Rationale: Sphinx's `intersphinx` is the only tool that gives true build-time ve
 - End users want unified search across both projects
 - Team wants versioned docs accessible without navigating raw GitHub
 - API reference (autodoc) becomes worth investing in
+
+## Execution Progress (2026-04-12)
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 0 — Prep | ✅ Done | Cross-import audit passed (0 reverse deps, 6 forward type-only). `gaia-lang` v0.3.0 on PyPI. All decisions made. |
+| Phase 1 — Dry Run | ✅ Done | Files copied to `~/Projects/gaia-lkm`, `uv sync` + `pytest` 223 passed. |
+| Phase 2 — Infrastructure | ✅ Done | Repo: `SiliconEinstein/gaia-lkm`. CI green. CLAUDE.md + 17 skills + `.env.example`. |
+| Phase 3 — Cutover | ⏳ Pending | `gaia-lkm` initial commit pushed with 321 files. **Not yet done:** delete LKM code from Gaia, add MIGRATION.md. Waiting for ByteHouse Phase 4 validation first. |
+| Phase 4 — History Archive | ⏳ Pending | PR archive not yet exported. |
+| Phase 5 — Cleanup | ⏳ Pending | |
+
+### What's in `gaia-lkm` now
+
+- **Repo:** https://github.com/SiliconEinstein/gaia-lkm
+- **Files:** 321 (code + tests + fixtures + docs + skills)
+- **Tests:** 223 passed, 11 skipped (Neo4j-dependent)
+- **CI:** GitHub Actions green (lint + test + coverage)
+- **Commits:** 3 (initial commit, claude setup, ci workflow)
+
+### What's blocking Phase 3 cutover (deleting from Gaia)
+
+ByteHouse migration Phase 3B (full backfill) is blocked on Volces team optimizing the table creation strategy. Until the LKM is verified end-to-end on ByteHouse (Phase 4: embedding pipeline), we keep the code in both repos to avoid breaking anything.
+
+**Sequence:** ByteHouse Phase 4 verified → delete LKM from Gaia → Phase 4 history archive → done.
+
+See `gaia-lkm/docs/plans/2026-04-12-bytehouse-migration-status.md` for detailed ByteHouse migration status.
+
+---
 
 ## Phased Execution
 
