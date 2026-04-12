@@ -280,6 +280,8 @@ def compile_package_artifact(
             register_knowledge(background)
         if strategy.conclusion is not None:
             register_knowledge(strategy.conclusion)
+        if getattr(strategy, "composition_warrant", None) is not None:
+            register_knowledge(strategy.composition_warrant)
         if strategy.formal_expr:
             for op in strategy.formal_expr:
                 formal_operators.add(id(op))

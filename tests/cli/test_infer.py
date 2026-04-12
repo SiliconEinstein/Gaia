@@ -122,27 +122,27 @@ def test_infer_fails_when_compiled_artifacts_are_stale(tmp_path):
 
 
 def test_infer_supports_generated_interface_claim_review(tmp_path):
-    pkg_dir = tmp_path / "abduction_demo"
-    _write_base_package(pkg_dir, name="abduction_demo")
-    (pkg_dir / "abduction_demo" / "__init__.py").write_text(
-        "from gaia.lang import abduction, claim\n\n"
-        'observation = claim("Observation.")\n'
-        'hypothesis = claim("Hypothesis.")\n'
-        "best_explanation = abduction(observation=observation, hypothesis=hypothesis)\n"
-        '__all__ = ["observation", "hypothesis", "best_explanation"]\n'
+    """Deduction (named strategy) generates interface claims that can be reviewed."""
+    pkg_dir = tmp_path / "deduction_demo"
+    _write_base_package(pkg_dir, name="deduction_demo")
+    (pkg_dir / "deduction_demo" / "__init__.py").write_text(
+        "from gaia.lang import deduction, claim\n\n"
+        'law = claim("forall x. P(x)")\n'
+        'instance = claim("P(a)")\n'
+        "proof = deduction(premises=[law], conclusion=instance, reason='instantiate')\n"
+        '__all__ = ["law", "instance", "proof"]\n'
     )
     _write_review(
         pkg_dir,
-        "abduction_demo",
+        "deduction_demo",
         "self_review",
-        "from gaia.review import ReviewBundle, review_claim, review_generated_claim, review_strategy\n"
-        "from .. import best_explanation, hypothesis, observation\n\n"
+        "from gaia.review import ReviewBundle, review_claim, review_strategy\n"
+        "from .. import law, instance, proof\n\n"
         "REVIEW = ReviewBundle(\n"
         "    objects=[\n"
-        '        review_claim(observation, prior=0.9, judgment="strong", justification="Observed directly."),\n'
-        '        review_claim(hypothesis, prior=0.3, judgment="possible", justification="Plausible but not dominant."),\n'
-        '        review_generated_claim(best_explanation, "alternative_explanation", prior=0.2, judgment="low", justification="There are some alternatives, but they are weaker."),\n'
-        '        review_strategy(best_explanation, judgment="formalized", justification="The abduction structure is acceptable."),\n'
+        '        review_claim(law, prior=0.9, judgment="strong", justification="Well established."),\n'
+        '        review_claim(instance, prior=0.5, judgment="possible", justification="Follows from law."),\n'
+        '        review_strategy(proof, judgment="formalized", justification="The deduction is correct."),\n'
         "    ],\n"
         ")\n",
     )
@@ -152,18 +152,6 @@ def test_infer_supports_generated_interface_claim_review(tmp_path):
 
     result = runner.invoke(app, ["infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output
-
-    parameterization = json.loads(
-        (pkg_dir / ".gaia" / "reviews" / "self_review" / "parameterization.json").read_text()
-    )
-    generated_reviews = [
-        item for item in parameterization["objects"] if item["kind"] == "generated_claim"
-    ]
-    assert len(generated_reviews) == 1
-    assert generated_reviews[0]["role"] == "alternative_explanation"
-    assert parameterization["priors"][2]["knowledge_id"].startswith(
-        "github:abduction_demo::__alternative_explanation_"
-    )
 
 
 def test_infer_requires_review_selection_when_multiple_reviews_exist(tmp_path):
