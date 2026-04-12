@@ -274,8 +274,12 @@ def render_command(
         obsidian_pages = generate_obsidian_vault(
             ir, beliefs_data=beliefs_data, param_data=param_data
         )
+        import shutil
+
         wiki_dir = loaded.pkg_path / "gaia-wiki"
-        wiki_dir.mkdir(exist_ok=True)
+        if wiki_dir.exists():
+            shutil.rmtree(wiki_dir)
+        wiki_dir.mkdir()
         for rel_path, page_content in obsidian_pages.items():
             out = wiki_dir / rel_path
             out.parent.mkdir(parents=True, exist_ok=True)

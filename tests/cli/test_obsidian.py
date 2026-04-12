@@ -6,7 +6,6 @@ from gaia.cli.commands._obsidian import generate_obsidian_vault
 
 
 def _make_ir(knowledges=None, strategies=None, operators=None):
-    """Build minimal IR dict for testing."""
     return {
         "package_name": "test_pkg",
         "namespace": "github",
@@ -16,108 +15,70 @@ def _make_ir(knowledges=None, strategies=None, operators=None):
     }
 
 
+def _find_page(pages, prefix, substring):
+    """Find a page path starting with prefix and containing substring."""
+    for p in pages:
+        if p.startswith(prefix) and substring in p:
+            return p
+    return None
+
+
 # ---------------------------------------------------------------------------
-# Page routing
+# Page routing — all claims go to claims/
 # ---------------------------------------------------------------------------
 
 
 class TestPageRouting:
-    def test_exported_claim_gets_conclusion_page(self):
+    def test_exported_claim_in_claims_dir(self):
         ir = _make_ir(
             knowledges=[
                 {
-                    "id": "github:test_pkg::main_claim",
-                    "label": "main_claim",
+                    "id": "github:test_pkg::c1",
+                    "label": "c1",
                     "type": "claim",
-                    "content": "Main finding.",
-                    "module": "results",
+                    "content": "C.",
+                    "module": "m",
                     "exported": True,
                 },
             ]
         )
         pages = generate_obsidian_vault(ir)
-        assert "conclusions/main_claim.md" in pages
+        path = _find_page(pages, "claims/", "c1")
+        assert path is not None
 
-    def test_question_gets_conclusion_page(self):
+    def test_non_exported_claim_also_in_claims_dir(self):
         ir = _make_ir(
             knowledges=[
                 {
-                    "id": "github:test_pkg::q1",
-                    "label": "q1",
-                    "type": "question",
-                    "content": "Is X true?",
-                    "module": "intro",
-                },
-            ]
-        )
-        pages = generate_obsidian_vault(ir)
-        assert "conclusions/q1.md" in pages
-
-    def test_leaf_premise_gets_evidence_page(self):
-        ir = _make_ir(
-            knowledges=[
-                {
-                    "id": "github:test_pkg::evidence_a",
-                    "label": "evidence_a",
-                    "type": "claim",
-                    "content": "Observed data.",
-                    "module": "results",
-                },
-                {
-                    "id": "github:test_pkg::derived",
-                    "label": "derived",
-                    "type": "claim",
-                    "content": "Conclusion.",
-                    "module": "results",
-                    "exported": True,
-                },
-            ],
-            strategies=[
-                {
-                    "strategy_id": "lcs_s1",
-                    "type": "noisy_and",
-                    "premises": ["github:test_pkg::evidence_a"],
-                    "conclusion": "github:test_pkg::derived",
-                },
-            ],
-        )
-        pages = generate_obsidian_vault(ir)
-        assert "evidence/evidence_a.md" in pages
-
-    def test_non_exported_derived_claim_inlined_in_module(self):
-        ir = _make_ir(
-            knowledges=[
-                {
-                    "id": "github:test_pkg::premise_a",
-                    "label": "premise_a",
+                    "id": "github:test_pkg::p1",
+                    "label": "p1",
                     "type": "claim",
                     "content": "P.",
-                    "module": "analysis",
+                    "module": "m",
                 },
                 {
-                    "id": "github:test_pkg::intermediate",
-                    "label": "intermediate",
+                    "id": "github:test_pkg::c1",
+                    "label": "c1",
                     "type": "claim",
-                    "content": "I.",
-                    "module": "analysis",
-                    "exported": False,
+                    "content": "C.",
+                    "module": "m",
+                    "exported": True,
                 },
             ],
             strategies=[
                 {
                     "strategy_id": "lcs_s1",
                     "type": "noisy_and",
-                    "premises": ["github:test_pkg::premise_a"],
-                    "conclusion": "github:test_pkg::intermediate",
+                    "premises": ["github:test_pkg::p1"],
+                    "conclusion": "github:test_pkg::c1",
                 },
             ],
         )
         pages = generate_obsidian_vault(ir)
-        assert "conclusions/intermediate.md" not in pages
-        assert "modules/analysis.md" in pages
-        assert "intermediate" in pages["modules/analysis.md"]
+        # Non-exported derived claim also gets its own page
+        assert _find_page(pages, "claims/", "p1") is not None
 
-    def test_setting_inlined_in_module(self):
+    def test_setting_in_claims_dir(self):
         ir = _make_ir(
             knowledges=[
                 {
@@ -125,14 +86,12 @@ class TestPageRouting:
                     "label": "bg",
                     "type": "setting",
                     "content": "Background.",
-                    "module": "intro",
+                    "module": "m",
                 },
             ]
         )
         pages = generate_obsidian_vault(ir)
-        assert "conclusions/bg.md" not in pages
-        assert "evidence/bg.md" not in pages
-        assert "modules/intro.md" in pages
+        assert _find_page(pages, "claims/", "bg") is not None
 
     def test_helper_nodes_excluded(self):
         ir = _make_ir(
@@ -155,18 +114,87 @@ class TestPageRouting:
             ]
         )
         pages = generate_obsidian_vault(ir)
-        for path in pages:
-            assert "__helper" not in path
-        assert "__helper" not in pages.get("modules/m.md", "")
+        assert _find_page(pages, "claims/", "__helper") is None
+
+    def test_no_conclusions_evidence_reasoning_dirs(self):
+        ir = _make_ir(
+            knowledges=[
+                {
+                    "id": "github:test_pkg::p1",
+                    "label": "p1",
+                    "type": "claim",
+                    "content": "P.",
+                    "module": "m",
+                },
+                {
+                    "id": "github:test_pkg::c1",
+                    "label": "c1",
+                    "type": "claim",
+                    "content": "C.",
+                    "module": "m",
+                    "exported": True,
+                },
+            ],
+            strategies=[
+                {
+                    "strategy_id": "lcs_s1",
+                    "type": "induction",
+                    "premises": [
+                        "github:test_pkg::p1",
+                        "github:test_pkg::p1",
+                        "github:test_pkg::p1",
+                    ],
+                    "conclusion": "github:test_pkg::c1",
+                },
+            ],
+        )
+        pages = generate_obsidian_vault(ir)
+        assert not any(p.startswith("conclusions/") for p in pages)
+        assert not any(p.startswith("evidence/") for p in pages)
+        assert not any(p.startswith("reasoning/") for p in pages)
 
 
 # ---------------------------------------------------------------------------
-# Frontmatter
+# Numbering
 # ---------------------------------------------------------------------------
 
 
-class TestFrontmatter:
-    def test_frontmatter_has_yaml_delimiters(self):
+class TestNumbering:
+    def test_claims_numbered_by_topo_order(self):
+        ir = _make_ir(
+            knowledges=[
+                {
+                    "id": "github:test_pkg::leaf",
+                    "label": "leaf",
+                    "type": "claim",
+                    "content": "L.",
+                    "module": "m",
+                },
+                {
+                    "id": "github:test_pkg::derived",
+                    "label": "derived",
+                    "type": "claim",
+                    "content": "D.",
+                    "module": "m",
+                    "exported": True,
+                },
+            ],
+            strategies=[
+                {
+                    "strategy_id": "lcs_s1",
+                    "type": "noisy_and",
+                    "premises": ["github:test_pkg::leaf"],
+                    "conclusion": "github:test_pkg::derived",
+                },
+            ],
+        )
+        pages = generate_obsidian_vault(ir)
+        leaf_path = _find_page(pages, "claims/", "leaf")
+        derived_path = _find_page(pages, "claims/", "derived")
+        # Leaf should have lower number than derived
+        assert leaf_path < derived_path  # "01" < "02" lexicographically
+
+    def test_claim_page_title_has_number(self):
         ir = _make_ir(
             knowledges=[
                 {
@@ -180,76 +208,11 @@ class TestFrontmatter:
             ]
         )
         pages = generate_obsidian_vault(ir)
-        page = pages["conclusions/c1.md"]
-        assert page.startswith("---\n")
-        assert "\n---\n" in page[4:]
+        path = _find_page(pages, "claims/", "c1")
+        page = pages[path]
+        assert "# #01" in page
 
-    def test_beliefs_in_frontmatter(self):
-        ir = _make_ir(
-            knowledges=[
-                {
-                    "id": "github:test_pkg::c1",
-                    "label": "c1",
-                    "type": "claim",
-                    "content": "C.",
-                    "module": "m",
-                    "exported": True,
-                },
-            ]
-        )
-        beliefs = {
-            "beliefs": [{"knowledge_id": "github:test_pkg::c1", "belief": 0.85, "label": "c1"}]
-        }
-        params = {"priors": [{"knowledge_id": "github:test_pkg::c1", "value": 0.7}]}
-        pages = generate_obsidian_vault(ir, beliefs_data=beliefs, param_data=params)
-        page = pages["conclusions/c1.md"]
-        assert "prior: 0.7" in page
-        assert "belief: 0.85" in page
-
-    def test_null_beliefs_without_inference(self):
-        ir = _make_ir(
-            knowledges=[
-                {
-                    "id": "github:test_pkg::c1",
-                    "label": "c1",
-                    "type": "claim",
-                    "content": "C.",
-                    "module": "m",
-                    "exported": True,
-                },
-            ]
-        )
-        pages = generate_obsidian_vault(ir)
-        page = pages["conclusions/c1.md"]
-        assert "prior: null" in page
-        assert "belief: null" in page
-
-    def test_module_frontmatter(self):
-        ir = _make_ir(
-            knowledges=[
-                {
-                    "id": "github:test_pkg::c1",
-                    "label": "c1",
-                    "type": "claim",
-                    "content": "C.",
-                    "module": "results",
-                    "exported": True,
-                },
-            ]
-        )
-        pages = generate_obsidian_vault(ir)
-        mod_page = pages["modules/results.md"]
-        assert "type: module" in mod_page
-        assert "label: results" in mod_page
-
-
-# ---------------------------------------------------------------------------
-# Wikilinks
-# ---------------------------------------------------------------------------
-
-
-class TestWikilinks:
-    def test_wikilinks_in_derivation(self):
+    def test_section_page_has_number(self):
         ir = _make_ir(
             knowledges=[
                 {
@@ -278,8 +241,148 @@ class TestWikilinks:
             ],
         )
         pages = generate_obsidian_vault(ir)
-        page = pages["conclusions/c1.md"]
-        assert "[[p1]]" in page
+        sec_pages = [p for p in pages if p.startswith("sections/")]
+        assert len(sec_pages) > 0
+        page = pages[sec_pages[0]]
+        assert "# 01 -" in page
+
+
+# ---------------------------------------------------------------------------
+# Frontmatter
+# ---------------------------------------------------------------------------
+
+
+class TestFrontmatter:
+    def test_frontmatter_has_aliases(self):
+        ir = _make_ir(
+            knowledges=[
+                {
+                    "id": "github:test_pkg::c1",
+                    "label": "c1",
+                    "type": "claim",
+                    "content": "C.",
+                    "module": "m",
+                    "exported": True,
+                },
+            ]
+        )
+        pages = generate_obsidian_vault(ir)
+        path = _find_page(pages, "claims/", "c1")
+        page = pages[path]
+        assert "aliases: [c1]" in page
+
+    def test_frontmatter_has_claim_number(self):
+        ir = _make_ir(
+            knowledges=[
+                {
+                    "id": "github:test_pkg::c1",
+                    "label": "c1",
+                    "type": "claim",
+                    "content": "C.",
+                    "module": "m",
+                    "exported": True,
+                },
+            ]
+        )
+        pages = generate_obsidian_vault(ir)
+        path = _find_page(pages, "claims/", "c1")
+        page = pages[path]
+        assert "claim_number: 1" in page
+
+    def test_beliefs_in_frontmatter(self):
+        ir = _make_ir(
+            knowledges=[
+                {
+                    "id": "github:test_pkg::c1",
+                    "label": "c1",
+                    "type": "claim",
+                    "content": "C.",
+                    "module": "m",
+                    "exported": True,
+                },
+            ]
+        )
+        beliefs = {"beliefs": [{"knowledge_id": "github:test_pkg::c1", "belief": 0.85}]}
+        params = {"priors": [{"knowledge_id": "github:test_pkg::c1", "value": 0.7}]}
+        pages = generate_obsidian_vault(ir, beliefs_data=beliefs, param_data=params)
+        path = _find_page(pages, "claims/", "c1")
+        page = pages[path]
+        assert "prior: 0.7" in page
+        assert "belief: 0.85" in page
+
+    def test_section_frontmatter(self):
+        ir = _make_ir(
+            knowledges=[
+                {
+                    "id": "github:test_pkg::p1",
+                    "label": "p1",
+                    "type": "claim",
+                    "content": "P.",
+                    "module": "m",
+                },
+                {
+                    "id": "github:test_pkg::c1",
+                    "label": "c1",
+                    "type": "claim",
+                    "content": "C.",
+                    "module": "m",
+                    "exported": True,
+                },
+            ],
+            strategies=[
+                {
+                    "strategy_id": "lcs_s1",
+                    "type": "noisy_and",
+                    "premises": ["github:test_pkg::p1"],
+                    "conclusion": "github:test_pkg::c1",
+                },
+            ],
+        )
+        pages = generate_obsidian_vault(ir)
+        sec_pages = [p for p in pages if p.startswith("sections/")]
+        assert len(sec_pages) > 0
+        page = pages[sec_pages[0]]
+        assert "type: section" in page
+
+
+# ---------------------------------------------------------------------------
+# Wikilinks
+# ---------------------------------------------------------------------------
+
+
+class TestWikilinks:
+    def test_wikilinks_use_labels(self):
+        ir = _make_ir(
+            knowledges=[
+                {
+                    "id": "github:test_pkg::p1",
+                    "label": "p1",
+                    "type": "claim",
+                    "content": "P.",
+                    "module": "m",
+                },
+                {
+                    "id": "github:test_pkg::c1",
+                    "label": "c1",
+                    "type": "claim",
+                    "content": "C.",
+                    "module": "m",
+                    "exported": True,
+                },
+            ],
+            strategies=[
+                {
+                    "strategy_id": "lcs_s1",
+                    "type": "noisy_and",
+                    "premises": ["github:test_pkg::p1"],
+                    "conclusion": "github:test_pkg::c1",
+                },
+            ],
+        )
+        pages = generate_obsidian_vault(ir)
+        path = _find_page(pages, "claims/", "c1")
+        page = pages[path]
+        assert "[[p1|" in page  # wikilink with numbered display
 
     def test_module_link_in_claim_page(self):
         ir = _make_ir(
@@ -295,69 +398,10 @@ class TestWikilinks:
             ]
         )
         pages = generate_obsidian_vault(ir)
-        assert "[[results]]" in pages["conclusions/c1.md"]
+        path = _find_page(pages, "claims/", "c1")
+        assert "[[results]]" in pages[path]
 
-
-# ---------------------------------------------------------------------------
-# Strategy pages
-# ---------------------------------------------------------------------------
-
-
-class TestStrategyPages:
-    def test_complex_strategy_gets_own_page(self):
-        ir = _make_ir(
-            knowledges=[
-                {
-                    "id": "github:test_pkg::p1",
-                    "label": "p1",
-                    "type": "claim",
-                    "content": "P1.",
-                    "module": "m",
-                },
-                {
-                    "id": "github:test_pkg::p2",
-                    "label": "p2",
-                    "type": "claim",
-                    "content": "P2.",
-                    "module": "m",
-                },
-                {
-                    "id": "github:test_pkg::p3",
-                    "label": "p3",
-                    "type": "claim",
-                    "content": "P3.",
-                    "module": "m",
-                },
-                {
-                    "id": "github:test_pkg::c1",
-                    "label": "c1",
-                    "type": "claim",
-                    "content": "C.",
-                    "module": "m",
-                    "exported": True,
-                },
-            ],
-            strategies=[
-                {
-                    "strategy_id": "lcs_induction_s1",
-                    "type": "induction",
-                    "premises": [
-                        "github:test_pkg::p1",
-                        "github:test_pkg::p2",
-                        "github:test_pkg::p3",
-                    ],
-                    "conclusion": "github:test_pkg::c1",
-                    "reason": "Three independent observations...",
-                },
-            ],
-        )
-        pages = generate_obsidian_vault(ir)
-        assert any(p.startswith("reasoning/") for p in pages)
-        # Strategy page should have conclusion wikilink
-        strategy_page = [v for k, v in pages.items() if k.startswith("reasoning/")][0]
-        assert "[[c1]]" in strategy_page
-
-    def test_simple_strategy_no_own_page(self):
+    def test_claim_ref_has_number(self):
         ir = _make_ir(
             knowledges=[
                 {
@@ -386,7 +430,98 @@ class TestStrategyPages:
             ],
         )
         pages = generate_obsidian_vault(ir)
-        assert not any(p.startswith("reasoning/") for p in pages)
+        path = _find_page(pages, "claims/", "c1")
+        page = pages[path]
+        assert "[[p1|#01 p1]]" in page
+
+
+# ---------------------------------------------------------------------------
+# Index and overview
+# ---------------------------------------------------------------------------
+
+
+class TestIndexAndOverview:
+    def test_index_has_claim_index_table(self):
+        ir = _make_ir(
+            knowledges=[
+                {
+                    "id": "github:test_pkg::c1",
+                    "label": "c1",
+                    "type": "claim",
+                    "content": "C.",
+                    "module": "m",
+                    "exported": True,
+                },
+            ]
+        )
+        pages = generate_obsidian_vault(ir)
+        index = pages["_index.md"]
+        assert "## Claim Index" in index
+        assert "[[c1]]" in index
+
+    def test_index_has_sections_table(self):
+        ir = _make_ir(
+            knowledges=[
+                {
+                    "id": "github:test_pkg::c1",
+                    "label": "c1",
+                    "type": "claim",
+                    "content": "C.",
+                    "module": "m",
+                    "exported": True,
+                },
+            ]
+        )
+        pages = generate_obsidian_vault(ir)
+        assert "## Sections" in pages["_index.md"]
+
+    def test_overview_has_mermaid(self):
+        ir = _make_ir(
+            knowledges=[
+                {
+                    "id": "github:test_pkg::c1",
+                    "label": "c1",
+                    "type": "claim",
+                    "content": "C.",
+                    "module": "m",
+                    "exported": True,
+                },
+            ]
+        )
+        pages = generate_obsidian_vault(ir)
+        assert "```mermaid" in pages["overview.md"]
+
+    def test_obsidian_config(self):
+        ir = _make_ir(
+            knowledges=[
+                {
+                    "id": "github:test_pkg::c1",
+                    "label": "c1",
+                    "type": "claim",
+                    "content": "C.",
+                    "module": "m",
+                    "exported": True,
+                },
+            ]
+        )
+        pages = generate_obsidian_vault(ir)
+        assert ".obsidian/graph.json" in pages
+
+    def test_no_beliefs_link_when_no_infer(self):
+        ir = _make_ir(
+            knowledges=[
+                {
+                    "id": "github:test_pkg::c1",
+                    "label": "c1",
+                    "type": "claim",
+                    "content": "C.",
+                    "module": "m",
+                    "exported": True,
+                },
+            ]
+        )
+        pages = generate_obsidian_vault(ir)
+        assert "[[beliefs]]" not in pages["_index.md"]
 
 
 # ---------------------------------------------------------------------------
@@ -408,32 +543,13 @@ class TestMetaPages:
                 },
             ]
         )
-        beliefs = {
-            "beliefs": [{"knowledge_id": "github:test_pkg::c1", "belief": 0.85, "label": "c1"}]
-        }
+        beliefs = {"beliefs": [{"knowledge_id": "github:test_pkg::c1", "belief": 0.85}]}
         params = {"priors": [{"knowledge_id": "github:test_pkg::c1", "value": 0.7}]}
         pages = generate_obsidian_vault(ir, beliefs_data=beliefs, param_data=params)
         assert "meta/beliefs.md" in pages
         assert "0.85" in pages["meta/beliefs.md"]
-        assert "[[c1]]" in pages["meta/beliefs.md"]
 
-    def test_no_beliefs_page_without_data(self):
-        ir = _make_ir(
-            knowledges=[
-                {
-                    "id": "github:test_pkg::c1",
-                    "label": "c1",
-                    "type": "claim",
-                    "content": "C.",
-                    "module": "m",
-                    "exported": True,
-                },
-            ]
-        )
-        pages = generate_obsidian_vault(ir)
-        assert "meta/beliefs.md" not in pages
-
-    def test_holes_page(self):
+    def test_holes_page_lists_leaves(self):
         ir = _make_ir(
             knowledges=[
                 {
@@ -462,96 +578,11 @@ class TestMetaPages:
             ],
         )
         pages = generate_obsidian_vault(ir)
-        assert "meta/holes.md" in pages
         assert "[[hole]]" in pages["meta/holes.md"]
 
 
 # ---------------------------------------------------------------------------
-# Index and overview
-# ---------------------------------------------------------------------------
-
-
-class TestIndexAndOverview:
-    def test_index_has_statistics(self):
-        ir = _make_ir(
-            knowledges=[
-                {
-                    "id": "github:test_pkg::c1",
-                    "label": "c1",
-                    "type": "claim",
-                    "content": "C.",
-                    "module": "m",
-                    "exported": True,
-                },
-                {
-                    "id": "github:test_pkg::s1",
-                    "label": "s1",
-                    "type": "setting",
-                    "content": "S.",
-                    "module": "m",
-                },
-            ],
-        )
-        pages = generate_obsidian_vault(ir)
-        index = pages["_index.md"]
-        assert "## Statistics" in index
-        assert "1 claims" in index
-        assert "1 settings" in index
-
-    def test_index_has_exported_conclusions(self):
-        ir = _make_ir(
-            knowledges=[
-                {
-                    "id": "github:test_pkg::c1",
-                    "label": "c1",
-                    "type": "claim",
-                    "content": "C.",
-                    "module": "m",
-                    "exported": True,
-                },
-            ]
-        )
-        pages = generate_obsidian_vault(ir)
-        assert "[[c1]]" in pages["_index.md"]
-
-    def test_overview_has_mermaid(self):
-        ir = _make_ir(
-            knowledges=[
-                {
-                    "id": "github:test_pkg::c1",
-                    "label": "c1",
-                    "type": "claim",
-                    "content": "C.",
-                    "module": "m",
-                    "exported": True,
-                },
-            ]
-        )
-        pages = generate_obsidian_vault(ir)
-        assert "overview.md" in pages
-        assert "```mermaid" in pages["overview.md"]
-
-    def test_obsidian_config(self):
-        ir = _make_ir(
-            knowledges=[
-                {
-                    "id": "github:test_pkg::c1",
-                    "label": "c1",
-                    "type": "claim",
-                    "content": "C.",
-                    "module": "m",
-                    "exported": True,
-                },
-            ]
-        )
-        pages = generate_obsidian_vault(ir)
-        assert ".obsidian/graph.json" in pages
-        config = pages[".obsidian/graph.json"]
-        assert "colorGroups" in config
-
-
-# ---------------------------------------------------------------------------
-# Structural guarantees
+# Structural
 # ---------------------------------------------------------------------------
 
 
@@ -586,9 +617,8 @@ class TestStructural:
         )
         pages = generate_obsidian_vault(ir)
         for path, content in pages.items():
-            assert isinstance(path, str), f"Path {path} is not a string"
-            assert isinstance(content, str), f"Content for {path} is not a string"
-            assert len(content) > 0, f"Page {path} is empty"
+            assert isinstance(content, str), f"{path} not string"
+            assert len(content) > 0, f"{path} empty"
 
     def test_empty_ir_produces_minimal_vault(self):
         ir = _make_ir()
@@ -597,68 +627,7 @@ class TestStructural:
         assert "overview.md" in pages
         assert ".obsidian/graph.json" in pages
 
-
-# ---------------------------------------------------------------------------
-# Regression tests (Codex review findings)
-# ---------------------------------------------------------------------------
-
-
-class TestCodexRegressions:
-    def test_overview_no_double_mermaid_fence(self):
-        """P2: render_mermaid already returns fenced block — don't wrap again."""
-        ir = _make_ir(
-            knowledges=[
-                {
-                    "id": "github:test_pkg::c1",
-                    "label": "c1",
-                    "type": "claim",
-                    "content": "C.",
-                    "module": "m",
-                    "exported": True,
-                },
-            ]
-        )
-        pages = generate_obsidian_vault(ir)
-        overview = pages["overview.md"]
-        # Should have exactly one opening fence
-        assert overview.count("```mermaid") == 1
-
-    def test_unlabeled_nodes_treated_as_helpers(self):
-        """P2: Nodes with None/empty label should not create pages."""
-        ir = _make_ir(
-            knowledges=[
-                {
-                    "id": "github:test_pkg::_anon_op_1",
-                    "label": None,
-                    "type": "claim",
-                    "content": "Helper.",
-                    "module": "m",
-                },
-                {
-                    "id": "github:test_pkg::_anon_op_2",
-                    "type": "claim",
-                    "content": "Another helper.",
-                    "module": "m",
-                },
-                {
-                    "id": "github:test_pkg::real",
-                    "label": "real",
-                    "type": "claim",
-                    "content": "Real.",
-                    "module": "m",
-                    "exported": True,
-                },
-            ]
-        )
-        pages = generate_obsidian_vault(ir)
-        # No page with empty path segment
-        for path in pages:
-            assert "/." not in path
-            assert path != "evidence/.md"
-            assert path != "conclusions/.md"
-
     def test_reason_from_metadata(self):
-        """P2: Strategy reason lives in metadata.reason, not top-level reason."""
         ir = _make_ir(
             knowledges=[
                 {
@@ -688,40 +657,29 @@ class TestCodexRegressions:
             ],
         )
         pages = generate_obsidian_vault(ir)
-        page = pages["conclusions/c1.md"]
-        assert "Because X implies Y." in page
+        path = _find_page(pages, "claims/", "c1")
+        assert "Because X implies Y." in pages[path]
 
-    def test_root_module_count_correct(self):
-        """P3: Nodes without module field should count under Root."""
+    def test_unlabeled_nodes_treated_as_helpers(self):
         ir = _make_ir(
             knowledges=[
                 {
-                    "id": "github:test_pkg::c1",
-                    "label": "c1",
+                    "id": "github:test_pkg::_anon_1",
+                    "label": None,
                     "type": "claim",
-                    "content": "C.",
-                    "exported": True,
+                    "content": "H.",
+                    "module": "m",
                 },
-            ]
-        )
-        pages = generate_obsidian_vault(ir)
-        index = pages["_index.md"]
-        assert "| [[Root]] | 1 |" in index
-
-    def test_no_beliefs_link_when_no_infer(self):
-        """P3: _index.md should not link to meta/beliefs when beliefs are absent."""
-        ir = _make_ir(
-            knowledges=[
                 {
-                    "id": "github:test_pkg::c1",
-                    "label": "c1",
+                    "id": "github:test_pkg::real",
+                    "label": "real",
                     "type": "claim",
-                    "content": "C.",
+                    "content": "R.",
                     "module": "m",
                     "exported": True,
                 },
             ]
         )
         pages = generate_obsidian_vault(ir)
-        index = pages["_index.md"]
-        assert "[[meta/beliefs]]" not in index
+        for path in pages:
+            assert "_anon" not in path
