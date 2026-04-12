@@ -5,6 +5,7 @@ from gaia.lang.dsl import (
     analogy,
     case_analysis,
     claim,
+    compare,
     composite,
     complement,
     contradiction,
@@ -20,6 +21,7 @@ from gaia.lang.dsl import (
     noisy_and,
     question,
     setting,
+    support,
 )
 from gaia.lang.runtime import Knowledge, Operator, Step, Strategy
 
@@ -32,6 +34,7 @@ __all__ = [
     "analogy",
     "case_analysis",
     "claim",
+    "compare",
     "composite",
     "complement",
     "contradiction",
@@ -47,4 +50,5 @@ __all__ = [
     "noisy_and",
     "question",
     "setting",
+    "support",
 ]

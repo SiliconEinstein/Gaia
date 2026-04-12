@@ -23,12 +23,17 @@ def test_claim_with_explicit_noisy_and():
     a = claim("Premise A.")
     b = claim("Premise B.")
     c = claim("Conclusion.")
+    import warnings
+
     from gaia.lang import noisy_and
 
-    noisy_and([a, b], c)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        noisy_and([a, b], c)
     assert c.type == "claim"
     assert c.strategy is not None
-    assert c.strategy.type == "noisy_and"
+    # noisy_and now delegates to support()
+    assert c.strategy.type == "support"
     assert a in c.strategy.premises
     assert b in c.strategy.premises
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from copy import deepcopy
 from typing import Literal
 
@@ -148,11 +149,72 @@ def noisy_and(
     background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
 ) -> Strategy:
-    """All premises jointly necessary, supporting conclusion with conditional probability p."""
-    return _leaf_strategy(
-        "noisy_and",
+    """Deprecated: use support() instead. Delegates to support() with reverse_reason=""."""
+    warnings.warn(
+        "noisy_and() is deprecated, use support() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return support(
         premises=premises,
         conclusion=conclusion,
+        background=background,
+        reason=reason,
+        reverse_reason="",
+    )
+
+
+def support(
+    premises: list[Knowledge],
+    conclusion: Knowledge,
+    *,
+    background: list[Knowledge] | None = None,
+    reason: ReasonInput = "",
+    reverse_reason: ReasonInput = "",
+) -> Strategy:
+    """Bidirectional support (sufficiency + necessity). Compiles to two IMPLIES.
+
+    reason -> forward implication warrant (sufficiency: premises -> conclusion).
+    reverse_reason -> reverse implication warrant (necessity: conclusion -> premises).
+    """
+    if len(premises) < 1:
+        raise ValueError("support() requires at least 1 premise")
+    return _named_strategy(
+        "support",
+        premises=premises,
+        conclusion=conclusion,
+        background=background,
+        reason=reason,
+        metadata={"reverse_reason": reverse_reason},
+    )
+
+
+def compare(
+    pred_h: Knowledge,
+    pred_alt: Knowledge,
+    observation: Knowledge,
+    *,
+    background: list[Knowledge] | None = None,
+    reason: ReasonInput = "",
+) -> Strategy:
+    """Compare two predictions against observation. First arg is claimed-better.
+
+    Compiles to: equivalence(pred_h, obs) + equivalence(pred_alt, obs).
+    Conclusion: auto-generated comparison claim (pi=0.5, no warrant).
+    """
+    comparison_claim = Knowledge(
+        content=(
+            f"comparison({pred_h.label or 'H'}, "
+            f"{pred_alt.label or 'Alt'}, "
+            f"{observation.label or 'Obs'})"
+        ),
+        type="claim",
+        metadata={"helper_kind": "comparison_result", "generated": True},
+    )
+    return _named_strategy(
+        "compare",
+        premises=[pred_h, pred_alt, observation],
+        conclusion=comparison_claim,
         background=background,
         reason=reason,
     )

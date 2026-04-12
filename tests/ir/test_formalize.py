@@ -372,6 +372,76 @@ class TestFormalizeNamedStrategy:
                 metadata={"include_other_relevant_case": True},
             )
 
+    def test_formalize_support_single_premise(self):
+        """Support with single premise generates 2 IMPLIES (forward + reverse)."""
+        result = formalize_named_strategy(
+            scope="local",
+            type_="support",
+            premises=["github:test::a"],
+            conclusion="github:test::b",
+            namespace="github",
+            package_name="test",
+            metadata={"reverse_reason": "B implies A"},
+        )
+
+        assert _operator_names(result.strategy) == ["implication", "implication"]
+        assert _role_counts(result.knowledges) == Counter({"implication_result": 2})
+        # Forward: variables=[a, b], Reverse: variables=[b, a]
+        fwd_op = result.strategy.formal_expr.operators[0]
+        rev_op = result.strategy.formal_expr.operators[1]
+        assert fwd_op.variables == ["github:test::a", "github:test::b"]
+        assert rev_op.variables == ["github:test::b", "github:test::a"]
+
+    def test_formalize_support_multi_premise(self):
+        """Support with multiple premises generates CONJUNCTION + 2 IMPLIES."""
+        result = formalize_named_strategy(
+            scope="local",
+            type_="support",
+            premises=["github:test::a", "github:test::b"],
+            conclusion="github:test::c",
+            namespace="github",
+            package_name="test",
+        )
+
+        assert _operator_names(result.strategy) == [
+            "conjunction",
+            "implication",
+            "implication",
+        ]
+        assert _role_counts(result.knowledges) == Counter(
+            {"conjunction_result": 1, "implication_result": 2}
+        )
+        # Conjunction: variables=[a, b]
+        conj_op = result.strategy.formal_expr.operators[0]
+        assert conj_op.variables == ["github:test::a", "github:test::b"]
+        # Forward implication: conjunction -> c
+        fwd_op = result.strategy.formal_expr.operators[1]
+        conj_id = result.knowledges[0].id
+        assert fwd_op.variables == [conj_id, "github:test::c"]
+        # Reverse implication: c -> conjunction
+        rev_op = result.strategy.formal_expr.operators[2]
+        assert rev_op.variables == ["github:test::c", conj_id]
+
+    def test_formalize_compare(self):
+        """Compare generates 2 equivalences."""
+        result = formalize_named_strategy(
+            scope="local",
+            type_="compare",
+            premises=["github:test::ph", "github:test::pa", "github:test::obs"],
+            conclusion="github:test::cmp",
+            namespace="github",
+            package_name="test",
+        )
+
+        assert _operator_names(result.strategy) == ["equivalence", "equivalence"]
+        assert _role_counts(result.knowledges) == Counter({"equivalence_result": 2})
+        # First equivalence: pred_h vs obs
+        eq1 = result.strategy.formal_expr.operators[0]
+        assert eq1.variables == ["github:test::ph", "github:test::obs"]
+        # Second equivalence: pred_alt vs obs
+        eq2 = result.strategy.formal_expr.operators[1]
+        assert eq2.variables == ["github:test::pa", "github:test::obs"]
+
     def test_rejects_non_named_strategy_type(self):
         with pytest.raises(ValueError, match="only supports named FormalStrategy types"):
             formalize_named_strategy(

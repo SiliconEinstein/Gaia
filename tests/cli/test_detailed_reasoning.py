@@ -257,11 +257,11 @@ def test_render_docs_flag_generates_detailed_reasoning(tmp_path):
     pkg_src = pkg_dir / "docs_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, noisy_and\n\n"
+        "from gaia.lang import claim, deduction\n\n"
         'a = claim("Premise A.")\n'
         'b = claim("Premise B.")\n'
         'c = claim("Conclusion.")\n'
-        "s = noisy_and([a, b], c)\n"
+        "s = deduction([a, b], c)\n"
         '__all__ = ["a", "b", "c", "s"]\n'
     )
     (pkg_src / "reviews").mkdir()
@@ -274,7 +274,7 @@ def test_render_docs_flag_generates_detailed_reasoning(tmp_path):
         '        review_claim(a, prior=0.8, judgment="ok", justification="."),\n'
         '        review_claim(b, prior=0.8, judgment="ok", justification="."),\n'
         '        review_claim(c, prior=0.4, judgment="ok", justification="."),\n'
-        '        review_strategy(s, conditional_probability=0.85, judgment="ok", justification="."),\n'
+        '        review_strategy(s, judgment="ok", justification="."),\n'
         "    ],\n"
         ")\n"
     )

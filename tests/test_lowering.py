@@ -755,3 +755,116 @@ def test_relation_helper_defaults_to_assertion_prior():
     # Both cases: BP propagates correctly
     beliefs, _ = exact_inference(fg)
     assert beliefs["github:lowertest::b"] > 0.5
+
+
+# ---------------------------------------------------------------------------
+# E2E: support() full pipeline
+# ---------------------------------------------------------------------------
+
+
+def test_e2e_support_compiles_and_runs_bp():
+    """E2E: support([A], B) -> formalize (2 IMPLIES) -> lower -> BP."""
+    s = Strategy(
+        scope="local",
+        type="support",
+        premises=["github:lowertest::a"],
+        conclusion="github:lowertest::b",
+        metadata={"reverse_reason": "B implies A"},
+    )
+    g = _lg(
+        knowledges=[
+            Knowledge(id="github:lowertest::a", type="claim", content="A"),
+            Knowledge(id="github:lowertest::b", type="claim", content="B"),
+        ],
+        strategies=[s],
+    )
+
+    fg = lower_local_graph(
+        g,
+        node_priors={
+            "github:lowertest::a": 0.8,
+            "github:lowertest::b": 0.5,
+        },
+    )
+    assert not fg.validate()
+
+    # Support produces 2 IMPLICATION factors (forward + reverse)
+    impl_factors = [f for f in fg.factors if f.factor_type == FactorType.IMPLICATION]
+    assert len(impl_factors) == 2
+
+    # Run inference
+    beliefs, _ = exact_inference(fg)
+    assert all(0 < beliefs[v] < 1 for v in beliefs)
+    # With high prior on A, B should be lifted above 0.5 via support
+    assert beliefs["github:lowertest::b"] > 0.5
+
+
+# ---------------------------------------------------------------------------
+# E2E: compare() full pipeline
+# ---------------------------------------------------------------------------
+
+
+def test_e2e_compare_compiles_and_runs_bp():
+    """E2E: compare(pred_h, pred_alt, obs) -> formalize (2 equivalences) -> lower -> BP."""
+    s = Strategy(
+        scope="local",
+        type="compare",
+        premises=[
+            "github:lowertest::ph",
+            "github:lowertest::pa",
+            "github:lowertest::obs",
+        ],
+        conclusion="github:lowertest::cmp",
+    )
+    g = _lg(
+        knowledges=[
+            Knowledge(id="github:lowertest::ph", type="claim", content="Pred H"),
+            Knowledge(id="github:lowertest::pa", type="claim", content="Pred Alt"),
+            Knowledge(id="github:lowertest::obs", type="claim", content="Observation"),
+            Knowledge(id="github:lowertest::cmp", type="claim", content="Comparison"),
+        ],
+        strategies=[s],
+    )
+
+    fg = lower_local_graph(
+        g,
+        node_priors={
+            "github:lowertest::ph": 0.8,
+            "github:lowertest::pa": 0.3,
+            "github:lowertest::obs": 0.9,
+            "github:lowertest::cmp": 0.5,
+        },
+    )
+    assert not fg.validate()
+
+    # Compare produces 2 EQUIVALENCE factors
+    eq_factors = [f for f in fg.factors if f.factor_type == FactorType.EQUIVALENCE]
+    assert len(eq_factors) == 2
+
+    # Run inference
+    beliefs, _ = exact_inference(fg)
+    assert all(0 < beliefs[v] < 1 for v in beliefs)
+
+
+# ---------------------------------------------------------------------------
+# Deprecation test: noisy_and
+# ---------------------------------------------------------------------------
+
+
+def test_noisy_and_deprecated():
+    """noisy_and() emits DeprecationWarning and delegates to support()."""
+    import warnings
+
+    from gaia.lang import claim as dsl_claim
+    from gaia.lang import noisy_and as dsl_noisy_and
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        a = dsl_claim("A")
+        b = dsl_claim("B")
+        s = dsl_noisy_and([a], b)
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert "noisy_and" in str(w[0].message)
+    # The returned strategy should be a support strategy
+    assert s.type == "support"
