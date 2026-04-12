@@ -1,98 +1,69 @@
-import { useEffect, useState, useMemo } from 'react'
-import type { GraphData, GraphNode, MetaData } from './types'
-import KnowledgeGraph from './components/KnowledgeGraph'
-import ClaimDetail from './components/ClaimDetail'
-import SectionView from './components/SectionView'
+import { useState, useCallback } from 'react'
+import { useGraphData } from './hooks/useGraphData'
+import ModuleOverview from './components/ModuleOverview'
+import ModuleSubgraph from './components/ModuleSubgraph'
 import LanguageSwitch from './components/LanguageSwitch'
+import SectionView from './components/SectionView'
 
-type AppState =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'ready'; graph: GraphData; meta: MetaData; beliefs: unknown }
+type ViewState =
+  | { level: 'overview' }
+  | { level: 'module'; moduleId: string; focusNodeId?: string }
 
 export default function App() {
-  const [state, setState] = useState<AppState>({ status: 'loading' })
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  const state = useGraphData()
+  const [view, setView] = useState<ViewState>({ level: 'overview' })
   const [lang, setLang] = useState<'en' | 'zh'>('en')
 
-  useEffect(() => {
-    Promise.all([
-      fetch('data/graph.json').then((r) => {
-        if (!r.ok) throw new Error(`graph.json: ${r.status}`)
-        return r.json() as Promise<GraphData>
-      }),
-      fetch('data/meta.json').then((r) => {
-        if (!r.ok) throw new Error(`meta.json: ${r.status}`)
-        return r.json() as Promise<MetaData>
-      }),
-      fetch('data/beliefs.json').then((r) => {
-        if (!r.ok) throw new Error(`beliefs.json: ${r.status}`)
-        return r.json() as Promise<unknown>
-      }),
-    ])
-      .then(([graph, meta, beliefs]) => {
-        setState({ status: 'ready', graph, meta, beliefs })
-      })
-      .catch((err: Error) => {
-        setState({ status: 'error', message: err.message })
-      })
+  const sections = state.status === 'ready'
+    ? state.graph.modules.map(m => m.id)
+    : []
+
+  const handleSelectModule = useCallback((moduleId: string) => {
+    setView({ level: 'module', moduleId })
   }, [])
 
-  // All hooks MUST be called before any early return (Rules of Hooks)
-  const graph = state.status === 'ready' ? state.graph : null
-  const meta = state.status === 'ready' ? state.meta : null
+  const handleBack = useCallback(() => {
+    setView({ level: 'overview' })
+  }, [])
 
-  const nodesById = useMemo(() => {
-    if (!graph) return {}
-    const map: Record<string, GraphNode> = {}
-    for (const n of graph.nodes) {
-      map[n.id] = n
-    }
-    return map
-  }, [graph])
-
-  const sections = useMemo(() => {
-    if (!graph) return []
-    const seen = new Set<string>()
-    for (const n of graph.nodes) {
-      if (n.module && !seen.has(n.module)) {
-        seen.add(n.module)
-      }
-    }
-    return Array.from(seen)
-  }, [graph])
-
-  const selectedNode = selectedNodeId ? nodesById[selectedNodeId] ?? null : null
+  const handleNavigateToModule = useCallback((moduleId: string, nodeId: string) => {
+    setView({ level: 'module', moduleId, focusNodeId: nodeId })
+  }, [])
 
   if (state.status === 'loading') {
-    return <div>Loading...</div>
+    return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>
   }
 
   if (state.status === 'error') {
-    return <div role="alert">{state.message}</div>
+    return <div role="alert" style={{ padding: 40, color: '#c00' }}>{state.message}</div>
   }
+
+  const { graph, meta } = state
 
   return (
     <div className="app-layout">
       <div className="app-header">
-        <h1>{meta!.package_name}</h1>
+        <h1>{meta.package_name}</h1>
         <LanguageSwitch lang={lang} onChange={setLang} />
       </div>
 
       <div className="graph-panel">
-        <KnowledgeGraph
-          nodes={graph!.nodes}
-          edges={graph!.edges}
-          onSelectNode={(id) => setSelectedNodeId(id)}
-        />
+        {view.level === 'overview' ? (
+          <ModuleOverview
+            modules={graph.modules}
+            crossModuleEdges={graph.cross_module_edges}
+            onSelectModule={handleSelectModule}
+          />
+        ) : (
+          <ModuleSubgraph
+            moduleId={view.moduleId}
+            allNodes={graph.nodes}
+            allEdges={graph.edges}
+            onBack={handleBack}
+            onNavigateToModule={handleNavigateToModule}
+          />
+        )}
       </div>
-
-      <ClaimDetail
-        node={selectedNode}
-        edges={graph!.edges}
-        nodesById={nodesById}
-        onClose={() => setSelectedNodeId(null)}
-      />
 
       <div className="section-panel">
         <SectionView sections={sections} lang={lang} />
