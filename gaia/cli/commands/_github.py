@@ -167,7 +167,23 @@ def generate_github_output(
         from gaia.ir.linearize import linearize_narrative, render_narrative_outline
 
         coarse_for_outline = coarsen_ir(ir, exported)
-        node_priors = {kid: 0.5 for k in ir["knowledges"] for kid in [k["id"]]}
+        # Default priors: 0.5 for regular claims, 1-ε for structural helpers
+        _CROMWELL_EPS = 1e-3
+        node_priors: dict[str, float] = {}
+        for k in ir["knowledges"]:
+            kid = k["id"]
+            meta = k.get("metadata") or {}
+            helper_kind = meta.get("helper_kind", "")
+            # Relation operator helper claims are structural assertions (1-ε)
+            if helper_kind in (
+                "implication_result",
+                "equivalence_result",
+                "contradiction_result",
+                "complement_result",
+            ):
+                node_priors[kid] = 1.0 - _CROMWELL_EPS
+            else:
+                node_priors[kid] = 0.5
         if param_data:
             for p in param_data.get("priors", []):
                 node_priors[p["knowledge_id"]] = p["value"]
@@ -333,8 +349,9 @@ def _render_coarse_mermaid(
         "equivalence": "\u2261",
         "complement": "\u2295",
         "disjunction": "\u2228",
+        "implication": "\u2192",
     }
-    _UNDIRECTED = {"equivalence", "contradiction", "complement"}
+    _UNDIRECTED = {"equivalence", "contradiction", "complement", "implication"}
     for i, o in enumerate(coarse.get("operators", [])):
         otype = o.get("operator", "")
         symbol = _OP_SYMBOLS.get(otype, otype)

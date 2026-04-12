@@ -143,16 +143,20 @@ class TestOperatorValidation:
         assert r.valid
 
     def test_valid_operator_implication(self):
-        """Implication: 1 variable + conclusion."""
+        """Implication: 2 variables + conclusion (helper)."""
         g = _local_graph(
-            knowledges=[_claim("github:test::a"), _claim("github:test::b")],
+            knowledges=[
+                _claim("github:test::a"),
+                _claim("github:test::b"),
+                _claim("github:test::h"),
+            ],
             operators=[
                 Operator(
                     operator_id="lco_impl",
                     scope="local",
                     operator="implication",
-                    variables=["github:test::a"],
-                    conclusion="github:test::b",
+                    variables=["github:test::a", "github:test::b"],
+                    conclusion="github:test::h",
                 )
             ],
         )
@@ -199,13 +203,13 @@ class TestOperatorValidation:
 
     def test_dangling_conclusion_reference(self):
         g = _local_graph(
-            knowledges=[_claim("github:test::a")],
+            knowledges=[_claim("github:test::a"), _claim("github:test::b")],
             operators=[
                 Operator(
                     operator_id="lco_impl",
                     scope="local",
                     operator="implication",
-                    variables=["github:test::a"],
+                    variables=["github:test::a", "github:test::b"],
                     conclusion="github:test::missing",
                 )
             ],
@@ -237,13 +241,17 @@ class TestOperatorValidation:
 
     def test_operator_conclusion_on_non_claim(self):
         g = _local_graph(
-            knowledges=[_claim("github:test::a"), _setting("github:test::s")],
+            knowledges=[
+                _claim("github:test::a"),
+                _claim("github:test::b"),
+                _setting("github:test::s"),
+            ],
             operators=[
                 Operator(
                     operator_id="lco_impl",
                     scope="local",
                     operator="implication",
-                    variables=["github:test::a"],
+                    variables=["github:test::a", "github:test::b"],
                     conclusion="github:test::s",
                 )
             ],
@@ -261,8 +269,8 @@ class TestOperatorValidation:
                 operator_id="gco_bad",
                 scope="global",
                 operator="implication",
-                variables=["github:test::a"],
-                conclusion="github:test::b",
+                variables=["github:test::a", "github:test::b"],
+                conclusion="github:test::h",
             )
 
     def test_operator_conclusion_scope_prefix_check(self):
@@ -274,7 +282,7 @@ class TestOperatorValidation:
                     operator_id="lco_impl",
                     scope="local",
                     operator="implication",
-                    variables=["github:test::a"],
+                    variables=["github:test::a", "github:test::b"],
                     conclusion="gcn_wrong",
                 )
             ],
@@ -285,12 +293,16 @@ class TestOperatorValidation:
 
     def test_top_level_operator_requires_scope_and_id(self):
         g = _local_graph(
-            knowledges=[_claim("github:test::a"), _claim("github:test::b")],
+            knowledges=[
+                _claim("github:test::a"),
+                _claim("github:test::b"),
+                _claim("github:test::h"),
+            ],
             operators=[
                 Operator(
                     operator="implication",
-                    variables=["github:test::a"],
-                    conclusion="github:test::b",
+                    variables=["github:test::a", "github:test::b"],
+                    conclusion="github:test::h",
                 )
             ],
         )
@@ -307,8 +319,8 @@ class TestOperatorValidation:
                 operator_id="bad_prefix",
                 scope="local",
                 operator="implication",
-                variables=["github:test::a"],
-                conclusion="github:test::b",
+                variables=["github:test::a", "github:test::b"],
+                conclusion="github:test::h",
             )
 
 
@@ -570,6 +582,7 @@ class TestFormalStrategyValidation:
                 _claim("github:test::b"),
                 _claim("github:test::m"),
                 _claim("github:test::c"),
+                _claim("github:test::h"),
             ],
             strategies=[
                 FormalStrategy(
@@ -586,8 +599,8 @@ class TestFormalStrategyValidation:
                             ),
                             Operator(
                                 operator="implication",
-                                variables=["github:test::m"],
-                                conclusion="github:test::c",
+                                variables=["github:test::m", "github:test::c"],
+                                conclusion="github:test::h",
                             ),
                         ]
                     ),
@@ -599,7 +612,11 @@ class TestFormalStrategyValidation:
 
     def test_formal_expr_dangling_ref(self):
         g = _local_graph(
-            knowledges=[_claim("github:test::a"), _claim("github:test::c")],
+            knowledges=[
+                _claim("github:test::a"),
+                _claim("github:test::c"),
+                _claim("github:test::h"),
+            ],
             strategies=[
                 FormalStrategy(
                     scope="local",
@@ -610,8 +627,8 @@ class TestFormalStrategyValidation:
                         operators=[
                             Operator(
                                 operator="implication",
-                                variables=["github:test::missing"],
-                                conclusion="github:test::c",
+                                variables=["github:test::missing", "github:test::c"],
+                                conclusion="github:test::h",
                             ),
                         ]
                     ),
@@ -629,6 +646,7 @@ class TestFormalStrategyValidation:
                 _claim("github:test::b"),
                 _claim("github:test::m"),
                 _claim("github:test::c"),
+                _claim("github:test::h"),
             ],
             strategies=[
                 FormalStrategy(
@@ -645,8 +663,8 @@ class TestFormalStrategyValidation:
                             ),
                             Operator(
                                 operator="implication",
-                                variables=["github:test::m"],
-                                conclusion="github:test::c",
+                                variables=["github:test::m", "github:test::c"],
+                                conclusion="github:test::h",
                             ),
                         ]
                     ),
@@ -663,6 +681,7 @@ class TestFormalStrategyValidation:
                 _claim("github:test::a"),
                 _claim("github:test::c"),
                 _claim("github:test::outside"),
+                _claim("github:test::h"),
             ],
             strategies=[
                 FormalStrategy(
@@ -674,8 +693,8 @@ class TestFormalStrategyValidation:
                         operators=[
                             Operator(
                                 operator="implication",
-                                variables=["github:test::outside"],
-                                conclusion="github:test::c",
+                                variables=["github:test::outside", "github:test::c"],
+                                conclusion="github:test::h",
                             ),
                         ]
                     ),
@@ -688,29 +707,29 @@ class TestFormalStrategyValidation:
 
     def test_formal_expr_private_node_isolation(self):
         """Private internal node must not be referenced by another strategy."""
-        # reg:test::m is a private intermediate in the FormalStrategy
-        # Another strategy should not reference it
+        # github:test::h1 is a private intermediate (operator conclusion) in the FormalStrategy.
+        # Another strategy should not reference it.
         formal = FormalStrategy(
             scope="local",
             type="deduction",
-            premises=["github:test::a"],
+            premises=["github:test::a", "github:test::b"],
             conclusion="github:test::c",
             formal_expr=FormalExpr(
                 operators=[
                     Operator(
-                        operator="implication",
-                        variables=["github:test::a"],
+                        operator="conjunction",
+                        variables=["github:test::a", "github:test::b"],
                         conclusion="github:test::m",
                     ),
                     Operator(
                         operator="implication",
-                        variables=["github:test::m"],
-                        conclusion="github:test::c",
+                        variables=["github:test::m", "github:test::c"],
+                        conclusion="github:test::h1",
                     ),
                 ]
             ),
         )
-        # reg:test::m is private: it's an operator conclusion but NOT in any top-level
+        # github:test::m is private: it's an operator conclusion but NOT in any top-level
         # strategy's premises/conclusion. Another strategy references it — violation.
         other = Strategy(
             scope="local",
@@ -721,8 +740,10 @@ class TestFormalStrategyValidation:
         g = _local_graph(
             knowledges=[
                 _claim("github:test::a"),
+                _claim("github:test::b"),
                 _claim("github:test::c"),
                 _claim("github:test::m"),
+                _claim("github:test::h1"),
             ],
             strategies=[formal, other],
         )
@@ -732,7 +753,7 @@ class TestFormalStrategyValidation:
 
     def test_formal_expr_non_private_node_ok(self):
         """An operator conclusion that IS in the owning strategy's interface is not private."""
-        # reg:test::c is both an operator conclusion and the FormalStrategy's conclusion,
+        # reg:test::c is an operator variable and the FormalStrategy's conclusion,
         # so it's NOT private. Another strategy can reference it freely.
         formal = FormalStrategy(
             scope="local",
@@ -743,8 +764,8 @@ class TestFormalStrategyValidation:
                 operators=[
                     Operator(
                         operator="implication",
-                        variables=["github:test::a"],
-                        conclusion="github:test::c",
+                        variables=["github:test::a", "github:test::c"],
+                        conclusion="github:test::h",
                     ),
                 ]
             ),
@@ -760,6 +781,7 @@ class TestFormalStrategyValidation:
                 _claim("github:test::a"),
                 _claim("github:test::c"),
                 _claim("github:test::d"),
+                _claim("github:test::h"),
             ],
             strategies=[formal, other],
         )
@@ -767,11 +789,12 @@ class TestFormalStrategyValidation:
         assert r.valid
 
     def test_formal_expr_cycle_detected(self):
-        """FormalExpr operators that form a cycle: A->B and B->A."""
+        """FormalExpr operators that form a cycle: conjunction(m1)->m2, conjunction(m2)->m1."""
         g = _local_graph(
             knowledges=[
                 _claim("github:test::a"),
-                _claim("github:test::b"),
+                _claim("github:test::m1"),
+                _claim("github:test::m2"),
                 _claim("github:test::c"),
             ],
             strategies=[
@@ -783,14 +806,14 @@ class TestFormalStrategyValidation:
                     formal_expr=FormalExpr(
                         operators=[
                             Operator(
-                                operator="implication",
-                                variables=["github:test::b"],
-                                conclusion="github:test::c",
+                                operator="conjunction",
+                                variables=["github:test::a", "github:test::m2"],
+                                conclusion="github:test::m1",
                             ),
                             Operator(
-                                operator="implication",
-                                variables=["github:test::c"],
-                                conclusion="github:test::b",
+                                operator="conjunction",
+                                variables=["github:test::a", "github:test::m1"],
+                                conclusion="github:test::m2",
                             ),
                         ]
                     ),
@@ -802,30 +825,32 @@ class TestFormalStrategyValidation:
         assert any("cycle" in e.lower() for e in r.errors)
 
     def test_formal_expr_no_cycle_valid(self):
-        """Linear chain A->M->C has no cycle."""
+        """Linear chain conjunction(A,B)->M then implication(M,C)->H has no cycle."""
         g = _local_graph(
             knowledges=[
                 _claim("github:test::a"),
+                _claim("github:test::b"),
                 _claim("github:test::m"),
                 _claim("github:test::c"),
+                _claim("github:test::h"),
             ],
             strategies=[
                 FormalStrategy(
                     scope="local",
                     type="deduction",
-                    premises=["github:test::a"],
+                    premises=["github:test::a", "github:test::b"],
                     conclusion="github:test::c",
                     formal_expr=FormalExpr(
                         operators=[
                             Operator(
-                                operator="implication",
-                                variables=["github:test::a"],
+                                operator="conjunction",
+                                variables=["github:test::a", "github:test::b"],
                                 conclusion="github:test::m",
                             ),
                             Operator(
                                 operator="implication",
-                                variables=["github:test::m"],
-                                conclusion="github:test::c",
+                                variables=["github:test::m", "github:test::c"],
+                                conclusion="github:test::h",
                             ),
                         ]
                     ),
@@ -851,19 +876,19 @@ class TestFormalStrategyValidation:
                     ),
                     Operator(
                         operator="implication",
-                        variables=["github:test::m"],
-                        conclusion="github:test::c",
+                        variables=["github:test::m", "github:test::c"],
+                        conclusion="github:test::h",
                     ),
                 ]
             ),
         )
-        # Top-level operator uses private node reg:test::m as a variable
+        # Top-level operator uses private node github:test::m as a variable
         top_op = Operator(
             operator_id="lco_bad",
             scope="local",
-            operator="implication",
-            variables=["github:test::m"],
-            conclusion="github:test::c",
+            operator="equivalence",
+            variables=["github:test::m", "github:test::c"],
+            conclusion="github:test::eq",
         )
         g = _local_graph(
             knowledges=[
@@ -871,6 +896,8 @@ class TestFormalStrategyValidation:
                 _claim("github:test::b"),
                 _claim("github:test::c"),
                 _claim("github:test::m"),
+                _claim("github:test::h"),
+                _claim("github:test::eq"),
             ],
             operators=[top_op],
             strategies=[formal],
@@ -895,18 +922,18 @@ class TestFormalStrategyValidation:
                     ),
                     Operator(
                         operator="implication",
-                        variables=["github:test::m"],
-                        conclusion="github:test::c",
+                        variables=["github:test::m", "github:test::c"],
+                        conclusion="github:test::h",
                     ),
                 ]
             ),
         )
-        # Top-level operator outputs to private node reg:test::m
+        # Top-level operator outputs to private node github:test::m
         top_op = Operator(
             operator_id="lco_bad",
             scope="local",
-            operator="implication",
-            variables=["github:test::a"],
+            operator="equivalence",
+            variables=["github:test::a", "github:test::b"],
             conclusion="github:test::m",
         )
         g = _local_graph(
@@ -915,6 +942,7 @@ class TestFormalStrategyValidation:
                 _claim("github:test::b"),
                 _claim("github:test::c"),
                 _claim("github:test::m"),
+                _claim("github:test::h"),
             ],
             operators=[top_op],
             strategies=[formal],
@@ -952,7 +980,7 @@ class TestGraphLevelValidation:
                     operator_id="lco_impl",
                     scope="local",
                     operator="implication",
-                    variables=["github:test::a"],
+                    variables=["github:test::a", "github:test::b"],
                     conclusion="gcn_wrong",
                 )
             ],
@@ -971,6 +999,8 @@ class TestGraphLevelValidation:
                 _claim("github:test::a"),
                 _claim("github:test::c"),
                 _claim("github:test::m"),
+                _claim("github:test::h1"),
+                _claim("github:test::h2"),
             ],
             strategies=[
                 FormalStrategy(
@@ -982,13 +1012,13 @@ class TestGraphLevelValidation:
                         operators=[
                             Operator(
                                 operator="implication",
-                                variables=["github:test::a"],
-                                conclusion="github:test::m",
+                                variables=["github:test::a", "github:test::m"],
+                                conclusion="github:test::h1",
                             ),
                             Operator(
                                 operator="implication",
-                                variables=["gcn_wrong"],
-                                conclusion="github:test::c",
+                                variables=["gcn_wrong", "github:test::c"],
+                                conclusion="github:test::h2",
                             ),
                         ]
                     ),
@@ -1119,6 +1149,7 @@ class TestParameterizationValidation:
                 _claim("github:test::a"),
                 _claim("github:test::b"),
                 _claim("github:test::m"),
+                _claim("github:test::h"),
             ],
             strategies=[
                 FormalStrategy(
@@ -1130,8 +1161,8 @@ class TestParameterizationValidation:
                         operators=[
                             Operator(
                                 operator="implication",
-                                variables=["github:test::a"],
-                                conclusion="github:test::b",
+                                variables=["github:test::a", "github:test::b"],
+                                conclusion="github:test::h",
                             ),
                         ]
                     ),
@@ -1160,6 +1191,7 @@ class TestParameterizationValidation:
                 _claim("github:test::b"),
                 _claim("github:test::m"),  # private helper: conjunction result
                 _claim("github:test::c"),
+                _claim("github:test::h"),  # private helper: implication result
             ],
             strategies=[
                 FormalStrategy(
@@ -1176,8 +1208,8 @@ class TestParameterizationValidation:
                             ),
                             Operator(
                                 operator="implication",
-                                variables=["github:test::m"],
-                                conclusion="github:test::c",
+                                variables=["github:test::m", "github:test::c"],
+                                conclusion="github:test::h",
                             ),
                         ]
                     ),
@@ -1208,6 +1240,7 @@ class TestParameterizationValidation:
                 _claim("github:test::b"),
                 _claim("github:test::m"),
                 _claim("github:test::c"),
+                _claim("github:test::h"),
             ],
             strategies=[
                 FormalStrategy(
@@ -1224,8 +1257,8 @@ class TestParameterizationValidation:
                             ),
                             Operator(
                                 operator="implication",
-                                variables=["github:test::m"],
-                                conclusion="github:test::c",
+                                variables=["github:test::m", "github:test::c"],
+                                conclusion="github:test::h",
                             ),
                         ]
                     ),
@@ -1249,15 +1282,16 @@ class TestParameterizationValidation:
         """Any FormalExpr private node (not just structural helpers) must not have PriorRecord."""
         from gaia.ir import PriorRecord
 
-        # reg:test::mid is an implication conclusion inside FormalExpr, NOT in the
-        # strategy's interface (premises/conclusion). Even though implication is
-        # not a "structural helper" operator type, reg:test::mid is still private.
+        # github:test::h1 and h2 are implication helper conclusions inside FormalExpr, NOT in
+        # the strategy's interface (premises/conclusion). They are private nodes.
         g = _local_graph(
             knowledges=[
                 _claim("github:test::a"),
                 _claim("github:test::mid"),
                 _claim("github:test::final"),
                 _claim("github:test::c"),
+                _claim("github:test::h1"),
+                _claim("github:test::h2"),
             ],
             strategies=[
                 FormalStrategy(
@@ -1269,13 +1303,13 @@ class TestParameterizationValidation:
                         operators=[
                             Operator(
                                 operator="implication",
-                                variables=["github:test::a"],
-                                conclusion="github:test::mid",
+                                variables=["github:test::a", "github:test::mid"],
+                                conclusion="github:test::h1",
                             ),
                             Operator(
                                 operator="implication",
-                                variables=["github:test::mid"],
-                                conclusion="github:test::c",
+                                variables=["github:test::mid", "github:test::c"],
+                                conclusion="github:test::h2",
                             ),
                         ]
                     ),
@@ -1288,19 +1322,18 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::final", value=0.5, source_id="s"),
+                PriorRecord(knowledge_id="github:test::mid", value=0.5, source_id="s"),
                 PriorRecord(
-                    knowledge_id="github:test::mid", value=0.5, source_id="s"
+                    knowledge_id="github:test::h1", value=0.5, source_id="s"
                 ),  # prohibited!
             ],
             strategy_params=[],
         )
         assert not r.valid
-        assert any(
-            "github:test::mid" in e and "private or structural helper" in e for e in r.errors
-        )
+        assert any("github:test::h1" in e and "private or structural helper" in e for e in r.errors)
 
     def test_implication_private_node_no_prior_needed(self):
-        """FormalExpr private implication nodes don't need PriorRecord."""
+        """FormalExpr private implication helper nodes don't need PriorRecord."""
         from gaia.ir import PriorRecord
 
         g = _local_graph(
@@ -1308,6 +1341,8 @@ class TestParameterizationValidation:
                 _claim("github:test::a"),
                 _claim("github:test::mid"),
                 _claim("github:test::c"),
+                _claim("github:test::h1"),
+                _claim("github:test::h2"),
             ],
             strategies=[
                 FormalStrategy(
@@ -1319,13 +1354,13 @@ class TestParameterizationValidation:
                         operators=[
                             Operator(
                                 operator="implication",
-                                variables=["github:test::a"],
-                                conclusion="github:test::mid",
+                                variables=["github:test::a", "github:test::mid"],
+                                conclusion="github:test::h1",
                             ),
                             Operator(
                                 operator="implication",
-                                variables=["github:test::mid"],
-                                conclusion="github:test::c",
+                                variables=["github:test::mid", "github:test::c"],
+                                conclusion="github:test::h2",
                             ),
                         ]
                     ),
@@ -1337,7 +1372,8 @@ class TestParameterizationValidation:
             priors=[
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
-                # reg:test::mid is private -- no prior needed
+                PriorRecord(knowledge_id="github:test::mid", value=0.5, source_id="s"),
+                # github:test::h1 and h2 are private -- no prior needed
             ],
             strategy_params=[],
         )
@@ -1525,7 +1561,11 @@ class TestParameterizationValidation:
         from gaia.ir import PriorRecord, StrategyParamRecord
 
         g = _local_graph(
-            knowledges=[_claim("github:test::a"), _claim("github:test::b")],
+            knowledges=[
+                _claim("github:test::a"),
+                _claim("github:test::b"),
+                _claim("github:test::h"),
+            ],
             strategies=[
                 FormalStrategy(
                     scope="local",
@@ -1536,8 +1576,8 @@ class TestParameterizationValidation:
                         operators=[
                             Operator(
                                 operator="implication",
-                                variables=["github:test::a"],
-                                conclusion="github:test::b",
+                                variables=["github:test::a", "github:test::b"],
+                                conclusion="github:test::h",
                             ),
                         ]
                     ),

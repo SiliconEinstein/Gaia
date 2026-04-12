@@ -37,6 +37,7 @@ _STRUCTURAL_HELPER_OPERATOR_TYPES = {
     OperatorType.EQUIVALENCE,
     OperatorType.CONTRADICTION,
     OperatorType.COMPLEMENT,
+    OperatorType.IMPLICATION,
 }
 
 

@@ -29,6 +29,7 @@ _RELATION_OPS = frozenset(
         OperatorType.EQUIVALENCE,
         OperatorType.CONTRADICTION,
         OperatorType.COMPLEMENT,
+        OperatorType.IMPLICATION,
     }
 )
 

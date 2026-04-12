@@ -228,8 +228,8 @@ class TestFormalStrategy:
                     ),
                     Operator(
                         operator="implication",
-                        variables=["github:test::m"],
-                        conclusion="github:test::c",
+                        variables=["github:test::m", "github:test::c"],
+                        conclusion="github:test::h",
                     ),
                 ]
             ),
@@ -249,8 +249,8 @@ class TestFormalStrategy:
                     operators=[
                         Operator(
                             operator="implication",
-                            variables=["github:test::p"],
-                            conclusion="github:test::q",
+                            variables=["github:test::p", "github:test::q"],
+                            conclusion="github:test::impl_h",
                         ),
                         Operator(
                             operator="contradiction",
@@ -282,6 +282,40 @@ class TestFormalStrategy:
         assert result.strategy.metadata["interface_roles"]["alternative_explanation"] == [
             result.strategy.premises[1]
         ]
+
+    def test_implication_order_matters_for_id(self):
+        """A→B and B→A must produce distinct FormalStrategy IDs."""
+        fs_fwd = FormalStrategy(
+            scope="local",
+            type="deduction",
+            premises=["github:test::a"],
+            conclusion="github:test::b",
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(
+                        operator="implication",
+                        variables=["github:test::a", "github:test::b"],
+                        conclusion="github:test::h_fwd",
+                    ),
+                ]
+            ),
+        )
+        fs_rev = FormalStrategy(
+            scope="local",
+            type="deduction",
+            premises=["github:test::a"],
+            conclusion="github:test::b",
+            formal_expr=FormalExpr(
+                operators=[
+                    Operator(
+                        operator="implication",
+                        variables=["github:test::b", "github:test::a"],
+                        conclusion="github:test::h_rev",
+                    ),
+                ]
+            ),
+        )
+        assert fs_fwd.strategy_id != fs_rev.strategy_id
 
     def test_reductio_formalization_deferred(self):
         leaf = Strategy(
@@ -351,7 +385,7 @@ class TestFormalStrategy:
                 conclusion="b",
                 formal_expr=FormalExpr(
                     operators=[
-                        Operator(operator="implication", variables=["a"], conclusion="b"),
+                        Operator(operator="implication", variables=["a", "b"], conclusion="h"),
                     ]
                 ),
             )
@@ -365,7 +399,7 @@ class TestFormalStrategy:
             conclusion="b",
             formal_expr=FormalExpr(
                 operators=[
-                    Operator(operator="implication", variables=["a"], conclusion="b"),
+                    Operator(operator="implication", variables=["a", "b"], conclusion="h"),
                 ]
             ),
         )
@@ -380,7 +414,7 @@ class TestFormalStrategy:
             conclusion="b",
             formal_expr=FormalExpr(
                 operators=[
-                    Operator(operator="implication", variables=["a"], conclusion="b"),
+                    Operator(operator="implication", variables=["a", "b"], conclusion="h1"),
                 ]
             ),
         )
@@ -391,8 +425,8 @@ class TestFormalStrategy:
             conclusion="b",
             formal_expr=FormalExpr(
                 operators=[
-                    Operator(operator="implication", variables=["a"], conclusion="b"),
-                    Operator(operator="implication", variables=["b"], conclusion="c"),
+                    Operator(operator="implication", variables=["a", "b"], conclusion="h1"),
+                    Operator(operator="implication", variables=["b", "c"], conclusion="h2"),
                 ]
             ),
         )
@@ -407,7 +441,7 @@ class TestFormalStrategy:
             conclusion="b",
             formal_expr=FormalExpr(
                 operators=[
-                    Operator(operator="implication", variables=["a"], conclusion="b"),
+                    Operator(operator="implication", variables=["a", "b"], conclusion="h"),
                 ]
             ),
         )

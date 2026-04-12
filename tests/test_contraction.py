@@ -27,17 +27,22 @@ def test_factor_to_tensor_implication():
     f = Factor(
         factor_id="f1",
         factor_type=FactorType.IMPLICATION,
-        variables=["A"],
-        conclusion="B",
+        variables=["A", "B"],
+        conclusion="H",
     )
     t, axes = factor_to_tensor(f)
-    assert axes == ["A", "B"]
-    assert t.shape == (2, 2)
-    # Forbid A=1, B=0
-    assert _almost(t[1, 0], _LOW)
-    assert _almost(t[0, 0], _HIGH)
-    assert _almost(t[0, 1], _HIGH)
-    assert _almost(t[1, 1], _HIGH)
+    assert axes == ["A", "B", "H"]
+    assert t.shape == (2, 2, 2)
+    # H=1 (implication holds): A=1,B=0 forbidden, rest HIGH
+    assert _almost(t[1, 0, 1], _LOW)
+    assert _almost(t[0, 0, 1], _HIGH)
+    assert _almost(t[0, 1, 1], _HIGH)
+    assert _almost(t[1, 1, 1], _HIGH)
+    # H=0 (implication fails): A=1,B=0 is HIGH, rest LOW
+    assert _almost(t[1, 0, 0], _HIGH)
+    assert _almost(t[0, 0, 0], _LOW)
+    assert _almost(t[0, 1, 0], _LOW)
+    assert _almost(t[1, 1, 0], _LOW)
 
 
 def test_factor_to_tensor_conjunction_two_inputs():
@@ -321,23 +326,26 @@ def test_contract_to_cpt_missing_prior_raises():
 def test_contract_to_cpt_many_variables():
     """Ensure einsum list form handles more than 52 variables.
 
-    Uses a chain of 60 variables connected by IMPLICATION factors.  We just
-    need the contraction to run without alphabet exhaustion.
+    Uses a chain of 60 variables connected by IMPLICATION factors with helpers.
+    We just need the contraction to run without alphabet exhaustion.
     """
     import numpy as _np  # local alias to avoid clashing with module-level np
 
     n = 60
     var_names = [f"v{i}" for i in range(n)]
+    helper_names = [f"h{i}" for i in range(n - 1)]
     factors = []
     for i in range(n - 1):
         f = Factor(
             factor_id=f"f{i}",
             factor_type=FactorType.IMPLICATION,
-            variables=[var_names[i]],
-            conclusion=var_names[i + 1],
+            variables=[var_names[i], var_names[i + 1]],
+            conclusion=helper_names[i],
         )
         factors.append(factor_to_tensor(f))
+    # Priors for internal variables (not the first and last main vars) and all helpers
     priors = {v: 0.5 for v in var_names[1:-1]}
+    priors.update({h: _HIGH for h in helper_names})
     cpt = contract_to_cpt(factors, free_vars=[var_names[0], var_names[-1]], unary_priors=priors)
     assert cpt.shape == (2, 2)
     assert _np.all(_np.isfinite(cpt))
@@ -787,7 +795,8 @@ def test_equivalence_single_implication():
     fg = FactorGraph()
     fg.add_variable("A", 0.5)
     fg.add_variable("B", 0.5)
-    fg.add_factor("f1", FactorType.IMPLICATION, ["A"], "B")
+    fg.add_variable("H", 1.0 - CROMWELL_EPS)
+    fg.add_factor("f1", FactorType.IMPLICATION, ["A", "B"], "H")
     ref = _run_exact_with_premise_clamps(fg, ["A"], "B")
     ours = _cpt_via_contraction(fg, ["A"], "B")
     np.testing.assert_allclose(ours, ref, atol=1e-6)
@@ -947,16 +956,18 @@ def test_contract_to_cpt_deep_chain_no_underflow():
     """
     n = 150
     var_names = [f"v{i}" for i in range(n)]
+    helper_names = [f"h{i}" for i in range(n - 1)]
     factors = []
     for i in range(n - 1):
         f = Factor(
             factor_id=f"f{i}",
             factor_type=FactorType.IMPLICATION,
-            variables=[var_names[i]],
-            conclusion=var_names[i + 1],
+            variables=[var_names[i], var_names[i + 1]],
+            conclusion=helper_names[i],
         )
         factors.append(factor_to_tensor(f))
     priors = {v: 0.5 for v in var_names[1:-1]}
+    priors.update({h: _HIGH for h in helper_names})
     # Should NOT raise, and should produce a valid CPT.
     cpt = contract_to_cpt(factors, free_vars=[var_names[0], var_names[-1]], unary_priors=priors)
     assert cpt.shape == (2, 2)

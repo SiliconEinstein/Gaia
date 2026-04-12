@@ -50,13 +50,15 @@ def _contradiction_graph() -> FactorGraph:
 
 
 def _implication_chain() -> FactorGraph:
-    """A → B → C (deterministic)."""
+    """A → B → C (deterministic) with helper claims."""
     fg = FactorGraph()
     fg.add_variable("A", 0.8)
     fg.add_variable("B", 0.5)
     fg.add_variable("C", 0.5)
-    fg.add_factor("f1", FactorType.IMPLICATION, ["A"], "B")
-    fg.add_factor("f2", FactorType.IMPLICATION, ["B"], "C")
+    fg.add_variable("H1", 1.0 - 1e-3)
+    fg.add_variable("H2", 1.0 - 1e-3)
+    fg.add_factor("f1", FactorType.IMPLICATION, ["A", "B"], "H1")
+    fg.add_factor("f2", FactorType.IMPLICATION, ["B", "C"], "H2")
     return fg
 
 
@@ -150,7 +152,8 @@ class TestBeliefPropagation:
         fg = FactorGraph()
         fg.add_variable("A", 0.5)
         fg.add_variable("B", 0.5)
-        fg.add_factor("f1", FactorType.IMPLICATION, ["A"], "B")
+        fg.add_variable("H", 1.0 - 1e-3)
+        fg.add_factor("f1", FactorType.IMPLICATION, ["A", "B"], "H")
         fg.observe("A", 1)
         result = BeliefPropagation().run(fg)
         assert result.beliefs["A"] > 0.99
