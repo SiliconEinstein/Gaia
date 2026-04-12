@@ -19,6 +19,13 @@ from gaia.cli.commands._simplified_mermaid import render_simplified_mermaid
 # ---------------------------------------------------------------------------
 
 
+def _sanitize_filename(name: str) -> str:
+    """Sanitize a string for use as a filename (remove chars invalid on most OS)."""
+    for ch in r'<>:"/\|?*':
+        name = name.replace(ch, "")
+    return name.strip()
+
+
 def _is_helper(label: str | None) -> bool:
     if not label:
         return True
@@ -156,6 +163,7 @@ def _generate_claim_page(
     ids_with_pages: set[str],
     inlined_id_to_module: dict[str, str],
     module_titles: dict[str, str] | None = None,
+    mod_filenames: dict[str, str] | None = None,
 ) -> str:
     """Generate a conclusion page (exported claim or question)."""
     kid = k["id"]
@@ -221,8 +229,9 @@ def _generate_claim_page(
 
     # Module link
     lines.append("## Module")
+    mod_fname = (mod_filenames or {}).get(module, module)
     mod_title = (module_titles or {}).get(module)
-    lines.append(f"[[{module}|{mod_title}]]" if mod_title else f"[[{module}]]")
+    lines.append(f"[[{mod_fname}|{mod_title}]]" if mod_title else f"[[{mod_fname}]]")
     lines.append("")
 
     return "\n".join(lines)
@@ -237,6 +246,7 @@ def _generate_evidence_page(
     ids_with_pages: set[str],
     inlined_id_to_module: dict[str, str],
     module_titles: dict[str, str] | None = None,
+    mod_filenames: dict[str, str] | None = None,
 ) -> str:
     """Generate an evidence page (leaf premise)."""
     kid = k["id"]
@@ -270,8 +280,9 @@ def _generate_evidence_page(
         lines.append("")
 
     lines.append("## Module")
+    mod_fname = (mod_filenames or {}).get(module, module)
     mod_title = (module_titles or {}).get(module)
-    lines.append(f"[[{module}|{mod_title}]]" if mod_title else f"[[{module}]]")
+    lines.append(f"[[{mod_fname}|{mod_title}]]" if mod_title else f"[[{mod_fname}]]")
     lines.append("")
 
     return "\n".join(lines)
@@ -429,18 +440,23 @@ def _generate_beliefs_page(
     return "\n".join(lines)
 
 
-def _generate_holes_page(evidence_nodes: list[dict]) -> str:
+def _generate_holes_page(
+    evidence_nodes: list[dict],
+    mod_filenames: dict[str, str] | None = None,
+) -> str:
     """Generate meta/holes.md listing all leaf premises."""
+    _mf = mod_filenames or {}
     lines = ["---", "type: meta", "tags: [meta, holes]", "---", "", "# Leaf Premises (Holes)", ""]
     lines.append("| Label | Module | Content |")
     lines.append("|-------|--------|---------|")
     for k in evidence_nodes:
         label = k.get("label", "")
         module = k.get("module", "Root")
+        mod_fname = _mf.get(module, module)
         content = k.get("content", "")
         if len(content) > 60:
             content = content[:60] + "..."
-        lines.append(f"| [[{label}]] | [[{module}]] | {content} |")
+        lines.append(f"| [[{label}]] | [[{mod_fname}]] | {content} |")
     lines.append("")
     return "\n".join(lines)
 
@@ -451,6 +467,7 @@ def _generate_index(
     evidence: list[dict],
     beliefs: dict[str, float],
     modules: dict[str, str | None],
+    mod_filenames: dict[str, str] | None = None,
 ) -> str:
     """Generate _index.md — master navigation page."""
     pkg = ir.get("package_name", "Package")
@@ -484,12 +501,15 @@ def _generate_index(
     lines.append(f"| Leaf premises | {len(evidence)} |")
     lines.append("")
 
+    _mod_fnames = mod_filenames or {}
+
     def mod_link(mod_name: str) -> str:
-        """Module wikilink with title as display text."""
+        """Module wikilink using title-based filename."""
+        fname = _mod_fnames.get(mod_name, mod_name)
         title = modules.get(mod_name)
-        if title:
-            return f"[[{mod_name}|{title}]]"
-        return f"[[{mod_name}]]"
+        if title and fname != title:
+            return f"[[{fname}|{title}]]"
+        return f"[[{fname}]]"
 
     # Module navigation
     lines.append("## Modules")
@@ -534,26 +554,6 @@ def _generate_index(
         lines.append("## Reading Path")
         lines.append("")
         lines.append(" → ".join(mod_link(m) for m in reading_modules))
-        lines.append("")
-
-    # Reading path (argument arc)
-    module_order = ir.get("module_order") or list(modules.keys())
-    # Filter out Root if it has no visible claims
-    reading_modules = [
-        m
-        for m in module_order
-        if m in modules
-        and sum(
-            1
-            for k in ir["knowledges"]
-            if k.get("module", "Root") == m and not _is_helper(k.get("label", ""))
-        )
-        > 0
-    ]
-    if len(reading_modules) > 1:
-        lines.append("## Reading Path")
-        lines.append("")
-        lines.append(" → ".join(f"[[{m}]]" for m in reading_modules))
         lines.append("")
 
     # Quick links
@@ -665,8 +665,31 @@ def generate_obsidian_vault(
     # Build page-ownership map for wikilink resolution
     ids_with_pages, inlined_id_to_module = _build_page_set(conclusions, evidence, module_inlined)
 
-    # Module titles (needed by claim/evidence pages for module links)
+    # Module titles and filename mapping
     module_titles: dict[str, str] = ir.get("module_titles") or {}
+    # mod_label → filename stem (title if available, else label)
+    mod_filenames: dict[str, str] = {}
+    for k in ir["knowledges"]:
+        mod = k.get("module", "Root")
+        if mod not in mod_filenames:
+            title = module_titles.get(mod)
+            mod_filenames[mod] = _sanitize_filename(title) if title else mod
+
+    # Rewrite inlined_id_to_module to use title-based filenames
+    inlined_id_to_module = {
+        kid: mod_filenames.get(mod_label, mod_label)
+        for kid, mod_label in inlined_id_to_module.items()
+    }
+
+    # Pre-compute readable strategy labels (before generating pages that reference them)
+    for s in ir.get("strategies", []):
+        if _is_complex_strategy(s):
+            sid = s.get("strategy_id", "")
+            stype = s.get("type", "strategy")
+            conc = s.get("conclusion", "")
+            conc_label = label_for_id.get(conc, conc.split("::")[-1])
+            if sid:
+                label_for_id[sid] = f"{stype}_{conc_label}"
 
     # Conclusion pages
     for k in conclusions:
@@ -681,6 +704,7 @@ def generate_obsidian_vault(
             ids_with_pages,
             inlined_id_to_module,
             module_titles,
+            mod_filenames,
         )
 
     # Evidence pages
@@ -695,9 +719,10 @@ def generate_obsidian_vault(
             ids_with_pages,
             inlined_id_to_module,
             module_titles,
+            mod_filenames,
         )
 
-    # Module pages
+    # Module pages (use title-based filenames)
     modules: dict[str, str | None] = {}
     for k in ir["knowledges"]:
         mod = k.get("module", "Root")
@@ -705,7 +730,8 @@ def generate_obsidian_vault(
             modules[mod] = module_titles.get(mod)
 
     for mod, mod_title in modules.items():
-        pages[f"modules/{mod}.md"] = _generate_module_page(
+        fname = mod_filenames.get(mod, mod)
+        pages[f"modules/{fname}.md"] = _generate_module_page(
             mod,
             ir,
             beliefs,
@@ -717,17 +743,11 @@ def generate_obsidian_vault(
             mod_title,
         )
 
-    # Strategy pages (complex only)
+    # Strategy pages (complex only — labels already pre-computed above)
     for s in ir.get("strategies", []):
         if _is_complex_strategy(s):
             sid = s.get("strategy_id", "")
-            stype = s.get("type", "strategy")
-            conc = s.get("conclusion", "")
-            conc_label = label_for_id.get(conc, conc.split("::")[-1])
-            s_label = f"{stype}_{conc_label}"
-            # Update label_for_id so wikilinks to this strategy use the readable name
-            if sid:
-                label_for_id[sid] = s_label
+            s_label = label_for_id.get(sid, s.get("type", "strategy"))
             pages[f"reasoning/{s_label}.md"] = _generate_strategy_page(
                 s,
                 label_for_id,
@@ -745,10 +765,10 @@ def generate_obsidian_vault(
             ids_with_pages,
             inlined_id_to_module,
         )
-    pages["meta/holes.md"] = _generate_holes_page(evidence)
+    pages["meta/holes.md"] = _generate_holes_page(evidence, mod_filenames)
 
     # Index and overview
-    pages["_index.md"] = _generate_index(ir, conclusions, evidence, beliefs, modules)
+    pages["_index.md"] = _generate_index(ir, conclusions, evidence, beliefs, modules, mod_filenames)
     pages["overview.md"] = _generate_overview(ir, beliefs, priors)
     pages[".obsidian/graph.json"] = _generate_obsidian_config()
 
