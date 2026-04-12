@@ -432,14 +432,27 @@ def generate_obsidian_vault(
 
     kid_to_k = {k["id"]: k for k in ir["knowledges"]}
 
-    # Claim pages
+    # Classify claims into roles
+    conclusion_ids = {s.get("conclusion") for s in ir.get("strategies", []) if s.get("conclusion")}
+    exported_ids = {k["id"] for k in ir["knowledges"] if k.get("exported")}
+
+    def _claim_role(k: dict) -> str:
+        kid = k["id"]
+        if kid in exported_ids:
+            return "conclusions"
+        if kid in conclusion_ids:
+            return "intermediate"
+        return "premises"
+
+    # Claim pages (sorted into role subdirectories)
     for k in all_claims:
         kid = k["id"]
         label = k.get("label", "")
         title = k.get("title") or label.replace("_", " ")
         cn = claim_numbers.get(kid, 0)
+        role = _claim_role(k)
         fname = _sanitize_filename(f"{cn:02d} - {title}")
-        pages[f"claims/{fname}.md"] = _generate_claim_page(
+        pages[f"claims/{role}/{fname}.md"] = _generate_claim_page(
             k,
             cn,
             beliefs,
@@ -449,9 +462,6 @@ def generate_obsidian_vault(
             label_for_id,
             claim_numbers,
         )
-
-    # Generate narrative sections (connectivity-based grouping)
-    exported_ids = {k["id"] for k in ir["knowledges"] if k.get("exported")}
     try:
         coarse = coarsen_ir(ir, exported_ids)
         sections = linearize_narrative(coarse, beliefs=beliefs, priors=priors)
