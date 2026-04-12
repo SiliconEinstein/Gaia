@@ -103,47 +103,91 @@ Sections are **narrative chapters** that tell the paper's story. Claims within e
 
 **Goal:** A reader who reads sections 01 through 06 in order should understand the paper's complete argument without ever opening the original paper. Each section is a self-contained chapter of a "textbook rewrite" of the paper.
 
-1. **Title** — Rewrite skeleton title into a descriptive narrative title in user's language (e.g., "从第一性原理计算库仑赝势", "为什么 DFPT 能给出正确的声子耦合"). Keep number prefix.
+**Page structure (from top to bottom):**
 
-2. **Overview** — 2-3 paragraphs telling the section's story:
-   - What scientific question does this section answer?
-   - Why is this question important for the overall argument?
-   - What is the key insight or result?
-   - How does it build on previous sections and enable the next?
+1. **Title** — Descriptive narrative title in user's language. Keep number prefix.
+
+2. **Overview** (10%) — 2-3 paragraphs setting up the section's question, approach, and key result.
 
 3. **Per-section Mermaid** — Keep as-is.
 
-4. **Claims list** — This is the heart of the section. For each claim (in topo order), write a **narrative paragraph** (not a bullet point) that:
-   - Explains what this claim says in plain language
-   - Gives the key quantitative result (numbers, equations)
-   - Explains why this result matters for the section's argument
-   - Transitions naturally to the next claim
+4. **Claims narrative** (70% of the page — THIS IS THE MAIN BODY) — For EVERY claim in topo order, write a `###` heading + 1-3 paragraphs. This is NOT optional. Every claim listed in the skeleton MUST appear with its narrative.
 
-   The claims should flow as a connected story. Example (bad vs good):
+   **CRITICAL: This section is the bulk of the page. Do NOT skip it.** The skeleton has `### [[label|#XX title]]` entries — the agent must expand EACH ONE into a full narrative paragraph.
 
-   **BAD** (isolated bullet points):
+   For each claim:
+   - `### [[label|#XX title]]` heading (keep the wikilink)
+   - What this claim says in plain language, with key numbers and equations
+   - Why this result matters for the section's argument
+   - How it connects to the previous and next claims (logical flow)
+   - If exported (★): **highlight as a key conclusion** with a callout block
+   - Belief analysis: what does the prior→belief change reveal?
+
+   **Exported conclusions should be highlighted:**
    ```
-   ### [[adiabatic_approx|#02 绝热近似]]
-   > 传统金属中 ωD/EF ~ 0.005。
-   Prior: 0.95 → Belief: 0.71
-   ```
+   ### [[downfolded_bse|#43 下折叠 BSE]] ★
 
-   **GOOD** (narrative flow):
-   ```
-   ### [[adiabatic_approx|#02 绝热近似]]
+   > [!IMPORTANT] 核心结论
+   > 完整的动量-频率 BSE 可以严格化简为仅依赖频率的一维积分方程，
+   > 误差仅 0.2%。
 
-   整个下折叠理论的基础是绝热近似——在传统金属中，Debye 频率
-   与 Fermi 能之比 $\omega_D/E_F \sim 0.005$，声子的能标远小于
-   电子的能标。这一巨大的能标分离使得 Migdal 定理成立：高阶
-   电声顶角修正被压低至 $O(\omega_D/E_F)$，从而保证了 BSE
-   积分核的可分离性（详见 [[downfolded_bse|#43 下折叠 BSE]]）。
-
-   这一前提的 belief 从先验 0.95 下降到后验 0.71，反映了下折叠
-   链上的不确定性积累——虽然绝热近似本身很可靠，但它作为多个
-   推导步骤的共同前提，其不确定性被放大了。
+   这是本章最重要的结果...
    ```
 
-   The good version tells a story: what the claim says → why it matters → what the belief change means.
+5. **Chapter summary** (10%) — 本章建立了什么，为下一章准备了什么。
+
+**Full section page example (showing the required structure):**
+
+```markdown
+# 03 - 从微观推导下折叠 Bethe-Salpeter 方程
+
+## 概述
+
+(2-3 paragraphs: question, approach, key result)
+
+(Mermaid graph)
+
+## 推理链
+
+### [[pair_propagator_decomposition|#18 配对传播子分解]]
+
+配对传播子 $GG$ 可以精确分解为低能相干部分 $\Pi_{\mathrm{BCS}}$
+和高能非相干余项 $\phi$。这不是一个近似——而是一个数学恒等式。
+相干部分携带 Cooper 对数 $\ln(\omega_c/T)$，定义了低能配对通道。
+
+论文选择在双电子通道（而非传统的粒子-空穴通道）引入能量尺度
+分离，这是一个关键创新——传统方案会导致低能区域库仑相互作用
+失去屏蔽。这一选择为下面的交叉项压制论证奠定了基础。
+
+### [[cross_term_suppressed|#19 交叉项压制]]
+
+有了配对传播子分解，关键问题是：库仑和声子通道的交叉项是否
+会破坏可分离性？论文利用等离子体极子模型给出了严格的上界估计：
+交叉项被压制在 $O(\omega_c^2/\omega_p^2) \leq 1\%$。
+
+这是整条推理链中最脆弱的一环——belief 仅 0.50，反映了 1% 这个
+边界条件的不确定性。如果交叉项实际上更大，整个下折叠理论的
+精度保证就会失效。
+
+### [[downfolded_bse|#43 下折叠 BSE]] ★
+
+> [!IMPORTANT] 核心结论
+> 频率-only 下折叠 BSE：$\Lambda_\omega = \eta_\omega + \pi T
+> \sum (\lambda - \mu_{\omega_c}) z^{ph}_{\omega'}/|\omega'| \Lambda_{\omega'}$
+
+结合配对传播子分解和交叉项压制，完整 BSE 化简为仅含频率的
+一维积分方程。$\mu^*$ 和 $\lambda$ 获得了精确的微观定义...
+
+(... more claims ...)
+
+## 本章小结
+
+本章从微观出发严格推导了下折叠 BSE，为 $\mu^*$ 和 $\lambda$
+提供了精确定义。这为第四章通过 vDiagMC 计算 $\mu^*$ 和第五章
+验证 DFPT $\lambda$ 的可靠性奠定了理论基础。
+```
+
+**DO NOT** write a section page with only the overview and Mermaid — the claims narrative is the main content that readers come here to read.
 
 #### Weak Points section
 
