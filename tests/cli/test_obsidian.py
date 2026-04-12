@@ -212,22 +212,38 @@ class TestNumbering:
         page = pages[path]
         assert "# #01" in page
 
-    def test_module_page_has_number(self):
+    def test_section_page_has_number(self):
         ir = _make_ir(
             knowledges=[
+                {
+                    "id": "github:test_pkg::p1",
+                    "label": "p1",
+                    "type": "claim",
+                    "content": "P.",
+                    "module": "m",
+                },
                 {
                     "id": "github:test_pkg::c1",
                     "label": "c1",
                     "type": "claim",
                     "content": "C.",
-                    "module": "results",
+                    "module": "m",
                     "exported": True,
                 },
-            ]
+            ],
+            strategies=[
+                {
+                    "strategy_id": "lcs_s1",
+                    "type": "noisy_and",
+                    "premises": ["github:test_pkg::p1"],
+                    "conclusion": "github:test_pkg::c1",
+                },
+            ],
         )
         pages = generate_obsidian_vault(ir)
-        mod_path = _find_page(pages, "modules/", "results")
-        page = pages[mod_path]
+        sec_pages = [p for p in pages if p.startswith("sections/")]
+        assert len(sec_pages) > 0
+        page = pages[sec_pages[0]]
         assert "# 01 -" in page
 
 
@@ -294,24 +310,39 @@ class TestFrontmatter:
         assert "prior: 0.7" in page
         assert "belief: 0.85" in page
 
-    def test_module_frontmatter(self):
+    def test_section_frontmatter(self):
         ir = _make_ir(
             knowledges=[
+                {
+                    "id": "github:test_pkg::p1",
+                    "label": "p1",
+                    "type": "claim",
+                    "content": "P.",
+                    "module": "m",
+                },
                 {
                     "id": "github:test_pkg::c1",
                     "label": "c1",
                     "type": "claim",
                     "content": "C.",
-                    "module": "results",
+                    "module": "m",
                     "exported": True,
                 },
-            ]
+            ],
+            strategies=[
+                {
+                    "strategy_id": "lcs_s1",
+                    "type": "noisy_and",
+                    "premises": ["github:test_pkg::p1"],
+                    "conclusion": "github:test_pkg::c1",
+                },
+            ],
         )
         pages = generate_obsidian_vault(ir)
-        mod_path = _find_page(pages, "modules/", "results")
-        page = pages[mod_path]
-        assert "type: module" in page
-        assert "aliases: [results]" in page
+        sec_pages = [p for p in pages if p.startswith("sections/")]
+        assert len(sec_pages) > 0
+        page = pages[sec_pages[0]]
+        assert "type: section" in page
 
 
 # ---------------------------------------------------------------------------
@@ -428,7 +459,7 @@ class TestIndexAndOverview:
         assert "## Claim Index" in index
         assert "[[c1]]" in index
 
-    def test_index_has_module_table(self):
+    def test_index_has_sections_table(self):
         ir = _make_ir(
             knowledges=[
                 {
@@ -442,7 +473,7 @@ class TestIndexAndOverview:
             ]
         )
         pages = generate_obsidian_vault(ir)
-        assert "## Modules" in pages["_index.md"]
+        assert "## Sections" in pages["_index.md"]
 
     def test_overview_has_mermaid(self):
         ir = _make_ir(
