@@ -16,8 +16,6 @@ import json
 from gaia.cli.commands._classify import classify_ir, node_role
 from gaia.cli.commands._detailed_reasoning import render_mermaid, topo_layers
 from gaia.cli.commands._simplified_mermaid import render_simplified_mermaid
-from gaia.ir.coarsen import coarsen_ir
-from gaia.ir.linearize import NarrativeSection, linearize_narrative
 
 
 # ---------------------------------------------------------------------------
@@ -161,41 +159,37 @@ def _generate_claim_page(
     return "\n".join(lines)
 
 
-def _generate_section_page(
-    section: NarrativeSection,
+def _generate_module_section_page(
+    module_name: str,
     section_num: int,
+    title: str,
+    claims: list[dict],
     ir: dict,
     beliefs: dict[str, float],
     priors: dict[str, float],
     claim_numbers: dict[str, int],
-    kid_to_k: dict[str, dict],
+    label_for_id: dict[str, str],
 ) -> str:
-    """Generate a section page from a NarrativeSection (connectivity-based grouping)."""
-    title = section.title
-
-    # Collect knowledge nodes for this section
-    section_kids = [e.kid for e in section.entries if e.kid in kid_to_k]
-    section_nodes = [kid_to_k[kid] for kid in section_kids]
-    section_nodes.sort(key=lambda k: claim_numbers.get(k["id"], 0))
-
-    exported_count = sum(1 for e in section.entries if e.exported)
+    """Generate a section page for a DSL module, claims ordered by topo sort."""
+    exported_count = sum(1 for k in claims if k.get("exported"))
 
     fm = _render_frontmatter(
         {
             "type": "section",
+            "label": module_name,
+            "aliases": [module_name],
             "section_number": section_num,
             "title": title,
-            "layer": section.layer,
-            "claim_count": len(section.entries),
+            "claim_count": len(claims),
             "exported_count": exported_count,
-            "tags": ["section", f"layer-{section.layer}"],
+            "tags": ["section", module_name.replace("_", "-")],
         }
     )
 
     lines = [fm, "", f"# {section_num:02d} - {title}", ""]
 
     # Per-section reasoning graph
-    sec_ids = {k["id"] for k in section_nodes}
+    sec_ids = {k["id"] for k in claims}
     if sec_ids:
         lines.append(render_mermaid(ir, beliefs=beliefs, node_ids=sec_ids))
         lines.append("")
@@ -203,7 +197,7 @@ def _generate_section_page(
     lines.append("## Claims")
     lines.append("")
 
-    for k in section_nodes:
+    for k in claims:
         kid = k["id"]
         label = k.get("label", "")
         k_title = k.get("title") or label.replace("_", " ")
@@ -290,8 +284,9 @@ def _generate_index(
     all_claims: list[dict],
     claim_numbers: dict[str, int],
     beliefs: dict[str, float],
-    sections: list[NarrativeSection],
+    section_list: list[tuple[str, str, int]],
 ) -> str:
+    """Generate _index.md. section_list = [(module_name, title, claim_count)]."""
     pkg = ir.get("package_name", "Package")
     ir_hash = ir.get("ir_hash", "unknown")
     all_k = ir["knowledges"]
@@ -313,41 +308,40 @@ def _generate_index(
     )
     lines.append(f"| Strategies | {len(ir.get('strategies', []))} |")
     lines.append(f"| Operators | {len(ir.get('operators', []))} |")
-    lines.append(f"| Sections | {len(sections)} |")
+    lines.append(f"| Sections | {len(section_list)} |")
     lines.append(f"| Exported | {sum(1 for k in all_k if k.get('exported'))} |")
     lines.append("")
 
-    # Sections (narrative grouping)
+    # Sections
     lines.append("## Sections")
     lines.append("")
-    lines.append("| # | Section | Layer | Claims |")
-    lines.append("|---|---------|-------|--------|")
-    for i, sec in enumerate(sections, 1):
-        sec_title = _sanitize_filename(sec.title)
-        lines.append(f"| {i:02d} | [[{sec_title}]] | {sec.layer} | {len(sec.entries)} |")
+    lines.append("| # | Section | Claims |")
+    lines.append("|---|---------|--------|")
+    for i, (mod, title, count) in enumerate(section_list, 1):
+        lines.append(f"| {i:02d} | [[{mod}]] | {count} |")
     lines.append("")
 
     # Claim index
     lines.append("## Claim Index")
     lines.append("")
-    lines.append("| # | Claim | Type | Belief |")
-    lines.append("|---|-------|------|--------|")
+    lines.append("| # | Claim | Type | Section | Belief |")
+    lines.append("|---|-------|------|---------|--------|")
     sorted_claims = sorted(all_claims, key=lambda k: claim_numbers.get(k["id"], 0))
     for k in sorted_claims:
         kid = k["id"]
         label = k.get("label", "")
+        mod = k.get("module", "Root")
         num = claim_numbers.get(kid, 0)
         star = " ★" if k.get("exported") else ""
         belief = f"{beliefs[kid]:.2f}" if kid in beliefs else "—"
-        lines.append(f"| {num:02d} | [[{label}]]{star} | {k['type']} | {belief} |")
+        lines.append(f"| {num:02d} | [[{label}]]{star} | {k['type']} | [[{mod}]] | {belief} |")
     lines.append("")
 
-    # Reading path (sections in order)
-    if len(sections) > 1:
+    # Reading path
+    if len(section_list) > 1:
         lines.append("## Reading Path")
         lines.append("")
-        sec_names = [_sanitize_filename(s.title) for s in sections]
-        lines.append(" → ".join(f"[[{n}]]" for n in sec_names))
+        lines.append(" → ".join(f"[[{mod}]]" for mod, _, _ in section_list))
         lines.append("")
 
     lines.append("## Quick Links")
@@ -430,8 +424,6 @@ def generate_obsidian_vault(
     claim_numbers = _assign_claim_numbers(ir)
     all_claims = [k for k in ir["knowledges"] if not _is_helper(k.get("label"))]
 
-    kid_to_k = {k["id"]: k for k in ir["knowledges"]}
-
     # Classify claims into roles
     conclusion_ids = {s.get("conclusion") for s in ir.get("strategies", []) if s.get("conclusion")}
     exported_ids = {k["id"] for k in ir["knowledges"] if k.get("exported")}
@@ -462,24 +454,42 @@ def generate_obsidian_vault(
             label_for_id,
             claim_numbers,
         )
-    try:
-        coarse = coarsen_ir(ir, exported_ids)
-        sections = linearize_narrative(coarse, beliefs=beliefs, priors=priors)
-    except Exception:
-        # Fallback: one section per module
-        sections = []
+    # Section pages from DSL modules (module_order defines narrative arc)
+    module_titles: dict[str, str] = ir.get("module_titles") or {}
+    modules: list[str] = []
+    seen: set[str] = set()
+    module_order = ir.get("module_order") or []
+    for m in module_order:
+        if m not in seen:
+            modules.append(m)
+            seen.add(m)
+    # Add any modules not in module_order
+    for k in ir["knowledges"]:
+        mod = k.get("module", "Root")
+        if mod not in seen and not _is_helper(k.get("label", "")):
+            modules.append(mod)
+            seen.add(mod)
 
-    # Section pages (replace old module pages)
-    for i, sec in enumerate(sections, 1):
-        fname = _sanitize_filename(f"{i:02d} - {sec.title}")
-        pages[f"sections/{fname}.md"] = _generate_section_page(
-            sec,
-            i,
+    sec_num = 0
+    for mod in modules:
+        mod_claims = [k for k in all_claims if k.get("module", "Root") == mod]
+        if not mod_claims:
+            continue
+        sec_num += 1
+        # Sort claims within module by topological order
+        mod_claims.sort(key=lambda k: claim_numbers.get(k["id"], 0))
+        title = module_titles.get(mod) or mod.replace("_", " ").title()
+        fname = _sanitize_filename(f"{sec_num:02d} - {title}")
+        pages[f"sections/{fname}.md"] = _generate_module_section_page(
+            mod,
+            sec_num,
+            title,
+            mod_claims,
             ir,
             beliefs,
             priors,
             claim_numbers,
-            kid_to_k,
+            label_for_id,
         )
 
     # Leaves for holes page
@@ -491,8 +501,16 @@ def generate_obsidian_vault(
         pages["meta/beliefs.md"] = _generate_beliefs_page(ir, beliefs, priors, claim_numbers)
     pages["meta/holes.md"] = _generate_holes_page(leaves, claim_numbers)
 
+    # Build section list for index
+    section_list: list[tuple[str, str, int]] = []
+    for mod in modules:
+        mod_count = sum(1 for k in all_claims if k.get("module", "Root") == mod)
+        if mod_count > 0:
+            t = module_titles.get(mod) or mod.replace("_", " ").title()
+            section_list.append((mod, t, mod_count))
+
     # Index + overview + config
-    pages["_index.md"] = _generate_index(ir, all_claims, claim_numbers, beliefs, sections)
+    pages["_index.md"] = _generate_index(ir, all_claims, claim_numbers, beliefs, section_list)
     pages["overview.md"] = _generate_overview(ir, beliefs, priors)
     pages[".obsidian/graph.json"] = _generate_obsidian_config()
 
