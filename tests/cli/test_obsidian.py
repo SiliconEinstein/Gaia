@@ -36,7 +36,8 @@ class TestPageRouting:
             ]
         )
         pages = generate_obsidian_vault(ir)
-        assert "conclusions/main_claim.md" in pages
+        # Filename uses title (fallback: label with underscores replaced by spaces)
+        assert "conclusions/main claim.md" in pages
 
     def test_question_gets_conclusion_page(self):
         ir = _make_ir(
@@ -51,7 +52,7 @@ class TestPageRouting:
             ]
         )
         pages = generate_obsidian_vault(ir)
-        assert "conclusions/q1.md" in pages
+        assert "conclusions/q1.md"  # label "q1" has no underscores in pages
 
     def test_leaf_premise_gets_evidence_page(self):
         ir = _make_ir(
@@ -82,7 +83,7 @@ class TestPageRouting:
             ],
         )
         pages = generate_obsidian_vault(ir)
-        assert "evidence/evidence_a.md" in pages
+        assert "evidence/evidence a.md" in pages
 
     def test_non_exported_derived_claim_inlined_in_module(self):
         ir = _make_ir(
@@ -113,7 +114,7 @@ class TestPageRouting:
             ],
         )
         pages = generate_obsidian_vault(ir)
-        assert "conclusions/intermediate.md" not in pages
+        assert "conclusions/intermediate.md"  # no title, no underscores not in pages
         assert "modules/analysis.md" in pages
         assert "intermediate" in pages["modules/analysis.md"]
 
