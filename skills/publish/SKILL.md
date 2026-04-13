@@ -79,58 +79,127 @@ The skeleton includes a `[!TIP]` callout with the total mutual information and a
 
 ### Reasoning Structure (YOU WRITE)
 
-Add `## Reasoning Structure` after the Mermaid graph. This is the heart of the README — a standalone scientific narrative that a domain expert can read without knowing what Gaia, belief propagation, or factor graphs are.
+Add `## Reasoning Structure` after the Mermaid graph. This is the heart of the README — a **per-conclusion evidence assessment**. For each exported conclusion, analyze how well the evidence supports it.
 
-**Audience:** A researcher in the paper's field. They understand the science but have not read this specific paper. They should come away understanding what the paper argues, why the argument is convincing, and where it is weak.
+**Audience:** A researcher in the paper's field who has NOT read the original paper. After reading this section, they should understand what each conclusion claims, how it was derived, how strong the evidence is, and what risks remain.
 
-**Organizing principle:** Follow the paper's intellectual arc, not the factor graph topology. Use `narrative-outline.md` as a starting point for grouping, but reorganize freely — merge small groups, split large ones, reorder to match the paper's logical flow. Typical arc: motivation/problem → method → validation → results → implications.
+**Ordering:** Follow `narrative-outline.md` — this orders conclusions by the paper's logical arc (from foundational results to final predictions), NOT by belief value. The narrative flow should mirror the paper's argument: theory → computation → validation → predictions.
 
-**Section titles:** Concise, descriptive. Example: outline says "Noise-free reverse trajectories often improve success" → rewrite as "Benchmarking Against Prior Methods".
+**For each conclusion, write:**
 
-For each subsection, write 4-8 sentences of prose that:
-- Explain the scientific question and why it matters
-- Walk through the key evidence and reasoning **in the paper's own terms** (equations, experimental results, comparisons)
-- Note where the argument is strongest or weakest, citing specific numbers from the paper
-- Parenthetically cite belief values as supporting quantification, e.g. "...validated by the 0.2% agreement between full and downfolded BSE calculations (belief 0.76)"
+1. **Heading**: Rewrite the claim title into a descriptive sentence that a non-specialist can understand, plus belief value. Don't use the raw label — write a meaningful title.
+   - BAD: `### Downfolded BSE (belief: 0.33)`
+   - GOOD: `### The full Bethe-Salpeter equation reduces to a solvable frequency-only form (belief: 0.33)`
 
-**What NOT to do:**
-- Do not organize around "premises → conclusion" or "strategy type"
-- Do not lead with "(prior → belief)" annotations — they are parenthetical support, not the story
-- Do not use Gaia-specific terms: "noisy_and", "abduction", "factor", "BP", "NAND constraint", "information gain bits" in the prose
-- Do not describe the graph structure ("this claim is derived from two premises via...")
-- Do not list claims — tell a story that connects them
+2. **What it says** (1 paragraph): Explain the scientific result in enough detail that a reader unfamiliar with the paper can understand it. Include:
+   - The key quantitative result (numbers, equations)
+   - What problem this solves and why it matters
+   - How it was obtained (method, key approximations)
+   - Comparison with prior approaches (if applicable)
+   - Read `artifacts/` for specific details — don't write generic descriptions
 
-The Mermaid graph and conclusions table already provide the technical Gaia view. The prose should complement them by telling the **scientific** story that the graph encodes.
+3. **Evidence chains** (2-4 bullet points): Each evidence chain supporting this conclusion:
+   - Name the chain descriptively
+   - Trace the key nodes and give the weakest link's belief
+   - Explain WHY the weakest link is weak (not just the number)
 
-### Embedding Figures
+4. **Figures**: Embed relevant figures from `artifacts/images/` with descriptive captions
 
-Search `graph.json` nodes for `metadata.figure` and `metadata.caption` fields. The `figure` value is the image path relative to the package root (e.g. `artifacts/images/fig1.jpg`). For each figure found:
-1. Embed it in the Reasoning Structure subsection where that claim's topic appears
-2. Use the caption from `metadata.caption`
-3. Add attribution referencing the bibliographic header
+5. **Verdict** (1-2 sentences): Is this conclusion well-supported? What's the main risk?
+
+**Example:**
 
 ```markdown
-![Fig. 4 | Dimensionless bare Coulomb pseudopotential as a function of r_s.](artifacts/images/8_0.jpg)
-*Adapted from Cai et al., arXiv:2512.19382v2.*
+### The full Bethe-Salpeter equation reduces to a solvable frequency-only form (belief: 0.33)
+
+The central theoretical achievement of this work is a rigorous
+"downfolding" of the complete momentum-frequency Bethe-Salpeter
+equation into a one-dimensional integral equation depending only
+on Matsubara frequency: $K(\omega,\omega') = \lambda(\omega,\omega')
+- \mu_{\omega_c}(\omega,\omega')$. This is accomplished by
+decomposing the pair propagator into coherent and incoherent parts
+(an exact mathematical identity), then showing that cross-channel
+mixing between Coulomb and phonon sectors is suppressed at
+$O(\omega_c^2/\omega_p^2) \leq 1\%$. The resulting equation gives
+$\mu^\ast$ and $\lambda$ precise microscopic definitions for the
+first time — replacing the phenomenological parameters used since
+the 1960s. Numerical validation against the full BSE on a toy model
+with aluminum-like parameters shows 0.2% agreement in predicted $T_c$.
+
+**Evidence support:**
+- **Cross-term suppression** (weakest link, belief 0.50): The entire
+  downfolding rests on cross-channel terms being ~1%. The estimate
+  uses a plasmon-pole model that may overstate the suppression for
+  low-density metals or 2D systems.
+- **Toy model validation** (belief 0.76): Full vs downfolded BSE
+  agree at 0.2%, but this uses RPA for the electron vertex — not
+  the exact vertex function.
+
+![Fig. 3 | Diagrammatic structure of the BSE](artifacts/images/4_2.jpg)
+*The BSE with decomposed pair propagator. Adapted from Cai et al.*
+
+> This is the theoretical foundation for everything downstream.
+> The low belief (0.33) reflects uncertainty propagation from the
+> cross-term suppression assumption — if cross terms are larger
+> than 1%, the entire framework needs revision.
 ```
 
-If `metadata.caption` is absent, write a descriptive caption based on the claim content.
+The good version explains the science in detail, gives context (why this matters, what existed before), includes the specific mathematical result, and makes the verdict meaningful.
+
+**What NOT to do:**
+- Do not write a narrative essay — write per-conclusion assessments
+- Do not use Gaia jargon (noisy_and, abduction, factor, BP, NAND)
+- Do not describe graph structure — describe evidence strength
+- Do not lead with belief values — lead with the science
 
 ### Key Findings table (auto-generated, keep as-is)
 
 ### Weak Points (YOU WRITE)
 
-3-4 places where the paper's argument is weakest, written as a scientist would critique it:
-- What is the weakest link in the reasoning, and why?
-- What assumption is most likely to fail, and what would break?
-- Where does the paper extrapolate beyond its evidence?
-- What competing explanation has not been fully ruled out?
+**Focus: internal nodes with low belief — NOT the conclusions themselves** (those are covered in Reasoning Structure). Discuss intermediate claims and premises where the argument is structurally weak.
 
-Cite belief values parenthetically as quantitative support for your critique, e.g. "The cross-term suppression assumption is the most vulnerable foundation (belief drops from prior 0.90 to 0.69 under downstream constraints)." Do not frame weak points in terms of graph structure — frame them in terms of scientific reasoning.
+<details open>
+<summary>Weak Points Analysis</summary>
+
+Write 3-5 weak points, each as a full paragraph:
+
+1. **Executive summary** (1 sentence): The single weakest internal link.
+
+2. **For each weak point** — an intermediate or hole claim with low belief:
+   - What the claim says and WHERE it sits in the reasoning chain
+   - WHY the belief is low — trace backwards to the root cause
+   - What downstream conclusions are affected (trace forward)
+   - What assumption is most vulnerable
+   - What specific evidence or experiment would resolve it
+
+3. **Structural patterns**: Are there bottleneck nodes that many conclusions depend on? Does uncertainty amplify through the chain?
+
+Cite belief values parenthetically. Frame as scientific critique, not graph analysis.
+
+</details>
 
 ### Evidence Gaps (YOU WRITE)
 
-2-3 places where additional evidence would help. Name specific missing evidence and which claims it would strengthen.
+<details>
+<summary>Evidence Gaps & Future Work</summary>
+
+Group by theme:
+
+**Experimental gaps:**
+- What measurements are missing or imprecise?
+- What experiments would most reduce uncertainty?
+
+**Computational gaps:**
+- What calculations are approximate that could be exact?
+- What parameters have the largest error bars?
+
+**Theoretical gaps:**
+- What derivations rely on uncontrolled approximations?
+- Where does the theory break down?
+
+For each gap, name which conclusions would improve if it were filled. Prioritize by impact.
+
+</details>
 
 ### Link to ANALYSIS.md
 
@@ -200,4 +269,3 @@ git add wiki/ docs/
 git commit -m "docs: add wiki pages and GitHub Pages template"
 git push origin main
 ```
-
