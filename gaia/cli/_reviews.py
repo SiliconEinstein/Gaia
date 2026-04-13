@@ -205,6 +205,7 @@ def resolve_gaia_review(loaded_review, compiled) -> ResolvedGaiaReview:
                         knowledge_id=knowledge_id,
                         value=review.prior,
                         source_id=source.source_id,
+                        justification=review.justification,
                     )
                 )
             objects.append(
@@ -244,6 +245,7 @@ def resolve_gaia_review(loaded_review, compiled) -> ResolvedGaiaReview:
                         knowledge_id=knowledge_id,
                         value=review.prior,
                         source_id=source.source_id,
+                        justification=review.justification,
                     )
                 )
             objects.append(
@@ -300,6 +302,7 @@ def resolve_gaia_review(loaded_review, compiled) -> ResolvedGaiaReview:
                         strategy_id=strategy.strategy_id,
                         conditional_probabilities=conditional_probabilities,
                         source_id=source.source_id,
+                        justification=review.justification,
                     )
                 )
 
