@@ -15,6 +15,7 @@ from gaia.cli._packages import (
 )
 from gaia.cli.commands._detailed_reasoning import generate_detailed_reasoning
 from gaia.cli.commands._github import generate_github_output
+from gaia.cli.commands._render_priors import param_data_from_ir_metadata
 from gaia.ir.validator import validate_local_graph
 
 
@@ -90,7 +91,7 @@ def render_command(
     # If present it MUST be fresh (ir_hash matches compiled graph).
     # --target github requires beliefs; --target docs degrades gracefully.
     beliefs_data: dict | None = None
-    param_data: dict | None = None
+    param_data = param_data_from_ir_metadata(ir)
 
     beliefs_path = gaia_dir / "beliefs.json"
     if beliefs_path.exists():

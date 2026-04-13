@@ -95,6 +95,15 @@ def test_operator_prior_without_reason_raises():
         contradiction(a, b, prior=0.9)  # no reason!
 
 
+def test_operator_prior_outside_cromwell_bounds_raises():
+    import pytest
+
+    a = claim("A.")
+    b = claim("B.")
+    with pytest.raises(ValueError, match="Cromwell bounds"):
+        contradiction(a, b, reason="invalid probability", prior=1.5)
+
+
 def test_operator_no_reason_no_prior_ok():
     """Neither reason nor prior is fine — uses defaults."""
     a = claim("A.")

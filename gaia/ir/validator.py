@@ -6,6 +6,7 @@ invariants as defined in docs/foundations/gaia-ir/gaia-ir.md.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 from gaia.ir.knowledge import Knowledge, KnowledgeType, is_qid
@@ -95,6 +96,24 @@ def _validate_knowledges(
         # type
         if k.type not in set(KnowledgeType):
             result.error(f"Knowledge '{k.id}': invalid type '{k.type}'")
+
+        metadata = k.metadata or {}
+        if "prior" in metadata:
+            prior = metadata["prior"]
+            if isinstance(prior, bool) or not isinstance(prior, (int, float)):
+                result.error(
+                    f"Knowledge '{k.id}': metadata prior must be a number, "
+                    f"got {type(prior).__name__}"
+                )
+            else:
+                prior_value = float(prior)
+                if not math.isfinite(prior_value):
+                    result.error(f"Knowledge '{k.id}': metadata prior must be finite")
+                elif prior_value < CROMWELL_EPS or prior_value > 1 - CROMWELL_EPS:
+                    result.error(
+                        f"Knowledge '{k.id}': metadata prior {prior_value} outside Cromwell bounds "
+                        f"[{CROMWELL_EPS}, {1 - CROMWELL_EPS}]"
+                    )
 
         # local-layer shape rules
         if scope == "local":

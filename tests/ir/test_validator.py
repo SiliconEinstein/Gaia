@@ -71,6 +71,21 @@ class TestKnowledgeValidation:
         assert not r.valid
         assert any("content" in e for e in r.errors)
 
+    def test_metadata_prior_must_be_in_cromwell_bounds(self):
+        g = _local_graph(
+            knowledges=[
+                Knowledge(
+                    id="github:test::a",
+                    type=KnowledgeType.CLAIM,
+                    content="A.",
+                    metadata={"prior": 1.5},
+                )
+            ]
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("metadata prior" in e and "Cromwell bounds" in e for e in r.errors)
+
     def test_duplicate_label_rejected(self):
         g = _local_graph(
             knowledges=[
