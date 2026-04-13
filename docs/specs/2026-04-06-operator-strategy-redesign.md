@@ -259,7 +259,7 @@ conclusion = comparison_claim (π=0.5, 自动生成, 无 warrant)
 ```
 
 - **输入**：两个预言 claim + 一个观测 claim
-- **Warrants**：2（各问"预言是否匹配观测？"）
+- **Warrants**：3（2 度量 + 1 推断排序）
 - **输出**：comparison helper claim（π=0.5，BP 从 equivalence warrants 推出后验）
 - **第一个预言（pred_h）默认是声称更好的那个**
 
@@ -335,7 +335,7 @@ def abduction(
 - `compare(support_h.conclusion, support_alt.conclusion, observation)`
 - Composition warrant（`reason` 写入其 warrant text）
 
-**Warrants 总数**：1（composition）+ 4（两个 support）+ 2（compare 的 equivalences）= **7**
+**Warrants 总数**：1（composition）+ 4（两个 support）+ 3（compare：2 度量 + 1 推断排序）= **8**
 
 **Review checklist**（自动生成）：
 1. **Composition warrant**：两个 support 的预言是否关于同一实验？
@@ -420,7 +420,7 @@ ind_123 = induction(ind_12, s3, law=H_discrete,
 | 内部 | 1 compare（pred vs obs equivalences） | 无 compare |
 | 输出 | **comparison helper claim**（相对判断） | **law 本身**（绝对支持） |
 | Composition warrant | "预言关于同一实验？" | "观测独立？支持同一 law？" |
-| Warrants 总数 | 7（1+4+2） | 5（1+4） |
+| Warrants 总数 | 8（1+4+3） | 5（1+4） |
 
 ### 7.6 组合模式
 
@@ -627,7 +627,7 @@ Gaia 同时实现了 Peirce 和 Jaynes 的框架：
 
 ### 9.5 Abduction Review
 
-**Warrants**：7（1 composition + 4 support + 2 compare）
+**Warrants**：8（1 composition + 4 support + 3 compare）
 
 **Checklist**（review 工具按层级自动生成）：
 
