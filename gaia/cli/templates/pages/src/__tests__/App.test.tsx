@@ -3,7 +3,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 
 vi.mock('elkjs/lib/elk.bundled.js', () => ({
   default: class {
-    layout(graph: { children?: { id: string; width: number; height: number }[] }) {
+    layout(graph: { children?: { id: string; width: number; height: number }[]; edges?: { id: string; sources: string[]; targets: string[] }[] }) {
       return Promise.resolve({
         ...graph,
         width: 800,

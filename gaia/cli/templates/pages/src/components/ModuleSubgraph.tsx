@@ -113,8 +113,8 @@ function movePoint(
   }
 
   return {
-    x: point.x + delta.dx,
-    y: point.y + delta.dy,
+    x: point.x + delta!.dx,
+    y: point.y + delta!.dy,
   }
 }
 
@@ -339,20 +339,20 @@ export function adjustExternalLayout(
           bendPoints: section.bendPoints?.map(point => {
             if (hasMovement(sourceDelta) && hasMovement(targetDelta)) {
               return {
-                x: point.x + (sourceDelta.dx + targetDelta.dx) / 2,
-                y: point.y + (sourceDelta.dy + targetDelta.dy) / 2,
+                x: point.x + (sourceDelta!.dx + targetDelta!.dx) / 2,
+                y: point.y + (sourceDelta!.dy + targetDelta!.dy) / 2,
               }
             }
             if (hasMovement(sourceDelta)) {
               return {
-                x: point.x + sourceDelta.dx,
-                y: point.y + sourceDelta.dy,
+                x: point.x + sourceDelta!.dx,
+                y: point.y + sourceDelta!.dy,
               }
             }
             if (hasMovement(targetDelta)) {
               return {
-                x: point.x + targetDelta.dx,
-                y: point.y + targetDelta.dy,
+                x: point.x + targetDelta!.dx,
+                y: point.y + targetDelta!.dy,
               }
             }
             return point
