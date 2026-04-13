@@ -1,4 +1,4 @@
-"""gaia infer -- run BP from compiled IR plus review sidecar parameterization."""
+"""gaia infer -- run BP from compiled IR with metadata priors."""
 
 from __future__ import annotations
 
@@ -16,8 +16,7 @@ from gaia.cli._packages import (
     gaia_lang_version,
     load_gaia_package,
 )
-from gaia.cli._reviews import load_gaia_review, resolve_gaia_review
-from gaia.ir.validator import validate_local_graph, validate_parameterization
+from gaia.ir.validator import validate_local_graph
 
 
 def _write_json(path, payload) -> None:
@@ -26,13 +25,13 @@ def _write_json(path, payload) -> None:
 
 def infer_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
-    review: str | None = typer.Option(
-        None,
-        "--review",
-        help="Review sidecar name from <package>/reviews/<name>.py or 'review' for legacy review.py.",
-    ),
 ) -> None:
-    """Run BP using the current IR structure plus the package review sidecar."""
+    """Run BP inference on a compiled knowledge package.
+
+    Priors come from claim metadata (set by priors.py and reason+prior
+    DSL pairing during compilation). The lowering layer reads
+    metadata["prior"] directly — no review sidecar needed.
+    """
     try:
         loaded = load_gaia_package(path)
         apply_package_priors(loaded)
@@ -67,51 +66,7 @@ def infer_command(
         typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
         raise typer.Exit(1)
 
-    try:
-        loaded_review = load_gaia_review(loaded, review_name=review)
-        if loaded_review is not None:
-            resolved_review = resolve_gaia_review(loaded_review, compiled)
-        else:
-            resolved_review = None
-    except GaiaCliError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
-
-    if resolved_review is not None:
-        priors_list = resolved_review.priors
-        strategy_params_list = resolved_review.strategy_params
-    else:
-        # No review sidecar — lowering reads metadata["prior"] directly
-        # (set by priors.py and reason+prior DSL pairing during compilation).
-        priors_list = []
-        strategy_params_list = []
-
-    # Parameterization validation only applies when using review sidecars
-    # (explicit PriorRecord coverage check). When using metadata priors from
-    # priors.py, the lowering layer reads metadata["prior"] directly.
-    if resolved_review is not None:
-        parameterization_validation = validate_parameterization(
-            compiled.graph,
-            priors_list,
-            strategy_params_list,
-        )
-        for warning in parameterization_validation.warnings:
-            typer.echo(f"Warning: {warning}")
-        if parameterization_validation.errors:
-            for error in parameterization_validation.errors:
-                typer.echo(f"Error: {error}", err=True)
-            raise typer.Exit(1)
-
-    node_priors = {record.knowledge_id: record.value for record in priors_list}
-    strategy_params = {
-        record.strategy_id: record.conditional_probabilities
-        for record in strategy_params_list
-    }
-    factor_graph = lower_local_graph(
-        compiled.graph,
-        node_priors=node_priors,
-        strategy_conditional_params=strategy_params,
-    )
+    factor_graph = lower_local_graph(compiled.graph)
     fg_errors = factor_graph.validate()
     if fg_errors:
         for error in fg_errors:
@@ -127,25 +82,10 @@ def infer_command(
 
     gaia_ver = gaia_lang_version()
 
-    if resolved_review is not None:
-        review_dir = gaia_dir / "reviews" / loaded_review.name
-        review_dir.mkdir(parents=True, exist_ok=True)
-        review_content_hash = resolved_review.content_hash()
-
-        _write_json(
-            review_dir / "parameterization.json",
-            resolved_review.to_json(ir_hash=compiled.graph.ir_hash, gaia_lang_version=gaia_ver),
-        )
-        output_path = review_dir / "beliefs.json"
-    else:
-        review_content_hash = ""
-        output_path = gaia_dir / "beliefs.json"
-
     knowledge_by_id = {knowledge.id: knowledge for knowledge in compiled.graph.knowledges}
     beliefs_payload = {
         "ir_hash": compiled.graph.ir_hash,
         "gaia_lang_version": gaia_ver,
-        "review_content_hash": review_content_hash,
         "beliefs": [
             {
                 "knowledge_id": knowledge_id,
@@ -157,13 +97,9 @@ def infer_command(
         ],
         "diagnostics": asdict(result.diagnostics),
     }
-    _write_json(output_path, beliefs_payload)
+    _write_json(gaia_dir / "beliefs.json", beliefs_payload)
 
-    typer.echo(
-        f"Inferred {len(result.beliefs)} beliefs from "
-        f"{len(priors_list)} priors and "
-        f"{len(strategy_params_list)} strategy parameter records"
-    )
+    typer.echo(f"Inferred {len(result.beliefs)} beliefs")
     method_label = inference_result.method_used.upper()
     exact_label = " (exact)" if inference_result.is_exact else ""
     typer.echo(f"Method: {method_label}{exact_label}, {inference_result.elapsed_ms:.0f}ms")
@@ -172,6 +108,4 @@ def infer_command(
             f"Converged: {result.diagnostics.converged} "
             f"after {result.diagnostics.iterations_run} iterations"
         )
-    if loaded_review is not None:
-        typer.echo(f"Review: {loaded_review.name}")
-    typer.echo(f"Output: {output_path}")
+    typer.echo(f"Output: {gaia_dir / 'beliefs.json'}")
