@@ -201,8 +201,7 @@ def _knowledge_display_name(knowledge: Knowledge) -> str:
 def _validate_prior_value(value: Any, *, label: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise GaiaCliError(
-            f"Error: PRIORS[{label!r}] prior must be a number, "
-            f"got {type(value).__name__}."
+            f"Error: PRIORS[{label!r}] prior must be a number, got {type(value).__name__}."
         )
     prior = float(value)
     if not math.isfinite(prior):

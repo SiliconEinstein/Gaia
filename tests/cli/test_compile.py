@@ -1191,8 +1191,7 @@ def test_compile_priors_py_out_of_range_prior_raises(tmp_path):
         'from gaia.lang import claim\n\nmain_claim = claim("Main claim.")\n__all__ = ["main_claim"]\n'
     )
     (pkg_src / "priors.py").write_text(
-        "from . import main_claim\n\n"
-        'PRIORS = {main_claim: (2.5, "Invalid probability.")}\n'
+        'from . import main_claim\n\nPRIORS = {main_claim: (2.5, "Invalid probability.")}\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])

@@ -40,8 +40,7 @@ def test_check_applies_priors_py_before_stale_check(tmp_path):
     pkg_dir = tmp_path / "check_demo"
     _write_package(pkg_dir)
     (pkg_dir / "check_demo" / "priors.py").write_text(
-        "from . import main_claim\n\n"
-        'PRIORS = {main_claim: (0.8, "Reviewed premise.")}\n'
+        'from . import main_claim\n\nPRIORS = {main_claim: (0.8, "Reviewed premise.")}\n'
     )
 
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
