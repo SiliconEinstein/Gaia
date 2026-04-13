@@ -79,58 +79,103 @@ The skeleton includes a `[!TIP]` callout with the total mutual information and a
 
 ### Reasoning Structure (YOU WRITE)
 
-Add `## Reasoning Structure` after the Mermaid graph. This is the heart of the README — a standalone scientific narrative that a domain expert can read without knowing what Gaia, belief propagation, or factor graphs are.
+Add `## Reasoning Structure` after the Mermaid graph. This is the heart of the README — a **per-conclusion evidence assessment**. For each exported conclusion, analyze how well the evidence supports it.
 
-**Audience:** A researcher in the paper's field. They understand the science but have not read this specific paper. They should come away understanding what the paper argues, why the argument is convincing, and where it is weak.
+**Audience:** A researcher in the paper's field. They should come away knowing: which conclusions are trustworthy, which are shaky, and why.
 
-**Organizing principle:** Follow the paper's intellectual arc, not the factor graph topology. Use `narrative-outline.md` as a starting point for grouping, but reorganize freely — merge small groups, split large ones, reorder to match the paper's logical flow. Typical arc: motivation/problem → method → validation → results → implications.
+**Organizing principle:** One subsection per exported conclusion (★), ordered from strongest to weakest belief. Each subsection is an "evidence support report" for that conclusion.
 
-**Section titles:** Concise, descriptive. Example: outline says "Noise-free reverse trajectories often improve success" → rewrite as "Benchmarking Against Prior Methods".
+**For each conclusion, write:**
 
-For each subsection, write 4-8 sentences of prose that:
-- Explain the scientific question and why it matters
-- Walk through the key evidence and reasoning **in the paper's own terms** (equations, experimental results, comparisons)
-- Note where the argument is strongest or weakest, citing specific numbers from the paper
-- Parenthetically cite belief values as supporting quantification, e.g. "...validated by the 0.2% agreement between full and downfolded BSE calculations (belief 0.76)"
+1. **Heading**: The conclusion claim in plain language + belief value
+2. **What it says** (1-2 sentences): The scientific result, with key numbers
+3. **Evidence chains** (2-4 bullet points): Each evidence chain that supports this conclusion, with its strength:
+   - Name the chain (e.g., "μ* calculation chain", "experimental validation")
+   - Trace the key premises → intermediate → conclusion path
+   - Give the weakest link's belief in each chain
+4. **Figures**: Embed relevant figures from `graph.json` metadata or `artifacts/images/`
+5. **Verdict** (1-2 sentences): Is this conclusion well-supported? What's the main risk?
 
-**What NOT to do:**
-- Do not organize around "premises → conclusion" or "strategy type"
-- Do not lead with "(prior → belief)" annotations — they are parenthetical support, not the story
-- Do not use Gaia-specific terms: "noisy_and", "abduction", "factor", "BP", "NAND constraint", "information gain bits" in the prose
-- Do not describe the graph structure ("this claim is derived from two premises via...")
-- Do not list claims — tell a story that connects them
-
-The Mermaid graph and conclusions table already provide the technical Gaia view. The prose should complement them by telling the **scientific** story that the graph encodes.
-
-### Embedding Figures
-
-Search `graph.json` nodes for `metadata.figure` and `metadata.caption` fields. The `figure` value is the image path relative to the package root (e.g. `artifacts/images/fig1.jpg`). For each figure found:
-1. Embed it in the Reasoning Structure subsection where that claim's topic appears
-2. Use the caption from `metadata.caption`
-3. Add attribution referencing the bibliographic header
+**Example:**
 
 ```markdown
-![Fig. 4 | Dimensionless bare Coulomb pseudopotential as a function of r_s.](artifacts/images/8_0.jpg)
-*Adapted from Cai et al., arXiv:2512.19382v2.*
+### Tc(Al) = 0.96 K — 20% accuracy vs experiment (belief: 0.90)
+
+The ab initio prediction for aluminum overshoots the experimental
+1.2 K by 20%, a major improvement over the phenomenological 58% error.
+
+**Evidence support:**
+- **μ* from vDiagMC** (weakest link: UEG mapping, belief 0.41):
+  vDiagMC computes μ_EF at the UEG level → BTS renormalization →
+  μ* = 0.13. The mapping from UEG to real Al introduces ~5% uncertainty.
+- **λ from DFPT** (weakest link: vertex cancellation, belief 0.59):
+  Ward identity + vDiagMC Γ₃ → EFT ≈ DFPT → λ = 0.44. Relies on
+  z^e · Γ₃ ≈ 1 for simple metals.
+- **Experimental validation** (belief 0.93): The prediction matches
+  experiment within 20%, and the pressure dependence (Fig. 6) tracks
+  the Levy-Olsen data up to 6 GPa.
+
+![Fig. 6 | Tc vs pressure for aluminum](artifacts/images/14_0.jpg)
+*Adapted from Cai et al., arXiv:2512.19382.*
+
+> The 20% residual error likely reflects band structure effects beyond
+> the free-electron model — the UEG mapping is the limiting factor.
 ```
 
-If `metadata.caption` is absent, write a descriptive caption based on the claim content.
+**What NOT to do:**
+- Do not write a narrative essay — write per-conclusion assessments
+- Do not use Gaia jargon (noisy_and, abduction, factor, BP, NAND)
+- Do not describe graph structure — describe evidence strength
+- Do not lead with belief values — lead with the science
 
 ### Key Findings table (auto-generated, keep as-is)
 
 ### Weak Points (YOU WRITE)
 
-3-4 places where the paper's argument is weakest, written as a scientist would critique it:
-- What is the weakest link in the reasoning, and why?
-- What assumption is most likely to fail, and what would break?
-- Where does the paper extrapolate beyond its evidence?
-- What competing explanation has not been fully ruled out?
+**Focus: internal nodes with low belief — NOT the conclusions themselves** (those are covered in Reasoning Structure). Discuss intermediate claims and premises where the argument is structurally weak.
 
-Cite belief values parenthetically as quantitative support for your critique, e.g. "The cross-term suppression assumption is the most vulnerable foundation (belief drops from prior 0.90 to 0.69 under downstream constraints)." Do not frame weak points in terms of graph structure — frame them in terms of scientific reasoning.
+<details open>
+<summary>📊 Weak Points Analysis</summary>
+
+Write 3-5 weak points, each as a full paragraph:
+
+1. **Executive summary** (1 sentence): The single weakest internal link.
+
+2. **For each weak point** — an intermediate or hole claim with low belief:
+   - What the claim says and WHERE it sits in the reasoning chain
+   - WHY the belief is low — trace backwards to the root cause
+   - What downstream conclusions are affected (trace forward)
+   - What assumption is most vulnerable
+   - What specific evidence or experiment would resolve it
+
+3. **Structural patterns**: Are there bottleneck nodes that many conclusions depend on? Does uncertainty amplify through the chain?
+
+Cite belief values parenthetically. Frame as scientific critique, not graph analysis.
+
+</details>
 
 ### Evidence Gaps (YOU WRITE)
 
-2-3 places where additional evidence would help. Name specific missing evidence and which claims it would strengthen.
+<details>
+<summary>🔬 Evidence Gaps & Future Work</summary>
+
+Group by theme:
+
+**Experimental gaps:**
+- What measurements are missing or imprecise?
+- What experiments would most reduce uncertainty?
+
+**Computational gaps:**
+- What calculations are approximate that could be exact?
+- What parameters have the largest error bars?
+
+**Theoretical gaps:**
+- What derivations rely on uncontrolled approximations?
+- Where does the theory break down?
+
+For each gap, name which conclusions would improve if it were filled. Prioritize by impact.
+
+</details>
 
 ### Link to ANALYSIS.md
 
