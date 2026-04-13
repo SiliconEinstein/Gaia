@@ -32,7 +32,7 @@ _ROLE_TO_CSS = {
 }
 
 # Operators rendered with undirected (---) edges between variables
-_UNDIRECTED_OPERATORS = frozenset({"equivalence", "contradiction", "complement"})
+_UNDIRECTED_OPERATORS = frozenset({"equivalence", "contradiction", "complement", "implication"})
 
 _OPERATOR_SYMBOLS = {
     "contradiction": "\u2297",

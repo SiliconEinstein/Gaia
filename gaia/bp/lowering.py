@@ -18,6 +18,13 @@ from gaia.ir.strategy import (
     StrategyType,
 )
 
+# Deduction produces forward-only implication operators.  In the BN
+# interpretation these are CPT edges (A, H → B) where the antecedent A
+# should not receive backward messages from unobserved children — this
+# eliminates the fan-out penalty on the premise.  Support and compare
+# produce relation-type implications that remain undirected.
+_DIRECTED_DEDUCTION_TYPES = frozenset({StrategyType.DEDUCTION})
+
 # Operators whose conclusion is a "relation assertion" (the operator
 # DECLARES that the relation holds) — their helper claim should be
 # pinned to ``1 - CROMWELL_EPS`` (asserted true).  DISJUNCTION is
@@ -29,6 +36,7 @@ _RELATION_OPS = frozenset(
         OperatorType.EQUIVALENCE,
         OperatorType.CONTRADICTION,
         OperatorType.COMPLEMENT,
+        OperatorType.IMPLICATION,
     }
 )
 
@@ -100,10 +108,16 @@ def lower_local_graph(
     for k in canonical.knowledges:
         if k.type != KnowledgeType.CLAIM or not k.id:
             continue
+        # Priority: node_priors > metadata["prior"] > structural default
+        metadata_prior = (k.metadata or {}).get("prior") if k.metadata else None
         if k.id in relation_concl_ids and k.id not in priors:
             fg.add_variable(k.id, 1.0 - CROMWELL_EPS)
+        elif k.id in priors:
+            fg.add_variable(k.id, priors[k.id])
+        elif metadata_prior is not None:
+            fg.add_variable(k.id, float(metadata_prior))
         else:
-            fg.add_variable(k.id, priors.get(k.id, 0.5))
+            fg.add_variable(k.id, 0.5)
 
     strat_by_id = {s.strategy_id: s for s in canonical.strategies if s.strategy_id}
 
@@ -238,7 +252,10 @@ def _lower_strategy(
         for i, op in enumerate(s.formal_expr.operators):
             fid = _next_fid(f"fs_{s.strategy_id}_{i}", ctr)
             ft = _OPERATOR_MAP[op.operator]
-            fg.add_factor(fid, ft, op.variables, op.conclusion)
+            is_directed = (
+                s.type in _DIRECTED_DEDUCTION_TYPES and op.operator == OperatorType.IMPLICATION
+            )
+            fg.add_factor(fid, ft, op.variables, op.conclusion, directed=is_directed)
             for vid in op.variables:
                 _ensure_claim_var(fg, vid, priors, claim_ids)
             concl = op.conclusion
@@ -359,6 +376,12 @@ def _lower_strategy(
             metadata=s.metadata,
         )
         # Register generated intermediate and interface claims as variables.
+        # If a helper claim has an author-set prior (from self-review),
+        # inject it into the priors dict so lowering uses it instead of
+        # the structural default (1-eps for relation ops, 0.5 otherwise).
+        for k in result.knowledges:
+            if k.id and k.metadata and "prior" in k.metadata:
+                priors[k.id] = float(k.metadata["prior"])
         for k in result.knowledges:
             if k.id:
                 _ensure_claim_var(fg, k.id, priors, claim_ids)

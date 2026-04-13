@@ -864,21 +864,26 @@ def test_compile_rejects_duplicate_fills_relation(tmp_path, monkeypatch):
 
 
 def test_compile_named_strategy_uses_ir_canonical_formalization(tmp_path):
-    """Named strategies should be formalized through gaia.ir.formalize during compile."""
-    pkg_dir = tmp_path / "abduction_pkg"
+    """Named strategies should be formalized through gaia.ir.formalize during compile.
+
+    Uses deduction as the canonical named strategy example (abduction is now a
+    binary CompositeStrategy and no longer hits the _COMPILE_TIME_FORMAL_STRATEGIES
+    path directly).
+    """
+    pkg_dir = tmp_path / "deduction_pkg"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(
-        '[project]\nname = "abduction-pkg-gaia"\nversion = "0.2.0"\n\n'
+        '[project]\nname = "deduction-pkg-gaia"\nversion = "0.2.0"\n\n'
         '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
     )
-    pkg_src = pkg_dir / "abduction_pkg"
+    pkg_src = pkg_dir / "deduction_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import abduction, claim\n\n"
-        'observation = claim("Observation.")\n'
-        'hypothesis = claim("Hypothesis.")\n'
-        'best_explanation = abduction(observation=observation, hypothesis=hypothesis, reason="fit")\n'
-        '__all__ = ["observation", "hypothesis", "best_explanation"]\n'
+        "from gaia.lang import deduction, claim\n\n"
+        'law = claim("forall x. P(x)")\n'
+        'instance = claim("P(a)")\n'
+        'proof = deduction(premises=[law], conclusion=instance, reason="instantiate", prior=0.9)\n'
+        '__all__ = ["law", "instance", "proof"]\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -887,24 +892,10 @@ def test_compile_named_strategy_uses_ir_canonical_formalization(tmp_path):
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
     assert len(ir["strategies"]) == 1
     strategy = ir["strategies"][0]
-    assert strategy["type"] == "abduction"
-    assert strategy["metadata"]["reason"] == "fit"
+    assert strategy["type"] == "deduction"
+    assert strategy["metadata"]["reason"] == "instantiate"
     assert strategy["metadata"]["generated_formal_expr"] is True
-    assert strategy["metadata"]["formalization_template"] == "abduction"
-    assert "alternative_explanation" in strategy["metadata"]["interface_roles"]
-    assert len(strategy["premises"]) == 2
-    assert [op["operator"] for op in strategy["formal_expr"]["operators"]] == [
-        "disjunction",
-        "equivalence",
-    ]
-
-    interface_claims = [
-        knowledge
-        for knowledge in ir["knowledges"]
-        if knowledge.get("metadata", {}).get("generated_kind") == "interface_claim"
-    ]
-    assert len(interface_claims) == 1
-    assert "is_input" not in interface_claims[0]
+    assert strategy["metadata"]["formalization_template"] == "deduction"
 
 
 def test_compile_emits_pure_local_canonical_graph(tmp_path):
@@ -1000,19 +991,19 @@ def test_compile_composite_strategy_preserves_sub_strategy_references(tmp_path):
     pkg_src = pkg_dir / "composite_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import abduction, claim, composite, noisy_and\n\n"
-        'observation = claim("Observation.")\n'
-        'hypothesis = claim("Hypothesis.")\n'
+        "from gaia.lang import claim, composite, support\n\n"
+        'evidence = claim("Evidence.")\n'
+        'intermediate = claim("Intermediate.")\n'
         'final_claim = claim("Final claim.")\n'
-        "best_explanation = abduction(observation=observation, hypothesis=hypothesis)\n"
-        "support = noisy_and(premises=[hypothesis], conclusion=final_claim)\n"
+        "step1 = support(premises=[evidence], conclusion=intermediate)\n"
+        "step2 = support(premises=[intermediate], conclusion=final_claim)\n"
         "argument = composite(\n"
-        "    premises=[observation],\n"
+        "    premises=[evidence],\n"
         "    conclusion=final_claim,\n"
-        "    sub_strategies=[best_explanation, support],\n"
-        '    reason="Compose the abductive and support sub-arguments.",\n'
+        "    sub_strategies=[step1, step2],\n"
+        '    reason="Compose the two support sub-arguments.",\n'
         ")\n"
-        '__all__ = ["observation", "hypothesis", "final_claim", "best_explanation", "support", "argument"]\n'
+        '__all__ = ["evidence", "intermediate", "final_claim", "step1", "step2", "argument"]\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -1024,7 +1015,7 @@ def test_compile_composite_strategy_preserves_sub_strategy_references(tmp_path):
         strategy for strategy in ir["strategies"] if strategy.get("sub_strategies") is not None
     )
     assert composite_strategy["type"] == "infer"
-    assert composite_strategy["premises"] == ["github:composite_pkg::observation"]
+    assert composite_strategy["premises"] == ["github:composite_pkg::evidence"]
     assert composite_strategy["conclusion"] == "github:composite_pkg::final_claim"
     assert len(composite_strategy["sub_strategies"]) == 2
     for child_id in composite_strategy["sub_strategies"]:
@@ -1044,25 +1035,25 @@ def test_compile_nested_composite_strategy_collects_recursive_knowledge(tmp_path
     pkg_src = pkg_dir / "nested_composite_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import abduction, claim, composite, noisy_and\n\n"
-        'observation = claim("Observation.")\n'
+        "from gaia.lang import claim, composite, support\n\n"
+        'evidence = claim("Evidence.")\n'
         'hypothesis = claim("Hypothesis.")\n'
         'intermediate = claim("Intermediate.")\n'
         'final_claim = claim("Final claim.")\n'
-        "best_explanation = abduction(observation=observation, hypothesis=hypothesis)\n"
-        "support = noisy_and(premises=[hypothesis], conclusion=intermediate)\n"
+        "step1 = support(premises=[evidence], conclusion=hypothesis)\n"
+        "step2 = support(premises=[hypothesis], conclusion=intermediate)\n"
         "inner = composite(\n"
-        "    premises=[observation],\n"
+        "    premises=[evidence],\n"
         "    conclusion=intermediate,\n"
-        "    sub_strategies=[best_explanation, support],\n"
+        "    sub_strategies=[step1, step2],\n"
         ")\n"
-        "final_support = noisy_and(premises=[intermediate], conclusion=final_claim)\n"
+        "final_support = support(premises=[intermediate], conclusion=final_claim)\n"
         "argument = composite(\n"
-        "    premises=[observation],\n"
+        "    premises=[evidence],\n"
         "    conclusion=final_claim,\n"
         "    sub_strategies=[inner, final_support],\n"
         ")\n"
-        '__all__ = ["observation", "hypothesis", "intermediate", "final_claim", "best_explanation", "support", "inner", "final_support", "argument"]\n'
+        '__all__ = ["evidence", "hypothesis", "intermediate", "final_claim", "step1", "step2", "inner", "final_support", "argument"]\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -1073,3 +1064,158 @@ def test_compile_nested_composite_strategy_collects_recursive_knowledge(tmp_path
     assert "github:nested_composite_pkg::hypothesis" in knowledge_ids
     result = validate_local_graph(LocalCanonicalGraph(**ir))
     assert result.valid, result.errors
+
+
+# ── priors.py discovery and injection ──
+
+
+def test_compile_priors_py_injects_metadata_prior(tmp_path):
+    """priors.py PRIORS dict injects prior+justification into claim metadata."""
+    pkg_dir = tmp_path / "priors_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "priors-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "priors_pkg"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import claim, support\n\n"
+        'premise_a = claim("Premise A.")\n'
+        'premise_b = claim("Premise B.")\n'
+        'conclusion = claim("Conclusion.")\n'
+        'support(premises=[premise_a, premise_b], conclusion=conclusion, reason="test", prior=0.9)\n'
+        '__all__ = ["premise_a", "premise_b", "conclusion"]\n'
+    )
+    (pkg_src / "priors.py").write_text(
+        "from . import premise_a, premise_b\n\n"
+        "PRIORS = {\n"
+        '    premise_a: (0.95, "Well-established premise A."),\n'
+        '    premise_b: (0.80, "Moderate confidence in B."),\n'
+        "}\n"
+    )
+
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code == 0, f"Failed: {result.output}"
+
+    ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
+    knowledges_by_label = {k["label"]: k for k in ir["knowledges"] if k.get("label")}
+
+    # premise_a should have prior=0.95 in metadata
+    a_meta = knowledges_by_label["premise_a"].get("metadata", {})
+    assert a_meta.get("prior") == 0.95
+    assert a_meta.get("prior_justification") == "Well-established premise A."
+
+    # premise_b should have prior=0.80 in metadata
+    b_meta = knowledges_by_label["premise_b"].get("metadata", {})
+    assert b_meta.get("prior") == 0.80
+    assert b_meta.get("prior_justification") == "Moderate confidence in B."
+
+    # conclusion should NOT have a prior in metadata (it's derived, not in PRIORS)
+    c_meta = knowledges_by_label["conclusion"].get("metadata") or {}
+    assert "prior" not in c_meta
+
+
+def test_compile_no_priors_py_is_noop(tmp_path):
+    """Packages without priors.py compile normally — no error."""
+    pkg_dir = tmp_path / "no_priors_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "no-priors-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "no_priors_pkg"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        'from gaia.lang import claim\n\nmy_claim = claim("A claim.")\n__all__ = ["my_claim"]\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code == 0, f"Failed: {result.output}"
+
+
+def test_compile_priors_py_invalid_key_raises(tmp_path):
+    """PRIORS dict with non-Knowledge key should error."""
+    pkg_dir = tmp_path / "bad_priors_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "bad-priors-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "bad_priors_pkg"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        'from gaia.lang import claim\n\nmy_claim = claim("A claim.")\n__all__ = ["my_claim"]\n'
+    )
+    (pkg_src / "priors.py").write_text('PRIORS = {\n    "not_a_knowledge": (0.5, "invalid"),\n}\n')
+
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code != 0
+    assert "Knowledge" in result.output or "PRIORS" in result.output
+
+
+def test_compile_priors_py_new_knowledge_raises(tmp_path):
+    """priors.py may only annotate Knowledge objects already declared by the package."""
+    pkg_dir = tmp_path / "prior_ghost_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "prior-ghost-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "prior_ghost_pkg"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        'from gaia.lang import claim\n\nmain_claim = claim("Main claim.")\n__all__ = ["main_claim"]\n'
+    )
+    (pkg_src / "priors.py").write_text(
+        "from gaia.lang import claim\n\n"
+        'ghost = claim("Ghost prior-only claim.")\n'
+        'PRIORS = {ghost: (0.9, "Accidental new claim.")}\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code != 0
+    assert "must not declare new Knowledge" in result.output
+
+
+def test_compile_priors_py_out_of_range_prior_raises(tmp_path):
+    pkg_dir = tmp_path / "bad_prior_value_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "bad-prior-value-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "bad_prior_value_pkg"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        'from gaia.lang import claim\n\nmain_claim = claim("Main claim.")\n__all__ = ["main_claim"]\n'
+    )
+    (pkg_src / "priors.py").write_text(
+        'from . import main_claim\n\nPRIORS = {main_claim: (2.5, "Invalid probability.")}\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code != 0
+    assert "Cromwell bounds" in result.output
+
+
+def test_compile_priors_py_reason_prior_pairing(tmp_path):
+    """PRIORS values must be (float, str) tuples."""
+    pkg_dir = tmp_path / "malformed_priors_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "malformed-priors-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "malformed_priors_pkg"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        'from gaia.lang import claim\n\nmy_claim = claim("A claim.")\n__all__ = ["my_claim"]\n'
+    )
+    (pkg_src / "priors.py").write_text(
+        "from . import my_claim\n\nPRIORS = {\n    my_claim: 0.5,  # missing justification\n}\n"
+    )
+
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code != 0
+    assert "tuple" in result.output.lower() or "justification" in result.output.lower()

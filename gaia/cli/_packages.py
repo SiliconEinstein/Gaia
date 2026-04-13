@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import json
+import math
 import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass
@@ -19,6 +20,7 @@ from gaia.lang.runtime import Knowledge, Strategy
 from gaia.lang.runtime.package import CollectedPackage
 from gaia.lang.runtime.package import pyproject_for_module
 from gaia.lang.runtime.package import get_inferred_package, reset_inferred_package
+from gaia.ir.parameterization import CROMWELL_EPS
 from packaging.requirements import InvalidRequirement, Requirement
 
 try:
@@ -190,6 +192,94 @@ def compile_loaded_package_artifact(loaded: LoadedGaiaPackage):
         return compile_package_artifact(loaded.package, references=references)
     except ReferenceError as e:
         raise GaiaCliError(str(e)) from e
+
+
+def _knowledge_display_name(knowledge: Knowledge) -> str:
+    return knowledge.label or knowledge.content or repr(knowledge)
+
+
+def _validate_prior_value(value: Any, *, label: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise GaiaCliError(
+            f"Error: PRIORS[{label!r}] prior must be a number, got {type(value).__name__}."
+        )
+    prior = float(value)
+    if not math.isfinite(prior):
+        raise GaiaCliError(f"Error: PRIORS[{label!r}] prior must be finite, got {prior!r}.")
+    if prior < CROMWELL_EPS or prior > 1 - CROMWELL_EPS:
+        raise GaiaCliError(
+            f"Error: PRIORS[{label!r}] prior {prior} outside Cromwell bounds "
+            f"[{CROMWELL_EPS}, {1 - CROMWELL_EPS}]."
+        )
+    return prior
+
+
+def apply_package_priors(loaded: LoadedGaiaPackage) -> None:
+    """Discover priors.py and inject prior+justification into Knowledge metadata.
+
+    The priors.py module must export a ``PRIORS`` dict mapping Knowledge objects
+    to ``(prior_value, justification_string)`` tuples.  Each entry is injected
+    into the Knowledge object's ``.metadata`` dict as ``prior`` and
+    ``prior_justification`` before compilation, so lowering can read them from
+    ``metadata["prior"]``.
+
+    No-op when the package has no ``priors.py``.
+    """
+    priors_module_name = f"{loaded.import_name}.priors"
+    priors_path = loaded.source_root / loaded.import_name / "priors.py"
+    if not priors_path.exists():
+        return
+
+    existing_knowledge_ids = {id(k) for k in loaded.package.knowledge}
+
+    try:
+        module = _import_fresh(priors_module_name)
+    except Exception as exc:
+        raise GaiaCliError(f"Error importing priors.py: {exc}") from exc
+
+    new_knowledge = [k for k in loaded.package.knowledge if id(k) not in existing_knowledge_ids]
+    if new_knowledge:
+        names = ", ".join(_knowledge_display_name(k) for k in new_knowledge[:5])
+        suffix = " ..." if len(new_knowledge) > 5 else ""
+        raise GaiaCliError(
+            "Error: priors.py must not declare new Knowledge objects; it may only "
+            "reference claims/settings/questions already declared by the package. "
+            f"New declarations: {names}{suffix}."
+        )
+
+    priors_dict = getattr(module, "PRIORS", None)
+    if priors_dict is None:
+        raise GaiaCliError(
+            "Error: priors.py must export PRIORS = {Knowledge: (prior, justification), ...}."
+        )
+    if not isinstance(priors_dict, dict):
+        raise GaiaCliError("Error: priors.py PRIORS must be a dict.")
+
+    for key, value in priors_dict.items():
+        if not isinstance(key, Knowledge):
+            raise GaiaCliError(
+                f"Error: PRIORS key {key!r} is not a Knowledge object. "
+                "Keys must be claim/setting/question objects from the package."
+            )
+        if id(key) not in existing_knowledge_ids:
+            raise GaiaCliError(
+                f"Error: PRIORS key {_knowledge_display_name(key)!r} is not an "
+                "already-declared Knowledge object from this package."
+            )
+        if not isinstance(value, tuple) or len(value) != 2:
+            raise GaiaCliError(
+                f"Error: PRIORS[{key.label or key.content!r}] must be a (prior, justification) tuple, "
+                f"got {type(value).__name__}."
+            )
+        prior_val, justification = value
+        prior = _validate_prior_value(prior_val, label=_knowledge_display_name(key))
+        if not isinstance(justification, str):
+            raise GaiaCliError(
+                f"Error: PRIORS[{key.label or key.content!r}] justification must be a string, "
+                f"got {type(justification).__name__}."
+            )
+        key.metadata["prior"] = prior
+        key.metadata["prior_justification"] = justification
 
 
 def _manifest_package_name(loaded: LoadedGaiaPackage) -> str:

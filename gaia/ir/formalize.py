@@ -28,6 +28,7 @@ _HELPER_KIND_BY_OPERATOR = {
     "equivalence": "equivalence_result",
     "contradiction": "contradiction_result",
     "complement": "complement_result",
+    "implication": "implication_result",
 }
 
 
@@ -95,6 +96,7 @@ class _TemplateBuilder:
         *,
         namespace: str | None = None,
         package_name: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         self.scope = scope
         self.strategy_type = strategy_type
@@ -102,6 +104,7 @@ class _TemplateBuilder:
         self.conclusion = conclusion
         self.namespace = namespace
         self.package_name = package_name
+        self.metadata = metadata
         self.knowledges: list[Knowledge] = []
         self._role_counters: dict[str, int] = defaultdict(int)
         self.interface_roles: dict[str, list[str]] = defaultdict(list)
@@ -218,22 +221,47 @@ def _opposite_truth_name(left: str, right: str) -> str:
     return f"opposite_truth({left},{right})"
 
 
+def _implies_name(antecedent: str, consequent: str) -> str:
+    return f"implies({antecedent},{consequent})"
+
+
+def _propagate_prior(builder: _TemplateBuilder, helper: Knowledge, key: str = "prior") -> None:
+    """Copy author-set prior from strategy metadata to the helper claim's metadata."""
+    author_prior = (builder.metadata or {}).get(key)
+    if author_prior is not None:
+        helper.metadata = dict(helper.metadata or {})
+        helper.metadata["prior"] = author_prior
+
+
 def _build_deduction(builder: _TemplateBuilder) -> list[Operator]:
     if len(builder.premises) < 1:
         raise ValueError("deduction formalization requires at least 1 premise")
     if len(builder.premises) == 1:
-        # Single premise: direct implication, no conjunction needed
+        # Single premise: direct implication with helper claim
+        antecedent = builder.premises[0]
+        impl_helper = builder.add_helper(
+            "implication", _implies_name(antecedent, builder.conclusion)
+        )
+        _propagate_prior(builder, impl_helper)
         return [
             Operator(
                 operator="implication",
-                variables=[builder.premises[0]],
-                conclusion=builder.conclusion,
+                variables=[antecedent, builder.conclusion],
+                conclusion=impl_helper.id,
             ),
         ]
     conjunction = builder.add_helper("conjunction", _all_true_name(builder.premises))
+    impl_helper = builder.add_helper(
+        "implication", _implies_name(conjunction.id, builder.conclusion)
+    )
+    _propagate_prior(builder, impl_helper)
     return [
         Operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
-        Operator(operator="implication", variables=[conjunction.id], conclusion=builder.conclusion),
+        Operator(
+            operator="implication",
+            variables=[conjunction.id, builder.conclusion],
+            conclusion=impl_helper.id,
+        ),
     ]
 
 
@@ -241,9 +269,16 @@ def _build_mathematical_induction(builder: _TemplateBuilder) -> list[Operator]:
     if len(builder.premises) != 2:
         raise ValueError("mathematical_induction formalization requires exactly 2 premises")
     conjunction = builder.add_helper("conjunction", _all_true_name(builder.premises))
+    impl_helper = builder.add_helper(
+        "implication", _implies_name(conjunction.id, builder.conclusion)
+    )
     return [
         Operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
-        Operator(operator="implication", variables=[conjunction.id], conclusion=builder.conclusion),
+        Operator(
+            operator="implication",
+            variables=[conjunction.id, builder.conclusion],
+            conclusion=impl_helper.id,
+        ),
     ]
 
 
@@ -301,6 +336,9 @@ def _build_elimination(builder: _TemplateBuilder) -> list[Operator]:
         elimination_gate_inputs.extend([evidence, contradiction.id])
 
     conjunction = builder.add_helper("conjunction", _all_true_name(elimination_gate_inputs))
+    impl_helper = builder.add_helper(
+        "implication", _implies_name(conjunction.id, builder.conclusion)
+    )
     operators.append(
         Operator(
             operator="conjunction",
@@ -309,7 +347,11 @@ def _build_elimination(builder: _TemplateBuilder) -> list[Operator]:
         )
     )
     operators.append(
-        Operator(operator="implication", variables=[conjunction.id], conclusion=builder.conclusion)
+        Operator(
+            operator="implication",
+            variables=[conjunction.id, builder.conclusion],
+            conclusion=impl_helper.id,
+        )
     )
     return operators
 
@@ -352,6 +394,10 @@ def _build_case_analysis(builder: _TemplateBuilder) -> list[Operator]:
             "conjunction",
             _all_true_name([case_claim, support]),
         )
+        impl_helper = builder.add_helper(
+            "implication",
+            _implies_name(conjunction.id, builder.conclusion),
+        )
         operators.append(
             Operator(
                 operator="conjunction",
@@ -362,8 +408,8 @@ def _build_case_analysis(builder: _TemplateBuilder) -> list[Operator]:
         operators.append(
             Operator(
                 operator="implication",
-                variables=[conjunction.id],
-                conclusion=builder.conclusion,
+                variables=[conjunction.id, builder.conclusion],
+                conclusion=impl_helper.id,
             )
         )
     return operators
@@ -417,9 +463,16 @@ def _build_analogy(builder: _TemplateBuilder) -> list[Operator]:
     if len(builder.premises) != 2:
         raise ValueError("analogy formalization requires exactly 2 premises")
     conjunction = builder.add_helper("conjunction", _all_true_name(builder.premises))
+    impl_helper = builder.add_helper(
+        "implication", _implies_name(conjunction.id, builder.conclusion)
+    )
     return [
         Operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
-        Operator(operator="implication", variables=[conjunction.id], conclusion=builder.conclusion),
+        Operator(
+            operator="implication",
+            variables=[conjunction.id, builder.conclusion],
+            conclusion=impl_helper.id,
+        ),
     ]
 
 
@@ -427,9 +480,90 @@ def _build_extrapolation(builder: _TemplateBuilder) -> list[Operator]:
     if len(builder.premises) != 2:
         raise ValueError("extrapolation formalization requires exactly 2 premises")
     conjunction = builder.add_helper("conjunction", _all_true_name(builder.premises))
+    impl_helper = builder.add_helper(
+        "implication", _implies_name(conjunction.id, builder.conclusion)
+    )
     return [
         Operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
-        Operator(operator="implication", variables=[conjunction.id], conclusion=builder.conclusion),
+        Operator(
+            operator="implication",
+            variables=[conjunction.id, builder.conclusion],
+            conclusion=impl_helper.id,
+        ),
+    ]
+
+
+def _build_support(builder: _TemplateBuilder) -> list[Operator]:
+    """Support: forward IMPLIES + reverse IMPLIES."""
+    if len(builder.premises) == 1:
+        antecedent = builder.premises[0]
+        ops: list[Operator] = []
+    else:
+        conj = builder.add_helper("conjunction", _all_true_name(builder.premises))
+        antecedent = conj.id
+        ops = [
+            Operator(
+                operator="conjunction",
+                variables=builder.premises,
+                conclusion=conj.id,
+            )
+        ]
+
+    h_fwd = builder.add_helper("implication", _implies_name(antecedent, builder.conclusion))
+    h_rev = builder.add_helper("implication", _implies_name(builder.conclusion, antecedent))
+    _propagate_prior(builder, h_fwd, key="prior")
+    _propagate_prior(builder, h_rev, key="reverse_prior")
+
+    ops.extend(
+        [
+            Operator(
+                operator="implication",
+                variables=[antecedent, builder.conclusion],
+                conclusion=h_fwd.id,
+            ),
+            Operator(
+                operator="implication",
+                variables=[builder.conclusion, antecedent],
+                conclusion=h_rev.id,
+            ),
+        ]
+    )
+    return ops
+
+
+def _matches_name(left: str, right: str) -> str:
+    return f"matches({left},{right})"
+
+
+def _build_compare(builder: _TemplateBuilder) -> list[Operator]:
+    """Compare: 2 equivalences + 1 implication."""
+    if len(builder.premises) != 3:
+        raise ValueError(
+            "compare formalization requires exactly 3 premises: [pred_h, pred_alt, observation]"
+        )
+    pred_h, pred_alt, observation = (
+        builder.premises[0],
+        builder.premises[1],
+        builder.premises[2],
+    )
+    h_match1 = builder.add_helper("equivalence", _matches_name(pred_h, observation))
+    h_match2 = builder.add_helper("equivalence", _matches_name(pred_alt, observation))
+    return [
+        Operator(
+            operator="equivalence",
+            variables=[pred_h, observation],
+            conclusion=h_match1.id,
+        ),
+        Operator(
+            operator="equivalence",
+            variables=[pred_alt, observation],
+            conclusion=h_match2.id,
+        ),
+        Operator(
+            operator="implication",
+            variables=[h_match2.id, h_match1.id],
+            conclusion=builder.conclusion,
+        ),
     ]
 
 
@@ -441,6 +575,8 @@ _BUILDERS = {
     StrategyType.ABDUCTION: _build_abduction,
     StrategyType.ANALOGY: _build_analogy,
     StrategyType.EXTRAPOLATION: _build_extrapolation,
+    StrategyType.SUPPORT: _build_support,
+    StrategyType.COMPARE: _build_compare,
 }
 
 
@@ -486,6 +622,7 @@ def formalize_named_strategy(
         conclusion=conclusion,
         namespace=namespace,
         package_name=package_name,
+        metadata=metadata,
     )
     if strategy_type == StrategyType.CASE_ANALYSIS and (metadata or {}).get(
         "include_other_relevant_case"

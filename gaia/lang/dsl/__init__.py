@@ -4,6 +4,7 @@ from gaia.lang.dsl.strategies import (
     abduction,
     analogy,
     case_analysis,
+    compare,
     composite,
     deduction,
     elimination,
@@ -13,6 +14,7 @@ from gaia.lang.dsl.strategies import (
     infer,
     mathematical_induction,
     noisy_and,
+    support,
 )
 
 __all__ = [
@@ -20,6 +22,7 @@ __all__ = [
     "analogy",
     "case_analysis",
     "claim",
+    "compare",
     "composite",
     "complement",
     "contradiction",
@@ -35,4 +38,5 @@ __all__ = [
     "noisy_and",
     "question",
     "setting",
+    "support",
 ]

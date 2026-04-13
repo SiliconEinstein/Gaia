@@ -23,39 +23,33 @@ def _write_base_package(pkg_dir, *, name: str, version: str = "1.0.0") -> None:
 
 def _write_minimal_source(pkg_dir, name: str) -> None:
     (pkg_dir / name / "__init__.py").write_text(
-        "from gaia.lang import claim, noisy_and\n\n"
+        "from gaia.lang import claim, deduction\n\n"
         'evidence_a = claim("Observed evidence A.")\n'
         'evidence_b = claim("Observed evidence B.")\n'
         'hypothesis = claim("Main hypothesis.")\n'
-        "support = noisy_and(premises=[evidence_a, evidence_b], conclusion=hypothesis)\n"
-        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "support"]\n'
+        "s = deduction(premises=[evidence_a, evidence_b], conclusion=hypothesis,"
+        " reason='test', prior=0.9)\n"
+        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "s"]\n'
     )
 
 
-def _write_review(pkg_dir, package_name: str, review_name: str) -> None:
-    reviews_dir = pkg_dir / package_name / "reviews"
-    reviews_dir.mkdir(exist_ok=True)
-    (reviews_dir / f"{review_name}.py").write_text(
-        "from gaia.review import ReviewBundle, review_claim, review_strategy\n"
-        "from .. import evidence_a, evidence_b, hypothesis, support\n\n"
-        "REVIEW = ReviewBundle(\n"
-        f'    source_id="{review_name}",\n'
-        "    objects=[\n"
-        '        review_claim(evidence_a, prior=0.9, judgment="strong", justification="Direct observation."),\n'
-        '        review_claim(evidence_b, prior=0.8, judgment="supporting", justification="A second reinforcing observation."),\n'
-        '        review_claim(hypothesis, prior=0.4, judgment="tentative", justification="Base rate before support."),\n'
-        '        review_strategy(support, conditional_probability=0.85, judgment="good", justification="The evidence usually supports the hypothesis."),\n'
-        "    ],\n"
-        ")\n"
+def _write_priors(pkg_dir, name: str) -> None:
+    (pkg_dir / name / "priors.py").write_text(
+        "from . import evidence_a, evidence_b, hypothesis\n\n"
+        "PRIORS = {\n"
+        '    evidence_a: (0.9, "Direct observation."),\n'
+        '    evidence_b: (0.8, "Supporting observation."),\n'
+        '    hypothesis: (0.4, "Base rate."),\n'
+        "}\n"
     )
 
 
 def _prepare_inferred_package(tmp_path, name: str = "render_demo"):
-    """Create a package, write a review, compile and infer it. Returns pkg_dir."""
+    """Create a package with priors.py, compile and infer it. Returns pkg_dir."""
     pkg_dir = tmp_path / name
     _write_base_package(pkg_dir, name=name)
     _write_minimal_source(pkg_dir, name)
-    _write_review(pkg_dir, name, "self_review")
+    _write_priors(pkg_dir, name)
 
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
@@ -83,12 +77,22 @@ def test_render_target_all_writes_docs_and_github(tmp_path):
     assert (github_dir / "README.md").exists()
 
 
+def test_render_uses_metadata_priors_from_priors_py(tmp_path):
+    pkg_dir = _prepare_inferred_package(tmp_path, name="metadata_prior_render")
+
+    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
+    assert result.exit_code == 0, result.output
+
+    content = (pkg_dir / "docs" / "detailed-reasoning.md").read_text()
+    assert "Prior: 0.90" in content
+    assert "| [evidence_b](#evidence_b) | claim | 0.80 |" in content
+
+
 def test_render_fails_when_ir_artifacts_missing(tmp_path):
     """render before compile → error about missing compiled artifacts."""
     pkg_dir = tmp_path / "no_compile"
     _write_base_package(pkg_dir, name="no_compile")
     _write_minimal_source(pkg_dir, "no_compile")
-    _write_review(pkg_dir, "no_compile", "self_review")
 
     result = runner.invoke(app, ["render", str(pkg_dir)])
     assert result.exit_code != 0
@@ -101,12 +105,13 @@ def test_render_fails_when_ir_stale(tmp_path):
 
     # Mutate source so re-compile yields a different ir_hash
     (pkg_dir / "stale_ir" / "__init__.py").write_text(
-        "from gaia.lang import claim, noisy_and\n\n"
+        "from gaia.lang import claim, deduction\n\n"
         'evidence_a = claim("Observed evidence A (edited).")\n'
         'evidence_b = claim("Observed evidence B.")\n'
         'hypothesis = claim("Main hypothesis.")\n'
-        "support = noisy_and(premises=[evidence_a, evidence_b], conclusion=hypothesis)\n"
-        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "support"]\n'
+        "s = deduction(premises=[evidence_a, evidence_b], conclusion=hypothesis,"
+        " reason='test', prior=0.9)\n"
+        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "s"]\n'
     )
 
     result = runner.invoke(app, ["render", str(pkg_dir)])
@@ -114,54 +119,11 @@ def test_render_fails_when_ir_stale(tmp_path):
     assert "stale" in result.output.lower()
 
 
-def test_render_target_github_fails_when_no_review_sidecar(tmp_path):
-    """--target github hard-errors when no review.py / reviews/*.py exists."""
-    pkg_dir = tmp_path / "no_review_gh"
-    _write_base_package(pkg_dir, name="no_review_gh")
-    _write_minimal_source(pkg_dir, "no_review_gh")
-
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
-
-    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "github"])
-    assert result.exit_code != 0
-    assert "review" in result.output.lower() or "inference" in result.output.lower()
-
-
-def test_render_target_docs_succeeds_without_review_sidecar(tmp_path):
-    """--target docs renders from compiled IR alone when no review sidecar exists."""
-    pkg_dir = tmp_path / "no_review_docs"
-    _write_base_package(pkg_dir, name="no_review_docs")
-    _write_minimal_source(pkg_dir, "no_review_docs")
-
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
-
-    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
-    assert result.exit_code == 0, result.output
-    assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
-    assert "warning" in result.output.lower()
-
-
-def test_render_target_all_degrades_to_docs_without_review_sidecar(tmp_path):
-    """--target all falls back to docs-only with a warning when no review sidecar."""
-    pkg_dir = tmp_path / "no_review_all"
-    _write_base_package(pkg_dir, name="no_review_all")
-    _write_minimal_source(pkg_dir, "no_review_all")
-
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
-
-    result = runner.invoke(app, ["render", str(pkg_dir)])
-    assert result.exit_code == 0, result.output
-    assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
-    assert not (pkg_dir / ".github-output").exists()
-    assert "skipping" in result.output.lower()
-
-
-def test_render_target_github_fails_when_beliefs_missing(tmp_path):
-    """--target github hard-errors when review exists but infer has not been run."""
+def test_render_target_github_fails_when_no_beliefs(tmp_path):
+    """--target github hard-errors when infer has not been run."""
     pkg_dir = tmp_path / "no_infer_gh"
     _write_base_package(pkg_dir, name="no_infer_gh")
     _write_minimal_source(pkg_dir, "no_infer_gh")
-    _write_review(pkg_dir, "no_infer_gh", "self_review")
 
     assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
 
@@ -170,12 +132,11 @@ def test_render_target_github_fails_when_beliefs_missing(tmp_path):
     assert "inference" in result.output.lower() or "gaia infer" in result.output
 
 
-def test_render_target_docs_warns_when_beliefs_missing(tmp_path):
-    """--target docs renders docs with a warning when review exists but beliefs don't."""
+def test_render_target_docs_succeeds_without_beliefs(tmp_path):
+    """--target docs renders from compiled IR alone when infer hasn't been run."""
     pkg_dir = tmp_path / "no_infer_docs"
     _write_base_package(pkg_dir, name="no_infer_docs")
     _write_minimal_source(pkg_dir, "no_infer_docs")
-    _write_review(pkg_dir, "no_infer_docs", "self_review")
 
     assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
 
@@ -185,12 +146,11 @@ def test_render_target_docs_warns_when_beliefs_missing(tmp_path):
     assert "warning" in result.output.lower()
 
 
-def test_render_target_all_degrades_when_beliefs_missing(tmp_path):
-    """--target all renders docs and skips github with a warning when beliefs missing."""
+def test_render_target_all_degrades_to_docs_without_beliefs(tmp_path):
+    """--target all falls back to docs-only with a warning when infer hasn't been run."""
     pkg_dir = tmp_path / "no_infer_all"
     _write_base_package(pkg_dir, name="no_infer_all")
     _write_minimal_source(pkg_dir, "no_infer_all")
-    _write_review(pkg_dir, "no_infer_all", "self_review")
 
     assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
 
@@ -204,7 +164,7 @@ def test_render_target_all_degrades_when_beliefs_missing(tmp_path):
 def test_render_fails_when_beliefs_stale(tmp_path):
     """render when beliefs.json has a wrong ir_hash → stale beliefs error."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="stale_beliefs")
-    beliefs_path = pkg_dir / ".gaia" / "reviews" / "self_review" / "beliefs.json"
+    beliefs_path = pkg_dir / ".gaia" / "beliefs.json"
     beliefs = json.loads(beliefs_path.read_text())
     beliefs["ir_hash"] = "not-the-real-hash"
     beliefs_path.write_text(json.dumps(beliefs))
@@ -213,173 +173,6 @@ def test_render_fails_when_beliefs_stale(tmp_path):
     assert result.exit_code != 0
     assert "stale" in result.output.lower()
     assert "beliefs" in result.output.lower()
-
-
-def test_render_fails_when_parameterization_stale(tmp_path):
-    """render when parameterization.json has a wrong ir_hash → stale param error.
-
-    beliefs.json is kept fresh to prove the parameterization check is
-    independent: without it, a stale parameterization.json would silently
-    feed old priors into the rendered output.
-    """
-    pkg_dir = _prepare_inferred_package(tmp_path, name="stale_param")
-    param_path = pkg_dir / ".gaia" / "reviews" / "self_review" / "parameterization.json"
-    param = json.loads(param_path.read_text())
-    param["ir_hash"] = "not-the-real-hash"
-    param_path.write_text(json.dumps(param))
-
-    result = runner.invoke(app, ["render", str(pkg_dir)])
-    assert result.exit_code != 0
-    assert "stale" in result.output.lower()
-    assert "parameterization" in result.output.lower()
-
-
-def test_render_target_github_fails_when_parameterization_missing(tmp_path):
-    """Regression for #398: --target github with beliefs but missing
-    parameterization.json must error instead of silently using 0.5 defaults."""
-    pkg_dir = _prepare_inferred_package(tmp_path, name="missing_param")
-    param_path = pkg_dir / ".gaia" / "reviews" / "self_review" / "parameterization.json"
-    param_path.unlink()  # delete parameterization but keep beliefs
-
-    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "github"])
-    assert result.exit_code != 0, (
-        f"Expected error when parameterization.json is missing but beliefs.json "
-        f"is present. Without it, github output would show default 0.5 priors. "
-        f"Got: {result.output}"
-    )
-    assert "parameterization" in result.output.lower()
-
-
-def test_render_target_all_degrades_when_parameterization_missing(tmp_path):
-    """--target all with beliefs but missing parameterization → skip github, render docs."""
-    pkg_dir = _prepare_inferred_package(tmp_path, name="missing_param_all")
-    param_path = pkg_dir / ".gaia" / "reviews" / "self_review" / "parameterization.json"
-    param_path.unlink()
-
-    result = runner.invoke(app, ["render", str(pkg_dir)])
-    assert result.exit_code == 0, result.output
-    assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
-    assert "parameterization" in result.output.lower()
-    assert "skipping" in result.output.lower()
-
-
-def _write_second_review(pkg_dir, package_name: str, review_name: str) -> None:
-    reviews_dir = pkg_dir / package_name / "reviews"
-    (reviews_dir / f"{review_name}.py").write_text(
-        "from gaia.review import ReviewBundle, review_claim, review_strategy\n"
-        "from .. import evidence_a, evidence_b, hypothesis, support\n\n"
-        "REVIEW = ReviewBundle(\n"
-        f'    source_id="{review_name}",\n'
-        "    objects=[\n"
-        '        review_claim(evidence_a, prior=0.5, judgment="tentative", justification="Alt."),\n'
-        '        review_claim(evidence_b, prior=0.5, judgment="tentative", justification="Alt."),\n'
-        '        review_claim(hypothesis, prior=0.5, judgment="tentative", justification="Alt."),\n'
-        '        review_strategy(support, conditional_probability=0.5, judgment="weak", justification="Alt."),\n'
-        "    ],\n"
-        ")\n"
-    )
-
-
-def test_render_target_all_degrades_when_multiple_reviews(tmp_path):
-    """Two review sidecars + no --review + default target → docs rendered, github skipped.
-
-    Accumulating an alternate/experimental review sidecar must not block the
-    IR-only authoring workflow. Docs should still render from the compiled IR,
-    with warnings pointing the user at `--review <name>` to unlock github.
-    """
-    pkg_dir = _prepare_inferred_package(tmp_path, name="multi_review_all")
-    _write_second_review(pkg_dir, "multi_review_all", "alt_review")
-    alt_infer = runner.invoke(app, ["infer", str(pkg_dir), "--review", "alt_review"])
-    assert alt_infer.exit_code == 0, alt_infer.output
-
-    result = runner.invoke(app, ["render", str(pkg_dir)])
-    assert result.exit_code == 0, result.output
-    assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
-    assert not (pkg_dir / ".github-output").exists()
-    assert "multiple review sidecars" in result.output
-    assert "--review <name>" in result.output
-
-
-def test_render_target_docs_degrades_when_multiple_reviews(tmp_path):
-    """Explicit --target docs + multiple reviews + no --review → warn and render."""
-    pkg_dir = _prepare_inferred_package(tmp_path, name="multi_review_docs")
-    _write_second_review(pkg_dir, "multi_review_docs", "alt_review")
-    alt_infer = runner.invoke(app, ["infer", str(pkg_dir), "--review", "alt_review"])
-    assert alt_infer.exit_code == 0, alt_infer.output
-
-    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
-    assert result.exit_code == 0, result.output
-    assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
-    assert "multiple review sidecars" in result.output
-
-
-def test_render_target_github_fails_when_multiple_reviews(tmp_path):
-    """Explicit --target github + multiple reviews + no --review → hard error."""
-    pkg_dir = _prepare_inferred_package(tmp_path, name="multi_review_gh")
-    _write_second_review(pkg_dir, "multi_review_gh", "alt_review")
-    alt_infer = runner.invoke(app, ["infer", str(pkg_dir), "--review", "alt_review"])
-    assert alt_infer.exit_code == 0, alt_infer.output
-
-    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "github"])
-    assert result.exit_code != 0
-    assert "multiple review sidecars" in result.output
-
-
-def test_render_target_docs_degrades_when_review_broken(tmp_path):
-    """Broken review module (syntax error) → docs still renders with a warning.
-
-    A malformed review.py must not block the IR-only docs workflow — render
-    should fall back to no-beliefs rendering when the review module can't be
-    imported. This is the second half of the ``--target docs`` contract.
-    """
-    pkg_dir = tmp_path / "broken_review_docs"
-    _write_base_package(pkg_dir, name="broken_review_docs")
-    _write_minimal_source(pkg_dir, "broken_review_docs")
-
-    # Write a review that will fail to import cleanly (syntax error)
-    reviews_dir = pkg_dir / "broken_review_docs" / "reviews"
-    reviews_dir.mkdir()
-    (reviews_dir / "broken.py").write_text("this is not valid python !!!\n")
-
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
-
-    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
-    assert result.exit_code == 0, result.output
-    assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
-    assert "could not load review sidecar" in result.output
-
-
-def test_render_explicit_review_errors_when_unknown(tmp_path):
-    """`--review NAME` with unknown name → always hard error, even for --target docs.
-
-    When the user passes an explicit `--review` flag they are making a
-    specific request; silently ignoring it and rendering without beliefs
-    would be surprising and unsafe.
-    """
-    pkg_dir = _prepare_inferred_package(tmp_path, name="unknown_review")
-
-    result = runner.invoke(
-        app, ["render", str(pkg_dir), "--target", "docs", "--review", "does_not_exist"]
-    )
-    assert result.exit_code != 0
-    assert "unknown review sidecar" in result.output
-    # Docs should NOT be regenerated since the user's explicit request failed
-    # (the file may exist from the _prepare_inferred_package setup... actually
-    # _prepare_inferred_package does NOT run render, so the docs file should
-    # not exist at all)
-    assert not (pkg_dir / "docs" / "detailed-reasoning.md").exists()
-
-
-def test_render_selects_named_review(tmp_path):
-    """--review <name> selects that review's beliefs for rendering."""
-    pkg_dir = _prepare_inferred_package(tmp_path, name="named_review")
-    _write_second_review(pkg_dir, "named_review", "alt_review")
-    alt_infer = runner.invoke(app, ["infer", str(pkg_dir), "--review", "alt_review"])
-    assert alt_infer.exit_code == 0, alt_infer.output
-
-    result = runner.invoke(app, ["render", str(pkg_dir), "--review", "alt_review"])
-    assert result.exit_code == 0, result.output
-    assert "Review: alt_review" in result.output
 
 
 def test_render_target_docs_only(tmp_path):
@@ -416,43 +209,6 @@ def test_render_target_all_is_default(tmp_path):
     assert result.exit_code == 0, result.output
     assert (pkg_dir / "docs" / "detailed-reasoning.md").exists()
     assert (pkg_dir / ".github-output" / "manifest.json").exists()
-
-
-def test_render_fails_when_review_sidecar_edited_after_infer(tmp_path):
-    """Editing a review sidecar between `gaia infer` and `gaia render` must
-    be detected. The IR hash is unchanged (review params are not part of IR),
-    but the persisted `review_content_hash` in beliefs.json will mismatch the
-    hash computed from the current sidecar — render must hard-error.
-
-    Regression test for Codex adversarial review Finding 1 (high).
-    """
-    pkg_dir = _prepare_inferred_package(tmp_path, name="review_edit")
-
-    # Sanity: baseline render succeeds (review unchanged since infer)
-    baseline = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
-    assert baseline.exit_code == 0, baseline.output
-
-    # Edit the review sidecar — change priors from the originals. This does
-    # NOT touch the IR (priors are review-layer data, not IR structure).
-    review_path = pkg_dir / "review_edit" / "reviews" / "self_review.py"
-    original = review_path.read_text()
-    # Originals are 0.9/0.8/0.4; bump each by +0.05 to produce a different content hash
-    edited = (
-        original.replace("prior=0.9", "prior=0.95")
-        .replace("prior=0.8", "prior=0.85")
-        .replace("prior=0.4", "prior=0.45")
-    )
-    assert edited != original, "fixture priors didn't match expected substrings"
-    review_path.write_text(edited)
-
-    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
-    assert result.exit_code != 0, (
-        "render should have rejected the stale beliefs after review edit; "
-        f"got exit={result.exit_code} output={result.output}"
-    )
-    assert "review" in result.output.lower()
-    assert "changed" in result.output.lower() or "content_hash" in result.output.lower()
-    assert "gaia infer" in result.output
 
 
 def test_render_target_obsidian_writes_vault(tmp_path):

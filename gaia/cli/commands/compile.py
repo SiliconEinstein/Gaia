@@ -6,6 +6,7 @@ import typer
 
 from gaia.cli._packages import (
     GaiaCliError,
+    apply_package_priors,
     build_package_manifests,
     compile_loaded_package_artifact,
     load_gaia_package,
@@ -21,6 +22,7 @@ def compile_command(
     """Compile a knowledge package to .gaia/ir.json."""
     try:
         loaded = load_gaia_package(path)
+        apply_package_priors(loaded)
         compiled = compile_loaded_package_artifact(loaded)
         ir = compiled.to_json()
         manifests = build_package_manifests(loaded, compiled)

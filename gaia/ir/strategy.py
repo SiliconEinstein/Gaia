@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, model_validator
 
-from gaia.ir.operator import Operator
+from gaia.ir.operator import Operator, OperatorType
 
 if TYPE_CHECKING:
     from gaia.ir.formalize import FormalizationResult
@@ -40,6 +40,8 @@ class StrategyType(StrEnum):
     ABDUCTION = "abduction"
     ANALOGY = "analogy"
     EXTRAPOLATION = "extrapolation"
+    SUPPORT = "support"  # bidirectional implication (sufficiency + necessity)
+    COMPARE = "compare"  # prediction comparison via matching + inferential ordering
 
     # Composite strategies — non-atomic
     INDUCTION = "induction"  # CompositeStrategy wrapping shared-conclusion abductions
@@ -89,6 +91,19 @@ _FORMAL_STRATEGY_TYPES = frozenset(
         StrategyType.ABDUCTION,
         StrategyType.ANALOGY,
         StrategyType.EXTRAPOLATION,
+        StrategyType.SUPPORT,
+        StrategyType.COMPARE,
+    }
+)
+
+
+_SYMMETRIC_OPS = frozenset(
+    {
+        OperatorType.EQUIVALENCE,
+        OperatorType.CONTRADICTION,
+        OperatorType.COMPLEMENT,
+        OperatorType.DISJUNCTION,
+        OperatorType.CONJUNCTION,
     }
 )
 
@@ -98,13 +113,16 @@ def _canonical_formal_expr(formal_expr: FormalExpr) -> str:
 
     Operators are sorted by their JSON representation to ensure
     order-independent deterministic serialization (spec §3.2).
+    Variables are sorted only for symmetric operators; implication
+    preserves input order (A→B ≠ B→A).
     """
     ops = []
     for op in formal_expr.operators:
+        variables = sorted(op.variables) if op.operator in _SYMMETRIC_OPS else list(op.variables)
         ops.append(
             {
                 "operator": op.operator.value,
-                "variables": sorted(op.variables),
+                "variables": variables,
                 "conclusion": op.conclusion,
             }
         )

@@ -5,6 +5,7 @@ import pytest
 from gaia.lang import (
     Step,
     claim,
+    compare,
     noisy_and,
     setting,
     composite,
@@ -12,6 +13,7 @@ from gaia.lang import (
     contradiction,
     fills,
     induction,
+    support,
 )
 from gaia.lang.compiler.compile import (
     compile_package_artifact,
@@ -214,19 +216,32 @@ def test_compile_composite_strategy():
     assert len(result.graph.strategies) == 3
 
 
-def test_compile_abduction_creates_formal_strategy():
+def test_compile_abduction_creates_composite_strategy():
     pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
     with pkg:
         obs = claim("Observation.")
         obs.label = "obs"
-        hyp = claim("Hypothesis.")
-        hyp.label = "hyp"
-        abduction(observation=obs, hypothesis=hyp, reason="best explanation")
+        theory_h = claim("Hypothesis H.")
+        theory_h.label = "theory_h"
+        theory_alt = claim("Alternative theory.")
+        theory_alt.label = "theory_alt"
+        pred_h = claim("Prediction from H.")
+        pred_h.label = "pred_h"
+        pred_alt = claim("Prediction from Alt.")
+        pred_alt.label = "pred_alt"
+
+        sup_h = support(premises=[theory_h], conclusion=obs)
+        sup_alt = support(premises=[theory_alt], conclusion=obs)
+        comp = compare(pred_h, pred_alt, obs)
+        abduction(sup_h, sup_alt, comp, reason="best explanation")
     result = compile_package_artifact(pkg)
-    # abduction is a compile-time formal strategy
-    assert len(result.graph.strategies) == 1
-    strat = result.graph.strategies[0]
-    assert strat.type == "abduction"
+    # abduction is now a CompositeStrategy with sub-strategies
+    composites = [
+        s for s in result.graph.strategies if hasattr(s, "sub_strategies") and s.sub_strategies
+    ]
+    assert len(composites) == 1
+    found_comp = composites[0]
+    assert found_comp.type == "abduction"
 
 
 def test_compile_operator():
@@ -236,7 +251,7 @@ def test_compile_operator():
         a.label = "a"
         b = claim("B.")
         b.label = "b"
-        c = contradiction(a, b, reason="they conflict")
+        c = contradiction(a, b, reason="they conflict", prior=0.9)
         c.label = "a_vs_b"
     result = compile_package_artifact(pkg)
     assert len(result.graph.operators) == 1
@@ -314,7 +329,7 @@ def test_compile_module_titles():
 
 
 def test_compile_induction():
-    """Induction compiles to CompositeStrategy + FormalStrategy sub-abductions."""
+    """Induction compiles to CompositeStrategy with support sub-strategies."""
     pkg = CollectedPackage("test_induction", namespace="github", version="1.0.0")
     with pkg:
         law = claim("All metals expand when heated.")
@@ -323,10 +338,10 @@ def test_compile_induction():
         obs1.label = "obs1"
         obs2 = claim("Copper expands when heated.")
         obs2.label = "obs2"
-        alt1 = claim("Iron expansion has local cause.")
-        alt1.label = "alt1"
 
-        induction([obs1, obs2], law, alt_exps=[alt1, None])
+        sup1 = support(premises=[obs1], conclusion=law)
+        sup2 = support(premises=[obs2], conclusion=law)
+        induction(sup1, sup2, law)
 
     result = compile_package_artifact(pkg)
 
@@ -338,12 +353,11 @@ def test_compile_induction():
     comp = composites[0]
     assert comp.type == "induction"
 
-    # It should reference 2 sub-strategies
+    # It should reference 2 sub-strategies (the supports)
     assert len(comp.sub_strategies) == 2
 
-    # Sub-strategies should be FormalStrategy(type=abduction)
+    # Sub-strategies should be support
     strategy_by_id = {s.strategy_id: s for s in result.graph.strategies}
     for sub_id in comp.sub_strategies:
         sub = strategy_by_id[sub_id]
-        assert sub.type == "abduction"
-        assert hasattr(sub, "formal_expr")  # formalized at compile time
+        assert sub.type == "support"

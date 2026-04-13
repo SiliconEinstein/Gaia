@@ -20,14 +20,14 @@
 
 | FactorType | 语义 | 理论参照 |
 |------------|------|---------|
-| **IMPLICATION** | `variables=[A]`, `conclusion=B`：禁止 A=1 且 B=0 | 06-factor-graphs §3.3 |
+| **IMPLICATION** | `variables=[A, B]`, `conclusion=H`：H=1 当 A→B 成立（禁止 A=1 且 B=0）；H=0 当违反 | 06-factor-graphs §3.3 |
 | **CONJUNCTION** | `variables=[A₁,…,Aₖ]`, `conclusion=M`：M = ∧ Aᵢ | §3.2 |
 | **DISJUNCTION** | `variables=[A₁,…,Aₖ]`, `conclusion=D`：D = ∨ Aᵢ | §3.6 补充 |
 | **EQUIVALENCE** | `variables=[A,B]`, `conclusion=H`：H = 1 当且仅当 A=B | §3.4 |
 | **CONTRADICTION** | `variables=[A,B]`, `conclusion=H`：H = 0 当且仅当 A=B=1；否则 H=1 | §3.5 |
 | **COMPLEMENT** | `variables=[A,B]`, `conclusion=H`：H = XOR(A,B) | §3.1 / §3.6 |
 
-所有确定性算子在因子图中统一为 **CONDITIONAL 三元因子**，上表中的真值语义对应各自的 CPT 模板。Conclusion 的先验决定其角色：**relation operator**（EQUIVALENCE / CONTRADICTION / COMPLEMENT）的 conclusion 是断言（$\pi = 1-\varepsilon$，激活约束）；**directed operator**（CONJUNCTION / DISJUNCTION / IMPLICATION）的 conclusion 是计算输出（$\pi = 0.5$，belief 由 variables 决定）。详见 [formal-strategy-lowering.md §2](formal-strategy-lowering.md)。
+所有确定性算子在因子图中统一为 **CONDITIONAL 三元因子**，上表中的真值语义对应各自的 CPT 模板。Conclusion 的先验决定其角色：**relation operator**（EQUIVALENCE / CONTRADICTION / COMPLEMENT / IMPLICATION）的 conclusion 是断言（$\pi = 1-\varepsilon$，激活约束）；**computation operator**（CONJUNCTION / DISJUNCTION）的 conclusion 是计算输出（$\pi = 0.5$，belief 由 variables 决定）。详见 [formal-strategy-lowering.md §2](formal-strategy-lowering.md)。
 
 ## SOFT_ENTAILMENT（软蕴含 ↝）
 

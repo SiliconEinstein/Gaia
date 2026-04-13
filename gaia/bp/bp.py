@@ -367,12 +367,21 @@ class BeliefPropagation:
                 )
 
             # Step 2: Compute all factor→variable messages (synchronous)
+            # For directed implication factors (deduction), the BN structure
+            # is A, H → B where A=variables[0] is the antecedent (parent) and
+            # B=variables[1] is the consequent (child).  Skip backward messages
+            # to A — this eliminates the fan-out penalty from unobserved
+            # children while preserving forward propagation from A to B.
             new_f2v: dict[tuple[int, str], Msg] = {}
             for fi, vid in f2v_msgs:
+                factor = graph.factors[fi]
+                if factor.directed and vid == factor.variables[0]:
+                    new_f2v[(fi, vid)] = _uniform_msg()
+                    continue
                 new_f2v[(fi, vid)] = _compute_f2v(
                     factor_idx=fi,
                     target_var=vid,
-                    factor=graph.factors[fi],
+                    factor=factor,
                     v2f_msgs=new_v2f,  # use freshly computed v2f
                 )
 

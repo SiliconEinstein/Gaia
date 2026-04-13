@@ -43,6 +43,7 @@ class Factor:
     p1: float | None = None
     p2: float | None = None
     cpt: tuple[float, ...] | None = None
+    directed: bool = False
 
     @property
     def all_vars(self) -> list[str]:
@@ -103,6 +104,7 @@ class FactorGraph:
         p1: float | None = None,
         p2: float | None = None,
         cpt: Sequence[float] | None = None,
+        directed: bool = False,
     ) -> None:
         v_list = list(variables)
         if conclusion in v_list:
@@ -174,14 +176,15 @@ class FactorGraph:
                 p1=fp1,
                 p2=fp2,
                 cpt=fcpt,
+                directed=directed,
             )
         )
 
     @staticmethod
     def _validate_deterministic(factor_id: str, ft: FactorType, v_list: list[str]) -> None:
-        if ft == FactorType.IMPLICATION and len(v_list) != 1:
+        if ft == FactorType.IMPLICATION and len(v_list) != 2:
             raise ValueError(
-                f"IMPLICATION '{factor_id}' requires exactly 1 variable, got {len(v_list)}."
+                f"IMPLICATION '{factor_id}' requires exactly 2 variables, got {len(v_list)}."
             )
         if ft == FactorType.CONJUNCTION and len(v_list) < 2:
             raise ValueError(

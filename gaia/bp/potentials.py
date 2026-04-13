@@ -22,11 +22,21 @@ _HIGH = 1.0 - CROMWELL_EPS
 _LOW = CROMWELL_EPS
 
 
-def implication_potential(assignment: Assignment, antecedent: str, consequent: str) -> float:
-    """Strict implication: forbid A=1,B=0 (Cromwell-softened)."""
-    if assignment[antecedent] == 1 and assignment[consequent] == 0:
-        return _LOW
-    return _HIGH
+def implication_potential(
+    assignment: Assignment, antecedent: str, consequent: str, helper: str
+) -> float:
+    """Ternary implication with helper claim H.
+
+    H=1 (implication holds): standard A=>B — forbid A=1,B=0.
+    H=0 (implication fails): complement — forbid A=1,B=0 being HIGH.
+    """
+    a, b, h = assignment[antecedent], assignment[consequent], assignment[helper]
+    if h == 1:
+        # Standard implication: A=1,B=0 forbidden
+        return _LOW if (a == 1 and b == 0) else _HIGH
+    else:
+        # Complement: A=1,B=0 is the only HIGH row
+        return _HIGH if (a == 1 and b == 0) else _LOW
 
 
 def conjunction_potential(assignment: Assignment, inputs: list[str], conclusion: str) -> float:
@@ -94,13 +104,37 @@ def conditional_potential(
     return p if assignment[conclusion] == 1 else (1.0 - p)
 
 
+def directed_implication_potential(
+    assignment: Assignment, antecedent: str, consequent: str, helper: str
+) -> float:
+    """Directed implication CPT: P(B | A, H).
+
+    Used for deduction — the antecedent A is a parent (not influenced by B),
+    the consequent B is a child (no independent prior needed).
+
+    When H=1 and A=1: B must be 1 (deduction succeeds).
+    When H=1 and A=0: B is uniform (premise false, no constraint).
+    When H=0: B is uniform (warrant doesn't hold).
+
+    Each row sums to 1 over B, so marginalizing over B gives a constant
+    for each (A, H) — the factor does not constrain A or H.
+    """
+    a, b, h = assignment[antecedent], assignment[consequent], assignment[helper]
+    if h == 1 and a == 1:
+        return (1.0 - CROMWELL_EPS) if b == 1 else CROMWELL_EPS
+    # A=0 or H=0: uniform over B
+    return 0.5
+
+
 def evaluate_potential(factor: Factor, assignment: Assignment) -> float:
     ft = factor.factor_type
     v = factor.variables
     c = factor.conclusion
 
     if ft == FactorType.IMPLICATION:
-        return implication_potential(assignment, v[0], c)
+        if factor.directed:
+            return directed_implication_potential(assignment, v[0], v[1], c)
+        return implication_potential(assignment, v[0], v[1], c)
 
     if ft == FactorType.CONJUNCTION:
         return conjunction_potential(assignment, v, c)

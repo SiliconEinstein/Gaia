@@ -4,6 +4,7 @@ import pytest
 
 from gaia.bp import BeliefPropagation, FactorGraph, FactorType
 from gaia.bp.bp import BPResult
+from gaia.bp.factor_graph import CROMWELL_EPS
 from gaia.bp.exact import exact_inference
 from gaia.bp.junction_tree import JunctionTreeInference, jt_treewidth
 from gaia.bp.gbp import GeneralizedBeliefPropagation, build_region_graph, detect_short_cycles
@@ -50,13 +51,15 @@ def _contradiction_graph() -> FactorGraph:
 
 
 def _implication_chain() -> FactorGraph:
-    """A → B → C (deterministic)."""
+    """A → B → C (deterministic) with helper claims."""
     fg = FactorGraph()
     fg.add_variable("A", 0.8)
     fg.add_variable("B", 0.5)
     fg.add_variable("C", 0.5)
-    fg.add_factor("f1", FactorType.IMPLICATION, ["A"], "B")
-    fg.add_factor("f2", FactorType.IMPLICATION, ["B"], "C")
+    fg.add_variable("H1", 1.0 - 1e-3)
+    fg.add_variable("H2", 1.0 - 1e-3)
+    fg.add_factor("f1", FactorType.IMPLICATION, ["A", "B"], "H1")
+    fg.add_factor("f2", FactorType.IMPLICATION, ["B", "C"], "H2")
     return fg
 
 
@@ -150,7 +153,8 @@ class TestBeliefPropagation:
         fg = FactorGraph()
         fg.add_variable("A", 0.5)
         fg.add_variable("B", 0.5)
-        fg.add_factor("f1", FactorType.IMPLICATION, ["A"], "B")
+        fg.add_variable("H", 1.0 - 1e-3)
+        fg.add_factor("f1", FactorType.IMPLICATION, ["A", "B"], "H")
         fg.observe("A", 1)
         result = BeliefPropagation().run(fg)
         assert result.beliefs["A"] > 0.99
@@ -506,3 +510,89 @@ class TestGBPRegionDecomposition:
         assert max_region_size >= 2, (
             "Diamond graph has cycles; at least one region should merge multiple variables"
         )
+
+
+# ── Directed factors: fan-out elimination ──
+
+
+def _deduction_fanout_graph(*, directed: bool) -> FactorGraph:
+    """A with 4 deduction children via implication. Each child has prior 0.5."""
+    fg = FactorGraph()
+    fg.add_variable("A", 0.5)
+    for i in range(4):
+        fg.add_variable(f"B{i}", 0.5)
+        fg.add_variable(f"H{i}", 1.0 - CROMWELL_EPS)
+        fg.add_factor(
+            f"f{i}",
+            FactorType.IMPLICATION,
+            ["A", f"B{i}"],
+            f"H{i}",
+            directed=directed,
+        )
+    return fg
+
+
+class TestDirectedFactorFanout:
+    """Directed implication factors should not penalize the antecedent via modus tollens."""
+
+    def test_undirected_has_fanout(self):
+        """Baseline: undirected implication with 4 children drags A far below 0.5."""
+        fg = _deduction_fanout_graph(directed=False)
+        result = BeliefPropagation().run(fg)
+        assert result.beliefs["A"] < 0.15  # severe fan-out
+
+    def test_directed_eliminates_fanout(self):
+        """Directed implication with 4 children: A stays at its prior."""
+        fg = _deduction_fanout_graph(directed=True)
+        result = BeliefPropagation().run(fg)
+        assert result.beliefs["A"] == pytest.approx(0.5, abs=0.01)
+
+    def test_directed_still_propagates_forward(self):
+        """Directed implication still sends messages from A to B (forward)."""
+        fg = FactorGraph()
+        fg.add_variable("A", 0.9)
+        fg.add_variable("B", 0.5)
+        fg.add_variable("H", 1.0 - CROMWELL_EPS)
+        fg.add_factor("f1", FactorType.IMPLICATION, ["A", "B"], "H", directed=True)
+        result = BeliefPropagation().run(fg)
+        # B should be pulled up by A's high belief (forward propagation works)
+        assert result.beliefs["B"] > 0.6
+        # A should stay near its prior (no backward pull from B)
+        assert result.beliefs["A"] == pytest.approx(0.9, abs=0.02)
+
+    def test_directed_chain_no_cascade_penalty(self):
+        """Chain P → A → B1...B4: directed deductions don't cascade fan-out."""
+        fg = FactorGraph()
+        fg.add_variable("P", 0.2)
+        fg.add_variable("A", 0.5)
+        fg.add_variable("H_up", 1.0 - CROMWELL_EPS)
+        fg.add_factor("f_up", FactorType.IMPLICATION, ["P", "A"], "H_up", directed=True)
+        for i in range(4):
+            fg.add_variable(f"B{i}", 0.5)
+            fg.add_variable(f"H{i}", 1.0 - CROMWELL_EPS)
+            fg.add_factor(
+                f"f{i}",
+                FactorType.IMPLICATION,
+                ["A", f"B{i}"],
+                f"H{i}",
+                directed=True,
+            )
+        result = BeliefPropagation().run(fg)
+        # P should stay near its prior (no cascade from downstream)
+        assert result.beliefs["P"] == pytest.approx(0.2, abs=0.02)
+
+    def test_support_undirected_still_bidirectional(self):
+        """Support (undirected) implication still propagates both ways."""
+        fg = FactorGraph()
+        fg.add_variable("A", 0.9)
+        fg.add_variable("B", 0.5)
+        fg.add_variable("H_fwd", 1.0 - CROMWELL_EPS)
+        fg.add_variable("H_rev", 1.0 - CROMWELL_EPS)
+        # Both undirected (support semantics)
+        fg.add_factor("f_fwd", FactorType.IMPLICATION, ["A", "B"], "H_fwd")
+        fg.add_factor("f_rev", FactorType.IMPLICATION, ["B", "A"], "H_rev")
+        result = BeliefPropagation().run(fg)
+        # B pulled up by A (forward)
+        assert result.beliefs["B"] > 0.6
+        # A pulled toward B too (backward via undirected)
+        assert result.beliefs["A"] != pytest.approx(0.9, abs=0.01)

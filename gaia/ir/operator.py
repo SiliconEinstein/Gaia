@@ -59,8 +59,8 @@ class Operator(BaseModel):
 
         # §2.4: arity constraints per operator type
         if self.operator == OperatorType.IMPLICATION:
-            if len(self.variables) != 1:
-                raise ValueError("operator=implication requires exactly 1 variable (input)")
+            if len(self.variables) != 2:
+                raise ValueError("operator=implication requires exactly 2 variables (inputs)")
 
         elif self.operator == OperatorType.CONJUNCTION:
             if len(self.variables) < 2:
