@@ -81,46 +81,70 @@ The skeleton includes a `[!TIP]` callout with the total mutual information and a
 
 Add `## Reasoning Structure` after the Mermaid graph. This is the heart of the README — a **per-conclusion evidence assessment**. For each exported conclusion, analyze how well the evidence supports it.
 
-**Audience:** A researcher in the paper's field. They should come away knowing: which conclusions are trustworthy, which are shaky, and why.
+**Audience:** A researcher in the paper's field who has NOT read the original paper. After reading this section, they should understand what each conclusion claims, how it was derived, how strong the evidence is, and what risks remain.
 
-**Organizing principle:** One subsection per exported conclusion (★), ordered from strongest to weakest belief. Each subsection is an "evidence support report" for that conclusion.
+**Ordering:** Follow `narrative-outline.md` — this orders conclusions by the paper's logical arc (from foundational results to final predictions), NOT by belief value. The narrative flow should mirror the paper's argument: theory → computation → validation → predictions.
 
 **For each conclusion, write:**
 
-1. **Heading**: The conclusion claim in plain language + belief value
-2. **What it says** (1-2 sentences): The scientific result, with key numbers
-3. **Evidence chains** (2-4 bullet points): Each evidence chain that supports this conclusion, with its strength:
-   - Name the chain (e.g., "μ* calculation chain", "experimental validation")
-   - Trace the key premises → intermediate → conclusion path
-   - Give the weakest link's belief in each chain
-4. **Figures**: Embed relevant figures from `graph.json` metadata or `artifacts/images/`
+1. **Heading**: Rewrite the claim title into a descriptive sentence that a non-specialist can understand, plus belief value. Don't use the raw label — write a meaningful title.
+   - BAD: `### Downfolded BSE (belief: 0.33)`
+   - GOOD: `### The full Bethe-Salpeter equation reduces to a solvable frequency-only form (belief: 0.33)`
+
+2. **What it says** (1 paragraph): Explain the scientific result in enough detail that a reader unfamiliar with the paper can understand it. Include:
+   - The key quantitative result (numbers, equations)
+   - What problem this solves and why it matters
+   - How it was obtained (method, key approximations)
+   - Comparison with prior approaches (if applicable)
+   - Read `artifacts/` for specific details — don't write generic descriptions
+
+3. **Evidence chains** (2-4 bullet points): Each evidence chain supporting this conclusion:
+   - Name the chain descriptively
+   - Trace the key nodes and give the weakest link's belief
+   - Explain WHY the weakest link is weak (not just the number)
+
+4. **Figures**: Embed relevant figures from `artifacts/images/` with descriptive captions
+
 5. **Verdict** (1-2 sentences): Is this conclusion well-supported? What's the main risk?
 
 **Example:**
 
 ```markdown
-### Tc(Al) = 0.96 K — 20% accuracy vs experiment (belief: 0.90)
+### The full Bethe-Salpeter equation reduces to a solvable frequency-only form (belief: 0.33)
 
-The ab initio prediction for aluminum overshoots the experimental
-1.2 K by 20%, a major improvement over the phenomenological 58% error.
+The central theoretical achievement of this work is a rigorous
+"downfolding" of the complete momentum-frequency Bethe-Salpeter
+equation into a one-dimensional integral equation depending only
+on Matsubara frequency: $K(\omega,\omega') = \lambda(\omega,\omega')
+- \mu_{\omega_c}(\omega,\omega')$. This is accomplished by
+decomposing the pair propagator into coherent and incoherent parts
+(an exact mathematical identity), then showing that cross-channel
+mixing between Coulomb and phonon sectors is suppressed at
+$O(\omega_c^2/\omega_p^2) \leq 1\%$. The resulting equation gives
+$\mu^\ast$ and $\lambda$ precise microscopic definitions for the
+first time — replacing the phenomenological parameters used since
+the 1960s. Numerical validation against the full BSE on a toy model
+with aluminum-like parameters shows 0.2% agreement in predicted $T_c$.
 
 **Evidence support:**
-- **μ* from vDiagMC** (weakest link: UEG mapping, belief 0.41):
-  vDiagMC computes μ_EF at the UEG level → BTS renormalization →
-  μ* = 0.13. The mapping from UEG to real Al introduces ~5% uncertainty.
-- **λ from DFPT** (weakest link: vertex cancellation, belief 0.59):
-  Ward identity + vDiagMC Γ₃ → EFT ≈ DFPT → λ = 0.44. Relies on
-  z^e · Γ₃ ≈ 1 for simple metals.
-- **Experimental validation** (belief 0.93): The prediction matches
-  experiment within 20%, and the pressure dependence (Fig. 6) tracks
-  the Levy-Olsen data up to 6 GPa.
+- **Cross-term suppression** (weakest link, belief 0.50): The entire
+  downfolding rests on cross-channel terms being ~1%. The estimate
+  uses a plasmon-pole model that may overstate the suppression for
+  low-density metals or 2D systems.
+- **Toy model validation** (belief 0.76): Full vs downfolded BSE
+  agree at 0.2%, but this uses RPA for the electron vertex — not
+  the exact vertex function.
 
-![Fig. 6 | Tc vs pressure for aluminum](artifacts/images/14_0.jpg)
-*Adapted from Cai et al., arXiv:2512.19382.*
+![Fig. 3 | Diagrammatic structure of the BSE](artifacts/images/4_2.jpg)
+*The BSE with decomposed pair propagator. Adapted from Cai et al.*
 
-> The 20% residual error likely reflects band structure effects beyond
-> the free-electron model — the UEG mapping is the limiting factor.
+> This is the theoretical foundation for everything downstream.
+> The low belief (0.33) reflects uncertainty propagation from the
+> cross-term suppression assumption — if cross terms are larger
+> than 1%, the entire framework needs revision.
 ```
+
+The good version explains the science in detail, gives context (why this matters, what existed before), includes the specific mathematical result, and makes the verdict meaningful.
 
 **What NOT to do:**
 - Do not write a narrative essay — write per-conclusion assessments
