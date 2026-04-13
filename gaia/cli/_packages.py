@@ -215,7 +215,9 @@ def apply_package_priors(loaded: LoadedGaiaPackage) -> None:
 
     priors_dict = getattr(module, "PRIORS", None)
     if priors_dict is None:
-        raise GaiaCliError("Error: priors.py must export PRIORS = {Knowledge: (prior, justification), ...}.")
+        raise GaiaCliError(
+            "Error: priors.py must export PRIORS = {Knowledge: (prior, justification), ...}."
+        )
     if not isinstance(priors_dict, dict):
         raise GaiaCliError("Error: priors.py PRIORS must be a dict.")
 

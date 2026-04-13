@@ -177,4 +177,3 @@ def render_command(
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(page_content)
         typer.echo(f"Obsidian: {wiki_dir} ({len(obsidian_pages)} pages)")
-

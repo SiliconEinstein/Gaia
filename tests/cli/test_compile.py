@@ -1147,9 +1147,7 @@ def test_compile_priors_py_invalid_key_raises(tmp_path):
     (pkg_src / "__init__.py").write_text(
         'from gaia.lang import claim\n\nmy_claim = claim("A claim.")\n__all__ = ["my_claim"]\n'
     )
-    (pkg_src / "priors.py").write_text(
-        'PRIORS = {\n    "not_a_knowledge": (0.5, "invalid"),\n}\n'
-    )
+    (pkg_src / "priors.py").write_text('PRIORS = {\n    "not_a_knowledge": (0.5, "invalid"),\n}\n')
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
     assert result.exit_code != 0
@@ -1167,15 +1165,10 @@ def test_compile_priors_py_reason_prior_pairing(tmp_path):
     pkg_src = pkg_dir / "malformed_priors_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim\n\n"
-        'my_claim = claim("A claim.")\n'
-        '__all__ = ["my_claim"]\n'
+        'from gaia.lang import claim\n\nmy_claim = claim("A claim.")\n__all__ = ["my_claim"]\n'
     )
     (pkg_src / "priors.py").write_text(
-        "from . import my_claim\n\n"
-        "PRIORS = {\n"
-        "    my_claim: 0.5,  # missing justification\n"
-        "}\n"
+        "from . import my_claim\n\nPRIORS = {\n    my_claim: 0.5,  # missing justification\n}\n"
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
