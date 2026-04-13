@@ -56,7 +56,7 @@ class TestStrategyFormalize:
         assert result.strategy.metadata["formalization_template"] == "deduction"
 
         assert _operator_names(result.strategy) == ["conjunction", "implication"]
-        assert len(result.knowledges) == 1
+        assert len(result.knowledges) == 2  # conjunction_result + implication_result
 
         conjunction = result.knowledges[0]
         assert conjunction.id.startswith("github:test::__")
@@ -68,6 +68,15 @@ class TestStrategyFormalize:
         assert conjunction.metadata["helper_kind"] == "conjunction_result"
         assert conjunction.metadata["owning_strategy_id"] == result.strategy.strategy_id
         assert result.strategy.formal_expr.operators[0].conclusion == conjunction.id
+
+        impl_helper = result.knowledges[1]
+        assert impl_helper.metadata["generated_kind"] == "helper_claim"
+        assert impl_helper.metadata["intermediate_role"] == "implication_result"
+        assert impl_helper.metadata["helper_kind"] == "implication_result"
+        # Implication operator: variables=[conjunction, conclusion], conclusion=impl_helper
+        impl_op = result.strategy.formal_expr.operators[1]
+        assert impl_op.variables == [conjunction.id, "github:test::c"]
+        assert impl_op.conclusion == impl_helper.id
 
     def test_formalize_rejects_strategy_without_conclusion(self):
         leaf = Strategy(
@@ -104,8 +113,8 @@ class TestStrategyFormalize:
                     ),
                     Operator(
                         operator="implication",
-                        variables=["github:test::m"],
-                        conclusion="github:test::c",
+                        variables=["github:test::m", "github:test::c"],
+                        conclusion="github:test::h",
                     ),
                 ]
             ),
@@ -162,12 +171,21 @@ class TestFormalizeNamedStrategy:
         )
 
         assert _operator_names(result.strategy) == ["conjunction", "implication"]
-        assert _role_counts(result.knowledges) == Counter({"conjunction_result": 1})
+        assert _role_counts(result.knowledges) == Counter(
+            {"conjunction_result": 1, "implication_result": 1}
+        )
 
         conjunction = result.knowledges[0]
+        impl_helper = result.knowledges[1]
         assert conjunction.metadata["generated_kind"] == "helper_claim"
+        assert impl_helper.metadata["generated_kind"] == "helper_claim"
         assert result.strategy.formal_expr.operators[0].conclusion == conjunction.id
-        assert result.strategy.formal_expr.operators[1].variables == [conjunction.id]
+        # Implication: variables=[conjunction, conclusion], conclusion=impl_helper
+        assert result.strategy.formal_expr.operators[1].variables == [
+            conjunction.id,
+            "github:test::out",
+        ]
+        assert result.strategy.formal_expr.operators[1].conclusion == impl_helper.id
 
     def test_abduction_template(self):
         result = formalize_named_strategy(
@@ -289,6 +307,7 @@ class TestFormalizeNamedStrategy:
                 "equivalence_result": 1,
                 "contradiction_result": 2,
                 "conjunction_result": 1,
+                "implication_result": 1,
             }
         )
         assert result.strategy.metadata["interface_roles"] == {
@@ -326,6 +345,7 @@ class TestFormalizeNamedStrategy:
                 "disjunction_result": 1,
                 "equivalence_result": 1,
                 "conjunction_result": 2,
+                "implication_result": 2,
             }
         )
         assert result.strategy.metadata["interface_roles"] == {

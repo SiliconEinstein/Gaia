@@ -110,7 +110,7 @@ _OPERATOR_SYMBOLS = {
 }
 
 # Operators rendered with undirected (---) edges between variables
-_UNDIRECTED_OPERATORS = frozenset({"equivalence", "contradiction", "complement"})
+_UNDIRECTED_OPERATORS = frozenset({"equivalence", "contradiction", "complement", "implication"})
 
 
 def _mermaid_node_line(

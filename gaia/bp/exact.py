@@ -25,10 +25,16 @@ def _factor_log_potentials(
 
     if ft == FactorType.IMPLICATION:
         a_idx = var_idx[vids[0]]
-        b_idx = var_idx[concl]
+        b_idx = var_idx[vids[1]]
+        h_idx = var_idx[concl]
         a = states[:, a_idx]
         b = states[:, b_idx]
-        pot = np.where((a == 1) & (b == 0), lo, h)
+        hv = states[:, h_idx]
+        # H=1: standard implication (A=1,B=0 forbidden)
+        # H=0: complement (A=1,B=0 is the only HIGH row)
+        std_impl = np.where((a == 1) & (b == 0), lo, h)
+        comp = np.where((a == 1) & (b == 0), h, lo)
+        pot = np.where(hv == 1, std_impl, comp)
         return np.log(pot)
 
     if ft == FactorType.CONJUNCTION:

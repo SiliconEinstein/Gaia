@@ -53,7 +53,8 @@ def test_add_implication_factor():
     fg = FactorGraph()
     fg.add_variable("A", 0.5)
     fg.add_variable("B", 0.5)
-    fg.add_factor("f1", FactorType.IMPLICATION, ["A"], "B")
+    fg.add_variable("H", 0.5)
+    fg.add_factor("f1", FactorType.IMPLICATION, ["A", "B"], "H")
     assert len(fg.factors) == 1
     assert fg.factors[0].factor_type == FactorType.IMPLICATION
 
@@ -93,18 +94,22 @@ def test_validate_empty_graph():
 def test_validate_missing_variable():
     fg = FactorGraph()
     fg.add_variable("A", 0.5)
+    fg.add_variable("B", 0.5)
     fg.factors.append(
-        Factor(factor_id="f1", factor_type=FactorType.IMPLICATION, variables=["A"], conclusion="B")
+        Factor(
+            factor_id="f1", factor_type=FactorType.IMPLICATION, variables=["A", "B"], conclusion="H"
+        )
     )
     errors = fg.validate()
-    assert any("B" in e for e in errors)
+    assert any("H" in e for e in errors)
 
 
 def test_validate_good_graph():
     fg = FactorGraph()
     fg.add_variable("A", 0.5)
     fg.add_variable("B", 0.5)
-    fg.add_factor("f1", FactorType.IMPLICATION, ["A"], "B")
+    fg.add_variable("H", 0.5)
+    fg.add_factor("f1", FactorType.IMPLICATION, ["A", "B"], "H")
     assert fg.validate() == []
 
 
@@ -113,10 +118,10 @@ def test_validate_good_graph():
 
 def test_get_var_to_factors():
     fg = FactorGraph()
-    for v in ["A", "B", "C"]:
+    for v in ["A", "B", "C", "H1", "H2"]:
         fg.add_variable(v, 0.5)
-    fg.add_factor("f1", FactorType.IMPLICATION, ["A"], "B")
-    fg.add_factor("f2", FactorType.IMPLICATION, ["B"], "C")
+    fg.add_factor("f1", FactorType.IMPLICATION, ["A", "B"], "H1")
+    fg.add_factor("f2", FactorType.IMPLICATION, ["B", "C"], "H2")
     mapping = fg.get_var_to_factors()
     assert 0 in mapping["A"]
     assert 0 in mapping["B"]
@@ -128,7 +133,8 @@ def test_summary():
     fg = FactorGraph()
     fg.add_variable("A", 0.5)
     fg.add_variable("B", 0.5)
-    fg.add_factor("f1", FactorType.IMPLICATION, ["A"], "B")
+    fg.add_variable("H", 0.5)
+    fg.add_factor("f1", FactorType.IMPLICATION, ["A", "B"], "H")
     s = fg.summary()
     assert "A" in s
 
@@ -146,8 +152,8 @@ def test_factor_all_vars():
 def test_factor_all_vars_dedup():
     f = Factor(
         factor_id="f1",
-        factor_type=FactorType.IMPLICATION,
-        variables=["A"],
+        factor_type=FactorType.CONJUNCTION,
+        variables=["A", "B"],
         conclusion="A",
     )
     assert f.all_vars.count("A") == 1

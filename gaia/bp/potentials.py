@@ -22,11 +22,21 @@ _HIGH = 1.0 - CROMWELL_EPS
 _LOW = CROMWELL_EPS
 
 
-def implication_potential(assignment: Assignment, antecedent: str, consequent: str) -> float:
-    """Strict implication: forbid A=1,B=0 (Cromwell-softened)."""
-    if assignment[antecedent] == 1 and assignment[consequent] == 0:
-        return _LOW
-    return _HIGH
+def implication_potential(
+    assignment: Assignment, antecedent: str, consequent: str, helper: str
+) -> float:
+    """Ternary implication with helper claim H.
+
+    H=1 (implication holds): standard A=>B — forbid A=1,B=0.
+    H=0 (implication fails): complement — forbid A=1,B=0 being HIGH.
+    """
+    a, b, h = assignment[antecedent], assignment[consequent], assignment[helper]
+    if h == 1:
+        # Standard implication: A=1,B=0 forbidden
+        return _LOW if (a == 1 and b == 0) else _HIGH
+    else:
+        # Complement: A=1,B=0 is the only HIGH row
+        return _HIGH if (a == 1 and b == 0) else _LOW
 
 
 def conjunction_potential(assignment: Assignment, inputs: list[str], conclusion: str) -> float:
@@ -100,7 +110,7 @@ def evaluate_potential(factor: Factor, assignment: Assignment) -> float:
     c = factor.conclusion
 
     if ft == FactorType.IMPLICATION:
-        return implication_potential(assignment, v[0], c)
+        return implication_potential(assignment, v[0], v[1], c)
 
     if ft == FactorType.CONJUNCTION:
         return conjunction_potential(assignment, v, c)

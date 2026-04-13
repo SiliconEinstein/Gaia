@@ -23,7 +23,8 @@ def test_lower_operator_helper():
     fg = FactorGraph()
     fg.add_variable("a", 0.5)
     fg.add_variable("b", 0.5)
-    op = Operator(operator="implication", variables=["a"], conclusion="b")
+    fg.add_variable("h", 0.5)
+    op = Operator(operator="implication", variables=["a", "b"], conclusion="h")
     lower_operator(fg, op, "f1")
     assert len(fg.factors) == 1
     assert fg.factors[0].factor_type == FactorType.IMPLICATION
@@ -160,8 +161,8 @@ def test_formal_strategy_expand_implication():
             operators=[
                 Operator(
                     operator="implication",
-                    variables=["github:lowertest::p"],
-                    conclusion="github:lowertest::c",
+                    variables=["github:lowertest::p", "github:lowertest::c"],
+                    conclusion="github:lowertest::h",
                 ),
             ],
         ),
@@ -170,6 +171,7 @@ def test_formal_strategy_expand_implication():
         knowledges=[
             Knowledge(id="github:lowertest::p", type="claim", content="P"),
             Knowledge(id="github:lowertest::c", type="claim", content="C"),
+            Knowledge(id="github:lowertest::h", type="claim", content="H"),
         ],
         strategies=[fs],
     )
@@ -189,8 +191,8 @@ def test_formal_fold_not_implemented():
             operators=[
                 Operator(
                     operator="implication",
-                    variables=["github:lowertest::p"],
-                    conclusion="github:lowertest::c",
+                    variables=["github:lowertest::p", "github:lowertest::c"],
+                    conclusion="github:lowertest::h",
                 ),
             ],
         ),
@@ -199,6 +201,7 @@ def test_formal_fold_not_implemented():
         knowledges=[
             Knowledge(id="github:lowertest::p", type="claim", content="P"),
             Knowledge(id="github:lowertest::c", type="claim", content="C"),
+            Knowledge(id="github:lowertest::h", type="claim", content="H"),
         ],
         strategies=[fs],
     )
@@ -473,8 +476,8 @@ def test_formal_expr_relation_conclusion_gets_assertion_prior():
                 ),
                 Operator(
                     operator="implication",
-                    variables=["github:lowertest::_g"],
-                    conclusion="github:lowertest::s",
+                    variables=["github:lowertest::_g", "github:lowertest::s"],
+                    conclusion="github:lowertest::_impl",
                 ),
             ],
         ),
@@ -490,9 +493,10 @@ def test_formal_expr_relation_conclusion_gets_assertion_prior():
     )
     fg = lower_local_graph(g, expand_formal=True)
 
-    # Relation operator conclusions (_eq, _contra) must have assertion prior 1-ε
+    # Relation operator conclusions (_eq, _contra, _impl) must have assertion prior 1-ε
     assert fg.variables["github:lowertest::_eq"] == pytest.approx(1.0 - CROMWELL_EPS)
     assert fg.variables["github:lowertest::_contra"] == pytest.approx(1.0 - CROMWELL_EPS)
+    assert fg.variables["github:lowertest::_impl"] == pytest.approx(1.0 - CROMWELL_EPS)
 
     # Disjunction is COMPOSITIONAL (h = a OR b is a derived value), not a relation
     # assertion.  Its helper stays at neutral 0.5; the factor potential drives the
@@ -598,3 +602,156 @@ def test_fold_composite_to_cpt_chain():
     assert len(cpt) == 2  # 2^1 = 2 entries (single premise A)
     assert cpt[0] < 0.1  # A=0 → M low → C low
     assert cpt[1] > 0.5  # A=1 → M≈0.9 → C≈0.72
+
+
+# ---------------------------------------------------------------------------
+# E2E: binary implication full pipeline
+# ---------------------------------------------------------------------------
+
+
+def test_e2e_deduction_binary_implication_full_pipeline():
+    """E2E: deduction([A, B], C) → formalize → lower → BP runs without error.
+
+    Verifies the full pipeline with the new binary implication operator:
+    1. Strategy auto-formalization generates CONJUNCTION + IMPLICATION with helper
+    2. Lowering produces a valid factor graph with helper claim at ~1-eps prior
+    3. BP (exact inference) runs and produces meaningful beliefs
+    """
+    s = Strategy(
+        scope="local",
+        type="deduction",
+        premises=["github:lowertest::a", "github:lowertest::b"],
+        conclusion="github:lowertest::c",
+    )
+    g = _lg(
+        knowledges=[
+            Knowledge(id="github:lowertest::a", type="claim", content="Premise A"),
+            Knowledge(id="github:lowertest::b", type="claim", content="Premise B"),
+            Knowledge(id="github:lowertest::c", type="claim", content="Conclusion C"),
+        ],
+        strategies=[s],
+    )
+
+    # Step 1: lower (auto-formalizes deduction → CONJUNCTION + IMPLICATION with helper)
+    fg = lower_local_graph(
+        g,
+        node_priors={
+            "github:lowertest::a": 0.8,
+            "github:lowertest::b": 0.9,
+            "github:lowertest::c": 0.5,
+        },
+    )
+    assert not fg.validate()
+
+    # The factor graph should contain both factor types
+    ftypes = {f.factor_type for f in fg.factors}
+    assert FactorType.CONJUNCTION in ftypes
+    assert FactorType.IMPLICATION in ftypes
+
+    # IMPLICATION factor should have 2 variables (not 1)
+    impl_factors = [f for f in fg.factors if f.factor_type == FactorType.IMPLICATION]
+    assert len(impl_factors) == 1
+    assert len(impl_factors[0].variables) == 2
+
+    # Helper claim (implication conclusion) should be at assertion prior ~1-eps
+    from gaia.bp.factor_graph import CROMWELL_EPS
+
+    impl_concl = impl_factors[0].conclusion
+    assert fg.variables[impl_concl] == pytest.approx(1.0 - CROMWELL_EPS)
+
+    # Step 2: run exact inference — must not error
+    beliefs, _ = exact_inference(fg)
+    assert all(0 < beliefs[v] < 1 for v in beliefs)
+    # With high-prior premises, conclusion should be lifted above 0.5
+    assert beliefs["github:lowertest::c"] > 0.5
+
+
+def test_e2e_single_premise_deduction_binary_implication():
+    """E2E: single-premise deduction uses binary implication (no conjunction)."""
+    s = Strategy(
+        scope="local",
+        type="deduction",
+        premises=["github:lowertest::p"],
+        conclusion="github:lowertest::q",
+    )
+    g = _lg(
+        knowledges=[
+            Knowledge(id="github:lowertest::p", type="claim", content="Premise P"),
+            Knowledge(id="github:lowertest::q", type="claim", content="Conclusion Q"),
+        ],
+        strategies=[s],
+    )
+
+    fg = lower_local_graph(
+        g,
+        node_priors={
+            "github:lowertest::p": 0.9,
+            "github:lowertest::q": 0.5,
+        },
+    )
+    assert not fg.validate()
+
+    # Only IMPLICATION factor (no CONJUNCTION for single premise)
+    ftypes = [f.factor_type for f in fg.factors]
+    assert FactorType.IMPLICATION in ftypes
+    assert FactorType.CONJUNCTION not in ftypes
+
+    # IMPLICATION has 2 variables
+    impl_f = [f for f in fg.factors if f.factor_type == FactorType.IMPLICATION][0]
+    assert len(impl_f.variables) == 2
+
+    # Run inference
+    beliefs, _ = exact_inference(fg)
+    assert all(0 < beliefs[v] < 1 for v in beliefs)
+    assert beliefs["github:lowertest::q"] > 0.5
+
+
+def test_relation_helper_defaults_to_assertion_prior():
+    """Relation operator helper claims default to 1-ε when absent from node_priors.
+
+    Callers that generate node_priors should set relation helpers to 1-ε
+    (not 0.5). When the helper is absent from node_priors, lowering falls
+    back to the structural default 1-ε.
+    """
+    s = Strategy(
+        scope="local",
+        type="deduction",
+        premises=["github:lowertest::a"],
+        conclusion="github:lowertest::b",
+    )
+    g = _lg(
+        knowledges=[
+            Knowledge(id="github:lowertest::a", type="claim", content="A"),
+            Knowledge(id="github:lowertest::b", type="claim", content="B"),
+        ],
+        strategies=[s],
+    )
+
+    from gaia.bp.factor_graph import CROMWELL_EPS
+
+    # Case 1: helper NOT in node_priors → lowering uses 1-ε default
+    fg = lower_local_graph(
+        g,
+        node_priors={
+            "github:lowertest::a": 0.8,
+            "github:lowertest::b": 0.5,
+        },
+    )
+    impl_f = [f for f in fg.factors if f.factor_type == FactorType.IMPLICATION][0]
+    helper_id = impl_f.conclusion
+    assert fg.variables[helper_id] == pytest.approx(1.0 - CROMWELL_EPS)
+
+    # Case 2: helper in node_priors at 1-ε (correct generation) → lowering uses it
+    fg2 = lower_local_graph(
+        g,
+        node_priors={
+            "github:lowertest::a": 0.8,
+            "github:lowertest::b": 0.5,
+            helper_id: 1.0 - CROMWELL_EPS,
+        },
+    )
+    assert fg2.variables[helper_id] == pytest.approx(1.0 - CROMWELL_EPS)
+
+    # Both cases: BP propagates correctly
+    beliefs, _ = exact_inference(fg)
+    assert beliefs["github:lowertest::b"] > 0.5

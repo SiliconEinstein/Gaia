@@ -151,8 +151,15 @@ def _operator_to_ir(
     return IrOperator(**payload)
 
 
+_SYMMETRIC_OPS = frozenset(
+    {"equivalence", "contradiction", "complement", "disjunction", "conjunction"}
+)
+
+
 def _operator_id(o: Operator, knowledge_map: dict[int, str]) -> str:
-    var_ids = sorted(knowledge_map[id(v)] for v in o.variables)
+    var_ids = [knowledge_map[id(v)] for v in o.variables]
+    if o.operator in _SYMMETRIC_OPS:
+        var_ids = sorted(var_ids)
     conclusion_id = knowledge_map[id(o.conclusion)]
     raw = f"{o.operator}|{'|'.join(var_ids)}|{conclusion_id}"
     return f"lco_{hashlib.sha256(raw.encode()).hexdigest()[:16]}"

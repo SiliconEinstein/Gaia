@@ -179,9 +179,9 @@ class FactorGraph:
 
     @staticmethod
     def _validate_deterministic(factor_id: str, ft: FactorType, v_list: list[str]) -> None:
-        if ft == FactorType.IMPLICATION and len(v_list) != 1:
+        if ft == FactorType.IMPLICATION and len(v_list) != 2:
             raise ValueError(
-                f"IMPLICATION '{factor_id}' requires exactly 1 variable, got {len(v_list)}."
+                f"IMPLICATION '{factor_id}' requires exactly 2 variables, got {len(v_list)}."
             )
         if ft == FactorType.CONJUNCTION and len(v_list) < 2:
             raise ValueError(

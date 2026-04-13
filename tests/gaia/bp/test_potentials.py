@@ -18,21 +18,35 @@ from gaia.bp.potentials import (
 EPS = 2e-3  # potentials use soft binary ~0.999/0.001; need margin above that
 
 
-# ── implication: A=1 → B=1 ──
+# ── implication: ternary with helper H ──
 
 
-def test_implication_a1_b1():
-    assert implication_potential({"A": 1, "B": 1}, "A", "B") > 1 - EPS
+def test_implication_h1_a1_b1():
+    """H=1 (implication holds), A=1,B=1 → HIGH."""
+    assert implication_potential({"A": 1, "B": 1, "H": 1}, "A", "B", "H") > 1 - EPS
 
 
-def test_implication_a1_b0_forbidden():
-    assert implication_potential({"A": 1, "B": 0}, "A", "B") < EPS
+def test_implication_h1_a1_b0_forbidden():
+    """H=1 (implication holds), A=1,B=0 → LOW (forbidden)."""
+    assert implication_potential({"A": 1, "B": 0, "H": 1}, "A", "B", "H") < EPS
 
 
-def test_implication_a0_b_any():
-    # A=0 → B can be anything
-    assert implication_potential({"A": 0, "B": 0}, "A", "B") > 1 - EPS
-    assert implication_potential({"A": 0, "B": 1}, "A", "B") > 1 - EPS
+def test_implication_h1_a0_b_any():
+    """H=1, A=0 → B can be anything."""
+    assert implication_potential({"A": 0, "B": 0, "H": 1}, "A", "B", "H") > 1 - EPS
+    assert implication_potential({"A": 0, "B": 1, "H": 1}, "A", "B", "H") > 1 - EPS
+
+
+def test_implication_h0_a1_b0_high():
+    """H=0 (implication fails), A=1,B=0 → HIGH (complement)."""
+    assert implication_potential({"A": 1, "B": 0, "H": 0}, "A", "B", "H") > 1 - EPS
+
+
+def test_implication_h0_other_low():
+    """H=0 (implication fails), any other assignment → LOW."""
+    assert implication_potential({"A": 1, "B": 1, "H": 0}, "A", "B", "H") < EPS
+    assert implication_potential({"A": 0, "B": 0, "H": 0}, "A", "B", "H") < EPS
+    assert implication_potential({"A": 0, "B": 1, "H": 0}, "A", "B", "H") < EPS
 
 
 # ── conjunction: M = AND(inputs) ──
@@ -157,11 +171,12 @@ def test_evaluate_potential_routes_correctly():
     factor = Factor(
         factor_id="f1",
         factor_type=FactorType.IMPLICATION,
-        variables=["A"],
-        conclusion="B",
+        variables=["A", "B"],
+        conclusion="H",
     )
-    assert evaluate_potential(factor, {"A": 1, "B": 1}) > 1 - EPS
-    assert evaluate_potential(factor, {"A": 1, "B": 0}) < EPS
+    assert evaluate_potential(factor, {"A": 1, "B": 1, "H": 1}) > 1 - EPS
+    assert evaluate_potential(factor, {"A": 1, "B": 0, "H": 1}) < EPS
+    assert evaluate_potential(factor, {"A": 1, "B": 0, "H": 0}) > 1 - EPS
 
 
 def test_evaluate_potential_soft_entailment():

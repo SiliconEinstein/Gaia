@@ -28,6 +28,7 @@ _HELPER_KIND_BY_OPERATOR = {
     "equivalence": "equivalence_result",
     "contradiction": "contradiction_result",
     "complement": "complement_result",
+    "implication": "implication_result",
 }
 
 
@@ -218,22 +219,37 @@ def _opposite_truth_name(left: str, right: str) -> str:
     return f"opposite_truth({left},{right})"
 
 
+def _implies_name(antecedent: str, consequent: str) -> str:
+    return f"implies({antecedent},{consequent})"
+
+
 def _build_deduction(builder: _TemplateBuilder) -> list[Operator]:
     if len(builder.premises) < 1:
         raise ValueError("deduction formalization requires at least 1 premise")
     if len(builder.premises) == 1:
-        # Single premise: direct implication, no conjunction needed
+        # Single premise: direct implication with helper claim
+        antecedent = builder.premises[0]
+        impl_helper = builder.add_helper(
+            "implication", _implies_name(antecedent, builder.conclusion)
+        )
         return [
             Operator(
                 operator="implication",
-                variables=[builder.premises[0]],
-                conclusion=builder.conclusion,
+                variables=[antecedent, builder.conclusion],
+                conclusion=impl_helper.id,
             ),
         ]
     conjunction = builder.add_helper("conjunction", _all_true_name(builder.premises))
+    impl_helper = builder.add_helper(
+        "implication", _implies_name(conjunction.id, builder.conclusion)
+    )
     return [
         Operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
-        Operator(operator="implication", variables=[conjunction.id], conclusion=builder.conclusion),
+        Operator(
+            operator="implication",
+            variables=[conjunction.id, builder.conclusion],
+            conclusion=impl_helper.id,
+        ),
     ]
 
 
@@ -241,9 +257,16 @@ def _build_mathematical_induction(builder: _TemplateBuilder) -> list[Operator]:
     if len(builder.premises) != 2:
         raise ValueError("mathematical_induction formalization requires exactly 2 premises")
     conjunction = builder.add_helper("conjunction", _all_true_name(builder.premises))
+    impl_helper = builder.add_helper(
+        "implication", _implies_name(conjunction.id, builder.conclusion)
+    )
     return [
         Operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
-        Operator(operator="implication", variables=[conjunction.id], conclusion=builder.conclusion),
+        Operator(
+            operator="implication",
+            variables=[conjunction.id, builder.conclusion],
+            conclusion=impl_helper.id,
+        ),
     ]
 
 
@@ -301,6 +324,9 @@ def _build_elimination(builder: _TemplateBuilder) -> list[Operator]:
         elimination_gate_inputs.extend([evidence, contradiction.id])
 
     conjunction = builder.add_helper("conjunction", _all_true_name(elimination_gate_inputs))
+    impl_helper = builder.add_helper(
+        "implication", _implies_name(conjunction.id, builder.conclusion)
+    )
     operators.append(
         Operator(
             operator="conjunction",
@@ -309,7 +335,11 @@ def _build_elimination(builder: _TemplateBuilder) -> list[Operator]:
         )
     )
     operators.append(
-        Operator(operator="implication", variables=[conjunction.id], conclusion=builder.conclusion)
+        Operator(
+            operator="implication",
+            variables=[conjunction.id, builder.conclusion],
+            conclusion=impl_helper.id,
+        )
     )
     return operators
 
@@ -352,6 +382,10 @@ def _build_case_analysis(builder: _TemplateBuilder) -> list[Operator]:
             "conjunction",
             _all_true_name([case_claim, support]),
         )
+        impl_helper = builder.add_helper(
+            "implication",
+            _implies_name(conjunction.id, builder.conclusion),
+        )
         operators.append(
             Operator(
                 operator="conjunction",
@@ -362,8 +396,8 @@ def _build_case_analysis(builder: _TemplateBuilder) -> list[Operator]:
         operators.append(
             Operator(
                 operator="implication",
-                variables=[conjunction.id],
-                conclusion=builder.conclusion,
+                variables=[conjunction.id, builder.conclusion],
+                conclusion=impl_helper.id,
             )
         )
     return operators
@@ -417,9 +451,16 @@ def _build_analogy(builder: _TemplateBuilder) -> list[Operator]:
     if len(builder.premises) != 2:
         raise ValueError("analogy formalization requires exactly 2 premises")
     conjunction = builder.add_helper("conjunction", _all_true_name(builder.premises))
+    impl_helper = builder.add_helper(
+        "implication", _implies_name(conjunction.id, builder.conclusion)
+    )
     return [
         Operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
-        Operator(operator="implication", variables=[conjunction.id], conclusion=builder.conclusion),
+        Operator(
+            operator="implication",
+            variables=[conjunction.id, builder.conclusion],
+            conclusion=impl_helper.id,
+        ),
     ]
 
 
@@ -427,9 +468,16 @@ def _build_extrapolation(builder: _TemplateBuilder) -> list[Operator]:
     if len(builder.premises) != 2:
         raise ValueError("extrapolation formalization requires exactly 2 premises")
     conjunction = builder.add_helper("conjunction", _all_true_name(builder.premises))
+    impl_helper = builder.add_helper(
+        "implication", _implies_name(conjunction.id, builder.conclusion)
+    )
     return [
         Operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
-        Operator(operator="implication", variables=[conjunction.id], conclusion=builder.conclusion),
+        Operator(
+            operator="implication",
+            variables=[conjunction.id, builder.conclusion],
+            conclusion=impl_helper.id,
+        ),
     ]
 
 

@@ -56,9 +56,17 @@ def factor_to_tensor(f: Factor) -> tuple[np.ndarray, list[str]]:
     ft = f.factor_type
 
     if ft == FactorType.IMPLICATION:
-        t = np.full(shape, _HIGH, dtype=np.float64)
-        # Forbid (antecedent=1, consequent=0)
-        t[1, 0] = _LOW
+        # Ternary: axes = [antecedent, consequent, helper]
+        # H=1 (implication holds): standard A=>B (A=1,B=0 forbidden)
+        # H=0 (implication fails): complement (A=1,B=0 is the only HIGH row)
+        t = np.empty(shape, dtype=np.float64)
+        for a in range(2):
+            for b in range(2):
+                for h in range(2):
+                    if h == 1:
+                        t[a, b, h] = _LOW if (a == 1 and b == 0) else _HIGH
+                    else:
+                        t[a, b, h] = _HIGH if (a == 1 and b == 0) else _LOW
         return t, axes
 
     if ft == FactorType.CONJUNCTION:
