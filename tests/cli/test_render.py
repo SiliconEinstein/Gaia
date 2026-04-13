@@ -77,6 +77,17 @@ def test_render_target_all_writes_docs_and_github(tmp_path):
     assert (github_dir / "README.md").exists()
 
 
+def test_render_uses_metadata_priors_from_priors_py(tmp_path):
+    pkg_dir = _prepare_inferred_package(tmp_path, name="metadata_prior_render")
+
+    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
+    assert result.exit_code == 0, result.output
+
+    content = (pkg_dir / "docs" / "detailed-reasoning.md").read_text()
+    assert "Prior: 0.90" in content
+    assert "| [evidence_b](#evidence_b) | claim | 0.80 |" in content
+
+
 def test_render_fails_when_ir_artifacts_missing(tmp_path):
     """render before compile → error about missing compiled artifacts."""
     pkg_dir = tmp_path / "no_compile"

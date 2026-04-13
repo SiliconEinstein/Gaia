@@ -1154,6 +1154,52 @@ def test_compile_priors_py_invalid_key_raises(tmp_path):
     assert "Knowledge" in result.output or "PRIORS" in result.output
 
 
+def test_compile_priors_py_new_knowledge_raises(tmp_path):
+    """priors.py may only annotate Knowledge objects already declared by the package."""
+    pkg_dir = tmp_path / "prior_ghost_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "prior-ghost-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "prior_ghost_pkg"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        'from gaia.lang import claim\n\nmain_claim = claim("Main claim.")\n__all__ = ["main_claim"]\n'
+    )
+    (pkg_src / "priors.py").write_text(
+        "from gaia.lang import claim\n\n"
+        'ghost = claim("Ghost prior-only claim.")\n'
+        'PRIORS = {ghost: (0.9, "Accidental new claim.")}\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code != 0
+    assert "must not declare new Knowledge" in result.output
+
+
+def test_compile_priors_py_out_of_range_prior_raises(tmp_path):
+    pkg_dir = tmp_path / "bad_prior_value_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "bad-prior-value-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "bad_prior_value_pkg"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        'from gaia.lang import claim\n\nmain_claim = claim("Main claim.")\n__all__ = ["main_claim"]\n'
+    )
+    (pkg_src / "priors.py").write_text(
+        "from . import main_claim\n\n"
+        'PRIORS = {main_claim: (2.5, "Invalid probability.")}\n'
+    )
+
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code != 0
+    assert "Cromwell bounds" in result.output
+
+
 def test_compile_priors_py_reason_prior_pairing(tmp_path):
     """PRIORS values must be (float, str) tuples."""
     pkg_dir = tmp_path / "malformed_priors_pkg"

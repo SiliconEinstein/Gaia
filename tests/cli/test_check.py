@@ -36,6 +36,22 @@ def test_check_passes_with_fresh_artifacts(tmp_path):
     assert "Check passed" in result.output
 
 
+def test_check_applies_priors_py_before_stale_check(tmp_path):
+    pkg_dir = tmp_path / "check_demo"
+    _write_package(pkg_dir)
+    (pkg_dir / "check_demo" / "priors.py").write_text(
+        "from . import main_claim\n\n"
+        'PRIORS = {main_claim: (0.8, "Reviewed premise.")}\n'
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["check", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    assert "Check passed" in result.output
+
+
 def test_check_fails_when_compiled_artifacts_are_stale(tmp_path):
     pkg_dir = tmp_path / "check_demo"
     _write_package(pkg_dir, content="Original claim.")

@@ -7,6 +7,7 @@ import json
 import typer
 
 from gaia.cli._packages import GaiaCliError, load_gaia_package, validate_fills_relations
+from gaia.cli._packages import apply_package_priors
 from gaia.cli._packages import compile_loaded_package_artifact
 from gaia.cli.commands._classify import classify_ir, node_role
 from gaia.ir import LocalCanonicalGraph
@@ -91,6 +92,7 @@ def check_command(
     """Validate structure and artifact consistency for a Gaia knowledge package."""
     try:
         loaded = load_gaia_package(path)
+        apply_package_priors(loaded)
         compiled = compile_loaded_package_artifact(loaded)
         ir = compiled.to_json()
         validate_fills_relations(loaded, compiled)

@@ -2,9 +2,25 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
+from gaia.ir.parameterization import CROMWELL_EPS
 from gaia.lang.runtime import Knowledge, Operator
+
+
+def _validate_prior_range(prior: float | None) -> None:
+    if prior is None:
+        return
+    if isinstance(prior, bool) or not isinstance(prior, (int, float)):
+        raise ValueError(f"prior must be a number, got {type(prior).__name__}.")
+    prior_value = float(prior)
+    if not math.isfinite(prior_value):
+        raise ValueError(f"prior must be finite, got {prior_value!r}.")
+    if prior_value < CROMWELL_EPS or prior_value > 1 - CROMWELL_EPS:
+        raise ValueError(
+            f"prior {prior_value} outside Cromwell bounds [{CROMWELL_EPS}, {1 - CROMWELL_EPS}]"
+        )
 
 
 def _validate_reason_prior(reason: str | Any, prior: float | None) -> None:
@@ -16,6 +32,7 @@ def _validate_reason_prior(reason: str | Any, prior: float | None) -> None:
             "reason and prior must be paired: provide both or neither. "
             f"Got reason={'yes' if has_reason else 'no'}, prior={'yes' if has_prior else 'no'}."
         )
+    _validate_prior_range(prior)
 
 
 def _helper_metadata(helper_kind: str, prior: float | None) -> dict:
