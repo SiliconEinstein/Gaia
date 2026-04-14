@@ -207,3 +207,55 @@ def test_add_succeeds_without_beliefs_manifest(mock_fetch, mock_uv, mock_resolve
     result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0
     assert "no beliefs manifest" in result.output.lower()
+
+
+@patch("gaia.cli.commands.add.resolve_package", return_value=MOCK_VERSION)
+@patch("gaia.cli.commands.add._run_uv")
+@patch("gaia.cli.commands.add.fetch_file_optional", return_value="not valid json {{{")
+def test_add_handles_invalid_beliefs_json(mock_fetch, mock_uv, mock_resolve):
+    """gaia add gracefully handles invalid JSON in beliefs manifest."""
+    mock_uv.return_value = MagicMock(returncode=0)
+    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
+    assert result.exit_code == 0
+    assert "not valid json" in result.output.lower()
+
+
+@patch("gaia.cli.commands.add.resolve_package", return_value=MOCK_VERSION)
+@patch("gaia.cli.commands.add._run_uv")
+@patch("gaia.cli.commands.add.fetch_file_optional")
+def test_add_skips_dep_beliefs_outside_gaia_package(
+    mock_fetch, mock_uv, mock_resolve, tmp_path, monkeypatch
+):
+    """gaia add skips dep_beliefs if not inside a Gaia package."""
+    # tmp_path has no pyproject.toml — _find_gaia_package_root returns None
+    monkeypatch.chdir(tmp_path)
+    mock_uv.return_value = MagicMock(returncode=0)
+    mock_fetch.return_value = '{"beliefs": []}'
+    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
+    assert result.exit_code == 0
+    assert "not inside a gaia package" in result.output.lower()
+
+
+@patch("gaia.cli.commands.add.resolve_package", return_value=MOCK_VERSION)
+@patch("gaia.cli.commands.add._run_uv")
+@patch("gaia.cli.commands.add.fetch_file_optional")
+def test_add_writes_dep_beliefs_at_package_root_from_subdir(
+    mock_fetch, mock_uv, mock_resolve, tmp_path, monkeypatch
+):
+    """gaia add from a subdirectory writes dep_beliefs at the package root."""
+    # Create package root with pyproject.toml
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "test-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\ntype = "knowledge-package"\n'
+    )
+    subdir = tmp_path / "src" / "nested"
+    subdir.mkdir(parents=True)
+    monkeypatch.chdir(subdir)
+    mock_uv.return_value = MagicMock(returncode=0)
+    mock_fetch.return_value = '{"beliefs": [{"knowledge_id": "a", "belief": 0.7}]}'
+    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
+    assert result.exit_code == 0
+    # dep_beliefs should be at the package root, not in the subdir
+    dep_file = tmp_path / ".gaia" / "dep_beliefs" / "galileo_falling_bodies.json"
+    assert dep_file.exists()
+    assert not (subdir / ".gaia" / "dep_beliefs").exists()

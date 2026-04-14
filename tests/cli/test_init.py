@@ -179,6 +179,26 @@ def test_init_gitignore_adds_missing_patterns_to_existing(tmp_path, monkeypatch)
     assert gitignore.count(".gaia/reviews/") == 1
 
 
+def test_init_gitignore_replaces_broad_gaia_ignore(tmp_path, monkeypatch):
+    """If .gitignore has overly broad '.gaia/', it is replaced with specific patterns."""
+    monkeypatch.chdir(tmp_path)
+    pkg_dir = tmp_path / "broad-gaia"
+    pkg_dir.mkdir()
+    # Simulate .gitignore with the overly broad .gaia/ pattern
+    (pkg_dir / ".gitignore").write_text("# uv default\n.gaia/\n")
+    with patch("gaia.cli.commands.init.subprocess.run", side_effect=_fake_subprocess_run):
+        result = runner.invoke(app, ["init", "broad-gaia"])
+
+    assert result.exit_code == 0
+    gitignore = (pkg_dir / ".gitignore").read_text()
+    # Broad pattern removed
+    assert ".gaia/\n" not in gitignore
+    # Specific patterns added
+    assert ".gaia/reviews/" in gitignore
+    assert ".gaia/beliefs.json" in gitignore
+    assert ".gaia/dep_beliefs/" in gitignore
+
+
 def test_init_missing_uv_shows_install_hint(tmp_path, monkeypatch):
     """Missing uv binary gives a helpful error message."""
     monkeypatch.chdir(tmp_path)
