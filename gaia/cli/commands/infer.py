@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
+from pathlib import Path
 
 import typer
 
@@ -14,6 +15,7 @@ from gaia.cli._packages import (
     apply_package_priors,
     collect_foreign_node_priors,
     compile_loaded_package_artifact,
+    ensure_package_env,
     gaia_lang_version,
     load_dependency_compiled_graphs,
     load_gaia_package,
@@ -45,6 +47,7 @@ def infer_command(
     prior injection from dep_beliefs/.
     """
     try:
+        ensure_package_env(Path(path).resolve())
         loaded = load_gaia_package(path)
         apply_package_priors(loaded)
         compiled = compile_loaded_package_artifact(loaded)

@@ -6,6 +6,7 @@ import hashlib
 import importlib
 import json
 import math
+import subprocess
 import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass
@@ -87,6 +88,31 @@ def _assign_labels_for_loaded_modules() -> None:
         if pkg is None:
             continue
         _assign_labels(module, pkg)
+
+
+def ensure_package_env(pkg_path: Path) -> None:
+    """Run ``uv sync`` in *pkg_path* so dependencies are importable.
+
+    Skipped when the directory has no ``pyproject.toml`` or when ``uv``
+    is not on ``$PATH``.  Failures are non-fatal (a warning is printed)
+    because the user may manage dependencies another way.
+    """
+    if not (pkg_path / "pyproject.toml").exists():
+        return
+    import shutil
+
+    if shutil.which("uv") is None:
+        return
+    result = subprocess.run(
+        ["uv", "sync", "--quiet"],
+        cwd=pkg_path,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        import logging
+
+        logging.getLogger(__name__).debug("uv sync in %s: %s", pkg_path, result.stderr.strip())
 
 
 def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:

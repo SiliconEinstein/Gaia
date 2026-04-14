@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import typer
 
 from gaia.cli._packages import (
@@ -9,6 +11,7 @@ from gaia.cli._packages import (
     apply_package_priors,
     build_package_manifests,
     compile_loaded_package_artifact,
+    ensure_package_env,
     load_gaia_package,
     write_compiled_artifacts,
 )
@@ -21,6 +24,7 @@ def compile_command(
 ) -> None:
     """Compile a knowledge package to .gaia/ir.json."""
     try:
+        ensure_package_env(Path(path).resolve())
         loaded = load_gaia_package(path)
         apply_package_priors(loaded)
         compiled = compile_loaded_package_artifact(loaded)
