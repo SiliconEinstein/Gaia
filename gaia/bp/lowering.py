@@ -419,7 +419,7 @@ def lower_operator(graph: FactorGraph, op: Operator, factor_id: str) -> None:
 
 def merge_factor_graphs(
     local_fg: FactorGraph,
-    dep_graphs: list[tuple[str, FactorGraph]],
+    dep_graphs: list[tuple[str, FactorGraph, str]],
     *,
     local_prefix: str,
 ) -> FactorGraph:
@@ -430,7 +430,9 @@ def merge_factor_graphs(
     local_fg:
         The local package's factor graph.
     dep_graphs:
-        List of ``(dep_import_name, dep_factor_graph)`` pairs.
+        List of ``(dep_import_name, dep_factor_graph, dep_qid_prefix)``
+        triples. ``dep_qid_prefix`` identifies variables owned by that
+        dependency, e.g. ``"github:dep_pkg::"``.
     local_prefix:
         QID prefix for the local package, e.g. ``"github:my_pkg::"``.
         Variables starting with this prefix are owned by the local package.
@@ -443,10 +445,12 @@ def merge_factor_graphs(
     """
     merged = FactorGraph()
 
-    # 1. Add dep variables first — dep priors are authoritative for dep-owned nodes
-    for dep_name, dep_fg in dep_graphs:
+    # 1. Add dep variables first. A dep graph is authoritative only for
+    # variables it owns; foreign references may carry neutral placeholder priors.
+    for dep_name, dep_fg, dep_prefix in dep_graphs:
         for var_id, prior in dep_fg.variables.items():
-            merged.add_variable(var_id, prior)
+            if var_id.startswith(dep_prefix) or var_id not in merged.variables:
+                merged.add_variable(var_id, prior)
 
     # 2. Add local variables — overwrite only for locally-owned nodes
     for var_id, prior in local_fg.variables.items():
@@ -459,7 +463,7 @@ def merge_factor_graphs(
         # else: dep owns it, dep prior already set — skip
 
     # 3. Copy dep factors with prefixed IDs
-    for dep_name, dep_fg in dep_graphs:
+    for dep_name, dep_fg, _dep_prefix in dep_graphs:
         for factor in dep_fg.factors:
             prefixed = replace(factor, factor_id=f"dep_{dep_name}_{factor.factor_id}")
             merged.factors.append(prefixed)
