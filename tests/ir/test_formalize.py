@@ -373,7 +373,7 @@ class TestFormalizeNamedStrategy:
             )
 
     def test_formalize_support_single_premise(self):
-        """Support with single premise generates 2 IMPLIES (forward + reverse)."""
+        """Support with single premise generates 1 IMPLIES (forward only)."""
         result = formalize_named_strategy(
             scope="local",
             type_="support",
@@ -381,19 +381,15 @@ class TestFormalizeNamedStrategy:
             conclusion="github:test::b",
             namespace="github",
             package_name="test",
-            metadata={"reverse_reason": "B implies A"},
         )
 
-        assert _operator_names(result.strategy) == ["implication", "implication"]
-        assert _role_counts(result.knowledges) == Counter({"implication_result": 2})
-        # Forward: variables=[a, b], Reverse: variables=[b, a]
+        assert _operator_names(result.strategy) == ["implication"]
+        assert _role_counts(result.knowledges) == Counter({"implication_result": 1})
         fwd_op = result.strategy.formal_expr.operators[0]
-        rev_op = result.strategy.formal_expr.operators[1]
         assert fwd_op.variables == ["github:test::a", "github:test::b"]
-        assert rev_op.variables == ["github:test::b", "github:test::a"]
 
     def test_formalize_support_multi_premise(self):
-        """Support with multiple premises generates CONJUNCTION + 2 IMPLIES."""
+        """Support with multiple premises generates CONJUNCTION + 1 IMPLIES."""
         result = formalize_named_strategy(
             scope="local",
             type_="support",
@@ -406,10 +402,9 @@ class TestFormalizeNamedStrategy:
         assert _operator_names(result.strategy) == [
             "conjunction",
             "implication",
-            "implication",
         ]
         assert _role_counts(result.knowledges) == Counter(
-            {"conjunction_result": 1, "implication_result": 2}
+            {"conjunction_result": 1, "implication_result": 1}
         )
         # Conjunction: variables=[a, b]
         conj_op = result.strategy.formal_expr.operators[0]
@@ -418,9 +413,6 @@ class TestFormalizeNamedStrategy:
         fwd_op = result.strategy.formal_expr.operators[1]
         conj_id = result.knowledges[0].id
         assert fwd_op.variables == [conj_id, "github:test::c"]
-        # Reverse implication: c -> conjunction
-        rev_op = result.strategy.formal_expr.operators[2]
-        assert rev_op.variables == ["github:test::c", conj_id]
 
     def test_compare_template(self):
         """Compare produces 2 equivalence + 1 implication operators."""
@@ -550,8 +542,8 @@ class TestPriorPropagation:
         assert len(impl_helpers) == 1
         assert "prior" not in impl_helpers[0].metadata
 
-    def test_support_propagates_forward_and_reverse_prior(self):
-        """Support: forward helper gets prior, reverse helper gets reverse_prior."""
+    def test_support_propagates_prior(self):
+        """Support: forward helper gets prior."""
         result = formalize_named_strategy(
             scope="local",
             type_="support",
@@ -559,19 +551,15 @@ class TestPriorPropagation:
             conclusion="github:test::b",
             namespace="github",
             package_name="test",
-            metadata={"prior": 0.9, "reverse_prior": 0.7, "reverse_reason": "..."},
+            metadata={"prior": 0.9},
         )
         impl_helpers = [
             k
             for k in result.knowledges
             if (k.metadata or {}).get("helper_kind") == "implication_result"
         ]
-        # Support generates 2 implication helpers: forward + reverse
-        assert len(impl_helpers) == 2
-        # Forward helper (first) gets prior
+        assert len(impl_helpers) == 1
         assert impl_helpers[0].metadata["prior"] == 0.9
-        # Reverse helper (second) gets reverse_prior
-        assert impl_helpers[1].metadata["prior"] == 0.7
 
     def test_compare_propagates_prior_to_comparison_implication(self):
         """Compare: only the comparison implication helper gets prior, not equivalences."""

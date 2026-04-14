@@ -494,7 +494,7 @@ def _build_extrapolation(builder: _TemplateBuilder) -> list[Operator]:
 
 
 def _build_support(builder: _TemplateBuilder) -> list[Operator]:
-    """Support: forward IMPLIES + reverse IMPLIES."""
+    """Support: conjunction + forward IMPLIES (same structure as deduction)."""
     if len(builder.premises) == 1:
         antecedent = builder.premises[0]
         ops: list[Operator] = []
@@ -510,23 +510,14 @@ def _build_support(builder: _TemplateBuilder) -> list[Operator]:
         ]
 
     h_fwd = builder.add_helper("implication", _implies_name(antecedent, builder.conclusion))
-    h_rev = builder.add_helper("implication", _implies_name(builder.conclusion, antecedent))
     _propagate_prior(builder, h_fwd, key="prior")
-    _propagate_prior(builder, h_rev, key="reverse_prior")
 
-    ops.extend(
-        [
-            Operator(
-                operator="implication",
-                variables=[antecedent, builder.conclusion],
-                conclusion=h_fwd.id,
-            ),
-            Operator(
-                operator="implication",
-                variables=[builder.conclusion, antecedent],
-                conclusion=h_rev.id,
-            ),
-        ]
+    ops.append(
+        Operator(
+            operator="implication",
+            variables=[antecedent, builder.conclusion],
+            conclusion=h_fwd.id,
+        ),
     )
     return ops
 

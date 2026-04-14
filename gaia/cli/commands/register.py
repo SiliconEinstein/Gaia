@@ -10,7 +10,12 @@ from uuid import UUID
 
 import typer
 
-from gaia.cli._packages import GaiaCliError, apply_package_priors, build_package_manifests, load_gaia_package
+from gaia.cli._packages import (
+    GaiaCliError,
+    apply_package_priors,
+    build_package_manifests,
+    load_gaia_package,
+)
 from gaia.cli._packages import compile_loaded_package_artifact
 from gaia.cli._packages import render_manifest_json
 from gaia.ir import LocalCanonicalGraph

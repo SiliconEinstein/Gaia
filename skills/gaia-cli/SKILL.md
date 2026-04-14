@@ -108,9 +108,16 @@ After generation, use `/gaia:publish` to fill narrative content.
 
 ```bash
 gaia check .
+gaia check --brief .
+gaia check --show <module|label> .
+gaia check --brief --show <module|label> .
 ```
 
 Validates package structure and IR consistency. Used by registry CI during publishing.
+
+Options:
+- `--brief` / `-b` — Show per-module warrant structure overview (claims with roles, strategies with priors, operators)
+- `--show` / `-s` — Expand a specific module name or claim/strategy label with full warrant trees
 
 Common errors:
 - Missing `[tool.gaia].type` in `pyproject.toml`
@@ -122,8 +129,24 @@ Common errors:
 
 `gaia check` also reports informational diagnostics (not errors) useful for completeness checking during formalization:
 
-- **Leaf nodes** — claims that are not concluded by any strategy. These need `prior` values in the review sidecar.
-- **Orphaned claims** — claims not referenced by any strategy as either premise or conclusion. These may indicate incomplete formalization or leftover declarations.
+- **Independent premises** — claims not concluded by any strategy that need priors
+- **Derived conclusions** — claims whose belief comes from BP propagation (do not set priors)
+- **Orphaned claims** — claims not referenced by any strategy
+- **Background-only claims** — claims only used in strategy `background=`, not as premises
+
+### `--brief` output
+
+Per-module overview showing:
+- Settings with label + truncated content
+- Claims with role (independent/derived/structural/background/orphaned) and prior
+- Strategies with type, premise labels → conclusion, prior, and reason
+- Operators with type, variables, and reason
+
+### `--show` output
+
+When given a **module name** (e.g., `--show motivation`): expands all claims with full content and strategies with recursive warrant trees, including composite sub-strategy expansion.
+
+When given a **claim label** (e.g., `--show hypothesis`): shows the claim's full content and all strategies that conclude to it, with all premises listed.
 
 ## 6. Review sidecar
 

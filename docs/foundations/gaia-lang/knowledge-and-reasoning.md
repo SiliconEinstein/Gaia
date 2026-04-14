@@ -144,20 +144,15 @@ Strategies have three forms (`Strategy`, `CompositeStrategy`, `FormalStrategy`) 
 
 ### 3.1 Direct Strategy Types
 
-Two strategy types carry explicit external probability parameters via `StrategyParamRecord`:
-
-**`noisy_and`** -- Lowered to CONJUNCTION + SOFT_ENTAILMENT factors.
-
-- All premises are AND-gated (conjunction factor)
-- The conjunction result M connects to the conclusion via a soft entailment factor with parameters (p1, p2)
-- `P(conclusion=1 | M=1) = p1`, `P(conclusion=0 | M=0) = p2`
-- Single parameter `p` from `StrategyParamRecord` maps to p1; p2 derives from leak = eps
+One strategy type carries explicit external probability parameters via `StrategyParamRecord`:
 
 **`infer`** -- Lowered to a CONDITIONAL factor with full CPT.
 
 - `2^k` conditional probability entries (one per premise truth-value combination)
 - Default MaxEnt: all entries = 0.5
 - Parameters from `StrategyParamRecord.conditional_probabilities`
+
+**`noisy_and`** (deprecated) -- Use `support` instead. Compiles to `support` internally.
 
 ### 3.2 Named Strategy Formalization
 
@@ -168,9 +163,29 @@ Named strategies expand at compile time into `FormalStrategy` with generated hel
 
 Named strategies carry **no independent `StrategyParamRecord`**. Their effective conditional behavior is derived from the `FormalExpr` skeleton plus the priors of interface claims.
 
-#### 3.2.1 Deduction
+#### 3.2.1 Support (soft deduction)
 
-**Input:** `premises = [P1, P2, ..., Pk]` (k >= 2), `conclusion = C`.
+**Input:** `premises = [P1, P2, ..., Pk]` (k >= 1), `conclusion = C`.
+
+**Expansion (k >= 2):**
+
+```
+helper M = all_true(P1, ..., Pk)
+  conjunction([P1, ..., Pk], conclusion=M)
+  implication([M], conclusion=C)    # warrant prior from author
+```
+
+**Expansion (k = 1):**
+
+```
+  implication([P1], conclusion=C)   # warrant prior from author
+```
+
+**Semantics:** Based on the **directed** `implication` operator (A=1 → B must =1). Same skeleton as deduction (conjunction + directed implication), but support is a soft (probabilistic) assertion. The author-specified prior on the implication warrant captures the strength of the support. Because implication is directed, information flows from premises to conclusion: true premises drive the conclusion true, but a true conclusion does not force premises true. When prior is high (~0.99), support behaves like deduction. When prior is moderate (~0.5-0.8), it expresses weaker empirical support.
+
+#### 3.2.2 Deduction
+
+**Input:** `premises = [P1, P2, ..., Pk]` (k >= 1), `conclusion = C`.
 
 **Expansion:**
 
@@ -180,9 +195,9 @@ helper M = all_true(P1, ..., Pk)
   implication([M], conclusion=C)
 ```
 
-**Semantics:** If all premises are true, the conclusion must be true. Pure deterministic entailment.
+**Semantics:** If all premises are true, the conclusion must be true. Pure deterministic entailment via directed `implication` operator. Same skeleton as support, but the reasoning is rigid (no epistemic uncertainty beyond the premises themselves).
 
-#### 3.2.2 Mathematical Induction
+#### 3.2.3 Mathematical Induction
 
 **Input:** `premises = [Base, Step]` (exactly 2), `conclusion = C`.
 
@@ -196,7 +211,7 @@ helper M = all_true(Base, Step)
 
 **Semantics:** Structurally identical to deduction with exactly 2 premises. The `type` field distinguishes the reasoning family.
 
-#### 3.2.3 Analogy
+#### 3.2.4 Analogy
 
 **Input:** `premises = [Source, Bridge]` (exactly 2), `conclusion = Target`.
 
@@ -210,7 +225,7 @@ helper M = all_true(Source, Bridge)
 
 **Semantics:** The bridge claim (e.g., "the structural similarity between source and target domains is sufficient") is an interface claim carrying its own prior. When the bridge prior is low, the implication weakens -- the analogy is less convincing. M is a private helper claim.
 
-#### 3.2.4 Extrapolation
+#### 3.2.5 Extrapolation
 
 **Input:** `premises = [Source, Continuity]` (exactly 2), `conclusion = Target`.
 
@@ -224,7 +239,23 @@ helper M = all_true(Source, Continuity)
 
 **Semantics:** The continuity claim (e.g., "the observed trend continues into the extrapolated regime") carries the uncertainty. Structurally identical to analogy; distinguished by `type`.
 
-#### 3.2.5 Abduction
+#### 3.2.6 Compare
+
+**Input:** `premises = [pred_h, pred_alt, observation]` (exactly 3), `conclusion = C`.
+
+**Expansion:**
+
+```
+helper H_match1 = matches(pred_h, observation)
+helper H_match2 = matches(pred_alt, observation)
+  equivalence([pred_h, observation], conclusion=H_match1)
+  equivalence([pred_alt, observation], conclusion=H_match2)
+  implication([H_match2, H_match1], conclusion=C)
+```
+
+**Semantics:** Each prediction is compared to the observation via equivalence (does the prediction match?). The implication asserts that if the alternative also matches, the hypothesis must also match -- expressing inferential ordering. The author-specified prior on the implication warrant captures the strength of the comparison. H_match1 and H_match2 are private helper claims.
+
+#### 3.2.7 Abduction
 
 **Input:** `premises = [Observation]` or `premises = [Observation, AlternativeExplanation]`, `conclusion = Hypothesis`.
 
@@ -246,7 +277,7 @@ Same operator structure, but uses the author-provided alternative explanation in
 
 **Semantics:** The observation is equivalent to "at least one of the hypothesis or the alternative explanation is true." When the alternative explanation's prior is low, BP drives the hypothesis's posterior up. D and Eq are private helper claims.
 
-#### 3.2.6 Elimination
+#### 3.2.8 Elimination
 
 **Input:** `premises = [Exhaustiveness, Cand1, Evid1, Cand2, Evid2, ...]`, `conclusion = Survivor`.
 
@@ -272,7 +303,7 @@ helper Gate = all_true(gate_inputs...)
 
 **Semantics:** The candidates plus the survivor form an exhaustive disjunction (tied to the exhaustiveness claim via equivalence). Each candidate is eliminated by its contradicting evidence. The conjunction gate collects all the evidence and contradiction confirmations; when all pass, the survivor is implied.
 
-#### 3.2.7 Case Analysis
+#### 3.2.9 Case Analysis
 
 **Input:** `premises = [Exhaustiveness, Case1, Support1, Case2, Support2, ...]`, `conclusion = C`.
 
@@ -302,14 +333,27 @@ At lowering time, composite strategies are **recursively expanded** by default: 
 
 A utility function `fold_composite_to_cpt()` is also provided to compute the composite's effective CPT by marginalization. It recursively computes each sub-strategy's effective CPT via tensor contraction, then contracts child CPTs along shared bridge variables to produce the composite's CPT. Exact, no BP iterations. This produces a 2^k CPT (k = number of premises) that captures the composite's aggregate reasoning behavior — useful for analysis or for collapsing a composite into a single `CONDITIONAL` factor.
 
-Composite strategies **do not require** `review_strategy()` parameters in the review sidecar — only the leaf sub-strategies (if they are `infer` or `noisy_and` type) need parameterization. FormalStrategy sub-strategies (deduction, abduction, etc.) are deterministic and need no parameters at all.
+Composite strategies **do not require** `review_strategy()` parameters in the review sidecar -- only the leaf sub-strategies (if they are `infer` type) need parameterization. FormalStrategy sub-strategies (support, deduction, abduction, etc.) are deterministic and need no parameters at all.
 
-### 3.4 Deferred Strategy Types
+### 3.4 Induction as Composite Strategy
+
+`induction` is a `CompositeStrategy` wrapping multiple `support` sub-strategies that share the same `conclusion` (the law being induced). The inductive effect emerges from factor graph topology: multiple supports sharing a conclusion node cause BP to accumulate evidence.
+
+```
+CompositeStrategy(type=induction, conclusion=Law):
+  sub_strategies:
+    - FormalStrategy(type=support, premises=[Law], conclusion=Obs1)
+    - FormalStrategy(type=support, premises=[Law], conclusion=Obs2)
+    - ...
+```
+
+At the DSL level, `induction(s1, s2, law)` takes two Strategy objects and a law claim, and is chainable: `induction(prev_induction, new_support, law)`.
+
+### 3.5 Deferred Strategy Types
 
 The following are recognized in the type enum but not yet formalized:
 
 - **`reductio`** -- The public-interface contract for hypothetical assumption/consequence nodes is not yet fixed.
-- **`induction`** (statistical) -- Not a Gaia IR core primitive; express as repeated abduction with a shared conclusion.
 
 ---
 
@@ -322,7 +366,7 @@ The compiler (`gaia/lang/compiler/compile.py`) transforms collected DSL objects 
 | DSL Type | IR Type | Key Transformation |
 |----------|---------|-------------------|
 | `gaia.lang.Knowledge` | `gaia.ir.Knowledge` | QID assigned (`{namespace}:{package_name}::{label}`), `content_hash` computed as SHA-256(type + content + sorted(parameters)) |
-| `gaia.lang.Strategy` (leaf) | `gaia.ir.Strategy` | For `infer`/`noisy_and`: direct mapping. For named types: `formalize_named_strategy()` produces `FormalStrategy` + generated `Knowledge` nodes |
+| `gaia.lang.Strategy` (leaf) | `gaia.ir.Strategy` | For `infer`: direct mapping. For named types (`support`, `deduction`, `compare`, `abduction`, `analogy`, `extrapolation`, `elimination`, `case_analysis`, `mathematical_induction`): `formalize_named_strategy()` produces `FormalStrategy` + generated `Knowledge` nodes |
 | `gaia.lang.Strategy` (with sub_strategies) | `gaia.ir.CompositeStrategy` | Sub-strategies compiled recursively; referenced by `strategy_id`. At lowering, expanded into sub-strategy factors. `fold_composite_to_cpt()` available for deriving aggregate CPT. |
 | `gaia.lang.Strategy` (with formal_expr) | `gaia.ir.FormalStrategy` | Operators mapped to IR operators; embedded (no `operator_id` / `scope`) |
 | `gaia.lang.Operator` | `gaia.ir.Operator` | Top-level: `operator_id` with `lco_` prefix, `scope="local"`. Within `formal_expr`: no ID/scope |
@@ -330,7 +374,7 @@ The compiler (`gaia/lang/compiler/compile.py`) transforms collected DSL objects 
 
 ### 4.2 Compile-Time Formalization
 
-When the compiler encounters a leaf `Strategy` with a named type (`deduction`, `abduction`, `analogy`, `extrapolation`, `elimination`, `case_analysis`, `mathematical_induction`), it calls `formalize_named_strategy()` which:
+When the compiler encounters a leaf `Strategy` with a named type (`support`, `deduction`, `compare`, `abduction`, `analogy`, `extrapolation`, `elimination`, `case_analysis`, `mathematical_induction`), it calls `formalize_named_strategy()` which:
 
 1. Creates a `_TemplateBuilder` with the strategy's premises and conclusion
 2. Invokes the type-specific builder function (e.g., `_build_deduction`)

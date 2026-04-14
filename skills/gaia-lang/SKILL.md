@@ -13,9 +13,10 @@ Complete reference for authoring Gaia knowledge packages using the Python DSL.
 from gaia.lang import (
     claim, setting, question,                              # Knowledge
     contradiction, equivalence, complement, disjunction,   # Operators
-    noisy_and, infer, deduction, abduction, analogy,       # Strategies
-    extrapolation, elimination, case_analysis,
-    mathematical_induction, induction, composite,
+    support, compare, deduction, abduction, induction,     # Strategies
+    analogy, extrapolation, elimination, case_analysis,
+    mathematical_induction, composite, infer, fills,
+    # noisy_and,  # deprecated -- use support()
 )
 ```
 
@@ -23,7 +24,7 @@ from gaia.lang import (
 
 ### `claim(content, *, title=None, background=None, parameters=None, provenance=None, **metadata)`
 
-The only type that carries probability in BP. Use explicit strategies (`noisy_and`, `deduction`, etc.) to connect claims via reasoning.
+The only type that carries probability in BP. Use explicit strategies (`support`, `deduction`, etc.) to connect claims via reasoning.
 
 ```python
 # Simple claim
@@ -72,7 +73,7 @@ q = question("What is the critical temperature of this material?")
 
 ## 3. Operators (Deterministic Constraints)
 
-All operators take Knowledge inputs and an optional `reason: str`. Each returns a helper claim that can be used as a premise in strategies.
+All operators take Knowledge inputs and optional `reason: str` + `prior: float`. `reason` and `prior` must be paired: both or neither. Each returns a helper claim that can be used as a premise in strategies. Prior values must be within Cromwell bounds `[1e-3, 0.999]`.
 
 | Function | Semantics | Helper claim meaning |
 |----------|-----------|---------------------|
@@ -83,18 +84,21 @@ All operators take Knowledge inputs and an optional `reason: str`. Each returns 
 
 ```python
 # Two hypotheses cannot both be true
-not_both = contradiction(hypothesis_a, hypothesis_b, reason="Mutually exclusive mechanisms")
+not_both = contradiction(hypothesis_a, hypothesis_b,
+    reason="Mutually exclusive mechanisms", prior=0.99)
 
 # Two formulations are logically equivalent
-same = equivalence(formulation_1, formulation_2, reason="Algebraic rearrangement")
+same = equivalence(formulation_1, formulation_2,
+    reason="Algebraic rearrangement", prior=0.95)
 
 # Exactly one of two alternatives holds
-one_of = complement(conventional_sc, unconventional_sc, reason="Exhaustive classification")
+one_of = complement(conventional_sc, unconventional_sc,
+    reason="Exhaustive classification", prior=0.95)
 
 # At least one explanation must be true
 at_least_one = disjunction(
     mechanism_a, mechanism_b, mechanism_c,
-    reason="These exhaust known possibilities",
+    reason="These exhaust known possibilities", prior=0.9,
 )
 ```
 
@@ -102,24 +106,53 @@ at_least_one = disjunction(
 
 All strategies auto-register. All accept optional `reason: str | list = ""` and `background: list[Knowledge] | None = None`.
 
-### Direct Strategies (map to IR without formalization)
+### Leaf Strategies
 
-#### `noisy_and(premises, conclusion, *, reason="", background=None)`
+#### `support(premises, conclusion, *, reason="", prior=None, background=None)`
 
-All premises jointly support conclusion with conditional probability p. Most common strategy type.
-
-Review requires: `conditional_probability` (single float).
+**The most common strategy type.** Soft deduction based on the directed `implication` operator (A=1 → B must =1): premises jointly support conclusion via forward implication. Same structure as `deduction` (conjunction + directed implication) but with an author-specified prior on the implication warrant. `reason` and `prior` must be paired: both or neither.
 
 ```python
 conclusion = claim("MgB2 has two superconducting gaps")
-noisy_and(
+support(
     [band_structure_evidence, tunneling_data, specific_heat_anomaly],
     conclusion,
     reason="Three independent lines of evidence converge",
+    prior=0.85,
 )
 ```
 
-**Single-premise `noisy_and` is semantically degenerate.** If you have only one premise, consider whether the relationship is better modeled as `abduction` (if there is a natural alternative explanation) rather than a trivial AND-gate with one input.
+#### `deduction(premises, conclusion, *, reason="", prior=None, background=None)`
+
+Strict logical entailment based on the directed `implication` operator. Same skeleton as `support` (conjunction + directed implication) but semantically rigid (deterministic). Requires >= 1 premise. `reason` and `prior` must be paired: both or neither.
+
+Key test: "If premises are all true, is this conclusion NECESSARILY true?"
+- Yes -> deduction
+- No (approximations, empirical judgment, omitted premises) -> support
+
+```python
+theorem = claim("The series converges")
+deduction(
+    [bounded_above, monotonically_increasing],
+    theorem,
+    reason="Monotone convergence theorem",
+    prior=0.99,
+    background=[real_analysis_definition],
+)
+```
+
+#### `compare(pred_h, pred_alt, observation, *, reason="", prior=None, background=None)`
+
+Compare two predictions against an observation. Compiles to 2 equivalence operators (matching each prediction to observation) + 1 implication (inferential ordering). Auto-generates a `comparison_claim` as the conclusion. `reason` and `prior` must be paired: both or neither.
+
+```python
+pred_h = claim("H predicts 3:1 ratio.")
+pred_alt = claim("Alt predicts continuous distribution.")
+obs = claim("Observed 2.96:1 ratio.")
+comp = compare(pred_h, pred_alt, obs,
+    reason="H matches observation much better", prior=0.9)
+# comp.conclusion is the auto-generated comparison claim
+```
 
 #### `infer(premises, conclusion, *, reason="", background=None)`
 
@@ -136,46 +169,37 @@ infer(
 )
 ```
 
-### Named Strategies (auto-formalized at compile time)
+#### `fills(source, target, *, mode=None, strength="exact", background=None, reason="")`
 
-#### `deduction(premises, conclusion, *, reason="", background=None)`
-
-Strict logical entailment. Requires >= 1 premise.
-If ALL premises are true, conclusion MUST be true (math proof, logical syllogism).
-
-Review requires: NO parameters (deterministic).
-
-Key test: "If premises are all true, is this conclusion NECESSARILY true?"
-- Yes -> deduction
-- No (approximations, empirical judgment, omitted premises) -> noisy_and
+Cross-package interface bridging. `strength` is `"exact"` | `"partial"` | `"conditional"`. `mode` is `"deduction"` | `"infer"` | `None` (auto-resolved).
 
 ```python
-theorem = claim("The series converges")
-deduction(
-    [bounded_above, monotonically_increasing],
-    theorem,
-    reason="Monotone convergence theorem",
-    background=[real_analysis_definition],
-)
+local_evidence = claim("Our measurement confirms the prediction.")
+fills(local_evidence, imported_interface_claim, strength="exact")
 ```
 
-#### `abduction(observation, hypothesis, alternative=None, *, reason="", background=None)`
+#### `noisy_and()` (deprecated)
 
-Inference to best explanation. If `alternative` is omitted, the compiler auto-generates one.
-Returns a Strategy (not Knowledge) -- assign to a variable for review reference.
+**Deprecated -- use `support()` instead.** Emits `DeprecationWarning`. Compiles to `support` internally.
 
-Review: use `review_generated_claim(strategy, "alternative_explanation", prior=...)` for auto-generated alternatives.
+### Named Strategies (auto-formalized at compile time)
+
+#### `abduction(support_h, support_alt, comparison, *, background=None, reason="")`
+
+Inference to best explanation. Takes three Strategy objects: two `support` strategies (for the hypothesis and alternative) and one `compare` strategy. Auto-generates a `composition_warrant` claim. Conclusion comes from the comparison strategy's conclusion.
 
 ```python
-obs = claim("Resistance drops to zero below 39K")
-hyp = claim("MgB2 is a superconductor")
+H = claim("Discrete heritable factors.")
+alt = claim("Blending inheritance.")
+obs = claim("F2 ratio is 2.96:1.")
+pred_h = claim("H predicts 3:1.")
+pred_alt = claim("Blending predicts continuous.")
 
-# With explicit alternative
-alt = claim("Measurement artifact")
-s = abduction(obs, hyp, alt, reason="Best explanation for zero resistance")
-
-# Without alternative (compiler generates one)
-s = abduction(obs, hyp, reason="Best explanation for zero resistance")
+s_h = support([H], obs, reason="H explains ratio", prior=0.9)
+s_alt = support([alt], obs, reason="Blending explains ratio", prior=0.5)
+comp = compare(pred_h, pred_alt, obs, reason="H matches better", prior=0.9)
+abd = abduction(s_h, s_alt, comp, reason="Both explain same observation")
+# abd.conclusion is comp.conclusion (the comparison claim)
 ```
 
 #### `analogy(source, target, bridge, *, reason="", background=None)`
@@ -253,39 +277,22 @@ mathematical_induction(base, step, conclusion, reason="Standard induction on n")
 
 ### Composite Strategies
 
-#### `induction(items, law=None, *, alt_exps=None, background=None, reason="")`
+#### `induction(support_1, support_2, law, *, background=None, reason="")`
 
-Multiple observations -> general law. CompositeStrategy wrapping abductions.
-Two modes: **top-down** (observations + law) and **bottom-up** (bundle existing abductions).
-`alt_exps` is optional: provide alternative explanations per observation (top-down only).
+Binary composite strategy: two support strategies jointly confirm a law. Chainable: `induction(prev_induction, new_support, law)`. Auto-generates a `composition_warrant` claim.
 
 ```python
+law = claim("MgB2 universally superconducts below 39K")
 obs1 = claim("Sample A shows zero resistance below 39K")
 obs2 = claim("Sample B shows zero resistance below 39K")
 obs3 = claim("Sample C shows zero resistance below 39K")
-law = claim("MgB2 universally superconducts below 39K")
 
-# Top-down: observations → law
-induction(
-    [obs1, obs2, obs3],
-    law,
-    reason="Consistent across multiple samples",
-)
+s1 = support([law], obs1, reason="law predicts observation", prior=0.9)
+s2 = support([law], obs2, reason="law predicts observation", prior=0.9)
+s3 = support([law], obs3, reason="law predicts observation", prior=0.9)
 
-# With per-observation alternatives
-alt1 = claim("Sample A contaminated")
-alt2 = claim("Sample B contaminated")
-induction(
-    [obs1, obs2],
-    law,
-    alt_exps=[alt1, alt2],
-    reason="Consistent across samples, contamination unlikely",
-)
-
-# Bottom-up: bundle existing abductions
-abd1 = abduction(obs1, law, alt1)
-abd2 = abduction(obs2, law, alt2)
-induction([abd1, abd2])
+ind_12 = induction(s1, s2, law=law, reason="Samples A and B are independent")
+ind_123 = induction(ind_12, s3, law=law, reason="Sample C independent of A and B")
 ```
 
 #### `composite(premises, conclusion, *, sub_strategies, reason="", background=None, type="infer")`
@@ -296,8 +303,8 @@ Hierarchical composition. Only leaf sub-strategies need review parameters.
 intermediate = claim("Intermediate result")
 final = claim("Final conclusion")
 
-s1 = deduction([axiom_a, axiom_b], intermediate, reason="From axioms")
-s2 = noisy_and([intermediate, empirical_data], final, reason="Combined evidence")
+s1 = deduction([axiom_a, axiom_b], intermediate, reason="From axioms", prior=0.99)
+s2 = support([intermediate, empirical_data], final, reason="Combined evidence", prior=0.85)
 
 composite(
     [axiom_a, axiom_b, empirical_data],
@@ -351,7 +358,7 @@ supporting_lemma = claim("...")       # public (no underscore, not in __all__)
 _helper = claim("...")                # private (underscore prefix)
 ```
 
-**Abduction alternatives must be public.** Claims used as `alternative=` in abduction calls need proper labels for the review sidecar to reference them. Use `alt_` prefix (not `_alt_`):
+**Abduction alternative claims must be public.** Claims used as alternatives in abduction need proper labels for the review sidecar to reference them. Use `alt_` prefix (not `_alt_`):
 
 ```python
 # CORRECT: public, gets label "alt_nonspecific_binding"
@@ -362,6 +369,8 @@ _alt_nonspecific_binding = claim("Non-specific binding could explain...")
 ```
 
 Labels are auto-assigned from Python variable names by `gaia compile`. NEVER set `.label` manually.
+
+**Strategy naming:** Strategies should also be assigned to named public variables so they appear in `gaia check --brief` output and can be referenced by name. Use descriptive names: `strat_tc_al = support(...)`, `composite_workflow = composite(...)`, `abduction_al = abduction(...)`. Bare strategy calls (e.g., `deduction(...)` without assignment) produce anonymous strategies invisible in CLI output.
 
 ```python
 # CORRECT: label "tc_prediction" assigned automatically
@@ -378,7 +387,10 @@ tc_prediction.label = "tc_prediction"  # anti-pattern
 | `Package(...)` context manager | Removed in v5 | Use module structure + `pyproject.toml` |
 | Manually setting `.label = "name"` | Labels auto-assigned from variable names | Just assign to a variable |
 | `setting` or `question` as strategy premises | Settings/questions have no probability | Use `background=` parameter instead |
-| Building `FormalExpr` by hand | Compiler handles formalization | Use named strategies (deduction, abduction, etc.) |
+| Using `noisy_and()` | Deprecated | Use `support()` instead |
+| Old `abduction(observation, hypothesis)` signature | Redesigned | Use `abduction(support_h, support_alt, comparison)` with 3 Strategy objects |
+| Providing `reason` without `prior` (or vice versa) | Must be paired | Provide both or neither |
+| Building `FormalExpr` by hand | Compiler handles formalization | Use named strategies (deduction, support, etc.) |
 | `from gaia.gaia_ir import ...` | Module renamed | Use `from gaia.ir import ...` |
 | `dependencies = ["gaia-lang"]` in pyproject.toml | CLI provided externally, not a package dep | Omit gaia-lang from dependencies |
 | Omitting `[build-system]` in pyproject.toml | Required for `uv sync` in CI | Always include build-system section |

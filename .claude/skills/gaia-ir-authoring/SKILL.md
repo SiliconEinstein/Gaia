@@ -72,7 +72,7 @@ Write declarations directly at module top level. Do NOT use a `Package` context 
 
 ```python
 # my_package/__init__.py
-from gaia.lang import claim, setting, question, contradiction, noisy_and
+from gaia.lang import claim, setting, question, support
 
 # Settings — background, no probability
 env = setting("Experimental conditions described here.")
@@ -82,7 +82,7 @@ obs_a = claim("Observation A holds under conditions described.")
 
 # Derive a conclusion from premises using an explicit strategy
 conclusion = claim("Derived conclusion.")
-noisy_and([obs_a], conclusion)
+support([obs_a], conclusion, reason="Observation directly supports conclusion.", prior=0.85)
 ```
 
 **Rules:**
@@ -90,52 +90,71 @@ noisy_and([obs_a], conclusion)
 - Variable names must be valid Python identifiers (`[a-z_][a-z0-9_]*`).
 - Variable names must be unique within the package.
 - Only `claim` carries probability; `setting` and `question` do not participate in BP.
-- Use explicit strategies (`noisy_and`, `deduction`, etc.) to connect claims via reasoning.
+- Use explicit strategies (`support`, `deduction`, etc.) to connect claims via reasoning.
 
 ### Step 3: Add structural operators
 
-Operators encode deterministic logical relations. Each operator function creates the operator AND returns a helper claim.
+Operators encode deterministic logical relations. Each operator function creates the operator AND returns a helper claim. `reason` and `prior` must be paired: both or neither.
 
 ```python
 from gaia.lang import contradiction, equivalence, complement, disjunction
 
 # Contradiction: ¬(A ∧ B) — cannot both be true
-helper = contradiction(claim_a, claim_b, reason="Why they conflict")
-helper.label = "a_vs_b_contradiction"
+helper = contradiction(claim_a, claim_b,
+    reason="Why they conflict", prior=0.99)
 
 # Equivalence: A = B — same truth value
-eq = equivalence(claim_x, claim_y, reason="Why they are equivalent")
-eq.label = "x_eq_y"
+eq = equivalence(claim_x, claim_y,
+    reason="Why they are equivalent", prior=0.95)
 
 # Complement: A ⊕ B — opposite truth values (XOR)
-comp = complement(claim_p, claim_q, reason="Why they are opposites")
-comp.label = "p_xor_q"
+comp = complement(claim_p, claim_q,
+    reason="Why they are opposites", prior=0.95)
 
 # Disjunction: at least one true
-disj = disjunction(hyp_a, hyp_b, hyp_c, reason="At least one mechanism")
-disj.label = "some_mechanism"
+disj = disjunction(hyp_a, hyp_b, hyp_c,
+    reason="At least one mechanism", prior=0.9)
 ```
 
 The returned helper claim can be used as a premise in subsequent strategies.
 
 ### Step 4: Add reasoning strategies
 
-Use strategy functions to express how premises support conclusions:
+#### Leaf strategies (most common)
+
+`support` and `deduction` are the two primary leaf strategies. Both use the directed `implication` operator (conjunction + implication). The difference is semantic: `deduction` is rigid (deterministic), `support` is soft (author-specified prior).
 
 ```python
-from gaia.lang import deduction, abduction, analogy, extrapolation
+from gaia.lang import support, deduction, compare, infer, fills
+
+# Support: soft deduction — the most common strategy.
+# reason + prior must be paired (both or neither).
+support([evidence_a, evidence_b], hypothesis,
+    reason="Evidence converges on hypothesis.", prior=0.85)
+
+# Deduction: rigid — use for math proofs, logical syllogisms.
+# No uncertainty beyond the premises themselves.
+deduction([universal_law, binding_claim], derived_instance,
+    background=[setting("x = YBCO")],
+    reason="Universal instantiation.", prior=0.99)
+
+# Compare: prediction comparison (2 equivalences + 1 implication).
+# Auto-generates a comparison_claim as conclusion.
+comp = compare(pred_h, pred_alt, observation,
+    reason="H matches observation better.", prior=0.9)
+
+# fills: cross-package interface bridging
+fills(local_evidence, imported_interface_claim, strength="exact")
+
+# infer: general CPT (2^k params) — rarely used directly
+infer([premise], conclusion)
+```
+
+#### Named strategies (formalized at compile time)
+
+```python
+from gaia.lang import analogy, extrapolation
 from gaia.lang import elimination, case_analysis, mathematical_induction
-from gaia.lang import induction
-
-# Deduction: strict deterministic derivation (math proofs, logical syllogisms).
-# The reasoning step itself is error-free — uncertainty comes ONLY from premises.
-# If the reasoning has any uncertainty (approximations, empirical judgments,
-# omitted premises), use noisy_and instead.
-deduction([premise_a, premise_b], derived_claim)
-
-# Abduction: observation → hypothesis (with optional alternative)
-abduction(observation, hypothesis)
-abduction(observation, hypothesis, alternative_explanation)
 
 # Analogy: source + bridge → target
 analogy(source_claim, target_claim, bridge_claim)
@@ -159,19 +178,30 @@ case_analysis(
 
 # Mathematical induction: base + step → law
 mathematical_induction(base_case, inductive_step, law_claim)
-
-# Induction: multiple observations → law (CompositeStrategy wrapping abductions)
-# Top-down: pass observations, auto-generates abduction sub-strategies
-induction([obs_1, obs_2, obs_3], law_claim)
-# With explicit alternative explanations:
-induction([obs_1, obs_2], law_claim, alt_exps=[alt_1, alt_2])
-# Bottom-up: bundle existing abductions
-abd1 = abduction(obs_1, law_claim, alt_1)
-abd2 = abduction(obs_2, law_claim, alt_2)
-induction([abd1, abd2])
 ```
 
-All named strategies (except `induction`) are automatically formalized into `FormalStrategy` with `FormalExpr` at compile time via the canonical IR formalizer. `induction` compiles to a `CompositeStrategy` wrapping its sub-abductions, each of which is independently formalized. Do NOT build `FormalExpr` by hand.
+#### Composite strategies
+
+```python
+from gaia.lang import compare, support
+from gaia.lang.dsl.strategies import abduction, induction
+
+# Abduction: takes 3 Strategy objects (two supports + one compare)
+s_h = support([H], obs, reason="H explains obs", prior=0.9)
+s_alt = support([alt], obs, reason="Alt explains obs", prior=0.5)
+comp = compare(pred_h, pred_alt, obs, reason="H matches better", prior=0.9)
+abd = abduction(s_h, s_alt, comp, reason="Both explain same observation")
+# abd.conclusion is comp.conclusion (the comparison claim)
+
+# Induction: binary composite, chainable
+s1 = support([law], obs1, reason="law predicts", prior=0.9)
+s2 = support([law], obs2, reason="law predicts", prior=0.9)
+s3 = support([law], obs3, reason="law predicts", prior=0.9)
+ind_12 = induction(s1, s2, law=law, reason="independent traits")
+ind_123 = induction(ind_12, s3, law=law, reason="third trait independent")
+```
+
+All named strategies (except `induction`) are automatically formalized into `FormalStrategy` with `FormalExpr` at compile time via the canonical IR formalizer. `induction` compiles to a `CompositeStrategy` wrapping its sub-strategies. Do NOT build `FormalExpr` by hand.
 
 ### Step 5: Export public interface
 
@@ -213,16 +243,16 @@ assert result.valid, result.errors
 from gaia.bp import lower_local_graph
 from gaia.bp.engine import InferenceEngine
 
-# Assign MaxEnt priors to input claims
+# Assign priors to input claims (support/deduction warrant priors are in metadata)
 input_ids = [k["id"] for k in ir["knowledges"]
              if k["type"] == "claim" and k.get("is_input")]
 node_priors = {cid: 0.5 for cid in input_ids}
 
-# noisy_and strategies need a strength parameter
+# Only `infer` strategies need external params; support/deduction/etc. are FormalStrategy
 strat_params = {
-    s.strategy_id: [0.85]
+    s.strategy_id: [0.85] * (2 ** len(s.premises))
     for s in graph.strategies
-    if s.type.value in ("noisy_and", "infer") and s.strategy_id
+    if s.type.value == "infer" and s.strategy_id
 }
 
 fg = lower_local_graph(graph,
@@ -270,7 +300,9 @@ Do NOT do any of the following. These are not style preferences — they produce
 - **Using `Package(...)` context manager** — Removed in v5. The runtime infers package membership from `pyproject.toml`. Using it causes `load_gaia_package` to fail.
 - **Manually setting `.label = "name"`** — Labels are auto-assigned from Python variable names by `gaia compile`. Manual assignment is redundant and risks inconsistency with the variable name.
 - **Using `setting` or `question` as strategy premises** — Validator rejects non-claim premises. Use `background=` parameter instead.
-- **Single-premise `deduction()`** — Requires at least 2 premises. For single-premise derivation, use `noisy_and([premise], conclusion)`.
+- **Using `noisy_and()`** — Deprecated. Use `support()` instead. `noisy_and` emits a `DeprecationWarning` and compiles to `support` internally.
+- **Using old `abduction(observation, hypothesis)` signature** — `abduction()` now takes three Strategy objects: `abduction(support_h, support_alt, comparison)`.
+- **Providing `reason` without `prior` (or vice versa)** — Both `reason` and `prior` must be paired: provide both or neither. Applies to `support()`, `deduction()`, `compare()`, and all operator functions.
 - **Building `FormalExpr` by hand** — The compiler calls `formalize_named_strategy` from `gaia.ir.formalize`. Do not replicate its logic.
 - **Importing from `gaia.gaia_ir`** — Renamed to `gaia.ir`. Old path does not exist.
 - **Setting `dependencies = ["gaia-lang >= 2.0.0"]`** — In CI, the Gaia CLI is provided externally. Set `dependencies = []` (or only list other `*-gaia` packages).
@@ -279,8 +311,9 @@ Do NOT do any of the following. These are not style preferences — they produce
 
 ## Spec pointers
 
-- `docs/specs/2026-04-02-gaia-lang-v5-python-dsl-design.md` — Canonical DSL spec (package model, API, lifecycle)
-- `docs/specs/2026-04-02-gaia-registry-design.md` — Registry structure and registration flow
+- `docs/foundations/gaia-lang/dsl.md` — DSL API reference (canonical, current)
+- `docs/foundations/gaia-lang/knowledge-and-reasoning.md` — Knowledge types and strategy formalization semantics
+- `docs/foundations/gaia-lang/package.md` — Package model and lifecycle
 - `docs/foundations/gaia-ir/02-gaia-ir.md` — Knowledge / Operator / Strategy schemas
 - `docs/foundations/gaia-ir/04-helper-claims.md` — Helper claim metadata conventions
 - `docs/foundations/gaia-ir/08-validation.md` — Structural validation rules

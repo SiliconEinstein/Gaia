@@ -51,7 +51,7 @@ digraph formalization {
 | 1 | Content extraction | Are claims/settings extracted? Atomic? |
 | 2 | Reasoning connections | Are strategies, operators, and contradictions modeled? |
 | 3 | Content completeness | Any missing premises, orphans, or @label errors? |
-| 4 | Strategy precision | Are strategy types correct (noisy_and/abduction/induction/...)? |
+| 4 | Strategy precision | Are strategy types correct (support/deduction/abduction/induction/...)? |
 | 5 | Structural integrity | Is evidence independent? Are operator semantics correct? |
 | 6 | Standalone readability | Can a reviewer understand everything without the original source? |
 
@@ -168,33 +168,40 @@ result = claim("The numerical result for YY is ZZ +/- delta.", title="Numerical 
 
 **Note:** This pattern is applied during Pass 2 (Connect), not Pass 1. It is documented here because the observation/hypothesis/alternative structure influences how you extract knowledge nodes in Pass 1.
 
-When a theoretical prediction is compared with experimental data, use the **abduction** pattern:
-
-- **observation**: experimental result
-- **hypothesis**: prediction from the new theory
-- **alternative**: prediction from the conventional/existing theory (alternative explanation)
+When a theoretical prediction is compared with experimental data, use the **abduction** pattern. Abduction now takes three Strategy objects: two `support` strategies and one `compare` strategy.
 
 ```python
-# abduction must provide an alternative (alternative theory)
-_strat = abduction(
-    observation=experimental_value,
-    hypothesis=new_theory_prediction,
-    alternative=old_theory_prediction,  # conventional theory as alternative explanation
-    reason="The new theory's deviation is only X%, far better than the old theory's Y% deviation.")
+# Build the three component strategies first
+s_h = support([new_theory_prediction], experimental_value,
+    reason="New theory explains observation", prior=0.9)
+s_alt = support([old_theory_prediction], experimental_value,
+    reason="Old theory explains observation", prior=0.5)
+pred_new = claim("New theory predicts X")
+pred_old = claim("Old theory predicts Y")
+comp = compare(pred_new, pred_old, experimental_value,
+    reason="New theory's deviation is only X%, far better than old theory's Y%", prior=0.9)
+
+# Then compose them into abduction
+abd = abduction(s_h, s_alt, comp,
+    reason="Both theories attempt to explain the same observation")
 ```
 
-**Note:** `abduction()` returns a Strategy (not a Knowledge). You must assign the return value to a variable (e.g., `_strat`) so it can be referenced in the review sidecar.
+**Note:** `abduction()` returns a Strategy (not a Knowledge). You must assign the return value to a named public variable (e.g., `abd_xxx`) so it gets a label and appears in `gaia check --brief` output.
 
-**`induction` requires explicit `alt_exps`.** When using `induction([obs1, obs2, ...], law)`, always provide the `alt_exps` parameter with one alternative per observation. Without `alt_exps`, the compiler auto-generates anonymous alternatives that are difficult to reference in the review sidecar.
+**`induction` is a binary composite of support strategies.** Use `induction(s1, s2, law=law)` with two support strategies. It is chainable: `induction(prev_induction, new_support, law=law)`.
 
 ```python
-# CORRECT: explicit alternatives for each observation
-alt1 = claim("Alternative explanation for obs1")
-alt2 = claim("Alternative explanation for obs2")
-induction([obs1, obs2], law, alt_exps=[alt1, alt2], reason="...")
+law = claim("MgB2 universally superconducts below 39K")
+obs1 = claim("Sample A: Tc = 39K")
+obs2 = claim("Sample B: Tc = 39K")
+obs3 = claim("Sample C: Tc = 39K")
 
-# AVOID: auto-generated alternatives are hard to review
-induction([obs1, obs2], law, reason="...")
+s1 = support([law], obs1, reason="law predicts obs1", prior=0.9)
+s2 = support([law], obs2, reason="law predicts obs2", prior=0.9)
+s3 = support([law], obs3, reason="law predicts obs3", prior=0.9)
+
+ind_12 = induction(s1, s2, law=law, reason="Samples A and B independent")
+ind_123 = induction(ind_12, s3, law=law, reason="Sample C independent")
 ```
 
 **Semantics of pi(Alt) -- critical:** In abduction, the prior pi(Alt) of the `alternative` represents: **"the probability that Alt alone can explain Obs without H"** -- not whether Alt's calculation is correct.
@@ -279,7 +286,7 @@ Pass 1 only extracts atomic, self-contained knowledge nodes. **Do not prejudge w
 
 `infer` is the **most general** strategy type in Gaia -- it does not presume any specific reasoning pattern (such as deduction, abduction), and merely expresses "from premises, derive conclusion." Pass 2 uses `infer` as the draft form for all reasoning connections; specific strategy types are refined in Pass 4.
 
-In Pass 4, most `infer` calls should be refined to specific strategy types (`noisy_and`, `deduction`, `abduction`, etc.). If no specific type fits, `infer` can remain as the final type -- but note that `infer` requires a full CPT (2^N conditional probabilities) in the review sidecar, which is more work than `noisy_and` (single value). Prefer `noisy_and` when all premises are jointly necessary.
+In Pass 4, most `infer` calls should be refined to specific strategy types (`support`, `deduction`, `abduction`, etc.). If no specific type fits, `infer` can remain as the final type -- but note that `infer` requires a full CPT (2^N conditional probabilities) in the review sidecar, which is more work than `support` (author-specified prior). Prefer `support` when all premises jointly support the conclusion.
 
 For each claim "supported by other claims," write an `infer` strategy (which claims need a strategy is determined case-by-case in Pass 2 -- if the source provides an argument for it, it needs one):
 
@@ -345,8 +352,8 @@ Contradictions and complements are especially valuable in BP because they create
 
 Before moving to Pass 3, verify:
 
-- **Theory-experiment pairs use abduction?** Every place the source compares a theoretical prediction against an experimental observation should be connected via `abduction(observation=exp, hypothesis=theory, alternative=old_theory)`, not `noisy_and` or `infer`. The relationship is explanatory ("which theory better explains the data?"), not inferential ("premises imply conclusion").
-- **Multiple observations → one law use induction?** If several independent observations all support the same general rule, use `induction([obs1, obs2, ...], law)`, not a flat `noisy_and` with all observations as premises.
+- **Theory-experiment pairs use abduction?** Every place the source compares a theoretical prediction against an experimental observation should be connected via abduction (build `support` + `support` + `compare` strategies, then pass to `abduction()`), not `support` or `infer` alone. The relationship is explanatory ("which theory better explains the data?"), not inferential ("premises imply conclusion").
+- **Multiple observations → one law use induction?** If several independent observations all support the same general rule, use `induction(s1, s2, law=law)` with support sub-strategies, not a flat `support` with all observations as premises.
 - **No missing alternatives?** Every abduction should have a meaningful alternative — what would explain the observation if the hypothesis were wrong?
 - **Contradictions modeled?** Every contradictory claim pair identified in Pass 1 should now have a `contradiction()` operator. Also check: did any new contradictions emerge while writing strategies?
 
@@ -386,10 +393,11 @@ Passes 2-3 produce generic `infer` strategies. Pass 4 refines each `infer` into 
 
 | Strategy | Semantics | When to use | Review needs |
 |----------|-----------|-------------|--------------|
-| `noisy_and` | All premises jointly support conclusion with probability p | Default for "premises imply conclusion" with uncertainty | `conditional_probability` (single float) |
-| `deduction` | If all premises true, conclusion necessarily true | Strict math proofs, logical syllogisms, definitions | None (deterministic) |
-| `abduction` | Observation best explained by hypothesis over alternative | Theory-experiment comparison, inference to best explanation | Prior on alternative claim |
-| `induction` | Multiple independent observations → general law. Internally a composite of abductions: each observation abduces the law against its own alternative. This is why (a) each observation needs an `alt_exps` entry and (b) observations must be independent (Pass 5). | Repeated experimental confirmations across conditions | Per-observation alternative (`alt_exps`) |
+| `support` | Soft deduction: premises jointly support conclusion via directed implication with author-specified prior | Default for "premises imply conclusion" with uncertainty | Prior on implication warrant (specified in DSL) |
+| `deduction` | Rigid deduction: if all premises true, conclusion necessarily true. Same skeleton as support but deterministic | Strict math proofs, logical syllogisms, definitions | None (deterministic) |
+| `compare` | Two predictions compared against an observation (2 equivalences + 1 implication) | Comparing competing predictions | Prior on comparison warrant (specified in DSL) |
+| `abduction` | Inference to best explanation. Composite of two `support` strategies + one `compare` strategy | Theory-experiment comparison, inference to best explanation | Priors on component sub-strategies |
+| `induction` | Binary composite of support strategies sharing a conclusion (law). Chainable | Repeated experimental confirmations across conditions | Priors on support sub-strategies |
 | `analogy` | Source + structural similarity → target | Cross-system reasoning ("works for A, similar to B, so works for B") | None (auto-formalized) |
 | `extrapolation` | Source + continuity → target | Predicting beyond measured range | None (auto-formalized) |
 | `elimination` | Exhaustive options + excluded candidates → survivor | Process of elimination | None (auto-formalized) |
@@ -419,16 +427,16 @@ digraph refine {
 
     node [shape=box];
     formal [label="formal strategy\n(deduction/abduction/...)"];
-    noisy [label="noisy_and"];
+    support_box [label="support"];
     case [label="case_analysis"];
     composite [label="composite strategy\ndecompose into sub-steps"];
     recurse [label="Recursively apply\nthis process to\neach sub-step"];
-    keep [label="Keep infer (generic)\nor noisy_and"];
+    keep [label="Keep infer (generic)\nor support"];
 
     q1 -> q2 [label="1-2"];
     q1 -> q3 [label="3+"];
     q2 -> formal [label="mathematical deduction/\nabduction/analogy/\nextrapolation"];
-    q2 -> noisy [label="numerical computation/\napplication"];
+    q2 -> support_box [label="numerical computation/\napplication"];
     q3 -> case [label="yes"];
     q3 -> q4 [label="no"];
     q4 -> composite [label="yes"];
@@ -441,34 +449,34 @@ digraph refine {
 
 First determine the nature of reasoning, then choose the strategy type:
 
-| Nature of Reasoning | Strategy | Conditional Probability |
-|---------------------|----------|------------------------|
+| Nature of Reasoning | Strategy | Parameters |
+|---------------------|----------|------------|
 | Strict mathematical derivation (conclusion necessarily follows from premises) | `deduction` | Deterministic (no parameters needed) |
-| Numerical computation / application (computational error or empirical uncertainty) | `noisy_and` | Requires conditional_prob |
-| Observation → hypothesis | `abduction` | Determined by strategy semantics |
+| Numerical computation / application (computational error or empirical uncertainty) | `support` | Prior on implication warrant |
+| Observation → hypothesis | `abduction` | Priors on support + compare sub-strategies |
 | Source → target analogy | `analogy` | Determined by strategy semantics |
 | Extrapolation | `extrapolation` | Determined by strategy semantics |
-| Induction (multiple observations → general rule) | `induction` | Determined by sub-abduction semantics |
+| Induction (multiple observations → general rule) | `induction` | Priors on support sub-strategies |
 | Process of elimination (exhaustiveness + excluded candidates → survivor) | `elimination` | Determined by strategy semantics |
 | Inductive proof (base case + inductive step → law) | `mathematical_induction` | Determined by strategy semantics |
 
-**Key distinction: deduction vs noisy_and**
+**Key distinction: deduction vs support**
 
-`deduction` represents **purely deterministic mathematical derivation** -- the derivation steps themselves are error-free, and uncertainty comes only from whether the premises hold. In BP, the deduction potential is deterministic (conjunction + implication, Cromwell softened), carrying no adjustable parameters.
+`deduction` represents **purely deterministic mathematical derivation** -- the derivation steps themselves are error-free, and uncertainty comes only from whether the premises hold. Both `deduction` and `support` share the same skeleton (conjunction + directed implication), but `support` carries an author-specified prior on the implication warrant.
 
 Criterion: "If all premises are true, does this derivation **necessarily** hold mathematically?"
 
 - **Yes** → `deduction`. Examples: mathematical proofs, logical syllogisms, reading directly from a definition
-- **No** → `noisy_and`. Examples: numerical computations with approximation errors, empirical judgments, omitted premises, "usually holds but has exceptions"
+- **No** → `support`. Examples: numerical computations with approximation errors, empirical judgments, omitted premises, "usually holds but has exceptions"
 
 Common misjudgments:
-- A derivation in the source looks "rigorous" but omits conditions → use `noisy_and` (omitted conditions = implicit uncertainty)
+- A derivation in the source looks "rigorous" but omits conditions → use `support` (omitted conditions = implicit uncertainty)
 - Conclusion read directly from a definition (e.g., "A is defined as B, therefore A=B") → use `deduction`
-- Numerical DFT/MD computation yields a result → use `noisy_and` (the computational method itself has uncertainty)
+- Numerical DFT/MD computation yields a result → use `support` (the computational method itself has uncertainty)
 
-**Single-premise `noisy_and` is semantically degenerate.** If you have only one premise, consider whether the relationship is better modeled as `abduction` (if there is a natural alternative explanation) rather than a trivial AND-gate with one input.
+**Strategy variable naming:** Every strategy **must** be assigned to a named public variable (no `_` prefix). This is required so that strategies appear in `gaia check --brief` output and can be referenced by the review sidecar. Use descriptive names like `strat_tc_al = support(...)`, `composite_workflow = composite(...)`, `abduction_al = abduction(...)`.
 
-**Strategy variable naming:** All strategies that need to be referenced in the review sidecar must be assigned to variables (`_strat_xxx = noisy_and(...)`). Deduction does not need parameters and can be called anonymously.
+**Claim variable naming:** Every claim **must** be assigned to a named variable (no `_` prefix for claims that need to be visible). Anonymous `claim()` calls or `_` prefixed claims will not get labels and become invisible in CLI output. The only exception: `__` double-underscore prefix is reserved for compiler-generated helper claims.
 
 ### Case 2: 3+ Premises
 
@@ -477,7 +485,7 @@ Common misjudgments:
 **If not case_analysis**: Try decomposing into a `composite` strategy. Intermediate claims introduced during decomposition should be meaningful propositions, not created purely for the sake of splitting. The composite's coarse graph (top-level premises → conclusion) preserves the original `infer`'s perspective, while the fine graph (sub-strategies) provides step-by-step derivation.
 
 **If no meaningful intermediate propositions can be found** (i.e., decomposition would be forced):
-- **3 premises**: Acceptable to keep as `infer` or `noisy_and`
+- **3 premises**: Acceptable to keep as `infer` or `support`
 - **4+ premises**: Must decompose, otherwise the BP multiplicative effect will severely suppress belief
 
 ### Pass 4 Reflection
@@ -486,13 +494,13 @@ After refining all strategies, verify:
 
 - **Every abduction has a meaningful alternative?** The alternative should be a real competing explanation, not a placeholder. If there's no natural alternative, consider whether abduction is the right pattern.
 - **Abduction alternatives will be reviewed — are they set up correctly?** Each abduction's alternative will need a prior in the review sidecar. Remember: π(Alt) = "Can Alt alone explain Obs?" (explanatory power), NOT "Is Alt correct?". Flag any abduction where this distinction might be tricky for the reviewer.
-- **Each induction's sub-abductions independent?** For `induction([obs1, obs2], law)`, each observation should provide independent evidence. If the observations are dependent, consider whether a single abduction with stronger evidence is more appropriate.
+- **Each induction's support sub-strategies independent?** For `induction(s1, s2, law=law)`, each observation should provide independent evidence. If the observations are dependent, consider whether a single support with stronger evidence is more appropriate.
 
 ### Post-Refinement Check
 
 After refining all strategies, check the **strategy type distribution**:
 
-- If `noisy_and` accounts for more than 70% of strategies, review whether some should be `abduction` (observation → best explanation) or `induction` (multiple independent observations → general law)
+- If `support` accounts for more than 70% of strategies, review whether some should be `abduction` (observation → best explanation) or `induction` (multiple independent observations → general law)
 - Papers with extensive experimental validation typically have many abductions
 - Discussion/conclusion sections that synthesize multiple results often use induction
 
@@ -550,21 +558,21 @@ Each factor in the factor graph represents an **independent constraint**. If the
 **Pattern 1 — Redundant strategies (same reasoning expressed twice):**
 
 ```python
-# 1a. Exact duplicate: standalone abduction + induction's internal sub-abduction
-abduction(obs, law, alt, ...)                          # reasoning: obs → law
-induction([obs, other], law, alt_exps=[alt, alt2], ...) # internally also creates: obs → law
-# FIX: remove the standalone abduction
+# 1a. Exact duplicate: standalone support + induction's internal sub-support
+support([law], obs, reason="law predicts obs", prior=0.9)     # reasoning: law → obs
+induction(s1, s2, law=law, reason="...")  # internally also creates: law → obs via s1
+# FIX: remove the standalone support, or use it as s1 in induction
 
 # 1b. Transitive shortcut: A→B→C chain + A→C that is just the chain compressed
-noisy_and([A], B, ...)
-noisy_and([B], C, ...)
-noisy_and([A], C, reason="A implies B implies C")  # redundant with the chain
+support([A], B, reason="A implies B", prior=0.85)
+support([B], C, reason="B implies C", prior=0.85)
+support([A], C, reason="A implies B implies C", prior=0.85)  # redundant with the chain
 # FIX: remove the shortcut, OR confirm it represents a genuinely different argument
 
-# 1c. Derived premise redundancy: A→B, then noisy_and([A, B], C) where A supports C only through B
-noisy_and([A], B, ...)
-noisy_and([A, B], C, reason="A leads to B which leads to C")
-# FIX: remove A from C's premises → noisy_and([B], C, ...)
+# 1c. Derived premise redundancy: A→B, then support([A, B], C) where A supports C only through B
+support([A], B, reason="A implies B", prior=0.85)
+support([A, B], C, reason="A leads to B which leads to C", prior=0.85)
+# FIX: remove A from C's premises → support([B], C, ...)
 ```
 
 **Pattern 2 — Hidden evidence in reason text:**
@@ -573,14 +581,14 @@ Two strategies with identical premises but different `reason` text. The differen
 
 ```python
 # BEFORE: same premises, different reasoning angles
-noisy_and([sample, obs_R], law, reason="Zero resistance = hallmark of SC")
-noisy_and([sample, obs_R], law, reason="Transition width < 0.5K = bulk SC")
+support([sample, obs_R], law, reason="Zero resistance = hallmark of SC", prior=0.85)
+support([sample, obs_R], law, reason="Transition width < 0.5K = bulk SC", prior=0.85)
 # The "transition width < 0.5K" is evidence hidden in the reason text
 
 # AFTER: extract hidden evidence as a claim
 transition_sharpness = claim("Resistivity transition width < 0.5K")
-noisy_and([sample, obs_R], law, reason="Zero resistance = hallmark of SC")
-noisy_and([sample, transition_sharpness], law, reason="Sharp transition = bulk SC")
+support([sample, obs_R], law, reason="Zero resistance = hallmark of SC", prior=0.85)
+support([sample, transition_sharpness], law, reason="Sharp transition = bulk SC", prior=0.85)
 ```
 
 **Pattern 3 — Unmodeled shared dependencies:**
@@ -591,13 +599,17 @@ Two observations share a common cause (same sample, same instrument) but the cau
 # BEFORE: shared sample quality is implicit — correlation lost
 obs_R = claim("Sample A: Tc = 39K by resistivity")
 obs_chi = claim("Sample A: Tc = 39K by susceptibility")
-induction([obs_R, obs_chi], law, ...)
+s1 = support([law], obs_R, reason="law predicts obs_R", prior=0.9)
+s2 = support([law], obs_chi, reason="law predicts obs_chi", prior=0.9)
+induction(s1, s2, law=law, reason="...")
 
 # AFTER: extract shared dependency — correlation preserved
 sample_quality = claim("Sample A is high-quality single crystal, confirmed by XRD")
-noisy_and([sample_quality], obs_R, reason="Resistivity depends on @sample_quality")
-noisy_and([sample_quality], obs_chi, reason="Susceptibility depends on @sample_quality")
-induction([obs_R, obs_chi], law, ...)  # conditionally independent given sample_quality
+support([sample_quality], obs_R, reason="Resistivity depends on @sample_quality", prior=0.9)
+support([sample_quality], obs_chi, reason="Susceptibility depends on @sample_quality", prior=0.9)
+s1 = support([law], obs_R, reason="law predicts obs_R", prior=0.9)
+s2 = support([law], obs_chi, reason="law predicts obs_chi", prior=0.9)
+induction(s1, s2, law=law, reason="...")  # conditionally independent given sample_quality
 ```
 
 You cannot create new experiments — you formalize what the paper provides. The table below guides the modeling choice:
@@ -614,8 +626,8 @@ You cannot create new experiments — you formalize what the paper provides. The
 
 ```python
 equivalence(claim_A, claim_B)
-noisy_and([claim_A], law, reason="argument from A's perspective")
-noisy_and([claim_B], law, reason="argument from B's perspective")
+support([claim_A], law, reason="argument from A's perspective", prior=0.85)
+support([claim_B], law, reason="argument from B's perspective", prior=0.85)
 
 # Ask: does the B→law strategy add information that A→law + equivalence doesn't already provide?
 # If NO: remove B→law
@@ -694,6 +706,22 @@ Add `metadata={"figure": "...", "caption": "..."}` to every claim whose content 
 
 After completing each pass, write code, compile, and check. For DSL syntax, see the **gaia-lang** skill.
 
+### Verify with `--brief` and `--show`
+
+After compiling, use `gaia check --brief` to verify that all claims and strategies have visible names:
+
+```bash
+gaia check --brief .       # Overview: all modules with strategy summaries
+gaia check --show s6_xxx . # Expanded view of a specific module
+gaia check --show label .  # Detail view of a specific claim's warrant tree
+```
+
+**What to check in `--brief` output:**
+- Every strategy should show named labels (not `_anon_xxx`). If a strategy conclusion shows `_anon_xxx`, the strategy's result variable was not assigned to a named Python variable.
+- Claims should show their role (independent/derived/structural/background/orphaned) and prior if set.
+- Composite strategies should show their sub-strategy tree.
+- Use `--show <module>` to inspect full claim content and warrant trees for review readiness.
+
 ## Write Review Sidecar
 
 The review sidecar assigns priors to claims and conditional probabilities to strategies.
@@ -743,7 +771,7 @@ Identify claims and reasoning steps that are structurally vulnerable:
 | Long reasoning chain (4+ hops from leaf to conclusion) | Multiplicative effect — small uncertainties compound |
 | Abduction where π(Alt) ≈ π(H) | Alternative is equally plausible — evidence doesn't distinguish |
 | Leaf claim with low prior and many downstream dependents | A single weak foundation supporting many conclusions |
-| `noisy_and` with low conditional_probability | Reviewer flagged this reasoning step as unreliable |
+| `support` with very low prior (< 0.3) | Reviewer flagged this reasoning step as unreliable |
 | Claim marked as setting that could be questioned | Hidden assumption not subject to BP updating |
 
 ### Evidence Gaps
@@ -776,14 +804,15 @@ The critical analysis is the analytical payoff of formalization — it transform
 | Abduction without providing an alternative | Missing comparison with alternative theory | Provide existing theory as alternative |
 | Abduction alternative's prior reflects "computational correctness" instead of "explanatory power" | pi(Alt) too high, weakens abduction's support for H | pi(Alt) should answer "Can Alt independently explain Obs?", not "Is Alt's calculation correct?" |
 | Reason written too briefly (one sentence) | Reasoning process is untraceable | Summarize derivation steps in detail, reference with @label |
-| 4+ premise flat noisy_and | Severe BP multiplicative effect | Use composite to decompose into sub-steps with 3 or fewer premises |
+| 4+ premise flat support | Severe BP multiplicative effect | Use composite to decompose into sub-steps with 3 or fewer premises |
 | Content not self-contained (symbols/abbreviations unexplained) | Reviewer cannot judge independently | Each claim must independently explain all symbols and abbreviations |
 | Marking a questionable proposition as setting | That proposition cannot be updated via BP | When in doubt, mark as claim; only mathematical definitions are settings |
 | Marking a condition-dependent theoretical framework as setting | Framework does not participate in BP | Condition-dependent conclusions should be claims |
-| Using noisy_and for mathematical deduction | Deterministic derivation should not have probability parameters | Use deduction (purely deterministic, no cond_prob needed) |
-| Using deduction for numerical computation/approximate reasoning | Computation has uncertainty, but deduction is purely deterministic | Use noisy_and (needs cond_prob to express reasoning strength) |
-| Using deduction for "seemingly rigorous" derivation | Source omits premises or conditions | Omitted premises = implicit uncertainty → use noisy_and |
-| Anonymous strategy call | Review sidecar cannot reference it | Assign to `_strat_xxx` variable |
+| Using support for mathematical deduction | Deterministic derivation should not have probability parameters | Use deduction (purely deterministic, same skeleton but rigid) |
+| Using deduction for numerical computation/approximate reasoning | Computation has uncertainty, but deduction is purely deterministic | Use support (soft deduction with author-specified prior) |
+| Using deduction for "seemingly rigorous" derivation | Source omits premises or conditions | Omitted premises = implicit uncertainty → use support |
+| Anonymous strategy call | Strategy invisible in `gaia check --brief`, cannot be reviewed | Assign to named public variable: `strat_xxx = support(...)` |
+| `_` prefixed claim or strategy | Node invisible in CLI output, gets no label | Use public names (no `_` prefix); only `__` is reserved for compiler |
 | Missing prior for orphaned claim | `gaia infer` errors | All claims (including orphaned) need priors |
 | Missing implicit premises in reasoning | Knowledge graph is incomplete | Use `gaia check` + manual review in Pass 3 |
 | Not verifying numerical values | Data errors | Cross-check every value against the source |

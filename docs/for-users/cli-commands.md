@@ -8,7 +8,7 @@ Reference for the active Gaia Lang v5 CLI. The installed entrypoint is `gaia`.
 
 ```text
 gaia compile
-gaia check
+gaia check [--brief] [--show <module|label>]
 gaia register
 ```
 
@@ -50,10 +50,13 @@ gaia compile .
 
 ## `gaia check`
 
-Validate that a package is structurally sound and ready for registration.
+Validate that a package is structurally sound and ready for registration. Optionally display the warrant structure for review.
 
 ```bash
 gaia check [path]
+gaia check --brief [path]
+gaia check --show <module|label> [path]
+gaia check --brief --show <module|label> [path]
 ```
 
 Arguments:
@@ -61,6 +64,13 @@ Arguments:
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `path` | `.` | Path to the package repository |
+
+Options:
+
+| Option | Description |
+|--------|-------------|
+| `--brief`, `-b` | Show per-module warrant structure overview after validation |
+| `--show`, `-s` | Expand a specific module or claim/strategy label with full warrant trees |
 
 What it checks:
 
@@ -70,11 +80,32 @@ What it checks:
 - the compiled IR is accepted by the current schema and validator
 - package identity fields such as `name`, `version`, `namespace`, and `uuid` are present and consistent
 
+### `--brief` output
+
+Displays a per-module overview after validation passes:
+
+- **Settings** with label and truncated content
+- **Claims** with role (independent/derived/structural/background/orphaned) and prior if set
+- **Strategies** with type, premise labels, conclusion, prior, and reason
+- **Operators** with type, variables, and reason
+
+### `--show` output
+
+When given a **module name**, expands all claims with full content and strategies with recursive warrant trees (including composite sub-strategies).
+
+When given a **claim or strategy label**, shows that node's full content and all strategies that conclude to it, with premises listed.
+
+When `--brief` and `--show` are combined, both the overview and the expanded detail are shown.
+
 Example:
 
 ```bash
 gaia compile .
-gaia check .
+gaia check .                          # validate only
+gaia check --brief .                  # validate + overview
+gaia check --show motivation .        # validate + expand module
+gaia check --show hypothesis .        # validate + expand claim
+gaia check --brief --show s3_xxx .    # validate + overview + expand module
 ```
 
 ## `gaia register`

@@ -763,13 +763,12 @@ def test_relation_helper_defaults_to_assertion_prior():
 
 
 def test_e2e_support_compiles_and_runs_bp():
-    """E2E: support([A], B) -> formalize (2 IMPLIES) -> lower -> BP."""
+    """E2E: support([A], B) -> formalize (1 IMPLIES) -> lower -> BP."""
     s = Strategy(
         scope="local",
         type="support",
         premises=["github:lowertest::a"],
         conclusion="github:lowertest::b",
-        metadata={"reverse_reason": "B implies A"},
     )
     g = _lg(
         knowledges=[
@@ -788,9 +787,9 @@ def test_e2e_support_compiles_and_runs_bp():
     )
     assert not fg.validate()
 
-    # Support produces 2 IMPLICATION factors (forward + reverse)
+    # Support produces 1 IMPLICATION factor (forward only)
     impl_factors = [f for f in fg.factors if f.factor_type == FactorType.IMPLICATION]
-    assert len(impl_factors) == 2
+    assert len(impl_factors) == 1
 
     # Run inference
     beliefs, _ = exact_inference(fg)
@@ -904,16 +903,12 @@ def test_e2e_abduction_full_pipeline():
         obs,
         reason="H explains obs",
         prior=0.9,
-        reverse_reason="obs validates H",
-        reverse_prior=0.8,
     )
     s_alt = dsl_support(
         [alt],
         obs,
         reason="Alt explains obs",
         prior=0.5,
-        reverse_reason="obs validates Alt",
-        reverse_prior=0.5,
     )
     comp = dsl_compare(pred_h, pred_alt, obs, reason="H matches obs better", prior=0.9)
     abd = dsl_abduction(s_h, s_alt, comp, reason="both explain same observation")
@@ -951,24 +946,18 @@ def test_e2e_induction_chain():
         obs1,
         reason="law predicts 3:1",
         prior=0.9,
-        reverse_reason="2.96 matches",
-        reverse_prior=0.9,
     )
     s2 = dsl_support(
         [law],
         obs2,
         reason="law predicts 3:1",
         prior=0.9,
-        reverse_reason="3.01 matches",
-        reverse_prior=0.9,
     )
     s3 = dsl_support(
         [law],
         obs3,
         reason="law predicts 3:1",
         prior=0.9,
-        reverse_reason="3.15 matches",
-        reverse_prior=0.9,
     )
 
     # Binary induction
@@ -1013,16 +1002,12 @@ def test_e2e_mendel_peirce_cycle():
         obs,
         reason="H explains 3:1 ratio",
         prior=0.9,
-        reverse_reason="ratio validates H",
-        reverse_prior=0.9,
     )
     s_alt = dsl_support(
         [alt],
         obs,
         reason="blending explains ratio",
         prior=0.5,
-        reverse_reason="ratio indicates blending",
-        reverse_prior=0.5,
     )
 
     # 3. Compare: H vs Alt predictions against observation
@@ -1035,12 +1020,8 @@ def test_e2e_mendel_peirce_cycle():
 
     # 5. Induction: multiple traits
     obs2 = dsl_claim("Seed color 3.01:1")
-    s_shape = dsl_support(
-        [H], obs, reason="H predicts", prior=0.9, reverse_reason="matches", reverse_prior=0.9
-    )
-    s_color = dsl_support(
-        [H], obs2, reason="H predicts", prior=0.9, reverse_reason="matches", reverse_prior=0.9
-    )
+    s_shape = dsl_support([H], obs, reason="H predicts", prior=0.9)
+    s_color = dsl_support([H], obs2, reason="H predicts", prior=0.9)
     ind = dsl_induction(s_shape, s_color, law=H, reason="traits independent")
     assert ind.conclusion is H
 

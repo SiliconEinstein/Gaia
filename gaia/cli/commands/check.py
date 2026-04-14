@@ -88,6 +88,15 @@ def _knowledge_diagnostics(ir: dict) -> list[str]:
 
 def check_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
+    brief: bool = typer.Option(
+        False, "--brief", "-b", help="Show per-module warrant brief after check"
+    ),
+    show: str | None = typer.Option(
+        None,
+        "--show",
+        "-s",
+        help="Expand detail for a module name or claim/strategy label (implies --brief)",
+    ),
 ) -> None:
     """Validate structure and artifact consistency for a Gaia knowledge package."""
     try:
@@ -148,3 +157,16 @@ def check_command(
 
     for line in _knowledge_diagnostics(ir):
         typer.echo(line)
+
+    if brief or show:
+        from gaia.cli.commands._brief import (
+            dispatch_show,
+            generate_brief_overview,
+        )
+
+        if brief:
+            for line in generate_brief_overview(ir):
+                typer.echo(line)
+        if show:
+            for line in dispatch_show(ir, show):
+                typer.echo(line)

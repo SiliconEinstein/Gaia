@@ -163,6 +163,8 @@ gaia init → gaia add → /gaia:formalization → gaia compile → gaia infer �
 | `gaia add <package>` | Install a registered Gaia package from the [official registry](https://github.com/SiliconEinstein/gaia-registry) |
 | `gaia compile [path]` | Compile Python DSL to Gaia IR (`.gaia/ir.json`) |
 | `gaia check [path]` | Validate package structure and IR consistency (used by registry CI) |
+| `gaia check --brief [path]` | Show per-module warrant structure overview (claims, strategies, priors) |
+| `gaia check --show <name> [path]` | Expand a module or claim label with full warrant trees |
 | `gaia infer [path]` | Run belief propagation with a review sidecar |
 | `gaia render --target github [path]` | Generate GitHub presentation skeleton (`.github-output/`): wiki, README, React Pages, graph.json |
 | `gaia render --target docs [path]` | Generate per-module detailed reasoning to `docs/detailed-reasoning.md` |

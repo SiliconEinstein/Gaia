@@ -14,13 +14,14 @@ Gaia Lang is a Python 3.12+ internal DSL for declarative knowledge authoring. Pa
 from gaia.lang import (
     claim, setting, question,                              # Knowledge
     contradiction, equivalence, complement, disjunction,   # Operators
-    noisy_and, infer, deduction, abduction, analogy,       # Strategies
-    extrapolation, elimination, case_analysis,
-    mathematical_induction, composite,
+    support, compare, deduction, abduction, induction,     # Strategies
+    analogy, extrapolation, elimination, case_analysis,
+    mathematical_induction, composite, infer, fills,
+    # noisy_and,  # deprecated -- use support()
 )
 ```
 
-The runtime dataclasses `Knowledge`, `Strategy`, and `Operator` are also exported for type annotations.
+The runtime dataclasses `Knowledge`, `Strategy`, `Step`, and `Operator` are also exported for type annotations.
 
 ---
 
@@ -41,7 +42,7 @@ def claim(
 ) -> Knowledge
 ```
 
-The only knowledge type carrying probability in BP. `background` attaches setting context without making it a logical premise. `parameters` enables universal quantification (e.g., `[{"name": "x", "type": "material"}]`). `provenance` records source attribution as `[{"package_id": ..., "version": ...}]`. Use explicit strategy functions (`noisy_and`, `deduction`, etc.) to connect claims.
+The only knowledge type carrying probability in BP. `background` attaches setting context without making it a logical premise. `parameters` enables universal quantification (e.g., `[{"name": "x", "type": "material"}]`). `provenance` records source attribution as `[{"package_id": ..., "version": ...}]`. Use explicit strategy functions (`support`, `deduction`, etc.) to connect claims.
 
 ```python
 orbit = claim("The Earth orbits the Sun.")
@@ -49,7 +50,7 @@ orbit = claim("The Earth orbits the Sun.")
 # Connect claims with explicit strategies
 evidence = claim("Stellar parallax is observed.")
 heliocentric = claim("The heliocentric model is correct.")
-noisy_and([evidence], heliocentric, reason="Parallax confirms orbital motion.")
+support([evidence], heliocentric, reason="Parallax confirms orbital motion.", prior=0.9)
 
 # Universal claim
 bcs = claim(
@@ -69,7 +70,7 @@ measurement = claim(
 ### `setting()`
 
 ```python
-def setting(content: str, **metadata) -> Knowledge
+def setting(content: str, *, title: str | None = None, **metadata) -> Knowledge
 ```
 
 Background context. No probability, no BP participation. Used for experimental conditions, domain assumptions, and variable bindings for universal claims.
@@ -82,7 +83,7 @@ binding = setting("x = YBCO")
 ### `question()`
 
 ```python
-def question(content: str, **metadata) -> Knowledge
+def question(content: str, *, title: str | None = None, **metadata) -> Knowledge
 ```
 
 Open inquiry. No probability, no BP participation. Expresses research directions.
@@ -97,88 +98,145 @@ open_problem = question("What is the maximum Tc in hydrogen-rich superconductors
 
 Operators declare deterministic logical constraints between claims. Each function creates an `Operator` (auto-registered) and returns a helper claim usable in further reasoning. For formal definitions and truth tables, see [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md), Section 2.
 
-### `contradiction(a, b, *, reason="")`
+### `contradiction(a, b, *, reason="", prior=None)`
 
 `not(A and B)`. Returns helper claim `not_both_true(A, B)`.
 
 ```python
 classical = claim("Light is purely a wave.")
 photoelectric = claim("Light shows particle behavior.")
-conflict = contradiction(classical, photoelectric, reason="Incompatible models")
+conflict = contradiction(classical, photoelectric,
+    reason="Incompatible models", prior=0.99)
 ```
 
-### `equivalence(a, b, *, reason="")`
+### `equivalence(a, b, *, reason="", prior=None)`
 
 `A = B` (same truth value). Returns helper claim `same_truth(A, B)`.
 
-### `complement(a, b, *, reason="")`
+### `complement(a, b, *, reason="", prior=None)`
 
 `A != B` (XOR). Returns helper claim `opposite_truth(A, B)`.
 
-### `disjunction(*claims, reason="")`
+### `disjunction(*claims, reason="", prior=None)`
 
 At least one true. Returns helper claim `any_true(C0, C1, ...)`.
 
 ```python
 mech_a = claim("Phonon-mediated pairing.")
 mech_b = claim("Spin-fluctuation pairing.")
-some = disjunction(mech_a, mech_b, reason="At least one mechanism operates")
+some = disjunction(mech_a, mech_b,
+    reason="At least one mechanism operates", prior=0.95)
 ```
 
-All operator signatures follow the same pattern -- `Knowledge` inputs, optional `reason: str`, returns a `Knowledge` helper claim.
+All operator signatures follow the same pattern -- `Knowledge` inputs, optional `reason` + `prior` (must be paired: both or neither), returns a `Knowledge` helper claim. Prior values must be within Cromwell bounds `[1e-3, 0.999]`.
 
 ---
 
 ## Strategies
 
-Strategies declare how premises support a conclusion. They carry all uncertainty -- probability parameters live at this layer. All strategy functions set `conclusion.strategy` and auto-register. The `steps` parameter accepts `list[str | dict[str, Any]]` for documenting reasoning. For IR schemas, see [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md), Section 3.
+Strategies declare how premises support a conclusion. They carry all uncertainty -- probability parameters live at this layer. All strategy functions set `conclusion.strategy` and auto-register. The `reason` parameter accepts `str | list[str | Step]` for documenting reasoning steps. For IR schemas, see [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md), Section 3.
 
-### Direct Strategies
+### Leaf Strategies
 
-Map directly to IR without compile-time formalization.
+#### `support(premises, conclusion, *, background=None, reason="", prior=None)`
 
-#### `noisy_and(premises, conclusion, *, steps=None, reason="")`
+**The most common strategy type.** Soft deduction based on the directed `implication` operator (A=1 -> B must =1): premises jointly support conclusion via forward implication. Same structure as `deduction` (conjunction + directed implication) but with an author-specified prior on the implication warrant. Requires at least 1 premise.
 
-All premises jointly necessary, supporting conclusion with conditional probability p. The most common strategy type.
+`reason` and `prior` must be paired: both or neither.
 
 ```python
 a = claim("Evidence A.")
 b = claim("Evidence B.")
 h = claim("Hypothesis.")
-noisy_and(premises=[a, b], conclusion=h, steps=["Both lines converge."])
+support(premises=[a, b], conclusion=h,
+    reason="Both lines of evidence converge.", prior=0.85)
 ```
 
-#### `infer(premises, conclusion, *, steps=None, reason="")`
+#### `deduction(premises, conclusion, *, background=None, reason="", prior=None)`
 
-General CPT reasoning with 2^k parameters. Rarely used directly.
-
-### Named Strategies
-
-Named strategies express recognized reasoning patterns. At compile time, the IR formalizer expands them into `FormalStrategy` instances with canonical operator skeletons (see [../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md)).
-
-#### `deduction(premises, conclusion, *, background=None, steps=None, reason="")`
-
-Premises logically entail the conclusion. Requires at least 1 premise (`ValueError` otherwise). Typical use: instantiating a universal claim or deriving a consequence from a single axiom.
+Rigid deduction based on the directed `implication` operator: premises logically entail the conclusion. Same skeleton as `support` (conjunction + directed implication), but semantically a deterministic logical derivation. Requires at least 1 premise. Use when the reasoning involves no uncertainty beyond the premises themselves (math proofs, logical syllogisms). If the reasoning has uncertainty, use `support`.
 
 ```python
 law = claim("forall {x}. P({x})", parameters=[{"name": "x", "type": "material"}])
 in_scope = claim("YBCO is in scope.")
 instance = claim("P(YBCO)")
-deduction(premises=[law, in_scope], conclusion=instance, background=[setting("x = YBCO")])
+deduction(premises=[law, in_scope], conclusion=instance,
+    background=[setting("x = YBCO")],
+    reason="Universal instantiation", prior=0.99)
 ```
 
-#### `abduction(observation, hypothesis, alternative=None, *, steps=None, reason="")`
+#### `compare(pred_h, pred_alt, observation, *, background=None, reason="", prior=None)`
 
-Inference to the best explanation. The formalizer generates a disjunction between hypothesis and alternative (auto-generated if omitted).
+Compare two predictions against an observation. Compiles to 2 equivalence operators (matching each prediction to observation) + 1 implication (if alt matches, does h also match?). Auto-generates a `comparison_claim` as the conclusion.
 
 ```python
-obs = claim("High-Tc superconductivity observed in cuprates.")
-hyp = claim("Spin-fluctuation mediates pairing.")
-alt = claim("Phonon-mediated pairing explains Tc.")
-abduction(observation=obs, hypothesis=hyp, alternative=alt)
+pred_h = claim("H predicts 3:1 ratio.")
+pred_alt = claim("Alt predicts continuous distribution.")
+obs = claim("Observed 2.96:1 ratio.")
+comp = compare(pred_h, pred_alt, obs,
+    reason="H matches observation much better", prior=0.9)
+# comp.conclusion is the auto-generated comparison claim
 ```
 
-#### `analogy(source, target, bridge, *, steps=None, reason="")`
+#### `infer(premises, conclusion, *, background=None, reason="")`
+
+General CPT reasoning with 2^k parameters. Rarely used directly.
+
+#### `fills(source, target, *, mode=None, strength="exact", background=None, reason="")`
+
+Declares that a source claim fills a target premise interface (cross-package bridging). `strength` is `"exact"` | `"partial"` | `"conditional"`. `mode` is `"deduction"` | `"infer"` | `None` (auto-resolved).
+
+```python
+# In a downstream package, fill an interface claim from another package
+local_evidence = claim("Our measurement confirms the prediction.")
+fills(local_evidence, imported_interface_claim, strength="exact")
+```
+
+#### `noisy_and()` (deprecated)
+
+**Deprecated -- use `support()` instead.** Emits `DeprecationWarning`. Compiles to `support` internally.
+
+### Named Strategies
+
+Named strategies express recognized reasoning patterns. At compile time, the IR formalizer expands them into `FormalStrategy` instances with canonical operator skeletons.
+
+#### `abduction(support_h, support_alt, comparison, *, background=None, reason="")`
+
+Inference to the best explanation. Takes three Strategy objects: two `support` strategies (for the hypothesis and alternative) and one `compare` strategy. Auto-generates a `composition_warrant` claim. Conclusion comes from the comparison strategy's conclusion.
+
+```python
+H = claim("Discrete heritable factors.")
+alt = claim("Blending inheritance.")
+obs = claim("F2 ratio is 2.96:1.")
+pred_h = claim("H predicts 3:1.")
+pred_alt = claim("Blending predicts continuous.")
+
+s_h = support([H], obs, reason="H explains ratio", prior=0.9)
+s_alt = support([alt], obs, reason="Blending explains ratio", prior=0.5)
+comp = compare(pred_h, pred_alt, obs, reason="H matches better", prior=0.9)
+abd = abduction(s_h, s_alt, comp, reason="Both explain same observation")
+# abd.conclusion is comp.conclusion (the comparison claim)
+```
+
+#### `induction(support_1, support_2, law, *, background=None, reason="")`
+
+Binary composite strategy: two support strategies jointly confirm a law. Chainable: `induction(prev_induction, new_support, law)`. Auto-generates a `composition_warrant` claim.
+
+```python
+law = claim("Mendel's law of segregation.")
+obs1 = claim("Seed shape 2.96:1.")
+obs2 = claim("Seed color 3.01:1.")
+obs3 = claim("Flower color 3.15:1.")
+
+s1 = support([law], obs1, reason="law predicts 3:1", prior=0.9)
+s2 = support([law], obs2, reason="law predicts 3:1", prior=0.9)
+s3 = support([law], obs3, reason="law predicts 3:1", prior=0.9)
+
+ind_12 = induction(s1, s2, law=law, reason="shape and color are independent traits")
+ind_123 = induction(ind_12, s3, law=law, reason="flower color independent of seed traits")
+```
+
+#### `analogy(source, target, bridge, *, background=None, reason="")`
 
 Analogical reasoning. `bridge` asserts structural similarity. Premises: `[source, bridge]`; conclusion: `target`.
 
@@ -189,11 +247,11 @@ bridge = claim("Both share Cooper-pair condensate.")
 analogy(source=src, target=tgt, bridge=bridge)
 ```
 
-#### `extrapolation(source, target, continuity, *, steps=None, reason="")`
+#### `extrapolation(source, target, continuity, *, background=None, reason="")`
 
 `continuity` asserts conditions remain similar. Premises: `[source, continuity]`; conclusion: `target`.
 
-#### `elimination(exhaustiveness, excluded, survivor, *, steps=None, reason="")`
+#### `elimination(exhaustiveness, excluded, survivor, *, background=None, reason="")`
 
 Process of elimination. `excluded` is `list[tuple[Knowledge, Knowledge]]` where each tuple is `(candidate, evidence_against)`. Premises flatten to `[exhaustiveness, cand1, ev1, cand2, ev2, ...]`.
 
@@ -204,14 +262,15 @@ neg_bac = claim("Antibiotics test negative.")
 viral = claim("Viral.")
 neg_vir = claim("Viral panel negative.")
 survivor = claim("Autoimmune.")
-elimination(exhaustiveness=exhaustive, excluded=[(bacterial, neg_bac), (viral, neg_vir)], survivor=survivor)
+elimination(exhaustiveness=exhaustive,
+    excluded=[(bacterial, neg_bac), (viral, neg_vir)], survivor=survivor)
 ```
 
-#### `case_analysis(exhaustiveness, cases, conclusion, *, steps=None, reason="")`
+#### `case_analysis(exhaustiveness, cases, conclusion, *, background=None, reason="")`
 
 `cases` is `list[tuple[Knowledge, Knowledge]]` where each tuple is `(case_condition, case_implies_conclusion)`. Premises flatten to `[exhaustiveness, case1, impl1, case2, impl2, ...]`.
 
-#### `mathematical_induction(base, step, conclusion, *, steps=None, reason="")`
+#### `mathematical_induction(base, step, conclusion, *, background=None, reason="")`
 
 Premises: `[base, step]`.
 
@@ -224,21 +283,9 @@ mathematical_induction(base=base, step=step, conclusion=conclusion)
 
 ### Composite Strategy
 
-#### `composite(premises, conclusion, *, sub_strategies, background=None, steps=None, reason="", type="infer")`
+#### `composite(premises, conclusion, *, sub_strategies, background=None, reason="", type="infer")`
 
-Hierarchical composition of sub-strategies. Requires at least one (`ValueError` otherwise). Sub-strategies can nest recursively. At lowering time, sub-strategies are expanded into the factor graph. No `review_strategy()` call is needed for the composite itself — only leaf sub-strategies require parameters. Use `fold_composite_to_cpt()` to compute the composite's aggregate CPT via tensor contraction (exact, no BP iterations).
-
-```python
-obs = claim("Observation.")
-hyp = claim("Hypothesis.")
-final = claim("Final conclusion.")
-s1 = abduction(observation=obs, hypothesis=hyp)
-s2 = noisy_and(premises=[hyp], conclusion=final)
-composite(premises=[obs], conclusion=final, sub_strategies=[s1, s2])
-# In the review sidecar, only s2 (noisy_and) needs a conditional_probability.
-# s1 (abduction) is formalized to deterministic operators.
-# The composite itself needs no parameters.
-```
+Hierarchical composition of sub-strategies. Requires at least one (`ValueError` otherwise). Sub-strategies can nest recursively. At lowering time, sub-strategies are expanded into the factor graph.
 
 ---
 
@@ -263,15 +310,15 @@ __all__ = ["bg", "hypothesis"]
 Claim content and strategy reasons may contain references using the
 unified `@` syntax:
 
-- `[@label]` — strict reference to a local or imported knowledge node, or
+- `[@label]` -- strict reference to a local or imported knowledge node, or
   to a citation key in `references.json`. Missing key is a compile error.
-- `@label` — opportunistic reference (Pandoc narrative form). Missing key
+- `@label` -- opportunistic reference (Pandoc narrative form). Missing key
   is treated as literal text.
-- `\@label` — escape, forces literal.
+- `\@label` -- escape, forces literal.
 
 Compile enforces two invariants: (1) a key cannot exist in both the label
-table and `references.json` (collision → compile error), and (2) a single
-`[...]` group cannot mix knowledge refs and citations (mixed group →
+table and `references.json` (collision -> compile error), and (2) a single
+`[...]` group cannot mix knowledge refs and citations (mixed group ->
 compile error).
 
 The full grammar, resolution rules, and rendering pipeline are specified
@@ -289,7 +336,7 @@ name = "galileo-tied-balls-gaia"
 version = "1.0.0"
 
 [tool.gaia]
-namespace "github"
+namespace = "github"
 type = "knowledge-package"
 ```
 
@@ -297,7 +344,7 @@ type = "knowledge-package"
 
 ```python
 """Galileo's tied-balls thought experiment against Aristotelian physics."""
-from gaia.lang import claim, contradiction, deduction, noisy_and, setting
+from gaia.lang import claim, contradiction, deduction, support, setting
 
 aristotelian = setting("In Aristotelian physics, heavier objects fall faster.")
 
@@ -306,16 +353,21 @@ light_slow = claim("A light ball falls slower than a heavy ball.")
 
 tied_heavier = claim("A heavy+light tied system is heavier than the heavy ball alone.")
 tied_faster = claim("The tied system falls faster.")
-noisy_and([tied_heavier, heavy_fast], tied_faster, reason="Heavier system should fall faster.")
+support([tied_heavier, heavy_fast], tied_faster,
+    reason="Heavier system should fall faster.", prior=0.95)
 drag_slower = claim("The light ball drags, so tied system falls slower.")
-noisy_and([light_slow, heavy_fast], drag_slower, reason="Light ball acts as drag.")
+support([light_slow, heavy_fast], drag_slower,
+    reason="Light ball acts as drag.", prior=0.95)
 
-paradox = contradiction(tied_faster, drag_slower, reason="Opposite predictions from same premises.")
+paradox = contradiction(tied_faster, drag_slower,
+    reason="Opposite predictions from same premises.", prior=0.99)
 
 uniform_rate = claim("All bodies fall at the same rate regardless of weight.")
 binding = setting("Consider any two bodies A, B with different weights.")
 prediction = claim("A and B hit the ground simultaneously.")
-deduction(premises=[uniform_rate, tied_heavier], conclusion=prediction, background=[binding])
+deduction(premises=[uniform_rate, tied_heavier], conclusion=prediction,
+    background=[binding],
+    reason="Direct logical consequence of uniform fall.", prior=0.99)
 
 __all__ = [
     "aristotelian", "heavy_fast", "light_slow", "tied_heavier",

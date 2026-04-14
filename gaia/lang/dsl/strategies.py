@@ -151,7 +151,7 @@ def noisy_and(
         conclusion=conclusion,
         background=background,
         reason=reason,
-        metadata={"reverse_reason": ""},
+        metadata={},
     )
 
 
@@ -162,25 +162,19 @@ def support(
     background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
     prior: float | None = None,
-    reverse_reason: ReasonInput = "",
-    reverse_prior: float | None = None,
 ) -> Strategy:
-    """Bidirectional support (sufficiency + necessity). Compiles to two IMPLIES.
+    """Soft support: premises jointly support conclusion via forward implication.
 
-    reason -> forward implication warrant (sufficiency: premises -> conclusion).
-    reverse_reason -> reverse implication warrant (necessity: conclusion -> premises).
-    prior -> confidence for forward implication warrant.
-    reverse_prior -> confidence for reverse implication warrant.
+    Same structure as deduction (conjunction + implication) but with an
+    author-specified prior on the implication warrant, making it a soft
+    (probabilistic) version of deduction.
     """
     if len(premises) < 1:
         raise ValueError("support() requires at least 1 premise")
     _validate_reason_prior(reason, prior)
-    _validate_reason_prior(reverse_reason, reverse_prior)
-    metadata: dict = {"reverse_reason": reverse_reason}
+    metadata: dict = {}
     if prior is not None:
         metadata["prior"] = prior
-    if reverse_prior is not None:
-        metadata["reverse_prior"] = reverse_prior
     return _named_strategy(
         "support",
         premises=premises,
