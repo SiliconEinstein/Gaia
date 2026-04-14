@@ -5,6 +5,8 @@ Spec: docs/foundations/gaia-ir/07-lowering.md
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
 from gaia.ir.formalize import formalize_named_strategy
 from gaia.ir.graphs import LocalCanonicalGraph
@@ -413,3 +415,62 @@ def lower_operator(graph: FactorGraph, op: Operator, factor_id: str) -> None:
     """Lower a single IR Operator into one factor (public helper for tests)."""
     ft = _OPERATOR_MAP[op.operator]
     graph.add_factor(factor_id, ft, op.variables, op.conclusion)
+
+
+def merge_factor_graphs(
+    local_fg: FactorGraph,
+    dep_graphs: list[tuple[str, FactorGraph, str]],
+    *,
+    local_prefix: str,
+) -> FactorGraph:
+    """Merge local and dependency factor graphs for joint inference.
+
+    Parameters
+    ----------
+    local_fg:
+        The local package's factor graph.
+    dep_graphs:
+        List of ``(dep_import_name, dep_factor_graph, dep_qid_prefix)``
+        triples. ``dep_qid_prefix`` identifies variables owned by that
+        dependency, e.g. ``"github:dep_pkg::"``.
+    local_prefix:
+        QID prefix for the local package, e.g. ``"github:my_pkg::"``.
+        Variables starting with this prefix are owned by the local package.
+
+    Returns
+    -------
+    A merged :class:`FactorGraph` where shared QIDs map to a single
+    variable (dep-owned prior takes precedence for dep nodes) and all
+    factors coexist with prefixed IDs to avoid collision.
+    """
+    merged = FactorGraph()
+
+    # 1. Add dep variables first. A dep graph is authoritative only for
+    # variables it owns; foreign references may carry neutral placeholder priors.
+    for dep_name, dep_fg, dep_prefix in dep_graphs:
+        for var_id, prior in dep_fg.variables.items():
+            if var_id.startswith(dep_prefix) or var_id not in merged.variables:
+                merged.add_variable(var_id, prior)
+
+    # 2. Add local variables — overwrite only for locally-owned nodes
+    for var_id, prior in local_fg.variables.items():
+        if var_id.startswith(local_prefix):
+            # Local owns this node — always use local prior
+            merged.add_variable(var_id, prior)
+        elif var_id not in merged.variables:
+            # New variable only seen locally (e.g. intermediate _m_ vars)
+            merged.add_variable(var_id, prior)
+        # else: dep owns it, dep prior already set — skip
+
+    # 3. Copy dep factors with prefixed IDs
+    for dep_name, dep_fg, _dep_prefix in dep_graphs:
+        for factor in dep_fg.factors:
+            prefixed = replace(factor, factor_id=f"dep_{dep_name}_{factor.factor_id}")
+            merged.factors.append(prefixed)
+
+    # 4. Copy local factors with prefix
+    for factor in local_fg.factors:
+        prefixed = replace(factor, factor_id=f"local_{factor.factor_id}")
+        merged.factors.append(prefixed)
+
+    return merged

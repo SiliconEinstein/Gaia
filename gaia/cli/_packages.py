@@ -6,6 +6,7 @@ import hashlib
 import importlib
 import json
 import math
+import subprocess
 import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass
@@ -87,6 +88,31 @@ def _assign_labels_for_loaded_modules() -> None:
         if pkg is None:
             continue
         _assign_labels(module, pkg)
+
+
+def ensure_package_env(pkg_path: Path) -> None:
+    """Run ``uv sync`` in *pkg_path* so dependencies are importable.
+
+    Skipped when the directory has no ``pyproject.toml`` or when ``uv``
+    is not on ``$PATH``.  Failures are non-fatal (a warning is printed)
+    because the user may manage dependencies another way.
+    """
+    if not (pkg_path / "pyproject.toml").exists():
+        return
+    import shutil
+
+    if shutil.which("uv") is None:
+        return
+    result = subprocess.run(
+        ["uv", "sync", "--quiet"],
+        cwd=pkg_path,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        import logging
+
+        logging.getLogger(__name__).debug("uv sync in %s: %s", pkg_path, result.stderr.strip())
 
 
 def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
@@ -875,6 +901,97 @@ def collect_foreign_node_priors(
             foreign_priors[kid] = upstream_beliefs[kid]
 
     return foreign_priors
+
+
+@dataclass
+class DependencyGraph:
+    """A dependency's compiled IR loaded from disk."""
+
+    import_name: str
+    dist_name: str
+    root: Path
+    graph: Any  # LocalCanonicalGraph (imported lazily to avoid circular deps)
+
+
+def load_dependency_compiled_graphs(
+    project_config: dict[str, Any],
+    *,
+    depth: int = 1,
+    _seen: set[str] | None = None,
+) -> list[DependencyGraph]:
+    """Discover direct ``-gaia`` dependencies and load their compiled IR.
+
+    Parameters
+    ----------
+    project_config:
+        The ``[project]`` section of the local ``pyproject.toml``.
+    depth:
+        How many levels of transitive dependencies to load.
+        1 = direct deps only, 2+ = recurse, -1 = unlimited.
+    _seen:
+        Internal dedup set (QID prefixes already loaded). Callers should
+        not pass this.
+
+    Returns
+    -------
+    Flat list of :class:`DependencyGraph` for all discovered dependencies
+    (deduplicated by ``namespace:package_name``).
+    """
+    from gaia.ir.graphs import LocalCanonicalGraph
+
+    if _seen is None:
+        _seen = set()
+
+    specs, import_to_dist = _parse_gaia_dependencies(project_config)
+    result: list[DependencyGraph] = []
+
+    for import_name, dist_name in sorted(import_to_dist.items()):
+        root = _locate_dependency_manifest_root(import_name)
+        if root is None:
+            raise GaiaCliError(
+                f"Could not locate Gaia package root for dependency '{import_name}'. "
+                f"Is '{dist_name}' installed?"
+            )
+        ir_path = root / ".gaia" / "ir.json"
+        if not ir_path.exists():
+            raise GaiaCliError(
+                f"Dependency '{import_name}' is missing .gaia/ir.json. "
+                f"Run 'gaia compile' in {root}."
+            )
+        ir_data = _load_json_file(ir_path, description=f"{import_name} .gaia/ir.json")
+        graph = LocalCanonicalGraph.model_validate(ir_data)
+
+        # Dedup by namespace:package_name
+        qid_prefix = f"{graph.namespace}:{graph.package_name}"
+        if qid_prefix in _seen:
+            continue
+        _seen.add(qid_prefix)
+
+        result.append(
+            DependencyGraph(
+                import_name=import_name,
+                dist_name=dist_name,
+                root=root,
+                graph=graph,
+            )
+        )
+
+        # Recurse into transitive deps if requested
+        if depth > 1 or depth == -1:
+            dep_pyproject = root / "pyproject.toml"
+            if dep_pyproject.exists():
+                try:
+                    dep_config = tomllib.loads(dep_pyproject.read_text())
+                except Exception:
+                    continue
+                dep_project = dep_config.get("project", {})
+                next_depth = depth - 1 if depth > 1 else -1
+                transitive = load_dependency_compiled_graphs(
+                    dep_project, depth=next_depth, _seen=_seen
+                )
+                result.extend(transitive)
+
+    return result
 
 
 def gaia_lang_version() -> str:

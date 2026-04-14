@@ -14,7 +14,7 @@ from gaia.bp.exact import comparison_table, exact_inference
 from gaia.bp.engine import EngineConfig, InferenceEngine, InferenceResult
 from gaia.bp.gbp import GeneralizedBeliefPropagation, detect_short_cycles
 from gaia.bp.junction_tree import JunctionTreeInference, jt_treewidth
-from gaia.bp.lowering import lower_local_graph, lower_operator
+from gaia.bp.lowering import lower_local_graph, lower_operator, merge_factor_graphs
 
 __all__ = [
     "BeliefPropagation",
@@ -35,4 +35,5 @@ __all__ = [
     "jt_treewidth",
     "lower_local_graph",
     "lower_operator",
+    "merge_factor_graphs",
 ]

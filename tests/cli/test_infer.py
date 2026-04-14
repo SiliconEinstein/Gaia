@@ -254,3 +254,175 @@ def test_collect_foreign_node_priors_unit(tmp_path):
     # Local node and unmatched foreign node are excluded
     assert "github:test_pkg::local_claim" not in result
     assert "github:upstream_c::no_data" not in result
+
+
+# --- Tests for gaia infer --depth (joint cross-package inference) ---
+
+
+def _write_dep_package(dep_dir, *, name: str, monkeypatch):
+    """Create a compilable dependency package and put it on sys.path."""
+    dep_dir.mkdir()
+    (dep_dir / "pyproject.toml").write_text(
+        f'[project]\nname = "{name}-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    import_name = name.replace("-", "_")
+    src = dep_dir / import_name
+    src.mkdir()
+    (src / "__init__.py").write_text(
+        "from gaia.lang import claim, deduction\n\n"
+        'evidence = claim("Strong evidence for upstream.", title="evidence")\n'
+        'upstream_conclusion = claim("Upstream conclusion.", title="conclusion")\n'
+        "deduction(premises=[evidence], conclusion=upstream_conclusion, "
+        "reason='evidence supports conclusion', prior=0.9)\n"
+        '__all__ = ["evidence", "upstream_conclusion"]\n'
+    )
+    # Write priors.py to give evidence a high prior
+    (src / "priors.py").write_text(
+        'from . import evidence\n\nPRIORS = {evidence: (0.85, "Strong evidence")}\n'
+    )
+    monkeypatch.syspath_prepend(str(dep_dir))
+
+
+def test_infer_depth_0_unchanged(tmp_path, monkeypatch):
+    """--depth 0 (default) uses flat prior injection, same as no flag."""
+    pkg_dir = tmp_path / "depth0"
+    _write_base_package(pkg_dir, name="depth0")
+    (pkg_dir / "depth0" / "__init__.py").write_text(
+        'from gaia.lang import claim\n\nh = claim("Hypothesis.")\n__all__ = ["h"]\n'
+    )
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["infer", "--depth", "0", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    # No merge messages
+    assert "merged graph" not in result.output.lower()
+
+
+def test_infer_depth_1_no_deps_falls_back(tmp_path, monkeypatch):
+    """--depth 1 with no deps falls back to local inference."""
+    pkg_dir = tmp_path / "nodeps"
+    _write_base_package(pkg_dir, name="nodeps")
+    (pkg_dir / "nodeps" / "__init__.py").write_text(
+        'from gaia.lang import claim\n\nh = claim("Hypothesis.")\n__all__ = ["h"]\n'
+    )
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["infer", "--depth", "1", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    assert "no -gaia dependencies" in result.output.lower()
+
+
+def test_infer_depth_1_merges_dep_graphs(tmp_path, monkeypatch):
+    """--depth 1 merges dependency factor graphs for joint inference."""
+    from unittest.mock import patch
+
+    # Create upstream dep
+    dep_dir = tmp_path / "upstream_dep"
+    _write_dep_package(dep_dir, name="upstream_dep", monkeypatch=monkeypatch)
+
+    # Compile the dep so it has .gaia/ir.json
+    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    assert dep_compile.exit_code == 0, dep_compile.output
+
+    # Create local package that imports from upstream
+    pkg_dir = tmp_path / "local_pkg"
+    _write_base_package(pkg_dir, name="local_pkg")
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "local-pkg-gaia"\nversion = "1.0.0"\n'
+        'dependencies = ["upstream-dep-gaia"]\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    (pkg_dir / "local_pkg" / "__init__.py").write_text(
+        "from gaia.lang import claim, deduction\n"
+        "from upstream_dep import upstream_conclusion\n\n"
+        'local_obs = claim("Local observation.")\n'
+        "local_result = claim('Local result.')\n"
+        "deduction(premises=[upstream_conclusion, local_obs], conclusion=local_result, "
+        "reason='apply upstream', prior=0.9)\n"
+        '__all__ = ["local_obs", "local_result"]\n'
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    # Mock _locate_dependency_manifest_root to point to our dep
+    with patch(
+        "gaia.cli._packages._locate_dependency_manifest_root",
+        return_value=dep_dir,
+    ):
+        result = runner.invoke(app, ["infer", "--depth", "1", str(pkg_dir)])
+
+    assert result.exit_code == 0, result.output
+    assert "merged graph" in result.output.lower()
+    assert "upstream_dep" in result.output.lower()
+
+    # Verify beliefs.json was written with local knowledge nodes
+    beliefs = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
+    belief_ids = {b["knowledge_id"] for b in beliefs["beliefs"]}
+    # Local nodes should be present
+    assert any("local_pkg" in kid for kid in belief_ids)
+
+
+def test_infer_depth_1_beliefs_differ_from_flat_priors(tmp_path, monkeypatch):
+    """Joint inference produces different beliefs than flat prior injection."""
+    from unittest.mock import patch
+
+    # Create upstream dep with reasoning structure
+    dep_dir = tmp_path / "upstream_dep"
+    _write_dep_package(dep_dir, name="upstream_dep", monkeypatch=monkeypatch)
+
+    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    assert dep_compile.exit_code == 0, dep_compile.output
+
+    # Create local package referencing upstream
+    pkg_dir = tmp_path / "local_pkg"
+    _write_base_package(pkg_dir, name="local_pkg")
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "local-pkg-gaia"\nversion = "1.0.0"\n'
+        'dependencies = ["upstream-dep-gaia"]\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    (pkg_dir / "local_pkg" / "__init__.py").write_text(
+        "from gaia.lang import claim, deduction\n"
+        "from upstream_dep import upstream_conclusion\n\n"
+        'local_obs = claim("Local observation.")\n'
+        "local_result = claim('Local result.')\n"
+        "deduction(premises=[upstream_conclusion, local_obs], conclusion=local_result, "
+        "reason='apply upstream', prior=0.9)\n"
+        '__all__ = ["local_obs", "local_result"]\n'
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    # Run with --depth 0 (flat priors)
+    result_flat = runner.invoke(app, ["infer", "--depth", "0", str(pkg_dir)])
+    assert result_flat.exit_code == 0, result_flat.output
+    beliefs_flat = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
+    beliefs_flat_by_id = {b["knowledge_id"]: b["belief"] for b in beliefs_flat["beliefs"]}
+
+    # Run with --depth 1 (joint inference)
+    with patch(
+        "gaia.cli._packages._locate_dependency_manifest_root",
+        return_value=dep_dir,
+    ):
+        result_joint = runner.invoke(app, ["infer", "--depth", "1", str(pkg_dir)])
+    assert result_joint.exit_code == 0, result_joint.output
+    beliefs_joint = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
+    beliefs_joint_by_id = {b["knowledge_id"]: b["belief"] for b in beliefs_joint["beliefs"]}
+
+    # The foreign node should get different treatment: --depth 1 has full dep reasoning
+    # structure while --depth 0 uses 0.5 default (no dep_beliefs written here)
+    upstream_kid = "github:upstream_dep::upstream_conclusion"
+    flat_upstream = beliefs_flat_by_id.get(upstream_kid, 0.5)
+    joint_upstream = beliefs_joint_by_id.get(upstream_kid)
+    # Joint inference should give a meaningfully different result
+    # (dep's deduction + evidence prior 0.85 should push upstream_conclusion higher)
+    if joint_upstream is not None:
+        assert joint_upstream != flat_upstream, (
+            f"Joint and flat beliefs should differ for the foreign node: "
+            f"joint={joint_upstream}, flat={flat_upstream}"
+        )

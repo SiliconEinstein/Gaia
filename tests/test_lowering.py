@@ -7,7 +7,7 @@ import pytest
 from gaia.bp import FactorType, lower_local_graph, lower_operator
 from gaia.bp.factor_graph import FactorGraph
 from gaia.bp.exact import exact_inference
-from gaia.bp.lowering import fold_composite_to_cpt
+from gaia.bp.lowering import fold_composite_to_cpt, merge_factor_graphs
 from gaia.ir import Knowledge, Operator, Strategy, CompositeStrategy, LocalCanonicalGraph
 
 NS, PKG = "github", "lowertest"
@@ -1099,3 +1099,159 @@ def test_claim_metadata_prior_used_in_lowering():
     fg = lower_local_graph(g)
     assert fg.variables["github:lowertest::a"] == pytest.approx(0.85)
     assert fg.variables["github:lowertest::b"] == pytest.approx(0.5)  # default
+
+
+# ---- merge_factor_graphs tests -----
+
+
+def test_merge_factor_graphs_basic():
+    """Merge two factor graphs: shared variable gets dep prior, factors coexist."""
+    dep_fg = FactorGraph()
+    dep_fg.add_variable("github:dep::a", 0.8)
+    dep_fg.add_variable("github:dep::b", 0.7)
+    dep_fg.add_factor(
+        "op_f1", FactorType.SOFT_ENTAILMENT, ["github:dep::a"], "github:dep::b", p1=0.9, p2=0.999
+    )
+
+    local_fg = FactorGraph()
+    local_fg.add_variable("github:local::c", 0.6)
+    local_fg.add_variable("github:dep::b", 0.5)  # foreign node, default prior
+    local_fg.add_factor(
+        "op_f1", FactorType.SOFT_ENTAILMENT, ["github:dep::b"], "github:local::c", p1=0.8, p2=0.999
+    )
+
+    merged = merge_factor_graphs(
+        local_fg, [("dep", dep_fg, "github:dep::")], local_prefix="github:local::"
+    )
+
+    # Shared variable gets dep prior (0.7), not local default (0.5)
+    assert merged.variables["github:dep::b"] == pytest.approx(0.7, abs=0.01)
+    # Local-owned variable keeps local prior
+    assert merged.variables["github:local::c"] == pytest.approx(0.6, abs=0.01)
+    # Dep-only variable present
+    assert merged.variables["github:dep::a"] == pytest.approx(0.8, abs=0.01)
+    # Both sets of factors present
+    assert len(merged.factors) == 2
+
+
+def test_merge_factor_graphs_factor_id_no_collision():
+    """Factor IDs from different packages are prefixed and don't collide."""
+    dep_fg = FactorGraph()
+    dep_fg.add_variable("github:dep::a", 0.8)
+    dep_fg.add_variable("github:dep::b", 0.5)
+    dep_fg.add_factor(
+        "op_f1", FactorType.SOFT_ENTAILMENT, ["github:dep::a"], "github:dep::b", p1=0.9, p2=0.999
+    )
+
+    local_fg = FactorGraph()
+    local_fg.add_variable("github:local::x", 0.5)
+    local_fg.add_variable("github:local::y", 0.5)
+    local_fg.add_factor(
+        "op_f1",
+        FactorType.SOFT_ENTAILMENT,
+        ["github:local::x"],
+        "github:local::y",
+        p1=0.8,
+        p2=0.999,
+    )
+
+    merged = merge_factor_graphs(
+        local_fg, [("dep", dep_fg, "github:dep::")], local_prefix="github:local::"
+    )
+
+    factor_ids = [f.factor_id for f in merged.factors]
+    assert "dep_dep_op_f1" in factor_ids
+    assert "local_op_f1" in factor_ids
+    assert len(set(factor_ids)) == len(factor_ids)  # no duplicates
+
+
+def test_merge_factor_graphs_local_owned_preserved():
+    """Local package's own variables keep their local priors even if dep also has them."""
+    dep_fg = FactorGraph()
+    dep_fg.add_variable("github:local::shared", 0.3)  # dep also references local node
+
+    local_fg = FactorGraph()
+    local_fg.add_variable("github:local::shared", 0.9)
+
+    merged = merge_factor_graphs(
+        local_fg, [("dep", dep_fg, "github:dep::")], local_prefix="github:local::"
+    )
+
+    # Local-owned node keeps local prior, not dep's
+    assert merged.variables["github:local::shared"] == pytest.approx(0.9, abs=0.01)
+
+
+def test_merge_factor_graphs_validates():
+    """Merged graph passes validate()."""
+    dep_fg = FactorGraph()
+    dep_fg.add_variable("github:dep::a", 0.8)
+    dep_fg.add_variable("github:dep::b", 0.5)
+    dep_fg.add_factor(
+        "op_f1", FactorType.SOFT_ENTAILMENT, ["github:dep::a"], "github:dep::b", p1=0.9, p2=0.999
+    )
+
+    local_fg = FactorGraph()
+    local_fg.add_variable("github:local::c", 0.6)
+    local_fg.add_variable("github:dep::b", 0.5)
+    local_fg.add_factor(
+        "op_f1", FactorType.SOFT_ENTAILMENT, ["github:dep::b"], "github:local::c", p1=0.8, p2=0.999
+    )
+
+    merged = merge_factor_graphs(
+        local_fg, [("dep", dep_fg, "github:dep::")], local_prefix="github:local::"
+    )
+    errors = merged.validate()
+    assert errors == []
+
+
+def test_merge_factor_graphs_empty_deps():
+    """Merging with empty dep list produces a copy of local graph."""
+    local_fg = FactorGraph()
+    local_fg.add_variable("github:local::a", 0.6)
+
+    merged = merge_factor_graphs(local_fg, [], local_prefix="github:local::")
+    assert merged.variables["github:local::a"] == pytest.approx(0.6, abs=0.01)
+
+
+def test_merge_factor_graphs_multiple_deps():
+    """Merging multiple dep graphs collects all variables and factors."""
+    dep1_fg = FactorGraph()
+    dep1_fg.add_variable("github:dep1::a", 0.8)
+    dep2_fg = FactorGraph()
+    dep2_fg.add_variable("github:dep2::b", 0.7)
+
+    local_fg = FactorGraph()
+    local_fg.add_variable("github:local::c", 0.6)
+
+    merged = merge_factor_graphs(
+        local_fg,
+        [("dep1", dep1_fg, "github:dep1::"), ("dep2", dep2_fg, "github:dep2::")],
+        local_prefix="github:local::",
+    )
+    assert "github:dep1::a" in merged.variables
+    assert "github:dep2::b" in merged.variables
+    assert "github:local::c" in merged.variables
+
+
+def test_merge_factor_graphs_dep_owner_prior_survives_foreign_reference():
+    """A non-owner dep must not overwrite a shared QID's owner prior."""
+    referencing_dep = FactorGraph()
+    referencing_dep.add_variable("github:dep::owned", 0.5)
+
+    owner_dep = FactorGraph()
+    owner_dep.add_variable("github:dep::owned", 0.9)
+
+    later_referencing_dep = FactorGraph()
+    later_referencing_dep.add_variable("github:dep::owned", 0.3)
+
+    merged = merge_factor_graphs(
+        FactorGraph(),
+        [
+            ("ref_a", referencing_dep, "github:ref_a::"),
+            ("dep", owner_dep, "github:dep::"),
+            ("ref_c", later_referencing_dep, "github:ref_c::"),
+        ],
+        local_prefix="github:local::",
+    )
+
+    assert merged.variables["github:dep::owned"] == pytest.approx(0.9)
