@@ -92,10 +92,11 @@ def infer_command(
         if not dep_compiled:
             typer.echo("No -gaia dependencies found; running local inference only")
 
-        dep_factor_graphs: list[tuple[str, FactorGraph]] = []
+        dep_factor_graphs: list[tuple[str, FactorGraph, str]] = []
         for dep in dep_compiled:
             dep_fg = lower_local_graph(dep.graph)
-            dep_factor_graphs.append((dep.import_name, dep_fg))
+            dep_prefix = f"{dep.graph.namespace}:{dep.graph.package_name}::"
+            dep_factor_graphs.append((dep.import_name, dep_fg, dep_prefix))
             typer.echo(
                 f"Loaded dep '{dep.import_name}': "
                 f"{len(dep.graph.knowledges)} knowledge, "
