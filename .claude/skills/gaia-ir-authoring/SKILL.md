@@ -239,30 +239,14 @@ assert result.valid, result.errors
 
 ### Step 7: Run inference (optional, local)
 
-```python
-from gaia.bp import lower_local_graph
-from gaia.bp.engine import InferenceEngine
+Priors come from claim metadata (set via `prior=` on strategies and operators). No manual parameterization is needed.
 
-# Assign priors to input claims (support/deduction warrant priors are in metadata)
-input_ids = [k["id"] for k in ir["knowledges"]
-             if k["type"] == "claim" and k.get("is_input")]
-node_priors = {cid: 0.5 for cid in input_ids}
-
-# Only `infer` strategies need external params; support/deduction/etc. are FormalStrategy
-strat_params = {
-    s.strategy_id: [0.85] * (2 ** len(s.premises))
-    for s in graph.strategies
-    if s.type.value == "infer" and s.strategy_id
-}
-
-fg = lower_local_graph(graph,
-    node_priors=node_priors,
-    strategy_conditional_params=strat_params)
-
-engine = InferenceEngine()
-result = engine.run(fg)  # Auto-selects JT (exact) or loopy BP
-beliefs = result.beliefs
+```bash
+gaia infer .                  # Single-package inference — writes .gaia/beliefs.json
+gaia infer --depth 1 .        # Cross-package joint inference (includes dependencies)
 ```
+
+The engine auto-selects junction-tree exact inference (treewidth <= 15) or loopy BP. Results are written to `.gaia/beliefs.json`.
 
 ### Step 8: Generate reasoning docs (optional)
 

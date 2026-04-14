@@ -38,7 +38,7 @@ pip install gaia-lang
 3. Write DSL code (see **gaia-lang** skill)
 4. `gaia compile .` + `gaia check .` — compile and validate
 5. Write review sidecar with priors (see **gaia-cli** skill)
-6. `gaia infer .` — run belief propagation
+6. `gaia infer .` — run belief propagation (add `--depth 1` for joint cross-package inference)
 7. `gaia render . --target github` + `/gaia:publish` — generate and fill README
 8. `gaia render . --target docs` — generate per-module reasoning graphs
 9. `gaia register .` — publish to the official registry

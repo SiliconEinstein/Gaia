@@ -48,14 +48,13 @@ my-package-gaia/
 │   └── my_package/
 │       ├── __init__.py     # DSL declarations, re-exports
 │       ├── motivation.py   # Optional: organize by chapter/section
-│       └── reviews/
-│           ├── __init__.py
-│           └── self_review.py  # ReviewBundle with priors
+│       └── priors.py        # Optional: prior assignments via reason+prior pairing
 ├── artifacts/              # Source material (PDF, markdown)
 ├── .gaia/                  # Created by gaia compile (git tracked)
 │   ├── ir.json
-│   └── ir_hash
-└── .gitignore              # Ignores .gaia/reviews/
+│   ├── ir_hash
+│   └── beliefs.json        # Created by gaia infer
+└── .gitignore
 ```
 
 ### pyproject.toml required fields
@@ -148,47 +147,72 @@ When given a **module name** (e.g., `--show motivation`): expands all claims wit
 
 When given a **claim label** (e.g., `--show hypothesis`): shows the claim's full content and all strategies that conclude to it, with all premises listed.
 
-## 6. Review sidecar
+## 6. Priors
 
-Reviews live in `src/<package>/reviews/self_review.py` and supply the priors and conditional probabilities needed for inference.
+Priors are set directly in DSL source via `reason+prior` pairing and `priors.py`, then baked into claim metadata at compile time. No separate review sidecar is needed.
+
+### Inline reason+prior pairing
+
+Strategies accept a `prior=` keyword that pairs with their `reason=`:
 
 ```python
-from gaia.review import ReviewBundle, review_claim, review_strategy, review_generated_claim
+H = claim("Hypothesis X", label="hypothesis")
+E = claim("Evidence Y", label="evidence")
 
-REVIEW = ReviewBundle(
-    source_id="self_review",
-    objects=[
-        review_claim(some_claim, prior=0.8, judgment="supporting", justification="..."),
-        review_strategy(some_strategy, conditional_probability=0.85, judgment="formalized", justification="..."),
-        review_generated_claim(some_abduction, "alternative_explanation", prior=0.3, judgment="tentative", justification="..."),
-    ],
-)
+deduction(E, concludes=H, prior=0.85, reason="Strong experimental support")
 ```
 
-For complete review API, prior assignment guide, and BP interpretation, see the **review** skill.
+### priors.py (batch priors)
+
+For leaf claims (independent premises) without a concluding strategy, assign priors in `src/<package>/priors.py`:
+
+```python
+from . import some_claim, another_claim
+
+some_claim.prior = 0.9
+another_claim.prior = 0.3
+```
+
+These are applied at load time before compilation. `gaia check --brief` shows which claims are independent (need priors) vs derived (get beliefs from BP).
+
+For complete prior assignment guide and BP interpretation, see the **review** skill.
 
 ## 7. gaia infer
 
 ```bash
-gaia infer .
+gaia infer [PATH] [--depth N]
 ```
 
-Compiles IR into a factor graph, runs belief propagation, and writes posterior beliefs.
+Compiles IR into a factor graph, runs belief propagation, and writes posterior beliefs to `.gaia/beliefs.json`.
 
+- Auto-runs `uv sync --quiet` before loading the package to ensure dependencies are installed.
+- Priors come from claim metadata (`priors.py` + DSL `reason+prior` pairing), baked in at compile time. No review sidecar is needed.
 - Auto-selects algorithm based on factor graph treewidth:
   - **Junction tree** (exact inference, treewidth ≤ 15)
-  - **Generalized BP** (region decomposition, treewidth 16–30)
+  - **Generalized BP** (region decomposition, treewidth 16-30)
   - **Loopy BP** (approximation, treewidth > 30)
-- Requires a review sidecar with priors to be present.
-- Output: `.gaia/reviews/<review_name>/beliefs.json`
+- Output: `.gaia/beliefs.json`
 
-### Specify a review
+### Dependency depth
+
+| Flag | Behavior |
+|------|----------|
+| `--depth 0` (default) | Uses flat priors for foreign nodes; optionally reads `dep_beliefs/` for upstream beliefs |
+| `--depth 1` | Merges direct dependency factor graphs for joint cross-package inference |
+| `--depth -1` | Merges all transitive dependency factor graphs |
 
 ```bash
-gaia infer --review <name> .
+# Local inference only (default)
+gaia infer .
+
+# Joint inference with direct dependencies
+gaia infer . --depth 1
+
+# Joint inference with all transitive dependencies
+gaia infer . --depth -1
 ```
 
-Use this when multiple review sidecars exist.
+With `--depth 0`, foreign nodes (references to claims in other packages) get flat priors unless a `dep_beliefs/` directory provides upstream belief files. With `--depth 1` or `-1`, the dependency packages' full factor graphs are merged into a single graph for joint inference, replacing flat prior injection with structural reasoning.
 
 ## 8. gaia register
 
@@ -228,23 +252,21 @@ Resolves packages from https://github.com/SiliconEinstein/gaia-registry.
 
 ```
 gaia init
-  → write DSL declarations
+  → write DSL declarations + priors
     → gaia compile .
       → gaia check .
-        → write review sidecar
-          → gaia infer .
-            → gaia render . --target github
-              → /gaia:publish
-                → gaia render . --target docs
-                  → gaia register . --registry-dir ../gaia-registry --create-pr
+        → gaia infer .
+          → gaia render . --target github
+            → /gaia:publish
+              → gaia render . --target docs
+                → gaia register . --registry-dir ../gaia-registry --create-pr
 ```
 
 1. **Scaffold** — `gaia init my-package-gaia`
-2. **Author** — Write knowledge declarations in `src/<package>/`
+2. **Author** — Write knowledge declarations in `src/<package>/`, set priors via `reason+prior` pairing and `priors.py`
 3. **Compile** — `gaia compile .` to produce IR
 4. **Validate** — `gaia check .` to catch structural errors early
-5. **Review** — Write `reviews/self_review.py` with priors and strategy parameters
-6. **Infer** — `gaia infer .` to compute posterior beliefs
-7. **Present** — `gaia render . --target github` to generate GitHub presentation skeleton, then `/gaia:publish` to fill narrative content
-8. **Detail** — `gaia render . --target docs` to generate per-module reasoning graphs
-9. **Publish** — Tag, push, and `gaia register` to submit to the registry
+5. **Infer** — `gaia infer .` to compute posterior beliefs (optionally `--depth 1` for cross-package)
+6. **Present** — `gaia render . --target github` to generate GitHub presentation skeleton, then `/gaia:publish` to fill narrative content
+7. **Detail** — `gaia render . --target docs` to generate per-module reasoning graphs
+8. **Publish** — Tag, push, and `gaia register` to submit to the registry

@@ -32,16 +32,16 @@ digraph formalization {
     r5 [label="gaia compile + gaia check"];
     p6 [label="Pass 6: Polish for Standalone Readability\n(self-containedness, figures, formatting)"];
     r6 [label="gaia compile + gaia check"];
-    review [label="Write review sidecar"];
-    infer [label="gaia infer"];
+    priors [label="Write priors.py\n(metadata priors)"];
+    infer [label="gaia infer .\n→ .gaia/beliefs.json"];
     interpret [label="Interpret BP results"];
     analysis [label="Write ANALYSIS.md"];
     readme [label="gaia render . --target github\n+ /gaia:publish"];
 
     p1 -> r1 -> p2 -> r2 -> p3 -> r3 -> p4 -> r4 -> p5 -> r5 -> p6 -> r6;
-    r6 -> review -> infer -> interpret;
+    r6 -> priors -> infer -> interpret;
     interpret -> p1 [label="structural issues" style=dashed];
-    interpret -> review [label="prior/cond_prob issues" style=dashed];
+    interpret -> priors [label="prior issues" style=dashed];
     interpret -> analysis -> readme;
 }
 ```
@@ -734,7 +734,7 @@ For how to write review sidecars, assign priors, and evaluate strategy parameter
 
 ## Generate GitHub Presentation
 
-Run `gaia infer .` then:
+Run `gaia infer .` (or `gaia infer --depth 1 .` for joint cross-package inference) then:
 - `gaia render . --target github` + `/gaia:publish` to generate the README with narrative and reasoning graph
 - `gaia render . --target docs` to generate per-module detailed reasoning graphs in `docs/detailed-reasoning.md`
 

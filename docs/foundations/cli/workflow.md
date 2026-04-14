@@ -12,8 +12,8 @@ The Gaia CLI is a knowledge package authoring toolkit. It provides a seven-comma
 pipeline that takes a Python DSL package from scaffolding to registry registration:
 
 ```
-gaia init --> gaia add --> write package --> gaia compile --> write review --> gaia infer --> gaia render --> git tag --> gaia register
-(scaffold)   (add deps)    (DSL code)      (DSL -> IR)     (self-review)   (BP preview)    (present)              (registry PR)
+gaia init --> gaia add --> write package --> gaia compile --> gaia infer --> gaia render --> git tag --> gaia register
+(scaffold)   (add deps)    (DSL code)      (DSL -> IR)     (BP preview)    (present)              (registry PR)
 ```
 
 Entry point: installed as the `gaia` CLI command via `pyproject.toml`
@@ -131,40 +131,38 @@ installed into the project environment.
 `uv.lock` with the pinned Gaia package dependency.
 
 
-### `gaia infer [PATH] [--review NAME]`
+### `gaia infer [PATH] [--depth N]`
 
-Run belief propagation using compiled IR plus a review sidecar parameterization.
+Run belief propagation using compiled IR and metadata priors.
 
 ```
-gaia infer [PATH] [--review NAME]
+gaia infer [PATH] [--depth N]
 ```
 
 | Argument / Option | Default | Description |
 |-------------------|---------|-------------|
 | `PATH`            | `.`     | Path to knowledge package directory |
-| `--review NAME`   | `None`  | Review sidecar name: loads `<package>/reviews/<NAME>.py`, or `review` for legacy `<package>/review.py`. Auto-selected when only one sidecar exists. |
+| `--depth N`       | `0`     | Inference depth. `0`: flat prior injection from `dep_beliefs/`. `N>0`: joint cross-package inference merging dependency factor graphs to the given depth. |
 
 **What it does:**
 
-1. Loads and compiles the package to a `LocalCanonicalGraph`.
-2. Verifies `.gaia/ir_hash` and `.gaia/ir.json` are present and not stale.
-3. Discovers and loads the review sidecar module, which must export
-   `REVIEW = ReviewBundle(...)`.
-4. Resolves review objects (`ClaimReview`, `GeneratedClaimReview`,
-   `StrategyReview`) into `PriorRecord` and `StrategyParamRecord` records.
-5. Validates the parameterization against the IR graph.
-6. Lowers the graph to a factor graph via `lower_local_graph`.
+1. Runs `uv sync` to ensure the environment is up to date.
+2. Loads and compiles the package to a `LocalCanonicalGraph`.
+3. Verifies `.gaia/ir_hash` and `.gaia/ir.json` are present and not stale.
+4. Collects metadata priors from claim metadata (`priors.py` and DSL
+   `reason`+`prior` fields).
+5. Lowers the graph to a factor graph via `lower_local_graph`.
+6. At `--depth 0` (default): injects flat priors from `dep_beliefs/` for
+   dependency claims. At `--depth N>0`: merges dependency factor graphs for
+   joint cross-package inference.
 7. Runs `BeliefPropagation(damping=0.5, max_iterations=100)`.
-8. Writes results to `.gaia/reviews/<NAME>/`:
-   - `parameterization.json` -- source, resolution policy, resolved priors and
-     strategy params.
-   - `beliefs.json` -- per-knowledge beliefs, convergence diagnostics.
+8. Writes results to `.gaia/beliefs.json` — per-knowledge beliefs and
+   convergence diagnostics.
 
 **Prerequisites:** `gaia compile` must have been run first (artifacts must be
 fresh).
 
-**Key output:** `.gaia/reviews/<NAME>/parameterization.json`,
-`.gaia/reviews/<NAME>/beliefs.json`.
+**Key output:** `.gaia/beliefs.json`.
 
 Reference: [Inference](inference.md) for internals.
 
@@ -214,8 +212,7 @@ unknown `--review NAME`, broken review module imports) propagate as follows:
 
 1. Loads and compiles the package (same gate as `gaia compile`).
 2. Verifies `.gaia/ir_hash` and `.gaia/ir.json` are present and not stale.
-3. Discovers the review sidecar via the same mechanism as `gaia infer`
-   (optional for `--target docs`).
+3. Discovers the review sidecar (optional for `--target docs`).
 4. If `beliefs.json` is present, verifies its `ir_hash` matches the current
    compiled graph; same check applied to `parameterization.json` if present.
    Any stale artifact is a hard error.
@@ -290,7 +287,7 @@ Reference: [Registration](registration.md) for details.
 | Compile  | `gaia compile`   | `.gaia/ir.json`, `.gaia/ir_hash` |
 | Check    | `gaia check`     | (validation only) |
 | Add      | `gaia add`       | Updated `pyproject.toml` dependencies, `uv.lock` |
-| Infer    | `gaia infer`     | `.gaia/reviews/<name>/parameterization.json`, `.gaia/reviews/<name>/beliefs.json` |
+| Infer    | `gaia infer`     | `.gaia/beliefs.json` |
 | Render   | `gaia render`    | `docs/detailed-reasoning.md`, `.github-output/` |
 | Register | `gaia register`  | `packages/<name>/Package.toml`, `Versions.toml`, `Deps.toml` (in registry repo) |
 
@@ -330,7 +327,7 @@ gaia check .
 gaia add some-prerequisite-gaia
 
 # 6. Preview beliefs (optional)
-gaia infer . --review self_review
+gaia infer .
 
 # 7. Tag and push
 git add -A && git commit -m "initial package"
