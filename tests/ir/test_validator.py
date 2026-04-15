@@ -1974,7 +1974,7 @@ class TestParameterizationValidation:
         assert r.valid, r.errors
 
     def test_composite_conclusion_does_not_exempt_prior_by_itself(self):
-        """CompositeStrategy is review structure only; its conclusion still needs support/prior."""
+        """CompositeStrategy is structural only; its conclusion still needs support/prior."""
         from gaia.ir import PriorRecord
 
         sup1 = Strategy(

@@ -229,9 +229,9 @@ def _validate_strategy(
                 f"'{knowledge_lookup[strategy.conclusion].type}', must be claim"
             )
 
-    # no self-loop for BP-participating strategies. CompositeStrategy is reviewer
-    # structure only; induction legitimately uses the law as both conclusion and
-    # shared premise of its child supports.
+    # no self-loop for BP-participating strategies. CompositeStrategy is a
+    # structural grouping only; induction legitimately uses the law as both
+    # conclusion and shared premise of its child supports.
     if (
         not isinstance(strategy, CompositeStrategy)
         and strategy.conclusion is not None
@@ -661,20 +661,22 @@ def validate_parameterization(
     priors: list[PriorRecord],
     strategy_params: list[StrategyParamRecord],
 ) -> ValidationResult:
-    """Validate parameterization completeness before BP run.
+    """Validate LocalParameterization overlay completeness before BP run.
 
-    Checks that every independent claim Knowledge has at least one PriorRecord
-    and every parameterized Strategy (infer/noisy_and) has a StrategyParamRecord.
-    FormalStrategy types derive behavior from FormalExpr — no params needed.
+    ``PriorRecord`` applies only to independent claim variables: claims whose
+    initial belief is an exogenous parameter of the graph. ``StrategyParamRecord``
+    applies only to parameterized Strategy types (infer/noisy_and).
 
-    Three categories of claims are excluded from PriorRecord requirements:
+    Claims are classified as follows:
 
-    1. **Strategy conclusions** — claims that appear as the conclusion of any
-       Strategy. Their belief is derived from premises via BP; they do not need
-       independent priors (but may optionally have them).
+    1. **Non-composite Strategy conclusions** — their belief is derived from
+       premises through factors produced by lowering, so they do not need an
+       independent PriorRecord. A CompositeStrategy conclusion is not included
+       here because CompositeStrategy is structural grouping only and does not
+       itself lower to a BP factor.
     2. **Top-level structural helper claims** — conclusions of top-level Operators
        with structural types (conjunction/disjunction/equivalence/contradiction/
-       complement). Their truth value is fully determined by the Operator.
+       complement/implication). Their truth value is determined by the Operator.
        These are PROHIBITED from having independent PriorRecords.
     3. **FormalExpr private nodes** — ANY operator conclusion inside a FormalExpr
        that is NOT in the owning FormalStrategy's premises/conclusion interface.
@@ -682,9 +684,9 @@ def validate_parameterization(
        independent PriorRecord regardless of the operator type.
        These are PROHIBITED from having independent PriorRecords.
 
-    Generated public interface claims (e.g. abduction's AlternativeExplanationForObs)
-    are part of the strategy interface, so they remain ordinary claim inputs and
-    still require PriorRecord.
+    Public interface claims created during formalization remain ordinary claim
+    variables unless they are concluded by a non-composite Strategy; if they are
+    exogenous inputs, they still require PriorRecord.
     """
     result = ValidationResult()
 
