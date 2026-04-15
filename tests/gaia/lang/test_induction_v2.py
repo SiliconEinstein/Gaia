@@ -12,8 +12,8 @@ def test_induction_binary_composite():
     obs2 = claim("Copper expands when heated.")
     law = claim("All metals expand when heated.")
 
-    sup1 = support(premises=[obs1], conclusion=law, reason="Iron supports the law.", prior=0.9)
-    sup2 = support(premises=[obs2], conclusion=law, reason="Copper supports the law.", prior=0.9)
+    sup1 = support(premises=[law], conclusion=obs1, reason="Law predicts iron.", prior=0.9)
+    sup2 = support(premises=[law], conclusion=obs2, reason="Law predicts copper.", prior=0.9)
 
     s = induction(sup1, sup2, law)
 
@@ -30,8 +30,8 @@ def test_induction_conclusion_is_law():
     obs2 = claim("Obs 2.")
     law = claim("Law.")
 
-    sup1 = support(premises=[obs1], conclusion=law)
-    sup2 = support(premises=[obs2], conclusion=law)
+    sup1 = support(premises=[law], conclusion=obs1)
+    sup2 = support(premises=[law], conclusion=obs2)
 
     s = induction(sup1, sup2, law)
 
@@ -45,9 +45,9 @@ def test_induction_chaining():
     obs3 = claim("Obs 3.")
     law = claim("Law.")
 
-    sup1 = support(premises=[obs1], conclusion=law)
-    sup2 = support(premises=[obs2], conclusion=law)
-    sup3 = support(premises=[obs3], conclusion=law)
+    sup1 = support(premises=[law], conclusion=obs1)
+    sup2 = support(premises=[law], conclusion=obs2)
+    sup3 = support(premises=[law], conclusion=obs3)
 
     # First induction
     ind1 = induction(sup1, sup2, law)
@@ -67,8 +67,8 @@ def test_induction_composition_warrant():
     obs2 = claim("Obs 2.")
     law = claim("Law.")
 
-    sup1 = support(premises=[obs1], conclusion=law)
-    sup2 = support(premises=[obs2], conclusion=law)
+    sup1 = support(premises=[law], conclusion=obs1)
+    sup2 = support(premises=[law], conclusion=obs2)
 
     s = induction(sup1, sup2, law, reason="Independent observations.")
 
@@ -85,8 +85,8 @@ def test_induction_composition_warrant_no_reason():
     obs2 = claim("Obs 2.")
     law = claim("Law.")
 
-    sup1 = support(premises=[obs1], conclusion=law)
-    sup2 = support(premises=[obs2], conclusion=law)
+    sup1 = support(premises=[law], conclusion=obs1)
+    sup2 = support(premises=[law], conclusion=obs2)
 
     s = induction(sup1, sup2, law)
 
@@ -98,7 +98,7 @@ def test_induction_requires_strategy_inputs():
     """Raises TypeError for non-Strategy inputs."""
     law = claim("Law.")
     k = claim("Not a strategy.")
-    sup = support(premises=[claim("Obs.")], conclusion=law)
+    sup = support(premises=[law], conclusion=claim("Obs."))
 
     with pytest.raises(TypeError, match="support_1 must be a Strategy"):
         induction(k, sup, law)  # type: ignore[arg-type]
@@ -107,13 +107,55 @@ def test_induction_requires_strategy_inputs():
         induction(sup, k, law)  # type: ignore[arg-type]
 
 
+def test_induction_requires_support_or_previous_induction_for_first_input():
+    """The first input cannot be an unrelated strategy type."""
+    obs1 = claim("Obs 1.")
+    obs2 = claim("Obs 2.")
+    law = claim("Law.")
+    unrelated = Strategy(type="compare", premises=[obs1], conclusion=law)
+    sup = support(premises=[law], conclusion=obs2)
+
+    with pytest.raises(TypeError, match="support_1 must be a support strategy"):
+        induction(unrelated, sup, law)
+
+
+def test_induction_requires_support_for_second_input():
+    """Chained induction only accepts a new support as the second input."""
+    obs1 = claim("Obs 1.")
+    obs2 = claim("Obs 2.")
+    obs3 = claim("Obs 3.")
+    law = claim("Law.")
+    sup1 = support(premises=[law], conclusion=obs1)
+    sup2 = support(premises=[law], conclusion=obs2)
+    previous = induction(sup1, sup2, law)
+    not_support = Strategy(type="compare", premises=[law], conclusion=obs3)
+
+    with pytest.raises(TypeError, match="support_2 must be a support strategy"):
+        induction(previous, not_support, law)
+
+
+def test_induction_requires_sub_strategies_to_include_law():
+    """Reject supports that don't reference the law as premise or conclusion."""
+    obs1 = claim("Obs 1.")
+    obs2 = claim("Obs 2.")
+    law = claim("Law.")
+    missing_law = support(premises=[obs1], conclusion=obs2)
+    valid_support = support(premises=[law], conclusion=obs2)
+
+    with pytest.raises(ValueError, match="support_1 must reference the law"):
+        induction(missing_law, valid_support, law)
+
+    with pytest.raises(ValueError, match="support_2 must reference the law"):
+        induction(valid_support, missing_law, law)
+
+
 def test_induction_premises_are_deduplicated():
     """Premises from both sub-strategies are merged without duplicates."""
     shared_obs = claim("Shared observation.")
     law = claim("Law.")
 
-    sup1 = support(premises=[shared_obs], conclusion=law)
-    sup2 = support(premises=[shared_obs], conclusion=law)
+    sup1 = support(premises=[law, shared_obs], conclusion=claim("Obs 1."))
+    sup2 = support(premises=[law, shared_obs], conclusion=claim("Obs 2."))
 
     s = induction(sup1, sup2, law)
 
@@ -128,8 +170,8 @@ def test_induction_strategy_attached_to_law():
     obs2 = claim("Obs 2.")
     law = claim("Law.")
 
-    sup1 = support(premises=[obs1], conclusion=law)
-    sup2 = support(premises=[obs2], conclusion=law)
+    sup1 = support(premises=[law], conclusion=obs1)
+    sup2 = support(premises=[law], conclusion=obs2)
 
     s = induction(sup1, sup2, law)
 
@@ -143,8 +185,8 @@ def test_induction_with_background():
     law = claim("Law.")
     bg = claim("Background context.")
 
-    sup1 = support(premises=[obs1], conclusion=law)
-    sup2 = support(premises=[obs2], conclusion=law)
+    sup1 = support(premises=[law], conclusion=obs1)
+    sup2 = support(premises=[law], conclusion=obs2)
 
     s = induction(sup1, sup2, law, background=[bg])
 

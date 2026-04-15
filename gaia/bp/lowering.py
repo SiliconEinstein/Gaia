@@ -20,13 +20,12 @@ from gaia.ir.strategy import (
     StrategyType,
 )
 
-# Deduction and support produce forward-only implication operators.
-# In the BN interpretation these are CPT edges (A, H → B) where the
-# antecedent A should not receive backward messages from unobserved
-# children — this eliminates the fan-out penalty on the premise.
-# Support is a soft (probabilistic) version of deduction with the same
-# directed semantics: premises imply conclusion, not the reverse.
-_DIRECTED_DEDUCTION_TYPES = frozenset({StrategyType.DEDUCTION, StrategyType.SUPPORT})
+# Deduction and support produce forward-only implication operators.  In the BN
+# interpretation these are CPT edges (A, H → B) where the antecedent A
+# should not receive backward messages from unobserved children — this
+# eliminates the fan-out penalty on the premise.  Compare produces
+# relation-type implications that remain undirected.
+_DIRECTED_IMPLICATION_TYPES = frozenset({StrategyType.DEDUCTION, StrategyType.SUPPORT})
 
 # Operators whose conclusion is a "relation assertion" (the operator
 # DECLARES that the relation holds) — their helper claim should be
@@ -256,7 +255,7 @@ def _lower_strategy(
             fid = _next_fid(f"fs_{s.strategy_id}_{i}", ctr)
             ft = _OPERATOR_MAP[op.operator]
             is_directed = (
-                s.type in _DIRECTED_DEDUCTION_TYPES and op.operator == OperatorType.IMPLICATION
+                s.type in _DIRECTED_IMPLICATION_TYPES and op.operator == OperatorType.IMPLICATION
             )
             fg.add_factor(fid, ft, op.variables, op.conclusion, directed=is_directed)
             for vid in op.variables:

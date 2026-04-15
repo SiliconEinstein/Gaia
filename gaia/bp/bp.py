@@ -367,7 +367,7 @@ class BeliefPropagation:
                 )
 
             # Step 2: Compute all factor→variable messages (synchronous)
-            # For directed implication factors (deduction), the BN structure
+            # For directed implication factors (deduction/support), the BN structure
             # is A, H → B where A=variables[0] is the antecedent (parent) and
             # B=variables[1] is the consequent (child).  Skip backward messages
             # to A — this eliminates the fan-out penalty from unobserved

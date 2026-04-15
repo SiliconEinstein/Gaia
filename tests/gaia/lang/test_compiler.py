@@ -339,8 +339,8 @@ def test_compile_induction():
         obs2 = claim("Copper expands when heated.")
         obs2.label = "obs2"
 
-        sup1 = support(premises=[obs1], conclusion=law)
-        sup2 = support(premises=[obs2], conclusion=law)
+        sup1 = support(premises=[law], conclusion=obs1)
+        sup2 = support(premises=[law], conclusion=obs2)
         induction(sup1, sup2, law)
 
     result = compile_package_artifact(pkg)

@@ -790,6 +790,7 @@ def test_e2e_support_compiles_and_runs_bp():
     # Support produces 1 IMPLICATION factor (forward only)
     impl_factors = [f for f in fg.factors if f.factor_type == FactorType.IMPLICATION]
     assert len(impl_factors) == 1
+    assert impl_factors[0].directed is True
 
     # Run inference
     beliefs, _ = exact_inference(fg)
