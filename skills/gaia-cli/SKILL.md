@@ -110,6 +110,7 @@ gaia check .
 gaia check --brief .
 gaia check --show <module|label> .
 gaia check --brief --show <module|label> .
+gaia check --hole .
 ```
 
 Validates package structure and IR consistency. Used by registry CI during publishing.
@@ -117,6 +118,7 @@ Validates package structure and IR consistency. Used by registry CI during publi
 Options:
 - `--brief` / `-b` — Show per-module warrant structure overview (claims with roles, strategies with priors, operators)
 - `--show` / `-s` — Expand a specific module name or claim/strategy label with full warrant trees
+- `--hole` — Show detailed prior review report for all independent claims (holes without priors + covered with priors)
 
 Common errors:
 - Missing `[tool.gaia].type` in `pyproject.toml`
@@ -128,10 +130,23 @@ Common errors:
 
 `gaia check` also reports informational diagnostics (not errors) useful for completeness checking during formalization:
 
-- **Independent premises** — claims not concluded by any strategy that need priors
+- **Independent premises** — claims not concluded by any strategy that need priors. Each shows `prior=X` if set, or `⚠ no prior (defaults to 0.5)` if missing.
+- **Holes (no prior set)** — count of independent claims still missing priors, shown in the summary when > 0
 - **Derived conclusions** — claims whose belief comes from BP propagation (do not set priors)
 - **Orphaned claims** — claims not referenced by any strategy
 - **Background-only claims** — claims only used in strategy `background=`, not as premises
+
+### `--hole` output
+
+Detailed report for prior review. Lists all independent claims split into two groups:
+
+- **Holes**: claims without priors — shows each claim's QID, content preview, and `NOT SET (defaults to 0.5)` status
+- **Covered**: claims with priors — shows each claim's `prior=X` and justification reason
+
+Use `--hole` during prior review to:
+1. Identify which claims still need priors in `priors.py`
+2. Verify that existing prior values and justifications are reasonable
+3. Confirm "All independent claims have priors assigned" before running inference
 
 ### `--brief` output
 

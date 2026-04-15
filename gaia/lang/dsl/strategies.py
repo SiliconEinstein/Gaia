@@ -534,12 +534,13 @@ def induction(
         metadata=warrant_metadata,
     )
 
-    # Collect all premises from sub-strategies
+    # Collect all premises from sub-strategies, excluding the law itself
+    # (law is the conclusion; including it would create a self-loop)
     all_premises: list[Knowledge] = []
     seen: set[int] = set()
     for s in [support_1, support_2]:
         for p in s.premises:
-            if id(p) not in seen:
+            if id(p) not in seen and p is not law:
                 all_premises.append(p)
                 seen.add(id(p))
 

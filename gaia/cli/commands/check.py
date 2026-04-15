@@ -14,6 +14,12 @@ from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
 
 
+def _get_prior(k: dict) -> float | None:
+    """Extract prior from a knowledge node's metadata, or None if absent."""
+    meta = k.get("metadata") or {}
+    return meta.get("prior")
+
+
 def _knowledge_diagnostics(ir: dict) -> list[str]:
     """Analyze the knowledge graph and return diagnostic lines."""
     lines: list[str] = []
@@ -24,7 +30,7 @@ def _knowledge_diagnostics(ir: dict) -> list[str]:
 
     c = classify_ir(ir)
 
-    independent = []
+    independent: list[tuple[str, str]] = []  # (label, cid)
     derived = []
     structural = []
     background_only = []
@@ -38,11 +44,13 @@ def _knowledge_diagnostics(ir: dict) -> list[str]:
         elif role == "derived":
             derived.append(label)
         elif role == "independent":
-            independent.append(label)
+            independent.append((label, cid))
         elif role == "background":
             background_only.append(label)
         else:
             orphaned.append(label)
+
+    n_holes = sum(1 for _, cid in independent if _get_prior(claims[cid]) is None)
 
     # Summary
     lines.append("")
@@ -50,6 +58,8 @@ def _knowledge_diagnostics(ir: dict) -> list[str]:
     lines.append(f"  Questions: {len(questions)}")
     lines.append(f"  Claims:    {len(claims)}")
     lines.append(f"    Independent (need prior):  {len(independent)}")
+    if n_holes:
+        lines.append(f"      Holes (no prior set):   {n_holes}")
     lines.append(f"    Derived (BP propagates):   {len(derived)}")
     lines.append(f"    Structural (deterministic): {len(structural)}")
     if background_only:
@@ -59,9 +69,13 @@ def _knowledge_diagnostics(ir: dict) -> list[str]:
 
     if independent:
         lines.append("")
-        lines.append("  Independent premises (reviewer must assign prior):")
-        for label in sorted(independent):
-            lines.append(f"    - {label}")
+        lines.append("  Independent premises:")
+        for label, cid in sorted(independent):
+            prior = _get_prior(claims[cid])
+            if prior is not None:
+                lines.append(f"    - {label}  prior={prior}")
+            else:
+                lines.append(f"    - {label}  \u26a0 no prior (defaults to 0.5)")
 
     if derived:
         lines.append("")
@@ -86,6 +100,59 @@ def _knowledge_diagnostics(ir: dict) -> list[str]:
     return lines
 
 
+def _hole_report(ir: dict) -> list[str]:
+    """Return detailed report of all independent claims without priors (holes)."""
+    claims = {k["id"]: k for k in ir["knowledges"] if k["type"] == "claim"}
+    c = classify_ir(ir)
+    lines: list[str] = []
+    holes: list[tuple[str, dict]] = []
+    covered: list[tuple[str, dict]] = []
+
+    for cid, k in claims.items():
+        if node_role(cid, "claim", c) != "independent":
+            continue
+        prior = _get_prior(k)
+        if prior is None:
+            holes.append((cid, k))
+        else:
+            covered.append((cid, k))
+
+    lines.append("")
+    lines.append(
+        f"  Hole analysis: {len(holes)} hole(s) / {len(holes) + len(covered)} independent claims"
+    )
+
+    if holes:
+        lines.append("")
+        lines.append("  Holes (independent claims missing prior — defaults to 0.5):")
+        for cid, k in sorted(holes, key=lambda x: x[0]):
+            label = k.get("label", cid.split("::")[-1])
+            content = k.get("content", "")
+            preview = (content[:72] + "...") if len(content) > 75 else content
+            lines.append(f"    {label}")
+            lines.append(f"      id:      {cid}")
+            lines.append(f"      content: {preview}")
+            lines.append("      prior:   NOT SET (defaults to 0.5)")
+
+    if covered:
+        lines.append("")
+        lines.append("  Covered (independent claims with prior set):")
+        for cid, k in sorted(covered, key=lambda x: x[0]):
+            label = k.get("label", cid.split("::")[-1])
+            prior = _get_prior(k)
+            justification = (k.get("metadata") or {}).get("prior_justification", "")
+            lines.append(f"    {label}  prior={prior}")
+            if justification:
+                preview = (justification[:72] + "...") if len(justification) > 75 else justification
+                lines.append(f"      reason: {preview}")
+
+    if not holes:
+        lines.append("")
+        lines.append("  All independent claims have priors assigned.")
+
+    return lines
+
+
 def check_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     brief: bool = typer.Option(
@@ -96,6 +163,11 @@ def check_command(
         "--show",
         "-s",
         help="Expand detail for a module name or claim/strategy label (implies --brief)",
+    ),
+    hole: bool = typer.Option(
+        False,
+        "--hole",
+        help="Show detailed prior review report for all independent claims",
     ),
 ) -> None:
     """Validate structure and artifact consistency for a Gaia knowledge package."""
@@ -170,3 +242,7 @@ def check_command(
         if show:
             for line in dispatch_show(ir, show):
                 typer.echo(line)
+
+    if hole:
+        for line in _hole_report(ir):
+            typer.echo(line)

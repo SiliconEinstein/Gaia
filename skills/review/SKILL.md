@@ -9,13 +9,21 @@ A review sidecar assigns probability parameters to a knowledge package's claims 
 
 ### Pre-Review: Inspect the Package
 
-Before writing the review sidecar, use `gaia check --brief` to understand the package structure:
+Before writing the review sidecar, use `gaia check` to understand the package structure and prior coverage:
 
 ```bash
+gaia check .                          # Summary: lists independent claims with prior status
+gaia check --hole .                   # Detailed hole report: which claims need priors in priors.py
 gaia check --brief .                  # Overview: all modules, claims, strategies with priors
 gaia check --show <module_name> .     # Expanded module: full claim content + warrant trees
 gaia check --show <claim_label> .     # Detail: specific claim's warrant tree with premises
 ```
+
+**Start with `gaia check .`** — the default output now annotates each independent premise with its prior value (`prior=X`) or flags missing priors (`⚠ no prior (defaults to 0.5)`). The summary also shows a "Holes (no prior set): N" count.
+
+**Then run `gaia check --hole .`** to get a detailed breakdown:
+- **Holes** section: each claim missing a prior, with its full QID, content preview, and status — these are the claims you need to address in `priors.py`
+- **Covered** section: each claim with a prior, showing the value and justification reason — review these to verify the prior is reasonable
 
 **`--brief` output shows:**
 - Per-module breakdown of settings, claims (with role: independent/derived/structural), and strategies
@@ -91,7 +99,7 @@ Assign a prior to an auto-generated claim (e.g., abduction's alternative).
 
 ## 4. What Needs Review
 
-Use `gaia check --brief` to identify what needs review. The output classifies claims by role:
+Use `gaia check --hole` to identify hole claims (independent premises without priors), and `gaia check --brief` to see the full structure. The output classifies claims by role:
 
 - **Independent (need prior):** Listed under "Independent premises" — these MUST have priors in the review sidecar or `priors.py`
 - **Derived (BP propagates):** Do NOT set priors — inference assigns 0.5 automatically
@@ -112,6 +120,8 @@ Use `gaia check --brief` to identify what needs review. The output classifies cl
 | `composite` | No direct review | Review leaf sub-strategies |
 
 **Derived conclusions** (claims that ARE the conclusion of a strategy): do NOT set a prior. The inference engine automatically assigns uninformative priors (0.5); their beliefs are entirely determined by BP propagation. Setting an explicit prior double-counts evidence.
+
+**Workflow:** Run `gaia check --hole .` → address each hole in `priors.py` → re-run `gaia check --hole .` to confirm "All independent claims have priors assigned" → then run `gaia infer .`.
 
 ## 5. Prior Assignment Guide
 
