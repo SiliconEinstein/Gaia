@@ -581,18 +581,15 @@ class TestDirectedFactorFanout:
         # P should stay near its prior (no cascade from downstream)
         assert result.beliefs["P"] == pytest.approx(0.2, abs=0.02)
 
-    def test_support_undirected_still_bidirectional(self):
-        """Support (undirected) implication still propagates both ways."""
+    def test_directed_support_does_not_backpropagate_to_premise(self):
+        """Support is forward-only: conclusion evidence must not pull the premise."""
         fg = FactorGraph()
         fg.add_variable("A", 0.9)
         fg.add_variable("B", 0.5)
         fg.add_variable("H_fwd", 1.0 - CROMWELL_EPS)
-        fg.add_variable("H_rev", 1.0 - CROMWELL_EPS)
-        # Both undirected (support semantics)
-        fg.add_factor("f_fwd", FactorType.IMPLICATION, ["A", "B"], "H_fwd")
-        fg.add_factor("f_rev", FactorType.IMPLICATION, ["B", "A"], "H_rev")
+        fg.add_factor("f_fwd", FactorType.IMPLICATION, ["A", "B"], "H_fwd", directed=True)
         result = BeliefPropagation().run(fg)
         # B pulled up by A (forward)
         assert result.beliefs["B"] > 0.6
-        # A pulled toward B too (backward via undirected)
-        assert result.beliefs["A"] != pytest.approx(0.9, abs=0.01)
+        # A stays at its prior because support no longer has reverse reason/warrant.
+        assert result.beliefs["A"] == pytest.approx(0.9, abs=0.01)

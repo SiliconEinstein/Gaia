@@ -40,7 +40,7 @@ class StrategyType(StrEnum):
     ABDUCTION = "abduction"
     ANALOGY = "analogy"
     EXTRAPOLATION = "extrapolation"
-    SUPPORT = "support"  # bidirectional implication (sufficiency + necessity)
+    SUPPORT = "support"  # forward implication with a soft warrant
     COMPARE = "compare"  # prediction comparison via matching + inferential ordering
 
     # Composite strategies — non-atomic

@@ -109,8 +109,8 @@ def directed_implication_potential(
 ) -> float:
     """Directed implication CPT: P(B | A, H).
 
-    Used for deduction — the antecedent A is a parent (not influenced by B),
-    the consequent B is a child (no independent prior needed).
+    Used for deduction/support — the antecedent A is a parent (not influenced
+    by B), the consequent B is a child (no independent prior needed).
 
     When H=1 and A=1: B must be 1 (deduction succeeds).
     When H=1 and A=0: B is uniform (premise false, no constraint).
