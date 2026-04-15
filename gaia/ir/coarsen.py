@@ -139,7 +139,8 @@ def coarsen_ir(ir: dict, exported_ids: set[str]) -> dict:
                 # If this node has no non-helper predecessors, it's a surrogate leaf
                 preds = reverse_adj.get(node, set())
                 non_helper_preds = {
-                    p for p in preds
+                    p
+                    for p in preds
                     if not kid_labels.get(p, "").startswith("__")
                     and not kid_labels.get(p, "").startswith("_anon")
                     and kid_types.get(p) == "claim"
