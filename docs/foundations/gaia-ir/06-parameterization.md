@@ -120,7 +120,7 @@ P(C=1 | A₁, A₂) = Σ_m P(C=1 | M=m) × P(M=m | A₁, A₂)
 
 - 图中每个承载外生不确定性的 `type=claim` Knowledge 都必须有对应的 PriorRecord
 - 每个参数化 Strategy 都必须有 StrategyParamRecord
-- 非 CompositeStrategy 的 conclusion 不需要 PriorRecord，因为 lowering 会为该 strategy 产生真实 BP factor；CompositeStrategy 的 conclusion 不因此免 PriorRecord，因为 CompositeStrategy 只是结构分组，本身不 lower 成 factor
+- 非 CompositeStrategy 的 conclusion 禁止携带 PriorRecord，因为 lowering 会为该 strategy 产生真实 BP factor；再给独立 unary prior 会把外生证据和推理来源 double count。CompositeStrategy 的 conclusion 不因此免 PriorRecord，因为 CompositeStrategy 只是结构分组，本身不 lower 成 factor
 - 每个直接 FormalStrategy 所依赖的相关 interface claim，如果不是非 composite strategy 的 conclusion，就必须有 PriorRecord；这包括 formalization 自动补齐的 public interface claim
 
 结构型 helper claim **禁止**携带独立 PriorRecord——它们的分布完全由 Operator 确定性约束决定，没有自由度（详细解释见 [04-helper-claims.md §6](04-helper-claims.md#6-与-parameterization-的关系)）。
@@ -133,7 +133,7 @@ P(C=1 | A₁, A₂) = Σ_m P(C=1 | M=m) × P(M=m | A₁, A₂)
 
 ## Prior 来源
 
-每个独立 claim Knowledge 的 prior 由 selected ParameterizationSource 赋值。若没有外部判断，可以显式使用 MaxEnt prior 0.5，但应作为该 source 的参数记录，而不是给 derived/helper claim 补默认 prior。
+每个独立 claim Knowledge 的 prior 由 selected ParameterizationSource 赋值。若没有外部判断，可以显式使用 MaxEnt prior 0.5，但应作为该 source 的参数记录，而不是给 derived/helper claim 补默认 prior。非 composite strategy conclusion 是 derived claim，禁止携带 PriorRecord。
 
 ## Strategy 条件概率来源
 
@@ -141,7 +141,7 @@ P(C=1 | A₁, A₂) = Σ_m P(C=1 | M=m) × P(M=m | A₁, A₂)
 |------|-------------|
 | `infer` | ParameterizationSource 赋值。完整 CPT（2^k 参数），默认 MaxEnt 0.5 |
 | `noisy_and` | ParameterizationSource 赋值。单参数 p，反映推理本身的可信度 |
-| 直接 FormalStrategy（`deduction` 至 `case_analysis`） | 不单独赋持久化 strategy 参数；其有效条件行为由 FormalExpr + 相关 interface claim 的 PriorRecord 导出。纯结构型 helper claim 作为 Operator 结果，不默认引入独立 prior；若 formalization 自动补齐了 public interface claim，则它与其他 premise/conclusion claim 一样需要参数化 |
+| 直接 FormalStrategy（`deduction` 至 `case_analysis`） | 不单独赋持久化 strategy 参数；其有效条件行为由 FormalExpr + 相关 interface claim 的 PriorRecord 导出。纯结构型 helper claim 作为 Operator 结果，不默认引入独立 prior；若 formalization 自动补齐了 public interface claim，则只有其中的外生输入 claim 需要 PriorRecord，strategy conclusion 仍禁止 PriorRecord |
 | `toolcall` / `proof`（deferred） | 未引入 |
 
 ## 源代码

@@ -1246,7 +1246,6 @@ class TestParameterizationValidation:
             g,
             priors=[
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::b", value=0.7, source_id="s"),
             ],
             strategy_params=[
                 StrategyParamRecord(
@@ -1257,7 +1256,7 @@ class TestParameterizationValidation:
         assert r.valid
 
     def test_strategy_conclusion_does_not_require_prior(self):
-        """Strategy conclusions are exempt from PriorRecord requirement."""
+        """Strategy conclusions are derived claims and do not need PriorRecord."""
         from gaia.ir import PriorRecord, StrategyParamRecord
 
         g = self._graph()
@@ -1299,14 +1298,34 @@ class TestParameterizationValidation:
         g = self._graph()
         r = validate_parameterization(
             g,
-            priors=[
-                PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::b", value=0.7, source_id="s"),
-            ],
+            priors=[PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s")],
             strategy_params=[],
         )
         assert not r.valid
         assert any("missing StrategyParamRecord" in e for e in r.errors)
+
+    def test_strategy_conclusion_prior_prohibited(self):
+        """Strategy conclusions must not receive independent unary priors."""
+        from gaia.ir import PriorRecord, StrategyParamRecord
+
+        g = self._graph()
+        sid = g.strategies[0].strategy_id
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
+                PriorRecord(knowledge_id="github:test::b", value=0.7, source_id="s"),
+            ],
+            strategy_params=[
+                StrategyParamRecord(
+                    strategy_id=sid, conditional_probabilities=[0.85], source_id="s"
+                ),
+            ],
+        )
+        assert not r.valid
+        assert any(
+            "github:test::b" in e and "non-composite strategy conclusion" in e for e in r.errors
+        )
 
     def test_formal_strategy_without_params_passes(self):
         """FormalStrategy types do not need StrategyParamRecord."""
@@ -1342,7 +1361,6 @@ class TestParameterizationValidation:
             g,
             priors=[
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::m", value=0.5, source_id="s"),
             ],
             strategy_params=[],  # no params needed for deduction
@@ -1391,7 +1409,6 @@ class TestParameterizationValidation:
             priors=[
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
                 # no prior for reg:test::m
             ],
             strategy_params=[],
@@ -1438,7 +1455,6 @@ class TestParameterizationValidation:
             priors=[
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::m", value=0.5, source_id="s"),  # prohibited!
             ],
             strategy_params=[],
@@ -1488,7 +1504,6 @@ class TestParameterizationValidation:
             g,
             priors=[
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::final", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::mid", value=0.5, source_id="s"),
                 PriorRecord(
@@ -1539,7 +1554,6 @@ class TestParameterizationValidation:
             g,
             priors=[
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::mid", value=0.5, source_id="s"),
                 # github:test::h1 and h2 are private -- no prior needed
             ],
@@ -1573,10 +1587,7 @@ class TestParameterizationValidation:
         )
         r = validate_parameterization(
             g,
-            priors=[
-                PriorRecord(knowledge_id="github:test::obs", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::h", value=0.5, source_id="s"),
-            ],
+            priors=[PriorRecord(knowledge_id="github:test::obs", value=0.5, source_id="s")],
             strategy_params=[],
         )
         assert not r.valid
@@ -1610,7 +1621,6 @@ class TestParameterizationValidation:
             g,
             priors=[
                 PriorRecord(knowledge_id="github:test::obs", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::h", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id=alternative_explanation.id, value=0.5, source_id="s"),
             ],
             strategy_params=[],
@@ -1654,7 +1664,6 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::e1", value=0.9, source_id="s"),
                 PriorRecord(knowledge_id="github:test::h2", value=0.2, source_id="s"),
                 PriorRecord(knowledge_id="github:test::e2", value=0.9, source_id="s"),
-                PriorRecord(knowledge_id="github:test::h3", value=0.2, source_id="s"),
             ],
             strategy_params=[],
         )
@@ -1755,10 +1764,7 @@ class TestParameterizationValidation:
         sid = g.strategies[0].strategy_id
         r = validate_parameterization(
             g,
-            priors=[
-                PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
-            ],
+            priors=[PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s")],
             strategy_params=[
                 StrategyParamRecord(
                     strategy_id=sid, conditional_probabilities=[0.5], source_id="s"
@@ -1778,7 +1784,6 @@ class TestParameterizationValidation:
             g,
             priors=[
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::b", value=0.7, source_id="s"),
             ],
             strategy_params=[
                 StrategyParamRecord(
@@ -1845,10 +1850,7 @@ class TestParameterizationValidation:
         sid = g.strategies[0].strategy_id
         r = validate_parameterization(
             g,
-            priors=[
-                PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::b", value=0.7, source_id="s"),
-            ],
+            priors=[PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s")],
             strategy_params=[
                 StrategyParamRecord(
                     strategy_id=sid,
@@ -1884,7 +1886,6 @@ class TestParameterizationValidation:
             priors=[
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
             ],
             strategy_params=[
                 StrategyParamRecord(
@@ -1921,7 +1922,6 @@ class TestParameterizationValidation:
             priors=[
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
             ],
             strategy_params=[
                 StrategyParamRecord(

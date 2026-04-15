@@ -670,10 +670,10 @@ def validate_parameterization(
     Claims are classified as follows:
 
     1. **Non-composite Strategy conclusions** — their belief is derived from
-       premises through factors produced by lowering, so they do not need an
-       independent PriorRecord. A CompositeStrategy conclusion is not included
-       here because CompositeStrategy is structural grouping only and does not
-       itself lower to a BP factor.
+       premises through factors produced by lowering, so they must not receive
+       an independent PriorRecord. A CompositeStrategy conclusion is not
+       included here because CompositeStrategy is structural grouping only and
+       does not itself lower to a BP factor.
     2. **Top-level structural helper claims** — conclusions of top-level Operators
        with structural types (conjunction/disjunction/equivalence/contradiction/
        complement/implication). Their truth value is determined by the Operator.
@@ -714,8 +714,8 @@ def validate_parameterization(
                 if op.conclusion not in own_interface:
                     no_prior_allowed.add(op.conclusion)
 
-    # (b) Claims that don't NEED PriorRecords but may optionally have them
-    # Strategy conclusions — their belief derives from premises via BP
+    # Non-composite Strategy conclusions — their belief derives from premises
+    # via BP, so they must not receive independent PriorRecords.
     strategy_conclusions: set[str] = set()
     for s in graph.strategies:
         if s.conclusion is not None and not isinstance(s, CompositeStrategy):
@@ -743,11 +743,18 @@ def validate_parameterization(
         if cid not in prior_knowledge_ids:
             result.error(f"Claim '{cid}': missing PriorRecord")
 
-    # prohibited claims must NOT have PriorRecords (spec §4 of 04-helper-claims.md)
+    # Prohibited claims must NOT have PriorRecords (spec §4 of
+    # 04-helper-claims.md). This includes derived strategy conclusions to avoid
+    # double-counting independent unary evidence and incoming strategy factors.
     for r_prior in priors:
         if r_prior.knowledge_id in no_prior_allowed:
             result.error(
                 f"PriorRecord '{r_prior.knowledge_id}': private or structural helper claim "
+                f"must not have independent PriorRecord"
+            )
+        elif r_prior.knowledge_id in strategy_conclusions:
+            result.error(
+                f"PriorRecord '{r_prior.knowledge_id}': non-composite strategy conclusion "
                 f"must not have independent PriorRecord"
             )
 
