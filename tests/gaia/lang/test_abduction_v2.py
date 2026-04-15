@@ -82,6 +82,51 @@ def test_abduction_requires_strategy_inputs():
         abduction(sup, sup, k)  # type: ignore[arg-type]
 
 
+def test_abduction_requires_support_support_compare():
+    """Abduction only accepts support, support, compare sub-strategies."""
+    sup_h, sup_alt, comp, theory_h, *_ = _make_abduction_triple()
+    not_support = Strategy(type="deduction", premises=[theory_h], conclusion=sup_h.conclusion)
+    not_compare = Strategy(type="support", premises=list(comp.premises), conclusion=comp.conclusion)
+
+    with pytest.raises(TypeError, match="first arg must be a support strategy"):
+        abduction(not_support, sup_alt, comp)
+
+    with pytest.raises(TypeError, match="second arg must be a support strategy"):
+        abduction(sup_h, not_support, comp)
+
+    with pytest.raises(TypeError, match="third arg must be a compare strategy"):
+        abduction(sup_h, sup_alt, not_compare)
+
+
+def test_abduction_requires_supports_to_conclude_compared_observation():
+    """Both explanation supports must target compare()'s observation."""
+    sup_h, sup_alt, comp, theory_h, theory_alt, _obs, *_ = _make_abduction_triple()
+    other_obs = claim("Different observation.")
+
+    bad_h = support(premises=[theory_h], conclusion=other_obs)
+    with pytest.raises(ValueError, match="support_h must conclude the compared observation"):
+        abduction(bad_h, sup_alt, comp)
+
+    bad_alt = support(premises=[theory_alt], conclusion=other_obs)
+    with pytest.raises(ValueError, match="support_alt must conclude the compared observation"):
+        abduction(sup_h, bad_alt, comp)
+
+
+def test_abduction_requires_well_formed_compare():
+    """The comparison sub-strategy must expose pred_h, pred_alt, observation and conclusion."""
+    sup_h, sup_alt, comp, *_ = _make_abduction_triple()
+    malformed_premises = Strategy(
+        type="compare", premises=comp.premises[:2], conclusion=comp.conclusion
+    )
+    missing_conclusion = Strategy(type="compare", premises=list(comp.premises), conclusion=None)
+
+    with pytest.raises(ValueError, match=r"must have \[pred_h, pred_alt, observation\]"):
+        abduction(sup_h, sup_alt, malformed_premises)
+
+    with pytest.raises(ValueError, match="compare strategy must have a conclusion"):
+        abduction(sup_h, sup_alt, missing_conclusion)
+
+
 def test_abduction_premises_are_deduplicated():
     """Premises from all sub-strategies are merged without duplicates."""
     theory = claim("Theory.")
