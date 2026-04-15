@@ -229,8 +229,14 @@ def _validate_strategy(
                 f"'{knowledge_lookup[strategy.conclusion].type}', must be claim"
             )
 
-    # no self-loop
-    if strategy.conclusion is not None and strategy.conclusion in strategy.premises:
+    # no self-loop for BP-participating strategies. CompositeStrategy is a
+    # structural grouping only; induction legitimately uses the law as both
+    # conclusion and shared premise of its child supports.
+    if (
+        not isinstance(strategy, CompositeStrategy)
+        and strategy.conclusion is not None
+        and strategy.conclusion in strategy.premises
+    ):
         result.error(f"Strategy '{sid}': conclusion in premises (self-loop)")
 
     # background reference (any type OK, just must exist)
@@ -265,15 +271,106 @@ def _validate_composite_sub_strategies(
     strategy_lookup: dict[str, Strategy] | None,
     result: ValidationResult,
 ) -> None:
-    """Validate CompositeStrategy sub_strategy references exist."""
+    """Validate CompositeStrategy sub_strategy references and named composite shape."""
     sid = strategy.strategy_id or "<no-id>"
     if strategy_lookup is None:
         return
+    sub_strategies: list[Strategy] = []
     for sub_id in strategy.sub_strategies:
         if sub_id not in strategy_lookup:
             result.error(
                 f"CompositeStrategy '{sid}': sub_strategy '{sub_id}' not found as top-level strategy"
             )
+            continue
+        sub_strategies.append(strategy_lookup[sub_id])
+
+    if strategy.type == StrategyType.ABDUCTION:
+        _validate_abduction_composite(strategy, sub_strategies, result)
+    elif strategy.type == StrategyType.INDUCTION:
+        _validate_induction_composite(strategy, sub_strategies, result)
+
+
+def _validate_abduction_composite(
+    strategy: CompositeStrategy,
+    sub_strategies: list[Strategy],
+    result: ValidationResult,
+) -> None:
+    """Validate abduction = support, support, compare over one observation."""
+    sid = strategy.strategy_id or "<no-id>"
+    if len(sub_strategies) != 3:
+        result.error(f"CompositeStrategy '{sid}': abduction requires 3 sub_strategies")
+        return
+
+    support_h, support_alt, comparison = sub_strategies
+    if support_h.type != StrategyType.SUPPORT:
+        result.error(f"CompositeStrategy '{sid}': abduction first sub_strategy must be support")
+    if support_alt.type != StrategyType.SUPPORT:
+        result.error(f"CompositeStrategy '{sid}': abduction second sub_strategy must be support")
+    if comparison.type != StrategyType.COMPARE:
+        result.error(f"CompositeStrategy '{sid}': abduction third sub_strategy must be compare")
+        return
+
+    if len(comparison.premises) != 3:
+        result.error(
+            f"CompositeStrategy '{sid}': compare sub_strategy must have "
+            "[pred_h, pred_alt, observation] premises"
+        )
+        return
+    if comparison.conclusion is None:
+        result.error(f"CompositeStrategy '{sid}': compare sub_strategy must have a conclusion")
+        return
+    if strategy.conclusion != comparison.conclusion:
+        result.error(
+            f"CompositeStrategy '{sid}': abduction conclusion must match compare conclusion"
+        )
+
+    observation = comparison.premises[2]
+    if support_h.conclusion != observation:
+        result.error(
+            f"CompositeStrategy '{sid}': abduction first support must conclude "
+            "the compared observation"
+        )
+    if support_alt.conclusion != observation:
+        result.error(
+            f"CompositeStrategy '{sid}': abduction second support must conclude "
+            "the compared observation"
+        )
+
+
+def _validate_induction_composite(
+    strategy: CompositeStrategy,
+    sub_strategies: list[Strategy],
+    result: ValidationResult,
+) -> None:
+    """Validate induction = (support | previous induction), support over one law premise."""
+    sid = strategy.strategy_id or "<no-id>"
+    if len(sub_strategies) != 2:
+        result.error(f"CompositeStrategy '{sid}': induction requires 2 sub_strategies")
+        return
+    if strategy.conclusion is None:
+        result.error(f"CompositeStrategy '{sid}': induction requires a law conclusion")
+        return
+
+    support_1, support_2 = sub_strategies
+    law = strategy.conclusion
+    if support_1.type not in {StrategyType.SUPPORT, StrategyType.INDUCTION}:
+        result.error(
+            f"CompositeStrategy '{sid}': induction first sub_strategy must be support "
+            "or previous induction"
+        )
+    elif support_1.type == StrategyType.SUPPORT and law not in support_1.premises:
+        result.error(
+            f"CompositeStrategy '{sid}': induction first support must include the law as a premise"
+        )
+    elif support_1.type == StrategyType.INDUCTION and support_1.conclusion != law:
+        result.error(f"CompositeStrategy '{sid}': previous induction must conclude the same law")
+
+    if support_2.type != StrategyType.SUPPORT:
+        result.error(f"CompositeStrategy '{sid}': induction second sub_strategy must be support")
+    elif law not in support_2.premises:
+        result.error(
+            f"CompositeStrategy '{sid}': induction second support must include the law as a premise"
+        )
 
 
 def _validate_composite_dag(
@@ -564,20 +661,22 @@ def validate_parameterization(
     priors: list[PriorRecord],
     strategy_params: list[StrategyParamRecord],
 ) -> ValidationResult:
-    """Validate parameterization completeness before BP run.
+    """Validate LocalParameterization overlay completeness before BP run.
 
-    Checks that every independent claim Knowledge has at least one PriorRecord
-    and every parameterized Strategy (infer/noisy_and) has a StrategyParamRecord.
-    FormalStrategy types derive behavior from FormalExpr — no params needed.
+    ``PriorRecord`` applies only to independent claim variables: claims whose
+    initial belief is an exogenous parameter of the graph. ``StrategyParamRecord``
+    applies only to parameterized Strategy types (infer/noisy_and).
 
-    Three categories of claims are excluded from PriorRecord requirements:
+    Claims are classified as follows:
 
-    1. **Strategy conclusions** — claims that appear as the conclusion of any
-       Strategy. Their belief is derived from premises via BP; they do not need
-       independent priors (but may optionally have them).
+    1. **Non-composite Strategy conclusions** — their belief is derived from
+       premises through factors produced by lowering, so they must not receive
+       an independent PriorRecord. A CompositeStrategy conclusion is not
+       included here because CompositeStrategy is structural grouping only and
+       does not itself lower to a BP factor.
     2. **Top-level structural helper claims** — conclusions of top-level Operators
        with structural types (conjunction/disjunction/equivalence/contradiction/
-       complement). Their truth value is fully determined by the Operator.
+       complement/implication). Their truth value is determined by the Operator.
        These are PROHIBITED from having independent PriorRecords.
     3. **FormalExpr private nodes** — ANY operator conclusion inside a FormalExpr
        that is NOT in the owning FormalStrategy's premises/conclusion interface.
@@ -585,9 +684,9 @@ def validate_parameterization(
        independent PriorRecord regardless of the operator type.
        These are PROHIBITED from having independent PriorRecords.
 
-    Generated public interface claims (e.g. abduction's AlternativeExplanationForObs)
-    are part of the strategy interface, so they remain ordinary claim inputs and
-    still require PriorRecord.
+    Public interface claims created during formalization remain ordinary claim
+    variables unless they are concluded by a non-composite Strategy; if they are
+    exogenous inputs, they still require PriorRecord.
     """
     result = ValidationResult()
 
@@ -615,11 +714,11 @@ def validate_parameterization(
                 if op.conclusion not in own_interface:
                     no_prior_allowed.add(op.conclusion)
 
-    # (b) Claims that don't NEED PriorRecords but may optionally have them
-    # Strategy conclusions — their belief derives from premises via BP
+    # Non-composite Strategy conclusions — their belief derives from premises
+    # via BP, so they must not receive independent PriorRecords.
     strategy_conclusions: set[str] = set()
     for s in graph.strategies:
-        if s.conclusion is not None:
+        if s.conclusion is not None and not isinstance(s, CompositeStrategy):
             strategy_conclusions.add(s.conclusion)
 
     # Combined: all claims exempt from the "must have prior" check
@@ -644,11 +743,18 @@ def validate_parameterization(
         if cid not in prior_knowledge_ids:
             result.error(f"Claim '{cid}': missing PriorRecord")
 
-    # prohibited claims must NOT have PriorRecords (spec §4 of 04-helper-claims.md)
+    # Prohibited claims must NOT have PriorRecords (spec §4 of
+    # 04-helper-claims.md). This includes derived strategy conclusions to avoid
+    # double-counting independent unary evidence and incoming strategy factors.
     for r_prior in priors:
         if r_prior.knowledge_id in no_prior_allowed:
             result.error(
                 f"PriorRecord '{r_prior.knowledge_id}': private or structural helper claim "
+                f"must not have independent PriorRecord"
+            )
+        elif r_prior.knowledge_id in strategy_conclusions:
+            result.error(
+                f"PriorRecord '{r_prior.knowledge_id}': non-composite strategy conclusion "
                 f"must not have independent PriorRecord"
             )
 

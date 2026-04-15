@@ -350,6 +350,21 @@ def abduction(
         raise TypeError("abduction() second arg must be a Strategy")
     if not isinstance(comparison, Strategy):
         raise TypeError("abduction() third arg must be a Strategy")
+    if support_h.type != "support":
+        raise TypeError("abduction() first arg must be a support strategy")
+    if support_alt.type != "support":
+        raise TypeError("abduction() second arg must be a support strategy")
+    if comparison.type != "compare":
+        raise TypeError("abduction() third arg must be a compare strategy")
+    if len(comparison.premises) != 3:
+        raise ValueError("abduction() compare strategy must have [pred_h, pred_alt, observation]")
+    observation = comparison.premises[2]
+    if support_h.conclusion is not observation:
+        raise ValueError("abduction() support_h must conclude the compared observation")
+    if support_alt.conclusion is not observation:
+        raise ValueError("abduction() support_alt must conclude the compared observation")
+    if comparison.conclusion is None:
+        raise ValueError("abduction() compare strategy must have a conclusion")
 
     # Composition warrant
     comp_warrant = Knowledge(
