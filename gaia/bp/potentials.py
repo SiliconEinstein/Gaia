@@ -104,36 +104,12 @@ def conditional_potential(
     return p if assignment[conclusion] == 1 else (1.0 - p)
 
 
-def directed_implication_potential(
-    assignment: Assignment, antecedent: str, consequent: str, helper: str
-) -> float:
-    """Directed implication CPT: P(B | A, H).
-
-    Used for deduction/support — the antecedent A is a parent (not influenced
-    by B), the consequent B is a child (no independent prior needed).
-
-    When H=1 and A=1: B must be 1 (deduction succeeds).
-    When H=1 and A=0: B is uniform (premise false, no constraint).
-    When H=0: B is uniform (warrant doesn't hold).
-
-    Each row sums to 1 over B, so marginalizing over B gives a constant
-    for each (A, H) — the factor does not constrain A or H.
-    """
-    a, b, h = assignment[antecedent], assignment[consequent], assignment[helper]
-    if h == 1 and a == 1:
-        return (1.0 - CROMWELL_EPS) if b == 1 else CROMWELL_EPS
-    # A=0 or H=0: uniform over B
-    return 0.5
-
-
 def evaluate_potential(factor: Factor, assignment: Assignment) -> float:
     ft = factor.factor_type
     v = factor.variables
     c = factor.conclusion
 
     if ft == FactorType.IMPLICATION:
-        if factor.directed:
-            return directed_implication_potential(assignment, v[0], v[1], c)
         return implication_potential(assignment, v[0], v[1], c)
 
     if ft == FactorType.CONJUNCTION:

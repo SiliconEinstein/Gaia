@@ -20,12 +20,14 @@ from gaia.ir.strategy import (
     StrategyType,
 )
 
-# Deduction and support produce forward-only implication operators.  In the BN
-# interpretation these are CPT edges (A, H → B) where the antecedent A
-# should not receive backward messages from unobserved children — this
-# eliminates the fan-out penalty on the premise.  Compare produces
-# relation-type implications that remain undirected.
-_DIRECTED_IMPLICATION_TYPES = frozenset({StrategyType.DEDUCTION, StrategyType.SUPPORT})
+# Deduction and support implication operators are lowered as proper CPTs
+# (SOFT_ENTAILMENT) instead of ternary constraint factors.  The author's
+# prior on the implication warrant is marginalized into p1_eff:
+#   p1_eff = π(H) · (1-ε) + (1-π(H)) · 0.5
+# with p2 = 0.5 (MaxEnt default: "no information when premises fail").
+# This eliminates the fan-out penalty (rows sum to 1) while preserving
+# backward inference (weak syllogism / Jaynes).
+_CPT_IMPLICATION_TYPES = frozenset({StrategyType.DEDUCTION, StrategyType.SUPPORT})
 
 # Operators whose conclusion is a "relation assertion" (the operator
 # DECLARES that the relation holds) — their helper claim should be
@@ -97,6 +99,11 @@ def lower_local_graph(
     }
     if helper_ids:
         priors = {k: v for k, v in priors.items() if k not in helper_ids}
+    metadata_priors = {
+        k.id: float(k.metadata["prior"])
+        for k in canonical.knowledges
+        if k.id and k.metadata and "prior" in k.metadata
+    }
     strat_params = strategy_conditional_params or {}
     fg = FactorGraph()
     ctr = [0]
@@ -142,6 +149,7 @@ def lower_local_graph(
             strat_by_id,
             priors,
             strat_params,
+            metadata_priors,
             expand_formal,
             infer_use_degraded_noisy_and,
             ctr,
@@ -205,6 +213,7 @@ def _lower_strategy(
     strat_by_id: dict[str, Strategy],
     priors: dict[str, float],
     strat_params: dict[str, list[float]],
+    metadata_priors: dict[str, float] | None,
     expand_formal: bool,
     infer_degraded: bool,
     ctr: list[int],
@@ -223,6 +232,7 @@ def _lower_strategy(
         if s.strategy_id in seen_strategies:
             return
         seen_strategies.add(s.strategy_id)
+    metadata_priors = metadata_priors or {}
 
     if isinstance(s, CompositeStrategy):
         for sid in s.sub_strategies:
@@ -235,6 +245,7 @@ def _lower_strategy(
                 strat_by_id,
                 priors,
                 strat_params,
+                metadata_priors,
                 expand_formal,
                 infer_degraded,
                 ctr,
@@ -254,10 +265,34 @@ def _lower_strategy(
         for i, op in enumerate(s.formal_expr.operators):
             fid = _next_fid(f"fs_{s.strategy_id}_{i}", ctr)
             ft = _OPERATOR_MAP[op.operator]
-            is_directed = (
-                s.type in _DIRECTED_IMPLICATION_TYPES and op.operator == OperatorType.IMPLICATION
-            )
-            fg.add_factor(fid, ft, op.variables, op.conclusion, directed=is_directed)
+
+            # Support/deduction implication operators → SOFT_ENTAILMENT CPT.
+            # The ternary implication factor (antecedent, conclusion, helper)
+            # is replaced by a binary CPT (antecedent → conclusion) with the
+            # helper's prior marginalized into p1_eff.
+            if s.type in _CPT_IMPLICATION_TYPES and op.operator == OperatorType.IMPLICATION:
+                # Helper claim prior: use author-set prior if available,
+                # otherwise the relation assertion default (1-ε) since the
+                # implication helper is a relation operator conclusion.
+                helper_prior = priors.get(
+                    op.conclusion,
+                    metadata_priors.get(op.conclusion, 1.0 - CROMWELL_EPS),
+                )
+                p1_eff = helper_prior * (1.0 - CROMWELL_EPS) + (1.0 - helper_prior) * 0.5
+                # op.variables = [antecedent, actual_conclusion]
+                antecedent = op.variables[0]
+                consequent = op.variables[1]
+                _ensure_claim_var(fg, antecedent, priors, claim_ids)
+                _ensure_claim_var(fg, consequent, priors, claim_ids)
+                fg.add_factor(
+                    fid, FactorType.SOFT_ENTAILMENT, [antecedent], consequent, p1=p1_eff, p2=0.5
+                )
+                # Helper claim variable is marginalized into p1_eff, so it
+                # should not remain as an orphan in the factor graph.
+                fg.variables.pop(op.conclusion, None)
+                continue
+
+            fg.add_factor(fid, ft, op.variables, op.conclusion)
             for vid in op.variables:
                 _ensure_claim_var(fg, vid, priors, claim_ids)
             concl = op.conclusion
@@ -394,6 +429,7 @@ def _lower_strategy(
             strat_by_id,
             priors,
             strat_params,
+            metadata_priors,
             expand_formal,
             infer_degraded,
             ctr,

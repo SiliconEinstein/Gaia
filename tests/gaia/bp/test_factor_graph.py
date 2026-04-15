@@ -159,24 +159,4 @@ def test_factor_all_vars_dedup():
     assert f.all_vars.count("A") == 1
 
 
-# ── Directed factors ──
-
-
-def test_add_directed_factor():
-    """directed=True is stored on the Factor."""
-    fg = FactorGraph()
-    fg.add_variable("A", 0.5)
-    fg.add_variable("B", 0.5)
-    fg.add_variable("H", 1.0 - CROMWELL_EPS)
-    fg.add_factor("f1", FactorType.IMPLICATION, ["A", "B"], "H", directed=True)
-    assert fg.factors[0].directed is True
-
-
-def test_factor_default_undirected():
-    """Factors are undirected by default."""
-    fg = FactorGraph()
-    fg.add_variable("A", 0.5)
-    fg.add_variable("B", 0.5)
-    fg.add_variable("H", 1.0 - CROMWELL_EPS)
-    fg.add_factor("f1", FactorType.IMPLICATION, ["A", "B"], "H")
-    assert fg.factors[0].directed is False
+# ── (Directed factors removed — fan-out now solved by SOFT_ENTAILMENT CPT) ──

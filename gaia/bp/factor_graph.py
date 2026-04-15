@@ -43,7 +43,6 @@ class Factor:
     p1: float | None = None
     p2: float | None = None
     cpt: tuple[float, ...] | None = None
-    directed: bool = False
 
     @property
     def all_vars(self) -> list[str]:
@@ -104,7 +103,6 @@ class FactorGraph:
         p1: float | None = None,
         p2: float | None = None,
         cpt: Sequence[float] | None = None,
-        directed: bool = False,
     ) -> None:
         v_list = list(variables)
         if conclusion in v_list:
@@ -176,7 +174,6 @@ class FactorGraph:
                 p1=fp1,
                 p2=fp2,
                 cpt=fcpt,
-                directed=directed,
             )
         )
 

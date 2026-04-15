@@ -512,61 +512,33 @@ class TestGBPRegionDecomposition:
         )
 
 
-# ── Directed factors: fan-out elimination ──
+# ── SOFT_ENTAILMENT CPT: fan-out elimination via proper CPTs ──
 
 
-def _deduction_fanout_graph(*, directed: bool) -> FactorGraph:
-    """A with 4 deduction children via implication. Each child has prior 0.5."""
+def _soft_entailment_fanout_graph() -> FactorGraph:
+    """A with 4 SOFT_ENTAILMENT children (proper CPT, p2=0.5 MaxEnt)."""
     fg = FactorGraph()
     fg.add_variable("A", 0.5)
     for i in range(4):
         fg.add_variable(f"B{i}", 0.5)
-        fg.add_variable(f"H{i}", 1.0 - CROMWELL_EPS)
         fg.add_factor(
             f"f{i}",
-            FactorType.IMPLICATION,
-            ["A", f"B{i}"],
-            f"H{i}",
-            directed=directed,
+            FactorType.SOFT_ENTAILMENT,
+            ["A"],
+            f"B{i}",
+            p1=1.0 - CROMWELL_EPS,
+            p2=0.5,
         )
     return fg
 
 
-class TestDirectedFactorFanout:
-    """Directed implication factors should not penalize the antecedent via modus tollens."""
+class TestSoftEntailmentFanout:
+    """SOFT_ENTAILMENT with p2=0.5 eliminates fan-out while preserving backward inference."""
 
-    def test_undirected_has_fanout(self):
-        """Baseline: undirected implication with 4 children drags A far below 0.5."""
-        fg = _deduction_fanout_graph(directed=False)
-        result = BeliefPropagation().run(fg)
-        assert result.beliefs["A"] < 0.15  # severe fan-out
-
-    def test_directed_eliminates_fanout(self):
-        """Directed implication with 4 children: A stays at its prior."""
-        fg = _deduction_fanout_graph(directed=True)
-        result = BeliefPropagation().run(fg)
-        assert result.beliefs["A"] == pytest.approx(0.5, abs=0.01)
-
-    def test_directed_still_propagates_forward(self):
-        """Directed implication still sends messages from A to B (forward)."""
+    def test_constraint_implication_has_fanout(self):
+        """Baseline: constraint implication with 4 children drags A far below 0.5."""
         fg = FactorGraph()
-        fg.add_variable("A", 0.9)
-        fg.add_variable("B", 0.5)
-        fg.add_variable("H", 1.0 - CROMWELL_EPS)
-        fg.add_factor("f1", FactorType.IMPLICATION, ["A", "B"], "H", directed=True)
-        result = BeliefPropagation().run(fg)
-        # B should be pulled up by A's high belief (forward propagation works)
-        assert result.beliefs["B"] > 0.6
-        # A should stay near its prior (no backward pull from B)
-        assert result.beliefs["A"] == pytest.approx(0.9, abs=0.02)
-
-    def test_directed_chain_no_cascade_penalty(self):
-        """Chain P → A → B1...B4: directed deductions don't cascade fan-out."""
-        fg = FactorGraph()
-        fg.add_variable("P", 0.2)
         fg.add_variable("A", 0.5)
-        fg.add_variable("H_up", 1.0 - CROMWELL_EPS)
-        fg.add_factor("f_up", FactorType.IMPLICATION, ["P", "A"], "H_up", directed=True)
         for i in range(4):
             fg.add_variable(f"B{i}", 0.5)
             fg.add_variable(f"H{i}", 1.0 - CROMWELL_EPS)
@@ -575,21 +547,57 @@ class TestDirectedFactorFanout:
                 FactorType.IMPLICATION,
                 ["A", f"B{i}"],
                 f"H{i}",
-                directed=True,
             )
         result = BeliefPropagation().run(fg)
-        # P should stay near its prior (no cascade from downstream)
-        assert result.beliefs["P"] == pytest.approx(0.2, abs=0.02)
+        assert result.beliefs["A"] < 0.15  # severe fan-out penalty
 
-    def test_directed_support_does_not_backpropagate_to_premise(self):
-        """Support is forward-only: conclusion evidence must not pull the premise."""
+    def test_soft_entailment_eliminates_fanout(self):
+        """SOFT_ENTAILMENT with p2=0.5: A stays at its prior (neutral children)."""
+        fg = _soft_entailment_fanout_graph()
+        result = BeliefPropagation().run(fg)
+        assert result.beliefs["A"] == pytest.approx(0.5, abs=0.02)
+
+    def test_soft_entailment_forward_propagation(self):
+        """SOFT_ENTAILMENT propagates from premise to conclusion (forward)."""
         fg = FactorGraph()
         fg.add_variable("A", 0.9)
         fg.add_variable("B", 0.5)
-        fg.add_variable("H_fwd", 1.0 - CROMWELL_EPS)
-        fg.add_factor("f_fwd", FactorType.IMPLICATION, ["A", "B"], "H_fwd", directed=True)
+        fg.add_factor("f1", FactorType.SOFT_ENTAILMENT, ["A"], "B", p1=1.0 - CROMWELL_EPS, p2=0.5)
         result = BeliefPropagation().run(fg)
-        # B pulled up by A (forward)
+        # B should be pulled up by A's high belief
         assert result.beliefs["B"] > 0.6
-        # A stays at its prior because support no longer has reverse reason/warrant.
-        assert result.beliefs["A"] == pytest.approx(0.9, abs=0.01)
+
+    def test_soft_entailment_backward_inference(self):
+        """SOFT_ENTAILMENT preserves backward inference (weak syllogism).
+
+        When B is observed true, A should be pulled above its prior.
+        This is Jaynes' backward inference: P(H|E) > P(H) when E follows from H.
+        """
+        fg = FactorGraph()
+        fg.add_variable("A", 0.5)
+        fg.add_variable("B", 0.5)
+        fg.add_factor("f1", FactorType.SOFT_ENTAILMENT, ["A"], "B", p1=0.95, p2=0.5)
+        fg.observe("B", 1)
+        result = BeliefPropagation().run(fg)
+        # A should be pulled above 0.5 (backward inference works)
+        assert result.beliefs["A"] > 0.6
+
+    def test_soft_entailment_chain_no_cascade(self):
+        """Chain P → A → B1...B4: SOFT_ENTAILMENT doesn't cascade fan-out."""
+        fg = FactorGraph()
+        fg.add_variable("P", 0.2)
+        fg.add_variable("A", 0.5)
+        fg.add_factor("f_up", FactorType.SOFT_ENTAILMENT, ["P"], "A", p1=1.0 - CROMWELL_EPS, p2=0.5)
+        for i in range(4):
+            fg.add_variable(f"B{i}", 0.5)
+            fg.add_factor(
+                f"f{i}",
+                FactorType.SOFT_ENTAILMENT,
+                ["A"],
+                f"B{i}",
+                p1=1.0 - CROMWELL_EPS,
+                p2=0.5,
+            )
+        result = BeliefPropagation().run(fg)
+        # P should stay near its prior (no cascade from downstream)
+        assert result.beliefs["P"] == pytest.approx(0.2, abs=0.03)

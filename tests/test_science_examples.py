@@ -306,7 +306,10 @@ class TestNewtonCoarse:
         )
         beliefs, _ = exact_inference(fg)
         isq = beliefs[_qid("newton", "inverse_square_force")]
-        assert isq < 0.6, f"inverse_square should be lower with weak Kepler: {isq:.4f}"
+        # With proper CPTs (p2=0.5 MaxEnt default), the drop is less extreme
+        # than with constraint-based implication (fan-out penalty eliminated).
+        # Kepler=0.3 still pulls inverse_square below the high-confidence case (~0.85).
+        assert isq < 0.7, f"inverse_square should be lower with weak Kepler: {isq:.4f}"
 
 
 # ============================================================================

@@ -437,6 +437,7 @@ def strategy_cpt(
         strat_by_id,
         var_priors,
         strat_params,
+        {},
         expand_formal=True,
         infer_degraded=False,
         ctr=ctr,
