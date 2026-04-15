@@ -1001,3 +1001,228 @@ def test_contract_to_cpt_allows_degenerate_free_var():
     # And P(C=1|A=1, B=any) should still be ≈ 0.8
     assert _almost(cpt[1, 0, 1], 0.8, eps=5e-3)
     assert _almost(cpt[1, 1, 1], 0.8, eps=5e-3)
+
+
+# ── coarsen_ir: surrogate leaf premises for induction cycles ──
+
+
+def test_coarsen_ir_induction_cycle_promotes_surrogate_leaves():
+    """Regression: induction creates cycles (law → obs via support, obs₁+obs₂ → law
+    via induction composite), making every node 'concluded'. Exported conclusions
+    reachable only through such cycles must still appear in the coarse graph via
+    surrogate leaf premises."""
+    from gaia.ir.coarsen import coarsen_ir
+
+    # Minimal induction pattern:
+    #   law → (support) → obs1
+    #   law → (support) → obs2
+    #   obs1, obs2 → (induction sub-strat) → law
+    #   law is exported
+    ir = {
+        "knowledges": [
+            {"id": "ns::law", "label": "law", "type": "claim", "content": "law"},
+            {"id": "ns::obs1", "label": "obs1", "type": "claim", "content": "obs1"},
+            {"id": "ns::obs2", "label": "obs2", "type": "claim", "content": "obs2"},
+        ],
+        "strategies": [
+            {
+                "type": "support",
+                "premises": ["ns::law"],
+                "conclusion": "ns::obs1",
+                "reason": "",
+            },
+            {
+                "type": "support",
+                "premises": ["ns::law"],
+                "conclusion": "ns::obs2",
+                "reason": "",
+            },
+            {
+                "type": "infer",
+                "premises": ["ns::obs1", "ns::obs2"],
+                "conclusion": "ns::law",
+                "reason": "",
+            },
+        ],
+        "operators": [],
+        "namespace": "ns",
+        "package_name": "pkg",
+    }
+    exported = {"ns::law"}
+    coarse = coarsen_ir(ir, exported)
+
+    # law should be in the coarse graph (exported)
+    coarse_ids = {k["id"] for k in coarse["knowledges"]}
+    assert "ns::law" in coarse_ids
+
+    # At least one surrogate leaf should connect to law
+    assert len(coarse["strategies"]) >= 1
+    for s in coarse["strategies"]:
+        if s["conclusion"] == "ns::law":
+            # Premises should be the cycle-broken observations
+            assert len(s["premises"]) > 0
+            break
+    else:
+        pytest.fail("No coarse strategy concluding to ns::law found")
+
+
+def test_coarsen_ir_induction_to_downstream_export():
+    """Regression: an exported conclusion supported by an induction law (which is
+    itself in a cycle) should also be reachable via the surrogate leaves."""
+    from gaia.ir.coarsen import coarsen_ir
+
+    # law → obs1, law → obs2 (support)
+    # obs1 + obs2 → law (induction)
+    # law → export (support)
+    ir = {
+        "knowledges": [
+            {"id": "ns::law", "label": "law", "type": "claim", "content": "law"},
+            {"id": "ns::obs1", "label": "obs1", "type": "claim", "content": "obs1"},
+            {"id": "ns::obs2", "label": "obs2", "type": "claim", "content": "obs2"},
+            {"id": "ns::export", "label": "export", "type": "claim", "content": "export"},
+        ],
+        "strategies": [
+            {"type": "support", "premises": ["ns::law"], "conclusion": "ns::obs1", "reason": ""},
+            {"type": "support", "premises": ["ns::law"], "conclusion": "ns::obs2", "reason": ""},
+            {
+                "type": "infer",
+                "premises": ["ns::obs1", "ns::obs2"],
+                "conclusion": "ns::law",
+                "reason": "",
+            },
+            {"type": "support", "premises": ["ns::law"], "conclusion": "ns::export", "reason": ""},
+        ],
+        "operators": [],
+        "namespace": "ns",
+        "package_name": "pkg",
+    }
+    exported = {"ns::export"}
+    coarse = coarsen_ir(ir, exported)
+
+    coarse_ids = {k["id"] for k in coarse["knowledges"]}
+    assert "ns::export" in coarse_ids
+    # The export should have at least one strategy connecting to it
+    export_strats = [s for s in coarse["strategies"] if s["conclusion"] == "ns::export"]
+    assert len(export_strats) >= 1
+
+
+def test_coarsen_ir_mixed_leaf_and_cycle():
+    """A graph with both normal leaf premises and induction cycles — the normal
+    leaf path should still work, and the cycle path should also produce edges."""
+    from gaia.ir.coarsen import coarsen_ir
+
+    ir = {
+        "knowledges": [
+            {"id": "ns::leaf", "label": "leaf", "type": "claim", "content": "leaf"},
+            {"id": "ns::law", "label": "law", "type": "claim", "content": "law"},
+            {"id": "ns::obs", "label": "obs", "type": "claim", "content": "obs"},
+            {"id": "ns::core", "label": "core", "type": "claim", "content": "core"},
+            {"id": "ns::derived", "label": "derived", "type": "claim", "content": "derived"},
+        ],
+        "strategies": [
+            # Normal path: leaf → core
+            {"type": "support", "premises": ["ns::leaf"], "conclusion": "ns::core", "reason": ""},
+            # Induction cycle: law ↔ obs
+            {"type": "support", "premises": ["ns::law"], "conclusion": "ns::obs", "reason": ""},
+            {"type": "infer", "premises": ["ns::obs"], "conclusion": "ns::law", "reason": ""},
+            # law also feeds into derived (exported)
+            {"type": "support", "premises": ["ns::law"], "conclusion": "ns::derived", "reason": ""},
+        ],
+        "operators": [],
+        "namespace": "ns",
+        "package_name": "pkg",
+    }
+    exported = {"ns::core", "ns::derived"}
+    coarse = coarsen_ir(ir, exported)
+
+    coarse_ids = {k["id"] for k in coarse["knowledges"]}
+    # Both exports should be present
+    assert "ns::core" in coarse_ids
+    assert "ns::derived" in coarse_ids
+    # leaf should connect to core
+    core_strats = [s for s in coarse["strategies"] if s["conclusion"] == "ns::core"]
+    assert any("ns::leaf" in s["premises"] for s in core_strats)
+    # derived should have surrogate leaf connections
+    derived_strats = [s for s in coarse["strategies"] if s["conclusion"] == "ns::derived"]
+    assert len(derived_strats) >= 1
+
+
+def test_compute_coarse_cpts_with_helper_claims():
+    """Regression: compute_coarse_cpts needs priors for ALL variables including
+    helper claims (__implication_result_*, etc.). If helper priors are missing,
+    tensor contraction fails. This test verifies that passing complete priors
+    (with helper claims at 1-ε) produces valid CPTs."""
+    from gaia.ir.coarsen import compute_coarse_cpts, coarsen_ir
+
+    # Build a support strategy (which auto-formalizes to conjunction + implication
+    # with helper claims like __implication_result_*, __conjunction_result_*)
+    s = Strategy(
+        scope="local",
+        type="support",
+        premises=["github:t::a"],
+        conclusion="github:t::b",
+        metadata={"prior": 0.85},
+    )
+    ir = {
+        "knowledges": [
+            {"id": "github:t::a", "label": "a", "type": "claim", "content": "a"},
+            {"id": "github:t::b", "label": "b", "type": "claim", "content": "b"},
+        ],
+        "strategies": [s.model_dump(mode="json")],
+        "operators": [],
+        "namespace": "github",
+        "package_name": "t",
+    }
+
+    # Compile to get the full IR with helper claims
+    from gaia.ir.graphs import LocalCanonicalGraph
+
+    canon = LocalCanonicalGraph(
+        **{
+            key: ir[key]
+            for key in ("knowledges", "strategies", "operators", "namespace", "package_name")
+        }
+    )
+    # After compilation, helpers are generated. Build a full IR dict from canon.
+    full_ir = {
+        "knowledges": [k.model_dump(mode="json") for k in canon.knowledges],
+        "strategies": [s.model_dump(mode="json") for s in canon.strategies],
+        "operators": [o.model_dump(mode="json") for o in canon.operators],
+        "namespace": canon.namespace,
+        "package_name": canon.package_name,
+    }
+
+    exported = {"github:t::b"}
+    coarse = coarsen_ir(full_ir, exported)
+
+    # Build priors covering ALL knowledges (including helpers)
+    _EPS = 1e-3
+    node_priors: dict[str, float] = {}
+    for k in full_ir["knowledges"]:
+        kid = k["id"]
+        meta = k.get("metadata") or {}
+        helper_kind = meta.get("helper_kind", "")
+        if helper_kind in (
+            "implication_result",
+            "equivalence_result",
+            "contradiction_result",
+            "complement_result",
+        ):
+            node_priors[kid] = 1.0 - _EPS
+        else:
+            node_priors[kid] = 0.5
+    node_priors["github:t::a"] = 0.8
+
+    cpts = compute_coarse_cpts(full_ir, coarse, node_priors=node_priors)
+
+    # Should produce at least one CPT (not fail silently)
+    assert len(cpts) > 0
+    # The CPT for b given a should reflect the support prior
+    for idx, cpt in cpts.items():
+        if coarse["strategies"][idx]["conclusion"] == "github:t::b":
+            assert len(cpt) == 2  # 2^1 for single premise
+            # P(b=1|a=1) should be close to the support prior (0.85)
+            assert cpt[1] > 0.5, f"CPT[a=1] = {cpt[1]}, expected > 0.5"
+            break
+    else:
+        pytest.fail("No coarse CPT for conclusion b found")
