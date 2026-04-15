@@ -229,8 +229,14 @@ def _validate_strategy(
                 f"'{knowledge_lookup[strategy.conclusion].type}', must be claim"
             )
 
-    # no self-loop
-    if strategy.conclusion is not None and strategy.conclusion in strategy.premises:
+    # no self-loop for BP-participating strategies. CompositeStrategy is reviewer
+    # structure only; induction legitimately uses the law as both conclusion and
+    # shared premise of its child supports.
+    if (
+        not isinstance(strategy, CompositeStrategy)
+        and strategy.conclusion is not None
+        and strategy.conclusion in strategy.premises
+    ):
         result.error(f"Strategy '{sid}': conclusion in premises (self-loop)")
 
     # background reference (any type OK, just must exist)
@@ -265,15 +271,106 @@ def _validate_composite_sub_strategies(
     strategy_lookup: dict[str, Strategy] | None,
     result: ValidationResult,
 ) -> None:
-    """Validate CompositeStrategy sub_strategy references exist."""
+    """Validate CompositeStrategy sub_strategy references and named composite shape."""
     sid = strategy.strategy_id or "<no-id>"
     if strategy_lookup is None:
         return
+    sub_strategies: list[Strategy] = []
     for sub_id in strategy.sub_strategies:
         if sub_id not in strategy_lookup:
             result.error(
                 f"CompositeStrategy '{sid}': sub_strategy '{sub_id}' not found as top-level strategy"
             )
+            continue
+        sub_strategies.append(strategy_lookup[sub_id])
+
+    if strategy.type == StrategyType.ABDUCTION:
+        _validate_abduction_composite(strategy, sub_strategies, result)
+    elif strategy.type == StrategyType.INDUCTION:
+        _validate_induction_composite(strategy, sub_strategies, result)
+
+
+def _validate_abduction_composite(
+    strategy: CompositeStrategy,
+    sub_strategies: list[Strategy],
+    result: ValidationResult,
+) -> None:
+    """Validate abduction = support, support, compare over one observation."""
+    sid = strategy.strategy_id or "<no-id>"
+    if len(sub_strategies) != 3:
+        result.error(f"CompositeStrategy '{sid}': abduction requires 3 sub_strategies")
+        return
+
+    support_h, support_alt, comparison = sub_strategies
+    if support_h.type != StrategyType.SUPPORT:
+        result.error(f"CompositeStrategy '{sid}': abduction first sub_strategy must be support")
+    if support_alt.type != StrategyType.SUPPORT:
+        result.error(f"CompositeStrategy '{sid}': abduction second sub_strategy must be support")
+    if comparison.type != StrategyType.COMPARE:
+        result.error(f"CompositeStrategy '{sid}': abduction third sub_strategy must be compare")
+        return
+
+    if len(comparison.premises) != 3:
+        result.error(
+            f"CompositeStrategy '{sid}': compare sub_strategy must have "
+            "[pred_h, pred_alt, observation] premises"
+        )
+        return
+    if comparison.conclusion is None:
+        result.error(f"CompositeStrategy '{sid}': compare sub_strategy must have a conclusion")
+        return
+    if strategy.conclusion != comparison.conclusion:
+        result.error(
+            f"CompositeStrategy '{sid}': abduction conclusion must match compare conclusion"
+        )
+
+    observation = comparison.premises[2]
+    if support_h.conclusion != observation:
+        result.error(
+            f"CompositeStrategy '{sid}': abduction first support must conclude "
+            "the compared observation"
+        )
+    if support_alt.conclusion != observation:
+        result.error(
+            f"CompositeStrategy '{sid}': abduction second support must conclude "
+            "the compared observation"
+        )
+
+
+def _validate_induction_composite(
+    strategy: CompositeStrategy,
+    sub_strategies: list[Strategy],
+    result: ValidationResult,
+) -> None:
+    """Validate induction = (support | previous induction), support over one law premise."""
+    sid = strategy.strategy_id or "<no-id>"
+    if len(sub_strategies) != 2:
+        result.error(f"CompositeStrategy '{sid}': induction requires 2 sub_strategies")
+        return
+    if strategy.conclusion is None:
+        result.error(f"CompositeStrategy '{sid}': induction requires a law conclusion")
+        return
+
+    support_1, support_2 = sub_strategies
+    law = strategy.conclusion
+    if support_1.type not in {StrategyType.SUPPORT, StrategyType.INDUCTION}:
+        result.error(
+            f"CompositeStrategy '{sid}': induction first sub_strategy must be support "
+            "or previous induction"
+        )
+    elif support_1.type == StrategyType.SUPPORT and law not in support_1.premises:
+        result.error(
+            f"CompositeStrategy '{sid}': induction first support must include the law as a premise"
+        )
+    elif support_1.type == StrategyType.INDUCTION and support_1.conclusion != law:
+        result.error(f"CompositeStrategy '{sid}': previous induction must conclude the same law")
+
+    if support_2.type != StrategyType.SUPPORT:
+        result.error(f"CompositeStrategy '{sid}': induction second sub_strategy must be support")
+    elif law not in support_2.premises:
+        result.error(
+            f"CompositeStrategy '{sid}': induction second support must include the law as a premise"
+        )
 
 
 def _validate_composite_dag(
@@ -619,7 +716,7 @@ def validate_parameterization(
     # Strategy conclusions — their belief derives from premises via BP
     strategy_conclusions: set[str] = set()
     for s in graph.strategies:
-        if s.conclusion is not None:
+        if s.conclusion is not None and not isinstance(s, CompositeStrategy):
             strategy_conclusions.add(s.conclusion)
 
     # Combined: all claims exempt from the "must have prior" check

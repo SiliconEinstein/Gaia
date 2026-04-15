@@ -502,7 +502,7 @@ class TestCompositeStrategyValidation:
                 sub,
                 CompositeStrategy(
                     scope="local",
-                    type="abduction",
+                    type="infer",
                     premises=["github:test::a"],
                     conclusion="github:test::c",
                     sub_strategies=[sub.strategy_id],
@@ -519,7 +519,7 @@ class TestCompositeStrategyValidation:
             strategies=[
                 CompositeStrategy(
                     scope="local",
-                    type="abduction",
+                    type="infer",
                     premises=["github:test::a"],
                     conclusion="github:test::c",
                     sub_strategies=["lcs_nonexistent"],
@@ -545,7 +545,7 @@ class TestCompositeStrategyValidation:
         comp_a = CompositeStrategy(
             strategy_id="lcs_comp_a",
             scope="local",
-            type="abduction",
+            type="infer",
             premises=["github:test::a"],
             conclusion="github:test::b",
             sub_strategies=["lcs_comp_b"],
@@ -553,7 +553,7 @@ class TestCompositeStrategyValidation:
         comp_b = CompositeStrategy(
             strategy_id="lcs_comp_b",
             scope="local",
-            type="abduction",
+            type="infer",
             premises=["github:test::a"],
             conclusion="github:test::b",
             sub_strategies=["lcs_comp_a"],
@@ -576,7 +576,7 @@ class TestCompositeStrategyValidation:
         )
         comp = CompositeStrategy(
             scope="local",
-            type="abduction",
+            type="infer",
             premises=["github:test::a"],
             conclusion="github:test::b",
             sub_strategies=[leaf.strategy_id],
@@ -587,6 +587,159 @@ class TestCompositeStrategyValidation:
         )
         r = validate_local_graph(g)
         assert r.valid
+
+    def test_valid_abduction_composite_shape(self):
+        """Abduction composite must be support, support, compare over one observation."""
+        sup_h = Strategy(
+            scope="local",
+            type="support",
+            premises=["github:test::h"],
+            conclusion="github:test::obs",
+        )
+        sup_alt = Strategy(
+            scope="local",
+            type="support",
+            premises=["github:test::alt"],
+            conclusion="github:test::obs",
+        )
+        cmp = Strategy(
+            scope="local",
+            type="compare",
+            premises=["github:test::pred_h", "github:test::pred_alt", "github:test::obs"],
+            conclusion="github:test::cmp",
+        )
+        comp = CompositeStrategy(
+            scope="local",
+            type="abduction",
+            premises=["github:test::h", "github:test::alt", "github:test::pred_h"],
+            conclusion="github:test::cmp",
+            sub_strategies=[sup_h.strategy_id, sup_alt.strategy_id, cmp.strategy_id],
+        )
+        g = _local_graph(
+            knowledges=[
+                _claim("github:test::h"),
+                _claim("github:test::alt"),
+                _claim("github:test::obs"),
+                _claim("github:test::pred_h"),
+                _claim("github:test::pred_alt"),
+                _claim("github:test::cmp"),
+            ],
+            strategies=[sup_h, sup_alt, cmp, comp],
+        )
+        r = validate_local_graph(g)
+        assert r.valid, r.errors
+
+    def test_abduction_composite_rejects_wrong_child_shape(self):
+        """Malformed abduction composites are rejected at IR validation."""
+        not_support = Strategy(
+            scope="local",
+            type="noisy_and",
+            premises=["github:test::h"],
+            conclusion="github:test::obs",
+        )
+        sup_alt = Strategy(
+            scope="local",
+            type="support",
+            premises=["github:test::alt"],
+            conclusion="github:test::other_obs",
+        )
+        cmp = Strategy(
+            scope="local",
+            type="compare",
+            premises=["github:test::pred_h", "github:test::pred_alt", "github:test::obs"],
+            conclusion="github:test::cmp",
+        )
+        comp = CompositeStrategy(
+            scope="local",
+            type="abduction",
+            premises=["github:test::h", "github:test::alt", "github:test::pred_h"],
+            conclusion="github:test::wrong_cmp",
+            sub_strategies=[not_support.strategy_id, sup_alt.strategy_id, cmp.strategy_id],
+        )
+        g = _local_graph(
+            knowledges=[
+                _claim("github:test::h"),
+                _claim("github:test::alt"),
+                _claim("github:test::obs"),
+                _claim("github:test::other_obs"),
+                _claim("github:test::pred_h"),
+                _claim("github:test::pred_alt"),
+                _claim("github:test::cmp"),
+                _claim("github:test::wrong_cmp"),
+            ],
+            strategies=[not_support, sup_alt, cmp, comp],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("abduction first sub_strategy must be support" in e for e in r.errors)
+        assert any("abduction conclusion must match compare conclusion" in e for e in r.errors)
+        assert any("second support must conclude the compared observation" in e for e in r.errors)
+
+    def test_valid_induction_composite_shape(self):
+        """Induction composite children must share the same law premise."""
+        sup1 = Strategy(
+            scope="local",
+            type="support",
+            premises=["github:test::law"],
+            conclusion="github:test::obs1",
+        )
+        sup2 = Strategy(
+            scope="local",
+            type="support",
+            premises=["github:test::law"],
+            conclusion="github:test::obs2",
+        )
+        comp = CompositeStrategy(
+            scope="local",
+            type="induction",
+            premises=["github:test::law"],
+            conclusion="github:test::law",
+            sub_strategies=[sup1.strategy_id, sup2.strategy_id],
+        )
+        g = _local_graph(
+            knowledges=[
+                _claim("github:test::law"),
+                _claim("github:test::obs1"),
+                _claim("github:test::obs2"),
+            ],
+            strategies=[sup1, sup2, comp],
+        )
+        r = validate_local_graph(g)
+        assert r.valid, r.errors
+
+    def test_induction_composite_rejects_children_without_law_premise(self):
+        """Induction children must include the composite conclusion law as a premise."""
+        sup1 = Strategy(
+            scope="local",
+            type="support",
+            premises=["github:test::other"],
+            conclusion="github:test::obs1",
+        )
+        sup2 = Strategy(
+            scope="local",
+            type="support",
+            premises=["github:test::law"],
+            conclusion="github:test::obs2",
+        )
+        comp = CompositeStrategy(
+            scope="local",
+            type="induction",
+            premises=["github:test::law"],
+            conclusion="github:test::law",
+            sub_strategies=[sup1.strategy_id, sup2.strategy_id],
+        )
+        g = _local_graph(
+            knowledges=[
+                _claim("github:test::law"),
+                _claim("github:test::other"),
+                _claim("github:test::obs1"),
+                _claim("github:test::obs2"),
+            ],
+            strategies=[sup1, sup2, comp],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("induction first support must include the law" in e for e in r.errors)
 
 
 class TestFormalStrategyValidation:
@@ -1819,3 +1972,52 @@ class TestParameterizationValidation:
             ],
         )
         assert r.valid, r.errors
+
+    def test_composite_conclusion_does_not_exempt_prior_by_itself(self):
+        """CompositeStrategy is review structure only; its conclusion still needs support/prior."""
+        from gaia.ir import PriorRecord
+
+        sup1 = Strategy(
+            scope="local",
+            type="support",
+            premises=["github:test::law"],
+            conclusion="github:test::obs1",
+        )
+        sup2 = Strategy(
+            scope="local",
+            type="support",
+            premises=["github:test::law"],
+            conclusion="github:test::obs2",
+        )
+        comp = CompositeStrategy(
+            scope="local",
+            type="induction",
+            premises=["github:test::law"],
+            conclusion="github:test::law",
+            sub_strategies=[sup1.strategy_id, sup2.strategy_id],
+        )
+        g = _local_graph(
+            knowledges=[
+                Knowledge(id="github:test::law", content="Law", type="claim", label="law"),
+                Knowledge(id="github:test::obs1", content="Obs 1", type="claim", label="obs1"),
+                Knowledge(id="github:test::obs2", content="Obs 2", type="claim", label="obs2"),
+            ],
+            strategies=[sup1, sup2, comp],
+        )
+        r = validate_parameterization(
+            g,
+            priors=[
+                # obs1/obs2 are exempt because they are non-composite support conclusions.
+                # law is only the composite conclusion, so it must still require a prior.
+            ],
+            strategy_params=[],
+        )
+        assert not r.valid
+        assert any("github:test::law" in e and "missing PriorRecord" in e for e in r.errors)
+
+        r_with_law_prior = validate_parameterization(
+            g,
+            priors=[PriorRecord(knowledge_id="github:test::law", value=0.5, source_id="s")],
+            strategy_params=[],
+        )
+        assert r_with_law_prior.valid, r_with_law_prior.errors
