@@ -380,7 +380,54 @@ tc_prediction = claim("Tc of MgB2 is 39K")
 tc_prediction.label = "tc_prediction"  # anti-pattern
 ```
 
-## 7. Anti-patterns (HARD GATE -- these produce invalid packages)
+## 7. References and Citations
+
+Claim content and strategy reasons support two kinds of references:
+
+### Knowledge references (`@label`)
+
+Reference other knowledge nodes by their Python variable name. Opportunistic — if the label is not found, treated as literal text (no error).
+
+```python
+reason="Based on @framework_claim, the result follows from @property_setting."
+```
+
+### Bibliographic citations (`[@key]`)
+
+Cite entries from `references.json` (CSL-JSON, at the package root). Strict — missing key is a compile error.
+
+```python
+# In claim content
+tc = claim("Tc = 287.7 K at 267 GPa [@Dias2020].", title="CSH Tc")
+
+# In strategy reason
+support([evidence], conclusion,
+    reason="Following the analysis in [@Hirsch2021], the data is inconsistent.",
+    prior=0.85)
+```
+
+Supports Pandoc citation syntax: `[@key1; @key2]` (group), `[see @key, pp. 33-35]` (locator), `[-@key]` (suppress author).
+
+### references.json format
+
+```json
+{
+  "Dias2020": {
+    "type": "article-journal",
+    "title": "Room-temperature superconductivity in a carbonaceous sulfur hydride"
+  }
+}
+```
+
+Each entry requires `type` (CSL 1.0.2) and `title`. Keys follow Pandoc grammar (letters, digits, `_`, `-`, `.`, `:`, `/`). File is optional.
+
+### Rules
+
+- **Escape**: `\@key` forces literal
+- **No collision**: a key cannot exist in both the label table and `references.json` (compile error)
+- **Homogeneous groups**: a single `[...]` group must be all knowledge refs or all citations, never mixed (compile error)
+
+## 8. Anti-patterns (HARD GATE -- these produce invalid packages)
 
 | Anti-pattern | Why it fails | Correct approach |
 |-------------|-------------|-----------------|

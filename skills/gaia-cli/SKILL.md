@@ -44,6 +44,7 @@ The name **must** end with `-gaia` (e.g., `galileo-falling-bodies-gaia`).
 ```
 my-package-gaia/
 ├── pyproject.toml          # [tool.gaia] type + uuid
+├── references.json         # Optional: bibliography in CSL-JSON format (for [@key] citations)
 ├── src/
 │   └── my_package/
 │       ├── __init__.py     # DSL declarations, re-exports

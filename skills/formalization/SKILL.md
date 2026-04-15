@@ -61,7 +61,7 @@ Formalize the **complete** source — not just the main result. A partial formal
 
 ## Pass 0: Prepare Artifacts
 
-Copy the original source materials into the package's `artifacts/` directory:
+Copy the original source materials into the package's `artifacts/` directory, and create a `references.json` for bibliographic citations:
 
 ```
 my-package-gaia/
@@ -69,6 +69,7 @@ my-package-gaia/
 │   ├── paper.pdf           # PDF original, or
 │   ├── paper.md            # markdown version, or
 │   └── chapter3.md         # textbook chapter, etc.
+├── references.json         # Bibliography in CSL-JSON format (package-level, shared)
 ├── src/
 │   └── my_package/
 │       ├── __init__.py
@@ -77,9 +78,26 @@ my-package-gaia/
 └── pyproject.toml
 ```
 
-Note: `gaia init` does not create the `artifacts/` directory. Create it manually: `mkdir artifacts/`
+Note: `gaia init` does not create the `artifacts/` directory or `references.json`. Create them manually.
 
-Both PDF and markdown formats are supported. Throughout the formalization process, always refer back to the originals in `artifacts/` to ensure that numbers, formulas, and reasoning steps are consistent with the source material.
+### references.json
+
+Create `references.json` at the package root. This file holds bibliographic citations in CSL-JSON format (dict-by-key), shared across the entire package. Start with a minimal skeleton — you will fill it incrementally as citations are needed during Passes 1-4:
+
+```json
+{
+  "Dias2020": {
+    "type": "article-journal",
+    "title": "Room-temperature superconductivity in a carbonaceous sulfur hydride"
+  }
+}
+```
+
+Keys must follow Pandoc citation key grammar (letters, digits, `_`, `-`, `.`, `:`, `/`). Each entry requires `type` (CSL 1.0.2) and `title` at minimum. Add new entries as you encounter citations during formalization — do not try to enumerate all references upfront. Complete metadata (authors, DOI, volume, pages) is filled in during Pass 6 (Polish).
+
+This file is optional — if absent, `[@...]` citations are not available.
+
+Both PDF and markdown formats are supported for artifacts. Throughout the formalization process, always refer back to the originals in `artifacts/` to ensure that numbers, formulas, and reasoning steps are consistent with the source material.
 
 ## Pass 1: Extract Knowledge Nodes
 
@@ -296,18 +314,32 @@ For each claim "supported by other claims," write an `infer` strategy (which cla
    - **Claims** used in the derivation → `premises`
    - **Settings/questions** used in the derivation → `background`
 
-### Use @label References in Reasons
+### Use @label and [@citation] References in Reasons
 
-In the reason text, use `@label` syntax to explicitly reference knowledge nodes used in the derivation:
+In the reason text, use `@label` to reference knowledge nodes and `[@key]` to cite bibliography entries from `references.json`:
 
 ```python
 reason=(
     "Based on the XX framework (@framework_claim), under condition YY (@condition_claim), "
-    "conclusion ZZ can be derived. The derivation uses the property of WW (@property_setting)."
+    "conclusion ZZ can be derived. The derivation uses the property of WW (@property_setting). "
+    "This follows the approach in [@Dias2020]."
 )
 ```
 
-Nodes referenced by `@label` must appear in the strategy's `premises` or `background` list. This is verified in Pass 3.
+**Knowledge refs** (`@label`): must appear in the strategy's `premises` or `background` list. Verified in Pass 3.
+
+**Citations** (`[@key]`): must match a key in `references.json`. The strict `[@...]` form raises a compile error if the key is not found. Supports Pandoc group syntax: `[@Bell1964; @CHSH1969]`, `[see @Bell1964, pp. 33-35]`.
+
+**Rule**: A single `[...]` group must be homogeneous — all knowledge refs or all citations, never mixed. `[@lemma_a; @Bell1964]` is a compile error.
+
+Citations can also appear in **claim content** to provide traceability:
+
+```python
+tc_measurement = claim(
+    "The measured superconducting transition temperature is 287.7 K at 267 GPa [@Dias2020].",
+    title="CSH Tc measurement",
+)
+```
 
 ### Key Point for Pass 2: Do Not Miss Implicit Premises
 
@@ -361,14 +393,15 @@ Before moving to Pass 3, verify:
 
 **Prerequisite:** Code from Pass 1-2 has been written and passes `gaia compile` and `gaia check`. Pass 3 combines `gaia check` feedback with manual review.
 
-### 3a. Check @label Reference Consistency
+### 3a. Check @label and [@citation] Reference Consistency
 
-Review each infer strategy's reason one by one:
+Review each strategy's reason one by one:
 
 1. **Re-read the reason**: Carefully read every sentence in the reason
 2. **Check @label coverage**: Every `@label` in the reason must appear in premises or background
 3. **Reverse check**: Every node in premises/background should be referenced by `@label` in the reason (otherwise, why is it a premise?)
 4. **Check if additional knowledge is needed**: If the reason mentions an important fact without a corresponding `@label`, go back to Pass 1 to add it
+5. **Check [@citation] coverage**: Key claims and reasoning steps from the source paper should cite the original via `[@key]`. Ensure `references.json` contains all referenced keys.
 
 ### 3b. Check for Claims Missing Reasoning
 
@@ -696,7 +729,18 @@ Add `metadata={"figure": "...", "caption": "..."}` to every claim whose content 
 3. **Caption accuracy**: Copy the figure caption from the source (abbreviated OK, but figure number and key content must be correct)
 4. **Strategy metadata**: Strategies whose `reason` references figure data should also carry `metadata`
 
-### 6e. Format Consistency
+### 6e. Complete Citation Metadata
+
+During Passes 1-4, `references.json` entries were kept minimal (key + type + title). Now fill in complete metadata for all cited references:
+
+- **author**: full author list (`[{"family": "...", "given": "..."}]`)
+- **issued**: publication date (`{"date-parts": [[2020]]}`)
+- **container-title**: journal/conference name
+- **volume**, **page**, **DOI**: where applicable
+
+Also verify: every `[@key]` used in claims and reasons has a corresponding entry in `references.json`. Run `gaia compile .` to catch any missing keys (strict `[@key]` form raises a compile error if the key is not found).
+
+### 6f. Format Consistency
 
 - Metadata format should be consistent across all claims (same key names, same path conventions)
 - Titles should follow a consistent naming style
