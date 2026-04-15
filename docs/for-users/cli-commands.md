@@ -57,6 +57,7 @@ gaia check [path]
 gaia check --brief [path]
 gaia check --show <module|label> [path]
 gaia check --brief --show <module|label> [path]
+gaia check --hole [path]
 ```
 
 Arguments:
@@ -71,6 +72,7 @@ Options:
 |--------|-------------|
 | `--brief`, `-b` | Show per-module warrant structure overview after validation |
 | `--show`, `-s` | Expand a specific module or claim/strategy label with full warrant trees |
+| `--hole` | Show detailed prior review report for all independent claims (holes without priors + covered with priors) |
 
 What it checks:
 
@@ -97,11 +99,21 @@ When given a **claim or strategy label**, shows that node's full content and all
 
 When `--brief` and `--show` are combined, both the overview and the expanded detail are shown.
 
+### `--hole` output
+
+Detailed report for prior review. Splits all independent claims into two groups:
+
+- **Holes**: claims without priors — shows QID, content preview, and `NOT SET (defaults to 0.5)` status
+- **Covered**: claims with priors — shows prior value and justification reason
+
+The default `gaia check` output also annotates each independent premise with `prior=X` or `⚠ no prior`, and shows a "Holes (no prior set): N" count in the summary when any holes remain.
+
 Example:
 
 ```bash
 gaia compile .
-gaia check .                          # validate only
+gaia check .                          # validate + prior annotations on independent claims
+gaia check --hole .                   # validate + detailed hole/covered report
 gaia check --brief .                  # validate + overview
 gaia check --show motivation .        # validate + expand module
 gaia check --show hypothesis .        # validate + expand claim

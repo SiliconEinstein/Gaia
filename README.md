@@ -165,6 +165,7 @@ gaia init → gaia add → /gaia:formalization → gaia compile → gaia infer �
 | `gaia check [path]` | Validate package structure and IR consistency (used by registry CI) |
 | `gaia check --brief [path]` | Show per-module warrant structure overview (claims, strategies, priors) |
 | `gaia check --show <name> [path]` | Expand a module or claim label with full warrant trees |
+| `gaia check --hole [path]` | Detailed prior review report for all independent claims (holes + covered) |
 | `gaia infer [path]` | Run belief propagation with metadata priors (from `priors.py` + DSL `reason`/`prior`) |
 | `gaia infer --depth 1 [path]` | Joint cross-package inference merging dependency factor graphs |
 | `gaia render --target github [path]` | Generate GitHub presentation skeleton (`.github-output/`): wiki, README, React Pages, graph.json |

@@ -85,11 +85,20 @@ Validate package structure and artifact consistency.
 
 ```
 gaia check [PATH]
+gaia check --brief [PATH]
+gaia check --show <module|label> [PATH]
+gaia check --hole [PATH]
 ```
 
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `PATH`   | `.`     | Path to knowledge package directory |
+
+| Option | Description |
+|--------|-------------|
+| `--brief`, `-b` | Show per-module warrant structure overview |
+| `--show`, `-s` | Expand a specific module or claim/strategy label |
+| `--hole` | Show detailed prior review report for all independent claims |
 
 **What it does:**
 
@@ -102,7 +111,9 @@ gaia check [PATH]
 Exits with code 1 on any error. Warnings (e.g., missing compiled artifacts) are
 printed but do not fail the check.
 
-**Key output:** none (validation only, prints pass/fail summary).
+**Default output:** Prints pass/fail summary with knowledge diagnostics. Each independent premise is annotated with `prior=X` or `⚠ no prior (defaults to 0.5)`. Shows a "Holes (no prior set): N" count when any independent claims lack priors.
+
+**`--hole` output:** Detailed report splitting all independent claims into holes (missing prior, with content and QID) and covered (with prior value and justification). Use during prior review to identify what still needs `priors.py` entries.
 
 Reference: [Compilation](compilation.md) for validation details.
 

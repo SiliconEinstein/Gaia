@@ -32,7 +32,7 @@ digraph formalization {
     r5 [label="gaia compile + gaia check"];
     p6 [label="Pass 6: Polish for Standalone Readability\n(self-containedness, figures, formatting)"];
     r6 [label="gaia compile + gaia check"];
-    priors [label="Write priors.py\n(metadata priors)"];
+    priors [label="gaia check --hole\n→ Write priors.py"];
     infer [label="gaia infer .\n→ .gaia/beliefs.json"];
     interpret [label="Interpret BP results"];
     analysis [label="Write ANALYSIS.md"];
@@ -706,15 +706,25 @@ Add `metadata={"figure": "...", "caption": "..."}` to every claim whose content 
 
 After completing each pass, write code, compile, and check. For DSL syntax, see the **gaia-lang** skill.
 
-### Verify with `--brief` and `--show`
+### Verify with `--brief`, `--show`, and `--hole`
 
-After compiling, use `gaia check --brief` to verify that all claims and strategies have visible names:
+After compiling, use `gaia check` to verify structure and prior coverage:
 
 ```bash
+gaia check .               # Summary with prior annotations on independent claims
+gaia check --hole .        # Detailed hole report: which claims still need priors
 gaia check --brief .       # Overview: all modules with strategy summaries
 gaia check --show s6_xxx . # Expanded view of a specific module
 gaia check --show label .  # Detail view of a specific claim's warrant tree
 ```
+
+**What to check in default output:**
+- Each independent premise shows `prior=X` if set, or `⚠ no prior` if missing
+- The summary shows "Holes (no prior set): N" when any holes remain
+
+**What to check in `--hole` output:**
+- Every hole claim has its content and QID listed — use this to write `priors.py` entries
+- Every covered claim shows its prior value and justification — verify these are reasonable
 
 **What to check in `--brief` output:**
 - Every strategy should show named labels (not `_anon_xxx`). If a strategy conclusion shows `_anon_xxx`, the strategy's result variable was not assigned to a named Python variable.
@@ -725,6 +735,8 @@ gaia check --show label .  # Detail view of a specific claim's warrant tree
 ## Write priors.py
 
 `priors.py` assigns priors to leaf claims. Strategy/operator warrant priors are set via `prior=` in the DSL.
+
+**Before writing `priors.py`, run `gaia check --hole .`** to see exactly which independent claims need priors, along with their content and current status. Use this as your checklist — address each hole, then re-run `gaia check --hole .` to confirm "All independent claims have priors assigned."
 
 For how to write `priors.py`, assign priors, and evaluate strategy parameters, see the **review** skill.
 
