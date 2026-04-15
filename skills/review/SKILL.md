@@ -121,8 +121,8 @@ Use `gaia check --hole` to identify hole claims (independent premises without pr
 
 ### Review workflow
 
-1. **`gaia check --hole .`** — read the Covered section first. For each covered claim, verify that the prior value and justification are reasonable. Adjust in `priors.py` if not.
-2. **Fill holes** — for each hole claim, read its content preview. Use `gaia check --show <label> .` when you need the full warrant tree for context. Assign a prior in `priors.py` (see §5 for guidance).
+1. **`gaia check --hole .`** — shows all independent claims: holes (missing prior, with content and QID) and covered (with prior value and justification). Review covered priors for reasonableness; identify holes to fill.
+2. **Write `priors.py`** — for each hole, assign a prior (see §5 for guidance). Use `gaia check --show <label> .` when you need the full warrant tree for context. Adjust any covered priors that look wrong.
 3. **`gaia check --hole .`** — confirm "All independent claims have priors assigned."
 4. **`gaia infer .`** — run BP and interpret results (see §6).
 
