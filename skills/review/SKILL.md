@@ -121,8 +121,8 @@ Use `gaia check --hole` to identify hole claims (independent premises without pr
 
 ### Review workflow
 
-1. **`gaia check --hole .`** — shows all independent claims: holes (missing prior, with content and QID) and covered (with prior value and justification). Review covered priors for reasonableness; identify holes to fill.
-2. **`gaia check --brief .`** — review warrant priors on strategies and operators. Check that `support`/`compare` warrant priors (`prior=` in DSL) reflect reasoning strength, and that `composite` strategy warrant priors are reasonable. Verify operator semantics (contradiction vs complement, see §5).
+1. **`gaia check --brief .`** — review the package structure and warrant priors. Check that `support`/`compare` warrant priors (`prior=` in DSL) reflect reasoning strength, and that `composite` strategy warrant priors are reasonable. Verify operator semantics (contradiction vs complement, see §5).
+2. **`gaia check --hole .`** — shows all independent claims: holes (missing prior, with content and QID) and covered (with prior value and justification). Review covered priors for reasonableness; identify holes to fill.
 3. **Write `priors.py`** — for each hole, assign a prior (see §5 for guidance). Use `gaia check --show <label> .` when you need the full warrant tree for context. Adjust any covered priors or DSL warrant priors that look wrong.
 4. **`gaia check --hole .`** — confirm "All independent claims have priors assigned."
 5. **`gaia infer .`** — run BP and interpret results (see §6).
