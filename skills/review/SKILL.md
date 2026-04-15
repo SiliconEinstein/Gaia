@@ -12,18 +12,16 @@ A review sidecar assigns probability parameters to a knowledge package's claims 
 Before writing the review sidecar, use `gaia check` to understand the package structure and prior coverage:
 
 ```bash
-gaia check .                          # Summary: lists independent claims with prior status
-gaia check --hole .                   # Detailed hole report: which claims need priors in priors.py
-gaia check --brief .                  # Overview: all modules, claims, strategies with priors
+gaia check .                          # Summary: independent claims annotated with prior status
+gaia check --hole .                   # All independent claims: holes (no prior) + covered (with prior)
+gaia check --brief .                  # Per-module overview: claims, strategies, operators
 gaia check --show <module_name> .     # Expanded module: full claim content + warrant trees
-gaia check --show <claim_label> .     # Detail: specific claim's warrant tree with premises
+gaia check --show <claim_label> .     # Specific claim's warrant tree with premises
 ```
 
-**Start with `gaia check .`** — the default output now annotates each independent premise with its prior value (`prior=X`) or flags missing priors (`⚠ no prior (defaults to 0.5)`). The summary also shows a "Holes (no prior set): N" count.
+**`gaia check .`** annotates each independent premise with `prior=X` or `⚠ no prior (defaults to 0.5)`. Shows a "Holes (no prior set): N" count in the summary.
 
-**Then run `gaia check --hole .`** to get a detailed breakdown:
-- **Holes** section: each claim missing a prior, with its full QID, content preview, and status — these are the claims you need to address in `priors.py`
-- **Covered** section: each claim with a prior, showing the value and justification reason — review these to verify the prior is reasonable
+**`gaia check --hole .`** splits all independent claims into **Holes** (QID, content, status) and **Covered** (prior value, justification). See §4 for the review workflow built around this output.
 
 **`--brief` output shows:**
 - Per-module breakdown of settings, claims (with role: independent/derived/structural), and strategies
@@ -121,7 +119,12 @@ Use `gaia check --hole` to identify hole claims (independent premises without pr
 
 **Derived conclusions** (claims that ARE the conclusion of a strategy): do NOT set a prior. The inference engine automatically assigns uninformative priors (0.5); their beliefs are entirely determined by BP propagation. Setting an explicit prior double-counts evidence.
 
-**Workflow:** Run `gaia check --hole .` → address each hole in `priors.py` → re-run `gaia check --hole .` to confirm "All independent claims have priors assigned" → then run `gaia infer .`.
+### Review workflow
+
+1. **`gaia check --hole .`** — read the Covered section first. For each covered claim, verify that the prior value and justification are reasonable. Adjust in `priors.py` if not.
+2. **Fill holes** — for each hole claim, read its content preview. Use `gaia check --show <label> .` when you need the full warrant tree for context. Assign a prior in `priors.py` (see §5 for guidance).
+3. **`gaia check --hole .`** — confirm "All independent claims have priors assigned."
+4. **`gaia infer .`** — run BP and interpret results (see §6).
 
 ## 5. Prior Assignment Guide
 
