@@ -1,6 +1,0 @@
-prior_cmb_analysis:
-  package: "cmb-analysis"
-  version: "2.0.0"
-  node: "cmb_power_spectrum"
-  type: claim
-  content: "CMB power spectrum analysis from Planck satellite data"

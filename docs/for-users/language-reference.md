@@ -1,6 +1,6 @@
 # Language Reference
 
-> **Status:** Current canonical
+> **Status:** Needs upgrade to v5 — this reference covers the Typst v4 DSL, not the current Python DSL
 
 Practical cheat sheet for the Gaia Language v4 Typst DSL. For the full specification, see `docs/foundations/interfaces/language-spec.md`.
 

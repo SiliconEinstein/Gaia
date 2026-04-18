@@ -1,6 +1,6 @@
 # Quick Start
 
-> **Status:** Current canonical
+> **Status:** Needs upgrade to v5 — this guide still references the Typst v4 workflow
 
 Create, build, and publish your first Gaia knowledge package in 10 minutes.
 

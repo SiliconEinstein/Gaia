@@ -1,6 +1,0 @@
-[package]
-name = "dark_energy"
-version = "1.0.0"
-entrypoint = "lib.typ"
-authors = ["Test"]
-description = "Dark energy test fixture for v4 DSL"

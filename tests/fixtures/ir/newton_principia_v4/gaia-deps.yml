@@ -1,6 +1,0 @@
-vacuum_prediction:
-  package: "galileo_falling_bodies"
-  version: "4.0.0"
-  node: "vacuum_prediction"
-  type: claim
-  content: "在真空中，不同重量的物体应以相同速率下落。"
