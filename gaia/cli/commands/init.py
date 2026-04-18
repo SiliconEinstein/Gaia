@@ -100,7 +100,6 @@ def init_command(
     # Inference outputs and dep_beliefs cache should be ignored.
     gitignore_path = pkg_dir / ".gitignore"
     gaia_ignore_patterns = [
-        ".gaia/reviews/",
         ".gaia/beliefs.json",
         ".gaia/dep_beliefs/",
     ]

@@ -1,7 +1,11 @@
-"""Gaia review sidecar DSL.
+"""Gaia review sidecar DSL (DEPRECATED).
 
-Review sidecars live next to a Gaia Lang package and provide agent-authored
-parameterization metadata without mutating the package's structural IR.
+.. deprecated:: 0.4.2
+    Review sidecars are superseded by ``priors.py`` and inline ``reason+prior``
+    pairing in the DSL.  Use ``priors.py`` (exports ``PRIORS: dict``) for leaf
+    claim priors, and the ``prior=`` keyword on strategies for warrant priors.
+    This module is retained for backward compatibility and will be removed in a
+    future major release.
 """
 
 from gaia.review.models import (

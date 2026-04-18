@@ -333,7 +333,7 @@ At lowering time, composite strategies are **recursively expanded** by default: 
 
 A utility function `fold_composite_to_cpt()` is also provided to compute the composite's effective CPT by marginalization. It recursively computes each sub-strategy's effective CPT via tensor contraction, then contracts child CPTs along shared bridge variables to produce the composite's CPT. Exact, no BP iterations. This produces a 2^k CPT (k = number of premises) that captures the composite's aggregate reasoning behavior — useful for analysis or for collapsing a composite into a single `CONDITIONAL` factor.
 
-Composite strategies **do not require** `review_strategy()` parameters in the review sidecar -- only the leaf sub-strategies (if they are `infer` type) need parameterization. FormalStrategy sub-strategies (support, deduction, abduction, etc.) are deterministic and need no parameters at all.
+Composite strategies **do not require** separate parameterization -- only the leaf sub-strategies need `prior=` in the DSL (for `support`/`deduction`/`compare`) or CPT entries (for `infer` type). Named sub-strategies (support, deduction, abduction, etc.) carry their priors inline and need no additional configuration.
 
 ### 3.4 Induction as Composite Strategy
 

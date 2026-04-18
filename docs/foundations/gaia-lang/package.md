@@ -88,8 +88,7 @@ galileo-falling-bodies-gaia/
 │       ├── __init__.py          # Package entry: exports + DSL declarations
 │       ├── premises.py          # Background knowledge and observations
 │       ├── reasoning.py         # Reasoning strategies
-│       └── reviews/
-│           └── self_review.py   # Review sidecar (see below)
+│       └── priors.py            # Prior assignments (PRIORS dict)
 └── .gaia/                       # Compiled artifacts (git-tracked)
     ├── ir.json                  # LocalCanonicalGraph JSON
     └── ir_hash                  # SHA-256 integrity hash
@@ -164,39 +163,32 @@ hypothesis = claim("Heavy objects fall faster.", given=[natural_motion])
 
 At compile time, imported Knowledge objects retain their foreign QIDs (e.g., `github:aristotle_mechanics::natural_motion`). The local graph records both owned and foreign QIDs. See [../gaia-ir/03-identity-and-hashing.md](../gaia-ir/03-identity-and-hashing.md) for the ownership vs. reference distinction.
 
-## Review Sidecar
+## Priors
 
-A review sidecar provides prior probabilities and strategy parameters for BP inference. Each sidecar module exports a single `REVIEW = ReviewBundle(...)`.
+Prior probabilities for BP inference are set via two mechanisms:
 
-### Discovery rules
+1. **`priors.py`** — assigns priors to leaf claims (independent premises). Exports a `PRIORS: dict` mapping Knowledge objects to `(prior, justification)` tuples.
+2. **Inline `reason+prior` pairing** — strategies accept `prior=` directly in the DSL (e.g., `support(..., prior=0.85, reason="...")`).
 
-| Convention | Path | Module name |
-|------------|------|-------------|
-| Single review (legacy) | `<import_name>/review.py` | `<import_name>.review` |
-| Multi-review | `<import_name>/reviews/<name>.py` | `<import_name>.reviews.<name>` |
+Both are baked into claim metadata at compile time. `gaia infer` reads metadata directly.
 
-If both conventions are present, all sidecars are collected. If multiple sidecars exist, `gaia infer --review <name>` is required to select one.
-
-### ReviewBundle contents
+### priors.py
 
 ```python
-from gaia.review import ReviewBundle, review_claim, review_strategy
+# src/<package>/priors.py
+from . import evidence, hypothesis
 
-REVIEW = ReviewBundle(
-    source_id="self_review",
-    objects=[
-        review_claim(evidence, prior=0.9, judgment="strong",
-                     justification="Direct observation."),
-        review_strategy(support, conditional_probability=0.85,
-                        judgment="good", justification="Evidence supports hypothesis."),
-    ],
-)
+PRIORS: dict = {
+    evidence: (0.9, "Direct observation."),
+    hypothesis: (0.5, "Theoretical prediction, not yet confirmed."),
+}
 ```
 
-A `ReviewBundle` contains:
-- `objects` -- a list of `ClaimReview`, `GeneratedClaimReview`, and `StrategyReview` instances
-- `source_id` -- identifies the review source (default: `"self_review"`)
-- `model`, `policy`, `config` -- optional metadata for parameterization provenance
+`apply_package_priors()` discovers `priors.py` automatically at load time.
+
+### Review Sidecar (Deprecated)
+
+> **Deprecated since gaia-lang 0.4.2.** The review sidecar pattern (`ReviewBundle` / `review_claim()` / `review_strategy()` in `reviews/self_review.py`) is retained for backward compatibility but will be removed in a future major release. Use `priors.py` and inline `reason+prior` pairing instead.
 
 ## Build Artifacts
 
@@ -206,15 +198,14 @@ All artifacts are written to `.gaia/` within the package root.
 |----------|-----------|----------|
 | `.gaia/ir.json` | `gaia compile` | `LocalCanonicalGraph` -- the complete compiled IR |
 | `.gaia/ir_hash` | `gaia compile` | SHA-256 hash of the canonical IR serialization |
-| `.gaia/reviews/<name>/parameterization.json` | `gaia infer` | Resolved review: priors, strategy params, source metadata |
-| `.gaia/reviews/<name>/beliefs.json` | `gaia infer` | BP inference output: posterior beliefs per knowledge node |
+| `.gaia/beliefs.json` | `gaia infer` | BP inference output: posterior beliefs per knowledge node |
 
 The `.gaia/` directory should be git-tracked so that compiled artifacts travel with the source. Add `__pycache__/` and `*.pyc` to `.gitignore`, but not `.gaia/`.
 
 ## Package Lifecycle
 
 ```
-init --> authored --> compiled --> checked --> reviewed --> inferred --> tagged --> registered
+init --> authored --> compiled --> checked --> priors assigned --> inferred --> tagged --> registered
 ```
 
 | Stage | Command | What happens |
@@ -223,8 +214,8 @@ init --> authored --> compiled --> checked --> reviewed --> inferred --> tagged 
 | **Authored** | (manual) | DSL declarations written in Python modules. |
 | **Compiled** | `gaia compile` | Source is imported, declarations collected, IR emitted to `.gaia/ir.json`. The IR is validated against the Gaia IR schema before writing. |
 | **Checked** | `gaia check` | Validates naming (`-gaia` suffix), IR structural correctness, and artifact freshness (ir_hash matches current source). |
-| **Reviewed** | (manual) | Write a review sidecar (`reviews/<name>.py`) assigning priors to claims and parameters to leaf strategies. CompositeStrategy does not need parameters — its CPT is derived from sub-strategies automatically. |
-| **Inferred** | `gaia infer` | Loads review sidecar, lowers IR to factor graph (folding composites to derived CPTs), runs BP, writes beliefs to `.gaia/reviews/<name>/beliefs.json`. |
+| **Priors assigned** | (manual) | Write `priors.py` assigning priors to leaf claims. Use `gaia check --hole` to identify claims without priors. |
+| **Inferred** | `gaia infer` | Loads priors from metadata, lowers IR to factor graph, runs BP, writes beliefs to `.gaia/beliefs.json`. |
 | **Tagged** | `git tag v<version> && git push origin v<version>` | A git tag marks the release. The tag must point to HEAD and be pushed to origin before registration. |
 | **Registered** | `gaia register` | Prepares (or submits) a metadata PR against the official Gaia registry. Requires a valid `[tool.gaia].uuid`, clean git worktree, and pushed tag. |
 

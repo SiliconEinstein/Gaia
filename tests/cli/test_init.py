@@ -155,7 +155,7 @@ def test_init_gitignore_not_duplicated(tmp_path, monkeypatch):
 
     assert result.exit_code == 0
     gitignore = (tmp_path / "dedup-gaia" / ".gitignore").read_text()
-    assert gitignore.count(".gaia/reviews/") == 1
+    assert ".gaia/reviews/" not in gitignore  # removed in 0.4.2
     assert gitignore.count(".gaia/beliefs.json") == 1
     assert gitignore.count(".gaia/dep_beliefs/") == 1
 
@@ -165,18 +165,17 @@ def test_init_gitignore_adds_missing_patterns_to_existing(tmp_path, monkeypatch)
     monkeypatch.chdir(tmp_path)
     pkg_dir = tmp_path / "migrate-gaia"
     pkg_dir.mkdir()
-    # Simulate old .gitignore that only has .gaia/reviews/
+    # Simulate old .gitignore that only has .gaia/reviews/ (legacy)
     (pkg_dir / ".gitignore").write_text("# old patterns\n.gaia/reviews/\n")
     with patch("gaia.cli.commands.init.subprocess.run", side_effect=_fake_subprocess_run):
         result = runner.invoke(app, ["init", "migrate-gaia"])
 
     assert result.exit_code == 0
     gitignore = (pkg_dir / ".gitignore").read_text()
-    assert ".gaia/reviews/" in gitignore
+    # .gaia/reviews/ is no longer added (deprecated in 0.4.2)
+    assert ".gaia/reviews/" not in gitignore
     assert ".gaia/beliefs.json" in gitignore
     assert ".gaia/dep_beliefs/" in gitignore
-    # Old pattern not duplicated
-    assert gitignore.count(".gaia/reviews/") == 1
 
 
 def test_init_gitignore_replaces_broad_gaia_ignore(tmp_path, monkeypatch):
@@ -193,8 +192,8 @@ def test_init_gitignore_replaces_broad_gaia_ignore(tmp_path, monkeypatch):
     gitignore = (pkg_dir / ".gitignore").read_text()
     # Broad pattern removed
     assert ".gaia/\n" not in gitignore
-    # Specific patterns added
-    assert ".gaia/reviews/" in gitignore
+    # Specific patterns added (no .gaia/reviews/ — deprecated)
+    assert ".gaia/reviews/" not in gitignore
     assert ".gaia/beliefs.json" in gitignore
     assert ".gaia/dep_beliefs/" in gitignore
 

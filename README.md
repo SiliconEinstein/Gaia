@@ -261,7 +261,7 @@ gaia/
 ├── ir/         Gaia IR schema, validation, formalization
 ├── bp/         Belief propagation engine (loopy BP, junction tree, generalized BP)
 ├── cli/        CLI commands (init, compile, check, add, infer, register)
-└── review/     Review sidecar model
+└── review/     Review sidecar model (deprecated — use priors.py)
 ```
 
 ## Documentation

@@ -1,4 +1,9 @@
-"""Shared review sidecar loading utilities for Gaia CLI commands."""
+"""Shared review sidecar loading utilities for Gaia CLI commands (DEPRECATED).
+
+.. deprecated:: 0.4.2
+    Review sidecars are superseded by ``priors.py`` and inline ``reason+prior``
+    pairing.  This module is retained for backward compatibility only.
+"""
 
 from __future__ import annotations
 

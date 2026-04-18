@@ -1,15 +1,20 @@
 ---
 name: review
-description: "Write review sidecars for Gaia knowledge packages — assign priors, strategy parameters, interpret BP results, and iterate."
+description: "Assign priors to Gaia knowledge packages via priors.py — prior assignment guide, BP result interpretation, and iteration workflow."
 ---
 
 ## 1. Overview
 
-A review sidecar assigns probability parameters to a knowledge package's claims and strategies. These parameters drive belief propagation (BP) inference. Multiple reviewers can independently review the same package, each producing a different sidecar.
+Priors are set via two mechanisms:
+
+1. **`priors.py`** — assigns priors to leaf claims (independent premises). Exports a `PRIORS: dict` mapping Knowledge objects to `(prior, justification)` tuples.
+2. **Inline `reason+prior` pairing** — strategies accept `prior=` directly in the DSL (e.g., `support(..., prior=0.85, reason="...")`).
+
+Both are baked into claim metadata at compile time. `gaia infer` reads metadata directly — no separate sidecar file needed.
 
 ### Pre-Review: Inspect the Package
 
-Before writing the review sidecar, use `gaia check` to understand the package structure and prior coverage:
+Before writing `priors.py`, use `gaia check` to understand the package structure and prior coverage:
 
 ```bash
 gaia check .                          # Summary: independent claims annotated with prior status
@@ -39,83 +44,41 @@ gaia check --show <claim_label> .     # Specific claim's warrant tree with premi
 
 Use `--brief` to identify which claims need priors (independent premises), then use `--show` to read the full content before assigning priors. Every claim and strategy should have a visible name — if anything shows as `_anon_xxx`, the package has unnamed nodes that should be fixed before review.
 
-## 2. File Location
+## 2. priors.py
 
-Reviews live in `<package>/reviews/`:
-
-```
-src/my_package/
-    __init__.py
-    reviews/
-        __init__.py
-        self_review.py
-```
-
-## 3. API
+Create `src/<package>/priors.py`:
 
 ```python
-from gaia.review import ReviewBundle, review_claim, review_strategy, review_generated_claim
+from . import obs, hypothesis, evidence
+
+PRIORS: dict = {
+    obs: (0.9, "Well-documented experimental result."),
+    hypothesis: (0.5, "Theoretical prediction, not yet confirmed."),
+    evidence: (0.8, "Consistent with multiple observations."),
+}
 ```
 
-### ReviewBundle
+The file must export a `PRIORS` dict. Each key is a Knowledge object imported from the package; each value is a `(prior_float, justification_string)` tuple.
 
-```python
-REVIEW = ReviewBundle(
-    source_id="self_review",
-    objects=[...],
-)
-```
+`apply_package_priors()` discovers `priors.py` automatically at load time and writes `prior` into each claim's metadata before compilation.
 
-The file must export a `REVIEW` variable. `source_id` identifies the reviewer.
-
-### review_claim(subject, *, prior, judgment, justification, metadata=None)
-
-Assign a prior probability to a claim.
-
-- `subject`: reference to the claim variable from the package
-- `prior`: float 0-1, your belief that the claim is true
-- `judgment`: `"supporting"`, `"tentative"`, `"opposing"`, etc.
-- `justification`: why you chose this prior
-
-### review_strategy(subject, *, conditional_probability=None, conditional_probabilities=None, judgment, justification, metadata=None)
-
-Assign parameters to a strategy. Only needed for `infer` strategies (full CPT). `support`, `deduction`, `compare`, and other named strategies carry their parameters in the DSL and do not need review_strategy.
-
-- `subject`: reference to the strategy variable from the package
-- `conditional_probability`: single float (legacy, for backward compatibility)
-- `conditional_probabilities`: list of 2^N floats for `infer` (full CPT)
-- `judgment`: `"formalized"`, `"tentative"`, etc.
-
-### review_generated_claim(subject, role, *, prior, judgment, justification, occurrence=0, metadata=None)
-
-Assign a prior to an auto-generated claim (e.g., abduction's alternative).
-
-- `subject`: the Strategy that generated the claim
-- `role`: `"alternative_explanation"` for abduction alternatives
-- `prior`: float 0-1
-- `occurrence`: index when a strategy generates multiple claims of the same role (default 0)
-
-## 4. What Needs Review
+## 3. What Needs Priors
 
 Use `gaia check --hole` to identify hole claims (independent premises without priors), and `gaia check --brief` to see the full structure. The output classifies claims by role:
 
-- **Independent (need prior):** Listed under "Independent premises" — these MUST have priors in the review sidecar or `priors.py`
+- **Independent (need prior):** Listed under "Independent premises" — these MUST have priors in `priors.py`
 - **Derived (BP propagates):** Do NOT set priors — inference assigns 0.5 automatically
 - **Background-only:** Need priors (typically 0.90-0.95)
 - **Orphaned:** Need priors to avoid inference errors
 
-| What | Function | Required parameter |
-|------|----------|--------------------|
-| Leaf claim (not derived by any strategy) | `review_claim` | `prior` |
-| Orphaned claim (only used as background) | `review_claim` | `prior` (typically 0.90-0.95) |
-| `infer` strategy | `review_strategy` | `conditional_probabilities` (2^N floats) |
-| Auto-generated abduction alternative | `review_generated_claim` | `prior` |
-| `support` strategy | No review needed | Prior specified in DSL (author-specified) |
-| `deduction` strategy | No review needed | Deterministic |
-| `compare` strategy | No review needed | Prior specified in DSL (author-specified) |
-| Other named strategies (analogy, etc.) | No review needed | Auto-formalized, deterministic |
-| `induction` | No direct review | Review sub-strategies individually |
-| `composite` | No direct review | Review leaf sub-strategies |
+| What | Where to set prior |
+|------|--------------------|
+| Leaf claim (not derived by any strategy) | `priors.py` |
+| Orphaned claim (only used as background) | `priors.py` (typically 0.90-0.95) |
+| `support` / `deduction` / `compare` warrant | Inline `prior=` in DSL |
+| `infer` strategy CPT | `conditional_probabilities` in review sidecar (legacy) |
+| Other named strategies (analogy, etc.) | Auto-formalized, deterministic |
+| `induction` / `composite` | Review sub-strategies individually |
 
 **Derived conclusions** (claims that ARE the conclusion of a strategy): do NOT set a prior. The inference engine automatically assigns uninformative priors (0.5); their beliefs are entirely determined by BP propagation. Setting an explicit prior double-counts evidence.
 
@@ -127,7 +90,7 @@ Use `gaia check --hole` to identify hole claims (independent premises without pr
 4. **`gaia check --hole .`** — confirm "All independent claims have priors assigned."
 5. **`gaia infer .`** — run BP and interpret results (see §6).
 
-## 5. Prior Assignment Guide
+## 4. Prior Assignment Guide
 
 ### How to choose priors
 
@@ -140,7 +103,7 @@ Use `gaia check --hole` to identify hole claims (independent premises without pr
 
 ### Prior on support/deduction warrant
 
-For `support()` and `deduction()`, the prior on the implication warrant is specified directly in the DSL via the `prior=` parameter (not in the review sidecar). Ask: "If all premises are definitely true, how confident am I in the conclusion?"
+For `support()` and `deduction()`, the prior on the implication warrant is specified directly in the DSL via the `prior=` parameter. Ask: "If all premises are definitely true, how confident am I in the conclusion?"
 
 | Reasoning quality | Prior value | Examples |
 |-------------------|-------------|---------|
@@ -160,13 +123,13 @@ The prior on an abduction alternative represents **explanatory power**: "Can Alt
 Example: Obs = "patient's symptoms resolved after taking the drug", H = "the drug is effective", Alt = "placebo effect"
 
 - The question is: can the placebo effect **alone explain this specific observation**?
-- If Obs is a mild subjective improvement (e.g., reduced pain score): π(Alt) should be moderate (~0.5), because placebo effect commonly produces such outcomes
-- If Obs is a large objective change (e.g., tumor shrank 80%): π(Alt) should be very low (~0.1), because placebo effect cannot explain this magnitude of change
-- Key: π(Alt) is NOT "does the placebo effect exist?" (it does) — it is "can it account for **this specific observation**?"
+- If Obs is a mild subjective improvement (e.g., reduced pain score): pi(Alt) should be moderate (~0.5), because placebo effect commonly produces such outcomes
+- If Obs is a large objective change (e.g., tumor shrank 80%): pi(Alt) should be very low (~0.1), because placebo effect cannot explain this magnitude of change
+- Key: pi(Alt) is NOT "does the placebo effect exist?" (it does) — it is "can it account for **this specific observation**?"
 
 **Rule of thumb:** If pi(Alt) >= pi(H), the abduction provides little support for H. Either the evidence is genuinely weak, or pi(Alt) is overestimated.
 
-## 6. Interpret BP Results
+## 5. Interpret BP Results
 
 After `gaia infer .`, check:
 
@@ -181,8 +144,8 @@ After `gaia infer .`, check:
 **Derived conclusion belief too low (< 0.3):**
 
 - Reasoning chain too deep -- multiplicative effect. Use `composite` to control depth.
-- Premise priors too low. Revisit review sidecar.
-- Strategy `conditional_probability` too low.
+- Premise priors too low. Revisit `priors.py`.
+- Strategy `prior=` too low.
 
 **Contradiction does not "pick a side":**
 
@@ -191,39 +154,43 @@ After `gaia infer .`, check:
 
 **Derived conclusion belief approx 0.5 (not pulled up):**
 
-- Reasoning chain is broken -- some `support` strategy missing a `prior`, or an `infer` strategy missing review parameters.
+- Reasoning chain is broken -- some `support` strategy missing a `prior=`, or an `infer` strategy missing parameters.
 - Check that all `support` strategies have `prior=` specified in the DSL.
-- Check review sidecar for missing `infer` strategy reviews.
 
-## 7. Complete Example
+## 6. Complete Example
+
+```python
+# src/my_package/priors.py
+from . import obs, hypothesis, evidence
+
+PRIORS: dict = {
+    # Leaf claims -- need priors
+    obs: (0.9, "Well-documented experimental result."),
+    hypothesis: (0.5, "Theoretical prediction, not yet confirmed."),
+    evidence: (0.8, "Consistent with multiple observations."),
+}
+```
+
+```python
+# src/my_package/s2_results.py (inline warrant priors)
+strat_h_explains = support(
+    [hypothesis], obs,
+    reason="Hypothesis predicts the observation", prior=0.9,
+)
+strat_alt_explains = support(
+    [alt_hypothesis], obs,
+    reason="Alternative poorly matches observation", prior=0.15,
+)
+```
+
+## Legacy: Review Sidecar (Deprecated)
+
+> **Deprecated since gaia-lang 0.4.2.** The review sidecar pattern (`ReviewBundle` / `review_claim()` / `review_strategy()`) is retained for backward compatibility but will be removed in a future major release. Use `priors.py` and inline `reason+prior` pairing instead.
+
+The old API is still importable from `gaia.review`:
 
 ```python
 from gaia.review import ReviewBundle, review_claim, review_strategy, review_generated_claim
-from .. import obs, hypothesis, evidence, conclusion, _strat_abd
-
-REVIEW = ReviewBundle(
-    source_id="self_review",
-    objects=[
-        # Leaf claims -- need priors
-        review_claim(obs, prior=0.9,
-            judgment="supporting",
-            justification="Well-documented experimental result."),
-        review_claim(hypothesis, prior=0.5,
-            judgment="tentative",
-            justification="Theoretical prediction, not yet confirmed."),
-        review_claim(evidence, prior=0.8,
-            judgment="supporting",
-            justification="Consistent with multiple observations."),
-
-        # Note: support/deduction/compare strategies carry their priors in the DSL
-        # (via the prior= parameter) and do NOT need review_strategy.
-        # Only `infer` strategies need review_strategy with conditional_probabilities.
-
-        # abduction alternative -- needs prior reflecting explanatory power
-        review_generated_claim(_strat_abd, "alternative_explanation",
-            prior=0.3,
-            judgment="tentative",
-            justification="Alternative theory predicts 1.9K but observation is 1.2K -- poor explanatory fit."),
-    ],
-)
 ```
+
+Calling any of these functions emits a `DeprecationWarning`. Existing packages with `reviews/self_review.py` will continue to work, but new packages should use `priors.py`.

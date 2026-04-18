@@ -35,7 +35,7 @@ Primary inputs (drive the narrative):
 ```bash
 cat .github-output/narrative-outline.md  # Writing backbone from graph structure
 cat .github-output/manifest.json         # Exported conclusions list
-cat .gaia/reviews/*/beliefs.json         # BP results
+cat .gaia/beliefs.json         # BP results
 cat .github-output/docs/public/data/graph.json  # Figure metadata + graph data
 ls src/<package>/*.py                    # DSL source code (claims, strategies, reasons)
 ```

@@ -46,7 +46,7 @@ Gaia 的规范参考文档，按架构层级组织。
 ## Gaia Lang — 编著语言
 
 - [DSL 参考](gaia-lang/dsl.md) — Python DSL 完整参考（claim/setting/question、operators、strategies）
-- [包模型](gaia-lang/package.md) — pyproject.toml、命名规范、目录布局、review sidecar
+- [包模型](gaia-lang/package.md) — pyproject.toml、命名规范、目录布局、priors.py
 - [知识类型与推理语义](gaia-lang/knowledge-and-reasoning.md) — 知识类型语义、算子势函数、策略展开、DSL→IR 映射
 
 ## BP — 基于 Gaia IR 的计算
@@ -64,7 +64,7 @@ Gaia 的规范参考文档，按架构层级组织。
 
 - [工作流](cli/workflow.md) — compile → check → infer → register 完整管线
 - [编译与校验](cli/compilation.md) — `gaia compile` / `gaia check` 内部机制
-- [推理管线](cli/inference.md) — `gaia infer`：review sidecar、参数化、BP
+- [推理管线](cli/inference.md) — `gaia infer`：priors.py、参数化、BP
 - [注册流程](cli/registration.md) — `gaia register` 与 registry 协议
 
 ## LKM — 计算注册中心（服务端）

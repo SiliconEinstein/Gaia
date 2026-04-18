@@ -297,7 +297,7 @@ ind_123 = induction(ind_12, s3, law=law, reason="Sample C independent of A and B
 
 #### `composite(premises, conclusion, *, sub_strategies, reason="", background=None, type="infer")`
 
-Hierarchical composition. Only leaf sub-strategies need review parameters.
+Hierarchical composition. Only leaf sub-strategies need prior parameters.
 
 ```python
 intermediate = claim("Intermediate result")
@@ -347,7 +347,7 @@ from .s4_discussion import *
 
 `__all__` controls visibility:
 - Listed in `__all__` -> **exported** (cross-package interface, other packages can import)
-- No `_` prefix -> **public** (visible to review)
+- No `_` prefix -> **public** (visible in package scope)
 - `_` prefix -> **private** (package-internal helper)
 
 ```python
@@ -358,7 +358,7 @@ supporting_lemma = claim("...")       # public (no underscore, not in __all__)
 _helper = claim("...")                # private (underscore prefix)
 ```
 
-**Abduction alternative claims must be public.** Claims used as alternatives in abduction need proper labels for the review sidecar to reference them. Use `alt_` prefix (not `_alt_`):
+**Abduction alternative claims must be public.** Claims used as alternatives in abduction need proper labels for `priors.py` to reference them. Use `alt_` prefix (not `_alt_`):
 
 ```python
 # CORRECT: public, gets label "alt_nonspecific_binding"

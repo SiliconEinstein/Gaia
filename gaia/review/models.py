@@ -1,11 +1,22 @@
-"""Author-facing review sidecar models."""
+"""Author-facing review sidecar models (DEPRECATED).
+
+.. deprecated:: 0.4.2
+    Use ``priors.py`` and inline ``reason+prior`` pairing instead.
+"""
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from typing import Any
 
 from gaia.lang.runtime import Knowledge, Strategy
+
+_DEPRECATION_MSG = (
+    "Review sidecars are deprecated since gaia-lang 0.4.2. "
+    "Use priors.py and inline reason+prior pairing instead. "
+    "See the gaia-cli skill for the recommended workflow."
+)
 
 
 @dataclass
@@ -72,6 +83,7 @@ class ReviewBundle:
     config: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
+        warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
         if not self.source_id:
             raise ValueError("ReviewBundle.source_id must be non-empty.")
 
@@ -84,6 +96,7 @@ def review_claim(
     justification: str = "",
     metadata: dict[str, Any] | None = None,
 ) -> ClaimReview:
+    warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
     return ClaimReview(
         subject=subject,
         prior=prior,
@@ -103,6 +116,7 @@ def review_generated_claim(
     justification: str = "",
     metadata: dict[str, Any] | None = None,
 ) -> GeneratedClaimReview:
+    warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
     if occurrence < 0:
         raise ValueError("occurrence must be >= 0")
     return GeneratedClaimReview(
@@ -125,6 +139,7 @@ def review_strategy(
     justification: str = "",
     metadata: dict[str, Any] | None = None,
 ) -> StrategyReview:
+    warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
     return StrategyReview(
         subject=subject,
         conditional_probability=conditional_probability,

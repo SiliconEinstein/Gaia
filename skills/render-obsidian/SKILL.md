@@ -27,7 +27,7 @@ gaia-wiki/
 └── .obsidian/
 ```
 
-- **Claims** = atomic content units, numbered by topological order. Each carries full derivation + review justification.
+- **Claims** = atomic content units, numbered by topological order. Each carries full derivation + prior justification.
 - **Sections** = narrative chapters following the paper's arc. Agent rewrites titles. Last two sections are Weak Points and Open Questions.
 - **Wikilinks** use labels, filenames use titles, `aliases` bridges them.
 
@@ -36,7 +36,7 @@ gaia-wiki/
 ```
 Step 1: gaia compile + gaia infer
 Step 2: gaia render --target obsidian → skeleton
-Step 3: Read inputs (IR, beliefs, parameterization, DSL, review sidecar, artifacts/)
+Step 3: Read inputs (IR, beliefs, DSL, artifacts/)
 Step 4: Rewrite every page
 Step 5: Cross-reference audit
 ```
@@ -45,10 +45,8 @@ Step 5: Cross-reference audit
 
 ```bash
 cat .gaia/ir.json
-cat .gaia/reviews/*/beliefs.json
-cat .gaia/reviews/*/parameterization.json  # includes justification per prior
+cat .gaia/beliefs.json
 cat src/<package>/*.py
-cat src/<package>/reviews/*.py             # review sidecar source
 ls artifacts/
 ```
 
@@ -78,7 +76,7 @@ Each claim is a self-contained article. `#XX` number = position in reasoning cha
    - Numerical validations from the paper
    - Appendix material
    - Use `[[label|#XX label]]` for cross-references
-5. **Review** — From `parameterization.json`:
+5. **Review** — From `beliefs.json` and `priors.py`:
    - `**Prior**: 0.95`
    - `**Justification**: omega_D/E_F ~ 0.005; Migdal theorem validated.`
    - `**Belief**: 0.71`
