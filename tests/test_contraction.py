@@ -1102,9 +1102,7 @@ def test_compiled_induction_coarsens_to_observations_and_cpt():
     assert len(law_strategies) == 1
     assert set(law_strategies[0]["premises"]) == obs_ids
 
-    node_priors = {
-        k["id"]: (k.get("metadata") or {}).get("prior", 0.5) for k in ir["knowledges"]
-    }
+    node_priors = {k["id"]: (k.get("metadata") or {}).get("prior", 0.5) for k in ir["knowledges"]}
     cpts = compute_coarse_cpts(ir, coarse, node_priors=node_priors)
     strategy_index = coarse["strategies"].index(law_strategies[0])
 
