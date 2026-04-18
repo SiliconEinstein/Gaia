@@ -507,7 +507,9 @@ def _format_warrant_tree(
             lines.append(f'{pad}  reason: "{_truncate(reason, 70)}"')
         if stype == "infer":
             n_premises = len(strategy.get("premises", []))
-            lines.append(f"{pad}  (requires 2^{n_premises} CPT entries in review)")
+            lines.append(
+                f"{pad}  (requires 2^{n_premises} CPT entries via conditional_probabilities)"
+            )
 
     return lines
 

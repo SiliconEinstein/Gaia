@@ -33,7 +33,7 @@ Stewart 与 Buehler 在 2026 年提出了一个面向材料科学的高阶知识
 - **无 factor graph 编译层**：超图本身不是 Gaia 式的变量-因子二部图，也没有 operator / strategy lowering。
 - **无 belief propagation**：文中没有 Gaia 这类 BP 消息传递推理框架。
 - **无类型化命题系统**：没有 `claim / setting / question` 这样的认识论类型分工。
-- **无审稿参数化层**：没有类似 review sidecar 的独立参数来源与多视角比较机制。
+- **无审稿参数化层**：没有类似参数化层（priors.py）的独立参数来源与多视角比较机制。
 
 ### 5.1.4 与 Gaia 的详细对比
 

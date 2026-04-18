@@ -4,6 +4,8 @@
 >
 > **Date:** 2026-04-08
 >
+> **Note (2026-04-18):** References to "review sidecar" in this spec are outdated. Since gaia-lang 0.4.2, priors are assigned via `priors.py`. See `docs/foundations/gaia-lang/package.md`.
+>
 > **Companion docs:** [2026-04-08-gaia-package-hole-bridge-design.md](2026-04-08-gaia-package-hole-bridge-design.md), [2026-04-08-registry-hole-bridge-index-design.md](2026-04-08-registry-hole-bridge-index-design.md)
 >
 > **Depends on:** [2026-04-02-gaia-lang-v5-python-dsl-design.md](2026-04-02-gaia-lang-v5-python-dsl-design.md), [../foundations/gaia-ir/02-gaia-ir.md](../foundations/gaia-ir/02-gaia-ir.md)

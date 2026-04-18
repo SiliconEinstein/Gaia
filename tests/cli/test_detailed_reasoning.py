@@ -264,19 +264,13 @@ def test_render_docs_flag_generates_detailed_reasoning(tmp_path):
         "s = deduction([a, b], c)\n"
         '__all__ = ["a", "b", "c", "s"]\n'
     )
-    (pkg_src / "reviews").mkdir()
-    (pkg_src / "reviews" / "self_review.py").write_text(
-        "from gaia.review import ReviewBundle, review_claim, review_strategy\n"
-        "from .. import a, b, c, s\n\n"
-        "REVIEW = ReviewBundle(\n"
-        '    source_id="self_review",\n'
-        "    objects=[\n"
-        '        review_claim(a, prior=0.8, judgment="ok", justification="."),\n'
-        '        review_claim(b, prior=0.8, judgment="ok", justification="."),\n'
-        '        review_claim(c, prior=0.4, judgment="ok", justification="."),\n'
-        '        review_strategy(s, judgment="ok", justification="."),\n'
-        "    ],\n"
-        ")\n"
+    (pkg_src / "priors.py").write_text(
+        "from . import a, b, c\n\n"
+        "PRIORS: dict = {\n"
+        '    a: (0.8, "ok"),\n'
+        '    b: (0.8, "ok"),\n'
+        '    c: (0.4, "ok"),\n'
+        "}\n"
     )
 
     assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0

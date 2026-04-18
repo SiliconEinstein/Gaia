@@ -336,7 +336,7 @@ def _render_coarse_mermaid(
                     node_priors_for_cpt[kid] = 1.0 - _CROMWELL_EPS_CPT
                 else:
                     node_priors_for_cpt[kid] = 0.5
-            # Overlay review priors
+            # Overlay priors from metadata (priors.py / DSL reason+prior)
             for kid, p in priors.items():
                 node_priors_for_cpt[kid] = p
             strat_params: dict[str, list[float]] = {}

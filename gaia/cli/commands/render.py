@@ -1,4 +1,4 @@
-"""gaia render -- generate presentation outputs (docs and/or GitHub site) from a reviewed package."""
+"""gaia render -- generate presentation outputs (docs and/or GitHub site) from an inferred package."""
 
 from __future__ import annotations
 

@@ -266,20 +266,13 @@ def test_render_github_flag(tmp_path):
         "s = deduction([a, b], c)\n"
         '__all__ = ["a", "b", "c", "s"]\n'
     )
-    reviews_dir = pkg_src / "reviews"
-    reviews_dir.mkdir()
-    (reviews_dir / "self_review.py").write_text(
-        "from gaia.review import ReviewBundle, review_claim, review_strategy\n"
-        "from .. import a, b, c, s\n\n"
-        "REVIEW = ReviewBundle(\n"
-        '    source_id="self_review",\n'
-        "    objects=[\n"
-        '        review_claim(a, prior=0.8, judgment="ok", justification="."),\n'
-        '        review_claim(b, prior=0.8, judgment="ok", justification="."),\n'
-        '        review_claim(c, prior=0.4, judgment="ok", justification="."),\n'
-        '        review_strategy(s, judgment="ok", justification="."),\n'
-        "    ],\n"
-        ")\n"
+    (pkg_src / "priors.py").write_text(
+        "from . import a, b, c\n\n"
+        "PRIORS: dict = {\n"
+        '    a: (0.8, "ok"),\n'
+        '    b: (0.8, "ok"),\n'
+        '    c: (0.4, "ok"),\n'
+        "}\n"
     )
 
     assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
@@ -342,21 +335,16 @@ def test_render_github_with_real_package(tmp_path):
         '__all__ = ["obs_equal_time", "galileo_hyp"]\n'
     )
 
-    # Review sidecar — required for render
-    (pkg_src / "reviews").mkdir()
-    (pkg_src / "reviews" / "self_review.py").write_text(
-        "from gaia.review import ReviewBundle, review_claim\n"
-        "from ..motivation import context, obs_equal_time\n"
-        "from ..analysis import aristotle_hyp, galileo_hyp\n\n"
-        "REVIEW = ReviewBundle(\n"
-        '    source_id="self_review",\n'
-        "    objects=[\n"
-        '        review_claim(context, prior=0.95, judgment="ok", justification="."),\n'
-        '        review_claim(obs_equal_time, prior=0.9, judgment="ok", justification="."),\n'
-        '        review_claim(aristotle_hyp, prior=0.2, judgment="ok", justification="."),\n'
-        '        review_claim(galileo_hyp, prior=0.6, judgment="ok", justification="."),\n'
-        "    ],\n"
-        ")\n"
+    # Priors — required for render
+    (pkg_src / "priors.py").write_text(
+        "from .motivation import context, obs_equal_time\n"
+        "from .analysis import aristotle_hyp, galileo_hyp\n\n"
+        "PRIORS: dict = {\n"
+        '    context: (0.95, "ok"),\n'
+        '    obs_equal_time: (0.9, "ok"),\n'
+        '    aristotle_hyp: (0.2, "ok"),\n'
+        '    galileo_hyp: (0.6, "ok"),\n'
+        "}\n"
     )
 
     # Create an artifact file to test asset copying
