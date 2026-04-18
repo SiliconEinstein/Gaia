@@ -4,6 +4,8 @@
 >
 > **Depends on:** [2026-04-05-dsl-v6-support-witness-design.md](2026-04-05-dsl-v6-support-witness-design.md), [2026-04-05-dsl-v6-support-witness-api-design.md](2026-04-05-dsl-v6-support-witness-api-design.md)
 >
+> **Note (2026-04-18):** References to "review sidecar" in this spec are outdated. Since gaia-lang 0.4.2, priors are assigned via `priors.py`. See `docs/foundations/gaia-lang/package.md`.
+>
 > **Scope:** How to add a Gaia authoring layer to an existing Python package without rewriting the package itself
 
 ---

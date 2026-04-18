@@ -3,6 +3,8 @@
 **Status:** Target design
 **Date:** 2026-04-04
 
+> **Note (2026-04-18):** References to `.gaia/reviews/*/` paths and review sidecars in this spec are outdated. Since gaia-lang 0.4.2, priors are assigned via `priors.py`; beliefs output to `.gaia/beliefs.json`. See `docs/foundations/gaia-lang/package.md`.
+
 ## Goal
 
 `gaia compile --readme` generates a `README.md` at the package root that serves as the GitHub landing page for a Gaia knowledge package. The README presents the knowledge graph as a navigable, narrative document with a Mermaid diagram, full node content, reasoning chains, and optional inference results.

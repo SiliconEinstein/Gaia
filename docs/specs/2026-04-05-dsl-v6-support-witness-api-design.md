@@ -4,6 +4,8 @@
 >
 > **Companion concept spec:** [2026-04-05-dsl-v6-support-witness-design.md](2026-04-05-dsl-v6-support-witness-design.md)
 >
+> **Note (2026-04-18):** References to `ReviewBundle`, `review_claim()`, and `review_strategy()` in this spec are outdated. Since gaia-lang 0.4.2, priors are assigned via `priors.py` and inline `reason+prior` pairing. See `docs/foundations/gaia-lang/package.md`.
+>
 > **Scope:** Gaia Lang v6 authoring API and review-side surface
 >
 > **Non-goal:** This document does not directly change Gaia IR protected contracts.

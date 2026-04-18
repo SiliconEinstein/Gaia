@@ -4,6 +4,8 @@
 **Date:** 2026-04-03
 **Scope:** `docs/foundations/gaia-lang/` and `docs/foundations/cli/`
 
+> **Note (2026-04-18):** References to "review sidecar" in this spec are outdated. Since gaia-lang 0.4.2, priors are assigned via `priors.py` and inline `reason+prior` pairing. See `docs/foundations/gaia-lang/package.md`.
+
 ## Summary
 
 Rewrite the Gaia Lang and CLI foundation docs to reflect the current Python-native

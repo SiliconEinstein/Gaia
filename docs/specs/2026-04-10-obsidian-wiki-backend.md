@@ -4,6 +4,8 @@
 >
 > **Date:** 2026-04-10
 >
+> **Note (2026-04-18):** References to "review sidecar" in this spec are outdated. Since gaia-lang 0.4.2, priors are assigned via `priors.py` and inline `reason+prior` pairing. See `docs/foundations/gaia-lang/package.md`.
+>
 > **Depends on:** [gaia render command](../plans/2026-04-09-gaia-render-command.md), [hole-fills design](2026-04-08-gaia-lang-hole-fills-design.md)
 >
 > **Inspired by:** [Karpathy LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), [nvk/llm-wiki](https://github.com/nvk/llm-wiki), [Graphify](https://github.com/safishamsi/graphify)
