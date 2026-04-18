@@ -325,6 +325,27 @@ compose(
 
 **编译**：编译为 `CompositeStrategy`，`sub_strategies` 引用子 Strategy 的稳定 ID。
 
+### 3.7 Provenance and references
+
+v6.0 的主路径是把已有科学文献或当前研究结果 formalize 成可推理的 Gaia epistemic graph。它不引入第二套 citation / provenance 模型，而是复用 Gaia 现有的 references and provenance pipeline。
+
+`Claim.content` 和所有 warrant 文本都应该进入现有 refs resolver。warrant 文本包括 `derive(..., reason=...)`、`observe(..., reason=...)`、`@compute(..., reason=...)`、relation 的 `reason=...` 和 composition 的 `reason=...`。解析成功的 citation refs 与 referenced claims 写入既有 provenance metadata，例如 `metadata.gaia.provenance.cited_refs` 和 `metadata.gaia.provenance.referenced_claims`。
+
+```python
+uv_data = Claim(
+    "Measured blackbody spectrum deviates from Rayleigh-Jeans law [@Planck1901]."
+)
+
+observe(
+    conclusion=uv_data,
+    context=[lab, spectrometer],
+    reason="Figure 2 reports systematic deviation at high frequency [@Planck1901].",
+    prior=0.95,
+)
+```
+
+跨包和 imported claim 的 provenance 仍遵循现有 owner boundary：consumer package 可以引用 foreign claim，但不能把本地 citation 写回 foreign node。Bridge reason 可以被 validate；是否保留为 bridge-local provenance 是后续生态层问题，不改变 Gaia IR。
+
 ---
 
 ## 4. Warrant Review
@@ -528,6 +549,12 @@ allow_holes = false           # 不允许 structural hole
 ```bash
 gaia check --gate   # 检查是否满足质量标准
 ```
+
+### 6.6 Deferred: inquiry trace
+
+`gaia check --inquiry` 展示的是当前 epistemic graph 的状态：哪些导出 Claim 已经有 warrant，哪些 warrant 还没有 review，哪些 Claim 仍是 structural hole。它不是完整 discovery-history log。
+
+Timeline、failed hypotheses、experiment planning、hypothesis revision、lab-notebook style notes、package-version evolution 等 inquiry trace 功能明确不在 v6.0 范围内。未来的 inquiry trace 层可以引用 Claim / Strategy / Operator 的 stable ID，但不应改变本文定义的 Gaia IR contract，也不应把历史过程误编译成 belief graph 里的 probabilistic premise。
 
 ---
 
