@@ -29,12 +29,20 @@
 ### 2.1 类型层次
 
 ```
-Knowledge               ← 纯文本背景知识，无概率，不进入推理图
-├── Setting             ← 定义、环境条件、常量（无概率，taken as given）
-├── Claim               ← 命题（有 prior，参与 BP）
-│   └── 用户自定义子类   ← 参数化领域类型（如 Temperature, InfoTransfer）
-└── Question            ← 开放探究（标记未解决问题，不是 Claim）
+Knowledge                  ← 纯文本背景知识，无概率，不进入推理图
+├── Setting                ← 定义、环境条件、常量（无概率，taken as given）
+├── Claim                  ← 命题（有 prior，参与 BP）
+│   ├── Observation        ← 经验观测（由 observe() 创建，warrant = 方法论）
+│   ├── Theory             ← 全称命题（derive 的起点，生成 prediction）
+│   └── 用户自定义子类     ← 参数化领域类型（如 Temperature, InfoTransfer）
+└── Question               ← 开放探究（标记未解决问题，不是 Claim）
 ```
+
+Observation 是 Claim 的子类：它有 prior（测量可靠性），参与 BP，但有独特的创建约束——只能由 `observe()` 创建，warrant 必须是方法论（仪器、实验设计、重复性等）。
+
+Theory 是 Claim 的子类：它有 prior（理论可信度），参与 BP，通常是参数化的全称命题，在推理图中作为 derive 的起点生成 prediction。从刚提出的假说（prior=0.5）到确认百年的定律（prior=0.999）都用 Theory——区别在 prior 值和 induction 证据的厚度，不在类型。Hypothesis、law、principle 等不设为独立类型——它们是 Theory 的不同成熟阶段。
+
+其余角色（prediction、fact、judgment 等）不设为独立类型——它们是 Claim 在推理图中扮演的角色，由拓扑位置决定。
 
 ### 2.2 Knowledge 基类
 
