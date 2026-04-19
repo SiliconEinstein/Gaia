@@ -103,18 +103,18 @@ DZ constructs Gaia IR programmatically via `CollectedPackage` + `compile_package
 
 DZ nodes have both discrete status (`proven`/`refuted`/`unverified`) and continuous belief. Proven/refuted nodes are locked — BP cannot change them.
 
-**Why this matters for Gaia:** Some claims are definitively established (mathematical theorems, replicated experiments). Gaia currently treats all claims as probabilistic. v6 could support a `locked: bool` flag on Claims that prevents BP from updating their posteriors.
+**Why this matters for Gaia:** Some discovery outputs are qualitatively different from heuristic guesses: a Lean proof should be treated differently from an LLM plausibility judgment. But this should be handled by review/inference policy, not by changing the Claim type.
 
-**v6 implication:** Add `locked` metadata to Knowledge nodes. Locked nodes participate in BP as evidence but their beliefs are fixed.
+**v6 implication:** Do not add a general `locked` Claim state to v6 core. If a verifier establishes a theorem or exact refutation, the review layer can assign the appropriate prior/parameterization policy while the persisted graph remains ordinary Claim + support/relation structure.
 
 ### 4. Module Provenance on Edges
 
 Every DZ hyperedge records which module (`PLAUSIBLE`/`EXPERIMENT`/`LEAN`) produced it. This enables confidence differentiation: formal proofs get higher confidence than heuristic reasoning.
 
-**Why this matters for Gaia:** Gaia's Action types (derive/observe/compute/relate) already encode this, but it's not always preserved in IR metadata.
+**Why this matters for Gaia:** Gaia's user-facing support wrappers (`predicted_from`, `observed_from`, `compute`, relation wrappers) encode this intent at authoring time. Inquiry/review tools should be able to reconstruct enough traceability from existing Strategy/Operator ids, source locations, and provenance.
 
-**v6 implication:** Ensure Action type and provenance are first-class metadata on Strategy nodes in IR, not just DSL annotations. This enables:
-- Filtering InquiryState by evidence type ("show only experimentally verified claims")
+**v6 implication:** Do not introduce Action IR. Preserve source traceability and provenance for generated Strategy/Operator objects so tools can support:
+- InquiryState filtering by evidence type ("show only experimentally verified claims")
 - Confidence calibration by reasoning type
 - Audit trails for warrant review
 
@@ -164,7 +164,7 @@ Goal: quantum_hyp [posterior=0.85]
 
 This makes InquiryState **actionable** — it tells the user what to do next, not just what's incomplete.
 
-**Implementation:** Add `verification_tier` metadata to Claims and `expected_gain` to Strategies. InquiryState computes marginal belief gains and ranks verification tasks.
+**Implementation:** Keep bridge tiers in the inquiry/tooling layer, not Gaia Lang core. InquiryState can compute marginal belief gains from the existing Claim + Strategy/Operator graph and display a verification plan without adding new Claim fields.
 
 ### 2. Claim Type Classification → Verification Strategy
 
@@ -176,24 +176,12 @@ DZ classifies claims into three types, each with a default verification method:
 | `structural` | Lean formal proof | "Every finite group has a Sylow p-subgroup" |
 | `heuristic` | LLM judge evaluation | "This analogy between thermodynamics and information theory is plausible" |
 
-**v6 proposal:** Add `claim_type` metadata to Claims. This guides:
-- Reviewers on what verification standard to apply
-- Automated tools on which verification path to attempt
-- InquiryState on what evidence is still needed
+**v6 implication:** Treat this as verification routing, not Claim ontology. A claim should not become a `QuantitativeClaim` or `StructuralClaim` subclass merely because one tool can verify it a certain way. The same stable Claim may later be supported by computation, citation, experiment, and formal proof.
 
-```python
-class QuantitativeClaim(Claim):
-    """A claim that can be verified by computation."""
-    claim_type: Literal["quantitative"] = "quantitative"
-
-class StructuralClaim(Claim):
-    """A claim that requires formal proof."""
-    claim_type: Literal["structural"] = "structural"
-
-class HeuristicClaim(Claim):
-    """A plausible claim without definitive verification."""
-    claim_type: Literal["heuristic"] = "heuristic"
-```
+For v6.0, this should remain outside Gaia Lang core:
+- discovery tools may classify generated candidates before choosing a verifier;
+- review tools may display the method used by a support edge;
+- the persisted Gaia graph remains ordinary Claim + support/relation structure.
 
 ### 3. Critical Gap Analysis — Structural Bottleneck Detection
 
@@ -301,10 +289,10 @@ This positions Gaia IR as the "LLVM IR of scientific reasoning."
 
 ### High Priority (Should Be in v6.0)
 
-1. **Add `locked` metadata to Claims** — for definitively established facts that BP should not update
-2. **Preserve Action type in Strategy metadata** — ensure provenance is traceable in IR
+1. **Keep Claim identity stable** — no `Hypothesis`/`Observation`/`QuantitativeClaim` subtype split for roles or verification routes
+2. **Preserve source traceability for generated Strategy/Operator objects** — enough for review/inquiry tools to reconstruct which wrapper created each warrant
 3. **Formalize runtime compilation API** — document `CollectedPackage` + `compile_package_artifact()` as a public API for programmatic package construction
-4. **Add `claim_type` metadata** — guide verification strategy selection
+4. **Support source-first exploration sugar** — e.g. `h.predict(...)` creates a new Claim and records the corresponding support edge
 
 ### Medium Priority (v6.1 or Later)
 
