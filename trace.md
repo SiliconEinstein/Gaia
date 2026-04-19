@@ -57,3 +57,10 @@ Fix in progress: (1) enforce Mode A direction (law must be premise of support, n
 - Key simplification: removed Theory as a type. Final hierarchy is 5 types only: Knowledge, Setting, Claim, Observation, Question.
 - First-principles insight: Claim subclass = predicate schema, instance = ground formula. Python class/instance IS predicate logic. No extra concepts needed.
 - Action (derive/observe/compute/relate/compose) = inference rules. Separate from predicates.
+
+### EARS — Progress (2026-04-19 10:30)
+<!-- concepts: gaia-lang-v6, knowledge-type-system, scientific-argumentation -->
+- Incorporated Codex PR comments: stable Claim (no Observation subtype), match/contradict for prediction-observation comparison.
+- Final type hierarchy: 4 types (Knowledge, Setting, Claim, Question). Roles (hypothesis, observation, theory, prediction) determined by support records, not type labels.
+- Added match()/contradict() alongside equivalence()/contradiction() — same IR Operators, different semantic intent (prediction-observation vs general logic).
+- Reviewed gaia-discovery insights; wrote docs/ideas/gaia-discovery-insights.md covering bridge plans, claim type classification, critical gap analysis, incremental BP.
