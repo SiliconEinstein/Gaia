@@ -75,18 +75,24 @@ class Knowledge:
     metadata: dict[str, Any] = {}
 ```
 
-Package context 和 module context 通过命名约定获取——编译器识别名为 `context` 的 Knowledge 变量。`__init__.py` 中的 `context` 是包级 context，各模块中的 `context` 是模块级 context：
+Package context 和 module context 通过专用类型定义——`PackageContext` 和 `ModuleContext` 是 Knowledge 的子类，编译器按类型识别：
 
 ```python
 # __init__.py — 包级 context
-context = Knowledge("Planck's analysis of blackbody radiation spectrum (1900). "
-                    "Resolving the ultraviolet catastrophe.")
+from gaia.lang import PackageContext
+
+context = PackageContext(
+    "Planck's analysis of blackbody radiation spectrum (1900). "
+    "Resolving the ultraviolet catastrophe by introducing energy quantization."
+)
 
 # observations.py — 模块级 context
-context = Knowledge("Experimental measurements of blackbody spectrum.")
+from gaia.lang import ModuleContext
+
+context = ModuleContext("Experimental measurements of blackbody spectrum.")
 ```
 
-`context` 是一个普通的 Knowledge 实例，可以携带 metadata，和其他 Knowledge 用法一致。
+编译器校验：一个包只能有一个 PackageContext（在 `__init__.py`），一个模块只能有一个 ModuleContext。变量名任意，编译器按类型识别。
 
 `gaia check` 输出时自动展示 context 层级：
 
