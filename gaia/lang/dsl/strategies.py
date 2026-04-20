@@ -326,7 +326,7 @@ def likelihood_from(
     assumptions: list[Knowledge] | None = None,
     score=None,
     score_correctness: Knowledge | None = None,
-    module_ref: str,
+    module_ref: str | None = None,
     query: str | dict | None = None,
     input_bindings: dict[str, Knowledge] | None = None,
     reason: ReasonInput = "",
@@ -336,8 +336,17 @@ def likelihood_from(
     if isinstance(score, ComputeResult):
         score_correctness = score.correctness
         score = score.output
+    if score is None:
+        raise ValueError("likelihood_from() requires a score or ComputeResult")
+    if isinstance(score, LikelihoodScore):
+        module_ref = module_ref or score.module_ref
+        query = query if query is not None else score.query
+    if module_ref is None:
+        raise ValueError("likelihood_from() requires module_ref unless score is LikelihoodScore")
     if score_correctness is None:
-        raise ValueError("likelihood_from() requires score_correctness unless score is ComputeResult")
+        raise ValueError(
+            "likelihood_from() requires score_correctness unless score is ComputeResult"
+        )
 
     if input_bindings is None:
         input_bindings = {"target": target}
