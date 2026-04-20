@@ -5,10 +5,18 @@ from __future__ import annotations
 import pytest
 
 from gaia.bp import FactorType, lower_local_graph, lower_operator
-from gaia.bp.factor_graph import FactorGraph
+from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph
 from gaia.bp.exact import exact_inference
 from gaia.bp.lowering import fold_composite_to_cpt, merge_factor_graphs
-from gaia.ir import Knowledge, Operator, Strategy, CompositeStrategy, LocalCanonicalGraph
+from gaia.ir import (
+    CompositeStrategy,
+    Knowledge,
+    LikelihoodScoreRecord,
+    LocalCanonicalGraph,
+    ModuleUseMethod,
+    Operator,
+    Strategy,
+)
 
 NS, PKG = "github", "lowertest"
 
@@ -126,6 +134,123 @@ def test_noisy_and_strategy_lowering():
     fts = [f.factor_type for f in fg.factors]
     assert FactorType.CONJUNCTION in fts
     assert FactorType.SOFT_ENTAILMENT in fts
+
+
+def test_likelihood_log_lr_lowers_to_gated_conditional():
+    target = "github:lowertest::target"
+    gate = "github:lowertest::score_correct"
+    strategy = Strategy(
+        scope="local",
+        type="likelihood",
+        premises=[gate],
+        conclusion=target,
+        method=ModuleUseMethod(
+            module_ref="gaia.std.likelihood.two_binomial_ab_test@v1",
+            input_bindings={"target": target},
+            output_bindings={"score": "score:positive"},
+            premise_bindings={"score_correct": gate},
+        ),
+    )
+    graph = _lg(
+        knowledges=[
+            Knowledge(id=gate, type="claim", content="Score was computed correctly."),
+            Knowledge(id=target, type="claim", content="Treatment B is better."),
+        ],
+        strategies=[strategy],
+        likelihood_scores=[
+            LikelihoodScoreRecord(
+                score_id="score:positive",
+                module_ref="gaia.std.likelihood.two_binomial_ab_test@v1",
+                target=target,
+                score_type="log_lr",
+                value=1.0,
+            )
+        ],
+    )
+
+    fg = lower_local_graph(graph, node_priors={gate: 1.0 - CROMWELL_EPS, target: 0.5})
+    like_factor = next(f for f in fg.factors if f.factor_id.startswith("like_loglr"))
+    assert like_factor.factor_type == FactorType.CONDITIONAL
+    assert like_factor.cpt[0] == pytest.approx(0.5)
+    assert like_factor.cpt[1] > 0.73
+
+    beliefs, _ = exact_inference(fg)
+    assert beliefs[target] > 0.73
+
+
+def test_likelihood_log_lr_is_neutral_when_gate_is_false():
+    target = "github:lowertest::target"
+    gate = "github:lowertest::score_correct"
+    strategy = Strategy(
+        scope="local",
+        type="likelihood",
+        premises=[gate],
+        conclusion=target,
+        method=ModuleUseMethod(
+            module_ref="gaia.std.likelihood.two_binomial_ab_test@v1",
+            input_bindings={"target": target},
+            output_bindings={"score": "score:positive"},
+            premise_bindings={"score_correct": gate},
+        ),
+    )
+    graph = _lg(
+        knowledges=[
+            Knowledge(id=gate, type="claim", content="Score was computed correctly."),
+            Knowledge(id=target, type="claim", content="Treatment B is better."),
+        ],
+        strategies=[strategy],
+        likelihood_scores=[
+            LikelihoodScoreRecord(
+                score_id="score:positive",
+                module_ref="gaia.std.likelihood.two_binomial_ab_test@v1",
+                target=target,
+                score_type="log_lr",
+                value=1.0,
+            )
+        ],
+    )
+
+    fg = lower_local_graph(graph, node_priors={gate: CROMWELL_EPS, target: 0.5})
+    beliefs, _ = exact_inference(fg)
+    assert beliefs[target] == pytest.approx(0.5, abs=2e-3)
+
+
+def test_negative_likelihood_log_lr_lowers_without_soft_entailment_constraint():
+    target = "github:lowertest::target"
+    gate = "github:lowertest::score_correct"
+    strategy = Strategy(
+        scope="local",
+        type="likelihood",
+        premises=[gate],
+        conclusion=target,
+        method=ModuleUseMethod(
+            module_ref="gaia.std.likelihood.binomial_model@v1",
+            input_bindings={"target": target},
+            output_bindings={"score": "score:negative"},
+            premise_bindings={"score_correct": gate},
+        ),
+    )
+    graph = _lg(
+        knowledges=[
+            Knowledge(id=gate, type="claim", content="Score was computed correctly."),
+            Knowledge(id=target, type="claim", content="The 3:1 model fits."),
+        ],
+        strategies=[strategy],
+        likelihood_scores=[
+            LikelihoodScoreRecord(
+                score_id="score:negative",
+                module_ref="gaia.std.likelihood.binomial_model@v1",
+                target=target,
+                score_type="log_lr",
+                value=-1.0,
+            )
+        ],
+    )
+
+    fg = lower_local_graph(graph, node_priors={gate: 1.0 - CROMWELL_EPS, target: 0.5})
+    like_factor = next(f for f in fg.factors if f.factor_id.startswith("like_loglr"))
+    assert like_factor.factor_type == FactorType.CONDITIONAL
+    assert like_factor.cpt[1] < 0.27
 
 
 def test_infer_conditional_lowering():

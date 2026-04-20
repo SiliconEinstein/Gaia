@@ -7,6 +7,7 @@ IR: docs/foundations/gaia-ir/02-gaia-ir.md (Operator variables + conclusion)
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Sequence
@@ -21,6 +22,14 @@ def _cromwell_clamp(value: float, label: str = "") -> float:
     if clamped != value and label:
         logger.debug("Cromwell clamp: %s %.6g -> %.6g", label, value, clamped)
     return clamped
+
+
+def _probability_from_log_odds(log_odds: float) -> float:
+    if log_odds >= 0.0:
+        z = math.exp(-log_odds)
+        return 1.0 / (1.0 + z)
+    z = math.exp(log_odds)
+    return z / (1.0 + z)
 
 
 class FactorType(Enum):
@@ -92,6 +101,19 @@ class FactorGraph:
         odds = pi / (1.0 - pi) * likelihood_ratio
         new_pi = odds / (1.0 + odds)
         self.variables[var_id] = _cromwell_clamp(new_pi, label=f"likelihood '{var_id}'")
+
+    def add_log_likelihood(self, var_id: str, log_likelihood_ratio: float) -> None:
+        """Soft evidence: add a log likelihood ratio to a variable's log odds."""
+        if var_id not in self.variables:
+            raise KeyError(f"Variable '{var_id}' not registered.")
+        if not math.isfinite(log_likelihood_ratio):
+            raise ValueError(
+                f"log_likelihood_ratio must be finite, got {log_likelihood_ratio}."
+            )
+        pi = self.variables[var_id]
+        log_odds = math.log(pi) - math.log1p(-pi) + log_likelihood_ratio
+        new_pi = _probability_from_log_odds(log_odds)
+        self.variables[var_id] = _cromwell_clamp(new_pi, label=f"log likelihood '{var_id}'")
 
     def add_factor(
         self,

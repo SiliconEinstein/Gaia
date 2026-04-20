@@ -444,6 +444,7 @@ def strategy_cpt(
         claim_ids=claim_ids,
         namespace=namespace,
         package_name=package_name,
+        likelihood_scores={},
     )
 
     tensors = [factor_to_tensor(f) for f in mini.factors]

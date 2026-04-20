@@ -1,5 +1,7 @@
 """Unit tests for gaia.bp.factor_graph — graph construction and validation."""
 
+import math
+
 import pytest
 
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
@@ -44,6 +46,13 @@ def test_add_likelihood():
     original = fg.variables["A"]
     fg.add_likelihood("A", 3.0)
     assert fg.variables["A"] > original
+
+
+def test_add_log_likelihood():
+    fg = FactorGraph()
+    fg.add_variable("A", 0.5)
+    fg.add_log_likelihood("A", math.log(3.0))
+    assert fg.variables["A"] == pytest.approx(0.75)
 
 
 # ── Factor construction ──

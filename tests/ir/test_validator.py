@@ -10,6 +10,7 @@ from gaia.ir import (
     CompositeStrategy,
     FormalStrategy,
     FormalExpr,
+    LikelihoodScoreRecord,
     LocalCanonicalGraph,
 )
 from gaia.ir.validator import (
@@ -470,6 +471,7 @@ class TestStrategyValidation:
         assert any("background" in w for w in r.warnings)
 
     def test_valid_likelihood_module_method(self):
+        module_ref = "gaia.std.likelihood.two_binomial_ab_test@v1"
         g = _local_graph(
             knowledges=[
                 _claim("github:test::counts"),
@@ -488,7 +490,7 @@ class TestStrategyValidation:
                     ],
                     conclusion="github:test::target",
                     method=ModuleUseMethod(
-                        module_ref="gaia.std.likelihood.two_binomial_ab_test@v1",
+                        module_ref=module_ref,
                         input_bindings={
                             "counts": "github:test::counts",
                             "target": "github:test::target",
@@ -502,9 +504,43 @@ class TestStrategyValidation:
                     ),
                 )
             ],
+            likelihood_scores=[
+                LikelihoodScoreRecord(
+                    score_id="score:ab",
+                    module_ref=module_ref,
+                    target="github:test::target",
+                    score_type="log_lr",
+                    value=1.73,
+                )
+            ],
         )
         r = validate_local_graph(g)
         assert r.valid
+
+    def test_likelihood_method_requires_registered_score(self):
+        g = _local_graph(
+            knowledges=[
+                _claim("github:test::score_correct"),
+                _claim("github:test::target"),
+            ],
+            strategies=[
+                Strategy(
+                    scope="local",
+                    type="likelihood",
+                    premises=["github:test::score_correct"],
+                    conclusion="github:test::target",
+                    method=ModuleUseMethod(
+                        module_ref="gaia.std.likelihood.two_binomial_ab_test@v1",
+                        input_bindings={"target": "github:test::target"},
+                        output_bindings={"score": "score:missing"},
+                        premise_bindings={"score_correct": "github:test::score_correct"},
+                    ),
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("likelihood score 'score:missing' not found" in e for e in r.errors)
 
     def test_likelihood_requires_module_use_method(self):
         g = _local_graph(

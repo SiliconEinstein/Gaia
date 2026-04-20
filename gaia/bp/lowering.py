@@ -5,6 +5,7 @@ Spec: docs/foundations/gaia-ir/07-lowering.md
 
 from __future__ import annotations
 
+import math
 from dataclasses import replace
 
 from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
@@ -16,6 +17,8 @@ from gaia.ir.strategy import (
     _FORMAL_STRATEGY_TYPES,
     CompositeStrategy,
     FormalStrategy,
+    LikelihoodScoreRecord,
+    ModuleUseMethod,
     Strategy,
     StrategyType,
 )
@@ -57,6 +60,14 @@ _OPERATOR_MAP: dict[OperatorType, FactorType] = {
 def _next_fid(prefix: str, i: list[int]) -> str:
     i[0] += 1
     return f"{prefix}_f{i[0]}"
+
+
+def _probability_from_log_odds(log_odds: float) -> float:
+    if log_odds >= 0.0:
+        z = math.exp(-log_odds)
+        return 1.0 / (1.0 + z)
+    z = math.exp(log_odds)
+    return z / (1.0 + z)
 
 
 def lower_local_graph(
@@ -105,6 +116,7 @@ def lower_local_graph(
         if k.id and k.metadata and "prior" in k.metadata
     }
     strat_params = strategy_conditional_params or {}
+    likelihood_scores = {score.score_id: score for score in canonical.likelihood_scores}
     fg = FactorGraph()
     ctr = [0]
 
@@ -156,6 +168,7 @@ def lower_local_graph(
             claim_ids,
             canonical.namespace,
             canonical.package_name,
+            likelihood_scores,
             seen_strategies=seen_strategies,
         )
 
@@ -220,6 +233,7 @@ def _lower_strategy(
     claim_ids: set[str],
     namespace: str,
     package_name: str,
+    likelihood_scores: dict[str, LikelihoodScoreRecord],
     seen_strategies: set[str] | None = None,
 ) -> None:
     # Dedup: when ``seen_strategies`` is provided (lower_local_graph
@@ -252,6 +266,7 @@ def _lower_strategy(
                 claim_ids,
                 namespace,
                 package_name,
+                likelihood_scores,
                 seen_strategies=seen_strategies,
             )
         return
@@ -392,6 +407,13 @@ def _lower_strategy(
             )
         return
 
+    if s.type == StrategyType.COMPUTE:
+        return
+
+    if s.type == StrategyType.LIKELIHOOD:
+        _lower_likelihood_strategy(fg, s, likelihood_scores, ctr)
+        return
+
     # Named leaf strategy (not yet formalized into FormalStrategy) — auto-formalize.
     # Supported: deduction, elimination, mathematical_induction, case_analysis,
     #            abduction, analogy, extrapolation  (all entries in _FORMAL_STRATEGY_TYPES).
@@ -437,6 +459,7 @@ def _lower_strategy(
             claim_ids,
             namespace,
             package_name,
+            likelihood_scores,
             seen_strategies=seen_strategies,
         )
         return
@@ -445,6 +468,70 @@ def _lower_strategy(
         f"Leaf strategy type {s.type!r} is deferred in Gaia IR core "
         "(docs/foundations/gaia-ir/02-gaia-ir.md §3.3). "
         "Supply a pre-formalized FormalStrategy, or use infer/noisy_and."
+    )
+
+
+def _lower_likelihood_strategy(
+    fg: FactorGraph,
+    strategy: Strategy,
+    likelihood_scores: dict[str, LikelihoodScoreRecord],
+    ctr: list[int],
+) -> None:
+    method = strategy.method
+    if not isinstance(method, ModuleUseMethod):
+        raise ValueError(f"likelihood strategy {strategy.strategy_id}: requires ModuleUseMethod")
+    score_ref = method.output_bindings.get("score")
+    if not score_ref:
+        raise ValueError(
+            f"likelihood strategy {strategy.strategy_id}: missing output binding 'score'"
+        )
+    score = likelihood_scores.get(score_ref)
+    if score is None:
+        raise ValueError(
+            f"likelihood strategy {strategy.strategy_id}: score '{score_ref}' not found"
+        )
+    if score.score_type != "log_lr":
+        raise NotImplementedError(
+            f"likelihood strategy {strategy.strategy_id}: only log_lr scores lower to BP"
+        )
+    if score.target != strategy.conclusion:
+        raise ValueError(
+            f"likelihood strategy {strategy.strategy_id}: score target '{score.target}' "
+            f"does not match conclusion '{strategy.conclusion}'"
+        )
+
+    log_lr = float(score.value)
+    if not math.isfinite(log_lr):
+        raise ValueError(
+            f"likelihood strategy {strategy.strategy_id}: log_lr score must be finite"
+        )
+
+    if not strategy.premises:
+        fg.add_log_likelihood(strategy.conclusion, log_lr)
+        return
+
+    if len(strategy.premises) == 1:
+        gate = strategy.premises[0]
+    else:
+        gate = f"_m_likelihood_{strategy.strategy_id}"
+        fg.add_variable(gate, 0.5)
+        fg.add_factor(
+            _next_fid("like_gate", ctr),
+            FactorType.CONJUNCTION,
+            strategy.premises,
+            gate,
+        )
+
+    # Conditional row 0 is neutral when the warrant/data gate is false.
+    # Row 1 has odds exp(log_lr), so when the gate is true the factor adds
+    # exactly log_lr to the target's log-odds.
+    p_when_gate_true = _probability_from_log_odds(log_lr)
+    fg.add_factor(
+        _next_fid("like_loglr", ctr),
+        FactorType.CONDITIONAL,
+        [gate],
+        strategy.conclusion,
+        cpt=[0.5, p_when_gate_true],
     )
 
 

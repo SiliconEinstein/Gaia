@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from gaia.ir.knowledge import Knowledge, KnowledgeType, is_qid
 from gaia.ir.operator import Operator, OperatorType
 from gaia.ir.strategy import Strategy, CompositeStrategy, FormalStrategy, StrategyType
-from gaia.ir.strategy import ComputeMethod, ModuleUseMethod
+from gaia.ir.strategy import ComputeMethod, LikelihoodScoreRecord, ModuleUseMethod
 from gaia.ir.graphs import LocalCanonicalGraph, _canonical_json
 from gaia.ir.parameterization import (
     CROMWELL_EPS,
@@ -327,6 +327,66 @@ def _validate_strategy_method(
                 )
 
 
+def _validate_likelihood_scores(
+    scores: list[LikelihoodScoreRecord],
+    knowledge_lookup: dict[str, Knowledge],
+    result: ValidationResult,
+) -> dict[str, LikelihoodScoreRecord]:
+    lookup: dict[str, LikelihoodScoreRecord] = {}
+    for score in scores:
+        if score.score_id in lookup:
+            result.error(f"LikelihoodScore '{score.score_id}': duplicate score_id")
+        lookup[score.score_id] = score
+        if score.target not in knowledge_lookup:
+            result.error(
+                f"LikelihoodScore '{score.score_id}': target '{score.target}' not found in graph"
+            )
+        elif knowledge_lookup[score.target].type != KnowledgeType.CLAIM:
+            result.error(
+                f"LikelihoodScore '{score.score_id}': target '{score.target}' must be claim"
+            )
+        if score.score_type == "log_lr":
+            if isinstance(score.value, bool) or not isinstance(score.value, (int, float)):
+                result.error(
+                    f"LikelihoodScore '{score.score_id}': log_lr value must be numeric"
+                )
+            elif not math.isfinite(float(score.value)):
+                result.error(f"LikelihoodScore '{score.score_id}': log_lr value must be finite")
+    return lookup
+
+
+def _validate_likelihood_strategy_scores(
+    strategies: list[Strategy],
+    score_lookup: dict[str, LikelihoodScoreRecord],
+    result: ValidationResult,
+) -> None:
+    for strategy in strategies:
+        if strategy.type != StrategyType.LIKELIHOOD or not isinstance(
+            strategy.method, ModuleUseMethod
+        ):
+            continue
+        sid = strategy.strategy_id or "<no-id>"
+        score_ref = strategy.method.output_bindings.get("score")
+        if not score_ref:
+            result.error(f"Strategy '{sid}': likelihood method missing output binding 'score'")
+            continue
+        score = score_lookup.get(score_ref)
+        if score is None:
+            result.error(f"Strategy '{sid}': likelihood score '{score_ref}' not found")
+            continue
+        if score.module_ref != strategy.method.module_ref:
+            result.error(
+                f"Strategy '{sid}': likelihood score '{score_ref}' module_ref "
+                f"'{score.module_ref}' does not match method module_ref "
+                f"'{strategy.method.module_ref}'"
+            )
+        if strategy.conclusion and score.target != strategy.conclusion:
+            result.error(
+                f"Strategy '{sid}': likelihood score '{score_ref}' target "
+                f"'{score.target}' does not match strategy conclusion '{strategy.conclusion}'"
+            )
+
+
 def _validate_composite_sub_strategies(
     strategy: CompositeStrategy,
     strategy_lookup: dict[str, Strategy] | None,
@@ -617,15 +677,22 @@ def validate_local_graph(graph: LocalCanonicalGraph) -> ValidationResult:
         graph_namespace=graph.namespace,
         graph_package_name=graph.package_name,
     )
+    score_lookup = _validate_likelihood_scores(graph.likelihood_scores, knowledge_lookup, result)
     _validate_operators(graph.operators, knowledge_lookup, "local", result, top_level=True)
     _validate_strategies(graph.strategies, graph.operators, knowledge_lookup, "local", result)
+    _validate_likelihood_strategy_scores(graph.strategies, score_lookup, result)
     _validate_scope_consistency(
         knowledge_lookup, graph.operators, graph.strategies, "local", result
     )
 
     # hash consistency
     if graph.ir_hash is not None:
-        recomputed = _canonical_json(graph.knowledges, graph.operators, graph.strategies)
+        recomputed = _canonical_json(
+            graph.knowledges,
+            graph.operators,
+            graph.strategies,
+            graph.likelihood_scores,
+        )
         import hashlib
 
         expected = f"sha256:{hashlib.sha256(recomputed.encode()).hexdigest()}"

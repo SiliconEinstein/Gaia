@@ -75,6 +75,10 @@ def test_standard_score_flows_through_compute_and_likelihood_surface():
         )
 
     compiled = compile_package_artifact(pkg)
+    assert len(compiled.graph.likelihood_scores) == 1
+    assert compiled.graph.likelihood_scores[0].score_id == score.score_id
+    assert compiled.graph.likelihood_scores[0].value == score.value
+
     strategies = {s.type: s for s in compiled.graph.strategies}
     assert strategies["compute"].method.output == score.score_id
     assert strategies["likelihood"].method.module_ref == TWO_BINOMIAL_AB_TEST_REF

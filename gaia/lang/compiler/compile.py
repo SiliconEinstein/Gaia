@@ -13,6 +13,7 @@ from gaia.ir import (
     FormalExpr as IrFormalExpr,
     FormalStrategy as IrFormalStrategy,
     Knowledge as IrKnowledge,
+    LikelihoodScoreRecord as IrLikelihoodScoreRecord,
     LocalCanonicalGraph,
     Operator as IrOperator,
     Parameter as IrParameter,
@@ -138,6 +139,37 @@ def _value_ref(value: Any, knowledge_map: dict[int, str]) -> str:
     if isinstance(value, str):
         return value
     raise ValueError(f"Unsupported value reference type: {type(value)!r}")
+
+
+def _value_knowledge_items(value: Any) -> list[Knowledge]:
+    if isinstance(value, ComputeResult):
+        return _value_knowledge_items(value.output)
+    if isinstance(value, LikelihoodScore):
+        return [value.target]
+    if isinstance(value, Knowledge):
+        return [value]
+    return []
+
+
+def _likelihood_score_record(
+    value: Any,
+    knowledge_map: dict[int, str],
+) -> IrLikelihoodScoreRecord | None:
+    if isinstance(value, ComputeResult):
+        return _likelihood_score_record(value.output, knowledge_map)
+    if not isinstance(value, LikelihoodScore):
+        return None
+    if value.score_id is None:
+        raise ValueError("LikelihoodScore is missing score_id")
+    return IrLikelihoodScoreRecord(
+        score_id=value.score_id,
+        module_ref=value.module_ref,
+        target=knowledge_map[id(value.target)],
+        score_type=value.score_type,
+        value=value.value,
+        query=value.query,
+        rationale=value.rationale,
+    )
 
 
 def _knowledge_binding_map(
@@ -354,17 +386,17 @@ def compile_package_artifact(
             register_knowledge(assertion)
         if strategy.method:
             for value in strategy.method.get("input_bindings", {}).values():
-                if isinstance(value, Knowledge):
-                    register_knowledge(value)
+                for item in _value_knowledge_items(value):
+                    register_knowledge(item)
             for value in strategy.method.get("premise_bindings", {}).values():
-                if isinstance(value, Knowledge):
-                    register_knowledge(value)
+                for item in _value_knowledge_items(value):
+                    register_knowledge(item)
             output = strategy.method.get("output")
-            if isinstance(output, Knowledge):
-                register_knowledge(output)
+            for item in _value_knowledge_items(output):
+                register_knowledge(item)
             for value in strategy.method.get("output_bindings", {}).values():
-                if isinstance(value, Knowledge):
-                    register_knowledge(value)
+                for item in _value_knowledge_items(value):
+                    register_knowledge(item)
         # composition_warrant is metadata-only, not a BP variable.
         # Do NOT register it as knowledge — it has no prior, no lowering,
         # no factor graph participation. Render tools will read it
@@ -488,6 +520,25 @@ def compile_package_artifact(
         ir_strategies.append(compile_strategy(s))
         emitted_strategies.add(strategy_key)
 
+    likelihood_scores: list[IrLikelihoodScoreRecord] = []
+    seen_score_ids: set[str] = set()
+
+    def collect_likelihood_scores(s) -> None:
+        if s.method:
+            values = [s.method.get("output")]
+            values.extend(s.method.get("output_bindings", {}).values())
+            for value in values:
+                record = _likelihood_score_record(value, knowledge_map)
+                if record is None or record.score_id in seen_score_ids:
+                    continue
+                likelihood_scores.append(record)
+                seen_score_ids.add(record.score_id)
+        for sub_strategy in s.sub_strategies:
+            collect_likelihood_scores(sub_strategy)
+
+    for s in pkg.strategies:
+        collect_likelihood_scores(s)
+
     # Build label-to-QID table from the full knowledge closure (local + imported foreign nodes).
     label_to_id: dict[str, str] = {}
     for k in knowledge_nodes:
@@ -599,6 +650,7 @@ def compile_package_artifact(
         knowledges=[*ir_knowledges, *generated_knowledges],
         operators=ir_operators,
         strategies=ir_strategies,
+        likelihood_scores=likelihood_scores,
         module_order=module_order,
         module_titles=module_titles if module_titles else None,
     )

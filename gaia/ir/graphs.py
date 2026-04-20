@@ -13,7 +13,7 @@ from pydantic import BaseModel, model_validator
 
 from gaia.ir.knowledge import Knowledge, make_qid
 from gaia.ir.operator import Operator
-from gaia.ir.strategy import CompositeStrategy, FormalStrategy, Strategy
+from gaia.ir.strategy import CompositeStrategy, FormalStrategy, LikelihoodScoreRecord, Strategy
 
 
 def _json_sort_key(value: Any) -> str:
@@ -73,6 +73,7 @@ def _canonical_json(
     knowledges: list[Knowledge],
     operators: list[Operator],
     strategies: list[Strategy],
+    likelihood_scores: list[LikelihoodScoreRecord] | None = None,
 ) -> str:
     """Produce canonical JSON for hashing — independent of insertion order."""
     data = {
@@ -86,6 +87,13 @@ def _canonical_json(
         ),
         "strategies": sorted(
             [_canonicalize_strategy_dump(s.model_dump(mode="json")) for s in strategies],
+            key=_json_sort_key,
+        ),
+        "likelihood_scores": sorted(
+            [
+                score.model_dump(mode="json", exclude_none=True)
+                for score in (likelihood_scores or [])
+            ],
             key=_json_sort_key,
         ),
     }
@@ -106,6 +114,7 @@ class LocalCanonicalGraph(BaseModel):
     knowledges: list[Knowledge]
     operators: list[Operator] = []
     strategies: list[CompositeStrategy | FormalStrategy | Strategy] = []
+    likelihood_scores: list[LikelihoodScoreRecord] = []
     module_order: list[str] | None = None
     module_titles: dict[str, str] | None = None
 
@@ -117,7 +126,12 @@ class LocalCanonicalGraph(BaseModel):
                 k.id = make_qid(self.namespace, self.package_name, k.label)
 
         if self.ir_hash is None:
-            canonical = _canonical_json(self.knowledges, self.operators, self.strategies)
+            canonical = _canonical_json(
+                self.knowledges,
+                self.operators,
+                self.strategies,
+                self.likelihood_scores,
+            )
             digest = hashlib.sha256(canonical.encode()).hexdigest()
             self.ir_hash = f"sha256:{digest}"
         return self
