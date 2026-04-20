@@ -1,6 +1,8 @@
 """Tests for v6 Lang surface scaffolding."""
 
-from gaia.ir import ComputeMethod, ModuleUseMethod
+import pytest
+
+from gaia.ir import ComputeMethod, DeductionMethod, ModuleUseMethod
 from gaia.lang import (
     LikelihoodScore,
     ParameterizedClaim,
@@ -10,6 +12,7 @@ from gaia.lang import (
     context,
     likelihood_from,
     setting,
+    supported_by,
 )
 from gaia.lang.compiler.compile import compile_package_artifact
 from gaia.lang.runtime import ComputeResult
@@ -106,6 +109,40 @@ def test_claim_class_decorator_converts_knowledge_parameters_to_qids():
     assert values["count"] == 10
     assert ir_counted.rendered_content == "Experiment exp_123. reported 10 observations."
     assert ir_counted.metadata["kind"] == "observation"
+
+
+def test_supported_by_compiles_as_v6_deduction_surface():
+    pkg = CollectedPackage("v6_pkg", namespace="github", version="1.0.0")
+    with pkg:
+        observation = claim("The observed transition temperature is close to 1.2 K.")
+        observation.label = "observation"
+        model_fit = claim("The candidate theory predicts 0.96 K for this material.")
+        model_fit.label = "model_fit"
+        conclusion = claim("The candidate theory is predictively supported for this case.")
+        conclusion.label = "conclusion"
+        conclusion.supported_by(
+            inputs=[observation, model_fit],
+            pattern="abduction",
+            reason="The candidate prediction is closer than the baseline prediction.",
+        )
+
+    compiled = compile_package_artifact(pkg)
+    ir_strategy = next(
+        s
+        for s in compiled.graph.strategies
+        if (s.metadata or {}).get("surface_construct") == "supported_by"
+    )
+    assert ir_strategy.type == "deduction"
+    assert ir_strategy.premises == ["github:v6_pkg::observation", "github:v6_pkg::model_fit"]
+    assert ir_strategy.conclusion == "github:v6_pkg::conclusion"
+    assert ir_strategy.metadata["pattern"] == "abduction"
+    assert isinstance(ir_strategy.method, DeductionMethod)
+
+
+def test_supported_by_rejects_empty_inputs():
+    target = claim("A target claim.")
+    with pytest.raises(ValueError, match="requires at least 1 input"):
+        supported_by(target, inputs=[], pattern="induction")
 
 
 def test_compute_and_likelihood_from_compile_to_v6_methods():

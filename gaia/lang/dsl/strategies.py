@@ -88,6 +88,7 @@ def _named_strategy(
     background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
     metadata: dict | None = None,
+    method: dict | None = None,
 ) -> Strategy:
     _validate_step_premises(reason, premises)
     strategy = Strategy(
@@ -97,6 +98,7 @@ def _named_strategy(
         background=background or [],
         reason=reason,
         metadata=deepcopy(metadata) if metadata is not None else {},
+        method=deepcopy(method) if method is not None else None,
     )
     _attach_strategy(conclusion, strategy)
     return strategy
@@ -216,6 +218,39 @@ def support(
         background=background,
         reason=reason,
         metadata=metadata,
+    )
+
+
+def supported_by(
+    conclusion: Knowledge,
+    *,
+    inputs: list[Knowledge],
+    pattern: str = "support",
+    background: list[Knowledge] | None = None,
+    reason: ReasonInput = "",
+) -> Strategy:
+    """v6 support surface: non-empty input Claims support a conclusion Claim.
+
+    ``pattern`` is an author-facing label such as "deduction", "induction", or
+    "abduction"; probability comes from the input claims and downstream
+    likelihood factors, not from this wrapper.
+    """
+    if not inputs:
+        raise ValueError("supported_by() requires at least 1 input")
+    if any(not isinstance(item, Knowledge) for item in inputs):
+        raise TypeError("supported_by() inputs must be Gaia Knowledge objects")
+    if not isinstance(conclusion, Knowledge):
+        raise TypeError("supported_by() conclusion must be a Gaia Knowledge object")
+    if any(id(item) == id(conclusion) for item in inputs):
+        raise ValueError("supported_by() inputs cannot include the conclusion")
+    return _named_strategy(
+        "deduction",
+        premises=_dedupe_knowledge(list(inputs)),
+        conclusion=conclusion,
+        background=background,
+        reason=reason,
+        metadata={"surface_construct": "supported_by", "pattern": pattern},
+        method={"kind": "deduction"},
     )
 
 

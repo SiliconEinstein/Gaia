@@ -285,6 +285,7 @@ class Strategy(BaseModel):
             namespace=namespace,
             package_name=package_name,
             background=self.background,
+            method=self.method,
             steps=self.steps,
             metadata=self.metadata,
         )

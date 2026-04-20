@@ -28,6 +28,7 @@ from gaia.lang.dsl import (
     question,
     setting,
     support,
+    supported_by,
     ParameterizedClaim,
 )
 from gaia.lang.runtime import ComputeResult, Knowledge, LikelihoodScore, Operator, Step, Strategy
@@ -67,4 +68,5 @@ __all__ = [
     "question",
     "setting",
     "support",
+    "supported_by",
 ]

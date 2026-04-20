@@ -580,6 +580,7 @@ def formalize_named_strategy(
     namespace: str | None = None,
     package_name: str | None = None,
     background: list[str] | None = None,
+    method: Any | None = None,
     steps: list[Step] | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> FormalizationResult:
@@ -635,6 +636,7 @@ def formalize_named_strategy(
         premises=builder.premises,
         conclusion=conclusion,
         background=background,
+        method=method,
         steps=steps,
         metadata=strategy_metadata,
         formal_expr=FormalExpr(operators=operators),

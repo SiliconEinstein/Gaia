@@ -600,6 +600,7 @@ def compile_package_artifact(
                 namespace=pkg.namespace,
                 package_name=pkg.name,
                 background=payload["background"],
+                method=payload["method"],
                 steps=steps,
                 metadata=payload["metadata"],
             )

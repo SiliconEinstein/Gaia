@@ -48,6 +48,25 @@ class Knowledge:
     def __hash__(self) -> int:
         return id(self)
 
+    def supported_by(
+        self,
+        *,
+        inputs: list[Knowledge],
+        pattern: str = "support",
+        background: list[Knowledge] | None = None,
+        reason: ReasonInput = "",
+    ) -> Strategy:
+        """Declare that this Claim is supported by non-empty input Claims."""
+        from gaia.lang.dsl.strategies import supported_by
+
+        return supported_by(
+            self,
+            inputs=inputs,
+            pattern=pattern,
+            background=background,
+            reason=reason,
+        )
+
 
 @dataclass
 class Step:

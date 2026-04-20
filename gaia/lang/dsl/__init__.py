@@ -23,6 +23,7 @@ from gaia.lang.dsl.strategies import (
     mathematical_induction,
     noisy_and,
     support,
+    supported_by,
 )
 
 __all__ = [
@@ -54,4 +55,5 @@ __all__ = [
     "question",
     "setting",
     "support",
+    "supported_by",
 ]
