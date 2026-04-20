@@ -13,12 +13,38 @@ export interface KnowledgeNode {
   metadata: Record<string, unknown>
 }
 
+export interface LikelihoodScoreDetail {
+  score_id?: string | null
+  module_ref?: string | null
+  target?: string | null
+  score_type?: string | null
+  value?: unknown
+  query?: unknown
+  rationale?: string | null
+}
+
+export interface StrategyMethodDetails {
+  kind: string
+  module_ref?: string
+  function_ref?: string
+  parameter_ref?: string
+  input_bindings?: Record<string, string>
+  output_bindings?: Record<string, string>
+  premise_bindings?: Record<string, string>
+  output_binding?: Record<string, string>
+  output_ref?: string
+  score_ref?: string
+  score?: LikelihoodScoreDetail
+  code_hash?: string
+}
+
 export interface StrategyNode {
   id: string
   type: 'strategy'
   strategy_type: string
   module?: string
   reason?: string
+  method?: StrategyMethodDetails
 }
 
 export interface OperatorNode {

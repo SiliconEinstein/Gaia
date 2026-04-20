@@ -60,6 +60,7 @@
 .content {
   margin-bottom: 16px;
   line-height: 1.6;
+}
 
 .contentBody {
   margin: 0 0 8px;
@@ -94,7 +95,40 @@
   margin: 0;
   color: #9ca3af;
 }
+
+.method {
   margin-bottom: 16px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
+
+.method h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.methodGrid {
+  display: grid;
+  grid-template-columns: minmax(72px, max-content) minmax(0, 1fr);
+  gap: 6px 10px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.methodGrid dt {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.methodGrid dd {
+  min-width: 0;
+  margin: 0;
+  color: #111827;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .reasoning h3 {

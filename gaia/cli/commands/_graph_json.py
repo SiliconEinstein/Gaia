@@ -9,6 +9,60 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from typing import Any
+
+from gaia.cli.commands._v6_methods import likelihood_score_by_id
+
+
+def _score_payload(score: dict | None) -> dict[str, Any] | None:
+    if not score:
+        return None
+    return {
+        "score_id": score.get("score_id"),
+        "module_ref": score.get("module_ref"),
+        "target": score.get("target"),
+        "score_type": score.get("score_type"),
+        "value": score.get("value"),
+        "query": score.get("query"),
+        "rationale": score.get("rationale"),
+    }
+
+
+def _method_payload(strategy: dict, scores_by_id: dict[str, dict]) -> dict[str, Any] | None:
+    method = strategy.get("method") or {}
+    kind = method.get("kind")
+    if not kind:
+        return None
+
+    payload: dict[str, Any] = {"kind": kind}
+    for key in (
+        "module_ref",
+        "function_ref",
+        "parameter_ref",
+        "input_bindings",
+        "output_bindings",
+        "premise_bindings",
+        "output_binding",
+        "code_hash",
+    ):
+        if method.get(key):
+            payload[key] = method[key]
+
+    score_ref = None
+    if kind == "module_use":
+        score_ref = (method.get("output_bindings") or {}).get("score")
+    elif kind == "compute":
+        score_ref = method.get("output")
+        if score_ref:
+            payload["output_ref"] = score_ref
+
+    score = _score_payload(scores_by_id.get(score_ref)) if score_ref else None
+    if score:
+        payload["score"] = score
+    elif score_ref:
+        payload["score_ref"] = score_ref
+
+    return payload
 
 
 def generate_graph_json(
@@ -25,6 +79,7 @@ def generate_graph_json(
     if param_data:
         priors = {p["knowledge_id"]: p["value"] for p in param_data.get("priors", [])}
     exported = exported_ids or set()
+    scores_by_id = likelihood_score_by_id(ir)
 
     kid_module: dict[str, str] = {}
     for k in ir.get("knowledges", []):
@@ -65,15 +120,17 @@ def generate_graph_json(
         conc_mod = kid_module.get(conc, "")
         strat_id = f"strat_{i}"
 
-        nodes.append(
-            {
-                "id": strat_id,
-                "type": "strategy",
-                "strategy_type": s.get("type", ""),
-                "module": conc_mod,
-                "reason": s.get("reason", ""),
-            }
-        )
+        strategy_node = {
+            "id": strat_id,
+            "type": "strategy",
+            "strategy_type": s.get("type", ""),
+            "module": conc_mod,
+            "reason": s.get("reason", ""),
+        }
+        method = _method_payload(s, scores_by_id)
+        if method:
+            strategy_node["method"] = method
+        nodes.append(strategy_node)
         strategy_counts[conc_mod] += 1
 
         for p in s.get("premises", []):

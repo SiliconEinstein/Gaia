@@ -12,6 +12,7 @@ def _make_ir(
     strategies: list[dict] | None = None,
     operators: list[dict] | None = None,
     module_order: list[str] | None = None,
+    likelihood_scores: list[dict] | None = None,
 ) -> dict:
     return {
         "package_name": "test_pkg",
@@ -20,6 +21,7 @@ def _make_ir(
         "strategies": strategies or [],
         "operators": operators or [],
         "module_order": module_order or [],
+        "likelihood_scores": likelihood_scores or [],
     }
 
 
@@ -97,6 +99,66 @@ def test_strategy_becomes_node_with_role_edges():
     assert len(concl_edges) == 1
     assert concl_edges[0]["source"] == sn["id"]
     assert concl_edges[0]["target"] == "github:test_pkg::b"
+
+
+def test_strategy_node_includes_v6_likelihood_method_details():
+    score_id = "score:ab"
+    target_id = "github:test_pkg::b"
+    ir = _make_ir(
+        knowledges=[
+            {
+                "id": "github:test_pkg::a",
+                "label": "a",
+                "type": "claim",
+                "content": "A.",
+                "module": "m1",
+            },
+            {
+                "id": target_id,
+                "label": "b",
+                "type": "claim",
+                "content": "B.",
+                "module": "m1",
+            },
+        ],
+        strategies=[
+            {
+                "type": "likelihood",
+                "premises": ["github:test_pkg::a"],
+                "background": [],
+                "conclusion": target_id,
+                "reason": "Use an AB-test likelihood score.",
+                "method": {
+                    "kind": "module_use",
+                    "module_ref": "gaia.std.likelihood.two_binomial_ab_test@v1",
+                    "input_bindings": {"target": target_id, "data": "github:test_pkg::a"},
+                    "output_bindings": {"score": score_id},
+                    "premise_bindings": {"data_0": "github:test_pkg::a"},
+                },
+            },
+        ],
+        likelihood_scores=[
+            {
+                "score_id": score_id,
+                "module_ref": "gaia.std.likelihood.two_binomial_ab_test@v1",
+                "target": target_id,
+                "score_type": "log_lr",
+                "value": 1.25689,
+                "query": "theta_B > theta_A",
+                "rationale": "signed log-likelihood gain",
+            }
+        ],
+        module_order=["m1"],
+    )
+
+    data = json.loads(generate_graph_json(ir))
+    strategy = next(n for n in data["nodes"] if n["type"] == "strategy")
+
+    assert strategy["method"]["kind"] == "module_use"
+    assert strategy["method"]["module_ref"] == "gaia.std.likelihood.two_binomial_ab_test@v1"
+    assert strategy["method"]["score"]["score_type"] == "log_lr"
+    assert strategy["method"]["score"]["value"] == 1.25689
+    assert strategy["method"]["score"]["query"] == "theta_B > theta_A"
 
 
 def test_background_edges_have_background_role():

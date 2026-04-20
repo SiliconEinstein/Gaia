@@ -18,6 +18,26 @@ function formatProb(v: number | null | undefined): string {
   return v != null ? v.toFixed(2) : '\u2014'
 }
 
+function formatValue(value: unknown): string {
+  if (value == null) return '\u2014'
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return String(value)
+    if (Number.isInteger(value)) return String(value)
+    return Number(value.toPrecision(6)).toString()
+  }
+  if (typeof value === 'string') return value
+  if (typeof value === 'boolean') return value ? 'true' : 'false'
+  return JSON.stringify(value)
+}
+
+function scoreSummary(node: GraphNode): string | null {
+  if (!isStrategyNode(node)) return null
+  const score = node.method?.score
+  if (!score) return null
+  const value = formatValue(score.value)
+  return score.score_type ? `${score.score_type}=${value}` : value
+}
+
 function parseStructuredKnowledgeContent(content: string): ParsedKnowledgeContent | null {
   const lines = content
     .split('\n')
@@ -117,6 +137,52 @@ export default function DetailPanel({ node, edges, nodesById, onClose }: Props) 
             <div className={styles.content}>
               <p><strong>Strategy:</strong> {node.strategy_type}</p>
               {node.reason && <p>{node.reason}</p>}
+            </div>
+          )}
+
+          {isStrategyNode(node) && node.method && (
+            <div className={styles.method}>
+              <h3>Method</h3>
+              <dl className={styles.methodGrid}>
+                <dt>kind</dt>
+                <dd>{node.method.kind}</dd>
+                {node.method.module_ref && (
+                  <>
+                    <dt>module</dt>
+                    <dd>{node.method.module_ref}</dd>
+                  </>
+                )}
+                {node.method.function_ref && (
+                  <>
+                    <dt>function</dt>
+                    <dd>{node.method.function_ref}</dd>
+                  </>
+                )}
+                {scoreSummary(node) && (
+                  <>
+                    <dt>score</dt>
+                    <dd>{scoreSummary(node)}</dd>
+                  </>
+                )}
+                {node.method.score?.query != null && (
+                  <>
+                    <dt>query</dt>
+                    <dd>{formatValue(node.method.score.query)}</dd>
+                  </>
+                )}
+                {node.method.score?.rationale && (
+                  <>
+                    <dt>rationale</dt>
+                    <dd>{node.method.score.rationale}</dd>
+                  </>
+                )}
+                {!node.method.score && node.method.score_ref && (
+                  <>
+                    <dt>score ref</dt>
+                    <dd>{node.method.score_ref}</dd>
+                  </>
+                )}
+              </dl>
             </div>
           )}
 

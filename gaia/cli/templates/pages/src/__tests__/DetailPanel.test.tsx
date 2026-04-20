@@ -55,4 +55,40 @@ describe('DetailPanel', () => {
     expect(screen.getByText('Plain unstructured body text.')).toBeInTheDocument()
     expect(screen.queryByText('QID')).not.toBeInTheDocument()
   })
+
+  it('renders v6 strategy method score details', () => {
+    const strategyNode: GraphNode = {
+      id: 'strat-1',
+      type: 'strategy',
+      strategy_type: 'likelihood',
+      module: 'm1',
+      reason: 'Use an AB-test likelihood score.',
+      method: {
+        kind: 'module_use',
+        module_ref: 'gaia.std.likelihood.two_binomial_ab_test@v1',
+        score: {
+          score_id: 'score:ab',
+          score_type: 'log_lr',
+          value: 1.25689,
+          query: 'theta_B > theta_A',
+          rationale: 'signed log-likelihood gain',
+        },
+      },
+    }
+
+    render(
+      <DetailPanel
+        node={strategyNode}
+        edges={[]}
+        nodesById={{ 'strat-1': strategyNode }}
+        onClose={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('likelihood')).toBeInTheDocument()
+    expect(screen.getByText('gaia.std.likelihood.two_binomial_ab_test@v1')).toBeInTheDocument()
+    expect(screen.getByText('log_lr=1.25689')).toBeInTheDocument()
+    expect(screen.getByText('theta_B > theta_A')).toBeInTheDocument()
+    expect(screen.getByText('signed log-likelihood gain')).toBeInTheDocument()
+  })
 })
