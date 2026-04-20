@@ -20,11 +20,29 @@ def _get_prior(k: dict) -> float | None:
     return meta.get("prior")
 
 
+def _is_helper_claim(k: dict) -> bool:
+    """Return true for generated/private claims that should stay out of diagnostics."""
+    label = k.get("label") or k.get("id", "").split("::")[-1]
+    meta = k.get("metadata") or {}
+    return (
+        label.startswith("__")
+        or label.startswith("_anon")
+        or meta.get("generated") is True
+        or meta.get("generated_kind") == "helper_claim"
+    )
+
+
 def _knowledge_diagnostics(ir: dict) -> list[str]:
     """Analyze the knowledge graph and return diagnostic lines."""
     lines: list[str] = []
 
-    claims = {k["id"]: k for k in ir["knowledges"] if k["type"] == "claim"}
+    all_claims = {k["id"]: k for k in ir["knowledges"] if k["type"] == "claim"}
+    helper_claims = {
+        cid: k for cid, k in all_claims.items() if _is_helper_claim(k)
+    }
+    claims = {
+        cid: k for cid, k in all_claims.items() if cid not in helper_claims
+    }
     settings = {k["id"]: k for k in ir["knowledges"] if k["type"] == "setting"}
     questions = {k["id"]: k for k in ir["knowledges"] if k["type"] == "question"}
 
@@ -57,6 +75,8 @@ def _knowledge_diagnostics(ir: dict) -> list[str]:
     lines.append(f"  Settings:  {len(settings)}")
     lines.append(f"  Questions: {len(questions)}")
     lines.append(f"  Claims:    {len(claims)}")
+    if helper_claims:
+        lines.append(f"    Generated helper claims: {len(helper_claims)}")
     lines.append(f"    Independent (need prior):  {len(independent)}")
     if n_holes:
         lines.append(f"      Holes (no prior set):   {n_holes}")
@@ -102,7 +122,11 @@ def _knowledge_diagnostics(ir: dict) -> list[str]:
 
 def _hole_report(ir: dict) -> list[str]:
     """Return detailed report of all independent claims without priors (holes)."""
-    claims = {k["id"]: k for k in ir["knowledges"] if k["type"] == "claim"}
+    claims = {
+        k["id"]: k
+        for k in ir["knowledges"]
+        if k["type"] == "claim" and not _is_helper_claim(k)
+    }
     c = classify_ir(ir)
     lines: list[str] = []
     holes: list[tuple[str, dict]] = []

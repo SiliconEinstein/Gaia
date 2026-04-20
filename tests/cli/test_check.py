@@ -163,6 +163,22 @@ def test_check_shows_hole_count_in_summary(tmp_path):
     assert "Holes (no prior set):   1" in result.output
 
 
+def test_check_hides_generated_helper_claims_from_diagnostics(tmp_path):
+    """Generated formal helper claims should not pollute check diagnostics."""
+    pkg_dir = tmp_path / "check_holes"
+    _write_multi_claim_package(pkg_dir)
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["check", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    assert "Generated helper claims:" in result.output
+    assert "__conjunction_result" not in result.output
+    assert "__implication_result" not in result.output
+    assert "_anon_" not in result.output
+
+
 def test_check_no_hole_count_when_all_covered(tmp_path):
     """Summary omits hole count when all independent claims have priors."""
     pkg_dir = tmp_path / "check_holes"
