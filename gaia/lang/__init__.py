@@ -6,6 +6,8 @@ from gaia.lang.dsl import (
     case_analysis,
     claim,
     claim_class,
+    ComputedArgument,
+    ComputedReturn,
     compare,
     composite,
     complement,
@@ -32,6 +34,8 @@ from gaia.lang.runtime import ComputeResult, Knowledge, LikelihoodScore, Operato
 
 __all__ = [
     "ComputeResult",
+    "ComputedArgument",
+    "ComputedReturn",
     "Knowledge",
     "LikelihoodScore",
     "Operator",

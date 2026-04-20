@@ -408,6 +408,12 @@ def _lower_strategy(
         return
 
     if s.type == StrategyType.COMPUTE:
+        # Claim-producing v6 compute Strategies support their output Claim.
+        # Legacy low-level compute uses ``conclusion`` for a correctness gate
+        # and ``method.output`` for a value/artifact; keep that path neutral.
+        method_output = getattr(s.method, "output", None)
+        if method_output == s.conclusion:
+            _lower_compute_strategy(fg, s, ctr)
         return
 
     if s.type == StrategyType.LIKELIHOOD:
@@ -532,6 +538,32 @@ def _lower_likelihood_strategy(
         [gate],
         strategy.conclusion,
         cpt=[0.5, p_when_gate_true],
+    )
+
+
+def _lower_compute_strategy(fg: FactorGraph, strategy: Strategy, ctr: list[int]) -> None:
+    if not strategy.premises:
+        fg.add_log_likelihood(strategy.conclusion, math.log((1.0 - CROMWELL_EPS) / CROMWELL_EPS))
+        return
+
+    if len(strategy.premises) == 1:
+        gate = strategy.premises[0]
+    else:
+        gate = f"_m_compute_{strategy.strategy_id}"
+        fg.add_variable(gate, 0.5)
+        fg.add_factor(
+            _next_fid("compute_gate", ctr),
+            FactorType.CONJUNCTION,
+            strategy.premises,
+            gate,
+        )
+    fg.add_factor(
+        _next_fid("compute_out", ctr),
+        FactorType.SOFT_ENTAILMENT,
+        [gate],
+        strategy.conclusion,
+        p1=1.0 - CROMWELL_EPS,
+        p2=0.5,
     )
 
 

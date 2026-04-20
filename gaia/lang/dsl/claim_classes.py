@@ -166,3 +166,27 @@ def claim_class(cls: type | None = None, **options: Any):
     if cls is None:
         return decorate
     return decorate(cls)
+
+
+class ComputedArgument(ParameterizedClaim):
+    """Default human-readable Claim for a lifted Python function argument."""
+
+    template = "The argument {name} of Python function {function_ref} is {value}."
+    kind = "compute_argument"
+    metadata = {"generated": True, "helper_kind": "compute_argument", "prior": 0.999}
+
+    function_ref: str
+    name: str
+    value: object
+
+
+class ComputedReturn(ParameterizedClaim):
+    """Default human-readable Claim for a lifted Python function return value."""
+
+    template = "Python function {function_ref} returned {value} for arguments {arguments}."
+    kind = "compute_return"
+    metadata = {"generated": True, "helper_kind": "compute_return", "prior": 0.999}
+
+    function_ref: str
+    arguments: dict
+    value: object

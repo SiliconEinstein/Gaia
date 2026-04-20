@@ -1,4 +1,9 @@
-from gaia.lang.dsl.claim_classes import ParameterizedClaim, claim_class
+from gaia.lang.dsl.claim_classes import (
+    ComputedArgument,
+    ComputedReturn,
+    ParameterizedClaim,
+    claim_class,
+)
 from gaia.lang.dsl.knowledge import claim, context, question, setting
 from gaia.lang.dsl.operators import complement, contradiction, disjunction, equivalence
 from gaia.lang.dsl.strategies import (
@@ -26,6 +31,8 @@ __all__ = [
     "case_analysis",
     "claim",
     "claim_class",
+    "ComputedArgument",
+    "ComputedReturn",
     "compare",
     "composite",
     "complement",

@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable
 from copy import deepcopy
+from functools import wraps
+from inspect import signature
 from typing import Literal
 
 from gaia.lang.runtime import ComputeResult, Knowledge, LikelihoodScore, Step, Strategy
+from gaia.lang.dsl.claim_classes import ComputedArgument, ComputedReturn
 from gaia.lang.runtime.nodes import ReasonInput
 from gaia.lang.runtime.nodes import _current_package
 from gaia.lang.dsl.operators import _validate_reason_prior
@@ -271,7 +275,7 @@ def infer(
     )
 
 
-def compute(
+def _compute_strategy(
     fn,
     *,
     inputs: dict[str, Knowledge] | list[Knowledge],
@@ -317,6 +321,159 @@ def compute(
     )
     _attach_strategy(correctness, strategy)
     return ComputeResult(output=output, correctness=correctness, strategy=strategy)
+
+
+def _argument_claim(function_ref: str, name: str, value) -> Knowledge:
+    if isinstance(value, Knowledge):
+        return value
+    return ComputedArgument(function_ref=function_ref, name=name, value=value)
+
+
+def _output_claim(
+    output_factory,
+    *,
+    function_ref: str,
+    arguments: dict[str, object],
+    value,
+    kind: str | None,
+    metadata: dict | None,
+) -> Knowledge:
+    if output_factory is None:
+        output = ComputedReturn(function_ref=function_ref, arguments=arguments, value=value)
+    elif isinstance(output_factory, type) or callable(output_factory):
+        try:
+            output = output_factory(**arguments, value=value)
+        except TypeError:
+            output = output_factory(value=value)
+    else:
+        raise TypeError("compute(output=...) must be a parameterized Claim class or factory")
+    if not isinstance(output, Knowledge):
+        raise TypeError("compute output factory must return a Gaia Knowledge claim")
+    output.metadata.setdefault("generated", True)
+    output.metadata.setdefault("helper_kind", "compute_return")
+    output.metadata.setdefault("function_ref", function_ref)
+    if kind is not None:
+        output.metadata.setdefault("kind", kind)
+    if metadata:
+        output.metadata.update(metadata)
+    return output
+
+
+def _compute_decorator(
+    fn,
+    *,
+    output=None,
+    kind: str | None = None,
+    metadata: dict | None = None,
+    code_hash: str | None = None,
+    reason: ReasonInput = "",
+):
+    function_ref = _function_ref(fn)
+    sig = signature(fn)
+
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        bound = sig.bind(*args, **kwargs)
+        bound.apply_defaults()
+        arguments = dict(bound.arguments)
+        result = fn(*args, **kwargs)
+        input_bindings = {
+            name: _argument_claim(function_ref, name, value)
+            for name, value in arguments.items()
+        }
+        output_claim = _output_claim(
+            output,
+            function_ref=function_ref,
+            arguments=arguments,
+            value=result,
+            kind=kind,
+            metadata=metadata,
+        )
+        strategy = Strategy(
+            type="compute",
+            premises=_dedupe_knowledge(list(input_bindings.values())),
+            conclusion=output_claim,
+            reason=reason,
+            metadata={"surface_construct": "compute", "decorator": True},
+            method={
+                "kind": "compute",
+                "function_ref": function_ref,
+                "input_bindings": input_bindings,
+                "output": output_claim,
+                "output_binding": {"value": "return_value"},
+                "code_hash": code_hash,
+            },
+        )
+        _attach_strategy(output_claim, strategy)
+        return output_claim
+
+    wrapper.__gaia_compute__ = True
+    wrapper.__gaia_function_ref__ = function_ref
+    return wrapper
+
+
+def compute(
+    fn: Callable | str | None = None,
+    *,
+    inputs: dict[str, Knowledge] | list[Knowledge] | None = None,
+    output=None,
+    assumptions: list[Knowledge] | None = None,
+    correctness: Knowledge | None = None,
+    output_binding: dict[str, str] | None = None,
+    code_hash: str | None = None,
+    reason: ReasonInput = "",
+    kind: str | None = None,
+    metadata: dict | None = None,
+):
+    """Lift Python code into Gaia compute evidence, or use the legacy low-level form.
+
+    Decorator form:
+
+        @compute(output=MyReturnClaim)
+        def f(...): ...
+
+    Low-level compatibility form remains available with ``inputs=`` and ``output=``.
+    """
+    if inputs is not None:
+        if fn is None:
+            raise TypeError("compute(..., inputs=...) requires a function reference")
+        return _compute_strategy(
+            fn,
+            inputs=inputs,
+            output=output,
+            assumptions=assumptions,
+            correctness=correctness,
+            output_binding=output_binding,
+            code_hash=code_hash,
+            reason=reason,
+        )
+
+    if assumptions is not None or correctness is not None or output_binding is not None:
+        raise TypeError(
+            "compute decorator form does not accept assumptions, correctness, or output_binding"
+        )
+
+    if fn is None:
+        return lambda actual_fn: _compute_decorator(
+            actual_fn,
+            output=output,
+            kind=kind,
+            metadata=metadata,
+            code_hash=code_hash,
+            reason=reason,
+        )
+
+    if callable(fn) and not isinstance(fn, str):
+        return _compute_decorator(
+            fn,
+            output=output,
+            kind=kind,
+            metadata=metadata,
+            code_hash=code_hash,
+            reason=reason,
+        )
+
+    raise TypeError("compute decorator form requires a callable")
 
 
 def likelihood_from(

@@ -178,3 +178,33 @@ def test_compute_and_likelihood_from_compile_to_v6_methods():
     assert likelihood_ir.method.output_bindings == {"score": "score:ab"}
     assert likelihood_ir.method.premise_bindings["score_correct"] == correctness_id
     assert correctness_id in likelihood_ir.premises
+
+
+def test_compute_decorator_lifts_python_call_to_claim_and_strategy():
+    class SumResult(ParameterizedClaim):
+        template = "Adding {a} and {b} gives {value}."
+
+        a: int
+        b: int
+        value: int
+
+    @compute(output=SumResult, kind="computed_value")
+    def add(a: int, b: int) -> int:
+        return a + b
+
+    pkg = CollectedPackage("v6_pkg", namespace="github", version="1.0.0")
+    with pkg:
+        result = add(2, b=3)
+        result.label = "sum_result"
+
+    compiled = compile_package_artifact(pkg)
+    ir_result = next(k for k in compiled.graph.knowledges if k.label == "sum_result")
+    assert ir_result.rendered_content == "Adding 2 and 3 gives 5."
+    assert ir_result.metadata["kind"] == "computed_value"
+
+    compute_ir = next(s for s in compiled.graph.strategies if s.type == "compute")
+    assert compute_ir.conclusion == "github:v6_pkg::sum_result"
+    assert isinstance(compute_ir.method, ComputeMethod)
+    assert compute_ir.method.output == "github:v6_pkg::sum_result"
+    assert set(compute_ir.method.input_bindings) == {"a", "b"}
+    assert len(compute_ir.premises) == 2

@@ -253,6 +253,37 @@ def test_negative_likelihood_log_lr_lowers_without_soft_entailment_constraint():
     assert like_factor.cpt[1] < 0.27
 
 
+def test_compute_strategy_supports_output_when_inputs_are_true():
+    input_id = "github:lowertest::input"
+    output_id = "github:lowertest::output"
+    strategy = Strategy(
+        scope="local",
+        type="compute",
+        premises=[input_id],
+        conclusion=output_id,
+        method={
+            "kind": "compute",
+            "function_ref": "tests.add",
+            "input_bindings": {"input": input_id},
+            "output": output_id,
+        },
+    )
+    graph = _lg(
+        knowledges=[
+            Knowledge(id=input_id, type="claim", content="Input"),
+            Knowledge(id=output_id, type="claim", content="Output"),
+        ],
+        strategies=[strategy],
+    )
+
+    fg = lower_local_graph(graph, node_priors={input_id: 0.99, output_id: 0.5})
+    compute_factor = next(f for f in fg.factors if f.factor_id.startswith("compute_out"))
+    assert compute_factor.factor_type == FactorType.SOFT_ENTAILMENT
+
+    beliefs, _ = exact_inference(fg)
+    assert beliefs[output_id] > 0.98
+
+
 def test_infer_conditional_lowering():
     s = Strategy(
         scope="local",
