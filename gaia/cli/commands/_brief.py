@@ -5,6 +5,11 @@ from __future__ import annotations
 from collections import defaultdict
 
 from gaia.cli.commands._classify import classify_ir, node_role
+from gaia.cli.commands._v6_methods import (
+    format_method_lines,
+    format_method_oneline,
+    likelihood_score_by_id,
+)
 
 
 def _truncate(text: str, max_len: int = 80) -> str:
@@ -82,6 +87,7 @@ def _module_of(kid: str, knowledge_by_id: dict[str, dict]) -> str | None:
 def generate_brief_overview(ir: dict) -> list[str]:
     """Per-module compact overview of all non-helper nodes and strategies."""
     knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
+    scores_by_id = likelihood_score_by_id(ir)
     c = classify_ir(ir)
     module_order = ir.get("module_order") or []
 
@@ -186,7 +192,7 @@ def generate_brief_overview(ir: dict) -> list[str]:
         if strats:
             lines.append("  Strategies:")
             for s in strats:
-                lines.append(_format_strategy_oneline(s, knowledge_by_id))
+                lines.append(_format_strategy_oneline(s, knowledge_by_id, scores_by_id))
 
         ops = op_by_module.get(mod, [])
         if ops:
@@ -197,8 +203,13 @@ def generate_brief_overview(ir: dict) -> list[str]:
     return lines
 
 
-def _format_strategy_oneline(s: dict, knowledge_by_id: dict[str, dict]) -> str:
+def _format_strategy_oneline(
+    s: dict,
+    knowledge_by_id: dict[str, dict],
+    scores_by_id: dict[str, dict] | None = None,
+) -> str:
     stype = s.get("type", "?")
+    scores_by_id = scores_by_id or {}
     premise_labels = [
         _label_of(p, knowledge_by_id)
         for p in s.get("premises", [])
@@ -213,6 +224,9 @@ def _format_strategy_oneline(s: dict, knowledge_by_id: dict[str, dict]) -> str:
     line = f"    {stype}([{', '.join(premise_labels)}] \u2192 {conc_label}{prior_s})"
     if reason:
         line += f'\n      reason: "{_truncate(reason, 70)}"'
+    method = format_method_oneline(s, scores_by_id)
+    if method:
+        line += f"\n      {method}"
     return line
 
 
@@ -241,6 +255,7 @@ def _format_operator_oneline(o: dict, knowledge_by_id: dict[str, dict]) -> str:
 def generate_brief_module(ir: dict, module_name: str) -> list[str]:
     """Expand a module showing full content and recursive warrant trees."""
     knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
+    scores_by_id = likelihood_score_by_id(ir)
     c = classify_ir(ir)
     sid_map = _strategy_by_id(ir)
     conc_map = _strategies_for_conclusion(ir)
@@ -296,7 +311,13 @@ def generate_brief_module(ir: dict, module_name: str) -> list[str]:
             # If derived, show strategy tree
             strat = conc_map.get(kid)
             if strat:
-                tree_lines = _format_warrant_tree(strat, knowledge_by_id, sid_map, indent=6)
+                tree_lines = _format_warrant_tree(
+                    strat,
+                    knowledge_by_id,
+                    sid_map,
+                    scores_by_id=scores_by_id,
+                    indent=6,
+                )
                 lines.extend(tree_lines)
         lines.append("")
 
@@ -338,6 +359,7 @@ def _format_operator_expanded(o: dict, knowledge_by_id: dict[str, dict], indent:
 def generate_brief_detail(ir: dict, label: str) -> list[str]:
     """Expand the warrant tree for a specific claim or strategy label."""
     knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
+    scores_by_id = likelihood_score_by_id(ir)
     c = classify_ir(ir)
     sid_map = _strategy_by_id(ir)
     conc_map = _strategies_for_conclusion(ir)
@@ -365,7 +387,13 @@ def generate_brief_detail(ir: dict, label: str) -> list[str]:
     strat = conc_map.get(kid)
     if strat:
         lines.append("")
-        tree_lines = _format_warrant_tree(strat, knowledge_by_id, sid_map, indent=4)
+        tree_lines = _format_warrant_tree(
+            strat,
+            knowledge_by_id,
+            sid_map,
+            scores_by_id=scores_by_id,
+            indent=4,
+        )
         lines.extend(tree_lines)
 
         # For composite strategies (abduction/induction), add review notes
@@ -405,11 +433,13 @@ def _format_warrant_tree(
     strategy: dict,
     knowledge_by_id: dict[str, dict],
     sid_map: dict[str, dict],
+    scores_by_id: dict[str, dict] | None = None,
     indent: int = 4,
 ) -> list[str]:
     """Recursively format a strategy's warrant tree."""
     pad = " " * indent
     lines: list[str] = []
+    scores_by_id = scores_by_id or {}
 
     stype = strategy.get("type", "?")
     meta = strategy.get("metadata") or {}
@@ -483,6 +513,7 @@ def _format_warrant_tree(
         )
         if reason:
             lines.append(f'{pad}  reason: "{_truncate(reason, 70)}"')
+        lines.extend(format_method_lines(strategy, scores_by_id, indent=indent + 2))
 
         for op in formal_expr.get("operators", []):
             op_type = op.get("operator", "?")
@@ -505,6 +536,7 @@ def _format_warrant_tree(
         )
         if reason:
             lines.append(f'{pad}  reason: "{_truncate(reason, 70)}"')
+        lines.extend(format_method_lines(strategy, scores_by_id, indent=indent + 2))
         if stype == "infer":
             n_premises = len(strategy.get("premises", []))
             lines.append(

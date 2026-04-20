@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from gaia.cli.commands._classify import classify_ir, node_role
+from gaia.cli.commands._v6_methods import format_method_lines, likelihood_score_by_id
 
 
 def topo_layers(ir: dict) -> dict[str, int]:
@@ -329,6 +330,7 @@ def _render_node(
     knowledge_by_id: dict[str, dict],
     beliefs: dict[str, float],
     priors: dict[str, float],
+    scores_by_id: dict[str, dict] | None = None,
     *,
     emit_anchor: bool = True,
 ) -> list[str]:
@@ -387,6 +389,16 @@ def _render_node(
             lines.append("<details><summary>Reasoning</summary>")
             lines.append("")
             lines.append(reason)
+            lines.append("")
+            lines.append("</details>")
+            lines.append("")
+
+        method_lines = format_method_lines(s, scores_by_id or {})
+        if method_lines:
+            lines.append("<details><summary>Method</summary>")
+            lines.append("")
+            for line in method_lines:
+                lines.append(f"- {line}")
             lines.append("")
             lines.append("</details>")
             lines.append("")
@@ -490,6 +502,7 @@ def _render_introduction(
         return []
 
     knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
+    scores_by_id = likelihood_score_by_id(ir)
     strategy_for: dict[str, dict] = {}
     for s in ir.get("strategies", []):
         if s.get("conclusion"):
@@ -510,6 +523,7 @@ def _render_introduction(
                 knowledge_by_id,
                 beliefs,
                 priors,
+                scores_by_id,
                 emit_anchor=False,
             )
         )
@@ -523,6 +537,7 @@ def render_knowledge_nodes(
 ) -> str:
     """Render knowledge nodes grouped by module with per-module Mermaid diagrams."""
     knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
+    scores_by_id = likelihood_score_by_id(ir)
     beliefs = beliefs or {}
     priors = priors or {}
 
@@ -564,7 +579,9 @@ def render_knowledge_nodes(
                 sections.append("")
 
             for k in nodes:
-                sections.extend(_render_node(k, strategy_for, knowledge_by_id, beliefs, priors))
+                sections.extend(
+                    _render_node(k, strategy_for, knowledge_by_id, beliefs, priors, scores_by_id)
+                )
     else:
         # Single-file/legacy: one global diagram + type-based grouping
         ordered = _narrative_order(ir)
@@ -582,7 +599,9 @@ def render_knowledge_nodes(
                 current_type = ktype
                 sections.append(f"### {ktype.title()}s")
                 sections.append("")
-            sections.extend(_render_node(k, strategy_for, knowledge_by_id, beliefs, priors))
+            sections.extend(
+                _render_node(k, strategy_for, knowledge_by_id, beliefs, priors, scores_by_id)
+            )
 
     return "\n".join(sections)
 
