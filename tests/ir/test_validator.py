@@ -511,11 +511,192 @@ class TestStrategyValidation:
                     target="github:test::target",
                     score_type="log_lr",
                     value=1.73,
+                    query="theta_B > theta_A",
                 )
             ],
         )
         r = validate_local_graph(g)
         assert r.valid
+
+    def test_likelihood_method_requires_known_module(self):
+        module_ref = "gaia.std.likelihood.unknown@v1"
+        g = _local_graph(
+            knowledges=[
+                _claim("github:test::score_correct"),
+                _claim("github:test::target"),
+            ],
+            strategies=[
+                Strategy(
+                    scope="local",
+                    type="likelihood",
+                    premises=["github:test::score_correct"],
+                    conclusion="github:test::target",
+                    method=ModuleUseMethod(
+                        module_ref=module_ref,
+                        input_bindings={"target": "github:test::target"},
+                        output_bindings={"score": "score:unknown"},
+                        premise_bindings={"score_correct": "github:test::score_correct"},
+                    ),
+                )
+            ],
+            likelihood_scores=[
+                LikelihoodScoreRecord(
+                    score_id="score:unknown",
+                    module_ref=module_ref,
+                    target="github:test::target",
+                    score_type="log_lr",
+                    value=1.0,
+                    query="theta > 0",
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("unknown likelihood module_ref" in e for e in r.errors)
+
+    def test_likelihood_score_type_must_match_module_spec(self):
+        module_ref = "gaia.std.likelihood.two_binomial_ab_test@v1"
+        g = _local_graph(
+            knowledges=[
+                _claim("github:test::score_correct"),
+                _claim("github:test::target"),
+            ],
+            strategies=[
+                Strategy(
+                    scope="local",
+                    type="likelihood",
+                    premises=["github:test::score_correct"],
+                    conclusion="github:test::target",
+                    method=ModuleUseMethod(
+                        module_ref=module_ref,
+                        input_bindings={"target": "github:test::target"},
+                        output_bindings={"score": "score:bad_type"},
+                        premise_bindings={"score_correct": "github:test::score_correct"},
+                    ),
+                )
+            ],
+            likelihood_scores=[
+                LikelihoodScoreRecord(
+                    score_id="score:bad_type",
+                    module_ref=module_ref,
+                    target="github:test::target",
+                    score_type="bayes_factor",
+                    value=2.0,
+                    query="theta_B > theta_A",
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("score_type 'bayes_factor'" in e for e in r.errors)
+
+    def test_likelihood_score_requires_query_for_registered_module(self):
+        module_ref = "gaia.std.likelihood.two_binomial_ab_test@v1"
+        g = _local_graph(
+            knowledges=[
+                _claim("github:test::score_correct"),
+                _claim("github:test::target"),
+            ],
+            strategies=[
+                Strategy(
+                    scope="local",
+                    type="likelihood",
+                    premises=["github:test::score_correct"],
+                    conclusion="github:test::target",
+                    method=ModuleUseMethod(
+                        module_ref=module_ref,
+                        input_bindings={"target": "github:test::target"},
+                        output_bindings={"score": "score:no_query"},
+                        premise_bindings={"score_correct": "github:test::score_correct"},
+                    ),
+                )
+            ],
+            likelihood_scores=[
+                LikelihoodScoreRecord(
+                    score_id="score:no_query",
+                    module_ref=module_ref,
+                    target="github:test::target",
+                    score_type="log_lr",
+                    value=1.0,
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("requires a non-empty query" in e for e in r.errors)
+
+    def test_likelihood_method_requires_registered_score_role(self):
+        module_ref = "gaia.std.likelihood.two_binomial_ab_test@v1"
+        g = _local_graph(
+            knowledges=[
+                _claim("github:test::score_correct"),
+                _claim("github:test::target"),
+            ],
+            strategies=[
+                Strategy(
+                    scope="local",
+                    type="likelihood",
+                    premises=["github:test::score_correct"],
+                    conclusion="github:test::target",
+                    method=ModuleUseMethod(
+                        module_ref=module_ref,
+                        input_bindings={"target": "github:test::target"},
+                        output_bindings={"not_score": "score:ab"},
+                        premise_bindings={"score_correct": "github:test::score_correct"},
+                    ),
+                )
+            ],
+            likelihood_scores=[
+                LikelihoodScoreRecord(
+                    score_id="score:ab",
+                    module_ref=module_ref,
+                    target="github:test::target",
+                    score_type="log_lr",
+                    value=1.0,
+                    query="theta_B > theta_A",
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("missing output binding 'score'" in e for e in r.errors)
+
+    def test_likelihood_target_binding_must_match_strategy_conclusion(self):
+        module_ref = "gaia.std.likelihood.two_binomial_ab_test@v1"
+        g = _local_graph(
+            knowledges=[
+                _claim("github:test::score_correct"),
+                _claim("github:test::target"),
+                _claim("github:test::other_target"),
+            ],
+            strategies=[
+                Strategy(
+                    scope="local",
+                    type="likelihood",
+                    premises=["github:test::score_correct"],
+                    conclusion="github:test::target",
+                    method=ModuleUseMethod(
+                        module_ref=module_ref,
+                        input_bindings={"target": "github:test::other_target"},
+                        output_bindings={"score": "score:ab"},
+                        premise_bindings={"score_correct": "github:test::score_correct"},
+                    ),
+                )
+            ],
+            likelihood_scores=[
+                LikelihoodScoreRecord(
+                    score_id="score:ab",
+                    module_ref=module_ref,
+                    target="github:test::target",
+                    score_type="log_lr",
+                    value=1.0,
+                    query="theta_B > theta_A",
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("target binding 'target'" in e for e in r.errors)
 
     def test_likelihood_method_requires_registered_score(self):
         g = _local_graph(

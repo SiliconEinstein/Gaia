@@ -4,33 +4,13 @@ from __future__ import annotations
 
 import math
 
-from gaia.ir import LikelihoodModuleSpec
+from gaia.ir.likelihood_registry import (
+    BINOMIAL_MODEL_REF,
+    BINOMIAL_MODEL_SPEC,
+    TWO_BINOMIAL_AB_TEST_REF,
+    TWO_BINOMIAL_AB_TEST_SPEC,
+)
 from gaia.lang.runtime import Knowledge, LikelihoodScore
-
-BINOMIAL_MODEL_REF = "gaia.std.likelihood.binomial_model@v1"
-TWO_BINOMIAL_AB_TEST_REF = "gaia.std.likelihood.two_binomial_ab_test@v1"
-
-BINOMIAL_MODEL_SPEC = LikelihoodModuleSpec(
-    module_ref=BINOMIAL_MODEL_REF,
-    input_schema={"counts": "BinomialCounts", "target": "Claim"},
-    output_schema={"score": "LikelihoodScoreRecord"},
-    premise_schema={"score_correct": "Claim"},
-    target_role="target",
-    score_role="score",
-    score_type="log_lr",
-    effect="add_log_odds",
-)
-
-TWO_BINOMIAL_AB_TEST_SPEC = LikelihoodModuleSpec(
-    module_ref=TWO_BINOMIAL_AB_TEST_REF,
-    input_schema={"counts": "TwoBinomialCounts", "target": "Claim"},
-    output_schema={"score": "LikelihoodScoreRecord"},
-    premise_schema={"score_correct": "Claim"},
-    target_role="target",
-    score_role="score",
-    score_type="log_lr",
-    effect="add_log_odds",
-)
 
 
 def _validate_count(name: str, value: int) -> None:

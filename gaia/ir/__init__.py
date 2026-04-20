@@ -33,6 +33,14 @@ from gaia.ir.strategy import (
 from gaia.ir.review import ReviewManifest, ReviewNote, Warrant, WarrantStatus
 from gaia.ir.graphs import LocalCanonicalGraph
 from gaia.ir.formalize import FormalizationResult, formalize_named_strategy
+from gaia.ir.likelihood_registry import (
+    BINOMIAL_MODEL_REF,
+    BINOMIAL_MODEL_SPEC,
+    STANDARD_LIKELIHOOD_MODULES,
+    TWO_BINOMIAL_AB_TEST_REF,
+    TWO_BINOMIAL_AB_TEST_SPEC,
+    get_likelihood_module_spec,
+)
 from gaia.ir.parameterization import (
     CROMWELL_EPS,
     ParameterizationSource,
@@ -71,6 +79,13 @@ __all__ = [
     "WarrantStatus",
     # Graphs
     "LocalCanonicalGraph",
+    # Standard likelihood module registry
+    "BINOMIAL_MODEL_REF",
+    "BINOMIAL_MODEL_SPEC",
+    "STANDARD_LIKELIHOOD_MODULES",
+    "TWO_BINOMIAL_AB_TEST_REF",
+    "TWO_BINOMIAL_AB_TEST_SPEC",
+    "get_likelihood_module_spec",
     # Formalization
     "FormalizationResult",
     "formalize_named_strategy",

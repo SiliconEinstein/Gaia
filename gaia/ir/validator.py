@@ -14,6 +14,7 @@ from gaia.ir.operator import Operator, OperatorType
 from gaia.ir.strategy import Strategy, CompositeStrategy, FormalStrategy, StrategyType
 from gaia.ir.strategy import ComputeMethod, LikelihoodScoreRecord, ModuleUseMethod
 from gaia.ir.graphs import LocalCanonicalGraph, _canonical_json
+from gaia.ir.likelihood_registry import get_likelihood_module_spec
 from gaia.ir.parameterization import (
     CROMWELL_EPS,
     PriorRecord,
@@ -334,9 +335,20 @@ def _validate_likelihood_scores(
 ) -> dict[str, LikelihoodScoreRecord]:
     lookup: dict[str, LikelihoodScoreRecord] = {}
     for score in scores:
+        spec = get_likelihood_module_spec(score.module_ref)
         if score.score_id in lookup:
             result.error(f"LikelihoodScore '{score.score_id}': duplicate score_id")
         lookup[score.score_id] = score
+        if spec is None:
+            result.error(
+                f"LikelihoodScore '{score.score_id}': unknown likelihood module_ref "
+                f"'{score.module_ref}'"
+            )
+        elif score.score_type != spec.score_type:
+            result.error(
+                f"LikelihoodScore '{score.score_id}': score_type '{score.score_type}' "
+                f"does not match module '{score.module_ref}' score_type '{spec.score_type}'"
+            )
         if score.target not in knowledge_lookup:
             result.error(
                 f"LikelihoodScore '{score.score_id}': target '{score.target}' not found in graph"
@@ -352,6 +364,15 @@ def _validate_likelihood_scores(
                 )
             elif not math.isfinite(float(score.value)):
                 result.error(f"LikelihoodScore '{score.score_id}': log_lr value must be finite")
+        if spec is not None and (
+            score.query is None
+            or (isinstance(score.query, str) and not score.query.strip())
+            or (isinstance(score.query, dict) and not score.query)
+        ):
+            result.error(
+                f"LikelihoodScore '{score.score_id}': registered module "
+                f"'{score.module_ref}' requires a non-empty query"
+            )
     return lookup
 
 
@@ -366,9 +387,20 @@ def _validate_likelihood_strategy_scores(
         ):
             continue
         sid = strategy.strategy_id or "<no-id>"
-        score_ref = strategy.method.output_bindings.get("score")
+        spec = get_likelihood_module_spec(strategy.method.module_ref)
+        if spec is None:
+            result.error(
+                f"Strategy '{sid}': unknown likelihood module_ref "
+                f"'{strategy.method.module_ref}'"
+            )
+            continue
+
+        score_ref = strategy.method.output_bindings.get(spec.score_role)
         if not score_ref:
-            result.error(f"Strategy '{sid}': likelihood method missing output binding 'score'")
+            result.error(
+                f"Strategy '{sid}': likelihood method missing output binding "
+                f"'{spec.score_role}'"
+            )
             continue
         score = score_lookup.get(score_ref)
         if score is None:
@@ -380,10 +412,32 @@ def _validate_likelihood_strategy_scores(
                 f"'{score.module_ref}' does not match method module_ref "
                 f"'{strategy.method.module_ref}'"
             )
+        if score.score_type != spec.score_type:
+            result.error(
+                f"Strategy '{sid}': likelihood score '{score_ref}' score_type "
+                f"'{score.score_type}' does not match module score_type '{spec.score_type}'"
+            )
+        target_binding = strategy.method.input_bindings.get(spec.target_role)
+        if target_binding is None:
+            result.error(
+                f"Strategy '{sid}': likelihood method missing target binding "
+                f"'{spec.target_role}'"
+            )
+        elif strategy.conclusion and target_binding != strategy.conclusion:
+            result.error(
+                f"Strategy '{sid}': likelihood target binding '{spec.target_role}' "
+                f"references '{target_binding}', expected strategy conclusion "
+                f"'{strategy.conclusion}'"
+            )
         if strategy.conclusion and score.target != strategy.conclusion:
             result.error(
                 f"Strategy '{sid}': likelihood score '{score_ref}' target "
                 f"'{score.target}' does not match strategy conclusion '{strategy.conclusion}'"
+            )
+        elif target_binding is not None and score.target != target_binding:
+            result.error(
+                f"Strategy '{sid}': likelihood score '{score_ref}' target "
+                f"'{score.target}' does not match target binding '{target_binding}'"
             )
 
 
