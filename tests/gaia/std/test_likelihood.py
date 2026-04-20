@@ -5,8 +5,11 @@ from gaia.lang.compiler.compile import compile_package_artifact
 from gaia.lang.runtime.package import CollectedPackage
 from gaia.std.likelihood import (
     BINOMIAL_MODEL_REF,
+    GAUSSIAN_MODEL_COMPARISON_REF,
     TWO_BINOMIAL_AB_TEST_REF,
+    binomial_test,
     binomial_model_score,
+    gaussian_model_comparison,
     two_binomial_ab_test_score,
 )
 
@@ -83,3 +86,46 @@ def test_standard_score_flows_through_compute_and_likelihood_surface():
     assert strategies["compute"].method.output == score.score_id
     assert strategies["likelihood"].method.module_ref == TWO_BINOMIAL_AB_TEST_REF
     assert strategies["likelihood"].method.output_bindings == {"score": score.score_id}
+
+
+def test_gaussian_model_comparison_helper_uses_score_claim():
+    pkg = CollectedPackage("v6_std_pkg", namespace="github", version="1.0.0")
+    with pkg:
+        target = claim("The candidate model is favored over the baseline.")
+        target.label = "candidate_favored"
+        data = claim("Observed value is 1.2; candidate predicts 0.96; baseline predicts 1.9.")
+        data.label = "comparison_data"
+
+        gaussian_model_comparison(
+            target=target,
+            observed=1.2,
+            candidate_mean=0.96,
+            baseline_mean=1.9,
+            sigma=0.2,
+            data=data,
+        )
+
+    compiled = compile_package_artifact(pkg)
+    assert len(compiled.graph.likelihood_scores) == 1
+    score = compiled.graph.likelihood_scores[0]
+    assert score.module_ref == GAUSSIAN_MODEL_COMPARISON_REF
+    assert score.value > 0
+    assert score.score_id.startswith("github:v6_std_pkg::")
+
+    likelihood = next(s for s in compiled.graph.strategies if s.type == "likelihood")
+    assert likelihood.method.output_bindings == {"score": score.score_id}
+    assert score.score_id in likelihood.premises
+
+
+def test_binomial_test_helper_creates_compute_and_likelihood():
+    pkg = CollectedPackage("v6_std_pkg", namespace="github", version="1.0.0")
+    with pkg:
+        target = claim("The observed count is compatible with p=0.75.")
+        target.label = "target"
+        binomial_test(target=target, successes=295, trials=395, probability=0.75)
+
+    compiled = compile_package_artifact(pkg)
+    strategies = {s.type: s for s in compiled.graph.strategies}
+    assert "compute" in strategies
+    assert "likelihood" in strategies
+    assert compiled.graph.likelihood_scores[0].module_ref == BINOMIAL_MODEL_REF

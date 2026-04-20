@@ -611,6 +611,7 @@ dependencies = [
     { name = "numpy" },
     { name = "opt-einsum" },
     { name = "pydantic" },
+    { name = "scipy" },
     { name = "typer" },
 ]
 
@@ -663,6 +664,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
     { name = "pyyaml", marker = "extra == 'server'", specifier = ">=6.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.3" },
+    { name = "scipy", specifier = ">=1.13" },
     { name = "scikit-learn", marker = "extra == 'server'", specifier = ">=1.8.0" },
     { name = "tos", marker = "extra == 'server'", specifier = ">=2.7" },
     { name = "typer", extras = ["all"], specifier = ">=0.12" },

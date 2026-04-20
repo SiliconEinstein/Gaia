@@ -36,6 +36,8 @@ from gaia.ir.formalize import FormalizationResult, formalize_named_strategy
 from gaia.ir.likelihood_registry import (
     BINOMIAL_MODEL_REF,
     BINOMIAL_MODEL_SPEC,
+    GAUSSIAN_MODEL_COMPARISON_REF,
+    GAUSSIAN_MODEL_COMPARISON_SPEC,
     STANDARD_LIKELIHOOD_MODULES,
     TWO_BINOMIAL_AB_TEST_REF,
     TWO_BINOMIAL_AB_TEST_SPEC,
@@ -82,6 +84,8 @@ __all__ = [
     # Standard likelihood module registry
     "BINOMIAL_MODEL_REF",
     "BINOMIAL_MODEL_SPEC",
+    "GAUSSIAN_MODEL_COMPARISON_REF",
+    "GAUSSIAN_MODEL_COMPARISON_SPEC",
     "STANDARD_LIKELIHOOD_MODULES",
     "TWO_BINOMIAL_AB_TEST_REF",
     "TWO_BINOMIAL_AB_TEST_SPEC",

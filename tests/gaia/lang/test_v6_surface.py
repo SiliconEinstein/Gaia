@@ -97,7 +97,7 @@ def test_claim_class_decorator_converts_knowledge_parameters_to_qids():
     with pkg:
         exp = setting("Experiment exp_123.")
         exp.label = "exp_123"
-        counted = CountReported(experiment=exp, count=10, label="counted")
+        CountReported(experiment=exp, count=10, label="counted")
 
     compiled = compile_package_artifact(pkg)
     ir_counted = next(k for k in compiled.graph.knowledges if k.label == "counted")
@@ -208,3 +208,44 @@ def test_compute_decorator_lifts_python_call_to_claim_and_strategy():
     assert compute_ir.method.output == "github:v6_pkg::sum_result"
     assert set(compute_ir.method.input_bindings) == {"a", "b"}
     assert len(compute_ir.premises) == 2
+
+
+def test_likelihood_from_accepts_parameterized_score_claim():
+    class LogLRScore(ParameterizedClaim):
+        template = "The log-likelihood ratio is {value}."
+        metadata = {
+            "kind": "likelihood_score",
+            "module_ref": "gaia.std.likelihood.binomial_model@v1",
+            "score_type": "log_lr",
+        }
+
+        value: float
+
+    pkg = CollectedPackage("v6_pkg", namespace="github", version="1.0.0")
+    with pkg:
+        target = claim("The binomial model is adequate.")
+        target.label = "target"
+        data = claim("The experiment observed 295 successes out of 395 trials.")
+        data.label = "counts"
+        score = LogLRScore(value=-0.01)
+        score.label = "score"
+
+        likelihood_from(
+            target=target,
+            data=[data],
+            score=score,
+            query="p = 0.75",
+            reason="Apply a score Claim directly.",
+        )
+
+    compiled = compile_package_artifact(pkg)
+    assert len(compiled.graph.likelihood_scores) == 1
+    score_record = compiled.graph.likelihood_scores[0]
+    assert score_record.score_id == "github:v6_pkg::score"
+    assert score_record.target == "github:v6_pkg::target"
+    assert score_record.value == -0.01
+
+    likelihood_ir = next(s for s in compiled.graph.strategies if s.type == "likelihood")
+    assert likelihood_ir.method.output_bindings == {"score": "github:v6_pkg::score"}
+    assert likelihood_ir.method.premise_bindings["score"] == "github:v6_pkg::score"
+    assert "github:v6_pkg::score" in likelihood_ir.premises

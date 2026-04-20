@@ -6,6 +6,7 @@ from gaia.ir.strategy import LikelihoodModuleSpec
 
 BINOMIAL_MODEL_REF = "gaia.std.likelihood.binomial_model@v1"
 TWO_BINOMIAL_AB_TEST_REF = "gaia.std.likelihood.two_binomial_ab_test@v1"
+GAUSSIAN_MODEL_COMPARISON_REF = "gaia.std.likelihood.gaussian_model_comparison@v1"
 
 BINOMIAL_MODEL_SPEC = LikelihoodModuleSpec(
     module_ref=BINOMIAL_MODEL_REF,
@@ -29,9 +30,21 @@ TWO_BINOMIAL_AB_TEST_SPEC = LikelihoodModuleSpec(
     effect="add_log_odds",
 )
 
+GAUSSIAN_MODEL_COMPARISON_SPEC = LikelihoodModuleSpec(
+    module_ref=GAUSSIAN_MODEL_COMPARISON_REF,
+    input_schema={"target": "Claim"},
+    output_schema={"score": "LikelihoodScoreRecord"},
+    premise_schema={"score": "Claim"},
+    target_role="target",
+    score_role="score",
+    score_type="log_lr",
+    effect="add_log_odds",
+)
+
 STANDARD_LIKELIHOOD_MODULES: dict[str, LikelihoodModuleSpec] = {
     BINOMIAL_MODEL_REF: BINOMIAL_MODEL_SPEC,
     TWO_BINOMIAL_AB_TEST_REF: TWO_BINOMIAL_AB_TEST_SPEC,
+    GAUSSIAN_MODEL_COMPARISON_REF: GAUSSIAN_MODEL_COMPARISON_SPEC,
 }
 
 

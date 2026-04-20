@@ -175,8 +175,23 @@ def _knowledge_id(
     return _make_qid("external", "anonymous", fallback_label), local_anon_counter
 
 
-def _knowledge_metadata(k: Knowledge) -> dict[str, Any] | None:
-    metadata = dict(k.metadata)
+def _metadata_ir_value(value: Any, knowledge_map: dict[int, str]) -> Any:
+    if isinstance(value, Knowledge):
+        return knowledge_map[id(value)]
+    if isinstance(value, list):
+        return [_metadata_ir_value(item, knowledge_map) for item in value]
+    if isinstance(value, tuple):
+        return [_metadata_ir_value(item, knowledge_map) for item in value]
+    if isinstance(value, dict):
+        return {key: _metadata_ir_value(item, knowledge_map) for key, item in value.items()}
+    return value
+
+
+def _knowledge_metadata(k: Knowledge, knowledge_map: dict[int, str]) -> dict[str, Any] | None:
+    metadata = {
+        key: _metadata_ir_value(value, knowledge_map)
+        for key, value in k.metadata.items()
+    }
     return metadata or None
 
 
@@ -204,12 +219,43 @@ def _value_knowledge_items(value: Any) -> list[Knowledge]:
     return []
 
 
+def _parameter_value(parameters: list[dict[str, Any]], name: str) -> Any:
+    for parameter in parameters:
+        if parameter.get("name") == name:
+            return parameter.get("value")
+    return None
+
+
 def _likelihood_score_record(
     value: Any,
     knowledge_map: dict[int, str],
 ) -> IrLikelihoodScoreRecord | None:
     if isinstance(value, ComputeResult):
         return _likelihood_score_record(value.output, knowledge_map)
+    if isinstance(value, Knowledge):
+        metadata = value.metadata or {}
+        if metadata.get("kind") != "likelihood_score":
+            return None
+        score_id = knowledge_map[id(value)]
+        module_ref = metadata.get("module_ref")
+        target = metadata.get("target")
+        if isinstance(target, Knowledge):
+            target = knowledge_map[id(target)]
+        if module_ref is None or target is None:
+            raise ValueError(
+                "Likelihood score Claim requires metadata['module_ref'] and metadata['target']"
+            )
+        score_type = metadata.get("score_type", "log_lr")
+        score_value = metadata.get("value", _parameter_value(value.parameters, "value"))
+        return IrLikelihoodScoreRecord(
+            score_id=score_id,
+            module_ref=module_ref,
+            target=target,
+            score_type=score_type,
+            value=score_value,
+            query=metadata.get("query"),
+            rationale=metadata.get("rationale") or value.rendered_content or value.content,
+        )
     if not isinstance(value, LikelihoodScore):
         return None
     if value.score_id is None:
@@ -497,7 +543,7 @@ def compile_package_artifact(
             rendered_content=k.rendered_content,
             parameters=_knowledge_parameters_to_ir(k, knowledge_map),
             provenance=_knowledge_provenance(k),
-            metadata=_knowledge_metadata(k),
+            metadata=_knowledge_metadata(k, knowledge_map),
             module=getattr(k, "_source_module", None),
             declaration_index=getattr(k, "_declaration_index", None),
             exported=k.label in exported_labels if k.label else False,

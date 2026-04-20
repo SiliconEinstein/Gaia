@@ -479,7 +479,7 @@ def compute(
 def likelihood_from(
     *,
     target: Knowledge,
-    data: list[Knowledge],
+    data: list[Knowledge] | None = None,
     assumptions: list[Knowledge] | None = None,
     score=None,
     score_correctness: Knowledge | None = None,
@@ -489,6 +489,7 @@ def likelihood_from(
     reason: ReasonInput = "",
 ) -> Strategy:
     """Declare a module-based likelihood update for a target Claim."""
+    data = list(data or [])
     assumptions = list(assumptions or [])
     if isinstance(score, ComputeResult):
         score_correctness = score.correctness
@@ -498,12 +499,29 @@ def likelihood_from(
     if isinstance(score, LikelihoodScore):
         module_ref = module_ref or score.module_ref
         query = query if query is not None else score.query
+    if isinstance(score, Knowledge):
+        module_ref = module_ref or score.metadata.get("module_ref")
+        query = query if query is not None else score.metadata.get("query")
     if module_ref is None:
-        raise ValueError("likelihood_from() requires module_ref unless score is LikelihoodScore")
-    if score_correctness is None:
         raise ValueError(
-            "likelihood_from() requires score_correctness unless score is ComputeResult"
+            "likelihood_from() requires module_ref unless score carries module metadata"
         )
+    if score_correctness is None and not isinstance(score, Knowledge):
+        raise ValueError(
+            "likelihood_from() requires score_correctness unless score is a Claim or ComputeResult"
+        )
+    if isinstance(score, Knowledge):
+        score.metadata.setdefault("kind", "likelihood_score")
+        score.metadata.setdefault("module_ref", module_ref)
+        score.metadata.setdefault("score_type", "log_lr")
+        if query is not None:
+            score.metadata.setdefault("query", query)
+        score.metadata.setdefault("target", target)
+        if "value" not in score.metadata:
+            for parameter in score.parameters:
+                if parameter.get("name") == "value":
+                    score.metadata["value"] = parameter.get("value")
+                    break
 
     if input_bindings is None:
         input_bindings = {"target": target}
@@ -516,15 +534,22 @@ def likelihood_from(
         input_bindings = dict(input_bindings)
         input_bindings.setdefault("target", target)
 
-    premise_bindings: dict[str, Knowledge] = {
-        "score_correct": score_correctness,
-    }
+    premise_bindings: dict[str, Knowledge] = {}
+    if score_correctness is not None:
+        premise_bindings["score_correct"] = score_correctness
+    if isinstance(score, Knowledge):
+        premise_bindings["score"] = score
     for i, item in enumerate(data):
         premise_bindings[f"data_{i}"] = item
     for i, item in enumerate(assumptions):
         premise_bindings[f"assumption_{i}"] = item
 
-    premises = _dedupe_knowledge([*data, *assumptions, score_correctness])
+    gate_items = [*data, *assumptions]
+    if score_correctness is not None:
+        gate_items.append(score_correctness)
+    if isinstance(score, Knowledge):
+        gate_items.append(score)
+    premises = _dedupe_knowledge(gate_items)
     strategy = Strategy(
         type="likelihood",
         premises=premises,
