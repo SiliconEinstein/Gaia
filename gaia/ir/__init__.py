@@ -18,12 +18,19 @@ from gaia.ir.knowledge import (
 from gaia.ir.operator import Operator, OperatorType
 from gaia.ir.strategy import (
     CompositeStrategy,
+    ComputeMethod,
+    DeductionMethod,
     FormalExpr,
     FormalStrategy,
+    LikelihoodModuleSpec,
+    LikelihoodScoreRecord,
+    ModuleUseMethod,
+    OpaqueConditionalMethod,
     Step,
     Strategy,
     StrategyType,
 )
+from gaia.ir.review import ReviewManifest, ReviewNote, Warrant, WarrantStatus
 from gaia.ir.graphs import LocalCanonicalGraph
 from gaia.ir.formalize import FormalizationResult, formalize_named_strategy
 from gaia.ir.parameterization import (
@@ -46,11 +53,22 @@ __all__ = [
     "OperatorType",
     # Strategy
     "CompositeStrategy",
+    "ComputeMethod",
+    "DeductionMethod",
     "FormalExpr",
     "FormalStrategy",
+    "LikelihoodModuleSpec",
+    "LikelihoodScoreRecord",
+    "ModuleUseMethod",
+    "OpaqueConditionalMethod",
     "Step",
     "Strategy",
     "StrategyType",
+    # Review
+    "ReviewManifest",
+    "ReviewNote",
+    "Warrant",
+    "WarrantStatus",
     # Graphs
     "LocalCanonicalGraph",
     # Formalization

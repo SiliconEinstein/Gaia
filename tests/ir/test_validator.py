@@ -1,8 +1,10 @@
 """Tests for Gaia IR validator."""
 
 from gaia.ir import (
+    ComputeMethod,
     Knowledge,
     KnowledgeType,
+    ModuleUseMethod,
     Operator,
     Strategy,
     CompositeStrategy,
@@ -70,6 +72,16 @@ class TestKnowledgeValidation:
         r = validate_local_graph(g)
         assert not r.valid
         assert any("content" in e for e in r.errors)
+
+    def test_local_knowledge_may_use_content_template(self):
+        k = Knowledge(
+            id="github:test::a",
+            type=KnowledgeType.CLAIM,
+            content_template="A({x})",
+        )
+        g = _local_graph(knowledges=[k])
+        r = validate_local_graph(g)
+        assert r.valid
 
     def test_metadata_prior_must_be_in_cromwell_bounds(self):
         g = _local_graph(
@@ -456,6 +468,85 @@ class TestStrategyValidation:
         r = validate_local_graph(g)
         assert r.valid  # warning, not error
         assert any("background" in w for w in r.warnings)
+
+    def test_valid_likelihood_module_method(self):
+        g = _local_graph(
+            knowledges=[
+                _claim("github:test::counts"),
+                _claim("github:test::randomization_valid"),
+                _claim("github:test::score_correct"),
+                _claim("github:test::target"),
+            ],
+            strategies=[
+                Strategy(
+                    scope="local",
+                    type="likelihood",
+                    premises=[
+                        "github:test::counts",
+                        "github:test::randomization_valid",
+                        "github:test::score_correct",
+                    ],
+                    conclusion="github:test::target",
+                    method=ModuleUseMethod(
+                        module_ref="gaia.std.likelihood.two_binomial_ab_test@v1",
+                        input_bindings={
+                            "counts": "github:test::counts",
+                            "target": "github:test::target",
+                        },
+                        output_bindings={"score": "score:ab"},
+                        premise_bindings={
+                            "data_observed": "github:test::counts",
+                            "random_assignment": "github:test::randomization_valid",
+                            "score_correct": "github:test::score_correct",
+                        },
+                    ),
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert r.valid
+
+    def test_likelihood_requires_module_use_method(self):
+        g = _local_graph(
+            knowledges=[_claim("github:test::a"), _claim("github:test::b")],
+            strategies=[
+                Strategy(
+                    scope="local",
+                    type="likelihood",
+                    premises=["github:test::a"],
+                    conclusion="github:test::b",
+                    method=ComputeMethod(
+                        function_ref="f",
+                        input_bindings={"x": "github:test::a"},
+                        output="score:x",
+                    ),
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("likelihood strategy requires ModuleUseMethod" in e for e in r.errors)
+
+    def test_assertion_must_be_claim(self):
+        g = _local_graph(
+            knowledges=[
+                _claim("github:test::a"),
+                _claim("github:test::b"),
+                _setting("github:test::setting"),
+            ],
+            strategies=[
+                Strategy(
+                    scope="local",
+                    type="deduction",
+                    premises=["github:test::a"],
+                    conclusion="github:test::b",
+                    assertions=["github:test::setting"],
+                )
+            ],
+        )
+        r = validate_local_graph(g)
+        assert not r.valid
+        assert any("assertion" in e and "must be claim" in e for e in r.errors)
 
     def test_global_scope_rejected_at_construction(self):
         """Global scope is no longer allowed — Strategy model rejects it."""

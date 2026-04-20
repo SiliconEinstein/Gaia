@@ -43,8 +43,8 @@ class TestIsQid:
 
 
 class TestKnowledgeType:
-    def test_three_types(self):
-        assert set(KnowledgeType) == {"claim", "setting", "question"}
+    def test_four_types(self):
+        assert set(KnowledgeType) == {"claim", "setting", "question", "context"}
 
     def test_no_template(self):
         with pytest.raises(ValueError):
@@ -128,6 +128,59 @@ class TestKnowledgeParameters:
             parameters=[Parameter(name="x", type="T")],
         )
         assert k1.content_hash != k2.content_hash
+
+    def test_unbound_param_value_preserves_hash(self):
+        k1 = Knowledge(
+            id="github:pkg::a",
+            type="claim",
+            content="P({x})",
+            parameters=[Parameter(name="x", type="T")],
+        )
+        k2 = Knowledge(
+            id="github:pkg::b",
+            type="claim",
+            content="P({x})",
+            parameters=[Parameter(name="x", type="T", value=None)],
+        )
+        assert k1.content_hash == k2.content_hash
+
+    def test_param_values_affect_content_hash(self):
+        k1 = Knowledge(
+            id="github:pkg::a",
+            type="claim",
+            content_template="P({x})",
+            parameters=[Parameter(name="x", type="int", value=1)],
+        )
+        k2 = Knowledge(
+            id="github:pkg::b",
+            type="claim",
+            content_template="P({x})",
+            parameters=[Parameter(name="x", type="int", value=2)],
+        )
+        assert k1.content_hash != k2.content_hash
+
+    def test_rendered_content_does_not_affect_content_hash(self):
+        k1 = Knowledge(
+            id="github:pkg::a",
+            type="claim",
+            content_template="[@experiment] recorded {count} conversions.",
+            rendered_content="Experiment A recorded 10 conversions.",
+            parameters=[
+                Parameter(name="experiment", type="Setting", value="github:pkg::exp"),
+                Parameter(name="count", type="int", value=10),
+            ],
+        )
+        k2 = Knowledge(
+            id="github:pkg::b",
+            type="claim",
+            content_template="[@experiment] recorded {count} conversions.",
+            rendered_content="Rendered differently.",
+            parameters=[
+                Parameter(name="experiment", type="Setting", value="github:pkg::exp"),
+                Parameter(name="count", type="int", value=10),
+            ],
+        )
+        assert k1.content_hash == k2.content_hash
 
 
 class TestKnowledgeLocalGlobal:

@@ -6,6 +6,7 @@ Implements docs/foundations/gaia-ir/gaia-ir.md §1.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from enum import StrEnum
 from typing import Any
@@ -31,6 +32,7 @@ class KnowledgeType(StrEnum):
     CLAIM = "claim"
     SETTING = "setting"
     QUESTION = "question"
+    CONTEXT = "context"
 
 
 class Parameter(BaseModel):
@@ -38,6 +40,7 @@ class Parameter(BaseModel):
 
     name: str
     type: str
+    value: Any | None = None
 
 
 class PackageRef(BaseModel):
@@ -51,14 +54,32 @@ def _sha256_hex(data: str, length: int = 16) -> str:
     return hashlib.sha256(data.encode()).hexdigest()[:length]
 
 
+def _canonical_param_dump(parameter: Parameter) -> dict[str, Any]:
+    return parameter.model_dump(mode="json", exclude_none=False)
+
+
 def _compute_content_hash(type_: str, content: str, parameters: list[Parameter]) -> str:
     """Content fingerprint: SHA-256(type + content + sorted(parameters)), no package_id.
 
     Same content in different packages produces the same content_hash.
     Used for canonicalization fast-path (exact match) and curation dedup.
     """
-    sorted_params = sorted((p.name, p.type) for p in parameters)
-    payload = f"{type_}|{content}|{sorted_params}"
+    if all(p.value is None for p in parameters):
+        # Preserve legacy hashes for unbound parameter declarations.
+        sorted_params = sorted((p.name, p.type) for p in parameters)
+        payload = f"{type_}|{content}|{sorted_params}"
+        return _sha256_hex(payload, length=64)
+
+    sorted_params = sorted(
+        [_canonical_param_dump(p) for p in parameters],
+        key=lambda p: json.dumps(p, sort_keys=True, ensure_ascii=False),
+    )
+    payload = json.dumps(
+        {"type": str(type_), "content": content, "parameters": sorted_params},
+        sort_keys=True,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
     return _sha256_hex(payload, length=64)
 
 
@@ -73,6 +94,8 @@ class Knowledge(BaseModel):
     title: str | None = None
     type: KnowledgeType
     content: str | None = None
+    content_template: str | None = None
+    rendered_content: str | None = None
     content_hash: str | None = None
     parameters: list[Parameter] = []
     metadata: dict[str, Any] | None = None
@@ -92,9 +115,13 @@ class Knowledge(BaseModel):
             raise ValueError("Knowledge requires at least one of `id` or `label`.")
 
         # Content_hash is a derived fingerprint and must stay consistent
-        # with the node's actual content.
-        if self.content is not None:
-            expected_content_hash = _compute_content_hash(self.type, self.content, self.parameters)
+        # with the node's canonical content. v6 parameterized claims use
+        # content_template for identity and rendered_content for display.
+        canonical_content = self.content_template if self.content_template is not None else self.content
+        if canonical_content is not None:
+            expected_content_hash = _compute_content_hash(
+                self.type, canonical_content, self.parameters
+            )
             if self.content_hash is not None and self.content_hash != expected_content_hash:
                 raise ValueError("content_hash must match the derived content fingerprint")
             self.content_hash = expected_content_hash

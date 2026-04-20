@@ -4,8 +4,13 @@ import pytest
 from gaia.ir import (
     Strategy,
     CompositeStrategy,
+    ComputeMethod,
     FormalStrategy,
     FormalExpr,
+    LikelihoodModuleSpec,
+    LikelihoodScoreRecord,
+    ModuleUseMethod,
+    OpaqueConditionalMethod,
     StrategyType,
     Step,
     Operator,
@@ -13,8 +18,8 @@ from gaia.ir import (
 
 
 class TestStrategyType:
-    def test_thirteen_types(self):
-        assert len(StrategyType) == 13
+    def test_v6_compatible_types(self):
+        assert len(StrategyType) == 16
         expected = {
             "infer",
             "noisy_and",
@@ -29,6 +34,9 @@ class TestStrategyType:
             "induction",
             "support",
             "compare",
+            "likelihood",
+            "compute",
+            "opaque_conditional",
         }
         assert set(StrategyType) == expected
 
@@ -126,6 +134,115 @@ class TestStrategyCreation:
         """Leaf strategies have empty structure hash."""
         s = Strategy(scope="local", type="infer", premises=["a"], conclusion="b")
         assert s._structure_hash() == ""
+
+    def test_likelihood_method_affects_strategy_id(self):
+        s1 = Strategy(
+            scope="local",
+            type="likelihood",
+            premises=["github:test::counts", "github:test::score_correct"],
+            conclusion="github:test::target",
+            method=ModuleUseMethod(
+                module_ref="gaia.std.likelihood.two_binomial_ab_test@v1",
+                input_bindings={
+                    "counts": "github:test::counts",
+                    "target": "github:test::target",
+                },
+                output_bindings={"score": "score:ab"},
+                premise_bindings={
+                    "data_observed": "github:test::counts",
+                    "score_correct": "github:test::score_correct",
+                },
+            ),
+            reason="Apply AB-test likelihood.",
+        )
+        s2 = Strategy(
+            scope="local",
+            type="likelihood",
+            premises=["github:test::counts", "github:test::score_correct"],
+            conclusion="github:test::target",
+            method=ModuleUseMethod(
+                module_ref="gaia.std.likelihood.binomial_test@v1",
+                input_bindings={
+                    "counts": "github:test::counts",
+                    "target": "github:test::target",
+                },
+                output_bindings={"score": "score:ab"},
+                premise_bindings={
+                    "data_observed": "github:test::counts",
+                    "score_correct": "github:test::score_correct",
+                },
+            ),
+            reason="Apply binomial likelihood.",
+        )
+        assert s1.strategy_id != s2.strategy_id
+
+    def test_assertions_affect_strategy_id(self):
+        s1 = Strategy(
+            scope="local",
+            type="deduction",
+            premises=["github:test::a"],
+            conclusion="github:test::b",
+            assertions=["github:test::assertion_1"],
+        )
+        s2 = Strategy(
+            scope="local",
+            type="deduction",
+            premises=["github:test::a"],
+            conclusion="github:test::b",
+            assertions=["github:test::assertion_2"],
+        )
+        assert s1.strategy_id != s2.strategy_id
+
+    def test_compute_and_opaque_methods_round_trip(self):
+        compute = ComputeMethod(
+            function_ref="two_binomial_log_lr",
+            input_bindings={"counts": "github:test::counts"},
+            output="score:ab",
+            output_binding={"value": "return_value"},
+            code_hash="sha256:abc",
+        )
+        strategy = Strategy(
+            scope="local",
+            type="compute",
+            premises=["github:test::counts"],
+            conclusion="github:test::score_correct",
+            method=compute,
+        )
+        dumped = strategy.model_dump(mode="json")
+        loaded = Strategy.model_validate(dumped)
+        assert isinstance(loaded.method, ComputeMethod)
+        assert loaded.method.output == "score:ab"
+
+        opaque = Strategy(
+            scope="local",
+            type="opaque_conditional",
+            premises=["github:test::a"],
+            conclusion="github:test::b",
+            method=OpaqueConditionalMethod(parameter_ref="cond_001"),
+        )
+        assert isinstance(Strategy.model_validate(opaque.model_dump()).method, OpaqueConditionalMethod)
+
+    def test_likelihood_module_and_score_records(self):
+        spec = LikelihoodModuleSpec(
+            module_ref="gaia.std.likelihood.two_binomial_ab_test@v1",
+            input_schema={"counts": "ABCounts", "target": "Claim"},
+            output_schema={"score": "LikelihoodScoreRecord"},
+            premise_schema={"score_correct": "Claim"},
+            target_role="target",
+            score_role="score",
+            score_type="log_lr",
+            effect="add_log_odds",
+        )
+        score = LikelihoodScoreRecord(
+            score_id="score:ab",
+            module_ref=spec.module_ref,
+            target="github:test::target",
+            score_type="log_lr",
+            value=1.73,
+            query="theta_B > theta_A",
+        )
+        assert score.module_ref == spec.module_ref
+        assert score.value == 1.73
 
 
 class TestCompositeStrategy:

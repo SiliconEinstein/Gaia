@@ -13,9 +13,9 @@ from __future__ import annotations
 import hashlib
 import json
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from gaia.ir.operator import Operator, OperatorType
 
@@ -46,6 +46,11 @@ class StrategyType(StrEnum):
     # Composite strategies — non-atomic
     INDUCTION = "induction"  # CompositeStrategy wrapping shared-conclusion abductions
 
+    # v6 Strategy methods — carriers only in the first implementation phase.
+    LIKELIHOOD = "likelihood"
+    COMPUTE = "compute"
+    OPAQUE_CONDITIONAL = "opaque_conditional"
+
 
 class Step(BaseModel):
     """A single reasoning step (local layer only)."""
@@ -63,6 +68,73 @@ class FormalExpr(BaseModel):
     """
 
     operators: list[Operator]
+
+
+class DeductionMethod(BaseModel):
+    """v6 deduction method marker."""
+
+    kind: Literal["deduction"] = "deduction"
+
+
+class ModuleUseMethod(BaseModel):
+    """v6 module instantiation payload, used by likelihood strategies."""
+
+    kind: Literal["module_use"] = "module_use"
+    module_ref: str
+    input_bindings: dict[str, str]
+    output_bindings: dict[str, str]
+    premise_bindings: dict[str, str] = {}
+
+
+class ComputeMethod(BaseModel):
+    """v6 deterministic computation payload."""
+
+    kind: Literal["compute"] = "compute"
+    function_ref: str
+    input_bindings: dict[str, str]
+    output: str
+    output_binding: dict[str, str] | None = None
+    code_hash: str | None = None
+
+
+class OpaqueConditionalMethod(BaseModel):
+    """Legacy escape hatch for opaque conditional probability tables."""
+
+    kind: Literal["opaque_conditional"] = "opaque_conditional"
+    parameter_ref: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+StrategyMethod = Annotated[
+    DeductionMethod | ModuleUseMethod | ComputeMethod | OpaqueConditionalMethod,
+    Field(discriminator="kind"),
+]
+
+
+class LikelihoodModuleSpec(BaseModel):
+    """Machine-readable specification for a standard likelihood module."""
+
+    module_ref: str
+    input_schema: dict[str, str]
+    output_schema: dict[str, str]
+    premise_schema: dict[str, str]
+    target_role: str
+    score_role: str
+    score_value_path: str = "value"
+    score_type: Literal["log_lr", "bayes_factor", "likelihood_table", "custom"]
+    effect: Literal["add_log_odds", "multiply_odds", "likelihood_table_update"]
+
+
+class LikelihoodScoreRecord(BaseModel):
+    """Model/data-derived likelihood strength consumed by a likelihood Strategy."""
+
+    score_id: str
+    module_ref: str
+    target: str
+    score_type: Literal["log_lr", "bayes_factor", "likelihood_table", "custom"]
+    value: Any
+    query: str | dict[str, Any] | None = None
+    rationale: str | None = None
 
 
 def _sha256_hex(data: str, length: int = 16) -> str:
@@ -130,6 +202,33 @@ def _canonical_formal_expr(formal_expr: FormalExpr) -> str:
     return json.dumps(ops, sort_keys=True, separators=(",", ":"))
 
 
+def _canonical_json(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+
+
+def _v6_strategy_payload_hash(
+    method: StrategyMethod | None,
+    assertions: list[str],
+) -> str:
+    payload: dict[str, Any] = {}
+    if method is not None:
+        payload["method"] = method.model_dump(mode="json", exclude_none=True)
+    if assertions:
+        payload["assertions"] = sorted(assertions)
+    if not payload:
+        return ""
+    return _sha256_hex(_canonical_json(payload))
+
+
+def _combine_structure_hashes(*parts: str) -> str:
+    non_empty = [p for p in parts if p]
+    if not non_empty:
+        return ""
+    if len(non_empty) == 1:
+        return non_empty[0]
+    return _sha256_hex(_canonical_json(non_empty))
+
+
 class Strategy(BaseModel):
     """Base strategy — leaf reasoning (single ↝).
 
@@ -144,6 +243,9 @@ class Strategy(BaseModel):
     premises: list[str]  # claim Knowledge IDs
     conclusion: str | None = None  # single output Knowledge (must be claim)
     background: list[str] | None = None  # context Knowledge IDs (any type, not in BP)
+    method: StrategyMethod | None = None
+    reason: str | None = None
+    assertions: list[str] = []
 
     # local layer
     steps: list[Step] | None = None  # reasoning process (local only, None at global)
@@ -154,9 +256,9 @@ class Strategy(BaseModel):
     def _structure_hash(self) -> str:
         """Compute the structure hash component for strategy ID.
 
-        Leaf strategies have empty structure hash.
+        Leaf strategies have empty structure hash unless they use v6 method or assertions.
         """
-        return ""
+        return _v6_strategy_payload_hash(self.method, self.assertions)
 
     def formalize(
         self, *, namespace: str | None = None, package_name: str | None = None
@@ -222,7 +324,10 @@ class CompositeStrategy(Strategy):
     def _structure_hash(self) -> str:
         """SHA-256 of sorted sub_strategy IDs."""
         payload = str(sorted(self.sub_strategies))
-        return _sha256_hex(payload)
+        return _combine_structure_hashes(
+            _sha256_hex(payload),
+            _v6_strategy_payload_hash(self.method, self.assertions),
+        )
 
     @model_validator(mode="after")
     def _validate_sub_strategies(self) -> CompositeStrategy:
@@ -243,7 +348,10 @@ class FormalStrategy(Strategy):
 
     def _structure_hash(self) -> str:
         """SHA-256 of canonical formal expression."""
-        return _sha256_hex(_canonical_formal_expr(self.formal_expr))
+        return _combine_structure_hashes(
+            _sha256_hex(_canonical_formal_expr(self.formal_expr)),
+            _v6_strategy_payload_hash(self.method, self.assertions),
+        )
 
     @model_validator(mode="after")
     def _validate_formal_expr(self) -> FormalStrategy:

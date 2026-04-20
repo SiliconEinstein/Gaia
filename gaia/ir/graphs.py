@@ -25,6 +25,11 @@ def _canonicalize_knowledge_dump(data: dict[str, Any]) -> dict[str, Any]:
     canonical["parameters"] = sorted(canonical.get("parameters", []), key=_json_sort_key)
     if canonical.get("provenance") is not None:
         canonical["provenance"] = sorted(canonical["provenance"], key=_json_sort_key)
+    if canonical.get("content_template") is not None:
+        # v6 treats rendered content as presentation. When a canonical template
+        # is present, legacy/rendered content must not affect graph identity.
+        canonical.pop("content", None)
+    canonical.pop("rendered_content", None)
     # Exclude narrative/presentational fields from content hash
     canonical.pop("title", None)
     canonical.pop("module", None)
@@ -49,6 +54,8 @@ def _canonicalize_strategy_dump(data: dict[str, Any]) -> dict[str, Any]:
     canonical["premises"] = sorted(canonical.get("premises", []))
     if canonical.get("background") is not None:
         canonical["background"] = sorted(canonical["background"])
+    if canonical.get("assertions") is not None:
+        canonical["assertions"] = sorted(canonical["assertions"])
     if canonical.get("sub_strategies") is not None:
         # sub_strategies are now string IDs, not embedded dicts
         canonical["sub_strategies"] = sorted(canonical["sub_strategies"])

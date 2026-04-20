@@ -3,6 +3,7 @@
 from gaia.ir import (
     Knowledge,
     Operator,
+    Parameter,
     Strategy,
     LocalCanonicalGraph,
 )
@@ -92,6 +93,31 @@ class TestLocalCanonicalGraph:
         )
         assert g.knowledges[0].id == "github:test::alpha"
         assert g.knowledges[1].id == "github:test::beta"
+
+    def test_rendered_content_excluded_from_graph_hash_when_template_exists(self):
+        def make(rendered: str) -> LocalCanonicalGraph:
+            return _local_graph(
+                knowledges=[
+                    Knowledge(
+                        id="github:test::counts",
+                        type="claim",
+                        content_template="[@experiment] recorded {count} conversions.",
+                        rendered_content=rendered,
+                        parameters=[
+                            Parameter(
+                                name="experiment",
+                                type="Setting",
+                                value="github:test::experiment",
+                            ),
+                            Parameter(name="count", type="int", value=10),
+                        ],
+                    )
+                ]
+            )
+
+        assert make("Experiment A recorded 10 conversions.").ir_hash == make(
+            "Rendered with a different label."
+        ).ir_hash
 
     def test_local_graph_preserves_explicit_id(self):
         """Knowledge with explicit id is not overwritten by auto-assign."""

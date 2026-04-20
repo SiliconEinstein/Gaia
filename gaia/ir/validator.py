@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from gaia.ir.knowledge import Knowledge, KnowledgeType, is_qid
 from gaia.ir.operator import Operator, OperatorType
 from gaia.ir.strategy import Strategy, CompositeStrategy, FormalStrategy, StrategyType
+from gaia.ir.strategy import ComputeMethod, ModuleUseMethod
 from gaia.ir.graphs import LocalCanonicalGraph, _canonical_json
 from gaia.ir.parameterization import (
     CROMWELL_EPS,
@@ -117,7 +118,7 @@ def _validate_knowledges(
 
         # local-layer shape rules
         if scope == "local":
-            if k.content is None:
+            if k.content is None and k.content_template is None:
                 result.error(f"Knowledge '{k.id}': local layer requires content")
 
     # label uniqueness check for local scope
@@ -239,6 +240,18 @@ def _validate_strategy(
             if bid not in knowledge_lookup:
                 result.warn(f"Strategy '{sid}': background '{bid}' not found in graph")
 
+    # v6 assertion helpers are claim nodes licensed by review policy.
+    for aid in strategy.assertions:
+        if aid not in knowledge_lookup:
+            result.error(f"Strategy '{sid}': assertion '{aid}' not found in graph")
+        elif knowledge_lookup[aid].type != KnowledgeType.CLAIM:
+            result.error(
+                f"Strategy '{sid}': assertion '{aid}' is "
+                f"'{knowledge_lookup[aid].type}', must be claim"
+            )
+
+    _validate_strategy_method(strategy, knowledge_lookup, result)
+
     # scope/prefix checks
     if strategy.scope != scope:
         result.error(f"Strategy '{sid}': scope '{strategy.scope}' incompatible with {scope} graph")
@@ -258,6 +271,60 @@ def _validate_strategy(
             top_level=False,
         )
         _validate_formal_expr_closure(strategy, knowledge_lookup, result)
+
+
+def _validate_strategy_method(
+    strategy: Strategy,
+    knowledge_lookup: dict[str, Knowledge],
+    result: ValidationResult,
+) -> None:
+    """Validate v6 Strategy.method bindings without changing BP behavior."""
+    sid = strategy.strategy_id or "<no-id>"
+    method = strategy.method
+    if method is None:
+        return
+
+    if strategy.type == StrategyType.LIKELIHOOD and not isinstance(method, ModuleUseMethod):
+        result.error(f"Strategy '{sid}': likelihood strategy requires ModuleUseMethod")
+    if strategy.type == StrategyType.COMPUTE and not isinstance(method, ComputeMethod):
+        result.error(f"Strategy '{sid}': compute strategy requires ComputeMethod")
+
+    if isinstance(method, ModuleUseMethod):
+        for role, kid in method.input_bindings.items():
+            if kid not in knowledge_lookup:
+                result.error(
+                    f"Strategy '{sid}': method input binding '{role}' references '{kid}', "
+                    "not found in graph"
+                )
+        for role, pid in method.premise_bindings.items():
+            if pid not in knowledge_lookup:
+                result.error(
+                    f"Strategy '{sid}': method premise binding '{role}' references '{pid}', "
+                    "not found in graph"
+                )
+            elif knowledge_lookup[pid].type != KnowledgeType.CLAIM:
+                result.error(
+                    f"Strategy '{sid}': method premise binding '{role}' references "
+                    f"'{knowledge_lookup[pid].type}', must be claim"
+                )
+            if pid not in strategy.premises:
+                result.error(
+                    f"Strategy '{sid}': method premise binding '{role}' must also appear "
+                    "in Strategy.premises"
+                )
+
+    if isinstance(method, ComputeMethod):
+        for role, kid in method.input_bindings.items():
+            if kid not in knowledge_lookup:
+                result.error(
+                    f"Strategy '{sid}': compute input binding '{role}' references '{kid}', "
+                    "not found in graph"
+                )
+            elif knowledge_lookup[kid].type != KnowledgeType.CLAIM:
+                result.error(
+                    f"Strategy '{sid}': compute input binding '{role}' references "
+                    f"'{knowledge_lookup[kid].type}', must be claim"
+                )
 
 
 def _validate_composite_sub_strategies(
@@ -499,6 +566,22 @@ def _validate_scope_consistency(
             _check_id_format(
                 s.conclusion, f"Strategy '{s.strategy_id}': conclusion '{s.conclusion}'"
             )
+        for aid in s.assertions:
+            _check_id_format(aid, f"Strategy '{s.strategy_id}': assertion '{aid}'")
+        if isinstance(s.method, ModuleUseMethod):
+            for role, kid in s.method.input_bindings.items():
+                _check_id_format(
+                    kid, f"Strategy '{s.strategy_id}': method input binding '{role}'"
+                )
+            for role, pid in s.method.premise_bindings.items():
+                _check_id_format(
+                    pid, f"Strategy '{s.strategy_id}': method premise binding '{role}'"
+                )
+        if isinstance(s.method, ComputeMethod):
+            for role, kid in s.method.input_bindings.items():
+                _check_id_format(
+                    kid, f"Strategy '{s.strategy_id}': compute input binding '{role}'"
+                )
 
     def _check_operator_ids(op: Operator, context: str) -> None:
         for var_id in op.variables:
