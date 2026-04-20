@@ -176,7 +176,7 @@ This is important for generated helper claims and statistical score claims such 
 ```text
 Equivalent[A, B]
 Implies[G, C]
-LikelihoodScore[target=H, model=two_binomial, query=theta_B>theta_A, log_lr=1.73]
+LikelihoodScoreRecord[target=H, module_ref=gaia.std.likelihood.two_binomial_ab_test@v1, score_type=log_lr, value=1.73]
 ```
 
 ### Knowledge references in parameters
@@ -204,7 +204,8 @@ At IR level:
 Knowledge(
     knowledge_id="github:my_package::counts",
     type="claim",
-    content="[@github:my_package::exp] recorded 500/10000 control conversions.",
+    content_template="[@experiment] recorded {ctrl_k}/{ctrl_n} control conversions.",
+    rendered_content="[@github:my_package::exp] recorded 500/10000 control conversions.",  # derived/display only
     parameters=[
         Parameter(name="experiment", type="Setting", value="github:my_package::exp"),  # QID reference
         Parameter(name="ctrl_n", type="int", value=10000),
@@ -215,7 +216,17 @@ Knowledge(
 )
 ```
 
-The `[@...]` syntax in `content` is resolved at compile time to the referenced node's label or QID. This allows:
+The `[@...]` syntax in `content_template` is resolved at compile time for rendering, not for canonical identity. Canonical hashing should use:
+
+```text
+Knowledge.type
+content_template
+sorted Parameter(name, type, value)
+```
+
+`rendered_content` is derived presentation data and must not participate in the canonical hash. This keeps display labels, package names, and link rendering from changing Claim identity. It also avoids storing the same reference twice as both an embedded rendered QID and a `Parameter.value`.
+
+This allows:
 
 1. **Stable hashing**: Parameter values (including QID references) participate in content hash
 2. **Cross-package matching**: Two packages can reference the same Setting and match on it
@@ -391,6 +402,8 @@ class Strategy:
     conclusion: ClaimID | None = None
     background: list[KnowledgeID] | None = None
 
+    method: StrategyMethod | None = None  # v6: machine-readable lowering payload
+
     reason: str                         # v6: first-class, not metadata
     assertions: list[ClaimID] = []        # v6: generated helper claims to assert
 
@@ -401,6 +414,27 @@ class Strategy:
 `reason` is required for reviewable v6 Strategies.
 
 `assertions` is explicit. It replaces the implicit old assumption that a generated “warrant helper” and its prior determine support strength.
+
+`method` is a first-class, machine-readable payload. It must not be hidden in `metadata`, because review, hashing, validation, and BP lowering must all see the same object.
+
+```python
+StrategyMethod = (
+    DeductionMethod
+    | ModuleUseMethod
+    | ComputeMethod
+    | OpaqueConditionalMethod
+)
+
+class ModuleUseMethod:
+    module_ref: str
+    input_bindings: dict[str, KnowledgeID]
+    output_bindings: dict[str, ValueRef]
+    premise_bindings: dict[str, ClaimID] = {}
+
+ValueRef = KnowledgeID | ArtifactRef | ScoreID  # ScoreID references a LikelihoodScoreRecord
+```
+
+`method` must participate in both the Strategy structure hash and the Warrant `subject_hash`.
 
 ## 6.3 FormalStrategy remains useful
 
@@ -604,7 +638,8 @@ This should be allowed only for:
 Recommended lint:
 
 ```text
-Warn on author-facing deduction with empty premises unless marked as definition/axiom/internal.
+Strict mode: error on author-facing deduction with empty premises unless marked as definition/axiom/internal/reviewed_declaration.
+Draft mode: warn on author-facing deduction with empty premises unless marked as definition/axiom/internal/reviewed_declaration.
 ```
 
 ---
@@ -637,18 +672,47 @@ ImplementationCorrect(formula_name: str)
 
 Standard helpers like `ab_test(counts, target)` auto-generate these assumption Claims with default priors, so users don't manually declare them unless overriding.
 
-At IR level, these appear as ordinary `Knowledge(type="claim")` nodes with bound parameters. The IR doesn't distinguish "standard library Claims" from user Claims — they're all just parameterized Claims with priors.
-
-## 9.3 Schema extension
-
-A likelihood Strategy should have a method payload:
+Auto-generated assumption Claims must still be materialized in the graph and surfaced in review/rendering. They should carry provenance such as:
 
 ```python
-class LikelihoodMethod:
-    score: ClaimID | ArtifactRef
+metadata={
+    "generated_by": "gaia.std.likelihood.two_binomial_ab_test@v1",
+    "role": "standard_assumption",
+}
+```
+
+The helper may save authoring effort, but it must not hide priors or assumptions.
+
+At IR level, these appear as ordinary `Knowledge(type="claim")` nodes with bound parameters. The IR doesn't distinguish "standard library Claims" from user Claims — they're all just parameterized Claims with priors.
+
+## 9.3 Module-based schema extension
+
+At the Lang layer, users normally call standard helpers such as `ab_test(...)` or `binomial_test(...)`. At the IR layer, those helpers lower to a module use, not to free-form strings.
+
+A likelihood module defines the statistical model, required bindings, score shape, and BP effect:
+
+```python
+class LikelihoodModuleSpec:
+    module_ref: str
+    input_schema: dict[str, type]
+    output_schema: dict[str, type]
+    premise_schema: dict[str, type]
+
+    target_role: str
+    score_role: str
+    score_value_path: str = "value"
     score_type: Literal["log_lr", "bayes_factor", "likelihood_table", "custom"]
-    model: str | dict
-    query: str | dict
+    effect: Literal["add_log_odds", "multiply_odds", "likelihood_table_update"]
+```
+
+A likelihood Strategy instantiates such a module:
+
+```python
+class ModuleUseMethod:
+    module_ref: str
+    input_bindings: dict[str, KnowledgeID]
+    output_bindings: dict[str, ValueRef]
+    premise_bindings: dict[str, ClaimID] = {}
 ```
 
 Example:
@@ -668,23 +732,40 @@ Strategy(
         "Given valid experiment assumptions and a correctly computed likelihood "
         "score, the AB-test likelihood ratio updates belief in whether B improves conversion."
     ),
-    method=LikelihoodMethod(
-        score=ab_log_lr_score,
-        score_type="log_lr",
-        model="two_binomial",
-        query="theta_B > theta_A",
+    method=ModuleUseMethod(
+        module_ref="gaia.std.likelihood.two_binomial_ab_test@v1",
+        input_bindings={
+            "counts": ab_counts_true,
+            "target": B_better,
+        },
+        output_bindings={
+            "score": ab_log_lr_score,
+        },
+        premise_bindings={
+            "data_observed": ab_counts_true,
+            "random_assignment": randomization_valid,
+            "consistent_logging": logging_valid,
+            "stopping_rule_accounted_for": stopping_rule_accounted_for,
+            "score_correct": ab_log_lr_score_correct,
+        },
     ),
     assertions=[],
 )
 ```
 
-## 9.3 Semantics
+The module spec, not the author, defines that this is a two-binomial AB-test likelihood, that the score is a log likelihood ratio, and that the BP effect is to add the score value to the target's log-odds.
+
+## 9.4 Semantics
 
 If the Strategy is included by review policy:
 
 ```text
-if all premises are true:
-    apply likelihood score to conclusion/target
+look up method.module_ref in the module registry
+validate input/output/premise bindings against the module spec
+extract the score from method.output_bindings[spec.score_role]
+
+if all Strategy.premises are true:
+    apply the module-defined effect to the target
 else:
     neutral
 ```
@@ -699,6 +780,15 @@ else:
 ```
 
 The Strategy itself has no probability. The score is model/data-derived evidence strength; the premises carry epistemic reliability.
+
+The score value and the score correctness Claim are distinct:
+
+```text
+ab_log_lr_score          = value record or artifact containing log_lr = 1.73
+ab_log_lr_score_correct  = Claim that the value was correctly computed/bound
+```
+
+The likelihood Strategy consumes both: the value through `method.output_bindings`, and the correctness gate through `premises`/`premise_bindings`.
 
 ---
 
@@ -721,7 +811,7 @@ Example use cases:
 class ComputeMethod:
     function_ref: str
     input_bindings: dict[str, ClaimID]
-    output: ClaimID | ArtifactRef
+    output: ValueRef
     output_binding: dict[str, str] | None = None
     code_hash: str | None = None
 ```
@@ -741,6 +831,16 @@ Strategy(
         output_binding={"log_lr": "return_value"},
     ),
 )
+```
+
+The `output` is the produced value or artifact. The `conclusion` is a Claim about the correctness of that produced value. They should not be the same object.
+
+```text
+output:
+  ab_log_lr_score, a value record containing log_lr = 1.73
+
+conclusion:
+  ab_log_lr_score_correct, a Claim that this value was correctly computed
 ```
 
 A compute Strategy can itself be reviewed. If computation validity is uncertain, add explicit premise Claims such as:
@@ -902,23 +1002,28 @@ If something is uncertain, it should become a premise Claim.
 
 ## 13.3 Likelihood scores
 
-Likelihood Strategy needs scores. These scores may live in:
+Likelihood Strategy needs score values. A score value is not itself a Strategy prior and should not be confused with the Claim that the score was correctly computed.
 
-1. a parameterized Claim, such as `LikelihoodScore(log_lr=1.73)`, or
-2. a parameterization record, such as `LikelihoodScoreRecord`.
+Scores may live in:
+
+1. a value record, such as `LikelihoodScoreRecord(value=1.73)`;
+2. an artifact referenced by `ArtifactRef`; or
+3. a future value-carrying Knowledge object, provided its truth/correctness gate is modeled separately.
 
 Recommended first-class parameterization:
 
 ```python
 class LikelihoodScoreRecord:
     score_id: str
-    strategy_id: StrategyID
+    module_ref: str
+    target: ClaimID
     score_type: Literal["log_lr", "bayes_factor", "likelihood_table", "custom"]
     value: JsonValue | ArtifactRef
+    query: str | dict | None = None
     rationale: str | None = None
 ```
 
-This is not a Strategy prior. It is model/data evidence strength.
+This is model/data evidence strength. It is consumed by a module-based likelihood Strategy. The uncertainty that this score was computed from the correct inputs, formula, code, or binding is represented by ordinary premise Claims such as `ab_log_lr_score_correct`.
 
 ---
 
@@ -973,10 +1078,20 @@ Implementation may use an epsilon relaxation for numerical stability, but this i
 For an included likelihood Strategy:
 
 ```text
+module_spec = registry[Strategy.method.module_ref]
+score = resolve(Strategy.method.output_bindings[module_spec.score_role])
+target = resolve(Strategy.method.input_bindings[module_spec.target_role])
+
 if premises all true:
-    apply likelihood score to target/conclusion
+    apply module_spec.effect(score, target)
 else:
     neutral
+```
+
+For `effect="add_log_odds"` and score type `log_lr`, this means:
+
+```text
+log_odds(target) += score.value
 ```
 
 BP can implement this as a gated likelihood factor or equivalent lowering. This is a backend detail and does not introduce `Factor` to Gaia IR.
@@ -1013,10 +1128,12 @@ Add:
 
 - `Knowledge(type="context")`
 - `Parameter.value`
+- `Strategy.method`
 - `Strategy.reason`
 - `Strategy.assertions`
 - `Strategy(type="likelihood")`
 - `Strategy(type="compute")`
+- `ModuleUseMethod` and module specs for standard likelihood updates
 - `ReviewManifest`
 - `Warrant`
 - likelihood score parameterization
@@ -1129,7 +1246,8 @@ ab_counts_true                    — ABCounts(experiment=exp, ctrl_n=10000, ctr
 randomization_valid               — RandomAssignment(experiment=exp)
 logging_valid                     — ConsistentLogging(experiment=exp)
 stopping_rule_accounted_for       — NoEarlyStopping(experiment=exp)
-ab_log_lr_score_correct           — LikelihoodScore(target=B_better, model="two_binomial", query="theta_B > theta_A", log_lr=1.73)
+ab_log_lr_score                   — LikelihoodScoreRecord(target=B_better, module_ref="gaia.std.likelihood.two_binomial_ab_test@v1", score_type="log_lr", value=1.73)
+ab_log_lr_score_correct           — Claim that ab_log_lr_score was correctly computed and bound
 formula_correct                   — FormulaCorrect(formula_name="two_binomial_log_lr")
 implementation_correct            — ImplementationCorrect(formula_name="two_binomial_log_lr")
 ```
@@ -1147,8 +1265,8 @@ Strategy(
     method=ComputeMethod(
         function_ref="two_binomial_log_lr",
         input_bindings={"counts": ab_counts_true},
-        output=ab_log_lr_score_correct,
-        output_binding={"log_lr": "return_value"},
+        output=ab_log_lr_score,
+        output_binding={"value": "return_value"},
     ),
 )
 ```
@@ -1167,11 +1285,22 @@ Strategy(
     ],
     conclusion=B_better,
     reason="Apply the computed AB likelihood score to B_better under valid experiment assumptions.",
-    method=LikelihoodMethod(
-        score=ab_log_lr_score,
-        score_type="log_lr",
-        model="two_binomial",
-        query="theta_B > theta_A",
+    method=ModuleUseMethod(
+        module_ref="gaia.std.likelihood.two_binomial_ab_test@v1",
+        input_bindings={
+            "counts": ab_counts_true,
+            "target": B_better,
+        },
+        output_bindings={
+            "score": ab_log_lr_score,
+        },
+        premise_bindings={
+            "data_observed": ab_counts_true,
+            "random_assignment": randomization_valid,
+            "consistent_logging": logging_valid,
+            "stopping_rule_accounted_for": stopping_rule_accounted_for,
+            "score_correct": ab_log_lr_score_correct,
+        },
     ),
 )
 ```

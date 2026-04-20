@@ -176,14 +176,16 @@ ab_counts = ABCounts(
         source_refs=[ctx],
     ),
 )
-# ab_counts.content = "[@exp_123] recorded 500/10000 control and 550/10000 treatment conversions."
+# ab_counts.content_template = "[@experiment] recorded {ctrl_k}/{ctrl_n} control and {treat_k}/{treat_n} treatment conversions."
+# ab_counts.rendered_content = "[@exp_123] recorded 500/10000 control and 550/10000 treatment conversions."
 ```
 
 Template rendering order:
 
-1. Compiler extracts `[@...]` references from docstring, resolves Knowledge-typed parameters to their labels/QIDs.
-2. Compiler applies `str.format()` for value-typed parameters.
-3. Final `content` contains resolved `[@label]` references and substituted values.
+1. Compiler stores the docstring as canonical `content_template`.
+2. Compiler records Knowledge-typed parameter references in `Parameter.value` as QIDs.
+3. Compiler applies `str.format()` and reference rendering only to produce derived `rendered_content`.
+4. `rendered_content` is display-only and does not participate in canonical hashing.
 
 Lowering:
 
@@ -191,6 +193,7 @@ Lowering:
 Knowledge(type="claim")
 Parameter.value stores bound values.
 Knowledge-typed parameters store the referenced node's QID.
+Stable hash uses type + content_template + sorted Parameter(name, type, value).
 ```
 
 The bound parameter values must be preserved in IR and included in stable hashes.
@@ -432,7 +435,7 @@ class ImplementationCorrect(Claim):
     formula_name: str
 ```
 
-### Standard data Claims
+### Standard data Claims and score values
 
 ```python
 class ABCounts(Claim):
@@ -443,17 +446,20 @@ class ABCounts(Claim):
     treat_n: int
     treat_k: int
 
-class LikelihoodScore(Claim):
-    “””Likelihood score for [@target] under {model} model: log_lr = {log_lr:.3f}.”””
+class LikelihoodScore:
+    “””Value object for a module-produced likelihood score.”””
     target: Claim
-    model: str
+    module_ref: str
+    score_type: str
     query: str
-    log_lr: float
+    value: float
 ```
+
+`LikelihoodScore` is not the same thing as the Claim that the score was correctly computed. The score is the value consumed by likelihood lowering; score correctness is an ordinary Claim used as a premise gate.
 
 ## 6.3 Standard likelihood helpers
 
-The standard library provides one-line helpers that automatically instantiate standard assumptions:
+The standard library provides one-line helpers that automatically instantiate standard assumptions. These Claims are generated for convenience, but they are still visible graph objects with priors, grounding/provenance, and review surface.
 
 ```python
 def ab_test(counts: ABCounts, target: Claim) -> Strategy:
@@ -481,14 +487,15 @@ def ab_test(counts: ABCounts, target: Claim) -> Strategy:
     impl = ImplementationCorrect(formula_name=”two_binomial_log_lr”, prior=0.97)
     
     # Compute score
-    score = compute(
+    score_result = compute(
         fn=two_binomial_log_lr,
-        inputs=[counts],
+        inputs={"counts": counts},
         output=LikelihoodScore(
             target=target,
-            model=”two_binomial”,
+            module_ref=”gaia.std.likelihood.two_binomial_ab_test@v1”,
+            score_type=”log_lr”,
             query=”theta_B > theta_A”,
-            log_lr=0.0,  # placeholder, computed by fn
+            value=0.0,  # placeholder, computed by fn
         ),
         assumptions=[formula, impl],
         reason=”Compute two-binomial log likelihood ratio.”,
@@ -499,8 +506,9 @@ def ab_test(counts: ABCounts, target: Claim) -> Strategy:
         target=target,
         data=[counts],
         assumptions=[rand, log, stop],
-        score=score,
-        model=”two_binomial”,
+        score=score_result.output,
+        score_correctness=score_result.correctness,
+        module_ref=”gaia.std.likelihood.two_binomial_ab_test@v1”,
         query=”theta_B > theta_A”,
         reason=”AB test likelihood under standard experiment assumptions.”,
     )
@@ -539,7 +547,8 @@ If a user needs non-standard priors or additional assumptions:
 # Override stopping rule prior
 stop_custom = NoEarlyStopping(experiment=exp, prior=0.60)
 
-# Manual likelihood_from with custom assumptions
+# Manual likelihood_from with custom assumptions.
+# `score_result` may come from compute(...) or a reviewed imported score.
 likelihood_from(
     target=b_better,
     data=[counts],
@@ -549,8 +558,9 @@ likelihood_from(
         stop_custom,  # custom prior
         novelty_effect_accounted,  # additional assumption
     ],
-    score=score,
-    model=”two_binomial”,
+    score=score_result.output,
+    score_correctness=score_result.correctness,
+    module_ref=”gaia.std.likelihood.two_binomial_ab_test@v1”,
     query=”theta_B > theta_A”,
     reason=”AB test with custom stopping rule confidence and novelty effect check.”,
 )
@@ -565,8 +575,9 @@ likelihood_from(
     target=claim,
     data=[data_claims],
     assumptions=[assumption_claims],
-    score=likelihood_score_claim,
-    model=”...”,
+    score=likelihood_score_value,
+    score_correctness=score_correctness_claim,
+    module_ref=”...”,
     query=”...”,
     reason=”...”,
 )
@@ -583,15 +594,16 @@ with premises:
 ```text
 data claims
 assumption claims
-score correctness claim
+score_correctness claim
 ```
 
 and method payload:
 
 ```text
-score
-score_type
-model
+module_ref
+input_bindings
+output_bindings
+premise_bindings
 query
 ```
 
@@ -622,16 +634,40 @@ and include it in assumptions.
 
 `compute(...)` is used when values or parameterized Claims are produced by deterministic code/formulas.
 
+It returns a structured result, not a bare Strategy and not just the output value:
+
+```python
+class ComputeResult(Generic[T]):
+    output: T
+    correctness: Claim
+    strategy: Strategy
+```
+
+This makes the three roles explicit:
+
+```text
+output:
+  the produced value or artifact
+
+correctness:
+  the Claim that the output was correctly computed and bound
+
+strategy:
+  the reviewable compute Strategy that produced/validates the output
+```
+
 Example:
 
 ```python
-score = compute(
+score_result = compute(
     fn=two_binomial_log_lr,
-    inputs=[counts],
+    inputs={"counts": counts},
     output=LikelihoodScore(
         target=b_better,
-        model="two_binomial",
+        module_ref="gaia.std.likelihood.two_binomial_ab_test@v1",
+        score_type="log_lr",
         query="theta_B > theta_A",
+        value=0.0,
     ),
     assumptions=[
         FormulaCorrect(formula_name="two_binomial_log_lr", prior=0.98),
@@ -646,6 +682,8 @@ Lowering:
 ```text
 Strategy(type="compute")
 ```
+
+The lowered compute Strategy uses `score_result.output` as `method.output` and `score_result.correctness` as `conclusion`.
 
 ## 7.2 Computation uncertainty
 
@@ -907,10 +945,16 @@ binomial_model_valid = Claim(
 formula = FormulaCorrect(formula_name="binomial_log_lr", prior=0.98)
 impl = ImplementationCorrect(formula_name="binomial_log_lr", prior=0.97)
 
-score = compute(
+score_result = compute(
     fn=binomial_log_lr_for_p,
-    inputs=[mendel_counts],
-    output=LikelihoodScore(target=p_is_075, model="binomial", query="p=0.75"),
+    inputs={"counts": mendel_counts},
+    output=LikelihoodScore(
+        target=p_is_075,
+        module_ref="gaia.std.likelihood.binomial_test@v1",
+        score_type="log_lr",
+        query="p=0.75",
+        value=0.0,
+    ),
     assumptions=[formula, impl],
     reason="Compute the likelihood score of the observed counts under p=0.75.",
 )
@@ -919,8 +963,9 @@ likelihood_from(
     target=p_is_075,
     data=[mendel_counts],
     assumptions=[binomial_model_valid],
-    score=score,
-    model="binomial",
+    score=score_result.output,
+    score_correctness=score_result.correctness,
+    module_ref="gaia.std.likelihood.binomial_test@v1",
     query="p=0.75",
     reason="Given the binomial sampling model, the observed counts update belief in p=0.75.",
 )
@@ -964,10 +1009,16 @@ novelty = Claim("The novelty effect has been accounted for.", prior=0.75)
 formula = FormulaCorrect(formula_name="two_binomial_log_lr", prior=0.98)
 impl = ImplementationCorrect(formula_name="two_binomial_log_lr", prior=0.97)
 
-score = compute(
+score_result = compute(
     fn=two_binomial_log_lr,
-    inputs=[counts],
-    output=LikelihoodScore(target=b_better, model="two_binomial", query="theta_B > theta_A"),
+    inputs={"counts": counts},
+    output=LikelihoodScore(
+        target=b_better,
+        module_ref="gaia.std.likelihood.two_binomial_ab_test@v1",
+        score_type="log_lr",
+        query="theta_B > theta_A",
+        value=0.0,
+    ),
     assumptions=[formula, impl],
     reason="Compute the two-binomial log likelihood ratio.",
 )
@@ -976,8 +1027,9 @@ likelihood_from(
     target=b_better,
     data=[counts],
     assumptions=[rand, log, stop, novelty],
-    score=score,
-    model="two_binomial",
+    score=score_result.output,
+    score_correctness=score_result.correctness,
+    module_ref="gaia.std.likelihood.two_binomial_ab_test@v1",
     query="theta_B > theta_A",
     reason="AB test with custom stopping rule confidence and novelty effect check.",
 )
@@ -990,7 +1042,7 @@ likelihood_from(
 Recommended v6 lint rules:
 
 1. `supported_by(...)` must not have `prior`.
-2. `supported_by(...)` with empty inputs should warn unless marked as definition/axiom/internal.
+2. In strict mode, `supported_by(...)` with empty inputs should error unless marked as definition/axiom/internal/reviewed_declaration.
 3. Root Claims with non-default prior should have grounding.
 4. Statistical comparisons should prefer `likelihood_from(...)` over `supported_by(...)`.
 5. Opaque conditional strategies should warn.
