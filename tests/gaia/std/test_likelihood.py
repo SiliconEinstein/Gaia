@@ -1,8 +1,17 @@
 """Tests for standard v6 likelihood score modules."""
 
+import importlib
+import sys
+import textwrap
+from collections import Counter
+
 from gaia.lang import claim, compute, likelihood_from
 from gaia.lang.compiler.compile import compile_package_artifact
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.lang.runtime.package import (
+    CollectedPackage,
+    get_inferred_package,
+    reset_inferred_package,
+)
 from gaia.std.likelihood import (
     BINOMIAL_MODEL_REF,
     GAUSSIAN_MODEL_COMPARISON_REF,
@@ -129,3 +138,61 @@ def test_binomial_test_helper_creates_compute_and_likelihood():
     assert "compute" in strategies
     assert "likelihood" in strategies
     assert compiled.graph.likelihood_scores[0].module_ref == BINOMIAL_MODEL_REF
+
+
+def test_standard_helpers_register_when_called_from_inferred_package(tmp_path, monkeypatch):
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        textwrap.dedent(
+            """
+            [project]
+            name = "std-helper-pkg-gaia"
+            version = "1.0.0"
+
+            [tool.gaia]
+            namespace = "github"
+            type = "knowledge-package"
+            """
+        ),
+        encoding="utf-8",
+    )
+    package_dir = tmp_path / "src" / "std_helper_pkg"
+    package_dir.mkdir(parents=True)
+    (package_dir / "__init__.py").write_text(
+        textwrap.dedent(
+            """
+            from gaia.lang import claim
+            from gaia.std.likelihood import gaussian_model_comparison
+
+            target = claim("The candidate model is favored.")
+            data = claim("Observed value is 1.2.")
+
+            gaussian_model_comparison(
+                target=target,
+                observed=1.2,
+                candidate_mean=0.96,
+                baseline_mean=1.9,
+                sigma=0.3,
+                data=data,
+            )
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.syspath_prepend(str(tmp_path / "src"))
+    reset_inferred_package(pyproject, module_name="std_helper_pkg")
+    sys.modules.pop("std_helper_pkg", None)
+    importlib.invalidate_caches()
+    importlib.import_module("std_helper_pkg")
+
+    pkg = get_inferred_package(pyproject)
+    assert pkg is not None
+    assert Counter(strategy.type for strategy in pkg.strategies) == {
+        "compute": 1,
+        "likelihood": 1,
+    }
+
+    compiled = compile_package_artifact(pkg)
+    assert len(compiled.graph.likelihood_scores) == 1
+    assert next(s for s in compiled.graph.strategies if s.type == "likelihood").conclusion

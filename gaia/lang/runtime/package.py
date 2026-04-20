@@ -132,7 +132,9 @@ def _caller_module_name() -> str | None:
         frame = frame.f_back
         while frame is not None:
             module_name = frame.f_globals.get("__name__")
-            if isinstance(module_name, str) and not module_name.startswith("gaia.lang"):
+            if isinstance(module_name, str) and not (
+                module_name == "gaia" or module_name.startswith("gaia.")
+            ):
                 return module_name
             frame = frame.f_back
     finally:
