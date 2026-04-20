@@ -29,7 +29,7 @@ from gaia.lang.refs import (
     resolve,
     validate_groups,
 )
-from gaia.lang.runtime import Knowledge, Operator
+from gaia.lang.runtime import ComputeResult, Knowledge, LikelihoodScore, Operator
 from gaia.lang.runtime.package import CollectedPackage
 
 _COMPILE_TIME_FORMAL_STRATEGIES = frozenset(
@@ -62,7 +62,8 @@ class CompiledPackage:
 def _content_hash(k: Knowledge) -> str:
     """SHA-256(type + content + sorted(parameters))."""
     params_str = json.dumps(sorted(k.parameters, key=lambda p: p.get("name", "")), sort_keys=True)
-    raw = f"{k.type}|{k.content}|{params_str}"
+    content = k.content_template if k.content_template is not None else k.content
+    raw = f"{k.type}|{content}|{params_str}"
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
@@ -123,6 +124,61 @@ def _knowledge_id(
 def _knowledge_metadata(k: Knowledge) -> dict[str, Any] | None:
     metadata = dict(k.metadata)
     return metadata or None
+
+
+def _value_ref(value: Any, knowledge_map: dict[int, str]) -> str:
+    if isinstance(value, ComputeResult):
+        return _value_ref(value.output, knowledge_map)
+    if isinstance(value, LikelihoodScore):
+        if value.score_id is None:
+            raise ValueError("LikelihoodScore is missing score_id")
+        return value.score_id
+    if isinstance(value, Knowledge):
+        return knowledge_map[id(value)]
+    if isinstance(value, str):
+        return value
+    raise ValueError(f"Unsupported value reference type: {type(value)!r}")
+
+
+def _knowledge_binding_map(
+    bindings: dict[str, Knowledge],
+    knowledge_map: dict[int, str],
+) -> dict[str, str]:
+    return {role: knowledge_map[id(value)] for role, value in bindings.items()}
+
+
+def _compile_strategy_method(method: dict[str, Any] | None, knowledge_map: dict[int, str]):
+    if method is None:
+        return None
+    kind = method.get("kind")
+    if kind == "module_use":
+        return {
+            "kind": "module_use",
+            "module_ref": method["module_ref"],
+            "input_bindings": _knowledge_binding_map(method.get("input_bindings", {}), knowledge_map),
+            "output_bindings": {
+                role: _value_ref(value, knowledge_map)
+                for role, value in method.get("output_bindings", {}).items()
+            },
+            "premise_bindings": _knowledge_binding_map(
+                method.get("premise_bindings", {}), knowledge_map
+            ),
+        }
+    if kind == "compute":
+        payload = {
+            "kind": "compute",
+            "function_ref": method["function_ref"],
+            "input_bindings": _knowledge_binding_map(method.get("input_bindings", {}), knowledge_map),
+            "output": _value_ref(method["output"], knowledge_map),
+        }
+        if method.get("output_binding"):
+            payload["output_binding"] = dict(method["output_binding"])
+        if method.get("code_hash"):
+            payload["code_hash"] = method["code_hash"]
+        return payload
+    if kind in {"deduction", "opaque_conditional"}:
+        return dict(method)
+    raise ValueError(f"Unsupported strategy method kind: {kind!r}")
 
 
 def _knowledge_provenance(k: Knowledge) -> list[IrPackageRef] | None:
@@ -294,6 +350,21 @@ def compile_package_artifact(
             register_knowledge(background)
         if strategy.conclusion is not None:
             register_knowledge(strategy.conclusion)
+        for assertion in strategy.assertions:
+            register_knowledge(assertion)
+        if strategy.method:
+            for value in strategy.method.get("input_bindings", {}).values():
+                if isinstance(value, Knowledge):
+                    register_knowledge(value)
+            for value in strategy.method.get("premise_bindings", {}).values():
+                if isinstance(value, Knowledge):
+                    register_knowledge(value)
+            output = strategy.method.get("output")
+            if isinstance(output, Knowledge):
+                register_knowledge(output)
+            for value in strategy.method.get("output_bindings", {}).values():
+                if isinstance(value, Knowledge):
+                    register_knowledge(value)
         # composition_warrant is metadata-only, not a BP variable.
         # Do NOT register it as knowledge — it has no prior, no lowering,
         # no factor graph participation. Render tools will read it
@@ -337,6 +408,8 @@ def compile_package_artifact(
             title=getattr(k, "title", None),
             type=k.type,
             content=k.content,
+            content_template=k.content_template,
+            rendered_content=k.rendered_content,
             parameters=[IrParameter(**p) for p in k.parameters],
             provenance=_knowledge_provenance(k),
             metadata=_knowledge_metadata(k),
@@ -369,6 +442,9 @@ def compile_package_artifact(
             "premises": [knowledge_map[id(p)] for p in s.premises],
             "conclusion": knowledge_map[id(s.conclusion)] if s.conclusion else None,
             "background": [knowledge_map[id(b)] for b in s.background] or None,
+            "method": _compile_strategy_method(s.method, knowledge_map),
+            "reason": s.reason if isinstance(s.reason, str) and s.reason else None,
+            "assertions": [knowledge_map[id(a)] for a in s.assertions],
             "steps": steps,
             "metadata": _metadata_with_reason(s.metadata, s.reason),
         }
@@ -481,7 +557,10 @@ def compile_package_artifact(
     # imports the moment a dep adopts the new reference syntax.
     for k in knowledge_nodes:
         if _is_local(k, pkg):
-            _accumulate(k, k.content)
+            # v6 content_template may contain parameter references like
+            # [@experiment], which are not the same as Gaia's provenance
+            # reference syntax. Scan rendered/content text for provenance.
+            _accumulate(k, k.rendered_content or k.content)
 
     # Write provenance metadata onto IR knowledge nodes.
     # Belt-and-suspenders: never mutate foreign nodes' metadata even if

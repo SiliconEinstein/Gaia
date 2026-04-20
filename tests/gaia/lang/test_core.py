@@ -1,5 +1,5 @@
 from gaia.lang import __all__ as gaia_lang_exports
-from gaia.lang import claim, question, setting
+from gaia.lang import claim, context, question, setting
 
 
 def test_setting_creates_knowledge():
@@ -17,6 +17,12 @@ def test_claim_creates_knowledge():
 def test_question_creates_knowledge():
     q = question("An open question?")
     assert q.type == "question"
+
+
+def test_context_creates_knowledge():
+    ctx = context("Raw experiment dashboard excerpt.")
+    assert ctx.type == "context"
+    assert ctx.content == "Raw experiment dashboard excerpt."
 
 
 def test_claim_with_explicit_noisy_and():

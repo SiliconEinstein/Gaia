@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -19,6 +21,8 @@ class Knowledge:
     content: str
     type: str  # "claim" | "setting" | "question"
     title: str | None = None
+    content_template: str | None = None
+    rendered_content: str | None = None
     background: list[Knowledge] = field(default_factory=list)
     parameters: list[dict] = field(default_factory=list)
     provenance: list[dict[str, str]] = field(default_factory=list)
@@ -59,6 +63,32 @@ ReasonInput = str | list[str | Step]
 
 
 @dataclass
+class LikelihoodScore:
+    """Value object for a module-produced likelihood score."""
+
+    target: Knowledge
+    module_ref: str
+    score_type: str
+    value: Any
+    query: str | dict[str, Any] | None = None
+    score_id: str | None = None
+    rationale: str | None = None
+
+    def __post_init__(self):
+        if self.score_id is not None:
+            return
+        payload = {
+            "target": self.target.label or self.target.content,
+            "module_ref": self.module_ref,
+            "score_type": self.score_type,
+            "query": self.query,
+            "value": self.value,
+        }
+        raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
+        self.score_id = f"score:{hashlib.sha256(raw.encode()).hexdigest()[:16]}"
+
+
+@dataclass
 class Strategy:
     """A reasoning declaration."""
 
@@ -72,6 +102,8 @@ class Strategy:
     formal_expr: list | None = None
     sub_strategies: list[Strategy] = field(default_factory=list)
     composition_warrant: Knowledge | None = None
+    method: dict[str, Any] | None = None
+    assertions: list[Knowledge] = field(default_factory=list)
 
     def __post_init__(self):
         pkg = _current_package.get()
@@ -81,6 +113,15 @@ class Strategy:
             pkg = infer_package_from_callstack()
         if pkg is not None:
             pkg._register_strategy(self)
+
+
+@dataclass
+class ComputeResult:
+    """Structured return value for v6 compute(...)."""
+
+    output: Any
+    correctness: Knowledge
+    strategy: Strategy
 
 
 @dataclass

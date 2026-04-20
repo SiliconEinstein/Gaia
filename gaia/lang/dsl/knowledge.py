@@ -27,6 +27,18 @@ def question(content: str, *, title: str | None = None, **metadata) -> Knowledge
     )
 
 
+def context(content: str, *, title: str | None = None, **metadata) -> Knowledge:
+    """Declare raw source material that should not enter BP directly."""
+    provenance = metadata.pop("provenance", None)
+    return Knowledge(
+        content=content.strip(),
+        type="context",
+        title=title,
+        provenance=provenance or [],
+        metadata=_flatten_metadata(metadata),
+    )
+
+
 def _flatten_metadata(metadata: dict) -> dict:
     """Unwrap nested metadata={"metadata": {...}} into a flat dict."""
     if "metadata" in metadata and isinstance(metadata["metadata"], dict) and len(metadata) == 1:
@@ -38,6 +50,8 @@ def claim(
     content: str,
     *,
     title: str | None = None,
+    content_template: str | None = None,
+    rendered_content: str | None = None,
     background: list[Knowledge] | None = None,
     parameters: list[dict] | None = None,
     provenance: list[dict[str, str]] | None = None,
@@ -48,6 +62,8 @@ def claim(
         content=content.strip(),
         type="claim",
         title=title,
+        content_template=content_template,
+        rendered_content=rendered_content,
         background=background or [],
         parameters=parameters or [],
         provenance=provenance or [],

@@ -6,7 +6,7 @@ import warnings
 from copy import deepcopy
 from typing import Literal
 
-from gaia.lang.runtime import Knowledge, Step, Strategy
+from gaia.lang.runtime import ComputeResult, Knowledge, LikelihoodScore, Step, Strategy
 from gaia.lang.runtime.nodes import ReasonInput
 from gaia.lang.runtime.nodes import _current_package
 from gaia.lang.dsl.operators import _validate_reason_prior
@@ -44,6 +44,36 @@ def _attach_strategy(conclusion: Knowledge | None, strategy: Strategy) -> None:
     pkg = _authoring_package()
     if pkg is None or conclusion._package is None or conclusion._package is pkg:
         conclusion.strategy = strategy
+
+
+def _dedupe_knowledge(items: list[Knowledge]) -> list[Knowledge]:
+    seen: set[int] = set()
+    deduped: list[Knowledge] = []
+    for item in items:
+        if id(item) in seen:
+            continue
+        seen.add(id(item))
+        deduped.append(item)
+    return deduped
+
+
+def _function_ref(fn) -> str:
+    if isinstance(fn, str):
+        return fn
+    module = getattr(fn, "__module__", None)
+    qualname = getattr(fn, "__qualname__", None)
+    if module and qualname:
+        return f"{module}.{qualname}"
+    name = getattr(fn, "__name__", None)
+    if name:
+        return name
+    return repr(fn)
+
+
+def _input_bindings(inputs: dict[str, Knowledge] | list[Knowledge]) -> dict[str, Knowledge]:
+    if isinstance(inputs, dict):
+        return dict(inputs)
+    return {f"input_{i}": item for i, item in enumerate(inputs)}
 
 
 def _named_strategy(
@@ -239,6 +269,116 @@ def infer(
         background=background,
         reason=reason,
     )
+
+
+def compute(
+    fn,
+    *,
+    inputs: dict[str, Knowledge] | list[Knowledge],
+    output,
+    assumptions: list[Knowledge] | None = None,
+    correctness: Knowledge | None = None,
+    output_binding: dict[str, str] | None = None,
+    code_hash: str | None = None,
+    reason: ReasonInput = "",
+) -> ComputeResult:
+    """Declare a deterministic computation that produces a value/artifact.
+
+    The computation itself does not carry probability. Its uncertainty is
+    represented by premise Claims and by the generated correctness Claim.
+    """
+    bindings = _input_bindings(inputs)
+    assumptions = list(assumptions or [])
+    if correctness is None:
+        correctness = Knowledge(
+            content=f"The output of {_function_ref(fn)} was correctly computed and bound.",
+            type="claim",
+            metadata={
+                "generated": True,
+                "helper_kind": "compute_correctness",
+                "function_ref": _function_ref(fn),
+            },
+        )
+    premises = _dedupe_knowledge([*bindings.values(), *assumptions])
+    strategy = Strategy(
+        type="compute",
+        premises=premises,
+        conclusion=correctness,
+        reason=reason,
+        metadata={"surface_construct": "compute"},
+        method={
+            "kind": "compute",
+            "function_ref": _function_ref(fn),
+            "input_bindings": bindings,
+            "output": output,
+            "output_binding": dict(output_binding or {}),
+            "code_hash": code_hash,
+        },
+    )
+    _attach_strategy(correctness, strategy)
+    return ComputeResult(output=output, correctness=correctness, strategy=strategy)
+
+
+def likelihood_from(
+    *,
+    target: Knowledge,
+    data: list[Knowledge],
+    assumptions: list[Knowledge] | None = None,
+    score=None,
+    score_correctness: Knowledge | None = None,
+    module_ref: str,
+    query: str | dict | None = None,
+    input_bindings: dict[str, Knowledge] | None = None,
+    reason: ReasonInput = "",
+) -> Strategy:
+    """Declare a module-based likelihood update for a target Claim."""
+    assumptions = list(assumptions or [])
+    if isinstance(score, ComputeResult):
+        score_correctness = score.correctness
+        score = score.output
+    if score_correctness is None:
+        raise ValueError("likelihood_from() requires score_correctness unless score is ComputeResult")
+
+    if input_bindings is None:
+        input_bindings = {"target": target}
+        if len(data) == 1:
+            input_bindings["data"] = data[0]
+        else:
+            for i, item in enumerate(data):
+                input_bindings[f"data_{i}"] = item
+    else:
+        input_bindings = dict(input_bindings)
+        input_bindings.setdefault("target", target)
+
+    premise_bindings: dict[str, Knowledge] = {
+        "score_correct": score_correctness,
+    }
+    for i, item in enumerate(data):
+        premise_bindings[f"data_{i}"] = item
+    for i, item in enumerate(assumptions):
+        premise_bindings[f"assumption_{i}"] = item
+
+    premises = _dedupe_knowledge([*data, *assumptions, score_correctness])
+    strategy = Strategy(
+        type="likelihood",
+        premises=premises,
+        conclusion=target,
+        reason=reason,
+        metadata={
+            "surface_construct": "likelihood_from",
+            "module_ref": module_ref,
+            "query": query,
+        },
+        method={
+            "kind": "module_use",
+            "module_ref": module_ref,
+            "input_bindings": input_bindings,
+            "output_bindings": {"score": score},
+            "premise_bindings": premise_bindings,
+        },
+    )
+    _attach_strategy(target, strategy)
+    return strategy
 
 
 def fills(

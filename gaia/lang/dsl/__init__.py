@@ -1,4 +1,4 @@
-from gaia.lang.dsl.knowledge import claim, question, setting
+from gaia.lang.dsl.knowledge import claim, context, question, setting
 from gaia.lang.dsl.operators import complement, contradiction, disjunction, equivalence
 from gaia.lang.dsl.strategies import (
     abduction,
@@ -6,12 +6,14 @@ from gaia.lang.dsl.strategies import (
     case_analysis,
     compare,
     composite,
+    compute,
     deduction,
     elimination,
     extrapolation,
     fills,
     induction,
     infer,
+    likelihood_from,
     mathematical_induction,
     noisy_and,
     support,
@@ -25,7 +27,9 @@ __all__ = [
     "compare",
     "composite",
     "complement",
+    "compute",
     "contradiction",
+    "context",
     "deduction",
     "disjunction",
     "elimination",
@@ -34,6 +38,7 @@ __all__ = [
     "fills",
     "induction",
     "infer",
+    "likelihood_from",
     "mathematical_induction",
     "noisy_and",
     "question",

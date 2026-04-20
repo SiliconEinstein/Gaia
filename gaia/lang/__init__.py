@@ -8,7 +8,9 @@ from gaia.lang.dsl import (
     compare,
     composite,
     complement,
+    compute,
     contradiction,
+    context,
     deduction,
     disjunction,
     elimination,
@@ -17,16 +19,19 @@ from gaia.lang.dsl import (
     fills,
     induction,
     infer,
+    likelihood_from,
     mathematical_induction,
     noisy_and,
     question,
     setting,
     support,
 )
-from gaia.lang.runtime import Knowledge, Operator, Step, Strategy
+from gaia.lang.runtime import ComputeResult, Knowledge, LikelihoodScore, Operator, Step, Strategy
 
 __all__ = [
+    "ComputeResult",
     "Knowledge",
+    "LikelihoodScore",
     "Operator",
     "Step",
     "Strategy",
@@ -37,7 +42,9 @@ __all__ = [
     "compare",
     "composite",
     "complement",
+    "compute",
     "contradiction",
+    "context",
     "deduction",
     "disjunction",
     "elimination",
@@ -46,6 +53,7 @@ __all__ = [
     "fills",
     "induction",
     "infer",
+    "likelihood_from",
     "mathematical_induction",
     "noisy_and",
     "question",
