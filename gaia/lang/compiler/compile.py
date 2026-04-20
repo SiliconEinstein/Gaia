@@ -41,6 +41,8 @@ _COMPILE_TIME_FORMAL_STRATEGIES = frozenset(
         "abduction",
         "analogy",
         "extrapolation",
+        "support",
+        "compare",
     }
 )
 
