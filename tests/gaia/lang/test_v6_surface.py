@@ -3,7 +3,9 @@
 from gaia.ir import ComputeMethod, ModuleUseMethod
 from gaia.lang import (
     LikelihoodScore,
+    ParameterizedClaim,
     claim,
+    claim_class,
     compute,
     context,
     likelihood_from,
@@ -48,6 +50,62 @@ def test_parameterized_claim_template_and_values_compile():
     assert ir_counts.content_template == "[@experiment] recorded {ctrl_k}/{ctrl_n} control conversions."
     assert ir_counts.rendered_content == "AB test exp_123 recorded 500/10000 control conversions."
     assert {p.name: p.value for p in ir_counts.parameters}["ctrl_k"] == 500
+
+
+def test_parameterized_claim_class_compiles_human_text_and_values():
+    class GaussianLogLR(ParameterizedClaim):
+        template = (
+            "The Gaussian log-likelihood ratio is {value}, comparing candidate "
+            "{candidate_mean} against baseline {baseline_mean} for observed {observed}."
+        )
+
+        observed: float
+        candidate_mean: float
+        baseline_mean: float
+        value: float
+
+    pkg = CollectedPackage("v6_pkg", namespace="github", version="1.0.0")
+    with pkg:
+        score = GaussianLogLR(
+            observed=1.2,
+            candidate_mean=0.96,
+            baseline_mean=1.9,
+            value=2.4,
+        )
+        score.label = "al_score"
+
+    compiled = compile_package_artifact(pkg)
+    ir_score = next(k for k in compiled.graph.knowledges if k.label == "al_score")
+    assert ir_score.content_template == GaussianLogLR.template
+    assert ir_score.rendered_content == (
+        "The Gaussian log-likelihood ratio is 2.4, comparing candidate "
+        "0.96 against baseline 1.9 for observed 1.2."
+    )
+    assert {p.name: p.value for p in ir_score.parameters}["value"] == 2.4
+    assert ir_score.metadata["claim_class"].endswith(".GaussianLogLR")
+
+
+def test_claim_class_decorator_converts_knowledge_parameters_to_qids():
+    @claim_class(kind="observation")
+    class CountReported:
+        template = "{experiment} reported {count} observations."
+
+        experiment: object
+        count: int
+
+    pkg = CollectedPackage("v6_pkg", namespace="github", version="1.0.0")
+    with pkg:
+        exp = setting("Experiment exp_123.")
+        exp.label = "exp_123"
+        counted = CountReported(experiment=exp, count=10, label="counted")
+
+    compiled = compile_package_artifact(pkg)
+    ir_counted = next(k for k in compiled.graph.knowledges if k.label == "counted")
+    values = {p.name: p.value for p in ir_counted.parameters}
+    assert values["experiment"] == "github:v6_pkg::exp_123"
+    assert values["count"] == 10
+    assert ir_counted.rendered_content == "Experiment exp_123. reported 10 observations."
+    assert ir_counted.metadata["kind"] == "observation"
 
 
 def test_compute_and_likelihood_from_compile_to_v6_methods():

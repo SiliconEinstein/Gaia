@@ -5,6 +5,7 @@ from gaia.lang.dsl import (
     analogy,
     case_analysis,
     claim,
+    claim_class,
     compare,
     composite,
     complement,
@@ -25,6 +26,7 @@ from gaia.lang.dsl import (
     question,
     setting,
     support,
+    ParameterizedClaim,
 )
 from gaia.lang.runtime import ComputeResult, Knowledge, LikelihoodScore, Operator, Step, Strategy
 
@@ -33,12 +35,14 @@ __all__ = [
     "Knowledge",
     "LikelihoodScore",
     "Operator",
+    "ParameterizedClaim",
     "Step",
     "Strategy",
     "abduction",
     "analogy",
     "case_analysis",
     "claim",
+    "claim_class",
     "compare",
     "composite",
     "complement",

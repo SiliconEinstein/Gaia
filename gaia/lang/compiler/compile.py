@@ -60,9 +60,62 @@ class CompiledPackage:
         return self.graph.model_dump(mode="json", exclude_none=True, serialize_as_any=True)
 
 
+def _parameter_fingerprint_value(value: Any) -> Any:
+    if isinstance(value, Knowledge):
+        if value.metadata.get("qid"):
+            return value.metadata["qid"]
+        if value.label:
+            return {"label": value.label}
+        return {"content": value.content_template or value.content}
+    if isinstance(value, list):
+        return [_parameter_fingerprint_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_parameter_fingerprint_value(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _parameter_fingerprint_value(item) for key, item in value.items()}
+    return value
+
+
+def _parameter_ir_value(value: Any, knowledge_map: dict[int, str]) -> Any:
+    if isinstance(value, Knowledge):
+        return knowledge_map[id(value)]
+    if isinstance(value, list):
+        return [_parameter_ir_value(item, knowledge_map) for item in value]
+    if isinstance(value, tuple):
+        return [_parameter_ir_value(item, knowledge_map) for item in value]
+    if isinstance(value, dict):
+        return {key: _parameter_ir_value(item, knowledge_map) for key, item in value.items()}
+    return value
+
+
+def _runtime_parameters_for_hash(parameters: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            **parameter,
+            "value": _parameter_fingerprint_value(parameter.get("value")),
+        }
+        for parameter in parameters
+    ]
+
+
+def _knowledge_parameters_to_ir(
+    k: Knowledge, knowledge_map: dict[int, str]
+) -> list[IrParameter]:
+    return [
+        IrParameter(
+            **{
+                **parameter,
+                "value": _parameter_ir_value(parameter.get("value"), knowledge_map),
+            }
+        )
+        for parameter in k.parameters
+    ]
+
+
 def _content_hash(k: Knowledge) -> str:
     """SHA-256(type + content + sorted(parameters))."""
-    params_str = json.dumps(sorted(k.parameters, key=lambda p: p.get("name", "")), sort_keys=True)
+    params = _runtime_parameters_for_hash(k.parameters)
+    params_str = json.dumps(sorted(params, key=lambda p: p.get("name", "")), sort_keys=True)
     content = k.content_template if k.content_template is not None else k.content
     raw = f"{k.type}|{content}|{params_str}"
     return hashlib.sha256(raw.encode()).hexdigest()
@@ -442,7 +495,7 @@ def compile_package_artifact(
             content=k.content,
             content_template=k.content_template,
             rendered_content=k.rendered_content,
-            parameters=[IrParameter(**p) for p in k.parameters],
+            parameters=_knowledge_parameters_to_ir(k, knowledge_map),
             provenance=_knowledge_provenance(k),
             metadata=_knowledge_metadata(k),
             module=getattr(k, "_source_module", None),
