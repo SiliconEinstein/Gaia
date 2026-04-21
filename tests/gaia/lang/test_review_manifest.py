@@ -65,3 +65,16 @@ def test_generate_review_manifest_for_v6_actions():
     assert by_action["github:review_pkg::action::same"].target_kind == "operator"
     assert "[@a]" in by_action["github:review_pkg::action::conflict"].audit_question
     assert "[@data]" in by_action["github:review_pkg::action::bayes_update"].audit_question
+
+
+def test_compiled_package_carries_review_manifest_outside_graph_json():
+    with CollectedPackage("review_pkg") as pkg:
+        a = Claim("A.")
+        a.label = "a"
+        c = derive("C.", given=a, rationale="A implies C.", label="derive_c")
+        c.label = "c"
+
+    compiled = compile_package_artifact(pkg)
+    assert compiled.review is not None
+    assert len(compiled.review.reviews) == 1
+    assert "review" not in compiled.to_json()

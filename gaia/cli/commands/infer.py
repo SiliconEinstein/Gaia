@@ -21,6 +21,7 @@ from gaia.cli._packages import (
     load_gaia_package,
 )
 from gaia.ir.validator import validate_local_graph
+from gaia.lang.review.manifest import generate_review_manifest
 
 
 def _write_json(path, payload) -> None:
@@ -39,8 +40,9 @@ def infer_command(
     """Run BP inference on a compiled knowledge package.
 
     Priors come from claim metadata (set by priors.py and reason+prior
-    DSL pairing during compilation). The lowering layer reads
-    metadata["prior"] directly — no review sidecar needed.
+    DSL pairing during compilation). For v6 action-backed Strategy/Operator
+    targets, ReviewManifest gates whether the target participates in BP;
+    review status is qualitative and never supplies numeric priors.
 
     With ``--depth N`` (N>0), dependency packages' factor graphs are
     merged for joint cross-package inference instead of using flat
@@ -94,7 +96,7 @@ def infer_command(
 
         dep_factor_graphs: list[tuple[str, FactorGraph, str]] = []
         for dep in dep_compiled:
-            dep_fg = lower_local_graph(dep.graph)
+            dep_fg = lower_local_graph(dep.graph, review_manifest=generate_review_manifest(dep))
             dep_prefix = f"{dep.graph.namespace}:{dep.graph.package_name}::"
             dep_factor_graphs.append((dep.import_name, dep_fg, dep_prefix))
             typer.echo(
@@ -105,7 +107,8 @@ def infer_command(
 
         # Lower local graph WITHOUT foreign node priors — the dep graphs
         # provide the full reasoning structure instead of flat priors
-        local_fg = lower_local_graph(compiled.graph)
+        local_review_manifest = compiled.review or generate_review_manifest(compiled)
+        local_fg = lower_local_graph(compiled.graph, review_manifest=local_review_manifest)
         local_prefix = f"{compiled.graph.namespace}:{compiled.graph.package_name}::"
 
         if dep_factor_graphs:
@@ -123,7 +126,12 @@ def infer_command(
         foreign_priors = collect_foreign_node_priors(compiled.graph, loaded.pkg_path)
         if foreign_priors:
             typer.echo(f"Loaded {len(foreign_priors)} upstream belief(s) for foreign nodes")
-        factor_graph = lower_local_graph(compiled.graph, node_priors=foreign_priors or None)
+        review_manifest = compiled.review or generate_review_manifest(compiled)
+        factor_graph = lower_local_graph(
+            compiled.graph,
+            node_priors=foreign_priors or None,
+            review_manifest=review_manifest,
+        )
     fg_errors = factor_graph.validate()
     if fg_errors:
         for error in fg_errors:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
@@ -120,6 +121,40 @@ def test_infer_with_deduction_strategy(tmp_path):
 
     result = runner.invoke(app, ["infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output
+
+
+def test_infer_gates_unreviewed_v6_actions(tmp_path):
+    """Unreviewed v6 actions do not update beliefs during infer."""
+    pkg_dir = tmp_path / "v6_review_infer"
+    _write_base_package(pkg_dir, name="v6_review_infer")
+    (pkg_dir / "v6_review_infer" / "__init__.py").write_text(
+        "from gaia.lang import claim, derive\n\n"
+        'evidence = claim("Evidence.")\n'
+        "hypothesis = derive(\n"
+        '    "Hypothesis.",\n'
+        "    given=evidence,\n"
+        '    rationale="Evidence supports hypothesis.",\n'
+        '    label="support_hypothesis",\n'
+        ")\n"
+        '__all__ = ["evidence", "hypothesis"]\n'
+    )
+    (pkg_dir / "v6_review_infer" / "priors.py").write_text(
+        "from . import evidence, hypothesis\n\n"
+        "PRIORS = {\n"
+        '    evidence: (0.9, "Direct observation."),\n'
+        '    hypothesis: (0.4, "Base rate."),\n'
+        "}\n"
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+
+    beliefs = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
+    belief_by_label = {item["label"]: item["belief"] for item in beliefs["beliefs"]}
+    assert belief_by_label["hypothesis"] == pytest.approx(0.4)
 
 
 def test_infer_loads_upstream_beliefs_for_foreign_nodes(tmp_path, monkeypatch):
