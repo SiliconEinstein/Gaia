@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from gaia.cli._packages import GaiaCliError
-from gaia.cli.commands._inquiry import InquiryNode, build_goal_trees
+from gaia.cli.commands._inquiry import InquiryEdge, InquiryNode, build_goal_trees
 from gaia.cli.commands._review_manifest import latest_reviews
 from gaia.ir import ReviewManifest, ReviewStatus
 
@@ -63,6 +63,15 @@ def _structural_holes(trees: list[InquiryNode]) -> list[InquiryNode]:
     return sorted(holes.values(), key=lambda node: node.label)
 
 
+def _reachable_review_targets(trees: list[InquiryNode]) -> set[str]:
+    targets: set[str] = set()
+    for tree in trees:
+        for item in _walk(tree):
+            if isinstance(item, InquiryEdge) and item.target_id:
+                targets.add(item.target_id)
+    return targets
+
+
 def check_quality_gate(
     ir: dict[str, Any],
     beliefs: dict[str, Any] | None,
@@ -73,12 +82,15 @@ def check_quality_gate(
     failures: list[str] = []
     goals = exported_ids or _exported_claim_ids(ir)
     trees = build_goal_trees(ir, review_manifest, goals)
+    reachable_targets = _reachable_review_targets(trees)
 
     if not config.allow_holes:
         for hole in _structural_holes(trees):
             failures.append(f"Structural hole: {hole.label} has no warrant chain")
 
     for review in latest_reviews(review_manifest):
+        if review.target_id not in reachable_targets:
+            continue
         if review.status != ReviewStatus.ACCEPTED:
             failures.append(
                 f"Unreviewed/rejected: {review.action_label} (status={review.status.value})"

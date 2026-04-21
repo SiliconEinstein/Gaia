@@ -282,8 +282,6 @@ def check_command(
     if warrants:
         for line in _warrant_report(review_manifest, blind=blind):
             typer.echo(line)
-        if blind:
-            return
 
     if inquiry:
         from gaia.cli.commands._inquiry import build_goal_trees, render_inquiry
@@ -315,8 +313,12 @@ def check_command(
         typer.echo("")
         typer.echo("Quality gate passed")
 
-    for line in _knowledge_diagnostics(ir):
-        typer.echo(line)
+    if warrants and blind and not (brief or show or hole):
+        return
+
+    if not (warrants and blind):
+        for line in _knowledge_diagnostics(ir):
+            typer.echo(line)
 
     if brief or show:
         from gaia.cli.commands._brief import (

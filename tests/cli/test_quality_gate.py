@@ -51,6 +51,31 @@ def _accept_all_reviews(pkg_dir) -> None:
     )
 
 
+def _accept_reviews_except(pkg_dir, action_label_fragment: str) -> None:
+    from gaia.cli._packages import compile_loaded_package_artifact, load_gaia_package
+    from gaia.ir import ReviewManifest, ReviewStatus
+
+    loaded = load_gaia_package(pkg_dir)
+    compiled = compile_loaded_package_artifact(loaded)
+    assert compiled.review is not None
+    reviews = [
+        review.model_copy(
+            update={
+                "status": (
+                    ReviewStatus.UNREVIEWED
+                    if action_label_fragment in review.action_label
+                    else ReviewStatus.ACCEPTED
+                ),
+                "round": 2,
+            }
+        )
+        for review in compiled.review.reviews
+    ]
+    (pkg_dir / ".gaia" / "review_manifest.json").write_text(
+        json.dumps(ReviewManifest(reviews=reviews).model_dump(mode="json"), indent=2)
+    )
+
+
 def test_gate_fails_on_structural_hole(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
@@ -78,6 +103,21 @@ def test_gate_fails_on_unreviewed(tmp_path):
     result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
     assert result.exit_code != 0
     assert "unreviewed" in result.output.lower()
+
+
+def test_gate_still_runs_with_blind_warrant_report(tmp_path):
+    pkg_dir = tmp_path / "gate_demo"
+    _write_gate_package(
+        pkg_dir,
+        "from gaia.lang import observe\n\n"
+        'root = observe("Root fact.", rationale="Measured.", label="root_obs")\n'
+        '__all__ = ["root"]\n',
+    )
+
+    result = runner.invoke(app, ["check", str(pkg_dir), "--warrants", "--blind", "--gate"])
+    assert result.exit_code != 0
+    assert "quality gate failed" in result.output.lower()
+    assert "root_obs" in result.output
 
 
 def test_gate_fails_on_unreviewed_root_observe(tmp_path):
@@ -138,6 +178,25 @@ def test_gate_passes_when_all_met(tmp_path):
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
     _accept_all_reviews(pkg_dir)
+
+    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+    assert result.exit_code == 0, result.output
+    assert "Quality gate passed" in result.output
+
+
+def test_gate_ignores_unexported_unreachable_draft_actions(tmp_path):
+    pkg_dir = tmp_path / "gate_demo"
+    _write_gate_package(
+        pkg_dir,
+        "from gaia.lang import derive, observe\n\n"
+        'data = observe("Data.", rationale="Measured.", label="observe_data")\n'
+        'conclusion = derive("Conclusion.", given=data, rationale="Data implies conclusion.", label="derive_c")\n'
+        'draft = observe("Unrelated draft measurement.", rationale="Draft.", label="draft_obs")\n'
+        '__all__ = ["conclusion"]\n',
+    )
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+    _accept_reviews_except(pkg_dir, "draft_obs")
 
     result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
     assert result.exit_code == 0, result.output
