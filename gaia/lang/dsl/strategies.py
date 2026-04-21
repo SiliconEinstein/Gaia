@@ -169,6 +169,13 @@ def support(
     author-specified prior on the implication warrant, making it a soft
     (probabilistic) version of deduction.
     """
+    warnings.warn(
+        "support() is deprecated for v6 authoring; use derive() with explicit "
+        "premise Claims for uncertainty. The v5 prior is preserved for "
+        "compatibility.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     if len(premises) < 1:
         raise ValueError("support() requires at least 1 premise")
     _validate_reason_prior(reason, prior)
