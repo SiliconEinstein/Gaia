@@ -14,6 +14,7 @@ from gaia.cli._packages import (
     GaiaCliError,
     apply_package_priors,
     collect_foreign_node_priors,
+    collect_strategy_conditional_params,
     compile_loaded_package_artifact,
     ensure_package_env,
     gaia_lang_version,
@@ -85,6 +86,7 @@ def infer_command(
         raise typer.Exit(1)
 
     if depth != 0:
+        strategy_params = collect_strategy_conditional_params(compiled)
         # Joint cross-package inference: merge dependency factor graphs
         try:
             dep_compiled = load_dependency_compiled_graphs(loaded.project_config, depth=depth)
@@ -109,7 +111,11 @@ def infer_command(
 
         # Lower local graph WITHOUT foreign node priors — the dep graphs
         # provide the full reasoning structure instead of flat priors
-        local_fg = lower_local_graph(compiled.graph, review_manifest=review_manifest)
+        local_fg = lower_local_graph(
+            compiled.graph,
+            strategy_conditional_params=strategy_params,
+            review_manifest=review_manifest,
+        )
         local_prefix = f"{compiled.graph.namespace}:{compiled.graph.package_name}::"
 
         if dep_factor_graphs:
@@ -130,6 +136,7 @@ def infer_command(
         factor_graph = lower_local_graph(
             compiled.graph,
             node_priors=foreign_priors or None,
+            strategy_conditional_params=collect_strategy_conditional_params(compiled),
             review_manifest=review_manifest,
         )
     fg_errors = factor_graph.validate()

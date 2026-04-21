@@ -903,6 +903,15 @@ def collect_foreign_node_priors(
     return foreign_priors
 
 
+def collect_strategy_conditional_params(compiled) -> dict[str, list[float]]:
+    """Collect v6 strategy CPT records keyed by strategy id for BP lowering."""
+    return {
+        record.strategy_id: list(record.conditional_probabilities)
+        for record in compiled.strategy_param_records
+        if record.strategy_id
+    }
+
+
 @dataclass
 class DependencyGraph:
     """A dependency's compiled IR loaded from disk."""
