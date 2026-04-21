@@ -10,9 +10,12 @@ from gaia.cli._packages import GaiaCliError, load_gaia_package, validate_fills_r
 from gaia.cli._packages import apply_package_priors
 from gaia.cli._packages import compile_loaded_package_artifact
 from gaia.cli.commands._classify import classify_ir, node_role
+from gaia.cli.commands._review_manifest import (
+    latest_reviews,
+    load_or_generate_review_manifest,
+)
 from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
-from gaia.lang.review.manifest import generate_review_manifest
 
 
 def _get_prior(k: dict) -> float | None:
@@ -154,9 +157,8 @@ def _hole_report(ir: dict) -> list[str]:
     return lines
 
 
-def _warrant_report(compiled, *, blind: bool = False) -> list[str]:
-    manifest = compiled.review or generate_review_manifest(compiled)
-    reviews = sorted(manifest.reviews, key=lambda review: review.action_label)
+def _warrant_report(manifest, *, blind: bool = False) -> list[str]:
+    reviews = latest_reviews(manifest)
     lines: list[str] = []
     lines.append("")
     lines.append(f"Review warrants: {len(reviews)}")
@@ -260,7 +262,12 @@ def check_command(
     )
 
     if warrants:
-        for line in _warrant_report(compiled, blind=blind):
+        try:
+            review_manifest = load_or_generate_review_manifest(loaded.pkg_path, compiled)
+        except GaiaCliError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(1)
+        for line in _warrant_report(review_manifest, blind=blind):
             typer.echo(line)
         if blind:
             return
