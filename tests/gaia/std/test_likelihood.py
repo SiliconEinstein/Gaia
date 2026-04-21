@@ -121,6 +121,10 @@ def test_gaussian_model_comparison_helper_uses_score_claim():
     assert score.module_ref == GAUSSIAN_MODEL_COMPARISON_REF
     assert score.value > 0
     assert score.score_id.startswith("github:v6_std_pkg::")
+    assert score.query == {
+        "type": "gaussian_model_comparison",
+        "direction": "candidate_over_baseline",
+    }
 
     likelihood = next(s for s in compiled.graph.strategies if s.type == "likelihood")
     assert likelihood.method.output_bindings == {"score": score.score_id}
@@ -162,6 +166,12 @@ def test_gaussian_model_comparison_from_claims_reads_parameters():
     compiled = compile_package_artifact(pkg)
     score = compiled.graph.likelihood_scores[0]
     assert round(score.value, 6) == 3.7261
+    assert score.query == {
+        "type": "gaussian_model_comparison",
+        "direction": "candidate_over_baseline",
+        "value_field": "value_K",
+        "transform": "log10",
+    }
 
     likelihood = next(s for s in compiled.graph.strategies if s.type == "likelihood")
     assert likelihood.premises == [

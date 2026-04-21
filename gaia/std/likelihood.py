@@ -367,6 +367,13 @@ def gaussian_model_comparison_log_lr_claim(
     )
 
 
+def _gaussian_model_comparison_query() -> dict[str, str]:
+    return {
+        "type": "gaussian_model_comparison",
+        "direction": "candidate_over_baseline",
+    }
+
+
 def gaussian_model_comparison(
     *,
     target: Knowledge,
@@ -376,7 +383,7 @@ def gaussian_model_comparison(
     sigma: float,
     data: Knowledge | None = None,
     assumptions: list[Knowledge] | None = None,
-    query: str | dict = "candidate_vs_baseline",
+    query: str | dict | None = None,
 ) -> Strategy:
     """Likelihood helper for comparing two Gaussian predictive models."""
     score = gaussian_model_comparison_log_lr_claim(
@@ -391,7 +398,7 @@ def gaussian_model_comparison(
         assumptions=assumptions or [],
         score=score,
         module_ref=GAUSSIAN_MODEL_COMPARISON_REF,
-        query=query,
+        query=query if query is not None else _gaussian_model_comparison_query(),
         reason="Use the SciPy-backed Gaussian model-comparison likelihood score.",
     )
 
@@ -432,6 +439,40 @@ def _apply_transform(value: float, transform: str | Callable[[float], float] | N
     return float(result)
 
 
+def _transform_query_name(transform: str | Callable[[float], float] | None) -> str:
+    if transform is None:
+        return "identity"
+    if isinstance(transform, str):
+        return transform
+    name = getattr(transform, "__qualname__", None) or getattr(transform, "__name__", None)
+    if name is None:
+        name = transform.__class__.__name__
+    return f"callable:{name}"
+
+
+def _gaussian_claims_comparison_query(
+    *,
+    value_field: str,
+    observed_field: str,
+    candidate_field: str,
+    baseline_field: str,
+    transform: str | Callable[[float], float] | None,
+) -> dict[str, object]:
+    query: dict[str, object] = _gaussian_model_comparison_query()
+    if observed_field == candidate_field == baseline_field:
+        query["value_field"] = observed_field
+    else:
+        query["fields"] = {
+            "observed": observed_field,
+            "candidate": candidate_field,
+            "baseline": baseline_field,
+        }
+    transform_name = _transform_query_name(transform)
+    if transform_name != "identity":
+        query["transform"] = transform_name
+    return query
+
+
 def gaussian_model_comparison_from_claims(
     *,
     target: Knowledge,
@@ -445,19 +486,22 @@ def gaussian_model_comparison_from_claims(
     baseline_field: str | None = None,
     transform: str | Callable[[float], float] | None = None,
     assumptions: list[Knowledge] | None = None,
-    query: str | dict = "candidate_vs_baseline",
+    query: str | dict | None = None,
 ) -> Strategy:
     """Compare Gaussian predictions using numeric parameters from Claims."""
+    observed_field_name = observed_field or value_field
+    candidate_field_name = candidate_field or value_field
+    baseline_field_name = baseline_field or value_field
     observed_value = _apply_transform(
-        _numeric_parameter(observed, observed_field or value_field),
+        _numeric_parameter(observed, observed_field_name),
         transform,
     )
     candidate_value = _apply_transform(
-        _numeric_parameter(candidate, candidate_field or value_field),
+        _numeric_parameter(candidate, candidate_field_name),
         transform,
     )
     baseline_value = _apply_transform(
-        _numeric_parameter(baseline, baseline_field or value_field),
+        _numeric_parameter(baseline, baseline_field_name),
         transform,
     )
     return gaussian_model_comparison(
@@ -468,5 +512,13 @@ def gaussian_model_comparison_from_claims(
         sigma=sigma,
         data=observed,
         assumptions=[candidate, baseline, *(assumptions or [])],
-        query=query,
+        query=query
+        if query is not None
+        else _gaussian_claims_comparison_query(
+            value_field=value_field,
+            observed_field=observed_field_name,
+            candidate_field=candidate_field_name,
+            baseline_field=baseline_field_name,
+            transform=transform,
+        ),
     )
