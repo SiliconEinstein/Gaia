@@ -2,17 +2,17 @@
 
 > **Status:** Target design  
 > **Date:** 2026-04-21  
-> **Scope:** Gaia Lang authoring DSL — Knowledge types, verb system (Support/Relate/Correlate), parameterized Claims, InquiryState, Quality Gate  
+> **Scope:** Gaia Lang authoring DSL — Knowledge types, verb system (Support/Relate/Infer), parameterized Claims, InquiryState, Quality Gate  
 > **Supersedes:** [2026-04-18-gaia-lang-v6-design.md](2026-04-18-gaia-lang-v6-design.md), [2026-04-20-gaia-lang-v6-strategy-warrant-spec.md](2026-04-20-gaia-lang-v6-strategy-warrant-spec.md)  
 > **Companion:** [2026-04-21-gaia-ir-v6-design.md](2026-04-21-gaia-ir-v6-design.md)  
-> **Non-goal:** Composition (induction/abduction/compose), standard likelihood library (ab_test/binomial_test), exhaust() relation.
+> **Non-goal:** Composition (induction/abduction/compose), standard inference library (ab_test/binomial_test), exhaust() relation.
 
 ---
 
 ## 0. Design Goals
 
 1. **Claim-first authoring**: Authors declare Claims, then connect them with warranted reasoning verbs.
-2. **Three verb categories**: Support (directional), Relate (logical), Correlate (statistical).
+2. **Three verb categories**: Support (directional), Relate (logical), Infer (statistical).
 3. **No probability on Strategy**: Uncertainty is expressed through explicit premise Claims, not edge weights.
 4. **Warrant is review state**: ReviewManifest records whether each reasoning step has been accepted by a reviewer.
 5. **Parameterized Claims**: Docstring templates with `[@ref]` for Knowledge parameters and `{param}` for value parameters.
@@ -219,7 +219,7 @@ Gaia Lang v6 verbs are organized into three categories:
 |---|---|---|
 | **Support** | `derive()`, `observe()`, `compute()` | Directional: given → conclusion |
 | **Relate** | `match()`, `contradict()` | Logical constraint: connect two Claims |
-| **Correlate** | `likelihood()` | Statistical association: P(E\|H) update |
+| **Infer** | `infer()` | Statistical inference: P(E\|H) update |
 
 ### 4.1 Common parameters
 
@@ -392,14 +392,14 @@ derive(
 
 ---
 
-## 7. Correlate Verb
+## 7. Infer Verb
 
-### 7.1 likelihood
+### 7.1 infer
 
 Statistical evidence update based on Jaynes/Bayes framework. All parameters are keyword-only.
 
 ```python
-likelihood(
+infer(
     *,
     hypothesis: Claim,
     evidence: Claim,
@@ -412,7 +412,7 @@ likelihood(
 ```
 
 ```python
-support = likelihood(
+support = infer(
     hypothesis=quantum_hyp,
     evidence=spectrum_data,
     given=(reliable_measurement, calibrated),
@@ -423,29 +423,29 @@ support = likelihood(
 )
 ```
 
-Returns `StatisticalSupport` helper Claim. Compiles to `Strategy(type="likelihood")` + `LikelihoodMethod`.
+Returns `StatisticalSupport` helper Claim. Compiles to `Strategy(type="infer")` + `LikelihoodMethod`.
 
 ### 7.2 Semantics
 
-`likelihood()` is **correlational**, not directional. It creates a bidirectional factor between hypothesis and evidence:
+`infer()` is **inferential**, not directional. It creates a bidirectional factor between hypothesis and evidence:
 
 ```
 odds(H) *= P(E|H) / P(E|¬H)
 ```
 
-`given` acts as a gate — if gate premises are unlikely, the likelihood update is attenuated. BP handles this naturally.
+`given` acts as a gate — if gate premises are unlikely, the inference update is attenuated. BP handles this naturally.
 
 ### 7.3 Three sources of P(E|H) values
 
 | Source | Example |
 |---|---|
-| Formula-computed | `p_h, p_not_h = two_binomial_lr(counts)` then pass to `likelihood()` |
+| Formula-computed | `p_h, p_not_h = two_binomial_lr(counts)` then pass to `infer()` |
 | LLM/human judgment | Directly estimate P(E\|H) and P(E\|¬H) |
 | External import | Import Bayes factor from statistical software |
 
 ### 7.4 Standard library helpers (deferred)
 
-Convenience wrappers like `ab_test()`, `binomial_test()`, `t_test()` are deferred. They are not core DSL — just Python functions that compute P(E|H) and call `likelihood()`.
+Convenience wrappers like `ab_test()`, `binomial_test()`, `t_test()` are deferred. They are not core DSL — just Python functions that compute P(E|H) and call `infer()`.
 
 ---
 
@@ -462,7 +462,7 @@ Audit questions are auto-generated from Strategy type using `[@...]` templates:
 | deduction | "Do the listed premises suffice to establish [@conclusion]?" |
 | observation | "Is the observation of [@conclusion] reliable under the stated conditions?" |
 | computation | "Is the computation of [@conclusion] correctly implemented?" |
-| likelihood | "Is the statistical association between [@hypothesis] and [@evidence] valid at the stated probabilities?" |
+| infer | "Is the statistical association between [@hypothesis] and [@evidence] valid at the stated probabilities?" |
 | match | "Are [@a] and [@b] truly equivalent?" |
 | contradict | "Do [@a] and [@b] truly contradict?" |
 
@@ -604,7 +604,7 @@ knowledge.metadata["gaia"]["provenance"] = {
 | `compute(...)` / `@compute` | `Strategy(type="computation")` + ComputationMethod |
 | `match(A, B)` | `Operator(type="equivalence")` + Equivalence helper |
 | `contradict(A, B)` | `Operator(type="contradiction")` + Contradiction helper |
-| `likelihood(...)` | `Strategy(type="likelihood")` + LikelihoodMethod + StatisticalSupport helper |
+| `infer(...)` | `Strategy(type="infer")` + LikelihoodMethod + StatisticalSupport helper |
 | `given=(A, B, C)` tuple | `Operator(type="conjunction")` + conjunction helper |
 | `rationale=` | `Strategy.rationale` |
 | `background=` | `Strategy.background` |
@@ -642,7 +642,7 @@ v5 function-style API (`claim()`, `support()`, `deduction()`, etc.) is preserved
 The following are explicitly out of scope for v6.0:
 
 1. **Composition**: `induction()`, `abduction()`, `compose()` — users write chains manually
-2. **Standard likelihood library**: `ab_test()`, `binomial_test()`, `t_test()` — convenience wrappers
+2. **Standard inference library**: `ab_test()`, `binomial_test()`, `t_test()` — convenience wrappers
 3. **`exhaust()` relation**: Needs new IR Operator type
 4. **Nested quantifiers**: `∀x ∃y. P(x,y)` — needs Skolemization
 5. **Lifted inference**: Large domains without grounding

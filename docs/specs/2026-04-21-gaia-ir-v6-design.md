@@ -33,7 +33,7 @@ Old Strategy:
 
 New Strategy:
   reviewed information-use step that asserts helper claims,
-  applies a likelihood score, or validates a computation.
+  applies Bayesian inference, or validates a computation.
   Strategy carries no probability.
 ```
 
@@ -44,7 +44,7 @@ New Strategy:
 3. **`Operator` remains deterministic** and continues to produce `conclusion` helper Claims.
 4. **Generated helper Claims are neutral** unless asserted by an accepted Strategy.
 5. **`Warrant` is a review block in `ReviewManifest`**, not a Claim and not a probability variable.
-6. **Statistical evidence** is represented as `Strategy(type="likelihood")`, not as probabilistic support.
+6. **Statistical evidence** is represented as `Strategy(type="infer")` with a `LikelihoodMethod` payload, not as probabilistic support.
 
 ---
 
@@ -250,10 +250,10 @@ class StrategyType(StrEnum):
     DEDUCTION = "deduction"
     OBSERVATION = "observation"
     COMPUTATION = "computation"
-    LIKELIHOOD = "likelihood"
+    INFER = "infer"
 ```
 
-Legacy types (`support`, `infer`, `compare`, etc.) are preserved as aliases for backward compatibility but should not be used in new code.
+`infer` is an existing Strategy type repurposed for Bayesian inference. When it carries a `LikelihoodMethod` payload, it represents a statistical evidence update. Legacy types (`support`, `compare`, etc.) are preserved as aliases for backward compatibility but should not be used in new code.
 
 ### 3.4 Method payloads
 
@@ -275,7 +275,7 @@ class ComputationMethod:
     code_hash: str | None = None
 
 class LikelihoodMethod:
-    kind: Literal["likelihood"] = "likelihood"
+    kind: Literal["infer"] = "infer"
     hypothesis: ClaimID
     evidence: ClaimID
     p_e_given_h: float
@@ -308,7 +308,7 @@ Strategy.assertions lists which of those helper Claims are asserted when review 
 - `Implication` — from derive: AllTrue(given) ⟹ conclusion
 - `Equivalence` — from match
 - `Contradiction` — from contradict
-- `StatisticalSupport` — from likelihood
+- `StatisticalSupport` — from infer
 
 **NOT included** (mechanical, no review needed):
 - Conjunction helpers (auto-generated from tuple premises)
@@ -394,23 +394,23 @@ Include them in Strategy premises.
 
 ---
 
-## 7. Likelihood Strategy
+## 7. Infer Strategy
 
 ### 7.1 Semantics
 
-`Strategy(type="likelihood")` represents Jaynes/Bayes-style evidence update:
+`Strategy(type="infer")` with a `LikelihoodMethod` payload represents Jaynes/Bayes-style evidence update:
 
 ```
-Given premises (gate), apply a likelihood score to target Claim.
+Given premises (gate), apply Bayesian inference to update target Claim.
 ```
 
-It is **correlational** (statistical), not relational (logical) or directional (support). It creates a bidirectional factor between hypothesis and evidence.
+It is **inferential** (statistical), not relational (logical) or directional (support). It creates a bidirectional factor between hypothesis and evidence.
 
 ### 7.2 Method payload
 
 ```python
 class LikelihoodMethod:
-    kind: Literal["likelihood"] = "likelihood"
+    kind: Literal["infer"] = "infer"
     hypothesis: ClaimID
     evidence: ClaimID
     p_e_given_h: float       # P(E|H,I)
@@ -500,7 +500,7 @@ Audit questions are automatically generated from Strategy type and assertions, u
 | deduction | "Do the listed premises suffice to establish [@conclusion]?" |
 | observation | "Is the observation of [@conclusion] reliable under the stated conditions?" |
 | computation | "Is the computation of [@conclusion] correctly implemented?" |
-| likelihood | "Is the statistical association between [@hypothesis] and [@evidence] valid at the stated probabilities?" |
+| infer | "Is the statistical association between [@hypothesis] and [@evidence] valid at the stated probabilities?" |
 | match (Relate) | "Are [@a] and [@b] truly equivalent?" |
 | contradict (Relate) | "Do [@a] and [@b] truly contradict?" |
 
@@ -522,7 +522,7 @@ Templates are rendered to concrete questions using the referenced Claims' labels
 | `compute(...)` / `@compute` | `Strategy(type="computation")` + ComputationMethod |
 | `match(A, B)` | `Operator(type="equivalence")` + Equivalence helper Claim |
 | `contradict(A, B)` | `Operator(type="contradiction")` + Contradiction helper Claim |
-| `likelihood(...)` | `Strategy(type="likelihood")` + LikelihoodMethod + StatisticalSupport helper |
+| `infer(...)` | `Strategy(type="infer")` + LikelihoodMethod + StatisticalSupport helper |
 | `given=(A, B, C)` tuple | `Operator(type="conjunction")` + conjunction helper Claim |
 | `rationale=` | `Strategy.rationale` |
 | `background=` | `Strategy.background` |
@@ -542,16 +542,16 @@ Templates are rendered to concrete questions using the referenced Claims' labels
 - `Strategy.rationale: str` — required for v6
 - `Strategy.assertions: list[ClaimID]` — helper Claims to assert
 - `Strategy.method: MethodPayload | None` — type-specific payload
-- `StrategyType` adds `OBSERVATION`, `COMPUTATION`, `LIKELIHOOD`
+- `StrategyType` adds `OBSERVATION`, `COMPUTATION` (note: `INFER` already exists)
 
 ### 10.2 New types
 
 - `Grounding` — root Claim provenance metadata
 - `ReviewManifest` — package-level review state
 - `Warrant` — individual Strategy review record
-- `LikelihoodMethod` — likelihood Strategy payload
+- `LikelihoodMethod` — infer Strategy payload for Bayesian inference
 - `ComputationMethod` — computation Strategy payload
-- `StatisticalSupport` — helper Claim type for likelihood
+- `StatisticalSupport` — helper Claim type for infer
 
 ### 10.3 Not changed
 
@@ -571,4 +571,4 @@ Templates are rendered to concrete questions using the referenced Claims' labels
    Recommended: defer, requires new Operator type.
 
 3. Should `StrategyType.SUPPORT` and `StrategyType.INFER` be kept as legacy aliases?
-   Recommended: yes for migration, but canonical v6 code should use `deduction`/`observation`/`computation`/`likelihood`.
+   Recommended: yes for migration, but canonical v6 code should use `deduction`/`observation`/`computation`/`infer`.
