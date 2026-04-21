@@ -285,6 +285,40 @@ def supported_by(
     )
 
 
+def induction_from_comparisons(
+    law: Knowledge,
+    *,
+    comparisons: list[Knowledge],
+    background: list[Knowledge] | None = None,
+    reason: ReasonInput = "",
+) -> Strategy:
+    """Support a proposed law from prediction-vs-observation comparison Claims.
+
+    This is the minimal v6 induction surface: the law first generates
+    predictions elsewhere, those predictions are compared with observations as
+    explicit helper Claims, and the helper Claims jointly support the law.
+    """
+    if not isinstance(law, Knowledge):
+        raise TypeError("induction_from_comparisons() law must be a Gaia Knowledge object")
+    if law.type != "claim":
+        raise TypeError("induction_from_comparisons() law must be a Claim object")
+    if len(comparisons) < 2:
+        raise ValueError("induction_from_comparisons() requires at least 2 comparisons")
+    if any(not isinstance(item, Knowledge) for item in comparisons):
+        raise TypeError("induction_from_comparisons() comparisons must be Gaia Knowledge objects")
+    if any(item.type != "claim" for item in comparisons):
+        raise TypeError("induction_from_comparisons() comparisons must be Claim objects")
+    if any(id(item) == id(law) for item in comparisons):
+        raise ValueError("induction_from_comparisons() comparisons cannot include the law")
+    return supported_by(
+        law,
+        inputs=comparisons,
+        pattern="induction",
+        background=background,
+        reason=reason,
+    )
+
+
 def compare(
     pred_h: Knowledge,
     pred_alt: Knowledge,
