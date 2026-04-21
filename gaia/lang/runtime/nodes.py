@@ -52,7 +52,6 @@ class Knowledge:
         self,
         *,
         inputs: list[Knowledge],
-        pattern: str = "deduction",
         background: list[Knowledge] | None = None,
         reason: ReasonInput = "",
     ) -> Strategy:
@@ -62,24 +61,6 @@ class Knowledge:
         return supported_by(
             self,
             inputs=inputs,
-            pattern=pattern,
-            background=background,
-            reason=reason,
-        )
-
-    def induced_by(
-        self,
-        *,
-        comparisons: list[Knowledge],
-        background: list[Knowledge] | None = None,
-        reason: ReasonInput = "",
-    ) -> Strategy:
-        """Declare that this law is induced by comparison helper Claims."""
-        from gaia.lang.dsl.strategies import induction_from_comparisons
-
-        return induction_from_comparisons(
-            self,
-            comparisons=comparisons,
             background=background,
             reason=reason,
         )

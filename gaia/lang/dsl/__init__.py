@@ -18,15 +18,12 @@ from gaia.lang.dsl.strategies import (
     extrapolation,
     fills,
     induction,
-    induction_from_comparisons,
     infer,
     likelihood_from,
     mathematical_induction,
     noisy_and,
     support,
-    SupportedByPattern,
     supported_by,
-    SUPPORTED_BY_PATTERNS,
 )
 
 __all__ = [
@@ -50,7 +47,6 @@ __all__ = [
     "extrapolation",
     "fills",
     "induction",
-    "induction_from_comparisons",
     "infer",
     "likelihood_from",
     "mathematical_induction",
@@ -59,7 +55,5 @@ __all__ = [
     "question",
     "setting",
     "support",
-    "SupportedByPattern",
     "supported_by",
-    "SUPPORTED_BY_PATTERNS",
 ]

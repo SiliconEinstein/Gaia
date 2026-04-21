@@ -21,7 +21,6 @@ from gaia.lang.dsl import (
     extrapolation,
     fills,
     induction,
-    induction_from_comparisons,
     infer,
     likelihood_from,
     mathematical_induction,
@@ -29,9 +28,7 @@ from gaia.lang.dsl import (
     question,
     setting,
     support,
-    SupportedByPattern,
     supported_by,
-    SUPPORTED_BY_PATTERNS,
     ParameterizedClaim,
 )
 from gaia.lang.runtime import ComputeResult, Knowledge, LikelihoodScore, Operator, Step, Strategy
@@ -64,7 +61,6 @@ __all__ = [
     "extrapolation",
     "fills",
     "induction",
-    "induction_from_comparisons",
     "infer",
     "likelihood_from",
     "mathematical_induction",
@@ -72,7 +68,5 @@ __all__ = [
     "question",
     "setting",
     "support",
-    "SupportedByPattern",
     "supported_by",
-    "SUPPORTED_BY_PATTERNS",
 ]

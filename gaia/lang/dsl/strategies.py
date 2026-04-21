@@ -16,19 +16,6 @@ from gaia.lang.runtime.nodes import _current_package
 from gaia.lang.dsl.operators import _validate_reason_prior
 from gaia.lang.runtime.package import infer_package_from_callstack
 
-SupportedByPattern = Literal[
-    "deduction",
-    "abduction",
-    "induction",
-]
-
-SUPPORTED_BY_PATTERNS: tuple[str, ...] = (
-    "deduction",
-    "abduction",
-    "induction",
-)
-
-
 def _validate_step_premises(
     reason: ReasonInput,
     strategy_premises: list[Knowledge],
@@ -71,20 +58,6 @@ def _dedupe_knowledge(items: list[Knowledge]) -> list[Knowledge]:
         seen.add(id(item))
         deduped.append(item)
     return deduped
-
-
-def _normalize_supported_by_pattern(pattern: str) -> str:
-    if not isinstance(pattern, str):
-        raise TypeError("supported_by() pattern must be a string")
-    normalized = pattern.strip().lower().replace("-", "_").replace(" ", "_")
-    if not normalized:
-        raise ValueError("supported_by() pattern cannot be empty")
-    if normalized not in SUPPORTED_BY_PATTERNS:
-        allowed = ", ".join(SUPPORTED_BY_PATTERNS)
-        raise ValueError(
-            f"unsupported supported_by() pattern {pattern!r}; allowed patterns: {allowed}"
-        )
-    return normalized
 
 
 def _function_ref(fn) -> str:
@@ -251,17 +224,15 @@ def supported_by(
     conclusion: Knowledge,
     *,
     inputs: list[Knowledge],
-    pattern: SupportedByPattern | str = "deduction",
     background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
 ) -> Strategy:
     """v6 support surface: non-empty input Claims support a conclusion Claim.
 
-    ``pattern`` is the author-facing reasoning label: "deduction",
-    "induction", or "abduction". Probability comes from the input claims and
-    downstream likelihood factors, not from this wrapper.
+    Reasoning shape (for example induction or abduction) belongs to an outer
+    composition layer. This wrapper only states that explicit input Claims
+    support the conclusion Claim.
     """
-    normalized_pattern = _normalize_supported_by_pattern(pattern)
     if not inputs:
         raise ValueError("supported_by() requires at least 1 input")
     if any(not isinstance(item, Knowledge) for item in inputs):
@@ -280,42 +251,8 @@ def supported_by(
         conclusion=conclusion,
         background=background,
         reason=reason,
-        metadata={"surface_construct": "supported_by", "pattern": normalized_pattern},
+        metadata={"surface_construct": "supported_by"},
         method={"kind": "deduction"},
-    )
-
-
-def induction_from_comparisons(
-    law: Knowledge,
-    *,
-    comparisons: list[Knowledge],
-    background: list[Knowledge] | None = None,
-    reason: ReasonInput = "",
-) -> Strategy:
-    """Support a proposed law from prediction-vs-observation comparison Claims.
-
-    This is the minimal v6 induction surface: the law first generates
-    predictions elsewhere, those predictions are compared with observations as
-    explicit helper Claims, and the helper Claims jointly support the law.
-    """
-    if not isinstance(law, Knowledge):
-        raise TypeError("induction_from_comparisons() law must be a Gaia Knowledge object")
-    if law.type != "claim":
-        raise TypeError("induction_from_comparisons() law must be a Claim object")
-    if len(comparisons) < 2:
-        raise ValueError("induction_from_comparisons() requires at least 2 comparisons")
-    if any(not isinstance(item, Knowledge) for item in comparisons):
-        raise TypeError("induction_from_comparisons() comparisons must be Gaia Knowledge objects")
-    if any(item.type != "claim" for item in comparisons):
-        raise TypeError("induction_from_comparisons() comparisons must be Claim objects")
-    if any(id(item) == id(law) for item in comparisons):
-        raise ValueError("induction_from_comparisons() comparisons cannot include the law")
-    return supported_by(
-        law,
-        inputs=comparisons,
-        pattern="induction",
-        background=background,
-        reason=reason,
     )
 
 

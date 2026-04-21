@@ -6,13 +6,10 @@ from gaia.ir import ComputeMethod, DeductionMethod, ModuleUseMethod
 from gaia.lang import (
     LikelihoodScore,
     ParameterizedClaim,
-    SUPPORTED_BY_PATTERNS,
     claim,
     claim_class,
     compute,
     context,
-    equivalence,
-    induction_from_comparisons,
     likelihood_from,
     setting,
     supported_by,
@@ -125,7 +122,6 @@ def test_supported_by_compiles_as_v6_deduction_surface():
         conclusion.label = "conclusion"
         conclusion.supported_by(
             inputs=[observation, model_fit],
-            pattern="abduction",
             reason="The candidate prediction is closer than the baseline prediction.",
         )
 
@@ -138,37 +134,16 @@ def test_supported_by_compiles_as_v6_deduction_surface():
     assert ir_strategy.type == "deduction"
     assert ir_strategy.premises == ["github:v6_pkg::observation", "github:v6_pkg::model_fit"]
     assert ir_strategy.conclusion == "github:v6_pkg::conclusion"
-    assert ir_strategy.metadata["pattern"] == "abduction"
+    assert ir_strategy.metadata == {
+        "formalization_template": "deduction",
+        "generated_formal_expr": True,
+        "reason": "The candidate prediction is closer than the baseline prediction.",
+        "surface_construct": "supported_by",
+    }
     assert isinstance(ir_strategy.method, DeductionMethod)
 
 
-def test_supported_by_preserves_minimal_pattern_taxonomy():
-    pkg = CollectedPackage("v6_pkg", namespace="github", version="1.0.0")
-    with pkg:
-        for index, pattern in enumerate(SUPPORTED_BY_PATTERNS):
-            premise = claim(f"Input claim {index}.")
-            premise.label = f"input_{index}"
-            conclusion = claim(f"Conclusion claim {index}.")
-            conclusion.label = f"conclusion_{index}"
-            supported_by(
-                conclusion,
-                inputs=[premise],
-                pattern=pattern,
-                reason=f"Exercise minimal pattern {pattern}.",
-            )
-
-    compiled = compile_package_artifact(pkg)
-    strategies = [
-        s
-        for s in compiled.graph.strategies
-        if (s.metadata or {}).get("surface_construct") == "supported_by"
-    ]
-    assert [s.metadata["pattern"] for s in strategies] == list(SUPPORTED_BY_PATTERNS)
-    assert {s.type for s in strategies} == {"deduction"}
-    assert all(isinstance(s.method, DeductionMethod) for s in strategies)
-
-
-def test_supported_by_defaults_to_deduction_pattern():
+def test_supported_by_has_no_reasoning_shape_pattern():
     pkg = CollectedPackage("v6_pkg", namespace="github", version="1.0.0")
     with pkg:
         premise = claim("A premise claim.")
@@ -184,94 +159,20 @@ def test_supported_by_defaults_to_deduction_pattern():
         for s in compiled.graph.strategies
         if (s.metadata or {}).get("surface_construct") == "supported_by"
     )
-    assert ir_strategy.metadata["pattern"] == "deduction"
-
-
-def test_supported_by_rejects_unknown_pattern():
-    target = claim("A target claim.")
-    input_claim = claim("An input claim.")
-    with pytest.raises(ValueError, match="unsupported supported_by\\(\\) pattern"):
-        supported_by(target, inputs=[input_claim], pattern="custom-pattern")
+    assert "pattern" not in ir_strategy.metadata
 
 
 def test_supported_by_rejects_context_inputs():
     target = claim("A target claim.")
     excerpt = context("Raw source text.")
     with pytest.raises(TypeError, match="inputs must be Claim objects"):
-        supported_by(target, inputs=[excerpt], pattern="deduction")
+        supported_by(target, inputs=[excerpt])
 
 
 def test_supported_by_rejects_empty_inputs():
     target = claim("A target claim.")
     with pytest.raises(ValueError, match="requires at least 1 input"):
-        supported_by(target, inputs=[], pattern="induction")
-
-
-def test_induction_from_comparisons_supports_law_from_prediction_matches():
-    pkg = CollectedPackage("v6_pkg", namespace="github", version="1.0.0")
-    with pkg:
-        law = claim("All tested metals expand when heated.")
-        law.label = "law"
-        pred_iron = claim("The law predicts that iron expands when heated.")
-        pred_iron.label = "pred_iron"
-        obs_iron = claim("Iron expands when heated.")
-        obs_iron.label = "obs_iron"
-        pred_copper = claim("The law predicts that copper expands when heated.")
-        pred_copper.label = "pred_copper"
-        obs_copper = claim("Copper expands when heated.")
-        obs_copper.label = "obs_copper"
-
-        iron_match = equivalence(pred_iron, obs_iron)
-        copper_match = equivalence(pred_copper, obs_copper)
-        induction_from_comparisons(
-            law,
-            comparisons=[iron_match, copper_match],
-            reason="Two prediction-observation matches support the proposed law.",
-        )
-
-    compiled = compile_package_artifact(pkg)
-    ir_strategy = next(
-        s
-        for s in compiled.graph.strategies
-        if (s.metadata or {}).get("surface_construct") == "supported_by"
-    )
-    assert ir_strategy.type == "deduction"
-    assert ir_strategy.conclusion == "github:v6_pkg::law"
-    assert ir_strategy.metadata["pattern"] == "induction"
-    assert len(ir_strategy.premises) == 2
-    knowledges = {k.id: k for k in compiled.graph.knowledges}
-    assert {knowledges[p].metadata["helper_kind"] for p in ir_strategy.premises} == {
-        "equivalence_result"
-    }
-
-
-def test_claim_induced_by_uses_induction_pattern():
-    pkg = CollectedPackage("v6_pkg", namespace="github", version="1.0.0")
-    with pkg:
-        law = claim("A proposed law.")
-        law.label = "law"
-        match_1 = claim("Prediction one matches observation one.")
-        match_1.label = "match_1"
-        match_2 = claim("Prediction two matches observation two.")
-        match_2.label = "match_2"
-
-        law.induced_by(comparisons=[match_1, match_2], reason="Two matches support the law.")
-
-    compiled = compile_package_artifact(pkg)
-    ir_strategy = next(
-        s
-        for s in compiled.graph.strategies
-        if (s.metadata or {}).get("surface_construct") == "supported_by"
-    )
-    assert ir_strategy.metadata["pattern"] == "induction"
-    assert ir_strategy.premises == ["github:v6_pkg::match_1", "github:v6_pkg::match_2"]
-
-
-def test_induction_from_comparisons_requires_two_comparisons():
-    law = claim("A proposed law.")
-    match = claim("One prediction matches one observation.")
-    with pytest.raises(ValueError, match="requires at least 2 comparisons"):
-        induction_from_comparisons(law, comparisons=[match])
+        supported_by(target, inputs=[])
 
 
 def test_compute_and_likelihood_from_compile_to_v6_methods():
