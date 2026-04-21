@@ -1,6 +1,8 @@
 from gaia.lang import compute
+from gaia.lang.compiler import compile_package_artifact
 from gaia.lang.runtime.action import Compute
 from gaia.lang.runtime.knowledge import Claim
+from gaia.lang.runtime.package import CollectedPackage
 
 
 class IntClaim(Claim):
@@ -42,3 +44,24 @@ def test_compute_decorator():
     assert len(result.supports) == 1
     assert isinstance(result.supports[0], Compute)
     assert result.supports[0].rationale == "Add two integers."
+
+
+def test_compute_decorator_keyword_args_record_given_claims():
+    @compute
+    def add(a: IntClaim, b: IntClaim) -> SumResult:
+        """Add two integers."""
+        return a.value + b.value
+
+    with CollectedPackage("kw_compute") as pkg:
+        a = IntClaim(value=3)
+        a.label = "a"
+        b = IntClaim(value=4)
+        b.label = "b"
+        result = add(a=a, b=b)
+        result.label = "sum"
+
+    assert result.supports[0].given == (a, b)
+
+    compiled = compile_package_artifact(pkg)
+    strategy = compiled.graph.strategies[0]
+    assert strategy.premises == ["github:kw_compute::a", "github:kw_compute::b"]

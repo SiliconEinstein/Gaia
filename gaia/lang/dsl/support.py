@@ -74,6 +74,22 @@ def _wrap_result(return_type: type[Claim], result_value: Any) -> Claim:
     return return_type(value=result_value)
 
 
+def _bound_given(sig: inspect.Signature, *args, **kwargs) -> tuple[Knowledge, ...]:
+    bound = sig.bind(*args, **kwargs)
+    bound.apply_defaults()
+    given: list[Knowledge] = []
+    for name, value in bound.arguments.items():
+        parameter = sig.parameters[name]
+        if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
+            values = value
+        elif parameter.kind is inspect.Parameter.VAR_KEYWORD:
+            values = value.values()
+        else:
+            values = (value,)
+        given.extend(item for item in values if isinstance(item, Knowledge))
+    return tuple(given)
+
+
 def _compute_call(
     conclusion_type: type[Claim],
     *,
@@ -127,7 +143,7 @@ def compute(
                 rationale=inspect.getdoc(wrapped_fn) or "",
                 background=list(background or []),
                 conclusion=conclusion,
-                given=tuple(args),
+                given=_bound_given(sig, *args, **kwargs),
                 fn=wrapped_fn,
             )
             conclusion.supports.append(action)
