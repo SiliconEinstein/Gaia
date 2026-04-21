@@ -542,7 +542,29 @@ def compile_package_artifact(
         action_label_map[action_label] = target_id
         target_action_labels_by_id[target_id] = action_label
 
-    def _compile_support_action(action: Support, action_index: int) -> IrStrategy:
+    def _attach_grounding_action(
+        action: Support,
+        *,
+        action_label: str,
+        conclusion_id: str,
+        background_ids: list[str] | None,
+    ) -> None:
+        for i, ir_k in enumerate(ir_knowledges):
+            if ir_k.id != conclusion_id:
+                continue
+            metadata = dict(ir_k.metadata) if ir_k.metadata else {}
+            grounding = dict(metadata.get("grounding") or {})
+            grounding["action_label"] = action_label
+            grounding["pattern"] = "observation"
+            if background_ids:
+                grounding["background"] = background_ids
+            if action.rationale and not grounding.get("rationale"):
+                grounding["rationale"] = action.rationale
+            metadata["grounding"] = grounding
+            ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
+            return
+
+    def _compile_support_action(action: Support, action_index: int) -> IrStrategy | None:
         if action.conclusion is None:
             raise ValueError("Support action requires a conclusion")
         premise_ids = [knowledge_map[id(given)] for given in action.given]
@@ -562,6 +584,16 @@ def compile_package_artifact(
             pattern=pattern,
             extra=extra,
         )
+
+        if isinstance(action, Observe) and not premise_ids:
+            _attach_grounding_action(
+                action,
+                action_label=action_label,
+                conclusion_id=conclusion_id,
+                background_ids=background_ids,
+            )
+            _record_action_target(action_label, conclusion_id)
+            return None
 
         if premise_ids:
             result = formalize_named_strategy(
@@ -642,7 +674,7 @@ def compile_package_artifact(
         _record_action_target(action_label, strategy.strategy_id)
         return strategy
 
-    def compile_action(action: Any, action_index: int) -> IrStrategy | IrOperator:
+    def compile_action(action: Any, action_index: int) -> IrStrategy | IrOperator | None:
         if isinstance(action, Support):
             return _compile_support_action(action, action_index)
         if isinstance(action, Relate):
@@ -662,6 +694,8 @@ def compile_package_artifact(
     action_operators: list[IrOperator] = []
     for action_index, action in enumerate(getattr(pkg, "actions", [])):
         target = compile_action(action, action_index)
+        if target is None:
+            continue
         if isinstance(target, IrOperator):
             action_operators.append(target)
         else:

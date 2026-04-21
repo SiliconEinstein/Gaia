@@ -211,6 +211,50 @@ def test_infer_uses_accepted_review_manifest(tmp_path):
     assert belief_by_label["hypothesis"] > 0.4
 
 
+def test_infer_with_accepted_root_observe_review(tmp_path):
+    """Accepted no-premise observe reviews should not lower as empty deductions."""
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
+    from gaia.ir import ReviewManifest, ReviewStatus
+
+    pkg_dir = tmp_path / "root_observe_infer"
+    _write_base_package(pkg_dir, name="root_observe_infer")
+    (pkg_dir / "root_observe_infer" / "__init__.py").write_text(
+        "from gaia.lang import observe\n\n"
+        'root = observe("Root measurement.", rationale="Measured.", label="root_obs")\n'
+        '__all__ = ["root"]\n'
+    )
+    (pkg_dir / "root_observe_infer" / "priors.py").write_text(
+        'from . import root\n\nPRIORS = {\n    root: (0.82, "Measurement reliability."),\n}\n'
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    loaded = load_gaia_package(pkg_dir)
+    apply_package_priors(loaded)
+    compiled = compile_loaded_package_artifact(loaded)
+    assert compiled.review is not None
+    assert [review.target_kind for review in compiled.review.reviews] == ["knowledge"]
+    accepted = [
+        review.model_copy(update={"status": ReviewStatus.ACCEPTED, "round": 2})
+        for review in compiled.review.reviews
+    ]
+    (pkg_dir / ".gaia" / "review_manifest.json").write_text(
+        json.dumps(ReviewManifest(reviews=accepted).model_dump(mode="json"), indent=2)
+    )
+
+    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+
+    beliefs = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
+    belief_by_label = {item["label"]: item["belief"] for item in beliefs["beliefs"]}
+    assert belief_by_label["root"] == pytest.approx(0.82)
+
+
 def test_infer_loads_upstream_beliefs_for_foreign_nodes(tmp_path, monkeypatch):
     """When dep_beliefs are present, foreign nodes use upstream beliefs as priors."""
     # Create upstream dependency package

@@ -47,6 +47,20 @@ def _review_status(manifest: ReviewManifest, target_id: str | None) -> str | Non
     return status.value if status is not None else None
 
 
+def _grounding_action_label(knowledge: dict[str, Any]) -> str | None:
+    metadata = knowledge.get("metadata") or {}
+    grounding = metadata.get("grounding")
+    if not isinstance(grounding, dict):
+        return None
+    action_label = grounding.get("action_label")
+    return action_label if isinstance(action_label, str) and action_label else None
+
+
+def _has_grounding(knowledge: dict[str, Any]) -> bool:
+    metadata = knowledge.get("metadata") or {}
+    return isinstance(metadata.get("grounding"), dict)
+
+
 def _exported_claim_ids(ir: dict[str, Any]) -> set[str]:
     return {
         knowledge["id"]
@@ -91,6 +105,19 @@ def build_goal_trees(
         if knowledge_id in seen:
             return node
         next_seen = {*seen, knowledge_id}
+
+        if _has_grounding(knowledge):
+            action_label = _grounding_action_label(knowledge)
+            target_id = knowledge_id if action_label else None
+            node.incoming.append(
+                InquiryEdge(
+                    kind="grounding",
+                    label=_action_label({"action_label": action_label}, "grounding"),
+                    target_id=target_id,
+                    status=_review_status(review_manifest, target_id),
+                    inputs=[],
+                )
+            )
 
         for strategy in strategies_by_conclusion.get(knowledge_id, []):
             strategy_id = strategy.get("strategy_id")

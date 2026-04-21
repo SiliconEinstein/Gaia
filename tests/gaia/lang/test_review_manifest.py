@@ -62,6 +62,10 @@ def test_generate_review_manifest_for_v6_actions():
     by_action = {review.action_label: review for review in manifest.reviews}
     assert by_action["github:review_pkg::action::derive_c"].target_kind == "strategy"
     assert "[@c]" in by_action["github:review_pkg::action::derive_c"].audit_question
+    assert by_action["github:review_pkg::action::observe_data"].target_kind == "knowledge"
+    assert by_action["github:review_pkg::action::observe_data"].target_id == (
+        "github:review_pkg::data"
+    )
     assert by_action["github:review_pkg::action::same"].target_kind == "operator"
     assert "[@a]" in by_action["github:review_pkg::action::conflict"].audit_question
     assert "[@data]" in by_action["github:review_pkg::action::bayes_update"].audit_question
