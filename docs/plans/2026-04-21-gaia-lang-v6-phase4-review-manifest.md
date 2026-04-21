@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement ReviewManifest with Review records, auto-generated audit questions, multi-round review support, and pessimistic default (unreviewed Strategies don't participate in inference).
+**Goal:** Implement ReviewManifest with qualitative Review records, auto-generated audit questions, multi-round review support, and pessimistic default (unreviewed Strategies/Operators don't participate in inference).
 
-**Architecture:** ReviewManifest is a package-level artifact separate from the semantic graph. The compiler auto-generates Review entries for each Action/Strategy with `status="unreviewed"`. `gaia check --warrants` exports the manifest for review. BP lowering skips strategies whose latest Review status is not "accepted". Audit questions are templated from Action type with `[@...]` refs.
+**Architecture:** ReviewManifest is a package-level artifact separate from the semantic graph. The compiler auto-generates Review entries for each reviewable Action target (Strategy or Operator) with `status="unreviewed"`. `gaia check --warrants` exports the manifest for review. BP lowering skips Strategy/Operator targets whose latest Review status is not "accepted". ReviewManifest is not a calibration layer: it has no prior, likelihood, or policy field, and accepted Review status never by itself sets a numeric helper Claim probability. Audit questions are templated from Action type with `[@...]` refs.
 
 **Tech Stack:** Python 3.12+, Pydantic v2, pytest
 
@@ -32,7 +32,7 @@
 | File | Changes |
 |---|---|
 | `gaia/ir/graphs.py` | `GaiaPackageArtifact` gains `review: ReviewManifest \| None` |
-| `gaia/bp/lowering.py` | Skip strategies without accepted Review |
+| `gaia/bp/lowering.py` | Skip reviewable strategies/operators without accepted Review |
 | `gaia/cli/commands/check.py` | Add `--warrants` and `--warrants --blind` flags |
 | `gaia/cli/commands/infer.py` | Pass ReviewManifest to BP lowering |
 
@@ -46,6 +46,9 @@
 
 ```python
 # tests/gaia/ir/test_review.py
+import pytest
+from pydantic import ValidationError
+
 from gaia.ir.review import Review, ReviewManifest, ReviewStatus
 
 
@@ -60,7 +63,8 @@ def test_review_creation():
     r = Review(
         review_id="rev_001",
         action_label="planck_resolves",
-        strategy_id="lcs_abc123",
+        target_kind="strategy",
+        target_id="lcs_abc123",
         status=ReviewStatus.UNREVIEWED,
         audit_question="Do premises suffice to establish [@quantum_hyp]?",
         round=1,
@@ -70,16 +74,29 @@ def test_review_creation():
 
 
 def test_review_manifest():
-    r = Review(review_id="rev_001", action_label="a", strategy_id="lcs_1", status="unreviewed", audit_question="?", round=1)
+    r = Review(review_id="rev_001", action_label="a", target_kind="strategy", target_id="lcs_1", status="unreviewed", audit_question="?", round=1)
     m = ReviewManifest(reviews=[r])
     assert len(m.reviews) == 1
 
 
 def test_review_manifest_latest_status():
-    r1 = Review(review_id="rev_001", action_label="a", strategy_id="lcs_1", status="unreviewed", audit_question="?", round=1)
-    r2 = Review(review_id="rev_002", action_label="a", strategy_id="lcs_1", status="accepted", audit_question="?", round=2)
+    r1 = Review(review_id="rev_001", action_label="a", target_kind="strategy", target_id="lcs_1", status="unreviewed", audit_question="?", round=1)
+    r2 = Review(review_id="rev_002", action_label="a", target_kind="strategy", target_id="lcs_1", status="accepted", audit_question="?", round=2)
     m = ReviewManifest(reviews=[r1, r2])
     assert m.latest_status("lcs_1") == "accepted"
+
+
+def test_review_rejects_probability_fields():
+    with pytest.raises(ValidationError):
+        Review(
+            review_id="rev_bad",
+            action_label="a",
+            target_kind="strategy",
+            target_id="lcs_1",
+            status="accepted",
+            audit_question="?",
+            prior=0.9,
+        )
 ```
 
 - [ ] **Step 2: Implement**
@@ -91,8 +108,9 @@ def test_review_manifest_latest_status():
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ReviewStatus(StrEnum):
@@ -103,9 +121,12 @@ class ReviewStatus(StrEnum):
 
 
 class Review(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     review_id: str
     action_label: str
-    strategy_id: str
+    target_kind: Literal["strategy", "operator"]
+    target_id: str
     status: ReviewStatus
     audit_question: str
     reviewer_notes: str | None = None
@@ -114,10 +135,12 @@ class Review(BaseModel):
 
 
 class ReviewManifest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     reviews: list[Review] = []
 
-    def latest_status(self, strategy_id: str) -> ReviewStatus | None:
-        relevant = [r for r in self.reviews if r.strategy_id == strategy_id]
+    def latest_status(self, target_id: str) -> ReviewStatus | None:
+        relevant = [r for r in self.reviews if r.target_id == target_id]
         if not relevant:
             return None
         return max(relevant, key=lambda r: r.round).status
@@ -125,6 +148,8 @@ class ReviewManifest(BaseModel):
 
 - [ ] **Step 3: Run — verify passes**
 - [ ] **Step 4: Commit**
+
+Review records are qualitative accept/reject/needs-inputs records only; extra probability or calibration fields must fail validation.
 
 ---
 
@@ -185,8 +210,8 @@ def generate_audit_question(action_type: str, **labels) -> str:
 
 ### Task 3: Manifest generation from compiled package
 
-- [ ] **Step 1: Write test** — compile a package, generate ReviewManifest, verify one Review per Strategy
-- [ ] **Step 2: Implement `generate_review_manifest()`** — walks compiled strategies, creates Review entries
+- [ ] **Step 1: Write test** — compile a package, generate ReviewManifest, verify one Review per reviewable Strategy and Operator
+- [ ] **Step 2: Implement `generate_review_manifest()`** — walks compiled strategies/operators, creates Review entries with `target_kind` and `target_id`
 - [ ] **Step 3: Commit**
 
 ---
@@ -211,11 +236,18 @@ def test_accepted_strategy_included_in_bp():
     """Accepted strategy participates in inference."""
     # Same graph, but Review status = "accepted"
     # Run BP → B's posterior should be updated
+
+
+def test_review_manifest_does_not_set_priors():
+    """Accepted Review gates inclusion but does not mutate Claim priors."""
+    # Build graph with helper Claims carrying their normal compiled/default priors
+    # Mark strategy accepted
+    # Run BP lowering and verify no prior/calibration value is read from Review
 ```
 
 - [ ] **Step 2: Modify lowering.py**
 
-In `lower_local_graph()`, accept optional `ReviewManifest`. Before lowering each strategy, check `manifest.latest_status(strategy_id)`. Skip if not "accepted".
+In `lower_local_graph()`, accept optional `ReviewManifest`. Before lowering each reviewable Strategy or Operator, check `manifest.latest_status(strategy_id_or_operator_id)`. Skip if not "accepted". If accepted, use the normal lowering semantics already encoded in the IR and parameterization records; do not read or synthesize any prior from the Review.
 
 - [ ] **Step 3: Run — verify passes**
 - [ ] **Step 4: Commit**
@@ -240,7 +272,9 @@ def test_check_warrants_outputs_review_list(tmp_path):
 
 def test_check_warrants_blind(tmp_path):
     """gaia check --warrants --blind omits author priors."""
-    pass
+    # Create package with author priors on Claims and one derive action
+    # Run gaia check --warrants --blind
+    # Verify audit questions and action labels are present, but numeric priors are absent
 ```
 
 - [ ] **Step 2: Implement in check.py** — add `--warrants` flag, generate + display ReviewManifest

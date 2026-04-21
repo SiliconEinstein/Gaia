@@ -4,7 +4,7 @@
 
 **Goal:** Implement the Action class hierarchy (Support/Relate/Infer) with DSL verbs (`derive`, `observe`, `compute`, `equal`, `contradict`, `infer`), `Claim.supports` tracking, first-argument sugar (str → Claim), and `Action.label` with QID-style identity.
 
-**Architecture:** Action is a parallel type to Knowledge (not a subclass). DSL verbs are factory functions that create Action subclass instances and attach them to `Claim.supports`. Actions track their `warrants` (helper Claims needing review). The existing v5 `Strategy` dataclass in `nodes.py` is replaced by the Action hierarchy; v5 DSL functions (`support()`, `deduction()`, etc.) become compat wrappers.
+**Architecture:** Action is a parallel type to Knowledge (not a subclass). DSL verbs are factory functions that create Action subclass instances, register them in `CollectedPackage.actions`, and attach support actions to `Claim.supports` as a convenience index. The compiler consumes `CollectedPackage.actions`; `Claim.supports` is for InquiryState/user inspection and must not be the only source of truth. Actions track their qualitative `warrants` (helper Claims needing review). The existing v5 `Strategy` dataclass in `nodes.py` remains as a compatibility/internal bridge while v6 Actions are introduced; v5 DSL functions (`support()`, `deduction()`, etc.) become deprecated compat wrappers.
 
 **Tech Stack:** Python 3.12+, dataclasses, pytest
 
@@ -122,6 +122,15 @@ class Action:
     background: list = field(default_factory=list)  # list[Setting | Claim]
     warrants: list = field(default_factory=list)  # list[Claim] with metadata.review=True
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self):
+        from gaia.lang.runtime.knowledge import _current_package
+        pkg = _current_package.get()
+        if pkg is None:
+            from gaia.lang.runtime.package import infer_package_from_callstack
+            pkg = infer_package_from_callstack()
+        if pkg is not None:
+            pkg._register_action(self)
 
 
 # ── Support (directional: given → conclusion) ──
@@ -261,6 +270,14 @@ def test_derive_with_background():
     bg = Setting("Lab conditions.")
     C = derive("Conclusion.", given=A, background=[bg], rationale="Test.")
     assert C.supports[0].background == [bg]
+
+
+def test_derive_registers_action_with_package():
+    from gaia.lang.runtime.package import CollectedPackage
+    with CollectedPackage("v6_test") as pkg:
+        A = Claim("Premise.")
+        C = derive("Conclusion.", given=A, rationale="Test.")
+    assert pkg.actions == [C.supports[0]]
 ```
 
 - [ ] **Step 2: Run — verify fails**
@@ -297,6 +314,7 @@ def derive(
         conclusion=conclusion,
         given=given,
     )
+    # Action.__post_init__ registers with CollectedPackage.actions.
     conclusion.supports.append(action)
     return conclusion
 ```
@@ -326,11 +344,13 @@ def test_observe_with_given():
     assert isinstance(data.supports[0], Observe)
 
 
-def test_observe_root_fact_adds_grounding():
+def test_observe_root_fact_adds_grounding_and_reviewable_action():
     data = observe("UV spectrum data.", rationale="Measured at 5 points.")
     assert data.grounding is not None
     assert data.grounding.kind == "source_fact"
-    assert len(data.supports) == 0  # no Strategy for root fact
+    assert len(data.supports) == 1  # reviewable root Observe action
+    assert isinstance(data.supports[0], Observe)
+    assert data.supports[0].given == ()
 ```
 
 - [ ] **Step 2: Run — verify fails**
@@ -349,16 +369,11 @@ def observe(
     rationale: str = "",
     label: str | None = None,
 ) -> Claim:
-    """Empirical observation. No-premise observe adds Grounding instead of Strategy."""
+    """Empirical observation. No-premise observe is reviewable grounding."""
     if isinstance(conclusion, str):
         conclusion = Claim(conclusion)
     if isinstance(given, Knowledge):
         given = (given,)
-    if not given:
-        # Root fact — grounding only, no Strategy
-        if conclusion.grounding is None:
-            conclusion.grounding = Grounding(kind="source_fact", rationale=rationale)
-        return conclusion
     action = Observe(
         label=label,
         rationale=rationale,
@@ -366,6 +381,12 @@ def observe(
         conclusion=conclusion,
         given=given,
     )
+    # Root fact — add grounding and keep a reviewable Observe action.
+    # The compiler lowers it to FormalStrategy(type="deduction", premises=[],
+    # metadata.pattern="observation"); BP lowering treats it as reviewed source
+    # grounding, not as support from an empty premise set.
+    if not given and conclusion.grounding is None:
+        conclusion.grounding = Grounding(kind="source_fact", rationale=rationale)
     conclusion.supports.append(action)
     return conclusion
 ```
@@ -448,6 +469,7 @@ def compute(
         given=given,
         fn=fn,
     )
+    # Action.__post_init__ registers with CollectedPackage.actions.
     conclusion.supports.append(action)
     return conclusion
 
@@ -467,6 +489,7 @@ def compute_decorator(fn):
             given=tuple(args),
             fn=fn,
         )
+        # Action.__post_init__ registers with CollectedPackage.actions.
         conclusion.supports.append(action)
         return conclusion
 
@@ -666,12 +689,14 @@ def infer(
 # tests/gaia/lang/test_v5_compat.py
 
 def test_v5_support_still_works():
-    """v5 support() delegates to v6 derive()."""
+    """v5 support() still preserves prior while warning."""
     from gaia.lang import claim, support
+    import pytest
     a = claim("A.")
     b = claim("B.")
-    s = support([a], b, reason="test", prior=0.9)
-    # Should still work, prior is ignored in v6 but no error
+    with pytest.warns(DeprecationWarning):
+        s = support([a], b, reason="test", prior=0.9)
+    assert s.metadata["prior"] == 0.9
 
 
 def test_v5_equivalence_still_works():
@@ -688,7 +713,7 @@ def test_v5_equivalence_still_works():
 
 Key changes:
 - `gaia/lang/__init__.py`: export `derive`, `observe`, `compute`, `equal`, `contradict`, `infer`, `Action`, `Derive`, `Observe`, `Compute`, `Equal`, `Contradict`, `Infer`
-- `gaia/lang/dsl/strategies.py`: `support()` delegates to `derive()`
+- `gaia/lang/dsl/strategies.py`: `support()` emits `DeprecationWarning` and preserves existing v5 support-prior semantics; it must not silently delegate to prior-free `derive()`
 - `gaia/lang/dsl/operators.py`: `equivalence()` delegates to `equal()`, `contradiction()` delegates to `contradict()`
 - `gaia/lang/runtime/package.py`: add `_register_action()` + `actions: list[Action]` to CollectedPackage
 

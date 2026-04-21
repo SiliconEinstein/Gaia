@@ -34,7 +34,8 @@ Old interpretation:
 
 New interpretation:
   Strategy has no probability. Uncertainty is on explicit premise Claims.
-  Helper claim priors are set by reviewer via ReviewManifest, not by author.
+  ReviewManifest makes qualitative accept/reject/needs-inputs decisions.
+  Numeric warrant strength is produced by the accepted lowering policy, not by Review.
 ```
 
 ### Core rules
@@ -42,7 +43,7 @@ New interpretation:
 1. **Only `Claim` carries epistemic probability.** Setting, Context, Question do not.
 2. **Strategy carries no probability.** Uncertainty is expressed through explicit premise Claims.
 3. **Operator remains deterministic** and continues to produce `conclusion` helper Claims.
-4. **Generated helper Claims are neutral** unless reviewed and accepted.
+4. **Generated helper Claims are qualitative audit targets** unless their owning Strategy/Operator is reviewed and accepted.
 5. **`Review` is a review record in `ReviewManifest`**, not a Claim and not a probability variable.
 6. **Statistical evidence** uses existing `Strategy(type="infer")` with CPT encoding P(E|H) and P(E|¬H).
 
@@ -144,10 +145,10 @@ Existing types are reused:
 
 | v6 Lang verb | StrategyType | Notes |
 |---|---|---|
-| `derive()` | `deduction` or `support` | Existing |
-| `observe()` with premises | `deduction` or `support` | `metadata.pattern = "observation"` |
-| `observe()` no premises | No Strategy | Only adds Grounding to the Claim |
-| `compute()` | `deduction` or `support` | `metadata.compute = {...}` |
+| `derive()` | `deduction` | Existing FormalStrategy lowering |
+| `observe()` with premises | `deduction` | `metadata.pattern = "observation"` |
+| `observe()` no premises | `deduction` | Reviewable root-observation Strategy with `premises=[]`; adds Grounding to the Claim; lowering does not create a support edge from non-existent premises |
+| `compute()` | `deduction` | `metadata.pattern = "computation"`, `metadata.compute = {...}` |
 | `infer()` | `infer` | Existing; `premises=[H]`, `conclusion=E`, CPT = `[p_e_given_not_h, p_e_given_h]` |
 
 ### 2.3 Operator — No Change
@@ -183,9 +184,10 @@ class ReviewStatus(StrEnum):
 class Review:
     review_id: str
     action_label: str           # references Lang Action label (human-readable)
-    strategy_id: str            # points to the IR Strategy (hash-based)
+    target_kind: Literal["strategy", "operator"]
+    target_id: str              # Strategy.strategy_id or Operator.operator_id
     status: ReviewStatus
-    audit_question: str         # auto-generated from Strategy type
+    audit_question: str         # auto-generated from target type / pattern
     reviewer_notes: str | None = None
     timestamp: str
     round: int                  # supports multi-round review
@@ -193,11 +195,11 @@ class Review:
 
 ### 3.3 Multi-round review
 
-A single Strategy can have multiple Review records across review rounds. The latest Review's status determines whether the Strategy participates in inference.
+A single Strategy or Operator can have multiple Review records across review rounds. The latest Review's status determines whether the target participates in inference.
 
 ### 3.4 Default behavior
 
-**Unreviewed Strategies do NOT participate in inference** (pessimistic default). A Strategy must be explicitly accepted before it contributes to belief propagation.
+**Unreviewed Strategy/Operator targets do NOT participate in inference** (pessimistic default). A target must be explicitly accepted before it contributes to belief propagation.
 
 ### 3.5 Review has no probability
 
@@ -205,13 +207,21 @@ A single Strategy can have multiple Review records across review rounds. The lat
 Review is procedural review state, not epistemic uncertainty.
 ```
 
-If reviewer finds an issue, the fix is to modify the reasoning graph directly: add missing premise Claims, adjust Claim priors, or mark the Review as `needs_inputs`.
+Review records therefore do not carry priors, likelihoods, or calibration values. They only decide whether a Strategy/Operator is accepted for lowering. If a reviewer finds an issue, the fix is qualitative and structural: add missing premise Claims, adjust Claim priors in the parameterization layer, or mark the Review as `needs_inputs`.
+
+Accepted review status authorizes the existing lowering policy to assign runtime semantics:
+
+- accepted `derive`/`observe`/`compute` FormalStrategy instances participate in lowering
+- accepted `equal`/`contradict` Operators participate in lowering
+- deterministic/formal warrant helpers use the backend's standard assertion/default policy
+- accepted `infer` uses its explicit CPT record
+- unreviewed/rejected/needs-inputs Strategy/Operator targets are excluded from inference
 
 ### 3.6 Auto-generated audit questions
 
-Audit questions are automatically generated from Strategy type, using `[@...]` reference templates:
+Audit questions are automatically generated from target type, using `[@...]` reference templates:
 
-| Strategy type / pattern | Audit question template |
+| Target type / pattern | Audit question template |
 |---|---|
 | deduction / derivation | "Do the listed premises suffice to establish [@conclusion]?" |
 | deduction / observation | "Is the observation of [@conclusion] reliable under the stated conditions?" |
@@ -234,8 +244,8 @@ Templates are rendered to concrete questions using the referenced Claims' labels
 | `Question(...)` | `Knowledge(type="question")` |
 | `derive(...)` | `FormalStrategy(type="deduction")` + conjunction + implication helpers |
 | `observe(...)` with given | `FormalStrategy(type="deduction", metadata.pattern="observation")` |
-| `observe(...)` no given | `Grounding(kind="source_fact")` on the Claim |
-| `compute(...)` / `@compute` | `FormalStrategy(type="deduction", metadata.compute={...})` |
+| `observe(...)` no given | `FormalStrategy(type="deduction", premises=[], metadata.pattern="observation")` + `Grounding(kind="source_fact")` on the Claim |
+| `compute(...)` / `@compute` | `FormalStrategy(type="deduction", metadata.pattern="computation", metadata.compute={...})` |
 | `equal(A, B)` | `Operator(type="equivalence")` + Equivalence helper Claim |
 | `contradict(A, B)` | `Operator(type="contradiction")` + Contradiction helper Claim |
 | `infer(...)` | `Strategy(type="infer", premises=[H], conclusion=E)` + CPT `[p_e_given_not_h, p_e_given_h]` + StatisticalSupport helper |
@@ -264,7 +274,7 @@ Templates are rendered to concrete questions using the referenced Claims' labels
 ### 5.3 New types
 
 - `ReviewManifest` — package-level review state
-- `Review` — individual Strategy review record
+- `Review` — individual Strategy/Operator review record
 
 ### 5.4 Unchanged
 

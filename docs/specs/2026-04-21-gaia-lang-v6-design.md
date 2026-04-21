@@ -14,7 +14,7 @@
 1. **Claim-first authoring**: Authors declare Claims, then connect them with warranted reasoning verbs.
 2. **Three verb categories**: Support (directional), Relate (logical), Infer (statistical).
 3. **No probability on Strategy**: Uncertainty is expressed through explicit premise Claims, not edge weights.
-4. **Warrant is review state**: ReviewManifest records whether each reasoning step has been accepted by a reviewer.
+4. **Warrant is review state**: ReviewManifest records qualitative accept/reject/needs-inputs decisions; it does not carry priors.
 5. **Parameterized Claims**: Docstring templates with `[@ref]` for Knowledge parameters and `{param}` for value parameters.
 6. **IR-first compilability**: Every construct compiles to Gaia IR. No new IR node types beyond what the companion IR spec defines.
 
@@ -255,7 +255,9 @@ s = derive("Energy is quantized.", given=(A, B), rationale="...", label="planck_
 # Action QID: "github:blackbody::action::planck_resolves"
 ```
 
-At compile time, the label is stored in `Strategy.metadata.action_label`. The Strategy retains its existing hash-based `strategy_id` (`lcs_...`). The compiler maintains a bidirectional `action_label ↔ strategy_id` mapping.
+At compile time, the label is stored in the compiled target's `metadata.action_label`. Strategy targets retain hash-based `strategy_id` values (`lcs_...`); Operator targets retain hash-based `operator_id` values (`lco_...`). The compiler maintains a bidirectional `action_label ↔ target_id` mapping.
+
+Actions are registered in the collected package when created. `Claim.supports` is a convenience index for InquiryState and user inspection, not the compiler's only source of truth.
 
 **Warrants:** `warrants` tracks the helper Claims that need review (e.g., `Implies(AllTrue(A,B), C)` for derive). These are the audit targets in ReviewManifest.
 
@@ -269,7 +271,7 @@ Claim("AllTrue(A, B) implies C.", metadata={"generated": True, "helper_kind": "i
 Claim("AllTrue(A, B).", metadata={"generated": True, "helper_kind": "conjunction_result", "review": False})
 ```
 
-No subclass hierarchy for helpers — the `metadata.review` flag distinguishes warrants from mechanical helpers. Only `metadata.review == True` claims go into `Action.warrants` and ReviewManifest.
+No subclass hierarchy for helpers — the `metadata.review` flag distinguishes warrants from mechanical helpers. Only `metadata.review == True` helper Claims go into `Action.warrants`; ReviewManifest entries are generated per reviewable Action target and may reference those helper Claims in the audit question.
 
 ### 4.3 Claim.supports
 
@@ -300,9 +302,9 @@ InquiryState traverses `claim.supports` to build the dependency tree.
 |---|---|
 | `Derive` | `FormalStrategy(type="deduction", metadata.action_label=label)` |
 | `Observe` | `FormalStrategy(type="deduction", metadata={action_label, pattern="observation"})` |
-| `Compute` | `FormalStrategy(type="deduction", metadata={action_label, compute={...}})` |
-| `Equal` | `Operator(type="equivalence")` |
-| `Contradict` | `Operator(type="contradiction")` |
+| `Compute` | `FormalStrategy(type="deduction", metadata={action_label, pattern="computation", compute={...}})` |
+| `Equal` | `Operator(type="equivalence", metadata.action_label=label)` |
+| `Contradict` | `Operator(type="contradiction", metadata.action_label=label)` |
 | `Infer` | `Strategy(type="infer", metadata.action_label=label)` + CPT |
 
 ### 4.5 First argument sugar
@@ -415,7 +417,7 @@ observe(
 )
 ```
 
-Does NOT generate a Strategy. Instead adds `Grounding(kind="source_fact")` to the Claim.
+Generates a reviewable `Observe` Action that lowers to `FormalStrategy(type="deduction", premises=[], metadata.pattern="observation")`, and also adds `Grounding(kind="source_fact")` to the Claim. During BP lowering, the root observation does not create a support edge from non-existent premises; review acceptance only authorizes the grounded Claim to be treated as a reviewed source fact.
 
 ### 5.3 compute
 
@@ -450,7 +452,7 @@ Decorator extracts:
 - Output type from return annotation → conclusion Claim class
 - Docstring → rationale
 
-Compiles to `Strategy(type="computation")` + `ComputationMethod`.
+Compiles to `FormalStrategy(type="deduction", metadata.pattern="computation")` with `metadata.compute = {function_ref, code_hash, ...}`. There is no `StrategyType.COMPUTATION` in IR v6.
 
 **Compute chains**: One compute's output (Claim subclass) can be input to another compute, automatically forming reasoning chains.
 
@@ -564,14 +566,16 @@ Convenience wrappers like `ab_test()`, `binomial_test()`, `t_test()` are deferre
 
 ### 9.1 Review
 
-Users do not write Review objects directly. When the compiler emits a Strategy, a Review is automatically generated in ReviewManifest with `status="unreviewed"`.
+Users do not write Review objects directly. When the compiler emits a reviewable Strategy or Operator, a Review is automatically generated in ReviewManifest with `status="unreviewed"`.
 
-Reviews reference Actions by `action_label`, not by IR strategy_id:
+Reviews reference Actions by `action_label` and the compiled IR target by kind/id:
 
 ```python
 class Review:
     review_id: str
     action_label: str              # references Action.label (human-readable)
+    target_kind: Literal["strategy", "operator"]
+    target_id: str                 # Strategy.strategy_id or Operator.operator_id
     status: ReviewStatus           # unreviewed | accepted | rejected | needs_inputs
     audit_question: str            # auto-generated
     reviewer_notes: str | None = None
@@ -580,7 +584,7 @@ class Review:
 
 Audit questions are auto-generated from Action type using `[@...]` templates:
 
-| Strategy type | Audit question template |
+| Target type | Audit question template |
 |---|---|
 | deduction | "Do the listed premises suffice to establish [@conclusion]?" |
 | observation | "Is the observation of [@conclusion] reliable under the stated conditions?" |
@@ -596,20 +600,22 @@ gaia check --warrants              # Export all warrants with audit questions
 gaia check --warrants --blind      # Export with empty status (avoid anchoring bias)
 ```
 
-Reviewer sets status for each Warrant:
+Reviewer sets status for each review target:
 
 ```
-accepted        — Strategy participates in inference
-rejected        — Strategy is excluded
+accepted        — Strategy/Operator target participates in inference
+rejected        — Strategy/Operator target is excluded
 needs_inputs    — Missing premise Claims needed
-unreviewed      — Default; Strategy does NOT participate (pessimistic)
+unreviewed      — Default; target does NOT participate (pessimistic)
 ```
 
 If reviewer marks `needs_inputs`, the fix is to add explicit Claims to the reasoning graph and regenerate.
 
 ### 9.3 Multi-round review
 
-Same Strategy can be reviewed multiple times (different rounds). Latest status determines whether it participates.
+Same Strategy/Operator target can be reviewed multiple times (different rounds). Latest status determines whether it participates.
+
+ReviewManifest is qualitative: it has no prior, likelihood, or calibration field. Accepted status enables the relevant lowering rule; rejected, unreviewed, and needs-inputs statuses exclude that Strategy/Operator from inference until the graph or review state changes.
 
 ---
 
@@ -723,8 +729,8 @@ knowledge.metadata["gaia"]["provenance"] = {
 | `Question(...)` | `Knowledge(type="question")` |
 | `derive(...)` | `FormalStrategy(type="deduction")` + conjunction + implication helpers |
 | `observe(...)` with given | `FormalStrategy(type="deduction", metadata.pattern="observation")` |
-| `observe(...)` no given | `Grounding(kind="source_fact")` on the Claim |
-| `compute(...)` / `@compute` | `FormalStrategy(type="deduction", metadata.compute={...})` |
+| `observe(...)` no given | `FormalStrategy(type="deduction", premises=[], metadata.pattern="observation")` + `Grounding(kind="source_fact")` on the Claim |
+| `compute(...)` / `@compute` | `FormalStrategy(type="deduction", metadata={pattern="computation", compute={...}})` |
 | `equal(A, B)` | `Operator(type="equivalence")` + Equivalence helper |
 | `contradict(A, B)` | `Operator(type="contradiction")` + Contradiction helper |
 | `infer(...)` | `Strategy(type="infer", premises=[H], conclusion=E)` + CPT `[p_e_given_not_h, p_e_given_h]` + StatisticalSupport helper |
@@ -744,7 +750,7 @@ knowledge.metadata["gaia"]["provenance"] = {
 | `claim("...")` | `Claim("...")` or subclass | Uppercase, class style |
 | `setting("...")` | `Setting("...")` | Uppercase |
 | `question("...")` | `Question("...")` | Uppercase |
-| `support([a], b, prior=0.9)` | `derive(b, given=a, rationale=...)` | No prior |
+| `support([a], b, prior=0.9)` | Deprecated compat wrapper | Emits `DeprecationWarning`; must preserve existing v5 support-prior behavior until a migration tool rewrites it |
 | `deduction([a], b)` | `derive(b, given=a, rationale=...)` | No prior, no type= |
 | `contradiction(a, b)` | `contradict(a, b, rationale=...)` | Returns helper Claim |
 | `equivalence(a, b)` | `equal(a, b, rationale=...)` | Returns helper Claim |
@@ -756,7 +762,7 @@ knowledge.metadata["gaia"]["provenance"] = {
 
 ### 13.2 Compatibility
 
-v5 function-style API (`claim()`, `support()`, `deduction()`, etc.) is preserved as a deprecated compatibility layer compiling to the same IR. New packages should use v6 API.
+v5 function-style API (`claim()`, `support()`, `deduction()`, etc.) is preserved as a deprecated compatibility layer compiling to the same IR. Calls that carry v5-only semantics, especially `support(..., prior=...)`, must emit `DeprecationWarning` but must not silently drop the prior. New packages should use v6 API.
 
 ---
 

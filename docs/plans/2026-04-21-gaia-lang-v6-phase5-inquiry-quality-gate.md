@@ -4,7 +4,7 @@
 
 **Goal:** Implement InquiryState (`gaia check --inquiry`) showing goal-oriented reasoning progress with Review status, and Quality Gate (`gaia check --gate`) for CI with configurable thresholds.
 
-**Architecture:** InquiryState traverses `Claim.supports` trees (Lang-level, self-contained) or IR graph (compiled level) to build dependency trees for each exported Claim. Quality Gate reads `[tool.gaia.quality]` from pyproject.toml and checks: no structural holes, all warrants accepted, posterior thresholds met.
+**Architecture:** InquiryState traverses `Claim.supports` trees (Lang-level, self-contained) or IR graph (compiled level) to build dependency trees for each exported Claim. The compiled path uses IR Strategy/Operator records plus ReviewManifest as the source of truth; `Claim.supports` is only a source-level convenience index. Quality Gate reads `[tool.gaia.quality]` from pyproject.toml and checks: no structural holes, all warrants accepted, root observations reviewed, posterior thresholds met.
 
 **Tech Stack:** Python 3.12+, pytest, typer (CLI)
 
@@ -64,7 +64,9 @@ def test_inquiry_shows_support_tree(tmp_path):
 
 def test_inquiry_summary(tmp_path):
     """InquiryState shows summary: warranted claims, unreviewed, holes."""
-    pass
+    # Create package with one accepted derive, one unreviewed root observe, and one exported hole
+    # Run gaia check --inquiry
+    # Verify Summary counts accepted, unreviewed, and holes separately
 ```
 
 - [ ] **Step 2: Implement `_inquiry.py`**
@@ -179,6 +181,14 @@ def test_gate_fails_on_unreviewed(tmp_path):
     assert result.exit_code != 0
 
 
+def test_gate_fails_on_unreviewed_root_observe(tmp_path):
+    """A grounded root observation still needs accepted review."""
+    # Package with observe("root fact") and Grounding, but ReviewManifest status remains unreviewed
+    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+    assert result.exit_code != 0
+    assert "unreviewed" in result.output.lower()
+
+
 def test_gate_fails_on_low_posterior(tmp_path):
     """Quality gate fails if exported Claim posterior < min_posterior."""
     # Package with min_posterior=0.9, but posterior is 0.7
@@ -212,12 +222,21 @@ def check_quality_gate(
             if not _has_warrant_chain(ir, kid):
                 failures.append(f"Structural hole: {kid} has no warrant chain")
 
-    # 2. All warrants accepted
+    # 2. All warrants accepted, including no-premise observe strategies and relate operators.
+    # ReviewManifest is qualitative only; it gates inclusion but never sets priors.
     if review_manifest:
         for s in ir.get("strategies", []):
             status = review_manifest.latest_status(s["strategy_id"])
             if status != ReviewStatus.ACCEPTED:
                 label = (s.get("metadata") or {}).get("action_label", s["strategy_id"])
+                failures.append(f"Unreviewed/rejected: {label} (status={status})")
+        for o in ir.get("operators", []):
+            oid = o.get("operator_id")
+            if not oid:
+                continue
+            status = review_manifest.latest_status(oid)
+            if status != ReviewStatus.ACCEPTED:
+                label = (o.get("metadata") or {}).get("action_label", oid)
                 failures.append(f"Unreviewed/rejected: {label} (status={status})")
 
     # 3. Posterior threshold

@@ -4,7 +4,7 @@
 
 **Goal:** Update the compiler to lower v6 Action objects to IR Strategy/Operator, including `action_label` in metadata, `rationale` → `steps`, helper claim warrant metadata (`review` flag), and `infer()` → `Strategy(type="infer")` + CPT.
 
-**Architecture:** The compiler walks `CollectedPackage.actions` (new) alongside existing `strategies` and `operators`. Each Action subclass has a lowering path: Support actions → `FormalStrategy(type="deduction")`, Relate actions → `Operator`, Infer actions → `Strategy(type="infer")` + `StrategyParamRecord`. The `action_label` is stored in `metadata.action_label` and mapped bidirectionally to `strategy_id`.
+**Architecture:** The compiler walks `CollectedPackage.actions` (new) alongside existing `strategies` and `operators`. Each Action subclass has a lowering path: Support actions → `FormalStrategy(type="deduction")`, Relate actions → `Operator`, Infer actions → `Strategy(type="infer")` + `StrategyParamRecord`. The `action_label` is stored in `metadata.action_label` and mapped bidirectionally to the compiled target ID (`strategy_id` for Strategies, `operator_id` for Operators).
 
 **Tech Stack:** Python 3.12+, Pydantic v2, pytest
 
@@ -74,12 +74,14 @@ def _compile_action(action: Action, knowledge_map, namespace, package_name):
 ### Task 2: Compile Observe → FormalStrategy with pattern="observation"
 
 - [ ] Same pattern as derive, but `metadata.pattern = "observation"`.
-- [ ] No-premise observe: verify no Strategy is generated (only Grounding on Claim).
+- [ ] No-premise observe: verify a reviewable `FormalStrategy(type="deduction", premises=[], metadata.pattern="observation")` is generated and the Claim also carries `Grounding(kind="source_fact")`.
+- [ ] Verify BP lowering treats no-premise observe as a reviewed source grounding, not as a support edge from an empty premise set.
 - [ ] Commit
 
 ### Task 3: Compile Compute → FormalStrategy with metadata.compute
 
-- [ ] Same pattern as derive, but `metadata.compute = {function_ref, code_hash, ...}`.
+- [ ] Same pattern as derive, but `metadata.pattern = "computation"` and `metadata.compute = {function_ref, code_hash, ...}`.
+- [ ] Verify compute never introduces a new `StrategyType.COMPUTATION`; it lowers to deduction with computation metadata.
 - [ ] Commit
 
 ---
@@ -143,13 +145,13 @@ def _compile_infer(action: Infer, knowledge_map, namespace, package_name):
 
 ---
 
-## Chunk 3: action_label ↔ strategy_id Mapping
+## Chunk 3: action_label ↔ target_id Mapping
 
 ### Task 7: Bidirectional label mapping
 
 - [ ] **Step 1: Write test**
 
-Verify that compiled IR has `metadata.action_label` on strategies and that the `CompiledPackage` exposes a mapping `action_label → strategy_id`.
+Verify that compiled IR has `metadata.action_label` on strategies/operators and that the `CompiledPackage` exposes a mapping `action_label → target_id`.
 
 - [ ] **Step 2: Add `action_label_map` to CompiledPackage**
 - [ ] **Step 3: Commit**

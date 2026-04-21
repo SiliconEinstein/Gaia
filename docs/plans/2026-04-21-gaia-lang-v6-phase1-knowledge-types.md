@@ -473,6 +473,7 @@ Add to `gaia/lang/runtime/knowledge.py` in the `Claim` class:
 ```python
 # In Claim class, add __init_subclass__ to collect typed fields from annotations
 # and __init__ override to handle template rendering
+from enum import Enum
 
 class Claim(Knowledge):
     """Proposition with prior. Participates in BP."""
@@ -511,7 +512,8 @@ class Claim(Knowledge):
         params = []
         for name, ann in param_fields.items():
             val = param_values.get(name, UNBOUND)
-            params.append({"name": name, "type": ann.__name__ if isinstance(ann, type) else str(ann), "value": val})
+            stored_val = val.value if isinstance(val, Enum) else val
+            params.append({"name": name, "type": ann.__name__ if isinstance(ann, type) else str(ann), "value": stored_val})
 
         # Render content from docstring template
         template = self.__class__.__doc__ or ""
@@ -523,7 +525,12 @@ class Claim(Knowledge):
             for name in param_fields:
                 val = param_values.get(name, UNBOUND)
                 if val is not UNBOUND:
-                    render_values[name] = val if not isinstance(val, Knowledge) else f"[@{val.label or '?'}]"
+                    if isinstance(val, Knowledge):
+                        render_values[name] = f"[@{val.label or '?'}]"
+                    elif isinstance(val, Enum):
+                        render_values[name] = val.value
+                    else:
+                        render_values[name] = val
                 # Leave unbound as {name} placeholder
             content = template.format_map(_SafeFormatDict(render_values))
 
@@ -606,6 +613,8 @@ for name in param_fields:
     if val is not UNBOUND:
         if isinstance(val, Knowledge):
             render_values[name] = f"[@{val.label or '?'}]"
+        elif isinstance(val, Enum):
+            render_values[name] = val.value
         else:
             render_values[name] = val
 ```
@@ -784,32 +793,71 @@ git commit -m "feat(lang): add context() DSL, export v6 Knowledge types, v5 comp
 # tests/gaia/lang/test_compiler_v6.py
 from gaia.lang.runtime.knowledge import Claim, Setting, Context
 from gaia.lang.runtime.grounding import Grounding
+from gaia.lang.compiler.compile import compile_package_artifact
+from gaia.lang.runtime.package import CollectedPackage
 
 
 def test_compile_context_type(tmp_path):
     """Context Knowledge compiles with type='context'."""
-    # Create a minimal package with a Context node
-    # Use existing test fixtures pattern from test_compiler.py
-    # Verify ir["knowledges"] contains a node with type="context"
-    pass  # detailed implementation depends on existing test helpers
+    with CollectedPackage("v6_test") as pkg:
+        ctx = Context("Raw experiment notes.")
+        ctx.label = "ctx"
+    ir = compile_package_artifact(pkg).to_json()
+    node = next(k for k in ir["knowledges"] if k["label"] == "ctx")
+    assert node["type"] == "context"
 
 
 def test_compile_grounding_in_metadata(tmp_path):
     """Grounding metadata appears in compiled IR."""
-    pass  # verify metadata.grounding in compiled knowledge node
+    with CollectedPackage("v6_test") as pkg:
+        claim = Claim(
+            "Measured spectrum deviates from Rayleigh-Jeans law.",
+            grounding=Grounding(kind="source_fact", rationale="Extracted from Fig.2."),
+        )
+        claim.label = "uv_data"
+    ir = compile_package_artifact(pkg).to_json()
+    node = next(k for k in ir["knowledges"] if k["label"] == "uv_data")
+    assert node["metadata"]["grounding"]["kind"] == "source_fact"
+    assert "Fig.2" in node["metadata"]["grounding"]["rationale"]
 
 
 def test_compile_parameterized_claim_template(tmp_path):
     """Parameterized Claim stores content_template in metadata."""
-    pass  # verify metadata.content_template in compiled knowledge node
+    class TemperatureClaim(Claim):
+        """Cavity temperature is set to {value}K."""
+        value: float
+
+    with CollectedPackage("v6_test") as pkg:
+        temp = TemperatureClaim(value=5000.0)
+        temp.label = "temp"
+    ir = compile_package_artifact(pkg).to_json()
+    node = next(k for k in ir["knowledges"] if k["label"] == "temp")
+    assert node["content"] == "Cavity temperature is set to 5000.0K."
+    assert node["metadata"]["content_template"] == "Cavity temperature is set to {value}K."
 
 
 def test_compile_parameter_value(tmp_path):
     """Bound parameter values appear in compiled IR parameters."""
-    pass  # verify Parameter.value in compiled knowledge node
+    class ABCounts(Claim):
+        """[@experiment] recorded {ctrl_k}/{ctrl_n} control conversions."""
+        experiment: Setting
+        ctrl_n: int
+        ctrl_k: int
+
+    with CollectedPackage("v6_test") as pkg:
+        exp = Setting("AB test exp_123.")
+        exp.label = "exp_123"
+        counts = ABCounts(experiment=exp, ctrl_n=10_000, ctrl_k=500)
+        counts.label = "counts"
+    ir = compile_package_artifact(pkg).to_json()
+    node = next(k for k in ir["knowledges"] if k["label"] == "counts")
+    params = {p["name"]: p for p in node["parameters"]}
+    assert params["ctrl_n"]["value"] == 10_000
+    assert params["ctrl_k"]["value"] == 500
+    assert params["experiment"]["value"] == "github:v6_test::exp_123"
 ```
 
-Note: Detailed test implementations should follow existing patterns in `tests/gaia/lang/test_compiler.py` and `tests/cli/test_compile.py`.
+These tests are intentionally concrete: Step 2 must fail before compiler support exists, and Step 4 must prove that the compiler writes the new IR fields.
 
 - [ ] **Step 2: Run — verify fails**
 
