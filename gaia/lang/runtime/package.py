@@ -6,7 +6,8 @@ import inspect
 import sys
 from pathlib import Path
 
-from gaia.lang.runtime.nodes import Knowledge, Operator, Strategy, _current_package
+from gaia.lang.runtime.knowledge import Knowledge, _current_package
+from gaia.lang.runtime.nodes import Operator, Strategy
 
 try:
     import tomllib
