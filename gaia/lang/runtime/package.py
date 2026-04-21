@@ -5,9 +5,13 @@ from __future__ import annotations
 import inspect
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from gaia.lang.runtime.knowledge import Knowledge, _current_package
 from gaia.lang.runtime.nodes import Operator, Strategy
+
+if TYPE_CHECKING:
+    from gaia.lang.runtime.action import Action
 
 try:
     import tomllib
@@ -25,6 +29,7 @@ class CollectedPackage:
         self.knowledge: list[Knowledge] = []
         self.strategies: list[Strategy] = []
         self.operators: list[Operator] = []
+        self.actions: list[Action] = []
         self._token = None
         self._module_counters: dict[str | None, int] = {}
         self._module_order: list[str] = []
@@ -53,6 +58,9 @@ class CollectedPackage:
 
     def _register_operator(self, o: Operator):
         self.operators.append(o)
+
+    def _register_action(self, a: Action):
+        self.actions.append(a)
 
     @property
     def exported(self) -> list[str]:
