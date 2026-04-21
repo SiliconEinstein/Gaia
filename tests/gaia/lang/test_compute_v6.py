@@ -18,7 +18,9 @@ class SumResult(Claim):
 def test_compute_function():
     a = IntClaim(value=3)
     b = IntClaim(value=4)
-    result = compute(SumResult, fn=lambda a, b: a.value + b.value, given=(a, b), rationale="Addition.")
+    result = compute(
+        SumResult, fn=lambda a, b: a.value + b.value, given=(a, b), rationale="Addition."
+    )
     assert isinstance(result, SumResult)
     assert result.value == 7
     assert len(result.supports) == 1
