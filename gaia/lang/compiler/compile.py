@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from gaia.ir import (
@@ -31,6 +31,7 @@ from gaia.lang.refs import (
 )
 from gaia.lang.runtime import Knowledge, Operator
 from gaia.lang.runtime.package import CollectedPackage
+from gaia.lang.runtime.param import UNBOUND
 
 _COMPILE_TIME_FORMAL_STRATEGIES = frozenset(
     {
@@ -122,7 +123,20 @@ def _knowledge_id(
 
 def _knowledge_metadata(k: Knowledge) -> dict[str, Any] | None:
     metadata = dict(k.metadata)
+    grounding = getattr(k, "grounding", None)
+    if grounding is not None:
+        metadata["grounding"] = asdict(grounding)
     return metadata or None
+
+
+def _parameter_to_ir(param: dict[str, Any], knowledge_map: dict[int, str]) -> IrParameter:
+    payload = dict(param)
+    value = payload.get("value")
+    if isinstance(value, Knowledge):
+        payload["value"] = knowledge_map[id(value)]
+    elif value is UNBOUND:
+        payload["value"] = None
+    return IrParameter(**payload)
 
 
 def _knowledge_provenance(k: Knowledge) -> list[IrPackageRef] | None:
@@ -286,6 +300,10 @@ def compile_package_artifact(
             return
         knowledge_nodes.append(k)
         seen_knowledge.add(key)
+        for param in k.parameters:
+            value = param.get("value")
+            if isinstance(value, Knowledge):
+                register_knowledge(value)
 
     def register_strategy_knowledge(strategy: Any) -> None:
         for premise in strategy.premises:
@@ -337,7 +355,7 @@ def compile_package_artifact(
             title=getattr(k, "title", None),
             type=k.type,
             content=k.content,
-            parameters=[IrParameter(**p) for p in k.parameters],
+            parameters=[_parameter_to_ir(p, knowledge_map) for p in k.parameters],
             provenance=_knowledge_provenance(k),
             metadata=_knowledge_metadata(k),
             module=getattr(k, "_source_module", None),
