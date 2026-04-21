@@ -47,3 +47,37 @@ def test_context_cannot_have_prior():
 def test_setting_cannot_have_prior():
     with pytest.raises(TypeError):
         Setting("background", prior=0.5)
+
+
+def test_context_dsl_function():
+    from gaia.lang.dsl.knowledge import context
+
+    ctx = context("Raw experiment notes.")
+    assert ctx.type == "context"
+    assert ctx.content == "Raw experiment notes."
+    assert isinstance(ctx, Context)
+
+
+def test_v5_claim_still_works():
+    """v5 claim() function returns a v6 Claim."""
+    from gaia.lang import claim
+
+    c = claim("A proposition.")
+    assert c.type == "claim"
+    assert isinstance(c, Claim)
+
+
+def test_v5_setting_still_works():
+    from gaia.lang import setting
+
+    s = setting("Background info.")
+    assert s.type == "setting"
+    assert isinstance(s, Setting)
+
+
+def test_v5_question_still_works():
+    from gaia.lang import question
+
+    q = question("Question?")
+    assert q.type == "question"
+    assert isinstance(q, Question)
