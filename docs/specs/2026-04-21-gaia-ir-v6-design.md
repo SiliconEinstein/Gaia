@@ -182,7 +182,8 @@ class ReviewStatus(StrEnum):
 
 class Review:
     review_id: str
-    strategy_id: str            # points to the reviewed Strategy
+    action_label: str           # references Lang Action label (human-readable)
+    strategy_id: str            # points to the IR Strategy (hash-based)
     status: ReviewStatus
     audit_question: str         # auto-generated from Strategy type
     reviewer_notes: str | None = None
@@ -256,6 +257,7 @@ Templates are rendered to concrete questions using the referenced Claims' labels
 
 - `metadata.grounding` — root Claim provenance (kind, rationale, source_refs)
 - `metadata.content_template` — original docstring template before rendering
+- `metadata.action_label` — Lang Action label, QID-style (`{ns}:{pkg}::action::{label}`)
 - `metadata.pattern` — observation/derivation/computation distinction
 - `metadata.compute` — computation function_ref, code_hash, etc.
 

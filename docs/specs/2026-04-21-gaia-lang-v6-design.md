@@ -242,12 +242,22 @@ Deferred:
 
 ```python
 class Action:
+    label: str | None = None       # human-readable label, compiles to QID-style ID
     rationale: str
     background: list[Setting | Claim] = []
     warrants: list[Claim] = []     # helper claims needing review
 ```
 
-`warrants` tracks the helper Claims that need review (e.g., `Implies(AllTrue(A,B), C)` for derive). These are the audit targets in ReviewManifest.
+**Label and identity:** Action labels follow the Knowledge QID convention with an `action::` segment:
+
+```python
+s = derive("Energy is quantized.", given=(A, B), rationale="...", label="planck_resolves")
+# Action QID: "github:blackbody::action::planck_resolves"
+```
+
+At compile time, the label is stored in `Strategy.metadata.action_label`. The Strategy retains its existing hash-based `strategy_id` (`lcs_...`). The compiler maintains a bidirectional `action_label ↔ strategy_id` mapping.
+
+**Warrants:** `warrants` tracks the helper Claims that need review (e.g., `Implies(AllTrue(A,B), C)` for derive). These are the audit targets in ReviewManifest.
 
 Helper claims are ordinary Claims with metadata flags:
 
@@ -288,12 +298,12 @@ InquiryState traverses `claim.supports` to build the dependency tree.
 
 | Lang Action | IR target |
 |---|---|
-| `Derive` | `FormalStrategy(type="deduction")` |
-| `Observe` | `FormalStrategy(type="deduction", metadata.pattern="observation")` |
-| `Compute` | `FormalStrategy(type="deduction", metadata.compute={...})` |
+| `Derive` | `FormalStrategy(type="deduction", metadata.action_label=label)` |
+| `Observe` | `FormalStrategy(type="deduction", metadata={action_label, pattern="observation"})` |
+| `Compute` | `FormalStrategy(type="deduction", metadata={action_label, compute={...}})` |
 | `Equal` | `Operator(type="equivalence")` |
 | `Contradict` | `Operator(type="contradiction")` |
-| `Infer` | `Strategy(type="infer")` + CPT |
+| `Infer` | `Strategy(type="infer", metadata.action_label=label)` + CPT |
 
 ### 4.5 First argument sugar
 
@@ -552,11 +562,23 @@ Convenience wrappers like `ab_test()`, `binomial_test()`, `t_test()` are deferre
 
 ## 9. ReviewManifest
 
-### 8.1 Warrant
+### 9.1 Review
 
-Users do not write Warrant objects directly. When the compiler emits a Strategy, a Warrant is automatically generated in ReviewManifest with `status="unreviewed"`.
+Users do not write Review objects directly. When the compiler emits a Strategy, a Review is automatically generated in ReviewManifest with `status="unreviewed"`.
 
-Audit questions are auto-generated from Strategy type using `[@...]` templates:
+Reviews reference Actions by `action_label`, not by IR strategy_id:
+
+```python
+class Review:
+    review_id: str
+    action_label: str              # references Action.label (human-readable)
+    status: ReviewStatus           # unreviewed | accepted | rejected | needs_inputs
+    audit_question: str            # auto-generated
+    reviewer_notes: str | None = None
+    round: int                     # multi-round review
+```
+
+Audit questions are auto-generated from Action type using `[@...]` templates:
 
 | Strategy type | Audit question template |
 |---|---|
@@ -567,7 +589,7 @@ Audit questions are auto-generated from Strategy type using `[@...]` templates:
 | equal | "Are [@a] and [@b] truly equivalent?" |
 | contradict | "Do [@a] and [@b] truly contradict?" |
 
-### 8.2 Review workflow
+### 9.2 Review workflow
 
 ```bash
 gaia check --warrants              # Export all warrants with audit questions
@@ -585,7 +607,7 @@ unreviewed      — Default; Strategy does NOT participate (pessimistic)
 
 If reviewer marks `needs_inputs`, the fix is to add explicit Claims to the reasoning graph and regenerate.
 
-### 8.3 Multi-round review
+### 9.3 Multi-round review
 
 Same Strategy can be reviewed multiple times (different rounds). Latest status determines whether it participates.
 
