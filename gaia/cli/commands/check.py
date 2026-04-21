@@ -203,6 +203,11 @@ def check_command(
         "--blind",
         help="With --warrants, omit status values and prior diagnostics",
     ),
+    inquiry: bool = typer.Option(
+        False,
+        "--inquiry",
+        help="Show goal-oriented reasoning progress and review status",
+    ),
 ) -> None:
     """Validate structure and artifact consistency for a Gaia knowledge package."""
     try:
@@ -261,16 +266,26 @@ def check_command(
         f"{len(ir['operators'])} operators"
     )
 
-    if warrants:
+    review_manifest = None
+    if warrants or inquiry:
         try:
             review_manifest = load_or_generate_review_manifest(loaded.pkg_path, compiled)
         except GaiaCliError as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(1)
+
+    if warrants:
         for line in _warrant_report(review_manifest, blind=blind):
             typer.echo(line)
         if blind:
             return
+
+    if inquiry:
+        from gaia.cli.commands._inquiry import build_goal_trees, render_inquiry
+
+        trees = build_goal_trees(ir, review_manifest)
+        typer.echo("")
+        typer.echo(render_inquiry(trees))
 
     for line in _knowledge_diagnostics(ir):
         typer.echo(line)
