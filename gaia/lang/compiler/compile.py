@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from gaia.ir import (
@@ -19,6 +20,7 @@ from gaia.ir import (
     PackageRef as IrPackageRef,
     Step as IrStep,
     Strategy as IrStrategy,
+    StrategyParamRecord,
     formalize_named_strategy,
     make_qid,
 )
@@ -30,6 +32,15 @@ from gaia.lang.refs import (
     validate_groups,
 )
 from gaia.lang.runtime import Knowledge, Operator
+from gaia.lang.runtime.action import (
+    Compute,
+    Contradict,
+    Equal,
+    Infer as InferAction,
+    Observe,
+    Relate,
+    Support,
+)
 from gaia.lang.runtime.package import CollectedPackage
 from gaia.lang.runtime.param import UNBOUND
 
@@ -55,6 +66,9 @@ class CompiledPackage:
     graph: LocalCanonicalGraph
     knowledge_ids_by_object: dict[int, str]
     strategies_by_object: dict[int, IrStrategy]
+    action_label_map: dict[str, str] = field(default_factory=dict)
+    target_action_labels_by_id: dict[str, str] = field(default_factory=dict)
+    strategy_param_records: list[StrategyParamRecord] = field(default_factory=list)
 
     def to_json(self) -> dict[str, Any]:
         return self.graph.model_dump(mode="json", exclude_none=True, serialize_as_any=True)
@@ -85,6 +99,10 @@ def _anonymous_label(k: Knowledge, *, prefix: str = "_anon") -> str:
 
 def _make_qid(namespace: str, package_name: str, label: str) -> str:
     return make_qid(namespace, package_name, label)
+
+
+def _make_action_qid(namespace: str, package_name: str, label: str) -> str:
+    return f"{namespace}:{package_name}::action::{_normalize_label(label)}"
 
 
 def _is_local(k: Knowledge, pkg: CollectedPackage) -> bool:
@@ -186,6 +204,14 @@ def _operator_id(o: Operator, knowledge_map: dict[int, str]) -> str:
     return f"lco_{hashlib.sha256(raw.encode()).hexdigest()[:16]}"
 
 
+def _operator_id_from_values(operator: str, variables: list[str], conclusion: str) -> str:
+    var_ids = list(variables)
+    if operator in _SYMMETRIC_OPS:
+        var_ids = sorted(var_ids)
+    raw = f"{operator}|{'|'.join(var_ids)}|{conclusion}"
+    return f"lco_{hashlib.sha256(raw.encode()).hexdigest()[:16]}"
+
+
 def _step_ref(
     value: Knowledge | str | None,
     knowledge_map: dict[int, str],
@@ -234,6 +260,61 @@ def _compile_reason(
         else:
             raise ValueError(f"Unsupported reason entry type: {type(entry)!r}")
     return ir_steps or None
+
+
+def _action_steps(rationale: str) -> list[IrStep] | None:
+    if not rationale:
+        return None
+    return [IrStep(reasoning=rationale)]
+
+
+def _action_label(action: Any, pkg: CollectedPackage, action_index: int) -> str:
+    label = action.label or f"_anon_action_{action_index:03d}"
+    return _make_action_qid(pkg.namespace, pkg.name, label)
+
+
+def _action_metadata(
+    action: Any,
+    pkg: CollectedPackage,
+    action_index: int,
+    *,
+    pattern: str,
+    extra: dict[str, Any] | None = None,
+) -> tuple[str, dict[str, Any]]:
+    label = _action_label(action, pkg, action_index)
+    metadata = dict(getattr(action, "metadata", {}) or {})
+    metadata["action_label"] = label
+    metadata["pattern"] = pattern
+    if extra:
+        metadata.update(extra)
+    return label, metadata
+
+
+def _mark_formal_action_reviews(knowledges: list[IrKnowledge]) -> None:
+    """Mark deterministic helper claims generated for reviewable v6 actions."""
+    for knowledge in knowledges:
+        metadata = dict(knowledge.metadata or {})
+        helper_kind = metadata.get("helper_kind")
+        if helper_kind == "implication_result":
+            metadata["review"] = True
+        elif helper_kind == "conjunction_result":
+            metadata["review"] = False
+        if metadata != (knowledge.metadata or {}):
+            knowledge.metadata = metadata
+
+
+def _compute_metadata(fn: Any) -> dict[str, Any]:
+    if fn is None:
+        return {}
+    function_ref = f"{getattr(fn, '__module__', '')}.{getattr(fn, '__qualname__', repr(fn))}"
+    try:
+        source = inspect.getsource(fn)
+    except (OSError, TypeError):
+        source = repr(fn)
+    return {
+        "function_ref": function_ref,
+        "code_hash": f"sha256:{hashlib.sha256(source.encode()).hexdigest()}",
+    }
 
 
 def _collect_refs_from_text(
@@ -326,6 +407,31 @@ def compile_package_artifact(
         for sub_strategy in strategy.sub_strategies:
             register_strategy_knowledge(sub_strategy)
 
+    def register_action_knowledge(action: Any) -> None:
+        for background in getattr(action, "background", []) or []:
+            register_knowledge(background)
+        for warrant in getattr(action, "warrants", []) or []:
+            register_knowledge(warrant)
+        if isinstance(action, Support):
+            for given in action.given:
+                register_knowledge(given)
+            if action.conclusion is not None:
+                register_knowledge(action.conclusion)
+        elif isinstance(action, Relate):
+            if action.a is not None:
+                register_knowledge(action.a)
+            if action.b is not None:
+                register_knowledge(action.b)
+            if action.helper is not None:
+                register_knowledge(action.helper)
+        elif isinstance(action, InferAction):
+            if action.hypothesis is not None:
+                register_knowledge(action.hypothesis)
+            if action.evidence is not None:
+                register_knowledge(action.evidence)
+            if action.helper is not None:
+                register_knowledge(action.helper)
+
     for k in pkg.knowledge:
         if _is_composition_warrant(k):
             continue
@@ -337,6 +443,8 @@ def compile_package_artifact(
             register_knowledge(variable)
         if o.conclusion is not None:
             register_knowledge(o.conclusion)
+    for action in getattr(pkg, "actions", []):
+        register_action_knowledge(action)
 
     # Assign stable IDs to all knowledge nodes, preserving foreign package identity when known.
     knowledge_map: dict[int, str] = {}
@@ -422,6 +530,125 @@ def compile_package_artifact(
         compiled_strategies[strategy_key] = ir_strategy
         return ir_strategy
 
+    action_label_map: dict[str, str] = {}
+    target_action_labels_by_id: dict[str, str] = {}
+    strategy_param_records: list[StrategyParamRecord] = []
+
+    def _record_action_target(action_label: str, target_id: str | None) -> None:
+        if target_id is None:
+            return
+        action_label_map[action_label] = target_id
+        target_action_labels_by_id[target_id] = action_label
+
+    def _compile_support_action(action: Support, action_index: int) -> IrStrategy:
+        if action.conclusion is None:
+            raise ValueError("Support action requires a conclusion")
+        premise_ids = [knowledge_map[id(given)] for given in action.given]
+        conclusion_id = knowledge_map[id(action.conclusion)]
+        background_ids = [knowledge_map[id(bg)] for bg in action.background] or None
+        if isinstance(action, Observe):
+            pattern = "observation"
+        elif isinstance(action, Compute):
+            pattern = "computation"
+        else:
+            pattern = "derivation"
+        extra = {"compute": _compute_metadata(action.fn)} if isinstance(action, Compute) else None
+        action_label, metadata = _action_metadata(
+            action,
+            pkg,
+            action_index,
+            pattern=pattern,
+            extra=extra,
+        )
+
+        if premise_ids:
+            result = formalize_named_strategy(
+                scope="local",
+                type_="deduction",
+                premises=premise_ids,
+                conclusion=conclusion_id,
+                namespace=pkg.namespace,
+                package_name=pkg.name,
+                background=background_ids,
+                steps=_action_steps(action.rationale),
+                metadata=metadata,
+            )
+            _mark_formal_action_reviews(result.knowledges)
+            generated_knowledges.extend(result.knowledges)
+            strategy = result.strategy
+        else:
+            strategy = IrStrategy(
+                scope="local",
+                type="deduction",
+                premises=[],
+                conclusion=conclusion_id,
+                background=background_ids,
+                steps=_action_steps(action.rationale),
+                metadata=metadata,
+            )
+        _record_action_target(action_label, strategy.strategy_id)
+        return strategy
+
+    def _compile_relate_action(action: Relate, action_index: int) -> IrOperator:
+        if action.a is None or action.b is None or action.helper is None:
+            raise ValueError("Relate action requires a, b, and helper")
+        if isinstance(action, Equal):
+            operator = "equivalence"
+            pattern = "equivalence"
+        elif isinstance(action, Contradict):
+            operator = "contradiction"
+            pattern = "contradiction"
+        else:
+            raise ValueError(f"Unsupported Relate action: {type(action).__name__}")
+        action_label, metadata = _action_metadata(action, pkg, action_index, pattern=pattern)
+        if action.rationale:
+            metadata["reason"] = action.rationale
+        variables = [knowledge_map[id(action.a)], knowledge_map[id(action.b)]]
+        conclusion = knowledge_map[id(action.helper)]
+        ir_operator = IrOperator(
+            operator_id=_operator_id_from_values(operator, variables, conclusion),
+            scope="local",
+            operator=operator,
+            variables=variables,
+            conclusion=conclusion,
+            metadata=metadata,
+        )
+        _record_action_target(action_label, ir_operator.operator_id)
+        return ir_operator
+
+    def _compile_infer_action(action: InferAction, action_index: int) -> IrStrategy:
+        if action.hypothesis is None or action.evidence is None:
+            raise ValueError("Infer action requires hypothesis and evidence")
+        action_label, metadata = _action_metadata(action, pkg, action_index, pattern="inference")
+        strategy = IrStrategy(
+            scope="local",
+            type="infer",
+            premises=[knowledge_map[id(action.hypothesis)]],
+            conclusion=knowledge_map[id(action.evidence)],
+            background=[knowledge_map[id(bg)] for bg in action.background] or None,
+            steps=_action_steps(action.rationale),
+            metadata=metadata,
+        )
+        strategy_param_records.append(
+            StrategyParamRecord(
+                strategy_id=strategy.strategy_id,
+                conditional_probabilities=[action.p_e_given_not_h, action.p_e_given_h],
+                source_id="author",
+                justification=action.rationale,
+            )
+        )
+        _record_action_target(action_label, strategy.strategy_id)
+        return strategy
+
+    def compile_action(action: Any, action_index: int) -> IrStrategy | IrOperator:
+        if isinstance(action, Support):
+            return _compile_support_action(action, action_index)
+        if isinstance(action, Relate):
+            return _compile_relate_action(action, action_index)
+        if isinstance(action, InferAction):
+            return _compile_infer_action(action, action_index)
+        raise ValueError(f"Unsupported action type: {type(action).__name__}")
+
     emitted_strategies: set[int] = set()
     for s in pkg.strategies:
         strategy_key = id(s)
@@ -429,6 +656,14 @@ def compile_package_artifact(
             continue
         ir_strategies.append(compile_strategy(s))
         emitted_strategies.add(strategy_key)
+
+    action_operators: list[IrOperator] = []
+    for action_index, action in enumerate(getattr(pkg, "actions", [])):
+        target = compile_action(action, action_index)
+        if isinstance(target, IrOperator):
+            action_operators.append(target)
+        else:
+            ir_strategies.append(target)
 
     # Build label-to-QID table from the full knowledge closure (local + imported foreign nodes).
     label_to_id: dict[str, str] = {}
@@ -536,7 +771,7 @@ def compile_package_artifact(
         namespace=pkg.namespace,
         package_name=pkg.name,
         knowledges=[*ir_knowledges, *generated_knowledges],
-        operators=ir_operators,
+        operators=[*ir_operators, *action_operators],
         strategies=ir_strategies,
         module_order=module_order,
         module_titles=module_titles if module_titles else None,
@@ -546,6 +781,9 @@ def compile_package_artifact(
         graph=graph,
         knowledge_ids_by_object=dict(knowledge_map),
         strategies_by_object=dict(compiled_strategies),
+        action_label_map=action_label_map,
+        target_action_labels_by_id=target_action_labels_by_id,
+        strategy_param_records=strategy_param_records,
     )
 
 
