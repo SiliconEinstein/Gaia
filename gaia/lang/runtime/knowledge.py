@@ -143,17 +143,20 @@ class Claim(Knowledge):
             metadata = dict(knowledge_kwargs.get("metadata") or {})
             metadata["content_template"] = template
             knowledge_kwargs["metadata"] = metadata
+            rendered_template = template
             render_values: dict[str, Any] = {}
             for name in param_fields:
                 val = param_values.get(name, UNBOUND)
                 if val is not UNBOUND:
                     if isinstance(val, Knowledge):
-                        render_values[name] = f"[@{val.label or '?'}]"
+                        ref = f"[@{val.label or '?'}]"
+                        render_values[name] = ref
+                        rendered_template = rendered_template.replace(f"[@{name}]", ref)
                     elif isinstance(val, Enum):
                         render_values[name] = val.value
                     else:
                         render_values[name] = val
-            content = template.format_map(_SafeFormatDict(render_values))
+            content = rendered_template.format_map(_SafeFormatDict(render_values))
 
         for name, val in param_values.items():
             object.__setattr__(self, name, val)
