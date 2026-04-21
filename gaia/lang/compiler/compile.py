@@ -21,7 +21,6 @@ from gaia.ir import (
     ReviewManifest,
     Step as IrStep,
     Strategy as IrStrategy,
-    StrategyParamRecord,
     formalize_named_strategy,
     make_qid,
 )
@@ -69,7 +68,6 @@ class CompiledPackage:
     strategies_by_object: dict[int, IrStrategy]
     action_label_map: dict[str, str] = field(default_factory=dict)
     target_action_labels_by_id: dict[str, str] = field(default_factory=dict)
-    strategy_param_records: list[StrategyParamRecord] = field(default_factory=list)
     review: ReviewManifest | None = None
 
     def to_json(self) -> dict[str, Any]:
@@ -534,7 +532,6 @@ def compile_package_artifact(
 
     action_label_map: dict[str, str] = {}
     target_action_labels_by_id: dict[str, str] = {}
-    strategy_param_records: list[StrategyParamRecord] = []
 
     def _record_action_target(action_label: str, target_id: str | None) -> None:
         if target_id is None:
@@ -661,15 +658,8 @@ def compile_package_artifact(
             conclusion=knowledge_map[id(action.evidence)],
             background=[knowledge_map[id(bg)] for bg in action.background] or None,
             steps=_action_steps(action.rationale),
+            conditional_probabilities=[action.p_e_given_not_h, action.p_e_given_h],
             metadata=metadata,
-        )
-        strategy_param_records.append(
-            StrategyParamRecord(
-                strategy_id=strategy.strategy_id,
-                conditional_probabilities=[action.p_e_given_not_h, action.p_e_given_h],
-                source_id="author",
-                justification=action.rationale,
-            )
         )
         _record_action_target(action_label, strategy.strategy_id)
         return strategy
@@ -819,7 +809,6 @@ def compile_package_artifact(
         strategies_by_object=dict(compiled_strategies),
         action_label_map=action_label_map,
         target_action_labels_by_id=target_action_labels_by_id,
-        strategy_param_records=strategy_param_records,
     )
     from gaia.lang.review.manifest import generate_review_manifest
 

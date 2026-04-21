@@ -212,7 +212,7 @@ def test_infer_uses_accepted_review_manifest(tmp_path):
 
 
 def test_infer_uses_v6_infer_action_cpt(tmp_path):
-    """gaia infer must pass v6 InferAction CPT records into BP lowering."""
+    """gaia infer must lower v6 InferAction CPTs from the compiled IR strategy."""
     from gaia.cli._packages import (
         apply_package_priors,
         compile_loaded_package_artifact,

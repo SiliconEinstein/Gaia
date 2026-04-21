@@ -111,7 +111,7 @@ def test_compile_equal_and_contradict_actions_to_operators():
     assert by_operator["contradiction"].conclusion == "github:v6_actions::conflict_helper"
 
 
-def test_compile_infer_action_to_strategy_and_cpt_record():
+def test_compile_infer_action_to_strategy_cpt():
     with CollectedPackage("v6_actions") as pkg:
         h = Claim("H.")
         h.label = "h"
@@ -138,8 +138,8 @@ def test_compile_infer_action_to_strategy_and_cpt_record():
     assert strategy.background == ["github:v6_actions::reliable"]
     assert strategy.metadata["action_label"] == "github:v6_actions::action::bayes_update"
     assert strategy.steps[0].reasoning == "Bayes."
-    assert compiled.strategy_param_records[0].strategy_id == strategy.strategy_id
-    assert compiled.strategy_param_records[0].conditional_probabilities == [0.2, 0.8]
+    assert strategy.conditional_probabilities == [0.2, 0.8]
+    assert not hasattr(compiled, "strategy_param_records")
 
     stat_support = _knowledge_by_label(compiled)["stat_support"]
     assert stat_support.metadata["helper_kind"] == "statistical_support"

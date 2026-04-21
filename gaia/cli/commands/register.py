@@ -14,7 +14,6 @@ from gaia.cli._packages import (
     GaiaCliError,
     apply_package_priors,
     build_package_manifests,
-    collect_strategy_conditional_params,
     load_gaia_package,
 )
 from gaia.cli._packages import compile_loaded_package_artifact
@@ -394,7 +393,6 @@ def register_command(
     factor_graph = lower_local_graph(
         compiled.graph,
         node_priors=foreign_priors or None,
-        strategy_conditional_params=collect_strategy_conditional_params(compiled),
     )
     fg_errors = factor_graph.validate()
     if fg_errors:

@@ -216,7 +216,7 @@ def test_register_dry_run_emits_registration_plan(tmp_path):
 
 
 def test_register_beliefs_use_v6_infer_action_cpt(tmp_path):
-    """register-generated beliefs.json must use v6 InferAction CPT records."""
+    """register-generated beliefs.json must use v6 InferAction CPTs from IR strategies."""
     pkg_dir = tmp_path / "register_infer"
     remote_dir = tmp_path / "register_infer_remote.git"
     _write_package_with_v6_infer(pkg_dir)

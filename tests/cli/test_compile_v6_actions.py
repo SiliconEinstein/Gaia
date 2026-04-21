@@ -52,6 +52,13 @@ def test_compile_v6_actions_package(tmp_path):
         if s.get("metadata") and "pattern" in s["metadata"]
     }
     assert {"derivation", "inference"} <= strategy_patterns
+    infer_strategy = next(
+        s
+        for s in ir["strategies"]
+        if (s.get("metadata") or {}).get("action_label")
+        == "github:v6_actions::action::bayes_update"
+    )
+    assert infer_strategy["conditional_probabilities"] == [0.1, 0.9]
 
     grounding_patterns = {
         k["metadata"]["grounding"]["pattern"]

@@ -147,6 +147,7 @@ class Strategy(BaseModel):
 
     # local layer
     steps: list[Step] | None = None  # reasoning process (local only, None at global)
+    conditional_probabilities: list[float] | None = None  # infer/noisy_and CPT parameters
 
     # traceability
     metadata: dict[str, Any] | None = None
@@ -204,6 +205,21 @@ class Strategy(BaseModel):
                 self.conclusion,
                 structure_hash=self._structure_hash(),
             )
+        if self.conditional_probabilities is not None:
+            clamped = [max(1e-3, min(1 - 1e-3, float(p))) for p in self.conditional_probabilities]
+            if self.type == StrategyType.INFER:
+                expected = 1 << len(self.premises)
+                if len(clamped) != expected:
+                    raise ValueError(
+                        f"infer strategy with {len(self.premises)} premises requires "
+                        f"{expected} conditional_probabilities, got {len(clamped)}"
+                    )
+            elif self.type == StrategyType.NOISY_AND:
+                if len(clamped) != 1:
+                    raise ValueError(
+                        f"noisy_and strategy requires 1 conditional_probability, got {len(clamped)}"
+                    )
+            object.__setattr__(self, "conditional_probabilities", clamped)
         return self
 
     # No leaf type restriction — per §3.5.1, named strategies (deduction, abduction,
