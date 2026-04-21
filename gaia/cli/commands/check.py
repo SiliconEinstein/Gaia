@@ -208,6 +208,11 @@ def check_command(
         "--inquiry",
         help="Show goal-oriented reasoning progress and review status",
     ),
+    gate: bool = typer.Option(
+        False,
+        "--gate",
+        help="Run quality gate checks and exit non-zero on failure",
+    ),
 ) -> None:
     """Validate structure and artifact consistency for a Gaia knowledge package."""
     try:
@@ -267,7 +272,7 @@ def check_command(
     )
 
     review_manifest = None
-    if warrants or inquiry:
+    if warrants or inquiry or gate:
         try:
             review_manifest = load_or_generate_review_manifest(loaded.pkg_path, compiled)
         except GaiaCliError as exc:
@@ -286,6 +291,29 @@ def check_command(
         trees = build_goal_trees(ir, review_manifest)
         typer.echo("")
         typer.echo(render_inquiry(trees))
+
+    if gate:
+        from gaia.cli.commands._quality_gate import (
+            check_quality_gate,
+            load_beliefs,
+            load_quality_config,
+        )
+
+        try:
+            config = load_quality_config(loaded.gaia_config.get("quality"))
+            beliefs = load_beliefs(loaded.pkg_path)
+            failures = check_quality_gate(ir, beliefs, review_manifest, config)
+        except GaiaCliError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(1)
+        if failures:
+            typer.echo("")
+            typer.echo("Quality gate failed:")
+            for failure in failures:
+                typer.echo(f"  - {failure}")
+            raise typer.Exit(1)
+        typer.echo("")
+        typer.echo("Quality gate passed")
 
     for line in _knowledge_diagnostics(ir):
         typer.echo(line)
