@@ -5,7 +5,7 @@ import sys
 import textwrap
 from collections import Counter
 
-from gaia.lang import claim, compute, likelihood_from
+from gaia.lang import ParameterizedClaim, claim, compute, likelihood_from
 from gaia.lang.compiler.compile import compile_package_artifact
 from gaia.lang.runtime.package import (
     CollectedPackage,
@@ -19,6 +19,7 @@ from gaia.std.likelihood import (
     binomial_test,
     binomial_model_score,
     gaussian_model_comparison,
+    gaussian_model_comparison_from_claims,
     two_binomial_ab_test_score,
 )
 
@@ -124,6 +125,52 @@ def test_gaussian_model_comparison_helper_uses_score_claim():
     likelihood = next(s for s in compiled.graph.strategies if s.type == "likelihood")
     assert likelihood.method.output_bindings == {"score": score.score_id}
     assert score.score_id in likelihood.premises
+
+
+def test_gaussian_model_comparison_from_claims_reads_parameters():
+    class ScalarValue(ParameterizedClaim):
+        template = "The {kind} value for {material} is {value_K} K."
+
+        kind: str
+        material: str
+        value_K: float
+
+    pkg = CollectedPackage("v6_std_pkg", namespace="github", version="1.0.0")
+    with pkg:
+        observed = ScalarValue(kind="observed", material="Li", value_K=4e-4)
+        observed.label = "observed"
+        candidate = ScalarValue(kind="candidate", material="Li", value_K=5e-3)
+        candidate.label = "candidate"
+        baseline = ScalarValue(kind="baseline", material="Li", value_K=0.35)
+        baseline.label = "baseline"
+        valid = claim("The Li log-scale comparison is well posed.")
+        valid.label = "valid"
+        target = claim("The candidate model is favored over the baseline for Li.")
+        target.label = "target"
+
+        gaussian_model_comparison_from_claims(
+            target=target,
+            observed=observed,
+            candidate=candidate,
+            baseline=baseline,
+            value_field="value_K",
+            transform="log10",
+            sigma=1.0,
+            assumptions=[valid],
+        )
+
+    compiled = compile_package_artifact(pkg)
+    score = compiled.graph.likelihood_scores[0]
+    assert round(score.value, 6) == 3.7261
+
+    likelihood = next(s for s in compiled.graph.strategies if s.type == "likelihood")
+    assert likelihood.premises == [
+        "github:v6_std_pkg::observed",
+        "github:v6_std_pkg::candidate",
+        "github:v6_std_pkg::baseline",
+        "github:v6_std_pkg::valid",
+        score.score_id,
+    ]
 
 
 def test_binomial_test_helper_creates_compute_and_likelihood():

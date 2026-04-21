@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 
 from gaia.ir.likelihood_registry import (
     BINOMIAL_MODEL_REF,
@@ -33,6 +34,7 @@ __all__ = [
     "binomial_model_score",
     "binomial_test",
     "gaussian_model_comparison",
+    "gaussian_model_comparison_from_claims",
     "gaussian_model_comparison_log_lr",
     "gaussian_model_comparison_log_lr_claim",
     "two_binomial_ab_log_lr_claim",
@@ -391,4 +393,80 @@ def gaussian_model_comparison(
         module_ref=GAUSSIAN_MODEL_COMPARISON_REF,
         query=query,
         reason="Use the SciPy-backed Gaussian model-comparison likelihood score.",
+    )
+
+
+def _parameter_value(source: Knowledge, field: str):
+    for parameter in source.parameters:
+        if parameter.get("name") == field:
+            return parameter.get("value")
+    label = source.label or source.title or source.content[:40]
+    raise ValueError(f"Claim {label!r} has no parameter named {field!r}")
+
+
+def _numeric_parameter(source: Knowledge, field: str) -> float:
+    value = _parameter_value(source, field)
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        label = source.label or source.title or source.content[:40]
+        raise TypeError(f"Claim {label!r} parameter {field!r} must be numeric")
+    result = float(value)
+    if not math.isfinite(result):
+        label = source.label or source.title or source.content[:40]
+        raise ValueError(f"Claim {label!r} parameter {field!r} must be finite")
+    return result
+
+
+def _apply_transform(value: float, transform: str | Callable[[float], float] | None) -> float:
+    if transform is None or transform == "identity":
+        result = value
+    elif transform == "log":
+        result = math.log(value)
+    elif transform == "log10":
+        result = math.log10(value)
+    elif callable(transform):
+        result = float(transform(value))
+    else:
+        raise ValueError("transform must be None, 'identity', 'log', 'log10', or callable")
+    if not math.isfinite(result):
+        raise ValueError("transformed parameter value must be finite")
+    return float(result)
+
+
+def gaussian_model_comparison_from_claims(
+    *,
+    target: Knowledge,
+    observed: Knowledge,
+    candidate: Knowledge,
+    baseline: Knowledge,
+    sigma: float,
+    value_field: str = "value",
+    observed_field: str | None = None,
+    candidate_field: str | None = None,
+    baseline_field: str | None = None,
+    transform: str | Callable[[float], float] | None = None,
+    assumptions: list[Knowledge] | None = None,
+    query: str | dict = "candidate_vs_baseline",
+) -> Strategy:
+    """Compare Gaussian predictions using numeric parameters from Claims."""
+    observed_value = _apply_transform(
+        _numeric_parameter(observed, observed_field or value_field),
+        transform,
+    )
+    candidate_value = _apply_transform(
+        _numeric_parameter(candidate, candidate_field or value_field),
+        transform,
+    )
+    baseline_value = _apply_transform(
+        _numeric_parameter(baseline, baseline_field or value_field),
+        transform,
+    )
+    return gaussian_model_comparison(
+        target=target,
+        observed=observed_value,
+        candidate_mean=candidate_value,
+        baseline_mean=baseline_value,
+        sigma=sigma,
+        data=observed,
+        assumptions=[candidate, baseline, *(assumptions or [])],
+        query=query,
     )
