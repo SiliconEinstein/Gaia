@@ -403,37 +403,37 @@ infer(
     *,
     hypothesis: Claim,
     evidence: Claim,
-    given: tuple[Claim, ...] = (),
-    background: list[Setting] = [],
+    background: list[Setting | Claim] = [],
     p_e_given_h: float,
     p_e_given_not_h: float,
     rationale: str = "",
 ) -> StatisticalSupport
 ```
 
+No `given` parameter — assumptions and conditions go in `background` (not in BP). If assumptions are questionable, reviewer rejects the Strategy via ReviewManifest.
+
 ```python
 support = infer(
     hypothesis=quantum_hyp,
     evidence=spectrum_data,
-    given=(reliable_measurement, calibrated),
-    background=[exp_setting],
+    background=[exp_setting, reliable_measurement, calibrated],
     p_e_given_h=0.9,
     p_e_given_not_h=0.05,
     rationale="Planck spectrum is highly expected under quantum theory, very unlikely under alternatives.",
 )
 ```
 
-Returns `StatisticalSupport` helper Claim. Compiles to `Strategy(type="infer")` + `LikelihoodMethod`.
+Returns `StatisticalSupport` helper Claim. Compiles to `Strategy(type="infer", premises=[H], conclusion=E)` + CPT `[p_e_given_not_h, p_e_given_h]`.
 
 ### 7.2 Semantics
 
-`infer()` is **inferential**, not directional. It creates a bidirectional factor between hypothesis and evidence:
+`infer()` creates a bidirectional factor between hypothesis and evidence:
 
 ```
 odds(H) *= P(E|H) / P(E|¬H)
 ```
 
-`given` acts as a gate — if gate premises are unlikely, the inference update is attenuated. BP handles this naturally.
+The factor has exactly two CPT entries — no gate complexity. Assumptions are review context, not probabilistic variables. If an assumption is wrong, the reviewer rejects the Strategy entirely rather than attenuating it probabilistically.
 
 ### 7.3 Three sources of P(E|H) values
 
@@ -604,7 +604,7 @@ knowledge.metadata["gaia"]["provenance"] = {
 | `compute(...)` / `@compute` | `FormalStrategy(type="deduction", metadata.compute={...})` |
 | `equal(A, B)` | `Operator(type="equivalence")` + Equivalence helper |
 | `contradict(A, B)` | `Operator(type="contradiction")` + Contradiction helper |
-| `infer(...)` | `Strategy(type="infer", premises=[H]+gates, conclusion=E)` + CPT + StatisticalSupport helper |
+| `infer(...)` | `Strategy(type="infer", premises=[H], conclusion=E)` + CPT `[p_e_given_not_h, p_e_given_h]` + StatisticalSupport helper |
 | `given=(A, B, C)` tuple | `Operator(type="conjunction")` + conjunction helper |
 | `rationale=` | `steps=[Step(reasoning=rationale)]` |
 | `background=` | `Strategy.background` |
