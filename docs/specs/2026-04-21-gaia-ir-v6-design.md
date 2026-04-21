@@ -306,7 +306,7 @@ Strategy.assertions lists which of those helper Claims are asserted when review 
 `assertions` contains **relation helper Claims** that this Strategy asserts as true. These are the review focus:
 
 - `Implication` — from derive: AllTrue(given) ⟹ conclusion
-- `Equivalence` — from match
+- `Equivalence` — from equal
 - `Contradiction` — from contradict
 - `StatisticalSupport` — from infer
 
@@ -501,7 +501,7 @@ Audit questions are automatically generated from Strategy type and assertions, u
 | observation | "Is the observation of [@conclusion] reliable under the stated conditions?" |
 | computation | "Is the computation of [@conclusion] correctly implemented?" |
 | infer | "Is the statistical association between [@hypothesis] and [@evidence] valid at the stated probabilities?" |
-| match (Relate) | "Are [@a] and [@b] truly equivalent?" |
+| equal (Relate) | "Are [@a] and [@b] truly equivalent?" |
 | contradict (Relate) | "Do [@a] and [@b] truly contradict?" |
 
 Templates are rendered to concrete questions using the referenced Claims' labels or content.
@@ -520,7 +520,7 @@ Templates are rendered to concrete questions using the referenced Claims' labels
 | `observe(...)` with premises | `FormalStrategy(type="observation")` + conjunction + implication helpers |
 | `observe(...)` no premises | `Grounding(kind="source_fact")` on the Claim |
 | `compute(...)` / `@compute` | `Strategy(type="computation")` + ComputationMethod |
-| `match(A, B)` | `Operator(type="equivalence")` + Equivalence helper Claim |
+| `equal(A, B)` | `Operator(type="equivalence")` + Equivalence helper Claim |
 | `contradict(A, B)` | `Operator(type="contradiction")` + Contradiction helper Claim |
 | `infer(...)` | `Strategy(type="infer")` + LikelihoodMethod + StatisticalSupport helper |
 | `given=(A, B, C)` tuple | `Operator(type="conjunction")` + conjunction helper Claim |

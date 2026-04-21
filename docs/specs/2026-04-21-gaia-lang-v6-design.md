@@ -218,7 +218,7 @@ Gaia Lang v6 verbs are organized into three categories:
 | Category | Verbs | Semantics |
 |---|---|---|
 | **Support** | `derive()`, `observe()`, `compute()` | Directional: given → conclusion |
-| **Relate** | `match()`, `contradict()` | Logical constraint: connect two Claims |
+| **Relate** | `equal()`, `contradict()` | Logical constraint: connect two Claims |
 | **Infer** | `infer()` | Statistical inference: P(E\|H) update |
 
 ### 4.1 Common parameters
@@ -349,12 +349,12 @@ Compiles to `Strategy(type="computation")` + `ComputationMethod`.
 
 Relate verbs create logical constraints between two Claims. They compile to Operators and return helper Claims.
 
-### 6.1 match
+### 6.1 equal
 
 Declares two Claims are equivalent/consistent.
 
 ```python
-agreement = match(
+agreement = equal(
     prediction, observation,
     rationale="The predicted Planck spectrum agrees with measured data.",
 )
@@ -380,7 +380,7 @@ Returns `Contradiction` helper Claim. Compiles to `Operator(type="contradiction"
 Returned helper Claims can be used as premises in downstream derive:
 
 ```python
-agreement = match(quantum_prediction, observation, rationale="...")
+agreement = equal(quantum_prediction, observation, rationale="...")
 conflict = contradict(classical_prediction, observation, rationale="...")
 
 derive(
@@ -463,7 +463,7 @@ Audit questions are auto-generated from Strategy type using `[@...]` templates:
 | observation | "Is the observation of [@conclusion] reliable under the stated conditions?" |
 | computation | "Is the computation of [@conclusion] correctly implemented?" |
 | infer | "Is the statistical association between [@hypothesis] and [@evidence] valid at the stated probabilities?" |
-| match | "Are [@a] and [@b] truly equivalent?" |
+| equal | "Are [@a] and [@b] truly equivalent?" |
 | contradict | "Do [@a] and [@b] truly contradict?" |
 
 ### 8.2 Review workflow
@@ -602,7 +602,7 @@ knowledge.metadata["gaia"]["provenance"] = {
 | `observe(...)` with given | `FormalStrategy(type="observation")` + conjunction + implication helpers |
 | `observe(...)` no given | `Grounding(kind="source_fact")` on the Claim |
 | `compute(...)` / `@compute` | `Strategy(type="computation")` + ComputationMethod |
-| `match(A, B)` | `Operator(type="equivalence")` + Equivalence helper |
+| `equal(A, B)` | `Operator(type="equivalence")` + Equivalence helper |
 | `contradict(A, B)` | `Operator(type="contradiction")` + Contradiction helper |
 | `infer(...)` | `Strategy(type="infer")` + LikelihoodMethod + StatisticalSupport helper |
 | `given=(A, B, C)` tuple | `Operator(type="conjunction")` + conjunction helper |
@@ -624,7 +624,7 @@ knowledge.metadata["gaia"]["provenance"] = {
 | `support([a], b, prior=0.9)` | `derive(conclusion=b, given=a, rationale=...)` | No prior |
 | `deduction([a], b)` | `derive(conclusion=b, given=a, rationale=...)` | No prior, no type= |
 | `contradiction(a, b)` | `contradict(a, b, rationale=...)` | Returns helper Claim |
-| `equivalence(a, b)` | `match(a, b, rationale=...)` | Returns helper Claim |
+| `equivalence(a, b)` | `equal(a, b, rationale=...)` | Returns helper Claim |
 | `noisy_and` | Deprecated | Use `derive()` |
 | `review_claim(...)` | `priors.py` PRIORS dict | Already deprecated in v5 |
 | `review_strategy(...)` | ReviewManifest Warrants | Via `gaia check --warrants` |
@@ -643,8 +643,9 @@ The following are explicitly out of scope for v6.0:
 
 1. **Composition**: `induction()`, `abduction()`, `compose()` — users write chains manually
 2. **Standard inference library**: `ab_test()`, `binomial_test()`, `t_test()` — convenience wrappers
-3. **`exhaust()` relation**: Needs new IR Operator type
-4. **Nested quantifiers**: `∀x ∃y. P(x,y)` — needs Skolemization
+3. **`exhaust()` relation**: Disjunction + mutual exclusion combined
+4. **Claim operator overloading**: `A & B`, `A | B`, `~A` — syntactic sugar for conjunction/disjunction/complement. `given=(A, B)` tuple suffices for conjunction in v6.
+5. **Nested quantifiers**: `∀x ∃y. P(x,y)` — needs Skolemization
 5. **Lifted inference**: Large domains without grounding
 6. **Interactive InquiryState**: Lean-style tactic REPL
 7. **`gaia run` execution protocol**: Remote compute execution and witness persistence
