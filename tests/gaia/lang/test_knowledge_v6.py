@@ -34,6 +34,12 @@ def test_claim_with_grounding():
     assert c.grounding.kind == "source_fact"
 
 
+def test_claim_is_hashable_for_priors_dict():
+    c = Claim("A proposition.")
+    priors = {c: (0.5, "uninformative")}
+    assert priors[c] == (0.5, "uninformative")
+
+
 def test_question_creation():
     q = Question("Should we ship variant B?")
     assert q.type == "question"
@@ -81,3 +87,9 @@ def test_v5_question_still_works():
     q = question("Question?")
     assert q.type == "question"
     assert isinstance(q, Question)
+
+
+def test_grounding_public_export():
+    from gaia.lang import Grounding as PublicGrounding
+
+    assert PublicGrounding is Grounding

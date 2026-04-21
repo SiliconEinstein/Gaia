@@ -56,7 +56,7 @@ class Knowledge:
         return id(self)
 
 
-@dataclass(init=False)
+@dataclass(init=False, eq=False)
 class Context(Knowledge):
     """Raw unformalized text. Does not enter BP."""
 
@@ -66,7 +66,7 @@ class Context(Knowledge):
         super().__init__(content=content, type="context", **kwargs)
 
 
-@dataclass(init=False)
+@dataclass(init=False, eq=False)
 class Setting(Knowledge):
     """Formalized background. No probability."""
 
@@ -76,7 +76,7 @@ class Setting(Knowledge):
         super().__init__(content=content, type="setting", **kwargs)
 
 
-@dataclass(init=False)
+@dataclass(init=False, eq=False)
 class Claim(Knowledge):
     """Proposition with prior. Participates in BP."""
 
@@ -172,7 +172,7 @@ class Claim(Knowledge):
         self.supports = list(supports or [])
 
 
-@dataclass(init=False)
+@dataclass(init=False, eq=False)
 class Question(Knowledge):
     """Open inquiry. Does not enter BP."""
 

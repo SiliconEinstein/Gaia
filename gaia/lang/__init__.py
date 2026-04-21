@@ -24,11 +24,22 @@ from gaia.lang.dsl import (
     setting,
     support,
 )
-from gaia.lang.runtime import Claim, Context, Knowledge, Operator, Question, Setting, Step, Strategy
+from gaia.lang.runtime import (
+    Claim,
+    Context,
+    Grounding,
+    Knowledge,
+    Operator,
+    Question,
+    Setting,
+    Step,
+    Strategy,
+)
 
 __all__ = [
     "Claim",
     "Context",
+    "Grounding",
     "Knowledge",
     "Operator",
     "Question",
