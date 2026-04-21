@@ -32,10 +32,7 @@ def test_v6_knowledge_types_compile(tmp_path):
         "__all__ = ['hyp']\n"
     )
     (pkg_src / "priors.py").write_text(
-        "from . import hyp\n\n"
-        "PRIORS: dict = {\n"
-        '    hyp: (0.5, "uninformative"),\n'
-        "}\n"
+        'from . import hyp\n\nPRIORS: dict = {\n    hyp: (0.5, "uninformative"),\n}\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])

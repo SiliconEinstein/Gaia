@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-_VALID_KINDS = frozenset({"assumption", "source_fact", "definition", "imported", "judgment", "open"})
+_VALID_KINDS = frozenset(
+    {"assumption", "source_fact", "definition", "imported", "judgment", "open"}
+)
 
 
 @dataclass
