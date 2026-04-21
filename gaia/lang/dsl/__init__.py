@@ -14,6 +14,7 @@ from gaia.lang.dsl.strategies import (
     composite,
     compute,
     deduction,
+    derived_from,
     elimination,
     extrapolation,
     fills,
@@ -23,7 +24,9 @@ from gaia.lang.dsl.strategies import (
     mathematical_induction,
     noisy_and,
     support,
+    SupportedByPattern,
     supported_by,
+    SUPPORTED_BY_PATTERNS,
 )
 
 __all__ = [
@@ -41,6 +44,7 @@ __all__ = [
     "contradiction",
     "context",
     "deduction",
+    "derived_from",
     "disjunction",
     "elimination",
     "equivalence",
@@ -55,5 +59,7 @@ __all__ = [
     "question",
     "setting",
     "support",
+    "SupportedByPattern",
     "supported_by",
+    "SUPPORTED_BY_PATTERNS",
 ]

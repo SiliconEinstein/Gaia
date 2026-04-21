@@ -15,6 +15,7 @@ from gaia.lang.dsl import (
     contradiction,
     context,
     deduction,
+    derived_from,
     disjunction,
     elimination,
     equivalence,
@@ -28,7 +29,9 @@ from gaia.lang.dsl import (
     question,
     setting,
     support,
+    SupportedByPattern,
     supported_by,
+    SUPPORTED_BY_PATTERNS,
     ParameterizedClaim,
 )
 from gaia.lang.runtime import ComputeResult, Knowledge, LikelihoodScore, Operator, Step, Strategy
@@ -55,6 +58,7 @@ __all__ = [
     "contradiction",
     "context",
     "deduction",
+    "derived_from",
     "disjunction",
     "elimination",
     "equivalence",
@@ -68,5 +72,7 @@ __all__ = [
     "question",
     "setting",
     "support",
+    "SupportedByPattern",
     "supported_by",
+    "SUPPORTED_BY_PATTERNS",
 ]
