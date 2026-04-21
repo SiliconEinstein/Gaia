@@ -17,41 +17,15 @@ from gaia.lang.dsl.operators import _validate_reason_prior
 from gaia.lang.runtime.package import infer_package_from_callstack
 
 SupportedByPattern = Literal[
-    "support",
     "deduction",
-    "derivation",
-    "citation",
-    "observation",
-    "prediction",
-    "explanation",
-    "definition",
-    "measurement",
-    "computation",
-    "model_assumption",
-    "source_extraction",
     "abduction",
     "induction",
-    "analogy",
-    "compare",
 ]
 
 SUPPORTED_BY_PATTERNS: tuple[str, ...] = (
-    "support",
     "deduction",
-    "derivation",
-    "citation",
-    "observation",
-    "prediction",
-    "explanation",
-    "definition",
-    "measurement",
-    "computation",
-    "model_assumption",
-    "source_extraction",
     "abduction",
     "induction",
-    "analogy",
-    "compare",
 )
 
 
@@ -106,20 +80,11 @@ def _normalize_supported_by_pattern(pattern: str) -> str:
     if not normalized:
         raise ValueError("supported_by() pattern cannot be empty")
     if normalized not in SUPPORTED_BY_PATTERNS:
-        warnings.warn(
-            f"Unknown supported_by() pattern {pattern!r}; preserving it as metadata.",
-            UserWarning,
-            stacklevel=3,
+        allowed = ", ".join(SUPPORTED_BY_PATTERNS)
+        raise ValueError(
+            f"unsupported supported_by() pattern {pattern!r}; allowed patterns: {allowed}"
         )
     return normalized
-
-
-def _strategy_background(
-    *, background: list[Knowledge] | None, context: list[Knowledge] | None
-) -> list[Knowledge] | None:
-    if background is not None and context is not None:
-        raise ValueError("Use either background= or context=, not both")
-    return context if context is not None else background
 
 
 def _function_ref(fn) -> str:
@@ -286,25 +251,23 @@ def supported_by(
     conclusion: Knowledge,
     *,
     inputs: list[Knowledge],
-    pattern: SupportedByPattern | str = "support",
+    pattern: SupportedByPattern | str = "deduction",
     background: list[Knowledge] | None = None,
-    context: list[Knowledge] | None = None,
     reason: ReasonInput = "",
 ) -> Strategy:
     """v6 support surface: non-empty input Claims support a conclusion Claim.
 
-    ``pattern`` is an author-facing label such as "citation", "derivation",
-    "induction", or "abduction"; probability comes from the input claims and
+    ``pattern`` is the author-facing reasoning label: "deduction",
+    "induction", or "abduction". Probability comes from the input claims and
     downstream likelihood factors, not from this wrapper.
     """
     normalized_pattern = _normalize_supported_by_pattern(pattern)
-    background_items = _strategy_background(background=background, context=context)
     if not inputs:
         raise ValueError("supported_by() requires at least 1 input")
     if any(not isinstance(item, Knowledge) for item in inputs):
         raise TypeError("supported_by() inputs must be Gaia Knowledge objects")
     if any(item.type != "claim" for item in inputs):
-        raise TypeError("supported_by() inputs must be Claim objects; use context= for Context")
+        raise TypeError("supported_by() inputs must be Claim objects; use background= for Context")
     if not isinstance(conclusion, Knowledge):
         raise TypeError("supported_by() conclusion must be a Gaia Knowledge object")
     if conclusion.type != "claim":
@@ -315,29 +278,10 @@ def supported_by(
         "deduction",
         premises=_dedupe_knowledge(list(inputs)),
         conclusion=conclusion,
-        background=background_items,
+        background=background,
         reason=reason,
         metadata={"surface_construct": "supported_by", "pattern": normalized_pattern},
         method={"kind": "deduction"},
-    )
-
-
-def derived_from(
-    conclusion: Knowledge,
-    *,
-    inputs: list[Knowledge],
-    background: list[Knowledge] | None = None,
-    context: list[Knowledge] | None = None,
-    reason: ReasonInput = "",
-) -> Strategy:
-    """Convenience surface for derivational support."""
-    return supported_by(
-        conclusion,
-        inputs=inputs,
-        pattern="derivation",
-        background=background,
-        context=context,
-        reason=reason,
     )
 
 

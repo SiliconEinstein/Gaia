@@ -11,7 +11,6 @@ from gaia.lang import (
     claim_class,
     compute,
     context,
-    derived_from,
     likelihood_from,
     setting,
     supported_by,
@@ -141,7 +140,7 @@ def test_supported_by_compiles_as_v6_deduction_surface():
     assert isinstance(ir_strategy.method, DeductionMethod)
 
 
-def test_supported_by_preserves_documented_pattern_taxonomy():
+def test_supported_by_preserves_minimal_pattern_taxonomy():
     pkg = CollectedPackage("v6_pkg", namespace="github", version="1.0.0")
     with pkg:
         for index, pattern in enumerate(SUPPORTED_BY_PATTERNS):
@@ -153,7 +152,7 @@ def test_supported_by_preserves_documented_pattern_taxonomy():
                 conclusion,
                 inputs=[premise],
                 pattern=pattern,
-                reason=f"Exercise documented pattern {pattern}.",
+                reason=f"Exercise minimal pattern {pattern}.",
             )
 
     compiled = compile_package_artifact(pkg)
@@ -167,23 +166,15 @@ def test_supported_by_preserves_documented_pattern_taxonomy():
     assert all(isinstance(s.method, DeductionMethod) for s in strategies)
 
 
-def test_supported_by_normalizes_pattern_and_accepts_context_alias():
+def test_supported_by_defaults_to_deduction_pattern():
     pkg = CollectedPackage("v6_pkg", namespace="github", version="1.0.0")
     with pkg:
-        excerpt = context("Raw source excerpt.")
-        excerpt.label = "excerpt"
-        extraction = claim("The source extraction is correct.")
-        extraction.label = "extraction"
-        conclusion = claim("The paper reports the extracted result.")
+        premise = claim("A premise claim.")
+        premise.label = "premise"
+        conclusion = claim("A conclusion claim.")
         conclusion.label = "conclusion"
 
-        supported_by(
-            conclusion,
-            inputs=[extraction],
-            pattern="source-extraction",
-            context=[excerpt],
-            reason="A checked extraction from the source supports the report claim.",
-        )
+        supported_by(conclusion, inputs=[premise], reason="The premise entails the conclusion.")
 
     compiled = compile_package_artifact(pkg)
     ir_strategy = next(
@@ -191,74 +182,27 @@ def test_supported_by_normalizes_pattern_and_accepts_context_alias():
         for s in compiled.graph.strategies
         if (s.metadata or {}).get("surface_construct") == "supported_by"
     )
-    assert ir_strategy.metadata["pattern"] == "source_extraction"
-    assert ir_strategy.background == ["github:v6_pkg::excerpt"]
+    assert ir_strategy.metadata["pattern"] == "deduction"
 
 
-def test_supported_by_warns_for_unknown_pattern_but_preserves_metadata():
+def test_supported_by_rejects_unknown_pattern():
     target = claim("A target claim.")
     input_claim = claim("An input claim.")
-    with pytest.warns(UserWarning, match="Unknown supported_by"):
-        strategy = supported_by(target, inputs=[input_claim], pattern="custom-pattern")
-    assert strategy.metadata["pattern"] == "custom_pattern"
+    with pytest.raises(ValueError, match="unsupported supported_by\\(\\) pattern"):
+        supported_by(target, inputs=[input_claim], pattern="custom-pattern")
 
 
 def test_supported_by_rejects_context_inputs():
     target = claim("A target claim.")
     excerpt = context("Raw source text.")
     with pytest.raises(TypeError, match="inputs must be Claim objects"):
-        supported_by(target, inputs=[excerpt], pattern="citation")
+        supported_by(target, inputs=[excerpt], pattern="deduction")
 
 
 def test_supported_by_rejects_empty_inputs():
     target = claim("A target claim.")
     with pytest.raises(ValueError, match="requires at least 1 input"):
         supported_by(target, inputs=[], pattern="induction")
-
-
-def test_derived_from_is_derivation_pattern_supported_by():
-    pkg = CollectedPackage("v6_pkg", namespace="github", version="1.0.0")
-    with pkg:
-        law = claim("All instances satisfying C also satisfy R.")
-        law.label = "law"
-        instance = claim("This instance satisfies condition C.")
-        instance.label = "instance"
-        conclusion = claim("This instance satisfies result R.")
-        conclusion.label = "conclusion"
-
-        derived_from(
-            conclusion,
-            inputs=[law, instance],
-            reason="Universal instantiation of the law under this condition.",
-        )
-
-    compiled = compile_package_artifact(pkg)
-    ir_strategy = next(
-        s
-        for s in compiled.graph.strategies
-        if (s.metadata or {}).get("surface_construct") == "supported_by"
-    )
-    assert ir_strategy.type == "deduction"
-    assert ir_strategy.metadata["pattern"] == "derivation"
-    assert ir_strategy.premises == ["github:v6_pkg::law", "github:v6_pkg::instance"]
-
-
-def test_claim_derived_from_method_uses_derivation_pattern():
-    pkg = CollectedPackage("v6_pkg", namespace="github", version="1.0.0")
-    with pkg:
-        input_claim = claim("A derivation input.")
-        input_claim.label = "input_claim"
-        conclusion = claim("A derived conclusion.")
-        conclusion.label = "conclusion"
-        conclusion.derived_from(inputs=[input_claim], reason="Direct derivation.")
-
-    compiled = compile_package_artifact(pkg)
-    ir_strategy = next(
-        s
-        for s in compiled.graph.strategies
-        if (s.metadata or {}).get("surface_construct") == "supported_by"
-    )
-    assert ir_strategy.metadata["pattern"] == "derivation"
 
 
 def test_compute_and_likelihood_from_compile_to_v6_methods():

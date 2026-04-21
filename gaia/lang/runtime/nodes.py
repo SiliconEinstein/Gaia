@@ -52,9 +52,8 @@ class Knowledge:
         self,
         *,
         inputs: list[Knowledge],
-        pattern: str = "support",
+        pattern: str = "deduction",
         background: list[Knowledge] | None = None,
-        context: list[Knowledge] | None = None,
         reason: ReasonInput = "",
     ) -> Strategy:
         """Declare that this Claim is supported by non-empty input Claims."""
@@ -65,26 +64,6 @@ class Knowledge:
             inputs=inputs,
             pattern=pattern,
             background=background,
-            context=context,
-            reason=reason,
-        )
-
-    def derived_from(
-        self,
-        *,
-        inputs: list[Knowledge],
-        background: list[Knowledge] | None = None,
-        context: list[Knowledge] | None = None,
-        reason: ReasonInput = "",
-    ) -> Strategy:
-        """Declare that this Claim is derivationally supported by input Claims."""
-        from gaia.lang.dsl.strategies import derived_from
-
-        return derived_from(
-            self,
-            inputs=inputs,
-            background=background,
-            context=context,
             reason=reason,
         )
 
