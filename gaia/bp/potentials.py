@@ -6,6 +6,7 @@ from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorType
 
 __all__ = [
     "implication_potential",
+    "negation_potential",
     "conjunction_potential",
     "disjunction_potential",
     "equivalence_potential",
@@ -45,6 +46,12 @@ def conjunction_potential(assignment: Assignment, inputs: list[str], conclusion:
     m = assignment[conclusion]
     ok = (all_one and m == 1) or ((not all_one) and m == 0)
     return _HIGH if ok else _LOW
+
+
+def negation_potential(assignment: Assignment, a: str, conclusion: str) -> float:
+    """N = NOT(A)."""
+    target = 0 if assignment[a] == 1 else 1
+    return _HIGH if assignment[conclusion] == target else _LOW
 
 
 def disjunction_potential(assignment: Assignment, inputs: list[str], conclusion: str) -> float:
@@ -114,6 +121,9 @@ def evaluate_potential(factor: Factor, assignment: Assignment) -> float:
 
     if ft == FactorType.CONJUNCTION:
         return conjunction_potential(assignment, v, c)
+
+    if ft == FactorType.NEGATION:
+        return negation_potential(assignment, v[0], c)
 
     if ft == FactorType.DISJUNCTION:
         return disjunction_potential(assignment, v, c)

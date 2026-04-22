@@ -1,8 +1,8 @@
-"""Gaia Lang v6 Relate verbs: equal, contradict."""
+"""Gaia Lang v6 Relate verbs: equal, contradict, exclusive."""
 
 from __future__ import annotations
 
-from gaia.lang.runtime.action import Contradict, Equal
+from gaia.lang.runtime.action import Contradict, Equal, Exclusive
 from gaia.lang.runtime.knowledge import Claim
 
 
@@ -30,5 +30,16 @@ def contradict(a: Claim, b: Claim, *, rationale: str = "", label: str | None = N
         metadata={"generated": True, "helper_kind": "contradiction_result", "review": True},
     )
     action = Contradict(label=label, rationale=rationale, a=a, b=b, helper=helper)
+    action.warrants.append(helper)
+    return helper
+
+
+def exclusive(a: Claim, b: Claim, *, rationale: str = "", label: str | None = None) -> Claim:
+    """Declare two Claims as a closed binary partition. Returns an XOR helper Claim."""
+    helper = Claim(
+        f"exactly one of {_claim_ref(a)} and {_claim_ref(b)} is true.",
+        metadata={"generated": True, "helper_kind": "complement_result", "review": True},
+    )
+    action = Exclusive(label=label, rationale=rationale, a=a, b=b, helper=helper)
     action.warrants.append(helper)
     return helper

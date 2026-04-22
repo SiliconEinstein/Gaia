@@ -779,7 +779,7 @@ The following are explicitly out of scope for v6.0:
 1. **Composition**: `induction()`, `abduction()`, `compose()` — users write chains manually
 2. **Standard inference library**: `ab_test()`, `binomial_test()`, `t_test()` — convenience wrappers
 3. **`exhaust()` relation**: Disjunction + mutual exclusion combined
-4. **Claim operator overloading**: `A & B`, `A | B`, `~A` — syntactic sugar for conjunction/disjunction/complement. `given=(A, B)` tuple suffices for conjunction in v6.
+4. **Python keyword operators**: `not A`, `A and B`, `A or B` — Python does not permit overloading these into Gaia expressions; use `~A`, `A & B`, and `A | B` instead.
 5. **Nested quantifiers**: `∀x ∃y. P(x,y)` — needs Skolemization
 5. **Lifted inference**: Large domains without grounding
 6. **Interactive InquiryState**: Lean-style tactic REPL

@@ -108,6 +108,7 @@ _OPERATOR_SYMBOLS = {
     "contradiction": "\u2297",
     "equivalence": "\u2261",
     "complement": "\u2295",
+    "negation": "\u00ac",
     "disjunction": "\u2228",
     "conjunction": "\u2227",
     "implication": "\u2192",

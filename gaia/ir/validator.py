@@ -9,7 +9,12 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-from gaia.ir.knowledge import Knowledge, KnowledgeType, is_qid
+from gaia.ir.knowledge import (
+    Knowledge,
+    KnowledgeType,
+    is_qid,
+    is_structural_expression_helper,
+)
 from gaia.ir.operator import Operator, OperatorType
 from gaia.ir.strategy import Strategy, CompositeStrategy, FormalStrategy, StrategyType
 from gaia.ir.graphs import LocalCanonicalGraph, _canonical_json
@@ -34,6 +39,7 @@ def _parse_qid(qid: str) -> tuple[str, str, str] | None:
 _PARAMETERIZED_TYPES = {StrategyType.INFER, StrategyType.NOISY_AND}
 _STRUCTURAL_HELPER_OPERATOR_TYPES = {
     OperatorType.CONJUNCTION,
+    OperatorType.NEGATION,
     OperatorType.DISJUNCTION,
     OperatorType.EQUIVALENCE,
     OperatorType.CONTRADICTION,
@@ -187,6 +193,14 @@ def _validate_operators(
                 f"Operator '{op.operator_id}': conclusion '{op.conclusion}' is "
                 f"'{knowledge_lookup[op.conclusion].type}', must be claim"
             )
+        else:
+            conclusion = knowledge_lookup[op.conclusion]
+            metadata = conclusion.metadata or {}
+            if is_structural_expression_helper(conclusion) and "prior" in metadata:
+                result.error(
+                    f"Knowledge '{op.conclusion}': structural helper claim "
+                    "must not have metadata prior"
+                )
 
         # conclusion must NOT be in variables (belt-and-suspenders, Pydantic also checks)
         if op.conclusion in op.variables:

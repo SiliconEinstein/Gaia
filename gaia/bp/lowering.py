@@ -10,7 +10,7 @@ from dataclasses import replace
 from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
 from gaia.ir.formalize import formalize_named_strategy
 from gaia.ir.graphs import LocalCanonicalGraph
-from gaia.ir.knowledge import KnowledgeType
+from gaia.ir.knowledge import KnowledgeType, is_structural_expression_helper
 from gaia.ir.operator import Operator, OperatorType
 from gaia.ir.review import ReviewManifest, ReviewStatus
 from gaia.ir.strategy import (
@@ -47,6 +47,7 @@ _RELATION_OPS = frozenset(
 
 _OPERATOR_MAP: dict[OperatorType, FactorType] = {
     OperatorType.IMPLICATION: FactorType.IMPLICATION,
+    OperatorType.NEGATION: FactorType.NEGATION,
     OperatorType.CONJUNCTION: FactorType.CONJUNCTION,
     OperatorType.DISJUNCTION: FactorType.DISJUNCTION,
     OperatorType.EQUIVALENCE: FactorType.EQUIVALENCE,
@@ -118,12 +119,19 @@ def lower_local_graph(
     helper_ids = {
         k.id for k in canonical.knowledges if k.id and k.label and k.label.startswith("__")
     }
-    if helper_ids:
-        priors = {k: v for k, v in priors.items() if k not in helper_ids}
+    expression_helper_ids = {
+        k.id for k in canonical.knowledges if k.id and is_structural_expression_helper(k)
+    }
+    no_user_prior_ids = helper_ids | expression_helper_ids
+    if no_user_prior_ids:
+        priors = {k: v for k, v in priors.items() if k not in no_user_prior_ids}
     metadata_priors = {
         k.id: float(k.metadata["prior"])
         for k in canonical.knowledges
-        if k.id and k.metadata and "prior" in k.metadata
+        if k.id
+        and k.metadata
+        and "prior" in k.metadata
+        and k.id not in expression_helper_ids
     }
     strat_params = strategy_conditional_params or {}
     fg = FactorGraph()
@@ -146,7 +154,9 @@ def lower_local_graph(
             continue
         # Priority: node_priors > metadata["prior"] > structural default
         metadata_prior = (k.metadata or {}).get("prior") if k.metadata else None
-        if k.id in relation_concl_ids and k.id not in priors:
+        if k.id in expression_helper_ids:
+            fg.add_variable(k.id, 0.5)
+        elif k.id in relation_concl_ids and k.id not in priors:
             fg.add_variable(k.id, 1.0 - CROMWELL_EPS)
         elif k.id in priors:
             fg.add_variable(k.id, priors[k.id])
@@ -164,7 +174,10 @@ def lower_local_graph(
             _ensure_claim_var(fg, vid, priors, claim_ids)
         concl = op.conclusion
         if concl not in fg.variables:
-            default = 1.0 - CROMWELL_EPS if op.operator in _RELATION_OPS else 0.5
+            if concl in expression_helper_ids:
+                default = 0.5
+            else:
+                default = 1.0 - CROMWELL_EPS if op.operator in _RELATION_OPS else 0.5
             fg.add_variable(concl, priors.get(concl, default))
         fg.add_factor(fid, ft, op.variables, concl)
 

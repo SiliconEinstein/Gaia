@@ -147,7 +147,7 @@ metadata: {schema: universal_law, domain: "凝聚态物理"}
 
 Helper claim **不是新的 Knowledge 类型**。它仍然是普通的 `claim`，只是承担了结构结果节点的角色。
 
-当前文档里的 `helper claim` 专指**结构型 result claim**，例如 `conjunction` 结果 `M`，以及 `equivalence` / `contradiction` / `complement` / `disjunction` 的标准结果 claim。
+当前文档里的 `helper claim` 专指**结构型 result claim**，例如 `negation` / `conjunction` / `disjunction` 的表达式结果，以及 `equivalence` / `contradiction` / `complement` 的标准关系结果 claim。
 
 在当前 contract 下：
 
@@ -183,14 +183,15 @@ Operator:
 
 `conclusion` 的语义是：**该 Operator 在图中的标准结果 claim**。
 
-- 对 `implication` / `conjunction`，它延续原有语义，表示 operator 的输出 claim
-- 对 `equivalence` / `contradiction` / `complement` / `disjunction`，它是结构型 helper claim，使这些关系本身也能被后续结构直接引用
+- 对 `negation` / `conjunction` / `disjunction`，它表示可复用的命题表达式输出 claim
+- 对 `equivalence` / `contradiction` / `complement`，它是结构型关系 helper claim，使这些关系本身也能被后续结构直接引用
 
 ### 2.2 算子类型与真值表
 
 | operator | 符号 | variables | conclusion | 真值约束 | 说明 |
 |----------|------|-----------|------------|---------|------|
 | **implication** | → | [A] | B | A=1 时 B 必须=1 | A 成立则 B 必须成立 |
+| **negation** | ¬ | [A] | helper claim（如 `not(A)`） | helper=¬A | 一元否定表达式 |
 | **equivalence** | ↔ | [A, B] | helper claim（如 `same_truth(A,B)`） | A=B | 真值必须一致 |
 | **contradiction** | ⊗ | [A, B] | helper claim（如 `not_both_true(A,B)`） | ¬(A=1 ∧ B=1) | 不能同时为真 |
 | **complement** | ⊕ | [A, B] | helper claim（如 `opposite_truth(A,B)`） | A≠B | 真值必须相反（XOR） |
@@ -198,6 +199,8 @@ Operator:
 | **conjunction** | ∧ | [A₁,...,Aₖ] | M | M=(A₁∧...∧Aₖ) | M 等于所有 Aᵢ 的合取 |
 
 **关键性质：** Operator 没有概率参数——它编码的是逻辑结构（"A 和 B 矛盾"），不是推理判断（"作者认为 A 蕴含 B"）。后者由 Strategy 承载。
+
+命题逻辑的化简、CNF/DNF/NNF 规范化、等价检查和可满足性检查属于 **analysis backend**，不改变 IR 的持久结构。实现可以把这些 Operator 临时翻译到成熟布尔逻辑库中求解，但 IR 中仍只保存 Gaia 自己的 `Operator` 和 `Knowledge`。
 
 ### 2.3 存在位置
 
@@ -220,8 +223,9 @@ Operator 分为两类：
 
 | 类别 | Operator 类型 | conclusion 语义 |
 |------|-------------|----------------|
-| **Directed**（有向） | `implication`, `conjunction` | 输出 claim（如蕴含的结果、合取结果 M） |
-| **Relation**（关系） | `equivalence`, `contradiction`, `complement`, `disjunction` | 结构型 helper claim |
+| **Directed**（有向） | `implication` | 输出 claim 或 implication helper（取决于 formalization 模板） |
+| **Expression**（命题表达式） | `negation`, `conjunction`, `disjunction` | 结构型计算结果 helper claim |
+| **Relation**（关系） | `equivalence`, `contradiction`, `complement` | 结构型 warrant helper claim |
 
 具体规则：
 

@@ -100,6 +100,22 @@ def test_factor_to_tensor_disjunction():
     assert _almost(t[1, 1, 0], _LOW)
 
 
+def test_factor_to_tensor_negation():
+    f = Factor(
+        factor_id="f1",
+        factor_type=FactorType.NEGATION,
+        variables=["A"],
+        conclusion="N",
+    )
+    t, axes = factor_to_tensor(f)
+    assert axes == ["A", "N"]
+    # N == NOT(A)
+    assert _almost(t[0, 1], _HIGH)
+    assert _almost(t[0, 0], _LOW)
+    assert _almost(t[1, 0], _HIGH)
+    assert _almost(t[1, 1], _LOW)
+
+
 def test_factor_to_tensor_equivalence():
     f = Factor(
         factor_id="f1",

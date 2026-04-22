@@ -54,7 +54,9 @@ from .s3_results import *
 ```python
 from gaia.lang import (
     claim, setting, question,                              # Knowledge
-    contradiction, equivalence, complement, disjunction,   # Operators
+    not_, and_, or_,                                      # Propositional expressions
+    contradict, equal, exclusive,                         # Reviewable relations
+    contradiction, equivalence, complement, disjunction,   # v5 compatibility
     support, compare, deduction, abduction, induction,     # Strategies
     analogy, extrapolation, elimination, case_analysis,
     mathematical_induction, composite, infer, fills,
@@ -103,6 +105,69 @@ titled = claim("H = p^2/2m + V(x)", title="Hamiltonian of the system")
 **Content supports markdown:** tables, `$...$` math, bullet points, bold/italic.
 
 ## Operators (Deterministic Constraints)
+
+### Propositional expressions
+
+Claims can be combined into helper claims with ordinary propositional structure:
+
+| Syntax | Function | Semantics | Review |
+|--------|----------|-----------|--------|
+| `~a` | `not_(a)` | NOT A | no |
+| `a & b` | `and_(a, b)` | A AND B | no |
+| `a | b` | `or_(a, b)` | A OR B | no |
+
+```python
+not_classical = ~classical_prediction
+joint_case = evidence_a & evidence_b
+either_mechanism = mech_a | mech_b
+```
+
+These helpers are structural expression nodes. They do not create review warrants. Python keywords `not`, `and`, and `or` cannot be overloaded; use `~`, `&`, and `|` instead. `Claim` objects intentionally reject Python truth-value checks such as `if claim:`.
+
+### Propositional analysis
+
+Compiled operator graphs can be analyzed with `gaia.logic`. The API keeps Gaia IR as the stored representation and uses a mature Boolean backend for normalization and checks:
+
+```python
+from gaia.logic import (
+    are_equivalent,
+    is_satisfiable,
+    simplify_proposition,
+    to_cnf_proposition,
+)
+
+graph = compile_package_artifact(pkg).graph
+
+simplified = simplify_proposition(graph, "github:pkg::double_negation")
+cnf = to_cnf_proposition(graph, "github:pkg::formula", simplify=True)
+same = are_equivalent(graph, "github:pkg::left", "github:pkg::right")
+consistent = is_satisfiable(graph, "github:pkg::formula")
+```
+
+This is useful for lints, formula comparison, and checking whether a composed expression is internally inconsistent. The returned expression is a backend object; it is not persisted into Gaia IR.
+
+### Reviewable relations
+
+Relation verbs declare semantic judgments between claims. They return warrant helper claims and are included in review manifests:
+
+| Function | Semantics | Meaning |
+|----------|-----------|---------|
+| `contradict(a, b)` | NOT (A AND B) | both cannot be true |
+| `equal(a, b)` | A = B | same truth value |
+| `exclusive(a, b)` | A XOR B | closed binary partition, exactly one true |
+
+```python
+not_both = contradict(hypothesis_a, hypothesis_b,
+    rationale="Incompatible mechanisms.")
+
+same = equal(prediction, observation,
+    rationale="The predicted and observed signatures match.")
+
+one_of = exclusive(conventional_sc, unconventional_sc,
+    rationale="This package treats the two cases as an exhaustive binary split.")
+```
+
+### v5 compatibility operators
 
 All operators take Knowledge inputs and optional `reason` + `prior` (must be paired: both or neither). Each returns a helper claim.
 

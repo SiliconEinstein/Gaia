@@ -12,6 +12,7 @@ from gaia.bp.potentials import (
     equivalence_potential,
     evaluate_potential,
     implication_potential,
+    negation_potential,
     soft_entailment_potential,
 )
 
@@ -66,6 +67,19 @@ def test_conjunction_one_false_m0():
 
 def test_conjunction_one_false_m1():
     assert conjunction_potential({"A": 1, "B": 0, "M": 1}, ["A", "B"], "M") < EPS
+
+
+# ── negation: N = NOT(A) ──
+
+
+def test_negation_true_false():
+    assert negation_potential({"A": 1, "N": 0}, "A", "N") > 1 - EPS
+    assert negation_potential({"A": 1, "N": 1}, "A", "N") < EPS
+
+
+def test_negation_false_true():
+    assert negation_potential({"A": 0, "N": 1}, "A", "N") > 1 - EPS
+    assert negation_potential({"A": 0, "N": 0}, "A", "N") < EPS
 
 
 # ── disjunction: D = OR(inputs) ──
@@ -177,6 +191,16 @@ def test_evaluate_potential_routes_correctly():
     assert evaluate_potential(factor, {"A": 1, "B": 1, "H": 1}) > 1 - EPS
     assert evaluate_potential(factor, {"A": 1, "B": 0, "H": 1}) < EPS
     assert evaluate_potential(factor, {"A": 1, "B": 0, "H": 0}) > 1 - EPS
+
+
+def test_evaluate_potential_routes_negation():
+    factor = Factor(
+        factor_id="f1",
+        factor_type=FactorType.NEGATION,
+        variables=["A"],
+        conclusion="N",
+    )
+    assert evaluate_potential(factor, {"A": 0, "N": 1}) > 1 - EPS
 
 
 def test_evaluate_potential_soft_entailment():

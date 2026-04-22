@@ -125,6 +125,31 @@ class Claim(Knowledge):
             if name not in base_fields and not name.startswith("_")
         }
 
+    def __bool__(self) -> bool:
+        raise TypeError(
+            "Claim objects do not have Python truth values. Use ~A, A & B, "
+            "or A | B to build Gaia logical expressions."
+        )
+
+    def __invert__(self) -> Claim:
+        from gaia.lang.dsl.propositional import not_
+
+        return not_(self)
+
+    def __and__(self, other: Claim) -> Claim:
+        if not isinstance(other, Claim):
+            return NotImplemented
+        from gaia.lang.dsl.propositional import and_
+
+        return and_(self, other)
+
+    def __or__(self, other: Claim) -> Claim:
+        if not isinstance(other, Claim):
+            return NotImplemented
+        from gaia.lang.dsl.propositional import or_
+
+        return or_(self, other)
+
     def __init__(
         self,
         content: str | None = None,

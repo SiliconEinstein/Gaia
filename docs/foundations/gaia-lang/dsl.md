@@ -13,7 +13,9 @@ Gaia Lang is a Python 3.12+ internal DSL for declarative knowledge authoring. Pa
 ```python
 from gaia.lang import (
     claim, setting, question,                              # Knowledge
-    contradiction, equivalence, complement, disjunction,   # Operators
+    not_, and_, or_,                                      # Propositional expressions
+    contradict, equal, exclusive,                         # Reviewable relations
+    contradiction, equivalence, complement, disjunction,   # v5 compatibility
     support, compare, deduction, abduction, induction,     # Strategies
     analogy, extrapolation, elimination, case_analysis,
     mathematical_induction, composite, infer, fills,
@@ -97,6 +99,43 @@ open_problem = question("What is the maximum Tc in hydrogen-rich superconductors
 ## Operators
 
 Operators declare deterministic logical constraints between claims. Each function creates an `Operator` (auto-registered) and returns a helper claim usable in further reasoning. For formal definitions and truth tables, see [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md), Section 2.
+
+### Propositional Expression Helpers
+
+Use `~a`, `a & b`, and `a | b` for direct Boolean construction. These return structural helper claims and do not create review warrants.
+
+```python
+not_a = ~a          # same as not_(a)
+both = a & b        # same as and_(a, b)
+either = a | b      # same as or_(a, b)
+```
+
+The explicit functions `not_(a)`, `and_(a, b, ...)`, and `or_(a, b, ...)` are also exported. Python keywords `not`, `and`, and `or` cannot be overloaded; `Claim.__bool__` raises to prevent accidental Python control-flow truth tests.
+
+### Propositional Analysis Helpers
+
+`gaia.logic` provides non-persistent analysis helpers over compiled Gaia operator graphs:
+
+- `simplify_proposition(graph, knowledge_id)`
+- `to_cnf_proposition(graph, knowledge_id, simplify=False)`
+- `to_dnf_proposition(graph, knowledge_id, simplify=False)`
+- `to_nnf_proposition(graph, knowledge_id)`
+- `are_equivalent(graph, left_knowledge_id, right_knowledge_id)`
+- `is_satisfiable(graph, knowledge_id)`
+
+These helpers recursively expand deterministic IR operators into a Boolean backend representation for formula simplification, normal-form conversion, equivalence checks, and satisfiability checks. The backend expression is an analysis artifact only; Gaia IR remains the source of truth.
+
+### Reviewable Relation Verbs
+
+Use v6 relation verbs when the author is making a semantic judgment that reviewers should inspect:
+
+- `equal(a, b, *, rationale="", label=None)` declares equivalent truth.
+- `contradict(a, b, *, rationale="", label=None)` declares the claims cannot both be true.
+- `exclusive(a, b, *, rationale="", label=None)` declares a closed binary partition, exactly one true.
+
+Each relation returns a reviewable warrant helper claim and compiles to the corresponding deterministic IR operator.
+
+### v5 Compatibility Operators
 
 ### `contradiction(a, b, *, reason="", prior=None)`
 

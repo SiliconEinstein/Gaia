@@ -26,6 +26,8 @@ $$\psi = \text{cpt}[idx] \text{ 当 } H=1, \quad \psi = 1 - \text{cpt}[idx] \tex
 
 实际 lowering 使用 Cromwell 软化（$0 \to \varepsilon$，$1 \to 1-\varepsilon$）。
 
+一元 negation 使用二值 CPT：$P(N=1\mid A=0)=1$，$P(N=1\mid A=1)=0$。
+
 **不需要** EQUIVALENCE / CONTRADICTION / COMPLEMENT 等特化 FactorType。命名的算子类型只是 CPT 模板（syntactic sugar），在因子图层面全部归约为 CONDITIONAL。
 
 ### 1.2 因子图中无 premise / conclusion 之分
@@ -57,7 +59,7 @@ $H = (A \leftrightarrow B)$ 说的是 "A 和 B 真值一致"——这个信息**
 
 ### 2.2 计算型（Directed operator）
 
-**conjunction / disjunction / implication**：conclusion $M$ 是 variables 的**确定性函数值**。
+**negation / conjunction / disjunction**：conclusion $M$ 是 variables 的**确定性函数值**。
 
 $M = A \wedge B$ 可以从 $\pi(A)$ 和 $\pi(B)$ 直接算出（在独立假设下）。设 $\pi(M) = 1 - \varepsilon$ 会引入与 $\pi(A)$、$\pi(B)$ 重复的信息。
 
@@ -333,8 +335,8 @@ for op in formal_expr.operators:
 
 | Operator 类别 | conclusion 先验 | 理由 |
 |--------------|----------------|------|
-| Relation（equivalence, contradiction, complement） | $1 - \varepsilon$ | 断言：算子的存在 = 关系成立 |
-| Directed（conjunction, disjunction, implication） | $0.5$ | 计算：belief 由 variables 决定 |
+| Relation（equivalence, contradiction, complement, implication warrant） | $1 - \varepsilon$ | 断言：算子的存在 = 关系成立 |
+| Expression（negation, conjunction, disjunction） | $0.5$ | 计算：belief 由 variables 决定 |
 
 判定规则：conclusion 的 $P(H\!=\!1)$ 能否从 $\pi(\text{variables})$ 推导出来？能 → 0.5（计算型）；不能 → $1-\varepsilon$（断言型）。
 
