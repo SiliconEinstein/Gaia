@@ -509,26 +509,29 @@ derive(
 
 ### 7.1 infer
 
-Statistical evidence update based on Jaynes/Bayes framework. All parameters are keyword-only.
+Statistical evidence update based on Jaynes/Bayes framework. The first
+argument is the evidence or prediction-shaped Claim `E`, aligning `infer()` with
+other action verbs that return their conclusion Claim. Probability arguments
+remain keyword-only to avoid swapping the two conditional probabilities.
 
 ```python
 infer(
+    evidence: Claim | str,
     *,
     hypothesis: Claim,
-    evidence: Claim,
     background: list[Setting | Claim] = [],
     p_e_given_h: float,
     p_e_given_not_h: float,
     rationale: str = "",
-) -> StatisticalSupport
+) -> Claim
 ```
 
 No `given` parameter — assumptions and conditions go in `background` (not in BP). If assumptions are questionable, reviewer rejects the Strategy via ReviewManifest.
 
 ```python
-support = infer(
+evidence = infer(
+    spectrum_data,
     hypothesis=quantum_hyp,
-    evidence=spectrum_data,
     background=[exp_setting, reliable_measurement, calibrated],
     p_e_given_h=0.9,
     p_e_given_not_h=0.05,
@@ -536,11 +539,16 @@ support = infer(
 )
 ```
 
-Returns `StatisticalSupport` helper Claim. Compiles to `Strategy(type="infer", premises=[H], conclusion=E)` + CPT `[p_e_given_not_h, p_e_given_h]`.
+Returns the evidence Claim `E`. Internally, the action still creates a
+reviewable `StatisticalSupport` helper Claim so ReviewManifest can audit the
+probabilistic warrant. Compiles to `Strategy(type="infer", premises=[H],
+conclusion=E)` + CPT `[p_e_given_not_h, p_e_given_h]`.
 
 ### 7.2 Semantics
 
-`infer()` creates a bidirectional factor between hypothesis and evidence:
+`infer()` creates a directional predictive factor from hypothesis to evidence.
+Because BP messages flow both ways, an accepted/observed `E` can still update
+belief in `H`:
 
 ```
 odds(H) *= P(E|H) / P(E|¬H)

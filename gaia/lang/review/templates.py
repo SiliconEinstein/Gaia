@@ -13,8 +13,8 @@ _TEMPLATES = {
     "observe": "Is the observation of [@{conclusion_label}] reliable under the stated conditions?",
     "compute": "Is the computation of [@{conclusion_label}] correctly implemented?",
     "infer": (
-        "Is the statistical association between [@{hypothesis_label}] and "
-        "[@{evidence_label}] valid at the stated probabilities?"
+        "Does [@{hypothesis_label}] predict [@{evidence_label}] at the stated "
+        "conditional probabilities?"
     ),
     "equal": "Are [@{a_label}] and [@{b_label}] truly equivalent?",
     "contradict": "Do [@{a_label}] and [@{b_label}] truly contradict?",

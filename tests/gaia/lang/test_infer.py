@@ -6,23 +6,66 @@ from gaia.lang.runtime.knowledge import Claim, Setting
 from gaia.lang.runtime.package import CollectedPackage
 
 
-def test_infer_returns_statistical_support():
+def test_infer_returns_positional_evidence_and_keeps_helper_on_action():
+    with CollectedPackage("v6_test") as pkg:
+        h = Claim("Quantum theory is correct.", prior=0.5)
+        e = Claim("Planck spectrum observed.", prior=0.95)
+        result = infer(
+            e,
+            hypothesis=h,
+            p_e_given_h=0.9,
+            p_e_given_not_h=0.05,
+            rationale="Strong evidence.",
+        )
+
+    assert result is e
+    action = pkg.actions[0]
+    assert action.evidence is e
+    assert action.hypothesis is h
+    assert action in e.supports
+    assert action.helper is not None
+    assert action.helper is not e
+    assert action.helper.metadata.get("generated") is True
+    assert action.helper.metadata.get("helper_kind") == "statistical_support"
+    assert action.helper.metadata.get("review") is True
+    assert action.warrants == [action.helper]
+
+
+def test_infer_keyword_evidence_also_returns_evidence():
     h = Claim("Quantum theory is correct.", prior=0.5)
     e = Claim("Planck spectrum observed.", prior=0.95)
-    support = infer(
+    result = infer(
         hypothesis=h,
         evidence=e,
         p_e_given_h=0.9,
         p_e_given_not_h=0.05,
         rationale="Strong evidence.",
     )
-    assert isinstance(support, Claim)
-    assert support.metadata.get("generated") is True
-    assert support.metadata.get("helper_kind") == "statistical_support"
-    assert support.metadata.get("review") is True
+    assert result is e
 
 
-def test_infer_all_keyword_only_for_v6_shape():
+def test_infer_string_evidence_creates_and_returns_evidence_claim():
+    with CollectedPackage("v6_test") as pkg:
+        h = Claim("Quantum theory is correct.", prior=0.5)
+        result = infer(
+            "Planck spectrum observed.",
+            hypothesis=h,
+            p_e_given_h=0.9,
+            p_e_given_not_h=0.05,
+            rationale="Strong evidence.",
+        )
+
+    assert isinstance(result, Claim)
+    assert result.content == "Planck spectrum observed."
+    action = pkg.actions[0]
+    assert action.evidence is result
+    assert action.hypothesis is h
+    assert action in result.supports
+    assert action.helper is not None
+    assert action.warrants == [action.helper]
+
+
+def test_infer_rejects_ambiguous_extra_positional_v6_shape():
     h = Claim("H.")
     e = Claim("E.")
     with pytest.raises(TypeError):
@@ -34,15 +77,16 @@ def test_infer_registers_action_and_warrant():
         h = Claim("H.")
         e = Claim("E.")
         bg = Setting("Experiment conditions.")
-        helper = infer(
+        result = infer(
+            e,
             hypothesis=h,
-            evidence=e,
             background=[bg],
             p_e_given_h=0.8,
             p_e_given_not_h=0.2,
             rationale="Test.",
             label="bayes_update",
         )
+    assert result is e
     assert len(pkg.actions) == 1
     action = pkg.actions[0]
     assert isinstance(action, Infer)
@@ -52,8 +96,9 @@ def test_infer_registers_action_and_warrant():
     assert action.background == [bg]
     assert action.p_e_given_h == 0.8
     assert action.p_e_given_not_h == 0.2
-    assert action.helper is helper
-    assert action.warrants == [helper]
+    assert action in e.supports
+    assert action.helper is not None
+    assert action.warrants == [action.helper]
 
 
 def test_infer_preserves_v5_positional_shape():

@@ -122,8 +122,8 @@ def _write_package_with_v6_infer(pkg_dir) -> None:
         'hypothesis = claim("Hypothesis.")\n'
         'evidence = claim("Evidence.")\n'
         "infer(\n"
+        "    evidence,\n"
         "    hypothesis=hypothesis,\n"
-        "    evidence=evidence,\n"
         "    p_e_given_h=0.95,\n"
         "    p_e_given_not_h=0.05,\n"
         '    rationale="Hypothesis strongly predicts evidence.",\n'

@@ -24,9 +24,9 @@ def test_compile_v6_actions_package(tmp_path):
         'classical = claim("Classical model predicts divergent UV spectrum.")\n'
         'agreement = equal(prediction, data, rationale="Prediction matches data.", label="match")\n'
         'conflict = contradict(classical, data, rationale="Prediction conflicts.", label="conflict")\n'
-        "stat_support = infer(\n"
+        "data = infer(\n"
+        "    data,\n"
         "    hypothesis=prediction,\n"
-        "    evidence=data,\n"
         "    background=[calibrated],\n"
         "    p_e_given_h=0.9,\n"
         "    p_e_given_not_h=0.1,\n"
@@ -35,8 +35,8 @@ def test_compile_v6_actions_package(tmp_path):
         ")\n"
         "favored = derive(\n"
         '    "Planck model is favored.",\n'
-        "    given=(agreement, conflict, stat_support),\n"
-        '    rationale="Agreement, conflict, and Bayes support favor Planck.",\n'
+        "    given=(agreement, conflict, data),\n"
+        '    rationale="Agreement, conflict, and observed data favor Planck.",\n'
         '    label="favor_planck",\n'
         ")\n"
         '__all__ = ["favored"]\n'

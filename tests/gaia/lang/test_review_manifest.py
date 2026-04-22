@@ -23,6 +23,8 @@ def test_audit_question_for_infer():
     )
     assert "[@quantum_hyp]" in question
     assert "[@spectrum]" in question
+    assert "predict" in question.lower()
+    assert "association" not in question.lower()
 
 
 def test_audit_question_for_equal():
@@ -46,8 +48,8 @@ def test_generate_review_manifest_for_v6_actions():
         conflict = contradict(a, data, rationale="Conflict.", label="conflict")
         conflict.label = "conflict_helper"
         infer(
+            data,
             hypothesis=c,
-            evidence=data,
             p_e_given_h=0.8,
             p_e_given_not_h=0.2,
             rationale="Bayes.",
