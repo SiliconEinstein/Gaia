@@ -12,6 +12,7 @@ from gaia.ir.formalize import formalize_named_strategy
 from gaia.ir.graphs import LocalCanonicalGraph
 from gaia.ir.knowledge import KnowledgeType
 from gaia.ir.operator import Operator, OperatorType
+from gaia.ir.review import ReviewManifest, ReviewStatus
 from gaia.ir.strategy import (
     _FORMAL_STRATEGY_TYPES,
     CompositeStrategy,
@@ -59,6 +60,20 @@ def _next_fid(prefix: str, i: list[int]) -> str:
     return f"{prefix}_f{i[0]}"
 
 
+def _review_target_allowed(
+    target_id: str | None,
+    metadata: dict | None,
+    review_manifest: ReviewManifest | None,
+) -> bool:
+    if review_manifest is None:
+        return True
+    if not metadata or not metadata.get("action_label"):
+        return True
+    if not target_id:
+        return False
+    return review_manifest.latest_status(target_id) == ReviewStatus.ACCEPTED
+
+
 def lower_local_graph(
     canonical: LocalCanonicalGraph,
     *,
@@ -66,6 +81,7 @@ def lower_local_graph(
     strategy_conditional_params: dict[str, list[float]] | None = None,
     expand_formal: bool = True,
     infer_use_degraded_noisy_and: bool = False,
+    review_manifest: ReviewManifest | None = None,
 ) -> FactorGraph:
     """Build a FactorGraph from a local canonical Gaia IR graph.
 
@@ -84,6 +100,11 @@ def lower_local_graph(
     infer_use_degraded_noisy_and:
         If True, lower ``infer`` with CONJUNCTION+SOFT_ENTAILMENT using only
         all-true / all-false CPT entries (information loss for general CPT).
+    review_manifest:
+        Optional qualitative ReviewManifest. When present, v6 action-backed
+        strategies/operators are lowered only after their latest review is
+        accepted. Legacy IR targets without ``metadata.action_label`` are not
+        gated.
     """
     priors = node_priors or {}
     # Auto-formalized helper claims (labels starting with ``__``, e.g.
@@ -108,8 +129,14 @@ def lower_local_graph(
     fg = FactorGraph()
     ctr = [0]
 
+    lowerable_operators = [
+        op
+        for op in canonical.operators
+        if _review_target_allowed(op.operator_id, op.metadata, review_manifest)
+    ]
+
     relation_concl_ids: set[str] = set()
-    for op in canonical.operators:
+    for op in lowerable_operators:
         if op.operator in _RELATION_OPS:
             relation_concl_ids.add(op.conclusion)
 
@@ -130,7 +157,7 @@ def lower_local_graph(
 
     strat_by_id = {s.strategy_id: s for s in canonical.strategies if s.strategy_id}
 
-    for op in canonical.operators:
+    for op in lowerable_operators:
         fid = _next_fid("op", ctr)
         ft = _OPERATOR_MAP[op.operator]
         for vid in op.variables:
@@ -143,6 +170,8 @@ def lower_local_graph(
 
     seen_strategies: set[str] = set()
     for s in canonical.strategies:
+        if not _review_target_allowed(s.strategy_id, s.metadata, review_manifest):
+            continue
         _lower_strategy(
             fg,
             s,
@@ -157,6 +186,7 @@ def lower_local_graph(
             canonical.namespace,
             canonical.package_name,
             seen_strategies=seen_strategies,
+            review_manifest=review_manifest,
         )
 
     return fg
@@ -221,7 +251,11 @@ def _lower_strategy(
     namespace: str,
     package_name: str,
     seen_strategies: set[str] | None = None,
+    review_manifest: ReviewManifest | None = None,
 ) -> None:
+    if not _review_target_allowed(s.strategy_id, s.metadata, review_manifest):
+        return
+
     # Dedup: when ``seen_strategies`` is provided (lower_local_graph
     # passes a fresh set), skip strategies that have already been
     # lowered.  Composite strategies recursively lower their
@@ -253,6 +287,7 @@ def _lower_strategy(
                 namespace,
                 package_name,
                 seen_strategies=seen_strategies,
+                review_manifest=review_manifest,
             )
         return
 
@@ -438,6 +473,7 @@ def _lower_strategy(
             namespace,
             package_name,
             seen_strategies=seen_strategies,
+            review_manifest=review_manifest,
         )
         return
 

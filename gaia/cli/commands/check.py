@@ -12,6 +12,7 @@ from gaia.cli._packages import compile_loaded_package_artifact
 from gaia.cli.commands._classify import classify_ir, node_role
 from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
+from gaia.lang.review.manifest import generate_review_manifest
 
 
 def _get_prior(k: dict) -> float | None:
@@ -153,6 +154,27 @@ def _hole_report(ir: dict) -> list[str]:
     return lines
 
 
+def _warrant_report(compiled, *, blind: bool = False) -> list[str]:
+    manifest = compiled.review or generate_review_manifest(compiled)
+    reviews = sorted(manifest.reviews, key=lambda review: review.action_label)
+    lines: list[str] = []
+    lines.append("")
+    lines.append(f"Review warrants: {len(reviews)}")
+    if not reviews:
+        lines.append("  No reviewable v6 actions.")
+        return lines
+
+    for review in reviews:
+        lines.append(f"  - {review.action_label}")
+        lines.append(f"    target: {review.target_kind} {review.target_id}")
+        if blind:
+            lines.append("    status:")
+        else:
+            lines.append(f"    status: {review.status.value}")
+        lines.append(f"    question: {review.audit_question}")
+    return lines
+
+
 def check_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     brief: bool = typer.Option(
@@ -168,6 +190,16 @@ def check_command(
         False,
         "--hole",
         help="Show detailed prior review report for all independent claims",
+    ),
+    warrants: bool = typer.Option(
+        False,
+        "--warrants",
+        help="Show v6 ReviewManifest warrants with audit questions",
+    ),
+    blind: bool = typer.Option(
+        False,
+        "--blind",
+        help="With --warrants, omit status values and prior diagnostics",
     ),
 ) -> None:
     """Validate structure and artifact consistency for a Gaia knowledge package."""
@@ -226,6 +258,12 @@ def check_command(
         f"{len(ir['strategies'])} strategies, "
         f"{len(ir['operators'])} operators"
     )
+
+    if warrants:
+        for line in _warrant_report(compiled, blind=blind):
+            typer.echo(line)
+        if blind:
+            return
 
     for line in _knowledge_diagnostics(ir):
         typer.echo(line)

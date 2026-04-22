@@ -33,6 +33,7 @@ from gaia.ir.parameterization import (
     ResolutionPolicy,
     StrategyParamRecord,
 )
+from gaia.ir.review import Review, ReviewManifest, ReviewStatus
 
 __all__ = [
     # Knowledge
@@ -62,4 +63,8 @@ __all__ = [
     "PriorRecord",
     "ResolutionPolicy",
     "StrategyParamRecord",
+    # Review
+    "Review",
+    "ReviewManifest",
+    "ReviewStatus",
 ]

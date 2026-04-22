@@ -18,6 +18,7 @@ from gaia.ir import (
     Operator as IrOperator,
     Parameter as IrParameter,
     PackageRef as IrPackageRef,
+    ReviewManifest,
     Step as IrStep,
     Strategy as IrStrategy,
     StrategyParamRecord,
@@ -69,6 +70,7 @@ class CompiledPackage:
     action_label_map: dict[str, str] = field(default_factory=dict)
     target_action_labels_by_id: dict[str, str] = field(default_factory=dict)
     strategy_param_records: list[StrategyParamRecord] = field(default_factory=list)
+    review: ReviewManifest | None = None
 
     def to_json(self) -> dict[str, Any]:
         return self.graph.model_dump(mode="json", exclude_none=True, serialize_as_any=True)
@@ -777,7 +779,7 @@ def compile_package_artifact(
         module_titles=module_titles if module_titles else None,
     )
 
-    return CompiledPackage(
+    compiled = CompiledPackage(
         graph=graph,
         knowledge_ids_by_object=dict(knowledge_map),
         strategies_by_object=dict(compiled_strategies),
@@ -785,6 +787,10 @@ def compile_package_artifact(
         target_action_labels_by_id=target_action_labels_by_id,
         strategy_param_records=strategy_param_records,
     )
+    from gaia.lang.review.manifest import generate_review_manifest
+
+    compiled.review = generate_review_manifest(compiled)
+    return compiled
 
 
 def compile_package(
