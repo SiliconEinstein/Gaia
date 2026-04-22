@@ -23,6 +23,8 @@ def test_audit_question_for_infer():
     )
     assert "[@quantum_hyp]" in question
     assert "[@spectrum]" in question
+    assert "predict" in question.lower()
+    assert "association" not in question.lower()
 
 
 def test_audit_question_for_equal():

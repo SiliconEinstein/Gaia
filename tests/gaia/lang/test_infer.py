@@ -44,6 +44,27 @@ def test_infer_keyword_evidence_also_returns_evidence():
     assert result is e
 
 
+def test_infer_string_evidence_creates_and_returns_evidence_claim():
+    with CollectedPackage("v6_test") as pkg:
+        h = Claim("Quantum theory is correct.", prior=0.5)
+        result = infer(
+            "Planck spectrum observed.",
+            hypothesis=h,
+            p_e_given_h=0.9,
+            p_e_given_not_h=0.05,
+            rationale="Strong evidence.",
+        )
+
+    assert isinstance(result, Claim)
+    assert result.content == "Planck spectrum observed."
+    action = pkg.actions[0]
+    assert action.evidence is result
+    assert action.hypothesis is h
+    assert action in result.supports
+    assert action.helper is not None
+    assert action.warrants == [action.helper]
+
+
 def test_infer_rejects_ambiguous_extra_positional_v6_shape():
     h = Claim("H.")
     e = Claim("E.")
