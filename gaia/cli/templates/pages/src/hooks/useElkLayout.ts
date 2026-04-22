@@ -33,7 +33,7 @@ export interface LayoutResult {
 function nodeDimensions(node: GraphNode): { width: number; height: number } {
   if (node.type === 'strategy') return { width: 100, height: 40 }
   if (node.type === 'operator') return { width: 48, height: 48 }
-  // KnowledgeNode: claim, setting, question, action
+  // KnowledgeNode: claim, note, question, action
   const label = node.label
   const charWidth = 8
   const padding = 32

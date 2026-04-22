@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+NOTE_TYPES = frozenset({"note", "setting", "context"})
+
 
 @dataclass
 class KnowledgeClassification:
@@ -34,11 +36,16 @@ def classify_ir(ir: dict) -> KnowledgeClassification:
     return c
 
 
+def is_note_type(ktype: str) -> bool:
+    """Return True for v6 notes and legacy non-probabilistic context nodes."""
+    return ktype in NOTE_TYPES
+
+
 def node_role(kid: str, ktype: str, c: KnowledgeClassification) -> str:
-    """Return the role of a knowledge node: setting, question, derived, structural,
+    """Return the role of a knowledge node: note, question, derived, structural,
     independent, background, or orphaned."""
-    if ktype == "setting":
-        return "setting"
+    if is_note_type(ktype):
+        return "note"
     if ktype == "question":
         return "question"
     if kid in c.operator_conclusions:

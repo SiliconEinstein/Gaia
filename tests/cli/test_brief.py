@@ -461,8 +461,8 @@ def test_brief_overview_shows_questions(tmp_path):
     assert "What is the mechanism?" in text
 
 
-def test_brief_module_shows_settings_and_questions(tmp_path):
-    """Exercise settings and questions sections in module expansion."""
+def test_brief_module_shows_notes_and_questions(tmp_path):
+    """Exercise notes and questions sections in module expansion."""
     pkg_dir = tmp_path / "question_demo"
     _write_question_package(pkg_dir)
     _compile(pkg_dir)
@@ -479,7 +479,7 @@ def test_brief_module_shows_settings_and_questions(tmp_path):
     lines = generate_brief_module(ir, "content")
     text = "\n".join(lines)
 
-    assert "Settings:" in text
+    assert "Notes:" in text
     assert "Test environment." in text
     assert "Questions:" in text
     assert "What is the mechanism?" in text

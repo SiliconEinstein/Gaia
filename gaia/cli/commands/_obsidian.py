@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 
-from gaia.cli.commands._classify import classify_ir, node_role
+from gaia.cli.commands._classify import classify_ir, is_note_type, node_role
 from gaia.cli.commands._detailed_reasoning import render_mermaid, topo_layers
 from gaia.cli.commands._simplified_mermaid import render_simplified_mermaid
 
@@ -316,10 +316,10 @@ def _generate_index(
     lines.append("| Metric | Count |")
     lines.append("|--------|-------|")
     n_claims = sum(1 for k in all_k if k["type"] == "claim")
-    n_settings = sum(1 for k in all_k if k["type"] == "setting")
+    n_notes = sum(1 for k in all_k if is_note_type(k["type"]))
     n_questions = sum(1 for k in all_k if k["type"] == "question")
     lines.append(
-        f"| Knowledge nodes | {len(all_k)} ({n_claims} claims, {n_settings} settings, {n_questions} questions) |"
+        f"| Knowledge nodes | {len(all_k)} ({n_claims} claims, {n_notes} notes, {n_questions} questions) |"
     )
     lines.append(f"| Strategies | {len(ir.get('strategies', []))} |")
     lines.append(f"| Operators | {len(ir.get('operators', []))} |")
@@ -392,7 +392,7 @@ def _generate_obsidian_config() -> str:
         "hideUnresolved": False,
         "colorGroups": [
             {"query": "tag:#claim", "color": {"a": 1, "rgb": 5025616}},
-            {"query": "tag:#setting", "color": {"a": 1, "rgb": 8421504}},
+            {"query": "tag:#note", "color": {"a": 1, "rgb": 8421504}},
             {"query": "tag:#question", "color": {"a": 1, "rgb": 16750848}},
             {"query": "tag:#module", "color": {"a": 1, "rgb": 65280}},
             {"query": "tag:#evidence", "color": {"a": 1, "rgb": 255}},
@@ -450,7 +450,7 @@ def generate_obsidian_vault(
     _ROLE_TO_DIR = {
         "independent": "holes",  # premise but not conclusion — true holes
         "derived": "intermediate",  # conclusion of strategy, not exported
-        "setting": "context",  # background settings
+        "note": "context",  # non-probabilistic notes
         "background": "context",  # background knowledge
         "structural": "context",  # operator conclusions
         "orphaned": "context",  # not referenced by any strategy
@@ -558,7 +558,11 @@ def generate_obsidian_vault(
     # Open Questions section — leaf premises (holes) + questions
     sec_num += 1
     conclusion_ids = {s.get("conclusion") for s in ir.get("strategies", []) if s.get("conclusion")}
-    leaves = [k for k in all_claims if k["id"] not in conclusion_ids and k["type"] != "setting"]
+    leaves = [
+        k
+        for k in all_claims
+        if k["id"] not in conclusion_ids and not is_note_type(k["type"])
+    ]
     questions = [k for k in all_claims if k["type"] == "question"]
     oq_lines = [
         "---",

@@ -22,7 +22,7 @@ Strategy     — unchanged schema
 and adds:
 
 ```
-Knowledge    — new type "context", grounding metadata, parameterized claim rendering
+Knowledge    — new type "note", format field, grounding metadata, parameterized claim rendering
 ReviewManifest / Review  — package-level review layer (new)
 ```
 
@@ -40,7 +40,7 @@ New interpretation:
 
 ### Core rules
 
-1. **Only `Claim` carries epistemic probability.** Setting, Context, Question do not.
+1. **Only `Claim` carries epistemic probability.** Note and Question do not.
 2. **Strategy carries no probability.** Uncertainty is expressed through explicit premise Claims.
 3. **Operator remains deterministic** and continues to produce `conclusion` helper Claims.
 4. **Generated helper Claims are qualitative audit targets** unless their owning Strategy/Operator is reviewed and accepted.
@@ -51,18 +51,25 @@ New interpretation:
 
 ## 1. Knowledge Extensions
 
-### 1.1 New Knowledge type: `context`
+### 1.1 New Knowledge type: `note`
 
 ```python
 Knowledge.type ∈ {
     "claim",
-    "setting",
+    "note",
     "question",
-    "context",      # NEW
+    "setting",      # legacy input compatibility
+    "context",      # legacy input compatibility
 }
 ```
 
-`context` stores raw, not-yet-formalized text or artifact excerpts (paper paragraphs, lab notes, dashboard data). Does not participate in BP. Provides traceability for later formalization.
+`note` stores non-probabilistic context: raw text, artifact excerpts, definitions,
+conditions, scope notes, units, or other material that does not participate in
+BP. Legacy `setting` and `context` nodes may be accepted by readers, but new v6
+compiler output should emit `note`.
+
+All Knowledge nodes carry `format: str = "markdown"`. The format records the
+content representation and participates in the content hash.
 
 ### 1.2 Parameter.value
 
@@ -77,10 +84,10 @@ class Parameter:
 
 The `value` participates in the content hash of a ground parameterized Claim.
 
-When a parameter's type is a Knowledge type (e.g., `Setting`, `Claim`), the `value` stores the referenced node's QID:
+When a parameter's type is a Knowledge type (e.g., `Note`, `Claim`), the `value` stores the referenced node's QID:
 
 ```python
-Parameter(name="experiment", type="Setting", value="github:my_package::exp_123")
+Parameter(name="experiment", type="Note", value="github:my_package::exp_123")
 ```
 
 ### 1.3 Grounding metadata
@@ -238,8 +245,8 @@ Templates are rendered to concrete questions using the referenced Claims' labels
 
 | Lang construct | IR compilation target |
 |---|---|
-| `Context(...)` | `Knowledge(type="context")` |
-| `Setting(...)` | `Knowledge(type="setting")` |
+| `Note(...)` | `Knowledge(type="note", format=...)` |
+| `Context(...)` / `Setting(...)` | Deprecated aliases compiling to `Knowledge(type="note", metadata.legacy_kind=...)` |
 | `Claim(...)` / subclasses | `Knowledge(type="claim")` + bound parameters |
 | `Question(...)` | `Knowledge(type="question")` |
 | `derive(...)` | `FormalStrategy(type="deduction")` + conjunction + implication helpers |
@@ -260,7 +267,8 @@ Templates are rendered to concrete questions using the referenced Claims' labels
 
 ### 5.1 Modified
 
-- `Knowledge.type` adds `"context"` value
+- `Knowledge.type` adds `"note"` value; `"setting"` and `"context"` remain legacy-compatible inputs
+- `Knowledge.format` defaults to `"markdown"` and participates in content hashing
 - `Parameter.value: JsonValue | None` — bound parameter values (including QID references)
 
 ### 5.2 New metadata conventions

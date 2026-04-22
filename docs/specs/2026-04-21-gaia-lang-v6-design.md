@@ -26,43 +26,41 @@
 
 ```
 Knowledge              ← Plain text, not in reasoning graph
-├── Context            ← Raw unformalized text (lab notes, paper excerpts)
-├── Setting            ← Formalized background (definitions, conditions), no probability
+├── Note               ← Non-probabilistic context (lab notes, definitions, conditions)
 ├── Claim              ← Proposition with prior, participates in BP
 │   └── User subclasses ← Parameterized domain types
 └── Question           ← Open inquiry, organizes investigation
 ```
 
-### 1.2 Context
+All Knowledge nodes also carry `format: str = "markdown"`. This records the
+content representation (`"markdown"`, `"text"`, `"csv"`, `"latex"`, etc.) and
+participates in the content hash.
 
-Stores raw text or artifact excerpts that have not yet been formalized into Claims.
+### 1.2 Note
+
+Stores non-probabilistic context: raw text, artifact excerpts, conventions,
+definitions, scope notes, units, or experimental conditions.
 
 ```python
-ctx = Context("""
+ctx = Note("""
 Experiment exp_123 ran from March 1 to March 14.
 Control A had 10,000 users and 500 conversions.
 Treatment B had 10,000 users and 550 conversions.
 """)
-```
 
-- Does not enter BP.
-- Cannot be a Strategy premise.
-- Claims may reference Context via Grounding `source_refs`.
-
-### 1.3 Setting
-
-Formalized background context, convention, scope, or units.
-
-```python
-lab = Setting("Blackbody cavity experiment at thermal equilibrium.")
-exp = Setting("AB test exp_123: 50/50 hash-based randomization, March 1-14.")
+lab = Note("Blackbody cavity experiment at thermal equilibrium.")
+exp = Note("AB test exp_123: 50/50 hash-based randomization, March 1-14.")
 ```
 
 - No prior/posterior.
 - May appear in Strategy `background`.
-- If a background proposition is uncertain, it should be a Claim, not a Setting.
+- Cannot be a Strategy premise.
+- Claims may reference Notes via Grounding `source_refs`.
+- If a background proposition is uncertain, it should be a Claim, not a Note.
 
-### 1.4 Claim
+`Context` and `Setting` remain deprecated compatibility aliases for `Note`.
+
+### 1.3 Claim
 
 The only user-facing object with prior/posterior belief.
 
@@ -72,7 +70,7 @@ quantum_hyp = Claim("Energy exchange is quantized.", prior=0.5)
 
 Core rule: **every exported or non-root Claim needs a warrant** — a Strategy or Relation connecting it to the reasoning graph. A Claim with a prior but no warrant is a structural hole.
 
-### 1.5 Question
+### 1.4 Question
 
 Inquiry lens. Organizes exploration but does not enter BP.
 
@@ -109,12 +107,12 @@ T = CavityTemperature(value=5000.0)
 ### 2.2 Two kinds of parameters
 
 - **Value parameters** (`int`, `float`, `str`, `Enum`): use `{param_name}` template substitution.
-- **Knowledge parameters** (`Setting`, `Claim`, or subclasses): use `[@param_name]` reference syntax. Compiler resolves to the referenced node's QID.
+- **Knowledge parameters** (`Note`, `Claim`, or subclasses): use `[@param_name]` reference syntax. Compiler resolves to the referenced node's QID.
 
 ```python
 class ABCounts(Claim):
     """[@experiment] recorded {ctrl_k}/{ctrl_n} control and {treat_k}/{treat_n} treatment conversions."""
-    experiment: Setting    # Knowledge parameter — [@experiment]
+    experiment: Note       # Knowledge parameter — [@experiment]
     ctrl_n: int            # value parameter — {ctrl_n}
     ctrl_k: int
     treat_n: int
@@ -244,7 +242,7 @@ Deferred:
 class Action:
     label: str | None = None       # human-readable label, compiles to QID-style ID
     rationale: str
-    background: list[Setting | Claim] = []
+    background: list[Note | Claim] = []
     warrants: list[Claim] = []     # helper claims needing review
 ```
 
@@ -341,7 +339,7 @@ All verbs share:
 | Parameter | Type | Meaning |
 |---|---|---|
 | `given` | `Claim \| tuple[Claim, ...]` | Probabilistic conditions. Tuple auto-compiles to conjunction. |
-| `background` | `list[Setting]` | Non-probabilistic context. Not in BP. |
+| `background` | `list[Note]` | Non-probabilistic context. Not in BP. |
 | `rationale` | `str` | Required. Why this step is valid. |
 
 No verb has a `prior` parameter. Uncertainty is on Claims.
@@ -358,7 +356,7 @@ Logical derivation. The most common support verb. First positional argument is t
 derive(
     Claim,                                  # conclusion (positional)
     given: Claim | tuple[Claim, ...],
-    background: list[Setting] = [],
+    background: list[Note] = [],
     rationale: str = "",
 )
 ```
@@ -387,7 +385,7 @@ Empirical observation or measurement. Structurally identical to deduction, but w
 observe(
     Claim,                                  # conclusion (positional)
     given: Claim | tuple[Claim, ...] = (),
-    background: list[Setting] = [],
+    background: list[Note] = [],
     rationale: str = "",
 )
 ```
@@ -519,7 +517,7 @@ infer(
     evidence: Claim | str,
     *,
     hypothesis: Claim,
-    background: list[Setting | Claim] = [],
+    background: list[Note | Claim] = [],
     p_e_given_h: float,
     p_e_given_not_h: float,
     rationale: str = "",
@@ -532,7 +530,7 @@ No `given` parameter — assumptions and conditions go in `background` (not in B
 evidence = infer(
     spectrum_data,
     hypothesis=quantum_hyp,
-    background=[exp_setting, reliable_measurement, calibrated],
+    background=[exp_note, reliable_measurement, calibrated],
     p_e_given_h=0.9,
     p_e_given_not_h=0.05,
     rationale="Planck spectrum is highly expected under quantum theory, very unlikely under alternatives.",
@@ -650,7 +648,7 @@ gaia check --gate              # Quality gate
 $ gaia check --inquiry
 
 Package: blackbody-radiation-gaia
-  Context: Planck's analysis of blackbody radiation spectrum (1900)...
+  Notes: Planck's analysis of blackbody radiation spectrum (1900)...
 
 ━━━ Goal 1: quantum_hyp (exported) ━━━
   Status: WARRANTED (2/3 accepted)
@@ -731,8 +729,8 @@ knowledge.metadata["gaia"]["provenance"] = {
 
 | v6 DSL | IR compilation target |
 |---|---|
-| `Context(...)` | `Knowledge(type="context")` |
-| `Setting(...)` | `Knowledge(type="setting")` |
+| `Note(...)` | `Knowledge(type="note", format=...)` |
+| `Context(...)` / `Setting(...)` | Deprecated aliases compiling to `Knowledge(type="note", metadata.legacy_kind=...)` |
 | `Claim(...)` / subclasses | `Knowledge(type="claim")` + bound parameters |
 | `Question(...)` | `Knowledge(type="question")` |
 | `derive(...)` | `FormalStrategy(type="deduction")` + conjunction + implication helpers |
@@ -756,7 +754,7 @@ knowledge.metadata["gaia"]["provenance"] = {
 | v5 | v6 | Notes |
 |---|---|---|
 | `claim("...")` | `Claim("...")` or subclass | Uppercase, class style |
-| `setting("...")` | `Setting("...")` | Uppercase |
+| `setting("...")` / `context("...")` | `note("...")` or `Note("...")` | Deprecated compatibility wrappers |
 | `question("...")` | `Question("...")` | Uppercase |
 | `support([a], b, prior=0.9)` | Deprecated compat wrapper | Emits `DeprecationWarning`; must preserve existing v5 support-prior behavior until a migration tool rewrites it |
 | `deduction([a], b)` | `derive(b, given=a, rationale=...)` | No prior, no type= |

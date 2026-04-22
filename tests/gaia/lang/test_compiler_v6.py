@@ -1,17 +1,29 @@
 from gaia.lang.compiler.compile import compile_package_artifact
 from gaia.lang.runtime.grounding import Grounding
-from gaia.lang.runtime.knowledge import Claim, Context, Setting
+from gaia.lang.runtime.knowledge import Claim, Context, Note
 from gaia.lang.runtime.package import CollectedPackage
 
 
-def test_compile_context_type():
-    """Context Knowledge compiles with type='context'."""
+def test_compile_note_type_and_format():
+    """Note Knowledge compiles with type='note' and first-class format."""
+    with CollectedPackage("v6_test") as pkg:
+        note = Note("Raw experiment notes.", format="text")
+        note.label = "ctx"
+    ir = compile_package_artifact(pkg).to_json()
+    node = next(k for k in ir["knowledges"] if k["label"] == "ctx")
+    assert node["type"] == "note"
+    assert node["format"] == "text"
+
+
+def test_compile_legacy_context_as_note():
     with CollectedPackage("v6_test") as pkg:
         ctx = Context("Raw experiment notes.")
         ctx.label = "ctx"
     ir = compile_package_artifact(pkg).to_json()
     node = next(k for k in ir["knowledges"] if k["label"] == "ctx")
-    assert node["type"] == "context"
+    assert node["type"] == "note"
+    assert node["format"] == "markdown"
+    assert node["metadata"]["legacy_kind"] == "context"
 
 
 def test_compile_grounding_in_metadata():
@@ -51,12 +63,12 @@ def test_compile_parameter_value():
     class ABCounts(Claim):
         """[@experiment] recorded {ctrl_k}/{ctrl_n} control conversions."""
 
-        experiment: Setting
+        experiment: Note
         ctrl_n: int
         ctrl_k: int
 
     with CollectedPackage("v6_test") as pkg:
-        exp = Setting("AB test exp_123.")
+        exp = Note("AB test exp_123.")
         exp.label = "exp_123"
         counts = ABCounts(experiment=exp, ctrl_n=10_000, ctrl_k=500)
         counts.label = "counts"

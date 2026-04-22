@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from gaia.cli.commands._classify import classify_ir, node_role
+from gaia.cli.commands._classify import classify_ir, is_note_type, node_role
 
 
 def _truncate(text: str, max_len: int = 80) -> str:
@@ -154,13 +154,13 @@ def generate_brief_overview(ir: dict) -> list[str]:
         lines.append("")
 
         nodes = by_module.get(mod, [])
-        settings = [k for k in nodes if k["type"] == "setting"]
+        notes = [k for k in nodes if is_note_type(k["type"])]
         claims = [k for k in nodes if k["type"] == "claim"]
         questions = [k for k in nodes if k["type"] == "question"]
 
-        if settings:
-            lines.append("  Settings:")
-            for k in settings:
+        if notes:
+            lines.append("  Notes:")
+            for k in notes:
                 label = k.get("label", "?")
                 content = _truncate(k.get("content", ""), 60)
                 lines.append(f'    {label}: "{content}"')
@@ -259,13 +259,13 @@ def generate_brief_module(ir: dict, module_name: str) -> list[str]:
     lines.append(f"\u2550\u2550 Module: {module_name} (expanded) " + "\u2550" * 30)
     lines.append("")
 
-    settings = [k for k in nodes if k["type"] == "setting"]
+    notes = [k for k in nodes if is_note_type(k["type"])]
     claims = [k for k in nodes if k["type"] == "claim"]
     questions = [k for k in nodes if k["type"] == "question"]
 
-    if settings:
-        lines.append("  Settings:")
-        for k in settings:
+    if notes:
+        lines.append("  Notes:")
+        for k in notes:
             label = k.get("label", "?")
             content = k.get("content", "")
             lines.append(f"    {label}:")

@@ -10,7 +10,7 @@ from gaia.lang.runtime.action import (
     Support,
 )
 from gaia.lang.runtime.grounding import Grounding
-from gaia.lang.runtime.knowledge import Claim, Context, Knowledge, Question, Setting
+from gaia.lang.runtime.knowledge import Claim, Context, Knowledge, Note, Question, Setting
 from gaia.lang.runtime.nodes import Operator, Step, Strategy
 
 __all__ = [
@@ -24,6 +24,7 @@ __all__ = [
     "Grounding",
     "Infer",
     "Knowledge",
+    "Note",
     "Observe",
     "Operator",
     "Question",

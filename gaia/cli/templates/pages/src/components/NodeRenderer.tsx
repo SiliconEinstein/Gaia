@@ -36,22 +36,26 @@ const OP_SYMBOLS: Record<string, string> = {
   implication: '\u2192',
 }
 
+function isNoteNodeType(type: string): boolean {
+  return type === 'note' || type === 'setting' || type === 'context'
+}
+
 export default function NodeRenderer({ node, x, y, width, height, highlighted, onSelect }: Props) {
   const opacity = highlighted === false ? 0.2 : 1
 
   if (isKnowledgeNode(node)) {
     const isExternal = node.metadata?._external === true
     const fill = isExternal ? '#fff'
-      : node.type === 'setting' ? '#f0f0f0'
+      : isNoteNodeType(node.type) ? '#f0f0f0'
       : node.type === 'question' ? '#fff3dd'
       : '#ddeeff'
     const stroke = isExternal ? '#aaa'
-      : node.type === 'setting' ? '#999'
+      : isNoteNodeType(node.type) ? '#999'
       : node.type === 'question' ? '#cc9944'
       : '#4488bb'
     const dashArray = isExternal ? '5,3' : undefined
     const rx = isExternal ? 8
-      : node.type === 'setting' ? 2
+      : isNoteNodeType(node.type) ? 2
       : node.type === 'question' ? height / 2
       : 8
     const label = node.title || node.label

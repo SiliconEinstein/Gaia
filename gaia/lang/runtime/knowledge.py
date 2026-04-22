@@ -29,6 +29,7 @@ class Knowledge:
     """Base knowledge node. Plain text plus metadata."""
 
     content: str
+    format: str = "markdown"
     type: str = "knowledge"
     title: str | None = None
     background: list[Knowledge] = field(default_factory=list)
@@ -58,23 +59,37 @@ class Knowledge:
 
 
 @dataclass(init=False, eq=False)
-class Context(Knowledge):
-    """Raw unformalized text. Does not enter BP."""
+class Note(Knowledge):
+    """Non-probabilistic contextual material. Does not enter BP."""
 
-    def __init__(self, content: str, **kwargs):
+    def __init__(self, content: str, *, format: str = "markdown", **kwargs):
         if "prior" in kwargs:
-            raise TypeError("Context cannot have a prior.")
-        super().__init__(content=content, type="context", **kwargs)
+            raise TypeError("Note cannot have a prior.")
+        super().__init__(content=content, type="note", format=format, **kwargs)
 
 
 @dataclass(init=False, eq=False)
-class Setting(Knowledge):
-    """Formalized background. No probability."""
+class Context(Note):
+    """Deprecated compatibility alias for Note."""
 
-    def __init__(self, content: str, **kwargs):
+    def __init__(self, content: str, *, format: str = "markdown", **kwargs):
+        if "prior" in kwargs:
+            raise TypeError("Context cannot have a prior.")
+        metadata = dict(kwargs.pop("metadata", {}) or {})
+        metadata.setdefault("legacy_kind", "context")
+        super().__init__(content=content, format=format, metadata=metadata, **kwargs)
+
+
+@dataclass(init=False, eq=False)
+class Setting(Note):
+    """Deprecated compatibility alias for Note."""
+
+    def __init__(self, content: str, *, format: str = "markdown", **kwargs):
         if "prior" in kwargs:
             raise TypeError("Setting cannot have a prior.")
-        super().__init__(content=content, type="setting", **kwargs)
+        metadata = dict(kwargs.pop("metadata", {}) or {})
+        metadata.setdefault("legacy_kind", "setting")
+        super().__init__(content=content, format=format, metadata=metadata, **kwargs)
 
 
 @dataclass(init=False, eq=False)
@@ -90,6 +105,7 @@ class Claim(Knowledge):
         super().__init_subclass__(**kwargs)
         base_fields = {
             "content",
+            "format",
             "type",
             "title",
             "background",

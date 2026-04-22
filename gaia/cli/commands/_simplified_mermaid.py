@@ -11,7 +11,7 @@ from gaia.cli.commands._classify import classify_ir, node_role
 # ── Mermaid CSS class definitions (self-contained, not imported from _detailed_reasoning) ──
 
 _MERMAID_STYLES = """\
-    classDef setting fill:#f0f0f0,stroke:#999,color:#333
+    classDef note fill:#f0f0f0,stroke:#999,color:#333
     classDef premise fill:#ddeeff,stroke:#4488bb,color:#333
     classDef derived fill:#ddffdd,stroke:#44bb44,color:#333
     classDef question fill:#fff3dd,stroke:#cc9944,color:#333
@@ -22,7 +22,7 @@ _MERMAID_STYLES = """\
     classDef contra fill:#ffebee,stroke:#c62828,color:#333"""
 
 _ROLE_TO_CSS = {
-    "setting": "setting",
+    "note": "note",
     "question": "question",
     "derived": "derived",
     "structural": "derived",

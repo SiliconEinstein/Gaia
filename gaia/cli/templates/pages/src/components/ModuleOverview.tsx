@@ -22,7 +22,7 @@ export default function ModuleOverview({ modules, crossModuleEdges, onSelectModu
     const pNodes: GraphNode[] = modules.map(m => ({
       id: m.id,
       label: m.id,
-      type: 'setting' as const,
+      type: 'note' as const,
       module: m.id,
       content: '',
       exported: false,

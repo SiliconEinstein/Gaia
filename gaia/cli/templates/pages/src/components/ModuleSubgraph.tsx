@@ -458,7 +458,7 @@ export default function ModuleSubgraph({
     const extNodes: GraphNode[] = refs.map(r => ({
       id: r.id,
       label: `↗ ${r.label}`,
-      type: 'setting' as const,
+      type: 'note' as const,
       module: r.sourceModule,
       content: '',
       exported: false,

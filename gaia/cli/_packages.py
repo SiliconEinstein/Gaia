@@ -17,7 +17,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
-from gaia.lang.runtime import Knowledge, Strategy
+from gaia.lang.runtime import Claim, Knowledge, Strategy
 from gaia.lang.runtime.package import CollectedPackage
 from gaia.lang.runtime.package import pyproject_for_module
 from gaia.lang.runtime.package import get_inferred_package, reset_inferred_package
@@ -243,7 +243,7 @@ def _validate_prior_value(value: Any, *, label: str) -> float:
 def apply_package_priors(loaded: LoadedGaiaPackage) -> None:
     """Discover priors.py and inject prior+justification into Knowledge metadata.
 
-    The priors.py module must export a ``PRIORS`` dict mapping Knowledge objects
+    The priors.py module must export a ``PRIORS`` dict mapping Claim objects
     to ``(prior_value, justification_string)`` tuples.  Each entry is injected
     into the Knowledge object's ``.metadata`` dict as ``prior`` and
     ``prior_justification`` before compilation, so lowering can read them from
@@ -269,14 +269,14 @@ def apply_package_priors(loaded: LoadedGaiaPackage) -> None:
         suffix = " ..." if len(new_knowledge) > 5 else ""
         raise GaiaCliError(
             "Error: priors.py must not declare new Knowledge objects; it may only "
-            "reference claims/settings/questions already declared by the package. "
+            "reference claims already declared by the package. "
             f"New declarations: {names}{suffix}."
         )
 
     priors_dict = getattr(module, "PRIORS", None)
     if priors_dict is None:
         raise GaiaCliError(
-            "Error: priors.py must export PRIORS = {Knowledge: (prior, justification), ...}."
+            "Error: priors.py must export PRIORS = {Claim: (prior, justification), ...}."
         )
     if not isinstance(priors_dict, dict):
         raise GaiaCliError("Error: priors.py PRIORS must be a dict.")
@@ -285,12 +285,17 @@ def apply_package_priors(loaded: LoadedGaiaPackage) -> None:
         if not isinstance(key, Knowledge):
             raise GaiaCliError(
                 f"Error: PRIORS key {key!r} is not a Knowledge object. "
-                "Keys must be claim/setting/question objects from the package."
+                "Keys must be claim objects from the package."
             )
         if id(key) not in existing_knowledge_ids:
             raise GaiaCliError(
                 f"Error: PRIORS key {_knowledge_display_name(key)!r} is not an "
                 "already-declared Knowledge object from this package."
+            )
+        if not isinstance(key, Claim):
+            raise GaiaCliError(
+                f"Error: PRIORS key {_knowledge_display_name(key)!r} is a "
+                f"{key.type!r} Knowledge object. PRIORS may only annotate claims."
             )
         if not isinstance(value, tuple) or len(value) != 2:
             raise GaiaCliError(
