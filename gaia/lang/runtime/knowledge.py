@@ -11,6 +11,7 @@ from gaia.lang.runtime.grounding import Grounding
 from gaia.lang.runtime.param import UNBOUND
 
 if TYPE_CHECKING:
+    from gaia.lang.runtime.action import Action
     from gaia.lang.runtime.package import CollectedPackage
 
 _current_package: ContextVar[CollectedPackage | None] = ContextVar("_current_package", default=None)
@@ -82,7 +83,7 @@ class Claim(Knowledge):
 
     prior: float | None = None
     grounding: Grounding | None = None
-    supports: list[Any] = field(default_factory=list)
+    supports: list[Action] = field(default_factory=list)
     _param_fields: ClassVar[dict[str, Any]] = {}
 
     def __init_subclass__(cls, **kwargs):
