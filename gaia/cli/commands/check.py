@@ -10,9 +10,12 @@ from gaia.cli._packages import GaiaCliError, load_gaia_package, validate_fills_r
 from gaia.cli._packages import apply_package_priors
 from gaia.cli._packages import compile_loaded_package_artifact
 from gaia.cli.commands._classify import classify_ir, node_role
+from gaia.cli.commands._review_manifest import (
+    latest_reviews,
+    load_or_generate_review_manifest,
+)
 from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
-from gaia.lang.review.manifest import generate_review_manifest
 
 
 def _get_prior(k: dict) -> float | None:
@@ -154,9 +157,8 @@ def _hole_report(ir: dict) -> list[str]:
     return lines
 
 
-def _warrant_report(compiled, *, blind: bool = False) -> list[str]:
-    manifest = compiled.review or generate_review_manifest(compiled)
-    reviews = sorted(manifest.reviews, key=lambda review: review.action_label)
+def _warrant_report(manifest, *, blind: bool = False) -> list[str]:
+    reviews = latest_reviews(manifest)
     lines: list[str] = []
     lines.append("")
     lines.append(f"Review warrants: {len(reviews)}")
@@ -200,6 +202,16 @@ def check_command(
         False,
         "--blind",
         help="With --warrants, omit status values and prior diagnostics",
+    ),
+    inquiry: bool = typer.Option(
+        False,
+        "--inquiry",
+        help="Show goal-oriented reasoning progress and review status",
+    ),
+    gate: bool = typer.Option(
+        False,
+        "--gate",
+        help="Run quality gate checks and exit non-zero on failure",
     ),
 ) -> None:
     """Validate structure and artifact consistency for a Gaia knowledge package."""
@@ -259,14 +271,54 @@ def check_command(
         f"{len(ir['operators'])} operators"
     )
 
-    if warrants:
-        for line in _warrant_report(compiled, blind=blind):
-            typer.echo(line)
-        if blind:
-            return
+    review_manifest = None
+    if warrants or inquiry or gate:
+        try:
+            review_manifest = load_or_generate_review_manifest(loaded.pkg_path, compiled)
+        except GaiaCliError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(1)
 
-    for line in _knowledge_diagnostics(ir):
-        typer.echo(line)
+    if warrants:
+        for line in _warrant_report(review_manifest, blind=blind):
+            typer.echo(line)
+
+    if inquiry:
+        from gaia.cli.commands._inquiry import build_goal_trees, render_inquiry
+
+        trees = build_goal_trees(ir, review_manifest)
+        typer.echo("")
+        typer.echo(render_inquiry(trees))
+
+    if gate:
+        from gaia.cli.commands._quality_gate import (
+            check_quality_gate,
+            load_beliefs,
+            load_quality_config,
+        )
+
+        try:
+            config = load_quality_config(loaded.gaia_config.get("quality"))
+            beliefs = load_beliefs(loaded.pkg_path)
+            failures = check_quality_gate(ir, beliefs, review_manifest, config)
+        except GaiaCliError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(1)
+        if failures:
+            typer.echo("")
+            typer.echo("Quality gate failed:")
+            for failure in failures:
+                typer.echo(f"  - {failure}")
+            raise typer.Exit(1)
+        typer.echo("")
+        typer.echo("Quality gate passed")
+
+    if warrants and blind and not (brief or show or hole):
+        return
+
+    if not (warrants and blind):
+        for line in _knowledge_diagnostics(ir):
+            typer.echo(line)
 
     if brief or show:
         from gaia.cli.commands._brief import (

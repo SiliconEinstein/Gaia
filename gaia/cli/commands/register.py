@@ -390,7 +390,10 @@ def register_command(
     # foreign nodes instead of falling back to 0.5.
     # Mirror infer_command: load dep_beliefs so foreign nodes get upstream priors.
     foreign_priors = collect_foreign_node_priors(compiled.graph, loaded.pkg_path)
-    factor_graph = lower_local_graph(compiled.graph, node_priors=foreign_priors or None)
+    factor_graph = lower_local_graph(
+        compiled.graph,
+        node_priors=foreign_priors or None,
+    )
     fg_errors = factor_graph.validate()
     if fg_errors:
         for error in fg_errors:

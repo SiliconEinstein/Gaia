@@ -50,21 +50,20 @@ def test_compile_derive_action_to_deduction_formal_strategy():
     assert conjunction_helpers[0].metadata["review"] is False
 
 
-def test_compile_root_observe_action_to_reviewable_strategy_and_grounding():
+def test_compile_root_observe_action_to_reviewable_grounding():
     with CollectedPackage("v6_actions") as pkg:
         data = observe("UV spectrum data.", rationale="Measured.", label="observe_uv")
         data.label = "uv"
 
     compiled = compile_package_artifact(pkg)
-    strategy = compiled.graph.strategies[0]
-    assert strategy.type == "deduction"
-    assert strategy.premises == []
-    assert strategy.conclusion == "github:v6_actions::uv"
-    assert strategy.metadata["pattern"] == "observation"
-    assert strategy.metadata["action_label"] == "github:v6_actions::action::observe_uv"
+    assert compiled.graph.strategies == []
+    assert compiled.action_label_map["github:v6_actions::action::observe_uv"] == (
+        "github:v6_actions::uv"
+    )
 
     uv = _knowledge_by_label(compiled)["uv"]
     assert uv.metadata["grounding"]["kind"] == "source_fact"
+    assert uv.metadata["grounding"]["action_label"] == "github:v6_actions::action::observe_uv"
 
 
 def test_compile_compute_action_to_deduction_with_compute_metadata():
@@ -112,7 +111,7 @@ def test_compile_equal_and_contradict_actions_to_operators():
     assert by_operator["contradiction"].conclusion == "github:v6_actions::conflict_helper"
 
 
-def test_compile_infer_action_to_strategy_and_cpt_record():
+def test_compile_infer_action_to_strategy_cpt():
     with CollectedPackage("v6_actions") as pkg:
         h = Claim("H.")
         h.label = "h"
@@ -139,8 +138,8 @@ def test_compile_infer_action_to_strategy_and_cpt_record():
     assert strategy.background == ["github:v6_actions::reliable"]
     assert strategy.metadata["action_label"] == "github:v6_actions::action::bayes_update"
     assert strategy.steps[0].reasoning == "Bayes."
-    assert compiled.strategy_param_records[0].strategy_id == strategy.strategy_id
-    assert compiled.strategy_param_records[0].conditional_probabilities == [0.2, 0.8]
+    assert strategy.conditional_probabilities == [0.2, 0.8]
+    assert not hasattr(compiled, "strategy_param_records")
 
     stat_support = _knowledge_by_label(compiled)["stat_support"]
     assert stat_support.metadata["helper_kind"] == "statistical_support"

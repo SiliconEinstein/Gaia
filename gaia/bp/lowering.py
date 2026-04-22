@@ -350,7 +350,7 @@ def _lower_strategy(
         _ensure_claim_var(fg, p, priors, claim_ids)
 
     if s.type == StrategyType.INFER:
-        cpt = strat_params.get(s.strategy_id)
+        cpt = s.conditional_probabilities or strat_params.get(s.strategy_id)
         if not cpt:
             cpt = [0.5] * (1 << len(s.premises))
         if infer_degraded:
@@ -401,7 +401,7 @@ def _lower_strategy(
         return
 
     if s.type == StrategyType.NOISY_AND:
-        raw = strat_params.get(s.strategy_id) or [0.5]
+        raw = s.conditional_probabilities or strat_params.get(s.strategy_id) or [0.5]
         p = float(raw[0])
         premises = list(s.premises)
         if len(premises) == 1:

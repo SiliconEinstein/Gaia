@@ -157,6 +157,160 @@ def test_infer_gates_unreviewed_v6_actions(tmp_path):
     assert belief_by_label["hypothesis"] == pytest.approx(0.4)
 
 
+def test_infer_uses_accepted_review_manifest(tmp_path):
+    """Accepted persisted reviews allow v6 actions to participate in infer."""
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
+    from gaia.ir import ReviewManifest, ReviewStatus
+
+    pkg_dir = tmp_path / "v6_review_infer"
+    _write_base_package(pkg_dir, name="v6_review_infer")
+    (pkg_dir / "v6_review_infer" / "__init__.py").write_text(
+        "from gaia.lang import claim, derive\n\n"
+        'evidence = claim("Evidence.")\n'
+        "hypothesis = derive(\n"
+        '    "Hypothesis.",\n'
+        "    given=evidence,\n"
+        '    rationale="Evidence supports hypothesis.",\n'
+        '    label="support_hypothesis",\n'
+        ")\n"
+        '__all__ = ["evidence", "hypothesis"]\n'
+    )
+    (pkg_dir / "v6_review_infer" / "priors.py").write_text(
+        "from . import evidence, hypothesis\n\n"
+        "PRIORS = {\n"
+        '    evidence: (0.9, "Direct observation."),\n'
+        '    hypothesis: (0.4, "Base rate."),\n'
+        "}\n"
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    loaded = load_gaia_package(pkg_dir)
+    apply_package_priors(loaded)
+    compiled = compile_loaded_package_artifact(loaded)
+    assert compiled.review is not None
+    accepted = [
+        review.model_copy(update={"status": ReviewStatus.ACCEPTED, "round": 2})
+        for review in compiled.review.reviews
+    ]
+    review_path = pkg_dir / ".gaia" / "review_manifest.json"
+    review_path.write_text(
+        json.dumps(ReviewManifest(reviews=accepted).model_dump(mode="json"), indent=2)
+    )
+
+    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+
+    beliefs = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
+    belief_by_label = {item["label"]: item["belief"] for item in beliefs["beliefs"]}
+    assert belief_by_label["hypothesis"] > 0.4
+
+
+def test_infer_uses_v6_infer_action_cpt(tmp_path):
+    """gaia infer must lower v6 InferAction CPTs from the compiled IR strategy."""
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
+    from gaia.ir import ReviewManifest, ReviewStatus
+
+    pkg_dir = tmp_path / "v6_cpt_infer"
+    _write_base_package(pkg_dir, name="v6_cpt_infer")
+    (pkg_dir / "v6_cpt_infer" / "__init__.py").write_text(
+        "from gaia.lang import claim, infer\n\n"
+        'hypothesis = claim("Hypothesis.")\n'
+        'evidence = claim("Evidence.")\n'
+        "infer(\n"
+        "    hypothesis=hypothesis,\n"
+        "    evidence=evidence,\n"
+        "    p_e_given_h=0.95,\n"
+        "    p_e_given_not_h=0.05,\n"
+        '    rationale="Hypothesis strongly predicts evidence.",\n'
+        '    label="bayes_update",\n'
+        ")\n"
+        '__all__ = ["hypothesis", "evidence"]\n'
+    )
+    (pkg_dir / "v6_cpt_infer" / "priors.py").write_text(
+        "from . import evidence, hypothesis\n\n"
+        "PRIORS = {\n"
+        '    hypothesis: (0.2, "Low base rate."),\n'
+        '    evidence: (0.9, "Observed evidence."),\n'
+        "}\n"
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    loaded = load_gaia_package(pkg_dir)
+    apply_package_priors(loaded)
+    compiled = compile_loaded_package_artifact(loaded)
+    assert compiled.review is not None
+    accepted = [
+        review.model_copy(update={"status": ReviewStatus.ACCEPTED, "round": 2})
+        for review in compiled.review.reviews
+    ]
+    (pkg_dir / ".gaia" / "review_manifest.json").write_text(
+        json.dumps(ReviewManifest(reviews=accepted).model_dump(mode="json"), indent=2)
+    )
+
+    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+
+    beliefs = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
+    belief_by_label = {item["label"]: item["belief"] for item in beliefs["beliefs"]}
+    assert belief_by_label["hypothesis"] > 0.5
+
+
+def test_infer_with_accepted_root_observe_review(tmp_path):
+    """Accepted no-premise observe reviews should not lower as empty deductions."""
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
+    from gaia.ir import ReviewManifest, ReviewStatus
+
+    pkg_dir = tmp_path / "root_observe_infer"
+    _write_base_package(pkg_dir, name="root_observe_infer")
+    (pkg_dir / "root_observe_infer" / "__init__.py").write_text(
+        "from gaia.lang import observe\n\n"
+        'root = observe("Root measurement.", rationale="Measured.", label="root_obs")\n'
+        '__all__ = ["root"]\n'
+    )
+    (pkg_dir / "root_observe_infer" / "priors.py").write_text(
+        'from . import root\n\nPRIORS = {\n    root: (0.82, "Measurement reliability."),\n}\n'
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    loaded = load_gaia_package(pkg_dir)
+    apply_package_priors(loaded)
+    compiled = compile_loaded_package_artifact(loaded)
+    assert compiled.review is not None
+    assert [review.target_kind for review in compiled.review.reviews] == ["knowledge"]
+    accepted = [
+        review.model_copy(update={"status": ReviewStatus.ACCEPTED, "round": 2})
+        for review in compiled.review.reviews
+    ]
+    (pkg_dir / ".gaia" / "review_manifest.json").write_text(
+        json.dumps(ReviewManifest(reviews=accepted).model_dump(mode="json"), indent=2)
+    )
+
+    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+
+    beliefs = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
+    belief_by_label = {item["label"]: item["belief"] for item in beliefs["beliefs"]}
+    assert belief_by_label["root"] == pytest.approx(0.82)
+
+
 def test_infer_loads_upstream_beliefs_for_foreign_nodes(tmp_path, monkeypatch):
     """When dep_beliefs are present, foreign nodes use upstream beliefs as priors."""
     # Create upstream dependency package

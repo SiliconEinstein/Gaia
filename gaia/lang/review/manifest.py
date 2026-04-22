@@ -59,6 +59,23 @@ def _strategy_question(strategy: Any, action_type: str, labels: dict[str, str]) 
     )
 
 
+def _grounding_action_label(knowledge: Any) -> str | None:
+    metadata = knowledge.metadata or {}
+    grounding = metadata.get("grounding")
+    if not isinstance(grounding, dict):
+        return None
+    action_label = grounding.get("action_label")
+    return action_label if isinstance(action_label, str) and action_label else None
+
+
+def _grounding_question(knowledge: Any, labels: dict[str, str]) -> str:
+    knowledge_id = knowledge.id or ""
+    return generate_audit_question(
+        "observe",
+        conclusion_label=labels.get(knowledge_id, knowledge.label or knowledge_id or "?"),
+    )
+
+
 def _operator_question(operator: Any, action_type: str, labels: dict[str, str]) -> str:
     a = operator.variables[0] if operator.variables else ""
     b = operator.variables[1] if len(operator.variables) > 1 else ""
@@ -73,6 +90,22 @@ def generate_review_manifest(compiled: Any) -> ReviewManifest:
     """Generate unreviewed Review records for each v6 action target."""
     labels = _labels_by_id(compiled)
     reviews: list[Review] = []
+
+    for knowledge in compiled.graph.knowledges:
+        action_label = _grounding_action_label(knowledge)
+        if not action_label or not knowledge.id:
+            continue
+        reviews.append(
+            Review(
+                review_id=_review_id("knowledge", knowledge.id),
+                action_label=action_label,
+                target_kind="knowledge",
+                target_id=knowledge.id,
+                status=ReviewStatus.UNREVIEWED,
+                audit_question=_grounding_question(knowledge, labels),
+                round=1,
+            )
+        )
 
     for strategy in compiled.graph.strategies:
         metadata = strategy.metadata or {}

@@ -20,8 +20,8 @@ from gaia.cli._packages import (
     load_dependency_compiled_graphs,
     load_gaia_package,
 )
+from gaia.cli.commands._review_manifest import load_or_generate_review_manifest
 from gaia.ir.validator import validate_local_graph
-from gaia.lang.review.manifest import generate_review_manifest
 
 
 def _write_json(path, payload) -> None:
@@ -53,6 +53,7 @@ def infer_command(
         loaded = load_gaia_package(path)
         apply_package_priors(loaded)
         compiled = compile_loaded_package_artifact(loaded)
+        review_manifest = load_or_generate_review_manifest(loaded.pkg_path, compiled)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)
@@ -96,7 +97,8 @@ def infer_command(
 
         dep_factor_graphs: list[tuple[str, FactorGraph, str]] = []
         for dep in dep_compiled:
-            dep_fg = lower_local_graph(dep.graph, review_manifest=generate_review_manifest(dep))
+            dep_review_manifest = load_or_generate_review_manifest(dep.root, dep)
+            dep_fg = lower_local_graph(dep.graph, review_manifest=dep_review_manifest)
             dep_prefix = f"{dep.graph.namespace}:{dep.graph.package_name}::"
             dep_factor_graphs.append((dep.import_name, dep_fg, dep_prefix))
             typer.echo(
@@ -107,8 +109,10 @@ def infer_command(
 
         # Lower local graph WITHOUT foreign node priors — the dep graphs
         # provide the full reasoning structure instead of flat priors
-        local_review_manifest = compiled.review or generate_review_manifest(compiled)
-        local_fg = lower_local_graph(compiled.graph, review_manifest=local_review_manifest)
+        local_fg = lower_local_graph(
+            compiled.graph,
+            review_manifest=review_manifest,
+        )
         local_prefix = f"{compiled.graph.namespace}:{compiled.graph.package_name}::"
 
         if dep_factor_graphs:
@@ -126,7 +130,6 @@ def infer_command(
         foreign_priors = collect_foreign_node_priors(compiled.graph, loaded.pkg_path)
         if foreign_priors:
             typer.echo(f"Loaded {len(foreign_priors)} upstream belief(s) for foreign nodes")
-        review_manifest = compiled.review or generate_review_manifest(compiled)
         factor_graph = lower_local_graph(
             compiled.graph,
             node_priors=foreign_priors or None,

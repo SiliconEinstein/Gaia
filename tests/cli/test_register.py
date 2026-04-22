@@ -99,6 +99,47 @@ def _write_package_with_local_hole_and_bridge(pkg_dir) -> None:
     )
 
 
+def _write_package_with_v6_infer(pkg_dir) -> None:
+    pkg_dir.mkdir()
+    (pkg_dir / ".gitignore").write_text(".gaia/\nuv.lock\n")
+    (pkg_dir / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "register-infer-gaia"\n'
+        'version = "1.2.0"\n'
+        'description = "Registration demo with v6 infer CPTs"\n'
+        "dependencies = [\n"
+        '  "gaia-lang>=0.1.0",\n'
+        "]\n\n"
+        "[tool.gaia]\n"
+        'namespace = "github"\n'
+        'type = "knowledge-package"\n'
+        'uuid = "8fae1bcb-6c5c-5d91-9de7-b76f0689c8ff"\n'
+    )
+    pkg_src = pkg_dir / "register_infer"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import claim, infer\n\n"
+        'hypothesis = claim("Hypothesis.")\n'
+        'evidence = claim("Evidence.")\n'
+        "infer(\n"
+        "    hypothesis=hypothesis,\n"
+        "    evidence=evidence,\n"
+        "    p_e_given_h=0.95,\n"
+        "    p_e_given_not_h=0.05,\n"
+        '    rationale="Hypothesis strongly predicts evidence.",\n'
+        '    label="bayes_update",\n'
+        ")\n"
+        '__all__ = ["hypothesis", "evidence"]\n'
+    )
+    (pkg_src / "priors.py").write_text(
+        "from . import evidence, hypothesis\n\n"
+        "PRIORS = {\n"
+        '    hypothesis: (0.2, "Low base rate."),\n'
+        '    evidence: (0.9, "Observed evidence."),\n'
+        "}\n"
+    )
+
+
 def _init_git_repo(pkg_dir, remote_dir) -> None:
     _run(["git", "init"], cwd=pkg_dir)
     _run(["git", "config", "user.name", "Gaia Test"], cwd=pkg_dir)
@@ -172,6 +213,37 @@ def test_register_dry_run_emits_registration_plan(tmp_path):
     assert len(beliefs_manifest["beliefs"]) >= 1
     exported_labels = {b["label"] for b in beliefs_manifest["beliefs"]}
     assert "exported_claim" in exported_labels
+
+
+def test_register_beliefs_use_v6_infer_action_cpt(tmp_path):
+    """register-generated beliefs.json must use v6 InferAction CPTs from IR strategies."""
+    pkg_dir = tmp_path / "register_infer"
+    remote_dir = tmp_path / "register_infer_remote.git"
+    _write_package_with_v6_infer(pkg_dir)
+    _init_git_repo(pkg_dir, remote_dir)
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    _run(["git", "tag", "v1.2.0"], cwd=pkg_dir)
+    _run(["git", "push", "origin", "v1.2.0"], cwd=pkg_dir)
+
+    result = runner.invoke(
+        app,
+        [
+            "register",
+            str(pkg_dir),
+            "--repo",
+            "https://github.com/example/RegisterInfer.gaia",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    plan = json.loads(result.output)
+    release_dir = "packages/register-infer/releases/1.2.0"
+    beliefs_manifest = json.loads(plan["files"][f"{release_dir}/beliefs.json"])
+    belief_by_label = {item["label"]: item["belief"] for item in beliefs_manifest["beliefs"]}
+    assert belief_by_label["hypothesis"] > 0.5
 
 
 def test_register_writes_registry_metadata_to_local_checkout(tmp_path):
