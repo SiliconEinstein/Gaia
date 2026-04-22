@@ -9,6 +9,7 @@ from gaia.lang.dsl import (
     composite,
     complement,
     contradiction,
+    context,
     deduction,
     disjunction,
     elimination,
@@ -23,11 +24,26 @@ from gaia.lang.dsl import (
     setting,
     support,
 )
-from gaia.lang.runtime import Knowledge, Operator, Step, Strategy
+from gaia.lang.runtime import (
+    Claim,
+    Context,
+    Grounding,
+    Knowledge,
+    Operator,
+    Question,
+    Setting,
+    Step,
+    Strategy,
+)
 
 __all__ = [
+    "Claim",
+    "Context",
+    "Grounding",
     "Knowledge",
     "Operator",
+    "Question",
+    "Setting",
     "Step",
     "Strategy",
     "abduction",
@@ -38,6 +54,7 @@ __all__ = [
     "composite",
     "complement",
     "contradiction",
+    "context",
     "deduction",
     "disjunction",
     "elimination",

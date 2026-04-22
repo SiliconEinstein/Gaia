@@ -43,8 +43,8 @@ class TestIsQid:
 
 
 class TestKnowledgeType:
-    def test_three_types(self):
-        assert set(KnowledgeType) == {"claim", "setting", "question"}
+    def test_knowledge_types(self):
+        assert set(KnowledgeType) == {"claim", "setting", "question", "context"}
 
     def test_no_template(self):
         with pytest.raises(ValueError):

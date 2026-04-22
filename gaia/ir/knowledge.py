@@ -31,6 +31,7 @@ class KnowledgeType(StrEnum):
     CLAIM = "claim"
     SETTING = "setting"
     QUESTION = "question"
+    CONTEXT = "context"
 
 
 class Parameter(BaseModel):
@@ -38,6 +39,7 @@ class Parameter(BaseModel):
 
     name: str
     type: str
+    value: Any | None = None
 
 
 class PackageRef(BaseModel):

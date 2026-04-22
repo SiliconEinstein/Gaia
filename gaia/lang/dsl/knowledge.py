@@ -1,27 +1,32 @@
-"""Gaia Lang v5 — Knowledge DSL functions (claim, setting, question)."""
+"""Gaia Lang v5/v6 — Knowledge DSL functions."""
 
-from gaia.lang.runtime import Knowledge
+from gaia.lang.runtime import Claim, Context, Knowledge, Question, Setting
 
 
-def setting(content: str, *, title: str | None = None, **metadata) -> Knowledge:
+def context(content: str, **metadata) -> Context:
+    """Declare raw unformalized context text."""
+    return Context(content.strip(), metadata=_flatten_metadata(metadata))
+
+
+def setting(content: str, *, title: str | None = None, **metadata) -> Setting:
     """Declare a background assumption. No probability, no BP participation."""
     provenance = metadata.pop("provenance", None)
-    return Knowledge(
+    return Setting(
         content=content.strip(),
-        type="setting",
         title=title,
         provenance=provenance or [],
         metadata=_flatten_metadata(metadata),
     )
 
 
-def question(content: str, *, title: str | None = None, **metadata) -> Knowledge:
+def question(content: str, *, title: str | None = None, **metadata) -> Question:
     """Declare a research question. No probability, no BP participation."""
     provenance = metadata.pop("provenance", None)
-    return Knowledge(
+    targets = metadata.pop("targets", [])
+    return Question(
         content=content.strip(),
-        type="question",
         title=title,
+        targets=targets,
         provenance=provenance or [],
         metadata=_flatten_metadata(metadata),
     )
@@ -42,11 +47,10 @@ def claim(
     parameters: list[dict] | None = None,
     provenance: list[dict[str, str]] | None = None,
     **metadata,
-) -> Knowledge:
+) -> Claim:
     """Declare a scientific assertion. The only type carrying probability."""
-    return Knowledge(
+    return Claim(
         content=content.strip(),
-        type="claim",
         title=title,
         background=background or [],
         parameters=parameters or [],
