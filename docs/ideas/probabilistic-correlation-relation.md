@@ -1,10 +1,11 @@
 # Probabilistic Correlation Relation for Gaia v0.5
 
-> **Status:** Idea
+> **Status:** Idea, narrowed after follow-up discussion
 >
-> This note records a possible replacement for the current v6 `infer()`
-> surface. It is not an implementation plan. The goal is to clarify the
-> semantic center before changing the DSL, IR, or BP lowering.
+> This note records a possible future `correlate()` / `evidence_for()`
+> relation surface. It is no longer the preferred replacement for `infer()`:
+> `infer()` remains a directional probabilistic action where a hypothesis
+> predicts an evidence-shaped conclusion.
 
 ## 1. Motivation
 
@@ -12,8 +13,8 @@ The current v6 design exposes statistical evidence as:
 
 ```python
 infer(
+    E,
     hypothesis=H,
-    evidence=E,
     p_e_given_h=...,
     p_e_given_not_h=...,
 )
@@ -29,8 +30,9 @@ often awkward for LLM-assisted scientific formalization:
 - The word `infer` sounds like a reasoning action, while the object being
   authored is really a probabilistic relation between two Claims.
 
-The design question is whether Gaia should treat this as a `Relate`-like
-primitive rather than a `Support`-like or `Infer`-like primitive.
+The design question for this note is whether Gaia also needs a separate
+`Relate`-like primitive for symmetric or bidirectional probabilistic
+correlations. That primitive should not replace `infer()`.
 
 ## 2. Jaynes Interpretation
 
@@ -338,16 +340,18 @@ This note does not propose:
 
 ## 12. Working Recommendation
 
-For v0.5 iteration, the cleanest path is:
+For future iteration, if Gaia needs an explicit probabilistic relation surface,
+the cleanest path is:
 
-1. Treat the current `infer()` concept as a probabilistic relation, not a
-   support action.
-2. Prototype a Lang surface named `correlate()` that returns a reviewable
+1. Keep `infer()` as a directional probabilistic action: `H` predicts `E`, and
+   observed `E` updates belief in `H`.
+2. Prototype a separate Lang surface named `correlate()` that returns a reviewable
    relation helper Claim.
 3. Provide `evidence_for()` as a scientific wrapper over `correlate()`.
-4. Keep the existing `Strategy(type="infer")` lowering path initially, but
-   preserve the original calibration form in metadata.
+4. Lower `correlate()` separately, or temporarily through `Strategy(type="infer")`
+   only when a directional factor is explicitly chosen.
 5. Classify helper relation shape from relative update against base rates.
 
-This keeps the semantics Jaynes-compatible while making LLM-assisted
-formalization ask easier, positive-direction probability questions.
+This keeps `infer()` aligned with the action hierarchy while preserving a place
+to explore easier, positive-direction probability questions for LLM-assisted
+formalization.

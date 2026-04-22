@@ -227,8 +227,8 @@ def test_infer_uses_v6_infer_action_cpt(tmp_path):
         'hypothesis = claim("Hypothesis.")\n'
         'evidence = claim("Evidence.")\n'
         "infer(\n"
+        "    evidence,\n"
         "    hypothesis=hypothesis,\n"
-        "    evidence=evidence,\n"
         "    p_e_given_h=0.95,\n"
         "    p_e_given_not_h=0.05,\n"
         '    rationale="Hypothesis strongly predicts evidence.",\n'

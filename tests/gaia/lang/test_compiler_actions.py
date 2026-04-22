@@ -119,15 +119,18 @@ def test_compile_infer_action_to_strategy_cpt():
         e.label = "e"
         bg = Claim("Measurement reliable.")
         bg.label = "reliable"
-        helper = infer(
+        result = infer(
+            e,
             hypothesis=h,
-            evidence=e,
             background=[bg],
             p_e_given_h=0.8,
             p_e_given_not_h=0.2,
             rationale="Bayes.",
             label="bayes_update",
         )
+        assert result is e
+        helper = pkg.actions[0].helper
+        assert helper is not None
         helper.label = "stat_support"
 
     compiled = compile_package_artifact(pkg)

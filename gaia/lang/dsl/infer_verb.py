@@ -15,9 +15,10 @@ def _claim_ref(claim: Claim) -> str:
 
 
 def infer(
+    evidence_or_legacy=None,
     *args,
     hypothesis: Claim | None = None,
-    evidence: Claim | None = None,
+    evidence: Claim | str | None = None,
     background: list[Knowledge] | None = None,
     p_e_given_h: float | None = None,
     p_e_given_not_h: float | None = None,
@@ -25,24 +26,33 @@ def infer(
     label: str | None = None,
     **legacy_kwargs,
 ) -> Claim:
-    """Bayesian inference. Returns a statistical-support helper Claim.
+    """Bayesian inference. Returns the evidence Claim.
 
-    The v6 shape is keyword-only. The old v5 ``infer([premises], conclusion, ...)``
-    form is preserved as a deprecated compatibility path.
+    The canonical v6 shape is ``infer(evidence, hypothesis=..., ...)``. The old
+    v5 ``infer([premises], conclusion, ...)`` form is preserved as a deprecated
+    compatibility path.
     """
-    if args:
-        if isinstance(args[0], (list, tuple)):
-            from gaia.lang.dsl.strategies import infer as legacy_infer
+    if isinstance(evidence_or_legacy, (list, tuple)):
+        from gaia.lang.dsl.strategies import infer as legacy_infer
 
-            warnings.warn(
-                "infer([premises], conclusion, ...) is deprecated; use keyword-only "
-                "infer(hypothesis=..., evidence=..., p_e_given_h=..., "
-                "p_e_given_not_h=...) instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return legacy_infer(*args, **legacy_kwargs)
-        raise TypeError("v6 infer() arguments are keyword-only")
+        warnings.warn(
+            "infer([premises], conclusion, ...) is deprecated; use "
+            "infer(evidence, hypothesis=..., p_e_given_h=..., "
+            "p_e_given_not_h=...) instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return legacy_infer(evidence_or_legacy, *args, **legacy_kwargs)
+
+    if args:
+        raise TypeError("v6 infer() accepts only one positional evidence argument")
+    if legacy_kwargs:
+        unexpected = next(iter(legacy_kwargs))
+        raise TypeError(f"infer() got an unexpected keyword argument: '{unexpected}'")
+    if evidence_or_legacy is not None:
+        if evidence is not None:
+            raise TypeError("infer() got evidence both positionally and by keyword")
+        evidence = evidence_or_legacy
 
     if hypothesis is None:
         raise TypeError("infer() missing required keyword argument: 'hypothesis'")
@@ -52,6 +62,12 @@ def infer(
         raise TypeError("infer() missing required keyword argument: 'p_e_given_h'")
     if p_e_given_not_h is None:
         raise TypeError("infer() missing required keyword argument: 'p_e_given_not_h'")
+    if isinstance(evidence, str):
+        evidence = Claim(evidence)
+    if not isinstance(evidence, Claim):
+        raise TypeError("infer() evidence must be a Claim or string")
+    if not isinstance(hypothesis, Claim):
+        raise TypeError("infer() hypothesis must be a Claim")
 
     helper = Claim(
         f"{_claim_ref(evidence)} statistically supports {_claim_ref(hypothesis)}.",
@@ -68,4 +84,5 @@ def infer(
         helper=helper,
     )
     action.warrants.append(helper)
-    return helper
+    evidence.supports.append(action)
+    return evidence

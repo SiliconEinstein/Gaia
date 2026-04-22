@@ -46,8 +46,8 @@ def test_generate_review_manifest_for_v6_actions():
         conflict = contradict(a, data, rationale="Conflict.", label="conflict")
         conflict.label = "conflict_helper"
         infer(
+            data,
             hypothesis=c,
-            evidence=data,
             p_e_given_h=0.8,
             p_e_given_not_h=0.2,
             rationale="Bayes.",
