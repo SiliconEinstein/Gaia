@@ -335,12 +335,11 @@ def test_render_github_with_real_package(tmp_path):
         '__all__ = ["obs_equal_time", "galileo_hyp"]\n'
     )
 
-    # Priors — required for render
+    # Priors — required for render; notes/settings are non-probabilistic.
     (pkg_src / "priors.py").write_text(
-        "from .motivation import context, obs_equal_time\n"
+        "from .motivation import obs_equal_time\n"
         "from .analysis import aristotle_hyp, galileo_hyp\n\n"
         "PRIORS: dict = {\n"
-        '    context: (0.95, "ok"),\n'
         '    obs_equal_time: (0.9, "ok"),\n'
         '    aristotle_hyp: (0.2, "ok"),\n'
         '    galileo_hyp: (0.6, "ok"),\n'

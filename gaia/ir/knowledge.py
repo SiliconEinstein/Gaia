@@ -58,13 +58,20 @@ def _sha256_hex(data: str, length: int = 16) -> str:
 def _compute_content_hash(
     type_: str, content: str, parameters: list[Parameter], format_: str
 ) -> str:
-    """Content fingerprint: SHA-256(type + content + sorted(parameters)), no package_id.
+    """Content fingerprint: SHA-256(type + format + content + sorted(parameters)), no package_id.
 
     Same content in different packages produces the same content_hash.
     Used for canonicalization fast-path (exact match) and curation dedup.
     """
     sorted_params = sorted((p.name, p.type) for p in parameters)
     payload = f"{type_}|{format_}|{content}|{sorted_params}"
+    return _sha256_hex(payload, length=64)
+
+
+def _compute_legacy_content_hash(type_: str, content: str, parameters: list[Parameter]) -> str:
+    """Pre-format-field content fingerprint accepted for old IR inputs."""
+    sorted_params = sorted((p.name, p.type) for p in parameters)
+    payload = f"{type_}|{content}|{sorted_params}"
     return _sha256_hex(payload, length=64)
 
 
@@ -98,6 +105,9 @@ class Knowledge(BaseModel):
         if self.id is None and self.label is None:
             raise ValueError("Knowledge requires at least one of `id` or `label`.")
 
+        if self.metadata and "prior" in self.metadata and self.type != KnowledgeType.CLAIM:
+            raise ValueError("metadata.prior is only valid for claim Knowledge.")
+
         # Content_hash is a derived fingerprint and must stay consistent
         # with the node's actual content.
         if self.content is not None:
@@ -105,7 +115,12 @@ class Knowledge(BaseModel):
                 self.type, self.content, self.parameters, self.format
             )
             if self.content_hash is not None and self.content_hash != expected_content_hash:
-                raise ValueError("content_hash must match the derived content fingerprint")
+                legacy_content_hash = _compute_legacy_content_hash(
+                    self.type, self.content, self.parameters
+                )
+                format_was_defaulted = "format" not in self.model_fields_set
+                if not (format_was_defaulted and self.content_hash == legacy_content_hash):
+                    raise ValueError("content_hash must match the derived content fingerprint")
             self.content_hash = expected_content_hash
 
         return self

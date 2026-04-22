@@ -1,5 +1,7 @@
 """Tests for Knowledge data model."""
 
+import hashlib
+
 import pytest
 from gaia.ir import Knowledge, KnowledgeType, Parameter, PackageRef
 from gaia.ir.knowledge import make_qid, is_qid
@@ -114,6 +116,31 @@ class TestKnowledgeCreation:
             format="csv",
         )
         assert k1.content_hash != k2.content_hash
+
+    def test_legacy_content_hash_without_format_is_accepted_and_normalized(self):
+        old_hash = hashlib.sha256("claim|test|[]".encode()).hexdigest()
+        expected = Knowledge(id="github:pkg::expected", type="claim", content="test").content_hash
+
+        k = Knowledge(
+            id="github:pkg::x",
+            type="claim",
+            content="test",
+            label="x",
+            content_hash=old_hash,
+        )
+
+        assert k.format == "markdown"
+        assert k.content_hash == expected
+        assert k.content_hash != old_hash
+
+    def test_note_metadata_prior_rejected(self):
+        with pytest.raises(ValueError, match="prior"):
+            Knowledge(
+                id="github:pkg::ctx",
+                type="note",
+                content="Context only.",
+                metadata={"prior": 0.5},
+            )
 
 
 class TestKnowledgeParameters:

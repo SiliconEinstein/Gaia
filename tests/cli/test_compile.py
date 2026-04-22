@@ -1154,6 +1154,35 @@ def test_compile_priors_py_invalid_key_raises(tmp_path):
     assert "Knowledge" in result.output or "PRIORS" in result.output
 
 
+def test_compile_priors_py_note_key_raises(tmp_path):
+    """PRIORS may only annotate probabilistic claims, not notes."""
+    pkg_dir = tmp_path / "note_prior_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "note-prior-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "note_prior_pkg"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import claim, note\n\n"
+        'ctx = note("Non-probabilistic context.")\n'
+        'hyp = claim("Probabilistic hypothesis.")\n'
+        '__all__ = ["ctx", "hyp"]\n'
+    )
+    (pkg_src / "priors.py").write_text(
+        "from . import ctx\n\n"
+        "PRIORS = {\n"
+        '    ctx: (0.8, "Notes are context, not probabilistic claims."),\n'
+        "}\n"
+    )
+
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code != 0
+    assert "claim" in result.output.lower()
+    assert "note" in result.output.lower()
+
+
 def test_compile_priors_py_new_knowledge_raises(tmp_path):
     """priors.py may only annotate Knowledge objects already declared by the package."""
     pkg_dir = tmp_path / "prior_ghost_pkg"
