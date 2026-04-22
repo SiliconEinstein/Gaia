@@ -8,6 +8,7 @@ class TestOperatorType:
     def test_six_types(self):
         assert set(OperatorType) == {
             "implication",
+            "negation",
             "equivalence",
             "contradiction",
             "complement",
@@ -32,6 +33,11 @@ class TestOperatorCreation:
         )
         assert op.variables == ["gcn_a", "gcn_b"]
         assert op.conclusion == "gcn_m"
+
+    def test_negation(self):
+        op = Operator(operator="negation", variables=["gcn_a"], conclusion="gcn_not_a")
+        assert op.variables == ["gcn_a"]
+        assert op.conclusion == "gcn_not_a"
 
     def test_equivalence(self):
         op = Operator(operator="equivalence", variables=["gcn_a", "gcn_b"], conclusion="gcn_h")
@@ -104,6 +110,14 @@ class TestArityConstraints:
     def test_conjunction_rejects_one_variable(self):
         with pytest.raises(ValueError, match="at least 2 variables"):
             Operator(operator="conjunction", variables=["a"], conclusion="m")
+
+    def test_negation_rejects_zero_variables(self):
+        with pytest.raises(ValueError, match="exactly 1 variable"):
+            Operator(operator="negation", variables=[], conclusion="h")
+
+    def test_negation_rejects_two_variables(self):
+        with pytest.raises(ValueError, match="exactly 1 variable"):
+            Operator(operator="negation", variables=["a", "b"], conclusion="h")
 
     def test_equivalence_rejects_three_variables(self):
         with pytest.raises(ValueError, match="exactly 2 variables"):

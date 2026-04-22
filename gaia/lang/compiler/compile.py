@@ -36,6 +36,7 @@ from gaia.lang.runtime.action import (
     Compute,
     Contradict,
     Equal,
+    Exclusive,
     Infer as InferAction,
     Observe,
     Relate,
@@ -494,7 +495,7 @@ def compile_package_artifact(
             "scope": "local",
             "type": s.type,
             "premises": [knowledge_map[id(p)] for p in s.premises],
-            "conclusion": knowledge_map[id(s.conclusion)] if s.conclusion else None,
+            "conclusion": knowledge_map[id(s.conclusion)] if s.conclusion is not None else None,
             "background": [knowledge_map[id(b)] for b in s.background] or None,
             "steps": steps,
             "metadata": _metadata_with_reason(s.metadata, s.reason),
@@ -630,6 +631,9 @@ def compile_package_artifact(
         elif isinstance(action, Contradict):
             operator = "contradiction"
             pattern = "contradiction"
+        elif isinstance(action, Exclusive):
+            operator = "complement"
+            pattern = "exclusive"
         else:
             raise ValueError(f"Unsupported Relate action: {type(action).__name__}")
         action_label, metadata = _action_metadata(action, pkg, action_index, pattern=pattern)

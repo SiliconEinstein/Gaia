@@ -1,4 +1,4 @@
-from gaia.lang import Claim, compute, contradict, derive, equal, infer, observe
+from gaia.lang import Claim, compute, contradict, derive, equal, exclusive, infer, observe
 from gaia.lang.compiler import compile_package_artifact
 from gaia.lang.runtime.package import CollectedPackage
 
@@ -90,7 +90,7 @@ def test_compile_compute_action_to_deduction_with_compute_metadata():
     assert strategy.metadata["compute"]["function_ref"]
 
 
-def test_compile_equal_and_contradict_actions_to_operators():
+def test_compile_equal_contradict_and_exclusive_actions_to_operators():
     with CollectedPackage("v6_actions") as pkg:
         a = Claim("A.")
         a.label = "a"
@@ -100,6 +100,8 @@ def test_compile_equal_and_contradict_actions_to_operators():
         eq.label = "same_helper"
         conflict = contradict(a, b, rationale="Conflict.", label="conflict")
         conflict.label = "conflict_helper"
+        one = exclusive(a, b, rationale="Closed binary partition.", label="exclusive")
+        one.label = "exclusive_helper"
 
     compiled = compile_package_artifact(pkg)
     by_operator = {op.operator: op for op in compiled.graph.operators}
@@ -109,6 +111,10 @@ def test_compile_equal_and_contradict_actions_to_operators():
         "github:v6_actions::action::conflict"
     )
     assert by_operator["contradiction"].conclusion == "github:v6_actions::conflict_helper"
+    assert by_operator["complement"].metadata["action_label"] == (
+        "github:v6_actions::action::exclusive"
+    )
+    assert by_operator["complement"].conclusion == "github:v6_actions::exclusive_helper"
 
 
 def test_compile_infer_action_to_strategy_cpt():

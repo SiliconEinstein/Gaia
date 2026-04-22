@@ -25,6 +25,7 @@ def _cromwell_clamp(value: float, label: str = "") -> float:
 
 class FactorType(Enum):
     IMPLICATION = auto()
+    NEGATION = auto()
     CONJUNCTION = auto()
     DISJUNCTION = auto()
     EQUIVALENCE = auto()
@@ -117,6 +118,7 @@ class FactorGraph:
 
         if ft in (
             FactorType.IMPLICATION,
+            FactorType.NEGATION,
             FactorType.CONJUNCTION,
             FactorType.DISJUNCTION,
             FactorType.EQUIVALENCE,
@@ -182,6 +184,10 @@ class FactorGraph:
         if ft == FactorType.IMPLICATION and len(v_list) != 2:
             raise ValueError(
                 f"IMPLICATION '{factor_id}' requires exactly 2 variables, got {len(v_list)}."
+            )
+        if ft == FactorType.NEGATION and len(v_list) != 1:
+            raise ValueError(
+                f"NEGATION '{factor_id}' requires exactly 1 variable, got {len(v_list)}."
             )
         if ft == FactorType.CONJUNCTION and len(v_list) < 2:
             raise ValueError(

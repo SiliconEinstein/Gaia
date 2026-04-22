@@ -18,6 +18,7 @@ _TEMPLATES = {
     ),
     "equal": "Are [@{a_label}] and [@{b_label}] truly equivalent?",
     "contradict": "Do [@{a_label}] and [@{b_label}] truly contradict?",
+    "exclusive": "Do [@{a_label}] and [@{b_label}] form a closed case split where exactly one is true?",
 }
 
 

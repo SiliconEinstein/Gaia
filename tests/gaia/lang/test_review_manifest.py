@@ -1,4 +1,4 @@
-from gaia.lang import Claim, contradict, derive, equal, infer, observe
+from gaia.lang import Claim, contradict, derive, equal, exclusive, infer, observe
 from gaia.lang.compiler import compile_package_artifact
 from gaia.lang.review.manifest import generate_review_manifest
 from gaia.lang.review.templates import generate_audit_question
@@ -33,6 +33,13 @@ def test_audit_question_for_equal():
     assert "[@obs]" in question
 
 
+def test_audit_question_for_exclusive():
+    question = generate_audit_question("exclusive", a_label="case_a", b_label="case_b")
+    assert "[@case_a]" in question
+    assert "[@case_b]" in question
+    assert "exactly one" in question.lower()
+
+
 def test_generate_review_manifest_for_v6_actions():
     with CollectedPackage("review_pkg") as pkg:
         a = Claim("A.")
@@ -47,6 +54,8 @@ def test_generate_review_manifest_for_v6_actions():
         eq.label = "same_helper"
         conflict = contradict(a, data, rationale="Conflict.", label="conflict")
         conflict.label = "conflict_helper"
+        one = exclusive(a, b, rationale="Closed binary partition.", label="exclusive")
+        one.label = "exclusive_helper"
         infer(
             data,
             hypothesis=c,
@@ -58,7 +67,7 @@ def test_generate_review_manifest_for_v6_actions():
 
     compiled = compile_package_artifact(pkg)
     manifest = generate_review_manifest(compiled)
-    assert len(manifest.reviews) == 5
+    assert len(manifest.reviews) == 6
     assert {review.status for review in manifest.reviews} == {"unreviewed"}
 
     by_action = {review.action_label: review for review in manifest.reviews}
@@ -69,7 +78,9 @@ def test_generate_review_manifest_for_v6_actions():
         "github:review_pkg::data"
     )
     assert by_action["github:review_pkg::action::same"].target_kind == "operator"
+    assert by_action["github:review_pkg::action::exclusive"].target_kind == "operator"
     assert "[@a]" in by_action["github:review_pkg::action::conflict"].audit_question
+    assert "exactly one" in by_action["github:review_pkg::action::exclusive"].audit_question.lower()
     assert "[@data]" in by_action["github:review_pkg::action::bayes_update"].audit_question
 
 

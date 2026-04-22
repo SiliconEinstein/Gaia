@@ -79,6 +79,11 @@ class Contradict(Relate):
 
 
 @dataclass
+class Exclusive(Relate):
+    """Declares two Claims form a closed binary partition."""
+
+
+@dataclass
 class Infer(Action):
     """Bayesian inference: P(E|H) update."""
 

@@ -80,6 +80,26 @@ def test_contradiction_default_prior_near_one():
     assert fg.variables["github:lowertest::r"] == pytest.approx(1.0 - CROMWELL_EPS)
 
 
+def test_negation_default_prior_is_neutral():
+    """Compositional negation conclusion defaults to 0.5, not assertion true."""
+    g = _lg(
+        knowledges=[
+            Knowledge(id="github:lowertest::x", type="claim", content="X"),
+            Knowledge(id="github:lowertest::not_x", type="claim", content="not X"),
+        ],
+        operators=[
+            Operator(
+                operator="negation",
+                variables=["github:lowertest::x"],
+                conclusion="github:lowertest::not_x",
+            ),
+        ],
+    )
+    fg = lower_local_graph(g)
+    assert fg.variables["github:lowertest::not_x"] == pytest.approx(0.5)
+    assert fg.factors[0].factor_type == FactorType.NEGATION
+
+
 def test_contradiction_actually_constrains():
     """With prior ~1.0 on helper, CONTRADICTION suppresses joint X=Y=1."""
     g = _lg(

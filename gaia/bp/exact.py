@@ -78,6 +78,14 @@ def _factor_log_potentials(
         pot = np.where(ok, h, lo)
         return np.log(pot)
 
+    if ft == FactorType.NEGATION:
+        a_idx = var_idx[vids[0]]
+        h_idx = var_idx[concl]
+        target = 1 - states[:, a_idx]
+        ok = states[:, h_idx] == target
+        pot = np.where(ok, h, lo)
+        return np.log(pot)
+
     if ft == FactorType.COMPLEMENT:
         a_idx = var_idx[vids[0]]
         b_idx = var_idx[vids[1]]

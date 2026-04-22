@@ -47,6 +47,7 @@ _RELATION_OPS = frozenset(
 
 _OPERATOR_MAP: dict[OperatorType, FactorType] = {
     OperatorType.IMPLICATION: FactorType.IMPLICATION,
+    OperatorType.NEGATION: FactorType.NEGATION,
     OperatorType.CONJUNCTION: FactorType.CONJUNCTION,
     OperatorType.DISJUNCTION: FactorType.DISJUNCTION,
     OperatorType.EQUIVALENCE: FactorType.EQUIVALENCE,

@@ -97,6 +97,13 @@ def factor_to_tensor(f: Factor) -> tuple[np.ndarray, list[str]]:
         t = np.where(grids[2].astype(bool) == target, _HIGH, _LOW).astype(np.float64)
         return t, axes
 
+    if ft == FactorType.NEGATION:
+        grids = np.indices(shape)
+        # Helper concl == NOT(A)
+        target = grids[0] == 0
+        t = np.where(grids[1].astype(bool) == target, _HIGH, _LOW).astype(np.float64)
+        return t, axes
+
     if ft == FactorType.COMPLEMENT:
         grids = np.indices(shape)
         # Helper concl == (A XOR B)

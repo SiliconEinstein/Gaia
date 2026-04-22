@@ -34,6 +34,7 @@ def _parse_qid(qid: str) -> tuple[str, str, str] | None:
 _PARAMETERIZED_TYPES = {StrategyType.INFER, StrategyType.NOISY_AND}
 _STRUCTURAL_HELPER_OPERATOR_TYPES = {
     OperatorType.CONJUNCTION,
+    OperatorType.NEGATION,
     OperatorType.DISJUNCTION,
     OperatorType.EQUIVALENCE,
     OperatorType.CONTRADICTION,

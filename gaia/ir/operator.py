@@ -15,6 +15,7 @@ class OperatorType(StrEnum):
     """Operator types (§2.2). All are deterministic (ψ ∈ {0,1}, no free parameters)."""
 
     IMPLICATION = "implication"  # A=1 → B must =1
+    NEGATION = "negation"  # H = ¬A
     EQUIVALENCE = "equivalence"  # A=B
     CONTRADICTION = "contradiction"  # ¬(A=1 ∧ B=1)
     COMPLEMENT = "complement"  # A≠B (XOR)
@@ -61,6 +62,10 @@ class Operator(BaseModel):
         if self.operator == OperatorType.IMPLICATION:
             if len(self.variables) != 2:
                 raise ValueError("operator=implication requires exactly 2 variables (inputs)")
+
+        elif self.operator == OperatorType.NEGATION:
+            if len(self.variables) != 1:
+                raise ValueError("operator=negation requires exactly 1 variable (input)")
 
         elif self.operator == OperatorType.CONJUNCTION:
             if len(self.variables) < 2:

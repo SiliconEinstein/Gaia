@@ -160,7 +160,7 @@ Existing types are reused:
 
 ### 2.3 Operator — No Change
 
-Existing Operator schema and types (conjunction, disjunction, equivalence, contradiction, complement, implication) are unchanged.
+Existing Operator schema is unchanged. Operator types include conjunction, disjunction, negation, equivalence, contradiction, complement, and implication.
 
 `equal()` compiles to `Operator(type="equivalence")`.
 `contradict()` compiles to `Operator(type="contradiction")`.

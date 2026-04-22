@@ -67,6 +67,22 @@ def test_add_conjunction_factor():
     assert fg.factors[0].variables == ["A", "B"]
 
 
+def test_add_negation_factor():
+    fg = FactorGraph()
+    for v in ["A", "N"]:
+        fg.add_variable(v, 0.5)
+    fg.add_factor("f1", FactorType.NEGATION, ["A"], "N")
+    assert fg.factors[0].variables == ["A"]
+
+
+def test_negation_factor_rejects_two_variables():
+    fg = FactorGraph()
+    for v in ["A", "B", "N"]:
+        fg.add_variable(v, 0.5)
+    with pytest.raises(ValueError, match="requires exactly 1 variable"):
+        fg.add_factor("f1", FactorType.NEGATION, ["A", "B"], "N")
+
+
 def test_add_soft_entailment():
     fg = FactorGraph()
     fg.add_variable("M", 0.5)

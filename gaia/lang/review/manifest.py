@@ -42,6 +42,8 @@ def _operator_action_type(operator: Any) -> str:
         return "equal"
     if operator.operator == "contradiction":
         return "contradict"
+    if operator.operator == "complement":
+        return "exclusive"
     return str(operator.operator)
 
 

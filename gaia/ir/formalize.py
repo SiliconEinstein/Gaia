@@ -23,6 +23,7 @@ from gaia.ir.strategy import (
 )
 
 _HELPER_KIND_BY_OPERATOR = {
+    "negation": "negation_result",
     "conjunction": "conjunction_result",
     "disjunction": "disjunction_result",
     "equivalence": "equivalence_result",
