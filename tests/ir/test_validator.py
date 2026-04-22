@@ -86,6 +86,41 @@ class TestKnowledgeValidation:
         assert not r.valid
         assert any("metadata prior" in e and "Cromwell bounds" in e for e in r.errors)
 
+    def test_structural_helper_metadata_prior_is_prohibited(self):
+        g = _local_graph(
+            knowledges=[
+                _claim("github:test::a"),
+                _claim("github:test::b"),
+                Knowledge(
+                    id="github:test::both",
+                    type=KnowledgeType.CLAIM,
+                    content="A and B",
+                    metadata={
+                        "generated": True,
+                        "helper_kind": "conjunction_result",
+                        "review": False,
+                        "prior": 0.9,
+                    },
+                ),
+            ],
+            operators=[
+                Operator(
+                    operator_id="lco_both",
+                    scope="local",
+                    operator="conjunction",
+                    variables=["github:test::a", "github:test::b"],
+                    conclusion="github:test::both",
+                ),
+            ],
+        )
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any(
+            "github:test::both" in e and "structural helper claim" in e for e in r.errors
+        )
+
     def test_duplicate_label_rejected(self):
         g = _local_graph(
             knowledges=[

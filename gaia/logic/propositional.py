@@ -12,6 +12,7 @@ from sympy.logic.inference import satisfiable
 
 from gaia.ir.graphs import LocalCanonicalGraph
 from gaia.ir.operator import Operator, OperatorType
+from gaia.ir.strategy import FormalStrategy
 
 
 def _operator_value(operator: OperatorType | str) -> str:
@@ -19,7 +20,24 @@ def _operator_value(operator: OperatorType | str) -> str:
 
 
 def _operator_by_conclusion(graph: LocalCanonicalGraph) -> dict[str, Operator]:
-    return {op.conclusion: op for op in graph.operators}
+    operators: dict[str, Operator] = {}
+
+    def add(op: Operator) -> None:
+        existing = operators.get(op.conclusion)
+        if existing is not None and existing != op:
+            raise ValueError(
+                f"Multiple propositional operators conclude {op.conclusion!r}; "
+                "cannot expand an unambiguous Boolean expression"
+            )
+        operators[op.conclusion] = op
+
+    for op in graph.operators:
+        add(op)
+    for strategy in graph.strategies:
+        if isinstance(strategy, FormalStrategy):
+            for op in strategy.formal_expr.operators:
+                add(op)
+    return operators
 
 
 def _knowledge_ids(graph: LocalCanonicalGraph) -> set[str]:

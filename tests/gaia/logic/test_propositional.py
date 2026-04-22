@@ -1,6 +1,7 @@
 from sympy import Symbol
 
 from gaia.lang import Claim, exclusive
+from gaia.ir import FormalExpr, FormalStrategy, Knowledge, LocalCanonicalGraph, Operator
 from gaia.lang.compiler import compile_package_artifact
 from gaia.lang.runtime.package import CollectedPackage
 from gaia.logic import (
@@ -90,3 +91,42 @@ def test_exclusive_relation_is_equivalent_to_or_and_not_both():
     graph = compile_package_artifact(pkg).graph
 
     assert are_equivalent(graph, _kid("logic_exclusive", "one_of"), _kid("logic_exclusive", "formula"))
+
+
+def test_formal_strategy_operator_conclusions_are_expanded():
+    graph = LocalCanonicalGraph(
+        namespace="github",
+        package_name="logic_formal_expr",
+        knowledges=[
+            Knowledge(id="github:logic_formal_expr::a", type="claim", content="A"),
+            Knowledge(id="github:logic_formal_expr::b", type="claim", content="B"),
+            Knowledge(id="github:logic_formal_expr::same", type="claim", content="same"),
+        ],
+        strategies=[
+            FormalStrategy(
+                scope="local",
+                type="deduction",
+                premises=["github:logic_formal_expr::a", "github:logic_formal_expr::b"],
+                conclusion="github:logic_formal_expr::same",
+                formal_expr=FormalExpr(
+                    operators=[
+                        Operator(
+                            operator="equivalence",
+                            variables=[
+                                "github:logic_formal_expr::a",
+                                "github:logic_formal_expr::b",
+                            ],
+                            conclusion="github:logic_formal_expr::same",
+                        )
+                    ]
+                ),
+            )
+        ],
+    )
+
+    assert str(to_cnf_proposition(graph, "github:logic_formal_expr::same", simplify=True)) in {
+        "(github:logic_formal_expr::a | ~github:logic_formal_expr::b) & "
+        "(github:logic_formal_expr::b | ~github:logic_formal_expr::a)",
+        "(github:logic_formal_expr::b | ~github:logic_formal_expr::a) & "
+        "(github:logic_formal_expr::a | ~github:logic_formal_expr::b)",
+    }

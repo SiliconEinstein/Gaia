@@ -100,6 +100,44 @@ def test_negation_default_prior_is_neutral():
     assert fg.factors[0].factor_type == FactorType.NEGATION
 
 
+def test_structural_expression_metadata_prior_is_ignored():
+    """Expression helper beliefs must be determined by operators, not independent priors."""
+    g = _lg(
+        knowledges=[
+            Knowledge(id="github:lowertest::x", type="claim", content="X"),
+            Knowledge(id="github:lowertest::y", type="claim", content="Y"),
+            Knowledge(
+                id="github:lowertest::both",
+                type="claim",
+                content="X and Y",
+                metadata={
+                    "generated": True,
+                    "helper_kind": "conjunction_result",
+                    "review": False,
+                    "prior": 0.9,
+                },
+            ),
+        ],
+        operators=[
+            Operator(
+                operator="conjunction",
+                variables=["github:lowertest::x", "github:lowertest::y"],
+                conclusion="github:lowertest::both",
+            ),
+        ],
+    )
+
+    fg = lower_local_graph(g)
+
+    assert fg.variables["github:lowertest::both"] == pytest.approx(0.5)
+
+    fg_with_node_prior = lower_local_graph(
+        g,
+        node_priors={"github:lowertest::both": 0.9},
+    )
+    assert fg_with_node_prior.variables["github:lowertest::both"] == pytest.approx(0.5)
+
+
 def test_contradiction_actually_constrains():
     """With prior ~1.0 on helper, CONTRADICTION suppresses joint X=Y=1."""
     g = _lg(
