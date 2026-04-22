@@ -30,7 +30,7 @@ def coarsen_ir(ir: dict, exported_ids: set[str]) -> dict:
     all_concluded = strat_conclusions | op_conclusions
 
     # 2. Identify leaf premises: claims not concluded by any strategy/operator,
-    #    excluding helpers and settings
+    #    excluding helpers and notes
     leaf_ids: set[str] = set()
     for k in ir["knowledges"]:
         kid = k["id"]

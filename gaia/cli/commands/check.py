@@ -9,7 +9,7 @@ import typer
 from gaia.cli._packages import GaiaCliError, load_gaia_package, validate_fills_relations
 from gaia.cli._packages import apply_package_priors
 from gaia.cli._packages import compile_loaded_package_artifact
-from gaia.cli.commands._classify import classify_ir, node_role
+from gaia.cli.commands._classify import classify_ir, is_note_type, node_role
 from gaia.cli.commands._review_manifest import (
     latest_reviews,
     load_or_generate_review_manifest,
@@ -29,7 +29,7 @@ def _knowledge_diagnostics(ir: dict) -> list[str]:
     lines: list[str] = []
 
     claims = {k["id"]: k for k in ir["knowledges"] if k["type"] == "claim"}
-    settings = {k["id"]: k for k in ir["knowledges"] if k["type"] == "setting"}
+    notes = {k["id"]: k for k in ir["knowledges"] if is_note_type(k["type"])}
     questions = {k["id"]: k for k in ir["knowledges"] if k["type"] == "question"}
 
     c = classify_ir(ir)
@@ -58,7 +58,7 @@ def _knowledge_diagnostics(ir: dict) -> list[str]:
 
     # Summary
     lines.append("")
-    lines.append(f"  Settings:  {len(settings)}")
+    lines.append(f"  Notes:     {len(notes)}")
     lines.append(f"  Questions: {len(questions)}")
     lines.append(f"  Claims:    {len(claims)}")
     lines.append(f"    Independent (need prior):  {len(independent)}")

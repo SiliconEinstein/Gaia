@@ -98,7 +98,7 @@ def test_mermaid_basic():
     assert "obs --> strat_0" in md
     assert "strat_0 --> hyp" in md
     assert ":::weak" in md  # noisy_and is a weakpoint
-    assert ":::setting" in md
+    assert ":::note" in md
 
 
 def test_mermaid_hides_helper_claims():
@@ -637,7 +637,7 @@ def test_single_file_fallback_has_global_graph():
     md = render_knowledge_nodes(ir)
     assert "## Knowledge Graph" in md
     assert "```mermaid" in md
-    assert "### Settings" in md
+    assert "### Notes" in md
     assert "### Claims" in md
 
 

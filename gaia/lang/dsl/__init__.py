@@ -1,4 +1,4 @@
-from gaia.lang.dsl.knowledge import claim, context, question, setting
+from gaia.lang.dsl.knowledge import claim, context, note, question, setting
 from gaia.lang.dsl.infer_verb import infer
 from gaia.lang.dsl.operators import complement, contradiction, disjunction, equivalence
 from gaia.lang.dsl.relate import contradict, equal
@@ -43,6 +43,7 @@ __all__ = [
     "infer",
     "mathematical_induction",
     "noisy_and",
+    "note",
     "observe",
     "question",
     "setting",

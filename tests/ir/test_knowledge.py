@@ -44,7 +44,7 @@ class TestIsQid:
 
 class TestKnowledgeType:
     def test_knowledge_types(self):
-        assert set(KnowledgeType) == {"claim", "setting", "question", "context"}
+        assert set(KnowledgeType) == {"claim", "note", "setting", "question", "context"}
 
     def test_no_template(self):
         with pytest.raises(ValueError):
@@ -71,6 +71,7 @@ class TestKnowledgeCreation:
         k = Knowledge(id="github:pkg::x", type="claim", content="test", label="x")
         assert k.content_hash is not None
         assert len(k.content_hash) == 64
+        assert k.format == "markdown"
 
     def test_content_hash_auto_computed_with_label_only(self):
         k = Knowledge(label="x", type="claim", content="test")
@@ -101,6 +102,17 @@ class TestKnowledgeCreation:
     def test_different_type_different_hash(self):
         k1 = Knowledge(id="github:pkg::a", type="claim", content="X", label="a")
         k2 = Knowledge(id="github:pkg::b", type="setting", content="X", label="b")
+        assert k1.content_hash != k2.content_hash
+
+    def test_different_format_different_hash(self):
+        k1 = Knowledge(id="github:pkg::a", type="note", content="a|b\n1|2", label="a")
+        k2 = Knowledge(
+            id="github:pkg::b",
+            type="note",
+            content="a|b\n1|2",
+            label="b",
+            format="csv",
+        )
         assert k1.content_hash != k2.content_hash
 
 

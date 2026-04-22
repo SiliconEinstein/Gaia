@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from gaia.cli.commands._classify import classify_ir, node_role
+from gaia.cli.commands._classify import classify_ir, is_note_type, node_role
 
 
 def topo_layers(ir: dict) -> dict[str, int]:
@@ -53,6 +53,10 @@ def _module_key(k: dict) -> str:
     return module if module else "Root"
 
 
+def _display_knowledge_type(ktype: str) -> str:
+    return "note" if is_note_type(ktype) else ktype
+
+
 def _module_segments(nodes: list[dict]) -> list[tuple[str, list[dict]]]:
     segments: list[tuple[str, list[dict]]] = []
     for node in nodes:
@@ -67,7 +71,7 @@ def _module_segments(nodes: list[dict]) -> list[tuple[str, list[dict]]]:
 # ── Mermaid rendering ──
 
 _MERMAID_STYLES = """\
-    classDef setting fill:#f0f0f0,stroke:#999,color:#333
+    classDef note fill:#f0f0f0,stroke:#999,color:#333
     classDef premise fill:#ddeeff,stroke:#4488bb,color:#333
     classDef derived fill:#ddffdd,stroke:#44bb44,color:#333
     classDef question fill:#fff3dd,stroke:#cc9944,color:#333
@@ -79,7 +83,7 @@ _MERMAID_STYLES = """\
 
 # Map node_role() output to Mermaid CSS class names
 _ROLE_TO_CSS = {
-    "setting": "setting",
+    "note": "note",
     "question": "question",
     "derived": "derived",
     "structural": "derived",  # operator conclusions display like derived
@@ -313,7 +317,7 @@ def _narrative_order(ir: dict) -> list[dict]:
         ktype = k["type"]
         if ktype == "question":
             return (999, 0, k.get("label", ""))
-        if ktype == "setting":
+        if is_note_type(ktype):
             return (-1, 0, k.get("label", ""))
         return (layers.get(kid, 0), 1, k.get("label", ""))
 
@@ -352,9 +356,13 @@ def _render_node(
     lines.append("")
 
     # Type + label badge line
-    type_emoji = {"setting": "\U0001f4cb", "claim": "\U0001f4cc", "question": "\u2753"}.get(
-        ktype, ""
-    )
+    type_emoji = {
+        "note": "\U0001f4cb",
+        "setting": "\U0001f4cb",
+        "context": "\U0001f4cb",
+        "claim": "\U0001f4cc",
+        "question": "\u2753",
+    }.get(ktype, "")
     badge_parts = [f"{type_emoji} `{label}`"]
     if kid in priors:
         badge_parts.append(f"Prior: {priors[kid]:.2f}")
@@ -577,7 +585,7 @@ def render_knowledge_nodes(
         sections.append("")
         current_type = None
         for k in ordered:
-            ktype = k["type"]
+            ktype = _display_knowledge_type(k["type"])
             if ktype != current_type:
                 current_type = ktype
                 sections.append(f"### {ktype.title()}s")

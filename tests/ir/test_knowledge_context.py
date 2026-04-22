@@ -2,6 +2,7 @@ from gaia.ir.knowledge import KnowledgeType, Parameter
 
 
 def test_context_knowledge_type():
+    assert KnowledgeType.NOTE == "note"
     assert KnowledgeType.CONTEXT == "context"
 
 

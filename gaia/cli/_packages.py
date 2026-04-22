@@ -269,7 +269,7 @@ def apply_package_priors(loaded: LoadedGaiaPackage) -> None:
         suffix = " ..." if len(new_knowledge) > 5 else ""
         raise GaiaCliError(
             "Error: priors.py must not declare new Knowledge objects; it may only "
-            "reference claims/settings/questions already declared by the package. "
+            "reference claims/notes/questions already declared by the package. "
             f"New declarations: {names}{suffix}."
         )
 
@@ -285,7 +285,7 @@ def apply_package_priors(loaded: LoadedGaiaPackage) -> None:
         if not isinstance(key, Knowledge):
             raise GaiaCliError(
                 f"Error: PRIORS key {key!r} is not a Knowledge object. "
-                "Keys must be claim/setting/question objects from the package."
+                "Keys must be claim/note/question objects from the package."
             )
         if id(key) not in existing_knowledge_ids:
             raise GaiaCliError(

@@ -4,7 +4,7 @@ export interface KnowledgeNode {
   id: string
   label: string
   title?: string
-  type: 'claim' | 'setting' | 'question' | 'action'
+  type: 'claim' | 'note' | 'setting' | 'context' | 'question' | 'action'
   module?: string
   content: string
   prior?: number | null
@@ -71,7 +71,12 @@ export interface MetaData {
 // --- Type guards ---
 
 export function isKnowledgeNode(n: GraphNode): n is KnowledgeNode {
-  return n.type === 'claim' || n.type === 'setting' || n.type === 'question' || n.type === 'action'
+  return n.type === 'claim'
+    || n.type === 'note'
+    || n.type === 'setting'
+    || n.type === 'context'
+    || n.type === 'question'
+    || n.type === 'action'
 }
 
 export function isStrategyNode(n: GraphNode): n is StrategyNode {

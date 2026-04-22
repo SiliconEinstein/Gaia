@@ -1,10 +1,18 @@
 from gaia.lang import __all__ as gaia_lang_exports
-from gaia.lang import claim, question, setting
+from gaia.lang import claim, note, question, setting
 
 
-def test_setting_creates_knowledge():
+def test_note_creates_knowledge():
+    n = note("Background assumption.")
+    assert n.type == "note"
+    assert n.format == "markdown"
+    assert n.content == "Background assumption."
+
+
+def test_setting_creates_note_compat_knowledge():
     s = setting("Background assumption.")
-    assert s.type == "setting"
+    assert s.type == "note"
+    assert s.metadata["legacy_kind"] == "setting"
     assert s.content == "Background assumption."
 
 

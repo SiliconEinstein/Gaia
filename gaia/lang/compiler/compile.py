@@ -75,9 +75,9 @@ class CompiledPackage:
 
 
 def _content_hash(k: Knowledge) -> str:
-    """SHA-256(type + content + sorted(parameters))."""
+    """SHA-256(type + format + content + sorted(parameters))."""
     params_str = json.dumps(sorted(k.parameters, key=lambda p: p.get("name", "")), sort_keys=True)
-    raw = f"{k.type}|{k.content}|{params_str}"
+    raw = f"{k.type}|{getattr(k, 'format', 'markdown')}|{k.content}|{params_str}"
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
@@ -462,6 +462,7 @@ def compile_package_artifact(
             label=k.label,
             title=getattr(k, "title", None),
             type=k.type,
+            format=getattr(k, "format", "markdown"),
             content=k.content,
             parameters=[_parameter_to_ir(p, knowledge_map) for p in k.parameters],
             provenance=_knowledge_provenance(k),
