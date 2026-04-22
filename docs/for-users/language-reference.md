@@ -124,6 +124,28 @@ either_mechanism = mech_a | mech_b
 
 These helpers are structural expression nodes. They do not create review warrants. Python keywords `not`, `and`, and `or` cannot be overloaded; use `~`, `&`, and `|` instead. `Claim` objects intentionally reject Python truth-value checks such as `if claim:`.
 
+### Propositional analysis
+
+Compiled operator graphs can be analyzed with `gaia.logic`. The API keeps Gaia IR as the stored representation and uses a mature Boolean backend for normalization and checks:
+
+```python
+from gaia.logic import (
+    are_equivalent,
+    is_satisfiable,
+    simplify_proposition,
+    to_cnf_proposition,
+)
+
+graph = compile_package_artifact(pkg).graph
+
+simplified = simplify_proposition(graph, "github:pkg::double_negation")
+cnf = to_cnf_proposition(graph, "github:pkg::formula", simplify=True)
+same = are_equivalent(graph, "github:pkg::left", "github:pkg::right")
+consistent = is_satisfiable(graph, "github:pkg::formula")
+```
+
+This is useful for lints, formula comparison, and checking whether a composed expression is internally inconsistent. The returned expression is a backend object; it is not persisted into Gaia IR.
+
 ### Reviewable relations
 
 Relation verbs declare semantic judgments between claims. They return warrant helper claims and are included in review manifests:

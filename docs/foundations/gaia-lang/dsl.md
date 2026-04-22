@@ -112,6 +112,19 @@ either = a | b      # same as or_(a, b)
 
 The explicit functions `not_(a)`, `and_(a, b, ...)`, and `or_(a, b, ...)` are also exported. Python keywords `not`, `and`, and `or` cannot be overloaded; `Claim.__bool__` raises to prevent accidental Python control-flow truth tests.
 
+### Propositional Analysis Helpers
+
+`gaia.logic` provides non-persistent analysis helpers over compiled Gaia operator graphs:
+
+- `simplify_proposition(graph, knowledge_id)`
+- `to_cnf_proposition(graph, knowledge_id, simplify=False)`
+- `to_dnf_proposition(graph, knowledge_id, simplify=False)`
+- `to_nnf_proposition(graph, knowledge_id)`
+- `are_equivalent(graph, left_knowledge_id, right_knowledge_id)`
+- `is_satisfiable(graph, knowledge_id)`
+
+These helpers recursively expand deterministic IR operators into a Boolean backend representation for formula simplification, normal-form conversion, equivalence checks, and satisfiability checks. The backend expression is an analysis artifact only; Gaia IR remains the source of truth.
+
 ### Reviewable Relation Verbs
 
 Use v6 relation verbs when the author is making a semantic judgment that reviewers should inspect:

@@ -200,6 +200,8 @@ Operator:
 
 **关键性质：** Operator 没有概率参数——它编码的是逻辑结构（"A 和 B 矛盾"），不是推理判断（"作者认为 A 蕴含 B"）。后者由 Strategy 承载。
 
+命题逻辑的化简、CNF/DNF/NNF 规范化、等价检查和可满足性检查属于 **analysis backend**，不改变 IR 的持久结构。实现可以把这些 Operator 临时翻译到成熟布尔逻辑库中求解，但 IR 中仍只保存 Gaia 自己的 `Operator` 和 `Knowledge`。
+
 ### 2.3 存在位置
 
 Operator 可以出现在两个位置：
