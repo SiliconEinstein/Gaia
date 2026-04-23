@@ -193,16 +193,28 @@ gaussian_measurement_evidence(
 
 ### 4.5 Unit handling policy
 
-Gaia has a `Quantity` type (`{value: float, unit: str}`) in the kernel, but unit **semantics** belongs entirely to the Pint adapter. The split:
+**Gaia does not implement a unit system.** Unit semantics — the registry of known unit names, unit equivalence, conversion, dimensional analysis, arithmetic — belongs entirely to **Pint** (the mature community package). The kernel only defines a minimal 2-field serialisation schema so Pint-managed quantities can participate in IR serialisation and `context_id` hashing deterministically.
+
+The split:
 
 | Concern | Owner |
 |---|---|
-| `Quantity` structural type (carrier for `value` + `unit`) | **Kernel** |
+| `Quantity` **schema** (2-field pydantic: `{value: float, unit: str}`) — a serialisation / hash carrier, nothing more | **Kernel** (no methods, no arithmetic, no conversion) |
 | `Quantity` participation in Claim identity and `context_id` hash | **Kernel**, as literal `{value, unit}` bytes |
 | Known unit names (`"K"`, `"m"`, `"Pa"`, …) and their meaning | **Pint** (kernel does not maintain a unit registry) |
+| Unit parsing (`"5000 K"` → structured quantity) | **Pint UnitAdapter** |
 | Unit conversion (`q(5000, "K") → q(4726.85, "C")`) | **Pint UnitAdapter** |
 | Dimensional analysis (`q(5, "K") + q(3, "m")` is a type error) | **Pint UnitAdapter** |
+| Quantity arithmetic | **Pint UnitAdapter** |
 | Physical constants | **scipy.constants** / Pint |
+
+**Why a 2-field schema instead of using Pint's `Quantity` directly:**
+
+- **Hash stability.** Pint's native `Quantity` repr varies across library versions (`"5000 kelvin"` vs `"5000 K"` vs `"5000 degK"`). Hashing Pint's repr would let `context_id` drift across Pint versions, breaking reproducibility.
+- **Core-dependency discipline.** Embedding Pint in kernel schema types would make Pint a required core dependency, violating the lazy-import rule for heavy adapters (§14).
+- **Testing hygiene.** Kernel schema tests run without Pint installed.
+
+The kernel `Quantity` schema is analogous to how pydantic models define what gets JSON-serialised without reimplementing JSON — it is a contract surface, not a capability reimplementation.
 
 **Hash invariant (normative):**
 
