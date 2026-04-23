@@ -191,6 +191,44 @@ gaussian_measurement_evidence(
 
 `q(80, "K")` is layer 2. `0.5` and `0.9999` are layer 1. `7500` is layer 3. Three layers, three units, three semantics.
 
+### 4.5 Unit handling policy
+
+Gaia has a `Quantity` type (`{value: float, unit: str}`) in the kernel, but unit **semantics** belongs entirely to the Pint adapter. The split:
+
+| Concern | Owner |
+|---|---|
+| `Quantity` structural type (carrier for `value` + `unit`) | **Kernel** |
+| `Quantity` participation in Claim identity and `context_id` hash | **Kernel**, as literal `{value, unit}` bytes |
+| Known unit names (`"K"`, `"m"`, `"Pa"`, …) and their meaning | **Pint** (kernel does not maintain a unit registry) |
+| Unit conversion (`q(5000, "K") → q(4726.85, "C")`) | **Pint UnitAdapter** |
+| Dimensional analysis (`q(5, "K") + q(3, "m")` is a type error) | **Pint UnitAdapter** |
+| Physical constants | **scipy.constants** / Pint |
+
+**Hash invariant (normative):**
+
+> Claim identity and `context_id` hash the literal `{value, unit}` of every `Quantity`. The kernel performs **no** unit canonicalisation or dimensional conversion at hash time.
+
+Consequence: `q(5000, "K")` and `q(4726.85, "C")` produce **different** Claim identities even though they denote the same physical quantity. This is intentional.
+
+**Rationale — why canonicalisation must not enter identity:**
+
+- **Floating-point rounding.** Conversion introduces representation noise (`4726.85 "C" → "K"` rarely lands exactly on `5000.0`). Identity derived from converted values is non-deterministic across libraries and CPUs.
+- **Offset units.** Temperature (`C ↔ K`), pressure (`barg ↔ bar`), and similar affine-transform units violate the assumption that conversion is multiplicative. `q(4727, "C")` and `q(5000, "K")` differ by `0.15 K` after conversion — is that author rounding or genuine inequality? The kernel cannot know.
+- **Ratio-unit ambiguity.** `1/s` vs `Hz`, `rad/s` vs `Hz` — sometimes domain-identified, sometimes not. Registry-version-dependent.
+- **Unit aliasing.** `"atm"` / `"atmosphere"` / `"standard_atmosphere"` canonicalise to the same unit in some Pint versions, not in others.
+
+If the kernel canonicalised at hash time, all of the above would leak into Claim identity. The same package compiled against different Pint versions — or on different architectures — would produce different Claim IDs. Context reproducibility would break.
+
+**Where equivalence checks belong:**
+
+Equivalence is a **soft, audit-level** concern:
+
+- `gaia audit` may use Pint to detect Claims with Quantity parameters that appear equivalent after conversion, and emit a soft warning (`"claim A and claim B may refer to the same physical quantity"`).
+- `gaia explain` may display both the literal and a canonical-unit rendering for human comparison.
+- Packages agree on a unit convention (typically SI) through documentation, not through kernel enforcement.
+
+Both audit-level paths use Pint under the UnitAdapter protocol. Neither changes any Claim's identity or any context's hash.
+
 ---
 
 ## 5. Kernel object inventory
@@ -561,6 +599,7 @@ Not an implementation plan, but the concrete diffs this spec implies for the IR 
 6. Extend `ReviewManifest` to support relation-level targets (`IndependenceDeclaration`). Schema migrates from `{action_label: status}` to `{target_id: {kind, action_labels, status, rationale}}`.
 7. Remove `EvidenceMetadata.independence_group`.
 8. Remove free-text `assumptions` anywhere it appears on strategies.
+9. Add `Quantity` type to kernel schema (`{value: float, unit: str}`) and state the literal-hash invariant (§4.5): Claim identity and `context_id` hash the literal `{value, unit}` bytes; no unit canonicalisation at hash time. Unit semantics (conversion, dimensional analysis) belongs exclusively to the Pint adapter.
 
 ---
 
