@@ -104,23 +104,29 @@ The kernel owns what is either (a) semantically constitutive of the reasoning ac
 
 Everything delegated:
 
-| Capability | Ecosystem tool | Adapter protocol |
+| Capability | Ecosystem tool | Integration style |
 |---|---|---|
-| Unit algebra | Pint | `UnitAdapter` |
-| Distribution computation | scipy.stats | `noise registry` |
-| Graph analysis | NetworkX | `GraphViewAdapter` (read-only views) |
-| Backend alternatives | pgmpy / pyAgrum / PyMC / NumPyro | `BackendAdapter` |
+| Unit algebra | Pint | `gaia.unit` core module (thin facade, see §4.5) |
+| Distribution computation | scipy.stats | `noise registry` (lazy, optional extras) |
+| Graph analysis | NetworkX | `GraphViewAdapter` (read-only views; optional) |
+| Backend alternatives | pgmpy / pyAgrum / PyMC / NumPyro | `BackendAdapter` (optional extras) |
 | Symbolic math | SymPy | optional |
 | Hard-logic SAT/SMT | Z3 | optional, future |
 | Ontology | RDFLib / Owlready2 | optional, future |
-| Tabular / multidim data | pandas / xarray | `DatasetRef` (no inline storage) |
+| Tabular / multidim data | pandas / xarray | `DatasetRef` (no inline storage; optional) |
 
-**Hard rule:** external objects **must not** appear in Gaia-semantic interfaces (`BeliefState`, `InferStrategy`, `MeasurementRecord`, etc.). Adapters normalise results into Gaia-native types at their boundary.
+**Pint is the one exception to the "optional adapter" rule.** Units are foundational to scientific claims; nearly every real Gaia package uses them. Gaia therefore ships a thin wrapper module `gaia.unit` that makes Pint a core dependency of `gaia-lang`. The Gaia kernel itself still does not depend on Pint — kernel schemas use the 2-field `QuantityLiteral` carrier (§4.5) — but the user-facing DSL does. Rationale:
+
+- Pint's transitive closure is small (~500 KB, no numpy required).
+- Gaia is a scientific reasoning framework; non-scientific use of Gaia is an edge case.
+- A shared `gaia.unit` registry gives cross-package consistency (a unit registered by one package is visible to all).
+
+**Hard rule (unchanged):** external objects **must not** appear in Gaia kernel semantic interfaces (`BeliefState`, `InferStrategy`, `MeasurementRecord`, etc.). Adapters normalise results into Gaia-native types at the adapter boundary. `gaia.unit` respects this: runtime quantities are Pint objects; everything crossing into IR becomes `QuantityLiteral`.
 
 ### 3.3 Rationale — why this boundary
 
 - **Parameterised Claim stays in the kernel.** Gaia Lang v6 already ships class-as-predicate with typed parameters; removing it would force a design reversal.
-- **Quantity / Unit goes to Pint.** Pint is mature. Gaia reimplementing a unit algebra would be a maintainer-time sink, and "yet another unit system" hurts interoperability.
+- **Unit algebra goes to Pint, via a `gaia.unit` facade.** Pint is mature; Gaia reimplementing unit algebra would be a maintainer-time sink. The facade gives Gaia one place to absorb Pint-version drift and to configure Gaia-wide unit conventions.
 - **MeasurementRecord stays in the kernel as schema.** Audit requires it to be structured (§10); schema is small; kernel does not compute on it.
 - **Distribution computation goes to scipy.** Gaia kernel does not call `logpdf` / `logpmf` directly. Adapters do.
 
@@ -193,32 +199,74 @@ gaussian_measurement_evidence(
 
 ### 4.5 Unit handling policy
 
-**Gaia does not implement a unit system.** Unit semantics — the registry of known unit names, unit equivalence, conversion, dimensional analysis, arithmetic — belongs entirely to **Pint** (the mature community package). The kernel only defines a minimal 2-field serialisation schema so Pint-managed quantities can participate in IR serialisation and `context_id` hashing deterministically.
+**Gaia does not reimplement a unit system.** Unit semantics — the registry of known unit names, unit equivalence, conversion, dimensional analysis, arithmetic — belongs entirely to **Pint** (the mature community package). But because units are foundational to scientific claims, Gaia ships a thin wrapper module `gaia.unit` so that every Gaia package sees the same configured Pint registry and uses a stable user-facing API.
 
-The split:
+The design has three cleanly separated pieces:
+
+**1. `gaia.unit` — user-facing runtime (thin Pint facade; core module)**
+
+```python
+# gaia/unit.py   (~30 lines of real code)
+from pint import UnitRegistry as _UR
+from gaia.ir.schemas import QuantityLiteral
+
+ureg = _UR()
+# Gaia configures shared conventions here:
+# - register domain units (e.g., "ppm", "pH")
+# - enable common contexts (e.g., spectroscopy)
+# - declare default preferred unit system (SI)
+
+Quantity = ureg.Quantity  # re-export; runtime quantities are Pint objects
+
+def q(value: float, unit: str) -> Quantity:
+    return ureg.Quantity(value, unit)
+
+def to_literal(qty: Quantity) -> QuantityLiteral:
+    return QuantityLiteral(value=float(qty.magnitude), unit=str(qty.units))
+
+def from_literal(lit: QuantityLiteral) -> Quantity:
+    return ureg.Quantity(lit.value, lit.unit)
+```
+
+`gaia.unit.Quantity` is Pint's `Quantity` — users get Pint's full capability (`.to()`, arithmetic, dimensional checks). The wrapper's value is the shared `ureg` singleton and the serialisation bridge.
+
+**2. `QuantityLiteral` — kernel IR carrier (2-field pydantic)**
+
+```python
+# gaia/ir/schemas.py
+class QuantityLiteral(BaseModel):
+    schema_version: Literal["gaia.quantity_literal.v1"] = "gaia.quantity_literal.v1"
+    value: float
+    unit: str
+```
+
+No methods. No arithmetic. No conversion. This is the only form of "quantity" the kernel ever sees — every `MeasurementRecord`, `ErrorModelSpec`, parameterised `Claim` parameter that carries a unit stores a `QuantityLiteral`. Hash is literal `{value, unit}` bytes.
+
+**3. Adapter boundary: `to_literal` / `from_literal`**
+
+Every point where a `gaia.unit.Quantity` enters IR (compilation, serialisation), it passes through `to_literal` and becomes a `QuantityLiteral`. Every point IR content is reconstructed at runtime, `from_literal` rehydrates a `gaia.unit.Quantity`. Kernel code reads `QuantityLiteral` only; user code reads `gaia.unit.Quantity` only.
+
+**Split summary:**
 
 | Concern | Owner |
 |---|---|
-| `Quantity` **schema** (2-field pydantic: `{value: float, unit: str}`) — a serialisation / hash carrier, nothing more | **Kernel** (no methods, no arithmetic, no conversion) |
-| `Quantity` participation in Claim identity and `context_id` hash | **Kernel**, as literal `{value, unit}` bytes |
-| Known unit names (`"K"`, `"m"`, `"Pa"`, …) and their meaning | **Pint** (kernel does not maintain a unit registry) |
-| Unit parsing (`"5000 K"` → structured quantity) | **Pint UnitAdapter** |
-| Unit conversion (`q(5000, "K") → q(4726.85, "C")`) | **Pint UnitAdapter** |
-| Dimensional analysis (`q(5, "K") + q(3, "m")` is a type error) | **Pint UnitAdapter** |
-| Quantity arithmetic | **Pint UnitAdapter** |
+| Shared `UnitRegistry` singleton + Gaia conventions | `gaia.unit` module (core) |
+| User-facing `Quantity`, `q()`, arithmetic, conversion | `gaia.unit` (wraps Pint) |
+| IR serialisation / identity / hash carrier | `QuantityLiteral` (kernel pydantic) |
+| `QuantityLiteral` participation in Claim identity and `context_id` hash | Kernel, as literal `{value, unit}` bytes |
+| Unit parsing, conversion, dimensional analysis, arithmetic | **Pint** (via `gaia.unit`) |
 | Physical constants | **scipy.constants** / Pint |
 
-**Why a 2-field schema instead of using Pint's `Quantity` directly:**
+**Why kernel uses `QuantityLiteral` instead of Pint's `Quantity` directly:**
 
-- **Hash stability.** Pint's native `Quantity` repr varies across library versions (`"5000 kelvin"` vs `"5000 K"` vs `"5000 degK"`). Hashing Pint's repr would let `context_id` drift across Pint versions, breaking reproducibility.
-- **Core-dependency discipline.** Embedding Pint in kernel schema types would make Pint a required core dependency, violating the lazy-import rule for heavy adapters (§14).
-- **Testing hygiene.** Kernel schema tests run without Pint installed.
+- **Hash stability.** Pint's native `Quantity` repr varies across library versions (`"5000 kelvin"` vs `"5000 K"` vs `"5000 degK"`). Hashing Pint's repr would let `context_id` drift across Pint versions, breaking reproducibility. `QuantityLiteral` is deterministic literal JSON.
+- **Kernel-adapter separation.** The Gaia kernel itself never imports Pint. Only `gaia.unit` does. This keeps kernel tests runnable without Pint and keeps the kernel's type universe minimal.
 
-The kernel `Quantity` schema is analogous to how pydantic models define what gets JSON-serialised without reimplementing JSON — it is a contract surface, not a capability reimplementation.
+`gaia-lang` takes Pint as a core dependency because `gaia.unit` is a core module; Gaia kernel code does not. This is consistent with §3.2's single exception to the optional-adapter rule.
 
 **Hash invariant (normative):**
 
-> Claim identity and `context_id` hash the literal `{value, unit}` of every `Quantity`. The kernel performs **no** unit canonicalisation or dimensional conversion at hash time.
+> Claim identity and `context_id` hash the literal `{value, unit}` of every `QuantityLiteral`. The kernel performs **no** unit canonicalisation or dimensional conversion at hash time.
 
 Consequence: `q(5000, "K")` and `q(4726.85, "C")` produce **different** Claim identities even though they denote the same physical quantity. This is intentional.
 
@@ -235,11 +283,11 @@ If the kernel canonicalised at hash time, all of the above would leak into Claim
 
 Equivalence is a **soft, audit-level** concern:
 
-- `gaia audit` may use Pint to detect Claims with Quantity parameters that appear equivalent after conversion, and emit a soft warning (`"claim A and claim B may refer to the same physical quantity"`).
+- `gaia audit` may use `gaia.unit` to detect Claims whose `QuantityLiteral` parameters appear equivalent after Pint conversion, and emit a soft warning (`"claim A and claim B may refer to the same physical quantity"`).
 - `gaia explain` may display both the literal and a canonical-unit rendering for human comparison.
 - Packages agree on a unit convention (typically SI) through documentation, not through kernel enforcement.
 
-Both audit-level paths use Pint under the UnitAdapter protocol. Neither changes any Claim's identity or any context's hash.
+Both audit-level paths go through `gaia.unit`. Neither changes any Claim's identity or any context's hash.
 
 ---
 
@@ -281,6 +329,9 @@ Measurement
   ├── MeasurementRecord
   └── ErrorModelSpec
 
+Quantity carrier
+  └── QuantityLiteral   (2-field {value, unit}; IR serialisation; see §4.5)
+
 Callable
   └── CallableRef       (compute / noise / adapter hook)
 
@@ -289,6 +340,8 @@ Prior
 ```
 
 `EvidenceMetadata` is **not** in this list. Its fields are inlined into `InferStrategy` via pydantic discriminated union (§11).
+
+`gaia.unit.Quantity` is **not** in this list — it is the runtime Pint-backed user-facing type, which lives in `gaia.unit` (core module, not kernel IR). See §4.5.
 
 ---
 
@@ -570,8 +623,9 @@ Gaia defines what the computation means.
 
 Concrete rules:
 
-- Heavy ecosystem dependencies (PyMC, NumPyro, pyAgrum, Owlready2, Z3) are **never** imported at Gaia core load time. They are lazy-imported inside adapter functions.
-- Adapter results are normalised into Gaia-native objects (`BeliefState`, `InferStrategy`, `MeasurementRecord`, `Quantity`) before crossing the boundary.
+- **Pint is the one exception** and enters via the `gaia.unit` core module (§3.2, §4.5). Every other ecosystem package is an optional adapter.
+- Heavy ecosystem dependencies (PyMC, NumPyro, pyAgrum, Owlready2, Z3, scipy for distribution computation) are **never** imported at Gaia core load time. They are lazy-imported inside adapter functions.
+- Adapter results are normalised into Gaia-native objects (`BeliefState`, `InferStrategy`, `MeasurementRecord`, `QuantityLiteral`) before crossing the kernel boundary.
 - Adapter callables register as `CallableRef` so context reproducibility is maintained.
 - `BeliefContext` records adapter identity (name, version) when an adapter produces results that end up in a `BeliefState`.
 
@@ -611,7 +665,8 @@ Not an implementation plan, but the concrete diffs this spec implies for the IR 
 6. Extend `ReviewManifest` to support relation-level targets (`IndependenceDeclaration`). Schema migrates from `{action_label: status}` to `{target_id: {kind, action_labels, status, rationale}}`.
 7. Remove `EvidenceMetadata.independence_group`.
 8. Remove free-text `assumptions` anywhere it appears on strategies.
-9. Add `Quantity` type to kernel schema (`{value: float, unit: str}`) and state the literal-hash invariant (§4.5): Claim identity and `context_id` hash the literal `{value, unit}` bytes; no unit canonicalisation at hash time. Unit semantics (conversion, dimensional analysis) belongs exclusively to the Pint adapter.
+9. Add `QuantityLiteral` schema to the kernel (`{value: float, unit: str}`; 2-field pydantic carrier). Record the literal-hash invariant (§4.5): Claim identity and `context_id` hash the literal `{value, unit}` bytes; no unit canonicalisation at hash time. Every IR site that carries a unit (`MeasurementRecord.observed_value`, `ErrorModelSpec.params`, parameterised `Claim` parameters) uses `QuantityLiteral`.
+10. Add `gaia.unit` as a core module of `gaia-lang`, wrapping Pint with a shared `UnitRegistry` singleton plus `to_literal` / `from_literal` bridges to `QuantityLiteral`. Pint becomes a core dependency (formerly listed as optional extras). Kernel code itself still does not import Pint — the dependency is scoped to `gaia.unit`. Update `pyproject.toml` accordingly.
 
 ---
 
