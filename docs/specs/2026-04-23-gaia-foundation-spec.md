@@ -109,6 +109,7 @@ Everything delegated:
 | Unit algebra | Pint | `gaia.unit` core module (thin facade, see §4.5) |
 | Distribution specs + registry | — | `gaia.stats` core module (no runtime dep; see §4.6) |
 | Distribution computation (logpdf / pmf / sampling) | scipy.stats | optional extras `gaia-lang[stats]`, lazy-imported in adapters |
+| Physical constants | Pint's registry (CODATA) | `gaia.constants` core module (thin re-export; see §4.7) |
 | Graph analysis | NetworkX | `GraphViewAdapter` (read-only views; optional) |
 | Backend alternatives | pgmpy / pyAgrum / PyMC / NumPyro | `BackendAdapter` (optional extras) |
 | Symbolic math | SymPy | optional |
@@ -254,7 +255,7 @@ Every point where a `gaia.unit.Quantity` enters IR (compilation, serialisation),
 | IR serialisation / identity / hash carrier | `QuantityLiteral` (kernel pydantic) |
 | `QuantityLiteral` participation in Claim identity and `context_id` hash | Kernel, as literal `{value, unit}` bytes |
 | Unit parsing, conversion, dimensional analysis, arithmetic | **Pint** (via `gaia.unit`) |
-| Physical constants | **scipy.constants** / Pint |
+| Physical constants | `gaia.constants` re-exporting Pint registry; see §4.7 |
 
 **Why kernel uses `QuantityLiteral` instead of Pint's `Quantity` directly:**
 
@@ -376,6 +377,53 @@ Evidence adapters (Gaussian measurement evidence, Binomial evidence, etc.) lazy-
 - **Testing.** Kernel and `gaia.stats` spec tests run without scipy installed, keeping CI light.
 
 The asymmetry is intentional: architectural pattern is shared (facade over mature package, kernel owns schema, adapter owns compute), dependency policy differs because dependency weight and usage pattern differ.
+
+### 4.7 Physical constants
+
+Physical constants (`c`, `h`, `k_B`, `G`, `N_A`, particle masses, etc.) recur across scientific claims. Gaia ships a core module `gaia.constants` that is a **thin curated re-export** of Pint's built-in constant registry — no new schema, no new dependency, no new kernel object.
+
+```python
+# gaia/constants.py
+"""Gaia-blessed physical constants. Values sourced from Pint's registry (CODATA-based)."""
+
+from gaia.unit import ureg
+
+# Fundamental
+speed_of_light = c = ureg.speed_of_light
+planck = h = ureg.planck_constant
+hbar = ureg.hbar
+boltzmann = k_B = ureg.boltzmann_constant
+elementary_charge = e = ureg.elementary_charge
+
+# Gravitation
+gravitational_constant = G = ureg.gravitational_constant
+standard_gravity = g_0 = ureg.standard_gravity
+
+# Thermodynamics
+avogadro = N_A = ureg.avogadro_number
+molar_gas_constant = R = ureg.molar_gas_constant
+stefan_boltzmann = sigma_SB = ureg.stefan_boltzmann_constant
+
+# Electromagnetism
+vacuum_permittivity = eps_0 = ureg.vacuum_permittivity
+vacuum_permeability = mu_0 = ureg.vacuum_permeability
+
+# Particle masses
+electron_mass = m_e = ureg.electron_mass
+proton_mass = m_p = ureg.proton_mass
+neutron_mass = m_n = ureg.neutron_mass
+# ... etc.
+```
+
+Each constant is a `gaia.unit.Quantity` (= Pint Quantity with units attached). Crossing into IR via `to_literal` follows the standard §4.5 path.
+
+**Design points:**
+
+- **No new kernel schema.** Constants are named `Quantity` instances; the existing `QuantityLiteral` carrier handles IR serialisation.
+- **No new dependency.** Pint is already core (§4.5); `gaia.constants` adds nothing transitively.
+- **Double naming (short + long).** `c` and `speed_of_light` both resolve to the same value. Authors choose per context; a formula-dense file reads better with `c`, a narrative-heavy docstring reads better with `speed_of_light`.
+- **CODATA version tracks Pint.** When Pint incorporates a new CODATA release, Gaia packages pick up the new values on upgrade. If version pinning of constant values becomes a reproducibility concern (similar to unit registry versioning, §17), that is a future extension, not a v0.x requirement.
+- **User-extensibility.** Authors can add their own constants at package level (`my_pkg/constants.py`) using `gaia.unit.q(...)` — no Gaia mechanism required. `gaia.constants` is a Gaia-blessed default set, not an enumeration ceiling.
 
 ---
 
@@ -763,6 +811,7 @@ Not an implementation plan, but the concrete diffs this spec implies for the IR 
 11. Rename kernel schema `ErrorModelSpec` → `DistributionSpec` (§4.6). Generalise to be the IR carrier for any distribution, not only measurement noise. Add kind-vs-callable-ref validator: built-in `kind` disallows `callable_ref`; `kind="custom"` requires it.
 12. Add `gaia.stats` as a core module of `gaia-lang`. Contains (a) named constructors for the 8 built-in distributions (`Normal`, `Lognormal`, `StudentT`, `Cauchy`, `Binomial`, `Poisson`, `Exponential`, `Beta`) that return `DistributionSpec`; (b) the registry metadata (param schemas); (c) `from_callable(...)` helper producing `DistributionSpec(kind="custom", callable_ref=...)`. `gaia.stats` does **not** import scipy at load time.
 13. Add `gaia-lang[stats]` optional-extras dependency group that pulls scipy. Provide `gaia/adapters/stats/scipy_adapter.py` that dispatches `DistributionSpec` by `kind` to `scipy.stats`, or resolves `CallableRef` for `kind="custom"`. Evidence adapters (Gaussian measurement evidence, Binomial evidence, etc.) lazy-import this adapter when they need to evaluate a spec.
+14. Add `gaia.constants` as a core module re-exporting Pint's built-in physical constants with Gaia-preferred names and the short-form aliases (`c`, `h`, `k_B`, `G`, `N_A`, etc.). No new schema, no new dependency (Pint already core); constants are named `Quantity` instances. See §4.7.
 
 ---
 
