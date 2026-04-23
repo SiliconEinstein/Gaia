@@ -90,11 +90,11 @@ The kernel owns what is either (a) semantically constitutive of the reasoning ac
 
 - `InferStrategy` fields — `evidence_kind`, `likelihood_ratio` or `p_e_given_h`/`p_e_given_not_h`, `source_id`, `data_id`, `data_hash`. (See §11 for field inventory; no separate `EvidenceMetadata` class.)
 - `MeasurementRecord` — schema for observed-value + noise specification.
-- `ErrorModelSpec` — structured noise spec (`kind`, `params`, optional `CallableRef`).
+- `DistributionSpec` — structured probability-distribution spec (`kind`, `params`, optional `CallableRef`). Used wherever a distribution enters IR (measurement noise, future prior shapes, etc.). Replaces the previously-named `ErrorModelSpec`.
 
 **Callable abstraction (the embedded-function escape)**
 
-- `CallableRef` — registered name + signature + source hash + purity declaration. Shared by `Compute`, `ErrorModelSpec`, and adapter hooks.
+- `CallableRef` — registered name + signature + source hash + purity declaration. Shared by `Compute`, `DistributionSpec`, and adapter hooks.
 
 **Prior schema**
 
@@ -107,7 +107,8 @@ Everything delegated:
 | Capability | Ecosystem tool | Integration style |
 |---|---|---|
 | Unit algebra | Pint | `gaia.unit` core module (thin facade, see §4.5) |
-| Distribution computation | scipy.stats | `noise registry` (lazy, optional extras) |
+| Distribution specs + registry | — | `gaia.stats` core module (no runtime dep; see §4.6) |
+| Distribution computation (logpdf / pmf / sampling) | scipy.stats | optional extras `gaia-lang[stats]`, lazy-imported in adapters |
 | Graph analysis | NetworkX | `GraphViewAdapter` (read-only views; optional) |
 | Backend alternatives | pgmpy / pyAgrum / PyMC / NumPyro | `BackendAdapter` (optional extras) |
 | Symbolic math | SymPy | optional |
@@ -164,15 +165,13 @@ Never say "probability" without qualifying which layer.
 
 ```python
 # Measurement layer — noise spec, has units
+from gaia.unit import q
+from gaia.stats import Normal
+
 reading = measurement_claim(
     "Spectrometer produced reading 5120 K",
     observed_value=q(5120, "K"),
-    noise=ErrorModel(
-        kind="normal",
-        sigma=q(80, "K"),
-        systematic_component=q(60, "K"),   # optional, for audit
-        random_component=q(50, "K"),
-    ),
+    noise=Normal(sigma=q(80, "K")),
 )
 
 # Proposition layer — belief on a binary claim
@@ -240,7 +239,7 @@ class QuantityLiteral(BaseModel):
     unit: str
 ```
 
-No methods. No arithmetic. No conversion. This is the only form of "quantity" the kernel ever sees — every `MeasurementRecord`, `ErrorModelSpec`, parameterised `Claim` parameter that carries a unit stores a `QuantityLiteral`. Hash is literal `{value, unit}` bytes.
+No methods. No arithmetic. No conversion. This is the only form of "quantity" the kernel ever sees — every `MeasurementRecord`, `DistributionSpec`, parameterised `Claim` parameter that carries a unit stores a `QuantityLiteral`. Hash is literal `{value, unit}` bytes.
 
 **3. Adapter boundary: `to_literal` / `from_literal`**
 
@@ -289,6 +288,95 @@ Equivalence is a **soft, audit-level** concern:
 
 Both audit-level paths go through `gaia.unit`. Neither changes any Claim's identity or any context's hash.
 
+### 4.6 Distribution handling policy
+
+**Gaia does not reimplement a statistics library.** Distribution computations (logpdf, logpmf, sampling, moments) belong to **scipy.stats**. But because distribution specifications are used pervasively across Gaia (measurement noise, future prior shapes, future posterior predictives, evidence adapters), Gaia ships a core module `gaia.stats` that owns the distribution **spec side** — the named registry, the user-facing constructors, and the IR serialisation. Runtime computation stays in an optional scipy-backed adapter.
+
+The design parallels §4.5, with one deliberate asymmetry: **scipy remains an optional extras dependency**. Authors constructing distribution specs in `gaia.stats` do not need scipy installed; only running evidence adapters that evaluate those specs requires scipy.
+
+**1. `gaia.stats` — user-facing spec constructors (core module; no scipy import at load time)**
+
+```python
+# gaia/stats.py
+from gaia.ir.schemas import DistributionSpec, CallableRef
+from gaia.unit import Quantity
+
+# Built-in distribution registry — metadata only (param schema + dispatch tag)
+_REGISTRY = {
+    "normal":       {"params": {"mu": "Quantity", "sigma": "Quantity"}},
+    "lognormal":    {"params": {"mu": "Quantity", "sigma": "Quantity"}},
+    "student_t":    {"params": {"df": "float",    "mu": "Quantity", "sigma": "Quantity"}},
+    "cauchy":       {"params": {"mu": "Quantity", "gamma": "Quantity"}},
+    "binomial":     {"params": {"n": "int",       "p": "float"}},
+    "poisson":      {"params": {"rate": "Quantity"}},
+    "exponential":  {"params": {"rate": "Quantity"}},
+    "beta":         {"params": {"alpha": "float", "beta": "float"}},
+}
+
+def Normal(*, mu: Quantity | float = 0, sigma: Quantity) -> DistributionSpec:
+    return DistributionSpec(kind="normal", params={"mu": ..., "sigma": ...})
+
+def Binomial(*, n: int, p: float) -> DistributionSpec:
+    return DistributionSpec(kind="binomial", params={"n": n, "p": p})
+
+# ... six more constructors, one per registered kind
+
+def from_callable(fn, *, name: str, version: str, params: dict | None = None) -> DistributionSpec:
+    """Build an inline custom DistributionSpec backed by a CallableRef."""
+    return DistributionSpec(
+        kind="custom",
+        params=params or {},
+        callable_ref=CallableRef(name=name, version=version, ...),
+    )
+```
+
+**2. `DistributionSpec` — kernel IR carrier (pydantic)**
+
+```python
+# gaia/ir/schemas.py
+class DistributionSpec(BaseModel):
+    schema_version: Literal["gaia.distribution.v1"] = "gaia.distribution.v1"
+    kind: Literal[
+        "normal", "lognormal", "student_t", "cauchy",
+        "binomial", "poisson", "exponential", "beta",
+        "custom",
+    ]
+    params: dict[str, QuantityLiteral | float | int]
+    callable_ref: CallableRef | None = None
+```
+
+**Validator invariant (normative):**
+
+> If `kind` is a registered built-in, `callable_ref` MUST be `None` (dispatch goes through the scipy adapter by `kind`). If `kind == "custom"`, `callable_ref` MUST be non-`None` (runtime resolution goes through the CallableRef).
+
+**3. `gaia-lang[stats]` extras — scipy-backed adapter (optional)**
+
+```python
+# gaia/adapters/stats/scipy_adapter.py   (lazy-loaded)
+import scipy.stats
+
+def logpdf(spec: DistributionSpec, x: float) -> float:
+    if spec.kind == "normal":
+        return scipy.stats.norm.logpdf(x, ...)
+    elif spec.kind == "custom":
+        return spec.callable_ref.resolve()(x, ...)
+    # ...
+```
+
+Evidence adapters (Gaussian measurement evidence, Binomial evidence, etc.) lazy-import this module when they need to evaluate a spec. Tests that only exercise spec construction do not need scipy.
+
+**User-extensibility (normative):**
+
+> The built-in registry of 8 kinds is the Gaia-shipped default. Authors add custom distributions through `gaia.stats.from_callable(...)` or equivalent decorator-based helpers, producing a `DistributionSpec(kind="custom", callable_ref=...)`. No kernel extension is required; no new schema is required; the existing `CallableRef` machinery (§5) handles naming, versioning, source hashing, and cross-package import review.
+
+**Why scipy is not a core dependency (unlike Pint for `gaia.unit`):**
+
+- **Weight.** scipy + numpy ≈ 70 MB installed; Pint ≈ 500 KB. The core-dep promotion argument that worked for Pint does not carry over.
+- **Interaction pattern.** Pint objects are manipulated by user code (arithmetic, conversion). Distribution evaluation happens almost exclusively inside adapters, not in user code. Users construct specs; adapters evaluate them.
+- **Testing.** Kernel and `gaia.stats` spec tests run without scipy installed, keeping CI light.
+
+The asymmetry is intentional: architectural pattern is shared (facade over mature package, kernel owns schema, adapter owns compute), dependency policy differs because dependency weight and usage pattern differ.
+
 ---
 
 ## 5. Kernel object inventory
@@ -326,8 +414,11 @@ Context
   └── ContextLock       (reproducibility artefact)
 
 Measurement
-  ├── MeasurementRecord
-  └── ErrorModelSpec
+  └── MeasurementRecord
+
+Distribution carrier
+  └── DistributionSpec  (kind + params + optional CallableRef; see §4.6;
+                         replaces the previously-named ErrorModelSpec)
 
 Quantity carrier
   └── QuantityLiteral   (2-field {value, unit}; IR serialisation; see §4.5)
@@ -342,6 +433,8 @@ Prior
 `EvidenceMetadata` is **not** in this list. Its fields are inlined into `InferStrategy` via pydantic discriminated union (§11).
 
 `gaia.unit.Quantity` is **not** in this list — it is the runtime Pint-backed user-facing type, which lives in `gaia.unit` (core module, not kernel IR). See §4.5.
+
+The `gaia.stats` distribution constructors (`Normal`, `Binomial`, etc.) are **not** in this list — they are user-facing helpers in the `gaia.stats` core module that produce `DistributionSpec` values. See §4.6.
 
 ---
 
@@ -661,12 +754,15 @@ Not an implementation plan, but the concrete diffs this spec implies for the IR 
 2. Drop `Knowledge.type == "setting"` (post-migration).
 3. Dissolve `EvidenceMetadata` pydantic class. Inline fields into `InferStrategy` (discriminated union).
 4. Add `background: list[str]` to `IrStrategy` base (affects `DeriveStrategy`, `ComputeStrategy`, `InferStrategy`).
-5. Add `MeasurementRecord` / `ErrorModelSpec` / `CallableRef` schemas. Attach `MeasurementRecord` via `Knowledge.metadata["measurement"]` with schema-validated read.
+5. Add `MeasurementRecord` / `DistributionSpec` / `CallableRef` schemas. Attach `MeasurementRecord` via `Knowledge.metadata["measurement"]` with schema-validated read. (`DistributionSpec` replaces the previously-named `ErrorModelSpec`; see §4.6.)
 6. Extend `ReviewManifest` to support relation-level targets (`IndependenceDeclaration`). Schema migrates from `{action_label: status}` to `{target_id: {kind, action_labels, status, rationale}}`.
 7. Remove `EvidenceMetadata.independence_group`.
 8. Remove free-text `assumptions` anywhere it appears on strategies.
-9. Add `QuantityLiteral` schema to the kernel (`{value: float, unit: str}`; 2-field pydantic carrier). Record the literal-hash invariant (§4.5): Claim identity and `context_id` hash the literal `{value, unit}` bytes; no unit canonicalisation at hash time. Every IR site that carries a unit (`MeasurementRecord.observed_value`, `ErrorModelSpec.params`, parameterised `Claim` parameters) uses `QuantityLiteral`.
+9. Add `QuantityLiteral` schema to the kernel (`{value: float, unit: str}`; 2-field pydantic carrier). Record the literal-hash invariant (§4.5): Claim identity and `context_id` hash the literal `{value, unit}` bytes; no unit canonicalisation at hash time. Every IR site that carries a unit (`MeasurementRecord.observed_value`, `DistributionSpec.params`, parameterised `Claim` parameters) uses `QuantityLiteral`.
 10. Add `gaia.unit` as a core module of `gaia-lang`, wrapping Pint with a shared `UnitRegistry` singleton plus `to_literal` / `from_literal` bridges to `QuantityLiteral`. Pint becomes a core dependency (formerly listed as optional extras). Kernel code itself still does not import Pint — the dependency is scoped to `gaia.unit`. Update `pyproject.toml` accordingly.
+11. Rename kernel schema `ErrorModelSpec` → `DistributionSpec` (§4.6). Generalise to be the IR carrier for any distribution, not only measurement noise. Add kind-vs-callable-ref validator: built-in `kind` disallows `callable_ref`; `kind="custom"` requires it.
+12. Add `gaia.stats` as a core module of `gaia-lang`. Contains (a) named constructors for the 8 built-in distributions (`Normal`, `Lognormal`, `StudentT`, `Cauchy`, `Binomial`, `Poisson`, `Exponential`, `Beta`) that return `DistributionSpec`; (b) the registry metadata (param schemas); (c) `from_callable(...)` helper producing `DistributionSpec(kind="custom", callable_ref=...)`. `gaia.stats` does **not** import scipy at load time.
+13. Add `gaia-lang[stats]` optional-extras dependency group that pulls scipy. Provide `gaia/adapters/stats/scipy_adapter.py` that dispatches `DistributionSpec` by `kind` to `scipy.stats`, or resolves `CallableRef` for `kind="custom"`. Evidence adapters (Gaussian measurement evidence, Binomial evidence, etc.) lazy-import this adapter when they need to evaluate a spec.
 
 ---
 
