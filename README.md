@@ -322,7 +322,9 @@ For the full tutorial, see [CLI Workflow](docs/foundations/cli/workflow.md).
 |----------|-------------|
 | `not_(a)` / `~a` | Boolean negation helper |
 | `and_(a, b, ...)` / `a & b` | Boolean conjunction helper |
-| `or_(a, b, ...)` / <code>a &#124; b</code> | Boolean disjunction helper |
+| `or_(a, b, ...)` | Boolean disjunction helper |
+
+The infix shorthand forms are `~a`, `a & b`, and `a | b`.
 
 Legacy and experimental strategy functions such as `support`, `deduction`, `abduction`, and `induction` are documented separately, but new v0.5 packages should prefer the action/relation surface above. If a step is uncertain, expose the uncertainty as an explicit premise or use `infer(...)`; do not hide it inside a prose rationale.
 
