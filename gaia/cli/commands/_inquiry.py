@@ -95,6 +95,12 @@ def build_goal_trees(
         if conclusion:
             operators_by_conclusion.setdefault(conclusion, []).append(operator)
 
+    composes_by_conclusion: dict[str, list[dict[str, Any]]] = {}
+    for compose in ir.get("composes", []):
+        conclusion = compose.get("conclusion")
+        if conclusion:
+            composes_by_conclusion.setdefault(conclusion, []).append(compose)
+
     def build_node(knowledge_id: str, seen: set[str]) -> InquiryNode:
         knowledge = knowledge_by_id.get(knowledge_id, {"id": knowledge_id, "content": ""})
         node = InquiryNode(
@@ -146,6 +152,20 @@ def build_goal_trees(
                     for variable in operator.get("variables", [])
                     if variable
                 ],
+            )
+            node.incoming.append(edge)
+
+        for compose in composes_by_conclusion.get(knowledge_id, []):
+            compose_id = compose.get("compose_id")
+            dependencies = [
+                ref for ref in [*compose.get("inputs", []), *compose.get("warrants", [])] if ref
+            ]
+            edge = InquiryEdge(
+                kind="compose",
+                label=_action_label(compose.get("metadata"), compose_id or "compose"),
+                target_id=compose_id,
+                status=_review_status(review_manifest, compose_id),
+                inputs=[build_node(ref, next_seen) for ref in dict.fromkeys(dependencies)],
             )
             node.incoming.append(edge)
 
