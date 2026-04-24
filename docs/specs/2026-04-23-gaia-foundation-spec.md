@@ -152,7 +152,7 @@ Everything delegated:
 
 ## 4. The three-layer probability semantics
 
-The single most important idea in this spec. Without it, `Claim.prior`, `MeasurementRecord.noise`, and `InferStrategy.likelihood_ratio` get conflated, and audit cannot tell them apart.
+The single most important idea in this spec. Without it, `Claim.prior`, `MeasurementRecord.noise`, and `InferStrategy`'s CPT get conflated, and audit cannot tell them apart.
 
 ### 4.1 The three layers
 
@@ -160,7 +160,7 @@ The single most important idea in this spec. Without it, `Claim.prior`, `Measure
 |---|---|---|---|---|
 | **Proposition** | `Claim.prior` | Jaynesian belief `P(Claim \| I)` over a binary proposition | dimensionless, `[0, 1]` | Gaia kernel (BP) |
 | **Measurement** | `MeasurementRecord.noise` | continuous density `p(obs \| true, params)` | has units (observation space; density has inverse units) | Adapter (scipy) |
-| **Bridge** | `InferStrategy.p_e_given_h / p_e_given_not_h / likelihood_ratio` | binary likelihood `P(E \| H)` / `P(E \| ¬H)` or ratio | dimensionless | Adapter (produces), kernel (stores) |
+| **Bridge** | `InferStrategy.p_e_given_h / p_e_given_not_h` (IR-level `IrStrategy.conditional_probabilities`) | binary likelihood pair `P(E \| H)` / `P(E \| ¬H)` | dimensionless | Adapter or author (§11) |
 
 ### 4.2 Why they cannot be mixed
 
@@ -203,15 +203,18 @@ gaussian_measurement_evidence(
     observed=True,
 )
 # adapter internally:
-#   p(5120 | mu=5200, σ=80) / p(5120 | mu=4800, σ=80) → LR ≈ 7500
+#   P(E | H)   = normaliser · N(5120; 5200, 80)   ≈ 0.31
+#   P(E | ¬H)  = normaliser · N(5120; 4800, 80)   ≈ 4.1e-5
 # kernel stores:
-#   InferStrategy.evidence_kind = "likelihood_ratio"
-#   InferStrategy.likelihood_ratio = 7500
+#   IrStrategy.conditional_probabilities = [4.1e-5, 0.31]   # [¬H, H]
+#   IrStrategy.metadata["evidence_computation"] = EvidenceComputationRecord(
+#       adapter_ref, inputs={observed_value, mean_under_h, mean_under_not_h, noise}
+#   )
 # Layer-1 output:
 #   belief(temp_high) goes from 0.5 to ≈ 0.9999
 ```
 
-`q(80, "K")` is layer 2. `0.5` and `0.9999` are layer 1. `7500` is layer 3. Three layers, three units, three semantics.
+`q(80, "K")` is layer 2. `0.5` and `0.9999` are layer 1. `[4.1e-5, 0.31]` is layer 3. Three layers, three units, three semantics.
 
 ### 4.5 Unit handling policy
 
@@ -440,6 +443,29 @@ Each constant is a `gaia.unit.Quantity` (= Pint Quantity with units attached). C
 - **Double naming (short + long).** `c` and `speed_of_light` both resolve to the same value. Authors choose per context; a formula-dense file reads better with `c`, a narrative-heavy docstring reads better with `speed_of_light`.
 - **CODATA version tracks Pint.** When Pint incorporates a new CODATA release, Gaia packages pick up the new values on upgrade. If version pinning of constant values becomes a reproducibility concern (similar to unit registry versioning, §17), that is a future extension, not a v0.x requirement.
 - **User-extensibility.** Authors can add their own constants at package level (`my_pkg/constants.py`) using `gaia.unit.q(...)` — no Gaia mechanism required. `gaia.constants` is a Gaia-blessed default set, not an enumeration ceiling.
+
+### 4.8 `CallableRef` is provenance, not an execution pointer
+
+**Normative invariant** (the most important rule governing cross-package safety and reproducibility in Gaia):
+
+> Every `CallableRef` in a Gaia IR is a **provenance pointer** — a record of which function computed a particular result, pinned by name + version + source hash. It is **not** a routine-execution pointer. The expected execution of any `CallableRef` happens in the **declaring package** at its author's compile / infer time; the resulting value (a derived Claim's parameter, a likelihood scalar, a baked CPT) is then stored in the IR / published `beliefs.json` / future `belief_state.json` as the authoritative result. Downstream packages consume the stored result and **do not invoke upstream `CallableRef`s** during any default inference flow, at any `--depth`.
+
+The invariant applies to all three places `CallableRef` appears in the kernel (see §5):
+
+- **`ComputeStrategy.callable_ref`** — when the author calls a `@compute`-decorated function in their package, the function runs in the author's Python context and returns a derived `Claim` with parameters already bound. The returned Claim enters the IR with values inlined (parameters in `Claim.parameters`, participating in §4.5 literal-hash identity). The `CallableRef` is retained on the `ComputeStrategy` for provenance: "this derived Claim was produced by `pkg:my_fn@1.0` at source hash `sha256:…`". Downstream reads the derived Claim; the callable is never resolved or invoked downstream.
+- **`DistributionSpec.callable_ref`** (when `kind == "custom"`) — the adapter that consumes the `DistributionSpec` (e.g., `gaussian_measurement_evidence`) invokes the callable at the author's compile / infer time to evaluate `logpdf` / compute a likelihood ratio, baking the resulting scalar into `IrStrategy.conditional_probabilities`. The `CallableRef` stays on the `DistributionSpec` for audit and recompute; downstream BP reads the baked CPT only.
+- **Adapter hooks** — distribution-evaluation adapters (scipy-backed `gaia/adapters/stats/scipy_adapter.py`, etc.) register their own `CallableRef` in the `EvidenceComputationRecord` attached to `IrStrategy.metadata`. This records which adapter produced the scalar; the adapter runs in the author's context and not again downstream.
+
+**The only operation that invokes a `CallableRef` at all** — in the entire kernel — is the explicitly-named re-execution path `gaia recompute` (§14.3). That command is opt-in, R4-gated (§7.5), version-pinned, and defaults to abort-on-unreviewed. Everything else uses baked results.
+
+**Consequences:**
+
+- Cross-package code safety is not a day-to-day concern. Downstream `gaia infer` runs only kernel math on baked numeric factors; it never imports upstream author code.
+- `--depth N` (joint-graph) is **not a re-execution mode**. It merges upstream IR and upstream's baked factor parameters into the local factor graph; BP propagates over the merged graph using the merged values. No upstream `CallableRef` is invoked at any depth.
+- `purity` declarations on `CallableRef` (pure / deterministic / impure) are author-assertion metadata consumed by optional audits (`gaia audit callable-purity`) and by the `gaia recompute` scheduler. They are never load-bearing at default inference time, because default inference does not execute callables.
+- Pint / scipy version drift upstream cannot change downstream belief results, because the values those libraries produce were baked at upstream compile time and are shipped verbatim.
+
+Any future kernel extension that proposes "downstream invokes an upstream callable during default inference" must first amend this invariant. Under the current foundation, no such path exists.
 
 ---
 
@@ -726,67 +752,173 @@ These are legitimately the province of external solvers (Z3, Lean, Coq). Foundat
 
 ---
 
-## 11. Evidence inlined into InferStrategy
+## 11. `InferStrategy` — the likelihood-evidence act
 
-**Decision: `EvidenceMetadata` is dissolved into `InferStrategy` fields via pydantic discriminated union.**
+**Decision: authors must commit to both `P(E|H)` and `P(E|¬H)` absolute values. No likelihood-ratio-only path, no `likelihood_ratio()` / `bayes_factor()` DSL helpers.**
 
 ### 11.1 Schema
 
+At runtime (Gaia Lang layer), the author writes:
+
 ```python
-class IrStrategy(BaseModel):
-    type: Literal["infer", "deduction", ...]
-    premises: list[str]
-    conclusion: str
-    background: list[str] = []          # §12
-    metadata: dict[str, Any] = {}
+from gaia.lang import Claim, infer
 
-class InferStrategy(IrStrategy):
-    type: Literal["infer"] = "infer"
+evidence_positive = Claim("Diagnostic test T returned positive.")
+disease = Claim("Patient has disease D.", prior=0.5)
 
-    # evidence kind discriminator
-    evidence_kind: Literal["raw_likelihood", "likelihood_ratio"]
-
-    # raw_likelihood fields
-    p_e_given_h: float | None = None
-    p_e_given_not_h: float | None = None
-
-    # likelihood_ratio fields (also used for Bayes-factor helper)
-    likelihood_ratio: float | None = None
-
-    # provenance (kernel-consumed)
-    source_id: str | None = None
-    data_id: str | None = None
-    data_hash: str | None = None
-
-    @model_validator(mode="after")
-    def check_kind_fields(self):
-        if self.evidence_kind == "raw_likelihood":
-            assert self.p_e_given_h is not None and self.p_e_given_not_h is not None
-        elif self.evidence_kind == "likelihood_ratio":
-            assert self.likelihood_ratio is not None
-        return self
+infer(
+    evidence=evidence_positive,
+    hypothesis=disease,
+    p_e_given_h=0.95,           # REQUIRED. Cromwell-clamped.
+    p_e_given_not_h=0.10,       # REQUIRED. Cromwell-clamped.
+    background=[assumption_a, assumption_b],   # §12
+    source_id="lab:test_T",     # optional provenance
+    data_id="patient_001.test_T.pass_1",
+    data_hash="sha256:…",
+    rationale="Test T sensitivity 95% and false-positive 10% per manufacturer spec v3.",
+)
 ```
 
-### 11.2 Why no separate class
+Both `p_e_given_h` and `p_e_given_not_h` are required keyword arguments (no defaults). Cromwell clamp `(ε, 1-ε)` applies at compile time.
 
-`EvidenceMetadata` as a sidecar pydantic object (v0.6 draft) is a fragment of `InferStrategy`, not a separable concept. An `Infer` action without evidence fields is incoherent; evidence fields without an `Infer` action have nowhere to live. Inlining preserves the "evidence contract" foundation talks about — the contract is now stated as field-set-and-invariants on `InferStrategy`.
+At IR emission, the CPT is inlined onto the existing `IrStrategy` shape (no new pydantic subtype is strictly required — this matches v0.5 HEAD's actual structure):
 
-### 11.3 `EvidenceComputationRecord`
+```python
+# gaia/ir/strategy.py (already in v0.5 HEAD)
+class IrStrategy(BaseModel):
+    type: StrategyType              # "infer" for likelihood-evidence strategies
+    premises: list[str]             # hypothesis QIDs
+    conclusion: str | None          # evidence claim QID
+    background: list[str] | None    # §12 — assumption Claim QIDs
+    conditional_probabilities: list[float] | None   # for infer: [P(E|¬H), P(E|H)]
+    steps: list[Step] | None
+    metadata: dict[str, Any] | None
+```
 
-Distinct from `InferStrategy` and kept alive. It records what adapter produced the scalars (e.g. "scipy-gaussian-adapter-v1 with inputs …"). It is attached to `InferStrategy.metadata["evidence_computation"]`. This is reproducibility provenance, not evidence semantics.
+Foundation-level additions to `IrStrategy.metadata` for `type == "infer"` (well-known keys, schema-validated on read):
 
-### 11.4 Provenance field set (final)
+```text
+metadata["evidence"] = {
+    "source_id":   str | null,
+    "data_id":     str | null,
+    "data_hash":   str | null,
+    "rationale":   str | null,
+}
+metadata["evidence_computation"] = EvidenceComputationRecord (optional, §11.3)
+```
 
-Kernel-consumed:
+No `evidence_kind` discriminator. No `likelihood_ratio` field. Only the CPT pair lives in the IR, via the inline `conditional_probabilities` that v0.5 already uses.
 
-- `source_id` — citation-level (paper, database, author).
-- `data_id` — specific data instance.
-- `data_hash` — bytes-level hash. Participates in `context_id` hashing.
+### 11.2 Why forced CPT (no LR-only path)
 
-**Not** kernel-consumed (per §10 / §6 rationale — unverifiable assertions go to `metadata` dict or to `IndependenceDeclaration.rationale`):
+The likelihood-ratio-only shortcut fails two tests.
 
-- `instrument_id` / `cohort_id` / `model_id` / `experiment_id` / `analysis_id` — removed from one-class fields; authors may place them in `metadata` if desired.
+**Scientific-rigour test.** A scientist who knows "the Bayes factor is 8.7" but cannot commit to specific values of `P(E|H)` and `P(E|¬H)` is skipping the harder question. `P(E|H)` is concrete: *given the world where H is true, what probability do I assign to observing E?* An author who cannot answer that has not done the modelling work the Infer action is supposed to record. Requiring the pair forces that work to happen and to be reviewable.
+
+**BP-correctness test.** When the evidence claim `E` is not pinned true (has its own prior, is reached by other factors, is itself a hypothesis), BP propagates messages that depend on the **absolute** values of `P(E|H)` and `P(E|¬H)`, not only their ratio. For example:
+
+```text
+P(E = true | I)  =  P(E | H, I) · P(H | I)  +  P(E | ¬H, I) · P(¬H | I)
+```
+
+Different absolute CPTs with the same ratio yield different `E` posteriors, which propagate onward through the factor graph. Any "LR → CPT" normalisation the kernel might pick (`p_h = lr / (1 + lr)`, etc.) is **arbitrary** — it has no scientific justification and would produce author-unrecognisable results.
+
+By forcing the pair, Gaia makes the author own the numerical commitment.
+
+### 11.3 Literature Bayes-factor citations
+
+Common authoring case: a paper reports "Bayes factor for E on H is 8.7". The foundation response: Gaia does **not** ship a `bayes_factor()` or `likelihood_ratio()` DSL helper. The author does their own conversion:
+
+```python
+# Author's judgment:
+#   Per trial X, published BF(E on H) = 8.7.
+#   I estimate P(E|H) ≈ 0.87 in the regime this trial covers
+#   (i.e. E is a strong but not certain indicator when H holds).
+#   Then P(E|¬H) = 0.87 / 8.7 = 0.10.
+infer(
+    evidence=e, hypothesis=h,
+    p_e_given_h=0.87,
+    p_e_given_not_h=0.10,
+    source_id="paper:smith2024:table3",
+    rationale=(
+        "Source: Smith 2024, Table 3 reports BF=8.7 for this endpoint. "
+        "Anchor P(E|H)=0.87 chosen based on domain judgment; P(E|¬H) "
+        "derived by division to preserve the reported ratio."
+    ),
+)
+```
+
+The derivation step lives in the `rationale` field — a reviewable audit record. Arbitrary kernel normalisations are never invoked.
+
+### 11.4 Adapter-computed evidence
+
+When the likelihood pair comes from a scientific model rather than author judgment, an evidence adapter (e.g., `gaussian_measurement_evidence`) computes both values at the author's compile / infer time and fills them in:
+
+```python
+from gaia.stats import Normal
+from gaia.adapters.stats import gaussian_measurement_evidence
+
+reading = measurement_claim(
+    "Spectrometer reading",
+    observed_value=q(5120, "K"),
+    noise=Normal(sigma=q(80, "K")),
+)
+temp_high = Claim("TrueTemperature > 5000 K", prior=0.5)
+
+gaussian_measurement_evidence(     # adapter, not a kernel DSL helper
+    evidence=reading, hypothesis=temp_high,
+    mean_under_h=q(5200, "K"),
+    mean_under_not_h=q(4800, "K"),
+    observed=True,
+)
+# Adapter invokes scipy at author's time:
+#   P(E | H)   = ∫ N(5120; 5200, 80) / normaliser  ≈ 0.31
+#   P(E | ¬H)  = ∫ N(5120; 4800, 80) / normaliser  ≈ 0.00004
+# Writes baked InferStrategy.conditional_probabilities = [0.00004, 0.31].
+# Attaches EvidenceComputationRecord with adapter CallableRef + inputs.
+```
+
+Per §4.8, the adapter callable is invoked **only in the author's context**; downstream reads the baked CPT. Per §4.6, scipy is optional extras — required only for adapter computation at author's time.
+
+### 11.5 `EvidenceComputationRecord`
+
+When an adapter produces the likelihood pair, `metadata["evidence_computation"]` carries:
+
+```python
+class EvidenceComputationRecord(BaseModel):
+    schema_version: Literal["gaia.evidence_computation.v1"] = "gaia.evidence_computation.v1"
+    adapter_ref: CallableRef        # which adapter produced the pair
+    inputs: dict[str, Any]          # the adapter's input arguments,
+                                    # so gaia recompute can replay deterministically
+    computed_at: str                # ISO-8601 timestamp
+```
+
+Per §4.8 this is **provenance**, not an execution pointer. Downstream BP reads the baked `conditional_probabilities` and never resolves `adapter_ref`. The only operation that resolves it is `gaia recompute` (§14.3).
+
+### 11.6 Provenance field set (final)
+
+Kernel-consumed fields on the Infer action / `IrStrategy.metadata["evidence"]`:
+
+- `source_id` — citation-level (paper, database, author)
+- `data_id` — specific data instance
+- `data_hash` — bytes-level hash; participates in `context_id` hashing
+- `rationale` — human-readable justification, especially for literature-derived CPTs
+
+**Not** kernel-consumed (unverifiable author assertions go to free `metadata` dict or to `IndependenceDeclaration.rationale`):
+
+- `instrument_id` / `cohort_id` / `model_id` / `experiment_id` / `analysis_id` — authors may place them in `metadata` if desired; kernel does not interpret them.
 - `assumptions: list[str]` — removed entirely. Assumptions become first-class Claims referenced via `background` (§12).
+- `evidence_kind` discriminator — removed; only the CPT-pair path exists.
+- `likelihood_ratio` / `bayes_factor` — removed; no LR-only storage.
+
+### 11.7 Retired DSL helpers
+
+The following proposed helpers are **explicitly not** part of the foundation kernel:
+
+- `likelihood_ratio(evidence, hypothesis, lr=...)` — removed
+- `bayes_factor(evidence, hypothesis, bf=...)` — removed
+
+Any author-facing tooling that accepts an LR / BF scalar must compile down to the `(p_e_given_h, p_e_given_not_h)` pair via explicit author-supplied anchoring (as in §11.3) — it cannot emit an LR-only IR node.
 
 ---
 
