@@ -261,7 +261,7 @@ def test_check_scopes_independent_dof_to_exported_goal_boundary(tmp_path):
     assert "Independent DOF analysis: 2 MaxEnt / 2 independent claims" in result.output
 
 
-def test_check_root_observe_is_not_reported_as_maxent_independent_dof(tmp_path):
+def test_check_root_observe_is_reported_as_maxent_independent_dof(tmp_path):
     pkg_dir = tmp_path / "check_observe"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(
@@ -281,9 +281,12 @@ def test_check_root_observe_is_not_reported_as_maxent_independent_dof(tmp_path):
 
     result = runner.invoke(app, ["check", str(pkg_dir), "--hole"])
     assert result.exit_code == 0, result.output
-    assert "Independent DOF:           0" in result.output
-    assert "MaxEnt (no external prior)" not in result.output
-    assert "All independent claims have external priors assigned." in result.output
+    assert "Independent DOF:           1" in result.output
+    assert "MaxEnt (no external prior): 1" in result.output
+    assert "Independent DOF analysis: 1 MaxEnt / 1 independent claims" in result.output
+    assert "data" in result.output
+    assert "Measured datum." in result.output
+    assert "prior:   not externalized; MaxEnt over independent DOF" in result.output
 
 
 def test_check_reports_constraint_reduced_maxent_state_space(tmp_path):

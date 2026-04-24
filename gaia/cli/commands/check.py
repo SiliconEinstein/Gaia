@@ -67,25 +67,25 @@ def _walk_inquiry_nodes(node: InquiryNode):
             yield from _walk_inquiry_nodes(child)
 
 
-def _has_grounding(knowledge: dict) -> bool:
-    meta = knowledge.get("metadata") or {}
-    return isinstance(meta.get("grounding"), dict)
-
-
 def _boundary_claim_analysis(ir: dict) -> _BoundaryAnalysis:
     """Identify load-bearing boundary claims for exported goals.
 
-    Prefer the goal-oriented inquiry boundary (claims with no incoming warrant
-    chain and no grounding) when exported goals exist. Fall back to the legacy
-    leaf-premise heuristic otherwise.
+    Prefer the goal-oriented inquiry boundary when exported goals exist. A
+    grounding-only root observation is still an independent probabilistic DOF:
+    the grounding makes the observation reviewable, but it does not supply a
+    numeric prior.
     """
+
+    def needs_probability_input(node: InquiryNode) -> bool:
+        return not node.incoming or all(edge.kind == "grounding" for edge in node.incoming)
+
     trees = build_goal_trees(ir, ReviewManifest(reviews=[]))
     if trees:
         boundary_claim_ids = {
             node.knowledge_id
             for tree in trees
             for node in _walk_inquiry_nodes(tree)
-            if node.is_hole
+            if needs_probability_input(node)
         }
         return _BoundaryAnalysis(boundary_claim_ids=boundary_claim_ids, scoped_to_exports=True)
 
@@ -96,7 +96,6 @@ def _boundary_claim_analysis(ir: dict) -> _BoundaryAnalysis:
         if knowledge.get("type") == "claim"
         and knowledge.get("id")
         and node_role(knowledge["id"], "claim", c) == "independent"
-        and not _has_grounding(knowledge)
     }
     return _BoundaryAnalysis(boundary_claim_ids=boundary_claim_ids, scoped_to_exports=False)
 
