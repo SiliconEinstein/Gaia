@@ -798,7 +798,7 @@ These are legitimately the province of external solvers (Z3, Lean, Coq). Foundat
 |---|---|---|---|
 | **Support** | Directional, deterministic / empirical | `derive`, `observe`, `compute` | (return conclusion Claim directly) |
 | **Relate** | Symmetric, hard logical | `equal`, `contradict`, `exclusive`, `not_`, `and_`, `or_` | `equivalence_result`, `contradiction_result`, `complement_result`, `negation_result`, `conjunction_result`, `disjunction_result` |
-| **Correlate** | Probabilistic, soft constraint (**new organising label**) | `infer`, `associate` | `infer`, `associate` |
+| **Correlate** | Probabilistic, soft constraint (**new organising label**) | `infer`, `associate` | `likelihood`, `association` |
 | **Causal** | Interventional (do-calculus, counterfactuals) | — (not in v0.x; see §18 open points) | — |
 
 The `Correlate` family is the natural home for probabilistic 2-Claim relations. `infer` asserts that evidence E supports hypothesis H in a specific direction (a likelihood factor that updates belief on H given observation of E). `associate` asserts that A and B are statistically related without privileging a direction (observational correlation, no causal claim).
@@ -856,7 +856,7 @@ support_claim = infer(
         "Prior 10% from NHANES adult prevalence."
     ),
 )
-# support_claim is a helper Claim with metadata["helper_kind"] = "infer".
+# support_claim is a helper Claim with metadata["helper_kind"] = "likelihood".
 # Its content: "evidence_positive statistically supports disease with P(E|H)=0.95, P(E|¬H)=0.10."
 ```
 
@@ -879,7 +879,7 @@ These are **constraint contributions**, not overrides. Under the soft-constraint
 
 Redundancy is **not a risk** — it is a natural consequence of authors capturing their reasoning in the most convenient place. Where convenience and rigour coincide, Gaia does not force a choice.
 
-**Return value:** `infer()` returns a generated helper Claim whose `helper_kind` is `"infer"`. This is the object `ComposedAction.conclusion` points at when a composition ends in `infer(...)`. Review targets the helper Claim — "do you accept that evidence E statistically supports hypothesis H with these conditionals?"
+**Return value:** `infer()` returns a generated helper Claim whose `helper_kind` is `"likelihood"`. This is the object `ComposedAction.conclusion` points at when a composition ends in `infer(...)`. Review targets the helper Claim — "do you accept that evidence E statistically supports hypothesis H with these conditionals?"
 
 IR lowering follows the v0.5 shape — `type="infer"`, `premises=[H_qid]`, `conclusion=E_qid`, `conditional_probabilities=[P(E|¬H), P(E|H)]` inline. Well-known metadata keys remain under `metadata["evidence"] = {source_id, data_id, data_hash, rationale}`. The optional priors, when provided, become additional entries in the package's prior-provider graph for `hypothesis` / `evidence`, with `source_id = "from:{infer_action_qid}"` so `gaia check` can attribute them.
 
@@ -923,12 +923,12 @@ assoc_claim = associate(
         "Observational data; no causal claim implied."
     ),
 )
-# assoc_claim is a helper Claim with metadata["helper_kind"] = "associate".
+# assoc_claim is a helper Claim with metadata["helper_kind"] = "association".
 # Its content: "smoking and lung_cancer are statistically associated under I
 #  with P(A|B,I)=0.75, P(B|A,I)=0.20."
 ```
 
-**Return value:** a helper Claim with `helper_kind="associate"`. Distinct from `infer`: reviewer accepting this claim accepts **correlation under I**, not a directional "A supports B" reading.
+**Return value:** a helper Claim with `helper_kind="association"`. Distinct from `"likelihood"`: reviewer accepting this claim accepts **correlation under I**, not a directional "A supports B" reading.
 
 **Why both `p_a_given_b` and `p_b_given_a`, not just one?** Under Jaynesian framework, each of these is a legitimate conditional probability the author might have from data. Observational studies routinely report both directions (e.g., "in cases, 75% had exposure; in exposed, 20% developed outcome"). The data is symmetric in presentation; the signature reflects that.
 
@@ -1311,11 +1311,11 @@ IR schema changes belong in change-controlled PRs against `docs/foundations/gaia
 
     Composition is a **v0.5 deliverable**, not a parked v1.x extension. Specific schemas, decorator runtime behaviour, validator rules, canonical template signatures, migration steps, and worked examples all live in the composition design doc; foundation tracks the overall work item here.
 
-11b. **`[to-refactor]`** Fix the `infer()` DSL return value. v0.5 HEAD's canonical v6-style implementation in `gaia/lang/dsl/infer_verb.py` already generates a helper Claim — previously tagged `helper_kind="statistical_support"`, foundation now specifies `"infer"` (§11.4) — and attaches it to the `Infer` action's `helper` field (present in `gaia/lang/runtime/action.py:Infer`). But the function **returns `evidence` instead of `helper`** (see `infer_verb.py:88`). The fix: rename `helper_kind` to `"infer"` in `infer_verb.py:74`, and change the return value to `helper` on `infer_verb.py:88`. The legacy v5-style `infer()` in `gaia/lang/dsl/strategies.py` stays as it is (it is already marked deprecated via the v5-strategy-deprecation work item). The Relate-verb pattern — not the Support-verb pattern — is the right analogy for `infer`'s semantics: both inputs (E and H) are pre-existing, so the action's semantic output is the generated relation helper, not one of the inputs. This is a prerequisite for the composition primitive (item 11a) and for the Correlate family unification (items 11c / 11d).
+11b. **`[to-refactor]`** Fix the `infer()` DSL return value. v0.5 HEAD's canonical v6-style implementation in `gaia/lang/dsl/infer_verb.py` already generates a helper Claim — currently tagged `helper_kind="statistical_support"`, foundation now specifies `"likelihood"` (§11.2, matching the Relate-family naming convention of using the *relation noun* as the kind tag) — and attaches it to the `Infer` action's `helper` field (present in `gaia/lang/runtime/action.py:Infer`). But the function **returns `evidence` instead of `helper`** (see `infer_verb.py:88`). The fix: rename `helper_kind` to `"likelihood"` in `infer_verb.py:74`, and change the return value to `helper` on `infer_verb.py:88`. The legacy v5-style `infer()` in `gaia/lang/dsl/strategies.py` stays as it is (it is already marked deprecated via the v5-strategy-deprecation work item). The Relate-verb pattern — not the Support-verb pattern — is the right analogy for `infer`'s semantics: both inputs (E and H) are pre-existing, so the action's semantic output is the generated relation helper, not one of the inputs. This is a prerequisite for the composition primitive (item 11a) and for the Correlate family unification (items 11c / 11d).
 
 11c. **`[new]`** Introduce the Correlate action family per §11. Add abstract base class `Correlate(Action)` in `gaia/lang/runtime/action.py`. Migrate `Infer` to subclass `Correlate` (from current direct `Action` subclass). This creates a shared home for shared concerns across probabilistic 2-Claim actions — parameter validation, `gaia check` hooks, audit metadata conventions — without altering existing Infer semantics.
 
-11d. **`[new]`** Add `associate()` DSL function + `Associate(Correlate)` runtime dataclass + `AssociateStrategy` IR node (§11.4). DSL: `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, background, rationale, label) -> Claim`. Runtime: `Associate` inherits from `Correlate` with `a`, `b`, `p_a_given_b`, `p_b_given_a`, `prior_a`, `prior_b`, `helper` fields. DSL returns a generated helper Claim with `metadata["helper_kind"] = "associate"`. IR lowering: `type="associate"`, `premises=[A_qid, B_qid]` (no directional premise/conclusion split — both symmetric premises), the two conditionals stored in a dedicated schema field. BP factor lowering: 2×2 symmetric factor, parameters derived from `(p_a_given_b, p_b_given_a)` plus marginals obtained via graph closure (`gaia check` validates coherence; see item 11e). Optional `prior_a` / `prior_b` contribute to the prior-provider graph for A and B as additional sources, source-tagged `"from:{associate_action_qid}"`. Similarly, `infer()` accepts optional `prior_hypothesis` / `prior_evidence` arguments that contribute to the hypothesis's / evidence's prior-provider graph (§11.2); this is an authoring ergonomics feature, not a separate mechanism — the soft-constraint model treats all prior providers uniformly.
+11d. **`[new]`** Add `associate()` DSL function + `Associate(Correlate)` runtime dataclass + `AssociateStrategy` IR node (§11.4). DSL: `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, background, rationale, label) -> Claim`. Runtime: `Associate` inherits from `Correlate` with `a`, `b`, `p_a_given_b`, `p_b_given_a`, `prior_a`, `prior_b`, `helper` fields. DSL returns a generated helper Claim with `metadata["helper_kind"] = "association"`. IR lowering: `type="associate"`, `premises=[A_qid, B_qid]` (no directional premise/conclusion split — both symmetric premises), the two conditionals stored in a dedicated schema field. BP factor lowering: 2×2 symmetric factor, parameters derived from `(p_a_given_b, p_b_given_a)` plus marginals obtained via graph closure (`gaia check` validates coherence; see item 11e). Optional `prior_a` / `prior_b` contribute to the prior-provider graph for A and B as additional sources, source-tagged `"from:{associate_action_qid}"`. Similarly, `infer()` accepts optional `prior_hypothesis` / `prior_evidence` arguments that contribute to the hypothesis's / evidence's prior-provider graph (§11.2); this is an authoring ergonomics feature, not a separate mechanism — the soft-constraint model treats all prior providers uniformly.
 
 11e. **`[new]`** Extend `gaia check` to report factor-graph coherence for any probabilistic factor (Infer, Associate, and future Correlate / Causal members). Three outcomes to surface:
     - **Hole** — factor parameter has no provider (no constraint path supplies the needed marginal or joint entry). Hard error.
