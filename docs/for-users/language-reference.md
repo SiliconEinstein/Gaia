@@ -114,7 +114,7 @@ Claims can be combined into helper claims with ordinary propositional structure:
 |--------|----------|-----------|--------|
 | `~a` | `not_(a)` | NOT A | no |
 | `a & b` | `and_(a, b)` | A AND B | no |
-| `a | b` | `or_(a, b)` | A OR B | no |
+| <code>a &#124; b</code> | `or_(a, b)` | A OR B | no |
 
 ```python
 not_classical = ~classical_prediction
