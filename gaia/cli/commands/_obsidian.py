@@ -559,9 +559,7 @@ def generate_obsidian_vault(
     sec_num += 1
     conclusion_ids = {s.get("conclusion") for s in ir.get("strategies", []) if s.get("conclusion")}
     leaves = [
-        k
-        for k in all_claims
-        if k["id"] not in conclusion_ids and not is_note_type(k["type"])
+        k for k in all_claims if k["id"] not in conclusion_ids and not is_note_type(k["type"])
     ]
     questions = [k for k in all_claims if k["type"] == "question"]
     oq_lines = [

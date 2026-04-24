@@ -117,9 +117,7 @@ class TestKnowledgeValidation:
         r = validate_local_graph(g)
 
         assert not r.valid
-        assert any(
-            "github:test::both" in e and "structural helper claim" in e for e in r.errors
-        )
+        assert any("github:test::both" in e and "structural helper claim" in e for e in r.errors)
 
     def test_duplicate_label_rejected(self):
         g = _local_graph(
