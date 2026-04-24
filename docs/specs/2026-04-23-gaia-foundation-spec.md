@@ -580,16 +580,19 @@ Whether two pieces of evidence are independent is a **scientific integrity judge
 
 ### 7.2 Schema
 
-Extend `ReviewManifest` to carry both action-level and relation-level targets:
+`ReviewManifest` carries `ReviewTarget`s keyed by `knowledge_id` (QID). Under U1 (§3.1, §5) all reviewable objects — claims, strategies, operators — share this QID namespace, so a single target-identity scheme covers everything. The manifest also carries **relation-level targets**, keyed by their own QID, that constrain how N existing `Knowledge` objects relate:
 
 ```python
+class ReviewTarget(BaseModel):
+    schema_version: Literal["gaia.review_target.v1"] = "gaia.review_target.v1"
+    target_id: str                       # QID
+    status: Literal["accepted", "unreviewed", "rejected"]
+    rationale: str | None = None
+
 class IndependenceDeclaration(ReviewTarget):
     schema_version: Literal["gaia.independence.v1"] = "gaia.independence.v1"
-    relation_label: str
-    factors: list[str]                   # action_labels of the N evidence factors
+    factors: list[str]                   # knowledge_ids (QIDs) of the N InferStrategies
     kind: Literal["identical", "independent", "correlated", "partial"]
-    rationale: str
-    # inherits: status (accepted | unreviewed | rejected)
 ```
 
 Semantics at BP lowering time:
@@ -610,6 +613,49 @@ This keeps the kernel from fabricating independence structure from unreliable si
 ### 7.4 Consequence — removal of `independence_group`
 
 The free-string `EvidenceMetadata.independence_group` field (v0.6 draft) is **removed**. Its responsibilities move entirely to `IndependenceDeclaration`.
+
+### 7.5 Cross-package review authority — R4
+
+When downstream package B references a foreign `Knowledge K` from upstream package A, two independent `ReviewStatus`s exist: A's (authored by A's maintainers) and B's (authored by B's maintainers in B's own `ReviewManifest`). The foundation picks **additive with bulk-trust delegation** (R4) as the default authority model.
+
+**Normative effective-status rule.** For a foreign `Knowledge K` referenced by downstream B:
+
+```text
+upstream_status = K.review_status in A's package
+local_status    = B's ReviewManifest entry for K (default "unreviewed" if absent)
+delegation      = B's accepted TrustDelegation covering "A@<version>", if any
+
+effective(K for B) = "active"  iff   upstream_status == "accepted"
+                                  AND (local_status == "accepted"
+                                       OR delegation applies to K)
+                   = "inactive" otherwise
+```
+
+Two hard constraints:
+
+- **Upstream reject cannot be bypassed.** If `upstream_status == "rejected"`, K is inactive in B regardless of B's manifest or any delegation. A's maintainers declaring a piece of reasoning as unsound is a scientific-integrity commitment; downstream cannot override.
+- **Local unreviewed is inactive.** Silence in B's manifest is not consent. To activate a foreign K, B either reviews it directly or covers it via a `TrustDelegation`.
+
+**`TrustDelegation` — bulk trust target.** To avoid forcing downstream packages to review every foreign `Knowledge` one by one (impractical when importing large upstream libraries), B may accept a `TrustDelegation` as a single review target that covers all of A's Knowledge at a pinned version:
+
+```python
+class TrustDelegation(ReviewTarget):
+    schema_version: Literal["gaia.trust_delegation.v1"] = "gaia.trust_delegation.v1"
+    package: str                         # upstream package name (e.g., "github:galileo")
+    version: str                         # specific version, not a range
+    scope: Literal["all_knowledge", "exclude_compute", "claims_only"] = "all_knowledge"
+    rationale: str
+    # inherits: status (accepted | unreviewed | rejected)
+```
+
+Key rules:
+
+- **Version-pinned only.** `TrustDelegation` binds to a specific version string (`"1.2.3"`), never a range. A new upstream version (`"1.2.4"`) creates a fresh upstream artefact and does not inherit trust. Authors can issue a new `TrustDelegation` per version.
+- **Author-only scope.** Delegating to a package author across all versions (`trust_author("alice")`) or across all packages (`trust_all`) is **not** supported. Both patterns let an upstream change silently acquire downstream activation, which violates the integrity goals of R4.
+- **The delegation itself is a review target.** It appears in B's manifest and requires B's explicit accept. That accept is a judgment ("I've examined `A@1.2.3` enough to trust it"), not a formality.
+- **`scope` lets downstream narrow trust.** `"claims_only"` activates only foreign Claims, refusing foreign Strategies / Operators and deferring those to per-knowledge review. Useful when downstream trusts A's data/claims but wants to review A's reasoning independently.
+
+**Why additive, not a simpler rule.** The pure-upstream-authority option (R1) makes the registry a one-hop trust chain where any submitted package can flow its reviews downstream unchecked; that removes downstream scientific judgment and effectively gives upstream maintainers unilateral write access to downstream beliefs. The pure-independent-review option (R2) is scientifically clean but collapses under registry scale: every Gaia package transitively imports dozens of others, and reviewing every foreign Knowledge is infeasible. R4 threads the needle by defaulting to independence (safe baseline) and permitting bulk trust as an **explicit**, **version-pinned**, **itself-reviewed** shortcut for the common case of "I trust this upstream".
 
 ---
 
@@ -808,6 +854,67 @@ Concrete rules:
 - Adapter results are normalised into Gaia-native objects (`BeliefState`, `InferStrategy`, `MeasurementRecord`, `QuantityLiteral`) before crossing the kernel boundary.
 - Adapter callables register as `CallableRef` so context reproducibility is maintained.
 - `BeliefContext` records adapter identity (name, version) when an adapter produces results that end up in a `BeliefState`.
+
+### 14.1 What the official registry already enforces
+
+The `SiliconEinstein/gaia-registry` repository and its `register.yml` CI workflow (`https://github.com/SiliconEinstein/gaia-registry/.github/workflows/register.yml`) already implement a significant portion of what this foundation calls the publish-time contract. Any spec language that reads as "we will build X" should be interpreted against this baseline — much of it exists.
+
+Enforced today by the registry CI on every PR that touches `packages/**`:
+
+- **IR-hash integrity by recompile.** CI clones the upstream source at the declared `git_sha`, installs the pinned Gaia dependencies, runs `gaia compile .` in a clean sandbox, and fails the PR if the recomputed `ir_hash` disagrees with the `Versions.toml`-declared hash. Because the `CallableRef.source_hash` of every `ComputeStrategy` participates in `ir_hash`, any change to an author's Python callable body changes `ir_hash` and is caught here.
+- **Tag-to-SHA pinning.** `Versions.toml` records `git_tag` and `git_sha`; CI verifies the tag still points to the pinned SHA.
+- **Dependency closure.** Every Gaia dependency declared in `[project].dependencies` must already be registered in the registry; unregistered transitive dependencies block the PR.
+- **Namespace.** Submitted packages must have `namespace == "github"` in their compiled IR.
+- **UUID uniqueness.** The `trusted-gate` job refuses a PR whose `Package.toml` `uuid` is already claimed by a different package name.
+
+Artefacts the registry currently ships per version:
+
+```text
+packages/<name>/Package.toml         (uuid, pypi_name, repo, description)
+packages/<name>/Versions.toml        (per-version: ir_hash, git_tag, git_sha, registered_at,
+                                      gaia_lang_version)
+packages/<name>/Deps.toml            (per-version dependency edges)
+packages/<name>/releases/<version>/  (release manifests including beliefs.json —
+                                      exported-claim beliefs computed by `gaia register`)
+```
+
+The `beliefs.json` manifest is the current minimal form of what this foundation calls `BeliefState`. It carries `ir_hash` and the exported claims' posterior beliefs, and it is what downstream `collect_foreign_node_priors()` reads when injecting foreign priors under `gaia infer --depth 0`.
+
+### 14.2 Publish-time contract (foundation-level)
+
+Foundation extends the existing registry mechanism with normative additions rather than replacing it. Not all of these are enforced yet; where a gap exists, it is flagged as a registry-CI extension work item (§16).
+
+**Invariant 1 — Upstream must ship computed results.** (α-hard.)
+A registered package must ship not only its source and IR but also the inference results its own `gaia register` produced. The `beliefs.json` manifest satisfies this for exported Claims today; the foundation target is to extend it into a `belief_state.json` that carries the full `BeliefState` schema (context_id, diagnostics, generated_at, belief_state_hash, method).
+
+**Invariant 2 — Registry CI verifies IR-result consistency.**
+The current registry CI verifies `ir_hash` via recompile but does not re-run inference to verify the shipped beliefs. Foundation extends this:
+- Registry CI should additionally re-run `gaia infer` in the sandbox and confirm the recomputed `belief_state.context_id` matches the declared one (registry-CI extension, §16).
+- Because `ir_hash` determines the inference inputs (IR + prior records + review manifest), the `context_id` should be a deterministic function of them; mismatch indicates author-side tampering or a non-determinism bug in the inference engine.
+
+**Invariant 3 — Downstream consumes results, does not re-execute.** (Default path.)
+Downstream `gaia infer` (any `--depth`) consumes the upstream-shipped `beliefs.json` / `belief_state.json` as authoritative. Upstream `CallableRef`s are **not invoked** during downstream inference; their role is provenance only (§4.8).
+
+- `--depth 0` (`flat_beliefs`): downstream uses upstream Claim posteriors as priors for foreign node references.
+- `--depth N` (`joint_graph`, N ≥ 1): downstream merges upstream IR topology and upstream's **already-baked** factor parameters (e.g., `StrategyParamRecord.conditional_probabilities`) into its own factor graph. BP propagates over the merged graph using the baked values. No upstream `CallableRef` is invoked.
+
+**Invariant 4 — Stale upstream is refused, not silently tolerated.**
+When downstream reads an upstream artefact whose `ir_hash` disagrees with the Versions.toml-declared hash, downstream `gaia infer` fails rather than proceeding with stale data. No escape hatch. The only way to proceed is to resolve the inconsistency upstream (re-register the package after fixing) or explicitly bump to a newer version.
+
+### 14.3 The replication path — `gaia recompute`
+
+Re-executing upstream `CallableRef`s — re-running a `@compute` function, re-evaluating an adapter hook, re-invoking a custom `DistributionSpec` — is an **explicit, opt-in, point-by-point** operation, scoped into its own CLI command that will be introduced separately:
+
+```bash
+gaia recompute --callable github:pkgA::action::density_fn
+gaia recompute --package github:pkgA@1.2.3 --callable-kind compute
+```
+
+This is where the actual cross-package code-safety review model lives. Under R4 (§7.5), each re-executed `CallableRef` requires a per-callable accepted `ReviewTarget` in the downstream package's manifest. A `TrustDelegation` covering the upstream package may cover it in bulk, subject to the delegation's own review.
+
+Default behaviour on unreviewed callable during recompute: **abort**. Recompute is a strict, scripted operation; silent skipping is wrong for an operation whose whole purpose is re-verification. Day-to-day `gaia infer` (the default path) is unaffected and runs no upstream code regardless of review status (§14.2, Invariant 3).
+
+`gaia recompute` is expected to be expensive (scientific `@compute` may require supercomputers), rare (replication studies are the exception, not the rule), and risky (remote code execution). The design accordingly keeps it out of any default flow.
 
 ---
 
