@@ -57,48 +57,58 @@ The kernel owns what is either (a) semantically constitutive of the reasoning ac
 
 ### 3.1 In the kernel
 
-**Knowledge layer (the vocabulary)**
+Kernel is organised around **a single unified `Knowledge` type hierarchy**. Every declarable, QID-identified, cross-package-referenceable, reviewable object is a `Knowledge`. Prior-holding (`Claim`), annotative (`Note`, `Question`), reasoning-move (`Strategy` and its subtypes), and relational (`Operator` and its subtypes) objects are **subtypes of `Knowledge`**, not parallel hierarchies.
 
-- `Claim` — the only belief-carrying variable. Parameterised via class-as-predicate (Gaia Lang v6 §2).
-- `Note` — plain-text annotation, does not enter BP.
-- `Question` — inquiry lens, does not enter BP.
+This unification is normative at both the **Gaia Lang (runtime)** layer and the **Gaia IR (serialisation)** layer. See §5 for the full inventory and §16 for the runtime/IR refactor this implies.
 
-**Action layer (the verbs)**
+**Knowledge hierarchy**
 
-- `Derive` — directional deduction with warrant review.
-- `Observe` — evidence-placement act.
-- `Compute` — deterministic functional relationship.
-- `Infer` — likelihood evidence act.
+```text
+Knowledge                (QID + provenance + metadata + optional review_status)
+  ├── Claim              (prior-bearing; binary BP variable; parameterised via class-as-predicate)
+  ├── Note               (text annotation; not in BP)
+  ├── Question           (inquiry lens; not in BP)
+  ├── Strategy           (directional reasoning move)
+  │   ├── DeriveStrategy
+  │   ├── ObserveStrategy
+  │   ├── ComputeStrategy
+  │   └── InferStrategy
+  └── Operator           (relational constraint / propositional combinator)
+      ├── EqualOperator
+      ├── ContradictOperator
+      ├── ExclusiveOperator
+      ├── NegationOperator        (not_)
+      ├── ConjunctionOperator     (and_)
+      └── DisjunctionOperator     (or_)
+```
 
-**Relate layer (the logical operators)**
-
-- `Equal`, `Contradict`, `Exclusive` — relational operators with BP factor lowering.
-- `not_`, `and_`, `or_` — propositional operators producing helper claims.
+**Belief** lives only on `Claim` (via `PriorSpec`, see §6). Strategy and Operator do not carry prior; they are declared reasoning or relational structure, not propositions about the world. **Review status** (`accepted / unreviewed / rejected`) is an optional field on any `Knowledge`.
 
 **Review layer (the qualitative gate)**
 
-- `ReviewManifest` — collection of `ReviewTarget`s keyed by `action_label` **or** by relation identity (see §7).
-- `ReviewStatus` — accepted / unreviewed / rejected. Never a probability.
+- `ReviewManifest` — collection of `ReviewTarget`s keyed by `knowledge_id` (QID). Supports single-knowledge targets and relation-level targets (e.g., `IndependenceDeclaration`, see §7).
+- `ReviewStatus` — `accepted / unreviewed / rejected`. Never a probability.
 
 **Context layer (the information state)**
 
 - `BeliefContext` — information state `I` used by inference; carries `context_id` (canonical SHA-256 over inputs).
-- `BeliefState` — posterior output `P(Claim | I)` plus provenance.
+- `BeliefState` — posterior output `P(Claim | I)` plus provenance. Published artefact at `.gaia/belief_state.json` — see §13 publish-time contract.
 - `ContextLock` — reproducibility artefact.
 
 **Evidence / measurement schema (the bridge to the world)**
 
-- `InferStrategy` fields — `evidence_kind`, `likelihood_ratio` or `p_e_given_h`/`p_e_given_not_h`, `source_id`, `data_id`, `data_hash`. (See §11 for field inventory; no separate `EvidenceMetadata` class.)
+- `InferStrategy` fields — `p_e_given_h`, `p_e_given_not_h` (both required), plus provenance `source_id` / `data_id` / `data_hash`. See §11 for the full field set and the reasoning behind requiring the CPT pair.
+- `StrategyParamRecord` — optional sidecar for external parameter updates (adapter-computed, curation, review). Keyed by `strategy_id`; latest record wins. Parallels `PriorRecord` for claim priors.
 - `MeasurementRecord` — schema for observed-value + noise specification.
 - `DistributionSpec` — structured probability-distribution spec (`kind`, `params`, optional `CallableRef`). Used wherever a distribution enters IR (measurement noise, future prior shapes, etc.). Replaces the previously-named `ErrorModelSpec`.
 
 **Callable abstraction (the embedded-function escape)**
 
-- `CallableRef` — registered name + signature + source hash + purity declaration. Shared by `Compute`, `DistributionSpec`, and adapter hooks.
+- `CallableRef` — registered name + signature + source hash + purity declaration. Shared by `ComputeStrategy`, `DistributionSpec`, and adapter hooks. **Always a provenance pointer, never a routine-execution pointer** — see §4.8.
 
 **Prior schema**
 
-- `PriorSpec` — `value`, `source_id`, `policy`, `justification`. Wraps the scalar with audit-relevant provenance. (See §6.)
+- `PriorSpec` — `value`, `source_id`, `policy`, `justification`. Wraps the scalar with audit-relevant provenance. See §6.
 
 ### 3.2 Below the semantic line (ecosystem / adapters)
 
@@ -431,58 +441,87 @@ Each constant is a `gaia.unit.Quantity` (= Pint Quantity with units attached). C
 
 Canonical set (pydantic schemas). Versioned via `schema_version: Literal["gaia.<name>.v1"]`.
 
+**Knowledge hierarchy** — every declarable QID-identified object is a `Knowledge`. Belief-bearing is only `Claim`; reasoning moves are `Strategy` subtypes; relational / propositional combinators are `Operator` subtypes. Same hierarchy at Gaia Lang (runtime) and Gaia IR (serialisation) layers; see §5.x "Lang ↔ IR mapping" below.
+
 ```text
-Knowledge
-  ├── Claim          (bearer of prior; parameterisable)
-  ├── Note           (free text; no BP)
-  └── Question       (inquiry; no BP)
-
-Action (IrStrategy base)
-  ├── DeriveStrategy      (type="deduction")
-  ├── ObserveStrategy     (type="deduction", pattern="observation")
-  ├── ComputeStrategy     (type="deduction", compute={...})
-  └── InferStrategy       (type="infer")                  — §11 for full field set
-
-Operator
-  ├── Equal
-  ├── Contradict
-  ├── Exclusive
-  ├── Negation        (not_)
-  ├── Conjunction     (and_)
-  └── Disjunction     (or_)
-
-Review
-  ├── ReviewManifest
-  ├── ReviewTarget            (action-level, keyed by action_label)
-  └── IndependenceDeclaration (relation-level, keyed by relation_label) — §7
-
-Context
-  ├── BeliefContext     (carries context_id)
-  ├── BeliefState       (carries belief_state_hash)
-  └── ContextLock       (reproducibility artefact)
-
-Measurement
-  └── MeasurementRecord
-
-Distribution carrier
-  └── DistributionSpec  (kind + params + optional CallableRef; see §4.6;
-                         replaces the previously-named ErrorModelSpec)
-
-Quantity carrier
-  └── QuantityLiteral   (2-field {value, unit}; IR serialisation; see §4.5)
-
-Callable
-  └── CallableRef       (compute / noise / adapter hook)
-
-Prior
-  └── PriorSpec         (value + source + policy + justification) — §6
+Knowledge (base — QID + provenance + metadata + optional review_status)
+  ├── Claim              (prior-bearing; binary BP variable; parameterisable)
+  ├── Note               (free text; no BP)
+  ├── Question           (inquiry lens; no BP; may carry targets)
+  ├── Strategy           (directional reasoning move; premises + conclusion + background)
+  │   ├── DeriveStrategy       (type="deduction")
+  │   ├── ObserveStrategy      (type="deduction", pattern="observation")
+  │   ├── ComputeStrategy      (type="deduction", compute={...} + CallableRef)
+  │   └── InferStrategy        (type="infer"; p_e_given_h + p_e_given_not_h; see §11)
+  └── Operator           (relational / propositional combinator; variables + conclusion)
+      ├── EqualOperator
+      ├── ContradictOperator
+      ├── ExclusiveOperator
+      ├── NegationOperator         (not_)
+      ├── ConjunctionOperator      (and_)
+      └── DisjunctionOperator      (or_)
 ```
 
-`EvidenceMetadata` is **not** in this list. Its fields are inlined into `InferStrategy` via pydantic discriminated union (§11).
+**Sidecar records** — parameterisation and prior updates live in separate records keyed by `knowledge_id` / `strategy_id`. Matches the established `priors.py` pattern; allows multi-source, timestamped parameter evolution without invalidating upstream Knowledge identity.
 
-`gaia.unit.Quantity` is **not** in this list — it is the runtime Pint-backed user-facing type, which lives in `gaia.unit` (core module, not kernel IR). See §4.5.
+```text
+PriorRecord            — per-Claim prior updates (value, source_id, justification, created_at)
+StrategyParamRecord    — per-Strategy parameter updates
+                         (for InferStrategy: [p_e_given_not_h, p_e_given_h])
+                         (for noisy_and etc.: type-specific parameter lists)
+```
 
-The `gaia.stats` distribution constructors (`Normal`, `Binomial`, etc.) are **not** in this list — they are user-facing helpers in the `gaia.stats` core module that produce `DistributionSpec` values. See §4.6.
+**Review layer**
+
+```text
+ReviewManifest           — collection of ReviewTarget's keyed by knowledge_id (QID)
+ReviewTarget             — single-Knowledge target; status = accepted | unreviewed | rejected
+IndependenceDeclaration  — relation-level target (§7); kind ∈ {identical, independent, correlated, partial}
+TrustDelegation          — relation-level target (§7.5); bulk-trust a foreign package@version
+```
+
+**Context layer**
+
+```text
+BeliefContext            — information state I; carries context_id (canonical SHA-256 of inputs)
+BeliefState              — posterior output P(Claim | I); published artefact per §13
+ContextLock              — reproducibility artefact
+```
+
+**Measurement / Distribution / Quantity carriers**
+
+```text
+MeasurementRecord        — observed-value + noise spec + instrument/protocol/data IDs
+DistributionSpec         — kind + params + optional CallableRef; used for noise, future priors
+QuantityLiteral          — 2-field {value, unit}; IR serialisation carrier (§4.5)
+```
+
+**Callable / Prior schemas**
+
+```text
+CallableRef              — {name, version, source_hash, signature, purity}; provenance-only (§4.8)
+PriorSpec                — value + source_id + policy + justification (§6)
+```
+
+**`EvidenceMetadata` is not in this list** — its fields are inlined into `InferStrategy` (§11). The previously-named `ErrorModelSpec` is now `DistributionSpec` (§4.6).
+
+**`gaia.unit.Quantity`, `gaia.stats.Normal/Binomial/...`, `gaia.constants.*`** — runtime user-facing helpers in the `gaia.unit` / `gaia.stats` / `gaia.constants` core modules (§4.5 / §4.6 / §4.7). **Not** kernel IR objects.
+
+### 5.x Lang ↔ IR mapping
+
+Same `Knowledge` hierarchy exists at both layers, with different shapes:
+
+| Aspect | Gaia Lang (runtime) | Gaia IR (serialisation) |
+|---|---|---|
+| References | real Python object references | QID strings |
+| Identity | assigned by package registration | canonical QID `github:pkg::kind::label` |
+| `Claim.prior` | `float` or `PriorSpec` (auto-wrapped) | `PriorSpec` |
+| `Strategy.premises` / `conclusion` | `list[Knowledge]` / `Knowledge` (objects) | `list[str]` / `str` (QIDs) |
+| `Strategy.background` | `list[Knowledge]` | `list[str]` |
+| Parameters | `Quantity` (Pint), float, int, str | `QuantityLiteral`, primitive |
+| Subtype discriminator | Python class | pydantic `Literal[...]` / `kind:` field |
+
+The compiler (`gaia/lang/compiler/compile.py`) transforms Lang → IR, resolving object references to QIDs and wrapping scalars into schema objects.
 
 ---
 
@@ -584,9 +623,9 @@ Model comparison is expressed at the proposition layer:
 
 - "M1 is adequate for dataset D" → a `Claim`.
 - "M1 explains D better than M2" → a `Claim`.
-- Three candidates → `exclusive(M1_best, M2_best, M3_best)` plus pairwise `bayes_factor()` evidence.
+- Three candidates → `exclusive(M1_best, M2_best, M3_best)` plus pairwise likelihood evidence.
 
-Bayes factors compile through the **E variant**: `InferStrategy.evidence_kind = "likelihood_ratio"`, `InferStrategy.likelihood_ratio = <BF>`. The CPT is **not persisted** — it is computed at lowering time using any canonical normalisation (e.g. `p_h = lr / (1 + lr)`, `p_not_h = 1 / (1 + lr)`). The IR carries only the ratio, which is the semantically meaningful quantity.
+Authors citing a published Bayes factor do not write a `bayes_factor()` or `likelihood_ratio()` helper — Gaia does not ship those (§11). Authors commit to a concrete `(p_e_given_h, p_e_given_not_h)` pair and record the derivation from the literature BF in the `rationale` field of the `Infer` action. See §11 for the reasoning behind requiring CPT commitment rather than bare ratios.
 
 ### 8.2 What the foundation does not commit to
 
@@ -783,10 +822,24 @@ These drafts should be moved to `docs/archive/` or marked clearly as historical.
 
 ### 15.2 Consistent with
 
-- `docs/specs/2026-04-21-gaia-lang-v6-design.md` — foundation is compatible with the v6 DSL; the changes this spec adds (PriorSpec, IndependenceDeclaration, InferStrategy field inlining, `Strategy.background`) are additive or clarifying, not contradictory.
+- `docs/specs/2026-04-21-gaia-lang-v6-design.md` — foundation is compatible with the v6 DSL's objects and verbs. This foundation's changes are primarily additive (PriorSpec, IndependenceDeclaration, TrustDelegation, StrategyParamRecord formalisation, `Strategy.background`) or clarifying (three-layer probability semantics, CallableRef-as-provenance invariant).
 - `docs/specs/2026-04-21-gaia-ir-v6-design.md` — IR changes required by this spec are listed in §16.
 - `docs/foundations/theory/` — theory layer untouched.
 - `docs/foundations/gaia-ir/` — protected layer; any IR schema change flows through a separate change-controlled PR (per CLAUDE.md rules).
+
+### 15.2.1 U1 runtime refactor — independent work item
+
+v0.5 HEAD's `gaia/lang/runtime/action.py` declares `Action` as **parallel to `Knowledge`, not a subclass of it**. The U1 decision in this foundation — that `Strategy` and `Operator` are subtypes of `Knowledge` — is a **reversal of that choice**.
+
+This reversal is a scoped runtime refactor, not a side-effect of any functional PR:
+
+- `gaia/lang/runtime/action.py` rewrites `Action`, `Strategy`, `Operator` as `Knowledge` subclasses.
+- `gaia/lang/runtime/knowledge.py` adds `review_status: ReviewStatus | None` to the base.
+- `gaia/ir/strategy.py` and `gaia/ir/operator.py` adjust discriminated-union tagging to share the `Knowledge.kind` field.
+- `gaia/lang/compiler/compile.py` consolidates the action-vs-knowledge dispatch.
+- Extensive test updates across `tests/gaia/lang/` and `tests/gaia/ir/`.
+
+The release plan **MUST** allocate a dedicated PR for this refactor. Mixing it into a functional PR is prohibited — the change touches enough surface that bundling would make review impractical.
 
 ### 15.3 Partially supersedes
 
