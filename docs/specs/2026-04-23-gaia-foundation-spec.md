@@ -902,187 +902,42 @@ Any author-facing tooling that accepts an LR / BF scalar must compile down to th
 
 ---
 
-## 12. Composition — `ComposedAction` and named templates
+## 12. Composition — `ComposedAction` as a kernel primitive
 
-**Decision: Gaia kernel provides a single `ComposedAction` primitive and a `@composition` template mechanism. Multi-step scientific reasoning (measurement pipelines, meta-analyses, any author-named workflow) is expressed by composing primitive actions rather than by proliferating specialised action types. Composition is an in-kernel, v0.5-landing feature, not a future extension.**
+**Decision: Gaia kernel establishes `ComposedAction` as a Knowledge subtype and commits to `@composition` as the single authoring mechanism for multi-step scientific reasoning. Concrete mechanics are defined in a dedicated design document:**
+
+> **See `docs/specs/2026-04-24-gaia-composition-primitive-design.md`** for the full composition primitive design — `@composition` decorator semantics, sub-Knowledge namespace rules, `compute` → `infer` scalar-lifting mechanism, review-propagation rules, `CompositeStrategy` migration path, canonical `gaia.evidence` template set, and worked examples.
 
 ### 12.1 Why composition is a kernel primitive
 
-Without a composition primitive, Gaia's 13 primitive actions stay minimal but every real scientific package has to **flatten** its natural multi-step workflows into an unnamed action list. A "Gaussian measurement evidence" calculation is, structurally, `observe + compute(density|H) + compute(density|¬H) + infer`. If those four sub-actions are just siblings in the package's action list, they lose their identity as a coherent unit: they cannot be reused under a name across packages, reviewers cannot accept/reject the workflow as a whole, and the kernel cannot tell a scientific pipeline apart from four unrelated actions.
+Without a composition primitive, every scientific package flattens its natural multi-step workflows into an unnamed list of sibling actions. A "Gaussian measurement evidence" calculation is, structurally, `observe + compute(density|H) + compute(density|¬H) + infer`. Flattened, those four sub-actions lose their identity as a coherent unit: they cannot be reused under a name across packages, reviewers cannot accept/reject the workflow as a whole, and the kernel cannot tell a scientific pipeline apart from four unrelated actions.
 
-Composition fixes this by letting authors declare: "this specific ordered graph of sub-actions is a named unit, identified by a template QID and version, reviewable as one or piecewise." v5's `CompositeStrategy` had the right IR shape for this but the DSL never exposed it cleanly. v6 (pre-this-spec) dropped the compositional layer entirely. This foundation reintroduces it as a first-class Knowledge subtype.
+Composition fixes this by letting authors declare: "this specific ordered graph of sub-actions is a named unit, identified by a template QID + version, reviewable as a whole or piecewise." v5's `CompositeStrategy` had the right IR shape for this but the DSL never exposed it cleanly. Pre-this-spec v6 dropped the compositional layer entirely. Foundation reintroduces it as a first-class Knowledge subtype.
 
-The bar for "kernel primitive": **every scientific package will use composition** (every package has workflows) and **cross-package composability requires stable composition identity** (R4 review of a foreign composition needs to know what the composition is, not just what its flattened actions are). Both conditions hold. Composition is foundational.
+The bar for "kernel primitive": **every scientific package will use composition** (every package has workflows) and **cross-package composability requires stable composition identity** (R4 review of a foreign composition needs to know what the composition is, not just what its flattened actions are). Both hold.
 
-### 12.2 Schema
+### 12.2 Foundation-level invariants
 
-`ComposedAction` is a Knowledge subtype (§3.1, §5):
+The detailed mechanics live in the companion composition-primitive design spec. Foundation commits to the following invariants about any implementation:
 
-```python
-class ComposedAction(Knowledge):
-    kind: Literal["composed_action"] = "composed_action"
+1. **`ComposedAction` is a Knowledge subtype**, sibling of `Strategy` and `Operator` in the §3.1 / §5 hierarchy — not a Strategy subtype.
+2. **Identity is deterministic from contents**: `knowledge_id` derives from `template_name` + `template_version` + `SHA-256(sorted(sub_knowledge))`. Two expansions with identical sub-Knowledge lists collide on the same QID — the correct behaviour for pure composition templates.
+3. **Sub-Knowledge is any Knowledge kind**: `sub_knowledge: list[str]` accepts QIDs of Claims, Strategies, Operators, or nested ComposedActions. Not limited to strategies (unlike v5 `CompositeStrategy.sub_strategies`).
+4. **Review propagation is hierarchical with override** (D2b): composition `accepted` defaults sub-Knowledge to accepted; sub-Knowledge may be individually rejected and that explicit rejection wins; composition `rejected` disables the whole.
+5. **Cross-package R4 applies at composition level**: a foreign `ComposedAction` is `active` downstream iff (upstream accepted) AND (downstream accepted OR covered by a `TrustDelegation`), per §7.5. Sub-Knowledge statuses travel with the composition; downstream does not re-run R4 on each sub-action.
+6. **Compositions honour the CallableRef-as-provenance invariant** (§4.8): sub-Knowledge `CallableRef`s are never invoked during default downstream inference, regardless of `--depth`. Only `gaia recompute` (§15.3) re-invokes them, point-by-point, under R4 review.
 
-    template_name: str                      # QID-style: "gaia:evidence:gaussian_measurement"
-    template_version: str                   # "1.0"
+### 12.3 IR-level realisation
 
-    sub_knowledge: list[str]                # flat list of sub-Knowledge QIDs, in execution order
-    conclusion: str | None = None           # the public output of the composition (a QID)
+v5's `gaia/ir/strategy.py:CompositeStrategy` is **migrated** to `ComposedAction` as a Knowledge subtype (rename + promotion). The `_structure_hash` mechanism (`SHA-256(sorted(sub_ids))`) is preserved. Migration details live in the composition spec (§3 of that document); foundation item §17 tracks it as a to-refactor work item.
 
-    # inherited from Knowledge: knowledge_id, content, metadata, provenance,
-    # review_status (optional)
-```
+### 12.4 Deprecated parallel concepts
 
-**Key points:**
+- `@evidence_adapter` as a separate decorator — subsumed by `@composition`.
+- A canonical evidence-adapter library as free functions — subsumed by `@composition`-decorated templates shipped in `gaia.evidence`.
+- v5 compositional strategies (`case_analysis`, `induction`, `composite`, `mathematical_induction`) — become `@composition`-authored patterns, not new kernel primitives.
 
-- `sub_knowledge: list[str]` — a flat list of QIDs, following **D1a (flat namespace)**. Sub-actions are regular Knowledge objects registered at package level, with reverse-pointing `metadata["composition_id"]` so the IR can navigate the containment relation without nested QIDs.
-- `sub_knowledge` may contain **any Knowledge subtype** — Claims (for intermediate derived results), Strategies (Observe / Compute / Infer), Operators (Equal / Contradict for within-composition constraints), even nested ComposedActions.
-- `conclusion` is **the** public output — the one sub-Knowledge the composition claims to produce. Usually the last Infer / Compute result. If absent, the composition is an internal grouping with no public output (rare).
-- The `_structure_hash` of `ComposedAction` is `SHA-256` of `sorted(sub_knowledge)`, preserving v5 `CompositeStrategy`'s identity semantics. Two compositions with identical sub-knowledge lists produce the same `knowledge_id` — which is the correct cross-package behaviour for deterministic template expansions.
-
-### 12.3 Runtime — the `@composition` decorator
-
-At Gaia Lang runtime, `@composition` is the sole authoring mechanism:
-
-```python
-from gaia.lang import composition, infer, compute, observe
-
-@composition(name="gaia:evidence:gaussian_measurement", version="1.0", purity="pure")
-def gaussian_measurement(evidence, hypothesis, *, mu_h, mu_not_h, noise):
-    """Likelihood evidence under Gaussian measurement noise."""
-    p_h     = compute(fn=_normal_density, inputs={"x": evidence, "mu": mu_h,     "noise": noise})
-    p_not_h = compute(fn=_normal_density, inputs={"x": evidence, "mu": mu_not_h, "noise": noise})
-    return infer(
-        evidence=evidence, hypothesis=hypothesis,
-        p_e_given_h=p_h, p_e_given_not_h=p_not_h,    # see §12.4 on lifting
-    )
-```
-
-Semantics:
-
-1. At call time, the decorator enters a **scoped capture context** (context-manager, `contextvars`-based).
-2. Inside the scope, every `claim()` / `observe()` / `compute()` / `derive()` / `infer()` / etc. call registers its produced Knowledge with the current scope, **not with the enclosing package directly**.
-3. The decorated function returns the composition's `conclusion` (whatever the last line evaluates to — usually an `infer` result).
-4. On scope exit, the decorator packages all captured Knowledge into a `ComposedAction(template_name, template_version, sub_knowledge=[...], conclusion=...)` and registers **the ComposedAction** with the enclosing package.
-5. The call site receives back the `conclusion` Knowledge (transparently — authors don't need to unpack the wrapper).
-
-**D4a — decorator-only template registration:** no central template registry. `@composition(name="...", version="...")` is sufficient declaration; template identity is the name+version string. Python's own import system handles discovery. A domain package publishes its own composition templates the same way it publishes any other function.
-
-### 12.4 Lifting — `compute` output → `infer` CPT field
-
-**D3a:** `compute()` returns a Claim whose parameters carry the computed numerical value. `infer()`'s CPT fields (`p_e_given_h`, `p_e_given_not_h`) accept `float | Claim`; when a Claim is passed, the compiler reads its value parameter at compile time and substitutes the scalar into `IrStrategy.conditional_probabilities`. The lifted scalar is inlined; the Claim reference is retained in `sub_knowledge` for audit.
-
-```python
-p_h = compute(fn=_normal_density, inputs={...})         # Claim with value parameter
-infer(..., p_e_given_h=p_h, ...)                         # compiler reads p_h.value at compile time
-# In IR:
-#   InferStrategy.conditional_probabilities = [<literal float from p_not_h>, <literal from p_h>]
-#   InferStrategy is a sub-Knowledge of the surrounding ComposedAction
-#   p_h's Compute strategy is also a sub-Knowledge; the causal link is visible
-```
-
-No new schema shape on `IrStrategy` — just an allowance in `infer()`'s DSL signature. IR stays flat scalars.
-
-### 12.5 Worked example — Kepler transit
-
-```python
-@composition(name="exoplanet:transit_bls", version="1.0", purity="deterministic")
-def transit_bls_evidence(
-    evidence, hypothesis, *,
-    light_curve_hash, period_days, depth, duration_hours, stellar_noise_model,
-):
-    observe(evidence)
-    bls_power    = compute(fn=_bls_power,        inputs={"lc": evidence, "period": period_days, "duration": duration_hours})
-    expected_h   = compute(fn=_expected_bls,     inputs={"depth": depth, "duration": duration_hours})
-    p_h          = compute(fn=_normal_density,   inputs={"x": bls_power, "mu": expected_h, "sigma": ...})
-    p_not_h      = compute(fn=_null_bls_density, inputs={"x": bls_power, "noise": stellar_noise_model})
-    return infer(
-        evidence=evidence, hypothesis=hypothesis,
-        p_e_given_h=p_h, p_e_given_not_h=p_not_h,
-    )
-
-# Usage:
-transit_bls_evidence(
-    evidence=kepler_lightcurve, hypothesis=kepler_87b_exists,
-    light_curve_hash="sha256:...", period_days=114.0, depth=0.0012, duration_hours=8.5,
-    stellar_noise_model=DistributionSpec(kind="custom", callable_ref=...),
-)
-```
-
-IR:
-
-```text
-ComposedAction(exoplanet_gaia:transit_bls::kepler_87b_evidence)
-    template_name    = "exoplanet:transit_bls"
-    template_version = "1.0"
-    sub_knowledge    = [
-        observe_kepler_lightcurve,
-        compute_bls_power,
-        compute_expected_bls_h,
-        compute_p_h,
-        compute_p_not_h,
-        infer_transit,
-    ]
-    conclusion       = infer_transit
-+ 6 independent Knowledge IR nodes, each with full metadata (including @compute CallableRefs)
-```
-
-Reviewer sees the whole pipeline, not an opaque adapter. `gaia recompute` can re-invoke individual sub-action CallableRefs point-by-point (per §15.3).
-
-### 12.6 Review — D2b hierarchical with override
-
-`ComposedAction.review_status` and each sub-action's `review_status` interact under **hierarchical-with-override** rules:
-
-- **ComposedAction accepted** (and no sub-action rejection): all sub-actions inherit `accepted`; the composition's `conclusion` is active in BP.
-- **ComposedAction rejected**: the conclusion is inactive regardless of sub-action statuses; the composition as a whole is disabled.
-- **ComposedAction accepted, one sub-action explicitly rejected**: the explicit sub-rejection wins; depending on the sub-action's role in the pipeline, the conclusion may be inactive or may be recomputable with the rejected piece excluded (policy-specific).
-- **ComposedAction unreviewed**: the composition is inactive at the package level; sub-actions may still be individually reviewed but the conclusion cannot activate without composition-level acceptance.
-
-Review granularity choice is up to the reviewer: for routine workflows, accept the composition as a unit; for controversial ones, drill into sub-actions. This matches how scientific reviewers actually approach compound claims (read the abstract first, read methods for problem areas).
-
-For cross-package (R4, §7.5), the **effective-status rule** applies at the composition level: a foreign `ComposedAction` is `active` iff (upstream accepted) AND (downstream accepted OR covered by a `TrustDelegation`). Sub-action statuses travel with the composition but do not re-trigger R4 review separately — trusting the composition means trusting its sub-structure.
-
-### 12.7 The `gaia.evidence` module — canonical composition templates
-
-**D6b:** Gaia-lang ships a small set of canonical composition templates in `gaia.evidence` (not `gaia.adapters.evidence`; not separate adapter functions). This set demonstrates the composition pattern and covers the most frequent scientific evidence shapes:
-
-```python
-# gaia/evidence.py
-from gaia.lang import composition, compute, infer
-
-@composition(name="gaia:evidence:gaussian_measurement", version="1.0")
-def gaussian_measurement(evidence, hypothesis, *, mu_h, mu_not_h, noise=None): ...
-
-@composition(name="gaia:evidence:threshold_measurement", version="1.0")
-def threshold_measurement(evidence, hypothesis, *, threshold, direction, noise=None): ...
-
-@composition(name="gaia:evidence:two_sample_comparison", version="1.0")
-def two_sample_comparison(evidence, hypothesis, *, control, treatment,
-                           null_delta, alt_delta, method="beta_binomial"): ...
-
-@composition(name="gaia:evidence:from_bayes_factor", version="1.0")
-def from_bayes_factor(evidence, hypothesis, *, bf, p_e_given_h, rationale): ...
-```
-
-Four canonical templates, each implemented as a `@composition`-decorated function that internally composes primitive actions. Authors who need something outside the canonical set write their own `@composition` in their package. Authors who want the literature-BF anchoring discipline of §11.3 use `from_bayes_factor`; authors who want to write the `infer(...)` directly (simpler cases) still can.
-
-scipy is an optional extras dependency (`gaia-lang[stats]`, §4.6); canonical templates lazy-import scipy inside their sub-action `fn=...` callables. Templates themselves import without scipy; calling them requires scipy.
-
-### 12.8 IR-level realisation — evolution of `CompositeStrategy`
-
-v5's `gaia/ir/strategy.py:CompositeStrategy` — a Strategy subtype with `sub_strategies: list[str]` and a sub-strategy-ID-sorted `_structure_hash` — is evolved, not replaced:
-
-- **Promoted** from `Strategy` subclass to `Knowledge` subclass (sibling of Strategy, Operator, per §3.1 / §5). A composition is not itself a reasoning move; it is a reviewable container of them.
-- **Renamed** to `ComposedAction` to match the conceptual shift and the new U1-era naming.
-- **Field `sub_strategies: list[str]` → `sub_knowledge: list[str]`**: the list accepts any Knowledge QID, not only strategy IDs. Compiler validates that each referenced QID resolves to a Knowledge in the package or (for cross-package references) in a declared dependency.
-- **`_structure_hash` semantics preserved**: `SHA-256(sorted(sub_knowledge))`. Two compositions with the same sub-knowledge list collide on the same `knowledge_id` — the correct deterministic behaviour for pure composition templates.
-
-v5 `CompositeStrategy` is **deprecated** and migrated to `ComposedAction` during the U1 runtime refactor (§16.2.1 / §17 item 11). No parallel classes kept.
-
-### 12.9 What v5 compositions (`case_analysis`, `induction`, etc.) become
-
-v5 strategy types that were really compositions — `case_analysis`, `induction`, `composite`, `mathematical_induction` — are **not** reintroduced as named kernel primitives. Under this foundation they are **patterns**, not schemas: an author wanting "case analysis" reasoning writes their own `@composition` or imports one from a community-published domain package. The kernel provides the composition primitive; what patterns emerge is an ecosystem question.
-
----
+See §14.5 and §14.6 for the retraction statements.
 
 ## 13. Background premises on strategies
 
@@ -1297,15 +1152,18 @@ IR schema changes belong in change-controlled PRs against `docs/foundations/gaia
 10. **`[to-refactor]`** U1 runtime refactor (see §16.2.1). v0.5's `gaia/lang/runtime/action.py` declares `Action` as "parallel to Knowledge, not a Knowledge subclass". U1 reverses this: `Action` (and therefore `Strategy`, `Operator` and all their subtypes) become subtypes of `Knowledge`. Adds `review_status: ReviewStatus | None` as an optional field on the base. Dedicated refactor PR; must not be bundled with a functional change.
 11. **`[to-refactor]`** IR-side U1: `gaia/ir/strategy.py` and `gaia/ir/operator.py` adjust their pydantic shape so `Strategy` and `Operator` share the `Knowledge.kind` discriminator. No field removal; add `kind` tagging so serialised IR distinguishes subtypes via a single field.
 
-### 17.2a Composition primitive (v0.5 landing — §12)
+### 17.2a Composition primitive — v0.5 landing
 
-11a. **`[new]`** Add `ComposedAction` as a Knowledge subtype (`gaia/lang/runtime/composition.py` + `gaia/ir/strategy.py` evolution; see item 11b). Fields: `template_name: str`, `template_version: str`, `sub_knowledge: list[str]`, `conclusion: str | None`. Inherits QID / provenance / metadata / optional review_status from Knowledge. `_structure_hash = SHA-256(sorted(sub_knowledge))` — deterministic composition identity.
-11b. **`[to-refactor]`** Migrate v5 `CompositeStrategy` (`gaia/ir/strategy.py:213`) to `ComposedAction`. Promote from Strategy-subtype to Knowledge-subtype (sibling of Strategy / Operator). Rename field `sub_strategies: list[str]` → `sub_knowledge: list[str]`; accept any Knowledge QID, not only strategy IDs. Preserve `_structure_hash` semantics. v5 `CompositeStrategy` is deprecated; no parallel classes kept.
-11c. **`[new]`** Add `@composition(name, version, purity)` decorator in `gaia/lang/runtime/composition.py`. On call: enters a scoped capture context (`contextvars`-based), runs the decorated function, packages registered sub-Knowledge into a `ComposedAction`, registers the ComposedAction with the enclosing package, returns the `conclusion` to the caller. Decorator-only template registration (D4); no central template registry.
-11d. **`[new]`** Allow `infer()` DSL to accept `float | Claim` for `p_e_given_h` / `p_e_given_not_h` (D3). When a Claim is passed, the compiler reads its `value` parameter at compile time and substitutes the scalar into `IrStrategy.conditional_probabilities`. The Claim reference is retained in the surrounding ComposedAction's `sub_knowledge` for audit.
-11e. **`[new]`** Compiler validates that every `sub_knowledge` QID in a ComposedAction resolves to a Knowledge registered in the same package (or a declared dependency for cross-package foreign references). Each sub-Knowledge carries reverse pointer `metadata["composition_id"] = <ComposedAction QID>` for IR navigation.
-11f. **`[new]`** BP lowering honours hierarchical-with-override review (D2) on ComposedAction: ComposedAction `accepted` → sub-actions default-accepted unless explicitly rejected; ComposedAction `rejected` → conclusion inactive regardless of sub-status; ComposedAction `unreviewed` → conclusion inactive.
-11g. **`[new]`** Ship `gaia.evidence` core module with 4 canonical composition templates (D6): `gaussian_measurement`, `threshold_measurement`, `two_sample_comparison`, `from_bayes_factor`. Each is a `@composition`-decorated function that lazy-imports scipy. Templates available without scipy installed; calling them requires `gaia-lang[stats]` extras.
+11a. **`[new]` / `[to-refactor]`** Implement the composition primitive per **`docs/specs/2026-04-24-gaia-composition-primitive-design.md`**. Scope (summary, not authoritative — see that doc):
+    - Add `ComposedAction` as a Knowledge subtype (runtime + IR).
+    - Migrate v5 `CompositeStrategy` → `ComposedAction` (promote from Strategy-subtype to Knowledge-subtype; rename `sub_strategies` → `sub_knowledge`; accept any Knowledge QID; preserve `_structure_hash`).
+    - Add `@composition` decorator with scoped capture semantics.
+    - Allow `infer()` to accept `float | Claim` for CPT fields; compiler lifts Claim.value at compile time.
+    - Compiler validation of sub-Knowledge references; reverse-pointer `metadata["composition_id"]` on each sub-Knowledge.
+    - BP lowering hierarchical-with-override review propagation.
+    - Ship `gaia.evidence` core module with the agreed canonical template set.
+    
+    Composition is a **v0.5 deliverable**, not a parked v1.x extension. Specific schemas, decorator runtime behaviour, validator rules, canonical template signatures, migration steps, and worked examples all live in the composition design doc; foundation tracks the overall work item here.
 
 ### 17.3 Review / R4
 
