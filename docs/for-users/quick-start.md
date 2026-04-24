@@ -51,66 +51,53 @@ my-first-gaia/
 Open `src/my_first/__init__.py` and replace the template:
 
 ```python
-"""Galileo's argument against Aristotle's theory of falling bodies."""
+"""Galileo's tied-body contradiction for Aristotle's falling-body model."""
 
-from gaia.lang import claim, setting, support, contradiction
+from gaia.lang import claim, contradict, derive, note
 
-# Background: Aristotle's law
-aristotle_law = setting(
-    "Aristotle claims heavier objects fall faster in proportion to their weight."
+# Model under test
+aristotle_law = claim(
+    "Aristotle's weight-speed model says heavier objects naturally fall faster."
 )
 
 # Thought experiment setup
-thought_experiment = setting(
+thought_experiment = note(
     "Consider a heavy ball (H) and a light ball (L). "
     "Now tie them together into a composite body (H+L)."
 )
 
 # Two contradictory predictions from Aristotle's law
-composite_slower = claim(
+composite_slower = derive(
     "Under Aristotle's law, H+L falls slower than H alone, "
     "because L acts as a drag on H.",
-    title="Composite slower prediction",
-    background=[aristotle_law, thought_experiment],
+    given=aristotle_law,
+    background=[thought_experiment],
+    rationale="The light body should retard the heavy body when tied together.",
 )
 
-composite_faster = claim(
+composite_faster = derive(
     "Under Aristotle's law, H+L falls faster than H alone, "
     "because H+L is heavier than H.",
-    title="Composite faster prediction",
-    background=[aristotle_law, thought_experiment],
+    given=aristotle_law,
+    background=[thought_experiment],
+    rationale="The composite body is heavier than H alone.",
 )
 
 # These two predictions contradict each other
-tied_balls = contradiction(
+tied_balls = contradict(
     composite_slower, composite_faster,
-    reason="The same law predicts both slower and faster — a logical contradiction.",
-    prior=0.99,
+    rationale="The same setup cannot make H+L both slower and faster than H alone.",
 )
 
-# Galileo's conclusion
-equal_fall = claim(
-    "In the absence of air resistance, all objects fall at the same rate "
-    "regardless of mass.",
-    title="Equal fall rate",
-)
-
-support(
-    [tied_balls],
-    equal_fall,
-    reason="Aristotle's law is self-contradictory, so fall rate cannot depend on mass.",
-    prior=0.9,
-)
-
-__all__ = ["equal_fall"]
+__all__ = ["tied_balls"]
 ```
 
 Key points:
 
-- `setting()` declares background context (no probability, not debatable)
+- `note()` declares background context (no probability, not debatable)
 - `claim()` declares propositions that carry probability in inference
-- `contradiction()` declares two claims are mutually exclusive
-- `support()` connects premises to a conclusion with a strength prior
+- `derive()` connects explicit premises to deterministic conclusions
+- `contradict()` declares a reviewable relation between two claims
 - `__all__` lists exported conclusions (the package's external interface)
 
 ## Compile
@@ -134,26 +121,25 @@ Use `gaia check --brief .` for a per-module overview, or `gaia check --hole .` f
 
 ## Assign Priors
 
-Independent premises (leaf claims not derived by any strategy) need probability priors. Create `src/my_first/priors.py`:
+Independent probabilistic inputs need external priors. Derived claims and relation helper claims do not. Create `src/my_first/priors.py`:
 
 ```python
 """Priors for independent premises."""
 
-from . import composite_slower, composite_faster
+from . import aristotle_law
 
 PRIORS: dict = {
-    composite_slower: (0.85, "Follows directly from Aristotle's assumption about drag."),
-    composite_faster: (0.85, "Follows directly from Aristotle's weight-speed relation."),
+    aristotle_law: (0.5, "Neutral before inspecting the tied-body contradiction."),
 }
 ```
 
-Each entry maps a claim to `(prior_probability, justification)`. Priors range from 0 to 1.
+Each entry maps an independent claim to `(prior_probability, justification)`. Priors follow Cromwell bounds, so use values between 0.001 and 0.999 rather than exact 0 or 1.
 
 Re-compile to pick up the priors:
 
 ```bash
 gaia compile .
-gaia check --hole .    # Should show "All independent claims have priors assigned"
+gaia check --hole .    # Shows covered inputs and any MaxEnt independent DOF
 ```
 
 ## Infer
@@ -171,12 +157,11 @@ Algorithm: junction_tree (exact, treewidth=2)
 Converged after 2 iterations
 
 Beliefs:
-  composite_slower:  prior=0.85  →  belief=0.42
-  composite_faster:  prior=0.85  →  belief=0.42
-  equal_fall:        prior=0.50  →  belief=0.72
+  aristotle_law:  prior=0.50  ->  belief decreases after the contradiction
+  tied_balls:     no prior    ->  relation helper is constrained by contradict()
 ```
 
-The contradiction forces one side down; `equal_fall` is pulled up by the supporting evidence.
+The contradiction is not a prior by itself. It is a reviewable relation that constrains the graph; BP then computes how the model belief moves. See the README for the fuller Galileo example that adds the medium-resistance model and the vacuum prediction.
 
 ## Render
 

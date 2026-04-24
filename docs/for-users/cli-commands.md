@@ -72,7 +72,7 @@ gaia check --hole [path]
 |--------|-------------|
 | `--brief`, `-b` | Per-module overview: claims (with roles), strategies, operators |
 | `--show`, `-s` | Expand a specific module or claim/strategy label with full warrant trees |
-| `--hole` | Detailed prior coverage report: holes (missing prior) + covered (with prior) |
+| `--hole` | Detailed prior contract report: MaxEnt independent DOF + covered inputs |
 
 What it checks:
 
@@ -83,14 +83,23 @@ What it checks:
 
 The default output annotates each independent boundary premise with `prior=X` or `no external prior (MaxEnt)`, and shows a "MaxEnt (no external prior): N" summary. When the boundary includes deterministic logical constraints, `gaia check` reports the effective MaxEnt state space (feasible assignments and entropy in bits). It also computes the induced MaxEnt entropy of those boundary claims under the current full joint distribution, so you can see how much uncertainty the existing graph actually removes without changing the package structure.
 
+### Prior assignment contract
+
+- Assign external priors only to independent probabilistic inputs that are load-bearing for exported goals.
+- A root `observe(...)` is an independent probabilistic input: it records empirical grounding and produces a reviewable warrant, but it still needs a prior or MaxEnt treatment.
+- Do not assign priors to claims concluded by `derive(...)`, `compute(...)`, `observe(..., given=...)`, or `infer(...)`.
+- Do not assign priors to structural/helper claims from `~`, `&`, `|`, `equal(...)`, `contradict(...)`, `exclusive(...)`, or generated formalization internals.
+- Leaving an independent input unset is explicit: Gaia applies the Jaynes maximum-entropy distribution over the remaining independent degrees of freedom, subject to declared hard constraints.
+
 ### Claim roles in output
 
 | Role | Meaning | Needs prior? |
 |------|---------|-------------|
-| Independent | Load-bearing boundary premise for exported goals, with no incoming warrant chain or grounding | External prior or MaxEnt |
+| Independent | Load-bearing boundary premise for exported goals, including root `observe(...)` claims | External prior or MaxEnt |
 | Derived | Concluded by a strategy — belief comes from BP | No external prior |
-| Background-only | Only used in `background=`, not as premise | External prior if used as a belief variable |
-| Orphaned | Not referenced by any strategy | External prior or remove |
+| Structural/helper | Boolean expression, relation helper, or generated formalization helper | No external prior |
+| Background-only | Only used in `background=`, not as premise | Use `note(...)`; promote to `claim(...)` only if it is a probabilistic input |
+| Orphaned | Not referenced by any strategy | Export/connect it if intentional, otherwise remove |
 
 ## `gaia infer`
 

@@ -1,8 +1,8 @@
 # Language Reference
 
-> **Status:** Current canonical
+> **Status:** Current v0.5 canonical
 
-Practical cheat sheet for the Gaia Language v5 Python DSL. For the full specification, see `docs/foundations/gaia-lang/dsl.md`.
+Practical cheat sheet for the Gaia Language v0.5 Python DSL. For the full specification, see `docs/foundations/gaia-lang/dsl.md`.
 
 ## Package Structure
 
@@ -53,28 +53,34 @@ from .s3_results import *
 
 ```python
 from gaia.lang import (
-    claim, setting, question,                              # Knowledge
+    claim, note, question,                                 # Knowledge
     not_, and_, or_,                                      # Propositional expressions
     contradict, equal, exclusive,                         # Reviewable relations
+    observe, derive, compute, infer,                       # Recommended actions
+
+    # Compatibility aliases and legacy/experimental APIs
+    setting, context,
     contradiction, equivalence, complement, disjunction,   # v5 compatibility
-    support, compare, deduction, abduction, induction,     # Strategies
+    support, compare, deduction, abduction, induction,     # Legacy strategies
     analogy, extrapolation, elimination, case_analysis,
-    mathematical_induction, composite, infer, fills,
+    mathematical_induction, composite, fills,
 )
 ```
 
 ## Knowledge Types
 
-### `setting(content, *, title=None, **metadata)`
+### `note(content, *, title=None, format="markdown", **metadata)`
 
 Background context. No probability, does not participate in BP. Use for: math definitions, experimental conditions, established principles.
 
 ```python
-setup = setting("A ball is dropped from 10m height in vacuum.")
-definition = setting("Let G = 6.674e-11 N m^2 kg^-2.")
+setup = note("A ball is dropped from 10m height in vacuum.")
+definition = note("Let G = 6.674e-11 N m^2 kg^-2.")
 ```
 
 Referenced via `background=` on claims or strategies, never as premises.
+
+`setting(...)` and `context(...)` remain as deprecated compatibility aliases for `note(...)`.
 
 ### `question(content, *, title=None, **metadata)`
 
@@ -103,6 +109,25 @@ titled = claim("H = p^2/2m + V(x)", title="Hamiltonian of the system")
 ```
 
 **Content supports markdown:** tables, `$...$` math, bullet points, bold/italic.
+
+## Recommended Actions
+
+Action verbs are the v0.5 main path for connecting claims. They return the concluded claim and create reviewable warrants behind it.
+
+| Function | Use when |
+|----------|----------|
+| `observe(conclusion, *, given=(), background=None, rationale="")` | An empirical observation or measurement supports the conclusion |
+| `derive(conclusion, *, given=(), background=None, rationale="")` | The conclusion follows deterministically from explicit premises |
+| `compute(ClaimType, *, fn=None, given=(), background=None, rationale="")` | A deterministic Python computation produces the conclusion |
+| `infer(evidence, *, hypothesis, p_e_given_h, p_e_given_not_h, rationale="")` | A probabilistic prediction/evidence link remains after extracting explicit uncertain premises |
+
+```python
+measurement = observe("Measured Tc is near 39 K.", rationale="Reported in the experiment.")
+prediction = derive("BCS model predicts a finite Tc.", given=model, rationale="From the model equations.")
+matched = equal(prediction, measurement, rationale="The prediction matches the measured regime.")
+```
+
+If a step feels uncertain, first ask whether the uncertain part should become a separate premise. Use `infer(...)` only for the remaining probabilistic relation after that extraction.
 
 ## Operators (Deterministic Constraints)
 
@@ -194,13 +219,13 @@ at_least_one = disjunction(mech_a, mech_b, mech_c,
     reason="These exhaust known possibilities.", prior=0.9)
 ```
 
-## Strategies
+## Legacy / Experimental Strategy APIs
 
-All strategies auto-register. All accept optional `reason` and `background`.
+The APIs below remain available for older packages and for experiments with named reasoning patterns. New v0.5 packages should normally use `observe(...)`, `derive(...)`, `compute(...)`, `infer(...)`, and the relation verbs above. In particular, do not use `abduction(...)` or `induction(...)` as a shortcut for uncertainty that has not been made explicit; extract the uncertain assumptions as claims first.
 
 ### `support(premises, conclusion, *, reason, prior, background=None)`
 
-The most common strategy. Premises jointly support a conclusion. `reason` and `prior` must be paired.
+Legacy soft support. Premises jointly support a conclusion through a probabilistic implication warrant. `reason` and `prior` must be paired. Prefer `derive(...)` when the step is deterministic; prefer `infer(...)` when you really need an explicit probabilistic evidence link.
 
 ```python
 support(
@@ -213,7 +238,7 @@ support(
 
 ### `deduction(premises, conclusion, *, reason, prior=None, background=None)`
 
-Strict logical entailment. Same structure as `support` but semantically rigid.
+Legacy strict logical entailment. In new packages, prefer `derive(...)` for this role.
 
 **Key test:** "If all premises are definitely true, is the conclusion **necessarily** true?" Yes -> deduction. No -> support.
 
@@ -239,7 +264,7 @@ comp = compare(pred_h, pred_alt, obs,
 
 ### `abduction(support_h, support_alt, comparison, *, reason, background=None)`
 
-Inference to best explanation. Takes three **Strategy** objects (not claims): two `support` strategies and one `compare` strategy.
+Experimental named pattern for inference to best explanation. Takes three **Strategy** objects (not claims): two `support` strategies and one `compare` strategy. For v0.5 authoring, this is not the recommended way to model abductive scientific reasoning; express the competing models, predictions, observations, matches, and alternative explanations as explicit claims/actions instead.
 
 ```python
 s_h = support([hypothesis], obs, reason="H explains obs.", prior=0.9)
@@ -252,7 +277,7 @@ abd = abduction(s_h, s_alt, comp,
 
 ### `induction(support_1, support_2, law, *, reason, background=None)`
 
-Binary composite: two support strategies jointly confirm a general law. Chainable.
+Experimental composite pattern: two support strategies jointly confirm a general law. Chainable. For v0.5 authoring, prefer explicit repeated observations/predictions plus reviewable relations, then let BP combine the graph.
 
 ```python
 s1 = support([law], obs1, reason="Law predicts obs1.", prior=0.9)
@@ -307,10 +332,10 @@ case_analysis(
 
 ### `composite(premises, conclusion, *, sub_strategies, reason, background=None)`
 
-Hierarchical composition. Only leaf sub-strategies need priors.
+Legacy hierarchical composition. Soft leaf sub-strategies may carry legacy warrant priors; derived conclusions themselves do not receive external priors.
 
 ```python
-s1 = deduction([axiom_a, axiom_b], intermediate, reason="From axioms.", prior=0.99)
+s1 = deduction([axiom_a, axiom_b], intermediate, reason="From axioms.")
 s2 = support([intermediate, data], final, reason="Combined evidence.", prior=0.85)
 
 composite(
@@ -364,7 +389,7 @@ tc_prediction = claim("Tc of MgB2 is 39K.")
 | No `_` prefix | Public (visible in package scope) | `supporting_lemma = claim(...)` |
 | `_` prefix | Private (package-internal) | `_helper = claim(...)` |
 
-**Strategy naming:** Assign strategies to named variables so they appear in `gaia check --brief` output:
+**Legacy strategy naming:** Assign legacy strategies to named variables so they appear in `gaia check --brief` output:
 
 ```python
 strat_tc = support(...)      # gets label "strat_tc"
@@ -373,15 +398,9 @@ abd_main = abduction(...)    # gets label "abd_main"
 
 ## Priors
 
-Independent premises (leaf claims) need priors. Two ways to provide them:
+External priors belong only on independent probabilistic inputs to exported goals. A root `observe(...)` claim is still independent: it has empirical grounding and a reviewable warrant, but grounding/review do not choose a numeric probability.
 
-**1. Inline in strategy:** `reason` + `prior` on `support()`, `deduction()`, `compare()`:
-
-```python
-support([a, b], c, reason="...", prior=0.85)
-```
-
-**2. priors.py file:** For leaf claims not derived by any strategy:
+Use `priors.py` for those inputs:
 
 ```python
 # src/my_package/priors.py
@@ -393,16 +412,19 @@ PRIORS: dict = {
 }
 ```
 
+Do not assign manual priors to derived claims, structural expression helpers, relation helper claims, or generated formalization internals. Run `gaia check --hole .` to inspect the independent degrees of freedom. Any independent input left without an external prior is handled by MaxEnt, subject to the package's hard logical constraints.
+
 ## Common Anti-Patterns
 
 | Anti-pattern | Correct approach |
 |-------------|-----------------|
 | `setting` or `question` as strategy premises | Use `background=` parameter |
 | Manually setting `.label = "name"` | Assign to a named variable |
-| `reason` without `prior` (or vice versa) | Provide both or neither |
+| Assigning priors to derived/helper claims | Put priors only on independent probabilistic inputs |
+| `reason` without `prior` in legacy APIs (or vice versa) | Provide both or neither |
 | `__all__` in submodules | Only define in `__init__.py` |
 | `from gaia.gaia_ir import ...` | Use `from gaia.ir import ...` |
-| `noisy_and()` | Use `support()` instead (deprecated) |
+| `noisy_and()` | Deprecated legacy compatibility path |
 
 ## Next Steps
 

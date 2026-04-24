@@ -21,6 +21,14 @@ class KnowledgeClassification:
 def classify_ir(ir: dict) -> KnowledgeClassification:
     """Classify knowledge nodes by their role in the reasoning graph."""
     c = KnowledgeClassification()
+
+    def add_operator_roles(operators: list[dict]) -> None:
+        for o in operators:
+            if o.get("conclusion"):
+                c.operator_conclusions.add(o["conclusion"])
+            for v in o.get("variables", []):
+                c.operator_variables.add(v)
+
     for s in ir.get("strategies", []):
         if s.get("conclusion"):
             c.strategy_conclusions.add(s["conclusion"])
@@ -28,11 +36,9 @@ def classify_ir(ir: dict) -> KnowledgeClassification:
             c.strategy_premises.add(p)
         for b in s.get("background", []):
             c.strategy_background.add(b)
-    for o in ir.get("operators", []):
-        if o.get("conclusion"):
-            c.operator_conclusions.add(o["conclusion"])
-        for v in o.get("variables", []):
-            c.operator_variables.add(v)
+        formal_expr = s.get("formal_expr") or {}
+        add_operator_roles(formal_expr.get("operators", []))
+    add_operator_roles(ir.get("operators", []))
     return c
 
 

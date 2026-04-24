@@ -261,6 +261,33 @@ def test_check_scopes_independent_dof_to_exported_goal_boundary(tmp_path):
     assert "Independent DOF analysis: 2 MaxEnt / 2 independent claims" in result.output
 
 
+def test_check_hole_does_not_report_private_formal_helpers_as_orphans(tmp_path):
+    pkg_dir = tmp_path / "check_private_helpers"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "check-private-helpers-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "check_private_helpers"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import claim, derive\n\n"
+        'a = claim("A.")\n'
+        'b = claim("B.")\n'
+        'goal = derive("C.", given=(a, b), rationale="A and B imply C.")\n'
+        '__all__ = ["goal"]\n'
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["check", str(pkg_dir), "--hole"])
+    assert result.exit_code == 0, result.output
+    assert "__implication_result" not in result.output
+    assert "__conjunction_result" not in result.output
+    assert "Orphaned claims:" not in result.output
+
+
 def test_check_root_observe_is_reported_as_maxent_independent_dof(tmp_path):
     pkg_dir = tmp_path / "check_observe"
     pkg_dir.mkdir()

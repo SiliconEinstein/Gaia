@@ -12,14 +12,18 @@ Gaia Lang is a Python 3.12+ internal DSL for declarative knowledge authoring. Pa
 
 ```python
 from gaia.lang import (
-    claim, setting, question,                              # Knowledge
+    claim, note, question,                                 # Knowledge
     not_, and_, or_,                                      # Propositional expressions
     contradict, equal, exclusive,                         # Reviewable relations
+    observe, derive, compute, infer,                       # Recommended actions
+
+    # Compatibility aliases and legacy/experimental APIs
+    setting, context,
     contradiction, equivalence, complement, disjunction,   # v5 compatibility
-    support, compare, deduction, abduction, induction,     # Strategies
+    support, compare, deduction, abduction, induction,     # Legacy strategies
     analogy, extrapolation, elimination, case_analysis,
-    mathematical_induction, composite, infer, fills,
-    # noisy_and,  # deprecated -- use support()
+    mathematical_induction, composite, fills,
+    # noisy_and,  # deprecated legacy compatibility
 )
 ```
 
@@ -44,15 +48,15 @@ def claim(
 ) -> Knowledge
 ```
 
-The only knowledge type carrying probability in BP. `background` attaches setting context without making it a logical premise. `parameters` enables universal quantification (e.g., `[{"name": "x", "type": "material"}]`). `provenance` records source attribution as `[{"package_id": ..., "version": ...}]`. Use explicit strategy functions (`support`, `deduction`, etc.) to connect claims.
+The only knowledge type carrying probability in BP. `background` attaches notes without making them logical premises. `parameters` enables universal quantification (e.g., `[{"name": "x", "type": "material"}]`). `provenance` records source attribution as `[{"package_id": ..., "version": ...}]`. Use action verbs (`observe`, `derive`, `compute`, `infer`) and relation verbs (`equal`, `contradict`, `exclusive`) to connect claims in new v0.5 packages.
 
 ```python
 orbit = claim("The Earth orbits the Sun.")
 
-# Connect claims with explicit strategies
+# Connect claims with the recommended action surface
 evidence = claim("Stellar parallax is observed.")
 heliocentric = claim("The heliocentric model is correct.")
-support([evidence], heliocentric, reason="Parallax confirms orbital motion.", prior=0.9)
+derive(heliocentric, given=evidence, rationale="Parallax confirms orbital motion.")
 
 # Universal claim
 bcs = claim(
@@ -61,7 +65,7 @@ bcs = claim(
 )
 
 # With provenance and background
-ctx = setting("High-pressure experiments at 200 GPa.")
+ctx = note("High-pressure experiments at 200 GPa.")
 measurement = claim(
     "LaH10 exhibits superconductivity at 250 K.",
     background=[ctx],
@@ -69,18 +73,25 @@ measurement = claim(
 )
 ```
 
-### `setting()`
+### `note()`
 
 ```python
-def setting(content: str, *, title: str | None = None, **metadata) -> Knowledge
+def note(
+    content: str, *,
+    title: str | None = None,
+    format: str = "markdown",
+    **metadata,
+) -> Knowledge
 ```
 
 Background context. No probability, no BP participation. Used for experimental conditions, domain assumptions, and variable bindings for universal claims.
 
 ```python
-context = setting("Experiments conducted at room temperature and 1 atm.")
-binding = setting("x = YBCO")
+context = note("Experiments conducted at room temperature and 1 atm.")
+binding = note("x = YBCO")
 ```
+
+`setting(...)` and `context(...)` are deprecated compatibility aliases for `note(...)`.
 
 ### `question()`
 
@@ -93,6 +104,28 @@ Open inquiry. No probability, no BP participation. Expresses research directions
 ```python
 open_problem = question("What is the maximum Tc in hydrogen-rich superconductors?")
 ```
+
+---
+
+## Recommended Action Verbs
+
+Action verbs are the canonical v0.5 way to turn explicit premises into reviewable warrants.
+
+### `observe(conclusion, *, given=(), background=None, rationale="", label=None)`
+
+Empirical observation. With no `given`, it records grounding on the conclusion and still creates a reviewable observation warrant. A root observation is also an independent probabilistic input for `gaia check --hole`.
+
+### `derive(conclusion, *, given=(), background=None, rationale="", label=None)`
+
+Deterministic derivation. Use when the conclusion follows from the explicit `given` claims once the rationale is accepted.
+
+### `compute(ClaimType, *, fn=None, given=(), background=None, rationale="", label=None)`
+
+Deterministic computation. Use either `compute(ResultClaim, fn=..., given=...)` or `@compute` with a `Claim` return annotation.
+
+### `infer(evidence, *, hypothesis, p_e_given_h, p_e_given_not_h, background=None, rationale="", label=None)`
+
+Probabilistic prediction/evidence link. Use after extracting the uncertain parts into explicit claims; `infer(...)` should not be a hiding place for missing premises.
 
 ---
 
@@ -137,6 +170,8 @@ Each relation returns a reviewable warrant helper claim and compiles to the corr
 
 ### v5 Compatibility Operators
 
+These functions remain for older packages. New v0.5 packages should prefer structural expressions (`~`, `&`, `|`) for direct Boolean construction and relation verbs (`equal`, `contradict`, `exclusive`) for reviewable semantic judgments.
+
 ### `contradiction(a, b, *, reason="", prior=None)`
 
 `not(A and B)`. Returns helper claim `not_both_true(A, B)`.
@@ -167,19 +202,19 @@ some = disjunction(mech_a, mech_b,
     reason="At least one mechanism operates", prior=0.95)
 ```
 
-All operator signatures follow the same pattern -- `Knowledge` inputs, optional `reason` + `prior` (must be paired: both or neither), returns a `Knowledge` helper claim. Prior values must be within Cromwell bounds `[1e-3, 0.999]`.
+The compatibility operator signatures follow the same pattern -- `Knowledge` inputs, optional `reason` + `prior` (must be paired: both or neither), returns a `Knowledge` helper claim. In new packages, do not assign external priors to structural or relation helper claims; their truth is determined by the declared operator and review status.
 
 ---
 
-## Strategies
+## Legacy / Experimental Strategy APIs
 
-Strategies declare how premises support a conclusion. They carry all uncertainty -- probability parameters live at this layer. All strategy functions set `conclusion.strategy` and auto-register. The `reason` parameter accepts `str | list[str | Step]` for documenting reasoning steps. For IR schemas, see [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md), Section 3.
+These APIs remain available for older packages and for experiments with named reasoning patterns. New v0.5 packages should normally use the action verbs (`observe`, `derive`, `compute`, `infer`) and relation verbs (`equal`, `contradict`, `exclusive`) above. If uncertainty appears in a reasoning step, first extract it into explicit claims; do not hide it inside prose rationale or a broad legacy strategy.
 
 ### Leaf Strategies
 
 #### `support(premises, conclusion, *, background=None, reason="", prior=None)`
 
-**The most common strategy type.** Soft deduction based on the directed `implication` operator (A=1 -> B must =1): premises jointly support conclusion via forward implication. Same structure as `deduction` (conjunction + directed implication) but with an author-specified prior on the implication warrant. Requires at least 1 premise.
+Legacy soft deduction based on the directed `implication` operator (A=1 -> B must =1): premises jointly support conclusion via forward implication. Same structure as `deduction` (conjunction + directed implication) but with an author-specified prior on the implication warrant. Requires at least 1 premise. Prefer `derive(...)` for deterministic steps and `infer(...)` for explicit probabilistic prediction/evidence links.
 
 `reason` and `prior` must be paired: both or neither.
 
@@ -193,7 +228,7 @@ support(premises=[a, b], conclusion=h,
 
 #### `deduction(premises, conclusion, *, background=None, reason="", prior=None)`
 
-Rigid deduction based on the directed `implication` operator: premises logically entail the conclusion. Same skeleton as `support` (conjunction + directed implication), but semantically a deterministic logical derivation. Requires at least 1 premise. Use when the reasoning involves no uncertainty beyond the premises themselves (math proofs, logical syllogisms). If the reasoning has uncertainty, use `support`.
+Legacy rigid deduction based on the directed `implication` operator: premises logically entail the conclusion. Same skeleton as `support` (conjunction + directed implication), but semantically a deterministic logical derivation. Requires at least 1 premise. In new packages, prefer `derive(...)`.
 
 `prior` is accepted for legacy compatibility, but current BP lowering ignores it for deduction. Accepted review makes the deduction warrant part of the information set `I`; it does not assign a numeric confidence to the deduction step.
 
@@ -219,9 +254,9 @@ comp = compare(pred_h, pred_alt, obs,
 # comp.conclusion is the auto-generated comparison claim
 ```
 
-#### `infer(premises, conclusion, *, background=None, reason="")`
+#### Legacy `infer(premises, conclusion, *, background=None, reason="")`
 
-General CPT reasoning with 2^k parameters. Rarely used directly.
+Deprecated v5 CPT form. Use `infer(evidence, hypothesis=..., p_e_given_h=..., p_e_given_not_h=...)` instead.
 
 #### `fills(source, target, *, mode=None, strength="exact", background=None, reason="")`
 
@@ -235,15 +270,15 @@ fills(local_evidence, imported_interface_claim, strength="exact")
 
 #### `noisy_and()` (deprecated)
 
-**Deprecated -- use `support()` instead.** Emits `DeprecationWarning`. Compiles to `support` internally.
+Emits `DeprecationWarning`. Compiles to legacy `support` internally.
 
 ### Named Strategies
 
-Named strategies express recognized reasoning patterns. At compile time, the IR formalizer expands them into `FormalStrategy` instances with canonical operator skeletons.
+Named strategies express recognized reasoning patterns. They are legacy/experimental in v0.5. At compile time, the IR formalizer expands them into `FormalStrategy` instances with canonical operator skeletons. Use them when you are deliberately testing that pattern; do not use them as the default authoring surface for new packages.
 
 #### `abduction(support_h, support_alt, comparison, *, background=None, reason="")`
 
-Inference to the best explanation. Takes three Strategy objects: two `support` strategies (for the hypothesis and alternative) and one `compare` strategy. Auto-generates a `composition_warrant` claim. Conclusion comes from the comparison strategy's conclusion.
+Experimental inference-to-best-explanation pattern. Takes three Strategy objects: two `support` strategies (for the hypothesis and alternative) and one `compare` strategy. Auto-generates a `composition_warrant` claim. Conclusion comes from the comparison strategy's conclusion.
 
 ```python
 H = claim("Discrete heritable factors.")
@@ -261,7 +296,7 @@ abd = abduction(s_h, s_alt, comp, reason="Both explain same observation")
 
 #### `induction(support_1, support_2, law, *, background=None, reason="")`
 
-Binary composite strategy: two support strategies jointly confirm a law. Chainable: `induction(prev_induction, new_support, law)`. Auto-generates a `composition_warrant` claim.
+Experimental binary composite strategy: two support strategies jointly confirm a law. Chainable: `induction(prev_induction, new_support, law)`. Auto-generates a `composition_warrant` claim.
 
 ```python
 law = claim("Mendel's law of segregation.")
@@ -326,7 +361,7 @@ mathematical_induction(base=base, step=step, conclusion=conclusion)
 
 #### `composite(premises, conclusion, *, sub_strategies, background=None, reason="", type="infer")`
 
-Hierarchical composition of sub-strategies. Requires at least one (`ValueError` otherwise). Sub-strategies can nest recursively. At lowering time, sub-strategies are expanded into the factor graph.
+Legacy hierarchical composition of sub-strategies. Requires at least one (`ValueError` otherwise). Sub-strategies can nest recursively. At lowering time, sub-strategies are expanded into the factor graph.
 
 ---
 
@@ -335,7 +370,7 @@ Hierarchical composition of sub-strategies. Requires at least one (`ValueError` 
 **Automatic inference.** When compiled via `gaia compile`, module-level variable names in `__all__` become labels:
 
 ```python
-bg = setting("Context.")           # label = "bg"
+bg = note("Context.")              # label = "bg"
 hypothesis = claim("Hypothesis.")  # label = "hypothesis"
 __all__ = ["bg", "hypothesis"]
 ```
@@ -367,7 +402,9 @@ in [References & `@` Syntax Unification Design](../../specs/2026-04-09-reference
 
 ---
 
-## Complete Example
+## Legacy Complete Example
+
+This older example is retained to document compatibility behavior. New v0.5 examples should follow the README style: `claim`/`note` plus `observe`/`derive`/`compute`/`infer` and reviewable relation verbs.
 
 **`pyproject.toml`:**
 

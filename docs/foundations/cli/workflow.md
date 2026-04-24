@@ -98,7 +98,7 @@ gaia check --hole [PATH]
 |--------|-------------|
 | `--brief`, `-b` | Show per-module warrant structure overview |
 | `--show`, `-s` | Expand a specific module or claim/strategy label |
-| `--hole` | Show detailed prior review report for all independent claims |
+| `--hole` | Show detailed prior contract report for independent degrees of freedom |
 
 **What it does:**
 
@@ -114,6 +114,8 @@ printed but do not fail the check.
 **Default output:** Prints pass/fail summary with knowledge diagnostics. Each independent boundary premise is annotated with `prior=X` or `no external prior (MaxEnt)`. Shows a "MaxEnt (no external prior): N" count when any load-bearing boundary claims lack external priors. If deterministic operators constrain those MaxEnt claims, the output also reports the effective feasible state space and entropy in bits. It also reports the induced MaxEnt entropy from the current full joint distribution, which is the Jaynes-style answer to "how many independent bits are really left after the graph's existing constraints and explicit priors are applied?"
 
 **`--hole` output:** Detailed report splitting all load-bearing boundary claims into MaxEnt degrees of freedom (no external prior, with content and QID) and covered claims (with prior value and justification). Use during prior review to identify which independent claims intentionally rely on MaxEnt, which are constrained by deterministic logic, what their induced entropy is under the current graph, and which still need `priors.py` entries.
+
+**Prior contract:** External priors belong only on independent probabilistic inputs to exported goals. Root `observe(...)` claims count as independent inputs because grounding and review are qualitative, not numeric. Claims concluded by `derive(...)`, `compute(...)`, `observe(..., given=...)`, or `infer(...)` get their belief from the graph and should not receive manual priors. Structural/helper claims from propositional expressions, relation verbs (`equal`, `contradict`, `exclusive`), and generated formalization internals also carry no independent prior. If an independent input is intentionally left without an external prior, Gaia uses the Jaynes maximum-entropy distribution over the remaining independent degrees of freedom subject to declared hard constraints.
 
 Reference: [Compilation](compilation.md) for validation details.
 

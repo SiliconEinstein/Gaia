@@ -70,7 +70,7 @@ flowchart TD
     classDef contra fill:#ffebee,stroke:#c62828,color:#222
 ```
 
-Only three leaf claims receive explicit priors. Relation helper claims are folded into the `equal` / `contradict` operator boxes to keep the diagram readable. Derived claims receive no independent prior and are marginalized by inference.
+Only three independent input claims receive explicit priors. Relation helper claims are folded into the `equal` / `contradict` operator boxes to keep the diagram readable. Derived claims receive no independent prior and are marginalized by inference.
 
 | Claim | Prior → Belief | Change |
 |-------|---------------:|-------:|
@@ -261,7 +261,7 @@ gaia compile .
 gaia check .
 ```
 
-**3. Assign priors** for leaf claims via `priors.py`:
+**3. Assign priors** for independent probabilistic inputs via `priors.py`:
 
 `src/galileo_falling_bodies/priors.py`:
 
@@ -274,6 +274,13 @@ PRIORS = {
     medium_model: (0.5, "Neutral before the thought experiment."),
 }
 ```
+
+The v0.5 prior contract is deliberately strict:
+
+- Give external priors only to independent probabilistic inputs that are load-bearing for exported goals. Root `observe(...)` claims count: grounding and review are qualitative, so the observed claim still needs a probability source or MaxEnt.
+- Do not assign priors to claims concluded by `derive(...)`, `compute(...)`, `observe(..., given=...)`, or `infer(...)`; BP marginalizes them from the declared graph.
+- Do not assign priors to structural/helper claims from `~`, `&`, `|`, `equal(...)`, `contradict(...)`, `exclusive(...)`, or generated formalization helpers.
+- Run `gaia check --hole .` before inference. Claims reported as MaxEnt are independent degrees of freedom without external priors; leaving them unset means Gaia uses the maximum-entropy distribution over those free variables, subject to the hard logical constraints already declared.
 
 **4. Infer and publish**
 

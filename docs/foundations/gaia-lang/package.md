@@ -165,12 +165,16 @@ At compile time, imported Knowledge objects retain their foreign QIDs (e.g., `gi
 
 ## Priors
 
-Prior probabilities for BP inference are set via two mechanisms:
+Prior probabilities for BP inference are assigned through `priors.py`. Exports a `PRIORS: dict` mapping independent probabilistic input claims to `(prior, justification)` tuples.
 
-1. **`priors.py`** — assigns priors to leaf claims (independent premises). Exports a `PRIORS: dict` mapping Knowledge objects to `(prior, justification)` tuples.
-2. **Inline `reason+prior` pairing** — strategies accept `prior=` directly in the DSL (e.g., `support(..., prior=0.85, reason="...")`).
+The v0.5 contract is:
 
-Both are baked into claim metadata at compile time. `gaia infer` reads metadata directly.
+- assign external priors only to independent inputs that are load-bearing for exported goals;
+- treat root `observe(...)` claims as independent inputs unless they are otherwise derived;
+- do not assign priors to derived claims, structural expression helpers, relation helper claims, or generated formalization helpers;
+- use `gaia check --hole` to decide which independent degrees of freedom are covered and which intentionally rely on MaxEnt.
+
+Legacy strategy/operator APIs may still accept paired `reason+prior` arguments for compatibility. New packages should prefer `priors.py` for input priors and action/relation verbs for warrants.
 
 ### priors.py
 
@@ -184,11 +188,11 @@ PRIORS: dict = {
 }
 ```
 
-`apply_package_priors()` discovers `priors.py` automatically at load time.
+`apply_package_priors()` discovers `priors.py` automatically at load time and injects these values into claim metadata before compilation.
 
 ### Review Sidecar (Deprecated)
 
-> **Deprecated since gaia-lang 0.4.2.** The review sidecar pattern (`ReviewBundle` / `review_claim()` / `review_strategy()` in `reviews/self_review.py`) is retained for backward compatibility but will be removed in a future major release. Use `priors.py` and inline `reason+prior` pairing instead.
+> **Deprecated since gaia-lang 0.4.2.** The review sidecar pattern (`ReviewBundle` / `review_claim()` / `review_strategy()` in `reviews/self_review.py`) is retained for backward compatibility but will be removed in a future major release. Use `priors.py` for independent input priors and action/relation warrants for new v0.5 packages.
 
 ## Build Artifacts
 
@@ -214,7 +218,7 @@ init --> authored --> compiled --> checked --> priors assigned --> inferred --> 
 | **Authored** | (manual) | DSL declarations written in Python modules. |
 | **Compiled** | `gaia compile` | Source is imported, declarations collected, IR emitted to `.gaia/ir.json`. The IR is validated against the Gaia IR schema before writing. |
 | **Checked** | `gaia check` | Validates naming (`-gaia` suffix), IR structural correctness, and artifact freshness (ir_hash matches current source). |
-| **Priors assigned** | (manual) | Write `priors.py` assigning priors to leaf claims. Use `gaia check --hole` to identify claims without priors. |
+| **Priors assigned** | (manual) | Write `priors.py` assigning priors to independent probabilistic inputs. Use `gaia check --hole` to identify uncovered independent degrees of freedom. |
 | **Inferred** | `gaia infer` | Loads priors from metadata, lowers IR to factor graph, runs BP, writes beliefs to `.gaia/beliefs.json`. |
 | **Tagged** | `git tag v<version> && git push origin v<version>` | A git tag marks the release. The tag must point to HEAD and be pushed to origin before registration. |
 | **Registered** | `gaia register` | Prepares (or submits) a metadata PR against the official Gaia registry. Requires a valid `[tool.gaia].uuid`, clean git worktree, and pushed tag. |

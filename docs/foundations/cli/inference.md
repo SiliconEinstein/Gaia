@@ -9,9 +9,11 @@ since: v5-phase-2
 ## Overview
 
 `gaia infer` runs local (or cross-package joint) inference on a compiled
-knowledge package. Priors come from **claim metadata** set by `priors.py` and
-the `reason+prior` DSL pairing during compilation — no review sidecar is
-needed.
+knowledge package. External priors come from **claim metadata** set by
+`priors.py` during compilation, plus dependency beliefs injected through
+`node_priors`. Legacy `reason+prior` DSL pairing is still recognized for
+compatibility, but new v0.5 packages should not use it as the primary prior
+assignment path.
 
 Command signature:
 
@@ -41,11 +43,18 @@ ensure_package_env()          # uv sync --quiet
 
 Source: `gaia/cli/commands/infer.py`
 
-## Prior Sources
+## Prior Sources And MaxEnt Contract
 
-Priors are **embedded in claim metadata** at compile time and read by the
-lowering layer (`lower_local_graph()`) from `metadata["prior"]`. There is no
+External priors are **embedded in claim metadata** at compile time and read by
+the lowering layer (`lower_local_graph()`) from `metadata["prior"]`. There is no
 separate parameterization or review sidecar step.
+
+The v0.5 contract is:
+
+- external priors belong only on independent probabilistic inputs to exported goals;
+- root `observe(...)` claims count as independent inputs because grounding and review are qualitative, not numeric;
+- derived claims and helper claims do not receive manual priors;
+- claims without an explicit unary prior do not get a synthetic `0.5` factor. They remain unconstrained variables, and the exact-inference layer applies maximum entropy over the remaining independent degrees of freedom subject to declared hard constraints.
 
 ### Priority order
 
@@ -67,13 +76,13 @@ author-supplied prior on them is ignored unless injected via `node_priors`.
 **Regular claims:**
 
 ```
-node_priors > metadata["prior"] > 0.5
+node_priors > metadata["prior"] > no unary prior
 ```
 
 1. **`node_priors`** — explicit overrides passed into `lower_local_graph()`,
    used for foreign node flat prior injection from `dep_beliefs/` (see below).
-2. **`metadata["prior"]`** — set by `priors.py` or `reason+prior` DSL pairing.
-3. **Structural default** — `0.5` (neutral).
+2. **`metadata["prior"]`** — set by `priors.py` or legacy `reason+prior` DSL pairing.
+3. **No unary prior** — the variable is left free; MaxEnt is applied at the joint-distribution level, not by multiplying every unassigned claim by an independent 0.5 prior factor.
 
 ### priors.py
 
@@ -103,25 +112,26 @@ Rules:
 
 Source: `gaia/cli/_packages.py :: apply_package_priors()`
 
-### reason+prior DSL pairing
+### Legacy reason+prior DSL pairing
 
-Strategy and operator DSL functions accept paired `reason` + `prior` keyword
-arguments. The prior is stored in the strategy or operator's `metadata["prior"]`
-and flows into the compiled IR:
+Older strategy and operator DSL functions accept paired `reason` + `prior`
+keyword arguments. This path is retained for compatibility; new packages should
+prefer `priors.py` for independent input priors and action/relation verbs for
+warrants.
 
 ```python
-from gaia.lang import deduction, equivalence
+from gaia.lang import support, equivalence
 
-# Strategy with warrant prior
-deduction([A, B], C, reason="Modus ponens by Theorem 3", prior=0.95)
+# Legacy soft support with warrant prior
+support([A, B], C, reason="Evidence converges", prior=0.85)
 
-# Operator with helper claim prior
+# Legacy operator with helper claim prior
 equivalence(X, Y, reason="Same underlying mechanism", prior=0.99)
 ```
 
 The pairing is enforced: providing `reason` without `prior` (or vice versa) is
-an error. When both are omitted, the lowering layer applies the structural
-default.
+an error. In new v0.5 authoring, do not assign external priors to derived,
+structural, relation-helper, or generated-helper claims.
 
 ## Flat Prior Injection (`--depth 0`)
 
