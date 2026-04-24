@@ -66,18 +66,23 @@ Order is semantic: the list represents execution order, and the `_structure_hash
 
 `conclusion: str` — QID of the Claim that the composition produces as its public output.
 
-The v6 Support-verb pattern (`gaia/lang/dsl/support.py`) has `derive()` / `observe()` / `compute()` each return the **conclusion Claim** of the action they declare. `infer()` follows the same pattern: it returns the **evidence Claim** (the "conclusion" of an Infer action in BP-graph terms: premise = H, conclusion = E). `equal()` / `contradict()` / `exclusive()` return the helper Claim they generate.
+In v6, every primitive reasoning verb returns a Claim, but what kind of Claim depends on the verb's role:
 
-Every primitive reasoning verb in v6 therefore returns a Claim. A composition's `conclusion` is whichever Claim the terminal action returned — typically captured as the decorated function's `return` value. No `terminal_action` field is needed; the conclusion Claim already references its producing action through the reasoning graph.
+- **Support verbs** (`gaia/lang/dsl/support.py` — `derive`, `observe`, `compute`) return the **conclusion Claim** that the action produces / binds / references. That Claim is part of the author's proposition layer.
+- **Relate verbs** (`gaia/lang/dsl/relate.py` — `equal`, `contradict`, `exclusive`) return a **generated helper Claim** representing the relation itself. Both operands were pre-existing inputs; the new object is the relation-assertion helper.
+- **Correlate verbs** (`gaia/lang/dsl/infer_verb.py` — `infer`; new `associate` — §11.4 foundation spec) follow the Relate pattern, not the Support pattern. Both operands (evidence+hypothesis for `infer`, A+B for `associate`) are pre-existing inputs. The action produces a new generated helper Claim representing the probabilistic relation — `helper_kind="infer"` for `infer()` and `helper_kind="associate"` for `associate()`.
+
+A composition's `conclusion` is whichever Claim the terminal action returned — captured as the decorated function's `return` value. No `terminal_action` field is needed; the conclusion Claim already references its producing action through the reasoning graph.
 
 **Edge cases:**
-- **Pure evidence compositions** (e.g., `gaussian_measurement`, Kepler `transit_bls_evidence`): terminal action is `infer(...)`, which returns the evidence Claim. `conclusion = evidence_qid`.
+
+- **Evidence compositions** (e.g., `gaussian_measurement`, Kepler `transit_bls_evidence`): terminal action is `infer(...)`, which returns the generated `infer`-kind helper Claim. `conclusion = infer_helper_qid`.
 - **Compute-chain compositions** (e.g., deriving a density from temperature and pressure): terminal action is `compute(...)`, returning a derived Claim. `conclusion = derived_claim_qid`.
-- **Multi-verb compositions** (e.g., ending in `equal()` or `derive()`): terminal action returns the helper / derived Claim. `conclusion = that_qid`.
+- **Relate / propositional compositions** (e.g., ending in `equal()` or `and_()`): terminal action returns the relation helper Claim. `conclusion = helper_qid`.
 
 `conclusion` is **required** — every composition must commit to a single public output Claim. See §10 for the multi-output open point.
 
-**Prerequisite (v0.5 bug fix):** the v0.5 `gaia/lang/dsl/strategies.py:infer()` currently returns a `Strategy`, not a Claim. That is inconsistent with the Support-verb pattern and blocks the `conclusion = evidence_qid` rule above. Foundation §17 item 11b tracks the fix; it must land before composition mechanics can depend on `infer()` returning a Claim.
+**Prerequisite (v0.5 DSL update):** v0.5 HEAD's `gaia/lang/dsl/infer_verb.py` already generates a helper Claim with `metadata["helper_kind"]` (previously tagged `"statistical_support"`, foundation now specifies `"infer"`) and attaches it to the `Infer` Action's `helper` field — but `infer()` currently returns `evidence` instead of `helper`. Foundation §17 item 11b tracks the fix: rename the helper kind to `"infer"` and return the helper Claim. This is a prerequisite for the composition primitive's `conclusion = infer_helper_qid` rule above.
 
 ### 1.5 Reverse pointer on sub-Knowledge
 
@@ -347,16 +352,18 @@ ComposedAction(exoplanet_gaia:transit_bls::<structure_hash>)
                          compute_expected_bls_h_qid,
                          compute_p_h_qid,
                          compute_p_not_h_qid,
-                         infer_transit_qid]
-    conclusion        = evidence_claim_qid          # the lightcurve Claim
-                                                    # (infer() returns evidence Claim)
+                         infer_transit_qid,
+                         infer_helper_claim_qid]          # generated infer helper
+    conclusion        = infer_helper_claim_qid       # the generated helper Claim
+                                                     # (infer() returns its helper Claim,
+                                                     #  helper_kind="infer", §11.4 foundation)
 
-+ 6 independent Knowledge nodes in the IR, each flushed to the
++ 7 independent Knowledge nodes in the IR, each flushed to the
   package during scope exit with metadata["composition_id"]
   pointing back to the ComposedAction.
 ```
 
-The composition call `transit_bls_evidence(evidence=kepler_lightcurve, hypothesis=kepler_87b_exists, ...)` returns the `kepler_lightcurve` Claim (because `infer()` returns the evidence Claim), letting downstream code chain further reasoning off the evidence Claim if needed.
+The composition call `transit_bls_evidence(evidence=kepler_lightcurve, hypothesis=kepler_87b_exists, ...)` returns the **infer-generated helper Claim** whose content asserts "lightcurve statistically supports kepler_87b_exists with P(E|H), P(E|¬H)". Review targets this helper — reviewer accepting it accepts the whole composition's inference claim. Downstream code can chain further reasoning off the helper Claim (e.g., using it as a premise in a compute chain or as a component of a multi-instrument meta-analysis).
 
 Downstream packages import `kepler_87b_exists` and read its baked inference output. No astropy, no BLS recomputation, no light-curve data access — just the `IrStrategy.conditional_probabilities` that `compute_p_h_qid` / `compute_p_not_h_qid` populated at author's time.
 
@@ -398,7 +405,7 @@ PR-A and PR-B must be co-ordinated with the U1 runtime refactor (foundation §16
   - Require authors to decompose into single-output compositions (current default — accept for v0.5).
   - Allow `conclusion: list[str] | str` and extend review semantics for per-output acceptance.
   - Introduce "tuple Claim" subtype whose parameters bundle multiple named numeric fields; composition remains single-output at the `conclusion` level but the Claim carries the bundle.
-  
+
   Not resolved; decision deferred until a concrete user need emerges.
 
 ---
