@@ -1096,24 +1096,65 @@ The release plan **MUST** allocate a dedicated PR for this refactor. Mixing it i
 
 ---
 
-## 16. Summary of required IR / schema changes
+## 16. Summary of required IR / schema / runtime changes
 
-Not an implementation plan, but the concrete diffs this spec implies for the IR layer. These belong in follow-up change-controlled PRs against `docs/foundations/gaia-ir/`.
+Not an implementation plan, but the concrete diffs this spec implies. Each item is tagged against **v0.5 HEAD** reality:
 
-1. Add `PriorSpec` schema. `Claim.prior` accepts `PriorSpec | float | None`; float is auto-wrapped.
-2. Drop `Knowledge.type == "setting"` (post-migration).
-3. Dissolve `EvidenceMetadata` pydantic class. Inline fields into `InferStrategy` (discriminated union).
-4. Add `background: list[str]` to `IrStrategy` base (affects `DeriveStrategy`, `ComputeStrategy`, `InferStrategy`).
-5. Add `MeasurementRecord` / `DistributionSpec` / `CallableRef` schemas. Attach `MeasurementRecord` via `Knowledge.metadata["measurement"]` with schema-validated read. (`DistributionSpec` replaces the previously-named `ErrorModelSpec`; see §4.6.)
-6. Extend `ReviewManifest` to support relation-level targets (`IndependenceDeclaration`). Schema migrates from `{action_label: status}` to `{target_id: {kind, action_labels, status, rationale}}`.
-7. Remove `EvidenceMetadata.independence_group`.
-8. Remove free-text `assumptions` anywhere it appears on strategies.
-9. Add `QuantityLiteral` schema to the kernel (`{value: float, unit: str}`; 2-field pydantic carrier). Record the literal-hash invariant (§4.5): Claim identity and `context_id` hash the literal `{value, unit}` bytes; no unit canonicalisation at hash time. Every IR site that carries a unit (`MeasurementRecord.observed_value`, `DistributionSpec.params`, parameterised `Claim` parameters) uses `QuantityLiteral`.
-10. Add `gaia.unit` as a core module of `gaia-lang`, wrapping Pint with a shared `UnitRegistry` singleton plus `to_literal` / `from_literal` bridges to `QuantityLiteral`. Pint becomes a core dependency (formerly listed as optional extras). Kernel code itself still does not import Pint — the dependency is scoped to `gaia.unit`. Update `pyproject.toml` accordingly.
-11. Rename kernel schema `ErrorModelSpec` → `DistributionSpec` (§4.6). Generalise to be the IR carrier for any distribution, not only measurement noise. Add kind-vs-callable-ref validator: built-in `kind` disallows `callable_ref`; `kind="custom"` requires it.
-12. Add `gaia.stats` as a core module of `gaia-lang`. Contains (a) named constructors for the 8 built-in distributions (`Normal`, `Lognormal`, `StudentT`, `Cauchy`, `Binomial`, `Poisson`, `Exponential`, `Beta`) that return `DistributionSpec`; (b) the registry metadata (param schemas); (c) `from_callable(...)` helper producing `DistributionSpec(kind="custom", callable_ref=...)`. `gaia.stats` does **not** import scipy at load time.
-13. Add `gaia-lang[stats]` optional-extras dependency group that pulls scipy. Provide `gaia/adapters/stats/scipy_adapter.py` that dispatches `DistributionSpec` by `kind` to `scipy.stats`, or resolves `CallableRef` for `kind="custom"`. Evidence adapters (Gaussian measurement evidence, Binomial evidence, etc.) lazy-import this adapter when they need to evaluate a spec.
-14. Add `gaia.constants` as a core module re-exporting Pint's built-in physical constants with Gaia-preferred names and the short-form aliases (`c`, `h`, `k_B`, `G`, `N_A`, etc.). No new schema, no new dependency (Pint already core); constants are named `Quantity` instances. See §4.7.
+- `[implemented]` — the item is already present in v0.5; foundation spec merely names / normatively describes it.
+- `[to-refactor]` — partial v0.5 support; needs restructuring or extension.
+- `[new]` — nothing in v0.5 corresponds; fresh schema / module / CLI.
+- `[retracted]` — listed in earlier drafts of this §16 but never existed in v0.5 in the assumed form; foundation no longer requires the change.
+
+IR schema changes belong in change-controlled PRs against `docs/foundations/gaia-ir/` (protected layer per CLAUDE.md).
+
+### 16.1 Kernel schema
+
+1. **`[new]`** Add `PriorSpec` schema (§6). `Claim.prior` accepts `PriorSpec | float | None`; float auto-wraps to `PriorSpec(value=..., policy="default")`. v0.5 currently stores a bare float in `Knowledge.metadata["prior"]`.
+2. **`[to-refactor]`** `Knowledge.type == "setting"` is still a supported value in v0.5 (`gaia/lang/dsl/knowledge.py:setting()` is live; IR accepts `type="setting"`). Deprecate from v0.5, drop from the enum after migrator ships.
+3. **`[implemented]`** `background: list[str] | None` is already on `Strategy` at IR layer (`gaia/ir/strategy.py:146`) and on `Action` at runtime. Foundation adds a normative description (§12) but no schema change.
+4. **`[new]`** Add `MeasurementRecord`, `DistributionSpec`, `CallableRef` pydantic schemas (§4.5 / §4.6 / §4.8). Attach `MeasurementRecord` via `Knowledge.metadata["measurement"]` with schema-validated read.
+5. **`[new]`** Add `QuantityLiteral` schema (`{value: float, unit: str}`) as the IR serialisation carrier for unit-bearing values. Record the literal-hash invariant (§4.5): Claim identity and `context_id` hash the literal `{value, unit}` bytes; no unit canonicalisation at hash time. Every IR site that carries a unit (`MeasurementRecord.observed_value`, `DistributionSpec.params`, parameterised `Claim` parameters) uses `QuantityLiteral`.
+6. **`[new]`** Define foundation-level well-known keys on `IrStrategy.metadata` for `type == "infer"` (§11.1, §11.5):
+   - `metadata["evidence"]` = `{source_id, data_id, data_hash, rationale}`
+   - `metadata["evidence_computation"]` = `EvidenceComputationRecord` when the CPT was adapter-produced
+   No new top-level fields on `IrStrategy` itself; the existing inline `conditional_probabilities` already carries `[P(E|¬H), P(E|H)]`.
+7. **`[retracted]`** ~~Dissolve `EvidenceMetadata` pydantic class. Inline fields into `InferStrategy` (discriminated union).~~ The class never existed in v0.5 (it was proposed in GPT Pro's v0.6 idea draft). The foundation's final §11 model is CPT-pair-only with no discriminator; v0.5's inline `conditional_probabilities` is the kernel shape.
+8. **`[retracted]`** ~~Remove `EvidenceMetadata.independence_group`.~~ Never existed in v0.5. Independence is expressed via `IndependenceDeclaration` in the review layer (§7).
+9. **`[retracted]`** ~~Remove free-text `assumptions` from strategies.~~ v0.5's `Infer` action has no `assumptions` field; `background` is the only assumption-carrying mechanism and it is already Claim-list-based.
+
+### 16.2 U1 — unified Knowledge hierarchy
+
+10. **`[to-refactor]`** U1 runtime refactor (see §15.2.1). v0.5's `gaia/lang/runtime/action.py` declares `Action` as "parallel to Knowledge, not a Knowledge subclass". U1 reverses this: `Action` (and therefore `Strategy`, `Operator` and all their subtypes) become subtypes of `Knowledge`. Adds `review_status: ReviewStatus | None` as an optional field on the base. Dedicated refactor PR; must not be bundled with a functional change.
+11. **`[to-refactor]`** IR-side U1: `gaia/ir/strategy.py` and `gaia/ir/operator.py` adjust their pydantic shape so `Strategy` and `Operator` share the `Knowledge.kind` discriminator. No field removal; add `kind` tagging so serialised IR distinguishes subtypes via a single field.
+
+### 16.3 Review / R4
+
+12. **`[to-refactor]`** v0.5 `ReviewManifest` (`gaia/ir/review.py`) already supports `target_kind ∈ {"strategy", "operator", "knowledge"}` and keys by `target_id` (QID). Under U1 (item 10), collapse `target_kind` so all targets are `knowledge` (since strategies and operators are now Knowledge subtypes). Existing `Review` schema otherwise stays.
+13. **`[new]`** Add `IndependenceDeclaration` as a relation-level `ReviewTarget` (§7.2). Fields: `target_id` (QID), `factors: list[str]` (knowledge_ids of N InferStrategies), `kind ∈ {identical, independent, correlated, partial}`, `rationale`, inherited `status`. v1.x-only BP handling for `correlated` / `partial`; v0.x implements `identical` and `independent`.
+14. **`[new]`** Add `TrustDelegation` as a relation-level `ReviewTarget` (§7.5). Fields: `package`, `version` (single pinned string, no ranges), `scope ∈ {all_knowledge, exclude_compute, claims_only}`, `rationale`, inherited `status`. Cross-author / cross-version bulk trust is not supported.
+15. **`[new]`** Implement the R4 effective-status resolver (§7.5): for foreign Knowledge references, compute `effective(K for B)` from `upstream_status`, `local_status`, and any applicable `TrustDelegation`. Upstream `rejected` is a hard veto; downstream silence is `inactive`.
+
+### 16.4 `gaia.unit` / `gaia.stats` / `gaia.constants` core modules
+
+16. **`[new]`** Add `gaia.unit` as a core module wrapping Pint with a shared `UnitRegistry` singleton plus `to_literal` / `from_literal` bridges to `QuantityLiteral` (§4.5). Pint becomes a core dependency of `gaia-lang` (update `pyproject.toml`). Kernel code itself still does not import Pint — the dependency is scoped to `gaia.unit`.
+17. **`[new]`** Add `gaia.stats` as a core module (§4.6): (a) named constructors for the 8 built-in distributions (`Normal`, `Lognormal`, `StudentT`, `Cauchy`, `Binomial`, `Poisson`, `Exponential`, `Beta`) returning `DistributionSpec`; (b) registry metadata (param schemas); (c) `from_callable(...)` helper producing `DistributionSpec(kind="custom", callable_ref=...)`. Does **not** import scipy at load time.
+18. **`[new]`** Add `gaia-lang[stats]` optional-extras dependency group that pulls scipy. Provide `gaia/adapters/stats/scipy_adapter.py` that dispatches `DistributionSpec` by `kind` to `scipy.stats`, or resolves `CallableRef` for `kind="custom"`. Evidence adapters (Gaussian measurement, Binomial, etc.) lazy-import this.
+19. **`[new]`** Add `gaia.constants` as a core module re-exporting Pint's built-in physical constants with Gaia-preferred names and short aliases (`c`, `h`, `k_B`, `G`, `N_A`, etc.). No new schema, no new dependency.
+20. **`[new]`** Add `DistributionSpec` validator: built-in `kind` disallows `callable_ref`; `kind="custom"` requires it.
+
+### 16.5 CLI / registry
+
+21. **`[new]`** Introduce `gaia recompute` CLI (§14.3) — explicit, opt-in, point-by-point re-execution of `CallableRef`s. R4-gated; default abort on unreviewed; version-pinned. This is the **only** operation that resolves a `CallableRef` in the entire system (§4.8).
+22. **`[implemented]`** Registry `ir_hash` recompile verification (§14.1). Already performed by `SiliconEinstein/gaia-registry/.github/workflows/register.yml`; foundation names it, does not build it.
+23. **`[implemented]`** `beliefs.json` manifest per release with exported-claim beliefs and `ir_hash` (§14.1). Produced by `gaia register` (`gaia/cli/commands/register.py`), shipped to registry, consumed by downstream `collect_foreign_node_priors()`.
+24. **`[new]`** Extend `beliefs.json` to the full `belief_state.json` schema (§14.2, Invariant 1): add `context_id`, `diagnostics`, `generated_at`, `belief_state_hash`, `method`. Existing consumers keep reading the subset they need; new fields are additive.
+25. **`[new]`** Registry CI extension (§14.2, Invariant 2): re-run `gaia infer` in the sandbox after the existing recompile step; confirm recomputed `context_id` matches the declared one. Reject PRs on mismatch.
+26. **`[new]`** Downstream `gaia infer` rejects stale upstream (§14.2, Invariant 4): when reading a foreign `beliefs.json` / `belief_state.json`, compare declared `ir_hash` to the upstream-shipped `ir_hash`; abort with no escape hatch if inconsistent.
+
+### 16.6 Deprecations (documentation-only; mechanism already deprecated in code)
+
+27. **`[implemented]`** `gaia/cli/_reviews.py` (review sidecar) marked deprecated since 0.4.2. Foundation does not re-introduce sidecar records; the replacement is the inline-only model (§3.1, §5). Legacy types `PriorRecord` / `StrategyParamRecord` / `ParameterizationSource` / `ResolutionPolicy` stay for backward compatibility, do not appear in foundation inventory.
+28. **`[implemented]`** `gaia/ir/validator.py:validate_parameterization` is never called in the active code path. Foundation does not rely on it. A cleanup PR may remove it, but that is not a foundation-level requirement.
 
 ---
 
@@ -1121,12 +1162,16 @@ Not an implementation plan, but the concrete diffs this spec implies for the IR 
 
 These are intentionally unresolved; the foundation records them as out-of-scope for the current round and names where they will be picked up.
 
-- **Migration details for v5 → v6 strategies and `Setting`.** Handled by the migrator spec (separate document).
+- **Migration details for v5 → v6 strategies and `Setting`.** Handled by a separate migrator spec. §16 item 2 names the schema-level drop; the actual rewrite tool is out of scope here.
+- **Multi-source parameterisation.** Gaia v0.5 went inline-only after deprecating the sidecar record mechanism. If real users later need "this prior was computed by A, refined by B, curated by C" with timestamped history, that is a fresh design decision — not a continuation of the deprecated `PriorRecord` / `StrategyParamRecord` sidecar.
 - **Categorical / continuous latent variables.** Parked at v1.x+; requires BP-layer extension.
-- **First-class `ModelRecord`, `DatasetRef`, `ExperimentRef`.** Parked at v1.x+; triggered by real-user audit needs.
-- **MaxEnt solver adapter.** Parked at v1.x+; `PriorSpec.policy="maxent"` tag is the present-day contract.
-- **External theorem prover integration (Z3 / Lean).** Parked at v1.x+; requires Claim-proposition structuralisation first.
-- **PPL adapter (PyMC / NumPyro).** Parked at v1.x+; predictive enters via `PriorSpec.policy="external_predictive"` tag in the meantime.
+- **First-class `ModelRecord`, `DatasetRef`, `ExperimentRef`.** Parked at v1.x+; triggered by real-user audit needs. Currently authors capture this in `rationale` text and `metadata` dict entries.
+- **MaxEnt solver adapter.** Parked at v1.x+; `PriorSpec.policy="maxent"` tag is the present-day contract (§6).
+- **External theorem prover integration (Z3 / Lean).** Parked at v1.x+; requires Claim-proposition structuralisation first (§10).
+- **PPL adapter (PyMC / NumPyro).** Parked at v1.x+; predictive enters via `PriorSpec.policy="external_predictive"` tag in the meantime (§9).
+- **`TrustDelegation` revocation.** §7.5 defines delegation acceptance and scope but does not specify revocation behaviour when a previously-trusted upstream version is later compromised. Likely follow-up: a `revoke` entry in the downstream manifest that disables a prior `TrustDelegation`'s effect. Revocation is registry-layer work and parked until the registry has a signing / attestation story.
+- **Unit registry versioning in `context_id`.** §4.5 hashes `{value, unit}` literally and does not encode the Pint version that interpreted the unit names. If cross-Pint-version reproducibility becomes a concern, extend `QuantityLiteral` to carry `unit_registry` and `unit_registry_version` per the CallableRef pattern (foreshadowed in earlier design discussion; not required now).
+- **Physical-constants versioning.** §4.7 lets `gaia.constants` track Pint's CODATA release passively. If constant-value drift across CODATA revisions needs to be pinnable for replication, this becomes the same version-tag extension as above.
 
 ---
 
