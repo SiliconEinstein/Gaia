@@ -1,6 +1,7 @@
 """Tests for Gaia IR validator."""
 
 from gaia.ir import (
+    Compose,
     Knowledge,
     KnowledgeType,
     Operator,
@@ -39,6 +40,53 @@ def _local_graph(**kwargs) -> LocalCanonicalGraph:
     }
     defaults.update(kwargs)
     return LocalCanonicalGraph(**defaults)
+
+
+class TestComposeValidation:
+    def test_compose_rejects_self_reference(self):
+        g = _local_graph(
+            knowledges=[_claim("github:test::c")],
+            composes=[
+                Compose(
+                    compose_id="lcm_self",
+                    name="self",
+                    version="1.0",
+                    actions=["lcm_self"],
+                    conclusion="github:test::c",
+                )
+            ],
+        )
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("cannot reference itself" in e for e in r.errors)
+
+    def test_compose_rejects_mutual_cycle(self):
+        g = _local_graph(
+            knowledges=[_claim("github:test::c")],
+            composes=[
+                Compose(
+                    compose_id="lcm_a",
+                    name="a",
+                    version="1.0",
+                    actions=["lcm_b"],
+                    conclusion="github:test::c",
+                ),
+                Compose(
+                    compose_id="lcm_b",
+                    name="b",
+                    version="1.0",
+                    actions=["lcm_a"],
+                    conclusion="github:test::c",
+                ),
+            ],
+        )
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("cycle" in e for e in r.errors)
 
 
 # ---------------------------------------------------------------------------

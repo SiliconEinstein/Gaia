@@ -10,6 +10,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from gaia.ir import (
+    Compose as IrCompose,
     CompositeStrategy as IrCompositeStrategy,
     FormalExpr as IrFormalExpr,
     FormalStrategy as IrFormalStrategy,
@@ -33,6 +34,9 @@ from gaia.lang.refs import (
 )
 from gaia.lang.runtime import Knowledge, Operator
 from gaia.lang.runtime.action import (
+    Action,
+    Associate,
+    Compose,
     Compute,
     Contradict,
     Equal,
@@ -140,11 +144,24 @@ def _knowledge_id(
     return _make_qid("external", "anonymous", fallback_label), local_anon_counter
 
 
-def _knowledge_metadata(k: Knowledge) -> dict[str, Any] | None:
+def _metadata_to_ir(value: Any, knowledge_map: dict[int, str]) -> Any:
+    if isinstance(value, Knowledge):
+        return knowledge_map[id(value)]
+    if isinstance(value, dict):
+        return {key: _metadata_to_ir(item, knowledge_map) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_metadata_to_ir(item, knowledge_map) for item in value]
+    if isinstance(value, tuple):
+        return [_metadata_to_ir(item, knowledge_map) for item in value]
+    return value
+
+
+def _knowledge_metadata(k: Knowledge, knowledge_map: dict[int, str]) -> dict[str, Any] | None:
     metadata = dict(k.metadata)
     grounding = getattr(k, "grounding", None)
     if grounding is not None:
         metadata["grounding"] = asdict(grounding)
+    metadata = _metadata_to_ir(metadata, knowledge_map)
     return metadata or None
 
 
@@ -318,6 +335,22 @@ def _compute_metadata(fn: Any) -> dict[str, Any]:
     }
 
 
+def _probability_scalar(value: float | Knowledge, *, field_name: str) -> float:
+    if not isinstance(value, Knowledge):
+        return float(value)
+
+    matches = [
+        param.get("value")
+        for param in value.parameters
+        if param.get("name") == "value" and isinstance(param.get("value"), int | float)
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"{field_name} Claim must define exactly one numeric parameter named 'value'"
+        )
+    return float(matches[0])
+
+
 def _collect_refs_from_text(
     text: str | None,
     label_table: dict[str, str],
@@ -413,7 +446,16 @@ def compile_package_artifact(
             register_knowledge(background)
         for warrant in getattr(action, "warrants", []) or []:
             register_knowledge(warrant)
-        if isinstance(action, Support):
+        if isinstance(action, Compose):
+            for item in action.inputs:
+                if isinstance(item, Knowledge):
+                    register_knowledge(item)
+            for child_action in action.actions:
+                if isinstance(child_action, Action):
+                    register_action_knowledge(child_action)
+            if action.conclusion is not None:
+                register_knowledge(action.conclusion)
+        elif isinstance(action, Support):
             for given in action.given:
                 register_knowledge(given)
             if action.conclusion is not None:
@@ -430,6 +472,17 @@ def compile_package_artifact(
                 register_knowledge(action.hypothesis)
             if action.evidence is not None:
                 register_knowledge(action.evidence)
+            if action.helper is not None:
+                register_knowledge(action.helper)
+            if isinstance(action.p_e_given_h, Knowledge):
+                register_knowledge(action.p_e_given_h)
+            if isinstance(action.p_e_given_not_h, Knowledge):
+                register_knowledge(action.p_e_given_not_h)
+        elif isinstance(action, Associate):
+            if action.a is not None:
+                register_knowledge(action.a)
+            if action.b is not None:
+                register_knowledge(action.b)
             if action.helper is not None:
                 register_knowledge(action.helper)
 
@@ -467,7 +520,7 @@ def compile_package_artifact(
             content=k.content,
             parameters=[_parameter_to_ir(p, knowledge_map) for p in k.parameters],
             provenance=_knowledge_provenance(k),
-            metadata=_knowledge_metadata(k),
+            metadata=_knowledge_metadata(k, knowledge_map),
             module=getattr(k, "_source_module", None),
             declaration_index=getattr(k, "_declaration_index", None),
             exported=k.label in exported_labels if k.label else False,
@@ -475,11 +528,14 @@ def compile_package_artifact(
         for k in knowledge_nodes
     ]
 
-    ir_operators = [
-        _operator_to_ir(o, knowledge_map, top_level=True)
-        for o in pkg.operators
-        if id(o) not in formal_operators
-    ]
+    ir_operators: list[IrOperator] = []
+    operator_target_ids_by_object: dict[int, str] = {}
+    for o in pkg.operators:
+        if id(o) in formal_operators:
+            continue
+        ir_operator = _operator_to_ir(o, knowledge_map, top_level=True)
+        ir_operators.append(ir_operator)
+        operator_target_ids_by_object[id(o)] = ir_operator.operator_id
 
     ir_strategies: list[IrStrategy] = []
     generated_knowledges: list[IrKnowledge] = []
@@ -541,6 +597,27 @@ def compile_package_artifact(
         action_label_map[action_label] = target_id
         target_action_labels_by_id[target_id] = action_label
 
+    def _warrant_ids(action: Any) -> list[str]:
+        return [knowledge_map[id(warrant)] for warrant in getattr(action, "warrants", []) or []]
+
+    def _attach_action_label_to_warrants(
+        action: Any,
+        *,
+        action_label: str,
+        pattern: str,
+    ) -> None:
+        for warrant in getattr(action, "warrants", []) or []:
+            warrant_id = knowledge_map[id(warrant)]
+            for i, ir_k in enumerate(ir_knowledges):
+                if ir_k.id != warrant_id:
+                    continue
+                metadata = dict(ir_k.metadata or {})
+                metadata.setdefault("review", True)
+                metadata["action_label"] = action_label
+                metadata["pattern"] = pattern
+                ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
+                break
+
     def _attach_grounding_action(
         action: Support,
         *,
@@ -582,6 +659,14 @@ def compile_package_artifact(
             action_index,
             pattern=pattern,
             extra=extra,
+        )
+        warrant_ids = _warrant_ids(action)
+        if warrant_ids:
+            metadata["warrants"] = warrant_ids
+        _attach_action_label_to_warrants(
+            action,
+            action_label=action_label,
+            pattern=pattern,
         )
 
         if isinstance(action, Observe) and not premise_ids:
@@ -637,8 +722,19 @@ def compile_package_artifact(
         else:
             raise ValueError(f"Unsupported Relate action: {type(action).__name__}")
         action_label, metadata = _action_metadata(action, pkg, action_index, pattern=pattern)
+        warrant_ids = _warrant_ids(action)
+        if warrant_ids:
+            metadata["warrants"] = warrant_ids
+        _attach_action_label_to_warrants(
+            action,
+            action_label=action_label,
+            pattern=pattern,
+        )
         if action.rationale:
             metadata["reason"] = action.rationale
+        background_ids = [knowledge_map[id(bg)] for bg in action.background]
+        if background_ids:
+            metadata["background"] = background_ids
         variables = [knowledge_map[id(action.a)], knowledge_map[id(action.b)]]
         conclusion = knowledge_map[id(action.helper)]
         ir_operator = IrOperator(
@@ -656,6 +752,14 @@ def compile_package_artifact(
         if action.hypothesis is None or action.evidence is None:
             raise ValueError("Infer action requires hypothesis and evidence")
         action_label, metadata = _action_metadata(action, pkg, action_index, pattern="inference")
+        warrant_ids = _warrant_ids(action)
+        if warrant_ids:
+            metadata["warrants"] = warrant_ids
+        _attach_action_label_to_warrants(
+            action,
+            action_label=action_label,
+            pattern="inference",
+        )
         strategy = IrStrategy(
             scope="local",
             type="infer",
@@ -663,7 +767,40 @@ def compile_package_artifact(
             conclusion=knowledge_map[id(action.evidence)],
             background=[knowledge_map[id(bg)] for bg in action.background] or None,
             steps=_action_steps(action.rationale),
-            conditional_probabilities=[action.p_e_given_not_h, action.p_e_given_h],
+            conditional_probabilities=[
+                _probability_scalar(action.p_e_given_not_h, field_name="p_e_given_not_h"),
+                _probability_scalar(action.p_e_given_h, field_name="p_e_given_h"),
+            ],
+            prior_hypothesis=action.prior_hypothesis,
+            prior_evidence=action.prior_evidence,
+            metadata=metadata,
+        )
+        _record_action_target(action_label, strategy.strategy_id)
+        return strategy
+
+    def _compile_associate_action(action: Associate, action_index: int) -> IrStrategy:
+        if action.a is None or action.b is None or action.helper is None:
+            raise ValueError("Associate action requires a, b, and helper")
+        action_label, metadata = _action_metadata(action, pkg, action_index, pattern="association")
+        warrant_ids = _warrant_ids(action)
+        if warrant_ids:
+            metadata["warrants"] = warrant_ids
+        _attach_action_label_to_warrants(
+            action,
+            action_label=action_label,
+            pattern="association",
+        )
+        strategy = IrStrategy(
+            scope="local",
+            type="associate",
+            premises=[knowledge_map[id(action.a)], knowledge_map[id(action.b)]],
+            conclusion=knowledge_map[id(action.helper)],
+            background=[knowledge_map[id(bg)] for bg in action.background] or None,
+            steps=_action_steps(action.rationale),
+            p_a_given_b=action.p_a_given_b,
+            p_b_given_a=action.p_b_given_a,
+            prior_a=action.prior_a,
+            prior_b=action.prior_b,
             metadata=metadata,
         )
         _record_action_target(action_label, strategy.strategy_id)
@@ -676,25 +813,95 @@ def compile_package_artifact(
             return _compile_relate_action(action, action_index)
         if isinstance(action, InferAction):
             return _compile_infer_action(action, action_index)
+        if isinstance(action, Associate):
+            return _compile_associate_action(action, action_index)
+        if isinstance(action, Compose):
+            return None
         raise ValueError(f"Unsupported action type: {type(action).__name__}")
 
     emitted_strategies: set[int] = set()
+    strategy_target_ids_by_object: dict[int, str] = {}
     for s in pkg.strategies:
         strategy_key = id(s)
         if strategy_key in emitted_strategies:
             continue
-        ir_strategies.append(compile_strategy(s))
+        ir_strategy = compile_strategy(s)
+        ir_strategies.append(ir_strategy)
+        strategy_target_ids_by_object[strategy_key] = ir_strategy.strategy_id
         emitted_strategies.add(strategy_key)
 
     action_operators: list[IrOperator] = []
+    action_target_ids_by_object: dict[int, str] = {}
     for action_index, action in enumerate(getattr(pkg, "actions", [])):
+        if isinstance(action, Compose):
+            continue
         target = compile_action(action, action_index)
         if target is None:
+            action_label = _action_label(action, pkg, action_index)
+            target_id = action_label_map.get(action_label)
+            if target_id is not None:
+                action_target_ids_by_object[id(action)] = target_id
             continue
         if isinstance(target, IrOperator):
             action_operators.append(target)
+            action_target_ids_by_object[id(action)] = target.operator_id
         else:
             ir_strategies.append(target)
+            action_target_ids_by_object[id(action)] = target.strategy_id
+
+    ir_composes: list[IrCompose] = []
+
+    def _target_id(obj: Any) -> str:
+        if isinstance(obj, str):
+            return obj
+        key = id(obj)
+        if key in knowledge_map:
+            return knowledge_map[key]
+        if key in action_target_ids_by_object:
+            return action_target_ids_by_object[key]
+        if key in strategy_target_ids_by_object:
+            return strategy_target_ids_by_object[key]
+        if key in operator_target_ids_by_object:
+            return operator_target_ids_by_object[key]
+        raise ValueError(f"Compose child target was not compiled: {type(obj).__name__}")
+
+    def _compile_compose_action(action: Compose, action_index: int) -> IrCompose:
+        if action.conclusion is None:
+            raise ValueError("Compose action requires a conclusion")
+        input_refs = [_target_id(item) for item in action.inputs]
+        background_refs = [_target_id(item) for item in action.background]
+        action_refs = [_target_id(child) for child in action.actions]
+        warrant_refs = [_target_id(warrant) for warrant in action.warrants]
+        conclusion_ref = _target_id(action.conclusion)
+        compose_id = f"lcm_{action.structure_hash(input_refs, action_refs, conclusion_ref, warrant_refs, background_refs)}"
+        action_label, metadata = _action_metadata(action, pkg, action_index, pattern="compose")
+        if action.rationale:
+            metadata["reason"] = action.rationale
+        if warrant_refs:
+            metadata["warrants"] = warrant_refs
+        _attach_action_label_to_warrants(
+            action,
+            action_label=action_label,
+            pattern="compose",
+        )
+        ir_compose = IrCompose(
+            compose_id=compose_id,
+            name=action.name,
+            version=action.version,
+            inputs=input_refs,
+            background=background_refs,
+            actions=action_refs,
+            warrants=warrant_refs,
+            conclusion=conclusion_ref,
+            metadata=metadata or None,
+        )
+        _record_action_target(action_label, compose_id)
+        action_target_ids_by_object[id(action)] = compose_id
+        return ir_compose
+
+    for action_index, action in enumerate(getattr(pkg, "actions", [])):
+        if isinstance(action, Compose):
+            ir_composes.append(_compile_compose_action(action, action_index))
 
     # Build label-to-QID table from the full knowledge closure (local + imported foreign nodes).
     label_to_id: dict[str, str] = {}
@@ -804,6 +1011,7 @@ def compile_package_artifact(
         knowledges=[*ir_knowledges, *generated_knowledges],
         operators=[*ir_operators, *action_operators],
         strategies=ir_strategies,
+        composes=ir_composes,
         module_order=module_order,
         module_titles=module_titles if module_titles else None,
     )

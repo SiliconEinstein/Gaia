@@ -20,6 +20,29 @@ def _as_given_tuple(given: Claim | tuple[Claim, ...] | list[Claim] | None) -> tu
     return tuple(given)
 
 
+def _implication_warrant(
+    action_type: str,
+    *,
+    given: tuple[Claim, ...],
+    conclusion: Claim,
+    rationale: str,
+) -> Claim:
+    content = f"{action_type} warrants {conclusion.content}"
+    metadata: dict[str, Any] = {
+        "generated": True,
+        "helper_kind": "implication_warrant",
+        "review": True,
+        "relation": {
+            "type": action_type,
+            "given": given,
+            "conclusion": conclusion,
+        },
+    }
+    if rationale:
+        metadata["warrant"] = rationale
+    return Claim(content, metadata=metadata)
+
+
 def derive(
     conclusion: Claim | str,
     *,
@@ -32,10 +55,17 @@ def derive(
     if isinstance(conclusion, str):
         conclusion = Claim(conclusion)
     given_tuple = _as_given_tuple(given)
+    warrant = _implication_warrant(
+        "derive",
+        given=given_tuple,
+        conclusion=conclusion,
+        rationale=rationale,
+    )
     action = Derive(
         label=label,
         rationale=rationale,
         background=list(background or []),
+        warrants=[warrant],
         conclusion=conclusion,
         given=given_tuple,
     )
@@ -55,10 +85,17 @@ def observe(
     if isinstance(conclusion, str):
         conclusion = Claim(conclusion)
     given_tuple = _as_given_tuple(given)
+    warrant = _implication_warrant(
+        "observe",
+        given=given_tuple,
+        conclusion=conclusion,
+        rationale=rationale,
+    )
     action = Observe(
         label=label,
         rationale=rationale,
         background=list(background or []),
+        warrants=[warrant],
         conclusion=conclusion,
         given=given_tuple,
     )
@@ -102,10 +139,17 @@ def _compute_call(
     given_tuple = _as_given_tuple(given)
     result_value = fn(*given_tuple) if fn is not None else None
     conclusion = _wrap_result(conclusion_type, result_value)
+    warrant = _implication_warrant(
+        "compute",
+        given=given_tuple,
+        conclusion=conclusion,
+        rationale=rationale,
+    )
     action = Compute(
         label=label,
         rationale=rationale,
         background=list(background or []),
+        warrants=[warrant],
         conclusion=conclusion,
         given=given_tuple,
         fn=fn,
@@ -138,12 +182,21 @@ def compute(
         def wrapper(*args, **kwargs) -> Claim:
             result_value = wrapped_fn(*args, **kwargs)
             conclusion = _wrap_result(return_type, result_value)
+            given_tuple = _bound_given(sig, *args, **kwargs)
+            action_rationale = inspect.getdoc(wrapped_fn) or ""
+            warrant = _implication_warrant(
+                "compute",
+                given=given_tuple,
+                conclusion=conclusion,
+                rationale=action_rationale,
+            )
             action = Compute(
                 label=label,
-                rationale=inspect.getdoc(wrapped_fn) or "",
+                rationale=action_rationale,
                 background=list(background or []),
+                warrants=[warrant],
                 conclusion=conclusion,
-                given=_bound_given(sig, *args, **kwargs),
+                given=given_tuple,
                 fn=wrapped_fn,
             )
             conclusion.supports.append(action)

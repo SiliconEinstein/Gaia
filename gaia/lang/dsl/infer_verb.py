@@ -20,13 +20,15 @@ def infer(
     hypothesis: Claim | None = None,
     evidence: Claim | str | None = None,
     background: list[Knowledge] | None = None,
-    p_e_given_h: float | None = None,
-    p_e_given_not_h: float | None = None,
+    p_e_given_h: float | Claim | None = None,
+    p_e_given_not_h: float | Claim | None = None,
+    prior_hypothesis: float | None = None,
+    prior_evidence: float | None = None,
     rationale: str = "",
     label: str | None = None,
     **legacy_kwargs,
 ) -> Claim:
-    """Bayesian inference. Returns the evidence Claim.
+    """Bayesian inference. Returns the generated likelihood helper Claim.
 
     The canonical v6 shape is ``infer(evidence, hypothesis=..., ...)``. The old
     v5 ``infer([premises], conclusion, ...)`` form is preserved as a deprecated
@@ -71,7 +73,20 @@ def infer(
 
     helper = Claim(
         f"{_claim_ref(evidence)} statistically supports {_claim_ref(hypothesis)}.",
-        metadata={"generated": True, "helper_kind": "statistical_support", "review": True},
+        metadata={
+            "generated": True,
+            "helper_kind": "likelihood",
+            "review": True,
+            "relation": {
+                "type": "infer",
+                "hypothesis": hypothesis,
+                "evidence": evidence,
+                "p_e_given_h": p_e_given_h,
+                "p_e_given_not_h": p_e_given_not_h,
+                "prior_hypothesis": prior_hypothesis,
+                "prior_evidence": prior_evidence,
+            },
+        },
     )
     action = InferAction(
         label=label,
@@ -81,8 +96,10 @@ def infer(
         evidence=evidence,
         p_e_given_h=p_e_given_h,
         p_e_given_not_h=p_e_given_not_h,
+        prior_hypothesis=prior_hypothesis,
+        prior_evidence=prior_evidence,
         helper=helper,
     )
     action.warrants.append(helper)
     evidence.supports.append(action)
-    return evidence
+    return helper

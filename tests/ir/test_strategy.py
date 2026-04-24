@@ -13,10 +13,11 @@ from gaia.ir import (
 
 
 class TestStrategyType:
-    def test_thirteen_types(self):
-        assert len(StrategyType) == 13
+    def test_fourteen_types(self):
+        assert len(StrategyType) == 14
         expected = {
             "infer",
+            "associate",
             "noisy_and",
             "deduction",
             "reductio",
@@ -106,6 +107,80 @@ class TestStrategyCreation:
             steps=[Step(reasoning="observed correlation")],
         )
         assert len(s.steps) == 1
+
+    def test_infer_preserves_author_probability_bounds(self):
+        s = Strategy(
+            scope="local",
+            type="infer",
+            premises=["github:test::h"],
+            conclusion="github:test::e",
+            conditional_probabilities=[0.0, 1.0],
+            prior_hypothesis=0.0,
+            prior_evidence=1.0,
+        )
+
+        assert s.conditional_probabilities == [0.0, 1.0]
+        assert s.prior_hypothesis == 0.0
+        assert s.prior_evidence == 1.0
+
+    def test_infer_rejects_out_of_range_author_probability(self):
+        with pytest.raises(ValueError, match="conditional_probabilities"):
+            Strategy(
+                scope="local",
+                type="infer",
+                premises=["github:test::h"],
+                conclusion="github:test::e",
+                conditional_probabilities=[-0.1, 0.8],
+            )
+
+        with pytest.raises(ValueError, match="prior_hypothesis"):
+            Strategy(
+                scope="local",
+                type="infer",
+                premises=["github:test::h"],
+                conclusion="github:test::e",
+                conditional_probabilities=[0.2, 0.8],
+                prior_hypothesis=1.2,
+            )
+
+    def test_associate_preserves_author_probability_bounds(self):
+        s = Strategy(
+            scope="local",
+            type="associate",
+            premises=["github:test::a", "github:test::b"],
+            conclusion="github:test::assoc",
+            p_a_given_b=1.0,
+            p_b_given_a=0.0,
+            prior_a=0.0,
+            prior_b=1.0,
+        )
+
+        assert s.p_a_given_b == 1.0
+        assert s.p_b_given_a == 0.0
+        assert s.prior_a == 0.0
+        assert s.prior_b == 1.0
+
+    def test_associate_rejects_out_of_range_author_probability(self):
+        with pytest.raises(ValueError, match="p_a_given_b"):
+            Strategy(
+                scope="local",
+                type="associate",
+                premises=["github:test::a", "github:test::b"],
+                conclusion="github:test::assoc",
+                p_a_given_b=1.2,
+                p_b_given_a=0.5,
+            )
+
+        with pytest.raises(ValueError, match="prior_b"):
+            Strategy(
+                scope="local",
+                type="associate",
+                premises=["github:test::a", "github:test::b"],
+                conclusion="github:test::assoc",
+                p_a_given_b=0.5,
+                p_b_given_a=0.5,
+                prior_b=-0.1,
+            )
 
     def test_invalid_scope_rejected(self):
         with pytest.raises(ValueError, match="scope must be 'local'"):

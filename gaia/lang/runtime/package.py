@@ -45,6 +45,9 @@ class CollectedPackage:
 
     def _register_knowledge(self, k: Knowledge):
         self.knowledge.append(k)
+        from gaia.lang.runtime.composition import _capture_registered
+
+        _capture_registered(k)
         module = k._source_module
         if module not in self._module_counters:
             if module is not None:
@@ -55,12 +58,21 @@ class CollectedPackage:
 
     def _register_strategy(self, s: Strategy):
         self.strategies.append(s)
+        from gaia.lang.runtime.composition import _capture_registered
+
+        _capture_registered(s)
 
     def _register_operator(self, o: Operator):
         self.operators.append(o)
+        from gaia.lang.runtime.composition import _capture_registered
+
+        _capture_registered(o)
 
     def _register_action(self, a: Action):
         self.actions.append(a)
+        from gaia.lang.runtime.composition import _capture_registered
+
+        _capture_registered(a)
 
     @property
     def exported(self) -> list[str]:

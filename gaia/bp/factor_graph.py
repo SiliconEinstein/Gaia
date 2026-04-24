@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import Enum, auto
+from math import isfinite
 from typing import Sequence
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ class FactorType(Enum):
     COMPLEMENT = auto()
     SOFT_ENTAILMENT = auto()
     CONDITIONAL = auto()
+    PAIRWISE_POTENTIAL = auto()
 
 
 @dataclass(frozen=True)
@@ -176,6 +178,30 @@ class FactorGraph:
                 raise ValueError(
                     f"CONDITIONAL '{factor_id}': cpt length must be 2^k = {expected}, "
                     f"got {len(fcpt)}."
+                )
+
+        elif ft == FactorType.PAIRWISE_POTENTIAL:
+            if p1 is not None or p2 is not None:
+                raise ValueError(f"PAIRWISE_POTENTIAL '{factor_id}' must not set p1/p2.")
+            if len(v_list) != 1:
+                raise ValueError(
+                    f"PAIRWISE_POTENTIAL '{factor_id}' requires exactly 1 variable plus "
+                    f"the paired conclusion variable, got {len(v_list)} variables."
+                )
+            if cpt is None:
+                raise ValueError(f"PAIRWISE_POTENTIAL '{factor_id}' requires cpt.")
+            fcpt = tuple(float(x) for x in cpt)
+            if len(fcpt) != 4:
+                raise ValueError(
+                    f"PAIRWISE_POTENTIAL '{factor_id}': cpt length must be 4, got {len(fcpt)}."
+                )
+            if any((not isfinite(x)) or x < 0.0 for x in fcpt):
+                raise ValueError(
+                    f"PAIRWISE_POTENTIAL '{factor_id}' requires finite non-negative weights."
+                )
+            if sum(fcpt) <= 0.0:
+                raise ValueError(
+                    f"PAIRWISE_POTENTIAL '{factor_id}' requires at least one positive weight."
                 )
         else:
             raise ValueError(f"Unknown FactorType: {ft!r}")

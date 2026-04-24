@@ -27,3 +27,13 @@ def test_contradict_registers_action_and_warrant():
     assert action.b is b
     assert action.helper is helper
     assert action.warrants == [helper]
+
+
+def test_contradict_records_background_information():
+    with CollectedPackage("v6_test") as pkg:
+        a = Claim("Classical prediction.")
+        b = Claim("Observation.")
+        bg = Claim("Same measurement protocol.")
+        contradict(a, b, background=[bg], rationale="Classical theory fails.")
+    action = pkg.actions[0]
+    assert action.background == [bg]
