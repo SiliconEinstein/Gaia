@@ -97,10 +97,16 @@ Knowledge                (QID + provenance + metadata + optional review_status)
 
 **Evidence / measurement schema (the bridge to the world)**
 
-- `InferStrategy` fields — `p_e_given_h`, `p_e_given_not_h` (both required), plus provenance `source_id` / `data_id` / `data_hash`. See §11 for the full field set and the reasoning behind requiring the CPT pair.
-- `StrategyParamRecord` — optional sidecar for external parameter updates (adapter-computed, curation, review). Keyed by `strategy_id`; latest record wins. Parallels `PriorRecord` for claim priors.
+- `InferStrategy` fields — `p_e_given_h`, `p_e_given_not_h` (both required), plus provenance `source_id` / `data_id` / `data_hash`. See §11 for the full field set and the reasoning behind requiring the CPT pair. At IR layer the same values live at `IrStrategy.conditional_probabilities = [p_e_given_not_h, p_e_given_h]` — **inline on the Strategy**, not in a sidecar record.
 - `MeasurementRecord` — schema for observed-value + noise specification.
 - `DistributionSpec` — structured probability-distribution spec (`kind`, `params`, optional `CallableRef`). Used wherever a distribution enters IR (measurement noise, future prior shapes, etc.). Replaces the previously-named `ErrorModelSpec`.
+
+**Note on the v0.5 inline-only parameter model.** Gaia kernel stores both Claim priors and Strategy CPTs **inline** on the Knowledge / Strategy objects themselves, not in sidecar records:
+
+- `Knowledge.metadata["prior"]` — author's declared prior, injected at compile time by the `priors.py` authoring convenience (discovers a package-level `priors.py`, reads its `PRIORS` dict, writes values into Knowledge metadata before IR emission).
+- `IrStrategy.conditional_probabilities` — author's declared CPT, inlined at compile time from the `Infer` action's `p_e_given_h` / `p_e_given_not_h` attributes.
+
+The older sidecar mechanism (`PriorRecord`, `StrategyParamRecord`, `ParameterizationSource`, `ResolutionPolicy`) that supported review-sidecar-driven parameter updates is **deprecated since 0.4.2** (see `gaia/cli/_reviews.py` module docstring). Foundation does not re-introduce a sidecar record mechanism; any future "multi-source parameterisation" capability will be a separate design decision, not a continuation of the deprecated sidecar.
 
 **Callable abstraction (the embedded-function escape)**
 
@@ -462,14 +468,18 @@ Knowledge (base — QID + provenance + metadata + optional review_status)
       └── DisjunctionOperator      (or_)
 ```
 
-**Sidecar records** — parameterisation and prior updates live in separate records keyed by `knowledge_id` / `strategy_id`. Matches the established `priors.py` pattern; allows multi-source, timestamped parameter evolution without invalidating upstream Knowledge identity.
+**Inline parameters (no sidecar records)** — Gaia kernel holds Claim priors and Strategy CPTs inline on the Knowledge / Strategy objects at IR emission time. There is no kernel-level sidecar record for parameters in v0.5+; the `priors.py` authoring convenience is a DSL-layer ergonomics feature, not a kernel object.
 
 ```text
-PriorRecord            — per-Claim prior updates (value, source_id, justification, created_at)
-StrategyParamRecord    — per-Strategy parameter updates
-                         (for InferStrategy: [p_e_given_not_h, p_e_given_h])
-                         (for noisy_and etc.: type-specific parameter lists)
+Knowledge.metadata["prior"]           — author's declared prior, injected at compile time
+                                        by the priors.py authoring convenience
+IrStrategy.conditional_probabilities  — author's declared CPT, inlined at compile time from
+                                        the Infer action's p_e_given_h / p_e_given_not_h
+                                        (for infer: [p_e_given_not_h, p_e_given_h];
+                                         for noisy_and: one value)
 ```
+
+Legacy sidecar records (`PriorRecord`, `StrategyParamRecord`, `ParameterizationSource`, `ResolutionPolicy`) are **deprecated since 0.4.2** in favour of this inline model. They remain in the codebase for backward compatibility (see `gaia/cli/_reviews.py` DEPRECATED header) but **are not part of the foundation-level kernel**. A future "multi-source parameterisation" capability, if needed, would be a separate design decision, not a re-adoption of the deprecated sidecar.
 
 **Review layer**
 
@@ -896,7 +906,7 @@ The current registry CI verifies `ir_hash` via recompile but does not re-run inf
 Downstream `gaia infer` (any `--depth`) consumes the upstream-shipped `beliefs.json` / `belief_state.json` as authoritative. Upstream `CallableRef`s are **not invoked** during downstream inference; their role is provenance only (§4.8).
 
 - `--depth 0` (`flat_beliefs`): downstream uses upstream Claim posteriors as priors for foreign node references.
-- `--depth N` (`joint_graph`, N ≥ 1): downstream merges upstream IR topology and upstream's **already-baked** factor parameters (e.g., `StrategyParamRecord.conditional_probabilities`) into its own factor graph. BP propagates over the merged graph using the baked values. No upstream `CallableRef` is invoked.
+- `--depth N` (`joint_graph`, N ≥ 1): downstream merges upstream IR topology and upstream's **already-baked** factor parameters (the inline `IrStrategy.conditional_probabilities` on each merged Strategy, plus each foreign Claim's `metadata["prior"]`) into its own factor graph. BP propagates over the merged graph using the baked values. No upstream `CallableRef` is invoked.
 
 **Invariant 4 — Stale upstream is refused, not silently tolerated.**
 When downstream reads an upstream artefact whose `ir_hash` disagrees with the Versions.toml-declared hash, downstream `gaia infer` fails rather than proceeding with stale data. No escape hatch. The only way to proceed is to resolve the inconsistency upstream (re-register the package after fixing) or explicitly bump to a newer version.
@@ -929,7 +939,7 @@ These drafts should be moved to `docs/archive/` or marked clearly as historical.
 
 ### 15.2 Consistent with
 
-- `docs/specs/2026-04-21-gaia-lang-v6-design.md` — foundation is compatible with the v6 DSL's objects and verbs. This foundation's changes are primarily additive (PriorSpec, IndependenceDeclaration, TrustDelegation, StrategyParamRecord formalisation, `Strategy.background`) or clarifying (three-layer probability semantics, CallableRef-as-provenance invariant).
+- `docs/specs/2026-04-21-gaia-lang-v6-design.md` — foundation is compatible with the v6 DSL's objects and verbs. This foundation's changes are primarily additive (PriorSpec, IndependenceDeclaration, TrustDelegation, `Strategy.background`) or clarifying (three-layer probability semantics, CallableRef-as-provenance invariant, inline-only parameter model).
 - `docs/specs/2026-04-21-gaia-ir-v6-design.md` — IR changes required by this spec are listed in §16.
 - `docs/foundations/theory/` — theory layer untouched.
 - `docs/foundations/gaia-ir/` — protected layer; any IR schema change flows through a separate change-controlled PR (per CLAUDE.md rules).
