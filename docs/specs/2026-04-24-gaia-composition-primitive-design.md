@@ -40,22 +40,44 @@ class ComposedAction(Knowledge):
 
 ```text
 knowledge_id = QID_prefix(template_name, template_version) + "::" + _structure_hash()
-_structure_hash = SHA-256(canonical_json(sorted(sub_knowledge)))
+
+_structure_hash = SHA-256(canonical_json({
+    "template_name":    template_name,
+    "template_version": template_version,
+    "conclusion":       conclusion,       # may be None
+    "sub_knowledge":    sub_knowledge,    # execution order preserved, NOT sorted
+}))
 ```
 
-Two compositions with identical `sub_knowledge` lists produce the same `knowledge_id`. This is intentional: deterministic composition templates with the same inputs are the same object, and cross-package references collide correctly.
+Two expansions collide on the same `knowledge_id` iff all four fields are identical. The hash covers semantic output (`conclusion`) and execution order (`sub_knowledge` as a list), not just the unordered set of sub-IDs — this differs from v5 `CompositeStrategy._structure_hash`, which sorted sub-IDs and omitted the output. Under the richer ComposedAction semantics, both are needed:
+
+- Two workflows with the same sub-actions but different public outputs are different workflows (different `conclusion` → different identity).
+- Two workflows that execute the same sub-actions in different orders may produce different factor-graph structures (different `sub_knowledge` order → different identity).
+
+Canonical JSON rules: keys sorted, no whitespace, UTF-8; `None` serialised as JSON `null`.
 
 ### 1.3 Sub-Knowledge field
 
 `sub_knowledge: list[str]` accepts **any** Knowledge QID — Claim / Note / Question / Strategy (Derive / Observe / Compute / Infer) / Operator (Equal / Contradict / … / and_ / or_) / nested ComposedAction. The kernel compiler validates each QID resolves to a registered Knowledge in the package or a declared dependency.
 
-Order matters: `sub_knowledge` is a list, not a set, and represents execution order. The `_structure_hash` uses `sorted(sub_knowledge)` so two compositions that execute the same sub-Knowledge in different orders still collide on identity — a deliberate normalisation (order is an authoring convenience, not a semantic distinction).
+Order is semantic: the list represents execution order, and the `_structure_hash` preserves it (§1.2). Compositions that reorder sub-actions are not the same composition.
 
 ### 1.4 Conclusion field
 
-`conclusion: str | None` — QID of the Knowledge the composition claims to produce as public output. Usually the last `infer(...)` or `compute(...)` result. `None` indicates an internal-grouping composition (rare).
+`conclusion: str` — QID of the Claim that the composition produces as its public output.
 
-Foundation §12.2 invariant 3 permits sub-Knowledge of any kind, but `conclusion` must be a Claim (or a ComposedAction whose own conclusion is a Claim). Rationale: downstream packages reference composition outputs the same way they reference Claim beliefs; exposing a Strategy or Operator as the "public output" would break that.
+The v6 Support-verb pattern (`gaia/lang/dsl/support.py`) has `derive()` / `observe()` / `compute()` each return the **conclusion Claim** of the action they declare. `infer()` follows the same pattern: it returns the **evidence Claim** (the "conclusion" of an Infer action in BP-graph terms: premise = H, conclusion = E). `equal()` / `contradict()` / `exclusive()` return the helper Claim they generate.
+
+Every primitive reasoning verb in v6 therefore returns a Claim. A composition's `conclusion` is whichever Claim the terminal action returned — typically captured as the decorated function's `return` value. No `terminal_action` field is needed; the conclusion Claim already references its producing action through the reasoning graph.
+
+**Edge cases:**
+- **Pure evidence compositions** (e.g., `gaussian_measurement`, Kepler `transit_bls_evidence`): terminal action is `infer(...)`, which returns the evidence Claim. `conclusion = evidence_qid`.
+- **Compute-chain compositions** (e.g., deriving a density from temperature and pressure): terminal action is `compute(...)`, returning a derived Claim. `conclusion = derived_claim_qid`.
+- **Multi-verb compositions** (e.g., ending in `equal()` or `derive()`): terminal action returns the helper / derived Claim. `conclusion = that_qid`.
+
+`conclusion` is **required** — every composition must commit to a single public output Claim. See §10 for the multi-output open point.
+
+**Prerequisite (v0.5 bug fix):** the v0.5 `gaia/lang/dsl/strategies.py:infer()` currently returns a `Strategy`, not a Claim. That is inconsistent with the Support-verb pattern and blocks the `conclusion = evidence_qid` rule above. Foundation §17 item 11b tracks the fix; it must land before composition mechanics can depend on `infer()` returning a Claim.
 
 ### 1.5 Reverse pointer on sub-Knowledge
 
@@ -87,14 +109,17 @@ def my_template(...) -> Knowledge:
 
 When `my_template(...)` is called:
 
-1. The decorator enters a `contextvars`-based scoped context. Until the context exits, every `claim(...)`, `observe(...)`, `compute(...)`, `derive(...)`, `infer(...)`, `equal(...)`, `contradict(...)`, `exclusive(...)`, `not_(...)`, `and_(...)`, `or_(...)`, and nested `@composition` call registers its produced `Knowledge` with the **scope**, not directly with the enclosing package.
-2. The decorated function runs; sub-Knowledge accumulate in the scope's capture list in call order.
-3. The function returns; its return value is recorded as the composition's `conclusion`.
-4. On scope exit, the decorator:
-   - Builds a `ComposedAction(template_name=name, template_version=version, sub_knowledge=[qid for k in captured], conclusion=return_value.knowledge_id)`.
-   - Registers the `ComposedAction` with the enclosing package (the package that would have received sub-Knowledge registrations had there been no scope).
-   - Injects `metadata["composition_id"] = <ComposedAction QID>` into each captured sub-Knowledge.
-5. The call site receives back the **conclusion** object (not the `ComposedAction`). Authors treat the composition call like any ordinary Knowledge constructor.
+1. The decorator enters a `contextvars`-based scoped context. Until the context exits, every `claim(...)`, `observe(...)`, `compute(...)`, `derive(...)`, `infer(...)`, `equal(...)`, `contradict(...)`, `exclusive(...)`, `not_(...)`, `and_(...)`, `or_(...)`, and nested `@composition` call **defers** its produced `Knowledge`'s package registration, holding the Knowledge in the scope's capture list instead.
+2. The decorated function runs; sub-Knowledge accumulate in the scope's capture list in call order. None have been registered with the enclosing package yet.
+3. The function returns; its return value is recorded as the composition's `conclusion` (must be one of the captured Knowledge — usually the last action's return, a Claim).
+4. On scope exit, the decorator performs a **flush pass** that registers everything with the enclosing package, in this order:
+   - Build the `ComposedAction`: `ComposedAction(template_name=name, template_version=version, sub_knowledge=[k.knowledge_id for k in captured], conclusion=return_value.knowledge_id)`. Compute its `knowledge_id` via §1.2.
+   - Inject `metadata["composition_id"] = <ComposedAction QID>` into each captured sub-Knowledge.
+   - Register each captured sub-Knowledge with the enclosing package (they become ordinary package-level IR nodes, each carrying the reverse pointer).
+   - Register the `ComposedAction` itself with the enclosing package.
+5. The call site receives back the **conclusion** Claim object (not the `ComposedAction`). Authors treat the composition call like any ordinary reasoning-verb call — it looks and behaves like `derive(...)` / `compute(...)` / `infer(...)` to downstream code.
+
+**IR outcome:** after flush, the package holds N + 1 Knowledge nodes (N sub-Knowledge + 1 ComposedAction), all with their own QIDs, all independently serialisable. The reverse pointer (`metadata["composition_id"]`) on each sub-Knowledge makes the containment relation navigable without any extra index. There are **no hidden Knowledge** — everything captured inside a scope becomes a visible IR node after flush.
 
 ### 2.3 Nested compositions
 
@@ -222,9 +247,17 @@ class CompositeStrategy(Strategy):
 
 v5 `CompositeStrategy` is deprecated; no parallel classes. A migrator (separate migrator spec) rewrites v5 IR producing `CompositeStrategy` into `ComposedAction` with derived `template_name` ("legacy:unnamed") for packages compiled before the foundation lands.
 
-### 5.3 Relationship to U1
+### 5.3 Relationship to U1 — sequenced, not bundled
 
-The migration is part of the U1 runtime refactor (foundation §16.2.1). Promoting `CompositeStrategy` to a Knowledge-subtype only makes sense once Strategy and Operator are themselves Knowledge subtypes. The composition-primitive work item and the U1 work item share a single PR unless the refactor is staged.
+Promoting `CompositeStrategy` to a Knowledge-subtype only makes sense once `Strategy` and `Operator` are themselves Knowledge subtypes. So the composition primitive depends on the U1 runtime refactor (foundation §16.2.1).
+
+**Staging rule (aligned with foundation §16.2.1):** U1 is a **dedicated PR**, completed first. The composition primitive is a **separate PR**, opened after U1 lands. The two must not be bundled. The U1 PR touches enough surface — `gaia/lang/runtime/action.py`, `gaia/lang/runtime/knowledge.py`, `gaia/ir/strategy.py`, `gaia/ir/operator.py`, plus extensive test updates — that adding composition logic on top would make review impractical. Foundation's "must not be bundled with a functional change" rule takes precedence.
+
+Order of PRs (also reflected in §9 implementation plan):
+
+1. **U1 runtime refactor** (foundation item 10 + 11) — dedicated PR.
+2. **v0.5 `infer()` DSL bug fix** (foundation item 11b) — small, independent, can land before or after U1 but should land before composition.
+3. **Composition primitive** (foundation item 11a) — builds on U1. Opens once U1 is merged.
 
 ---
 
@@ -309,17 +342,21 @@ IR:
 ComposedAction(exoplanet_gaia:transit_bls::<structure_hash>)
     template_name     = "exoplanet:transit_bls"
     template_version  = "1.0"
-    sub_knowledge     = [observe_kepler_lightcurve_qid,
-                         compute_bls_power_qid,
+    sub_knowledge     = [observe_kepler_lightcurve_qid,   # execution order
+                         compute_bls_power_qid,            # preserved
                          compute_expected_bls_h_qid,
                          compute_p_h_qid,
                          compute_p_not_h_qid,
                          infer_transit_qid]
-    conclusion        = infer_transit_qid
+    conclusion        = evidence_claim_qid          # the lightcurve Claim
+                                                    # (infer() returns evidence Claim)
 
-+ 6 independent Knowledge nodes in the IR, each with
-  metadata["composition_id"] pointing back to the ComposedAction
++ 6 independent Knowledge nodes in the IR, each flushed to the
+  package during scope exit with metadata["composition_id"]
+  pointing back to the ComposedAction.
 ```
+
+The composition call `transit_bls_evidence(evidence=kepler_lightcurve, hypothesis=kepler_87b_exists, ...)` returns the `kepler_lightcurve` Claim (because `infer()` returns the evidence Claim), letting downstream code chain further reasoning off the evidence Claim if needed.
 
 Downstream packages import `kepler_87b_exists` and read its baked inference output. No astropy, no BLS recomputation, no light-curve data access — just the `IrStrategy.conditional_probabilities` that `compute_p_h_qid` / `compute_p_not_h_qid` populated at author's time.
 
@@ -357,6 +394,12 @@ PR-A and PR-B must be co-ordinated with the U1 runtime refactor (foundation §16
 - **Signatures of `gaia.evidence` canonicals (§6.3)**: the four templates' exact parameter lists need review and concrete prototyping before v0.5 release. Expect signature iteration.
 - **Composition with cross-package sub-Knowledge**: the current spec permits foreign QIDs in `sub_knowledge`, but this means a composition's `_structure_hash` depends on foreign QIDs that may differ across dependency versions. Might need a rule: compositions should reference local sub-Knowledge only, and foreign references go through wrapper Claims.
 - **Migrator for legacy `CompositeStrategy` IR**: format for derived `template_name` when reading pre-foundation IR. Covered in the migrator spec, not here.
+- **Multi-output compositions**: §1.4 currently requires a single `conclusion` Claim. Some scientific workflows produce multiple outputs (compute density AND viscosity from temperature AND pressure, as one bundled step). Three future approaches if this becomes a real need:
+  - Require authors to decompose into single-output compositions (current default — accept for v0.5).
+  - Allow `conclusion: list[str] | str` and extend review semantics for per-output acceptance.
+  - Introduce "tuple Claim" subtype whose parameters bundle multiple named numeric fields; composition remains single-output at the `conclusion` level but the Claim carries the bundle.
+  
+  Not resolved; decision deferred until a concrete user need emerges.
 
 ---
 

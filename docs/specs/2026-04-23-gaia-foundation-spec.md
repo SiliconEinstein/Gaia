@@ -185,6 +185,7 @@ Never say "probability" without qualifying which layer.
 # Measurement layer — noise spec, has units
 from gaia.unit import q
 from gaia.stats import Normal
+from gaia.evidence import gaussian_measurement    # §12 composition template
 
 reading = measurement_claim(
     "Spectrometer produced reading 5120 K",
@@ -195,24 +196,31 @@ reading = measurement_claim(
 # Proposition layer — belief on a binary claim
 temp_high = Claim("TrueTemperature > 5000 K", prior=0.5)
 
-# Bridge: adapter evaluates layer-2 noise against two point hypotheses,
-# produces layer-3 scalars. Kernel stores LR only.
-gaussian_measurement_evidence(
-    reading, hypothesis=temp_high,
-    mean_under_h=q(5200, "K"),
-    mean_under_not_h=q(4800, "K"),
-    observed=True,
+# Bridge: a composition (§12) wires two compute sub-actions + one infer
+# sub-action together. The composition runs scipy at author's compile time
+# and bakes the CPT pair into the InferStrategy's conditional_probabilities.
+gaussian_measurement(
+    evidence=reading, hypothesis=temp_high,
+    mu_h=q(5200, "K"),
+    mu_not_h=q(4800, "K"),
+    noise=Normal(sigma=q(80, "K")),     # may default-pull from reading's measurement record
 )
-# adapter internally:
-#   P(E | H)   = normaliser · N(5120; 5200, 80)   ≈ 0.31
-#   P(E | ¬H)  = normaliser · N(5120; 4800, 80)   ≈ 4.1e-5
-# kernel stores:
-#   IrStrategy.conditional_probabilities = [4.1e-5, 0.31]   # [¬H, H]
-#   IrStrategy.metadata["evidence_computation"] = EvidenceComputationRecord(
-#       adapter_ref, inputs={observed_value, mean_under_h, mean_under_not_h, noise}
+# Composition expansion (at author's compile time):
+#   sub-action compute_p_h:     scipy → density(5120 | μ=5200, σ=80) · dx  ≈ 0.31
+#   sub-action compute_p_not_h: scipy → density(5120 | μ=4800, σ=80) · dx  ≈ 4.1e-5
+#   sub-action infer:           takes those two as CPT pair
+#
+# Kernel stores in IR:
+#   ComposedAction(
+#       template_name="gaia:evidence:gaussian_measurement", template_version="1.0",
+#       sub_knowledge=[compute_p_h_qid, compute_p_not_h_qid, infer_qid],
+#       conclusion=reading_qid,        # infer returns the evidence Claim
 #   )
-# Layer-1 output:
-#   belief(temp_high) goes from 0.5 to ≈ 0.9999
+#   InferStrategy(type="infer", conditional_probabilities=[4.1e-5, 0.31])  # [¬H, H]
+#   + the 2 compute sub-strategies
+#
+# Downstream reads the baked conditional_probabilities; no scipy invocation.
+# Layer-1 output: belief(temp_high) goes from 0.5 to ≈ 0.9999.
 ```
 
 `q(80, "K")` is layer 2. `0.5` and `0.9999` are layer 1. `[4.1e-5, 0.31]` is layer 3. Three layers, three units, three semantics.
@@ -921,7 +929,7 @@ The bar for "kernel primitive": **every scientific package will use composition*
 The detailed mechanics live in the companion composition-primitive design spec. Foundation commits to the following invariants about any implementation:
 
 1. **`ComposedAction` is a Knowledge subtype**, sibling of `Strategy` and `Operator` in the §3.1 / §5 hierarchy — not a Strategy subtype.
-2. **Identity is deterministic from contents**: `knowledge_id` derives from `template_name` + `template_version` + `SHA-256(sorted(sub_knowledge))`. Two expansions with identical sub-Knowledge lists collide on the same QID — the correct behaviour for pure composition templates.
+2. **Identity is deterministic from contents, including output and execution order**: the composition's `_structure_hash` hashes `{template_name, template_version, conclusion, sub_knowledge}` where `sub_knowledge` preserves **execution order** (not sorted away). Two expansions with identical `(template_name, template_version, conclusion, ordered sub_knowledge)` collide on the same `knowledge_id` — correct behaviour for pure composition templates. Two expansions with same sub-set but different conclusions or different ordering produce different identities, which is also correct.
 3. **Sub-Knowledge is any Knowledge kind**: `sub_knowledge: list[str]` accepts QIDs of Claims, Strategies, Operators, or nested ComposedActions. Not limited to strategies (unlike v5 `CompositeStrategy.sub_strategies`).
 4. **Review propagation is hierarchical with override** (D2b): composition `accepted` defaults sub-Knowledge to accepted; sub-Knowledge may be individually rejected and that explicit rejection wins; composition `rejected` disables the whole.
 5. **Cross-package R4 applies at composition level**: a foreign `ComposedAction` is `active` downstream iff (upstream accepted) AND (downstream accepted OR covered by a `TrustDelegation`), per §7.5. Sub-Knowledge statuses travel with the composition; downstream does not re-run R4 on each sub-action.
@@ -929,7 +937,7 @@ The detailed mechanics live in the companion composition-primitive design spec. 
 
 ### 12.3 IR-level realisation
 
-v5's `gaia/ir/strategy.py:CompositeStrategy` is **migrated** to `ComposedAction` as a Knowledge subtype (rename + promotion). The `_structure_hash` mechanism (`SHA-256(sorted(sub_ids))`) is preserved. Migration details live in the composition spec (§3 of that document); foundation item §17 tracks it as a to-refactor work item.
+v5's `gaia/ir/strategy.py:CompositeStrategy` is **migrated** to `ComposedAction` as a Knowledge subtype (rename + promotion). The `_structure_hash` mechanism is preserved **in principle** (deterministic SHA-256 over canonical contents) but **updated in form**: the new hash includes `template_name` / `template_version` / `conclusion` and preserves `sub_knowledge` execution order — v5's sorted-sub-strategies convention was a convenience that under-specified composition identity. Migration details live in the composition spec (§3 of that document); foundation item §17 tracks it as a to-refactor work item.
 
 ### 12.4 Deprecated parallel concepts
 
@@ -1156,7 +1164,7 @@ IR schema changes belong in change-controlled PRs against `docs/foundations/gaia
 
 11a. **`[new]` / `[to-refactor]`** Implement the composition primitive per **`docs/specs/2026-04-24-gaia-composition-primitive-design.md`**. Scope (summary, not authoritative — see that doc):
     - Add `ComposedAction` as a Knowledge subtype (runtime + IR).
-    - Migrate v5 `CompositeStrategy` → `ComposedAction` (promote from Strategy-subtype to Knowledge-subtype; rename `sub_strategies` → `sub_knowledge`; accept any Knowledge QID; preserve `_structure_hash`).
+    - Migrate v5 `CompositeStrategy` → `ComposedAction` (promote from Strategy-subtype to Knowledge-subtype; rename `sub_strategies` → `sub_knowledge`; accept any Knowledge QID; replace sorted-sub-strategies hash with `{template_name, template_version, conclusion, ordered sub_knowledge}` hash).
     - Add `@composition` decorator with scoped capture semantics.
     - Allow `infer()` to accept `float | Claim` for CPT fields; compiler lifts Claim.value at compile time.
     - Compiler validation of sub-Knowledge references; reverse-pointer `metadata["composition_id"]` on each sub-Knowledge.
@@ -1164,6 +1172,8 @@ IR schema changes belong in change-controlled PRs against `docs/foundations/gaia
     - Ship `gaia.evidence` core module with the agreed canonical template set.
     
     Composition is a **v0.5 deliverable**, not a parked v1.x extension. Specific schemas, decorator runtime behaviour, validator rules, canonical template signatures, migration steps, and worked examples all live in the composition design doc; foundation tracks the overall work item here.
+
+11b. **`[to-refactor]`** Fix the v0.5 `gaia/lang/dsl/strategies.py:infer()` DSL bug. Current v0.5 `infer()` returns a `Strategy`, which is inconsistent with the v6 Support-verb pattern where `derive()` / `observe()` / `compute()` all return the conclusion Claim (see `gaia/lang/dsl/support.py`). `infer()` should follow the same pattern and **return the evidence Claim** (the conclusion of an Infer action, in BP-graph terms: premise = H, conclusion = E). Without this fix, composition's `conclusion` field cannot be made to point at a Claim QID consistently (§12.2 invariant 2). This is a prerequisite for the composition primitive (item 11a).
 
 ### 17.3 Review / R4
 
