@@ -61,3 +61,19 @@ def test_derive_registers_action_with_package():
         a = Claim("Premise.")
         c = derive("Conclusion.", given=a, rationale="Test.")
     assert pkg.actions == [c.supports[0]]
+
+
+def test_derive_creates_reviewable_implication_warrant():
+    a = Claim("Premise.")
+    c = derive("Conclusion.", given=a, rationale="A implies C.")
+    action = c.supports[0]
+    assert len(action.warrants) == 1
+    warrant = action.warrants[0]
+    assert warrant.metadata["generated"] is True
+    assert warrant.metadata["helper_kind"] == "implication_warrant"
+    assert warrant.metadata["review"] is True
+    assert warrant.metadata["relation"] == {
+        "type": "derive",
+        "given": (a,),
+        "conclusion": c,
+    }

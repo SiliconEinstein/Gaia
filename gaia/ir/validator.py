@@ -533,6 +533,84 @@ def _validate_scope_consistency(
 
 
 # ---------------------------------------------------------------------------
+# 5. Compose validation
+# ---------------------------------------------------------------------------
+
+
+def _validate_composes(
+    graph: LocalCanonicalGraph,
+    knowledge_lookup: dict[str, Knowledge],
+    result: ValidationResult,
+) -> None:
+    target_ids = set(knowledge_lookup)
+    target_ids.update(op.operator_id for op in graph.operators if op.operator_id)
+    target_ids.update(strategy.strategy_id for strategy in graph.strategies if strategy.strategy_id)
+    compose_ids = {compose.compose_id for compose in graph.composes}
+    target_ids.update(compose_ids)
+    compose_edges: dict[str, list[str]] = {compose_id: [] for compose_id in compose_ids}
+
+    for compose in graph.composes:
+        if not compose.compose_id.startswith("lcm_"):
+            result.error(f"Compose '{compose.compose_id}': expected lcm_ prefix in local graph")
+
+        for field_name in ("inputs", "background", "warrants"):
+            for ref in getattr(compose, field_name):
+                if ref not in knowledge_lookup:
+                    result.error(
+                        f"Compose '{compose.compose_id}': {field_name} reference "
+                        f"'{ref}' not found in graph"
+                    )
+
+        if compose.conclusion not in knowledge_lookup:
+            result.error(
+                f"Compose '{compose.compose_id}': conclusion '{compose.conclusion}' not found in graph"
+            )
+        elif knowledge_lookup[compose.conclusion].type != KnowledgeType.CLAIM:
+            result.error(
+                f"Compose '{compose.compose_id}': conclusion '{compose.conclusion}' is "
+                f"'{knowledge_lookup[compose.conclusion].type}', must be claim"
+            )
+
+        for action_ref in compose.actions:
+            if action_ref not in target_ids:
+                result.error(
+                    f"Compose '{compose.compose_id}': action target '{action_ref}' not found in graph"
+                )
+                continue
+            if action_ref == compose.compose_id:
+                result.error(
+                    f"Compose '{compose.compose_id}': cannot reference itself as an action"
+                )
+                continue
+            if action_ref in compose_ids:
+                compose_edges[compose.compose_id].append(action_ref)
+
+    visiting: set[str] = set()
+    visited: set[str] = set()
+    path: list[str] = []
+
+    def visit(compose_id: str) -> None:
+        if compose_id in visited:
+            return
+        if compose_id in visiting:
+            cycle_start = path.index(compose_id)
+            cycle = [*path[cycle_start:], compose_id]
+            result.error(f"Compose DAG contains cycle: {' -> '.join(cycle)}")
+            return
+
+        visiting.add(compose_id)
+        path.append(compose_id)
+        for child_id in compose_edges.get(compose_id, []):
+            visit(child_id)
+        path.pop()
+        visiting.remove(compose_id)
+        visited.add(compose_id)
+
+    for compose_id in compose_ids:
+        visit(compose_id)
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -553,10 +631,16 @@ def validate_local_graph(graph: LocalCanonicalGraph) -> ValidationResult:
     _validate_scope_consistency(
         knowledge_lookup, graph.operators, graph.strategies, "local", result
     )
+    _validate_composes(graph, knowledge_lookup, result)
 
     # hash consistency
     if graph.ir_hash is not None:
-        recomputed = _canonical_json(graph.knowledges, graph.operators, graph.strategies)
+        recomputed = _canonical_json(
+            graph.knowledges,
+            graph.operators,
+            graph.strategies,
+            graph.composes,
+        )
         import hashlib
 
         expected = f"sha256:{hashlib.sha256(recomputed.encode()).hexdigest()}"
@@ -569,7 +653,7 @@ def validate_local_graph(graph: LocalCanonicalGraph) -> ValidationResult:
 
 
 # ---------------------------------------------------------------------------
-# 5. Parameterization completeness (pre-BP)
+# 6. Parameterization completeness (pre-BP)
 # ---------------------------------------------------------------------------
 
 

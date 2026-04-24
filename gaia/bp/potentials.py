@@ -14,6 +14,7 @@ __all__ = [
     "complement_potential",
     "soft_entailment_potential",
     "conditional_potential",
+    "pairwise_potential",
     "evaluate_potential",
 ]
 
@@ -111,6 +112,17 @@ def conditional_potential(
     return p if assignment[conclusion] == 1 else (1.0 - p)
 
 
+def pairwise_potential(
+    assignment: Assignment,
+    a: str,
+    b: str,
+    weights: tuple[float, ...],
+) -> float:
+    """Symmetric pairwise potential, indexed [00, 10, 01, 11]."""
+    idx = assignment[a] | (assignment[b] << 1)
+    return weights[idx]
+
+
 def evaluate_potential(factor: Factor, assignment: Assignment) -> float:
     ft = factor.factor_type
     v = factor.variables
@@ -146,5 +158,10 @@ def evaluate_potential(factor: Factor, assignment: Assignment) -> float:
         if factor.cpt is None:
             raise ValueError(f"CONDITIONAL '{factor.factor_id}' missing cpt.")
         return conditional_potential(assignment, v, c, factor.cpt)
+
+    if ft == FactorType.PAIRWISE_POTENTIAL:
+        if factor.cpt is None:
+            raise ValueError(f"PAIRWISE_POTENTIAL '{factor.factor_id}' missing cpt.")
+        return pairwise_potential(assignment, v[0], c, factor.cpt)
 
     raise ValueError(f"Unknown FactorType: {ft!r}")

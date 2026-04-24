@@ -32,3 +32,13 @@ def test_exclusive_registers_action_and_warrant():
     assert action.b is b
     assert action.helper is helper
     assert action.warrants == [helper]
+
+
+def test_exclusive_records_background_information():
+    with CollectedPackage("v6_test") as pkg:
+        a = Claim("Case A.")
+        b = Claim("Case B.")
+        bg = Claim("Cases exhaust this model family.")
+        exclusive(a, b, background=[bg], rationale="Closed binary partition.")
+    action = pkg.actions[0]
+    assert action.background == [bg]

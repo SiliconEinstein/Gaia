@@ -172,6 +172,14 @@ def _factor_log_potentials(
         pot = np.where(cv == 1, p_sel, 1.0 - p_sel)
         return np.log(pot)
 
+    if ft == FactorType.PAIRWISE_POTENTIAL:
+        assert factor.cpt is not None
+        a_idx = var_idx[vids[0]]
+        b_idx = var_idx[concl]
+        weights = np.array(factor.cpt, dtype=np.float64)
+        idx = states[:, a_idx].astype(np.int64) | (states[:, b_idx].astype(np.int64) << 1)
+        return np.log(weights[idx])
+
     raise ValueError(f"Unknown FactorType: {ft}")
 
 

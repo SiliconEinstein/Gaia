@@ -19,3 +19,19 @@ def test_observe_root_fact_adds_grounding_and_reviewable_action():
     assert len(data.supports) == 1
     assert isinstance(data.supports[0], Observe)
     assert data.supports[0].given == ()
+
+
+def test_observe_creates_reviewable_implication_warrant():
+    calibrated = Claim("Calibration OK.", prior=0.95)
+    data = observe("UV spectrum data.", given=calibrated, rationale="Measured.")
+    action = data.supports[0]
+    assert len(action.warrants) == 1
+    warrant = action.warrants[0]
+    assert warrant.metadata["generated"] is True
+    assert warrant.metadata["helper_kind"] == "implication_warrant"
+    assert warrant.metadata["review"] is True
+    assert warrant.metadata["relation"] == {
+        "type": "observe",
+        "given": (calibrated,),
+        "conclusion": data,
+    }

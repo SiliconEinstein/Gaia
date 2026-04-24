@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -84,11 +86,62 @@ class Exclusive(Relate):
 
 
 @dataclass
-class Infer(Action):
+class Correlate(Action):
+    """Probabilistic soft constraint between Claims."""
+
+    helper: Claim | None = None
+
+
+@dataclass
+class Infer(Correlate):
     """Bayesian inference: P(E|H) update."""
 
     hypothesis: Claim | None = None
     evidence: Claim | None = None
-    p_e_given_h: float = 0.5
-    p_e_given_not_h: float = 0.5
-    helper: Claim | None = None
+    p_e_given_h: float | Claim = 0.5
+    p_e_given_not_h: float | Claim = 0.5
+    prior_hypothesis: float | None = None
+    prior_evidence: float | None = None
+
+
+@dataclass
+class Associate(Correlate):
+    """Symmetric probabilistic association between two Claims."""
+
+    a: Claim | None = None
+    b: Claim | None = None
+    p_a_given_b: float = 0.5
+    p_b_given_a: float = 0.5
+    prior_a: float | None = None
+    prior_b: float | None = None
+
+
+@dataclass
+class Compose(Action):
+    """Action-level composition of child actions into a reviewable DAG."""
+
+    name: str = ""
+    version: str = ""
+    inputs: tuple[Knowledge | str, ...] = ()
+    actions: tuple[Action | str, ...] = ()
+    conclusion: Claim | None = None
+
+    def structure_hash(
+        self,
+        input_refs: list[str],
+        action_refs: list[str],
+        conclusion_ref: str,
+        warrant_refs: list[str],
+        background_refs: list[str] | None = None,
+    ) -> str:
+        payload = {
+            "name": self.name,
+            "version": self.version,
+            "inputs": sorted(input_refs),
+            "background": sorted(background_refs or []),
+            "actions": list(action_refs),
+            "conclusion": conclusion_ref,
+            "warrants": sorted(warrant_refs),
+        }
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode()).hexdigest()[:16]

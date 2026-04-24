@@ -6,7 +6,7 @@ from gaia.lang.runtime.knowledge import Claim, Setting
 from gaia.lang.runtime.package import CollectedPackage
 
 
-def test_infer_returns_positional_evidence_and_keeps_helper_on_action():
+def test_infer_returns_positional_likelihood_helper_and_keeps_action_on_evidence():
     with CollectedPackage("v6_test") as pkg:
         h = Claim("Quantum theory is correct.", prior=0.5)
         e = Claim("Planck spectrum observed.", prior=0.95)
@@ -15,23 +15,36 @@ def test_infer_returns_positional_evidence_and_keeps_helper_on_action():
             hypothesis=h,
             p_e_given_h=0.9,
             p_e_given_not_h=0.05,
+            prior_hypothesis=0.4,
+            prior_evidence=0.3,
             rationale="Strong evidence.",
         )
 
-    assert result is e
     action = pkg.actions[0]
+    assert result is action.helper
     assert action.evidence is e
     assert action.hypothesis is h
+    assert action.prior_hypothesis == 0.4
+    assert action.prior_evidence == 0.3
     assert action in e.supports
     assert action.helper is not None
     assert action.helper is not e
     assert action.helper.metadata.get("generated") is True
-    assert action.helper.metadata.get("helper_kind") == "statistical_support"
+    assert action.helper.metadata.get("helper_kind") == "likelihood"
     assert action.helper.metadata.get("review") is True
+    assert action.helper.metadata.get("relation") == {
+        "type": "infer",
+        "hypothesis": h,
+        "evidence": e,
+        "p_e_given_h": 0.9,
+        "p_e_given_not_h": 0.05,
+        "prior_hypothesis": 0.4,
+        "prior_evidence": 0.3,
+    }
     assert action.warrants == [action.helper]
 
 
-def test_infer_keyword_evidence_also_returns_evidence():
+def test_infer_keyword_evidence_also_returns_likelihood_helper():
     h = Claim("Quantum theory is correct.", prior=0.5)
     e = Claim("Planck spectrum observed.", prior=0.95)
     result = infer(
@@ -41,10 +54,16 @@ def test_infer_keyword_evidence_also_returns_evidence():
         p_e_given_not_h=0.05,
         rationale="Strong evidence.",
     )
-    assert result is e
+    action = result.supports[0] if result.supports else None
+    assert action is None
+    assert result.metadata["helper_kind"] == "likelihood"
+    assert (
+        result.content
+        == "Planck spectrum observed. statistically supports Quantum theory is correct.."
+    )
 
 
-def test_infer_string_evidence_creates_and_returns_evidence_claim():
+def test_infer_string_evidence_creates_evidence_and_returns_likelihood_helper():
     with CollectedPackage("v6_test") as pkg:
         h = Claim("Quantum theory is correct.", prior=0.5)
         result = infer(
@@ -56,12 +75,17 @@ def test_infer_string_evidence_creates_and_returns_evidence_claim():
         )
 
     assert isinstance(result, Claim)
-    assert result.content == "Planck spectrum observed."
+    assert (
+        result.content
+        == "Planck spectrum observed. statistically supports Quantum theory is correct.."
+    )
+    assert result.metadata["helper_kind"] == "likelihood"
     action = pkg.actions[0]
-    assert action.evidence is result
+    assert action.evidence.content == "Planck spectrum observed."
     assert action.hypothesis is h
-    assert action in result.supports
+    assert action in action.evidence.supports
     assert action.helper is not None
+    assert action.helper is result
     assert action.warrants == [action.helper]
 
 
@@ -86,9 +110,9 @@ def test_infer_registers_action_and_warrant():
             rationale="Test.",
             label="bayes_update",
         )
-    assert result is e
     assert len(pkg.actions) == 1
     action = pkg.actions[0]
+    assert result is action.helper
     assert isinstance(action, Infer)
     assert action.label == "bayes_update"
     assert action.hypothesis is h

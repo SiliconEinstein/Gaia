@@ -11,6 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel, model_validator
 
+from gaia.ir.compose import Compose
 from gaia.ir.knowledge import Knowledge, make_qid
 from gaia.ir.operator import Operator
 from gaia.ir.strategy import CompositeStrategy, FormalStrategy, Strategy
@@ -62,10 +63,19 @@ def _canonicalize_strategy_dump(data: dict[str, Any]) -> dict[str, Any]:
     return canonical
 
 
+def _canonicalize_compose_dump(data: dict[str, Any]) -> dict[str, Any]:
+    canonical = dict(data)
+    canonical["inputs"] = sorted(canonical.get("inputs", []))
+    canonical["background"] = sorted(canonical.get("background", []))
+    canonical["warrants"] = sorted(canonical.get("warrants", []))
+    return canonical
+
+
 def _canonical_json(
     knowledges: list[Knowledge],
     operators: list[Operator],
     strategies: list[Strategy],
+    composes: list[Compose],
 ) -> str:
     """Produce canonical JSON for hashing — independent of insertion order."""
     data = {
@@ -79,6 +89,10 @@ def _canonical_json(
         ),
         "strategies": sorted(
             [_canonicalize_strategy_dump(s.model_dump(mode="json")) for s in strategies],
+            key=_json_sort_key,
+        ),
+        "composes": sorted(
+            [_canonicalize_compose_dump(c.model_dump(mode="json")) for c in composes],
             key=_json_sort_key,
         ),
     }
@@ -99,6 +113,7 @@ class LocalCanonicalGraph(BaseModel):
     knowledges: list[Knowledge]
     operators: list[Operator] = []
     strategies: list[CompositeStrategy | FormalStrategy | Strategy] = []
+    composes: list[Compose] = []
     module_order: list[str] | None = None
     module_titles: dict[str, str] | None = None
 
@@ -110,7 +125,12 @@ class LocalCanonicalGraph(BaseModel):
                 k.id = make_qid(self.namespace, self.package_name, k.label)
 
         if self.ir_hash is None:
-            canonical = _canonical_json(self.knowledges, self.operators, self.strategies)
+            canonical = _canonical_json(
+                self.knowledges,
+                self.operators,
+                self.strategies,
+                self.composes,
+            )
             digest = hashlib.sha256(canonical.encode()).hexdigest()
             self.ir_hash = f"sha256:{digest}"
         return self

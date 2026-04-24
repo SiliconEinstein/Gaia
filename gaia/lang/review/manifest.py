@@ -88,6 +88,13 @@ def _operator_question(operator: Any, action_type: str, labels: dict[str, str]) 
     )
 
 
+def _compose_question(compose: Any, labels: dict[str, str]) -> str:
+    return generate_audit_question(
+        "compose",
+        conclusion_label=labels.get(compose.conclusion, compose.conclusion or "?"),
+    )
+
+
 def generate_review_manifest(compiled: Any) -> ReviewManifest:
     """Generate unreviewed Review records for each v6 action target."""
     labels = _labels_by_id(compiled)
@@ -141,6 +148,23 @@ def generate_review_manifest(compiled: Any) -> ReviewManifest:
                 target_id=operator.operator_id,
                 status=ReviewStatus.UNREVIEWED,
                 audit_question=_operator_question(operator, action_type, labels),
+                round=1,
+            )
+        )
+
+    for compose in getattr(compiled.graph, "composes", []):
+        metadata = compose.metadata or {}
+        action_label = metadata.get("action_label")
+        if not action_label or not compose.compose_id:
+            continue
+        reviews.append(
+            Review(
+                review_id=_review_id("compose", compose.compose_id),
+                action_label=action_label,
+                target_kind="compose",
+                target_id=compose.compose_id,
+                status=ReviewStatus.UNREVIEWED,
+                audit_question=_compose_question(compose, labels),
                 round=1,
             )
         )

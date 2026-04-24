@@ -144,6 +144,14 @@ def factor_to_tensor(f: Factor) -> tuple[np.ndarray, list[str]]:
         t = np.where(concl == 1, p, 1.0 - p)
         return t, axes
 
+    if ft == FactorType.PAIRWISE_POTENTIAL:
+        if f.cpt is None:
+            raise ValueError(f"PAIRWISE_POTENTIAL {f.factor_id!r} missing cpt")
+        if len(f.cpt) != 4:
+            raise ValueError(f"PAIRWISE_POTENTIAL {f.factor_id!r}: cpt length {len(f.cpt)} != 4")
+        t = np.asarray(f.cpt, dtype=np.float64).reshape((2, 2), order="F")
+        return t, axes
+
     raise ValueError(f"Unknown FactorType: {ft!r}")
 
 

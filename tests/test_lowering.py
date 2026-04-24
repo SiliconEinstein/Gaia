@@ -6,7 +6,7 @@ import pytest
 
 from gaia.bp import FactorType, lower_local_graph, lower_operator
 from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph
-from gaia.bp.exact import exact_inference
+from gaia.bp.exact import exact_inference, exact_joint_over
 from gaia.bp.lowering import fold_composite_to_cpt, merge_factor_graphs
 from gaia.ir import Knowledge, Operator, Strategy, CompositeStrategy, LocalCanonicalGraph
 
@@ -98,6 +98,138 @@ def test_negation_default_prior_is_neutral():
     fg = lower_local_graph(g)
     assert fg.variables["github:lowertest::not_x"] == pytest.approx(0.5)
     assert fg.factors[0].factor_type == FactorType.NEGATION
+
+
+def test_associate_lowers_to_pairwise_potential_without_double_counting_marginals():
+    a = "github:lowertest::a"
+    b = "github:lowertest::b"
+    helper = "github:lowertest::assoc"
+    g = _lg(
+        knowledges=[
+            Knowledge(id=a, type="claim", content="A"),
+            Knowledge(id=b, type="claim", content="B"),
+            Knowledge(id=helper, type="claim", content="A is associated with B"),
+        ],
+        strategies=[
+            Strategy(
+                scope="local",
+                type="associate",
+                premises=[a, b],
+                conclusion=helper,
+                p_a_given_b=0.75,
+                p_b_given_a=0.20,
+                prior_a=0.25,
+            )
+        ],
+    )
+
+    fg = lower_local_graph(g)
+
+    assert helper not in fg.variables
+    assert fg.unary_factors[a] == pytest.approx(0.25)
+    assert fg.unary_factors[b] == pytest.approx(1 / 15)
+    assert len(fg.factors) == 1
+    factor = fg.factors[0]
+    assert factor.factor_type == FactorType.PAIRWISE_POTENTIAL
+    assert factor.variables == [a]
+    assert factor.conclusion == b
+    assert factor.cpt == pytest.approx(
+        (
+            22 / 21,  # psi(A=0,B=0)
+            6 / 7,  # psi(A=1,B=0)
+            1 / 3,  # psi(A=0,B=1)
+            3.0,  # psi(A=1,B=1)
+        )
+    )
+
+    joint = exact_joint_over(fg, [a, b])
+    assert joint == pytest.approx(
+        [
+            11 / 15,  # P(A=0,B=0)
+            0.20,  # P(A=1,B=0)
+            1 / 60,  # P(A=0,B=1)
+            0.05,  # P(A=1,B=1)
+        ]
+    )
+
+
+def test_associate_lowering_rejects_bayes_inconsistent_marginals():
+    a = "github:lowertest::a"
+    b = "github:lowertest::b"
+    helper = "github:lowertest::assoc"
+    g = _lg(
+        knowledges=[
+            Knowledge(id=a, type="claim", content="A"),
+            Knowledge(id=b, type="claim", content="B"),
+            Knowledge(id=helper, type="claim", content="A is associated with B"),
+        ],
+        strategies=[
+            Strategy(
+                scope="local",
+                type="associate",
+                premises=[a, b],
+                conclusion=helper,
+                p_a_given_b=0.75,
+                p_b_given_a=0.20,
+                prior_a=0.25,
+                prior_b=0.50,
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match="Bayes-inconsistent"):
+        lower_local_graph(g)
+
+
+def test_infer_inline_priors_lower_as_unary_providers():
+    h = "github:lowertest::h"
+    e = "github:lowertest::e"
+    g = _lg(
+        knowledges=[
+            Knowledge(id=h, type="claim", content="H"),
+            Knowledge(id=e, type="claim", content="E"),
+        ],
+        strategies=[
+            Strategy(
+                scope="local",
+                type="infer",
+                premises=[h],
+                conclusion=e,
+                conditional_probabilities=[0.2, 0.8],
+                prior_hypothesis=0.25,
+                prior_evidence=0.1,
+            )
+        ],
+    )
+
+    fg = lower_local_graph(g)
+
+    assert fg.unary_factors[h] == pytest.approx(0.25)
+    assert fg.unary_factors[e] == pytest.approx(0.1)
+
+
+def test_infer_inline_prior_conflicts_with_existing_prior():
+    h = "github:lowertest::h"
+    e = "github:lowertest::e"
+    g = _lg(
+        knowledges=[
+            Knowledge(id=h, type="claim", content="H", metadata={"prior": 0.6}),
+            Knowledge(id=e, type="claim", content="E"),
+        ],
+        strategies=[
+            Strategy(
+                scope="local",
+                type="infer",
+                premises=[h],
+                conclusion=e,
+                conditional_probabilities=[0.2, 0.8],
+                prior_hypothesis=0.25,
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match="conflicting prior providers"):
+        lower_local_graph(g)
 
 
 def test_structural_expression_metadata_prior_is_ignored():

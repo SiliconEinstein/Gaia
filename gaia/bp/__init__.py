@@ -3,9 +3,10 @@
 Theory: docs/foundations/theory/06-factor-graphs.md, 07-belief-propagation.md
 IR lowering: docs/foundations/gaia-ir/07-lowering.md
 
-Eight factor types: six deterministic operators (IR OperatorType), SOFT_ENTAILMENT
-(↝ with p1,p2), CONDITIONAL (full CPT for infer). String variable IDs, Cromwell
-clamping, Junction Tree / GBP / loopy BP / exact enumeration, InferenceEngine.
+Factor types: deterministic operators (IR OperatorType), SOFT_ENTAILMENT
+(↝ with p1,p2), CONDITIONAL (full CPT for infer), and PAIRWISE_POTENTIAL
+(normalized association potential). String variable IDs, Cromwell clamping,
+Junction Tree / GBP / loopy BP / exact enumeration, InferenceEngine.
 """
 
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType

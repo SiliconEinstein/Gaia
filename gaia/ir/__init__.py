@@ -16,6 +16,7 @@ from gaia.ir.knowledge import (
     make_qid,
 )
 from gaia.ir.operator import Operator, OperatorType
+from gaia.ir.compose import Compose
 from gaia.ir.strategy import (
     CompositeStrategy,
     FormalExpr,
@@ -45,6 +46,8 @@ __all__ = [
     # Operator
     "Operator",
     "OperatorType",
+    # Compose
+    "Compose",
     # Strategy
     "CompositeStrategy",
     "FormalExpr",

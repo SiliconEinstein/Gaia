@@ -22,7 +22,7 @@ class Review(BaseModel):
 
     review_id: str
     action_label: str
-    target_kind: Literal["strategy", "operator", "knowledge"]
+    target_kind: Literal["strategy", "operator", "knowledge", "compose"]
     target_id: str
     status: ReviewStatus
     audit_question: str

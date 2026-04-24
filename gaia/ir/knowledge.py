@@ -30,6 +30,7 @@ class KnowledgeType(StrEnum):
 
     CLAIM = "claim"
     NOTE = "note"
+    COMPOSITION = "composition"
     # Legacy non-probabilistic types accepted for backwards compatibility.
     SETTING = "setting"
     QUESTION = "question"
@@ -110,6 +111,10 @@ class Knowledge(BaseModel):
     content_hash: str | None = None
     parameters: list[Parameter] = []
     metadata: dict[str, Any] | None = None
+    template_name: str | None = None
+    template_version: str | None = None
+    sub_knowledge: list[str] | None = None
+    conclusion: str | None = None
 
     # provenance
     provenance: list[PackageRef] | None = None
@@ -127,6 +132,15 @@ class Knowledge(BaseModel):
 
         if self.metadata and "prior" in self.metadata and self.type != KnowledgeType.CLAIM:
             raise ValueError("metadata.prior is only valid for claim Knowledge.")
+        if self.type == KnowledgeType.COMPOSITION:
+            if not self.template_name:
+                raise ValueError("Composition requires template_name.")
+            if not self.template_version:
+                raise ValueError("Composition requires template_version.")
+            if not self.sub_knowledge:
+                raise ValueError("Composition requires sub_knowledge.")
+            if not self.conclusion:
+                raise ValueError("Composition requires conclusion.")
 
         # Content_hash is a derived fingerprint and must stay consistent
         # with the node's actual content.

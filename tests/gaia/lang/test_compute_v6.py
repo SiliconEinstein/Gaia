@@ -65,3 +65,25 @@ def test_compute_decorator_keyword_args_record_given_claims():
     compiled = compile_package_artifact(pkg)
     strategy = compiled.graph.strategies[0]
     assert strategy.premises == ["github:kw_compute::a", "github:kw_compute::b"]
+
+
+def test_compute_creates_reviewable_implication_warrant():
+    a = IntClaim(value=3)
+    b = IntClaim(value=4)
+    result = compute(
+        SumResult,
+        fn=lambda a, b: a.value + b.value,
+        given=(a, b),
+        rationale="Addition.",
+    )
+    action = result.supports[0]
+    assert len(action.warrants) == 1
+    warrant = action.warrants[0]
+    assert warrant.metadata["generated"] is True
+    assert warrant.metadata["helper_kind"] == "implication_warrant"
+    assert warrant.metadata["review"] is True
+    assert warrant.metadata["relation"] == {
+        "type": "compute",
+        "given": (a, b),
+        "conclusion": result,
+    }

@@ -49,6 +49,8 @@ _RELATION_OPS = frozenset(
     }
 )
 
+_ASSOCIATE_TOLERANCE = 1e-6
+
 _OPERATOR_MAP: dict[OperatorType, FactorType] = {
     OperatorType.IMPLICATION: FactorType.IMPLICATION,
     OperatorType.NEGATION: FactorType.NEGATION,
@@ -213,6 +215,139 @@ def _ensure_claim_var(
     if vid in fg.variables:
         return
     fg.add_variable(vid, priors[vid] if vid in priors else None)
+
+
+def _clamp_probability(value: float) -> float:
+    return max(CROMWELL_EPS, min(1.0 - CROMWELL_EPS, float(value)))
+
+
+def _resolve_associate_marginal(
+    *,
+    variable_id: str,
+    action_prior: float | None,
+    priors: dict[str, float],
+    metadata_priors: dict[str, float],
+    strategy_id: str | None,
+) -> float | None:
+    providers: list[tuple[str, float]] = []
+    if variable_id in priors:
+        providers.append(("node_priors", _clamp_probability(priors[variable_id])))
+    if variable_id in metadata_priors:
+        providers.append(("metadata.prior", _clamp_probability(metadata_priors[variable_id])))
+    if action_prior is not None:
+        providers.append(("associate prior", _clamp_probability(action_prior)))
+
+    if not providers:
+        return None
+
+    first_source, first_value = providers[0]
+    for source, value in providers[1:]:
+        if abs(value - first_value) > _ASSOCIATE_TOLERANCE:
+            raise ValueError(
+                f"associate strategy {strategy_id}: conflicting marginal providers for "
+                f"{variable_id!r}: {first_source}={first_value:g}, {source}={value:g}"
+            )
+    return first_value
+
+
+def _apply_inline_prior_provider(
+    fg: FactorGraph,
+    *,
+    variable_id: str,
+    inline_prior: float | None,
+    priors: dict[str, float],
+    metadata_priors: dict[str, float],
+    strategy_id: str | None,
+    field_name: str,
+) -> None:
+    if inline_prior is None:
+        return
+    inline = _clamp_probability(inline_prior)
+    providers: list[tuple[str, float]] = []
+    if variable_id in priors:
+        providers.append(("node_priors", _clamp_probability(priors[variable_id])))
+    if variable_id in metadata_priors:
+        providers.append(("metadata.prior", _clamp_probability(metadata_priors[variable_id])))
+    for source, value in providers:
+        if abs(value - inline) > _ASSOCIATE_TOLERANCE:
+            raise ValueError(
+                f"infer strategy {strategy_id}: conflicting prior providers for "
+                f"{variable_id!r}: {source}={value:g}, {field_name}={inline:g}"
+            )
+    fg.add_variable(variable_id, inline)
+
+
+def _associate_pairwise_weights(
+    s: Strategy,
+    priors: dict[str, float],
+    metadata_priors: dict[str, float],
+) -> tuple[str, str, float, float, tuple[float, float, float, float]]:
+    if len(s.premises) != 2:
+        raise ValueError(f"associate strategy {s.strategy_id}: requires exactly 2 premises")
+    if s.p_a_given_b is None or s.p_b_given_a is None:
+        raise ValueError(
+            f"associate strategy {s.strategy_id}: requires p_a_given_b and p_b_given_a"
+        )
+
+    a, b = s.premises
+    p_a_given_b = _clamp_probability(s.p_a_given_b)
+    p_b_given_a = _clamp_probability(s.p_b_given_a)
+    pi_a = _resolve_associate_marginal(
+        variable_id=a,
+        action_prior=s.prior_a,
+        priors=priors,
+        metadata_priors=metadata_priors,
+        strategy_id=s.strategy_id,
+    )
+    pi_b = _resolve_associate_marginal(
+        variable_id=b,
+        action_prior=s.prior_b,
+        priors=priors,
+        metadata_priors=metadata_priors,
+        strategy_id=s.strategy_id,
+    )
+
+    if pi_a is None and pi_b is None:
+        raise ValueError(
+            f"associate strategy {s.strategy_id}: missing marginal prior for {a!r} or {b!r}"
+        )
+    if pi_a is None:
+        pi_a = pi_b * p_a_given_b / p_b_given_a  # type: ignore[operator]
+    if pi_b is None:
+        pi_b = pi_a * p_b_given_a / p_a_given_b
+    if not (0.0 < pi_a < 1.0 and 0.0 < pi_b < 1.0):
+        raise ValueError(
+            f"associate strategy {s.strategy_id}: derived marginals must be in (0,1), "
+            f"got pi_a={pi_a:g}, pi_b={pi_b:g}"
+        )
+
+    p11_from_a = p_b_given_a * pi_a
+    p11_from_b = p_a_given_b * pi_b
+    if abs(p11_from_a - p11_from_b) > _ASSOCIATE_TOLERANCE:
+        raise ValueError(
+            f"associate strategy {s.strategy_id}: Bayes-inconsistent marginals "
+            f"(p_b_given_a*pi_a={p11_from_a:g}, p_a_given_b*pi_b={p11_from_b:g})"
+        )
+
+    p11 = 0.5 * (p11_from_a + p11_from_b)
+    p01 = pi_b - p11
+    p10 = pi_a - p11
+    p00 = 1.0 - pi_a - pi_b + p11
+    cells = (p00, p10, p01, p11)
+    if any(cell < -_ASSOCIATE_TOLERANCE for cell in cells):
+        raise ValueError(
+            f"associate strategy {s.strategy_id}: conditionals and marginals imply "
+            f"negative joint cell(s): {cells!r}"
+        )
+    p00, p10, p01, p11 = (max(0.0, cell) for cell in cells)
+
+    weights = (
+        p00 / ((1.0 - pi_a) * (1.0 - pi_b)),
+        p10 / (pi_a * (1.0 - pi_b)),
+        p01 / ((1.0 - pi_a) * pi_b),
+        p11 / (pi_a * pi_b),
+    )
+    return a, b, pi_a, pi_b, weights
 
 
 def fold_composite_to_cpt(
@@ -392,6 +527,25 @@ def _lower_strategy(
         _ensure_claim_var(fg, p, priors, claim_ids)
 
     if s.type == StrategyType.INFER:
+        if s.premises:
+            _apply_inline_prior_provider(
+                fg,
+                variable_id=s.premises[0],
+                inline_prior=s.prior_hypothesis,
+                priors=priors,
+                metadata_priors=metadata_priors,
+                strategy_id=s.strategy_id,
+                field_name="prior_hypothesis",
+            )
+        _apply_inline_prior_provider(
+            fg,
+            variable_id=conc,
+            inline_prior=s.prior_evidence,
+            priors=priors,
+            metadata_priors=metadata_priors,
+            strategy_id=s.strategy_id,
+            field_name="prior_evidence",
+        )
         cpt = s.conditional_probabilities or strat_params.get(s.strategy_id)
         if not cpt:
             cpt = [0.5] * (1 << len(s.premises))
@@ -469,6 +623,21 @@ def _lower_strategy(
             )
         return
 
+    if s.type == StrategyType.ASSOCIATE:
+        a, b, pi_a, pi_b, weights = _associate_pairwise_weights(s, priors, metadata_priors)
+        fg.variables.pop(conc, None)
+        fg.unary_factors.pop(conc, None)
+        fg.add_variable(a, pi_a)
+        fg.add_variable(b, pi_b)
+        fg.add_factor(
+            _next_fid("assoc", ctr),
+            FactorType.PAIRWISE_POTENTIAL,
+            [a],
+            b,
+            cpt=weights,
+        )
+        return
+
     # Named leaf strategy (not yet formalized into FormalStrategy) — auto-formalize.
     # Supported: deduction, elimination, mathematical_induction, case_analysis,
     #            abduction, analogy, extrapolation  (all entries in _FORMAL_STRATEGY_TYPES).
@@ -522,7 +691,7 @@ def _lower_strategy(
     raise NotImplementedError(
         f"Leaf strategy type {s.type!r} is deferred in Gaia IR core "
         "(docs/foundations/gaia-ir/02-gaia-ir.md §3.3). "
-        "Supply a pre-formalized FormalStrategy, or use infer/noisy_and."
+        "Supply a pre-formalized FormalStrategy, or use infer/noisy_and/associate."
     )
 
 

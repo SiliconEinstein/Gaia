@@ -29,6 +29,16 @@ def test_equal_registers_action_and_warrant():
     assert action.warrants == [helper]
 
 
+def test_equal_records_background_information():
+    with CollectedPackage("v6_test") as pkg:
+        a = Claim("Prediction matches.")
+        b = Claim("Observation matches.")
+        bg = Claim("Same calibration frame.")
+        equal(a, b, background=[bg], rationale="Theory agrees with data.")
+    action = pkg.actions[0]
+    assert action.background == [bg]
+
+
 def test_equal_helper_usable_as_premise():
     a = Claim("Pred.")
     b = Claim("Obs.")

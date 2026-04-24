@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
@@ -27,6 +28,7 @@ class StrategyType(StrEnum):
     """Strategy types (§3.3). Orthogonal to form (Strategy/Composite/Formal)."""
 
     INFER = "infer"  # full CPT: 2^k params
+    ASSOCIATE = "associate"  # symmetric pairwise association
     NOISY_AND = "noisy_and"  # ∧ + single param p
 
     # Named strategies — deterministic (pure FormalStrategy)
@@ -80,6 +82,17 @@ def _compute_strategy_id(
     prefix = "lcs_"
     payload = f"{scope}|{type_}|{sorted(premises)}|{conclusion}|{structure_hash}"
     return f"{prefix}{_sha256_hex(payload)}"
+
+
+def _probability(value: float, field_name: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed) or not 0.0 <= parsed <= 1.0:
+        raise ValueError(f"{field_name} must be a probability in [0, 1], got {value!r}")
+    return parsed
+
+
+def _probability_list(values: list[float], field_name: str) -> list[float]:
+    return [_probability(value, f"{field_name}[{i}]") for i, value in enumerate(values)]
 
 
 _FORMAL_STRATEGY_TYPES = frozenset(
@@ -148,6 +161,12 @@ class Strategy(BaseModel):
     # local layer
     steps: list[Step] | None = None  # reasoning process (local only, None at global)
     conditional_probabilities: list[float] | None = None  # infer/noisy_and CPT parameters
+    prior_hypothesis: float | None = None
+    prior_evidence: float | None = None
+    p_a_given_b: float | None = None
+    p_b_given_a: float | None = None
+    prior_a: float | None = None
+    prior_b: float | None = None
 
     # traceability
     metadata: dict[str, Any] | None = None
@@ -206,20 +225,57 @@ class Strategy(BaseModel):
                 structure_hash=self._structure_hash(),
             )
         if self.conditional_probabilities is not None:
-            clamped = [max(1e-3, min(1 - 1e-3, float(p))) for p in self.conditional_probabilities]
+            probabilities = _probability_list(
+                self.conditional_probabilities,
+                "conditional_probabilities",
+            )
             if self.type == StrategyType.INFER:
                 expected = 1 << len(self.premises)
-                if len(clamped) != expected:
+                if len(probabilities) != expected:
                     raise ValueError(
                         f"infer strategy with {len(self.premises)} premises requires "
-                        f"{expected} conditional_probabilities, got {len(clamped)}"
+                        f"{expected} conditional_probabilities, got {len(probabilities)}"
                     )
             elif self.type == StrategyType.NOISY_AND:
-                if len(clamped) != 1:
+                if len(probabilities) != 1:
                     raise ValueError(
-                        f"noisy_and strategy requires 1 conditional_probability, got {len(clamped)}"
+                        f"noisy_and strategy requires 1 conditional_probability, got {len(probabilities)}"
                     )
-            object.__setattr__(self, "conditional_probabilities", clamped)
+            object.__setattr__(self, "conditional_probabilities", probabilities)
+        if self.type == StrategyType.INFER and self.__class__.__name__ != "CompositeStrategy":
+            if self.prior_hypothesis is not None:
+                object.__setattr__(
+                    self,
+                    "prior_hypothesis",
+                    _probability(self.prior_hypothesis, "prior_hypothesis"),
+                )
+            if self.prior_evidence is not None:
+                object.__setattr__(
+                    self,
+                    "prior_evidence",
+                    _probability(self.prior_evidence, "prior_evidence"),
+                )
+        if self.type == StrategyType.ASSOCIATE and self.__class__.__name__ != "CompositeStrategy":
+            if len(self.premises) != 2:
+                raise ValueError("associate strategy requires exactly 2 premises")
+            if self.conclusion is None:
+                raise ValueError("associate strategy requires a helper conclusion")
+            if self.p_a_given_b is None or self.p_b_given_a is None:
+                raise ValueError("associate strategy requires p_a_given_b and p_b_given_a")
+            object.__setattr__(
+                self,
+                "p_a_given_b",
+                _probability(self.p_a_given_b, "p_a_given_b"),
+            )
+            object.__setattr__(
+                self,
+                "p_b_given_a",
+                _probability(self.p_b_given_a, "p_b_given_a"),
+            )
+            if self.prior_a is not None:
+                object.__setattr__(self, "prior_a", _probability(self.prior_a, "prior_a"))
+            if self.prior_b is not None:
+                object.__setattr__(self, "prior_b", _probability(self.prior_b, "prior_b"))
         return self
 
     # No leaf type restriction — per §3.5.1, named strategies (deduction, abduction,
