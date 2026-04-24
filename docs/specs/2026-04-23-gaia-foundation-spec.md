@@ -228,11 +228,14 @@ gaussian_measurement(
 # Kernel stores in IR:
 #   ComposedAction(
 #       template_name="gaia:evidence:gaussian_measurement", template_version="1.0",
-#       sub_knowledge=[compute_p_h_qid, compute_p_not_h_qid, infer_qid],
-#       conclusion=reading_qid,        # infer returns the evidence Claim
+#       sub_knowledge=[compute_p_h_qid, compute_p_not_h_qid,
+#                      infer_qid, likelihood_helper_qid],
+#       conclusion=likelihood_helper_qid,   # infer() returns the generated helper Claim
+#                                           # (helper_kind="likelihood", §11.2)
 #   )
 #   InferStrategy(type="infer", conditional_probabilities=[4.1e-5, 0.31])  # [¬H, H]
 #   + the 2 compute sub-strategies
+#   + the likelihood helper Claim (new Knowledge flushed to package)
 #
 # Downstream reads the baked conditional_probabilities; no scipy invocation.
 # Layer-1 output: belief(temp_high) goes from 0.5 to ≈ 0.9999.
@@ -949,24 +952,34 @@ assoc_claim = associate(
 
 These three categories apply to **any** probabilistic factor — not just `associate`. `gaia check` is the kernel's factor-graph coherence tool (§15.1 audit role).
 
-**BP factor lowering contract (normative).** To avoid ambiguity and double-counting, `associate` lowers to a **pairwise association potential**, not a full joint factor. The construction is:
+**BP factor lowering contract (normative).** To avoid ambiguity and double-counting, `associate` lowers to a **pairwise association potential**, not a full joint factor. The construction uses closed-form equations:
 
-1. **`gaia check` resolves one consistent marginal for each of A and B** from the prior-provider graph (Claim declaration, `priors.py`, `prior_a`/`prior_b` args on this or other actions, outputs of other actions). Let the resolved values be `P(A|I) = π_a`, `P(B|I) = π_b`. If more than one provider is consistent, any one is used (redundancy already reported). If `π_b` is missing, it is derived via Bayes: `π_b = π_a · p_b_given_a / p_a_given_b` (and vice versa).
-2. **Derive the full joint distribution** under I:
+1. **`gaia check` resolves one consistent marginal for each of A and B** from the prior-provider graph (Claim declaration, `priors.py`, `prior_a`/`prior_b` args on this or other actions, outputs of other actions). Let the resolved values be `P(A|I) = π_a`, `P(B|I) = π_b`. If more than one provider is consistent, any one is used (redundancy already reported by `gaia check`). If only one marginal is provided, the other is derived via Bayes: `π_b = π_a · p_b_given_a / p_a_given_b` (and vice versa).
+
+2. **Bayes-consistency gate** (compile-time check):
     ```
-    P(A=1, B=1 | I) = p_a_given_b · π_b    # = p_b_given_a · π_a (Bayes-consistent)
-    P(A=0, B=1 | I) = (1 - p_a_given_b) · π_b
-    P(A=1, B=0 | I) = (1 - p_b_given_a) · π_a / ??? — derived from marginal constraints
-    P(A=0, B=0 | I) = 1 - [above three]
+    p_a_given_b · π_b  ≈  p_b_given_a · π_a    # within numerical tolerance
     ```
-    Exact algebra: use `π_a`, `π_b`, and the two conditionals as four linearly dependent constraints on the four joint entries; Bayes consistency must hold (else conflict, §11.4).
-3. **Compute the association potential** `ψ(A, B | I)` that makes the pairwise factor independent of the marginals:
+    Both sides must equal `P(A=1, B=1 | I)`. Mismatch is a `gaia check` conflict (hard error).
+
+3. **Derive the 4 joint entries** in closed form:
     ```
-    ψ(A=a, B=b | I) = P(A=a, B=b | I) / [P(A=a | I) · P(B=b | I)]
+    P11 = P(A=1, B=1 | I) = p_a_given_b · π_b  = p_b_given_a · π_a
+    P01 = P(A=0, B=1 | I) = (1 - p_a_given_b) · π_b       = π_b - P11
+    P10 = P(A=1, B=0 | I) = (1 - p_b_given_a) · π_a       = π_a - P11
+    P00 = P(A=0, B=0 | I) = 1 - π_a - π_b + P11           = 1 - P01 - P10 - P11
     ```
-    Four values, computed at all four (A, B) combinations.
-4. **Insert `ψ` as a pairwise factor** in the BP graph. The unary prior factors `P(A|I)` and `P(B|I)` come from the **resolved marginal providers** (Claim declaration / `priors.py` / etc.) and are added to BP separately — exactly once each, via the standard unary-prior pathway.
-5. **No double-counting invariant**: `associate`'s factor contributes only the **normalised pairwise interaction**, not any marginal mass. The joint that BP reconstructs is `P(A, B | I) = P(A|I) · P(B|I) · ψ(A, B | I)`, which by construction equals the author's intended joint.
+    All four entries must be non-negative (else conflict — author-given conditionals and marginals describe an impossible distribution).
+
+4. **Compute the pairwise association potential** that factors out the marginals:
+    ```
+    ψ(A=a, B=b | I) = P_ab / [π_a(a) · π_b(b)]
+    ```
+    where `π_a(a)` is `π_a` if `a == 1` else `1 - π_a`, and similarly for `π_b(b)`.
+
+5. **Insert `ψ` as a pairwise factor** in the BP graph. The unary prior factors `P(A|I)` and `P(B|I)` come from the **resolved marginal providers** (Claim declaration / `priors.py` / etc.) and are added to BP separately — exactly once each, via the standard unary-prior pathway.
+
+6. **No double-counting invariant**: `associate`'s factor contributes only the **normalised pairwise interaction**, not any marginal mass. The joint that BP reconstructs is `P(A, B | I) = P(A|I) · P(B|I) · ψ(A, B | I)`, which by construction equals the closed-form joint from step 3.
 
 This rule has two consequences worth calling out:
 
@@ -1269,12 +1282,14 @@ The release plan **MUST** allocate a dedicated PR for this refactor. Mixing it i
 
 ## 17. Summary of required IR / schema / runtime changes
 
-Not an implementation plan, but the concrete diffs this spec implies. Each item is tagged against **v0.5 HEAD** reality:
+Not an implementation plan, but the concrete diffs this spec implies. Each item is tagged against **`origin/v0.5` HEAD** reality (the merge target of this PR) — not the PR branch's own tree:
 
-- `[implemented]` — the item is already present in v0.5; foundation spec merely names / normatively describes it.
-- `[to-refactor]` — partial v0.5 support; needs restructuring or extension.
-- `[new]` — nothing in v0.5 corresponds; fresh schema / module / CLI.
-- `[retracted]` — listed in earlier drafts of this §17 but never existed in v0.5 in the assumed form; foundation no longer requires the change.
+- `[implemented]` — the item is already present on `origin/v0.5` HEAD; foundation spec merely names / normatively describes it.
+- `[to-refactor]` — partial `origin/v0.5` support; needs restructuring or extension.
+- `[new]` — nothing on `origin/v0.5` corresponds; fresh schema / module / CLI.
+- `[retracted]` — listed in earlier drafts of this §17 but never existed on `origin/v0.5` in the assumed form; foundation no longer requires the change.
+
+**Note on file paths in this section.** This PR branch (`docs/gaia-v6-unified-spec`) was forked from a `v0.5`-line commit (`a42d95f4`) that predates the v6 Lang PRs #468–#474. Readers inspecting the PR branch tree alone may not find files referenced below (e.g., `gaia/lang/dsl/infer_verb.py`, `gaia/lang/runtime/action.py`, `gaia/lang/dsl/support.py`, `gaia/lang/runtime/knowledge.py`, `gaia/lang/dsl/relate.py`, `gaia/lang/dsl/propositional.py`) — those are present on `origin/v0.5` HEAD and will be present in the merged tree, but are absent on this PR branch's older base. All line numbers and paths below refer to `origin/v0.5` HEAD.
 
 IR schema changes belong in change-controlled PRs against `docs/foundations/gaia-ir/` (protected layer per CLAUDE.md).
 

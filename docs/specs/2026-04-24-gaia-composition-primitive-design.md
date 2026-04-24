@@ -30,11 +30,14 @@ class ComposedAction(Knowledge):
     template_version: str                   # semver string, e.g. "1.0"
 
     sub_knowledge: list[str]                # flat list of sub-Knowledge QIDs, execution order
-    conclusion: str | None = None           # QID of the public output of the composition
+    conclusion: str                         # REQUIRED. QID of the Claim that is the
+                                            # composition's public output (§1.4).
 
     # inherited from Knowledge: knowledge_id, content, metadata, provenance,
     # review_status (optional)
 ```
+
+`conclusion` is a required field; every composition commits to exactly one public-output Claim QID. See §1.4 for how the terminal action's return value becomes this conclusion, and §10 for the multi-output open point (currently resolved by requiring single output).
 
 ### 1.2 Identity
 
@@ -44,7 +47,7 @@ knowledge_id = QID_prefix(template_name, template_version) + "::" + _structure_h
 _structure_hash = SHA-256(canonical_json({
     "template_name":    template_name,
     "template_version": template_version,
-    "conclusion":       conclusion,       # may be None
+    "conclusion":       conclusion,       # required, always a QID string
     "sub_knowledge":    sub_knowledge,    # execution order preserved, NOT sorted
 }))
 ```
