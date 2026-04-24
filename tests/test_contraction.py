@@ -322,8 +322,8 @@ def test_contract_to_cpt_empty_free_vars_raises():
         contract_to_cpt([], free_vars=[], unary_priors={})
 
 
-def test_contract_to_cpt_missing_prior_raises():
-    """Non-free variable without a prior should raise with a descriptive message."""
+def test_contract_to_cpt_missing_prior_uses_counting_measure():
+    """Non-free variable without a unary factor is marginalized neutrally."""
     fg = FactorGraph()
     fg.add_variable("A", 0.5)
     fg.add_variable("M", 0.5)
@@ -331,12 +331,13 @@ def test_contract_to_cpt_missing_prior_raises():
     fg.add_factor("f1", FactorType.SOFT_ENTAILMENT, ["A"], "M", p1=0.9, p2=1.0 - CROMWELL_EPS)
     fg.add_factor("f2", FactorType.SOFT_ENTAILMENT, ["M"], "C", p1=0.8, p2=1.0 - CROMWELL_EPS)
     tensors = [factor_to_tensor(f) for f in fg.factors]
-    with pytest.raises(ValueError, match="unary prior missing"):
-        contract_to_cpt(
-            tensors,
-            free_vars=["A", "C"],
-            unary_priors={},  # missing M
-        )
+    cpt = contract_to_cpt(
+        tensors,
+        free_vars=["A", "C"],
+        unary_priors={},
+    )
+    assert cpt.shape == (2, 2)
+    assert np.all(np.isfinite(cpt))
 
 
 def test_contract_to_cpt_many_variables():
@@ -746,8 +747,8 @@ def _run_exact_with_premise_clamps(
 ) -> list[float]:
     """Reference CPT via brute-force exact conditional marginalization.
 
-    Enumerates all 2^n joint states once, using the un-clamped priors in
-    ``fg.variables``.  For each of the 2^k premise assignments, filters the
+    Enumerates all 2^n joint states once, using only the explicit unary factors
+    in ``fg.unary_factors``. For each of the 2^k premise assignments, filters the
     joint to states consistent with that assignment and reads
     P(conclusion=1 | premises=assignment) by summing the filtered joint.
 
@@ -759,18 +760,17 @@ def _run_exact_with_premise_clamps(
     var_ids = sorted(fg.variables.keys())
     n = len(var_ids)
     var_idx = {v: i for i, v in enumerate(var_ids)}
-    priors = np.array([fg.variables[v] for v in var_ids], dtype=np.float64)
-
     N = 1 << n
     arange = np.arange(N, dtype=np.int64)
     states = np.empty((N, n), dtype=np.int8)
     for i in range(n):
         states[:, i] = (arange >> i) & 1
 
-    # Log-joint under the un-clamped priors + all factors
-    log_p1 = np.log(np.clip(priors, 1e-300, None))
-    log_p0 = np.log(np.clip(1.0 - priors, 1e-300, None))
-    log_j = (states * log_p1 + (1 - states) * log_p0).sum(axis=1)
+    # Log-joint under the explicit unary factors + all factors
+    log_j = np.zeros(N, dtype=np.float64)
+    for v, p in fg.unary_factors.items():
+        idx = var_idx[v]
+        log_j += np.where(states[:, idx] == 1, np.log(p), np.log(1.0 - p))
 
     for fac in fg.factors:
         log_j += _factor_log_potentials(fac, states, var_idx)
@@ -798,11 +798,11 @@ def _cpt_via_contraction(
     premises: list[str],
     conclusion: str,
 ) -> list[float]:
-    """Tensor-contraction CPT: all factors in fg, premises free, others priored."""
+    """Tensor-contraction CPT: all factors in fg, premises free, others with explicit unary."""
     tensors = [factor_to_tensor(f) for f in fg.factors]
     free = [*premises, conclusion]
     free_set = set(free)
-    unary_priors = {v: p for v, p in fg.variables.items() if v not in free_set}
+    unary_priors = {v: p for v, p in fg.unary_factors.items() if v not in free_set}
     cpt_tensor = contract_to_cpt(tensors, free_vars=free, unary_priors=unary_priors)
     return cpt_tensor_to_list(cpt_tensor, free, premises, conclusion)
 

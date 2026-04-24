@@ -1,0 +1,13 @@
+[project]
+name = "galileo-v0-5-gaia"
+version = "0.1.0"
+description = "A Gaia v0.5 package for Galileo's falling-body thought experiment"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.gaia]
+type = "knowledge-package"
+namespace = "example"
+
+[tool.gaia.quality]
+allow_holes = true

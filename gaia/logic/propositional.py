@@ -123,7 +123,9 @@ def to_sympy_proposition(graph: LocalCanonicalGraph, knowledge_id: str) -> Any:
     )
 
 
-def simplify_proposition(graph: LocalCanonicalGraph, knowledge_id: str, *, force: bool = False) -> Any:
+def simplify_proposition(
+    graph: LocalCanonicalGraph, knowledge_id: str, *, force: bool = False
+) -> Any:
     """Return SymPy's simplified Boolean form for a Gaia proposition."""
 
     return _sympy_simplify_logic(to_sympy_proposition(graph, knowledge_id), force=force)
@@ -153,7 +155,9 @@ def to_dnf_proposition(
     return to_dnf(to_sympy_proposition(graph, knowledge_id), simplify=simplify, force=force)
 
 
-def to_nnf_proposition(graph: LocalCanonicalGraph, knowledge_id: str, *, simplify: bool = True) -> Any:
+def to_nnf_proposition(
+    graph: LocalCanonicalGraph, knowledge_id: str, *, simplify: bool = True
+) -> Any:
     """Return a negation-normal-form SymPy expression for a Gaia proposition."""
 
     return to_nnf(to_sympy_proposition(graph, knowledge_id), simplify=simplify)

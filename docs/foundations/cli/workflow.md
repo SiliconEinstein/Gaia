@@ -111,9 +111,9 @@ gaia check --hole [PATH]
 Exits with code 1 on any error. Warnings (e.g., missing compiled artifacts) are
 printed but do not fail the check.
 
-**Default output:** Prints pass/fail summary with knowledge diagnostics. Each independent premise is annotated with `prior=X` or `⚠ no prior (defaults to 0.5)`. Shows a "Holes (no prior set): N" count when any independent claims lack priors.
+**Default output:** Prints pass/fail summary with knowledge diagnostics. Each independent boundary premise is annotated with `prior=X` or `no external prior (MaxEnt)`. Shows a "MaxEnt (no external prior): N" count when any load-bearing boundary claims lack external priors. If deterministic operators constrain those MaxEnt claims, the output also reports the effective feasible state space and entropy in bits. It also reports the induced MaxEnt entropy from the current full joint distribution, which is the Jaynes-style answer to "how many independent bits are really left after the graph's existing constraints and explicit priors are applied?"
 
-**`--hole` output:** Detailed report splitting all independent claims into holes (missing prior, with content and QID) and covered (with prior value and justification). Use during prior review to identify what still needs `priors.py` entries.
+**`--hole` output:** Detailed report splitting all load-bearing boundary claims into MaxEnt degrees of freedom (no external prior, with content and QID) and covered claims (with prior value and justification). Use during prior review to identify which independent claims intentionally rely on MaxEnt, which are constrained by deterministic logic, what their induced entropy is under the current graph, and which still need `priors.py` entries.
 
 Reference: [Compilation](compilation.md) for validation details.
 

@@ -81,16 +81,16 @@ What it checks:
 - compiled IR validates against the current schema
 - package identity fields (`name`, `version`, `uuid`) are present and consistent
 
-The default output annotates each independent premise with `prior=X` or `no prior`, and shows a "Holes (no prior set): N" summary.
+The default output annotates each independent boundary premise with `prior=X` or `no external prior (MaxEnt)`, and shows a "MaxEnt (no external prior): N" summary. When the boundary includes deterministic logical constraints, `gaia check` reports the effective MaxEnt state space (feasible assignments and entropy in bits). It also computes the induced MaxEnt entropy of those boundary claims under the current full joint distribution, so you can see how much uncertainty the existing graph actually removes without changing the package structure.
 
 ### Claim roles in output
 
 | Role | Meaning | Needs prior? |
 |------|---------|-------------|
-| Independent | Leaf premise, not derived by any strategy | Yes |
-| Derived | Concluded by a strategy — belief comes from BP | No (auto 0.5) |
-| Background-only | Only used in `background=`, not as premise | Yes (typically 0.90-0.95) |
-| Orphaned | Not referenced by any strategy | Yes |
+| Independent | Load-bearing boundary premise for exported goals, with no incoming warrant chain or grounding | External prior or MaxEnt |
+| Derived | Concluded by a strategy — belief comes from BP | No external prior |
+| Background-only | Only used in `background=`, not as premise | External prior if used as a belief variable |
+| Orphaned | Not referenced by any strategy | External prior or remove |
 
 ## `gaia infer`
 

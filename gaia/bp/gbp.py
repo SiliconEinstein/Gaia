@@ -179,7 +179,10 @@ def _solve_region(
     """Run JT on a single region's mini-graph, return beliefs."""
     mini = FactorGraph()
     for v in region:
-        mini.add_variable(v, prior=graph.variables[v])
+        if v in graph.unary_factors:
+            mini.add_variable(v, prior=graph.unary_factors[v])
+        else:
+            mini.add_variable(v)
     for factor in factors:
         mini.add_factor(
             factor.factor_id,
@@ -224,9 +227,11 @@ def _build_cross_region_graph(
         ri = var_to_region.get(v)
         if ri is not None and v in region_beliefs.get(ri, {}):
             prior = region_beliefs[ri][v]
+            cross_fg.add_variable(v, prior=prior)
+        elif v in graph.unary_factors:
+            cross_fg.add_variable(v, prior=graph.unary_factors[v])
         else:
-            prior = graph.variables.get(v, 0.5)
-        cross_fg.add_variable(v, prior=prior)
+            cross_fg.add_variable(v)
 
     # Add cross-region factors
     for factor in cross_factors:
@@ -269,7 +274,7 @@ def _combine_beliefs(
 
         if v not in cross_vars or cross_beliefs is None:
             # Variable only in intra-region: use region JT belief
-            final[v] = region_b if region_b is not None else graph.variables[v]
+            final[v] = region_b if region_b is not None else graph.unary_factors.get(v, 0.5)
         else:
             # Variable in cross-region: combine via likelihood ratio
             # region_b encodes intra-region evidence
@@ -277,8 +282,8 @@ def _combine_beliefs(
             # To avoid double-counting the prior, we compute:
             #   combined_odds = (region_odds) * (cross_likelihood_ratio)
             # where cross_likelihood_ratio = cross_odds / prior_odds
-            cross_b = cross_beliefs.get(v, graph.variables[v])
-            prior = graph.variables[v]
+            cross_b = cross_beliefs.get(v, graph.unary_factors.get(v, 0.5))
+            prior = graph.unary_factors.get(v, 0.5)
 
             # Convert to odds (with Cromwell protection)
             eps = 1e-15
@@ -407,7 +412,7 @@ class GeneralizedBeliefPropagation:
             # Fill in any variables not assigned to regions
             for v in graph.variables:
                 if v not in final_beliefs:
-                    final_beliefs[v] = graph.variables[v]
+                    final_beliefs[v] = graph.unary_factors.get(v, 0.5)
 
             diag.converged = True
             diag.iterations_run = 0

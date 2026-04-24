@@ -59,29 +59,42 @@ class Factor:
 class FactorGraph:
     def __init__(self) -> None:
         self.variables: dict[str, float] = {}
+        self.unary_factors: dict[str, float] = {}
         self.factors: list[Factor] = []
 
-    def add_variable(self, var_id: str, prior: float) -> None:
-        self.variables[var_id] = _cromwell_clamp(prior, label=f"variable '{var_id}' prior")
+    def add_variable(self, var_id: str, prior: float | None = None) -> None:
+        """Register a binary variable, optionally with an explicit unary factor.
+
+        ``variables`` records the neutral display/initial measure for every
+        variable. Only ``unary_factors`` is a Jaynes-style external information
+        term multiplied into the joint distribution.
+        """
+        if prior is None:
+            self.variables.setdefault(var_id, 0.5)
+            return
+        clamped = _cromwell_clamp(prior, label=f"variable '{var_id}' unary")
+        self.variables[var_id] = clamped
+        self.unary_factors[var_id] = clamped
 
     def observe(self, var_id: str, value: int) -> None:
         """Hard evidence: clamp variable to observed value (07-bp §1.7).
 
-        Implemented by setting prior to near-0 or near-1 (Cromwell-bounded).
+        Implemented by setting a unary evidence factor to near-0 or near-1
+        (Cromwell-bounded).
         This is equivalent to adding a unary delta factor.
         """
         if var_id not in self.variables:
             raise KeyError(f"Variable '{var_id}' not registered.")
         if value not in (0, 1):
             raise ValueError(f"observe() value must be 0 or 1, got {value}.")
-        self.variables[var_id] = 1.0 - CROMWELL_EPS if value == 1 else CROMWELL_EPS
+        self.add_variable(var_id, 1.0 - CROMWELL_EPS if value == 1 else CROMWELL_EPS)
 
     def add_likelihood(
         self,
         var_id: str,
         likelihood_ratio: float,
     ) -> None:
-        """Soft evidence: multiply variable's prior by likelihood ratio (07-bp §1.7).
+        """Soft evidence: multiply variable's unary factor by likelihood ratio (07-bp §1.7).
 
         P_new(x=1) = normalize(π * lr, (1-π) * 1) where lr = P(E|x=1)/P(E|x=0).
         """
@@ -89,10 +102,10 @@ class FactorGraph:
             raise KeyError(f"Variable '{var_id}' not registered.")
         if likelihood_ratio <= 0:
             raise ValueError(f"likelihood_ratio must be > 0, got {likelihood_ratio}.")
-        pi = self.variables[var_id]
+        pi = self.unary_factors.get(var_id, self.variables.get(var_id, 0.5))
         odds = pi / (1.0 - pi) * likelihood_ratio
         new_pi = odds / (1.0 + odds)
-        self.variables[var_id] = _cromwell_clamp(new_pi, label=f"likelihood '{var_id}'")
+        self.add_variable(var_id, new_pi)
 
     def add_factor(
         self,
@@ -237,8 +250,12 @@ class FactorGraph:
     def summary(self) -> str:
         lines = [f"FactorGraph: {len(self.variables)} variables, {len(self.factors)} factors"]
         lines.append("Variables:")
-        for vid, prior in sorted(self.variables.items()):
-            lines.append(f"  {vid:30s}  prior={prior:.4f}")
+        for vid, measure in sorted(self.variables.items()):
+            unary = self.unary_factors.get(vid)
+            if unary is None:
+                lines.append(f"  {vid:30s}  latent_measure={measure:.4f}")
+            else:
+                lines.append(f"  {vid:30s}  unary={unary:.4f}")
         lines.append("Factors:")
         for factor in self.factors:
             extra = ""

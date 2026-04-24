@@ -325,9 +325,14 @@ Strategies are lowered by type:
 - **`infer`**: `CONDITIONAL` factor with full CPT. When
   `infer_use_degraded_noisy_and=True`, falls back to
   `CONJUNCTION + SOFT_ENTAILMENT`.
+- **`deduction`**: `CONJUNCTION` for multiple premises, then a hard
+  `CONDITIONAL` implication with CPT `[0.5, 1 - EPS]`. Review gates whether
+  the warrant enters the information set; it does not supply a numeric prior.
+- **`support`**: soft implication via `SOFT_ENTAILMENT`; legacy `prior=`
+  folds into its effective `p1`.
 - **`noisy_and`**: `CONJUNCTION + SOFT_ENTAILMENT`. Single premise omits
   conjunction.
-- **Named formal types** (deduction, elimination, etc.): auto-formalized via
+- **Other named formal types** (elimination, etc.): auto-formalized via
   `formalize_named_strategy()`, then expanded to deterministic factors.
 - **`FormalStrategy`**: each operator maps to a deterministic factor via
   `_OPERATOR_MAP`.

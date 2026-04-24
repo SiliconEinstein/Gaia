@@ -136,7 +136,7 @@ def _write_multi_claim_package(pkg_dir, *, with_priors: bool = False) -> None:
 
 
 def test_check_shows_prior_on_independent_claims(tmp_path):
-    """Independent claims with priors show prior=X; without show warning."""
+    """Independent claims with priors show prior=X; without use MaxEnt."""
     pkg_dir = tmp_path / "check_holes"
     _write_multi_claim_package(pkg_dir, with_priors=True)
 
@@ -146,7 +146,7 @@ def test_check_shows_prior_on_independent_claims(tmp_path):
     result = runner.invoke(app, ["check", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "prior=0.85" in result.output
-    assert "no prior (defaults to 0.5)" in result.output
+    assert "no external prior (MaxEnt)" in result.output
 
 
 def test_check_shows_hole_count_in_summary(tmp_path):
@@ -159,8 +159,8 @@ def test_check_shows_hole_count_in_summary(tmp_path):
 
     result = runner.invoke(app, ["check", str(pkg_dir)])
     assert result.exit_code == 0, result.output
-    # premise_a has prior, premise_b does not → 1 hole
-    assert "Holes (no prior set):   1" in result.output
+    # premise_a has prior, premise_b does not → 1 MaxEnt independent DOF
+    assert "MaxEnt (no external prior): 1" in result.output
 
 
 def test_check_no_hole_count_when_all_covered(tmp_path):
@@ -182,7 +182,7 @@ def test_check_no_hole_count_when_all_covered(tmp_path):
 
     result = runner.invoke(app, ["check", str(pkg_dir)])
     assert result.exit_code == 0, result.output
-    assert "Holes (no prior set)" not in result.output
+    assert "MaxEnt (no external prior)" not in result.output
 
 
 def test_check_hole_flag_lists_details(tmp_path):
@@ -195,9 +195,9 @@ def test_check_hole_flag_lists_details(tmp_path):
 
     result = runner.invoke(app, ["check", "--hole", str(pkg_dir)])
     assert result.exit_code == 0, result.output
-    assert "Hole analysis:" in result.output
-    assert "NOT SET (defaults to 0.5)" in result.output
-    # premise_b is the hole
+    assert "Independent DOF analysis:" in result.output
+    assert "not externalized; MaxEnt over independent DOF" in result.output
+    # premise_b is MaxEnt
     assert "premise_b" in result.output
     assert "Evidence B is observed." in result.output
     # premise_a is covered
@@ -225,5 +225,123 @@ def test_check_hole_flag_all_covered(tmp_path):
 
     result = runner.invoke(app, ["check", "--hole", str(pkg_dir)])
     assert result.exit_code == 0, result.output
-    assert "All independent claims have priors assigned." in result.output
-    assert "0 hole(s)" in result.output
+    assert "All independent claims have external priors assigned." in result.output
+    assert "0 MaxEnt" in result.output
+
+
+def test_check_scopes_independent_dof_to_exported_goal_boundary(tmp_path):
+    pkg_dir = tmp_path / "check_scope"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "check-scope-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "check_scope"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import claim, derive\n\n"
+        'a = claim("Evidence A.")\n'
+        'b = claim("Evidence B.")\n'
+        'goal = derive("Main goal.", given=(a, b), rationale="A and B support the goal.")\n'
+        'draft_a = claim("Draft A.")\n'
+        'draft_b = claim("Draft B.")\n'
+        'draft = derive("Draft conclusion.", given=(draft_a, draft_b), rationale="Draft branch.")\n'
+        '__all__ = ["goal"]\n'
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["check", str(pkg_dir), "--hole"])
+    assert result.exit_code == 0, result.output
+    assert "Evidence A." in result.output
+    assert "Evidence B." in result.output
+    assert "Draft A." not in result.output
+    assert "Draft B." not in result.output
+    assert "Independent DOF analysis: 2 MaxEnt / 2 independent claims" in result.output
+
+
+def test_check_root_observe_is_reported_as_maxent_independent_dof(tmp_path):
+    pkg_dir = tmp_path / "check_observe"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "check-observe-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "check_observe"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import observe\n\n"
+        'data = observe("Measured datum.", rationale="Direct measurement.", label="obs_data")\n'
+        '__all__ = ["data"]\n'
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["check", str(pkg_dir), "--hole"])
+    assert result.exit_code == 0, result.output
+    assert "Independent DOF:           1" in result.output
+    assert "MaxEnt (no external prior): 1" in result.output
+    assert "Independent DOF analysis: 1 MaxEnt / 1 independent claims" in result.output
+    assert "data" in result.output
+    assert "Measured datum." in result.output
+    assert "prior:   not externalized; MaxEnt over independent DOF" in result.output
+
+
+def test_check_reports_constraint_reduced_maxent_state_space(tmp_path):
+    pkg_dir = tmp_path / "check_logic"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "check-logic-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "check_logic"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import claim, equal\n\n"
+        'a = claim("A.")\n'
+        'b = claim("B.")\n'
+        'same = equal(a, b, rationale="A and B track each other.", label="same_ab")\n'
+        '__all__ = ["same"]\n'
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["check", str(pkg_dir), "--hole"])
+    assert result.exit_code == 0, result.output
+    assert "Independent DOF analysis: 2 MaxEnt / 2 independent claims" in result.output
+    assert "Effective MaxEnt state space: 2/4 assignments (1.00 bits)" in result.output
+
+
+def test_check_reports_induced_maxent_entropy(tmp_path):
+    pkg_dir = tmp_path / "check_induced_entropy"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "check-induced-entropy-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "check_induced_entropy"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import claim, deduction\n\n"
+        'hypothesis = claim("Hypothesis.")\n'
+        'observation = claim("Observation.")\n'
+        "deduction(premises=[hypothesis], conclusion=observation, reason='Hypothesis predicts observation.', prior=0.99)\n"
+        '__all__ = ["observation"]\n'
+    )
+    (pkg_src / "priors.py").write_text(
+        "from . import observation\n\n"
+        "PRIORS = {\n"
+        '    observation: (0.99, "Observation was made."),\n'
+        "}\n"
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["check", str(pkg_dir), "--hole"])
+    assert result.exit_code == 0, result.output
+    assert "Independent DOF analysis: 1 MaxEnt / 1 independent claims" in result.output
+    assert "Induced MaxEnt entropy:" in result.output

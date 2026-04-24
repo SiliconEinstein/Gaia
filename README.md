@@ -5,79 +5,146 @@
 [![PyPI](https://img.shields.io/pypi/v/gaia-lang.svg)](https://pypi.org/project/gaia-lang/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Gaia is a formal language for scientific reasoning. It helps you uncover and organize the logical relationships between scientific propositions — deduction, abduction, induction, contradiction — and then computes the probability of each proposition being true. Following the Jaynesian program — built on Cox's theorem that consistent reasoning is uniquely isomorphic to probability theory — these probabilities are objective: once the reasoning structure is defined, they are mathematically determined.
+Gaia is a formal language for scientific reasoning. It helps you turn informal scientific arguments into explicit propositions, reviewable reasoning steps, and probabilistic belief updates. The recommended v0.5 style is deliberately small: write the uncertain scientific statements as `claim(...)`, keep background context as non-probabilistic `note(...)`, connect claims with `derive(...)`, `observe(...)`, `compute(...)`, and reviewable relations such as `equal(...)` or `contradict(...)`, then let inference compute the marginal belief of every claim.
+
+The probability semantics follow the Jaynesian program: once the information set is made explicit, posterior beliefs are not informal guesses. They are the result of applying probability theory to the declared structure. Gaia's job is to make that structure inspectable enough that humans and agents can argue about the right premises, rather than hiding uncertainty inside prose.
 
 ## Quick Example
 
-Galileo's thought experiment: tie a heavy stone to a light stone. Does the composite fall faster or slower?
+Galileo's falling-body argument is a good example of the v0.5 style. Daily experience supports both models: heavy bodies often fall faster in air. The difference is that the Aristotelian weight-speed model also produces an internal contradiction in the tied-body thought experiment, while the medium-resistance model can predict the vacuum counterfactual without treating vacuum falling as an observed fact.
 
 ```mermaid
-graph TD
-    obs_daily["📋 Daily observation (0.90 → 1.00 📈)"]:::premise
-    aristotle["🏛️ Aristotle: heavier = faster (0.90 → 0.07 📉)"]:::premise
-    air_resistance["🌬️ Air resistance (0.50 → 0.94 📈)"]:::derived
-    composite_slower["🪨🪶 < 🪨 Composite slower (0.60 → 0.40 📉)"]:::derived
-    composite_faster["🪨🪶 > 🪨 Composite faster (0.60 → 0.40 📉)"]:::derived
-    paradox["⚔️ paradox (0.98)"]:::derived
-    vacuum_law["💡 Vacuum law (0.30 → 0.96 📈)"]:::derived
-    strat_0(["🔍 abduction"])
-    obs_daily --> strat_0
-    aristotle --> strat_0
-    strat_0 --> air_resistance
-    strat_1(["🧠 deduction"])
-    aristotle --> strat_1
-    strat_1 --> composite_slower
-    strat_2(["🧠 deduction"])
-    aristotle --> strat_2
-    strat_2 --> composite_faster
-    strat_3(["🧠 deduction"])
-    air_resistance --> strat_3
-    strat_3 --> vacuum_law
-    oper_0{{"⊗ contradiction"}}:::contra
-    composite_slower --- oper_0
-    composite_faster --- oper_0
-    oper_0 --- paradox
+flowchart TD
+    subgraph inputs["Starting claims"]
+        direction LR
+        daily["📋 Heavy faster in air<br/>0.900 → 0.964"]:::premise
+        aristotle["🏛️ Weight-speed model<br/>0.500 → 0.010"]:::premise
+        medium["🌬️ Medium-resistance model<br/>0.500 → 0.642"]:::premise
+    end
 
-    classDef setting fill:#f0f0f0,stroke:#999,color:#333
-    classDef premise fill:#ddeeff,stroke:#4488bb,color:#333
-    classDef derived fill:#ddffdd,stroke:#44bb44,color:#333
-    classDef contra fill:#ffebee,stroke:#c62828,color:#333
+    subgraph daily_paths["1. Daily check"]
+        direction LR
+        derive_a_daily(["🧠 derive"]):::strategy
+        a_pred["🏛️ predicts:<br/>heavy faster in air<br/>0.963"]:::derived
+        equal_a{{"≡ equal<br/>0.999"}}:::relation_op
+
+        derive_m_daily(["🧠 derive"]):::strategy
+        m_pred["🌬️ predicts:<br/>heavy faster in air<br/>0.964"]:::derived
+        equal_m{{"≡ equal<br/>1.000"}}:::relation_op
+    end
+
+    subgraph contradiction_path["2. Tied-body contradiction"]
+        direction LR
+        derive_fast(["🧠 derive"]):::strategy
+        faster["🪨+🪶 faster<br/>than 🪨<br/>0.338"]:::derived
+        derive_slow(["🧠 derive"]):::strategy
+        slower["🪨+🪶 slower<br/>than 🪨<br/>0.338"]:::derived
+        contra{{"⊗ contradict<br/>0.997"}}:::contra
+    end
+
+    subgraph vacuum_path["3. Vacuum prediction"]
+        direction LR
+        derive_vacuum(["🧠 derive"]):::strategy
+        vacuum["💡 Equal fall<br/>in vacuum<br/>0.821"]:::derived
+    end
+
+    aristotle --> derive_a_daily --> a_pred
+    a_pred --- equal_a
+    daily --- equal_a
+
+    medium --> derive_m_daily --> m_pred
+    m_pred --- equal_m
+    daily --- equal_m
+
+    aristotle --> derive_fast --> faster
+    aristotle --> derive_slow --> slower
+    faster --- contra
+    slower --- contra
+
+    medium --> derive_vacuum --> vacuum
+
+    classDef premise fill:#ddeeff,stroke:#4488bb,color:#222
+    classDef strategy fill:#f3e5f5,stroke:#7b1fa2,color:#222
+    classDef derived fill:#ddffdd,stroke:#44aa44,color:#222
+    classDef relation_op fill:#fff3cd,stroke:#b58900,color:#222
+    classDef contra fill:#ffebee,stroke:#c62828,color:#222
 ```
 
-The contradiction and abduction are independent subgraphs, yet belief propagation automatically combines both lines of evidence: the contradiction refutes Aristotle (0.90 → 0.07) while the abduction elevates air resistance (0.50 → 0.94), and together they lift the vacuum law from a speculative 0.30 to a near-certain **0.96** — no new experimental data needed, just the structure of the reasoning itself.
+Only three leaf claims receive explicit priors. Relation helper claims are folded into the `equal` / `contradict` operator boxes to keep the diagram readable. Derived claims receive no independent prior and are marginalized by inference.
+
+| Claim | Prior → Belief | Change |
+|-------|---------------:|-------:|
+| `daily_observation` | 0.900 → 0.964 | +0.064 |
+| `aristotle_model` | 0.500 → 0.010 | -0.490 |
+| `medium_model` | 0.500 → 0.642 | +0.142 |
+| `vacuum_equal_fall_prediction` | none → 0.821 | inferred |
 
 The code that produces this:
 
 ```python
-from gaia.lang import claim, contradiction, deduction, abduction
+from gaia.lang import claim, contradict, derive, equal, note
 
-# 📋 The observation everyone agrees on
-obs_daily = claim("Heavy objects fall faster than light ones in air.")
+# 📝 Background notes describe setups. They do not carry probabilities.
+thought_setup = note("Tied-body setup: a heavy body and a light body are bound together.")
+vacuum_setup = note("Vacuum setup: the resisting medium is absent.")
 
-# 🏛️ Two competing explanations
-aristotle = claim("🏛️ Speed is proportional to weight — heavier = faster.")
-air_resistance = claim("🌬️ The speed difference is caused by air resistance, not weight.")
+# 📋 The everyday observation both sides must explain.
+daily_observation = claim("In air, heavy bodies often fall faster than light bodies.")
 
-# 🔍 Abduction: which explanation better accounts for the observation?
-abduction(observation=obs_daily, hypothesis=air_resistance, alternative=aristotle,
-    reason="Both explain why heavy objects fall faster in air.")
+# 🏛️ Model A says weight itself sets the natural falling speed.
+aristotle_model = claim("Model A: weight itself causes greater natural falling speed.")
 
-# 🤔 Meanwhile, Aristotle's doctrine implies contradictory predictions
-composite_slower = claim("🪨🪶 The composite falls SLOWER than the heavy stone alone.")
-composite_faster = claim("🪨🪶 The composite falls FASTER than either stone alone.")
-deduction(premises=[aristotle], conclusion=composite_slower,
-    reason="If heavier = faster, the light stone drags the heavy one back.")
-deduction(premises=[aristotle], conclusion=composite_faster,
-    reason="If heavier = faster, the heavier composite must fall faster.")
+# 🌬️ Model B says the observed in-air difference comes from the medium.
+medium_model = claim("Model B: in-air speed differences are caused by medium resistance.")
 
-# ⚔️ Same premise, opposite conclusions — that's a contradiction!
-paradox = contradiction(composite_slower, composite_faster,
-    reason="Aristotle's own logic predicts both faster AND slower")
+# ✅ First check: both models can match familiar falling in air.
+aristotle_daily_prediction = derive(
+    "Under Model A, heavy bodies should fall faster in air.",
+    given=aristotle_model,
+    rationale="Weight directly increases natural falling speed.",
+)
+equal(
+    aristotle_daily_prediction, daily_observation,
+    rationale="The daily observation matches Model A's prediction.",
+)
 
-# 💡 Remove the air, remove the difference
-vacuum_law = claim("💡 In vacuum, all bodies fall at the same rate.")
-deduction(premises=[air_resistance], conclusion=vacuum_law,
-    reason="If air resistance is the sole cause, removing it means all fall equally.")
+medium_daily_prediction = derive(
+    "Under Model B, heavy bodies can fall faster than light bodies in air.",
+    given=medium_model,
+    rationale="Medium resistance can create the observed speed difference.",
+)
+equal(
+    medium_daily_prediction, daily_observation,
+    rationale="The daily observation matches Model B's prediction.",
+)
+
+# 🤔 Galileo's tied-body test: Model A pulls in two opposite directions.
+# If the tied pair is heavier, it should fall faster; if the light body
+# retards the heavy body, the same tied pair should fall slower.
+composite_faster = derive(
+    "The tied composite should fall faster than the heavy body alone.",
+    given=aristotle_model,
+    background=[thought_setup],
+    rationale="The composite has greater total weight.",
+)
+composite_slower = derive(
+    "The tied composite should fall slower than the heavy body alone.",
+    given=aristotle_model,
+    background=[thought_setup],
+    rationale="The slower light body should retard the heavy body.",
+)
+contradict(
+    composite_faster, composite_slower,
+    rationale="Model A yields incompatible predictions for the same composite.",
+)
+
+# 💡 Counterfactual prediction: remove the medium, remove the in-air difference.
+vacuum_equal_fall_prediction = derive(
+    "In vacuum, bodies of different weights fall at the same rate.",
+    given=medium_model,
+    background=[vacuum_setup],
+    rationale="If medium resistance causes the difference, no medium removes it.",
+)
 ```
 
 ## How it Works
@@ -86,11 +153,12 @@ deduction(premises=[air_resistance], conclusion=vacuum_law,
 Python DSL  →  gaia compile  →  Gaia IR (factor graph)  →  gaia infer  →  beliefs
 ```
 
-1. **Declare** propositions and their logical relationships using the Python DSL
-2. **Compile** to Gaia IR — a canonical intermediate representation encoding the reasoning structure as a factor graph
-3. **Infer** — belief propagation computes the posterior probability of every proposition, automatically selecting the best algorithm (exact junction tree for small graphs, loopy BP for larger ones)
+1. **Declare** claims, notes, actions, and relations using the Python DSL.
+2. **Compile** to Gaia IR — a canonical graph of knowledge nodes, reviewed actions, and deterministic operators.
+3. **Review / gate** the warrants that should enter the information set.
+4. **Infer** — exact inference or belief propagation computes posterior marginals for every claim.
 
-The system implements Jaynes' Robot architecture: you (or an AI agent) provide the reasoning structure (content layer); the engine strictly computes consistent beliefs (structural layer). Construction can be wrong — the engine will expose inconsistencies through counter-intuitive belief values.
+The system implements a Jaynes-style Robot architecture: you (or an AI agent) provide the information set; the engine computes the posterior implied by that information. Construction can be wrong — and that is useful. Bad structure shows up as surprising beliefs, uncovered priors, failed gates, or contradictions that force you to expose hidden assumptions.
 
 ## Use with AI Agent
 
@@ -166,7 +234,7 @@ gaia init → gaia add → /gaia:formalization → gaia compile → gaia infer �
 | `gaia check --brief [path]` | Show per-module warrant structure overview (claims, strategies, priors) |
 | `gaia check --show <name> [path]` | Expand a module or claim label with full warrant trees |
 | `gaia check --hole [path]` | Detailed prior review report for all independent claims (holes + covered) |
-| `gaia infer [path]` | Run belief propagation with metadata priors (from `priors.py` + DSL `reason`/`prior`) |
+| `gaia infer [path]` | Run inference with explicit priors from `priors.py` and accepted warrants |
 | `gaia infer --depth 1 [path]` | Joint cross-package inference merging dependency factor graphs |
 | `gaia render --target github [path]` | Generate GitHub presentation skeleton (`.github-output/`): wiki, README, React Pages, graph.json |
 | `gaia render --target docs [path]` | Generate per-module detailed reasoning to `docs/detailed-reasoning.md` |
@@ -198,11 +266,12 @@ gaia check .
 `src/galileo_falling_bodies/priors.py`:
 
 ```python
-from . import aristotle, obs_daily
+from . import aristotle_model, daily_observation, medium_model
 
 PRIORS = {
-    aristotle: (0.9, "Widely accepted for 2000 years, matches everyday experience."),
-    obs_daily: (0.9, "Well-documented observation in air."),
+    daily_observation: (0.9, "Familiar empirical background in air."),
+    aristotle_model: (0.5, "Neutral before the thought experiment."),
+    medium_model: (0.5, "Neutral before the thought experiment."),
 }
 ```
 
@@ -220,38 +289,42 @@ For the full tutorial, see [CLI Workflow](docs/foundations/cli/workflow.md).
 
 ## DSL Surface
 
-### Knowledge
+### Recommended v0.5 Authoring Surface
+
+#### Knowledge
 
 | Function | Description |
 |----------|-------------|
-| `claim(content, *, title, background, parameters, provenance)` | Scientific assertion — the only type carrying probability |
-| `setting(content)` | Background context — no probability, no BP participation |
+| `claim(content, *, background, parameters, provenance)` | Scientific assertion — the only knowledge type carrying probability |
+| `note(content, *, format="markdown")` | Background context — no probability, no BP participation |
 | `question(content)` | Open research inquiry |
 
-### Operators (deterministic constraints)
+#### Action Verbs
+
+| Function | Description |
+|----------|-------------|
+| `observe(conclusion, *, given, background, rationale)` | Empirical warrant; a root observation also records grounding |
+| `derive(conclusion, *, given, background, rationale)` | Deterministic derivation; lowers to hard Jaynes conditional implication after review |
+| `compute(ClaimType, *, fn, given, background, rationale)` | Deterministic computation with claim inputs |
+| `infer(evidence, *, hypothesis, background, rationale, p_e_given_h, p_e_given_not_h)` | Probabilistic prediction/evidence link when a full deterministic structure is not yet available |
+
+#### Relations
 
 | Function | Semantics |
 |----------|-----------|
-| `contradiction(a, b)` | A and B cannot both be true |
-| `equivalence(a, b)` | A and B share the same truth value |
-| `complement(a, b)` | A and B have opposite truth values |
-| `disjunction(*claims)` | At least one must be true |
+| `equal(a, b)` | Reviewable claim that A and B have the same truth value |
+| `contradict(a, b)` | Reviewable claim that A and B cannot both be true |
+| `exclusive(a, b)` | Reviewable claim that exactly one of A and B is true |
 
-### Strategies (reasoning declarations)
+#### Structural Proposition Helpers
 
 | Function | Description |
 |----------|-------------|
-| `noisy_and(premises, conclusion)` | All premises jointly support conclusion |
-| `infer(premises, conclusion)` | General conditional probability table |
-| `deduction(premises, conclusion)` | Deductive reasoning (conjunction → implication) |
-| `abduction(observation, hypothesis)` | Inference to best explanation |
-| `analogy(source, target, bridge)` | Analogical transfer |
-| `extrapolation(source, target, continuity)` | Continuity-based prediction |
-| `elimination(exhaustiveness, excluded, survivor)` | Process of elimination |
-| `case_analysis(exhaustiveness, cases, conclusion)` | Case-by-case reasoning |
-| `mathematical_induction(base, step, conclusion)` | Inductive proof |
-| `induction(observations, law)` | Multiple observations supporting a general law |
-| `composite(premises, conclusion, sub_strategies)` | Hierarchical composition |
+| `not_(a)` / `~a` | Boolean negation helper |
+| `and_(a, b, ...)` / `a & b` | Boolean conjunction helper |
+| `or_(a, b, ...)` / `a | b` | Boolean disjunction helper |
+
+Legacy and experimental strategy functions such as `support`, `deduction`, `abduction`, and `induction` are documented separately, but new v0.5 packages should prefer the action/relation surface above. If a step is uncertain, expose the uncertainty as an explicit premise or use `infer(...)`; do not hide it inside a prose rationale.
 
 ## Architecture
 
@@ -261,7 +334,7 @@ gaia/
 ├── ir/         Gaia IR schema, validation, formalization
 ├── bp/         Belief propagation engine (loopy BP, junction tree, generalized BP)
 ├── cli/        CLI commands (init, compile, check, add, infer, register)
-└── review/     Review sidecar model (deprecated — use priors.py)
+└── review/     Review and warrant manifest helpers
 ```
 
 ## Documentation

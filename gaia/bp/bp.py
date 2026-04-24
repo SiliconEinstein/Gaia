@@ -5,12 +5,12 @@ Theory reference: docs/foundations/theory/belief-propagation.md §3–4
 Implements the exact algorithm from bp.md §3:
 
     Initialize:
-        all messages = [0.5, 0.5]  (uniform, MaxEnt prior)
-        priors = {var_id: [1-π, π]}
+        all messages = [0.5, 0.5]  (uniform computational seed)
+        unary factors = explicit external/assertion terms only
 
     Repeat (up to max_iterations):
       1. Compute all variable→factor messages (exclude-self rule):
-             msg(v→f) = prior(v) * prod_{f'≠f} msg(f'→v)
+             msg(v→f) = unary(v) * prod_{f'≠f} msg(f'→v)
              normalize.
       2. Compute all factor→variable messages (marginalize):
              msg(f→v) = Σ_{other vars} potential(assignment) * prod_{v'≠v} msg(v'→f)
@@ -18,7 +18,7 @@ Implements the exact algorithm from bp.md §3:
       3. Damp and normalize:
              msg = α * new_msg + (1-α) * old_msg  (α=0.5 default per bp.md §4)
       4. Compute beliefs:
-             b(v) = normalize(prior(v) * prod_f msg(f→v))
+             b(v) = normalize(unary(v) * prod_f msg(f→v))
              output belief = b(v)[1]  i.e. P(x=1)
       5. Check convergence:
              if max|new_belief - old_belief| < threshold: stop.
@@ -56,7 +56,7 @@ Msg = NDArray[np.float64]
 
 
 def _uniform_msg() -> Msg:
-    """Return uniform [0.5, 0.5] message (MaxEnt initial state)."""
+    """Return uniform [0.5, 0.5] computational seed."""
     return np.array([0.5, 0.5])
 
 
@@ -319,10 +319,10 @@ class BeliefPropagation:
             diag.converged = True
             return BPResult(beliefs={}, diagnostics=diag)
 
-        # --- Edge case: no factors — beliefs = priors ---
+        # --- Edge case: no factors — beliefs = unary factors or neutral measure ---
         if not graph.factors:
             diag.converged = True
-            beliefs = dict(graph.variables)
+            beliefs = {vid: graph.unary_factors.get(vid, 0.5) for vid in graph.variables}
             for vid, p in beliefs.items():
                 diag.belief_history[vid] = [p]
             return BPResult(beliefs=beliefs, diagnostics=diag)
@@ -330,8 +330,15 @@ class BeliefPropagation:
         # --- Build reverse index: var -> list of factor indices ---
         var_to_factors = graph.get_var_to_factors()
 
-        # --- Initialize priors as 2-vectors ---
-        priors: dict[str, Msg] = {vid: _prior_to_msg(pi) for vid, pi in graph.variables.items()}
+        # --- Initialize unary factors as 2-vectors ---
+        priors: dict[str, Msg] = {
+            vid: (
+                _prior_to_msg(graph.unary_factors[vid])
+                if vid in graph.unary_factors
+                else _uniform_msg()
+            )
+            for vid in graph.variables
+        }
 
         # --- Initialize all messages to uniform [0.5, 0.5] ---
         # f2v_msgs[(fi, vid)] = message from factor fi to variable vid
@@ -345,9 +352,10 @@ class BeliefPropagation:
                     f2v_msgs[(fi, vid)] = _uniform_msg()
                     v2f_msgs[(vid, fi)] = _uniform_msg()
 
-        # --- Compute initial beliefs from priors only ---
+        # --- Compute initial beliefs from unary factors only ---
         prev_beliefs: dict[str, float] = {}
-        for vid, pi in graph.variables.items():
+        for vid in graph.variables:
+            pi = graph.unary_factors.get(vid, 0.5)
             prev_beliefs[vid] = pi
             diag.belief_history[vid] = [pi]
 

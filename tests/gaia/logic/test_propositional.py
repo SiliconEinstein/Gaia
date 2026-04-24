@@ -90,7 +90,9 @@ def test_exclusive_relation_is_equivalent_to_or_and_not_both():
 
     graph = compile_package_artifact(pkg).graph
 
-    assert are_equivalent(graph, _kid("logic_exclusive", "one_of"), _kid("logic_exclusive", "formula"))
+    assert are_equivalent(
+        graph, _kid("logic_exclusive", "one_of"), _kid("logic_exclusive", "formula")
+    )
 
 
 def test_formal_strategy_operator_conclusions_are_expanded():

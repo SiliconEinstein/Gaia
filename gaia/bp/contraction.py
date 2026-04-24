@@ -5,13 +5,13 @@ Replaces O(2^k × BP) brute-force folding in ``fold_composite_to_cpt`` and
 
 Design:
     - ``factor_to_tensor``: Factor → dense ndarray + axis labels
-    - ``contract_to_cpt``: einsum-based variable elimination with unary priors
+    - ``contract_to_cpt``: einsum-based variable elimination with explicit unary factors
     - ``strategy_cpt``: recursive layer-by-layer CPT for a Strategy, cached by
       strategy_id per call
 
-Every non-free variable's unary prior is applied exactly once, at the layer
-where it is marginalized.  This matches the semantics of BP on the current
-factor graph and of ``gaia.bp.exact.exact_inference``.
+Every explicit non-free unary factor is applied exactly once, at the layer
+where it is marginalized. Variables without unary factors are summed with the
+base counting measure, matching ``gaia.bp.exact.exact_inference``.
 
 Spec: github.com/SiliconEinstein/Gaia/issues/357
 """
@@ -178,9 +178,9 @@ def contract_to_cpt(
         A free variable that does not appear in any input tensor is handled
         as a degenerate constant axis (uniform contribution).
     unary_priors:
-        Variables that must be marginalized out and have a prior
-        ``[1-π, π]`` applied as a unary tensor.  Every non-free variable
-        that appears in some tensor must be present here.
+        Explicit unary factors ``[1-π, π]`` to apply to marginalized variables.
+        Non-free variables omitted from this mapping are summed with the base
+        counting measure, not assigned an implicit ``π=0.5`` prior.
 
     Returns
     -------
@@ -190,11 +190,9 @@ def contract_to_cpt(
     Raises
     ------
     ValueError
-        If ``free_vars`` is empty, if a unary prior is missing for a
-        variable that appears in some tensor but is neither free nor
-        covered by ``unary_priors``, or if the normalized joint is zero
-        for some premise assignment even after per-step rescaling
-        (indicates contradictory deterministic factors).
+        If ``free_vars`` is empty, or if the normalized joint is zero for some
+        premise assignment even after per-step rescaling (indicates
+        contradictory deterministic factors).
     """
     import opt_einsum as oe
 
@@ -211,18 +209,11 @@ def contract_to_cpt(
                 seen.add(v)
                 all_vars.append(v)
 
-    # Every non-free variable that appears in some tensor needs a prior.
     free_set = set(free_vars)
-    missing = [v for v in all_vars if v not in free_set and v not in unary_priors]
-    if missing:
-        raise ValueError(
-            f"contract_to_cpt: unary prior missing for marginalized variable(s): {missing}. "
-            "The caller must supply a prior for every non-free variable."
-        )
 
     # Build the full operand list:
     #   1) Original factor tensors
-    #   2) Unary prior tensors for non-free variables
+    #   2) Explicit unary-factor tensors for non-free variables
     #   3) Degenerate uniform tensors for free variables not in any input
     #      (legitimate case: CompositeStrategy with unused interface premises)
     operands: list[np.ndarray] = []
@@ -235,9 +226,10 @@ def contract_to_cpt(
     for v in all_vars:
         if v in free_set:
             continue
-        pi = unary_priors[v]
-        operands.append(np.array([1.0 - pi, pi], dtype=np.float64))
-        operand_axes.append([v])
+        if v in unary_priors:
+            pi = unary_priors[v]
+            operands.append(np.array([1.0 - pi, pi], dtype=np.float64))
+            operand_axes.append([v])
 
     for v in free_vars:
         if v not in seen:
@@ -367,8 +359,8 @@ def strategy_cpt(
     invocation to scope the cache to that call.
 
     ``var_priors`` is forwarded to ``_lower_strategy`` so that it can honor
-    non-default priors on claim variables (e.g., when called from
-    ``compute_coarse_cpts`` with the global factor graph's variables).
+    explicit unary factors on claim variables (e.g., when called from
+    ``compute_coarse_cpts`` with the global factor graph's unary factors).
     Pass ``{}`` for isolated composite folding.
 
     Note
@@ -377,7 +369,7 @@ def strategy_cpt(
     ``(scope, type, premises, conclusion)``.  It does NOT encode
     ``var_priors`` or ``strat_params``.  Callers MUST pass a fresh
     ``cache`` dict for each top-level invocation; reusing a cache
-    across calls with different priors or strat_params will return
+    across calls with different unary factors or strat_params will return
     stale results for ``FormalStrategy`` and auto-formalized leaves
     whose internal helper claims have non-default priors.
     """
@@ -419,15 +411,14 @@ def strategy_cpt(
         free_set = set(free)
 
         # Bridge variables: any child axis that isn't a composite free var.
-        # Each bridge gets a unary prior at this layer (default 0.5 if not
-        # in var_priors).  Internal helper claims marginalized inside a
-        # child's CPT do NOT appear in any child's axes and are correctly
-        # skipped here.
+        # Only explicit unary factors are applied at this layer. Internal
+        # helper claims marginalized inside a child's CPT do NOT appear in any
+        # child's axes and are correctly skipped here.
         bridges: dict[str, float] = {}
         for _, axes in child_tensors:
             for v in axes:
-                if v not in free_set and v not in bridges:
-                    bridges[v] = var_priors.get(v, 0.5)
+                if v not in free_set and v in var_priors and v not in bridges:
+                    bridges[v] = var_priors[v]
 
         cpt_tensor = contract_to_cpt(child_tensors, free_vars=free, unary_priors=bridges)
         result = (cpt_tensor, free)
@@ -456,8 +447,8 @@ def strategy_cpt(
     tensors = [factor_to_tensor(f) for f in mini.factors]
     free = [*s.premises, s.conclusion]
     free_set = set(free)
-    # Unary priors for every variable in the mini fg that is NOT a free axis.
-    non_free = {v: p for v, p in mini.variables.items() if v not in free_set}
+    # Explicit unary factors for variables in the mini fg that are NOT free axes.
+    non_free = {v: p for v, p in mini.unary_factors.items() if v not in free_set}
 
     cpt_tensor = contract_to_cpt(tensors, free_vars=free, unary_priors=non_free)
     result = (cpt_tensor, free)

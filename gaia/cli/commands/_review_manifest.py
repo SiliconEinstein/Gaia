@@ -26,15 +26,39 @@ def merge_review_manifests(
 
     Generated entries ensure newly compiled v6 action targets still appear as
     unreviewed. Persisted entries preserve manual reviewer decisions for matching
-    target ids. Stale persisted targets are ignored because they no longer map to
-    the compiled package.
+    target ids. When a target id changes but the stable action label, target kind,
+    and audit question are unchanged, persisted rounds are reattached to the new
+    target id so accepted reviews are not silently dropped by hash churn.
     """
 
     generated_target_ids = {review.target_id for review in generated.reviews}
+    generated_by_stable_key: dict[tuple[str, str, str], Review] = {}
+    duplicate_stable_keys: set[tuple[str, str, str]] = set()
+    for review in generated.reviews:
+        key = (review.action_label, review.target_kind, review.audit_question)
+        if key in generated_by_stable_key:
+            duplicate_stable_keys.add(key)
+        else:
+            generated_by_stable_key[key] = review
+
     reviews = list(generated.reviews)
-    reviews.extend(
-        review for review in persisted.reviews if review.target_id in generated_target_ids
-    )
+    for review in persisted.reviews:
+        if review.target_id in generated_target_ids:
+            reviews.append(review)
+            continue
+
+        key = (review.action_label, review.target_kind, review.audit_question)
+        generated_review = generated_by_stable_key.get(key)
+        if generated_review is None or key in duplicate_stable_keys:
+            continue
+        reviews.append(
+            review.model_copy(
+                update={
+                    "review_id": generated_review.review_id,
+                    "target_id": generated_review.target_id,
+                }
+            )
+        )
     return ReviewManifest(reviews=reviews)
 
 
