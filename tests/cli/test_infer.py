@@ -211,6 +211,69 @@ def test_infer_uses_accepted_review_manifest(tmp_path):
     assert belief_by_label["hypothesis"] > 0.4
 
 
+def test_infer_reattaches_stable_action_label_reviews_after_target_id_changes(tmp_path):
+    """Accepted reviews should survive target-id churn when the action is unchanged."""
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
+    from gaia.ir import ReviewManifest, ReviewStatus
+
+    pkg_dir = tmp_path / "v6_review_retarget"
+    _write_base_package(pkg_dir, name="v6_review_retarget")
+    (pkg_dir / "v6_review_retarget" / "__init__.py").write_text(
+        "from gaia.lang import claim, derive\n\n"
+        'evidence = claim("Evidence.")\n'
+        "hypothesis = derive(\n"
+        '    "Hypothesis.",\n'
+        "    given=evidence,\n"
+        '    rationale="Evidence supports hypothesis.",\n'
+        '    label="support_hypothesis",\n'
+        ")\n"
+        '__all__ = ["evidence", "hypothesis"]\n'
+    )
+    (pkg_dir / "v6_review_retarget" / "priors.py").write_text(
+        "from . import evidence, hypothesis\n\n"
+        "PRIORS = {\n"
+        '    evidence: (0.9, "Direct observation."),\n'
+        '    hypothesis: (0.4, "Base rate."),\n'
+        "}\n"
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    loaded = load_gaia_package(pkg_dir)
+    apply_package_priors(loaded)
+    compiled = compile_loaded_package_artifact(loaded)
+    assert compiled.review is not None
+    accepted_with_old_target_ids = [
+        review.model_copy(
+            update={
+                "status": ReviewStatus.ACCEPTED,
+                "round": 2,
+                "target_id": f"old::{review.target_id}",
+            }
+        )
+        for review in compiled.review.reviews
+    ]
+    review_path = pkg_dir / ".gaia" / "review_manifest.json"
+    review_path.write_text(
+        json.dumps(
+            ReviewManifest(reviews=accepted_with_old_target_ids).model_dump(mode="json"),
+            indent=2,
+        )
+    )
+
+    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+
+    beliefs = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
+    belief_by_label = {item["label"]: item["belief"] for item in beliefs["beliefs"]}
+    assert belief_by_label["hypothesis"] > 0.4
+
+
 def test_infer_uses_v6_infer_action_cpt(tmp_path):
     """gaia infer must lower v6 InferAction CPTs from the compiled IR strategy."""
     from gaia.cli._packages import (

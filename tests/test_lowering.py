@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from gaia.bp import FactorType, lower_local_graph, lower_operator
-from gaia.bp.factor_graph import FactorGraph
+from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph
 from gaia.bp.exact import exact_inference
 from gaia.bp.lowering import fold_composite_to_cpt, merge_factor_graphs
 from gaia.ir import Knowledge, Operator, Strategy, CompositeStrategy, LocalCanonicalGraph
@@ -234,8 +234,8 @@ def test_formal_strategy_expand_implication():
         strategies=[fs],
     )
     fg = lower_local_graph(g, expand_formal=True)
-    # Deduction implication is now lowered as SOFT_ENTAILMENT (proper CPT)
-    assert any(f.factor_type == FactorType.SOFT_ENTAILMENT for f in fg.factors)
+    # Deduction implication lowers to a hard Jaynes conditional CPT.
+    assert any(f.factor_type == FactorType.CONDITIONAL for f in fg.factors)
 
 
 def test_formal_fold_not_implemented():
@@ -274,7 +274,7 @@ def test_formal_fold_not_implemented():
 
 
 def test_deduction_leaf_strategy_auto_formalizes():
-    """Plain Strategy(type=deduction) is auto-formalized to CONJUNCTION + SOFT_ENTAILMENT."""
+    """Plain Strategy(type=deduction) is auto-formalized to CONJUNCTION + CONDITIONAL."""
     s = Strategy(
         scope="local",
         type="deduction",
@@ -293,8 +293,8 @@ def test_deduction_leaf_strategy_auto_formalizes():
     assert not fg.validate()
     ftypes = {f.factor_type for f in fg.factors}
     assert FactorType.CONJUNCTION in ftypes
-    # Deduction implication is now lowered as SOFT_ENTAILMENT (proper CPT)
-    assert FactorType.SOFT_ENTAILMENT in ftypes
+    # Deduction implication lowers to a hard Jaynes conditional CPT.
+    assert FactorType.CONDITIONAL in ftypes
 
 
 def test_analogy_leaf_strategy_auto_formalizes():
@@ -692,7 +692,7 @@ def test_e2e_deduction_binary_implication_full_pipeline():
         strategies=[s],
     )
 
-    # Step 1: lower (auto-formalizes deduction → CONJUNCTION + SOFT_ENTAILMENT)
+    # Step 1: lower (auto-formalizes deduction → CONJUNCTION + CONDITIONAL)
     fg = lower_local_graph(
         g,
         node_priors={
@@ -706,15 +706,14 @@ def test_e2e_deduction_binary_implication_full_pipeline():
     # The factor graph should contain both factor types
     ftypes = {f.factor_type for f in fg.factors}
     assert FactorType.CONJUNCTION in ftypes
-    # Deduction implication is now lowered as SOFT_ENTAILMENT (proper CPT)
-    assert FactorType.SOFT_ENTAILMENT in ftypes
+    # Deduction implication lowers to a hard Jaynes conditional CPT.
+    assert FactorType.CONDITIONAL in ftypes
 
-    # SOFT_ENTAILMENT factor has 1 variable (premise/conjunction node) + conclusion
-    se_factors = [f for f in fg.factors if f.factor_type == FactorType.SOFT_ENTAILMENT]
-    assert len(se_factors) == 1
-    assert len(se_factors[0].variables) == 1
-    assert se_factors[0].p1 is not None
-    assert se_factors[0].p2 == pytest.approx(0.5)
+    # CONDITIONAL factor has 1 variable (premise/conjunction node) + conclusion.
+    conditional_factors = [f for f in fg.factors if f.factor_type == FactorType.CONDITIONAL]
+    assert len(conditional_factors) == 1
+    assert len(conditional_factors[0].variables) == 1
+    assert conditional_factors[0].cpt == pytest.approx((0.5, 1.0 - CROMWELL_EPS))
 
     # Step 2: run exact inference — must not error
     beliefs, _ = exact_inference(fg)
@@ -724,7 +723,7 @@ def test_e2e_deduction_binary_implication_full_pipeline():
 
 
 def test_e2e_single_premise_deduction_binary_implication():
-    """E2E: single-premise deduction uses SOFT_ENTAILMENT (no conjunction)."""
+    """E2E: single-premise deduction uses CONDITIONAL (no conjunction)."""
     s = Strategy(
         scope="local",
         type="deduction",
@@ -748,14 +747,14 @@ def test_e2e_single_premise_deduction_binary_implication():
     )
     assert not fg.validate()
 
-    # Only SOFT_ENTAILMENT factor (no CONJUNCTION for single premise)
+    # Only CONDITIONAL factor (no CONJUNCTION for single premise)
     ftypes = [f.factor_type for f in fg.factors]
-    assert FactorType.SOFT_ENTAILMENT in ftypes
+    assert FactorType.CONDITIONAL in ftypes
     assert FactorType.CONJUNCTION not in ftypes
 
-    # SOFT_ENTAILMENT has 1 variable (premise) + conclusion
-    se_f = [f for f in fg.factors if f.factor_type == FactorType.SOFT_ENTAILMENT][0]
-    assert len(se_f.variables) == 1
+    # CONDITIONAL has 1 variable (premise) + conclusion
+    conditional_f = [f for f in fg.factors if f.factor_type == FactorType.CONDITIONAL][0]
+    assert len(conditional_f.variables) == 1
 
     # Run inference
     beliefs, _ = exact_inference(fg)
@@ -764,9 +763,12 @@ def test_e2e_single_premise_deduction_binary_implication():
 
 
 def test_relation_helper_defaults_to_assertion_prior():
-    """For deduction/support, the helper claim's prior (1-ε) is marginalized into
-    SOFT_ENTAILMENT p1_eff. For standalone operators (equivalence, etc.),
-    relation helper claims still get the 1-ε default variable prior.
+    """Standalone relation helpers are asserted; deduction helpers are internal.
+
+    For standalone operators (equivalence, etc.), relation helper claims still
+    get the 1-ε default variable prior. Deduction implication helpers are not
+    belief variables after lowering; accepted deduction lowers to a hard
+    conditional CPT.
     """
     from gaia.ir.operator import Operator as IROp
 
@@ -792,7 +794,7 @@ def test_relation_helper_defaults_to_assertion_prior():
     # Equivalence helper should be at assertion prior 1-ε
     assert fg.variables["github:lowertest::h_eq"] == pytest.approx(1.0 - CROMWELL_EPS)
 
-    # Case: deduction — SOFT_ENTAILMENT p1_eff encodes the helper prior
+    # Case: deduction — helper disappears and hard conditional CPT remains
     s = Strategy(
         scope="local",
         type="deduction",
@@ -813,12 +815,9 @@ def test_relation_helper_defaults_to_assertion_prior():
             "github:lowertest::b": 0.5,
         },
     )
-    se_factors = [f for f in fg2.factors if f.factor_type == FactorType.SOFT_ENTAILMENT]
-    assert len(se_factors) == 1
-    # p1_eff = π(H) * (1-ε) + (1-π(H)) * 0.5; with helper prior ~1-ε:
-    # p1_eff ≈ 0.999 * 0.999 + 0.001 * 0.5 ≈ 0.9985
-    assert se_factors[0].p1 > 0.99
-    assert se_factors[0].p2 == pytest.approx(0.5)
+    conditional_factors = [f for f in fg2.factors if f.factor_type == FactorType.CONDITIONAL]
+    assert len(conditional_factors) == 1
+    assert conditional_factors[0].cpt == pytest.approx((0.5, 1.0 - CROMWELL_EPS))
 
     # BP propagates correctly
     beliefs, _ = exact_inference(fg2)
@@ -1099,13 +1098,8 @@ def test_e2e_mendel_peirce_cycle():
 # ---------------------------------------------------------------------------
 
 
-def test_lowering_uses_author_prior_for_relation_helper():
-    """If helper claim has metadata['prior'], the author prior is encoded into p1_eff.
-
-    With proper CPT lowering, the implication helper is marginalized into
-    SOFT_ENTAILMENT p1_eff = π(H) * (1-ε) + (1-π(H)) * 0.5.  When the
-    author sets prior=0.85, p1_eff ≈ 0.85 * 0.999 + 0.15 * 0.5 ≈ 0.924.
-    """
+def test_lowering_ignores_author_prior_for_deduction_helper():
+    """Deduction helper priors do not soften hard logical implication."""
     from gaia.bp.factor_graph import CROMWELL_EPS
 
     s = Strategy(
@@ -1127,16 +1121,14 @@ def test_lowering_uses_author_prior_for_relation_helper():
         vid for vid in fg.variables if vid.startswith("github:lowertest::__implication_result")
     ]
     assert helper_vars == []
-    # SOFT_ENTAILMENT factor encodes the author prior via p1_eff
-    se_factors = [f for f in fg.factors if f.factor_type == FactorType.SOFT_ENTAILMENT]
-    assert len(se_factors) == 1
-    expected_p1 = 0.85 * (1.0 - CROMWELL_EPS) + 0.15 * 0.5
-    assert se_factors[0].p1 == pytest.approx(expected_p1, abs=1e-6)
-    assert se_factors[0].p2 == pytest.approx(0.5)
+    # CONDITIONAL factor stays hard regardless of the legacy metadata prior.
+    conditional_factors = [f for f in fg.factors if f.factor_type == FactorType.CONDITIONAL]
+    assert len(conditional_factors) == 1
+    assert conditional_factors[0].cpt == pytest.approx((0.5, 1.0 - CROMWELL_EPS))
 
 
-def test_compiled_formal_deduction_metadata_prior_used_for_p1_eff():
-    """Compiled FormalStrategy helper metadata prior is encoded into p1_eff."""
+def test_compiled_formal_deduction_metadata_prior_ignored_for_hard_logic():
+    """Compiled FormalStrategy metadata prior does not soften deduction."""
     from gaia.bp.factor_graph import CROMWELL_EPS
     from gaia.ir.formalize import formalize_named_strategy
 
@@ -1163,19 +1155,13 @@ def test_compiled_formal_deduction_metadata_prior_used_for_p1_eff():
     helper_ids = {k.id for k in formalized.knowledges if "implication_result" in (k.id or "")}
     assert helper_ids
     assert helper_ids.isdisjoint(fg.variables)
-    se_factors = [f for f in fg.factors if f.factor_type == FactorType.SOFT_ENTAILMENT]
-    assert len(se_factors) == 1
-    expected_p1 = 0.85 * (1.0 - CROMWELL_EPS) + 0.15 * 0.5
-    assert se_factors[0].p1 == pytest.approx(expected_p1, abs=1e-6)
-    assert se_factors[0].p2 == pytest.approx(0.5)
+    conditional_factors = [f for f in fg.factors if f.factor_type == FactorType.CONDITIONAL]
+    assert len(conditional_factors) == 1
+    assert conditional_factors[0].cpt == pytest.approx((0.5, 1.0 - CROMWELL_EPS))
 
 
 def test_lowering_default_prior_for_relation_helper_without_author():
-    """Without author prior, relation helper is marginalized into SOFT_ENTAILMENT p1_eff.
-
-    The helper claim itself is no longer in the factor graph as a variable —
-    its prior (1-ε by default for relation operators) is captured by p1_eff.
-    """
+    """Deduction helper claim is not a variable after hard conditional lowering."""
     s = Strategy(
         scope="local",
         type="deduction",
@@ -1195,12 +1181,10 @@ def test_lowering_default_prior_for_relation_helper_without_author():
     ]
     assert helper_vars == []
 
-    # SOFT_ENTAILMENT factor captures the helper's role
-    se_factors = [f for f in fg.factors if f.factor_type == FactorType.SOFT_ENTAILMENT]
-    assert len(se_factors) == 1
-    # p1_eff = (1-ε) * (1-ε) + ε * 0.5 ≈ 0.998
-    assert se_factors[0].p1 > 0.99
-    assert se_factors[0].p2 == pytest.approx(0.5)
+    # CONDITIONAL factor captures the hard implication role.
+    conditional_factors = [f for f in fg.factors if f.factor_type == FactorType.CONDITIONAL]
+    assert len(conditional_factors) == 1
+    assert conditional_factors[0].cpt == pytest.approx((0.5, 1.0 - CROMWELL_EPS))
 
 
 def test_claim_metadata_prior_used_in_lowering():

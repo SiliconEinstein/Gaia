@@ -209,18 +209,19 @@ support(
 )
 ```
 
-### `deduction(premises, conclusion, *, reason, prior, background=None)`
+### `deduction(premises, conclusion, *, reason, prior=None, background=None)`
 
 Strict logical entailment. Same structure as `support` but semantically rigid.
 
 **Key test:** "If all premises are definitely true, is the conclusion **necessarily** true?" Yes -> deduction. No -> support.
+
+`prior` is legacy-only for deduction. Current BP lowering treats accepted deduction as hard conditional implication, so review gates whether the warrant participates; it does not set a numeric prior for the proof step.
 
 ```python
 deduction(
     [bounded_above, monotonically_increasing],
     theorem,
     reason="Monotone convergence theorem.",
-    prior=0.99,
 )
 ```
 

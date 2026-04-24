@@ -21,14 +21,18 @@ from gaia.ir.strategy import (
     StrategyType,
 )
 
-# Deduction and support implication operators are lowered as proper CPTs
-# (SOFT_ENTAILMENT) instead of ternary constraint factors.  The author's
-# prior on the implication warrant is marginalized into p1_eff:
-#   p1_eff = π(H) · (1-ε) + (1-π(H)) · 0.5
-# with p2 = 0.5 (MaxEnt default: "no information when premises fail").
-# This eliminates the fan-out penalty (rows sum to 1) while preserving
-# backward inference (weak syllogism / Jaynes).
-_CPT_IMPLICATION_TYPES = frozenset({StrategyType.DEDUCTION, StrategyType.SUPPORT})
+# Deduction is a hard predictive implication in Jaynes form:
+#   P(C=true | premise=true, I) = 1 - ε
+#   P(C=true | premise=false, I) = q
+# where q defaults to 0.5 by MaxEnt unless an explicit base-rate model is added
+# later. Accepted review gates whether the relation enters I; it never supplies
+# a numerical prior for the deduction warrant.
+_DEDUCTION_FALSE_PREMISE_BASE_RATE = 0.5
+
+# Support remains the soft implication family. Its warrant prior is still folded
+# into an effective P(C|premise) until support is redesigned as a separate
+# likelihood-style operator.
+_SOFT_IMPLICATION_TYPES = frozenset({StrategyType.SUPPORT})
 
 # Operators whose conclusion is a "relation assertion" (the operator
 # DECLARES that the relation holds) — their helper claim should be
@@ -128,10 +132,7 @@ def lower_local_graph(
     metadata_priors = {
         k.id: float(k.metadata["prior"])
         for k in canonical.knowledges
-        if k.id
-        and k.metadata
-        and "prior" in k.metadata
-        and k.id not in expression_helper_ids
+        if k.id and k.metadata and "prior" in k.metadata and k.id not in expression_helper_ids
     }
     strat_params = strategy_conditional_params or {}
     fg = FactorGraph()
@@ -155,15 +156,15 @@ def lower_local_graph(
         # Priority: node_priors > metadata["prior"] > structural default
         metadata_prior = (k.metadata or {}).get("prior") if k.metadata else None
         if k.id in expression_helper_ids:
-            fg.add_variable(k.id, 0.5)
-        elif k.id in relation_concl_ids and k.id not in priors:
+            fg.add_variable(k.id)
+        elif k.id in relation_concl_ids:
             fg.add_variable(k.id, 1.0 - CROMWELL_EPS)
         elif k.id in priors:
             fg.add_variable(k.id, priors[k.id])
         elif metadata_prior is not None:
             fg.add_variable(k.id, float(metadata_prior))
         else:
-            fg.add_variable(k.id, 0.5)
+            fg.add_variable(k.id)
 
     strat_by_id = {s.strategy_id: s for s in canonical.strategies if s.strategy_id}
 
@@ -175,10 +176,11 @@ def lower_local_graph(
         concl = op.conclusion
         if concl not in fg.variables:
             if concl in expression_helper_ids:
-                default = 0.5
+                fg.add_variable(concl)
+            elif op.operator in _RELATION_OPS:
+                fg.add_variable(concl, 1.0 - CROMWELL_EPS)
             else:
-                default = 1.0 - CROMWELL_EPS if op.operator in _RELATION_OPS else 0.5
-            fg.add_variable(concl, priors.get(concl, default))
+                fg.add_variable(concl, priors[concl] if concl in priors else None)
         fg.add_factor(fid, ft, op.variables, concl)
 
     seen_strategies: set[str] = set()
@@ -210,7 +212,7 @@ def _ensure_claim_var(
 ) -> None:
     if vid in fg.variables:
         return
-    fg.add_variable(vid, priors.get(vid, 0.5))
+    fg.add_variable(vid, priors[vid] if vid in priors else None)
 
 
 def fold_composite_to_cpt(
@@ -314,11 +316,35 @@ def _lower_strategy(
             fid = _next_fid(f"fs_{s.strategy_id}_{i}", ctr)
             ft = _OPERATOR_MAP[op.operator]
 
-            # Support/deduction implication operators → SOFT_ENTAILMENT CPT.
+            if s.type == StrategyType.DEDUCTION and op.operator == OperatorType.IMPLICATION:
+                antecedent = op.variables[0]
+                consequent = op.variables[1]
+                _ensure_claim_var(fg, antecedent, priors, claim_ids)
+                _ensure_claim_var(fg, consequent, priors, claim_ids)
+                q = float(
+                    (s.metadata or {}).get(
+                        "false_premise_base_rate",
+                        _DEDUCTION_FALSE_PREMISE_BASE_RATE,
+                    )
+                )
+                fg.add_factor(
+                    fid,
+                    FactorType.CONDITIONAL,
+                    [antecedent],
+                    consequent,
+                    cpt=[q, 1.0 - CROMWELL_EPS],
+                )
+                # The implication helper is a reviewed warrant for entering I,
+                # not an independent belief variable after lowering.
+                fg.variables.pop(op.conclusion, None)
+                fg.unary_factors.pop(op.conclusion, None)
+                continue
+
+            # Support implication operators → SOFT_ENTAILMENT CPT.
             # The ternary implication factor (antecedent, conclusion, helper)
             # is replaced by a binary CPT (antecedent → conclusion) with the
             # helper's prior marginalized into p1_eff.
-            if s.type in _CPT_IMPLICATION_TYPES and op.operator == OperatorType.IMPLICATION:
+            if s.type in _SOFT_IMPLICATION_TYPES and op.operator == OperatorType.IMPLICATION:
                 # Helper claim prior: use author-set prior if available,
                 # otherwise the relation assertion default (1-ε) since the
                 # implication helper is a relation operator conclusion.
@@ -338,6 +364,7 @@ def _lower_strategy(
                 # Helper claim variable is marginalized into p1_eff, so it
                 # should not remain as an orphan in the factor graph.
                 fg.variables.pop(op.conclusion, None)
+                fg.unary_factors.pop(op.conclusion, None)
                 continue
 
             fg.add_factor(fid, ft, op.variables, op.conclusion)
@@ -345,13 +372,15 @@ def _lower_strategy(
                 _ensure_claim_var(fg, vid, priors, claim_ids)
             concl = op.conclusion
             if concl not in fg.variables:
-                default = 1.0 - CROMWELL_EPS if op.operator in _RELATION_OPS else 0.5
-                fg.add_variable(concl, priors.get(concl, default))
-            elif op.operator in _RELATION_OPS and concl not in priors:
+                if op.operator in _RELATION_OPS:
+                    fg.add_variable(concl, 1.0 - CROMWELL_EPS)
+                else:
+                    fg.add_variable(concl, priors[concl] if concl in priors else None)
+            elif op.operator in _RELATION_OPS:
                 # Variable was pre-registered with wrong default (0.5) by
                 # _ensure_claim_var during auto-formalization.  Override to
-                # assertion prior for relation operator conclusions.
-                fg.variables[concl] = 1.0 - CROMWELL_EPS
+                # assertion unary factor for relation operator conclusions.
+                fg.add_variable(concl, 1.0 - CROMWELL_EPS)
         return
 
     # Leaf Strategy
@@ -383,7 +412,7 @@ def _lower_strategy(
                 p1 = float(cpt[full])
                 p2 = 1.0 - float(cpt[0])
                 m = f"_m_infer_{s.strategy_id}"
-                fg.add_variable(m, 0.5)
+                fg.add_variable(m)
                 fg.add_factor(
                     _next_fid("infer_conj", ctr),
                     FactorType.CONJUNCTION,
@@ -428,7 +457,7 @@ def _lower_strategy(
             )
         else:
             m = f"_m_na_{s.strategy_id}"
-            fg.add_variable(m, 0.5)
+            fg.add_variable(m)
             fg.add_factor(_next_fid("na_conj", ctr), FactorType.CONJUNCTION, premises, m)
             fg.add_factor(
                 _next_fid("na_se", ctr),
@@ -531,21 +560,28 @@ def merge_factor_graphs(
     """
     merged = FactorGraph()
 
+    def _copy_variable(source: FactorGraph, var_id: str) -> None:
+        if var_id in source.unary_factors:
+            merged.add_variable(var_id, source.unary_factors[var_id])
+        else:
+            merged.variables[var_id] = source.variables.get(var_id, 0.5)
+            merged.unary_factors.pop(var_id, None)
+
     # 1. Add dep variables first. A dep graph is authoritative only for
     # variables it owns; foreign references may carry neutral placeholder priors.
     for dep_name, dep_fg, dep_prefix in dep_graphs:
-        for var_id, prior in dep_fg.variables.items():
+        for var_id in dep_fg.variables:
             if var_id.startswith(dep_prefix) or var_id not in merged.variables:
-                merged.add_variable(var_id, prior)
+                _copy_variable(dep_fg, var_id)
 
     # 2. Add local variables — overwrite only for locally-owned nodes
-    for var_id, prior in local_fg.variables.items():
+    for var_id in local_fg.variables:
         if var_id.startswith(local_prefix):
             # Local owns this node — always use local prior
-            merged.add_variable(var_id, prior)
+            _copy_variable(local_fg, var_id)
         elif var_id not in merged.variables:
             # New variable only seen locally (e.g. intermediate _m_ vars)
-            merged.add_variable(var_id, prior)
+            _copy_variable(local_fg, var_id)
         # else: dep owns it, dep prior already set — skip
 
     # 3. Copy dep factors with prefixed IDs

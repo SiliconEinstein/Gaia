@@ -20,7 +20,8 @@ Algorithm outline:
      clique separators, verifying the running intersection property.
   5. Assign each factor to exactly one clique that contains all its variables.
   6. Initialize each clique's potential as the product of its assigned factors
-     evaluated over all 2^|clique| joint assignments, multiplied by priors.
+     evaluated over all 2^|clique| joint assignments, multiplied by explicit
+     unary factors.
   7. Run two-pass message passing (collect + distribute) on the clique tree.
   8. Marginalize each variable from the calibrated clique that contains it.
 
@@ -611,9 +612,9 @@ class JunctionTreeInference:
             return BPResult(beliefs={}, diagnostics=diag)
 
         if not graph.factors:
-            # No factors: beliefs = priors
+            # No factors: beliefs are explicit unary factors or neutral MaxEnt.
             diag.converged = True
-            beliefs = dict(graph.variables)
+            beliefs = {vid: graph.unary_factors.get(vid, 0.5) for vid in graph.variables}
             for vid, p in beliefs.items():
                 diag.belief_history[vid] = [p]
             return BPResult(beliefs=beliefs, diagnostics=diag)
@@ -645,19 +646,20 @@ class JunctionTreeInference:
         factor_assignment = _assign_factors_to_cliques(cliques, graph)
 
         # Step 6: Compute clique potentials
-        # Each variable's prior is applied in exactly one clique — the first
-        # clique found that contains it. This prevents double-counting priors.
-        prior_assigned: set[str] = set()
+        # Each explicit unary factor is applied in exactly one clique — the
+        # first clique found that contains it. Variables without unary factors
+        # contribute the base counting measure.
+        unary_assigned: set[str] = set()
         clique_potentials: list[dict[tuple[int, ...], float]] = []
 
         for i, clique in enumerate(cliques):
             var_list = clique_var_lists[i]
-            # Determine which priors to apply in this clique
+            # Determine which explicit unary factors to apply in this clique.
             local_priors: dict[str, float] = {}
             for v in var_list:
-                if v not in prior_assigned:
-                    local_priors[v] = graph.variables[v]
-                    prior_assigned.add(v)
+                if v in graph.unary_factors and v not in unary_assigned:
+                    local_priors[v] = graph.unary_factors[v]
+                    unary_assigned.add(v)
 
             pot_table = _compute_clique_potential(clique, factor_assignment[i], local_priors)
             clique_potentials.append(pot_table)

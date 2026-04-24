@@ -384,7 +384,7 @@ def compute_coarse_cpts(
             s,
             strat_by_id=strat_by_id,
             strat_params=strat_params,
-            var_priors=fg.variables,
+            var_priors=fg.unary_factors,
             namespace=canon.namespace,
             package_name=canon.package_name,
             cache=cache,
@@ -416,12 +416,12 @@ def compute_coarse_cpts(
         # Unary priors for every variable that:
         #   - appears in at least one collected tensor's axes
         #   - is not a coarse free variable
-        #   - exists in fg.variables (has a registered prior)
+        #   - exists in fg.unary_factors (has an explicit unary factor)
         # Helper claims absorbed inside a strategy CPT do NOT appear in
         # all_axes and so are correctly skipped here (their priors were
         # already applied inside the strategy CPT).
         unary_priors = {
-            v: fg.variables[v] for v in all_axes if v not in free_set and v in fg.variables
+            v: fg.unary_factors[v] for v in all_axes if v not in free_set and v in fg.unary_factors
         }
 
         cpt_tensor = contract_to_cpt(

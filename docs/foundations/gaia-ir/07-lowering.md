@@ -142,6 +142,8 @@ FormalExpr 内部节点是严格私有的（禁止外部引用），因此 Forma
 - **折叠**：把 `Obs`、`AlternativeExplanationForObs` 等接口 claim 与内部 helper skeleton 一起消去为一个等效条件单元
 - **展开**：保留 public interface claim，显式 lower `disjunction` / `equivalence` 等 helper 结构
 
+当前 BP 后端对 `deduction` 做一个特化：FormalExpr 中的 implication helper 不作为独立 belief variable 保留，而是消去为 hard conditional implication，`P(C=true | M=true, I)=1-ε`，`P(C=true | M=false, I)=0.5`（MaxEnt baseline）。`support` 仍然使用 soft implication lowering。
+
 ## 5. FormalExpr 内部节点与 Lowering
 
 FormalExpr 内部节点是严格私有的（禁止外部引用），因此 FormalStrategy 总是可以被折叠。封装规则和概率语义见 [04-helper-claims.md §3](04-helper-claims.md#3-formalexpr-内部-claim-的封装) 和 [06-parameterization.md](06-parameterization.md)。

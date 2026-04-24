@@ -310,7 +310,9 @@ def deduction(
 ) -> Strategy:
     """Deduction lowered via the canonical IR formalizer at compile time.
 
-    prior -> confidence for the implication warrant.
+    ``prior`` is accepted for legacy source compatibility. Current BP lowering
+    treats accepted deduction as hard Jaynes conditional implication; review
+    gates whether the warrant enters the information set, not its probability.
     """
     if len(premises) < 1:
         raise ValueError("deduction() requires at least 1 premise")

@@ -195,13 +195,15 @@ support(premises=[a, b], conclusion=h,
 
 Rigid deduction based on the directed `implication` operator: premises logically entail the conclusion. Same skeleton as `support` (conjunction + directed implication), but semantically a deterministic logical derivation. Requires at least 1 premise. Use when the reasoning involves no uncertainty beyond the premises themselves (math proofs, logical syllogisms). If the reasoning has uncertainty, use `support`.
 
+`prior` is accepted for legacy compatibility, but current BP lowering ignores it for deduction. Accepted review makes the deduction warrant part of the information set `I`; it does not assign a numeric confidence to the deduction step.
+
 ```python
 law = claim("forall {x}. P({x})", parameters=[{"name": "x", "type": "material"}])
 in_scope = claim("YBCO is in scope.")
 instance = claim("P(YBCO)")
 deduction(premises=[law, in_scope], conclusion=instance,
     background=[setting("x = YBCO")],
-    reason="Universal instantiation", prior=0.99)
+    reason="Universal instantiation")
 ```
 
 #### `compare(pred_h, pred_alt, observation, *, background=None, reason="", prior=None)`

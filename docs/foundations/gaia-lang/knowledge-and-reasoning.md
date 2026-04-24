@@ -181,7 +181,7 @@ helper M = all_true(P1, ..., Pk)
   implication([P1], conclusion=C)   # warrant prior from author
 ```
 
-**Semantics:** Based on the **directed** `implication` operator (A=1 → B must =1). Same skeleton as deduction (conjunction + directed implication), but support is a soft (probabilistic) assertion. The author-specified prior on the implication warrant captures the strength of the support. Because implication is directed, information flows from premises to conclusion: true premises drive the conclusion true, but a true conclusion does not force premises true. When prior is high (~0.99), support behaves like deduction. When prior is moderate (~0.5-0.8), it expresses weaker empirical support.
+**Semantics:** Based on the **directed** `implication` operator (A=1 → B must =1). Same skeleton as deduction (conjunction + directed implication), but support is a soft (probabilistic) assertion. The author-specified prior on the implication warrant captures the strength of the support. When prior is high (~0.99), support approaches deduction. When prior is moderate (~0.5-0.8), it expresses weaker empirical support.
 
 #### 3.2.2 Deduction
 
@@ -195,7 +195,7 @@ helper M = all_true(P1, ..., Pk)
   implication([M], conclusion=C)
 ```
 
-**Semantics:** If all premises are true, the conclusion must be true. Pure deterministic entailment via directed `implication` operator. Same skeleton as support, but the reasoning is rigid (no epistemic uncertainty beyond the premises themselves).
+**Semantics:** If all premises are true, the conclusion must be true. At BP lowering, accepted deduction becomes a hard Jaynes conditional implication: `P(C=true | M=true, I)=1-ε`, while `P(C=true | M=false, I)=0.5` by MaxEnt unless a future explicit base-rate model is supplied. Review decides whether the warrant enters the information set `I`; it does not provide a numeric prior for the deduction step.
 
 #### 3.2.3 Mathematical Induction
 
@@ -333,7 +333,7 @@ At lowering time, composite strategies are **recursively expanded** by default: 
 
 A utility function `fold_composite_to_cpt()` is also provided to compute the composite's effective CPT by marginalization. It recursively computes each sub-strategy's effective CPT via tensor contraction, then contracts child CPTs along shared bridge variables to produce the composite's CPT. Exact, no BP iterations. This produces a 2^k CPT (k = number of premises) that captures the composite's aggregate reasoning behavior — useful for analysis or for collapsing a composite into a single `CONDITIONAL` factor.
 
-Composite strategies **do not require** separate parameterization -- only the leaf sub-strategies need `prior=` in the DSL (for `support`/`deduction`/`compare`) or CPT entries (for `infer` type). Named sub-strategies (support, deduction, abduction, etc.) carry their priors inline and need no additional configuration.
+Composite strategies **do not require** separate parameterization -- only soft leaf sub-strategies need `prior=` in the DSL (for `support`/`compare`) or CPT entries (for `infer` type). `deduction` is hard once accepted by review; legacy `prior=` on deduction is ignored by current BP lowering.
 
 ### 3.4 Induction as Composite Strategy
 
