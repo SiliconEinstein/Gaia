@@ -146,6 +146,37 @@ def test_obligation_bad_kind_rejected(tmp_path):
     assert r.exit_code == 2
 
 
+def test_todo_alias_add_resolves_target_and_accepts_type(tmp_path):
+    pkg = tmp_path / "p"
+    _simple_pkg(pkg)
+    r = runner.invoke(
+        app,
+        [
+            "inquiry",
+            "todo",
+            "add",
+            "main_claim",
+            "-c",
+            "needs prior rationale",
+            "--type",
+            "prior",
+            "--path",
+            str(pkg),
+        ],
+    )
+    assert r.exit_code == 0, r.output
+    assert "obligation added" in r.output
+
+    r2 = runner.invoke(
+        app,
+        ["inquiry", "todo", "list", "--format", "json", "--path", str(pkg)],
+    )
+    assert r2.exit_code == 0
+    rows = json.loads(r2.output)
+    assert rows[0]["diagnostic_kind"] == "prior_hole"
+    assert rows[0]["target_qid"] == "github:proof_pkg::main_claim"
+
+
 # ---------------------------------------------------------------------------
 # hypothesis
 # ---------------------------------------------------------------------------
@@ -222,6 +253,16 @@ def test_tactics_log_empty(tmp_path):
     assert "(no tactic log entries)" in r.output
 
 
+def test_top_level_log_alias_supports_format_json(tmp_path):
+    pkg = tmp_path / "p"
+    _simple_pkg(pkg)
+    runner.invoke(app, ["inquiry", "focus", "a", "--path", str(pkg)])
+    r = runner.invoke(app, ["inquiry", "log", "--format", "json", "--path", str(pkg)])
+    assert r.exit_code == 0
+    rows = json.loads(r.output)
+    assert rows[0]["event"] == "focus_set"
+
+
 # ---------------------------------------------------------------------------
 # review includes proof state
 # ---------------------------------------------------------------------------
@@ -263,3 +304,46 @@ def test_review_json_includes_proof_context(tmp_path):
     parsed = json.loads(r.output)
     assert "proof_context" in parsed
     assert len(parsed["proof_context"]["hypotheses"]) == 1
+
+
+def test_review_format_json_replaces_boolean_flags(tmp_path):
+    pkg = tmp_path / "p"
+    _simple_pkg(pkg)
+    r = runner.invoke(app, ["inquiry", "review", str(pkg), "--format", "json", "--no-infer"])
+    assert r.exit_code == 0, r.output
+    parsed = json.loads(r.output)
+    assert parsed["compile"]["status"] == "ok"
+
+
+def test_review_rejects_conflicting_format_flags(tmp_path):
+    pkg = tmp_path / "p"
+    _simple_pkg(pkg)
+    r = runner.invoke(
+        app,
+        ["inquiry", "review", str(pkg), "--format", "json", "--markdown", "--no-infer"],
+    )
+    assert r.exit_code == 2
+
+
+def test_gate_publish_reports_blockers(tmp_path):
+    pkg = tmp_path / "p"
+    pkg.mkdir()
+    (pkg / "pyproject.toml").write_text(
+        '[project]\nname = "gate-pkg-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n',
+        encoding="utf-8",
+    )
+    src = pkg / "gate_pkg"
+    src.mkdir()
+    (src / "__init__.py").write_text(
+        "from gaia.lang import claim, support\n"
+        'premise = claim("premise", metadata={"prior": 0.6})\n'
+        'conclusion = claim("conclusion")\n'
+        "sup = support(premises=[premise], conclusion=conclusion)\n"
+        '__all__ = ["premise", "conclusion", "sup"]\n',
+        encoding="utf-8",
+    )
+    r = runner.invoke(app, ["inquiry", "gate", str(pkg), "--profile", "publish", "--no-infer"])
+    assert r.exit_code == 1
+    assert "[publish-gate]" in r.output
+    assert "prior_without_justification" in r.output

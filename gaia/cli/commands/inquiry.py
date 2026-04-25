@@ -33,8 +33,20 @@ from gaia.inquiry.state import (
     mint_qid,
     pop_focus_frame,
     push_focus_frame,
+    read_tactic_log,
     save_state,
 )
+
+OUTPUT_FORMATS = {"text", "json", "markdown"}
+LIST_FORMATS = {"text", "json"}
+OBLIGATION_TYPE_ALIASES = {
+    "prior": "prior_hole",
+    "structure": "structural_hole",
+    "structural": "structural_hole",
+    "support": "support_weak",
+    "focus": "focus_weakness",
+    "other": "other",
+}
 
 inquiry_app = typer.Typer(
     name="inquiry",
@@ -53,8 +65,77 @@ tactics_app = typer.Typer(
 )
 
 inquiry_app.add_typer(obligation_app, name="obligation")
+inquiry_app.add_typer(obligation_app, name="todo")
 inquiry_app.add_typer(hypothesis_app, name="hypothesis")
 inquiry_app.add_typer(tactics_app, name="tactics")
+
+
+def _resolve_output_format(
+    output_format: str,
+    *,
+    json_out: bool = False,
+    markdown_out: bool = False,
+) -> str:
+    if output_format not in OUTPUT_FORMATS:
+        typer.echo(f"Error: invalid --format {output_format!r}.", err=True)
+        raise typer.Exit(2)
+    if json_out and markdown_out:
+        typer.echo("Error: --json and --markdown are mutually exclusive.", err=True)
+        raise typer.Exit(2)
+    if output_format != "text" and (json_out or markdown_out):
+        typer.echo("Error: --format cannot be combined with --json/--markdown.", err=True)
+        raise typer.Exit(2)
+    if json_out:
+        return "json"
+    if markdown_out:
+        return "markdown"
+    return output_format
+
+
+def _resolve_list_format(output_format: str, *, json_out: bool = False) -> str:
+    if output_format not in LIST_FORMATS:
+        typer.echo(f"Error: invalid --format {output_format!r}.", err=True)
+        raise typer.Exit(2)
+    if output_format != "text" and json_out:
+        typer.echo("Error: --format cannot be combined with --json.", err=True)
+        raise typer.Exit(2)
+    return "json" if json_out else output_format
+
+
+def _normalize_obligation_kind(kind: str, type_: str | None) -> str:
+    if type_ is not None:
+        if kind != "other":
+            typer.echo("Error: --type cannot be combined with --kind.", err=True)
+            raise typer.Exit(2)
+        kind = type_
+    normalized = OBLIGATION_TYPE_ALIASES.get(kind, kind)
+    if normalized not in VALID_OBLIGATION_KINDS:
+        allowed = sorted(set(VALID_OBLIGATION_KINDS) | set(OBLIGATION_TYPE_ALIASES))
+        typer.echo(f"Error: invalid obligation type {kind!r}; allowed: {allowed}", err=True)
+        raise typer.Exit(2)
+    return normalized
+
+
+def _resolve_target_id(target: str, path: str) -> str:
+    graph = resolve_graph(path)
+    binding = resolve_focus_target(target, graph)
+    return binding.resolved_id or target
+
+
+def _print_tactic_log(path: str, output_format: str, *, json_out: bool = False) -> None:
+    fmt = _resolve_list_format(output_format, json_out=json_out)
+    rows = read_tactic_log(path)
+    if fmt == "json":
+        typer.echo(json.dumps(rows, ensure_ascii=False, indent=2))
+        return
+    if not rows:
+        typer.echo("(no tactic log entries)")
+        return
+    for rec in rows:
+        ts = rec.get("timestamp", "")
+        ev = rec.get("event", "")
+        payload = rec.get("payload", {})
+        typer.echo(f"{ts}  {ev}  {json.dumps(payload, ensure_ascii=False)}")
 
 
 # ---------------------------------------------------------------------------
@@ -156,28 +237,30 @@ def focus_command(
 
 @obligation_app.command("add")
 def obligation_add(
-    target_qid: str = typer.Argument(..., help="QID the obligation is about."),
+    target_qid: str = typer.Argument(..., help="Target label/id/QID the obligation is about."),
     content: str = typer.Option(..., "-c", "--content", help="What must be shown."),
     kind: str = typer.Option("other", "--kind", help="Diagnostic kind."),
+    type_: Optional[str] = typer.Option(None, "--type", help="Friendly obligation type."),
     path: str = typer.Option(".", "--path", help="Package path."),
 ) -> None:
-    if kind not in VALID_OBLIGATION_KINDS:
-        typer.echo(
-            f"Error: invalid --kind {kind!r}; allowed: {sorted(VALID_OBLIGATION_KINDS)}",
-            err=True,
-        )
-        raise typer.Exit(2)
+    normalized_kind = _normalize_obligation_kind(kind, type_)
+    resolved_target = _resolve_target_id(target_qid, path)
 
     state = load_state(path)
     qid = mint_qid("oblig")
     state.synthetic_obligations.append(
-        SyntheticObligation(qid=qid, target_qid=target_qid, content=content, diagnostic_kind=kind)
+        SyntheticObligation(
+            qid=qid,
+            target_qid=resolved_target,
+            content=content,
+            diagnostic_kind=normalized_kind,
+        )
     )
     save_state(path, state)
     append_tactic_event(
         path,
         "obligation_add",
-        {"qid": qid, "target_qid": target_qid, "kind": kind},
+        {"qid": qid, "target_qid": resolved_target, "kind": normalized_kind},
     )
     typer.echo(f"obligation added {qid}")
 
@@ -185,8 +268,10 @@ def obligation_add(
 @obligation_app.command("list")
 def obligation_list(
     json_out: bool = typer.Option(False, "--json"),
+    output_format: str = typer.Option("text", "--format", help="Output format: text or json."),
     path: str = typer.Option(".", "--path"),
 ) -> None:
+    fmt = _resolve_list_format(output_format, json_out=json_out)
     state = load_state(path)
     rows = [
         {
@@ -198,7 +283,7 @@ def obligation_list(
         }
         for o in state.synthetic_obligations
     ]
-    if json_out:
+    if fmt == "json":
         typer.echo(json.dumps(rows, ensure_ascii=False, indent=2))
         return
     if not rows:
@@ -316,22 +401,19 @@ def reject_command(
 @tactics_app.command("log")
 def tactics_log(
     json_out: bool = typer.Option(False, "--json"),
+    output_format: str = typer.Option("text", "--format", help="Output format: text or json."),
     path: str = typer.Option(".", "--path"),
 ) -> None:
-    from gaia.inquiry.state import read_tactic_log
+    _print_tactic_log(path, output_format, json_out=json_out)
 
-    rows = read_tactic_log(path)
-    if json_out:
-        typer.echo(json.dumps(rows, ensure_ascii=False, indent=2))
-        return
-    if not rows:
-        typer.echo("(no tactic log entries)")
-        return
-    for rec in rows:
-        ts = rec.get("timestamp", "")
-        ev = rec.get("event", "")
-        payload = rec.get("payload", {})
-        typer.echo(f"{ts}  {ev}  {json.dumps(payload, ensure_ascii=False)}")
+
+@inquiry_app.command("log")
+def log_command(
+    json_out: bool = typer.Option(False, "--json"),
+    output_format: str = typer.Option("text", "--format", help="Output format: text or json."),
+    path: str = typer.Option(".", "--path"),
+) -> None:
+    _print_tactic_log(path, output_format, json_out=json_out)
 
 
 # ---------------------------------------------------------------------------
@@ -347,6 +429,9 @@ def review_command(
     no_infer: bool = typer.Option(False, "--no-infer"),
     depth: int = typer.Option(0, "--depth"),
     since: Optional[str] = typer.Option(None, "--since"),
+    output_format: str = typer.Option(
+        "text", "--format", help="Output format: text, json, or markdown."
+    ),
     json_out: bool = typer.Option(False, "--json"),
     markdown_out: bool = typer.Option(False, "--markdown"),
     strict: bool = typer.Option(False, "--strict"),
@@ -354,6 +439,7 @@ def review_command(
     if mode not in {"auto", "formalize", "explore", "verify", "publish"}:
         typer.echo(f"Error: invalid --mode {mode!r}.", err=True)
         raise typer.Exit(2)
+    fmt = _resolve_output_format(output_format, json_out=json_out, markdown_out=markdown_out)
     report = run_review(
         path,
         focus_override=focus_,
@@ -369,12 +455,9 @@ def review_command(
         {"review_id": report.review_id, "mode": mode, "no_infer": no_infer},
     )
 
-    if json_out and markdown_out:
-        typer.echo("Error: --json and --markdown are mutually exclusive.", err=True)
-        raise typer.Exit(2)
-    if json_out:
+    if fmt == "json":
         typer.echo(json.dumps(report.to_json_dict(), ensure_ascii=False, indent=2))
-    elif markdown_out:
+    elif fmt == "markdown":
         typer.echo(render_markdown(report))
     else:
         typer.echo(render_text(report))
@@ -388,4 +471,59 @@ def review_command(
                 typer.echo(f"[publish-strict] {b}", err=True)
             raise typer.Exit(1)
     elif strict and report.graph_health.get("warnings"):
+        raise typer.Exit(1)
+
+
+@inquiry_app.command("gate")
+def gate_command(
+    path: str = typer.Argument(".", help="Package path."),
+    profile: str = typer.Option("publish", "--profile", help="Gate profile."),
+    focus_: Optional[str] = typer.Option(None, "--focus"),
+    no_infer: bool = typer.Option(False, "--no-infer"),
+    depth: int = typer.Option(0, "--depth"),
+    since: Optional[str] = typer.Option(None, "--since"),
+    output_format: str = typer.Option("text", "--format", help="Output format: text or json."),
+    json_out: bool = typer.Option(False, "--json"),
+) -> None:
+    fmt = _resolve_list_format(output_format, json_out=json_out)
+    if profile != "publish":
+        typer.echo("Error: only --profile publish is currently supported.", err=True)
+        raise typer.Exit(2)
+
+    report = run_review(
+        path,
+        focus_override=focus_,
+        mode="publish",
+        no_infer=no_infer,
+        depth=depth,
+        since=since,
+        strict=True,
+    )
+    blockers = publish_blockers(report)
+    append_tactic_event(
+        Path(path),
+        "gate",
+        {"review_id": report.review_id, "profile": profile, "passed": not blockers},
+    )
+
+    if fmt == "json":
+        typer.echo(
+            json.dumps(
+                {
+                    "profile": profile,
+                    "passed": not blockers,
+                    "blockers": blockers,
+                    "review_id": report.review_id,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+    elif blockers:
+        for blocker in blockers:
+            typer.echo(f"[publish-gate] {blocker}")
+    else:
+        typer.echo("publish gate passed")
+
+    if report.graph_health.get("errors") or blockers:
         raise typer.Exit(1)
