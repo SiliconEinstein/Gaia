@@ -122,6 +122,17 @@ def from_validation(warnings: list[str], errors: list[str]) -> list[Diagnostic]:
     return out
 
 
+def _strategy_id(s) -> str:
+    return getattr(s, "strategy_id", None) or getattr(s, "id", "") or ""
+
+
+def _strategy_label(s) -> str:
+    sid = _strategy_id(s)
+    if sid:
+        return sid.split("::")[-1]
+    return getattr(s, "label", "") or ""
+
+
 def _attach_anchor(d: Diagnostic, anchors: dict[str, SourceAnchor] | None) -> Diagnostic:
     if anchors and d.label in anchors:
         d.source_anchor = anchors[d.label]
@@ -341,8 +352,8 @@ def detect_warrant_status(
         return out
     rejected = rejected_strategy_targets or set()
     for s in getattr(graph, "strategies", []) or []:
-        sid = getattr(s, "id", "") or ""
-        label = sid.split("::")[-1] if sid else getattr(s, "label", "") or ""
+        sid = _strategy_id(s)
+        label = _strategy_label(s)
         meta = dict(getattr(s, "metadata", None) or {})
         if sid in rejected or label in rejected:
             d = Diagnostic(
@@ -402,8 +413,8 @@ def detect_blocked_warrant_path(
     if not hole_ids:
         return out
     for s in getattr(graph, "strategies", []) or []:
-        sid = getattr(s, "id", "") or ""
-        label = sid.split("::")[-1] if sid else ""
+        sid = _strategy_id(s)
+        label = _strategy_label(s)
         premises = list(getattr(s, "premises", None) or [])
         blocking = sorted(p for p in premises if p in hole_ids)
         if not blocking:
@@ -545,8 +556,8 @@ def detect_overstrong_strategy_without_provenance(
         return True
 
     for s in getattr(graph, "strategies", []) or []:
-        sid = getattr(s, "id", "") or ""
-        label = sid.split("::")[-1] if sid else ""
+        sid = _strategy_id(s)
+        label = _strategy_label(s)
         meta = dict(getattr(s, "metadata", None) or {})
         if _nonempty(meta.get("provenance")) or _nonempty(meta.get("justification")):
             continue

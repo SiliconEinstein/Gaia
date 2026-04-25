@@ -47,8 +47,12 @@ def save_snapshot(
     ir_hash: str | None,
     ir_dict: dict | None,
     beliefs: list[dict[str, Any]],
-) -> Path:
-    """Persist the minimal snapshot needed to diff future reviews."""
+) -> str:
+    """Persist the minimal snapshot needed to diff future reviews.
+
+    Returns the actual review id written to disk, including a collision suffix
+    when multiple reviews are minted in the same second.
+    """
     base_dir = reviews_dir(pkg_path)
     path = base_dir / f"{review_id}.json"
     # 同秒且 ir_hash 不变会产生相同 review_id；追加递增后缀避免覆盖之前的 snapshot。
@@ -68,7 +72,7 @@ def save_snapshot(
     tmp = path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(path)
-    return path
+    return review_id
 
 
 def load_snapshot(pkg_path: str | Path, review_id: str) -> dict | None:

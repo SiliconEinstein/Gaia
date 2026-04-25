@@ -138,11 +138,19 @@ def _knowledges_by_type_id(ir: dict, kind: str) -> dict[str, dict]:
 
 
 def _strategies_by_id(ir: dict) -> dict[str, dict]:
-    return {s["id"]: s for s in ir.get("strategies", []) or []}
+    return {
+        (s.get("id") or s.get("strategy_id")): s
+        for s in ir.get("strategies", []) or []
+        if s.get("id") or s.get("strategy_id")
+    }
 
 
 def _operators_by_id(ir: dict) -> dict[str, dict]:
-    return {o["id"]: o for o in ir.get("operators", []) or []}
+    return {
+        (o.get("id") or o.get("operator_id")): o
+        for o in ir.get("operators", []) or []
+        if o.get("id") or o.get("operator_id")
+    }
 
 
 def _label(item: dict) -> str:
