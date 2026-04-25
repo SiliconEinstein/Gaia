@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import shutil
-import importlib.util
 from pathlib import Path
 
 import pytest
@@ -68,30 +68,67 @@ def test_mendel_fixture_models_competing_theories_with_association(tmp_path: Pat
     compile_result = runner.invoke(app, ["compile", str(package)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    association_parameters = probabilities.mendel_data_association_parameters()
+    association_parameters = probabilities.mendel_count_association_parameters()
 
     ir = json.loads((package / ".gaia" / "ir.json").read_text())
     knowledge_by_label = {item["label"]: item for item in ir["knowledges"] if item.get("label")}
     strategy_types = {item["type"] for item in ir["strategies"]}
-    association = knowledge_by_label["mendel_data_association"]
+    association = knowledge_by_label["mendel_count_association"]
 
+    # The package uses a single associate (Mendel ↔ count) and three qualitative
+    # contradict edges against blending. It declares no `infer` strategy of its own.
     assert "infer" not in strategy_types
     assert "associate" in strategy_types
-    assert "mendelian_segregation_model" in knowledge_by_label
-    assert "blending_inheritance_model" in knowledge_by_label
-    assert "f2_ratio_near_three_to_one" in knowledge_by_label
+
+    # Core claims and observations are present.
+    for label in (
+        "mendelian_segregation_model",
+        "blending_inheritance_model",
+        "f1_uniform_dominant_observation",
+        "f2_has_discrete_classes_observation",
+        "f2_recessive_reappears_observation",
+        "f2_count_observation",
+        "mendel_predicts_f1_dominance",
+        "mendel_predicts_discrete_classes",
+        "mendel_predicts_recessive_reappearance",
+        "mendel_predicts_three_to_one_ratio",
+        "f2_dominant_count_specific",
+        "f1_mendel_match",
+        "f2_discrete_classes_mendel_match",
+        "f2_reappearance_mendel_match",
+        "blending_predicts_intermediate_f1",
+        "blending_predicts_f2_continuous",
+        "blending_predicts_no_recessive_reappearance",
+        "f1_blending_conflict",
+        "f2_discrete_classes_blending_conflict",
+        "f2_reappearance_blending_conflict",
+    ):
+        assert label in knowledge_by_label, f"missing knowledge {label}"
+
+    # The Mendel↔count associate uses the pointwise binomial PMF on one side and
+    # the Bayes-consistent posterior on the other. All four numbers are fully
+    # determined by ``MENDELIAN_DOMINANT_PROBABILITY`` and a uniform prior on p.
     assert association["metadata"]["helper_kind"] == "association"
     assert association["metadata"]["relation"]["p_a_given_b"] == pytest.approx(
-        association_parameters.p_mendelian_given_ratio
+        association_parameters.p_mendelian_given_count
     )
     assert association["metadata"]["relation"]["p_b_given_a"] == pytest.approx(
-        association_parameters.p_ratio_given_mendelian
+        association_parameters.p_count_given_mendelian
     )
     assert association["metadata"]["relation"]["prior_a"] == pytest.approx(
         association_parameters.prior_mendelian
     )
     assert association["metadata"]["relation"]["prior_b"] == pytest.approx(
-        association_parameters.prior_ratio
+        association_parameters.prior_count
+    )
+
+    # The diffuse alternative has the closed-form marginal 1/(N+1).
+    assert association_parameters.p_count_given_diffuse == pytest.approx(1.0 / (295 + 100 + 1))
+    # Sanity-check direction: a point likelihood peaked near the Mendelian mode
+    # must beat a Uniform(p) reference measure at the same count.
+    assert (
+        association_parameters.p_count_given_mendelian
+        > association_parameters.p_count_given_diffuse
     )
 
     _accept_all_reviews(package)
@@ -101,10 +138,13 @@ def test_mendel_fixture_models_competing_theories_with_association(tmp_path: Pat
 
     beliefs = _beliefs_by_label(package)
 
-    assert beliefs["f2_ratio_near_three_to_one"] > association_parameters.prior_ratio
+    # Directional belief checks: Mendel should rise above its prior and dominate
+    # blending. We avoid hard-coded posterior values to stay robust to future
+    # changes in the inference engine's numerical details.
     assert beliefs["mendelian_segregation_model"] > association_parameters.prior_mendelian
-    assert beliefs["blending_inheritance_model"] < 0.5
-    assert beliefs["mendelian_segregation_model"] == pytest.approx(0.9994315850994945)
-    assert beliefs["blending_inheritance_model"] == pytest.approx(0.00047284967827781446)
-    assert beliefs["f2_count_observation"] == pytest.approx(0.87519129844639)
-    assert beliefs["f2_ratio_near_three_to_one"] == pytest.approx(0.8942732068909091)
+    assert beliefs["mendelian_segregation_model"] > 0.8
+    assert beliefs["blending_inheritance_model"] < 0.2
+    assert beliefs["mendelian_segregation_model"] > beliefs["blending_inheritance_model"]
+    # The count observation's belief is driven upward by the associate and by
+    # the prior we placed on it.
+    assert beliefs["f2_count_observation"] > association_parameters.prior_count

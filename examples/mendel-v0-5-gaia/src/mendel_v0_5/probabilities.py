@@ -1,4 +1,20 @@
-"""Probability calculations for the Mendel v0.5 example package."""
+"""Probability calculations for the Mendel v0.5 example package.
+
+The statistical comparison is between two clearly identified alternatives:
+
+* Mendelian segregation: a point hypothesis with a known dominant probability
+  ``p = 3/4`` under a single-factor cross.
+* A diffuse alternative: the dominant probability ``p`` is unknown and assigned
+  a uniform prior on ``[0, 1]``. Its marginal likelihood for any specific
+  dominant count ``k`` in ``N`` trials has the closed-form value ``1 / (N + 1)``
+  (since ``∫₀¹ C(N, k) p^k (1 - p)^(N - k) dp = 1 / (N + 1)``).
+
+Every number produced by this module is therefore traceable to ``MENDELIAN_P``
+and the uniform-over-``p`` reference measure. There is no tolerance window,
+no post-hoc ratio band, and no strawman binomial with an arbitrary second
+``p``. The likelihood handed to ``associate`` is the pointwise binomial PMF
+evaluated at the observed count.
+"""
 
 from __future__ import annotations
 
@@ -8,91 +24,60 @@ from typing import NamedTuple
 
 DOMINANT_COUNT = 295
 RECESSIVE_COUNT = 100
-RATIO_TOLERANCE = 0.15
+TOTAL_COUNT = DOMINANT_COUNT + RECESSIVE_COUNT
 
 MENDELIAN_DOMINANT_PROBABILITY = 3 / 4
-BLENDING_ALTERNATIVE_DOMINANT_PROBABILITY = 2 / 3
 PRIOR_MENDELIAN_MODEL = 0.5
-PRIOR_BLENDING_MODEL = 0.5
 
 
-class RatioLikelihoods(NamedTuple):
-    p_ratio_given_mendelian: float
-    p_ratio_given_blending: float
-
-
-class MendelDataAssociation(NamedTuple):
-    p_ratio_given_mendelian: float
-    p_ratio_given_blending: float
+class MendelCountAssociation(NamedTuple):
+    p_count_given_mendelian: float
+    p_count_given_diffuse: float
     prior_mendelian: float
-    prior_blending: float
-    prior_ratio: float
-    p_mendelian_given_ratio: float
-    p_blending_given_ratio: float
+    prior_count: float
+    p_mendelian_given_count: float
 
 
-def binomial_ratio_window_likelihood(
-    *,
-    dominant_count: int,
-    recessive_count: int,
-    dominant_probability: float,
-    ratio_tolerance: float,
-) -> float:
-    """Probability of seeing a dominant:recessive ratio near the observed ratio."""
-    total = dominant_count + recessive_count
-    observed_ratio = dominant_count / recessive_count
-    lower = observed_ratio - ratio_tolerance
-    upper = observed_ratio + ratio_tolerance
-
-    probability = 0.0
-    for dominant in range(total + 1):
-        recessive = total - dominant
-        if recessive == 0:
-            continue
-        ratio = dominant / recessive
-        if lower <= ratio <= upper:
-            probability += (
-                comb(total, dominant)
-                * dominant_probability**dominant
-                * (1 - dominant_probability) ** recessive
-            )
-    return probability
+def binomial_pmf(*, n: int, k: int, p: float) -> float:
+    """Pointwise binomial probability ``P(X = k | n, p)``."""
+    return comb(n, k) * p**k * (1 - p) ** (n - k)
 
 
-def mendel_ratio_likelihoods() -> RatioLikelihoods:
-    """Compute likelihoods for the observed 2.95:1 F2 ratio."""
-    return RatioLikelihoods(
-        p_ratio_given_mendelian=binomial_ratio_window_likelihood(
-            dominant_count=DOMINANT_COUNT,
-            recessive_count=RECESSIVE_COUNT,
-            dominant_probability=MENDELIAN_DOMINANT_PROBABILITY,
-            ratio_tolerance=RATIO_TOLERANCE,
-        ),
-        p_ratio_given_blending=binomial_ratio_window_likelihood(
-            dominant_count=DOMINANT_COUNT,
-            recessive_count=RECESSIVE_COUNT,
-            dominant_probability=BLENDING_ALTERNATIVE_DOMINANT_PROBABILITY,
-            ratio_tolerance=RATIO_TOLERANCE,
-        ),
+def diffuse_count_marginal(*, n: int) -> float:
+    """Marginal likelihood of any single count under ``p ~ Uniform[0, 1]``.
+
+    Using ``∫₀¹ C(n, k) p^k (1 - p)^(n - k) dp = 1 / (n + 1)``, this is the
+    probability of observing any specific ``k`` when ``p`` is unknown and
+    uniformly distributed on ``[0, 1]``. It is independent of ``k``.
+    """
+    return 1.0 / (n + 1)
+
+
+def mendel_count_association_parameters() -> MendelCountAssociation:
+    """Compute Bayes-consistent ``associate`` parameters for the Mendel ↔ count relation.
+
+    The posterior is formed by marginalising over the Mendelian point hypothesis
+    and the diffuse alternative:
+
+    ``P(count) = P(M) · P(count | M) + (1 − P(M)) · P(count | diffuse)``
+    """
+    p_count_given_mendelian = binomial_pmf(
+        n=TOTAL_COUNT,
+        k=DOMINANT_COUNT,
+        p=MENDELIAN_DOMINANT_PROBABILITY,
     )
+    p_count_given_diffuse = diffuse_count_marginal(n=TOTAL_COUNT)
 
-
-def mendel_data_association_parameters() -> MendelDataAssociation:
-    """Compute Bayes-consistent associate() parameters for model-data comparison."""
-    likelihoods = mendel_ratio_likelihoods()
-    p_ratio = (
-        PRIOR_MENDELIAN_MODEL * likelihoods.p_ratio_given_mendelian
-        + PRIOR_BLENDING_MODEL * likelihoods.p_ratio_given_blending
+    prior_count = (
+        PRIOR_MENDELIAN_MODEL * p_count_given_mendelian
+        + (1.0 - PRIOR_MENDELIAN_MODEL) * p_count_given_diffuse
     )
-    p_mendel_given_ratio = PRIOR_MENDELIAN_MODEL * likelihoods.p_ratio_given_mendelian / p_ratio
-    p_blending_given_ratio = PRIOR_BLENDING_MODEL * likelihoods.p_ratio_given_blending / p_ratio
+    p_mendelian_given_count = PRIOR_MENDELIAN_MODEL * p_count_given_mendelian / prior_count
 
-    return MendelDataAssociation(
-        p_ratio_given_mendelian=likelihoods.p_ratio_given_mendelian,
-        p_ratio_given_blending=likelihoods.p_ratio_given_blending,
+    return MendelCountAssociation(
+        p_count_given_mendelian=p_count_given_mendelian,
+        p_count_given_diffuse=p_count_given_diffuse,
         prior_mendelian=PRIOR_MENDELIAN_MODEL,
-        prior_blending=PRIOR_BLENDING_MODEL,
-        prior_ratio=p_ratio,
-        p_mendelian_given_ratio=p_mendel_given_ratio,
-        p_blending_given_ratio=p_blending_given_ratio,
+        prior_count=prior_count,
+        p_mendelian_given_count=p_mendelian_given_count,
     )
