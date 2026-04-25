@@ -25,11 +25,12 @@ from gaia.lang.compiler.compile import (
 )
 from gaia.lang.runtime.package import CollectedPackage
 
-pytestmark = [
-    pytest.mark.legacy_dsl,
-    pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning"),
-    pytest.mark.filterwarnings("ignore:noisy_and\\(\\) is deprecated:DeprecationWarning"),
-]
+LEGACY_NOISY_AND_WARNING = pytest.mark.filterwarnings(
+    "ignore:noisy_and\\(\\) is deprecated:DeprecationWarning"
+)
+LEGACY_SUPPORT_WARNING = pytest.mark.filterwarnings(
+    "ignore:support\\(\\) is deprecated:DeprecationWarning"
+)
 
 
 # ── _content_hash / _anonymous_label / _normalize_label ──
@@ -153,6 +154,8 @@ def test_compile_reason_invalid_type():
 # ── compile_package_artifact ──
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_NOISY_AND_WARNING
 def test_compile_basic_package():
     pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
     with pkg:
@@ -170,6 +173,8 @@ def test_compile_basic_package():
     assert len(result.graph.strategies) == 1
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_NOISY_AND_WARNING
 def test_compile_with_background():
     pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
     with pkg:
@@ -186,6 +191,8 @@ def test_compile_with_background():
     assert "github:test_pkg::ctx" in strat.background
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_NOISY_AND_WARNING
 def test_compile_with_reason_steps():
     pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
     with pkg:
@@ -205,6 +212,8 @@ def test_compile_with_reason_steps():
     assert strat.steps[0].premises == ["github:test_pkg::a"]
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_NOISY_AND_WARNING
 def test_compile_composite_strategy():
     pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
     with pkg:
@@ -222,6 +231,8 @@ def test_compile_composite_strategy():
     assert len(result.graph.strategies) == 3
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_compile_abduction_creates_composite_strategy():
     pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
     with pkg:
@@ -334,6 +345,8 @@ def test_compile_module_titles():
     assert result.graph.module_titles == {"intro": "Introduction"}
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_compile_induction():
     """Induction compiles to CompositeStrategy with support sub-strategies."""
     pkg = CollectedPackage("test_induction", namespace="github", version="1.0.0")

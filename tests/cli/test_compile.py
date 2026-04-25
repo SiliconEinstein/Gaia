@@ -10,11 +10,13 @@ from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
 
 runner = CliRunner()
-pytestmark = [
-    pytest.mark.legacy_dsl,
-    pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning"),
-    pytest.mark.filterwarnings("ignore:noisy_and\\(\\) is deprecated:DeprecationWarning"),
-]
+
+LEGACY_NOISY_AND_WARNING = pytest.mark.filterwarnings(
+    "ignore:noisy_and\\(\\) is deprecated:DeprecationWarning"
+)
+LEGACY_SUPPORT_WARNING = pytest.mark.filterwarnings(
+    "ignore:support\\(\\) is deprecated:DeprecationWarning"
+)
 
 
 def test_compile_creates_ir_json(tmp_path):
@@ -167,6 +169,8 @@ def test_compile_supports_src_layout(tmp_path):
     assert "package" not in ir
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_NOISY_AND_WARNING
 def test_compile_preserves_structured_steps_and_provenance(tmp_path):
     pkg_dir = tmp_path / "step_pkg"
     pkg_dir.mkdir()
@@ -904,6 +908,8 @@ def test_compile_named_strategy_uses_ir_canonical_formalization(tmp_path):
     assert strategy["metadata"]["formalization_template"] == "deduction"
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_NOISY_AND_WARNING
 def test_compile_emits_pure_local_canonical_graph(tmp_path):
     pkg_dir = tmp_path / "pure_ir_pkg"
     pkg_dir.mkdir()
@@ -987,6 +993,8 @@ def test_compile_elimination_strategy_uses_ir_canonical_formalization(tmp_path):
     ]
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_compile_composite_strategy_preserves_sub_strategy_references(tmp_path):
     pkg_dir = tmp_path / "composite_pkg"
     pkg_dir.mkdir()
@@ -1031,6 +1039,8 @@ def test_compile_composite_strategy_preserves_sub_strategy_references(tmp_path):
     assert result.valid, result.errors
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_compile_nested_composite_strategy_collects_recursive_knowledge(tmp_path):
     pkg_dir = tmp_path / "nested_composite_pkg"
     pkg_dir.mkdir()
@@ -1075,6 +1085,8 @@ def test_compile_nested_composite_strategy_collects_recursive_knowledge(tmp_path
 # ── priors.py discovery and injection ──
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_compile_priors_py_injects_metadata_prior(tmp_path):
     """priors.py PRIORS dict injects prior+justification into claim metadata."""
     pkg_dir = tmp_path / "priors_pkg"
