@@ -9,6 +9,7 @@ from gaia.cli.commands.infer import infer_command
 from gaia.cli.commands.init import init_command
 from gaia.cli.commands.register import register_command
 from gaia.cli.commands.render import render_command
+from gaia.cli.commands.inquiry import inquiry_app
 
 app = typer.Typer(
     name="gaia",
@@ -29,3 +30,6 @@ app.command(name="infer")(infer_command)
 app.command(name="init")(init_command)
 app.command(name="register")(register_command)
 app.command(name="render")(render_command)
+
+app.add_typer(inquiry_app, name="inquiry")
+app.add_typer(inquiry_app, name="inquery", hidden=True)  # typo alias
