@@ -23,6 +23,13 @@ def test_quality_gate_custom_config():
     assert config.allow_holes is False
 
 
+def test_quality_gate_allows_unformalized_dependencies_config():
+    from gaia.cli.commands._quality_gate import load_quality_config
+
+    config = load_quality_config({"allow_unformalized_dependencies": True})
+    assert config.allow_unformalized_dependencies is True
+
+
 def _write_gate_package(pkg_dir, source: str, *, quality: str = "") -> None:
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(
@@ -233,6 +240,49 @@ def test_gate_passes_when_all_met(tmp_path):
     _accept_all_reviews(pkg_dir)
 
     result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+    assert result.exit_code == 0, result.output
+    assert "Quality gate passed" in result.output
+
+
+def test_gate_fails_on_unformalized_dependency(tmp_path):
+    pkg_dir = tmp_path / "gate_demo"
+    _write_gate_package(
+        pkg_dir,
+        "from gaia.lang import claim, depends_on\n\n"
+        'a = claim("A.")\n'
+        'b = claim("B.")\n'
+        'c = claim("C.")\n'
+        'depends_on(c, given=(a, b), rationale="Scaffold.", label="c_depends_on_a_b")\n'
+        '__all__ = ["c"]\n',
+        quality="\n[tool.gaia.quality]\nallow_holes = true\n",
+    )
+
+    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+
+    assert result.exit_code != 0
+    assert "unformalized dependency" in result.output.lower()
+    assert "c_depends_on_a_b" in result.output
+
+
+def test_gate_allows_unformalized_dependency_when_configured(tmp_path):
+    pkg_dir = tmp_path / "gate_demo"
+    _write_gate_package(
+        pkg_dir,
+        "from gaia.lang import claim, depends_on\n\n"
+        'a = claim("A.")\n'
+        'b = claim("B.")\n'
+        'c = claim("C.")\n'
+        'depends_on(c, given=(a, b), rationale="Scaffold.", label="c_depends_on_a_b")\n'
+        '__all__ = ["c"]\n',
+        quality=(
+            "\n[tool.gaia.quality]\n"
+            "allow_holes = true\n"
+            "allow_unformalized_dependencies = true\n"
+        ),
+    )
+
+    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+
     assert result.exit_code == 0, result.output
     assert "Quality gate passed" in result.output
 

@@ -78,6 +78,7 @@ def build_goal_trees(
     ir: dict[str, Any],
     review_manifest: ReviewManifest,
     exported_ids: set[str] | None = None,
+    formalization_manifest: dict[str, Any] | None = None,
 ) -> list[InquiryNode]:
     """Build dependency trees by walking backward from exported Claims."""
 
@@ -134,6 +135,14 @@ def build_goal_trees(
         conclusion = compose.get("conclusion")
         if conclusion:
             composes_by_conclusion.setdefault(conclusion, []).append(compose)
+
+    scaffolds_by_conclusion: dict[str, list[dict[str, Any]]] = {}
+    for dependency in (formalization_manifest or {}).get("dependencies", []):
+        if not isinstance(dependency, dict) or dependency.get("kind") != "depends_on":
+            continue
+        conclusion = dependency.get("conclusion")
+        if isinstance(conclusion, str) and conclusion:
+            scaffolds_by_conclusion.setdefault(conclusion, []).append(dependency)
 
     def build_node(knowledge_id: str, seen: set[str]) -> InquiryNode:
         knowledge = knowledge_by_id.get(knowledge_id, {"id": knowledge_id, "content": ""})
@@ -200,6 +209,20 @@ def build_goal_trees(
                 target_id=compose_id,
                 status=_review_status(review_manifest, compose_id),
                 inputs=[build_node(ref, next_seen) for ref in dict.fromkeys(dependencies)],
+            )
+            node.incoming.append(edge)
+
+        for scaffold in scaffolds_by_conclusion.get(knowledge_id, []):
+            label = scaffold.get("label") or scaffold.get("id") or "depends_on"
+            inputs = [
+                ref for ref in scaffold.get("given", []) if isinstance(ref, str) and ref
+            ]
+            edge = InquiryEdge(
+                kind="scaffold",
+                label=str(label),
+                target_id=scaffold.get("id") if isinstance(scaffold.get("id"), str) else None,
+                status=scaffold.get("status") if isinstance(scaffold.get("status"), str) else None,
+                inputs=[build_node(ref, next_seen) for ref in dict.fromkeys(inputs)],
             )
             node.incoming.append(edge)
 

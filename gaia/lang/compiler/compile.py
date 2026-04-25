@@ -39,6 +39,7 @@ from gaia.lang.runtime.action import (
     Compose,
     Compute,
     Contradict,
+    DependsOn,
     Equal,
     Exclusive,
     Infer as InferAction,
@@ -73,6 +74,9 @@ class CompiledPackage:
     strategies_by_object: dict[int, IrStrategy]
     action_label_map: dict[str, str] = field(default_factory=dict)
     target_action_labels_by_id: dict[str, str] = field(default_factory=dict)
+    formalization_manifest: dict[str, Any] = field(
+        default_factory=lambda: {"version": 1, "dependencies": []}
+    )
     review: ReviewManifest | None = None
 
     def to_json(self) -> dict[str, Any]:
@@ -108,6 +112,10 @@ def _make_qid(namespace: str, package_name: str, label: str) -> str:
 
 def _make_action_qid(namespace: str, package_name: str, label: str) -> str:
     return f"{namespace}:{package_name}::action::{_normalize_label(label)}"
+
+
+def _make_scaffold_qid(namespace: str, package_name: str, label: str) -> str:
+    return f"{namespace}:{package_name}::scaffold::{_normalize_label(label)}"
 
 
 def _is_local(k: Knowledge, pkg: CollectedPackage) -> bool:
@@ -460,6 +468,11 @@ def compile_package_artifact(
                 register_knowledge(given)
             if action.conclusion is not None:
                 register_knowledge(action.conclusion)
+        elif isinstance(action, DependsOn):
+            for given in action.given:
+                register_knowledge(given)
+            if action.conclusion is not None:
+                register_knowledge(action.conclusion)
         elif isinstance(action, Relate):
             if action.a is not None:
                 register_knowledge(action.a)
@@ -596,6 +609,30 @@ def compile_package_artifact(
             return
         action_label_map[action_label] = target_id
         target_action_labels_by_id[target_id] = action_label
+
+    def _scaffold_label(action: DependsOn, action_index: int) -> str:
+        return action.label or f"_anon_action_{action_index:03d}"
+
+    def _compile_depends_on_action(action: DependsOn, action_index: int) -> dict[str, Any]:
+        if action.conclusion is None:
+            raise ValueError("DependsOn action requires a conclusion")
+        if not action.given:
+            raise ValueError("DependsOn action requires at least one given Claim")
+        label = _scaffold_label(action, action_index)
+        record = {
+            "id": _make_scaffold_qid(pkg.namespace, pkg.name, label),
+            "kind": "depends_on",
+            "label": label,
+            "conclusion": knowledge_map[id(action.conclusion)],
+            "given": [knowledge_map[id(given)] for given in action.given],
+            "rationale": action.rationale,
+            "status": "unformalized",
+            "metadata": _metadata_to_ir(dict(action.metadata or {}), knowledge_map),
+        }
+        background = [knowledge_map[id(bg)] for bg in action.background]
+        if background:
+            record["background"] = background
+        return record
 
     def _warrant_ids(action: Any) -> list[str]:
         return [knowledge_map[id(warrant)] for warrant in getattr(action, "warrants", []) or []]
@@ -807,6 +844,8 @@ def compile_package_artifact(
         return strategy
 
     def compile_action(action: Any, action_index: int) -> IrStrategy | IrOperator | None:
+        if isinstance(action, DependsOn):
+            return None
         if isinstance(action, Support):
             return _compile_support_action(action, action_index)
         if isinstance(action, Relate):
@@ -832,8 +871,12 @@ def compile_package_artifact(
 
     action_operators: list[IrOperator] = []
     action_target_ids_by_object: dict[int, str] = {}
+    formalization_dependencies: list[dict[str, Any]] = []
     for action_index, action in enumerate(getattr(pkg, "actions", [])):
         if isinstance(action, Compose):
+            continue
+        if isinstance(action, DependsOn):
+            formalization_dependencies.append(_compile_depends_on_action(action, action_index))
             continue
         target = compile_action(action, action_index)
         if target is None:
@@ -1022,6 +1065,10 @@ def compile_package_artifact(
         strategies_by_object=dict(compiled_strategies),
         action_label_map=action_label_map,
         target_action_labels_by_id=target_action_labels_by_id,
+        formalization_manifest={
+            "version": 1,
+            "dependencies": formalization_dependencies,
+        },
     )
     from gaia.lang.review.manifest import generate_review_manifest
 

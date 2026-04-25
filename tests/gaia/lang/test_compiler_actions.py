@@ -3,6 +3,7 @@ from gaia.lang import (
     associate,
     compute,
     contradict,
+    depends_on,
     derive,
     equal,
     exclusive,
@@ -270,3 +271,41 @@ def test_compile_associate_action_to_association_strategy():
         "prior_a": 0.25,
         "prior_b": 1 / 15,
     }
+
+
+def test_compile_depends_on_action_to_formalization_manifest_only():
+    with CollectedPackage("v6_actions") as pkg:
+        a = Claim("A.")
+        a.label = "a"
+        b = Claim("B.")
+        b.label = "b"
+        c = Claim("C.")
+        c.label = "c"
+        depends_on(
+            c,
+            given=(a, b),
+            rationale="C currently relies on A and B.",
+            label="c_depends_on_a_b",
+        )
+        pkg._exported_labels = {"c"}
+
+    compiled = compile_package_artifact(pkg)
+
+    assert compiled.graph.strategies == []
+    assert compiled.graph.operators == []
+    assert "github:v6_actions::c" in {k.id for k in compiled.graph.knowledges}
+
+    manifest = compiled.formalization_manifest
+    assert manifest["version"] == 1
+    assert manifest["dependencies"] == [
+        {
+            "id": "github:v6_actions::scaffold::c_depends_on_a_b",
+            "kind": "depends_on",
+            "label": "c_depends_on_a_b",
+            "conclusion": "github:v6_actions::c",
+            "given": ["github:v6_actions::a", "github:v6_actions::b"],
+            "rationale": "C currently relies on A and B.",
+            "status": "unformalized",
+            "metadata": {},
+        }
+    ]

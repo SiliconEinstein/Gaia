@@ -1039,7 +1039,11 @@ def _render_compile_metadata(ir_hash: str) -> str:
 
 
 def write_compiled_artifacts(
-    pkg_path: Path, ir: dict[str, Any], *, manifests: dict[str, dict[str, Any]] | None = None
+    pkg_path: Path,
+    ir: dict[str, Any],
+    *,
+    manifests: dict[str, dict[str, Any]] | None = None,
+    formalization_manifest: dict[str, Any] | None = None,
 ) -> Path:
     """Write .gaia compilation artifacts and return the output directory."""
     gaia_dir = pkg_path / ".gaia"
@@ -1048,6 +1052,10 @@ def write_compiled_artifacts(
     (gaia_dir / "ir.json").write_text(ir_json)
     (gaia_dir / "ir_hash").write_text(ir["ir_hash"])
     (gaia_dir / "compile_metadata.json").write_text(_render_compile_metadata(ir["ir_hash"]))
+    if formalization_manifest is not None:
+        (gaia_dir / "formalization_manifest.json").write_text(
+            render_manifest_json(formalization_manifest)
+        )
     if manifests:
         manifests_dir = gaia_dir / "manifests"
         manifests_dir.mkdir(exist_ok=True)

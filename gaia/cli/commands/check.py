@@ -67,7 +67,11 @@ def _walk_inquiry_nodes(node: InquiryNode):
             yield from _walk_inquiry_nodes(child)
 
 
-def _boundary_claim_analysis(ir: dict) -> _BoundaryAnalysis:
+def _boundary_claim_analysis(
+    ir: dict,
+    *,
+    formalization_manifest: dict | None = None,
+) -> _BoundaryAnalysis:
     """Identify load-bearing boundary claims for exported goals.
 
     Prefer the goal-oriented inquiry boundary when exported goals exist. A
@@ -79,7 +83,11 @@ def _boundary_claim_analysis(ir: dict) -> _BoundaryAnalysis:
     def needs_probability_input(node: InquiryNode) -> bool:
         return not node.incoming or all(edge.kind == "grounding" for edge in node.incoming)
 
-    trees = build_goal_trees(ir, ReviewManifest(reviews=[]))
+    trees = build_goal_trees(
+        ir,
+        ReviewManifest(reviews=[]),
+        formalization_manifest=formalization_manifest,
+    )
     if trees:
         boundary_claim_ids = {
             node.knowledge_id
@@ -203,6 +211,23 @@ def _induced_entropy_line(summary: _InducedMaxEntSummary) -> str | None:
     return None
 
 
+def _formalization_dependency_claim_ids(
+    formalization_manifest: dict | None,
+) -> tuple[set[str], set[str]]:
+    conclusions: set[str] = set()
+    inputs: set[str] = set()
+    for dependency in (formalization_manifest or {}).get("dependencies", []):
+        if not isinstance(dependency, dict) or dependency.get("kind") != "depends_on":
+            continue
+        conclusion = dependency.get("conclusion")
+        if isinstance(conclusion, str) and conclusion:
+            conclusions.add(conclusion)
+        for given in dependency.get("given", []):
+            if isinstance(given, str) and given:
+                inputs.add(given)
+    return conclusions, inputs
+
+
 def _get_prior(k: dict) -> float | None:
     """Extract prior from a knowledge node's metadata, or None if absent."""
     meta = k.get("metadata") or {}
@@ -213,6 +238,7 @@ def _knowledge_diagnostics(
     ir: dict,
     *,
     induced_summary: _InducedMaxEntSummary | None = None,
+    formalization_manifest: dict | None = None,
 ) -> list[str]:
     """Analyze the knowledge graph and return diagnostic lines."""
     lines: list[str] = []
@@ -222,13 +248,18 @@ def _knowledge_diagnostics(
     questions = {k["id"]: k for k in ir["knowledges"] if k["type"] == "question"}
 
     c = classify_ir(ir)
-    boundary = _boundary_claim_analysis(ir)
+    boundary = _boundary_claim_analysis(ir, formalization_manifest=formalization_manifest)
 
     independent: list[tuple[str, str]] = []  # goal-boundary load-bearing claims
     derived = []
     structural = []
     background_only = []
+    scaffolded = []
     orphaned = []
+    scaffold_conclusions, scaffold_inputs = _formalization_dependency_claim_ids(
+        formalization_manifest
+    )
+    scaffold_connected = scaffold_conclusions | scaffold_inputs
 
     for cid, k in claims.items():
         label = k.get("label", cid.split("::")[-1])
@@ -241,6 +272,8 @@ def _knowledge_diagnostics(
             independent.append((label, cid))
         elif role == "background":
             background_only.append(label)
+        elif cid in scaffold_connected:
+            scaffolded.append(label)
         else:
             orphaned.append(label)
 
@@ -266,6 +299,8 @@ def _knowledge_diagnostics(
             lines.append(induced_line)
     lines.append(f"    Derived (BP propagates):   {len(derived)}")
     lines.append(f"    Structural (deterministic): {len(structural)}")
+    if scaffolded:
+        lines.append(f"    Scaffolded (unformalized): {len(scaffolded)}")
     if background_only:
         lines.append(f"    Background-only:           {len(background_only)}")
     if orphaned:
@@ -295,6 +330,12 @@ def _knowledge_diagnostics(
         for label in sorted(background_only):
             lines.append(f"    - {label}")
 
+    if scaffolded:
+        lines.append("")
+        lines.append("  Scaffolded claims (tracked in formalization manifest):")
+        for label in sorted(scaffolded):
+            lines.append(f"    - {label}")
+
     if orphaned:
         lines.append("")
         lines.append("  Orphaned claims (not referenced anywhere):")
@@ -308,10 +349,11 @@ def _hole_report(
     ir: dict,
     *,
     induced_summary: _InducedMaxEntSummary | None = None,
+    formalization_manifest: dict | None = None,
 ) -> list[str]:
     """Return detailed report of all independent claims without priors (holes)."""
     claims = {k["id"]: k for k in ir["knowledges"] if k["type"] == "claim"}
-    boundary = _boundary_claim_analysis(ir)
+    boundary = _boundary_claim_analysis(ir, formalization_manifest=formalization_manifest)
     lines: list[str] = []
     holes: list[tuple[str, dict]] = []
     covered: list[tuple[str, dict]] = []
@@ -495,7 +537,10 @@ def check_command(
             raise typer.Exit(1)
 
     if hole or not (warrants and blind):
-        boundary = _boundary_claim_analysis(ir)
+        boundary = _boundary_claim_analysis(
+            ir,
+            formalization_manifest=compiled.formalization_manifest,
+        )
         maxent_claim_ids = {
             cid
             for cid in boundary.boundary_claim_ids
@@ -515,7 +560,11 @@ def check_command(
     if inquiry:
         from gaia.cli.commands._inquiry import build_goal_trees, render_inquiry
 
-        trees = build_goal_trees(ir, review_manifest)
+        trees = build_goal_trees(
+            ir,
+            review_manifest,
+            formalization_manifest=compiled.formalization_manifest,
+        )
         typer.echo("")
         typer.echo(render_inquiry(trees))
 
@@ -529,7 +578,13 @@ def check_command(
         try:
             config = load_quality_config(loaded.gaia_config.get("quality"))
             beliefs = load_beliefs(loaded.pkg_path)
-            failures = check_quality_gate(ir, beliefs, review_manifest, config)
+            failures = check_quality_gate(
+                ir,
+                beliefs,
+                review_manifest,
+                config,
+                formalization_manifest=compiled.formalization_manifest,
+            )
         except GaiaCliError as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(1)
@@ -546,7 +601,11 @@ def check_command(
         return
 
     if not (warrants and blind):
-        for line in _knowledge_diagnostics(ir, induced_summary=induced_summary):
+        for line in _knowledge_diagnostics(
+            ir,
+            induced_summary=induced_summary,
+            formalization_manifest=compiled.formalization_manifest,
+        ):
             typer.echo(line)
 
     if brief or show:
@@ -563,5 +622,9 @@ def check_command(
                 typer.echo(line)
 
     if hole:
-        for line in _hole_report(ir, induced_summary=induced_summary):
+        for line in _hole_report(
+            ir,
+            induced_summary=induced_summary,
+            formalization_manifest=compiled.formalization_manifest,
+        ):
             typer.echo(line)
