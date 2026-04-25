@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
 
 runner = CliRunner()
+pytestmark = [
+    pytest.mark.legacy_dsl,
+    pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning"),
+    pytest.mark.filterwarnings(
+        "ignore:infer\\(\\[premises\\], conclusion, .* is deprecated:DeprecationWarning"
+    ),
+]
 
 
 def _write_base_package(pkg_dir, *, name: str) -> None:

@@ -1079,6 +1079,8 @@ def test_noisy_and_deprecated():
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.legacy_dsl
+@pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning")
 def test_e2e_abduction_full_pipeline():
     """E2E: support + support + compare -> abduction -> CompositeStrategy (3 sub-strategies).
 
@@ -1129,6 +1131,8 @@ def test_e2e_abduction_full_pipeline():
     assert abd.conclusion is comp.conclusion
 
 
+@pytest.mark.legacy_dsl
+@pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning")
 def test_e2e_induction_chain():
     """E2E: support + support → induction chain → law accumulated."""
     from gaia.lang import claim as dsl_claim
@@ -1176,6 +1180,8 @@ def test_e2e_induction_chain():
     assert ind_123.sub_strategies[1] is s3
 
 
+@pytest.mark.legacy_dsl
+@pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning")
 def test_e2e_mendel_peirce_cycle():
     """E2E: Full Peirce cycle -- deduction + support + compare + abduction + induction."""
     from gaia.lang import claim as dsl_claim

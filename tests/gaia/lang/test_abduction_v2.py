@@ -5,6 +5,11 @@ import pytest
 from gaia.lang import Knowledge, Strategy, claim, compare, support
 from gaia.lang.dsl.strategies import abduction
 
+pytestmark = [
+    pytest.mark.legacy_dsl,
+    pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning"),
+]
+
 
 def _make_abduction_triple():
     """Helper: create support_h, support_alt, comparison strategies."""

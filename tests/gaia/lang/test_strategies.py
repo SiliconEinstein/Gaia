@@ -267,8 +267,9 @@ def test_composite():
     evidence = claim("Evidence.")
     intermediate = claim("Intermediate.")
     conclusion = claim("Conclusion.")
-    s1 = support(premises=[evidence], conclusion=intermediate)
-    s2 = support(premises=[intermediate], conclusion=conclusion)
+    with pytest.warns(DeprecationWarning, match="support\\(\\) is deprecated"):
+        s1 = support(premises=[evidence], conclusion=intermediate)
+        s2 = support(premises=[intermediate], conclusion=conclusion)
     composite_strategy = composite(
         premises=[evidence],
         conclusion=conclusion,

@@ -2,6 +2,7 @@
 
 import json
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
@@ -9,6 +10,11 @@ from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
 
 runner = CliRunner()
+pytestmark = [
+    pytest.mark.legacy_dsl,
+    pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning"),
+    pytest.mark.filterwarnings("ignore:noisy_and\\(\\) is deprecated:DeprecationWarning"),
+]
 
 
 def test_compile_creates_ir_json(tmp_path):

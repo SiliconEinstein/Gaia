@@ -5,6 +5,11 @@ import pytest
 from gaia.lang import Knowledge, Strategy, claim, support
 from gaia.lang.dsl.strategies import induction
 
+pytestmark = [
+    pytest.mark.legacy_dsl,
+    pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning"),
+]
+
 
 def test_induction_binary_composite():
     """induction takes 2 supports + law."""

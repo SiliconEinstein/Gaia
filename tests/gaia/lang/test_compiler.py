@@ -25,6 +25,12 @@ from gaia.lang.compiler.compile import (
 )
 from gaia.lang.runtime.package import CollectedPackage
 
+pytestmark = [
+    pytest.mark.legacy_dsl,
+    pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning"),
+    pytest.mark.filterwarnings("ignore:noisy_and\\(\\) is deprecated:DeprecationWarning"),
+]
+
 
 # ── _content_hash / _anonymous_label / _normalize_label ──
 
