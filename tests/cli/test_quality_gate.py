@@ -131,6 +131,33 @@ def test_gate_fails_on_unreviewed_compose(tmp_path):
     assert "workflow" in result.output
 
 
+def test_gate_fails_on_unreviewed_exported_infer_helper(tmp_path):
+    pkg_dir = tmp_path / "gate_demo"
+    _write_gate_package(
+        pkg_dir,
+        "from gaia.lang import Claim, infer\n\n"
+        'h = Claim("H.")\n'
+        'h.label = "h"\n'
+        'e = Claim("E.")\n'
+        'e.label = "e"\n\n'
+        "support = infer(\n"
+        "    e,\n"
+        "    hypothesis=h,\n"
+        "    p_e_given_h=0.9,\n"
+        "    p_e_given_not_h=0.1,\n"
+        '    label="infer_h",\n'
+        ")\n"
+        'support.label = "support"\n'
+        '__all__ = ["support"]\n',
+        quality="\n[tool.gaia.quality]\nallow_holes = true\n",
+    )
+
+    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+
+    assert result.exit_code != 0
+    assert "infer_h" in result.output
+
+
 def test_gate_still_runs_with_blind_warrant_report(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(

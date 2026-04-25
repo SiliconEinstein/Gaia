@@ -278,8 +278,8 @@ PRIORS = {
 The v0.5 prior contract is deliberately strict:
 
 - Give external priors only to independent probabilistic inputs that are load-bearing for exported goals. Root `observe(...)` claims count: grounding and review are qualitative, so the observed claim still needs a probability source or MaxEnt.
-- Do not assign priors to claims concluded by `derive(...)`, `compute(...)`, `observe(..., given=...)`, or `infer(...)`; BP marginalizes them from the declared graph.
-- Do not assign priors to structural/helper claims from `~`, `&`, `|`, `equal(...)`, `contradict(...)`, `exclusive(...)`, or generated formalization helpers.
+- Do not assign priors to claims concluded by `derive(...)`, `compute(...)`, or `observe(..., given=...)`; BP marginalizes them from the declared graph.
+- Do not assign priors to structural/helper claims from `~`, `&`, `|`, `infer(...)`, `associate(...)`, `equal(...)`, `contradict(...)`, `exclusive(...)`, or generated formalization helpers.
 - Run `gaia check --hole .` before inference. Claims reported as MaxEnt are independent degrees of freedom without external priors; leaving them unset means Gaia uses the maximum-entropy distribution over those free variables, subject to the hard logical constraints already declared.
 
 **4. Infer and publish**
@@ -313,7 +313,11 @@ For the full tutorial, see [CLI Workflow](docs/foundations/cli/workflow.md).
 | `observe(conclusion, *, given, background, rationale)` | Empirical warrant; a root observation also records grounding |
 | `derive(conclusion, *, given, background, rationale)` | Deterministic derivation; lowers to hard Jaynes conditional implication after review |
 | `compute(ClaimType, *, fn, given, background, rationale)` | Deterministic computation with claim inputs |
-| `infer(evidence, *, hypothesis, background, rationale, p_e_given_h, p_e_given_not_h)` | Probabilistic prediction/evidence link when a full deterministic structure is not yet available |
+| `infer(evidence, *, hypothesis, background, rationale, p_e_given_h, p_e_given_not_h)` | Probabilistic prediction/evidence link; returns a reviewable likelihood helper claim |
+| `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, background=None, rationale="")` | Symmetric probabilistic association; returns a reviewable association helper claim |
+| `@compose(name, version, background=None, warrants=None, rationale="", label=None)` | Decorates a Python workflow and records its child actions as a reviewable Compose DAG |
+
+`observe(...)`, `derive(...)`, and `compute(...)` return their produced conclusion claim. `infer(...)`, `associate(...)`, and relation verbs return generated helper claims because the public semantic object is the declared relation. A `@compose` call returns the wrapped function's conclusion claim while also recording a Compose action in the compiled IR.
 
 #### Relations
 

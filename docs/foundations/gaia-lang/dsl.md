@@ -110,6 +110,9 @@ open_problem = question("What is the maximum Tc in hydrogen-rich superconductors
 ## Recommended Action Verbs
 
 Action verbs are the canonical v0.5 way to turn explicit premises into reviewable warrants.
+Support verbs (`observe`, `derive`, `compute`) return the produced conclusion claim.
+Correlate verbs (`infer`, `associate`) return a generated reviewable helper claim,
+because the relation itself is the semantic object reviewers inspect.
 
 ### `observe(conclusion, *, given=(), background=None, rationale="", label=None)`
 
@@ -126,6 +129,15 @@ Deterministic computation. Use either `compute(ResultClaim, fn=..., given=...)` 
 ### `infer(evidence, *, hypothesis, p_e_given_h, p_e_given_not_h, background=None, rationale="", label=None)`
 
 Probabilistic prediction/evidence link. Use after extracting the uncertain parts into explicit claims; `infer(...)` should not be a hiding place for missing premises.
+Returns a generated likelihood helper claim. The compiled BP factor is still `H -> E` with CPT `[P(E|not H), P(E|H)]`; the helper is the review target for accepting that likelihood relation.
+
+### `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, background=None, rationale="", label=None)`
+
+Symmetric probabilistic association between two claims. Returns a generated association helper claim and lowers to a pairwise potential between `a` and `b`. At least one marginal prior for `a` or `b` must be available, either from the claim/priors layer or from `prior_a` / `prior_b`.
+
+### `@compose(name, version, background=None, warrants=None, rationale="", label=None)`
+
+Decorates a Python function as a named action workflow. Calling the function returns its normal conclusion claim, while the runtime records a `Compose` DAG containing the child action targets, explicit inputs, background, optional compose-level warrants, and conclusion. Child action warrants stay owned by their child actions; compose-level warrants are only the warrants passed to `@compose(...)`.
 
 ---
 
