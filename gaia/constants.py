@@ -16,9 +16,7 @@ standard_gravity = g_0 = (1 * ureg.standard_gravity).to("m/s^2")
 # Thermodynamics
 avogadro = N_A = (1 * ureg.N_A).to("1/mol")
 molar_gas_constant = R = (1 * ureg.molar_gas_constant).to("J/(mol*K)")
-stefan_boltzmann = sigma_SB = (1 * ureg.stefan_boltzmann_constant).to(
-    "W/(m^2*K^4)"
-)
+stefan_boltzmann = sigma_SB = (1 * ureg.stefan_boltzmann_constant).to("W/(m^2*K^4)")
 
 # Electromagnetism
 vacuum_permittivity = eps_0 = (1 * ureg.vacuum_permittivity).to("F/m")
