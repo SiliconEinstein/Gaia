@@ -962,7 +962,7 @@ def test_relation_helper_defaults_to_assertion_prior():
 
 
 def test_e2e_support_compiles_and_runs_bp():
-    """E2E: support([A], B) -> formalize (1 SOFT_ENTAILMENT) -> lower -> BP."""
+    """E2E: legacy Strategy(type='support') -> SOFT_ENTAILMENT -> BP."""
     s = Strategy(
         scope="local",
         type="support",
@@ -1055,21 +1055,16 @@ def test_e2e_compare_compiles_and_runs_bp():
     assert all(0 < beliefs[v] < 1 for v in beliefs)
 
 
+@pytest.mark.legacy_dsl
 def test_noisy_and_deprecated():
     """noisy_and() emits DeprecationWarning and delegates to support()."""
-    import warnings
-
     from gaia.lang import claim as dsl_claim
     from gaia.lang import noisy_and as dsl_noisy_and
 
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
+    with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
         a = dsl_claim("A")
         b = dsl_claim("B")
         s = dsl_noisy_and([a], b)
-        assert len(w) == 1
-        assert issubclass(w[0].category, DeprecationWarning)
-        assert "noisy_and" in str(w[0].message)
     # The returned strategy should be a support strategy
     assert s.type == "support"
 

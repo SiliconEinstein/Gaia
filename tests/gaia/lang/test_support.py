@@ -4,6 +4,8 @@ import pytest
 
 from gaia.lang import claim, support
 
+pytestmark = pytest.mark.legacy_dsl
+
 
 def test_support_basic():
     """support() creates Strategy with type='support'."""

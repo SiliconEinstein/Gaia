@@ -1,3 +1,5 @@
+import pytest
+
 from gaia.lang import __all__ as gaia_lang_exports
 from gaia.lang import claim, note, question, setting
 
@@ -27,16 +29,15 @@ def test_question_creates_knowledge():
     assert q.type == "question"
 
 
+@pytest.mark.legacy_dsl
 def test_claim_with_explicit_noisy_and():
     a = claim("Premise A.")
     b = claim("Premise B.")
     c = claim("Conclusion.")
-    import warnings
 
     from gaia.lang import noisy_and
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
+    with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
         noisy_and([a, b], c)
     assert c.type == "claim"
     assert c.strategy is not None

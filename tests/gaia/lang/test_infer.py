@@ -125,6 +125,7 @@ def test_infer_registers_action_and_warrant():
     assert action.warrants == [action.helper]
 
 
+@pytest.mark.legacy_dsl
 def test_infer_preserves_v5_positional_shape():
     a = Claim("A.")
     b = Claim("B.")

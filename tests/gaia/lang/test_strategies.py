@@ -18,14 +18,13 @@ from gaia.lang import (
 from gaia.lang.runtime.package import CollectedPackage
 
 
+@pytest.mark.legacy_dsl
 def test_noisy_and_explicit():
     a = claim("A.")
     b = claim("B.")
     c = claim("C.")
-    import warnings
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
+    with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
         s = noisy_and(premises=[a, b], conclusion=c, reason=["Step 1", "Step 2"])
     # noisy_and now delegates to support()
     assert s.type == "support"
@@ -35,14 +34,13 @@ def test_noisy_and_explicit():
     assert len(s.reason) == 2
 
 
+@pytest.mark.legacy_dsl
 def test_noisy_and_structured_steps():
     a = claim("A.")
     b = claim("B.")
     c = claim("C.")
-    import warnings
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
+    with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
         s = noisy_and(
             premises=[a, b],
             conclusion=c,
@@ -55,26 +53,24 @@ def test_noisy_and_structured_steps():
     assert s.reason[0].premises == [a, b]
 
 
+@pytest.mark.legacy_dsl
 def test_noisy_and_simple_reason():
     a = claim("A.")
     c = claim("C.")
-    import warnings
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
+    with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
         s = noisy_and(premises=[a], conclusion=c, reason="Because A implies C.")
     assert s.reason == "Because A implies C."
 
 
+@pytest.mark.legacy_dsl
 def test_step_premise_validation():
     a = claim("A.")
     b = claim("B.")
     c = claim("C.")
     outside = claim("Not a premise.")
-    import warnings
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
+    with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
         with pytest.raises(ValueError, match="not in the strategy's premise list"):
             noisy_and(
                 premises=[a, b],
@@ -263,6 +259,7 @@ def test_mathematical_induction():
     assert s.formal_expr is None
 
 
+@pytest.mark.legacy_dsl
 def test_composite():
     evidence = claim("Evidence.")
     intermediate = claim("Intermediate.")

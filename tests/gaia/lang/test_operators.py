@@ -13,6 +13,7 @@ def test_contradiction_creates_helper_claim():
     assert "not_both_true" in helper.content
 
 
+@pytest.mark.legacy_dsl
 def test_contradiction_helper_usable_as_premise():
     a = claim("A.")
     b = claim("B.")
