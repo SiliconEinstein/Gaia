@@ -281,7 +281,7 @@ A small curated set of `@composition`-decorated functions shipped in `gaia/evide
 
 | Template | Purpose | Key params |
 |---|---|---|
-| `gaussian_measurement` | Point-hypothesis Gaussian measurement evidence | `mu_h`, `mu_not_h`, `noise` (DistributionSpec) |
+| `gaussian_measurement` | Point-hypothesis Gaussian measurement evidence | `mu_h`, `mu_not_h`, `noise` (DistributionLiteral) |
 | `threshold_measurement` | Threshold hypothesis (H = "true > threshold") Gaussian evidence | `threshold`, `direction` ("above" / "below"), `noise` |
 | `two_sample_comparison` | Two-group count / mean comparison | `control`, `treatment` dicts, `null_delta`, `alt_delta`, `method` |
 | `from_bayes_factor` | Literature BF citation with author anchor | `bf`, `p_e_given_h` (anchor, required), `rationale` (required) |
@@ -322,8 +322,7 @@ A bespoke scientific evidence pipeline that canonical templates do not cover, il
 
 ```python
 from gaia.lang import composition, observe, compute, infer
-from gaia.stats import DistributionSpec
-from gaia.ir.schemas import CallableRef
+from gaia.ir.schemas import CallableRef, DistributionLiteral
 
 @composition(name="exoplanet:transit_bls", version="1.0", purity="deterministic")
 def transit_bls_evidence(

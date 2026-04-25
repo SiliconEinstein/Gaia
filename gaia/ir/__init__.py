@@ -40,7 +40,7 @@ from gaia.ir.schemas import (
     BuiltinDistributionKind,
     CallableRef,
     DistributionParam,
-    DistributionSpec,
+    DistributionLiteral,
     QuantityLiteral,
 )
 
@@ -79,7 +79,7 @@ __all__ = [
     "BuiltinDistributionKind",
     "CallableRef",
     "DistributionParam",
-    "DistributionSpec",
+    "DistributionLiteral",
     "QuantityLiteral",
     # Review
     "Review",

@@ -66,7 +66,7 @@ class CallableRef(BaseModel):
 DistributionParam = QuantityLiteral | float | int
 
 
-class DistributionSpec(BaseModel):
+class DistributionLiteral(BaseModel):
     """JSON-native distribution declaration for IR and adapter boundaries."""
 
     schema_version: Literal["gaia.distribution.v1"] = "gaia.distribution.v1"
@@ -75,7 +75,7 @@ class DistributionSpec(BaseModel):
     callable_ref: CallableRef | None = None
 
     @model_validator(mode="after")
-    def _validate_callable_ref(self) -> DistributionSpec:
+    def _validate_callable_ref(self) -> DistributionLiteral:
         if self.kind == "custom":
             if self.callable_ref is None:
                 raise ValueError("custom distributions require callable_ref")

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from gaia.ir import CallableRef, DistributionSpec, QuantityLiteral
+from gaia.ir import CallableRef, DistributionLiteral, QuantityLiteral
 
 
 def test_quantity_literal_is_json_native():
@@ -18,7 +18,7 @@ def test_builtin_distribution_rejects_callable_ref():
     callable_ref = CallableRef(name="pkg:normal", version="1.0")
 
     with pytest.raises(ValidationError, match="Built-in distributions"):
-        DistributionSpec(
+        DistributionLiteral(
             kind="normal",
             params={"mu": 0.0, "sigma": 1.0},
             callable_ref=callable_ref,
@@ -27,7 +27,7 @@ def test_builtin_distribution_rejects_callable_ref():
 
 def test_custom_distribution_requires_callable_ref():
     with pytest.raises(ValidationError, match="custom distributions require callable_ref"):
-        DistributionSpec(kind="custom", params={})
+        DistributionLiteral(kind="custom", params={})
 
 
 def test_custom_distribution_accepts_callable_ref():
@@ -39,7 +39,7 @@ def test_custom_distribution_accepts_callable_ref():
         purity="pure",
     )
 
-    spec = DistributionSpec(
+    spec = DistributionLiteral(
         kind="custom",
         params={"scale": 2.0},
         callable_ref=callable_ref,

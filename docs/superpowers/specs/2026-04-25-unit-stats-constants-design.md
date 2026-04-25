@@ -7,7 +7,7 @@ Scope: Gaia v0.5, option A from the design discussion
 ## Goal
 
 Implement the smallest foundation layer needed for unit-bearing values,
-distribution specifications, and physical constants in Gaia v0.5.
+distribution literals, and physical constants in Gaia v0.5.
 
 This change gives Gaia structured carriers for scientific numeric parameters.
 It does not implement measurement evidence adapters, scipy-backed evaluation, or
@@ -85,7 +85,7 @@ class CallableRef(BaseModel):
     purity: Literal["pure", "impure", "unknown"] = "unknown"
 
 
-class DistributionSpec(BaseModel):
+class DistributionLiteral(BaseModel):
     schema_version: Literal["gaia.distribution.v1"] = "gaia.distribution.v1"
     kind: Literal[
         "normal",
@@ -108,7 +108,7 @@ Validation invariant:
 - `kind == "custom"` must carry `callable_ref`.
 
 This module is intentionally separate from `knowledge.py` so `QuantityLiteral`
-and `DistributionSpec` can later be reused by measurement, prior-shape, and
+and `DistributionLiteral` can later be reused by measurement, prior-shape, and
 adapter schemas without creating import cycles.
 
 ### `gaia.stats`
@@ -116,11 +116,11 @@ adapter schemas without creating import cycles.
 Add metadata-only distribution constructors:
 
 ```python
-from gaia.stats import Normal, Binomial, from_callable
+from gaia.stats import Normal, Binomial, custom_distribution
 
 noise = Normal(mu=q(0, "K"), sigma=q(3, "K"))
 count = Binomial(n=12, p=0.4)
-custom = from_callable(fn, name="pkg:my_dist", version="1.0")
+custom = custom_distribution(fn, name="pkg:my_dist", version="1.0")
 ```
 
 Built-in constructors:
@@ -229,8 +229,8 @@ Expected tests:
 - `to_literal(q(80, "K")).model_dump()` is deterministic JSON-native data.
 - `from_literal(to_literal(q(80, "K"))).to("K").magnitude == 80`.
 - `from gaia.stats import Normal` works without scipy installed.
-- Built-in `DistributionSpec` rejects `callable_ref`.
-- Custom `DistributionSpec` requires `callable_ref`.
+- Built-in `DistributionLiteral` rejects `callable_ref`.
+- Custom `DistributionLiteral` requires `callable_ref`.
 - `gaia.constants.c` and `gaia.constants.speed_of_light` are the same quantity.
 - A compiled parameterized claim with a quantity value emits JSON containing
   `schema_version: "gaia.quantity_literal.v1"`, `value`, and `unit`.
@@ -247,7 +247,7 @@ Expected tests:
 
 ## Later Slices
 
-1. `MeasurementRecord` schema using `QuantityLiteral` and `DistributionSpec`.
+1. `MeasurementRecord` schema using `QuantityLiteral` and `DistributionLiteral`.
 2. A scipy-backed stats adapter under an optional import boundary.
 3. A first evidence composition/template such as gaussian measurement.
 4. Audit/explain helpers for unit-equivalence warnings.

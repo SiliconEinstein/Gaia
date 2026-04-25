@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from gaia.ir import CallableRef, DistributionSpec, QuantityLiteral
+from gaia.ir import CallableRef, DistributionLiteral, QuantityLiteral
 from gaia.stats import (
     Beta,
     Binomial,
@@ -14,7 +14,7 @@ from gaia.stats import (
     Normal,
     Poisson,
     StudentT,
-    from_callable,
+    custom_distribution,
 )
 from gaia.unit import q
 
@@ -22,7 +22,7 @@ from gaia.unit import q
 def test_normal_constructor_converts_quantities_to_literals():
     spec = Normal(mu=q(80, "K"), sigma=q(3, "K"))
 
-    assert spec == DistributionSpec(
+    assert spec == DistributionLiteral(
         kind="normal",
         params={
             "mu": QuantityLiteral(value=80.0, unit="kelvin"),
@@ -31,8 +31,8 @@ def test_normal_constructor_converts_quantities_to_literals():
     )
 
 
-def test_all_builtin_constructors_return_specs():
-    specs = [
+def test_all_builtin_constructors_return_literals():
+    literals = [
         LogNormal(mu=0.0, sigma=1.0),
         StudentT(df=5, mu=0.0, sigma=1.0),
         Cauchy(mu=0.0, gamma=1.0),
@@ -42,7 +42,7 @@ def test_all_builtin_constructors_return_specs():
         Beta(alpha=2.0, beta=3.0),
     ]
 
-    assert [spec.kind for spec in specs] == [
+    assert [literal.kind for literal in literals] == [
         "lognormal",
         "student_t",
         "cauchy",
@@ -63,11 +63,11 @@ def test_builtin_constructor_rejects_unsupported_param_type():
         Normal(mu="abc", sigma=1.0)
 
 
-def test_from_callable_builds_custom_distribution_spec():
+def test_custom_distribution_builds_distribution_literal():
     def logpdf(x: float) -> float:
         return -x * x
 
-    spec = from_callable(
+    spec = custom_distribution(
         logpdf,
         name="pkg:unit_normal_logpdf",
         version="1.0",
@@ -83,6 +83,13 @@ def test_from_callable_builds_custom_distribution_spec():
     assert spec.callable_ref.signature == "(x: float) -> float"
     assert spec.callable_ref.source_hash.startswith("sha256:")
     assert spec.callable_ref.purity == "pure"
+
+
+def test_custom_distribution_hash_falls_back_when_source_is_unavailable():
+    spec = custom_distribution(len, name="python:len")
+
+    assert spec.callable_ref is not None
+    assert spec.callable_ref.source_hash.startswith("sha256:")
 
 
 def test_stats_module_does_not_import_scipy():

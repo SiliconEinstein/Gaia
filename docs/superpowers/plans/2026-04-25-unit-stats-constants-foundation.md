@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add Gaia v0.5's minimal foundation modules for unit-bearing values, distribution specifications, and physical constants.
+**Goal:** Add Gaia v0.5's minimal foundation modules for unit-bearing values, distribution literals, and physical constants.
 
 **Architecture:** Keep the kernel boundary small: IR stores deterministic Pydantic carriers, while user-facing helpers live in top-level `gaia.unit`, `gaia.stats`, and `gaia.constants`. Pint is a core dependency for units/constants; scipy remains optional and is not imported by this slice.
 
@@ -19,10 +19,10 @@ All commands below run from `/Users/kunchen/project/gaia_review` unless a step s
 
 ## File Structure
 
-- Create `gaia/ir/schemas.py`: shared IR carriers `QuantityLiteral`, `CallableRef`, and `DistributionSpec`.
+- Create `gaia/ir/schemas.py`: shared IR carriers `QuantityLiteral`, `CallableRef`, and `DistributionLiteral`.
 - Modify `gaia/ir/__init__.py`: export new schemas from the IR package.
 - Create `gaia/unit.py`: Pint facade with shared registry, `q`, `to_literal`, and `from_literal`.
-- Create `gaia/stats.py`: metadata-only distribution constructors and `from_callable`; no scipy import.
+- Create `gaia/stats.py`: metadata-only distribution constructors and `custom_distribution`; no scipy import.
 - Create `gaia/constants.py`: curated constants re-exported through `gaia.unit.ureg`.
 - Modify `gaia/lang/compiler/compile.py`: normalize quantity-valued claim parameters to JSON-native `QuantityLiteral`.
 - Modify `pyproject.toml`: add core Pint dependency and optional scipy `stats` extra.
@@ -48,7 +48,7 @@ Create `Gaia_v0.5/tests/ir/test_schemas.py` with:
 import pytest
 from pydantic import ValidationError
 
-from gaia.ir import CallableRef, DistributionSpec, QuantityLiteral
+from gaia.ir import CallableRef, DistributionLiteral, QuantityLiteral
 
 
 def test_quantity_literal_is_json_native():
@@ -65,7 +65,7 @@ def test_builtin_distribution_rejects_callable_ref():
     callable_ref = CallableRef(name="pkg:normal", version="1.0")
 
     with pytest.raises(ValidationError, match="Built-in distributions"):
-        DistributionSpec(
+        DistributionLiteral(
             kind="normal",
             params={"mu": 0.0, "sigma": 1.0},
             callable_ref=callable_ref,
@@ -74,7 +74,7 @@ def test_builtin_distribution_rejects_callable_ref():
 
 def test_custom_distribution_requires_callable_ref():
     with pytest.raises(ValidationError, match="custom distributions require callable_ref"):
-        DistributionSpec(kind="custom", params={})
+        DistributionLiteral(kind="custom", params={})
 
 
 def test_custom_distribution_accepts_callable_ref():
@@ -86,7 +86,7 @@ def test_custom_distribution_accepts_callable_ref():
         purity="pure",
     )
 
-    spec = DistributionSpec(
+    spec = DistributionLiteral(
         kind="custom",
         params={"scale": 2.0},
         callable_ref=callable_ref,
@@ -179,7 +179,7 @@ class CallableRef(BaseModel):
 DistributionParam = QuantityLiteral | float | int
 
 
-class DistributionSpec(BaseModel):
+class DistributionLiteral(BaseModel):
     """JSON-native distribution declaration for IR and adapter boundaries."""
 
     schema_version: Literal["gaia.distribution.v1"] = "gaia.distribution.v1"
@@ -188,7 +188,7 @@ class DistributionSpec(BaseModel):
     callable_ref: CallableRef | None = None
 
     @model_validator(mode="after")
-    def _validate_callable_ref(self) -> DistributionSpec:
+    def _validate_callable_ref(self) -> DistributionLiteral:
         if self.kind == "custom":
             if self.callable_ref is None:
                 raise ValueError("custom distributions require callable_ref")
@@ -209,7 +209,7 @@ Add after the existing `from gaia.ir.review import Review, ReviewManifest, Revie
 from gaia.ir.schemas import (
     BUILTIN_DISTRIBUTION_KINDS,
     CallableRef,
-    DistributionSpec,
+    DistributionLiteral,
     QuantityLiteral,
 )
 ```
@@ -220,7 +220,7 @@ Add these names to `__all__` before the review names:
     # Schemas
     "BUILTIN_DISTRIBUTION_KINDS",
     "CallableRef",
-    "DistributionSpec",
+    "DistributionLiteral",
     "QuantityLiteral",
 ```
 
@@ -403,7 +403,7 @@ git -C Gaia_v0.5 commit -m "feat: add Gaia unit facade"
 Create `Gaia_v0.5/tests/gaia/test_stats.py` with:
 
 ```python
-from gaia.ir import CallableRef, DistributionSpec, QuantityLiteral
+from gaia.ir import CallableRef, DistributionLiteral, QuantityLiteral
 from gaia.stats import (
     Beta,
     Binomial,
@@ -413,7 +413,7 @@ from gaia.stats import (
     Normal,
     Poisson,
     StudentT,
-    from_callable,
+    custom_distribution,
 )
 from gaia.unit import q
 
@@ -421,7 +421,7 @@ from gaia.unit import q
 def test_normal_constructor_converts_quantities_to_literals():
     spec = Normal(mu=q(80, "K"), sigma=q(3, "K"))
 
-    assert spec == DistributionSpec(
+    assert spec == DistributionLiteral(
         kind="normal",
         params={
             "mu": QuantityLiteral(value=80.0, unit="kelvin"),
@@ -430,8 +430,8 @@ def test_normal_constructor_converts_quantities_to_literals():
     )
 
 
-def test_all_builtin_constructors_return_specs():
-    specs = [
+def test_all_builtin_constructors_return_literals():
+    literals = [
         LogNormal(mu=0.0, sigma=1.0),
         StudentT(df=5, mu=0.0, sigma=1.0),
         Cauchy(mu=0.0, gamma=1.0),
@@ -441,7 +441,7 @@ def test_all_builtin_constructors_return_specs():
         Beta(alpha=2.0, beta=3.0),
     ]
 
-    assert [spec.kind for spec in specs] == [
+    assert [literal.kind for literal in literals] == [
         "lognormal",
         "student_t",
         "cauchy",
@@ -452,11 +452,11 @@ def test_all_builtin_constructors_return_specs():
     ]
 
 
-def test_from_callable_builds_custom_distribution_spec():
+def test_custom_distribution_builds_distribution_literal():
     def logpdf(x: float) -> float:
         return -x * x
 
-    spec = from_callable(
+    spec = custom_distribution(
         logpdf,
         name="pkg:unit_normal_logpdf",
         version="1.0",
@@ -496,7 +496,7 @@ Expected: FAIL because `gaia.stats` does not exist.
 Create `Gaia_v0.5/gaia/stats.py` with:
 
 ```python
-"""Distribution-spec constructors for Gaia authors.
+"""Distribution literal factory functions for Gaia authors.
 
 This module owns metadata-only distribution declarations. It intentionally does
 not import scipy.
@@ -509,11 +509,11 @@ import inspect
 from collections.abc import Callable
 from typing import Any, Literal
 
-from gaia.ir import CallableRef, DistributionParam, DistributionSpec
+from gaia.ir.schemas import CallableRef, DistributionParam, DistributionLiteral
 from gaia.unit import is_quantity, to_literal
 
 
-def _coerce_param(value: Any) -> DistributionParam:
+def _param_to_ir(value: Any) -> DistributionParam:
     if is_quantity(value):
         return to_literal(value)
     if isinstance(value, bool):
@@ -523,42 +523,42 @@ def _coerce_param(value: Any) -> DistributionParam:
     raise TypeError(f"Unsupported distribution parameter type: {type(value).__name__}")
 
 
-def _spec(kind: str, **params: Any) -> DistributionSpec:
-    return DistributionSpec(
+def _spec(kind: str, **params: Any) -> DistributionLiteral:
+    return DistributionLiteral(
         kind=kind,
-        params={name: _coerce_param(value) for name, value in params.items()},
+        params={name: _param_to_ir(value) for name, value in params.items()},
     )
 
 
-def Normal(*, sigma: Any, mu: Any = 0.0) -> DistributionSpec:
+def Normal(*, sigma: Any, mu: Any = 0.0) -> DistributionLiteral:
     return _spec("normal", mu=mu, sigma=sigma)
 
 
-def LogNormal(*, sigma: Any, mu: Any = 0.0) -> DistributionSpec:
+def LogNormal(*, sigma: Any, mu: Any = 0.0) -> DistributionLiteral:
     return _spec("lognormal", mu=mu, sigma=sigma)
 
 
-def StudentT(*, df: float, sigma: Any, mu: Any = 0.0) -> DistributionSpec:
+def StudentT(*, df: float, sigma: Any, mu: Any = 0.0) -> DistributionLiteral:
     return _spec("student_t", df=df, mu=mu, sigma=sigma)
 
 
-def Cauchy(*, gamma: Any, mu: Any = 0.0) -> DistributionSpec:
+def Cauchy(*, gamma: Any, mu: Any = 0.0) -> DistributionLiteral:
     return _spec("cauchy", mu=mu, gamma=gamma)
 
 
-def Binomial(*, n: int, p: float) -> DistributionSpec:
+def Binomial(*, n: int, p: float) -> DistributionLiteral:
     return _spec("binomial", n=n, p=p)
 
 
-def Poisson(*, rate: Any) -> DistributionSpec:
+def Poisson(*, rate: Any) -> DistributionLiteral:
     return _spec("poisson", rate=rate)
 
 
-def Exponential(*, rate: Any) -> DistributionSpec:
+def Exponential(*, rate: Any) -> DistributionLiteral:
     return _spec("exponential", rate=rate)
 
 
-def Beta(*, alpha: float, beta: float) -> DistributionSpec:
+def Beta(*, alpha: float, beta: float) -> DistributionLiteral:
     return _spec("beta", alpha=alpha, beta=beta)
 
 
@@ -570,14 +570,14 @@ def _callable_source_hash(fn: Callable[..., Any]) -> str:
     return f"sha256:{hashlib.sha256(source.encode()).hexdigest()}"
 
 
-def from_callable(
+def custom_distribution(
     fn: Callable[..., Any],
     *,
     name: str,
     version: str | None = None,
     params: dict[str, Any] | None = None,
     purity: Literal["pure", "impure", "unknown"] = "unknown",
-) -> DistributionSpec:
+) -> DistributionLiteral:
     callable_ref = CallableRef(
         name=name,
         version=version,
@@ -585,9 +585,9 @@ def from_callable(
         source_hash=_callable_source_hash(fn),
         purity=purity,
     )
-    return DistributionSpec(
+    return DistributionLiteral(
         kind="custom",
-        params={key: _coerce_param(value) for key, value in (params or {}).items()},
+        params={key: _param_to_ir(value) for key, value in (params or {}).items()},
         callable_ref=callable_ref,
     )
 ```
@@ -624,7 +624,7 @@ Run:
 
 ```bash
 git -C Gaia_v0.5 add gaia/stats.py gaia/ir/__init__.py tests/gaia/test_stats.py
-git -C Gaia_v0.5 commit -m "feat: add distribution spec constructors"
+git -C Gaia_v0.5 commit -m "feat: add distribution literal constructors"
 ```
 
 ## Task 4: Add Physical Constants Module
@@ -939,7 +939,7 @@ Spec coverage:
 - `gaia.unit`: Task 2.
 - `QuantityLiteral`: Task 1 and Task 2.
 - `gaia.stats`: Task 3.
-- `DistributionSpec`: Task 1 and Task 3.
+- `DistributionLiteral`: Task 1 and Task 3.
 - `CallableRef`: Task 1 and Task 3.
 - `gaia.constants`: Task 4.
 - Compile-boundary normalization: Task 5.
@@ -955,6 +955,6 @@ Placeholder scan:
 
 Type consistency:
 
-- `QuantityLiteral`, `CallableRef`, and `DistributionSpec` are defined in `gaia.ir.schemas` and exported from `gaia.ir` before use.
+- `QuantityLiteral`, `CallableRef`, and `DistributionLiteral` are defined in `gaia.ir.schemas` and exported from `gaia.ir` before use.
 - `gaia.unit.is_quantity` is defined before `gaia.stats` and the compiler import it.
 - `DistributionParam` is exported from `gaia.ir` before `gaia.stats` imports it.
