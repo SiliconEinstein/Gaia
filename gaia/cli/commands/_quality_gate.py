@@ -26,9 +26,7 @@ def load_quality_config(tool_gaia_quality: dict[str, Any] | None) -> QualityConf
     return QualityConfig(
         min_posterior=float(min_posterior) if min_posterior is not None else None,
         allow_holes=bool(config.get("allow_holes", False)),
-        allow_unformalized_dependencies=bool(
-            config.get("allow_unformalized_dependencies", False)
-        ),
+        allow_unformalized_dependencies=bool(config.get("allow_unformalized_dependencies", False)),
     )
 
 

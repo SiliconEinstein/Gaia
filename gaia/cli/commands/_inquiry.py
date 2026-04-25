@@ -214,9 +214,7 @@ def build_goal_trees(
 
         for scaffold in scaffolds_by_conclusion.get(knowledge_id, []):
             label = scaffold.get("label") or scaffold.get("id") or "depends_on"
-            inputs = [
-                ref for ref in scaffold.get("given", []) if isinstance(ref, str) and ref
-            ]
+            inputs = [ref for ref in scaffold.get("given", []) if isinstance(ref, str) and ref]
             edge = InquiryEdge(
                 kind="scaffold",
                 label=str(label),

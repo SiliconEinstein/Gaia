@@ -275,9 +275,7 @@ def test_gate_allows_unformalized_dependency_when_configured(tmp_path):
         'depends_on(c, given=(a, b), rationale="Scaffold.", label="c_depends_on_a_b")\n'
         '__all__ = ["c"]\n',
         quality=(
-            "\n[tool.gaia.quality]\n"
-            "allow_holes = true\n"
-            "allow_unformalized_dependencies = true\n"
+            "\n[tool.gaia.quality]\nallow_holes = true\nallow_unformalized_dependencies = true\n"
         ),
     )
 
