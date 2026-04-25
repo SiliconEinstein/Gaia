@@ -11,7 +11,7 @@ import inspect
 from collections.abc import Callable
 from typing import Any, Literal
 
-from gaia.ir import CallableRef, DistributionParam, DistributionSpec
+from gaia.ir.schemas import CallableRef, DistributionParam, DistributionSpec
 from gaia.unit import is_quantity, to_literal
 
 
@@ -65,6 +65,7 @@ def Beta(*, alpha: float, beta: float) -> DistributionSpec:
 
 
 def _callable_source_hash(fn: Callable[..., Any]) -> str:
+    """Return a best-effort provenance hash, not a stable identity key."""
     try:
         source = inspect.getsource(fn)
     except (OSError, TypeError):

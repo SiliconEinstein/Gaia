@@ -1,3 +1,9 @@
+import json
+import subprocess
+import sys
+
+import pytest
+
 from gaia.ir import CallableRef, DistributionSpec, QuantityLiteral
 from gaia.stats import (
     Beta,
@@ -47,6 +53,16 @@ def test_all_builtin_constructors_return_specs():
     ]
 
 
+def test_builtin_constructor_rejects_bool_params():
+    with pytest.raises(TypeError, match="not bool"):
+        Normal(mu=True, sigma=1.0)
+
+
+def test_builtin_constructor_rejects_unsupported_param_type():
+    with pytest.raises(TypeError, match="Unsupported distribution parameter type: str"):
+        Normal(mu="abc", sigma=1.0)
+
+
 def test_from_callable_builds_custom_distribution_spec():
     def logpdf(x: float) -> float:
         return -x * x
@@ -70,7 +86,17 @@ def test_from_callable_builds_custom_distribution_spec():
 
 
 def test_stats_module_does_not_import_scipy():
-    import sys
+    script = (
+        "import json, sys; "
+        "import gaia.stats; "
+        "print(json.dumps({'scipy': 'scipy' in sys.modules, "
+        "'scipy.stats': 'scipy.stats' in sys.modules}))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
-    assert "scipy" not in sys.modules
-    assert "scipy.stats" not in sys.modules
+    assert json.loads(result.stdout) == {"scipy": False, "scipy.stats": False}

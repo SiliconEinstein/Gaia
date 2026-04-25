@@ -64,7 +64,10 @@ def test_quantity_parameter_compiles_to_literal_json():
             },
         }
     ]
-    assert compiled.to_json()["knowledges"][0]["parameters"][0]["value"] == {
+    json_knowledge = next(
+        k for k in compiled.to_json()["knowledges"] if k["label"] == "temperature"
+    )
+    assert json_knowledge["parameters"][0]["value"] == {
         "schema_version": "gaia.quantity_literal.v1",
         "value": 80.0,
         "unit": "kelvin",

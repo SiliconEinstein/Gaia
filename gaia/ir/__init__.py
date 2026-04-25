@@ -37,6 +37,7 @@ from gaia.ir.parameterization import (
 from gaia.ir.review import Review, ReviewManifest, ReviewStatus
 from gaia.ir.schemas import (
     BUILTIN_DISTRIBUTION_KINDS,
+    BuiltinDistributionKind,
     CallableRef,
     DistributionParam,
     DistributionSpec,
@@ -75,6 +76,7 @@ __all__ = [
     "StrategyParamRecord",
     # Schemas
     "BUILTIN_DISTRIBUTION_KINDS",
+    "BuiltinDistributionKind",
     "CallableRef",
     "DistributionParam",
     "DistributionSpec",

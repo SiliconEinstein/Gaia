@@ -6,10 +6,10 @@ from typing import Any, TypeGuard
 
 from pint import UnitRegistry
 
-from gaia.ir import QuantityLiteral
+from gaia.ir.schemas import QuantityLiteral
 
 ureg = UnitRegistry()
-Quantity = type(ureg.Quantity(1, "dimensionless"))
+Quantity = ureg.Quantity
 
 
 def is_quantity(value: Any) -> TypeGuard[Quantity]:
