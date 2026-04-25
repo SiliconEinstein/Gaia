@@ -105,6 +105,59 @@ def test_gate_fails_on_unreviewed(tmp_path):
     assert "unreviewed" in result.output.lower()
 
 
+def test_gate_fails_on_unreviewed_compose(tmp_path):
+    pkg_dir = tmp_path / "gate_demo"
+    _write_gate_package(
+        pkg_dir,
+        "from gaia.lang import Claim, compose, derive\n\n"
+        'premise = Claim("A.")\n'
+        'premise.label = "premise"\n\n'
+        '@compose(name="test:workflow", version="1.0", label="workflow")\n'
+        "def workflow(a: Claim) -> Claim:\n"
+        '    result = derive("C.", given=a, rationale="A implies C.", label="derive_c")\n'
+        '    result.label = "c"\n'
+        "    return result\n\n"
+        "c = workflow(premise)\n"
+        '__all__ = ["c"]\n',
+        quality="\n[tool.gaia.quality]\nallow_holes = true\n",
+    )
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+    _accept_reviews_except(pkg_dir, "workflow")
+
+    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+
+    assert result.exit_code != 0
+    assert "workflow" in result.output
+
+
+def test_gate_fails_on_unreviewed_exported_infer_helper(tmp_path):
+    pkg_dir = tmp_path / "gate_demo"
+    _write_gate_package(
+        pkg_dir,
+        "from gaia.lang import Claim, infer\n\n"
+        'h = Claim("H.")\n'
+        'h.label = "h"\n'
+        'e = Claim("E.")\n'
+        'e.label = "e"\n\n'
+        "support = infer(\n"
+        "    e,\n"
+        "    hypothesis=h,\n"
+        "    p_e_given_h=0.9,\n"
+        "    p_e_given_not_h=0.1,\n"
+        '    label="infer_h",\n'
+        ")\n"
+        'support.label = "support"\n'
+        '__all__ = ["support"]\n',
+        quality="\n[tool.gaia.quality]\nallow_holes = true\n",
+    )
+
+    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+
+    assert result.exit_code != 0
+    assert "infer_h" in result.output
+
+
 def test_gate_still_runs_with_blind_warrant_report(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(

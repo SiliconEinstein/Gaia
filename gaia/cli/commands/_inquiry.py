@@ -61,6 +61,11 @@ def _has_grounding(knowledge: dict[str, Any]) -> bool:
     return isinstance(metadata.get("grounding"), dict)
 
 
+def _metadata_warrants(metadata: dict[str, Any] | None) -> list[str]:
+    warrants = (metadata or {}).get("warrants")
+    return [warrant for warrant in warrants or [] if isinstance(warrant, str) and warrant]
+
+
 def _exported_claim_ids(ir: dict[str, Any]) -> set[str]:
     return {
         knowledge["id"]
@@ -89,11 +94,46 @@ def build_goal_trees(
         if conclusion:
             strategies_by_conclusion.setdefault(conclusion, []).append(strategy)
 
+    actions_by_warrant: dict[str, list[dict[str, Any]]] = {}
+    for strategy in ir.get("strategies", []):
+        strategy_id = strategy.get("strategy_id")
+        conclusion = strategy.get("conclusion")
+        dependencies = [*strategy.get("premises", []), conclusion]
+        for warrant in _metadata_warrants(strategy.get("metadata")):
+            if warrant != conclusion:
+                actions_by_warrant.setdefault(warrant, []).append(
+                    {
+                        "kind": "strategy",
+                        "metadata": strategy.get("metadata"),
+                        "target_id": strategy_id,
+                        "fallback": strategy_id or "strategy",
+                        "dependencies": dependencies,
+                    }
+                )
+
     operators_by_conclusion: dict[str, list[dict[str, Any]]] = {}
     for operator in ir.get("operators", []):
         conclusion = operator.get("conclusion")
         if conclusion:
             operators_by_conclusion.setdefault(conclusion, []).append(operator)
+        dependencies = [*operator.get("variables", []), conclusion]
+        for warrant in _metadata_warrants(operator.get("metadata")):
+            if warrant != conclusion:
+                actions_by_warrant.setdefault(warrant, []).append(
+                    {
+                        "kind": "operator",
+                        "metadata": operator.get("metadata"),
+                        "target_id": operator.get("operator_id"),
+                        "fallback": operator.get("operator_id") or "operator",
+                        "dependencies": dependencies,
+                    }
+                )
+
+    composes_by_conclusion: dict[str, list[dict[str, Any]]] = {}
+    for compose in ir.get("composes", []):
+        conclusion = compose.get("conclusion")
+        if conclusion:
+            composes_by_conclusion.setdefault(conclusion, []).append(compose)
 
     def build_node(knowledge_id: str, seen: set[str]) -> InquiryNode:
         knowledge = knowledge_by_id.get(knowledge_id, {"id": knowledge_id, "content": ""})
@@ -148,6 +188,39 @@ def build_goal_trees(
                 ],
             )
             node.incoming.append(edge)
+
+        for compose in composes_by_conclusion.get(knowledge_id, []):
+            compose_id = compose.get("compose_id")
+            dependencies = [
+                ref for ref in [*compose.get("inputs", []), *compose.get("warrants", [])] if ref
+            ]
+            edge = InquiryEdge(
+                kind="compose",
+                label=_action_label(compose.get("metadata"), compose_id or "compose"),
+                target_id=compose_id,
+                status=_review_status(review_manifest, compose_id),
+                inputs=[build_node(ref, next_seen) for ref in dict.fromkeys(dependencies)],
+            )
+            node.incoming.append(edge)
+
+        seen_targets = {edge.target_id for edge in node.incoming if edge.target_id}
+        for action in actions_by_warrant.get(knowledge_id, []):
+            target_id = action.get("target_id")
+            if target_id in seen_targets:
+                continue
+            dependencies = [
+                ref for ref in action.get("dependencies", []) if isinstance(ref, str) and ref
+            ]
+            edge = InquiryEdge(
+                kind=action.get("kind", "warrant"),
+                label=_action_label(action.get("metadata"), action.get("fallback", "warrant")),
+                target_id=target_id,
+                status=_review_status(review_manifest, target_id),
+                inputs=[build_node(ref, next_seen) for ref in dict.fromkeys(dependencies)],
+            )
+            node.incoming.append(edge)
+            if target_id:
+                seen_targets.add(target_id)
 
         return node
 

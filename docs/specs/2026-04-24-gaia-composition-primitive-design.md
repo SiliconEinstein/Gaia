@@ -5,6 +5,8 @@
 > **Scope:** The `ComposedAction` Knowledge subtype, the `@composition` authoring decorator, `CompositeStrategy` → `ComposedAction` migration, the `gaia.evidence` canonical template set, and all implementation-level mechanics the foundation defers to this document.
 > **Relationship to foundation spec:** Foundation §12 commits to six invariants (ComposedAction is a Knowledge subtype, deterministic identity, sub-Knowledge universality, hierarchical-with-override review, R4 at composition level, CallableRef-as-provenance survives compositions). This spec specifies **how** those invariants are realised. Mechanics here may iterate without re-editing foundation.
 
+> **Current v0.5 implementation note (2026-04-25):** PR #477 landed the minimal executable form under the shorter names `Compose` and `@compose`. The compiled IR stores records in top-level `graph.composes` (`gaia/ir/compose.py`) with `inputs`, `background`, `actions`, `warrants`, and `conclusion`; it does **not** yet promote `Compose` to a `Knowledge` subtype or inject reverse `composition_id` pointers into child records. `infer()` now returns a `helper_kind="likelihood"` Claim and `associate()` returns a `helper_kind="association"` Claim. Treat the `ComposedAction` / `@composition` naming and Knowledge-subtype promotion below as the fuller target design, not as current code facts.
+
 ---
 
 ## 0. Design goals
@@ -85,7 +87,7 @@ A composition's `conclusion` is whichever Claim the terminal action returned —
 
 `conclusion` is **required** — every composition must commit to a single public output Claim. See §10 for the multi-output open point.
 
-**Prerequisite (v0.5 DSL update):** v0.5 HEAD's `gaia/lang/dsl/infer_verb.py` already generates a helper Claim with `metadata["helper_kind"]` (currently tagged `"statistical_support"`, foundation now specifies `"likelihood"`) and attaches it to the `Infer` Action's `helper` field — but `infer()` currently returns `evidence` instead of `helper`. Foundation §17 item 11b tracks the fix: rename the helper kind to `"likelihood"` and return the helper Claim. This is a prerequisite for the composition primitive's `conclusion = likelihood_helper_qid` rule above.
+**Resolved prerequisite (v0.5 DSL update):** current v0.5 `gaia/lang/dsl/infer_verb.py` generates a helper Claim with `metadata["helper_kind"] = "likelihood"`, attaches it to the `Infer` Action's `helper` field, and returns that helper Claim. This is what makes `conclusion = likelihood_helper_qid` possible for evidence-shaped compositions.
 
 ### 1.5 Reverse pointer on sub-Knowledge
 
