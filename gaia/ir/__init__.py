@@ -38,6 +38,7 @@ from gaia.ir.review import Review, ReviewManifest, ReviewStatus
 from gaia.ir.schemas import (
     BUILTIN_DISTRIBUTION_KINDS,
     CallableRef,
+    DistributionParam,
     DistributionSpec,
     QuantityLiteral,
 )
@@ -75,6 +76,7 @@ __all__ = [
     # Schemas
     "BUILTIN_DISTRIBUTION_KINDS",
     "CallableRef",
+    "DistributionParam",
     "DistributionSpec",
     "QuantityLiteral",
     # Review
