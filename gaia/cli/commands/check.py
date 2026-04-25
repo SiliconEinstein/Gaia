@@ -10,112 +10,77 @@ from gaia.cli._packages import GaiaCliError, load_gaia_package, validate_fills_r
 from gaia.cli._packages import apply_package_priors
 from gaia.cli._packages import compile_loaded_package_artifact
 from gaia.cli.commands._classify import classify_ir, node_role
+from gaia.cli.commands.check_core import (
+    KnowledgeBreakdown,
+    analyze_knowledge_breakdown,
+    get_prior as _get_prior,
+)
 from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
 
 
-def _get_prior(k: dict) -> float | None:
-    """Extract prior from a knowledge node's metadata, or None if absent."""
-    meta = k.get("metadata") or {}
-    return meta.get("prior")
-
-
 def _knowledge_diagnostics(ir: dict) -> list[str]:
-    """Analyze the knowledge graph and return diagnostic lines."""
+    """Format the role-based knowledge breakdown for `gaia check` output.
+
+    Detection lives in ``check_core.analyze_knowledge_breakdown``; this is the
+    text-rendering wrapper.
+    """
+    kb = analyze_knowledge_breakdown(ir)
     lines: list[str] = []
+    n_holes = len(kb.holes)
 
-    claims = {k["id"]: k for k in ir["knowledges"] if k["type"] == "claim"}
-    settings = {k["id"]: k for k in ir["knowledges"] if k["type"] == "setting"}
-    questions = {k["id"]: k for k in ir["knowledges"] if k["type"] == "question"}
-
-    c = classify_ir(ir)
-
-    independent: list[tuple[str, str]] = []  # (label, cid)
-    derived = []
-    structural = []
-    background_only = []
-    orphaned = []
-
-    for cid, k in claims.items():
-        label = k.get("label", cid.split("::")[-1])
-        role = node_role(cid, "claim", c)
-        if role == "structural":
-            structural.append(label)
-        elif role == "derived":
-            derived.append(label)
-        elif role == "independent":
-            independent.append((label, cid))
-        elif role == "background":
-            background_only.append(label)
-        else:
-            orphaned.append(label)
-
-    n_holes = sum(1 for _, cid in independent if _get_prior(claims[cid]) is None)
-
-    # Summary
     lines.append("")
-    lines.append(f"  Settings:  {len(settings)}")
-    lines.append(f"  Questions: {len(questions)}")
-    lines.append(f"  Claims:    {len(claims)}")
-    lines.append(f"    Independent (need prior):  {len(independent)}")
+    lines.append(f"  Settings:  {len(kb.settings)}")
+    lines.append(f"  Questions: {len(kb.questions)}")
+    lines.append(f"  Claims:    {len(kb.independent) + len(kb.derived) + len(kb.structural) + len(kb.background_only) + len(kb.orphaned)}")
+    lines.append(f"    Independent (need prior):  {len(kb.independent)}")
     if n_holes:
         lines.append(f"      Holes (no prior set):   {n_holes}")
-    lines.append(f"    Derived (BP propagates):   {len(derived)}")
-    lines.append(f"    Structural (deterministic): {len(structural)}")
-    if background_only:
-        lines.append(f"    Background-only:           {len(background_only)}")
-    if orphaned:
-        lines.append(f"    Orphaned (no connections): {len(orphaned)}")
+    lines.append(f"    Derived (BP propagates):   {len(kb.derived)}")
+    lines.append(f"    Structural (deterministic): {len(kb.structural)}")
+    if kb.background_only:
+        lines.append(f"    Background-only:           {len(kb.background_only)}")
+    if kb.orphaned:
+        lines.append(f"    Orphaned (no connections): {len(kb.orphaned)}")
 
-    if independent:
+    if kb.independent:
         lines.append("")
         lines.append("  Independent premises:")
-        for label, cid in sorted(independent):
-            prior = _get_prior(claims[cid])
-            if prior is not None:
-                lines.append(f"    - {label}  prior={prior}")
+        for entry in sorted(kb.independent, key=lambda e: e.label):
+            if entry.prior is not None:
+                lines.append(f"    - {entry.label}  prior={entry.prior}")
             else:
-                lines.append(f"    - {label}  \u26a0 no prior (defaults to 0.5)")
+                lines.append(f"    - {entry.label}  ⚠ no prior (defaults to 0.5)")
 
-    if derived:
+    if kb.derived:
         lines.append("")
         lines.append("  Derived conclusions (belief from BP, prior optional):")
-        for label in sorted(derived):
+        for label in sorted(kb.derived):
             lines.append(f"    - {label}")
 
-    if background_only:
+    if kb.background_only:
         lines.append("")
         lines.append(
             "  Background-only claims (referenced in strategy background, not in BP graph):"
         )
-        for label in sorted(background_only):
+        for label in sorted(kb.background_only):
             lines.append(f"    - {label}")
 
-    if orphaned:
+    if kb.orphaned:
         lines.append("")
         lines.append("  Orphaned claims (not referenced anywhere):")
-        for label in sorted(orphaned):
+        for label in sorted(kb.orphaned):
             lines.append(f"    - {label}")
 
     return lines
 
 
 def _hole_report(ir: dict) -> list[str]:
-    """Return detailed report of all independent claims without priors (holes)."""
-    claims = {k["id"]: k for k in ir["knowledges"] if k["type"] == "claim"}
-    c = classify_ir(ir)
+    """Format the hole-vs-covered breakdown for `gaia check --hole`."""
+    kb = analyze_knowledge_breakdown(ir)
+    holes = sorted(kb.holes, key=lambda e: e.cid)
+    covered = sorted(kb.covered, key=lambda e: e.cid)
     lines: list[str] = []
-    holes: list[tuple[str, dict]] = []
-    covered: list[tuple[str, dict]] = []
-
-    for cid, k in claims.items():
-        if node_role(cid, "claim", c) != "independent":
-            continue
-        prior = _get_prior(k)
-        if prior is None:
-            holes.append((cid, k))
-        else:
-            covered.append((cid, k))
 
     lines.append("")
     lines.append(
@@ -125,25 +90,24 @@ def _hole_report(ir: dict) -> list[str]:
     if holes:
         lines.append("")
         lines.append("  Holes (independent claims missing prior — defaults to 0.5):")
-        for cid, k in sorted(holes, key=lambda x: x[0]):
-            label = k.get("label", cid.split("::")[-1])
-            content = k.get("content", "")
-            preview = (content[:72] + "...") if len(content) > 75 else content
-            lines.append(f"    {label}")
-            lines.append(f"      id:      {cid}")
+        for entry in holes:
+            preview = (entry.content[:72] + "...") if len(entry.content) > 75 else entry.content
+            lines.append(f"    {entry.label}")
+            lines.append(f"      id:      {entry.cid}")
             lines.append(f"      content: {preview}")
             lines.append("      prior:   NOT SET (defaults to 0.5)")
 
     if covered:
         lines.append("")
         lines.append("  Covered (independent claims with prior set):")
-        for cid, k in sorted(covered, key=lambda x: x[0]):
-            label = k.get("label", cid.split("::")[-1])
-            prior = _get_prior(k)
-            justification = (k.get("metadata") or {}).get("prior_justification", "")
-            lines.append(f"    {label}  prior={prior}")
-            if justification:
-                preview = (justification[:72] + "...") if len(justification) > 75 else justification
+        for entry in covered:
+            lines.append(f"    {entry.label}  prior={entry.prior}")
+            if entry.prior_justification:
+                preview = (
+                    entry.prior_justification[:72] + "..."
+                    if len(entry.prior_justification) > 75
+                    else entry.prior_justification
+                )
                 lines.append(f"      reason: {preview}")
 
     if not holes:
