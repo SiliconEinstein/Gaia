@@ -19,6 +19,7 @@ from gaia.cli._packages import (
     compile_loaded_package_artifact,
     ensure_package_env,
     load_gaia_package,
+    load_dependency_compiled_graphs,
 )
 from gaia.cli.commands.check_core import (
     KnowledgeBreakdown,
@@ -163,11 +164,13 @@ def run_review(
     compile_status = "error"
     ir_hash: str | None = None
     counts = {"knowledge": 0, "strategies": 0, "operators": 0}
+    project_config: dict[str, Any] | None = None
 
     # Step 1: compile via Gaia.
     try:
         ensure_package_env(pkg_path)
         loaded = load_gaia_package(str(pkg_path))
+        project_config = loaded.project_config
         apply_package_priors(loaded)
         compiled = compile_loaded_package_artifact(loaded)
         graph = compiled.graph
@@ -207,7 +210,15 @@ def run_review(
     semantic_diff = compute_semantic_diff(ir_dict, baseline_snap)
 
     # Step 5: inference via gaia.bp; enrich with baseline belief deltas.
-    belief_report = _build_belief_report(graph, pkg_path, no_infer, errors, focus)
+    belief_report = _build_belief_report(
+        graph,
+        pkg_path,
+        no_infer,
+        errors,
+        focus,
+        depth=depth,
+        project_config=project_config,
+    )
     if belief_report["ran_inference"] and baseline_snap is not None:
         _annotate_belief_deltas(belief_report, baseline_snap)
 
@@ -268,7 +279,7 @@ def run_review(
     )
 
     # Persist snapshot for future diffs.
-    save_snapshot(
+    actual_review_id = save_snapshot(
         pkg_path,
         review_id=review_id,
         created_at=created_at,
@@ -276,10 +287,11 @@ def run_review(
         ir_dict=ir_dict,
         beliefs=belief_report.get("beliefs", []),
     )
+    report.review_id = actual_review_id
 
-    state.last_review_id = review_id
+    state.last_review_id = actual_review_id
     if state.baseline_review_id is None:
-        state.baseline_review_id = review_id
+        state.baseline_review_id = actual_review_id
     state.mode = mode
     save_state(pkg_path, state)
 
@@ -351,21 +363,29 @@ def _graph_to_ir_dict(graph) -> dict | None:
         )
     strategies = []
     for s in getattr(graph, "strategies", []) or []:
+        sid = getattr(s, "strategy_id", None) or getattr(s, "id", "") or ""
         strategies.append(
             {
-                "id": getattr(s, "id", ""),
+                "id": sid,
+                "strategy_id": sid,
+                "type": _normalize_type(getattr(s, "type", "")),
                 "conclusion": getattr(s, "conclusion", None),
                 "premises": list(getattr(s, "premises", []) or []),
                 "background": list(getattr(s, "background", []) or []),
+                "metadata": dict(getattr(s, "metadata", {}) or {}),
             }
         )
     operators = []
     for o in getattr(graph, "operators", []) or []:
+        oid = getattr(o, "operator_id", None) or getattr(o, "id", "") or ""
         operators.append(
             {
-                "id": getattr(o, "id", ""),
+                "id": oid,
+                "operator_id": oid,
+                "operator": _normalize_type(getattr(o, "operator", "")),
                 "conclusion": getattr(o, "conclusion", None),
                 "variables": list(getattr(o, "variables", []) or []),
+                "metadata": dict(getattr(o, "metadata", {}) or {}),
             }
         )
     return {"knowledges": knowledges, "strategies": strategies, "operators": operators}
@@ -434,6 +454,9 @@ def _build_belief_report(
     no_infer: bool,
     errors: list[str],
     focus: FocusBinding,
+    *,
+    depth: int = 0,
+    project_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     out: dict[str, Any] = {
         "ran_inference": False,
@@ -447,11 +470,23 @@ def _build_belief_report(
     if errors:
         return out
     try:
-        from gaia.bp import lower_local_graph
+        from gaia.bp import lower_local_graph, merge_factor_graphs
         from gaia.bp.engine import InferenceEngine
 
-        foreign = collect_foreign_node_priors(graph, pkg_path)
-        fg = lower_local_graph(graph, node_priors=foreign or None)
+        if depth != 0:
+            dep_compiled = load_dependency_compiled_graphs(project_config or {}, depth=depth)
+            dep_factor_graphs = []
+            for dep in dep_compiled:
+                dep_fg = lower_local_graph(dep.graph)
+                dep_prefix = f"{dep.graph.namespace}:{dep.graph.package_name}::"
+                dep_factor_graphs.append((dep.import_name, dep_fg, dep_prefix))
+            fg = lower_local_graph(graph)
+            if dep_factor_graphs:
+                local_prefix = f"{graph.namespace}:{graph.package_name}::"
+                fg = merge_factor_graphs(fg, dep_factor_graphs, local_prefix=local_prefix)
+        else:
+            foreign = collect_foreign_node_priors(graph, pkg_path)
+            fg = lower_local_graph(graph, node_priors=foreign or None)
         fg_errs = fg.validate()
         if fg_errs:
             errors.extend(fg_errs)
