@@ -165,20 +165,14 @@ When given a **claim label** (e.g., `--show hypothesis`): shows the claim's full
 
 ## 6. Priors
 
-Priors are set directly in DSL source via `reason+prior` pairing and `priors.py`, then baked into claim metadata at compile time. No separate review sidecar is needed.
+External priors are assigned with `priors.py` and baked into claim metadata at
+compile time. No separate review sidecar is needed.
 
-### Inline reason+prior pairing
+Legacy strategy APIs may still preserve paired `reason+prior` values for old
+packages, but new v0.5 packages should not use them as the primary review
+surface.
 
-Strategies accept a `prior=` keyword that pairs with their `reason=`:
-
-```python
-H = claim("Hypothesis X", label="hypothesis")
-E = claim("Evidence Y", label="evidence")
-
-deduction(E, concludes=H, prior=0.85, reason="Strong experimental support")
-```
-
-### priors.py (batch priors)
+### priors.py
 
 For leaf claims (independent premises) without a concluding strategy, assign priors in `src/<package>/priors.py`:
 
@@ -191,7 +185,9 @@ PRIORS = {
 }
 ```
 
-These are applied at load time before compilation. `gaia check --brief` shows which claims are independent (need priors) vs derived (get beliefs from BP).
+These are applied at load time before compilation. `gaia check --brief` and
+`gaia check --hole` show which claims are independent (need priors) vs derived
+(get beliefs from BP).
 
 For complete prior assignment guide and BP interpretation, see the **review** skill.
 
@@ -204,7 +200,7 @@ gaia infer [PATH] [--depth N]
 Compiles IR into a factor graph, runs belief propagation, and writes posterior beliefs to `.gaia/beliefs.json`.
 
 - Auto-runs `uv sync --quiet` before loading the package to ensure dependencies are installed.
-- Priors come from claim metadata (`priors.py` + DSL `reason+prior` pairing), baked in at compile time. No review sidecar is needed.
+- Priors come from claim metadata (`priors.py`), baked in at compile time. No review sidecar is needed.
 - Auto-selects algorithm based on factor graph treewidth:
   - **Junction tree** (exact inference, treewidth ≤ 15)
   - **Generalized BP** (region decomposition, treewidth 16-30)

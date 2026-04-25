@@ -11,6 +11,7 @@ from gaia.lang import (
     composite,
     abduction,
     contradiction,
+    derive,
     fills,
     induction,
     support,
@@ -24,6 +25,13 @@ from gaia.lang.compiler.compile import (
     _content_hash,
 )
 from gaia.lang.runtime.package import CollectedPackage
+
+LEGACY_NOISY_AND_WARNING = pytest.mark.filterwarnings(
+    "ignore:noisy_and\\(\\) is deprecated:DeprecationWarning"
+)
+LEGACY_SUPPORT_WARNING = pytest.mark.filterwarnings(
+    "ignore:support\\(\\) is deprecated:DeprecationWarning"
+)
 
 
 # ── _content_hash / _anonymous_label / _normalize_label ──
@@ -154,7 +162,7 @@ def test_compile_basic_package():
         a.label = "a"
         b = claim("Claim B.")
         b.label = "b"
-        noisy_and([a], b)
+        derive(b, given=(a,), rationale="A derives B.")
     result = compile_package_artifact(pkg)
     assert result.graph.namespace == "github"
     assert result.graph.package_name == "test_pkg"
@@ -173,7 +181,7 @@ def test_compile_with_background():
         a.label = "a"
         b = claim("B.")
         b.label = "b"
-        noisy_and(premises=[a], conclusion=b, background=[ctx])
+        derive(b, given=(a,), background=[ctx], rationale="Contextual derivation.")
     result = compile_package_artifact(pkg)
     strat = result.graph.strategies[0]
     assert strat.background is not None
@@ -187,18 +195,15 @@ def test_compile_with_reason_steps():
         a.label = "a"
         b = claim("B.")
         b.label = "b"
-        noisy_and(
-            premises=[a],
-            conclusion=b,
-            reason=[Step(reason="A supports B", premises=[a])],
-        )
+        derive(b, given=(a,), rationale="A supports B.")
     result = compile_package_artifact(pkg)
     strat = result.graph.strategies[0]
     assert strat.steps is not None
-    assert strat.steps[0].reasoning == "A supports B"
-    assert strat.steps[0].premises == ["github:test_pkg::a"]
+    assert strat.steps[0].reasoning == "A supports B."
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_NOISY_AND_WARNING
 def test_compile_composite_strategy():
     pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
     with pkg:
@@ -216,6 +221,8 @@ def test_compile_composite_strategy():
     assert len(result.graph.strategies) == 3
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_compile_abduction_creates_composite_strategy():
     pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
     with pkg:
@@ -328,6 +335,8 @@ def test_compile_module_titles():
     assert result.graph.module_titles == {"intro": "Introduction"}
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_compile_induction():
     """Induction compiles to CompositeStrategy with support sub-strategies."""
     pkg = CollectedPackage("test_induction", namespace="github", version="1.0.0")

@@ -1,443 +1,212 @@
 ---
 name: gaia-lang
-description: "Gaia Lang DSL reference — knowledge declarations, logical operators, reasoning strategies, module organization, and export conventions."
+description: "Gaia Lang v0.5 DSL reference for authoring packages with claim/note, action verbs, relation verbs, composition, priors, and legacy boundaries."
 ---
 
 # Gaia Lang DSL Reference
 
-Complete reference for authoring Gaia knowledge packages using the Python DSL.
+Use this skill when writing or editing Gaia package source code. Prefer the
+current v0.5 authoring surface. Do not introduce legacy `support()`,
+`noisy_and()`, `setting()`, `contradiction()`, `abduction()`, or `induction()`
+unless you are intentionally editing compatibility tests or migrating an old
+package.
 
-## 1. Imports
+## Imports
 
 ```python
 from gaia.lang import (
-    claim, setting, question,                              # Knowledge
-    contradiction, equivalence, complement, disjunction,   # Operators
-    support, compare, deduction, abduction, induction,     # Strategies
-    analogy, extrapolation, elimination, case_analysis,
-    mathematical_induction, composite, infer, fills,
-    # noisy_and,  # deprecated -- use support()
+    claim,
+    note,
+    question,
+    observe,
+    derive,
+    compute,
+    infer,
+    associate,
+    equal,
+    contradict,
+    exclusive,
+    compose,
 )
 ```
 
-## 2. Knowledge Types
+Optional Boolean helpers are also available:
+
+```python
+from gaia.lang import not_, and_, or_
+```
+
+Use `~a`, `a & b`, and `a | b` when working with `Claim` objects directly.
+
+## Knowledge
 
 ### `claim(content, *, title=None, background=None, parameters=None, provenance=None, **metadata)`
 
-The only type that carries probability in BP. Use explicit strategies (`support`, `deduction`, etc.) to connect claims via reasoning.
+Use `claim()` for propositions that can carry probability during inference.
 
 ```python
-# Simple claim
-tc = claim("Tc of MgB2 is 39K")
-
-# Claim with background context (settings/questions, not logical premises)
-result = claim(
-    "The ball reaches the ground in 1.4s",
-    background=[experimental_setup, newtonian_gravity],
-)
-
-# Parameterized universal claim
-universal = claim(
-    "Material X is a superconductor below Tc(X)",
-    parameters=[{"name": "X", "type": "material"}],
-)
-
-# Claim with provenance (cross-package attribution)
-imported = claim(
-    "Electron-phonon coupling drives conventional SC",
-    provenance=[{"package_id": "bcs-theory", "version": "1.0.0"}],
-)
-
-# Claim with title
-titled = claim("H = p^2/2m + V(x)", title="Hamiltonian of the system")
+model = claim("The medium-resistance model explains ordinary falling in air.")
+observation = claim("Heavy bodies often fall faster than light bodies in air.")
 ```
 
-### `setting(content, *, title=None, **metadata)`
+### `note(content, *, title=None, format="markdown", **metadata)`
 
-Background context. No probability, no BP participation.
-Use for: math definitions, experimental conditions, established principles.
-Referenced via `background=` on claims or strategies.
+Use `note()` for non-probabilistic context: definitions, setup, variable
+bindings, or explanatory background. Notes are usually attached with
+`background=`.
 
 ```python
-setup = setting("A ball is dropped from 10m height in vacuum")
-definition = setting("Let G = 6.674e-11 N m^2 kg^-2")
+setup = note("Tied-body setup: a heavy ball and a light ball are bound together.")
 ```
 
 ### `question(content, *, title=None, **metadata)`
 
-Open inquiry. No probability, no BP participation.
+Use `question()` for open research questions. Questions do not participate in
+BP.
+
+## Action Verbs
+
+Action verbs create reviewable warrants and compile to Gaia IR. They are the
+normal way to connect claims in v0.5 packages.
+
+### `observe(conclusion, *, given=(), background=None, rationale="", label=None)`
+
+Use for empirical observations or measurements. A root `observe(...)` claim is
+still an independent probabilistic input: grounding is qualitative, not a
+numeric prior.
 
 ```python
-q = question("What is the critical temperature of this material?")
-```
-
-## 3. Operators (Deterministic Constraints)
-
-All operators take Knowledge inputs and optional `reason: str` + `prior: float`. `reason` and `prior` must be paired: both or neither. Each returns a helper claim that can be used as a premise in strategies. Prior values must be within Cromwell bounds `[1e-3, 0.999]`.
-
-| Function | Semantics | Helper claim meaning |
-|----------|-----------|---------------------|
-| `contradiction(a, b)` | not(A and B) | `not_both_true(A, B)` |
-| `equivalence(a, b)` | A = B | `same_truth(A, B)` |
-| `complement(a, b)` | A XOR B | `opposite_truth(A, B)` |
-| `disjunction(*claims)` | at least one true | `any_true(C0, C1, ...)` |
-
-```python
-# Two hypotheses cannot both be true
-not_both = contradiction(hypothesis_a, hypothesis_b,
-    reason="Mutually exclusive mechanisms", prior=0.99)
-
-# Two formulations are logically equivalent
-same = equivalence(formulation_1, formulation_2,
-    reason="Algebraic rearrangement", prior=0.95)
-
-# Exactly one of two alternatives holds
-one_of = complement(conventional_sc, unconventional_sc,
-    reason="Exhaustive classification", prior=0.95)
-
-# At least one explanation must be true
-at_least_one = disjunction(
-    mechanism_a, mechanism_b, mechanism_c,
-    reason="These exhaust known possibilities", prior=0.9,
+obs = observe(
+    "The measured transition temperature is near 39 K.",
+    rationale="Reported in the experiment.",
 )
 ```
 
-## 4. Strategies
+### `derive(conclusion, *, given=(), background=None, rationale="", label=None)`
 
-All strategies auto-register. All accept optional `reason: str | list = ""` and `background: list[Knowledge] | None = None`.
-
-### Leaf Strategies
-
-#### `support(premises, conclusion, *, reason="", prior=None, background=None)`
-
-**The most common strategy type.** Soft deduction based on the directed `implication` operator (A=1 → B must =1): premises jointly support conclusion via forward implication. Same structure as `deduction` (conjunction + directed implication) but with an author-specified prior on the implication warrant. `reason` and `prior` must be paired: both or neither.
+Use when the conclusion follows deterministically once the given claims and
+rationale are accepted.
 
 ```python
-conclusion = claim("MgB2 has two superconducting gaps")
-support(
-    [band_structure_evidence, tunneling_data, specific_heat_anomaly],
-    conclusion,
-    reason="Three independent lines of evidence converge",
-    prior=0.85,
+prediction = derive(
+    "The model predicts equal falling speed in vacuum.",
+    given=model,
+    background=[vacuum_setup],
+    rationale="If the medium causes the in-air difference, removing it removes the difference.",
 )
 ```
 
-#### `deduction(premises, conclusion, *, reason="", prior=None, background=None)`
+### `compute(ClaimType, *, fn=None, given=(), background=None, rationale="", label=None)`
 
-Strict logical entailment based on the directed `implication` operator. Same skeleton as `support` (conjunction + directed implication) but semantically rigid (deterministic). Requires >= 1 premise. `reason` and `prior` must be paired: both or neither.
+Use for deterministic calculations. It can be called directly or used as a
+decorator with a `Claim` return annotation.
 
-Key test: "If premises are all true, is this conclusion NECESSARILY true?"
-- Yes -> deduction
-- No (approximations, empirical judgment, omitted premises) -> support
+### `infer(evidence, *, hypothesis, p_e_given_h, p_e_given_not_h, background=None, rationale="", label=None)`
+
+Use for an explicit probabilistic evidence link. Extract the uncertain pieces
+as claims first; do not hide missing premises inside prose rationale.
 
 ```python
-theorem = claim("The series converges")
-deduction(
-    [bounded_above, monotonically_increasing],
-    theorem,
-    reason="Monotone convergence theorem",
-    prior=0.99,
-    background=[real_analysis_definition],
+likelihood = infer(
+    observation,
+    hypothesis=model,
+    p_e_given_h=0.9,
+    p_e_given_not_h=0.2,
+    rationale="The observation is much more likely if the model is correct.",
 )
 ```
 
-#### `compare(pred_h, pred_alt, observation, *, reason="", prior=None, background=None)`
+`infer(...)` returns a generated likelihood helper claim. Do not assign an
+external prior to that helper.
 
-Compare two predictions against an observation. Compiles to 2 equivalence operators (matching each prediction to observation) + 1 implication (inferential ordering). Auto-generates a `comparison_claim` as the conclusion. `reason` and `prior` must be paired: both or neither.
+### `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, background=None, rationale="", label=None)`
 
-```python
-pred_h = claim("H predicts 3:1 ratio.")
-pred_alt = claim("Alt predicts continuous distribution.")
-obs = claim("Observed 2.96:1 ratio.")
-comp = compare(pred_h, pred_alt, obs,
-    reason="H matches observation much better", prior=0.9)
-# comp.conclusion is the auto-generated comparison claim
-```
+Use for a symmetric probabilistic association. At least one base-rate anchor
+must be available, either through `prior_a`, `prior_b`, or `priors.py`.
 
-#### `infer(premises, conclusion, *, reason="", background=None)`
+## Relation Verbs
 
-General CPT with 2^k entries. Rarely used directly.
-
-Review requires: `conditional_probabilities` (list of 2^N floats).
+Relation verbs return generated helper claims and compile to deterministic
+operators.
 
 ```python
-result = claim("System is in phase X")
-infer(
-    [temperature_condition, pressure_condition],
-    result,
-    reason="Phase diagram lookup",
-)
+same = equal(prediction, observation, rationale="The prediction matches the observation.")
+conflict = contradict(a, b, rationale="Both claims cannot hold in the same setup.")
+choice = exclusive(left, right, rationale="The alternatives form a closed binary partition.")
 ```
 
-#### `fills(source, target, *, mode=None, strength="exact", background=None, reason="")`
+Do not assign external priors to relation helper claims.
 
-Cross-package interface bridging. `strength` is `"exact"` | `"partial"` | `"conditional"`. `mode` is `"deduction"` | `"infer"` | `None` (auto-resolved).
+## Composition
+
+Use `@compose(...)` when a named workflow of actions should be reviewed as a
+unit.
 
 ```python
-local_evidence = claim("Our measurement confirms the prediction.")
-fills(local_evidence, imported_interface_claim, strength="exact")
+@compose(name="example:workflow", version="1.0", rationale="Reusable analysis path.")
+def workflow(model):
+    prediction = derive("Prediction.", given=model, rationale="Model entails it.")
+    return prediction
 ```
 
-#### `noisy_and()` (deprecated)
+The decorated function returns its normal conclusion claim. The runtime records
+a `Compose` action containing the child actions, inferred inputs, background,
+and conclusion.
 
-**Deprecated -- use `support()` instead.** Emits `DeprecationWarning`. Compiles to `support` internally.
+## Priors
 
-### Named Strategies (auto-formalized at compile time)
+External priors belong only on independent probabilistic inputs to exported
+goals.
 
-#### `abduction(support_h, support_alt, comparison, *, background=None, reason="")`
-
-Inference to best explanation. Takes three Strategy objects: two `support` strategies (for the hypothesis and alternative) and one `compare` strategy. Auto-generates a `composition_warrant` claim. Conclusion comes from the comparison strategy's conclusion.
+Put them in `priors.py`:
 
 ```python
-H = claim("Discrete heritable factors.")
-alt = claim("Blending inheritance.")
-obs = claim("F2 ratio is 2.96:1.")
-pred_h = claim("H predicts 3:1.")
-pred_alt = claim("Blending predicts continuous.")
+from . import observation, model
 
-s_h = support([H], obs, reason="H explains ratio", prior=0.9)
-s_alt = support([alt], obs, reason="Blending explains ratio", prior=0.5)
-comp = compare(pred_h, pred_alt, obs, reason="H matches better", prior=0.9)
-abd = abduction(s_h, s_alt, comp, reason="Both explain same observation")
-# abd.conclusion is comp.conclusion (the comparison claim)
-```
-
-#### `analogy(source, target, bridge, *, reason="", background=None)`
-
-`bridge` asserts structural similarity. Premises: [source, bridge] -> target.
-
-```python
-source = claim("BCS theory explains superconductivity in Al")
-target = claim("BCS theory explains superconductivity in MgB2")
-bridge = claim("MgB2 shares phonon-mediated pairing with Al")
-analogy(source, target, bridge, reason="Same mechanism, different material")
-```
-
-#### `extrapolation(source, target, continuity, *, reason="", background=None)`
-
-`continuity` asserts conditions remain similar. Premises: [source, continuity] -> target.
-
-```python
-source = claim("Model predicts Tc=39K at ambient pressure")
-target = claim("Model predicts Tc=45K at 10GPa")
-continuity = claim("Phonon spectrum varies smoothly with pressure")
-extrapolation(source, target, continuity, reason="Smooth pressure dependence")
-```
-
-#### `elimination(exhaustiveness, excluded, survivor, *, reason="", background=None)`
-
-Process of elimination. `excluded` is a list of `(candidate, evidence_against)` tuples.
-
-```python
-exhaustive = claim("The pairing mechanism is phonon, magnon, or plasmon mediated")
-phonon = claim("Phonon-mediated pairing")
-magnon = claim("Magnon-mediated pairing")
-plasmon = claim("Plasmon-mediated pairing")
-no_magnon = claim("Neutron scattering rules out magnon exchange")
-no_plasmon = claim("Optical data rules out plasmon exchange")
-
-elimination(
-    exhaustive,
-    excluded=[(magnon, no_magnon), (plasmon, no_plasmon)],
-    survivor=phonon,
-    reason="Only phonon mechanism remains",
-)
-```
-
-#### `case_analysis(exhaustiveness, cases, conclusion, *, reason="", background=None)`
-
-`cases` is a list of `(case_condition, case_implies_conclusion)` tuples.
-
-```python
-exhaustive = claim("Temperature is either above or below Tc")
-above_tc = claim("T > Tc")
-below_tc = claim("T < Tc")
-above_implies = claim("If T > Tc then resistance is finite")
-below_implies = claim("If T < Tc then resistance is finite for non-SC")
-conclusion = claim("Normal metals have finite resistance at all T")
-
-case_analysis(
-    exhaustive,
-    cases=[(above_tc, above_implies), (below_tc, below_implies)],
-    conclusion=conclusion,
-    reason="Covers all temperature regimes",
-)
-```
-
-#### `mathematical_induction(base, step, conclusion, *, reason="", background=None)`
-
-Premises: [base, step] -> conclusion.
-
-```python
-base = claim("P(1) holds: sum of first 1 natural number equals 1(1+1)/2")
-step = claim("If P(k) holds then P(k+1) holds")
-conclusion = claim("For all n >= 1, sum of first n natural numbers equals n(n+1)/2")
-mathematical_induction(base, step, conclusion, reason="Standard induction on n")
-```
-
-### Composite Strategies
-
-#### `induction(support_1, support_2, law, *, background=None, reason="")`
-
-Binary composite strategy: two support strategies jointly confirm a law. Chainable: `induction(prev_induction, new_support, law)`. Auto-generates a `composition_warrant` claim.
-
-```python
-law = claim("MgB2 universally superconducts below 39K")
-obs1 = claim("Sample A shows zero resistance below 39K")
-obs2 = claim("Sample B shows zero resistance below 39K")
-obs3 = claim("Sample C shows zero resistance below 39K")
-
-s1 = support([law], obs1, reason="law predicts observation", prior=0.9)
-s2 = support([law], obs2, reason="law predicts observation", prior=0.9)
-s3 = support([law], obs3, reason="law predicts observation", prior=0.9)
-
-ind_12 = induction(s1, s2, law=law, reason="Samples A and B are independent")
-ind_123 = induction(ind_12, s3, law=law, reason="Sample C independent of A and B")
-```
-
-#### `composite(premises, conclusion, *, sub_strategies, reason="", background=None, type="infer")`
-
-Hierarchical composition. Only leaf sub-strategies need prior parameters.
-
-```python
-intermediate = claim("Intermediate result")
-final = claim("Final conclusion")
-
-s1 = deduction([axiom_a, axiom_b], intermediate, reason="From axioms", prior=0.99)
-s2 = support([intermediate, empirical_data], final, reason="Combined evidence", prior=0.85)
-
-composite(
-    [axiom_a, axiom_b, empirical_data],
-    final,
-    sub_strategies=[s1, s2],
-    reason="Two-stage argument",
-)
-```
-
-## 5. Module Organization
-
-- One module per chapter/section of source material
-- Introduction -> `motivation.py`, Section II -> `s2_xxx.py`, etc.
-- Module docstring becomes section title
-- Each knowledge node goes in the module where it first appears
-- Later modules import from earlier ones: `from .motivation import some_claim`
-- `__init__.py` re-exports everything
-
-```
-src/my_package/
-    __init__.py          # re-exports all public symbols
-    motivation.py        # "Introduction and Motivation"
-    s2_background.py     # "Section 2: Background"
-    s3_results.py        # "Section 3: Results"
-    s4_discussion.py     # "Section 4: Discussion"
-```
-
-Example `__init__.py`:
-
-```python
-from .motivation import *
-from .s2_background import *
-from .s3_results import *
-from .s4_discussion import *
-```
-
-**WARNING: Do NOT define `__all__` in submodules.** If a submodule defines `__all__: list[str] = []`, then `from .module import *` imports nothing, and all claims in that module get anonymous labels (`_anon_xxx`). Only define `__all__` in `__init__.py` to control the package's cross-package exports.
-
-## 6. Exports and Labels
-
-`__all__` controls visibility:
-- Listed in `__all__` -> **exported** (cross-package interface, other packages can import)
-- No `_` prefix -> **public** (visible in package scope)
-- `_` prefix -> **private** (package-internal helper)
-
-```python
-__all__ = ["main_theorem", "key_observation"]  # exported
-
-main_theorem = claim("...")           # exported (in __all__)
-supporting_lemma = claim("...")       # public (no underscore, not in __all__)
-_helper = claim("...")                # private (underscore prefix)
-```
-
-**Abduction alternative claims must be public.** Claims used as alternatives in abduction need proper labels for `priors.py` to reference them. Use `alt_` prefix (not `_alt_`):
-
-```python
-# CORRECT: public, gets label "alt_nonspecific_binding"
-alt_nonspecific_binding = claim("Non-specific binding could explain...")
-
-# WRONG: private, gets anonymous label, cannot be reviewed
-_alt_nonspecific_binding = claim("Non-specific binding could explain...")
-```
-
-Labels are auto-assigned from Python variable names by `gaia compile`. NEVER set `.label` manually.
-
-**Strategy naming:** Strategies should also be assigned to named public variables so they appear in `gaia check --brief` output and can be referenced by name. Use descriptive names: `strat_tc_al = support(...)`, `composite_workflow = composite(...)`, `abduction_al = abduction(...)`. Bare strategy calls (e.g., `deduction(...)` without assignment) produce anonymous strategies invisible in CLI output.
-
-```python
-# CORRECT: label "tc_prediction" assigned automatically
-tc_prediction = claim("Tc of MgB2 is 39K")
-
-# WRONG: never do this
-tc_prediction.label = "tc_prediction"  # anti-pattern
-```
-
-## 7. References and Citations
-
-Claim content and strategy reasons support two kinds of references:
-
-### Knowledge references (`@label`)
-
-Reference other knowledge nodes by their Python variable name. Opportunistic — if the label is not found, treated as literal text (no error).
-
-```python
-reason="Based on @framework_claim, the result follows from @property_setting."
-```
-
-### Bibliographic citations (`[@key]`)
-
-Cite entries from `references.json` (CSL-JSON, at the package root). Strict — missing key is a compile error.
-
-```python
-# In claim content
-tc = claim("Tc = 287.7 K at 267 GPa [@Dias2020].", title="CSH Tc")
-
-# In strategy reason
-support([evidence], conclusion,
-    reason="Following the analysis in [@Hirsch2021], the data is inconsistent.",
-    prior=0.85)
-```
-
-Supports Pandoc citation syntax: `[@key1; @key2]` (group), `[see @key, pp. 33-35]` (locator), `[-@key]` (suppress author).
-
-### references.json format
-
-```json
-{
-  "Dias2020": {
-    "type": "article-journal",
-    "title": "Room-temperature superconductivity in a carbonaceous sulfur hydride"
-  }
+PRIORS: dict = {
+    observation: (0.9, "Directly measured."),
+    model: (0.5, "Neutral before this argument."),
 }
 ```
 
-Each entry requires `type` (CSL 1.0.2) and `title`. Keys follow Pandoc grammar (letters, digits, `_`, `-`, `.`, `:`, `/`). File is optional.
+Do not assign priors to derived claims, relation helpers, structural expression
+helpers, likelihood helpers, association helpers, or generated formalization
+internals. Use `gaia check --hole .` to identify independent degrees of
+freedom.
 
-### Rules
+## Labels And Exports
 
-- **Escape**: `\@key` forces literal
-- **No collision**: a key cannot exist in both the label table and `references.json` (compile error)
-- **Homogeneous groups**: a single `[...]` group must be all knowledge refs or all citations, never mixed (compile error)
+Let `gaia compile` infer labels from public Python variable names. Do not set
+`.label` manually in normal package code.
 
-## 8. Anti-patterns (HARD GATE -- these produce invalid packages)
+```python
+main_result = claim("The main result.")
+__all__ = ["main_result"]
+```
 
-| Anti-pattern | Why it fails | Correct approach |
-|-------------|-------------|-----------------|
-| `Package(...)` context manager | Removed in v5 | Use module structure + `pyproject.toml` |
-| Manually setting `.label = "name"` | Labels auto-assigned from variable names | Just assign to a variable |
-| `setting` or `question` as strategy premises | Settings/questions have no probability | Use `background=` parameter instead |
-| Using `noisy_and()` | Deprecated | Use `support()` instead |
-| Old `abduction(observation, hypothesis)` signature | Redesigned | Use `abduction(support_h, support_alt, comparison)` with 3 Strategy objects |
-| Providing `reason` without `prior` (or vice versa) | Must be paired | Provide both or neither |
-| Building `FormalExpr` by hand | Compiler handles formalization | Use named strategies (deduction, support, etc.) |
-| `from gaia.gaia_ir import ...` | Module renamed | Use `from gaia.ir import ...` |
-| `dependencies = ["gaia-lang"]` in pyproject.toml | CLI provided externally, not a package dep | Omit gaia-lang from dependencies |
-| Omitting `[build-system]` in pyproject.toml | Required for `uv sync` in CI | Always include build-system section |
+Only define `__all__` in the package `__init__.py`. Use it for exported
+cross-package interface claims.
+
+## Legacy Boundary
+
+The following APIs exist only for compatibility and tests:
+
+- `setting()` / `context()` -> use `note()`
+- `contradiction()` / `equivalence()` / `complement()` / `disjunction()` -> use relation verbs or Boolean helpers
+- `support()` / `noisy_and()` / old positional `infer([premises], conclusion)` -> use `derive()` or explicit probabilistic `infer(...)`
+- `deduction()` -> use `derive()`
+- `abduction()` / `induction()` / `composite()` -> model the claims, relations, and probabilistic links explicitly, or use `@compose(...)` for reusable workflows
+
+If you must touch legacy code, keep it isolated and make tests explicit with the
+`legacy_dsl` marker.
+
+## Anti-Patterns
+
+| Anti-pattern | Use instead |
+|--------------|-------------|
+| `noisy_and(...)` in package source | `derive(...)` or explicit `infer(...)` |
+| `support(..., prior=...)` for vague uncertainty | Extract uncertain premises as claims and use `infer(...)` when probabilistic |
+| `setting(...)` for background | `note(...)` |
+| `contradiction(a, b, prior=...)` | `contradict(a, b, rationale=...)` |
+| Priors on derived/helper claims | Priors only on independent probabilistic inputs |
+| Manual `.label = ...` | Assign to a public Python variable |

@@ -962,7 +962,7 @@ def test_relation_helper_defaults_to_assertion_prior():
 
 
 def test_e2e_support_compiles_and_runs_bp():
-    """E2E: support([A], B) -> formalize (1 SOFT_ENTAILMENT) -> lower -> BP."""
+    """E2E: legacy Strategy(type='support') -> SOFT_ENTAILMENT -> BP."""
     s = Strategy(
         scope="local",
         type="support",
@@ -1055,21 +1055,16 @@ def test_e2e_compare_compiles_and_runs_bp():
     assert all(0 < beliefs[v] < 1 for v in beliefs)
 
 
+@pytest.mark.legacy_dsl
 def test_noisy_and_deprecated():
     """noisy_and() emits DeprecationWarning and delegates to support()."""
-    import warnings
-
     from gaia.lang import claim as dsl_claim
     from gaia.lang import noisy_and as dsl_noisy_and
 
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
+    with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
         a = dsl_claim("A")
         b = dsl_claim("B")
         s = dsl_noisy_and([a], b)
-        assert len(w) == 1
-        assert issubclass(w[0].category, DeprecationWarning)
-        assert "noisy_and" in str(w[0].message)
     # The returned strategy should be a support strategy
     assert s.type == "support"
 
@@ -1079,6 +1074,8 @@ def test_noisy_and_deprecated():
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.legacy_dsl
+@pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning")
 def test_e2e_abduction_full_pipeline():
     """E2E: support + support + compare -> abduction -> CompositeStrategy (3 sub-strategies).
 
@@ -1129,6 +1126,8 @@ def test_e2e_abduction_full_pipeline():
     assert abd.conclusion is comp.conclusion
 
 
+@pytest.mark.legacy_dsl
+@pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning")
 def test_e2e_induction_chain():
     """E2E: support + support → induction chain → law accumulated."""
     from gaia.lang import claim as dsl_claim
@@ -1176,6 +1175,8 @@ def test_e2e_induction_chain():
     assert ind_123.sub_strategies[1] is s3
 
 
+@pytest.mark.legacy_dsl
+@pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning")
 def test_e2e_mendel_peirce_cycle():
     """E2E: Full Peirce cycle -- deduction + support + compare + abduction + induction."""
     from gaia.lang import claim as dsl_claim

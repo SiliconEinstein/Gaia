@@ -190,9 +190,12 @@ PRIORS: dict = {
 
 `apply_package_priors()` discovers `priors.py` automatically at load time and injects these values into claim metadata before compilation.
 
-### Review Sidecar (Deprecated)
+### Removed Review Sidecar
 
-> **Deprecated since gaia-lang 0.4.2.** The review sidecar pattern (`ReviewBundle` / `review_claim()` / `review_strategy()` in `reviews/self_review.py`) is retained for backward compatibility but will be removed in a future major release. Use `priors.py` for independent input priors and action/relation warrants for new v0.5 packages.
+The old review sidecar pattern (`ReviewBundle` / `review_claim()` /
+`review_strategy()` in `review.py` or `reviews/<name>.py`) has been removed
+from the active authoring surface. Use `priors.py` for independent input
+priors, and model warrants with current action/relation verbs.
 
 ## Build Artifacts
 

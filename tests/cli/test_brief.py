@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
 
 runner = CliRunner()
+LEGACY_SUPPORT_WARNING = pytest.mark.filterwarnings(
+    "ignore:support\\(\\) is deprecated:DeprecationWarning"
+)
 
 
 def _write_base_package(pkg_dir, *, name: str) -> None:
@@ -19,7 +23,7 @@ def _write_base_package(pkg_dir, *, name: str) -> None:
 
 
 def _write_two_module_package(pkg_dir):
-    """Package with two modules: background + reasoning, using support strategy."""
+    """Package with two modules: background + reasoning, using current v0.5 verbs."""
     name = "brief_demo"
     _write_base_package(pkg_dir, name=name)
     (pkg_dir / name / "__init__.py").write_text(
@@ -32,14 +36,14 @@ def _write_two_module_package(pkg_dir):
         'obs_b = claim("Observation B was recorded.")\n'
     )
     (pkg_dir / name / "reasoning.py").write_text(
-        "from gaia.lang import claim, support, contradiction\n"
+        "from gaia.lang import claim, contradict, derive\n"
         "from .background import obs_a, obs_b\n\n"
         'hypothesis = claim("The hypothesis holds.")\n'
-        "support([obs_a, obs_b], hypothesis,\n"
-        '    reason="Two observations converge.", prior=0.85)\n'
+        "derive(hypothesis, given=(obs_a, obs_b),\n"
+        '    rationale="Two observations converge.", label="derive_hypothesis")\n'
         'alt = claim("Alternative explanation.")\n'
-        "not_both = contradiction(hypothesis, alt,\n"
-        '    reason="Mutually exclusive.", prior=0.99)\n'
+        "not_both = contradict(hypothesis, alt,\n"
+        '    rationale="Mutually exclusive.", label="hypothesis_vs_alt")\n'
     )
     (pkg_dir / name / "priors.py").write_text(
         "from . import obs_a, obs_b, hypothesis, alt\n\n"
@@ -116,8 +120,8 @@ def test_brief_overview_groups_by_module(tmp_path):
     assert "obs_b" in text
     assert "hypothesis" in text
 
-    # Strategy with prior
-    assert "support" in text
+    # Strategy and claim prior
+    assert "deduction" in text
     assert "0.85" in text
 
     # Operator
@@ -172,8 +176,7 @@ def test_brief_module_expands_all_strategies(tmp_path):
     assert "Alternative explanation." in text
 
     # Strategy warrant tree
-    assert "support" in text
-    assert "Two observations converge." in text
+    assert "deduction" in text
 
     # Operator
     assert "contradiction" in text
@@ -220,9 +223,8 @@ def test_brief_detail_expands_formal_strategy(tmp_path):
     assert "hypothesis" in text
     assert "The hypothesis holds." in text
 
-    # Warrant tree: support is a FormalStrategy, should show operators
-    assert "support" in text
-    assert "0.85" in text
+    # Warrant tree: derive lowers to a FormalStrategy, should show operators
+    assert "deduction" in text
 
     # Premises section
     assert "Premises:" in text
@@ -230,6 +232,8 @@ def test_brief_detail_expands_formal_strategy(tmp_path):
     assert "obs_b" in text
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_brief_detail_expands_composite(tmp_path):
     pkg_dir = tmp_path / "induction_demo"
     _write_induction_package(pkg_dir)
@@ -344,7 +348,7 @@ def test_brief_cli_flag(tmp_path):
     assert result.exit_code == 0, result.output
     assert "Check passed" in result.output
     assert "Module:" in result.output
-    assert "support" in result.output
+    assert "deduction" in result.output
 
 
 def test_show_cli_flag_module(tmp_path):
@@ -533,6 +537,8 @@ def _write_abduction_package(pkg_dir):
     )
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_brief_detail_abduction_composite_with_review_notes(tmp_path):
     """Exercise composite tree + abduction review notes."""
     pkg_dir = tmp_path / "abduction_demo"
@@ -598,6 +604,8 @@ def _write_abduction_close_priors_package(pkg_dir):
     )
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_review_notes_abduction_close_priors(tmp_path):
     """Abduction with close priors triggers warning."""
     pkg_dir = tmp_path / "abd_close"
@@ -623,6 +631,8 @@ def test_review_notes_abduction_close_priors(tmp_path):
     assert "weak" in notes_text.lower() or "\u26a0" in notes_text
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_review_notes_induction_consistent(tmp_path):
     """Induction with consistent priors shows consistent message."""
     pkg_dir = tmp_path / "induction_demo"
@@ -653,23 +663,28 @@ def test_review_notes_induction_consistent(tmp_path):
 
 
 def _write_infer_package(pkg_dir):
-    """Package with an infer strategy to exercise the leaf 'infer' path."""
+    """Package with an infer action to exercise the leaf 'infer' path."""
     name = "infer_demo"
     _write_base_package(pkg_dir, name=name)
     (pkg_dir / name / "__init__.py").write_text("from .reasoning import *\n")
     (pkg_dir / name / "reasoning.py").write_text(
         "from gaia.lang import claim, infer\n\n"
-        'premise_a = claim("Premise A.")\n'
-        'premise_b = claim("Premise B.")\n'
-        'conclusion = claim("Conclusion.")\n'
-        "strat = infer([premise_a, premise_b], conclusion, reason='custom CPT')\n"
+        'hypothesis = claim("Hypothesis.")\n'
+        'evidence = claim("Evidence.")\n'
+        "likelihood = infer(\n"
+        "    evidence,\n"
+        "    hypothesis=hypothesis,\n"
+        "    p_e_given_h=0.8,\n"
+        "    p_e_given_not_h=0.2,\n"
+        "    rationale='custom CPT',\n"
+        "    label='custom_cpt',\n"
+        ")\n"
     )
     (pkg_dir / name / "priors.py").write_text(
-        "from . import premise_a, premise_b, conclusion\n\n"
+        "from . import evidence, hypothesis\n\n"
         "PRIORS = {\n"
-        '    premise_a: (0.8, "Known."),\n'
-        '    premise_b: (0.7, "Known."),\n'
-        '    conclusion: (0.5, "To determine."),\n'
+        '    evidence: (0.8, "Known."),\n'
+        '    hypothesis: (0.5, "To determine."),\n'
         "}\n"
     )
 
@@ -689,7 +704,7 @@ def test_brief_detail_infer_strategy(tmp_path):
     compiled = compile_loaded_package_artifact(loaded)
     ir = compiled.to_json()
 
-    lines = generate_brief_detail(ir, "conclusion")
+    lines = generate_brief_detail(ir, "evidence")
     text = "\n".join(lines)
 
     assert "infer" in text
@@ -766,6 +781,8 @@ def test_dispatch_show_module_not_in_order(tmp_path):
     assert "expanded" in text
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_overview_filters_sub_strategies_and_prefers_composite(tmp_path):
     """Overview deduplicates strategies — composites preferred over leaves."""
     pkg_dir = tmp_path / "induction_demo"

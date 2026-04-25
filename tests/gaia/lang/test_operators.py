@@ -1,5 +1,7 @@
 """Tests for Gaia Lang v5 operator functions."""
 
+import pytest
+
 from gaia.lang import claim, contradiction, complement, disjunction, equivalence, noisy_and
 
 
@@ -11,12 +13,14 @@ def test_contradiction_creates_helper_claim():
     assert "not_both_true" in helper.content
 
 
+@pytest.mark.legacy_dsl
 def test_contradiction_helper_usable_as_premise():
     a = claim("A.")
     b = claim("B.")
     contra = contradiction(a, b, reason="conflict", prior=0.9)
     c = claim("C.")
-    noisy_and([contra], c)
+    with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
+        noisy_and([contra], c)
     assert contra in c.strategy.premises
 
 

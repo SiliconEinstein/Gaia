@@ -351,7 +351,7 @@ composite(
 
 ### `infer(premises, conclusion, *, reason, background=None)`
 
-General CPT strategy. Requires `conditional_probabilities` (2^N floats) in a review sidecar. Use only when no specific strategy type fits.
+Legacy general CPT strategy. Prefer the current `infer(evidence, hypothesis=..., p_e_given_h=..., p_e_given_not_h=...)` action form. The old sidecar-based parameterization path has been removed from the authoring surface.
 
 ### `fills(source, target, *, strength, reason, background=None)`
 

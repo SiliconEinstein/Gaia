@@ -1082,6 +1082,8 @@ def test_coarsen_ir_induction_cycle_promotes_surrogate_leaves():
         pytest.fail("No coarse strategy concluding to ns::law found")
 
 
+@pytest.mark.legacy_dsl
+@pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning")
 def test_compiled_induction_coarsens_to_observations_and_cpt():
     """Compiled DSL induction should expose observations, not law -> law."""
     from gaia.ir.coarsen import coarsen_ir, compute_coarse_cpts

@@ -2,6 +2,7 @@
 
 import json
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
@@ -9,6 +10,13 @@ from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
 
 runner = CliRunner()
+
+LEGACY_NOISY_AND_WARNING = pytest.mark.filterwarnings(
+    "ignore:noisy_and\\(\\) is deprecated:DeprecationWarning"
+)
+LEGACY_SUPPORT_WARNING = pytest.mark.filterwarnings(
+    "ignore:support\\(\\) is deprecated:DeprecationWarning"
+)
 
 
 def test_compile_creates_ir_json(tmp_path):
@@ -161,6 +169,8 @@ def test_compile_supports_src_layout(tmp_path):
     assert "package" not in ir
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_NOISY_AND_WARNING
 def test_compile_preserves_structured_steps_and_provenance(tmp_path):
     pkg_dir = tmp_path / "step_pkg"
     pkg_dir.mkdir()
@@ -908,11 +918,11 @@ def test_compile_emits_pure_local_canonical_graph(tmp_path):
     pkg_src = pkg_dir / "pure_ir_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, noisy_and\n\n"
+        "from gaia.lang import claim, derive\n\n"
         'premise = claim("Premise.")\n'
         'conclusion = claim("Conclusion.")\n'
-        "support = noisy_and(premises=[premise], conclusion=conclusion)\n"
-        '__all__ = ["premise", "conclusion", "support"]\n'
+        'derive(conclusion, given=(premise,), rationale="Premise derives conclusion.")\n'
+        '__all__ = ["premise", "conclusion"]\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -981,6 +991,8 @@ def test_compile_elimination_strategy_uses_ir_canonical_formalization(tmp_path):
     ]
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_compile_composite_strategy_preserves_sub_strategy_references(tmp_path):
     pkg_dir = tmp_path / "composite_pkg"
     pkg_dir.mkdir()
@@ -1025,6 +1037,8 @@ def test_compile_composite_strategy_preserves_sub_strategy_references(tmp_path):
     assert result.valid, result.errors
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_compile_nested_composite_strategy_collects_recursive_knowledge(tmp_path):
     pkg_dir = tmp_path / "nested_composite_pkg"
     pkg_dir.mkdir()
@@ -1080,11 +1094,11 @@ def test_compile_priors_py_injects_metadata_prior(tmp_path):
     pkg_src = pkg_dir / "priors_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, support\n\n"
+        "from gaia.lang import claim, derive\n\n"
         'premise_a = claim("Premise A.")\n'
         'premise_b = claim("Premise B.")\n'
         'conclusion = claim("Conclusion.")\n'
-        'support(premises=[premise_a, premise_b], conclusion=conclusion, reason="test", prior=0.9)\n'
+        'derive(conclusion, given=(premise_a, premise_b), rationale="test")\n'
         '__all__ = ["premise_a", "premise_b", "conclusion"]\n'
     )
     (pkg_src / "priors.py").write_text(

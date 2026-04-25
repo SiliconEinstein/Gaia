@@ -44,15 +44,17 @@ requires = ["setuptools>=69.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["gaia", "gaia.ir*", "gaia.lang*", "gaia.logic*", "gaia.bp*", "gaia.cli*", "gaia.review*"]
+include = ["gaia", "gaia.ir*", "gaia.lang*", "gaia.logic*", "gaia.bp*", "gaia.cli*"]
 
 [tool.setuptools.package-data]
 "gaia.cli.templates.pages" = ["**/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 markers = [
+    "legacy_dsl: tests that intentionally exercise deprecated v5 DSL compatibility",
     "slow: slow tests (e.g. npm build)",
 ]
 

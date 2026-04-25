@@ -125,11 +125,13 @@ def test_infer_registers_action_and_warrant():
     assert action.warrants == [action.helper]
 
 
+@pytest.mark.legacy_dsl
 def test_infer_preserves_v5_positional_shape():
     a = Claim("A.")
     b = Claim("B.")
     c = Claim("C.")
-    strategy = infer([a, b], c, reason="custom CPT")
+    with pytest.warns(DeprecationWarning, match="infer\\(\\[premises\\], conclusion"):
+        strategy = infer([a, b], c, reason="custom CPT")
     assert strategy.type == "infer"
     assert strategy.premises == [a, b]
     assert strategy.conclusion is c

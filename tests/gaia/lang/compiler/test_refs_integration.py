@@ -12,6 +12,10 @@ from gaia.cli.main import app
 
 runner = CliRunner()
 
+LEGACY_SUPPORT_WARNING = pytest.mark.filterwarnings(
+    "ignore:support\\(\\) is deprecated:DeprecationWarning"
+)
+
 
 def _write_package(
     root: Path,
@@ -118,6 +122,8 @@ def test_compile_tolerates_opportunistic_miss(tmp_path: Path) -> None:
     assert result.exit_code == 0, f"Expected success but got: {result.output}"
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_compile_scans_sub_strategy_reasons(tmp_path: Path) -> None:
     """Spec §3.2: sub_strategies of composite strategies must also be scanned
     for references. A strict-form unknown ref in a sub_strategy must error."""
