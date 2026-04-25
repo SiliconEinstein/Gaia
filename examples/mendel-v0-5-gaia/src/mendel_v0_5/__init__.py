@@ -24,6 +24,32 @@ how they engage with the data:
 Every probability in this package is traceable to two well-defined settings:
 ``MENDELIAN_DOMINANT_PROBABILITY = 3/4`` and a uniform prior ``p ~ U[0, 1]``
 as the diffuse alternative (see ``probabilities.py``).
+
+Why an intermediate ``f2_dominant_count_specific`` node exists
+--------------------------------------------------------------
+
+Semantically the ``associate`` below should relate ``mendelian_segregation_model``
+directly to ``f2_count_observation``. In v0.5 that triggers a framework-level
+collision: ``metadata.prior`` on a Claim is asked to encode two genuinely
+different quantities at once —
+
+* the **reliability / subjective prior** of the observation (0.95, meaning "I
+  trust Mendel's record"), supplied via the ``PRIORS`` dict;
+* the **Bayesian marginal** ``P(count) = Σ_H P(count | H) P(H)`` of the count
+  event (≈ 0.024 for the 295/395 outcome under the {Mendel, diffuse}
+  mixture), supplied via ``associate(..., prior_b=...)``.
+
+These are two different concepts living on the same field, so the inference
+engine sees them as "conflicting marginal providers" and refuses to compile.
+
+As a workaround this package introduces ``f2_dominant_count_specific`` — a
+plain ``derive`` node that carries only the specific numerical event and is
+**not** entered into ``PRIORS`` — and routes the ``associate`` through it.
+This leaves the observation's ``reliability`` prior untouched on
+``f2_count_observation`` and lets the Bayesian marginal live cleanly on the
+derived node. No other semantic is introduced by this node; it would go away
+once the framework separates the ``reliability`` / ``marginal`` / ``belief``
+roles on a Claim.
 """
 
 from gaia.lang import associate, claim, contradict, derive, equal, exclusive, note, observe
@@ -171,10 +197,16 @@ mendel_predicts_three_to_one_ratio = derive(
 
 # -----------------------------------------------------------------------------
 # A single derived data event carrying the specific count for the probabilistic
-# comparison. This is deliberately *not* a tolerance window around the observed
-# ratio; it is just the specific observed value, reified as a proposition that
-# the ``associate`` strategy can target without clashing with the observation's
-# own reliability prior.
+# comparison. This is deliberately NOT a tolerance window around the observed
+# ratio; it is just the specific observed value, reified as a proposition.
+#
+# The node exists only to carry the Bayesian marginal ``P(count = 295/395)``
+# on a separate Claim from ``f2_count_observation``, which already carries the
+# reliability prior 0.95 via ``PRIORS``. See the module docstring above for
+# the underlying framework issue (``metadata.prior`` doing double duty as both
+# "reliability" and "marginal"). Once the framework separates those two
+# semantics, this intermediate node can be deleted and ``associate`` can
+# target ``f2_count_observation`` directly.
 # -----------------------------------------------------------------------------
 
 f2_dominant_count_specific = derive(
@@ -182,7 +214,9 @@ f2_dominant_count_specific = derive(
     given=f2_count_observation,
     background=[monohybrid_cross_setup, finite_sample_background],
     rationale="把定性观测中的具体计数提取为一个命题，作为 Mendel 与数据进行"
-    "概率比较时使用的数据事件。",
+    "概率比较时使用的数据事件；这里也起到把 Bayes 边际和观测可靠性两个概念"
+    "分开存放在两个不同 Claim 上的作用，规避 v0.5 framework 中 metadata.prior"
+    "的一号多用。",
     label="f2_dominant_count_specific",
 )
 
