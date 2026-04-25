@@ -908,8 +908,6 @@ def test_compile_named_strategy_uses_ir_canonical_formalization(tmp_path):
     assert strategy["metadata"]["formalization_template"] == "deduction"
 
 
-@pytest.mark.legacy_dsl
-@LEGACY_NOISY_AND_WARNING
 def test_compile_emits_pure_local_canonical_graph(tmp_path):
     pkg_dir = tmp_path / "pure_ir_pkg"
     pkg_dir.mkdir()
@@ -920,11 +918,11 @@ def test_compile_emits_pure_local_canonical_graph(tmp_path):
     pkg_src = pkg_dir / "pure_ir_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, noisy_and\n\n"
+        "from gaia.lang import claim, derive\n\n"
         'premise = claim("Premise.")\n'
         'conclusion = claim("Conclusion.")\n'
-        "support = noisy_and(premises=[premise], conclusion=conclusion)\n"
-        '__all__ = ["premise", "conclusion", "support"]\n'
+        'derive(conclusion, given=(premise,), rationale="Premise derives conclusion.")\n'
+        '__all__ = ["premise", "conclusion"]\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -1085,8 +1083,6 @@ def test_compile_nested_composite_strategy_collects_recursive_knowledge(tmp_path
 # ── priors.py discovery and injection ──
 
 
-@pytest.mark.legacy_dsl
-@LEGACY_SUPPORT_WARNING
 def test_compile_priors_py_injects_metadata_prior(tmp_path):
     """priors.py PRIORS dict injects prior+justification into claim metadata."""
     pkg_dir = tmp_path / "priors_pkg"
@@ -1098,11 +1094,11 @@ def test_compile_priors_py_injects_metadata_prior(tmp_path):
     pkg_src = pkg_dir / "priors_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, support\n\n"
+        "from gaia.lang import claim, derive\n\n"
         'premise_a = claim("Premise A.")\n'
         'premise_b = claim("Premise B.")\n'
         'conclusion = claim("Conclusion.")\n'
-        'support(premises=[premise_a, premise_b], conclusion=conclusion, reason="test", prior=0.9)\n'
+        'derive(conclusion, given=(premise_a, premise_b), rationale="test")\n'
         '__all__ = ["premise_a", "premise_b", "conclusion"]\n'
     )
     (pkg_src / "priors.py").write_text(
