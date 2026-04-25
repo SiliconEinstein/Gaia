@@ -42,7 +42,12 @@ def compile_command(
             typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(1)
 
-    gaia_dir = write_compiled_artifacts(loaded.pkg_path, ir, manifests=manifests)
+    gaia_dir = write_compiled_artifacts(
+        loaded.pkg_path,
+        ir,
+        manifests=manifests,
+        formalization_manifest=compiled.formalization_manifest,
+    )
 
     typer.echo(
         f"Compiled {len(ir['knowledges'])} knowledge, "

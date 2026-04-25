@@ -62,6 +62,19 @@ class Compute(Support):
 
 
 @dataclass
+class Scaffold(Action):
+    """Formalization workflow record. Does not enter IR/BP as a warrant."""
+
+
+@dataclass
+class DependsOn(Scaffold):
+    """Marks unformalized dependencies for a conclusion."""
+
+    conclusion: Claim | None = None
+    given: tuple[Claim, ...] = ()
+
+
+@dataclass
 class Relate(Action):
     """Logical constraint between two Claims."""
 

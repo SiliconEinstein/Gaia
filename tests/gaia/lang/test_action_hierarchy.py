@@ -3,10 +3,12 @@ from gaia.lang.runtime.action import (
     Compute,
     Contradict,
     Derive,
+    DependsOn,
     Equal,
     Infer,
     Observe,
     Relate,
+    Scaffold,
     Support,
 )
 
@@ -42,3 +44,10 @@ def test_infer_is_action():
     assert issubclass(Infer, Action)
     assert not issubclass(Infer, Support)
     assert not issubclass(Infer, Relate)
+
+
+def test_depends_on_is_scaffold_not_support():
+    assert issubclass(DependsOn, Scaffold)
+    assert issubclass(Scaffold, Action)
+    assert not issubclass(DependsOn, Support)
+    assert not issubclass(DependsOn, Relate)

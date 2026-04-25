@@ -4,6 +4,7 @@ from gaia.lang.dsl.infer_verb import infer
 from gaia.lang.dsl.operators import complement, contradiction, disjunction, equivalence
 from gaia.lang.dsl.propositional import and_, not_, or_
 from gaia.lang.dsl.relate import contradict, equal, exclusive
+from gaia.lang.dsl.scaffold import depends_on
 from gaia.lang.dsl.support import compute, derive, observe
 from gaia.lang.runtime.composition import compose, composition
 from gaia.lang.dsl.strategies import (
@@ -38,6 +39,7 @@ __all__ = [
     "contradict",
     "contradiction",
     "deduction",
+    "depends_on",
     "derive",
     "disjunction",
     "equal",

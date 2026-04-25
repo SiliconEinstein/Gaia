@@ -17,6 +17,7 @@ from gaia.ir import ReviewManifest, ReviewStatus
 class QualityConfig:
     min_posterior: float | None = None
     allow_holes: bool = False
+    allow_unformalized_dependencies: bool = False
 
 
 def load_quality_config(tool_gaia_quality: dict[str, Any] | None) -> QualityConfig:
@@ -25,6 +26,7 @@ def load_quality_config(tool_gaia_quality: dict[str, Any] | None) -> QualityConf
     return QualityConfig(
         min_posterior=float(min_posterior) if min_posterior is not None else None,
         allow_holes=bool(config.get("allow_holes", False)),
+        allow_unformalized_dependencies=bool(config.get("allow_unformalized_dependencies", False)),
     )
 
 
@@ -72,21 +74,40 @@ def _reachable_review_targets(trees: list[InquiryNode]) -> set[str]:
     return targets
 
 
+def _unformalized_dependencies(trees: list[InquiryNode]) -> list[InquiryEdge]:
+    edges: dict[str, InquiryEdge] = {}
+    for tree in trees:
+        for item in _walk(tree):
+            if (
+                isinstance(item, InquiryEdge)
+                and item.kind == "scaffold"
+                and item.status == "unformalized"
+            ):
+                key = item.target_id or item.label
+                edges[key] = item
+    return sorted(edges.values(), key=lambda edge: edge.label)
+
+
 def check_quality_gate(
     ir: dict[str, Any],
     beliefs: dict[str, Any] | None,
     review_manifest: ReviewManifest,
     config: QualityConfig,
     exported_ids: set[str] | None = None,
+    formalization_manifest: dict[str, Any] | None = None,
 ) -> list[str]:
     failures: list[str] = []
     goals = exported_ids or _exported_claim_ids(ir)
-    trees = build_goal_trees(ir, review_manifest, goals)
+    trees = build_goal_trees(ir, review_manifest, goals, formalization_manifest)
     reachable_targets = _reachable_review_targets(trees)
 
     if not config.allow_holes:
         for hole in _structural_holes(trees):
             failures.append(f"Structural hole: {hole.label} has no warrant chain")
+
+    if not config.allow_unformalized_dependencies:
+        for edge in _unformalized_dependencies(trees):
+            failures.append(f"Unformalized dependency: {edge.label}")
 
     for review in latest_reviews(review_manifest):
         if review.target_id not in reachable_targets:
