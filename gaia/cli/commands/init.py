@@ -11,14 +11,18 @@ import typer
 from gaia.cli._packages import GaiaCliError
 
 _DSL_TEMPLATE = """\
-from gaia.lang import claim, note, noisy_and
+from gaia.lang import claim, derive, note
 
 context = note("Background context for this package.")
 hypothesis = claim("A scientific hypothesis.")
-evidence = claim("Supporting evidence.")
-_strat = noisy_and([hypothesis], evidence, reason="Hypothesis supports evidence.")
+prediction = derive(
+    "A testable prediction follows from the hypothesis.",
+    given=hypothesis,
+    background=[context],
+    rationale="Explain why the hypothesis entails this prediction.",
+)
 
-__all__ = ["context", "hypothesis", "evidence"]
+__all__ = ["hypothesis", "prediction"]
 """
 
 

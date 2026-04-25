@@ -107,11 +107,14 @@ def test_init_creates_package(tmp_path, monkeypatch):
     # __init__.py has DSL template
     init_py = import_dir / "__init__.py"
     content = init_py.read_text()
-    assert "from gaia.lang import claim, note" in content
+    assert "from gaia.lang import claim, derive, note" in content
+    assert "noisy_and" not in content
     assert "context = note(" in content
     assert "hypothesis = claim(" in content
-    assert "evidence = claim(" in content
-    assert '__all__ = ["context", "hypothesis", "evidence"]' in content
+    assert "prediction = derive(" in content
+    assert "given=hypothesis" in content
+    assert "background=[context]" in content
+    assert '__all__ = ["hypothesis", "prediction"]' in content
 
     # .gitignore includes .gaia/
     gitignore = pkg_dir / ".gitignore"
