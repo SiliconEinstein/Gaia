@@ -35,6 +35,12 @@ from gaia.ir.parameterization import (
     StrategyParamRecord,
 )
 from gaia.ir.review import Review, ReviewManifest, ReviewStatus
+from gaia.ir.schemas import (
+    BUILTIN_DISTRIBUTION_KINDS,
+    CallableRef,
+    DistributionSpec,
+    QuantityLiteral,
+)
 
 __all__ = [
     # Knowledge
@@ -66,6 +72,11 @@ __all__ = [
     "PriorRecord",
     "ResolutionPolicy",
     "StrategyParamRecord",
+    # Schemas
+    "BUILTIN_DISTRIBUTION_KINDS",
+    "CallableRef",
+    "DistributionSpec",
+    "QuantityLiteral",
     # Review
     "Review",
     "ReviewManifest",
