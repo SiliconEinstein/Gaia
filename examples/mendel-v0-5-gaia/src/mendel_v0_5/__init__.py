@@ -49,7 +49,7 @@ This leaves the observation's ``reliability`` prior untouched on
 ``f2_count_observation`` and lets the Bayesian marginal live cleanly on the
 derived node. No other semantic is introduced by this node; it would go away
 once the framework separates the ``reliability`` / ``marginal`` / ``belief``
-roles on a Claim.
+roles on a Claim. See issue #485 for the design discussion.
 """
 
 from gaia.lang import associate, claim, contradict, derive, equal, exclusive, note, observe
@@ -202,11 +202,11 @@ mendel_predicts_three_to_one_ratio = derive(
 #
 # The node exists only to carry the Bayesian marginal ``P(count = 295/395)``
 # on a separate Claim from ``f2_count_observation``, which already carries the
-# reliability prior 0.95 via ``PRIORS``. See the module docstring above for
-# the underlying framework issue (``metadata.prior`` doing double duty as both
-# "reliability" and "marginal"). Once the framework separates those two
-# semantics, this intermediate node can be deleted and ``associate`` can
-# target ``f2_count_observation`` directly.
+# reliability prior 0.95 via ``PRIORS``. See the module docstring above, and
+# issue #485, for the underlying framework design (``metadata.prior`` doing
+# double duty as both "reliability" and "marginal"). Once the framework
+# separates those two semantics, this intermediate node can be deleted and
+# ``associate`` can target ``f2_count_observation`` directly.
 # -----------------------------------------------------------------------------
 
 f2_dominant_count_specific = derive(
