@@ -3,6 +3,7 @@
 import pytest
 
 from gaia.lang import (
+    Claim,
     Step,
     claim,
     compare,
@@ -25,6 +26,7 @@ from gaia.lang.compiler.compile import (
     _content_hash,
 )
 from gaia.lang.runtime.package import CollectedPackage
+from gaia.unit import q
 
 LEGACY_NOISY_AND_WARNING = pytest.mark.filterwarnings(
     "ignore:noisy_and\\(\\) is deprecated:DeprecationWarning"
@@ -35,6 +37,41 @@ LEGACY_SUPPORT_WARNING = pytest.mark.filterwarnings(
 
 
 # ── _content_hash / _anonymous_label / _normalize_label ──
+
+
+class TemperatureClaim(Claim):
+    """Temperature is {value}."""
+
+    value: object
+
+
+def test_quantity_parameter_compiles_to_literal_json():
+    with CollectedPackage("quantity_pkg") as pkg:
+        temp = TemperatureClaim(value=q(80, "K"))
+        temp.label = "temperature"
+
+    compiled = compile_package_artifact(pkg)
+    knowledge = next(k for k in compiled.graph.knowledges if k.label == "temperature")
+
+    assert [param.model_dump(mode="json") for param in knowledge.parameters] == [
+        {
+            "name": "value",
+            "type": "object",
+            "value": {
+                "schema_version": "gaia.quantity_literal.v1",
+                "value": 80.0,
+                "unit": "kelvin",
+            },
+        }
+    ]
+    json_knowledge = next(
+        k for k in compiled.to_json()["knowledges"] if k["label"] == "temperature"
+    )
+    assert json_knowledge["parameters"][0]["value"] == {
+        "schema_version": "gaia.quantity_literal.v1",
+        "value": 80.0,
+        "unit": "kelvin",
+    }
 
 
 def test_content_hash_deterministic():

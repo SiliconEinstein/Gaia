@@ -49,6 +49,7 @@ from gaia.lang.runtime.action import (
 )
 from gaia.lang.runtime.package import CollectedPackage
 from gaia.lang.runtime.param import UNBOUND
+from gaia.unit import is_quantity, to_literal
 
 _COMPILE_TIME_FORMAL_STRATEGIES = frozenset(
     {
@@ -180,6 +181,8 @@ def _parameter_to_ir(param: dict[str, Any], knowledge_map: dict[int, str]) -> Ir
         payload["value"] = knowledge_map[id(value)]
     elif value is UNBOUND:
         payload["value"] = None
+    elif is_quantity(value):
+        payload["value"] = to_literal(value).model_dump(mode="json")
     return IrParameter(**payload)
 
 
