@@ -45,7 +45,10 @@ def _build_clean_trace() -> tuple[TraceManifest, list[TraceEvent]]:
 
 
 def _write_single_json(path: Path, manifest: TraceManifest, events: list[TraceEvent]) -> None:
-    data = {"manifest": manifest.model_dump(mode="json"), "events": [e.model_dump(mode="json") for e in events]}
+    data = {
+        "manifest": manifest.model_dump(mode="json"),
+        "events": [e.model_dump(mode="json") for e in events],
+    }
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 

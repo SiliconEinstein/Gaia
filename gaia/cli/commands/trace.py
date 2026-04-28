@@ -13,8 +13,6 @@ Exit codes：
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Optional
 
 import typer
@@ -66,22 +64,16 @@ def verify_command(
     # 链
     if trace.events:
         from gaia.trace.hashing import GENESIS_PREV_HASH
+
         if trace.events[0].prev_hash != GENESIS_PREV_HASH:
-            errors.append(
-                f"events[0].prev_hash != GENESIS ({trace.events[0].prev_hash!r})"
-            )
+            errors.append(f"events[0].prev_hash != GENESIS ({trace.events[0].prev_hash!r})")
         for i in range(1, len(trace.events)):
             if trace.events[i].prev_hash != chain[i - 1]:
-                errors.append(
-                    f"events[{i}] (seq={trace.events[i].seq}) prev_hash mismatch"
-                )
+                errors.append(f"events[{i}] (seq={trace.events[i].seq}) prev_hash mismatch")
                 break
     if trace.manifest.events_root != expected_root:
         errors.append("manifest.events_root mismatch")
-    if (
-        trace.manifest.manifest_hash
-        and trace.manifest.manifest_hash != expected_manifest_hash
-    ):
+    if trace.manifest.manifest_hash and trace.manifest.manifest_hash != expected_manifest_hash:
         errors.append("manifest.manifest_hash mismatch")
 
     if errors:
@@ -218,6 +210,4 @@ def show_command(
             suffix = f"  reason={txt!r}"
         elif e.kind == "retry" and e.error:
             suffix = f"  err={e.error[:40]!r}"
-        typer.echo(
-            f"  seq={e.seq:<3} {marker} actor={actor} ts={e.ts.isoformat()}{suffix}"
-        )
+        typer.echo(f"  seq={e.seq:<3} {marker} actor={actor} ts={e.ts.isoformat()}{suffix}")

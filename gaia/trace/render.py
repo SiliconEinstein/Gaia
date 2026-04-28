@@ -151,9 +151,7 @@ def render_markdown(report: "TraceReviewReport") -> str:
         out.append("_clean_")
     else:
         for t in report.tampering:
-            out.append(
-                f"- **[{t['severity']}] {t['kind']}** @ `{t['target']}` — {t['message']}"
-            )
+            out.append(f"- **[{t['severity']}] {t['kind']}** @ `{t['target']}` — {t['message']}")
     out.append("")
 
     out.append("## §7 Execution Stats")
@@ -169,9 +167,7 @@ def render_markdown(report: "TraceReviewReport") -> str:
         out.append("_no diagnostics — trace passes all checks_")
     else:
         for d in report.diagnostics:
-            out.append(
-                f"- **[{d.severity}] {d.kind}** @ `{d.target}` — {d.message}"
-            )
+            out.append(f"- **[{d.severity}] {d.kind}** @ `{d.target}` — {d.message}")
     if report.next_edits:
         out.append("")
         out.append("**Suggested next edits:**")

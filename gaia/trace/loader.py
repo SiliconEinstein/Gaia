@@ -132,18 +132,14 @@ def _load_jsonl(path: Path) -> LoadResult:
             ev = TraceEvent.model_validate(obj)
             events.append(ev)
         except ValidationError as exc:
-            issues.extend(
-                _format_pydantic_error(exc, prefix=f"line:{raw_idx + 1}.")
-            )
+            issues.extend(_format_pydantic_error(exc, prefix=f"line:{raw_idx + 1}."))
     if manifest is None:
         return LoadResult(trace=None, issues=issues, raw_path=str(path))
     trace = Trace(manifest=manifest, events=events)
     return LoadResult(trace=trace, issues=issues, raw_path=str(path))
 
 
-def _try_partial(
-    data: dict, issues: list[SchemaIssue], path: Path
-) -> LoadResult:
+def _try_partial(data: dict, issues: list[SchemaIssue], path: Path) -> LoadResult:
     """单 JSON 整体校验失败时退化：尽量保住 manifest，逐条解析 events。"""
     manifest_raw = data.get("manifest")
     events_raw = data.get("events", [])
@@ -160,9 +156,7 @@ def _try_partial(
                 ev = TraceEvent.model_validate(item)
                 events.append(ev)
             except ValidationError as exc:
-                issues.extend(
-                    _format_pydantic_error(exc, prefix=f"events[{i}].")
-                )
+                issues.extend(_format_pydantic_error(exc, prefix=f"events[{i}]."))
     if manifest is None:
         return LoadResult(trace=None, issues=issues, raw_path=str(path))
     return LoadResult(

@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -40,9 +40,7 @@ from gaia.trace.schema import Trace
 
 
 def _utcnow_iso() -> str:
-    return (
-        datetime.now(tz=timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-    )
+    return datetime.now(tz=timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 # ============ 八段容器 ============
@@ -175,9 +173,7 @@ def _build_hash_chain_section(trace: Trace | None) -> dict[str, Any]:
     }
 
 
-def _build_causal_health_section(
-    diags: list[Diagnostic], trace: Trace | None
-) -> dict[str, Any]:
+def _build_causal_health_section(diags: list[Diagnostic], trace: Trace | None) -> dict[str, Any]:
     if trace is None:
         return {
             "tool_pairing": {"calls": 0, "unresolved": 0},
@@ -200,9 +196,7 @@ def _build_causal_health_section(
             "orphans": sum(1 for d in diags if d.kind == "orphan_event"),
         },
         "actor_continuity": {
-            "unexplained_switches": sum(
-                1 for d in diags if d.kind == "actor_switch_unexplained"
-            ),
+            "unexplained_switches": sum(1 for d in diags if d.kind == "actor_switch_unexplained"),
         },
         "retry": {
             "diverged_chains": sum(1 for d in diags if d.kind == "retry_diverged"),
@@ -320,9 +314,7 @@ def run_trace_review(
         diags.extend(detect_seq(trace))
         diags.extend(detect_decision_grounds(trace))
         diags.extend(detect_tool_pairing(trace))
-        diags.extend(
-            detect_claim_refs(trace, resolver=resolver, package_path=package_path)
-        )
+        diags.extend(detect_claim_refs(trace, resolver=resolver, package_path=package_path))
         diags.extend(detect_parent_links(trace))
         diags.extend(detect_retry(trace, max_chain=retry_chain_limit))
         diags.extend(detect_actor(trace))

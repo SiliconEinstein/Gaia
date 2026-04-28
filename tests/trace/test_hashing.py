@@ -43,6 +43,7 @@ def _build_chain(n: int) -> list[TraceEvent]:
 
 # ---------- canonical_json ----------
 
+
 def test_canonical_json_is_deterministic_across_dict_orderings():
     a = {"b": 1, "a": [1, 2], "c": "x"}
     b = {"a": [1, 2], "c": "x", "b": 1}
@@ -85,6 +86,7 @@ def test_canonical_json_handles_unicode_without_escape():
 
 
 # ---------- sha256 + chain ----------
+
 
 def test_sha256_hex_matches_stdlib():
     assert sha256_hex(b"abc") == (

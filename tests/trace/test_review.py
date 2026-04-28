@@ -10,16 +10,13 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import pytest
 
 from gaia.trace.hashing import (
     GENESIS_PREV_HASH,
-    canonical_json,
     compute_events_root,
     compute_manifest_hash,
     hash_event,
@@ -65,9 +62,7 @@ def _build_clean_trace(n: int = 3) -> Trace:
         created_at=_ts(0),
         events_root=compute_events_root(events),
     )
-    manifest = manifest.model_copy(
-        update={"manifest_hash": compute_manifest_hash(manifest)}
-    )
+    manifest = manifest.model_copy(update={"manifest_hash": compute_manifest_hash(manifest)})
     return Trace(manifest=manifest, events=events)
 
 
@@ -177,9 +172,15 @@ def test_render_text_contains_section_headers(tmp_path: Path):
     p = _write_clean_fixture(tmp_path)
     report = run_trace_review(p, snapshot_dir=tmp_path / "snap")
     txt = render_text(report)
-    for header in ["§2 Manifest", "§3 Hash Chain", "§4 Causal Health",
-                   "§5 Reference Validity", "§6 Tampering", "§7 Execution Stats",
-                   "§8 Diagnostics"]:
+    for header in [
+        "§2 Manifest",
+        "§3 Hash Chain",
+        "§4 Causal Health",
+        "§5 Reference Validity",
+        "§6 Tampering",
+        "§7 Execution Stats",
+        "§8 Diagnostics",
+    ]:
         assert header in txt, f"missing {header}"
 
 
@@ -247,17 +248,13 @@ def test_reference_validity_lists_all_claim_refs(tmp_path: Path):
         created_at=_ts(0),
         events_root=compute_events_root(events),
     )
-    manifest = manifest.model_copy(
-        update={"manifest_hash": compute_manifest_hash(manifest)}
-    )
+    manifest = manifest.model_copy(update={"manifest_hash": compute_manifest_hash(manifest)})
     t = Trace(manifest=manifest, events=events)
     p = tmp_path / "with_refs.json"
     p.write_text(t.model_dump_json(indent=2), encoding="utf-8")
 
     # resolver 全 false ⇒ 仍要列出，但 resolved=False
-    report = run_trace_review(
-        p, resolver=lambda r: False, snapshot_dir=tmp_path / "snap"
-    )
+    report = run_trace_review(p, resolver=lambda r: False, snapshot_dir=tmp_path / "snap")
     assert len(report.reference_validity) == 2
     assert all(not r["resolved"] for r in report.reference_validity)
     # 同时产生 unresolved_claim_ref diagnostic

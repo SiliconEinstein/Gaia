@@ -79,6 +79,7 @@ def _diag(
 
 # ============ Detector 1：schema 违例（loader 阶段） ============
 
+
 def from_schema_issues(issues: list[SchemaIssue]) -> list[Diagnostic]:
     """把 loader 收集到的 SchemaIssue 转 Diagnostic。"""
     out: list[Diagnostic] = []
@@ -99,6 +100,7 @@ def from_schema_issues(issues: list[SchemaIssue]) -> list[Diagnostic]:
 
 # ============ Detector 2：hash chain ============
 
+
 def detect_hash_chain(trace: Trace) -> list[Diagnostic]:
     events = trace.events
     if not events:
@@ -112,8 +114,7 @@ def detect_hash_chain(trace: Trace) -> list[Diagnostic]:
                 target=events[0].event_id,
                 label=f"event[seq={events[0].seq}]",
                 message=(
-                    f"first event's prev_hash must be empty (genesis); got "
-                    f"{events[0].prev_hash!r}"
+                    f"first event's prev_hash must be empty (genesis); got {events[0].prev_hash!r}"
                 ),
                 suggested_edit="Set events[0].prev_hash = '' (genesis marker).",
                 data={"trace_anchor": _anchor(events[0]), "broken_at_seq": events[0].seq},
@@ -151,6 +152,7 @@ def detect_hash_chain(trace: Trace) -> list[Diagnostic]:
 
 # ============ Detector 3：manifest hash ============
 
+
 def detect_manifest_hash(trace: Trace) -> list[Diagnostic]:
     out: list[Diagnostic] = []
     expected_root = compute_events_root(trace.events)
@@ -174,10 +176,7 @@ def detect_manifest_hash(trace: Trace) -> list[Diagnostic]:
             )
         )
     expected_manifest_hash = compute_manifest_hash(trace.manifest)
-    if (
-        trace.manifest.manifest_hash
-        and trace.manifest.manifest_hash != expected_manifest_hash
-    ):
+    if trace.manifest.manifest_hash and trace.manifest.manifest_hash != expected_manifest_hash:
         out.append(
             _diag(
                 severity="error",
@@ -200,6 +199,7 @@ def detect_manifest_hash(trace: Trace) -> list[Diagnostic]:
 
 
 # ============ Detector 4：时间戳单调 ============
+
 
 def detect_timestamps(trace: Trace) -> list[Diagnostic]:
     out: list[Diagnostic] = []
@@ -231,6 +231,7 @@ def detect_timestamps(trace: Trace) -> list[Diagnostic]:
 
 # ============ Detector 5：seq 连续 ============
 
+
 def detect_seq(trace: Trace) -> list[Diagnostic]:
     out: list[Diagnostic] = []
     if not trace.events:
@@ -256,10 +257,7 @@ def detect_seq(trace: Trace) -> list[Diagnostic]:
                     kind="trace_seq_disorder",
                     target=trace.events[i].event_id,
                     label=f"event[seq={trace.events[i].seq}]",
-                    message=(
-                        f"seq jump: expected {expected}, got "
-                        f"{trace.events[i].seq}"
-                    ),
+                    message=(f"seq jump: expected {expected}, got {trace.events[i].seq}"),
                     suggested_edit="Renumber consecutive events.",
                     data={
                         "trace_anchor": _anchor(trace.events[i]),
@@ -271,6 +269,7 @@ def detect_seq(trace: Trace) -> list[Diagnostic]:
 
 
 # ============ Detector 6：decision 必须有 grounds ============
+
 
 def _tokenize(text: str) -> set[str]:
     return {tok.strip().lower() for tok in text.split() if tok.strip()}
@@ -318,13 +317,8 @@ def detect_decision_grounds(trace: Trace) -> list[Diagnostic]:
                     kind="decision_without_grounds",
                     target=ev.event_id,
                     label=f"event[seq={ev.seq}]",
-                    message=(
-                        "decision `reason` shares no token with `inputs`; "
-                        "may be ungrounded"
-                    ),
-                    suggested_edit=(
-                        "Reference at least one input field in `reason`."
-                    ),
+                    message=("decision `reason` shares no token with `inputs`; may be ungrounded"),
+                    suggested_edit=("Reference at least one input field in `reason`."),
                     data={"trace_anchor": _anchor(ev), "reason_token_count": len(reason_tokens)},
                 )
             )
@@ -332,6 +326,7 @@ def detect_decision_grounds(trace: Trace) -> list[Diagnostic]:
 
 
 # ============ Detector 7：tool_call 必须闭合 ============
+
 
 def detect_tool_pairing(trace: Trace) -> list[Diagnostic]:
     """tool_call 之后必须出现匹配的 tool_result 或 retry 或带 error 的同 actor 事件。"""
@@ -454,6 +449,7 @@ def detect_claim_refs(
 
 # ============ Detector 9：parent_event_id 合法 ============
 
+
 def detect_parent_links(trace: Trace) -> list[Diagnostic]:
     ids = {ev.event_id for ev in trace.events}
     out: list[Diagnostic] = []
@@ -465,10 +461,7 @@ def detect_parent_links(trace: Trace) -> list[Diagnostic]:
                     kind="orphan_event",
                     target=ev.event_id,
                     label=f"event[seq={ev.seq}]",
-                    message=(
-                        f"parent_event_id={ev.parent_event_id!r} not present "
-                        "in this trace"
-                    ),
+                    message=(f"parent_event_id={ev.parent_event_id!r} not present in this trace"),
                     suggested_edit=(
                         "Verify the writer emits the parent before the child, "
                         "or remove the dangling parent_event_id."
@@ -484,9 +477,8 @@ def detect_parent_links(trace: Trace) -> list[Diagnostic]:
 
 # ============ Detector 10：retry 链不发散 ============
 
-def detect_retry(
-    trace: Trace, *, max_chain: int = RETRY_CHAIN_LIMIT_DEFAULT
-) -> list[Diagnostic]:
+
+def detect_retry(trace: Trace, *, max_chain: int = RETRY_CHAIN_LIMIT_DEFAULT) -> list[Diagnostic]:
     """从每个 retry 事件向上追 parent 链，链长 > max_chain 视为 diverged。"""
     out: list[Diagnostic] = []
     by_id = {ev.event_id: ev for ev in trace.events}
@@ -513,10 +505,7 @@ def detect_retry(
                     kind="retry_diverged",
                     target=ev.event_id,
                     label=f"event[seq={ev.seq}]",
-                    message=(
-                        f"retry chain length {chain_len} exceeds limit "
-                        f"{max_chain}"
-                    ),
+                    message=(f"retry chain length {chain_len} exceeds limit {max_chain}"),
                     suggested_edit=(
                         "Cap retries with a back-off policy or surface the "
                         "underlying error instead of looping."
@@ -532,6 +521,7 @@ def detect_retry(
 
 
 # ============ Detector 11：actor 切换需 decision ============
+
 
 def detect_actor(trace: Trace) -> list[Diagnostic]:
     """同一 parent 链内 actor 切换且无 decision 解释 ⇒ info 提示。
@@ -565,9 +555,7 @@ def detect_actor(trace: Trace) -> list[Diagnostic]:
                                 f"{ev.actor!r} without an intervening "
                                 "decision event"
                             ),
-                            suggested_edit=(
-                                "Emit a decision event explaining the handoff."
-                            ),
+                            suggested_edit=("Emit a decision event explaining the handoff."),
                             data={
                                 "trace_anchor": _anchor(ev),
                                 "from_actor": last_actor,
@@ -584,6 +572,7 @@ def detect_actor(trace: Trace) -> list[Diagnostic]:
 
 
 # ============ 汇总入口 ============
+
 
 def run_all_detectors(
     load_result: LoadResult,
@@ -604,9 +593,7 @@ def run_all_detectors(
     diags.extend(detect_seq(trace))
     diags.extend(detect_decision_grounds(trace))
     diags.extend(detect_tool_pairing(trace))
-    diags.extend(
-        detect_claim_refs(trace, resolver=resolver, package_path=package_path)
-    )
+    diags.extend(detect_claim_refs(trace, resolver=resolver, package_path=package_path))
     diags.extend(detect_parent_links(trace))
     diags.extend(detect_retry(trace, max_chain=retry_chain_limit))
     diags.extend(detect_actor(trace))

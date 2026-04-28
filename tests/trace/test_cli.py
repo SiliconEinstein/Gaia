@@ -6,7 +6,6 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
@@ -173,7 +172,15 @@ def test_review_json_and_markdown_mutex(tmp_path: Path):
     p = _write(tmp_path, _build_clean(2))
     r = runner.invoke(
         app,
-        ["trace", "review", str(p), "--json", "--markdown", "--snapshot-dir", str(tmp_path / "snap")],
+        [
+            "trace",
+            "review",
+            str(p),
+            "--json",
+            "--markdown",
+            "--snapshot-dir",
+            str(tmp_path / "snap"),
+        ],
     )
     assert r.exit_code == 2
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
 
 from gaia.trace.ranking import _MODE_RANK, rank_diagnostics, supported_modes
 from gaia.trace.diagnostics import (
@@ -70,6 +69,7 @@ def _build_clean(n: int = 3) -> Trace:
 
 # ============ Detector 1：schema_violation ============
 
+
 def test_from_schema_issues_translates_each_issue():
     issues = [
         SchemaIssue(message="missing field", location="events[0].seq"),
@@ -82,6 +82,7 @@ def test_from_schema_issues_translates_each_issue():
 
 
 # ============ Detector 2：hash_chain ============
+
 
 def test_clean_trace_has_no_hash_chain_diagnostic():
     t = _build_clean()
@@ -104,6 +105,7 @@ def test_genesis_prev_hash_must_be_empty():
 
 
 # ============ Detector 3：manifest_hash ============
+
 
 def test_manifest_hash_clean_no_diag():
     t = _build_clean()
@@ -128,6 +130,7 @@ def test_manifest_hash_mismatch_detected():
 
 # ============ Detector 4：timestamps ============
 
+
 def test_timestamp_disorder_detected():
     t = _build_clean(3)
     bad_ts = t.events[1].ts - timedelta(seconds=10)
@@ -142,6 +145,7 @@ def test_clean_timestamps_no_diag():
 
 
 # ============ Detector 5：seq ============
+
 
 def test_seq_jump_detected():
     t = _build_clean(3)
@@ -159,6 +163,7 @@ def test_first_seq_must_be_zero():
 
 
 # ============ Detector 6：decision_grounds ============
+
 
 def test_decision_without_reason_flagged():
     ev = _ev(0, prev_hash="", kind="decision", reason=None)
@@ -187,6 +192,7 @@ def test_decision_with_overlap_passes():
 
 
 # ============ Detector 7：tool_pairing ============
+
 
 def test_tool_call_without_result_flagged():
     call = TraceEvent(
@@ -230,6 +236,7 @@ def test_tool_call_paired_with_result_via_parent():
 
 # ============ Detector 8：claim_ref ============
 
+
 def test_claim_ref_unresolved_when_resolver_returns_false():
     ev = _ev(
         0,
@@ -268,6 +275,7 @@ def test_claim_ref_resolver_exception_treated_as_unresolved():
 
 # ============ Detector 9：orphan_event ============
 
+
 def test_orphan_parent_event_id_flagged():
     e0 = _ev(0, prev_hash="")
     e1 = _ev(1, prev_hash="x", parent_event_id="ghost")
@@ -284,6 +292,7 @@ def test_valid_parent_event_id_no_diag():
 
 
 # ============ Detector 10：retry ============
+
 
 def test_retry_chain_within_limit_no_diag():
     events: list[TraceEvent] = [_ev(0, prev_hash="")]
@@ -326,6 +335,7 @@ def test_retry_chain_exceeds_limit_flagged():
 
 # ============ Detector 11：actor_switch ============
 
+
 def test_actor_switch_without_decision_flagged():
     e0 = TraceEvent(
         event_id="e0",
@@ -350,23 +360,37 @@ def test_actor_switch_without_decision_flagged():
 
 def test_actor_switch_with_decision_in_between_no_diag():
     e0 = TraceEvent(
-        event_id="e0", seq=0, prev_hash="", ts=_ts(0),
-        kind="intermediate_state", actor="A",
+        event_id="e0",
+        seq=0,
+        prev_hash="",
+        ts=_ts(0),
+        kind="intermediate_state",
+        actor="A",
     )
     e1 = TraceEvent(
-        event_id="e1", seq=1, prev_hash="x", ts=_ts(1),
-        kind="decision", actor="A", reason="grounded by step",
+        event_id="e1",
+        seq=1,
+        prev_hash="x",
+        ts=_ts(1),
+        kind="decision",
+        actor="A",
+        reason="grounded by step",
         inputs={"step": "x"},
     )
     e2 = TraceEvent(
-        event_id="e2", seq=2, prev_hash="x", ts=_ts(2),
-        kind="intermediate_state", actor="B",
+        event_id="e2",
+        seq=2,
+        prev_hash="x",
+        ts=_ts(2),
+        kind="intermediate_state",
+        actor="B",
     )
     m = TraceManifest(arm_id="a", session_id="s", trace_id="t", created_at=_ts(0))
     assert detect_actor(Trace(manifest=m, events=[e0, e1, e2])) == []
 
 
 # ============ run_all_detectors + ranking ============
+
 
 def test_run_all_detectors_clean_trace_yields_nothing():
     t = _build_clean(3)
