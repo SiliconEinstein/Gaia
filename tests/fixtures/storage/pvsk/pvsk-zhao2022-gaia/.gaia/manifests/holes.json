@@ -1,0 +1,61 @@
+{
+  "holes": [
+    {
+      "content": "PCE degradation at all temperatures follows a biexponential function with fast and slow decay rates; the fast and slow degradation activation energies are comparable within each device type, suggesting both rates probe a single physical process (ion migration)",
+      "content_hash": "11c17ec1e99c379e0c1c6d5c69bbb7d0a5d48dcac330073451802adb4f04fb94",
+      "interface_hash": "sha256:c6b7fd27016cf79b0c1db14c36cc6dd0b053999a8176e5c0af00429ac4434581",
+      "label": "biexponential_degradation",
+      "qid": "pvsk:pvsk_zhao2022::biexponential_degradation",
+      "required_by": [
+        "pvsk:pvsk_zhao2022::universal_degradation_curve"
+      ]
+    },
+    {
+      "content": "The activation energy for ion migration (Ea,ion) in capped films is nearly twice that of uncapped films as measured by temperature-dependent conductivity, indicating the 2D cap frustrates ion migration by passivating iodine vacancies at the perovskite surface",
+      "content_hash": "f35c8d051ef92f1ef65baed43294923d1b88cd8390c1bd7f0d23b820d03e9f3d",
+      "interface_hash": "sha256:02788946aae4b94a53a6cffaf47ef98ddfd09eab0723eb4865dc55e0bb957593",
+      "label": "ion_migration_activation_doubled",
+      "qid": "pvsk:pvsk_zhao2022::ion_migration_activation_doubled",
+      "required_by": [
+        "pvsk:pvsk_zhao2022::t80_2100h_at_110c"
+      ]
+    },
+    {
+      "content": "XRD and XPS analysis after aging at 110C shows iodine migration from CsPbI3 into CuSCN in uncapped devices (evidenced by CuSCN crystallite degradation and I 3d signal in HTL), while capped devices show no appreciable iodine migration or CuSCN structural changes",
+      "content_hash": "ebf170722d0c9983b5a83984eb1b6908f1126df29078e5291d291b04d44305a8",
+      "interface_hash": "sha256:6b71a8692d9756ffa45c7d322159a7c31e5aa0ba177dc856f53f46c5bc6fdb7e",
+      "label": "ion_migration_suppressed",
+      "qid": "pvsk:pvsk_zhao2022::ion_migration_suppressed",
+      "required_by": [
+        "pvsk:pvsk_zhao2022::activation_energy_doubled",
+        "pvsk:pvsk_zhao2022::no_degradation_at_35c",
+        "pvsk:pvsk_zhao2022::t80_2100h_at_110c"
+      ]
+    },
+    {
+      "content": "Degradation rates across the entire 35-110C temperature range can be described by a single Arrhenius function, confirming the same degradation mechanism dominates at all temperatures — a critical criterion for reliable accelerated aging tests",
+      "content_hash": "90780518678571915e1e545592d537fbf448ce6fd037bcbb30f49aaf3f3cf4a1",
+      "interface_hash": "sha256:ef95c0c2751cd000cb4859784213f358556f7096f6f43c5dea4daaac259a7973",
+      "label": "single_degradation_mechanism",
+      "qid": "pvsk:pvsk_zhao2022::single_degradation_mechanism",
+      "required_by": [
+        "pvsk:pvsk_zhao2022::extrapolated_t80_5_years",
+        "pvsk:pvsk_zhao2022::universal_degradation_curve"
+      ]
+    },
+    {
+      "content": "Time-resolved photoluminescence shows the carrier lifetime increases from 14 ns (uncapped) to >62 ns (capped), indicating effective suppression of nonradiative recombination at the CsPbI3 surface and extended carrier diffusion length",
+      "content_hash": "1df04fa94a7c76ec342dcef41db4ef3f2ddd65ad1c2d9a96a3d4cf7a9e1fa71e",
+      "interface_hash": "sha256:a0040e3b4835f18d3eb00592cf083560034cccac9d887b35132e9302b34622d5",
+      "label": "trpl_lifetime_increase",
+      "qid": "pvsk:pvsk_zhao2022::trpl_lifetime_increase",
+      "required_by": [
+        "pvsk:pvsk_zhao2022::voc_and_ff_improvement"
+      ]
+    }
+  ],
+  "ir_hash": "sha256:10a8cc86179b16ab9ac673fdfcc99382ada236d109308a8543dd98a0d21a4bde",
+  "manifest_schema_version": 1,
+  "package": "pvsk-zhao2022",
+  "version": "1.0.0"
+}

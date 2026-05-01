@@ -1,0 +1,1074 @@
+{
+  "ir_hash": "sha256:10a8cc86179b16ab9ac673fdfcc99382ada236d109308a8543dd98a0d21a4bde",
+  "knowledges": [
+    {
+      "content": "All-inorganic CsPbI3 perovskite solar cells with FTO/TiO2/Al2O3/CsPbI3/2D Cs2PbI2Cl2/CuSCN/Cr/Au structure, with and without 2D Cs2PbI2Cl2 capping layer between the perovskite and CuSCN hole transport layer, encapsulated in N2 atmosphere for accelerated aging at 35-110C under constant 1-sun illumination at maximum power point",
+      "content_hash": "bbe65f5690146e78543492f496301765fc56de7a0024ca089c8856144fe40b09",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::exp_context",
+      "label": "exp_context",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "2D Cs2PbI2Cl2 capping layer (~20 nm thick) deposited on CsPbI3 surface by treating with CsCl solution followed by thermal annealing; this fully inorganic 2D layer avoids the cation exchange problem that prevents organic 2D layers from forming on CsPbI3 due to stronger Cs+ binding compared to MA+ or FA+",
+      "content_hash": "ac6e9ccbc74b654081672ced7eacc7c805ce230ba4f8f20541342b707ac5d235",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::cs2pbi2cl2_capping",
+      "label": "cs2pbi2cl2_capping",
+      "metadata": {
+        "prior": 0.7
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Accelerated aging methodology using elevated temperatures (35, 59, 85, 110C) to quantify degradation rates under constant illumination at MPP, with Arrhenius temperature dependence of degradation rates yielding acceleration factors for lifetime extrapolation to standard operating conditions (1 sun, 35C)",
+      "content_hash": "a2acea3ebed3c780b33417c597d0892897a04cd3cb97a146ff2a598712283424",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::arrhenius_accelerated_aging",
+      "label": "arrhenius_accelerated_aging",
+      "metadata": {
+        "prior": 0.7
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Capped CsPbI3 PSCs with 2D Cs2PbI2Cl2 layer achieve champion PCE of 17.4%, the highest among fully inorganic PSCs where all functional materials in the stack are inorganic, compared to 14.9% for uncapped devices",
+      "content_hash": "e19976d31a34b18a3025f773879c1156a62b2878f3e96d7f8153c9aa8a3d8d91",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::capped_pce_17_4_pct",
+      "label": "capped_pce_17_4_pct",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The 2D capping layer increases both Voc and FF in capped PSCs relative to uncapped devices, consistent with surface passivation reducing nonradiative recombination losses at the perovskite/HTL interface",
+      "content_hash": "2cd27915519d2b12bd50f1122bc518b059794c75f1f818376c492aaf1ca4de02",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::voc_and_ff_improvement",
+      "label": "voc_and_ff_improvement",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Time-resolved photoluminescence shows the carrier lifetime increases from 14 ns (uncapped) to >62 ns (capped), indicating effective suppression of nonradiative recombination at the CsPbI3 surface and extended carrier diffusion length",
+      "content_hash": "1df04fa94a7c76ec342dcef41db4ef3f2ddd65ad1c2d9a96a3d4cf7a9e1fa71e",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::trpl_lifetime_increase",
+      "label": "trpl_lifetime_increase",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Capped PSCs show no noticeable PCE degradation after 3531 hours of continuous operation at 35C under constant 1-sun illumination at MPP in (65+/-26)% RH air",
+      "content_hash": "1175a23e61a97100baef70c4e646a0ee2e0378621a2528b1826a9e64032d5fcc",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::no_degradation_at_35c",
+      "label": "no_degradation_at_35c",
+      "metadata": {
+        "prior": 0.92
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Capped PSCs exhibit T80 lifetime (time to 80% of initial PCE) of >2100 hours at 110C under constant 1-sun illumination, while uncapped devices degrade substantially faster at all elevated temperatures",
+      "content_hash": "20ed02104623b07b957c792bdf8682d1c4708d2ada59ae47bdb4f29248db3464",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::t80_2100h_at_110c",
+      "label": "t80_2100h_at_110c",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Using experimentally determined acceleration factor of 24.2+/-3.5 for 110C operation, the extrapolated T80 lifetime for capped devices at 35C is 51,000+/-7,000 hours (>5 years) of continuous operation under illumination",
+      "content_hash": "bcc50847e52cbcf2ecc240872187ebe86e9f4ebaeec7a1af2417f2471bf19abb",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::extrapolated_t80_5_years",
+      "label": "extrapolated_t80_5_years",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Degradation rates across the entire 35-110C temperature range can be described by a single Arrhenius function, confirming the same degradation mechanism dominates at all temperatures — a critical criterion for reliable accelerated aging tests",
+      "content_hash": "90780518678571915e1e545592d537fbf448ce6fd037bcbb30f49aaf3f3cf4a1",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::single_degradation_mechanism",
+      "label": "single_degradation_mechanism",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The activation energy for degradation (Ea) of capped PSCs is nearly twice that of uncapped PSCs, indicating that the 2D Cs2PbI2Cl2 layer substantially stabilizes the devices against thermal degradation",
+      "content_hash": "3d0b9be34ef4de62c08331238e954125d9914867cd4cbc19b0e98e7c7b8b025a",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::activation_energy_doubled",
+      "label": "activation_energy_doubled",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "XRD and XPS analysis after aging at 110C shows iodine migration from CsPbI3 into CuSCN in uncapped devices (evidenced by CuSCN crystallite degradation and I 3d signal in HTL), while capped devices show no appreciable iodine migration or CuSCN structural changes",
+      "content_hash": "ebf170722d0c9983b5a83984eb1b6908f1126df29078e5291d291b04d44305a8",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::ion_migration_suppressed",
+      "label": "ion_migration_suppressed",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The activation energy for ion migration (Ea,ion) in capped films is nearly twice that of uncapped films as measured by temperature-dependent conductivity, indicating the 2D cap frustrates ion migration by passivating iodine vacancies at the perovskite surface",
+      "content_hash": "f35c8d051ef92f1ef65baed43294923d1b88cd8390c1bd7f0d23b820d03e9f3d",
+      "declaration_index": 12,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::ion_migration_activation_doubled",
+      "label": "ion_migration_activation_doubled",
+      "metadata": {
+        "prior": 0.86
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "When aging data from all temperatures are converted to equivalent operating time at 35C using the acceleration factor, all data collapse onto a universal degradation curve for both capped and uncapped devices, confirming a single mechanism across temperatures",
+      "content_hash": "2df77ca0b659c7eea5d12ca231e61664f26a12c3b2dd39e6882c050ec62dfdba",
+      "declaration_index": 13,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::universal_degradation_curve",
+      "label": "universal_degradation_curve",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "PCE degradation at all temperatures follows a biexponential function with fast and slow decay rates; the fast and slow degradation activation energies are comparable within each device type, suggesting both rates probe a single physical process (ion migration)",
+      "content_hash": "11c17ec1e99c379e0c1c6d5c69bbb7d0a5d48dcac330073451802adb4f04fb94",
+      "declaration_index": 14,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::biexponential_degradation",
+      "label": "biexponential_degradation",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Can this Arrhenius-based accelerated aging methodology with experimentally determined acceleration factors be applied to organic-inorganic hybrid perovskite compositions such as FAPbI3 and MAPbI3, which may have additional degradation pathways from organic cation volatility?",
+      "content_hash": "c40b3347a6d922b92b47e6b66baee7c690e87362176cc666dc1e1a3a43c31535",
+      "declaration_index": 15,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::organic_psc_accelerated_aging",
+      "label": "organic_psc_accelerated_aging",
+      "parameters": [],
+      "type": "question"
+    },
+    {
+      "content": "Does the 2D Cs2PbI2Cl2 capping layer suppress ion migration primarily by passivating iodine vacancies at the CsPbI3 surface, or does it also create an energetic barrier to ion transport across the perovskite/HTL interface?",
+      "content_hash": "080706f14c44472a444790f8dc5186a049a4b7d53f48ae4e2594c7674360a250",
+      "declaration_index": 16,
+      "exported": true,
+      "id": "pvsk:pvsk_zhao2022::ion_migration_suppression_mechanism",
+      "label": "ion_migration_suppression_mechanism",
+      "parameters": [],
+      "type": "question"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "Organometal halide perovskites can function as viable photovoltaic absorbers",
+      "content_hash": "12183274605a4cdd79df4b632d2b0bc6c7bbfdfe0b389d5a86bd3d531fb560a3",
+      "declaration_index": 0,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_viability",
+      "label": "p_viability",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_viability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "content_hash": "9603b55225f5e093d20a1194832c2b419389d6a83886f8b7841f0b9a65cc106f",
+      "declaration_index": 4,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "metadata": {
+        "prior": 0.15
+      },
+      "parameters": [],
+      "title": "p_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_zhao2022::trpl_lifetime_increase,pvsk:pvsk_zhao2022::voc_and_ff_improvement)",
+      "content_hash": "ca523681f5dc93ad5098a1e437bfcb837ec9464681b8964d2da46bed36f1e0b6",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__implication_result_c93d04e2",
+      "label": "__implication_result_c93d04e2",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_zhao2022::trpl_lifetime_increase,pvsk:pvsk_zhao2022::voc_and_ff_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_9b4afe6d583c0d41",
+        "owning_strategy_type": "support",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_zhao2022::voc_and_ff_improvement,pvsk:pvsk_zhao2022::capped_pce_17_4_pct)",
+      "content_hash": "7b18672e49c640de1102d421b9c5c1e84b80f57a6ef81fac6fbb84be0a76746f",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__implication_result_7672b2c8",
+      "label": "__implication_result_7672b2c8",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_zhao2022::voc_and_ff_improvement,pvsk:pvsk_zhao2022::capped_pce_17_4_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_120da25a69e932eb",
+        "owning_strategy_type": "support",
+        "prior": 0.83,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_zhao2022::ion_migration_suppressed,pvsk:pvsk_zhao2022::ion_migration_activation_doubled)",
+      "content_hash": "7563fe2ca09ae3f2a5114e66f053d2980ac03b7e62d596b076eb5025bedb90c6",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__conjunction_result_76035cd0",
+      "label": "__conjunction_result_76035cd0",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_zhao2022::ion_migration_suppressed,pvsk:pvsk_zhao2022::ion_migration_activation_doubled)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_05147e4e6fcc4795",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_zhao2022::__conjunction_result_76035cd0,pvsk:pvsk_zhao2022::t80_2100h_at_110c)",
+      "content_hash": "b1b29ca641326d945449ed20ad031476c2ce66fd72c34236d32871d78effb15a",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__implication_result_eb679db9",
+      "label": "__implication_result_eb679db9",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_zhao2022::__conjunction_result_76035cd0,pvsk:pvsk_zhao2022::t80_2100h_at_110c)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_05147e4e6fcc4795",
+        "owning_strategy_type": "support",
+        "prior": 0.83,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_zhao2022::single_degradation_mechanism,pvsk:pvsk_zhao2022::t80_2100h_at_110c)",
+      "content_hash": "01934364dadfe3e06cfb780b2f99f25bae15b68e575c74d3cea41309edf7350e",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__conjunction_result_7ebf72e2",
+      "label": "__conjunction_result_7ebf72e2",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_zhao2022::single_degradation_mechanism,pvsk:pvsk_zhao2022::t80_2100h_at_110c)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_538fb984b78b1110",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_zhao2022::__conjunction_result_7ebf72e2,pvsk:pvsk_zhao2022::extrapolated_t80_5_years)",
+      "content_hash": "9bc645ed6d5ccd8f5376ba8bb3d02e60660dfabf0289900c10bbe41a38e3b2f7",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__implication_result_72f3ba30",
+      "label": "__implication_result_72f3ba30",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_zhao2022::__conjunction_result_7ebf72e2,pvsk:pvsk_zhao2022::extrapolated_t80_5_years)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_538fb984b78b1110",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_zhao2022::ion_migration_suppressed,pvsk:pvsk_zhao2022::activation_energy_doubled)",
+      "content_hash": "7ba663f5882cbb39703aa00754654cd49672ca5586adfe09817344e754738b9c",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__implication_result_a2df9adc",
+      "label": "__implication_result_a2df9adc",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_zhao2022::ion_migration_suppressed,pvsk:pvsk_zhao2022::activation_energy_doubled)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_6930d7f428bd94a3",
+        "owning_strategy_type": "support",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_zhao2022::single_degradation_mechanism,pvsk:pvsk_zhao2022::biexponential_degradation)",
+      "content_hash": "da6dd1eadd356751913e7b5eeb31a934e7a201eeba60220f580a7e75328d57ea",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__conjunction_result_1a3f95ac",
+      "label": "__conjunction_result_1a3f95ac",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_zhao2022::single_degradation_mechanism,pvsk:pvsk_zhao2022::biexponential_degradation)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_71df6afcd3fdeab4",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_zhao2022::__conjunction_result_1a3f95ac,pvsk:pvsk_zhao2022::universal_degradation_curve)",
+      "content_hash": "07a612ddd0b3a49cf3b6efec5119442abc13d121050de8d0d959d0d1f2bf55d2",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__implication_result_01528c08",
+      "label": "__implication_result_01528c08",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_zhao2022::__conjunction_result_1a3f95ac,pvsk:pvsk_zhao2022::universal_degradation_curve)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_71df6afcd3fdeab4",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_zhao2022::ion_migration_suppressed,pvsk:pvsk_zhao2022::no_degradation_at_35c)",
+      "content_hash": "ea714261ab99a6e892214606590d3fa62bf38196bf6e61102ee6312a14752e23",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__implication_result_966471f4",
+      "label": "__implication_result_966471f4",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_zhao2022::ion_migration_suppressed,pvsk:pvsk_zhao2022::no_degradation_at_35c)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_854d5a765dc4f820",
+        "owning_strategy_type": "support",
+        "prior": 0.78,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_zhao2022::capped_pce_17_4_pct,pvsk:pvsk_zhao2022::extrapolated_t80_5_years)",
+      "content_hash": "a4b08cc11687aa3bd0acf803c8bb70c79697dcc7a8209734a8b750b5da89bd62",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__conjunction_result_6a44f783",
+      "label": "__conjunction_result_6a44f783",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_zhao2022::capped_pce_17_4_pct,pvsk:pvsk_zhao2022::extrapolated_t80_5_years)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_de9e7e25966c11cc",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_zhao2022::__conjunction_result_6a44f783,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "1a44d691d11ef98a6ab63ae101e5f9a27822ce6526cdbafb98f254bbcb2d1fe3",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__implication_result_eb987688",
+      "label": "__implication_result_eb987688",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_zhao2022::__conjunction_result_6a44f783,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_de9e7e25966c11cc",
+        "owning_strategy_type": "support",
+        "prior": 0.75,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_zhao2022::capped_pce_17_4_pct,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "83dcdbaca340d7a8dcaaeb6c6383c1a58662ef13911deb5e6d14bc711c7744a0",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__implication_result_a1cf1197",
+      "label": "__implication_result_a1cf1197",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_zhao2022::capped_pce_17_4_pct,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_297314226c3aafb2",
+        "owning_strategy_type": "support",
+        "prior": 0.62,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_zhao2022::cs2pbi2cl2_capping,pvsk:pvsk_zhao2022::activation_energy_doubled,pvsk:pvsk_zhao2022::ion_migration_suppressed)",
+      "content_hash": "92f57c0fc67e7d125508f65c96be31e3304c9fdd3d194224f346faf784522ed0",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__conjunction_result_2b597e52",
+      "label": "__conjunction_result_2b597e52",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_zhao2022::cs2pbi2cl2_capping,pvsk:pvsk_zhao2022::activation_energy_doubled,pvsk:pvsk_zhao2022::ion_migration_suppressed)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_400b1c5a7d6d9818",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_zhao2022::__conjunction_result_2b597e52,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "a18c7e93dd162db1fd0bb42b51e2ea1410843ae011a9b35f5b92421e9ffeb2d4",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__implication_result_4d1d1154",
+      "label": "__implication_result_4d1d1154",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_zhao2022::__conjunction_result_2b597e52,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_400b1c5a7d6d9818",
+        "owning_strategy_type": "support",
+        "prior": 0.68,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_zhao2022::extrapolated_t80_5_years,pvsk:pvsk_zhao2022::no_degradation_at_35c)",
+      "content_hash": "7495045ee1ede1873ce28ee63d9c4cf6e5c76debfefca7018a3a5d972ecd7a36",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__conjunction_result_97d0d031",
+      "label": "__conjunction_result_97d0d031",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_zhao2022::extrapolated_t80_5_years,pvsk:pvsk_zhao2022::no_degradation_at_35c)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_bd07eda9130fcadb",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_zhao2022::__conjunction_result_97d0d031,pvsk:pvsk_meta::p_viability)",
+      "content_hash": "76445d94df1fe7f6b5dddc83d6af4bdba9f39ec0d905b9552f39d34eeaf7df24",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__implication_result_471cf290",
+      "label": "__implication_result_471cf290",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_zhao2022::__conjunction_result_97d0d031,pvsk:pvsk_meta::p_viability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_bd07eda9130fcadb",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_zhao2022::arrhenius_accelerated_aging,pvsk:pvsk_zhao2022::universal_degradation_curve)",
+      "content_hash": "ba36190fadb2a471fcf3de310fa1102d4b045114d3da68c6b97276649b28b50b",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__conjunction_result_88b3f809",
+      "label": "__conjunction_result_88b3f809",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_zhao2022::arrhenius_accelerated_aging,pvsk:pvsk_zhao2022::universal_degradation_curve)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_c145e027aeac0ffe",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_zhao2022::__conjunction_result_88b3f809,pvsk:pvsk_meta::p_industrialization)",
+      "content_hash": "612431cb83155875e23e31a8f7a108faa4f446e997e986ba1967a932d418b6d5",
+      "exported": false,
+      "id": "pvsk:pvsk_zhao2022::__implication_result_14ac87b9",
+      "label": "__implication_result_14ac87b9",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_zhao2022::__conjunction_result_88b3f809,pvsk:pvsk_meta::p_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_c145e027aeac0ffe",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_zhao2022",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_zhao2022::voc_and_ff_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__implication_result_c93d04e2",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_zhao2022::trpl_lifetime_increase",
+              "pvsk:pvsk_zhao2022::voc_and_ff_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "Suppressed surface nonradiative recombination (14 to >62 ns lifetime) directly increases Voc by reducing the dark saturation current and improves FF by reducing recombination losses at forward bias"
+      },
+      "premises": [
+        "pvsk:pvsk_zhao2022::trpl_lifetime_increase"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_9b4afe6d583c0d41",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_zhao2022::capped_pce_17_4_pct",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__implication_result_7672b2c8",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_zhao2022::voc_and_ff_improvement",
+              "pvsk:pvsk_zhao2022::capped_pce_17_4_pct"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.83,
+        "reason": "The simultaneous improvement in Voc and FF from 2D surface passivation, while maintaining Jsc, increases the PCE from 14.9% to 17.4%, the record for all-inorganic PSCs"
+      },
+      "premises": [
+        "pvsk:pvsk_zhao2022::voc_and_ff_improvement"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_120da25a69e932eb",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_zhao2022::t80_2100h_at_110c",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__conjunction_result_76035cd0",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_zhao2022::ion_migration_suppressed",
+              "pvsk:pvsk_zhao2022::ion_migration_activation_doubled"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__implication_result_eb679db9",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_zhao2022::__conjunction_result_76035cd0",
+              "pvsk:pvsk_zhao2022::t80_2100h_at_110c"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.83,
+        "reason": "The 2D Cs2PbI2Cl2 layer blocks iodine migration into CuSCN (confirmed by XPS) and doubles the ion migration activation energy, dramatically slowing the dominant degradation mechanism at elevated temperatures"
+      },
+      "premises": [
+        "pvsk:pvsk_zhao2022::ion_migration_suppressed",
+        "pvsk:pvsk_zhao2022::ion_migration_activation_doubled"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_05147e4e6fcc4795",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_zhao2022::extrapolated_t80_5_years",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__conjunction_result_7ebf72e2",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_zhao2022::single_degradation_mechanism",
+              "pvsk:pvsk_zhao2022::t80_2100h_at_110c"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__implication_result_72f3ba30",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_zhao2022::__conjunction_result_7ebf72e2",
+              "pvsk:pvsk_zhao2022::extrapolated_t80_5_years"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "A single Arrhenius degradation mechanism across 35-110C validates using the acceleration factor (24.2+/-3.5 at 110C) to reliably extrapolate T80 from the experimentally measured 2100 hours at 110C to 51,000+/-7,000 hours at 35C"
+      },
+      "premises": [
+        "pvsk:pvsk_zhao2022::single_degradation_mechanism",
+        "pvsk:pvsk_zhao2022::t80_2100h_at_110c"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_538fb984b78b1110",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_zhao2022::activation_energy_doubled",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__implication_result_a2df9adc",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_zhao2022::ion_migration_suppressed",
+              "pvsk:pvsk_zhao2022::activation_energy_doubled"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "The 2D Cs2PbI2Cl2 layer passivates iodine vacancies at the CsPbI3 surface, reducing the concentration of mobile ions and raising the energy barrier for ion migration, which doubles both the degradation activation energy and the ion migration activation energy"
+      },
+      "premises": [
+        "pvsk:pvsk_zhao2022::ion_migration_suppressed"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_6930d7f428bd94a3",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_zhao2022::universal_degradation_curve",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__conjunction_result_1a3f95ac",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_zhao2022::single_degradation_mechanism",
+              "pvsk:pvsk_zhao2022::biexponential_degradation"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__implication_result_01528c08",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_zhao2022::__conjunction_result_1a3f95ac",
+              "pvsk:pvsk_zhao2022::universal_degradation_curve"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Comparable fast and slow activation energies within each device type indicate both rates probe the same physical process (ion migration), so the Arrhenius extrapolation is valid and data collapse onto a universal curve"
+      },
+      "premises": [
+        "pvsk:pvsk_zhao2022::single_degradation_mechanism",
+        "pvsk:pvsk_zhao2022::biexponential_degradation"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_71df6afcd3fdeab4",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_zhao2022::no_degradation_at_35c",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__implication_result_966471f4",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_zhao2022::ion_migration_suppressed",
+              "pvsk:pvsk_zhao2022::no_degradation_at_35c"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.78,
+        "reason": "At 35C the thermal energy is insufficient to overcome the doubled ion migration activation energy barrier created by the 2D capping layer, so no degradation is observable within 3531 hours"
+      },
+      "premises": [
+        "pvsk:pvsk_zhao2022::ion_migration_suppressed"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_854d5a765dc4f820",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__conjunction_result_6a44f783",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_zhao2022::capped_pce_17_4_pct",
+              "pvsk:pvsk_zhao2022::extrapolated_t80_5_years"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__implication_result_eb987688",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_zhao2022::__conjunction_result_6a44f783",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.75,
+        "reason": "Arrhenius-validated prediction of >5 year continuous operational lifetime at 35C with a quantitative acceleration factor provides the most rigorous stability assessment for PSCs to date, directly supporting the feasibility of long-term deployment"
+      },
+      "premises": [
+        "pvsk:pvsk_zhao2022::capped_pce_17_4_pct",
+        "pvsk:pvsk_zhao2022::extrapolated_t80_5_years"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_de9e7e25966c11cc",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__implication_result_a1cf1197",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_zhao2022::capped_pce_17_4_pct",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.62,
+        "reason": "17.4% PCE is the highest for all-inorganic PSCs with fully inorganic device stacks, demonstrating that eliminating volatile organic cations does not preclude competitive efficiency"
+      },
+      "premises": [
+        "pvsk:pvsk_zhao2022::capped_pce_17_4_pct"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_297314226c3aafb2",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__conjunction_result_2b597e52",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_zhao2022::cs2pbi2cl2_capping",
+              "pvsk:pvsk_zhao2022::activation_energy_doubled",
+              "pvsk:pvsk_zhao2022::ion_migration_suppressed"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__implication_result_4d1d1154",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_zhao2022::__conjunction_result_2b597e52",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.68,
+        "reason": "All-inorganic 2D capping layers that double the ion migration activation energy represent a new interface engineering strategy combining surface passivation with ion migration suppression for continuous stability improvement"
+      },
+      "premises": [
+        "pvsk:pvsk_zhao2022::cs2pbi2cl2_capping",
+        "pvsk:pvsk_zhao2022::activation_energy_doubled",
+        "pvsk:pvsk_zhao2022::ion_migration_suppressed"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_400b1c5a7d6d9818",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_viability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__conjunction_result_97d0d031",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_zhao2022::extrapolated_t80_5_years",
+              "pvsk:pvsk_zhao2022::no_degradation_at_35c"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__implication_result_471cf290",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_zhao2022::__conjunction_result_97d0d031",
+              "pvsk:pvsk_meta::p_viability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "All-inorganic CsPbI3 with no observable degradation at 35C over 3531 hours and >5 year predicted lifetime demonstrates that PSCs can achieve the durability required for practical applications"
+      },
+      "premises": [
+        "pvsk:pvsk_zhao2022::extrapolated_t80_5_years",
+        "pvsk:pvsk_zhao2022::no_degradation_at_35c"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_bd07eda9130fcadb",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__conjunction_result_88b3f809",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_zhao2022::arrhenius_accelerated_aging",
+              "pvsk:pvsk_zhao2022::universal_degradation_curve"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_zhao2022::__implication_result_14ac87b9",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_zhao2022::__conjunction_result_88b3f809",
+              "pvsk:pvsk_meta::p_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "The Arrhenius-based accelerated aging methodology with validated acceleration factors provides a quantitative framework for industrial lifetime certification, analogous to methods used for silicon and organic PV modules"
+      },
+      "premises": [
+        "pvsk:pvsk_zhao2022::arrhenius_accelerated_aging",
+        "pvsk:pvsk_zhao2022::universal_degradation_curve"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_c145e027aeac0ffe",
+      "type": "support"
+    }
+  ]
+}

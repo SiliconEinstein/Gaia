@@ -1,0 +1,106 @@
+{
+  "exports": [
+    {
+      "content": "Average performance of 12 identically processed vapour-deposited cells is PCE=12.3% +/- 2.0%, Jsc=18.9 +/- 1.8 mA/cm2, Voc=1.05 +/- 0.03 V, FF=0.62 +/- 0.05",
+      "content_hash": "e5e41d76fc2e63ef2f7911c51c47c21179f6fdd39578806e28f1c1898f4ca539",
+      "label": "batch_average_12_3",
+      "qid": "pvsk:pvsk_liu2013::batch_average_12_3",
+      "type": "claim"
+    },
+    {
+      "content": "Cl atoms in the mixed-halide perovskite reside in apical positions out of the PbI4 plane rather than in equatorial octahedral sites, consistent with a slight contraction of the c-axis compared to CH3NH3PbI3",
+      "content_hash": "ee5f317b03a5fdbbdb6eb49966bd9de93cde4c08717319c44463f660abb753f7",
+      "label": "cl_apical_position",
+      "qid": "pvsk:pvsk_liu2013::cl_apical_position",
+      "type": "claim"
+    },
+    {
+      "content": "The electron and hole diffusion length in CH3NH3PbI3-xClx perovskite is at least 330 nm (the film thickness), as evidenced by efficient charge collection in planar heterojunction cells",
+      "content_hash": "1a740bda09973a9984c30d1ecbefba761f4816e2977eecffda7c436efbdeefa9",
+      "label": "diffusion_length_lower_bound",
+      "qid": "pvsk:pvsk_liu2013::diffusion_length_lower_bound",
+      "type": "claim"
+    },
+    {
+      "content": "What are the precise electron and hole diffusion lengths in vapour-deposited CH3NH3PbI3-xClx, and what are the primary excitation and free-charge generation mechanisms?",
+      "content_hash": "53656c3f993ba22d0961ee6f979d1bb6be154a4da93c7f04bdb4284ed1e32ee3",
+      "label": "diffusion_length_precise",
+      "qid": "pvsk:pvsk_liu2013::diffusion_length_precise",
+      "type": "question"
+    },
+    {
+      "content": "Planar heterojunction p-i-n solar cell with dual-source vapour-deposited CH3NH3PbI3-xClx perovskite: CH3NH3I and PbCl2 evaporated simultaneously at 4:1 molar ratio under 10^-5 mbar onto compact TiO2/FTO substrate, annealed at 100C for 45 min, followed by solution-processed spiro-OMeTAD and evaporated Ag electrode, measured under AM 1.5 at 101 mW/cm2",
+      "content_hash": "f0925ee1dea31ce0a7a7571462993f4e041e90160ff050b7107e1eb01461072a",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_liu2013::exp_context",
+      "type": "setting"
+    },
+    {
+      "content": "Will vapour deposition emerge as the preferred route for perovskite solar cell manufacture, or will solution processing eventually match its film quality?",
+      "content_hash": "6d63eb0c5e511567daf284941d3efd3f54fe26f92b82d2adb8a72a0617cd65e2",
+      "label": "manufacturing_route",
+      "qid": "pvsk:pvsk_liu2013::manufacturing_route",
+      "type": "question"
+    },
+    {
+      "content": "Nanostructuring (mesoporous scaffold) is not necessary to achieve high efficiency with perovskite absorbers; a simple planar heterojunction thin-film architecture can deliver over 15% PCE",
+      "content_hash": "dab99b89953a3bcfca739c9e8c9d142bb1574861cd49cc67eddcaf4f02d60718",
+      "label": "nanostructure_not_necessary",
+      "qid": "pvsk:pvsk_liu2013::nanostructure_not_necessary",
+      "type": "claim"
+    },
+    {
+      "content": "Best vapour-deposited planar heterojunction perovskite cell achieves PCE of 15.4% with Jsc=21.5 mA/cm2, Voc=1.07 V, and fill factor 0.67, measured under AM 1.5 simulated sunlight at 101 mW/cm2",
+      "content_hash": "78ef846138e0e8ca177dfcd1adf311ae89c350886bad051626c01cbe150a17a0",
+      "label": "pce_15_4_pct",
+      "qid": "pvsk:pvsk_liu2013::pce_15_4_pct",
+      "type": "claim"
+    },
+    {
+      "content": "Vapour-deposited perovskite films show high phase purity with only minor PbI2 (12.65 degrees) and no measurable CH3NH3PbCl3 (15.68 degrees) XRD peaks, confirming well-formed mixed-halide perovskite",
+      "content_hash": "e9893d89f28b31d51cad997da0386903a74c0b8cb13506bc4cf05b3332fbfcc0",
+      "label": "phase_purity",
+      "qid": "pvsk:pvsk_liu2013::phase_purity",
+      "type": "claim"
+    },
+    {
+      "content": "Both vapour-deposited and solution-cast films produce the same mixed-halide perovskite with orthorhombic crystal structure, as confirmed by identical XRD peak positions at 14.12, 28.44, and 43.23 degrees",
+      "content_hash": "e861d3b392c166438ea01b4e646358d1242e8e78ee7000e2e2aeaf62a961ea71",
+      "label": "same_crystal_structure",
+      "qid": "pvsk:pvsk_liu2013::same_crystal_structure",
+      "type": "claim"
+    },
+    {
+      "content": "Solution-processed planar heterojunction perovskite cell achieves 8.6% PCE with Jsc=17.6 mA/cm2, Voc=0.84 V, and FF=0.58, but with undulating film (50-410 nm thickness variation) and pinholes causing shunting paths",
+      "content_hash": "1dfd0e30db7600d70b61c6db6794f20f78fd781c80294030bf0fbc6ba46b87dd",
+      "label": "solution_planar_8_6_pct",
+      "qid": "pvsk:pvsk_liu2013::solution_planar_8_6_pct",
+      "type": "claim"
+    },
+    {
+      "content": "Vapour-deposited perovskite technology is compatible with conventional silicon and CIGS processing, making it suitable as a top cell in hybrid tandem configurations",
+      "content_hash": "05d09f85b2b6b914177021339a9ecd1ce263a067daa4e99f0c202397f1075f23",
+      "label": "tandem_compatibility",
+      "qid": "pvsk:pvsk_liu2013::tandem_compatibility",
+      "type": "claim"
+    },
+    {
+      "content": "Dual-source thermal evaporation: CH3NH3I at ~116C (5.3 A/s) and PbCl2 at ~320C (1 A/s) for ~128 min, producing ~330 nm thick perovskite film after annealing. Substrate holder rotated and water-cooled to ~21C for uniform coating",
+      "content_hash": "9f1eacd52b05c52c31d46793f2184f6a98a10c9571adc75768748341089ed9a7",
+      "label": "vapour_deposition_method",
+      "qid": "pvsk:pvsk_liu2013::vapour_deposition_method",
+      "type": "claim"
+    },
+    {
+      "content": "Vapour-deposited perovskite films are extremely uniform with crystalline features on the scale of hundreds of nanometres, in contrast to solution-processed films with partial coverage and crystalline platelets tens of micrometres in size",
+      "content_hash": "9f7307f6574b0cf91e77c270de90af98a40af37b61e4a455a3257eb0277dc532",
+      "label": "vapour_film_uniformity",
+      "qid": "pvsk:pvsk_liu2013::vapour_film_uniformity",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:b78796ea69c1dbbec604a1fc34fb37ec0fa9d9fef06662ddde8519fcd0f41925",
+  "manifest_schema_version": 1,
+  "package": "pvsk-liu2013",
+  "version": "1.0.0"
+}

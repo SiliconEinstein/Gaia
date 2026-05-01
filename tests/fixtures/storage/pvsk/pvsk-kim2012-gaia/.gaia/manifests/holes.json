@@ -1,0 +1,58 @@
+{
+  "holes": [
+    {
+      "content": "Valence band of CH3NH3PbI3 is at -5.43 eV below vacuum and conduction band at -3.93 eV, which is slightly higher than the TiO2 conduction band, providing well-aligned band positions for charge separation",
+      "content_hash": "506a2d3012d4f999488c0417c67602a6637f3511c82fe8067a1dfef0da2a9bb9",
+      "interface_hash": "sha256:2093e0f76f9d1cf3adf32825e67d111b1d12b1fd6ac7c2bbcc27f763c8ed0450",
+      "label": "band_alignment",
+      "qid": "pvsk:pvsk_kim2012::band_alignment",
+      "required_by": [
+        "pvsk:pvsk_kim2012::hole_transfer_mechanism"
+      ]
+    },
+    {
+      "content": "CH3NH3PbI3 perovskite nanocrystals exhibit an absorption coefficient of 1.5x10^4 cm-1 at 550 nm, approximately one order of magnitude higher than conventional N719 dye",
+      "content_hash": "68b3462588c3987ddb47d7b3688376e06b4704d791bd8f99813e3db32027cee4",
+      "interface_hash": "sha256:cf2a4f71e04728139645f673cbb7ecece072567450c8c7156993e722bfc51ed4",
+      "label": "high_absorption_coefficient",
+      "qid": "pvsk:pvsk_kim2012::high_absorption_coefficient",
+      "required_by": [
+        "pvsk:pvsk_kim2012::submicron_sufficient"
+      ]
+    },
+    {
+      "content": "IPCE reaches a broad maximum at 450 nm and remains above 50% up to 750 nm, indicating efficient photon harvesting by CH3NH3PbI3 nanoparticles in the 0.6 um mesoporous TiO2 film",
+      "content_hash": "e7084dc69828da9835cdc8b94d988e200fcbba0b94e242f0d8a664cf4b4b3843",
+      "interface_hash": "sha256:8a2fa84086bc5dd8e6b5f9832d7a8a5002b21988ec7d04d2582b50e015bbf38d",
+      "label": "ipce_plateau",
+      "qid": "pvsk:pvsk_kim2012::ipce_plateau",
+      "required_by": [
+        "pvsk:pvsk_kim2012::pce_9_7_pct"
+      ]
+    },
+    {
+      "content": "Photocurrent density is linearly proportional to light intensity, indicating a non-space-charge-limited structure with little difference between electron and hole mobility at the TiO2/perovskite/spiro-MeOTAD junction",
+      "content_hash": "a6ae3fb828cdb3952f170f58c960dcde87317e57b7a0adc936ab5a9cd856b433",
+      "interface_hash": "sha256:09459b71a5f9c7c1741cf7f9250396d7803ebe151db1095587452c6e646ddffb",
+      "label": "linear_photocurrent",
+      "qid": "pvsk:pvsk_kim2012::linear_photocurrent",
+      "required_by": [
+        "pvsk:pvsk_kim2012::pce_9_7_pct"
+      ]
+    },
+    {
+      "content": "Open-circuit voltage decreases from ~0.9 V to ~0.8 V as TiO2 film thickness increases from 0.6 um to 1.5 um, attributed to increased dark current that lowers electron concentration and quasi-Fermi level",
+      "content_hash": "8083b6122cb513302e7477a2325ed95ca4195172ead39b28ca0c8cdf5c4f1398",
+      "interface_hash": "sha256:75d78fb52f70ec399c9a3fc951da55704171a3eb92d3ea02af06c5e9879ee9b5",
+      "label": "voc_thickness_dependence",
+      "qid": "pvsk:pvsk_kim2012::voc_thickness_dependence",
+      "required_by": [
+        "pvsk:pvsk_kim2012::pce_9_7_pct"
+      ]
+    }
+  ],
+  "ir_hash": "sha256:b522ea6279ba043867473ff4f1ea91a690a21e99419127dbbed1b7d41405a698",
+  "manifest_schema_version": 1,
+  "package": "pvsk-kim2012",
+  "version": "1.0.0"
+}

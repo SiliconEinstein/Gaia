@@ -1,0 +1,770 @@
+{
+  "ir_hash": "sha256:f7e64b400120337b4dc44080952e609a2ee8272a46aaa9a5f2f878239d966879",
+  "knowledges": [
+    {
+      "content": "Entirely roll-to-roll fabricated perovskite solar cell modules on flexible PET substrates. Device stack: flexible TCE/SnO2/FA0.45MA0.55PbI3/HTAB-P3HT/carbon electrode with screen-printed Ag grids. All layers deposited by industrial R2R tools (slot-die, reverse gravure, screen printing) under ambient room conditions.",
+      "content_hash": "2f61f6ac9bf1c72391835ce2e8e0316f517dacd152f7e03991b760456c877348",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_jelly2024::exp_context",
+      "label": "exp_context",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Translating lab-scale perovskite solar cells to R2R manufacturing requires replacing vacuum-deposited electrodes with printable alternatives, developing ambient-compatible processing, and controlling crystallization on continuously moving flexible substrates.",
+      "content_hash": "5c48deb4068722f3f07d0dc3419651737582e72dce0ea8b709bd090348c23a96",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_jelly2024::r2r_challenges",
+      "label": "r2r_challenges",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "This work reports the first demonstration of perovskite solar cell modules, comprising serially-interconnected cells, produced entirely using industrial roll-to-roll printing tools under ambient room conditions",
+      "content_hash": "70a9b6e1a65ca7524e1a0e985c62f5efa05b498f65a7a5d9cd8a2090b2a64200",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_jelly2024::first_r2r_modules",
+      "label": "first_r2r_modules",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "title": "first_r2r_modules",
+      "type": "claim"
+    },
+    {
+      "content": "Fully R2R-printed individual perovskite solar cells achieve a record PCE of 15.5% with Jsc of 19.9 mA cm-2, FF of 76.1%, and Voc of 1.02 V, using a printed carbon electrode to replace vacuum-deposited gold",
+      "content_hash": "237a44746e06ee7dbbb69ec43ff0d9075e42f4acbb3b697127e79b0a75458c49",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_jelly2024::r2r_cell_15_5",
+      "label": "r2r_cell_15_5",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "title": "r2r_cell_15_5_percent",
+      "type": "claim"
+    },
+    {
+      "content": "Entirely R2R-fabricated modules (49.5 cm2 active area, 5 cells in series) achieve up to 11.0% active-area PCE with 192 mA current, 62.3% FF, and 4.59 V Voc",
+      "content_hash": "c2d32ab07ff3efd505fe79d145e355e6a83078a6f451bbea76521d0a807cd2f7",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_jelly2024::r2r_module_11",
+      "label": "r2r_module_11",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "r2r_module_11_percent",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite-friendly carbon inks enable vacuum-free printed back electrodes compatible with R2R manufacturing, replacing costly vacuum-deposited Au electrodes",
+      "content_hash": "3a4e560434115ebb1cd981c6d37754940f3626fb6462ec663411976be232007d",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_jelly2024::carbon_electrode",
+      "label": "carbon_electrode",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "title": "carbon_electrode_r2r",
+      "type": "claim"
+    },
+    {
+      "content": "The printing-friendly sequential deposition (PFSD) technique with shallow-angle edge blowing produces high-quality perovskite films on continuously moving substrates under ambient conditions (40-50% RH), with mirror-like film quality and no PbI2 residue",
+      "content_hash": "9ab1bd70112191bfc658dbb1d6bc01e7e5f070a280981ddfce6beaaedc8dd90f",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_jelly2024::pfsd_technique",
+      "label": "pfsd_technique",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "pfsd_edge_blowing",
+      "type": "claim"
+    },
+    {
+      "content": "The HTAB-P3HT hole transport layer system outperforms PPDT2FBT, achieving higher PCE and narrower performance distribution in R2R fabrication, by passivating perovskite surface traps and promoting self-assembly of P3HT",
+      "content_hash": "b3244ac25e41eeb28381e18c6b7e83396dec6635c4c681aff01ee11085b307f3",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_jelly2024::htab_p3ht_htl",
+      "label": "htab_p3ht_htl",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "title": "htab_p3ht_htl",
+      "type": "claim"
+    },
+    {
+      "content": "An automated R2R platform enables fabrication and testing of over 10,000 solar cells per day, with 1600 cells fabricated in a single experiment using 20 parameter combinations for rapid optimization",
+      "content_hash": "a2227e8dad28a097ae38e5ce794383ade89cfce1e363735487eaecb8139be88a",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_jelly2024::high_throughput_screening",
+      "label": "high_throughput_screening",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "high_throughput_screening",
+      "type": "claim"
+    },
+    {
+      "content": "Reliable production of R2R-fabricated PSCs with average PCE of ~13% is confirmed regardless of ambient humidity (30-60% RH), demonstrating manufacturing robustness",
+      "content_hash": "85d92820bf57c0b2cea073b1e3f49c9f9dd3cfd40bae8602d71c1cb080382d8e",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_jelly2024::humidity_tolerance",
+      "label": "humidity_tolerance",
+      "metadata": {
+        "prior": 0.78
+      },
+      "parameters": [],
+      "title": "humidity_tolerance_r2r",
+      "type": "claim"
+    },
+    {
+      "content": "A cost model predicts manufacturing cost of ~0.7 USD W-1 for a production rate of 1,000,000 m2 per year in Australia, with potential for further cost reduction below 0.5 USD W-1 by eliminating remaining high-cost components",
+      "content_hash": "d211d11242f6cdfe7efc4e9868e424e36ba303a4047a7baa766708efbf7d566a",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_jelly2024::cost_prediction",
+      "label": "cost_prediction",
+      "metadata": {
+        "prior": 0.55
+      },
+      "parameters": [],
+      "title": "cost_prediction_0_7_usd",
+      "type": "claim"
+    },
+    {
+      "content": "R2R-printed modules achieve a geometric fill factor (GFF) of 75% using stripe-pattern interconnection, lower than laser-scribed modules (99%) but compatible with high-throughput manufacturing",
+      "content_hash": "121a9bfc7ef7bac1bd80a160128aef1bd323fd7927e3cee64e7102aa22f5d0c0",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_jelly2024::geometric_fill_factor",
+      "label": "geometric_fill_factor",
+      "metadata": {
+        "prior": 0.78
+      },
+      "parameters": [],
+      "title": "geometric_fill_factor_75",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "content_hash": "9603b55225f5e093d20a1194832c2b419389d6a83886f8b7841f0b9a65cc106f",
+      "declaration_index": 4,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "metadata": {
+        "prior": 0.15
+      },
+      "parameters": [],
+      "title": "p_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "Organometal halide perovskites can function as viable photovoltaic absorbers",
+      "content_hash": "12183274605a4cdd79df4b632d2b0bc6c7bbfdfe0b389d5a86bd3d531fb560a3",
+      "declaration_index": 0,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_viability",
+      "label": "p_viability",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_viability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jelly2024::carbon_electrode,pvsk:pvsk_jelly2024::pfsd_technique,pvsk:pvsk_jelly2024::htab_p3ht_htl)",
+      "content_hash": "d1d2fbfba5e84a7329a59440c89d48a6fc513fa1abde9c627f9ce35ad2c68cb5",
+      "exported": false,
+      "id": "pvsk:pvsk_jelly2024::__conjunction_result_346e6801",
+      "label": "__conjunction_result_346e6801",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jelly2024::carbon_electrode,pvsk:pvsk_jelly2024::pfsd_technique,pvsk:pvsk_jelly2024::htab_p3ht_htl)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_0324a4b72f2f9a39",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jelly2024::__conjunction_result_346e6801,pvsk:pvsk_jelly2024::r2r_cell_15_5)",
+      "content_hash": "59b76a0807fb06e41d6a05a2b383ab23f515797ba33c1c9321d634c0261f7bbb",
+      "exported": false,
+      "id": "pvsk:pvsk_jelly2024::__implication_result_7a71bf16",
+      "label": "__implication_result_7a71bf16",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jelly2024::__conjunction_result_346e6801,pvsk:pvsk_jelly2024::r2r_cell_15_5)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_0324a4b72f2f9a39",
+        "owning_strategy_type": "support",
+        "prior": 0.78,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jelly2024::r2r_cell_15_5,pvsk:pvsk_jelly2024::high_throughput_screening)",
+      "content_hash": "2f07e340ea9fc906523dfc01a350dc4125f415487c6ad6bc71af49a1a3111114",
+      "exported": false,
+      "id": "pvsk:pvsk_jelly2024::__conjunction_result_fc63b8df",
+      "label": "__conjunction_result_fc63b8df",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jelly2024::r2r_cell_15_5,pvsk:pvsk_jelly2024::high_throughput_screening)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_b583e9744ef1b275",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jelly2024::__conjunction_result_fc63b8df,pvsk:pvsk_jelly2024::r2r_module_11)",
+      "content_hash": "818663d6b26382b164f71030dc661ffea32d0b8f7c5ccf9db432e29877273f18",
+      "exported": false,
+      "id": "pvsk:pvsk_jelly2024::__implication_result_f823a930",
+      "label": "__implication_result_f823a930",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jelly2024::__conjunction_result_fc63b8df,pvsk:pvsk_jelly2024::r2r_module_11)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_b583e9744ef1b275",
+        "owning_strategy_type": "support",
+        "prior": 0.75,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jelly2024::r2r_module_11,pvsk:pvsk_jelly2024::first_r2r_modules)",
+      "content_hash": "6d00ef8509e0fd926ee286a0684d95964fabff335c53d4bd1582871052401f65",
+      "exported": false,
+      "id": "pvsk:pvsk_jelly2024::__conjunction_result_8db3a4bf",
+      "label": "__conjunction_result_8db3a4bf",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jelly2024::r2r_module_11,pvsk:pvsk_jelly2024::first_r2r_modules)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_86189a2e1b4e5ea9",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jelly2024::__conjunction_result_8db3a4bf,pvsk:pvsk_jelly2024::cost_prediction)",
+      "content_hash": "b53515b8f349b46748ee033ba51104242b8b7ef775c337643675e385eb8f27c9",
+      "exported": false,
+      "id": "pvsk:pvsk_jelly2024::__implication_result_7a5e411e",
+      "label": "__implication_result_7a5e411e",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jelly2024::__conjunction_result_8db3a4bf,pvsk:pvsk_jelly2024::cost_prediction)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_86189a2e1b4e5ea9",
+        "owning_strategy_type": "support",
+        "prior": 0.55,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jelly2024::first_r2r_modules,pvsk:pvsk_jelly2024::r2r_module_11,pvsk:pvsk_jelly2024::carbon_electrode)",
+      "content_hash": "c4a0b0b2354438013389db7db93e57eea4565bc0eb69235c4d7267dec7a29f19",
+      "exported": false,
+      "id": "pvsk:pvsk_jelly2024::__conjunction_result_2d42290d",
+      "label": "__conjunction_result_2d42290d",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jelly2024::first_r2r_modules,pvsk:pvsk_jelly2024::r2r_module_11,pvsk:pvsk_jelly2024::carbon_electrode)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_aac7229f9220ca1c",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jelly2024::__conjunction_result_2d42290d,pvsk:pvsk_meta::p_industrialization)",
+      "content_hash": "1d3c90563976f431b980e984f251468e9ac5ed0857fcf60950c1040d7bcb78d5",
+      "exported": false,
+      "id": "pvsk:pvsk_jelly2024::__implication_result_9f18712d",
+      "label": "__implication_result_9f18712d",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jelly2024::__conjunction_result_2d42290d,pvsk:pvsk_meta::p_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_aac7229f9220ca1c",
+        "owning_strategy_type": "support",
+        "prior": 0.85,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jelly2024::r2r_cell_15_5,pvsk:pvsk_jelly2024::humidity_tolerance)",
+      "content_hash": "fddde9230f3d28870c9804f568ac6b9ad6f4ce682e2509e1ec4819cf76157d91",
+      "exported": false,
+      "id": "pvsk:pvsk_jelly2024::__conjunction_result_1c1d175f",
+      "label": "__conjunction_result_1c1d175f",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jelly2024::r2r_cell_15_5,pvsk:pvsk_jelly2024::humidity_tolerance)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_450c0e9c81ff0ffd",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jelly2024::__conjunction_result_1c1d175f,pvsk:pvsk_meta::p_viability)",
+      "content_hash": "a3e56e21a17d6564a08067e46f7c03eccf6bd6718b6fad0fe565dbb83e3d5fe5",
+      "exported": false,
+      "id": "pvsk:pvsk_jelly2024::__implication_result_d51f2d9a",
+      "label": "__implication_result_d51f2d9a",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jelly2024::__conjunction_result_1c1d175f,pvsk:pvsk_meta::p_viability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_450c0e9c81ff0ffd",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jelly2024::r2r_cell_15_5,pvsk:pvsk_jelly2024::cost_prediction)",
+      "content_hash": "7e998e1c9e90e6d9d9b6879f16dde2a51711d43a082f855833ec5c4643d59f65",
+      "exported": false,
+      "id": "pvsk:pvsk_jelly2024::__conjunction_result_d0b41cd7",
+      "label": "__conjunction_result_d0b41cd7",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jelly2024::r2r_cell_15_5,pvsk:pvsk_jelly2024::cost_prediction)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_12d562fe028a4c1c",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jelly2024::__conjunction_result_d0b41cd7,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "2d3e7ba8faa4ee744c80cde82880606275929d7009f8cb181289f6b31241085e",
+      "exported": false,
+      "id": "pvsk:pvsk_jelly2024::__implication_result_1ee83616",
+      "label": "__implication_result_1ee83616",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jelly2024::__conjunction_result_d0b41cd7,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_12d562fe028a4c1c",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jelly2024::first_r2r_modules,pvsk:pvsk_jelly2024::high_throughput_screening)",
+      "content_hash": "74edc96df0fd680caec0d52bb64c366a8d2e0be9e541b1c74fa3539011148b25",
+      "exported": false,
+      "id": "pvsk:pvsk_jelly2024::__conjunction_result_27732ea9",
+      "label": "__conjunction_result_27732ea9",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jelly2024::first_r2r_modules,pvsk:pvsk_jelly2024::high_throughput_screening)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_c04c0d97c05e9b06",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jelly2024::__conjunction_result_27732ea9,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "367ae4ab240b324038296beb7c2ede5a8a3d20540c8a5d627d552352c6166094",
+      "exported": false,
+      "id": "pvsk:pvsk_jelly2024::__implication_result_b5a1f559",
+      "label": "__implication_result_b5a1f559",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jelly2024::__conjunction_result_27732ea9,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_c04c0d97c05e9b06",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_jelly2024",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_jelly2024::r2r_cell_15_5",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jelly2024::__conjunction_result_346e6801",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jelly2024::carbon_electrode",
+              "pvsk:pvsk_jelly2024::pfsd_technique",
+              "pvsk:pvsk_jelly2024::htab_p3ht_htl"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jelly2024::__implication_result_7a71bf16",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jelly2024::__conjunction_result_346e6801",
+              "pvsk:pvsk_jelly2024::r2r_cell_15_5"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.78,
+        "reason": "Three enabling technologies — printed carbon electrode, PFSD deposition, and HTAB-P3HT HTL — together achieve record R2R cell efficiency by addressing electrode cost, film quality, and charge transport respectively"
+      },
+      "premises": [
+        "pvsk:pvsk_jelly2024::carbon_electrode",
+        "pvsk:pvsk_jelly2024::pfsd_technique",
+        "pvsk:pvsk_jelly2024::htab_p3ht_htl"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_0324a4b72f2f9a39",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_jelly2024::r2r_module_11",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jelly2024::__conjunction_result_fc63b8df",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jelly2024::r2r_cell_15_5",
+              "pvsk:pvsk_jelly2024::high_throughput_screening"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jelly2024::__implication_result_f823a930",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jelly2024::__conjunction_result_fc63b8df",
+              "pvsk:pvsk_jelly2024::r2r_module_11"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.75,
+        "reason": "Optimized cell parameters from high-throughput screening translate to module fabrication using larger slot-die heads and screen-printed interconnections"
+      },
+      "premises": [
+        "pvsk:pvsk_jelly2024::r2r_cell_15_5",
+        "pvsk:pvsk_jelly2024::high_throughput_screening"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_b583e9744ef1b275",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_jelly2024::cost_prediction",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jelly2024::__conjunction_result_8db3a4bf",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jelly2024::r2r_module_11",
+              "pvsk:pvsk_jelly2024::first_r2r_modules"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jelly2024::__implication_result_7a5e411e",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jelly2024::__conjunction_result_8db3a4bf",
+              "pvsk:pvsk_jelly2024::cost_prediction"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.55,
+        "reason": "The fully printed, vacuum-free manufacturing approach enables low-cost production estimated at 0.7 USD W-1"
+      },
+      "premises": [
+        "pvsk:pvsk_jelly2024::r2r_module_11",
+        "pvsk:pvsk_jelly2024::first_r2r_modules"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_86189a2e1b4e5ea9",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jelly2024::__conjunction_result_2d42290d",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jelly2024::first_r2r_modules",
+              "pvsk:pvsk_jelly2024::r2r_module_11",
+              "pvsk:pvsk_jelly2024::carbon_electrode"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jelly2024::__implication_result_9f18712d",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jelly2024::__conjunction_result_2d42290d",
+              "pvsk:pvsk_meta::p_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.85,
+        "reason": "This is the first demonstration of entirely R2R-printed perovskite modules with all industrial processes, replacing vacuum-deposited electrodes with printed carbon, establishing a manufacturing pathway for perovskite PV"
+      },
+      "premises": [
+        "pvsk:pvsk_jelly2024::first_r2r_modules",
+        "pvsk:pvsk_jelly2024::r2r_module_11",
+        "pvsk:pvsk_jelly2024::carbon_electrode"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_aac7229f9220ca1c",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_viability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jelly2024::__conjunction_result_1c1d175f",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jelly2024::r2r_cell_15_5",
+              "pvsk:pvsk_jelly2024::humidity_tolerance"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jelly2024::__implication_result_d51f2d9a",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jelly2024::__conjunction_result_1c1d175f",
+              "pvsk:pvsk_meta::p_viability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "15.5% efficiency from fully printed cells under ambient conditions, combined with humidity-tolerant manufacturing, demonstrates practical viability of R2R perovskite production"
+      },
+      "premises": [
+        "pvsk:pvsk_jelly2024::r2r_cell_15_5",
+        "pvsk:pvsk_jelly2024::humidity_tolerance"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_450c0e9c81ff0ffd",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jelly2024::__conjunction_result_d0b41cd7",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jelly2024::r2r_cell_15_5",
+              "pvsk:pvsk_jelly2024::cost_prediction"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jelly2024::__implication_result_1ee83616",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jelly2024::__conjunction_result_d0b41cd7",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "15.5% for fully R2R-printed cells represents significant progress toward matching batch-processed flexible PSCs, though a gap remains"
+      },
+      "premises": [
+        "pvsk:pvsk_jelly2024::r2r_cell_15_5",
+        "pvsk:pvsk_jelly2024::cost_prediction"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_12d562fe028a4c1c",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jelly2024::__conjunction_result_27732ea9",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jelly2024::first_r2r_modules",
+              "pvsk:pvsk_jelly2024::high_throughput_screening"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jelly2024::__implication_result_b5a1f559",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jelly2024::__conjunction_result_27732ea9",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "The automated high-throughput R2R platform enables rapid parameter optimization, establishing infrastructure for continuous improvement of printed perovskite technology"
+      },
+      "premises": [
+        "pvsk:pvsk_jelly2024::first_r2r_modules",
+        "pvsk:pvsk_jelly2024::high_throughput_screening"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_c04c0d97c05e9b06",
+      "type": "support"
+    }
+  ]
+}

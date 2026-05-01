@@ -1,0 +1,80 @@
+{
+  "ir_hash": "sha256:6086c0f2eb5c5ece82940ad6d7b249688c18d657235f5ed68c21e9bc9707471f",
+  "manifest_schema_version": 1,
+  "package": "pvsk-lin2023",
+  "premises": [
+    {
+      "content": "PHJ devices show electroluminescence quantum yield of 3.09% versus 0.47% for controls at 1-sun current density, corresponding to Voc loss reduction from 147 mV to 97 mV",
+      "content_hash": "0bac9ac274078e02721040877bd7e9a6f10122672e5d97a0ed9aa5a70286c125",
+      "exported": true,
+      "interface_hash": "sha256:9a4991728baedba5cfb907961c96d46416590b19f47c8cef4ff962ad028e5a9e",
+      "label": "elqy_improvement",
+      "qid": "pvsk:pvsk_lin2023::elqy_improvement",
+      "required_by": [
+        "pvsk:pvsk_lin2023::nbg_pce_238"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "A hybrid evaporation-solution processing method enables non-destructive deposition of a 50 nm Pb-halide wide-bandgap perovskite (FA0.7Cs0.3Pb(I0.85Br0.14)3) on top of the Pb-Sn NBG perovskite, forming a clearly defined 3D/3D bilayer heterostructure with limited metal-ion intermixing",
+      "content_hash": "e071ea613f060d174a5fc960819a2855aec700586e28a43a55c1d97b02aa3246",
+      "exported": true,
+      "interface_hash": "sha256:58e6b02fe6d5c74c3a4cdb50fed6217f1a4c8ba35344282fd4aeec6e38c9ea7c",
+      "label": "hybrid_deposition",
+      "qid": "pvsk:pvsk_lin2023::hybrid_deposition",
+      "required_by": [
+        "pvsk:pvsk_lin2023::phj_concept"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "The 3D/3D PHJ retains its distinct heterostructure with no evidence of Sn diffusion into the FL-WBG layer after 60 days of storage in N2 glovebox, confirmed by EDX and ToF-SIMS",
+      "content_hash": "638f9fb623088c6eb772b606c9e1cdd52cdf6b0de9fb3c2000a0b889d5618f06",
+      "exported": true,
+      "interface_hash": "sha256:bcf4c42ae5a89d60387a16a268b227120b921cf6192ddc0bdad06e2a832f96cd",
+      "label": "phj_structural_stability",
+      "qid": "pvsk:pvsk_lin2023::phj_structural_stability",
+      "required_by": [
+        "pvsk:pvsk_lin2023::tandem_operational_stability"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "PHJ tandems show substantially improved FF from 78.0% to 81.4% and PCE from 26.0% to 27.7% compared with control tandems, because the tandem FF is limited by the subpar NBG subcell under current matching",
+      "content_hash": "8b8f7f9c976b68f36d38694284f503d3c6f5bc56e50d5bd84b6c7769037bf17e",
+      "exported": true,
+      "interface_hash": "sha256:6f113abfa08cf5859f33184b7fc7f0d0f0b8aa615f01bda9f25b17c30471166c",
+      "label": "tandem_ff_improvement",
+      "qid": "pvsk:pvsk_lin2023::tandem_ff_improvement",
+      "required_by": [
+        "pvsk:pvsk_lin2023::tandem_pce_285"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "The PHJ creates type-II band alignment between Pb-Sn NBG and FL-WBG perovskites that reduces hole concentration near the defective interface layer and facilitates electron extraction into C60, confirmed by ultrafast TA spectroscopy showing charge transfer from Pb-Sn to FL-WBG",
+      "content_hash": "3f946c056f4d2ee61091cb5e1eccbbfdc4d4147ed07eb786743486d5eee473b6",
+      "exported": true,
+      "interface_hash": "sha256:9c4829e69eb8533d9e06ca5c92be807e516a171a348dfaac6587ea296a30ea40",
+      "label": "type_ii_band",
+      "qid": "pvsk:pvsk_lin2023::type_ii_band",
+      "required_by": [
+        "pvsk:pvsk_lin2023::phj_concept"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "PHJ in the NBG subcell improves average Voc by 45 mV (0.824 to 0.869 V) and FF by 2.3% (78.5% to 80.8%) compared with controls, while Jsc remains similar",
+      "content_hash": "4b7a0499573316fc9cd97d0c7f5a2216457c38d1f11c74887c430070ae6b4552",
+      "exported": true,
+      "interface_hash": "sha256:a277845e17f76a9db39d959aae143f563e99e8757f9bace1580f2b6a1cf7f2d5",
+      "label": "voc_ff_improvement",
+      "qid": "pvsk:pvsk_lin2023::voc_ff_improvement",
+      "required_by": [
+        "pvsk:pvsk_lin2023::nbg_pce_238"
+      ],
+      "role": "local_hole"
+    }
+  ],
+  "version": "1.0.0"
+}

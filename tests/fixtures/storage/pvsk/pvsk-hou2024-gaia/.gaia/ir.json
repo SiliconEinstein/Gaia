@@ -1,0 +1,788 @@
+{
+  "ir_hash": "sha256:3dd47a1a2fa0f5954741b775107617f28c3851df73583d4e796d18f60b580275",
+  "knowledges": [
+    {
+      "content": "Two-terminal monolithic perovskite/silicon tandem solar cells built on double-side-textured Czochralski-based silicon heterojunction cells. Perovskite bandgap 1.69 eV. Inverted p-i-n configuration. Device area 1.0 cm2. NREL-certified performance.",
+      "content_hash": "0125513cb38bc73b86f81a487fa20517600f19f5cb89b2cafb2a3537910fe7c8",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_hou2024::exp_context",
+      "label": "exp_context",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "The silicon bottom cell uses asymmetrically sized textures: mildly textured front surface (0.5-1 um pyramids) for solution-processed perovskite coverage, and heavily textured rear surface (>3 um pyramids) for uncompromised rear passivation and improved infrared response.",
+      "content_hash": "59c2229b923b3c99a7331301e8f3a78e689e308bbb835030eadcb0cacf4a6bdb",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_hou2024::asymmetric_texture",
+      "label": "asymmetric_texture",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "The perovskite/silicon tandem achieves an independently certified stabilized PCE of 33.89% with FF of 83.0% and Voc of nearly 1.97 V, the first double-junction tandem exceeding the single-junction Shockley-Queisser limit of 33.7%",
+      "content_hash": "186690cf0e9e7f0266bf5e81580038d6115e665b5bfdc642b9030d4fdbf64260",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_hou2024::certified_33_89",
+      "label": "certified_33_89",
+      "metadata": {
+        "prior": 0.92
+      },
+      "parameters": [],
+      "title": "certified_33_89_percent",
+      "type": "claim"
+    },
+    {
+      "content": "The champion tandem cell achieves an in-house PCE of 34.1% with Jsc of 20.68 mA cm-2, Voc of 1.980 V, and FF of 83.2%",
+      "content_hash": "c0077ce83736639a44efd91f3ef41df329151e23e50b77a93e38df1c21cc1d5e",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_hou2024::champion_34_1",
+      "label": "champion_34_1",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "title": "champion_pce_34_1_percent",
+      "type": "claim"
+    },
+    {
+      "content": "A bilayer interface passivation strategy combining nanoscale discretely distributed LiF ultrathin layer with diammonium diiodide (EDAI) molecule achieves optimal trade-off between passivation and charge extraction at the perovskite/C60 interface",
+      "content_hash": "6ae2c3ff7b780441cf25eaba02cc53794346c3a93417476f82d799710e91b10c",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_hou2024::bilayer_passivation",
+      "label": "bilayer_passivation",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "bilayer_lif_edai_passivation",
+      "type": "claim"
+    },
+    {
+      "content": "EDAI molecules chemically passivate uncoordinated Pb2+ surface defects by forming coordinate bonds, eliminating metallic Pb(0) peaks observed in XPS, while LiF alone does not provide this chemical passivation",
+      "content_hash": "0c7e7e12d2bcb1efdaa903c9cd9823dc70126da6f4a4a9eeb0a8cd615408fefe",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_hou2024::edai_chemical_passivation",
+      "label": "edai_chemical_passivation",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "edai_chemical_passivation",
+      "type": "claim"
+    },
+    {
+      "content": "The LiF and EDAI layers are intertwined at the nanoscale: the discontinuous LiF layer allows EDAI to locally contact the perovskite surface, creating nanoscale localized contacts that balance electron tunnelling (through LiF) with direct transport (through EDAI/C60)",
+      "content_hash": "defc5b1a46d6818786669fc4f1336eb027be35c30bfd8f6d0a74159400871931",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_hou2024::intertwined_structure",
+      "label": "intertwined_structure",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "title": "intertwined_nanocale_contacts",
+      "type": "claim"
+    },
+    {
+      "content": "The asymmetrically textured silicon wafer (small front pyramids, large rear pyramids) preserves minority carrier lifetime of 3.4 ms (comparable to 3.2 ms for standard double-sided texture) and improves infrared EQE response compared with double-sided mild texture",
+      "content_hash": "610e641b7ea029ff3366e285553937794b8a52a266e323b66cafdfb4cc061d32",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_hou2024::asymmetric_texture_benefit",
+      "label": "asymmetric_texture_benefit",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "asymmetric_texture_benefit",
+      "type": "claim"
+    },
+    {
+      "content": "The bilayer passivation improves average Voc from below 1.90 V (unpassivated) to 1.96 V (LiF/EDAI), and FF from 76.2% to 80.8% for single-junction perovskite devices",
+      "content_hash": "94595724bc93f627cd47c5765be11fa2b9068d4610518b43b356b146dbe80af7",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_hou2024::voc_progression",
+      "label": "voc_progression",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "voc_ff_progression_passivation",
+      "type": "claim"
+    },
+    {
+      "content": "Devices with LiF/EDAI bilayer passivation retain approximately 90% of original PCE after 53 days of air storage, compared with 82% for LiF-treated control devices",
+      "content_hash": "ac3926c2ad14ebb8f082c13271f3f872341d310c4e7552cb457bd236c917eb76",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_hou2024::storage_stability",
+      "label": "storage_stability",
+      "metadata": {
+        "prior": 0.78
+      },
+      "parameters": [],
+      "title": "storage_stability_90_percent_53d",
+      "type": "claim"
+    },
+    {
+      "content": "The bilayer-treated tandem retains approximately 80% of initial PCE after 1200 hours of MPP tracking under simulated 1-sun at room temperature, compared with less than 60% for LiF-treated control",
+      "content_hash": "21f36e8ba2f81b1287ac7fc0c8504e7dd871b2aaadeb14393d794ba40d0e2ccf",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_hou2024::mppt_stability_1200h",
+      "label": "mppt_stability_1200h",
+      "metadata": {
+        "prior": 0.78
+      },
+      "parameters": [],
+      "title": "mppt_stability_1200h",
+      "type": "claim"
+    },
+    {
+      "content": "The bilayer-treated tandem devices achieve an average PCE exceeding 33% with some devices reaching above 33.8%, demonstrating excellent reproducibility at 1 cm2 scale",
+      "content_hash": "24a6f94a371df8138ab503ddee4e044ad249f6228113028e6fec8cd89ab065f1",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_hou2024::average_pce_33",
+      "label": "average_pce_33",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "average_pce_exceeding_33",
+      "type": "claim"
+    },
+    {
+      "content": "This work represents the first reported certified efficiency of a two-junction tandem solar cell exceeding the single-junction Shockley-Queisser limit of 33.7%, confirming the fundamental advantage of multi-junction architectures",
+      "content_hash": "797845c229c18b68a8ac9db80b7080a3a1eeded9ebfbcd40ff10025fa09520e9",
+      "declaration_index": 12,
+      "exported": true,
+      "id": "pvsk:pvsk_hou2024::sq_limit_breakthrough",
+      "label": "sq_limit_breakthrough",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "title": "sq_limit_breakthrough",
+      "type": "claim"
+    },
+    {
+      "content": "DFT calculations show EDA2+ has binding energies of -6.6 and -8.4 eV on FAI-rich and PbI2-rich FAPbI3 surfaces respectively, substantially larger than monoammonium PA+, and adopts a horizontal bridge-like configuration that maximizes out-of-plane charge transport",
+      "content_hash": "4b32b09b2a86b073a158d39e6402fa94a794da32a5dfd40b0f3dedea62851c21",
+      "declaration_index": 13,
+      "exported": true,
+      "id": "pvsk:pvsk_hou2024::dft_binding_energy",
+      "label": "dft_binding_energy",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "title": "dft_binding_energy_eda",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "content_hash": "9603b55225f5e093d20a1194832c2b419389d6a83886f8b7841f0b9a65cc106f",
+      "declaration_index": 4,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "metadata": {
+        "prior": 0.15
+      },
+      "parameters": [],
+      "title": "p_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_hou2024::edai_chemical_passivation,pvsk:pvsk_hou2024::intertwined_structure)",
+      "content_hash": "50b1c11b4ddfaa44f2b7749c8f8d26ba5b69f963e3c487fdca2e5ce0abf827e5",
+      "exported": false,
+      "id": "pvsk:pvsk_hou2024::__conjunction_result_5f9a5fd1",
+      "label": "__conjunction_result_5f9a5fd1",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_hou2024::edai_chemical_passivation,pvsk:pvsk_hou2024::intertwined_structure)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_348cedba81a4c044",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_hou2024::__conjunction_result_5f9a5fd1,pvsk:pvsk_hou2024::bilayer_passivation)",
+      "content_hash": "f4fdc8c62ccfdb7979f29a3c56316da0f4cfa4fb96d17587b13a7efce13a33a3",
+      "exported": false,
+      "id": "pvsk:pvsk_hou2024::__implication_result_09e901c7",
+      "label": "__implication_result_09e901c7",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_hou2024::__conjunction_result_5f9a5fd1,pvsk:pvsk_hou2024::bilayer_passivation)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_348cedba81a4c044",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_hou2024::bilayer_passivation,pvsk:pvsk_hou2024::asymmetric_texture_benefit,pvsk:pvsk_hou2024::voc_progression)",
+      "content_hash": "ba9b0ac4ab91acfa7a32214e945e3f2808f8be82a8d57a10c79cf116858b767e",
+      "exported": false,
+      "id": "pvsk:pvsk_hou2024::__conjunction_result_cf960814",
+      "label": "__conjunction_result_cf960814",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_hou2024::bilayer_passivation,pvsk:pvsk_hou2024::asymmetric_texture_benefit,pvsk:pvsk_hou2024::voc_progression)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_acf660b6484f4cff",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_hou2024::__conjunction_result_cf960814,pvsk:pvsk_hou2024::certified_33_89)",
+      "content_hash": "802583ec0b67985d86616d8fcaeb111dcaa322d65f337c871d1dc84116a9244b",
+      "exported": false,
+      "id": "pvsk:pvsk_hou2024::__implication_result_ae99e0b7",
+      "label": "__implication_result_ae99e0b7",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_hou2024::__conjunction_result_cf960814,pvsk:pvsk_hou2024::certified_33_89)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_acf660b6484f4cff",
+        "owning_strategy_type": "support",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_hou2024::certified_33_89,pvsk:pvsk_hou2024::sq_limit_breakthrough)",
+      "content_hash": "28dc2509d895e6af7afadd8aad300d074bbd4029d6ad0cccd91e0e43474d9356",
+      "exported": false,
+      "id": "pvsk:pvsk_hou2024::__implication_result_c14ad54c",
+      "label": "__implication_result_c14ad54c",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_hou2024::certified_33_89,pvsk:pvsk_hou2024::sq_limit_breakthrough)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_18df48594415a500",
+        "owning_strategy_type": "support",
+        "prior": 0.85,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_hou2024::bilayer_passivation,pvsk:pvsk_hou2024::storage_stability)",
+      "content_hash": "a3bdb077f88f6c9adfbf2542e08c1144f6c15749b2cd12442175a739af5ec8a1",
+      "exported": false,
+      "id": "pvsk:pvsk_hou2024::__implication_result_cb49fc06",
+      "label": "__implication_result_cb49fc06",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_hou2024::bilayer_passivation,pvsk:pvsk_hou2024::storage_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_a54126bcceb84126",
+        "owning_strategy_type": "support",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_hou2024::certified_33_89,pvsk:pvsk_hou2024::champion_34_1,pvsk:pvsk_hou2024::sq_limit_breakthrough)",
+      "content_hash": "5011a0e8416f4350552e7da0b1dab5e030fd11dfa962684cf71a5dfd53225f8e",
+      "exported": false,
+      "id": "pvsk:pvsk_hou2024::__conjunction_result_928c2688",
+      "label": "__conjunction_result_928c2688",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_hou2024::certified_33_89,pvsk:pvsk_hou2024::champion_34_1,pvsk:pvsk_hou2024::sq_limit_breakthrough)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_7a014a78d7e7ca88",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_hou2024::__conjunction_result_928c2688,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "4e8333c2f1ee0ee8917d6c82599671168ac947456d2c2525707819fafe32bf5d",
+      "exported": false,
+      "id": "pvsk:pvsk_hou2024::__implication_result_480f4cea",
+      "label": "__implication_result_480f4cea",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_hou2024::__conjunction_result_928c2688,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_7a014a78d7e7ca88",
+        "owning_strategy_type": "support",
+        "prior": 0.85,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_hou2024::certified_33_89,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "935359005b5399631addad8f9762f5d36b56fc59b78b4ee51f7e38b3261421cd",
+      "exported": false,
+      "id": "pvsk:pvsk_hou2024::__implication_result_a08311e7",
+      "label": "__implication_result_a08311e7",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_hou2024::certified_33_89,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_2fece08d8bb9680c",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_hou2024::storage_stability,pvsk:pvsk_hou2024::mppt_stability_1200h)",
+      "content_hash": "5110db8001dafccd05266168758f841f3f423ea2f2f082f052c7e8dbc78bc3bf",
+      "exported": false,
+      "id": "pvsk:pvsk_hou2024::__conjunction_result_e852bee2",
+      "label": "__conjunction_result_e852bee2",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_hou2024::storage_stability,pvsk:pvsk_hou2024::mppt_stability_1200h)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_e3daadb49982f314",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_hou2024::__conjunction_result_e852bee2,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "e1eb7cb569b7704103ce85d4cdb472b148661dd7a8a6c4f88b67210e0cfd8d85",
+      "exported": false,
+      "id": "pvsk:pvsk_hou2024::__implication_result_ea627910",
+      "label": "__implication_result_ea627910",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_hou2024::__conjunction_result_e852bee2,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_e3daadb49982f314",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_hou2024::asymmetric_texture_benefit,pvsk:pvsk_hou2024::average_pce_33)",
+      "content_hash": "d9b4ed5375123c61eac41d277531c1cfb8357d4f7f7f1d28d2c612e453324e2e",
+      "exported": false,
+      "id": "pvsk:pvsk_hou2024::__conjunction_result_6d4b71f7",
+      "label": "__conjunction_result_6d4b71f7",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_hou2024::asymmetric_texture_benefit,pvsk:pvsk_hou2024::average_pce_33)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_da09a1302c6f16d0",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_hou2024::__conjunction_result_6d4b71f7,pvsk:pvsk_meta::p_industrialization)",
+      "content_hash": "c569a1f8c867a4b36d5e5ffb687f7b8e0f924406978e29bf9f403895a8d018a1",
+      "exported": false,
+      "id": "pvsk:pvsk_hou2024::__implication_result_eee38eba",
+      "label": "__implication_result_eee38eba",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_hou2024::__conjunction_result_6d4b71f7,pvsk:pvsk_meta::p_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_da09a1302c6f16d0",
+        "owning_strategy_type": "support",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_hou2024",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_hou2024::bilayer_passivation",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_hou2024::__conjunction_result_5f9a5fd1",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_hou2024::edai_chemical_passivation",
+              "pvsk:pvsk_hou2024::intertwined_structure"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_hou2024::__implication_result_09e901c7",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_hou2024::__conjunction_result_5f9a5fd1",
+              "pvsk:pvsk_hou2024::bilayer_passivation"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "LiF provides field passivation and contact displacement while EDAI fills the gaps with chemical passivation, together achieving both suppressed recombination and efficient electron extraction"
+      },
+      "premises": [
+        "pvsk:pvsk_hou2024::edai_chemical_passivation",
+        "pvsk:pvsk_hou2024::intertwined_structure"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_348cedba81a4c044",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_hou2024::certified_33_89",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_hou2024::__conjunction_result_cf960814",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_hou2024::bilayer_passivation",
+              "pvsk:pvsk_hou2024::asymmetric_texture_benefit",
+              "pvsk:pvsk_hou2024::voc_progression"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_hou2024::__implication_result_ae99e0b7",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_hou2024::__conjunction_result_cf960814",
+              "pvsk:pvsk_hou2024::certified_33_89"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "Bilayer passivation maximizes Voc and FF while asymmetric texture optimizes both perovskite coverage and silicon infrared response, enabling PCE beyond the single-junction SQ limit"
+      },
+      "premises": [
+        "pvsk:pvsk_hou2024::bilayer_passivation",
+        "pvsk:pvsk_hou2024::asymmetric_texture_benefit",
+        "pvsk:pvsk_hou2024::voc_progression"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_acf660b6484f4cff",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_hou2024::sq_limit_breakthrough",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_hou2024::__implication_result_c14ad54c",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_hou2024::certified_33_89",
+              "pvsk:pvsk_hou2024::sq_limit_breakthrough"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.85,
+        "reason": "The 33.89% certified efficiency exceeds 33.7%, confirming the tandem architecture can surpass the fundamental single-junction limit"
+      },
+      "premises": [
+        "pvsk:pvsk_hou2024::certified_33_89"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_18df48594415a500",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_hou2024::storage_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_hou2024::__implication_result_cb49fc06",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_hou2024::bilayer_passivation",
+              "pvsk:pvsk_hou2024::storage_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "EDAI passivation stabilizes the perovskite surface composition by eliminating metallic Pb(0) defects, improving ambient stability"
+      },
+      "premises": [
+        "pvsk:pvsk_hou2024::bilayer_passivation"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_a54126bcceb84126",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_hou2024::__conjunction_result_928c2688",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_hou2024::certified_33_89",
+              "pvsk:pvsk_hou2024::champion_34_1",
+              "pvsk:pvsk_hou2024::sq_limit_breakthrough"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_hou2024::__implication_result_480f4cea",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_hou2024::__conjunction_result_928c2688",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.85,
+        "reason": "33.89% certified PCE surpasses the single-junction SQ limit and represents the highest certified efficiency for any two-junction solar cell at the time, demonstrating the ultimate efficiency potential of perovskite-based photovoltaics"
+      },
+      "premises": [
+        "pvsk:pvsk_hou2024::certified_33_89",
+        "pvsk:pvsk_hou2024::champion_34_1",
+        "pvsk:pvsk_hou2024::sq_limit_breakthrough"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_7a014a78d7e7ca88",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_hou2024::__implication_result_a08311e7",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_hou2024::certified_33_89",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Progression from sub-30% to 33.89% certified efficiency for perovskite/Si tandems in under 3 years demonstrates extremely rapid improvement in tandem technology"
+      },
+      "premises": [
+        "pvsk:pvsk_hou2024::certified_33_89"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_2fece08d8bb9680c",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_hou2024::__conjunction_result_e852bee2",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_hou2024::storage_stability",
+              "pvsk:pvsk_hou2024::mppt_stability_1200h"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_hou2024::__implication_result_ea627910",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_hou2024::__conjunction_result_e852bee2",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "1200 hours of MPP tracking with 80% retention and 53-day air storage stability at 90% retention show improving operational lifetime"
+      },
+      "premises": [
+        "pvsk:pvsk_hou2024::storage_stability",
+        "pvsk:pvsk_hou2024::mppt_stability_1200h"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_e3daadb49982f314",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_hou2024::__conjunction_result_6d4b71f7",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_hou2024::asymmetric_texture_benefit",
+              "pvsk:pvsk_hou2024::average_pce_33"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_hou2024::__implication_result_eee38eba",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_hou2024::__conjunction_result_6d4b71f7",
+              "pvsk:pvsk_meta::p_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "The use of industrial CZ silicon wafers, solution-processed perovskite, and average PCE >33% at 1 cm2 demonstrates compatibility with commercial silicon manufacturing"
+      },
+      "premises": [
+        "pvsk:pvsk_hou2024::asymmetric_texture_benefit",
+        "pvsk:pvsk_hou2024::average_pce_33"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_da09a1302c6f16d0",
+      "type": "support"
+    }
+  ]
+}

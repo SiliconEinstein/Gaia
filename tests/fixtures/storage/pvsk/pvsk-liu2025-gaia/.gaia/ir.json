@@ -1,0 +1,817 @@
+{
+  "ir_hash": "sha256:1a98483bbc38021afe4501c0b5734db3a398c05ca6457b5fafa1ae0a061f39ff",
+  "knowledges": [
+    {
+      "content": "All-perovskite tandem solar cells with WBG (~1.78 eV) FA0.8Cs0.2Pb(I0.62Br0.38)3 top cell and NBG (~1.25 eV) Pb-Sn perovskite bottom cell. Device areas 0.049 cm2 and 1.05 cm2. Certified by JET (Japan Electrical Safety and Environment Technology Laboratories). PEDOT:PSS HTL with sulfanilic acid (SA) dipolar passivation.",
+      "content_hash": "f6489cd9d0209b09909eae2bdf5c620d648c2db649877cf2f0e90fb08b3bb855",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2025::exp_context",
+      "label": "exp_context",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Deep-level traps at the buried perovskite/HTL interface in mixed Pb-Sn NBG subcells cause severe non-radiative recombination. Conventional long-chain amine passivation improves Voc but impairs charge transport, reducing Jsc and FF due to insulating barriers.",
+      "content_hash": "577790926fddd7214dc7fe3e19ef6a63682e3e3e57dfb0069022d9b661660385",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2025::buried_interface_problem",
+      "label": "buried_interface_problem",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "A dipolar-passivation strategy using sulfanilic acid (SA) at the HTL/Pb-Sn perovskite interface reduces trap density while enabling precise energy-level alignment through oriented dipoles, simultaneously suppressing recombination and enhancing carrier extraction",
+      "content_hash": "1912e58020060bff3659c7ba992023c0dde7b44977f03ba38caa47f66075eeaf",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2025::dipolar_passivation_strategy",
+      "label": "dipolar_passivation_strategy",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "dipolar_passivation_strategy",
+      "type": "claim"
+    },
+    {
+      "content": "Dipolar-passivated Pb-Sn PSCs achieve 24.9% PCE with Voc of 0.911 V, Jsc of 33.1 mA cm-2, and FF of 82.6%, representing one of the highest reported PCEs for mixed Pb-Sn PSCs",
+      "content_hash": "16a256e9080e3d6f6dbf1dadc58050da75324f804907003eac3e7afa569bfb86",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2025::nbg_pce_249",
+      "label": "nbg_pce_249",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "title": "nbg_pce_24_9_percent",
+      "type": "claim"
+    },
+    {
+      "content": "All-perovskite tandem solar cells with dipolar passivation achieve 30.6% PCE (certified stabilized 30.1% by JET) for 0.049 cm2 area",
+      "content_hash": "34d9031b8909f30ab44fc6da656f96fa5416c07437daf90f5cc51e03b99e0282",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2025::tandem_pce_306",
+      "label": "tandem_pce_306",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "title": "tandem_pce_30_6_percent",
+      "type": "claim"
+    },
+    {
+      "content": "Large-area all-perovskite tandem (1.05 cm2) achieves certified stabilized PCE of 29.6%, demonstrating scalability",
+      "content_hash": "cc83ea7399cff9cacb1c1dd4bda9e459f738b061b1f0376bb5cb98b058f89567",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2025::large_tandem_296",
+      "label": "large_tandem_296",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "title": "large_tandem_29_6_percent",
+      "type": "claim"
+    },
+    {
+      "content": "Dipolar passivation extends carrier diffusion length to 6.2 um (versus 4.8 um for control) with mobility of 113.5 cm2 V-1 s-1 (versus 67.5 cm2 V-1 s-1), as measured by terahertz spectroscopy",
+      "content_hash": "192e61d1bb549e4766c2250b64022a4cb0e8126cca2e0dfc758bdf22da3b2fff",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2025::diffusion_length_62um",
+      "label": "diffusion_length_62um",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "diffusion_length_6_2_um",
+      "type": "claim"
+    },
+    {
+      "content": "The oriented SA dipoles create type-II energy-level alignment with ohmic contact at the HTL/Pb-Sn perovskite interface, facilitating efficient hole injection into PEDOT:PSS while repelling electrons from the interface",
+      "content_hash": "75f22fe0e75caf7f7bd9fb076c274a29ba26b86df85da971db58b6f7c65e73a7",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2025::ohmic_contact",
+      "label": "ohmic_contact",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "ohmic_contact_dipolar",
+      "type": "claim"
+    },
+    {
+      "content": "Dipolar-passivation devices show electroluminescence quantum yield of 7.05% versus 2.40% for controls at 1-sun current density, corresponding to Voc loss reduction from 103 mV to 73 mV",
+      "content_hash": "ba1bb5e03a2a126df7f9bb54e5d2a0de5a3150282fdd1d5c68df46f652797595",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2025::elqy_705",
+      "label": "elqy_705",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "elqy_7_05_percent",
+      "type": "claim"
+    },
+    {
+      "content": "Dipolar-passivated devices show no significant PCE degradation after over 1000 hours in a nitrogen glovebox without encapsulation",
+      "content_hash": "0737d0a322d1c90321e32a3b610f04d7d7e8ace36263e4b5ed6df2a6c8282ae0",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2025::dark_storage_1000h",
+      "label": "dark_storage_1000h",
+      "metadata": {
+        "prior": 0.78
+      },
+      "parameters": [],
+      "title": "dark_storage_1000h",
+      "type": "claim"
+    },
+    {
+      "content": "SA molecules adopt a preferred orientation with -NH3+ anchoring to the perovskite bottom surface and -SO3- directed towards PEDOT:PSS, confirmed by AIMD simulations and KPFM measurements showing surface potential decrease from -80 mV to -162 mV",
+      "content_hash": "b27d343eec25456b6ab5620e2eb2fa4072b9b9eb724b51866492dc281f77a45d",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2025::sa_molecular_orientation",
+      "label": "sa_molecular_orientation",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "sa_molecular_orientation",
+      "type": "claim"
+    },
+    {
+      "content": "Dipolar-passivation tandem devices show average Voc 50 mV higher than controls, with average PCE of 30.3 +/- 0.3% versus 29.1 +/- 0.2%",
+      "content_hash": "21dc46bbe576314321d6163a0c5f5cdab1f76fabd91650f2a6be5a126eba5876",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2025::tandem_voc_50mv_gain",
+      "label": "tandem_voc_50mv_gain",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "tandem_voc_50mv_gain",
+      "type": "claim"
+    },
+    {
+      "content": "The wide-bandgap subcell achieves 20.5% PCE with Voc of 1.329 V, Jsc of 18.4 mA cm-2, and FF of 83.8%, using SAM-modified NiO HTL",
+      "content_hash": "b36ee031e65dfbd618405ee6d902d6a8d64560d26ae21b296a6c98a4ec965a9a",
+      "declaration_index": 12,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2025::wbg_subcell_205",
+      "label": "wbg_subcell_205",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "wbg_subcell_20_5_percent",
+      "type": "claim"
+    },
+    {
+      "content": "Dipolar passivation improves QFLS from 904 meV to 940 meV at the HTL/perovskite interface (full device stack), with the primary QFLS loss reduction attributed to enhanced HTL interface quality",
+      "content_hash": "b7bd4c781bf3c946e1b5badfae2b0a62fe4df3c78ac4006a31cf7a771b5cabc9",
+      "declaration_index": 13,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2025::qfls_improvement",
+      "label": "qfls_improvement",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "qfls_improvement_dipolar",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Organometal halide perovskites can function as viable photovoltaic absorbers",
+      "content_hash": "12183274605a4cdd79df4b632d2b0bc6c7bbfdfe0b389d5a86bd3d531fb560a3",
+      "declaration_index": 0,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_viability",
+      "label": "p_viability",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_viability",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2025::sa_molecular_orientation,pvsk:pvsk_liu2025::ohmic_contact)",
+      "content_hash": "70d5f706bf28e0595144eba0e0542acd05c0d5e11f3c3534a7fff3ec1693dd2b",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2025::__conjunction_result_c44546bf",
+      "label": "__conjunction_result_c44546bf",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2025::sa_molecular_orientation,pvsk:pvsk_liu2025::ohmic_contact)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_fee73a5ca8ab8fe4",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2025::__conjunction_result_c44546bf,pvsk:pvsk_liu2025::dipolar_passivation_strategy)",
+      "content_hash": "daea584fb210a8c72950beafe7c2d514dca509398710bab7df1f14bc26ab432c",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2025::__implication_result_6d87ee92",
+      "label": "__implication_result_6d87ee92",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2025::__conjunction_result_c44546bf,pvsk:pvsk_liu2025::dipolar_passivation_strategy)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_fee73a5ca8ab8fe4",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2025::dipolar_passivation_strategy,pvsk:pvsk_liu2025::diffusion_length_62um,pvsk:pvsk_liu2025::elqy_705)",
+      "content_hash": "89ef3c6a67c434d1338365071bef37c074a6d0942012b0afc9c4b0453c1021fe",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2025::__conjunction_result_c362014b",
+      "label": "__conjunction_result_c362014b",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2025::dipolar_passivation_strategy,pvsk:pvsk_liu2025::diffusion_length_62um,pvsk:pvsk_liu2025::elqy_705)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_3f295b362d382e30",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2025::__conjunction_result_c362014b,pvsk:pvsk_liu2025::nbg_pce_249)",
+      "content_hash": "738c04dadff3597c7e503d335c53795975ad1139040bf4b031deaf02d8e6e959",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2025::__implication_result_ba3831b1",
+      "label": "__implication_result_ba3831b1",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2025::__conjunction_result_c362014b,pvsk:pvsk_liu2025::nbg_pce_249)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_3f295b362d382e30",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2025::nbg_pce_249,pvsk:pvsk_liu2025::tandem_voc_50mv_gain,pvsk:pvsk_liu2025::wbg_subcell_205)",
+      "content_hash": "be6928d16380c5831cb6837c2971c48648f8da9ff1ed3ce42202260ecb999e03",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2025::__conjunction_result_d3a80f25",
+      "label": "__conjunction_result_d3a80f25",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2025::nbg_pce_249,pvsk:pvsk_liu2025::tandem_voc_50mv_gain,pvsk:pvsk_liu2025::wbg_subcell_205)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_0b38056014698625",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2025::__conjunction_result_d3a80f25,pvsk:pvsk_liu2025::tandem_pce_306)",
+      "content_hash": "130bbe452bc72a94df5646b07b9f53485af9c9e6e9c7bdc51395df43fef03e44",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2025::__implication_result_6e57c3ef",
+      "label": "__implication_result_6e57c3ef",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2025::__conjunction_result_d3a80f25,pvsk:pvsk_liu2025::tandem_pce_306)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_0b38056014698625",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2025::tandem_pce_306,pvsk:pvsk_liu2025::large_tandem_296)",
+      "content_hash": "ad487582cf1fc74959a7935ca0dee375beba7bf02a1f408d3aaccdcb3deeee8f",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2025::__implication_result_98316b9b",
+      "label": "__implication_result_98316b9b",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2025::tandem_pce_306,pvsk:pvsk_liu2025::large_tandem_296)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_39f87fc921bd0eee",
+        "owning_strategy_type": "support",
+        "prior": 0.75,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2025::tandem_pce_306,pvsk:pvsk_liu2025::large_tandem_296)",
+      "content_hash": "e56bec53e158f37531ace79e9d1526c63f00866cf3c2e5868503cd413915d8d8",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2025::__conjunction_result_6d1f8849",
+      "label": "__conjunction_result_6d1f8849",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2025::tandem_pce_306,pvsk:pvsk_liu2025::large_tandem_296)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_f0084415c27eafa1",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2025::__conjunction_result_6d1f8849,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "4fd5f669de0f30de9eb81848d4fb7dabee3f90b82868b24bac1fa17cfcc525c5",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2025::__implication_result_5bdfa083",
+      "label": "__implication_result_5bdfa083",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2025::__conjunction_result_6d1f8849,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_f0084415c27eafa1",
+        "owning_strategy_type": "support",
+        "prior": 0.85,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2025::tandem_pce_306,pvsk:pvsk_liu2025::nbg_pce_249)",
+      "content_hash": "71b15c444383bbcefe27050d51f59f88fdf350e669ad5a5db455e48e681b14e3",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2025::__conjunction_result_66a4ebba",
+      "label": "__conjunction_result_66a4ebba",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2025::tandem_pce_306,pvsk:pvsk_liu2025::nbg_pce_249)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_dd572cf286661121",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2025::__conjunction_result_66a4ebba,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "2173ba570a624a56e7df78a04fcabf6b328e61715699cbf822b40b4dc029e453",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2025::__implication_result_5d49271b",
+      "label": "__implication_result_5d49271b",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2025::__conjunction_result_66a4ebba,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_dd572cf286661121",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2025::dark_storage_1000h,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "2249873616cc4fce6e34479346f1ac284cbffeaca5d460b5e55a83a24981615d",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2025::__implication_result_25fb6e66",
+      "label": "__implication_result_25fb6e66",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2025::dark_storage_1000h,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_1264dee6dfaf44a1",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2025::large_tandem_296,pvsk:pvsk_liu2025::dipolar_passivation_strategy)",
+      "content_hash": "e19efbde40a8bf442d0c685db4bcd27454f0b5819df1b7e4a1ca32e2b3ec6f9e",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2025::__conjunction_result_7af22d32",
+      "label": "__conjunction_result_7af22d32",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2025::large_tandem_296,pvsk:pvsk_liu2025::dipolar_passivation_strategy)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_ef17b8eb877b99b5",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2025::__conjunction_result_7af22d32,pvsk:pvsk_meta::p_viability)",
+      "content_hash": "b37490c1077f41cfc572a6846968ed40e6391244e0d9634d07fdf91aa405a659",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2025::__implication_result_5de2ae67",
+      "label": "__implication_result_5de2ae67",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2025::__conjunction_result_7af22d32,pvsk:pvsk_meta::p_viability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_ef17b8eb877b99b5",
+        "owning_strategy_type": "support",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_liu2025",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_liu2025::dipolar_passivation_strategy",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2025::__conjunction_result_c44546bf",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2025::sa_molecular_orientation",
+              "pvsk:pvsk_liu2025::ohmic_contact"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2025::__implication_result_6d87ee92",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2025::__conjunction_result_c44546bf",
+              "pvsk:pvsk_liu2025::dipolar_passivation_strategy"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Oriented SA dipoles simultaneously passivate defects (NH3+ anchors to perovskite) and create favorable energy alignment (SO3- towards HTL), resolving the recombination-transport trade-off"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2025::sa_molecular_orientation",
+        "pvsk:pvsk_liu2025::ohmic_contact"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_fee73a5ca8ab8fe4",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_liu2025::nbg_pce_249",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2025::__conjunction_result_c362014b",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2025::dipolar_passivation_strategy",
+              "pvsk:pvsk_liu2025::diffusion_length_62um",
+              "pvsk:pvsk_liu2025::elqy_705"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2025::__implication_result_ba3831b1",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2025::__conjunction_result_c362014b",
+              "pvsk:pvsk_liu2025::nbg_pce_249"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Type-II energy alignment with ohmic contact enables efficient carrier extraction (6.2 um diffusion length) while oriented dipoles suppress non-radiative recombination (7% ELQY), yielding record Pb-Sn single-junction efficiency"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2025::dipolar_passivation_strategy",
+        "pvsk:pvsk_liu2025::diffusion_length_62um",
+        "pvsk:pvsk_liu2025::elqy_705"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_3f295b362d382e30",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_liu2025::tandem_pce_306",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2025::__conjunction_result_d3a80f25",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2025::nbg_pce_249",
+              "pvsk:pvsk_liu2025::tandem_voc_50mv_gain",
+              "pvsk:pvsk_liu2025::wbg_subcell_205"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2025::__implication_result_6e57c3ef",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2025::__conjunction_result_d3a80f25",
+              "pvsk:pvsk_liu2025::tandem_pce_306"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Improved NBG subcell performance (higher Voc and FF from dipolar passivation) combined with a 20.5% WBG subcell enables all-perovskite tandem to surpass 30% PCE"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2025::nbg_pce_249",
+        "pvsk:pvsk_liu2025::tandem_voc_50mv_gain",
+        "pvsk:pvsk_liu2025::wbg_subcell_205"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_0b38056014698625",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_liu2025::large_tandem_296",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2025::__implication_result_98316b9b",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2025::tandem_pce_306",
+              "pvsk:pvsk_liu2025::large_tandem_296"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.75,
+        "reason": "The dipolar passivation strategy is robust and scalable, maintaining high performance at 1.05 cm2 area with only 1% PCE loss"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2025::tandem_pce_306"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_39f87fc921bd0eee",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2025::__conjunction_result_6d1f8849",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2025::tandem_pce_306",
+              "pvsk:pvsk_liu2025::large_tandem_296"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2025::__implication_result_5bdfa083",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2025::__conjunction_result_6d1f8849",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.85,
+        "reason": "30.6% PCE (certified 30.1%) is the record for all-perovskite tandems, demonstrating that this architecture can surpass 30% and competes with perovskite/Si tandems in efficiency"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2025::tandem_pce_306",
+        "pvsk:pvsk_liu2025::large_tandem_296"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_f0084415c27eafa1",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2025::__conjunction_result_66a4ebba",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2025::tandem_pce_306",
+              "pvsk:pvsk_liu2025::nbg_pce_249"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2025::__implication_result_5d49271b",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2025::__conjunction_result_66a4ebba",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Progression from 28.5% (Lin et al. 2023) to 30.6% certified all-perovskite tandem efficiency in two years demonstrates continued rapid improvement through interface engineering innovations"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2025::tandem_pce_306",
+        "pvsk:pvsk_liu2025::nbg_pce_249"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_dd572cf286661121",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2025::__implication_result_25fb6e66",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2025::dark_storage_1000h",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "1000 hours of stable dark storage without encapsulation shows improved material stability from dipolar passivation"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2025::dark_storage_1000h"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_1264dee6dfaf44a1",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_viability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2025::__conjunction_result_7af22d32",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2025::large_tandem_296",
+              "pvsk:pvsk_liu2025::dipolar_passivation_strategy"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2025::__implication_result_5de2ae67",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2025::__conjunction_result_7af22d32",
+              "pvsk:pvsk_meta::p_viability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "All-perovskite tandems offer a fully solution-processable, low-cost alternative to perovskite/Si tandems with competitive efficiency approaching 30% at cm2 scale"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2025::large_tandem_296",
+        "pvsk:pvsk_liu2025::dipolar_passivation_strategy"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_ef17b8eb877b99b5",
+      "type": "support"
+    }
+  ]
+}

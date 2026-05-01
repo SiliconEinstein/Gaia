@@ -1,0 +1,925 @@
+{
+  "ir_hash": "sha256:305ad6ed77ce245e696cdcdac7d0a6ed74cca7fd7c9cdf75bcc217b105231a25",
+  "knowledges": [
+    {
+      "content": "Mesoscopic solar cell fabricated by sequential deposition: PbI2 first introduced from DMF solution (~1 M, 70C) into 350 nm mesoporous TiO2, then transformed to CH3NH3PbI3 by dipping in CH3NH3I/2-propanol (10 mg/ml) for 20 seconds, with spiro-MeOTAD HTM doped with Co(III) complex (10 mol%), measured under AM 1.5G",
+      "content_hash": "bb122bfcfa1bb01e43b769b58b7a3f219f4bcd54498c17af951081843fe21f05",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_burschka2013::exp_context",
+      "label": "exp_context",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Two-step deposition method: PbI2 infiltrated into mesoporous TiO2 (pore size ~22 nm confines PbI2 crystals), then converted to perovskite by CH3NH3I solution. The layered PbI2 structure (I-Pb-I planes with weak interlayer van der Waals bonding) facilitates cation insertion",
+      "content_hash": "f78a0c1f1d05ff6805e924755ff8d271c6f8295de5633599912bd71c98ba3b2e",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_burschka2013::sequential_method",
+      "label": "sequential_method",
+      "metadata": {
+        "prior": 0.7
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Best-performing sequential-deposition cell achieves PCE of 15.0% with Jsc=20.0 mA/cm2, Voc=0.993 V, and fill factor 0.73, measured at 96.4 mW/cm2",
+      "content_hash": "882b8113a86e7e6fd2f6fa48a6734e3580de297d229d1210450f275697b400ae",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_burschka2013::pce_15_pct",
+      "label": "pce_15_pct",
+      "metadata": {
+        "prior": 0.92
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "An accredited photovoltaic calibration laboratory certifies PCE of 14.14% under standard AM 1.5G reporting conditions, confirming the validity of the lab measurements",
+      "content_hash": "5772a74c9fd576fa5097d9c06b3349eb1b7a03bff596079b92e5de83fb1b57ef",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_burschka2013::pce_certified_14_14",
+      "label": "pce_certified_14_14",
+      "metadata": {
+        "prior": 0.93
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Conversion of nanoconfined PbI2 to CH3NH3PbI3 perovskite is complete within seconds of exposure to CH3NH3I solution, as shown by immediate disappearance of PbI2 XRD (001) peak and appearance of tetragonal perovskite reflections",
+      "content_hash": "32a09dce00d81522b017cf7350563401572283355250ae9f42d46bfd1b3858b8",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_burschka2013::fast_conversion",
+      "label": "fast_conversion",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Confining PbI2 crystals to ~22 nm within mesoporous TiO2 drastically enhances their rate of conversion to perovskite compared to bulk PbI2 films (50-200 nm crystallites), where conversion remains incomplete even after 45 minutes",
+      "content_hash": "92d1e00993c595128fcee6570b6411946d81454597ba581ecd69564f50914f7f",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_burschka2013::nanoconfinement_enhances_kinetics",
+      "label": "nanoconfinement_enhances_kinetics",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The absorbed-photon-to-current conversion efficiency (APCE) is greater than 90% over the whole visible region without correction for reflective losses, indicating near-unity quantum yield for charge carrier generation and collection",
+      "content_hash": "4be51cfdf8bad79638926d5e728e1b1f60f2f2b622675295dfb3b9cabf3cfc6d",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_burschka2013::apce_near_unity",
+      "label": "apce_near_unity",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "IPCE reaches peak values exceeding 90% in the short-wavelength visible region, with photocurrent generation starting at 800 nm consistent with the CH3NH3PbI3 bandgap",
+      "content_hash": "8be9487a16653519ab202b9d376f797999fbb2eb4628320d14fe9d5520516eff",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_burschka2013::ipce_peak_90_pct",
+      "label": "ipce_peak_90_pct",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Typical device shows PCE of 12.9% with Jsc=17.1 mA/cm2, Voc=0.992 V, and fill factor 0.73 at 95.6 mW/cm2; batch average 12.0% +/- 0.5% (n=10)",
+      "content_hash": "c591cb3b9c646b40986948323e370d18cf4641b5ef3b3aab76e4b3914f598e06",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_burschka2013::typical_device_12_9",
+      "label": "typical_device_12_9",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Sequential deposition greatly increases reproducibility with standard deviation of only 0.5% PCE across 10 devices, compared to large morphological variations and performance spread in single-step deposition",
+      "content_hash": "a9c9a02c0bacdaa5efed7cb54d24a8680ad27e769fd2fded3df7d1f5f9e384c2",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_burschka2013::high_reproducibility",
+      "label": "high_reproducibility",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Sealed cell maintained under constant light soaking (~100 mW/cm2, 45C) with maximum-power-point tracking retains >80% of initial PCE after 500 hours, with no change in short-circuit photocurrent",
+      "content_hash": "44b82cc3e2547a2c025532f5590296c802f7fb5d51967d28b02dfcbe44316fc5",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_burschka2013::stability_500h",
+      "label": "stability_500h",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "No photodegradation of the perovskite light harvester is observed during 500 hours of light soaking; the PCE decrease is solely due to Voc and fill factor decline from reduced shunt resistance",
+      "content_hash": "b759645ce03a884defb843fce027cba75377018eab4ad1dd2a5223571ab6e48c",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_burschka2013::no_photodegradation",
+      "label": "no_photodegradation",
+      "metadata": {
+        "prior": 0.83
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Using a Co(III) complex as p-type dopant for spiro-MeOTAD at 10 mol% doping level ensures sufficient conductivity and low series resistance in the HTM",
+      "content_hash": "2f7475d93178c722cfbb3424d6c1b47b59b96efeac7a7a83226c4765683ac2c5",
+      "declaration_index": 12,
+      "exported": true,
+      "id": "pvsk:pvsk_burschka2013::co_dopant_htm",
+      "label": "co_dopant_htm",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "A pre-wetting step (dipping in 2-propanol for 1-2 s before CH3NH3I solution) locally decreases CH3NH3I concentration, inducing growth of larger perovskite crystals and increased light scattering for improved long-wavelength response",
+      "content_hash": "4016bae176e717f550f57486bb51445693fbe38fbdddfbd52b723b31de5838e4",
+      "declaration_index": 13,
+      "exported": true,
+      "id": "pvsk:pvsk_burschka2013::prewetting_improves",
+      "label": "prewetting_improves",
+      "metadata": {
+        "prior": 0.78
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "What is the precise mechanism causing the decrease in shunt resistance during 500-hour light soaking, and can it be eliminated through interface engineering?",
+      "content_hash": "80fce13985b934e95c1b79b138118b3fa859ba19894fcb9e8ac1bf45837eaa68",
+      "declaration_index": 14,
+      "exported": true,
+      "id": "pvsk:pvsk_burschka2013::degradation_mechanism",
+      "label": "degradation_mechanism",
+      "parameters": [],
+      "type": "question"
+    },
+    {
+      "content": "Single-step perovskite deposition from mixed PbX2/CH3NH3X solution produces large morphological variations and wide spread of photovoltaic performance",
+      "content_hash": "98fc49df18d6740d866684c7b51e6eb674782bbca7dbb452bd8bb1ad319b665b",
+      "declaration_index": 15,
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::_anon_000",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "not_both_true(A, B)",
+      "content_hash": "468923920550aff97ac2349f7d0a5b32e6560066b45861bf367db7f40e8649a7",
+      "declaration_index": 16,
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::_anon_001",
+      "metadata": {
+        "helper_kind": "contradiction_result",
+        "prior": 0.75
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Organometal halide perovskites can function as viable photovoltaic absorbers",
+      "content_hash": "12183274605a4cdd79df4b632d2b0bc6c7bbfdfe0b389d5a86bd3d531fb560a3",
+      "declaration_index": 0,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_viability",
+      "label": "p_viability",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_viability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "content_hash": "9603b55225f5e093d20a1194832c2b419389d6a83886f8b7841f0b9a65cc106f",
+      "declaration_index": 4,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "metadata": {
+        "prior": 0.15
+      },
+      "parameters": [],
+      "title": "p_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_burschka2013::nanoconfinement_enhances_kinetics,pvsk:pvsk_burschka2013::fast_conversion)",
+      "content_hash": "13ee98323aaff67d03347fb561951e5d2d292f1cb24e8e07418b0d651da44f9a",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__conjunction_result_8f00cd4d",
+      "label": "__conjunction_result_8f00cd4d",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_burschka2013::nanoconfinement_enhances_kinetics,pvsk:pvsk_burschka2013::fast_conversion)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_e4b3f9cde00760a3",
+        "owning_strategy_type": "deduction",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_burschka2013::__conjunction_result_8f00cd4d,pvsk:pvsk_burschka2013::high_reproducibility)",
+      "content_hash": "5bc59968a7359b65314231877eddae4fc5c5794ba894ed8809b861c4ddc45ed0",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__implication_result_ff79c17c",
+      "label": "__implication_result_ff79c17c",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_burschka2013::__conjunction_result_8f00cd4d,pvsk:pvsk_burschka2013::high_reproducibility)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_e4b3f9cde00760a3",
+        "owning_strategy_type": "deduction",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_burschka2013::apce_near_unity,pvsk:pvsk_burschka2013::ipce_peak_90_pct)",
+      "content_hash": "99c5ca1f0efc73152b99eb741e2a596b06eb13b24c40ae546a7b132d3cd69b15",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__conjunction_result_3bab80a8",
+      "label": "__conjunction_result_3bab80a8",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_burschka2013::apce_near_unity,pvsk:pvsk_burschka2013::ipce_peak_90_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_86fefdef9ac72dfa",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_burschka2013::__conjunction_result_3bab80a8,pvsk:pvsk_burschka2013::pce_15_pct)",
+      "content_hash": "b291c9ac5db37266158d9f2592334353ff05663ec79c572cf07cef300d71e4f7",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__implication_result_20102cb8",
+      "label": "__implication_result_20102cb8",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_burschka2013::__conjunction_result_3bab80a8,pvsk:pvsk_burschka2013::pce_15_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_86fefdef9ac72dfa",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_burschka2013::prewetting_improves,pvsk:pvsk_burschka2013::co_dopant_htm)",
+      "content_hash": "f9f2b014eff591f07558a62960e934a8950c494ecdefcabb3567779334aa2f22",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__conjunction_result_3b9b67a0",
+      "label": "__conjunction_result_3b9b67a0",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_burschka2013::prewetting_improves,pvsk:pvsk_burschka2013::co_dopant_htm)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_10b6fa6d484e3f04",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_burschka2013::__conjunction_result_3b9b67a0,pvsk:pvsk_burschka2013::pce_15_pct)",
+      "content_hash": "ddf5b4ba35944bda4a4acec09b20b6e70cb3690bcf13b6249a19236a7243a7f8",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__implication_result_7c34bcc3",
+      "label": "__implication_result_7c34bcc3",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_burschka2013::__conjunction_result_3b9b67a0,pvsk:pvsk_burschka2013::pce_15_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_10b6fa6d484e3f04",
+        "owning_strategy_type": "support",
+        "prior": 0.78,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_burschka2013::stability_500h,pvsk:pvsk_burschka2013::no_photodegradation)",
+      "content_hash": "d7e2acc3ff829bfe451a283440c0f06b097f8bf8fd8f63630ae35435aa9a6a1e",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__conjunction_result_7b69957c",
+      "label": "__conjunction_result_7b69957c",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_burschka2013::stability_500h,pvsk:pvsk_burschka2013::no_photodegradation)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_d955217d3facd979",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_burschka2013::__conjunction_result_7b69957c,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "dc23b3e76364cdc2a5434a49adc75e0563645395b22e4dcf8a909e657f8633d6",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__implication_result_f615a294",
+      "label": "__implication_result_f615a294",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_burschka2013::__conjunction_result_7b69957c,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_d955217d3facd979",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_burschka2013::pce_15_pct,pvsk:pvsk_burschka2013::pce_certified_14_14)",
+      "content_hash": "1bbde81d177d045debb509953c8a3e6fe5332530f8d032e8b661f5bb18ca33a2",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__conjunction_result_7db09a9d",
+      "label": "__conjunction_result_7db09a9d",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_burschka2013::pce_15_pct,pvsk:pvsk_burschka2013::pce_certified_14_14)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_3902610e1b68279d",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_burschka2013::__conjunction_result_7db09a9d,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "17e63cec0f0d4f49c883df626065cf08f91624f09ef8595485b29a8d1baa595b",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__implication_result_0626334b",
+      "label": "__implication_result_0626334b",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_burschka2013::__conjunction_result_7db09a9d,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_3902610e1b68279d",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_burschka2013::pce_15_pct,pvsk:pvsk_burschka2013::high_reproducibility)",
+      "content_hash": "2d2c39843b3a9196910a7718e1800f8ad3d055b4f1d93b56888c158244bb96ca",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__conjunction_result_db4b2083",
+      "label": "__conjunction_result_db4b2083",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_burschka2013::pce_15_pct,pvsk:pvsk_burschka2013::high_reproducibility)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_57f29e0c3ce2723b",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_burschka2013::__conjunction_result_db4b2083,pvsk:pvsk_meta::p_viability)",
+      "content_hash": "79a7f7288f2a69e37bcd5ac2a211aae71f630b3ddad95bd05ba340680f78d231",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__implication_result_c67f61ec",
+      "label": "__implication_result_c67f61ec",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_burschka2013::__conjunction_result_db4b2083,pvsk:pvsk_meta::p_viability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_57f29e0c3ce2723b",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_burschka2013::pce_15_pct,pvsk:pvsk_burschka2013::pce_certified_14_14)",
+      "content_hash": "1bbde81d177d045debb509953c8a3e6fe5332530f8d032e8b661f5bb18ca33a2",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__conjunction_result_0aae04b5",
+      "label": "__conjunction_result_0aae04b5",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_burschka2013::pce_15_pct,pvsk:pvsk_burschka2013::pce_certified_14_14)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_892c8b336e4382c4",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_burschka2013::__conjunction_result_0aae04b5,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "5b33ca67f6b9e85e9870defbac4be5797467afc9c233b1ce68c28bca443d5b3a",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__implication_result_bc041161",
+      "label": "__implication_result_bc041161",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_burschka2013::__conjunction_result_0aae04b5,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_892c8b336e4382c4",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_burschka2013::sequential_method,pvsk:pvsk_burschka2013::high_reproducibility)",
+      "content_hash": "3ebe6bd74a90f236487de9132035db5a0ffa619389f5fc82d30dd710c554dad6",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__conjunction_result_2f18b10d",
+      "label": "__conjunction_result_2f18b10d",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_burschka2013::sequential_method,pvsk:pvsk_burschka2013::high_reproducibility)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_706f31cc3d2a8c31",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_burschka2013::__conjunction_result_2f18b10d,pvsk:pvsk_meta::p_industrialization)",
+      "content_hash": "a948e480dcea4f5bfd68d4a139cfd4c7aa581c6f194f395bf65165f2c92998d8",
+      "exported": false,
+      "id": "pvsk:pvsk_burschka2013::__implication_result_e34e820a",
+      "label": "__implication_result_e34e820a",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_burschka2013::__conjunction_result_2f18b10d,pvsk:pvsk_meta::p_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_706f31cc3d2a8c31",
+        "owning_strategy_type": "support",
+        "prior": 0.55,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [
+    {
+      "conclusion": "pvsk:pvsk_burschka2013::_anon_001",
+      "metadata": {
+        "reason": "Sequential deposition confines PbI2 in nanopores and converts uniformly in seconds, whereas single-step allows uncontrolled crystal growth from solution"
+      },
+      "operator": "contradiction",
+      "operator_id": "lco_bd45752d10350fb3",
+      "scope": "local",
+      "variables": [
+        "pvsk:pvsk_burschka2013::high_reproducibility",
+        "pvsk:pvsk_burschka2013::_anon_000"
+      ]
+    }
+  ],
+  "package_name": "pvsk_burschka2013",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_burschka2013::high_reproducibility",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__conjunction_result_8f00cd4d",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_burschka2013::nanoconfinement_enhances_kinetics",
+              "pvsk:pvsk_burschka2013::fast_conversion"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__implication_result_ff79c17c",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_burschka2013::__conjunction_result_8f00cd4d",
+              "pvsk:pvsk_burschka2013::high_reproducibility"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "deduction",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "Fast and complete conversion within nanopores yields uniform perovskite morphology, eliminating the large morphological variations of single-step deposition"
+      },
+      "premises": [
+        "pvsk:pvsk_burschka2013::nanoconfinement_enhances_kinetics",
+        "pvsk:pvsk_burschka2013::fast_conversion"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_e4b3f9cde00760a3",
+      "type": "deduction"
+    },
+    {
+      "conclusion": "pvsk:pvsk_burschka2013::pce_15_pct",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__conjunction_result_3bab80a8",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_burschka2013::apce_near_unity",
+              "pvsk:pvsk_burschka2013::ipce_peak_90_pct"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__implication_result_20102cb8",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_burschka2013::__conjunction_result_3bab80a8",
+              "pvsk:pvsk_burschka2013::pce_15_pct"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Near-unity quantum yield for charge generation and collection across the visible spectrum directly supports the record 15% PCE"
+      },
+      "premises": [
+        "pvsk:pvsk_burschka2013::apce_near_unity",
+        "pvsk:pvsk_burschka2013::ipce_peak_90_pct"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_86fefdef9ac72dfa",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_burschka2013::pce_15_pct",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__conjunction_result_3b9b67a0",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_burschka2013::prewetting_improves",
+              "pvsk:pvsk_burschka2013::co_dopant_htm"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__implication_result_7c34bcc3",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_burschka2013::__conjunction_result_3b9b67a0",
+              "pvsk:pvsk_burschka2013::pce_15_pct"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.78,
+        "reason": "Pre-wetting increases perovskite loading and light scattering for higher photocurrent, while Co-doped HTM reduces series resistance for better fill factor"
+      },
+      "premises": [
+        "pvsk:pvsk_burschka2013::prewetting_improves",
+        "pvsk:pvsk_burschka2013::co_dopant_htm"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_10b6fa6d484e3f04",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__conjunction_result_7b69957c",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_burschka2013::stability_500h",
+              "pvsk:pvsk_burschka2013::no_photodegradation"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__implication_result_f615a294",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_burschka2013::__conjunction_result_7b69957c",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "Perovskite itself is photostable over 500 hours; degradation is limited to interfacial effects, suggesting stability can be engineered"
+      },
+      "premises": [
+        "pvsk:pvsk_burschka2013::stability_500h",
+        "pvsk:pvsk_burschka2013::no_photodegradation"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_d955217d3facd979",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__conjunction_result_7db09a9d",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_burschka2013::pce_15_pct",
+              "pvsk:pvsk_burschka2013::pce_certified_14_14"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__implication_result_0626334b",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_burschka2013::__conjunction_result_7db09a9d",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "Certified 14.14% and lab 15% PCE represent the highest efficiencies for any solution-processed or organic/hybrid solar cell at the time"
+      },
+      "premises": [
+        "pvsk:pvsk_burschka2013::pce_15_pct",
+        "pvsk:pvsk_burschka2013::pce_certified_14_14"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_3902610e1b68279d",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_viability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__conjunction_result_db4b2083",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_burschka2013::pce_15_pct",
+              "pvsk:pvsk_burschka2013::high_reproducibility"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__implication_result_c67f61ec",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_burschka2013::__conjunction_result_db4b2083",
+              "pvsk:pvsk_meta::p_viability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "Certified high efficiency with excellent reproducibility validates perovskite solar cells as a practical photovoltaic technology"
+      },
+      "premises": [
+        "pvsk:pvsk_burschka2013::pce_15_pct",
+        "pvsk:pvsk_burschka2013::high_reproducibility"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_57f29e0c3ce2723b",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__conjunction_result_0aae04b5",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_burschka2013::pce_15_pct",
+              "pvsk:pvsk_burschka2013::pce_certified_14_14"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__implication_result_bc041161",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_burschka2013::__conjunction_result_0aae04b5",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "Progression from 10.9% (Lee 2012) to 15% PCE via sequential deposition demonstrates rapid improvement through process engineering"
+      },
+      "premises": [
+        "pvsk:pvsk_burschka2013::pce_15_pct",
+        "pvsk:pvsk_burschka2013::pce_certified_14_14"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_892c8b336e4382c4",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__conjunction_result_2f18b10d",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_burschka2013::sequential_method",
+              "pvsk:pvsk_burschka2013::high_reproducibility"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_burschka2013::__implication_result_e34e820a",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_burschka2013::__conjunction_result_2f18b10d",
+              "pvsk:pvsk_meta::p_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.55,
+        "reason": "Two-step solution process with tight reproducibility is inherently more scalable than single-step methods with uncontrolled precipitation"
+      },
+      "premises": [
+        "pvsk:pvsk_burschka2013::sequential_method",
+        "pvsk:pvsk_burschka2013::high_reproducibility"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_706f31cc3d2a8c31",
+      "type": "support"
+    }
+  ]
+}

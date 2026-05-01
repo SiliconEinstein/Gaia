@@ -1,0 +1,844 @@
+{
+  "ir_hash": "sha256:e2e6d8cd7c25dbbfabce330650a3cd6df8688dc4170f045fe9f99c2cdba24dfc",
+  "knowledges": [
+    {
+      "content": "Inverted (p-i-n) PSCs with FTO/NiOx/Me-4PACz/perovskite/passivation/C60/BCP/Ag architecture, using normal bandgap (~1.5 eV) perovskite. Active areas of 0.05 cm2 and 1.5 cm2 tested. Thermal stability tested under ISOS-D-2 (85 C in N2) and operational stability under ISOS-L-3 (1 sun, 65 C, ambient air).",
+      "content_hash": "a7e169ae08ed3944d971011baae5cb1f40094d77e659a0dfb637bc9e6022eccd",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2023a::exp_context",
+      "label": "exp_context",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Inverted p-i-n PSCs have potential stability and tandem-compatibility advantages over regular n-i-p, but their PCEs rarely surpass 24% under quasi-steady-state (QSS) protocol due to higher recombination at the perovskite/C60 interface.",
+      "content_hash": "f0df0fb407f580b85b681a00292620203372bcc490b8ff39b6fe5bd1695bf31d",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2023a::pin_gap_setting",
+      "label": "pin_gap_setting",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "A dual-molecule passivation strategy combining diammonium (PDAI2) for field-effect passivation with sulfur-modified methylthio (3MTPAI) for chemical passivation simultaneously suppresses both interface and surface recombination at the perovskite/C60 top interface",
+      "content_hash": "c78b5c0169fa85bd6450a96b78d4574c28fe88afcb682e315b0546c2fa65c67f",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2023a::dmdp_strategy",
+      "label": "dmdp_strategy",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "dmdp_bimolecular_passivation",
+      "type": "claim"
+    },
+    {
+      "content": "The DMDP strategy achieves a certified quasi-steady-state PCE of 25.1% for inverted PSCs (NREL certification, 0.05 cm2), the first inverted PSC to exceed 25% under QSS protocol",
+      "content_hash": "e7713b07824a185a82d8a6414985f70abdd0a7e4808ff1ee1f5f76ebae5a72f5",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2023a::certified_pce_251",
+      "label": "certified_pce_251",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "title": "certified_qss_pce_25_1_percent",
+      "type": "claim"
+    },
+    {
+      "content": "The champion DMDP device achieves a PCE of 26.4% with Jsc of 26.2 mA cm-2, Voc of 1.17 V, and FF of 85.8%",
+      "content_hash": "c4da928c306811f07dd2b4037ee105d56539853f44043998ebcde19cfb7ed29e",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2023a::champion_pce_264",
+      "label": "champion_pce_264",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "champion_pce_26_4_percent",
+      "type": "claim"
+    },
+    {
+      "content": "DMDP passivation leads to a fivefold longer carrier lifetime and one-third the photoluminescence quantum yield loss compared to control",
+      "content_hash": "2719fb126becf854fb0de8662202b4331e24f5c8befc530eb531c8c0f16b8261",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2023a::carrier_lifetime_5x",
+      "label": "carrier_lifetime_5x",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "carrier_lifetime_5x_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "Encapsulated DMDP devices maintain 96% of initial PCE after 2000 hours of continuous 1-sun operation at 65 C in ambient air (ISOS-L-3 protocol)",
+      "content_hash": "ede79af6d15c08c7c336d0dea3ca03a668aa663f878739e62c14e4510bed042a",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2023a::operational_stability_2000h",
+      "label": "operational_stability_2000h",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "operational_stability_2000h",
+      "type": "claim"
+    },
+    {
+      "content": "DMDP devices retain 95% of initial PCE after 1600 hours of thermal aging at 85 C in nitrogen (ISOS-D-2 protocol)",
+      "content_hash": "1248d6cadf028955641b73034eec9d6c9a1d663a1eb43baba2215c2afa813117",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2023a::thermal_stability",
+      "label": "thermal_stability",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "title": "thermal_stability_95_percent_1600h",
+      "type": "claim"
+    },
+    {
+      "content": "The sulfur-modified methylthio molecule (3MTPA) has stronger binding energy to iodide vacancy defects on the perovskite surface compared to conventional alkyl ammonium ligands, driven by S-Pb coordination bonding and enhanced hydrogen bonding with formamidinium",
+      "content_hash": "b4de8a668df21a9cb8ef50ad200f464683d66ab2ca8d49226e86390589745bb2",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2023a::methylthio_binding",
+      "label": "methylthio_binding",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "title": "methylthio_stronger_binding",
+      "type": "claim"
+    },
+    {
+      "content": "Diammonium ligands (PDAI2) induce n-type doping and a surface dipole that repels minority carriers (holes) from the perovskite/C60 interface, achieving field-effect passivation that reduces contact-induced interface recombination",
+      "content_hash": "d4e26b4361f19407fa162405f67884956a924018521350da6ac3945416ca2c52",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2023a::field_effect_passivation",
+      "label": "field_effect_passivation",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "title": "field_effect_passivation_diammonium",
+      "type": "claim"
+    },
+    {
+      "content": "DMDP-treated devices show a dark saturation current (J0) reduction by two orders of magnitude compared with control devices",
+      "content_hash": "141ac70f5a14c01413f8e1debb6e66de2e64301a8f76ec05a39606e5a9276412",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2023a::dark_current_reduction",
+      "label": "dark_current_reduction",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "title": "dark_current_2_orders_reduction",
+      "type": "claim"
+    },
+    {
+      "content": "The DMDP strategy is applicable to monolithic all-perovskite tandem solar cells, achieving 28.1% PCE with Voc of 2.14 V and stabilized PCE of 27.1% under MPPT",
+      "content_hash": "d6313f46beb092d24ef84b67599795e62633eaa8e42c4f6f0d473a5cff7628d0",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2023a::tandem_281",
+      "label": "tandem_281",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "all_perovskite_tandem_28_1_percent",
+      "type": "claim"
+    },
+    {
+      "content": "The DMDP strategy improves PCE by 13-14% for both narrow-bandgap (~1.2 eV) and wide-bandgap (~1.8 eV) perovskite compositions, demonstrating universality across perovskite bandgaps",
+      "content_hash": "090d093c3a9c0af9b765b1559bdb20ac04b0dcc6ac09449b00faa08dd22346a1",
+      "declaration_index": 12,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2023a::universal_bandgap",
+      "label": "universal_bandgap",
+      "metadata": {
+        "prior": 0.75
+      },
+      "parameters": [],
+      "title": "dmdp_universal_bandgap",
+      "type": "claim"
+    },
+    {
+      "content": "DMDP-treated devices with 1.5 cm2 area deliver a PCE of 24.0%, demonstrating scalability of the passivation approach",
+      "content_hash": "1a22550d651aae08fe1fb5132ea3e3345aff1893160393a1871b3f684875a4df",
+      "declaration_index": 13,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2023a::large_area_24",
+      "label": "large_area_24",
+      "metadata": {
+        "prior": 0.75
+      },
+      "parameters": [],
+      "title": "large_area_24_percent",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "Organometal halide perovskites can function as viable photovoltaic absorbers",
+      "content_hash": "12183274605a4cdd79df4b632d2b0bc6c7bbfdfe0b389d5a86bd3d531fb560a3",
+      "declaration_index": 0,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_viability",
+      "label": "p_viability",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_viability",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2023a::methylthio_binding,pvsk:pvsk_liu2023a::field_effect_passivation)",
+      "content_hash": "490869d1ea84c256a605879480c91fd47ba0be577c34012e2d9d95a65444268a",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2023a::__conjunction_result_08ef9045",
+      "label": "__conjunction_result_08ef9045",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2023a::methylthio_binding,pvsk:pvsk_liu2023a::field_effect_passivation)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_16e681809c32a45f",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2023a::__conjunction_result_08ef9045,pvsk:pvsk_liu2023a::dmdp_strategy)",
+      "content_hash": "f3d22c8fd8629570bef86ad42aca99c322894b43192caa6343ed35973740afd0",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2023a::__implication_result_69239894",
+      "label": "__implication_result_69239894",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2023a::__conjunction_result_08ef9045,pvsk:pvsk_liu2023a::dmdp_strategy)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_16e681809c32a45f",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2023a::dmdp_strategy,pvsk:pvsk_liu2023a::carrier_lifetime_5x,pvsk:pvsk_liu2023a::dark_current_reduction)",
+      "content_hash": "94842490bfe87621020ea7ec773c5c350fba4ac0f2ed8c8bd134898d9fbc511d",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2023a::__conjunction_result_48e89112",
+      "label": "__conjunction_result_48e89112",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2023a::dmdp_strategy,pvsk:pvsk_liu2023a::carrier_lifetime_5x,pvsk:pvsk_liu2023a::dark_current_reduction)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_cd8684f2d0b76707",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2023a::__conjunction_result_48e89112,pvsk:pvsk_liu2023a::certified_pce_251)",
+      "content_hash": "ce4bf647856227fa953834cbcab5bf59684a6665991eb61a98327529e05e923d",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2023a::__implication_result_77215cb5",
+      "label": "__implication_result_77215cb5",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2023a::__conjunction_result_48e89112,pvsk:pvsk_liu2023a::certified_pce_251)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_cd8684f2d0b76707",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2023a::dmdp_strategy,pvsk:pvsk_liu2023a::operational_stability_2000h)",
+      "content_hash": "323252542f3fffb1e7cc239e5c54f75bae80c6254359cc70dc0a7eba60eead1b",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2023a::__implication_result_952d3aa2",
+      "label": "__implication_result_952d3aa2",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2023a::dmdp_strategy,pvsk:pvsk_liu2023a::operational_stability_2000h)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_97b6ba257744771b",
+        "owning_strategy_type": "support",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2023a::dmdp_strategy,pvsk:pvsk_liu2023a::universal_bandgap)",
+      "content_hash": "7111fa855d5842f8fe7d0a193139545e7cef1c9ab47fb7794737ec950fbf1d13",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2023a::__conjunction_result_61e6f923",
+      "label": "__conjunction_result_61e6f923",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2023a::dmdp_strategy,pvsk:pvsk_liu2023a::universal_bandgap)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_e2846c67be5dcded",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2023a::__conjunction_result_61e6f923,pvsk:pvsk_liu2023a::tandem_281)",
+      "content_hash": "afe157c0e37b832b21472f9f3b4eb4351d6bd8eafd31627a6b79622760764a0e",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2023a::__implication_result_a6a11ae4",
+      "label": "__implication_result_a6a11ae4",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2023a::__conjunction_result_61e6f923,pvsk:pvsk_liu2023a::tandem_281)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_e2846c67be5dcded",
+        "owning_strategy_type": "support",
+        "prior": 0.75,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2023a::certified_pce_251,pvsk:pvsk_liu2023a::champion_pce_264)",
+      "content_hash": "8f28d7f9db57c809c36322a7c66e26144fdae72abed57316a61cdb1eb6d588a9",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2023a::__conjunction_result_c0f5bf66",
+      "label": "__conjunction_result_c0f5bf66",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2023a::certified_pce_251,pvsk:pvsk_liu2023a::champion_pce_264)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_835898b45d3dea72",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2023a::__conjunction_result_c0f5bf66,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "af780b62bb18a323830ad4e0002ca84745cfdc827fdd08a800038be7976cbfc9",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2023a::__implication_result_817456a5",
+      "label": "__implication_result_817456a5",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2023a::__conjunction_result_c0f5bf66,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_835898b45d3dea72",
+        "owning_strategy_type": "support",
+        "prior": 0.75,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2023a::operational_stability_2000h,pvsk:pvsk_liu2023a::thermal_stability)",
+      "content_hash": "24e59cd8ff6815feff67a3fe8ba3092cdb32eeb0c22bd9869bdbd909c10f6d85",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2023a::__conjunction_result_3d0ff5db",
+      "label": "__conjunction_result_3d0ff5db",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2023a::operational_stability_2000h,pvsk:pvsk_liu2023a::thermal_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_c98ed354243245f8",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2023a::__conjunction_result_3d0ff5db,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "e0a1be0321b37ec2746c7f8ba37f6311cdebae8c00ab56823168283233d58822",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2023a::__implication_result_71fdd0cd",
+      "label": "__implication_result_71fdd0cd",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2023a::__conjunction_result_3d0ff5db,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_c98ed354243245f8",
+        "owning_strategy_type": "support",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2023a::certified_pce_251,pvsk:pvsk_liu2023a::tandem_281)",
+      "content_hash": "8cd5178744432a120e66e38956e82c9734d4ad05329c75dd8cfc1afc89404074",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2023a::__conjunction_result_9bcc8ea8",
+      "label": "__conjunction_result_9bcc8ea8",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2023a::certified_pce_251,pvsk:pvsk_liu2023a::tandem_281)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_6302a66cbf84ca16",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2023a::__conjunction_result_9bcc8ea8,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "4ac29aeeee155807f06e886c4742d03d7a49653def29e23f4e4f31b02ba56fc6",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2023a::__implication_result_f78ae020",
+      "label": "__implication_result_f78ae020",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2023a::__conjunction_result_9bcc8ea8,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_6302a66cbf84ca16",
+        "owning_strategy_type": "support",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2023a::large_area_24,pvsk:pvsk_liu2023a::tandem_281)",
+      "content_hash": "d49830f5acbe4d331cf8871131d0f1842787cba08c8b7d176f70bd76591d684e",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2023a::__conjunction_result_e120f9e6",
+      "label": "__conjunction_result_e120f9e6",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2023a::large_area_24,pvsk:pvsk_liu2023a::tandem_281)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_5d60ecceb6af3d71",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2023a::__conjunction_result_e120f9e6,pvsk:pvsk_meta::p_viability)",
+      "content_hash": "d947b69dbc12dc48bb0221a1d0b5fe61081a339d4b4b89e53c7bd2af1f9a08ba",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2023a::__implication_result_38f923df",
+      "label": "__implication_result_38f923df",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2023a::__conjunction_result_e120f9e6,pvsk:pvsk_meta::p_viability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_5d60ecceb6af3d71",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_liu2023a",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_liu2023a::dmdp_strategy",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2023a::__conjunction_result_08ef9045",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2023a::methylthio_binding",
+              "pvsk:pvsk_liu2023a::field_effect_passivation"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2023a::__implication_result_69239894",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2023a::__conjunction_result_08ef9045",
+              "pvsk:pvsk_liu2023a::dmdp_strategy"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Combining chemical passivation (3MTPAI binds defect sites) with field-effect passivation (PDAI2 repels minority carriers) addresses both surface and interface recombination simultaneously"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2023a::methylthio_binding",
+        "pvsk:pvsk_liu2023a::field_effect_passivation"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_16e681809c32a45f",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_liu2023a::certified_pce_251",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2023a::__conjunction_result_48e89112",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2023a::dmdp_strategy",
+              "pvsk:pvsk_liu2023a::carrier_lifetime_5x",
+              "pvsk:pvsk_liu2023a::dark_current_reduction"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2023a::__implication_result_77215cb5",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2023a::__conjunction_result_48e89112",
+              "pvsk:pvsk_liu2023a::certified_pce_251"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Reduced non-radiative recombination (5x lifetime, 2 orders lower J0) directly translates to higher Voc and FF, enabling record certified QSS efficiency for inverted architecture"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2023a::dmdp_strategy",
+        "pvsk:pvsk_liu2023a::carrier_lifetime_5x",
+        "pvsk:pvsk_liu2023a::dark_current_reduction"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_cd8684f2d0b76707",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_liu2023a::operational_stability_2000h",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2023a::__implication_result_952d3aa2",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2023a::dmdp_strategy",
+              "pvsk:pvsk_liu2023a::operational_stability_2000h"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "DMDP suppresses delta-FAPbI3 formation and passivates surface defects, improving ambient stability of the perovskite film"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2023a::dmdp_strategy"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_97b6ba257744771b",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_liu2023a::tandem_281",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2023a::__conjunction_result_61e6f923",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2023a::dmdp_strategy",
+              "pvsk:pvsk_liu2023a::universal_bandgap"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2023a::__implication_result_a6a11ae4",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2023a::__conjunction_result_61e6f923",
+              "pvsk:pvsk_liu2023a::tandem_281"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.75,
+        "reason": "Applicability across bandgaps enables simultaneous improvement of both WBG and NBG subcells in the tandem configuration"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2023a::dmdp_strategy",
+        "pvsk:pvsk_liu2023a::universal_bandgap"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_e2846c67be5dcded",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2023a::__conjunction_result_c0f5bf66",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2023a::certified_pce_251",
+              "pvsk:pvsk_liu2023a::champion_pce_264"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2023a::__implication_result_817456a5",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2023a::__conjunction_result_c0f5bf66",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.75,
+        "reason": "First inverted PSC exceeding 25% QSS certified efficiency and 26.4% champion demonstrate that p-i-n architecture can match n-i-p efficiency records"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2023a::certified_pce_251",
+        "pvsk:pvsk_liu2023a::champion_pce_264"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_835898b45d3dea72",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2023a::__conjunction_result_3d0ff5db",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2023a::operational_stability_2000h",
+              "pvsk:pvsk_liu2023a::thermal_stability"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2023a::__implication_result_71fdd0cd",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2023a::__conjunction_result_3d0ff5db",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "2000 hours of stable operation at 65 C in air and 1600 hours at 85 C in N2 represent industrial-grade stability benchmarks for PSCs"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2023a::operational_stability_2000h",
+        "pvsk:pvsk_liu2023a::thermal_stability"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_c98ed354243245f8",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2023a::__conjunction_result_9bcc8ea8",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2023a::certified_pce_251",
+              "pvsk:pvsk_liu2023a::tandem_281"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2023a::__implication_result_f78ae020",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2023a::__conjunction_result_9bcc8ea8",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "Continuous advancement of inverted PSC efficiency from below 24% to above 25% QSS, and all-perovskite tandem to 28.1%, demonstrates ongoing improvement trajectory"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2023a::certified_pce_251",
+        "pvsk:pvsk_liu2023a::tandem_281"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_6302a66cbf84ca16",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_viability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2023a::__conjunction_result_e120f9e6",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2023a::large_area_24",
+              "pvsk:pvsk_liu2023a::tandem_281"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2023a::__implication_result_38f923df",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2023a::__conjunction_result_e120f9e6",
+              "pvsk:pvsk_meta::p_viability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "Large-area devices and tandem configurations demonstrate practical viability of the inverted perovskite technology"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2023a::large_area_24",
+        "pvsk:pvsk_liu2023a::tandem_281"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_5d60ecceb6af3d71",
+      "type": "support"
+    }
+  ]
+}

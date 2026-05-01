@@ -1,0 +1,99 @@
+{
+  "exports": [
+    {
+      "content": "Optimally spaced silver grids (2 mm spacing) on the rear ITO electrode reduce resistance loss from 8.6% to less than 0.9% while maintaining bifaciality of 74.3%",
+      "content_hash": "d7cacee2cf74a6fa92dd17d70432a79dd3dbe38a8959a194d3120db88fb0fb8e",
+      "label": "ag_grid_optimization",
+      "qid": "pvsk:pvsk_gu2023::ag_grid_optimization",
+      "type": "claim"
+    },
+    {
+      "content": "ALD SnO2 buffer layer greatly reduces perovskite damage during laser scribing and stabilizes the C60/BCP interface by replacing the thermally unstable BCP layer",
+      "content_hash": "78712cc8bd33ea08e0b6b8490eefbd7f1b8317714b637c8c735efbbe775f9424",
+      "label": "ald_sno2_stability",
+      "qid": "pvsk:pvsk_gu2023::ald_sno2_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Bifacial modules harvest reflected and diffused sunlight from the rear side, gaining 5-30% more power than monofacial modules depending on albedo. Average albedo of 0.2 or higher is common in many locations.",
+      "content_hash": "58bb8d89986af3ec0501f79d3034f9cc301741ad80d85aaf725f53fb3803f7cd",
+      "label": "bifacial_advantage",
+      "qid": "pvsk:pvsk_gu2023::bifacial_advantage",
+      "type": "setting"
+    },
+    {
+      "content": "Bifacial perovskite minimodules achieve a front aperture efficiency of 20.2% and rear aperture efficiency of 15.0%, with NREL-certified stabilized front efficiency of 19.2% and rear efficiency of 14.1%",
+      "content_hash": "65cf32a5e5431786ecf92276c0660a311e31d274cf67be7d24e7b856f17ad4ac",
+      "label": "bifacial_front_20",
+      "qid": "pvsk:pvsk_gu2023::bifacial_front_20",
+      "type": "claim"
+    },
+    {
+      "content": "Bifacial minimodules achieve a bifaciality of 74.3% and gain 15% more power output at albedo of 0.2 compared with monofacial modules",
+      "content_hash": "82de0e02c7c391fa4bc901cc593e9a494ef3a5e594e5d1b9b93ad54b066568fa",
+      "label": "bifaciality_74",
+      "qid": "pvsk:pvsk_gu2023::bifaciality_74",
+      "type": "claim"
+    },
+    {
+      "content": "Bifacial minimodules maintain approximately 84% of initial efficiency after damp-heat testing for over 1000 hours (85 C, 85% RH)",
+      "content_hash": "f0428a490e4f7d0dd6d86fa58eab552fc6c20185485a1a0a7d6c6f3b5acbc083",
+      "label": "damp_heat_1000h",
+      "qid": "pvsk:pvsk_gu2023::damp_heat_1000h",
+      "type": "claim"
+    },
+    {
+      "content": "Bifacial perovskite minimodules using p-i-n architecture with PTAA/C60 as HTL/ETL. Perovskite compositions MA0.7FA0.3PbI3 and FA0.92Cs0.08PbI3. Aperture areas of 14.3-25.1 cm2. ITO rear electrode with Ag grids, ALD SnO2 buffer layer. Blade-coated at room temperature in ambient air.",
+      "content_hash": "f5704e1f32336efa434034a70f1ec9b9526247861ae973622d58c5d4ebf93515",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_gu2023::exp_context",
+      "type": "setting"
+    },
+    {
+      "content": "Bifacial minimodules retain 97% of initial PCE after over 6000 hours of light soaking under 1 sun at 60+/-5 C, the most stable reported perovskite minimodule at the time of publication",
+      "content_hash": "38b8b711e11991a1b5bb6b50ebace7bf5df04578e69a49d63253db99bb15c021",
+      "label": "light_soaking_6000h",
+      "qid": "pvsk:pvsk_gu2023::light_soaking_6000h",
+      "type": "claim"
+    },
+    {
+      "content": "Across eight bifacial minimodules with Ag grids, average front and rear aperture efficiencies reach 19.5% and 14.5% respectively, demonstrating good fabrication reproducibility",
+      "content_hash": "ff63a201032091361c7251ab1794d2d0d6e932e8b0856bb4664cb933d1fcd281",
+      "label": "module_reproducibility",
+      "qid": "pvsk:pvsk_gu2023::module_reproducibility",
+      "type": "claim"
+    },
+    {
+      "content": "Bifacial minimodules achieve a power-generation density of over 23 mW cm-2 at albedo of 0.2, higher than the best certified monofacial modules, and up to 24.7 mW cm-2 at albedo of 0.3",
+      "content_hash": "a3eafac6e8a68f3576e4b783755942fc55ca2392479a0816908dd31470b55bff",
+      "label": "power_generation_density",
+      "qid": "pvsk:pvsk_gu2023::power_generation_density",
+      "type": "claim"
+    },
+    {
+      "content": "Embedding 500 nm SiO2 nanoparticles in perovskite films recovers absorption loss from the absent reflective metal electrode by scattering red and NIR light, increasing Jsc by 0.8 mA cm-2 without introducing additional non-radiative recombination",
+      "content_hash": "cdbae616b3a4cc73d5cccc9826a07151e16124d22f09dd4732db6d52457fe1cf",
+      "label": "sio2_np_scattering",
+      "qid": "pvsk:pvsk_gu2023::sio2_np_scattering",
+      "type": "claim"
+    },
+    {
+      "content": "Small-area single-junction bifacial PSCs achieve a power-generation density of 26.4 mW cm-2 under 1 sun and albedo of 0.2",
+      "content_hash": "4174d0d7dae1bb78e11dff1a18d7a7ce22e4b49ec014fdaa66d6e59addadaf8e",
+      "label": "small_cell_264_pgd",
+      "qid": "pvsk:pvsk_gu2023::small_cell_264_pgd",
+      "type": "claim"
+    },
+    {
+      "content": "Adding hydrophobic tris(pentafluorophenyl)borane (TPFB) to the PTAA hole transport layer spreads to the perovskite surface and significantly enhances moisture resistance during ALD processing, improving device reproducibility for large-area modules",
+      "content_hash": "33d60e3b5cad8f42319204b46456247c36be588a499129de33bd67fd5b13d417",
+      "label": "tpfb_moisture_protection",
+      "qid": "pvsk:pvsk_gu2023::tpfb_moisture_protection",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:b7170da61e690f45ed7c66af7318f74b6f1fe31ebbb62418776fe33ad8edffa8",
+  "manifest_schema_version": 1,
+  "package": "pvsk-gu2023",
+  "version": "1.0.0"
+}

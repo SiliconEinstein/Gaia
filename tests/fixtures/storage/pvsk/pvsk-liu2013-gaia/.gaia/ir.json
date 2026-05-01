@@ -1,0 +1,839 @@
+{
+  "ir_hash": "sha256:b78796ea69c1dbbec604a1fc34fb37ec0fa9d9fef06662ddde8519fcd0f41925",
+  "knowledges": [
+    {
+      "content": "Planar heterojunction p-i-n solar cell with dual-source vapour-deposited CH3NH3PbI3-xClx perovskite: CH3NH3I and PbCl2 evaporated simultaneously at 4:1 molar ratio under 10^-5 mbar onto compact TiO2/FTO substrate, annealed at 100C for 45 min, followed by solution-processed spiro-OMeTAD and evaporated Ag electrode, measured under AM 1.5 at 101 mW/cm2",
+      "content_hash": "f0925ee1dea31ce0a7a7571462993f4e041e90160ff050b7107e1eb01461072a",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2013::exp_context",
+      "label": "exp_context",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Dual-source thermal evaporation: CH3NH3I at ~116C (5.3 A/s) and PbCl2 at ~320C (1 A/s) for ~128 min, producing ~330 nm thick perovskite film after annealing. Substrate holder rotated and water-cooled to ~21C for uniform coating",
+      "content_hash": "9f1eacd52b05c52c31d46793f2184f6a98a10c9571adc75768748341089ed9a7",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2013::vapour_deposition_method",
+      "label": "vapour_deposition_method",
+      "metadata": {
+        "prior": 0.7
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Best vapour-deposited planar heterojunction perovskite cell achieves PCE of 15.4% with Jsc=21.5 mA/cm2, Voc=1.07 V, and fill factor 0.67, measured under AM 1.5 simulated sunlight at 101 mW/cm2",
+      "content_hash": "78ef846138e0e8ca177dfcd1adf311ae89c350886bad051626c01cbe150a17a0",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2013::pce_15_4_pct",
+      "label": "pce_15_4_pct",
+      "metadata": {
+        "prior": 0.92
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Average performance of 12 identically processed vapour-deposited cells is PCE=12.3% +/- 2.0%, Jsc=18.9 +/- 1.8 mA/cm2, Voc=1.05 +/- 0.03 V, FF=0.62 +/- 0.05",
+      "content_hash": "e5e41d76fc2e63ef2f7911c51c47c21179f6fdd39578806e28f1c1898f4ca539",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2013::batch_average_12_3",
+      "label": "batch_average_12_3",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Nanostructuring (mesoporous scaffold) is not necessary to achieve high efficiency with perovskite absorbers; a simple planar heterojunction thin-film architecture can deliver over 15% PCE",
+      "content_hash": "dab99b89953a3bcfca739c9e8c9d142bb1574861cd49cc67eddcaf4f02d60718",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2013::nanostructure_not_necessary",
+      "label": "nanostructure_not_necessary",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Vapour-deposited perovskite films are extremely uniform with crystalline features on the scale of hundreds of nanometres, in contrast to solution-processed films with partial coverage and crystalline platelets tens of micrometres in size",
+      "content_hash": "9f7307f6574b0cf91e77c270de90af98a40af37b61e4a455a3257eb0277dc532",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2013::vapour_film_uniformity",
+      "label": "vapour_film_uniformity",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Solution-processed planar heterojunction perovskite cell achieves 8.6% PCE with Jsc=17.6 mA/cm2, Voc=0.84 V, and FF=0.58, but with undulating film (50-410 nm thickness variation) and pinholes causing shunting paths",
+      "content_hash": "1dfd0e30db7600d70b61c6db6794f20f78fd781c80294030bf0fbc6ba46b87dd",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2013::solution_planar_8_6_pct",
+      "label": "solution_planar_8_6_pct",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Vapour-deposited perovskite films show high phase purity with only minor PbI2 (12.65 degrees) and no measurable CH3NH3PbCl3 (15.68 degrees) XRD peaks, confirming well-formed mixed-halide perovskite",
+      "content_hash": "e9893d89f28b31d51cad997da0386903a74c0b8cb13506bc4cf05b3332fbfcc0",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2013::phase_purity",
+      "label": "phase_purity",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The electron and hole diffusion length in CH3NH3PbI3-xClx perovskite is at least 330 nm (the film thickness), as evidenced by efficient charge collection in planar heterojunction cells",
+      "content_hash": "1a740bda09973a9984c30d1ecbefba761f4816e2977eecffda7c436efbdeefa9",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2013::diffusion_length_lower_bound",
+      "label": "diffusion_length_lower_bound",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Both vapour-deposited and solution-cast films produce the same mixed-halide perovskite with orthorhombic crystal structure, as confirmed by identical XRD peak positions at 14.12, 28.44, and 43.23 degrees",
+      "content_hash": "e861d3b392c166438ea01b4e646358d1242e8e78ee7000e2e2aeaf62a961ea71",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2013::same_crystal_structure",
+      "label": "same_crystal_structure",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Vapour-deposited perovskite technology is compatible with conventional silicon and CIGS processing, making it suitable as a top cell in hybrid tandem configurations",
+      "content_hash": "05d09f85b2b6b914177021339a9ecd1ce263a067daa4e99f0c202397f1075f23",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2013::tandem_compatibility",
+      "label": "tandem_compatibility",
+      "metadata": {
+        "prior": 0.65
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Cl atoms in the mixed-halide perovskite reside in apical positions out of the PbI4 plane rather than in equatorial octahedral sites, consistent with a slight contraction of the c-axis compared to CH3NH3PbI3",
+      "content_hash": "ee5f317b03a5fdbbdb6eb49966bd9de93cde4c08717319c44463f660abb753f7",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2013::cl_apical_position",
+      "label": "cl_apical_position",
+      "metadata": {
+        "prior": 0.72
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "What are the precise electron and hole diffusion lengths in vapour-deposited CH3NH3PbI3-xClx, and what are the primary excitation and free-charge generation mechanisms?",
+      "content_hash": "53656c3f993ba22d0961ee6f979d1bb6be154a4da93c7f04bdb4284ed1e32ee3",
+      "declaration_index": 12,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2013::diffusion_length_precise",
+      "label": "diffusion_length_precise",
+      "parameters": [],
+      "type": "question"
+    },
+    {
+      "content": "Will vapour deposition emerge as the preferred route for perovskite solar cell manufacture, or will solution processing eventually match its film quality?",
+      "content_hash": "6d63eb0c5e511567daf284941d3efd3f54fe26f92b82d2adb8a72a0617cd65e2",
+      "declaration_index": 13,
+      "exported": true,
+      "id": "pvsk:pvsk_liu2013::manufacturing_route",
+      "label": "manufacturing_route",
+      "parameters": [],
+      "type": "question"
+    },
+    {
+      "content": "not_both_true(A, B)",
+      "content_hash": "468923920550aff97ac2349f7d0a5b32e6560066b45861bf367db7f40e8649a7",
+      "declaration_index": 14,
+      "exported": false,
+      "id": "pvsk:pvsk_liu2013::_anon_000",
+      "metadata": {
+        "helper_kind": "contradiction_result",
+        "prior": 0.75
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Organometal halide perovskites can function as viable photovoltaic absorbers",
+      "content_hash": "12183274605a4cdd79df4b632d2b0bc6c7bbfdfe0b389d5a86bd3d531fb560a3",
+      "declaration_index": 0,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_viability",
+      "label": "p_viability",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_viability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "content_hash": "9603b55225f5e093d20a1194832c2b419389d6a83886f8b7841f0b9a65cc106f",
+      "declaration_index": 4,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "metadata": {
+        "prior": 0.15
+      },
+      "parameters": [],
+      "title": "p_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2013::vapour_film_uniformity,pvsk:pvsk_liu2013::pce_15_4_pct)",
+      "content_hash": "68f6ca3395479d6886e890d80345e2f1e8b41265fd8e7beee68f975464e54945",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2013::__implication_result_ccf5636b",
+      "label": "__implication_result_ccf5636b",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2013::vapour_film_uniformity,pvsk:pvsk_liu2013::pce_15_4_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_273e2ff35dfac851",
+        "owning_strategy_type": "deduction",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2013::phase_purity,pvsk:pvsk_liu2013::same_crystal_structure)",
+      "content_hash": "c8cbc608dc9e0e4105ba4baf4b88346b98062b2f5e1ff0a2bac3f288c499a33e",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2013::__conjunction_result_7b88c773",
+      "label": "__conjunction_result_7b88c773",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2013::phase_purity,pvsk:pvsk_liu2013::same_crystal_structure)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_0b576ff0c67f721c",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2013::__conjunction_result_7b88c773,pvsk:pvsk_liu2013::pce_15_4_pct)",
+      "content_hash": "1ec63167033f75f5b50d52ce991191bcddbd3e777d19ba729225fc58f9f9874e",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2013::__implication_result_d3d81a9b",
+      "label": "__implication_result_d3d81a9b",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2013::__conjunction_result_7b88c773,pvsk:pvsk_liu2013::pce_15_4_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_0b576ff0c67f721c",
+        "owning_strategy_type": "support",
+        "prior": 0.78,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2013::pce_15_4_pct,pvsk:pvsk_liu2013::batch_average_12_3)",
+      "content_hash": "6b3a101be47d6eca4ec2db7711984fe90c2e46c51bf1a0355c3f9d1cfc64a382",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2013::__conjunction_result_263af456",
+      "label": "__conjunction_result_263af456",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2013::pce_15_4_pct,pvsk:pvsk_liu2013::batch_average_12_3)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_a276206409e6d657",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2013::__conjunction_result_263af456,pvsk:pvsk_liu2013::nanostructure_not_necessary)",
+      "content_hash": "b8a658ab7a2e888be7e6106af3648e206686977714c5be0f3184fd9b128dd265",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2013::__implication_result_bac0b557",
+      "label": "__implication_result_bac0b557",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2013::__conjunction_result_263af456,pvsk:pvsk_liu2013::nanostructure_not_necessary)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_a276206409e6d657",
+        "owning_strategy_type": "support",
+        "prior": 0.85,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2013::pce_15_4_pct,pvsk:pvsk_liu2013::nanostructure_not_necessary)",
+      "content_hash": "f1966bde989d656ee8543cd5cb510b3ebdbc52f3702677ad74260d5f26d5770b",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2013::__conjunction_result_025c2f5a",
+      "label": "__conjunction_result_025c2f5a",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2013::pce_15_4_pct,pvsk:pvsk_liu2013::nanostructure_not_necessary)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_af7d61cce8ac65d9",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2013::__conjunction_result_025c2f5a,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "7669c60d18eb5cd1200c2c3207da25e3711dfde8933cf016291795c42a5c7951",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2013::__implication_result_ddeb6856",
+      "label": "__implication_result_ddeb6856",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2013::__conjunction_result_025c2f5a,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_af7d61cce8ac65d9",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2013::pce_15_4_pct,pvsk:pvsk_liu2013::nanostructure_not_necessary)",
+      "content_hash": "f1966bde989d656ee8543cd5cb510b3ebdbc52f3702677ad74260d5f26d5770b",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2013::__conjunction_result_e9058ec0",
+      "label": "__conjunction_result_e9058ec0",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2013::pce_15_4_pct,pvsk:pvsk_liu2013::nanostructure_not_necessary)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_2e63ab9321f037ad",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2013::__conjunction_result_e9058ec0,pvsk:pvsk_meta::p_viability)",
+      "content_hash": "b2b41731bad6ca9e2734439ba5da0f081d9a30e5cee5042497e2036fed24621c",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2013::__implication_result_3a62c33f",
+      "label": "__implication_result_3a62c33f",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2013::__conjunction_result_e9058ec0,pvsk:pvsk_meta::p_viability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_2e63ab9321f037ad",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2013::pce_15_4_pct,pvsk:pvsk_liu2013::batch_average_12_3)",
+      "content_hash": "6b3a101be47d6eca4ec2db7711984fe90c2e46c51bf1a0355c3f9d1cfc64a382",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2013::__conjunction_result_b60b91d4",
+      "label": "__conjunction_result_b60b91d4",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2013::pce_15_4_pct,pvsk:pvsk_liu2013::batch_average_12_3)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_330216ba97979134",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2013::__conjunction_result_b60b91d4,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "fd7235179f02f92c3c0c3c52a52119151371debfd2d986a73437a535efd50369",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2013::__implication_result_df8ec43f",
+      "label": "__implication_result_df8ec43f",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2013::__conjunction_result_b60b91d4,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_330216ba97979134",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_liu2013::tandem_compatibility,pvsk:pvsk_liu2013::vapour_deposition_method)",
+      "content_hash": "a60cd8a9a1b018a043d0b5fa21429d666d0dcc45d1f86ad1190523fec4d36b49",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2013::__conjunction_result_ac3f9d38",
+      "label": "__conjunction_result_ac3f9d38",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_liu2013::tandem_compatibility,pvsk:pvsk_liu2013::vapour_deposition_method)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_d234bf6bff808263",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2013::__conjunction_result_ac3f9d38,pvsk:pvsk_meta::p_industrialization)",
+      "content_hash": "24fe27a0b64ce74b65c938dd01cd23bdaa52c3c8ee0fb6e73c571e96918850d5",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2013::__implication_result_4445fab9",
+      "label": "__implication_result_4445fab9",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2013::__conjunction_result_ac3f9d38,pvsk:pvsk_meta::p_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_d234bf6bff808263",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_liu2013::diffusion_length_lower_bound,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "8714ebd3507e0a7d2b78bf73c878776baf80b6e8cb05e68634f9a75edc412801",
+      "exported": false,
+      "id": "pvsk:pvsk_liu2013::__implication_result_58251d06",
+      "label": "__implication_result_58251d06",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_liu2013::diffusion_length_lower_bound,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_5fefd2028524cd32",
+        "owning_strategy_type": "support",
+        "prior": 0.5,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [
+    {
+      "conclusion": "pvsk:pvsk_liu2013::_anon_000",
+      "metadata": {
+        "reason": "Same planar architecture but solution processing yields 8.6% vs vapour deposition 15.4%, highlighting the critical role of film uniformity"
+      },
+      "operator": "contradiction",
+      "operator_id": "lco_77b4f046e90c07fe",
+      "scope": "local",
+      "variables": [
+        "pvsk:pvsk_liu2013::solution_planar_8_6_pct",
+        "pvsk:pvsk_liu2013::pce_15_4_pct"
+      ]
+    }
+  ],
+  "package_name": "pvsk_liu2013",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_liu2013::pce_15_4_pct",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2013::__implication_result_ccf5636b",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2013::vapour_film_uniformity",
+              "pvsk:pvsk_liu2013::pce_15_4_pct"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "deduction",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "Extremely uniform vapour-deposited films eliminate pinholes and shunting paths, enabling high Voc (1.07 V) and fill factor (0.67)"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2013::vapour_film_uniformity"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_273e2ff35dfac851",
+      "type": "deduction"
+    },
+    {
+      "conclusion": "pvsk:pvsk_liu2013::pce_15_4_pct",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2013::__conjunction_result_7b88c773",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2013::phase_purity",
+              "pvsk:pvsk_liu2013::same_crystal_structure"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2013::__implication_result_d3d81a9b",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2013::__conjunction_result_7b88c773",
+              "pvsk:pvsk_liu2013::pce_15_4_pct"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.78,
+        "reason": "High phase purity and identical crystal structure to solution-processed perovskite confirm that vapour deposition produces the correct material with superior morphology"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2013::phase_purity",
+        "pvsk:pvsk_liu2013::same_crystal_structure"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_0b576ff0c67f721c",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_liu2013::nanostructure_not_necessary",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2013::__conjunction_result_263af456",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2013::pce_15_4_pct",
+              "pvsk:pvsk_liu2013::batch_average_12_3"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2013::__implication_result_bac0b557",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2013::__conjunction_result_263af456",
+              "pvsk:pvsk_liu2013::nanostructure_not_necessary"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.85,
+        "reason": "15.4% PCE in a simple planar architecture without mesoporous scaffold proves that nanostructuring is not essential for high efficiency"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2013::pce_15_4_pct",
+        "pvsk:pvsk_liu2013::batch_average_12_3"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_a276206409e6d657",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2013::__conjunction_result_025c2f5a",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2013::pce_15_4_pct",
+              "pvsk:pvsk_liu2013::nanostructure_not_necessary"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2013::__implication_result_ddeb6856",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2013::__conjunction_result_025c2f5a",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "15.4% PCE in a simplified planar architecture demonstrates efficiency competitive with established thin-film technologies"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2013::pce_15_4_pct",
+        "pvsk:pvsk_liu2013::nanostructure_not_necessary"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_af7d61cce8ac65d9",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_viability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2013::__conjunction_result_e9058ec0",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2013::pce_15_4_pct",
+              "pvsk:pvsk_liu2013::nanostructure_not_necessary"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2013::__implication_result_3a62c33f",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2013::__conjunction_result_e9058ec0",
+              "pvsk:pvsk_meta::p_viability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "Planar thin-film architecture is the simplest possible photovoltaic device structure, confirming perovskite as a fundamentally viable absorber"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2013::pce_15_4_pct",
+        "pvsk:pvsk_liu2013::nanostructure_not_necessary"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_2e63ab9321f037ad",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2013::__conjunction_result_b60b91d4",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2013::pce_15_4_pct",
+              "pvsk:pvsk_liu2013::batch_average_12_3"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2013::__implication_result_df8ec43f",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2013::__conjunction_result_b60b91d4",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "Matching the 15% of Burschka 2013 mesoscopic cells with a planar architecture shows continued rapid progress through deposition method innovation"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2013::pce_15_4_pct",
+        "pvsk:pvsk_liu2013::batch_average_12_3"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_330216ba97979134",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2013::__conjunction_result_ac3f9d38",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_liu2013::tandem_compatibility",
+              "pvsk:pvsk_liu2013::vapour_deposition_method"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_liu2013::__implication_result_4445fab9",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2013::__conjunction_result_ac3f9d38",
+              "pvsk:pvsk_meta::p_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "Vapour deposition is a mature technique in the glazing, LCD, and thin-film solar cell industries, making scale-up feasible with existing infrastructure"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2013::tandem_compatibility",
+        "pvsk:pvsk_liu2013::vapour_deposition_method"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_d234bf6bff808263",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_liu2013::__implication_result_58251d06",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_liu2013::diffusion_length_lower_bound",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.5,
+        "reason": "Long carrier diffusion lengths suggest robust electronic properties that could support stable operation"
+      },
+      "premises": [
+        "pvsk:pvsk_liu2013::diffusion_length_lower_bound"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_5fefd2028524cd32",
+      "type": "support"
+    }
+  ]
+}

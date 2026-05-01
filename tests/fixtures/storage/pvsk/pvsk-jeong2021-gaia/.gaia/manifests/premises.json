@@ -1,0 +1,70 @@
+{
+  "ir_hash": "sha256:d95820e2782470579b05172c11c630a287ab0a2f90bc99bc02b695116a27757f",
+  "manifest_schema_version": 1,
+  "package": "pvsk-jeong2021",
+  "premises": [
+    {
+      "content": "Formate-treated FAPbI3 films show significantly longer charge-carrier recombination lifetimes as measured by time-resolved photoluminescence, consistent with reduced trap-mediated non-radiative recombination confirmed by EQE_EL and SCLC",
+      "content_hash": "6d85da2108d930e7963952729df27dbecdecf1885b793ceed5d7b15a1293ea79",
+      "exported": true,
+      "interface_hash": "sha256:14f62c1b60742b82f3c8740c72054477fc356a59da2c13eb5668eb6677a2662f",
+      "label": "carrier_lifetime_increase",
+      "qid": "pvsk:pvsk_jeong2021::carrier_lifetime_increase",
+      "required_by": [
+        "pvsk:pvsk_jeong2021::pce_25_6_pct"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "Adding 2% FAHCOO strongly enhances the crystallinity of alpha-FAPbI3 films, eliminating the delta-phase under high humidity (100% RH, 30C) and reducing XRD peak full-width at half-maximum",
+      "content_hash": "9b7fd3f1ba3f9091fcc5ff3121207c52a04ea41d7ec9c1ac57a745056f559de0",
+      "exported": true,
+      "interface_hash": "sha256:afd8867272cb2b4b85435ab70e05453643bf06862442f1485047af507d7feb1c",
+      "label": "formate_enhances_crystallinity",
+      "qid": "pvsk:pvsk_jeong2021::formate_enhances_crystallinity",
+      "required_by": [
+        "pvsk:pvsk_jeong2021::formate_passivates_vacancies",
+        "pvsk:pvsk_jeong2021::operational_stability_improvement",
+        "pvsk:pvsk_jeong2021::pce_25_6_pct"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "Solid-state NMR (207Pb and 13C) measurements confirm that HCOO- anions do not substitute for iodide in the alpha-FAPbI3 lattice; the 207Pb resonance remains unchanged at 1543 ppm even with 5% FAHCOO addition",
+      "content_hash": "fc7c1cbdc70ab24bf52bfbd975c9f5db526ceebfb46dd61ad8e9dbf69577f3b6",
+      "exported": true,
+      "interface_hash": "sha256:61e1d55d990c01966357e90373c18e1b1621163c9facb90776d7bec94be4617a",
+      "label": "formate_not_in_lattice",
+      "qid": "pvsk:pvsk_jeong2021::formate_not_in_lattice",
+      "required_by": [
+        "pvsk:pvsk_jeong2021::fivefold_el_reduction"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "The ideality factor (n_id) of the formate-treated cell is 1.18, lower than the reference cell value of 1.52 and the previously reported best of 1.27, indicating reduced trap-assisted recombination",
+      "content_hash": "40d7975668999da02d78ec43f64e7bd1f41e00a49e892cba231044d146f9d774",
+      "exported": true,
+      "interface_hash": "sha256:19ceae629056062c0686047955fc6dced0c1f14767e26e9b5df048530b989508",
+      "label": "ideality_factor_reduction",
+      "qid": "pvsk:pvsk_jeong2021::ideality_factor_reduction",
+      "required_by": [
+        "pvsk:pvsk_jeong2021::voc_96_pct_sql"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "Ab initio molecular dynamics simulations show HCOO- coordinates strongly with Pb2+ in precursor solution, slowing crystal growth to produce larger stacked grains; HCOO- forms hydrogen-bonded networks with FA+ at the perovskite surface",
+      "content_hash": "bc7afe236aa1751e1a870ee2b2a0ab0b6b12e83335187e6248a91c46691ed25c",
+      "exported": true,
+      "interface_hash": "sha256:73108b8c078c26f5e8a65f95cbca1c9c0a27a0f39135c50273aa77e87f3696d5",
+      "label": "md_simulation_formate_binding",
+      "qid": "pvsk:pvsk_jeong2021::md_simulation_formate_binding",
+      "required_by": [
+        "pvsk:pvsk_jeong2021::formate_passivates_vacancies"
+      ],
+      "role": "local_hole"
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -1,0 +1,113 @@
+{
+  "exports": [
+    {
+      "content": "Valence band of CH3NH3PbI3 is at -5.43 eV below vacuum and conduction band at -3.93 eV, which is slightly higher than the TiO2 conduction band, providing well-aligned band positions for charge separation",
+      "content_hash": "506a2d3012d4f999488c0417c67602a6637f3511c82fe8067a1dfef0da2a9bb9",
+      "label": "band_alignment",
+      "qid": "pvsk:pvsk_kim2012::band_alignment",
+      "type": "claim"
+    },
+    {
+      "content": "Why is no significant electron injection from excited CH3NH3PbI3 into TiO2 observed on the sub-ns timescale despite favorable band alignment?",
+      "content_hash": "62006e49c8075638891c95803462ff659e05539c9641b9287d42d9795d515325",
+      "label": "electron_transfer_question",
+      "qid": "pvsk:pvsk_kim2012::electron_transfer_question",
+      "type": "question"
+    },
+    {
+      "content": "All-solid-state mesoscopic heterojunction solar cell with CH3NH3PbI3 perovskite nanoparticles deposited on 0.6 um thick mesoporous TiO2, pores infiltrated with spiro-MeOTAD hole conductor, measured under AM 1.5G solar illumination at 100 mW/cm2",
+      "content_hash": "4e60c5bf4359c1d268870f2cc5bdbe50fb2b4c8d3047eafd7bc03abfe1761d2d",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_kim2012::exp_context",
+      "type": "setting"
+    },
+    {
+      "content": "CH3NH3PbI3 perovskite nanocrystals exhibit an absorption coefficient of 1.5x10^4 cm-1 at 550 nm, approximately one order of magnitude higher than conventional N719 dye",
+      "content_hash": "68b3462588c3987ddb47d7b3688376e06b4704d791bd8f99813e3db32027cee4",
+      "label": "high_absorption_coefficient",
+      "qid": "pvsk:pvsk_kim2012::high_absorption_coefficient",
+      "type": "claim"
+    },
+    {
+      "content": "Charge separation proceeds via hole injection from excited CH3NH3PbI3 into spiro-MeOTAD, confirmed by photo-induced absorption (PIA) showing oxidized spiro-MeOTAD signature at 1340 nm",
+      "content_hash": "f1c1bb3b9070af50da0f21dff84773a9af3b43b17d5ceefbf6acd3a5fb0647aa",
+      "label": "hole_transfer_mechanism",
+      "qid": "pvsk:pvsk_kim2012::hole_transfer_mechanism",
+      "type": "claim"
+    },
+    {
+      "content": "IPCE reaches a broad maximum at 450 nm and remains above 50% up to 750 nm, indicating efficient photon harvesting by CH3NH3PbI3 nanoparticles in the 0.6 um mesoporous TiO2 film",
+      "content_hash": "e7084dc69828da9835cdc8b94d988e200fcbba0b94e242f0d8a664cf4b4b3843",
+      "label": "ipce_plateau",
+      "qid": "pvsk:pvsk_kim2012::ipce_plateau",
+      "type": "claim"
+    },
+    {
+      "content": "Photocurrent density is linearly proportional to light intensity, indicating a non-space-charge-limited structure with little difference between electron and hole mobility at the TiO2/perovskite/spiro-MeOTAD junction",
+      "content_hash": "a6ae3fb828cdb3952f170f58c960dcde87317e57b7a0adc936ab5a9cd856b433",
+      "label": "linear_photocurrent",
+      "qid": "pvsk:pvsk_kim2012::linear_photocurrent",
+      "type": "claim"
+    },
+    {
+      "content": "CH3NH3PbI3 perovskite nanoparticles are unstable in iodide-containing liquid electrolyte due to rapid dissolution, while solid-state architecture dramatically improves device stability",
+      "content_hash": "8bec815fc84769bbb37f47a82a71621dac8cd4b681d87ec27144e62b8fee80c0",
+      "label": "liquid_cell_degradation",
+      "qid": "pvsk:pvsk_kim2012::liquid_cell_degradation",
+      "type": "claim"
+    },
+    {
+      "content": "The optical band gap of CH3NH3PbI3 on TiO2 is 1.5 eV determined by Kubelka-Munk analysis, and the absorption occurs via a direct allowed transition",
+      "content_hash": "054f3b47ad94fea5bac880adab253a7811078b05b534ee2dbbc23cc15f7411e7",
+      "label": "optical_bandgap_direct",
+      "qid": "pvsk:pvsk_kim2012::optical_bandgap_direct",
+      "type": "claim"
+    },
+    {
+      "content": "Solid-state CH3NH3PbI3 perovskite cell achieves PCE of 9.7% with Jsc=17.6 mA/cm2, Voc=0.888 V, and fill factor 0.62 under AM 1.5G illumination, the highest reported for perovskite-sensitized cells at the time",
+      "content_hash": "816a2d21357fbde46b84b2b514c6b4227726b8d3cc70744d2a6ab8a59e26236c",
+      "label": "pce_9_7_pct",
+      "qid": "pvsk:pvsk_kim2012::pce_9_7_pct",
+      "type": "claim"
+    },
+    {
+      "content": "Femtosecond transient absorption confirms rapid reductive quenching of excited CH3NH3PbI3 by spiro-MeOTAD, while no significant electron injection from perovskite into TiO2 is observed on the sub-ns timescale",
+      "content_hash": "4923adf07950fe8a3a091d05e76e1421534d89d53f5041674af61c57d177ee80",
+      "label": "reductive_quenching",
+      "qid": "pvsk:pvsk_kim2012::reductive_quenching",
+      "type": "claim"
+    },
+    {
+      "content": "Device structure: FTO / compact TiO2 / mesoporous TiO2 (0.6 um) infiltrated with CH3NH3PbI3 / spiro-MeOTAD / Au, fabricated without liquid electrolyte",
+      "content_hash": "37f4c0e1e5d5628da1a843c1e73b5b148ac3b5b1ee175061eba4d1a209bb475b",
+      "label": "solid_state_device",
+      "qid": "pvsk:pvsk_kim2012::solid_state_device",
+      "type": "claim"
+    },
+    {
+      "content": "Solid-state perovskite cell shows excellent long-term stability over 500 hours without encapsulation in air, with PCE improving ~14% after 200 hours due to fill factor improvement and remaining stable thereafter",
+      "content_hash": "536580157fbc341a21c5e8895f7e7af9022c38af41c0bc21e88c6dfa0a3fd06f",
+      "label": "solid_state_stability",
+      "qid": "pvsk:pvsk_kim2012::solid_state_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Submicron-thick (0.6 um) mesoporous TiO2 film can deliver over 9% PCE due to the large optical absorption cross-section of perovskite nanoparticles and complete pore filling by the hole conductor",
+      "content_hash": "edd5667fada7c879cbe601fbe389e91ec33ee877b87c583454d3975305a9834d",
+      "label": "submicron_sufficient",
+      "qid": "pvsk:pvsk_kim2012::submicron_sufficient",
+      "type": "claim"
+    },
+    {
+      "content": "Open-circuit voltage decreases from ~0.9 V to ~0.8 V as TiO2 film thickness increases from 0.6 um to 1.5 um, attributed to increased dark current that lowers electron concentration and quasi-Fermi level",
+      "content_hash": "8083b6122cb513302e7477a2325ed95ca4195172ead39b28ca0c8cdf5c4f1398",
+      "label": "voc_thickness_dependence",
+      "qid": "pvsk:pvsk_kim2012::voc_thickness_dependence",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:b522ea6279ba043867473ff4f1ea91a690a21e99419127dbbed1b7d41405a698",
+  "manifest_schema_version": 1,
+  "package": "pvsk-kim2012",
+  "version": "1.0.0"
+}

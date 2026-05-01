@@ -1,0 +1,80 @@
+{
+  "ir_hash": "sha256:1a98483bbc38021afe4501c0b5734db3a398c05ca6457b5fafa1ae0a061f39ff",
+  "manifest_schema_version": 1,
+  "package": "pvsk-liu2025",
+  "premises": [
+    {
+      "content": "Dipolar passivation extends carrier diffusion length to 6.2 um (versus 4.8 um for control) with mobility of 113.5 cm2 V-1 s-1 (versus 67.5 cm2 V-1 s-1), as measured by terahertz spectroscopy",
+      "content_hash": "192e61d1bb549e4766c2250b64022a4cb0e8126cca2e0dfc758bdf22da3b2fff",
+      "exported": true,
+      "interface_hash": "sha256:bb9f6fcac07e0dd1be1ba74a643b77cbaa22ecb53ace091c86313b60340b15a2",
+      "label": "diffusion_length_62um",
+      "qid": "pvsk:pvsk_liu2025::diffusion_length_62um",
+      "required_by": [
+        "pvsk:pvsk_liu2025::nbg_pce_249"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "Dipolar-passivation devices show electroluminescence quantum yield of 7.05% versus 2.40% for controls at 1-sun current density, corresponding to Voc loss reduction from 103 mV to 73 mV",
+      "content_hash": "ba1bb5e03a2a126df7f9bb54e5d2a0de5a3150282fdd1d5c68df46f652797595",
+      "exported": true,
+      "interface_hash": "sha256:77ce0b6eabfb90c646c99b60d20acf4dae1b2b3e1c70e9ba17ec4d4c3a3f0e16",
+      "label": "elqy_705",
+      "qid": "pvsk:pvsk_liu2025::elqy_705",
+      "required_by": [
+        "pvsk:pvsk_liu2025::nbg_pce_249"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "The oriented SA dipoles create type-II energy-level alignment with ohmic contact at the HTL/Pb-Sn perovskite interface, facilitating efficient hole injection into PEDOT:PSS while repelling electrons from the interface",
+      "content_hash": "75f22fe0e75caf7f7bd9fb076c274a29ba26b86df85da971db58b6f7c65e73a7",
+      "exported": true,
+      "interface_hash": "sha256:914f10baeb70a770198380643d5ba5c6c908dfcc9665ca0ffb95335e13090c0a",
+      "label": "ohmic_contact",
+      "qid": "pvsk:pvsk_liu2025::ohmic_contact",
+      "required_by": [
+        "pvsk:pvsk_liu2025::dipolar_passivation_strategy"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "SA molecules adopt a preferred orientation with -NH3+ anchoring to the perovskite bottom surface and -SO3- directed towards PEDOT:PSS, confirmed by AIMD simulations and KPFM measurements showing surface potential decrease from -80 mV to -162 mV",
+      "content_hash": "b27d343eec25456b6ab5620e2eb2fa4072b9b9eb724b51866492dc281f77a45d",
+      "exported": true,
+      "interface_hash": "sha256:bf7664ce1f69cdb72662d673845c8eb90ed3b83cd1af9a8a0b6b513e9bb9e0c1",
+      "label": "sa_molecular_orientation",
+      "qid": "pvsk:pvsk_liu2025::sa_molecular_orientation",
+      "required_by": [
+        "pvsk:pvsk_liu2025::dipolar_passivation_strategy"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "Dipolar-passivation tandem devices show average Voc 50 mV higher than controls, with average PCE of 30.3 +/- 0.3% versus 29.1 +/- 0.2%",
+      "content_hash": "21dc46bbe576314321d6163a0c5f5cdab1f76fabd91650f2a6be5a126eba5876",
+      "exported": true,
+      "interface_hash": "sha256:519ff9724d363d802aef24581ff6f23fed7bcbdc632b3ef057874644866fafa2",
+      "label": "tandem_voc_50mv_gain",
+      "qid": "pvsk:pvsk_liu2025::tandem_voc_50mv_gain",
+      "required_by": [
+        "pvsk:pvsk_liu2025::tandem_pce_306"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "The wide-bandgap subcell achieves 20.5% PCE with Voc of 1.329 V, Jsc of 18.4 mA cm-2, and FF of 83.8%, using SAM-modified NiO HTL",
+      "content_hash": "b36ee031e65dfbd618405ee6d902d6a8d64560d26ae21b296a6c98a4ec965a9a",
+      "exported": true,
+      "interface_hash": "sha256:d7402e0586d920ff7b60dfda822f9c85fb16a71295873417ae4320c63d556040",
+      "label": "wbg_subcell_205",
+      "qid": "pvsk:pvsk_liu2025::wbg_subcell_205",
+      "required_by": [
+        "pvsk:pvsk_liu2025::tandem_pce_306"
+      ],
+      "role": "local_hole"
+    }
+  ],
+  "version": "1.0.0"
+}

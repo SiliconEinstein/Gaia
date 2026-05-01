@@ -1,0 +1,113 @@
+{
+  "exports": [
+    {
+      "content": "The absorbed-photon-to-current conversion efficiency (APCE) is greater than 90% over the whole visible region without correction for reflective losses, indicating near-unity quantum yield for charge carrier generation and collection",
+      "content_hash": "4be51cfdf8bad79638926d5e728e1b1f60f2f2b622675295dfb3b9cabf3cfc6d",
+      "label": "apce_near_unity",
+      "qid": "pvsk:pvsk_burschka2013::apce_near_unity",
+      "type": "claim"
+    },
+    {
+      "content": "Using a Co(III) complex as p-type dopant for spiro-MeOTAD at 10 mol% doping level ensures sufficient conductivity and low series resistance in the HTM",
+      "content_hash": "2f7475d93178c722cfbb3424d6c1b47b59b96efeac7a7a83226c4765683ac2c5",
+      "label": "co_dopant_htm",
+      "qid": "pvsk:pvsk_burschka2013::co_dopant_htm",
+      "type": "claim"
+    },
+    {
+      "content": "What is the precise mechanism causing the decrease in shunt resistance during 500-hour light soaking, and can it be eliminated through interface engineering?",
+      "content_hash": "80fce13985b934e95c1b79b138118b3fa859ba19894fcb9e8ac1bf45837eaa68",
+      "label": "degradation_mechanism",
+      "qid": "pvsk:pvsk_burschka2013::degradation_mechanism",
+      "type": "question"
+    },
+    {
+      "content": "Mesoscopic solar cell fabricated by sequential deposition: PbI2 first introduced from DMF solution (~1 M, 70C) into 350 nm mesoporous TiO2, then transformed to CH3NH3PbI3 by dipping in CH3NH3I/2-propanol (10 mg/ml) for 20 seconds, with spiro-MeOTAD HTM doped with Co(III) complex (10 mol%), measured under AM 1.5G",
+      "content_hash": "bb122bfcfa1bb01e43b769b58b7a3f219f4bcd54498c17af951081843fe21f05",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_burschka2013::exp_context",
+      "type": "setting"
+    },
+    {
+      "content": "Conversion of nanoconfined PbI2 to CH3NH3PbI3 perovskite is complete within seconds of exposure to CH3NH3I solution, as shown by immediate disappearance of PbI2 XRD (001) peak and appearance of tetragonal perovskite reflections",
+      "content_hash": "32a09dce00d81522b017cf7350563401572283355250ae9f42d46bfd1b3858b8",
+      "label": "fast_conversion",
+      "qid": "pvsk:pvsk_burschka2013::fast_conversion",
+      "type": "claim"
+    },
+    {
+      "content": "Sequential deposition greatly increases reproducibility with standard deviation of only 0.5% PCE across 10 devices, compared to large morphological variations and performance spread in single-step deposition",
+      "content_hash": "a9c9a02c0bacdaa5efed7cb54d24a8680ad27e769fd2fded3df7d1f5f9e384c2",
+      "label": "high_reproducibility",
+      "qid": "pvsk:pvsk_burschka2013::high_reproducibility",
+      "type": "claim"
+    },
+    {
+      "content": "IPCE reaches peak values exceeding 90% in the short-wavelength visible region, with photocurrent generation starting at 800 nm consistent with the CH3NH3PbI3 bandgap",
+      "content_hash": "8be9487a16653519ab202b9d376f797999fbb2eb4628320d14fe9d5520516eff",
+      "label": "ipce_peak_90_pct",
+      "qid": "pvsk:pvsk_burschka2013::ipce_peak_90_pct",
+      "type": "claim"
+    },
+    {
+      "content": "Confining PbI2 crystals to ~22 nm within mesoporous TiO2 drastically enhances their rate of conversion to perovskite compared to bulk PbI2 films (50-200 nm crystallites), where conversion remains incomplete even after 45 minutes",
+      "content_hash": "92d1e00993c595128fcee6570b6411946d81454597ba581ecd69564f50914f7f",
+      "label": "nanoconfinement_enhances_kinetics",
+      "qid": "pvsk:pvsk_burschka2013::nanoconfinement_enhances_kinetics",
+      "type": "claim"
+    },
+    {
+      "content": "No photodegradation of the perovskite light harvester is observed during 500 hours of light soaking; the PCE decrease is solely due to Voc and fill factor decline from reduced shunt resistance",
+      "content_hash": "b759645ce03a884defb843fce027cba75377018eab4ad1dd2a5223571ab6e48c",
+      "label": "no_photodegradation",
+      "qid": "pvsk:pvsk_burschka2013::no_photodegradation",
+      "type": "claim"
+    },
+    {
+      "content": "Best-performing sequential-deposition cell achieves PCE of 15.0% with Jsc=20.0 mA/cm2, Voc=0.993 V, and fill factor 0.73, measured at 96.4 mW/cm2",
+      "content_hash": "882b8113a86e7e6fd2f6fa48a6734e3580de297d229d1210450f275697b400ae",
+      "label": "pce_15_pct",
+      "qid": "pvsk:pvsk_burschka2013::pce_15_pct",
+      "type": "claim"
+    },
+    {
+      "content": "An accredited photovoltaic calibration laboratory certifies PCE of 14.14% under standard AM 1.5G reporting conditions, confirming the validity of the lab measurements",
+      "content_hash": "5772a74c9fd576fa5097d9c06b3349eb1b7a03bff596079b92e5de83fb1b57ef",
+      "label": "pce_certified_14_14",
+      "qid": "pvsk:pvsk_burschka2013::pce_certified_14_14",
+      "type": "claim"
+    },
+    {
+      "content": "A pre-wetting step (dipping in 2-propanol for 1-2 s before CH3NH3I solution) locally decreases CH3NH3I concentration, inducing growth of larger perovskite crystals and increased light scattering for improved long-wavelength response",
+      "content_hash": "4016bae176e717f550f57486bb51445693fbe38fbdddfbd52b723b31de5838e4",
+      "label": "prewetting_improves",
+      "qid": "pvsk:pvsk_burschka2013::prewetting_improves",
+      "type": "claim"
+    },
+    {
+      "content": "Two-step deposition method: PbI2 infiltrated into mesoporous TiO2 (pore size ~22 nm confines PbI2 crystals), then converted to perovskite by CH3NH3I solution. The layered PbI2 structure (I-Pb-I planes with weak interlayer van der Waals bonding) facilitates cation insertion",
+      "content_hash": "f78a0c1f1d05ff6805e924755ff8d271c6f8295de5633599912bd71c98ba3b2e",
+      "label": "sequential_method",
+      "qid": "pvsk:pvsk_burschka2013::sequential_method",
+      "type": "claim"
+    },
+    {
+      "content": "Sealed cell maintained under constant light soaking (~100 mW/cm2, 45C) with maximum-power-point tracking retains >80% of initial PCE after 500 hours, with no change in short-circuit photocurrent",
+      "content_hash": "44b82cc3e2547a2c025532f5590296c802f7fb5d51967d28b02dfcbe44316fc5",
+      "label": "stability_500h",
+      "qid": "pvsk:pvsk_burschka2013::stability_500h",
+      "type": "claim"
+    },
+    {
+      "content": "Typical device shows PCE of 12.9% with Jsc=17.1 mA/cm2, Voc=0.992 V, and fill factor 0.73 at 95.6 mW/cm2; batch average 12.0% +/- 0.5% (n=10)",
+      "content_hash": "c591cb3b9c646b40986948323e370d18cf4641b5ef3b3aab76e4b3914f598e06",
+      "label": "typical_device_12_9",
+      "qid": "pvsk:pvsk_burschka2013::typical_device_12_9",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:305ad6ed77ce245e696cdcdac7d0a6ed74cca7fd7c9cdf75bcc217b105231a25",
+  "manifest_schema_version": 1,
+  "package": "pvsk-burschka2013",
+  "version": "1.0.0"
+}

@@ -1,0 +1,106 @@
+{
+  "exports": [
+    {
+      "content": "DMDP passivation leads to a fivefold longer carrier lifetime and one-third the photoluminescence quantum yield loss compared to control",
+      "content_hash": "2719fb126becf854fb0de8662202b4331e24f5c8befc530eb531c8c0f16b8261",
+      "label": "carrier_lifetime_5x",
+      "qid": "pvsk:pvsk_liu2023a::carrier_lifetime_5x",
+      "type": "claim"
+    },
+    {
+      "content": "The DMDP strategy achieves a certified quasi-steady-state PCE of 25.1% for inverted PSCs (NREL certification, 0.05 cm2), the first inverted PSC to exceed 25% under QSS protocol",
+      "content_hash": "e7713b07824a185a82d8a6414985f70abdd0a7e4808ff1ee1f5f76ebae5a72f5",
+      "label": "certified_pce_251",
+      "qid": "pvsk:pvsk_liu2023a::certified_pce_251",
+      "type": "claim"
+    },
+    {
+      "content": "The champion DMDP device achieves a PCE of 26.4% with Jsc of 26.2 mA cm-2, Voc of 1.17 V, and FF of 85.8%",
+      "content_hash": "c4da928c306811f07dd2b4037ee105d56539853f44043998ebcde19cfb7ed29e",
+      "label": "champion_pce_264",
+      "qid": "pvsk:pvsk_liu2023a::champion_pce_264",
+      "type": "claim"
+    },
+    {
+      "content": "DMDP-treated devices show a dark saturation current (J0) reduction by two orders of magnitude compared with control devices",
+      "content_hash": "141ac70f5a14c01413f8e1debb6e66de2e64301a8f76ec05a39606e5a9276412",
+      "label": "dark_current_reduction",
+      "qid": "pvsk:pvsk_liu2023a::dark_current_reduction",
+      "type": "claim"
+    },
+    {
+      "content": "A dual-molecule passivation strategy combining diammonium (PDAI2) for field-effect passivation with sulfur-modified methylthio (3MTPAI) for chemical passivation simultaneously suppresses both interface and surface recombination at the perovskite/C60 top interface",
+      "content_hash": "c78b5c0169fa85bd6450a96b78d4574c28fe88afcb682e315b0546c2fa65c67f",
+      "label": "dmdp_strategy",
+      "qid": "pvsk:pvsk_liu2023a::dmdp_strategy",
+      "type": "claim"
+    },
+    {
+      "content": "Inverted (p-i-n) PSCs with FTO/NiOx/Me-4PACz/perovskite/passivation/C60/BCP/Ag architecture, using normal bandgap (~1.5 eV) perovskite. Active areas of 0.05 cm2 and 1.5 cm2 tested. Thermal stability tested under ISOS-D-2 (85 C in N2) and operational stability under ISOS-L-3 (1 sun, 65 C, ambient air).",
+      "content_hash": "a7e169ae08ed3944d971011baae5cb1f40094d77e659a0dfb637bc9e6022eccd",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_liu2023a::exp_context",
+      "type": "setting"
+    },
+    {
+      "content": "Diammonium ligands (PDAI2) induce n-type doping and a surface dipole that repels minority carriers (holes) from the perovskite/C60 interface, achieving field-effect passivation that reduces contact-induced interface recombination",
+      "content_hash": "d4e26b4361f19407fa162405f67884956a924018521350da6ac3945416ca2c52",
+      "label": "field_effect_passivation",
+      "qid": "pvsk:pvsk_liu2023a::field_effect_passivation",
+      "type": "claim"
+    },
+    {
+      "content": "DMDP-treated devices with 1.5 cm2 area deliver a PCE of 24.0%, demonstrating scalability of the passivation approach",
+      "content_hash": "1a22550d651aae08fe1fb5132ea3e3345aff1893160393a1871b3f684875a4df",
+      "label": "large_area_24",
+      "qid": "pvsk:pvsk_liu2023a::large_area_24",
+      "type": "claim"
+    },
+    {
+      "content": "The sulfur-modified methylthio molecule (3MTPA) has stronger binding energy to iodide vacancy defects on the perovskite surface compared to conventional alkyl ammonium ligands, driven by S-Pb coordination bonding and enhanced hydrogen bonding with formamidinium",
+      "content_hash": "b4de8a668df21a9cb8ef50ad200f464683d66ab2ca8d49226e86390589745bb2",
+      "label": "methylthio_binding",
+      "qid": "pvsk:pvsk_liu2023a::methylthio_binding",
+      "type": "claim"
+    },
+    {
+      "content": "Encapsulated DMDP devices maintain 96% of initial PCE after 2000 hours of continuous 1-sun operation at 65 C in ambient air (ISOS-L-3 protocol)",
+      "content_hash": "ede79af6d15c08c7c336d0dea3ca03a668aa663f878739e62c14e4510bed042a",
+      "label": "operational_stability_2000h",
+      "qid": "pvsk:pvsk_liu2023a::operational_stability_2000h",
+      "type": "claim"
+    },
+    {
+      "content": "Inverted p-i-n PSCs have potential stability and tandem-compatibility advantages over regular n-i-p, but their PCEs rarely surpass 24% under quasi-steady-state (QSS) protocol due to higher recombination at the perovskite/C60 interface.",
+      "content_hash": "f0df0fb407f580b85b681a00292620203372bcc490b8ff39b6fe5bd1695bf31d",
+      "label": "pin_gap_setting",
+      "qid": "pvsk:pvsk_liu2023a::pin_gap_setting",
+      "type": "setting"
+    },
+    {
+      "content": "The DMDP strategy is applicable to monolithic all-perovskite tandem solar cells, achieving 28.1% PCE with Voc of 2.14 V and stabilized PCE of 27.1% under MPPT",
+      "content_hash": "d6313f46beb092d24ef84b67599795e62633eaa8e42c4f6f0d473a5cff7628d0",
+      "label": "tandem_281",
+      "qid": "pvsk:pvsk_liu2023a::tandem_281",
+      "type": "claim"
+    },
+    {
+      "content": "DMDP devices retain 95% of initial PCE after 1600 hours of thermal aging at 85 C in nitrogen (ISOS-D-2 protocol)",
+      "content_hash": "1248d6cadf028955641b73034eec9d6c9a1d663a1eb43baba2215c2afa813117",
+      "label": "thermal_stability",
+      "qid": "pvsk:pvsk_liu2023a::thermal_stability",
+      "type": "claim"
+    },
+    {
+      "content": "The DMDP strategy improves PCE by 13-14% for both narrow-bandgap (~1.2 eV) and wide-bandgap (~1.8 eV) perovskite compositions, demonstrating universality across perovskite bandgaps",
+      "content_hash": "090d093c3a9c0af9b765b1559bdb20ac04b0dcc6ac09449b00faa08dd22346a1",
+      "label": "universal_bandgap",
+      "qid": "pvsk:pvsk_liu2023a::universal_bandgap",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:e2e6d8cd7c25dbbfabce330650a3cd6df8688dc4170f045fe9f99c2cdba24dfc",
+  "manifest_schema_version": 1,
+  "package": "pvsk-liu2023a",
+  "version": "1.0.0"
+}

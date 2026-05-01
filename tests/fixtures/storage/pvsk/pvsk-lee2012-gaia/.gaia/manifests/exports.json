@@ -1,0 +1,106 @@
+{
+  "exports": [
+    {
+      "content": "CH3NH3PbI2Cl perovskite film maintains absorbance ~1.8 at 500 nm (98.4% absorption) over 1000 hours of constant simulated full sunlight illumination without UV filtration",
+      "content_hash": "37ad4fec1a16ace11d73c06bdd19641583b3d9f5b7c7dce4acea4b77e8533824",
+      "label": "absorption_stability",
+      "qid": "pvsk:pvsk_lee2012::absorption_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Replacing mesoporous TiO2 with insulating Al2O3 increases Voc by >200 mV while maintaining comparable Jsc, because electrons are confined in the perovskite rather than injected into the metal oxide",
+      "content_hash": "3275db2e6bf6dbaed130c2b75fc7774b75793224ff959a10bb2153068b38686f",
+      "label": "al2o3_increases_voc",
+      "qid": "pvsk:pvsk_lee2012::al2o3_increases_voc",
+      "type": "claim"
+    },
+    {
+      "content": "The increased Voc in Al2O3 cells is caused by substantial reduction of chemical capacitance: without mesoporous TiO2 sub-bandgap states, the quasi-Fermi level for electrons moves nearer to the conduction band for the same charge density",
+      "content_hash": "c9ee9ca24085fb58d1a7843244f606dc916f2ed198904806776627a760dfee16",
+      "label": "chemical_capacitance_explanation",
+      "qid": "pvsk:pvsk_lee2012::chemical_capacitance_explanation",
+      "type": "claim"
+    },
+    {
+      "content": "Is the MSSC fundamentally excitonic or a distributed p-n junction? Do free charges generate in the bulk or are highly mobile excitons quenched at the perovskite-spiro-OMeTAD interface?",
+      "content_hash": "698046c707e0a819d93d401095ee5925b5dcf0cd04bb39156c1cefa0f4b11b69",
+      "label": "excitonic_vs_pn",
+      "qid": "pvsk:pvsk_lee2012::excitonic_vs_pn",
+      "type": "question"
+    },
+    {
+      "content": "Meso-superstructured solar cell (MSSC) using mixed-halide perovskite CH3NH3PbI2Cl processed from DMF precursor via spin-coating in ambient conditions, with either mesoporous TiO2 or insulating Al2O3 scaffold, spiro-OMeTAD hole conductor, and Ag electrode, measured under AM 1.5 100 mW/cm2 simulated sunlight",
+      "content_hash": "0002a31e7e443e1d2b4d9d02b92b1d71c3522bbcf330c8a9de1730558f5e15be",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_lee2012::exp_context",
+      "type": "setting"
+    },
+    {
+      "content": "Hole transfer from photoexcited perovskite to spiro-OMeTAD is highly effective in both TiO2 and Al2O3 architectures, confirmed by PIA showing oxidized spiro-OMeTAD features at 525, 750, and 1200 nm",
+      "content_hash": "aa3f7041cf014e142625fd78d324a02bd2d02dc89d0f251bb04a60eef8fb8e41",
+      "label": "hole_transfer_effective",
+      "qid": "pvsk:pvsk_lee2012::hole_transfer_effective",
+      "type": "claim"
+    },
+    {
+      "content": "The difference between optical bandgap (1.55 eV) and Voc (1.1 V) is only 0.45 eV, competitive with the best thin-film photovoltaic technologies and far superior to typical 0.7-0.8 eV losses in dye-sensitized and organic solar cells",
+      "content_hash": "1f0f9b10c3addb2287a31fe422cd938f2c4ef63c0ad9b16083e297a37a4f6209",
+      "label": "low_energy_losses",
+      "qid": "pvsk:pvsk_lee2012::low_energy_losses",
+      "type": "claim"
+    },
+    {
+      "content": "CH3NH3PbI2Cl mixed-halide perovskite with tetragonal structure (a=8.825 A, b=8.835 A, c=11.24 A), long-range crystalline domains >200 nm, and remarkable stability to processing in air, unlike CH3NH3PbI3",
+      "content_hash": "cd5fe49ed0f036150fe3aa5f4f0b7f1a0b88b43768abc29ce7fe3882b2df645b",
+      "label": "mixed_halide_perovskite",
+      "qid": "pvsk:pvsk_lee2012::mixed_halide_perovskite",
+      "type": "setting"
+    },
+    {
+      "content": "Al2O3-based meso-superstructured solar cell achieves PCE of 10.9% with Jsc=17.8 mA/cm2, Voc=0.98 V, and fill factor 0.63, the highest reported for perovskite or hybrid solar cells at the time",
+      "content_hash": "070e21a81f4f3acf1c95743a298e8bb4470d919b14a502e2f1571cbf7a34d068",
+      "label": "pce_10_9_pct",
+      "qid": "pvsk:pvsk_lee2012::pce_10_9_pct",
+      "type": "claim"
+    },
+    {
+      "content": "The perovskite absorber has conductivity on the order of 10^-3 S/cm, while spiro-OMeTAD is less conductive (~10^-5 S/cm), requiring careful balance between shunt and series resistance",
+      "content_hash": "295d3b921154e1f82bbd4290a274934b0359c0d721694e884ee68923199d15c9",
+      "label": "perovskite_conductivity",
+      "qid": "pvsk:pvsk_lee2012::perovskite_conductivity",
+      "type": "claim"
+    },
+    {
+      "content": "The perovskite layer functions as both absorber and n-type semiconductor, transporting electrons through the film thickness, as demonstrated by charge collection faster by a factor >10 in Al2O3 cells vs TiO2 cells",
+      "content_hash": "fb1bb16f582073f1e3e3900ce05c9c99eb2733d728ac9c73562769905dd72c13",
+      "label": "perovskite_n_type_transport",
+      "qid": "pvsk:pvsk_lee2012::perovskite_n_type_transport",
+      "type": "claim"
+    },
+    {
+      "content": "A planar-junction diode (FTO/TiO2/CH3NH3PbI2Cl/spiro-OMeTAD/Ag) with ~150 nm perovskite film achieves Jsc=7.13 mA/cm2, Voc=0.64 V, FF=0.4, and PCE=1.8%, confirming perovskite can function without mesoporous scaffold",
+      "content_hash": "c07089cc22b12ae7d7eef1e62ce99eac8022a02ea55ffa7610d80acbd01f93fc",
+      "label": "planar_junction_feasible",
+      "qid": "pvsk:pvsk_lee2012::planar_junction_feasible",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite-sensitized TiO2 solar cell achieves PCE of 7.6% with Jsc=17.8 mA/cm2, Voc=0.80 V, and fill factor 0.53",
+      "content_hash": "010bac00e147a0750df4191ebc3501fe0771cecdb7a4462c3e5101a3f377df70",
+      "label": "tio2_cell_7_6_pct",
+      "qid": "pvsk:pvsk_lee2012::tio2_cell_7_6_pct",
+      "type": "claim"
+    },
+    {
+      "content": "An Al2O3-based device achieves Voc above 1.13 V with Jsc=15.4 mA/cm2 and fill factor 0.45, yielding 7.8% PCE, demonstrating exceptionally high photovoltage generation",
+      "content_hash": "02a3e924f0e3190a7cf38f47aac7aeec96a7c7fcf306e09cef57094367840d83",
+      "label": "voc_above_1_1v",
+      "qid": "pvsk:pvsk_lee2012::voc_above_1_1v",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:3f7b2a89c9aaff51ff8571e066235b479a06ca916052933ab3583687a56d3d7e",
+  "manifest_schema_version": 1,
+  "package": "pvsk-lee2012",
+  "version": "1.0.0"
+}

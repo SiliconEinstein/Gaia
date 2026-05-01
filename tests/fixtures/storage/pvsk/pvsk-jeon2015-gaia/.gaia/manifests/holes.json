@@ -1,0 +1,59 @@
+{
+  "holes": [
+    {
+      "content": "The bandgap of (FAPbI3)1-x(MAPbBr3)x is tunable by adjusting the molar ratio x, with absorption edge shifting from 840 nm (x=0) to shorter wavelengths as x increases",
+      "content_hash": "8a1217632489a71e7b2c0e4240a810aa44fc89c5c720ecc5d11fcd9ee7a254a2",
+      "interface_hash": "sha256:0c8b9fdab7c6ae1bedb09c23c11548ff68c64fa2ee9baabafe4cbb8b69dcc1dc",
+      "label": "bandgap_tunable",
+      "qid": "pvsk:pvsk_jeon2015::bandgap_tunable",
+      "required_by": [
+        "pvsk:pvsk_jeon2015::optimal_composition_x15"
+      ]
+    },
+    {
+      "content": "FAPbI3 has a bandgap of 1.48 eV with absorption edge of 840 nm, narrower than MAPbI3 (1.5-1.6 eV, edge ~800 nm), enabling broader solar spectrum absorption",
+      "content_hash": "c70200ef2103cd41f74b15fa1ba100cacf7d1da5e993f6a0c4adb8cb8ecf23e0",
+      "interface_hash": "sha256:3cbdc747d28172e0184e82bb501dbc38f8b666d2c765440938a8595e3b6960f7",
+      "label": "fa_narrower_bandgap",
+      "qid": "pvsk:pvsk_jeon2015::fa_narrower_bandgap",
+      "required_by": [
+        "pvsk:pvsk_jeon2015::optimal_composition_x15"
+      ]
+    },
+    {
+      "content": "Incorporation of MAPbBr3 into FAPbI3 stabilizes the perovskite phase of FAPbI3 and prevents conversion to the non-perovskite delta-phase",
+      "content_hash": "12a6c2996a42c7c14dff102d1ba2bf0088d52ee25676095a9c78a763ef2abb21",
+      "interface_hash": "sha256:fe6ad3f3891eac948515da4935b42386931a9fd0aa69cca86bc325ac5db5305b",
+      "label": "mapbbr3_stabilizes_fapbi3",
+      "qid": "pvsk:pvsk_jeon2015::mapbbr3_stabilizes_fapbi3",
+      "required_by": [
+        "pvsk:pvsk_jeon2015::carrier_balance_improved",
+        "pvsk:pvsk_jeon2015::optimal_composition_x15"
+      ]
+    },
+    {
+      "content": "FAPbI3/MAPbBr3 mixed perovskite solar cells show negligible hysteresis in J-V curves compared to MAPbI3-based cells, due to better balance of electron and hole transport",
+      "content_hash": "fbd0e987aa60cd61555c64fd8deb0d4057db8c1b83359a7e7089b02ed2ad3d24",
+      "interface_hash": "sha256:e5c7233ece23d63571fdd4647c8742ea43b69bd1b98a8f7262e5c41c3e061346",
+      "label": "negligible_hysteresis",
+      "qid": "pvsk:pvsk_jeon2015::negligible_hysteresis",
+      "required_by": [
+        "pvsk:pvsk_jeon2015::pce_over_18_pct"
+      ]
+    },
+    {
+      "content": "The mixed FAPbI3/MAPbBr3 composition shows improved thermal stability compared to pure FAPbI3, with the perovskite phase remaining stable at 100C annealing temperature",
+      "content_hash": "5e0c52c581fb864ae4d1190b24bc6d72ecf8422905101e2c03c597756cb4c542",
+      "interface_hash": "sha256:7e633e11e5a34d231a8b0d24ebdfa11e1e46815096ee1e621a3ebf7b9dd5fc39",
+      "label": "thermal_stability_improved",
+      "qid": "pvsk:pvsk_jeon2015::thermal_stability_improved",
+      "required_by": [
+        "pvsk:pvsk_jeon2015::carrier_balance_improved"
+      ]
+    }
+  ],
+  "ir_hash": "sha256:88dd1e4b4994176aada501b7b72fae804e590fb988a8d3d4ab0dbc867f5449aa",
+  "manifest_schema_version": 1,
+  "package": "pvsk-jeon2015",
+  "version": "1.0.0"
+}

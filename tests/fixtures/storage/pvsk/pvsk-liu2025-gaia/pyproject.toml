@@ -1,0 +1,21 @@
+[project]
+name = "pvsk-liu2025-gaia"
+version = "1.0.0"
+description = "Liu et al. Nature 2025 — All-perovskite tandem 30.1%"
+requires-python = ">=3.12"
+dependencies = [
+    "gaia-lang",
+    "pvsk-meta-gaia",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pvsk_liu2025"]
+
+[tool.gaia]
+namespace = "pvsk"
+type = "knowledge-package"
+uuid = "afb5e4dd-d70b-4f07-9a75-95e1703299cf"

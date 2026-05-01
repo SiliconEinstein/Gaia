@@ -1,0 +1,48 @@
+{
+  "holes": [
+    {
+      "content": "FABr addition accelerates the formation of n=2 2D perovskite, appearing at 33 seconds during spin coating versus 40 seconds for DABr alone, enabling homogeneous coverage even at room temperature",
+      "content_hash": "77f8ba939917b7050fda388df9861478a6fce67811b3445eb3c6309a755e0256",
+      "interface_hash": "sha256:e0ca3c5ef791f6bbe8ec45ed77f2b01fa892f32cc85a8ece27612ff044e8b716",
+      "label": "fabr_accelerated_growth",
+      "qid": "pvsk:pvsk_li2024::fabr_accelerated_growth",
+      "required_by": [
+        "pvsk:pvsk_li2024::small_cell_2561"
+      ]
+    },
+    {
+      "content": "Long-chain alkylamine ligands (>10 carbons) cause phase separation in double-halide alloyed 2D perovskites, while triple-halide compositions successfully eliminate the problematic phase separation",
+      "content_hash": "005dd8891de0ce65134a51fca01976e29b8b0201e773b0fa6fa78daee5da3398",
+      "interface_hash": "sha256:38d0062fbd0d0e85cc044c12edc6bad39bf584af6c8dbe9a714b369503f7f316",
+      "label": "phase_separation_discovery",
+      "qid": "pvsk:pvsk_li2024::phase_separation_discovery",
+      "required_by": [
+        "pvsk:pvsk_li2024::homogeneous_2d_passivation"
+      ]
+    },
+    {
+      "content": "Triple-halide compositions (I/Br/Cl) have lower formation enthalpy than double-halide alloys for n=2 2D perovskite, enabling preferential formation of phase-pure n=2 structure confirmed by in situ PL and GIWAXS",
+      "content_hash": "23fef86291a77b8a5c443f143d5367afc8f6413de544295c0450bab220e1ff15",
+      "interface_hash": "sha256:b4bab8d85d1ae42a1756941ee121448b914399b90ce8de2486e70cccb800ba22",
+      "label": "triple_halide_mechanism",
+      "qid": "pvsk:pvsk_li2024::triple_halide_mechanism",
+      "required_by": [
+        "pvsk:pvsk_li2024::homogeneous_2d_passivation"
+      ]
+    },
+    {
+      "content": "The FABr-assisted homogeneous passivation strategy is universal, successfully suppressing phase separation for most conventional 2D ligands including BA, OA, DA, PMA, PEA, and NMA",
+      "content_hash": "e165b87748d7b892c3d154fe5fb2d4450f1e062ae709e0a9475cf054e190c58a",
+      "interface_hash": "sha256:aa660995287a363859fe30c077ebdefe0c5f2f0185a799a86c8c9f69946b27c1",
+      "label": "universal_ligand",
+      "qid": "pvsk:pvsk_li2024::universal_ligand",
+      "required_by": [
+        "pvsk:pvsk_li2024::printed_module_802"
+      ]
+    }
+  ],
+  "ir_hash": "sha256:cccd7d5c5d090a3606b0442cef25b2516535b21e1b03d538a3d5e176bce25623",
+  "manifest_schema_version": 1,
+  "package": "pvsk-li2024",
+  "version": "1.0.0"
+}

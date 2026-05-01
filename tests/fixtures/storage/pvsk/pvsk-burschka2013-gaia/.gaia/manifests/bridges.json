@@ -1,0 +1,7 @@
+{
+  "bridges": [],
+  "ir_hash": "sha256:305ad6ed77ce245e696cdcdac7d0a6ed74cca7fd7c9cdf75bcc217b105231a25",
+  "manifest_schema_version": 1,
+  "package": "pvsk-burschka2013",
+  "version": "1.0.0"
+}

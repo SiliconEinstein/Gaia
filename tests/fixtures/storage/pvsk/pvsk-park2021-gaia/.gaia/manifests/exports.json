@@ -1,0 +1,127 @@
+{
+  "exports": [
+    {
+      "content": "CF3-PA passivated Pb-Sn perovskite films exhibit effective carrier lifetime of 966 ns, compared to 437 ns (PA), 365 ns (PEA), and 159 ns (control), as measured by time-resolved photoluminescence",
+      "content_hash": "19e288181cda0b67802c8c05be8fc24356a2d00f41fe62ad76597695ec3ced36",
+      "label": "carrier_lifetime_966_ns",
+      "qid": "pvsk:pvsk_park2021::carrier_lifetime_966_ns",
+      "type": "claim"
+    },
+    {
+      "content": "Among three passivators tested (PEA, PA, CF3-PA), CF3-PA produces the best Pb-Sn PSC performance across all PV parameters (Voc, Jsc, FF, PCE) with 1.2 um thick absorber layers",
+      "content_hash": "c4c0de7cf6dd6a7d3497e68de4deb67001ec7e729759e2018a4de9ceafb64d5d",
+      "label": "cf3_pa_best_passivator",
+      "qid": "pvsk:pvsk_park2021::cf3_pa_best_passivator",
+      "type": "claim"
+    },
+    {
+      "content": "4-trifluoromethyl-phenylammonium (CF3-PA) is an ammonium cation passivator where the highly electronegative fluorine atoms withdraw electron density from the aromatic ring, leaving higher electropositivity at the NH3+ side and enhancing binding with negatively charged defect sites on Pb-Sn perovskite surfaces",
+      "content_hash": "d8e528bf2c855f58e368dcf0e2bbd2f813e0a4ed838b03befbfe6a10f20098a3",
+      "label": "cf3_pa_passivator",
+      "qid": "pvsk:pvsk_park2021::cf3_pa_passivator",
+      "type": "setting"
+    },
+    {
+      "content": "Ab initio molecular dynamics at 400 K show all 16 CF3-PA cations adsorb completely on the perovskite surface, compared to 15/16 for PA and 13/16 for PEA, indicating near-complete defect coverage during film formation",
+      "content_hash": "52106cabf51c5dc228ebade89c5b041d9b88605ef852c1b3bbbfdb93a4a2a254",
+      "label": "complete_surface_coverage",
+      "qid": "pvsk:pvsk_park2021::complete_surface_coverage",
+      "type": "claim"
+    },
+    {
+      "content": "CF3-PA passivation increases the carrier diffusion length in Pb-Sn perovskite films threefold from 1.8 um to 5.4 um, enabling 1.2 um thick absorber layers for high photocurrent density",
+      "content_hash": "198d9d6f9ec03e56a4b70a55669cb515876cd4e42971e7324279a4fe217ac510",
+      "label": "diffusion_length_5_um",
+      "qid": "pvsk:pvsk_park2021::diffusion_length_5_um",
+      "type": "claim"
+    },
+    {
+      "content": "Monolithic all-perovskite tandem solar cells combining a wide-bandgap (~1.8 eV) mixed Br/I perovskite front cell with a narrow-bandgap (~1.2 eV) mixed Pb-Sn perovskite back cell, using CF3-PA (4-trifluoromethyl-phenylammonium) additive in the Pb-Sn precursor solution at 0.3 mol%",
+      "content_hash": "82e3d019daea67ad712b639961d694a7aac70a28946b3ed05251578a57a4081a",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_park2021::exp_context",
+      "type": "claim"
+    },
+    {
+      "content": "Large-area tandem device (aperture area 1.05 cm2) achieves PCE of 25.3% with Voc=2.03 V, Jsc=16 mA/cm2, FF=78%, demonstrating scalability",
+      "content_hash": "de3371fc84d204d9eb17e23c5b2e1c18bdeb5d55b9060881ae7a96fa16d71979",
+      "label": "large_area_25_3_pct",
+      "qid": "pvsk:pvsk_park2021::large_area_25_3_pct",
+      "type": "claim"
+    },
+    {
+      "content": "XRD patterns show that adding trace amounts of CF3-PA does not form 2D perovskite phases even at 20 mol% concentration, maintaining pure 3D perovskite structure beneficial for charge transport through thick absorber layers",
+      "content_hash": "5702ada088d166e6c77c2c2d98a7a6c774b0240d83d92b6d39e240a89d589333",
+      "label": "no_2d_phase_formation",
+      "qid": "pvsk:pvsk_park2021::no_2d_phase_formation",
+      "type": "claim"
+    },
+    {
+      "content": "CF3-PA passivated single-junction Pb-Sn PSCs with 1.2 um absorber achieve best PCE of 22.2% (stabilized 22.0%), with Voc=0.841 V, Jsc=33.0 mA/cm2, FF=80%, and average PCE of 20.8+/-0.5% across 237 devices",
+      "content_hash": "601854e356e6ffa2c8358cf7cb3014d712a008ecff4af0754836e0ef36f3913c",
+      "label": "pb_sn_psc_22_pct",
+      "qid": "pvsk:pvsk_park2021::pb_sn_psc_22_pct",
+      "type": "claim"
+    },
+    {
+      "content": "Angle-dependent XPS measurements confirm that CF3-PA passivation successfully suppresses surface Sn2+ oxidation in Pb-Sn perovskite films by passivating undercoordinated Sn atoms and Sn vacancies",
+      "content_hash": "a6eff3e4491f4559f318f7fff90dee14418dc822da48b51608708e08716a03c3",
+      "label": "sn_oxidation_suppressed",
+      "qid": "pvsk:pvsk_park2021::sn_oxidation_suppressed",
+      "type": "claim"
+    },
+    {
+      "content": "DFT calculations show CF3-PA has the strongest binding energy with acceptor-type defects (FA vacancy, Sn vacancy, I_Sn, I_Pb antisites) on Pb-Sn perovskite surfaces among all three passivators, and eliminates deep in-gap states from antisite defects",
+      "content_hash": "47604753249386ed203b3e2fd35cc831122e0374173b769705eed095d40c20ca",
+      "label": "strongest_binding_energy",
+      "qid": "pvsk:pvsk_park2021::strongest_binding_energy",
+      "type": "claim"
+    },
+    {
+      "content": "CF3-PA not only increases adsorption probability on perovskite surfaces but also suppresses iodide ion desorption at 400 K, reducing formation of both iodine vacancies and iodine interstitial defects",
+      "content_hash": "3db0597fdc2e4be89ff4aa44ae0f4778ddc2f882044c5733fd722146b8bf7345",
+      "label": "suppressed_iodine_vacancies",
+      "qid": "pvsk:pvsk_park2021::suppressed_iodine_vacancies",
+      "type": "claim"
+    },
+    {
+      "content": "All-perovskite tandem solar cells achieve certified stabilized PCE of 26.4% (JET calibration), exceeding the best single-junction perovskite solar cell efficiency and comparable to the best single-crystalline silicon cells",
+      "content_hash": "1e5d08bc667221bcbb4a1ebf0c7f8d10c509c8e2fc6fc6702028062e22b87edd",
+      "label": "tandem_26_4_certified",
+      "qid": "pvsk:pvsk_park2021::tandem_26_4_certified",
+      "type": "claim"
+    },
+    {
+      "content": "The best tandem cell achieves PCE of 26.7% from reverse scan with Voc=2.03 V, Jsc=16.5 mA/cm2, and FF=79.9%, with stabilized PCE of 26.6%",
+      "content_hash": "18d948807222f509d028b3f53b871cb2cdc4f180bd51d7745ca10fb44ae89470",
+      "label": "tandem_26_7_best",
+      "qid": "pvsk:pvsk_park2021::tandem_26_7_best",
+      "type": "claim"
+    },
+    {
+      "content": "Can all-perovskite tandem solar cells achieve operational stability beyond 1000 hours under continuous illumination, and how does CF3-PA passivation affect long-term ion migration in the Pb-Sn subcell?",
+      "content_hash": "c14327e1af28da28b26699241d5a889eca369175939fd955fc36384104ccab46",
+      "label": "tandem_long_term",
+      "qid": "pvsk:pvsk_park2021::tandem_long_term",
+      "type": "question"
+    },
+    {
+      "content": "Encapsulated CF3-PA tandem devices retain 90% of initial PCE after 600 h of continuous MPP tracking under 1-sun illumination in ambient air (30-50% humidity) at approximately 35C device temperature",
+      "content_hash": "2ca0a8254d84b3a39bd7fd8a8bc47b766b325d66204806d918e4ffac62053f02",
+      "label": "tandem_stability_90_pct_600h",
+      "qid": "pvsk:pvsk_park2021::tandem_stability_90_pct_600h",
+      "type": "claim"
+    },
+    {
+      "content": "Increasing Pb-Sn absorber thickness from 750 to 1200 nm with CF3-PA increases tandem Jsc from 15.4 to 16.5 mA/cm2 due to enhanced near-infrared light absorption in the back subcell",
+      "content_hash": "038bc8bc50f9bdf17a3e4e414114b445af059949a1adaf3dea323a3519fb0eb0",
+      "label": "thick_absorber_enables_high_jsc",
+      "qid": "pvsk:pvsk_park2021::thick_absorber_enables_high_jsc",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:c8c94e3b3cb81741d06614df15e1508590e45fb617843d8b460155c9496107be",
+  "manifest_schema_version": 1,
+  "package": "pvsk-park2021",
+  "version": "1.0.0"
+}

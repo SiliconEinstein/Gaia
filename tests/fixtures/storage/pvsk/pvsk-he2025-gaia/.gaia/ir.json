@@ -1,0 +1,769 @@
+{
+  "ir_hash": "sha256:790911c3833542552d76b900d38346d320a520a9ddaf211c203f2beb4cbe586c",
+  "knowledges": [
+    {
+      "content": "Perovskite/silicon tandem solar cells on silicon heterojunction bottom cells. Perovskite bandgap 1.69 eV. Device stack: IZO/HTL201/perovskite/LiF/EDAI/C60/SnO2/IZO/Ag/MgF2. Device area 1.004 cm2. Certified by European Solar Test Installation (ESTI).",
+      "content_hash": "e890255a50b80f858212d9294b06aa192d075c958f133ca9bd338d6f66b53e6a",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_he2025::exp_context",
+      "label": "exp_context",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Self-assembled monolayers (SAMs) serve as hole-selective layers in inverted PSCs. Symmetric SAMs like Me-4PACz and MeO-4PACz have limited coverage on TCO substrates and non-optimal interaction with perovskites, constraining tandem device performance.",
+      "content_hash": "91a628c496897fd947311a20f395ab6a03334ce61c01774b97f349aac2b8533a",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_he2025::sam_challenge",
+      "label": "sam_challenge",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Perovskite/silicon tandem solar cells using asymmetric SAM HTL201 achieve a certified PCE of 34.58% (ESTI certification) with Voc of nearly 2.00 V, representing a record efficiency for perovskite/silicon tandem solar cells",
+      "content_hash": "5f3f18d34b104795e9a654878463c38453b2bc90e453883cb68366091e5c65f2",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_he2025::certified_34_58",
+      "label": "certified_34_58",
+      "metadata": {
+        "prior": 0.92
+      },
+      "parameters": [],
+      "title": "certified_34_58_percent",
+      "type": "claim"
+    },
+    {
+      "content": "The champion tandem device achieves an in-house PCE of 34.60% with Voc of 2.001 V, Jsc of 20.64 mA cm-2, and FF of 83.79%",
+      "content_hash": "5891436981694d602e60a7928a90eb218029c0c4e061a7fe804fbc3f8b1a45be",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_he2025::champion_34_60",
+      "label": "champion_34_60",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "title": "champion_34_60_percent",
+      "type": "claim"
+    },
+    {
+      "content": "An asymmetric self-assembled monolayer (HTL201) featuring an anchoring group and spacer flanking a carbazole core shows minimized steric hindrance and improved coverage on IZO recombination layer compared to symmetric SAMs (Me-4PACz, MeO-4PACz)",
+      "content_hash": "88ee4284cc1d9e8aef898bd66704b2e426ed8bab169ce44831e23025dcc7e358",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_he2025::asymmetric_sam_htl201",
+      "label": "asymmetric_sam_htl201",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "asymmetric_sam_htl201",
+      "type": "claim"
+    },
+    {
+      "content": "HTL201 forms denser monolayer coverage on IZO substrates than Me-4PACz and MeO-4PACz, with higher coverage factor confirmed by XPS and molecular dynamics simulations showing stronger adsorption energy",
+      "content_hash": "53c1370ff5b037f2c4948cd40aadcf8825b53a89dbb9e2c5494f5223c4296049",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_he2025::enhanced_coverage",
+      "label": "enhanced_coverage",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "enhanced_sam_coverage",
+      "type": "claim"
+    },
+    {
+      "content": "Strong coordination interaction between HTL201 and perovskite film effectively reduces non-radiative recombination at the buried interface, achieving PLQY of 0.399% (versus 0.346% for Me-4PACz) and QFLS of 1.270 V on textured silicon substrates",
+      "content_hash": "87169e6a01b5bfa35386f0a16c1617c3df7536f29de5c4ad735c3c0f859c5d53",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_he2025::buried_interface_passivation",
+      "label": "buried_interface_passivation",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "buried_interface_passivation",
+      "type": "claim"
+    },
+    {
+      "content": "The optimized energy-level alignment between perovskite and HTL201 enables Voc approaching 2.00 V for perovskite/silicon tandems, among the highest reported voltages for this architecture",
+      "content_hash": "43f1566b1b98bc6c5fc2201859129c3cd10fb3b53eb451a337bfaff2b3a07c83",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_he2025::voc_near_2v",
+      "label": "voc_near_2v",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "voc_near_2_volts",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite films on HTL201 show carrier lifetime of 5,860 ns versus 5,574 ns on Me-4PACz and 1,813 ns on MeO-4PACz, indicating lower trap density at the buried interface",
+      "content_hash": "db0b60243631c5dd274262065ee9be5ad6894ee0b94ef8b03ad73e72d858a563",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_he2025::carrier_lifetime_5860ns",
+      "label": "carrier_lifetime_5860ns",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "carrier_lifetime_5860_ns",
+      "type": "claim"
+    },
+    {
+      "content": "Devices using HTL201 achieve an average PCE of 34.22% across 20 devices, compared with 32.18% for Me-4PACz and 33.34% for MeO-4PACz",
+      "content_hash": "726512d3ebba46dd49819a4c9a92672ac0b5d3d50964bafee673c17525e4d864",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_he2025::avg_pce_34_22",
+      "label": "avg_pce_34_22",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "avg_pce_34_22_percent",
+      "type": "claim"
+    },
+    {
+      "content": "The asymmetric molecular design strategy is generally successful: HTL201-like derivatives HTL207 (n=2) and HTL203 (n=4) also deliver higher efficiency than Me-4PACz and MeO-4PACz, with HTL201 being optimal",
+      "content_hash": "bc49255a69479fef2463b2e05d87f5c516659ce382287bbc1e1139686109e10b",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_he2025::asymmetric_design_general",
+      "label": "asymmetric_design_general",
+      "metadata": {
+        "prior": 0.78
+      },
+      "parameters": [],
+      "title": "asymmetric_design_general",
+      "type": "claim"
+    },
+    {
+      "content": "HTL201-coated substrates delay perovskite nucleation and crystallization (nucleation at 540 s vs 180 s for Me-4PACz), effectively improving perovskite film quality and (100) plane orientation",
+      "content_hash": "7216b047ce9a3c076ae277349ba2e472f512051282579f299332f5e334868606",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_he2025::delayed_crystallization",
+      "label": "delayed_crystallization",
+      "metadata": {
+        "prior": 0.78
+      },
+      "parameters": [],
+      "title": "delayed_crystallization",
+      "type": "claim"
+    },
+    {
+      "content": "Encapsulated HTL201-based tandem devices show stable MPP tracking at 25 C under continuous 1-sun illumination, demonstrating promising operational stability",
+      "content_hash": "51d40ed0374f14086c01552aa14ecb0689235f46f5de45fbe18c512699f1366d",
+      "declaration_index": 12,
+      "exported": true,
+      "id": "pvsk:pvsk_he2025::mppt_stability_25c",
+      "label": "mppt_stability_25c",
+      "metadata": {
+        "prior": 0.7
+      },
+      "parameters": [],
+      "title": "mppt_stability_25c",
+      "type": "claim"
+    },
+    {
+      "content": "Encapsulated HTL201-based tandem devices show degraded but still functional MPP tracking at 45 C, indicating thermal sensitivity of perovskite/Si tandems requires further improvement",
+      "content_hash": "6b6e1527c64d623c14381b1467359dd2227c4d571eb114a9501b216f4e28666a",
+      "declaration_index": 13,
+      "exported": true,
+      "id": "pvsk:pvsk_he2025::mppt_stability_45c",
+      "label": "mppt_stability_45c",
+      "metadata": {
+        "prior": 0.65
+      },
+      "parameters": [],
+      "title": "mppt_stability_45c",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "Organometal halide perovskites can function as viable photovoltaic absorbers",
+      "content_hash": "12183274605a4cdd79df4b632d2b0bc6c7bbfdfe0b389d5a86bd3d531fb560a3",
+      "declaration_index": 0,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_viability",
+      "label": "p_viability",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_viability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "content_hash": "9603b55225f5e093d20a1194832c2b419389d6a83886f8b7841f0b9a65cc106f",
+      "declaration_index": 4,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "metadata": {
+        "prior": 0.15
+      },
+      "parameters": [],
+      "title": "p_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_he2025::asymmetric_sam_htl201,pvsk:pvsk_he2025::enhanced_coverage,pvsk:pvsk_he2025::buried_interface_passivation)",
+      "content_hash": "d9dbd36e81bb75b5b07aa587bb9b8ead1addc66bf853408ff417c25d4a085827",
+      "exported": false,
+      "id": "pvsk:pvsk_he2025::__conjunction_result_62adfb00",
+      "label": "__conjunction_result_62adfb00",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_he2025::asymmetric_sam_htl201,pvsk:pvsk_he2025::enhanced_coverage,pvsk:pvsk_he2025::buried_interface_passivation)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_2d0f7358bc9ef385",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_he2025::__conjunction_result_62adfb00,pvsk:pvsk_he2025::voc_near_2v)",
+      "content_hash": "bab504cd6149c9ef8ac54bd6fb7c564caba568aa9bff02b998f94c9f6038707a",
+      "exported": false,
+      "id": "pvsk:pvsk_he2025::__implication_result_32a3173f",
+      "label": "__implication_result_32a3173f",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_he2025::__conjunction_result_62adfb00,pvsk:pvsk_he2025::voc_near_2v)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_2d0f7358bc9ef385",
+        "owning_strategy_type": "support",
+        "prior": 0.78,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_he2025::voc_near_2v,pvsk:pvsk_he2025::carrier_lifetime_5860ns,pvsk:pvsk_he2025::avg_pce_34_22)",
+      "content_hash": "75dc686f7f0a20f51064f5f8b93598352417e53a8f30152bb78a7273a9570ff6",
+      "exported": false,
+      "id": "pvsk:pvsk_he2025::__conjunction_result_bb714633",
+      "label": "__conjunction_result_bb714633",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_he2025::voc_near_2v,pvsk:pvsk_he2025::carrier_lifetime_5860ns,pvsk:pvsk_he2025::avg_pce_34_22)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_fe2977b9547f0a60",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_he2025::__conjunction_result_bb714633,pvsk:pvsk_he2025::certified_34_58)",
+      "content_hash": "270b729183eb000444d906a52a0a2dfa850e52f41131d449c932d8a5a6410bda",
+      "exported": false,
+      "id": "pvsk:pvsk_he2025::__implication_result_b6474313",
+      "label": "__implication_result_b6474313",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_he2025::__conjunction_result_bb714633,pvsk:pvsk_he2025::certified_34_58)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_fe2977b9547f0a60",
+        "owning_strategy_type": "support",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_he2025::delayed_crystallization,pvsk:pvsk_he2025::enhanced_coverage)",
+      "content_hash": "7f3279f25b5a6d170440365384772d3166786ed6d7d4032450f3479389c07ec9",
+      "exported": false,
+      "id": "pvsk:pvsk_he2025::__conjunction_result_f879ddf1",
+      "label": "__conjunction_result_f879ddf1",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_he2025::delayed_crystallization,pvsk:pvsk_he2025::enhanced_coverage)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_2cf3cd7f12261ff4",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_he2025::__conjunction_result_f879ddf1,pvsk:pvsk_he2025::carrier_lifetime_5860ns)",
+      "content_hash": "4a27495bcbb4afa09dcfe4aad3911597c39633679bf9be10c2cff8befc4a4f68",
+      "exported": false,
+      "id": "pvsk:pvsk_he2025::__implication_result_4deba99e",
+      "label": "__implication_result_4deba99e",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_he2025::__conjunction_result_f879ddf1,pvsk:pvsk_he2025::carrier_lifetime_5860ns)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_2cf3cd7f12261ff4",
+        "owning_strategy_type": "support",
+        "prior": 0.72,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_he2025::certified_34_58,pvsk:pvsk_he2025::champion_34_60)",
+      "content_hash": "21a201f21769e761d4de1026fe928bec34630aa0785af007faf3294f3b329f0b",
+      "exported": false,
+      "id": "pvsk:pvsk_he2025::__conjunction_result_fd746248",
+      "label": "__conjunction_result_fd746248",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_he2025::certified_34_58,pvsk:pvsk_he2025::champion_34_60)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_02bf75bd2bca1769",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_he2025::__conjunction_result_fd746248,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "f59a6247629c8f0d59f102cb1e32a2f057d4d7614cd1c9b8fe0db732be6e2098",
+      "exported": false,
+      "id": "pvsk:pvsk_he2025::__implication_result_3d5fd349",
+      "label": "__implication_result_3d5fd349",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_he2025::__conjunction_result_fd746248,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_02bf75bd2bca1769",
+        "owning_strategy_type": "support",
+        "prior": 0.85,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_he2025::certified_34_58,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "8c143c1526c77bd31a0e337ab21e7e20488149b5d1df1037a22fa1bddc5ee19e",
+      "exported": false,
+      "id": "pvsk:pvsk_he2025::__implication_result_c3adcbd3",
+      "label": "__implication_result_c3adcbd3",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_he2025::certified_34_58,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_9922fc45db010c48",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_he2025::mppt_stability_25c,pvsk:pvsk_he2025::avg_pce_34_22)",
+      "content_hash": "2a76c047fd6040af3bffd1cda4c53d5d7524cc633fa6aa3bfd3ffaf16dcb8e54",
+      "exported": false,
+      "id": "pvsk:pvsk_he2025::__conjunction_result_e1aa709b",
+      "label": "__conjunction_result_e1aa709b",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_he2025::mppt_stability_25c,pvsk:pvsk_he2025::avg_pce_34_22)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_1e4d924ee8906545",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_he2025::__conjunction_result_e1aa709b,pvsk:pvsk_meta::p_viability)",
+      "content_hash": "0c9c9692c5bc51d06145f6c6240a95342b2483b3809ec03e35f099683688bfe2",
+      "exported": false,
+      "id": "pvsk:pvsk_he2025::__implication_result_c3afecdc",
+      "label": "__implication_result_c3afecdc",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_he2025::__conjunction_result_e1aa709b,pvsk:pvsk_meta::p_viability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_1e4d924ee8906545",
+        "owning_strategy_type": "support",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_he2025::asymmetric_design_general,pvsk:pvsk_he2025::avg_pce_34_22)",
+      "content_hash": "0978219142aadfb2036cb0cf89f120ba43738ae0786c2d021f8b97dd8aeee4a5",
+      "exported": false,
+      "id": "pvsk:pvsk_he2025::__conjunction_result_e33f518e",
+      "label": "__conjunction_result_e33f518e",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_he2025::asymmetric_design_general,pvsk:pvsk_he2025::avg_pce_34_22)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_b8714af77beb8c5c",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_he2025::__conjunction_result_e33f518e,pvsk:pvsk_meta::p_industrialization)",
+      "content_hash": "988261132bba07546c182581023b0d62af0368824c53d24999621e5c8b16b104",
+      "exported": false,
+      "id": "pvsk:pvsk_he2025::__implication_result_116ff247",
+      "label": "__implication_result_116ff247",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_he2025::__conjunction_result_e33f518e,pvsk:pvsk_meta::p_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_b8714af77beb8c5c",
+        "owning_strategy_type": "support",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_he2025",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_he2025::voc_near_2v",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_he2025::__conjunction_result_62adfb00",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_he2025::asymmetric_sam_htl201",
+              "pvsk:pvsk_he2025::enhanced_coverage",
+              "pvsk:pvsk_he2025::buried_interface_passivation"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_he2025::__implication_result_32a3173f",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_he2025::__conjunction_result_62adfb00",
+              "pvsk:pvsk_he2025::voc_near_2v"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.78,
+        "reason": "Denser SAM coverage reduces pinholes and interfacial defects, while strong coordination between HTL201 and perovskite passivates buried interface traps, together enabling higher QFLS and Voc"
+      },
+      "premises": [
+        "pvsk:pvsk_he2025::asymmetric_sam_htl201",
+        "pvsk:pvsk_he2025::enhanced_coverage",
+        "pvsk:pvsk_he2025::buried_interface_passivation"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_2d0f7358bc9ef385",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_he2025::certified_34_58",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_he2025::__conjunction_result_bb714633",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_he2025::voc_near_2v",
+              "pvsk:pvsk_he2025::carrier_lifetime_5860ns",
+              "pvsk:pvsk_he2025::avg_pce_34_22"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_he2025::__implication_result_b6474313",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_he2025::__conjunction_result_bb714633",
+              "pvsk:pvsk_he2025::certified_34_58"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "Near-2V Voc combined with high carrier lifetime and consistent device performance yields record certified tandem efficiency"
+      },
+      "premises": [
+        "pvsk:pvsk_he2025::voc_near_2v",
+        "pvsk:pvsk_he2025::carrier_lifetime_5860ns",
+        "pvsk:pvsk_he2025::avg_pce_34_22"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_fe2977b9547f0a60",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_he2025::carrier_lifetime_5860ns",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_he2025::__conjunction_result_f879ddf1",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_he2025::delayed_crystallization",
+              "pvsk:pvsk_he2025::enhanced_coverage"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_he2025::__implication_result_4deba99e",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_he2025::__conjunction_result_f879ddf1",
+              "pvsk:pvsk_he2025::carrier_lifetime_5860ns"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.72,
+        "reason": "Delayed crystallization produces larger grains and higher crystallinity, while dense SAM coverage minimizes interfacial defects, both contributing to longer carrier lifetime"
+      },
+      "premises": [
+        "pvsk:pvsk_he2025::delayed_crystallization",
+        "pvsk:pvsk_he2025::enhanced_coverage"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_2cf3cd7f12261ff4",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_he2025::__conjunction_result_fd746248",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_he2025::certified_34_58",
+              "pvsk:pvsk_he2025::champion_34_60"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_he2025::__implication_result_3d5fd349",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_he2025::__conjunction_result_fd746248",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.85,
+        "reason": "34.58% certified PCE represents the record efficiency for perovskite/silicon tandems, approaching the practical efficiency limit for two-junction devices and confirming perovskite PV's potential to exceed silicon-only performance"
+      },
+      "premises": [
+        "pvsk:pvsk_he2025::certified_34_58",
+        "pvsk:pvsk_he2025::champion_34_60"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_02bf75bd2bca1769",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_he2025::__implication_result_c3adcbd3",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_he2025::certified_34_58",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Progression from 33.89% (Hou et al. 2024) to 34.58% certified in less than one year shows continuous rapid improvement in tandem technology through interface engineering"
+      },
+      "premises": [
+        "pvsk:pvsk_he2025::certified_34_58"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_9922fc45db010c48",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_viability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_he2025::__conjunction_result_e1aa709b",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_he2025::mppt_stability_25c",
+              "pvsk:pvsk_he2025::avg_pce_34_22"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_he2025::__implication_result_c3afecdc",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_he2025::__conjunction_result_e1aa709b",
+              "pvsk:pvsk_meta::p_viability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "Average PCE of 34.22% across 20 devices combined with MPP stability demonstrates reproducible high-performance tandem technology"
+      },
+      "premises": [
+        "pvsk:pvsk_he2025::mppt_stability_25c",
+        "pvsk:pvsk_he2025::avg_pce_34_22"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_1e4d924ee8906545",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_he2025::__conjunction_result_e33f518e",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_he2025::asymmetric_design_general",
+              "pvsk:pvsk_he2025::avg_pce_34_22"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_he2025::__implication_result_116ff247",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_he2025::__conjunction_result_e33f518e",
+              "pvsk:pvsk_meta::p_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "SAM-based hole-selective layers are scalable, dopant-free, low-cost and compatible with textured silicon wafers, supporting industrial tandem cell manufacturing"
+      },
+      "premises": [
+        "pvsk:pvsk_he2025::asymmetric_design_general",
+        "pvsk:pvsk_he2025::avg_pce_34_22"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_b8714af77beb8c5c",
+      "type": "support"
+    }
+  ]
+}

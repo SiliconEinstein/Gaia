@@ -1,0 +1,59 @@
+{
+  "holes": [
+    {
+      "content": "An asymmetric self-assembled monolayer (HTL201) featuring an anchoring group and spacer flanking a carbazole core shows minimized steric hindrance and improved coverage on IZO recombination layer compared to symmetric SAMs (Me-4PACz, MeO-4PACz)",
+      "content_hash": "88ee4284cc1d9e8aef898bd66704b2e426ed8bab169ce44831e23025dcc7e358",
+      "interface_hash": "sha256:9a7d4946e7466021d885a25e14300d33d1e57de71409a728fd7f9a7c260d4848",
+      "label": "asymmetric_sam_htl201",
+      "qid": "pvsk:pvsk_he2025::asymmetric_sam_htl201",
+      "required_by": [
+        "pvsk:pvsk_he2025::voc_near_2v"
+      ]
+    },
+    {
+      "content": "Devices using HTL201 achieve an average PCE of 34.22% across 20 devices, compared with 32.18% for Me-4PACz and 33.34% for MeO-4PACz",
+      "content_hash": "726512d3ebba46dd49819a4c9a92672ac0b5d3d50964bafee673c17525e4d864",
+      "interface_hash": "sha256:cc44144847ac8c66b41f35c7618fe591240df5826d7ff1416d0e40d06b7c8a0a",
+      "label": "avg_pce_34_22",
+      "qid": "pvsk:pvsk_he2025::avg_pce_34_22",
+      "required_by": [
+        "pvsk:pvsk_he2025::certified_34_58"
+      ]
+    },
+    {
+      "content": "Strong coordination interaction between HTL201 and perovskite film effectively reduces non-radiative recombination at the buried interface, achieving PLQY of 0.399% (versus 0.346% for Me-4PACz) and QFLS of 1.270 V on textured silicon substrates",
+      "content_hash": "87169e6a01b5bfa35386f0a16c1617c3df7536f29de5c4ad735c3c0f859c5d53",
+      "interface_hash": "sha256:845bca93ac125e30cc83eee8fd105e7818f4ff883935f277585efd74696b3235",
+      "label": "buried_interface_passivation",
+      "qid": "pvsk:pvsk_he2025::buried_interface_passivation",
+      "required_by": [
+        "pvsk:pvsk_he2025::voc_near_2v"
+      ]
+    },
+    {
+      "content": "HTL201-coated substrates delay perovskite nucleation and crystallization (nucleation at 540 s vs 180 s for Me-4PACz), effectively improving perovskite film quality and (100) plane orientation",
+      "content_hash": "7216b047ce9a3c076ae277349ba2e472f512051282579f299332f5e334868606",
+      "interface_hash": "sha256:deca0a5bf9146123a09f97e2ea94e94f26a2115d5d57924576c667e774dc4997",
+      "label": "delayed_crystallization",
+      "qid": "pvsk:pvsk_he2025::delayed_crystallization",
+      "required_by": [
+        "pvsk:pvsk_he2025::carrier_lifetime_5860ns"
+      ]
+    },
+    {
+      "content": "HTL201 forms denser monolayer coverage on IZO substrates than Me-4PACz and MeO-4PACz, with higher coverage factor confirmed by XPS and molecular dynamics simulations showing stronger adsorption energy",
+      "content_hash": "53c1370ff5b037f2c4948cd40aadcf8825b53a89dbb9e2c5494f5223c4296049",
+      "interface_hash": "sha256:7a5957d5133c858e9ce91bd52c32abebd4db44654ed7c1ccb2f063380f53e850",
+      "label": "enhanced_coverage",
+      "qid": "pvsk:pvsk_he2025::enhanced_coverage",
+      "required_by": [
+        "pvsk:pvsk_he2025::carrier_lifetime_5860ns",
+        "pvsk:pvsk_he2025::voc_near_2v"
+      ]
+    }
+  ],
+  "ir_hash": "sha256:790911c3833542552d76b900d38346d320a520a9ddaf211c203f2beb4cbe586c",
+  "manifest_schema_version": 1,
+  "package": "pvsk-he2025",
+  "version": "1.0.0"
+}

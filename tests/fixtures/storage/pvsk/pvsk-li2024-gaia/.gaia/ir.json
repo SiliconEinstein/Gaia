@@ -1,0 +1,830 @@
+{
+  "ir_hash": "sha256:cccd7d5c5d090a3606b0442cef25b2516535b21e1b03d538a3d5e176bce25623",
+  "knowledges": [
+    {
+      "content": "FA-dominated perovskite (FA0.93Cs0.07PbI3) with antisolvent-free deposition. Module structure: glass/FTO/SnO2/perovskite/passivator/spiro-OMeTAD/Au. Small devices (0.14 cm2), large devices (1.04 cm2), mini-modules (13.44 cm2), and fully slot-die printed large modules (310 cm2 and 802 cm2).",
+      "content_hash": "6d01e5147ee88655a990070fe5e18b01404e811b3de8ac633413ca9783551aac",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_li2024::exp_context",
+      "label": "exp_context",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Phase separation occurs in double-halide alloyed 2D perovskites with long-chain (>10) alkylamine ligands, producing uneven n-value distribution on 3D perovskite surfaces. This energy disorder deteriorates interfacial charge transport in large-area modules.",
+      "content_hash": "23f9235259df0ec0514ede3ba78b85d0db184080274138794c368e1beb5a464a",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_li2024::phase_problem",
+      "label": "phase_problem",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Long-chain alkylamine ligands (>10 carbons) cause phase separation in double-halide alloyed 2D perovskites, while triple-halide compositions successfully eliminate the problematic phase separation",
+      "content_hash": "005dd8891de0ce65134a51fca01976e29b8b0201e773b0fa6fa78daee5da3398",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_li2024::phase_separation_discovery",
+      "label": "phase_separation_discovery",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "phase_separation_discovery",
+      "type": "claim"
+    },
+    {
+      "content": "Incorporating formamidinium bromide (FABr) into n-dodecylammonium halide (DAX) post-treatment enables growth of phase-pure n=2 2D perovskite capping layer with homogeneous morphology on 3D perovskite surfaces",
+      "content_hash": "ae3f2fb30ee6bf65398f82773d30ebfad34a47cdc68d48af06d17dbd3df132e4",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_li2024::homogeneous_2d_passivation",
+      "label": "homogeneous_2d_passivation",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "homogeneous_2d_passivation",
+      "type": "claim"
+    },
+    {
+      "content": "Champion active-area efficiency of 25.61% for 0.14 cm2 small devices using the DABr/FABr homogeneous 2D passivation strategy with antisolvent-free processing",
+      "content_hash": "0431a6fc0efb34e61a91a9202c093d3a7ec3320ffc82c86200b014b06e2b1254",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_li2024::small_cell_2561",
+      "label": "small_cell_2561",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "title": "small_cell_25_61_percent",
+      "type": "claim"
+    },
+    {
+      "content": "Champion active-area efficiency of 24.62% for 1.04 cm2 large devices, demonstrating less than 5% efficiency loss per ten times magnification",
+      "content_hash": "87f66f69a0b3f9dd046e8f5aa4026ded88de1c1a6266f2f560add492330c8dcb",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_li2024::large_cell_2462",
+      "label": "large_cell_2462",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "large_cell_24_62_percent",
+      "type": "claim"
+    },
+    {
+      "content": "Champion active-area efficiency of 23.60% for 13.44 cm2 mini-modules, maintaining the small efficiency loss scaling trend",
+      "content_hash": "0f348b3c1fed9af2b72d093a60a58b9fa5260e12bf4bb52b56b601e1bf0fb61e",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_li2024::mini_module_2360",
+      "label": "mini_module_2360",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "mini_module_23_60_percent",
+      "type": "claim"
+    },
+    {
+      "content": "Fully slot-die printed large modules achieve champion aperture-area efficiency of 18.90% for 20 cm x 20 cm modules (310 cm2 aperture area)",
+      "content_hash": "1cd9ad68f91f67b86740a268dfaf1a4ec178fa06e7072e0764521dee243b10e9",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_li2024::printed_module_310",
+      "label": "printed_module_310",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "printed_module_310_cm2",
+      "type": "claim"
+    },
+    {
+      "content": "Fully slot-die printed modules achieve champion aperture-area efficiency of 17.59% for 30 cm x 30 cm modules (802 cm2 aperture area), demonstrating the feasibility of upscaling manufacturing",
+      "content_hash": "3fe2e9a9efed1f15d9f61050ae42c3a4bea19d873cc5e70933b3d2dae230bdae",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_li2024::printed_module_802",
+      "label": "printed_module_802",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "printed_module_802_cm2",
+      "type": "claim"
+    },
+    {
+      "content": "Encapsulated mini-modules exhibit remarkable operational stability with T80 lifetime exceeding 2000 hours at MPPT under continuous light illumination",
+      "content_hash": "937e4eef22641abe4b0fc3e23dd8e6999035ed606782316a76b5b1d897e52294",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_li2024::module_mppt_stability",
+      "label": "module_mppt_stability",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "module_mppt_t80_2000h",
+      "type": "claim"
+    },
+    {
+      "content": "Triple-halide compositions (I/Br/Cl) have lower formation enthalpy than double-halide alloys for n=2 2D perovskite, enabling preferential formation of phase-pure n=2 structure confirmed by in situ PL and GIWAXS",
+      "content_hash": "23fef86291a77b8a5c443f143d5367afc8f6413de544295c0450bab220e1ff15",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_li2024::triple_halide_mechanism",
+      "label": "triple_halide_mechanism",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "title": "triple_halide_mechanism",
+      "type": "claim"
+    },
+    {
+      "content": "FABr addition accelerates the formation of n=2 2D perovskite, appearing at 33 seconds during spin coating versus 40 seconds for DABr alone, enabling homogeneous coverage even at room temperature",
+      "content_hash": "77f8ba939917b7050fda388df9861478a6fce67811b3445eb3c6309a755e0256",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_li2024::fabr_accelerated_growth",
+      "label": "fabr_accelerated_growth",
+      "metadata": {
+        "prior": 0.78
+      },
+      "parameters": [],
+      "title": "fabr_accelerated_growth",
+      "type": "claim"
+    },
+    {
+      "content": "The FABr-assisted homogeneous passivation strategy is universal, successfully suppressing phase separation for most conventional 2D ligands including BA, OA, DA, PMA, PEA, and NMA",
+      "content_hash": "e165b87748d7b892c3d154fe5fb2d4450f1e062ae709e0a9475cf054e190c58a",
+      "declaration_index": 12,
+      "exported": true,
+      "id": "pvsk:pvsk_li2024::universal_ligand",
+      "label": "universal_ligand",
+      "metadata": {
+        "prior": 0.75
+      },
+      "parameters": [],
+      "title": "universal_ligand_strategy",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "content_hash": "9603b55225f5e093d20a1194832c2b419389d6a83886f8b7841f0b9a65cc106f",
+      "declaration_index": 4,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "metadata": {
+        "prior": 0.15
+      },
+      "parameters": [],
+      "title": "p_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_li2024::phase_separation_discovery,pvsk:pvsk_li2024::triple_halide_mechanism)",
+      "content_hash": "562cad5610299cc7901192baf9c7c276f4173b9eb29f8edca54de4e4563181b3",
+      "exported": false,
+      "id": "pvsk:pvsk_li2024::__conjunction_result_b51a4bd9",
+      "label": "__conjunction_result_b51a4bd9",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_li2024::phase_separation_discovery,pvsk:pvsk_li2024::triple_halide_mechanism)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_96197dffd8035875",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_li2024::__conjunction_result_b51a4bd9,pvsk:pvsk_li2024::homogeneous_2d_passivation)",
+      "content_hash": "dce0c9af4eb1c49ad1a4f2264ec34750a247bde05805001d117f554e5bdeb094",
+      "exported": false,
+      "id": "pvsk:pvsk_li2024::__implication_result_6e3d80d5",
+      "label": "__implication_result_6e3d80d5",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_li2024::__conjunction_result_b51a4bd9,pvsk:pvsk_li2024::homogeneous_2d_passivation)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_96197dffd8035875",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_li2024::homogeneous_2d_passivation,pvsk:pvsk_li2024::fabr_accelerated_growth)",
+      "content_hash": "a0eae0053be2aeda31a2f73e8c2c5fec09dcd4a6b3a208e7e5345f331eecb1d4",
+      "exported": false,
+      "id": "pvsk:pvsk_li2024::__conjunction_result_98f90eb5",
+      "label": "__conjunction_result_98f90eb5",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_li2024::homogeneous_2d_passivation,pvsk:pvsk_li2024::fabr_accelerated_growth)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_327338df8fb7e0c9",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_li2024::__conjunction_result_98f90eb5,pvsk:pvsk_li2024::small_cell_2561)",
+      "content_hash": "de484ceb2a20bd2f152fbffb94525d65c7fecef5a328168cc79d178e547e8ff8",
+      "exported": false,
+      "id": "pvsk:pvsk_li2024::__implication_result_9908f878",
+      "label": "__implication_result_9908f878",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_li2024::__conjunction_result_98f90eb5,pvsk:pvsk_li2024::small_cell_2561)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_327338df8fb7e0c9",
+        "owning_strategy_type": "support",
+        "prior": 0.78,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_li2024::small_cell_2561,pvsk:pvsk_li2024::homogeneous_2d_passivation)",
+      "content_hash": "9316bdbaa344b213cb4adc902b6ab729279f32d04d218521b247a3a7bbebdbf8",
+      "exported": false,
+      "id": "pvsk:pvsk_li2024::__conjunction_result_350a301c",
+      "label": "__conjunction_result_350a301c",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_li2024::small_cell_2561,pvsk:pvsk_li2024::homogeneous_2d_passivation)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_6dbd8ae259750f56",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_li2024::__conjunction_result_350a301c,pvsk:pvsk_li2024::mini_module_2360)",
+      "content_hash": "a8a33303ab0a845eb9a2d207d5947b41fb8d3099adb6bbdf3277ac3882dae8d8",
+      "exported": false,
+      "id": "pvsk:pvsk_li2024::__implication_result_a80aad5d",
+      "label": "__implication_result_a80aad5d",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_li2024::__conjunction_result_350a301c,pvsk:pvsk_li2024::mini_module_2360)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_6dbd8ae259750f56",
+        "owning_strategy_type": "support",
+        "prior": 0.78,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_li2024::homogeneous_2d_passivation,pvsk:pvsk_li2024::universal_ligand)",
+      "content_hash": "d28aecbc61bb7fc9bdc3bcd1cb8fc4ba7a42dc05cfcd64bc060e82904d62aa7e",
+      "exported": false,
+      "id": "pvsk:pvsk_li2024::__conjunction_result_3fa571de",
+      "label": "__conjunction_result_3fa571de",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_li2024::homogeneous_2d_passivation,pvsk:pvsk_li2024::universal_ligand)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_f6ab2222fc686349",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_li2024::__conjunction_result_3fa571de,pvsk:pvsk_li2024::printed_module_802)",
+      "content_hash": "cac20be72b04e874ed919e12ab281a3a6999bc9cf67403f7a3d882aed77169fb",
+      "exported": false,
+      "id": "pvsk:pvsk_li2024::__implication_result_c6eb9f92",
+      "label": "__implication_result_c6eb9f92",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_li2024::__conjunction_result_3fa571de,pvsk:pvsk_li2024::printed_module_802)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_f6ab2222fc686349",
+        "owning_strategy_type": "support",
+        "prior": 0.72,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_li2024::printed_module_802,pvsk:pvsk_li2024::printed_module_310)",
+      "content_hash": "8f4065ab8426df36101ba8a45a5134bede8df86c639abfecafe3c0e75e2e003d",
+      "exported": false,
+      "id": "pvsk:pvsk_li2024::__conjunction_result_3da994f4",
+      "label": "__conjunction_result_3da994f4",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_li2024::printed_module_802,pvsk:pvsk_li2024::printed_module_310)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_c6ae7c49bd0b8cfd",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_li2024::__conjunction_result_3da994f4,pvsk:pvsk_meta::p_industrialization)",
+      "content_hash": "5399fbe83df0548912df384bd75c7fd8b31c6b29b8c012c4ef35344a68652717",
+      "exported": false,
+      "id": "pvsk:pvsk_li2024::__implication_result_a8f490a7",
+      "label": "__implication_result_a8f490a7",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_li2024::__conjunction_result_3da994f4,pvsk:pvsk_meta::p_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_c6ae7c49bd0b8cfd",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_li2024::mini_module_2360,pvsk:pvsk_li2024::large_cell_2462,pvsk:pvsk_li2024::small_cell_2561)",
+      "content_hash": "61cc7328e55993b31b86b3aa6c4a060649abd64509487231ee97a109c68addb7",
+      "exported": false,
+      "id": "pvsk:pvsk_li2024::__conjunction_result_3bb27a96",
+      "label": "__conjunction_result_3bb27a96",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_li2024::mini_module_2360,pvsk:pvsk_li2024::large_cell_2462,pvsk:pvsk_li2024::small_cell_2561)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_8c5582329b198b09",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_li2024::__conjunction_result_3bb27a96,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "e032b61dc4e2fa384d5af1540966b50641e4cdee51612b457ed23159081521ee",
+      "exported": false,
+      "id": "pvsk:pvsk_li2024::__implication_result_b8b36d98",
+      "label": "__implication_result_b8b36d98",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_li2024::__conjunction_result_3bb27a96,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_8c5582329b198b09",
+        "owning_strategy_type": "support",
+        "prior": 0.75,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_li2024::module_mppt_stability,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "5b91cf9fd20f203f5d44584bba38ea5f7ed4466d2a865ca11e8c6e41f95fb630",
+      "exported": false,
+      "id": "pvsk:pvsk_li2024::__implication_result_fffb076d",
+      "label": "__implication_result_fffb076d",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_li2024::module_mppt_stability,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_bbf5d339ba448948",
+        "owning_strategy_type": "support",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_li2024::printed_module_802,pvsk:pvsk_li2024::mini_module_2360)",
+      "content_hash": "f1517c39a4d172bdc67751363c1253041a9479efaf5949742d046c5d6580bdd3",
+      "exported": false,
+      "id": "pvsk:pvsk_li2024::__conjunction_result_73adbe6e",
+      "label": "__conjunction_result_73adbe6e",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_li2024::printed_module_802,pvsk:pvsk_li2024::mini_module_2360)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_52004f2cbb074727",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_li2024::__conjunction_result_73adbe6e,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "852906bc890affc4372babdb07b64e449efee6b7d57ed8aa6c09815a8a094adf",
+      "exported": false,
+      "id": "pvsk:pvsk_li2024::__implication_result_8a9c2f5e",
+      "label": "__implication_result_8a9c2f5e",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_li2024::__conjunction_result_73adbe6e,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_52004f2cbb074727",
+        "owning_strategy_type": "support",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_li2024",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_li2024::homogeneous_2d_passivation",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_li2024::__conjunction_result_b51a4bd9",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_li2024::phase_separation_discovery",
+              "pvsk:pvsk_li2024::triple_halide_mechanism"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_li2024::__implication_result_6e3d80d5",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_li2024::__conjunction_result_b51a4bd9",
+              "pvsk:pvsk_li2024::homogeneous_2d_passivation"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Understanding that triple-halide compositions eliminate phase separation and that FABr lowers formation enthalpy for n=2 structure enables rational design of homogeneous 2D capping layers"
+      },
+      "premises": [
+        "pvsk:pvsk_li2024::phase_separation_discovery",
+        "pvsk:pvsk_li2024::triple_halide_mechanism"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_96197dffd8035875",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_li2024::small_cell_2561",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_li2024::__conjunction_result_98f90eb5",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_li2024::homogeneous_2d_passivation",
+              "pvsk:pvsk_li2024::fabr_accelerated_growth"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_li2024::__implication_result_9908f878",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_li2024::__conjunction_result_98f90eb5",
+              "pvsk:pvsk_li2024::small_cell_2561"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.78,
+        "reason": "Phase-pure n=2 2D passivation provides superior defect passivation and charge transport compared to mixed-phase 2D layers"
+      },
+      "premises": [
+        "pvsk:pvsk_li2024::homogeneous_2d_passivation",
+        "pvsk:pvsk_li2024::fabr_accelerated_growth"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_327338df8fb7e0c9",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_li2024::mini_module_2360",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_li2024::__conjunction_result_350a301c",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_li2024::small_cell_2561",
+              "pvsk:pvsk_li2024::homogeneous_2d_passivation"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_li2024::__implication_result_a80aad5d",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_li2024::__conjunction_result_350a301c",
+              "pvsk:pvsk_li2024::mini_module_2360"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.78,
+        "reason": "Homogeneous passivation coverage is critical for large-area devices where uneven passivation causes local losses that scale with area"
+      },
+      "premises": [
+        "pvsk:pvsk_li2024::small_cell_2561",
+        "pvsk:pvsk_li2024::homogeneous_2d_passivation"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_6dbd8ae259750f56",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_li2024::printed_module_802",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_li2024::__conjunction_result_3fa571de",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_li2024::homogeneous_2d_passivation",
+              "pvsk:pvsk_li2024::universal_ligand"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_li2024::__implication_result_c6eb9f92",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_li2024::__conjunction_result_3fa571de",
+              "pvsk:pvsk_li2024::printed_module_802"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.72,
+        "reason": "The strategy is compatible with slot-die printing, enabling fabrication of 802 cm2 modules with good efficiency"
+      },
+      "premises": [
+        "pvsk:pvsk_li2024::homogeneous_2d_passivation",
+        "pvsk:pvsk_li2024::universal_ligand"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_f6ab2222fc686349",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_li2024::__conjunction_result_3da994f4",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_li2024::printed_module_802",
+              "pvsk:pvsk_li2024::printed_module_310"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_li2024::__implication_result_a8f490a7",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_li2024::__conjunction_result_3da994f4",
+              "pvsk:pvsk_meta::p_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Fully slot-die printed 30x30 cm modules at 17.59% efficiency demonstrate industrial-scale manufacturing capability for perovskite solar modules"
+      },
+      "premises": [
+        "pvsk:pvsk_li2024::printed_module_802",
+        "pvsk:pvsk_li2024::printed_module_310"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_c6ae7c49bd0b8cfd",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_li2024::__conjunction_result_3bb27a96",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_li2024::mini_module_2360",
+              "pvsk:pvsk_li2024::large_cell_2462",
+              "pvsk:pvsk_li2024::small_cell_2561"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_li2024::__implication_result_b8b36d98",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_li2024::__conjunction_result_3bb27a96",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.75,
+        "reason": "Systematic scaling from 25.61% (0.14 cm2) to 23.60% (13.44 cm2) with less than 5% loss per 10x area increase demonstrates efficient module technology"
+      },
+      "premises": [
+        "pvsk:pvsk_li2024::mini_module_2360",
+        "pvsk:pvsk_li2024::large_cell_2462",
+        "pvsk:pvsk_li2024::small_cell_2561"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_8c5582329b198b09",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_li2024::__implication_result_fffb076d",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_li2024::module_mppt_stability",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "T80 lifetime exceeding 2000 hours at MPPT demonstrates module-level stability suitable for practical deployment"
+      },
+      "premises": [
+        "pvsk:pvsk_li2024::module_mppt_stability"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_bbf5d339ba448948",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_li2024::__conjunction_result_73adbe6e",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_li2024::printed_module_802",
+              "pvsk:pvsk_li2024::mini_module_2360"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_li2024::__implication_result_8a9c2f5e",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_li2024::__conjunction_result_73adbe6e",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "Printed module efficiencies reaching 17-19% for large areas show continuous improvement in scalable manufacturing quality"
+      },
+      "premises": [
+        "pvsk:pvsk_li2024::printed_module_802",
+        "pvsk:pvsk_li2024::mini_module_2360"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_52004f2cbb074727",
+      "type": "support"
+    }
+  ]
+}

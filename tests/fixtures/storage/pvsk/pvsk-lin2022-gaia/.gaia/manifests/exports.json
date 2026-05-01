@@ -1,0 +1,127 @@
+{
+  "exports": [
+    {
+      "content": "C60 is only weakly bonded to perovskite layers, inducing high energetic disorder between perovskite and C60 that limits device performance at elevated operating temperatures, and a thin C60 layer is insufficient to protect against moisture or oxygen ingress",
+      "content_hash": "a66c488885a0ebdfbd5f15ae66988daea470f622c7580a9cb393fa03e2432229",
+      "label": "c60_weak_bonding_problem",
+      "qid": "pvsk:pvsk_lin2022::c60_weak_bonding_problem",
+      "type": "claim"
+    },
+    {
+      "content": "The conduction band minimum (CBM) of 2D-RT films is closer to the CBM of C60 at the n-type contact, enabling more efficient charge transfer at the 2D/3D perovskite interface; 2D-TA films have higher CBM with less efficient charge transfer",
+      "content_hash": "4f2e998436b2d26a5ba7009904a673764e5d9e1be163db3651eb3350d1f67ec8",
+      "label": "cbm_alignment_with_c60",
+      "qid": "pvsk:pvsk_lin2022::cbm_alignment_with_c60",
+      "type": "claim"
+    },
+    {
+      "content": "2D-RT passivated encapsulated devices retain >95% of initial PCE (T95) after >1200 hours at damp-heat conditions (85C/85%RH), passing the IEC 61215:2016 industrial stability standard",
+      "content_hash": "2a0ab03ebf42254cef9680f0658c798f1ef14bc1e351c2a99534b98588bd0233",
+      "label": "damp_heat_t95_over_1000h",
+      "qid": "pvsk:pvsk_lin2022::damp_heat_t95_over_1000h",
+      "type": "claim"
+    },
+    {
+      "content": "2D-RT passivation minimizes device energy loss (Eg - qVoc) to 0.34 eV, representing ~96% of the thermodynamic Voc limit (1.262 V) for a bandgap of 1.55 eV, comparable to state-of-the-art GaAs solar cells at 98%",
+      "content_hash": "ecdd8b71854c6f86e88d33bf0b07fea3a69e60f633e58e3892fd8235a6ddf41c",
+      "label": "energy_loss_0_34_ev",
+      "qid": "pvsk:pvsk_lin2022::energy_loss_0_34_ev",
+      "type": "claim"
+    },
+    {
+      "content": "Inverted (p-i-n) perovskite solar cells with glass/ITO/2PACz/3D perovskite/2D perovskite/C60/BCP/Ag architecture, using oleylammonium iodide (OLAI) post-treatment to form 2D perovskite passivation layers on the 3D perovskite surface at the electron-selective contact, encapsulated with vacuum-laminated glass/encapsulant and butyl rubber edge sealing for stability testing",
+      "content_hash": "5d3ea0b161543c2eddfee6af98312f1989ddc0078c65e61e7a9ed9ac0314b47e",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_lin2022::exp_context",
+      "type": "setting"
+    },
+    {
+      "content": "IEC 61215:2016 industrial standard requires photovoltaic modules to pass damp-heat testing at 85C and 85% relative humidity for >1000 hours with <5% relative loss in PCE, representing a critical benchmark for commercial viability",
+      "content_hash": "f5c5ce78cc9c825e9d8d2d5f26da9c13c5d28f82ab3aab2677a256ab3e5395b0",
+      "label": "iec_61215_standard",
+      "qid": "pvsk:pvsk_lin2022::iec_61215_standard",
+      "type": "setting"
+    },
+    {
+      "content": "How do 2D-RT passivated devices perform under real outdoor conditions with daily thermal cycling, UV exposure, and varying humidity beyond the 1000-hour damp-heat benchmark?",
+      "content_hash": "798a10f9bcf8ab0b9a1c666f2437f23d5c6c0ccfa56e2d88c68331dd2484e750",
+      "label": "long_term_outdoor_stability",
+      "qid": "pvsk:pvsk_lin2022::long_term_outdoor_stability",
+      "type": "question"
+    },
+    {
+      "content": "Encapsulated 2D-RT devices retain up to ~95% of initial PCE after >500 hours of maximum power point tracking under simulated 1-sun illumination in ambient air, while control devices retain <90% for only ~100 hours",
+      "content_hash": "8cf1b830d4f5e97cd0e8f86a068c20fccf1b9d8166b8cb679edb6c8746785708",
+      "label": "mppt_95_pct_500h",
+      "qid": "pvsk:pvsk_lin2022::mppt_95_pct_500h",
+      "type": "claim"
+    },
+    {
+      "content": "Oleylammonium iodide (OLAI) molecules applied as post-treatment on 3D perovskite surfaces form Ruddlesden-Popper-phase 2D perovskite layers; the dimensionality (n) is controlled by annealing conditions: thermal annealing (2D-TA) produces n=1 dominated layers, while room-temperature processing (2D-RT) yields mixed n=1 and n=2 layers with more pronounced n=2 character",
+      "content_hash": "5fd59fe5a30fa5b7ed5636659c3bf2a90a9b2aa8736fc028d6fe9e65dd586304",
+      "label": "olai_passivation",
+      "qid": "pvsk:pvsk_lin2022::olai_passivation",
+      "type": "claim"
+    },
+    {
+      "content": "2D-RT passivated inverted PSCs achieve maximum PCE of 24.3% with stabilized PCE of ~24%, Voc=1.20 V, and FF=~82%, representing ~2% absolute PCE gain over unpassivated control devices",
+      "content_hash": "c6c0e839970cf7325642d96195ec706089e90cd1899624299caa63ed503d5c38",
+      "label": "pce_24_3_pct",
+      "qid": "pvsk:pvsk_lin2022::pce_24_3_pct",
+      "type": "claim"
+    },
+    {
+      "content": "After >1000 hours of damp-heat testing, three devices show average PCE of 19.3+/-0.69%, representing a very high retained PCE compared to prior reports",
+      "content_hash": "037f754916dca6c2b3cfb8b1da780ba7f2e390f0937526c702f8f921511464e5",
+      "label": "post_dh_pce_19_3_pct",
+      "qid": "pvsk:pvsk_lin2022::post_dh_pce_19_3_pct",
+      "type": "claim"
+    },
+    {
+      "content": "2D-passivated devices exhibit longer charge recombination lifetime and lower ideality factor than control devices, confirming reduced trap-assisted recombination at 3D/C60 interfaces",
+      "content_hash": "26c4d5eacfafabbc0274cc3c14a7834c746f7c925fcc74fc7750db79b9c67820",
+      "label": "reduced_trap_recombination",
+      "qid": "pvsk:pvsk_lin2022::reduced_trap_recombination",
+      "type": "claim"
+    },
+    {
+      "content": "The 2D-RT passivation approach shows less than 0.5% deviation for person-to-person variations among seven different researchers, confirming high reproducibility",
+      "content_hash": "30638594bcdb18055df8b66ae1f814cb2e99d20319cc90b38bf2b9e8caee18d3",
+      "label": "reproducibility_high",
+      "qid": "pvsk:pvsk_lin2022::reproducibility_high",
+      "type": "claim"
+    },
+    {
+      "content": "Room-temperature OLAI processing (2D-RT) forms higher-dimensionality 2D perovskite layers (n=1 and n=2 mixed, with more pronounced n=2) while thermal annealing (2D-TA) produces only n=1 layers; higher-n layers have lower formation energy and better electronic alignment with C60",
+      "content_hash": "d9d5bc52e3850698dc248948b40b76623426cbc50ed92f7b6cb2fa5b08cc57b7",
+      "label": "room_temp_higher_dimensionality",
+      "qid": "pvsk:pvsk_lin2022::room_temp_higher_dimensionality",
+      "type": "claim"
+    },
+    {
+      "content": "Can the 2D-RT passivation approach be scaled to module-level fabrication using slot-die or blade-coating processes, and does the room-temperature processing advantage translate to industrial throughput?",
+      "content_hash": "19c65e0e71797dcc3cdbdd847498514c7002d2fb3b333f0b160e3318bec3ac6b",
+      "label": "scale_up_2d_rt",
+      "qid": "pvsk:pvsk_lin2022::scale_up_2d_rt",
+      "type": "question"
+    },
+    {
+      "content": "No substantial change in structural and optical properties of 2D perovskite passivation films (both 3D and 2D perovskites) after >500 hours of thermal annealing at 85C under dark conditions, confirming robustness of the 2D passivation approach",
+      "content_hash": "2cf67d51ac1e6cf26bbfe5b301df6031841c4f60350b02e134eb0a65ab1044cf",
+      "label": "structural_robustness_500h_85c",
+      "qid": "pvsk:pvsk_lin2022::structural_robustness_500h_85c",
+      "type": "claim"
+    },
+    {
+      "content": "The OLAI 2D-RT passivation approach is universal across various perovskite compositions (various bandgaps) and deposition techniques (one-step, two-step, blade-coating), yielding systematic absolute PCE enhancement of 1.5-2.0%",
+      "content_hash": "0c7b84113d439963014ecd8ed288bbdfdb05471bf0e59a3660bf5d28fc2f77aa",
+      "label": "universal_passivation",
+      "qid": "pvsk:pvsk_lin2022::universal_passivation",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:d7f13c224ab5ec93926b4fb5c44680e1050ed97830e113d866241f250e1662e9",
+  "manifest_schema_version": 1,
+  "package": "pvsk-lin2022",
+  "version": "1.0.0"
+}

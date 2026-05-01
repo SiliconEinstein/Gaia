@@ -1,0 +1,1073 @@
+{
+  "ir_hash": "sha256:26753c8824d6f35218325e43af1bf2b1a5b6ad0f17c854f58c2a6efe54e731cc",
+  "knowledges": [
+    {
+      "content": "FAPbI3 perovskite solar cells on mesoporous TiO2/FTO substrates using anti-solvent method with methylenediammonium dichloride (MDACl2) added to the FAPbI3 precursor at 1.9-5.7 mol%, with CuPC (copper phthalocyanine) or spiro-OMeTAD as hole transport material, Au electrode, measured under AM 1.5G at 100 mW/cm2",
+      "content_hash": "63785738336913189babb56a653827e1de01753d117ce5fcdcb3352fdc810307",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::exp_context",
+      "label": "exp_context",
+      "metadata": {
+        "prior": 0.7
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Methylenediammonium dichloride (MDACl2) is a divalent diammonium dopant with ionic radius (262 pm) comparable to FA+ (256 pm); MDA2+ can form more hydrogen bonds with I- than FA+ or MA+ due to having more H atoms, potentially stabilizing the alpha-FAPbI3 phase in smaller amounts than MA",
+      "content_hash": "26ce39d896d070931883f91850d381d6fdc3d781a55e893b9cd581ae6f95d5b6",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::mdac12_dopant",
+      "label": "mdac12_dopant",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "FAPbI3:3.8 mol% MDACl2 PSC achieves certified stabilized PCE of 23.73% via quasi-steady-state method at Newport, with Jsc=26.1 mA/cm2, Voc=1.15 V, FF=79.0%, the highest reported for mp-TiO2-based PSCs",
+      "content_hash": "250fec3116c545cd9af677da62a9d66351c56957ee1cf6196a36c25dd8cc8b62",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::certified_23_7_pct",
+      "label": "certified_23_7_pct",
+      "metadata": {
+        "prior": 0.92
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "A second certified device achieves Jsc=26.70 mA/cm2 (highest reported for FAPbI3-based PSCs) with Voc=1.144 V and FF=77.56%, corresponding to stabilized PCE of 23.69%",
+      "content_hash": "8b349b77de3b7cb280171f6aa4c1d715dbf4b55da9464f47305223e21725b52a",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::record_jsc_26_7",
+      "label": "record_jsc_26_7",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The best-performing lab-measured device achieves PCE of 24.66% under reverse scan with Jsc=26.50 mA/cm2, Voc=1.14 V, and FF=81.77%",
+      "content_hash": "3c743f3ce3ea7e5a23d07d7519bf290fad9912cfb6551670e5b1153faa0fa233",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::uncertified_24_66_pct",
+      "label": "uncertified_24_66_pct",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Adding 3.8-5.7 mol% MDACl2 to FAPbI3 stabilizes the alpha-phase against transition to the delta-phase even after 24 hours at 80% humidity, whereas pure FAPbI3 and FAPbI3 with only 1.9 mol% MDACl2 completely convert to the delta-phase",
+      "content_hash": "4262d0080b85444424569163037884b95180aa635e001b38e095a390c27d314a",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::alpha_phase_stabilization",
+      "label": "alpha_phase_stabilization",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "MDACl2 addition preserves the inherent narrow bandgap of FAPbI3: PL emission shifts minimally from 826 nm (pristine) to 822 nm (3.8 mol%), compared to 816 nm for the MAPbBr3-stabilized control, enabling higher photocurrent through broader absorption",
+      "content_hash": "1b4b0f9f91adf1d931bb6fc026233cb603dc6095679538fb369a2dbfb7e8dc40",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::inherent_bandgap_preserved",
+      "label": "inherent_bandgap_preserved",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "MDA2+ stabilizes alpha-FAPbI3 through two mechanisms: (1) stronger hydrogen bonding with I- due to more H atoms than FA+ or MA+, and (2) stronger ionic interaction from its divalent charge state, enabling stabilization in smaller amounts than MA",
+      "content_hash": "8e63d63fe15e9732e41d44f97b35f49d13e5ee04d3b1fb7c7f169c7af75c0607",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::mida_hbond_mechanism",
+      "label": "mida_hbond_mechanism",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "XPS and TOF-SIMS show higher residual Cl- content in FAPbI3:3.8 mol% MDACl2 than in the MAPbBr3 control, concentrated at the TiO2/perovskite interface, which is expected to enhance light stability of the PSC",
+      "content_hash": "a81fad7d1ce99530cf6089cc34bea62d77e99c8e28e5a4fdc40840991064b5a4",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::cl_residue_at_interface",
+      "label": "cl_residue_at_interface",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Space-charge-limited current measurements show electron trap densities of 5.7x10^15 cm-3 for FAPbI3:3.8 mol% MDACl2, lower than 1.0x10^16 cm-3 for the MAPbBr3 control, indicating that FA vacancy defects do not act as deep electron traps",
+      "content_hash": "32ea510c67aa8de6950f77178d96b4d2bca57dff15e78ea4925b742945dc1c03",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::defect_density_low",
+      "label": "defect_density_low",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "FAPbI3:3.8 mol% MDACl2 films exhibit nonradiative recombination lifetime of 1562 ns on quartz, more than double the control value of 715 ns, indicating reduced trap-assisted recombination",
+      "content_hash": "1746e0c65715671c72ff0ee14dad49667447921fbb476c4765088336ed2da95e",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::carrier_lifetime_1562_ns",
+      "label": "carrier_lifetime_1562_ns",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Unencapsulated target device retains >90% of initial PCE after 70 hours at 85% RH and 25C, while the MAPbBr3-stabilized control degrades to 40% of initial PCE",
+      "content_hash": "ce261b4ea1f8afda7e20d6fcdbf9419c43f15912e4aaa38d1df2902cdc4f7ed0",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::humidity_stability_85rh",
+      "label": "humidity_stability_85rh",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Unencapsulated target device retains >90% of initial PCE after 20 hours annealing at 150C in air (~25% RH), while the control degrades to <20% of initial PCE due to MA evaporation from the MAPbBr3 component",
+      "content_hash": "4598a53c9b3a7cb53ab51c58a850672e2d5285447fa188d2c052b3a624d44d27",
+      "declaration_index": 12,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::thermal_stability_150c",
+      "label": "thermal_stability_150c",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Encapsulated target device with spiro-OMeTAD HTM maintains ~90% of initial PCE (>23.0%) over 600 hours of maximum power point tracking under full solar illumination (AM 1.5G, 100 mW/cm2) in ambient conditions without UV filter",
+      "content_hash": "646e175c1b661795fe72d4d19917d40c5963d7c91f9da74e5030b144da376978",
+      "declaration_index": 13,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::photostability_600h_mppt",
+      "label": "photostability_600h_mppt",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "What is the optimal MDACl2 concentration window for balancing alpha-phase stability against defect formation from FA vacancies, and does the MDACl2 approach transfer to mixed-halide or mixed-cation perovskite compositions?",
+      "content_hash": "fc05ba267f0016173b267eae7de0a960dee961d8962186385b8e2f43367f0887",
+      "declaration_index": 14,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::optimal_mda_concentration",
+      "label": "optimal_mda_concentration",
+      "parameters": [],
+      "type": "question"
+    },
+    {
+      "content": "Can MDACl2-stabilized FAPbI3 devices maintain >90% PCE beyond 1000 hours of continuous operation under damp-heat conditions (85C/85% RH), which is the industry standard IEC 61215 test?",
+      "content_hash": "b8647e2aa69bb35b92db4120766f58408a996be72097f54bc2bff161c8147118",
+      "declaration_index": 15,
+      "exported": true,
+      "id": "pvsk:pvsk_min2020::long_term_operational_stability",
+      "label": "long_term_operational_stability",
+      "parameters": [],
+      "type": "question"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Organometal halide perovskites can function as viable photovoltaic absorbers",
+      "content_hash": "12183274605a4cdd79df4b632d2b0bc6c7bbfdfe0b389d5a86bd3d531fb560a3",
+      "declaration_index": 0,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_viability",
+      "label": "p_viability",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_viability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "content_hash": "9603b55225f5e093d20a1194832c2b419389d6a83886f8b7841f0b9a65cc106f",
+      "declaration_index": 4,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "metadata": {
+        "prior": 0.15
+      },
+      "parameters": [],
+      "title": "p_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_min2020::mida_hbond_mechanism,pvsk:pvsk_min2020::alpha_phase_stabilization)",
+      "content_hash": "b3d750b6330382caa98d69bd1faaee5a4d5ef3cb098ce5dc9ced722c51e1d88f",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__implication_result_2e165946",
+      "label": "__implication_result_2e165946",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_min2020::mida_hbond_mechanism,pvsk:pvsk_min2020::alpha_phase_stabilization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_aaaa667feb023932",
+        "owning_strategy_type": "support",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_min2020::alpha_phase_stabilization,pvsk:pvsk_min2020::inherent_bandgap_preserved)",
+      "content_hash": "39bed7ae5dd610d07a9771bbc7a1bcac6fbc142b4336dfd904aa40fd6ef5d2fa",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__conjunction_result_ae2543e6",
+      "label": "__conjunction_result_ae2543e6",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_min2020::alpha_phase_stabilization,pvsk:pvsk_min2020::inherent_bandgap_preserved)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_a89bcb23973d8952",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_min2020::__conjunction_result_ae2543e6,pvsk:pvsk_min2020::record_jsc_26_7)",
+      "content_hash": "3acd466fa76f856c2271e36934dd0d6c05eef97aa5a39f521a93d0b9932da9d7",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__implication_result_2636ee24",
+      "label": "__implication_result_2636ee24",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_min2020::__conjunction_result_ae2543e6,pvsk:pvsk_min2020::record_jsc_26_7)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_a89bcb23973d8952",
+        "owning_strategy_type": "support",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_min2020::defect_density_low,pvsk:pvsk_min2020::cl_residue_at_interface,pvsk:pvsk_min2020::carrier_lifetime_1562_ns)",
+      "content_hash": "545568d6fe7f59206bd9460ef0f964bfe658c038fce4fab6ee9e32b75a2a677b",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__conjunction_result_8a4205c7",
+      "label": "__conjunction_result_8a4205c7",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_min2020::defect_density_low,pvsk:pvsk_min2020::cl_residue_at_interface,pvsk:pvsk_min2020::carrier_lifetime_1562_ns)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_b91b4d4eff465fb5",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_min2020::__conjunction_result_8a4205c7,pvsk:pvsk_min2020::certified_23_7_pct)",
+      "content_hash": "7cf6b077f8d3802a7d01cfafa48dafde91accc7df3736c5bf848e7627f0e5410",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__implication_result_5820cad5",
+      "label": "__implication_result_5820cad5",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_min2020::__conjunction_result_8a4205c7,pvsk:pvsk_min2020::certified_23_7_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_b91b4d4eff465fb5",
+        "owning_strategy_type": "support",
+        "prior": 0.83,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_min2020::alpha_phase_stabilization,pvsk:pvsk_min2020::cl_residue_at_interface)",
+      "content_hash": "f830eb3a6faeb1733f8e18f832645d3a20891c043cff9d0f14d76adb58ec2b1c",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__conjunction_result_e452e1fb",
+      "label": "__conjunction_result_e452e1fb",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_min2020::alpha_phase_stabilization,pvsk:pvsk_min2020::cl_residue_at_interface)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_3557fa07909a5e71",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_min2020::__conjunction_result_e452e1fb,pvsk:pvsk_min2020::humidity_stability_85rh)",
+      "content_hash": "e291e59c6476f12ff2cd1f4c8f054d0f0927c5896620db8d9d5f11ea62eb9e3d",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__implication_result_d9ee87d0",
+      "label": "__implication_result_d9ee87d0",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_min2020::__conjunction_result_e452e1fb,pvsk:pvsk_min2020::humidity_stability_85rh)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_3557fa07909a5e71",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_min2020::alpha_phase_stabilization,pvsk:pvsk_min2020::thermal_stability_150c)",
+      "content_hash": "3c549b2587324e9268afc6a77b885a1757fc07481edbc40bc6faa09b24ec24bf",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__implication_result_0cee02f3",
+      "label": "__implication_result_0cee02f3",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_min2020::alpha_phase_stabilization,pvsk:pvsk_min2020::thermal_stability_150c)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_ff9e02640b0f559b",
+        "owning_strategy_type": "support",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_min2020::cl_residue_at_interface,pvsk:pvsk_min2020::alpha_phase_stabilization)",
+      "content_hash": "dc5b67c0c48eb16071c90f1ae9b47a9f97491da36623cb75e17b79d02a37598b",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__conjunction_result_078d3833",
+      "label": "__conjunction_result_078d3833",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_min2020::cl_residue_at_interface,pvsk:pvsk_min2020::alpha_phase_stabilization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_10d20d692301cc8b",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_min2020::__conjunction_result_078d3833,pvsk:pvsk_min2020::photostability_600h_mppt)",
+      "content_hash": "831d6b78925ab44520c44f1ed9672bd2cbe49200dcae49ed59fc7ea37c3b724d",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__implication_result_6de92154",
+      "label": "__implication_result_6de92154",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_min2020::__conjunction_result_078d3833,pvsk:pvsk_min2020::photostability_600h_mppt)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_10d20d692301cc8b",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_min2020::certified_23_7_pct,pvsk:pvsk_min2020::record_jsc_26_7)",
+      "content_hash": "e8a010e3ef27b9bdef22f49e6529f26fd7b3131364ed2e6c895bcaa3f1a80419",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__conjunction_result_9c5b3254",
+      "label": "__conjunction_result_9c5b3254",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_min2020::certified_23_7_pct,pvsk:pvsk_min2020::record_jsc_26_7)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_ebe520df0acaeae7",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_min2020::__conjunction_result_9c5b3254,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "02166f33a79a88e1e04277914bdb373e7887d228d36e9b05e4a030f10d2d9917",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__implication_result_00c233fd",
+      "label": "__implication_result_00c233fd",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_min2020::__conjunction_result_9c5b3254,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_ebe520df0acaeae7",
+        "owning_strategy_type": "support",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_min2020::inherent_bandgap_preserved,pvsk:pvsk_min2020::mida_hbond_mechanism)",
+      "content_hash": "ed1eb8b12c013af7e0c8c50a993a2a7aba923ff5869ab2eacc21cb642d9d302d",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__conjunction_result_f9f85e5a",
+      "label": "__conjunction_result_f9f85e5a",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_min2020::inherent_bandgap_preserved,pvsk:pvsk_min2020::mida_hbond_mechanism)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_a289d0b6ef982f02",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_min2020::__conjunction_result_f9f85e5a,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "b73d56ee9009d3d81e09f3d21f5d65caf2e5f0b2c82c9142bd8ff9be31646460",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__implication_result_5097052e",
+      "label": "__implication_result_5097052e",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_min2020::__conjunction_result_f9f85e5a,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_a289d0b6ef982f02",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_min2020::humidity_stability_85rh,pvsk:pvsk_min2020::thermal_stability_150c,pvsk:pvsk_min2020::photostability_600h_mppt)",
+      "content_hash": "c4b16d0311a2e45fc8faabf21e7013b1c8224b254d7988cf4ca6d590286eb79e",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__conjunction_result_979091a3",
+      "label": "__conjunction_result_979091a3",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_min2020::humidity_stability_85rh,pvsk:pvsk_min2020::thermal_stability_150c,pvsk:pvsk_min2020::photostability_600h_mppt)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_d28985c37aee4247",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_min2020::__conjunction_result_979091a3,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "70876fedf6205f9dba0ac713de10ae2051276cc70eccb9c7a9b0b75ca949339c",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__implication_result_6dd2ba55",
+      "label": "__implication_result_6dd2ba55",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_min2020::__conjunction_result_979091a3,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_d28985c37aee4247",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_min2020::certified_23_7_pct,pvsk:pvsk_min2020::inherent_bandgap_preserved)",
+      "content_hash": "ee1392330760f2dfbba727d0c578ed829614a98989d707e79e533b18b74a7345",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__conjunction_result_cb5f9a7f",
+      "label": "__conjunction_result_cb5f9a7f",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_min2020::certified_23_7_pct,pvsk:pvsk_min2020::inherent_bandgap_preserved)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_1e3b82f9a259d1c5",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_min2020::__conjunction_result_cb5f9a7f,pvsk:pvsk_meta::p_viability)",
+      "content_hash": "12247b088676cf064e5986afa52307461ddb0d9431a3e8c3b94e297543ba9635",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__implication_result_d1614526",
+      "label": "__implication_result_d1614526",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_min2020::__conjunction_result_cb5f9a7f,pvsk:pvsk_meta::p_viability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_1e3b82f9a259d1c5",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_min2020::exp_context,pvsk:pvsk_min2020::uncertified_24_66_pct)",
+      "content_hash": "2152d3163970304bc66728360043c55aa161182b4f6e261fe4ee57327963c7cb",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__conjunction_result_77c8bc63",
+      "label": "__conjunction_result_77c8bc63",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_min2020::exp_context,pvsk:pvsk_min2020::uncertified_24_66_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_0ae070cbf447dbd6",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_min2020::__conjunction_result_77c8bc63,pvsk:pvsk_meta::p_industrialization)",
+      "content_hash": "a77503393390c5a08558f2d5e2aeefcf61931b2919539f8f3f75263dde06bd4b",
+      "exported": false,
+      "id": "pvsk:pvsk_min2020::__implication_result_865f273f",
+      "label": "__implication_result_865f273f",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_min2020::__conjunction_result_77c8bc63,pvsk:pvsk_meta::p_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_0ae070cbf447dbd6",
+        "owning_strategy_type": "support",
+        "prior": 0.55,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_min2020",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_min2020::alpha_phase_stabilization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_min2020::__implication_result_2e165946",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_min2020::mida_hbond_mechanism",
+              "pvsk:pvsk_min2020::alpha_phase_stabilization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "MDA2+ with more H atoms and divalent charge forms stronger H-bonds and ionic interactions with I- in the perovskite lattice, preventing the alpha-to-delta phase transition even under high humidity conditions"
+      },
+      "premises": [
+        "pvsk:pvsk_min2020::mida_hbond_mechanism"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_aaaa667feb023932",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_min2020::record_jsc_26_7",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_min2020::__conjunction_result_ae2543e6",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_min2020::alpha_phase_stabilization",
+              "pvsk:pvsk_min2020::inherent_bandgap_preserved"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_min2020::__implication_result_2636ee24",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_min2020::__conjunction_result_ae2543e6",
+              "pvsk:pvsk_min2020::record_jsc_26_7"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "Stable alpha-FAPbI3 with preserved narrow bandgap (~1.47 eV) enables broader solar absorption and higher Jsc than MAPbBr3-stabilized compositions that have widened bandgaps"
+      },
+      "premises": [
+        "pvsk:pvsk_min2020::alpha_phase_stabilization",
+        "pvsk:pvsk_min2020::inherent_bandgap_preserved"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_a89bcb23973d8952",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_min2020::certified_23_7_pct",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_min2020::__conjunction_result_8a4205c7",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_min2020::defect_density_low",
+              "pvsk:pvsk_min2020::cl_residue_at_interface",
+              "pvsk:pvsk_min2020::carrier_lifetime_1562_ns"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_min2020::__implication_result_5820cad5",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_min2020::__conjunction_result_8a4205c7",
+              "pvsk:pvsk_min2020::certified_23_7_pct"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.83,
+        "reason": "Low defect density, Cl-enhanced interface stability, and long carrier lifetime jointly contribute to high Voc, FF, and Jsc, yielding record PCE for mp-TiO2 devices"
+      },
+      "premises": [
+        "pvsk:pvsk_min2020::defect_density_low",
+        "pvsk:pvsk_min2020::cl_residue_at_interface",
+        "pvsk:pvsk_min2020::carrier_lifetime_1562_ns"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_b91b4d4eff465fb5",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_min2020::humidity_stability_85rh",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_min2020::__conjunction_result_e452e1fb",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_min2020::alpha_phase_stabilization",
+              "pvsk:pvsk_min2020::cl_residue_at_interface"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_min2020::__implication_result_d9ee87d0",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_min2020::__conjunction_result_e452e1fb",
+              "pvsk:pvsk_min2020::humidity_stability_85rh"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Phase-stable alpha-FAPbI3 resists humidity-induced degradation, and Cl at the TiO2 interface further enhances stability against environmental stress"
+      },
+      "premises": [
+        "pvsk:pvsk_min2020::alpha_phase_stabilization",
+        "pvsk:pvsk_min2020::cl_residue_at_interface"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_3557fa07909a5e71",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_min2020::thermal_stability_150c",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_min2020::__implication_result_0cee02f3",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_min2020::alpha_phase_stabilization",
+              "pvsk:pvsk_min2020::thermal_stability_150c"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "MA-free composition eliminates the volatile MA+ cation, while MDA2+ with stronger ionic bonding maintains structural integrity at 150C"
+      },
+      "premises": [
+        "pvsk:pvsk_min2020::alpha_phase_stabilization"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_ff9e02640b0f559b",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_min2020::photostability_600h_mppt",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_min2020::__conjunction_result_078d3833",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_min2020::cl_residue_at_interface",
+              "pvsk:pvsk_min2020::alpha_phase_stabilization"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_min2020::__implication_result_6de92154",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_min2020::__conjunction_result_078d3833",
+              "pvsk:pvsk_min2020::photostability_600h_mppt"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "High Cl concentration at the TiO2/perovskite interface suppresses photocatalytic degradation, and alpha-phase stability prevents light-induced phase transitions even without UV filtering"
+      },
+      "premises": [
+        "pvsk:pvsk_min2020::cl_residue_at_interface",
+        "pvsk:pvsk_min2020::alpha_phase_stabilization"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_10d20d692301cc8b",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_min2020::__conjunction_result_9c5b3254",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_min2020::certified_23_7_pct",
+              "pvsk:pvsk_min2020::record_jsc_26_7"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_min2020::__implication_result_00c233fd",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_min2020::__conjunction_result_9c5b3254",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "Certified 23.7% PCE with record Jsc demonstrates that using the inherent bandgap of alpha-FAPbI3 enables commercially competitive efficiency without bandgap-widening additives"
+      },
+      "premises": [
+        "pvsk:pvsk_min2020::certified_23_7_pct",
+        "pvsk:pvsk_min2020::record_jsc_26_7"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_ebe520df0acaeae7",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_min2020::__conjunction_result_f9f85e5a",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_min2020::inherent_bandgap_preserved",
+              "pvsk:pvsk_min2020::mida_hbond_mechanism"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_min2020::__implication_result_5097052e",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_min2020::__conjunction_result_f9f85e5a",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "Doping with divalent diammonium cations to stabilize the alpha-phase while preserving the optimal bandgap represents a new materials engineering pathway for efficiency improvement"
+      },
+      "premises": [
+        "pvsk:pvsk_min2020::inherent_bandgap_preserved",
+        "pvsk:pvsk_min2020::mida_hbond_mechanism"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_a289d0b6ef982f02",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_min2020::__conjunction_result_979091a3",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_min2020::humidity_stability_85rh",
+              "pvsk:pvsk_min2020::thermal_stability_150c",
+              "pvsk:pvsk_min2020::photostability_600h_mppt"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_min2020::__implication_result_6dd2ba55",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_min2020::__conjunction_result_979091a3",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "Simultaneous humidity, thermal, and photostability improvements through a single additive, with MA-free composition eliminating a key degradation pathway, demonstrates progress toward practical operational stability"
+      },
+      "premises": [
+        "pvsk:pvsk_min2020::humidity_stability_85rh",
+        "pvsk:pvsk_min2020::thermal_stability_150c",
+        "pvsk:pvsk_min2020::photostability_600h_mppt"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_d28985c37aee4247",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_viability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_min2020::__conjunction_result_cb5f9a7f",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_min2020::certified_23_7_pct",
+              "pvsk:pvsk_min2020::inherent_bandgap_preserved"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_min2020::__implication_result_d1614526",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_min2020::__conjunction_result_cb5f9a7f",
+              "pvsk:pvsk_meta::p_viability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "Achieving high efficiency from the pure FAPbI3 bandgap without relying on mixed cation/anion compositions simplifies the material system and strengthens the case for perovskite PV viability"
+      },
+      "premises": [
+        "pvsk:pvsk_min2020::certified_23_7_pct",
+        "pvsk:pvsk_min2020::inherent_bandgap_preserved"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_1e3b82f9a259d1c5",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_min2020::__conjunction_result_77c8bc63",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_min2020::exp_context",
+              "pvsk:pvsk_min2020::uncertified_24_66_pct"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_min2020::__implication_result_865f273f",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_min2020::__conjunction_result_77c8bc63",
+              "pvsk:pvsk_meta::p_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.55,
+        "reason": "Simple solution-processable additive compatible with existing anti-solvent fabrication methods and mesoporous TiO2 architecture, facilitating scale-up"
+      },
+      "premises": [
+        "pvsk:pvsk_min2020::exp_context",
+        "pvsk:pvsk_min2020::uncertified_24_66_pct"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_0ae070cbf447dbd6",
+      "type": "support"
+    }
+  ]
+}

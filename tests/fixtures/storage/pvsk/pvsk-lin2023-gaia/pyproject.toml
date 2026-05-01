@@ -1,0 +1,21 @@
+[project]
+name = "pvsk-lin2023-gaia"
+version = "1.0.0"
+description = "Lin et al. Nature 2023 — All-perovskite tandem 3D/3D"
+requires-python = ">=3.12"
+dependencies = [
+    "gaia-lang",
+    "pvsk-meta-gaia",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pvsk_lin2023"]
+
+[tool.gaia]
+namespace = "pvsk"
+type = "knowledge-package"
+uuid = "26170265-5aff-439e-a138-302ade0381cb"

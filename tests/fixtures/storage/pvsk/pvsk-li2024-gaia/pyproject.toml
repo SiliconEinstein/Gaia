@@ -1,0 +1,21 @@
+[project]
+name = "pvsk-li2024-gaia"
+version = "1.0.0"
+description = "Li et al. Nat Energy 2024 — Module passivation layer"
+requires-python = ">=3.12"
+dependencies = [
+    "gaia-lang",
+    "pvsk-meta-gaia",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pvsk_li2024"]
+
+[tool.gaia]
+namespace = "pvsk"
+type = "knowledge-package"
+uuid = "b9a4688d-a281-4659-871b-8db25e7baeb8"

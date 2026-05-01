@@ -1,0 +1,21 @@
+[project]
+name = "pvsk-liu2013-gaia"
+version = "1.0.0"
+description = "Liu et al. Nature 2013 — Planar heterojunction by vapour deposition >15%"
+requires-python = ">=3.12"
+dependencies = [
+    "gaia-lang",
+    "pvsk-meta-gaia",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pvsk_liu2013"]
+
+[tool.gaia]
+namespace = "pvsk"
+type = "knowledge-package"
+uuid = "f99e5c61-0d68-4a46-ba0e-563e0b43803b"

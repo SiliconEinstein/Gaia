@@ -1,0 +1,68 @@
+{
+  "holes": [
+    {
+      "content": "C60 is only weakly bonded to perovskite layers, inducing high energetic disorder between perovskite and C60 that limits device performance at elevated operating temperatures, and a thin C60 layer is insufficient to protect against moisture or oxygen ingress",
+      "content_hash": "a66c488885a0ebdfbd5f15ae66988daea470f622c7580a9cb393fa03e2432229",
+      "interface_hash": "sha256:5d7b5f0ee5d2d53823e047ce80257f1f4c58b80e84b8156f778cc02eddf5d864",
+      "label": "c60_weak_bonding_problem",
+      "qid": "pvsk:pvsk_lin2022::c60_weak_bonding_problem",
+      "required_by": [
+        "pvsk:pvsk_lin2022::cbm_alignment_with_c60"
+      ]
+    },
+    {
+      "content": "Oleylammonium iodide (OLAI) molecules applied as post-treatment on 3D perovskite surfaces form Ruddlesden-Popper-phase 2D perovskite layers; the dimensionality (n) is controlled by annealing conditions: thermal annealing (2D-TA) produces n=1 dominated layers, while room-temperature processing (2D-RT) yields mixed n=1 and n=2 layers with more pronounced n=2 character",
+      "content_hash": "5fd59fe5a30fa5b7ed5636659c3bf2a90a9b2aa8736fc028d6fe9e65dd586304",
+      "interface_hash": "sha256:ef244b5607fe30c68391ad4c27e2e77938cc2b81eccf1dcb1002f715a4522bab",
+      "label": "olai_passivation",
+      "qid": "pvsk:pvsk_lin2022::olai_passivation",
+      "required_by": [
+        "pvsk:pvsk_lin2022::damp_heat_t95_over_1000h"
+      ]
+    },
+    {
+      "content": "2D-passivated devices exhibit longer charge recombination lifetime and lower ideality factor than control devices, confirming reduced trap-assisted recombination at 3D/C60 interfaces",
+      "content_hash": "26c4d5eacfafabbc0274cc3c14a7834c746f7c925fcc74fc7750db79b9c67820",
+      "interface_hash": "sha256:570eb0c430d4568784261176823f50eb6868d1ca6aa3d18d9f9bc71f83eca2e0",
+      "label": "reduced_trap_recombination",
+      "qid": "pvsk:pvsk_lin2022::reduced_trap_recombination",
+      "required_by": [
+        "pvsk:pvsk_lin2022::pce_24_3_pct"
+      ]
+    },
+    {
+      "content": "Room-temperature OLAI processing (2D-RT) forms higher-dimensionality 2D perovskite layers (n=1 and n=2 mixed, with more pronounced n=2) while thermal annealing (2D-TA) produces only n=1 layers; higher-n layers have lower formation energy and better electronic alignment with C60",
+      "content_hash": "d9d5bc52e3850698dc248948b40b76623426cbc50ed92f7b6cb2fa5b08cc57b7",
+      "interface_hash": "sha256:cbdc00be5e3e2486061c5f81a1348904b0e65bdb204d68ce49001f05bbe1201c",
+      "label": "room_temp_higher_dimensionality",
+      "qid": "pvsk:pvsk_lin2022::room_temp_higher_dimensionality",
+      "required_by": [
+        "pvsk:pvsk_lin2022::energy_loss_0_34_ev"
+      ]
+    },
+    {
+      "content": "No substantial change in structural and optical properties of 2D perovskite passivation films (both 3D and 2D perovskites) after >500 hours of thermal annealing at 85C under dark conditions, confirming robustness of the 2D passivation approach",
+      "content_hash": "2cf67d51ac1e6cf26bbfe5b301df6031841c4f60350b02e134eb0a65ab1044cf",
+      "interface_hash": "sha256:a54c97343be5a6f43734c7d750bc7eaf2cf1bba545a0030d8f0969df6c7624d5",
+      "label": "structural_robustness_500h_85c",
+      "qid": "pvsk:pvsk_lin2022::structural_robustness_500h_85c",
+      "required_by": [
+        "pvsk:pvsk_lin2022::damp_heat_t95_over_1000h"
+      ]
+    },
+    {
+      "content": "The OLAI 2D-RT passivation approach is universal across various perovskite compositions (various bandgaps) and deposition techniques (one-step, two-step, blade-coating), yielding systematic absolute PCE enhancement of 1.5-2.0%",
+      "content_hash": "0c7b84113d439963014ecd8ed288bbdfdb05471bf0e59a3660bf5d28fc2f77aa",
+      "interface_hash": "sha256:5d0a7500c81abca910dec64e4e7809857c47b71c09797901331f51c892b9077a",
+      "label": "universal_passivation",
+      "qid": "pvsk:pvsk_lin2022::universal_passivation",
+      "required_by": [
+        "pvsk:pvsk_lin2022::reproducibility_high"
+      ]
+    }
+  ],
+  "ir_hash": "sha256:d7f13c224ab5ec93926b4fb5c44680e1050ed97830e113d866241f250e1662e9",
+  "manifest_schema_version": 1,
+  "package": "pvsk-lin2022",
+  "version": "1.0.0"
+}

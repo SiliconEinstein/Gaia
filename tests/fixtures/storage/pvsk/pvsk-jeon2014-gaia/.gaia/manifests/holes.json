@@ -1,0 +1,68 @@
+{
+  "holes": [
+    {
+      "content": "The bilayer architecture combining mesoscopic mp-TiO2-perovskite nanocomposite base with a planar perovskite upper layer (100-300 nm) effectively absorbs light and collects charges, merging advantages of mesoscopic and planar structures",
+      "content_hash": "aa339b9992e2195e20c06af5111a88f800f07172114aa75c42973dcd343973bc",
+      "interface_hash": "sha256:b378abd87f0d05fd73a393f7feb9dfb359196502fffda5d7cb8f45f5672dc003",
+      "label": "bilayer_architecture",
+      "qid": "pvsk:pvsk_jeon2014::bilayer_architecture",
+      "required_by": [
+        "pvsk:pvsk_jeon2014::pce_certified_16_2"
+      ]
+    },
+    {
+      "content": "Substituting 10-15 mol% Br- for I- in MAPbI3 greatly improves stability in ambient atmosphere while the dual halide material demonstrates similar photovoltaic performance over the compositional range",
+      "content_hash": "1aae12ed4a3304b56fcb92904c3a1a3a2d9c67ea5a030a852d75941e85a12d3a",
+      "interface_hash": "sha256:95004a9e1d487fbd2dc3a2bbe55361112a8ee876201a9023c063185a7ecce302",
+      "label": "br_improves_ambient_stability",
+      "qid": "pvsk:pvsk_jeon2014::br_improves_ambient_stability",
+      "required_by": [
+        "pvsk:pvsk_jeon2014::pce_certified_16_2"
+      ]
+    },
+    {
+      "content": "DMSO in the MAI-PbI2-DMSO intermediate phase retards the rapid reaction between PbI2 and MAI during solvent evaporation, enabling controlled crystallization and uniform film formation",
+      "content_hash": "85e2ad0778f35caa6a38b945ff048ceab768184a7c810e98587a875cc0e806b5",
+      "interface_hash": "sha256:d873c1635c31a01cc9fc423b97c2430a7f593bcea55207e71312c391aba98ed8",
+      "label": "dmpso_retards_reaction",
+      "qid": "pvsk:pvsk_jeon2014::dmpso_retards_reaction",
+      "required_by": [
+        "pvsk:pvsk_jeon2014::rms_roughness_6nm"
+      ]
+    },
+    {
+      "content": "The MAI-PbI2-DMSO intermediate phase is a new crystalline compound (confirmed by XRD peaks at 6.55, 7.21, and 9.17 degrees and FTIR showing both N-H and S-O deformation modes) that converts to perovskite upon annealing at 130C",
+      "content_hash": "790bcef2123127758770758feb58c235ce5091107e965e5ab7f796f13cb096f5",
+      "interface_hash": "sha256:eed4916eada9b1cbe7151badfc090c9a22d6bd314a56471dc68350fcf449d5df",
+      "label": "intermediate_phase",
+      "qid": "pvsk:pvsk_jeon2014::intermediate_phase",
+      "required_by": [
+        "pvsk:pvsk_jeon2014::rms_roughness_6nm"
+      ]
+    },
+    {
+      "content": "Poly(triarylamine) (PTAA) used as hole-transporting material achieves high performance in combination with the bilayer perovskite architecture, enabling the certified 16.2% PCE",
+      "content_hash": "213a4273dd95cb86b1d34b7fc4aa7fe6164e086f9948ffe4c3b158e9dfb0d38c",
+      "interface_hash": "sha256:6ad911fbc35f499a062f1b05ae64be7c3bf82f4562a721e80162215047a5585f",
+      "label": "ptaa_htm",
+      "qid": "pvsk:pvsk_jeon2014::ptaa_htm",
+      "required_by": [
+        "pvsk:pvsk_jeon2014::pce_certified_16_2"
+      ]
+    },
+    {
+      "content": "Without toluene drop-casting, the film adopts a textile-like inhomogeneous layer that does not fully cover the substrate. The toluene drip is critically important for producing uniform, dense, and fully covering perovskite films",
+      "content_hash": "793df184d9a85843f852845d59f34a947a76b58f8606712438416da30859f552",
+      "interface_hash": "sha256:6984fc96b7429bbb3f14ee17d82c0f7b2e549df4ef186426f96d7aff2fcba882",
+      "label": "toluene_critical",
+      "qid": "pvsk:pvsk_jeon2014::toluene_critical",
+      "required_by": [
+        "pvsk:pvsk_jeon2014::rms_roughness_6nm"
+      ]
+    }
+  ],
+  "ir_hash": "sha256:2a8223d4aa64a12945a50f1ae340fd99365554422d6a135c0d5e1460f69884cf",
+  "manifest_schema_version": 1,
+  "package": "pvsk-jeon2014",
+  "version": "1.0.0"
+}

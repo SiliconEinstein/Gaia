@@ -1,0 +1,21 @@
+[project]
+name = "pvsk-kojima2009-gaia"
+version = "1.0.0"
+description = "Kojima et al. JACS 2009 — First perovskite photovoltaic cell"
+requires-python = ">=3.12"
+dependencies = [
+    "gaia-lang",
+    "pvsk-meta-gaia",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pvsk_kojima2009"]
+
+[tool.gaia]
+namespace = "pvsk"
+type = "knowledge-package"
+uuid = "cd7f4cc6-2330-4a71-b528-512b1eed43e7"

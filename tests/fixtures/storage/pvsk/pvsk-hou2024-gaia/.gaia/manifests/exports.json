@@ -1,0 +1,106 @@
+{
+  "exports": [
+    {
+      "content": "The silicon bottom cell uses asymmetrically sized textures: mildly textured front surface (0.5-1 um pyramids) for solution-processed perovskite coverage, and heavily textured rear surface (>3 um pyramids) for uncompromised rear passivation and improved infrared response.",
+      "content_hash": "59c2229b923b3c99a7331301e8f3a78e689e308bbb835030eadcb0cacf4a6bdb",
+      "label": "asymmetric_texture",
+      "qid": "pvsk:pvsk_hou2024::asymmetric_texture",
+      "type": "setting"
+    },
+    {
+      "content": "The asymmetrically textured silicon wafer (small front pyramids, large rear pyramids) preserves minority carrier lifetime of 3.4 ms (comparable to 3.2 ms for standard double-sided texture) and improves infrared EQE response compared with double-sided mild texture",
+      "content_hash": "610e641b7ea029ff3366e285553937794b8a52a266e323b66cafdfb4cc061d32",
+      "label": "asymmetric_texture_benefit",
+      "qid": "pvsk:pvsk_hou2024::asymmetric_texture_benefit",
+      "type": "claim"
+    },
+    {
+      "content": "The bilayer-treated tandem devices achieve an average PCE exceeding 33% with some devices reaching above 33.8%, demonstrating excellent reproducibility at 1 cm2 scale",
+      "content_hash": "24a6f94a371df8138ab503ddee4e044ad249f6228113028e6fec8cd89ab065f1",
+      "label": "average_pce_33",
+      "qid": "pvsk:pvsk_hou2024::average_pce_33",
+      "type": "claim"
+    },
+    {
+      "content": "A bilayer interface passivation strategy combining nanoscale discretely distributed LiF ultrathin layer with diammonium diiodide (EDAI) molecule achieves optimal trade-off between passivation and charge extraction at the perovskite/C60 interface",
+      "content_hash": "6ae2c3ff7b780441cf25eaba02cc53794346c3a93417476f82d799710e91b10c",
+      "label": "bilayer_passivation",
+      "qid": "pvsk:pvsk_hou2024::bilayer_passivation",
+      "type": "claim"
+    },
+    {
+      "content": "The perovskite/silicon tandem achieves an independently certified stabilized PCE of 33.89% with FF of 83.0% and Voc of nearly 1.97 V, the first double-junction tandem exceeding the single-junction Shockley-Queisser limit of 33.7%",
+      "content_hash": "186690cf0e9e7f0266bf5e81580038d6115e665b5bfdc642b9030d4fdbf64260",
+      "label": "certified_33_89",
+      "qid": "pvsk:pvsk_hou2024::certified_33_89",
+      "type": "claim"
+    },
+    {
+      "content": "The champion tandem cell achieves an in-house PCE of 34.1% with Jsc of 20.68 mA cm-2, Voc of 1.980 V, and FF of 83.2%",
+      "content_hash": "c0077ce83736639a44efd91f3ef41df329151e23e50b77a93e38df1c21cc1d5e",
+      "label": "champion_34_1",
+      "qid": "pvsk:pvsk_hou2024::champion_34_1",
+      "type": "claim"
+    },
+    {
+      "content": "DFT calculations show EDA2+ has binding energies of -6.6 and -8.4 eV on FAI-rich and PbI2-rich FAPbI3 surfaces respectively, substantially larger than monoammonium PA+, and adopts a horizontal bridge-like configuration that maximizes out-of-plane charge transport",
+      "content_hash": "4b32b09b2a86b073a158d39e6402fa94a794da32a5dfd40b0f3dedea62851c21",
+      "label": "dft_binding_energy",
+      "qid": "pvsk:pvsk_hou2024::dft_binding_energy",
+      "type": "claim"
+    },
+    {
+      "content": "EDAI molecules chemically passivate uncoordinated Pb2+ surface defects by forming coordinate bonds, eliminating metallic Pb(0) peaks observed in XPS, while LiF alone does not provide this chemical passivation",
+      "content_hash": "0c7e7e12d2bcb1efdaa903c9cd9823dc70126da6f4a4a9eeb0a8cd615408fefe",
+      "label": "edai_chemical_passivation",
+      "qid": "pvsk:pvsk_hou2024::edai_chemical_passivation",
+      "type": "claim"
+    },
+    {
+      "content": "Two-terminal monolithic perovskite/silicon tandem solar cells built on double-side-textured Czochralski-based silicon heterojunction cells. Perovskite bandgap 1.69 eV. Inverted p-i-n configuration. Device area 1.0 cm2. NREL-certified performance.",
+      "content_hash": "0125513cb38bc73b86f81a487fa20517600f19f5cb89b2cafb2a3537910fe7c8",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_hou2024::exp_context",
+      "type": "setting"
+    },
+    {
+      "content": "The LiF and EDAI layers are intertwined at the nanoscale: the discontinuous LiF layer allows EDAI to locally contact the perovskite surface, creating nanoscale localized contacts that balance electron tunnelling (through LiF) with direct transport (through EDAI/C60)",
+      "content_hash": "defc5b1a46d6818786669fc4f1336eb027be35c30bfd8f6d0a74159400871931",
+      "label": "intertwined_structure",
+      "qid": "pvsk:pvsk_hou2024::intertwined_structure",
+      "type": "claim"
+    },
+    {
+      "content": "The bilayer-treated tandem retains approximately 80% of initial PCE after 1200 hours of MPP tracking under simulated 1-sun at room temperature, compared with less than 60% for LiF-treated control",
+      "content_hash": "21f36e8ba2f81b1287ac7fc0c8504e7dd871b2aaadeb14393d794ba40d0e2ccf",
+      "label": "mppt_stability_1200h",
+      "qid": "pvsk:pvsk_hou2024::mppt_stability_1200h",
+      "type": "claim"
+    },
+    {
+      "content": "This work represents the first reported certified efficiency of a two-junction tandem solar cell exceeding the single-junction Shockley-Queisser limit of 33.7%, confirming the fundamental advantage of multi-junction architectures",
+      "content_hash": "797845c229c18b68a8ac9db80b7080a3a1eeded9ebfbcd40ff10025fa09520e9",
+      "label": "sq_limit_breakthrough",
+      "qid": "pvsk:pvsk_hou2024::sq_limit_breakthrough",
+      "type": "claim"
+    },
+    {
+      "content": "Devices with LiF/EDAI bilayer passivation retain approximately 90% of original PCE after 53 days of air storage, compared with 82% for LiF-treated control devices",
+      "content_hash": "ac3926c2ad14ebb8f082c13271f3f872341d310c4e7552cb457bd236c917eb76",
+      "label": "storage_stability",
+      "qid": "pvsk:pvsk_hou2024::storage_stability",
+      "type": "claim"
+    },
+    {
+      "content": "The bilayer passivation improves average Voc from below 1.90 V (unpassivated) to 1.96 V (LiF/EDAI), and FF from 76.2% to 80.8% for single-junction perovskite devices",
+      "content_hash": "94595724bc93f627cd47c5765be11fa2b9068d4610518b43b356b146dbe80af7",
+      "label": "voc_progression",
+      "qid": "pvsk:pvsk_hou2024::voc_progression",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:3dd47a1a2fa0f5954741b775107617f28c3851df73583d4e796d18f60b580275",
+  "manifest_schema_version": 1,
+  "package": "pvsk-hou2024",
+  "version": "1.0.0"
+}

@@ -1,0 +1,782 @@
+{
+  "ir_hash": "sha256:b7170da61e690f45ed7c66af7318f74b6f1fe31ebbb62418776fe33ad8edffa8",
+  "knowledges": [
+    {
+      "content": "Bifacial perovskite minimodules using p-i-n architecture with PTAA/C60 as HTL/ETL. Perovskite compositions MA0.7FA0.3PbI3 and FA0.92Cs0.08PbI3. Aperture areas of 14.3-25.1 cm2. ITO rear electrode with Ag grids, ALD SnO2 buffer layer. Blade-coated at room temperature in ambient air.",
+      "content_hash": "f5704e1f32336efa434034a70f1ec9b9526247861ae973622d58c5d4ebf93515",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_gu2023::exp_context",
+      "label": "exp_context",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Bifacial modules harvest reflected and diffused sunlight from the rear side, gaining 5-30% more power than monofacial modules depending on albedo. Average albedo of 0.2 or higher is common in many locations.",
+      "content_hash": "58bb8d89986af3ec0501f79d3034f9cc301741ad80d85aaf725f53fb3803f7cd",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_gu2023::bifacial_advantage",
+      "label": "bifacial_advantage",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Bifacial perovskite minimodules achieve a front aperture efficiency of 20.2% and rear aperture efficiency of 15.0%, with NREL-certified stabilized front efficiency of 19.2% and rear efficiency of 14.1%",
+      "content_hash": "65cf32a5e5431786ecf92276c0660a311e31d274cf67be7d24e7b856f17ad4ac",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_gu2023::bifacial_front_20",
+      "label": "bifacial_front_20",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "title": "bifacial_minimodule_20_front",
+      "type": "claim"
+    },
+    {
+      "content": "Bifacial minimodules achieve a power-generation density of over 23 mW cm-2 at albedo of 0.2, higher than the best certified monofacial modules, and up to 24.7 mW cm-2 at albedo of 0.3",
+      "content_hash": "a3eafac6e8a68f3576e4b783755942fc55ca2392479a0816908dd31470b55bff",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_gu2023::power_generation_density",
+      "label": "power_generation_density",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "bifacial_pgd_23_mw",
+      "type": "claim"
+    },
+    {
+      "content": "Small-area single-junction bifacial PSCs achieve a power-generation density of 26.4 mW cm-2 under 1 sun and albedo of 0.2",
+      "content_hash": "4174d0d7dae1bb78e11dff1a18d7a7ce22e4b49ec014fdaa66d6e59addadaf8e",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_gu2023::small_cell_264_pgd",
+      "label": "small_cell_264_pgd",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "small_cell_264_pgd",
+      "type": "claim"
+    },
+    {
+      "content": "Bifacial minimodules retain 97% of initial PCE after over 6000 hours of light soaking under 1 sun at 60+/-5 C, the most stable reported perovskite minimodule at the time of publication",
+      "content_hash": "38b8b711e11991a1b5bb6b50ebace7bf5df04578e69a49d63253db99bb15c021",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_gu2023::light_soaking_6000h",
+      "label": "light_soaking_6000h",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "title": "light_soaking_6000h_t97",
+      "type": "claim"
+    },
+    {
+      "content": "Bifacial minimodules maintain approximately 84% of initial efficiency after damp-heat testing for over 1000 hours (85 C, 85% RH)",
+      "content_hash": "f0428a490e4f7d0dd6d86fa58eab552fc6c20185485a1a0a7d6c6f3b5acbc083",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_gu2023::damp_heat_1000h",
+      "label": "damp_heat_1000h",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "title": "damp_heat_1000h_84_percent",
+      "type": "claim"
+    },
+    {
+      "content": "Adding hydrophobic tris(pentafluorophenyl)borane (TPFB) to the PTAA hole transport layer spreads to the perovskite surface and significantly enhances moisture resistance during ALD processing, improving device reproducibility for large-area modules",
+      "content_hash": "33d60e3b5cad8f42319204b46456247c36be588a499129de33bd67fd5b13d417",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_gu2023::tpfb_moisture_protection",
+      "label": "tpfb_moisture_protection",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "title": "tpfb_moisture_protection",
+      "type": "claim"
+    },
+    {
+      "content": "Embedding 500 nm SiO2 nanoparticles in perovskite films recovers absorption loss from the absent reflective metal electrode by scattering red and NIR light, increasing Jsc by 0.8 mA cm-2 without introducing additional non-radiative recombination",
+      "content_hash": "cdbae616b3a4cc73d5cccc9826a07151e16124d22f09dd4732db6d52457fe1cf",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_gu2023::sio2_np_scattering",
+      "label": "sio2_np_scattering",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "sio2_np_light_scattering",
+      "type": "claim"
+    },
+    {
+      "content": "Optimally spaced silver grids (2 mm spacing) on the rear ITO electrode reduce resistance loss from 8.6% to less than 0.9% while maintaining bifaciality of 74.3%",
+      "content_hash": "d7cacee2cf74a6fa92dd17d70432a79dd3dbe38a8959a194d3120db88fb0fb8e",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_gu2023::ag_grid_optimization",
+      "label": "ag_grid_optimization",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "title": "ag_grid_optimization",
+      "type": "claim"
+    },
+    {
+      "content": "ALD SnO2 buffer layer greatly reduces perovskite damage during laser scribing and stabilizes the C60/BCP interface by replacing the thermally unstable BCP layer",
+      "content_hash": "78712cc8bd33ea08e0b6b8490eefbd7f1b8317714b637c8c735efbbe775f9424",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_gu2023::ald_sno2_stability",
+      "label": "ald_sno2_stability",
+      "metadata": {
+        "prior": 0.75
+      },
+      "parameters": [],
+      "title": "ald_sno2_module_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Bifacial minimodules achieve a bifaciality of 74.3% and gain 15% more power output at albedo of 0.2 compared with monofacial modules",
+      "content_hash": "82de0e02c7c391fa4bc901cc593e9a494ef3a5e594e5d1b9b93ad54b066568fa",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_gu2023::bifaciality_74",
+      "label": "bifaciality_74",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "title": "bifaciality_74_percent",
+      "type": "claim"
+    },
+    {
+      "content": "Across eight bifacial minimodules with Ag grids, average front and rear aperture efficiencies reach 19.5% and 14.5% respectively, demonstrating good fabrication reproducibility",
+      "content_hash": "ff63a201032091361c7251ab1794d2d0d6e932e8b0856bb4664cb933d1fcd281",
+      "declaration_index": 12,
+      "exported": true,
+      "id": "pvsk:pvsk_gu2023::module_reproducibility",
+      "label": "module_reproducibility",
+      "metadata": {
+        "prior": 0.75
+      },
+      "parameters": [],
+      "title": "module_reproducibility",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "content_hash": "9603b55225f5e093d20a1194832c2b419389d6a83886f8b7841f0b9a65cc106f",
+      "declaration_index": 4,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "metadata": {
+        "prior": 0.15
+      },
+      "parameters": [],
+      "title": "p_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Organometal halide perovskites can function as viable photovoltaic absorbers",
+      "content_hash": "12183274605a4cdd79df4b632d2b0bc6c7bbfdfe0b389d5a86bd3d531fb560a3",
+      "declaration_index": 0,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_viability",
+      "label": "p_viability",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_viability",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_gu2023::tpfb_moisture_protection,pvsk:pvsk_gu2023::sio2_np_scattering,pvsk:pvsk_gu2023::ag_grid_optimization)",
+      "content_hash": "382a88dd5d1b69fa443733cba86e882093211879d061ca979899b2d5503ca31e",
+      "exported": false,
+      "id": "pvsk:pvsk_gu2023::__conjunction_result_28dfe287",
+      "label": "__conjunction_result_28dfe287",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_gu2023::tpfb_moisture_protection,pvsk:pvsk_gu2023::sio2_np_scattering,pvsk:pvsk_gu2023::ag_grid_optimization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_a2a9a2534ac4f148",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_gu2023::__conjunction_result_28dfe287,pvsk:pvsk_gu2023::bifacial_front_20)",
+      "content_hash": "3ff309010fcc9758d61f4c4b2d534381859a07f7d88f584f57c3fee7734e6ca1",
+      "exported": false,
+      "id": "pvsk:pvsk_gu2023::__implication_result_91c2e208",
+      "label": "__implication_result_91c2e208",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_gu2023::__conjunction_result_28dfe287,pvsk:pvsk_gu2023::bifacial_front_20)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_a2a9a2534ac4f148",
+        "owning_strategy_type": "support",
+        "prior": 0.78,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_gu2023::bifacial_front_20,pvsk:pvsk_gu2023::bifaciality_74)",
+      "content_hash": "4b7cf40ca88a60c76c65beb241cfd4b47304293ed59ed2dcc37eb4d95e43b47e",
+      "exported": false,
+      "id": "pvsk:pvsk_gu2023::__conjunction_result_22cf3465",
+      "label": "__conjunction_result_22cf3465",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_gu2023::bifacial_front_20,pvsk:pvsk_gu2023::bifaciality_74)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_123d7e5346ebc933",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_gu2023::__conjunction_result_22cf3465,pvsk:pvsk_gu2023::power_generation_density)",
+      "content_hash": "4049dfe6fefac0d2f6069072b8f319c0b6838798f84d9b804c41fc068c5eb0fa",
+      "exported": false,
+      "id": "pvsk:pvsk_gu2023::__implication_result_39c46ff2",
+      "label": "__implication_result_39c46ff2",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_gu2023::__conjunction_result_22cf3465,pvsk:pvsk_gu2023::power_generation_density)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_123d7e5346ebc933",
+        "owning_strategy_type": "support",
+        "prior": 0.78,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_gu2023::ald_sno2_stability,pvsk:pvsk_gu2023::tpfb_moisture_protection)",
+      "content_hash": "11059e09d9b9cd181b478b7a090458e56450335ecf75d8dab126eae4464ea83e",
+      "exported": false,
+      "id": "pvsk:pvsk_gu2023::__conjunction_result_c4c454c8",
+      "label": "__conjunction_result_c4c454c8",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_gu2023::ald_sno2_stability,pvsk:pvsk_gu2023::tpfb_moisture_protection)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_6de2d335dc1320ee",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_gu2023::__conjunction_result_c4c454c8,pvsk:pvsk_gu2023::light_soaking_6000h)",
+      "content_hash": "4b2cda1579dfdada23e418a8fe3f80776815046d2a1ebd888b2e9744fc728692",
+      "exported": false,
+      "id": "pvsk:pvsk_gu2023::__implication_result_7e6d300e",
+      "label": "__implication_result_7e6d300e",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_gu2023::__conjunction_result_c4c454c8,pvsk:pvsk_gu2023::light_soaking_6000h)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_6de2d335dc1320ee",
+        "owning_strategy_type": "support",
+        "prior": 0.75,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_gu2023::bifacial_front_20,pvsk:pvsk_gu2023::power_generation_density)",
+      "content_hash": "89e32130d823686e79225ac64c492ca59a5d40df2f169c0d7ea3b53465c839a6",
+      "exported": false,
+      "id": "pvsk:pvsk_gu2023::__conjunction_result_dd486d0f",
+      "label": "__conjunction_result_dd486d0f",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_gu2023::bifacial_front_20,pvsk:pvsk_gu2023::power_generation_density)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_fa0226207fbabd44",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_gu2023::__conjunction_result_dd486d0f,pvsk:pvsk_meta::p_industrialization)",
+      "content_hash": "2fc4c8f98d271e153fd0e2c8570d9d8a1b06d0a489f353272233762a1a174472",
+      "exported": false,
+      "id": "pvsk:pvsk_gu2023::__implication_result_c9321a65",
+      "label": "__implication_result_c9321a65",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_gu2023::__conjunction_result_dd486d0f,pvsk:pvsk_meta::p_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_fa0226207fbabd44",
+        "owning_strategy_type": "support",
+        "prior": 0.75,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_gu2023::light_soaking_6000h,pvsk:pvsk_gu2023::damp_heat_1000h)",
+      "content_hash": "bc7d971e0ba6e35abf0307d2447016f8f2d1b7192085c062216206d2ed33d2ee",
+      "exported": false,
+      "id": "pvsk:pvsk_gu2023::__conjunction_result_b6a5bc81",
+      "label": "__conjunction_result_b6a5bc81",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_gu2023::light_soaking_6000h,pvsk:pvsk_gu2023::damp_heat_1000h)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_be777902d568de05",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_gu2023::__conjunction_result_b6a5bc81,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "2505087a37e0239240a6f97234e4d797ef7a1044c1792fb1c7b1edd4cfffadd7",
+      "exported": false,
+      "id": "pvsk:pvsk_gu2023::__implication_result_17cbaeb0",
+      "label": "__implication_result_17cbaeb0",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_gu2023::__conjunction_result_b6a5bc81,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_be777902d568de05",
+        "owning_strategy_type": "support",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_gu2023::bifacial_front_20,pvsk:pvsk_gu2023::small_cell_264_pgd)",
+      "content_hash": "7ff7b3c9bb8070ac3b406d97972badcf04feb20f953d1c8276e883a95796636d",
+      "exported": false,
+      "id": "pvsk:pvsk_gu2023::__conjunction_result_2ca3de99",
+      "label": "__conjunction_result_2ca3de99",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_gu2023::bifacial_front_20,pvsk:pvsk_gu2023::small_cell_264_pgd)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_c8ba8f216c634e17",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_gu2023::__conjunction_result_2ca3de99,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "339148155387f19c100506d2dd838d8b5680749f0a6af19bacf4a90b37bb0bc1",
+      "exported": false,
+      "id": "pvsk:pvsk_gu2023::__implication_result_dec79840",
+      "label": "__implication_result_dec79840",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_gu2023::__conjunction_result_2ca3de99,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_c8ba8f216c634e17",
+        "owning_strategy_type": "support",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_gu2023::light_soaking_6000h,pvsk:pvsk_gu2023::bifacial_front_20)",
+      "content_hash": "2fdda9e6fd90669bd77792ac8b56e1d3c66f6a250559d1cca67b68a3daf01337",
+      "exported": false,
+      "id": "pvsk:pvsk_gu2023::__conjunction_result_b5135d2f",
+      "label": "__conjunction_result_b5135d2f",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_gu2023::light_soaking_6000h,pvsk:pvsk_gu2023::bifacial_front_20)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_2237623187ab60ab",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_gu2023::__conjunction_result_b5135d2f,pvsk:pvsk_meta::p_viability)",
+      "content_hash": "bfdf6b2baa27d0b7fe9f9ae89ebd23421f59cc4d8aadbea2075c33c006d89766",
+      "exported": false,
+      "id": "pvsk:pvsk_gu2023::__implication_result_38c47d79",
+      "label": "__implication_result_38c47d79",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_gu2023::__conjunction_result_b5135d2f,pvsk:pvsk_meta::p_viability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_2237623187ab60ab",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_gu2023",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_gu2023::bifacial_front_20",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_gu2023::__conjunction_result_28dfe287",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_gu2023::tpfb_moisture_protection",
+              "pvsk:pvsk_gu2023::sio2_np_scattering",
+              "pvsk:pvsk_gu2023::ag_grid_optimization"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_gu2023::__implication_result_91c2e208",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_gu2023::__conjunction_result_28dfe287",
+              "pvsk:pvsk_gu2023::bifacial_front_20"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.78,
+        "reason": "Three innovations address the key challenges of bifacial modules: moisture protection (TPFB), light absorption recovery (SiO2 NPs), and resistance reduction (Ag grids), enabling front efficiency matching monofacial modules"
+      },
+      "premises": [
+        "pvsk:pvsk_gu2023::tpfb_moisture_protection",
+        "pvsk:pvsk_gu2023::sio2_np_scattering",
+        "pvsk:pvsk_gu2023::ag_grid_optimization"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_a2a9a2534ac4f148",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_gu2023::power_generation_density",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_gu2023::__conjunction_result_22cf3465",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_gu2023::bifacial_front_20",
+              "pvsk:pvsk_gu2023::bifaciality_74"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_gu2023::__implication_result_39c46ff2",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_gu2023::__conjunction_result_22cf3465",
+              "pvsk:pvsk_gu2023::power_generation_density"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.78,
+        "reason": "Combining high front efficiency with good bifaciality yields power-generation density exceeding monofacial modules"
+      },
+      "premises": [
+        "pvsk:pvsk_gu2023::bifacial_front_20",
+        "pvsk:pvsk_gu2023::bifaciality_74"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_123d7e5346ebc933",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_gu2023::light_soaking_6000h",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_gu2023::__conjunction_result_c4c454c8",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_gu2023::ald_sno2_stability",
+              "pvsk:pvsk_gu2023::tpfb_moisture_protection"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_gu2023::__implication_result_7e6d300e",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_gu2023::__conjunction_result_c4c454c8",
+              "pvsk:pvsk_gu2023::light_soaking_6000h"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.75,
+        "reason": "ALD SnO2 prevents scribing damage and stabilizes interfaces, while TPFB enhances moisture resistance, together enabling record minimodule operational stability"
+      },
+      "premises": [
+        "pvsk:pvsk_gu2023::ald_sno2_stability",
+        "pvsk:pvsk_gu2023::tpfb_moisture_protection"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_6de2d335dc1320ee",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_gu2023::__conjunction_result_dd486d0f",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_gu2023::bifacial_front_20",
+              "pvsk:pvsk_gu2023::power_generation_density"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_gu2023::__implication_result_c9321a65",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_gu2023::__conjunction_result_dd486d0f",
+              "pvsk:pvsk_meta::p_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.75,
+        "reason": "Demonstration of large-area (20+ cm2) bifacial minimodules fabricated by blade coating at room temperature with certified efficiency validates scalable manufacturing approaches"
+      },
+      "premises": [
+        "pvsk:pvsk_gu2023::bifacial_front_20",
+        "pvsk:pvsk_gu2023::power_generation_density"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_fa0226207fbabd44",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_gu2023::__conjunction_result_b6a5bc81",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_gu2023::light_soaking_6000h",
+              "pvsk:pvsk_gu2023::damp_heat_1000h"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_gu2023::__implication_result_17cbaeb0",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_gu2023::__conjunction_result_b6a5bc81",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "6000 hours of light soaking (T97) and 1000 hours of damp-heat testing demonstrate module-level stability meeting industrial requirements"
+      },
+      "premises": [
+        "pvsk:pvsk_gu2023::light_soaking_6000h",
+        "pvsk:pvsk_gu2023::damp_heat_1000h"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_be777902d568de05",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_gu2023::__conjunction_result_2ca3de99",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_gu2023::bifacial_front_20",
+              "pvsk:pvsk_gu2023::small_cell_264_pgd"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_gu2023::__implication_result_dec79840",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_gu2023::__conjunction_result_2ca3de99",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "Bifacial architecture achieves equivalent front efficiency to monofacial modules with additional rear-side energy harvesting, yielding higher effective power-generation density"
+      },
+      "premises": [
+        "pvsk:pvsk_gu2023::bifacial_front_20",
+        "pvsk:pvsk_gu2023::small_cell_264_pgd"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_c8ba8f216c634e17",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_viability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_gu2023::__conjunction_result_b5135d2f",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_gu2023::light_soaking_6000h",
+              "pvsk:pvsk_gu2023::bifacial_front_20"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_gu2023::__implication_result_38c47d79",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_gu2023::__conjunction_result_b5135d2f",
+              "pvsk:pvsk_meta::p_viability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "Simultaneously achieving record minimodule stability and efficiency demonstrates practical viability of perovskite technology at the module level"
+      },
+      "premises": [
+        "pvsk:pvsk_gu2023::light_soaking_6000h",
+        "pvsk:pvsk_gu2023::bifacial_front_20"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_2237623187ab60ab",
+      "type": "support"
+    }
+  ]
+}

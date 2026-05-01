@@ -1,0 +1,783 @@
+{
+  "ir_hash": "sha256:32310b58df498d433b7141d3d5783e14d0953439ad49a3b5ac1e3cdb983261b8",
+  "knowledges": [
+    {
+      "content": "Perovskite solar cells fabricated with triple cation Cs/(MA/FA) compositions in mesoporous TiO2 architecture, measured under standard AM1.5G illumination",
+      "content_hash": "9d1b52b6fc2db0e7691455448c88efd6402b8448ac45d3186b38aa23d97a89b7",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_saliba2016::device_fabrication",
+      "label": "device_fabrication",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Adding inorganic cesium to FA/MA mixed perovskite compositions produces thermally more stable perovskites with fewer phase impurities",
+      "content_hash": "be755544f510c092040a0dace3b52f526ff0d00f9fcb2c89daf6a0170d998dd4",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_saliba2016::triple_cation_stable",
+      "label": "triple_cation_stable",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Triple cation Cs-containing perovskite compositions are less sensitive to processing conditions than binary FA/MA compositions, enabling more reproducible device fabrication",
+      "content_hash": "95067b57cf80308c97e44f4f4dc86f3abf6e45d84b3bffeb6788ead3c2750217",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_saliba2016::less_processing_sensitive",
+      "label": "less_processing_sensitive",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Triple cation perovskite solar cells achieve a stabilized power output of 21.1%, representing the highest stabilized efficiency at the time of publication",
+      "content_hash": "38bbb09c0517c6f9448d6ba4ba7434d3f66f37ae42c535bd45b8261b530ef04e",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_saliba2016::stabilized_output_21_1_pct",
+      "label": "stabilized_output_21_1_pct",
+      "metadata": {
+        "prior": 0.92
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Triple cation devices maintain approximately 18% efficiency after 250 hours under operational conditions, demonstrating improved stability",
+      "content_hash": "7e578d867ff4a45dbdcbb3762d1013a6f453c804e05cdfb8462f7637c5ed7a64",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_saliba2016::operational_18_pct_250h",
+      "label": "operational_18_pct_250h",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Cs incorporation suppresses the formation of the non-perovskite delta-phase in FAPbI3-based compositions, producing monomorphic phase-pure perovskite films",
+      "content_hash": "93a91824420442b25ba997425fb0a9f4d0a2edc8d2515c5a7b821497ac91b081",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_saliba2016::cesium_reduces_impurities",
+      "label": "cesium_reduces_impurities",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Triple cation devices show significantly improved batch-to-batch reproducibility compared to binary FA/MA compositions, with reduced standard deviation in PCE",
+      "content_hash": "a59b4763603205e733d36d5741ee966fa0094f4faf09df1204d3a8adfdc95f41",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_saliba2016::reproducibility_improved",
+      "label": "reproducibility_improved",
+      "metadata": {
+        "prior": 0.83
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The triple cation composition stabilizes the black perovskite phase at room temperature without requiring high-temperature annealing above 160C",
+      "content_hash": "adbd576e3f784c14bf7333765df6b715d1f14efe9d3ecbc0f651e5083a303e9a",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_saliba2016::black_phase_stable",
+      "label": "black_phase_stable",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Cs-containing perovskite films exhibit smoother, more uniform morphology with larger grain size compared to binary FA/MA films",
+      "content_hash": "b06d15cac4f6e3e43ac260884cf704546d3a84f4cf1e41865cf517b93cbc2033",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_saliba2016::morphology_improved",
+      "label": "morphology_improved",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The improved reproducibility, stability, and reduced processing sensitivity of triple cation compositions are key properties for industrialization of perovskite photovoltaics",
+      "content_hash": "99d8d7903787890ce17b0d05ca398bbd59a7c723643507eaad34bd4fc3323ede",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_saliba2016::key_for_industrialization",
+      "label": "key_for_industrialization",
+      "metadata": {
+        "prior": 0.7
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "content_hash": "9603b55225f5e093d20a1194832c2b419389d6a83886f8b7841f0b9a65cc106f",
+      "declaration_index": 4,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "metadata": {
+        "prior": 0.15
+      },
+      "parameters": [],
+      "title": "p_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_saliba2016::cesium_reduces_impurities,pvsk:pvsk_saliba2016::morphology_improved)",
+      "content_hash": "7132c4c2213249c9e3364c9cf2196d5a5452f49171f6a21cdcf188d095d95e4d",
+      "exported": false,
+      "id": "pvsk:pvsk_saliba2016::__conjunction_result_f76e98a7",
+      "label": "__conjunction_result_f76e98a7",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_saliba2016::cesium_reduces_impurities,pvsk:pvsk_saliba2016::morphology_improved)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_c26e96ff42530f27",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_saliba2016::__conjunction_result_f76e98a7,pvsk:pvsk_saliba2016::triple_cation_stable)",
+      "content_hash": "9c99c49ad868447eb26adf1ad0d77cb0d5dcfb44633211350cd25c799c9aeac7",
+      "exported": false,
+      "id": "pvsk:pvsk_saliba2016::__implication_result_a638776e",
+      "label": "__implication_result_a638776e",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_saliba2016::__conjunction_result_f76e98a7,pvsk:pvsk_saliba2016::triple_cation_stable)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_c26e96ff42530f27",
+        "owning_strategy_type": "support",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_saliba2016::triple_cation_stable,pvsk:pvsk_saliba2016::less_processing_sensitive)",
+      "content_hash": "2fe8e3cd2d802f915f21dba0a1935b56522a24277025b6fc362371771a20f7b6",
+      "exported": false,
+      "id": "pvsk:pvsk_saliba2016::__conjunction_result_308d61c8",
+      "label": "__conjunction_result_308d61c8",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_saliba2016::triple_cation_stable,pvsk:pvsk_saliba2016::less_processing_sensitive)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_c5c3dd8700dfb434",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_saliba2016::__conjunction_result_308d61c8,pvsk:pvsk_saliba2016::stabilized_output_21_1_pct)",
+      "content_hash": "76eee8dc1cccc8becb654e0ee1724092bb24e5e664e552f867d60daa5bdb6e39",
+      "exported": false,
+      "id": "pvsk:pvsk_saliba2016::__implication_result_d2fb3812",
+      "label": "__implication_result_d2fb3812",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_saliba2016::__conjunction_result_308d61c8,pvsk:pvsk_saliba2016::stabilized_output_21_1_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_c5c3dd8700dfb434",
+        "owning_strategy_type": "support",
+        "prior": 0.85,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_saliba2016::triple_cation_stable,pvsk:pvsk_saliba2016::black_phase_stable)",
+      "content_hash": "e402d09266de68f6762bb64b2641714cc6b87dc03b9bf2e7c270e079b7a4070c",
+      "exported": false,
+      "id": "pvsk:pvsk_saliba2016::__conjunction_result_dda11dc7",
+      "label": "__conjunction_result_dda11dc7",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_saliba2016::triple_cation_stable,pvsk:pvsk_saliba2016::black_phase_stable)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_42147a70f3052a04",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_saliba2016::__conjunction_result_dda11dc7,pvsk:pvsk_saliba2016::operational_18_pct_250h)",
+      "content_hash": "8ef1d4078e6f37b8c61854909eb10bfb56ccd8082d5d9e14df10a83cd5d88a38",
+      "exported": false,
+      "id": "pvsk:pvsk_saliba2016::__implication_result_a8e9ea7a",
+      "label": "__implication_result_a8e9ea7a",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_saliba2016::__conjunction_result_dda11dc7,pvsk:pvsk_saliba2016::operational_18_pct_250h)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_42147a70f3052a04",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_saliba2016::reproducibility_improved,pvsk:pvsk_saliba2016::less_processing_sensitive)",
+      "content_hash": "11cb6edb9118849a8185d11c45ae8b07948e43b883aeb5bdb3b72c165cc12fc5",
+      "exported": false,
+      "id": "pvsk:pvsk_saliba2016::__conjunction_result_219e4266",
+      "label": "__conjunction_result_219e4266",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_saliba2016::reproducibility_improved,pvsk:pvsk_saliba2016::less_processing_sensitive)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_8d3c1cabf3325769",
+        "owning_strategy_type": "deduction",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_saliba2016::__conjunction_result_219e4266,pvsk:pvsk_saliba2016::key_for_industrialization)",
+      "content_hash": "7abe89efe3e266e1c2d1400255a933e5292a3cfebbde5aca8d0e18bcae1ce633",
+      "exported": false,
+      "id": "pvsk:pvsk_saliba2016::__implication_result_b07c284c",
+      "label": "__implication_result_b07c284c",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_saliba2016::__conjunction_result_219e4266,pvsk:pvsk_saliba2016::key_for_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_8d3c1cabf3325769",
+        "owning_strategy_type": "deduction",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_saliba2016::stabilized_output_21_1_pct,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "6341639ee4e5146e3c4b210a2a678f7152d1ef30dcadcbe6bf497883d18443e6",
+      "exported": false,
+      "id": "pvsk:pvsk_saliba2016::__implication_result_24d42473",
+      "label": "__implication_result_24d42473",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_saliba2016::stabilized_output_21_1_pct,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_c118f7d5abdcf32f",
+        "owning_strategy_type": "support",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_saliba2016::operational_18_pct_250h,pvsk:pvsk_saliba2016::triple_cation_stable)",
+      "content_hash": "df597842062c98b3b7d9f4927cf9256eeca7f60caa4080c443f7cc8a395f6287",
+      "exported": false,
+      "id": "pvsk:pvsk_saliba2016::__conjunction_result_438f20d3",
+      "label": "__conjunction_result_438f20d3",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_saliba2016::operational_18_pct_250h,pvsk:pvsk_saliba2016::triple_cation_stable)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_6364b91b5692832d",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_saliba2016::__conjunction_result_438f20d3,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "6b54d32bf1a952b913908bf08dcb2a67f03deb3e2f8c06cc3284f96871016d3f",
+      "exported": false,
+      "id": "pvsk:pvsk_saliba2016::__implication_result_e79a5b63",
+      "label": "__implication_result_e79a5b63",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_saliba2016::__conjunction_result_438f20d3,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_6364b91b5692832d",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_saliba2016::reproducibility_improved,pvsk:pvsk_saliba2016::less_processing_sensitive)",
+      "content_hash": "11cb6edb9118849a8185d11c45ae8b07948e43b883aeb5bdb3b72c165cc12fc5",
+      "exported": false,
+      "id": "pvsk:pvsk_saliba2016::__conjunction_result_4a45dfbb",
+      "label": "__conjunction_result_4a45dfbb",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_saliba2016::reproducibility_improved,pvsk:pvsk_saliba2016::less_processing_sensitive)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_5538145ed13d7a1b",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_saliba2016::__conjunction_result_4a45dfbb,pvsk:pvsk_meta::p_industrialization)",
+      "content_hash": "d36e563f80655ac94a03f0a2bc42d60dd69631a6ad0aedff94e6b3a9dbd71b9e",
+      "exported": false,
+      "id": "pvsk:pvsk_saliba2016::__implication_result_89fc741d",
+      "label": "__implication_result_89fc741d",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_saliba2016::__conjunction_result_4a45dfbb,pvsk:pvsk_meta::p_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_5538145ed13d7a1b",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_saliba2016::cesium_reduces_impurities,pvsk:pvsk_saliba2016::morphology_improved,pvsk:pvsk_saliba2016::stabilized_output_21_1_pct)",
+      "content_hash": "cc501274ac371edce2c99ab47522758d108d476801d2a3814b4fdc2f20de3917",
+      "exported": false,
+      "id": "pvsk:pvsk_saliba2016::__conjunction_result_163ee9e9",
+      "label": "__conjunction_result_163ee9e9",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_saliba2016::cesium_reduces_impurities,pvsk:pvsk_saliba2016::morphology_improved,pvsk:pvsk_saliba2016::stabilized_output_21_1_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_3070ad704d43093f",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_saliba2016::__conjunction_result_163ee9e9,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "565ca174ff28d8259c7c53629bd56087fcfd83e79a521edc61ad8e2c443a5c58",
+      "exported": false,
+      "id": "pvsk:pvsk_saliba2016::__implication_result_91ca90d5",
+      "label": "__implication_result_91ca90d5",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_saliba2016::__conjunction_result_163ee9e9,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_3070ad704d43093f",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_saliba2016",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_saliba2016::triple_cation_stable",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_saliba2016::__conjunction_result_f76e98a7",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_saliba2016::cesium_reduces_impurities",
+              "pvsk:pvsk_saliba2016::morphology_improved"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_saliba2016::__implication_result_a638776e",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_saliba2016::__conjunction_result_f76e98a7",
+              "pvsk:pvsk_saliba2016::triple_cation_stable"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "Cs eliminates phase impurities and improves film morphology, yielding thermally stable perovskite compositions"
+      },
+      "premises": [
+        "pvsk:pvsk_saliba2016::cesium_reduces_impurities",
+        "pvsk:pvsk_saliba2016::morphology_improved"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_c26e96ff42530f27",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_saliba2016::stabilized_output_21_1_pct",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_saliba2016::__conjunction_result_308d61c8",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_saliba2016::triple_cation_stable",
+              "pvsk:pvsk_saliba2016::less_processing_sensitive"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_saliba2016::__implication_result_d2fb3812",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_saliba2016::__conjunction_result_308d61c8",
+              "pvsk:pvsk_saliba2016::stabilized_output_21_1_pct"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.85,
+        "reason": "Phase-pure stable compositions with reduced processing sensitivity enable consistent achievement of high stabilized efficiency"
+      },
+      "premises": [
+        "pvsk:pvsk_saliba2016::triple_cation_stable",
+        "pvsk:pvsk_saliba2016::less_processing_sensitive"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_c5c3dd8700dfb434",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_saliba2016::operational_18_pct_250h",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_saliba2016::__conjunction_result_dda11dc7",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_saliba2016::triple_cation_stable",
+              "pvsk:pvsk_saliba2016::black_phase_stable"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_saliba2016::__implication_result_a8e9ea7a",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_saliba2016::__conjunction_result_dda11dc7",
+              "pvsk:pvsk_saliba2016::operational_18_pct_250h"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Thermal and phase stability of triple cation composition enables sustained performance under operational conditions"
+      },
+      "premises": [
+        "pvsk:pvsk_saliba2016::triple_cation_stable",
+        "pvsk:pvsk_saliba2016::black_phase_stable"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_42147a70f3052a04",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_saliba2016::key_for_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_saliba2016::__conjunction_result_219e4266",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_saliba2016::reproducibility_improved",
+              "pvsk:pvsk_saliba2016::less_processing_sensitive"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_saliba2016::__implication_result_b07c284c",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_saliba2016::__conjunction_result_219e4266",
+              "pvsk:pvsk_saliba2016::key_for_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "deduction",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "Manufacturing requires both high reproducibility and low sensitivity to processing variations — triple cation compositions address both"
+      },
+      "premises": [
+        "pvsk:pvsk_saliba2016::reproducibility_improved",
+        "pvsk:pvsk_saliba2016::less_processing_sensitive"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_8d3c1cabf3325769",
+      "type": "deduction"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_saliba2016::__implication_result_24d42473",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_saliba2016::stabilized_output_21_1_pct",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "Achieving 21.1% stabilized power output demonstrates perovskite solar cells can exceed the 20% efficiency threshold for commercial competition"
+      },
+      "premises": [
+        "pvsk:pvsk_saliba2016::stabilized_output_21_1_pct"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_c118f7d5abdcf32f",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_saliba2016::__conjunction_result_438f20d3",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_saliba2016::operational_18_pct_250h",
+              "pvsk:pvsk_saliba2016::triple_cation_stable"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_saliba2016::__implication_result_e79a5b63",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_saliba2016::__conjunction_result_438f20d3",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "Maintaining ~18% efficiency over 250 operational hours with improved thermal stability demonstrates progress toward practical stability requirements"
+      },
+      "premises": [
+        "pvsk:pvsk_saliba2016::operational_18_pct_250h",
+        "pvsk:pvsk_saliba2016::triple_cation_stable"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_6364b91b5692832d",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_saliba2016::__conjunction_result_4a45dfbb",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_saliba2016::reproducibility_improved",
+              "pvsk:pvsk_saliba2016::less_processing_sensitive"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_saliba2016::__implication_result_89fc741d",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_saliba2016::__conjunction_result_4a45dfbb",
+              "pvsk:pvsk_meta::p_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "Triple cation compositions address key manufacturing requirements: reproducibility and processing robustness"
+      },
+      "premises": [
+        "pvsk:pvsk_saliba2016::reproducibility_improved",
+        "pvsk:pvsk_saliba2016::less_processing_sensitive"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_5538145ed13d7a1b",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_saliba2016::__conjunction_result_163ee9e9",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_saliba2016::cesium_reduces_impurities",
+              "pvsk:pvsk_saliba2016::morphology_improved",
+              "pvsk:pvsk_saliba2016::stabilized_output_21_1_pct"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_saliba2016::__implication_result_91ca90d5",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_saliba2016::__conjunction_result_163ee9e9",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "Systematic compositional engineering through Cs addition produces clear improvements in phase purity, morphology, and efficiency over binary compositions"
+      },
+      "premises": [
+        "pvsk:pvsk_saliba2016::cesium_reduces_impurities",
+        "pvsk:pvsk_saliba2016::morphology_improved",
+        "pvsk:pvsk_saliba2016::stabilized_output_21_1_pct"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_3070ad704d43093f",
+      "type": "support"
+    }
+  ]
+}

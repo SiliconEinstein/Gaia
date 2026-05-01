@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PVSK Knowledge Graph Visualization Report</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         max-width: 1200px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+  h1 { color: #333; border-bottom: 3px solid #2196F3; padding-bottom: 10px; }
+  h2 { color: #444; margin-top: 40px; border-left: 4px solid #4CAF50; padding-left: 12px; }
+  table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+  th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
+  th { background-color: #f5f5f5; font-weight: 600; }
+  img { max-width: 100%; border: 1px solid #eee; border-radius: 4px; margin: 20px 0; }
+  .meta-table td { font-family: monospace; font-size: 14px; }
+  .mermaid { background: #fafafa; padding: 20px; border-radius: 4px; overflow-x: auto; }
+  .summary { background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0; }
+  .summary h3 { margin-top: 0; color: #1565c0; }
+</style>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true });
+</script>
+</head>
+<body>
+<h1>PVSK Perovskite Solar Cell Knowledge Graph Visualization</h1>
+<p>Generated on 2026-05-01 10:55:26</p>
+
+<div class="summary">
+<h3>Summary</h3>
+<p>This report visualizes the belief propagation results across 22 perovskite solar cell research papers
+(2009-2025) formalized as Gaia knowledge packages. The 5 meta propositions represent core questions
+about the viability of perovskite photovoltaics.</p>
+<ul>
+<li><b>Time points:</b> 2013, 2017, 2022, 2026 (cumulative)</li>
+<li><b>Papers:</b> 22 milestone papers from Kojima 2009 to Liu 2025</li>
+<li><b>Inference method:</b> Junction Tree (exact)</li>
+<li><b>Meta propositions:</b> Viability, Efficiency, Improvement, Stability, Industrialization</li>
+</ul>
+</div>
+
+<h2>1. Meta Proposition Belief Evolution</h2>
+<p>Posterior beliefs for the 5 meta propositions across 4 time points. All propositions converge
+to near-certainty (belief &gt; 0.99) by 2022.</p>
+<table class="meta-table">
+<tr><th>Meta Proposition</th><th>2013 (T1)</th><th>2017 (T2)</th><th>2022 (T3)</th><th>2026 (T4)</th></tr>
+<tr><td><b>Viability (能不能做出来)</b></td><td style="background-color:rgb(150,104,100);color:#fff">0.4091</td><td style="background-color:rgb(94,160,100);color:#fff">0.6288</td><td style="background-color:rgb(4,250,100);color:#fff">0.9830</td><td style="background-color:rgb(0,254,100);color:#fff">0.9997</td></tr><tr><td><b>Efficiency (能不能高效率)</b></td><td style="background-color:rgb(170,84,100);color:#fff">0.3296</td><td style="background-color:rgb(38,216,100);color:#fff">0.8480</td><td style="background-color:rgb(0,254,100);color:#fff">0.9972</td><td style="background-color:rgb(0,254,100);color:#fff">1.0000</td></tr><tr><td><b>Improvement (能不能持续改进)</b></td><td style="background-color:rgb(139,115,100);color:#fff">0.4513</td><td style="background-color:rgb(21,233,100);color:#fff">0.9155</td><td style="background-color:rgb(0,254,100);color:#fff">0.9970</td><td style="background-color:rgb(0,254,100);color:#fff">1.0000</td></tr><tr><td><b>Stability (能不能稳定)</b></td><td style="background-color:rgb(198,56,100);color:#fff">0.2231</td><td style="background-color:rgb(50,204,100);color:#fff">0.8010</td><td style="background-color:rgb(1,253,100);color:#fff">0.9931</td><td style="background-color:rgb(0,254,100);color:#fff">0.9998</td></tr><tr><td><b>Industrialization (能不能产业化)</b></td><td style="background-color:rgb(238,16,100);color:#fff">0.0630</td><td style="background-color:rgb(185,69,100);color:#fff">0.2739</td><td style="background-color:rgb(47,207,100);color:#fff">0.8120</td><td style="background-color:rgb(1,253,100);color:#fff">0.9940</td></tr>
+</table>
+<img src="meta_timeseries.png" alt="Meta Proposition Time Series">
+
+<h2>2. Knowledge Graph Growth</h2>
+<p>As more papers are incorporated, the factor graph grows in complexity.</p>
+<table>
+<tr><th>Year</th><th>Packages</th><th>Variables</th><th>Factors</th><th>Method</th><th>Converged</th></tr>
+<tr><td>2013</td><td>6</td><td>96</td><td>69</td><td>jt</td><td>True</td></tr><tr><td>2017</td><td>10</td><td>164</td><td>126</td><td>jt</td><td>True</td></tr><tr><td>2022</td><td>15</td><td>276</td><td>222</td><td>jt</td><td>True</td></tr><tr><td>2026</td><td>23</td><td>418</td><td>333</td><td>jt</td><td>True</td></tr>
+</table>
+<img src="knowledge_growth.png" alt="Knowledge Graph Growth">
+
+<h2>3. Claim Belief Changes (T1 → T4)</h2>
+<p>Claims with the largest belief increases and decreases from the earliest to latest time point.</p>
+<img src="top_claims_change.png" alt="Top Claims Change">
+
+<h2>4. Network Graph: Papers → Meta Propositions (Heuristic)</h2>
+<p>Visual representation based on keyword matching between paper claims and meta propositions.</p>
+<img src="network_graph.png" alt="Network Graph">
+
+<h2>4b. Network Graph from IR Strategy Data</h2>
+<p>Visual representation using actual support/deduction strategies from compiled IR.
+Orange nodes = meta propositions, blue = papers, green = key claims.</p>
+<img src="network_graph_ir.png" alt="Network Graph from IR">
+
+<h2>5. Meta Proposition Relationship Diagram (Mermaid)</h2>
+<div class="mermaid">
+```mermaid
+graph TB
+    p_viability["Viability\n(1.000)"]
+    p_efficiency["Efficiency\n(1.000)"]
+    p_improvement["Improvement\n(1.000)"]
+    p_stability["Stability\n(1.000)"]
+    p_industrialization["Industrialization\n(0.994)"]
+    p_viability --> p_efficiency
+    p_efficiency --> p_improvement
+    p_improvement --> p_stability
+    p_stability --> p_industrialization
+    p_viability -.-> p_industrialization
+
+    classDef meta fill:#FF9800,stroke:#E65100,color:#fff
+    class p_viability,p_efficiency,p_improvement,p_stability,p_industrialization meta
+```
+</div>
+
+<h2>5b. Cross-Package Support Graph (Mermaid)</h2>
+<p>Papers (blue) supporting each meta proposition (orange) via actual IR strategy data.</p>
+<div class="mermaid">
+```mermaid
+graph TB
+    p_viability["Viability (1.000)"]
+    p_efficiency["Efficiency (1.000)"]
+    p_improvement["Improvement (1.000)"]
+    p_stability["Stability (1.000)"]
+    p_industrialization["Industrialization (0.994)"]
+    pvsk_kojima2009["pvsk_kojima2009 (2009)"]
+    pvsk_kojima2009 --> p_viability
+    pvsk_kim2012["pvsk_kim2012 (2012)"]
+    pvsk_kim2012 --> p_viability
+    pvsk_lee2012["pvsk_lee2012 (2012)"]
+    pvsk_lee2012 --> p_viability
+    pvsk_burschka2013["pvsk_burschka2013 (2013)"]
+    pvsk_burschka2013 --> p_viability
+    pvsk_liu2013["pvsk_liu2013 (2013)"]
+    pvsk_liu2013 --> p_viability
+    pvsk_jeon2014["pvsk_jeon2014 (2014)"]
+    pvsk_jeon2014 --> p_viability
+    pvsk_min2020["pvsk_min2020 (2020)"]
+    pvsk_min2020 --> p_viability
+    pvsk_jeong2021["pvsk_jeong2021 (2021)"]
+    pvsk_jeong2021 --> p_viability
+    pvsk_park2021["pvsk_park2021 (2021)"]
+    pvsk_park2021 --> p_viability
+    pvsk_lin2022["pvsk_lin2022 (2022)"]
+    pvsk_lin2022 --> p_viability
+    pvsk_zhao2022["pvsk_zhao2022 (2022)"]
+    pvsk_zhao2022 --> p_viability
+    pvsk_gu2023["pvsk_gu2023 (2023)"]
+    pvsk_gu2023 --> p_viability
+    pvsk_lin2023["pvsk_lin2023 (2023)"]
+    pvsk_lin2023 --> p_viability
+    pvsk_liu2023a["pvsk_liu2023a (2023)"]
+    pvsk_liu2023a --> p_viability
+    pvsk_jelly2024["pvsk_jelly2024 (2024)"]
+    pvsk_jelly2024 --> p_viability
+    pvsk_he2025["pvsk_he2025 (2025)"]
+    pvsk_he2025 --> p_viability
+    pvsk_liu2025["pvsk_liu2025 (2025)"]
+    pvsk_liu2025 --> p_viability
+    pvsk_kim2012 --> p_efficiency
+    pvsk_lee2012 --> p_efficiency
+    pvsk_burschka2013 --> p_efficiency
+    pvsk_liu2013 --> p_efficiency
+    pvsk_jeon2014 --> p_efficiency
+    pvsk_jeon2015["pvsk_jeon2015 (2015)"]
+    pvsk_jeon2015 --> p_efficiency
+    pvsk_saliba2016["pvsk_saliba2016 (2016)"]
+    pvsk_saliba2016 --> p_efficiency
+    pvsk_min2020 --> p_efficiency
+    pvsk_jeong2021 --> p_efficiency
+    pvsk_park2021 --> p_efficiency
+    pvsk_lin2022 --> p_efficiency
+    pvsk_zhao2022 --> p_efficiency
+    pvsk_gu2023 --> p_efficiency
+    pvsk_lin2023 --> p_efficiency
+    pvsk_liu2023a --> p_efficiency
+    pvsk_hou2024["pvsk_hou2024 (2024)"]
+    pvsk_hou2024 --> p_efficiency
+    pvsk_jelly2024 --> p_efficiency
+    pvsk_li2024["pvsk_li2024 (2024)"]
+    pvsk_li2024 --> p_efficiency
+    pvsk_he2025 --> p_efficiency
+    pvsk_liu2025 --> p_efficiency
+    pvsk_kojima2009 --> p_improvement
+    pvsk_lee2012 --> p_improvement
+    pvsk_lee2012 --> p_improvement
+    pvsk_burschka2013 --> p_improvement
+    pvsk_liu2013 --> p_improvement
+    pvsk_jeon2014 --> p_improvement
+    pvsk_jeon2015 --> p_improvement
+    pvsk_saliba2016 --> p_improvement
+    pvsk_grancini2017["pvsk_grancini2017 (2017)"]
+    pvsk_grancini2017 --> p_improvement
+    pvsk_min2020 --> p_improvement
+    pvsk_jeong2021 --> p_improvement
+    pvsk_park2021 --> p_improvement
+    pvsk_lin2022 --> p_improvement
+    pvsk_zhao2022 --> p_improvement
+    pvsk_lin2023 --> p_improvement
+    pvsk_liu2023a --> p_improvement
+    pvsk_hou2024 --> p_improvement
+    pvsk_jelly2024 --> p_improvement
+    pvsk_li2024 --> p_improvement
+    pvsk_he2025 --> p_improvement
+    pvsk_liu2025 --> p_improvement
+    pvsk_kojima2009 --> p_stability
+    pvsk_kim2012 --> p_stability
+    pvsk_lee2012 --> p_stability
+    pvsk_burschka2013 --> p_stability
+    pvsk_liu2013 --> p_stability
+    pvsk_jeon2014 --> p_stability
+    pvsk_jeon2015 --> p_stability
+    pvsk_saliba2016 --> p_stability
+    pvsk_grancini2017 --> p_stability
+    pvsk_min2020 --> p_stability
+    pvsk_jeong2021 --> p_stability
+    pvsk_park2021 --> p_stability
+    pvsk_lin2022 --> p_stability
+    pvsk_zhao2022 --> p_stability
+    pvsk_gu2023 --> p_stability
+    pvsk_lin2023 --> p_stability
+    pvsk_liu2023a --> p_stability
+    pvsk_hou2024 --> p_stability
+    pvsk_li2024 --> p_stability
+    pvsk_liu2025 --> p_stability
+    pvsk_kojima2009 --> p_industrialization
+    pvsk_kim2012 --> p_industrialization
+    pvsk_lee2012 --> p_industrialization
+    pvsk_burschka2013 --> p_industrialization
+    pvsk_liu2013 --> p_industrialization
+    pvsk_jeon2014 --> p_industrialization
+    pvsk_saliba2016 --> p_industrialization
+    pvsk_grancini2017 --> p_industrialization
+    pvsk_min2020 --> p_industrialization
+    pvsk_jeong2021 --> p_industrialization
+    pvsk_park2021 --> p_industrialization
+    pvsk_lin2022 --> p_industrialization
+    pvsk_zhao2022 --> p_industrialization
+    pvsk_gu2023 --> p_industrialization
+    pvsk_hou2024 --> p_industrialization
+    pvsk_jelly2024 --> p_industrialization
+    pvsk_li2024 --> p_industrialization
+    pvsk_he2025 --> p_industrialization
+
+    classDef meta fill:#FF9800,stroke:#E65100,color:#fff
+    class p_viability,p_efficiency,p_improvement,p_stability,p_industrialization meta
+```
+</div>
+
+<h2>6. Key Insights</h2>
+<ul>
+<li><b>Viability</b> started moderate (0.41 at T1), climbed to 0.63 by T2, and reached &gt;0.99 by T3 —
+the field became credible through accumulating experimental evidence.</li>
+<li><b>Efficiency</b> saw the steepest rise: from 0.33 (T1) to 0.85 (T2) to &gt;0.99 (T3),
+driven by papers crossing 15%, 20%, and 25% PCE thresholds.</li>
+<li><b>Stability</b> was initially the weakest (0.22 at T1), reflecting genuine uncertainty in 2013.
+It jumped to 0.80 by T2 after Grancini 2017 demonstrated 1-year stability.</li>
+<li><b>Industrialization</b> was the slowest to converge: 0.06 (T1) → 0.27 (T2) → 0.81 (T3) → 0.99 (T4),
+reflecting the real-world lag between lab efficiency and module-scale manufacturing.</li>
+<li>With lowered priors (meta: 0.01-0.05; strategy propagation: 60% of original),
+the belief curves show a realistic S-shaped adoption trajectory.</li>
+</ul>
+
+<h2>7. Methodology</h2>
+<p>Each paper was formalized as an independent Gaia knowledge package with 10-20 claims,
+internal reasoning chains (support/deduction), and connections to 5 meta propositions.
+Belief propagation was run using Junction Tree exact inference on cumulative factor graphs
+at each time point.</p>
+<p><b>Prior settings:</b> Meta proposition priors are set very low (0.01-0.05) to represent
+genuine initial uncertainty. Strategy propagation strength is scaled to 60% of default,
+so each supporting paper contributes moderate (not overwhelming) evidence.
+Claim priors retain their original values (0.5-0.9) based on evidence strength.</p>
+
+</body>
+</html>

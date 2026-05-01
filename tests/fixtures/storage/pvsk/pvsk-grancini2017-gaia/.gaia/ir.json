@@ -1,0 +1,722 @@
+{
+  "ir_hash": "sha256:1d3316f6ede0d1e4e2435d272bdc896824f3a701291067b95123bee0999dae0d",
+  "knowledges": [
+    {
+      "content": "HTM-free solar cells and modules using hydrophobic carbon electrodes instead of organic hole transporting materials, reducing cost and improving stability",
+      "content_hash": "2f96f2f50ec6686e155d54a617d43479321a13af06394a7d2b2e4628018b3bb7",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_grancini2017::htmc_free_config",
+      "label": "htmc_free_config",
+      "metadata": {
+        "prior": 0.7
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Engineering a 2D/3D (HOOC(CH2)4NH3)2PbI4/CH3NH3PbI3 perovskite junction creates an exceptional gradually-organized multi-dimensional interface that combines 2D perovskite stability with 3D perovskite charge transport",
+      "content_hash": "51d2d1aa0ebba6d6e19cecf5a0aad229dae752f7dcd470a55dfcfa789a201c3f",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_grancini2017::two_d_three_d_interface",
+      "label": "two_d_three_d_interface",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "2D/3D engineered perovskite devices maintain stable performance for over one year, corresponding to >10,000 hours of operation",
+      "content_hash": "df0f89e72c6ba0fd6dc6907ea741d0da81e69a75381de486d1c5a2224f8a2953",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_grancini2017::one_year_stability",
+      "label": "one_year_stability",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "2D/3D perovskite achieves up to 12.9% efficiency in carbon-based architecture and 14.6% in standard mesoporous solar cells",
+      "content_hash": "ba571c04a4fa7bba20b66c961216b81616c89597c299ac8351f15fb61e61a838",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_grancini2017::carbon_cell_12_9_pct",
+      "label": "carbon_cell_12_9_pct",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "10x10 cm2 solar modules fabricated by fully printable industrial-scale process deliver 11.2% efficiency stable for >10,000 hours with zero loss in performance measured under controlled standard conditions",
+      "content_hash": "b729c4a317cb96b287cfa077dd052e8170a708a66b7788c1d87357864ef8bb3d",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_grancini2017::module_10x10_stable",
+      "label": "module_10x10_stable",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "2D perovskites exhibit superior stability and water resistance compared to 3D perovskites, preventing hydrolysis and irreversible degradation under moisture",
+      "content_hash": "4fd216c6b58527ee37138ff078e437ceeaaa2646e3f05100ef204fc68b77ef5d",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_grancini2017::two_d_water_resistant",
+      "label": "two_d_water_resistant",
+      "metadata": {
+        "prior": 0.83
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The 2D/3D interface forms a gradually-organized multi-dimensional structure that provides continuous charge transport pathways while maintaining enhanced stability",
+      "content_hash": "b7a98dbd9234f2c7cbbfa033c331a38c8f68652115fce1579bbe538eaa760c24",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_grancini2017::gradual_interface",
+      "label": "gradual_interface",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The 2D/3D perovskite architecture is compatible with fully printable industrial-scale processes for large-area module fabrication",
+      "content_hash": "391e98c3e461a5495c795198518c71939340bc9d26dd12c7cafbf8aa8cb8eab9",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_grancini2017::scalable_printable",
+      "label": "scalable_printable",
+      "metadata": {
+        "prior": 0.78
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "2D/3D perovskite modules maintain stable performance under controlled standard conditions in the presence of oxygen and moisture",
+      "content_hash": "91676b0826efba483529437d0daecb8a85040362e2ffc755c4f63a6aeccb1d2b",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_grancini2017::oxygen_moisture_tolerant",
+      "label": "oxygen_moisture_tolerant",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Achieving >10,000 hours stability approaches the market requirement of <10% drop in PCE for at least 1,000 hours on standard accelerated aging tests",
+      "content_hash": "f8502c865621abdd3b05e135d67603cb8507b6cc84e2f3273e3f717ab78c0336",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_grancini2017::market_requirements_approach",
+      "label": "market_requirements_approach",
+      "metadata": {
+        "prior": 0.65
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "content_hash": "9603b55225f5e093d20a1194832c2b419389d6a83886f8b7841f0b9a65cc106f",
+      "declaration_index": 4,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "metadata": {
+        "prior": 0.15
+      },
+      "parameters": [],
+      "title": "p_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_grancini2017::two_d_water_resistant,pvsk:pvsk_grancini2017::gradual_interface)",
+      "content_hash": "94c87e19be9c062695a21f1f72506d580a9876e73cf05e4c42d95dd6151b237b",
+      "exported": false,
+      "id": "pvsk:pvsk_grancini2017::__conjunction_result_cf2ab24c",
+      "label": "__conjunction_result_cf2ab24c",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_grancini2017::two_d_water_resistant,pvsk:pvsk_grancini2017::gradual_interface)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_367b213de9ef748d",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_grancini2017::__conjunction_result_cf2ab24c,pvsk:pvsk_grancini2017::two_d_three_d_interface)",
+      "content_hash": "29350b94d6aa80b8e2bab0601520fcb5cb531b612dd682c15c8b18de3f79980d",
+      "exported": false,
+      "id": "pvsk:pvsk_grancini2017::__implication_result_3af92d3f",
+      "label": "__implication_result_3af92d3f",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_grancini2017::__conjunction_result_cf2ab24c,pvsk:pvsk_grancini2017::two_d_three_d_interface)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_367b213de9ef748d",
+        "owning_strategy_type": "support",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_grancini2017::two_d_three_d_interface,pvsk:pvsk_grancini2017::htmc_free_config)",
+      "content_hash": "1146e6799b899a6ed5e99092dd3684e8e07f5b970828793737a2341231c166fd",
+      "exported": false,
+      "id": "pvsk:pvsk_grancini2017::__conjunction_result_10a59674",
+      "label": "__conjunction_result_10a59674",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_grancini2017::two_d_three_d_interface,pvsk:pvsk_grancini2017::htmc_free_config)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_a47868cd3cc8ba16",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_grancini2017::__conjunction_result_10a59674,pvsk:pvsk_grancini2017::one_year_stability)",
+      "content_hash": "b56d392c258ae53e32e524824aed66245332cca549b5124691b4caff941c2ebb",
+      "exported": false,
+      "id": "pvsk:pvsk_grancini2017::__implication_result_317ac6af",
+      "label": "__implication_result_317ac6af",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_grancini2017::__conjunction_result_10a59674,pvsk:pvsk_grancini2017::one_year_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_a47868cd3cc8ba16",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_grancini2017::scalable_printable,pvsk:pvsk_grancini2017::one_year_stability)",
+      "content_hash": "8ee01af174741ba918c4d14af63e704c20b781e09a81adad92e4330cdccb3723",
+      "exported": false,
+      "id": "pvsk:pvsk_grancini2017::__conjunction_result_8c86cccd",
+      "label": "__conjunction_result_8c86cccd",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_grancini2017::scalable_printable,pvsk:pvsk_grancini2017::one_year_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_a54b99f94ba95d47",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_grancini2017::__conjunction_result_8c86cccd,pvsk:pvsk_grancini2017::module_10x10_stable)",
+      "content_hash": "d9905cffabf947d8393d7c5c20a7b3cebd5ddab608f385e7191869117fdb7bd7",
+      "exported": false,
+      "id": "pvsk:pvsk_grancini2017::__implication_result_1e103ea3",
+      "label": "__implication_result_1e103ea3",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_grancini2017::__conjunction_result_8c86cccd,pvsk:pvsk_grancini2017::module_10x10_stable)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_a54b99f94ba95d47",
+        "owning_strategy_type": "support",
+        "prior": 0.78,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_grancini2017::module_10x10_stable,pvsk:pvsk_grancini2017::oxygen_moisture_tolerant)",
+      "content_hash": "5a48a79f172b87980aa1aa6615129f4cdef27359a466f809999355bc5f061277",
+      "exported": false,
+      "id": "pvsk:pvsk_grancini2017::__conjunction_result_bbc3aa94",
+      "label": "__conjunction_result_bbc3aa94",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_grancini2017::module_10x10_stable,pvsk:pvsk_grancini2017::oxygen_moisture_tolerant)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_cc37e2c6b25b02a8",
+        "owning_strategy_type": "deduction",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_grancini2017::__conjunction_result_bbc3aa94,pvsk:pvsk_grancini2017::market_requirements_approach)",
+      "content_hash": "3fb723e02e026f3c05a8952b49fb3a9aae48b21834da6f979054cbb2c8bb8e6e",
+      "exported": false,
+      "id": "pvsk:pvsk_grancini2017::__implication_result_4a55a55a",
+      "label": "__implication_result_4a55a55a",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_grancini2017::__conjunction_result_bbc3aa94,pvsk:pvsk_grancini2017::market_requirements_approach)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_cc37e2c6b25b02a8",
+        "owning_strategy_type": "deduction",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_grancini2017::one_year_stability,pvsk:pvsk_grancini2017::module_10x10_stable)",
+      "content_hash": "79ad72b8730a8fcd9f67d49351d8e91a9ee3f51c9af595d7352dcd32227104e7",
+      "exported": false,
+      "id": "pvsk:pvsk_grancini2017::__conjunction_result_6d50a1bd",
+      "label": "__conjunction_result_6d50a1bd",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_grancini2017::one_year_stability,pvsk:pvsk_grancini2017::module_10x10_stable)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_2bbc3cab35e6d0dc",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_grancini2017::__conjunction_result_6d50a1bd,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "84b8873555946dcde9733655af77fbafc83fc6ec41174faf4ae4f294f38b8357",
+      "exported": false,
+      "id": "pvsk:pvsk_grancini2017::__implication_result_6f7ef1fb",
+      "label": "__implication_result_6f7ef1fb",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_grancini2017::__conjunction_result_6d50a1bd,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_2bbc3cab35e6d0dc",
+        "owning_strategy_type": "support",
+        "prior": 0.7,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_grancini2017::scalable_printable,pvsk:pvsk_grancini2017::module_10x10_stable)",
+      "content_hash": "aa3ca663645a0b5b10a32c6975edfcf938aaf035b68ee7afb75585eb37fd2af5",
+      "exported": false,
+      "id": "pvsk:pvsk_grancini2017::__conjunction_result_66d568bb",
+      "label": "__conjunction_result_66d568bb",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_grancini2017::scalable_printable,pvsk:pvsk_grancini2017::module_10x10_stable)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_d9a016465710a85f",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_grancini2017::__conjunction_result_66d568bb,pvsk:pvsk_meta::p_industrialization)",
+      "content_hash": "b1c6c787c857b4f7428f518a5649bf84dc36739c52a3632387bf7b3e822a35b4",
+      "exported": false,
+      "id": "pvsk:pvsk_grancini2017::__implication_result_07fe7840",
+      "label": "__implication_result_07fe7840",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_grancini2017::__conjunction_result_66d568bb,pvsk:pvsk_meta::p_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_d9a016465710a85f",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_grancini2017::two_d_three_d_interface,pvsk:pvsk_grancini2017::carbon_cell_12_9_pct)",
+      "content_hash": "0da568c4bba36a4597fce9146fde59f866cb94920b965fa840c1723240aef1d2",
+      "exported": false,
+      "id": "pvsk:pvsk_grancini2017::__conjunction_result_789e03e1",
+      "label": "__conjunction_result_789e03e1",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_grancini2017::two_d_three_d_interface,pvsk:pvsk_grancini2017::carbon_cell_12_9_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_d3999dfaab95c863",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_grancini2017::__conjunction_result_789e03e1,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "34d92639f68639762008cc26e8d1c50c198faec606a15fcbb9e331afb7591ad2",
+      "exported": false,
+      "id": "pvsk:pvsk_grancini2017::__implication_result_54f6897d",
+      "label": "__implication_result_54f6897d",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_grancini2017::__conjunction_result_789e03e1,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_d3999dfaab95c863",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_grancini2017",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_grancini2017::two_d_three_d_interface",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_grancini2017::__conjunction_result_cf2ab24c",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_grancini2017::two_d_water_resistant",
+              "pvsk:pvsk_grancini2017::gradual_interface"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_grancini2017::__implication_result_3af92d3f",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_grancini2017::__conjunction_result_cf2ab24c",
+              "pvsk:pvsk_grancini2017::two_d_three_d_interface"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "Combining water-resistant 2D perovskite with panchromatic 3D perovskite creates an interface that preserves both stability and efficiency"
+      },
+      "premises": [
+        "pvsk:pvsk_grancini2017::two_d_water_resistant",
+        "pvsk:pvsk_grancini2017::gradual_interface"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_367b213de9ef748d",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_grancini2017::one_year_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_grancini2017::__conjunction_result_10a59674",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_grancini2017::two_d_three_d_interface",
+              "pvsk:pvsk_grancini2017::htmc_free_config"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_grancini2017::__implication_result_317ac6af",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_grancini2017::__conjunction_result_10a59674",
+              "pvsk:pvsk_grancini2017::one_year_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "2D/3D interface protection combined with HTM-free carbon electrode eliminates major degradation pathways for ultra-long stability"
+      },
+      "premises": [
+        "pvsk:pvsk_grancini2017::two_d_three_d_interface",
+        "pvsk:pvsk_grancini2017::htmc_free_config"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_a47868cd3cc8ba16",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_grancini2017::module_10x10_stable",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_grancini2017::__conjunction_result_8c86cccd",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_grancini2017::scalable_printable",
+              "pvsk:pvsk_grancini2017::one_year_stability"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_grancini2017::__implication_result_1e103ea3",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_grancini2017::__conjunction_result_8c86cccd",
+              "pvsk:pvsk_grancini2017::module_10x10_stable"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.78,
+        "reason": "Printable industrial process combined with inherent material stability enables large-area modules with sustained performance"
+      },
+      "premises": [
+        "pvsk:pvsk_grancini2017::scalable_printable",
+        "pvsk:pvsk_grancini2017::one_year_stability"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_a54b99f94ba95d47",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_grancini2017::market_requirements_approach",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_grancini2017::__conjunction_result_bbc3aa94",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_grancini2017::module_10x10_stable",
+              "pvsk:pvsk_grancini2017::oxygen_moisture_tolerant"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_grancini2017::__implication_result_4a55a55a",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_grancini2017::__conjunction_result_bbc3aa94",
+              "pvsk:pvsk_grancini2017::market_requirements_approach"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "deduction",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "Large-area modules with >10,000 hour stability under real conditions approach the requirements for commercial deployment"
+      },
+      "premises": [
+        "pvsk:pvsk_grancini2017::module_10x10_stable",
+        "pvsk:pvsk_grancini2017::oxygen_moisture_tolerant"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_cc37e2c6b25b02a8",
+      "type": "deduction"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_grancini2017::__conjunction_result_6d50a1bd",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_grancini2017::one_year_stability",
+              "pvsk:pvsk_grancini2017::module_10x10_stable"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_grancini2017::__implication_result_6f7ef1fb",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_grancini2017::__conjunction_result_6d50a1bd",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.7,
+        "reason": "One-year stable operation of 10x10 cm2 modules with zero efficiency loss demonstrates practical deployment stability"
+      },
+      "premises": [
+        "pvsk:pvsk_grancini2017::one_year_stability",
+        "pvsk:pvsk_grancini2017::module_10x10_stable"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_2bbc3cab35e6d0dc",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_grancini2017::__conjunction_result_66d568bb",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_grancini2017::scalable_printable",
+              "pvsk:pvsk_grancini2017::module_10x10_stable"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_grancini2017::__implication_result_07fe7840",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_grancini2017::__conjunction_result_66d568bb",
+              "pvsk:pvsk_meta::p_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "Fully printable industrial-scale fabrication of 10x10 cm2 modules with stable 11.2% efficiency demonstrates manufacturing scalability"
+      },
+      "premises": [
+        "pvsk:pvsk_grancini2017::scalable_printable",
+        "pvsk:pvsk_grancini2017::module_10x10_stable"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_d9a016465710a85f",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_grancini2017::__conjunction_result_789e03e1",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_grancini2017::two_d_three_d_interface",
+              "pvsk:pvsk_grancini2017::carbon_cell_12_9_pct"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_grancini2017::__implication_result_54f6897d",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_grancini2017::__conjunction_result_789e03e1",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "2D/3D interface engineering is a novel approach that enables simultaneous efficiency and stability improvement through structural design"
+      },
+      "premises": [
+        "pvsk:pvsk_grancini2017::two_d_three_d_interface",
+        "pvsk:pvsk_grancini2017::carbon_cell_12_9_pct"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_d3999dfaab95c863",
+      "type": "support"
+    }
+  ]
+}

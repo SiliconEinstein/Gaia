@@ -1,0 +1,21 @@
+[project]
+name = "pvsk-lee2012-gaia"
+version = "1.0.0"
+description = "Lee et al. Science 2012 — Meso-superstructured PSC 10.9%"
+requires-python = ">=3.12"
+dependencies = [
+    "gaia-lang",
+    "pvsk-meta-gaia",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pvsk_lee2012"]
+
+[tool.gaia]
+namespace = "pvsk"
+type = "knowledge-package"
+uuid = "0a3ff43f-08c2-4ec7-b8ea-14eab144cdd5"

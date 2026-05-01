@@ -1,0 +1,21 @@
+[project]
+name = "pvsk-jeon2015-gaia"
+version = "1.0.0"
+description = "Jeon et al. Nature 2015 — Compositional engineering FA-based >18%"
+requires-python = ">=3.12"
+dependencies = [
+    "gaia-lang",
+    "pvsk-meta-gaia",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pvsk_jeon2015"]
+
+[tool.gaia]
+namespace = "pvsk"
+type = "knowledge-package"
+uuid = "f5e511dd-f780-4ce7-a9c3-3a03771f2ea0"

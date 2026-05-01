@@ -1,0 +1,78 @@
+{
+  "exports": [
+    {
+      "content": "2D/3D perovskite achieves up to 12.9% efficiency in carbon-based architecture and 14.6% in standard mesoporous solar cells",
+      "content_hash": "ba571c04a4fa7bba20b66c961216b81616c89597c299ac8351f15fb61e61a838",
+      "label": "carbon_cell_12_9_pct",
+      "qid": "pvsk:pvsk_grancini2017::carbon_cell_12_9_pct",
+      "type": "claim"
+    },
+    {
+      "content": "The 2D/3D interface forms a gradually-organized multi-dimensional structure that provides continuous charge transport pathways while maintaining enhanced stability",
+      "content_hash": "b7a98dbd9234f2c7cbbfa033c331a38c8f68652115fce1579bbe538eaa760c24",
+      "label": "gradual_interface",
+      "qid": "pvsk:pvsk_grancini2017::gradual_interface",
+      "type": "claim"
+    },
+    {
+      "content": "HTM-free solar cells and modules using hydrophobic carbon electrodes instead of organic hole transporting materials, reducing cost and improving stability",
+      "content_hash": "2f96f2f50ec6686e155d54a617d43479321a13af06394a7d2b2e4628018b3bb7",
+      "label": "htmc_free_config",
+      "qid": "pvsk:pvsk_grancini2017::htmc_free_config",
+      "type": "claim"
+    },
+    {
+      "content": "Achieving >10,000 hours stability approaches the market requirement of <10% drop in PCE for at least 1,000 hours on standard accelerated aging tests",
+      "content_hash": "f8502c865621abdd3b05e135d67603cb8507b6cc84e2f3273e3f717ab78c0336",
+      "label": "market_requirements_approach",
+      "qid": "pvsk:pvsk_grancini2017::market_requirements_approach",
+      "type": "claim"
+    },
+    {
+      "content": "10x10 cm2 solar modules fabricated by fully printable industrial-scale process deliver 11.2% efficiency stable for >10,000 hours with zero loss in performance measured under controlled standard conditions",
+      "content_hash": "b729c4a317cb96b287cfa077dd052e8170a708a66b7788c1d87357864ef8bb3d",
+      "label": "module_10x10_stable",
+      "qid": "pvsk:pvsk_grancini2017::module_10x10_stable",
+      "type": "claim"
+    },
+    {
+      "content": "2D/3D engineered perovskite devices maintain stable performance for over one year, corresponding to >10,000 hours of operation",
+      "content_hash": "df0f89e72c6ba0fd6dc6907ea741d0da81e69a75381de486d1c5a2224f8a2953",
+      "label": "one_year_stability",
+      "qid": "pvsk:pvsk_grancini2017::one_year_stability",
+      "type": "claim"
+    },
+    {
+      "content": "2D/3D perovskite modules maintain stable performance under controlled standard conditions in the presence of oxygen and moisture",
+      "content_hash": "91676b0826efba483529437d0daecb8a85040362e2ffc755c4f63a6aeccb1d2b",
+      "label": "oxygen_moisture_tolerant",
+      "qid": "pvsk:pvsk_grancini2017::oxygen_moisture_tolerant",
+      "type": "claim"
+    },
+    {
+      "content": "The 2D/3D perovskite architecture is compatible with fully printable industrial-scale processes for large-area module fabrication",
+      "content_hash": "391e98c3e461a5495c795198518c71939340bc9d26dd12c7cafbf8aa8cb8eab9",
+      "label": "scalable_printable",
+      "qid": "pvsk:pvsk_grancini2017::scalable_printable",
+      "type": "claim"
+    },
+    {
+      "content": "Engineering a 2D/3D (HOOC(CH2)4NH3)2PbI4/CH3NH3PbI3 perovskite junction creates an exceptional gradually-organized multi-dimensional interface that combines 2D perovskite stability with 3D perovskite charge transport",
+      "content_hash": "51d2d1aa0ebba6d6e19cecf5a0aad229dae752f7dcd470a55dfcfa789a201c3f",
+      "label": "two_d_three_d_interface",
+      "qid": "pvsk:pvsk_grancini2017::two_d_three_d_interface",
+      "type": "claim"
+    },
+    {
+      "content": "2D perovskites exhibit superior stability and water resistance compared to 3D perovskites, preventing hydrolysis and irreversible degradation under moisture",
+      "content_hash": "4fd216c6b58527ee37138ff078e437ceeaaa2646e3f05100ef204fc68b77ef5d",
+      "label": "two_d_water_resistant",
+      "qid": "pvsk:pvsk_grancini2017::two_d_water_resistant",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:1d3316f6ede0d1e4e2435d272bdc896824f3a701291067b95123bee0999dae0d",
+  "manifest_schema_version": 1,
+  "package": "pvsk-grancini2017",
+  "version": "1.0.0"
+}

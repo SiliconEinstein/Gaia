@@ -1,0 +1,21 @@
+[project]
+name = "pvsk-jelly2024-gaia"
+version = "1.0.0"
+description = "Jelly et al. Nat Commun 2024 — Roll-to-roll fabricated modules"
+requires-python = ">=3.12"
+dependencies = [
+    "gaia-lang",
+    "pvsk-meta-gaia",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pvsk_jelly2024"]
+
+[tool.gaia]
+namespace = "pvsk"
+type = "knowledge-package"
+uuid = "73a6dd67-7d08-4754-b488-522636ee2c53"

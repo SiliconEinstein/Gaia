@@ -1,0 +1,70 @@
+{
+  "ir_hash": "sha256:26753c8824d6f35218325e43af1bf2b1a5b6ad0f17c854f58c2a6efe54e731cc",
+  "manifest_schema_version": 1,
+  "package": "pvsk-min2020",
+  "premises": [
+    {
+      "content": "FAPbI3:3.8 mol% MDACl2 films exhibit nonradiative recombination lifetime of 1562 ns on quartz, more than double the control value of 715 ns, indicating reduced trap-assisted recombination",
+      "content_hash": "1746e0c65715671c72ff0ee14dad49667447921fbb476c4765088336ed2da95e",
+      "exported": true,
+      "interface_hash": "sha256:b26ffd936c3c0551318638d9431fc4737e3a4509ecb0180646085fb3b784e13f",
+      "label": "carrier_lifetime_1562_ns",
+      "qid": "pvsk:pvsk_min2020::carrier_lifetime_1562_ns",
+      "required_by": [
+        "pvsk:pvsk_min2020::certified_23_7_pct"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "XPS and TOF-SIMS show higher residual Cl- content in FAPbI3:3.8 mol% MDACl2 than in the MAPbBr3 control, concentrated at the TiO2/perovskite interface, which is expected to enhance light stability of the PSC",
+      "content_hash": "a81fad7d1ce99530cf6089cc34bea62d77e99c8e28e5a4fdc40840991064b5a4",
+      "exported": true,
+      "interface_hash": "sha256:294aadd4b592f6ce7a92103a58b569894e3aa498c00cf46857c992c8a467c30d",
+      "label": "cl_residue_at_interface",
+      "qid": "pvsk:pvsk_min2020::cl_residue_at_interface",
+      "required_by": [
+        "pvsk:pvsk_min2020::certified_23_7_pct",
+        "pvsk:pvsk_min2020::humidity_stability_85rh",
+        "pvsk:pvsk_min2020::photostability_600h_mppt"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "Space-charge-limited current measurements show electron trap densities of 5.7x10^15 cm-3 for FAPbI3:3.8 mol% MDACl2, lower than 1.0x10^16 cm-3 for the MAPbBr3 control, indicating that FA vacancy defects do not act as deep electron traps",
+      "content_hash": "32ea510c67aa8de6950f77178d96b4d2bca57dff15e78ea4925b742945dc1c03",
+      "exported": true,
+      "interface_hash": "sha256:d3dde6ff80542a87059089ce4ddb4a0f76013a2aa9bbf5c1577db03dcb1a4629",
+      "label": "defect_density_low",
+      "qid": "pvsk:pvsk_min2020::defect_density_low",
+      "required_by": [
+        "pvsk:pvsk_min2020::certified_23_7_pct"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "MDACl2 addition preserves the inherent narrow bandgap of FAPbI3: PL emission shifts minimally from 826 nm (pristine) to 822 nm (3.8 mol%), compared to 816 nm for the MAPbBr3-stabilized control, enabling higher photocurrent through broader absorption",
+      "content_hash": "1b4b0f9f91adf1d931bb6fc026233cb603dc6095679538fb369a2dbfb7e8dc40",
+      "exported": true,
+      "interface_hash": "sha256:b9a09e3e73831761f82f1f85804bc4a7f27a3ae7ea92b96bb1dbc325135459da",
+      "label": "inherent_bandgap_preserved",
+      "qid": "pvsk:pvsk_min2020::inherent_bandgap_preserved",
+      "required_by": [
+        "pvsk:pvsk_min2020::record_jsc_26_7"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "MDA2+ stabilizes alpha-FAPbI3 through two mechanisms: (1) stronger hydrogen bonding with I- due to more H atoms than FA+ or MA+, and (2) stronger ionic interaction from its divalent charge state, enabling stabilization in smaller amounts than MA",
+      "content_hash": "8e63d63fe15e9732e41d44f97b35f49d13e5ee04d3b1fb7c7f169c7af75c0607",
+      "exported": true,
+      "interface_hash": "sha256:372583483a1a73c4453d5e4beab3338906597f5cf9c3a65702966bbaf7e6c5ab",
+      "label": "mida_hbond_mechanism",
+      "qid": "pvsk:pvsk_min2020::mida_hbond_mechanism",
+      "required_by": [
+        "pvsk:pvsk_min2020::alpha_phase_stabilization"
+      ],
+      "role": "local_hole"
+    }
+  ],
+  "version": "1.0.0"
+}

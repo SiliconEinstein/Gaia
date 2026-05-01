@@ -1,0 +1,113 @@
+{
+  "exports": [
+    {
+      "content": "The bilayer architecture combining mesoscopic mp-TiO2-perovskite nanocomposite base with a planar perovskite upper layer (100-300 nm) effectively absorbs light and collects charges, merging advantages of mesoscopic and planar structures",
+      "content_hash": "aa339b9992e2195e20c06af5111a88f800f07172114aa75c42973dcd343973bc",
+      "label": "bilayer_architecture",
+      "qid": "pvsk:pvsk_jeon2014::bilayer_architecture",
+      "type": "claim"
+    },
+    {
+      "content": "Substituting 10-15 mol% Br- for I- in MAPbI3 greatly improves stability in ambient atmosphere while the dual halide material demonstrates similar photovoltaic performance over the compositional range",
+      "content_hash": "1aae12ed4a3304b56fcb92904c3a1a3a2d9c67ea5a030a852d75941e85a12d3a",
+      "label": "br_improves_ambient_stability",
+      "qid": "pvsk:pvsk_jeon2014::br_improves_ambient_stability",
+      "type": "claim"
+    },
+    {
+      "content": "The MAI-PbI2-DMSO intermediate phase coexists with perovskite at 100C and completely converts to perovskite at 130C, as monitored by in situ high-temperature XRD",
+      "content_hash": "e616442fd15bd098990e2b2dbeb2390742968073cfa83f89bd7694a24b662b80",
+      "label": "conversion_at_130c",
+      "qid": "pvsk:pvsk_jeon2014::conversion_at_130c",
+      "type": "claim"
+    },
+    {
+      "content": "DMSO in the MAI-PbI2-DMSO intermediate phase retards the rapid reaction between PbI2 and MAI during solvent evaporation, enabling controlled crystallization and uniform film formation",
+      "content_hash": "85e2ad0778f35caa6a38b945ff048ceab768184a7c810e98587a875cc0e806b5",
+      "label": "dmpso_retards_reaction",
+      "qid": "pvsk:pvsk_jeon2014::dmpso_retards_reaction",
+      "type": "claim"
+    },
+    {
+      "content": "Bilayer architecture perovskite solar cell: glass/FTO/bl-TiO2/mp-TiO2-perovskite nanocomposite/perovskite upper layer (100-300 nm)/PTAA/Au. Uses MAPb(I1-xBrx)3 (x=0.1-0.15) as absorber and poly(triarylamine) (PTAA) as hole-transporting material, fully solution-processed",
+      "content_hash": "9aa350328e9e53eeaf87d2a09dfcbf0d73b6d7912dfb96257aada7c4500c39eb",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_jeon2014::exp_context",
+      "type": "setting"
+    },
+    {
+      "content": "In pure GBL solvent (without DMSO), perovskite crystals form immediately during spin-coating, producing inhomogeneous islands with low surface coverage regardless of toluene drip treatment",
+      "content_hash": "5b150f2e3cb38291a16126d7ef83111599ebe278b3e08754e089301635c872b6",
+      "label": "gbl_only_inhomogeneous",
+      "qid": "pvsk:pvsk_jeon2014::gbl_only_inhomogeneous",
+      "type": "claim"
+    },
+    {
+      "content": "What is the precise atomic structure of the MAI-PbI2-DMSO intermediate phase, and how does the guest molecule arrangement control the subsequent perovskite crystallization?",
+      "content_hash": "b2db99b96e9c0e59127a2c036c7a31c6ec087add9542fe95476754dc40654744",
+      "label": "intermediate_mechanism",
+      "qid": "pvsk:pvsk_jeon2014::intermediate_mechanism",
+      "type": "question"
+    },
+    {
+      "content": "The MAI-PbI2-DMSO intermediate phase is a new crystalline compound (confirmed by XRD peaks at 6.55, 7.21, and 9.17 degrees and FTIR showing both N-H and S-O deformation modes) that converts to perovskite upon annealing at 130C",
+      "content_hash": "790bcef2123127758770758feb58c235ce5091107e965e5ab7f796f13cb096f5",
+      "label": "intermediate_phase",
+      "qid": "pvsk:pvsk_jeon2014::intermediate_phase",
+      "type": "claim"
+    },
+    {
+      "content": "MAPb(I1-xBrx)3 with x=0.1-0.15 used because 10-15 mol% Br substitution for I greatly improves stability in ambient atmosphere while maintaining similar photovoltaic performance over the compositional range",
+      "content_hash": "2de049d1c91b31f31aa806de72c677d784fcba5831392d85813fe0950a5b1e5d",
+      "label": "mixed_halide_composition",
+      "qid": "pvsk:pvsk_jeon2014::mixed_halide_composition",
+      "type": "setting"
+    },
+    {
+      "content": "The solvent-engineered perovskite solar cells show no hysteresis in J-V measurements, indicating balanced charge transport and minimal ion migration effects in the bilayer architecture",
+      "content_hash": "2d5aa0e40b920962d49afa18d980ac960d8221b1e5f199797a2fe599adfc6323",
+      "label": "no_hysteresis",
+      "qid": "pvsk:pvsk_jeon2014::no_hysteresis",
+      "type": "claim"
+    },
+    {
+      "content": "Fully solution-processed perovskite solar cell achieves certified PCE of 16.2% under standard reporting conditions with no hysteresis, using MAPb(I0.85Br0.15)3 and PTAA hole transporter",
+      "content_hash": "a4c25e0db9a5b4c342df01bb9f46dca94dfa67d1dff4e02328d65abe36fa6b0c",
+      "label": "pce_certified_16_2",
+      "qid": "pvsk:pvsk_jeon2014::pce_certified_16_2",
+      "type": "claim"
+    },
+    {
+      "content": "Poly(triarylamine) (PTAA) used as hole-transporting material achieves high performance in combination with the bilayer perovskite architecture, enabling the certified 16.2% PCE",
+      "content_hash": "213a4273dd95cb86b1d34b7fc4aa7fe6164e086f9948ffe4c3b158e9dfb0d38c",
+      "label": "ptaa_htm",
+      "qid": "pvsk:pvsk_jeon2014::ptaa_htm",
+      "type": "claim"
+    },
+    {
+      "content": "The intermediate phase film has RMS roughness of 6.0 nm and the resulting perovskite film has RMS roughness of 8.3 nm (AFM over 3x3 um2), demonstrating extremely smooth and uniform surface morphology",
+      "content_hash": "e66591a630f0aeed8f77c222f84ab20a80481df949534a31bab5904dfc792600",
+      "label": "rms_roughness_6nm",
+      "qid": "pvsk:pvsk_jeon2014::rms_roughness_6nm",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite deposited by spin-coating from GBL+DMSO mixed solvent followed by toluene drop-casting during spinning. The toluene rapidly removes excess DMSO and freezes constituents into a uniform MAI-PbI2-DMSO intermediate phase, which converts to perovskite upon annealing at 100C for 10 min",
+      "content_hash": "02351510b4240cafdd396dec137a0bfca8e55a2be85864eabe104b9c1772486b",
+      "label": "solvent_engineering",
+      "qid": "pvsk:pvsk_jeon2014::solvent_engineering",
+      "type": "claim"
+    },
+    {
+      "content": "Without toluene drop-casting, the film adopts a textile-like inhomogeneous layer that does not fully cover the substrate. The toluene drip is critically important for producing uniform, dense, and fully covering perovskite films",
+      "content_hash": "793df184d9a85843f852845d59f34a947a76b58f8606712438416da30859f552",
+      "label": "toluene_critical",
+      "qid": "pvsk:pvsk_jeon2014::toluene_critical",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:2a8223d4aa64a12945a50f1ae340fd99365554422d6a135c0d5e1460f69884cf",
+  "manifest_schema_version": 1,
+  "package": "pvsk-jeon2014",
+  "version": "1.0.0"
+}

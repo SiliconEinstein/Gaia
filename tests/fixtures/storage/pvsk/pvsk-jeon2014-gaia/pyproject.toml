@@ -1,0 +1,21 @@
+[project]
+name = "pvsk-jeon2014-gaia"
+version = "1.0.0"
+description = "Jeon et al. Nat Mater 2014 — Solvent engineering"
+requires-python = ">=3.12"
+dependencies = [
+    "gaia-lang",
+    "pvsk-meta-gaia",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pvsk_jeon2014"]
+
+[tool.gaia]
+namespace = "pvsk"
+type = "knowledge-package"
+uuid = "03c7450c-75db-4969-be5e-44135f528d04"

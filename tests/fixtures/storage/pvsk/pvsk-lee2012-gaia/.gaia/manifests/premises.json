@@ -1,0 +1,32 @@
+{
+  "ir_hash": "sha256:3f7b2a89c9aaff51ff8571e066235b479a06ca916052933ab3583687a56d3d7e",
+  "manifest_schema_version": 1,
+  "package": "pvsk-lee2012",
+  "premises": [
+    {
+      "content": "The increased Voc in Al2O3 cells is caused by substantial reduction of chemical capacitance: without mesoporous TiO2 sub-bandgap states, the quasi-Fermi level for electrons moves nearer to the conduction band for the same charge density",
+      "content_hash": "c9ee9ca24085fb58d1a7843244f606dc916f2ed198904806776627a760dfee16",
+      "exported": true,
+      "interface_hash": "sha256:338005bf212e773d21d11a915082a8bc5aa798cfb959d85422ec7005a12c5c57",
+      "label": "chemical_capacitance_explanation",
+      "qid": "pvsk:pvsk_lee2012::chemical_capacitance_explanation",
+      "required_by": [
+        "pvsk:pvsk_lee2012::al2o3_increases_voc"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "The perovskite layer functions as both absorber and n-type semiconductor, transporting electrons through the film thickness, as demonstrated by charge collection faster by a factor >10 in Al2O3 cells vs TiO2 cells",
+      "content_hash": "fb1bb16f582073f1e3e3900ce05c9c99eb2733d728ac9c73562769905dd72c13",
+      "exported": true,
+      "interface_hash": "sha256:60856ea8fbb99b363c9bc07749c60364f751e70407be9a22c68275ecf7289c8d",
+      "label": "perovskite_n_type_transport",
+      "qid": "pvsk:pvsk_lee2012::perovskite_n_type_transport",
+      "required_by": [
+        "pvsk:pvsk_lee2012::pce_10_9_pct"
+      ],
+      "role": "local_hole"
+    }
+  ],
+  "version": "1.0.0"
+}

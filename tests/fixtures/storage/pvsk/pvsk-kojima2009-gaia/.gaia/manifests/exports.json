@@ -1,0 +1,106 @@
+{
+  "exports": [
+    {
+      "content": "Halogen substitution from Br to I in CH3NH3PbX3 causes a bathochromic shift in absorption, analogous to silver halide ionic crystals",
+      "content_hash": "69d041395a53c152f5f049a356f38ddd0710ec4ca14e00ec46203d6b25566458",
+      "label": "bandgap_bathochromic_shift",
+      "qid": "pvsk:pvsk_kojima2009::bandgap_bathochromic_shift",
+      "type": "claim"
+    },
+    {
+      "content": "Conduction-band levels of CH3NH3PbBr3 and CH3NH3PbI3 are at ~3.36 and 4.0 eV respectively, allowing electron injection into the TiO2 conduction band (~4.0 eV)",
+      "content_hash": "0f22a8280602bc6d2667bffb57d9bdc93c94a3f677d0171449504e18feb9dff5",
+      "label": "conduction_band_levels",
+      "qid": "pvsk:pvsk_kojima2009::conduction_band_levels",
+      "type": "claim"
+    },
+    {
+      "content": "How can the photocurrent decay observed under continuous irradiation for open cells exposed to air be mitigated to improve perovskite photovoltaic cell lifetime?",
+      "content_hash": "bc84b28dfe60dcf3c3181bf889a428340c3b17aeac161213c00650543ffb43f2",
+      "label": "durability_question",
+      "qid": "pvsk:pvsk_kojima2009::durability_question",
+      "type": "claim"
+    },
+    {
+      "content": "The 3.81% PCE of the CH3NH3PbI3 cell is significantly higher than efficiencies obtained to date with non-organic sensitizers and quantum dots (CdS, CdSe, PbS, InP, InAs)",
+      "content_hash": "e1986c19351d22b4d15789693982826bfe8277ded20837fe113e6d04e8fc8a27",
+      "label": "exceeds_quantum_dots",
+      "qid": "pvsk:pvsk_kojima2009::exceeds_quantum_dots",
+      "type": "claim"
+    },
+    {
+      "content": "Photoelectrochemical cells constructed with CH3NH3PbX3 (X=Br, I) nanocrystalline particles self-organized on mesoporous TiO2 (8-12 um thick) deposited on FTO glass, using organic electrolyte with lithium halide/halogen redox couple, measured under AM 1.5 simulated sunlight at 100 mW/cm2",
+      "content_hash": "dc40a44949810e186ddf76866186cb104b1fe0f1a2ac03e982a6ed727475e481",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_kojima2009::exp_context",
+      "type": "setting"
+    },
+    {
+      "content": "CH3NH3PbBr3-sensitized cell yields a high open-circuit voltage of 0.96 V with Jsc=5.57 mA/cm2, fill factor 0.59, and PCE of 3.13%",
+      "content_hash": "4fbbb09103febfb72511325e04abed8f59e92c519a1a8db692a40bdb7870cadf",
+      "label": "high_voc_bromide",
+      "qid": "pvsk:pvsk_kojima2009::high_voc_bromide",
+      "type": "claim"
+    },
+    {
+      "content": "The high Voc of 0.96 V in CH3NH3PbBr3 cells is due to the more positive electrochemical potential of the Br2/Br- redox couple compared to I2/I-, expanding the range of photovoltage",
+      "content_hash": "f1c7e33e0814ed3e2ef1d6a70127eea4777026b362ef07d7b0f58652f43f76cb",
+      "label": "high_voc_origin",
+      "qid": "pvsk:pvsk_kojima2009::high_voc_origin",
+      "type": "claim"
+    },
+    {
+      "content": "CH3NH3PbBr3/TiO2 cell achieves maximum IPCE of 65% in the visible region (lambda < 600 nm) with sharp band-gap absorption onset near 570 nm",
+      "content_hash": "04cbabf73a3d1275016b1580f065a5e6aedd685559f3a444a98bb115a4c76213",
+      "label": "ipce_bromide_65_pct",
+      "qid": "pvsk:pvsk_kojima2009::ipce_bromide_65_pct",
+      "type": "claim"
+    },
+    {
+      "content": "CH3NH3PbI3/TiO2 cell shows extended spectral response to 800 nm but lower peak IPCE of 45%, reflecting broader but less intense absorption",
+      "content_hash": "6bab8861be612d058cc0f93fef69b2185097e6dc2bce8fcd2a4f465b4aaa137f",
+      "label": "ipce_iodide_extended",
+      "qid": "pvsk:pvsk_kojima2009::ipce_iodide_extended",
+      "type": "claim"
+    },
+    {
+      "content": "CH3NH3PbI3-sensitized photoelectrochemical cell achieves power conversion efficiency of 3.81% under AM 1.5 simulated sunlight at 100 mW/cm2, with Jsc=11.0 mA/cm2, Voc=0.61 V, and fill factor 0.57",
+      "content_hash": "21f9c4d8639c20265a8fe0cd91af006a21941a65cb5d721e1363ba182219c187",
+      "label": "pce_3_8_pct",
+      "qid": "pvsk:pvsk_kojima2009::pce_3_8_pct",
+      "type": "claim"
+    },
+    {
+      "content": "Organolead halide perovskite compounds CH3NH3PbBr3 (cubic, a=5.9 A) and CH3NH3PbI3 (tetragonal, a=8.855 A, c=12.659 A) synthesized from abundant sources Pb, C, N, and halogen, deposited from precursor solutions via spin-coating",
+      "content_hash": "2a87642f6c5a3edeab20b8165389d6d9441e4c105b0398e98a1e70644e34b27b",
+      "label": "perovskite_materials",
+      "qid": "pvsk:pvsk_kojima2009::perovskite_materials",
+      "type": "claim"
+    },
+    {
+      "content": "Organolead halide perovskite nanocrystalline particles efficiently sensitize mesoporous TiO2 for visible-light conversion, confirmed by anodic photocurrent generation and IPCE measurements",
+      "content_hash": "8d6fb7795f325959503a3ef046f9f8d4331b10a43498e2d2abd50c40cf001e46",
+      "label": "perovskite_sensitizes_tio2",
+      "qid": "pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2",
+      "type": "claim"
+    },
+    {
+      "content": "A series of organic-inorganic perovskite materials CH3NH3MX3 (M=Pb, Sn; X=halogen) with different energy gaps are targets for optimizing photovoltaic cell performance",
+      "content_hash": "0ad94679400cc1fbbe2acd09d9f3648ecc8d4f21b8a236212597bc201caebf22",
+      "label": "perovskite_series_potential",
+      "qid": "pvsk:pvsk_kojima2009::perovskite_series_potential",
+      "type": "claim"
+    },
+    {
+      "content": "Valence-band levels of CH3NH3PbBr3 and CH3NH3PbI3 are at ~5.38 and 5.44 eV versus vacuum level, respectively, as measured by photoelectron spectroscopy",
+      "content_hash": "2a5d2dd7205072f4f125280f95f83ac5c556be8b8de68115b1372cdf5e8f8f68",
+      "label": "valence_band_levels",
+      "qid": "pvsk:pvsk_kojima2009::valence_band_levels",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:240ab96c51c00096bd8852aadfd7c17d6262750278863d961ae50d8b14c4d88c",
+  "manifest_schema_version": 1,
+  "package": "pvsk-kojima2009",
+  "version": "1.0.0"
+}

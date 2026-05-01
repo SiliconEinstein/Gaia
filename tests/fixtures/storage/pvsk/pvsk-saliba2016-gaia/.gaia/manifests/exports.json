@@ -1,0 +1,78 @@
+{
+  "exports": [
+    {
+      "content": "The triple cation composition stabilizes the black perovskite phase at room temperature without requiring high-temperature annealing above 160C",
+      "content_hash": "adbd576e3f784c14bf7333765df6b715d1f14efe9d3ecbc0f651e5083a303e9a",
+      "label": "black_phase_stable",
+      "qid": "pvsk:pvsk_saliba2016::black_phase_stable",
+      "type": "claim"
+    },
+    {
+      "content": "Cs incorporation suppresses the formation of the non-perovskite delta-phase in FAPbI3-based compositions, producing monomorphic phase-pure perovskite films",
+      "content_hash": "93a91824420442b25ba997425fb0a9f4d0a2edc8d2515c5a7b821497ac91b081",
+      "label": "cesium_reduces_impurities",
+      "qid": "pvsk:pvsk_saliba2016::cesium_reduces_impurities",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells fabricated with triple cation Cs/(MA/FA) compositions in mesoporous TiO2 architecture, measured under standard AM1.5G illumination",
+      "content_hash": "9d1b52b6fc2db0e7691455448c88efd6402b8448ac45d3186b38aa23d97a89b7",
+      "label": "device_fabrication",
+      "qid": "pvsk:pvsk_saliba2016::device_fabrication",
+      "type": "setting"
+    },
+    {
+      "content": "The improved reproducibility, stability, and reduced processing sensitivity of triple cation compositions are key properties for industrialization of perovskite photovoltaics",
+      "content_hash": "99d8d7903787890ce17b0d05ca398bbd59a7c723643507eaad34bd4fc3323ede",
+      "label": "key_for_industrialization",
+      "qid": "pvsk:pvsk_saliba2016::key_for_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "Triple cation Cs-containing perovskite compositions are less sensitive to processing conditions than binary FA/MA compositions, enabling more reproducible device fabrication",
+      "content_hash": "95067b57cf80308c97e44f4f4dc86f3abf6e45d84b3bffeb6788ead3c2750217",
+      "label": "less_processing_sensitive",
+      "qid": "pvsk:pvsk_saliba2016::less_processing_sensitive",
+      "type": "claim"
+    },
+    {
+      "content": "Cs-containing perovskite films exhibit smoother, more uniform morphology with larger grain size compared to binary FA/MA films",
+      "content_hash": "b06d15cac4f6e3e43ac260884cf704546d3a84f4cf1e41865cf517b93cbc2033",
+      "label": "morphology_improved",
+      "qid": "pvsk:pvsk_saliba2016::morphology_improved",
+      "type": "claim"
+    },
+    {
+      "content": "Triple cation devices maintain approximately 18% efficiency after 250 hours under operational conditions, demonstrating improved stability",
+      "content_hash": "7e578d867ff4a45dbdcbb3762d1013a6f453c804e05cdfb8462f7637c5ed7a64",
+      "label": "operational_18_pct_250h",
+      "qid": "pvsk:pvsk_saliba2016::operational_18_pct_250h",
+      "type": "claim"
+    },
+    {
+      "content": "Triple cation devices show significantly improved batch-to-batch reproducibility compared to binary FA/MA compositions, with reduced standard deviation in PCE",
+      "content_hash": "a59b4763603205e733d36d5741ee966fa0094f4faf09df1204d3a8adfdc95f41",
+      "label": "reproducibility_improved",
+      "qid": "pvsk:pvsk_saliba2016::reproducibility_improved",
+      "type": "claim"
+    },
+    {
+      "content": "Triple cation perovskite solar cells achieve a stabilized power output of 21.1%, representing the highest stabilized efficiency at the time of publication",
+      "content_hash": "38bbb09c0517c6f9448d6ba4ba7434d3f66f37ae42c535bd45b8261b530ef04e",
+      "label": "stabilized_output_21_1_pct",
+      "qid": "pvsk:pvsk_saliba2016::stabilized_output_21_1_pct",
+      "type": "claim"
+    },
+    {
+      "content": "Adding inorganic cesium to FA/MA mixed perovskite compositions produces thermally more stable perovskites with fewer phase impurities",
+      "content_hash": "be755544f510c092040a0dace3b52f526ff0d00f9fcb2c89daf6a0170d998dd4",
+      "label": "triple_cation_stable",
+      "qid": "pvsk:pvsk_saliba2016::triple_cation_stable",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:32310b58df498d433b7141d3d5783e14d0953439ad49a3b5ac1e3cdb983261b8",
+  "manifest_schema_version": 1,
+  "package": "pvsk-saliba2016",
+  "version": "1.0.0"
+}

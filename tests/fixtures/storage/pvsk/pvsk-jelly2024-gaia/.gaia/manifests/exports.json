@@ -1,0 +1,92 @@
+{
+  "exports": [
+    {
+      "content": "Perovskite-friendly carbon inks enable vacuum-free printed back electrodes compatible with R2R manufacturing, replacing costly vacuum-deposited Au electrodes",
+      "content_hash": "3a4e560434115ebb1cd981c6d37754940f3626fb6462ec663411976be232007d",
+      "label": "carbon_electrode",
+      "qid": "pvsk:pvsk_jelly2024::carbon_electrode",
+      "type": "claim"
+    },
+    {
+      "content": "A cost model predicts manufacturing cost of ~0.7 USD W-1 for a production rate of 1,000,000 m2 per year in Australia, with potential for further cost reduction below 0.5 USD W-1 by eliminating remaining high-cost components",
+      "content_hash": "d211d11242f6cdfe7efc4e9868e424e36ba303a4047a7baa766708efbf7d566a",
+      "label": "cost_prediction",
+      "qid": "pvsk:pvsk_jelly2024::cost_prediction",
+      "type": "claim"
+    },
+    {
+      "content": "Entirely roll-to-roll fabricated perovskite solar cell modules on flexible PET substrates. Device stack: flexible TCE/SnO2/FA0.45MA0.55PbI3/HTAB-P3HT/carbon electrode with screen-printed Ag grids. All layers deposited by industrial R2R tools (slot-die, reverse gravure, screen printing) under ambient room conditions.",
+      "content_hash": "2f61f6ac9bf1c72391835ce2e8e0316f517dacd152f7e03991b760456c877348",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_jelly2024::exp_context",
+      "type": "setting"
+    },
+    {
+      "content": "This work reports the first demonstration of perovskite solar cell modules, comprising serially-interconnected cells, produced entirely using industrial roll-to-roll printing tools under ambient room conditions",
+      "content_hash": "70a9b6e1a65ca7524e1a0e985c62f5efa05b498f65a7a5d9cd8a2090b2a64200",
+      "label": "first_r2r_modules",
+      "qid": "pvsk:pvsk_jelly2024::first_r2r_modules",
+      "type": "claim"
+    },
+    {
+      "content": "R2R-printed modules achieve a geometric fill factor (GFF) of 75% using stripe-pattern interconnection, lower than laser-scribed modules (99%) but compatible with high-throughput manufacturing",
+      "content_hash": "121a9bfc7ef7bac1bd80a160128aef1bd323fd7927e3cee64e7102aa22f5d0c0",
+      "label": "geometric_fill_factor",
+      "qid": "pvsk:pvsk_jelly2024::geometric_fill_factor",
+      "type": "claim"
+    },
+    {
+      "content": "An automated R2R platform enables fabrication and testing of over 10,000 solar cells per day, with 1600 cells fabricated in a single experiment using 20 parameter combinations for rapid optimization",
+      "content_hash": "a2227e8dad28a097ae38e5ce794383ade89cfce1e363735487eaecb8139be88a",
+      "label": "high_throughput_screening",
+      "qid": "pvsk:pvsk_jelly2024::high_throughput_screening",
+      "type": "claim"
+    },
+    {
+      "content": "The HTAB-P3HT hole transport layer system outperforms PPDT2FBT, achieving higher PCE and narrower performance distribution in R2R fabrication, by passivating perovskite surface traps and promoting self-assembly of P3HT",
+      "content_hash": "b3244ac25e41eeb28381e18c6b7e83396dec6635c4c681aff01ee11085b307f3",
+      "label": "htab_p3ht_htl",
+      "qid": "pvsk:pvsk_jelly2024::htab_p3ht_htl",
+      "type": "claim"
+    },
+    {
+      "content": "Reliable production of R2R-fabricated PSCs with average PCE of ~13% is confirmed regardless of ambient humidity (30-60% RH), demonstrating manufacturing robustness",
+      "content_hash": "85d92820bf57c0b2cea073b1e3f49c9f9dd3cfd40bae8602d71c1cb080382d8e",
+      "label": "humidity_tolerance",
+      "qid": "pvsk:pvsk_jelly2024::humidity_tolerance",
+      "type": "claim"
+    },
+    {
+      "content": "The printing-friendly sequential deposition (PFSD) technique with shallow-angle edge blowing produces high-quality perovskite films on continuously moving substrates under ambient conditions (40-50% RH), with mirror-like film quality and no PbI2 residue",
+      "content_hash": "9ab1bd70112191bfc658dbb1d6bc01e7e5f070a280981ddfce6beaaedc8dd90f",
+      "label": "pfsd_technique",
+      "qid": "pvsk:pvsk_jelly2024::pfsd_technique",
+      "type": "claim"
+    },
+    {
+      "content": "Fully R2R-printed individual perovskite solar cells achieve a record PCE of 15.5% with Jsc of 19.9 mA cm-2, FF of 76.1%, and Voc of 1.02 V, using a printed carbon electrode to replace vacuum-deposited gold",
+      "content_hash": "237a44746e06ee7dbbb69ec43ff0d9075e42f4acbb3b697127e79b0a75458c49",
+      "label": "r2r_cell_15_5",
+      "qid": "pvsk:pvsk_jelly2024::r2r_cell_15_5",
+      "type": "claim"
+    },
+    {
+      "content": "Translating lab-scale perovskite solar cells to R2R manufacturing requires replacing vacuum-deposited electrodes with printable alternatives, developing ambient-compatible processing, and controlling crystallization on continuously moving flexible substrates.",
+      "content_hash": "5c48deb4068722f3f07d0dc3419651737582e72dce0ea8b709bd090348c23a96",
+      "label": "r2r_challenges",
+      "qid": "pvsk:pvsk_jelly2024::r2r_challenges",
+      "type": "setting"
+    },
+    {
+      "content": "Entirely R2R-fabricated modules (49.5 cm2 active area, 5 cells in series) achieve up to 11.0% active-area PCE with 192 mA current, 62.3% FF, and 4.59 V Voc",
+      "content_hash": "c2d32ab07ff3efd505fe79d145e355e6a83078a6f451bbea76521d0a807cd2f7",
+      "label": "r2r_module_11",
+      "qid": "pvsk:pvsk_jelly2024::r2r_module_11",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:f7e64b400120337b4dc44080952e609a2ee8272a46aaa9a5f2f878239d966879",
+  "manifest_schema_version": 1,
+  "package": "pvsk-jelly2024",
+  "version": "1.0.0"
+}

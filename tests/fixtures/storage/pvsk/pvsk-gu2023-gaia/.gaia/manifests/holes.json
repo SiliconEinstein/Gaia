@@ -1,0 +1,59 @@
+{
+  "holes": [
+    {
+      "content": "Optimally spaced silver grids (2 mm spacing) on the rear ITO electrode reduce resistance loss from 8.6% to less than 0.9% while maintaining bifaciality of 74.3%",
+      "content_hash": "d7cacee2cf74a6fa92dd17d70432a79dd3dbe38a8959a194d3120db88fb0fb8e",
+      "interface_hash": "sha256:5cd3faf18c165fc30cd3dd2cee536d11990b20d05f0530327c9ffd9f75260f8d",
+      "label": "ag_grid_optimization",
+      "qid": "pvsk:pvsk_gu2023::ag_grid_optimization",
+      "required_by": [
+        "pvsk:pvsk_gu2023::bifacial_front_20"
+      ]
+    },
+    {
+      "content": "ALD SnO2 buffer layer greatly reduces perovskite damage during laser scribing and stabilizes the C60/BCP interface by replacing the thermally unstable BCP layer",
+      "content_hash": "78712cc8bd33ea08e0b6b8490eefbd7f1b8317714b637c8c735efbbe775f9424",
+      "interface_hash": "sha256:10fdf45ed72ec6bcc59f1c20ad0bbff392d86ab665453dbd7ce0ddb071b85da0",
+      "label": "ald_sno2_stability",
+      "qid": "pvsk:pvsk_gu2023::ald_sno2_stability",
+      "required_by": [
+        "pvsk:pvsk_gu2023::light_soaking_6000h"
+      ]
+    },
+    {
+      "content": "Bifacial minimodules achieve a bifaciality of 74.3% and gain 15% more power output at albedo of 0.2 compared with monofacial modules",
+      "content_hash": "82de0e02c7c391fa4bc901cc593e9a494ef3a5e594e5d1b9b93ad54b066568fa",
+      "interface_hash": "sha256:e7b32a2f9108e3a1c45d5ba1bc9564bc42f9ab50ec5a1df5b630e630c8ee4cab",
+      "label": "bifaciality_74",
+      "qid": "pvsk:pvsk_gu2023::bifaciality_74",
+      "required_by": [
+        "pvsk:pvsk_gu2023::power_generation_density"
+      ]
+    },
+    {
+      "content": "Embedding 500 nm SiO2 nanoparticles in perovskite films recovers absorption loss from the absent reflective metal electrode by scattering red and NIR light, increasing Jsc by 0.8 mA cm-2 without introducing additional non-radiative recombination",
+      "content_hash": "cdbae616b3a4cc73d5cccc9826a07151e16124d22f09dd4732db6d52457fe1cf",
+      "interface_hash": "sha256:412e0d24ccd4819c0ca5343ab020908b436425d46282bf33f82db62f6adb39dd",
+      "label": "sio2_np_scattering",
+      "qid": "pvsk:pvsk_gu2023::sio2_np_scattering",
+      "required_by": [
+        "pvsk:pvsk_gu2023::bifacial_front_20"
+      ]
+    },
+    {
+      "content": "Adding hydrophobic tris(pentafluorophenyl)borane (TPFB) to the PTAA hole transport layer spreads to the perovskite surface and significantly enhances moisture resistance during ALD processing, improving device reproducibility for large-area modules",
+      "content_hash": "33d60e3b5cad8f42319204b46456247c36be588a499129de33bd67fd5b13d417",
+      "interface_hash": "sha256:9d0e17eb8b2ff1407a2b18743603fea6e8c75e9ff29b154798f185daac229231",
+      "label": "tpfb_moisture_protection",
+      "qid": "pvsk:pvsk_gu2023::tpfb_moisture_protection",
+      "required_by": [
+        "pvsk:pvsk_gu2023::bifacial_front_20",
+        "pvsk:pvsk_gu2023::light_soaking_6000h"
+      ]
+    }
+  ],
+  "ir_hash": "sha256:b7170da61e690f45ed7c66af7318f74b6f1fe31ebbb62418776fe33ad8edffa8",
+  "manifest_schema_version": 1,
+  "package": "pvsk-gu2023",
+  "version": "1.0.0"
+}

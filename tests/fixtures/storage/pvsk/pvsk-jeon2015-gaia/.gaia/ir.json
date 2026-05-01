@@ -1,0 +1,732 @@
+{
+  "ir_hash": "sha256:88dd1e4b4994176aada501b7b72fae804e590fb988a8d3d4ab0dbc867f5449aa",
+  "knowledges": [
+    {
+      "content": "Bilayer solar-cell architecture with perovskite-infiltrated mesoporous TiO2 electrodes and upper perovskite layer obtained by solvent engineering techniques",
+      "content_hash": "852ccc0308dbab4eaf44c08e605361ae1b885c7276d4b4726f074b7655fef8b9",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2015::bilayer_architecture",
+      "label": "bilayer_architecture",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "FAPbI3 has a bandgap of 1.48 eV with absorption edge of 840 nm, narrower than MAPbI3 (1.5-1.6 eV, edge ~800 nm), enabling broader solar spectrum absorption",
+      "content_hash": "c70200ef2103cd41f74b15fa1ba100cacf7d1da5e993f6a0c4adb8cb8ecf23e0",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2015::fa_narrower_bandgap",
+      "label": "fa_narrower_bandgap",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Pure FAPbI3 black perovskite phase (alpha-phase) is thermally unstable, converting to yellow delta-phase at room temperature in humid atmosphere",
+      "content_hash": "bea0f9ed474437ec8ffaee2df0d0d00c7d1bc75ba98526d45913c74f853ae6e2",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2015::fa_phase_unstable",
+      "label": "fa_phase_unstable",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Incorporation of MAPbBr3 into FAPbI3 stabilizes the perovskite phase of FAPbI3 and prevents conversion to the non-perovskite delta-phase",
+      "content_hash": "12a6c2996a42c7c14dff102d1ba2bf0088d52ee25676095a9c78a763ef2abb21",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2015::mapbbr3_stabilizes_fapbi3",
+      "label": "mapbbr3_stabilizes_fapbi3",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Optimal composition (FAPbI3)0.85(MAPbBr3)0.15 achieves maximum Jsc of 22 mA/cm2, Voc of 1.08 V, fill factor 73%, and PCE >18% under standard AM1.5G illumination",
+      "content_hash": "e4edf0941db1e5b1e9b0966d30e97c064fd350afde53b1679db859e02b1ee3e5",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2015::optimal_composition_x15",
+      "label": "optimal_composition_x15",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "FAPbI3/MAPbBr3 mixed perovskite solar cells show negligible hysteresis in J-V curves compared to MAPbI3-based cells, due to better balance of electron and hole transport",
+      "content_hash": "fbd0e987aa60cd61555c64fd8deb0d4057db8c1b83359a7e7089b02ed2ad3d24",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2015::negligible_hysteresis",
+      "label": "negligible_hysteresis",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The (FAPbI3)0.85(MAPbBr3)0.15 composition achieves stabilized power conversion efficiency exceeding 18% under standard illumination of 100 mW/cm2",
+      "content_hash": "f7839ee8ed08f008bb786424cd6eec674936dbc1edfc11a0c721e7d03e8d833a",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2015::pce_over_18_pct",
+      "label": "pce_over_18_pct",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "FAPbI3 has a hole-diffusion length (~813 nm) 4.6 times longer than its electron-diffusion length (~177 nm), contrasting with MAPbI3 where electron diffusion length exceeds hole diffusion length",
+      "content_hash": "8635fc4ab5fefc6d24c35da48d0b283b582e66f65feee85295b2ab2165112fcc",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2015::hole_diffusion_superior",
+      "label": "hole_diffusion_superior",
+      "metadata": {
+        "prior": 0.83
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The bandgap of (FAPbI3)1-x(MAPbBr3)x is tunable by adjusting the molar ratio x, with absorption edge shifting from 840 nm (x=0) to shorter wavelengths as x increases",
+      "content_hash": "8a1217632489a71e7b2c0e4240a810aa44fc89c5c720ecc5d11fcd9ee7a254a2",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2015::bandgap_tunable",
+      "label": "bandgap_tunable",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Mixing FAPbI3 with MAPbBr3 improves the balance between electron and hole transport, which is critical for high-efficiency perovskite solar cells",
+      "content_hash": "33962591feb010fccfb5e3b213489786ca38a677398c6c2d43fcc25fc4e02753",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2015::carrier_balance_improved",
+      "label": "carrier_balance_improved",
+      "metadata": {
+        "prior": 0.78
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The mixed FAPbI3/MAPbBr3 composition shows improved thermal stability compared to pure FAPbI3, with the perovskite phase remaining stable at 100C annealing temperature",
+      "content_hash": "5e0c52c581fb864ae4d1190b24bc6d72ecf8422905101e2c03c597756cb4c542",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2015::thermal_stability_improved",
+      "label": "thermal_stability_improved",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jeon2015::fa_narrower_bandgap,pvsk:pvsk_jeon2015::mapbbr3_stabilizes_fapbi3)",
+      "content_hash": "224b112bda3e1296c6e422fe0f689239b8a95133fda535532c7aeca2d1d2bf69",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2015::__conjunction_result_501f64c8",
+      "label": "__conjunction_result_501f64c8",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jeon2015::fa_narrower_bandgap,pvsk:pvsk_jeon2015::mapbbr3_stabilizes_fapbi3)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_c0b71a3a3453a9bd",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jeon2015::__conjunction_result_501f64c8,pvsk:pvsk_jeon2015::optimal_composition_x15)",
+      "content_hash": "53ebfdb836d5c4a68afd1b197c3ecf9ad998aa11d9c95b8b39c06d5e33e4dfe8",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2015::__implication_result_0b6fdc94",
+      "label": "__implication_result_0b6fdc94",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jeon2015::__conjunction_result_501f64c8,pvsk:pvsk_jeon2015::optimal_composition_x15)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_c0b71a3a3453a9bd",
+        "owning_strategy_type": "support",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jeon2015::optimal_composition_x15,pvsk:pvsk_jeon2015::negligible_hysteresis)",
+      "content_hash": "6bac1a1ee5832c40e65c00afd003ee0d762777cac3c04db5134d17c211a5c710",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2015::__conjunction_result_2ed5ce7a",
+      "label": "__conjunction_result_2ed5ce7a",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jeon2015::optimal_composition_x15,pvsk:pvsk_jeon2015::negligible_hysteresis)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_70a8136b772fa336",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jeon2015::__conjunction_result_2ed5ce7a,pvsk:pvsk_jeon2015::pce_over_18_pct)",
+      "content_hash": "b9fb6f567fd0d3fd88f9e4e7b4c93b26436c097e03aed64fb4e4b2c7fca89cdd",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2015::__implication_result_6443ad8c",
+      "label": "__implication_result_6443ad8c",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jeon2015::__conjunction_result_2ed5ce7a,pvsk:pvsk_jeon2015::pce_over_18_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_70a8136b772fa336",
+        "owning_strategy_type": "support",
+        "prior": 0.85,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jeon2015::mapbbr3_stabilizes_fapbi3,pvsk:pvsk_jeon2015::thermal_stability_improved)",
+      "content_hash": "7f41c19a5d3133fd000d8dcdec0e9df5d06048a34d70a0d9ed6f385fd035db0a",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2015::__conjunction_result_94a56c5a",
+      "label": "__conjunction_result_94a56c5a",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jeon2015::mapbbr3_stabilizes_fapbi3,pvsk:pvsk_jeon2015::thermal_stability_improved)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_ce919afb41abb6fe",
+        "owning_strategy_type": "deduction",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jeon2015::__conjunction_result_94a56c5a,pvsk:pvsk_jeon2015::carrier_balance_improved)",
+      "content_hash": "812f453b55174509f694373c2bf5b75774522f8f3cfa248640523002fc31cc54",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2015::__implication_result_08faec15",
+      "label": "__implication_result_08faec15",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jeon2015::__conjunction_result_94a56c5a,pvsk:pvsk_jeon2015::carrier_balance_improved)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_ce919afb41abb6fe",
+        "owning_strategy_type": "deduction",
+        "prior": 0.75,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jeon2015::fa_narrower_bandgap,pvsk:pvsk_jeon2015::bandgap_tunable)",
+      "content_hash": "52c96b187991d8111d6172a6b0659d01b25089d69d1fcd187e1649588be7b795",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2015::__conjunction_result_1e43e278",
+      "label": "__conjunction_result_1e43e278",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jeon2015::fa_narrower_bandgap,pvsk:pvsk_jeon2015::bandgap_tunable)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_1e9b4c9e95f07ad7",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jeon2015::__conjunction_result_1e43e278,pvsk:pvsk_jeon2015::optimal_composition_x15)",
+      "content_hash": "84f037a7e5203eeb64c7a145b5b4e7f01facb62d71e40ac3d7aa39d4c7b5163b",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2015::__implication_result_7244ce98",
+      "label": "__implication_result_7244ce98",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jeon2015::__conjunction_result_1e43e278,pvsk:pvsk_jeon2015::optimal_composition_x15)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_1e9b4c9e95f07ad7",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jeon2015::pce_over_18_pct,pvsk:pvsk_jeon2015::optimal_composition_x15)",
+      "content_hash": "0f2fdc09a3a489fe736e51a618a9b5b2fa2bc4c08c915f24ae9f0568606f2f71",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2015::__conjunction_result_0a1da75e",
+      "label": "__conjunction_result_0a1da75e",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jeon2015::pce_over_18_pct,pvsk:pvsk_jeon2015::optimal_composition_x15)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_0ed51c12ee3b9dc4",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jeon2015::__conjunction_result_0a1da75e,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "d7fd4adc6bef756414b36a15cc4b8191512d264485e1d263f48e89331311b30a",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2015::__implication_result_41e303aa",
+      "label": "__implication_result_41e303aa",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jeon2015::__conjunction_result_0a1da75e,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_0ed51c12ee3b9dc4",
+        "owning_strategy_type": "support",
+        "prior": 0.55,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jeon2015::mapbbr3_stabilizes_fapbi3,pvsk:pvsk_jeon2015::thermal_stability_improved)",
+      "content_hash": "7f41c19a5d3133fd000d8dcdec0e9df5d06048a34d70a0d9ed6f385fd035db0a",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2015::__conjunction_result_8e2b6406",
+      "label": "__conjunction_result_8e2b6406",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jeon2015::mapbbr3_stabilizes_fapbi3,pvsk:pvsk_jeon2015::thermal_stability_improved)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_72c6e8ec86b9eaf3",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jeon2015::__conjunction_result_8e2b6406,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "2bf8bf7de21352ab6cb0dc24fffa4f871fbf97c1161654ee88b5be560bde4cb2",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2015::__implication_result_73b0f049",
+      "label": "__implication_result_73b0f049",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jeon2015::__conjunction_result_8e2b6406,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_72c6e8ec86b9eaf3",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jeon2015::thermal_stability_improved,pvsk:pvsk_jeon2015::negligible_hysteresis)",
+      "content_hash": "1d8bc609f1ef9cc5bc480a0216de3a3662f60bfeb181b964691b7dfd543b26e8",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2015::__conjunction_result_d4cd0023",
+      "label": "__conjunction_result_d4cd0023",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jeon2015::thermal_stability_improved,pvsk:pvsk_jeon2015::negligible_hysteresis)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_f862d9837231bf77",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jeon2015::__conjunction_result_d4cd0023,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "30ff41cb95a1c47c6866a2d29320f94d485931f00f55f1d7ef595fe9215c20f2",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2015::__implication_result_52c849c0",
+      "label": "__implication_result_52c849c0",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jeon2015::__conjunction_result_d4cd0023,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_f862d9837231bf77",
+        "owning_strategy_type": "support",
+        "prior": 0.55,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_jeon2015",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_jeon2015::optimal_composition_x15",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jeon2015::__conjunction_result_501f64c8",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jeon2015::fa_narrower_bandgap",
+              "pvsk:pvsk_jeon2015::mapbbr3_stabilizes_fapbi3"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jeon2015::__implication_result_0b6fdc94",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jeon2015::__conjunction_result_501f64c8",
+              "pvsk:pvsk_jeon2015::optimal_composition_x15"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "Narrower bandgap of FAPbI3 enables broader absorption while MAPbBr3 stabilizes the perovskite phase, together achieving optimal performance"
+      },
+      "premises": [
+        "pvsk:pvsk_jeon2015::fa_narrower_bandgap",
+        "pvsk:pvsk_jeon2015::mapbbr3_stabilizes_fapbi3"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_c0b71a3a3453a9bd",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_jeon2015::pce_over_18_pct",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jeon2015::__conjunction_result_2ed5ce7a",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jeon2015::optimal_composition_x15",
+              "pvsk:pvsk_jeon2015::negligible_hysteresis"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jeon2015::__implication_result_6443ad8c",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jeon2015::__conjunction_result_2ed5ce7a",
+              "pvsk:pvsk_jeon2015::pce_over_18_pct"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.85,
+        "reason": "Optimal composition combined with reduced hysteresis yields reliable stabilized efficiency above 18%"
+      },
+      "premises": [
+        "pvsk:pvsk_jeon2015::optimal_composition_x15",
+        "pvsk:pvsk_jeon2015::negligible_hysteresis"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_70a8136b772fa336",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_jeon2015::carrier_balance_improved",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jeon2015::__conjunction_result_94a56c5a",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jeon2015::mapbbr3_stabilizes_fapbi3",
+              "pvsk:pvsk_jeon2015::thermal_stability_improved"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jeon2015::__implication_result_08faec15",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jeon2015::__conjunction_result_94a56c5a",
+              "pvsk:pvsk_jeon2015::carrier_balance_improved"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "deduction",
+        "generated_formal_expr": true,
+        "prior": 0.75,
+        "reason": "Phase stabilization enables proper crystal formation and balanced carrier transport properties"
+      },
+      "premises": [
+        "pvsk:pvsk_jeon2015::mapbbr3_stabilizes_fapbi3",
+        "pvsk:pvsk_jeon2015::thermal_stability_improved"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_ce919afb41abb6fe",
+      "type": "deduction"
+    },
+    {
+      "conclusion": "pvsk:pvsk_jeon2015::optimal_composition_x15",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jeon2015::__conjunction_result_1e43e278",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jeon2015::fa_narrower_bandgap",
+              "pvsk:pvsk_jeon2015::bandgap_tunable"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jeon2015::__implication_result_7244ce98",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jeon2015::__conjunction_result_1e43e278",
+              "pvsk:pvsk_jeon2015::optimal_composition_x15"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Bandgap tunability through compositional engineering allows optimization of the absorption spectrum for maximum efficiency"
+      },
+      "premises": [
+        "pvsk:pvsk_jeon2015::fa_narrower_bandgap",
+        "pvsk:pvsk_jeon2015::bandgap_tunable"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_1e9b4c9e95f07ad7",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jeon2015::__conjunction_result_0a1da75e",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jeon2015::pce_over_18_pct",
+              "pvsk:pvsk_jeon2015::optimal_composition_x15"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jeon2015::__implication_result_41e303aa",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jeon2015::__conjunction_result_0a1da75e",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.55,
+        "reason": "Compositional engineering achieves >18% PCE, approaching the 20% threshold for commercially competitive efficiency"
+      },
+      "premises": [
+        "pvsk:pvsk_jeon2015::pce_over_18_pct",
+        "pvsk:pvsk_jeon2015::optimal_composition_x15"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_0ed51c12ee3b9dc4",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jeon2015::__conjunction_result_8e2b6406",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jeon2015::mapbbr3_stabilizes_fapbi3",
+              "pvsk:pvsk_jeon2015::thermal_stability_improved"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jeon2015::__implication_result_73b0f049",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jeon2015::__conjunction_result_8e2b6406",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "Compositional engineering of A-site cations provides a systematic approach to improve both efficiency and stability through rational material design"
+      },
+      "premises": [
+        "pvsk:pvsk_jeon2015::mapbbr3_stabilizes_fapbi3",
+        "pvsk:pvsk_jeon2015::thermal_stability_improved"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_72c6e8ec86b9eaf3",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jeon2015::__conjunction_result_d4cd0023",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jeon2015::thermal_stability_improved",
+              "pvsk:pvsk_jeon2015::negligible_hysteresis"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jeon2015::__implication_result_52c849c0",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jeon2015::__conjunction_result_d4cd0023",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.55,
+        "reason": "Improved thermal stability and reduced hysteresis in mixed compositions address key operational stability concerns"
+      },
+      "premises": [
+        "pvsk:pvsk_jeon2015::thermal_stability_improved",
+        "pvsk:pvsk_jeon2015::negligible_hysteresis"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_f862d9837231bf77",
+      "type": "support"
+    }
+  ]
+}

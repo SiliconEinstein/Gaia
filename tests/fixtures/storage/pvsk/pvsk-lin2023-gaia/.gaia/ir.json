@@ -1,0 +1,786 @@
+{
+  "ir_hash": "sha256:6086c0f2eb5c5ece82940ad6d7b249688c18d657235f5ed68c21e9bc9707471f",
+  "knowledges": [
+    {
+      "content": "All-perovskite tandem solar cells with WBG (~1.78 eV) FA0.8Cs0.2Pb(I0.62Br0.38)3 top cell and NBG (~1.25 eV) Pb-Sn perovskite bottom cell. Device area 0.049 cm2 (small) and 1.05 cm2 (large). SAM-modified NiO HTL for WBG subcell. Encapsulated devices tested under simulated AM 1.5G at ambient conditions.",
+      "content_hash": "12d034dbbba921ba72a3ce0065609dda3f6540df4d33a8cd704eb6911546c6fe",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2023::exp_context",
+      "label": "exp_context",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Mixed Pb-Sn narrow-bandgap perovskite subcells constrain all-perovskite tandem performance due to high trap density at the film surface. Conventional 2D/3D heterojunctions reduce surface recombination but induce transport losses that limit device fill factors.",
+      "content_hash": "d9bbb4cccd8df941a42cc6990cc1f8feaaa43059ea518c5fe27c83bfa811baaa",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2023::nbg_challenge",
+      "label": "nbg_challenge",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "An immiscible 3D/3D bilayer perovskite heterojunction (PHJ) with type-II band structure at the Pb-Sn perovskite/ETL interface can simultaneously suppress interfacial non-radiative recombination and facilitate charge extraction without transport losses from 2D interlayers",
+      "content_hash": "9c72a4c99502e045ca59bc2e7b3c7c14428998baa701d82f75e7554c4fc78430",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2023::phj_concept",
+      "label": "phj_concept",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "phj_3d_3d_bilayer_concept",
+      "type": "claim"
+    },
+    {
+      "content": "The 3D/3D bilayer PHJ enables Pb-Sn PSCs with 1.2 um absorber to reach 23.8% PCE with Voc of 0.873 V and FF of 82.6%, substantially higher than the 21.0% control",
+      "content_hash": "f8019b47b4def5e67511e9eb2254b255eee0ff254197108aa09f28a87e7d945f",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2023::nbg_pce_238",
+      "label": "nbg_pce_238",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "title": "nbg_pce_23_8_percent",
+      "type": "claim"
+    },
+    {
+      "content": "All-perovskite tandem solar cells with PHJ in the NBG subcell achieve a record PCE of 28.5% (certified stabilized 28.0% by JET) with Voc of 2.112 V, Jsc of 16.5 mA cm-2, and FF of 81.9%",
+      "content_hash": "1916c8f8054e35bf04fded6f570554f26b5addb4cd035f3ead0a9c092852bd15",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2023::tandem_pce_285",
+      "label": "tandem_pce_285",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "title": "tandem_pce_28_5_percent",
+      "type": "claim"
+    },
+    {
+      "content": "A hybrid evaporation-solution processing method enables non-destructive deposition of a 50 nm Pb-halide wide-bandgap perovskite (FA0.7Cs0.3Pb(I0.85Br0.14)3) on top of the Pb-Sn NBG perovskite, forming a clearly defined 3D/3D bilayer heterostructure with limited metal-ion intermixing",
+      "content_hash": "e071ea613f060d174a5fc960819a2855aec700586e28a43a55c1d97b02aa3246",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2023::hybrid_deposition",
+      "label": "hybrid_deposition",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "hybrid_deposition_phj",
+      "type": "claim"
+    },
+    {
+      "content": "The PHJ creates type-II band alignment between Pb-Sn NBG and FL-WBG perovskites that reduces hole concentration near the defective interface layer and facilitates electron extraction into C60, confirmed by ultrafast TA spectroscopy showing charge transfer from Pb-Sn to FL-WBG",
+      "content_hash": "3f946c056f4d2ee61091cb5e1eccbbfdc4d4147ed07eb786743486d5eee473b6",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2023::type_ii_band",
+      "label": "type_ii_band",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "type_ii_band_alignment",
+      "type": "claim"
+    },
+    {
+      "content": "PHJ devices show electroluminescence quantum yield of 3.09% versus 0.47% for controls at 1-sun current density, corresponding to Voc loss reduction from 147 mV to 97 mV",
+      "content_hash": "0bac9ac274078e02721040877bd7e9a6f10122672e5d97a0ed9aa5a70286c125",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2023::elqy_improvement",
+      "label": "elqy_improvement",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "elqy_improvement_phj",
+      "type": "claim"
+    },
+    {
+      "content": "The 3D/3D PHJ retains its distinct heterostructure with no evidence of Sn diffusion into the FL-WBG layer after 60 days of storage in N2 glovebox, confirmed by EDX and ToF-SIMS",
+      "content_hash": "638f9fb623088c6eb772b606c9e1cdd52cdf6b0de9fb3c2000a0b889d5618f06",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2023::phj_structural_stability",
+      "label": "phj_structural_stability",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "title": "phj_structural_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Encapsulated tandem devices with PHJ retain over 90% of initial performance after 600 hours of continuous MPP tracking under simulated 1-sun illumination",
+      "content_hash": "624b5b220b149a6d0b42943c5f48c4b65c559904e0e096a7b754aa4ab07a9139",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2023::tandem_operational_stability",
+      "label": "tandem_operational_stability",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "tandem_operational_stability_600h",
+      "type": "claim"
+    },
+    {
+      "content": "Large-area all-perovskite tandem devices (1.05 cm2) achieve 26.9% PCE with Voc of 2.149 V, Jsc of 15.7 mA cm-2, and FF of 79.8%",
+      "content_hash": "3a120035e49f7b2ba66ab3f164bbe636968e197c4de9e40afb2dec1350f6ad92",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2023::large_area_tandem_269",
+      "label": "large_area_tandem_269",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "large_area_tandem_26_9_percent",
+      "type": "claim"
+    },
+    {
+      "content": "PHJ in the NBG subcell improves average Voc by 45 mV (0.824 to 0.869 V) and FF by 2.3% (78.5% to 80.8%) compared with controls, while Jsc remains similar",
+      "content_hash": "4b7a0499573316fc9cd97d0c7f5a2216457c38d1f11c74887c430070ae6b4552",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2023::voc_ff_improvement",
+      "label": "voc_ff_improvement",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "title": "voc_ff_improvement_phj",
+      "type": "claim"
+    },
+    {
+      "content": "PHJ tandems show substantially improved FF from 78.0% to 81.4% and PCE from 26.0% to 27.7% compared with control tandems, because the tandem FF is limited by the subpar NBG subcell under current matching",
+      "content_hash": "8b8f7f9c976b68f36d38694284f503d3c6f5bc56e50d5bd84b6c7769037bf17e",
+      "declaration_index": 12,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2023::tandem_ff_improvement",
+      "label": "tandem_ff_improvement",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "title": "tandem_ff_improvement_phj",
+      "type": "claim"
+    },
+    {
+      "content": "Combining optical and electrical loss reductions, an all-perovskite tandem PCE higher than 30% is achievable by empirically assuming Voc of 2.2 V, Jsc of 17 mA cm-2, and FF of 82%",
+      "content_hash": "6c6799ffe7c6222f23e1ddff2ab4d09f06170f0052ee4ad6a6d4d60eec07f0c3",
+      "declaration_index": 13,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2023::beyond_30_outlook",
+      "label": "beyond_30_outlook",
+      "metadata": {
+        "prior": 0.5
+      },
+      "parameters": [],
+      "title": "beyond_30_percent_outlook",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Organometal halide perovskites can function as viable photovoltaic absorbers",
+      "content_hash": "12183274605a4cdd79df4b632d2b0bc6c7bbfdfe0b389d5a86bd3d531fb560a3",
+      "declaration_index": 0,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_viability",
+      "label": "p_viability",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_viability",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_lin2023::hybrid_deposition,pvsk:pvsk_lin2023::type_ii_band)",
+      "content_hash": "eadabe9f87afb3a850d4de3e6600048122199dc4b70a944135c8b955875383f9",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2023::__conjunction_result_b309b0c5",
+      "label": "__conjunction_result_b309b0c5",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_lin2023::hybrid_deposition,pvsk:pvsk_lin2023::type_ii_band)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_d46a43cfafea5171",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2023::__conjunction_result_b309b0c5,pvsk:pvsk_lin2023::phj_concept)",
+      "content_hash": "24cd1a859b2d9ce74d600036a44948e8238495a630395a1fb26027badd9ee2c9",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2023::__implication_result_6a6d7083",
+      "label": "__implication_result_6a6d7083",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2023::__conjunction_result_b309b0c5,pvsk:pvsk_lin2023::phj_concept)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_d46a43cfafea5171",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_lin2023::phj_concept,pvsk:pvsk_lin2023::elqy_improvement,pvsk:pvsk_lin2023::voc_ff_improvement)",
+      "content_hash": "cd8e040d9a051b9feeac770e3ad38626e7fa83e7118d78db435ba348aabe5353",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2023::__conjunction_result_2370191c",
+      "label": "__conjunction_result_2370191c",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_lin2023::phj_concept,pvsk:pvsk_lin2023::elqy_improvement,pvsk:pvsk_lin2023::voc_ff_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_df2c11e01a85acad",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2023::__conjunction_result_2370191c,pvsk:pvsk_lin2023::nbg_pce_238)",
+      "content_hash": "4bd23546772fa52de169b4cc33eeb9b4d00c5585081aaf2f346944ecc8853838",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2023::__implication_result_d99e4da1",
+      "label": "__implication_result_d99e4da1",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2023::__conjunction_result_2370191c,pvsk:pvsk_lin2023::nbg_pce_238)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_df2c11e01a85acad",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_lin2023::nbg_pce_238,pvsk:pvsk_lin2023::tandem_ff_improvement)",
+      "content_hash": "770a5bac1a7acf788b0143b3980f9f453710cb8684a44e9335b999b1bdc205fc",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2023::__conjunction_result_1a1c481d",
+      "label": "__conjunction_result_1a1c481d",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_lin2023::nbg_pce_238,pvsk:pvsk_lin2023::tandem_ff_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_81a8ffbf997042d0",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2023::__conjunction_result_1a1c481d,pvsk:pvsk_lin2023::tandem_pce_285)",
+      "content_hash": "a0ac79ffe2ff899ffe2e30c87f1f246d34788f9d75932baf3b27e7d74e534607",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2023::__implication_result_d8d5608d",
+      "label": "__implication_result_d8d5608d",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2023::__conjunction_result_1a1c481d,pvsk:pvsk_lin2023::tandem_pce_285)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_81a8ffbf997042d0",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2023::phj_structural_stability,pvsk:pvsk_lin2023::tandem_operational_stability)",
+      "content_hash": "e81941ec9c10fc71b8912b1a95224f8f3e3fd9043c7264d2b4cc24bfc1d8acdb",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2023::__implication_result_014fad27",
+      "label": "__implication_result_014fad27",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2023::phj_structural_stability,pvsk:pvsk_lin2023::tandem_operational_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_23496e2a9fdac5ba",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_lin2023::tandem_pce_285,pvsk:pvsk_lin2023::large_area_tandem_269)",
+      "content_hash": "d83b55fd53ab8cf5db90bddab99622bbc93117c2cee230fd26d6a0acf9600ac0",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2023::__conjunction_result_9a14f065",
+      "label": "__conjunction_result_9a14f065",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_lin2023::tandem_pce_285,pvsk:pvsk_lin2023::large_area_tandem_269)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_d6eb0a6025d86401",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2023::__conjunction_result_9a14f065,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "56bfac356c1dd3d0f6f41149a435434ec979c2456bf41ab0866d77ee1afde619",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2023::__implication_result_790fa169",
+      "label": "__implication_result_790fa169",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2023::__conjunction_result_9a14f065,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_d6eb0a6025d86401",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_lin2023::tandem_pce_285,pvsk:pvsk_lin2023::beyond_30_outlook)",
+      "content_hash": "a9b02f67f0c4d05e24d1fa2043a63de22c19bf9a423137d7391c9fc6b8925294",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2023::__conjunction_result_b25bd742",
+      "label": "__conjunction_result_b25bd742",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_lin2023::tandem_pce_285,pvsk:pvsk_lin2023::beyond_30_outlook)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_f4e2ee9306201cb6",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2023::__conjunction_result_b25bd742,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "14e7ac79480e68c520d81da82a731811819cfefc52647645fb3bf00004f18bd5",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2023::__implication_result_ab2247b1",
+      "label": "__implication_result_ab2247b1",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2023::__conjunction_result_b25bd742,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_f4e2ee9306201cb6",
+        "owning_strategy_type": "support",
+        "prior": 0.75,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2023::tandem_operational_stability,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "0b4121d128162d28a83225223f8d0c77c42dd5f48dc0f5728443f5827db0a21c",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2023::__implication_result_c0262c74",
+      "label": "__implication_result_c0262c74",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2023::tandem_operational_stability,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_05cee1151f575924",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2023::tandem_pce_285,pvsk:pvsk_meta::p_viability)",
+      "content_hash": "50dae2f312048839dc504b8eb9307e61ffc7bce66c407cd81689742bf8f4abf2",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2023::__implication_result_77fa8354",
+      "label": "__implication_result_77fa8354",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2023::tandem_pce_285,pvsk:pvsk_meta::p_viability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_eacffa440f67f525",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_lin2023",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_lin2023::phj_concept",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2023::__conjunction_result_b309b0c5",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_lin2023::hybrid_deposition",
+              "pvsk:pvsk_lin2023::type_ii_band"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_lin2023::__implication_result_6a6d7083",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2023::__conjunction_result_b309b0c5",
+              "pvsk:pvsk_lin2023::phj_concept"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "The hybrid deposition method creates a sharp 3D/3D interface, and the type-II band alignment enables charge separation without the transport losses inherent in 2D interlayers"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2023::hybrid_deposition",
+        "pvsk:pvsk_lin2023::type_ii_band"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_d46a43cfafea5171",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_lin2023::nbg_pce_238",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2023::__conjunction_result_2370191c",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_lin2023::phj_concept",
+              "pvsk:pvsk_lin2023::elqy_improvement",
+              "pvsk:pvsk_lin2023::voc_ff_improvement"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_lin2023::__implication_result_d99e4da1",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2023::__conjunction_result_2370191c",
+              "pvsk:pvsk_lin2023::nbg_pce_238"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Type-II band alignment suppresses non-radiative recombination (3x higher ELQY, 50 mV Voc gain) while maintaining efficient charge transport (82.6% FF), yielding record NBG single-junction efficiency"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2023::phj_concept",
+        "pvsk:pvsk_lin2023::elqy_improvement",
+        "pvsk:pvsk_lin2023::voc_ff_improvement"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_df2c11e01a85acad",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_lin2023::tandem_pce_285",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2023::__conjunction_result_1a1c481d",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_lin2023::nbg_pce_238",
+              "pvsk:pvsk_lin2023::tandem_ff_improvement"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_lin2023::__implication_result_d8d5608d",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2023::__conjunction_result_1a1c481d",
+              "pvsk:pvsk_lin2023::tandem_pce_285"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Improved NBG subcell FF and Voc directly enhance tandem FF and Voc under current matching, achieving record all-perovskite tandem efficiency"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2023::nbg_pce_238",
+        "pvsk:pvsk_lin2023::tandem_ff_improvement"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_81a8ffbf997042d0",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_lin2023::tandem_operational_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2023::__implication_result_014fad27",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2023::phj_structural_stability",
+              "pvsk:pvsk_lin2023::tandem_operational_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "Structural stability of the PHJ prevents degradation of the heterojunction during operation"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2023::phj_structural_stability"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_23496e2a9fdac5ba",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2023::__conjunction_result_9a14f065",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_lin2023::tandem_pce_285",
+              "pvsk:pvsk_lin2023::large_area_tandem_269"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_lin2023::__implication_result_790fa169",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2023::__conjunction_result_9a14f065",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Record 28.5% PCE for all-perovskite tandems surpasses best single-junction PSC records, demonstrating the efficiency advantage of the tandem approach"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2023::tandem_pce_285",
+        "pvsk:pvsk_lin2023::large_area_tandem_269"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_d6eb0a6025d86401",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2023::__conjunction_result_b25bd742",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_lin2023::tandem_pce_285",
+              "pvsk:pvsk_lin2023::beyond_30_outlook"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_lin2023::__implication_result_ab2247b1",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2023::__conjunction_result_b25bd742",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.75,
+        "reason": "Progression from previous all-perovskite tandem records (24.8%) to 28.5% shows rapid improvement, with clear pathway to >30%"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2023::tandem_pce_285",
+        "pvsk:pvsk_lin2023::beyond_30_outlook"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_f4e2ee9306201cb6",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2023::__implication_result_c0262c74",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2023::tandem_operational_stability",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "90% retention after 600 hours of MPP tracking demonstrates improving operational stability of all-perovskite tandems"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2023::tandem_operational_stability"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_05cee1151f575924",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_viability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2023::__implication_result_77fa8354",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2023::tandem_pce_285",
+              "pvsk:pvsk_meta::p_viability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "All-perovskite tandems combine high efficiency with low-cost solution processing, offering a viable path to next-generation PV"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2023::tandem_pce_285"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_eacffa440f67f525",
+      "type": "support"
+    }
+  ]
+}

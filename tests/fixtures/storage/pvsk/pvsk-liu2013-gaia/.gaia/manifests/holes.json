@@ -1,0 +1,48 @@
+{
+  "holes": [
+    {
+      "content": "Average performance of 12 identically processed vapour-deposited cells is PCE=12.3% +/- 2.0%, Jsc=18.9 +/- 1.8 mA/cm2, Voc=1.05 +/- 0.03 V, FF=0.62 +/- 0.05",
+      "content_hash": "e5e41d76fc2e63ef2f7911c51c47c21179f6fdd39578806e28f1c1898f4ca539",
+      "interface_hash": "sha256:0a63f5bc4711387a702d61de8fd623f1a472b3623b3eaf31ef07f9e4706173d7",
+      "label": "batch_average_12_3",
+      "qid": "pvsk:pvsk_liu2013::batch_average_12_3",
+      "required_by": [
+        "pvsk:pvsk_liu2013::nanostructure_not_necessary"
+      ]
+    },
+    {
+      "content": "Vapour-deposited perovskite films show high phase purity with only minor PbI2 (12.65 degrees) and no measurable CH3NH3PbCl3 (15.68 degrees) XRD peaks, confirming well-formed mixed-halide perovskite",
+      "content_hash": "e9893d89f28b31d51cad997da0386903a74c0b8cb13506bc4cf05b3332fbfcc0",
+      "interface_hash": "sha256:be93f6b49e97892318ebda828e27f593bd89c7caa841c9dbdfdda3a6d11801d1",
+      "label": "phase_purity",
+      "qid": "pvsk:pvsk_liu2013::phase_purity",
+      "required_by": [
+        "pvsk:pvsk_liu2013::pce_15_4_pct"
+      ]
+    },
+    {
+      "content": "Both vapour-deposited and solution-cast films produce the same mixed-halide perovskite with orthorhombic crystal structure, as confirmed by identical XRD peak positions at 14.12, 28.44, and 43.23 degrees",
+      "content_hash": "e861d3b392c166438ea01b4e646358d1242e8e78ee7000e2e2aeaf62a961ea71",
+      "interface_hash": "sha256:4b489ccbf3ec32717bf780030a918dcda1060218f417c8239960e0a9891b8917",
+      "label": "same_crystal_structure",
+      "qid": "pvsk:pvsk_liu2013::same_crystal_structure",
+      "required_by": [
+        "pvsk:pvsk_liu2013::pce_15_4_pct"
+      ]
+    },
+    {
+      "content": "Vapour-deposited perovskite films are extremely uniform with crystalline features on the scale of hundreds of nanometres, in contrast to solution-processed films with partial coverage and crystalline platelets tens of micrometres in size",
+      "content_hash": "9f7307f6574b0cf91e77c270de90af98a40af37b61e4a455a3257eb0277dc532",
+      "interface_hash": "sha256:da6ac7a204a7253ca48e2b359eb25bedc28afe95c702e3a3a4a2d88e7855787a",
+      "label": "vapour_film_uniformity",
+      "qid": "pvsk:pvsk_liu2013::vapour_film_uniformity",
+      "required_by": [
+        "pvsk:pvsk_liu2013::pce_15_4_pct"
+      ]
+    }
+  ],
+  "ir_hash": "sha256:b78796ea69c1dbbec604a1fc34fb37ec0fa9d9fef06662ddde8519fcd0f41925",
+  "manifest_schema_version": 1,
+  "package": "pvsk-liu2013",
+  "version": "1.0.0"
+}

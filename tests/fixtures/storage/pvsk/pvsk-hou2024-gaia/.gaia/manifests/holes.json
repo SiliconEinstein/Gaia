@@ -1,0 +1,48 @@
+{
+  "holes": [
+    {
+      "content": "The asymmetrically textured silicon wafer (small front pyramids, large rear pyramids) preserves minority carrier lifetime of 3.4 ms (comparable to 3.2 ms for standard double-sided texture) and improves infrared EQE response compared with double-sided mild texture",
+      "content_hash": "610e641b7ea029ff3366e285553937794b8a52a266e323b66cafdfb4cc061d32",
+      "interface_hash": "sha256:aefe7d9204cf8806b0db8cb886ec68dba22882404e3d83487f307d8226cb594b",
+      "label": "asymmetric_texture_benefit",
+      "qid": "pvsk:pvsk_hou2024::asymmetric_texture_benefit",
+      "required_by": [
+        "pvsk:pvsk_hou2024::certified_33_89"
+      ]
+    },
+    {
+      "content": "EDAI molecules chemically passivate uncoordinated Pb2+ surface defects by forming coordinate bonds, eliminating metallic Pb(0) peaks observed in XPS, while LiF alone does not provide this chemical passivation",
+      "content_hash": "0c7e7e12d2bcb1efdaa903c9cd9823dc70126da6f4a4a9eeb0a8cd615408fefe",
+      "interface_hash": "sha256:fccac274006b9dc3ff6f8f3fc1ab792343fa7ef0a6505610de7380691c92e5cd",
+      "label": "edai_chemical_passivation",
+      "qid": "pvsk:pvsk_hou2024::edai_chemical_passivation",
+      "required_by": [
+        "pvsk:pvsk_hou2024::bilayer_passivation"
+      ]
+    },
+    {
+      "content": "The LiF and EDAI layers are intertwined at the nanoscale: the discontinuous LiF layer allows EDAI to locally contact the perovskite surface, creating nanoscale localized contacts that balance electron tunnelling (through LiF) with direct transport (through EDAI/C60)",
+      "content_hash": "defc5b1a46d6818786669fc4f1336eb027be35c30bfd8f6d0a74159400871931",
+      "interface_hash": "sha256:bd356f68f77d9ed4f0eef5ba0536414007fd5ac14cc6547df74f75d8a90f8030",
+      "label": "intertwined_structure",
+      "qid": "pvsk:pvsk_hou2024::intertwined_structure",
+      "required_by": [
+        "pvsk:pvsk_hou2024::bilayer_passivation"
+      ]
+    },
+    {
+      "content": "The bilayer passivation improves average Voc from below 1.90 V (unpassivated) to 1.96 V (LiF/EDAI), and FF from 76.2% to 80.8% for single-junction perovskite devices",
+      "content_hash": "94595724bc93f627cd47c5765be11fa2b9068d4610518b43b356b146dbe80af7",
+      "interface_hash": "sha256:187a9adb4fb34bee728b0a128ed7515000740bf64f90d7c86443ff10405797f6",
+      "label": "voc_progression",
+      "qid": "pvsk:pvsk_hou2024::voc_progression",
+      "required_by": [
+        "pvsk:pvsk_hou2024::certified_33_89"
+      ]
+    }
+  ],
+  "ir_hash": "sha256:3dd47a1a2fa0f5954741b775107617f28c3851df73583d4e796d18f60b580275",
+  "manifest_schema_version": 1,
+  "package": "pvsk-hou2024",
+  "version": "1.0.0"
+}

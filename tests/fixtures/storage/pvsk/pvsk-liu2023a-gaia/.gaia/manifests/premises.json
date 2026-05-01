@@ -1,0 +1,68 @@
+{
+  "ir_hash": "sha256:e2e6d8cd7c25dbbfabce330650a3cd6df8688dc4170f045fe9f99c2cdba24dfc",
+  "manifest_schema_version": 1,
+  "package": "pvsk-liu2023a",
+  "premises": [
+    {
+      "content": "DMDP passivation leads to a fivefold longer carrier lifetime and one-third the photoluminescence quantum yield loss compared to control",
+      "content_hash": "2719fb126becf854fb0de8662202b4331e24f5c8befc530eb531c8c0f16b8261",
+      "exported": true,
+      "interface_hash": "sha256:b60c4c55c3097fae94e5b26f85f29d284d729ccd5035241066ef0eb8187b74a8",
+      "label": "carrier_lifetime_5x",
+      "qid": "pvsk:pvsk_liu2023a::carrier_lifetime_5x",
+      "required_by": [
+        "pvsk:pvsk_liu2023a::certified_pce_251"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "DMDP-treated devices show a dark saturation current (J0) reduction by two orders of magnitude compared with control devices",
+      "content_hash": "141ac70f5a14c01413f8e1debb6e66de2e64301a8f76ec05a39606e5a9276412",
+      "exported": true,
+      "interface_hash": "sha256:3eb6ec24939c52c8e00e6bfcbe54debe61772a8af032cd3bfc7d4641f0db9c8c",
+      "label": "dark_current_reduction",
+      "qid": "pvsk:pvsk_liu2023a::dark_current_reduction",
+      "required_by": [
+        "pvsk:pvsk_liu2023a::certified_pce_251"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "Diammonium ligands (PDAI2) induce n-type doping and a surface dipole that repels minority carriers (holes) from the perovskite/C60 interface, achieving field-effect passivation that reduces contact-induced interface recombination",
+      "content_hash": "d4e26b4361f19407fa162405f67884956a924018521350da6ac3945416ca2c52",
+      "exported": true,
+      "interface_hash": "sha256:e021c61d7a7f4e3e64ee5a2f022c8d09022da08c3b718e95022fc5bd37dd3542",
+      "label": "field_effect_passivation",
+      "qid": "pvsk:pvsk_liu2023a::field_effect_passivation",
+      "required_by": [
+        "pvsk:pvsk_liu2023a::dmdp_strategy"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "The sulfur-modified methylthio molecule (3MTPA) has stronger binding energy to iodide vacancy defects on the perovskite surface compared to conventional alkyl ammonium ligands, driven by S-Pb coordination bonding and enhanced hydrogen bonding with formamidinium",
+      "content_hash": "b4de8a668df21a9cb8ef50ad200f464683d66ab2ca8d49226e86390589745bb2",
+      "exported": true,
+      "interface_hash": "sha256:03e28e2e53dbbeac996b6830db0d7a825022019c9b802bc8d54a03e4ebf902aa",
+      "label": "methylthio_binding",
+      "qid": "pvsk:pvsk_liu2023a::methylthio_binding",
+      "required_by": [
+        "pvsk:pvsk_liu2023a::dmdp_strategy"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "The DMDP strategy improves PCE by 13-14% for both narrow-bandgap (~1.2 eV) and wide-bandgap (~1.8 eV) perovskite compositions, demonstrating universality across perovskite bandgaps",
+      "content_hash": "090d093c3a9c0af9b765b1559bdb20ac04b0dcc6ac09449b00faa08dd22346a1",
+      "exported": true,
+      "interface_hash": "sha256:0bc0c23bacf36cd1aafa43ea11f55d15ebfd803d5984481088200b47959912a1",
+      "label": "universal_bandgap",
+      "qid": "pvsk:pvsk_liu2023a::universal_bandgap",
+      "required_by": [
+        "pvsk:pvsk_liu2023a::tandem_281"
+      ],
+      "role": "local_hole"
+    }
+  ],
+  "version": "1.0.0"
+}

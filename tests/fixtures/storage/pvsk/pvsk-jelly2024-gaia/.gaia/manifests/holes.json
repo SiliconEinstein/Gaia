@@ -1,0 +1,58 @@
+{
+  "holes": [
+    {
+      "content": "Perovskite-friendly carbon inks enable vacuum-free printed back electrodes compatible with R2R manufacturing, replacing costly vacuum-deposited Au electrodes",
+      "content_hash": "3a4e560434115ebb1cd981c6d37754940f3626fb6462ec663411976be232007d",
+      "interface_hash": "sha256:8073cf18fc5db6da40f3b6f44cd13b4bef22a6232d4b3ad5cc6ffab92cf2b509",
+      "label": "carbon_electrode",
+      "qid": "pvsk:pvsk_jelly2024::carbon_electrode",
+      "required_by": [
+        "pvsk:pvsk_jelly2024::r2r_cell_15_5"
+      ]
+    },
+    {
+      "content": "This work reports the first demonstration of perovskite solar cell modules, comprising serially-interconnected cells, produced entirely using industrial roll-to-roll printing tools under ambient room conditions",
+      "content_hash": "70a9b6e1a65ca7524e1a0e985c62f5efa05b498f65a7a5d9cd8a2090b2a64200",
+      "interface_hash": "sha256:c0c94d74f87dc07accc879d133ed7dcbfac30c80d2e2b8dd40b2264adec50586",
+      "label": "first_r2r_modules",
+      "qid": "pvsk:pvsk_jelly2024::first_r2r_modules",
+      "required_by": [
+        "pvsk:pvsk_jelly2024::cost_prediction"
+      ]
+    },
+    {
+      "content": "An automated R2R platform enables fabrication and testing of over 10,000 solar cells per day, with 1600 cells fabricated in a single experiment using 20 parameter combinations for rapid optimization",
+      "content_hash": "a2227e8dad28a097ae38e5ce794383ade89cfce1e363735487eaecb8139be88a",
+      "interface_hash": "sha256:0785835b88e376a28bae39162a888692259ea5b159291f91469595d2fd488f69",
+      "label": "high_throughput_screening",
+      "qid": "pvsk:pvsk_jelly2024::high_throughput_screening",
+      "required_by": [
+        "pvsk:pvsk_jelly2024::r2r_module_11"
+      ]
+    },
+    {
+      "content": "The HTAB-P3HT hole transport layer system outperforms PPDT2FBT, achieving higher PCE and narrower performance distribution in R2R fabrication, by passivating perovskite surface traps and promoting self-assembly of P3HT",
+      "content_hash": "b3244ac25e41eeb28381e18c6b7e83396dec6635c4c681aff01ee11085b307f3",
+      "interface_hash": "sha256:7a9b193fd8a186b7fd2b7f5e48d6e1ad2856beef8d8890d16b79b934254eace3",
+      "label": "htab_p3ht_htl",
+      "qid": "pvsk:pvsk_jelly2024::htab_p3ht_htl",
+      "required_by": [
+        "pvsk:pvsk_jelly2024::r2r_cell_15_5"
+      ]
+    },
+    {
+      "content": "The printing-friendly sequential deposition (PFSD) technique with shallow-angle edge blowing produces high-quality perovskite films on continuously moving substrates under ambient conditions (40-50% RH), with mirror-like film quality and no PbI2 residue",
+      "content_hash": "9ab1bd70112191bfc658dbb1d6bc01e7e5f070a280981ddfce6beaaedc8dd90f",
+      "interface_hash": "sha256:5137fbfed85f65a0d103d0f73dd32a76956a1142953698e885361eb6857bef62",
+      "label": "pfsd_technique",
+      "qid": "pvsk:pvsk_jelly2024::pfsd_technique",
+      "required_by": [
+        "pvsk:pvsk_jelly2024::r2r_cell_15_5"
+      ]
+    }
+  ],
+  "ir_hash": "sha256:f7e64b400120337b4dc44080952e609a2ee8272a46aaa9a5f2f878239d966879",
+  "manifest_schema_version": 1,
+  "package": "pvsk-jelly2024",
+  "version": "1.0.0"
+}

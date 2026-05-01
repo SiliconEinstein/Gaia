@@ -1,0 +1,827 @@
+{
+  "ir_hash": "sha256:2a8223d4aa64a12945a50f1ae340fd99365554422d6a135c0d5e1460f69884cf",
+  "knowledges": [
+    {
+      "content": "Bilayer architecture perovskite solar cell: glass/FTO/bl-TiO2/mp-TiO2-perovskite nanocomposite/perovskite upper layer (100-300 nm)/PTAA/Au. Uses MAPb(I1-xBrx)3 (x=0.1-0.15) as absorber and poly(triarylamine) (PTAA) as hole-transporting material, fully solution-processed",
+      "content_hash": "9aa350328e9e53eeaf87d2a09dfcbf0d73b6d7912dfb96257aada7c4500c39eb",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2014::exp_context",
+      "label": "exp_context",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Perovskite deposited by spin-coating from GBL+DMSO mixed solvent followed by toluene drop-casting during spinning. The toluene rapidly removes excess DMSO and freezes constituents into a uniform MAI-PbI2-DMSO intermediate phase, which converts to perovskite upon annealing at 100C for 10 min",
+      "content_hash": "02351510b4240cafdd396dec137a0bfca8e55a2be85864eabe104b9c1772486b",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2014::solvent_engineering",
+      "label": "solvent_engineering",
+      "metadata": {
+        "prior": 0.7
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "MAPb(I1-xBrx)3 with x=0.1-0.15 used because 10-15 mol% Br substitution for I greatly improves stability in ambient atmosphere while maintaining similar photovoltaic performance over the compositional range",
+      "content_hash": "2de049d1c91b31f31aa806de72c677d784fcba5831392d85813fe0950a5b1e5d",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2014::mixed_halide_composition",
+      "label": "mixed_halide_composition",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Fully solution-processed perovskite solar cell achieves certified PCE of 16.2% under standard reporting conditions with no hysteresis, using MAPb(I0.85Br0.15)3 and PTAA hole transporter",
+      "content_hash": "a4c25e0db9a5b4c342df01bb9f46dca94dfa67d1dff4e02328d65abe36fa6b0c",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2014::pce_certified_16_2",
+      "label": "pce_certified_16_2",
+      "metadata": {
+        "prior": 0.93
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The MAI-PbI2-DMSO intermediate phase is a new crystalline compound (confirmed by XRD peaks at 6.55, 7.21, and 9.17 degrees and FTIR showing both N-H and S-O deformation modes) that converts to perovskite upon annealing at 130C",
+      "content_hash": "790bcef2123127758770758feb58c235ce5091107e965e5ab7f796f13cb096f5",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2014::intermediate_phase",
+      "label": "intermediate_phase",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Without toluene drop-casting, the film adopts a textile-like inhomogeneous layer that does not fully cover the substrate. The toluene drip is critically important for producing uniform, dense, and fully covering perovskite films",
+      "content_hash": "793df184d9a85843f852845d59f34a947a76b58f8606712438416da30859f552",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2014::toluene_critical",
+      "label": "toluene_critical",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The intermediate phase film has RMS roughness of 6.0 nm and the resulting perovskite film has RMS roughness of 8.3 nm (AFM over 3x3 um2), demonstrating extremely smooth and uniform surface morphology",
+      "content_hash": "e66591a630f0aeed8f77c222f84ab20a80481df949534a31bab5904dfc792600",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2014::rms_roughness_6nm",
+      "label": "rms_roughness_6nm",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The bilayer architecture combining mesoscopic mp-TiO2-perovskite nanocomposite base with a planar perovskite upper layer (100-300 nm) effectively absorbs light and collects charges, merging advantages of mesoscopic and planar structures",
+      "content_hash": "aa339b9992e2195e20c06af5111a88f800f07172114aa75c42973dcd343973bc",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2014::bilayer_architecture",
+      "label": "bilayer_architecture",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "DMSO in the MAI-PbI2-DMSO intermediate phase retards the rapid reaction between PbI2 and MAI during solvent evaporation, enabling controlled crystallization and uniform film formation",
+      "content_hash": "85e2ad0778f35caa6a38b945ff048ceab768184a7c810e98587a875cc0e806b5",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2014::dmpso_retards_reaction",
+      "label": "dmpso_retards_reaction",
+      "metadata": {
+        "prior": 0.83
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Substituting 10-15 mol% Br- for I- in MAPbI3 greatly improves stability in ambient atmosphere while the dual halide material demonstrates similar photovoltaic performance over the compositional range",
+      "content_hash": "1aae12ed4a3304b56fcb92904c3a1a3a2d9c67ea5a030a852d75941e85a12d3a",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2014::br_improves_ambient_stability",
+      "label": "br_improves_ambient_stability",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The MAI-PbI2-DMSO intermediate phase coexists with perovskite at 100C and completely converts to perovskite at 130C, as monitored by in situ high-temperature XRD",
+      "content_hash": "e616442fd15bd098990e2b2dbeb2390742968073cfa83f89bd7694a24b662b80",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2014::conversion_at_130c",
+      "label": "conversion_at_130c",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Poly(triarylamine) (PTAA) used as hole-transporting material achieves high performance in combination with the bilayer perovskite architecture, enabling the certified 16.2% PCE",
+      "content_hash": "213a4273dd95cb86b1d34b7fc4aa7fe6164e086f9948ffe4c3b158e9dfb0d38c",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2014::ptaa_htm",
+      "label": "ptaa_htm",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The solvent-engineered perovskite solar cells show no hysteresis in J-V measurements, indicating balanced charge transport and minimal ion migration effects in the bilayer architecture",
+      "content_hash": "2d5aa0e40b920962d49afa18d980ac960d8221b1e5f199797a2fe599adfc6323",
+      "declaration_index": 12,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2014::no_hysteresis",
+      "label": "no_hysteresis",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "In pure GBL solvent (without DMSO), perovskite crystals form immediately during spin-coating, producing inhomogeneous islands with low surface coverage regardless of toluene drip treatment",
+      "content_hash": "5b150f2e3cb38291a16126d7ef83111599ebe278b3e08754e089301635c872b6",
+      "declaration_index": 13,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2014::gbl_only_inhomogeneous",
+      "label": "gbl_only_inhomogeneous",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "What is the precise atomic structure of the MAI-PbI2-DMSO intermediate phase, and how does the guest molecule arrangement control the subsequent perovskite crystallization?",
+      "content_hash": "b2db99b96e9c0e59127a2c036c7a31c6ec087add9542fe95476754dc40654744",
+      "declaration_index": 14,
+      "exported": true,
+      "id": "pvsk:pvsk_jeon2014::intermediate_mechanism",
+      "label": "intermediate_mechanism",
+      "parameters": [],
+      "type": "question"
+    },
+    {
+      "content": "not_both_true(A, B)",
+      "content_hash": "468923920550aff97ac2349f7d0a5b32e6560066b45861bf367db7f40e8649a7",
+      "declaration_index": 15,
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2014::_anon_000",
+      "metadata": {
+        "helper_kind": "contradiction_result",
+        "prior": 0.8
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Organometal halide perovskites can function as viable photovoltaic absorbers",
+      "content_hash": "12183274605a4cdd79df4b632d2b0bc6c7bbfdfe0b389d5a86bd3d531fb560a3",
+      "declaration_index": 0,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_viability",
+      "label": "p_viability",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_viability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "content_hash": "9603b55225f5e093d20a1194832c2b419389d6a83886f8b7841f0b9a65cc106f",
+      "declaration_index": 4,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "metadata": {
+        "prior": 0.15
+      },
+      "parameters": [],
+      "title": "p_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jeon2014::intermediate_phase,pvsk:pvsk_jeon2014::toluene_critical,pvsk:pvsk_jeon2014::dmpso_retards_reaction)",
+      "content_hash": "eb5aabe549396b950ec5be1b8313d089468bc8b3a6e2ce335cd419c2f473ad3d",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2014::__conjunction_result_1dc34b82",
+      "label": "__conjunction_result_1dc34b82",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jeon2014::intermediate_phase,pvsk:pvsk_jeon2014::toluene_critical,pvsk:pvsk_jeon2014::dmpso_retards_reaction)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_a4adc806c8fbb1ad",
+        "owning_strategy_type": "deduction",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jeon2014::__conjunction_result_1dc34b82,pvsk:pvsk_jeon2014::rms_roughness_6nm)",
+      "content_hash": "638bb134b7168bdf3862bd55c1979976aa33c3ea6461cd2efc9058a3751a7b65",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2014::__implication_result_f52613eb",
+      "label": "__implication_result_f52613eb",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jeon2014::__conjunction_result_1dc34b82,pvsk:pvsk_jeon2014::rms_roughness_6nm)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_a4adc806c8fbb1ad",
+        "owning_strategy_type": "deduction",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jeon2014::rms_roughness_6nm,pvsk:pvsk_jeon2014::bilayer_architecture,pvsk:pvsk_jeon2014::ptaa_htm)",
+      "content_hash": "aa54bc83a6a897659c07d1dfe9e3750945b57433e39ce49e9fbd7afb5b4c3b2a",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2014::__conjunction_result_ed36a598",
+      "label": "__conjunction_result_ed36a598",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jeon2014::rms_roughness_6nm,pvsk:pvsk_jeon2014::bilayer_architecture,pvsk:pvsk_jeon2014::ptaa_htm)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_979c3c30a289a20f",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jeon2014::__conjunction_result_ed36a598,pvsk:pvsk_jeon2014::pce_certified_16_2)",
+      "content_hash": "959b85ff0d89c1e36b33dc318947d4bece5d8a900fe56c1d2ba352910d779fa9",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2014::__implication_result_12cf4ef2",
+      "label": "__implication_result_12cf4ef2",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jeon2014::__conjunction_result_ed36a598,pvsk:pvsk_jeon2014::pce_certified_16_2)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_979c3c30a289a20f",
+        "owning_strategy_type": "support",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jeon2014::br_improves_ambient_stability,pvsk:pvsk_jeon2014::pce_certified_16_2)",
+      "content_hash": "c27b1ca5162e7387456488b88147e7c4d2fe9ab56dfe5746dbf903dfdcb8e85a",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2014::__implication_result_22fc10d6",
+      "label": "__implication_result_22fc10d6",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jeon2014::br_improves_ambient_stability,pvsk:pvsk_jeon2014::pce_certified_16_2)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_d95b448c29070993",
+        "owning_strategy_type": "support",
+        "prior": 0.75,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jeon2014::pce_certified_16_2,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "b3525867cf7cc8dddf982d7915b77c0198f04e043afc3478786325e733b39648",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2014::__implication_result_0d81a556",
+      "label": "__implication_result_0d81a556",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jeon2014::pce_certified_16_2,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_409e6037bfe71646",
+        "owning_strategy_type": "support",
+        "prior": 0.68,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jeon2014::pce_certified_16_2,pvsk:pvsk_jeon2014::no_hysteresis)",
+      "content_hash": "7fee9b01d994af88d9a56d052f0fa6788fc5274a11f7b2db3b3fce7de25dffa6",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2014::__conjunction_result_705efc0e",
+      "label": "__conjunction_result_705efc0e",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jeon2014::pce_certified_16_2,pvsk:pvsk_jeon2014::no_hysteresis)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_98065a15c1cf1869",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jeon2014::__conjunction_result_705efc0e,pvsk:pvsk_meta::p_viability)",
+      "content_hash": "254e4505a037fa51d95264113bb1590352fdc85e6aa699e41020319541282e45",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2014::__implication_result_55941f5e",
+      "label": "__implication_result_55941f5e",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jeon2014::__conjunction_result_705efc0e,pvsk:pvsk_meta::p_viability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_98065a15c1cf1869",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jeon2014::br_improves_ambient_stability,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "15289856bc570c41ebebc6978124dcfbecd302a25f1037922fdd1ed0b81270b7",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2014::__implication_result_468902f7",
+      "label": "__implication_result_468902f7",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jeon2014::br_improves_ambient_stability,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_5f390fffc8f794e8",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jeon2014::solvent_engineering,pvsk:pvsk_jeon2014::pce_certified_16_2)",
+      "content_hash": "7c6dcdb58c49dc7a50c0d730615d92c571649024159c8598985a79eba64f4c29",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2014::__conjunction_result_6c8377c7",
+      "label": "__conjunction_result_6c8377c7",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jeon2014::solvent_engineering,pvsk:pvsk_jeon2014::pce_certified_16_2)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_f094b0045107651c",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jeon2014::__conjunction_result_6c8377c7,pvsk:pvsk_meta::p_industrialization)",
+      "content_hash": "1c63c848df8de5cccca4b9a0a95d4fcf410e4c85a6d6cc8122fa0af40a72690f",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2014::__implication_result_94af6151",
+      "label": "__implication_result_94af6151",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jeon2014::__conjunction_result_6c8377c7,pvsk:pvsk_meta::p_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_f094b0045107651c",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_jeon2014::pce_certified_16_2,pvsk:pvsk_jeon2014::bilayer_architecture)",
+      "content_hash": "1e19b386eb2d90ba8e864a962faa7d3a0afdc467d75269172dfb0799e9f3a468",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2014::__conjunction_result_c81ddd90",
+      "label": "__conjunction_result_c81ddd90",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_jeon2014::pce_certified_16_2,pvsk:pvsk_jeon2014::bilayer_architecture)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_e7cb8bc9c69a2587",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_jeon2014::__conjunction_result_c81ddd90,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "a6d225a9b8f6644037e69a3bcef5c903ae160f0f055143353406af4d5c606fce",
+      "exported": false,
+      "id": "pvsk:pvsk_jeon2014::__implication_result_8725e153",
+      "label": "__implication_result_8725e153",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_jeon2014::__conjunction_result_c81ddd90,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_e7cb8bc9c69a2587",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [
+    {
+      "conclusion": "pvsk:pvsk_jeon2014::_anon_000",
+      "metadata": {
+        "reason": "Pure GBL produces inhomogeneous films even with toluene drip; the DMSO+GBL mixed solvent is essential for the intermediate phase formation that enables uniform films"
+      },
+      "operator": "contradiction",
+      "operator_id": "lco_3e1a6eebbf0efa1f",
+      "scope": "local",
+      "variables": [
+        "pvsk:pvsk_jeon2014::gbl_only_inhomogeneous",
+        "pvsk:pvsk_jeon2014::toluene_critical"
+      ]
+    }
+  ],
+  "package_name": "pvsk_jeon2014",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_jeon2014::rms_roughness_6nm",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jeon2014::__conjunction_result_1dc34b82",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jeon2014::intermediate_phase",
+              "pvsk:pvsk_jeon2014::toluene_critical",
+              "pvsk:pvsk_jeon2014::dmpso_retards_reaction"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jeon2014::__implication_result_f52613eb",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jeon2014::__conjunction_result_1dc34b82",
+              "pvsk:pvsk_jeon2014::rms_roughness_6nm"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "deduction",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "The MAI-PbI2-DMSO intermediate phase acts as a template: DMSO retards crystallization during spinning and toluene freezes the uniform amorphous state, which converts smoothly to perovskite upon annealing"
+      },
+      "premises": [
+        "pvsk:pvsk_jeon2014::intermediate_phase",
+        "pvsk:pvsk_jeon2014::toluene_critical",
+        "pvsk:pvsk_jeon2014::dmpso_retards_reaction"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_a4adc806c8fbb1ad",
+      "type": "deduction"
+    },
+    {
+      "conclusion": "pvsk:pvsk_jeon2014::pce_certified_16_2",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jeon2014::__conjunction_result_ed36a598",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jeon2014::rms_roughness_6nm",
+              "pvsk:pvsk_jeon2014::bilayer_architecture",
+              "pvsk:pvsk_jeon2014::ptaa_htm"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jeon2014::__implication_result_12cf4ef2",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jeon2014::__conjunction_result_ed36a598",
+              "pvsk:pvsk_jeon2014::pce_certified_16_2"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "Uniform dense perovskite layer enables complete surface coverage and optimal charge collection, while bilayer architecture combines mesoscopic and planar advantages"
+      },
+      "premises": [
+        "pvsk:pvsk_jeon2014::rms_roughness_6nm",
+        "pvsk:pvsk_jeon2014::bilayer_architecture",
+        "pvsk:pvsk_jeon2014::ptaa_htm"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_979c3c30a289a20f",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_jeon2014::pce_certified_16_2",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jeon2014::__implication_result_22fc10d6",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jeon2014::br_improves_ambient_stability",
+              "pvsk:pvsk_jeon2014::pce_certified_16_2"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.75,
+        "reason": "Br substitution maintains high performance while improving ambient stability, enabling practical device fabrication"
+      },
+      "premises": [
+        "pvsk:pvsk_jeon2014::br_improves_ambient_stability"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_d95b448c29070993",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jeon2014::__implication_result_0d81a556",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jeon2014::pce_certified_16_2",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.68,
+        "reason": "Certified 16.2% PCE surpasses all prior perovskite records and approaches commercially competitive efficiency thresholds"
+      },
+      "premises": [
+        "pvsk:pvsk_jeon2014::pce_certified_16_2"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_409e6037bfe71646",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_viability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jeon2014::__conjunction_result_705efc0e",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jeon2014::pce_certified_16_2",
+              "pvsk:pvsk_jeon2014::no_hysteresis"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jeon2014::__implication_result_55941f5e",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jeon2014::__conjunction_result_705efc0e",
+              "pvsk:pvsk_meta::p_viability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "High certified efficiency with no hysteresis in a fully solution-processed device confirms practical viability of perovskite photovoltaics"
+      },
+      "premises": [
+        "pvsk:pvsk_jeon2014::pce_certified_16_2",
+        "pvsk:pvsk_jeon2014::no_hysteresis"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_98065a15c1cf1869",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jeon2014::__implication_result_468902f7",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jeon2014::br_improves_ambient_stability",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "10-15% Br substitution significantly improves ambient stability of the perovskite absorber, a key requirement for practical deployment"
+      },
+      "premises": [
+        "pvsk:pvsk_jeon2014::br_improves_ambient_stability"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_5f390fffc8f794e8",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jeon2014::__conjunction_result_6c8377c7",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jeon2014::solvent_engineering",
+              "pvsk:pvsk_jeon2014::pce_certified_16_2"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jeon2014::__implication_result_94af6151",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jeon2014::__conjunction_result_6c8377c7",
+              "pvsk:pvsk_meta::p_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "Fully solution-processed fabrication with spin-coating and toluene drip is inherently scalable and compatible with roll-to-roll or slot-die coating processes"
+      },
+      "premises": [
+        "pvsk:pvsk_jeon2014::solvent_engineering",
+        "pvsk:pvsk_jeon2014::pce_certified_16_2"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_f094b0045107651c",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_jeon2014::__conjunction_result_c81ddd90",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_jeon2014::pce_certified_16_2",
+              "pvsk:pvsk_jeon2014::bilayer_architecture"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_jeon2014::__implication_result_8725e153",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_jeon2014::__conjunction_result_c81ddd90",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "Advancing from 15% (Burschka 2013) and 15.4% (Liu 2013) to certified 16.2% through solvent engineering demonstrates continued efficiency gains via process innovation"
+      },
+      "premises": [
+        "pvsk:pvsk_jeon2014::pce_certified_16_2",
+        "pvsk:pvsk_jeon2014::bilayer_architecture"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_e7cb8bc9c69a2587",
+      "type": "support"
+    }
+  ]
+}

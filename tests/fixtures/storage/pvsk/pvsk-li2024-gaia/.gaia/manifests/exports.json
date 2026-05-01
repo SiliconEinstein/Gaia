@@ -1,0 +1,99 @@
+{
+  "exports": [
+    {
+      "content": "FA-dominated perovskite (FA0.93Cs0.07PbI3) with antisolvent-free deposition. Module structure: glass/FTO/SnO2/perovskite/passivator/spiro-OMeTAD/Au. Small devices (0.14 cm2), large devices (1.04 cm2), mini-modules (13.44 cm2), and fully slot-die printed large modules (310 cm2 and 802 cm2).",
+      "content_hash": "6d01e5147ee88655a990070fe5e18b01404e811b3de8ac633413ca9783551aac",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_li2024::exp_context",
+      "type": "setting"
+    },
+    {
+      "content": "FABr addition accelerates the formation of n=2 2D perovskite, appearing at 33 seconds during spin coating versus 40 seconds for DABr alone, enabling homogeneous coverage even at room temperature",
+      "content_hash": "77f8ba939917b7050fda388df9861478a6fce67811b3445eb3c6309a755e0256",
+      "label": "fabr_accelerated_growth",
+      "qid": "pvsk:pvsk_li2024::fabr_accelerated_growth",
+      "type": "claim"
+    },
+    {
+      "content": "Incorporating formamidinium bromide (FABr) into n-dodecylammonium halide (DAX) post-treatment enables growth of phase-pure n=2 2D perovskite capping layer with homogeneous morphology on 3D perovskite surfaces",
+      "content_hash": "ae3f2fb30ee6bf65398f82773d30ebfad34a47cdc68d48af06d17dbd3df132e4",
+      "label": "homogeneous_2d_passivation",
+      "qid": "pvsk:pvsk_li2024::homogeneous_2d_passivation",
+      "type": "claim"
+    },
+    {
+      "content": "Champion active-area efficiency of 24.62% for 1.04 cm2 large devices, demonstrating less than 5% efficiency loss per ten times magnification",
+      "content_hash": "87f66f69a0b3f9dd046e8f5aa4026ded88de1c1a6266f2f560add492330c8dcb",
+      "label": "large_cell_2462",
+      "qid": "pvsk:pvsk_li2024::large_cell_2462",
+      "type": "claim"
+    },
+    {
+      "content": "Champion active-area efficiency of 23.60% for 13.44 cm2 mini-modules, maintaining the small efficiency loss scaling trend",
+      "content_hash": "0f348b3c1fed9af2b72d093a60a58b9fa5260e12bf4bb52b56b601e1bf0fb61e",
+      "label": "mini_module_2360",
+      "qid": "pvsk:pvsk_li2024::mini_module_2360",
+      "type": "claim"
+    },
+    {
+      "content": "Encapsulated mini-modules exhibit remarkable operational stability with T80 lifetime exceeding 2000 hours at MPPT under continuous light illumination",
+      "content_hash": "937e4eef22641abe4b0fc3e23dd8e6999035ed606782316a76b5b1d897e52294",
+      "label": "module_mppt_stability",
+      "qid": "pvsk:pvsk_li2024::module_mppt_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Phase separation occurs in double-halide alloyed 2D perovskites with long-chain (>10) alkylamine ligands, producing uneven n-value distribution on 3D perovskite surfaces. This energy disorder deteriorates interfacial charge transport in large-area modules.",
+      "content_hash": "23f9235259df0ec0514ede3ba78b85d0db184080274138794c368e1beb5a464a",
+      "label": "phase_problem",
+      "qid": "pvsk:pvsk_li2024::phase_problem",
+      "type": "setting"
+    },
+    {
+      "content": "Long-chain alkylamine ligands (>10 carbons) cause phase separation in double-halide alloyed 2D perovskites, while triple-halide compositions successfully eliminate the problematic phase separation",
+      "content_hash": "005dd8891de0ce65134a51fca01976e29b8b0201e773b0fa6fa78daee5da3398",
+      "label": "phase_separation_discovery",
+      "qid": "pvsk:pvsk_li2024::phase_separation_discovery",
+      "type": "claim"
+    },
+    {
+      "content": "Fully slot-die printed large modules achieve champion aperture-area efficiency of 18.90% for 20 cm x 20 cm modules (310 cm2 aperture area)",
+      "content_hash": "1cd9ad68f91f67b86740a268dfaf1a4ec178fa06e7072e0764521dee243b10e9",
+      "label": "printed_module_310",
+      "qid": "pvsk:pvsk_li2024::printed_module_310",
+      "type": "claim"
+    },
+    {
+      "content": "Fully slot-die printed modules achieve champion aperture-area efficiency of 17.59% for 30 cm x 30 cm modules (802 cm2 aperture area), demonstrating the feasibility of upscaling manufacturing",
+      "content_hash": "3fe2e9a9efed1f15d9f61050ae42c3a4bea19d873cc5e70933b3d2dae230bdae",
+      "label": "printed_module_802",
+      "qid": "pvsk:pvsk_li2024::printed_module_802",
+      "type": "claim"
+    },
+    {
+      "content": "Champion active-area efficiency of 25.61% for 0.14 cm2 small devices using the DABr/FABr homogeneous 2D passivation strategy with antisolvent-free processing",
+      "content_hash": "0431a6fc0efb34e61a91a9202c093d3a7ec3320ffc82c86200b014b06e2b1254",
+      "label": "small_cell_2561",
+      "qid": "pvsk:pvsk_li2024::small_cell_2561",
+      "type": "claim"
+    },
+    {
+      "content": "Triple-halide compositions (I/Br/Cl) have lower formation enthalpy than double-halide alloys for n=2 2D perovskite, enabling preferential formation of phase-pure n=2 structure confirmed by in situ PL and GIWAXS",
+      "content_hash": "23fef86291a77b8a5c443f143d5367afc8f6413de544295c0450bab220e1ff15",
+      "label": "triple_halide_mechanism",
+      "qid": "pvsk:pvsk_li2024::triple_halide_mechanism",
+      "type": "claim"
+    },
+    {
+      "content": "The FABr-assisted homogeneous passivation strategy is universal, successfully suppressing phase separation for most conventional 2D ligands including BA, OA, DA, PMA, PEA, and NMA",
+      "content_hash": "e165b87748d7b892c3d154fe5fb2d4450f1e062ae709e0a9475cf054e190c58a",
+      "label": "universal_ligand",
+      "qid": "pvsk:pvsk_li2024::universal_ligand",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:cccd7d5c5d090a3606b0442cef25b2516535b21e1b03d538a3d5e176bce25623",
+  "manifest_schema_version": 1,
+  "package": "pvsk-li2024",
+  "version": "1.0.0"
+}

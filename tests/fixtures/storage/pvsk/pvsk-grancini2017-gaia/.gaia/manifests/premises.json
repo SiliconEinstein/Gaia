@@ -1,0 +1,68 @@
+{
+  "ir_hash": "sha256:1d3316f6ede0d1e4e2435d272bdc896824f3a701291067b95123bee0999dae0d",
+  "manifest_schema_version": 1,
+  "package": "pvsk-grancini2017",
+  "premises": [
+    {
+      "content": "The 2D/3D interface forms a gradually-organized multi-dimensional structure that provides continuous charge transport pathways while maintaining enhanced stability",
+      "content_hash": "b7a98dbd9234f2c7cbbfa033c331a38c8f68652115fce1579bbe538eaa760c24",
+      "exported": true,
+      "interface_hash": "sha256:58668902fde61ed92ee76afe0dbc81f43dab4348379e349a7f7da39058841d5e",
+      "label": "gradual_interface",
+      "qid": "pvsk:pvsk_grancini2017::gradual_interface",
+      "required_by": [
+        "pvsk:pvsk_grancini2017::two_d_three_d_interface"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "HTM-free solar cells and modules using hydrophobic carbon electrodes instead of organic hole transporting materials, reducing cost and improving stability",
+      "content_hash": "2f96f2f50ec6686e155d54a617d43479321a13af06394a7d2b2e4628018b3bb7",
+      "exported": true,
+      "interface_hash": "sha256:56f494606dc136189e9583ed685c4b0f23fe404448b9e641502acac1df699214",
+      "label": "htmc_free_config",
+      "qid": "pvsk:pvsk_grancini2017::htmc_free_config",
+      "required_by": [
+        "pvsk:pvsk_grancini2017::one_year_stability"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "2D/3D perovskite modules maintain stable performance under controlled standard conditions in the presence of oxygen and moisture",
+      "content_hash": "91676b0826efba483529437d0daecb8a85040362e2ffc755c4f63a6aeccb1d2b",
+      "exported": true,
+      "interface_hash": "sha256:15e435c7ba25edc281917ce27d96ad1cb5b3dcc9aa8b42ddd8bccac024d15859",
+      "label": "oxygen_moisture_tolerant",
+      "qid": "pvsk:pvsk_grancini2017::oxygen_moisture_tolerant",
+      "required_by": [
+        "pvsk:pvsk_grancini2017::market_requirements_approach"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "The 2D/3D perovskite architecture is compatible with fully printable industrial-scale processes for large-area module fabrication",
+      "content_hash": "391e98c3e461a5495c795198518c71939340bc9d26dd12c7cafbf8aa8cb8eab9",
+      "exported": true,
+      "interface_hash": "sha256:b17de52158be47e79c40ec787758321693d9abeadebe063884735c2d4fde253e",
+      "label": "scalable_printable",
+      "qid": "pvsk:pvsk_grancini2017::scalable_printable",
+      "required_by": [
+        "pvsk:pvsk_grancini2017::module_10x10_stable"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "2D perovskites exhibit superior stability and water resistance compared to 3D perovskites, preventing hydrolysis and irreversible degradation under moisture",
+      "content_hash": "4fd216c6b58527ee37138ff078e437ceeaaa2646e3f05100ef204fc68b77ef5d",
+      "exported": true,
+      "interface_hash": "sha256:9f3bad689484fb21fb1cf78c23b1a1c549552d488e5b34a5f45684ae52b126db",
+      "label": "two_d_water_resistant",
+      "qid": "pvsk:pvsk_grancini2017::two_d_water_resistant",
+      "required_by": [
+        "pvsk:pvsk_grancini2017::two_d_three_d_interface"
+      ],
+      "role": "local_hole"
+    }
+  ],
+  "version": "1.0.0"
+}

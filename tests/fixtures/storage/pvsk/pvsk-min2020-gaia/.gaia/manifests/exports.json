@@ -1,0 +1,120 @@
+{
+  "exports": [
+    {
+      "content": "Adding 3.8-5.7 mol% MDACl2 to FAPbI3 stabilizes the alpha-phase against transition to the delta-phase even after 24 hours at 80% humidity, whereas pure FAPbI3 and FAPbI3 with only 1.9 mol% MDACl2 completely convert to the delta-phase",
+      "content_hash": "4262d0080b85444424569163037884b95180aa635e001b38e095a390c27d314a",
+      "label": "alpha_phase_stabilization",
+      "qid": "pvsk:pvsk_min2020::alpha_phase_stabilization",
+      "type": "claim"
+    },
+    {
+      "content": "FAPbI3:3.8 mol% MDACl2 films exhibit nonradiative recombination lifetime of 1562 ns on quartz, more than double the control value of 715 ns, indicating reduced trap-assisted recombination",
+      "content_hash": "1746e0c65715671c72ff0ee14dad49667447921fbb476c4765088336ed2da95e",
+      "label": "carrier_lifetime_1562_ns",
+      "qid": "pvsk:pvsk_min2020::carrier_lifetime_1562_ns",
+      "type": "claim"
+    },
+    {
+      "content": "FAPbI3:3.8 mol% MDACl2 PSC achieves certified stabilized PCE of 23.73% via quasi-steady-state method at Newport, with Jsc=26.1 mA/cm2, Voc=1.15 V, FF=79.0%, the highest reported for mp-TiO2-based PSCs",
+      "content_hash": "250fec3116c545cd9af677da62a9d66351c56957ee1cf6196a36c25dd8cc8b62",
+      "label": "certified_23_7_pct",
+      "qid": "pvsk:pvsk_min2020::certified_23_7_pct",
+      "type": "claim"
+    },
+    {
+      "content": "XPS and TOF-SIMS show higher residual Cl- content in FAPbI3:3.8 mol% MDACl2 than in the MAPbBr3 control, concentrated at the TiO2/perovskite interface, which is expected to enhance light stability of the PSC",
+      "content_hash": "a81fad7d1ce99530cf6089cc34bea62d77e99c8e28e5a4fdc40840991064b5a4",
+      "label": "cl_residue_at_interface",
+      "qid": "pvsk:pvsk_min2020::cl_residue_at_interface",
+      "type": "claim"
+    },
+    {
+      "content": "Space-charge-limited current measurements show electron trap densities of 5.7x10^15 cm-3 for FAPbI3:3.8 mol% MDACl2, lower than 1.0x10^16 cm-3 for the MAPbBr3 control, indicating that FA vacancy defects do not act as deep electron traps",
+      "content_hash": "32ea510c67aa8de6950f77178d96b4d2bca57dff15e78ea4925b742945dc1c03",
+      "label": "defect_density_low",
+      "qid": "pvsk:pvsk_min2020::defect_density_low",
+      "type": "claim"
+    },
+    {
+      "content": "FAPbI3 perovskite solar cells on mesoporous TiO2/FTO substrates using anti-solvent method with methylenediammonium dichloride (MDACl2) added to the FAPbI3 precursor at 1.9-5.7 mol%, with CuPC (copper phthalocyanine) or spiro-OMeTAD as hole transport material, Au electrode, measured under AM 1.5G at 100 mW/cm2",
+      "content_hash": "63785738336913189babb56a653827e1de01753d117ce5fcdcb3352fdc810307",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_min2020::exp_context",
+      "type": "claim"
+    },
+    {
+      "content": "Unencapsulated target device retains >90% of initial PCE after 70 hours at 85% RH and 25C, while the MAPbBr3-stabilized control degrades to 40% of initial PCE",
+      "content_hash": "ce261b4ea1f8afda7e20d6fcdbf9419c43f15912e4aaa38d1df2902cdc4f7ed0",
+      "label": "humidity_stability_85rh",
+      "qid": "pvsk:pvsk_min2020::humidity_stability_85rh",
+      "type": "claim"
+    },
+    {
+      "content": "MDACl2 addition preserves the inherent narrow bandgap of FAPbI3: PL emission shifts minimally from 826 nm (pristine) to 822 nm (3.8 mol%), compared to 816 nm for the MAPbBr3-stabilized control, enabling higher photocurrent through broader absorption",
+      "content_hash": "1b4b0f9f91adf1d931bb6fc026233cb603dc6095679538fb369a2dbfb7e8dc40",
+      "label": "inherent_bandgap_preserved",
+      "qid": "pvsk:pvsk_min2020::inherent_bandgap_preserved",
+      "type": "claim"
+    },
+    {
+      "content": "Can MDACl2-stabilized FAPbI3 devices maintain >90% PCE beyond 1000 hours of continuous operation under damp-heat conditions (85C/85% RH), which is the industry standard IEC 61215 test?",
+      "content_hash": "b8647e2aa69bb35b92db4120766f58408a996be72097f54bc2bff161c8147118",
+      "label": "long_term_operational_stability",
+      "qid": "pvsk:pvsk_min2020::long_term_operational_stability",
+      "type": "question"
+    },
+    {
+      "content": "Methylenediammonium dichloride (MDACl2) is a divalent diammonium dopant with ionic radius (262 pm) comparable to FA+ (256 pm); MDA2+ can form more hydrogen bonds with I- than FA+ or MA+ due to having more H atoms, potentially stabilizing the alpha-FAPbI3 phase in smaller amounts than MA",
+      "content_hash": "26ce39d896d070931883f91850d381d6fdc3d781a55e893b9cd581ae6f95d5b6",
+      "label": "mdac12_dopant",
+      "qid": "pvsk:pvsk_min2020::mdac12_dopant",
+      "type": "setting"
+    },
+    {
+      "content": "MDA2+ stabilizes alpha-FAPbI3 through two mechanisms: (1) stronger hydrogen bonding with I- due to more H atoms than FA+ or MA+, and (2) stronger ionic interaction from its divalent charge state, enabling stabilization in smaller amounts than MA",
+      "content_hash": "8e63d63fe15e9732e41d44f97b35f49d13e5ee04d3b1fb7c7f169c7af75c0607",
+      "label": "mida_hbond_mechanism",
+      "qid": "pvsk:pvsk_min2020::mida_hbond_mechanism",
+      "type": "claim"
+    },
+    {
+      "content": "What is the optimal MDACl2 concentration window for balancing alpha-phase stability against defect formation from FA vacancies, and does the MDACl2 approach transfer to mixed-halide or mixed-cation perovskite compositions?",
+      "content_hash": "fc05ba267f0016173b267eae7de0a960dee961d8962186385b8e2f43367f0887",
+      "label": "optimal_mda_concentration",
+      "qid": "pvsk:pvsk_min2020::optimal_mda_concentration",
+      "type": "question"
+    },
+    {
+      "content": "Encapsulated target device with spiro-OMeTAD HTM maintains ~90% of initial PCE (>23.0%) over 600 hours of maximum power point tracking under full solar illumination (AM 1.5G, 100 mW/cm2) in ambient conditions without UV filter",
+      "content_hash": "646e175c1b661795fe72d4d19917d40c5963d7c91f9da74e5030b144da376978",
+      "label": "photostability_600h_mppt",
+      "qid": "pvsk:pvsk_min2020::photostability_600h_mppt",
+      "type": "claim"
+    },
+    {
+      "content": "A second certified device achieves Jsc=26.70 mA/cm2 (highest reported for FAPbI3-based PSCs) with Voc=1.144 V and FF=77.56%, corresponding to stabilized PCE of 23.69%",
+      "content_hash": "8b349b77de3b7cb280171f6aa4c1d715dbf4b55da9464f47305223e21725b52a",
+      "label": "record_jsc_26_7",
+      "qid": "pvsk:pvsk_min2020::record_jsc_26_7",
+      "type": "claim"
+    },
+    {
+      "content": "Unencapsulated target device retains >90% of initial PCE after 20 hours annealing at 150C in air (~25% RH), while the control degrades to <20% of initial PCE due to MA evaporation from the MAPbBr3 component",
+      "content_hash": "4598a53c9b3a7cb53ab51c58a850672e2d5285447fa188d2c052b3a624d44d27",
+      "label": "thermal_stability_150c",
+      "qid": "pvsk:pvsk_min2020::thermal_stability_150c",
+      "type": "claim"
+    },
+    {
+      "content": "The best-performing lab-measured device achieves PCE of 24.66% under reverse scan with Jsc=26.50 mA/cm2, Voc=1.14 V, and FF=81.77%",
+      "content_hash": "3c743f3ce3ea7e5a23d07d7519bf290fad9912cfb6551670e5b1153faa0fa233",
+      "label": "uncertified_24_66_pct",
+      "qid": "pvsk:pvsk_min2020::uncertified_24_66_pct",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:26753c8824d6f35218325e43af1bf2b1a5b6ad0f17c854f58c2a6efe54e731cc",
+  "manifest_schema_version": 1,
+  "package": "pvsk-min2020",
+  "version": "1.0.0"
+}

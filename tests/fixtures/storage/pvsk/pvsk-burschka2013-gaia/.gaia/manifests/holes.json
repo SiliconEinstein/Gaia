@@ -1,0 +1,68 @@
+{
+  "holes": [
+    {
+      "content": "The absorbed-photon-to-current conversion efficiency (APCE) is greater than 90% over the whole visible region without correction for reflective losses, indicating near-unity quantum yield for charge carrier generation and collection",
+      "content_hash": "4be51cfdf8bad79638926d5e728e1b1f60f2f2b622675295dfb3b9cabf3cfc6d",
+      "interface_hash": "sha256:3aa6e48cd8cdd84684bfdbc408fd53f4ad92f93eb8649c034f6b06ac0c31c3b2",
+      "label": "apce_near_unity",
+      "qid": "pvsk:pvsk_burschka2013::apce_near_unity",
+      "required_by": [
+        "pvsk:pvsk_burschka2013::pce_15_pct"
+      ]
+    },
+    {
+      "content": "Using a Co(III) complex as p-type dopant for spiro-MeOTAD at 10 mol% doping level ensures sufficient conductivity and low series resistance in the HTM",
+      "content_hash": "2f7475d93178c722cfbb3424d6c1b47b59b96efeac7a7a83226c4765683ac2c5",
+      "interface_hash": "sha256:648a1b06227018234c6ce5c126c6e19e880ddda821855b8bd3e66cd19bfde090",
+      "label": "co_dopant_htm",
+      "qid": "pvsk:pvsk_burschka2013::co_dopant_htm",
+      "required_by": [
+        "pvsk:pvsk_burschka2013::pce_15_pct"
+      ]
+    },
+    {
+      "content": "Conversion of nanoconfined PbI2 to CH3NH3PbI3 perovskite is complete within seconds of exposure to CH3NH3I solution, as shown by immediate disappearance of PbI2 XRD (001) peak and appearance of tetragonal perovskite reflections",
+      "content_hash": "32a09dce00d81522b017cf7350563401572283355250ae9f42d46bfd1b3858b8",
+      "interface_hash": "sha256:6fc9b58d6afe2021f2e6c6acbdfb91c135c7b01d28c692c5c9af8d005fe67576",
+      "label": "fast_conversion",
+      "qid": "pvsk:pvsk_burschka2013::fast_conversion",
+      "required_by": [
+        "pvsk:pvsk_burschka2013::high_reproducibility"
+      ]
+    },
+    {
+      "content": "IPCE reaches peak values exceeding 90% in the short-wavelength visible region, with photocurrent generation starting at 800 nm consistent with the CH3NH3PbI3 bandgap",
+      "content_hash": "8be9487a16653519ab202b9d376f797999fbb2eb4628320d14fe9d5520516eff",
+      "interface_hash": "sha256:015cad5023c0b2be5f5c63276b2e5b7b9041110af3683259e9d825b3316f4151",
+      "label": "ipce_peak_90_pct",
+      "qid": "pvsk:pvsk_burschka2013::ipce_peak_90_pct",
+      "required_by": [
+        "pvsk:pvsk_burschka2013::pce_15_pct"
+      ]
+    },
+    {
+      "content": "Confining PbI2 crystals to ~22 nm within mesoporous TiO2 drastically enhances their rate of conversion to perovskite compared to bulk PbI2 films (50-200 nm crystallites), where conversion remains incomplete even after 45 minutes",
+      "content_hash": "92d1e00993c595128fcee6570b6411946d81454597ba581ecd69564f50914f7f",
+      "interface_hash": "sha256:e7d9dac1e1d0600acc627cd404b7a2123a22591cc4423013f4ce35cb4490c179",
+      "label": "nanoconfinement_enhances_kinetics",
+      "qid": "pvsk:pvsk_burschka2013::nanoconfinement_enhances_kinetics",
+      "required_by": [
+        "pvsk:pvsk_burschka2013::high_reproducibility"
+      ]
+    },
+    {
+      "content": "A pre-wetting step (dipping in 2-propanol for 1-2 s before CH3NH3I solution) locally decreases CH3NH3I concentration, inducing growth of larger perovskite crystals and increased light scattering for improved long-wavelength response",
+      "content_hash": "4016bae176e717f550f57486bb51445693fbe38fbdddfbd52b723b31de5838e4",
+      "interface_hash": "sha256:9d041502d4f4d0554de2632b1f554a4973e237cace2f595dd7e834aac8c92782",
+      "label": "prewetting_improves",
+      "qid": "pvsk:pvsk_burschka2013::prewetting_improves",
+      "required_by": [
+        "pvsk:pvsk_burschka2013::pce_15_pct"
+      ]
+    }
+  ],
+  "ir_hash": "sha256:305ad6ed77ce245e696cdcdac7d0a6ed74cca7fd7c9cdf75bcc217b105231a25",
+  "manifest_schema_version": 1,
+  "package": "pvsk-burschka2013",
+  "version": "1.0.0"
+}

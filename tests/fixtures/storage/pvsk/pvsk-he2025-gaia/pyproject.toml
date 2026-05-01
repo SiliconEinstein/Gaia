@@ -1,0 +1,21 @@
+[project]
+name = "pvsk-he2025-gaia"
+version = "1.0.0"
+description = "He et al. Nature 2025 — Perovskite/Si tandem ~35%"
+requires-python = ">=3.12"
+dependencies = [
+    "gaia-lang",
+    "pvsk-meta-gaia",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pvsk_he2025"]
+
+[tool.gaia]
+namespace = "pvsk"
+type = "knowledge-package"
+uuid = "101c9ef0-0707-4a7b-86af-3c59b2ee2b53"

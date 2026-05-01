@@ -1,0 +1,58 @@
+{
+  "holes": [
+    {
+      "content": "Halogen substitution from Br to I in CH3NH3PbX3 causes a bathochromic shift in absorption, analogous to silver halide ionic crystals",
+      "content_hash": "69d041395a53c152f5f049a356f38ddd0710ec4ca14e00ec46203d6b25566458",
+      "interface_hash": "sha256:bc44b66ac93861d19b528551319cb83a39cd118f99ee3703c9a85faa438ec578",
+      "label": "bandgap_bathochromic_shift",
+      "qid": "pvsk:pvsk_kojima2009::bandgap_bathochromic_shift",
+      "required_by": [
+        "pvsk:pvsk_kojima2009::ipce_iodide_extended"
+      ]
+    },
+    {
+      "content": "Conduction-band levels of CH3NH3PbBr3 and CH3NH3PbI3 are at ~3.36 and 4.0 eV respectively, allowing electron injection into the TiO2 conduction band (~4.0 eV)",
+      "content_hash": "0f22a8280602bc6d2667bffb57d9bdc93c94a3f677d0171449504e18feb9dff5",
+      "interface_hash": "sha256:43eadf6313879336303872566411a06049125820e8e45a4c440541f09de406a4",
+      "label": "conduction_band_levels",
+      "qid": "pvsk:pvsk_kojima2009::conduction_band_levels",
+      "required_by": [
+        "pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2"
+      ]
+    },
+    {
+      "content": "The high Voc of 0.96 V in CH3NH3PbBr3 cells is due to the more positive electrochemical potential of the Br2/Br- redox couple compared to I2/I-, expanding the range of photovoltage",
+      "content_hash": "f1c7e33e0814ed3e2ef1d6a70127eea4777026b362ef07d7b0f58652f43f76cb",
+      "interface_hash": "sha256:5de96bf246a56b6c1230f9d01e9c5ac02e36eda2cdb875d40015ab535e3886d2",
+      "label": "high_voc_origin",
+      "qid": "pvsk:pvsk_kojima2009::high_voc_origin",
+      "required_by": [
+        "pvsk:pvsk_kojima2009::high_voc_bromide"
+      ]
+    },
+    {
+      "content": "CH3NH3PbI3-sensitized photoelectrochemical cell achieves power conversion efficiency of 3.81% under AM 1.5 simulated sunlight at 100 mW/cm2, with Jsc=11.0 mA/cm2, Voc=0.61 V, and fill factor 0.57",
+      "content_hash": "21f9c4d8639c20265a8fe0cd91af006a21941a65cb5d721e1363ba182219c187",
+      "interface_hash": "sha256:1c7f5ebcc080fc6324c95347bee8c8f0fa82bca636955d384d424b9c87a7e9c6",
+      "label": "pce_3_8_pct",
+      "qid": "pvsk:pvsk_kojima2009::pce_3_8_pct",
+      "required_by": [
+        "pvsk:pvsk_kojima2009::exceeds_quantum_dots"
+      ]
+    },
+    {
+      "content": "Valence-band levels of CH3NH3PbBr3 and CH3NH3PbI3 are at ~5.38 and 5.44 eV versus vacuum level, respectively, as measured by photoelectron spectroscopy",
+      "content_hash": "2a5d2dd7205072f4f125280f95f83ac5c556be8b8de68115b1372cdf5e8f8f68",
+      "interface_hash": "sha256:6c7bac6a98ccfe8bde54ab510dd2b90f6b4878c2415a9a2d0fe18e646b199f4f",
+      "label": "valence_band_levels",
+      "qid": "pvsk:pvsk_kojima2009::valence_band_levels",
+      "required_by": [
+        "pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2"
+      ]
+    }
+  ],
+  "ir_hash": "sha256:240ab96c51c00096bd8852aadfd7c17d6262750278863d961ae50d8b14c4d88c",
+  "manifest_schema_version": 1,
+  "package": "pvsk-kojima2009",
+  "version": "1.0.0"
+}

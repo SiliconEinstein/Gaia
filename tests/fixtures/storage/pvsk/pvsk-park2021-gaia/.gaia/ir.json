@@ -1,0 +1,1008 @@
+{
+  "ir_hash": "sha256:c8c94e3b3cb81741d06614df15e1508590e45fb617843d8b460155c9496107be",
+  "knowledges": [
+    {
+      "content": "Monolithic all-perovskite tandem solar cells combining a wide-bandgap (~1.8 eV) mixed Br/I perovskite front cell with a narrow-bandgap (~1.2 eV) mixed Pb-Sn perovskite back cell, using CF3-PA (4-trifluoromethyl-phenylammonium) additive in the Pb-Sn precursor solution at 0.3 mol%",
+      "content_hash": "82e3d019daea67ad712b639961d694a7aac70a28946b3ed05251578a57a4081a",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::exp_context",
+      "label": "exp_context",
+      "metadata": {
+        "prior": 0.7
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "4-trifluoromethyl-phenylammonium (CF3-PA) is an ammonium cation passivator where the highly electronegative fluorine atoms withdraw electron density from the aromatic ring, leaving higher electropositivity at the NH3+ side and enhancing binding with negatively charged defect sites on Pb-Sn perovskite surfaces",
+      "content_hash": "d8e528bf2c855f58e368dcf0e2bbd2f813e0a4ed838b03befbfe6a10f20098a3",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::cf3_pa_passivator",
+      "label": "cf3_pa_passivator",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "All-perovskite tandem solar cells achieve certified stabilized PCE of 26.4% (JET calibration), exceeding the best single-junction perovskite solar cell efficiency and comparable to the best single-crystalline silicon cells",
+      "content_hash": "1e5d08bc667221bcbb4a1ebf0c7f8d10c509c8e2fc6fc6702028062e22b87edd",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::tandem_26_4_certified",
+      "label": "tandem_26_4_certified",
+      "metadata": {
+        "prior": 0.92
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The best tandem cell achieves PCE of 26.7% from reverse scan with Voc=2.03 V, Jsc=16.5 mA/cm2, and FF=79.9%, with stabilized PCE of 26.6%",
+      "content_hash": "18d948807222f509d028b3f53b871cb2cdc4f180bd51d7745ca10fb44ae89470",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::tandem_26_7_best",
+      "label": "tandem_26_7_best",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Among three passivators tested (PEA, PA, CF3-PA), CF3-PA produces the best Pb-Sn PSC performance across all PV parameters (Voc, Jsc, FF, PCE) with 1.2 um thick absorber layers",
+      "content_hash": "c4c0de7cf6dd6a7d3497e68de4deb67001ec7e729759e2018a4de9ceafb64d5d",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::cf3_pa_best_passivator",
+      "label": "cf3_pa_best_passivator",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "CF3-PA passivation increases the carrier diffusion length in Pb-Sn perovskite films threefold from 1.8 um to 5.4 um, enabling 1.2 um thick absorber layers for high photocurrent density",
+      "content_hash": "198d9d6f9ec03e56a4b70a55669cb515876cd4e42971e7324279a4fe217ac510",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::diffusion_length_5_um",
+      "label": "diffusion_length_5_um",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "CF3-PA passivated single-junction Pb-Sn PSCs with 1.2 um absorber achieve best PCE of 22.2% (stabilized 22.0%), with Voc=0.841 V, Jsc=33.0 mA/cm2, FF=80%, and average PCE of 20.8+/-0.5% across 237 devices",
+      "content_hash": "601854e356e6ffa2c8358cf7cb3014d712a008ecff4af0754836e0ef36f3913c",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::pb_sn_psc_22_pct",
+      "label": "pb_sn_psc_22_pct",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Ab initio molecular dynamics at 400 K show all 16 CF3-PA cations adsorb completely on the perovskite surface, compared to 15/16 for PA and 13/16 for PEA, indicating near-complete defect coverage during film formation",
+      "content_hash": "52106cabf51c5dc228ebade89c5b041d9b88605ef852c1b3bbbfdb93a4a2a254",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::complete_surface_coverage",
+      "label": "complete_surface_coverage",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "CF3-PA not only increases adsorption probability on perovskite surfaces but also suppresses iodide ion desorption at 400 K, reducing formation of both iodine vacancies and iodine interstitial defects",
+      "content_hash": "3db0597fdc2e4be89ff4aa44ae0f4778ddc2f882044c5733fd722146b8bf7345",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::suppressed_iodine_vacancies",
+      "label": "suppressed_iodine_vacancies",
+      "metadata": {
+        "prior": 0.8
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "DFT calculations show CF3-PA has the strongest binding energy with acceptor-type defects (FA vacancy, Sn vacancy, I_Sn, I_Pb antisites) on Pb-Sn perovskite surfaces among all three passivators, and eliminates deep in-gap states from antisite defects",
+      "content_hash": "47604753249386ed203b3e2fd35cc831122e0374173b769705eed095d40c20ca",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::strongest_binding_energy",
+      "label": "strongest_binding_energy",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "CF3-PA passivated Pb-Sn perovskite films exhibit effective carrier lifetime of 966 ns, compared to 437 ns (PA), 365 ns (PEA), and 159 ns (control), as measured by time-resolved photoluminescence",
+      "content_hash": "19e288181cda0b67802c8c05be8fc24356a2d00f41fe62ad76597695ec3ced36",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::carrier_lifetime_966_ns",
+      "label": "carrier_lifetime_966_ns",
+      "metadata": {
+        "prior": 0.86
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "XRD patterns show that adding trace amounts of CF3-PA does not form 2D perovskite phases even at 20 mol% concentration, maintaining pure 3D perovskite structure beneficial for charge transport through thick absorber layers",
+      "content_hash": "5702ada088d166e6c77c2c2d98a7a6c774b0240d83d92b6d39e240a89d589333",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::no_2d_phase_formation",
+      "label": "no_2d_phase_formation",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Angle-dependent XPS measurements confirm that CF3-PA passivation successfully suppresses surface Sn2+ oxidation in Pb-Sn perovskite films by passivating undercoordinated Sn atoms and Sn vacancies",
+      "content_hash": "a6eff3e4491f4559f318f7fff90dee14418dc822da48b51608708e08716a03c3",
+      "declaration_index": 12,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::sn_oxidation_suppressed",
+      "label": "sn_oxidation_suppressed",
+      "metadata": {
+        "prior": 0.83
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Large-area tandem device (aperture area 1.05 cm2) achieves PCE of 25.3% with Voc=2.03 V, Jsc=16 mA/cm2, FF=78%, demonstrating scalability",
+      "content_hash": "de3371fc84d204d9eb17e23c5b2e1c18bdeb5d55b9060881ae7a96fa16d71979",
+      "declaration_index": 13,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::large_area_25_3_pct",
+      "label": "large_area_25_3_pct",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Encapsulated CF3-PA tandem devices retain 90% of initial PCE after 600 h of continuous MPP tracking under 1-sun illumination in ambient air (30-50% humidity) at approximately 35C device temperature",
+      "content_hash": "2ca0a8254d84b3a39bd7fd8a8bc47b766b325d66204806d918e4ffac62053f02",
+      "declaration_index": 14,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::tandem_stability_90_pct_600h",
+      "label": "tandem_stability_90_pct_600h",
+      "metadata": {
+        "prior": 0.82
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Increasing Pb-Sn absorber thickness from 750 to 1200 nm with CF3-PA increases tandem Jsc from 15.4 to 16.5 mA/cm2 due to enhanced near-infrared light absorption in the back subcell",
+      "content_hash": "038bc8bc50f9bdf17a3e4e414114b445af059949a1adaf3dea323a3519fb0eb0",
+      "declaration_index": 15,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::thick_absorber_enables_high_jsc",
+      "label": "thick_absorber_enables_high_jsc",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Can all-perovskite tandem solar cells achieve operational stability beyond 1000 hours under continuous illumination, and how does CF3-PA passivation affect long-term ion migration in the Pb-Sn subcell?",
+      "content_hash": "c14327e1af28da28b26699241d5a889eca369175939fd955fc36384104ccab46",
+      "declaration_index": 16,
+      "exported": true,
+      "id": "pvsk:pvsk_park2021::tandem_long_term",
+      "label": "tandem_long_term",
+      "parameters": [],
+      "type": "question"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Organometal halide perovskites can function as viable photovoltaic absorbers",
+      "content_hash": "12183274605a4cdd79df4b632d2b0bc6c7bbfdfe0b389d5a86bd3d531fb560a3",
+      "declaration_index": 0,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_viability",
+      "label": "p_viability",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_viability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "content_hash": "9603b55225f5e093d20a1194832c2b419389d6a83886f8b7841f0b9a65cc106f",
+      "declaration_index": 4,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "metadata": {
+        "prior": 0.15
+      },
+      "parameters": [],
+      "title": "p_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_park2021::complete_surface_coverage,pvsk:pvsk_park2021::strongest_binding_energy)",
+      "content_hash": "dbf9475c1b1aedc3f3e7566c08a895627cf6d164bd6f9a816ccf14a6470e5281",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__conjunction_result_b420b206",
+      "label": "__conjunction_result_b420b206",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_park2021::complete_surface_coverage,pvsk:pvsk_park2021::strongest_binding_energy)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_c9311d1b5a810b79",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_park2021::__conjunction_result_b420b206,pvsk:pvsk_park2021::cf3_pa_best_passivator)",
+      "content_hash": "54078f51f343ad5e4fbe070cc2eb7e780530ac881632519001504eb43fda05d0",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__implication_result_7a4858c4",
+      "label": "__implication_result_7a4858c4",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_park2021::__conjunction_result_b420b206,pvsk:pvsk_park2021::cf3_pa_best_passivator)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_c9311d1b5a810b79",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_park2021::cf3_pa_best_passivator,pvsk:pvsk_park2021::carrier_lifetime_966_ns)",
+      "content_hash": "4dd2b10089b99a9448d589812ccb79ba341e28b567a2ffcd2b9d7fca5e815ed9",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__conjunction_result_bc8cb7f4",
+      "label": "__conjunction_result_bc8cb7f4",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_park2021::cf3_pa_best_passivator,pvsk:pvsk_park2021::carrier_lifetime_966_ns)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_57ce0f3f3bbb00c4",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_park2021::__conjunction_result_bc8cb7f4,pvsk:pvsk_park2021::diffusion_length_5_um)",
+      "content_hash": "518706ddd78b1fa4b3d9d9c228250bd19e0a514e04bd5d3a961df27647000677",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__implication_result_9d2029ae",
+      "label": "__implication_result_9d2029ae",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_park2021::__conjunction_result_bc8cb7f4,pvsk:pvsk_park2021::diffusion_length_5_um)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_57ce0f3f3bbb00c4",
+        "owning_strategy_type": "support",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_park2021::diffusion_length_5_um,pvsk:pvsk_park2021::no_2d_phase_formation)",
+      "content_hash": "217eb25c372a02b97dfa60f797a524f187a34f94396df0aab1304cf4b127de89",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__conjunction_result_d2217076",
+      "label": "__conjunction_result_d2217076",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_park2021::diffusion_length_5_um,pvsk:pvsk_park2021::no_2d_phase_formation)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_60bc364c19caffb7",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_park2021::__conjunction_result_d2217076,pvsk:pvsk_park2021::thick_absorber_enables_high_jsc)",
+      "content_hash": "0aef408b4ef71a5678c1cd234e5f500259ffe06ef16ab20d3ba993a70a70af36",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__implication_result_4e1a16ca",
+      "label": "__implication_result_4e1a16ca",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_park2021::__conjunction_result_d2217076,pvsk:pvsk_park2021::thick_absorber_enables_high_jsc)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_60bc364c19caffb7",
+        "owning_strategy_type": "support",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_park2021::thick_absorber_enables_high_jsc,pvsk:pvsk_park2021::pb_sn_psc_22_pct)",
+      "content_hash": "bead77d671a948383988d74f036eab54174c1de36e75e3a1bdaba9d2ef2c7318",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__conjunction_result_55d624d7",
+      "label": "__conjunction_result_55d624d7",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_park2021::thick_absorber_enables_high_jsc,pvsk:pvsk_park2021::pb_sn_psc_22_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_88c973ea559021ca",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_park2021::__conjunction_result_55d624d7,pvsk:pvsk_park2021::tandem_26_4_certified)",
+      "content_hash": "5d495b4770df01eafdcab6e79180a276bf8f05e19dd35b13375966c89fb792da",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__implication_result_106cee2a",
+      "label": "__implication_result_106cee2a",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_park2021::__conjunction_result_55d624d7,pvsk:pvsk_park2021::tandem_26_4_certified)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_88c973ea559021ca",
+        "owning_strategy_type": "support",
+        "prior": 0.83,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_park2021::suppressed_iodine_vacancies,pvsk:pvsk_park2021::sn_oxidation_suppressed)",
+      "content_hash": "8683c6682c70be429a4eb847c735eb5e29ef3e0adacab8e7219b78931e62f5a7",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__conjunction_result_30c25c93",
+      "label": "__conjunction_result_30c25c93",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_park2021::suppressed_iodine_vacancies,pvsk:pvsk_park2021::sn_oxidation_suppressed)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_634cf17755a6b8e3",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_park2021::__conjunction_result_30c25c93,pvsk:pvsk_park2021::tandem_stability_90_pct_600h)",
+      "content_hash": "258929e82474f55c2171d26fafab32b174006c9973225db0c8e1ba0b2471b16a",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__implication_result_66b2c916",
+      "label": "__implication_result_66b2c916",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_park2021::__conjunction_result_30c25c93,pvsk:pvsk_park2021::tandem_stability_90_pct_600h)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_634cf17755a6b8e3",
+        "owning_strategy_type": "support",
+        "prior": 0.75,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_park2021::tandem_26_4_certified,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "7e347b9952058770cd57bc1ec9ef15edaf7f71268cd8d60e91cd5dfc3a6ecbd3",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__implication_result_9b6e810b",
+      "label": "__implication_result_9b6e810b",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_park2021::tandem_26_4_certified,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_0651262622b92ab1",
+        "owning_strategy_type": "support",
+        "prior": 0.72,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_park2021::cf3_pa_best_passivator,pvsk:pvsk_park2021::diffusion_length_5_um)",
+      "content_hash": "454038b870580d24aa60d0b81d31ca6705e243b31e91ec0fe274e89dc2c35857",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__conjunction_result_aeffee15",
+      "label": "__conjunction_result_aeffee15",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_park2021::cf3_pa_best_passivator,pvsk:pvsk_park2021::diffusion_length_5_um)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_7f2f88c9850e4a48",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_park2021::__conjunction_result_aeffee15,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "97d797f297f396f320c34ffa14acfc2722967a338bd3aa524f09cb4d90ca6d4c",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__implication_result_dff06b35",
+      "label": "__implication_result_dff06b35",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_park2021::__conjunction_result_aeffee15,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_7f2f88c9850e4a48",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_park2021::tandem_stability_90_pct_600h,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "2cc5e264ceb2c2f1247caabec2ba1ad4f6a24df2cbdfd27deca5d87a946fcbb6",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__implication_result_e9cd767b",
+      "label": "__implication_result_e9cd767b",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_park2021::tandem_stability_90_pct_600h,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_2ca8208d5fc38dcc",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_park2021::tandem_26_4_certified,pvsk:pvsk_park2021::large_area_25_3_pct)",
+      "content_hash": "63161381f9e02e69d71fcda4ee933904cea52860a3fc81f3cbbec374dc7c75cf",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__conjunction_result_54c74532",
+      "label": "__conjunction_result_54c74532",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_park2021::tandem_26_4_certified,pvsk:pvsk_park2021::large_area_25_3_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_699e34466aa89ffe",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_park2021::__conjunction_result_54c74532,pvsk:pvsk_meta::p_viability)",
+      "content_hash": "cbc526b84b43823c20e972bd41ce319f3bff7468e4a107bae83e004d9dc80308",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__implication_result_1f7fce64",
+      "label": "__implication_result_1f7fce64",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_park2021::__conjunction_result_54c74532,pvsk:pvsk_meta::p_viability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_699e34466aa89ffe",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_park2021::large_area_25_3_pct,pvsk:pvsk_park2021::exp_context)",
+      "content_hash": "5a66d65d477c24ee617492a969a7a49d52d9191a7fbd9e289432c3335215164d",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__conjunction_result_d26c0ce6",
+      "label": "__conjunction_result_d26c0ce6",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_park2021::large_area_25_3_pct,pvsk:pvsk_park2021::exp_context)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_e315b2e821b4d325",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_park2021::__conjunction_result_d26c0ce6,pvsk:pvsk_meta::p_industrialization)",
+      "content_hash": "704a2701fec09934fa39f1932aabd990a3e42e271f53a472264c35d07d2c944d",
+      "exported": false,
+      "id": "pvsk:pvsk_park2021::__implication_result_a4480899",
+      "label": "__implication_result_a4480899",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_park2021::__conjunction_result_d26c0ce6,pvsk:pvsk_meta::p_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_e315b2e821b4d325",
+        "owning_strategy_type": "support",
+        "prior": 0.58,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_park2021",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_park2021::cf3_pa_best_passivator",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_park2021::__conjunction_result_b420b206",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_park2021::complete_surface_coverage",
+              "pvsk:pvsk_park2021::strongest_binding_energy"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_park2021::__implication_result_7a4858c4",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_park2021::__conjunction_result_b420b206",
+              "pvsk:pvsk_park2021::cf3_pa_best_passivator"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "CF3-PA achieves near-complete surface adsorption and strongest defect binding, eliminating more deep traps than PEA or PA, leading to the best passivation and device performance"
+      },
+      "premises": [
+        "pvsk:pvsk_park2021::complete_surface_coverage",
+        "pvsk:pvsk_park2021::strongest_binding_energy"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_c9311d1b5a810b79",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_park2021::diffusion_length_5_um",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_park2021::__conjunction_result_bc8cb7f4",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_park2021::cf3_pa_best_passivator",
+              "pvsk:pvsk_park2021::carrier_lifetime_966_ns"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_park2021::__implication_result_9d2029ae",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_park2021::__conjunction_result_bc8cb7f4",
+              "pvsk:pvsk_park2021::diffusion_length_5_um"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "CF3-PA passivation triples the carrier lifetime (159 to 966 ns) while maintaining similar carrier mobility (~80 cm2/V/s), directly increasing the diffusion length from 1.8 to 5.4 um"
+      },
+      "premises": [
+        "pvsk:pvsk_park2021::cf3_pa_best_passivator",
+        "pvsk:pvsk_park2021::carrier_lifetime_966_ns"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_57ce0f3f3bbb00c4",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_park2021::thick_absorber_enables_high_jsc",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_park2021::__conjunction_result_d2217076",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_park2021::diffusion_length_5_um",
+              "pvsk:pvsk_park2021::no_2d_phase_formation"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_park2021::__implication_result_4e1a16ca",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_park2021::__conjunction_result_d2217076",
+              "pvsk:pvsk_park2021::thick_absorber_enables_high_jsc"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "The tripling of diffusion length enables efficient charge extraction from 1.2 um thick Pb-Sn absorbers without 2D phase barriers, allowing high NIR absorption and matched current density in tandem cells"
+      },
+      "premises": [
+        "pvsk:pvsk_park2021::diffusion_length_5_um",
+        "pvsk:pvsk_park2021::no_2d_phase_formation"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_60bc364c19caffb7",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_park2021::tandem_26_4_certified",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_park2021::__conjunction_result_55d624d7",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_park2021::thick_absorber_enables_high_jsc",
+              "pvsk:pvsk_park2021::pb_sn_psc_22_pct"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_park2021::__implication_result_106cee2a",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_park2021::__conjunction_result_55d624d7",
+              "pvsk:pvsk_park2021::tandem_26_4_certified"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.83,
+        "reason": "Thick NBG absorber with high Jsc (>16 mA/cm2) combined with efficient WBG front cell enables current matching and record tandem efficiency exceeding single-junction PSCs"
+      },
+      "premises": [
+        "pvsk:pvsk_park2021::thick_absorber_enables_high_jsc",
+        "pvsk:pvsk_park2021::pb_sn_psc_22_pct"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_88c973ea559021ca",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_park2021::tandem_stability_90_pct_600h",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_park2021::__conjunction_result_30c25c93",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_park2021::suppressed_iodine_vacancies",
+              "pvsk:pvsk_park2021::sn_oxidation_suppressed"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_park2021::__implication_result_66b2c916",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_park2021::__conjunction_result_30c25c93",
+              "pvsk:pvsk_park2021::tandem_stability_90_pct_600h"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.75,
+        "reason": "Reduced defect density at grain surfaces suppresses ion migration and Sn oxidation pathways, leading to improved operational stability of tandem devices"
+      },
+      "premises": [
+        "pvsk:pvsk_park2021::suppressed_iodine_vacancies",
+        "pvsk:pvsk_park2021::sn_oxidation_suppressed"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_634cf17755a6b8e3",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_park2021::__implication_result_9b6e810b",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_park2021::tandem_26_4_certified",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.72,
+        "reason": "Certified 26.4% tandem PCE exceeds the best single-junction perovskite and demonstrates the tandem architecture can surpass single-junction efficiency limits"
+      },
+      "premises": [
+        "pvsk:pvsk_park2021::tandem_26_4_certified"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_0651262622b92ab1",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_park2021::__conjunction_result_aeffee15",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_park2021::cf3_pa_best_passivator",
+              "pvsk:pvsk_park2021::diffusion_length_5_um"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_park2021::__implication_result_dff06b35",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_park2021::__conjunction_result_aeffee15",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "Rational molecular design of passivators guided by ab initio molecular dynamics enables systematic improvement of perovskite material properties"
+      },
+      "premises": [
+        "pvsk:pvsk_park2021::cf3_pa_best_passivator",
+        "pvsk:pvsk_park2021::diffusion_length_5_um"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_7f2f88c9850e4a48",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_park2021::__implication_result_e9cd767b",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_park2021::tandem_stability_90_pct_600h",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "Encapsulated tandem devices retaining 90% PCE after 600 h under ambient conditions show progress toward practical operational stability"
+      },
+      "premises": [
+        "pvsk:pvsk_park2021::tandem_stability_90_pct_600h"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_2ca8208d5fc38dcc",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_viability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_park2021::__conjunction_result_54c74532",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_park2021::tandem_26_4_certified",
+              "pvsk:pvsk_park2021::large_area_25_3_pct"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_park2021::__implication_result_1f7fce64",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_park2021::__conjunction_result_54c74532",
+              "pvsk:pvsk_meta::p_viability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "All-perovskite tandems with record efficiency and scalable large-area fabrication demonstrate a viable pathway beyond single-junction limits"
+      },
+      "premises": [
+        "pvsk:pvsk_park2021::tandem_26_4_certified",
+        "pvsk:pvsk_park2021::large_area_25_3_pct"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_699e34466aa89ffe",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_park2021::__conjunction_result_d26c0ce6",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_park2021::large_area_25_3_pct",
+              "pvsk:pvsk_park2021::exp_context"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_park2021::__implication_result_a4480899",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_park2021::__conjunction_result_d26c0ce6",
+              "pvsk:pvsk_meta::p_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.58,
+        "reason": "Solution-processed tandem cells exceeding 25% on >1 cm2 area with narrow efficiency distribution show promise for scalable manufacturing"
+      },
+      "premises": [
+        "pvsk:pvsk_park2021::large_area_25_3_pct",
+        "pvsk:pvsk_park2021::exp_context"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_e315b2e821b4d325",
+      "type": "support"
+    }
+  ]
+}

@@ -1,0 +1,414 @@
+{
+  "modules": [],
+  "cross_module_edges": [],
+  "nodes": [
+    {
+      "id": "pvsk:pvsk_kojima2009::exp_context",
+      "label": "exp_context",
+      "title": null,
+      "type": "setting",
+      "module": null,
+      "content": "Photoelectrochemical cells constructed with CH3NH3PbX3 (X=Br, I) nanocrystalline particles self-organized on mesoporous TiO2 (8-12 um thick) deposited on FTO glass, using organic electrolyte with lithium halide/halogen redox couple, measured under AM 1.5 simulated sunlight at 100 mW/cm2",
+      "prior": null,
+      "belief": null,
+      "exported": true,
+      "metadata": {}
+    },
+    {
+      "id": "pvsk:pvsk_kojima2009::perovskite_materials",
+      "label": "perovskite_materials",
+      "title": null,
+      "type": "claim",
+      "module": null,
+      "content": "Organolead halide perovskite compounds CH3NH3PbBr3 (cubic, a=5.9 A) and CH3NH3PbI3 (tetragonal, a=8.855 A, c=12.659 A) synthesized from abundant sources Pb, C, N, and halogen, deposited from precursor solutions via spin-coating",
+      "prior": 0.7,
+      "belief": null,
+      "exported": true,
+      "metadata": {
+        "prior": 0.7
+      }
+    },
+    {
+      "id": "pvsk:pvsk_kojima2009::pce_3_8_pct",
+      "label": "pce_3_8_pct",
+      "title": null,
+      "type": "claim",
+      "module": null,
+      "content": "CH3NH3PbI3-sensitized photoelectrochemical cell achieves power conversion efficiency of 3.81% under AM 1.5 simulated sunlight at 100 mW/cm2, with Jsc=11.0 mA/cm2, Voc=0.61 V, and fill factor 0.57",
+      "prior": 0.9,
+      "belief": null,
+      "exported": true,
+      "metadata": {
+        "prior": 0.9
+      }
+    },
+    {
+      "id": "pvsk:pvsk_kojima2009::high_voc_bromide",
+      "label": "high_voc_bromide",
+      "title": null,
+      "type": "claim",
+      "module": null,
+      "content": "CH3NH3PbBr3-sensitized cell yields a high open-circuit voltage of 0.96 V with Jsc=5.57 mA/cm2, fill factor 0.59, and PCE of 3.13%",
+      "prior": 0.9,
+      "belief": null,
+      "exported": true,
+      "metadata": {
+        "prior": 0.9
+      }
+    },
+    {
+      "id": "pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2",
+      "label": "perovskite_sensitizes_tio2",
+      "title": null,
+      "type": "claim",
+      "module": null,
+      "content": "Organolead halide perovskite nanocrystalline particles efficiently sensitize mesoporous TiO2 for visible-light conversion, confirmed by anodic photocurrent generation and IPCE measurements",
+      "prior": 0.88,
+      "belief": null,
+      "exported": true,
+      "metadata": {
+        "prior": 0.88
+      }
+    },
+    {
+      "id": "pvsk:pvsk_kojima2009::ipce_bromide_65_pct",
+      "label": "ipce_bromide_65_pct",
+      "title": null,
+      "type": "claim",
+      "module": null,
+      "content": "CH3NH3PbBr3/TiO2 cell achieves maximum IPCE of 65% in the visible region (lambda < 600 nm) with sharp band-gap absorption onset near 570 nm",
+      "prior": 0.88,
+      "belief": null,
+      "exported": true,
+      "metadata": {
+        "prior": 0.88
+      }
+    },
+    {
+      "id": "pvsk:pvsk_kojima2009::ipce_iodide_extended",
+      "label": "ipce_iodide_extended",
+      "title": null,
+      "type": "claim",
+      "module": null,
+      "content": "CH3NH3PbI3/TiO2 cell shows extended spectral response to 800 nm but lower peak IPCE of 45%, reflecting broader but less intense absorption",
+      "prior": 0.85,
+      "belief": null,
+      "exported": true,
+      "metadata": {
+        "prior": 0.85
+      }
+    },
+    {
+      "id": "pvsk:pvsk_kojima2009::bandgap_bathochromic_shift",
+      "label": "bandgap_bathochromic_shift",
+      "title": null,
+      "type": "claim",
+      "module": null,
+      "content": "Halogen substitution from Br to I in CH3NH3PbX3 causes a bathochromic shift in absorption, analogous to silver halide ionic crystals",
+      "prior": 0.85,
+      "belief": null,
+      "exported": true,
+      "metadata": {
+        "prior": 0.85
+      }
+    },
+    {
+      "id": "pvsk:pvsk_kojima2009::valence_band_levels",
+      "label": "valence_band_levels",
+      "title": null,
+      "type": "claim",
+      "module": null,
+      "content": "Valence-band levels of CH3NH3PbBr3 and CH3NH3PbI3 are at ~5.38 and 5.44 eV versus vacuum level, respectively, as measured by photoelectron spectroscopy",
+      "prior": 0.85,
+      "belief": null,
+      "exported": true,
+      "metadata": {
+        "prior": 0.85
+      }
+    },
+    {
+      "id": "pvsk:pvsk_kojima2009::conduction_band_levels",
+      "label": "conduction_band_levels",
+      "title": null,
+      "type": "claim",
+      "module": null,
+      "content": "Conduction-band levels of CH3NH3PbBr3 and CH3NH3PbI3 are at ~3.36 and 4.0 eV respectively, allowing electron injection into the TiO2 conduction band (~4.0 eV)",
+      "prior": 0.83,
+      "belief": null,
+      "exported": true,
+      "metadata": {
+        "prior": 0.83
+      }
+    },
+    {
+      "id": "pvsk:pvsk_kojima2009::high_voc_origin",
+      "label": "high_voc_origin",
+      "title": null,
+      "type": "claim",
+      "module": null,
+      "content": "The high Voc of 0.96 V in CH3NH3PbBr3 cells is due to the more positive electrochemical potential of the Br2/Br- redox couple compared to I2/I-, expanding the range of photovoltage",
+      "prior": 0.78,
+      "belief": null,
+      "exported": true,
+      "metadata": {
+        "prior": 0.78
+      }
+    },
+    {
+      "id": "pvsk:pvsk_kojima2009::exceeds_quantum_dots",
+      "label": "exceeds_quantum_dots",
+      "title": null,
+      "type": "claim",
+      "module": null,
+      "content": "The 3.81% PCE of the CH3NH3PbI3 cell is significantly higher than efficiencies obtained to date with non-organic sensitizers and quantum dots (CdS, CdSe, PbS, InP, InAs)",
+      "prior": 0.85,
+      "belief": null,
+      "exported": true,
+      "metadata": {
+        "prior": 0.85
+      }
+    },
+    {
+      "id": "pvsk:pvsk_kojima2009::perovskite_series_potential",
+      "label": "perovskite_series_potential",
+      "title": null,
+      "type": "claim",
+      "module": null,
+      "content": "A series of organic-inorganic perovskite materials CH3NH3MX3 (M=Pb, Sn; X=halogen) with different energy gaps are targets for optimizing photovoltaic cell performance",
+      "prior": 0.65,
+      "belief": null,
+      "exported": true,
+      "metadata": {
+        "prior": 0.65
+      }
+    },
+    {
+      "id": "pvsk:pvsk_kojima2009::durability_question",
+      "label": "durability_question",
+      "title": null,
+      "type": "claim",
+      "module": null,
+      "content": "How can the photocurrent decay observed under continuous irradiation for open cells exposed to air be mitigated to improve perovskite photovoltaic cell lifetime?",
+      "prior": 0.5,
+      "belief": null,
+      "exported": true,
+      "metadata": {
+        "prior": 0.5
+      }
+    },
+    {
+      "id": "pvsk:pvsk_meta::p_viability",
+      "label": "p_viability",
+      "title": "p_viability",
+      "type": "claim",
+      "module": null,
+      "content": "Organometal halide perovskites can function as viable photovoltaic absorbers",
+      "prior": 0.3,
+      "belief": null,
+      "exported": false,
+      "metadata": {
+        "prior": 0.3
+      }
+    },
+    {
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "title": "p_improvement",
+      "type": "claim",
+      "module": null,
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "prior": 0.3,
+      "belief": null,
+      "exported": false,
+      "metadata": {
+        "prior": 0.3
+      }
+    },
+    {
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "title": "p_stability",
+      "type": "claim",
+      "module": null,
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "prior": 0.2,
+      "belief": null,
+      "exported": false,
+      "metadata": {
+        "prior": 0.2
+      }
+    },
+    {
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "title": "p_industrialization",
+      "type": "claim",
+      "module": null,
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "prior": 0.15,
+      "belief": null,
+      "exported": false,
+      "metadata": {
+        "prior": 0.15
+      }
+    },
+    {
+      "id": "strat_0",
+      "type": "strategy",
+      "strategy_type": "support",
+      "module": "",
+      "reason": ""
+    },
+    {
+      "id": "strat_1",
+      "type": "strategy",
+      "strategy_type": "deduction",
+      "module": "",
+      "reason": ""
+    },
+    {
+      "id": "strat_2",
+      "type": "strategy",
+      "strategy_type": "support",
+      "module": "",
+      "reason": ""
+    },
+    {
+      "id": "strat_3",
+      "type": "strategy",
+      "strategy_type": "support",
+      "module": "",
+      "reason": ""
+    },
+    {
+      "id": "strat_4",
+      "type": "strategy",
+      "strategy_type": "support",
+      "module": "",
+      "reason": ""
+    },
+    {
+      "id": "strat_5",
+      "type": "strategy",
+      "strategy_type": "support",
+      "module": "",
+      "reason": ""
+    },
+    {
+      "id": "strat_6",
+      "type": "strategy",
+      "strategy_type": "support",
+      "module": "",
+      "reason": ""
+    },
+    {
+      "id": "strat_7",
+      "type": "strategy",
+      "strategy_type": "support",
+      "module": "",
+      "reason": ""
+    }
+  ],
+  "edges": [
+    {
+      "source": "pvsk:pvsk_kojima2009::valence_band_levels",
+      "target": "strat_0",
+      "role": "premise"
+    },
+    {
+      "source": "pvsk:pvsk_kojima2009::conduction_band_levels",
+      "target": "strat_0",
+      "role": "premise"
+    },
+    {
+      "source": "strat_0",
+      "target": "pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2",
+      "role": "conclusion"
+    },
+    {
+      "source": "pvsk:pvsk_kojima2009::bandgap_bathochromic_shift",
+      "target": "strat_1",
+      "role": "premise"
+    },
+    {
+      "source": "strat_1",
+      "target": "pvsk:pvsk_kojima2009::ipce_iodide_extended",
+      "role": "conclusion"
+    },
+    {
+      "source": "pvsk:pvsk_kojima2009::high_voc_origin",
+      "target": "strat_2",
+      "role": "premise"
+    },
+    {
+      "source": "strat_2",
+      "target": "pvsk:pvsk_kojima2009::high_voc_bromide",
+      "role": "conclusion"
+    },
+    {
+      "source": "pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2",
+      "target": "strat_3",
+      "role": "premise"
+    },
+    {
+      "source": "pvsk:pvsk_kojima2009::pce_3_8_pct",
+      "target": "strat_3",
+      "role": "premise"
+    },
+    {
+      "source": "strat_3",
+      "target": "pvsk:pvsk_kojima2009::exceeds_quantum_dots",
+      "role": "conclusion"
+    },
+    {
+      "source": "pvsk:pvsk_kojima2009::pce_3_8_pct",
+      "target": "strat_4",
+      "role": "premise"
+    },
+    {
+      "source": "pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2",
+      "target": "strat_4",
+      "role": "premise"
+    },
+    {
+      "source": "strat_4",
+      "target": "pvsk:pvsk_meta::p_viability",
+      "role": "conclusion"
+    },
+    {
+      "source": "pvsk:pvsk_kojima2009::pce_3_8_pct",
+      "target": "strat_5",
+      "role": "premise"
+    },
+    {
+      "source": "pvsk:pvsk_kojima2009::perovskite_series_potential",
+      "target": "strat_5",
+      "role": "premise"
+    },
+    {
+      "source": "strat_5",
+      "target": "pvsk:pvsk_meta::p_improvement",
+      "role": "conclusion"
+    },
+    {
+      "source": "pvsk:pvsk_kojima2009::durability_question",
+      "target": "strat_6",
+      "role": "premise"
+    },
+    {
+      "source": "strat_6",
+      "target": "pvsk:pvsk_meta::p_stability",
+      "role": "conclusion"
+    },
+    {
+      "source": "pvsk:pvsk_kojima2009::perovskite_materials",
+      "target": "strat_7",
+      "role": "premise"
+    },
+    {
+      "source": "strat_7",
+      "target": "pvsk:pvsk_meta::p_industrialization",
+      "role": "conclusion"
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "ir_hash": "sha256:c8c94e3b3cb81741d06614df15e1508590e45fb617843d8b460155c9496107be",
+  "manifest_schema_version": 1,
+  "package": "pvsk-park2021",
+  "premises": [
+    {
+      "content": "CF3-PA passivated Pb-Sn perovskite films exhibit effective carrier lifetime of 966 ns, compared to 437 ns (PA), 365 ns (PEA), and 159 ns (control), as measured by time-resolved photoluminescence",
+      "content_hash": "19e288181cda0b67802c8c05be8fc24356a2d00f41fe62ad76597695ec3ced36",
+      "exported": true,
+      "interface_hash": "sha256:3a6d63cdc99872ebff14e369afe99f85b4955aa063ede673a37d96358a7f855a",
+      "label": "carrier_lifetime_966_ns",
+      "qid": "pvsk:pvsk_park2021::carrier_lifetime_966_ns",
+      "required_by": [
+        "pvsk:pvsk_park2021::diffusion_length_5_um"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "Ab initio molecular dynamics at 400 K show all 16 CF3-PA cations adsorb completely on the perovskite surface, compared to 15/16 for PA and 13/16 for PEA, indicating near-complete defect coverage during film formation",
+      "content_hash": "52106cabf51c5dc228ebade89c5b041d9b88605ef852c1b3bbbfdb93a4a2a254",
+      "exported": true,
+      "interface_hash": "sha256:41688640222cfebe7bc1917afc753a3cb0ef3ef8dc33d2ffcbf72e2831f5bec9",
+      "label": "complete_surface_coverage",
+      "qid": "pvsk:pvsk_park2021::complete_surface_coverage",
+      "required_by": [
+        "pvsk:pvsk_park2021::cf3_pa_best_passivator"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "XRD patterns show that adding trace amounts of CF3-PA does not form 2D perovskite phases even at 20 mol% concentration, maintaining pure 3D perovskite structure beneficial for charge transport through thick absorber layers",
+      "content_hash": "5702ada088d166e6c77c2c2d98a7a6c774b0240d83d92b6d39e240a89d589333",
+      "exported": true,
+      "interface_hash": "sha256:103af6ade811b0372967dc30c4da7d00c53c321d2f349cbf83d959d8f46cd18b",
+      "label": "no_2d_phase_formation",
+      "qid": "pvsk:pvsk_park2021::no_2d_phase_formation",
+      "required_by": [
+        "pvsk:pvsk_park2021::thick_absorber_enables_high_jsc"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "CF3-PA passivated single-junction Pb-Sn PSCs with 1.2 um absorber achieve best PCE of 22.2% (stabilized 22.0%), with Voc=0.841 V, Jsc=33.0 mA/cm2, FF=80%, and average PCE of 20.8+/-0.5% across 237 devices",
+      "content_hash": "601854e356e6ffa2c8358cf7cb3014d712a008ecff4af0754836e0ef36f3913c",
+      "exported": true,
+      "interface_hash": "sha256:8afec08aea201369597fbc4cd6af6f30bb278d9c27f0cc12294d2ecfaed7c554",
+      "label": "pb_sn_psc_22_pct",
+      "qid": "pvsk:pvsk_park2021::pb_sn_psc_22_pct",
+      "required_by": [
+        "pvsk:pvsk_park2021::tandem_26_4_certified"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "Angle-dependent XPS measurements confirm that CF3-PA passivation successfully suppresses surface Sn2+ oxidation in Pb-Sn perovskite films by passivating undercoordinated Sn atoms and Sn vacancies",
+      "content_hash": "a6eff3e4491f4559f318f7fff90dee14418dc822da48b51608708e08716a03c3",
+      "exported": true,
+      "interface_hash": "sha256:7731b30794608882f94971b8ab60da94f962491b476a218252e114464be99a1c",
+      "label": "sn_oxidation_suppressed",
+      "qid": "pvsk:pvsk_park2021::sn_oxidation_suppressed",
+      "required_by": [
+        "pvsk:pvsk_park2021::tandem_stability_90_pct_600h"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "DFT calculations show CF3-PA has the strongest binding energy with acceptor-type defects (FA vacancy, Sn vacancy, I_Sn, I_Pb antisites) on Pb-Sn perovskite surfaces among all three passivators, and eliminates deep in-gap states from antisite defects",
+      "content_hash": "47604753249386ed203b3e2fd35cc831122e0374173b769705eed095d40c20ca",
+      "exported": true,
+      "interface_hash": "sha256:acb102fa5e93242c4e40e48201a6556f4953cb041af726583351bed9977987b1",
+      "label": "strongest_binding_energy",
+      "qid": "pvsk:pvsk_park2021::strongest_binding_energy",
+      "required_by": [
+        "pvsk:pvsk_park2021::cf3_pa_best_passivator"
+      ],
+      "role": "local_hole"
+    },
+    {
+      "content": "CF3-PA not only increases adsorption probability on perovskite surfaces but also suppresses iodide ion desorption at 400 K, reducing formation of both iodine vacancies and iodine interstitial defects",
+      "content_hash": "3db0597fdc2e4be89ff4aa44ae0f4778ddc2f882044c5733fd722146b8bf7345",
+      "exported": true,
+      "interface_hash": "sha256:21b0d6927c26f547152e7c1502fb76bc56f26f2c021592d6d7c953749ebf2eba",
+      "label": "suppressed_iodine_vacancies",
+      "qid": "pvsk:pvsk_park2021::suppressed_iodine_vacancies",
+      "required_by": [
+        "pvsk:pvsk_park2021::tandem_stability_90_pct_600h"
+      ],
+      "role": "local_hole"
+    }
+  ],
+  "version": "1.0.0"
+}

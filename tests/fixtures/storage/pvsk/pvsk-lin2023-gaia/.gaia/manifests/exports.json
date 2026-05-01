@@ -1,0 +1,106 @@
+{
+  "exports": [
+    {
+      "content": "Combining optical and electrical loss reductions, an all-perovskite tandem PCE higher than 30% is achievable by empirically assuming Voc of 2.2 V, Jsc of 17 mA cm-2, and FF of 82%",
+      "content_hash": "6c6799ffe7c6222f23e1ddff2ab4d09f06170f0052ee4ad6a6d4d60eec07f0c3",
+      "label": "beyond_30_outlook",
+      "qid": "pvsk:pvsk_lin2023::beyond_30_outlook",
+      "type": "claim"
+    },
+    {
+      "content": "PHJ devices show electroluminescence quantum yield of 3.09% versus 0.47% for controls at 1-sun current density, corresponding to Voc loss reduction from 147 mV to 97 mV",
+      "content_hash": "0bac9ac274078e02721040877bd7e9a6f10122672e5d97a0ed9aa5a70286c125",
+      "label": "elqy_improvement",
+      "qid": "pvsk:pvsk_lin2023::elqy_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "All-perovskite tandem solar cells with WBG (~1.78 eV) FA0.8Cs0.2Pb(I0.62Br0.38)3 top cell and NBG (~1.25 eV) Pb-Sn perovskite bottom cell. Device area 0.049 cm2 (small) and 1.05 cm2 (large). SAM-modified NiO HTL for WBG subcell. Encapsulated devices tested under simulated AM 1.5G at ambient conditions.",
+      "content_hash": "12d034dbbba921ba72a3ce0065609dda3f6540df4d33a8cd704eb6911546c6fe",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_lin2023::exp_context",
+      "type": "setting"
+    },
+    {
+      "content": "A hybrid evaporation-solution processing method enables non-destructive deposition of a 50 nm Pb-halide wide-bandgap perovskite (FA0.7Cs0.3Pb(I0.85Br0.14)3) on top of the Pb-Sn NBG perovskite, forming a clearly defined 3D/3D bilayer heterostructure with limited metal-ion intermixing",
+      "content_hash": "e071ea613f060d174a5fc960819a2855aec700586e28a43a55c1d97b02aa3246",
+      "label": "hybrid_deposition",
+      "qid": "pvsk:pvsk_lin2023::hybrid_deposition",
+      "type": "claim"
+    },
+    {
+      "content": "Large-area all-perovskite tandem devices (1.05 cm2) achieve 26.9% PCE with Voc of 2.149 V, Jsc of 15.7 mA cm-2, and FF of 79.8%",
+      "content_hash": "3a120035e49f7b2ba66ab3f164bbe636968e197c4de9e40afb2dec1350f6ad92",
+      "label": "large_area_tandem_269",
+      "qid": "pvsk:pvsk_lin2023::large_area_tandem_269",
+      "type": "claim"
+    },
+    {
+      "content": "Mixed Pb-Sn narrow-bandgap perovskite subcells constrain all-perovskite tandem performance due to high trap density at the film surface. Conventional 2D/3D heterojunctions reduce surface recombination but induce transport losses that limit device fill factors.",
+      "content_hash": "d9bbb4cccd8df941a42cc6990cc1f8feaaa43059ea518c5fe27c83bfa811baaa",
+      "label": "nbg_challenge",
+      "qid": "pvsk:pvsk_lin2023::nbg_challenge",
+      "type": "setting"
+    },
+    {
+      "content": "The 3D/3D bilayer PHJ enables Pb-Sn PSCs with 1.2 um absorber to reach 23.8% PCE with Voc of 0.873 V and FF of 82.6%, substantially higher than the 21.0% control",
+      "content_hash": "f8019b47b4def5e67511e9eb2254b255eee0ff254197108aa09f28a87e7d945f",
+      "label": "nbg_pce_238",
+      "qid": "pvsk:pvsk_lin2023::nbg_pce_238",
+      "type": "claim"
+    },
+    {
+      "content": "An immiscible 3D/3D bilayer perovskite heterojunction (PHJ) with type-II band structure at the Pb-Sn perovskite/ETL interface can simultaneously suppress interfacial non-radiative recombination and facilitate charge extraction without transport losses from 2D interlayers",
+      "content_hash": "9c72a4c99502e045ca59bc2e7b3c7c14428998baa701d82f75e7554c4fc78430",
+      "label": "phj_concept",
+      "qid": "pvsk:pvsk_lin2023::phj_concept",
+      "type": "claim"
+    },
+    {
+      "content": "The 3D/3D PHJ retains its distinct heterostructure with no evidence of Sn diffusion into the FL-WBG layer after 60 days of storage in N2 glovebox, confirmed by EDX and ToF-SIMS",
+      "content_hash": "638f9fb623088c6eb772b606c9e1cdd52cdf6b0de9fb3c2000a0b889d5618f06",
+      "label": "phj_structural_stability",
+      "qid": "pvsk:pvsk_lin2023::phj_structural_stability",
+      "type": "claim"
+    },
+    {
+      "content": "PHJ tandems show substantially improved FF from 78.0% to 81.4% and PCE from 26.0% to 27.7% compared with control tandems, because the tandem FF is limited by the subpar NBG subcell under current matching",
+      "content_hash": "8b8f7f9c976b68f36d38694284f503d3c6f5bc56e50d5bd84b6c7769037bf17e",
+      "label": "tandem_ff_improvement",
+      "qid": "pvsk:pvsk_lin2023::tandem_ff_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "Encapsulated tandem devices with PHJ retain over 90% of initial performance after 600 hours of continuous MPP tracking under simulated 1-sun illumination",
+      "content_hash": "624b5b220b149a6d0b42943c5f48c4b65c559904e0e096a7b754aa4ab07a9139",
+      "label": "tandem_operational_stability",
+      "qid": "pvsk:pvsk_lin2023::tandem_operational_stability",
+      "type": "claim"
+    },
+    {
+      "content": "All-perovskite tandem solar cells with PHJ in the NBG subcell achieve a record PCE of 28.5% (certified stabilized 28.0% by JET) with Voc of 2.112 V, Jsc of 16.5 mA cm-2, and FF of 81.9%",
+      "content_hash": "1916c8f8054e35bf04fded6f570554f26b5addb4cd035f3ead0a9c092852bd15",
+      "label": "tandem_pce_285",
+      "qid": "pvsk:pvsk_lin2023::tandem_pce_285",
+      "type": "claim"
+    },
+    {
+      "content": "The PHJ creates type-II band alignment between Pb-Sn NBG and FL-WBG perovskites that reduces hole concentration near the defective interface layer and facilitates electron extraction into C60, confirmed by ultrafast TA spectroscopy showing charge transfer from Pb-Sn to FL-WBG",
+      "content_hash": "3f946c056f4d2ee61091cb5e1eccbbfdc4d4147ed07eb786743486d5eee473b6",
+      "label": "type_ii_band",
+      "qid": "pvsk:pvsk_lin2023::type_ii_band",
+      "type": "claim"
+    },
+    {
+      "content": "PHJ in the NBG subcell improves average Voc by 45 mV (0.824 to 0.869 V) and FF by 2.3% (78.5% to 80.8%) compared with controls, while Jsc remains similar",
+      "content_hash": "4b7a0499573316fc9cd97d0c7f5a2216457c38d1f11c74887c430070ae6b4552",
+      "label": "voc_ff_improvement",
+      "qid": "pvsk:pvsk_lin2023::voc_ff_improvement",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:6086c0f2eb5c5ece82940ad6d7b249688c18d657235f5ed68c21e9bc9707471f",
+  "manifest_schema_version": 1,
+  "package": "pvsk-lin2023",
+  "version": "1.0.0"
+}

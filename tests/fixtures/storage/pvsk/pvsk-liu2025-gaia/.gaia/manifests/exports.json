@@ -1,0 +1,106 @@
+{
+  "exports": [
+    {
+      "content": "Deep-level traps at the buried perovskite/HTL interface in mixed Pb-Sn NBG subcells cause severe non-radiative recombination. Conventional long-chain amine passivation improves Voc but impairs charge transport, reducing Jsc and FF due to insulating barriers.",
+      "content_hash": "577790926fddd7214dc7fe3e19ef6a63682e3e3e57dfb0069022d9b661660385",
+      "label": "buried_interface_problem",
+      "qid": "pvsk:pvsk_liu2025::buried_interface_problem",
+      "type": "setting"
+    },
+    {
+      "content": "Dipolar-passivated devices show no significant PCE degradation after over 1000 hours in a nitrogen glovebox without encapsulation",
+      "content_hash": "0737d0a322d1c90321e32a3b610f04d7d7e8ace36263e4b5ed6df2a6c8282ae0",
+      "label": "dark_storage_1000h",
+      "qid": "pvsk:pvsk_liu2025::dark_storage_1000h",
+      "type": "claim"
+    },
+    {
+      "content": "Dipolar passivation extends carrier diffusion length to 6.2 um (versus 4.8 um for control) with mobility of 113.5 cm2 V-1 s-1 (versus 67.5 cm2 V-1 s-1), as measured by terahertz spectroscopy",
+      "content_hash": "192e61d1bb549e4766c2250b64022a4cb0e8126cca2e0dfc758bdf22da3b2fff",
+      "label": "diffusion_length_62um",
+      "qid": "pvsk:pvsk_liu2025::diffusion_length_62um",
+      "type": "claim"
+    },
+    {
+      "content": "A dipolar-passivation strategy using sulfanilic acid (SA) at the HTL/Pb-Sn perovskite interface reduces trap density while enabling precise energy-level alignment through oriented dipoles, simultaneously suppressing recombination and enhancing carrier extraction",
+      "content_hash": "1912e58020060bff3659c7ba992023c0dde7b44977f03ba38caa47f66075eeaf",
+      "label": "dipolar_passivation_strategy",
+      "qid": "pvsk:pvsk_liu2025::dipolar_passivation_strategy",
+      "type": "claim"
+    },
+    {
+      "content": "Dipolar-passivation devices show electroluminescence quantum yield of 7.05% versus 2.40% for controls at 1-sun current density, corresponding to Voc loss reduction from 103 mV to 73 mV",
+      "content_hash": "ba1bb5e03a2a126df7f9bb54e5d2a0de5a3150282fdd1d5c68df46f652797595",
+      "label": "elqy_705",
+      "qid": "pvsk:pvsk_liu2025::elqy_705",
+      "type": "claim"
+    },
+    {
+      "content": "All-perovskite tandem solar cells with WBG (~1.78 eV) FA0.8Cs0.2Pb(I0.62Br0.38)3 top cell and NBG (~1.25 eV) Pb-Sn perovskite bottom cell. Device areas 0.049 cm2 and 1.05 cm2. Certified by JET (Japan Electrical Safety and Environment Technology Laboratories). PEDOT:PSS HTL with sulfanilic acid (SA) dipolar passivation.",
+      "content_hash": "f6489cd9d0209b09909eae2bdf5c620d648c2db649877cf2f0e90fb08b3bb855",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_liu2025::exp_context",
+      "type": "setting"
+    },
+    {
+      "content": "Large-area all-perovskite tandem (1.05 cm2) achieves certified stabilized PCE of 29.6%, demonstrating scalability",
+      "content_hash": "cc83ea7399cff9cacb1c1dd4bda9e459f738b061b1f0376bb5cb98b058f89567",
+      "label": "large_tandem_296",
+      "qid": "pvsk:pvsk_liu2025::large_tandem_296",
+      "type": "claim"
+    },
+    {
+      "content": "Dipolar-passivated Pb-Sn PSCs achieve 24.9% PCE with Voc of 0.911 V, Jsc of 33.1 mA cm-2, and FF of 82.6%, representing one of the highest reported PCEs for mixed Pb-Sn PSCs",
+      "content_hash": "16a256e9080e3d6f6dbf1dadc58050da75324f804907003eac3e7afa569bfb86",
+      "label": "nbg_pce_249",
+      "qid": "pvsk:pvsk_liu2025::nbg_pce_249",
+      "type": "claim"
+    },
+    {
+      "content": "The oriented SA dipoles create type-II energy-level alignment with ohmic contact at the HTL/Pb-Sn perovskite interface, facilitating efficient hole injection into PEDOT:PSS while repelling electrons from the interface",
+      "content_hash": "75f22fe0e75caf7f7bd9fb076c274a29ba26b86df85da971db58b6f7c65e73a7",
+      "label": "ohmic_contact",
+      "qid": "pvsk:pvsk_liu2025::ohmic_contact",
+      "type": "claim"
+    },
+    {
+      "content": "Dipolar passivation improves QFLS from 904 meV to 940 meV at the HTL/perovskite interface (full device stack), with the primary QFLS loss reduction attributed to enhanced HTL interface quality",
+      "content_hash": "b7bd4c781bf3c946e1b5badfae2b0a62fe4df3c78ac4006a31cf7a771b5cabc9",
+      "label": "qfls_improvement",
+      "qid": "pvsk:pvsk_liu2025::qfls_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "SA molecules adopt a preferred orientation with -NH3+ anchoring to the perovskite bottom surface and -SO3- directed towards PEDOT:PSS, confirmed by AIMD simulations and KPFM measurements showing surface potential decrease from -80 mV to -162 mV",
+      "content_hash": "b27d343eec25456b6ab5620e2eb2fa4072b9b9eb724b51866492dc281f77a45d",
+      "label": "sa_molecular_orientation",
+      "qid": "pvsk:pvsk_liu2025::sa_molecular_orientation",
+      "type": "claim"
+    },
+    {
+      "content": "All-perovskite tandem solar cells with dipolar passivation achieve 30.6% PCE (certified stabilized 30.1% by JET) for 0.049 cm2 area",
+      "content_hash": "34d9031b8909f30ab44fc6da656f96fa5416c07437daf90f5cc51e03b99e0282",
+      "label": "tandem_pce_306",
+      "qid": "pvsk:pvsk_liu2025::tandem_pce_306",
+      "type": "claim"
+    },
+    {
+      "content": "Dipolar-passivation tandem devices show average Voc 50 mV higher than controls, with average PCE of 30.3 +/- 0.3% versus 29.1 +/- 0.2%",
+      "content_hash": "21dc46bbe576314321d6163a0c5f5cdab1f76fabd91650f2a6be5a126eba5876",
+      "label": "tandem_voc_50mv_gain",
+      "qid": "pvsk:pvsk_liu2025::tandem_voc_50mv_gain",
+      "type": "claim"
+    },
+    {
+      "content": "The wide-bandgap subcell achieves 20.5% PCE with Voc of 1.329 V, Jsc of 18.4 mA cm-2, and FF of 83.8%, using SAM-modified NiO HTL",
+      "content_hash": "b36ee031e65dfbd618405ee6d902d6a8d64560d26ae21b296a6c98a4ec965a9a",
+      "label": "wbg_subcell_205",
+      "qid": "pvsk:pvsk_liu2025::wbg_subcell_205",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:1a98483bbc38021afe4501c0b5734db3a398c05ca6457b5fafa1ae0a061f39ff",
+  "manifest_schema_version": 1,
+  "package": "pvsk-liu2025",
+  "version": "1.0.0"
+}

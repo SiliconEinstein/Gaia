@@ -1,0 +1,21 @@
+[project]
+name = "pvsk-zhao2022-gaia"
+version = "1.0.0"
+description = "Zhao et al. Science 2022 — Accelerated aging all-inorganic PSCs"
+requires-python = ">=3.12"
+dependencies = [
+    "gaia-lang",
+    "pvsk-meta-gaia",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pvsk_zhao2022"]
+
+[tool.gaia]
+namespace = "pvsk"
+type = "knowledge-package"
+uuid = "540df8fd-8b2d-4679-ad0a-28205d5fd953"

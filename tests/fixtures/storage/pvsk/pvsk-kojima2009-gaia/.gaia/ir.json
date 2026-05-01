@@ -1,0 +1,746 @@
+{
+  "ir_hash": "sha256:240ab96c51c00096bd8852aadfd7c17d6262750278863d961ae50d8b14c4d88c",
+  "knowledges": [
+    {
+      "content": "Photoelectrochemical cells constructed with CH3NH3PbX3 (X=Br, I) nanocrystalline particles self-organized on mesoporous TiO2 (8-12 um thick) deposited on FTO glass, using organic electrolyte with lithium halide/halogen redox couple, measured under AM 1.5 simulated sunlight at 100 mW/cm2",
+      "content_hash": "dc40a44949810e186ddf76866186cb104b1fe0f1a2ac03e982a6ed727475e481",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_kojima2009::exp_context",
+      "label": "exp_context",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Organolead halide perovskite compounds CH3NH3PbBr3 (cubic, a=5.9 A) and CH3NH3PbI3 (tetragonal, a=8.855 A, c=12.659 A) synthesized from abundant sources Pb, C, N, and halogen, deposited from precursor solutions via spin-coating",
+      "content_hash": "2a87642f6c5a3edeab20b8165389d6d9441e4c105b0398e98a1e70644e34b27b",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_kojima2009::perovskite_materials",
+      "label": "perovskite_materials",
+      "metadata": {
+        "prior": 0.7
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "CH3NH3PbI3-sensitized photoelectrochemical cell achieves power conversion efficiency of 3.81% under AM 1.5 simulated sunlight at 100 mW/cm2, with Jsc=11.0 mA/cm2, Voc=0.61 V, and fill factor 0.57",
+      "content_hash": "21f9c4d8639c20265a8fe0cd91af006a21941a65cb5d721e1363ba182219c187",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_kojima2009::pce_3_8_pct",
+      "label": "pce_3_8_pct",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "CH3NH3PbBr3-sensitized cell yields a high open-circuit voltage of 0.96 V with Jsc=5.57 mA/cm2, fill factor 0.59, and PCE of 3.13%",
+      "content_hash": "4fbbb09103febfb72511325e04abed8f59e92c519a1a8db692a40bdb7870cadf",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_kojima2009::high_voc_bromide",
+      "label": "high_voc_bromide",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Organolead halide perovskite nanocrystalline particles efficiently sensitize mesoporous TiO2 for visible-light conversion, confirmed by anodic photocurrent generation and IPCE measurements",
+      "content_hash": "8d6fb7795f325959503a3ef046f9f8d4331b10a43498e2d2abd50c40cf001e46",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2",
+      "label": "perovskite_sensitizes_tio2",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "CH3NH3PbBr3/TiO2 cell achieves maximum IPCE of 65% in the visible region (lambda < 600 nm) with sharp band-gap absorption onset near 570 nm",
+      "content_hash": "04cbabf73a3d1275016b1580f065a5e6aedd685559f3a444a98bb115a4c76213",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_kojima2009::ipce_bromide_65_pct",
+      "label": "ipce_bromide_65_pct",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "CH3NH3PbI3/TiO2 cell shows extended spectral response to 800 nm but lower peak IPCE of 45%, reflecting broader but less intense absorption",
+      "content_hash": "6bab8861be612d058cc0f93fef69b2185097e6dc2bce8fcd2a4f465b4aaa137f",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_kojima2009::ipce_iodide_extended",
+      "label": "ipce_iodide_extended",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Halogen substitution from Br to I in CH3NH3PbX3 causes a bathochromic shift in absorption, analogous to silver halide ionic crystals",
+      "content_hash": "69d041395a53c152f5f049a356f38ddd0710ec4ca14e00ec46203d6b25566458",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_kojima2009::bandgap_bathochromic_shift",
+      "label": "bandgap_bathochromic_shift",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Valence-band levels of CH3NH3PbBr3 and CH3NH3PbI3 are at ~5.38 and 5.44 eV versus vacuum level, respectively, as measured by photoelectron spectroscopy",
+      "content_hash": "2a5d2dd7205072f4f125280f95f83ac5c556be8b8de68115b1372cdf5e8f8f68",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_kojima2009::valence_band_levels",
+      "label": "valence_band_levels",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Conduction-band levels of CH3NH3PbBr3 and CH3NH3PbI3 are at ~3.36 and 4.0 eV respectively, allowing electron injection into the TiO2 conduction band (~4.0 eV)",
+      "content_hash": "0f22a8280602bc6d2667bffb57d9bdc93c94a3f677d0171449504e18feb9dff5",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_kojima2009::conduction_band_levels",
+      "label": "conduction_band_levels",
+      "metadata": {
+        "prior": 0.83
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The high Voc of 0.96 V in CH3NH3PbBr3 cells is due to the more positive electrochemical potential of the Br2/Br- redox couple compared to I2/I-, expanding the range of photovoltage",
+      "content_hash": "f1c7e33e0814ed3e2ef1d6a70127eea4777026b362ef07d7b0f58652f43f76cb",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_kojima2009::high_voc_origin",
+      "label": "high_voc_origin",
+      "metadata": {
+        "prior": 0.78
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The 3.81% PCE of the CH3NH3PbI3 cell is significantly higher than efficiencies obtained to date with non-organic sensitizers and quantum dots (CdS, CdSe, PbS, InP, InAs)",
+      "content_hash": "e1986c19351d22b4d15789693982826bfe8277ded20837fe113e6d04e8fc8a27",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_kojima2009::exceeds_quantum_dots",
+      "label": "exceeds_quantum_dots",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "A series of organic-inorganic perovskite materials CH3NH3MX3 (M=Pb, Sn; X=halogen) with different energy gaps are targets for optimizing photovoltaic cell performance",
+      "content_hash": "0ad94679400cc1fbbe2acd09d9f3648ecc8d4f21b8a236212597bc201caebf22",
+      "declaration_index": 12,
+      "exported": true,
+      "id": "pvsk:pvsk_kojima2009::perovskite_series_potential",
+      "label": "perovskite_series_potential",
+      "metadata": {
+        "prior": 0.65
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "How can the photocurrent decay observed under continuous irradiation for open cells exposed to air be mitigated to improve perovskite photovoltaic cell lifetime?",
+      "content_hash": "bc84b28dfe60dcf3c3181bf889a428340c3b17aeac161213c00650543ffb43f2",
+      "declaration_index": 13,
+      "exported": true,
+      "id": "pvsk:pvsk_kojima2009::durability_question",
+      "label": "durability_question",
+      "metadata": {
+        "prior": 0.5
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Organometal halide perovskites can function as viable photovoltaic absorbers",
+      "content_hash": "12183274605a4cdd79df4b632d2b0bc6c7bbfdfe0b389d5a86bd3d531fb560a3",
+      "declaration_index": 0,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_viability",
+      "label": "p_viability",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_viability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "content_hash": "9603b55225f5e093d20a1194832c2b419389d6a83886f8b7841f0b9a65cc106f",
+      "declaration_index": 4,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "metadata": {
+        "prior": 0.15
+      },
+      "parameters": [],
+      "title": "p_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_kojima2009::valence_band_levels,pvsk:pvsk_kojima2009::conduction_band_levels)",
+      "content_hash": "166a9ba099e3958df267ebd449fd90eaebf40c40285e8faa52935156d1f34978",
+      "exported": false,
+      "id": "pvsk:pvsk_kojima2009::__conjunction_result_62d07d0c",
+      "label": "__conjunction_result_62d07d0c",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_kojima2009::valence_band_levels,pvsk:pvsk_kojima2009::conduction_band_levels)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_ef54d971064747ad",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_kojima2009::__conjunction_result_62d07d0c,pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2)",
+      "content_hash": "2c5ae2f7d8231af8f8d856fc37113f27eba8a70c32a382301a1eb721a5a73f8d",
+      "exported": false,
+      "id": "pvsk:pvsk_kojima2009::__implication_result_1ee50d4b",
+      "label": "__implication_result_1ee50d4b",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_kojima2009::__conjunction_result_62d07d0c,pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_ef54d971064747ad",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_kojima2009::bandgap_bathochromic_shift,pvsk:pvsk_kojima2009::ipce_iodide_extended)",
+      "content_hash": "2afd87ab2fbe912afaca0acc5701f5e9336960b620db38bd25e055068b4bd4a4",
+      "exported": false,
+      "id": "pvsk:pvsk_kojima2009::__implication_result_19a61759",
+      "label": "__implication_result_19a61759",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_kojima2009::bandgap_bathochromic_shift,pvsk:pvsk_kojima2009::ipce_iodide_extended)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_688318e5868bc33d",
+        "owning_strategy_type": "deduction",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_kojima2009::high_voc_origin,pvsk:pvsk_kojima2009::high_voc_bromide)",
+      "content_hash": "1198983e4d1642d4ab19945ea163f183f768dffb930e3f4add41a18da538a9d6",
+      "exported": false,
+      "id": "pvsk:pvsk_kojima2009::__implication_result_fc3d7ad2",
+      "label": "__implication_result_fc3d7ad2",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_kojima2009::high_voc_origin,pvsk:pvsk_kojima2009::high_voc_bromide)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_6018d653574a8cea",
+        "owning_strategy_type": "support",
+        "prior": 0.78,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2,pvsk:pvsk_kojima2009::pce_3_8_pct)",
+      "content_hash": "1bb418824da085fe57268d4e175e9fa6817f0891420f0b15f90edee77957a2b3",
+      "exported": false,
+      "id": "pvsk:pvsk_kojima2009::__conjunction_result_ad3744ca",
+      "label": "__conjunction_result_ad3744ca",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2,pvsk:pvsk_kojima2009::pce_3_8_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_fdd7282d59e1cf38",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_kojima2009::__conjunction_result_ad3744ca,pvsk:pvsk_kojima2009::exceeds_quantum_dots)",
+      "content_hash": "26dd5b54c73afa82664703cdf89c9e876ed4e027296d875c5d09a869946bc3e7",
+      "exported": false,
+      "id": "pvsk:pvsk_kojima2009::__implication_result_9e663df1",
+      "label": "__implication_result_9e663df1",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_kojima2009::__conjunction_result_ad3744ca,pvsk:pvsk_kojima2009::exceeds_quantum_dots)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_fdd7282d59e1cf38",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_kojima2009::pce_3_8_pct,pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2)",
+      "content_hash": "0a89e00431150a4673ec732f63ebba6d64702a8fa4260b419251e5defd648a3d",
+      "exported": false,
+      "id": "pvsk:pvsk_kojima2009::__conjunction_result_4daeeb89",
+      "label": "__conjunction_result_4daeeb89",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_kojima2009::pce_3_8_pct,pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_a7b5770dbccaea54",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_kojima2009::__conjunction_result_4daeeb89,pvsk:pvsk_meta::p_viability)",
+      "content_hash": "59da6fbddf61b5425e48c2235a4f48c8f94a6757501e1a16fcab11bb1631ccc4",
+      "exported": false,
+      "id": "pvsk:pvsk_kojima2009::__implication_result_49d3a0d0",
+      "label": "__implication_result_49d3a0d0",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_kojima2009::__conjunction_result_4daeeb89,pvsk:pvsk_meta::p_viability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_a7b5770dbccaea54",
+        "owning_strategy_type": "support",
+        "prior": 0.6,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_kojima2009::pce_3_8_pct,pvsk:pvsk_kojima2009::perovskite_series_potential)",
+      "content_hash": "33cac06ef30f27e5a22d45d81f1e3700600364dc1b87a8f04ead43a73cb83996",
+      "exported": false,
+      "id": "pvsk:pvsk_kojima2009::__conjunction_result_7c7c91d5",
+      "label": "__conjunction_result_7c7c91d5",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_kojima2009::pce_3_8_pct,pvsk:pvsk_kojima2009::perovskite_series_potential)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_1f252f523a02e008",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_kojima2009::__conjunction_result_7c7c91d5,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "5282e2869156b5ac7b536cbd6679b809149d7678bf668f9278edcbc14992df2c",
+      "exported": false,
+      "id": "pvsk:pvsk_kojima2009::__implication_result_9873cc43",
+      "label": "__implication_result_9873cc43",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_kojima2009::__conjunction_result_7c7c91d5,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_1f252f523a02e008",
+        "owning_strategy_type": "support",
+        "prior": 0.55,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_kojima2009::durability_question,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "44911162d5b3062d8531c3a32744757a514957ea6d7b602b8330905faf927bed",
+      "exported": false,
+      "id": "pvsk:pvsk_kojima2009::__implication_result_d190e0a8",
+      "label": "__implication_result_d190e0a8",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_kojima2009::durability_question,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_3a7b53bc561d7ce7",
+        "owning_strategy_type": "support",
+        "prior": 0.5,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_kojima2009::perovskite_materials,pvsk:pvsk_meta::p_industrialization)",
+      "content_hash": "0103263d647c75931ebd66e314274b05f71b67dba45c53a7e9ed8e4d58816e5e",
+      "exported": false,
+      "id": "pvsk:pvsk_kojima2009::__implication_result_10ef780e",
+      "label": "__implication_result_10ef780e",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_kojima2009::perovskite_materials,pvsk:pvsk_meta::p_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_b65d4dfd15a7f817",
+        "owning_strategy_type": "support",
+        "prior": 0.45,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_kojima2009",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_kojima2009::__conjunction_result_62d07d0c",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_kojima2009::valence_band_levels",
+              "pvsk:pvsk_kojima2009::conduction_band_levels"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_kojima2009::__implication_result_1ee50d4b",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_kojima2009::__conjunction_result_62d07d0c",
+              "pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Energy level alignment shows that perovskite valence bands are more positive than halide oxidation potentials and conduction bands allow electron injection into TiO2, enabling efficient charge separation"
+      },
+      "premises": [
+        "pvsk:pvsk_kojima2009::valence_band_levels",
+        "pvsk:pvsk_kojima2009::conduction_band_levels"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_ef54d971064747ad",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_kojima2009::ipce_iodide_extended",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_kojima2009::__implication_result_19a61759",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_kojima2009::bandgap_bathochromic_shift",
+              "pvsk:pvsk_kojima2009::ipce_iodide_extended"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "deduction",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "The iodide perovskite has a narrower bandgap than bromide, shifting absorption to longer wavelengths but with lower peak IPCE"
+      },
+      "premises": [
+        "pvsk:pvsk_kojima2009::bandgap_bathochromic_shift"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_688318e5868bc33d",
+      "type": "deduction"
+    },
+    {
+      "conclusion": "pvsk:pvsk_kojima2009::high_voc_bromide",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_kojima2009::__implication_result_fc3d7ad2",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_kojima2009::high_voc_origin",
+              "pvsk:pvsk_kojima2009::high_voc_bromide"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.78,
+        "reason": "The more positive Br2/Br- redox potential expands the photovoltage range, yielding Voc close to 1.0 V"
+      },
+      "premises": [
+        "pvsk:pvsk_kojima2009::high_voc_origin"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_6018d653574a8cea",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_kojima2009::exceeds_quantum_dots",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_kojima2009::__conjunction_result_ad3744ca",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2",
+              "pvsk:pvsk_kojima2009::pce_3_8_pct"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_kojima2009::__implication_result_9e663df1",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_kojima2009::__conjunction_result_ad3744ca",
+              "pvsk:pvsk_kojima2009::exceeds_quantum_dots"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "Perovskite-sensitized TiO2 produces higher photocurrents and efficiency than any quantum dot sensitizer reported at the time"
+      },
+      "premises": [
+        "pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2",
+        "pvsk:pvsk_kojima2009::pce_3_8_pct"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_fdd7282d59e1cf38",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_viability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_kojima2009::__conjunction_result_4daeeb89",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_kojima2009::pce_3_8_pct",
+              "pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_kojima2009::__implication_result_49d3a0d0",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_kojima2009::__conjunction_result_4daeeb89",
+              "pvsk:pvsk_meta::p_viability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.6,
+        "reason": "First demonstration that organometal halide perovskites can function as effective visible-light sensitizers in photovoltaic cells"
+      },
+      "premises": [
+        "pvsk:pvsk_kojima2009::pce_3_8_pct",
+        "pvsk:pvsk_kojima2009::perovskite_sensitizes_tio2"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_a7b5770dbccaea54",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_kojima2009::__conjunction_result_7c7c91d5",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_kojima2009::pce_3_8_pct",
+              "pvsk:pvsk_kojima2009::perovskite_series_potential"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_kojima2009::__implication_result_9873cc43",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_kojima2009::__conjunction_result_7c7c91d5",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.55,
+        "reason": "The initial 3.81% efficiency with room for optimization through halogen substitution and material tuning suggests significant improvement potential"
+      },
+      "premises": [
+        "pvsk:pvsk_kojima2009::pce_3_8_pct",
+        "pvsk:pvsk_kojima2009::perovskite_series_potential"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_1f252f523a02e008",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_kojima2009::__implication_result_d190e0a8",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_kojima2009::durability_question",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.5,
+        "reason": "Photocurrent decay under continuous irradiation highlights stability as a key challenge for perovskite photovoltaic cells"
+      },
+      "premises": [
+        "pvsk:pvsk_kojima2009::durability_question"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_3a7b53bc561d7ce7",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_kojima2009::__implication_result_10ef780e",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_kojima2009::perovskite_materials",
+              "pvsk:pvsk_meta::p_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.45,
+        "reason": "Perovskite materials are synthesized from abundant sources (Pb, C, N, halogen) using solution processing, suggesting low-cost manufacturing potential"
+      },
+      "premises": [
+        "pvsk:pvsk_kojima2009::perovskite_materials"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_b65d4dfd15a7f817",
+      "type": "support"
+    }
+  ]
+}

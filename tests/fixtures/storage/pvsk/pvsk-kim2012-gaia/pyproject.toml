@@ -1,0 +1,21 @@
+[project]
+name = "pvsk-kim2012-gaia"
+version = "1.0.0"
+description = "Kim et al. Sci Rep 2012 — All-solid-state PSC >9%"
+requires-python = ">=3.12"
+dependencies = [
+    "gaia-lang",
+    "pvsk-meta-gaia",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pvsk_kim2012"]
+
+[tool.gaia]
+namespace = "pvsk"
+type = "knowledge-package"
+uuid = "1dcb4159-ebf5-4fba-b15c-f5fb9e8577a7"

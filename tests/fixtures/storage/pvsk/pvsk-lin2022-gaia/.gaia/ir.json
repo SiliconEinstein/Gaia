@@ -1,0 +1,1054 @@
+{
+  "ir_hash": "sha256:d7f13c224ab5ec93926b4fb5c44680e1050ed97830e113d866241f250e1662e9",
+  "knowledges": [
+    {
+      "content": "Inverted (p-i-n) perovskite solar cells with glass/ITO/2PACz/3D perovskite/2D perovskite/C60/BCP/Ag architecture, using oleylammonium iodide (OLAI) post-treatment to form 2D perovskite passivation layers on the 3D perovskite surface at the electron-selective contact, encapsulated with vacuum-laminated glass/encapsulant and butyl rubber edge sealing for stability testing",
+      "content_hash": "5d3ea0b161543c2eddfee6af98312f1989ddc0078c65e61e7a9ed9ac0314b47e",
+      "declaration_index": 0,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::exp_context",
+      "label": "exp_context",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "Oleylammonium iodide (OLAI) molecules applied as post-treatment on 3D perovskite surfaces form Ruddlesden-Popper-phase 2D perovskite layers; the dimensionality (n) is controlled by annealing conditions: thermal annealing (2D-TA) produces n=1 dominated layers, while room-temperature processing (2D-RT) yields mixed n=1 and n=2 layers with more pronounced n=2 character",
+      "content_hash": "5fd59fe5a30fa5b7ed5636659c3bf2a90a9b2aa8736fc028d6fe9e65dd586304",
+      "declaration_index": 1,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::olai_passivation",
+      "label": "olai_passivation",
+      "metadata": {
+        "prior": 0.7
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "IEC 61215:2016 industrial standard requires photovoltaic modules to pass damp-heat testing at 85C and 85% relative humidity for >1000 hours with <5% relative loss in PCE, representing a critical benchmark for commercial viability",
+      "content_hash": "f5c5ce78cc9c825e9d8d2d5f26da9c13c5d28f82ab3aab2677a256ab3e5395b0",
+      "declaration_index": 2,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::iec_61215_standard",
+      "label": "iec_61215_standard",
+      "parameters": [],
+      "type": "setting"
+    },
+    {
+      "content": "2D-RT passivated inverted PSCs achieve maximum PCE of 24.3% with stabilized PCE of ~24%, Voc=1.20 V, and FF=~82%, representing ~2% absolute PCE gain over unpassivated control devices",
+      "content_hash": "c6c0e839970cf7325642d96195ec706089e90cd1899624299caa63ed503d5c38",
+      "declaration_index": 3,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::pce_24_3_pct",
+      "label": "pce_24_3_pct",
+      "metadata": {
+        "prior": 0.9
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "2D-RT passivation minimizes device energy loss (Eg - qVoc) to 0.34 eV, representing ~96% of the thermodynamic Voc limit (1.262 V) for a bandgap of 1.55 eV, comparable to state-of-the-art GaAs solar cells at 98%",
+      "content_hash": "ecdd8b71854c6f86e88d33bf0b07fea3a69e60f633e58e3892fd8235a6ddf41c",
+      "declaration_index": 4,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::energy_loss_0_34_ev",
+      "label": "energy_loss_0_34_ev",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "2D-RT passivated encapsulated devices retain >95% of initial PCE (T95) after >1200 hours at damp-heat conditions (85C/85%RH), passing the IEC 61215:2016 industrial stability standard",
+      "content_hash": "2a0ab03ebf42254cef9680f0658c798f1ef14bc1e351c2a99534b98588bd0233",
+      "declaration_index": 5,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::damp_heat_t95_over_1000h",
+      "label": "damp_heat_t95_over_1000h",
+      "metadata": {
+        "prior": 0.92
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "After >1000 hours of damp-heat testing, three devices show average PCE of 19.3+/-0.69%, representing a very high retained PCE compared to prior reports",
+      "content_hash": "037f754916dca6c2b3cfb8b1da780ba7f2e390f0937526c702f8f921511464e5",
+      "declaration_index": 6,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::post_dh_pce_19_3_pct",
+      "label": "post_dh_pce_19_3_pct",
+      "metadata": {
+        "prior": 0.88
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Room-temperature OLAI processing (2D-RT) forms higher-dimensionality 2D perovskite layers (n=1 and n=2 mixed, with more pronounced n=2) while thermal annealing (2D-TA) produces only n=1 layers; higher-n layers have lower formation energy and better electronic alignment with C60",
+      "content_hash": "d9d5bc52e3850698dc248948b40b76623426cbc50ed92f7b6cb2fa5b08cc57b7",
+      "declaration_index": 7,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::room_temp_higher_dimensionality",
+      "label": "room_temp_higher_dimensionality",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The conduction band minimum (CBM) of 2D-RT films is closer to the CBM of C60 at the n-type contact, enabling more efficient charge transfer at the 2D/3D perovskite interface; 2D-TA films have higher CBM with less efficient charge transfer",
+      "content_hash": "4f2e998436b2d26a5ba7009904a673764e5d9e1be163db3651eb3350d1f67ec8",
+      "declaration_index": 8,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::cbm_alignment_with_c60",
+      "label": "cbm_alignment_with_c60",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "2D-passivated devices exhibit longer charge recombination lifetime and lower ideality factor than control devices, confirming reduced trap-assisted recombination at 3D/C60 interfaces",
+      "content_hash": "26c4d5eacfafabbc0274cc3c14a7834c746f7c925fcc74fc7750db79b9c67820",
+      "declaration_index": 9,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::reduced_trap_recombination",
+      "label": "reduced_trap_recombination",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The OLAI 2D-RT passivation approach is universal across various perovskite compositions (various bandgaps) and deposition techniques (one-step, two-step, blade-coating), yielding systematic absolute PCE enhancement of 1.5-2.0%",
+      "content_hash": "0c7b84113d439963014ecd8ed288bbdfdb05471bf0e59a3660bf5d28fc2f77aa",
+      "declaration_index": 10,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::universal_passivation",
+      "label": "universal_passivation",
+      "metadata": {
+        "prior": 0.83
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Encapsulated 2D-RT devices retain up to ~95% of initial PCE after >500 hours of maximum power point tracking under simulated 1-sun illumination in ambient air, while control devices retain <90% for only ~100 hours",
+      "content_hash": "8cf1b830d4f5e97cd0e8f86a068c20fccf1b9d8166b8cb679edb6c8746785708",
+      "declaration_index": 11,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::mppt_95_pct_500h",
+      "label": "mppt_95_pct_500h",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "No substantial change in structural and optical properties of 2D perovskite passivation films (both 3D and 2D perovskites) after >500 hours of thermal annealing at 85C under dark conditions, confirming robustness of the 2D passivation approach",
+      "content_hash": "2cf67d51ac1e6cf26bbfe5b301df6031841c4f60350b02e134eb0a65ab1044cf",
+      "declaration_index": 12,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::structural_robustness_500h_85c",
+      "label": "structural_robustness_500h_85c",
+      "metadata": {
+        "prior": 0.85
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "The 2D-RT passivation approach shows less than 0.5% deviation for person-to-person variations among seven different researchers, confirming high reproducibility",
+      "content_hash": "30638594bcdb18055df8b66ae1f814cb2e99d20319cc90b38bf2b9e8caee18d3",
+      "declaration_index": 13,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::reproducibility_high",
+      "label": "reproducibility_high",
+      "metadata": {
+        "prior": 0.87
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "C60 is only weakly bonded to perovskite layers, inducing high energetic disorder between perovskite and C60 that limits device performance at elevated operating temperatures, and a thin C60 layer is insufficient to protect against moisture or oxygen ingress",
+      "content_hash": "a66c488885a0ebdfbd5f15ae66988daea470f622c7580a9cb393fa03e2432229",
+      "declaration_index": 14,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::c60_weak_bonding_problem",
+      "label": "c60_weak_bonding_problem",
+      "metadata": {
+        "prior": 0.83
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "Can the 2D-RT passivation approach be scaled to module-level fabrication using slot-die or blade-coating processes, and does the room-temperature processing advantage translate to industrial throughput?",
+      "content_hash": "19c65e0e71797dcc3cdbdd847498514c7002d2fb3b333f0b160e3318bec3ac6b",
+      "declaration_index": 15,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::scale_up_2d_rt",
+      "label": "scale_up_2d_rt",
+      "parameters": [],
+      "type": "question"
+    },
+    {
+      "content": "How do 2D-RT passivated devices perform under real outdoor conditions with daily thermal cycling, UV exposure, and varying humidity beyond the 1000-hour damp-heat benchmark?",
+      "content_hash": "798a10f9bcf8ab0b9a1c666f2437f23d5c6c0ccfa56e2d88c68331dd2484e750",
+      "declaration_index": 16,
+      "exported": true,
+      "id": "pvsk:pvsk_lin2022::long_term_outdoor_stability",
+      "label": "long_term_outdoor_stability",
+      "parameters": [],
+      "type": "question"
+    },
+    {
+      "content": "Perovskite solar cells can achieve commercially competitive power conversion efficiency exceeding 20%",
+      "content_hash": "4d29b70c694c4b3f56d48d07e077f616e92d471d2c91d7d4bb5b07e2de7c7659",
+      "declaration_index": 1,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_efficiency",
+      "label": "p_efficiency",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_efficiency",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cell efficiency can be continuously improved through materials engineering, interface engineering, and compositional engineering",
+      "content_hash": "5c8a5e6438a594a2c0a7b16e60cde12e5b4b5a21982f89cf61e94fa000120e5c",
+      "declaration_index": 2,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_improvement",
+      "label": "p_improvement",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_improvement",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can achieve operational stability sufficient for practical deployment (>1000 hours under standard test conditions)",
+      "content_hash": "cf389026ca7658b95bf4947672caee61d3ece910f6331f0d539829f9e7d8951b",
+      "declaration_index": 3,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_stability",
+      "label": "p_stability",
+      "metadata": {
+        "prior": 0.2
+      },
+      "parameters": [],
+      "title": "p_stability",
+      "type": "claim"
+    },
+    {
+      "content": "Organometal halide perovskites can function as viable photovoltaic absorbers",
+      "content_hash": "12183274605a4cdd79df4b632d2b0bc6c7bbfdfe0b389d5a86bd3d531fb560a3",
+      "declaration_index": 0,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_viability",
+      "label": "p_viability",
+      "metadata": {
+        "prior": 0.3
+      },
+      "parameters": [],
+      "title": "p_viability",
+      "type": "claim"
+    },
+    {
+      "content": "Perovskite solar cells can be scaled to module/panel level and industrially manufactured via roll-to-roll or slot-die processes",
+      "content_hash": "9603b55225f5e093d20a1194832c2b419389d6a83886f8b7841f0b9a65cc106f",
+      "declaration_index": 4,
+      "exported": false,
+      "id": "pvsk:pvsk_meta::p_industrialization",
+      "label": "p_industrialization",
+      "metadata": {
+        "prior": 0.15
+      },
+      "parameters": [],
+      "title": "p_industrialization",
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_lin2022::room_temp_higher_dimensionality,pvsk:pvsk_lin2022::cbm_alignment_with_c60)",
+      "content_hash": "06b6fbb19a8b9bb935e25019dcf312b995c288d6f6e90fe7147caffdfb118f43",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__conjunction_result_cbbcbbfd",
+      "label": "__conjunction_result_cbbcbbfd",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_lin2022::room_temp_higher_dimensionality,pvsk:pvsk_lin2022::cbm_alignment_with_c60)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_40b76eafffbda91e",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2022::__conjunction_result_cbbcbbfd,pvsk:pvsk_lin2022::energy_loss_0_34_ev)",
+      "content_hash": "d13ca943685407fb72183cf536c09952025ed8bbaf15e39e40043c37b7aa8d54",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__implication_result_2aa7cbaf",
+      "label": "__implication_result_2aa7cbaf",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2022::__conjunction_result_cbbcbbfd,pvsk:pvsk_lin2022::energy_loss_0_34_ev)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_40b76eafffbda91e",
+        "owning_strategy_type": "support",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_lin2022::reduced_trap_recombination,pvsk:pvsk_lin2022::energy_loss_0_34_ev)",
+      "content_hash": "a895cd9ceda80988c1f043468b4f943ae1c836bc479bf48c70d693175793e2f5",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__conjunction_result_6bfaf28d",
+      "label": "__conjunction_result_6bfaf28d",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_lin2022::reduced_trap_recombination,pvsk:pvsk_lin2022::energy_loss_0_34_ev)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_e3b803826b1c9e5b",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2022::__conjunction_result_6bfaf28d,pvsk:pvsk_lin2022::pce_24_3_pct)",
+      "content_hash": "82bef476d7c1618b9f592af78be7c2366c94a69e7ef5e42dc13b36b38544e62e",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__implication_result_8ff46ee9",
+      "label": "__implication_result_8ff46ee9",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2022::__conjunction_result_6bfaf28d,pvsk:pvsk_lin2022::pce_24_3_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_e3b803826b1c9e5b",
+        "owning_strategy_type": "support",
+        "prior": 0.83,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_lin2022::olai_passivation,pvsk:pvsk_lin2022::structural_robustness_500h_85c)",
+      "content_hash": "8733f8c924f17531db240b4f5b39faff90fb856138a1d46b121fd9c8e74d9be4",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__conjunction_result_074db8b6",
+      "label": "__conjunction_result_074db8b6",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_lin2022::olai_passivation,pvsk:pvsk_lin2022::structural_robustness_500h_85c)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_05438446472f1b2c",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2022::__conjunction_result_074db8b6,pvsk:pvsk_lin2022::damp_heat_t95_over_1000h)",
+      "content_hash": "f4a9f4c7a7e3194e84b43470f7a757b27f6a3cc62fe6e3b69cf5c019df3d8b94",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__implication_result_9bd9c495",
+      "label": "__implication_result_9bd9c495",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2022::__conjunction_result_074db8b6,pvsk:pvsk_lin2022::damp_heat_t95_over_1000h)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_05438446472f1b2c",
+        "owning_strategy_type": "support",
+        "prior": 0.82,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2022::damp_heat_t95_over_1000h,pvsk:pvsk_lin2022::post_dh_pce_19_3_pct)",
+      "content_hash": "4b1764b092949780c82f6ae8ae70744e0776a95f26bee9a23aa71e4bca0e8d55",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__implication_result_75a56f4b",
+      "label": "__implication_result_75a56f4b",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2022::damp_heat_t95_over_1000h,pvsk:pvsk_lin2022::post_dh_pce_19_3_pct)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_c193d90f243b8351",
+        "owning_strategy_type": "support",
+        "prior": 0.83,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2022::c60_weak_bonding_problem,pvsk:pvsk_lin2022::cbm_alignment_with_c60)",
+      "content_hash": "dfc117016ffeda5801b9cc7122c18fa54032ab88957bc725c0030a207e81b11a",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__implication_result_c8ef98b2",
+      "label": "__implication_result_c8ef98b2",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2022::c60_weak_bonding_problem,pvsk:pvsk_lin2022::cbm_alignment_with_c60)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_2c003b2f9e0e8df9",
+        "owning_strategy_type": "support",
+        "prior": 0.78,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2022::universal_passivation,pvsk:pvsk_lin2022::reproducibility_high)",
+      "content_hash": "6b54fcfae9eec35dd779862537f9ec05d8e4a4629b0bf2093de4197983ec302d",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__implication_result_7c467952",
+      "label": "__implication_result_7c467952",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2022::universal_passivation,pvsk:pvsk_lin2022::reproducibility_high)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_3a6a02dc1189a7c5",
+        "owning_strategy_type": "support",
+        "prior": 0.8,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_lin2022::pce_24_3_pct,pvsk:pvsk_lin2022::energy_loss_0_34_ev)",
+      "content_hash": "fc4fd0e41f9d4cb1f7f452a8165d0250374e3b6054726c251b04dfa8e8e59ff9",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__conjunction_result_bf5176bc",
+      "label": "__conjunction_result_bf5176bc",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_lin2022::pce_24_3_pct,pvsk:pvsk_lin2022::energy_loss_0_34_ev)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_416bde88274a88b5",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2022::__conjunction_result_bf5176bc,pvsk:pvsk_meta::p_efficiency)",
+      "content_hash": "6152dcda71faf28aca3b8c9c938a706f8dbb1f65f24cbd0b93670ecb7ec8dab8",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__implication_result_a4406f53",
+      "label": "__implication_result_a4406f53",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2022::__conjunction_result_bf5176bc,pvsk:pvsk_meta::p_efficiency)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_416bde88274a88b5",
+        "owning_strategy_type": "support",
+        "prior": 0.72,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_lin2022::room_temp_higher_dimensionality,pvsk:pvsk_lin2022::universal_passivation)",
+      "content_hash": "b7c551f088ac144fe78e274fd37d288b41bfb1dcedddb0898c8d49cdcc735344",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__conjunction_result_3dcc7cda",
+      "label": "__conjunction_result_3dcc7cda",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_lin2022::room_temp_higher_dimensionality,pvsk:pvsk_lin2022::universal_passivation)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_26c246cdbaba6c26",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2022::__conjunction_result_3dcc7cda,pvsk:pvsk_meta::p_improvement)",
+      "content_hash": "95ffe1828e2f2fedbfffd1c038e7ac6fdeda4120fd2aff1f2d6d1a872bdfeb41",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__implication_result_029ccc2a",
+      "label": "__implication_result_029ccc2a",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2022::__conjunction_result_3dcc7cda,pvsk:pvsk_meta::p_improvement)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_26c246cdbaba6c26",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_lin2022::damp_heat_t95_over_1000h,pvsk:pvsk_lin2022::post_dh_pce_19_3_pct,pvsk:pvsk_lin2022::mppt_95_pct_500h)",
+      "content_hash": "a27f09c1b470f45b0603be00386a8a94cc6c17294c304fb03ad168e29d57e156",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__conjunction_result_68821cd3",
+      "label": "__conjunction_result_68821cd3",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_lin2022::damp_heat_t95_over_1000h,pvsk:pvsk_lin2022::post_dh_pce_19_3_pct,pvsk:pvsk_lin2022::mppt_95_pct_500h)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_17f527b06dcf1ed6",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2022::__conjunction_result_68821cd3,pvsk:pvsk_meta::p_stability)",
+      "content_hash": "02c312caaf26d1e28fe56bb0178d3df30dc4ac901fef3cf38545175385ddd213",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__implication_result_8d67a379",
+      "label": "__implication_result_8d67a379",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2022::__conjunction_result_68821cd3,pvsk:pvsk_meta::p_stability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_17f527b06dcf1ed6",
+        "owning_strategy_type": "support",
+        "prior": 0.75,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_lin2022::pce_24_3_pct,pvsk:pvsk_lin2022::damp_heat_t95_over_1000h)",
+      "content_hash": "41a9fb8b2ecfe25b4f9dbf191f270fb5150f36fa4f8c768e2c7e6922cd626c3e",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__conjunction_result_eb9f9ca8",
+      "label": "__conjunction_result_eb9f9ca8",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_lin2022::pce_24_3_pct,pvsk:pvsk_lin2022::damp_heat_t95_over_1000h)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_d7c64c36c06adc47",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2022::__conjunction_result_eb9f9ca8,pvsk:pvsk_meta::p_viability)",
+      "content_hash": "3027f90e51023fd38d399dab93c33c1ea11594808d198069ae4e8f4282c76ba7",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__implication_result_f5ef7b85",
+      "label": "__implication_result_f5ef7b85",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2022::__conjunction_result_eb9f9ca8,pvsk:pvsk_meta::p_viability)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_d7c64c36c06adc47",
+        "owning_strategy_type": "support",
+        "prior": 0.68,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "all_true(pvsk:pvsk_lin2022::damp_heat_t95_over_1000h,pvsk:pvsk_lin2022::universal_passivation,pvsk:pvsk_lin2022::reproducibility_high)",
+      "content_hash": "a4d8cefb3f0deaaeef0e5465d16287f7ada3629c1366998b7655e6c7870ba876",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__conjunction_result_76d4606b",
+      "label": "__conjunction_result_76d4606b",
+      "metadata": {
+        "canonical_name": "all_true(pvsk:pvsk_lin2022::damp_heat_t95_over_1000h,pvsk:pvsk_lin2022::universal_passivation,pvsk:pvsk_lin2022::reproducibility_high)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "conjunction_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "conjunction_result",
+        "owning_strategy_id": "lcs_27604f90145d78b5",
+        "owning_strategy_type": "support",
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    },
+    {
+      "content": "implies(pvsk:pvsk_lin2022::__conjunction_result_76d4606b,pvsk:pvsk_meta::p_industrialization)",
+      "content_hash": "95dd6ca65755799b40de2aaa6303d9e48c87d2f47aedb78c74b173b1ad052a57",
+      "exported": false,
+      "id": "pvsk:pvsk_lin2022::__implication_result_bb68f7e1",
+      "label": "__implication_result_bb68f7e1",
+      "metadata": {
+        "canonical_name": "implies(pvsk:pvsk_lin2022::__conjunction_result_76d4606b,pvsk:pvsk_meta::p_industrialization)",
+        "generated": true,
+        "generated_kind": "helper_claim",
+        "helper_kind": "implication_result",
+        "helper_visibility": "formal_internal",
+        "intermediate_role": "implication_result",
+        "owning_strategy_id": "lcs_27604f90145d78b5",
+        "owning_strategy_type": "support",
+        "prior": 0.65,
+        "visibility": "formal_internal"
+      },
+      "parameters": [],
+      "type": "claim"
+    }
+  ],
+  "namespace": "pvsk",
+  "operators": [],
+  "package_name": "pvsk_lin2022",
+  "scope": "local",
+  "strategies": [
+    {
+      "conclusion": "pvsk:pvsk_lin2022::energy_loss_0_34_ev",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__conjunction_result_cbbcbbfd",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_lin2022::room_temp_higher_dimensionality",
+              "pvsk:pvsk_lin2022::cbm_alignment_with_c60"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__implication_result_2aa7cbaf",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2022::__conjunction_result_cbbcbbfd",
+              "pvsk:pvsk_lin2022::energy_loss_0_34_ev"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "Higher-dimensionality n=2 layers formed at room temperature have CBM closer to C60, enabling efficient charge transfer and minimizing energy loss at the electron-selective contact to reach 96% of the thermodynamic Voc limit"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2022::room_temp_higher_dimensionality",
+        "pvsk:pvsk_lin2022::cbm_alignment_with_c60"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_40b76eafffbda91e",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_lin2022::pce_24_3_pct",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__conjunction_result_6bfaf28d",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_lin2022::reduced_trap_recombination",
+              "pvsk:pvsk_lin2022::energy_loss_0_34_ev"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__implication_result_8ff46ee9",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2022::__conjunction_result_6bfaf28d",
+              "pvsk:pvsk_lin2022::pce_24_3_pct"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.83,
+        "reason": "Reduced trap-assisted recombination at the 3D/C60 interface combined with minimized energy loss yields ~2% absolute PCE improvement over control devices to reach 24.3%"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2022::reduced_trap_recombination",
+        "pvsk:pvsk_lin2022::energy_loss_0_34_ev"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_e3b803826b1c9e5b",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_lin2022::damp_heat_t95_over_1000h",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__conjunction_result_074db8b6",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_lin2022::olai_passivation",
+              "pvsk:pvsk_lin2022::structural_robustness_500h_85c"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__implication_result_9bd9c495",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2022::__conjunction_result_074db8b6",
+              "pvsk:pvsk_lin2022::damp_heat_t95_over_1000h"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.82,
+        "reason": "2D perovskite passivation layers simultaneously serve as ion-migration-blocking barriers and moisture/oxygen ingress barriers, while the structural integrity of both 2D and 3D perovskites is maintained at 85C over extended periods"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2022::olai_passivation",
+        "pvsk:pvsk_lin2022::structural_robustness_500h_85c"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_05438446472f1b2c",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_lin2022::post_dh_pce_19_3_pct",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__implication_result_75a56f4b",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2022::damp_heat_t95_over_1000h",
+              "pvsk:pvsk_lin2022::post_dh_pce_19_3_pct"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.83,
+        "reason": "Devices starting at ~20% PCE retain >95% after >1000 hours of damp-heat testing, yielding ~19.3% average PCE post-aging"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2022::damp_heat_t95_over_1000h"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_c193d90f243b8351",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_lin2022::cbm_alignment_with_c60",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__implication_result_c8ef98b2",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2022::c60_weak_bonding_problem",
+              "pvsk:pvsk_lin2022::cbm_alignment_with_c60"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.78,
+        "reason": "The energetic mismatch between 3D perovskite and weakly-bonded C60 at elevated temperatures makes 2D perovskite interlayers essential for bridging the energy level gap at the electron-selective contact"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2022::c60_weak_bonding_problem"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_2c003b2f9e0e8df9",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_lin2022::reproducibility_high",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__implication_result_7c467952",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2022::universal_passivation",
+              "pvsk:pvsk_lin2022::reproducibility_high"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.8,
+        "reason": "The robustness of the 2D-RT approach across compositions, deposition methods, and operators confirms that it is a reliable and transferable passivation strategy"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2022::universal_passivation"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_3a6a02dc1189a7c5",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_efficiency",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__conjunction_result_bf5176bc",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_lin2022::pce_24_3_pct",
+              "pvsk:pvsk_lin2022::energy_loss_0_34_ev"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__implication_result_a4406f53",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2022::__conjunction_result_bf5176bc",
+              "pvsk:pvsk_meta::p_efficiency"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.72,
+        "reason": "24.3% PCE with 96% of the thermodynamic Voc limit demonstrates that inverted PSCs can reach efficiency levels competitive with regular-structure devices and approach fundamental limits"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2022::pce_24_3_pct",
+        "pvsk:pvsk_lin2022::energy_loss_0_34_ev"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_416bde88274a88b5",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_improvement",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__conjunction_result_3dcc7cda",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_lin2022::room_temp_higher_dimensionality",
+              "pvsk:pvsk_lin2022::universal_passivation"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__implication_result_029ccc2a",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2022::__conjunction_result_3dcc7cda",
+              "pvsk:pvsk_meta::p_improvement"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "Tailoring 2D perovskite dimensionality via processing temperature is a generalizable interface engineering strategy applicable across compositions and deposition methods for continuous improvement"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2022::room_temp_higher_dimensionality",
+        "pvsk:pvsk_lin2022::universal_passivation"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_26c246cdbaba6c26",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_stability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__conjunction_result_68821cd3",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_lin2022::damp_heat_t95_over_1000h",
+              "pvsk:pvsk_lin2022::post_dh_pce_19_3_pct",
+              "pvsk:pvsk_lin2022::mppt_95_pct_500h"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__implication_result_8d67a379",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2022::__conjunction_result_68821cd3",
+              "pvsk:pvsk_meta::p_stability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.75,
+        "reason": "Passing the IEC 61215:2016 damp-heat test at 85C/85%RH with >95% PCE retention after >1000 hours represents the most critical industrial stability benchmark, demonstrating that PSCs can meet the standard required for 25-30 year module lifetime"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2022::damp_heat_t95_over_1000h",
+        "pvsk:pvsk_lin2022::post_dh_pce_19_3_pct",
+        "pvsk:pvsk_lin2022::mppt_95_pct_500h"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_17f527b06dcf1ed6",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_viability",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__conjunction_result_eb9f9ca8",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_lin2022::pce_24_3_pct",
+              "pvsk:pvsk_lin2022::damp_heat_t95_over_1000h"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__implication_result_f5ef7b85",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2022::__conjunction_result_eb9f9ca8",
+              "pvsk:pvsk_meta::p_viability"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.68,
+        "reason": "Simultaneously achieving high efficiency (24.3%) and passing the industrial damp-heat standard demonstrates that perovskite solar cells can meet both performance and reliability requirements for commercial deployment"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2022::pce_24_3_pct",
+        "pvsk:pvsk_lin2022::damp_heat_t95_over_1000h"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_d7c64c36c06adc47",
+      "type": "support"
+    },
+    {
+      "conclusion": "pvsk:pvsk_meta::p_industrialization",
+      "formal_expr": {
+        "operators": [
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__conjunction_result_76d4606b",
+            "operator": "conjunction",
+            "variables": [
+              "pvsk:pvsk_lin2022::damp_heat_t95_over_1000h",
+              "pvsk:pvsk_lin2022::universal_passivation",
+              "pvsk:pvsk_lin2022::reproducibility_high"
+            ]
+          },
+          {
+            "conclusion": "pvsk:pvsk_lin2022::__implication_result_bb68f7e1",
+            "operator": "implication",
+            "variables": [
+              "pvsk:pvsk_lin2022::__conjunction_result_76d4606b",
+              "pvsk:pvsk_meta::p_industrialization"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "formalization_template": "support",
+        "generated_formal_expr": true,
+        "prior": 0.65,
+        "reason": "Passing IEC 61215 with a reproducible, composition-agnostic passivation approach compatible with blade-coating directly addresses the key barrier to perovskite PV industrialization"
+      },
+      "premises": [
+        "pvsk:pvsk_lin2022::damp_heat_t95_over_1000h",
+        "pvsk:pvsk_lin2022::universal_passivation",
+        "pvsk:pvsk_lin2022::reproducibility_high"
+      ],
+      "scope": "local",
+      "strategy_id": "lcs_27604f90145d78b5",
+      "type": "support"
+    }
+  ]
+}

@@ -1,0 +1,127 @@
+{
+  "exports": [
+    {
+      "content": "The activation energy for degradation (Ea) of capped PSCs is nearly twice that of uncapped PSCs, indicating that the 2D Cs2PbI2Cl2 layer substantially stabilizes the devices against thermal degradation",
+      "content_hash": "3d0b9be34ef4de62c08331238e954125d9914867cd4cbc19b0e98e7c7b8b025a",
+      "label": "activation_energy_doubled",
+      "qid": "pvsk:pvsk_zhao2022::activation_energy_doubled",
+      "type": "claim"
+    },
+    {
+      "content": "Accelerated aging methodology using elevated temperatures (35, 59, 85, 110C) to quantify degradation rates under constant illumination at MPP, with Arrhenius temperature dependence of degradation rates yielding acceleration factors for lifetime extrapolation to standard operating conditions (1 sun, 35C)",
+      "content_hash": "a2acea3ebed3c780b33417c597d0892897a04cd3cb97a146ff2a598712283424",
+      "label": "arrhenius_accelerated_aging",
+      "qid": "pvsk:pvsk_zhao2022::arrhenius_accelerated_aging",
+      "type": "claim"
+    },
+    {
+      "content": "PCE degradation at all temperatures follows a biexponential function with fast and slow decay rates; the fast and slow degradation activation energies are comparable within each device type, suggesting both rates probe a single physical process (ion migration)",
+      "content_hash": "11c17ec1e99c379e0c1c6d5c69bbb7d0a5d48dcac330073451802adb4f04fb94",
+      "label": "biexponential_degradation",
+      "qid": "pvsk:pvsk_zhao2022::biexponential_degradation",
+      "type": "claim"
+    },
+    {
+      "content": "Capped CsPbI3 PSCs with 2D Cs2PbI2Cl2 layer achieve champion PCE of 17.4%, the highest among fully inorganic PSCs where all functional materials in the stack are inorganic, compared to 14.9% for uncapped devices",
+      "content_hash": "e19976d31a34b18a3025f773879c1156a62b2878f3e96d7f8153c9aa8a3d8d91",
+      "label": "capped_pce_17_4_pct",
+      "qid": "pvsk:pvsk_zhao2022::capped_pce_17_4_pct",
+      "type": "claim"
+    },
+    {
+      "content": "2D Cs2PbI2Cl2 capping layer (~20 nm thick) deposited on CsPbI3 surface by treating with CsCl solution followed by thermal annealing; this fully inorganic 2D layer avoids the cation exchange problem that prevents organic 2D layers from forming on CsPbI3 due to stronger Cs+ binding compared to MA+ or FA+",
+      "content_hash": "ac6e9ccbc74b654081672ced7eacc7c805ce230ba4f8f20541342b707ac5d235",
+      "label": "cs2pbi2cl2_capping",
+      "qid": "pvsk:pvsk_zhao2022::cs2pbi2cl2_capping",
+      "type": "claim"
+    },
+    {
+      "content": "All-inorganic CsPbI3 perovskite solar cells with FTO/TiO2/Al2O3/CsPbI3/2D Cs2PbI2Cl2/CuSCN/Cr/Au structure, with and without 2D Cs2PbI2Cl2 capping layer between the perovskite and CuSCN hole transport layer, encapsulated in N2 atmosphere for accelerated aging at 35-110C under constant 1-sun illumination at maximum power point",
+      "content_hash": "bbe65f5690146e78543492f496301765fc56de7a0024ca089c8856144fe40b09",
+      "label": "exp_context",
+      "qid": "pvsk:pvsk_zhao2022::exp_context",
+      "type": "setting"
+    },
+    {
+      "content": "Using experimentally determined acceleration factor of 24.2+/-3.5 for 110C operation, the extrapolated T80 lifetime for capped devices at 35C is 51,000+/-7,000 hours (>5 years) of continuous operation under illumination",
+      "content_hash": "bcc50847e52cbcf2ecc240872187ebe86e9f4ebaeec7a1af2417f2471bf19abb",
+      "label": "extrapolated_t80_5_years",
+      "qid": "pvsk:pvsk_zhao2022::extrapolated_t80_5_years",
+      "type": "claim"
+    },
+    {
+      "content": "The activation energy for ion migration (Ea,ion) in capped films is nearly twice that of uncapped films as measured by temperature-dependent conductivity, indicating the 2D cap frustrates ion migration by passivating iodine vacancies at the perovskite surface",
+      "content_hash": "f35c8d051ef92f1ef65baed43294923d1b88cd8390c1bd7f0d23b820d03e9f3d",
+      "label": "ion_migration_activation_doubled",
+      "qid": "pvsk:pvsk_zhao2022::ion_migration_activation_doubled",
+      "type": "claim"
+    },
+    {
+      "content": "XRD and XPS analysis after aging at 110C shows iodine migration from CsPbI3 into CuSCN in uncapped devices (evidenced by CuSCN crystallite degradation and I 3d signal in HTL), while capped devices show no appreciable iodine migration or CuSCN structural changes",
+      "content_hash": "ebf170722d0c9983b5a83984eb1b6908f1126df29078e5291d291b04d44305a8",
+      "label": "ion_migration_suppressed",
+      "qid": "pvsk:pvsk_zhao2022::ion_migration_suppressed",
+      "type": "claim"
+    },
+    {
+      "content": "Does the 2D Cs2PbI2Cl2 capping layer suppress ion migration primarily by passivating iodine vacancies at the CsPbI3 surface, or does it also create an energetic barrier to ion transport across the perovskite/HTL interface?",
+      "content_hash": "080706f14c44472a444790f8dc5186a049a4b7d53f48ae4e2594c7674360a250",
+      "label": "ion_migration_suppression_mechanism",
+      "qid": "pvsk:pvsk_zhao2022::ion_migration_suppression_mechanism",
+      "type": "question"
+    },
+    {
+      "content": "Capped PSCs show no noticeable PCE degradation after 3531 hours of continuous operation at 35C under constant 1-sun illumination at MPP in (65+/-26)% RH air",
+      "content_hash": "1175a23e61a97100baef70c4e646a0ee2e0378621a2528b1826a9e64032d5fcc",
+      "label": "no_degradation_at_35c",
+      "qid": "pvsk:pvsk_zhao2022::no_degradation_at_35c",
+      "type": "claim"
+    },
+    {
+      "content": "Can this Arrhenius-based accelerated aging methodology with experimentally determined acceleration factors be applied to organic-inorganic hybrid perovskite compositions such as FAPbI3 and MAPbI3, which may have additional degradation pathways from organic cation volatility?",
+      "content_hash": "c40b3347a6d922b92b47e6b66baee7c690e87362176cc666dc1e1a3a43c31535",
+      "label": "organic_psc_accelerated_aging",
+      "qid": "pvsk:pvsk_zhao2022::organic_psc_accelerated_aging",
+      "type": "question"
+    },
+    {
+      "content": "Degradation rates across the entire 35-110C temperature range can be described by a single Arrhenius function, confirming the same degradation mechanism dominates at all temperatures — a critical criterion for reliable accelerated aging tests",
+      "content_hash": "90780518678571915e1e545592d537fbf448ce6fd037bcbb30f49aaf3f3cf4a1",
+      "label": "single_degradation_mechanism",
+      "qid": "pvsk:pvsk_zhao2022::single_degradation_mechanism",
+      "type": "claim"
+    },
+    {
+      "content": "Capped PSCs exhibit T80 lifetime (time to 80% of initial PCE) of >2100 hours at 110C under constant 1-sun illumination, while uncapped devices degrade substantially faster at all elevated temperatures",
+      "content_hash": "20ed02104623b07b957c792bdf8682d1c4708d2ada59ae47bdb4f29248db3464",
+      "label": "t80_2100h_at_110c",
+      "qid": "pvsk:pvsk_zhao2022::t80_2100h_at_110c",
+      "type": "claim"
+    },
+    {
+      "content": "Time-resolved photoluminescence shows the carrier lifetime increases from 14 ns (uncapped) to >62 ns (capped), indicating effective suppression of nonradiative recombination at the CsPbI3 surface and extended carrier diffusion length",
+      "content_hash": "1df04fa94a7c76ec342dcef41db4ef3f2ddd65ad1c2d9a96a3d4cf7a9e1fa71e",
+      "label": "trpl_lifetime_increase",
+      "qid": "pvsk:pvsk_zhao2022::trpl_lifetime_increase",
+      "type": "claim"
+    },
+    {
+      "content": "When aging data from all temperatures are converted to equivalent operating time at 35C using the acceleration factor, all data collapse onto a universal degradation curve for both capped and uncapped devices, confirming a single mechanism across temperatures",
+      "content_hash": "2df77ca0b659c7eea5d12ca231e61664f26a12c3b2dd39e6882c050ec62dfdba",
+      "label": "universal_degradation_curve",
+      "qid": "pvsk:pvsk_zhao2022::universal_degradation_curve",
+      "type": "claim"
+    },
+    {
+      "content": "The 2D capping layer increases both Voc and FF in capped PSCs relative to uncapped devices, consistent with surface passivation reducing nonradiative recombination losses at the perovskite/HTL interface",
+      "content_hash": "2cd27915519d2b12bd50f1122bc518b059794c75f1f818376c492aaf1ca4de02",
+      "label": "voc_and_ff_improvement",
+      "qid": "pvsk:pvsk_zhao2022::voc_and_ff_improvement",
+      "type": "claim"
+    }
+  ],
+  "ir_hash": "sha256:10a8cc86179b16ab9ac673fdfcc99382ada236d109308a8543dd98a0d21a4bde",
+  "manifest_schema_version": 1,
+  "package": "pvsk-zhao2022",
+  "version": "1.0.0"
+}

@@ -1,0 +1,59 @@
+{
+  "holes": [
+    {
+      "content": "The triple cation composition stabilizes the black perovskite phase at room temperature without requiring high-temperature annealing above 160C",
+      "content_hash": "adbd576e3f784c14bf7333765df6b715d1f14efe9d3ecbc0f651e5083a303e9a",
+      "interface_hash": "sha256:ab8cafe698b4e281e9f0fbc28be0ecd4ae0014c417c8afd2ce5021cd6e4ff9b9",
+      "label": "black_phase_stable",
+      "qid": "pvsk:pvsk_saliba2016::black_phase_stable",
+      "required_by": [
+        "pvsk:pvsk_saliba2016::operational_18_pct_250h"
+      ]
+    },
+    {
+      "content": "Cs incorporation suppresses the formation of the non-perovskite delta-phase in FAPbI3-based compositions, producing monomorphic phase-pure perovskite films",
+      "content_hash": "93a91824420442b25ba997425fb0a9f4d0a2edc8d2515c5a7b821497ac91b081",
+      "interface_hash": "sha256:e2e8772fd597c945846038421aa97b2871595f6ca25a5bfea8a96b8efafabfe9",
+      "label": "cesium_reduces_impurities",
+      "qid": "pvsk:pvsk_saliba2016::cesium_reduces_impurities",
+      "required_by": [
+        "pvsk:pvsk_saliba2016::triple_cation_stable"
+      ]
+    },
+    {
+      "content": "Triple cation Cs-containing perovskite compositions are less sensitive to processing conditions than binary FA/MA compositions, enabling more reproducible device fabrication",
+      "content_hash": "95067b57cf80308c97e44f4f4dc86f3abf6e45d84b3bffeb6788ead3c2750217",
+      "interface_hash": "sha256:4863f506ed767b42a10ac96d1997a79ae67233e64158761955c316bd99921c52",
+      "label": "less_processing_sensitive",
+      "qid": "pvsk:pvsk_saliba2016::less_processing_sensitive",
+      "required_by": [
+        "pvsk:pvsk_saliba2016::key_for_industrialization",
+        "pvsk:pvsk_saliba2016::stabilized_output_21_1_pct"
+      ]
+    },
+    {
+      "content": "Cs-containing perovskite films exhibit smoother, more uniform morphology with larger grain size compared to binary FA/MA films",
+      "content_hash": "b06d15cac4f6e3e43ac260884cf704546d3a84f4cf1e41865cf517b93cbc2033",
+      "interface_hash": "sha256:655c2241b10773638554f80d2547c8b8da6e9b948e4bb2b278e484d436f96f0d",
+      "label": "morphology_improved",
+      "qid": "pvsk:pvsk_saliba2016::morphology_improved",
+      "required_by": [
+        "pvsk:pvsk_saliba2016::triple_cation_stable"
+      ]
+    },
+    {
+      "content": "Triple cation devices show significantly improved batch-to-batch reproducibility compared to binary FA/MA compositions, with reduced standard deviation in PCE",
+      "content_hash": "a59b4763603205e733d36d5741ee966fa0094f4faf09df1204d3a8adfdc95f41",
+      "interface_hash": "sha256:afba24b13daf2cce1c7c13e2350044ce46f8f33df8c385900e5f82d37019c9dc",
+      "label": "reproducibility_improved",
+      "qid": "pvsk:pvsk_saliba2016::reproducibility_improved",
+      "required_by": [
+        "pvsk:pvsk_saliba2016::key_for_industrialization"
+      ]
+    }
+  ],
+  "ir_hash": "sha256:32310b58df498d433b7141d3d5783e14d0953439ad49a3b5ac1e3cdb983261b8",
+  "manifest_schema_version": 1,
+  "package": "pvsk-saliba2016",
+  "version": "1.0.0"
+}
