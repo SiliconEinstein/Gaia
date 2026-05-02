@@ -98,6 +98,43 @@ def test_find_anchors_returns_empty_for_nonexistent(tmp_path):
     assert find_anchors(tmp_path / "does_not_exist") == {}
 
 
+def test_find_anchors_locates_v05_dsl_constructors(tmp_path):
+    pkg = tmp_path / "p"
+    pkg.mkdir()
+    (pkg / "pyproject.toml").write_text(
+        '[project]\nname = "anchor-v05-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n',
+        encoding="utf-8",
+    )
+    src = pkg / "anchor_v05"
+    src.mkdir()
+    (src / "__init__.py").write_text(
+        "from gaia.lang import associate, claim, contradiction, deduction, depends_on, derive\n"
+        'a = claim("A.")\n'
+        'b = claim("B.")\n'
+        'c = claim("C.")\n'
+        'derived = derive("Derived.", given=a, rationale="A implies it.", label="derive_c")\n'
+        "proof = deduction(premises=[a], conclusion=c)\n"
+        "assoc = associate(a, b, p_a_given_b=0.7, p_b_given_a=0.6, label='assoc_ab')\n"
+        "conflict = contradiction(a, b)\n"
+        "depends_on(c, given=(a,), rationale='scaffold', label='c_depends_on_a')\n"
+        '__all__ = ["a", "b", "c", "derived", "proof", "assoc", "conflict"]\n',
+        encoding="utf-8",
+    )
+
+    anchors = find_anchors(pkg)
+
+    for label in (
+        "derive_c",
+        "proof",
+        "assoc_ab",
+        "assoc",
+        "conflict",
+        "c_depends_on_a",
+    ):
+        assert label in anchors
+
+
 # --------------------------------------------------------------------------- #
 # Diagnostic now carries source_anchor                                        #
 # --------------------------------------------------------------------------- #

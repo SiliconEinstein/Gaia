@@ -17,6 +17,7 @@ from gaia.cli.commands.check_core import (
     KnowledgeBreakdown,
     find_possible_duplicate_claims,
 )
+from gaia.ir import ReviewManifest, ReviewStatus
 from gaia.inquiry.anchor import SourceAnchor
 from gaia.inquiry.focus import FocusBinding
 
@@ -98,6 +99,32 @@ class NextEdit:
 
 def _strategy_id(strategy) -> str:
     return getattr(strategy, "strategy_id", None) or getattr(strategy, "id", None) or ""
+
+
+def _action_label(metadata: dict | None) -> str | None:
+    label = (metadata or {}).get("action_label")
+    if not isinstance(label, str) or not label:
+        return None
+    if "::action::" in label:
+        return label.split("::action::", 1)[1]
+    return label
+
+
+def _strategy_label(strategy, sid: str, metadata: dict | None = None) -> str:
+    return (
+        _action_label(metadata)
+        or getattr(strategy, "label", None)
+        or (sid.split("::")[-1] if sid else "")
+    )
+
+
+def _manifest_status(
+    review_manifest: ReviewManifest | None,
+    target_id: str,
+) -> ReviewStatus | None:
+    if review_manifest is None or not target_id:
+        return None
+    return review_manifest.latest_status(target_id)
 
 
 def from_validation(warnings: list[str], errors: list[str]) -> list[Diagnostic]:
@@ -332,6 +359,7 @@ def detect_warrant_status(
     graph,
     rejected_strategy_targets: set[str] | None = None,
     anchors: dict | None = None,
+    review_manifest: ReviewManifest | None = None,
 ) -> list[Diagnostic]:
     """Walk graph.strategies and emit unreviewed/rejected warrants.
 
@@ -346,9 +374,12 @@ def detect_warrant_status(
     rejected = rejected_strategy_targets or set()
     for s in getattr(graph, "strategies", []) or []:
         sid = _strategy_id(s)
-        label = sid.split("::")[-1] if sid else getattr(s, "label", "") or ""
         meta = dict(getattr(s, "metadata", None) or {})
-        if sid in rejected or label in rejected:
+        label = _strategy_label(s, sid, meta)
+        status = _manifest_status(review_manifest, sid)
+        if status == ReviewStatus.ACCEPTED:
+            continue
+        if status == ReviewStatus.REJECTED or sid in rejected or label in rejected:
             d = Diagnostic(
                 severity="info",
                 kind="rejected_warrant",
@@ -362,8 +393,22 @@ def detect_warrant_status(
             )
             out.append(_attach_anchor(d, anchors))
             continue
+        if status == ReviewStatus.NEEDS_INPUTS:
+            d = Diagnostic(
+                severity="warning",
+                kind="unreviewed_warrant",
+                target=sid or label,
+                label=label,
+                message=f"Strategy `{label}` needs additional review inputs.",
+                suggested_edit=(
+                    f"Provide the missing review inputs for `{label}` and update "
+                    ".gaia/review_manifest.json."
+                ),
+            )
+            out.append(_attach_anchor(d, anchors))
+            continue
         judgment = (meta.get("judgment") or "").strip()
-        if not judgment:
+        if status == ReviewStatus.UNREVIEWED or (status is None and not judgment):
             d = Diagnostic(
                 severity="info",
                 kind="unreviewed_warrant",
@@ -407,7 +452,8 @@ def detect_blocked_warrant_path(
         return out
     for s in getattr(graph, "strategies", []) or []:
         sid = _strategy_id(s)
-        label = sid.split("::")[-1] if sid else ""
+        meta = dict(getattr(s, "metadata", None) or {})
+        label = _strategy_label(s, sid, meta)
         premises = list(getattr(s, "premises", None) or [])
         blocking = sorted(p for p in premises if p in hole_ids)
         if not blocking:
@@ -550,8 +596,8 @@ def detect_overstrong_strategy_without_provenance(
 
     for s in getattr(graph, "strategies", []) or []:
         sid = _strategy_id(s)
-        label = sid.split("::")[-1] if sid else ""
         meta = dict(getattr(s, "metadata", None) or {})
+        label = _strategy_label(s, sid, meta)
         if _nonempty(meta.get("provenance")) or _nonempty(meta.get("justification")):
             continue
 

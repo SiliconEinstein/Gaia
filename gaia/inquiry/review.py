@@ -27,6 +27,7 @@ from gaia.cli.commands.check_core import (
     analyze_knowledge_breakdown,
     find_possible_duplicate_claims,
 )
+from gaia.ir import ReviewManifest, ReviewStatus
 from gaia.ir.validator import validate_local_graph
 
 from gaia.inquiry.anchor import find_anchors
@@ -164,6 +165,7 @@ def run_review(
     graph = None
     loaded = None
     compiled = None
+    review_manifest: ReviewManifest | None = None
     compile_status = "error"
     ir_hash: str | None = None
     counts = {"knowledge": 0, "strategies": 0, "operators": 0}
@@ -192,6 +194,12 @@ def run_review(
         warnings.extend(validation.warnings)
         errors.extend(validation.errors)
 
+    if loaded is not None and compiled is not None:
+        try:
+            review_manifest = load_or_generate_review_manifest(loaded.pkg_path, compiled)
+        except GaiaCliError as exc:
+            errors.append(f"review_manifest: {exc}")
+
     focus = resolve_focus_target(focus_raw, graph)
 
     # Step 3: knowledge breakdown via check_core (single source of truth).
@@ -201,9 +209,8 @@ def run_review(
     else:
         kb = KnowledgeBreakdown()
 
-    graph_health = _build_graph_health(kb, ir_dict, warnings, errors)
     prior_holes = _build_prior_holes(kb)
-    inquiry_tree = _build_inquiry_tree(kb, graph)
+    inquiry_tree = _build_inquiry_tree(kb, graph, review_manifest)
 
     # Step 4: semantic diff against baseline snapshot.
     baseline_id = resolve_baseline(pkg_path, since, state.last_review_id)
@@ -219,10 +226,13 @@ def run_review(
         focus,
         loaded=loaded,
         compiled=compiled,
+        review_manifest=review_manifest,
         depth=depth,
     )
     if belief_report["ran_inference"] and baseline_snap is not None:
         _annotate_belief_deltas(belief_report, baseline_snap)
+
+    graph_health = _build_graph_health(kb, ir_dict, warnings, errors)
 
     # Step 6: diagnostics — translate validator + breakdown into one stream.
     anchors = find_anchors(pkg_path)
@@ -234,7 +244,14 @@ def run_review(
     diagnostics.extend(detect_stale_artifact(pkg_path, ir_hash))
     diagnostics.extend(detect_focus_low_posterior(belief_report))
     rejected_targets = {r.target_strategy for r in getattr(state, "synthetic_rejections", []) or []}
-    diagnostics.extend(detect_warrant_status(graph, rejected_targets, anchors))
+    diagnostics.extend(
+        detect_warrant_status(
+            graph,
+            rejected_targets,
+            anchors,
+            review_manifest=review_manifest,
+        )
+    )
     if graph is not None:
         if ir_dict is not None:
             diagnostics.extend(detect_blocked_warrant_path(graph, kb, anchors))
@@ -359,7 +376,7 @@ def _graph_to_ir_dict(graph) -> dict | None:
         knowledges.append(
             {
                 "id": getattr(k, "id", ""),
-                "label": getattr(k, "label", ""),
+                "label": getattr(k, "label", None) or "",
                 "type": _normalize_type(getattr(k, "type", "")),
                 "content": getattr(k, "content", "") or "",
                 "metadata": dict(getattr(k, "metadata", {}) or {}),
@@ -435,8 +452,33 @@ def _build_prior_holes(kb: KnowledgeBreakdown) -> list[dict[str, Any]]:
     return out
 
 
-def _build_inquiry_tree(kb: KnowledgeBreakdown, graph) -> dict[str, Any]:
-    n_strategies = len(getattr(graph, "strategies", []) or []) if graph else 0
+def _strategy_review_status(
+    strategy,
+    review_manifest: ReviewManifest | None,
+) -> ReviewStatus | None:
+    sid = _strategy_id(strategy)
+    if review_manifest is None or not sid:
+        return None
+    return review_manifest.latest_status(sid)
+
+
+def _build_inquiry_tree(
+    kb: KnowledgeBreakdown,
+    graph,
+    review_manifest: ReviewManifest | None = None,
+) -> dict[str, Any]:
+    accepted_warrants = 0
+    rejected_warrants = 0
+    unreviewed_warrants = 0
+    if graph is not None:
+        for s in getattr(graph, "strategies", []) or []:
+            status = _strategy_review_status(s, review_manifest)
+            if status == ReviewStatus.ACCEPTED:
+                accepted_warrants += 1
+            elif status == ReviewStatus.REJECTED:
+                rejected_warrants += 1
+            else:
+                unreviewed_warrants += 1
     hole_ids = {h.cid for h in kb.holes}
     blocked_paths = 0
     if graph is not None and hole_ids:
@@ -446,8 +488,9 @@ def _build_inquiry_tree(kb: KnowledgeBreakdown, graph) -> dict[str, Any]:
                 blocked_paths += 1
     return {
         "goals": len(kb.questions),
-        "accepted_warrants": 0,
-        "unreviewed_warrants": n_strategies,
+        "accepted_warrants": accepted_warrants,
+        "unreviewed_warrants": unreviewed_warrants,
+        "rejected_warrants": rejected_warrants,
         "blocked_paths": blocked_paths,
         "structural_holes": list(kb.orphaned),
     }
@@ -462,6 +505,7 @@ def _build_belief_report(
     *,
     loaded=None,
     compiled=None,
+    review_manifest: ReviewManifest | None = None,
     depth: int = 0,
 ) -> dict[str, Any]:
     out: dict[str, Any] = {
@@ -481,7 +525,6 @@ def _build_belief_report(
         from gaia.bp import FactorGraph, lower_local_graph, merge_factor_graphs
         from gaia.bp.engine import InferenceEngine
 
-        review_manifest = load_or_generate_review_manifest(loaded.pkg_path, compiled)
         if depth != 0:
             dep_compiled = load_dependency_compiled_graphs(loaded.project_config, depth=depth)
             dep_factor_graphs: list[tuple[str, FactorGraph, str]] = []

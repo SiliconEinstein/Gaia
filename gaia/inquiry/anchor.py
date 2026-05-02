@@ -1,9 +1,9 @@
 """Source anchor —— 把 IR 里的 label 反向解析回源代码 (file, line)。
 
 Gaia 的 Knowledge 只记录 ``module`` 名字，不记录行号。Inquiry 自己用
-``ast`` 扫描 package 源代码，定位 ``<name> = claim(...) / setting(...) /
-question(...) / support(...) / operator(...)`` 形式的顶层赋值，将变量名 (或
-显式 ``label="..."`` 关键字) 映射到 (文件路径, 行号, 列号)。
+``ast`` 扫描 package 源代码，定位 ``<name> = claim(...) / derive(...) /
+deduction(...)`` 等 DSL 顶层调用，将变量名 (或显式 ``label="..."`` 关键字)
+映射到 (文件路径, 行号, 列号)。
 
 只读：仅读取 .py 文件，不解析模块、不导入、不修改任何东西。
 """
@@ -16,12 +16,40 @@ from pathlib import Path
 
 # Gaia DSL 顶层构造器；这些调用的赋值目标即为该节点 label 的默认值。
 _DSL_CALLABLES = {
+    "abduction",
+    "analogy",
+    "associate",
+    "case_analysis",
     "claim",
-    "setting",
-    "question",
-    "support",
-    "operator",
+    "compare",
+    "composite",
+    "compose",
+    "composition",
+    "complement",
+    "contradict",
+    "contradiction",
+    "context",
+    "compute",
+    "deduction",
+    "depends_on",
+    "derive",
+    "disjunction",
+    "equal",
+    "elimination",
+    "equivalence",
+    "exclusive",
+    "extrapolation",
+    "fills",
+    "induction",
+    "infer",
+    "mathematical_induction",
+    "note",
     "noisy_and",
+    "observe",
+    "operator",
+    "question",
+    "setting",
+    "support",
 }
 
 
@@ -76,6 +104,9 @@ def _scan_module(py_file: Path, rel_file: str) -> dict[str, SourceAnchor]:
             value = stmt.value
         elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
             targets = [stmt.target]
+            value = stmt.value
+        elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
+            targets = []
             value = stmt.value
         else:
             continue

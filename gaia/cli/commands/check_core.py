@@ -66,7 +66,7 @@ def analyze_knowledge_breakdown(ir: dict) -> KnowledgeBreakdown:
     for k in ir.get("knowledges", []):
         ktype = k.get("type")
         kid = k["id"]
-        label = k.get("label", kid.split("::")[-1])
+        label = k.get("label") or kid.split("::")[-1]
         if ktype == "setting":
             out.settings.append(label)
             continue

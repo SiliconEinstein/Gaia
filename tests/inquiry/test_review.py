@@ -13,7 +13,7 @@ from gaia.inquiry.diagnostics import (
     format_diagnostics_as_next_edits,
     from_validation,
 )
-from gaia.inquiry.review import run_review
+from gaia.inquiry.review import publish_blockers, run_review
 
 runner = CliRunner()
 
@@ -347,3 +347,84 @@ def test_review_depth_uses_joint_dependency_graphs(tmp_path, monkeypatch):
     assert joint.compile_status == "ok"
     assert upstream_id in joint_beliefs
     assert joint_beliefs[upstream_id] != flat_beliefs.get(upstream_id, 0.5)
+
+
+def test_review_depth_inference_errors_surface_in_graph_health(tmp_path):
+    pkg = tmp_path / "missing_dep_pkg"
+    pkg.mkdir()
+    (pkg / "pyproject.toml").write_text(
+        '[project]\nname = "missing-dep-pkg-gaia"\nversion = "1.0.0"\n'
+        'dependencies = ["missing-upstream-gaia"]\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n',
+        encoding="utf-8",
+    )
+    src = pkg / "missing_dep_pkg"
+    src.mkdir()
+    (src / "__init__.py").write_text(
+        "from gaia.lang import claim\n"
+        'local_obs = claim("Local observation.", metadata={"prior": 0.6})\n'
+        '__all__ = ["local_obs"]\n',
+        encoding="utf-8",
+    )
+
+    report = run_review(pkg, depth=1)
+
+    assert not report.belief_report["ran_inference"]
+    assert any("missing_upstream" in err for err in report.graph_health["errors"])
+
+    result = runner.invoke(app, ["inquiry", "review", str(pkg), "--depth", "1"])
+    assert result.exit_code == 1
+    assert "errors: 1" in result.output
+    assert "missing_upstream" in result.output
+
+
+def test_review_manifest_accepted_strategy_is_not_unreviewed(tmp_path):
+    pkg = tmp_path / "reviewed_pkg"
+    pkg.mkdir()
+    (pkg / "pyproject.toml").write_text(
+        '[project]\nname = "reviewed-pkg-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n',
+        encoding="utf-8",
+    )
+    src = pkg / "reviewed_pkg"
+    src.mkdir()
+    (src / "__init__.py").write_text(
+        "from gaia.lang import claim, derive\n"
+        'a = claim("A.", metadata={"prior": 0.7})\n'
+        'c = derive("C.", given=a, rationale="A implies C.", label="derive_c")\n'
+        '__all__ = ["c"]\n',
+        encoding="utf-8",
+    )
+
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        ensure_package_env,
+        load_gaia_package,
+    )
+    from gaia.ir import ReviewManifest, ReviewStatus
+
+    ensure_package_env(pkg)
+    loaded = load_gaia_package(str(pkg))
+    apply_package_priors(loaded)
+    compiled = compile_loaded_package_artifact(loaded)
+    generated = compiled.review
+    assert generated is not None
+    assert len(generated.reviews) == 1
+    accepted = generated.reviews[0].model_copy(update={"status": ReviewStatus.ACCEPTED, "round": 2})
+    review_path = pkg / ".gaia" / "review_manifest.json"
+    review_path.parent.mkdir()
+    review_path.write_text(
+        json.dumps(ReviewManifest(reviews=[accepted]).model_dump(mode="json"), indent=2),
+        encoding="utf-8",
+    )
+
+    report = run_review(pkg, no_infer=True, mode="publish")
+
+    assert report.inquiry_tree["accepted_warrants"] == 1
+    assert report.inquiry_tree["unreviewed_warrants"] == 0
+    assert not any(
+        d.kind == "unreviewed_warrant" and d.target == accepted.target_id
+        for d in report.diagnostics
+    )
+    assert not any("unreviewed_warrant" in blocker for blocker in publish_blockers(report))
