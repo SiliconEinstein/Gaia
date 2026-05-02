@@ -9,7 +9,7 @@ from typing import Literal
 from gaia.lang.runtime import Knowledge, Step, Strategy
 from gaia.lang.runtime.nodes import ReasonInput
 from gaia.lang.runtime.nodes import _current_package
-from gaia.lang.dsl.operators import _validate_reason_prior
+from gaia.lang.dsl.operators import _validate_reason_prior, _validate_prior_range
 from gaia.lang.runtime.package import infer_package_from_callstack
 
 
@@ -301,23 +301,23 @@ def deduction(
     reason: ReasonInput = "",
     prior: float | None = None,
 ) -> Strategy:
-    """Deduction lowered via the canonical IR formalizer at compile time.
+    """Deduction — rigid implication; premises jointly entail the conclusion.
 
-    prior -> confidence for the implication warrant.
+    Default prior is 0.999 (Cromwell-bounded near-certainty). Reason is
+    always allowed — it documents the chain of reasoning without forcing
+    a manual prior. Explicit prior overrides the default.
     """
     if len(premises) < 1:
         raise ValueError("deduction() requires at least 1 premise")
-    _validate_reason_prior(reason, prior)
-    metadata: dict | None = None
-    if prior is not None:
-        metadata = {"prior": prior}
+    effective_prior = prior if prior is not None else 0.999
+    _validate_prior_range(effective_prior)
     return _named_strategy(
         "deduction",
         premises=premises,
         conclusion=conclusion,
         background=background,
         reason=reason,
-        metadata=metadata,
+        metadata={"prior": effective_prior},
     )
 
 

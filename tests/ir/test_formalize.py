@@ -525,7 +525,11 @@ class TestPriorPropagation:
         assert impl_helpers[0].metadata["prior"] == 0.9
 
     def test_deduction_no_prior_no_metadata_key(self):
-        """Without metadata['prior'], helper claim has no 'prior' key."""
+        """Without metadata['prior'], helper claim has no 'prior' key.
+
+        (The DSL-level deduction() defaults to prior=0.999, but the formalizer
+        alone only propagates what it receives.)
+        """
         result = formalize_named_strategy(
             scope="local",
             type_="deduction",
@@ -541,6 +545,25 @@ class TestPriorPropagation:
         ]
         assert len(impl_helpers) == 1
         assert "prior" not in impl_helpers[0].metadata
+
+    def test_deduction_explicit_prior(self):
+        """Explicit prior on deduction flows to helper claim metadata."""
+        result = formalize_named_strategy(
+            scope="local",
+            type_="deduction",
+            premises=["github:test::a"],
+            conclusion="github:test::b",
+            namespace="github",
+            package_name="test",
+            metadata={"prior": 0.95},
+        )
+        impl_helpers = [
+            k
+            for k in result.knowledges
+            if (k.metadata or {}).get("helper_kind") == "implication_result"
+        ]
+        assert len(impl_helpers) == 1
+        assert impl_helpers[0].metadata["prior"] == 0.95
 
     def test_support_propagates_prior(self):
         """Support: forward helper gets prior."""
