@@ -874,6 +874,8 @@ def compile_package_artifact(
         metadata["observed"] = action.observed
         metadata["p_data_given_h"] = action.p_data_given_h
         metadata["p_data_given_not_h"] = action.p_data_given_not_h
+        metadata["p_e_given_h"] = action.p_data_given_h
+        metadata["p_e_given_not_h"] = action.p_data_given_not_h
         _attach_action_label_to_warrants(
             action,
             action_label=action_label,

@@ -262,6 +262,8 @@ def test_compile_evidence_action_to_gated_infer_cpt():
     assert strategy.metadata["model"]["kind"] == "binomial"
     assert strategy.metadata["null_model"]["kind"] == "binomial"
     assert strategy.metadata["observed"] == 8
+    assert strategy.metadata["p_e_given_h"] == pytest.approx(0.301989888)
+    assert strategy.metadata["p_e_given_not_h"] == pytest.approx(0.0439453125)
     assert strategy.metadata["given"] == ["github:v6_actions::g"]
 
     stat_support = _knowledge_by_label(compiled)["evidence_helper"]

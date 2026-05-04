@@ -927,9 +927,9 @@ f2_count = evidence(
 )
 ```
 
-`evidence()` is not a multi-hypothesis model-comparison primitive. It is the model-backed sibling of `infer()`: the author supplies a data Claim, a hypothesis Claim, a statistical model under H, a null model under not-H, and the observed sufficient statistic. Gaia evaluates both `P(D|H)` and `P(D|¬H)` and lowers the action to the existing binary `infer` CPT shape. The null model is required because exact-data probabilities are not neutral by default: a high-probability Boolean event and a low-probability exact count have different semantics. Explicit mutually exclusive model sets and exhaustive hypothesis spaces belong to a future `model_compare(...)` wrapper, not this base primitive.
+`evidence()` is not a multi-hypothesis model-comparison primitive. It is the model-backed sibling of `infer()`: the author supplies a data Claim, a hypothesis Claim, a statistical model under H, a null model under not-H, and the observed sufficient statistic. Gaia evaluates both `P(D|H)` and `P(D|¬H)` and lowers the action to the existing binary `infer` CPT shape. The null model is required because exact-data probabilities are not neutral by default: a high-probability Boolean event and a low-probability exact count have different semantics. The H-side model and null model must describe the same observed event; in the initial Binomial adapter this means both models have `kind="binomial"` and the same `n`. Explicit mutually exclusive model sets and exhaustive hypothesis spaces belong to a future `model_compare(...)` wrapper, not this base primitive.
 
-**Initial scope.** v0.5 supports `Binomial` only. This keeps the first executable evidence verb tied to the concrete Mendel-style use case. Future continuous adapters should use null-model density evaluation or likelihood-ratio / log-Bayes-factor semantics rather than treating density values as probabilities.
+**Initial scope.** v0.5 supports `Binomial` only. This keeps the first executable evidence verb tied to the concrete Mendel-style use case. Future continuous adapters should use null-model density evaluation or likelihood-ratio / log-Bayes-factor semantics rather than treating density values as probabilities. Unlike `infer()`, `evidence()` does not accept `prior_hypothesis` / `prior_data` convenience arguments; priors remain attached to the Claim or a separate prior-provider action so the data-generating model warrant stays narrow.
 
 **Return value:** `evidence()` returns the data Claim `D`. The action also creates a generated helper Claim with `helper_kind="evidence"`; that helper remains attached as the reviewable warrant for the H-side model, null model, observed statistic, computed `P(D|H)`, and computed `P(D|¬H)`.
 
@@ -1081,12 +1081,20 @@ def gaussian_measurement(evidence, hypothesis, *, mu_h, mu_not_h, noise):
 
 ### 11.8 Provenance field set (final)
 
-Kernel-consumed fields on any Correlate action (stored in `metadata` of the corresponding IR strategy):
+Kernel-consumed provenance fields on any Correlate action (stored in `metadata` of the corresponding IR strategy):
 
 - `source_id` — citation-level (paper, database, author)
 - `data_id` — specific data instance
 - `data_hash` — bytes-level hash; participates in `context_id` hashing
 - `rationale` — human-readable justification, especially for literature-derived CPTs or association claims
+
+Evidence-pattern strategies (`metadata["pattern"] == "evidence"`) additionally emit:
+
+- `model` — JSON-serialised H-side `DistributionLiteral`.
+- `null_model` — JSON-serialised not-H-side `DistributionLiteral`.
+- `observed` — observed sufficient statistic evaluated by both models.
+- `p_data_given_h` / `p_data_given_not_h` — model-evaluated probabilities used to build the CPT.
+- `p_e_given_h` / `p_e_given_not_h` — infer-compatible aliases of the same probabilities for downstream tooling that handles all `type="infer"` strategies uniformly.
 
 **Not** kernel-consumed (unverifiable author assertions go to free `metadata` dict or to `IndependenceDeclaration.rationale`):
 
@@ -1390,7 +1398,7 @@ IR schema changes belong in change-controlled PRs against `docs/foundations/gaia
 
     This is a **general** responsibility, not `associate`-specific — the same three categories apply to any factor where multiple constraints may collide (two `infer` actions on the same hypothesis pair, explicit `prior=` plus implied marginal from a correlate action, etc.).
 
-11f. **`[new]`** Add `evidence()` DSL function + `Evidence(Correlate)` runtime dataclass (§11.3). DSL: `evidence(data, *, hypothesis, model, null_model, observed, given=(), background=None, rationale="", label=None) -> Claim`. Runtime: `Evidence` stores `hypothesis`, `data`, `given`, model metadata, null-model metadata, observed statistic, computed `p_data_given_h`, computed `p_data_given_not_h`, and a generated `helper_kind="evidence"` warrant. IR lowering reuses `type="infer"` with the same gated CPT shape as `infer()`. Initial executable scope is Binomial-only.
+11f. **`[new]`** Add `evidence()` DSL function + `Evidence(Correlate)` runtime dataclass (§11.3). DSL: `evidence(data, *, hypothesis, model, null_model, observed, given=(), background=None, rationale="", label=None) -> Claim`. Runtime: `Evidence` stores `hypothesis`, `data`, `given`, model metadata, null-model metadata, observed statistic, computed `p_data_given_h`, computed `p_data_given_not_h`, and a generated `helper_kind="evidence"` warrant. IR lowering reuses `type="infer"` with the same gated CPT shape as `infer()` and writes infer-compatible `p_e_given_h` / `p_e_given_not_h` metadata aliases. Initial executable scope is Binomial-only; model and null model must be structurally compatible, including equal `n` for Binomial.
 
 ### 17.3 Review / R4
 

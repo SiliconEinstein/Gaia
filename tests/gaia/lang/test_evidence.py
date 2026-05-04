@@ -4,7 +4,7 @@ from gaia.lang import evidence
 from gaia.lang.runtime.action import Evidence
 from gaia.lang.runtime.knowledge import Claim
 from gaia.lang.runtime.package import CollectedPackage
-from gaia.stats import Binomial
+from gaia.stats import Binomial, Normal
 
 
 def test_evidence_returns_data_and_keeps_model_warrant_on_action():
@@ -62,6 +62,47 @@ def test_evidence_requires_null_model():
             evidence(d, hypothesis=h, model=Binomial(n=2, p=0.5), observed=1)
 
 
+def test_evidence_accepts_string_data_when_observed_is_explicit():
+    with CollectedPackage("evidence_test"):
+        h = Claim("H.")
+        result = evidence(
+            "Eight successes were observed in ten trials.",
+            hypothesis=h,
+            model=Binomial(n=10, p=0.8),
+            null_model=Binomial(n=10, p=0.5),
+            observed=8,
+        )
+
+    assert isinstance(result, Claim)
+    assert result.content == "Eight successes were observed in ten trials."
+
+
+def test_evidence_rejects_kind_mismatch():
+    h = Claim("H.")
+    d = Claim("D.")
+    with pytest.raises(ValueError, match="same kind"):
+        evidence(
+            d,
+            hypothesis=h,
+            model=Binomial(n=10, p=0.8),
+            null_model=Normal(mu=0, sigma=1),
+            observed=8,
+        )
+
+
+def test_evidence_rejects_binomial_n_mismatch():
+    h = Claim("H.")
+    d = Claim("D.")
+    with pytest.raises(ValueError, match="must share n"):
+        evidence(
+            d,
+            hypothesis=h,
+            model=Binomial(n=10, p=0.8),
+            null_model=Binomial(n=20, p=0.5),
+            observed=8,
+        )
+
+
 def test_evidence_requires_binomial_model_for_initial_release():
     h = Claim("H.")
     d = Claim("D.")
@@ -77,4 +118,19 @@ def test_evidence_requires_binomial_null_model_for_initial_release():
     with pytest.raises(TypeError, match="currently supports Binomial"):
         evidence(
             d, hypothesis=h, model=Binomial(n=2, p=0.5), null_model={"kind": "normal"}, observed=1
+        )
+
+
+def test_evidence_rejects_typed_non_binomial_model_for_initial_release():
+    h = Claim("H.")
+    d = Claim("D.")
+    with pytest.raises(
+        TypeError, match="currently supports Binomial models only; got kind='normal'"
+    ):
+        evidence(
+            d,
+            hypothesis=h,
+            model=Normal(mu=0, sigma=1),
+            null_model=Normal(mu=1, sigma=1),
+            observed=0,
         )

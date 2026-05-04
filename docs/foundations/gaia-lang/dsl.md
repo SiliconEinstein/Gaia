@@ -154,7 +154,7 @@ f2_count = evidence(
 )
 ```
 
-`evidence(...)` returns the data claim. The action computes `p_data_given_h` from `model` and `p_data_given_not_h` from `null_model`, then lowers to the same `infer` CPT shape as `infer(...)`; with `given`, gate-false rows are neutral. `null_model` is required because exact-data probabilities are not neutral by default. Multi-hypothesis model comparison is intentionally out of scope for this base verb.
+`evidence(...)` returns the data claim. The action computes `p_data_given_h` from `model` and `p_data_given_not_h` from `null_model`, then lowers to the same `infer` CPT shape as `infer(...)`; with `given`, gate-false rows are neutral. `null_model` is required because exact-data probabilities are not neutral by default. For Binomial evidence, `model` and `null_model` must share the same `n` so both probabilities describe the same observed event. `data` may be a Claim or a string; string data requires explicit `observed=...` because the generated Claim has no value parameter. Multi-hypothesis model comparison is intentionally out of scope for this base verb.
 
 ### `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, background=None, rationale="", label=None)`
 

@@ -47,9 +47,28 @@ def _probability(value: float, field_name: str) -> float:
     return parsed
 
 
+def _validate_model_pair(model: DistributionLiteral, null_model: DistributionLiteral) -> None:
+    if not isinstance(model, DistributionLiteral) or not isinstance(
+        null_model, DistributionLiteral
+    ):
+        return
+    if model.kind != null_model.kind:
+        raise ValueError(
+            "evidence() requires model and null_model of the same kind; "
+            f"got {model.kind!r} vs {null_model.kind!r}"
+        )
+    if model.kind == "binomial" and model.params.get("n") != null_model.params.get("n"):
+        raise ValueError(
+            "evidence() Binomial model and null_model must share n; "
+            f"got n={model.params.get('n')!r} vs n={null_model.params.get('n')!r}"
+        )
+
+
 def _binomial_probability(model: DistributionLiteral, observed: Any) -> float:
     if model.kind != "binomial":
-        raise TypeError("evidence() currently supports Binomial models only")
+        raise TypeError(
+            f"evidence() currently supports Binomial models only; got kind={model.kind!r}"
+        )
 
     n = model.params.get("n")
     p = model.params.get("p")
@@ -112,6 +131,7 @@ def evidence(
         raise TypeError("evidence() given entries must be Claims")
 
     observed_value = _observed_value(data, observed)
+    _validate_model_pair(model, null_model)
     p_data_given_h = _model_probability(model, observed_value)
     p_data_given_not_h = _model_probability(null_model, observed_value)
     model_metadata = _model_metadata(model)
