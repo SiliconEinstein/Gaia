@@ -509,8 +509,10 @@ def test_mendel_full_pipeline():
     ir = compile(pkg)
     fg = lower(ir)
     beliefs = run_bp(fg)
-    assert beliefs[H_3_1.qid] > 0.99
-    assert beliefs[H_null.qid] < 0.01
+    odds = beliefs[H_3_1.qid] / beliefs[H_null.qid]
+    assert odds == pytest.approx(49, rel=0.1)
+    assert beliefs[H_3_1.qid] > 0.95
+    assert beliefs[H_null.qid] < 0.03
     assert beliefs[cmp_result.qid] > 0.99
 ```
 
@@ -612,7 +614,7 @@ These are not blocking the design but flagged for implementation discussion:
 The design is implemented when:
 
 1. `from gaia.lang import bayes` exposes `predict / likelihood / Binomial / Normal / Beta / Poisson / ...`.
-2. The Mendel pipeline test (§7.4) passes with H_3_1 posterior > 0.99.
+2. The Mendel pipeline test (§7.4) passes with posterior odds matching the Bayes factor (≈49) and H_3_1 posterior in the corrected exhaustive range (>0.95, not the obsolete >0.99 threshold).
 3. PR #506 is closed and `gaia.lang.dsl.evidence_verb` is removed.
 4. `gaia check` reports each of the four `bayes:*` rules in `tests/gaia/lang/bayes/check/`.
 5. `docs/foundations/gaia-lang/bayes.md` exists and its code examples are exercised in CI.
