@@ -16,14 +16,25 @@ from gaia.lang.runtime.action import (
     Support,
 )
 from gaia.lang.runtime.composition import Composition, compose, composition
+from gaia.lang.runtime.domain import Domain
 from gaia.lang.runtime.grounding import Grounding
-from gaia.lang.runtime.knowledge import Claim, Context, Knowledge, Note, Question, Setting
+from gaia.lang.runtime.knowledge import (
+    Claim,
+    ClaimKind,
+    Context,
+    Knowledge,
+    Note,
+    Question,
+    Setting,
+)
 from gaia.lang.runtime.nodes import Operator, Step, Strategy
+from gaia.lang.runtime.variable import Variable
 
 __all__ = [
     "Action",
     "Associate",
     "Claim",
+    "ClaimKind",
     "Compute",
     "Compose",
     "Composition",
@@ -32,6 +43,7 @@ __all__ = [
     "Contradict",
     "Derive",
     "DependsOn",
+    "Domain",
     "Equal",
     "Exclusive",
     "Grounding",
@@ -47,6 +59,7 @@ __all__ = [
     "Step",
     "Strategy",
     "Support",
+    "Variable",
     "compose",
     "composition",
 ]

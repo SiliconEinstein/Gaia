@@ -1,6 +1,9 @@
 """Gaia Lang v5/v6 — Knowledge DSL functions."""
 
+from typing import Any
+
 from gaia.lang.runtime import Claim, Knowledge, Note, Question
+from gaia.lang.runtime.knowledge import ClaimKind
 
 
 def _metadata_with_legacy_kind(metadata: dict, legacy_kind: str) -> dict:
@@ -98,6 +101,9 @@ def claim(
     background: list[Knowledge] | None = None,
     parameters: list[dict] | None = None,
     provenance: list[dict[str, str]] | None = None,
+    prior: float | None = None,
+    formula: Any = None,
+    kind: ClaimKind = ClaimKind.GENERAL,
     **metadata,
 ) -> Claim:
     """Declare a scientific assertion. The only type carrying probability."""
@@ -108,5 +114,8 @@ def claim(
         background=background or [],
         parameters=parameters or [],
         provenance=provenance or [],
+        prior=prior,
+        formula=formula,
+        kind=kind,
         metadata=_flatten_metadata(metadata),
     )
