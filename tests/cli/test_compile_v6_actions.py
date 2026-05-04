@@ -1,5 +1,6 @@
 import json
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
@@ -17,9 +18,12 @@ def test_compile_v6_actions_package(tmp_path):
     pkg_src = pkg_dir / "v6_actions"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, contradict, derive, equal, infer, observe\n\n"
+        "from gaia.lang import claim, contradict, derive, equal, evidence, infer, observe\n"
+        "from gaia.stats import Binomial\n\n"
         'calibrated = claim("Spectrometer is calibrated.")\n'
         'data = observe("UV spectrum is finite.", rationale="Measured.", label="observe_uv")\n'
+        'iid = claim("The count trials are independent.")\n'
+        'count_data = claim("Eight successes were observed in ten trials.")\n'
         'prediction = claim("Planck model predicts finite UV spectrum.")\n'
         'classical = claim("Classical model predicts divergent UV spectrum.")\n'
         'agreement = equal(prediction, data, rationale="Prediction matches data.", label="match")\n'
@@ -33,9 +37,19 @@ def test_compile_v6_actions_package(tmp_path):
         '    rationale="Bayesian update.",\n'
         '    label="bayes_update",\n'
         ")\n"
+        "count_data = evidence(\n"
+        "    count_data,\n"
+        "    hypothesis=prediction,\n"
+        "    given=iid,\n"
+        "    model=Binomial(n=10, p=0.8),\n"
+        "    observed=8,\n"
+        "    p_data_given_not_h=0.05,\n"
+        '    rationale="Binomial model evidence.",\n'
+        '    label="count_evidence",\n'
+        ")\n"
         "favored = derive(\n"
         '    "Planck model is favored.",\n'
-        "    given=(agreement, conflict, data),\n"
+        "    given=(agreement, conflict, data, count_data),\n"
         '    rationale="Agreement, conflict, and observed data favor Planck.",\n'
         '    label="favor_planck",\n'
         ")\n"
@@ -51,7 +65,7 @@ def test_compile_v6_actions_package(tmp_path):
         for s in ir["strategies"]
         if s.get("metadata") and "pattern" in s["metadata"]
     }
-    assert {"derivation", "inference"} <= strategy_patterns
+    assert {"derivation", "inference", "evidence"} <= strategy_patterns
     infer_strategy = next(
         s
         for s in ir["strategies"]
@@ -59,6 +73,24 @@ def test_compile_v6_actions_package(tmp_path):
         == "github:v6_actions::action::bayes_update"
     )
     assert infer_strategy["conditional_probabilities"] == [0.1, 0.9]
+    evidence_strategy = next(
+        s
+        for s in ir["strategies"]
+        if (s.get("metadata") or {}).get("action_label")
+        == "github:v6_actions::action::count_evidence"
+    )
+    assert evidence_strategy["premises"] == [
+        "github:v6_actions::prediction",
+        "github:v6_actions::iid",
+    ]
+    assert evidence_strategy["conditional_probabilities"] == pytest.approx(
+        [
+            0.5,
+            0.5,
+            0.05,
+            0.301989888,
+        ]
+    )
 
     grounding_patterns = {
         k["metadata"]["grounding"]["pattern"]

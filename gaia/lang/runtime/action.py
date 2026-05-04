@@ -119,6 +119,19 @@ class Infer(Correlate):
 
 
 @dataclass
+class Evidence(Correlate):
+    """Model-based evidence: P(D|H) update."""
+
+    hypothesis: Claim | None = None
+    data: Claim | None = None
+    given: tuple[Claim, ...] = ()
+    model: dict[str, Any] | None = None
+    observed: Any | None = None
+    p_data_given_h: float = 0.5
+    p_data_given_not_h: float = 0.5
+
+
+@dataclass
 class Associate(Correlate):
     """Symmetric probabilistic association between two Claims."""
 

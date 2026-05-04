@@ -1,3 +1,5 @@
+import pytest
+
 from gaia.lang import (
     Claim,
     associate,
@@ -220,6 +222,52 @@ def test_compile_infer_action_with_given_switch_cpt():
     stat_support = _knowledge_by_label(compiled)["likelihood_helper"]
     assert stat_support.metadata["relation"]["given"] == ["github:v6_actions::g"]
     assert stat_support.metadata["relation"]["p_e_given_not_h"] == 0.5
+
+
+def test_compile_evidence_action_to_gated_infer_cpt():
+    from gaia.lang import evidence
+    from gaia.stats import Binomial
+
+    with CollectedPackage("v6_actions") as pkg:
+        h = Claim("H.")
+        h.label = "h"
+        d = Claim("D.")
+        d.label = "d"
+        gate = Claim("Gate.")
+        gate.label = "g"
+        result = evidence(
+            d,
+            hypothesis=h,
+            given=gate,
+            model=Binomial(n=10, p=0.8),
+            observed=8,
+            p_data_given_not_h=0.05,
+            rationale="Binomial evidence.",
+            label="binomial_evidence",
+        )
+        assert result is d
+        helper = pkg.actions[0].helper
+        assert helper is not None
+        helper.label = "evidence_helper"
+
+    compiled = compile_package_artifact(pkg)
+    strategy = compiled.graph.strategies[0]
+    assert strategy.type == "infer"
+    assert strategy.premises == ["github:v6_actions::h", "github:v6_actions::g"]
+    assert strategy.conclusion == "github:v6_actions::d"
+    assert strategy.conditional_probabilities == pytest.approx([0.5, 0.5, 0.05, 0.301989888])
+    assert strategy.metadata["pattern"] == "evidence"
+    assert strategy.metadata["model"]["kind"] == "binomial"
+    assert strategy.metadata["observed"] == 8
+    assert strategy.metadata["given"] == ["github:v6_actions::g"]
+
+    stat_support = _knowledge_by_label(compiled)["evidence_helper"]
+    assert stat_support.metadata["helper_kind"] == "evidence"
+    assert stat_support.metadata["relation"]["type"] == "evidence"
+    assert stat_support.metadata["relation"]["hypothesis"] == "github:v6_actions::h"
+    assert stat_support.metadata["relation"]["data"] == "github:v6_actions::d"
+    assert stat_support.metadata["relation"]["model"]["kind"] == "binomial"
+    assert stat_support.metadata["relation"]["p_data_given_h"] == pytest.approx(0.301989888)
 
 
 def test_compile_infer_lifts_probability_claims_to_cpt_values():

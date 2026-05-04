@@ -32,6 +32,8 @@ def _strategy_action_type(strategy: Any) -> str:
         return "observe"
     if pattern == "computation":
         return "compute"
+    if pattern == "evidence":
+        return "evidence"
     if pattern == "inference":
         return "infer"
     return "derive"
@@ -48,7 +50,7 @@ def _operator_action_type(operator: Any) -> str:
 
 
 def _strategy_question(strategy: Any, action_type: str, labels: dict[str, str]) -> str:
-    if action_type == "infer":
+    if action_type in {"infer", "evidence"}:
         hypothesis = strategy.premises[0] if strategy.premises else ""
         metadata = strategy.metadata or {}
         given_ids = metadata.get("given")
@@ -58,12 +60,19 @@ def _strategy_question(strategy: Any, action_type: str, labels: dict[str, str]) 
         given_clause = ""
         if given_labels:
             given_clause = " given " + ", ".join(f"[@{label}]" for label in given_labels)
-        return generate_audit_question(
-            "infer",
-            hypothesis_label=labels.get(hypothesis, hypothesis),
-            evidence_label=labels.get(strategy.conclusion, strategy.conclusion or "?"),
-            given_clause=given_clause,
-        )
+        labels_for_question = {
+            "hypothesis_label": labels.get(hypothesis, hypothesis),
+            "given_clause": given_clause,
+        }
+        if action_type == "evidence":
+            labels_for_question["data_label"] = labels.get(
+                strategy.conclusion, strategy.conclusion or "?"
+            )
+        else:
+            labels_for_question["evidence_label"] = labels.get(
+                strategy.conclusion, strategy.conclusion or "?"
+            )
+        return generate_audit_question(action_type, **labels_for_question)
     return generate_audit_question(
         action_type,
         conclusion_label=labels.get(strategy.conclusion, strategy.conclusion or "?"),

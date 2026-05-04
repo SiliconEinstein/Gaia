@@ -1,5 +1,6 @@
 from gaia.lang.dsl.knowledge import claim, context, note, question, setting
 from gaia.lang.dsl.associate_verb import associate
+from gaia.lang.dsl.evidence_verb import evidence
 from gaia.lang.dsl.infer_verb import infer
 from gaia.lang.dsl.operators import complement, contradiction, disjunction, equivalence
 from gaia.lang.dsl.propositional import and_, not_, or_
@@ -42,6 +43,7 @@ __all__ = [
     "depends_on",
     "derive",
     "disjunction",
+    "evidence",
     "equal",
     "elimination",
     "exclusive",

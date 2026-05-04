@@ -16,6 +16,10 @@ _TEMPLATES = {
         "Does [@{hypothesis_label}] predict [@{evidence_label}]{given_clause} at the stated "
         "conditional probabilities?"
     ),
+    "evidence": (
+        "Does the stated model under [@{hypothesis_label}] assign [@{data_label}]"
+        "{given_clause} the declared evidence probability?"
+    ),
     "equal": "Are [@{a_label}] and [@{b_label}] truly equivalent?",
     "contradict": "Do [@{a_label}] and [@{b_label}] truly contradict?",
     "exclusive": "Do [@{a_label}] and [@{b_label}] form a closed case split where exactly one is true?",

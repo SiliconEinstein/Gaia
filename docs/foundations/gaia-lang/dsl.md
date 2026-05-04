@@ -111,8 +111,10 @@ open_problem = question("What is the maximum Tc in hydrogen-rich superconductors
 
 Action verbs are the canonical v0.5 way to turn explicit premises into reviewable warrants.
 Support verbs (`observe`, `derive`, `compute`) return the produced conclusion claim.
-Correlate verbs (`infer`, `associate`) return a generated reviewable helper claim,
-because the relation itself is the semantic object reviewers inspect.
+Correlate verbs split by public output: `infer` returns the evidence claim,
+`evidence` returns the data claim, and `associate` returns a generated
+association helper claim. `infer` and `evidence` still keep generated internal
+warrant helpers for reviewers to inspect the probability/model relation.
 
 ### `observe(conclusion, *, given=(), background=None, rationale="", label=None)`
 
@@ -132,6 +134,27 @@ Probabilistic prediction/evidence link. Use after extracting the uncertain parts
 Returns the evidence claim. The action still creates an internal likelihood helper as the review target for accepting the probability warrant.
 
 Without `given`, the compiled BP factor is `H -> E` with CPT `[P(E|not H), P(E|H)]`. With `given=G`, the compiled factor uses premises `[H, G]` and CPT `[0.5, 0.5, P(E|not H,G), P(E|H,G)]`, so the relation becomes neutral when `G` is false. `p_e_given_not_h` defaults to `0.5`, the soft-implication baseline.
+
+### `evidence(data, *, hypothesis, model, observed, p_data_given_not_h=0.5, given=(), background=None, rationale="", label=None)`
+
+Model-based evidence link. Use when the author has a concrete data-generating model for `P(D|H)` rather than a hand-written likelihood scalar. Initial v0.5 support is intentionally Binomial-only:
+
+```python
+from gaia.lang import evidence
+from gaia.stats import Binomial
+
+f2_count = evidence(
+    f2_count,
+    hypothesis=mendelian_3_to_1,
+    model=Binomial(n=395, p=0.75),
+    observed=295,
+    p_data_given_not_h=0.5,
+    given=independent_trials,
+    rationale="Under 3:1 segregation, the count follows Binomial(n=395, p=0.75).",
+)
+```
+
+`evidence(...)` returns the data claim. The action computes `p_data_given_h` from the model and lowers to the same `infer` CPT shape as `infer(...)`; with `given`, gate-false rows are neutral. Multi-hypothesis model comparison is intentionally out of scope for this base verb.
 
 ### `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, background=None, rationale="", label=None)`
 

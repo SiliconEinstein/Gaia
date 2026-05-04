@@ -77,6 +77,7 @@ Knowledge                (QID + provenance + metadata + optional review_status)
   │   │
   │   │   ── Correlate family (probabilistic; soft constraints on 2-Claim factors)
   │   ├── InferStrategy           (directional likelihood)
+  │   ├── EvidenceStrategy        (model-evaluated data likelihood; lowers as infer)
   │   └── AssociateStrategy       (symmetric correlation)
   │
   ├── Operator           (Relate family — symmetric, hard logical)
@@ -92,7 +93,7 @@ Knowledge                (QID + provenance + metadata + optional review_status)
 
 **Action families (organising labels, not new classes).** The Strategy subtypes group into two semantic families:
 - **Support family** — directional, deterministic or empirical: `derive` / `observe` / `compute`.
-- **Correlate family** — probabilistic, soft constraints on 2-Claim factors: `infer` (directional) / `associate` (symmetric). Runtime has a `Correlate(Action)` abstract base class shared by both, so future Correlate additions and shared concerns (parameter validation, `gaia check` hooks, audit conventions) have a natural home.
+- **Correlate family** — probabilistic, soft constraints on 2-Claim factors: `infer` (author-declared directional likelihood), `evidence` (model-evaluated directional likelihood), and `associate` (symmetric). Runtime has a `Correlate(Action)` abstract base class shared by the family, so shared concerns (parameter validation, `gaia check` hooks, audit conventions) have a natural home.
 
 The `Relate` family (symmetric, hard logical) consists of the Operators. A fourth **Causal** family — for interventional / counterfactual reasoning — is parked as a future extension (§18); it would add `cause`, `intervene`, `counterfactual` verbs with do-calculus semantics.
 
@@ -113,6 +114,7 @@ The `Relate` family (symmetric, hard logical) consists of the Operators. A fourt
 
 - Correlate family IR fields (§11):
   - **`InferStrategy`** — `p_e_given_h` plus optional `p_e_given_not_h` defaulting to neutral `0.5`, plus provenance `source_id` / `data_id` / `data_hash`. IR: `type="infer"`, `conditional_probabilities=[p_e_given_not_h, p_e_given_h]` inline when ungated; with `given`, gate claims are appended to `premises` and gate-false CPT rows are neutral.
+  - **`EvidenceStrategy`** — author gives `data`, `hypothesis`, `model`, and `observed`; the adapter evaluates `p_data_given_h = P(D|H)` and lowers to the same `type="infer"` CPT shape with `p_data_given_not_h` defaulting to neutral `0.5`. v0.5 supports Binomial only.
   - **`AssociateStrategy`** — `p_a_given_b`, `p_b_given_a` (both required), plus same provenance fields. IR: `type="associate"`. Factor parameters are computed from the two conditionals plus marginals supplied via graph closure (Claim priors or other actions); `gaia check` validates coherence (§15.1).
 - `MeasurementRecord` — schema for observed-value + noise specification.
 - `DistributionLiteral` — JSON-native probability-distribution literal (`kind`, `params`, optional `CallableRef`). Used wherever a distribution enters IR (measurement noise, future prior shapes, etc.). Replaces the previously-named `ErrorModelSpec`.
@@ -120,7 +122,7 @@ The `Relate` family (symmetric, hard logical) consists of the Operators. A fourt
 **Note on the v0.5 inline-only parameter model.** Gaia kernel stores both Claim priors and Strategy CPTs **inline** on the Knowledge / Strategy objects themselves, not in sidecar records:
 
 - `Knowledge.metadata["prior"]` — author's declared prior, injected at compile time by the `priors.py` authoring convenience (discovers a package-level `priors.py`, reads its `PRIORS` dict, writes values into Knowledge metadata before IR emission).
-- `IrStrategy.conditional_probabilities` — author's declared CPT, inlined at compile time from the `Infer` action's `p_e_given_h` / `p_e_given_not_h` attributes.
+- `IrStrategy.conditional_probabilities` — author's declared CPT, inlined at compile time from the `Infer` action's `p_e_given_h` / `p_e_given_not_h` attributes or from an `Evidence` action's model-evaluated `p_data_given_h` / `p_data_given_not_h`.
 
 The older sidecar mechanism (`PriorRecord`, `StrategyParamRecord`, `ParameterizationSource`, `ResolutionPolicy`) that supported review-sidecar-driven parameter updates is **deprecated since 0.4.2** (see `gaia/cli/_reviews.py` module docstring). Foundation does not re-introduce a sidecar record mechanism; any future "multi-source parameterisation" capability will be a separate design decision, not a continuation of the deprecated sidecar.
 
@@ -518,7 +520,8 @@ Knowledge (base — QID + provenance + metadata + optional review_status)
   │   │   ── Correlate family (probabilistic; soft constraint on 2-Claim factor)
   │   │       — runtime Correlate(Action) abstract base (§11.1)
   │   ├── InferStrategy        (type="infer";     p_e_given_h, p_e_given_not_h; §11.2)
-  │   └── AssociateStrategy    (type="associate"; p_a_given_b, p_b_given_a; §11.4)
+  │   ├── EvidenceStrategy     (type="infer";     model-evaluated p_data_given_h; §11.3)
+  │   └── AssociateStrategy    (type="associate"; p_a_given_b, p_b_given_a; §11.5)
   │
   ├── Operator           (Relate family — symmetric hard logical)
   │   ├── EqualOperator
@@ -791,9 +794,9 @@ These are legitimately the province of external solvers (Z3, Lean, Coq). Foundat
 
 ---
 
-## 11. Correlate family — `infer` and `associate`
+## 11. Correlate family — `infer`, `evidence`, and `associate`
 
-**Decision: Gaia kernel groups the probabilistic 2-Claim relations into a single `Correlate` family with two members — `infer` (directional likelihood) and `associate` (symmetric correlation). Both return helper Claims with distinct semantic content. Both contribute soft constraints on 2×2 factors; `gaia check` validates coherence (hole / redundant / conflict).**
+**Decision: Gaia kernel groups the probabilistic 2-Claim relations into a single `Correlate` family with three members — `infer` (author-declared directional likelihood), `evidence` (model-evaluated directional likelihood), and `associate` (symmetric correlation). `infer` and `evidence` return the evidence/data Claim and keep a generated warrant Claim on the action; `associate` returns its generated helper Claim. All contribute soft constraints on binary factors; `gaia check` validates coherence (hole / redundant / conflict).**
 
 ### 11.1 The four action families at a glance
 
@@ -801,10 +804,10 @@ These are legitimately the province of external solvers (Z3, Lean, Coq). Foundat
 |---|---|---|---|
 | **Support** | Directional, deterministic / empirical | `derive`, `observe`, `compute` | (return conclusion Claim directly) |
 | **Relate** | Symmetric, hard logical | `equal`, `contradict`, `exclusive`, `not_`, `and_`, `or_` | `equivalence_result`, `contradiction_result`, `complement_result`, `negation_result`, `conjunction_result`, `disjunction_result` |
-| **Correlate** | Probabilistic, soft constraint (**new organising label**) | `infer`, `associate` | `likelihood`, `association` |
+| **Correlate** | Probabilistic, soft constraint (**new organising label**) | `infer`, `evidence`, `associate` | `likelihood`, `evidence`, `association` |
 | **Causal** | Interventional (do-calculus, counterfactuals) | — (not in v0.x; see §18 open points) | — |
 
-The `Correlate` family is the natural home for probabilistic 2-Claim relations. `infer` asserts that evidence E supports hypothesis H in a specific direction (a likelihood factor that updates belief on H given observation of E). `associate` asserts that A and B are statistically related without privileging a direction (observational correlation, no causal claim).
+The `Correlate` family is the natural home for probabilistic 2-Claim relations. `infer` asserts that evidence E supports hypothesis H in a specific direction (a likelihood factor that updates belief on H given observation of E). `evidence` is the same directional factor shape, but the author supplies a statistical model and observed data rather than hand-writing `P(D|H)`. `associate` asserts that A and B are statistically related without privileging a direction (observational correlation, no causal claim).
 
 Runtime class hierarchy (`gaia/lang/runtime/action.py`) grows a new abstract base:
 
@@ -824,6 +827,17 @@ class Infer(Correlate):
     helper: Claim | None = None
 
 @dataclass
+class Evidence(Correlate):
+    hypothesis: Claim | None = None
+    data: Claim | None = None
+    given: tuple[Claim, ...] = ()
+    model: dict | None = None
+    observed: object | None = None
+    p_data_given_h: float = 0.5
+    p_data_given_not_h: float = 0.5
+    helper: Claim | None = None
+
+@dataclass
 class Associate(Correlate):
     a: Claim | None = None
     b: Claim | None = None
@@ -832,7 +846,7 @@ class Associate(Correlate):
     helper: Claim | None = None
 ```
 
-`Correlate` is abstract — authors use `Infer` or `Associate` concretely, not the base directly. The base class is the natural home for shared concerns (parameter validation, `gaia check` hooks, audit metadata conventions).
+`Correlate` is abstract — authors use `Infer`, `Evidence`, or `Associate` concretely, not the base directly. The base class is the natural home for shared concerns (parameter validation, `gaia check` hooks, audit metadata conventions).
 
 ### 11.2 `infer` — directional likelihood evidence
 
@@ -889,7 +903,38 @@ Redundancy is **not a risk** — it is a natural consequence of authors capturin
 
 IR lowering follows the v0.5 shape — `type="infer"`, `premises=[H_qid]`, `conclusion=E_qid`, `conditional_probabilities=[P(E|¬H), P(E|H)]` inline. With `given=G`, lowering uses `premises=[H_qid, G_qid]` and `conditional_probabilities=[0.5, 0.5, P(E|¬H,G), P(E|H,G)]`, so the relation is neutral when the gate is false. Well-known metadata keys remain under `metadata["evidence"] = {source_id, data_id, data_hash, rationale}`. The optional priors, when provided, become additional entries in the package's prior-provider graph for `hypothesis` / `evidence`, with `source_id = "from:{infer_action_qid}"` so `gaia check` can attribute them.
 
-### 11.3 Why forced CPT pair, no LR-only path
+### 11.3 `evidence` — model-evaluated data likelihood
+
+Authors write:
+
+```python
+from gaia.lang import Claim, evidence
+from gaia.stats import Binomial
+
+mendelian = Claim("The F2 dominant phenotype count follows a 3:1 segregation model.")
+f2_count = Claim("Mendel observed 295 dominant phenotypes out of 395 F2 plants.")
+independent_trials = Claim("The F2 phenotypes can be treated as independent Bernoulli trials.")
+
+f2_count = evidence(
+    data=f2_count,
+    hypothesis=mendelian,
+    model=Binomial(n=395, p=0.75),
+    observed=295,
+    p_data_given_not_h=0.5,   # OPTIONAL. Neutral soft-implication baseline.
+    given=independent_trials,
+    rationale="Under the 3:1 model, the dominant count is Binomial(n=395, p=0.75).",
+)
+```
+
+`evidence()` is not a multi-hypothesis model-comparison primitive. It is the model-backed sibling of `infer()`: the author supplies a data Claim, a hypothesis Claim, a statistical model, and the observed sufficient statistic; Gaia evaluates `P(D|H)` and lowers the action to the existing binary `infer` CPT shape. The alternate side remains `P(D|¬H)`, supplied directly as `p_data_given_not_h` and defaulting to neutral `0.5`. Explicit alternate models, mutually exclusive model sets, and exhaustive hypothesis spaces belong to a future `model_compare(...)` wrapper, not this base primitive.
+
+**Initial scope.** v0.5 supports `Binomial` only. This avoids the reference-measure problem for continuous densities and keeps the first executable evidence verb tied to the concrete Mendel-style use case. Future adapters may add `null_model` / alternate-model evaluation after the binary primitive is stable.
+
+**Return value:** `evidence()` returns the data Claim `D`. The action also creates a generated helper Claim with `helper_kind="evidence"`; that helper remains attached as the reviewable warrant for the model choice, observed statistic, computed `P(D|H)`, and declared `P(D|¬H)`.
+
+IR lowering follows the same gate semantics as `infer`: `type="infer"`, `premises=[H_qid]`, `conclusion=D_qid`, and `conditional_probabilities=[P(D|¬H), P(D|H)]`. With `given=G`, the gate-false rows are neutral: `[0.5, 0.5, P(D|¬H,G), P(D|H,G)]`.
+
+### 11.4 Why forced CPT pair, no LR-only path
 
 The likelihood-ratio-only shortcut fails two tests.
 
@@ -903,7 +948,7 @@ P(E = true | I)  =  P(E | H, I) · P(H | I)  +  P(E | ¬H, I) · P(¬H | I)
 
 Different absolute CPTs with the same ratio yield different `E` posteriors, which propagate onward through the factor graph. Any "LR → CPT" normalisation the kernel might pick is **arbitrary** — no scientific justification, and would produce author-unrecognisable results. By forcing the pair, Gaia makes the author own the numerical commitment.
 
-### 11.4 `associate` — symmetric statistical correlation
+### 11.5 `associate` — symmetric statistical correlation
 
 Authors write:
 
@@ -991,7 +1036,7 @@ This rule has two consequences worth calling out:
 
 Future **Causal family** verbs (§18 open point) will use an analogous lowering contract with do-calculus / interventional semantics, factored through unary priors and interventional pairwise factors to preserve the same no-double-counting invariant.
 
-### 11.5 Literature Bayes-factor citations
+### 11.6 Literature Bayes-factor citations
 
 Common authoring case: a paper reports "Bayes factor for E on H is 8.7". Gaia does **not** ship a `bayes_factor()` or `likelihood_ratio()` DSL helper. The author does their own conversion:
 
@@ -1015,9 +1060,9 @@ infer(
 
 The derivation lives in `rationale` — a reviewable audit record. Kernel normalisations are never invoked.
 
-### 11.6 Correlate patterns in compositions
+### 11.7 Correlate patterns in compositions
 
-Multi-step scientific pipelines — load a light curve, compute BLS power, compare to null model, then `infer(...)` — use compositions (§12), not a separate "evidence adapter" primitive. The composition ends in a Correlate verb (usually `infer`); for `infer`, its public `conclusion` is the evidence Claim while the likelihood helper remains an internal review warrant.
+Multi-step scientific pipelines — load a light curve, compute BLS power, compare to null model, then `infer(...)` — use compositions (§12). Direct model-backed data likelihoods use `evidence(...)`; multi-step pipelines that compute their own CPT pair still end in a Correlate verb (usually `infer`). For `infer` and `evidence`, the public `conclusion` is the evidence/data Claim while the helper remains an internal review warrant.
 
 Example (full worked version in composition spec §7):
 
@@ -1033,7 +1078,7 @@ def gaussian_measurement(evidence, hypothesis, *, mu_h, mu_not_h, noise):
 
 `associate` is symmetric in inputs and does not naturally appear at the *terminal* position of evidence-shaped compositions, but it can appear in observational-data compositions that wrap `@compute`-driven correlation analyses and conclude with `associate(...)`.
 
-### 11.7 Provenance field set (final)
+### 11.8 Provenance field set (final)
 
 Kernel-consumed fields on any Correlate action (stored in `metadata` of the corresponding IR strategy):
 
@@ -1051,7 +1096,7 @@ Kernel-consumed fields on any Correlate action (stored in `metadata` of the corr
 
 When a Correlate action is the conclusion of a composition (§12), the multi-step computation that produced the numeric parameters is fully visible as the composition's `sub_knowledge` list; a separate `EvidenceComputationRecord` is not required.
 
-### 11.8 Retired DSL helpers
+### 11.9 Retired DSL helpers
 
 Explicitly **not** part of the foundation kernel:
 
@@ -1060,7 +1105,7 @@ Explicitly **not** part of the foundation kernel:
 - `@evidence_adapter` as a separate decorator — **subsumed by `@composition` (§12)**
 - A canonical evidence-adapter library (`gaussian_measurement_evidence`, `binomial_count`, etc., as free functions) — **subsumed by named composition templates**
 
-Any author-facing tooling that accepts an LR / BF scalar must compile down to the `(p_e_given_h, p_e_given_not_h)` pair via explicit author-supplied anchoring (as in §11.5) — it cannot emit an LR-only IR node.
+Any author-facing tooling that accepts an LR / BF scalar must compile down to the `(p_e_given_h, p_e_given_not_h)` pair via explicit author-supplied anchoring (as in §11.6) — it cannot emit an LR-only IR node.
 
 ---
 
@@ -1105,11 +1150,11 @@ See §14.5 and §14.6 for the retraction statements.
 
 ## 13. Background premises on strategies
 
-**Decision: `Derive`, `Compute`, and `Infer` all carry `background: list[str]`.**
+**Decision: `Derive`, `Compute`, `Infer`, `Evidence`, and `Associate` all carry `background: list[str]`.**
 
 ### 13.1 What `background` is
 
-`background` references Claims whose truth conditions the strategy depends on without their being the primary reasoning subject. For Infer: the `background` Claims are conditions under which the declared likelihood is valid.
+`background` references Claims whose truth conditions the strategy depends on without their being the primary reasoning subject. For Infer/Evidence: the `background` Claims are conditions under which the declared or model-evaluated likelihood is valid.
 
 BP lowering treats `background` Claims as conjoined conditions on the strategy's factor, i.e. the factor is active only when all `background` Claims are in their "true" state (Cromwell-clamped). In likelihood terms:
 
@@ -1147,7 +1192,7 @@ They do not merge. Both can be present on the same package.
 
 ### 14.2 v5 reasoning strategies
 
-The v5 strategy verbs (`deduction`, `abduction`, `elimination`, `case_analysis`, `induction`, `noisy_and`, `analogy`, `extrapolation`, `mathematical_induction`, `composite`) are **deprecated from v0.5**. The v6 verb set (`Derive`, `Observe`, `Compute`, `Infer`, `Equal`, `Contradict`, `Exclusive`, `not_`, `and_`, `or_`) plus the new `ComposedAction` composition primitive (§12) is the stable surface. Deprecation follows the standard schedule: warnings now, removal after one full minor release with the migrator shipped. v5 compositional strategies (`case_analysis`, `induction`, `composite`, `mathematical_induction`) are replaced by `@composition`-decorated user functions (§12.9), not by new kernel primitives.
+The v5 strategy verbs (`deduction`, `abduction`, `elimination`, `case_analysis`, `induction`, `noisy_and`, `analogy`, `extrapolation`, `mathematical_induction`, `composite`) are **deprecated from v0.5**. The v6 verb set (`Derive`, `Observe`, `Compute`, `Infer`, `Evidence`, `Associate`, `Equal`, `Contradict`, `Exclusive`, `not_`, `and_`, `or_`) plus the new `ComposedAction` composition primitive (§12) is the stable surface. Deprecation follows the standard schedule: warnings now, removal after one full minor release with the migrator shipped. v5 compositional strategies (`case_analysis`, `induction`, `composite`, `mathematical_induction`) are replaced by `@composition`-decorated user functions (§12.9), not by new kernel primitives.
 
 ### 14.3 `EvidenceMetadata.independence_group`
 
@@ -1155,7 +1200,7 @@ Removed. Use `IndependenceDeclaration` (§7).
 
 ### 14.4 `EvidenceMetadata` class
 
-Dissolved into `InferStrategy` (§11). The *name* "EvidenceMetadata" is no longer a kernel type; the evidence contract is now a field set on `InferStrategy`.
+Dissolved into Correlate action metadata (§11). The *name* "EvidenceMetadata" is no longer a kernel type; `infer` and `evidence` both lower to `InferStrategy`-shaped CPTs with action metadata carrying provenance/model details.
 
 ### 14.5 `@evidence_adapter` decorator and the canonical evidence-adapter library
 
@@ -1305,7 +1350,7 @@ IR schema changes belong in change-controlled PRs against `docs/foundations/gaia
 3. **`[implemented]`** `background: list[str] | None` is already on `Strategy` at IR layer (`gaia/ir/strategy.py:146`) and on `Action` at runtime. Foundation adds a normative description (§13) but no schema change.
 4. **`[new]`** Add `MeasurementRecord`, `DistributionLiteral`, `CallableRef` pydantic schemas (§4.5 / §4.6 / §4.8). Attach `MeasurementRecord` via `Knowledge.metadata["measurement"]` with schema-validated read.
 5. **`[new]`** Add `QuantityLiteral` schema (`{value: float, unit: str}`) as the IR serialisation carrier for unit-bearing values. Record the literal-hash invariant (§4.5): Claim identity and `context_id` hash the literal `{value, unit}` bytes; no unit canonicalisation at hash time. Every IR site that carries a unit (`MeasurementRecord.observed_value`, `DistributionLiteral.params`, parameterised `Claim` parameters) uses `QuantityLiteral`.
-6. **`[new]`** Define foundation-level well-known key on `IrStrategy.metadata` for `type == "infer"` (§11.1, §11.7):
+6. **`[new]`** Define foundation-level well-known key on `IrStrategy.metadata` for `type == "infer"` (§11.1, §11.8):
    - `metadata["evidence"]` = `{source_id, data_id, data_hash, rationale}`
 
    No new top-level fields on `IrStrategy` itself; the existing inline `conditional_probabilities` already carries `[P(E|¬H), P(E|H)]`. **No separate `EvidenceComputationRecord` sidecar**: when an Infer's CPT is adapter-produced (e.g., from a `gaussian_measurement` composition), the adapter sits inside a `@compute` sub-action of the enclosing `ComposedAction`, and its `CallableRef` lives on that sub-action — the composition's `sub_knowledge` trace IS the adapter provenance.
@@ -1335,14 +1380,16 @@ IR schema changes belong in change-controlled PRs against `docs/foundations/gaia
 
 11c. **`[new]`** Introduce the Correlate action family per §11. Add abstract base class `Correlate(Action)` in `gaia/lang/runtime/action.py`. Migrate `Infer` to subclass `Correlate` (from current direct `Action` subclass). This creates a shared home for shared concerns across probabilistic 2-Claim actions — parameter validation, `gaia check` hooks, audit metadata conventions — without altering existing Infer semantics.
 
-11d. **`[new]`** Add `associate()` DSL function + `Associate(Correlate)` runtime dataclass + `AssociateStrategy` IR node (§11.4). DSL: `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, background, rationale, label) -> Claim`. Runtime: `Associate` inherits from `Correlate` with `a`, `b`, `p_a_given_b`, `p_b_given_a`, `prior_a`, `prior_b`, `helper` fields. DSL returns a generated helper Claim with `metadata["helper_kind"] = "association"`. IR lowering: `type="associate"`, `premises=[A_qid, B_qid]` (no directional premise/conclusion split — both symmetric premises), the two conditionals stored in a dedicated schema field. BP factor lowering: 2×2 symmetric factor, parameters derived from `(p_a_given_b, p_b_given_a)` plus marginals obtained via graph closure (`gaia check` validates coherence; see item 11e). Optional `prior_a` / `prior_b` contribute to the prior-provider graph for A and B as additional sources, source-tagged `"from:{associate_action_qid}"`. Similarly, `infer()` accepts optional `prior_hypothesis` / `prior_evidence` arguments that contribute to the hypothesis's / evidence's prior-provider graph (§11.2); this is an authoring ergonomics feature, not a separate mechanism — the soft-constraint model treats all prior providers uniformly.
+11d. **`[new]`** Add `associate()` DSL function + `Associate(Correlate)` runtime dataclass + `AssociateStrategy` IR node (§11.5). DSL: `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, background, rationale, label) -> Claim`. Runtime: `Associate` inherits from `Correlate` with `a`, `b`, `p_a_given_b`, `p_b_given_a`, `prior_a`, `prior_b`, `helper` fields. DSL returns a generated helper Claim with `metadata["helper_kind"] = "association"`. IR lowering: `type="associate"`, `premises=[A_qid, B_qid]` (no directional premise/conclusion split — both symmetric premises), the two conditionals stored in a dedicated schema field. BP factor lowering: 2×2 symmetric factor, parameters derived from `(p_a_given_b, p_b_given_a)` plus marginals obtained via graph closure (`gaia check` validates coherence; see item 11e). Optional `prior_a` / `prior_b` contribute to the prior-provider graph for A and B as additional sources, source-tagged `"from:{associate_action_qid}"`. Similarly, `infer()` accepts optional `prior_hypothesis` / `prior_evidence` arguments that contribute to the hypothesis's / evidence's prior-provider graph (§11.2); this is an authoring ergonomics feature, not a separate mechanism — the soft-constraint model treats all prior providers uniformly.
 
-11e. **`[new]`** Extend `gaia check` to report factor-graph coherence for any probabilistic factor (Infer, Associate, and future Correlate / Causal members). Three outcomes to surface:
+11e. **`[new]`** Extend `gaia check` to report factor-graph coherence for any probabilistic factor (Infer, Evidence, Associate, and future Correlate / Causal members). Three outcomes to surface:
     - **Hole** — factor parameter has no provider (no constraint path supplies the needed marginal or joint entry). Hard error.
     - **Redundant** — factor parameter has multiple providers whose values agree (Bayes-consistent). Informational: author should confirm intentional over-specification.
     - **Conflict** — factor parameter has multiple providers whose values disagree (Bayes-violation or numerical conflict). Hard error.
 
     This is a **general** responsibility, not `associate`-specific — the same three categories apply to any factor where multiple constraints may collide (two `infer` actions on the same hypothesis pair, explicit `prior=` plus implied marginal from a correlate action, etc.).
+
+11f. **`[new]`** Add `evidence()` DSL function + `Evidence(Correlate)` runtime dataclass (§11.3). DSL: `evidence(data, *, hypothesis, model, observed, p_data_given_not_h=0.5, given=(), background=None, rationale="", label=None) -> Claim`. Runtime: `Evidence` stores `hypothesis`, `data`, `given`, model metadata, observed statistic, computed `p_data_given_h`, declared `p_data_given_not_h`, and a generated `helper_kind="evidence"` warrant. IR lowering reuses `type="infer"` with the same gated CPT shape as `infer()`. Initial executable scope is Binomial-only.
 
 ### 17.3 Review / R4
 

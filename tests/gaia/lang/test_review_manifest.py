@@ -1,8 +1,9 @@
-from gaia.lang import Claim, contradict, derive, equal, exclusive, infer, observe
+from gaia.lang import Claim, contradict, derive, equal, evidence, exclusive, infer, observe
 from gaia.lang.compiler import compile_package_artifact
 from gaia.lang.review.manifest import generate_review_manifest
 from gaia.lang.review.templates import generate_audit_question
 from gaia.lang.runtime.package import CollectedPackage
+from gaia.stats import Binomial
 
 
 def test_audit_question_for_derive():
@@ -25,6 +26,16 @@ def test_audit_question_for_infer():
     assert "[@spectrum]" in question
     assert "predict" in question.lower()
     assert "association" not in question.lower()
+
+
+def test_audit_question_for_evidence():
+    question = generate_audit_question(
+        "evidence", hypothesis_label="mendel", data_label="f2_count", given_clause=" given [@iid]"
+    )
+    assert "[@mendel]" in question
+    assert "[@f2_count]" in question
+    assert "[@iid]" in question
+    assert "model" in question.lower()
 
 
 def test_audit_question_for_equal():
@@ -109,6 +120,35 @@ def test_generate_review_manifest_for_gated_infer_names_given_claim():
     assert "[@h]" in question
     assert "[@e]" in question
     assert "[@gate]" in question
+
+
+def test_generate_review_manifest_for_evidence_names_given_claim():
+    with CollectedPackage("review_pkg") as pkg:
+        h = Claim("Hypothesis.")
+        h.label = "h"
+        d = Claim("Data.")
+        d.label = "d"
+        gate = Claim("Independent trials.")
+        gate.label = "gate"
+        evidence(
+            d,
+            hypothesis=h,
+            given=gate,
+            model=Binomial(n=10, p=0.8),
+            observed=8,
+            rationale="Binomial model.",
+            label="model_evidence",
+        )
+
+    compiled = compile_package_artifact(pkg)
+    manifest = generate_review_manifest(compiled)
+    by_action = {review.action_label: review for review in manifest.reviews}
+
+    question = by_action["github:review_pkg::action::model_evidence"].audit_question
+    assert "[@h]" in question
+    assert "[@d]" in question
+    assert "[@gate]" in question
+    assert "model" in question.lower()
 
 
 def test_compiled_package_carries_review_manifest_outside_graph_json():

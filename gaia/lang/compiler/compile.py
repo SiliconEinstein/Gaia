@@ -41,6 +41,7 @@ from gaia.lang.runtime.action import (
     Contradict,
     DependsOn,
     Equal,
+    Evidence as EvidenceAction,
     Exclusive,
     Infer as InferAction,
     Observe,
@@ -496,6 +497,15 @@ def compile_package_artifact(
                 register_knowledge(action.p_e_given_h)
             if isinstance(action.p_e_given_not_h, Knowledge):
                 register_knowledge(action.p_e_given_not_h)
+        elif isinstance(action, EvidenceAction):
+            if action.hypothesis is not None:
+                register_knowledge(action.hypothesis)
+            if action.data is not None:
+                register_knowledge(action.data)
+            for given in action.given:
+                register_knowledge(given)
+            if action.helper is not None:
+                register_knowledge(action.helper)
         elif isinstance(action, Associate):
             if action.a is not None:
                 register_knowledge(action.a)
@@ -840,6 +850,42 @@ def compile_package_artifact(
         _record_action_target(action_label, strategy.strategy_id)
         return strategy
 
+    def _compile_evidence_action(action: EvidenceAction, action_index: int) -> IrStrategy:
+        if action.hypothesis is None or action.data is None:
+            raise ValueError("Evidence action requires hypothesis and data")
+        action_label, metadata = _action_metadata(action, pkg, action_index, pattern="evidence")
+        warrant_ids = _warrant_ids(action)
+        if warrant_ids:
+            metadata["warrants"] = warrant_ids
+        given_ids = [knowledge_map[id(given)] for given in action.given]
+        if given_ids:
+            metadata["given"] = given_ids
+        metadata["model"] = action.model
+        metadata["observed"] = action.observed
+        metadata["p_data_given_h"] = action.p_data_given_h
+        metadata["p_data_given_not_h"] = action.p_data_given_not_h
+        _attach_action_label_to_warrants(
+            action,
+            action_label=action_label,
+            pattern="evidence",
+        )
+        strategy = IrStrategy(
+            scope="local",
+            type="infer",
+            premises=[knowledge_map[id(action.hypothesis)], *given_ids],
+            conclusion=knowledge_map[id(action.data)],
+            background=[knowledge_map[id(bg)] for bg in action.background] or None,
+            steps=_action_steps(action.rationale),
+            conditional_probabilities=_infer_conditional_probabilities(
+                p_e_given_h=action.p_data_given_h,
+                p_e_given_not_h=action.p_data_given_not_h,
+                given_count=len(given_ids),
+            ),
+            metadata=metadata,
+        )
+        _record_action_target(action_label, strategy.strategy_id)
+        return strategy
+
     def _compile_associate_action(action: Associate, action_index: int) -> IrStrategy:
         if action.a is None or action.b is None or action.helper is None:
             raise ValueError("Associate action requires a, b, and helper")
@@ -877,6 +923,8 @@ def compile_package_artifact(
             return _compile_relate_action(action, action_index)
         if isinstance(action, InferAction):
             return _compile_infer_action(action, action_index)
+        if isinstance(action, EvidenceAction):
+            return _compile_evidence_action(action, action_index)
         if isinstance(action, Associate):
             return _compile_associate_action(action, action_index)
         if isinstance(action, Compose):
