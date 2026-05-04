@@ -92,6 +92,26 @@ class Setting(Note):
         super().__init__(content=content, format=format, metadata=metadata, **kwargs)
 
 
+class ClaimKind(Enum):
+    """Shape discriminator for the structured-content of a Claim (spec §4.2).
+
+    GENERAL      — default; formula optional, no structural commitments
+    PARAMETER    — asserts a Variable takes a specific value (Equals(var, const))
+    OBSERVATION  — records observed values for one or more Variables
+    QUANTIFIED   — top-level quantifier (Forall/Exists) in formula
+    CAUSAL       — top-level Causes(...) predicate in formula
+
+    NOT a "role" (hypothesis/prediction/observation-as-evidence) — those live
+    on action graph nodes. NOT Grounding.kind. NOT helper-claim metadata.
+    """
+
+    GENERAL = "general"
+    PARAMETER = "parameter"
+    OBSERVATION = "observation"
+    QUANTIFIED = "quantified"
+    CAUSAL = "causal"
+
+
 @dataclass(init=False, eq=False)
 class Claim(Knowledge):
     """Proposition with prior. Participates in BP."""
@@ -99,6 +119,8 @@ class Claim(Knowledge):
     prior: float | None = None
     grounding: Grounding | None = None
     supports: list[Action] = field(default_factory=list)
+    formula: Any = None
+    kind: ClaimKind = ClaimKind.GENERAL
     _param_fields: ClassVar[dict[str, Any]] = {}
 
     def __init_subclass__(cls, **kwargs):
@@ -118,6 +140,8 @@ class Claim(Knowledge):
             "grounding",
             "supports",
             "targets",
+            "formula",
+            "kind",
         }
         cls._param_fields = {
             name: ann
@@ -157,8 +181,18 @@ class Claim(Knowledge):
         prior: float | None = None,
         grounding: Grounding | None = None,
         supports: list[Any] | None = None,
+        formula: Any = None,
+        kind: ClaimKind = ClaimKind.GENERAL,
         **kwargs,
     ):
+        if formula is not None:
+            from gaia.lang.formula.predicate import is_formula
+
+            if not is_formula(formula):
+                raise TypeError(f"formula must be a Formula or None, got {type(formula).__name__}")
+        if not isinstance(kind, ClaimKind):
+            raise TypeError(f"kind must be a ClaimKind member, got {type(kind).__name__}")
+
         param_fields = getattr(self.__class__, "_param_fields", {})
         param_values: dict[str, Any] = {}
         knowledge_kwargs: dict[str, Any] = {}
@@ -212,6 +246,8 @@ class Claim(Knowledge):
         self.prior = prior
         self.grounding = grounding
         self.supports = list(supports or [])
+        self.formula = formula
+        self.kind = kind
 
 
 @dataclass(init=False, eq=False)
