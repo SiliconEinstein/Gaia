@@ -50,10 +50,19 @@ def _operator_action_type(operator: Any) -> str:
 def _strategy_question(strategy: Any, action_type: str, labels: dict[str, str]) -> str:
     if action_type == "infer":
         hypothesis = strategy.premises[0] if strategy.premises else ""
+        metadata = strategy.metadata or {}
+        given_ids = metadata.get("given")
+        if not isinstance(given_ids, list):
+            given_ids = strategy.premises[1:]
+        given_labels = [labels.get(given_id, given_id) for given_id in given_ids]
+        given_clause = ""
+        if given_labels:
+            given_clause = " given " + ", ".join(f"[@{label}]" for label in given_labels)
         return generate_audit_question(
             "infer",
             hypothesis_label=labels.get(hypothesis, hypothesis),
             evidence_label=labels.get(strategy.conclusion, strategy.conclusion or "?"),
+            given_clause=given_clause,
         )
     return generate_audit_question(
         action_type,

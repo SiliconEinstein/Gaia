@@ -5,7 +5,7 @@
 > **Scope:** The `ComposedAction` Knowledge subtype, the `@composition` authoring decorator, `CompositeStrategy` → `ComposedAction` migration, the `gaia.evidence` canonical template set, and all implementation-level mechanics the foundation defers to this document.
 > **Relationship to foundation spec:** Foundation §12 commits to six invariants (ComposedAction is a Knowledge subtype, deterministic identity, sub-Knowledge universality, hierarchical-with-override review, R4 at composition level, CallableRef-as-provenance survives compositions). This spec specifies **how** those invariants are realised. Mechanics here may iterate without re-editing foundation.
 
-> **Current v0.5 implementation note (2026-04-25):** PR #477 landed the minimal executable form under the shorter names `Compose` and `@compose`. The compiled IR stores records in top-level `graph.composes` (`gaia/ir/compose.py`) with `inputs`, `background`, `actions`, `warrants`, and `conclusion`; it does **not** yet promote `Compose` to a `Knowledge` subtype or inject reverse `composition_id` pointers into child records. `infer()` now returns a `helper_kind="likelihood"` Claim and `associate()` returns a `helper_kind="association"` Claim. Treat the `ComposedAction` / `@composition` naming and Knowledge-subtype promotion below as the fuller target design, not as current code facts.
+> **Current v0.5 implementation note (2026-04-25):** PR #477 landed the minimal executable form under the shorter names `Compose` and `@compose`. The compiled IR stores records in top-level `graph.composes` (`gaia/ir/compose.py`) with `inputs`, `background`, `actions`, `warrants`, and `conclusion`; it does **not** yet promote `Compose` to a `Knowledge` subtype or inject reverse `composition_id` pointers into child records. `infer()` returns the evidence Claim and keeps a `helper_kind="likelihood"` Claim as an internal review warrant; `associate()` returns a `helper_kind="association"` Claim. Treat the `ComposedAction` / `@composition` naming and Knowledge-subtype promotion below as the fuller target design, not as current code facts.
 
 ---
 
@@ -75,7 +75,7 @@ In v6, every primitive reasoning verb returns a Claim, but what kind of Claim de
 
 - **Support verbs** (`gaia/lang/dsl/support.py` — `derive`, `observe`, `compute`) return the **conclusion Claim** that the action produces / binds / references. That Claim is part of the author's proposition layer.
 - **Relate verbs** (`gaia/lang/dsl/relate.py` — `equal`, `contradict`, `exclusive`) return a **generated helper Claim** representing the relation itself. Both operands were pre-existing inputs; the new object is the relation-assertion helper.
-- **Correlate verbs** (`gaia/lang/dsl/infer_verb.py` — `infer`; new `associate` — §11.4 foundation spec) follow the Relate pattern, not the Support pattern. Both operands (evidence+hypothesis for `infer`, A+B for `associate`) are pre-existing inputs. The action produces a new generated helper Claim representing the probabilistic relation — `helper_kind="likelihood"` for `infer()` and `helper_kind="association"` for `associate()`. The relation noun is the kind tag, matching the Relate family convention.
+- **Correlate verbs** split by public output. `infer(...)` returns the evidence Claim and keeps a generated `helper_kind="likelihood"` Claim as the review warrant for the probability relation. `associate(...)` follows the Relate pattern and returns its generated `helper_kind="association"` Claim.
 
 A composition's `conclusion` is whichever Claim the terminal action returned — captured as the decorated function's `return` value. No `terminal_action` field is needed; the conclusion Claim already references its producing action through the reasoning graph.
 
@@ -358,16 +358,15 @@ ComposedAction(exoplanet_gaia:transit_bls::<structure_hash>)
                          compute_p_not_h_qid,
                          infer_transit_qid,
                          likelihood_helper_qid]          # generated helper, helper_kind="likelihood"
-    conclusion        = likelihood_helper_qid       # the generated helper Claim
-                                                     # (infer() returns its helper Claim,
-                                                     #  helper_kind="likelihood", §11.2 foundation)
+    conclusion        = evidence_qid                # infer() returns the evidence Claim;
+                                                     # likelihood_helper_qid remains a review warrant
 
 + 7 independent Knowledge nodes in the IR, each flushed to the
   package during scope exit with metadata["composition_id"]
   pointing back to the ComposedAction.
 ```
 
-The composition call `transit_bls_evidence(evidence=kepler_lightcurve, hypothesis=kepler_87b_exists, ...)` returns the **infer-generated helper Claim** whose content asserts "lightcurve statistically supports kepler_87b_exists with P(E|H), P(E|¬H)". Review targets this helper — reviewer accepting it accepts the whole composition's inference claim. Downstream code can chain further reasoning off the helper Claim (e.g., using it as a premise in a compute chain or as a component of a multi-instrument meta-analysis).
+The composition call `transit_bls_evidence(evidence=kepler_lightcurve, hypothesis=kepler_87b_exists, ...)` returns the **evidence Claim**. The infer-generated likelihood helper remains attached to the `Infer` action as the review warrant for the probability estimate. Downstream packages chain from the evidence/hypothesis graph and its compiled inference factor, not from the helper as an independent probabilistic input.
 
 Downstream packages import `kepler_87b_exists` and read its baked inference output. No astropy, no BLS recomputation, no light-curve data access — just the `IrStrategy.conditional_probabilities` that `compute_p_h_qid` / `compute_p_not_h_qid` populated at author's time.
 

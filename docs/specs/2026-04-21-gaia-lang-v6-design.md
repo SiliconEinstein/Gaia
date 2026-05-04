@@ -257,7 +257,7 @@ At compile time, the label is stored in the compiled target's `metadata.action_l
 
 Actions are registered in the collected package when created. `Claim.supports` is a convenience index for InquiryState and user inspection, not the compiler's only source of truth.
 
-**Warrants:** `warrants` tracks the helper Claims that need review (e.g., `Implies(AllTrue(A,B), C)` for derive). These are the audit targets in ReviewManifest.
+**Warrants:** `warrants` tracks the helper Claims that explain what a reviewer is accepting (e.g., `Implies(AllTrue(A,B), C)` for derive). ReviewManifest entries are generated for reviewable action targets such as the compiled Strategy or Operator; those entries may reference helper Claims as warrants.
 
 Helper claims are ordinary Claims with metadata flags:
 
@@ -742,7 +742,7 @@ knowledge.metadata["gaia"]["provenance"] = {
 | `compute(...)` / `@compute` | `FormalStrategy(type="deduction", metadata={pattern="computation", compute={...}})` |
 | `equal(A, B)` | `Operator(type="equivalence")` + Equivalence helper |
 | `contradict(A, B)` | `Operator(type="contradiction")` + Contradiction helper |
-| `infer(...)` | `Strategy(type="infer", premises=[H], conclusion=E)` + CPT `[p_e_given_not_h, p_e_given_h]` + StatisticalSupport helper |
+| `infer(...)` | `Strategy(type="infer", premises=[H], conclusion=E)` + CPT `[p_e_given_not_h, p_e_given_h]`, or append `given` gates to premises with neutral gate-false CPT rows + internal StatisticalSupport helper |
 | `given=(A, B, C)` tuple | `Operator(type="conjunction")` + conjunction helper |
 | `rationale=` | `steps=[Step(reasoning=rationale)]` |
 | `background=` | `Strategy.background` |

@@ -255,7 +255,7 @@ Templates are rendered to concrete questions using the referenced Claims' labels
 | `compute(...)` / `@compute` | `FormalStrategy(type="deduction", metadata.pattern="computation", metadata.compute={...})` |
 | `equal(A, B)` | `Operator(type="equivalence")` + Equivalence helper Claim |
 | `contradict(A, B)` | `Operator(type="contradiction")` + Contradiction helper Claim |
-| `infer(...)` | `Strategy(type="infer", premises=[H], conclusion=E)` + CPT `[p_e_given_not_h, p_e_given_h]` + StatisticalSupport helper |
+| `infer(...)` | `Strategy(type="infer", premises=[H], conclusion=E)` + CPT `[p_e_given_not_h, p_e_given_h]`, or append `given` gates to premises with neutral gate-false CPT rows + internal StatisticalSupport helper |
 | `given=(A, B, C)` tuple | `Operator(type="conjunction")` + conjunction helper Claim |
 | `rationale=` | `steps=[Step(reasoning=rationale)]` |
 | `background=` | `Strategy.background` |

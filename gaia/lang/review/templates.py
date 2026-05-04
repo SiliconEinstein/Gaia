@@ -13,7 +13,7 @@ _TEMPLATES = {
     "observe": "Is the observation of [@{conclusion_label}] reliable under the stated conditions?",
     "compute": "Is the computation of [@{conclusion_label}] correctly implemented?",
     "infer": (
-        "Does [@{hypothesis_label}] predict [@{evidence_label}] at the stated "
+        "Does [@{hypothesis_label}] predict [@{evidence_label}]{given_clause} at the stated "
         "conditional probabilities?"
     ),
     "equal": "Are [@{a_label}] and [@{b_label}] truly equivalent?",
@@ -24,5 +24,6 @@ _TEMPLATES = {
 
 
 def generate_audit_question(action_type: str, **labels) -> str:
+    labels.setdefault("given_clause", "")
     template = _TEMPLATES.get(action_type, "Is this reasoning step valid?")
     return template.format_map(_MissingLabelDict(labels))
