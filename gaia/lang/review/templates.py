@@ -17,8 +17,8 @@ _TEMPLATES = {
         "conditional probabilities?"
     ),
     "evidence": (
-        "Does the stated model under [@{hypothesis_label}] assign [@{data_label}]"
-        "{given_clause} the declared evidence probability?"
+        "Do the stated model and null model under [@{hypothesis_label}] assign [@{data_label}]"
+        "{given_clause} the declared evidence probabilities?"
     ),
     "equal": "Are [@{a_label}] and [@{b_label}] truly equivalent?",
     "contradict": "Do [@{a_label}] and [@{b_label}] truly contradict?",

@@ -42,8 +42,8 @@ def test_compile_v6_actions_package(tmp_path):
         "    hypothesis=prediction,\n"
         "    given=iid,\n"
         "    model=Binomial(n=10, p=0.8),\n"
+        "    null_model=Binomial(n=10, p=0.5),\n"
         "    observed=8,\n"
-        "    p_data_given_not_h=0.05,\n"
         '    rationale="Binomial model evidence.",\n'
         '    label="count_evidence",\n'
         ")\n"
@@ -87,7 +87,7 @@ def test_compile_v6_actions_package(tmp_path):
         [
             0.5,
             0.5,
-            0.05,
+            0.0439453125,
             0.301989888,
         ]
     )

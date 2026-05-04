@@ -135,6 +135,7 @@ def test_generate_review_manifest_for_evidence_names_given_claim():
             hypothesis=h,
             given=gate,
             model=Binomial(n=10, p=0.8),
+            null_model=Binomial(n=10, p=0.5),
             observed=8,
             rationale="Binomial model.",
             label="model_evidence",
@@ -149,6 +150,7 @@ def test_generate_review_manifest_for_evidence_names_given_claim():
     assert "[@d]" in question
     assert "[@gate]" in question
     assert "model" in question.lower()
+    assert "null model" in question.lower()
 
 
 def test_compiled_package_carries_review_manifest_outside_graph_json():

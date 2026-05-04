@@ -240,8 +240,8 @@ def test_compile_evidence_action_to_gated_infer_cpt():
             hypothesis=h,
             given=gate,
             model=Binomial(n=10, p=0.8),
+            null_model=Binomial(n=10, p=0.5),
             observed=8,
-            p_data_given_not_h=0.05,
             rationale="Binomial evidence.",
             label="binomial_evidence",
         )
@@ -255,9 +255,12 @@ def test_compile_evidence_action_to_gated_infer_cpt():
     assert strategy.type == "infer"
     assert strategy.premises == ["github:v6_actions::h", "github:v6_actions::g"]
     assert strategy.conclusion == "github:v6_actions::d"
-    assert strategy.conditional_probabilities == pytest.approx([0.5, 0.5, 0.05, 0.301989888])
+    assert strategy.conditional_probabilities == pytest.approx(
+        [0.5, 0.5, 0.0439453125, 0.301989888]
+    )
     assert strategy.metadata["pattern"] == "evidence"
     assert strategy.metadata["model"]["kind"] == "binomial"
+    assert strategy.metadata["null_model"]["kind"] == "binomial"
     assert strategy.metadata["observed"] == 8
     assert strategy.metadata["given"] == ["github:v6_actions::g"]
 
@@ -267,7 +270,9 @@ def test_compile_evidence_action_to_gated_infer_cpt():
     assert stat_support.metadata["relation"]["hypothesis"] == "github:v6_actions::h"
     assert stat_support.metadata["relation"]["data"] == "github:v6_actions::d"
     assert stat_support.metadata["relation"]["model"]["kind"] == "binomial"
+    assert stat_support.metadata["relation"]["null_model"]["kind"] == "binomial"
     assert stat_support.metadata["relation"]["p_data_given_h"] == pytest.approx(0.301989888)
+    assert stat_support.metadata["relation"]["p_data_given_not_h"] == pytest.approx(0.0439453125)
 
 
 def test_compile_infer_lifts_probability_claims_to_cpt_values():

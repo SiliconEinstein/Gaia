@@ -114,7 +114,7 @@ The `Relate` family (symmetric, hard logical) consists of the Operators. A fourt
 
 - Correlate family IR fields (§11):
   - **`InferStrategy`** — `p_e_given_h` plus optional `p_e_given_not_h` defaulting to neutral `0.5`, plus provenance `source_id` / `data_id` / `data_hash`. IR: `type="infer"`, `conditional_probabilities=[p_e_given_not_h, p_e_given_h]` inline when ungated; with `given`, gate claims are appended to `premises` and gate-false CPT rows are neutral.
-  - **`EvidenceStrategy`** — author gives `data`, `hypothesis`, `model`, and `observed`; the adapter evaluates `p_data_given_h = P(D|H)` and lowers to the same `type="infer"` CPT shape with `p_data_given_not_h` defaulting to neutral `0.5`. v0.5 supports Binomial only.
+  - **`EvidenceStrategy`** — author gives `data`, `hypothesis`, `model`, `null_model`, and `observed`; the adapter evaluates `p_data_given_h = P(D|H)` and `p_data_given_not_h = P(D|not H)` from the two models, then lowers to the same `type="infer"` CPT shape. v0.5 supports Binomial only.
   - **`AssociateStrategy`** — `p_a_given_b`, `p_b_given_a` (both required), plus same provenance fields. IR: `type="associate"`. Factor parameters are computed from the two conditionals plus marginals supplied via graph closure (Claim priors or other actions); `gaia check` validates coherence (§15.1).
 - `MeasurementRecord` — schema for observed-value + noise specification.
 - `DistributionLiteral` — JSON-native probability-distribution literal (`kind`, `params`, optional `CallableRef`). Used wherever a distribution enters IR (measurement noise, future prior shapes, etc.). Replaces the previously-named `ErrorModelSpec`.
@@ -832,9 +832,10 @@ class Evidence(Correlate):
     data: Claim | None = None
     given: tuple[Claim, ...] = ()
     model: dict | None = None
+    null_model: dict | None = None
     observed: object | None = None
-    p_data_given_h: float = 0.5
-    p_data_given_not_h: float = 0.5
+    p_data_given_h: float | None = None
+    p_data_given_not_h: float | None = None
     helper: Claim | None = None
 
 @dataclass
@@ -919,18 +920,18 @@ f2_count = evidence(
     data=f2_count,
     hypothesis=mendelian,
     model=Binomial(n=395, p=0.75),
+    null_model=Binomial(n=395, p=0.5),
     observed=295,
-    p_data_given_not_h=0.5,   # OPTIONAL. Neutral soft-implication baseline.
     given=independent_trials,
-    rationale="Under the 3:1 model, the dominant count is Binomial(n=395, p=0.75).",
+    rationale="Compare the 3:1 count model against a 1:1 null count model.",
 )
 ```
 
-`evidence()` is not a multi-hypothesis model-comparison primitive. It is the model-backed sibling of `infer()`: the author supplies a data Claim, a hypothesis Claim, a statistical model, and the observed sufficient statistic; Gaia evaluates `P(D|H)` and lowers the action to the existing binary `infer` CPT shape. The alternate side remains `P(D|¬H)`, supplied directly as `p_data_given_not_h` and defaulting to neutral `0.5`. Explicit alternate models, mutually exclusive model sets, and exhaustive hypothesis spaces belong to a future `model_compare(...)` wrapper, not this base primitive.
+`evidence()` is not a multi-hypothesis model-comparison primitive. It is the model-backed sibling of `infer()`: the author supplies a data Claim, a hypothesis Claim, a statistical model under H, a null model under not-H, and the observed sufficient statistic. Gaia evaluates both `P(D|H)` and `P(D|¬H)` and lowers the action to the existing binary `infer` CPT shape. The null model is required because exact-data probabilities are not neutral by default: a high-probability Boolean event and a low-probability exact count have different semantics. Explicit mutually exclusive model sets and exhaustive hypothesis spaces belong to a future `model_compare(...)` wrapper, not this base primitive.
 
-**Initial scope.** v0.5 supports `Binomial` only. This avoids the reference-measure problem for continuous densities and keeps the first executable evidence verb tied to the concrete Mendel-style use case. Future adapters may add `null_model` / alternate-model evaluation after the binary primitive is stable.
+**Initial scope.** v0.5 supports `Binomial` only. This keeps the first executable evidence verb tied to the concrete Mendel-style use case. Future continuous adapters should use null-model density evaluation or likelihood-ratio / log-Bayes-factor semantics rather than treating density values as probabilities.
 
-**Return value:** `evidence()` returns the data Claim `D`. The action also creates a generated helper Claim with `helper_kind="evidence"`; that helper remains attached as the reviewable warrant for the model choice, observed statistic, computed `P(D|H)`, and declared `P(D|¬H)`.
+**Return value:** `evidence()` returns the data Claim `D`. The action also creates a generated helper Claim with `helper_kind="evidence"`; that helper remains attached as the reviewable warrant for the H-side model, null model, observed statistic, computed `P(D|H)`, and computed `P(D|¬H)`.
 
 IR lowering follows the same gate semantics as `infer`: `type="infer"`, `premises=[H_qid]`, `conclusion=D_qid`, and `conditional_probabilities=[P(D|¬H), P(D|H)]`. With `given=G`, the gate-false rows are neutral: `[0.5, 0.5, P(D|¬H,G), P(D|H,G)]`.
 
@@ -1389,7 +1390,7 @@ IR schema changes belong in change-controlled PRs against `docs/foundations/gaia
 
     This is a **general** responsibility, not `associate`-specific — the same three categories apply to any factor where multiple constraints may collide (two `infer` actions on the same hypothesis pair, explicit `prior=` plus implied marginal from a correlate action, etc.).
 
-11f. **`[new]`** Add `evidence()` DSL function + `Evidence(Correlate)` runtime dataclass (§11.3). DSL: `evidence(data, *, hypothesis, model, observed, p_data_given_not_h=0.5, given=(), background=None, rationale="", label=None) -> Claim`. Runtime: `Evidence` stores `hypothesis`, `data`, `given`, model metadata, observed statistic, computed `p_data_given_h`, declared `p_data_given_not_h`, and a generated `helper_kind="evidence"` warrant. IR lowering reuses `type="infer"` with the same gated CPT shape as `infer()`. Initial executable scope is Binomial-only.
+11f. **`[new]`** Add `evidence()` DSL function + `Evidence(Correlate)` runtime dataclass (§11.3). DSL: `evidence(data, *, hypothesis, model, null_model, observed, given=(), background=None, rationale="", label=None) -> Claim`. Runtime: `Evidence` stores `hypothesis`, `data`, `given`, model metadata, null-model metadata, observed statistic, computed `p_data_given_h`, computed `p_data_given_not_h`, and a generated `helper_kind="evidence"` warrant. IR lowering reuses `type="infer"` with the same gated CPT shape as `infer()`. Initial executable scope is Binomial-only.
 
 ### 17.3 Review / R4
 

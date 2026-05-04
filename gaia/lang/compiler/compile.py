@@ -851,8 +851,17 @@ def compile_package_artifact(
         return strategy
 
     def _compile_evidence_action(action: EvidenceAction, action_index: int) -> IrStrategy:
-        if action.hypothesis is None or action.data is None:
-            raise ValueError("Evidence action requires hypothesis and data")
+        if (
+            action.hypothesis is None
+            or action.data is None
+            or action.model is None
+            or action.null_model is None
+            or action.p_data_given_h is None
+            or action.p_data_given_not_h is None
+        ):
+            raise ValueError(
+                "Evidence action requires hypothesis, data, model, null_model, and computed probabilities"
+            )
         action_label, metadata = _action_metadata(action, pkg, action_index, pattern="evidence")
         warrant_ids = _warrant_ids(action)
         if warrant_ids:
@@ -861,6 +870,7 @@ def compile_package_artifact(
         if given_ids:
             metadata["given"] = given_ids
         metadata["model"] = action.model
+        metadata["null_model"] = action.null_model
         metadata["observed"] = action.observed
         metadata["p_data_given_h"] = action.p_data_given_h
         metadata["p_data_given_not_h"] = action.p_data_given_not_h

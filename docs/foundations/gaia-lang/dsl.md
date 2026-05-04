@@ -135,7 +135,7 @@ Returns the evidence claim. The action still creates an internal likelihood help
 
 Without `given`, the compiled BP factor is `H -> E` with CPT `[P(E|not H), P(E|H)]`. With `given=G`, the compiled factor uses premises `[H, G]` and CPT `[0.5, 0.5, P(E|not H,G), P(E|H,G)]`, so the relation becomes neutral when `G` is false. `p_e_given_not_h` defaults to `0.5`, the soft-implication baseline.
 
-### `evidence(data, *, hypothesis, model, observed, p_data_given_not_h=0.5, given=(), background=None, rationale="", label=None)`
+### `evidence(data, *, hypothesis, model, null_model, observed, given=(), background=None, rationale="", label=None)`
 
 Model-based evidence link. Use when the author has a concrete data-generating model for `P(D|H)` rather than a hand-written likelihood scalar. Initial v0.5 support is intentionally Binomial-only:
 
@@ -147,14 +147,14 @@ f2_count = evidence(
     f2_count,
     hypothesis=mendelian_3_to_1,
     model=Binomial(n=395, p=0.75),
+    null_model=Binomial(n=395, p=0.5),
     observed=295,
-    p_data_given_not_h=0.5,
     given=independent_trials,
-    rationale="Under 3:1 segregation, the count follows Binomial(n=395, p=0.75).",
+    rationale="Compare 3:1 segregation against a 1:1 null count model.",
 )
 ```
 
-`evidence(...)` returns the data claim. The action computes `p_data_given_h` from the model and lowers to the same `infer` CPT shape as `infer(...)`; with `given`, gate-false rows are neutral. Multi-hypothesis model comparison is intentionally out of scope for this base verb.
+`evidence(...)` returns the data claim. The action computes `p_data_given_h` from `model` and `p_data_given_not_h` from `null_model`, then lowers to the same `infer` CPT shape as `infer(...)`; with `given`, gate-false rows are neutral. `null_model` is required because exact-data probabilities are not neutral by default. Multi-hypothesis model comparison is intentionally out of scope for this base verb.
 
 ### `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, background=None, rationale="", label=None)`
 

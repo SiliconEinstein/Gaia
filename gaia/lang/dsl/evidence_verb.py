@@ -26,6 +26,12 @@ def _model_metadata(model: DistributionLiteral) -> dict[str, Any]:
     return model.model_dump(mode="json", exclude_none=True)
 
 
+def _format_model(model: DistributionLiteral) -> str:
+    display_name = {"binomial": "Binomial"}.get(model.kind, model.kind)
+    params = ", ".join(f"{name}={value!r}" for name, value in model.params.items())
+    return f"{display_name}({params})"
+
+
 def _observed_value(data: Claim, observed: Any | None) -> Any:
     if observed is not None:
         return observed
@@ -75,8 +81,8 @@ def evidence(
     hypothesis: Claim | None = None,
     data: Claim | str | None = None,
     model: DistributionLiteral | None = None,
+    null_model: DistributionLiteral | None = None,
     observed: Any | None = None,
-    p_data_given_not_h: float = 0.5,
     given: Claim | tuple[Claim, ...] | list[Claim] | None = (),
     background: list[Knowledge] | None = None,
     rationale: str = "",
@@ -93,6 +99,8 @@ def evidence(
         raise TypeError("evidence() missing required keyword argument: 'data'")
     if model is None:
         raise TypeError("evidence() missing required keyword argument: 'model'")
+    if null_model is None:
+        raise TypeError("evidence() missing required keyword argument: 'null_model'")
     if isinstance(data, str):
         data = Claim(data)
     if not isinstance(data, Claim):
@@ -105,13 +113,15 @@ def evidence(
 
     observed_value = _observed_value(data, observed)
     p_data_given_h = _model_probability(model, observed_value)
-    p_data_given_not_h = _probability(p_data_given_not_h, "p_data_given_not_h")
+    p_data_given_not_h = _model_probability(null_model, observed_value)
     model_metadata = _model_metadata(model)
+    null_model_metadata = _model_metadata(null_model)
     relation = {
         "type": "evidence",
         "hypothesis": hypothesis,
         "data": data,
         "model": model_metadata,
+        "null_model": null_model_metadata,
         "observed": observed_value,
         "p_data_given_h": p_data_given_h,
         "p_data_given_not_h": p_data_given_not_h,
@@ -119,7 +129,10 @@ def evidence(
     if given_tuple:
         relation["given"] = given_tuple
     helper = Claim(
-        f"{_claim_ref(data)} is model-based evidence for {_claim_ref(hypothesis)}.",
+        f"{_claim_ref(data)} is model-based evidence for {_claim_ref(hypothesis)}: "
+        f"model={_format_model(model)}, null_model={_format_model(null_model)}, "
+        f"observed={observed_value!r}, P(data|H)={p_data_given_h:.6g}, "
+        f"P(data|not H)={p_data_given_not_h:.6g}.",
         metadata={
             "generated": True,
             "helper_kind": "evidence",
@@ -135,6 +148,7 @@ def evidence(
         data=data,
         given=given_tuple,
         model=model_metadata,
+        null_model=null_model_metadata,
         observed=observed_value,
         p_data_given_h=p_data_given_h,
         p_data_given_not_h=p_data_given_not_h,

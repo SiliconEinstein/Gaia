@@ -126,9 +126,10 @@ class Evidence(Correlate):
     data: Claim | None = None
     given: tuple[Claim, ...] = ()
     model: dict[str, Any] | None = None
+    null_model: dict[str, Any] | None = None
     observed: Any | None = None
-    p_data_given_h: float = 0.5
-    p_data_given_not_h: float = 0.5
+    p_data_given_h: float | None = None
+    p_data_given_not_h: float | None = None
 
 
 @dataclass
