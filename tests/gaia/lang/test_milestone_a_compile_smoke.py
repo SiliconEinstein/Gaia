@@ -7,6 +7,7 @@ but no `variable` or `domain` typed entries.
 """
 
 from gaia.lang.compiler.compile import compile_package_artifact
+from gaia.lang.dsl.knowledge import claim
 from gaia.lang.runtime.domain import Domain
 from gaia.lang.runtime.knowledge import Claim, _current_package
 from gaia.lang.runtime.package import CollectedPackage
@@ -42,3 +43,34 @@ def test_package_with_variables_and_domains_compiles_cleanly():
         f"Types in IR: {sorted(types)}"
     )
     assert any(str(k.type) == "claim" for k in knowledges), "no claim found in compiled artifact"
+
+
+def _compile_claim_metadata(make_claim):
+    pkg = CollectedPackage(name="t_prior_smoke", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        make_claim()
+    finally:
+        _current_package.reset(token)
+
+    artifact = compile_package_artifact(pkg)
+    claims = [k for k in artifact.graph.knowledges if str(k.type) == "claim"]
+    assert len(claims) == 1
+    return claims[0].metadata or {}
+
+
+def test_dsl_claim_prior_compiles_to_ir_metadata():
+    metadata = _compile_claim_metadata(lambda: claim("A prior-bearing claim.", prior=0.85))
+    assert metadata["prior"] == 0.85
+
+
+def test_runtime_claim_prior_compiles_to_ir_metadata():
+    metadata = _compile_claim_metadata(lambda: Claim("A prior-bearing claim.", prior=0.85))
+    assert metadata["prior"] == 0.85
+
+
+def test_existing_metadata_prior_overrides_runtime_claim_prior():
+    metadata = _compile_claim_metadata(
+        lambda: Claim("A prior-bearing claim.", prior=0.2, metadata={"prior": 0.85})
+    )
+    assert metadata["prior"] == 0.85
