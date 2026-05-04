@@ -326,10 +326,25 @@ A Claim with `formula=land(P, Q)` (where P, Q are `ClaimAtom`s referring to exis
 - Emit `Operator(operator=CONJUNCTION, variables=[A, B], conclusion=helper)`
 
 A Claim with `formula=Equals(p, 0.75)` (parameter assertion):
-- Emit a **propositional atom Knowledge** in IR (no internal connectives — the formula is a single predicate over a Variable)
-- Record the binding `(p, 0.75)` in `Knowledge.parameters` for downstream consumers (e.g., `evidence`'s likelihood model)
+- Do **not** emit an extra propositional atom. The source Claim's IR `Knowledge`
+  already is the Boolean atom whose truth means the formula holds.
+- Record the binding `(p, 0.75)` on the source `Knowledge.parameters` and
+  mirror it in `metadata.formula_bindings` for downstream consumers (e.g.,
+  `evidence`'s likelihood model).
+- Record `metadata.formula_atom` as a serializable descriptor of the top-level
+  predicate so renderers and audits can recover the formula shape without
+  executing Python.
 
-Compound formulas (e.g., `land(equals(...), implies(...))`) lower bottom-up — each non-atomic node emits a helper Knowledge plus the matching Operator. Equivalent in factor-graph topology to today's hand-written `and_/or_/contradiction/...` helper claims.
+Compound formulas (e.g., `land(equals(...), implies(...))`) lower bottom-up —
+each non-atomic node emits a helper Knowledge plus the matching Operator.
+Atomic predicates nested inside a compound formula may be represented by
+generated helper Knowledge, but top-level atom formulas annotate the source
+Claim rather than creating an unconnected duplicate. Equivalent in factor-graph
+topology to today's hand-written `and_/or_/contradiction/...` helper claims.
+For formula connectives such as `implies(P, Q)`, the operator conclusion is the
+formula Claim's truth variable and keeps the Claim's authored prior; it is not
+the same as a hand-written hard relation helper whose conclusion is pinned as an
+asserted relation.
 
 ### 7.2 Quantifier grounding
 
@@ -355,7 +370,13 @@ The instantiation parameter `x ↦ v` is recorded in each `grounded_body_v.param
 
 ### 7.3 Causal claim (v0.5 marker, v0.6 semantics)
 
-In v0.5, `Causes(X, Y)` lowers to a propositional atom Knowledge with `metadata.causal` set to a serializable descriptor of the cause and effect terms. The two operands `X` and `Y` are typically `Variable` references; since Variables are Lang-only and do **not** appear as IR Knowledge nodes (see §2.4 and §7.4), they have no compiled QID — the descriptor instead records `symbol`, `domain.name`, and any binding provenance.
+In v0.5, a top-level `Causes(X, Y)` formula annotates the source Claim's IR
+`Knowledge` with `metadata.causal`, a serializable descriptor of the cause and
+effect terms. It does not lower to an implication and does not create an extra
+unconnected atom. The two operands `X` and `Y` are typically `Variable`
+references; since Variables are Lang-only and do **not** appear as IR Knowledge
+nodes (see §2.4 and §7.4), they have no compiled QID — the descriptor instead
+records `symbol`, `domain.name`, and any binding provenance.
 
 ```python
 # Schema of metadata.causal written by the lowering pass:

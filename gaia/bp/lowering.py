@@ -81,6 +81,16 @@ def _review_target_allowed(
     return review_manifest.latest_status(target_id) == ReviewStatus.ACCEPTED
 
 
+def _operator_asserts_relation(op: Operator) -> bool:
+    """Return True when a relation-operator conclusion is an asserted helper."""
+    if op.operator not in _RELATION_OPS:
+        return False
+    # Formula connectives use the conclusion as the formula truth variable.
+    # Its authored prior must remain live instead of being pinned as a hard
+    # relation assertion.
+    return (op.metadata or {}).get("formula_lowering") != "connective"
+
+
 def lower_local_graph(
     canonical: LocalCanonicalGraph,
     *,
@@ -148,7 +158,7 @@ def lower_local_graph(
 
     relation_concl_ids: set[str] = set()
     for op in lowerable_operators:
-        if op.operator in _RELATION_OPS:
+        if _operator_asserts_relation(op):
             relation_concl_ids.add(op.conclusion)
 
     claim_ids = {k.id for k in canonical.knowledges if k.type == KnowledgeType.CLAIM and k.id}
@@ -179,7 +189,7 @@ def lower_local_graph(
         if concl not in fg.variables:
             if concl in expression_helper_ids:
                 fg.add_variable(concl)
-            elif op.operator in _RELATION_OPS:
+            elif _operator_asserts_relation(op):
                 fg.add_variable(concl, 1.0 - CROMWELL_EPS)
             else:
                 fg.add_variable(concl, priors[concl] if concl in priors else None)

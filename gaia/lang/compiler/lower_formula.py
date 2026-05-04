@@ -1,35 +1,53 @@
 """Lower Gaia Lang Formula AST payloads into existing Gaia IR structures.
 
 Milestone B starts with a deliberately small lowering contract: finite-domain
-universal quantification grounds to one derived instance claim per domain
-member, with one directed deduction/implication from the universal claim to
-each instance. It does not collapse the instances into a conjunction.
+universal quantification grounds to one directed deduction/implication per
+domain member; finite-domain existential quantification grounds to a
+disjunction over instances; top-level atom formulas annotate the source Claim
+instead of creating duplicate orphan atoms.
 """
 
 from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from gaia.ir import Knowledge as IrKnowledge
 from gaia.ir import Operator as IrOperator
+from gaia.ir import Parameter as IrParameter
 from gaia.ir import Strategy as IrStrategy
 from gaia.ir.formalize import formalize_named_strategy
 from gaia.ir.knowledge import KnowledgeType, make_qid
 from gaia.lang.formula.connective import Iff, Implies, Land, Lnot, Lor
-from gaia.lang.formula.predicate import ClaimAtom
-from gaia.lang.formula.quantifier import Forall
+from gaia.lang.formula.predicate import (
+    Causes,
+    ClaimAtom,
+    Equals,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+    NotEquals,
+    UserPredicate,
+)
+from gaia.lang.formula.quantifier import Exists, Forall
+from gaia.lang.formula.symbols import PredicateSymbol
+from gaia.lang.formula.term import ArithOp, Constant, FunctionApp
 from gaia.lang.runtime.domain import Domain
 from gaia.lang.runtime.knowledge import Claim
+from gaia.lang.runtime.variable import Variable
+from gaia.lang.types.primitives import PrimitiveType
 
 
 @dataclass(frozen=True)
 class FormulaLoweringResult:
-    knowledges: list[IrKnowledge]
-    operators: list[IrOperator]
-    strategies: list[IrStrategy]
+    knowledges: list[IrKnowledge] = field(default_factory=list)
+    operators: list[IrOperator] = field(default_factory=list)
+    strategies: list[IrStrategy] = field(default_factory=list)
+    metadata_updates: dict[str, dict[str, Any]] = field(default_factory=dict)
+    parameter_updates: dict[str, list[IrParameter]] = field(default_factory=dict)
 
 
 def lower_claim_formula(
@@ -43,7 +61,7 @@ def lower_claim_formula(
     """Lower the formula attached to a Claim, if Milestone B supports it."""
     formula = getattr(claim, "formula", None)
     if formula is None:
-        return FormulaLoweringResult(knowledges=[], operators=[], strategies=[])
+        return FormulaLoweringResult()
     if isinstance(formula, Forall):
         return _lower_forall(
             claim,
@@ -52,6 +70,28 @@ def lower_claim_formula(
             namespace=namespace,
             package_name=package_name,
         )
+    if isinstance(formula, Exists):
+        return _lower_exists(
+            claim,
+            formula,
+            claim_id=claim_id,
+            namespace=namespace,
+            package_name=package_name,
+        )
+
+    operator_name, _ = _connective_operator(formula)
+    if operator_name is None:
+        if not _is_atomic_formula(formula):
+            raise NotImplementedError(f"Unsupported formula lowering: {type(formula).__name__}")
+        return FormulaLoweringResult(
+            metadata_updates={
+                claim_id: _source_atom_metadata(formula, knowledge_map=knowledge_map)
+            },
+            parameter_updates={
+                claim_id: _binding_parameters(formula),
+            },
+        )
+
     return _lower_formula_to_claim(
         formula,
         target_id=claim_id,
@@ -79,7 +119,7 @@ def _lower_forall(
     for value in domain.members:
         binding = {
             "symbol": variable.symbol,
-            "domain": domain.label or domain.title or domain.content,
+            "domain": _domain_name(domain),
             "value": value,
         }
         instance_id, instance_label = _forall_instance_id(
@@ -95,6 +135,13 @@ def _lower_forall(
                 label=instance_label,
                 type=KnowledgeType.CLAIM,
                 content=f"{claim.content} [{variable.symbol}={value!r}]",
+                parameters=[
+                    IrParameter(
+                        name=variable.symbol,
+                        type=_domain_name(domain),
+                        value=value,
+                    )
+                ],
                 metadata={
                     "generated": True,
                     "generated_kind": "formula_instance",
@@ -127,6 +174,79 @@ def _lower_forall(
         knowledges=generated_knowledges,
         operators=[],
         strategies=generated_strategies,
+    )
+
+
+def _lower_exists(
+    claim: Claim,
+    formula: Exists,
+    *,
+    claim_id: str,
+    namespace: str,
+    package_name: str,
+) -> FormulaLoweringResult:
+    variable = formula.variable
+    domain = variable.domain
+    if not isinstance(domain, Domain):
+        raise ValueError("Exists formula lowering currently requires a finite Domain")
+    if len(domain.members) < 2:
+        raise ValueError("Exists formula lowering currently requires at least two Domain members")
+
+    generated_knowledges: list[IrKnowledge] = []
+    instance_ids: list[str] = []
+    for value in domain.members:
+        binding = {
+            "symbol": variable.symbol,
+            "domain": _domain_name(domain),
+            "value": value,
+        }
+        instance_id, instance_label = _exists_instance_id(
+            namespace=namespace,
+            package_name=package_name,
+            source_claim_id=claim_id,
+            symbol=variable.symbol,
+            value=value,
+        )
+        instance_ids.append(instance_id)
+        generated_knowledges.append(
+            IrKnowledge(
+                id=instance_id,
+                label=instance_label,
+                type=KnowledgeType.CLAIM,
+                content=f"{claim.content} [{variable.symbol}={value!r}]",
+                parameters=[
+                    IrParameter(
+                        name=variable.symbol,
+                        type=_domain_name(domain),
+                        value=value,
+                    )
+                ],
+                metadata={
+                    "generated": True,
+                    "generated_kind": "formula_instance",
+                    "formula_lowering": "exists_instance",
+                    "source_claim": claim_id,
+                    "binding": binding,
+                    "visibility": "formula_grounding",
+                    "review": False,
+                },
+            )
+        )
+
+    exists_operator = IrOperator(
+        scope="local",
+        operator="disjunction",
+        variables=instance_ids,
+        conclusion=claim_id,
+        metadata={
+            "formula_lowering": "exists_grounding",
+            "source_claim": claim_id,
+        },
+    )
+    return FormulaLoweringResult(
+        knowledges=generated_knowledges,
+        operators=[exists_operator],
+        strategies=[],
     )
 
 
@@ -172,6 +292,8 @@ class _FormulaState:
 
         operator_name, children = _connective_operator(formula)
         if operator_name is None:
+            if not _is_atomic_formula(formula):
+                raise NotImplementedError(f"Unsupported formula lowering: {type(formula).__name__}")
             return self._atom_claim(formula)
 
         child_ids = [self.lower(child) for child in children]
@@ -197,18 +319,37 @@ class _FormulaState:
 
     def _atom_claim(self, formula: Any) -> str:
         label, claim_id = self._generated_claim("formula_atom", repr(formula))
+        metadata = {
+            "generated": True,
+            "generated_kind": "formula_atom",
+            "formula_lowering": "atom",
+            "formula_atom": _formula_descriptor(
+                formula,
+                knowledge_map=self.knowledge_map,
+            ),
+            "review": False,
+        }
+        bindings = _formula_bindings(formula)
+        if bindings:
+            metadata["formula_bindings"] = bindings
+        if isinstance(formula, Causes):
+            metadata["causal"] = {
+                "cause": _term_descriptor(
+                    formula.cause,
+                    knowledge_map=self.knowledge_map,
+                ),
+                "effect": _term_descriptor(
+                    formula.effect,
+                    knowledge_map=self.knowledge_map,
+                ),
+            }
         self.knowledges.append(
             IrKnowledge(
                 id=claim_id,
                 label=label,
                 type=KnowledgeType.CLAIM,
                 content=repr(formula),
-                metadata={
-                    "generated": True,
-                    "generated_kind": "formula_atom",
-                    "formula_lowering": "atom",
-                    "review": False,
-                },
+                metadata=metadata,
             )
         )
         return claim_id
@@ -258,6 +399,184 @@ def _connective_operator(formula: Any) -> tuple[str | None, list[Any]]:
     return None, []
 
 
+def _is_atomic_formula(formula: Any) -> bool:
+    return isinstance(
+        formula,
+        (
+            Causes,
+            ClaimAtom,
+            Equals,
+            Greater,
+            GreaterEqual,
+            Less,
+            LessEqual,
+            NotEquals,
+            UserPredicate,
+        ),
+    )
+
+
+def _source_atom_metadata(
+    formula: Any,
+    *,
+    knowledge_map: dict[int, str],
+) -> dict[str, Any]:
+    metadata = {
+        "formula_lowering": "atom",
+        "formula_atom": _formula_descriptor(formula, knowledge_map=knowledge_map),
+    }
+    bindings = _formula_bindings(formula)
+    if bindings:
+        metadata["formula_bindings"] = bindings
+    if isinstance(formula, Causes):
+        metadata["causal"] = {
+            "cause": _term_descriptor(formula.cause, knowledge_map=knowledge_map),
+            "effect": _term_descriptor(formula.effect, knowledge_map=knowledge_map),
+        }
+    return metadata
+
+
+def _formula_descriptor(formula: Any, *, knowledge_map: dict[int, str]) -> dict[str, Any]:
+    if isinstance(formula, ClaimAtom):
+        return {"kind": "claim", "qid": _claim_atom_qid(formula, knowledge_map)}
+    if isinstance(formula, Equals):
+        return _binary_formula_descriptor("equals", formula.left, formula.right, knowledge_map)
+    if isinstance(formula, NotEquals):
+        return _binary_formula_descriptor("not_equals", formula.left, formula.right, knowledge_map)
+    if isinstance(formula, Greater):
+        return _binary_formula_descriptor("greater", formula.left, formula.right, knowledge_map)
+    if isinstance(formula, GreaterEqual):
+        return _binary_formula_descriptor(
+            "greater_equal", formula.left, formula.right, knowledge_map
+        )
+    if isinstance(formula, Less):
+        return _binary_formula_descriptor("less", formula.left, formula.right, knowledge_map)
+    if isinstance(formula, LessEqual):
+        return _binary_formula_descriptor("less_equal", formula.left, formula.right, knowledge_map)
+    if isinstance(formula, UserPredicate):
+        return {
+            "kind": "predicate",
+            "symbol": _predicate_symbol_descriptor(formula.symbol),
+            "args": [_term_descriptor(arg, knowledge_map=knowledge_map) for arg in formula.args],
+        }
+    if isinstance(formula, Causes):
+        return {
+            "kind": "causes",
+            "cause": _term_descriptor(formula.cause, knowledge_map=knowledge_map),
+            "effect": _term_descriptor(formula.effect, knowledge_map=knowledge_map),
+        }
+    return {"kind": type(formula).__name__, "repr": repr(formula)}
+
+
+def _binary_formula_descriptor(
+    kind: str,
+    left: Any,
+    right: Any,
+    knowledge_map: dict[int, str],
+) -> dict[str, Any]:
+    return {
+        "kind": kind,
+        "left": _term_descriptor(left, knowledge_map=knowledge_map),
+        "right": _term_descriptor(right, knowledge_map=knowledge_map),
+    }
+
+
+def _term_descriptor(term: Any, *, knowledge_map: dict[int, str]) -> dict[str, Any]:
+    if isinstance(term, Variable):
+        descriptor = {
+            "kind": "variable",
+            "symbol": term.symbol,
+            "domain": _domain_name(term.domain),
+        }
+        if term.value is not None:
+            descriptor["value"] = term.value
+        return descriptor
+    if isinstance(term, Constant):
+        return {
+            "kind": "constant",
+            "value": term.value,
+            "primitive": term.primitive.name,
+        }
+    if isinstance(term, FunctionApp):
+        return {
+            "kind": "function",
+            "symbol": term.symbol.name,
+            "args": [_term_descriptor(arg, knowledge_map=knowledge_map) for arg in term.args],
+            "result_domain": _domain_name(term.symbol.result_domain),
+        }
+    if isinstance(term, ArithOp):
+        return {
+            "kind": "arith",
+            "op": term.op,
+            "left": _term_descriptor(term.left, knowledge_map=knowledge_map),
+            "right": _term_descriptor(term.right, knowledge_map=knowledge_map),
+        }
+    if isinstance(term, ClaimAtom):
+        return {"kind": "knowledge", "qid": _claim_atom_qid(term, knowledge_map)}
+    return {"kind": type(term).__name__, "repr": repr(term)}
+
+
+def _predicate_symbol_descriptor(symbol: PredicateSymbol) -> dict[str, Any]:
+    return {
+        "name": symbol.name,
+        "arg_domains": [_domain_name(domain) for domain in symbol.arg_domains],
+    }
+
+
+def _claim_atom_qid(atom: ClaimAtom, knowledge_map: dict[int, str]) -> str:
+    try:
+        return knowledge_map[id(atom.claim)]
+    except KeyError as exc:
+        raise ValueError(
+            "ClaimAtom references a claim that is not in the compiled package"
+        ) from exc
+
+
+def _formula_bindings(formula: Any) -> list[dict[str, Any]]:
+    pair = _equals_variable_constant_pair(formula)
+    if pair is None:
+        return []
+    variable, constant = pair
+    return [
+        {
+            "symbol": variable.symbol,
+            "domain": _domain_name(variable.domain),
+            "value": constant.value,
+            "source": "formula",
+        }
+    ]
+
+
+def _binding_parameters(formula: Any) -> list[IrParameter]:
+    pair = _equals_variable_constant_pair(formula)
+    if pair is None:
+        return []
+    variable, constant = pair
+    return [
+        IrParameter(
+            name=variable.symbol,
+            type=_domain_name(variable.domain),
+            value=constant.value,
+        )
+    ]
+
+
+def _equals_variable_constant_pair(formula: Any) -> tuple[Variable, Constant] | None:
+    if not isinstance(formula, Equals):
+        return None
+    if isinstance(formula.left, Variable) and isinstance(formula.right, Constant):
+        return formula.left, formula.right
+    if isinstance(formula.right, Variable) and isinstance(formula.left, Constant):
+        return formula.right, formula.left
+    return None
+
+
+def _domain_name(domain: PrimitiveType | Domain) -> str:
+    if isinstance(domain, PrimitiveType):
+        return domain.name
+    return domain.label or domain.title or domain.content or "Domain"
+
+
 def _forall_instance_id(
     *,
     namespace: str,
@@ -269,6 +588,20 @@ def _forall_instance_id(
     payload = f"{source_claim_id}|{symbol}|{value!r}"
     digest = hashlib.sha256(payload.encode()).hexdigest()[:8]
     label = f"__forall_{_safe_label(symbol)}_{digest}"
+    return make_qid(namespace, package_name, label), label
+
+
+def _exists_instance_id(
+    *,
+    namespace: str,
+    package_name: str,
+    source_claim_id: str,
+    symbol: str,
+    value: Any,
+) -> tuple[str, str]:
+    payload = f"{source_claim_id}|{symbol}|{value!r}"
+    digest = hashlib.sha256(payload.encode()).hexdigest()[:8]
+    label = f"__exists_{_safe_label(symbol)}_{digest}"
     return make_qid(namespace, package_name, label), label
 
 

@@ -206,6 +206,48 @@ def _metadata_with_reason(
     return merged or None
 
 
+def _apply_formula_knowledge_updates(
+    ir_knowledges: list[IrKnowledge],
+    *,
+    metadata_updates: dict[str, dict[str, Any]],
+    parameter_updates: dict[str, list[IrParameter]],
+) -> None:
+    """Merge formula-derived annotations back onto source IR Knowledge nodes."""
+    if not metadata_updates and not parameter_updates:
+        return
+
+    index_by_id = {k.id: i for i, k in enumerate(ir_knowledges) if k.id}
+    for qid in sorted(set(metadata_updates) | set(parameter_updates)):
+        try:
+            index = index_by_id[qid]
+        except KeyError as exc:
+            raise ValueError(f"formula lowering referenced unknown Knowledge id {qid!r}") from exc
+
+        ir_k = ir_knowledges[index]
+        metadata = dict(ir_k.metadata) if ir_k.metadata else {}
+        metadata.update(metadata_updates.get(qid, {}))
+
+        parameters = list(ir_k.parameters or [])
+        for param in parameter_updates.get(qid, []):
+            existing = next((p for p in parameters if p.name == param.name), None)
+            if existing is None:
+                parameters.append(param)
+                continue
+            if existing.type != param.type or existing.value != param.value:
+                raise ValueError(
+                    f"formula binding for parameter {param.name!r} conflicts "
+                    f"with existing parameter on {qid}"
+                )
+
+        ir_knowledges[index] = ir_k.model_copy(
+            update={
+                "metadata": metadata or None,
+                "parameters": parameters,
+                "content_hash": None,
+            }
+        )
+
+
 def _operator_to_ir(
     o: Operator,
     knowledge_map: dict[int, str],
@@ -1094,6 +1136,11 @@ def compile_package_artifact(
         formula_generated_knowledges.extend(lowered.knowledges)
         formula_generated_operators.extend(lowered.operators)
         formula_generated_strategies.extend(lowered.strategies)
+        _apply_formula_knowledge_updates(
+            ir_knowledges,
+            metadata_updates=lowered.metadata_updates,
+            parameter_updates=lowered.parameter_updates,
+        )
 
     module_order = pkg._module_order if pkg._module_order else None
     module_titles = getattr(pkg, "_module_titles", None) or None

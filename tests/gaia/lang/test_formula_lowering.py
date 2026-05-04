@@ -1,15 +1,25 @@
 """Milestone B formula lowering tests."""
 
+import pytest
+
+from gaia.bp.lowering import lower_local_graph
 from gaia.lang import (
+    Causes,
     ClaimKind,
     ClaimAtom,
+    Constant,
     Domain,
+    Equals,
+    Exists,
     Forall,
     PredicateSymbol,
+    Probability,
+    Real,
     UserPredicate,
     Variable,
     claim,
     forall,
+    implies,
     land,
 )
 from gaia.lang.compiler.compile import compile_package_artifact
@@ -56,6 +66,10 @@ def test_forall_lowers_to_implication_per_domain_member_not_conjunction():
     assert len(instance_claims) == 2
     assert {k.metadata["binding"]["value"] for k in instance_claims} == {"p1", "p2"}
     assert {k.metadata["source_claim"] for k in instance_claims} == {universal_id}
+    assert {(k.parameters[0].name, k.parameters[0].value) for k in instance_claims} == {
+        ("x", "p1"),
+        ("x", "p2"),
+    }
 
     formula_strategies = [
         s
@@ -84,6 +98,53 @@ def test_forall_lowers_to_implication_per_domain_member_not_conjunction():
     ]
 
 
+def test_exists_lowers_to_disjunction_over_domain_instances():
+    pkg = CollectedPackage(name="formula_exists_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        particle = Domain(content="Particles", members=["p1", "p2"])
+        x = Variable(symbol="x", domain=particle)
+        stable = PredicateSymbol(name="Stable", arg_domains=(particle,))
+        existential = claim(
+            "Some particle is stable.",
+            formula=Exists(variable=x, body=UserPredicate(stable, (x,))),
+            kind=ClaimKind.QUANTIFIED,
+            prior=0.6,
+        )
+        existential.label = "stable_some"
+    finally:
+        _current_package.reset(token)
+
+    artifact = compile_package_artifact(pkg)
+    source_id = "t:formula_exists_pkg::stable_some"
+    instance_claims = [
+        k
+        for k in artifact.graph.knowledges
+        if (k.metadata or {}).get("formula_lowering") == "exists_instance"
+    ]
+    assert len(instance_claims) == 2
+    assert {k.metadata["binding"]["value"] for k in instance_claims} == {"p1", "p2"}
+    assert {k.metadata["source_claim"] for k in instance_claims} == {source_id}
+    assert {(k.parameters[0].name, k.parameters[0].value) for k in instance_claims} == {
+        ("x", "p1"),
+        ("x", "p2"),
+    }
+
+    op = next(
+        op
+        for op in artifact.graph.operators
+        if (op.metadata or {}).get("formula_lowering") == "exists_grounding"
+    )
+    assert op.operator == "disjunction"
+    assert set(op.variables) == {k.id for k in instance_claims}
+    assert op.conclusion == source_id
+    assert [
+        s
+        for s in artifact.graph.strategies
+        if (s.metadata or {}).get("formula_lowering") == "exists_grounding"
+    ] == []
+
+
 def test_land_claim_atom_formula_lowers_to_conjunction_operator():
     pkg = CollectedPackage(name="formula_land_pkg", namespace="t")
     token = _current_package.set(pkg)
@@ -107,3 +168,112 @@ def test_land_claim_atom_formula_lowers_to_conjunction_operator():
     assert op.operator == "conjunction"
     assert op.variables == ["t:formula_land_pkg::a", "t:formula_land_pkg::b"]
     assert op.conclusion == "t:formula_land_pkg::both"
+
+
+def test_top_level_equals_formula_records_binding_without_orphan_atom():
+    pkg = CollectedPackage(name="formula_equals_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        p = Variable(symbol="p", domain=Probability)
+        value = claim(
+            "The success probability is 0.75.",
+            formula=Equals(p, Constant(0.75, Probability)),
+            kind=ClaimKind.PARAMETER,
+            prior=0.8,
+        )
+        value.label = "p_value"
+    finally:
+        _current_package.reset(token)
+
+    artifact = compile_package_artifact(pkg)
+    source = next(k for k in artifact.graph.knowledges if k.id == "t:formula_equals_pkg::p_value")
+
+    assert source.parameters[0].name == "p"
+    assert source.parameters[0].type == "Probability"
+    assert source.parameters[0].value == 0.75
+    assert source.metadata["formula_lowering"] == "atom"
+    assert source.metadata["formula_atom"]["kind"] == "equals"
+    assert source.metadata["formula_bindings"] == [
+        {
+            "symbol": "p",
+            "domain": "Probability",
+            "value": 0.75,
+            "source": "formula",
+        }
+    ]
+    assert not [
+        k
+        for k in artifact.graph.knowledges
+        if (k.metadata or {}).get("generated_kind") == "formula_atom"
+    ]
+    assert artifact.graph.operators == []
+    assert artifact.graph.strategies == []
+
+
+def test_top_level_causes_formula_records_causal_marker_without_implication():
+    pkg = CollectedPackage(name="formula_causes_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        co2 = Variable(symbol="co2", domain=Real)
+        temp = Variable(symbol="temp", domain=Real)
+        causal = claim(
+            "CO2 level causes temperature change.",
+            formula=Causes(co2, temp),
+            kind=ClaimKind.CAUSAL,
+            prior=0.9,
+        )
+        causal.label = "co2_causes_temp"
+    finally:
+        _current_package.reset(token)
+
+    artifact = compile_package_artifact(pkg)
+    source = next(
+        k for k in artifact.graph.knowledges if k.id == "t:formula_causes_pkg::co2_causes_temp"
+    )
+
+    assert source.metadata["formula_lowering"] == "atom"
+    assert source.metadata["formula_atom"]["kind"] == "causes"
+    assert source.metadata["causal"] == {
+        "cause": {"kind": "variable", "symbol": "co2", "domain": "Real"},
+        "effect": {"kind": "variable", "symbol": "temp", "domain": "Real"},
+    }
+    assert not [
+        k
+        for k in artifact.graph.knowledges
+        if (k.metadata or {}).get("generated_kind") == "formula_atom"
+    ]
+    assert artifact.graph.operators == []
+    assert artifact.graph.strategies == []
+
+
+def test_top_level_implies_formula_preserves_source_claim_prior():
+    pkg = CollectedPackage(name="formula_implies_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.", prior=0.6)
+        a.label = "a"
+        b = claim("B.", prior=0.4)
+        b.label = "b"
+        rule = claim(
+            "A implies B.",
+            formula=implies(ClaimAtom(a), ClaimAtom(b)),
+            prior=0.7,
+        )
+        rule.label = "a_implies_b"
+    finally:
+        _current_package.reset(token)
+
+    artifact = compile_package_artifact(pkg)
+    rule_id = "t:formula_implies_pkg::a_implies_b"
+    op = next(
+        op
+        for op in artifact.graph.operators
+        if (op.metadata or {}).get("formula_lowering") == "connective"
+    )
+    assert op.operator == "implication"
+    assert op.variables == ["t:formula_implies_pkg::a", "t:formula_implies_pkg::b"]
+    assert op.conclusion == rule_id
+
+    fg = lower_local_graph(artifact.graph)
+    assert fg.variables[rule_id] == pytest.approx(0.7)
+    assert fg.unary_factors[rule_id] == pytest.approx(0.7)
