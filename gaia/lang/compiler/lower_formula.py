@@ -336,6 +336,20 @@ def _lower_formula_to_claim(
             },
         )
 
+    if _is_binding_conjunction(formula):
+        formula_bindings = _formula_bindings(formula, bindings=bindings)
+        return FormulaLoweringResult(
+            metadata_updates={
+                target_id: {
+                    "formula_lowering": "binding_conjunction",
+                    "formula_bindings": formula_bindings,
+                }
+            },
+            parameter_updates={
+                target_id: _binding_parameters(formula, bindings=bindings),
+            },
+        )
+
     state = _FormulaState(
         namespace=namespace,
         package_name=package_name,
@@ -343,10 +357,20 @@ def _lower_formula_to_claim(
         bindings=bindings,
     )
     state.lower(formula, target_id=target_id)
+    formula_bindings = _formula_bindings(formula, bindings=bindings)
+    binding_parameters = _binding_parameters(formula, bindings=bindings)
+    metadata_updates = {}
+    parameter_updates = {}
+    if formula_bindings:
+        metadata_updates[target_id] = {"formula_bindings": formula_bindings}
+    if binding_parameters:
+        parameter_updates[target_id] = binding_parameters
     return FormulaLoweringResult(
         knowledges=state.knowledges,
         operators=state.operators,
         strategies=[],
+        metadata_updates=metadata_updates,
+        parameter_updates=parameter_updates,
     )
 
 
@@ -706,18 +730,15 @@ def _formula_bindings(
     bindings: _BindingMap | None = None,
 ) -> list[dict[str, Any]]:
     formula_bindings = [dict(binding) for binding in (bindings or {}).values()]
-    pair = _equals_variable_constant_pair(formula)
-    if pair is None:
-        return formula_bindings
-    variable, constant = pair
-    equals_binding = {
-        "symbol": variable.symbol,
-        "domain": _domain_name(variable.domain),
-        "value": constant.value,
-        "source": "formula",
-    }
-    if not any(binding["symbol"] == variable.symbol for binding in formula_bindings):
-        formula_bindings.append(equals_binding)
+    for variable, constant in _equals_variable_constant_pairs(formula):
+        equals_binding = {
+            "symbol": variable.symbol,
+            "domain": _domain_name(variable.domain),
+            "value": constant.value,
+            "source": "formula",
+        }
+        if not any(binding["symbol"] == variable.symbol for binding in formula_bindings):
+            formula_bindings.append(equals_binding)
     return formula_bindings
 
 
@@ -734,17 +755,14 @@ def _binding_parameters(
         )
         for binding in (bindings or {}).values()
     ]
-    pair = _equals_variable_constant_pair(formula)
-    if pair is None:
-        return parameters
-    variable, constant = pair
-    parameter = IrParameter(
-        name=variable.symbol,
-        type=_domain_name(variable.domain),
-        value=constant.value,
-    )
-    if not any(existing.name == parameter.name for existing in parameters):
-        parameters.append(parameter)
+    for variable, constant in _equals_variable_constant_pairs(formula):
+        parameter = IrParameter(
+            name=variable.symbol,
+            type=_domain_name(variable.domain),
+            value=constant.value,
+        )
+        if not any(existing.name == parameter.name for existing in parameters):
+            parameters.append(parameter)
     return parameters
 
 
@@ -924,6 +942,26 @@ def _equals_variable_constant_pair(formula: Any) -> tuple[Variable, Constant] | 
     if isinstance(formula.right, Variable) and isinstance(formula.left, Constant):
         return formula.right, formula.left
     return None
+
+
+def _equals_variable_constant_pairs(formula: Any) -> list[tuple[Variable, Constant]]:
+    pair = _equals_variable_constant_pair(formula)
+    if pair is not None:
+        return [pair]
+    if isinstance(formula, Land):
+        pairs: list[tuple[Variable, Constant]] = []
+        for operand in formula.operands:
+            pairs.extend(_equals_variable_constant_pairs(operand))
+        return pairs
+    return []
+
+
+def _is_binding_conjunction(formula: Any) -> bool:
+    return (
+        isinstance(formula, Land)
+        and bool(formula.operands)
+        and all(_equals_variable_constant_pair(operand) is not None for operand in formula.operands)
+    )
 
 
 def _domain_name(domain: PrimitiveType | Domain) -> str:

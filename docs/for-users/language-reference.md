@@ -54,6 +54,8 @@ from .s3_results import *
 ```python
 from gaia.lang import (
     claim, note, question,                                 # Knowledge
+    Variable, Nat, Real, Probability, Bool,                # Formula terms
+    parameter, observation, causal,                        # Structured formula claims
     not_, and_, or_,                                      # Propositional expressions
     contradict, equal, exclusive,                         # Reviewable relations
     observe, derive, compute, infer,                       # Recommended actions
@@ -109,6 +111,72 @@ titled = claim("H = p^2/2m + V(x)", title="Hamiltonian of the system")
 ```
 
 **Content supports markdown:** tables, `$...$` math, bullet points, bold/italic.
+
+## Structured Formula Claims
+
+Formula claim sugar creates ordinary `Claim` objects with structured `formula`
+payloads. The compiler lowers them into today's IR: source claims keep their
+priors, primitive bindings become IR parameters, and causal formulas are
+metadata markers only.
+
+### `parameter(variable, value, *, describe=None, prior=None, ...)`
+
+Use when a claim asserts a primitive variable value.
+
+```python
+from gaia.lang import Probability, Variable, parameter
+
+p = Variable(symbol="p", domain=Probability)
+mendelian_p = parameter(
+    p,
+    0.75,
+    describe="Mendelian 3:1 segregation fixes P(dominant) at 0.75.",
+    prior=0.5,
+)
+```
+
+This compiles to a source claim with an IR parameter for `p = 0.75` and a
+serializable `formula_bindings` metadata entry.
+
+### `observation(..., describe=None, prior=None)`
+
+Use when a claim records observed primitive values. Pass variables whose
+`value` field is already set.
+
+```python
+from gaia.lang import Nat, Variable, observation
+
+n = Variable(symbol="n", domain=Nat, value=395)
+k = Variable(symbol="k", domain=Nat, value=295)
+f2_count = observation(
+    n=n,
+    k=k,
+    describe="Observed 295 dominant phenotypes out of 395 F2 plants.",
+    prior=0.95,
+)
+```
+
+For multiple variables the formula is a conjunction of equalities, but the
+bindings still merge onto the source claim as IR parameters.
+
+### `causal(cause, effect, *, describe=None, prior=None)`
+
+Use for a top-level causal marker in v0.5. It records the cause/effect term
+descriptors on the source claim; it does not lower to an implication or add
+interventional semantics.
+
+```python
+from gaia.lang import Real, Variable, causal
+
+co2 = Variable(symbol="co2", domain=Real)
+temp = Variable(symbol="temp", domain=Real)
+co2_causes_temp = causal(
+    co2,
+    temp,
+    describe="Rising CO2 causes increased global mean temperature.",
+    prior=0.9,
+)
+```
 
 ## Recommended Actions
 

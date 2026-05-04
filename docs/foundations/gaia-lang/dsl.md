@@ -13,6 +13,8 @@ Gaia Lang is a Python 3.12+ internal DSL for declarative knowledge authoring. Pa
 ```python
 from gaia.lang import (
     claim, note, question,                                 # Knowledge
+    Variable, Nat, Real, Probability, Bool,                # Formula terms
+    parameter, observation, causal,                        # Structured formula claims
     not_, and_, or_,                                      # Propositional expressions
     contradict, equal, exclusive,                         # Reviewable relations
     observe, derive, compute, infer,                       # Recommended actions
@@ -103,6 +105,63 @@ Open inquiry. No probability, no BP participation. Expresses research directions
 
 ```python
 open_problem = question("What is the maximum Tc in hydrogen-rich superconductors?")
+```
+
+---
+
+## Structured Formula Claim Sugar
+
+The structured formula helpers return ordinary `Claim` objects with
+`Claim.formula` and `Claim.kind` set. They do not introduce new IR knowledge
+types; the compiler records bindings and formula descriptors on today's claim
+nodes.
+
+### `parameter(variable, value, *, describe=None, prior=None, label=None, ...)`
+
+Creates a `ClaimKind.PARAMETER` claim whose formula is
+`Equals(variable, Constant(value, variable.domain))`. The variable must use a
+built-in primitive domain (`Nat`, `Real`, `Probability`, or `Bool`).
+
+```python
+p = Variable(symbol="p", domain=Probability)
+h = parameter(
+    p,
+    0.75,
+    describe="Mendelian 3:1 segregation fixes P(dominant) at 0.75.",
+    prior=0.5,
+)
+```
+
+The compiled source claim gets an IR parameter and `metadata.formula_bindings`
+for `p = 0.75`.
+
+### `observation(..., describe=None, prior=None, label=None)`
+
+Creates a `ClaimKind.OBSERVATION` claim from variables with concrete `value`
+fields. Multiple observations lower as a conjunction of equalities, while the
+primitive bindings are still copied back to the source claim.
+
+```python
+n = Variable(symbol="n", domain=Nat, value=395)
+k = Variable(symbol="k", domain=Nat, value=295)
+d = observation(
+    n=n,
+    k=k,
+    describe="Observed 295 dominant phenotypes out of 395 F2 plants.",
+    prior=0.95,
+)
+```
+
+### `causal(cause, effect, *, describe=None, prior=None, label=None, ...)`
+
+Creates a `ClaimKind.CAUSAL` claim with top-level `Causes(cause, effect)`.
+In v0.5 this is a structured marker only: it records cause/effect descriptors
+on the source claim and does not imply Pearl-style intervention semantics.
+
+```python
+co2 = Variable(symbol="co2", domain=Real)
+temp = Variable(symbol="temp", domain=Real)
+c = causal(co2, temp, describe="Rising CO2 causes warming.", prior=0.9)
 ```
 
 ---
