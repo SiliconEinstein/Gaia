@@ -167,6 +167,10 @@ def _metadata_to_ir(value: Any, knowledge_map: dict[int, str]) -> Any:
 
 def _knowledge_metadata(k: Knowledge, knowledge_map: dict[int, str]) -> dict[str, Any] | None:
     metadata = dict(k.metadata)
+    prior = getattr(k, "prior", None)
+    if prior is not None and "prior" not in metadata:
+        # priors.py writes metadata["prior"] before compilation; that parameterization wins.
+        metadata["prior"] = prior
     grounding = getattr(k, "grounding", None)
     if grounding is not None:
         metadata["grounding"] = asdict(grounding)
