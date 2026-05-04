@@ -458,12 +458,12 @@ def test_model_dump_serializes_concrete_params():
 def test_model_dump_skips_deferred_params(theta_deferred):
     """Deferred params are not JSON-serializable; model_dump must omit them
     or replace with a placeholder. We pick: only emit concrete params, and
-    add a parallel `deferred_params: list[str]` field so the IR side can
-    re-resolve them."""
+    add a parallel `deferred_params: dict[str, str]` field so the IR side can
+    re-resolve each parameter slot by Variable symbol."""
     d = _Dummy(params={"a": theta_deferred, "b": 0.5})
     dumped = d.model_dump()
     assert dumped["params"] == {"b": 0.5}
-    assert dumped["deferred_params"] == ["a"]
+    assert dumped["deferred_params"] == {"a": "theta"}
 ```
 
 - [ ] **Step 3: Run tests — verify failure**
@@ -490,7 +490,7 @@ This base class enforces:
 - _deferred_param_names() returns sorted parameter names whose values are
   deferred references
 - _resolved_params() returns {name: float} or raises UnresolvedParameterError
-- model_dump emits only concrete params and a parallel deferred_params list
+- model_dump emits only concrete params and a parallel deferred_params mapping
 """
 
 from __future__ import annotations
@@ -545,6 +545,14 @@ class _BaseDistribution(BaseModel):
             if _is_deferred_reference(value)
         )
 
+    def _deferred_param_symbols(self) -> dict[str, str]:
+        """Map deferred parameter names to the referenced Variable symbol."""
+        return {
+            name: value.symbol
+            for name, value in sorted(self.params.items())
+            if _is_deferred_reference(value)
+        }
+
     def _resolved_params(self) -> dict[str, float]:
         """Return concrete-numeric params, or raise UnresolvedParameterError.
 
@@ -556,23 +564,26 @@ class _BaseDistribution(BaseModel):
         return {name: float(value) for name, value in self.params.items()}
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:  # type: ignore[override]
-        """Override Pydantic dump: emit concrete params + deferred_params list.
+        """Override Pydantic dump: emit concrete params + deferred_params map.
 
         Deferred references are not JSON-serializable, so we strip them and
-        record their names in a parallel field. Milestone B's compiler reads
-        `deferred_params` to re-bind them before lowering.
+        record each parameter slot's Variable symbol in a parallel field.
+        Milestone B's compiler reads `deferred_params` to re-bind them before
+        lowering.
         """
-        deferred = self._deferred_param_names()
+        deferred = self._deferred_param_symbols()
         concrete = {
             name: value
             for name, value in self.params.items()
             if not _is_deferred_reference(value)
         }
-        return {
+        dumped = {
             "kind": self.kind,
             "params": concrete,
-            "deferred_params": deferred,
         }
+        if deferred:
+            dumped["deferred_params"] = deferred
+        return dumped
 ```
 
 - [ ] **Step 5: Run tests**
@@ -595,7 +606,7 @@ Concrete distributions subclass this. Accepts numeric params or deferred
 references (any object with .symbol: str — duck-typed PR 505 Variable).
 Raises UnresolvedParameterError when methods are called before deferred
 params resolve. model_dump serializes concrete + parallel deferred_params
-list so compiler (Milestone B) can re-bind."
+mapping so compiler (Milestone B) can re-bind each parameter slot."
 ```
 
 ---
@@ -687,4 +698,3 @@ land in v2+ without touching the DSL surface (spec §5.2)."
 ---
 
 **Chunk 1 done.** Foundation in place: scipy dep added, package skeleton, Protocol + DistParam + UnresolvedParameterError, base class with Variable-aware param storage, scipy backend dispatch table. No distributions yet.
-
