@@ -122,6 +122,28 @@ def to_dot(graph_json_str: str) -> str:
     named_modules = sorted([m for m in by_module if m])
     has_no_module = None in by_module
 
+    # A strategy/operator node nests inside a cluster iff every knowledge node
+    # it touches (premises + conclusion) shares a single non-empty module.
+    # Otherwise it floats outside as a cross-module bridge.
+    kid_module: dict[str, str | None] = {
+        n["id"]: (n.get("module") or None) for n in knowledge_nodes
+    }
+    _FLOAT = object()  # sentinel: cross-module / unanchored
+    shared_module: dict[str, object] = {}
+    for nid in op_or_strat_ids:
+        mods: set[str | None] = set()
+        for e in edges:
+            src, tgt = e.get("source"), e.get("target")
+            if src == nid and tgt in kid_module:
+                mods.add(kid_module[tgt])
+            if tgt == nid and src in kid_module:
+                mods.add(kid_module[src])
+        shared_module[nid] = next(iter(mods)) if len(mods) == 1 else _FLOAT
+
+    op_strat_by_module: dict[object, list[dict]] = {}
+    for n in strategy_nodes + operator_nodes:
+        op_strat_by_module.setdefault(shared_module[n["id"]], []).append(n)
+
     out: list[str] = []
     out.append("digraph starmap {")
     out.append("    rankdir=TB;")
@@ -149,67 +171,82 @@ def to_dot(graph_json_str: str) -> str:
         attrs = _knowledge_attrs(cls)
         out.append(f'{indent}{_quote_id(nid)} [label="{label}", {attrs}];')
 
-    # Named-module clusters, alphabetical.
-    for mod in named_modules:
-        cluster_name = _sanitize_cluster_name(mod)
-        out.append(f"    subgraph cluster_{cluster_name} {{")
-        out.append(f'        label="{_escape_label(mod)}";')
+    def _emit_strategy_node(n: dict, indent: str) -> None:
+        stype = n.get("strategy_type", "") or ""
+        label = _escape_label(stype)
+        out.append(
+            f'{indent}{_quote_id(n["id"])} [label="{label}", '
+            "shape=ellipse, style=filled, "
+            'fillcolor="#fff9c4", color="#f9a825"];'
+        )
+
+    def _emit_operator_node(n: dict, indent: str) -> None:
+        otype = n.get("operator_type", "") or ""
+        if otype == _CONTRADICTION:
+            label = _escape_label("⊗ contradiction")
+            out.append(
+                f'{indent}{_quote_id(n["id"])} [label="{label}", '
+                "shape=hexagon, style=filled, "
+                'fillcolor="#ffebee", color="#c62828"];'
+            )
+        else:
+            label = _escape_label(f"⊙ {otype}".rstrip())
+            out.append(
+                f'{indent}{_quote_id(n["id"])} [label="{label}", '
+                "shape=hexagon, style=filled, "
+                'fillcolor="#fff9c4", color="#f9a825"];'
+            )
+
+    def _emit_op_or_strat(n: dict, indent: str) -> None:
+        if n.get("type") == "strategy":
+            _emit_strategy_node(n, indent)
+        else:
+            _emit_operator_node(n, indent)
+
+    def _emit_cluster(
+        cluster_name: str, label: str, knowledge: list[dict], op_strat: list[dict]
+    ) -> None:
+        out.append(f"    subgraph {cluster_name} {{")
+        out.append(f'        label="{_escape_label(label)}";')
         out.append('        style="rounded,filled";')
         out.append('        fillcolor="#fafafa";')
         out.append('        color="#999999";')
         out.append("        fontsize=11;")
         out.append("")
-        for n in by_module[mod]:
+        for n in knowledge:
             _emit_knowledge_node(n, "        ")
+        for n in op_strat:
+            _emit_op_or_strat(n, "        ")
         out.append("    }")
         out.append("")
+
+    # Named-module clusters, alphabetical. Each cluster also absorbs the
+    # strategy/operator nodes whose entire premise+conclusion set lives
+    # inside that one module.
+    for mod in named_modules:
+        _emit_cluster(
+            f"cluster_{_sanitize_cluster_name(mod)}",
+            mod,
+            by_module[mod],
+            op_strat_by_module.get(mod, []),
+        )
 
     # Trailing no-module cluster (only when populated).
     if has_no_module and by_module[None]:
-        out.append("    subgraph cluster_no_module {")
-        out.append('        label="(no module)";')
-        out.append('        style="rounded,filled";')
-        out.append('        fillcolor="#fafafa";')
-        out.append('        color="#999999";')
-        out.append("        fontsize=11;")
-        out.append("")
-        for n in by_module[None]:
-            _emit_knowledge_node(n, "        ")
-        out.append("    }")
-        out.append("")
+        _emit_cluster(
+            "cluster_no_module",
+            "(no module)",
+            by_module[None],
+            op_strat_by_module.get(None, []),
+        )
 
-    # Strategy nodes (outside clusters).
-    if strategy_nodes:
-        out.append("    // strategy nodes (outside clusters)")
-        for n in strategy_nodes:
-            stype = n.get("strategy_type", "") or ""
-            label = _escape_label(stype)
-            out.append(
-                f'    {_quote_id(n["id"])} [label="{label}", '
-                "shape=ellipse, style=filled, "
-                'fillcolor="#fff9c4", color="#f9a825"];'
-            )
-        out.append("")
-
-    # Operator nodes (outside clusters).
-    if operator_nodes:
-        out.append("    // operator nodes (outside clusters)")
-        for n in operator_nodes:
-            otype = n.get("operator_type", "") or ""
-            if otype == _CONTRADICTION:
-                label = _escape_label("⊗ contradiction")
-                out.append(
-                    f'    {_quote_id(n["id"])} [label="{label}", '
-                    "shape=hexagon, style=filled, "
-                    'fillcolor="#ffebee", color="#c62828"];'
-                )
-            else:
-                label = _escape_label(f"⊙ {otype}".rstrip())
-                out.append(
-                    f'    {_quote_id(n["id"])} [label="{label}", '
-                    "shape=hexagon, style=filled, "
-                    'fillcolor="#fff9c4", color="#f9a825"];'
-                )
+    # Cross-module strategy/operator nodes float outside any cluster — they
+    # bridge multiple papers and live in the free area between clusters.
+    floating = op_strat_by_module.get(_FLOAT, [])
+    if floating:
+        out.append("    // cross-module strategy/operator nodes (outside clusters)")
+        for n in floating:
+            _emit_op_or_strat(n, "    ")
         out.append("")
 
     # Edges. Skip edges whose endpoints aren't in the node set (defensive).
