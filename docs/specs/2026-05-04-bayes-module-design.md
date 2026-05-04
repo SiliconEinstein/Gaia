@@ -4,7 +4,7 @@
 > **Branch:** `feat/bayes-module-design` (off `main`)
 > **Target release:** v0.6 (built on v0.5 foundation + PR 505 lifted Lang)
 > **Date:** 2026-05-04
-> **Scope:** Replacement of the Correlate `evidence()` verb with a structured `gaia.lang.bayes` module exposing `predict / observe / likelihood`.
+> **Scope:** Replacement of the Correlate `evidence()` verb with a structured `gaia.lang.bayes` module exposing `predict / likelihood` plus distribution literals.
 > **Supersedes:** PR #506 (`evidence()` verb). PR #506 will be closed without merge.
 > **Depends on:** PR #505 (claim formula schema — Variable / Domain / Formula AST / `parameter()` / `observation()` sugar).
 
@@ -45,13 +45,13 @@ Five atoms, each independently expressible:
 | Likelihood computation | `likelihood(data, via=M)` | yes — ComparisonResult claim |
 | Belief update | (lowering produces BP factors) | no — structural |
 
-This spec defines a `gaia.lang.bayes` module with three new verbs (`predict`, `likelihood`, plus distribution literals), reusing PR 505's `parameter()` / `observation()` for the hypothesis/observation atoms.
+This spec defines a `gaia.lang.bayes` module with two new verbs (`predict`, `likelihood`) plus distribution literals, reusing PR 505's `parameter()` / `observation()` for the hypothesis/observation atoms.
 
 ### 0.3 First-principles position
 
 | Principle | How it lands |
 |---|---|
-| **DSL surface mirrors paper narrative.** | `predict / observe / likelihood` is the standard three-step paper method. |
+| **DSL surface mirrors paper narrative.** | `predict / observation / likelihood` is the standard three-step paper method. |
 | **Each atom is a structured Claim, reviewable in isolation.** | All four user-facing artifacts are Knowledge nodes carrying typed metadata. |
 | **Composite hypotheses, multi-H, parameter priors are special cases of the same framework, not new verbs.** | Composite H is a formula-shape change (PR 505 grounding pass). Multi-H = expanding the H set passed to `predict`. Parameter prior = backend extension on Distribution. |
 | **Mature ecosystems plug in via Distribution backend.** | scipy.stats is the v1 default backend; PyMC / Stan / NumPyro are v2+ adapter slots that extend `Distribution.logpmf/logpdf` without changing the DSL. |
@@ -89,7 +89,7 @@ This spec defines a `gaia.lang.bayes` module with three new verbs (`predict`, `l
 - **Replaces** `evidence()` from PR #506 (deleted, not deprecated; user count = 0).
 - **Coexists with** `infer()` (low-level escape hatch, hand-written CPT) and `associate()` (symmetric correlation — orthogonal problem).
 - **Depends on** PR 505's Variable / Formula AST / `parameter()` / `observation()`.
-- **Single new hard dependency:** `scipy` (already transitively in dep graph).
+- **Single new hard dependency:** `scipy` (must be added as a direct runtime dependency; do not rely on optional transitive dependencies).
 - **No IR schema changes. No new FactorType.**
 
 ### 1.2 New `metadata` well-known keys
@@ -152,7 +152,7 @@ bayes.Binomial(n=n, p=theta)
 
 | Existing | Action |
 |---|---|
-| `gaia.stats.DistributionLiteral / Binomial / Normal / ...` (PR 506) | Move to `gaia.lang.bayes.distributions`. `gaia.stats` becomes a deprecation shim for one minor version, then deleted. |
+| Distribution literals | Implement directly in `gaia.lang.bayes.distributions`. Do **not** add a `gaia.stats` compatibility shim: PR #506 is unmerged and current `main` has no public `gaia.stats` API to migrate. |
 | PR 505's `parameter()` / `observation()` sugar | Stay at `gaia.lang.dsl` root; bayes module imports and uses them. |
 | Correlate `infer` / `associate` | Stay. `infer` = "I hand-wrote the CPT"; `bayes.likelihood` = "I have a model and observed value, kernel computes the CPT". |
 | Correlate `evidence` (PR 506) | **Delete in same PR as bayes module.** PR #506 closes without merge. |
@@ -285,12 +285,13 @@ Step 2: Create ComparisonResult Knowledge:
 Step 3: Normalise log-likelihoods into CPT entries:
     logL_max = max_i(logL_i)
     LR_i     = exp(logL_i - logL_max)              # ∈ (0, 1]
-    p1_i     = 0.5 + (0.5 - ε) · LR_i              # ∈ [0.5, 1-ε]
+    p0_i     = 0.5                                 # shared neutral baseline
+    p1_i     = clamp((1 - ε) · LR_i)               # ∈ [ε, 1-ε]
 
-Step 4: For each H_i, emit an IR `infer` strategy:
+Step 4: For each H_i, emit an IR `infer` strategy plus its parameter record:
     premises                  = [H_i.qid]
     conclusion                = ComparisonResult.qid
-    conditional_probabilities = [0.5, p1_i]        # length 2 (k=1)
+    StrategyParamRecord.conditional_probabilities = [p0_i, p1_i]
     metadata["bayes"]["log_likelihood"] = logL_i
 
 Step 5: If |H| ≥ 2 and exclusivity == "pairwise_contradiction":
@@ -299,20 +300,28 @@ Step 5: If |H| ≥ 2 and exclusivity == "pairwise_contradiction":
         metadata["bayes"]["auto_generated_by"] = "likelihood:<cmp_qid>"
 ```
 
-The CPT shape `[0.5, p1_i]` is read by existing `gaia/bp/lowering.py:317` (`StrategyType.INFER` branch), which emits a `CONDITIONAL` factor with this CPT. No new lowering code needed at the BP layer.
+The CPT shape `[p0_i, p1_i]` is passed through the existing parameterization channel (`StrategyParamRecord.conditional_probabilities`, or the runtime `strategy_conditional_params` map) and is read by existing `gaia/bp/lowering.py:317` (`StrategyType.INFER` branch), which emits a `CONDITIONAL` factor with this CPT. Do not store this numeric CPT only in `Strategy.metadata`; current lowering does not read strategy metadata for infer parameters. No new lowering code is needed at the BP layer.
 
-### 4.3 Why `[0.5, p1_i]` is the right CPT
+### 4.3 Why `[p0_i, p1_i]` is the right CPT
 
-- `cpt[0] = P(cmp_result=1 | H_i=0) = 0.5` — neutral. When H_i is false, the comparison-result has no opinion; other H_j drive belief in cmp_result.
-- `cpt[1] = P(cmp_result=1 | H_i=1) = p1_i` — H_i being true *predicts* the comparison-result is true with probability proportional to LR_i.
+- `cpt[0] = P(cmp_result=1 | H_i=0) = p0_i = 0.5` — shared neutral baseline. When H_i is false, this factor contributes the same constant for every hypothesis.
+- `cpt[1] = P(cmp_result=1 | H_i=1) = p1_i` — proportional to `LR_i = exp(logL_i - logL_max)`, Cromwell-clamped.
 
-With cmp_result clamped to True (its `prior = 1-ε` enters BP via `gaia/bp/factor_graph.py:63` `add_variable` with the Cromwell-bounded prior, equivalent to a soft hard-evidence delta — see `gaia/bp/factor_graph.py:66` `observe()` runtime path for reference), each H_i's posterior multiplies by `LR_i` (relative to the baseline H), preserving the relative likelihood ratios across the H set. The H with maximum logL recovers the strongest update; lesser H's tend to neutral.
+With cmp_result clamped to True (its `prior = 1-ε` enters BP via `gaia/bp/factor_graph.py:63` `add_variable` with the Cromwell-bounded prior, equivalent to a soft hard-evidence delta — see `gaia/bp/factor_graph.py:66` `observe()` runtime path for reference), the shared `p0_i=0.5` terms cancel when comparing mutually exclusive alternatives. Under an exhaustive two-H comparison, posterior odds obey:
 
-**Worked example (Mendel).** With logL_3:1 = −1.2 and logL_null = −5.1: logL_max = −1.2, LR_3:1 = 1.0, LR_null = exp(−3.9) ≈ 0.020. CPT entries: p1_3:1 ≈ 1 − ε, p1_null ≈ 0.510. Two `infer` strategies emitted, both feeding cmp_result. After BP, posterior(H_3:1) / posterior(H_null) ≈ exp(3.9) ≈ 49 — matches the Bayes factor.
+```
+posterior(H_a) / posterior(H_b)
+  ≈ prior(H_a) / prior(H_b) · p1_a / p1_b
+  ≈ prior(H_a) / prior(H_b) · exp(logL_a - logL_b)
+```
+
+within Cromwell clamp. The default `pairwise_contradiction` mode is weaker ("at most one true") and can leave residual mass on "none of the above"; it preserves ordering among alternatives but is not a strict normalized model-comparison posterior. Authors who need posterior odds to equal Bayes-factor-weighted prior odds should use `exclusivity="exhaustive_pairwise_complement"` when the H set is exhaustive.
+
+**Worked example (Mendel).** With logL_3:1 = −1.2 and logL_null = −5.1: logL_max = −1.2, LR_3:1 = 1.0, LR_null = exp(−3.9) ≈ 0.020. CPT entries: `p1_3:1 ≈ 1 − ε`, `p1_null ≈ 0.020`. Two `infer` strategies are emitted, both feeding cmp_result, with a shared `p0=0.5`. Under exhaustive two-H comparison, the posterior odds are ≈47.5 after Cromwell clamp (unclamped Bayes factor ≈49), which matches the intended likelihood-ratio semantics up to clamp.
 
 **Information loss caveats.**
 - This mapping preserves likelihood *ratios* across H but loses absolute likelihood scale. For v1 this is acceptable — the visible quantity in scientific writing is the Bayes factor (ratio), not the absolute likelihood. Authors needing absolute scale can read `metadata["bayes"]["likelihoods"]` directly off the ComparisonResult.
-- Setting `cpt[0] = 0.5` makes H_i=False contribute nothing to cmp_result. Strong absolute disconfirmation patterns ("under H_i, this data is essentially impossible") propagate only via competition with other H's (LR_i → 0 yields p1_i → 0.5, so H_i loses to its competitors). Authors comparing against an exhaustive null should use `exclusivity="exhaustive_pairwise_complement"` so that H_i's belief is pulled down by other H's gaining mass. v2+ may revisit by allowing per-H absolute disconfirmation factors.
+- Cromwell clamp caps extreme Bayes factors at roughly `(1-ε)/ε` per comparison. The raw log-likelihoods remain available in metadata for trace inspection and future exact backends.
 
 ### 4.4 Multi-data accumulation
 
@@ -410,7 +419,7 @@ Already supported in v1 — author writes multiple `likelihood()` calls referenc
 
 - `predict({H1, H2})` without explicit `contradict()`: warn + auto-emit (per §4.6).
 - `observation(noise=Normal(0, σ))` with σ ≫ predict's distribution scale: warn `"noise dominates signal — likelihood may be uninformative"`.
-- Some `logL_i = -inf`: warn + force `p1_i = 0.5` (neutral) so that H is not driven to zero by a degenerate model evaluation.
+- Some `logL_i = -inf`: warn + force `p1_i = ε` after normalization. If all `logL_i = -inf`, raise a hard error because no model assigns support to the data.
 
 ### 6.3 New `gaia check` rules
 
@@ -445,10 +454,10 @@ tests/gaia/lang/bayes/
 │   ├── test_distributions.py      # logpmf/logpdf vs scipy.stats reference
 │   ├── test_predict.py            # PredictiveModel construction, binding resolution
 │   ├── test_observe.py            # OBSERVATION + noise metadata
-│   └── test_likelihood.py         # logL, CPT normalisation, exclusivity policies
+│   └── test_likelihood.py         # logL, StrategyParamRecord CPTs, exclusivity policies
 ├── compiler/
 │   ├── test_lower_predict.py      # PredictiveModel → IR atom
-│   ├── test_lower_likelihood.py   # ComparisonResult + N infer strategies + auto-CONTRADICTION
+│   ├── test_lower_likelihood.py   # ComparisonResult + N infer strategies/params + auto-CONTRADICTION
 │   └── test_likelihood_to_bp.py   # IR → factor graph end-to-end
 ├── integration/
 │   ├── test_mendel_3to1.py        # Canonical full-pipeline reference
@@ -464,7 +473,7 @@ tests/gaia/lang/bayes/
 
 | Invariant | Verification |
 |---|---|
-| `argmax_i(posterior_i)` == `argmax_i(logL_i)` after BP | Random N H + random data, hypothesis library |
+| With equal priors and exhaustive H, `argmax_i(posterior_i)` == `argmax_i(logL_i)` after BP | Random N H + random data, hypothesis library |
 | `likelihood([d_A]) + likelihood([d_B])` ≡ `likelihood([d_A, d_B])` (up to ε) | Two-path equivalence test |
 | All BP outputs ∈ (ε, 1-ε) (Cromwell) | Iterate over integration cases |
 | Posterior monotonic with iter count, eventually stable | BP convergence smoke test |
@@ -509,12 +518,12 @@ PR #506 will be closed with the disposition:
 
 > Superseded by `gaia.lang.bayes` module (spec: `docs/specs/2026-05-04-bayes-module-design.md`). The module subsumes `evidence()`'s role with a structurally cleaner `predict / likelihood` decomposition.
 
-### 8.2 `gaia.stats` → `gaia.lang.bayes.distributions`
+### 8.2 Distribution import path
 
-- v0.6: New canonical location is `gaia.lang.bayes.distributions`. `gaia.stats` import paths emit `DeprecationWarning`.
-- v0.7: Delete `gaia.stats`.
+- v0.6: New canonical location is `gaia.lang.bayes.distributions` and convenience re-exports from `gaia.lang.bayes`.
+- No `gaia.stats` shim is introduced. PR #506 is unmerged, current `main` has no `gaia.stats`, and the stated migration policy for `evidence()` is deletion without deprecation.
 
-Migration tool: `gaia migrate-bayes` rewrites `from gaia.stats import ...` to `from gaia.lang.bayes import ...`. Same framework as PR 505's `gaia migrate-formula`.
+No `gaia migrate-bayes` command is required for v1 unless a later release creates a public import path that actually needs migration.
 
 ### 8.3 Documentation migration
 
@@ -541,9 +550,9 @@ Three independent PR slices, ordered by dependency. Each independently shippable
 
 ### Milestone A — Distribution module + protocol
 
-- Move `gaia/stats.py` → `gaia/lang/bayes/distributions/`.
+- Add `gaia/lang/bayes/distributions/`.
 - Add `Distribution` Protocol + scipy backend.
-- `gaia.stats` becomes a deprecation shim.
+- Add `scipy` as a direct runtime dependency in `pyproject.toml`.
 - Tests: distribution literals, logpmf/logpdf parity with scipy.
 
 ### Milestone B — `predict()` + `likelihood()` + lowering
@@ -558,13 +567,12 @@ Three independent PR slices, ordered by dependency. Each independently shippable
 
 - Delete `gaia.lang.dsl.evidence_verb` and tests.
 - Close PR #506.
-- Add `gaia migrate-bayes` codemod (modelled on PR 505 §8.2).
 - Write `docs/foundations/gaia-lang/bayes.md`.
 - Update `docs/foundations/gaia-lang/dsl.md` evidence section.
 
 Each milestone goes through `writing-plans` skill independently for detailed task breakdown.
 
-**Cross-milestone reminder:** `gaia.stats` deprecation in Milestone A implies a v0.7 cleanup ticket to delete the shim. Track in the v0.7 release checklist; do not forget.
+**Cross-milestone reminder:** because no `gaia.stats` shim is created, there is no v0.7 cleanup ticket for that path. Keep migration work limited to actual public APIs.
 
 ---
 
@@ -595,8 +603,8 @@ The design is implemented when:
 5. `docs/foundations/gaia-lang/bayes.md` exists and its code examples are exercised in CI.
 6. No new `FactorType` is added to `gaia/bp/factor_graph.py`.
 7. No new `OperatorType` is added to `gaia/ir/operator.py`.
-8. `gaia.stats` import emits `DeprecationWarning` and continues to function for one minor release.
-9. The property `argmax_i(posterior_i) == argmax_i(logL_i)` holds across the property-based test suite (random N H + random data).
+8. `gaia.stats` is not introduced as a compatibility shim unless a real merged public API later requires it.
+9. With equal priors and exhaustive H, the property `argmax_i(posterior_i) == argmax_i(logL_i)` holds across the property-based test suite (random N H + random data).
 
 ---
 
