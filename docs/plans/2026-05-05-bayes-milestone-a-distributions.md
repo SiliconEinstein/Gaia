@@ -1694,19 +1694,19 @@ def test_kind_field_consistent_across_distributions():
     """Each distribution self-reports its kind matching its scipy backend key."""
     from gaia.lang import bayes
 
-    expected_kinds = {
-        bayes.Binomial(n=10, p=0.5): "binomial",
-        bayes.Poisson(rate=1.0): "poisson",
-        bayes.Normal(mu=0.0, sigma=1.0): "normal",
-        bayes.Beta(alpha=2.0, beta=2.0): "beta",
-        bayes.Exponential(rate=1.0): "exponential",
-        bayes.LogNormal(mu=0.0, sigma=1.0): "lognormal",
-        bayes.StudentT(df=5.0, mu=0.0, sigma=1.0): "studentt",
-        bayes.Cauchy(mu=0.0, gamma=1.0): "cauchy",
-        bayes.Gamma(alpha=2.0, rate=1.0): "gamma",
-        bayes.ChiSquared(df=5.0): "chisquared",
-    }
-    for dist, kind in expected_kinds.items():
+    expected_kinds = [
+        (bayes.Binomial(n=10, p=0.5), "binomial"),
+        (bayes.Poisson(rate=1.0), "poisson"),
+        (bayes.Normal(mu=0.0, sigma=1.0), "normal"),
+        (bayes.Beta(alpha=2.0, beta=2.0), "beta"),
+        (bayes.Exponential(rate=1.0), "exponential"),
+        (bayes.LogNormal(mu=0.0, sigma=1.0), "lognormal"),
+        (bayes.StudentT(df=5.0, mu=0.0, sigma=1.0), "studentt"),
+        (bayes.Cauchy(mu=0.0, gamma=1.0), "cauchy"),
+        (bayes.Gamma(alpha=2.0, rate=1.0), "gamma"),
+        (bayes.ChiSquared(df=5.0), "chisquared"),
+    ]
+    for dist, kind in expected_kinds:
         assert dist.kind == kind
 
 
@@ -1762,14 +1762,16 @@ This is **fixture infrastructure for Milestone B/C**. Milestone A doesn't strict
 
 - [ ] **Step 1: Extend `conftest.py` with the exact-inference fixture**
 
-Append to `tests/gaia/lang/bayes/conftest.py`:
+Add these imports near the existing imports at the top of `tests/gaia/lang/bayes/conftest.py`:
 
 ```python
-from __future__ import annotations
-
 from itertools import product
 from typing import Callable
+```
 
+Then append the fixture implementation below the existing deferred-variable fixtures:
+
+```python
 
 def _enumerate_marginals(
     n_vars: int,
@@ -2065,14 +2067,14 @@ Expected: every test in `tests/gaia/lang/` passes.
 Run: `uv run --extra dev ruff format --check gaia/lang/bayes tests/gaia/lang/bayes && uv run --extra dev ruff check gaia/lang/bayes tests/gaia/lang/bayes`
 Expected: no errors.
 
-- [ ] **Step 4: Spec acceptance check (§11)**
+- [ ] **Step 4: Milestone A acceptance subset check (§11)**
 
 Run: `uv run --extra dev python -c "
 import gaia.lang.bayes as b
 # §11.1: from gaia.lang import bayes exposes 10 distribution classes
 required = {'Binomial', 'Normal', 'Beta', 'Poisson', 'Exponential', 'LogNormal', 'StudentT', 'Cauchy', 'Gamma', 'ChiSquared'}
 assert required.issubset(set(b.__all__)), f'Missing: {required - set(b.__all__)}'
-print('§11.1 satisfied')
+print('§11.1 distribution subset satisfied (predict/likelihood deferred to Milestone B)')
 # §11.6: no new FactorType
 from gaia.bp.factor_graph import FactorType
 expected_types = {'IMPLICATION', 'CONJUNCTION', 'DISJUNCTION', 'EQUIVALENCE', 'CONTRADICTION', 'COMPLEMENT', 'SOFT_ENTAILMENT', 'CONDITIONAL'}
@@ -2083,11 +2085,11 @@ from gaia.ir.operator import OperatorType
 expected_ops = {'IMPLICATION', 'EQUIVALENCE', 'CONTRADICTION', 'COMPLEMENT', 'DISJUNCTION', 'CONJUNCTION'}
 assert {ot.name for ot in OperatorType} == expected_ops, 'OperatorType drift detected'
 print('§11.7 satisfied')
-print('Milestone A acceptance criteria 1, 6, 7 satisfied at code level')
+print('Milestone A acceptance subset satisfied at code level')
 "`
 Expected: three "satisfied" lines plus the final summary.
 
-Note: §11 acceptance criteria 2 (Mendel pipeline test), 3 (PR #506 close), 4 (gaia check rules), 5 (foundation docs) are deferred to Milestone B / C — they require verbs and lowering not in scope here.
+Note: the rest of §11.1 (`predict` / `likelihood`) plus §11 acceptance criteria 2 (Mendel pipeline test), 3 (PR #506 close), 4 (gaia check rules), 5 (foundation docs) are deferred to Milestone B / C — they require verbs and lowering not in scope here.
 
 - [ ] **Step 5: Final commit (if anything cosmetic was touched)**
 
@@ -2099,7 +2101,7 @@ Otherwise no commit needed.
 
 ---
 
-**Chunk 4 done.** Public API surface complete: `from gaia.lang import bayes` and `from gaia.lang.bayes import <Class>` both resolve, all 10 distributions exposed, README in place, exact-inference fixture available for Milestone B/C ground-truth comparisons. Spec §11 acceptance criteria 1, 6, 7 verifiably satisfied; criteria 2-5 deferred to later milestones.
+**Chunk 4 done.** Public API surface for Milestone A is complete: `from gaia.lang import bayes` and `from gaia.lang.bayes import <Class>` both resolve, all 10 distributions exposed, README in place, exact-inference fixture available for Milestone B/C ground-truth comparisons. The §11.1 distribution subset plus §11.6 and §11.7 are verifiably satisfied; `predict` / `likelihood` and criteria 2-5 are deferred to later milestones.
 
 ---
 
