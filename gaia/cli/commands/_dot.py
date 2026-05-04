@@ -13,14 +13,6 @@ from __future__ import annotations
 import json
 import re
 
-# Strategy emoji map; anything unknown gets a wrench.
-_STRATEGY_EMOJI: dict[str, str] = {
-    "deduction": "🧠",
-    "abduction": "🔍",
-    "induction": "🌱",
-}
-_STRATEGY_DEFAULT_EMOJI = "🔧"
-
 _CONTRADICTION = "contradiction"
 
 _CLUSTER_ID_SAFE = re.compile(r"[^A-Za-z0-9_]")
@@ -62,15 +54,7 @@ def _belief_annotation(prior: float | None, belief: float | None) -> str:
     if prior is None and belief is None:
         return ""
     if prior is not None and belief is not None:
-        p = round(prior, 2)
-        b = round(belief, 2)
-        if b > p:
-            arrow = " ↑"
-        elif b < p:
-            arrow = " ↓"
-        else:
-            arrow = ""
-        return f"\\n({p:.2f} → {b:.2f}{arrow})"
+        return f"\\n({round(prior, 2):.2f} → {round(belief, 2):.2f})"
     if belief is not None:
         return f"\\n({round(belief, 2):.2f})"
     # Only prior is set.
@@ -85,11 +69,13 @@ def _quote_id(raw: str) -> str:
 def _knowledge_attrs(node_class: str) -> str:
     """Per-class node attribute fragment (sans label, which the caller adds)."""
     if node_class == "setting":
-        return 'shape=box, style="filled,rounded", fillcolor="#f0f0f0", color="#999999"'
+        return 'shape=box, style=filled, fillcolor="#f0f0f0", color="#999999"'
+    if node_class == "exported":
+        return 'shape=box, style=filled, fillcolor="#d4edda", color="#28a745", penwidth=2'
     if node_class == "premise":
-        return 'shape=box, style="filled,rounded", fillcolor="#ddeeff", color="#4488bb"'
+        return 'shape=box, style=filled, fillcolor="#ddeeff", color="#4488bb"'
     # derived
-    return 'shape=box, style="filled,rounded", fillcolor="#ddffdd", color="#44bb44"'
+    return 'shape=box, style=filled, fillcolor="#ddffdd", color="#44bb44"'
 
 
 def to_dot(graph_json_str: str) -> str:
@@ -147,13 +133,15 @@ def to_dot(graph_json_str: str) -> str:
     def _emit_knowledge_node(n: dict, indent: str) -> None:
         nid = n["id"]
         base = n.get("title") or n.get("label") or ""
+        is_exported = bool(n.get("exported"))
+        prefix = "★ " if is_exported else ""
         annotation = _belief_annotation(n.get("prior"), n.get("belief"))
-        # Escape the raw text first; the annotation is already in DOT-literal
-        # form (it contains a literal ``\n``) so we splice it in afterwards.
-        label = _escape_label(str(base)) + annotation
+        label = _escape_label(prefix + str(base)) + annotation
 
         if n.get("type") == "setting":
             cls = "setting"
+        elif is_exported:
+            cls = "exported"
         elif nid in derived_ids:
             cls = "derived"
         else:
@@ -195,12 +183,11 @@ def to_dot(graph_json_str: str) -> str:
         out.append("    // strategy nodes (outside clusters)")
         for n in strategy_nodes:
             stype = n.get("strategy_type", "") or ""
-            emoji = _STRATEGY_EMOJI.get(stype, _STRATEGY_DEFAULT_EMOJI)
-            label = _escape_label(f"{emoji} {stype}".rstrip())
+            label = _escape_label(stype)
             out.append(
                 f'    {_quote_id(n["id"])} [label="{label}", '
                 "shape=ellipse, style=filled, "
-                'fillcolor="#fff8dc", color="#aaaa55"];'
+                'fillcolor="#fff9c4", color="#f9a825"];'
             )
         out.append("")
 
@@ -213,15 +200,15 @@ def to_dot(graph_json_str: str) -> str:
                 label = _escape_label("⊗ contradiction")
                 out.append(
                     f'    {_quote_id(n["id"])} [label="{label}", '
-                    "shape=diamond, style=filled, "
+                    "shape=hexagon, style=filled, "
                     'fillcolor="#ffebee", color="#c62828"];'
                 )
             else:
                 label = _escape_label(f"⊙ {otype}".rstrip())
                 out.append(
                     f'    {_quote_id(n["id"])} [label="{label}", '
-                    "shape=diamond, style=filled, "
-                    'fillcolor="#fff8dc", color="#aaaa55"];'
+                    "shape=hexagon, style=filled, "
+                    'fillcolor="#fff9c4", color="#f9a825"];'
                 )
         out.append("")
 
