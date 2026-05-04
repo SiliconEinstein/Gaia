@@ -227,7 +227,7 @@ def _implies_name(antecedent: str, consequent: str) -> str:
 
 
 def _propagate_prior(builder: _TemplateBuilder, helper: Knowledge, key: str = "prior") -> None:
-    """Copy author-set prior from strategy metadata to the helper claim's metadata."""
+    """Copy author-set prior from strategy metadata to a soft helper claim's metadata."""
     author_prior = (builder.metadata or {}).get(key)
     if author_prior is not None:
         helper.metadata = dict(helper.metadata or {})
@@ -243,7 +243,6 @@ def _build_deduction(builder: _TemplateBuilder) -> list[Operator]:
         impl_helper = builder.add_helper(
             "implication", _implies_name(antecedent, builder.conclusion)
         )
-        _propagate_prior(builder, impl_helper)
         return [
             Operator(
                 operator="implication",
@@ -255,7 +254,6 @@ def _build_deduction(builder: _TemplateBuilder) -> list[Operator]:
     impl_helper = builder.add_helper(
         "implication", _implies_name(conjunction.id, builder.conclusion)
     )
-    _propagate_prior(builder, impl_helper)
     return [
         Operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
         Operator(

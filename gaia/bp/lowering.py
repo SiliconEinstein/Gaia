@@ -669,10 +669,10 @@ def _lower_strategy(
             metadata=s.metadata,
         )
         # Register generated intermediate and interface claims as variables.
-        # If a helper claim has an author-set prior (from priors.py or DSL
-        # reason+prior pairing), inject it into the priors dict so lowering
-        # uses it instead of the structural default (1-eps for relation ops,
-        # 0.5 otherwise).
+        # If a helper claim has an author-set prior (currently soft families
+        # such as support; deduction keeps its legacy prior on the strategy),
+        # inject it into the priors dict so lowering uses it instead of the
+        # structural default.
         for k in result.knowledges:
             if k.id and k.metadata and "prior" in k.metadata:
                 priors[k.id] = float(k.metadata["prior"])

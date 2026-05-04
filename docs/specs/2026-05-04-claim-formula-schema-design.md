@@ -322,8 +322,12 @@ The compiler produces today's IR shapes. Authors never touch IR types directly.
 ### 7.1 Formula → IR Operator graph
 
 A Claim with `formula=land(P, Q)` (where P, Q are `ClaimAtom`s referring to existing claims A, B):
-- Emit one **helper Knowledge** node representing the conjunction-result, with `prior` carried from the Claim
-- Emit `Operator(operator=CONJUNCTION, variables=[A, B], conclusion=helper)`
+- Use the source Claim's IR `Knowledge` as the formula truth variable, preserving
+  the Claim's authored prior on that source node.
+- Emit `Operator(operator=CONJUNCTION, variables=[A, B], conclusion=source_claim)`.
+- Nested compound subformulas may emit generated helper Knowledge nodes, but
+  those helpers do not carry authored priors; their truth is determined by the
+  rigid operators that define them.
 
 A Claim with `formula=Equals(p, 0.75)` (parameter assertion):
 - Do **not** emit an extra propositional atom. The source Claim's IR `Knowledge`
@@ -359,7 +363,7 @@ forall(x: Particle, body(x))
            emit grounded_body_v ← compile(body[x ↦ v])
            record body[x ↦ v] as formula metadata/operators on grounded_body_v
        emit one universal-claim Knowledge G with prior from the source Claim
-       emit one directed implication/deduction G -> grounded_body_v for each v
+       emit one asserted rigid implication operator G -> grounded_body_v for each v
 ```
 
 `forall` is a rule-to-instance grounding, not an aggregate claim over all
@@ -367,7 +371,10 @@ instances. Lowering it as a conjunction would reverse the load-bearing
 direction: it would make the universal claim depend on all currently enumerated
 instances, while the intended contract is that accepting the universal claim
 supports each grounded instance. Therefore finite-domain `forall` emits
-multiple implication-shaped strategies, one per domain member.
+multiple top-level `IMPLICATION` operators, one per domain member. It does not
+use a `deduction` FormalStrategy wrapper: formula grounding should stay in the
+rigid Operator layer and must not create strategy helpers with probabilistic
+metadata that BP later discards.
 
 `exists(x, body)` remains aggregate-shaped for multi-member domains and lowers
 to `DISJUNCTION(grounded_body_v...) -> source_claim`. For a singleton finite
