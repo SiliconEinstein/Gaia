@@ -66,6 +66,12 @@ def test_forall_lowers_to_implication_per_domain_member_not_conjunction():
     assert len(instance_claims) == 2
     assert {k.metadata["binding"]["value"] for k in instance_claims} == {"p1", "p2"}
     assert {k.metadata["source_claim"] for k in instance_claims} == {universal_id}
+    assert {k.metadata["formula_atom"]["kind"] for k in instance_claims} == {"predicate"}
+    assert {k.metadata["formula_atom"]["symbol"]["name"] for k in instance_claims} == {"Stable"}
+    assert {k.metadata["formula_atom"]["args"][0]["value"] for k in instance_claims} == {
+        "p1",
+        "p2",
+    }
     assert {(k.parameters[0].name, k.parameters[0].value) for k in instance_claims} == {
         ("x", "p1"),
         ("x", "p2"),
@@ -125,6 +131,12 @@ def test_exists_lowers_to_disjunction_over_domain_instances():
     assert len(instance_claims) == 2
     assert {k.metadata["binding"]["value"] for k in instance_claims} == {"p1", "p2"}
     assert {k.metadata["source_claim"] for k in instance_claims} == {source_id}
+    assert {k.metadata["formula_atom"]["kind"] for k in instance_claims} == {"predicate"}
+    assert {k.metadata["formula_atom"]["symbol"]["name"] for k in instance_claims} == {"Stable"}
+    assert {k.metadata["formula_atom"]["args"][0]["value"] for k in instance_claims} == {
+        "p1",
+        "p2",
+    }
     assert {(k.parameters[0].name, k.parameters[0].value) for k in instance_claims} == {
         ("x", "p1"),
         ("x", "p2"),
@@ -143,6 +155,44 @@ def test_exists_lowers_to_disjunction_over_domain_instances():
         for s in artifact.graph.strategies
         if (s.metadata or {}).get("formula_lowering") == "exists_grounding"
     ] == []
+
+
+def test_singleton_exists_lowers_to_equivalence_with_grounded_body():
+    pkg = CollectedPackage(name="formula_exists_singleton_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        particle = Domain(content="Particles", members=["p1"])
+        x = Variable(symbol="x", domain=particle)
+        stable = PredicateSymbol(name="Stable", arg_domains=(particle,))
+        existential = claim(
+            "Some particle is stable.",
+            formula=Exists(variable=x, body=UserPredicate(stable, (x,))),
+            kind=ClaimKind.QUANTIFIED,
+            prior=0.6,
+        )
+        existential.label = "stable_some"
+    finally:
+        _current_package.reset(token)
+
+    artifact = compile_package_artifact(pkg)
+    source_id = "t:formula_exists_singleton_pkg::stable_some"
+    instance = next(
+        k
+        for k in artifact.graph.knowledges
+        if (k.metadata or {}).get("formula_lowering") == "exists_instance"
+    )
+    assert instance.metadata["formula_atom"]["symbol"]["name"] == "Stable"
+    assert instance.metadata["formula_atom"]["args"][0]["value"] == "p1"
+
+    op = next(
+        op
+        for op in artifact.graph.operators
+        if (op.metadata or {}).get("formula_lowering") == "exists_grounding"
+    )
+    assert op.operator == "equivalence"
+    assert set(op.variables) == {source_id, instance.id}
+    helper = next(k for k in artifact.graph.knowledges if k.id == op.conclusion)
+    assert helper.metadata["helper_kind"] == "equivalence_result"
 
 
 def test_land_claim_atom_formula_lowers_to_conjunction_operator():
@@ -277,3 +327,33 @@ def test_top_level_implies_formula_preserves_source_claim_prior():
     fg = lower_local_graph(artifact.graph)
     assert fg.variables[rule_id] == pytest.approx(0.7)
     assert fg.unary_factors[rule_id] == pytest.approx(0.7)
+
+
+def test_top_level_claim_atom_lowers_to_equivalence_alias():
+    pkg = CollectedPackage(name="formula_claim_atom_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.", prior=0.8)
+        a.label = "a"
+        alias = claim("Alias of A.", formula=ClaimAtom(a), prior=0.2)
+        alias.label = "alias"
+    finally:
+        _current_package.reset(token)
+
+    artifact = compile_package_artifact(pkg)
+    alias_id = "t:formula_claim_atom_pkg::alias"
+    source = next(k for k in artifact.graph.knowledges if k.id == alias_id)
+    assert source.metadata["formula_atom"] == {
+        "kind": "claim",
+        "qid": "t:formula_claim_atom_pkg::a",
+    }
+
+    op = next(
+        op
+        for op in artifact.graph.operators
+        if (op.metadata or {}).get("formula_lowering") == "claim_atom_alias"
+    )
+    assert op.operator == "equivalence"
+    assert set(op.variables) == {"t:formula_claim_atom_pkg::a", alias_id}
+    helper = next(k for k in artifact.graph.knowledges if k.id == op.conclusion)
+    assert helper.metadata["helper_kind"] == "equivalence_result"

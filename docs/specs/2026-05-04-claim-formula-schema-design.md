@@ -346,12 +346,18 @@ formula Claim's truth variable and keeps the Claim's authored prior; it is not
 the same as a hand-written hard relation helper whose conclusion is pinned as an
 asserted relation.
 
+A top-level `ClaimAtom(A)` formula is not an independent duplicate of `A`. The
+source Claim is connected to `A` through an asserted equivalence helper, while
+the source Claim still records `metadata.formula_atom = {"kind": "claim",
+"qid": A}`.
+
 ### 7.2 Quantifier grounding
 
 ```
 forall(x: Particle, body(x))
    →   for v in Particle.members:
            emit grounded_body_v ← compile(body[x ↦ v])
+           record body[x ↦ v] as formula metadata/operators on grounded_body_v
        emit one universal-claim Knowledge G with prior from the source Claim
        emit one directed implication/deduction G -> grounded_body_v for each v
 ```
@@ -363,10 +369,16 @@ instances, while the intended contract is that accepting the universal claim
 supports each grounded instance. Therefore finite-domain `forall` emits
 multiple implication-shaped strategies, one per domain member.
 
-`exists(x, body)` remains aggregate-shaped and lowers symmetrically with
-`DISJUNCTION`.
+`exists(x, body)` remains aggregate-shaped for multi-member domains and lowers
+to `DISJUNCTION(grounded_body_v...) -> source_claim`. For a singleton finite
+domain, the source Claim is connected to the single grounded body instance
+through an asserted equivalence helper, because IR `DISJUNCTION` requires at
+least two inputs.
 
-The instantiation parameter `x ↦ v` is recorded in each `grounded_body_v.parameters` — preserving provenance back to the lifted claim.
+The instantiation parameter `x ↦ v` is recorded in each
+`grounded_body_v.parameters`, and the grounded body descriptor records the bound
+term value — preserving provenance back to the lifted claim while keeping the
+body formula visible to downstream renderers/audits.
 
 ### 7.3 Causal claim (v0.5 marker, v0.6 semantics)
 
