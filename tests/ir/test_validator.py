@@ -100,6 +100,11 @@ class TestKnowledgeValidation:
         r = validate_local_graph(g)
         assert r.valid
 
+    def test_valid_uppercase_label(self):
+        g = _local_graph(knowledges=[_claim("github:test::gcn_graphene_Vm")])
+        r = validate_local_graph(g)
+        assert r.valid
+
     def test_wrong_prefix_local(self):
         g = _local_graph(knowledges=[_claim("gcn_wrong")])
         r = validate_local_graph(g)

@@ -28,6 +28,9 @@ class TestIsQid:
     def test_valid_generated_label(self):
         assert is_qid("github:test::__conjunction_result_a1b2c3d4")
 
+    def test_valid_uppercase_label(self):
+        assert is_qid("github:pkg::gcn_graphene_Vm")
+
     def test_invalid_gcn(self):
         assert not is_qid("gcn_abc123")
 
@@ -40,7 +43,7 @@ class TestIsQid:
     def test_invalid_empty(self):
         assert not is_qid("")
 
-    def test_invalid_uppercase(self):
+    def test_invalid_uppercase_namespace(self):
         assert not is_qid("Reg:pkg::label")
 
 
