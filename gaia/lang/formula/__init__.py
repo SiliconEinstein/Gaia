@@ -5,5 +5,16 @@ FunctionSymbol / PredicateSymbol — not name strings — and validate at constr
 """
 
 from gaia.lang.formula.symbols import FunctionSymbol, PredicateSymbol
+from gaia.lang.formula.term import ArithOp, Constant, FunctionApp, Term, is_term
 
-__all__ = ["FunctionSymbol", "PredicateSymbol"]
+__all__ = [
+    # symbols
+    "FunctionSymbol",
+    "PredicateSymbol",
+    # term
+    "Term",
+    "Constant",
+    "FunctionApp",
+    "ArithOp",
+    "is_term",
+]
