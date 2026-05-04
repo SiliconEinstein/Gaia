@@ -80,11 +80,20 @@ def test_compile_not_knowledge_package(tmp_path):
 def test_compile_missing_source_dir(tmp_path):
     """Error when derived source directory does not exist."""
     (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "missing-gaia"\nversion = "1.0.0"\n\n'
+        '[project]\nname = "missing-source-gaia"\nversion = "1.0.0"\n\n'
         '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
     )
+    wrong_src = tmp_path / "src" / "wrong_name"
+    wrong_src.mkdir(parents=True)
+    (wrong_src / "__init__.py").write_text("")
+
     result = runner.invoke(app, ["compile", str(tmp_path)])
     assert result.exit_code != 0
+    assert "package source directory 'missing_source/' not found" in result.output
+    assert "Derived from [project] name 'missing-source-gaia'." in result.output
+    assert 'strip trailing "-gaia"' in result.output
+    assert "convert hyphens to underscores" in result.output
+    assert "Expected at one of: missing_source/, src/missing_source/" in result.output
 
 
 def test_compile_fails_on_invalid_ir_validation(tmp_path):
@@ -1147,11 +1156,15 @@ def test_compile_priors_py_invalid_key_raises(tmp_path):
     (pkg_src / "__init__.py").write_text(
         'from gaia.lang import claim\n\nmy_claim = claim("A claim.")\n__all__ = ["my_claim"]\n'
     )
-    (pkg_src / "priors.py").write_text('PRIORS = {\n    "not_a_knowledge": (0.5, "invalid"),\n}\n')
+    (pkg_src / "priors.py").write_text('PRIORS = {\n    "my_claim": (0.5, "invalid"),\n}\n')
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
     assert result.exit_code != 0
-    assert "Knowledge" in result.output or "PRIORS" in result.output
+    assert "PRIORS key 'my_claim' is not a Knowledge object" in result.output
+    assert "import the Knowledge object and use it directly" in result.output
+    assert "not its string label" in result.output
+    assert "from . import my_claim" in result.output
+    assert 'PRIORS = {my_claim: (0.85, "reason")}' in result.output
 
 
 def test_compile_priors_py_new_knowledge_raises(tmp_path):
