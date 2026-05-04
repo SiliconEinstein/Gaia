@@ -13,3 +13,22 @@ Integrating GPT Pro's v6 IR and Lang design specs into the repo (PR #450). Key d
 2. **Standard likelihood library**: Instead of requiring users to manually declare 5+ assumption Claims for every AB test, provide `ab_test(counts, target)` one-line helpers that auto-generate standard assumptions (RandomAssignment, ConsistentLogging, NoEarlyStopping) as parameterized Claims referencing the experiment Setting. Users can override via manual `likelihood_from()`.
 
 3. **No `Ref[T]` wrapper**: Considered `Ref[T]` generic type vs direct object passing vs string labels. Chose direct object passing (`experiment: Setting`) — simplest, type-safe, consistent with existing Strategy API where premises are passed as objects.
+
+### EARS — Session Start (2026-05-04 10:35)
+<!-- concepts: gaia-lang-v6, infer-strategy, likelihood-gating -->
+- Task: Review PR 504 — "Gate infer likelihoods with given claims"
+- Why: User wants code review on the infer() gating mechanism before merge
+
+### EARS — Commit Digest (2026-05-04 10:40)
+<!-- concepts: gaia-lang-v6, infer-strategy, code-review -->
+Reviewed PR 504 implementing `given` gating for `infer()`. Implementation is correct:
+- API: `infer()` returns evidence claim, helper stays internal as warrant, `p_e_given_not_h` defaults to 0.5
+- CPT construction: binary for no gates, switch CPT with neutral 0.5 baseline when gate is false
+- BP semantics verified via lowering tests: gate unlikely → neutral, gate likely → activates CPT, evidence observed → gate belief increases
+- Review integration: gate claims appear in audit questions
+- All tests pass (78 tests), CI green, docs complete
+Left review comment on PR (can't approve own PR).
+
+### EARS — Progress (2026-05-05 01:03)
+<!-- concepts: causal-reasoning, do-calculus, kernel-vs-adapter -->
+Designed v0.6 causal reasoning spec on top of PR #505's `Causes(X, Y)` marker. Decisions: (1) α architecture — `gaia.causal` kernel module with networkx as kernel dep; y0 stays `gaia[causal-do]` extra because its base install pulls pandas/sklearn/statsmodels (3 heavyweights we don't use). (2) Pgmpy avoided entirely — `do(X=x).query(Y)` numeric answers go through a `mutilate(fg, intervened)` helper (~15 lines) on Gaia's existing FactorGraph, then standard BP/JT engine. Pearl truncated factorization maps cleanly because each `P(v|pa(v))` is exactly one factor with `conclusion=v`. (3) Counterfactuals (level 3) deferred to v0.7+ — they need exogenous noise + parameterized structural equations, which is a Gaia world-view surgery, not just adapters. (4) Variable nodes need synthetic IDs because PR #505 §2.4 says Variables don't get IR Knowledge / QIDs — chose `@var:{namespace}:{package}:{symbol}` with `@` prefix so `is_qid()` returns False, no consumer confuses CNID vs QID. Spec at docs/specs/2026-05-05-causal-reasoning-design.md.

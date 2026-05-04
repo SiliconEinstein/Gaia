@@ -57,3 +57,4 @@ frontend/dist/
 gaia/cli/templates/pages/node_modules/
 gaia/cli/templates/pages/package-lock.json
 pipeline.local.toml
+.superpowers/
