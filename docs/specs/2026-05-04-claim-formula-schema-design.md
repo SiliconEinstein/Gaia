@@ -322,14 +322,38 @@ The compiler produces today's IR shapes. Authors never touch IR types directly.
 ### 7.1 Formula → IR Operator graph
 
 A Claim with `formula=land(P, Q)` (where P, Q are `ClaimAtom`s referring to existing claims A, B):
-- Emit one **helper Knowledge** node representing the conjunction-result, with `prior` carried from the Claim
-- Emit `Operator(operator=CONJUNCTION, variables=[A, B], conclusion=helper)`
+- Use the source Claim's IR `Knowledge` as the formula truth variable, preserving
+  the Claim's authored prior on that source node.
+- Emit `Operator(operator=CONJUNCTION, variables=[A, B], conclusion=source_claim)`.
+- Nested compound subformulas may emit generated helper Knowledge nodes, but
+  those helpers do not carry authored priors; their truth is determined by the
+  rigid operators that define them.
 
 A Claim with `formula=Equals(p, 0.75)` (parameter assertion):
-- Emit a **propositional atom Knowledge** in IR (no internal connectives — the formula is a single predicate over a Variable)
-- Record the binding `(p, 0.75)` in `Knowledge.parameters` for downstream consumers (e.g., `evidence`'s likelihood model)
+- Do **not** emit an extra propositional atom. The source Claim's IR `Knowledge`
+  already is the Boolean atom whose truth means the formula holds.
+- Record the binding `(p, 0.75)` on the source `Knowledge.parameters` and
+  mirror it in `metadata.formula_bindings` for downstream consumers (e.g.,
+  `evidence`'s likelihood model).
+- Record `metadata.formula_atom` as a serializable descriptor of the top-level
+  predicate so renderers and audits can recover the formula shape without
+  executing Python.
 
-Compound formulas (e.g., `land(equals(...), implies(...))`) lower bottom-up — each non-atomic node emits a helper Knowledge plus the matching Operator. Equivalent in factor-graph topology to today's hand-written `and_/or_/contradiction/...` helper claims.
+Compound formulas (e.g., `land(equals(...), implies(...))`) lower bottom-up —
+each non-atomic node emits a helper Knowledge plus the matching Operator.
+Atomic predicates nested inside a compound formula may be represented by
+generated helper Knowledge, but top-level atom formulas annotate the source
+Claim rather than creating an unconnected duplicate. Equivalent in factor-graph
+topology to today's hand-written `and_/or_/contradiction/...` helper claims.
+For formula connectives such as `implies(P, Q)`, the operator conclusion is the
+formula Claim's truth variable and keeps the Claim's authored prior; it is not
+the same as a hand-written hard relation helper whose conclusion is pinned as an
+asserted relation.
+
+A top-level `ClaimAtom(A)` formula is not an independent duplicate of `A`. The
+source Claim is connected to `A` through an asserted equivalence helper, while
+the source Claim still records `metadata.formula_atom = {"kind": "claim",
+"qid": A}`.
 
 ### 7.2 Quantifier grounding
 
@@ -337,17 +361,42 @@ Compound formulas (e.g., `land(equals(...), implies(...))`) lower bottom-up — 
 forall(x: Particle, body(x))
    →   for v in Particle.members:
            emit grounded_body_v ← compile(body[x ↦ v])
+           record body[x ↦ v] as formula metadata/operators on grounded_body_v
        emit one universal-claim Knowledge G with prior from the source Claim
-       emit Strategy(NOISY_AND or CONJUNCTION, premises=[grounded_body_v...], conclusion=G)
+       emit one directed implication/deduction G -> grounded_body_v for each v
 ```
 
-`exists(x, body)` lowers symmetrically with `DISJUNCTION`.
+`forall` is a rule-to-instance grounding, not an aggregate claim over all
+instances. Lowering it as a conjunction would reverse the load-bearing
+direction: it would make the universal claim depend on all currently enumerated
+instances, while the intended contract is that accepting the universal claim
+supports each grounded instance. Therefore finite-domain `forall` emits
+multiple implication-shaped deduction strategies, one per domain member. The
+deduction path lowers to a normalized Jaynes conditional `P(grounded_body_v |
+G)`, so unobserved grounded instances do not compress the authored prior on the
+universal claim. Deduction-generated implication helpers do not carry copied
+author priors; the prior remains on the source Claim / Strategy metadata.
 
-The instantiation parameter `x ↦ v` is recorded in each `grounded_body_v.parameters` — preserving provenance back to the lifted claim.
+`exists(x, body)` remains aggregate-shaped for multi-member domains and lowers
+to `DISJUNCTION(grounded_body_v...) -> source_claim`. For a singleton finite
+domain, the source Claim is connected to the single grounded body instance
+through an asserted equivalence helper, because IR `DISJUNCTION` requires at
+least two inputs.
+
+The instantiation parameter `x ↦ v` is recorded in each
+`grounded_body_v.parameters`, and the grounded body descriptor records the bound
+term value — preserving provenance back to the lifted claim while keeping the
+body formula visible to downstream renderers/audits.
 
 ### 7.3 Causal claim (v0.5 marker, v0.6 semantics)
 
-In v0.5, `Causes(X, Y)` lowers to a propositional atom Knowledge with `metadata.causal` set to a serializable descriptor of the cause and effect terms. The two operands `X` and `Y` are typically `Variable` references; since Variables are Lang-only and do **not** appear as IR Knowledge nodes (see §2.4 and §7.4), they have no compiled QID — the descriptor instead records `symbol`, `domain.name`, and any binding provenance.
+In v0.5, a top-level `Causes(X, Y)` formula annotates the source Claim's IR
+`Knowledge` with `metadata.causal`, a serializable descriptor of the cause and
+effect terms. It does not lower to an implication and does not create an extra
+unconnected atom. The two operands `X` and `Y` are typically `Variable`
+references; since Variables are Lang-only and do **not** appear as IR Knowledge
+nodes (see §2.4 and §7.4), they have no compiled QID — the descriptor instead
+records `symbol`, `domain.name`, and any binding provenance.
 
 ```python
 # Schema of metadata.causal written by the lowering pass:

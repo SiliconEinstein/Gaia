@@ -484,10 +484,10 @@ class TestFormalizeNamedStrategy:
 
 
 class TestPriorPropagation:
-    """Verify that strategy metadata['prior'] propagates to helper claims."""
+    """Verify which strategy priors propagate to helper claims."""
 
-    def test_deduction_single_premise_propagates_prior(self):
-        """Deduction with 1 premise: implication helper gets the prior."""
+    def test_deduction_single_premise_does_not_propagate_prior(self):
+        """Deduction with 1 premise keeps prior on the strategy, not the helper."""
         result = formalize_named_strategy(
             scope="local",
             type_="deduction",
@@ -503,10 +503,11 @@ class TestPriorPropagation:
             if (k.metadata or {}).get("helper_kind") == "implication_result"
         ]
         assert len(impl_helpers) == 1
-        assert impl_helpers[0].metadata["prior"] == 0.95
+        assert result.strategy.metadata["prior"] == 0.95
+        assert "prior" not in impl_helpers[0].metadata
 
-    def test_deduction_multi_premise_propagates_prior(self):
-        """Deduction with 2+ premises: implication helper gets the prior."""
+    def test_deduction_multi_premise_does_not_propagate_prior(self):
+        """Deduction with 2+ premises keeps prior on the strategy, not the helper."""
         result = formalize_named_strategy(
             scope="local",
             type_="deduction",
@@ -522,7 +523,8 @@ class TestPriorPropagation:
             if (k.metadata or {}).get("helper_kind") == "implication_result"
         ]
         assert len(impl_helpers) == 1
-        assert impl_helpers[0].metadata["prior"] == 0.9
+        assert result.strategy.metadata["prior"] == 0.9
+        assert "prior" not in impl_helpers[0].metadata
 
     def test_deduction_no_prior_no_metadata_key(self):
         """Without metadata['prior'], helper claim has no 'prior' key."""

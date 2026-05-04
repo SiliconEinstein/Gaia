@@ -32,6 +32,7 @@ from gaia.lang.refs import (
     resolve,
     validate_groups,
 )
+from gaia.lang.compiler.lower_formula import lower_claim_formula
 from gaia.lang.runtime import Knowledge, Operator
 from gaia.lang.runtime.action import (
     Action,
@@ -203,6 +204,48 @@ def _metadata_with_reason(
     if isinstance(reason, str) and reason:
         merged["reason"] = reason
     return merged or None
+
+
+def _apply_formula_knowledge_updates(
+    ir_knowledges: list[IrKnowledge],
+    *,
+    metadata_updates: dict[str, dict[str, Any]],
+    parameter_updates: dict[str, list[IrParameter]],
+) -> None:
+    """Merge formula-derived annotations back onto source IR Knowledge nodes."""
+    if not metadata_updates and not parameter_updates:
+        return
+
+    index_by_id = {k.id: i for i, k in enumerate(ir_knowledges) if k.id}
+    for qid in sorted(set(metadata_updates) | set(parameter_updates)):
+        try:
+            index = index_by_id[qid]
+        except KeyError as exc:
+            raise ValueError(f"formula lowering referenced unknown Knowledge id {qid!r}") from exc
+
+        ir_k = ir_knowledges[index]
+        metadata = dict(ir_k.metadata) if ir_k.metadata else {}
+        metadata.update(metadata_updates.get(qid, {}))
+
+        parameters = list(ir_k.parameters or [])
+        for param in parameter_updates.get(qid, []):
+            existing = next((p for p in parameters if p.name == param.name), None)
+            if existing is None:
+                parameters.append(param)
+                continue
+            if existing.type != param.type or existing.value != param.value:
+                raise ValueError(
+                    f"formula binding for parameter {param.name!r} conflicts "
+                    f"with existing parameter on {qid}"
+                )
+
+        ir_knowledges[index] = ir_k.model_copy(
+            update={
+                "metadata": metadata or None,
+                "parameters": parameters,
+                "content_hash": None,
+            }
+        )
 
 
 def _operator_to_ir(
@@ -1075,14 +1118,38 @@ def compile_package_artifact(
             ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
             break
 
+    formula_generated_knowledges: list[IrKnowledge] = []
+    formula_generated_operators: list[IrOperator] = []
+    formula_generated_strategies: list[IrStrategy] = []
+    for k in knowledge_nodes:
+        if not _is_local(k, pkg):
+            continue
+        if getattr(k, "formula", None) is None:
+            continue
+        lowered = lower_claim_formula(
+            k,
+            claim_id=knowledge_map[id(k)],
+            namespace=pkg.namespace,
+            package_name=pkg.name,
+            knowledge_map=knowledge_map,
+        )
+        formula_generated_knowledges.extend(lowered.knowledges)
+        formula_generated_operators.extend(lowered.operators)
+        formula_generated_strategies.extend(lowered.strategies)
+        _apply_formula_knowledge_updates(
+            ir_knowledges,
+            metadata_updates=lowered.metadata_updates,
+            parameter_updates=lowered.parameter_updates,
+        )
+
     module_order = pkg._module_order if pkg._module_order else None
     module_titles = getattr(pkg, "_module_titles", None) or None
     graph = LocalCanonicalGraph(
         namespace=pkg.namespace,
         package_name=pkg.name,
-        knowledges=[*ir_knowledges, *generated_knowledges],
-        operators=[*ir_operators, *action_operators],
-        strategies=ir_strategies,
+        knowledges=[*ir_knowledges, *generated_knowledges, *formula_generated_knowledges],
+        operators=[*ir_operators, *action_operators, *formula_generated_operators],
+        strategies=[*ir_strategies, *formula_generated_strategies],
         composes=ir_composes,
         module_order=module_order,
         module_titles=module_titles if module_titles else None,

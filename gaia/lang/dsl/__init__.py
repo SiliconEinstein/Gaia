@@ -1,5 +1,6 @@
 from gaia.lang.dsl.knowledge import claim, context, note, question, setting
 from gaia.lang.dsl.associate_verb import associate
+from gaia.lang.dsl.formula import causes, equals, exists, forall, iff, implies, land, lnot, lor
 from gaia.lang.dsl.infer_verb import infer
 from gaia.lang.dsl.operators import complement, contradiction, disjunction, equivalence
 from gaia.lang.dsl.propositional import and_, not_, or_
@@ -43,15 +44,24 @@ __all__ = [
     "derive",
     "disjunction",
     "equal",
+    "equals",
     "elimination",
+    "exists",
     "exclusive",
     "equivalence",
     "extrapolation",
     "fills",
+    "forall",
+    "iff",
+    "implies",
     "induction",
     "infer",
+    "land",
+    "lnot",
+    "lor",
     "mathematical_induction",
     "noisy_and",
+    "causes",
     "and_",
     "not_",
     "note",

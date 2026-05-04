@@ -913,8 +913,16 @@ def test_compile_named_strategy_uses_ir_canonical_formalization(tmp_path):
     strategy = ir["strategies"][0]
     assert strategy["type"] == "deduction"
     assert strategy["metadata"]["reason"] == "instantiate"
+    assert strategy["metadata"]["prior"] == 0.9
     assert strategy["metadata"]["generated_formal_expr"] is True
     assert strategy["metadata"]["formalization_template"] == "deduction"
+    impl_helpers = [
+        k
+        for k in ir["knowledges"]
+        if (k.get("metadata") or {}).get("helper_kind") == "implication_result"
+    ]
+    assert len(impl_helpers) == 1
+    assert "prior" not in impl_helpers[0]["metadata"]
 
 
 def test_compile_emits_pure_local_canonical_graph(tmp_path):
