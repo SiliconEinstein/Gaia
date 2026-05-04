@@ -145,7 +145,16 @@ def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
     package_roots = [pkg_path, pkg_path / "src"]
     source_root = next((root for root in package_roots if (root / import_name).exists()), None)
     if source_root is None:
-        raise GaiaCliError(f"Error: package source directory '{import_name}/' not found.")
+        expected_paths = ", ".join(
+            f"{candidate.relative_to(pkg_path)}/"
+            for candidate in (root / import_name for root in package_roots)
+        )
+        raise GaiaCliError(
+            f"Error: package source directory '{import_name}/' not found.\n"
+            f"  Derived from [project] name {project_name!r}.\n"
+            '  Derivation: strip trailing "-gaia" when present, then convert hyphens to underscores.\n'
+            f"  Expected at one of: {expected_paths}"
+        )
 
     source_root_str = str(source_root)
     if source_root_str not in sys.path:
@@ -285,7 +294,10 @@ def apply_package_priors(loaded: LoadedGaiaPackage) -> None:
         if not isinstance(key, Knowledge):
             raise GaiaCliError(
                 f"Error: PRIORS key {key!r} is not a Knowledge object. "
-                "Keys must be claim objects from the package."
+                "Keys must be claim objects from the package.\n"
+                "  Hint: import the claim object and use it directly, not its string label.\n"
+                "  Example: from . import my_claim\n"
+                '           PRIORS = {my_claim: (0.85, "reason")}'
             )
         if id(key) not in existing_knowledge_ids:
             raise GaiaCliError(
