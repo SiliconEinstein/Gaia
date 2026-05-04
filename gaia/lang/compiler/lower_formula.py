@@ -1,10 +1,10 @@
 """Lower Gaia Lang Formula AST payloads into existing Gaia IR structures.
 
 Milestone B starts with a deliberately small lowering contract: finite-domain
-universal quantification grounds to one directed rigid implication operator per
-domain member; finite-domain existential quantification grounds to a disjunction
-over instances; top-level atom formulas annotate the source Claim instead of
-creating duplicate orphan atoms.
+universal quantification grounds to one directed deduction/implication per
+domain member; finite-domain existential quantification grounds to a
+disjunction over instances; top-level atom formulas annotate the source Claim
+instead of creating duplicate orphan atoms.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from gaia.ir import Knowledge as IrKnowledge
 from gaia.ir import Operator as IrOperator
 from gaia.ir import Parameter as IrParameter
 from gaia.ir import Strategy as IrStrategy
+from gaia.ir.formalize import formalize_named_strategy
 from gaia.ir.knowledge import KnowledgeType, make_qid
 from gaia.lang.formula.connective import Iff, Implies, Land, Lnot, Lor
 from gaia.lang.formula.predicate import (
@@ -168,19 +169,21 @@ def _lower_forall(
             body_result,
         )
 
-        implication_result = _implication_result(
+        result = formalize_named_strategy(
+            scope="local",
+            type_="deduction",
+            premises=[claim_id],
+            conclusion=instance_id,
             namespace=namespace,
             package_name=package_name,
-            antecedent_id=claim_id,
-            consequent_id=instance_id,
-            formula_lowering="forall_grounding",
             metadata={
+                "formula_lowering": "forall_grounding",
                 "source_claim": claim_id,
                 "binding": binding,
             },
         )
-        generated_knowledges.extend(implication_result.knowledges)
-        generated_operators.extend(implication_result.operators)
+        generated_knowledges.extend(result.knowledges)
+        generated_strategies.append(result.strategy)
 
     return FormulaLoweringResult(
         knowledges=generated_knowledges,
@@ -913,56 +916,6 @@ def _equivalence_result(
     )
 
 
-def _implication_result(
-    *,
-    namespace: str,
-    package_name: str,
-    antecedent_id: str,
-    consequent_id: str,
-    formula_lowering: str,
-    metadata: dict[str, Any],
-) -> FormulaLoweringResult:
-    helper_id, helper_label = _implication_helper_id(
-        namespace=namespace,
-        package_name=package_name,
-        antecedent_id=antecedent_id,
-        consequent_id=consequent_id,
-        formula_lowering=formula_lowering,
-    )
-    helper_metadata = {
-        "generated": True,
-        "generated_kind": "formula_helper",
-        "helper_kind": "implication_result",
-        "formula_lowering": formula_lowering,
-        "review": False,
-        **metadata,
-    }
-    operator_metadata = {
-        "formula_lowering": formula_lowering,
-        **metadata,
-    }
-    return FormulaLoweringResult(
-        knowledges=[
-            IrKnowledge(
-                id=helper_id,
-                label=helper_label,
-                type=KnowledgeType.CLAIM,
-                content=f"implication({antecedent_id}, {consequent_id})",
-                metadata=helper_metadata,
-            )
-        ],
-        operators=[
-            IrOperator(
-                scope="local",
-                operator="implication",
-                variables=[antecedent_id, consequent_id],
-                conclusion=helper_id,
-                metadata=operator_metadata,
-            )
-        ],
-    )
-
-
 def _equals_variable_constant_pair(formula: Any) -> tuple[Variable, Constant] | None:
     if not isinstance(formula, Equals):
         return None
@@ -1018,20 +971,6 @@ def _equivalence_helper_id(
     payload = "|".join(sorted([left_id, right_id, formula_lowering]))
     digest = hashlib.sha256(payload.encode()).hexdigest()[:8]
     label = f"__formula_equivalence_{digest}"
-    return make_qid(namespace, package_name, label), label
-
-
-def _implication_helper_id(
-    *,
-    namespace: str,
-    package_name: str,
-    antecedent_id: str,
-    consequent_id: str,
-    formula_lowering: str,
-) -> tuple[str, str]:
-    payload = "|".join([antecedent_id, consequent_id, formula_lowering])
-    digest = hashlib.sha256(payload.encode()).hexdigest()[:8]
-    label = f"__formula_implication_{digest}"
     return make_qid(namespace, package_name, label), label
 
 

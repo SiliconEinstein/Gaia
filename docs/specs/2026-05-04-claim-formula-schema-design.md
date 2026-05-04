@@ -363,7 +363,7 @@ forall(x: Particle, body(x))
            emit grounded_body_v ← compile(body[x ↦ v])
            record body[x ↦ v] as formula metadata/operators on grounded_body_v
        emit one universal-claim Knowledge G with prior from the source Claim
-       emit one asserted rigid implication operator G -> grounded_body_v for each v
+       emit one directed implication/deduction G -> grounded_body_v for each v
 ```
 
 `forall` is a rule-to-instance grounding, not an aggregate claim over all
@@ -371,10 +371,11 @@ instances. Lowering it as a conjunction would reverse the load-bearing
 direction: it would make the universal claim depend on all currently enumerated
 instances, while the intended contract is that accepting the universal claim
 supports each grounded instance. Therefore finite-domain `forall` emits
-multiple top-level `IMPLICATION` operators, one per domain member. It does not
-use a `deduction` FormalStrategy wrapper: formula grounding should stay in the
-rigid Operator layer and must not create strategy helpers with probabilistic
-metadata that BP later discards.
+multiple implication-shaped deduction strategies, one per domain member. The
+deduction path lowers to a normalized Jaynes conditional `P(grounded_body_v |
+G)`, so unobserved grounded instances do not compress the authored prior on the
+universal claim. Deduction-generated implication helpers do not carry copied
+author priors; the prior remains on the source Claim / Strategy metadata.
 
 `exists(x, body)` remains aggregate-shaped for multi-member domains and lowers
 to `DISJUNCTION(grounded_body_v...) -> source_claim`. For a singleton finite

@@ -2,6 +2,7 @@
 
 import pytest
 
+from gaia.bp.exact import exact_inference
 from gaia.bp.factor_graph import FactorType
 from gaia.bp.lowering import lower_local_graph
 from gaia.lang import (
@@ -78,25 +79,29 @@ def test_forall_lowers_to_implication_per_domain_member_not_conjunction():
         ("x", "p2"),
     }
 
-    implication_ops = [
-        op
-        for op in artifact.graph.operators
-        if (op.metadata or {}).get("formula_lowering") == "forall_grounding"
-    ]
-    assert len(implication_ops) == 2
-    assert {op.variables[0] for op in implication_ops} == {universal_id}
-    assert {op.variables[1] for op in implication_ops} == {k.id for k in instance_claims}
-    assert {op.operator for op in implication_ops} == {"implication"}
-    assert [
+    formula_strategies = [
         s
         for s in artifact.graph.strategies
         if (s.metadata or {}).get("formula_lowering") == "forall_grounding"
-    ] == []
-    for op in implication_ops:
+    ]
+    assert len(formula_strategies) == 2
+    assert {s.premises[0] for s in formula_strategies} == {universal_id}
+    assert {s.conclusion for s in formula_strategies} == {k.id for k in instance_claims}
+
+    implication_ops = []
+    for strategy in formula_strategies:
+        ops = strategy.formal_expr.operators
+        assert len(ops) == 1
+        op = ops[0]
+        assert op.operator == "implication"
+        assert op.variables == [universal_id, strategy.conclusion]
+        implication_ops.append(op)
+
         helper = next(k for k in artifact.graph.knowledges if k.id == op.conclusion)
         assert helper.metadata["helper_kind"] == "implication_result"
         assert "prior" not in helper.metadata
 
+    assert len(implication_ops) == 2
     assert not [
         op
         for op in artifact.graph.operators
@@ -105,14 +110,12 @@ def test_forall_lowers_to_implication_per_domain_member_not_conjunction():
     ]
 
     fg = lower_local_graph(artifact.graph)
-    formula_factors = [
-        f
-        for f in fg.factors
-        if f.factor_type in {FactorType.IMPLICATION, FactorType.CONDITIONAL}
-        and set(f.variables).issubset({universal_id, *(k.id for k in instance_claims)})
-    ]
+    instance_ids = {k.id for k in instance_claims}
+    formula_factors = [f for f in fg.factors if f.conclusion in instance_ids]
     assert len(formula_factors) == 2
-    assert {f.factor_type for f in formula_factors} == {FactorType.IMPLICATION}
+    assert {f.factor_type for f in formula_factors} == {FactorType.CONDITIONAL}
+    beliefs, _ = exact_inference(fg)
+    assert beliefs[universal_id] == pytest.approx(0.9)
 
 
 def test_exists_lowers_to_disjunction_over_domain_instances():
