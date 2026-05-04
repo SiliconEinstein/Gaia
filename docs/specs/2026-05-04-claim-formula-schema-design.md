@@ -89,28 +89,49 @@ Bool           # {true, false}
 
 Primitives are runtime constants exposed by `gaia.lang`; they do not register as Knowledge nodes. Only user-declared `Domain` instances participate in the Knowledge tree.
 
+### 2.4 Lang-only registration (Variable / Domain do NOT enter the IR knowledge map)
+
+`Variable` and `Domain` subclass `Knowledge` for code-organization reasons (identity, content, provenance, metadata, package association). They are **not** translated into IR `Knowledge` nodes by the compiler.
+
+To make this work without changing IR:
+
+- `Knowledge.__post_init__` today calls `pkg._register_knowledge(self)` which puts every node into the IR-bound knowledge map. `Variable` and `Domain` **override `__post_init__`** to skip that call. They establish package association (`self._package = pkg`, `self._source_module = ...`) for tooling/provenance, but do not register into the IR-bound knowledge map.
+- Cross-module identity for Variables/Domains (so a formula in package A can reference a Variable defined in package B) is established by Milestone B's compiler via a separate Lang-side registry. Milestone A only ships the data shape and the non-registration override.
+- The IR `KnowledgeType` enum stays as today (`CLAIM / NOTE / COMPOSITION / SETTING / QUESTION / CONTEXT`). No new enum entries.
+
+This is what makes "IR is unchanged" + "Milestone A independently shippable" simultaneously true. A Milestone-A smoke test verifies that a package declaring Variable/Domain compiles successfully and produces an IR artifact with no variable/domain entries.
+
 ## 3. Formula AST
 
 A small, complete first-order term/formula language. Lives in `gaia/lang/formula/`.
 
+**Type discipline.** The AST is **typed at construction time** — it is a real typed-term language, not an untyped structural skeleton. Validation in Milestone A:
+
+- `Constant` carries a `PrimitiveType` reference and validates its value against it (`Constant(0.75, Probability)` ok; `Constant(2, Probability)` raises).
+- `FunctionApp` carries a `FunctionSymbol` reference (not a name string) and validates argument count and per-argument domain match against the symbol's signature.
+- `UserPredicate` carries a `PredicateSymbol` reference and validates the same way.
+- Quantifiers verify the bound `Variable` is unbound (no `value`) and that the body is a `Formula`.
+
+This catches the obvious footguns (wrong arity, wrong domain, value outside primitive range) at AST construction. It does **not** yet do unification across nested terms or scope-sensitive variable shadow checks — those are Milestone B compiler responsibilities.
+
 ### 3.1 Term
 
 ```
-Term ::= Variable                      # a typed variable reference
-       | Constant(value, primitive)    # 0.75, 395, "abc", True
-       | FunctionApp(symbol, args)     # E(x), V(x, y)
-       | ArithOp(op, left, right)      # n + k, n * 2
+Term ::= Variable                          # a typed variable reference
+       | Constant(value, PrimitiveType)    # 0.75:Probability, 395:Nat, True:Bool, ...
+       | FunctionApp(FunctionSymbol, args) # E(x), V(x, y) — symbol reference, not name string
+       | ArithOp(op, left, right)          # n + k, n * 2
 ```
 
 ### 3.2 Predicate (atomic formula)
 
 ```
-Predicate ::= Equals(Term, Term)             # via ==
-            | Greater / Less / GE / LE       # via > < >= <=
-            | NotEquals                      # via !=
-            | UserPredicate(symbol, args)    # user-declared
-            | Causes(Term, Term)             # built-in causal predicate (v0.6 marker)
-            | ClaimAtom(claim_label)         # treat a separate Claim's truth as atomic
+Predicate ::= Equals(Term, Term)                  # via ==
+            | Greater / Less / GE / LE            # via > < >= <=
+            | NotEquals                           # via !=
+            | UserPredicate(PredicateSymbol, args)# user-declared symbol reference
+            | Causes(Term, Term)                  # built-in causal predicate (v0.6 marker)
+            | ClaimAtom(Claim)                    # treat a separate Claim's truth as atomic
 ```
 
 `ClaimAtom` is the bridge that lets a formula reference *another claim by label*. It is what makes `formula = lnot(land(claimA, claimB))` work — the leaves are claim atoms, not just predicates over terms.
@@ -183,6 +204,19 @@ class Claim(Knowledge):
 **Truth condition:** A Claim with a `formula` is true iff the formula is true under the current variable bindings and the environment. `prior` expresses the marginal belief in this truth before evidence updates.
 
 **Sugar constructors are non-load-bearing.** They lower to `claim(content=..., formula=..., kind=..., prior=...)`. Authors who prefer the explicit form can always use `claim(...)` directly.
+
+### 4.2 What `ClaimKind` is — and what it is not
+
+`ClaimKind` is a **shape discriminator** over the Claim's `formula` — it tells consumers (compiler, evidence action, renderer) what structural pattern to expect at the top of the formula tree (parameter assertion, observation, quantifier, causal predicate, or generic). It is intrinsic to the Claim's content.
+
+It is explicitly **not** a *role* — labels like "hypothesis", "prediction", or "observation-as-evidence" describe how a Claim is *used* by a particular reasoning step, and the same Claim can play different roles in different actions. Roles live on the action graph node, not on the Claim. A future spec covers role-on-action-graph.
+
+`ClaimKind` also does not overlap with:
+
+- **`Grounding.kind`** (in `gaia/lang/runtime/grounding.py`) — which records *grounding state* (whether a quantified claim has been instantiated, which variable was bound, etc.), not formula shape.
+- **operator helper-claim metadata** (`helper_kind` like `negation_result`, `conjunction_result`) — which records *the connective that produced a generated helper claim*. With formula AST, those generated helpers go away (Milestone C migration); their metadata field is unrelated to `ClaimKind`.
+
+If a future need emerges that conflates "what's the structure of this claim" with "how is it being used right now", split it into two fields rather than overloading `ClaimKind`.
 
 ## 5. Author DSL
 
@@ -313,7 +347,23 @@ The instantiation parameter `x ↦ v` is recorded in each `grounded_body_v.param
 
 ### 7.3 Causal claim (v0.5 marker, v0.6 semantics)
 
-In v0.5, `Causes(X, Y)` lowers to a propositional atom Knowledge with metadata `{"causal": {"cause": X.id, "effect": Y.id}}`. BP treats it as a regular claim. v0.6 introduces an interventional factor type that consumes this metadata; until then, downstream consumers can read the marker but no special inference happens.
+In v0.5, `Causes(X, Y)` lowers to a propositional atom Knowledge with `metadata.causal` set to a serializable descriptor of the cause and effect terms. The two operands `X` and `Y` are typically `Variable` references; since Variables are Lang-only and do **not** appear as IR Knowledge nodes (see §2.4 and §7.4), they have no compiled QID — the descriptor instead records `symbol`, `domain.name`, and any binding provenance.
+
+```python
+# Schema of metadata.causal written by the lowering pass:
+{
+    "cause": {"kind": "variable", "symbol": "co2", "domain": "Real",
+              "binding_provenance": {...}},  # see §7.4 for binding_provenance shape
+    "effect": {"kind": "variable", "symbol": "temp", "domain": "Real",
+               "binding_provenance": {...}},
+}
+```
+
+If a `Causes(...)` operand is a compiled IR Knowledge (e.g. a `ClaimAtom` lifted into a referenced claim), the descriptor uses `{"kind": "knowledge", "qid": "<compiled QID>"}` instead — QIDs are assigned during the same compile pass.
+
+**The Lang runtime never accesses `.id` on a Variable or Knowledge.** Identity in the Lang layer is by Python object identity / qualified Lang-side IDs, not IR QIDs. QIDs only exist after compile.
+
+BP in v0.5 treats the resulting claim as a regular Boolean atom. v0.6 introduces an interventional factor type that consumes `metadata.causal`; until then, downstream consumers (renderers, audits) can read the marker but no special inference happens.
 
 ### 7.4 Variable provenance into IR
 

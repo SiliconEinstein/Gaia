@@ -13,8 +13,3 @@ Integrating GPT Pro's v6 IR and Lang design specs into the repo (PR #450). Key d
 2. **Standard likelihood library**: Instead of requiring users to manually declare 5+ assumption Claims for every AB test, provide `ab_test(counts, target)` one-line helpers that auto-generate standard assumptions (RandomAssignment, ConsistentLogging, NoEarlyStopping) as parameterized Claims referencing the experiment Setting. Users can override via manual `likelihood_from()`.
 
 3. **No `Ref[T]` wrapper**: Considered `Ref[T]` generic type vs direct object passing vs string labels. Chose direct object passing (`experiment: Setting`) — simplest, type-safe, consistent with existing Strategy API where premises are passed as objects.
-
-### EARS — Session Start (2026-05-04 12:05)
-<!-- concepts: gaia-lang, gaia-ir, formula-ast -->
-- Task: design a more structured Claim schema for Gaia v0.6 (formula AST, typed variables, custom domains; lifted Lang ↔ grounded IR separation)
-- Why: today's Python-loop "predicate logic" loses the link between general and specific claims; evidence/likelihood code duplicates numbers across claim text and model args; future causal claims need access to internal entity structure
