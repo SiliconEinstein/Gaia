@@ -315,22 +315,22 @@ posterior(H_a) / posterior(H_b)
   ≈ prior(H_a) / prior(H_b) · exp(logL_a - logL_b)
 ```
 
-within Cromwell clamp. The default `pairwise_contradiction` mode is weaker ("at most one true") and can leave residual mass on "none of the above"; it preserves ordering among alternatives but is not a strict normalized model-comparison posterior. Authors who need posterior odds to equal Bayes-factor-weighted prior odds should use `exclusivity="exhaustive_pairwise_complement"` when the H set is exhaustive.
+within Cromwell clamp. The default `pairwise_contradiction` mode is weaker ("at most one true") and can leave residual mass on "none of the above"; it preserves pairwise odds among the listed alternatives but is not a strict normalized model-comparison posterior over only those alternatives. Authors who need posterior marginals to sum over an exhaustive H set should use `exclusivity="exhaustive_pairwise_complement"` when the H set is exhaustive.
 
-**⚠️ Default exclusivity caveat — empirically verified.** Running BP on the Mendel example (logL_3:1 = −1.2, logL_null = −5.1, true BF ≈ 49) against the current `gaia.bp` engine yields:
+**⚠️ Default exclusivity caveat — empirically verified.** Running the Mendel example (logL_3:1 = −1.2, logL_null = −5.1, true BF ≈ 49) against the current `gaia.bp` engine yields:
 
-| `exclusivity` mode | posterior(H_3:1) | posterior(H_null) | posterior odds | matches BF? |
+| `exclusivity` mode | exact posterior(H_3:1) | exact posterior(H_null) | exact posterior odds | BF odds? |
 |---|---|---|---|---|
-| `"pairwise_contradiction"` (default) | 0.666 | 0.040 | **≈ 16.9** | **No — compressed** |
-| `"exhaustive_pairwise_complement"` | 0.979 | 0.020 | **≈ 49.1** | **Yes — within Cromwell clamp** |
+| `"pairwise_contradiction"` (default) | 0.657 | 0.014 | **≈ 46.9** | **Yes — within Cromwell clamp** |
+| `"exhaustive_pairwise_complement"` | 0.978 | 0.021 | **≈ 46.9** | **Yes — within Cromwell clamp** |
 
-The compression under the default mode is not a bug — "at most one true" leaves ~30% belief mass on "neither H explains the data", which bleeds off posterior from both H's in proportion. Textbook Bayes-factor posterior odds only recover when the H set is declared exhaustive.
+The difference under the default mode is in the marginal probabilities, not in the pairwise odds: "at most one true" leaves residual belief mass on "neither H explains the data", which lowers both H marginals while the shared `p0` factors cancel in their ratio. Textbook Bayes-factor posterior odds are still recovered up to Cromwell clamp; exhaustive mode is needed when the H set should consume the full posterior mass over the compared alternatives.
 
 **Guidance for authors:**
 
-- If you are comparing a small number of point hypotheses and do **not** believe the set is exhaustive (the most scientifically cautious default), keep `"pairwise_contradiction"`. Report the posterior *ordering* among H's, not the numeric odds. The ordering is always faithful to the likelihood ratios.
+- If you are comparing a small number of point hypotheses and do **not** believe the set is exhaustive (the most scientifically cautious default), keep `"pairwise_contradiction"`. Report pairwise odds or ordering among H's, but do not describe the listed H marginals as a normalized exhaustive posterior.
 - If your H set is genuinely exhaustive (e.g., Mendel 3:1 vs 1:1 segregation under a binary-mechanism framing), pass `exclusivity="exhaustive_pairwise_complement"` explicitly. The spec intentionally requires this to be opt-in so authors do not accidentally misstate epistemic coverage.
-- The `gaia check` rule `bayes:hypothesis-prior-coherence` (§6.3) already enforces prior-sum invariants per mode; reviewers should treat a comparison with numeric-odds claims and no explicit `exclusivity=` as a finding.
+- The `gaia check` rule `bayes:hypothesis-prior-coherence` (§6.3) already enforces prior-sum invariants per mode; reviewers should treat a comparison with normalized-posterior claims and no explicit `exclusivity=` as a finding.
 
 **Worked example (Mendel).** With logL_3:1 = −1.2 and logL_null = −5.1: logL_max = −1.2, LR_3:1 = 1.0, LR_null = exp(−3.9) ≈ 0.020. CPT entries: `p1_3:1 ≈ 1 − ε`, `p1_null ≈ 0.020`. Two `infer` strategies are emitted, both feeding cmp_result, with a shared `p0=0.5`. Under exhaustive two-H comparison, the posterior odds are ≈47.5 after Cromwell clamp (unclamped Bayes factor ≈49), which matches the intended likelihood-ratio semantics up to clamp.
 
