@@ -7,7 +7,7 @@ Bool); they do not construct PrimitiveType instances directly.
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 _SEALED = False
 
@@ -40,11 +40,11 @@ def _is_nat(v: object) -> bool:
 
 
 def _is_real(v: object) -> bool:
-    return isinstance(v, (int, float)) and not isinstance(v, bool)
+    return isinstance(v, int | float) and not isinstance(v, bool)
 
 
 def _is_probability(v: object) -> bool:
-    return isinstance(v, (int, float)) and not isinstance(v, bool) and 0.0 <= float(v) <= 1.0
+    return isinstance(v, int | float) and not isinstance(v, bool) and 0.0 <= v <= 1.0
 
 
 def _is_bool(v: object) -> bool:
