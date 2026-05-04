@@ -43,13 +43,16 @@ def test_compose_returns_conclusion_and_compiles_action_dag():
         h.label = "h"
         e = Claim("E.")
         e.label = "e"
-        helper = toy_likelihood(e, h)
-        helper.label = "likelihood_helper"
+        conclusion = toy_likelihood(e, h)
+        infer_action = next(action for action in pkg.actions if isinstance(action, Infer))
+        assert infer_action.helper is not None
+        infer_action.helper.label = "likelihood_helper"
 
     compose_actions = [action for action in pkg.actions if isinstance(action, Compose)]
     assert len(compose_actions) == 1
     compose_action = compose_actions[0]
-    assert helper is compose_action.conclusion
+    assert conclusion is e
+    assert compose_action.conclusion is e
     assert compose_action.inputs == (e, h)
     assert [type(action) for action in compose_action.actions] == [Compute, Compute, Infer]
     assert compose_action.warrants == []
@@ -62,7 +65,7 @@ def test_compose_returns_conclusion_and_compiles_action_dag():
     assert node.name == "test:evidence:toy_likelihood"
     assert node.version == "1.0"
     assert node.inputs == ["github:v6_composition::e", "github:v6_composition::h"]
-    assert node.conclusion == "github:v6_composition::likelihood_helper"
+    assert node.conclusion == "github:v6_composition::e"
     assert node.actions == [
         compiled.action_label_map["github:v6_composition::action::compute_p_e_given_h"],
         compiled.action_label_map["github:v6_composition::action::compute_p_e_given_not_h"],
@@ -77,6 +80,32 @@ def test_compose_returns_conclusion_and_compiles_action_dag():
     compute_warrant_id = compute_strategy.metadata["warrants"][0]
     assert by_id[compute_warrant_id].metadata["relation"]["type"] == "compute"
     assert by_label["likelihood_helper"].metadata["relation"]["type"] == "infer"
+
+
+def test_compose_infers_closed_over_infer_given_as_input():
+    with CollectedPackage("v6_composition") as pkg:
+        h = Claim("H.")
+        h.label = "h"
+        e = Claim("E.")
+        e.label = "e"
+        gate = Claim("Gate.")
+        gate.label = "gate"
+
+        @compose(name="test:evidence:gated", version="1.0")
+        def gated_likelihood(evidence: Claim, hypothesis: Claim) -> Claim:
+            return infer(
+                evidence,
+                hypothesis=hypothesis,
+                given=gate,
+                p_e_given_h=0.8,
+                label="infer_toy",
+            )
+
+        result = gated_likelihood(e, h)
+
+    compose_action = next(action for action in pkg.actions if isinstance(action, Compose))
+    assert result is e
+    assert compose_action.inputs == (e, h, gate)
 
 
 def test_compose_keeps_own_background_and_warrants_separate_from_child_warrants():

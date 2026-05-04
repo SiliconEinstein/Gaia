@@ -232,6 +232,87 @@ def test_infer_inline_prior_conflicts_with_existing_prior():
         lower_local_graph(g)
 
 
+def test_infer_given_switch_cpt_is_neutral_when_gate_unlikely():
+    h = "github:lowertest::h"
+    gate = "github:lowertest::g"
+    e = "github:lowertest::e"
+    g = _lg(
+        knowledges=[
+            Knowledge(id=h, type="claim", content="H"),
+            Knowledge(id=gate, type="claim", content="G"),
+            Knowledge(id=e, type="claim", content="E"),
+        ],
+        strategies=[
+            Strategy(
+                scope="local",
+                type="infer",
+                premises=[h, gate],
+                conclusion=e,
+                conditional_probabilities=[0.5, 0.5, 0.1, 0.9],
+            )
+        ],
+    )
+
+    fg = lower_local_graph(g, node_priors={h: 0.99, gate: 0.01})
+    beliefs, _ = exact_inference(fg)
+
+    assert beliefs[e] == pytest.approx(0.5, abs=0.01)
+
+
+def test_infer_given_switch_cpt_activates_when_gate_likely():
+    h = "github:lowertest::h"
+    gate = "github:lowertest::g"
+    e = "github:lowertest::e"
+    g = _lg(
+        knowledges=[
+            Knowledge(id=h, type="claim", content="H"),
+            Knowledge(id=gate, type="claim", content="G"),
+            Knowledge(id=e, type="claim", content="E"),
+        ],
+        strategies=[
+            Strategy(
+                scope="local",
+                type="infer",
+                premises=[h, gate],
+                conclusion=e,
+                conditional_probabilities=[0.5, 0.5, 0.1, 0.9],
+            )
+        ],
+    )
+
+    fg = lower_local_graph(g, node_priors={h: 0.99, gate: 0.99})
+    beliefs, _ = exact_inference(fg)
+
+    assert beliefs[e] == pytest.approx(0.888, abs=0.01)
+
+
+def test_infer_given_switch_cpt_sends_reliability_feedback_to_gate():
+    h = "github:lowertest::h"
+    gate = "github:lowertest::g"
+    e = "github:lowertest::e"
+    g = _lg(
+        knowledges=[
+            Knowledge(id=h, type="claim", content="H"),
+            Knowledge(id=gate, type="claim", content="G"),
+            Knowledge(id=e, type="claim", content="E"),
+        ],
+        strategies=[
+            Strategy(
+                scope="local",
+                type="infer",
+                premises=[h, gate],
+                conclusion=e,
+                conditional_probabilities=[0.5, 0.5, 0.1, 0.9],
+            )
+        ],
+    )
+
+    fg = lower_local_graph(g, node_priors={h: 0.99, e: 0.99, gate: 0.5})
+    beliefs, _ = exact_inference(fg)
+
+    assert beliefs[gate] > 0.5
+
+
 def test_structural_expression_metadata_prior_is_ignored():
     """Expression helper beliefs must be determined by operators, not independent priors."""
     g = _lg(

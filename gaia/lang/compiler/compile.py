@@ -488,6 +488,8 @@ def compile_package_artifact(
                 register_knowledge(action.hypothesis)
             if action.evidence is not None:
                 register_knowledge(action.evidence)
+            for given in action.given:
+                register_knowledge(given)
             if action.helper is not None:
                 register_knowledge(action.helper)
             if isinstance(action.p_e_given_h, Knowledge):
@@ -788,6 +790,20 @@ def compile_package_artifact(
         _record_action_target(action_label, ir_operator.operator_id)
         return ir_operator
 
+    def _infer_conditional_probabilities(
+        *,
+        p_e_given_h: float,
+        p_e_given_not_h: float,
+        given_count: int,
+    ) -> list[float]:
+        if given_count == 0:
+            return [p_e_given_not_h, p_e_given_h]
+        cpt = [0.5] * (1 << (1 + given_count))
+        gate_mask = sum(1 << i for i in range(1, 1 + given_count))
+        cpt[gate_mask] = p_e_given_not_h
+        cpt[gate_mask | 1] = p_e_given_h
+        return cpt
+
     def _compile_infer_action(action: InferAction, action_index: int) -> IrStrategy:
         if action.hypothesis is None or action.evidence is None:
             raise ValueError("Infer action requires hypothesis and evidence")
@@ -795,22 +811,28 @@ def compile_package_artifact(
         warrant_ids = _warrant_ids(action)
         if warrant_ids:
             metadata["warrants"] = warrant_ids
+        given_ids = [knowledge_map[id(given)] for given in action.given]
+        if given_ids:
+            metadata["given"] = given_ids
         _attach_action_label_to_warrants(
             action,
             action_label=action_label,
             pattern="inference",
         )
+        p_e_given_not_h = _probability_scalar(action.p_e_given_not_h, field_name="p_e_given_not_h")
+        p_e_given_h = _probability_scalar(action.p_e_given_h, field_name="p_e_given_h")
         strategy = IrStrategy(
             scope="local",
             type="infer",
-            premises=[knowledge_map[id(action.hypothesis)]],
+            premises=[knowledge_map[id(action.hypothesis)], *given_ids],
             conclusion=knowledge_map[id(action.evidence)],
             background=[knowledge_map[id(bg)] for bg in action.background] or None,
             steps=_action_steps(action.rationale),
-            conditional_probabilities=[
-                _probability_scalar(action.p_e_given_not_h, field_name="p_e_given_not_h"),
-                _probability_scalar(action.p_e_given_h, field_name="p_e_given_h"),
-            ],
+            conditional_probabilities=_infer_conditional_probabilities(
+                p_e_given_h=p_e_given_h,
+                p_e_given_not_h=p_e_given_not_h,
+                given_count=len(given_ids),
+            ),
             prior_hypothesis=action.prior_hypothesis,
             prior_evidence=action.prior_evidence,
             metadata=metadata,

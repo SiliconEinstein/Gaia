@@ -112,7 +112,7 @@ The `Relate` family (symmetric, hard logical) consists of the Operators. A fourt
 **Evidence / measurement schema (the bridge to the world)**
 
 - Correlate family IR fields (§11):
-  - **`InferStrategy`** — `p_e_given_h`, `p_e_given_not_h` (both required), plus provenance `source_id` / `data_id` / `data_hash`. IR: `type="infer"`, `conditional_probabilities=[p_e_given_not_h, p_e_given_h]` inline.
+  - **`InferStrategy`** — `p_e_given_h` plus optional `p_e_given_not_h` defaulting to neutral `0.5`, plus provenance `source_id` / `data_id` / `data_hash`. IR: `type="infer"`, `conditional_probabilities=[p_e_given_not_h, p_e_given_h]` inline when ungated; with `given`, gate claims are appended to `premises` and gate-false CPT rows are neutral.
   - **`AssociateStrategy`** — `p_a_given_b`, `p_b_given_a` (both required), plus same provenance fields. IR: `type="associate"`. Factor parameters are computed from the two conditionals plus marginals supplied via graph closure (Claim priors or other actions); `gaia check` validates coherence (§15.1).
 - `MeasurementRecord` — schema for observed-value + noise specification.
 - `DistributionLiteral` — JSON-native probability-distribution literal (`kind`, `params`, optional `CallableRef`). Used wherever a distribution enters IR (measurement noise, future prior shapes, etc.). Replaces the previously-named `ErrorModelSpec`.
@@ -230,8 +230,8 @@ gaussian_measurement(
 #       template_name="gaia:evidence:gaussian_measurement", template_version="1.0",
 #       sub_knowledge=[compute_p_h_qid, compute_p_not_h_qid,
 #                      infer_qid, likelihood_helper_qid],
-#       conclusion=likelihood_helper_qid,   # infer() returns the generated helper Claim
-#                                           # (helper_kind="likelihood", §11.2)
+#       conclusion=evidence_qid,            # infer() returns the evidence Claim
+#                                           # and keeps the likelihood helper as a warrant
 #   )
 #   InferStrategy(type="infer", conditional_probabilities=[4.1e-5, 0.31])  # [¬H, H]
 #   + the 2 compute sub-strategies
@@ -818,6 +818,7 @@ class Correlate(Action):
 class Infer(Correlate):
     hypothesis: Claim | None = None
     evidence: Claim | None = None
+    given: tuple[Claim, ...] = ()
     p_e_given_h: float = 0.5
     p_e_given_not_h: float = 0.5
     helper: Claim | None = None
@@ -842,12 +843,14 @@ from gaia.lang import Claim, infer
 
 evidence_positive = Claim("Diagnostic test T returned positive.")
 disease = Claim("Patient has disease D.")
+calibration_reliable = Claim("Diagnostic test T calibration is reliable.")
 
-support_claim = infer(
+evidence_positive = infer(
     evidence=evidence_positive,
     hypothesis=disease,
+    given=calibration_reliable, # OPTIONAL. Switch condition; enters BP as a gate.
     p_e_given_h=0.95,           # REQUIRED. Cromwell-clamped.
-    p_e_given_not_h=0.10,       # REQUIRED. Cromwell-clamped.
+    p_e_given_not_h=0.10,       # OPTIONAL. Defaults to neutral 0.5.
     prior_hypothesis=0.10,      # OPTIONAL. Population prevalence of disease in this context.
     prior_evidence=None,        # OPTIONAL. Rarely needed — usually closes from the factor.
     background=[assumption_a, assumption_b],   # §13
@@ -859,11 +862,11 @@ support_claim = infer(
         "Prior 10% from NHANES adult prevalence."
     ),
 )
-# support_claim is a helper Claim with metadata["helper_kind"] = "likelihood".
-# Its content: "evidence_positive statistically supports disease with P(E|H)=0.95, P(E|¬H)=0.10."
+# infer(...) returns the evidence Claim. The action also creates an internal
+# helper Claim with metadata["helper_kind"] = "likelihood" for review.
 ```
 
-**Required arguments:** `p_e_given_h`, `p_e_given_not_h`. Cromwell clamp `(ε, 1-ε)` applies at compile time.
+**Required arguments:** `p_e_given_h`. `p_e_given_not_h` defaults to `0.5`, the soft-implication neutral baseline. Cromwell clamp `(ε, 1-ε)` applies at compile time.
 
 **Optional prior arguments** (`prior_hypothesis`, `prior_evidence`). Authors writing an `infer` are often in the same epistemic context where the hypothesis's prior is being estimated — the paper, the cohort, the domain-expert judgment that justifies the CPT pair usually justifies the marginal too. Co-locating these numbers at the `infer` call site keeps related judgments together in the IR and in the reviewer's view.
 
@@ -882,9 +885,9 @@ These are **constraint contributions**, not overrides. Under the soft-constraint
 
 Redundancy is **not a risk** — it is a natural consequence of authors capturing their reasoning in the most convenient place. Where convenience and rigour coincide, Gaia does not force a choice.
 
-**Return value:** `infer()` returns a generated helper Claim whose `helper_kind` is `"likelihood"`. This is the object `ComposedAction.conclusion` points at when a composition ends in `infer(...)`. Review targets the helper Claim — "do you accept that evidence E statistically supports hypothesis H with these conditionals?"
+**Return value:** `infer()` returns the evidence Claim `E`. The action also creates a generated helper Claim whose `helper_kind` is `"likelihood"`; that helper remains attached as the reviewable warrant for the probability estimate. When a composition ends in `infer(...)`, `Compose.conclusion` points at the evidence Claim, not the helper.
 
-IR lowering follows the v0.5 shape — `type="infer"`, `premises=[H_qid]`, `conclusion=E_qid`, `conditional_probabilities=[P(E|¬H), P(E|H)]` inline. Well-known metadata keys remain under `metadata["evidence"] = {source_id, data_id, data_hash, rationale}`. The optional priors, when provided, become additional entries in the package's prior-provider graph for `hypothesis` / `evidence`, with `source_id = "from:{infer_action_qid}"` so `gaia check` can attribute them.
+IR lowering follows the v0.5 shape — `type="infer"`, `premises=[H_qid]`, `conclusion=E_qid`, `conditional_probabilities=[P(E|¬H), P(E|H)]` inline. With `given=G`, lowering uses `premises=[H_qid, G_qid]` and `conditional_probabilities=[0.5, 0.5, P(E|¬H,G), P(E|H,G)]`, so the relation is neutral when the gate is false. Well-known metadata keys remain under `metadata["evidence"] = {source_id, data_id, data_hash, rationale}`. The optional priors, when provided, become additional entries in the package's prior-provider graph for `hypothesis` / `evidence`, with `source_id = "from:{infer_action_qid}"` so `gaia check` can attribute them.
 
 ### 11.3 Why forced CPT pair, no LR-only path
 
@@ -1014,7 +1017,7 @@ The derivation lives in `rationale` — a reviewable audit record. Kernel normal
 
 ### 11.6 Correlate patterns in compositions
 
-Multi-step scientific pipelines — load a light curve, compute BLS power, compare to null model, then `infer(...)` — use compositions (§12), not a separate "evidence adapter" primitive. The composition ends in a Correlate verb (usually `infer`); its `conclusion` is that verb's helper Claim.
+Multi-step scientific pipelines — load a light curve, compute BLS power, compare to null model, then `infer(...)` — use compositions (§12), not a separate "evidence adapter" primitive. The composition ends in a Correlate verb (usually `infer`); for `infer`, its public `conclusion` is the evidence Claim while the likelihood helper remains an internal review warrant.
 
 Example (full worked version in composition spec §7):
 
@@ -1025,7 +1028,7 @@ def gaussian_measurement(evidence, hypothesis, *, mu_h, mu_not_h, noise):
     p_not_h = compute(fn=_normal_density, inputs={"x": evidence, "mu": mu_not_h, "noise": noise})
     return infer(evidence=evidence, hypothesis=hypothesis,
                  p_e_given_h=p_h, p_e_given_not_h=p_not_h)
-    # returns the infer's infer helper Claim
+    # returns the evidence Claim; the infer helper remains a review warrant
 ```
 
 `associate` is symmetric in inputs and does not naturally appear at the *terminal* position of evidence-shaped compositions, but it can appear in observational-data compositions that wrap `@compute`-driven correlation analyses and conclude with `associate(...)`.
@@ -1328,7 +1331,7 @@ IR schema changes belong in change-controlled PRs against `docs/foundations/gaia
 
     Composition is a **v0.5 deliverable**, not a parked v1.x extension. Specific schemas, decorator runtime behaviour, validator rules, canonical template signatures, migration steps, and worked examples all live in the composition design doc; foundation tracks the overall work item here.
 
-11b. **`[done]`** Fix the `infer()` DSL return value. Current v0.5 `gaia/lang/dsl/infer_verb.py` generates a helper Claim tagged `helper_kind="likelihood"`, attaches it to the `Infer` action's `helper` field, and returns that helper Claim. The legacy v5-style `infer()` in `gaia/lang/dsl/strategies.py` stays as it is through the compatibility path. The Relate-verb pattern — not the Support-verb pattern — is the right analogy for `infer`'s semantics: both inputs (E and H) are pre-existing, so the action's semantic output is the generated relation helper, not one of the inputs.
+11b. **`[done]`** Fix the `infer()` DSL return value. Current v0.5 `gaia/lang/dsl/infer_verb.py` generates a helper Claim tagged `helper_kind="likelihood"` and attaches it to the `Infer` action's `helper` field, but the public DSL returns the evidence Claim `E`. The legacy v5-style `infer()` in `gaia/lang/dsl/strategies.py` stays as it is through the compatibility path. The helper records the probability warrant; ReviewManifest still reviews the compiled action target that consumes that warrant.
 
 11c. **`[new]`** Introduce the Correlate action family per §11. Add abstract base class `Correlate(Action)` in `gaia/lang/runtime/action.py`. Migrate `Infer` to subclass `Correlate` (from current direct `Action` subclass). This creates a shared home for shared concerns across probabilistic 2-Claim actions — parameter validation, `gaia check` hooks, audit metadata conventions — without altering existing Infer semantics.
 

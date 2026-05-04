@@ -86,6 +86,7 @@ def _action_inputs(action: Action) -> Iterable[Knowledge]:
             yield action.hypothesis
         if action.evidence is not None:
             yield action.evidence
+        yield from action.given
         if isinstance(action.p_e_given_h, Knowledge):
             yield action.p_e_given_h
         if isinstance(action.p_e_given_not_h, Knowledge):

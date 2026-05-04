@@ -112,14 +112,14 @@ titled = claim("H = p^2/2m + V(x)", title="Hamiltonian of the system")
 
 ## Recommended Actions
 
-Action verbs are the v0.5 main path for connecting claims. Support verbs return the produced conclusion claim; relation-shaped verbs return generated helper claims because the relation itself is the review target.
+Action verbs are the v0.5 main path for connecting claims. Support verbs and `infer(...)` return the produced conclusion/evidence claim; relation-shaped verbs such as `associate(...)`, `equal(...)`, `contradict(...)`, and `exclusive(...)` return generated helper claims because the relation itself is the review target.
 
 | Function | Use when |
 |----------|----------|
 | `observe(conclusion, *, given=(), background=None, rationale="")` | An empirical observation or measurement supports the conclusion |
 | `derive(conclusion, *, given=(), background=None, rationale="")` | The conclusion follows deterministically from explicit premises |
 | `compute(ClaimType, *, fn=None, given=(), background=None, rationale="")` | A deterministic Python computation produces the conclusion |
-| `infer(evidence, *, hypothesis, p_e_given_h, p_e_given_not_h, rationale="")` | A probabilistic prediction/evidence link remains; returns a likelihood helper claim |
+| `infer(evidence, *, hypothesis, given=(), p_e_given_h, p_e_given_not_h=0.5, rationale="")` | A probabilistic prediction/evidence link remains; returns the evidence claim and keeps an internal likelihood warrant |
 | `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, rationale="")` | A symmetric probabilistic association remains; returns an association helper claim |
 | `@compose(name, version, background=None, warrants=None, rationale="", label=None)` | A reusable Python workflow should be reviewed as one named action DAG |
 
@@ -131,7 +131,7 @@ matched = equal(prediction, measurement, rationale="The prediction matches the m
 
 If a step feels uncertain, first ask whether the uncertain part should become a separate premise. Use `infer(...)` only for the remaining probabilistic relation after that extraction.
 
-`infer(...)`, `associate(...)`, `equal(...)`, `contradict(...)`, and `exclusive(...)` return helper claims. Those helper claims are review targets, not independent probabilistic inputs, so do not assign external priors to them.
+`infer(...)` creates an internal likelihood helper for review but returns the evidence claim. `associate(...)`, `equal(...)`, `contradict(...)`, and `exclusive(...)` return helper claims directly. All helper claims are review targets, not independent probabilistic inputs, so do not assign external priors to them.
 
 ## Operators (Deterministic Constraints)
 
@@ -351,7 +351,7 @@ composite(
 
 ### `infer(premises, conclusion, *, reason, background=None)`
 
-Legacy general CPT strategy. Prefer the current `infer(evidence, hypothesis=..., p_e_given_h=..., p_e_given_not_h=...)` action form. The old sidecar-based parameterization path has been removed from the authoring surface.
+Legacy general CPT strategy. Prefer the current `infer(evidence, hypothesis=..., given=..., p_e_given_h=..., p_e_given_not_h=0.5)` action form. The old sidecar-based parameterization path has been removed from the authoring surface.
 
 ### `fills(source, target, *, strength, reason, background=None)`
 

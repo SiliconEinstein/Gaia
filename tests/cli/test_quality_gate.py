@@ -138,7 +138,7 @@ def test_gate_fails_on_unreviewed_compose(tmp_path):
     assert "workflow" in result.output
 
 
-def test_gate_fails_on_unreviewed_exported_infer_helper(tmp_path):
+def test_gate_fails_on_unreviewed_infer_warrant(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
         pkg_dir,

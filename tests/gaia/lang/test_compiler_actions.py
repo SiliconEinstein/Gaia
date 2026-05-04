@@ -156,7 +156,7 @@ def test_compile_infer_action_to_strategy_cpt():
             rationale="Bayes.",
             label="bayes_update",
         )
-        assert result is pkg.actions[0].helper
+        assert result is e
         helper = pkg.actions[0].helper
         assert helper is not None
         helper.label = "likelihood_helper"
@@ -188,6 +188,40 @@ def test_compile_infer_action_to_strategy_cpt():
     }
 
 
+def test_compile_infer_action_with_given_switch_cpt():
+    with CollectedPackage("v6_actions") as pkg:
+        h = Claim("H.")
+        h.label = "h"
+        e = Claim("E.")
+        e.label = "e"
+        gate = Claim("Gate.")
+        gate.label = "g"
+        result = infer(
+            e,
+            hypothesis=h,
+            given=gate,
+            p_e_given_h=0.8,
+            rationale="Bayes.",
+            label="bayes_update",
+        )
+        assert result is e
+        helper = pkg.actions[0].helper
+        assert helper is not None
+        helper.label = "likelihood_helper"
+
+    compiled = compile_package_artifact(pkg)
+    strategy = compiled.graph.strategies[0]
+    assert strategy.type == "infer"
+    assert strategy.premises == ["github:v6_actions::h", "github:v6_actions::g"]
+    assert strategy.conclusion == "github:v6_actions::e"
+    assert strategy.conditional_probabilities == [0.5, 0.5, 0.5, 0.8]
+    assert strategy.metadata["given"] == ["github:v6_actions::g"]
+
+    stat_support = _knowledge_by_label(compiled)["likelihood_helper"]
+    assert stat_support.metadata["relation"]["given"] == ["github:v6_actions::g"]
+    assert stat_support.metadata["relation"]["p_e_given_not_h"] == 0.5
+
+
 def test_compile_infer_lifts_probability_claims_to_cpt_values():
     with CollectedPackage("v6_actions") as pkg:
         h = Claim("H.")
@@ -198,7 +232,7 @@ def test_compile_infer_lifts_probability_claims_to_cpt_values():
         p_h.label = "p_e_given_h"
         p_not_h = Probability(value=0.2)
         p_not_h.label = "p_e_given_not_h"
-        helper = infer(
+        result = infer(
             e,
             hypothesis=h,
             p_e_given_h=p_h,
@@ -206,6 +240,9 @@ def test_compile_infer_lifts_probability_claims_to_cpt_values():
             rationale="Lift computed probabilities.",
             label="bayes_update",
         )
+        assert result is e
+        helper = pkg.actions[0].helper
+        assert helper is not None
         helper.label = "likelihood_helper"
 
     compiled = compile_package_artifact(pkg)

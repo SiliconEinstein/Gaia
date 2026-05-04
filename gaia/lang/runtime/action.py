@@ -111,6 +111,7 @@ class Infer(Correlate):
 
     hypothesis: Claim | None = None
     evidence: Claim | None = None
+    given: tuple[Claim, ...] = ()
     p_e_given_h: float | Claim = 0.5
     p_e_given_not_h: float | Claim = 0.5
     prior_hypothesis: float | None = None

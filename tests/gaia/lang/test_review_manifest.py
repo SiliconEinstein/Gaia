@@ -84,6 +84,33 @@ def test_generate_review_manifest_for_v6_actions():
     assert "[@data]" in by_action["github:review_pkg::action::bayes_update"].audit_question
 
 
+def test_generate_review_manifest_for_gated_infer_names_given_claim():
+    with CollectedPackage("review_pkg") as pkg:
+        h = Claim("Hypothesis.")
+        h.label = "h"
+        e = Claim("Evidence.")
+        e.label = "e"
+        gate = Claim("Calibration applies.")
+        gate.label = "gate"
+        infer(
+            e,
+            hypothesis=h,
+            given=gate,
+            p_e_given_h=0.8,
+            rationale="Bayes under calibration.",
+            label="gated_bayes",
+        )
+
+    compiled = compile_package_artifact(pkg)
+    manifest = generate_review_manifest(compiled)
+    by_action = {review.action_label: review for review in manifest.reviews}
+
+    question = by_action["github:review_pkg::action::gated_bayes"].audit_question
+    assert "[@h]" in question
+    assert "[@e]" in question
+    assert "[@gate]" in question
+
+
 def test_compiled_package_carries_review_manifest_outside_graph_json():
     with CollectedPackage("review_pkg") as pkg:
         a = Claim("A.")

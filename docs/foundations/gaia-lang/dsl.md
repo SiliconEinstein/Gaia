@@ -126,10 +126,12 @@ Deterministic derivation. Use when the conclusion follows from the explicit `giv
 
 Deterministic computation. Use either `compute(ResultClaim, fn=..., given=...)` or `@compute` with a `Claim` return annotation.
 
-### `infer(evidence, *, hypothesis, p_e_given_h, p_e_given_not_h, background=None, rationale="", label=None)`
+### `infer(evidence, *, hypothesis, given=(), p_e_given_h, p_e_given_not_h=0.5, background=None, rationale="", label=None)`
 
 Probabilistic prediction/evidence link. Use after extracting the uncertain parts into explicit claims; `infer(...)` should not be a hiding place for missing premises.
-Returns a generated likelihood helper claim. The compiled BP factor is still `H -> E` with CPT `[P(E|not H), P(E|H)]`; the helper is the review target for accepting that likelihood relation.
+Returns the evidence claim. The action still creates an internal likelihood helper as the review target for accepting the probability warrant.
+
+Without `given`, the compiled BP factor is `H -> E` with CPT `[P(E|not H), P(E|H)]`. With `given=G`, the compiled factor uses premises `[H, G]` and CPT `[0.5, 0.5, P(E|not H,G), P(E|H,G)]`, so the relation becomes neutral when `G` is false. `p_e_given_not_h` defaults to `0.5`, the soft-implication baseline.
 
 ### `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, background=None, rationale="", label=None)`
 
@@ -268,7 +270,7 @@ comp = compare(pred_h, pred_alt, obs,
 
 #### Legacy `infer(premises, conclusion, *, background=None, reason="")`
 
-Deprecated v5 CPT form. Use `infer(evidence, hypothesis=..., p_e_given_h=..., p_e_given_not_h=...)` instead.
+Deprecated v5 CPT form. Use `infer(evidence, hypothesis=..., given=..., p_e_given_h=..., p_e_given_not_h=0.5)` instead.
 
 #### `fills(source, target, *, mode=None, strength="exact", background=None, reason="")`
 
