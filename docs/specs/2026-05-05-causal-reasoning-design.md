@@ -14,9 +14,9 @@
 
 ### 0.1 Where v0.5 left `Causes`
 
-PR #505 introduced `Causes(X, Y)` as a **marker predicate** in the formula AST (`gaia/lang/formula/predicate.py:129`) and added `Claim.formula` / `Claim.kind`. It did **not** yet serialize formulas into IR. In the current compiler, a `Claim(formula=Causes(...), kind=CAUSAL)` still compiles as a regular claim whose metadata contains only the usual fields such as `prior`.
+PR #505 introduced `Causes(X, Y)` as a **marker predicate** in the formula AST (`gaia/lang/formula/predicate.py:129`) and added `Claim.formula` / `Claim.kind`. PR #510 then lowered atomic formulas into IR metadata: a fresh-compiled `Claim(formula=Causes(...), kind=CAUSAL)` now carries `metadata.causal = {"cause": ..., "effect": ...}`.
 
-Today this marker is therefore **inert**: no compiled artifact contains `metadata.causal`, nothing enforces acyclicity, nothing distinguishes `Causes(X, Y)` from `Causes(Y, X)` structurally, and there is no DSL for asking a causal question.
+Today this marker is still **structurally inert**: compiled artifacts have the authored cause/effect descriptors, but no compiled `dag_edge`, nothing reads `metadata.causal`, nothing enforces acyclicity, nothing distinguishes `Causes(X, Y)` from `Causes(Y, X)` structurally, and there is no DSL for asking a causal question.
 
 ### 0.2 What v0.6 needs to deliver
 
@@ -62,8 +62,8 @@ Concretely:
 ┌────────────────────────────────────────────────────────────┐
 │  Gaia IR  (unchanged schema — only metadata enriched)      │
 │  ──────────                                                  │
-│  D1 compiler writes metadata.causal for causal claims         │
-│  including metadata.causal.dag_edge = (cause_id, effect_id)  │
+│  v0.5 compiler writes metadata.causal cause/effect            │
+│  D1 adds metadata.causal.dag_edge = (cause_id, effect_id)     │
 └────────────────────────┬───────────────────────────────────┘
                          │  gaia.causal (NEW)
           ┌──────────────┼────────────────────────────┐
@@ -79,12 +79,13 @@ Three write surfaces are introduced: a DAG view, an intervention primitive, and 
 
 ### 1.1 New `metadata.causal` contract
 
-D1 introduces a compiler-owned `metadata.causal` contract. The authored runtime `Causes` object is not serializable as-is, and PR #505 artifacts do not currently contain a causal descriptor, so the first implementation slice must populate both the authored operand descriptors and the compiled edge identifiers:
+PR #510 introduced the compiler-owned `metadata.causal` operand descriptors. D1 extends that shape with compiled edge identifiers:
 
 ```python
 {
-    "cause":  {"kind": "variable" | "knowledge", ...},
-    "effect": {"kind": "variable" | "knowledge", ...},
+    "cause":  {"kind": "variable" | "knowledge", ...},   # PR #510
+    "effect": {"kind": "variable" | "knowledge", ...},   # PR #510
+    # NEW in D1:
     "dag_edge": {
         "cause_id":  "<QID or CNID>",           # always present
         "effect_id": "<QID or CNID>",           # always present
@@ -92,11 +93,11 @@ D1 introduces a compiler-owned `metadata.causal` contract. The authored runtime 
 }
 ```
 
-`cause` / `effect` are human-auditable descriptors of the authored operands. `dag_edge` is the machine-stable edge used by `gaia.causal`.
+`cause` / `effect` are human-auditable descriptors of the authored operands. D1 extends this contract with `dag_edge`, the machine-stable edge used by `gaia.causal`.
 
 `cause_id` / `effect_id` are either compiled QIDs (for Knowledge-typed operands) or synthesized CNIDs (for Variable operands — see §3.1). They coexist in the same field; consumers distinguish them with `gaia.ir.knowledge.is_qid()`.
 
-`dag_edge` is populated by the compiler **after** QID assignment. Lang runtime never sets it — consumers that need to read the DAG use `dag_edge`; consumers that need provenance back to authored Variables read the original `cause` / `effect`.
+`dag_edge` is populated by the compiler **after** QID assignment. Lang runtime never sets it — consumers that need to read the DAG use `dag_edge`; consumers that need provenance back to authored Variables read the original `cause` / `effect`. A `CAUSAL` claim missing `metadata.causal.cause` or `.effect` is invalid under the v0.6 compiler path and should fail fast.
 
 ### 1.2 `gaia.bp` additions
 
@@ -454,22 +455,25 @@ The adapter imports y0 inside the function body; `ImportError` is translated to 
 
 ### 6.1 Populate `metadata.causal.dag_edge`
 
-D1 adds the first formula-aware compiler path for causal claims. After QID assignment, the compiler walks claims whose formula is a top-level `Causes(X, Y)` (i.e., `kind == CAUSAL`) and writes the full causal descriptor:
+D1 builds on the v0.5 formula-lowering path. After QID assignment, the compiler walks claims whose formula is a top-level `Causes(X, Y)` (i.e., `kind == CAUSAL`), strict-validates that formula lowering already populated `metadata.causal.cause` and `.effect`, then writes the compiled edge identifiers:
 
 ```python
-claim.metadata["causal"] = {
-    "cause": serialize_causal_operand(claim.formula.cause),
-    "effect": serialize_causal_operand(claim.formula.effect),
-    "dag_edge": {
-        "cause_id":  resolve_causal_id(claim.formula.cause),
-        "effect_id": resolve_causal_id(claim.formula.effect),
-    },
+causal = claim.metadata.get("causal")
+if not causal or "cause" not in causal or "effect" not in causal:
+    raise CausalMetadataMissingError(
+        "CAUSAL claim is missing metadata.causal descriptors; "
+        "recompile with the v0.6 formula-lowering compiler"
+    )
+
+causal["dag_edge"] = {
+    "cause_id":  resolve_causal_id(claim.formula.cause),
+    "effect_id": resolve_causal_id(claim.formula.effect),
 }
 ```
 
 `resolve_causal_id` is a new helper. For `Variable` operands it synthesizes a **CNID** (see §3.1) with the format `@var:{namespace}:{package_name}:{symbol}` — visually distinct from QIDs and guaranteed to fail `is_qid()`. If D1 chooses to support claim endpoints, then `Causes` must first be broadened beyond its current `Term`-only contract; only then should `Knowledge` / `ClaimAtom` operands resolve to compiled QIDs.
 
-This is more than appending `dag_edge` to pre-existing metadata: it is the compiler path that creates `metadata.causal` in the first place.
+This is an additive extension to the existing `metadata.causal` descriptor, not a new IR schema and not a replacement for formula lowering.
 
 ### 6.2 No new IR schema, no new strategy type
 
@@ -477,10 +481,10 @@ All the new semantics live in metadata and in `gaia.causal`. IR `Operator`, `Str
 
 ### 6.3 Migration concern: existing `CAUSAL` claims
 
-Any package authored against PR #505 that declares causal formulas today produces IR artifacts without `metadata.causal` at all. Handling:
+Packages compiled after PR #510 but before v0.6 can already contain `metadata.causal.cause` / `.effect` without `dag_edge`. Handling:
 
-- `build_dag` tolerates older artifacts only if `metadata.causal.cause` / `.effect` exists but `dag_edge` is missing. That fallback is for future partial artifacts, not current PR #505 artifacts.
-- If `metadata.causal` is absent, `build_dag` raises `CausalMetadataMissingError` with a message telling the user to recompile from Lang source under v0.6; the IR alone does not contain enough formula data to recover the edge.
+- If `metadata.causal` is absent on a `CAUSAL` claim, the artifact is malformed for v0.6 causal tooling.
+- If `metadata.causal` exists but `dag_edge` is missing, `build_dag` raises `CausalMetadataMissingError` with a message telling the user to recompile under v0.6 to populate `metadata.causal.dag_edge`.
 - Re-compiling a package with v0.6 populates `dag_edge` definitively; the reviewer prefers `dag_edge` when present.
 
 ---
@@ -553,15 +557,15 @@ Four independent PR slices, strictly ordered.
 
 ### Milestone D₁ — Causal structure layer (Spec 1)
 
-Depends on: PR #505 (merged).
+Depends on: PR #505 and PR #510 (merged to `v0.5`).
 
-- **Compiler:** populate `metadata.causal` (operand descriptors plus `dag_edge`) for `CAUSAL` claims (§6.1).
+- **Compiler:** validate existing `metadata.causal` operand descriptors and populate `metadata.causal.dag_edge` for `CAUSAL` claims (§6.1).
 - **`gaia.causal.dag`:** `CausalDAG`, `CausalEdge`, `build_dag`. Cycle detection.
 - **`gaia.causal.queries`:** `ancestors`, `descendants`, `parents`, `children`, `d_separated`, `adjustment_sets`.
 - **`gaia.causal.errors`:** `CausalCycleError`, `CausalMetadataMissingError`, `InterventionUndefinedError`.
 - **`pyproject.toml`:** `networkx>=3` added to base dependencies.
 - **Renderer hook:** per-claim "Causal role" section in Obsidian wiki output.
-- **Tests:** compiler emits `metadata.causal` from `Claim(formula=Causes(...), kind=CAUSAL)`, DAG construction, acyclicity, d-separation parity with textbook examples (confounder, chain, collider), adjustment-set enumeration on canonical DAGs.
+- **Tests:** compiler preserves `metadata.causal.cause` / `.effect` from formula lowering and adds `dag_edge`, DAG construction, acyclicity, d-separation parity with textbook examples (confounder, chain, collider), adjustment-set enumeration on canonical DAGs.
 
 Independently shippable: enables `gaia check causal`, makes renderings causal-aware, but does not yet execute interventions. Roughly 2–3 weeks.
 
@@ -683,5 +687,6 @@ do(T=1, S=1).query(R)         # compound intervention: force treatment and mitig
 - Shpitser & Pearl, "Identification of Conditional Interventional Distributions" (2006) — IDC algorithm y0 implements.
 - [y0](https://github.com/y0-causal-inference/y0) — symbolic do-calculus implementation (adapter target).
 - [NetworkX](https://networkx.org/) — DAG infrastructure (promoted to kernel dep).
-- PR #505 — claim formula schema (immediate predecessor; supplies `Causes`, `Variable`, `Domain`).
+- PR #505 — claim formula schema (supplies `Causes`, `Variable`, `Domain`).
+- PR #510 — formula lowering into IR metadata (supplies `metadata.causal.cause` / `.effect`).
 - `docs/superpowers/specs/2026-04-25-unit-stats-constants-design.md` — kernel-vs-adapter separation template.
