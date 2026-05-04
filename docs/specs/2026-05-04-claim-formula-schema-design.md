@@ -338,10 +338,18 @@ forall(x: Particle, body(x))
    →   for v in Particle.members:
            emit grounded_body_v ← compile(body[x ↦ v])
        emit one universal-claim Knowledge G with prior from the source Claim
-       emit Strategy(NOISY_AND or CONJUNCTION, premises=[grounded_body_v...], conclusion=G)
+       emit one directed implication/deduction G -> grounded_body_v for each v
 ```
 
-`exists(x, body)` lowers symmetrically with `DISJUNCTION`.
+`forall` is a rule-to-instance grounding, not an aggregate claim over all
+instances. Lowering it as a conjunction would reverse the load-bearing
+direction: it would make the universal claim depend on all currently enumerated
+instances, while the intended contract is that accepting the universal claim
+supports each grounded instance. Therefore finite-domain `forall` emits
+multiple implication-shaped strategies, one per domain member.
+
+`exists(x, body)` remains aggregate-shaped and lowers symmetrically with
+`DISJUNCTION`.
 
 The instantiation parameter `x ↦ v` is recorded in each `grounded_body_v.parameters` — preserving provenance back to the lifted claim.
 

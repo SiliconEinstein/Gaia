@@ -32,6 +32,7 @@ from gaia.lang.refs import (
     resolve,
     validate_groups,
 )
+from gaia.lang.compiler.lower_formula import lower_claim_formula
 from gaia.lang.runtime import Knowledge, Operator
 from gaia.lang.runtime.action import (
     Action,
@@ -1075,14 +1076,33 @@ def compile_package_artifact(
             ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
             break
 
+    formula_generated_knowledges: list[IrKnowledge] = []
+    formula_generated_operators: list[IrOperator] = []
+    formula_generated_strategies: list[IrStrategy] = []
+    for k in knowledge_nodes:
+        if not _is_local(k, pkg):
+            continue
+        if getattr(k, "formula", None) is None:
+            continue
+        lowered = lower_claim_formula(
+            k,
+            claim_id=knowledge_map[id(k)],
+            namespace=pkg.namespace,
+            package_name=pkg.name,
+            knowledge_map=knowledge_map,
+        )
+        formula_generated_knowledges.extend(lowered.knowledges)
+        formula_generated_operators.extend(lowered.operators)
+        formula_generated_strategies.extend(lowered.strategies)
+
     module_order = pkg._module_order if pkg._module_order else None
     module_titles = getattr(pkg, "_module_titles", None) or None
     graph = LocalCanonicalGraph(
         namespace=pkg.namespace,
         package_name=pkg.name,
-        knowledges=[*ir_knowledges, *generated_knowledges],
-        operators=[*ir_operators, *action_operators],
-        strategies=ir_strategies,
+        knowledges=[*ir_knowledges, *generated_knowledges, *formula_generated_knowledges],
+        operators=[*ir_operators, *action_operators, *formula_generated_operators],
+        strategies=[*ir_strategies, *formula_generated_strategies],
         composes=ir_composes,
         module_order=module_order,
         module_titles=module_titles if module_titles else None,
