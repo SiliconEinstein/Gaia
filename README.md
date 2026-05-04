@@ -172,6 +172,24 @@ Gaia is agent-ready. A [Claude Code](https://claude.ai/code) plugin provides ski
 /plugin install gaia
 ```
 
+### Codex CLI
+
+Gaia skills also work with [OpenAI Codex CLI](https://developers.openai.com/codex/cli). The same `SKILL.md` files are recognized by both agents.
+
+```bash
+# Add the Gaia marketplace
+codex marketplace add https://github.com/SiliconEinstein/Gaia
+
+# Or manually clone and copy skills
+git clone https://github.com/SiliconEinstein/Gaia.git
+cp -r Gaia/skills/* ~/.codex/skills/
+```
+
+After installation, invoke skills with the `$` prefix:
+- `$gaia formalization` — Formalize a paper into a Gaia package
+- `$gaia review` — Refine priors after inspecting BP results
+- `$gaia publish` — Generate GitHub presentation and push
+
 ### Formalize a Paper End-to-End
 
 1. **`/gaia:formalization`** — Point Claude at your paper (PDF or text in `artifacts/`). The skill guides a six-pass process: extract knowledge nodes, connect reasoning strategies, check completeness, refine strategy types, verify structural integrity, and polish for readability. Output: a compilable Gaia package with `priors.py`.
