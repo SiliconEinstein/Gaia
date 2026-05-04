@@ -1,0 +1,44 @@
+"""Milestone A compile smoke — packages declaring Variables/Domains compile cleanly.
+
+Codex review blocker #1: Variable/Domain are Lang-only and must not enter the
+IR-bound knowledge map. This test declares both inside a CollectedPackage,
+runs compile_package_artifact, and asserts the resulting IR contains a Claim
+but no `variable` or `domain` typed entries.
+"""
+
+from gaia.lang.compiler.compile import compile_package_artifact
+from gaia.lang.runtime.domain import Domain
+from gaia.lang.runtime.knowledge import Claim, _current_package
+from gaia.lang.runtime.package import CollectedPackage
+from gaia.lang.runtime.variable import Variable
+from gaia.lang.types.primitives import Nat
+
+
+def test_package_with_variables_and_domains_compiles_cleanly():
+    pkg = CollectedPackage(name="t_smoke", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        # Lang-only declarations.
+        Particle = Domain(content="Particles", members=["p1", "p2"])  # noqa: F841
+        n = Variable(symbol="n", domain=Nat, value=395)  # noqa: F841
+
+        # An IR-bound Claim — this MUST appear in compiled output.
+        Claim(content="A regular claim.", prior=0.5, label="C1")
+    finally:
+        _current_package.reset(token)
+
+    artifact = compile_package_artifact(pkg)
+
+    # CompiledPackage exposes the IR via .graph.knowledges (LocalCanonicalGraph).
+    knowledges = artifact.graph.knowledges
+    types = {str(k.type) for k in knowledges}
+
+    assert "variable" not in types, (
+        f"variable leaked into IR knowledge — Lang-only registration failed. "
+        f"Types in IR: {sorted(types)}"
+    )
+    assert "domain" not in types, (
+        f"domain leaked into IR knowledge — Lang-only registration failed. "
+        f"Types in IR: {sorted(types)}"
+    )
+    assert any(str(k.type) == "claim" for k in knowledges), "no claim found in compiled artifact"
