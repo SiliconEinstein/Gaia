@@ -1,6 +1,6 @@
 import pytest
 
-from gaia.lang import Claim, ClaimAtom, decompose, implies, land
+from gaia.lang import Claim, ClaimAtom, decompose, implies, land, lor
 from gaia.lang.compiler import compile_package_artifact
 from gaia.lang.runtime.action import Decompose, Structural
 from gaia.lang.runtime.package import CollectedPackage
@@ -108,3 +108,67 @@ def test_decompose_rejects_transitive_decomposition_cycle():
 
     with pytest.raises(ValueError, match="cycle"):
         decompose(c, parts=(a,), formula=ClaimAtom(a), label="c_as_a")
+
+
+def test_decompose_rejects_non_claim_whole():
+    a = Claim("Atomic A.")
+
+    with pytest.raises(TypeError, match="whole must be a Claim"):
+        decompose("not a claim", parts=(a,), formula=ClaimAtom(a))
+
+
+def test_decompose_rejects_empty_parts():
+    c = Claim("Composite claim.")
+
+    with pytest.raises(ValueError, match="at least one part"):
+        decompose(c, parts=(), formula=ClaimAtom(c))
+
+
+def test_decompose_rejects_non_claim_parts():
+    c = Claim("Composite claim.")
+    a = Claim("Atomic A.")
+
+    with pytest.raises(TypeError, match="parts must be Claims"):
+        decompose(c, parts=(a, "not a claim"), formula=ClaimAtom(a))
+
+
+def test_decompose_rejects_duplicate_parts():
+    c = Claim("Composite claim.")
+    a = Claim("Atomic A.")
+
+    with pytest.raises(ValueError, match="parts must be unique"):
+        decompose(c, parts=(a, a), formula=ClaimAtom(a))
+
+
+def test_decompose_rejects_non_formula():
+    c = Claim("Composite claim.")
+    a = Claim("Atomic A.")
+
+    with pytest.raises(TypeError, match="formula must be a Formula"):
+        decompose(c, parts=(a,), formula=a)
+
+
+def test_decompose_rejects_formula_that_references_whole():
+    c = Claim("Composite claim.")
+    a = Claim("Atomic A.")
+
+    with pytest.raises(ValueError, match="must not reference the whole claim"):
+        decompose(c, parts=(a,), formula=lor(ClaimAtom(a), ClaimAtom(c)))
+
+
+def test_decompose_rejects_unused_part():
+    c = Claim("Composite claim.")
+    a = Claim("Atomic A.")
+    b = Claim("Atomic B.")
+
+    with pytest.raises(ValueError, match="every decompose part"):
+        decompose(c, parts=(a, b), formula=ClaimAtom(a))
+
+
+def test_decompose_rejects_unlisted_formula_atom():
+    c = Claim("Composite claim.")
+    a = Claim("Atomic A.")
+    b = Claim("Atomic B.")
+
+    with pytest.raises(ValueError, match="only reference listed parts"):
+        decompose(c, parts=(a,), formula=land(ClaimAtom(a), ClaimAtom(b)))
