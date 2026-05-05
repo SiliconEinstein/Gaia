@@ -13,16 +13,17 @@ from collections.abc import Callable
 from typing import Any, Literal
 
 from gaia.ir.schemas import CallableRef, DistributionParam, DistributionLiteral
-from gaia.unit import is_quantity, to_literal
 
 
 def _param_to_ir(value: Any) -> DistributionParam:
-    if is_quantity(value):
-        return to_literal(value)
     if isinstance(value, bool):
         raise TypeError("Distribution parameters must be numeric scalars, not bool")
     if isinstance(value, int | float):
         return value
+    from gaia.unit import is_quantity, to_literal
+
+    if is_quantity(value):
+        return to_literal(value)
     raise TypeError(f"Unsupported distribution parameter type: {type(value).__name__}")
 
 
