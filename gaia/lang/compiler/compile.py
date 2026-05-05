@@ -7,6 +7,7 @@ import inspect
 import json
 import re
 from dataclasses import asdict, dataclass, field
+from types import SimpleNamespace
 from typing import Any
 
 from gaia.ir import (
@@ -40,12 +41,12 @@ from gaia.lang.runtime.action import (
     Compose,
     Compute,
     Contradict,
+    Decompose,
     DependsOn,
     Equal,
     Exclusive,
     Infer as InferAction,
     Observe,
-    Relate,
     Support,
 )
 from gaia.lang.runtime.package import CollectedPackage
@@ -523,13 +524,18 @@ def compile_package_artifact(
                 register_knowledge(given)
             if action.conclusion is not None:
                 register_knowledge(action.conclusion)
-        elif isinstance(action, Relate):
+        elif isinstance(action, Equal | Contradict | Exclusive):
             if action.a is not None:
                 register_knowledge(action.a)
             if action.b is not None:
                 register_knowledge(action.b)
             if action.helper is not None:
                 register_knowledge(action.helper)
+        elif isinstance(action, Decompose):
+            if action.whole is not None:
+                register_knowledge(action.whole)
+            for part in action.parts:
+                register_knowledge(part)
         elif isinstance(action, InferAction):
             if action.hypothesis is not None:
                 register_knowledge(action.hypothesis)
@@ -796,9 +802,12 @@ def compile_package_artifact(
         _record_action_target(action_label, strategy.strategy_id)
         return strategy
 
-    def _compile_relate_action(action: Relate, action_index: int) -> IrOperator:
+    def _compile_structural_relation_action(
+        action: Equal | Contradict | Exclusive,
+        action_index: int,
+    ) -> IrOperator:
         if action.a is None or action.b is None or action.helper is None:
-            raise ValueError("Relate action requires a, b, and helper")
+            raise ValueError("Structural relation action requires a, b, and helper")
         if isinstance(action, Equal):
             operator = "equivalence"
             pattern = "equivalence"
@@ -809,7 +818,7 @@ def compile_package_artifact(
             operator = "complement"
             pattern = "exclusive"
         else:
-            raise ValueError(f"Unsupported Relate action: {type(action).__name__}")
+            raise ValueError(f"Unsupported structural relation action: {type(action).__name__}")
         action_label, metadata = _action_metadata(action, pkg, action_index, pattern=pattern)
         warrant_ids = _warrant_ids(action)
         if warrant_ids:
@@ -832,6 +841,108 @@ def compile_package_artifact(
             operator=operator,
             variables=variables,
             conclusion=conclusion,
+            metadata=metadata,
+        )
+        _record_action_target(action_label, ir_operator.operator_id)
+        return ir_operator
+
+    def _decompose_generated_label(action: Decompose, action_index: int, suffix: str) -> str:
+        action_label = action.label or f"_anon_action_{action_index:03d}"
+        return f"__decompose_{_normalize_label(action_label)}_{suffix}"
+
+    def _compile_decompose_action(action: Decompose, action_index: int) -> IrOperator:
+        if action.whole is None:
+            raise ValueError("Decompose action requires a whole Claim")
+        if not action.parts:
+            raise ValueError("Decompose action requires at least one part Claim")
+        if action.formula is None:
+            raise ValueError("Decompose action requires a formula")
+
+        action_label, metadata = _action_metadata(
+            action, pkg, action_index, pattern="decomposition"
+        )
+        whole_id = knowledge_map[id(action.whole)]
+        part_ids = [knowledge_map[id(part)] for part in action.parts]
+
+        formula_label = _decompose_generated_label(action, action_index, "formula")
+        formula_id = _make_qid(pkg.namespace, pkg.name, formula_label)
+        formula_metadata = {
+            "generated": True,
+            "helper_kind": "decomposition_formula",
+            "generated_by": action_label,
+            "source_claim": whole_id,
+            "decomposition_parts": part_ids,
+            "review": False,
+        }
+        formula_proxy = SimpleNamespace(
+            content=f"Formula decomposition of {whole_id}",
+            formula=action.formula,
+        )
+        lowered = lower_claim_formula(
+            formula_proxy,
+            claim_id=formula_id,
+            namespace=pkg.namespace,
+            package_name=pkg.name,
+            knowledge_map=knowledge_map,
+        )
+        formula_metadata.update(lowered.metadata_updates.get(formula_id, {}))
+        formula_parameters = lowered.parameter_updates.get(formula_id)
+        generated_knowledges.append(
+            IrKnowledge(
+                id=formula_id,
+                label=formula_label,
+                type="claim",
+                content=f"Formula decomposition of {whole_id}",
+                parameters=formula_parameters or [],
+                metadata=formula_metadata,
+            )
+        )
+        generated_knowledges.extend(lowered.knowledges)
+        for operator in lowered.operators:
+            if operator.scope == "local" and operator.operator_id is None:
+                operator.operator_id = _operator_id_from_values(
+                    str(operator.operator),
+                    operator.variables,
+                    operator.conclusion,
+                )
+            action_operators.append(operator)
+        if lowered.strategies:
+            ir_strategies.extend(lowered.strategies)
+
+        equivalence_label = _decompose_generated_label(action, action_index, "equivalence")
+        equivalence_id = _make_qid(pkg.namespace, pkg.name, equivalence_label)
+        generated_knowledges.append(
+            IrKnowledge(
+                id=equivalence_id,
+                label=equivalence_label,
+                type="claim",
+                content=f"{whole_id} is equivalent to its decomposition formula.",
+                metadata={
+                    "generated": True,
+                    "helper_kind": "decomposition_equivalence",
+                    "generated_by": action_label,
+                    "source_claim": whole_id,
+                    "formula_helper": formula_id,
+                    "review": False,
+                },
+            )
+        )
+
+        metadata["decomposition"] = {
+            "whole": whole_id,
+            "parts": part_ids,
+            "formula_helper": formula_id,
+        }
+        if action.rationale:
+            metadata["reason"] = action.rationale
+        ir_operator = IrOperator(
+            operator_id=_operator_id_from_values(
+                "equivalence", [whole_id, formula_id], equivalence_id
+            ),
+            scope="local",
+            operator="equivalence",
+            variables=[whole_id, formula_id],
+            conclusion=equivalence_id,
             metadata=metadata,
         )
         _record_action_target(action_label, ir_operator.operator_id)
@@ -920,8 +1031,10 @@ def compile_package_artifact(
             return None
         if isinstance(action, Support):
             return _compile_support_action(action, action_index)
-        if isinstance(action, Relate):
-            return _compile_relate_action(action, action_index)
+        if isinstance(action, Equal | Contradict | Exclusive):
+            return _compile_structural_relation_action(action, action_index)
+        if isinstance(action, Decompose):
+            return _compile_decompose_action(action, action_index)
         if isinstance(action, InferAction):
             return _compile_infer_action(action, action_index)
         if isinstance(action, Associate):

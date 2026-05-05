@@ -75,8 +75,13 @@ class DependsOn(Scaffold):
 
 
 @dataclass
-class Relate(Action):
-    """Logical constraint between two Claims."""
+class Structural(Action):
+    """Hard structural constraint between claims or claim formulas."""
+
+
+@dataclass
+class Equal(Structural):
+    """Declares two Claims equivalent."""
 
     a: Claim | None = None
     b: Claim | None = None
@@ -84,29 +89,41 @@ class Relate(Action):
 
 
 @dataclass
-class Equal(Relate):
-    """Declares two Claims equivalent."""
-
-
-@dataclass
-class Contradict(Relate):
+class Contradict(Structural):
     """Declares two Claims contradictory."""
 
+    a: Claim | None = None
+    b: Claim | None = None
+    helper: Claim | None = None
+
 
 @dataclass
-class Exclusive(Relate):
+class Exclusive(Structural):
     """Declares two Claims form a closed binary partition."""
 
+    a: Claim | None = None
+    b: Claim | None = None
+    helper: Claim | None = None
+
 
 @dataclass
-class Correlate(Action):
+class Decompose(Structural):
+    """Declares a whole Claim equivalent to a formula over atomic Claims."""
+
+    whole: Claim | None = None
+    parts: tuple[Claim, ...] = ()
+    formula: Any = None
+
+
+@dataclass
+class Probabilistic(Action):
     """Probabilistic soft constraint between Claims."""
 
     helper: Claim | None = None
 
 
 @dataclass
-class Infer(Correlate):
+class Infer(Probabilistic):
     """Bayesian inference: P(E|H) update."""
 
     hypothesis: Claim | None = None
@@ -119,7 +136,7 @@ class Infer(Correlate):
 
 
 @dataclass
-class Associate(Correlate):
+class Associate(Probabilistic):
     """Symmetric probabilistic association between two Claims."""
 
     a: Claim | None = None

@@ -1,4 +1,15 @@
-from gaia.lang import Claim, contradict, derive, equal, exclusive, infer, observe
+from gaia.lang import (
+    Claim,
+    ClaimAtom,
+    contradict,
+    decompose,
+    derive,
+    equal,
+    exclusive,
+    implies,
+    infer,
+    observe,
+)
 from gaia.lang.compiler import compile_package_artifact
 from gaia.lang.review.manifest import generate_review_manifest
 from gaia.lang.review.templates import generate_audit_question
@@ -109,6 +120,26 @@ def test_generate_review_manifest_for_gated_infer_names_given_claim():
     assert "[@h]" in question
     assert "[@e]" in question
     assert "[@gate]" in question
+
+
+def test_generate_review_manifest_for_decompose_uses_decompose_question():
+    with CollectedPackage("review_pkg") as pkg:
+        c = Claim("Composite.")
+        c.label = "c"
+        a = Claim("A.")
+        a.label = "a"
+        b = Claim("B.")
+        b.label = "b"
+        decompose(c, parts=(a, b), formula=implies(ClaimAtom(a), ClaimAtom(b)), label="split_c")
+
+    compiled = compile_package_artifact(pkg)
+    manifest = generate_review_manifest(compiled)
+    by_action = {review.action_label: review for review in manifest.reviews}
+
+    review = by_action["github:review_pkg::action::split_c"]
+    assert review.target_kind == "operator"
+    assert "faithfully decompose" in review.audit_question.lower()
+    assert "[@c]" in review.audit_question
 
 
 def test_compiled_package_carries_review_manifest_outside_graph_json():

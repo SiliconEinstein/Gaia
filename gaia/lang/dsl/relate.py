@@ -1,4 +1,4 @@
-"""Gaia Lang v6 Relate verbs: equal, contradict, exclusive."""
+"""Gaia Lang v6 structural relation verbs: equal, contradict, exclusive."""
 
 from __future__ import annotations
 

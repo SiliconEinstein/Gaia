@@ -12,8 +12,11 @@ from gaia.lang.runtime.action import (
     Action,
     Associate,
     Compose,
+    Contradict,
+    Decompose,
+    Equal,
+    Exclusive,
     Infer,
-    Relate,
     Support,
 )
 from gaia.lang.runtime.knowledge import Claim, Knowledge
@@ -76,11 +79,15 @@ def _action_inputs(action: Action) -> Iterable[Knowledge]:
         yield from (item for item in action.inputs if isinstance(item, Knowledge))
     elif isinstance(action, Support):
         yield from action.given
-    elif isinstance(action, Relate):
+    elif isinstance(action, Equal | Contradict | Exclusive):
         if action.a is not None:
             yield action.a
         if action.b is not None:
             yield action.b
+    elif isinstance(action, Decompose):
+        if action.whole is not None:
+            yield action.whole
+        yield from action.parts
     elif isinstance(action, Infer):
         if action.hypothesis is not None:
             yield action.hypothesis
@@ -105,7 +112,7 @@ def _action_outputs(action: Action) -> Iterable[Knowledge]:
     elif isinstance(action, Support):
         if action.conclusion is not None:
             yield action.conclusion
-    elif isinstance(action, Relate):
+    elif isinstance(action, Equal | Contradict | Exclusive):
         if action.helper is not None:
             yield action.helper
     elif isinstance(action, Infer | Associate):

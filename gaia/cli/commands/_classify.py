@@ -16,6 +16,7 @@ class KnowledgeClassification:
     strategy_background: set[str] = field(default_factory=set)
     operator_conclusions: set[str] = field(default_factory=set)
     operator_variables: set[str] = field(default_factory=set)
+    decomposition_wholes: set[str] = field(default_factory=set)
 
 
 def classify_ir(ir: dict) -> KnowledgeClassification:
@@ -24,6 +25,12 @@ def classify_ir(ir: dict) -> KnowledgeClassification:
 
     def add_operator_roles(operators: list[dict]) -> None:
         for o in operators:
+            metadata = o.get("metadata") or {}
+            decomposition = metadata.get("decomposition")
+            if isinstance(decomposition, dict):
+                whole = decomposition.get("whole")
+                if isinstance(whole, str) and whole:
+                    c.decomposition_wholes.add(whole)
             if o.get("conclusion"):
                 c.operator_conclusions.add(o["conclusion"])
             for v in o.get("variables", []):
@@ -54,6 +61,8 @@ def node_role(kid: str, ktype: str, c: KnowledgeClassification) -> str:
         return "note"
     if ktype == "question":
         return "question"
+    if kid in c.decomposition_wholes:
+        return "structural"
     if kid in c.operator_conclusions:
         return "structural"
     if kid in c.strategy_conclusions:

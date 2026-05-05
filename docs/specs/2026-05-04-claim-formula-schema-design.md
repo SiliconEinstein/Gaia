@@ -542,8 +542,8 @@ Each milestone is independently shippable. Milestone A introduces no new author-
 | **Causal `do`-calculus / intervention semantics** | v0.5 ships only the `Causes(X, Y)` predicate as a marker. The interventional factor type and SCM machinery come in v0.6. |
 | **Higher-order quantification** (over predicates / functions) | Not needed for the v0.5 use cases (Mendel, Galileo, etc.). Adds significant typing complexity. |
 | **Open / infinite domains** | First version requires `Domain.members` to be finite & enumerable. Lazy / open-world domains are a v0.7 topic. |
-| **Decompose action** (point 2 from the brainstorm) | Pain point 2 (claims that aren't atomic) is solved by a separate `decompose` action on top of formula AST — not by a schema change. Designed in a separate spec. |
-| **Role-on-action-graph** (point 6) | Roles (hypothesis / prediction / observation) belong on the action graph node, not on Claim. Separate spec. |
+| **Decompose action** (point 2 from the brainstorm) | Pain point 2 (claims that aren't atomic) is solved by a separate `decompose` action on top of formula AST — not by a schema change. See [Decompose Action Design](2026-05-05-decompose-action-design.md). |
+| **Role-on-action-graph** (point 6) | Roles (hypothesis / prediction / observation) belong on the action graph node, not on Claim. See [Role-on-Action-Graph Design](2026-05-05-role-on-action-graph-design.md). |
 | **`KnowledgeType` enum collision in IR** | IR's `KnowledgeType` enum currently lists claim/note/question/setting/action — Variable/Domain are Lang-only and do not need an IR enum entry. Keep IR enum unchanged. |
 
 ## 11. Open Questions
