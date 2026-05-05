@@ -291,3 +291,70 @@ def test_exhaustive_equal_prior_argmax_tracks_largest_log_likelihood():
 
     assert posterior_winner is h_high
     assert beliefs[compiled.knowledge_ids_by_object[id(comparison)]] > 0.99
+
+
+def test_full_pipeline_mendel_with_real_binomial_no_precomputed():
+    """Full pipeline: real scipy Binomial(395, p) likelihoods, no precomputed.
+
+    The realistic Mendel computation produces logL_3:1 ≈ -3.09, logL_null ≈ -53.38,
+    an unclamped Bayes factor on the order of exp(50) which Cromwell-clamps the
+    null hypothesis's likelihood factor to ε. Pairwise odds therefore saturate at
+    roughly (1-ε)/ε under both default and exhaustive exclusivity modes.
+    """
+    pkg, h_31, h_null, _data, _model, cmp_result = _compiled_mendel_bayes(
+        exclusivity="exhaustive_pairwise_complement"
+    )
+
+    compiled = compile_package_artifact(pkg)
+    h_31_id = compiled.knowledge_ids_by_object[id(h_31)]
+    h_null_id = compiled.knowledge_ids_by_object[id(h_null)]
+    cmp_id = compiled.knowledge_ids_by_object[id(cmp_result)]
+
+    cmp_ir = next(k for k in compiled.graph.knowledges if k.id == cmp_id)
+    likelihoods = cmp_ir.metadata["bayes"]["likelihoods"]
+    assert likelihoods[h_31_id] == pytest.approx(stats.binom(n=395, p=0.75).logpmf(295), rel=1e-6)
+    assert likelihoods[h_null_id] == pytest.approx(stats.binom(n=395, p=0.5).logpmf(295), rel=1e-6)
+
+    beliefs, _ = exact_inference(lower_local_graph(compiled.graph))
+    odds = beliefs[h_31_id] / beliefs[h_null_id]
+    # Cromwell clamp caps odds at roughly (1-ε)/ε ≈ 1000 — orders of magnitude
+    # below the unclamped Bayes factor of exp(50.3). Lower bound here is
+    # conservative; the realistic implementation produces ≈500.
+    assert odds > 100.0
+    assert beliefs[h_31_id] > 0.95
+    assert beliefs[h_null_id] < 0.03
+    assert beliefs[cmp_id] > 0.99
+
+
+def test_predict_rejects_duplicate_hypothesis_in_list():
+    pkg = CollectedPackage(name="bayes_dup_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        theta = Variable(symbol="theta", domain=Probability)
+        k = Variable(symbol="k", domain=Nat, value=10)
+        h = parameter(theta, 0.5, prior=0.5, label="h")
+        with pytest.raises(ValueError, match="duplicate hypothesis"):
+            bayes.predict([h, h], k, distribution=bayes.Binomial(n=20, p=theta), label="m")
+    finally:
+        _current_package.reset(token)
+
+
+def test_predict_orders_hypotheses_stably_when_label_and_content_collide():
+    pkg = CollectedPackage(name="bayes_stable_order_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        theta = Variable(symbol="theta", domain=Probability)
+        k = Variable(symbol="k", domain=Nat, value=5)
+        h_first = parameter(theta, 0.4, prior=0.5)
+        h_second = parameter(theta, 0.6, prior=0.5)
+        # Both hypotheses have label=None and identical content prefix.
+        h_first.content = "tied"
+        h_second.content = "tied"
+        model = bayes.predict(
+            [h_first, h_second],
+            k,
+            distribution=bayes.Binomial(n=10, p=theta),
+        )
+    finally:
+        _current_package.reset(token)
+    assert model.hypotheses == (h_first, h_second)

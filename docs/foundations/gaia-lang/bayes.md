@@ -96,6 +96,16 @@ hypothesis is true. For the default `pairwise_contradiction`, the listed
 hypotheses are only "at most one true", so pairwise odds are meaningful but the
 listed marginals need not sum to one.
 
+The realistic Mendel pipeline produces an unclamped Bayes factor of roughly
+`exp(50.3) ≈ 7×10²¹`, which the Cromwell clamp on individual likelihood factors
+caps at pairwise odds of ≈498 (`p1_null` is clamped to ε). Authors who need to
+**rank** hypotheses always get the correct ordering; authors who need
+**calibrated** Bayes factors at this magnitude should read
+`comparison.metadata["bayes"]["likelihoods"]` directly. The `> 40.0` lower bound
+in the assertion above is intentionally loose: any clamp ceiling above the
+discrimination threshold satisfies it. See the spec §4.3 "realistic Mendel"
+worked example for full numbers.
+
 ## Lowering Contract
 
 For each hypothesis `H_i`, the compiler binds deferred distribution parameters
@@ -154,3 +164,10 @@ Runtime objects do not expose stable `.id` or `.qid` fields.
 
 The first two are warnings. Prior-coherence and missing-data diagnostics are
 hard errors because they change the meaning of the compiled likelihood update.
+
+`bayes:hypothesis-prior-coherence` sums hypothesis priors as recorded in the
+compiled IR. Hypotheses with no IR-level prior (e.g. those resolved later from
+a `priors.py` sidecar) contribute `0.5` to the sum — the rule validates author
+intent against the IR snapshot, not against the final inference-time prior. If
+you rely on sidecar priors for an exhaustive comparison, set the prior on the
+hypothesis Claim explicitly so the coherence check sees the value you mean.

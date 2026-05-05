@@ -21,7 +21,22 @@ def _ordered_hypotheses(
     for item in items:
         if not isinstance(item, Claim):
             raise TypeError("predict() hypotheses must be Claim objects")
-    return tuple(sorted(items, key=lambda h: h.label or h.content))
+    seen: set[int] = set()
+    for item in items:
+        if id(item) in seen:
+            label = item.label or item.content or repr(item)
+            raise ValueError(
+                f"predict() received duplicate hypothesis {label!r}; "
+                "each hypothesis must appear at most once."
+            )
+        seen.add(id(item))
+    return tuple(
+        item
+        for _, item in sorted(
+            enumerate(items),
+            key=lambda pair: (pair[1].label or pair[1].content or "", pair[0]),
+        )
+    )
 
 
 class PredictiveModel(Claim):

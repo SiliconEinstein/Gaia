@@ -325,9 +325,9 @@ posterior(H_a) / posterior(H_b)
 
 within Cromwell clamp. The default `pairwise_contradiction` mode is weaker ("at most one true") and can leave residual mass on "none of the above"; it preserves pairwise odds among the listed alternatives but is not a strict normalized model-comparison posterior over only those alternatives. Authors who need posterior marginals to sum over an exhaustive H set should use `exclusivity="exhaustive_pairwise_complement"` when the H set is exhaustive.
 
-**⚠️ Default exclusivity caveat — empirically verified.** Running the Mendel example (logL_3:1 = −1.2, logL_null = −5.1, true BF ≈ 49) against the current `gaia.bp` engine yields:
+**⚠️ Default exclusivity caveat — illustrative numerical example.** Picking a moderate, illustrative pair of log-likelihoods (logL_a = −1.2, logL_b = −5.1, unclamped BF ≈ 49 — chosen so the BF stays within the Cromwell clamp window) and running them through the current `gaia.bp` engine yields:
 
-| `exclusivity` mode | exact posterior(H_3:1) | exact posterior(H_null) | exact posterior odds | BF odds? |
+| `exclusivity` mode | exact posterior(H_a) | exact posterior(H_b) | exact posterior odds | BF odds? |
 |---|---|---|---|---|
 | `"pairwise_contradiction"` (default) | 0.657 | 0.014 | **≈ 46.9** | **Yes — within Cromwell clamp** |
 | `"exhaustive_pairwise_complement"` | 0.978 | 0.021 | **≈ 46.9** | **Yes — within Cromwell clamp** |
@@ -340,7 +340,16 @@ The difference under the default mode is in the marginal probabilities, not in t
 - If your H set is genuinely exhaustive (e.g., Mendel 3:1 vs 1:1 segregation under a binary-mechanism framing), pass `exclusivity="exhaustive_pairwise_complement"` explicitly. The spec intentionally requires this to be opt-in so authors do not accidentally misstate epistemic coverage.
 - The `gaia check` rule `bayes:hypothesis-prior-coherence` (§6.3) already enforces prior-sum invariants per mode; reviewers should treat a comparison with normalized-posterior claims and no explicit `exclusivity=` as a finding.
 
-**Worked example (Mendel).** With logL_3:1 = −1.2 and logL_null = −5.1: logL_max = −1.2, LR_3:1 = 1.0, LR_null = exp(−3.9) ≈ 0.020. CPT entries: `p1_3:1 ≈ 1 − ε`, `p1_null ≈ 0.020`. Two `infer` strategies are emitted, both feeding cmp_result, with a shared `p0=0.5`. Under exhaustive two-H comparison, the posterior odds are ≈47.5 after Cromwell clamp (unclamped Bayes factor ≈49), which matches the intended likelihood-ratio semantics up to clamp.
+**Worked example — illustrative log-likelihoods.** With logL_a = −1.2 and logL_b = −5.1: logL_max = −1.2, LR_a = 1.0, LR_b = exp(−3.9) ≈ 0.020. CPT entries: `p1_a ≈ 1 − ε`, `p1_b ≈ 0.020`. Two `infer` strategies are emitted, both feeding cmp_result, with a shared `p0=0.5`. Under exhaustive two-H comparison, the posterior odds are ≈47.5 after Cromwell clamp (unclamped Bayes factor ≈49), which matches the intended likelihood-ratio semantics up to clamp.
+
+**Worked example — realistic Mendel pipeline (no `precomputed`).** Running the full pipeline on n=395, k=295, H_3:1 (θ=0.75) vs H_null (θ=0.5) with `bayes.Binomial(n, p=theta)` produces logL_3:1 = −3.087 and logL_null = −53.384. The unclamped Bayes factor is `exp(50.30) ≈ 7×10²¹`, well beyond the per-factor clamp ceiling of `(1 − ε)/ε ≈ 999`. Both exclusivity modes therefore saturate at Cromwell-clamped pairwise odds:
+
+| `exclusivity` mode | P(H_3:1) | P(H_null) | pairwise odds |
+|---|---|---|---|
+| `"pairwise_contradiction"` (default) | 0.665 | 0.0013 | ≈ 498 |
+| `"exhaustive_pairwise_complement"` | 0.997 | 0.0020 | ≈ 498 |
+
+The 498 figure reflects the clamp, not the underlying BF — authors who need to **rank** hypotheses still get the right ordering; authors who need **calibrated** Bayes factors at this magnitude must read `metadata["bayes"]["likelihoods"]` directly. The integration test `test_full_pipeline_mendel_with_real_binomial_no_precomputed` locks in this end-to-end behavior.
 
 **Information loss caveats.**
 - This mapping preserves likelihood *ratios* across H but loses absolute likelihood scale. For v1 this is acceptable — the visible quantity in scientific writing is the Bayes factor (ratio), not the absolute likelihood. Authors needing absolute scale can read `metadata["bayes"]["likelihoods"]` directly off the ComparisonResult.
