@@ -1,5 +1,6 @@
 from gaia.lang.dsl.knowledge import claim, context, note, question, setting
 from gaia.lang.dsl.associate_verb import associate
+from gaia.lang.dsl.decompose import decompose
 from gaia.lang.dsl.formula import causes, equals, exists, forall, iff, implies, land, lnot, lor
 from gaia.lang.dsl.infer_verb import infer
 from gaia.lang.dsl.operators import complement, contradiction, disjunction, equivalence
@@ -41,6 +42,7 @@ __all__ = [
     "contradict",
     "contradiction",
     "deduction",
+    "decompose",
     "depends_on",
     "derive",
     "disjunction",

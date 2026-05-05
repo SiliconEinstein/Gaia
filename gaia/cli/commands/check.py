@@ -83,6 +83,21 @@ def _boundary_claim_analysis(
     def needs_probability_input(node: InquiryNode) -> bool:
         return not node.incoming or all(edge.kind == "grounding" for edge in node.incoming)
 
+    def expand_decomposition_boundary(boundary_ids: set[str]) -> set[str]:
+        expanded = set(boundary_ids)
+        for operator in ir.get("operators", []):
+            metadata = operator.get("metadata") or {}
+            decomposition = metadata.get("decomposition")
+            if not isinstance(decomposition, dict):
+                continue
+            whole = decomposition.get("whole")
+            parts = decomposition.get("parts")
+            if whole not in expanded or not isinstance(parts, list):
+                continue
+            expanded.discard(whole)
+            expanded.update(part for part in parts if isinstance(part, str) and part)
+        return expanded
+
     trees = build_goal_trees(
         ir,
         ReviewManifest(reviews=[]),
@@ -95,7 +110,10 @@ def _boundary_claim_analysis(
             for node in _walk_inquiry_nodes(tree)
             if needs_probability_input(node)
         }
-        return _BoundaryAnalysis(boundary_claim_ids=boundary_claim_ids, scoped_to_exports=True)
+        return _BoundaryAnalysis(
+            boundary_claim_ids=expand_decomposition_boundary(boundary_claim_ids),
+            scoped_to_exports=True,
+        )
 
     c = classify_ir(ir)
     boundary_claim_ids = {
@@ -105,7 +123,10 @@ def _boundary_claim_analysis(
         and knowledge.get("id")
         and node_role(knowledge["id"], "claim", c) == "independent"
     }
-    return _BoundaryAnalysis(boundary_claim_ids=boundary_claim_ids, scoped_to_exports=False)
+    return _BoundaryAnalysis(
+        boundary_claim_ids=expand_decomposition_boundary(boundary_claim_ids),
+        scoped_to_exports=False,
+    )
 
 
 def _deterministic_operator_theory(graph: LocalCanonicalGraph):

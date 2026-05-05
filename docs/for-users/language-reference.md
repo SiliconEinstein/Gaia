@@ -57,8 +57,9 @@ from gaia.lang import (
     Variable, Nat, Real, Probability, Bool,                # Formula terms
     parameter, observation, causal,                        # Structured formula claims
     not_, and_, or_,                                      # Propositional expressions
+    ClaimAtom, land, implies,                             # Formula AST helpers
     contradict, equal, exclusive,                         # Reviewable relations
-    observe, derive, compute, infer,                       # Recommended actions
+    observe, derive, compute, infer, decompose,            # Recommended actions
 
     # Compatibility aliases and legacy/experimental APIs
     setting, context,
@@ -180,7 +181,7 @@ co2_causes_temp = causal(
 
 ## Recommended Actions
 
-Action verbs are the v0.5 main path for connecting claims. Support verbs and `infer(...)` return the produced conclusion/evidence claim; relation-shaped verbs such as `associate(...)`, `equal(...)`, `contradict(...)`, and `exclusive(...)` return generated helper claims because the relation itself is the review target.
+Action verbs are the v0.5 main path for connecting claims. Support verbs, `infer(...)`, and `decompose(...)` return the produced or affected claim. Relation-shaped verbs such as `associate(...)`, `equal(...)`, `contradict(...)`, and `exclusive(...)` return generated helper claims because the relation itself is the review target.
 
 | Function | Use when |
 |----------|----------|
@@ -188,6 +189,7 @@ Action verbs are the v0.5 main path for connecting claims. Support verbs and `in
 | `derive(conclusion, *, given=(), background=None, rationale="")` | The conclusion follows deterministically from explicit premises |
 | `compute(ClaimType, *, fn=None, given=(), background=None, rationale="")` | A deterministic Python computation produces the conclusion |
 | `infer(evidence, *, hypothesis, given=(), p_e_given_h, p_e_given_not_h=0.5, rationale="")` | A probabilistic prediction/evidence link remains; returns the evidence claim and keeps an internal likelihood warrant |
+| `decompose(whole, *, parts, formula, rationale="")` | A composite claim's truth condition is a formula over atomic part claims; returns the whole claim |
 | `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, rationale="")` | A symmetric probabilistic association remains; returns an association helper claim |
 | `@compose(name, version, background=None, warrants=None, rationale="", label=None)` | A reusable Python workflow should be reviewed as one named action DAG |
 
@@ -200,6 +202,25 @@ matched = equal(prediction, measurement, rationale="The prediction matches the m
 If a step feels uncertain, first ask whether the uncertain part should become a separate premise. Use `infer(...)` only for the remaining probabilistic relation after that extraction.
 
 `infer(...)` creates an internal likelihood helper for review but returns the evidence claim. `associate(...)`, `equal(...)`, `contradict(...)`, and `exclusive(...)` return helper claims directly. All helper claims are review targets, not independent probabilistic inputs, so do not assign external priors to them.
+
+`decompose(...)` is for composite claims whose internal truth condition should be
+reviewable and prior-aware. It compiles to a generated formula helper plus an
+equivalence operator, but `gaia check --hole` treats the atomic `parts` as the
+independent prior candidates and skips the generated helpers.
+
+```python
+composite = claim("The model succeeds in the stated regime.")
+prediction = claim("The model predicts the observed trend.")
+calibration = claim("The calibration applies.")
+measurement = claim("The measurement is reliable.")
+
+decompose(
+    composite,
+    parts=(prediction, calibration, measurement),
+    formula=land(ClaimAtom(prediction), implies(ClaimAtom(calibration), ClaimAtom(measurement))),
+    rationale="Success means prediction holds, and calibration implies measurement reliability.",
+)
+```
 
 ## Operators (Deterministic Constraints)
 

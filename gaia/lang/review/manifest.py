@@ -38,6 +38,8 @@ def _strategy_action_type(strategy: Any) -> str:
 
 
 def _operator_action_type(operator: Any) -> str:
+    if (operator.metadata or {}).get("pattern") == "decomposition":
+        return "decompose"
     if operator.operator == "equivalence":
         return "equal"
     if operator.operator == "contradiction":
@@ -88,6 +90,18 @@ def _grounding_question(knowledge: Any, labels: dict[str, str]) -> str:
 
 
 def _operator_question(operator: Any, action_type: str, labels: dict[str, str]) -> str:
+    if action_type == "decompose":
+        metadata = operator.metadata or {}
+        decomposition = metadata.get("decomposition") or {}
+        whole = decomposition.get("whole") or (operator.variables[0] if operator.variables else "")
+        formula = decomposition.get("formula_helper") or (
+            operator.variables[1] if len(operator.variables) > 1 else ""
+        )
+        return generate_audit_question(
+            "decompose",
+            whole_label=labels.get(whole, whole),
+            formula_label=labels.get(formula, formula),
+        )
     a = operator.variables[0] if operator.variables else ""
     b = operator.variables[1] if len(operator.variables) > 1 else ""
     return generate_audit_question(

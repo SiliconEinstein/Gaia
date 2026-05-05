@@ -372,3 +372,42 @@ def test_check_reports_induced_maxent_entropy(tmp_path):
     assert result.exit_code == 0, result.output
     assert "Independent DOF analysis: 1 MaxEnt / 1 independent claims" in result.output
     assert "Induced MaxEnt entropy:" in result.output
+
+
+def test_check_hole_skips_decompose_whole_and_generated_helpers(tmp_path):
+    pkg_dir = tmp_path / "decompose_holes"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "decompose-holes-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\ntype = "knowledge-package"\nuuid = "decompose-holes"\n',
+        encoding="utf-8",
+    )
+    pkg_src = pkg_dir / "decompose_holes"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import Claim, ClaimAtom, decompose, implies, land\n"
+        "c = Claim('Composite claim.')\n"
+        "c.label = 'c'\n"
+        "a = Claim('Atomic A.')\n"
+        "a.label = 'a'\n"
+        "b = Claim('Atomic B.')\n"
+        "b.label = 'b'\n"
+        "d = Claim('Atomic D.')\n"
+        "d.label = 'd'\n"
+        "decompose(c, parts=(a, b, d), formula=land(ClaimAtom(a), implies(ClaimAtom(b), ClaimAtom(d))), label='split_c')\n"
+        "__all__ = ['c']\n",
+        encoding="utf-8",
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["check", str(pkg_dir), "--hole"])
+    assert result.exit_code == 0, result.output
+    assert "    - c  no external prior" not in result.output
+    assert "\n    c\n" not in result.output
+    assert "github:decompose_holes::c" not in result.output
+    assert "__decompose_split_c_formula" not in result.output
+    assert "    - a  no external prior (MaxEnt)" in result.output
+    assert "    - b  no external prior (MaxEnt)" in result.output
+    assert "    - d  no external prior (MaxEnt)" in result.output

@@ -3,16 +3,17 @@ from gaia.lang.runtime.action import (
     Associate,
     Compute,
     Compose,
-    Correlate,
     Contradict,
+    Decompose,
     Derive,
     DependsOn,
     Equal,
     Exclusive,
     Infer,
     Observe,
-    Relate,
+    Probabilistic,
     Scaffold,
+    Structural,
     Support,
 )
 from gaia.lang.runtime.composition import Composition, compose, composition
@@ -28,6 +29,7 @@ from gaia.lang.runtime.knowledge import (
     Setting,
 )
 from gaia.lang.runtime.nodes import Operator, Step, Strategy
+from gaia.lang.runtime.roles import RoleOccurrence, roles_for_claim, roles_for_package
 from gaia.lang.runtime.variable import Variable
 
 __all__ = [
@@ -38,9 +40,9 @@ __all__ = [
     "Compute",
     "Compose",
     "Composition",
-    "Correlate",
     "Context",
     "Contradict",
+    "Decompose",
     "Derive",
     "DependsOn",
     "Domain",
@@ -52,14 +54,18 @@ __all__ = [
     "Note",
     "Observe",
     "Operator",
+    "Probabilistic",
     "Question",
-    "Relate",
+    "RoleOccurrence",
     "Scaffold",
     "Setting",
     "Step",
     "Strategy",
+    "Structural",
     "Support",
     "Variable",
     "compose",
     "composition",
+    "roles_for_claim",
+    "roles_for_package",
 ]

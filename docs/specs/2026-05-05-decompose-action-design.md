@@ -1,6 +1,6 @@
 # Decompose Action Design
 
-**Status:** Proposed design
+**Status:** Implemented design (initial v0.5 surface)
 **Branch:** `codex/v05-role-decompose-design` (off `v0.5`)
 **Date:** 2026-05-05
 

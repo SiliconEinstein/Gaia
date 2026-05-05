@@ -5,10 +5,12 @@ from gaia.lang.runtime.action import (
     Derive,
     DependsOn,
     Equal,
+    Exclusive,
     Infer,
     Observe,
-    Relate,
+    Probabilistic,
     Scaffold,
+    Structural,
     Support,
 )
 
@@ -31,23 +33,28 @@ def test_compute_is_support():
     assert issubclass(Compute, Support)
 
 
-def test_equal_is_relate():
-    assert issubclass(Equal, Relate)
-    assert issubclass(Relate, Action)
+def test_equal_contradict_exclusive_are_structural():
+    assert issubclass(Structural, Action)
+    assert issubclass(Equal, Structural)
+    assert issubclass(Contradict, Structural)
+    assert issubclass(Exclusive, Structural)
 
 
-def test_contradict_is_relate():
-    assert issubclass(Contradict, Relate)
+def test_structural_does_not_own_relation_fields():
+    assert "a" not in getattr(Structural, "__dataclass_fields__", {})
+    assert "b" not in getattr(Structural, "__dataclass_fields__", {})
+    assert "helper" not in getattr(Structural, "__dataclass_fields__", {})
 
 
-def test_infer_is_action():
-    assert issubclass(Infer, Action)
+def test_infer_is_probabilistic():
+    assert issubclass(Infer, Probabilistic)
+    assert issubclass(Probabilistic, Action)
     assert not issubclass(Infer, Support)
-    assert not issubclass(Infer, Relate)
+    assert not issubclass(Infer, Structural)
 
 
 def test_depends_on_is_scaffold_not_support():
     assert issubclass(DependsOn, Scaffold)
     assert issubclass(Scaffold, Action)
     assert not issubclass(DependsOn, Support)
-    assert not issubclass(DependsOn, Relate)
+    assert not issubclass(DependsOn, Structural)
