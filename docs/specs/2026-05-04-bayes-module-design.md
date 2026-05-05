@@ -156,7 +156,7 @@ bayes.Binomial(n=n, p=theta)
 
 | Existing | Action |
 |---|---|
-| Distribution literals | Implement directly in `gaia.lang.bayes.distributions`. Do **not** add a `gaia.stats` compatibility shim: PR #506 is unmerged and current `main` has no public `gaia.stats` API to migrate. |
+| Distribution literals | Implement directly in `gaia.lang.bayes.distributions`. Do **not** add a `gaia.stats` compatibility shim or redirect: the existing metadata-only `gaia.stats` literal helpers are an orthogonal API, not the Bayes likelihood runtime. |
 | PR 505's `parameter()` / `observation()` sugar | Stay at `gaia.lang.dsl` root; bayes module imports and uses them. |
 | Correlate `infer` / `associate` | Stay. `infer` = "I hand-wrote the CPT"; `bayes.likelihood` = "I have a model and observed value, kernel computes the CPT". |
 | Correlate `evidence` (PR 506) | **Delete in same PR as bayes module.** PR #506 closes without merge. |
@@ -549,7 +549,9 @@ PR #506 will be closed with the disposition:
 ### 8.2 Distribution import path
 
 - v0.6: New canonical location is `gaia.lang.bayes.distributions` and convenience re-exports from `gaia.lang.bayes`.
-- No `gaia.stats` shim is introduced. PR #506 is unmerged, current `main` has no `gaia.stats`, and the stated migration policy for `evidence()` is deletion without deprecation.
+- No `gaia.stats` shim or redirect is introduced. Existing metadata-only `gaia.stats`
+  literal helpers remain orthogonal to the Bayes likelihood runtime; `evidence()` has
+  no merged public import path that needs compatibility.
 
 No `gaia migrate-bayes` command is required for v1 unless a later release creates a public import path that actually needs migration.
 
@@ -632,7 +634,8 @@ The design is implemented when:
 5. `docs/foundations/gaia-lang/bayes.md` exists and its code examples are exercised in CI.
 6. No new `FactorType` is added to `gaia/bp/factor_graph.py`.
 7. No new `OperatorType` is added to `gaia/ir/operator.py`.
-8. `gaia.stats` is not introduced as a compatibility shim unless a real merged public API later requires it.
+8. No `gaia.stats` compatibility shim or redirect is introduced; the existing
+   metadata-only `gaia.stats` helpers remain separate from `gaia.lang.bayes`.
 9. With equal priors and exhaustive H, the property `argmax_i(posterior_i) == argmax_i(logL_i)` holds across the property-based test suite (random N H + random data).
 
 ---

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import log2
 
 import typer
@@ -21,6 +21,7 @@ from gaia.cli.commands._review_manifest import (
     load_or_generate_review_manifest,
 )
 from gaia.bp import lower_local_graph
+from gaia.bp.factor_graph import CROMWELL_EPS
 from gaia.bp.exact import exact_joint_over
 from gaia.ir import LocalCanonicalGraph
 from gaia.ir import ReviewManifest
@@ -58,6 +59,12 @@ class _InducedMaxEntSummary:
     entropy_bits: float | None = None
     effective_states: float | None = None
     skipped_reason: str | None = None
+
+
+@dataclass
+class _BayesCheckDiagnostics:
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 def _walk_inquiry_nodes(node: InquiryNode):
@@ -232,6 +239,176 @@ def _get_prior(k: dict) -> float | None:
     """Extract prior from a knowledge node's metadata, or None if absent."""
     meta = k.get("metadata") or {}
     return meta.get("prior")
+
+
+def _node_name(node: dict | None, fallback: str | None = None) -> str:
+    if node is None:
+        return fallback or "<missing>"
+    return str(node.get("label") or node.get("id") or fallback or "<unknown>")
+
+
+def _bayes_metadata(node: dict) -> dict:
+    metadata = node.get("metadata") or {}
+    bayes = metadata.get("bayes") or {}
+    return bayes if isinstance(bayes, dict) else {}
+
+
+def _bayes_role(node: dict) -> str | None:
+    role = _bayes_metadata(node).get("role")
+    return role if isinstance(role, str) else None
+
+
+def _is_local_ir_id(ir: dict, qid: str) -> bool:
+    namespace = ir.get("namespace")
+    package_name = ir.get("package_name")
+    if not isinstance(namespace, str) or not isinstance(package_name, str):
+        return True
+    return qid.startswith(f"{namespace}:{package_name}::")
+
+
+def _formula_binding_symbols(node: dict) -> set[str]:
+    metadata = node.get("metadata") or {}
+    bindings = metadata.get("formula_bindings") or []
+    symbols: set[str] = set()
+    for binding in bindings:
+        if not isinstance(binding, dict):
+            continue
+        symbol = binding.get("symbol")
+        if isinstance(symbol, str) and "value" in binding:
+            symbols.add(symbol)
+    return symbols
+
+
+def _hypothesis_prior(node: dict | None) -> float:
+    if node is None:
+        return 0.5
+    prior = _get_prior(node)
+    if prior is None:
+        return 0.5
+    try:
+        return float(prior)
+    except (TypeError, ValueError):
+        return 0.5
+
+
+def _bayes_check_diagnostics(ir: dict) -> _BayesCheckDiagnostics:
+    diagnostics = _BayesCheckDiagnostics()
+    nodes = {node["id"]: node for node in ir.get("knowledges", []) if node.get("id")}
+    predictions = {
+        node_id: node for node_id, node in nodes.items() if _bayes_role(node) == "prediction"
+    }
+    comparisons = {
+        node_id: node for node_id, node in nodes.items() if _bayes_role(node) == "comparison"
+    }
+
+    referenced_models = {
+        model
+        for comparison in comparisons.values()
+        if isinstance((model := _bayes_metadata(comparison).get("model")), str)
+    }
+    observed_symbols = {
+        symbol for node in nodes.values() for symbol in _formula_binding_symbols(node)
+    }
+
+    for prediction_id, prediction in predictions.items():
+        prediction_name = _node_name(prediction)
+        if _is_local_ir_id(ir, prediction_id) and prediction_id not in referenced_models:
+            diagnostics.warnings.append(
+                "bayes:dangling-prediction: "
+                f"PredictiveModel {prediction_name} is never referenced by likelihood(). "
+                "Fix: add bayes.likelihood(data, via=model) or remove the unused model."
+            )
+
+        observable = _bayes_metadata(prediction).get("observable") or {}
+        symbol = observable.get("symbol") if isinstance(observable, dict) else None
+        if (
+            _is_local_ir_id(ir, prediction_id)
+            and isinstance(symbol, str)
+            and symbol not in observed_symbols
+        ):
+            diagnostics.warnings.append(
+                "bayes:unobserved-prediction-target: "
+                f"PredictiveModel {prediction_name} observable {symbol!r} has no "
+                "matching observation() value. Fix: declare an observation() for that "
+                "Variable or import observed data from another package."
+            )
+
+    for comparison_id, comparison in comparisons.items():
+        bayes = _bayes_metadata(comparison)
+        comparison_name = _node_name(comparison)
+        model_id = bayes.get("model")
+        model = nodes.get(model_id) if isinstance(model_id, str) else None
+        model_bayes = _bayes_metadata(model) if model is not None else {}
+        observable = model_bayes.get("observable") or {}
+        observable_symbol = observable.get("symbol") if isinstance(observable, dict) else None
+
+        for data_id in bayes.get("data") or []:
+            if not isinstance(data_id, str):
+                continue
+            data_node = nodes.get(data_id)
+            if data_node is None:
+                diagnostics.errors.append(
+                    "bayes:likelihood-without-data: "
+                    f"likelihood {comparison_name} references missing data {data_id}. "
+                    "Fix: pass an observation() Claim that is compiled with the package."
+                )
+                continue
+            binding_symbols = _formula_binding_symbols(data_node)
+            if not binding_symbols or (
+                isinstance(observable_symbol, str) and observable_symbol not in binding_symbols
+            ):
+                diagnostics.errors.append(
+                    "bayes:likelihood-without-data: "
+                    f"likelihood {comparison_name} references data {_node_name(data_node)} "
+                    f"without a bound value for observable {observable_symbol!r}. "
+                    "Fix: use observation() for the measured Variable or pass "
+                    "precomputed likelihoods with a reviewable observation Claim."
+                )
+
+        hypotheses = model_bayes.get("hypotheses") or []
+        hypothesis_ids = [h for h in hypotheses if isinstance(h, str)]
+        if not hypothesis_ids:
+            continue
+        prior_sum = sum(
+            _hypothesis_prior(nodes.get(hypothesis_id)) for hypothesis_id in hypothesis_ids
+        )
+        exclusivity = bayes.get("exclusivity")
+        if exclusivity == "pairwise_contradiction" and prior_sum > 1.0 + CROMWELL_EPS:
+            diagnostics.errors.append(
+                "bayes:hypothesis-prior-coherence: "
+                f"likelihood {comparison_name} uses pairwise_contradiction over "
+                f"{len(hypothesis_ids)} hypotheses with prior sum={prior_sum:g}. "
+                "Fix: reduce the listed hypothesis priors so their at-most-one mass "
+                "does not exceed 1, or choose a different exclusivity mode."
+            )
+        elif (
+            exclusivity == "exhaustive_pairwise_complement" and abs(prior_sum - 1.0) > CROMWELL_EPS
+        ):
+            diagnostics.errors.append(
+                "bayes:hypothesis-prior-coherence: "
+                f"likelihood {comparison_name} uses exhaustive_pairwise_complement over "
+                f"{len(hypothesis_ids)} hypotheses with prior sum={prior_sum:g}. "
+                "Fix: set the exhaustive alternatives' priors to sum to 1."
+            )
+
+        for strategy in ir.get("strategies", []):
+            strategy_bayes = (strategy.get("metadata") or {}).get("bayes") or {}
+            if strategy_bayes.get("role") == "likelihood_factor":
+                continue
+            if strategy.get("type") != "infer":
+                continue
+            premises = set(strategy.get("premises") or [])
+            conclusion = strategy.get("conclusion")
+            if premises.intersection(hypothesis_ids) and conclusion in (bayes.get("data") or []):
+                diagnostics.warnings.append(
+                    "bayes:infer-likelihood-overlap: "
+                    f"likelihood {comparison_name} overlaps with a low-level infer() "
+                    "strategy for the same hypothesis/data pair. Fix: keep either "
+                    "bayes.likelihood() or the hand-written infer() CPT."
+                )
+                break
+
+    return diagnostics
 
 
 def _knowledge_diagnostics(
@@ -490,6 +667,9 @@ def check_command(
     validation = validate_local_graph(LocalCanonicalGraph(**ir))
     errors.extend(validation.errors)
     warnings.extend(validation.warnings)
+    bayes_diagnostics = _bayes_check_diagnostics(ir)
+    errors.extend(bayes_diagnostics.errors)
+    warnings.extend(bayes_diagnostics.warnings)
 
     ir_hash_path = loaded.pkg_path / ".gaia" / "ir_hash"
     ir_json_path = loaded.pkg_path / ".gaia" / "ir.json"

@@ -53,6 +53,7 @@ def observation(
     provenance: list[dict[str, str]] | None = None,
     prior: float | None = None,
     label: str | None = None,
+    noise: Any | None = None,
     metadata: dict[str, Any] | None = None,
     **observed: Variable,
 ) -> Claim:
@@ -68,6 +69,14 @@ def observation(
         formulas.append(equals(variable, _constant_for(variable, variable.value)))
 
     formula = formulas[0] if len(formulas) == 1 else land(*formulas)
+    merged_metadata = dict(metadata or {})
+    if noise is not None:
+        if not hasattr(noise, "model_dump"):
+            raise TypeError("observation() noise must be a bayes Distribution")
+        bayes_metadata = dict(merged_metadata.get("bayes", {}))
+        bayes_metadata["noise"] = noise.model_dump()
+        merged_metadata["bayes"] = bayes_metadata
+
     result = claim(
         _content_text(content, describe, _observation_content(observed)),
         title=title,
@@ -77,7 +86,7 @@ def observation(
         prior=prior,
         formula=formula,
         kind=ClaimKind.OBSERVATION,
-        metadata=metadata or {},
+        metadata=merged_metadata,
     )
     result.label = label
     return result

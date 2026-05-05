@@ -164,6 +164,32 @@ temp = Variable(symbol="temp", domain=Real)
 c = causal(co2, temp, describe="Rising CO2 causes warming.", prior=0.9)
 ```
 
+### `gaia.lang.bayes`
+
+Use `gaia.lang.bayes` for structured model-data likelihood updates. It replaces
+ad hoc evidence helpers with three explicit authoring atoms:
+
+```python
+from gaia.lang import Nat, Probability, Variable, bayes, observation, parameter
+
+theta = Variable(symbol="theta", domain=Probability)
+k = Variable(symbol="k", domain=Nat, value=295)
+
+h_3_1 = parameter(theta, 0.75, prior=0.5, label="h_3_1")
+h_null = parameter(theta, 0.5, prior=0.5, label="h_null")
+data = observation(count=k, prior=0.999, label="data")
+model = bayes.predict({h_3_1, h_null}, k, distribution=bayes.Binomial(n=395, p=theta))
+comparison = bayes.likelihood(
+    data,
+    via=model,
+    exclusivity="exhaustive_pairwise_complement",
+)
+```
+
+`bayes.likelihood(...)` lowers to existing `infer` strategies plus rigid
+relation operators. See [bayes.md](bayes.md) for the executable example,
+distribution list, and `gaia check` diagnostics.
+
 ---
 
 ## Recommended Action Verbs
@@ -187,7 +213,10 @@ Deterministic computation. Use either `compute(ResultClaim, fn=..., given=...)` 
 
 ### `infer(evidence, *, hypothesis, given=(), p_e_given_h, p_e_given_not_h=0.5, background=None, rationale="", label=None)`
 
-Probabilistic prediction/evidence link. Use after extracting the uncertain parts into explicit claims; `infer(...)` should not be a hiding place for missing premises.
+Low-level probabilistic prediction/evidence link with a hand-written CPT. Prefer
+`bayes.predict(...)` + `bayes.likelihood(...)` when the probability comes from
+a predictive distribution and observed data. Use `infer(...)` when the author is
+directly committing to `P(E|H)` and `P(E|not H)`.
 Returns the evidence claim. The action still creates an internal likelihood helper as the review target for accepting the probability warrant.
 
 Without `given`, the compiled BP factor is `H -> E` with CPT `[P(E|not H), P(E|H)]`. With `given=G`, the compiled factor uses premises `[H, G]` and CPT `[0.5, 0.5, P(E|not H,G), P(E|H,G)]`, so the relation becomes neutral when `G` is false. `p_e_given_not_h` defaults to `0.5`, the soft-implication baseline.

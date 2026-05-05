@@ -891,6 +891,12 @@ IR lowering follows the v0.5 shape — `type="infer"`, `premises=[H_qid]`, `conc
 
 ### 11.3 Why forced CPT pair, no LR-only path
 
+> **Superseded for structured model-data evidence.** New code should use the
+> Bayes module (`gaia.lang.bayes.predict` + `gaia.lang.bayes.likelihood`) when a
+> predictive distribution and observation are available. This section remains
+> the contract for low-level `infer(...)`, where the author is directly
+> committing to a CPT pair rather than asking Gaia to compute likelihoods.
+
 The likelihood-ratio-only shortcut fails two tests.
 
 **Scientific-rigour test.** A scientist who knows "the Bayes factor is 8.7" but cannot commit to specific values of `P(E|H)` and `P(E|¬H)` is skipping the harder question. `P(E|H)` is concrete: *given the world where H is true, what probability do I assign to observing E?* An author who cannot answer that has not done the modelling work the Infer action is supposed to record. Requiring the pair forces that work to happen and to be reviewable.

@@ -32,6 +32,7 @@ from gaia.lang.refs import (
     resolve,
     validate_groups,
 )
+from gaia.lang.bayes.compiler import lower_bayes_claims
 from gaia.lang.compiler.lower_formula import lower_claim_formula
 from gaia.lang.runtime import Knowledge, Operator
 from gaia.lang.runtime.action import (
@@ -1142,14 +1143,41 @@ def compile_package_artifact(
             parameter_updates=lowered.parameter_updates,
         )
 
+    bayes_lowered = lower_bayes_claims(
+        knowledge_nodes,
+        namespace=pkg.namespace,
+        package_name=pkg.name,
+        knowledge_map=knowledge_map,
+        existing_operators=[
+            *ir_operators,
+            *action_operators,
+            *formula_generated_operators,
+        ],
+    )
+    _apply_formula_knowledge_updates(
+        ir_knowledges,
+        metadata_updates=bayes_lowered.metadata_updates,
+        parameter_updates={},
+    )
+
     module_order = pkg._module_order if pkg._module_order else None
     module_titles = getattr(pkg, "_module_titles", None) or None
     graph = LocalCanonicalGraph(
         namespace=pkg.namespace,
         package_name=pkg.name,
-        knowledges=[*ir_knowledges, *generated_knowledges, *formula_generated_knowledges],
-        operators=[*ir_operators, *action_operators, *formula_generated_operators],
-        strategies=[*ir_strategies, *formula_generated_strategies],
+        knowledges=[
+            *ir_knowledges,
+            *generated_knowledges,
+            *formula_generated_knowledges,
+            *bayes_lowered.knowledges,
+        ],
+        operators=[
+            *ir_operators,
+            *action_operators,
+            *formula_generated_operators,
+            *bayes_lowered.operators,
+        ],
+        strategies=[*ir_strategies, *formula_generated_strategies, *bayes_lowered.strategies],
         composes=ir_composes,
         module_order=module_order,
         module_titles=module_titles if module_titles else None,
