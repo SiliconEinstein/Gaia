@@ -26,7 +26,7 @@ Three concrete capabilities, ordered by dependency:
 2. **Interventions** — a `do(X=x)` DSL action that produces a numeric answer `P(Y | do(X=x))` using Gaia's existing BP engine. This is the primitive that distinguishes causal reasoning from conditional probability.
 3. **Symbolic identification** (optional extra) — `identify(P(Y | do(X)))` returns either an identifiable expression (back-door / front-door / ID algorithm) or "not identifiable from observational data" — delegated to [y0](https://pypi.org/project/y0/), lazy-imported from an optional adapter.
 
-This spec covers all three. Counterfactual reasoning (Pearl level 3) is **out of scope** — see §10.
+This spec covers all three. Counterfactual reasoning (Pearl level 3) is **out of scope** — see §11.
 
 ### 0.3 First-principles position
 
@@ -41,11 +41,26 @@ Concretely:
 | Layer | What it owns | Dependencies |
 |---|---|---|
 | `gaia.lang.formula.predicate.Causes` | AST marker (exists today via PR #505) | none |
+| `gaia.lang.dsl.causal.cause` (NEW) | `cause()` action verb — fourth verb family alongside Relate / Correlate / Strategy | none |
 | `gaia.causal.dag` (NEW, kernel) | `CausalDAG` view over a `CollectedPackage` | `networkx` |
 | `gaia.causal.intervene` (NEW, kernel) | `do(X=x)` rewrite + `.query(Y)` | reuses `gaia.bp` |
 | `gaia.causal.adapters.y0` (NEW, extra) | Symbolic do-calculus identification | `y0` (extra: `gaia[causal-do]`) |
 
 `networkx` is promoted to a kernel dependency (pure Python, ~3MB, no native extensions, widely trusted). `y0` is not — its base install pulls pandas + scikit-learn + statsmodels, which violates the "kernel stays light" rule, and Gaia only uses its symbolic identifier, not its data-driven parts.
+
+### 0.4 Naming convention: `cause` vs `Causes`
+
+This spec introduces `cause(...)` as a new **action verb** (fourth verb family per `docs/specs/2026-04-23-gaia-foundation-spec.md` §18). To avoid collision with the `causes()` lowercase **formula constructor** that ships in PR #505 (`gaia/lang/dsl/formula.py:46`), this spec deprecates and removes the lowercase `causes()` constructor — authors construct the predicate directly with the dataclass:
+
+```python
+from gaia.lang import Causes        # AST node, direct construction
+from gaia.lang.dsl.causal import cause   # NEW action verb in this spec
+
+f = Causes(X, Y)                       # formula AST atom
+c = cause(X, Y, p_effect_given_cause=0.85, ...)   # action verb
+```
+
+The lowercase `causes()` constructor is removed in D₁; a one-release deprecation alias (warning on use) is acceptable but not required.
 
 ---
 
@@ -57,7 +72,7 @@ Concretely:
 │  ──────────                                                  │
 │  PR #505: Variable, Domain, Causes(X, Y), formula AST        │
 └────────────────────────┬───────────────────────────────────┘
-                         │  Compiler (+ causal metadata §6)
+                         │  Compiler (+ causal metadata §7)
                          ▼
 ┌────────────────────────────────────────────────────────────┐
 │  Gaia IR  (unchanged schema — only metadata enriched)      │
@@ -106,12 +121,16 @@ One public helper is added to `gaia.bp`:
 ```python
 # gaia/bp/factor_graph.py
 def mutilate(fg: FactorGraph, intervened: set[str]) -> FactorGraph:
-    """Return a new FactorGraph with all factors whose `conclusion` is in
-    `intervened` removed. Variables are preserved (priors untouched).
+    """Return a new FactorGraph with **causal** factors whose `conclusion` is
+    in `intervened` removed. Logical factors (deduction-derived
+    SOFT_ENTAILMENT, IMPLICATION/EQUIVALENCE/CONJUNCTION/DISJUNCTION
+    operator factors) are preserved regardless of their conclusion — see §4.4
+    for the first-principles justification.
+
     The caller follows up with fg.observe(x, value) for each intervened var."""
 ```
 
-This helper is small, but it is **not** the whole intervention implementation. Because Variables are Lang-only and do not enter IR as Knowledge nodes, the causal intervention layer must also materialize CNID variables and causal conditional factors before BP can observe `@var:...` nodes.
+The modality test (causal vs. logical) reads `metadata.causal.dag_edge` from the source claim of each factor — this metadata is populated by D₁'s compiler pass (§7.1). The companion CNID variable registration is performed during normal lowering of `cause()` actions; no separate `gaia.causal.lowering` module is required (§4.3).
 
 ### 1.3 Dependency layout in `pyproject.toml`
 
@@ -135,34 +154,34 @@ No `causal-bn` / pgmpy extra. We do not need it — numeric intervention answers
 ```
 gaia/
 ├── bp/
-│   └── factor_graph.py          # + mutilate() helper (§1.2)
+│   └── factor_graph.py          # + modality-aware mutilate() helper (§1.2)
 ├── causal/                      # NEW
 │   ├── __init__.py              # public surface
 │   ├── dag.py                   # CausalDAG, build_dag()
 │   ├── queries.py               # d_sep(), ancestors(), descendants(),
 │   │                            #   adjustment_sets()
-│   ├── lowering.py              # CNID variables + causal CONDITIONAL factors
-│   ├── intervene.py             # Intervention, do(), .query()
-│   ├── errors.py                # CausalCycleError, CausalMetadataMissingError, NotIdentifiable
+│   ├── intervene.py             # Intervention, do(), .query(), ate()
+│   ├── errors.py                # CausalCycleError, CausalMetadataMissingError,
+│   │                            #   InterventionUndefinedError, NotIdentifiable
 │   └── adapters/
 │       ├── __init__.py          # (empty — extras are opt-in)
 │       └── y0.py                # identify(); lazy imports y0
 ├── lang/
 │   └── dsl/
-│       └── causal.py            # NEW: do() DSL, authored in Lang packages
+│       └── causal.py            # NEW: cause(), do(), query(), ate() DSL
 └── lang/
     └── compiler/
-        └── compile.py           # + populate metadata.causal.dag_edge
+        ├── compile.py           # + populate metadata.causal.dag_edge for CAUSAL claims
+        └── lower_formula.py     # + per-instance grounding for forall(...,Causes(...,...)) (§5.2)
 ```
 
 ### 2.1 Boundaries
 
 - `gaia.causal.dag` **reads** a `CollectedPackage` (or equivalent) and produces a `CausalDAG`. It does not write IR.
 - `gaia.causal.queries` operates on a `CausalDAG`. Pure graph algorithms, no IR awareness.
-- `gaia.causal.lowering` **reads** a compiled IR artifact plus `CausalDAG`, delegates ordinary claim/strategy lowering to `gaia.bp.lowering`, then adds CNID variables and causal conditional factors.
-- `gaia.causal.intervene` **reads** a compiled IR artifact, calls causal lowering, rewrites the resulting `FactorGraph` (`mutilate`), and runs BP. It does not write IR.
+- `gaia.causal.intervene` **reads** a compiled IR artifact, lowers it through the standard `gaia.bp.lowering` path (which now handles `cause()` actions and per-instance grounding), rewrites the resulting `FactorGraph` (`mutilate`), and runs BP. It does not write IR. **No separate causal lowering module is needed** — the cause action carries enough information that ordinary lowering can register CNID variables and emit the SOFT_ENTAILMENT factor.
 - `gaia.causal.adapters.y0` **reads** a `CausalDAG` and a symbolic query; returns an expression or a `NotIdentifiable` diagnosis. It does not touch `FactorGraph`.
-- `gaia.lang.dsl.causal` is the authored-side surface: `do()`, `query()`, thin ergonomic wrappers.
+- `gaia.lang.dsl.causal` is the authored-side surface: `cause()`, `do()`, `query()`, `ate()`.
 
 This partitions the work so each module is independently testable and no file grows oversized.
 
@@ -212,11 +231,11 @@ The node identifier is a **string ID** — not a Python object — so `CausalDAG
 
 Current PR #505 code accepts `Causes(Term, Term)`, so D1 should treat Variable endpoints as the required path. Knowledge-typed endpoints are a reserved extension that requires explicitly broadening `Causes` to accept `ClaimAtom` or another claim-reference term.
 
-See Open Question 2 (§11) on the declaring-vs-using package question for cross-package Variable references.
+See Open Question 2 (§12) on the declaring-vs-using package question for cross-package Variable references.
 
 ### 3.2 Acyclicity is enforced at build time
 
-`build_dag()` runs `nx.is_directed_acyclic_graph(self._graph)` before returning. Failure raises `CausalCycleError` listing the cycle; this plugs into `gaia check causal` (§7).
+`build_dag()` runs `nx.is_directed_acyclic_graph(self._graph)` before returning. Failure raises `CausalCycleError` listing the cycle; this plugs into `gaia check causal` (§8).
 
 ### 3.3 Queries
 
@@ -252,13 +271,24 @@ The Obsidian wiki renderer gets a new section per causal claim:
 
 These wire into `gaia render` through a tiny `render_causal_block(dag, claim_qid)` helper in `gaia.causal.dag` module. The SVG renderer uses directed edges with arrowheads for `Causes`, which visually distinguishes them from `deduction` / `support` edges.
 
-### 3.5 Prior interpretation for a causal claim
+### 3.5 Prior on a causal claim — what it means and what it is not
 
-The `prior` on a causal claim (`Claim(..., formula=Causes(...), kind=CAUSAL)` or future sugar around it) is the agent's confidence that **the causal relation actually holds** — not the marginal of the effect. This is consistent with how PR #505 §4 treats any claim with a formula: prior = "how much do I believe this claim is true before evidence updates." It means:
+The `prior` on a causal claim is the agent's confidence that **the causal relation actually holds** — i.e., that the mechanism `cause → effect` is real, not that the effect is likely under intervention. This is the same semantics PR #505 §4 gives to any claim with a formula: `prior = P(claim is true before evidence)`.
 
-- A causal edge can itself be contested / updated by `evidence()` or `infer()` — the DAG has **soft edges** (edge present ⇔ claim true with probability `prior`).
-- When downstream causal queries need a definite structure, they use the **MAP structure** (edge retained if its claim's belief > 0.5) unless the caller explicitly asks for ensemble semantics. This is out-of-scope here; the default for v0.6 is: at DAG-build time, every causal claim is treated as structurally present regardless of prior.
-- Numeric intervention needs a separate CPD / edge-effect parameter contract. Reusing the claim's `prior` as `P(effect | cause)` would collapse "I believe the causal relation exists" into "the effect is likely under intervention", which are different quantities.
+The numeric strength of the mechanism — `P(effect=1 | cause=1)` and `P(effect=1 | cause=0)` — is a **separate quantity**, supplied through the `cause()` action's `p_effect_given_cause` and `p_effect_given_not_cause` parameters (§4.1). These two parameters are independent of `prior`:
+
+- `prior = 0.9, p_effect_given_cause = 0.15, p_effect_given_not_cause = 0.05` — "I'm 90% sure smoking causes lung cancer; the mechanism kicks in 15% of the time among smokers, baseline 5% otherwise"
+- `prior = 0.5, p_effect_given_cause = 0.99, p_effect_given_not_cause = 0.01` — "Coin-flip belief that this mechanism exists; if it does, it's nearly deterministic"
+
+Conflating belief and strength into one number (e.g., reusing `prior` as the noisy-OR leak parameter) is a documented pitfall — see §12 Q4 for the rationale.
+
+For v0.6, DAG-build treats every causal claim as **structurally present regardless of `prior`** �� see §3.5.1.
+
+#### 3.5.1 Soft edges, MAP structure, and the v0.6 default
+
+A causal claim with `prior < 1` is a **soft edge**: the structure exists at the DAG level (so d-separation, adjustment sets, and `do()` all work) but the strength of the SOFT_ENTAILMENT factor at BP time is the per-edge `(p_effect_given_cause, p_effect_given_not_cause)` modulated by the claim's belief.
+
+Whether DAG-build should also filter edges by `prior > threshold` (MAP semantics) is **deferred** — see §12 Q1.
 
 ### 3.6 Independent Variables and isolated sub-DAGs
 
@@ -270,32 +300,59 @@ A variable never mentioned in any `Causes(...)` is not a DAG node. A package can
 
 The centerpiece. `do(X=x)` is the primitive that separates causal from conditional reasoning.
 
-### 4.1 Authored DSL
+### 4.1 Authored DSL — `cause()` action verb
+
+`cause(...)` is the v0.6 surface for declaring a causal mechanism. It is parameterized by **two independent quantities**:
+
+- `prior` — the agent's belief that the mechanism exists (semantics shared with all `Claim` priors per §3.5)
+- `(p_effect_given_cause, p_effect_given_not_cause)` — the strength of the mechanism if it exists, structurally identical to `infer()`'s `(p_e_given_h, p_e_given_not_h)` and `support()`'s deprecated `(p1, p2)` (see §12 Q4 for the choice of separate parameters)
+
+Authored shape:
 
 ```python
-# Current explicit authoring surface (PR #505 Milestone A-compatible).
-from gaia.lang import Bool, Claim, ClaimKind, Causes, Variable
-from gaia.lang.dsl.causal import do, query
+from gaia.lang import Bool, Causes, Variable
+from gaia.lang.dsl.causal import cause, do, query
 
 co2  = Variable(symbol="co2_level", domain=Bool)
 temp = Variable(symbol="temperature", domain=Bool)
 G    = Variable(symbol="greenhouse_gas_other", domain=Bool)
 
-Claim("Other greenhouse gases cause CO2", formula=Causes(G, co2),
-      kind=ClaimKind.CAUSAL, prior=0.8, label="g_causes_co2")
-Claim("Other greenhouse gases cause temperature", formula=Causes(G, temp),
-      kind=ClaimKind.CAUSAL, prior=0.7, label="g_causes_temp")
-Claim("CO2 causes temperature", formula=Causes(co2, temp),
-      kind=ClaimKind.CAUSAL, prior=0.9, label="co2_causes_temp")
+cause(
+    cause=G, effect=co2,
+    p_effect_given_cause=0.7, p_effect_given_not_cause=0.05,
+    prior=0.8,
+    rationale="Other greenhouse gases drive CO₂ via shared industrial sources.",
+    label="g_causes_co2",
+)
+cause(cause=G,   effect=temp, p_effect_given_cause=0.6,  p_effect_given_not_cause=0.05, prior=0.7)
+cause(cause=co2, effect=temp, p_effect_given_cause=0.85, p_effect_given_not_cause=0.05, prior=0.9)
 
 # Query at runtime (invoked by `gaia infer --causal` or in an action body):
-result = do(co2=1).query(temp)        # numeric P(temp=1 | do(co2=1))
-result = query(temp, given_do={co2: 1})   # equivalent long form
+result = do(co2=1).query(temp)              # numeric P(temp=1 | do(co2=1))
+result = query(temp, given_do={co2: 1})     # equivalent long form
 ```
 
-`variable(...)` and `causal(...)` may be added as ergonomic sugar in D1/D2, but they are **not** part of the current shipped `gaia.lang.dsl` public surface.
+`cause()` returns the underlying `Claim(formula=Causes(cause, effect), kind=ClaimKind.CAUSAL, prior=prior)` plus a registered `Cause` action that carries the strength parameters. Per §0.4, the lowercase `causes()` formula constructor (PR #505 vintage) is removed — formula construction goes through the dataclass `Causes` directly.
 
-`do(**assignments)` returns an `Intervention` object; `.query(target)` returns a `CausalQueryResult` carrying the marginal belief.
+#### 4.1.1 Default strengths (omitted parameters)
+
+If the author omits `p_effect_given_cause` / `p_effect_given_not_cause`, the lowering uses the v0.5 deduction default — `(1 − ε, 0.5)` — making the edge a **hard causal implication** equivalent in BP behavior to `deduction([cause], effect)` plus a causal-modality tag. This makes hard causation and soft causation traverse the same lowering path with different parameters.
+
+#### 4.1.2 Multi-parent effect: noisy-OR composition (default)
+
+When an effect node has multiple `cause()` parents, each edge supplies its own `(p_effect_given_cause, p_effect_given_not_cause)`. The compiler composes them into the effect node's CPT using **noisy-OR** by default:
+
+```
+P(effect = 1 | causes = (c₁, …, cₖ)) = 1 − ∏ᵢ ((1 − pᵢ) if cᵢ = 1 else 1)
+```
+
+where `pᵢ = p_effect_given_cause` of edge i. The leak (`P(effect = 1 | all causes = 0)`) defaults to `max(p_effect_given_not_cause)` across incoming edges.
+
+Authors who need a different combination rule can supply a full CPT via the lowering escape hatch documented in §12 Q4. v0.6 ships only noisy-OR; full-CPT escape and `noisy_and()` helper are v0.7+ topics.
+
+#### 4.1.3 Soft `do()` deferred to D₂.5
+
+`do(X = Bernoulli(p))` and other stochastic-intervention forms are scoped to a follow-up milestone D₂.5 — see §9 and §12 Q5 for the rationale.
 
 ### 4.2 Intervention object
 
@@ -321,12 +378,26 @@ class CausalQueryResult:
 
 `belief` is always numerically produced by Gaia BP (it is always *computable* — whether or not it is *identifiable from data alone* is a separate question answered by the optional adapter).
 
+#### 4.2.1 Average causal effect helper — `ate()`
+
+A thin DSL wrapper over two `do()` queries:
+
+```python
+from gaia.causal import ate
+
+ate_co2_to_temp = ate(co2, temp)
+# Equivalent to:
+#   do(co2=1).query(temp).belief - do(co2=0).query(temp).belief
+```
+
+`ate()` returns a `CausalATEResult(..., belief_diff: float, do1: CausalQueryResult, do0: CausalQueryResult)`. **Semantics:** the average causal effect on a *per-instance* DAG node — not a population ATE (Gaia is per-instance grounded; see §5). Population-level ATE / CATE is deferred (§11).
+
 ### 4.3 Numeric computation — mutilate + BP
 
 ```python
 # gaia/causal/intervene.py, conceptual pseudo-code
 from gaia.bp.factor_graph import mutilate                 # §1.2
-from gaia.causal.lowering import lower_causal_factor_graph # NEW wrapper
+from gaia.bp.lowering import lower_local_graph            # existing
 from gaia.bp.engine import InferenceEngine                # existing
 
 def _compute(
@@ -335,12 +406,13 @@ def _compute(
     target: str,
 ) -> CausalQueryResult:
     dag = build_dag(pkg_artifact)
-    # 1. Lower the compiled local graph, then materialize CNID causal variables
-    #    and one CONDITIONAL factor per causally modeled effect node. The
-    #    causal factors read explicit CPD/edge-effect parameters, not the
-    #    causal claim's truth prior.
-    fg  = lower_causal_factor_graph(pkg_artifact, dag)
-    # 2. Mutilate: drop all factors whose conclusion ∈ intervened set.
+    # 1. Lower the compiled local graph normally. Causal claims have already
+    #    been compiled to SOFT_ENTAILMENT factors via the cause() action; the
+    #    multi-parent noisy-OR composition (§4.1.2) is performed here at lower
+    #    time, producing one CONDITIONAL factor per causal effect node.
+    fg  = lower_local_graph(pkg_artifact.local_canonical_graph)
+    # 2. Mutilate: drop *causal* factors whose conclusion ∈ intervened set
+    #    (see §4.4 — logical SOFT_ENTAILMENT factors are NOT mutilated).
     fg2 = mutilate(fg, set(intervention))
     # 3. Clamp intervened vars to their assigned values.
     for qid, val in intervention.items():
@@ -356,32 +428,57 @@ def _compute(
     )
 ```
 
-**Why this is correct.** For a DAG with factorization `P(V) = ∏_i P(v_i | pa(v_i))`, Pearl's truncated factorization for `P(V | do(X=x))` is identical to `P(V)` with every `P(x_i | pa(x_i))` replaced by the point mass on `x_i = x`. D2 must make that factorization explicit in Gaia by creating FactorGraph variables for CNIDs and a causal `CONDITIONAL` factor whose `conclusion` is each effect node. Once those factors exist, removing incoming factors for intervened variables and clamping them via `observe` yields the truncated factorization.
+**Why this is correct.** For a DAG with factorization `P(V) = ∏ᵢ P(vᵢ | pa(vᵢ))`, Pearl's truncated factorization for `P(V | do(X=x))` is identical to `P(V)` with every `P(xᵢ | pa(xᵢ))` replaced by the point mass on `xᵢ = x`. In Gaia v0.6 this is realised by:
 
-The minimum D2 CPD contract can be either a full binary CPT per effect node or a documented noisy-OR helper that compiles into that CPT. In both cases the CPD parameters are distinct from the causal claim's `prior`.
+1. Each `cause()` action lowers to a SOFT_ENTAILMENT factor with explicit `(p_effect_given_cause, p_effect_given_not_cause)` parameters. Multi-parent effects compose via noisy-OR (§4.1.2) into one CONDITIONAL factor per effect node.
+2. CNID variables (Variables, per PR #505 §2.4 they have no IR Knowledge) are registered as BP variables during lowering of the cause action — the action holds enough information to do this without a separate `gaia.causal.lowering` module.
+3. `mutilate(fg, intervened)` identifies and drops only the SOFT_ENTAILMENT/CONDITIONAL factor whose conclusion ∈ intervened **and** whose source claim is causally tagged (`metadata.causal.dag_edge` present — see §4.4). Logical factors (deduction, IMPLICATION operator helpers) are preserved.
+4. `observe()` clamps the intervened variable to its target value.
 
-### 4.4 Integration with existing `Operator` and `Strategy` factors
+This yields exactly the truncated factorization for the per-instance DAG.
 
-Claims authored today produce a mix of factor types:
+### 4.4 Mutilation respects modality — first-principles boundary
 
-- `CONJUNCTION` / `DISJUNCTION` / `IMPLICATION` / etc. (operator helpers from logical formulas)
-- `SOFT_ENTAILMENT` / `CONDITIONAL` (from `deduction` / `infer` strategies)
+The `mutilate()` helper distinguishes **causal** factors from **logical** factors. Only the former are removed under `do()`. This is not a convention — it is forced by the meaning of `do()`:
 
-For the **intervention primitive** to be defined, we need to identify "the factor that encodes `P(v | pa(v))`" for an intervened `v`. Existing logical/strategy factors are not enough for Variable CNIDs, because `lower_local_graph` currently registers only IR claim Knowledge IDs. D2 therefore adds a causal factor materialization pass before applying the generic rule:
+> `do(X = x)` is an **intervention on the world**. Causal edges describe how the world produces effects from causes; intervening severs that production. Logical edges describe how *statements about* the world are related (entailment, definition, identity); intervention has no purchase on them.
 
-> `mutilate(fg, intervened)` drops factor `f` iff `f.conclusion ∈ intervened`.
+A short tour of the thought experiments motivating this rule:
 
-This covers causal `CONDITIONAL` factors created for CNID nodes, plus any existing operator helpers or strategy factors whose conclusions are valid intervention targets. It correctly handles the common case that a variable is simultaneously the conclusion of an incoming causal factor and a parent of a downstream factor — only the incoming factor is removed; outgoing factors that use `v` as an input are preserved.
+| # | Setup | `do()` query | Pearl-correct behavior | Implication for Gaia |
+|---|---|---|---|---|
+| 1 | "All men are mortal; Socrates is a man." | `do(¬"all men are mortal")` | Ill-defined. You cannot intervene on a logical truth. | **Logical edges admit no `do()` semantics**; they are preserved under mutilation. |
+| 2 | Fire → Smoke (causal) | `do(Smoke = 1)` (smoke machine) | `P(Fire) = P(Fire)` — base rate, unchanged. | Causal edges are **severed**; intervened node loses its causal parents. |
+| 3 | "Bachelor" ↔ "unmarried man" (definitional) | `do(¬"unmarried")` | Both flip together — they are the same fact. | Use EQUIVALENCE operator, not Causes / deduction. EQUIVALENCE is **not mutilated** (it's a structural identity, not a mechanism). |
+| 4 | F = ma (physical law) | `do(a = 0)` | Ambiguous — depends on whether F=ma is read as constraint (then F→0) or mechanism (then F unchanged, supported by counter-force). | **Author must choose** — declare F→a as `cause()` (mechanism, F preserved) or as `deduction([F, m], a)` (constraint, F follows). Engine will not guess. |
+| 5 | Temperature ⇄ Evaporation | `do(Evap = 0)` (sealed bucket) | Temperature unchanged at the mutilation step. | Direction matters; each direction is a separate cause. |
+| 6 | Mixed: Hot → Cooked (causal); Cooked ↔ "not raw" (logical) | `do(Hot = 0)` | Cuts only the (empty) causal in-edges of `Hot`; `Cooked` propagates normally; logical "not raw" follows. | **Mixed graphs work cleanly** as long as each edge declares its modality. |
+| 7 | (Generalization) Node has both causal and logical incoming edges. | `do(node = v)` | Cuts only the causal in-edges; logical edges remain live and propagate. | Implementation: filter on `metadata.causal.dag_edge`. |
+| 8 | Same fact authored as both `cause()` and `deduction()` | — | Engine cannot disambiguate. | `gaia check causal` raises a warning when an effect node has both modalities incoming (§8.1, new rule). |
+
+Concretely the rule is:
+
+> **`mutilate(fg, intervened)` drops factor `f` iff:**
+> 1. **`f.conclusion ∈ intervened`** — standard truncation condition; AND
+> 2. **`f` is causal** — i.e., `f` was lowered from a claim whose `metadata.causal.dag_edge` is populated (the modality tag).
+>
+> Logical SOFT_ENTAILMENT (deduction-derived), IMPLICATION operator factors, EQUIVALENCE / CONJUNCTION / DISJUNCTION / CONTRADICTION operator factors are **never** mutilated.
+
+This rule matches Pearl's standard mutilation when the graph is purely causal, and degrades gracefully when logical edges are present.
+
+#### 4.4.1 Definitional escape hatch — not needed
+
+Earlier drafts of this spec proposed a `definitional=True` flag on deduction edges to mark them "do-resistant". The first-principles analysis above makes the flag redundant: deduction edges are already do-resistant by virtue of being logical. No new author-facing flag is introduced.
 
 ### 4.5 Interaction with strategy-embedded operators (`FormalExpr`)
 
-A `FormalStrategy` may embed multiple `Operator`s inside a `FormalExpr`. When lowered to `FactorGraph` today, each embedded operator produces its own factor with its own helper conclusion. `mutilate` treats them uniformly — any factor whose conclusion is intervened is removed. No special casing is needed at this layer.
+A `FormalStrategy` may embed multiple `Operator`s inside a `FormalExpr`. When lowered to `FactorGraph`, each embedded operator produces its own factor. `mutilate` walks the resulting factor list and applies the §4.4 rule uniformly — embedded operators are logical by origin, so they pass through mutilation unchanged.
 
 ### 4.6 Only causally authored intervention is permitted
 
-An intervention is only well-defined over variables that are **DAG nodes** — i.e., participate in at least one `Causes(...)` edge. Attempting `do(X=1)` on a variable that is not a causal DAG node raises `InterventionUndefinedError` with a message pointing the author at `causal(...)` or `Causes(...)`.
+An intervention is only well-defined over nodes that are **DAG nodes** — i.e., participate in at least one `cause()` edge. Attempting `do(X = 1)` on a node that has no causal in-edges raises `InterventionUndefinedError` with a message pointing the author at `cause(...)`.
 
-This is a deliberate restriction: it prevents users from silently "intervening" on a claim that has only logical / deductive parents, which would be semantically meaningless (you cannot intervene on `(A ∧ B)`).
+This is a deliberate restriction motivated by thought experiment 1 (§4.4): `do()` on a node with only logical parents has no Pearl-style semantics. The error message must surface this rationale rather than say "node not found."
 
 ### 4.7 Target types
 
@@ -404,9 +501,84 @@ These let a reviewer re-run the query and verify bit-equality. The digest is the
 
 ---
 
-## 5. Symbolic Identification (Spec 3, optional)
+## 5. Predicate-layer causation grounded into propositional BP
 
-### 5.1 Adapter contract
+Gaia Lang is **predicate-level** (PR #505: Variables, Domains, quantifiers, Causes); Gaia BP is **propositional** (Boolean Knowledge nodes + factors). Every causal claim must therefore be grounded — translated from a quantified universal claim into a concrete set of propositional nodes and factors that BP can evaluate.
+
+This section fixes the grounding contract for causal claims under universal quantification, in **strict duality with the v0.5 logical-quantifier grounding** already implemented in `gaia/lang/compiler/lower_formula.py:107-192`.
+
+### 5.1 The v0.5 baseline: how `forall` is grounded today
+
+For a logical universal `forall(x: D, P(x))`, the v0.5 lowerer (commit a1f8c319, PR #510) emits:
+
+- One **universal claim** Knowledge node (the source claim).
+- For each `v ∈ D.members`: one **instance claim** `P_v` and one `deduction` strategy `universal_claim ⇒ P_v`.
+
+There is **no NOISY_AND** linking the instances back to the universal — the universal is the deductive *parent*, and instances inherit truth from it through standard SOFT_ENTAILMENT / weak-syllogism flow.
+
+In BP: `universal = true` ⇒ each `P_v` ≈ 1; `universal = false` ⇒ each `P_v` retreats to base rate. Evidence on any `P_v` weakly raises the universal via reverse syllogism.
+
+**This is the model we mirror for causal universals.**
+
+### 5.2 The causal universal: per-instance grounding
+
+For a causal universal `forall(p: D, Causes(X(p), Y(p)))`, the compiler emits:
+
+- One **universal causal claim** Knowledge node — same node the author wrote.
+- For each `v ∈ D.members`:
+  - Instance Variables `X_v`, `Y_v` (each a propositional Knowledge node).
+  - Instance causal claim — the per-instance assertion that "X_v causes Y_v".
+  - `deduction` strategy: `universal_causal_claim ⇒ instance_causal_claim` — exactly as the logical case.
+  - One `cause()` action lowered to a SOFT_ENTAILMENT factor on `(X_v, Y_v)`, with strength parameters `(p_effect_given_cause, p_effect_given_not_cause)` taken from the universal claim's authored values.
+
+This is **structurally dual** to the v0.5 logical lowering: each instance gets a propositional copy, the universal claim is the deductive parent, and BP propagates exactly as it does today for universal logical claims.
+
+```
+                   ┌────────────────────────────┐
+                   │  universal_causal_claim    │ (Knowledge)
+                   └────────────┬───────────────┘
+                  deduction     │     deduction
+        ┌──────────────────┐    │   ┌──────────────────┐
+        ▼                  │    │   ▼                  │
+ instance_v₁_causal    instance_v₂_causal     ...        (per-instance Knowledge)
+        │                                │
+        │ SOFT_ENTAILMENT (causal,        │ SOFT_ENTAILMENT (causal,
+        │  noisy-OR-composable)           │  noisy-OR-composable)
+        ▼                                ▼
+ X_v₁ ──→ Y_v₁                    X_v₂ ──→ Y_v₂              (propositional CNIDs)
+```
+
+`do(X_v₁ = 1)` operates on a **specific instance** — Pearl-correct semantics, no ambiguity about which person/particle is being intervened on. `do(universal_causal_claim = 1)` is equivalent to `observe(universal_causal_claim, 1)` (the universal has no causal in-edges; observing it forces all instances toward truth via the deduction edges).
+
+### 5.3 Why per-instance grounding (not single-representative or population-parameter)
+
+We considered three grounding strategies during design (recorded for posterity):
+
+| Strategy | What it does | Why rejected for v0.6 |
+|---|---|---|
+| **A. Full individual grounding** *(adopted — §5.2)* | One instance per Domain member, exactly mirroring v0.5 logical-quantifier grounding. | Adopted. |
+| B. Single representative | One pair `(X_template, Y_template)` per causal universal regardless of Domain size. | Asymmetric with logical `forall` lowering; loses the per-instance addressability that makes per-individual evidence and reviewer queries possible. |
+| C. Population-parameter grounding | Introduce a "rate" / continuous-valued parameter node summarising the population. | Requires hierarchical SCM and continuous-valued nodes — not v0.5/v0.6 BP. Deferred to v0.7+ (§11). |
+
+Strategy A is correct because it preserves the cleanest property of Pearl's framework: every node in the DAG is a concrete event whose `do()` semantics is unambiguous.
+
+### 5.4 What this grounding does **not** support
+
+- **Population-level intervention.** "What happens if 30% of the population is intervened on `X`?" requires marginalising over instance choice — out of scope. Authors who need this should run a population study externally (DoWhy/EconML) and feed the result back as evidence on the universal claim.
+- **Heterogeneous treatment effects (CATE).** Per-instance grounding gives one effect strength per universal — variation across subgroups requires multiple universals partitioned by subgroup, which the author can express manually but the engine does not synthesise.
+- **Counterfactual reasoning at the universal.** Counterfactuals at the per-instance level *do* compose under §4 mutilation; counterfactuals at the universal-claim level (e.g. "what if this universal had not held") are not given a special treatment — they reduce to instance-level counterfactuals.
+
+These limits are recorded in §11 (out of scope).
+
+### 5.5 Naming and identifier discipline
+
+Per-instance grounded Knowledge nodes follow the synthesizer used by `gaia/lang/compiler/lower_formula.py:973` for logical instances — labels of the form `__forall_{symbol}_{digest}`. CNID synthesis for instance Variables follows §3.1 (`@var:{namespace}:{package}:{symbol}_{digest}`) so the same Variable used in two distinct universals produces two distinct CNIDs.
+
+---
+
+## 6. Symbolic Identification (Spec 3, optional)
+
+### 6.1 Adapter contract
 
 ```python
 # gaia/causal/adapters/y0.py
@@ -432,17 +604,17 @@ class MissingDependencyError(ImportError): ...
 class NotIdentifiable(Exception): ...
 ```
 
-### 5.2 Opt-in call site
+### 6.2 Opt-in call site
 
 Identification runs **only on explicit request** — either through a `gaia check causal --identify` CLI flag or a keyword `do(co2=1).query(temp, identify=True)`. When requested and y0 is installed, the `CausalQueryResult` is populated with `identified` and `id_expression`.
 
 This keeps the default path (`do().query()`) dependency-free.
 
-### 5.3 Lazy import pattern
+### 6.3 Lazy import pattern
 
 The adapter imports y0 inside the function body; `ImportError` is translated to `MissingDependencyError("install gaia[causal-do] to use do-calculus identification")`. This is the same pattern `gaia.stats.adapters` uses for scipy.
 
-### 5.4 What identification does and does not provide
+### 6.4 What identification does and does not provide
 
 - ✅ Symbolic guarantee that the numeric answer in `result.belief` **could** have been computed from purely observational data under the DAG.
 - ✅ Witness obstruction (e.g., "unblocked back-door path through G") when the query is not identifiable.
@@ -451,9 +623,9 @@ The adapter imports y0 inside the function body; `ImportError` is translated to 
 
 ---
 
-## 6. Compiler Changes
+## 7. Compiler Changes
 
-### 6.1 Populate `metadata.causal.dag_edge`
+### 7.1 Populate `metadata.causal.dag_edge`
 
 D1 builds on the v0.5 formula-lowering path. After QID assignment, the compiler walks claims whose formula is a top-level `Causes(X, Y)` (i.e., `kind == CAUSAL`), strict-validates that formula lowering already populated `metadata.causal.cause` and `.effect`, then writes the compiled edge identifiers:
 
@@ -475,11 +647,11 @@ causal["dag_edge"] = {
 
 This is an additive extension to the existing `metadata.causal` descriptor, not a new IR schema and not a replacement for formula lowering.
 
-### 6.2 No new IR schema, no new strategy type
+### 7.2 No new IR schema, no new strategy type
 
 All the new semantics live in metadata and in `gaia.causal`. IR `Operator`, `Strategy`, `StrategyType`, `OperatorType` enums — all unchanged. This is deliberate: IR is the CLI↔LKM protocol contract, and the project policy (CLAUDE.md "Protected Layers") requires a separate PR for any IR schema change.
 
-### 6.3 Migration concern: existing `CAUSAL` claims
+### 7.3 Migration concern: existing `CAUSAL` claims
 
 Packages compiled after PR #510 but before v0.6 can already contain `metadata.causal.cause` / `.effect` without `dag_edge`. Handling:
 
@@ -489,46 +661,66 @@ Packages compiled after PR #510 but before v0.6 can already contain `metadata.ca
 
 ---
 
-## 7. `gaia check causal`
+## 8. `gaia check causal`
 
 A new CLI sub-check. Invoked as `gaia check causal <package>` or bundled into `gaia check` when a package contains any `CAUSAL` claim.
 
-### 7.1 Rules
+### 8.1 Rules
 
 | Rule | Severity | Triggered by |
 |---|---|---|
 | Acyclicity | Error | `CausalCycleError` from `build_dag` |
 | Intervention target is a DAG node | Error | `InterventionUndefinedError` on any authored `do(...)` |
 | Open back-door path | Warning | For every `Causes(X, Y)` claim, inspect paths from `X` to `Y` that enter `X` after removing outgoing edges from `X`. If any path remains open under the declared observed covariates, surface the minimal candidate adjustment sets from `adjustment_sets(...)` or report that no valid set is available. Never condition on `X` or `Y` themselves. |
+| Mixed-modality incoming edges | Warning (Error under `--strict`) | Effect node has both `cause()` and `deduction()` incoming. Author should clarify whether the deduction edge is a definitional consequence (then mutilation will preserve it correctly per §4.4) or actually a mis-typed causal mechanism (then re-author as `cause()`). See §4.4 thought experiment 8. |
 | Identification (opt-in) | Info / Warning | Requires `--identify`; emits obstruction witness per non-identifiable authored `do()` |
 | Variable reuse across sub-DAGs | Warning | The same Variable appearing in disconnected components — likely an authoring error |
 
-### 7.2 Output format
+### 8.2 Output format
 
 JSON, keyed by rule. Fits into the existing `gaia check` aggregated report so reviewers get one unified view.
 
 ---
 
-## 8. DSL Surface Summary
+## 9. DSL Surface Summary
 
 ```python
-# Authoring (current explicit form; optional sugar can wrap this later)
-from gaia.lang import Claim, ClaimKind, Causes, Variable, Bool
+# Authoring — `cause()` action verb, fourth-family per foundation spec §18
+from gaia.lang import Bool, Variable
+from gaia.lang.dsl.causal import cause
 
 X = Variable(symbol="X", domain=Bool)
 Y = Variable(symbol="Y", domain=Bool)
-c = Claim("X causes Y", formula=Causes(X, Y), kind=ClaimKind.CAUSAL, prior=0.9)
 
-# Queries (NEW)
-from gaia.lang.dsl.causal import do, query
-
-result = do(X=1).query(Y)                            # numeric
-result = do(X=1).query(Y, identify=True)             # numeric + symbolic (needs extra)
-result = query(Y, given_do={X: 1})                   # long form
+c = cause(
+    cause=X, effect=Y,
+    p_effect_given_cause=0.85,
+    p_effect_given_not_cause=0.05,
+    prior=0.9,
+    rationale="…",
+    label="x_causes_y",
+)
+# Returns the underlying CAUSAL Claim. The lowercase causes() formula
+# constructor is removed (§0.4); construct Causes() directly if you need
+# the AST node by itself.
 ```
 
 ```python
-# Library (NEW, for tool authors / reviewers)
+# Queries
+from gaia.lang.dsl.causal import do, query, ate
+
+result = do(X=1).query(Y)                            # numeric, hard intervention
+result = do(X=1).query(Y, identify=True)             # numeric + symbolic (needs extra)
+result = query(Y, given_do={X: 1})                   # long form
+result = ate(X, Y)                                   # do(X=1).Y - do(X=0).Y
+
+# D₂.5 (separate milestone): stochastic intervention
+from gaia.stats import Bernoulli
+result = do(X=Bernoulli(0.1)).query(Y)
+```
+
+```python
+# Library (for tool authors / reviewers)
 from gaia.causal import build_dag, d_separated, ancestors, adjustment_sets
 
 dag = build_dag(compiled_artifact)
@@ -551,21 +743,22 @@ identify(dag, target="@var:github:pkg:temp",
 
 ---
 
-## 9. Implementation Milestones
+## 10. Implementation Milestones
 
-Four independent PR slices, strictly ordered.
+Five independent PR slices, strictly ordered.
 
 ### Milestone D₁ — Causal structure layer (Spec 1)
 
 Depends on: PR #505 and PR #510 (merged to `v0.5`).
 
-- **Compiler:** validate existing `metadata.causal` operand descriptors and populate `metadata.causal.dag_edge` for `CAUSAL` claims (§6.1).
+- **Compiler:** validate existing `metadata.causal` operand descriptors and populate `metadata.causal.dag_edge` for `CAUSAL` claims (§7.1).
 - **`gaia.causal.dag`:** `CausalDAG`, `CausalEdge`, `build_dag`. Cycle detection.
 - **`gaia.causal.queries`:** `ancestors`, `descendants`, `parents`, `children`, `d_separated`, `adjustment_sets`.
 - **`gaia.causal.errors`:** `CausalCycleError`, `CausalMetadataMissingError`, `InterventionUndefinedError`.
+- **DSL:** `cause()` action verb (§4.1). Remove the lowercase `causes()` formula constructor (§0.4); deprecation alias optional.
 - **`pyproject.toml`:** `networkx>=3` added to base dependencies.
 - **Renderer hook:** per-claim "Causal role" section in Obsidian wiki output.
-- **Tests:** compiler preserves `metadata.causal.cause` / `.effect` from formula lowering and adds `dag_edge`, DAG construction, acyclicity, d-separation parity with textbook examples (confounder, chain, collider), adjustment-set enumeration on canonical DAGs.
+- **Tests:** compiler preserves `metadata.causal.cause` / `.effect` from formula lowering and adds `dag_edge`; `cause()` action lowers to a SOFT_ENTAILMENT factor with the right `(p1, p2)` pair; DAG construction, acyclicity, d-separation parity with textbook examples (confounder, chain, collider); adjustment-set enumeration on canonical DAGs.
 
 Independently shippable: enables `gaia check causal`, makes renderings causal-aware, but does not yet execute interventions. Roughly 2–3 weeks.
 
@@ -573,14 +766,26 @@ Independently shippable: enables `gaia check causal`, makes renderings causal-aw
 
 Depends on: D₁.
 
-- **`gaia.bp.factor_graph.mutilate`:** helper function (§1.2, §4.3).
-- **`gaia.causal.lowering`:** build CNID BP variables and causal `CONDITIONAL` factors from the DAG plus explicit edge/CPD parameters.
-- **`gaia.causal.intervene`:** `Intervention`, `CausalQueryResult`, `_compute` using causal lowering + `mutilate` + Gaia BP.
-- **`gaia.lang.dsl.causal`:** `do()`, `query()` surface.
-- **`gaia check causal`:** acyclicity, intervention-target, variable-reuse rules (§7.1).
-- **Tests:** smoked against canonical SCMs (confounder, front-door, chain, collider); belief values compared against hand-computed truncated factorizations; audit digests reproducible.
+- **`gaia.bp.factor_graph.mutilate`:** modality-aware helper (§1.2, §4.3, §4.4). Drops only causal SOFT_ENTAILMENT/CONDITIONAL factors; logical factors preserved.
+- **Multi-parent noisy-OR composition:** lowering pass that combines multiple `cause()` edges into one CONDITIONAL factor per effect node (§4.1.2). Sits inside the existing `gaia/bp/lowering.py` — no new `gaia.causal.lowering` module needed; the cause action carries enough information to register CNID variables and emit the SOFT_ENTAILMENT factor at standard lower time.
+- **Per-instance grounding for causal `forall`:** compiler dual to `gaia/lang/compiler/lower_formula.py:107-192`'s logical lowering — emits per-instance Knowledge nodes plus deduction edges from universal to instance, plus one SOFT_ENTAILMENT per instance pair (§5.2).
+- **`gaia.causal.intervene`:** `Intervention`, `CausalQueryResult`, `_compute` using `mutilate` + Gaia BP (no separate causal lowering module).
+- **`gaia.lang.dsl.causal`:** `do()`, `query()`, `ate()` surface (§4.1, §4.2.1).
+- **`gaia check causal`:** acyclicity, intervention-target, mixed-modality (effect node has both `cause()` and `deduction()` incoming) rules (§8.1).
+- **Tests:** smoked against canonical SCMs (confounder, front-door, chain, collider); belief values compared against hand-computed truncated factorizations; thought-experiment 1–8 (§4.4) regression coverage; per-instance grounding parity with logical-quantifier grounding; ATE round-trip.
 
-Independently shippable: Gaia can answer `P(Y | do(X))` numerically for DAGs whose causal CPDs are specified by the v0.6 edge-parameter contract. Roughly 3–4 weeks (most of the work is tests, CNID materialization, and CPD semantics; `mutilate` itself is only the final graph rewrite).
+Independently shippable: Gaia answers `P(Y | do(X))` and `ATE(X, Y)` numerically. Roughly 3–4 weeks (most of the work is tests, multi-parent noisy-OR composition, and per-instance grounding parity; `mutilate` itself is a small filter-and-rebuild pass).
+
+### Milestone D₂.5 — Stochastic intervention (`do(X ~ dist)`)
+
+Depends on: D₂.
+
+- **Authored DSL:** `do(X = Bernoulli(p))` and equivalent shorthand for stochastic / soft interventions (§4.1.3).
+- **`mutilate` extension:** instead of clamping intervened nodes via `observe`, install a unary likelihood factor matching the intervention distribution.
+- **`Intervention.assignments`:** widen type from `dict[str, int]` to `dict[str, int | DistributionSpec]` (`DistributionSpec` per `gaia.stats`).
+- **Tests:** stochastic-do parity against analytic Bernoulli/uniform examples; `do(X = Bernoulli(0.0))` and `do(X = Bernoulli(1.0))` collapse to hard-do behaviour.
+
+Roughly 1 week. Carved out separately because the semantics warrant focused review (Pearl-stochastic vs. Pearl-deterministic interventions are documented differently in the literature) and to keep D₂'s footprint small.
 
 ### Milestone D₃ — y0 identification adapter (Spec 3)
 
@@ -599,51 +804,55 @@ Independently shippable. Roughly 1–2 weeks (mostly glue + tests).
 Depends on: D₁, D₂ (D₃ optional).
 
 - Update `docs/foundations/` — add a `causal/` sub-page reflecting the new primitives; link into the existing structure without redefining. Remove the "v0.6 interventional factor" placeholder from PR #505 §10.
-- `gaia-lang` docs: `do()` / `query()` reference; worked examples (Pearl's smoking/genetics, Simpson's paradox).
+- `gaia-lang` docs: `cause()`, `do()`, `query()`, `ate()` reference; worked examples (Pearl's smoking/genetics, Simpson's paradox).
 - Audit first-party packages (Mendel, Galileo, Superconductivity) for any claim that would benefit from an explicit causal-claim rewrite — do not force, but list candidates in a follow-up issue.
 
 ---
 
-## 10. Out of Scope / Deferred
+## 11. Out of Scope / Deferred
 
 | Item | Why deferred |
 |---|---|
 | **Counterfactual queries (Pearl level 3)** | Requires explicit exogenous noise variables, parameterized structural equations, and a different inference mode (abduction–action–prediction or twin networks). Gaia's propositional claim + prior model is not a structural causal model; promoting it would be a major world-view surgery. We will reopen this conversation only when a concrete scientific-reasoning use case demands it. |
+| **Population-level intervention and heterogeneous treatment effects (CATE)** | §5 grounds causal universals **per instance**. Population-level queries ("intervene on 30% of the population") and CATE ("effect varies by subgroup") require either marginalising over instance choice or hierarchical SCM with subgroup-conditioned strengths — neither is supported by v0.5/v0.6 BP. Authors who need population effects should run a study externally and feed the result back as evidence on the universal claim. |
 | **Causal discovery from data** | Gaia is a symbolic / prior-based reasoning system; DAG structure is authored, not learned. Tools like `causal-learn` or `causalnex` exist for that purpose and are external to our scope. |
 | **Continuous / parameterized structural equations** | Gaia claims are Boolean; numeric values live in Variables with priors, not as draws from a structural equation. Promoting Gaia to continuous SCMs is equivalent to replacing the BP engine with pyro/numpyro — out of scope. |
-| **`pgmpy` adapter** | Once D2 materializes causal factors, Gaia BP answers the numeric intervention question. Adding pgmpy would be a second inference engine with no additional capability. |
+| **`pgmpy` adapter** | Gaia BP answers the numeric intervention question once D₂ ships. Adding pgmpy would be a second inference engine with no additional capability. |
 | **Front-door / back-door automatic adjustment in numeric BP** | Numeric BP runs on Gaia's authored causal factor graph, not on an observational dataset requiring covariate adjustment. `adjustment_sets()` in §3.3 is for *reviewer* use (auditing which covariates would need to be observed if working from data). |
 | **Hidden confounders / ADMGs / Ananke integration** | v0.7 topic — requires lattice of bidirectional edges. |
-| **Multi-world / soft interventions (shift / conditional do-operators)** | Out of scope — single-atomic intervention covers the core use case. |
+| **Conditional / policy interventions (`do(X = g(Z))`)** | Single-atomic and stochastic interventions cover the core v0.6 use cases. Conditional interventions add notational complexity without comparable demand. v0.7+ if a use case appears. |
+| **Custom multi-parent composition rules** | v0.6 ships only noisy-OR (§4.1.2). Full-CPT escape hatch and `noisy_and` helper deferred to v0.7+. |
 
 ---
 
-## 11. Open Questions
+## 12. Open Questions
 
 1. **MAP vs. ensemble causal structure.** §3.5 states that DAG-build treats every `CAUSAL` claim as structurally present regardless of prior. Is there a use case (reviewer workflow?) where the user wants `d_separated` computed against the *MAP* DAG (edges with belief > 0.5 only)? If yes, we add a `build_dag(..., policy="map" | "structural")` knob — otherwise, leave it out of v0.6.
 2. **Variable CNID synthesis.** §3.1 proposes `@var:{namespace}:{package_name}:{symbol}`. Conflict to resolve: when a Variable is declared in package A but used in a `Causes(...)` claim in package B, do we stamp the CNID with the *declaring* package or the *using* package? Proposal: declaring package — matches how PR #505 proposes cross-package Variable lookups. The `@` prefix ensures `is_qid()` returns False so no consumer confuses a CNID with a Knowledge QID.
 3. **Default stance on `do()` target that is not a DAG node.** §4.6 raises an error. An alternative is a warning + fall through to conditioning. Recommendation: error — silent "meaningless intervention" is the exact footgun the causal layer is meant to prevent.
-4. **What is the minimal CPD parameter contract?** For Gaia BP to treat a `Causes(X, Y)` edge as part of a proper conditional `P(Y | pa(Y))`, D2 needs either a full binary CPT per effect node or a noisy-OR helper that compiles into that CPT. Recommendation: do **not** reuse `prior`; keep `prior` as belief in the truth of the causal claim and add an explicit CPD/noisy-OR parameter surface in the D2 implementation plan.
-5. **Identification output format.** Raw y0 `Expression.to_latex()` vs. a Gaia-normalized string with QIDs. Recommendation: LaTeX for v0.6 (copy-paste into paper / wiki); a Gaia-native form can come later.
+4. **Multi-parent CPT default.** §4.1.2 selects noisy-OR as the v0.6 default with no escape hatch. Two open sub-questions: (a) is noisy-OR's leak default — `max(p_effect_given_not_cause)` across edges — the right pick, or should we average them, or require it as a separate per-effect parameter on the effect Variable? (b) When should v0.7 add the full-CPT escape hatch — proactively in the v0.6 spec as an "advanced" entry point, or only when a user reports the limitation?
+5. **Soft-do timing.** §10 carves D₂.5 as a separate milestone after D₂ to keep `do()` semantics review-able piece by piece. Alternative: bundle stochastic intervention into D₂ for a single "intervention" PR. Recommendation: separate (more reviewable). Open to revisiting if reviewers prefer one combined PR.
+6. **Mixed-modality warning level.** §4.4 thought experiment 8 says when an effect node has both `cause()` and `deduction()` incoming, `gaia check causal` warns. Should this be a hard error in `gaia check causal --strict` mode? When does the situation actually represent author intent (e.g. "the deduction is a derived consequence, the cause is the mechanism") vs. an authoring mistake?
+7. **Identification output format.** Raw y0 `Expression.to_latex()` vs. a Gaia-normalized string with QIDs. Recommendation: LaTeX for v0.6 (copy-paste into paper / wiki); a Gaia-native form can come later.
 
 ---
 
-## 12. Examples
+## 13. Examples
 
-### 12.1 Pearl's smoking / genetics (confounding)
+### 13.1 Pearl's smoking / genetics (confounding)
 
 ```python
-from gaia.lang import Bool, Claim, ClaimKind, Causes, Variable
-from gaia.lang.dsl.causal import do, query
+from gaia.lang import Bool, Variable
+from gaia.lang.dsl.causal import cause, do, query, ate
 
-G = Variable(symbol="G", domain=Bool)
-X = Variable(symbol="X", domain=Bool)
-Z = Variable(symbol="Z", domain=Bool)
-Y = Variable(symbol="Y", domain=Bool)
+G = Variable(symbol="G", domain=Bool)   # genetic predisposition
+X = Variable(symbol="X", domain=Bool)   # smoking
+Z = Variable(symbol="Z", domain=Bool)   # yellow fingers
+Y = Variable(symbol="Y", domain=Bool)   # lung cancer
 
-Claim("G causes X", formula=Causes(G, X), kind=ClaimKind.CAUSAL, prior=0.6)
-Claim("G causes Y", formula=Causes(G, Y), kind=ClaimKind.CAUSAL, prior=0.7)
-Claim("X causes Z", formula=Causes(X, Z), kind=ClaimKind.CAUSAL, prior=0.9)
+cause(cause=G, effect=X, p_effect_given_cause=0.55, p_effect_given_not_cause=0.20, prior=0.6)
+cause(cause=G, effect=Y, p_effect_given_cause=0.30, p_effect_given_not_cause=0.05, prior=0.7)
+cause(cause=X, effect=Z, p_effect_given_cause=0.85, p_effect_given_not_cause=0.05, prior=0.9)
 # No X → Y edge — smoking does not directly cause cancer in this toy model.
 
 from gaia.causal import build_dag, d_separated, adjustment_sets
@@ -655,32 +864,75 @@ print(adjustment_sets(dag, "@var:github:pkg:X", "@var:github:pkg:Y"))           
 r1 = do(X=1).query(Y)          # P(Y | do(X=1)) — ≈ base rate of cancer
 r2 = query(Y, given={X: 1})    # P(Y | X=1)     — elevated by confounding
 # r1.belief < r2.belief — the exact effect that disappears under intervention.
+
+eff = ate(X, Y)                # do(X=1).Y - do(X=0).Y; ≈ 0 in this DAG
 ```
 
-### 12.2 Simpson's paradox (Gaia surfaces it automatically)
+### 13.2 Simpson's paradox (Gaia surfaces it automatically)
 
-Given a DAG where `X → Y`, `Z → X`, `Z → Y`, authored claims naturally allow `do(X).query(Y)` to give the unconfounded effect, while `query(Y, given={X: 1})` aggregates over `Z` and can reverse direction. `gaia check causal` (no flags) simply reports the DAG; with `--identify`, y0 confirms `P(Y | do(X))` is identifiable via back-door over `Z`.
+Given a DAG where `X → Y`, `Z → X`, `Z → Y`, authored via `cause()`, `do(X).query(Y)` gives the unconfounded effect while `query(Y, given={X: 1})` aggregates over `Z` and can reverse direction. `gaia check causal` (no flags) simply reports the DAG; with `--identify`, y0 confirms `P(Y | do(X))` is identifiable via back-door over `Z`.
 
-### 12.3 Multi-step intervention
+### 13.3 Multi-step intervention with mixed causal+logical edges
 
 ```python
-from gaia.lang import Bool, Claim, ClaimKind, Causes, Variable
-from gaia.lang.dsl.causal import do
+from gaia.lang import Bool, Variable
+from gaia.lang.dsl.causal import cause, do
+from gaia.lang.dsl import deduction
 
-T = Variable(symbol="T", domain=Bool)
-S = Variable(symbol="S", domain=Bool)
-R = Variable(symbol="R", domain=Bool)
+T = Variable(symbol="T", domain=Bool)   # treatment
+S = Variable(symbol="S", domain=Bool)   # side-effect mitigation
+R = Variable(symbol="R", domain=Bool)   # recovery
+L = Variable(symbol="L", domain=Bool)   # logged-as-recovered
 
-Claim("T causes S", formula=Causes(T, S), kind=ClaimKind.CAUSAL, prior=0.7)
-Claim("T causes R", formula=Causes(T, R), kind=ClaimKind.CAUSAL, prior=0.6)
-Claim("S causes R", formula=Causes(S, R), kind=ClaimKind.CAUSAL, prior=0.5)
+# Causal mechanisms
+cause(cause=T, effect=S, p_effect_given_cause=0.8, p_effect_given_not_cause=0.1, prior=0.7)
+cause(cause=T, effect=R, p_effect_given_cause=0.7, p_effect_given_not_cause=0.2, prior=0.6)
+cause(cause=S, effect=R, p_effect_given_cause=0.6, p_effect_given_not_cause=0.3, prior=0.5)
 
-do(T=1, S=1).query(R)         # compound intervention: force treatment and mitigation
+# Pure logical edge: "logged-as-recovered" follows recovery deductively (definitional)
+deduction([R], L)
+
+# Compound intervention: force treatment and mitigation simultaneously
+do(T=1, S=1).query(R)
+# `mutilate` drops the cause()-derived SOFT_ENTAILMENT factors with conclusion in {T, S}.
+# The deduction([R], L) factor is preserved (logical modality, §4.4 thought experiment 6).
 ```
+
+### 13.4 Per-instance grounding for a causal universal
+
+```python
+from gaia.lang import Bool, Causes, Claim, ClaimKind, Domain, Variable, forall
+from gaia.lang.dsl.causal import do, ate
+
+Person = Domain(name="Person", members=["alice", "bob", "carol"])
+p = Variable(symbol="p", domain=Person)
+Smokes = Variable(symbol="Smokes", domain=Bool)
+Cancer = Variable(symbol="Cancer", domain=Bool)
+
+# Universal causal claim — grounded per-instance per §5.2
+Claim(
+    "Smoking causes lung cancer (universal)",
+    formula=forall(p, Causes(Smokes, Cancer)),
+    kind=ClaimKind.CAUSAL,
+    prior=0.85,
+    label="smoking_causes_cancer",
+    metadata={
+        "p_effect_given_cause": 0.15,
+        "p_effect_given_not_cause": 0.05,
+    },
+)
+
+# Compiler emits per-instance Knowledge for alice/bob/carol; do() and ate()
+# operate on a chosen instance.
+ate_alice = ate(target_instance="alice", cause_var=Smokes, effect_var=Cancer)
+# Population-level ATE is NOT supported (§11) — this is the per-instance ATE.
+```
+
+`metadata` carrying `p_effect_given_cause` / `p_effect_given_not_cause` on the universal claim is the bridge for D₂'s lowering pass: each per-instance `cause()` factor reads the same strength parameters from the universal. (For non-universal `cause()` calls the parameters are kwargs on the action — see §4.1.)
 
 ---
 
-## 13. Prior-Art Anchors
+## 14. Prior-Art Anchors
 
 - Pearl, *Causality* (2nd ed., 2009) — DAG semantics, do-operator, back-door / front-door.
 - Pearl & Mackenzie, *The Book of Why* (2018) — levels of the causal ladder.
