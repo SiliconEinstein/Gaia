@@ -1,189 +1,70 @@
-# Minimal Causal Reasoning Design
+# Minimal Causal Mechanism Design
 
 > **Status:** Replacement proposal for the causal design draft
 > **Branch:** `codex/v05-causal-docs-refresh` (off `v0.5`)
-> **Target release:** v0.6
+> **Target release:** v0.6 design discussion
 > **Date:** 2026-05-06
-> **Scope:** Define the smallest causal contract built on v0.5 Claims, formulas,
-> Actions, and IR lowering: causal Claims as source of truth, CausalDAG as a
-> derived view, and y0 as the first symbolic identification backend.
-> **Non-goals:** `mechanism(...)` actions, `is_causal` flags on existing actions,
-> causal discovery, DoWhy integration, data-driven effect estimation,
-> counterfactuals, and a full CPD family.
+> **Scope:** Promote causal mechanisms to a first-class Gaia `Knowledge` type,
+> project those mechanism nodes into `CausalDAG`, and use y0 as the first
+> symbolic identification backend.
+> **Non-goals:** Encoding mechanisms as `Claim(kind=CAUSAL)`, `is_causal`
+> flags on existing actions, DoWhy integration, causal discovery, data-driven
+> effect estimation, counterfactuals, and a full CPD family.
 
 ---
 
-## 0. Design Summary
+## 0. Core Decision
 
-The causal layer should be small enough to explain in one sentence:
+The causal layer should not model a mechanism as a Claim plus metadata. A
+mechanism is a piece of world structure:
 
-> `causal(...)` creates a truth-bearing causal Claim; `build_causal_dag(...)`
-> projects those causal Claims into a DAG; y0 identifies symbolic do-query
-> formulas from that DAG.
+```text
+X causes Y
+Y is generated from its causal parents
+```
 
-Everything else stays in its current layer:
+That is not the same kind of object as a proposition, and it is not a reasoning
+step. Therefore v0.6 should introduce:
 
-- `infer`, `support`, and `derive` support or attack Claims. They do not create
-  causal edges.
-- `implies(...)` and ordinary support relations are truth/evidence relations.
-  They are not causal mechanisms.
-- Gaia BP / FactorGraph remains the probability-computation backend for ordinary
-  probabilistic reasoning. A CausalDAG by itself does not compute probabilities.
-- DoWhy is intentionally deferred until Gaia has a data-binding and estimator
-  contract.
+```python
+CausalMechanism(Knowledge)
+```
 
-The minimum contract is:
+The minimal contract becomes:
 
 ```text
 Gaia IR
   Claim A
   Claim B
-  Claim C = causal(A, B, prior=0.9)
+  CausalMechanism M = mechanism(A, B)
 
 Derived views
   CausalDAG:
     node: A
     node: B
-    edge: A -> B, witnessed_by=C
+    edge: A -> B, source=M
 
   FactorGraph:
     ordinary BP lowering of Claims and Actions
+    later: causal factors lowered from CausalMechanism nodes when CPDs exist
 ```
 
-The CausalDAG is not a new source of truth. It is a typed projection over causal
-Claims in Gaia IR.
+The CausalDAG is a typed projection over `CausalMechanism` Knowledge nodes. It is
+not built from causal Claim metadata, and it is not a new source of truth.
 
 ---
 
-## 1. Current v0.5 Starting Point
+## 1. First-Principles Semantics
 
-v0.5 already has the right foundation:
+Gaia needs three different object kinds:
 
-- `Claim.formula` stores a typed formula AST.
-- `Claim.kind == ClaimKind.CAUSAL` marks a Claim whose top-level formula is a
-  causal predicate.
-- `Causes(cause, effect)` and `causes(cause, effect)` exist in the formula
-  layer.
-- `causal(cause, effect, prior=...)` exists as public authoring sugar for
-  current `Causes(...)` endpoints and returns
-  `Claim(formula=Causes(...), kind=ClaimKind.CAUSAL, prior=...)`.
-- Formula lowering already emits `metadata.causal = {"cause": ..., "effect": ...}`
-  for top-level `Causes(...)` Claims.
+| Kind | Meaning | Examples |
+|---|---|---|
+| `Claim` | A truth-bearing proposition | "It is raining"; "the field study is reliable" |
+| `Action` | A reasoning/review step connecting knowledge | `infer`, `derive`, `support`, `decompose` |
+| `CausalMechanism` | A structural causal relation in the modeled world | "rain causes wet ground"; "CO2 drives temperature" |
 
-The missing piece is not a second causal action system. The missing piece is a
-small projection layer that reads these causal Claims as candidate DAG edges.
-
----
-
-## 2. Public Authoring Surface
-
-### 2.1 Common path: Claim-to-Claim causality
-
-Most users should not need to write formula AST nodes directly:
-
-```python
-from gaia.lang import causal, claim, infer
-
-rain = claim("It rains", prior=0.3)
-wet = claim("The ground is wet", prior=0.2)
-
-rain_causes_wet = causal(
-    rain,
-    wet,
-    prior=0.9,
-    describe="Rain causes the ground to become wet.",
-)
-```
-
-`causal(rain, wet, ...)` normalizes internally to:
-
-```python
-Claim(
-    formula=Causes(ClaimAtom(rain), ClaimAtom(wet)),
-    kind=ClaimKind.CAUSAL,
-    prior=0.9,
-)
-```
-
-This requires one small v0.6 widening: `Causes` endpoint validation should accept
-`Term | ClaimAtom`. The current v0.5 term-only variable path stays valid.
-
-The resulting causal relation is a normal Claim. It can be supported, attacked,
-reviewed, imported, exported, and assigned a prior like any other Claim.
-
-```python
-field_study = claim("In the field study, rain events precede wet ground events.")
-
-infer(
-    field_study,
-    hypothesis=rain_causes_wet,
-    p_e_given_h=0.8,
-    p_e_given_not_h=0.2,
-)
-```
-
-This `infer(...)` supports the causal Claim. It does not create a separate
-causal edge.
-
-### 2.2 Existing path: variable-level causality
-
-The current v0.5 style remains valid:
-
-```python
-from gaia.lang import Real, Variable, causal
-
-co2 = Variable(symbol="co2", domain=Real)
-temp = Variable(symbol="temp", domain=Real)
-
-co2_causes_temp = causal(
-    co2,
-    temp,
-    prior=0.85,
-    describe="Atmospheric CO2 concentration causes mean temperature change.",
-)
-```
-
-This keeps the existing formula/Variable capability without forcing users into a
-new graph API.
-
-### 2.3 Explicit formula path
-
-Advanced users can still write the normalized formula directly:
-
-```python
-from gaia.lang import ClaimKind, ClaimAtom, Causes, claim
-
-edge = claim(
-    "Rain causes wet ground.",
-    formula=Causes(ClaimAtom(rain), ClaimAtom(wet)),
-    kind=ClaimKind.CAUSAL,
-    prior=0.9,
-)
-```
-
-The public rule is:
-
-```text
-causal(...) is the Pythonic surface.
-Causes(...) is the normalized formula representation.
-```
-
-### 2.4 What is not added
-
-Do not add:
-
-- `mechanism(...)`
-- `cause(...)`
-- `is_causal=True` on `infer`, `support`, `derive`, or `implies`
-- a separate action type whose only purpose is to create causal edges
-
-The edge exists because there is a causal Claim.
-
----
-
-## 3. Core Semantics
-
-### 3.1 Three relations that must stay separate
+This keeps three relations separate:
 
 ```text
 implication:
@@ -196,101 +77,243 @@ causation:
   Under intervention do(A=a), the generating process for B changes.
 ```
 
-Therefore:
+Consequences:
 
 - `implies(A, B)` is not a causal edge.
 - `infer(evidence=E, hypothesis=H)` is not a causal edge.
-- `infer(evidence=E, hypothesis=causal(A, B))` supports the edge Claim.
-- `causal(A, B)` is the only authoring surface that contributes an edge to
-  CausalDAG.
+- `CausalMechanism(A, B)` is the object that contributes edge `A -> B` to
+  `CausalDAG`.
+- Claims and Actions may support, challenge, justify, review, or decompose the
+  evidence for a mechanism, but they are not the mechanism itself.
 
-### 3.2 Prior means belief in the edge, not effect strength
+---
 
-For a causal Claim:
+## 2. Why Not `Claim(kind=CAUSAL)` as the Edge
+
+v0.5 introduced `Causes(X, Y)` as a formula marker inside a Claim. That remains
+useful for natural-language propositions, migration, and compatibility, but it
+should not be the long-term source of causal structure.
+
+The failure mode is semantic drift:
 
 ```python
 edge = causal(A, B, prior=0.9)
 ```
 
-`prior=0.9` means:
+If `edge` is a Claim, then `prior=0.9` means:
 
 ```text
 P("A causes B" is true) = 0.9
 ```
 
-It does not mean:
+But a causal mechanism needs different fields:
 
 ```text
-P(B | A) = 0.9
-P(B | do(A)) = 0.9
+source endpoint
+target endpoint
+optional structural parameters / CPD
+review state or support/challenge actions
 ```
 
-This distinction is non-negotiable. Edge belief and mechanism strength are
-different quantities.
+Reusing `Claim.prior` as an "edge existence prior" makes Gaia explain away a
+type mismatch with documentation. The minimal design avoids that mismatch:
 
-### 3.3 CausalDAG does not compute probabilities
+- `Claim.prior` stays a proposition prior.
+- `CausalMechanism` has no `prior` / `exists_prior` field.
+- Mechanism status is handled by causal review/support/challenge actions and
+  package review policy.
+- CPDs, when present, belong to the mechanism node.
 
-A DAG such as:
-
-```text
-Z -> X
-Z -> Y
-X -> Y
-```
-
-can answer structural questions:
-
-- Is the graph acyclic?
-- Is a do-query structurally meaningful?
-- Which variables are ancestors or descendants?
-- Which adjustment sets identify `P(Y | do(X))`?
-
-It cannot answer numeric questions by itself:
-
-- `P(Y=1 | do(X=1)) = ?`
-- `ATE(X -> Y) = ?`
-
-Numeric answers require CPDs, observational distributions, Gaia BP beliefs, or
-data estimators. The minimal v0.6 causal layer only promises symbolic
-identification, not numeric effect estimation.
+This is closer to Pearl's SCM split between variables and structural functions:
+the mechanism is part of the modeled world's structure, not just a proposition
+about the world.
 
 ---
 
-## 4. IR and Metadata Contract
+## 3. Public Authoring Surface
 
-### 4.1 Source of truth
+### 3.1 Primary API
 
-The source of truth is the compiled causal Claim:
+Use `mechanism(...)` as the Pythonic factory for a `CausalMechanism` Knowledge
+node:
+
+```python
+from gaia.lang import claim, mechanism
+
+rain = claim("It rains", prior=0.3)
+wet = claim("The ground is wet", prior=0.2)
+
+rain_wets_ground = mechanism(
+    rain,
+    wet,
+    label="rain_wets_ground",
+    describe="Rain is a causal mechanism for wet ground.",
+)
+```
+
+`mechanism(...)` returns `CausalMechanism`, not `Claim` and not `Action`.
+
+### 3.2 Variable endpoint path
+
+Mechanisms may also point at formula Variables, preserving the useful part of
+the current v0.5 `Causes(...)` work:
+
+```python
+from gaia.lang import Real, Variable, mechanism
+
+co2 = Variable(symbol="co2", domain=Real)
+temp = Variable(symbol="temp", domain=Real)
+
+co2_drives_temp = mechanism(
+    co2,
+    temp,
+    label="co2_drives_temp",
+)
+```
+
+Claim endpoints compile to QIDs. Variable endpoints compile to stable CNIDs
+because `Variable` is Lang-only and does not enter the IR Knowledge map.
+
+### 3.3 Optional CPD
+
+The first symbolic causal release does not need CPDs. CPDs are only needed for
+later numeric `do()` or SCM simulation.
+
+If preserved in v0.6, support exactly one minimal CPD type:
+
+```python
+from gaia.lang import BinaryCPD, mechanism
+
+m = mechanism(
+    rain,
+    wet,
+    cpd=BinaryCPD(
+        p_effect_given_cause=0.8,
+        p_effect_given_not_cause=0.1,
+    ),
+)
+```
+
+The CPD is a structural parameter of the mechanism. It is not a Claim prior, not
+an Action score, and not Bayes evidence.
+
+Out of scope for the first release:
+
+- noisy-OR
+- arbitrary multi-parent CPT authoring
+- learned CPDs
+- stochastic/policy interventions
+
+### 3.4 Causal evidence and review actions
+
+Because `CausalMechanism` has no `exists_prior`, Gaia needs actions that record
+why a mechanism should be trusted or challenged. The minimal design can start
+with qualitative actions:
+
+```python
+from gaia.lang import support_mechanism, challenge_mechanism
+
+study = claim("Rain events reliably precede wet ground in the field study.")
+
+support_mechanism(
+    [study],
+    rain_wets_ground,
+    reason="Temporal order and intervention evidence support the mechanism.",
+)
+```
+
+These actions do not create DAG edges. They explain and review an existing
+mechanism node. A registry/review policy can later decide whether a mechanism is
+accepted for a published package, but the mechanism object itself does not store
+probabilistic existence belief.
+
+For v0.6, `build_causal_dag(...)` uses authored mechanisms by default. A stricter
+review-gated policy can be added after Gaia's review manifest has an explicit
+mechanism target status.
+
+### 3.5 Compatibility with `causal(...)` and `Causes(...)`
+
+Existing v0.5 APIs should not disappear abruptly:
+
+- `Causes(...)` remains a formula predicate.
+- `causal(...)` may remain a compatibility helper that creates a causal Claim.
+- Causal Claims are not the canonical source for new CausalDAG edges.
+
+Migration rule:
+
+```text
+New packages:
+  use mechanism(...)
+
+Old packages:
+  compile existing Claim(kind=CAUSAL, formula=Causes(...)) as legacy causal
+  propositions; optionally migrate them into CausalMechanism nodes.
+```
+
+This keeps old packages readable while preventing the new causal layer from
+depending on Claim metadata as its primary structure.
+
+---
+
+## 4. Runtime and IR Contract
+
+### 4.1 Runtime object
+
+Minimal runtime shape:
+
+```python
+@dataclass(init=False, eq=False)
+class CausalMechanism(Knowledge):
+    cause: Knowledge | Variable
+    effect: Knowledge | Variable
+    cpd: BinaryCPD | None = None
+```
+
+Rules:
+
+- It subclasses `Knowledge`, not `Claim`.
+- It cannot carry `prior`.
+- It does not participate in BP as a Boolean variable by default.
+- Its endpoints are typed references to Claims or Variables.
+- Its `metadata` may carry display/provenance information, but not causal edge
+  identity; the object itself is the edge identity.
+
+### 4.2 IR knowledge type
+
+Add a first-class IR type:
+
+```python
+class KnowledgeType(StrEnum):
+    CLAIM = "claim"
+    NOTE = "note"
+    COMPOSITION = "composition"
+    CAUSAL_MECHANISM = "causal_mechanism"
+```
+
+Minimal serialized shape:
 
 ```python
 {
-    "id": "pkg::rain_causes_wet",
-    "type": "claim",
+    "id": "pkg::rain_wets_ground",
+    "type": "causal_mechanism",
+    "content": "Rain is a causal mechanism for wet ground.",
     "metadata": {
-        "prior": 0.9,
-        "formula_atom": {"kind": "causes"},
-        "causal": {
-            "cause": {"kind": "claim", "qid": "pkg::rain"},
-            "effect": {"kind": "claim", "qid": "pkg::wet"},
-        },
+        "cause": {"kind": "claim", "qid": "pkg::rain"},
+        "effect": {"kind": "claim", "qid": "pkg::wet"},
+        "cpd": null,
     },
 }
 ```
 
-The exact metadata shape can preserve the current v0.5 flat form:
+Validation:
 
-```python
-metadata["causal"] = {"cause": ..., "effect": ...}
-```
+- `metadata.prior` is invalid for `causal_mechanism`.
+- `cause` and `effect` must normalize to QID or CNID endpoints.
+- If `cpd` is present, its values must satisfy the normal Cromwell bounds.
 
-No `metadata.causal_mechanism` key is introduced.
+### 4.3 Endpoint descriptors
 
-### 4.2 Endpoint descriptors
-
-`metadata.causal.cause` and `metadata.causal.effect` describe nodes in the
-derived CausalDAG.
-
-Supported in the minimal design:
+Supported endpoint descriptors:
 
 ```python
 {"kind": "claim", "qid": "<compiled Claim QID>"}
@@ -300,50 +323,10 @@ Supported in the minimal design:
 Rules:
 
 - Claim endpoints use QIDs.
-- Variable endpoints use stable CNIDs because `Variable` is Lang-only and does
-  not enter the IR Knowledge map.
+- Variable endpoints use stable CNIDs.
 - Cross-package variables use the declaring package when known; otherwise the
-  current package namespace is used as a fallback.
-- Quantified causal formulas are allowed as Claims, but the minimal DAG builder
-  only includes endpoints that can be normalized to concrete QIDs or CNIDs.
-
-### 4.3 Optional CPD metadata
-
-CPD support is not required for symbolic identification. It is optional metadata
-for later numeric intervention work:
-
-```python
-edge = causal(
-    A,
-    B,
-    prior=0.9,
-    cpd=BinaryCPD(
-        p_effect_given_cause=0.8,
-        p_effect_given_not_cause=0.1,
-    ),
-)
-```
-
-Compiled metadata:
-
-```python
-metadata["causal"]["cpd"] = {
-    "kind": "binary",
-    "p_effect_given_cause": 0.8,
-    "p_effect_given_not_cause": 0.1,
-}
-```
-
-Only one CPD shape is in scope for the minimal spec:
-
-```python
-BinaryCPD(p_effect_given_cause: float, p_effect_given_not_cause: float)
-```
-
-No noisy-OR, no arbitrary multi-parent CPT, no estimator registry. If an effect
-has multiple causal parents and numeric intervention is required, v0.6 may report
-that numeric lowering is not implemented for that graph. y0 symbolic
-identification can still run because it only needs structure.
+  using package namespace is the fallback.
+- Quantified mechanisms are out of scope for the first release.
 
 ---
 
@@ -362,7 +345,7 @@ Minimal data model:
 ```python
 @dataclass(frozen=True)
 class CausalNode:
-    id: str                 # QID or CNID
+    id: str
     kind: Literal["claim", "variable"]
     label: str | None = None
 
@@ -371,8 +354,7 @@ class CausalNode:
 class CausalEdge:
     cause_id: str
     effect_id: str
-    witness_claim_qid: str
-    belief: float | None = None
+    mechanism_qid: str
     cpd: BinaryCPD | None = None
 
 
@@ -382,45 +364,48 @@ class CausalDAG:
     edges: tuple[CausalEdge, ...]
 ```
 
+No `belief` field appears on `CausalEdge`. Belief/review status belongs to
+actions or review manifests, not the structural edge.
+
 ### 5.2 Projection rule
 
-`build_causal_dag(graph)` scans compiled knowledges and includes a Claim when all
-of these are true:
+`build_causal_dag(graph)` scans compiled knowledges and includes a node when:
 
-1. The knowledge is a Claim.
-2. It has a top-level causal formula marker. In compiled IR this is
-   `metadata.formula_atom.kind == "causes"` plus `metadata.causal`; in runtime
-   objects it may also be visible as `Claim.kind == ClaimKind.CAUSAL`.
-3. `metadata.causal.cause` and `metadata.causal.effect` can be normalized to QID
-   or CNID endpoints.
-4. The resulting graph remains acyclic.
+1. `knowledge.type == "causal_mechanism"`.
+2. Its cause/effect descriptors normalize to QID or CNID endpoints.
+3. The resulting graph remains acyclic.
 
 The edge is:
 
 ```text
 cause_id -> effect_id
-witnessed_by = causal Claim QID
-belief = causal Claim prior, if present
+mechanism_qid = CausalMechanism QID
+cpd = mechanism.cpd, if present
 ```
 
-The default projection is structural: it includes authored causal Claims without
-thresholding on prior. Applications can filter low-belief edges before calling
-`build_causal_dag`, but the core API does not guess a MAP structure.
+The default projection is structural: it includes authored mechanisms. Review
+gating can be added later as a policy layer:
+
+```python
+build_causal_dag(graph, review_manifest=manifest, policy="accepted")
+```
+
+That policy is not part of the minimal implementation.
 
 ### 5.3 Validation failures
 
 Hard errors:
 
 - endpoint cannot be normalized
-- duplicate contradictory endpoint descriptors for the same causal Claim
 - cycle in the projected CausalDAG
+- duplicate mechanism labels/QIDs
 - `do(X)` requested for a node that is not in the CausalDAG
 
 Warnings:
 
-- causal Claim has no prior
-- causal Claim has no CPD and user requested numeric intervention
-- quantified causal Claim has not been grounded
+- mechanism has no CPD and user requested numeric intervention
+- legacy causal Claim was found but no migrated `CausalMechanism` exists
+- causal support/challenge actions target an unknown mechanism
 
 ---
 
@@ -466,7 +451,7 @@ CausalDAG -> y0 graph/expression -> IdentificationResult
 ```
 
 This keeps Gaia's schema stable and lets future adapters coexist without
-rewriting causal Claims.
+rewriting mechanism Knowledge nodes.
 
 ### 6.3 Why DoWhy is deferred
 
@@ -494,14 +479,14 @@ That is the y0-shaped problem.
 
 ---
 
-## 7. Relationship to BP and `do()`
+## 7. Relationship to BP and Numeric `do()`
 
 ### 7.1 Minimal v0.6
 
 The first deliverable does not need numeric `do()`:
 
 ```text
-causal Claims -> CausalDAG -> y0 symbolic identification
+CausalMechanism Knowledge -> CausalDAG -> y0 symbolic identification
 ```
 
 This is enough to answer:
@@ -519,91 +504,119 @@ Numeric intervention requires more than the DAG:
 CausalDAG + CPDs or observational distribution + BP/data backend
 ```
 
-When numeric `do()` is added, the rule should be:
+When numeric `do()` is added:
 
 1. Validate the treatment node exists in CausalDAG.
-2. Use CausalDAG to identify which causal incoming edge factors to remove.
-3. Use CPD metadata or an observational estimand to build a numeric query.
-4. Reuse Gaia BP when the query can be represented as a FactorGraph.
+2. Lower CPD-bearing `CausalMechanism` nodes into causal factors.
+3. Record factor source as `source_type="causal_mechanism"` and
+   `source_id=<mechanism_qid>`.
+4. `mutilate()` removes factors sourced from incoming mechanisms to the
+   intervened node.
+5. Reuse Gaia BP when the resulting query is representable as a FactorGraph.
 
-This later work must not infer CPDs from causal Claim priors.
+This does not require a generic `Factor.metadata["modality"] = "causal"` tag.
+The factor's source type is the mechanism Knowledge type.
 
 ---
 
 ## 8. Implementation Plan
 
-### D1. Normalize causal authoring
+### D0. Gaia IR design discussion
 
-- Keep `causal(cause, effect, ...)` as the primary public API.
-- Extend it to accept Claim endpoints by wrapping them in `ClaimAtom`.
-- Widen `Causes` endpoint validation to accept `Term | ClaimAtom`.
-- Keep Variable/Term endpoints working as they do today.
-- Keep explicit `Claim(formula=Causes(...), kind=CAUSAL)` valid.
-- Do not add `mechanism(...)` or `is_causal`.
+This proposal changes the IR schema. It should not be smuggled in as a docs-only
+cleanup. Open an explicit design discussion before implementation:
 
-### D2. Compile causal endpoint descriptors
-
-- Preserve the current `metadata.causal = {"cause": ..., "effect": ...}` shape.
-- Add descriptor support for ClaimAtom endpoints:
-
-```python
-{"kind": "claim", "qid": "..."}
+```text
+Promote causal mechanisms to first-class Knowledge?
 ```
 
-- Add stable CNIDs for Variable endpoints:
+The discussion should cover:
 
-```python
-{"kind": "variable", "symbol": "x", "domain": "Real", "cnid": "..."}
-```
+- `KnowledgeType.CAUSAL_MECHANISM`
+- runtime `CausalMechanism`
+- storage/index impact
+- renderer/review impact
+- migration from v0.5 `causal()` Claims
 
-### D3. Add `gaia.causal.dag`
+### D1. Runtime and DSL
+
+- Add runtime `CausalMechanism(Knowledge)`.
+- Add `mechanism(cause, effect, *, cpd=None, label=None, describe=None)`.
+- Ensure `mechanism(...)` returns Knowledge, not Claim and not Action.
+- Keep `causal(...)` as compatibility Claim helper or deprecate it after a
+  migration period.
+- Add minimal `BinaryCPD` only if numeric parameters must be preserved.
+
+### D2. IR lowering
+
+- Add `KnowledgeType.CAUSAL_MECHANISM`.
+- Compile runtime `CausalMechanism` into an IR Knowledge node.
+- Normalize endpoint descriptors to QID/CNID.
+- Reject `metadata.prior` on mechanism Knowledge.
+- Preserve legacy causal Claim metadata for migration and rendering, but do not
+  use it as the canonical DAG source.
+
+### D3. Causal actions/review hooks
+
+- Add minimal mechanism-targeted actions, such as `support_mechanism(...)` and
+  `challenge_mechanism(...)`, or extend review manifests to target mechanism
+  QIDs directly.
+- Do not make these actions create edges.
+- Use them only for justification, review, and future accepted/rejected policy.
+
+### D4. CausalDAG
 
 - Implement `CausalNode`, `CausalEdge`, `CausalDAG`.
-- Implement `build_causal_dag(graph)`.
-- Validate acyclicity.
-- Expose structural helpers only if needed by y0 adapter.
+- Implement `build_causal_dag(graph)` over `KnowledgeType.CAUSAL_MECHANISM`.
+- Validate acyclicity and endpoint normalization.
 
-### D4. Add y0 adapter
+### D5. y0 adapter
 
 - Add `gaia.causal.identify_effect(...)`.
-- Add runtime conversion from `CausalDAG` to y0.
+- Convert `CausalDAG` to y0 at runtime.
 - Return Gaia-owned `IdentificationResult`.
 - Lazy-import y0 or place it behind a small optional extra.
 
-### D5. Defer numeric intervention
+### D6. Defer numeric intervention
 
-Do not implement full numeric `do()` until after D1-D4 are stable. Add only the
-minimal `BinaryCPD` payload if needed to preserve authored parameters.
+Do not implement full numeric `do()` until mechanism Knowledge, DAG projection,
+and y0 identification are stable.
 
 ---
 
 ## 9. Open Questions
 
-Only two questions remain open for the minimal spec:
+1. **What is the exact action/review surface for mechanism status?**
 
-1. **Should y0 be a hard dependency or optional extra?**
+   Recommendation: start with mechanism-targeted support/challenge actions or
+   review-manifest statuses. Do not put `exists_prior` on the mechanism.
 
-   Recommendation: first-party API, lazy-import backend. User experience is
-   built-in; Gaia IR does not depend on y0 object types.
+2. **Should `mechanism(...)` replace or coexist with `causal(...)`?**
 
-2. **Should quantified causal Claims be grounded in v0.6?**
+   Recommendation: use `mechanism(...)` for new structural causal knowledge.
+   Keep `causal(...)` as a legacy Claim factory for one release.
 
-   Recommendation: not in the first causal PR. Store and render quantified
-   causal Claims, but require concrete QID/CNID endpoints for CausalDAG
-   projection.
+3. **Should y0 be a hard dependency or optional extra?**
 
-Everything else is intentionally out of scope for the minimal release.
+   Recommendation: first-party Gaia API with lazy-import y0 backend. User
+   experience is built in; IR does not depend on y0 object types.
+
+4. **How much storage/index work is required?**
+
+   Recommendation: treat this as an IR/storage-impacting design PR, not a
+   local lowering-only change.
 
 ---
 
 ## 10. Non-Goals Recap
 
-- No `mechanism` action.
+- No `Claim(kind=CAUSAL)` as the canonical DAG source.
+- No `exists_prior` on `CausalMechanism`.
 - No `is_causal` boolean flag.
 - No DoWhy in the first causal release.
 - No data-driven estimation.
 - No causal discovery.
 - No counterfactuals.
 - No full CPD taxonomy.
-- No attempt to recover causal structure from ordinary `infer` or
-  `implies` relations.
+- No attempt to recover causal structure from ordinary `infer` or `implies`
+  relations.
