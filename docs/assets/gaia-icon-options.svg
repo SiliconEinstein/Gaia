@@ -1,0 +1,223 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1200"
+  height="600"
+  viewBox="0 0 1200 600"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">Gaia icon options</title>
+  <desc id="desc">Ten candidate Gaia icons arranged in a two-row contact sheet.</desc>
+  <defs>
+    <linearGradient id="bg-navy" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1f33" />
+      <stop offset="0.6" stop-color="#123a45" />
+      <stop offset="1" stop-color="#173f2f" />
+    </linearGradient>
+    <linearGradient id="ring-mint" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#67e8c9" />
+      <stop offset="0.58" stop-color="#a7f3d0" />
+      <stop offset="1" stop-color="#f4c95d" />
+    </linearGradient>
+    <linearGradient id="bg-ink" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101827" />
+      <stop offset="1" stop-color="#15313a" />
+    </linearGradient>
+    <linearGradient id="bg-light" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eefdf8" />
+      <stop offset="1" stop-color="#d9f1ff" />
+    </linearGradient>
+    <style>
+      .sheet { fill: #f6faf8; }
+      .tile { fill: #ffffff; stroke: #d8e6e1; stroke-width: 1.5; }
+      .label { fill: #28423d; font: 600 18px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .caption { fill: #5c706c; font: 500 12px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .dark-stroke { stroke: #0b1f33; }
+      .mint { fill: #67e8c9; }
+      .pale { fill: #a7f3d0; }
+      .gold { fill: #f4c95d; }
+      .ink { fill: #113847; }
+      .paper { fill: #f5fffb; }
+    </style>
+  </defs>
+
+  <rect class="sheet" width="1200" height="600" />
+  <text x="40" y="44" class="label" style="font-size:24px">Gaia icon candidates</text>
+  <text x="40" y="68" class="caption">Pick a number; the selected candidate can become docs/assets/gaia-icon.svg.</text>
+
+  <g transform="translate(40 92)">
+    <g>
+      <rect class="tile" width="200" height="200" rx="22" />
+      <g transform="translate(20 16) scale(0.3125)">
+        <rect width="512" height="512" rx="116" fill="url(#bg-navy)" />
+        <circle cx="256" cy="256" r="178" fill="none" stroke="#d6f8ee" stroke-opacity="0.14" stroke-width="34" />
+        <circle cx="256" cy="256" r="178" fill="none" stroke="url(#ring-mint)" stroke-width="18" />
+        <path d="M150 160L256 122L364 170L382 294L294 386L164 344Z" fill="none" stroke="#e6fff7" stroke-opacity="0.56" stroke-width="12" stroke-linecap="round" />
+        <path d="M150 160L256 256L364 170M256 256L382 294M256 256L294 386M256 256L164 344" fill="none" stroke="#f4c95d" stroke-opacity="0.5" stroke-width="8" stroke-linecap="round" />
+        <circle cx="256" cy="256" r="92" class="paper" />
+        <circle cx="256" cy="256" r="69" fill="none" stroke="#113847" stroke-width="18" stroke-linecap="round" stroke-dasharray="302 94" transform="rotate(-28 256 256)" />
+        <path d="M258 213C285 213 306 229 314 252H264" fill="none" stroke="#113847" stroke-width="18" stroke-linecap="round" />
+        <circle cx="256" cy="256" r="19" fill="#f4c95d" stroke="#113847" stroke-width="8" />
+        <g stroke="#0b1f33" stroke-width="9">
+          <circle cx="150" cy="160" r="25" class="mint" />
+          <circle cx="256" cy="122" r="25" class="pale" />
+          <circle cx="364" cy="170" r="25" class="gold" />
+          <circle cx="382" cy="294" r="25" class="mint" />
+          <circle cx="294" cy="386" r="25" class="pale" />
+          <circle cx="164" cy="344" r="25" class="gold" />
+        </g>
+      </g>
+      <text x="16" y="226" class="label">01</text>
+      <text x="52" y="225" class="caption">knowledge orbit</text>
+    </g>
+
+    <g transform="translate(230 0)">
+      <rect class="tile" width="200" height="200" rx="22" />
+      <g transform="translate(20 16) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="#0d2233" />
+        <path d="M256 68L426 166V346L256 444L86 346V166Z" fill="none" stroke="#67e8c9" stroke-width="22" stroke-linejoin="round" />
+        <path d="M256 68V444M86 166L426 346M426 166L86 346" stroke="#d6f8ee" stroke-opacity="0.42" stroke-width="16" stroke-linecap="round" />
+        <circle cx="256" cy="256" r="86" fill="#f5fffb" />
+        <path d="M207 259H305M256 210V308" stroke="#123a45" stroke-width="24" stroke-linecap="round" />
+        <circle cx="256" cy="68" r="31" class="gold" stroke="#0b1f33" stroke-width="10" />
+        <circle cx="426" cy="166" r="31" class="mint" stroke="#0b1f33" stroke-width="10" />
+        <circle cx="426" cy="346" r="31" class="pale" stroke="#0b1f33" stroke-width="10" />
+        <circle cx="256" cy="444" r="31" class="gold" stroke="#0b1f33" stroke-width="10" />
+        <circle cx="86" cy="346" r="31" class="mint" stroke="#0b1f33" stroke-width="10" />
+        <circle cx="86" cy="166" r="31" class="pale" stroke="#0b1f33" stroke-width="10" />
+      </g>
+      <text x="16" y="226" class="label">02</text>
+      <text x="52" y="225" class="caption">factor graph</text>
+    </g>
+
+    <g transform="translate(460 0)">
+      <rect class="tile" width="200" height="200" rx="22" />
+      <g transform="translate(20 16) scale(0.3125)">
+        <rect width="512" height="512" rx="118" fill="url(#bg-light)" />
+        <circle cx="256" cy="256" r="176" fill="none" stroke="#123a45" stroke-width="20" />
+        <path d="M146 274C164 166 248 120 346 154" fill="none" stroke="#67e8c9" stroke-width="30" stroke-linecap="round" />
+        <path d="M366 236C346 346 260 393 166 358" fill="none" stroke="#f4c95d" stroke-width="30" stroke-linecap="round" />
+        <path d="M199 266C230 209 279 194 326 226C279 221 245 239 224 280Z" fill="#123a45" />
+        <circle cx="256" cy="256" r="31" class="gold" stroke="#123a45" stroke-width="12" />
+        <circle cx="146" cy="274" r="24" class="mint" />
+        <circle cx="346" cy="154" r="24" class="pale" />
+        <circle cx="366" cy="236" r="24" class="gold" />
+        <circle cx="166" cy="358" r="24" class="mint" />
+      </g>
+      <text x="16" y="226" class="label">03</text>
+      <text x="52" y="225" class="caption">belief lens</text>
+    </g>
+
+    <g transform="translate(690 0)">
+      <rect class="tile" width="200" height="200" rx="22" />
+      <g transform="translate(20 16) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="#0b1f33" />
+        <circle cx="256" cy="256" r="160" fill="#102f3b" />
+        <path d="M164 194H348M164 256H348M164 318H348" stroke="#d6f8ee" stroke-width="20" stroke-linecap="round" />
+        <circle cx="164" cy="194" r="27" class="mint" stroke="#0b1f33" stroke-width="10" />
+        <circle cx="348" cy="194" r="27" class="gold" stroke="#0b1f33" stroke-width="10" />
+        <circle cx="164" cy="256" r="27" class="pale" stroke="#0b1f33" stroke-width="10" />
+        <circle cx="348" cy="256" r="27" class="mint" stroke="#0b1f33" stroke-width="10" />
+        <circle cx="164" cy="318" r="27" class="gold" stroke="#0b1f33" stroke-width="10" />
+        <circle cx="348" cy="318" r="27" class="pale" stroke="#0b1f33" stroke-width="10" />
+        <path d="M210 364C235 386 281 386 306 364" fill="none" stroke="#f4c95d" stroke-width="18" stroke-linecap="round" />
+      </g>
+      <text x="16" y="226" class="label">04</text>
+      <text x="52" y="225" class="caption">claim lattice</text>
+    </g>
+
+    <g transform="translate(920 0)">
+      <rect class="tile" width="200" height="200" rx="22" />
+      <g transform="translate(20 16) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="#113847" />
+        <circle cx="256" cy="256" r="172" fill="none" stroke="#a7f3d0" stroke-width="16" stroke-dasharray="24 20" />
+        <path d="M148 310C180 212 244 164 338 144C302 201 294 268 330 368C260 356 199 338 148 310Z" fill="#f5fffb" />
+        <path d="M181 295C218 256 266 231 321 218" fill="none" stroke="#123a45" stroke-width="20" stroke-linecap="round" />
+        <circle cx="338" cy="144" r="35" class="gold" stroke="#0b1f33" stroke-width="10" />
+        <circle cx="148" cy="310" r="35" class="mint" stroke="#0b1f33" stroke-width="10" />
+        <circle cx="330" cy="368" r="35" class="pale" stroke="#0b1f33" stroke-width="10" />
+      </g>
+      <text x="16" y="226" class="label">05</text>
+      <text x="52" y="225" class="caption">evidence field</text>
+    </g>
+  </g>
+
+  <g transform="translate(40 334)">
+    <g>
+      <rect class="tile" width="200" height="200" rx="22" />
+      <g transform="translate(20 16) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="url(#bg-ink)" />
+        <path d="M148 170L256 108L364 170V294L256 356L148 294Z" fill="#f5fffb" stroke="#67e8c9" stroke-width="18" stroke-linejoin="round" />
+        <path d="M148 294L256 232L364 294M256 108V232M256 232V356" fill="none" stroke="#123a45" stroke-width="16" stroke-linecap="round" />
+        <circle cx="148" cy="170" r="25" class="gold" stroke="#0b1f33" stroke-width="9" />
+        <circle cx="364" cy="170" r="25" class="mint" stroke="#0b1f33" stroke-width="9" />
+        <circle cx="256" cy="356" r="25" class="pale" stroke="#0b1f33" stroke-width="9" />
+        <path d="M178 402H334" stroke="#f4c95d" stroke-width="20" stroke-linecap="round" />
+      </g>
+      <text x="16" y="226" class="label">06</text>
+      <text x="52" y="225" class="caption">package cube</text>
+    </g>
+
+    <g transform="translate(230 0)">
+      <rect class="tile" width="200" height="200" rx="22" />
+      <g transform="translate(20 16) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="#eefdf8" />
+        <circle cx="256" cy="256" r="171" fill="#0f2f3a" />
+        <path d="M156 352C200 265 264 198 360 150" fill="none" stroke="#67e8c9" stroke-width="28" stroke-linecap="round" />
+        <path d="M164 176C218 210 300 286 350 360" fill="none" stroke="#f4c95d" stroke-width="22" stroke-linecap="round" />
+        <circle cx="256" cy="256" r="62" fill="#f5fffb" stroke="#a7f3d0" stroke-width="16" />
+        <path d="M232 256H280" stroke="#123a45" stroke-width="18" stroke-linecap="round" />
+        <circle cx="156" cy="352" r="30" class="mint" stroke="#0b1f33" stroke-width="10" />
+        <circle cx="360" cy="150" r="30" class="gold" stroke="#0b1f33" stroke-width="10" />
+        <circle cx="164" cy="176" r="23" class="pale" stroke="#0b1f33" stroke-width="9" />
+        <circle cx="350" cy="360" r="23" class="pale" stroke="#0b1f33" stroke-width="9" />
+      </g>
+      <text x="16" y="226" class="label">07</text>
+      <text x="52" y="225" class="caption">bayes paths</text>
+    </g>
+
+    <g transform="translate(460 0)">
+      <rect class="tile" width="200" height="200" rx="22" />
+      <g transform="translate(20 16) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="#0b1f33" />
+        <circle cx="256" cy="256" r="162" fill="none" stroke="#f4c95d" stroke-width="24" />
+        <path d="M332 190C309 162 271 150 232 160C178 174 145 226 159 281C174 338 230 371 289 356C331 346 363 317 376 279H270" fill="none" stroke="#f5fffb" stroke-width="42" stroke-linecap="round" stroke-linejoin="round" />
+        <circle cx="270" cy="279" r="27" class="mint" stroke="#0b1f33" stroke-width="10" />
+      </g>
+      <text x="16" y="226" class="label">08</text>
+      <text x="52" y="225" class="caption">G monogram</text>
+    </g>
+
+    <g transform="translate(690 0)">
+      <rect class="tile" width="200" height="200" rx="22" />
+      <g transform="translate(20 16) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="#123a45" />
+        <path d="M256 82L318 214L460 234L358 336L382 478L256 410L130 478L154 336L52 234L194 214Z" fill="#f5fffb" stroke="#67e8c9" stroke-width="18" stroke-linejoin="round" />
+        <path d="M194 214L256 410L318 214M154 336H358M130 478L460 234" fill="none" stroke="#123a45" stroke-opacity="0.45" stroke-width="14" stroke-linecap="round" />
+        <circle cx="256" cy="82" r="23" class="gold" stroke="#0b1f33" stroke-width="8" />
+        <circle cx="52" cy="234" r="23" class="mint" stroke="#0b1f33" stroke-width="8" />
+        <circle cx="460" cy="234" r="23" class="mint" stroke="#0b1f33" stroke-width="8" />
+        <circle cx="130" cy="478" r="23" class="pale" stroke="#0b1f33" stroke-width="8" />
+        <circle cx="382" cy="478" r="23" class="pale" stroke="#0b1f33" stroke-width="8" />
+      </g>
+      <text x="16" y="226" class="label">09</text>
+      <text x="52" y="225" class="caption">constellation</text>
+    </g>
+
+    <g transform="translate(920 0)">
+      <rect class="tile" width="200" height="200" rx="22" />
+      <g transform="translate(20 16) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="#f5fffb" />
+        <circle cx="256" cy="256" r="174" fill="#123a45" />
+        <circle cx="256" cy="256" r="126" fill="none" stroke="#67e8c9" stroke-width="22" />
+        <path d="M174 286C215 248 264 224 338 214" fill="none" stroke="#f4c95d" stroke-width="24" stroke-linecap="round" />
+        <path d="M181 181L331 331M331 181L181 331" stroke="#d6f8ee" stroke-width="16" stroke-linecap="round" opacity="0.58" />
+        <circle cx="174" cy="286" r="28" class="mint" stroke="#0b1f33" stroke-width="9" />
+        <circle cx="338" cy="214" r="28" class="gold" stroke="#0b1f33" stroke-width="9" />
+        <circle cx="256" cy="256" r="22" class="pale" stroke="#0b1f33" stroke-width="9" />
+      </g>
+      <text x="16" y="226" class="label">10</text>
+      <text x="52" y="225" class="caption">reasoning seal</text>
+    </g>
+  </g>
+</svg>
