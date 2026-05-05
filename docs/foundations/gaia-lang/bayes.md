@@ -4,18 +4,18 @@
 updates. It decomposes the paper narrative into reviewable Gaia claims:
 
 1. `parameter(variable, value)` declares the hypothesis shape.
-2. `bayes.predict(hypotheses, observable, distribution=...)` declares the
-   predictive model.
+2. `bayes.model(hypothesis, observable=..., distribution=...)` declares one
+   predictive model helper for one hypothesis.
 3. `observation(...)` records measured data, optionally with Normal additive
    noise.
-4. `bayes.likelihood(data, via=model)` computes likelihood factors and lowers
-   them to existing IR `infer` strategies and deterministic exclusivity
-   operators.
+4. `bayes.likelihood(data, model=..., against=[...])` computes likelihood
+   factors and lowers them to existing IR `infer` strategies and deterministic
+   exclusivity operators.
 
 The Bayes module does not add IR knowledge types, BP factor types, or new
-operator enums. `PredictiveModel` and `ComparisonResult` are claim-shaped
-runtime objects with `metadata["bayes"]["role"]` set to `"prediction"` and
-`"comparison"` respectively.
+operator enums. `PredictiveModel` and `Likelihood` are action-shaped runtime
+objects; their helper claims carry `metadata["bayes"]["role"]` values
+`"prediction"` and `"comparison"` respectively.
 
 ## Import Surface
 
@@ -27,11 +27,8 @@ from gaia.lang import bayes
 dist = bayes.Binomial(n=395, p=0.75)
 ```
 
-Convenience root imports also work:
-
-```python
-from gaia.lang import Binomial, Normal, likelihood, predict
-```
+`from gaia.lang import predict` is the core Bayes-free prediction verb. Keep
+Bayes distribution literals and likelihood helpers under `gaia.lang.bayes`.
 
 The v1 distribution set is:
 
@@ -63,15 +60,22 @@ try:
     h_3_1 = parameter(theta, 0.75, content="theta = 0.75.", prior=0.5, label="h_3_1")
     h_null = parameter(theta, 0.5, content="theta = 0.5.", prior=0.5, label="h_null")
     data = observation(count=k, content="Observed k = 295.", prior=0.999, label="data")
-    model = bayes.predict(
-        {h_3_1, h_null},
-        k,
+    model_3_1 = bayes.model(
+        h_3_1,
+        observable=k,
         distribution=bayes.Binomial(n=395, p=theta),
-        label="f2_model",
+        label="f2_model_3_1",
+    )
+    model_null = bayes.model(
+        h_null,
+        observable=k,
+        distribution=bayes.Binomial(n=395, p=theta),
+        label="f2_model_null",
     )
     comparison = bayes.likelihood(
         data,
-        via=model,
+        model=model_3_1,
+        against=[model_null],
         exclusivity="exhaustive_pairwise_complement",
         label="f2_likelihood",
     )
@@ -114,7 +118,7 @@ against the maximum log likelihood, and emits one existing IR `infer` strategy:
 
 ```text
 premises = [H_i]
-conclusion = ComparisonResult
+conclusion = model_preference helper
 conditional_probabilities = [0.5, clamp(exp(logL_i - logL_max))]
 ```
 
@@ -124,10 +128,11 @@ The raw log likelihood table is preserved on the compiled comparison claim at
 Exclusivity is structural:
 
 - `"none"` emits no relation operators.
-- `"pairwise_contradiction"` emits pairwise `contradiction` operators when they
-  do not already exist.
-- `"exhaustive_pairwise_complement"` emits `complement` for two hypotheses, or
-  pairwise contradictions plus a clamped disjunction helper for three or more.
+- `"pairwise_contradiction"` creates reviewable pairwise `Contradict` actions
+  when they do not already exist.
+- `"exhaustive_pairwise_complement"` creates a reviewable `Exclusive` action for
+  two hypotheses, or pairwise `Contradict` actions plus a clamped disjunction
+  helper for three or more.
 
 All of these are rigid operators. Probability lives only in claim priors and
 `infer` CPTs.
@@ -144,7 +149,8 @@ For custom likelihood calculations, pass runtime Claim objects as keys:
 ```python
 comparison = bayes.likelihood(
     data,
-    via=model,
+    model=model_3_1,
+    against=[model_null],
     precomputed={h_3_1: -1.2, h_null: -5.1},
 )
 ```

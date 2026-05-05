@@ -9,6 +9,7 @@ from gaia.lang import (
     implies,
     infer,
     observe,
+    predict,
 )
 from gaia.lang.compiler import compile_package_artifact
 from gaia.lang.review.manifest import generate_review_manifest
@@ -38,6 +39,13 @@ def test_audit_question_for_infer():
     assert "association" not in question.lower()
 
 
+def test_audit_question_for_predict():
+    question = generate_audit_question("predict", conclusion_label="f2_prediction")
+    assert "[@f2_prediction]" in question
+    assert "predict" in question.lower()
+    assert "premises" not in question.lower()
+
+
 def test_audit_question_for_equal():
     question = generate_audit_question("equal", a_label="pred", b_label="obs")
     assert "[@pred]" in question
@@ -59,6 +67,8 @@ def test_generate_review_manifest_for_v6_actions():
         b.label = "b"
         c = derive("C.", given=(a, b), rationale="A and B imply C.", label="derive_c")
         c.label = "c"
+        pred = predict("Prediction.", given=a, rationale="A predicts this.", label="predict_p")
+        pred.label = "pred"
         data = observe("Observation.", rationale="Measured.", label="observe_data")
         data.label = "data"
         eq = equal(c, data, rationale="Same.", label="same")
@@ -78,12 +88,18 @@ def test_generate_review_manifest_for_v6_actions():
 
     compiled = compile_package_artifact(pkg)
     manifest = generate_review_manifest(compiled)
-    assert len(manifest.reviews) == 6
+    assert len(manifest.reviews) == 7
     assert {review.status for review in manifest.reviews} == {"unreviewed"}
 
     by_action = {review.action_label: review for review in manifest.reviews}
     assert by_action["github:review_pkg::action::derive_c"].target_kind == "strategy"
     assert "[@c]" in by_action["github:review_pkg::action::derive_c"].audit_question
+    assert by_action["github:review_pkg::action::predict_p"].target_kind == "strategy"
+    assert "[@pred]" in by_action["github:review_pkg::action::predict_p"].audit_question
+    assert (
+        "listed premises"
+        not in by_action["github:review_pkg::action::predict_p"].audit_question.lower()
+    )
     assert by_action["github:review_pkg::action::observe_data"].target_kind == "knowledge"
     assert by_action["github:review_pkg::action::observe_data"].target_id == (
         "github:review_pkg::data"

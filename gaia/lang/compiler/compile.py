@@ -33,7 +33,6 @@ from gaia.lang.refs import (
     resolve,
     validate_groups,
 )
-from gaia.lang.bayes.compiler import lower_bayes_claims
 from gaia.lang.compiler.lower_formula import lower_claim_formula
 from gaia.lang.runtime import Knowledge, Operator
 from gaia.lang.runtime.action import (
@@ -48,6 +47,7 @@ from gaia.lang.runtime.action import (
     Exclusive,
     Infer as InferAction,
     Observe,
+    Predict,
     Support,
 )
 from gaia.lang.runtime.package import CollectedPackage
@@ -746,6 +746,8 @@ def compile_package_artifact(
             pattern = "observation"
         elif isinstance(action, Compute):
             pattern = "computation"
+        elif isinstance(action, Predict):
+            pattern = "prediction"
         else:
             pattern = "derivation"
         extra = {"compute": _compute_metadata(action.fn)} if isinstance(action, Compute) else None
@@ -1027,8 +1029,16 @@ def compile_package_artifact(
         _record_action_target(action_label, strategy.strategy_id)
         return strategy
 
+    def _is_bayes_action(action: Any) -> bool:
+        bayes_meta = dict(getattr(action, "metadata", {}) or {}).get("bayes")
+        if not isinstance(bayes_meta, dict):
+            return False
+        return bayes_meta.get("action") in {"predictive_model", "likelihood"}
+
     def compile_action(action: Any, action_index: int) -> IrStrategy | IrOperator | None:
         if isinstance(action, DependsOn):
+            return None
+        if _is_bayes_action(action):
             return None
         if isinstance(action, Support):
             return _compile_support_action(action, action_index)
@@ -1127,10 +1137,6 @@ def compile_package_artifact(
         _record_action_target(action_label, compose_id)
         action_target_ids_by_object[id(action)] = compose_id
         return ir_compose
-
-    for action_index, action in enumerate(getattr(pkg, "actions", [])):
-        if isinstance(action, Compose):
-            ir_composes.append(_compile_compose_action(action, action_index))
 
     # Build label-to-QID table from the full knowledge closure (local + imported foreign nodes).
     label_to_id: dict[str, str] = {}
@@ -1256,11 +1262,19 @@ def compile_package_artifact(
             parameter_updates=lowered.parameter_updates,
         )
 
+    from gaia.lang.bayes.compiler import lower_bayes_claims
+
+    action_labels_by_object = {
+        id(action): _action_label(action, pkg, action_index)
+        for action_index, action in enumerate(getattr(pkg, "actions", []))
+    }
     bayes_lowered = lower_bayes_claims(
         knowledge_nodes,
+        actions=tuple(getattr(pkg, "actions", ())),
         namespace=pkg.namespace,
         package_name=pkg.name,
         knowledge_map=knowledge_map,
+        action_labels_by_object=action_labels_by_object,
         existing_operators=[
             *ir_operators,
             *action_operators,
@@ -1272,6 +1286,21 @@ def compile_package_artifact(
         metadata_updates=bayes_lowered.metadata_updates,
         parameter_updates={},
     )
+    action_label_map.update(bayes_lowered.action_label_map)
+    target_action_labels_by_id.update(bayes_lowered.target_action_labels_by_id)
+    for action in getattr(pkg, "actions", []):
+        if not _is_bayes_action(action):
+            continue
+        action_label = action_labels_by_object.get(id(action))
+        if action_label is None:
+            continue
+        target_id = bayes_lowered.action_label_map.get(action_label)
+        if target_id is not None:
+            action_target_ids_by_object[id(action)] = target_id
+
+    for action_index, action in enumerate(getattr(pkg, "actions", [])):
+        if isinstance(action, Compose):
+            ir_composes.append(_compile_compose_action(action, action_index))
 
     module_order = pkg._module_order if pkg._module_order else None
     module_titles = getattr(pkg, "_module_titles", None) or None

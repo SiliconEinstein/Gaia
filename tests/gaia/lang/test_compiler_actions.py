@@ -9,6 +9,7 @@ from gaia.lang import (
     exclusive,
     infer,
     observe,
+    predict,
 )
 from gaia.lang.compiler import compile_package_artifact
 from gaia.lang.runtime.package import CollectedPackage
@@ -105,6 +106,29 @@ def test_compile_compute_action_to_deduction_with_compute_metadata():
     assert strategy.metadata["action_label"] == "github:v6_actions::action::sum"
     assert "compute" in strategy.metadata
     assert strategy.metadata["compute"]["function_ref"]
+
+
+def test_compile_predict_action_to_prediction_strategy():
+    with CollectedPackage("v6_actions") as pkg:
+        h = Claim("Hypothesis predicts the measured outcome.")
+        h.label = "h"
+        setup = Claim("Experimental setup is calibrated.")
+        setup.label = "setup"
+        prediction = predict(
+            h,
+            given=setup,
+            rationale="The calibrated setup makes this hypothesis falsifiable.",
+            label="predict_h",
+        )
+        prediction.label = "prediction"
+
+    compiled = compile_package_artifact(pkg)
+    strategy = compiled.graph.strategies[0]
+    assert strategy.type == "deduction"
+    assert strategy.premises == ["github:v6_actions::setup"]
+    assert strategy.conclusion == "github:v6_actions::prediction"
+    assert strategy.metadata["pattern"] == "prediction"
+    assert strategy.metadata["action_label"] == "github:v6_actions::action::predict_h"
 
 
 def test_compile_equal_contradict_and_exclusive_actions_to_operators():

@@ -11,6 +11,7 @@ from gaia.lang.runtime.action import (
     Exclusive,
     Infer,
     Observe,
+    Predict,
     Probabilistic,
     Scaffold,
     Structural,
@@ -29,7 +30,12 @@ from gaia.lang.runtime.knowledge import (
     Setting,
 )
 from gaia.lang.runtime.nodes import Operator, Step, Strategy
-from gaia.lang.runtime.roles import RoleOccurrence, roles_for_claim, roles_for_package
+from gaia.lang.runtime.roles import (
+    RoleOccurrence,
+    register_role_handler,
+    roles_for_claim,
+    roles_for_package,
+)
 from gaia.lang.runtime.variable import Variable
 
 __all__ = [
@@ -54,6 +60,7 @@ __all__ = [
     "Note",
     "Observe",
     "Operator",
+    "Predict",
     "Probabilistic",
     "Question",
     "RoleOccurrence",
@@ -66,6 +73,7 @@ __all__ = [
     "Variable",
     "compose",
     "composition",
+    "register_role_handler",
     "roles_for_claim",
     "roles_for_package",
 ]

@@ -178,10 +178,20 @@ k = Variable(symbol="k", domain=Nat, value=295)
 h_3_1 = parameter(theta, 0.75, prior=0.5, label="h_3_1")
 h_null = parameter(theta, 0.5, prior=0.5, label="h_null")
 data = observation(count=k, prior=0.999, label="data")
-model = bayes.predict({h_3_1, h_null}, k, distribution=bayes.Binomial(n=395, p=theta))
+model_3_1 = bayes.model(
+    h_3_1,
+    observable=k,
+    distribution=bayes.Binomial(n=395, p=theta),
+)
+model_null = bayes.model(
+    h_null,
+    observable=k,
+    distribution=bayes.Binomial(n=395, p=theta),
+)
 comparison = bayes.likelihood(
     data,
-    via=model,
+    model=model_3_1,
+    against=[model_null],
     exclusivity="exhaustive_pairwise_complement",
 )
 ```
@@ -214,7 +224,7 @@ Deterministic computation. Use either `compute(ResultClaim, fn=..., given=...)` 
 ### `infer(evidence, *, hypothesis, given=(), p_e_given_h, p_e_given_not_h=0.5, background=None, rationale="", label=None)`
 
 Low-level probabilistic prediction/evidence link with a hand-written CPT. Prefer
-`bayes.predict(...)` + `bayes.likelihood(...)` when the probability comes from
+`bayes.model(...)` + `bayes.likelihood(...)` when the probability comes from
 a predictive distribution and observed data. Use `infer(...)` when the author is
 directly committing to `P(E|H)` and `P(E|not H)`.
 Returns the evidence claim. The action still creates an internal likelihood helper as the review target for accepting the probability warrant.

@@ -1,11 +1,10 @@
-"""Lower Bayes runtime claims into existing Gaia IR strategies/operators."""
+"""Lower Bayes runtime actions into existing Gaia IR strategies/operators."""
 
 from __future__ import annotations
 
 import hashlib
 import math
 from dataclasses import dataclass, field
-from itertools import combinations
 from typing import Any
 
 from gaia.bp.factor_graph import CROMWELL_EPS
@@ -14,7 +13,7 @@ from gaia.ir import Operator as IrOperator
 from gaia.ir import Strategy as IrStrategy
 from gaia.ir.knowledge import KnowledgeType, make_qid
 from gaia.lang.bayes.distributions.base import _is_deferred_reference
-from gaia.lang.bayes.runtime import ComparisonResult, PredictiveModel
+from gaia.lang.bayes.runtime import Likelihood, PredictiveModel
 from gaia.lang.formula.connective import Land
 from gaia.lang.formula.predicate import Equals
 from gaia.lang.formula.term import Constant
@@ -27,40 +26,61 @@ class BayesLoweringResult:
     operators: list[IrOperator] = field(default_factory=list)
     strategies: list[IrStrategy] = field(default_factory=list)
     metadata_updates: dict[str, dict[str, Any]] = field(default_factory=dict)
+    action_label_map: dict[str, str] = field(default_factory=dict)
+    target_action_labels_by_id: dict[str, str] = field(default_factory=dict)
 
 
 def lower_bayes_claims(
     knowledge_nodes: list[Knowledge],
     *,
+    actions: list[Any] | tuple[Any, ...] = (),
     namespace: str,
     package_name: str,
     knowledge_map: dict[int, str],
+    action_labels_by_object: dict[int, str] | None = None,
     existing_operators: list[IrOperator] | None = None,
 ) -> BayesLoweringResult:
     knowledges: list[IrKnowledge] = []
     operators: list[IrOperator] = []
     strategies: list[IrStrategy] = []
     metadata_updates: dict[str, dict[str, Any]] = {}
+    action_label_map: dict[str, str] = {}
+    target_action_labels_by_id: dict[str, str] = {}
     existing_relations = _existing_relations(existing_operators or [])
+    labels_by_object = action_labels_by_object or {}
 
-    for node in knowledge_nodes:
-        if isinstance(node, PredictiveModel):
-            metadata_updates[knowledge_map[id(node)]] = _prediction_metadata(node, knowledge_map)
-
-    for node in knowledge_nodes:
-        if not isinstance(node, ComparisonResult):
+    for action in actions:
+        if not isinstance(action, PredictiveModel):
             continue
-        lowered = _lower_comparison(
-            node,
+        action_label = labels_by_object.get(id(action))
+        helper_id = knowledge_map[id(action.helper)]
+        metadata_updates[helper_id] = _prediction_metadata(
+            action,
+            knowledge_map,
+            action_label=action_label,
+        )
+        if action_label:
+            action_label_map[action_label] = helper_id
+            target_action_labels_by_id[helper_id] = action_label
+
+    for action in actions:
+        if not isinstance(action, Likelihood):
+            continue
+        action_label = labels_by_object.get(id(action))
+        lowered = _lower_likelihood(
+            action,
             namespace=namespace,
             package_name=package_name,
             knowledge_map=knowledge_map,
+            action_label=action_label,
             existing_relations=existing_relations,
         )
         knowledges.extend(lowered.knowledges)
         operators.extend(lowered.operators)
         strategies.extend(lowered.strategies)
         metadata_updates.update(lowered.metadata_updates)
+        action_label_map.update(lowered.action_label_map)
+        target_action_labels_by_id.update(lowered.target_action_labels_by_id)
         existing_relations.update(_existing_relations(lowered.operators))
 
     return BayesLoweringResult(
@@ -68,35 +88,78 @@ def lower_bayes_claims(
         operators=operators,
         strategies=strategies,
         metadata_updates=metadata_updates,
+        action_label_map=action_label_map,
+        target_action_labels_by_id=target_action_labels_by_id,
     )
 
 
-def _prediction_metadata(model: PredictiveModel, knowledge_map: dict[int, str]) -> dict[str, Any]:
-    return {
-        "bayes": {
-            "role": "prediction",
-            "distribution": model.distribution.model_dump(),
-            "hypotheses": [knowledge_map[id(h)] for h in model.hypotheses],
-            "observable": _variable_descriptor(model.observable),
-        }
+def _prediction_metadata(
+    action: PredictiveModel,
+    knowledge_map: dict[int, str],
+    *,
+    action_label: str | None,
+) -> dict[str, Any]:
+    if action.hypothesis is None or action.observable is None or action.distribution is None:
+        raise ValueError(
+            "Bayes PredictiveModel action requires hypothesis, observable, distribution"
+        )
+    bayes = {
+        "role": "prediction",
+        "distribution": action.distribution.model_dump(),
+        "hypothesis": knowledge_map[id(action.hypothesis)],
+        "hypotheses": [knowledge_map[id(action.hypothesis)]],
+        "observable": _variable_descriptor(action.observable),
     }
+    payload: dict[str, Any] = {"bayes": bayes}
+    if action_label:
+        payload["review_target"] = {"action_label": action_label, "pattern": "prediction"}
+    return payload
 
 
-def _lower_comparison(
-    result: ComparisonResult,
+def _model_action(helper: Claim) -> PredictiveModel:
+    for action in helper.supports:
+        if isinstance(action, PredictiveModel) and action.helper is helper:
+            return action
+    raise ValueError(f"{helper.label or helper.content!r} is not a bayes.model() helper")
+
+
+def _likelihood_model_actions(action: Likelihood) -> tuple[PredictiveModel, ...]:
+    if action.model is None:
+        raise ValueError("Bayes Likelihood action requires model")
+    return (_model_action(action.model), *(_model_action(helper) for helper in action.against))
+
+
+def _model_hypotheses(action: Likelihood) -> tuple[Claim, ...]:
+    hypotheses = tuple(
+        model_action.hypothesis for model_action in _likelihood_model_actions(action)
+    )
+    if any(hypothesis is None for hypothesis in hypotheses):
+        raise ValueError("Bayes PredictiveModel action is missing a hypothesis")
+    return tuple(hypothesis for hypothesis in hypotheses if hypothesis is not None)
+
+
+def _lower_likelihood(
+    action: Likelihood,
     *,
     namespace: str,
     package_name: str,
     knowledge_map: dict[int, str],
+    action_label: str | None,
     existing_relations: set[tuple[str, frozenset[str]]],
 ) -> BayesLoweringResult:
-    cmp_id = knowledge_map[id(result)]
-    model_id = knowledge_map[id(result.via)]
-    data_ids = [knowledge_map[id(d)] for d in result.data]
-    likelihoods = _comparison_likelihoods(result)
+    if action.helper is None or action.model is None:
+        raise ValueError("Bayes Likelihood action requires helper and model")
+    cmp_id = knowledge_map[id(action.helper)]
+    model_id = knowledge_map[id(action.model)]
+    against_ids = [knowledge_map[id(model)] for model in action.against]
+    data_ids = [knowledge_map[id(d)] for d in action.data]
+    model_actions = _likelihood_model_actions(action)
+    hypotheses = _model_hypotheses(action)
+    likelihoods = _likelihoods(action, model_actions)
+    action.log_likelihoods = dict(likelihoods)
     if not any(math.isfinite(value) for value in likelihoods.values()):
         raise ValueError(
-            f"BayesLikelihoodError: likelihood {result.label or result.content!r} has zero "
+            f"BayesLikelihoodError: likelihood {action.label or action.helper.content!r} has zero "
             "support under every hypothesis. Fix: check the observation value, the "
             "predictive distribution support, or use precomputed likelihoods."
         )
@@ -105,41 +168,49 @@ def _lower_comparison(
         cmp_id: {
             "bayes": {
                 "role": "comparison",
-                "exclusivity": result.exclusivity,
+                "exclusivity": action.exclusivity,
                 "likelihoods": {knowledge_map[id(h)]: value for h, value in likelihoods.items()},
                 "data": data_ids,
                 "model": model_id,
+                "against": against_ids,
+                "hypotheses": [knowledge_map[id(h)] for h in hypotheses],
             }
         }
     }
 
     log_l_max = max(likelihoods.values())
     strategies = []
+    target_action_labels_by_id: dict[str, str] = {}
     for hypothesis, log_likelihood in likelihoods.items():
         lr = math.exp(log_likelihood - log_l_max)
         p1 = _clamp((1.0 - CROMWELL_EPS) * lr)
         h_id = knowledge_map[id(hypothesis)]
-        strategies.append(
-            IrStrategy(
-                scope="local",
-                type="infer",
-                premises=[h_id],
-                conclusion=cmp_id,
-                conditional_probabilities=[0.5, p1],
-                metadata={
-                    "bayes": {
-                        "role": "likelihood_factor",
-                        "comparison": cmp_id,
-                        "hypothesis": h_id,
-                        "log_likelihood": log_likelihood,
-                    }
-                },
-            )
+        metadata: dict[str, Any] = {
+            "pattern": "inference",
+            "bayes": {
+                "role": "likelihood_factor",
+                "comparison": cmp_id,
+                "hypothesis": h_id,
+                "log_likelihood": log_likelihood,
+            },
+        }
+        if action_label:
+            metadata["action_label"] = action_label
+        strategy = IrStrategy(
+            scope="local",
+            type="infer",
+            premises=[h_id],
+            conclusion=cmp_id,
+            conditional_probabilities=[0.5, p1],
+            metadata=metadata,
         )
+        strategies.append(strategy)
+        if action_label and strategy.strategy_id:
+            target_action_labels_by_id[strategy.strategy_id] = action_label
 
-    helper_knowledges, operators = _exclusivity_operators(
-        list(likelihoods),
-        result,
+    helper_knowledges, operators = _exhaustive_disjunction_operator(
+        list(hypotheses),
+        action,
         namespace=namespace,
         package_name=package_name,
         knowledge_map=knowledge_map,
@@ -151,19 +222,48 @@ def _lower_comparison(
         operators=operators,
         strategies=strategies,
         metadata_updates=metadata_updates,
+        action_label_map={action_label: cmp_id} if action_label else {},
+        target_action_labels_by_id=target_action_labels_by_id,
     )
 
 
-def _comparison_likelihoods(result: ComparisonResult) -> dict[Claim, float]:
-    if result.precomputed is not None:
-        return {hypothesis: float(value) for hypothesis, value in result.precomputed.items()}
-
+def _likelihoods(
+    action: Likelihood,
+    model_actions: tuple[PredictiveModel, ...],
+) -> dict[Claim, float]:
+    if action.precomputed is not None:
+        hypotheses = {
+            model_action.hypothesis
+            for model_action in model_actions
+            if model_action.hypothesis is not None
+        }
+        for key in action.precomputed:
+            if not isinstance(key, Claim) or key not in hypotheses:
+                raise ValueError("precomputed likelihood keys must be original hypothesis Claims")
+        provided = set(action.precomputed)
+        if provided != hypotheses:
+            missing = sorted((claim.label or claim.content for claim in hypotheses - provided))
+            details = []
+            if missing:
+                details.append(f"missing {missing}")
+            suffix = f": {', '.join(details)}" if details else ""
+            raise ValueError(
+                "precomputed likelihoods must cover exactly the model hypotheses" + suffix
+            )
+        return {hypothesis: float(value) for hypothesis, value in action.precomputed.items()}
     likelihoods: dict[Claim, float] = {}
-    for hypothesis in result.via.hypotheses:
-        distribution = _bind_distribution(result.via.distribution, hypothesis)
+    for model_action in model_actions:
+        if (
+            model_action.hypothesis is None
+            or model_action.distribution is None
+            or model_action.observable is None
+        ):
+            raise ValueError("Bayes PredictiveModel action is incomplete")
+        hypothesis = model_action.hypothesis
+        distribution = _bind_distribution(model_action.distribution, hypothesis)
         total = 0.0
-        for data_claim in result.data:
-            value = _observation_value(data_claim, result.via.observable)
+        for data_claim in action.data:
+            value = _observation_value(data_claim, model_action.observable)
             total += _log_likelihood(distribution, value, data_claim)
         likelihoods[hypothesis] = total
     return likelihoods
@@ -285,9 +385,9 @@ def _logsumexp(values: list[float]) -> float:
     return m + math.log(sum(math.exp(v - m) for v in finite))
 
 
-def _exclusivity_operators(
+def _exhaustive_disjunction_operator(
     hypotheses: list[Claim],
-    result: ComparisonResult,
+    action: Likelihood,
     *,
     namespace: str,
     package_name: str,
@@ -295,105 +395,33 @@ def _exclusivity_operators(
     cmp_id: str,
     existing_relations: set[tuple[str, frozenset[str]]],
 ) -> tuple[list[IrKnowledge], list[IrOperator]]:
-    if result.exclusivity == "none" or len(hypotheses) < 2:
+    if action.exclusivity != "exhaustive_pairwise_complement" or len(hypotheses) < 3:
         return [], []
-    if result.exclusivity == "exhaustive_pairwise_complement" and len(hypotheses) == 2:
-        relation_key = ("complement", frozenset(knowledge_map[id(h)] for h in hypotheses))
-        if relation_key in existing_relations:
-            return [], []
-        return _pair_operator(
-            "complement",
-            hypotheses[0],
-            hypotheses[1],
-            namespace=namespace,
-            package_name=package_name,
-            knowledge_map=knowledge_map,
-            cmp_id=cmp_id,
-        )
+    variables = [knowledge_map[id(h)] for h in hypotheses]
+    relation_key = ("disjunction", frozenset(variables))
+    if relation_key in existing_relations:
+        return [], []
 
-    knowledges: list[IrKnowledge] = []
-    operators: list[IrOperator] = []
-    for a, b in combinations(hypotheses, 2):
-        a_id = knowledge_map[id(a)]
-        b_id = knowledge_map[id(b)]
-        if ("contradiction", frozenset([a_id, b_id])) in existing_relations:
-            continue
-        helper, op = _pair_operator(
-            "contradiction",
-            a,
-            b,
-            namespace=namespace,
-            package_name=package_name,
-            knowledge_map=knowledge_map,
-            cmp_id=cmp_id,
-        )
-        knowledges.extend(helper)
-        operators.extend(op)
-
-    if result.exclusivity == "exhaustive_pairwise_complement":
-        label = _helper_label("bayes_exhaustive", cmp_id)
-        helper_id = make_qid(namespace, package_name, label)
-        knowledges.append(
-            IrKnowledge(
-                id=helper_id,
-                label=label,
-                type=KnowledgeType.CLAIM,
-                content="At least one Bayes hypothesis in the comparison is true.",
-                metadata={
-                    "generated": True,
-                    "review": False,
-                    "helper_kind": "bayes_exhaustive_result",
-                    "prior": 1.0 - CROMWELL_EPS,
-                    "bayes": {"auto_generated_by": f"likelihood:{cmp_id}"},
-                },
-            )
-        )
-        operators.append(
-            IrOperator(
-                operator_id=_operator_id(
-                    "disjunction", [knowledge_map[id(h)] for h in hypotheses], helper_id
-                ),
-                scope="local",
-                operator="disjunction",
-                variables=[knowledge_map[id(h)] for h in hypotheses],
-                conclusion=helper_id,
-                metadata={"bayes": {"auto_generated_by": f"likelihood:{cmp_id}"}},
-            )
-        )
-    return knowledges, operators
-
-
-def _pair_operator(
-    operator: str,
-    a: Claim,
-    b: Claim,
-    *,
-    namespace: str,
-    package_name: str,
-    knowledge_map: dict[int, str],
-    cmp_id: str,
-) -> tuple[list[IrKnowledge], list[IrOperator]]:
-    a_id = knowledge_map[id(a)]
-    b_id = knowledge_map[id(b)]
-    label = _helper_label(f"bayes_{operator}", "|".join(sorted([cmp_id, a_id, b_id])))
+    label = _helper_label("bayes_exhaustive", cmp_id)
     helper_id = make_qid(namespace, package_name, label)
     helper = IrKnowledge(
         id=helper_id,
         label=label,
         type=KnowledgeType.CLAIM,
-        content=f"Bayes auto-generated {operator} constraint.",
+        content="At least one Bayes hypothesis in the comparison is true.",
         metadata={
             "generated": True,
             "review": False,
-            "helper_kind": f"{operator}_result",
+            "helper_kind": "bayes_exhaustive_result",
+            "prior": 1.0 - CROMWELL_EPS,
             "bayes": {"auto_generated_by": f"likelihood:{cmp_id}"},
         },
     )
     op = IrOperator(
-        operator_id=_operator_id(operator, [a_id, b_id], helper_id),
+        operator_id=_operator_id("disjunction", variables, helper_id),
         scope="local",
-        operator=operator,
-        variables=[a_id, b_id],
+        operator="disjunction",
+        variables=variables,
         conclusion=helper_id,
         metadata={"bayes": {"auto_generated_by": f"likelihood:{cmp_id}"}},
     )

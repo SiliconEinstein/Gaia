@@ -62,6 +62,11 @@ class Compute(Support):
 
 
 @dataclass
+class Predict(Support):
+    """Falsifiable prediction from premises or a model claim."""
+
+
+@dataclass
 class Scaffold(Action):
     """Formalization workflow record. Does not enter IR/BP as a warrant."""
 

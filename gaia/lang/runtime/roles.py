@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Callable
 
 from gaia.lang.runtime.action import (
     Action,
@@ -19,6 +20,7 @@ from gaia.lang.runtime.action import (
     Exclusive,
     Infer,
     Observe,
+    Predict,
     Support,
 )
 from gaia.lang.runtime.knowledge import Claim
@@ -38,6 +40,17 @@ class RoleOccurrence:
 
 
 ActionGraph = "CollectedPackage | Sequence[Action]"
+RoleAdder = Callable[[Claim | None, str], None]
+RoleHandler = Callable[[Action, RoleAdder], None]
+
+_ROLE_HANDLERS: dict[type[Action], RoleHandler] = {}
+
+
+def register_role_handler(action_type: type[Action], handler: RoleHandler) -> None:
+    """Register role projection for an optional action subclass."""
+    if not isinstance(action_type, type) or not issubclass(action_type, Action):
+        raise TypeError("action_type must be an Action subclass")
+    _ROLE_HANDLERS[action_type] = handler
 
 
 def roles_for_claim(
@@ -121,6 +134,12 @@ def _collect_action_roles(
             )
         )
 
+    for cls in type(action).__mro__:
+        handler = _ROLE_HANDLERS.get(cls)
+        if handler is not None:
+            handler(action, add)
+            break
+
     # Match concrete classes before compatibility base classes.
     if isinstance(action, Observe):
         add(action.conclusion, "observation")
@@ -130,6 +149,10 @@ def _collect_action_roles(
         add(action.conclusion, "computed_result")
         for given in action.given:
             add(given, "compute_input")
+    elif isinstance(action, Predict):
+        add(action.conclusion, "prediction")
+        for given in action.given:
+            add(given, "prediction_basis")
     elif isinstance(action, Derive):
         add(action.conclusion, "conclusion")
         for given in action.given:

@@ -12,6 +12,7 @@ _TEMPLATES = {
     "derive": "Do the listed premises suffice to establish [@{conclusion_label}]?",
     "observe": "Is the observation of [@{conclusion_label}] reliable under the stated conditions?",
     "compute": "Is the computation of [@{conclusion_label}] correctly implemented?",
+    "predict": "Does [@{conclusion_label}] state a falsifiable prediction from the action basis?",
     "infer": (
         "Does [@{hypothesis_label}] predict [@{evidence_label}]{given_clause} at the stated "
         "conditional probabilities?"

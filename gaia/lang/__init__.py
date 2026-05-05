@@ -1,20 +1,7 @@
 """Gaia Lang v5 — Python DSL for knowledge authoring."""
 
-from . import bayes
-from gaia.lang.bayes import (
-    Beta,
-    Binomial,
-    Cauchy,
-    ChiSquared,
-    Exponential,
-    Gamma,
-    LogNormal,
-    Normal,
-    Poisson,
-    StudentT,
-    likelihood,
-    predict,
-)
+from importlib import import_module
+
 from gaia.lang.dsl import (
     abduction,
     analogy,
@@ -62,6 +49,7 @@ from gaia.lang.dsl import (
     observation,
     or_,
     parameter,
+    predict,
     question,
     setting,
     support,
@@ -115,6 +103,7 @@ from gaia.lang.runtime import (
     Note,
     Observe,
     Operator,
+    Predict,
     Probabilistic,
     Question,
     RoleOccurrence,
@@ -130,17 +119,22 @@ from gaia.lang.runtime import (
 )
 from gaia.lang.types.primitives import Bool, Nat, Probability, Real
 
+
+def __getattr__(name: str):
+    if name == "bayes":
+        module = import_module("gaia.lang.bayes")
+        globals()["bayes"] = module
+        return module
+    raise AttributeError(f"module 'gaia.lang' has no attribute {name!r}")
+
+
 __all__ = [
     "Action",
     "ArithOp",
     "Associate",
     "bayes",
-    "Beta",
-    "Binomial",
     "Bool",
-    "Cauchy",
     "Causes",
-    "ChiSquared",
     "Claim",
     "ClaimAtom",
     "ClaimKind",
@@ -158,12 +152,10 @@ __all__ = [
     "Equals",
     "Exclusive",
     "Exists",
-    "Exponential",
     "Forall",
     "Formula",
     "FunctionApp",
     "FunctionSymbol",
-    "Gamma",
     "Greater",
     "GreaterEqual",
     "Grounding",
@@ -174,21 +166,18 @@ __all__ = [
     "Land",
     "Less",
     "LessEqual",
-    "likelihood",
-    "LogNormal",
     "Lnot",
     "Lor",
     "Nat",
-    "Normal",
     "Note",
     "NotEquals",
     "Observe",
     "Operator",
     "PredicateSymbol",
     "predict",
+    "Predict",
     "Probability",
     "Probabilistic",
-    "Poisson",
     "Question",
     "Real",
     "RoleOccurrence",
@@ -197,7 +186,6 @@ __all__ = [
     "Step",
     "Strategy",
     "Structural",
-    "StudentT",
     "Support",
     "Term",
     "UserPredicate",

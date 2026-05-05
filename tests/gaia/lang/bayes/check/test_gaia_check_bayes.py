@@ -32,7 +32,7 @@ from gaia.lang import Nat, Probability, Variable, bayes, parameter
 theta = Variable(symbol="theta", domain=Probability)
 k = Variable(symbol="k", domain=Nat)
 h = parameter(theta, 0.5, label="h", prior=0.5)
-model = bayes.predict(h, k, distribution=bayes.Binomial(n=10, p=theta), label="model")
+model = bayes.model(h, observable=k, distribution=bayes.Binomial(n=10, p=theta), label="model")
 
 __all__ = ["h", "model"]
 """,
@@ -59,10 +59,11 @@ k = Variable(symbol="k", domain=Nat, value=3)
 h1 = parameter(theta, 0.3, label="h1", prior=0.7)
 h2 = parameter(theta, 0.7, label="h2", prior=0.6)
 data = observation(count=k, label="data")
-model = bayes.predict({h1, h2}, k, distribution=bayes.Binomial(n=5, p=theta), label="model")
-cmp = bayes.likelihood(data, via=model, label="cmp")
+model1 = bayes.model(h1, observable=k, distribution=bayes.Binomial(n=5, p=theta), label="model1")
+model2 = bayes.model(h2, observable=k, distribution=bayes.Binomial(n=5, p=theta), label="model2")
+cmp = bayes.likelihood(data, model=model1, against=[model2], label="cmp")
 
-__all__ = ["h1", "h2", "data", "model", "cmp"]
+__all__ = ["h1", "h2", "data", "model1", "model2", "cmp"]
 """,
     )
 
@@ -86,15 +87,17 @@ k = Variable(symbol="k", domain=Nat, value=3)
 h1 = parameter(theta, 0.3, label="h1", prior=0.6)
 h2 = parameter(theta, 0.7, label="h2", prior=0.2)
 data = observation(count=k, label="data")
-model = bayes.predict({h1, h2}, k, distribution=bayes.Binomial(n=5, p=theta), label="model")
+model1 = bayes.model(h1, observable=k, distribution=bayes.Binomial(n=5, p=theta), label="model1")
+model2 = bayes.model(h2, observable=k, distribution=bayes.Binomial(n=5, p=theta), label="model2")
 cmp = bayes.likelihood(
     data,
-    via=model,
+    model=model1,
+    against=[model2],
     exclusivity="exhaustive_pairwise_complement",
     label="cmp",
 )
 
-__all__ = ["h1", "h2", "data", "model", "cmp"]
+__all__ = ["h1", "h2", "data", "model1", "model2", "cmp"]
 """,
     )
 
@@ -118,10 +121,17 @@ k = Variable(symbol="k", domain=Nat)
 h1 = parameter(theta, 0.3, label="h1", prior=0.5)
 h2 = parameter(theta, 0.7, label="h2", prior=0.5)
 data = claim("A data claim without an observation formula.", label="data")
-model = bayes.predict({h1, h2}, k, distribution=bayes.Binomial(n=5, p=theta), label="model")
-cmp = bayes.likelihood(data, via=model, precomputed={h1: -1.0, h2: -2.0}, label="cmp")
+model1 = bayes.model(h1, observable=k, distribution=bayes.Binomial(n=5, p=theta), label="model1")
+model2 = bayes.model(h2, observable=k, distribution=bayes.Binomial(n=5, p=theta), label="model2")
+cmp = bayes.likelihood(
+    data,
+    model=model1,
+    against=[model2],
+    precomputed={h1: -1.0, h2: -2.0},
+    label="cmp",
+)
 
-__all__ = ["h1", "h2", "data", "model", "cmp"]
+__all__ = ["h1", "h2", "data", "model1", "model2", "cmp"]
 """,
     )
 

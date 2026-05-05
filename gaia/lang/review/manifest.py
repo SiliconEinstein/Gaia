@@ -32,6 +32,8 @@ def _strategy_action_type(strategy: Any) -> str:
         return "observe"
     if pattern == "computation":
         return "compute"
+    if pattern == "prediction":
+        return "predict"
     if pattern == "inference":
         return "infer"
     return "derive"
@@ -72,19 +74,29 @@ def _strategy_question(strategy: Any, action_type: str, labels: dict[str, str]) 
     )
 
 
-def _grounding_action_label(knowledge: Any) -> str | None:
+def _knowledge_review_info(knowledge: Any) -> tuple[str, str] | None:
     metadata = knowledge.metadata or {}
     grounding = metadata.get("grounding")
-    if not isinstance(grounding, dict):
-        return None
-    action_label = grounding.get("action_label")
-    return action_label if isinstance(action_label, str) and action_label else None
+    if isinstance(grounding, dict):
+        action_label = grounding.get("action_label")
+        if isinstance(action_label, str) and action_label:
+            return action_label, "observe"
+
+    review_target = metadata.get("review_target")
+    if isinstance(review_target, dict):
+        action_label = review_target.get("action_label")
+        pattern = review_target.get("pattern")
+        if isinstance(action_label, str) and action_label:
+            if pattern == "prediction":
+                return action_label, "predict"
+            return action_label, str(pattern or "derive")
+    return None
 
 
-def _grounding_question(knowledge: Any, labels: dict[str, str]) -> str:
+def _knowledge_question(knowledge: Any, action_type: str, labels: dict[str, str]) -> str:
     knowledge_id = knowledge.id or ""
     return generate_audit_question(
-        "observe",
+        action_type,
         conclusion_label=labels.get(knowledge_id, knowledge.label or knowledge_id or "?"),
     )
 
@@ -124,9 +136,10 @@ def generate_review_manifest(compiled: Any) -> ReviewManifest:
     reviews: list[Review] = []
 
     for knowledge in compiled.graph.knowledges:
-        action_label = _grounding_action_label(knowledge)
-        if not action_label or not knowledge.id:
+        review_info = _knowledge_review_info(knowledge)
+        if review_info is None or not knowledge.id:
             continue
+        action_label, action_type = review_info
         reviews.append(
             Review(
                 review_id=_review_id("knowledge", knowledge.id),
@@ -134,7 +147,7 @@ def generate_review_manifest(compiled: Any) -> ReviewManifest:
                 target_kind="knowledge",
                 target_id=knowledge.id,
                 status=ReviewStatus.UNREVIEWED,
-                audit_question=_grounding_question(knowledge, labels),
+                audit_question=_knowledge_question(knowledge, action_type, labels),
                 round=1,
             )
         )

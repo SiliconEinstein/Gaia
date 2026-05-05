@@ -1,4 +1,4 @@
-"""Gaia Lang v6 Support verbs: derive, observe, compute."""
+"""Gaia Lang v6 Support verbs: derive, observe, compute, predict."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
-from gaia.lang.runtime.action import Compute, Derive, Observe
+from gaia.lang.runtime.action import Compute, Derive, Observe, Predict
 from gaia.lang.runtime.grounding import Grounding
 from gaia.lang.runtime.knowledge import Claim, Knowledge
 
@@ -214,3 +214,33 @@ def compute(
         rationale=rationale,
         label=label,
     )
+
+
+def predict(
+    conclusion: Claim | str,
+    *,
+    given: Claim | tuple[Claim, ...] | list[Claim] | None = (),
+    background: list[Knowledge] | None = None,
+    rationale: str = "",
+    label: str | None = None,
+) -> Claim:
+    """Falsifiable prediction. Returns the prediction Claim."""
+    if isinstance(conclusion, str):
+        conclusion = Claim(conclusion)
+    given_tuple = _as_given_tuple(given)
+    warrant = _implication_warrant(
+        "predict",
+        given=given_tuple,
+        conclusion=conclusion,
+        rationale=rationale,
+    )
+    action = Predict(
+        label=label,
+        rationale=rationale,
+        background=list(background or []),
+        warrants=[warrant],
+        conclusion=conclusion,
+        given=given_tuple,
+    )
+    conclusion.supports.append(action)
+    return conclusion

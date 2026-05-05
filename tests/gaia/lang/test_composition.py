@@ -1,4 +1,4 @@
-from gaia.lang import Claim, associate, compose, compute, infer
+from gaia.lang import Claim, Nat, Variable, associate, bayes, compose, compute, infer
 from gaia.lang.compiler import compile_package_artifact
 from gaia.lang.runtime.action import Associate, Compose, Compute, Infer
 from gaia.lang.runtime.package import CollectedPackage
@@ -159,6 +159,49 @@ def test_compose_keeps_own_background_and_warrants_separate_from_child_warrants(
         compiled.action_label_map["github:v6_composition::action::assoc_workflow"]
         == node.compose_id
     )
+
+
+def test_compose_can_reference_bayes_model_and_likelihood_actions():
+    with CollectedPackage("v6_bayes_composition") as pkg:
+        k = Variable(symbol="k", domain=Nat, value=3)
+        h = Claim(
+            "theta = 0.5.",
+            formula=None,
+            prior=0.5,
+        )
+        h.label = "h"
+        data = Claim("Observed k = 3.")
+        data.label = "data"
+
+        @compose(name="test:bayes:single", version="1.0")
+        def workflow(hypothesis: Claim, observation: Claim) -> Claim:
+            model = bayes.model(
+                hypothesis,
+                observable=k,
+                distribution=bayes.Binomial(n=5, p=0.5),
+                label="model_h",
+            )
+            return bayes.likelihood(
+                observation,
+                model=model,
+                precomputed={hypothesis: -1.0},
+                label="cmp_h",
+            )
+
+        comparison = workflow(h, data)
+
+    compiled = compile_package_artifact(pkg)
+    node = compiled.graph.composes[0]
+
+    assert node.conclusion == "github:v6_bayes_composition::cmp_h"
+    assert node.actions == [
+        compiled.action_label_map["github:v6_bayes_composition::action::model_h"],
+        compiled.action_label_map["github:v6_bayes_composition::action::cmp_h"],
+    ]
+    assert compiled.action_label_map["github:v6_bayes_composition::action::cmp_h"] == (
+        "github:v6_bayes_composition::cmp_h"
+    )
+    assert comparison.label == "cmp_h"
 
 
 def test_compose_identity_depends_on_ordered_actions():

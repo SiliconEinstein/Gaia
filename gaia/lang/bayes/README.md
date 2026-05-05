@@ -3,21 +3,22 @@
 `gaia.lang.bayes` provides the lifted Bayes authoring surface:
 
 - distribution literals backed by `scipy.stats`
-- `predict(...)` for predictive-model claims
-- `likelihood(...)` for comparison-result claims and IR `infer` lowering
+- `model(...)` for one-hypothesis predictive-model helpers
+- `likelihood(...)` for model-preference helpers and IR `infer` lowering
 
 The module intentionally keeps distribution recipes as typed values rather than
-Knowledge nodes. `PredictiveModel` and `ComparisonResult` are ordinary
-claim-shaped Knowledge objects, so the existing IR schema, operators, and BP
-factor types stay unchanged.
+Knowledge nodes. `PredictiveModel` and `Likelihood` are action objects whose
+helper claims compile through the existing IR schema, operators, and BP factor
+types.
 
 Use the namespace form in packages:
 
 ```python
 from gaia.lang import bayes
 
-model = bayes.predict({h_a, h_b}, x, distribution=bayes.Normal(mu=mu, sigma=1.0))
-comparison = bayes.likelihood(data, via=model)
+model_a = bayes.model(h_a, observable=x, distribution=bayes.Normal(mu=mu, sigma=1.0))
+model_b = bayes.model(h_b, observable=x, distribution=bayes.Normal(mu=mu, sigma=1.0))
+comparison = bayes.likelihood(data, model=model_a, against=[model_b])
 ```
 
 See `docs/foundations/gaia-lang/bayes.md` for the executable Mendel example and

@@ -1,4 +1,4 @@
-"""Bayes predict / likelihood runtime and compiler lowering."""
+"""Bayes model / likelihood runtime actions and compiler lowering."""
 
 from __future__ import annotations
 
@@ -12,12 +12,18 @@ from gaia.bp.factor_graph import FactorType
 from gaia.bp.lowering import lower_local_graph
 from gaia.ir.operator import OperatorType
 from gaia.lang import Nat, Probability, Real, Variable, bayes, contradict, observation, parameter
+from gaia.lang.bayes.runtime import Likelihood, PredictiveModel
 from gaia.lang.compiler.compile import compile_package_artifact
-from gaia.lang.runtime.knowledge import ClaimKind, _current_package
+from gaia.lang.runtime.knowledge import _current_package
 from gaia.lang.runtime.package import CollectedPackage
+from gaia.lang.runtime.roles import roles_for_package
 
 
-def _compiled_mendel_bayes(*, exclusivity: str = "exhaustive_pairwise_complement"):
+def _compiled_mendel_bayes(
+    *,
+    exclusivity: str = "exhaustive_pairwise_complement",
+    precomputed: dict | None = None,
+):
     pkg = CollectedPackage(name="bayes_mendel_pkg", namespace="t")
     token = _current_package.set(pkg)
     try:
@@ -28,21 +34,29 @@ def _compiled_mendel_bayes(*, exclusivity: str = "exhaustive_pairwise_complement
         h_31 = parameter(theta, 0.75, content="theta = 0.75.", prior=0.5, label="h_3_1")
         h_null = parameter(theta, 0.5, content="theta = 0.5.", prior=0.5, label="h_null")
         data = observation(count=k, content="Observed k = 295.", prior=0.999, label="data")
-        model = bayes.predict(
-            {h_31, h_null},
-            k,
+        model_31 = bayes.model(
+            h_31,
+            observable=k,
             distribution=bayes.Binomial(n=n, p=theta),
-            label="f2_model",
+            label="f2_model_3_1",
+        )
+        model_null = bayes.model(
+            h_null,
+            observable=k,
+            distribution=bayes.Binomial(n=n, p=theta),
+            label="f2_model_null",
         )
         cmp_result = bayes.likelihood(
             data,
-            via=model,
+            model=model_31,
+            against=[model_null],
             exclusivity=exclusivity,
+            precomputed=precomputed,
             label="f2_likelihood",
         )
     finally:
         _current_package.reset(token)
-    return pkg, h_31, h_null, data, model, cmp_result
+    return pkg, h_31, h_null, data, model_31, model_null, cmp_result
 
 
 def test_bayes_module_does_not_extend_factor_or_operator_enums():
@@ -50,20 +64,38 @@ def test_bayes_module_does_not_extend_factor_or_operator_enums():
     assert not any("bayes" in str(operator_type).lower() for operator_type in OperatorType)
 
 
-def test_predict_and_likelihood_are_claim_shaped_runtime_objects():
-    pkg, h_31, h_null, data, model, cmp_result = _compiled_mendel_bayes()
+def test_model_and_likelihood_are_action_backed_helper_claims():
+    pkg, h_31, h_null, data, model_31, model_null, cmp_result = _compiled_mendel_bayes()
 
-    assert model.type == "claim"
-    assert model.kind is ClaimKind.GENERAL
-    assert model.metadata["bayes"]["role"] == "prediction"
-    assert model.hypotheses == (h_31, h_null)
-    assert model.observable.symbol == "k"
-    assert cmp_result.type == "claim"
+    model_action = model_31.supports[0]
+    assert isinstance(model_action, PredictiveModel)
+    assert model_action.hypothesis is h_31
+    assert model_action.observable.symbol == "k"
+    assert model_action.helper is model_31
+    assert model_31.metadata["helper_kind"] == "predictive_model"
+    assert model_31.metadata["bayes"]["role"] == "prediction"
+
+    cmp_action = cmp_result.supports[0]
+    assert isinstance(cmp_action, Likelihood)
+    assert cmp_action.model is model_31
+    assert cmp_action.against == (model_null,)
+    assert cmp_action.data == (data,)
+    assert cmp_action.helper is cmp_result
+    assert cmp_result.metadata["helper_kind"] == "model_preference"
     assert cmp_result.metadata["bayes"]["role"] == "comparison"
-    assert cmp_result.via is model
-    assert cmp_result.data == (data,)
-    assert model in pkg.knowledge
+
+    assert model_31 in pkg.knowledge
     assert cmp_result in pkg.knowledge
+    assert model_action in pkg.actions
+    assert cmp_action in pkg.actions
+
+    roles = roles_for_package(pkg)
+    assert "hypothesis" in [occ.role for occ in roles[h_31]]
+    assert "model_helper" in [occ.role for occ in roles[model_31]]
+    assert "compared_model" in [occ.role for occ in roles[model_31]]
+    assert "compared_alternative" in [occ.role for occ in roles[model_null]]
+    assert "likelihood_data" in [occ.role for occ in roles[data]]
+    assert "model_preference_helper" in [occ.role for occ in roles[cmp_result]]
 
 
 def test_observation_noise_metadata_serializes_distribution_literal():
@@ -77,9 +109,9 @@ def test_observation_noise_metadata_serializes_distribution_literal():
     }
 
 
-def test_likelihood_compiles_to_infer_strategies_and_exhaustive_complement():
-    pkg, h_31, h_null, data, model, cmp_result = _compiled_mendel_bayes()
-    cmp_result.precomputed = {h_31: -1.2, h_null: -5.1}
+def test_likelihood_compiles_to_reviewable_infer_strategies_and_exhaustive_complement():
+    pkg, h_31, h_null, _data, _model_31, _model_null, cmp_result = _compiled_mendel_bayes()
+    cmp_result.supports[0].precomputed = {h_31: -1.2, h_null: -5.1}
 
     compiled = compile_package_artifact(pkg)
     graph = compiled.graph
@@ -102,7 +134,7 @@ def test_likelihood_compiles_to_infer_strategies_and_exhaustive_complement():
     assert {tuple(s.premises) for s in infer_strategies} == {(h_31_id,), (h_null_id,)}
     assert {s.conclusion for s in infer_strategies} == {cmp_id}
     assert all(
-        s.conditional_probabilities and len(s.conditional_probabilities) == 2
+        s.metadata["action_label"] == "t:bayes_mendel_pkg::action::f2_likelihood"
         for s in infer_strategies
     )
 
@@ -110,10 +142,18 @@ def test_likelihood_compiles_to_infer_strategies_and_exhaustive_complement():
         op
         for op in graph.operators
         if op.operator == "complement"
-        and (op.metadata or {}).get("bayes", {}).get("auto_generated_by")
+        and (op.metadata or {})
+        .get("action_label", "")
+        .endswith("::action::f2_likelihood_exclusive_h_3_1_h_null")
     ]
     assert len(complement_ops) == 1
     assert set(complement_ops[0].variables) == {h_31_id, h_null_id}
+
+    manifest_actions = {review.action_label for review in compiled.review.reviews}
+    assert "t:bayes_mendel_pkg::action::f2_model_3_1" in manifest_actions
+    assert "t:bayes_mendel_pkg::action::f2_model_null" in manifest_actions
+    assert "t:bayes_mendel_pkg::action::f2_likelihood" in manifest_actions
+    assert "t:bayes_mendel_pkg::action::f2_likelihood_exclusive_h_3_1_h_null" in manifest_actions
 
     fg = lower_local_graph(graph)
     beliefs, _ = exact_inference(fg)
@@ -124,21 +164,64 @@ def test_likelihood_compiles_to_infer_strategies_and_exhaustive_complement():
     assert beliefs[cmp_id] > 0.99
 
 
-def test_likelihood_precomputed_uses_runtime_claim_keys_not_qids():
-    pkg, h_31, h_null, _data, _model, cmp_result = _compiled_mendel_bayes()
-    cmp_result.precomputed = {h_31: -1.2, h_null: -5.1}
+def test_likelihood_precomputed_uses_hypothesis_claim_keys_not_model_helpers():
+    pkg, h_31, h_null, data, model_31, model_null, _cmp_result = _compiled_mendel_bayes()
+    token = _current_package.set(pkg)
+    try:
+        with pytest.raises(ValueError, match="precomputed likelihood keys"):
+            bayes.likelihood(
+                data,
+                model=model_31,
+                against=[model_null],
+                precomputed={model_31: -1.0, h_null: -2.0},
+                label="bad_cmp",
+            )
+    finally:
+        _current_package.reset(token)
 
     compiled = compile_package_artifact(pkg)
     h_31_id = compiled.knowledge_ids_by_object[id(h_31)]
     h_null_id = compiled.knowledge_ids_by_object[id(h_null)]
-    cmp_id = compiled.knowledge_ids_by_object[id(cmp_result)]
+    cmp_id = compiled.knowledge_ids_by_object[id(_cmp_result)]
     cmp_ir = next(k for k in compiled.graph.knowledges if k.id == cmp_id)
 
-    assert cmp_ir.metadata["bayes"]["likelihoods"] == {h_31_id: -1.2, h_null_id: -5.1}
-    assert math.exp(
-        cmp_ir.metadata["bayes"]["likelihoods"][h_31_id]
-        - cmp_ir.metadata["bayes"]["likelihoods"][h_null_id]
-    ) == pytest.approx(math.exp(3.9))
+    assert set(cmp_ir.metadata["bayes"]["likelihoods"]) == {h_31_id, h_null_id}
+
+
+def test_likelihood_precomputed_requires_every_model_hypothesis():
+    pkg, h_31, _h_null, data, model_31, model_null, _cmp_result = _compiled_mendel_bayes()
+    token = _current_package.set(pkg)
+    try:
+        with pytest.raises(ValueError, match="precomputed likelihoods must cover"):
+            bayes.likelihood(
+                data,
+                model=model_31,
+                against=[model_null],
+                precomputed={h_31: -1.0},
+                label="missing_precomputed",
+            )
+    finally:
+        _current_package.reset(token)
+
+    _cmp_result.supports[0].precomputed = {h_31: -1.0}
+    with pytest.raises(ValueError, match="precomputed likelihoods must cover"):
+        compile_package_artifact(pkg)
+
+
+def test_likelihood_precomputed_rejects_non_claim_keys_cleanly():
+    pkg, _h_31, _h_null, data, model_31, model_null, _cmp_result = _compiled_mendel_bayes()
+    token = _current_package.set(pkg)
+    try:
+        with pytest.raises(ValueError, match="precomputed likelihood keys"):
+            bayes.likelihood(
+                data,
+                model=model_31,
+                against=[model_null],
+                precomputed={"h_3_1": -1.0},
+                label="bad_key",
+            )
+    finally:
+        _current_package.reset(token)
 
 
 def test_continuous_normal_noise_likelihood_uses_convolution():
@@ -155,13 +238,19 @@ def test_continuous_normal_noise_likelihood_uses_convolution():
             noise=bayes.Normal(mu=0.0, sigma=2.0),
             label="data",
         )
-        model = bayes.predict(
-            {h_near, h_far},
-            y,
+        model_near = bayes.model(
+            h_near,
+            observable=y,
             distribution=bayes.Normal(mu=mu, sigma=1.0),
-            label="model",
+            label="model_near",
         )
-        cmp_result = bayes.likelihood(data, via=model, label="cmp")
+        model_far = bayes.model(
+            h_far,
+            observable=y,
+            distribution=bayes.Normal(mu=mu, sigma=1.0),
+            label="model_far",
+        )
+        cmp_result = bayes.likelihood(data, model=model_near, against=[model_far], label="cmp")
     finally:
         _current_package.reset(token)
 
@@ -192,13 +281,19 @@ def test_likelihood_errors_when_all_hypotheses_have_zero_support():
         h_low = parameter(theta, 0.2, content="theta = 0.2.", prior=0.5, label="h_low")
         h_high = parameter(theta, 0.8, content="theta = 0.8.", prior=0.5, label="h_high")
         data = observation(count=k, content="Observed impossible k = 3.", label="data")
-        model = bayes.predict(
-            {h_low, h_high},
-            k,
+        model_low = bayes.model(
+            h_low,
+            observable=k,
             distribution=bayes.Binomial(n=1, p=theta),
-            label="model",
+            label="model_low",
         )
-        bayes.likelihood(data, via=model, label="cmp")
+        model_high = bayes.model(
+            h_high,
+            observable=k,
+            distribution=bayes.Binomial(n=1, p=theta),
+            label="model_high",
+        )
+        bayes.likelihood(data, model=model_low, against=[model_high], label="cmp")
     finally:
         _current_package.reset(token)
 
@@ -207,12 +302,28 @@ def test_likelihood_errors_when_all_hypotheses_have_zero_support():
 
 
 def test_likelihood_does_not_duplicate_existing_pairwise_contradiction():
-    pkg, h_31, h_null, _data, _model, _cmp_result = _compiled_mendel_bayes(
-        exclusivity="pairwise_contradiction"
-    )
+    pkg = CollectedPackage(name="bayes_mendel_pkg", namespace="t")
     token = _current_package.set(pkg)
     try:
+        theta = Variable(symbol="theta", domain=Probability)
+        k = Variable(symbol="k", domain=Nat, value=295)
+        h_31 = parameter(theta, 0.75, content="theta = 0.75.", prior=0.5, label="h_3_1")
+        h_null = parameter(theta, 0.5, content="theta = 0.5.", prior=0.5, label="h_null")
+        data = observation(count=k, content="Observed k = 295.", prior=0.999, label="data")
+        model_31 = bayes.model(
+            h_31, observable=k, distribution=bayes.Binomial(n=395, p=theta), label="model_31"
+        )
+        model_null = bayes.model(
+            h_null, observable=k, distribution=bayes.Binomial(n=395, p=theta), label="model_null"
+        )
         contradict(h_31, h_null, label="manual_contradiction")
+        bayes.likelihood(
+            data,
+            model=model_31,
+            against=[model_null],
+            exclusivity="pairwise_contradiction",
+            label="cmp",
+        )
     finally:
         _current_package.reset(token)
 
@@ -226,18 +337,24 @@ def test_likelihood_does_not_duplicate_existing_pairwise_contradiction():
     ]
 
     assert len(contradiction_ops) == 1
-    assert (contradiction_ops[0].metadata or {}).get("bayes") is None
+    assert contradiction_ops[0].metadata["action_label"].endswith("::action::manual_contradiction")
 
 
 def test_multiple_likelihoods_reuse_auto_generated_pairwise_contradiction():
-    pkg, h_31, h_null, _data, model, _cmp_result = _compiled_mendel_bayes(
+    pkg, h_31, h_null, _data, model_31, model_null, _cmp_result = _compiled_mendel_bayes(
         exclusivity="pairwise_contradiction"
     )
     token = _current_package.set(pkg)
     try:
         k2 = Variable(symbol="k", domain=Nat, value=300)
         data2 = observation(count=k2, content="Observed replicate k = 300.", label="data2")
-        bayes.likelihood(data2, via=model, exclusivity="pairwise_contradiction", label="cmp2")
+        bayes.likelihood(
+            data2,
+            model=model_31,
+            against=[model_null],
+            exclusivity="pairwise_contradiction",
+            label="cmp2",
+        )
     finally:
         _current_package.reset(token)
 
@@ -251,7 +368,11 @@ def test_multiple_likelihoods_reuse_auto_generated_pairwise_contradiction():
     ]
 
     assert len(contradiction_ops) == 1
-    assert (contradiction_ops[0].metadata or {}).get("bayes", {}).get("auto_generated_by")
+    assert (
+        contradiction_ops[0]
+        .metadata["action_label"]
+        .endswith("::action::f2_likelihood_contradict_h_3_1_h_null")
+    )
 
 
 def test_exhaustive_equal_prior_argmax_tracks_largest_log_likelihood():
@@ -264,15 +385,19 @@ def test_exhaustive_equal_prior_argmax_tracks_largest_log_likelihood():
         h_mid = parameter(theta, 0.5, content="theta = 0.5.", prior=1 / 3, label="h_mid")
         h_high = parameter(theta, 0.8, content="theta = 0.8.", prior=1 / 3, label="h_high")
         data = observation(count=k, content="Observed k = 4.", label="data")
-        model = bayes.predict(
-            {h_low, h_mid, h_high},
-            k,
-            distribution=bayes.Binomial(n=5, p=theta),
-            label="model",
+        model_low = bayes.model(
+            h_low, observable=k, distribution=bayes.Binomial(n=5, p=theta), label="model_low"
+        )
+        model_mid = bayes.model(
+            h_mid, observable=k, distribution=bayes.Binomial(n=5, p=theta), label="model_mid"
+        )
+        model_high = bayes.model(
+            h_high, observable=k, distribution=bayes.Binomial(n=5, p=theta), label="model_high"
         )
         comparison = bayes.likelihood(
             data,
-            via=model,
+            model=model_low,
+            against=[model_mid, model_high],
             exclusivity="exhaustive_pairwise_complement",
             precomputed={h_low: -4.0, h_mid: -2.0, h_high: -1.0},
             label="cmp",
@@ -294,14 +419,7 @@ def test_exhaustive_equal_prior_argmax_tracks_largest_log_likelihood():
 
 
 def test_full_pipeline_mendel_with_real_binomial_no_precomputed():
-    """Full pipeline: real scipy Binomial(395, p) likelihoods, no precomputed.
-
-    The realistic Mendel computation produces logL_3:1 ≈ -3.09, logL_null ≈ -53.38,
-    an unclamped Bayes factor on the order of exp(50) which Cromwell-clamps the
-    null hypothesis's likelihood factor to ε. Pairwise odds therefore saturate at
-    roughly (1-ε)/ε under both default and exhaustive exclusivity modes.
-    """
-    pkg, h_31, h_null, _data, _model, cmp_result = _compiled_mendel_bayes(
+    pkg, h_31, h_null, _data, _model_31, _model_null, cmp_result = _compiled_mendel_bayes(
         exclusivity="exhaustive_pairwise_complement"
     )
 
@@ -317,44 +435,7 @@ def test_full_pipeline_mendel_with_real_binomial_no_precomputed():
 
     beliefs, _ = exact_inference(lower_local_graph(compiled.graph))
     odds = beliefs[h_31_id] / beliefs[h_null_id]
-    # Cromwell clamp caps odds at roughly (1-ε)/ε ≈ 1000 — orders of magnitude
-    # below the unclamped Bayes factor of exp(50.3). Lower bound here is
-    # conservative; the realistic implementation produces ≈500.
     assert odds > 100.0
     assert beliefs[h_31_id] > 0.95
     assert beliefs[h_null_id] < 0.03
     assert beliefs[cmp_id] > 0.99
-
-
-def test_predict_rejects_duplicate_hypothesis_in_list():
-    pkg = CollectedPackage(name="bayes_dup_pkg", namespace="t")
-    token = _current_package.set(pkg)
-    try:
-        theta = Variable(symbol="theta", domain=Probability)
-        k = Variable(symbol="k", domain=Nat, value=10)
-        h = parameter(theta, 0.5, prior=0.5, label="h")
-        with pytest.raises(ValueError, match="duplicate hypothesis"):
-            bayes.predict([h, h], k, distribution=bayes.Binomial(n=20, p=theta), label="m")
-    finally:
-        _current_package.reset(token)
-
-
-def test_predict_orders_hypotheses_stably_when_label_and_content_collide():
-    pkg = CollectedPackage(name="bayes_stable_order_pkg", namespace="t")
-    token = _current_package.set(pkg)
-    try:
-        theta = Variable(symbol="theta", domain=Probability)
-        k = Variable(symbol="k", domain=Nat, value=5)
-        h_first = parameter(theta, 0.4, prior=0.5)
-        h_second = parameter(theta, 0.6, prior=0.5)
-        # Both hypotheses have label=None and identical content prefix.
-        h_first.content = "tied"
-        h_second.content = "tied"
-        model = bayes.predict(
-            [h_first, h_second],
-            k,
-            distribution=bayes.Binomial(n=10, p=theta),
-        )
-    finally:
-        _current_package.reset(token)
-    assert model.hypotheses == (h_first, h_second)

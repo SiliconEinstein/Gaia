@@ -1,6 +1,5 @@
-"""Runtime claim shapes for Bayes helpers."""
+"""Runtime action shapes for Bayes helpers."""
 
-from gaia.lang.bayes.runtime.comparison import ComparisonResult
-from gaia.lang.bayes.runtime.prediction import PredictiveModel
+from gaia.lang.bayes.runtime.actions import Likelihood, PredictiveModel
 
-__all__ = ["ComparisonResult", "PredictiveModel"]
+__all__ = ["Likelihood", "PredictiveModel"]

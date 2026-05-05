@@ -332,6 +332,10 @@ def _bayes_check_diagnostics(ir: dict) -> _BayesCheckDiagnostics:
         for comparison in comparisons.values()
         if isinstance((model := _bayes_metadata(comparison).get("model")), str)
     }
+    for comparison in comparisons.values():
+        against = _bayes_metadata(comparison).get("against")
+        if isinstance(against, list):
+            referenced_models.update(model for model in against if isinstance(model, str))
     observed_symbols = {
         symbol for node in nodes.values() for symbol in _formula_binding_symbols(node)
     }
@@ -342,7 +346,8 @@ def _bayes_check_diagnostics(ir: dict) -> _BayesCheckDiagnostics:
             diagnostics.warnings.append(
                 "bayes:dangling-prediction: "
                 f"PredictiveModel {prediction_name} is never referenced by likelihood(). "
-                "Fix: add bayes.likelihood(data, via=model) or remove the unused model."
+                "Fix: add bayes.likelihood(data, model=model, against=[...]) or remove the "
+                "unused model."
             )
 
         observable = _bayes_metadata(prediction).get("observable") or {}
@@ -391,7 +396,7 @@ def _bayes_check_diagnostics(ir: dict) -> _BayesCheckDiagnostics:
                     "precomputed likelihoods with a reviewable observation Claim."
                 )
 
-        hypotheses = model_bayes.get("hypotheses") or []
+        hypotheses = bayes.get("hypotheses") or model_bayes.get("hypotheses") or []
         hypothesis_ids = [h for h in hypotheses if isinstance(h, str)]
         if not hypothesis_ids:
             continue

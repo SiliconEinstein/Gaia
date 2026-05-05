@@ -18,7 +18,7 @@ class Deferred:
 
 def test_public_distribution_surface_imports_from_gaia_lang_namespace():
     from gaia.lang import bayes
-    from gaia.lang import Binomial, Normal
+    from gaia.lang.bayes import Binomial, Normal
 
     required = {
         "Beta",

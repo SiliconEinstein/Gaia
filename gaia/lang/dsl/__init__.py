@@ -7,9 +7,8 @@ from gaia.lang.dsl.operators import complement, contradiction, disjunction, equi
 from gaia.lang.dsl.propositional import and_, not_, or_
 from gaia.lang.dsl.relate import contradict, equal, exclusive
 from gaia.lang.dsl.scaffold import depends_on
-from gaia.lang.dsl.support import compute, derive, observe
+from gaia.lang.dsl.support import compute, derive, observe, predict
 from gaia.lang.dsl.sugar import causal, observation, parameter
-from gaia.lang.bayes import likelihood, predict
 from gaia.lang.runtime.composition import compose, composition
 from gaia.lang.dsl.strategies import (
     abduction,
@@ -60,7 +59,6 @@ __all__ = [
     "implies",
     "induction",
     "infer",
-    "likelihood",
     "land",
     "lnot",
     "lor",
