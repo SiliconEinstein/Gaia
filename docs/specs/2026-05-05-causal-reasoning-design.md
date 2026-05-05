@@ -1,11 +1,11 @@
 # Causal Reasoning Design — Structure + Intervention
 
 > **Status:** Target design (proposal)
-> **Branch:** `docs/causal-reasoning-design` (off `v0.5`)
-> **Target release:** v0.6 (built on v0.5 foundation + PR #505 lifted Lang)
+> **Branch:** `codex/v05-causal-docs-refresh` (off `v0.5`)
+> **Target release:** v0.6 (built on the v0.5 lifted Lang, role/decompose, and Bayes foundations)
 > **Date:** 2026-05-05
 > **Scope:** Promote `Causes(X, Y)` from a v0.5 marker to first-class causal reasoning — DAG semantics, d-separation, `do(X=x)` interventions, numeric answers via existing Gaia BP, and optional symbolic do-calculus identification via y0.
-> **Depends on:** PR #505 (Variable / Domain / Formula AST with `Causes` predicate).
+> **Depends on:** PR #505 (Variable / Domain / Formula AST with `Causes` predicate), PR #510 (formula metadata lowering), PR #524 (current Action families + `decompose`), and PR #523/#526 (Bayes distribution/action surface).
 > **Non-goals:** Counterfactual reasoning (Pearl level 3); structure learning from data; data-driven effect estimation.
 
 ---
@@ -30,7 +30,7 @@ This spec covers all three. Counterfactual reasoning (Pearl level 3) is **out of
 
 ### 0.3 First-principles position
 
-We adopt the `gaia.stats` pattern (`docs/superpowers/specs/2026-04-25-unit-stats-constants-design.md`):
+We adopt the `gaia.stats` / `gaia.lang.bayes` pattern:
 
 - **Kernel layers declare what; they do not compute heavy statistics.** Lang/IR represent causal structure as metadata + schema; they never import scientific computing libraries.
 - **Adapters live outside the kernel.** Heavy or narrow-use dependencies ship in `project.optional-dependencies`.
@@ -41,12 +41,14 @@ Concretely:
 | Layer | What it owns | Dependencies |
 |---|---|---|
 | `gaia.lang.formula.predicate.Causes` | AST marker (exists today via PR #505) | none |
-| `gaia.lang.dsl.causal.causal` / existing `gaia.lang.dsl.sugar.causal` re-export | `causal()` declaration helper — fourth verb family alongside Relate / Correlate / Strategy | none |
+| existing `gaia.lang.dsl.sugar.causal` re-exported by `gaia.lang` / `gaia.lang.dsl` | `causal()` declaration helper — a mechanism/interventional declaration, not a replacement for the current Support / Structural / Probabilistic Action families | none |
 | `gaia.causal.dag` (NEW, kernel) | `CausalDAG` view over a `CollectedPackage` | `networkx` |
 | `gaia.causal.intervene` (NEW, kernel) | `do(X=x)` rewrite + `.query(Y)` | reuses `gaia.bp` |
 | `gaia.causal.adapters.y0` (NEW, extra) | Symbolic do-calculus identification | `y0` (extra: `gaia[causal-do]`) |
 
 `networkx` is promoted to a kernel dependency (pure Python, ~3MB, no native extensions, widely trusted). `y0` is not — its base install pulls pandas + scikit-learn + statsmodels, which violates the "kernel stays light" rule, and Gaia only uses its symbolic identifier, not its data-driven parts.
+
+The current v0.5 Action hierarchy is `Support`, `Structural`, `Probabilistic`, `Scaffold`, and `Compose`. Causal declarations should not reintroduce the older `Relate` / `Correlate` taxonomy. `causal()` stays a Claim/formula authoring helper in D1/D2; if a future Action class is needed, it should be introduced as a separate mechanism/intervention family with its own lowering contract.
 
 ### 0.4 Naming convention: `causal` vs `causes` vs `Causes`
 
@@ -121,6 +123,8 @@ PR #510 introduced the compiler-owned `metadata.causal` operand descriptors. D1 
 
 `dag_edge` is populated by the compiler **after** QID assignment. Lang runtime never sets it — consumers that need to read the DAG use `dag_edge`; consumers that need provenance back to authored Variables read the original `cause` / `effect`. `cpd` is populated from the `causal()` declaration's authored parameters or from explicit universal-claim metadata (§5.2). A `CAUSAL` claim missing `metadata.causal.cause` or `.effect` is invalid under the v0.6 compiler path and should fail fast.
 
+`metadata.causal.cpd` is intentionally separate from `metadata.bayes`. The CPD is a structural mechanism parameter used by intervention lowering; it is not an observational likelihood, a Bayes model-comparison record, or an observation noise payload. D₂.5 stochastic interventions may reuse the `gaia.lang.bayes` distribution protocol for authored distributions, but compiled causal mechanism parameters remain under `metadata.causal`.
+
 ### 1.2 `gaia.bp` additions
 
 One public helper is added to `gaia.bp`:
@@ -129,10 +133,11 @@ One public helper is added to `gaia.bp`:
 # gaia/bp/factor_graph.py
 def mutilate(fg: FactorGraph, intervened: set[str]) -> FactorGraph:
     """Return a new FactorGraph with **causal** factors whose `conclusion` is
-    in `intervened` removed. Logical factors (deduction-derived
-    SOFT_ENTAILMENT, IMPLICATION/EQUIVALENCE/CONJUNCTION/DISJUNCTION
-    operator factors) are preserved regardless of their conclusion — see §4.4
-    for the first-principles justification.
+    in `intervened` removed. Logical/structural factors (deduction-derived
+    SOFT_ENTAILMENT, Decompose-generated helpers, and
+    IMPLICATION/EQUIVALENCE/CONJUNCTION/DISJUNCTION operator factors) are
+    preserved regardless of their conclusion — see §4.4 for the
+    first-principles justification.
 
     The caller follows up with fg.observe(x, value) for each intervened var."""
 ```
@@ -188,7 +193,7 @@ gaia/
 │       └── y0.py                # identify(); lazy imports y0
 ├── lang/
 │   └── dsl/
-│       └── causal.py            # NEW: causal(), do(), query(), ate() DSL
+│       └── sugar.py             # extend existing causal() helper with CPD params
 └── lang/
     └── compiler/
         ├── compile.py           # + populate metadata.causal.dag_edge for CAUSAL claims
@@ -201,7 +206,8 @@ gaia/
 - `gaia.causal.queries` operates on a `CausalDAG`. Pure graph algorithms, no IR awareness.
 - `gaia.causal.intervene` **reads** a compiled IR artifact, lowers it through the standard `gaia.bp.lowering` path (which now handles `causal()` declarations and per-instance grounding), rewrites the resulting `FactorGraph` (`mutilate`), and runs BP. It does not write IR. **No separate causal lowering module is needed** — the compiled causal metadata and declaration parameters carry enough information that ordinary lowering can register CNID variables and emit the causal CPT factor.
 - `gaia.causal.adapters.y0` **reads** a `CausalDAG` and a symbolic query; returns an expression or a `NotIdentifiable` diagnosis. It does not touch `FactorGraph`.
-- `gaia.lang.dsl.causal` is the authored-side surface: `causal()`, `do()`, `query()`, `ate()`.
+- `gaia.lang.dsl.sugar.causal` remains the authored-side `causal()` declaration helper, already re-exported by `gaia.lang` and `gaia.lang.dsl`. D1 extends that existing helper rather than moving it.
+- `gaia.causal` is the runtime query surface for `do()`, `query()`, and `ate()`. A `gaia.lang.dsl.causal` compatibility re-export can be added later if the broader DSL wants all verbs in `gaia.lang.dsl`, but it is not required for the core implementation.
 
 This partitions the work so each module is independently testable and no file grows oversized.
 
@@ -331,7 +337,7 @@ Authored shape:
 
 ```python
 from gaia.lang import Bool, Variable, causal
-from gaia.lang.dsl.causal import do, query
+from gaia.causal import do, query
 
 co2  = Variable(symbol="co2_level", domain=Bool)
 temp = Variable(symbol="temperature", domain=Bool)
@@ -386,7 +392,7 @@ The machine contract is still a full binary `CONDITIONAL` CPT; noisy-OR is only 
 
 #### 4.1.3 Soft `do()` deferred to D₂.5
 
-`do(X = Bernoulli(p))` and other stochastic-intervention forms are scoped to a follow-up milestone D₂.5 — see §9 and §12 Q5 for the rationale.
+`do(X = Distribution(...))` and other stochastic-intervention forms are scoped to a follow-up milestone D₂.5 — see §10 and §12 Q5 for the rationale. The authored distribution type should reuse the current `gaia.lang.bayes.distributions.protocol.Distribution` contract (`model_dump`, `logpmf` / `logpdf`, `support`) instead of inventing a second `DistributionSpec`. For binary soft interventions, v0.6 can either use the existing `Binomial(n=1, p=p)` literal or add a thin `Bernoulli(p)` alias in `gaia.lang.bayes`; both compile to the same unary intervention distribution.
 
 ### 4.2 Intervention object
 
@@ -468,7 +474,7 @@ def _compute(
 1. Each `causal()` declaration contributes explicit CPD parameters. Multi-parent effects compose via noisy-OR (§4.1.2) into one canonical `CONDITIONAL` factor per effect node.
 2. CNID variables (Variables, per PR #505 §2.4 they have no IR Knowledge) are registered as BP variables during causal lowering inside the standard `gaia.bp.lowering` path.
 3. The generated causal factor carries `metadata={"modality": "causal", "source_claim_qid": ..., "dag_edge": ...}` copied from the compiled claim metadata (§1.2).
-4. `mutilate(fg, intervened)` identifies and drops only the factor whose conclusion ∈ intervened **and** whose factor metadata says `modality == "causal"` (see §4.4). Logical factors (deduction, IMPLICATION operator helpers) are preserved.
+4. `mutilate(fg, intervened)` identifies and drops only the factor whose conclusion ∈ intervened **and** whose factor metadata says `modality == "causal"` (see §4.4). Logical and structural factors (`deduction`, `decompose`, IMPLICATION/EQUIVALENCE operator helpers) are preserved.
 5. `observe()` clamps the intervened variable to its target value.
 
 This yields exactly the truncated factorization for the per-instance DAG.
@@ -488,9 +494,10 @@ A short tour of the thought experiments motivating this rule:
 | 3 | "Bachelor" ↔ "unmarried man" (definitional) | `do(¬"unmarried")` | Both flip together — they are the same fact. | Use EQUIVALENCE operator, not Causes / deduction. EQUIVALENCE is **not mutilated** (it's a structural identity, not a mechanism). |
 | 4 | F = ma (physical law) | `do(a = 0)` | Ambiguous — depends on whether F=ma is read as constraint (then F→0) or mechanism (then F unchanged, supported by counter-force). | **Author must choose** — declare F→a as `causal()` (mechanism, F preserved) or as `deduction([F, m], a)` (constraint, F follows). Engine will not guess. |
 | 5 | Temperature ⇄ Evaporation | `do(Evap = 0)` (sealed bucket) | Temperature unchanged at the mutilation step. | Direction matters; each direction is a separate cause. |
-| 6 | Mixed: Hot → Cooked (causal); Cooked ↔ "not raw" (logical) | `do(Hot = 0)` | Cuts only the (empty) causal in-edges of `Hot`; `Cooked` propagates normally; logical "not raw" follows. | **Mixed graphs work cleanly** as long as each edge declares its modality. |
-| 7 | (Generalization) Node has both causal and logical incoming edges. | `do(node = v)` | Cuts only the causal in-edges; logical edges remain live and propagate. | Implementation: filter on factor metadata `modality == "causal"`. |
-| 8 | Same fact authored as both `causal()` and `deduction()` | — | Engine cannot disambiguate. | `gaia check causal` raises a warning when an effect node has both modalities incoming (§8.1, new rule). |
+| 6 | Whole claim decomposed via `decompose(C, [A, B], A & B)` | `do(C = 0)` | The decomposition remains a structural identity; it is not a production mechanism. | `Decompose` is a `Structural` action in current v0.5, so generated factors are **not mutilated**. |
+| 7 | Mixed: Hot → Cooked (causal); Cooked ↔ "not raw" (logical) | `do(Hot = 0)` | Cuts only the (empty) causal in-edges of `Hot`; `Cooked` propagates normally; logical "not raw" follows. | **Mixed graphs work cleanly** as long as each edge declares its modality. |
+| 8 | (Generalization) Node has both causal and logical/structural incoming edges. | `do(node = v)` | Cuts only the causal in-edges; logical/structural edges remain live and propagate. | Implementation: filter on factor metadata `modality == "causal"`. |
+| 9 | Same fact authored as both `causal()` and a logical/structural relation | — | Engine cannot disambiguate. | `gaia check causal` raises a warning when an effect node has both modalities incoming (§8.1, new rule). |
 
 Concretely the rule is:
 
@@ -498,7 +505,7 @@ Concretely the rule is:
 > 1. **`f.conclusion ∈ intervened`** — standard truncation condition; AND
 > 2. **`f` is causal** — i.e., `f.metadata.get("modality") == "causal"`.
 >
-> Logical SOFT_ENTAILMENT (deduction-derived), IMPLICATION operator factors, EQUIVALENCE / CONJUNCTION / DISJUNCTION / CONTRADICTION operator factors are **never** mutilated.
+> Logical SOFT_ENTAILMENT (deduction-derived), `decompose()`-generated structural helpers, IMPLICATION operator factors, and EQUIVALENCE / CONJUNCTION / DISJUNCTION / CONTRADICTION operator factors are **never** mutilated.
 
 This rule matches Pearl's standard mutilation when the graph is purely causal, and degrades gracefully when logical edges are present.
 
@@ -508,7 +515,7 @@ Earlier drafts of this spec proposed a `definitional=True` flag on deduction edg
 
 ### 4.5 Interaction with strategy-embedded operators (`FormalExpr`)
 
-A `FormalStrategy` may embed multiple `Operator`s inside a `FormalExpr`. When lowered to `FactorGraph`, each embedded operator produces its own factor. `mutilate` walks the resulting factor list and applies the §4.4 rule uniformly — embedded operators are logical by origin, so they pass through mutilation unchanged.
+A `FormalStrategy` may embed multiple `Operator`s inside a `FormalExpr`. When lowered to `FactorGraph`, each embedded operator produces its own factor. `Decompose` similarly generates structural helper/formula factors from an action-level decomposition. `mutilate` walks the resulting factor list and applies the §4.4 rule uniformly — embedded operators and decomposition helpers are logical/structural by origin, so they pass through mutilation unchanged.
 
 ### 4.6 Only causally authored intervention is permitted
 
@@ -710,7 +717,7 @@ A new CLI sub-check. Invoked as `gaia check causal <package>` or bundled into `g
 | Acyclicity | Error | `CausalCycleError` from `build_dag` |
 | Intervention target is a DAG node | Error | `InterventionUndefinedError` on any authored `do(...)` |
 | Open back-door path | Warning | For every `Causes(X, Y)` claim, inspect paths from `X` to `Y` that enter `X` after removing outgoing edges from `X`. If any path remains open under the declared observed covariates, surface the minimal candidate adjustment sets from `adjustment_sets(...)` or report that no valid set is available. Never condition on `X` or `Y` themselves. |
-| Mixed-modality incoming edges | Warning (Error under `--strict`) | Effect node has both `causal()` and `deduction()` incoming. Author should clarify whether the deduction edge is a definitional consequence (then mutilation will preserve it correctly per §4.4) or actually a mis-typed causal mechanism (then re-author as `causal()`). See §4.4 thought experiment 8. |
+| Mixed-modality incoming edges | Warning (Error under `--strict`) | Effect node has both `causal()` and logical/structural incoming factors (`deduction()`, `decompose()`, EQUIVALENCE, etc.). Author should clarify whether the non-causal edge is a definitional consequence (then mutilation will preserve it correctly per §4.4) or actually a mis-typed causal mechanism (then re-author as `causal()`). See §4.4 thought experiment 9. |
 | Identification (opt-in) | Info / Warning | Requires `--identify`; emits obstruction witness per non-identifiable authored `do()` |
 | Variable reuse across sub-DAGs | Warning | The same Variable appearing in disconnected components — likely an authoring error |
 
@@ -723,7 +730,7 @@ JSON, keyed by rule. Fits into the existing `gaia check` aggregated report so re
 ## 9. DSL Surface Summary
 
 ```python
-# Authoring — `causal()` declaration helper, fourth-family per foundation spec §18
+# Authoring — extend the existing `causal()` declaration helper
 from gaia.lang import Bool, Variable, causal
 
 X = Variable(symbol="X", domain=Bool)
@@ -743,7 +750,7 @@ c = causal(
 
 ```python
 # Queries
-from gaia.lang.dsl.causal import do, query, ate
+from gaia.causal import do, query, ate
 
 result = do(X=1).query(Y)                            # numeric, hard intervention
 result = do(X=1).query(Y, identify=True)             # numeric + symbolic (needs extra)
@@ -751,8 +758,8 @@ result = query(Y, given_do={X: 1})                   # long form
 result = ate(X, Y)                                   # do(X=1).Y - do(X=0).Y
 
 # D₂.5 (separate milestone): stochastic intervention
-from gaia.stats import Bernoulli
-result = do(X=Bernoulli(0.1)).query(Y)
+from gaia.lang.bayes import Binomial
+result = do(X=Binomial(n=1, p=0.1)).query(Y)
 ```
 
 ```python
@@ -806,9 +813,9 @@ Depends on: D₁.
 - **Multi-parent noisy-OR composition:** lowering pass that combines multiple `causal()` edges into one provenance-tagged `CONDITIONAL` factor per effect node (§4.1.2). Sits inside the existing `gaia/bp/lowering.py` — no new `gaia.causal.lowering` module needed; the compiled claim metadata and CPD parameters carry enough information to register CNID variables and emit the canonical CPT factor at standard lower time.
 - **Per-instance grounding for causal `forall`:** compiler dual to `gaia/lang/compiler/lower_formula.py:107-192`'s logical lowering — emits per-instance Knowledge nodes plus deduction edges from universal to instance, generated CNID variables for each instance, and one provenance-tagged causal `CONDITIONAL` factor per instance pair (§5.2).
 - **`gaia.causal.intervene`:** `Intervention`, `CausalQueryResult`, `_compute` using `mutilate` + Gaia BP (no separate causal lowering module).
-- **`gaia.lang.dsl.causal`:** `do()`, `query()`, `ate()` surface (§4.1, §4.2.1).
-- **`gaia check causal`:** acyclicity, intervention-target, mixed-modality (effect node has both `causal()` and `deduction()` incoming) rules (§8.1).
-- **Tests:** `causal()` lowers to a provenance-tagged causal `CONDITIONAL` factor with the expected CPT; smoked against canonical SCMs (confounder, front-door, chain, collider); belief values compared against hand-computed truncated factorizations; thought-experiment 1–8 (§4.4) regression coverage; per-instance grounding parity with logical-quantifier grounding; ATE round-trip.
+- **`gaia.causal`:** `do()`, `query()`, `ate()` surface (§4.1, §4.2.1); keep `causal()` itself on the existing `gaia.lang` / `gaia.lang.dsl` export path.
+- **`gaia check causal`:** acyclicity, intervention-target, mixed-modality (effect node has both `causal()` and logical/structural incoming factors) rules (§8.1).
+- **Tests:** `causal()` lowers to a provenance-tagged causal `CONDITIONAL` factor with the expected CPT; smoked against canonical SCMs (confounder, front-door, chain, collider); belief values compared against hand-computed truncated factorizations; thought-experiment 1–9 (§4.4) regression coverage; per-instance grounding parity with logical-quantifier grounding; ATE round-trip.
 
 Independently shippable: Gaia answers `P(Y | do(X))` and `ATE(X, Y)` numerically. Roughly 3–4 weeks (most of the work is tests, multi-parent noisy-OR composition, and per-instance grounding parity; `mutilate` itself is a small filter-and-rebuild pass).
 
@@ -816,10 +823,10 @@ Independently shippable: Gaia answers `P(Y | do(X))` and `ATE(X, Y)` numerically
 
 Depends on: D₂.
 
-- **Authored DSL:** `do(X = Bernoulli(p))` and equivalent shorthand for stochastic / soft interventions (§4.1.3).
+- **Authored DSL:** `do(X = Binomial(n=1, p=p))` and equivalent shorthand for stochastic / soft interventions (§4.1.3). A `Bernoulli(p)` alias may be added in `gaia.lang.bayes` for ergonomics, but it must share the existing Distribution protocol.
 - **`mutilate` extension:** instead of clamping intervened nodes via `observe`, install a unary likelihood factor matching the intervention distribution.
-- **`Intervention.assignments`:** widen type from `dict[str, int]` to `dict[str, int | DistributionSpec]` (`DistributionSpec` per `gaia.stats`).
-- **Tests:** stochastic-do parity against analytic Bernoulli/uniform examples; `do(X = Bernoulli(0.0))` and `do(X = Bernoulli(1.0))` collapse to hard-do behaviour.
+- **`Intervention.assignments`:** widen type from `dict[str, int]` to `dict[str, int | Distribution]` where `Distribution` is the current `gaia.lang.bayes` protocol.
+- **Tests:** stochastic-do parity against analytic Bernoulli-equivalent examples; `do(X = Binomial(n=1, p=0.0))` and `do(X = Binomial(n=1, p=1.0))` collapse to hard-do behaviour.
 
 Roughly 1 week. Carved out separately because the semantics warrant focused review (Pearl-stochastic vs. Pearl-deterministic interventions are documented differently in the literature) and to keep D₂'s footprint small.
 
@@ -868,7 +875,7 @@ Depends on: D₁, D₂ (D₃ optional).
 3. **Default stance on `do()` target that is not a DAG node.** §4.6 raises an error. An alternative is a warning + fall through to conditioning. Recommendation: error — silent "meaningless intervention" is the exact footgun the causal layer is meant to prevent.
 4. **Full-CPT authoring timing.** §4.1.2 fixes the v0.6 machine contract as a canonical full binary CPT and uses leak-aware noisy-OR as the default authoring transform. Open question: should v0.6 also expose an advanced `causal_cpt(...)` authoring helper, or should D₂ only implement noisy-OR authoring and keep full-CPT authoring for v0.7?
 5. **Soft-do timing.** §10 carves D₂.5 as a separate milestone after D₂ to keep `do()` semantics review-able piece by piece. Alternative: bundle stochastic intervention into D₂ for a single "intervention" PR. Recommendation: separate (more reviewable). Open to revisiting if reviewers prefer one combined PR.
-6. **Mixed-modality warning level.** §4.4 thought experiment 8 says when an effect node has both `causal()` and `deduction()` incoming, `gaia check causal` warns. Should this be a hard error in `gaia check causal --strict` mode? When does the situation actually represent author intent (e.g. "the deduction is a derived consequence, the cause is the mechanism") vs. an authoring mistake?
+6. **Mixed-modality warning level.** §4.4 thought experiment 9 says when an effect node has both `causal()` and logical/structural incoming factors, `gaia check causal` warns. Should this be a hard error in `gaia check causal --strict` mode? When does the situation actually represent author intent (e.g. "the structural relation is a derived consequence, the cause is the mechanism") vs. an authoring mistake?
 7. **Identification output format.** Raw y0 `Expression.to_latex()` vs. a Gaia-normalized string with QIDs. Recommendation: LaTeX for v0.6 plus a `node_map` from display symbols to QID/CNID; a fully Gaia-native symbolic expression can come later.
 
 ---
@@ -879,7 +886,7 @@ Depends on: D₁, D₂ (D₃ optional).
 
 ```python
 from gaia.lang import Bool, Variable, causal
-from gaia.lang.dsl.causal import do, query, ate
+from gaia.causal import do, query, ate
 
 G = Variable(symbol="G", domain=Bool)   # genetic predisposition
 X = Variable(symbol="X", domain=Bool)   # smoking
@@ -912,7 +919,7 @@ Given a DAG where `X → Y`, `Z → X`, `Z → Y`, authored via `causal()`, `do(
 
 ```python
 from gaia.lang import Bool, Variable, causal
-from gaia.lang.dsl.causal import do
+from gaia.causal import do
 from gaia.lang.dsl import deduction
 
 T = Variable(symbol="T", domain=Bool)   # treatment
@@ -938,7 +945,7 @@ do(T=1, S=1).query(R)
 
 ```python
 from gaia.lang import Bool, Causes, Claim, ClaimKind, Domain, Variable, forall
-from gaia.lang.dsl.causal import do, ate
+from gaia.causal import do, ate
 
 Person = Domain(name="Person", members=["alice", "bob", "carol"])
 p = Variable(symbol="p", domain=Person)
