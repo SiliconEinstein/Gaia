@@ -1,3 +1,5 @@
+import pytest
+
 from gaia.lang import Claim, ClaimAtom, decompose, implies, land
 from gaia.lang.compiler import compile_package_artifact
 from gaia.lang.runtime.action import Decompose, Structural
@@ -76,3 +78,33 @@ def test_compile_decompose_generates_formula_helper_and_equivalence_operator():
     assert compiled.action_label_map["github:decompose_demo::action::split_c"] == (
         equivalence.operator_id
     )
+
+
+def test_decompose_rejects_multiple_decompositions_for_same_whole():
+    c = Claim("Composite claim.")
+    a = Claim("Atomic A.")
+    b = Claim("Atomic B.")
+    decompose(c, parts=(a,), formula=ClaimAtom(a), label="split_c")
+
+    with pytest.raises(ValueError, match="already decomposed"):
+        decompose(c, parts=(b,), formula=ClaimAtom(b), label="split_c_again")
+
+
+def test_decompose_rejects_direct_decomposition_cycle():
+    a = Claim("Claim A.")
+    b = Claim("Claim B.")
+    decompose(a, parts=(b,), formula=ClaimAtom(b), label="a_as_b")
+
+    with pytest.raises(ValueError, match="cycle"):
+        decompose(b, parts=(a,), formula=ClaimAtom(a), label="b_as_a")
+
+
+def test_decompose_rejects_transitive_decomposition_cycle():
+    a = Claim("Claim A.")
+    b = Claim("Claim B.")
+    c = Claim("Claim C.")
+    decompose(a, parts=(b,), formula=ClaimAtom(b), label="a_as_b")
+    decompose(b, parts=(c,), formula=ClaimAtom(c), label="b_as_c")
+
+    with pytest.raises(ValueError, match="cycle"):
+        decompose(c, parts=(a,), formula=ClaimAtom(a), label="c_as_a")

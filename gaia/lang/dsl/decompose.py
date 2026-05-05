@@ -24,6 +24,28 @@ def _claim_atoms(formula: Any) -> tuple[Claim, ...]:
     return ()
 
 
+def _existing_decompose(whole: Claim) -> Decompose | None:
+    for action in whole.supports:
+        if isinstance(action, Decompose) and action.whole is whole:
+            return action
+    return None
+
+
+def _decomposition_reaches(start: Claim, target: Claim, seen: set[int]) -> bool:
+    if start is target:
+        return True
+    start_id = id(start)
+    if start_id in seen:
+        return False
+    seen.add(start_id)
+    for action in start.supports:
+        if not isinstance(action, Decompose) or action.whole is not start:
+            continue
+        if any(_decomposition_reaches(part, target, seen) for part in action.parts):
+            return True
+    return False
+
+
 def decompose(
     whole: Claim,
     *,
@@ -58,6 +80,12 @@ def decompose(
     extra = atom_ids - part_ids
     if extra:
         raise ValueError("decompose formula may only reference listed parts")
+    existing = _existing_decompose(whole)
+    if existing is not None:
+        suffix = f" by action {existing.label}" if existing.label else ""
+        raise ValueError(f"decompose: claim is already decomposed{suffix}")
+    if any(_decomposition_reaches(part, whole, set()) for part in part_tuple):
+        raise ValueError("decompose would create a decomposition cycle")
 
     action = Decompose(
         label=label,

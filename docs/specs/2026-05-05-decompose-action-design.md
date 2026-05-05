@@ -123,10 +123,11 @@ The generated helper names are illustrative. Stable IDs should be derived from
 the whole claim ID, the formula structure, and the action label, not from the
 display text.
 
-If `C` already has exactly the same formula attached, an implementation may skip
-the helper claim and record the `Decompose` action as an audit/review artifact.
-The default path should still use the helper claim, because it works for today's
-opaque markdown claims.
+The v0.5 runtime rejects multiple `Decompose` actions for the same whole claim.
+Even two formulas that look equivalent should be authored as one canonical
+decomposition for now; otherwise the generated equivalences silently assert the
+two formulas are interchangeable. A later compiler pass may choose to dedupe
+byte-identical decompositions, but that is not part of the initial surface.
 
 ## 5. Prior and Review Semantics
 
@@ -165,11 +166,13 @@ formula as independent probabilistic inputs.
 |---|---|
 | `whole` | `decomposition_whole` |
 | `parts` | `decomposition_part` |
-| generated formula helper `F` | `decomposition_formula_helper` |
-| generated `Equal` helper | `decomposition_equivalence_helper` |
 
 Prior policy should treat `decomposition_part` as a possible prior target and
-the two helper roles as structural.
+generated helpers as structural. The generated formula helper and generated
+equivalence helper are not authored `Claim` objects and are not returned by
+`roles_for_claim`; compiled IR marks them with
+`metadata.helper_kind = "decomposition_formula"` and
+`metadata.helper_kind = "decomposition_equivalence"`.
 
 ## 7. Validation Rules
 
@@ -185,6 +188,7 @@ Minimum validation:
 6. `whole` must not occur inside its own formula.
 7. Decomposition cycles are invalid: a claim cannot decompose into a formula
    that depends, directly or transitively, on itself.
+8. A whole claim may have at most one authored `Decompose` action in v0.5.
 
 Quantifiers, variables, and lifted predicates can be supported later by the
 existing formula grounding machinery. The first implementation should stay
@@ -232,13 +236,14 @@ Minimum tests for implementation:
    one `Equal(C, F)` action.
 2. Formula lowering for `F` emits the same operators as an authored claim with
    `formula=A and (B -> D)`.
-3. The role API returns `decomposition_whole` for `C`,
-   `decomposition_part` for `A`, `B`, and `D`, and helper roles for generated
-   claims.
+3. The role API returns `decomposition_whole` for `C` and
+   `decomposition_part` for `A`, `B`, and `D`; generated helpers carry their
+   structural role through compiled IR metadata.
 4. The default prior policy selects atomic parts when appropriate and skips the
    generated helpers.
-5. Invalid formulas fail fast: missing part, unused part, self-reference, and
-   duplicate part.
+5. Invalid formulas fail fast: missing part, unused part, self-reference,
+   duplicate part, repeated decomposition of one whole, and decomposition
+   cycles.
 6. `gaia check --hole` reports only role-selected atomic parts as independent
    DOFs for a decomposed claim.
 7. `gaia check --show C` displays the decomposition as `C == formula` without

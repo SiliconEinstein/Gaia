@@ -146,12 +146,18 @@ role.
 | `Exclusive` | `helper` | `exclusivity_helper` |
 | `Decompose` | `whole` | `decomposition_whole` |
 | `Decompose` | `parts` | `decomposition_part` |
-| generated `Decompose` formula helper | generated claim | `decomposition_formula_helper` |
-| generated `Decompose` equivalence helper | generated claim | `decomposition_equivalence_helper` |
 | `Compose` | `inputs` if `Claim` | `composition_input` |
 | `Compose` | `conclusion` | `composition_conclusion` |
 | `Action` base | `background` if `Claim` | `background` |
 | `Action` base | `warrants` | `warrant` |
+
+Generated decomposition helpers are compile-artifact roles, not authored-action
+roles. `roles_for_claim` returns only occurrences in runtime actions, so it
+reports `decomposition_whole` and `decomposition_part` for `Decompose`. The
+generated formula helper and generated equivalence helper do not exist as
+authored `Claim` objects; compiled IR carries their roles through
+`metadata.helper_kind = "decomposition_formula"` and
+`metadata.helper_kind = "decomposition_equivalence"`.
 
 `Compose.actions` should be traversed recursively when it contains action
 objects. Occurrences inside a composition get a `path` containing the enclosing
