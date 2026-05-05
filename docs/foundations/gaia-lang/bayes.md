@@ -166,8 +166,6 @@ The first two are warnings. Prior-coherence and missing-data diagnostics are
 hard errors because they change the meaning of the compiled likelihood update.
 
 `bayes:hypothesis-prior-coherence` sums hypothesis priors as recorded in the
-compiled IR. Hypotheses with no IR-level prior (e.g. those resolved later from
-a `priors.py` sidecar) contribute `0.5` to the sum — the rule validates author
-intent against the IR snapshot, not against the final inference-time prior. If
-you rely on sidecar priors for an exhaustive comparison, set the prior on the
-hypothesis Claim explicitly so the coherence check sees the value you mean.
+compiled IR. `gaia check` applies `priors.py` before compilation, so sidecar
+priors are visible to this rule once injected into metadata. Hypotheses with no
+Claim prior and no `priors.py` entry contribute `0.5` to the sum.
