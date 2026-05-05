@@ -1,5 +1,9 @@
 # Gaia Lang
 
+<p align="center">
+  <img src="docs/assets/gaia-icon.svg" alt="Gaia icon" width="128" height="128">
+</p>
+
 [![CI](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml/badge.svg)](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/SiliconEinstein/Gaia/graph/badge.svg)](https://codecov.io/gh/SiliconEinstein/Gaia)
 [![PyPI](https://img.shields.io/pypi/v/gaia-lang.svg)](https://pypi.org/project/gaia-lang/)
