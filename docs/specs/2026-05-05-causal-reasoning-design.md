@@ -262,10 +262,13 @@ depending on Claim metadata as its primary structure.
 Minimal runtime shape:
 
 ```python
+CausalEndpoint = Claim | Variable
+
+
 @dataclass(init=False, eq=False)
 class CausalMechanism(Knowledge):
-    cause: Knowledge | Variable
-    effect: Knowledge | Variable
+    cause: CausalEndpoint
+    effect: CausalEndpoint
     cpd: BinaryCPD | None = None
 ```
 
@@ -274,7 +277,12 @@ Rules:
 - It subclasses `Knowledge`, not `Claim`.
 - It cannot carry `prior`.
 - It does not participate in BP as a Boolean variable by default.
-- Its endpoints are typed references to Claims or Variables.
+- Its endpoints are typed references to Claims or Variables. They are not
+  arbitrary `Knowledge` nodes; `Note`, `Composition`, and other non-causal-node
+  objects are rejected.
+- `Variable` happens to subclass runtime `Knowledge`, but it is Lang-only and
+  compiles to a CNID endpoint rather than an IR Knowledge QID. The explicit
+  `CausalEndpoint` alias keeps that distinction visible.
 - Its `metadata` may carry display/provenance information, but not causal edge
   identity; the object itself is the edge identity.
 
@@ -541,6 +549,8 @@ The discussion should cover:
 ### D1. Runtime and DSL
 
 - Add runtime `CausalMechanism(Knowledge)`.
+- Add a narrow `CausalEndpoint = Claim | Variable` contract; do not accept
+  arbitrary `Knowledge`.
 - Add `mechanism(cause, effect, *, cpd=None, label=None, describe=None)`.
 - Ensure `mechanism(...)` returns Knowledge, not Claim and not Action.
 - Keep `causal(...)` as compatibility Claim helper or deprecate it after a
