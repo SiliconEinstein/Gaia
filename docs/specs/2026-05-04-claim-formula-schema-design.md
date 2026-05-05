@@ -339,6 +339,24 @@ A Claim with `formula=Equals(p, 0.75)` (parameter assertion):
   predicate so renderers and audits can recover the formula shape without
   executing Python.
 
+A Claim with `formula=land(Equals(n, 10), Equals(k, 3), ...)` (joint binding,
+the shape produced by `observation(n=n, k=k, ...)`):
+- Treat as a *binding conjunction*, not a propositional conjunction. The source
+  Claim's IR `Knowledge` remains the single truth variable; **no** orphan
+  formula-atom helpers and **no** `CONJUNCTION` operator are emitted.
+- Each `Equals(var, value)` operand contributes a binding to the source
+  `Knowledge.parameters` and to `metadata.formula_bindings`.
+- Tag `metadata.formula_lowering = "binding_conjunction"` so downstream tooling
+  can distinguish "this Land merely records joint bindings" from "this Land is
+  a propositional connective with truth-bearing operands".
+- Rationale: lowering this shape as a propositional `CONJUNCTION` would inject
+  rigid-operator factors that do not normalize over the source Claim's truth
+  variable, compressing its authored prior under BP. A multi-key
+  `observation(prior=0.95)` would then settle to a posterior strictly below
+  0.95 even with no evidence attached. Joint binding has no such factor —
+  the bindings are recorded as parameter metadata, and the source Claim's
+  prior survives unchanged.
+
 Compound formulas (e.g., `land(equals(...), implies(...))`) lower bottom-up —
 each non-atomic node emits a helper Knowledge plus the matching Operator.
 Atomic predicates nested inside a compound formula may be represented by
