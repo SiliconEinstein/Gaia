@@ -74,6 +74,7 @@ def test_mendel_fixture_models_competing_theories_with_association(tmp_path: Pat
     knowledge_by_label = {item["label"]: item for item in ir["knowledges"] if item.get("label")}
     strategy_types = {item["type"] for item in ir["strategies"]}
     association = knowledge_by_label["mendel_count_association"]
+    count_observation = knowledge_by_label["f2_count_observation"]
 
     # The package uses a single associate (Mendel ↔ count) and three qualitative
     # contradict edges against blending. It declares no `infer` strategy of its own.
@@ -130,6 +131,18 @@ def test_mendel_fixture_models_competing_theories_with_association(tmp_path: Pat
         association_parameters.p_count_given_mendelian
         > association_parameters.p_count_given_diffuse
     )
+
+    assert {
+        (param["name"], param["type"], param["value"]) for param in count_observation["parameters"]
+    } == {
+        ("n_f2", "Nat", 395),
+        ("k_dominant", "Nat", 295),
+    }
+    assert count_observation["metadata"]["formula_lowering"] == "binding_conjunction"
+    assert count_observation["metadata"]["formula_bindings"] == [
+        {"symbol": "n_f2", "domain": "Nat", "value": 395, "source": "formula"},
+        {"symbol": "k_dominant", "domain": "Nat", "value": 295, "source": "formula"},
+    ]
 
     _accept_all_reviews(package)
 

@@ -7,7 +7,7 @@ from gaia.lang.runtime.package import CollectedPackage
 
 def test_claim_boolean_truth_value_is_not_allowed():
     a = Claim("A.")
-    with pytest.raises(TypeError, match="Gaia logical expressions"):
+    with pytest.raises(TypeError, match="structured formula claims"):
         bool(a)
 
 
@@ -15,9 +15,12 @@ def test_claim_logical_operator_overloads_create_expression_helpers():
     a = Claim("A.")
     b = Claim("B.")
 
-    not_a = ~a
-    both = a & b
-    either = a | b
+    with pytest.warns(DeprecationWarning, match="not_\\(\\) is deprecated"):
+        not_a = ~a
+    with pytest.warns(DeprecationWarning, match="and_\\(\\) is deprecated"):
+        both = a & b
+    with pytest.warns(DeprecationWarning, match="or_\\(\\) is deprecated"):
+        either = a | b
 
     assert not_a.metadata["helper_kind"] == "negation_result"
     assert both.metadata["helper_kind"] == "conjunction_result"
@@ -32,8 +35,10 @@ def test_explicit_and_or_functions_accept_multiple_claims():
     b = Claim("B.")
     c = Claim("C.")
 
-    both = and_(a, b, c)
-    either = or_(a, b, c)
+    with pytest.warns(DeprecationWarning, match="and_\\(\\) is deprecated"):
+        both = and_(a, b, c)
+    with pytest.warns(DeprecationWarning, match="or_\\(\\) is deprecated"):
+        either = or_(a, b, c)
 
     assert both.metadata["helper_kind"] == "conjunction_result"
     assert either.metadata["helper_kind"] == "disjunction_result"
@@ -41,10 +46,12 @@ def test_explicit_and_or_functions_accept_multiple_claims():
 
 def test_propositional_functions_reject_non_claim_inputs():
     a = Claim("A.")
-    with pytest.raises(TypeError, match="Claim"):
-        and_(a, object())
-    with pytest.raises(TypeError, match="Claim"):
-        or_(a, object())
+    with pytest.warns(DeprecationWarning, match="and_\\(\\) is deprecated"):
+        with pytest.raises(TypeError, match="Claim"):
+            and_(a, object())
+    with pytest.warns(DeprecationWarning, match="or_\\(\\) is deprecated"):
+        with pytest.raises(TypeError, match="Claim"):
+            or_(a, object())
 
 
 def test_compile_propositional_expression_helpers_to_nonreviewed_operators():
@@ -53,11 +60,14 @@ def test_compile_propositional_expression_helpers_to_nonreviewed_operators():
         a.label = "a"
         b = Claim("B.")
         b.label = "b"
-        not_a = ~a
+        with pytest.warns(DeprecationWarning, match="not_\\(\\) is deprecated"):
+            not_a = ~a
         not_a.label = "not_a"
-        both = a & b
+        with pytest.warns(DeprecationWarning, match="and_\\(\\) is deprecated"):
+            both = a & b
         both.label = "both"
-        either = a | b
+        with pytest.warns(DeprecationWarning, match="or_\\(\\) is deprecated"):
+            either = a | b
         either.label = "either"
 
     compiled = compile_package_artifact(pkg)

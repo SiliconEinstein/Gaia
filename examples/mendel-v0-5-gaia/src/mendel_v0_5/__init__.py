@@ -52,17 +52,32 @@ once the framework separates the ``reliability`` / ``marginal`` / ``belief``
 roles on a Claim. See issue #485 for the design discussion.
 """
 
-from gaia.lang import associate, claim, contradict, derive, equal, exclusive, note, observe
+from gaia.lang import (
+    Nat,
+    Variable,
+    associate,
+    claim,
+    contradict,
+    derive,
+    equal,
+    exclusive,
+    note,
+    observe,
+    observation,
+)
 
 from .probabilities import (
     DOMINANT_COUNT,
     RECESSIVE_COUNT,
+    TOTAL_COUNT,
     mendel_count_association_parameters,
 )
 
 
 association_parameters = mendel_count_association_parameters()
 
+f2_total_count = Variable(symbol="n_f2", domain=Nat, value=TOTAL_COUNT)
+f2_dominant_count = Variable(symbol="k_dominant", domain=Nat, value=DOMINANT_COUNT)
 
 monohybrid_cross_setup = note(
     "单因子杂交实验从两个稳定亲本品系开始：一个亲本稳定表现显性表型，"
@@ -120,9 +135,18 @@ f2_recessive_reappears_observation = observe(
     label="f2_recessive_reappears_observation",
 )
 
+_f2_count_observation_binding = observation(
+    n=f2_total_count,
+    k=f2_dominant_count,
+    describe=(
+        f"F2 计数为 {DOMINANT_COUNT} 个显性表型和 {RECESSIVE_COUNT} 个隐性表型，"
+        f"共 {TOTAL_COUNT} 个个体。"
+    ),
+    label="f2_count_observation",
+)
+
 f2_count_observation = observe(
-    f"F2 计数为 {DOMINANT_COUNT} 个显性表型和 {RECESSIVE_COUNT} 个隐性表型，"
-    f"共 {DOMINANT_COUNT + RECESSIVE_COUNT} 个个体。",
+    _f2_count_observation_binding,
     background=[monohybrid_cross_setup, f2_has_discrete_classes_observation],
     rationale="这是用于贝叶斯点似然比较的 F2 显性/隐性计数数据。",
     label="f2_count_observation",

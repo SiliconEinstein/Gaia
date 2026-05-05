@@ -295,7 +295,8 @@ def test_compile_operator():
         a.label = "a"
         b = claim("B.")
         b.label = "b"
-        c = contradiction(a, b, reason="they conflict", prior=0.9)
+        with pytest.warns(DeprecationWarning, match="contradiction\\(\\) is deprecated"):
+            c = contradiction(a, b, reason="they conflict", prior=0.9)
         c.label = "a_vs_b"
     result = compile_package_artifact(pkg)
     assert len(result.graph.operators) == 1

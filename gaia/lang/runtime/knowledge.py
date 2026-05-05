@@ -151,8 +151,10 @@ class Claim(Knowledge):
 
     def __bool__(self) -> bool:
         raise TypeError(
-            "Claim objects do not have Python truth values. Use ~A, A & B, "
-            "or A | B to build Gaia logical expressions."
+            "Claim objects do not have Python truth values. Use claim(formula=...) "
+            "with ClaimAtom/land/lor/lnot to build structured formula claims; "
+            "legacy ~A, A & B, and A | B shortcuts still exist but emit "
+            "DeprecationWarning."
         )
 
     def __invert__(self) -> Claim:

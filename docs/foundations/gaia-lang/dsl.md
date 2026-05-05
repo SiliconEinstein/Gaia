@@ -206,17 +206,25 @@ Decorates a Python function as a named action workflow. Calling the function ret
 
 Operators declare deterministic logical constraints between claims. Each function creates an `Operator` (auto-registered) and returns a helper claim usable in further reasoning. For formal definitions and truth tables, see [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md), Section 2.
 
-### Propositional Expression Helpers
+### Structured Formula Replacements
 
-Use `~a`, `a & b`, and `a | b` for direct Boolean construction. These return structural helper claims and do not create review warrants.
+Use explicit formula claims for new structural Boolean construction. Referenced
+claims must be wrapped in `ClaimAtom`, which lets the compiler use the existing
+claim's IR node as the formula operand.
 
 ```python
-not_a = ~a          # same as not_(a)
-both = a & b        # same as and_(a, b)
-either = a | b      # same as or_(a, b)
+from gaia.lang import ClaimAtom, claim, land, lnot, lor
+
+not_a = claim("not A", formula=lnot(ClaimAtom(a)))
+both = claim("A and B", formula=land(ClaimAtom(a), ClaimAtom(b)))
+either = claim("A or B", formula=lor(ClaimAtom(a), ClaimAtom(b)))
 ```
 
-The explicit functions `not_(a)`, `and_(a, b, ...)`, and `or_(a, b, ...)` are also exported. Python keywords `not`, `and`, and `or` cannot be overloaded; `Claim.__bool__` raises to prevent accidental Python control-flow truth tests.
+The legacy shortcuts `~a`, `a & b`, `a | b`, `not_(a)`, `and_(a, b, ...)`, and
+`or_(a, b, ...)` remain exported for compatibility but emit
+`DeprecationWarning`. Python keywords `not`, `and`, and `or` cannot be
+overloaded; `Claim.__bool__` raises to prevent accidental Python control-flow
+truth tests.
 
 ### Propositional Analysis Helpers
 
@@ -243,7 +251,10 @@ Each relation returns a reviewable warrant helper claim and compiles to the corr
 
 ### v5 Compatibility Operators
 
-These functions remain for older packages. New v0.5 packages should prefer structural expressions (`~`, `&`, `|`) for direct Boolean construction and relation verbs (`equal`, `contradict`, `exclusive`) for reviewable semantic judgments.
+These functions remain for older packages but emit `DeprecationWarning`. New
+v0.5 packages should prefer formula claims for direct Boolean construction and
+relation verbs (`equal`, `contradict`, `exclusive`) for reviewable semantic
+judgments.
 
 ### `contradiction(a, b, *, reason="", prior=None)`
 

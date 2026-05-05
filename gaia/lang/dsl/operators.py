@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 from typing import Any
 
 from gaia.ir.parameterization import CROMWELL_EPS
@@ -42,10 +43,23 @@ def _helper_metadata(helper_kind: str, prior: float | None) -> dict:
     return meta
 
 
+def _warn_deprecated_operator(function_name: str, replacement: str) -> None:
+    warnings.warn(
+        f"{function_name}() is deprecated; use {replacement}",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+
+
 def contradiction(
     a: Knowledge, b: Knowledge, *, reason: str = "", prior: float | None = None
 ) -> Knowledge:
     """not(A and B). Creates Operator, returns helper claim."""
+    _warn_deprecated_operator(
+        "contradiction",
+        "contradict(a, b, rationale=...) for reviewable relations or "
+        "claim(formula=lnot(land(ClaimAtom(...), ...))) for structural formulas",
+    )
     _validate_reason_prior(reason, prior)
     helper = Knowledge(
         content=f"not_both_true({a.label or 'A'}, {b.label or 'B'})",
@@ -60,6 +74,11 @@ def equivalence(
     a: Knowledge, b: Knowledge, *, reason: str = "", prior: float | None = None
 ) -> Knowledge:
     """A = B. Creates Operator, returns helper claim."""
+    _warn_deprecated_operator(
+        "equivalence",
+        "equal(a, b, rationale=...) for reviewable relations or "
+        "claim(formula=iff(ClaimAtom(...), ClaimAtom(...))) for structural formulas",
+    )
     _validate_reason_prior(reason, prior)
     helper = Knowledge(
         content=f"same_truth({a.label or 'A'}, {b.label or 'B'})",
@@ -74,6 +93,11 @@ def complement(
     a: Knowledge, b: Knowledge, *, reason: str = "", prior: float | None = None
 ) -> Knowledge:
     """A != B (XOR). Creates Operator, returns helper claim."""
+    _warn_deprecated_operator(
+        "complement",
+        "exclusive(a, b, rationale=...) for reviewable relations or "
+        "claim(formula=lnot(iff(ClaimAtom(...), ClaimAtom(...)))) for structural formulas",
+    )
     _validate_reason_prior(reason, prior)
     helper = Knowledge(
         content=f"opposite_truth({a.label or 'A'}, {b.label or 'B'})",
@@ -86,6 +110,10 @@ def complement(
 
 def disjunction(*claims: Knowledge, reason: str = "", prior: float | None = None) -> Knowledge:
     """At least one true. Creates Operator, returns helper claim."""
+    _warn_deprecated_operator(
+        "disjunction",
+        "claim(formula=lor(ClaimAtom(...), ...)) for structural formulas",
+    )
     _validate_reason_prior(reason, prior)
     labels = ", ".join(c.label or f"C{i}" for i, c in enumerate(claims))
     helper = Knowledge(

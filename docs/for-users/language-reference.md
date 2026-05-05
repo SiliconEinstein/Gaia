@@ -203,25 +203,34 @@ If a step feels uncertain, first ask whether the uncertain part should become a 
 
 ## Operators (Deterministic Constraints)
 
-### Propositional expressions
+### Structured formula replacements
 
-Claims can be combined into helper claims with ordinary propositional structure:
-
-| Syntax | Function | Semantics | Review |
-|--------|----------|-----------|--------|
-| `~a` | `not_(a)` | NOT A | no |
-| `a & b` | `and_(a, b)` | A AND B | no |
-| OR shorthand | `or_(a, b)` | A OR B | no |
-
-The OR shorthand is `a | b`.
+For new packages, prefer explicit formula claims when you need a structural
+Boolean expression over existing claims. Wrap referenced claims in `ClaimAtom`
+so the compiler can connect the formula truth variable to the existing IR node.
 
 ```python
-not_classical = ~classical_prediction
-joint_case = evidence_a & evidence_b
-either_mechanism = mech_a | mech_b
+from gaia.lang import ClaimAtom, claim, land, lnot, lor
+
+not_classical = claim(
+    "The classical prediction does not hold.",
+    formula=lnot(ClaimAtom(classical_prediction)),
+)
+joint_case = claim(
+    "Both pieces of evidence hold.",
+    formula=land(ClaimAtom(evidence_a), ClaimAtom(evidence_b)),
+)
+either_mechanism = claim(
+    "At least one mechanism holds.",
+    formula=lor(ClaimAtom(mech_a), ClaimAtom(mech_b)),
+)
 ```
 
-These helpers are structural expression nodes. They do not create review warrants. Python keywords `not`, `and`, and `or` cannot be overloaded; use `~`, `&`, and `|` instead. `Claim` objects intentionally reject Python truth-value checks such as `if claim:`.
+The legacy shortcuts `~a`, `a & b`, `a | b`, `not_(a)`, `and_(...)`, and
+`or_(...)` still compile to structural helper claims, but they now emit
+`DeprecationWarning`. Python keywords `not`, `and`, and `or` still cannot be
+overloaded, and `Claim` objects intentionally reject truth-value checks such as
+`if claim:`.
 
 ### Propositional analysis
 
@@ -268,7 +277,11 @@ one_of = exclusive(conventional_sc, unconventional_sc,
 
 ### v5 compatibility operators
 
-All operators take Knowledge inputs and optional `reason` + `prior` (must be paired: both or neither). Each returns a helper claim.
+The older operator functions remain for existing packages but emit
+`DeprecationWarning`. New packages should use relation verbs for reviewable
+semantic judgments, or formula claims for structural Boolean expressions. The
+compatibility functions take Knowledge inputs and optional `reason` + `prior`
+(must be paired: both or neither), then return a helper claim.
 
 | Function | Semantics | Meaning |
 |----------|-----------|---------|

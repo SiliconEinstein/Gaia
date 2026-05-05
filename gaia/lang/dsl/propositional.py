@@ -1,6 +1,8 @@
-"""Gaia Lang v6 propositional expression helpers."""
+"""Legacy propositional expression helpers."""
 
 from __future__ import annotations
+
+import warnings
 
 from gaia.lang.runtime.knowledge import Claim
 from gaia.lang.runtime.nodes import Operator
@@ -25,8 +27,17 @@ def _validate_claims(claims: tuple[Claim, ...], function_name: str) -> None:
             raise TypeError(f"{function_name}() arguments must be Claim objects")
 
 
+def _warn_deprecated_helper(function_name: str, replacement: str) -> None:
+    warnings.warn(
+        f"{function_name}() is deprecated; use {replacement} for structured formula claims",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+
+
 def not_(claim: Claim) -> Claim:
     """Construct the Boolean negation expression ``not claim``."""
+    _warn_deprecated_helper("not_", "claim(formula=lnot(ClaimAtom(...)))")
     _validate_claims((claim,), "not_")
     helper = _expression_helper(f"not({_claim_ref(claim)})", "negation_result")
     Operator(operator="negation", variables=[claim], conclusion=helper)
@@ -35,6 +46,7 @@ def not_(claim: Claim) -> Claim:
 
 def and_(*claims: Claim) -> Claim:
     """Construct a Boolean conjunction expression over two or more Claims."""
+    _warn_deprecated_helper("and_", "claim(formula=land(ClaimAtom(...), ...))")
     if len(claims) < 2:
         raise ValueError("and_() requires at least two claims")
     _validate_claims(claims, "and_")
@@ -46,6 +58,7 @@ def and_(*claims: Claim) -> Claim:
 
 def or_(*claims: Claim) -> Claim:
     """Construct a Boolean disjunction expression over two or more Claims."""
+    _warn_deprecated_helper("or_", "claim(formula=lor(ClaimAtom(...), ...))")
     if len(claims) < 2:
         raise ValueError("or_() requires at least two claims")
     _validate_claims(claims, "or_")

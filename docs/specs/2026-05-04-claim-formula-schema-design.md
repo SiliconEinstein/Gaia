@@ -454,36 +454,55 @@ This is what eliminates the duplicate-numbers pain: numbers live in Variable def
 
 ### 8.1 What must change
 
-Today's helper-creating DSL functions are subsumed by formula AST:
+Today's helper-creating DSL functions are subsumed by formula AST. When a
+formula refers to an existing claim, wrap the claim in `ClaimAtom(...)`; raw
+`Claim` objects are not formula leaves.
 
 | Today (v0.5) | Tomorrow (v0.6) |
 |---|---|
-| `helper = and_(P, Q)` | `claim(..., formula=land(P, Q))` |
-| `helper = or_(P, Q)` | `claim(..., formula=lor(P, Q))` |
-| `helper = not_(P)` | `claim(..., formula=lnot(P))` |
-| `helper = contradiction(P, Q, prior=0.99)` | `claim(..., formula=lnot(land(P, Q)), prior=0.99)` |
-| `helper = equivalence(P, Q, prior=0.99)` | `claim(..., formula=iff(P, Q), prior=0.99)` |
-| `helper = complement(P, Q)` | `claim(..., formula=lnot(iff(P, Q)))` (XOR) |
-| `helper = disjunction(P, Q, ...)` | `claim(..., formula=lor(P, Q, ...))` |
+| `helper = and_(P, Q)` | `claim(..., formula=land(ClaimAtom(P), ClaimAtom(Q)))` |
+| `helper = or_(P, Q)` | `claim(..., formula=lor(ClaimAtom(P), ClaimAtom(Q)))` |
+| `helper = not_(P)` | `claim(..., formula=lnot(ClaimAtom(P)))` |
+| `helper = contradiction(P, Q, prior=0.99)` | `claim(..., formula=lnot(land(ClaimAtom(P), ClaimAtom(Q))), prior=0.99)` |
+| `helper = equivalence(P, Q, prior=0.99)` | `claim(..., formula=iff(ClaimAtom(P), ClaimAtom(Q)), prior=0.99)` |
+| `helper = complement(P, Q)` | `claim(..., formula=lnot(iff(ClaimAtom(P), ClaimAtom(Q))))` (XOR) |
+| `helper = disjunction(P, Q, ...)` | `claim(..., formula=lor(ClaimAtom(P), ClaimAtom(Q), ...))` |
 
-The IR-level shape produced is **identical**. The migration is purely at the authoring surface.
+The formula replacements preserve the same rigid Boolean semantics, but they are
+not guaranteed to produce byte-for-byte identical IR topology. For example,
+`lnot(land(ClaimAtom(P), ClaimAtom(Q)))` can lower through explicit negation and
+conjunction operators, while the legacy `contradiction(P, Q)` helper still emits
+the old direct contradiction operator. During the deprecation window the legacy
+helpers preserve their old IR shape; new authoring should choose formula claims
+for structural expressions and relation verbs for reviewable semantic judgments.
 
 ### 8.2 Deprecation policy
 
-Recommend keeping the existing functions as deprecated aliases for **one minor version** (v0.6 ships both, v0.7 deletes the aliases):
+The existing functions stay available as deprecated aliases during the v0.5
+transition. They preserve the old IR shape but emit `DeprecationWarning`:
 
 ```python
 def and_(*claims, **kwargs):
-    warnings.warn("and_() is deprecated; use claim(formula=land(...))", DeprecationWarning)
-    # forward to the new lowering
+    warnings.warn(
+        "and_() is deprecated; use claim(formula=land(ClaimAtom(...), ...))",
+        DeprecationWarning,
+    )
+    # preserve legacy helper-claim behavior for compatibility
     ...
 ```
 
-This gives existing packages (Mendel, Galileo, Superconductivity, …) one release cycle to migrate. A migration codemod (AST-level rewrite) is in scope as a follow-up tool.
+This gives existing packages one release cycle to migrate. A migration codemod
+(AST-level rewrite) remains a follow-up tool because preserving custom helper
+labels, prose content, metadata, and review targets requires package-specific
+judgment.
 
 ### 8.3 Scope of migration in this design
 
-The migration codemod is a **separate** workstream. This design ships the new authoring surface and the deprecated aliases; package migration happens incrementally afterward.
+The migration codemod is a **separate** workstream. This design ships the new
+authoring surface and deprecated aliases; package migration happens
+incrementally. The first-party Mendel example now uses structured
+`observation(...)` for its F2 count so the duplicated count values are recorded
+as formula bindings on the source claim.
 
 ## 9. Implementation Milestones
 
@@ -510,8 +529,8 @@ Three independent PR slices, ordered by dependency:
 ### Milestone C — Migration tooling + deprecation
 
 - Wrap `and_/or_/not_/contradiction/equivalence/complement/disjunction` with `DeprecationWarning`
-- Codemod: `gaia migrate-formula <package>` rewrites old DSL calls to new formula form
-- Migrate first-party packages (Mendel, Galileo, Superconductivity) in separate PRs
+- Migrate first-party package surfaces where the formula sugar is lossless (Mendel F2 count observation)
+- Keep automatic codemod as follow-up tooling; do not rewrite helper labels/metadata blindly
 - Update gaia-lang docs
 
 Each milestone is independently shippable. Milestone A introduces no new author-facing surface; B is the user-visible feature; C is migration cleanup.

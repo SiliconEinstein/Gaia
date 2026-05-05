@@ -104,6 +104,7 @@ def test_compile_missing_source_dir(tmp_path):
     assert "Expected at one of: missing_source/, src/missing_source/" in result.output
 
 
+@pytest.mark.filterwarnings("ignore:contradiction\\(\\) is deprecated:DeprecationWarning")
 def test_compile_fails_on_invalid_ir_validation(tmp_path):
     """Compile should fail before writing artifacts when IR validator rejects the graph."""
     pkg_dir = tmp_path / "invalid_pkg"
