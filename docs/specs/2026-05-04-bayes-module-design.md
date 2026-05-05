@@ -98,14 +98,18 @@ This spec defines a `gaia.lang.bayes` module with two new verbs (`predict`, `lik
 |---|---|---|
 | `metadata["bayes"]["role"]` | Knowledge | `"prediction" | "comparison"` |
 | `metadata["bayes"]["distribution"]` | PredictiveModel Knowledge | `{"kind": "binomial", "params": {...}}` (DistributionLiteral dump) |
-| `metadata["bayes"]["likelihoods"]` | ComparisonResult Knowledge | `{H_qid: log_likelihood}` |
-| `metadata["bayes"]["data"]` | ComparisonResult Knowledge | `[obs_qid, ...]` |
-| `metadata["bayes"]["model"]` | ComparisonResult Knowledge | `predictive_model_qid` |
+| `metadata["bayes"]["likelihoods"]` | ComparisonResult Knowledge | IR only: `{H_qid: log_likelihood}` |
+| `metadata["bayes"]["data"]` | ComparisonResult Knowledge | IR only: `[obs_qid, ...]` |
+| `metadata["bayes"]["model"]` | ComparisonResult Knowledge | IR only: `predictive_model_qid` |
 | `metadata["bayes"]["log_likelihood"]` | infer Strategy | scalar — for trace inspection |
 | `metadata["bayes"]["auto_generated_by"]` | CONTRADICTION Operator | `"likelihood:<cmp_result_qid>"` (audit trail for auto-added exclusion) |
 | `metadata["bayes"]["noise"]` | OBSERVATION Knowledge | DistributionLiteral dump (optional) |
 
 These ride existing `metadata: dict[str, Any]` channels; no Pydantic schema change.
+At runtime, Bayes verbs may keep Python object references to Claim / Observation /
+PredictiveModel objects. The compiler is the only layer that converts those
+references into QIDs via `knowledge_map`; runtime objects must not invent `.id`
+or `.qid` fields.
 
 ---
 
@@ -126,8 +130,8 @@ gaia/lang/bayes/
 │   ├── scipy_backend.py     # v1 default
 │   └── README.md            # PyMC / Stan adapter contract (v2+)
 ├── runtime/
-│   ├── prediction.py        # PredictiveModel Knowledge subclass
-│   └── comparison.py        # ComparisonResult Knowledge subclass
+│   ├── prediction.py        # PredictiveModel Claim subclass (`type="claim"`)
+│   └── comparison.py        # ComparisonResult Claim subclass (`type="claim"`)
 ├── compiler/
 │   └── lower.py             # Lang→IR lowering (per §4)
 └── README.md                # module overview & extension points
@@ -236,7 +240,7 @@ result = bayes.likelihood(
     rationale="",
     label=None,
     exclusivity="pairwise_contradiction",  # | "none" | "exhaustive_pairwise_complement"
-    precomputed=None,        # escape hatch: dict[H_qid, log_likelihood] — bypasses scipy
+    precomputed=None,        # escape hatch: dict[Claim, log_likelihood] — bypasses scipy
 ) -> Claim
 ```
 
@@ -244,11 +248,15 @@ Returns a Knowledge node with:
 
 - `prior = 1 - ε` (clamped to True — likelihood is tautologically observed once computed)
 - `metadata["bayes"]["role"] = "comparison"`
-- `metadata["bayes"]["likelihoods"] = {H_qid: log_likelihood}`
-- `metadata["bayes"]["data"] = [obs_qid, ...]`
-- `metadata["bayes"]["model"] = predictive_model_qid`
+- runtime object fields may keep Claim / Observation / PredictiveModel references until compile
+- IR metadata stores `metadata["bayes"]["likelihoods"] = {H_qid: log_likelihood}`
+- IR metadata stores `metadata["bayes"]["data"] = [obs_qid, ...]`
+- IR metadata stores `metadata["bayes"]["model"] = predictive_model_qid`
 
 This is the artifact upstream reasoning can cite: *"based on this comparison-result, we conclude…"*.
+If object references are stored in metadata before compile, they must appear as
+values (for example list entries), not as dict keys, because the current
+`_metadata_to_ir()` converter only rewrites metadata values.
 
 ---
 
@@ -279,7 +287,7 @@ Step 1: For each H_i:
 
 Step 2: Create ComparisonResult Knowledge:
     prior = 1 - ε
-    metadata["bayes"]["likelihoods"] = {H_i.qid: logL_i}
+    metadata["bayes"]["likelihoods"] = {knowledge_map[id(H_i)]: logL_i}
     formula = None
 
 Step 3: Normalise log-likelihoods into CPT entries:
@@ -289,8 +297,8 @@ Step 3: Normalise log-likelihoods into CPT entries:
     p1_i     = clamp((1 - ε) · LR_i)               # ∈ [ε, 1-ε]
 
 Step 4: For each H_i, emit an IR `infer` strategy plus its parameter record:
-    premises                  = [H_i.qid]
-    conclusion                = ComparisonResult.qid
+    premises                  = [knowledge_map[id(H_i)]]
+    conclusion                = knowledge_map[id(ComparisonResult)]
     StrategyParamRecord.conditional_probabilities = [p0_i, p1_i]
     metadata["bayes"]["log_likelihood"] = logL_i
 
@@ -357,7 +365,7 @@ discrete D_i:    P(observed | H_i) = Σ_{x ∈ D_i.support()} D_i.pmf(x) · Norm
 For v1: only `Normal` additive noise is supported. For other noise shapes, authors use the `precomputed=` escape hatch on `likelihood()`:
 
 ```python
-my_logL = {H_3_1.qid: -2.34, H_null.qid: -57.2}
+my_logL = {H_3_1: -2.34, H_null: -57.2}
 likelihood(data, via=M, precomputed=my_logL)   # bypasses scipy entirely
 ```
 
@@ -424,7 +432,7 @@ Already supported in v1 — author writes multiple `likelihood()` calls referenc
 
 | Trigger | Error | Source |
 |---|---|---|
-| Distribution param Variable unbound under H | `BindingError: <var.symbol> is unbound under <H.qid>` | `predict.lower()` |
+| Distribution param Variable unbound under H | `BindingError: <var.symbol> is unbound under <H label/qid>` | `predict.lower()` |
 | H's `formula` is not a PARAMETER shape (`Equals(var, const)`) | `HypothesisShapeError` | `likelihood.lower()` Step 1 |
 | `observation()` value type mismatches Variable domain | `DomainTypeError` | PR 505's existing type check |
 | Distribution param physically out of range (e.g. Binomial.p > 1) | `ValueError` | `Distribution.__init__` |
@@ -506,14 +514,17 @@ tests/gaia/lang/bayes/
 ```python
 def test_mendel_full_pipeline():
     pkg = build_mendel_package()
-    ir = compile(pkg)
-    fg = lower(ir)
+    compiled = compile(pkg)
+    fg = lower(compiled.graph)
     beliefs = run_bp(fg)
-    odds = beliefs[H_3_1.qid] / beliefs[H_null.qid]
+    h_3_1_id = compiled.knowledge_ids_by_object[id(H_3_1)]
+    h_null_id = compiled.knowledge_ids_by_object[id(H_null)]
+    cmp_id = compiled.knowledge_ids_by_object[id(cmp_result)]
+    odds = beliefs[h_3_1_id] / beliefs[h_null_id]
     assert odds == pytest.approx(49, rel=0.1)
-    assert beliefs[H_3_1.qid] > 0.95
-    assert beliefs[H_null.qid] < 0.03
-    assert beliefs[cmp_result.qid] > 0.99
+    assert beliefs[h_3_1_id] > 0.95
+    assert beliefs[h_null_id] < 0.03
+    assert beliefs[cmp_id] > 0.99
 ```
 
 ### 7.5 Performance smoke
@@ -574,7 +585,8 @@ Three independent PR slices, ordered by dependency. Each independently shippable
 
 ### Milestone B — `predict()` + `likelihood()` + lowering
 
-- `gaia/lang/bayes/runtime/prediction.py`, `comparison.py` — Knowledge subclasses.
+- `gaia/lang/bayes/runtime/prediction.py`, `comparison.py` — Claim subclasses
+  with `type="claim"` and `metadata["bayes"]["role"]`.
 - `gaia/lang/bayes/verbs/predict.py`, `likelihood.py` — DSL surface.
 - `gaia/lang/bayes/compiler/lower.py` — Lang→IR lowering per §4.
 - Extend `observation()` (PR 505) with `noise=` parameter.

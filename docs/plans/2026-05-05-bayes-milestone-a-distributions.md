@@ -4,7 +4,7 @@
 
 **Goal:** Land `gaia.lang.bayes.distributions` — a typed-value distribution layer (Binomial / Normal / Beta / Poisson / Exponential / LogNormal / StudentT / Cauchy / Gamma / ChiSquared) backed by `scipy.stats`, with Variable-aware parameter slots that defer resolution to Milestone B.
 
-**Architecture:** Each distribution is a Pydantic `BaseModel` carrying `kind: str` and `params: dict[str, DistParam]` where `DistParam = int | float | _DeferredRef`. `.logpmf / .logpdf / .support` delegate to a thin `scipy_backend` that constructs the matching `scipy.stats` frozen distribution at call time. Distributions raise `UnresolvedParameterError` when invoked with deferred params — Milestone B will resolve those before lowering. **No coupling to PR 505's Variable class** — we accept anything with a `.symbol` attribute via duck typing; the compiler in Milestone B replaces deferred slots with concrete numbers before `.logpmf` is ever called.
+**Architecture:** Each distribution is a Pydantic `BaseModel` carrying `kind: str` and `params: dict[str, DistParam]` where `DistParam = int | float | _DeferredRef`. `.logpmf / .logpdf / .support` delegate to a thin `scipy_backend` that constructs the matching `scipy.stats` frozen distribution at call time. Distributions raise `UnresolvedParameterError` when invoked with deferred params — Milestone B will resolve those before lowering. **No coupling to PR 505's Variable class** — we accept anything with a `.symbol` attribute via duck typing; the compiler in Milestone B replaces deferred slots with concrete numbers from the live runtime object references before `.logpmf` is ever called. `model_dump()` descriptors are audit/debug output, not binding keys.
 
 **Tech Stack:** Python 3.12, Pydantic v2, scipy.stats, pytest, ruff.
 
@@ -360,16 +360,18 @@ class _DeferredVariable:
     UnresolvedParameterError at call time."""
 
     symbol: str
+    domain: str
+    label: str | None = None
 
 
 @pytest.fixture
 def theta_deferred() -> _DeferredVariable:
-    return _DeferredVariable(symbol="theta")
+    return _DeferredVariable(symbol="theta", domain="Probability", label="theta_var")
 
 
 @pytest.fixture
 def n_deferred() -> _DeferredVariable:
-    return _DeferredVariable(symbol="n")
+    return _DeferredVariable(symbol="n", domain="Nat", label="n_var")
 ```
 
 - [ ] **Step 2: Write the failing base-class tests**
@@ -456,14 +458,18 @@ def test_model_dump_serializes_concrete_params():
 
 
 def test_model_dump_skips_deferred_params(theta_deferred):
-    """Deferred params are not JSON-serializable; model_dump must omit them
-    or replace with a placeholder. We pick: only emit concrete params, and
-    add a parallel `deferred_params: dict[str, str]` field so the IR side can
-    re-resolve each parameter slot by Variable symbol."""
+    """Deferred params are not JSON-serializable; model_dump emits concrete
+    params plus an audit descriptor for deferred slots.
+
+    Milestone B must resolve deferred params from the live runtime object refs
+    before serializing to IR; this descriptor is for trace/debugging, not the
+    binding authority."""
     d = _Dummy(params={"a": theta_deferred, "b": 0.5})
     dumped = d.model_dump()
     assert dumped["params"] == {"b": 0.5}
-    assert dumped["deferred_params"] == {"a": "theta"}
+    assert dumped["deferred_params"] == {
+        "a": {"symbol": "theta", "domain": "Probability", "label": "theta_var"}
+    }
 ```
 
 - [ ] **Step 3: Run tests — verify failure**
@@ -490,7 +496,7 @@ This base class enforces:
 - _deferred_param_names() returns sorted parameter names whose values are
   deferred references
 - _resolved_params() returns {name: float} or raises UnresolvedParameterError
-- model_dump emits only concrete params and a parallel deferred_params mapping
+- model_dump emits only concrete params and a parallel deferred_params descriptor
 """
 
 from __future__ import annotations
@@ -514,6 +520,36 @@ def _is_deferred_reference(value: Any) -> bool:
     # Variable without importing it (Milestone A is independent of PR 505).
     symbol = getattr(value, "symbol", None)
     return isinstance(symbol, str)
+
+
+def _domain_descriptor(value: Any) -> Any:
+    name = getattr(value, "name", None)
+    if isinstance(name, str):
+        return name
+    label = getattr(value, "label", None)
+    if isinstance(label, str):
+        return label
+    content = getattr(value, "content", None)
+    if isinstance(content, str):
+        return content
+    return repr(value)
+
+
+def _deferred_reference_descriptor(value: Any) -> dict[str, Any]:
+    """JSON-safe audit descriptor for a deferred reference.
+
+    This is intentionally not the compiler's binding key. Milestone B resolves
+    parameters from the live object references in `self.params` before IR
+    serialization, then emits QID/scoped metadata from the compiler map.
+    """
+    descriptor: dict[str, Any] = {"symbol": value.symbol}
+    domain = getattr(value, "domain", None)
+    if domain is not None:
+        descriptor["domain"] = _domain_descriptor(domain)
+    label = getattr(value, "label", None)
+    if label is not None:
+        descriptor["label"] = label
+    return descriptor
 
 
 class _BaseDistribution(BaseModel):
@@ -545,10 +581,10 @@ class _BaseDistribution(BaseModel):
             if _is_deferred_reference(value)
         )
 
-    def _deferred_param_symbols(self) -> dict[str, str]:
-        """Map deferred parameter names to the referenced Variable symbol."""
+    def _deferred_param_descriptors(self) -> dict[str, dict[str, Any]]:
+        """Map deferred parameter names to JSON-safe audit descriptors."""
         return {
-            name: value.symbol
+            name: _deferred_reference_descriptor(value)
             for name, value in sorted(self.params.items())
             if _is_deferred_reference(value)
         }
@@ -564,14 +600,15 @@ class _BaseDistribution(BaseModel):
         return {name: float(value) for name, value in self.params.items()}
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:  # type: ignore[override]
-        """Override Pydantic dump: emit concrete params + deferred_params map.
+        """Override Pydantic dump: emit concrete params + deferred_params descriptors.
 
         Deferred references are not JSON-serializable, so we strip them and
-        record each parameter slot's Variable symbol in a parallel field.
-        Milestone B's compiler reads `deferred_params` to re-bind them before
-        lowering.
+        record each parameter slot's available symbol/domain/label data in a
+        parallel audit field. Milestone B's compiler must read the live object
+        refs in `self.params` before lowering; `deferred_params` is not a
+        binding key and must not be used to resolve ambiguous symbols.
         """
-        deferred = self._deferred_param_symbols()
+        deferred = self._deferred_param_descriptors()
         concrete = {
             name: value
             for name, value in self.params.items()
@@ -605,8 +642,9 @@ git commit -m "feat(bayes): _BaseDistribution Pydantic model with Variable-aware
 Concrete distributions subclass this. Accepts numeric params or deferred
 references (any object with .symbol: str — duck-typed PR 505 Variable).
 Raises UnresolvedParameterError when methods are called before deferred
-params resolve. model_dump serializes concrete + parallel deferred_params
-mapping so compiler (Milestone B) can re-bind each parameter slot."
+params resolve. model_dump serializes concrete params plus JSON-safe
+deferred reference descriptors for audit; compiler rebinding in Milestone B
+must use the live runtime object references before IR serialization."
 ```
 
 ---
@@ -878,7 +916,9 @@ def test_binomial_model_dump_with_deferred_p(theta_deferred):
     dumped = d.model_dump()
     assert dumped["kind"] == "binomial"
     assert dumped["params"] == {"n": 10}
-    assert dumped["deferred_params"] == {"p": "theta"}
+    assert dumped["deferred_params"] == {
+        "p": {"symbol": "theta", "domain": "Probability", "label": "theta_var"}
+    }
 ```
 
 - [ ] **Step 2: Run — verify test fails at collection**
@@ -1154,7 +1194,9 @@ def test_normal_model_dump_with_deferred_mu(theta_deferred):
     dumped = d.model_dump()
     assert dumped["kind"] == "normal"
     assert dumped["params"] == {"sigma": 1.0}
-    assert dumped["deferred_params"] == {"mu": "theta"}
+    assert dumped["deferred_params"] == {
+        "mu": {"symbol": "theta", "domain": "Probability", "label": "theta_var"}
+    }
 ```
 
 - [ ] **Step 2: Run — verify test fails at collection**
@@ -1279,7 +1321,7 @@ Every new distribution in this chunk copies these test sections from `test_binom
 4. **Outside support** — `-inf` return (discrete) or large-negative-finite (continuous bounded).
 5. **Wrong-path method raises** — discrete distributions' `.logpdf` → `TypeError("discrete")`; continuous' `.logpmf` → `TypeError("continuous")`.
 6. **Support** — `.support()` returns the expected closed interval.
-7. **Deferred params** — `theta_deferred` in each parameter slot (one test per slot), plus `.logpmf` / `.logpdf` raises `UnresolvedParameterError`, plus `model_dump` emits the `{slot: symbol}` entry.
+7. **Deferred params** — `theta_deferred` in each parameter slot (one test per slot), plus `.logpmf` / `.logpdf` raises `UnresolvedParameterError`, plus `model_dump` emits `{slot: {symbol, domain?, label?}}` audit descriptors.
 
 This keeps each test file at 30–60 assertions — same shape as Binomial/Normal.
 
@@ -1870,10 +1912,12 @@ def test_contradiction_constraint(exact_factor_marginals):
     assert marg[1] == pytest.approx(1 / 3, abs=1e-9)
 
 
-def test_likelihood_factor_recovers_bayes_factor(exact_factor_marginals):
+def test_likelihood_factor_recovers_clamped_bayes_odds(exact_factor_marginals):
     """Single H clamped via a likelihood factor with logL = -1.2 vs an alternate
-    H' with logL = -5.1, plus pairwise CONTRADICTION — exact posterior odds
-    must equal exp(3.9) ≈ 49.4 (the true Bayes factor) within tolerance.
+    H' with logL = -5.1, plus pairwise CONTRADICTION. The raw Bayes factor is
+    exp(3.9) ≈ 49.4; with Gaia's Cromwell clamp and the explicit comparison /
+    contradiction helper variables in this modeled graph, exact posterior odds
+    are ≈46.942.
 
     This is the corrected ground-truth that PR #514 verified — the same
     arithmetic that flushed out the spec §4.3 bug. Keeping it as a test
@@ -1889,9 +1933,6 @@ def test_likelihood_factor_recovers_bayes_factor(exact_factor_marginals):
         cpt = [p0, p1]
         prob = max(eps, min(1 - eps, cpt[h_val]))
         return prob if cmp_val == 1 else 1 - prob
-
-    def contradict_factor(a, b):
-        return eps if (a == 1 and b == 1) else 1 - eps
 
     def weight(assn):
         h_a, h_b, cmp_v, contradict_helper = assn
@@ -1909,14 +1950,15 @@ def test_likelihood_factor_recovers_bayes_factor(exact_factor_marginals):
 
     Z, marg = exact_factor_marginals(4, weight)
     odds = marg[0] / marg[1]
-    # True BF = exp(3.9) ≈ 49.4. Cromwell clamp tightens slightly.
-    assert odds == pytest.approx(49.3, rel=0.05)
+    # Raw BF = exp(3.9) ≈ 49.4; this exact graph includes Cromwell-clamped
+    # helper variables, yielding the modeled Gaia odds below.
+    assert odds == pytest.approx(46.942015227014885, rel=1e-9)
 ```
 
 - [ ] **Step 3: Run**
 
 Run: `uv run --extra dev pytest tests/gaia/lang/bayes/test_exact_inference.py -v`
-Expected: 3 tests pass; the third reproduces the corrected `≈ 49.3` posterior odds from PR #514.
+Expected: 3 tests pass; the third reproduces the corrected `≈ 46.942` posterior odds for the modeled Gaia factor graph. The unclamped Bayes factor remains `exp(3.9) ≈ 49.4`.
 
 - [ ] **Step 4: Commit**
 
@@ -1929,9 +1971,9 @@ Designed for Milestone B/C tests to verify BP-based inference matches
 exact marginals — closes the 'reproducer-bug masquerades as engine-bug'
 trap that hit the spec exclusivity caveat (PR #514).
 
-Includes a regression test pinning the corrected Mendel posterior odds
-(~49.3, matching exp(3.9)) so future lowering changes can't silently
-break the worked example."
+Includes a regression test pinning the corrected Cromwell-clamped Mendel
+posterior odds (~46.942 for the modeled Gaia factor graph) while separately
+documenting the raw exp(3.9) Bayes factor (~49.4)."
 ```
 
 ---
@@ -2015,9 +2057,9 @@ When a distribution method (`.logpmf` / `.logpdf` / `.support`) is called with u
 
 `model_dump()` emits two fields:
 - `params: dict[name, value]` — concrete numeric params only.
-- `deferred_params: dict[slot, symbol]` — present only if any param is deferred. Maps each parameter slot to the referenced Variable's symbol.
+- `deferred_params: dict[slot, descriptor]` — present only if any param is deferred. The descriptor includes at least `symbol` and, when available, `domain` / `label`.
 
-This shape lets the IR side serialise distribution literals without losing the Variable references that Milestone B re-binds.
+This shape is an audit/debug serialization only. Milestone B's compiler must resolve deferred parameters from the live runtime object references in `params` before emitting IR, then use `knowledge_map` / scoped compiler metadata to avoid duplicate-symbol ambiguity.
 
 ## Backend
 
@@ -2077,13 +2119,22 @@ assert required.issubset(set(b.__all__)), f'Missing: {required - set(b.__all__)}
 print('§11.1 distribution subset satisfied (predict/likelihood deferred to Milestone B)')
 # §11.6: no new FactorType
 from gaia.bp.factor_graph import FactorType
-expected_types = {'IMPLICATION', 'CONJUNCTION', 'DISJUNCTION', 'EQUIVALENCE', 'CONTRADICTION', 'COMPLEMENT', 'SOFT_ENTAILMENT', 'CONDITIONAL'}
+expected_types = {
+    'IMPLICATION', 'NEGATION', 'CONJUNCTION', 'DISJUNCTION',
+    'EQUIVALENCE', 'CONTRADICTION', 'COMPLEMENT',
+    'SOFT_ENTAILMENT', 'CONDITIONAL', 'PAIRWISE_POTENTIAL',
+}
 assert {ft.name for ft in FactorType} == expected_types, 'FactorType drift detected'
+assert not any('BAYES' in ft.name or 'LIKELIHOOD' in ft.name for ft in FactorType)
 print('§11.6 satisfied')
 # §11.7: no new OperatorType
 from gaia.ir.operator import OperatorType
-expected_ops = {'IMPLICATION', 'EQUIVALENCE', 'CONTRADICTION', 'COMPLEMENT', 'DISJUNCTION', 'CONJUNCTION'}
+expected_ops = {
+    'IMPLICATION', 'NEGATION', 'EQUIVALENCE', 'CONTRADICTION',
+    'COMPLEMENT', 'DISJUNCTION', 'CONJUNCTION',
+}
 assert {ot.name for ot in OperatorType} == expected_ops, 'OperatorType drift detected'
+assert not any('BAYES' in ot.name or 'LIKELIHOOD' in ot.name for ot in OperatorType)
 print('§11.7 satisfied')
 print('Milestone A acceptance subset satisfied at code level')
 "`
