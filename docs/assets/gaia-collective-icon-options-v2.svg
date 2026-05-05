@@ -1,0 +1,273 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1200"
+  height="640"
+  viewBox="0 0 1200 640"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">Gaia collective intelligence icon options v2</title>
+  <desc id="desc">
+    Ten candidate Gaia icons focused on distributed contributors, review gates, registries, and shared belief.
+  </desc>
+  <defs>
+    <linearGradient id="field-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071827" />
+      <stop offset="0.56" stop-color="#113847" />
+      <stop offset="1" stop-color="#16412f" />
+    </linearGradient>
+    <linearGradient id="field-bg-soft" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ecfff8" />
+      <stop offset="1" stop-color="#dff3ff" />
+    </linearGradient>
+    <linearGradient id="commons-line" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5ee7c4" />
+      <stop offset="0.58" stop-color="#a7f3d0" />
+      <stop offset="1" stop-color="#f4c95d" />
+    </linearGradient>
+    <radialGradient id="shared-light" cx="50%" cy="48%" r="58%">
+      <stop offset="0" stop-color="#ffffff" />
+      <stop offset="0.55" stop-color="#bff9e7" />
+      <stop offset="1" stop-color="#123a45" />
+    </radialGradient>
+    <style>
+      .sheet { fill: #f4faf7; }
+      .tile { fill: #ffffff; stroke: #d7e7e2; stroke-width: 1.5; }
+      .head { fill: #243f39; font: 700 24px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .note { fill: #5e716d; font: 500 12px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .num { fill: #243f39; font: 750 18px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .cap { fill: #60736f; font: 500 12px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .mint { fill: #5ee7c4; }
+      .pale { fill: #a7f3d0; }
+      .gold { fill: #f4c95d; }
+      .paper { fill: #f8fffb; }
+      .ink { fill: #102f3b; }
+      .line { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      .dark { stroke: #102f3b; }
+      .mintline { stroke: #5ee7c4; }
+      .goldline { stroke: #f4c95d; }
+      .paleLine { stroke: #dffdf5; }
+    </style>
+  </defs>
+
+  <rect class="sheet" width="1200" height="640" />
+  <text x="40" y="42" class="head">Gaia collective intelligence candidates v2</text>
+  <text x="40" y="66" class="note">
+    Each icon tries to show distributed contributors plus review producing a shared, updating belief field.
+  </text>
+
+  <g transform="translate(40 96)">
+    <g>
+      <rect class="tile" width="200" height="220" rx="22" />
+      <g transform="translate(20 18) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="url(#field-bg)" />
+        <circle cx="256" cy="256" r="156" fill="none" stroke="#dffdf5" stroke-opacity="0.18" stroke-width="38" />
+        <circle cx="256" cy="256" r="112" fill="url(#shared-light)" />
+        <circle cx="256" cy="256" r="54" class="paper" stroke="#102f3b" stroke-width="14" />
+        <path class="line dark" stroke-width="16" d="M228 257H284" />
+        <path class="line mintline" stroke-width="10" opacity="0.74" d="M87 150C145 178 204 204 256 256M425 150C367 178 308 204 256 256M87 362C145 334 204 308 256 256M425 362C367 334 308 308 256 256" />
+        <path class="line goldline" stroke-width="8" opacity="0.82" d="M160 86C190 154 220 214 256 256M352 86C322 154 292 214 256 256M160 426C190 358 220 298 256 256M352 426C322 358 292 298 256 256" />
+        <g stroke="#071827" stroke-width="8">
+          <circle cx="87" cy="150" r="22" class="mint" />
+          <circle cx="425" cy="150" r="22" class="gold" />
+          <circle cx="87" cy="362" r="22" class="gold" />
+          <circle cx="425" cy="362" r="22" class="mint" />
+          <circle cx="160" cy="86" r="19" class="pale" />
+          <circle cx="352" cy="86" r="19" class="gold" />
+          <circle cx="160" cy="426" r="19" class="mint" />
+          <circle cx="352" cy="426" r="19" class="pale" />
+        </g>
+      </g>
+      <text x="16" y="246" class="num">01</text>
+      <text x="52" y="245" class="cap">shared belief field</text>
+    </g>
+
+    <g transform="translate(230 0)">
+      <rect class="tile" width="200" height="220" rx="22" />
+      <g transform="translate(20 18) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="#0b1f33" />
+        <g stroke="#071827" stroke-width="8">
+          <rect x="74" y="116" width="58" height="58" rx="15" class="mint" />
+          <rect x="74" y="226" width="58" height="58" rx="15" class="pale" />
+          <rect x="74" y="338" width="58" height="58" rx="15" class="gold" />
+          <rect x="380" y="116" width="58" height="58" rx="15" class="gold" />
+          <rect x="380" y="226" width="58" height="58" rx="15" class="mint" />
+          <rect x="380" y="338" width="58" height="58" rx="15" class="pale" />
+        </g>
+        <path class="line paleLine" stroke-width="12" opacity="0.66" d="M132 145H202M132 255H202M132 367H202M310 145H380M310 255H380M310 367H380" />
+        <rect x="202" y="86" width="108" height="340" rx="52" fill="#f8fffb" stroke="#5ee7c4" stroke-width="18" />
+        <path class="line dark" stroke-width="19" d="M230 258L252 280L286 226" />
+        <path class="line goldline" stroke-width="9" opacity="0.92" d="M256 86V42M256 426V470" />
+        <circle cx="256" cy="42" r="22" class="gold" stroke="#071827" stroke-width="8" />
+        <circle cx="256" cy="470" r="22" class="mint" stroke="#071827" stroke-width="8" />
+      </g>
+      <text x="16" y="246" class="num">02</text>
+      <text x="52" y="245" class="cap">review membrane</text>
+    </g>
+
+    <g transform="translate(460 0)">
+      <rect class="tile" width="200" height="220" rx="22" />
+      <g transform="translate(20 18) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="url(#field-bg-soft)" />
+        <circle cx="256" cy="256" r="170" fill="#102f3b" />
+        <rect x="100" y="122" width="78" height="72" rx="18" class="paper" stroke="#5ee7c4" stroke-width="13" />
+        <rect x="334" y="122" width="78" height="72" rx="18" class="paper" stroke="#f4c95d" stroke-width="13" />
+        <rect x="100" y="318" width="78" height="72" rx="18" class="paper" stroke="#f4c95d" stroke-width="13" />
+        <rect x="334" y="318" width="78" height="72" rx="18" class="paper" stroke="#5ee7c4" stroke-width="13" />
+        <path class="line paleLine" stroke-width="12" opacity="0.76" d="M178 158C214 178 234 208 256 256M334 158C298 178 278 208 256 256M178 354C214 334 234 304 256 256M334 354C298 334 278 304 256 256" />
+        <circle cx="256" cy="256" r="76" fill="url(#shared-light)" stroke="#a7f3d0" stroke-width="14" />
+        <path class="line dark" stroke-width="17" d="M224 256H288" />
+      </g>
+      <text x="16" y="246" class="num">03</text>
+      <text x="52" y="245" class="cap">package commons</text>
+    </g>
+
+    <g transform="translate(690 0)">
+      <rect class="tile" width="200" height="220" rx="22" />
+      <g transform="translate(20 18) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="url(#field-bg)" />
+        <circle cx="256" cy="256" r="174" fill="none" stroke="#a7f3d0" stroke-width="14" stroke-dasharray="19 17" />
+        <path class="line mintline" stroke-width="14" d="M142 142C188 104 324 104 370 142M142 370C188 408 324 408 370 370M142 142C104 188 104 324 142 370M370 142C408 188 408 324 370 370" />
+        <circle cx="256" cy="256" r="92" class="paper" />
+        <path class="line dark" stroke-width="19" d="M214 256H298M256 214V298" />
+        <g stroke="#071827" stroke-width="8">
+          <circle cx="142" cy="142" r="25" class="mint" />
+          <circle cx="370" cy="142" r="25" class="gold" />
+          <circle cx="142" cy="370" r="25" class="gold" />
+          <circle cx="370" cy="370" r="25" class="mint" />
+          <circle cx="256" cy="86" r="22" class="pale" />
+          <circle cx="426" cy="256" r="22" class="gold" />
+          <circle cx="256" cy="426" r="22" class="mint" />
+          <circle cx="86" cy="256" r="22" class="pale" />
+        </g>
+      </g>
+      <text x="16" y="246" class="num">04</text>
+      <text x="52" y="245" class="cap">no central brain</text>
+    </g>
+
+    <g transform="translate(920 0)">
+      <rect class="tile" width="200" height="220" rx="22" />
+      <g transform="translate(20 18) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="#123a45" />
+        <path class="line paleLine" stroke-width="15" opacity="0.82" d="M96 190C166 144 214 220 256 256C298 292 346 368 416 322" />
+        <path class="line mintline" stroke-width="15" d="M96 322C166 368 214 292 256 256C298 220 346 144 416 190" />
+        <path class="line goldline" stroke-width="12" d="M124 256H388" />
+        <circle cx="256" cy="256" r="50" class="paper" stroke="#5ee7c4" stroke-width="15" />
+        <g stroke="#071827" stroke-width="8">
+          <circle cx="96" cy="190" r="22" class="mint" />
+          <circle cx="96" cy="322" r="22" class="gold" />
+          <circle cx="416" cy="190" r="22" class="gold" />
+          <circle cx="416" cy="322" r="22" class="mint" />
+          <circle cx="124" cy="256" r="17" class="pale" />
+          <circle cx="388" cy="256" r="17" class="pale" />
+        </g>
+      </g>
+      <text x="16" y="246" class="num">05</text>
+      <text x="52" y="245" class="cap">argument weave</text>
+    </g>
+  </g>
+
+  <g transform="translate(40 370)">
+    <g>
+      <rect class="tile" width="200" height="220" rx="22" />
+      <g transform="translate(20 18) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="#081a2a" />
+        <circle cx="256" cy="256" r="164" fill="#10343d" />
+        <path class="line goldline" stroke-width="16" d="M104 256C160 204 210 188 256 188C302 188 352 204 408 256C352 308 302 324 256 324C210 324 160 308 104 256Z" />
+        <path class="line mintline" stroke-width="13" d="M162 162C224 210 288 302 350 350M350 162C288 210 224 302 162 350" opacity="0.8" />
+        <circle cx="256" cy="256" r="70" class="paper" stroke="#a7f3d0" stroke-width="14" />
+        <path class="line dark" stroke-width="17" d="M225 256H287" />
+        <g stroke="#071827" stroke-width="8">
+          <circle cx="104" cy="256" r="23" class="mint" />
+          <circle cx="408" cy="256" r="23" class="gold" />
+          <circle cx="162" cy="162" r="20" class="gold" />
+          <circle cx="350" cy="162" r="20" class="mint" />
+          <circle cx="162" cy="350" r="20" class="pale" />
+          <circle cx="350" cy="350" r="20" class="pale" />
+        </g>
+      </g>
+      <text x="16" y="246" class="num">06</text>
+      <text x="52" y="245" class="cap">commons lens</text>
+    </g>
+
+    <g transform="translate(230 0)">
+      <rect class="tile" width="200" height="220" rx="22" />
+      <g transform="translate(20 18) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="url(#field-bg-soft)" />
+        <circle cx="256" cy="256" r="170" fill="#102f3b" />
+        <path class="line mintline" stroke-width="14" d="M256 88C302 138 350 184 424 214M256 424C302 374 350 328 424 298M256 88C210 138 162 184 88 214M256 424C210 374 162 328 88 298" />
+        <path class="line goldline" stroke-width="12" d="M88 256H424" opacity="0.86" />
+        <circle cx="256" cy="256" r="86" fill="#f8fffb" stroke="#5ee7c4" stroke-width="15" />
+        <path d="M224 258L248 282L292 228" fill="none" stroke="#102f3b" stroke-width="17" stroke-linecap="round" stroke-linejoin="round" />
+        <g stroke="#071827" stroke-width="8">
+          <circle cx="256" cy="88" r="23" class="gold" />
+          <circle cx="424" cy="214" r="21" class="mint" />
+          <circle cx="424" cy="298" r="21" class="pale" />
+          <circle cx="256" cy="424" r="23" class="mint" />
+          <circle cx="88" cy="298" r="21" class="gold" />
+          <circle cx="88" cy="214" r="21" class="pale" />
+        </g>
+      </g>
+      <text x="16" y="246" class="num">07</text>
+      <text x="52" y="245" class="cap">reviewed convergence</text>
+    </g>
+
+    <g transform="translate(460 0)">
+      <rect class="tile" width="200" height="220" rx="22" />
+      <g transform="translate(20 18) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="#0b1f33" />
+        <path class="line" stroke="#dffdf5" stroke-width="12" opacity="0.7" d="M102 166H410M102 256H410M102 346H410M166 102V410M256 102V410M346 102V410" />
+        <path class="line mintline" stroke-width="19" d="M104 346C162 266 220 228 292 202C334 187 374 166 408 126" />
+        <path class="line goldline" stroke-width="15" d="M106 178C178 202 240 254 298 310C332 343 370 372 408 390" />
+        <circle cx="256" cy="256" r="58" class="paper" stroke="#a7f3d0" stroke-width="14" />
+        <circle cx="256" cy="256" r="20" class="gold" stroke="#102f3b" stroke-width="8" />
+      </g>
+      <text x="16" y="246" class="num">08</text>
+      <text x="52" y="245" class="cap">knowledge commons</text>
+    </g>
+
+    <g transform="translate(690 0)">
+      <rect class="tile" width="200" height="220" rx="22" />
+      <g transform="translate(20 18) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="#10343d" />
+        <circle cx="256" cy="256" r="164" fill="none" stroke="#5ee7c4" stroke-width="18" />
+        <circle cx="256" cy="256" r="110" fill="none" stroke="#f4c95d" stroke-width="13" stroke-dasharray="24 17" />
+        <path class="line paleLine" stroke-width="12" opacity="0.72" d="M256 92V420M92 256H420M140 140L372 372M372 140L140 372" />
+        <circle cx="256" cy="256" r="54" class="paper" />
+        <path class="line dark" stroke-width="17" d="M229 256H283" />
+        <g stroke="#071827" stroke-width="8">
+          <circle cx="256" cy="92" r="19" class="gold" />
+          <circle cx="420" cy="256" r="19" class="mint" />
+          <circle cx="256" cy="420" r="19" class="pale" />
+          <circle cx="92" cy="256" r="19" class="mint" />
+          <circle cx="140" cy="140" r="16" class="pale" />
+          <circle cx="372" cy="140" r="16" class="gold" />
+          <circle cx="372" cy="372" r="16" class="mint" />
+          <circle cx="140" cy="372" r="16" class="gold" />
+        </g>
+      </g>
+      <text x="16" y="246" class="num">09</text>
+      <text x="52" y="245" class="cap">global noosphere</text>
+    </g>
+
+    <g transform="translate(920 0)">
+      <rect class="tile" width="200" height="220" rx="22" />
+      <g transform="translate(20 18) scale(0.3125)">
+        <rect width="512" height="512" rx="112" fill="url(#field-bg)" />
+        <path class="line mintline" stroke-width="16" d="M256 96C342 96 416 166 416 256C416 346 342 416 256 416C170 416 96 346 96 256C96 166 170 96 256 96Z" />
+        <path class="line goldline" stroke-width="14" d="M158 256C214 206 298 206 354 256C298 306 214 306 158 256Z" />
+        <circle cx="256" cy="256" r="72" class="paper" stroke="#a7f3d0" stroke-width="14" />
+        <circle cx="256" cy="256" r="24" class="gold" stroke="#102f3b" stroke-width="9" />
+        <path class="line paleLine" stroke-width="10" opacity="0.76" d="M138 178C188 200 210 226 256 256M374 178C324 200 302 226 256 256M138 334C188 312 210 286 256 256M374 334C324 312 302 286 256 256" />
+        <g stroke="#071827" stroke-width="8">
+          <circle cx="138" cy="178" r="19" class="mint" />
+          <circle cx="374" cy="178" r="19" class="gold" />
+          <circle cx="138" cy="334" r="19" class="gold" />
+          <circle cx="374" cy="334" r="19" class="mint" />
+        </g>
+      </g>
+      <text x="16" y="246" class="num">10</text>
+      <text x="52" y="245" class="cap">Gaia commons seal</text>
+    </g>
+  </g>
+</svg>
