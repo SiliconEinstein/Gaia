@@ -191,7 +191,64 @@ class CounterfactualBuilder:
     def query(self, target) -> CounterfactualQueryResult: ...
 ```
 
-### 4.2 The three-step compute
+### 4.2 Joint Posterior API Requirement
+
+**Blocking dependency:** Counterfactual queries require a joint posterior API that current Gaia BP does not expose. `InferenceEngine().run(fg)` returns `InferenceResult` with a `beliefs: dict[str, float]` field — one marginal posterior per variable. But Pearl's abduction step needs the **joint posterior** `P(U_1, U_2, ..., U_k | evidence)` over all exogenous noise variables, not the product of marginals.
+
+**Why marginals are insufficient.** Observing an effect generally correlates the exogenous noise variables. Concrete example:
+
+```
+E = U1 ∨ U2
+U1, U2 independent before evidence
+observe E = 1
+```
+
+After observing `E=1`, the posterior forbids `(U1=0, U2=0)`. But if we store only `P(U1 | E=1)` and `P(U2 | E=1)` as independent unary factors, the counterfactual graph assigns nonzero probability to `(U1=0, U2=0)` again — that factual world was ruled out by the evidence, so later counterfactual predictions can be wrong.
+
+The same issue appears in binary mechanisms `E = (C ∧ U_active) ∨ U_leak`: observing `E=1` with `C=1` correlates `U_active` and `U_leak`. For multi-parent effects, observing the effect correlates all `U_active_i` plus the shared leak.
+
+**Required API extension.** Add to `InferenceResult`:
+
+```python
+# gaia/bp/engine.py
+@dataclass(frozen=True)
+class InferenceResult:
+    beliefs: dict[str, float]                    # existing marginals
+    treewidth: int
+    # NEW (this spec):
+    def joint_belief(self, variables: Iterable[str]) -> JointDistribution:
+        """Return the joint posterior over the specified variables.
+        
+        For binary variables, this is a 2^n CPT. The implementation extracts
+        the joint from the JunctionTree clique that contains all variables
+        (if using JT inference), or computes it via variable elimination
+        (if using GBP/loopy BP).
+        """
+        ...
+
+@dataclass(frozen=True)
+class JointDistribution:
+    """A joint probability distribution over a set of binary variables."""
+    variables: tuple[str, ...]                   # variable order
+    table: tuple[float, ...]                     # 2^n entries, row-major
+                                                 # table[i] = P(assignment i)
+                                                 # where i is binary encoding
+    
+    def as_factor(self) -> Factor:
+        """Convert to a Factor for installation in a FactorGraph."""
+        ...
+```
+
+**Implementation notes:**
+- For JunctionTree inference, `joint_belief(vars)` finds the clique containing all `vars` and marginalizes out the rest. If no single clique contains all `vars`, run variable elimination to compute the joint.
+- For GBP/loopy BP, always use variable elimination (the region graph doesn't guarantee a single region contains all `vars`).
+- Binary variables only in v0.6; categorical extension is straightforward when BP supports non-Bool.
+
+**Milestone split.** This API is a **BP engine extension**, not a causal-specific change. Implementation milestones (§11) are split into:
+- **PR B1** (1 week): Add `InferenceResult.joint_belief()` + `JointDistribution` to `gaia/bp/engine.py`. Tests: hand-computed joint on a 3-variable chain; verify it differs from product-of-marginals when variables are correlated.
+- **PR B2** (2 weeks, depends on B1): Counterfactual implementation using `joint_belief()`.
+
+### 4.3 The three-step compute (depends on §4.2 joint posterior API)
 
 ```python
 # gaia/causal/counterfactual.py
@@ -208,12 +265,13 @@ def compute_counterfactual(
     fg_obs = lower_to_fg(pkg, materialize_noise=True)
     for var, val in observed.items():
         fg_obs.observe(var, val)
-    abduction_beliefs = InferenceEngine().run(fg_obs).beliefs
-    noise_posteriors = {
-        v: abduction_beliefs[v]
-        for v in fg_obs.variables
-        if is_noise_cnid(v)
-    }
+    abduction_result = InferenceEngine().run(fg_obs)
+    
+    # Collect all noise variables
+    noise_vars = [v for v in fg_obs.variables if is_noise_cnid(v)]
+    
+    # Extract JOINT posterior over all noise variables (not marginals!)
+    noise_joint = abduction_result.joint_belief(noise_vars)
     abduction_digest = _canonical_digest(fg_obs)
 
     # Step 2: ACTION.
@@ -221,11 +279,11 @@ def compute_counterfactual(
     fg_cf = mutilate(fg_cf, set(do))
     for var, val in do.items():
         fg_cf.observe(var, val)
-    # Install abducted U posteriors as unary factors. mutilate() does not
-    # touch noise variables (they have no incoming CausalFactor), so the
-    # posteriors carry over correctly.
-    for noise_var, posterior in noise_posteriors.items():
-        fg_cf.set_unary_factor(noise_var, posterior)
+    
+    # Install the joint posterior as a single factor over all noise variables.
+    # This preserves the correlations induced by the factual evidence.
+    noise_joint_factor = noise_joint.as_factor()
+    fg_cf.add_factor(noise_joint_factor)
 
     # Step 3: PREDICTION.
     cf_beliefs = InferenceEngine().run(fg_cf).beliefs
@@ -398,12 +456,30 @@ Reviewers can re-run either step independently. The U-posterior values themselve
 
 ## 10. Implementation Milestones
 
-Single PR. Estimated 2–3 weeks (most of the work is the lowering rewrite, multi-parent noise composition tests, and Pearl-textbook regression suite).
+**Two PRs, strictly ordered.** Total estimated 3–4 weeks.
+
+### PR B1 — Joint Posterior API (1 week, depends on nothing)
+
+BP engine extension. No causal-specific code.
+
+- `gaia/bp/engine.py`: Add `InferenceResult.joint_belief(variables)` method and `JointDistribution` dataclass.
+- `gaia/bp/exact.py` (JunctionTreeInference): Implement `joint_belief()` by finding the clique containing all variables and marginalizing out the rest. If no single clique contains all variables, run variable elimination.
+- `gaia/bp/gbp.py` (GBP): Implement `joint_belief()` via variable elimination (region graph doesn't guarantee a single region contains all variables).
+- `gaia/bp/bp.py` (loopy BP): Implement `joint_belief()` via variable elimination.
+- Tests:
+  - Hand-computed joint on a 3-variable chain `A → B → C` with evidence `C=1`. Verify `P(A, B | C=1)` differs from `P(A | C=1) × P(B | C=1)`.
+  - Noisy-OR example: `E = U1 ∨ U2`, observe `E=1`, verify `P(U1=0, U2=0 | E=1) = 0` but `P(U1=0 | E=1) × P(U2=0 | E=1) > 0`.
+  - `JointDistribution.as_factor()` round-trip: convert to Factor, add to FG, run BP, verify marginals match.
+- Docs: API reference for `joint_belief()` in `docs/foundations/bp/`.
+
+**Shippable independently.** This API is useful beyond counterfactuals (e.g., future multi-variable queries, correlation analysis).
+
+### PR B2 — Counterfactual Implementation (2–3 weeks, depends on B1)
 
 - `gaia/ir/mechanism.py`: `materialize_noise: bool = False`. IR validator unchanged otherwise.
 - `gaia/lang/runtime/causal.py` / `gaia/lang/dsl/causal.py`: `counterfactual=` kwarg on `mechanism()`, package-wide default switch.
 - `gaia/lang/compiler/lower_mechanism.py`: when `materialize_noise = True`, emit `@noise_active:…` and `@noise_leak:…` BP variables and the deterministic effect CPT; otherwise unchanged.
-- `gaia/causal/counterfactual.py`: `compute_counterfactual`, `ett`, builder classes.
+- `gaia/causal/counterfactual.py`: `compute_counterfactual` (using `joint_belief()` from B1), `ett`, builder classes.
 - `gaia/causal/errors.py`: three new exception types.
 - `gaia/causal/__init__.py`: re-export `compute_counterfactual`, `ett`, `CounterfactualQueryResult`.
 - `gaia/cli/check_causal.py`: three new rules under `--counterfactual` flag.
@@ -411,12 +487,12 @@ Single PR. Estimated 2–3 weeks (most of the work is the lowering rewrite, mult
   - Hand-computed counterfactual on a 3-node DAG (Pearl §7 textbook example).
   - `ett` matches direct calculation on a confounder DAG.
   - `materialize_noise = False` rejects counterfactual query with helpful error.
-  - Multi-parent counterfactual: noise variables compose, marginals match noisy-OR.
+  - Multi-parent counterfactual: noise variables compose, joint posterior preserves correlations, marginals match noisy-OR.
   - Audit digests stable across runs.
   - Universal-mechanism counterfactual on a 3-member Person Domain.
 - Docs: counterfactual-queries chapter under `docs/foundations/causal/`.
 
-No new BP engine. No new variable types. No new IR `KnowledgeType`.
+No new IR `KnowledgeType`. No new BP variable types beyond what B1 provides.
 
 ---
 

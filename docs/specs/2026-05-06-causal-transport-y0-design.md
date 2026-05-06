@@ -204,13 +204,13 @@ def transport_query(
 ) -> TransportResult:
     """Determine if a causal query is transportable from source to target population.
 
-    Delegates to y0.algorithm.transport.transport(). Requires y0 >= 0.3
-    (the version that added transportability support).
+    Delegates to y0.algorithm.transport.identify_target_outcomes().
+    Requires y0 >= 0.2 (current stable release).
     """
     try:
         import y0
-        from y0.algorithm.transport import transport
-        from y0.dsl import P, do
+        from y0.algorithm.transport import identify_target_outcomes
+        from y0.dsl import Variable as Y0Variable
     except ImportError:
         raise MissingDependencyError(
             "Transport queries require y0. Install via: pip install 'gaia[causal-transport]'"
@@ -228,33 +228,55 @@ def transport_query(
     # (y0 convention: selection node S_i indicates population i has access to mechanism i)
     graph = _build_transport_graph(dag, source_mechs, target_mechs, universal_mechs)
 
-    # Translate query
+    # Translate query to y0 format
     target_var_y0 = _gaia_to_y0_var(query_target)
-    intervention_y0 = {_gaia_to_y0_var(k): v for k, v in query_intervention.items()}
+    intervention_vars_y0 = {_gaia_to_y0_var(k) for k in query_intervention.keys()}
+    
+    # Build surrogate_outcomes and surrogate_interventions dicts
+    # (y0 API: which outcomes/interventions are available in which population)
+    surrogate_outcomes = {}
+    surrogate_interventions = {}
+    
+    # Source population has experimental access to source mechanisms
+    source_pop_var = Y0Variable(source_population)
+    surrogate_outcomes[source_pop_var] = {_mechanism_effect_to_y0(m) for m in source_mechs}
+    surrogate_interventions[source_pop_var] = {_mechanism_cause_to_y0(m) for m in source_mechs}
+    
+    # Universal mechanisms are available in both populations
+    for m in universal_mechs:
+        effect_y0 = _mechanism_effect_to_y0(m)
+        cause_y0 = _mechanism_cause_to_y0(m)
+        surrogate_outcomes.setdefault(source_pop_var, set()).add(effect_y0)
+        surrogate_interventions.setdefault(source_pop_var, set()).add(cause_y0)
 
     # Call y0
-    y0_result = transport(
+    y0_result = identify_target_outcomes(
         graph=graph,
-        query=P(target_var_y0 @ do(intervention_y0)),
-        source_population=source_population,
-        target_population=target_population,
+        target_outcomes={target_var_y0},
+        target_interventions=intervention_vars_y0,
+        surrogate_outcomes=surrogate_outcomes,
+        surrogate_interventions=surrogate_interventions,
     )
 
-    if y0_result.identified:
-        latex = y0_result.expression.to_latex()
-        python_repr = repr(y0_result.expression)
+    if y0_result is not None:
+        # Transportable
+        latex = y0_result.to_latex()
+        python_repr = repr(y0_result)
         obstruction = None
+        transportable = True
     else:
+        # Not transportable
         latex = None
         python_repr = None
-        obstruction = y0_result.obstruction_reason  # y0 provides this
+        obstruction = "Not identifiable from available surrogate data. y0's identify_target_outcomes returned None."
+        transportable = False
 
     return TransportResult(
         source_population=source_population,
         target_population=target_population,
         query_target=_resolve_target(query_target),
         query_intervention={_resolve_target(k): v for k, v in query_intervention.items()},
-        transportable=y0_result.identified,
+        transportable=transportable,
         identifying_functional_latex=latex,
         identifying_functional_python=python_repr,
         node_map=_build_node_map(graph),
@@ -285,7 +307,7 @@ This is a **pure graph transformation**, no BP involved.
 ```python
 # gaia/causal/errors.py (additions)
 class TransportMissingDependencyError(MissingDependencyError):
-    """y0 >= 0.3 is required for transport queries. Install via
+    """y0 >= 0.2 is required for transport queries. Install via
     pip install 'gaia[causal-transport]'."""
 
 class TransportPopulationNotFoundError(Exception):
@@ -305,8 +327,16 @@ class TransportAmbiguousUniversalError(Exception):
 ```toml
 [project.optional-dependencies]
 causal-transport = [
-    "y0>=0.3",   # transportability support added in 0.3
+    "y0>=0.2",   # identify_target_outcomes available in 0.2.x stable
 ]
+```
+
+Separate from `causal-do` (Mech §8) because:
+- `causal-do` is for symbolic identification within a single population
+- `causal-transport` is for cross-population queries
+- Users who only need `do().query()` don't need the transport machinery
+
+Both extras pull y0, but the version pins may diverge in the future.
 ```
 
 Separate from `causal-do` (Mech §8) because:
