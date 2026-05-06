@@ -29,7 +29,7 @@ P(U_leak   = 1) = β
 
 with `U_active` and `U_leak` independent. This is the noisy-OR canonical form (and matches Mech §6.2 multi-parent composition). The two `U_*` variables are **the** exogenous noise for this mechanism — they fully determine `E` given `C`.
 
-Once those `U_*` exist as BP variables, Pearl's three-step counterfactual computation reduces to three standard BP queries on the same FactorGraph. **No new inference engine needed; no continuous variables; no twin network in the structural sense.**
+Once those `U_*` exist as BP variables, Pearl's three-step counterfactual computation can run on the same FactorGraph machinery, but it requires one additional BP capability: extracting and reinstalling the **joint posterior** over the relevant noise variables (§4.2). **No continuous variables and no causal-specific inference engine are needed; no twin network in the structural sense.**
 
 This spec materializes the `U_*` variables as Gaia BP variables under synthesized CNIDs, defines the three-step query API, and integrates with Mech's existing `mutilate()` and `compute()` primitives.
 
@@ -49,9 +49,9 @@ Mech §6.1   CausalFactor over (cause, effect)
                               │
                               ▼
   gaia.causal.counterfactual.compute_counterfactual()
-    1. Abduction: BP on observed FG → posterior over all U_*
+    1. Abduction: BP on observed FG → joint posterior over all U_*
     2. Action:    mutilate by CausalFactor type, do(X = x'),
-                  install U_* posteriors as unary factors
+                  install the U_* joint posterior as one factor
     3. Prediction: BP → P(Y | counterfactual world)
 ```
 
@@ -85,8 +85,8 @@ where `s = P(U_active = 1)`. Multi-parent effects compose by additional `U_activ
 
 **Counterfactual `P(Y_{x'} | C = c, E = e)` (Pearl, *Causality* 2nd ed §7.1):**
 
-1. **Abduction.** Compute `P(U | C = c, E = e)` by BP on the observed factor graph. For each mechanism's `U_*`, this is the BP marginal posterior.
-2. **Action.** Construct the counterfactual factor graph by mutilating causal factors whose conclusion is in the do-set, clamping those variables to the do-values, and **installing the abducted `U` posteriors as unary factors** on the noise variables.
+1. **Abduction.** Compute the joint posterior `P(U_all | C = c, E = e)` by BP on the observed factor graph, using the `joint_belief()` API required in §4.2.
+2. **Action.** Construct the counterfactual factor graph by mutilating causal factors whose conclusion is in the do-set, clamping those variables to the do-values, and **installing the abducted joint `U` posterior as a single joint factor** on the noise variables.
 3. **Prediction.** Compute `P(Y | counterfactual FG)` by BP.
 
 Edge case: when `α ≤ β` (cause inhibits or has zero effect), `s ≤ 0` is not a valid Bernoulli. v0.6 noisy-OR composition (Mech §6.2) already rejects this as `MechanismInhibitoryError` at lowering time; this spec does not weaken that — counterfactuals over inhibitory mechanisms wait for a sign-aware noise model in v0.7.

@@ -27,7 +27,7 @@ Gaia already has:
 **This spec is just wiring.** The hard work (transportability algorithm) is in y0; Gaia's job is to:
 1. Translate `CausalDAG` → y0's `NxMixedGraph` (already done for identification in Mech §8)
 2. Accept author declarations of "this mechanism was observed in population A, that one in population B"
-3. Call y0's `transport()` and wrap the result
+3. Call y0's `identify_target_outcomes()` / TRSO transport API and wrap the result
 
 No new BP. No new IR `KnowledgeType`. No new compiler pass. Pure consumer-layer adapter, ~200 LoC.
 
@@ -40,8 +40,9 @@ Mech §7.2   CausalDAG (NetworkX DiGraph)
               ↓
             y0.graph.NxMixedGraph (already in Mech §8)
               ↓
-            y0.algorithm.transport.transport(
-                graph, source_data, target_query
+            y0.algorithm.transport.identify_target_outcomes(
+                graph, target_outcomes, target_interventions,
+                surrogate_outcomes, surrogate_interventions
             )
               ↓
             TransportResult (this spec)
@@ -134,7 +135,7 @@ else:
 1. Builds the `CausalDAG` from `pkg`
 2. Partitions mechanisms by `population` tag
 3. Translates to y0's `NxMixedGraph` + selection-diagram conventions
-4. Calls y0's `transport()`
+4. Calls y0's `identify_target_outcomes()`
 5. Wraps the result
 
 ---
@@ -337,14 +338,6 @@ Separate from `causal-do` (Mech §8) because:
 - Users who only need `do().query()` don't need the transport machinery
 
 Both extras pull y0, but the version pins may diverge in the future.
-```
-
-Separate from `causal-do` (Mech §8) because:
-- `causal-do` is for symbolic identification within a single population
-- `causal-transport` is for cross-population queries
-- Users who only need `do().query()` don't need the transport machinery
-
-Both extras pull y0, but the version pins may diverge in the future.
 
 ---
 
@@ -465,7 +458,7 @@ No new BP. No new IR `KnowledgeType`. No new compiler pass beyond metadata write
 
 - Bareinboim & Pearl (2014), "Transportability from Multiple Environments with Limited Experiments" — the algorithm y0 implements and this spec wraps.
 - Pearl & Bareinboim (2011), "Transportability of Causal and Statistical Relations: A Formal Approach" — foundational paper.
-- y0's `transport()` API — this spec is a thin Gaia-flavored wrapper.
+- y0's `identify_target_outcomes()` / TRSO transport API — this spec is a thin Gaia-flavored wrapper.
 - `docs/specs/2026-05-06-causal-mechanism-first-class-design.md` — Mech (this spec depends on §7.2 CausalDAG, §8 y0 adapter pattern, §14 y0 alignment statement).
 - `docs/specs/2026-05-06-causal-population-api-design.md` — Extension A (sibling spec; transport + Population could compose in a future "cross-population ATE" helper, but that needs numeric data).
 - `docs/specs/2026-05-06-causal-counterfactual-binary-noise-design.md` — Extension B (sibling spec; transport + counterfactual are orthogonal — one is cross-population, one is cross-world).
