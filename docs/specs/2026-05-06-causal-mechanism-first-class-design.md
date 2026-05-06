@@ -80,6 +80,25 @@ Relative to PR #531, this spec keeps:
 - **§8 `gaia check causal`** rule set (§9).
 - **§4.1.2 multi-parent noisy-OR composition** with the H3 fix from review (§6.2).
 
+### 1.2 What we externalize vs. what stays in Gaia
+
+A guiding question during design was "can we offload causal computation to a mature library (pgmpy, DoWhy, EconML, Ananke, causal-learn)?" The answer is two-part: **the parts that can be externalized are externalized; the parts that cannot are <100 LoC of Gaia-specific glue.**
+
+| Capability | Source | Why this choice |
+|---|---|---|
+| DAG algorithms (cycle detection, ancestors, d-separation, adjustment sets) | NetworkX (kernel dep) | Pure-Python DAG library, no native deps; `nx.d_separated` is stable since 3.1. |
+| Symbolic do-calculus identification (ID/IDC algorithm) | y0 (`gaia[causal-do]` extra) | Avoids re-implementing Shpitser-Pearl; y0 already has `NxMixedGraph` for ADMG (§13 Q3). |
+| Numeric `P(Y \| do(X=x))` | **Gaia BP** | See discussion below — outsourcing this means outsourcing *all* of Gaia BP, which is a separate architectural decision. |
+| Mutilation by modality | **Gaia** (~15 LoC, §6.3) | The causal/logical factor split is Gaia-specific; pgmpy's `do()` operates on its own BN model, not on Gaia's mixed-modality FactorGraph. |
+| Multi-parent leak-aware noisy-OR | **Gaia** (~30 LoC lowering pass, §6.2) | An authoring-time CPT-composition transform, not a query-time library call. |
+| Per-instance grounding for universal mechanisms | **Gaia** (reuses `_lower_forall`, §5) | Mirrors v0.5 logical-quantifier grounding; no external equivalent. |
+
+**Why we do not delegate numeric `do().query()` to pgmpy.** PR #533 §6.3 (and PR #531 §4.4 before it) makes mutilation modality-aware: only `CausalFactor` instances are removed under `do()`; `LOGICAL` factors (deduction, IMPLICATION operator, EQUIVALENCE, …) are preserved because intervening on the world does not sever statements *about* the world. This means the mutilated FactorGraph contains a mix of causal and logical factors that share variables. Routing only the causal factors to pgmpy is incoherent (factors share variables); routing everything to pgmpy means translating Gaia's entire IR-to-FG lowering into pgmpy CPDs — i.e., abandoning Gaia BP. That is a v0.7+ architectural decision affecting `infer()` / `associate()` / `decompose()` and the entire BP engine, not a per-feature outsourcing question.
+
+**Data-driven libraries are out of scope.** DoWhy, EconML, CausalNex, Ananke, and causal-learn all require an observational dataset. Gaia is a prior-/author-driven reasoning system; mechanisms and CPDs are declared, not learned. These libraries solve a different problem.
+
+The remaining Gaia-specific causal code totals roughly 50–100 LoC across `gaia/bp/factor_graph.py` (mutilate), `gaia/bp/lowering/` (noisy-OR), and `gaia/causal/intervene.py` (compute glue). This is below the maintenance threshold for taking on a third-party dependency wrapper.
+
 ---
 
 ## 2. IR Schema Change (Protected Layer — requires separate approval)
