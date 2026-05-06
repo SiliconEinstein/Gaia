@@ -276,7 +276,16 @@ mechanism(cause=co2, effect=temp, cpd=(0.85, 0.05))
 mechanism(cause=G, effect=co2)   # cpd=None
 ```
 
-A mechanism with `cpd=None` contributes to the DAG (so `d_separated`, `adjustment_sets`, and symbolic `identify()` all work) but does **not** produce a `CausalFactor`. Numeric `do().query()` on a target whose only incoming mechanism is structure-only falls back to the v0.5 deduction default `(1−ε, 0.5)` — a hard causal implication — documented as the single fallback rule in §6.2. This replaces PR #531's tangled bare-`causal()`-vs-`cause()` distinction.
+A mechanism with `cpd=None` contributes to the DAG (so `d_separated`, `adjustment_sets`, and symbolic `identify()` all work) but does **not** produce a `CausalFactor`. 
+
+**Numeric queries require numeric parameters.** If `do().query(target)` depends on an effect node whose incoming causal mechanisms do not all have CPDs, the query raises `MissingCausalCPDError` with a diagnostic listing which mechanisms lack CPDs. Gaia will not invent a default CPD from a missing parameter — that would produce a precise-looking but unreviewed causal effect.
+
+Structure-only mechanisms are useful for:
+- Declaring DAG structure for graphical queries (`d_separated`, `adjustment_sets`)
+- Symbolic identification via y0 (§8) — the identifying functional shape depends only on graph structure
+- Placeholder edges during incremental package authoring (author adds structure first, CPDs later)
+
+This replaces PR #531's tangled bare-`causal()`-vs-`cause()` distinction with a clean boundary: DAG structure can exist without numeric parameters, but numeric intervention requires numeric causal information.
 
 ### 4.3 Universal mechanism (option b — decision 3)
 
@@ -295,7 +304,13 @@ mechanism(
 )
 ```
 
-When `forall=...` is supplied, the compiler grounds per-instance: for each `v ∈ Person.members` it emits an instance `Mechanism` with CNIDs `@var:…:Smokes_{digest(v)}`, `@var:…:Cancer_{digest(v)}`. The universal mechanism itself is also stored (as a MECHANISM knowledge with `quantified_over=("p",)`) and serves as the deductive parent — evidence on any instance weakly updates the universal, and vice versa, exactly mirroring v0.5's logical-`forall` lowering in `gaia/lang/compiler/lower_formula.py:107–192`.
+When `forall=...` is supplied, the compiler grounds per-instance: for each `v ∈ Person.members` it emits an instance `Mechanism` with CNIDs `@var:…:Smokes_{digest(v)}`, `@var:…:Cancer_{digest(v)}`. 
+
+**The universal mechanism is a compile-time template, not a BP variable.** The universal `Mechanism` record is stored in IR (with `quantified_over=("p",)`) for provenance and audit, but it does **not** produce a BP variable, does not produce a factor, and is not updated by evidence. This keeps `Mechanism` structural: it has no `prior`, no truth value, and no posterior.
+
+If authors want to express uncertainty or support for a universal causal law (e.g., "smoking causes cancer" as a reviewable proposition), that belongs in a separate `Claim` or future causal-support action, not on the `Mechanism` itself. The `Mechanism` records the structure and parameters; belief about whether the mechanism holds is a meta-level concern.
+
+This mirrors v0.5's logical-`forall` lowering in `gaia/lang/compiler/lower_formula.py:107–192`, which also expands universal quantifiers into per-instance ground terms without creating a "universal claim" BP variable.
 
 **Why not reuse `forall(p, Causes(X(p), Y(p)))` (option a)?** It would make authors face two causal entry points (formula-side `Causes` for quantification, runtime-side `mechanism()` otherwise). With option b, `mechanism()` owns quantification natively. The `Causes` formula predicate is kept as an internal AST node used by the compiler during lowering, but is no longer an author-facing construct.
 
@@ -326,7 +341,7 @@ PR #524's role projection table gets no new entries for mechanisms. `Cause` Acti
 ### 5.1 `gaia/lang/compiler/`
 
 - **New `lower_mechanism.py`**: walks Lang-runtime `MechanismHandle` registrations, synthesizes CNIDs for Variable endpoints via §3, resolves Claim endpoints to QIDs, and emits `Knowledge(type=MECHANISM, payload=Mechanism(...))`.
-- **Universal grounding**: when `MechanismHandle.forall` is set, iterate `domain.members` and emit one instance Mechanism per member. Also emit one `universal` Mechanism knowledge with `quantified_over=(symbol,)` and a `deduction`-style strategy `universal ⇒ instance` so BP propagation mirrors v0.5 logical quantifier lowering. This is the structural dual of `_lower_forall` in `gaia/lang/compiler/lower_formula.py:107`.
+- **Universal grounding**: when `MechanismHandle.forall` is set, iterate `domain.members` and emit one instance Mechanism per member. Also emit one `universal` Mechanism knowledge with `quantified_over=(symbol,)` **for provenance only** — it does not produce a BP variable or factor. Per-instance mechanisms are the only ones that lower to `CausalFactor`s. This is the structural dual of `_lower_forall` in `gaia/lang/compiler/lower_formula.py:107`, which also expands universal quantifiers into ground instances without creating a "universal claim" variable.
 - **Formula lowering unchanged for non-causal formulas.** The compiler no longer writes `metadata.causal.*` — that contract is retired.
 
 ### 5.2 No `Claim(kind=CAUSAL)` path
@@ -338,6 +353,7 @@ PR #524's role projection table gets no new entries for mechanisms. `Cause` Acti
 - `MechanismCycleError` — DAG built from `Mechanism` knowledges is not acyclic.
 - `MechanismEndpointUnresolvedError` — author referenced a Variable/Claim symbol that cannot be resolved at compile time.
 - `MechanismMigrationRequired` — package contains `Claim(kind=CAUSAL)`; user must run `gaia migrate causal`.
+- `MissingCausalCPDError` — numeric `do().query(target)` depends on an effect node whose incoming mechanisms do not all have CPDs. The error message lists which mechanisms lack CPDs and suggests adding `cpd=(...)` to each.
 
 ---
 
@@ -359,11 +375,13 @@ class CausalFactor(Factor):
 
 `mutilate()` filters by `isinstance(f, CausalFactor)` (or `f.kind == FactorKind.CAUSAL`). No `metadata["modality"]` tag.
 
+**Structure-only mechanisms (`cpd=None`) do not produce `CausalFactor`s.** They contribute to the DAG (§7.2) but not to the FactorGraph. Numeric `do().query()` that depends on such a mechanism raises `MissingCausalCPDError` (§5.3).
+
 ### 6.2 Multi-parent composition — leak-aware noisy-OR (single rule)
 
-When an effect node has multiple incoming Mechanisms, the lowering pass groups them by effect and produces one `CausalFactor` per effect node via leak-aware noisy-OR. This is the **only** multi-parent composition rule in v0.6; PR #531 §4.1.2's fix for the H3 review issue is incorporated:
+When an effect node has multiple incoming Mechanisms **with CPDs**, the lowering pass groups them by effect and produces one `CausalFactor` per effect node via leak-aware noisy-OR. This is the **only** multi-parent composition rule in v0.6; PR #531 §4.1.2's fix for the H3 review issue is incorporated:
 
-1. If every incoming mechanism has `cpd == None` (structure-only), the effect's canonical factor is the v0.5 deduction default `(1−ε, 0.5)` **in single-parent form**, composed via noisy-OR with **leak `ε`** (not `0.5`). This resolves the H3 contradiction: the structure-only default acts as a hard implication regardless of how many structure-only parents compose.
+1. **All incoming mechanisms must have CPDs.** If any incoming mechanism has `cpd=None`, the effect node cannot be lowered to a `CausalFactor`. Numeric `do().query()` targeting this effect raises `MissingCausalCPDError` listing which mechanisms lack CPDs.
 2. If every incoming mechanism has a CPD and they all agree on `p_effect_given_not_cause`, that shared value is the leak.
 3. Otherwise, mixed leaks across mechanisms are an author error — the compiler rejects with `MechanismInconsistentLeakError` and requires either an explicit per-effect leak (via a future `leak=...` kwarg on `mechanism()`, v0.7) or author-normalized CPDs.
 
