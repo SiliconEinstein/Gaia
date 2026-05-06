@@ -7,6 +7,7 @@ import re
 
 from typer.testing import CliRunner
 
+from gaia.cli.commands._dot import to_dot
 from gaia.cli.main import app
 
 runner = CliRunner()
@@ -229,3 +230,118 @@ def test_starmap_dot_no_beliefs(tmp_path):
     # No belief-trend arrows in any node label without inferred beliefs.
     assert "↑" not in content
     assert "↓" not in content
+
+
+def test_starmap_dot_cross_paper_module_unboxed():
+    """``cross_paper`` module renders as floating nodes, not a cluster.
+
+    Convention in Gaia knowledge packages: each paper lives in
+    ``paper_<name>.py`` and cross-paper deductions/supports/contradictions
+    live in ``cross_paper.py``. The DOT emitter wraps every paper module in a
+    ``cluster_*`` subgraph, but the cross-paper bridge module should NOT be
+    boxed — its content (knowledge nodes plus any strategy/operator that
+    only anchors to it) must float at top-level scope alongside other
+    cross-module bridges.
+    """
+    graph_json = json.dumps(
+        {
+            "nodes": [
+                # paper_x: a tiny premise → conclusion via a deduction.
+                {
+                    "id": "p:paper_x::a",
+                    "type": "knowledge",
+                    "label": "a",
+                    "title": "a",
+                    "module": "paper_x",
+                },
+                {
+                    "id": "p:paper_x::b",
+                    "type": "knowledge",
+                    "label": "b",
+                    "title": "b",
+                    "module": "paper_x",
+                },
+                {
+                    "id": "p:paper_x::s",
+                    "type": "strategy",
+                    "strategy_type": "deduction",
+                    "module": "paper_x",
+                },
+                # cross_paper: a knowledge node and a strategy that anchors
+                # to a paper_x node + a cross_paper node (so it touches more
+                # than one module → already floats today).
+                {
+                    "id": "p:cross_paper::c",
+                    "type": "knowledge",
+                    "label": "c",
+                    "title": "c",
+                    "module": "cross_paper",
+                },
+                {
+                    "id": "p:cross_paper::s",
+                    "type": "strategy",
+                    "strategy_type": "deduction",
+                    "module": "cross_paper",
+                },
+                # Cross-paper-only strategy: anchors only to cross_paper
+                # knowledge nodes. Should also float (treated as _FLOAT).
+                {
+                    "id": "p:cross_paper::c2",
+                    "type": "knowledge",
+                    "label": "c2",
+                    "title": "c2",
+                    "module": "cross_paper",
+                },
+                {
+                    "id": "p:cross_paper::s_local",
+                    "type": "strategy",
+                    "strategy_type": "deduction",
+                    "module": "cross_paper",
+                },
+            ],
+            "edges": [
+                # paper_x: a -> s -> b (so s anchors entirely inside paper_x).
+                {"source": "p:paper_x::a", "target": "p:paper_x::s"},
+                {"source": "p:paper_x::s", "target": "p:paper_x::b"},
+                # cross_paper bridge strategy: paper_x::b -> s -> cross_paper::c.
+                {"source": "p:paper_x::b", "target": "p:cross_paper::s"},
+                {"source": "p:cross_paper::s", "target": "p:cross_paper::c"},
+                # cross_paper-only strategy: c -> s_local -> c2.
+                {"source": "p:cross_paper::c", "target": "p:cross_paper::s_local"},
+                {"source": "p:cross_paper::s_local", "target": "p:cross_paper::c2"},
+            ],
+        }
+    )
+
+    dot = to_dot(graph_json)
+
+    # No cluster_cross_paper subgraph — the whole point of this change.
+    assert "cluster_cross_paper" not in dot, dot
+    # paper_x is still boxed.
+    assert "subgraph cluster_paper_x" in dot, dot
+
+    # cross_paper knowledge nodes appear in the floating block.
+    floating_marker = "// cross-module strategy/operator nodes (outside clusters)"
+    assert floating_marker in dot, dot
+    after_marker = dot.split(floating_marker, 1)[1]
+    # End the floating block at the // edges marker.
+    floating_block = after_marker.split("// edges", 1)[0]
+    assert '"p:cross_paper::c"' in floating_block, floating_block
+    assert '"p:cross_paper::c2"' in floating_block, floating_block
+    # And the cross_paper-only strategy (touches only cross_paper) also floats.
+    assert '"p:cross_paper::s_local"' in floating_block, floating_block
+    # The truly cross-module bridge strategy still floats.
+    assert '"p:cross_paper::s"' in floating_block, floating_block
+
+    # paper_x knowledge stays inside its cluster (sanity check).
+    paper_x_block = dot.split("subgraph cluster_paper_x", 1)[1].split("}", 1)[0]
+    assert '"p:paper_x::a"' in paper_x_block
+    assert '"p:paper_x::b"' in paper_x_block
+    # And the paper_x-local strategy stays inside it.
+    assert '"p:paper_x::s"' in paper_x_block
+
+    # All edges still emit, including those to/from floating nodes.
+    assert '"p:paper_x::b" -> "p:cross_paper::s"' in dot
+    assert '"p:cross_paper::s" -> "p:cross_paper::c"' in dot
+    assert '"p:cross_paper::c" -> "p:cross_paper::s_local"' in dot
+    assert '"p:cross_paper::s_local" -> "p:cross_paper::c2"' in dot

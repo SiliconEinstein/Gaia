@@ -15,6 +15,13 @@ import re
 
 _CONTRADICTION = "contradiction"
 
+# Module name treated specially: its knowledge nodes (and any strategy/operator
+# nodes that anchor only to them) render as floating nodes outside any cluster,
+# the same way cross-module bridges already do. This is a stable filename
+# convention in Gaia knowledge packages — ``paper_<name>.py`` per paper plus a
+# ``cross_paper.py`` for cross-paper deductions/supports/contradictions.
+_FLOATING_MODULE = "cross_paper"
+
 _CLUSTER_ID_SAFE = re.compile(r"[^A-Za-z0-9_]")
 
 
@@ -118,17 +125,20 @@ def to_dot(graph_json_str: str) -> str:
         mod = n.get("module") or None
         by_module.setdefault(mod, []).append(n)
 
-    # Module render order: alphabetical by original name; no-module bucket last.
-    named_modules = sorted([m for m in by_module if m])
+    # Module render order: alphabetical by original name (excluding the
+    # special floating module, whose nodes render outside any cluster);
+    # no-module bucket last.
+    named_modules = sorted([m for m in by_module if m and m != _FLOATING_MODULE])
     has_no_module = None in by_module
 
     # A strategy/operator node nests inside a cluster iff every knowledge node
-    # it touches (premises + conclusion) shares a single non-empty module.
-    # Otherwise it floats outside as a cross-module bridge.
+    # it touches (premises + conclusion) shares a single non-empty module —
+    # *and* that module isn't the floating one. Otherwise it floats outside as
+    # a cross-module / cross-paper bridge.
     kid_module: dict[str, str | None] = {
         n["id"]: (n.get("module") or None) for n in knowledge_nodes
     }
-    _FLOAT = object()  # sentinel: cross-module / unanchored
+    _FLOAT = object()  # sentinel: cross-module / unanchored / cross_paper
     shared_module: dict[str, object] = {}
     for nid in op_or_strat_ids:
         mods: set[str | None] = set()
@@ -138,7 +148,11 @@ def to_dot(graph_json_str: str) -> str:
                 mods.add(kid_module[tgt])
             if tgt == nid and src in kid_module:
                 mods.add(kid_module[src])
-        shared_module[nid] = next(iter(mods)) if len(mods) == 1 else _FLOAT
+        if len(mods) == 1:
+            (only,) = mods
+            shared_module[nid] = _FLOAT if only == _FLOATING_MODULE else only
+        else:
+            shared_module[nid] = _FLOAT
 
     op_strat_by_module: dict[object, list[dict]] = {}
     for n in strategy_nodes + operator_nodes:
@@ -242,10 +256,16 @@ def to_dot(graph_json_str: str) -> str:
 
     # Cross-module strategy/operator nodes float outside any cluster — they
     # bridge multiple papers and live in the free area between clusters.
-    floating = op_strat_by_module.get(_FLOAT, [])
-    if floating:
+    # The special ``cross_paper`` module's knowledge nodes float here too:
+    # they're cross-paper bridges by construction, so a surrounding cluster
+    # box just wastes layout space.
+    floating_op_strat = op_strat_by_module.get(_FLOAT, [])
+    floating_knowledge = by_module.get(_FLOATING_MODULE, [])
+    if floating_op_strat or floating_knowledge:
         out.append("    // cross-module strategy/operator nodes (outside clusters)")
-        for n in floating:
+        for n in floating_knowledge:
+            _emit_knowledge_node(n, "    ")
+        for n in floating_op_strat:
             _emit_op_or_strat(n, "    ")
         out.append("")
 
