@@ -113,8 +113,8 @@ class MechanismRef(BaseModel):
     kind: Literal["variable", "claim"]
     symbol: str | None = None            # original author symbol (audit-only)
 
-class CPT(BaseModel):
-    """Conditional probability table for a binary mechanism endpoint."""
+class BinaryCPT(BaseModel):
+    """Conditional probability table for a Bool→Bool mechanism (the v0.6 form)."""
     p_effect_given_cause: float          # P(effect=1 | cause=1)
     p_effect_given_not_cause: float      # P(effect=1 | cause=0)
 
@@ -124,10 +124,16 @@ class Mechanism(BaseModel):
     A Mechanism is stored as a Knowledge with type=MECHANISM; the Mechanism
     model is attached to Knowledge.payload (a new typed field, parallel to
     how Claim-typed Knowledge carries its claim model today).
+
+    The `kind` field is a discriminator for future expansion (categorical
+    endpoints, linear-Gaussian, ADMG bidirected edges, …); v0.6 ships
+    a single concrete form, "binary_directed". See §13 Q3 for the
+    expansion roadmap and §14 for the alignment with y0's NxMixedGraph.
     """
+    kind: Literal["binary_directed"] = "binary_directed"
     cause: MechanismRef
     effect: MechanismRef
-    cpd: CPT | None = None               # None = structure-only (§6.1)
+    cpd: BinaryCPT | None = None         # None = structure-only (§6.1)
     # For universal mechanisms (§5):
     quantified_over: tuple[str, ...] = ()   # Variable symbols bound by forall
     domain_ref: str | None = None           # QID of the Domain Knowledge (if quantified)
@@ -515,7 +521,7 @@ Four PRs, strictly ordered. Each independently shippable.
 
 ### D₁ — IR + Authoring + Structure (2–3 weeks)
 
-- `gaia/ir/`: `KnowledgeType.MECHANISM`, `Mechanism` / `MechanismRef` / `CPT` models, validator updates, `is_cnid` helper.
+- `gaia/ir/`: `KnowledgeType.MECHANISM`, `Mechanism` / `MechanismRef` / `BinaryCPT` models, validator updates, `is_cnid` helper.
 - `gaia/lang/runtime/`: `MechanismHandle`.
 - `gaia/lang/dsl/causal.py`: `mechanism()` verb (top-level + `forall=` universal form).
 - `gaia/lang/compiler/lower_mechanism.py`: CNID synthesis, universal grounding parity with `_lower_forall`.
@@ -585,7 +591,15 @@ Unchanged from PR #531 §11:
 
 1. **CNID namespace for cross-package Variables.** §3 uses the declaring package's namespace. Alternative: stamp with the using package. Recommendation: declaring package (matches PR #505's Variable lookup semantics).
 2. **Universal-mechanism `forall` syntax.** §4.3 uses `forall="p", domain=Person`. A more fluent alternative is `mechanism.forall(Person).that(cause=..., effect=...)`. Recommendation: kwarg form for D₁; revisit after first-party packages show real usage.
-3. **Identification output format.** Raw y0 `Expression.to_latex()` plus `node_map`, matching PR #531 §6. Gaia-native symbolic expression deferred.
+3. **`Mechanism.kind` expansion roadmap.** v0.6 ships a single value `"binary_directed"`. The discriminator is added now (§2.2) so future expansion is non-breaking. Two extension axes are anticipated:
+
+   | Axis | New `kind` values | Adds | Earliest target |
+   |---|---|---|---|
+   | Function form | `categorical_directed`, `linear_gaussian_directed`, `deterministic_directed` | `CategoricalCPT`, `LinearGaussianCPD`, `DeterministicMap` payload variants; corresponding `CausalFactor` lowering | v0.7 (depends on BP supporting non-Bool variables) |
+   | Graph structure | `binary_bidirected` (ADMG latent confounder), `selection_edge` | DAG builder accepts mixed graphs; `gaia.causal.adapters.y0` already speaks this dialect via `NxMixedGraph` | v0.7 (depends on BP marginalizing latents) |
+
+   Per CLAUDE.md "don't design for hypothetical futures", v0.6 ships only `binary_directed` concretely. The `kind` field is the **smallest** schema commitment that keeps the door open without writing dead code.
+4. **Identification output format.** Raw y0 `Expression.to_latex()` plus `node_map`, matching PR #531 §6. Gaia-native symbolic expression deferred.
 
 ---
 
@@ -601,5 +615,5 @@ Unchanged from PR #531 §11:
 - `docs/specs/2026-05-05-role-on-action-graph-design.md`.
 - `docs/specs/2026-05-05-decompose-action-design.md`.
 - `docs/superpowers/specs/2026-04-25-unit-stats-constants-design.md` — kernel-vs-adapter template.
-- [y0](https://github.com/y0-causal-inference/y0) — symbolic do-calculus (optional adapter target).
+- [y0](https://github.com/y0-causal-inference/y0) — symbolic do-calculus (optional adapter target). Beyond serving as the identification backend (§8), y0's interface informs three Gaia design choices: (1) `Mechanism.kind` discriminator (§2.2) leaves room for ADMG bidirected edges that y0's `NxMixedGraph` natively expresses; (2) `do(X=x).query(Y, identify=True)` mirrors y0's `identify_outcomes(graph, treatments, outcomes)` shape, wrapping the symbolic result with a numeric belief from Gaia BP; (3) explicit non-goals from y0 we do **not** import — counterfactual operators (Pearl level 3) and the Population/Distribution split — are recorded in §12 to keep v0.6 scope contained.
 - [NetworkX](https://networkx.org/) — DAG infrastructure (promoted to kernel dep).
