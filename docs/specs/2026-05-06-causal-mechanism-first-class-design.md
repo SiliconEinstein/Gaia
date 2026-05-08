@@ -404,9 +404,7 @@ The eight thought experiments from PR #531 §4.4 (logical truths, fire/smoke, ba
 
 ### 6.4 `InterventionUndefinedError`
 
-`do(X=1)` is valid for any node registered in the causal DAG / FactorGraph, including root causes with no incoming `CausalFactor`. For root interventions, `mutilate()` removes zero causal factors and `observe(X, 1)` clamps the root variable.
-
-`InterventionUndefinedError` is reserved for interventions on identifiers that cannot be resolved to a DAG/BP variable. The error message points the author at either using a known mechanism endpoint or declaring the missing endpoint with `mechanism(cause=..., effect=...)`.
+`do(X=1)` on a node with no incoming `CausalFactor` raises `InterventionUndefinedError`. The error message points the author at `mechanism(cause=..., effect=X, ...)`.
 
 ---
 
