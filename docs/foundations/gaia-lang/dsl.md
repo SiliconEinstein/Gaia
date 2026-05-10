@@ -1,35 +1,45 @@
 ---
 status: current-canonical
 layer: gaia-lang
-since: v5-phase-1
+since: v0.5
 ---
 
 # Gaia Lang DSL Reference
 
 ## Overview
 
-Gaia Lang is a Python 3.12+ internal DSL for declarative knowledge authoring. Package authors use it to declare propositions, logical constraints, and reasoning strategies. Every declaration auto-registers to a `CollectedPackage` via Python `contextvars` -- writing declarations at module scope is sufficient.
+Gaia Lang is a Python 3.12+ internal DSL for declarative knowledge authoring. Package authors use it to declare propositions, logical constraints, and reasoning actions. Every declaration auto-registers to a `CollectedPackage` via Python `contextvars` -- writing declarations at module scope is sufficient.
+
+For the conceptual model behind the surface (Knowledge / Action hierarchy, formula claims, action lowering, operator semantics) see [knowledge-and-reasoning.md](knowledge-and-reasoning.md). This file is the per-name reference.
 
 ```python
 from gaia.lang import (
-    claim, note, question,                                 # Knowledge
-    Variable, Nat, Real, Probability, Bool,                # Formula terms
-    parameter, observation, causal,                        # Structured formula claims
-    not_, and_, or_,                                      # Propositional expressions
-    contradict, equal, exclusive,                         # Reviewable relations
-    observe, derive, compute, infer,                       # Recommended actions
-
+    # Knowledge
+    claim, note, question,
+    # Formula primitives (terms, predicates, connectives, quantifiers)
+    Variable, Nat, Real, Probability, Bool,
+    ClaimAtom, Constant, Equals, Causes,
+    land, lor, lnot, implies, iff, forall, exists,
+    # Structured-formula sugar (parameter / observation / causal claims)
+    parameter, observation, causal,
+    # Action verbs (recommended v0.5 surface)
+    observe, derive, compute, predict, infer, associate,
+    equal, contradict, exclusive, decompose,
+    depends_on,            # scaffold-only, not addressable via @label
+    compose,               # @compose decorator
+    # Lifted Bayes module (lazy-loaded)
+    bayes,
     # Compatibility aliases and legacy/experimental APIs
     setting, context,
     contradiction, equivalence, complement, disjunction,   # v5 compatibility
-    support, compare, deduction, abduction, induction,     # Legacy strategies
+    support, compare, deduction, abduction, induction,     # legacy strategies
     analogy, extrapolation, elimination, case_analysis,
     mathematical_induction, composite, fills,
-    # noisy_and,  # deprecated legacy compatibility
+    # noisy_and,  # deprecated; lowers to legacy support
 )
 ```
 
-The runtime dataclasses `Knowledge`, `Strategy`, `Step`, and `Operator` are also exported for type annotations.
+The runtime dataclasses `Knowledge`, `Claim`, `Note`, `Question`, `Action`, `Compose`, `Strategy`, `Step`, `Operator`, and the role-projection helpers `roles_for_claim` / `roles_for_package` are also exported for type annotations.
 
 ---
 
@@ -221,6 +231,10 @@ Deterministic derivation. Use when the conclusion follows from the explicit `giv
 
 Deterministic computation. Use either `compute(ResultClaim, fn=..., given=...)` or `@compute` with a `Claim` return annotation.
 
+### `predict(conclusion, *, given=(), background=None, rationale="", label=None)`
+
+Falsifiable prediction from premises or a model claim. Same skeleton as `derive` (conjunction over `given` + directed implication to `conclusion`); the subclass distinction records that the conclusion is being put forward as an empirical bet that future observations may falsify.
+
 ### `infer(evidence, *, hypothesis, given=(), p_e_given_h, p_e_given_not_h=0.5, background=None, rationale="", label=None)`
 
 Low-level probabilistic prediction/evidence link with a hand-written CPT. Prefer
@@ -234,6 +248,28 @@ Without `given`, the compiled BP factor is `H -> E` with CPT `[P(E|not H), P(E|H
 ### `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, background=None, rationale="", label=None)`
 
 Symmetric probabilistic association between two claims. Returns a generated association helper claim and lowers to a pairwise potential between `a` and `b`. At least one marginal prior for `a` or `b` must be available, either from the claim/priors layer or from `prior_a` / `prior_b`.
+
+### `decompose(whole, *, parts, formula, background=None, rationale="", label=None, metadata=None)`
+
+Declares `whole` as propositionally equivalent to a `Formula` over atomic `parts`. The compiler checks that the formula's `ClaimAtom` set exactly matches `parts`, that `whole` does not appear in the formula, and that no decomposition cycle exists. Returns the `whole` claim; also emits a decomposition helper Claim that reviewers gate. See [decompose action design](../../specs/2026-05-05-decompose-action-design.md).
+
+```python
+from gaia.lang import ClaimAtom, claim, decompose, implies, land
+
+A = claim("A")
+B = claim("B")
+D = claim("D")
+C = claim("C")
+decompose(
+    whole=C,
+    parts=(A, B, D),
+    formula=land(ClaimAtom(A), implies(ClaimAtom(B), ClaimAtom(D))),
+)
+```
+
+### `depends_on(conclusion, *, given=..., rationale="", label=None)`
+
+Scaffold-only action marking unformalized dependencies. **Does not enter IR or BP** and is not addressable via `[@label]` references. Use it while drafting a package to record "I know the full formalization will go here; here is what the conclusion depends on."
 
 ### `@compose(name, version, background=None, warrants=None, rationale="", label=None)`
 
@@ -280,13 +316,7 @@ These helpers recursively expand deterministic IR operators into a Boolean backe
 
 ### Reviewable Relation Verbs
 
-Use v6 relation verbs when the author is making a semantic judgment that reviewers should inspect:
-
-- `equal(a, b, *, rationale="", label=None)` declares equivalent truth.
-- `contradict(a, b, *, rationale="", label=None)` declares the claims cannot both be true.
-- `exclusive(a, b, *, rationale="", label=None)` declares a closed binary partition, exactly one true.
-
-Each relation returns a reviewable warrant helper claim and compiles to the corresponding deterministic IR operator.
+The relation action verbs (`equal`, `contradict`, `exclusive`, `decompose`) belong to the Action surface and are documented above under [Recommended Action Verbs](#recommended-action-verbs). They are listed here only to flag that they compile to the deterministic `equivalence` / `contradiction` / `complement` operators (plus formula operators for `decompose`), not to a new operator type.
 
 ### v5 Compatibility Operators
 
@@ -506,28 +536,42 @@ __all__ = ["bg", "hypothesis"]
 
 ## Reference Syntax
 
-Claim content and strategy reasons may contain references using the
+Claim content and action `rationale` text may contain references using the
 unified `@` syntax:
 
-- `[@label]` -- strict reference to a local or imported knowledge node, or
-  to a citation key in `references.json`. Missing key is a compile error.
+- `[@label]` -- strict reference to a local or imported knowledge node,
+  to an action label, or to a citation key in `references.json`. Missing
+  key is a compile error.
 - `@label` -- opportunistic reference (Pandoc narrative form). Missing key
   is treated as literal text.
 - `\@label` -- escape, forces literal.
 
-Compile enforces two invariants: (1) a key cannot exist in both the label
-table and `references.json` (collision -> compile error), and (2) a single
-`[...]` group cannot mix knowledge refs and citations (mixed group ->
-compile error).
+`label` may be either a Knowledge label (the variable name of a `claim`,
+`note`, or `question`, or an explicit `label=`) or an Action label (the
+`label=` argument on `derive` / `observe` / `compute` / `predict` / `infer`
+/ `associate` / `equal` / `contradict` / `exclusive` / `decompose` / `@compose`).
+Action labels resolve to the action's lowered target QID — the conclusion
+Claim for `Support` actions, the warrant helper Claim for `Probabilistic`
+and `Structural` actions, and the `Compose` node for `@compose`. The
+scaffold-only `depends_on` action is **not addressable** because it leaves
+no IR target.
 
-The full grammar, resolution rules, and rendering pipeline are specified
-in [References & `@` Syntax Unification Design](../../specs/2026-04-09-references-and-at-syntax.md).
+Compile enforces three invariants: (1) a key cannot exist in both the
+label table and `references.json` (collision -> compile error); (2) a
+Knowledge label and an Action label cannot share a name within the same
+package (collision -> compile error); (3) a single `[...]` group cannot
+mix knowledge refs and citations (mixed group -> compile error).
+
+Grammar, resolution rules, and rendering pipeline:
+[References & `@` Syntax Unification Design](../../specs/2026-04-09-references-and-at-syntax.md).
+Action label resolution contract:
+[Action Label References Design](../../specs/2026-05-10-action-label-references-design.md).
 
 ---
 
-## Legacy Complete Example
+## Complete Example
 
-This older example is retained to document compatibility behavior. New v0.5 examples should follow the README style: `claim`/`note` plus `observe`/`derive`/`compute`/`infer` and reviewable relation verbs.
+A v0.5 package using the recommended action surface (Galileo's tied-balls thought experiment against Aristotelian physics).
 
 **`pyproject.toml`:**
 
@@ -545,30 +589,35 @@ type = "knowledge-package"
 
 ```python
 """Galileo's tied-balls thought experiment against Aristotelian physics."""
-from gaia.lang import claim, contradiction, deduction, support, setting
+from gaia.lang import claim, contradict, derive, note
 
-aristotelian = setting("In Aristotelian physics, heavier objects fall faster.")
+aristotelian = note("In Aristotelian physics, heavier objects fall faster.")
 
-heavy_fast = claim("A heavy ball falls faster than a light ball.")
-light_slow = claim("A light ball falls slower than a heavy ball.")
+heavy_fast = claim("A heavy ball falls faster than a light ball.", prior=0.9)
+light_slow = claim("A light ball falls slower than a heavy ball.", prior=0.9)
 
 tied_heavier = claim("A heavy+light tied system is heavier than the heavy ball alone.")
 tied_faster = claim("The tied system falls faster.")
-support([tied_heavier, heavy_fast], tied_faster,
-    reason="Heavier system should fall faster.", prior=0.95)
-drag_slower = claim("The light ball drags, so tied system falls slower.")
-support([light_slow, heavy_fast], drag_slower,
-    reason="Light ball acts as drag.", prior=0.95)
+derive(tied_faster, given=[tied_heavier, heavy_fast],
+       rationale="Heavier system should fall faster under Aristotle.",
+       label="aristotle_predicts_faster")
 
-paradox = contradiction(tied_faster, drag_slower,
-    reason="Opposite predictions from same premises.", prior=0.99)
+drag_slower = claim("The light ball drags, so the tied system falls slower.")
+derive(drag_slower, given=[light_slow, heavy_fast],
+       rationale="Light ball acts as drag.",
+       label="aristotle_predicts_slower")
+
+paradox = contradict(tied_faster, drag_slower,
+                     rationale="Aristotle predicts both faster AND slower.",
+                     label="paradox")
 
 uniform_rate = claim("All bodies fall at the same rate regardless of weight.")
-binding = setting("Consider any two bodies A, B with different weights.")
+binding = note("Consider any two bodies A, B with different weights.")
 prediction = claim("A and B hit the ground simultaneously.")
-deduction(premises=[uniform_rate, tied_heavier], conclusion=prediction,
-    background=[binding],
-    reason="Direct logical consequence of uniform fall.", prior=0.99)
+derive(prediction, given=[uniform_rate, tied_heavier],
+       background=[binding],
+       rationale="Direct logical consequence of uniform fall.",
+       label="uniform_fall_prediction")
 
 __all__ = [
     "aristotelian", "heavy_fast", "light_slow", "tied_heavier",
@@ -579,4 +628,6 @@ __all__ = [
 
 Compile: `gaia compile path/to/galileo-tied-balls-gaia/`
 
-This produces `.gaia/ir.json` containing the `LocalCanonicalGraph` with all nodes, operators, and strategies assigned QIDs under `github:galileo_tied_balls::`.
+This produces `.gaia/ir.json` containing the `LocalCanonicalGraph` with all nodes, operators, helper claims, and the four action labels (`aristotle_predicts_faster`, `aristotle_predicts_slower`, `paradox`, `uniform_fall_prediction`) registered under `github:galileo_tied_balls::`. The action labels can be referenced from other claims' content via `[@aristotle_predicts_faster]`, etc.
+
+For the v5 named-strategy example using `support` / `deduction` / `contradiction`, see git history before v0.5 — those verbs still work but emit `DeprecationWarning` and should not be used in new packages.
