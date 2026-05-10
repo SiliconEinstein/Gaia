@@ -1,210 +1,87 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Instructions for Claude Code (claude.ai/code) working in this repo.
 
-## Project Overview
-
-Gaia is a Large Knowledge Model (LKM) — a billion-scale reasoning hypergraph for knowledge representation and inference. It stores knowledge as propositions and reasoning relationships via Gaia IR (factor graphs), with a publish pipeline (build → canonicalize → publish → review → integrate) and probabilistic inference via loopy belief propagation.
-
-**Stack:** Python 3.12+, FastAPI, Pydantic v2, LanceDB, Neo4j/Kuzu, NumPy/PyArrow
+For project overview, architecture, CLI surface, and DSL reference, read `README.md` and `docs/foundations/`. This file is for **agent conventions only** — things you can't derive from reading the code.
 
 ## Common Commands
 
 ```bash
-# Install dependencies (always use uv, never pip)
-uv sync
-
-# Run all tests (auto-skips Neo4j tests if unavailable)
-pytest
-
-# Run tests with coverage
-pytest --cov=libs --cov=services tests
-
-# Run a single test file / single test
-pytest tests/libs/storage/test_lance_content.py
-pytest tests/libs/storage/test_models.py::test_knowledge_defaults
-
-# Lint and format
-ruff check .
-ruff format .
-
-# Run the API server
-GAIA_LANCEDB_PATH=./data/lancedb/gaia \
-  uvicorn services.gateway.app:create_app --factory --reload --host 0.0.0.0 --port 8000
-
-# Run frontend dev server
-cd frontend && npm install && npm run dev
-```
-
-All async tests run automatically via `asyncio_mode = "auto"`.
-
-## Architecture
-
-### Layer Structure
-
-```
-services/gateway/        → FastAPI HTTP API (routes, dependency injection)
-    ↓ uses
-libs/storage/            → Storage backends (LanceDB content, Neo4j/Kuzu graph, LanceDB vector)
-libs/storage/models.py   → Core Pydantic models (Knowledge, Chain, Module, Package, etc.)
-libs/inference/          → BP algorithm (factor graph, belief propagation)
-gaia/lang/               → Gaia Language v5 Python DSL (knowledge declarations, operators, strategies)
-```
-
-Dependencies flow downward only. `libs` has no service dependencies.
-
-### Gaia Language v5 Python DSL
-
-Packages are authored as Python modules (each with a `pyproject.toml` manifest, `[tool.gaia] type = "knowledge-package"`).
-
-- **Knowledge:** `setting()`, `question()`, `claim()` — function calls at module scope, auto-register via `contextvars`
-- **Operators:** `contradiction()`, `equivalence()`, `complement()`, `disjunction()` — return helper claims
-- **Strategies:** `deduction()`, `abduction()`, `elimination()`, `case_analysis()`, `induction()`, `noisy_and()`, `analogy()`, `extrapolation()`, `mathematical_induction()`, `composite()`, `infer()`, `fills()`
-- **Labels:** module-level variables in `__all__` become labels, expanded to `{namespace}:{package}::{label}` at compile time
-- **Package:** `gaia-lang` v0.3.0 on PyPI, source in `gaia/lang/`
-- **Docs:** `docs/foundations/gaia-lang/dsl.md` (current canonical)
-
-### Storage Layer (`libs/storage/`)
-
-Three complementary backends managed by `StorageManager`:
-
-| Backend | Store Class | Purpose |
-|---------|------------|---------|
-| **LanceDB** | `LanceContentStore` | Knowledge content, metadata, BM25 full-text search |
-| **Neo4j/Kuzu** | `Neo4jGraphStore` / `KuzuGraphStore` | Graph topology (Knowledge→Chain relationships via `:PREMISE`/`:CONCLUSION`) |
-| **Vector** | `LanceVectorStore` | Embedding similarity search |
-
-Graph backend is optional — the system degrades gracefully without it. All writes go through three-write in `StorageManager.ingest_package()`: Content → Graph → Vector.
-
-### Core Data Models (`libs/storage/models.py`)
-
-- **Knowledge** — A proposition with `content`, `prior`, `type` (claim/question/setting/action), `keywords`, versioned by `(knowledge_id, version)`
-- **Chain** — A reasoning link with `steps[]` (each step has `premises[]` → `conclusion`), `type` (deduction/induction/abstraction/contradiction/retraction)
-- **Module** — Groups knowledge + chains within a package
-- **Package** — A complete knowledge container (git repo)
-- **ProbabilityRecord** — Per-step probability with source tracking
-- **BeliefSnapshot** — BP result history
-
-### Key Patterns
-
-- **Fully async** — all I/O is `async def`, tests use `asyncio_mode = "auto"`
-- **Dependency injection** — `services/gateway/deps.py` holds a global `Dependencies` singleton initialized at startup; tests inject custom instances via `create_app(dependencies=...)`
-- **Graceful degradation** — Graph and vector stores are optional
-- **Three-write atomicity** — `ingest_package()` writes Content (source of truth) → Graph → Vector with "preparing" → "committed" visibility gating
-- **Versioned identity** — Knowledge keyed by `(knowledge_id, version)`, graph nodes use composite `knowledge_id@version`
-
-### API Routes (`services/gateway/routes/`)
-
-- **`packages.py`** — `POST /packages/ingest`, `GET /packages/{id}`, `GET /knowledge/{id}`, `GET /knowledge/{id}/versions`, `GET /knowledge/{id}/beliefs`, `GET /modules/{id}`, `GET /modules/{id}/chains`, `GET /chains/{id}/probabilities`
-
-### Dependency Injection
-
-`services/gateway/deps.py` holds a global `Dependencies` singleton initialized during FastAPI startup with a `StorageManager`.
-
-## Testing
-
-- Tests live in `tests/` mirroring the source structure
-- Neo4j tests require a running Neo4j instance; CI provides one via service container
-- E2E integration tests in `tests/integration/` exercise HTTP endpoints with real storage
-- Test fixtures in `tests/fixtures/storage/` — paper fixtures for package ingest testing
-
-## Code Style
-
-- Ruff for linting/formatting, line length 100, target Python 3.12
-- Type hints use PEP 604 union syntax (`X | None` not `Optional[X]`)
-- Google-style docstrings
-- Pydantic v2 API: `.model_dump()`, `.model_validate()`, `.model_validate_json()`
-
-## Worktrees
-
-Worktrees live in `.worktrees/` (gitignored). Create new worktrees there:
-
-```bash
-git worktree add .worktrees/<name> -b feature/<name>
+uv sync                          # install (always uv, never pip)
+pytest                           # run tests
+ruff check . && ruff format .    # lint + format
 ```
 
 ## Workflow
 
-每项工作完成后，**必须**提交 PR 到 main。流程：
+每项工作完成后，**必须**提交 PR 到 main：
 
 1. 完成开发并确认测试通过
-2. 运行 ruff lint 和 format 检查：
-   ```bash
-   ruff check .
-   ruff format --check .
-   ```
-3. 修复所有 lint/format 错误
-4. 提交 commit，push 分支，创建 PR
-5. 创建 PR 后，**必须**用 `gh run list` 检查 CI 是否通过，若失败则查看日志修复：
-   ```bash
-   gh run list --branch <branch> --limit 1
-   gh run view <run-id> --log-failed
-   ```
+2. 跑 `ruff check .` 和 `ruff format --check .`，修干净
+3. commit、push 分支、`gh pr create`
+4. 创建 PR 后**必须**用 `gh run list --branch <branch> --limit 1` 检查 CI；失败则 `gh run view <run-id> --log-failed` 看日志修复
+
+例外：版本号 bump、纯 README/CLAUDE.md 改动这类琐碎提交，按历史惯例可直接 push 到 main。
 
 ## Skills
 
 `.claude/skills/` 下定义了规范化的工作流 skill，执行任务时**必须**使用对应的 skill：
 
-- **writing-plans** — 写 implementation plan 时使用
-- **executing-plans** — 按 plan 执行实现时使用
-- **using-superpowers** — 需要调用 superpowers（spec/plan 文档生成）时使用
-- **subagent-driven-development** — 多 agent 并行开发时使用
-- **test-driven-development** — 写测试时使用
+- **writing-plans** — 写 implementation plan 时
+- **executing-plans** — 按 plan 执行实现时
+- **using-superpowers** — 调用 superpowers（spec/plan 文档生成）时
+- **subagent-driven-development** — 多 agent 并行开发时
+- **test-driven-development** — 写测试时
 - **verification-before-completion** — 完成任务前的验证流程
-- **finishing-a-development-branch** — 收尾开发分支时使用
+- **finishing-a-development-branch** — 收尾开发分支时
 - **requesting-code-review / receiving-code-review** — 代码审查流程
 
 不要跳过 skill 直接手动操作。
 
+## Implementation Rules
+
+- **严格遵守设计文档**：实现时不得擅自降级设计文档中明确指定的技术方案（如用 TF-IDF 替代 embedding + BM25）。如有困难想简化，**必须先和用户商量**。
+- **不确定就问**：对设计方案的任何偏离，无论多小，都要在实现前提出。
+- **Plan 必须覆盖 spec 的每一步**：写 implementation plan 时逐条核对 spec，遗漏步骤等于悄悄砍需求。
+
 ## LLM API
 
-项目通过 litellm 调用 LLM，后端是内部 API 网关。
+项目通过 litellm 调用内部 API 网关。
 
-**API 配置**（在 `.env` 中）：
+**`.env` 配置：**
 - `OPENAI_API_BASE` — 网关地址（`https://ai-gateway-internal.dp.tech`）
 - `OPENAI_API_KEY` — API key
 
-**模型命名**：网关的模型名与 OpenAI 官方不同，必须加 `openai/` 前缀让 litellm 通过 OpenAI 兼容接口调用：
+**模型命名**：网关模型名必须加 `openai/` 前缀让 litellm 走 OpenAI 兼容接口：
 ```python
-# ✅ 正确
-litellm.acompletion(model="openai/chenkun/gpt-5-mini", ...)
-
-# ❌ 错误 — litellm 不认识 provider
-litellm.acompletion(model="chenkun/gpt-5-mini", ...)
-
-# ❌ 错误 — 网关不认识这个模型名
-litellm.acompletion(model="gpt-5-mini", ...)
+litellm.acompletion(model="openai/chenkun/gpt-5-mini", ...)  # ✅
+litellm.acompletion(model="chenkun/gpt-5-mini", ...)         # ❌ litellm 不认识 provider
+litellm.acompletion(model="gpt-5-mini", ...)                  # ❌ 网关不认识这个模型名
 ```
 
-**查看可用模型**：
+**入口处必须设置全局 api_base：**
+```python
+import litellm, os
+litellm.api_base = os.getenv("OPENAI_API_BASE")
+```
+
+**查可用模型：**
 ```bash
 source .env && curl -s "${OPENAI_API_BASE}/v1/models" \
   -H "Authorization: Bearer ${OPENAI_API_KEY}" | python3 -m json.tool | grep '"id"'
 ```
 
-**需要设置全局 api_base**（在脚本入口处）：
-```python
-import litellm
-litellm.api_base = os.getenv("OPENAI_API_BASE")
-```
-
-## Implementation Rules
-
-- **严格遵守设计文档**：实现时不得擅自降级设计文档中明确指定的技术方案（如用 TF-IDF 替代 embedding + BM25）。如果实现上有困难或想简化，**必须先和用户商量**，不能自行决定偷工减料。
-- **不确定就问**：对设计方案的任何偏离，无论多小，都要在实现前提出。
-- **Plan 必须覆盖 spec 的每一步**：写 implementation plan 时，逐条核对 spec 中的每个步骤/流程，确保每一步都有对应的 task。遗漏步骤等于悄悄砍需求。
-
 ## Scripts & Pipelines: Logging Is Mandatory
 
-所有 CLI 脚本（`scripts/*.py`、`gaia/lkm/pipelines/*.py` 有 `__main__` 的）**必须**符合以下规范，否则后台运行时会变成黑盒：
+所有 CLI 脚本（`scripts/*.py`、`gaia/lkm/pipelines/*.py` 有 `__main__` 的）**必须**符合以下规范，否则后台运行就是黑盒：
 
-1. **双 handler 日志**：同时输出到 console 和 `logs/{name}-{timestamp}.log`
-2. **`force=True`**：`logging.basicConfig` 必须加 `force=True` 覆盖任何已有配置（如 import 时被 LanceDB/httpx 初始化过的）
-3. **每阶段打点**：每个步骤的开始/结束都要 log，不能只在最后 summary
-4. **第一行输出 log 文件路径**：让用户立即知道去哪看日志
-5. **print() 用 flush=True**：logging 自动 flush，但普通 print 不会
+1. **双 handler**：同时输出到 console 和 `logs/{name}-{timestamp}.log`
+2. **`force=True`**：`logging.basicConfig` 必须加 `force=True` 覆盖已有配置（LanceDB/httpx import 时会初始化）
+3. **每阶段打点**：每步开始/结束都 log，不只在最后 summary
+4. **第一行输出 log 文件路径**：让用户立刻知道去哪看日志
+5. **`print(..., flush=True)`**：logging 自动 flush，但普通 print 不会
 
-模板（直接复制）：
+模板：
 
 ```python
 import logging, os, time
@@ -217,83 +94,90 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
     handlers=[logging.StreamHandler(), logging.FileHandler(_LOG_FILE)],
-    force=True,  # IMPORTANT: override prior logging config
+    force=True,
 )
 logger = logging.getLogger(__name__)
 logger.info("Log file: %s", _LOG_FILE)
 ```
 
-**禁止**：后台跑脚本时不看日志。总是跑完后 tail 一下确认有输出。
+**禁止**：后台跑脚本不看日志。跑完总要 tail 一下确认有输出。
+
+## Code Style
+
+- Ruff，line length 100，target Python 3.12
+- 类型注解用 PEP 604（`X | None`，不是 `Optional[X]`）
+- Google-style docstrings
+- Pydantic v2 API：`.model_dump()` / `.model_validate()` / `.model_validate_json()`
+
+## Worktrees
+
+Worktrees 放在 `.worktrees/`（已 gitignore）：
+
+```bash
+git worktree add .worktrees/<name> -b feature/<name>
+```
 
 ## Design Documents
 
-Current specs live in `docs/foundations/` organized by architectural layer:
+Specs 在 `docs/foundations/` 按架构层组织：
 
 ```
-docs/foundations/theory/       → Pure theory (Jaynes, BP algorithm) — never changes
-docs/foundations/ecosystem/    → Business ecosystem — product scope, decentralized architecture, workflows
-docs/foundations/gaia-ir/     → Gaia IR structural contract (CLI↔LKM shared layer)
-docs/foundations/gaia-lang/    → Gaia Language (authoring DSL, shared by CLI and LKM)
-docs/foundations/bp/           → BP computation semantics on Gaia IR
-docs/foundations/review/       → Review pipeline (shared by CLI and LKM)
-docs/foundations/cli/          → CLI (local authoring, compilation, inference)
-docs/foundations/lkm/          → LKM server (curation, global inference, storage, API)
+docs/foundations/theory/       → Pure theory (Jaynes, BP) — 外部定义，从不变
+docs/foundations/ecosystem/    → 业务生态 — 产品范围、去中心化架构、工作流
+docs/foundations/gaia-ir/      → Gaia IR 结构契约（CLI↔LKM 共享）
+docs/foundations/gaia-lang/    → Gaia Language（DSL，CLI 和 LKM 共享）
+docs/foundations/bp/           → BP 计算语义
+docs/foundations/review/       → Review pipeline
+docs/foundations/cli/          → CLI（本地 authoring/compile/inference）
+docs/foundations/lkm/          → LKM server（curation、global inference、storage、API）
 ```
 
-Historical docs are in `docs/archive/`. Planning docs are in `docs/plans/`. Design specs are in `docs/specs/`.
+历史文档在 `docs/archive/`，规划在 `docs/plans/`，设计在 `docs/specs/`。
 
 ## Documentation Policy
 
-When editing architecture or foundation docs, read `docs/documentation-policy.md` first.
+编辑架构或 foundation 文档前先读 `docs/documentation-policy.md`。
 
-### Foundations Layer Rules
+### Foundations 分层规则
 
-The `docs/foundations/` directory mirrors Gaia's three-layer compilation pipeline (Gaia Lang → Gaia IR → BP) plus two product surfaces (CLI, LKM). Information flows **downward** — each layer references layers above it, never redefines.
+`docs/foundations/` 镜像 Gaia 三层编译流水（Gaia Lang → Gaia IR → BP）+ 两个产品面（CLI、LKM）。信息**自上而下**流动 — 下层引用上层定义，**永不重复**。
 
-| Layer | Responsibility | What belongs here |
-|-------|---------------|-------------------|
-| **theory/** | External theory (Jaynes, BP algorithm) | Definitions that exist independent of Gaia |
-| **ecosystem/** | Business ecosystem — product scope, decentralized architecture, workflows | Why Gaia makes the choices it does, how participants interact |
-| **gaia-ir/** | Gaia IR structural contract | Node schemas, factor types, canonicalization — defined ONCE here |
-| **gaia-lang/** | Gaia Language (authoring DSL) | Language spec, knowledge types, package model — shared by CLI and LKM |
-| **bp/** | BP computation on Gaia IR | Factor potentials, inference algorithm, local vs global |
-| **review/** | Review pipeline | Verification, review, gating — shared by CLI and LKM |
-| **cli/** | CLI (local workflow) | Compiler, local inference, local storage |
-| **lkm/** | LKM server (global workflow) | Curation, global inference, storage, API |
+| Layer | 责任 |
+|-------|------|
+| **theory/** | 外部理论（Jaynes、BP 算法）— 独立于 Gaia 的定义 |
+| **ecosystem/** | 业务生态 — 产品范围、参与者关系 |
+| **gaia-ir/** | Gaia IR 结构契约 — 节点 schema、factor 类型、canonicalization，**单一定义点** |
+| **gaia-lang/** | Gaia Language（authoring DSL）— 语言规范、knowledge 类型、package 模型 |
+| **bp/** | Gaia IR 上的 BP 计算 — factor 势能、推理算法 |
+| **review/** | Review pipeline — 验证、审查、gating |
+| **cli/** | CLI（本地工作流）— compiler、本地 inference、本地 storage |
+| **lkm/** | LKM server（全局工作流）— curation、global inference、storage、API |
 
-**Rules:**
-1. **gaia-ir/ is the single source of truth** for structural definitions (FactorNode, knowledge node schemas). BP, CLI, and LKM reference it, never redefine.
-2. **bp/** defines computational semantics (potential functions). CLI and LKM reference it for algorithm details.
-3. **cli/** owns Gaia Lang. LKM never references Gaia Lang — it operates on Gaia IR.
-4. **Never copy** a definition from another layer — link to it instead.
-5. When a schema changes, update it in gaia-ir/ first, then verify downstream references.
+**规则：**
+1. **gaia-ir/ 是结构定义的唯一来源**（FactorNode、knowledge 节点 schema）。bp/、cli/、lkm/ **引用**，不重定义。
+2. **bp/** 定义计算语义。CLI 和 LKM 引用算法细节。
+3. **cli/** 拥有 Gaia Lang。LKM **从不引用 Gaia Lang** — 它操作 Gaia IR。
+4. 跨层定义**只链接，不复制**。
+5. schema 改动先在 gaia-ir/ 改，再验证下游引用。
 
 ### Protected Layers (Change Control)
 
-`gaia-ir/` 是 CLI↔LKM 的协议契约层，所有开发必须以 `docs/foundations/gaia-ir/` 中定义的数据格式为准。
+`gaia-ir/` 是 CLI↔LKM 的协议契约层。
 
 **硬性规则：**
-- Agent **禁止**直接修改 `docs/foundations/gaia-ir/` 下的任何文件
-- Agent **禁止**直接修改 `docs/foundations/theory/` 下的任何文件（纯理论层，外部定义）
-- 如果实现过程中发现 Gaia IR 的定义需要调整，必须**停下来和用户沟通**，说明：
+- Agent **禁止**直接修改 `docs/foundations/gaia-ir/` 下任何文件
+- Agent **禁止**直接修改 `docs/foundations/theory/` 下任何文件（纯理论层，外部定义）
+- 如果实现中发现 Gaia IR 定义需要调整，必须**停下来和用户沟通**：
   1. 当前定义是什么
   2. 为什么需要改
   3. 提议的改动内容
-- 用户明确批准后，改动必须作为**独立的 PR** 提交，不能混在功能 PR 里
-- 改动合并后，必须验证所有下游引用（bp/、cli/、lkm/）仍然一致
+- 用户批准后，改动作为**独立 PR** 提交，不能混在功能 PR 里
+- 合并后必须验证所有下游引用（bp/、cli/、lkm/）一致
 
 ### General Doc Rules
 
-- identify the doc's status (`Current canonical`, `Target design`, `Transitional`)
-- identify whether the edit is a clarification, a replacement, or a proposal
-- prefer replacing or archiving an obsolete conceptual model over endlessly patching it in place
-- update index/archive/redirect files in the same branch when a canonical doc is added, replaced, or materially re-scoped
-
-Do not silently mix:
-
-- current canonical semantics
-- target design
-- runtime implementation quirks
-- historical rationale
-
-into one document.
+- 标明文档状态（`Current canonical` / `Target design` / `Transitional`）
+- 标明改动性质（澄清 / 替换 / 提案）
+- 优先**替换或归档**过时的概念模型，而不是无尽地原地打补丁
+- canonical doc 添加、替换或重大重定范围时，**同 PR 更新**索引/归档/重定向文件
+- **不要默默混合**：current canonical 语义、target design、运行时实现 quirk、历史背景 — 这些必须分开
