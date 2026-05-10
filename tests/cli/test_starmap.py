@@ -997,3 +997,361 @@ def test_starmap_svg_light_no_legend(tmp_path):
     assert result.exit_code == 0, result.output
     svg = (pkg_dir / out).read_text(encoding="utf-8")
     assert 'id="legend"' not in svg
+
+
+# ── starmap-replay smoke tests (lift codecov patch coverage on PR #536) ─────
+
+
+def test_replay_load_template_carries_placeholder():
+    """The shipped HTML template includes the timeline-data placeholder marker."""
+    from gaia.cli.commands.starmap_replay import TIMELINE_PLACEHOLDER, _load_template
+
+    template = _load_template()
+    assert TIMELINE_PLACEHOLDER in template
+
+
+def test_replay_render_html_injects_payload():
+    """`_render_html` substitutes the placeholder with a window.TIMELINE_DATA assignment."""
+    from gaia.cli.commands.starmap_replay import _render_html
+
+    template = "<html><body><!--__TIMELINE_DATA__--></body></html>"
+    out = _render_html(template, '{"hello": "world"}')
+    assert "<!--__TIMELINE_DATA__-->" not in out
+    assert 'window.TIMELINE_DATA = {"hello": "world"};' in out
+
+
+def test_replay_render_html_raises_when_placeholder_missing():
+    """Templates without the placeholder are rejected loudly — silent failure would
+    leave the frontend with no timeline data."""
+    from gaia.cli.commands.starmap_replay import _render_html
+
+    with pytest.raises(RuntimeError, match="placeholder"):
+        _render_html("<html>no marker</html>", "{}")
+
+
+def test_replay_read_jsonl_skips_blank_lines(tmp_path):
+    """`_read_jsonl` returns one dict per non-blank line."""
+    from gaia.cli.commands.starmap_replay import _read_jsonl
+
+    p = tmp_path / "log.jsonl"
+    p.write_text('{"a": 1}\n\n   \n{"b": 2}\n', encoding="utf-8")
+    events = _read_jsonl(p)
+    assert events == [{"a": 1}, {"b": 2}]
+
+
+def test_replay_read_jsonl_raises_on_invalid_json(tmp_path):
+    """A malformed JSONL line surfaces as a typer.BadParameter with the line number."""
+    import typer
+
+    from gaia.cli.commands.starmap_replay import _read_jsonl
+
+    p = tmp_path / "bad.jsonl"
+    p.write_text('{"ok": 1}\n{not json\n', encoding="utf-8")
+    with pytest.raises(typer.BadParameter, match="line 2"):
+        _read_jsonl(p)
+
+
+def test_replay_is_replayable_filters_retries_and_failures():
+    """Replay drops retry / failed-retrieval events, keeps normal ones."""
+    from gaia.cli.commands.starmap_replay import _is_replayable
+
+    assert _is_replayable({"event_id": "e1"}) is True
+    assert _is_replayable({"retry_of_event_id": "e0"}) is False
+    assert _is_replayable({"decision": "retry"}) is False
+    assert _is_replayable({"response_code": 500}) is False
+    # response_code 0 / None are healthy.
+    assert _is_replayable({"response_code": 0}) is True
+    assert _is_replayable({"response_code": None}) is True
+
+
+def test_replay_validate_schema_warns_on_version_mismatch():
+    """Events whose schema_version != "1" each produce a warning."""
+    from gaia.cli.commands.starmap_replay import _validate_schema
+
+    events = [
+        {"event_id": "ok", "schema_version": "1"},
+        {"event_id": "old", "schema_version": "0"},
+        {"event_id": "missing"},
+    ]
+    warnings = _validate_schema(events, "src.jsonl")
+    # Two events deviate from "1"; one matches.
+    assert len(warnings) == 2
+    assert any("'old'" in w or "old" in w for w in warnings)
+
+
+def test_replay_merge_events_tags_and_sorts():
+    """`merge_events` tags each event with `event_kind` and sorts stably."""
+    from gaia.cli.commands.starmap_replay import merge_events
+
+    retrievals = [
+        {"actor_id": "a", "seq": 1, "timestamp_utc": "2026-05-05T00:00:01.000Z"},
+    ]
+    growths = [
+        {"actor_id": "a", "seq": 0, "timestamp_utc": "2026-05-05T00:00:00.000Z"},
+    ]
+    merged = merge_events(retrievals, growths)
+    assert [e["event_kind"] for e in merged] == ["growth", "retrieval"]
+    assert [e["timestamp_utc"] for e in merged] == [
+        "2026-05-05T00:00:00.000Z",
+        "2026-05-05T00:00:01.000Z",
+    ]
+    # Caller's lists must not be mutated (shallow-copy contract).
+    assert "event_kind" not in retrievals[0]
+    assert "event_kind" not in growths[0]
+
+
+def test_replay_parse_pos_and_bb_helpers():
+    """`_parse_pos`/`_parse_bb` accept canonical Graphviz strings, reject junk."""
+    from gaia.cli.commands._replay_build import _parse_bb, _parse_pos
+
+    assert _parse_pos("1.5,2.0") == (1.5, 2.0)
+    # Pinned positions carry a trailing `!`.
+    assert _parse_pos("3.0,4.0!") == (3.0, 4.0)
+    assert _parse_pos("") is None
+    assert _parse_pos("only-one") is None
+    assert _parse_pos("a,b") is None
+
+    assert _parse_bb("0,0,100,200") == (0.0, 0.0, 100.0, 200.0)
+    assert _parse_bb("") is None
+    assert _parse_bb("0,0,100") is None
+    assert _parse_bb("a,b,c,d") is None
+
+
+def test_replay_compute_round_beliefs_empty_ir_returns_empty():
+    """`compute_round_beliefs` short-circuits to {} when the IR has no knowledges."""
+    from gaia.cli.commands._replay_build import compute_round_beliefs
+
+    assert compute_round_beliefs({}, [{"round_id": "r0"}]) == {}
+    assert compute_round_beliefs({"knowledges": []}, [{"round_id": "r0"}]) == {}
+
+
+def test_replay_compute_dot_layout_parses_canned_json(monkeypatch):
+    """`compute_dot_layout` consumes Graphviz `-Tjson0` output: nodes get y-flipped,
+    cluster bounding boxes flatten into the clusters list."""
+    import subprocess as _subprocess
+
+    from gaia.cli.commands import _replay_build as rb
+
+    canned = {
+        "bb": "0,0,400,200",
+        "objects": [
+            # A cluster carries a `nodes` list (indices into objects).
+            {
+                "name": "cluster_pkg_module",
+                "label": "module",
+                "bb": "10,10,90,90",
+                "lp": "50,50",
+                "nodes": [1],
+            },
+            # Plain node.
+            {"name": "ns:pkg::node", "pos": "30,180"},
+            # Another node, no `nodes` key, default-named.
+            {"name": "strat_0", "pos": "100,150!"},
+        ],
+    }
+
+    class _FakeProc:
+        def __init__(self, stdout: str, returncode: int = 0, stderr: str = ""):
+            self.stdout = stdout
+            self.returncode = returncode
+            self.stderr = stderr
+
+    def _fake_run(cmd, **kwargs):
+        # Caller passes the dot source via stdin.
+        assert kwargs.get("input")
+        return _FakeProc(json.dumps(canned))
+
+    monkeypatch.setattr(rb.shutil, "which", lambda _: "/usr/bin/dot")
+    monkeypatch.setattr(_subprocess, "run", _fake_run)
+    monkeypatch.setattr(rb.subprocess, "run", _fake_run)
+
+    layout = rb.compute_dot_layout("digraph { a -> b }")
+    assert layout["viewport"] == {"width": 400.0, "height": 200.0}
+    # y-flip: y' = bb_y_max - y → 200 - 180 = 20, 200 - 150 = 50.
+    assert layout["nodes"]["ns:pkg::node"] == {"x": 30.0, "y": 20.0}
+    assert layout["nodes"]["strat_0"] == {"x": 100.0, "y": 50.0}
+    # One cluster, with flipped bb.
+    assert len(layout["clusters"]) == 1
+    cluster = layout["clusters"][0]
+    assert cluster["name"] == "cluster_pkg_module"
+    assert cluster["w"] == 80.0 and cluster["h"] == 80.0
+
+
+def test_replay_compute_dot_layout_raises_when_dot_missing(monkeypatch):
+    """Without the `dot` binary on PATH, `compute_dot_layout` raises FileNotFoundError."""
+    from gaia.cli.commands import _replay_build as rb
+
+    monkeypatch.setattr(rb.shutil, "which", lambda _: None)
+    with pytest.raises(FileNotFoundError, match="Graphviz"):
+        rb.compute_dot_layout("digraph { a -> b }")
+
+
+# ── starmap-replay CLI smoke tests against the bundled fixture ──────────────
+
+
+_STARMAP_REPLAY_FIXTURE = (
+    __import__("pathlib").Path(__file__).resolve().parents[1]
+    / "fixtures"
+    / "starmap_replay"
+    / "mendelian_inheritance"
+)
+
+
+def test_starmap_replay_cli_smoke(tmp_path):
+    """End-to-end: the bundled fixture renders to a self-contained HTML file."""
+    if not _STARMAP_REPLAY_FIXTURE.is_dir():
+        pytest.skip(f"replay fixture not present at {_STARMAP_REPLAY_FIXTURE}")
+    out_path = tmp_path / "replay.html"
+    result = runner.invoke(
+        app,
+        ["starmap-replay", str(_STARMAP_REPLAY_FIXTURE), "--out", str(out_path)],
+    )
+    assert result.exit_code == 0, result.output
+    html = out_path.read_text(encoding="utf-8")
+    assert "window.TIMELINE_DATA" in html
+    # Schema version baked into the payload.
+    payload_match = re.search(r"window\.TIMELINE_DATA = (.*?);</script>", html, re.DOTALL)
+    assert payload_match is not None
+    payload = json.loads(payload_match.group(1))
+    assert payload["schema_version"] == "1"
+    assert payload["retrieval_count"] == 7
+    assert payload["growth_count"] == 35
+
+
+def test_starmap_replay_cli_rejects_non_directory(tmp_path):
+    """Replaying against a file (not a package directory) fails with exit code 1."""
+    f = tmp_path / "not_a_dir"
+    f.write_text("hello", encoding="utf-8")
+    result = runner.invoke(app, ["starmap-replay", str(f)])
+    assert result.exit_code == 1
+    assert "is not a directory" in result.output
+
+
+def test_starmap_replay_cli_reports_missing_logs(tmp_path):
+    """Replaying a directory missing its lkm-discovery JSONL logs surfaces both paths."""
+    pkg_dir = tmp_path / "empty_pkg"
+    pkg_dir.mkdir()
+    result = runner.invoke(app, ["starmap-replay", str(pkg_dir)])
+    assert result.exit_code == 1
+    assert "missing timeline log" in result.output
+    assert "graph_growth_log.jsonl" in result.output
+    assert "retrieval_log.jsonl" in result.output
+
+
+def test_replay_compute_round_beliefs_runs_inference_on_synthetic_ir():
+    """Two-claim IR + lkm-driven events: each round's truncation runs through
+    the BP engine and beliefs land at the priors (no edges)."""
+    from gaia.cli.commands._replay_build import compute_round_beliefs
+
+    ir = {
+        "namespace": "test",
+        "package_name": "replay_smoke",
+        "scope": "local",
+        "knowledges": [
+            {
+                "id": "test:replay_smoke::a",
+                "type": "claim",
+                "metadata": {"lkm_id": "gcn_a", "prior": 0.5},
+            },
+            {
+                # No lkm_id → always-present.
+                "id": "test:replay_smoke::b",
+                "type": "claim",
+                "metadata": {"prior": 0.3},
+            },
+        ],
+        "operators": [],
+        "strategies": [],
+    }
+    events = [
+        {"round_id": "r0", "graph_delta": {"nodes_added": [{"lkm_id": "gcn_a"}]}},
+    ]
+    beliefs = compute_round_beliefs(ir, events)
+    assert "r0" in beliefs
+    # Always-present + admitted-this-round both surface in the round table.
+    assert "test:replay_smoke::a" in beliefs["r0"]
+    assert "test:replay_smoke::b" in beliefs["r0"]
+    # Disconnected priors → beliefs equal priors.
+    assert abs(beliefs["r0"]["test:replay_smoke::a"] - 0.5) < 1e-6
+    assert abs(beliefs["r0"]["test:replay_smoke::b"] - 0.3) < 1e-6
+
+
+def test_replay_annotate_ticks_with_survival_no_layout_marks_all_true():
+    """Without IR / layout context, every tick defaults to survives_to_final=True."""
+    from gaia.cli.commands._replay_build import annotate_ticks_with_survival
+
+    ticks = [
+        {"action": {"action": "claim", "symbol": "x"}, "tick_index": 0, "event_id": "e1"},
+        {"action": {"action": "deduction", "symbol": "y"}, "tick_index": 1, "event_id": "e2"},
+    ]
+    out, warns = annotate_ticks_with_survival(ticks, [], None, None)
+    assert all(t["survives_to_final"] is True for t in out)
+    assert warns == []
+
+
+def test_replay_topo_reorder_short_circuits_without_context():
+    """`topo_reorder_ticks` returns ticks untouched when layout / ir is missing."""
+    from gaia.cli.commands._replay_build import topo_reorder_ticks
+
+    ticks = [
+        {"tick_index": 0, "action": {"action": "claim", "symbol": "x"}},
+        {"tick_index": 1, "action": {"action": "claim", "symbol": "y"}},
+    ]
+    out, warns = topo_reorder_ticks(list(ticks), [], None, None)
+    assert out == ticks
+    assert warns == []
+
+
+def test_replay_collect_round_order_dedup_preserves_first_appearance():
+    """`collect_round_order` returns each round_id once, in arrival order."""
+    from gaia.cli.commands._replay_build import collect_round_order
+
+    events = [
+        {"round_id": "r0"},
+        {"round_id": "r1"},
+        {"round_id": "r0"},
+        {},  # No round_id — ignored.
+        {"round_id": "r2"},
+        {"round_id": "r1"},
+    ]
+    assert collect_round_order(events) == ["r0", "r1", "r2"]
+
+
+@pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
+def test_starmap_replay_cli_with_real_package_triggers_layout_pipeline(tmp_path):
+    """End-to-end: a compiled package + the bundled fixture's logs exercises the
+    full pipeline (dot layout, IR-side annotation, round beliefs).
+
+    This is a smoke test — we don't assert the layout *contents* (those depend
+    on the package's specific IR), only that the pipeline emits a payload with
+    a non-None final_layout when graphviz is available."""
+    import shutil as _shutil
+
+    pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_replay_real")
+
+    # Splat the bundled fixture's logs into the package's expected artifacts dir.
+    artifacts = pkg_dir / "artifacts" / "lkm-discovery"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    fixture = _STARMAP_REPLAY_FIXTURE / "artifacts" / "lkm-discovery"
+    if not fixture.is_dir():
+        pytest.skip(f"replay fixture not present at {fixture}")
+    _shutil.copy(fixture / "graph_growth_log.jsonl", artifacts / "graph_growth_log.jsonl")
+    _shutil.copy(fixture / "retrieval_log.jsonl", artifacts / "retrieval_log.jsonl")
+
+    out_path = tmp_path / "real_replay.html"
+    result = runner.invoke(
+        app,
+        ["starmap-replay", str(pkg_dir), "--out", str(out_path)],
+    )
+    assert result.exit_code == 0, result.output
+    html = out_path.read_text(encoding="utf-8")
+    payload_match = re.search(r"window\.TIMELINE_DATA = (.*?);</script>", html, re.DOTALL)
+    assert payload_match is not None
+    payload = json.loads(payload_match.group(1))
+    # With graphviz + a compiled IR, final_layout pins are populated.
+    assert payload["final_layout"] is not None
+    assert "viewport" in payload["final_layout"]
+    assert isinstance(payload["final_layout"].get("nodes"), dict)
+    # round_beliefs is a dict keyed by round_id (may be empty per round if the
+    # fixture's lkm_ids don't intersect the demo package's IR).
+    assert isinstance(payload["round_beliefs"], dict)
