@@ -27,6 +27,9 @@ _DEFAULT_OUT = {
     "dot": ".gaia/starmap.dot",
 }
 
+# Allowed theme names. ``dark`` is an alias of ``stellaris``.
+_VALID_THEMES = ("light", "stellaris", "dark")
+
 
 def _load_template() -> str:
     """Read the placeholder HTML template that ships with the CLI package."""
@@ -62,6 +65,16 @@ def starmap_command(
         "--format",
         help="Output format: 'html' (interactive Sigma.js) or 'dot' (paper-ready Graphviz).",
     ),
+    theme: str = typer.Option(
+        "light",
+        "--theme",
+        help=(
+            "Visual theme for 'dot' output. 'light' (default) is the flat "
+            "paper-friendly palette. 'stellaris' (alias: 'dark') is a "
+            "deep-space dark variant — use 'sfdp' to render: "
+            "`sfdp -Tsvg starmap.dot -o starmap.svg`."
+        ),
+    ),
 ) -> None:
     """Emit a starmap of the compiled package.
 
@@ -94,6 +107,13 @@ def starmap_command(
     if fmt not in _DEFAULT_OUT:
         typer.echo(
             f"Error: --format must be one of {sorted(_DEFAULT_OUT)}; got {fmt!r}.",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    if theme not in _VALID_THEMES:
+        typer.echo(
+            f"Error: --theme must be one of {sorted(_VALID_THEMES)}; got {theme!r}.",
             err=True,
         )
         raise typer.Exit(2)
@@ -171,7 +191,7 @@ def starmap_command(
             typer.echo(str(exc), err=True)
             raise typer.Exit(1)
     else:  # dot
-        content = to_dot(graph_json)
+        content = to_dot(graph_json, theme=theme)
 
     out_path = Path(out) if out is not None else Path(_DEFAULT_OUT[fmt])
     if not out_path.is_absolute():
