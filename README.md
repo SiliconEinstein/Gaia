@@ -189,6 +189,8 @@ gaia init → gaia add → /gaia:formalization → gaia compile → gaia infer �
 | `gaia render --target github [path]` | Generate GitHub presentation skeleton (`.github-output/`): wiki, README, React Pages, graph.json |
 | `gaia render --target docs [path]` | Generate per-module detailed reasoning to `docs/detailed-reasoning.md` |
 | `gaia render [path]` | Default: render both docs and github targets (`--target all`) |
+| `gaia starmap [path]` | Emit a starmap of a Gaia knowledge package in three formats. Default `--format html` (`.gaia/starmap.html`): single-file interactive WebGL viewer (~10k nodes), double-click to open, no server required. `--format dot` (`.gaia/starmap.dot`): paper-ready Graphviz source. `--format svg` (`.gaia/starmap.svg`): rendered via Graphviz with embedded glow filters when `--theme stellaris`. `--theme {light,stellaris,dark}` (default `light`): `stellaris`/`dark` is a deep-space palette with sfdp force-directed layout, multi-layer SVG glows on contradictions, gold-edge support strategies, and root-claim highlight |
+| `gaia starmap-replay [path]` | **Experimental** (scaffold v4, frozen — not actively iterated). Time-line replay of inquiry / BP iterations against a starmap fixture. Default output: `.gaia/starmap-replay.html`. See scaffold for current capability; future iterations live on a separate branch |
 | `gaia register [path]` | Submit package to the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry) |
 
 ## Quick Start

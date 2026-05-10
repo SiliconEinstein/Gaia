@@ -1,0 +1,1585 @@
+{
+  "modules": [
+    {
+      "id": "core",
+      "order": 0,
+      "node_count": 21,
+      "strategy_count": 6
+    },
+    {
+      "id": "metaphysics",
+      "order": 1,
+      "node_count": 23,
+      "strategy_count": 7
+    },
+    {
+      "id": "epistemics",
+      "order": 2,
+      "node_count": 22,
+      "strategy_count": 3
+    },
+    {
+      "id": "ethics",
+      "order": 3,
+      "node_count": 14,
+      "strategy_count": 2
+    }
+  ],
+  "cross_module_edges": [],
+  "nodes": [
+    {
+      "id": "k_0",
+      "label": "claim_0",
+      "title": "claim 0",
+      "type": "claim",
+      "module": "ethics",
+      "content": "Sample claim content for node 0. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.09924374671104286,
+      "belief": 0.2604689127343888,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_1",
+      "label": "setting_1",
+      "title": "setting 1",
+      "type": "setting",
+      "module": "ethics",
+      "content": "Sample setting content for node 1. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.35918090661519786,
+      "belief": 0.676365943193115,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_2",
+      "label": "claim_2",
+      "title": "claim 2",
+      "type": "claim",
+      "module": "ethics",
+      "content": "Sample claim content for node 2. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_3",
+      "label": "question_3",
+      "title": "question 3",
+      "type": "question",
+      "module": "core",
+      "content": "Sample question content for node 3. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.7168200618424764,
+      "belief": 0.5975357366775288,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_4",
+      "label": "background_4",
+      "title": "background 4",
+      "type": "background",
+      "module": "metaphysics",
+      "content": "Sample background content for node 4. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.19263019223281178,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_5",
+      "label": "setting_5",
+      "title": "setting 5",
+      "type": "setting",
+      "module": "epistemics",
+      "content": "Sample setting content for node 5. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.9837331806997873,
+      "belief": 0.2539885318359045,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_6",
+      "label": "setting_6",
+      "title": "setting 6",
+      "type": "setting",
+      "module": "epistemics",
+      "content": "Sample setting content for node 6. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": null,
+      "exported": true,
+      "metadata": {}
+    },
+    {
+      "id": "k_7",
+      "label": "setting_7",
+      "title": "setting 7",
+      "type": "setting",
+      "module": "epistemics",
+      "content": "Sample setting content for node 7. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.9793365465762657,
+      "belief": 0.2862707944507695,
+      "exported": true,
+      "metadata": {}
+    },
+    {
+      "id": "k_8",
+      "label": "claim_8",
+      "title": "claim 8",
+      "type": "claim",
+      "module": "metaphysics",
+      "content": "Sample claim content for node 8. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.5316014135451234,
+      "belief": 0.7091342999907814,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_9",
+      "label": "question_9",
+      "title": "question 9",
+      "type": "question",
+      "module": "metaphysics",
+      "content": "Sample question content for node 9. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.5954619352961952,
+      "belief": 0.11839192726207774,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_10",
+      "label": "claim_10",
+      "title": "claim 10",
+      "type": "claim",
+      "module": "epistemics",
+      "content": "Sample claim content for node 10. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.1807488757943834,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_11",
+      "label": "question_11",
+      "title": "question 11",
+      "type": "question",
+      "module": "metaphysics",
+      "content": "Sample question content for node 11. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.8370056096112898,
+      "belief": 0.08670325941451702,
+      "exported": true,
+      "metadata": {}
+    },
+    {
+      "id": "k_12",
+      "label": "background_12",
+      "title": "background 12",
+      "type": "background",
+      "module": "metaphysics",
+      "content": "Sample background content for node 12. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.9040961704441047,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_13",
+      "label": "question_13",
+      "title": "question 13",
+      "type": "question",
+      "module": "metaphysics",
+      "content": "Sample question content for node 13. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.9649137959504784,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_14",
+      "label": "background_14",
+      "title": "background 14",
+      "type": "background",
+      "module": "metaphysics",
+      "content": "Sample background content for node 14. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_15",
+      "label": "setting_15",
+      "title": "setting 15",
+      "type": "setting",
+      "module": "core",
+      "content": "Sample setting content for node 15. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_16",
+      "label": "question_16",
+      "title": "question 16",
+      "type": "question",
+      "module": "metaphysics",
+      "content": "Sample question content for node 16. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.36875461697626294,
+      "exported": true,
+      "metadata": {}
+    },
+    {
+      "id": "k_17",
+      "label": "claim_17",
+      "title": "claim 17",
+      "type": "claim",
+      "module": "core",
+      "content": "Sample claim content for node 17. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.8729219019393455,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_18",
+      "label": "setting_18",
+      "title": "setting 18",
+      "type": "setting",
+      "module": "epistemics",
+      "content": "Sample setting content for node 18. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_19",
+      "label": "background_19",
+      "title": "background 19",
+      "type": "background",
+      "module": "core",
+      "content": "Sample background content for node 19. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.6493893729171777,
+      "belief": 0.8223713952449232,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_20",
+      "label": "setting_20",
+      "title": "setting 20",
+      "type": "setting",
+      "module": "epistemics",
+      "content": "Sample setting content for node 20. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.5482282962785336,
+      "belief": 0.09680039513195375,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_21",
+      "label": "claim_21",
+      "title": "claim 21",
+      "type": "claim",
+      "module": "epistemics",
+      "content": "Sample claim content for node 21. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.7530074543546922,
+      "belief": 0.3709065139693092,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_22",
+      "label": "setting_22",
+      "title": "setting 22",
+      "type": "setting",
+      "module": "core",
+      "content": "Sample setting content for node 22. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.8631848334100307,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_23",
+      "label": "question_23",
+      "title": "question 23",
+      "type": "question",
+      "module": "epistemics",
+      "content": "Sample question content for node 23. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_24",
+      "label": "background_24",
+      "title": "background 24",
+      "type": "background",
+      "module": "metaphysics",
+      "content": "Sample background content for node 24. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": null,
+      "exported": true,
+      "metadata": {}
+    },
+    {
+      "id": "k_25",
+      "label": "setting_25",
+      "title": "setting 25",
+      "type": "setting",
+      "module": "epistemics",
+      "content": "Sample setting content for node 25. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.47983013880889186,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_26",
+      "label": "setting_26",
+      "title": "setting 26",
+      "type": "setting",
+      "module": "epistemics",
+      "content": "Sample setting content for node 26. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.796742488887345,
+      "belief": 0.08138598718927476,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_27",
+      "label": "question_27",
+      "title": "question 27",
+      "type": "question",
+      "module": "epistemics",
+      "content": "Sample question content for node 27. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.423319324961579,
+      "belief": 0.5084539298501145,
+      "exported": true,
+      "metadata": {}
+    },
+    {
+      "id": "k_28",
+      "label": "question_28",
+      "title": "question 28",
+      "type": "question",
+      "module": "core",
+      "content": "Sample question content for node 28. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.43582335327898414,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_29",
+      "label": "background_29",
+      "title": "background 29",
+      "type": "background",
+      "module": "metaphysics",
+      "content": "Sample background content for node 29. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.8283788044771125,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_30",
+      "label": "claim_30",
+      "title": "claim 30",
+      "type": "claim",
+      "module": "ethics",
+      "content": "Sample claim content for node 30. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.1455602925162968,
+      "exported": true,
+      "metadata": {}
+    },
+    {
+      "id": "k_31",
+      "label": "claim_31",
+      "title": "claim 31",
+      "type": "claim",
+      "module": "core",
+      "content": "Sample claim content for node 31. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.8011999038085378,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_32",
+      "label": "setting_32",
+      "title": "setting 32",
+      "type": "setting",
+      "module": "metaphysics",
+      "content": "Sample setting content for node 32. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.6343797896256913,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_33",
+      "label": "question_33",
+      "title": "question 33",
+      "type": "question",
+      "module": "metaphysics",
+      "content": "Sample question content for node 33. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_34",
+      "label": "question_34",
+      "title": "question 34",
+      "type": "question",
+      "module": "epistemics",
+      "content": "Sample question content for node 34. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.38858796149959296,
+      "exported": true,
+      "metadata": {}
+    },
+    {
+      "id": "k_35",
+      "label": "claim_35",
+      "title": "claim 35",
+      "type": "claim",
+      "module": "epistemics",
+      "content": "Sample claim content for node 35. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.07752177551755535,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_36",
+      "label": "claim_36",
+      "title": "claim 36",
+      "type": "claim",
+      "module": "metaphysics",
+      "content": "Sample claim content for node 36. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.7400027087116756,
+      "belief": 0.4211385620887168,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_37",
+      "label": "setting_37",
+      "title": "setting 37",
+      "type": "setting",
+      "module": "metaphysics",
+      "content": "Sample setting content for node 37. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_38",
+      "label": "setting_38",
+      "title": "setting 38",
+      "type": "setting",
+      "module": "ethics",
+      "content": "Sample setting content for node 38. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.4264783575358795,
+      "belief": 0.03486344722151626,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_39",
+      "label": "background_39",
+      "title": "background 39",
+      "type": "background",
+      "module": "ethics",
+      "content": "Sample background content for node 39. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.5881644595539668,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_40",
+      "label": "background_40",
+      "title": "background 40",
+      "type": "background",
+      "module": "ethics",
+      "content": "Sample background content for node 40. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.4273030645036453,
+      "belief": 0.6612706769635319,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_41",
+      "label": "background_41",
+      "title": "background 41",
+      "type": "background",
+      "module": "ethics",
+      "content": "Sample background content for node 41. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.8432596725449701,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_42",
+      "label": "claim_42",
+      "title": "claim 42",
+      "type": "claim",
+      "module": "epistemics",
+      "content": "Sample claim content for node 42. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.19496866690022363,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_43",
+      "label": "claim_43",
+      "title": "claim 43",
+      "type": "claim",
+      "module": "metaphysics",
+      "content": "Sample claim content for node 43. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_44",
+      "label": "question_44",
+      "title": "question 44",
+      "type": "question",
+      "module": "metaphysics",
+      "content": "Sample question content for node 44. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_45",
+      "label": "background_45",
+      "title": "background 45",
+      "type": "background",
+      "module": "core",
+      "content": "Sample background content for node 45. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.8242435402234954,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_46",
+      "label": "background_46",
+      "title": "background 46",
+      "type": "background",
+      "module": "epistemics",
+      "content": "Sample background content for node 46. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_47",
+      "label": "background_47",
+      "title": "background 47",
+      "type": "background",
+      "module": "core",
+      "content": "Sample background content for node 47. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.14074827737434936,
+      "belief": 0.4937494247462896,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_48",
+      "label": "background_48",
+      "title": "background 48",
+      "type": "background",
+      "module": "metaphysics",
+      "content": "Sample background content for node 48. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.9849348840682411,
+      "belief": 0.7357918098200699,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_49",
+      "label": "claim_49",
+      "title": "claim 49",
+      "type": "claim",
+      "module": "epistemics",
+      "content": "Sample claim content for node 49. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.3519537075095195,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_50",
+      "label": "setting_50",
+      "title": "setting 50",
+      "type": "setting",
+      "module": "metaphysics",
+      "content": "Sample setting content for node 50. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.12976073562905827,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_51",
+      "label": "setting_51",
+      "title": "setting 51",
+      "type": "setting",
+      "module": "epistemics",
+      "content": "Sample setting content for node 51. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.6015037495752338,
+      "belief": null,
+      "exported": true,
+      "metadata": {}
+    },
+    {
+      "id": "k_52",
+      "label": "question_52",
+      "title": "question 52",
+      "type": "question",
+      "module": "core",
+      "content": "Sample question content for node 52. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.19896363481413873,
+      "exported": true,
+      "metadata": {}
+    },
+    {
+      "id": "k_53",
+      "label": "claim_53",
+      "title": "claim 53",
+      "type": "claim",
+      "module": "core",
+      "content": "Sample claim content for node 53. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.7015852381079949,
+      "belief": 0.2953604809934629,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_54",
+      "label": "background_54",
+      "title": "background 54",
+      "type": "background",
+      "module": "core",
+      "content": "Sample background content for node 54. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_55",
+      "label": "background_55",
+      "title": "background 55",
+      "type": "background",
+      "module": "epistemics",
+      "content": "Sample background content for node 55. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.049676793303441935,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_56",
+      "label": "claim_56",
+      "title": "claim 56",
+      "type": "claim",
+      "module": "epistemics",
+      "content": "Sample claim content for node 56. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.581787376147239,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_57",
+      "label": "background_57",
+      "title": "background 57",
+      "type": "background",
+      "module": "epistemics",
+      "content": "Sample background content for node 57. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.3490343968486542,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_58",
+      "label": "background_58",
+      "title": "background 58",
+      "type": "background",
+      "module": "core",
+      "content": "Sample background content for node 58. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.4601903439210394,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_59",
+      "label": "background_59",
+      "title": "background 59",
+      "type": "background",
+      "module": "ethics",
+      "content": "Sample background content for node 59. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.054137549312758056,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_60",
+      "label": "claim_60",
+      "title": "claim 60",
+      "type": "claim",
+      "module": "epistemics",
+      "content": "Sample claim content for node 60. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.19256543266711934,
+      "belief": 0.956657488785978,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_61",
+      "label": "claim_61",
+      "title": "claim 61",
+      "type": "claim",
+      "module": "core",
+      "content": "Sample claim content for node 61. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.5341688987904655,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_62",
+      "label": "setting_62",
+      "title": "setting 62",
+      "type": "setting",
+      "module": "ethics",
+      "content": "Sample setting content for node 62. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.9832782112090737,
+      "belief": 0.41098431527680235,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_63",
+      "label": "question_63",
+      "title": "question 63",
+      "type": "question",
+      "module": "ethics",
+      "content": "Sample question content for node 63. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.5498988836077943,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_64",
+      "label": "question_64",
+      "title": "question 64",
+      "type": "question",
+      "module": "core",
+      "content": "Sample question content for node 64. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_65",
+      "label": "background_65",
+      "title": "background 65",
+      "type": "background",
+      "module": "core",
+      "content": "Sample background content for node 65. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.19602356967716159,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_66",
+      "label": "background_66",
+      "title": "background 66",
+      "type": "background",
+      "module": "ethics",
+      "content": "Sample background content for node 66. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.9322750212925099,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_67",
+      "label": "background_67",
+      "title": "background 67",
+      "type": "background",
+      "module": "core",
+      "content": "Sample background content for node 67. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": 0.4679888485713617,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_68",
+      "label": "question_68",
+      "title": "question 68",
+      "type": "question",
+      "module": "metaphysics",
+      "content": "Sample question content for node 68. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": null,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_69",
+      "label": "setting_69",
+      "title": "setting 69",
+      "type": "setting",
+      "module": "core",
+      "content": "Sample setting content for node 69. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.3842330182786574,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_70",
+      "label": "background_70",
+      "title": "background 70",
+      "type": "background",
+      "module": "ethics",
+      "content": "Sample background content for node 70. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.5067692196634057,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_71",
+      "label": "claim_71",
+      "title": "claim 71",
+      "type": "claim",
+      "module": "core",
+      "content": "Sample claim content for node 71. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.9070564430825482,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_72",
+      "label": "background_72",
+      "title": "background 72",
+      "type": "background",
+      "module": "metaphysics",
+      "content": "Sample background content for node 72. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.7331276550558353,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_73",
+      "label": "question_73",
+      "title": "question 73",
+      "type": "question",
+      "module": "metaphysics",
+      "content": "Sample question content for node 73. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.6380120128994087,
+      "belief": 0.0738233544833321,
+      "exported": true,
+      "metadata": {}
+    },
+    {
+      "id": "k_74",
+      "label": "question_74",
+      "title": "question 74",
+      "type": "question",
+      "module": "ethics",
+      "content": "Sample question content for node 74. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.3690168704242319,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_75",
+      "label": "background_75",
+      "title": "background 75",
+      "type": "background",
+      "module": "metaphysics",
+      "content": "Sample background content for node 75. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.7199411991626542,
+      "belief": 0.7927352474426584,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_76",
+      "label": "claim_76",
+      "title": "claim 76",
+      "type": "claim",
+      "module": "core",
+      "content": "Sample claim content for node 76. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.6086994152379175,
+      "belief": 0.6201372263936173,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_77",
+      "label": "question_77",
+      "title": "question 77",
+      "type": "question",
+      "module": "epistemics",
+      "content": "Sample question content for node 77. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.180432165649557,
+      "belief": 0.7043670204153688,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_78",
+      "label": "setting_78",
+      "title": "setting 78",
+      "type": "setting",
+      "module": "core",
+      "content": "Sample setting content for node 78. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.21545951644876915,
+      "belief": null,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "k_79",
+      "label": "setting_79",
+      "title": "setting 79",
+      "type": "setting",
+      "module": "metaphysics",
+      "content": "Sample setting content for node 79. This represents a knowledge node in the gaia reasoning graph.",
+      "prior": 0.19121709360956196,
+      "belief": 0.5048576144340469,
+      "exported": false,
+      "metadata": {}
+    },
+    {
+      "id": "strat_0",
+      "type": "strategy",
+      "strategy_type": "abduction",
+      "module": "metaphysics",
+      "reason": "derived via abduction"
+    },
+    {
+      "id": "strat_1",
+      "type": "strategy",
+      "strategy_type": "abduction",
+      "module": "ethics",
+      "reason": "derived via deduction"
+    },
+    {
+      "id": "strat_2",
+      "type": "strategy",
+      "strategy_type": "deduction",
+      "module": "core",
+      "reason": "derived via abduction"
+    },
+    {
+      "id": "strat_3",
+      "type": "strategy",
+      "strategy_type": "abduction",
+      "module": "metaphysics",
+      "reason": "derived via deduction"
+    },
+    {
+      "id": "strat_4",
+      "type": "strategy",
+      "strategy_type": "abduction",
+      "module": "metaphysics",
+      "reason": "derived via abduction"
+    },
+    {
+      "id": "strat_5",
+      "type": "strategy",
+      "strategy_type": "deduction",
+      "module": "core",
+      "reason": "derived via abduction"
+    },
+    {
+      "id": "strat_6",
+      "type": "strategy",
+      "strategy_type": "induction",
+      "module": "epistemics",
+      "reason": "derived via abduction"
+    },
+    {
+      "id": "strat_7",
+      "type": "strategy",
+      "strategy_type": "deduction",
+      "module": "core",
+      "reason": "derived via induction"
+    },
+    {
+      "id": "strat_8",
+      "type": "strategy",
+      "strategy_type": "abduction",
+      "module": "epistemics",
+      "reason": "derived via induction"
+    },
+    {
+      "id": "strat_9",
+      "type": "strategy",
+      "strategy_type": "induction",
+      "module": "metaphysics",
+      "reason": "derived via abduction"
+    },
+    {
+      "id": "strat_10",
+      "type": "strategy",
+      "strategy_type": "induction",
+      "module": "metaphysics",
+      "reason": "derived via abduction"
+    },
+    {
+      "id": "strat_11",
+      "type": "strategy",
+      "strategy_type": "deduction",
+      "module": "core",
+      "reason": "derived via abduction"
+    },
+    {
+      "id": "strat_12",
+      "type": "strategy",
+      "strategy_type": "deduction",
+      "module": "core",
+      "reason": "derived via induction"
+    },
+    {
+      "id": "strat_13",
+      "type": "strategy",
+      "strategy_type": "deduction",
+      "module": "core",
+      "reason": "derived via induction"
+    },
+    {
+      "id": "strat_14",
+      "type": "strategy",
+      "strategy_type": "induction",
+      "module": "metaphysics",
+      "reason": "derived via induction"
+    },
+    {
+      "id": "strat_15",
+      "type": "strategy",
+      "strategy_type": "induction",
+      "module": "ethics",
+      "reason": "derived via deduction"
+    },
+    {
+      "id": "strat_16",
+      "type": "strategy",
+      "strategy_type": "deduction",
+      "module": "metaphysics",
+      "reason": "derived via abduction"
+    },
+    {
+      "id": "strat_17",
+      "type": "strategy",
+      "strategy_type": "deduction",
+      "module": "epistemics",
+      "reason": "derived via deduction"
+    },
+    {
+      "id": "oper_0",
+      "type": "operator",
+      "operator_type": "contradiction",
+      "module": "core"
+    },
+    {
+      "id": "oper_1",
+      "type": "operator",
+      "operator_type": "composition",
+      "module": "core"
+    },
+    {
+      "id": "oper_2",
+      "type": "operator",
+      "operator_type": "contradiction",
+      "module": "metaphysics"
+    },
+    {
+      "id": "oper_3",
+      "type": "operator",
+      "operator_type": "composition",
+      "module": "metaphysics"
+    },
+    {
+      "id": "oper_4",
+      "type": "operator",
+      "operator_type": "composition",
+      "module": "ethics"
+    },
+    {
+      "id": "oper_5",
+      "type": "operator",
+      "operator_type": "contradiction",
+      "module": "metaphysics"
+    }
+  ],
+  "edges": [
+    {
+      "source": "k_59",
+      "target": "strat_0",
+      "role": "premise"
+    },
+    {
+      "source": "k_56",
+      "target": "strat_0",
+      "role": "premise"
+    },
+    {
+      "source": "k_18",
+      "target": "strat_0",
+      "role": "background"
+    },
+    {
+      "source": "strat_0",
+      "target": "k_37",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_44",
+      "target": "strat_1",
+      "role": "premise"
+    },
+    {
+      "source": "k_30",
+      "target": "strat_1",
+      "role": "premise"
+    },
+    {
+      "source": "k_56",
+      "target": "strat_1",
+      "role": "premise"
+    },
+    {
+      "source": "strat_1",
+      "target": "k_40",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_40",
+      "target": "strat_2",
+      "role": "premise"
+    },
+    {
+      "source": "k_21",
+      "target": "strat_2",
+      "role": "premise"
+    },
+    {
+      "source": "strat_2",
+      "target": "k_69",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_44",
+      "target": "strat_3",
+      "role": "premise"
+    },
+    {
+      "source": "k_37",
+      "target": "strat_3",
+      "role": "premise"
+    },
+    {
+      "source": "k_35",
+      "target": "strat_3",
+      "role": "premise"
+    },
+    {
+      "source": "strat_3",
+      "target": "k_24",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_14",
+      "target": "strat_4",
+      "role": "premise"
+    },
+    {
+      "source": "k_27",
+      "target": "strat_4",
+      "role": "premise"
+    },
+    {
+      "source": "k_20",
+      "target": "strat_4",
+      "role": "premise"
+    },
+    {
+      "source": "strat_4",
+      "target": "k_37",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_43",
+      "target": "strat_5",
+      "role": "premise"
+    },
+    {
+      "source": "k_66",
+      "target": "strat_5",
+      "role": "premise"
+    },
+    {
+      "source": "k_50",
+      "target": "strat_5",
+      "role": "background"
+    },
+    {
+      "source": "strat_5",
+      "target": "k_52",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_20",
+      "target": "strat_6",
+      "role": "premise"
+    },
+    {
+      "source": "k_62",
+      "target": "strat_6",
+      "role": "premise"
+    },
+    {
+      "source": "strat_6",
+      "target": "k_49",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_69",
+      "target": "strat_7",
+      "role": "premise"
+    },
+    {
+      "source": "k_67",
+      "target": "strat_7",
+      "role": "premise"
+    },
+    {
+      "source": "strat_7",
+      "target": "k_15",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_62",
+      "target": "strat_8",
+      "role": "premise"
+    },
+    {
+      "source": "k_14",
+      "target": "strat_8",
+      "role": "premise"
+    },
+    {
+      "source": "k_64",
+      "target": "strat_8",
+      "role": "premise"
+    },
+    {
+      "source": "k_43",
+      "target": "strat_8",
+      "role": "background"
+    },
+    {
+      "source": "strat_8",
+      "target": "k_7",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_76",
+      "target": "strat_9",
+      "role": "premise"
+    },
+    {
+      "source": "k_45",
+      "target": "strat_9",
+      "role": "premise"
+    },
+    {
+      "source": "k_3",
+      "target": "strat_9",
+      "role": "premise"
+    },
+    {
+      "source": "strat_9",
+      "target": "k_9",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_19",
+      "target": "strat_10",
+      "role": "premise"
+    },
+    {
+      "source": "k_54",
+      "target": "strat_10",
+      "role": "premise"
+    },
+    {
+      "source": "k_36",
+      "target": "strat_10",
+      "role": "premise"
+    },
+    {
+      "source": "strat_10",
+      "target": "k_13",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_68",
+      "target": "strat_11",
+      "role": "premise"
+    },
+    {
+      "source": "k_53",
+      "target": "strat_11",
+      "role": "premise"
+    },
+    {
+      "source": "k_27",
+      "target": "strat_11",
+      "role": "premise"
+    },
+    {
+      "source": "strat_11",
+      "target": "k_78",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_45",
+      "target": "strat_12",
+      "role": "premise"
+    },
+    {
+      "source": "k_57",
+      "target": "strat_12",
+      "role": "premise"
+    },
+    {
+      "source": "k_70",
+      "target": "strat_12",
+      "role": "background"
+    },
+    {
+      "source": "strat_12",
+      "target": "k_19",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_54",
+      "target": "strat_13",
+      "role": "premise"
+    },
+    {
+      "source": "k_37",
+      "target": "strat_13",
+      "role": "premise"
+    },
+    {
+      "source": "k_31",
+      "target": "strat_13",
+      "role": "premise"
+    },
+    {
+      "source": "k_47",
+      "target": "strat_13",
+      "role": "background"
+    },
+    {
+      "source": "strat_13",
+      "target": "k_71",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_79",
+      "target": "strat_14",
+      "role": "premise"
+    },
+    {
+      "source": "k_26",
+      "target": "strat_14",
+      "role": "premise"
+    },
+    {
+      "source": "k_53",
+      "target": "strat_14",
+      "role": "premise"
+    },
+    {
+      "source": "k_64",
+      "target": "strat_14",
+      "role": "background"
+    },
+    {
+      "source": "strat_14",
+      "target": "k_73",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_34",
+      "target": "strat_15",
+      "role": "premise"
+    },
+    {
+      "source": "k_19",
+      "target": "strat_15",
+      "role": "premise"
+    },
+    {
+      "source": "k_54",
+      "target": "strat_15",
+      "role": "premise"
+    },
+    {
+      "source": "strat_15",
+      "target": "k_70",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_63",
+      "target": "strat_16",
+      "role": "premise"
+    },
+    {
+      "source": "k_35",
+      "target": "strat_16",
+      "role": "premise"
+    },
+    {
+      "source": "strat_16",
+      "target": "k_32",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_67",
+      "target": "strat_17",
+      "role": "premise"
+    },
+    {
+      "source": "k_16",
+      "target": "strat_17",
+      "role": "premise"
+    },
+    {
+      "source": "strat_17",
+      "target": "k_5",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_63",
+      "target": "oper_0",
+      "role": "variable"
+    },
+    {
+      "source": "k_54",
+      "target": "oper_0",
+      "role": "variable"
+    },
+    {
+      "source": "oper_0",
+      "target": "k_31",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_9",
+      "target": "oper_1",
+      "role": "variable"
+    },
+    {
+      "source": "oper_1",
+      "target": "k_22",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_1",
+      "target": "oper_2",
+      "role": "variable"
+    },
+    {
+      "source": "oper_2",
+      "target": "k_13",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_64",
+      "target": "oper_3",
+      "role": "variable"
+    },
+    {
+      "source": "k_50",
+      "target": "oper_3",
+      "role": "variable"
+    },
+    {
+      "source": "oper_3",
+      "target": "k_43",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_57",
+      "target": "oper_4",
+      "role": "variable"
+    },
+    {
+      "source": "k_28",
+      "target": "oper_4",
+      "role": "variable"
+    },
+    {
+      "source": "oper_4",
+      "target": "k_30",
+      "role": "conclusion"
+    },
+    {
+      "source": "k_40",
+      "target": "oper_5",
+      "role": "variable"
+    },
+    {
+      "source": "k_79",
+      "target": "oper_5",
+      "role": "variable"
+    },
+    {
+      "source": "oper_5",
+      "target": "k_11",
+      "role": "conclusion"
+    }
+  ]
+}
