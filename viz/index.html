@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gaia Starmap</title>
+    <!--__GRAPH_DATA__-->
+  </head>
+  <body>
+    <div id="app">
+      <div id="sigma-container"></div>
+      <header id="topbar">
+        <div class="brand">gaia · starmap</div>
+        <div id="search-host"></div>
+        <div id="filter-host"></div>
+      </header>
+      <aside id="panel-host"></aside>
+      <div id="minimap-host"></div>
+      <div id="legend">
+        <div class="legend-row"><span class="swatch" style="background:#e74c3c"></span>belief 0</div>
+        <div class="legend-row"><span class="swatch" style="background:#888"></span>belief 0.5 / unknown</div>
+        <div class="legend-row"><span class="swatch" style="background:#2ecc71"></span>belief 1</div>
+        <div class="legend-row"><span class="swatch sq" style="background:#5b8def"></span>strategy</div>
+        <div class="legend-row"><span class="swatch sq" style="background:#a266ff"></span>operator</div>
+      </div>
+      <div id="status">loading…</div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

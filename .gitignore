@@ -52,6 +52,7 @@ data/
 # Frontend
 frontend/node_modules/
 frontend/dist/
+viz/dist-replay/
 
 # Template node_modules & lock file (installed for validation only)
 gaia/cli/templates/pages/node_modules/

@@ -53,6 +53,8 @@ include = ["gaia", "gaia.ir*", "gaia.lang*", "gaia.logic*", "gaia.bp*", "gaia.cl
 
 [tool.setuptools.package-data]
 "gaia.cli.templates.pages" = ["**/*"]
+"gaia.cli.starmap_assets" = ["**/*"]
+"gaia.cli.starmap_replay_assets" = ["**/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
