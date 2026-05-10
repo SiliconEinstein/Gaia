@@ -384,7 +384,9 @@ def to_dot(graph_json_str: str, theme: str = "light") -> str:
 
     def _emit_strategy_node(n: dict, indent: str) -> None:
         stype = n.get("strategy_type", "") or ""
-        label = _escape_label(stype)
+        # Stellaris: shape-only (no text); type names live in the legend.
+        # Light: keep type name as inline label (paper-friendly default).
+        label = "" if th.name == "stellaris" else _escape_label(stype)
         if stype == "support":
             attrs = th.strategy.support
         else:
@@ -394,8 +396,11 @@ def to_dot(graph_json_str: str, theme: str = "light") -> str:
     def _emit_operator_node(n: dict, indent: str) -> None:
         otype = n.get("operator_type", "") or ""
         symbol = _OPERATOR_SYMBOLS.get(otype, "")
-        # Label: symbol + type name (when available), else just symbol.
-        if symbol and otype:
+        # Stellaris: symbol-only (no type name); type names live in the legend.
+        # Light: symbol + type name inline (clearer paper-mode label).
+        if th.name == "stellaris":
+            label = _escape_label(symbol or otype)
+        elif symbol and otype:
             label = _escape_label(f"{symbol} {otype}")
         elif symbol:
             label = _escape_label(symbol)

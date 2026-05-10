@@ -875,3 +875,118 @@ def test_starmap_svg_graphviz_missing_error_message(tmp_path, monkeypatch):
     assert "graphviz" in msg
     # The error names the missing binary so users know what to install.
     assert "sfdp" in result.output or "dot" in result.output
+
+
+def test_to_dot_stellaris_strategy_labels_stripped():
+    """In stellaris, strategy nodes are shape-only — no inline type text."""
+    dot = to_dot(_make_stellaris_fixture(), theme="stellaris")
+    # The fixture has both deduction and support strategies.
+    for nid in ("strat_ded", "strat_sup"):
+        line = _node_line(dot, nid)
+        m = re.search(r'label="([^"]*)"', line)
+        assert m and m.group(1) == "", f"{nid} expected empty label, got line: {line}"
+
+
+def test_to_dot_stellaris_operator_labels_symbol_only():
+    """In stellaris, operator nodes carry only the unicode symbol."""
+    dot = to_dot(_make_stellaris_fixture(), theme="stellaris")
+    expectations = {
+        "op_contra": "⊗",
+        "op_equiv": "⊙",
+        "op_impl": "⊃",
+        "op_compl": "¬",
+        "op_disj": "∨",
+        "op_conj": "∧",
+    }
+    for nid, sym in expectations.items():
+        line = _node_line(dot, nid)
+        m = re.search(r'label="([^"]*)"', line)
+        assert m, line
+        label = m.group(1)
+        assert label == sym, f"{nid} label was {label!r}, expected {sym!r}"
+
+
+def test_to_dot_light_strategy_label_keeps_type_name():
+    """Light theme retains inline type names (paper-friendly default)."""
+    dot = to_dot(_make_stellaris_fixture(), theme="light")
+    # Deduction strategy text still shows in label.
+    s_line = _node_line(dot, "strat_ded")
+    assert 'label="deduction"' in s_line
+
+
+def test_to_dot_light_operator_label_keeps_type_name():
+    """Light theme keeps `symbol type` operator labels."""
+    dot = to_dot(_make_stellaris_fixture(), theme="light")
+    contra_line = _node_line(dot, "op_contra")
+    assert "⊗ contradiction" in contra_line
+
+
+def test_inject_legend_adds_block_before_svg_close():
+    """Legend builder injects a `<g id="legend">` before `</svg>`."""
+    from gaia.cli.commands._stellaris_svg import inject_legend
+
+    minimal = '<svg xmlns="http://www.w3.org/2000/svg"><polygon/></svg>'
+    out = inject_legend(minimal)
+    assert '<g id="legend"' in out
+    assert "节点角色" in out
+    # Legend appears before </svg>.
+    assert out.index('id="legend"') < out.index("</svg>")
+
+
+def test_inject_legend_includes_all_node_role_rows():
+    """Legend lists premise, derived, root, deduction, support, all 6 operator types."""
+    from gaia.cli.commands._stellaris_svg import inject_legend
+
+    out = inject_legend('<svg xmlns="http://www.w3.org/2000/svg"></svg>')
+    # Knowledge boxes
+    assert "premise" in out
+    assert "derived" in out
+    assert "root claim" in out
+    # Strategies
+    assert "deduction" in out
+    assert "support" in out
+    # All 6 operator types by symbol + name
+    for sym in ("⊗", "⊙", "⊃", "¬", "∨", "∧"):
+        assert sym in out
+    for tname in ("contradiction", "equivalence", "implication", "complement", "disjunction", "conjunction"):
+        assert tname in out
+
+
+def test_inject_legend_idempotent():
+    """A second `inject_legend` call is a no-op."""
+    from gaia.cli.commands._stellaris_svg import inject_legend
+
+    once = inject_legend('<svg xmlns="http://www.w3.org/2000/svg"></svg>')
+    twice = inject_legend(once)
+    assert once == twice
+    # And only one legend group ends up in the output.
+    assert twice.count('id="legend"') == 1
+
+
+@pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
+def test_starmap_svg_stellaris_includes_legend(tmp_path):
+    """End-to-end: `--format svg --theme stellaris` produces an SVG carrying the legend."""
+    pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_legend")
+    out = "the.svg"
+    result = runner.invoke(
+        app,
+        ["starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris", "--out", out],
+    )
+    assert result.exit_code == 0, result.output
+    svg = (pkg_dir / out).read_text(encoding="utf-8")
+    assert '<g id="legend"' in svg
+    assert "节点角色" in svg
+
+
+@pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
+def test_starmap_svg_light_no_legend(tmp_path):
+    """Light theme SVG does not include the stellaris legend block."""
+    pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_light_no_legend")
+    out = "the.svg"
+    result = runner.invoke(
+        app,
+        ["starmap", str(pkg_dir), "--format", "svg", "--theme", "light", "--out", out],
+    )
+    assert result.exit_code == 0, result.output
+    svg = (pkg_dir / out).read_text(encoding="utf-8")
+    assert 'id="legend"' not in svg
