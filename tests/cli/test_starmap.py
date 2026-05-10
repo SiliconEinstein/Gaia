@@ -5,9 +5,15 @@ from __future__ import annotations
 import json
 import re
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.commands._dot import to_dot
+from gaia.cli.commands._stellaris_svg import (
+    inject_defs,
+    post_process_stellaris_svg,
+    recolor_background,
+)
 from gaia.cli.main import app
 
 runner = CliRunner()
@@ -621,3 +627,251 @@ def test_starmap_cli_theme_invalid(tmp_path):
     result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "dot", "--theme", "bogus"])
     assert result.exit_code != 0
     assert "theme" in result.output.lower()
+
+
+# ── _stellaris_svg unit tests ────────────────────────────────────────────────
+
+
+def test_inject_defs_adds_block_after_svg_tag():
+    """Defs block is inserted immediately after the opening <svg> tag."""
+    svg = '<svg xmlns="http://www.w3.org/2000/svg" width="100"><g/></svg>'
+    out = inject_defs(svg)
+    assert "<defs>" in out
+    assert 'id="space-bg"' in out
+    assert 'id="contra-glow"' in out
+    assert 'id="support-glow"' in out
+    assert 'id="root-glow"' in out
+    # Defs come after the opening svg tag, before the first <g>.
+    svg_open_end = out.index(">", out.index("<svg")) + 1
+    defs_start = out.index("<defs>")
+    g_start = out.index("<g")
+    assert svg_open_end <= defs_start < g_start
+
+
+def test_inject_defs_includes_class_style_selectors():
+    """The injected <style> binds class selectors to the three glow filters."""
+    svg = '<svg xmlns="http://www.w3.org/2000/svg"><g/></svg>'
+    out = inject_defs(svg)
+    assert ".contradiction { filter: url(#contra-glow); }" in out
+    assert ".support       { filter: url(#support-glow); }" in out
+    assert ".root          { filter: url(#root-glow); }" in out
+
+
+def test_inject_defs_idempotent():
+    """Calling inject_defs twice does not double the defs block."""
+    svg = '<svg xmlns="http://www.w3.org/2000/svg"><g/></svg>'
+    once = inject_defs(svg)
+    twice = inject_defs(once)
+    assert once == twice
+    assert once.count("<defs>") == 1
+
+
+def test_recolor_background_replaces_stellaris_bg_polygon():
+    """A <polygon fill="#05060f"> canvas gets repainted to url(#space-bg)."""
+    svg = '<svg><g><polygon fill="#05060f" stroke="transparent" points="0,0"/></g></svg>'
+    out = recolor_background(svg)
+    assert 'fill="url(#space-bg)"' in out
+    assert 'fill="#05060f"' not in out
+
+
+def test_recolor_background_replaces_white_canvas_polygon():
+    """Fallback path: a white-canvas polygon (no bgcolor set) is repainted."""
+    svg = '<svg><g><polygon fill="white" stroke="none" points="0,0"/></g></svg>'
+    out = recolor_background(svg)
+    assert 'fill="url(#space-bg)"' in out
+
+
+def test_recolor_background_only_touches_first_matching_polygon():
+    """Recolour exactly one polygon; node-shape polygons stay untouched."""
+    svg = (
+        "<svg>"
+        '<g><polygon fill="#05060f" stroke="transparent" points="0,0"/>'
+        '<polygon fill="#05060f" stroke="black" points="1,1"/></g>'
+        "</svg>"
+    )
+    out = recolor_background(svg)
+    # First (canvas) polygon repainted; second (node-shape lookalike) preserved.
+    assert out.count('fill="url(#space-bg)"') == 1
+    assert out.count('fill="#05060f"') == 1
+
+
+def test_recolor_background_idempotent():
+    """A second pass is a no-op when url(#space-bg) is already present."""
+    svg = '<svg><g><polygon fill="#05060f" stroke="transparent" points="0,0"/></g></svg>'
+    once = recolor_background(svg)
+    twice = recolor_background(once)
+    assert once == twice
+
+
+def test_post_process_stellaris_svg_combines_both_steps():
+    """The convenience wrapper applies defs + bg recolour together."""
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg">'
+        '<g><polygon fill="#05060f" stroke="transparent" points="0,0"/></g>'
+        "</svg>"
+    )
+    out = post_process_stellaris_svg(svg)
+    assert "<defs>" in out
+    assert 'id="space-bg"' in out
+    assert 'fill="url(#space-bg)"' in out
+
+
+# ── CLI --format svg integration tests ───────────────────────────────────────
+
+
+def _has_graphviz() -> bool:
+    """Return True iff sfdp + dot are on PATH."""
+    import shutil
+
+    return shutil.which("sfdp") is not None and shutil.which("dot") is not None
+
+
+def test_starmap_svg_invalid_format_rejected(tmp_path):
+    """`--format` only accepts 'html', 'dot', 'svg'."""
+    pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_bad_fmt")
+    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "garbage"])
+    assert result.exit_code != 0
+    assert "format" in result.output.lower()
+
+
+@pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
+def test_starmap_svg_stellaris_end_to_end(tmp_path):
+    """`--format svg --theme stellaris` writes a paper-ready glowing SVG."""
+    pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_stellaris")
+    result = runner.invoke(
+        app, ["starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris"]
+    )
+    assert result.exit_code == 0, result.output
+
+    out_path = pkg_dir / ".gaia" / "starmap.svg"
+    assert out_path.exists()
+    svg = out_path.read_text(encoding="utf-8")
+
+    # Top-level structural sanity.
+    assert svg.lstrip().startswith("<?xml") or svg.lstrip().startswith("<svg")
+    assert "</svg>" in svg
+
+    # Stellaris defs injected.
+    assert "<defs>" in svg
+    assert 'id="space-bg"' in svg
+    assert 'id="contra-glow"' in svg
+    assert 'id="support-glow"' in svg
+    assert 'id="root-glow"' in svg
+
+    # Style block ties class markers to filters.
+    assert "filter: url(#contra-glow)" in svg
+    assert "filter: url(#support-glow)" in svg
+    assert "filter: url(#root-glow)" in svg
+
+    # Background polygon repainted to the radial gradient.
+    assert 'fill="url(#space-bg)"' in svg
+
+    # The exported claim (★ root) carries the ``root`` class — Graphviz
+    # prefixes its own ``node`` class so the rendered attribute is
+    # ``class="node root"``. The CSS selector ``.root`` matches either way.
+    assert re.search(r'class="[^"]*\broot\b[^"]*"', svg) is not None
+
+
+@pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
+def test_starmap_svg_stellaris_well_formed_xml(tmp_path):
+    """The emitted SVG parses as valid XML (no broken regex surgery)."""
+    import xml.etree.ElementTree as ET
+
+    pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_xml")
+    result = runner.invoke(
+        app, ["starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris"]
+    )
+    assert result.exit_code == 0, result.output
+
+    out_path = pkg_dir / ".gaia" / "starmap.svg"
+    # ET.parse raises on malformed XML — that's the assertion.
+    ET.parse(out_path)
+
+
+@pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
+def test_starmap_svg_dark_alias(tmp_path):
+    """`--theme dark` produces the same stellaris SVG output."""
+    pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_dark")
+    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "svg", "--theme", "dark"])
+    assert result.exit_code == 0, result.output
+    svg = (pkg_dir / ".gaia" / "starmap.svg").read_text(encoding="utf-8")
+    assert "<defs>" in svg
+    assert 'id="contra-glow"' in svg
+    assert 'fill="url(#space-bg)"' in svg
+
+
+@pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
+def test_starmap_svg_light_no_defs(tmp_path):
+    """Light theme SVG goes through `dot` and skips the stellaris post-process."""
+    pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_light")
+    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "svg", "--theme", "light"])
+    assert result.exit_code == 0, result.output
+
+    svg = (pkg_dir / ".gaia" / "starmap.svg").read_text(encoding="utf-8")
+    # No stellaris-specific glow filters or radial gradient.
+    assert 'id="space-bg"' not in svg
+    assert 'id="contra-glow"' not in svg
+    assert 'id="support-glow"' not in svg
+    assert 'id="root-glow"' not in svg
+    # Still a valid SVG document.
+    assert "</svg>" in svg
+
+
+@pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
+def test_starmap_svg_default_theme_is_light(tmp_path):
+    """`--format svg` without `--theme` defaults to the light variant."""
+    pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_default")
+    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "svg"])
+    assert result.exit_code == 0, result.output
+    svg = (pkg_dir / ".gaia" / "starmap.svg").read_text(encoding="utf-8")
+    assert 'id="contra-glow"' not in svg
+
+
+@pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
+def test_starmap_svg_custom_out_path(tmp_path):
+    """`--out` overrides the default `.gaia/starmap.svg` location."""
+    pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_custom_out")
+    custom = "figures/star.svg"
+    result = runner.invoke(
+        app,
+        [
+            "starmap",
+            str(pkg_dir),
+            "--format",
+            "svg",
+            "--theme",
+            "stellaris",
+            "--out",
+            custom,
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    out_path = pkg_dir / custom
+    assert out_path.exists()
+    assert "<defs>" in out_path.read_text(encoding="utf-8")
+
+
+def test_starmap_svg_graphviz_missing_error_message(tmp_path, monkeypatch):
+    """When graphviz binaries are absent we get a clear actionable error."""
+    pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_no_gv")
+
+    # Pretend graphviz is missing for both `sfdp` and `dot`.
+    import shutil
+
+    real_which = shutil.which
+
+    def fake_which(cmd, *args, **kwargs):
+        if cmd in ("sfdp", "dot"):
+            return None
+        return real_which(cmd, *args, **kwargs)
+
+    monkeypatch.setattr("shutil.which", fake_which)
+
+    result = runner.invoke(
+        app, ["starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris"]
+    )
+    assert result.exit_code != 0
+    msg = result.output.lower()
+    assert "graphviz" in msg
+    # The error names the missing binary so users know what to install.
+    assert "sfdp" in result.output or "dot" in result.output

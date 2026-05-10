@@ -1,8 +1,10 @@
-"""gaia starmap — emit a starmap of a compiled package (HTML or DOT)."""
+"""gaia starmap — emit a starmap of a compiled package (HTML, DOT, or SVG)."""
 
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 from pathlib import Path
 
 import typer
@@ -16,6 +18,7 @@ from gaia.cli._packages import (
 from gaia.cli.commands._dot import to_dot
 from gaia.cli.commands._graph_json import generate_graph_json
 from gaia.cli.commands._render_priors import param_data_from_ir_metadata
+from gaia.cli.commands._stellaris_svg import post_process_stellaris_svg
 from gaia.ir.validator import validate_local_graph
 
 GRAPH_DATA_PLACEHOLDER = "<!--__GRAPH_DATA__-->"
@@ -25,10 +28,20 @@ GRAPH_DATA_PLACEHOLDER = "<!--__GRAPH_DATA__-->"
 _DEFAULT_OUT = {
     "html": ".gaia/starmap.html",
     "dot": ".gaia/starmap.dot",
+    "svg": ".gaia/starmap.svg",
 }
 
 # Allowed theme names. ``dark`` is an alias of ``stellaris``.
 _VALID_THEMES = ("light", "stellaris", "dark")
+
+# Layout engine per theme for the ``svg`` end-to-end pipeline. The stellaris
+# theme already emits ``layout=sfdp`` inside the dot source, but we still
+# invoke the matching binary directly so error messages name the right tool.
+_SVG_LAYOUT_BINARY = {
+    "light": "dot",
+    "stellaris": "sfdp",
+    "dark": "sfdp",
+}
 
 
 def _load_template() -> str:
@@ -49,6 +62,48 @@ def _render_html(template: str, graph_json: str) -> str:
     return template.replace(GRAPH_DATA_PLACEHOLDER, injection, 1)
 
 
+def _render_svg(dot_source: str, *, theme: str) -> str:
+    """Render *dot_source* to SVG via the appropriate Graphviz binary.
+
+    For ``stellaris`` / ``dark`` the resulting SVG is post-processed to inject
+    the ``<defs>`` glow filter block and recolour the canvas background — see
+    :mod:`gaia.cli.commands._stellaris_svg`.
+
+    Raises:
+        GaiaCliError: when the required Graphviz binary is missing from
+            ``PATH``, or when it exits non-zero.
+    """
+    binary = _SVG_LAYOUT_BINARY[theme]
+    binary_path = shutil.which(binary)
+    if binary_path is None:
+        raise GaiaCliError(
+            f"Error: Graphviz `{binary}` binary not found on PATH. Install Graphviz "
+            "first (`apt install graphviz` / `brew install graphviz`) and retry. "
+            "Alternatively, emit the dot source with `--format dot` and render "
+            "it manually."
+        )
+    try:
+        proc = subprocess.run(
+            [binary_path, "-Tsvg"],
+            input=dot_source,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as exc:
+        raise GaiaCliError(f"Error: failed to invoke Graphviz `{binary}`: {exc}") from exc
+    if proc.returncode != 0:
+        stderr = (proc.stderr or "").strip()
+        raise GaiaCliError(
+            f"Error: Graphviz `{binary}` exited with code {proc.returncode}."
+            + (f"\n  stderr: {stderr}" if stderr else "")
+        )
+    svg = proc.stdout
+    if theme in ("stellaris", "dark"):
+        svg = post_process_stellaris_svg(svg)
+    return svg
+
+
 def starmap_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     out: str = typer.Option(
@@ -63,42 +118,60 @@ def starmap_command(
     fmt: str = typer.Option(
         "html",
         "--format",
-        help="Output format: 'html' (interactive Sigma.js) or 'dot' (paper-ready Graphviz).",
+        help=(
+            "Output format: 'html' (interactive Sigma.js), 'dot' "
+            "(paper-ready Graphviz source), or 'svg' (rendered figure, "
+            "stellaris glow filters baked in)."
+        ),
     ),
     theme: str = typer.Option(
         "light",
         "--theme",
         help=(
-            "Visual theme for 'dot' output. 'light' (default) is the flat "
-            "paper-friendly palette. 'stellaris' (alias: 'dark') is a "
-            "deep-space dark variant — use 'sfdp' to render: "
-            "`sfdp -Tsvg starmap.dot -o starmap.svg`."
+            "Visual theme for 'dot' / 'svg' output. 'light' (default) is the "
+            "flat paper-friendly palette. 'stellaris' (alias: 'dark') is a "
+            "deep-space dark variant. For 'svg' the stellaris variant gets "
+            "an injected <defs> block with radial-gradient background and "
+            "glow filters bound to contradiction / support / root nodes."
         ),
     ),
 ) -> None:
     """Emit a starmap of the compiled package.
 
-    Two formats are supported:
+    Three formats are supported:
 
     * ``html`` (default) — single-file interactive Sigma.js visualization.
       Double-click to open in a browser; no server required.
     * ``dot`` — a Graphviz ``digraph`` source. Pipe through ``dot`` (Graphviz)
       to get a paper-ready figure. ``graphviz`` must be installed separately
       (``brew install graphviz`` / ``apt install graphviz``).
+    * ``svg`` — rendered figure, end-to-end. Internally calls ``dot``
+      (light theme) or ``sfdp`` (stellaris/dark) on the dot source, then for
+      the stellaris theme injects an SVG ``<defs>`` block with a radial
+      gradient background and three glow filters keyed off ``class="..."``
+      markers (contradiction / support / root). Requires ``graphviz`` on
+      ``PATH``.
 
     Compile freshness, beliefs freshness, and graph validation gates apply to
-    both formats.
+    all formats.
 
     Examples:
 
       # Interactive HTML (default):
       gaia starmap path/to/pkg
 
-      # DOT source + render to SVG (paper figure, vector, scales infinitely):
+      # DOT source (manually pipe through dot/sfdp for full control):
       gaia starmap path/to/pkg --format dot --out figures/starmap.dot
       dot -Tsvg figures/starmap.dot -o figures/starmap.svg
 
-      # PNG preview at higher DPI for slides / dense graphs:
+      # End-to-end paper figure (light, no glow):
+      gaia starmap path/to/pkg --format svg --out figures/starmap.svg
+
+      # End-to-end paper figure with stellaris glow defs baked in:
+      gaia starmap path/to/pkg --format svg --theme stellaris \\
+          --out figures/starmap_stellaris.svg
+
+      # PNG preview at higher DPI from the dot source:
       dot -Tpng -Gdpi=200 figures/starmap.dot -o figures/starmap.png
 
       # PDF for direct LaTeX \\includegraphics inclusion:
@@ -187,6 +260,13 @@ def starmap_command(
         try:
             template = _load_template()
             content = _render_html(template, graph_json)
+        except GaiaCliError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(1)
+    elif fmt == "svg":
+        dot_source = to_dot(graph_json, theme=theme)
+        try:
+            content = _render_svg(dot_source, theme=theme)
         except GaiaCliError as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(1)
