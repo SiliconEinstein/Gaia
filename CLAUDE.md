@@ -44,33 +44,6 @@ ruff check . && ruff format .    # lint + format
 - **不确定就问**：对设计方案的任何偏离，无论多小，都要在实现前提出。
 - **Plan 必须覆盖 spec 的每一步**：写 implementation plan 时逐条核对 spec，遗漏步骤等于悄悄砍需求。
 
-## LLM API
-
-项目通过 litellm 调用内部 API 网关。
-
-**`.env` 配置：**
-- `OPENAI_API_BASE` — 网关地址（`https://ai-gateway-internal.dp.tech`）
-- `OPENAI_API_KEY` — API key
-
-**模型命名**：网关模型名必须加 `openai/` 前缀让 litellm 走 OpenAI 兼容接口：
-```python
-litellm.acompletion(model="openai/chenkun/gpt-5-mini", ...)  # ✅
-litellm.acompletion(model="chenkun/gpt-5-mini", ...)         # ❌ litellm 不认识 provider
-litellm.acompletion(model="gpt-5-mini", ...)                  # ❌ 网关不认识这个模型名
-```
-
-**入口处必须设置全局 api_base：**
-```python
-import litellm, os
-litellm.api_base = os.getenv("OPENAI_API_BASE")
-```
-
-**查可用模型：**
-```bash
-source .env && curl -s "${OPENAI_API_BASE}/v1/models" \
-  -H "Authorization: Bearer ${OPENAI_API_KEY}" | python3 -m json.tool | grep '"id"'
-```
-
 ## Scripts & Pipelines: Logging Is Mandatory
 
 所有 CLI 脚本（`scripts/*.py`、`gaia/lkm/pipelines/*.py` 有 `__main__` 的）**必须**符合以下规范，否则后台运行就是黑盒：
