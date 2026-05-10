@@ -1,7 +1,7 @@
 ---
 status: current-canonical
 layer: cli
-since: v5-phase-2
+since: v0.5
 ---
 
 # Inference Pipeline
@@ -330,25 +330,20 @@ Deterministic factors use Cromwell-softened potentials (`HIGH = 1 - EPS`,
 
 ### Strategy lowering
 
-Strategies are lowered by type:
+Strategies are lowered by type. In v0.5 the canonical authoring path is through Action verbs (`derive` / `observe` / `compute` / `predict` / `infer` / `associate` / `equal` / `contradict` / `exclusive` / `decompose`); the entries below describe how each underlying strategy type lowers, regardless of whether it came from an Action verb or a legacy v5 strategy verb.
 
-- **`infer`**: `CONDITIONAL` factor with full CPT. When
-  `infer_use_degraded_noisy_and=True`, falls back to
-  `CONJUNCTION + SOFT_ENTAILMENT`.
-- **`deduction`**: `CONJUNCTION` for multiple premises, then a hard
-  `CONDITIONAL` implication with CPT `[0.5, 1 - EPS]`. Review gates whether
-  the warrant enters the information set; it does not supply a numeric prior.
-- **`support`**: soft implication via `SOFT_ENTAILMENT`; legacy `prior=`
-  folds into its effective `p1`.
-- **`noisy_and`**: `CONJUNCTION + SOFT_ENTAILMENT`. Single premise omits
-  conjunction.
-- **Other named formal types** (elimination, etc.): auto-formalized via
-  `formalize_named_strategy()`, then expanded to deterministic factors.
-- **`FormalStrategy`**: each operator maps to a deterministic factor via
-  `_OPERATOR_MAP`.
+- **`infer`**: `CONDITIONAL` factor with full CPT. With `given=G` on the action, the CPT gates on `G` so that the relation collapses to MaxEnt (0.5) when any of `G` is false (the *infer-with-given gating* introduced in v0.5). When `infer_use_degraded_noisy_and=True`, falls back to `CONJUNCTION + SOFT_ENTAILMENT`.
+- **`deduction`** (lowering target of `derive` and the deprecated `deduction` strategy): `CONJUNCTION` for multiple premises, then a hard `CONDITIONAL` implication with CPT `[0.5, 1 - EPS]`. Review gates whether the warrant enters the information set; it does not supply a numeric prior.
+- **`support`** (deprecated v5 strategy; lowering preserved for compatibility): soft implication via `SOFT_ENTAILMENT`; legacy `prior=` folds into its effective `p1`.
+- **`noisy_and`** (deprecated): `CONJUNCTION + SOFT_ENTAILMENT`. Single premise omits conjunction.
+- **`associate`**: pairwise potential between two Claims using the author-supplied `p_a_given_b` / `p_b_given_a` and at least one marginal prior.
+- **Bayes likelihood** (`bayes.likelihood(...)`): emits one `infer` strategy per hypothesis with `[0.5, clamp(exp(logL_i - logL_max))]`, plus rigid relation operators driven by the `exclusivity` setting.
+- **Other named formal types** (legacy v5: `elimination`, `case_analysis`, `analogy`, `extrapolation`, ...): auto-formalized via `formalize_named_strategy()`, then expanded to deterministic factors.
+- **`FormalStrategy`**: each embedded operator maps to a deterministic factor via `_OPERATOR_MAP`.
 - **`CompositeStrategy`**: recursively lowers each sub-strategy.
+- **`Compose`**: not a strategy — preserved as a first-class IR node (`composes: list[Compose]`) and does not produce a BP factor directly; its child actions retain their own lowerings.
 
-Reference: [Lowering](../gaia-ir/07-lowering.md)
+Reference: [Lowering](../gaia-ir/07-lowering.md), [BP factor potentials](../bp/potentials.md), [BP formal-strategy lowering](../bp/formal-strategy-lowering.md).
 
 ## Package Environment Setup
 

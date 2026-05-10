@@ -1,7 +1,7 @@
 ---
 status: current-canonical
 layer: cli
-since: v5-phase-1
+since: v0.5
 ---
 
 # Compilation and Validation
