@@ -193,6 +193,16 @@
 
 ---
 
+## User Loop Prompt（每次进入仓库 session 复制粘贴这一行）
+
+```
+按 .refactor/STATE.md 继续 v0.5 quality refactor。
+```
+
+CLAUDE.md mortal banner 自动加载 → agent 知道纪律 + 重构边界 + 不开 PR；STATE.md 持全量 task queue + 当前进度 + 矛盾记录 → agent 自然知道下一步做什么、何时停、何时记 breakpoint。无需任何工作顺序 / 阶段说明从 chat 转发。
+
+---
+
 ## 关键参考速查
 
 - **协作单决策清单**：飞书 doc `AM15dZDhjooNyaxZRhNc1Sawnce` § 一·决策清单
