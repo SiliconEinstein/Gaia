@@ -197,15 +197,17 @@ The compiler (`gaia/lang/compiler/compile.py`) walks the package's registered ac
 
 | Action subclass | IR target | Helper claim emitted | Primary target for label resolution |
 |---|---|---|---|
-| `Derive / Observe / Compute / Predict` | `FormalStrategy` (conjunction + directed implication) | `implication_warrant` (review=true) | `conclusion` Claim QID |
-| `Infer` | `Strategy(type=infer)` with CPT | warrant helper Claim (review=true) | warrant helper Claim QID |
-| `Associate` | `Strategy(type=associate)` with pairwise CPT | association helper Claim (review=true) | association helper Claim QID |
-| `Equal` | `Operator(operator=equivalence)` | `equivalence_result` helper (review=true) | helper Claim QID |
-| `Contradict` | `Operator(operator=contradiction)` | `contradiction_result` helper (review=true) | helper Claim QID |
-| `Exclusive` | `Operator(operator=complement)` | `complement_result` helper (review=true) | helper Claim QID |
-| `Decompose` | formula operators over `parts` + `Operator(operator=equivalence, [whole, formula_helper])` | formula-derived helpers + decomposition helper | decomposition helper Claim QID |
+| `Derive / Observe / Compute / Predict` | `FormalStrategy` (conjunction + directed implication) | `implication_warrant` (review=true) | Strategy ID → warrant helper Claim QID (via `metadata['warrants']`) |
+| `Infer` | `Strategy(type=infer)` with CPT | warrant helper Claim (review=true) | Strategy ID → warrant helper Claim QID |
+| `Associate` | `Strategy(type=associate)` with pairwise CPT | association helper Claim (review=true) | Strategy ID → association helper Claim QID |
+| `Equal` | `Operator(operator=equivalence)` | `equivalence_result` helper (review=true) | Operator ID → helper Claim QID |
+| `Contradict` | `Operator(operator=contradiction)` | `contradiction_result` helper (review=true) | Operator ID → helper Claim QID |
+| `Exclusive` | `Operator(operator=complement)` | `complement_result` helper (review=true) | Operator ID → helper Claim QID |
+| `Decompose` | formula operators over `parts` + `Operator(operator=equivalence, [whole, formula_helper])` | formula-derived helpers + decomposition helper | Operator ID → decomposition helper Claim QID |
 | `Compose` | `gaia.ir.Compose` first-class node | (none directly) | `Compose` node QID |
 | `DependsOn` | (not lowered) | (none) | not addressable |
+
+**Note:** `action_label_map` stores Strategy/Operator IDs (e.g., `lcs_*`, `lco_*`), not Knowledge QIDs directly. When resolving action label references in text, the compiler looks up the Strategy/Operator's `metadata['warrants']` to find the warrant helper Knowledge node(s) for provenance attribution. Exception: `Observe` actions with no premises (`given=()`) map directly to the conclusion Claim QID because they represent grounding observations with no inferential warrant.
 
 ### 4.2 Helper Claim Visibility
 
