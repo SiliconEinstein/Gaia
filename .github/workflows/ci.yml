@@ -27,21 +27,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
 
       - name: Install dependencies
-        run: pip install -e ".[dev,server]"
+        run: uv sync --extra dev
 
       - name: Lint
         run: |
-          ruff check .
-          ruff format --check .
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Type check
+        run: uv run mypy
 
       - name: Run tests
-        run: pytest --cov=gaia --cov-report=xml --cov-report=term-missing tests -v -m "not integration_api"
+        run: uv run pytest --cov-report=xml tests -v -m "not integration_api"
 
       - name: Upload coverage to Codecov
         if: always()

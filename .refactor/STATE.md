@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
 **Current phase**: Phase 0 complete → Phase 1 ready to start
-**Last updated**: 2026-05-12 00:26 (Phase 1.4 complete)
+**Last updated**: 2026-05-12 00:31 (Phase 1.5 complete)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -35,7 +35,7 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 - [x] **Phase 0 — Repo prepare** (Claude-led from home_agent side)
   - Done: 0.1 branch cut · 0.2 doc fidelity baseline · 0.3 mortal banner · 0.4 STATE.md framework · 0.5 baseline metrics · 0.6 commit + push · 0.7 iteration playbook
 - [ ] **Phase 1 — Engineering baseline injection** (user dispatches in-repo agents serially)
-  - Progress: 4 / 9 work units
+  - Progress: 5 / 9 work units
 - [ ] **🚦 Checkpoint α**: Phase 1 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 2 — Full backfill** (user dispatches in-repo agents serially through the task queue)
   - Progress: 0 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
@@ -87,8 +87,8 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 - [x] **1.4** New `.pre-commit-config.yaml` — hygiene hooks + ruff (check --fix / format) + local mypy hook + exclude `^\.refactor/` + exclude `^tmp/`
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 00:20 | completed_at: 2026-05-12 00:26 | breakpoint_notes: Added `.pre-commit-config.yaml` with global excludes for `^\.refactor/` and `^tmp/`, standard hygiene hooks, `ruff-check --fix --select=E4,E7,E9,F`, `ruff-format`, and a local `uv run mypy` hook staged as `manual` until Phase 2 clears the strict type backlog. EOF / trailing-whitespace hooks are scoped away from generated storage fixtures and archival/protected docs after an initial dry run showed they would otherwise rewrite unrelated files, including protected foundations docs. Verification: `uv run pre-commit run --all-files` => all default hooks passed (merge-conflict, YAML, EOF, trailing whitespace, private-key, ruff check, ruff format).
   - Ref: 协作单 § Must-migrate #3
-- [ ] **1.5** `.github/workflows/ci.yml` — switch to `uv sync --extra dev` + add mypy step
-  - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: —
+- [x] **1.5** `.github/workflows/ci.yml` — switch to `uv sync --extra dev` + add mypy step
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 00:28 | completed_at: 2026-05-12 00:31 | breakpoint_notes: Added `astral-sh/setup-uv@v5` with cache enabled, changed CI install to `uv sync --extra dev`, routed lint/test commands through `uv run`, and added a dedicated `uv run mypy` type-check step. Verification: `uv sync --extra dev` => green; `uv run pre-commit run check-yaml --files .github/workflows/ci.yml` => passed; `uv run mypy` => command runs and reports the expected Phase 2 strict-type backlog, `1691 errors in 134 files (checked 275 source files)`.
   - Ref: 协作单 § Must-migrate #5
 - [ ] **1.6** New `codecov.yml` (if codecov bot is enabled; this repo currently has none, so either add one mirroring lbg-cli style or rely on the local strong gate)
   - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: Decision needed inline — enable codecov bot? lbg-cli does NOT have codecov.yml; it relies purely on `--cov-fail-under` as a local strong gate. Options: (a) skip codecov.yml entirely, rely on the local gate; (b) add codecov.yml AND keep the local gate as a double layer.
