@@ -1,8 +1,8 @@
 # BeliefState — 信念定义
 
-> **Status:** Target design
+> **Status:** Current canonical (v0.5)
 >
-> **⚠️ Protected Contract Layer** — 本目录定义 CLI↔LKM 结构契约。变更需要独立 PR 并经负责人审查批准。详见 [documentation-policy.md](../../documentation-policy.md#12-变更控制)。
+> 本文档定义 BeliefState schema，由 LKM 全局推理消费。本地 CLI 推理产生的 `.gaia/beliefs.json` 是该 schema 的子集（缺 `resolution_policy` / `prior_cutoff`）。
 
 BeliefState 是 BP 在 GlobalCanonicalGraph 上的纯输出——后验信念值。它记录产生它的条件（resolution policy），使结果可重现。
 
@@ -52,6 +52,7 @@ BeliefState:
 
 ## 源代码
 
-- `libs/inference/bp.py` -- `BeliefPropagation.run()` 产出 beliefs
-- `libs/storage/models.py` -- `BeliefSnapshot`
-- `libs/graph_ir/models.py` -- `Strategy`（三种实体之一，BP 编译的输入）
+- `gaia/bp/engine.py` — `InferenceEngine.run()` 产出 beliefs
+- `gaia/bp/bp.py` — `BeliefPropagation.run()`（loopy BP 路径）
+- `gaia/bp/lowering.py` — `lower_local_graph()`：Gaia IR → FactorGraph
+- `gaia/ir/strategy.py` — `Strategy / CompositeStrategy / FormalStrategy`

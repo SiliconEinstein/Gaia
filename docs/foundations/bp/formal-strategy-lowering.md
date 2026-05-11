@@ -1,9 +1,10 @@
 # FormalStrategy 因子图 Lowering：统一三元因子模型
 
-> **Status:** Target design — 替代 #340 旧方案（二元因子 / dead-end 检测）
+> **Status:** Current canonical (v0.5)
 >
 > 本文档论证 FormalStrategy 内部所有 Operator 的统一 lowering 方案。
 > 依赖：[potentials.md](potentials.md)（factor potential 定义）、[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)（因子图理论）。
+> 历史注脚：本方案已替代旧的二元因子 / dead-end 检测方案（issue #340）。
 
 ## 1. 统一因子模型
 
