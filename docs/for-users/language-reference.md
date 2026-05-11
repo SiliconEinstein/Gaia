@@ -55,7 +55,7 @@ from .s3_results import *
 from gaia.lang import (
     claim, note, question,                                 # Knowledge
     Variable, Nat, Real, Probability, Bool,                # Formula terms
-    parameter, observation, causal,                        # Structured formula claims
+    parameter, causal,                                     # Structured formula claims
     not_, and_, or_,                                      # Propositional expressions
     ClaimAtom, land, implies,                             # Formula AST helpers
     contradict, equal, exclusive,                         # Reviewable relations
@@ -140,26 +140,27 @@ mendelian_p = parameter(
 This compiles to a source claim with an IR parameter for `p = 0.75` and a
 serializable `formula_bindings` metadata entry.
 
-### `observation(..., describe=None, prior=None)`
+### Structured observed values
 
-Use when a claim records observed primitive values. Pass variables whose
-`value` field is already set.
+Use a normal formula claim for structured measured values, then mark it with
+`observe(...)`. Observation is an action, not a `ClaimKind`.
 
 ```python
-from gaia.lang import Nat, Variable, observation
+from gaia.lang import Constant, Nat, Variable, claim, equals, land, observe
 
-n = Variable(symbol="n", domain=Nat, value=395)
-k = Variable(symbol="k", domain=Nat, value=295)
-f2_count = observation(
-    n=n,
-    k=k,
-    describe="Observed 295 dominant phenotypes out of 395 F2 plants.",
-    prior=0.95,
+n = Variable(symbol="n", domain=Nat)
+k = Variable(symbol="k", domain=Nat)
+f2_count = observe(
+    claim(
+        "Observed 295 dominant phenotypes out of 395 F2 plants.",
+        formula=land(equals(n, Constant(395, Nat)), equals(k, Constant(295, Nat))),
+    ),
+    rationale="Extracted from the reported count table.",
 )
 ```
 
-For multiple variables the formula is a conjunction of equalities, but the
-bindings still merge onto the source claim as IR parameters.
+The formula bindings still merge onto the source claim as IR parameters. A
+zero-premise `observe(...)` pins the claim to `1 - CROMWELL_EPS`.
 
 ### `causal(cause, effect, *, describe=None, prior=None)`
 
@@ -531,7 +532,7 @@ abd_main = abduction(...)    # gets label "abd_main"
 
 ## Priors
 
-External priors belong only on independent probabilistic inputs to exported goals. A root `observe(...)` claim is still independent: it has empirical grounding and a reviewable warrant, but grounding/review do not choose a numeric probability.
+External priors belong only on independent probabilistic inputs to exported goals. A zero-premise `observe(...)` claim is already pinned to `1 - CROMWELL_EPS`; do not give it a separate external prior. Claims concluded by `derive(...)`, `compute(...)`, or `observe(..., given=...)` get their belief from the graph.
 
 Use `priors.py` for those inputs:
 

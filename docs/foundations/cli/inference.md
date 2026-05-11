@@ -52,7 +52,7 @@ separate parameterization or review sidecar step.
 The v0.5 contract is:
 
 - external priors belong only on independent probabilistic inputs to exported goals;
-- root `observe(...)` claims count as independent inputs because grounding and review are qualitative, not numeric;
+- zero-premise `observe(...)` claims are pinned to `1 - CROMWELL_EPS`;
 - derived claims and helper claims do not receive manual priors;
 - claims without an explicit unary prior do not get a synthetic `0.5` factor. They remain unconstrained variables, and the exact-inference layer applies maximum entropy over the remaining independent degrees of freedom subject to declared hard constraints.
 

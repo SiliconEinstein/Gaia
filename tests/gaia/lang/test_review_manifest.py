@@ -100,15 +100,35 @@ def test_generate_review_manifest_for_v6_actions():
         "listed premises"
         not in by_action["github:review_pkg::action::predict_p"].audit_question.lower()
     )
-    assert by_action["github:review_pkg::action::observe_data"].target_kind == "knowledge"
+    assert by_action["github:review_pkg::action::observe_data"].target_kind == "action"
     assert by_action["github:review_pkg::action::observe_data"].target_id == (
-        "github:review_pkg::data"
+        "github:review_pkg::action::observe_data"
     )
     assert by_action["github:review_pkg::action::same"].target_kind == "operator"
     assert by_action["github:review_pkg::action::exclusive"].target_kind == "operator"
     assert "[@a]" in by_action["github:review_pkg::action::conflict"].audit_question
     assert "exactly one" in by_action["github:review_pkg::action::exclusive"].audit_question.lower()
     assert "[@data]" in by_action["github:review_pkg::action::bayes_update"].audit_question
+
+
+def test_multiple_observe_actions_on_same_claim_get_distinct_review_targets():
+    with CollectedPackage("review_pkg") as pkg:
+        data = Claim("Observation.")
+        data.label = "data"
+        observe(data, rationale="Measured by method A.", label="observe_a")
+        observe(data, rationale="Measured by method B.", label="observe_b")
+        pkg._exported_labels = {"data"}
+
+    compiled = compile_package_artifact(pkg)
+    manifest = generate_review_manifest(compiled)
+    reviews = sorted(manifest.reviews, key=lambda review: review.action_label)
+
+    assert [review.target_kind for review in reviews] == ["action", "action"]
+    assert [review.target_id for review in reviews] == [
+        "github:review_pkg::action::observe_a",
+        "github:review_pkg::action::observe_b",
+    ]
+    assert len({review.review_id for review in reviews}) == 2
 
 
 def test_generate_review_manifest_for_gated_infer_names_given_claim():

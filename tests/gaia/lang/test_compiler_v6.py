@@ -1,5 +1,4 @@
 from gaia.lang.compiler.compile import compile_package_artifact
-from gaia.lang.runtime.grounding import Grounding
 from gaia.lang.runtime.knowledge import Claim, Context, Note
 from gaia.lang.runtime.package import CollectedPackage
 
@@ -24,20 +23,6 @@ def test_compile_legacy_context_as_note():
     assert node["type"] == "note"
     assert node["format"] == "markdown"
     assert node["metadata"]["legacy_kind"] == "context"
-
-
-def test_compile_grounding_in_metadata():
-    """Grounding metadata appears in compiled IR."""
-    with CollectedPackage("v6_test") as pkg:
-        claim = Claim(
-            "Measured spectrum deviates from Rayleigh-Jeans law.",
-            grounding=Grounding(kind="source_fact", rationale="Extracted from Fig.2."),
-        )
-        claim.label = "uv_data"
-    ir = compile_package_artifact(pkg).to_json()
-    node = next(k for k in ir["knowledges"] if k["label"] == "uv_data")
-    assert node["metadata"]["grounding"]["kind"] == "source_fact"
-    assert "Fig.2" in node["metadata"]["grounding"]["rationale"]
 
 
 def test_compile_parameterized_claim_template():

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from gaia.lang.dsl.formula import causes, equals, land
+from gaia.lang.dsl.formula import causes, equals
 from gaia.lang.dsl.knowledge import claim
 from gaia.lang.formula.term import Constant
 from gaia.lang.runtime import Claim, Knowledge, Variable
@@ -38,55 +38,6 @@ def parameter(
         formula=formula,
         kind=ClaimKind.PARAMETER,
         metadata=metadata or {},
-    )
-    result.label = label
-    return result
-
-
-def observation(
-    *,
-    content: str | None = None,
-    describe: str | None = None,
-    title: str | None = None,
-    format: str = "markdown",
-    background: list[Knowledge] | None = None,
-    provenance: list[dict[str, str]] | None = None,
-    prior: float | None = None,
-    label: str | None = None,
-    noise: Any | None = None,
-    metadata: dict[str, Any] | None = None,
-    **observed: Variable,
-) -> Claim:
-    """Declare observed values carried by primitive Variables with value set."""
-    if not observed:
-        raise ValueError("observation() requires at least one observed Variable")
-    formulas = []
-    for name, variable in observed.items():
-        if not isinstance(variable, Variable):
-            raise TypeError(f"observation() value for {name!r} must be a Variable")
-        if variable.value is None:
-            raise ValueError(f"observation() Variable {variable.symbol!r} must have value set")
-        formulas.append(equals(variable, _constant_for(variable, variable.value)))
-
-    formula = formulas[0] if len(formulas) == 1 else land(*formulas)
-    merged_metadata = dict(metadata or {})
-    if noise is not None:
-        if not hasattr(noise, "model_dump"):
-            raise TypeError("observation() noise must be a bayes Distribution")
-        bayes_metadata = dict(merged_metadata.get("bayes", {}))
-        bayes_metadata["noise"] = noise.model_dump()
-        merged_metadata["bayes"] = bayes_metadata
-
-    result = claim(
-        _content_text(content, describe, _observation_content(observed)),
-        title=title,
-        format=format,
-        background=background,
-        provenance=provenance,
-        prior=prior,
-        formula=formula,
-        kind=ClaimKind.OBSERVATION,
-        metadata=merged_metadata,
     )
     result.label = label
     return result
@@ -143,11 +94,6 @@ def _constant_for(variable: Variable, value: Any) -> Constant:
 
 def _parameter_content(variable: Variable, value: Any) -> str:
     return f"{variable.symbol} = {value!r}."
-
-
-def _observation_content(observed: dict[str, Variable]) -> str:
-    rendered = ", ".join(f"{variable.symbol}={variable.value!r}" for variable in observed.values())
-    return f"Observed {rendered}."
 
 
 def _term_name(term: Any) -> str:

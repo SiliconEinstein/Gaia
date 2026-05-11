@@ -21,13 +21,12 @@ def test_v6_knowledge_types_compile(tmp_path):
     pkg_src = pkg_dir / "v6_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import Claim, Grounding, Note\n\n"
+        "from gaia.lang import Claim, Note\n\n"
         "ctx = Note('Raw AB test data from dashboard.', format='text')\n"
         "exp = Note('AB test exp_123: 50/50 randomization.')\n"
         "hyp = Claim(\n"
         "    'Variant B is better.',\n"
         "    prior=0.5,\n"
-        "    grounding=Grounding(kind='judgment', rationale='Uninformative prior.'),\n"
         ")\n"
         "__all__ = ['hyp']\n"
     )
@@ -50,5 +49,4 @@ def test_v6_knowledge_types_compile(tmp_path):
 
     hyp_node = [k for k in ir["knowledges"] if k.get("label") == "hyp"][0]
     assert hyp_node["format"] == "markdown"
-    assert hyp_node["metadata"]["grounding"]["kind"] == "judgment"
-    assert hyp_node["metadata"]["grounding"]["rationale"] == "Uninformative prior."
+    assert hyp_node["metadata"]["prior"] == 0.5

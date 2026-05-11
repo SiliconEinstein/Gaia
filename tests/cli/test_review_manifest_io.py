@@ -2,7 +2,7 @@ import json
 
 from gaia.cli.commands._review_manifest import load_or_generate_review_manifest
 from gaia.ir import ReviewManifest, ReviewStatus
-from gaia.lang import Claim, derive
+from gaia.lang import Claim, derive, observe
 from gaia.lang.compiler import compile_package_artifact
 from gaia.lang.runtime.package import CollectedPackage
 
@@ -45,3 +45,34 @@ def test_load_or_generate_review_manifest_merges_persisted_latest_status(tmp_pat
     manifest = load_or_generate_review_manifest(tmp_path, compiled)
 
     assert manifest.latest_status(accepted_review.target_id) == ReviewStatus.ACCEPTED
+
+
+def test_load_or_generate_review_manifest_reattaches_legacy_observe_knowledge_target(tmp_path):
+    with CollectedPackage("review_io") as pkg:
+        data = observe("Observed fact.", rationale="Measured.", label="observe_data")
+        data.label = "data"
+    compiled = compile_package_artifact(pkg)
+    generated = compiled.review
+    assert generated is not None
+    generated_review = generated.reviews[0]
+
+    old_review = generated_review.model_copy(
+        update={
+            "status": ReviewStatus.ACCEPTED,
+            "round": 2,
+            "target_kind": "knowledge",
+            "target_id": "github:review_io::data",
+        }
+    )
+    review_path = tmp_path / ".gaia" / "review_manifest.json"
+    review_path.parent.mkdir()
+    review_path.write_text(
+        json.dumps(
+            ReviewManifest(reviews=[old_review]).model_dump(mode="json"),
+            indent=2,
+        )
+    )
+
+    manifest = load_or_generate_review_manifest(tmp_path, compiled)
+
+    assert manifest.latest_status(generated_review.target_id) == ReviewStatus.ACCEPTED

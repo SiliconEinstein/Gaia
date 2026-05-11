@@ -86,7 +86,7 @@ The default output annotates each independent boundary premise with `prior=X` or
 ### Prior assignment contract
 
 - Assign external priors only to independent probabilistic inputs that are load-bearing for exported goals.
-- A root `observe(...)` is an independent probabilistic input: it records empirical grounding and produces a reviewable warrant, but it still needs a prior or MaxEnt treatment.
+- A zero-premise `observe(...)` pins its conclusion to `1 - CROMWELL_EPS`; do not add a separate external prior for it.
 - Do not assign priors to claims concluded by `derive(...)`, `compute(...)`, or `observe(..., given=...)`.
 - Do not assign priors to structural/helper claims from `~`, `&`, `|`, `infer(...)`, `associate(...)`, `equal(...)`, `contradict(...)`, `exclusive(...)`, generated `decompose(...)` helpers, or generated formalization internals.
 - Leaving an independent input unset is explicit: Gaia applies the Jaynes maximum-entropy distribution over the remaining independent degrees of freedom, subject to declared hard constraints.
@@ -95,7 +95,7 @@ The default output annotates each independent boundary premise with `prior=X` or
 
 | Role | Meaning | Needs prior? |
 |------|---------|-------------|
-| Independent | Load-bearing boundary premise for exported goals, including root `observe(...)` claims | External prior or MaxEnt |
+| Independent | Load-bearing boundary premise for exported goals, excluding zero-premise `observe(...)` claims | External prior or MaxEnt |
 | Derived | Concluded by a strategy — belief comes from BP | No external prior |
 | Structural/helper | Boolean expression, relation helper, or generated formalization helper | No external prior |
 | Background-only | Only used in `background=`, not as premise | Use `note(...)`; promote to `claim(...)` only if it is a probabilistic input |

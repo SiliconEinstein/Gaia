@@ -299,7 +299,8 @@ PRIORS = {
 
 The v0.5 prior contract is deliberately strict:
 
-- Give external priors only to independent probabilistic inputs that are load-bearing for exported goals. Root `observe(...)` claims count: grounding and review are qualitative, so the observed claim still needs a probability source or MaxEnt.
+- Give external priors only to independent probabilistic inputs that are load-bearing for exported goals and are not already pinned by a zero-premise observation.
+- A zero-premise `observe(...)` pins its conclusion to `1 - CROMWELL_EPS`; do not add a separate external prior for it.
 - Do not assign priors to claims concluded by `derive(...)`, `compute(...)`, or `observe(..., given=...)`; BP marginalizes them from the declared graph.
 - Do not assign priors to structural/helper claims from `~`, `&`, `|`, `infer(...)`, `associate(...)`, `equal(...)`, `contradict(...)`, `exclusive(...)`, or generated formalization helpers.
 - Run `gaia check --hole .` before inference. Claims reported as MaxEnt are independent degrees of freedom without external priors; leaving them unset means Gaia uses the maximum-entropy distribution over those free variables, subject to the hard logical constraints already declared.
@@ -332,7 +333,7 @@ For the full tutorial, see [CLI Workflow](docs/foundations/cli/workflow.md).
 
 | Function | Description |
 |----------|-------------|
-| `observe(conclusion, *, given, background, rationale)` | Empirical warrant; a root observation also records grounding |
+| `observe(conclusion, *, given, background, rationale)` | Empirical warrant; with no `given`, pins the conclusion to `1 - CROMWELL_EPS` |
 | `derive(conclusion, *, given, background, rationale)` | Deterministic derivation; lowers to hard Jaynes conditional implication after review |
 | `compute(ClaimType, *, fn, given, background, rationale)` | Deterministic computation with claim inputs |
 | `infer(evidence, *, hypothesis, background, rationale, p_e_given_h, p_e_given_not_h)` | Probabilistic prediction/evidence link; returns a reviewable likelihood helper claim |

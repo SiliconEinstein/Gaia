@@ -49,7 +49,7 @@ def depends_on(
         conclusion=conclusion,
         given=given_tuple,
     )
-    conclusion.supports.append(action)
+    conclusion.supported_by.append(action)
     return conclusion
 
 

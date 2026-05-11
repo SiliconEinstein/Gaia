@@ -58,18 +58,16 @@ def _candidate_relation_label(scaffold: dict[str, Any]) -> str:
     return str(label)
 
 
-def _grounding_action_label(knowledge: dict[str, Any]) -> str | None:
+def _observation_support_entries(knowledge: dict[str, Any]) -> list[dict[str, Any]]:
     metadata = knowledge.get("metadata") or {}
-    grounding = metadata.get("grounding")
-    if not isinstance(grounding, dict):
-        return None
-    action_label = grounding.get("action_label")
-    return action_label if isinstance(action_label, str) and action_label else None
-
-
-def _has_grounding(knowledge: dict[str, Any]) -> bool:
-    metadata = knowledge.get("metadata") or {}
-    return isinstance(metadata.get("grounding"), dict)
+    supported_by = metadata.get("supported_by")
+    if not isinstance(supported_by, list):
+        return []
+    return [
+        entry
+        for entry in supported_by
+        if isinstance(entry, dict) and entry.get("pattern") == "observation"
+    ]
 
 
 def _metadata_warrants(metadata: dict[str, Any] | None) -> list[str]:
@@ -176,13 +174,13 @@ def build_goal_trees(
             return node
         next_seen = {*seen, knowledge_id}
 
-        if _has_grounding(knowledge):
-            action_label = _grounding_action_label(knowledge)
-            target_id = knowledge_id if action_label else None
+        for entry in _observation_support_entries(knowledge):
+            action_label = entry.get("action_label")
+            target_id = action_label if isinstance(action_label, str) and action_label else None
             node.incoming.append(
                 InquiryEdge(
-                    kind="grounding",
-                    label=_action_label({"action_label": action_label}, "grounding"),
+                    kind="observe",
+                    label=_action_label({"action_label": action_label}, "observe"),
                     target_id=target_id,
                     status=_review_status(review_manifest, target_id),
                     inputs=[],

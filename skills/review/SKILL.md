@@ -14,8 +14,9 @@ The current v0.5 review contract is simple:
 - priors belong only to independent probabilistic inputs;
 - derived claims, relation helpers, likelihood helpers, association helpers,
   and structural helpers do not receive external priors;
-- root `observe(...)` claims are still independent probabilistic inputs because
-  grounding/review is qualitative, not numeric;
+- zero-premise `observe(...)` claims are already pinned to `1 - CROMWELL_EPS`;
+- `observe(..., given=...)` claims are premise-backed and do not receive
+  external priors;
 - review sidecar APIs (`gaia.review`, `ReviewBundle`, `review_claim`,
   `review_strategy`) have been removed.
 
@@ -43,7 +44,7 @@ before assigning priors.
 | Item | Prior? | Why |
 |------|--------|-----|
 | Independent claim used by exported goals | Yes | It is a boundary degree of freedom |
-| Root `observe(...)` claim | Yes | Observation grounding is qualitative |
+| Zero-premise `observe(...)` claim | No | It is pinned to `1 - CROMWELL_EPS` |
 | Orphaned claim | Usually yes or remove it | It is otherwise unconstrained |
 | Claim concluded by `derive(...)`, `compute(...)`, or `observe(..., given=...)` | No | BP derives its marginal |
 | `infer(...)` likelihood helper | No | It is a review target for the relation |
@@ -56,10 +57,10 @@ before assigning priors.
 Create `src/<package>/priors.py`:
 
 ```python
-from . import observation, hypothesis
+from . import measured_data, hypothesis
 
 PRIORS: dict = {
-    observation: (0.9, "Direct measurement reported in the source."),
+    measured_data: (0.9, "Independent measured input reported in the source."),
     hypothesis: (0.5, "Neutral before applying this package's argument."),
 }
 ```

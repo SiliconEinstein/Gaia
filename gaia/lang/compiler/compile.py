@@ -6,7 +6,7 @@ import hashlib
 import inspect
 import json
 import re
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Any
 
@@ -175,9 +175,6 @@ def _knowledge_metadata(k: Knowledge, knowledge_map: dict[int, str]) -> dict[str
     if prior is not None and "prior" not in metadata:
         # priors.py writes metadata["prior"] before compilation; that parameterization wins.
         metadata["prior"] = prior
-    grounding = getattr(k, "grounding", None)
-    if grounding is not None:
-        metadata["grounding"] = asdict(grounding)
     metadata = _metadata_to_ir(metadata, knowledge_map)
     return metadata or None
 
@@ -742,26 +739,35 @@ def compile_package_artifact(
                 ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
                 break
 
-    def _attach_grounding_action(
+    def _attach_supported_by_action(
         action: Support,
         *,
         action_label: str,
         conclusion_id: str,
         background_ids: list[str] | None,
+        action_metadata: dict[str, Any],
     ) -> None:
         for i, ir_k in enumerate(ir_knowledges):
             if ir_k.id != conclusion_id:
                 continue
-            metadata = dict(ir_k.metadata) if ir_k.metadata else {}
-            grounding = dict(metadata.get("grounding") or {})
-            grounding["action_label"] = action_label
-            grounding["pattern"] = "observation"
+            knowledge_metadata = dict(ir_k.metadata) if ir_k.metadata else {}
+            supported_by = list(knowledge_metadata.get("supported_by") or [])
+            entry = {
+                "action_label": action_label,
+                "pattern": "observation",
+            }
+            if action_metadata.get("warrants"):
+                entry["warrants"] = action_metadata["warrants"]
             if background_ids:
-                grounding["background"] = background_ids
-            if action.rationale and not grounding.get("rationale"):
-                grounding["rationale"] = action.rationale
-            metadata["grounding"] = grounding
-            ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
+                entry["background"] = background_ids
+            if action.rationale:
+                entry["rationale"] = action.rationale
+            source_refs = action_metadata.get("source_refs")
+            if source_refs:
+                entry["source_refs"] = source_refs
+            supported_by.append(entry)
+            knowledge_metadata["supported_by"] = supported_by
+            ir_knowledges[i] = ir_k.model_copy(update={"metadata": knowledge_metadata})
             return
 
     def _compile_support_action(action: Support, action_index: int) -> IrStrategy | None:
@@ -796,11 +802,12 @@ def compile_package_artifact(
         )
 
         if isinstance(action, Observe) and not premise_ids:
-            _attach_grounding_action(
+            _attach_supported_by_action(
                 action,
                 action_label=action_label,
                 conclusion_id=conclusion_id,
                 background_ids=background_ids,
+                action_metadata=metadata,
             )
             _record_action_target(action_label, conclusion_id)
             return None

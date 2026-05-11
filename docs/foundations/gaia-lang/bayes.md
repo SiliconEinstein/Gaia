@@ -12,8 +12,8 @@ updates. It decomposes the paper narrative into reviewable Gaia claims:
 1. `parameter(variable, value)` declares the hypothesis shape.
 2. `bayes.model(hypothesis, observable=..., distribution=...)` declares one
    predictive model helper for one hypothesis.
-3. `observation(...)` records measured data, optionally with Normal additive
-   noise.
+3. A formula `claim(...)` plus zero-premise `observe(...)` records measured
+   data, optionally with Normal additive noise metadata.
 4. `bayes.likelihood(data, model=..., against=[...])` computes likelihood
    factors and lowers them to existing IR `infer` strategies and deterministic
    exclusivity operators.
@@ -104,7 +104,7 @@ override the structural pattern by writing the relation by hand.
 ```python testable
 from gaia.bp.exact import exact_inference
 from gaia.bp.lowering import lower_local_graph
-from gaia.lang import Nat, Probability, Variable, bayes, observation, parameter
+from gaia.lang import Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter
 from gaia.lang.compiler.compile import compile_package_artifact
 from gaia.lang.runtime.knowledge import _current_package
 from gaia.lang.runtime.package import CollectedPackage
@@ -117,7 +117,9 @@ try:
 
     h_3_1 = parameter(theta, 0.75, content="theta = 0.75.", prior=0.5, label="h_3_1")
     h_null = parameter(theta, 0.5, content="theta = 0.5.", prior=0.5, label="h_null")
-    data = observation(count=k, content="Observed k = 295.", prior=0.999, label="data")
+    data = claim("Observed k = 295.", formula=equals(k, Constant(295, Nat)))
+    observe(data, rationale="Observed k = 295.", label="observe_data")
+    data.label = "data"
     model_3_1 = bayes.model(
         h_3_1,
         observable=k,
@@ -197,10 +199,19 @@ All of these are rigid operators. Probability lives only in claim priors and
 
 ## Noise And Escape Hatch
 
-`observation(..., noise=bayes.Normal(mu=0, sigma=sigma))` stores a Normal
-additive measurement-noise model in `metadata["bayes"]["noise"]`. The compiler
-convolves the predictive distribution with that noise model before computing
-the likelihood.
+For measurement noise, store a Normal additive model on the observed claim:
+
+```python
+data = claim(
+    "Observed y = 3.0.",
+    formula=equals(y, Constant(3.0, Real)),
+    metadata={"bayes": {"noise": bayes.Normal(mu=0, sigma=sigma).model_dump()}},
+)
+observe(data, rationale="Observed y = 3.0.", label="observe_data")
+```
+
+The compiler convolves the predictive distribution with that noise model before
+computing the likelihood.
 
 For custom likelihood calculations, pass runtime Claim objects as keys:
 

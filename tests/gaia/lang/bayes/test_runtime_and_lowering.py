@@ -11,12 +11,44 @@ from gaia.bp.exact import exact_inference
 from gaia.bp.factor_graph import FactorType
 from gaia.bp.lowering import lower_local_graph
 from gaia.ir.operator import OperatorType
-from gaia.lang import Nat, Probability, Real, Variable, bayes, contradict, observation, parameter
+from gaia.lang import (
+    Constant,
+    Nat,
+    Probability,
+    Real,
+    Variable,
+    bayes,
+    claim,
+    contradict,
+    equals,
+    observe,
+    parameter,
+)
 from gaia.lang.bayes.runtime import Likelihood, PredictiveModel
 from gaia.lang.compiler.compile import compile_package_artifact
 from gaia.lang.runtime.knowledge import _current_package
 from gaia.lang.runtime.package import CollectedPackage
 from gaia.lang.runtime.roles import roles_for_package
+
+
+def _observed_value(
+    variable: Variable,
+    *,
+    content: str,
+    label: str,
+    noise=None,
+):
+    metadata = {}
+    if noise is not None:
+        metadata["bayes"] = {"noise": noise.model_dump()}
+    data = claim(
+        content,
+        formula=equals(variable, Constant(variable.value, variable.domain)),
+        metadata=metadata,
+    )
+    observe(data, rationale=content, label=f"observe_{label}")
+    data.label = label
+    return data
 
 
 def _compiled_mendel_bayes(
@@ -33,7 +65,7 @@ def _compiled_mendel_bayes(
 
         h_31 = parameter(theta, 0.75, content="theta = 0.75.", prior=0.5, label="h_3_1")
         h_null = parameter(theta, 0.5, content="theta = 0.5.", prior=0.5, label="h_null")
-        data = observation(count=k, content="Observed k = 295.", prior=0.999, label="data")
+        data = _observed_value(k, content="Observed k = 295.", label="data")
         model_31 = bayes.model(
             h_31,
             observable=k,
@@ -101,7 +133,12 @@ def test_model_and_likelihood_are_action_backed_helper_claims():
 def test_observation_noise_metadata_serializes_distribution_literal():
     k = Variable(symbol="k", domain=Probability, value=0.7)
 
-    obs = observation(measured=k, noise=bayes.Normal(mu=0.0, sigma=0.1))
+    obs = _observed_value(
+        k,
+        content="Observed measured = 0.7.",
+        label="obs",
+        noise=bayes.Normal(mu=0.0, sigma=0.1),
+    )
 
     assert obs.metadata["bayes"]["noise"] == {
         "kind": "normal",
@@ -232,8 +269,8 @@ def test_continuous_normal_noise_likelihood_uses_convolution():
         y = Variable(symbol="y", domain=Real, value=3.0)
         h_near = parameter(mu, 2.5, content="mu = 2.5.", prior=0.5, label="h_near")
         h_far = parameter(mu, 0.0, content="mu = 0.", prior=0.5, label="h_far")
-        data = observation(
-            measured=y,
+        data = _observed_value(
+            y,
             content="Observed y = 3.0.",
             noise=bayes.Normal(mu=0.0, sigma=2.0),
             label="data",
@@ -280,7 +317,7 @@ def test_likelihood_errors_when_all_hypotheses_have_zero_support():
         k = Variable(symbol="k", domain=Nat, value=3)
         h_low = parameter(theta, 0.2, content="theta = 0.2.", prior=0.5, label="h_low")
         h_high = parameter(theta, 0.8, content="theta = 0.8.", prior=0.5, label="h_high")
-        data = observation(count=k, content="Observed impossible k = 3.", label="data")
+        data = _observed_value(k, content="Observed impossible k = 3.", label="data")
         model_low = bayes.model(
             h_low,
             observable=k,
@@ -309,7 +346,7 @@ def test_likelihood_does_not_duplicate_existing_pairwise_contradiction():
         k = Variable(symbol="k", domain=Nat, value=295)
         h_31 = parameter(theta, 0.75, content="theta = 0.75.", prior=0.5, label="h_3_1")
         h_null = parameter(theta, 0.5, content="theta = 0.5.", prior=0.5, label="h_null")
-        data = observation(count=k, content="Observed k = 295.", prior=0.999, label="data")
+        data = _observed_value(k, content="Observed k = 295.", label="data")
         model_31 = bayes.model(
             h_31, observable=k, distribution=bayes.Binomial(n=395, p=theta), label="model_31"
         )
@@ -347,7 +384,7 @@ def test_multiple_likelihoods_reuse_auto_generated_pairwise_contradiction():
     token = _current_package.set(pkg)
     try:
         k2 = Variable(symbol="k", domain=Nat, value=300)
-        data2 = observation(count=k2, content="Observed replicate k = 300.", label="data2")
+        data2 = _observed_value(k2, content="Observed replicate k = 300.", label="data2")
         bayes.likelihood(
             data2,
             model=model_31,
@@ -384,7 +421,7 @@ def test_exhaustive_equal_prior_argmax_tracks_largest_log_likelihood():
         h_low = parameter(theta, 0.2, content="theta = 0.2.", prior=1 / 3, label="h_low")
         h_mid = parameter(theta, 0.5, content="theta = 0.5.", prior=1 / 3, label="h_mid")
         h_high = parameter(theta, 0.8, content="theta = 0.8.", prior=1 / 3, label="h_high")
-        data = observation(count=k, content="Observed k = 4.", label="data")
+        data = _observed_value(k, content="Observed k = 4.", label="data")
         model_low = bayes.model(
             h_low, observable=k, distribution=bayes.Binomial(n=5, p=theta), label="model_low"
         )

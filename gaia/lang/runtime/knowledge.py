@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from gaia.lang.runtime.grounding import Grounding
 from gaia.lang.runtime.param import UNBOUND
 
 if TYPE_CHECKING:
@@ -97,17 +96,16 @@ class ClaimKind(Enum):
 
     GENERAL      — default; formula optional, no structural commitments
     PARAMETER    — asserts a Variable takes a specific value (Equals(var, const))
-    OBSERVATION  — records observed values for one or more Variables
     QUANTIFIED   — top-level quantifier (Forall/Exists) in formula
     CAUSAL       — top-level Causes(...) predicate in formula
 
     NOT a "role" (hypothesis/prediction/observation-as-evidence) — those live
-    on action graph nodes. NOT Grounding.kind. NOT helper-claim metadata.
+    on action graph nodes. Observation is an Observe action, not a Claim kind.
+    NOT helper-claim metadata.
     """
 
     GENERAL = "general"
     PARAMETER = "parameter"
-    OBSERVATION = "observation"
     QUANTIFIED = "quantified"
     CAUSAL = "causal"
 
@@ -117,8 +115,7 @@ class Claim(Knowledge):
     """Proposition with prior. Participates in BP."""
 
     prior: float | None = None
-    grounding: Grounding | None = None
-    supports: list[Action] = field(default_factory=list)
+    supported_by: list[Action] = field(default_factory=list)
     formula: Any = None
     kind: ClaimKind = ClaimKind.GENERAL
     _param_fields: ClassVar[dict[str, Any]] = {}
@@ -137,7 +134,7 @@ class Claim(Knowledge):
             "label",
             "strategy",
             "prior",
-            "grounding",
+            "supported_by",
             "supports",
             "targets",
             "formula",
@@ -181,7 +178,7 @@ class Claim(Knowledge):
         content: str | None = None,
         *,
         prior: float | None = None,
-        grounding: Grounding | None = None,
+        supported_by: list[Any] | None = None,
         supports: list[Any] | None = None,
         formula: Any = None,
         kind: ClaimKind = ClaimKind.GENERAL,
@@ -245,11 +242,21 @@ class Claim(Knowledge):
             parameters=params or knowledge_kwargs.pop("parameters", []),
             **knowledge_kwargs,
         )
+        if supported_by is not None and supports is not None:
+            raise TypeError("Pass either supported_by or legacy supports, not both")
         self.prior = prior
-        self.grounding = grounding
-        self.supports = list(supports or [])
+        self.supported_by = list(supported_by if supported_by is not None else supports or [])
         self.formula = formula
         self.kind = kind
+
+    @property
+    def supports(self) -> list[Action]:
+        """Compatibility alias for the renamed action back-reference."""
+        return self.supported_by
+
+    @supports.setter
+    def supports(self, value: list[Action]) -> None:
+        self.supported_by = value
 
 
 @dataclass(init=False, eq=False)

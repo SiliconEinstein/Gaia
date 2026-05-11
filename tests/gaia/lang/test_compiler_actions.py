@@ -72,7 +72,7 @@ def test_compile_derive_action_to_deduction_formal_strategy():
     assert conjunction_helpers[0].metadata["review"] is False
 
 
-def test_compile_root_observe_action_to_reviewable_grounding():
+def test_compile_root_observe_action_to_reviewable_supported_by():
     with CollectedPackage("v6_actions") as pkg:
         data = observe("UV spectrum data.", rationale="Measured.", label="observe_uv")
         data.label = "uv"
@@ -84,8 +84,12 @@ def test_compile_root_observe_action_to_reviewable_grounding():
     )
 
     uv = _knowledge_by_label(compiled)["uv"]
-    assert uv.metadata["grounding"]["kind"] == "source_fact"
-    assert uv.metadata["grounding"]["action_label"] == "github:v6_actions::action::observe_uv"
+    assert uv.metadata["prior"] == 0.999
+    support = uv.metadata["supported_by"][0]
+    assert support["action_label"] == "github:v6_actions::action::observe_uv"
+    assert support["pattern"] == "observation"
+    assert support["rationale"] == "Measured."
+    assert support["warrants"]
 
 
 def test_compile_compute_action_to_deduction_with_compute_metadata():

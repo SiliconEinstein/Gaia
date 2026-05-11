@@ -25,7 +25,7 @@ def _claim_atoms(formula: Any) -> tuple[Claim, ...]:
 
 
 def _existing_decompose(whole: Claim) -> Decompose | None:
-    for action in whole.supports:
+    for action in whole.supported_by:
         if isinstance(action, Decompose) and action.whole is whole:
             return action
     return None
@@ -38,7 +38,7 @@ def _decomposition_reaches(start: Claim, target: Claim, seen: set[int]) -> bool:
     if start_id in seen:
         return False
     seen.add(start_id)
-    for action in start.supports:
+    for action in start.supported_by:
         if not isinstance(action, Decompose) or action.whole is not start:
             continue
         if any(_decomposition_reaches(part, target, seen) for part in action.parts):
@@ -96,5 +96,5 @@ def decompose(
         parts=part_tuple,
         formula=formula,
     )
-    whole.supports.append(action)
+    whole.supported_by.append(action)
     return whole

@@ -60,12 +60,13 @@ def test_compile_v6_actions_package(tmp_path):
     )
     assert infer_strategy["conditional_probabilities"] == [0.1, 0.9]
 
-    grounding_patterns = {
-        k["metadata"]["grounding"]["pattern"]
+    supported_by_patterns = {
+        entry["pattern"]
         for k in ir["knowledges"]
-        if (k.get("metadata") or {}).get("grounding") and "pattern" in k["metadata"]["grounding"]
+        for entry in (k.get("metadata") or {}).get("supported_by", [])
+        if "pattern" in entry
     }
-    assert "observation" in grounding_patterns
+    assert "observation" in supported_by_patterns
 
     operator_types = {op["operator"] for op in ir["operators"]}
     assert {"equivalence", "contradiction"} <= operator_types
@@ -81,10 +82,10 @@ def test_compile_v6_actions_package(tmp_path):
         if op.get("metadata") and "action_label" in op["metadata"]
     )
     action_labels.extend(
-        k["metadata"]["grounding"]["action_label"]
+        entry["action_label"]
         for k in ir["knowledges"]
-        if (k.get("metadata") or {}).get("grounding")
-        and "action_label" in k["metadata"]["grounding"]
+        for entry in (k.get("metadata") or {}).get("supported_by", [])
+        if "action_label" in entry
     )
     assert "github:v6_actions::action::observe_uv" in action_labels
     assert "github:v6_actions::action::favor_planck" in action_labels

@@ -8,7 +8,7 @@ from gaia.lang.dsl.propositional import and_, not_, or_
 from gaia.lang.dsl.relate import contradict, equal, exclusive
 from gaia.lang.dsl.scaffold import candidate_relation, depends_on, tension
 from gaia.lang.dsl.support import compute, derive, observe, predict
-from gaia.lang.dsl.sugar import causal, observation, parameter
+from gaia.lang.dsl.sugar import causal, parameter
 from gaia.lang.runtime.composition import compose, composition
 from gaia.lang.dsl.strategies import (
     abduction,
@@ -71,7 +71,6 @@ __all__ = [
     "not_",
     "note",
     "observe",
-    "observation",
     "or_",
     "parameter",
     "predict",
