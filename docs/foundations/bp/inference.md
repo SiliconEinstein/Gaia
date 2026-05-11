@@ -23,7 +23,7 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 
 **v1（Graph IR 管线）**：`libs/inference/factor_graph.py`，使用 int 索引、`premises`/`conclusions`/`edge_type` 字符串。供 `scripts/pipeline/run_local_bp.py` 等包内 BP 使用。
 
-**v2（理论对齐 BP 引擎）**：`gaia/bp/factor_graph.py`，使用字符串 ID、八种 `FactorType`（六种确定性 + SOFT_ENTAILMENT + CONDITIONAL）、`variables` + `conclusion` 结构。势函数见 [potentials.md](potentials.md)。包含 loopy BP、Junction Tree、GBP、exact brute-force、`InferenceEngine` 自动选择。
+**v2（理论对齐 BP 引擎）**：`gaia/bp/factor_graph.py`，使用字符串 ID、十种 `FactorType`（IMPLICATION, NEGATION, CONJUNCTION, DISJUNCTION, EQUIVALENCE, CONTRADICTION, COMPLEMENT, SOFT_ENTAILMENT, CONDITIONAL, PAIRWISE_POTENTIAL）、`variables` + `conclusion` 结构。势函数见 [potentials.md](potentials.md)。包含 loopy BP、Junction Tree、GBP、exact brute-force、`InferenceEngine` 自动选择。
 
 ### 从 Gaia IR 构建
 

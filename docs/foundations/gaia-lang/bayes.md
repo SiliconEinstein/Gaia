@@ -1,3 +1,9 @@
+---
+status: current-canonical
+layer: gaia-lang
+since: v0.5
+---
+
 # Bayes Module
 
 `gaia.lang.bayes` is the lifted authoring surface for model-data likelihood
@@ -15,7 +21,13 @@ updates. It decomposes the paper narrative into reviewable Gaia claims:
 The Bayes module does not add IR knowledge types, BP factor types, or new
 operator enums. `PredictiveModel` and `Likelihood` are action-shaped runtime
 objects; their helper claims carry `metadata["bayes"]["role"]` values
-`"prediction"` and `"comparison"` respectively.
+`"prediction"` and `"comparison"` respectively. Both action subclasses go
+through the standard action lowering pipeline (see
+[knowledge-and-reasoning.md §4](knowledge-and-reasoning.md#4-action-lowering)),
+share the package-wide `action_label_map`, and emit warrant helper Claims
+that are addressable via `[@label]` references. Specs:
+[Bayes Module Design](../../specs/2026-05-04-bayes-module-design.md),
+[Bayes Actions Design](../../specs/2026-05-05-bayes-actions-design.md).
 
 ## Import Surface
 
@@ -27,8 +39,10 @@ from gaia.lang import bayes
 dist = bayes.Binomial(n=395, p=0.75)
 ```
 
-`from gaia.lang import predict` is the core Bayes-free prediction verb. Keep
-Bayes distribution literals and likelihood helpers under `gaia.lang.bayes`.
+`from gaia.lang import predict` is the core Bayes-free prediction verb (a
+`Support` action). The legacy `bayes.predict(...)` function is kept as a
+deprecation alias for `bayes.model(...)` and emits `DeprecationWarning`;
+new packages should call `bayes.model(...)` directly.
 
 The v1 distribution set is:
 
@@ -37,9 +51,53 @@ The v1 distribution set is:
   `ChiSquared`
 
 Each distribution delegates numeric evaluation to `scipy.stats`. Parameters may
-be concrete numbers or PR 505 `Variable` objects. Deferred variable parameters
+be concrete numbers or `Variable` objects (PR #505). Deferred variable parameters
 are resolved by the compiler from hypothesis formulas; their serialized
 descriptors are audit metadata, not identity keys.
+
+## Verbs at a Glance
+
+```python
+bayes.model(
+    hypothesis: Claim,
+    *,
+    observable: Variable,
+    distribution: Distribution,
+    background: list[Knowledge] | None = None,
+    rationale: str = "",
+    label: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> Claim                               # returns the prediction helper claim
+
+bayes.likelihood(
+    data: Claim | list[Claim] | tuple[Claim, ...],
+    *,
+    model: Claim,
+    against: Claim | list[Claim] | tuple[Claim, ...] = (),
+    background: list[Knowledge] | None = None,
+    rationale: str = "",
+    label: str | None = None,
+    exclusivity: str = "pairwise_contradiction",
+    precomputed: dict[Claim, float] | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> Claim                               # returns the comparison helper claim
+```
+
+`exclusivity` accepts:
+
+- `"none"` — no relation operators emitted; all listed hypotheses are
+  independent.
+- `"pairwise_contradiction"` (default) — listed hypotheses are *at most one
+  true*; emits a reviewable `Contradict` action for each pair that does not
+  already have one.
+- `"exhaustive_pairwise_complement"` — listed hypotheses are *exactly one
+  true*; emits a reviewable `Exclusive` action when there are two
+  hypotheses, or pairwise `Contradict` actions plus a clamped disjunction
+  helper when there are three or more.
+
+All emitted relation actions are auto-generated only when the equivalent
+explicit author action does not already exist; this lets the author
+override the structural pattern by writing the relation by hand.
 
 ## Worked Example
 
