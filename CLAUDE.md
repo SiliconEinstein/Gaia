@@ -1,17 +1,17 @@
-<!-- BEGIN REFACTOR MORTAL BANNER · 2026-05-11 启动 -->
+<!-- BEGIN REFACTOR MORTAL BANNER · started 2026-05-11 -->
 
-> 🚧 **REFACTOR IN PROGRESS — v0.5 工程质量基线对齐**
+> 🚧 **REFACTOR IN PROGRESS — v0.5 engineering quality baseline alignment**
 >
-> 本仓库当前处于工程质量基线重构期间。所有 in-repo agent / 开发者动手前必须先按以下纪律操作：
+> This repo is mid-refactor. Every in-repo agent / contributor MUST follow these rules before touching anything:
 >
-> 1. **STATE 文档**：`.refactor/STATE.md` 是本次重构的实时进度文档。任何 agent / 开发者**动手前第一动作 = 读 STATE.md**，找到 task queue 中下一个 `pending` 项；干完后**退出前最后动作 = 更新 STATE.md**（mark `done` 或记 `breakpoint_notes`）。
-> 2. **文档保真为头号纪律**：所有代码 / 类型注解 / docstring / 测试都必须严格匹配 `docs/foundations/**` 和 `docs/specs/**` 中描述的逻辑与语义。具体规则清单见 `.refactor/doc-fidelity-baseline.md`，agent 启动后必读。
-> 3. **重构边界**：**不动** IR / 语义 / DSL 表面 / API 签名 / 算法 / 命名。本重构只做：工程基线注入（ruff / mypy / pytest / pre-commit config + CI）+ 补 type annotations + 补 Google docstrings + 补 test。
-> 4. **🚨 doc-code 矛盾即停**：发现仓库 docs 与 code 在语义 / 行为层面**矛盾**（不是缺注解 / 缺 docstring 级的小差，而是实际逻辑分歧），**立即停手**，在 `.refactor/STATE.md` 当前 task `breakpoint_notes` 字段下记录（doc 段落引用 + code 文件:行号 + 矛盾描述 + 影响面），task status 标 `blocked`。**不要自行决断"哪边对"，也不要"顺手修齐"** — 重构 branch 只做工程基线，语义层矛盾一律升级。
-> 5. **协作单**：本次重构由飞书协作单 `AM15dZDhjooNyaxZRhNc1Sawnce` 驱动；决策定盘 + ❓ 升回都走协作单。看板入口：`GAIA-LKM kanban` (`IUvrwMmwliAUDukbXfUcwwxEnmf`)。
-> 6. **重构期间不开 PR — 仅 commit + push 到 `feat/v05-quality-baseline_rsw` branch**。本仓库 `CLAUDE.md § Workflow` 的「commit 完必开 PR」规则在重构期间替换为「commit + push feat branch 即可」；PR 在阶段 3 user explicit「ship/PR」handshake 后才开。
+> 1. **STATE document**: `.refactor/STATE.md` is the live progress doc for this refactor. **First action on session start = read STATE.md**, find the next `pending` work unit in the task queue. **Last action before exit = update STATE.md** (mark `done` or record `breakpoint_notes`).
+> 2. **Doc fidelity is the top discipline**: all code / type annotations / docstrings / tests MUST strictly match the logic and semantics described in `docs/foundations/**` and `docs/specs/**`. Read `.refactor/doc-fidelity-baseline.md` on agent startup.
+> 3. **Refactor boundary**: **DO NOT change** IR / semantics / DSL surface / API signatures / algorithms / naming. This refactor only does: engineering baseline injection (ruff / mypy / pytest / pre-commit config + CI) + adding type annotations + adding Google docstrings + adding tests.
+> 4. **🚨 Doc-code contradiction = stop immediately**: if you find a semantic / behavioral **contradiction** between repo docs and code (not just missing annotations / docstrings — actual logic disagreement), **stop immediately**, record under the current task's `breakpoint_notes` in `.refactor/STATE.md` (doc paragraph reference + code file:line + contradiction description + impact area), set task status to `blocked`. **Do not decide "which side is right" yourself, and do not "fix it up in passing"** — the refactor branch only does engineering baseline; all semantic-layer contradictions must escalate.
+> 5. **协作单**: this refactor is driven by Feishu 协作单 `AM15dZDhjooNyaxZRhNc1Sawnce`; decisions + ❓ escalation flow through it. Kanban entry: `GAIA-LKM kanban` (`IUvrwMmwliAUDukbXfUcwwxEnmf`).
+> 6. **No PR during refactor — commit + push to `feat/v05-quality-baseline_rsw` only**. This repo's `CLAUDE.md § Workflow` rule "open a PR after every commit" is overridden during the refactor with "commit + push feat branch is enough"; PR opens at Phase 3 only, after the user gives an explicit "ship / PR" handshake.
 >
-> **本 banner + `.refactor/` 目录是重构期间临时产物。** 重构 PR merge 完 + 用户明确说「清理重构产物」后，在收尾 PR 内一并删除。
+> **This banner + `.refactor/` directory are temporary refactor artifacts.** Both will be deleted in a final cleanup PR after the refactor PR merges AND the user explicitly says "clean up refactor artifacts".
 
 <!-- END REFACTOR MORTAL BANNER -->
 
