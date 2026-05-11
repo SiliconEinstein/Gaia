@@ -1,6 +1,5 @@
 import pytest
 
-from gaia.lang.runtime.grounding import Grounding
 from gaia.lang.runtime.knowledge import Claim, Context, Note, Question, Setting
 
 
@@ -46,10 +45,10 @@ def test_claim_no_prior():
     assert c.prior is None
 
 
-def test_claim_with_grounding():
-    g = Grounding(kind="source_fact", rationale="From paper.")
-    c = Claim("UV data.", prior=0.95, grounding=g)
-    assert c.grounding.kind == "source_fact"
+def test_claim_supports_is_legacy_alias_for_supported_by():
+    c = Claim("UV data.")
+    assert c.supported_by == []
+    assert c.supports is c.supported_by
 
 
 def test_claim_is_hashable_for_priors_dict():
@@ -122,9 +121,3 @@ def test_v5_question_still_works():
     q = question("Question?")
     assert q.type == "question"
     assert isinstance(q, Question)
-
-
-def test_grounding_public_export():
-    from gaia.lang import Grounding as PublicGrounding
-
-    assert PublicGrounding is Grounding

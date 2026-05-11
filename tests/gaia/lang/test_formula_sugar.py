@@ -4,6 +4,7 @@ import pytest
 
 from gaia.bp.exact import exact_inference
 from gaia.bp.lowering import lower_local_graph
+from gaia.ir.parameterization import CROMWELL_EPS
 from gaia.lang import (
     ClaimKind,
     Constant,
@@ -15,8 +16,11 @@ from gaia.lang import (
     Real,
     Variable,
     causal,
+    claim,
+    equals,
     infer,
-    observation,
+    land,
+    observe,
     parameter,
 )
 from gaia.lang.compiler.compile import compile_package_artifact
@@ -56,23 +60,24 @@ def test_parameter_sugar_constructs_parameter_claim_and_compiles_binding():
     ]
 
 
-def test_observation_sugar_records_multiple_primitive_bindings_on_source_claim():
-    pkg = CollectedPackage(name="formula_observation_sugar_pkg", namespace="t")
+def test_observe_formula_claim_records_multiple_primitive_bindings_on_source_claim():
+    pkg = CollectedPackage(name="formula_observe_pkg", namespace="t")
     token = _current_package.set(pkg)
     try:
-        n = Variable(symbol="n", domain=Nat, value=395)
-        k = Variable(symbol="k", domain=Nat, value=295)
-        obs = observation(
-            n=n,
-            k=k,
-            describe="Observed 295 dominant phenotypes out of 395 F2 plants.",
-            prior=0.95,
+        n = Variable(symbol="n", domain=Nat)
+        k = Variable(symbol="k", domain=Nat)
+        obs = observe(
+            claim(
+                "Observed 295 dominant phenotypes out of 395 F2 plants.",
+                formula=land(equals(n, Constant(395, Nat)), equals(k, Constant(295, Nat))),
+            ),
+            rationale="Extracted from the reported count table.",
         )
         obs.label = "f2_count_observation"
     finally:
         _current_package.reset(token)
 
-    assert obs.kind is ClaimKind.OBSERVATION
+    assert obs.kind is ClaimKind.GENERAL
     assert isinstance(obs.formula, Land)
     assert len(obs.formula.operands) == 2
 
@@ -80,7 +85,7 @@ def test_observation_sugar_records_multiple_primitive_bindings_on_source_claim()
     source = next(
         k
         for k in artifact.graph.knowledges
-        if k.id == "t:formula_observation_sugar_pkg::f2_count_observation"
+        if k.id == "t:formula_observe_pkg::f2_count_observation"
     )
     assert {(p.name, p.type, p.value) for p in source.parameters} == {
         ("n", "Nat", 395),
@@ -103,7 +108,7 @@ def test_observation_sugar_records_multiple_primitive_bindings_on_source_claim()
 
     fg = lower_local_graph(artifact.graph)
     beliefs, _ = exact_inference(fg)
-    assert beliefs[source.id] == pytest.approx(0.95)
+    assert beliefs[source.id] == pytest.approx(1.0 - CROMWELL_EPS)
 
 
 def test_causal_sugar_constructs_causal_claim_and_compiles_marker():
@@ -149,23 +154,14 @@ def test_formula_sugar_rejects_invalid_structured_inputs():
     with pytest.raises(ValueError, match="already has value"):
         parameter(valued, 0.75)
 
-    with pytest.raises(ValueError, match="at least one"):
-        observation()
-
-    with pytest.raises(TypeError, match="must be a Variable"):
-        observation(n=1)  # type: ignore[arg-type]
-
-    with pytest.raises(ValueError, match="must have value set"):
-        observation(n=Variable(symbol="n", domain=Nat))
-
 
 def test_mendel_formula_sugar_compiles_with_likelihood_infer_action():
     pkg = CollectedPackage(name="formula_mendel_sugar_pkg", namespace="t")
     token = _current_package.set(pkg)
     try:
         p = Variable(symbol="p", domain=Probability)
-        n = Variable(symbol="n", domain=Nat, value=395)
-        k = Variable(symbol="k", domain=Nat, value=295)
+        n = Variable(symbol="n", domain=Nat)
+        k = Variable(symbol="k", domain=Nat)
         h = parameter(
             p,
             0.75,
@@ -173,11 +169,12 @@ def test_mendel_formula_sugar_compiles_with_likelihood_infer_action():
             prior=0.5,
         )
         h.label = "mendelian_probability"
-        d = observation(
-            n=n,
-            k=k,
-            describe="Observed 295 dominant phenotypes out of 395 F2 plants.",
-            prior=0.95,
+        d = observe(
+            claim(
+                "Observed 295 dominant phenotypes out of 395 F2 plants.",
+                formula=land(equals(n, Constant(395, Nat)), equals(k, Constant(295, Nat))),
+            ),
+            rationale="Extracted from the reported count table.",
         )
         d.label = "f2_count_observation"
         infer(

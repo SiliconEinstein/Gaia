@@ -71,9 +71,9 @@ normal way to connect claims in v0.5 packages.
 
 ### `observe(conclusion, *, given=(), background=None, rationale="", label=None)`
 
-Use for empirical observations or measurements. A root `observe(...)` claim is
-still an independent probabilistic input: grounding is qualitative, not a
-numeric prior.
+Use for empirical observations or measurements. A zero-premise `observe(...)`
+pins its conclusion to `1 - CROMWELL_EPS`. An `observe(..., given=...)` action
+is a premise-backed observation step and does not assign a prior.
 
 ```python
 obs = observe(
@@ -108,7 +108,7 @@ as claims first; do not hide missing premises inside prose rationale.
 
 ```python
 likelihood = infer(
-    observation,
+    measured_data,
     hypothesis=model,
     p_e_given_h=0.9,
     p_e_given_not_h=0.2,
@@ -130,7 +130,7 @@ Relation verbs return generated helper claims and compile to deterministic
 operators.
 
 ```python
-same = equal(prediction, observation, rationale="The prediction matches the observation.")
+same = equal(prediction, measured_data, rationale="The prediction matches the observation.")
 conflict = contradict(a, b, rationale="Both claims cannot hold in the same setup.")
 choice = exclusive(left, right, rationale="The alternatives form a closed binary partition.")
 ```
@@ -161,10 +161,10 @@ goals.
 Put them in `priors.py`:
 
 ```python
-from . import observation, model
+from . import measured_data, model
 
 PRIORS: dict = {
-    observation: (0.9, "Directly measured."),
+    measured_data: (0.9, "Independent measured input."),
     model: (0.5, "Neutral before this argument."),
 }
 ```

@@ -34,12 +34,19 @@ def merge_review_manifests(
     generated_target_ids = {review.target_id for review in generated.reviews}
     generated_by_stable_key: dict[tuple[str, str, str], Review] = {}
     duplicate_stable_keys: set[tuple[str, str, str]] = set()
+    generated_by_action_key: dict[tuple[str, str], Review] = {}
+    duplicate_action_keys: set[tuple[str, str]] = set()
     for review in generated.reviews:
         key = (review.action_label, review.target_kind, review.audit_question)
         if key in generated_by_stable_key:
             duplicate_stable_keys.add(key)
         else:
             generated_by_stable_key[key] = review
+        action_key = (review.action_label, review.audit_question)
+        if action_key in generated_by_action_key:
+            duplicate_action_keys.add(action_key)
+        else:
+            generated_by_action_key[action_key] = review
 
     reviews = list(generated.reviews)
     for review in persisted.reviews:
@@ -50,7 +57,10 @@ def merge_review_manifests(
         key = (review.action_label, review.target_kind, review.audit_question)
         generated_review = generated_by_stable_key.get(key)
         if generated_review is None or key in duplicate_stable_keys:
-            continue
+            action_key = (review.action_label, review.audit_question)
+            generated_review = generated_by_action_key.get(action_key)
+            if generated_review is None or action_key in duplicate_action_keys:
+                continue
         reviews.append(
             review.model_copy(
                 update={

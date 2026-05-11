@@ -53,6 +53,7 @@ roles on a Claim. See issue #485 for the design discussion.
 """
 
 from gaia.lang import (
+    Constant,
     Nat,
     Variable,
     associate,
@@ -60,10 +61,11 @@ from gaia.lang import (
     contradict,
     derive,
     equal,
+    equals,
     exclusive,
+    land,
     note,
     observe,
-    observation,
 )
 
 from .probabilities import (
@@ -135,15 +137,17 @@ f2_recessive_reappears_observation = observe(
     label="f2_recessive_reappears_observation",
 )
 
-_f2_count_observation_binding = observation(
-    n=f2_total_count,
-    k=f2_dominant_count,
-    describe=(
+_f2_count_observation_binding = claim(
+    (
         f"F2 计数为 {DOMINANT_COUNT} 个显性表型和 {RECESSIVE_COUNT} 个隐性表型，"
         f"共 {TOTAL_COUNT} 个个体。"
     ),
-    label="f2_count_observation",
+    formula=land(
+        equals(f2_total_count, Constant(TOTAL_COUNT, Nat)),
+        equals(f2_dominant_count, Constant(DOMINANT_COUNT, Nat)),
+    ),
 )
+_f2_count_observation_binding.label = "f2_count_observation"
 
 f2_count_observation = observe(
     _f2_count_observation_binding,

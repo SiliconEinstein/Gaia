@@ -52,13 +52,15 @@ def test_check_errors_when_pairwise_hypothesis_priors_exceed_one(tmp_path: Path)
     _write_package(
         pkg_dir,
         """
-from gaia.lang import Nat, Probability, Variable, bayes, observation, parameter
+from gaia.lang import Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter
 
 theta = Variable(symbol="theta", domain=Probability)
 k = Variable(symbol="k", domain=Nat, value=3)
 h1 = parameter(theta, 0.3, label="h1", prior=0.7)
 h2 = parameter(theta, 0.7, label="h2", prior=0.6)
-data = observation(count=k, label="data")
+data = claim("Observed k = 3.", formula=equals(k, Constant(3, Nat)))
+observe(data, label="observe_data")
+data.label = "data"
 model1 = bayes.model(h1, observable=k, distribution=bayes.Binomial(n=5, p=theta), label="model1")
 model2 = bayes.model(h2, observable=k, distribution=bayes.Binomial(n=5, p=theta), label="model2")
 cmp = bayes.likelihood(data, model=model1, against=[model2], label="cmp")
@@ -80,13 +82,15 @@ def test_check_errors_when_exhaustive_hypothesis_priors_do_not_sum_to_one(tmp_pa
     _write_package(
         pkg_dir,
         """
-from gaia.lang import Nat, Probability, Variable, bayes, observation, parameter
+from gaia.lang import Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter
 
 theta = Variable(symbol="theta", domain=Probability)
 k = Variable(symbol="k", domain=Nat, value=3)
 h1 = parameter(theta, 0.3, label="h1", prior=0.6)
 h2 = parameter(theta, 0.7, label="h2", prior=0.2)
-data = observation(count=k, label="data")
+data = claim("Observed k = 3.", formula=equals(k, Constant(3, Nat)))
+observe(data, label="observe_data")
+data.label = "data"
 model1 = bayes.model(h1, observable=k, distribution=bayes.Binomial(n=5, p=theta), label="model1")
 model2 = bayes.model(h2, observable=k, distribution=bayes.Binomial(n=5, p=theta), label="model2")
 cmp = bayes.likelihood(
