@@ -73,7 +73,7 @@ gaia compile [PATH]
 3. Assigns labels from Python variable names to unlabeled objects (Knowledge labels and Action labels share a single namespace per package; collision is a compile error — see [../gaia-lang/knowledge-and-reasoning.md §4.3](../gaia-lang/knowledge-and-reasoning.md#43-action-label-references)).
 4. Compiles the collected package to Gaia IR via `gaia.lang.compiler.compile_package`. Action lowering, formula lowering, and bayes lowering all run as part of this step.
 5. Validates the resulting `LocalCanonicalGraph` (warnings printed, errors abort).
-6. Generates a baseline `ReviewManifest` over every action target and merges it with `.gaia/review_manifest.json` if present.
+6. Generates a baseline `ReviewManifest` over every action target and attaches it in memory to `CompiledPackage.review`. The manifest is not persisted by `gaia compile`; it is read/merged later by `gaia inquiry review` and `gaia infer` when `.gaia/review_manifest.json` exists.
 7. Writes `.gaia/ir.json` and `.gaia/ir_hash` to the package directory.
 
 Compilation is deterministic: same source produces the same `ir_hash`. No LLM
@@ -351,11 +351,11 @@ gaia starmap [PATH] [--format html|dot|svg] [--theme light|stellaris|dark] [--ou
 | Stage    | Command          | Key Artifacts |
 |----------|------------------|---------------|
 | Init     | `gaia init`      | `pyproject.toml` with `[tool.gaia]`, `src/<import_name>/__init__.py` with DSL template |
-| Compile  | `gaia compile`   | `.gaia/ir.json`, `.gaia/ir_hash`, `.gaia/review_manifest.json` (baseline if absent) |
+| Compile  | `gaia compile`   | `.gaia/ir.json`, `.gaia/ir_hash`, `.gaia/compile_metadata.json`, `.gaia/formalization_manifest.json` |
 | Check    | `gaia check`     | (validation only) |
 | Add      | `gaia add`       | Updated `pyproject.toml` dependencies, `uv.lock` |
-| Inquiry  | `gaia inquiry`   | `.gaia/inquiry/state.json`, `.gaia/inquiry/tactics.jsonl`, `.gaia/inquiry/reviews/<review_id>.json` |
-| Infer    | `gaia infer`     | `.gaia/beliefs.json`, trace under `.gaia/trace/` |
+| Inquiry  | `gaia inquiry`   | `.gaia/inquiry/state.json`, `.gaia/inquiry/tactics.jsonl`, `.gaia/inquiry/reviews/<review_id>.json`, `.gaia/review_manifest.json` (persisted by inquiry review) |
+| Infer    | `gaia infer`     | `.gaia/beliefs.json`, trace under `.gaia/trace/`, `.gaia/review_manifest.json` (merged/persisted if reviews exist) |
 | Trace    | `gaia trace`     | (audit only; reads trace files) |
 | Render   | `gaia render`    | `docs/detailed-reasoning.md`, `.github-output/` |
 | Starmap  | `gaia starmap`   | `.gaia/starmap.{html,dot,svg}` |
