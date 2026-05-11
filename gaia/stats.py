@@ -12,7 +12,7 @@ import inspect
 from collections.abc import Callable
 from typing import Any, Literal
 
-from gaia.ir.schemas import CallableRef, DistributionParam, DistributionLiteral
+from gaia.ir.schemas import CallableRef, DistributionKind, DistributionLiteral, DistributionParam
 
 
 def _param_to_ir(value: Any) -> DistributionParam:
@@ -27,7 +27,7 @@ def _param_to_ir(value: Any) -> DistributionParam:
     raise TypeError(f"Unsupported distribution parameter type: {type(value).__name__}")
 
 
-def _spec(kind: str, **params: Any) -> DistributionLiteral:
+def _spec(kind: DistributionKind, **params: Any) -> DistributionLiteral:
     return DistributionLiteral(
         kind=kind,
         params={name: _param_to_ir(value) for name, value in params.items()},

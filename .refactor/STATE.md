@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
-**Current phase**: Phase 1 complete → Checkpoint α ready
-**Last updated**: 2026-05-12 01:02 (Phase 1.9 complete)
+**Current phase**: Phase 2 in progress — full backfill
+**Last updated**: 2026-05-12 01:08 (Phase 2.1-top complete)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -38,7 +38,7 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
   - Progress: 9 / 9 work units
 - [ ] **🚦 Checkpoint α**: Phase 1 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 2 — Full backfill** (user dispatches in-repo agents serially through the task queue)
-  - Progress: 0 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
+  - Progress: 1 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
 - [ ] **🚦 Checkpoint β**: Phase 2 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 3 — Acceptance + PR**
 - [ ] **🚦 Checkpoint γ**: PR body drafting + ship handshake
@@ -109,8 +109,8 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 
 #### 2.1 Type annotations until `mypy --strict` is clean (ordering: leaves first, dependents later)
 
-- [ ] **2.1-top** gaia top-level files (`__init__.py`, `constants.py`, `stats.py`, `unit.py`) — small, independent, leaf-level
-  - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: —
+- [x] **2.1-top** gaia top-level files (`__init__.py`, `constants.py`, `stats.py`, `unit.py`) — small, independent, leaf-level
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 01:04 | completed_at: 2026-05-12 01:08 | breakpoint_notes: Added strict-compatible Pint quantity annotations in `gaia/unit.py` while preserving the public `Quantity = ureg.Quantity` runtime alias; narrowed `gaia/stats.py:_spec` to the existing `DistributionKind` literal union so `DistributionLiteral.kind` type-checks. Verification: `uv run mypy --follow-imports=skip gaia/__init__.py gaia/constants.py gaia/stats.py gaia/unit.py` => success for 4 top-level files; `uv run mypy gaia/__init__.py gaia/constants.py gaia/stats.py gaia/unit.py` now reports only the pre-existing imported `gaia/ir/formalize.py` backlog (74 errors), not top-level file errors; `uv run pre-commit run --all-files` => passed; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.32%, required 90% reached.
 - [ ] **2.1-logic** `gaia/logic/` (2 .py files, small)
   - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: —
 - [ ] **2.1-ir** `gaia/ir/` (IR primitives — re-read `doc-fidelity-baseline.md` § Protected layers + § Core invariants before touching)
