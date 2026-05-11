@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
 **Current phase**: Phase 0 complete → Phase 1 ready to start
-**Last updated**: 2026-05-12 00:46 (Phase 1.7 complete)
+**Last updated**: 2026-05-12 00:55 (Phase 1.8 complete)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -35,7 +35,7 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 - [x] **Phase 0 — Repo prepare** (Claude-led from home_agent side)
   - Done: 0.1 branch cut · 0.2 doc fidelity baseline · 0.3 mortal banner · 0.4 STATE.md framework · 0.5 baseline metrics · 0.6 commit + push · 0.7 iteration playbook
 - [ ] **Phase 1 — Engineering baseline injection** (user dispatches in-repo agents serially)
-  - Progress: 7 / 9 work units
+  - Progress: 8 / 9 work units
 - [ ] **🚦 Checkpoint α**: Phase 1 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 2 — Full backfill** (user dispatches in-repo agents serially through the task queue)
   - Progress: 0 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
@@ -95,8 +95,8 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
   - Ref: 协作单 § Sundry cleanup (codecov.yml part)
 - [x] **1.7** New `Makefile` — (optional) `bootstrap / lint / typecheck / test / check` targets
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 00:42 | completed_at: 2026-05-12 00:46 | breakpoint_notes: Added root `Makefile` with `bootstrap`, `lint`, `typecheck`, `test`, and `check` targets. `check` intentionally follows the current Phase 1 green gate (`lint` via `pre-commit run --all-files` plus `test` via `pytest`) while `typecheck` remains available as an explicit target for the known Phase 2 strict-mypy backlog. Verification: `make check` => pre-commit hooks passed; pytest `1605 passed, 3 skipped, 58 warnings`, TOTAL coverage 90.31%; `make -n bootstrap typecheck` => dry-run printed the expected `uv sync --extra dev`, `uv run pre-commit install`, and `uv run mypy` commands.
-- [ ] **1.8** New `CONTRIBUTING.md` — developer local setup guide (`uv sync --extra dev` + `pre-commit install` + `make check`)
-  - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: —
+- [x] **1.8** New `CONTRIBUTING.md` — developer local setup guide (`uv sync --extra dev` + `pre-commit install` + `make check`)
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 00:50 | completed_at: 2026-05-12 00:55 | breakpoint_notes: Added root `CONTRIBUTING.md` covering local setup (`uv sync --extra dev`, `uv run pre-commit install`, `make bootstrap`), daily gate (`make check`), explicit strict-mypy target, style conventions, and v0.5 refactor boundary/doc-fidelity discipline. Verification: `make check` => pre-commit hooks passed; pytest `1605 passed, 3 skipped, 58 warnings`, TOTAL coverage 90.31%, required 90% reached.
 - [ ] **1.9** `CLAUDE.md` full rewrite (referencing Claude Code `/init` convention) — top mortal banner already written in Phase 0; this work unit lands the remaining sections (engineering rules + local setup + refactor boundary + doc fidelity discipline + test requirements + project overview links to README)
   - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: Current CLAUDE.md is already fairly lean (157 lines); main updates likely concentrate on: (a) add an engineering-rules section; (b) add a local-setup section; (c) drop the Skills section (frozen during refactor; not a standard `/init` section); (d) add a refactor-boundary statement.
   - Ref: 协作单 § CLAUDE.md engineering upgrade
