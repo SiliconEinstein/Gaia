@@ -42,6 +42,45 @@ LKM integration exists only through agent skills (`gaia-lkm-skills` repo):
 
 ---
 
+## Implementation Requirements
+
+This spec requires changes to the current v0.5 Gaia package loader and DSL API:
+
+### Package Loader Changes
+
+**Current v0.5 contract:**
+- Package name must end with `-gaia`
+- Import name derived as `project_name.removesuffix("-gaia").replace("-", "_")`
+- Source must be in `src/{import_name}/__init__.py`
+- `gaia check` and `gaia register` enforce `-gaia` suffix
+
+**Required for this spec:**
+- Allow package names without `-gaia` suffix for LKM-generated packages
+- Support flat package layout: `paper.gaia.py` at root instead of `src/{import_name}/__init__.py`
+- Update `gaia check` / `gaia register` to accept LKM package naming convention
+- Namespace package support: `from lkm.lkm_paper_812085 import ...` should resolve to `lkm-paper-812085204238729217` package
+
+### DSL API Changes
+
+**Current v0.5 API:**
+```python
+contradict(a: Claim, b: Claim, *, background=..., rationale=..., label=...) -> Claim
+```
+
+**Examples in this spec use:**
+```python
+contradict(a, b, prior=0.7)  # ← prior parameter does not exist
+```
+
+**Resolution options:**
+1. Remove `prior=` from examples (structural relations don't carry priors in v0.5)
+2. Add `prior` parameter to `contradict` / `equal` / `exclusive` APIs (requires design decision)
+3. Use helper claim pattern: `h = claim("...", prior=0.7); contradict(a, b, helper=h)`
+
+This spec currently uses option 1 (remove `prior=`) for consistency with v0.5 API.
+
+---
+
 ## Design
 
 ### 1. Package Model
@@ -1114,10 +1153,11 @@ from gaia.lang import claim, contradict
 from lkm.lkm_paper_812085 import gan_bandgap_pbe
 from lkm.lkm_paper_923847 import gan_bandgap_hse
 
-my_measurement = claim("Our measured GaN bandgap is 3.2 eV")
+my_measurement = claim("Our measured GaN bandgap is 3.2 eV", prior=0.8)
 
-contradict(my_measurement, gan_bandgap_pbe, prior=0.7)
-contradict(gan_bandgap_pbe, gan_bandgap_hse, prior=0.5)
+# Structural relations: these claims contradict each other
+contradict(my_measurement, gan_bandgap_pbe, rationale="Experimental vs PBE calculation")
+contradict(gan_bandgap_pbe, gan_bandgap_hse, rationale="PBE vs HSE functional")
 EOF
 
 # 8. Compile (auto-updates search index)
