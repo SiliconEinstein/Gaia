@@ -70,6 +70,8 @@ class _BayesCheckDiagnostics:
 def _walk_inquiry_nodes(node: InquiryNode):
     yield node
     for edge in node.incoming:
+        if edge.kind == "candidate_relation":
+            continue
         for child in edge.inputs:
             yield from _walk_inquiry_nodes(child)
 
@@ -88,7 +90,9 @@ def _boundary_claim_analysis(
     """
 
     def needs_probability_input(node: InquiryNode) -> bool:
-        return not node.incoming or all(edge.kind == "grounding" for edge in node.incoming)
+        return not node.incoming or all(
+            edge.kind in {"grounding", "candidate_relation"} for edge in node.incoming
+        )
 
     def expand_decomposition_boundary(boundary_ids: set[str]) -> set[str]:
         expanded = set(boundary_ids)
@@ -245,15 +249,49 @@ def _formalization_dependency_claim_ids(
     conclusions: set[str] = set()
     inputs: set[str] = set()
     for dependency in (formalization_manifest or {}).get("dependencies", []):
-        if not isinstance(dependency, dict) or dependency.get("kind") != "depends_on":
+        if not isinstance(dependency, dict):
             continue
-        conclusion = dependency.get("conclusion")
-        if isinstance(conclusion, str) and conclusion:
-            conclusions.add(conclusion)
-        for given in dependency.get("given", []):
-            if isinstance(given, str) and given:
-                inputs.add(given)
+        kind = dependency.get("kind")
+        if kind == "depends_on":
+            conclusion = dependency.get("conclusion")
+            if isinstance(conclusion, str) and conclusion:
+                conclusions.add(conclusion)
+            for given in dependency.get("given", []):
+                if isinstance(given, str) and given:
+                    inputs.add(given)
     return conclusions, inputs
+
+
+def _candidate_relation_dependencies(
+    formalization_manifest: dict | None,
+) -> list[dict]:
+    relations: list[dict] = []
+    for dependency in (formalization_manifest or {}).get("dependencies", []):
+        if isinstance(dependency, dict) and dependency.get("kind") == "candidate_relation":
+            relations.append(dependency)
+    return relations
+
+
+def _candidate_relation_claim_ids(relations: list[dict]) -> set[str]:
+    claim_ids: set[str] = set()
+    for relation in relations:
+        for claim_id in relation.get("claims", []):
+            if isinstance(claim_id, str) and claim_id:
+                claim_ids.add(claim_id)
+    return claim_ids
+
+
+def _candidate_relation_line(relation: dict, claims: dict[str, dict]) -> str:
+    label = relation.get("label") or relation.get("id") or "candidate_relation"
+    proposed = relation.get("proposed") or "relation"
+    status = relation.get("status") or "hypothesis"
+    claim_labels = [
+        _node_name(claims.get(claim_id), claim_id)
+        for claim_id in relation.get("claims", [])
+        if isinstance(claim_id, str) and claim_id
+    ]
+    endpoints = " <-> ".join(claim_labels) if claim_labels else "<no claims>"
+    return f"    - {label} [{proposed}, {status}]: {endpoints}"
 
 
 def _get_prior(k: dict) -> float | None:
@@ -463,11 +501,14 @@ def _knowledge_diagnostics(
     structural = []
     background_only = []
     scaffolded = []
+    candidate_relation_endpoints = []
     orphaned = []
     scaffold_conclusions, scaffold_inputs = _formalization_dependency_claim_ids(
         formalization_manifest
     )
     scaffold_connected = scaffold_conclusions | scaffold_inputs
+    candidate_relations = _candidate_relation_dependencies(formalization_manifest)
+    candidate_relation_claim_ids = _candidate_relation_claim_ids(candidate_relations)
 
     for cid, k in claims.items():
         label = k.get("label", cid.split("::")[-1])
@@ -482,6 +523,8 @@ def _knowledge_diagnostics(
             background_only.append(label)
         elif cid in scaffold_connected:
             scaffolded.append(label)
+        elif cid in candidate_relation_claim_ids:
+            candidate_relation_endpoints.append(label)
         else:
             orphaned.append(label)
 
@@ -509,6 +552,8 @@ def _knowledge_diagnostics(
     lines.append(f"    Structural (deterministic): {len(structural)}")
     if scaffolded:
         lines.append(f"    Scaffolded (unformalized): {len(scaffolded)}")
+    if candidate_relation_endpoints:
+        lines.append(f"    Candidate relation endpoints: {len(candidate_relation_endpoints)}")
     if background_only:
         lines.append(f"    Background-only:           {len(background_only)}")
     if orphaned:
@@ -543,6 +588,15 @@ def _knowledge_diagnostics(
         lines.append("  Scaffolded claims (tracked in formalization manifest):")
         for label in sorted(scaffolded):
             lines.append(f"    - {label}")
+
+    if candidate_relations:
+        lines.append("")
+        lines.append("  Candidate relations (tracked in formalization manifest):")
+        for relation in sorted(
+            candidate_relations,
+            key=lambda item: str(item.get("label") or item.get("id") or ""),
+        ):
+            lines.append(_candidate_relation_line(relation, claims))
 
     if orphaned:
         lines.append("")

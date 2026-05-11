@@ -97,6 +97,29 @@ def test_gate_fails_on_structural_hole(tmp_path):
     assert "structural hole" in result.output.lower()
 
 
+def test_gate_candidate_relation_does_not_make_counterpart_load_bearing(tmp_path):
+    pkg_dir = tmp_path / "gate_demo"
+    _write_gate_package(
+        pkg_dir,
+        "from gaia.lang import claim, tension\n\n"
+        'prediction = claim("Model predicts X.")\n'
+        'observation = claim("Experiment observes not-X.")\n'
+        "tension(\n"
+        "    prediction,\n"
+        "    observation,\n"
+        '    rationale="Prediction and observation may be in tension.",\n'
+        '    label="prediction_observation_tension",\n'
+        ")\n"
+        '__all__ = ["prediction"]\n',
+    )
+
+    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+
+    assert result.exit_code != 0
+    assert "Structural hole: prediction has no warrant chain" in result.output
+    assert "Structural hole: observation has no warrant chain" not in result.output
+
+
 def test_gate_fails_on_unreviewed(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(

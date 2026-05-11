@@ -8,6 +8,9 @@ from typing import Any
 from gaia.ir import ReviewManifest
 
 
+_CANDIDATE_RELATION_EDGE_KIND = "candidate_relation"
+
+
 @dataclass
 class InquiryEdge:
     kind: str
@@ -26,7 +29,7 @@ class InquiryNode:
 
     @property
     def is_hole(self) -> bool:
-        return not self.incoming
+        return not any(edge.kind != _CANDIDATE_RELATION_EDGE_KIND for edge in self.incoming)
 
 
 def _knowledge_label(knowledge: dict[str, Any]) -> str:
@@ -45,6 +48,14 @@ def _review_status(manifest: ReviewManifest, target_id: str | None) -> str | Non
         return None
     status = manifest.latest_status(target_id)
     return status.value if status is not None else None
+
+
+def _candidate_relation_label(scaffold: dict[str, Any]) -> str:
+    label = scaffold.get("label") or scaffold.get("id") or "candidate_relation"
+    proposed = scaffold.get("proposed")
+    if isinstance(proposed, str) and proposed:
+        return f"{label} ({proposed})"
+    return str(label)
 
 
 def _grounding_action_label(knowledge: dict[str, Any]) -> str | None:
@@ -137,12 +148,22 @@ def build_goal_trees(
             composes_by_conclusion.setdefault(conclusion, []).append(compose)
 
     scaffolds_by_conclusion: dict[str, list[dict[str, Any]]] = {}
+    candidate_relations_by_claim: dict[str, list[dict[str, Any]]] = {}
     for dependency in (formalization_manifest or {}).get("dependencies", []):
-        if not isinstance(dependency, dict) or dependency.get("kind") != "depends_on":
+        if not isinstance(dependency, dict):
             continue
-        conclusion = dependency.get("conclusion")
-        if isinstance(conclusion, str) and conclusion:
-            scaffolds_by_conclusion.setdefault(conclusion, []).append(dependency)
+        kind = dependency.get("kind")
+        if kind == "depends_on":
+            conclusion = dependency.get("conclusion")
+            if isinstance(conclusion, str) and conclusion:
+                scaffolds_by_conclusion.setdefault(conclusion, []).append(dependency)
+        elif kind == "candidate_relation":
+            claims = dependency.get("claims")
+            if not isinstance(claims, list):
+                continue
+            for claim_id in claims:
+                if isinstance(claim_id, str) and claim_id:
+                    candidate_relations_by_claim.setdefault(claim_id, []).append(dependency)
 
     def build_node(knowledge_id: str, seen: set[str]) -> InquiryNode:
         knowledge = knowledge_by_id.get(knowledge_id, {"id": knowledge_id, "content": ""})
@@ -224,6 +245,20 @@ def build_goal_trees(
             )
             node.incoming.append(edge)
 
+        for scaffold in candidate_relations_by_claim.get(knowledge_id, []):
+            claims = scaffold.get("claims") or []
+            inputs = [ref for ref in claims if isinstance(ref, str) and ref and ref != knowledge_id]
+            if any(ref in seen for ref in inputs):
+                continue
+            edge = InquiryEdge(
+                kind=_CANDIDATE_RELATION_EDGE_KIND,
+                label=_candidate_relation_label(scaffold),
+                target_id=scaffold.get("id") if isinstance(scaffold.get("id"), str) else None,
+                status=scaffold.get("status") if isinstance(scaffold.get("status"), str) else None,
+                inputs=[build_node(ref, next_seen) for ref in dict.fromkeys(inputs)],
+            )
+            node.incoming.append(edge)
+
         seen_targets = {edge.target_id for edge in node.incoming if edge.target_id}
         for action in actions_by_warrant.get(knowledge_id, []):
             target_id = action.get("target_id")
@@ -250,19 +285,24 @@ def build_goal_trees(
     ]
 
 
-def _walk(node: InquiryNode):
+def _walk(node: InquiryNode, *, include_candidate_relations: bool = True):
     yield node
     for edge in node.incoming:
+        if not include_candidate_relations and edge.kind == _CANDIDATE_RELATION_EDGE_KIND:
+            continue
         yield edge
         for child in edge.inputs:
-            yield from _walk(child)
+            yield from _walk(
+                child,
+                include_candidate_relations=include_candidate_relations,
+            )
 
 
 def _summary(trees: list[InquiryNode]) -> dict[str, int]:
     holes: set[str] = set()
     edge_statuses: dict[str, str] = {}
     for tree in trees:
-        for item in _walk(tree):
+        for item in _walk(tree, include_candidate_relations=False):
             if isinstance(item, InquiryNode) and item.is_hole:
                 holes.add(item.knowledge_id)
             elif isinstance(item, InquiryEdge) and item.target_id and item.status:

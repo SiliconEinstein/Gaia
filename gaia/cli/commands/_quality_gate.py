@@ -51,6 +51,8 @@ def _exported_claim_ids(ir: dict[str, Any]) -> set[str]:
 def _walk(node: InquiryNode):
     yield node
     for edge in node.incoming:
+        if edge.kind == "candidate_relation":
+            continue
         yield edge
         for child in edge.inputs:
             yield from _walk(child)

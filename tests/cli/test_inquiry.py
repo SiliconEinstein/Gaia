@@ -4,7 +4,7 @@ from typer.testing import CliRunner
 
 from gaia.cli.main import app
 from gaia.ir import ReviewManifest, ReviewStatus
-from gaia.lang import Claim, depends_on, derive, observe
+from gaia.lang import Claim, depends_on, derive, observe, tension
 from gaia.lang.compiler import compile_package_artifact
 from gaia.lang.review.manifest import generate_review_manifest
 from gaia.lang.runtime.package import CollectedPackage
@@ -136,6 +136,53 @@ def test_inquiry_shows_unformalized_scaffold_dependencies(tmp_path):
     assert "Orphaned claims" not in result.output
 
 
+def test_check_and_inquiry_show_candidate_relation_scaffolds(tmp_path):
+    pkg_dir = tmp_path / "inquiry_demo"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "inquiry-demo-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "inquiry_demo"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.lang import claim, tension\n\n"
+        'prediction = claim("Model predicts X.")\n'
+        'observation = claim("Experiment observes not-X.")\n'
+        "tension(\n"
+        "    prediction,\n"
+        "    observation,\n"
+        '    rationale="Prediction and observation may be in tension.",\n'
+        '    label="prediction_observation_tension",\n'
+        ")\n"
+        '__all__ = ["prediction"]\n'
+    )
+
+    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+    formalization_manifest = json.loads(
+        (pkg_dir / ".gaia" / "formalization_manifest.json").read_text()
+    )
+    assert formalization_manifest["dependencies"][0]["kind"] == "candidate_relation"
+    assert formalization_manifest["dependencies"][0]["proposed"] == "tension"
+
+    result = runner.invoke(app, ["check", "--inquiry", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    assert "Structural holes: 1" in result.output
+    assert "Goal 1: prediction [hole]" in result.output
+    assert "prediction_observation_tension (tension) [hypothesis]" in result.output
+    assert "- observation [hole]" in result.output
+    assert "    - prediction  no external prior (MaxEnt)" in result.output
+    assert "    - observation  no external prior (MaxEnt)" not in result.output
+    assert "Candidate relation endpoints: 1" in result.output
+    assert "Scaffolded (unformalized)" not in result.output
+    assert "Candidate relations (tracked in formalization manifest):" in result.output
+    assert (
+        "prediction_observation_tension [tension, hypothesis]: prediction <-> observation"
+        in result.output
+    )
+
+
 def test_build_goal_trees_accepts_formalization_manifest():
     from gaia.cli.commands._inquiry import build_goal_trees, render_inquiry
 
@@ -159,3 +206,31 @@ def test_build_goal_trees_accepts_formalization_manifest():
 
     assert "c_depends_on_a_b [unformalized]" in output
     assert "Goal 1: c [hole]" not in output
+
+
+def test_build_goal_trees_candidate_relation_does_not_close_hole():
+    from gaia.cli.commands._inquiry import build_goal_trees, render_inquiry
+
+    with CollectedPackage("inquiry_pkg") as pkg:
+        prediction = Claim("Model predicts X.")
+        prediction.label = "prediction"
+        observation = Claim("Experiment observes not-X.")
+        observation.label = "observation"
+        tension(
+            prediction,
+            observation,
+            rationale="Prediction and observation may be in tension.",
+            label="prediction_observation_tension",
+        )
+        pkg._exported_labels = {"prediction"}
+
+    compiled = compile_package_artifact(pkg)
+    trees = build_goal_trees(
+        compiled.to_json(),
+        ReviewManifest(reviews=[]),
+        formalization_manifest=compiled.formalization_manifest,
+    )
+    output = render_inquiry(trees)
+
+    assert "prediction_observation_tension (tension) [hypothesis]" in output
+    assert "Goal 1: prediction [hole]" in output
