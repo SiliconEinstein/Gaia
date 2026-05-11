@@ -1,3 +1,19 @@
+<!-- BEGIN REFACTOR MORTAL BANNER · 2026-05-11 启动 -->
+
+> 🚧 **REFACTOR IN PROGRESS — v0.5 工程质量基线对齐**
+>
+> 本仓库当前处于工程质量基线重构期间。所有 in-repo agent / 开发者动手前必须先按以下纪律操作：
+>
+> 1. **STATE 文档**：`.refactor/STATE.md` 是本次重构的实时进度文档。任何 agent / 开发者**动手前第一动作 = 读 STATE.md**，找到 task queue 中下一个 `pending` 项；干完后**退出前最后动作 = 更新 STATE.md**（mark `done` 或记 `breakpoint_notes`）。
+> 2. **文档保真为头号纪律**：所有代码 / 类型注解 / docstring / 测试都必须严格匹配 `docs/foundations/**` 和 `docs/specs/**` 中描述的逻辑与语义。具体规则清单见 `.refactor/doc-fidelity-baseline.md`，agent 启动后必读。
+> 3. **重构边界**：**不动** IR / 语义 / DSL 表面 / API 签名 / 算法 / 命名。本重构只做：工程基线注入（ruff / mypy / pytest / pre-commit config + CI）+ 补 type annotations + 补 Google docstrings + 补 test。
+> 4. **🚨 doc-code 矛盾即停**：发现仓库 docs 与 code 在语义 / 行为层面**矛盾**（不是缺注解 / 缺 docstring 级的小差，而是实际逻辑分歧），**立即停手**，在 `.refactor/STATE.md` 当前 task `breakpoint_notes` 字段下记录（doc 段落引用 + code 文件:行号 + 矛盾描述 + 影响面），task status 标 `blocked`。**不要自行决断"哪边对"，也不要"顺手修齐"** — 重构 branch 只做工程基线，语义层矛盾一律升级。
+> 5. **协作单**：本次重构由飞书协作单 `AM15dZDhjooNyaxZRhNc1Sawnce` 驱动；决策定盘 + ❓ 升回都走协作单。看板入口：`GAIA-LKM kanban` (`IUvrwMmwliAUDukbXfUcwwxEnmf`)。
+>
+> **本 banner + `.refactor/` 目录是重构期间临时产物。** 重构 PR merge 完 + 用户明确说「清理重构产物」后，在收尾 PR 内一并删除。
+
+<!-- END REFACTOR MORTAL BANNER -->
+
 # CLAUDE.md
 
 Instructions for Claude Code (claude.ai/code) working in this repo.
