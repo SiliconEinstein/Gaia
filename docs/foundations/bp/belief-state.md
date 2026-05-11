@@ -2,7 +2,7 @@
 
 > **Status:** Current canonical (v0.5)
 >
-> 本文档定义 BeliefState schema，由 LKM 全局推理消费。本地 CLI 推理产生的 `.gaia/beliefs.json` 是该 schema 的子集（缺 `resolution_policy` / `prior_cutoff`）。
+> 本文档定义 BeliefState schema，用于 LKM 全局推理。本地 CLI 推理产生的 `.gaia/beliefs.json` 使用不同的 schema（见 §Local CLI Beliefs Format）。
 
 BeliefState 是 BP 在 GlobalCanonicalGraph 上的纯输出——后验信念值。它记录产生它的条件（resolution policy），使结果可重现。
 
@@ -31,6 +31,37 @@ BeliefState:
     iterations:           int
     max_residual:         float
 ```
+
+## Local CLI Beliefs Format
+
+本地 CLI `gaia infer` 写入的 `.gaia/beliefs.json` 使用不同的 schema，针对本地包优化：
+
+```json
+{
+  "ir_hash": "...",
+  "gaia_lang_version": "...",
+  "beliefs": [
+    {"knowledge_id": "github:pkg::label", "label": "label", "belief": 0.73}
+  ],
+  "diagnostics": {
+    "converged": true,
+    "iterations": 42,
+    "max_residual": 0.0001
+  }
+}
+```
+
+**与 BeliefState 的区别**：
+- `beliefs` 是 list of records，不是 `dict[str, float]`
+- 使用本地 QID（`github:pkg::label`），不是全局 `gcn_*` ID
+- 缺少 `bp_run_id`, `created_at`, `resolution_policy`, `prior_cutoff`, `compilation_summary`
+- 包含 `ir_hash` 和 `gaia_lang_version` 用于本地一致性检查
+
+**转换到 BeliefState**：上传到 LKM 时需要：
+1. 将本地 QID 映射到全局 `gcn_*` ID
+2. 将 `beliefs` list 转换为 `dict[gcn_id, float]`
+3. 添加 `bp_run_id`, `created_at`, `resolution_policy`, `prior_cutoff`
+4. 可选：添加 `compilation_summary` 用于诊断
 
 ## 关键规则
 
