@@ -10,15 +10,16 @@ since: v0.5
 
 Gaia Lang is a Python 3.12+ internal DSL for declarative knowledge authoring. Package authors use it to declare propositions, logical constraints, and reasoning actions. Every declaration auto-registers to a `CollectedPackage` via Python `contextvars` -- writing declarations at module scope is sufficient.
 
-For the conceptual model behind the surface (Knowledge / Action hierarchy, formula claims, action lowering, operator semantics) see [knowledge-and-reasoning.md](knowledge-and-reasoning.md). This file is the per-name reference.
+For the conceptual model behind the surface (Knowledge / Action hierarchy, formula claims, action lowering, operator semantics) see [knowledge-and-reasoning.md](knowledge-and-reasoning.md). For the typed predicate-logic model (`Variable`, `Domain`, formula AST, `forall` / `exists`, and grounding boundaries), see [predicate-logic.md](predicate-logic.md). This file is the per-name reference.
 
 ```python
 from gaia.lang import (
     # Knowledge
-    claim, note, question,
+    claim, note, question, Domain,
     # Formula primitives (terms, predicates, connectives, quantifiers)
     Variable, Nat, Real, Probability, Bool,
-    ClaimAtom, Constant, Equals, Causes,
+    ClaimAtom, Constant, FunctionSymbol, FunctionApp, PredicateSymbol, UserPredicate,
+    Equals, NotEquals, Greater, GreaterEqual, Less, LessEqual, Causes,
     land, lor, lnot, implies, iff, forall, exists,
     # Structured-formula sugar (parameter / observation / causal claims)
     parameter, observation, causal,
@@ -60,7 +61,7 @@ def claim(
 ) -> Knowledge
 ```
 
-The only knowledge type carrying probability in BP. `background` attaches notes without making them logical premises. `parameters` enables universal quantification (e.g., `[{"name": "x", "type": "material"}]`). `provenance` records source attribution as `[{"package_id": ..., "version": ...}]`. Use action verbs (`observe`, `derive`, `compute`, `infer`) and relation verbs (`equal`, `contradict`, `exclusive`) to connect claims in new v0.5 packages.
+The only knowledge type carrying probability in BP. `background` attaches notes without making them logical premises. `parameters` records lightweight parameter metadata on an opaque prose claim; use `formula=forall(...)` / `formula=exists(...)` when Gaia should actually inspect and lower a quantified predicate formula. `provenance` records source attribution as `[{"package_id": ..., "version": ...}]`. Use action verbs (`observe`, `derive`, `compute`, `infer`) and relation verbs (`equal`, `contradict`, `exclusive`) to connect claims in new v0.5 packages.
 
 ```python
 orbit = claim("The Earth orbits the Sun.")
@@ -70,7 +71,7 @@ evidence = claim("Stellar parallax is observed.")
 heliocentric = claim("The heliocentric model is correct.")
 derive(heliocentric, given=evidence, rationale="Parallax confirms orbital motion.")
 
-# Universal claim
+# Lightweight universal prose claim (metadata only; not parsed as a formula)
 bcs = claim(
     "forall {x}. superconductor({x}) -> zero_resistance({x})",
     parameters=[{"name": "x", "type": "material"}],
@@ -120,6 +121,10 @@ open_problem = question("What is the maximum Tc in hydrogen-rich superconductors
 ---
 
 ## Structured Formula Claim Sugar
+
+For the full typed model behind these helpers, including `Variable`, `Domain`,
+`PredicateSymbol`, `UserPredicate`, `ClaimAtom`, `forall`, `exists`, and the
+compiler lowering rules, see [predicate-logic.md](predicate-logic.md).
 
 The structured formula helpers return ordinary `Claim` objects with
 `Claim.formula` and `Claim.kind` set. They do not introduce new IR knowledge

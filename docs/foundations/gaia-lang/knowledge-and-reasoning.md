@@ -11,6 +11,7 @@ This document bridges the Gaia Lang v0.5 Python DSL to the Gaia IR semantics lay
 - The **Knowledge** hierarchy authors declare (`Claim`, `Note`, `Question`, plus `ClaimKind` shape discriminators).
 - The **Action** hierarchy that connects claims (`Support`, `Structural`, `Probabilistic`, `Scaffold`, `Compose`) — the v0.5 authoring surface, parallel to Knowledge.
 - How Actions lower to IR (strategies, operators, helper claims, `Compose` nodes) and how formula claims lower to IR operators.
+- How typed predicate-logic formulas (`Variable`, `Domain`, predicates, connectives, `forall` / `exists`) fit inside `Claim.formula`.
 - The legacy v5 **named strategies** (`support`, `deduction`, `abduction`, ...) that remain as a compatibility surface but are no longer the recommended way to author new packages.
 
 Source references: `gaia/lang/runtime/knowledge.py`, `gaia/lang/runtime/action.py`, `gaia/lang/runtime/composition.py`, `gaia/lang/runtime/roles.py`, `gaia/lang/dsl/` (support, relate, decompose, infer_verb, associate_verb, propositional, scaffold), `gaia/lang/formula/`, `gaia/lang/bayes/`, `gaia/lang/compiler/compile.py`, `gaia/ir/knowledge.py`, `gaia/ir/operator.py`, `gaia/ir/strategy.py`, `gaia/ir/formalize.py`, `gaia/bp/potentials.py`.
@@ -71,9 +72,9 @@ Each `Claim` has a **shape discriminator** `kind: ClaimKind` and an optional str
 | `QUANTIFIED` | top-level `Forall` / `Exists` in `formula` | `claim(formula=Forall(...))` |
 | `CAUSAL` | top-level `Causes(cause, effect)` predicate | `causal(cause, effect, ...)` sugar |
 
-`ClaimKind` is **not** a role label (hypothesis / prediction / observation-as-evidence) — those live on action graph nodes (see `roles_for_claim`). It is a structural shape so the compiler can lower the formula payload appropriately. See [§5 Formula Claims](#5-formula-claims).
+`ClaimKind` is **not** a role label (hypothesis / prediction / observation-as-evidence) — those live on action graph nodes (see `roles_for_claim`). It is a structural shape so the compiler can lower the formula payload appropriately. See [§5 Formula Claims](#5-formula-claims) and [Predicate Logic In Gaia Lang](predicate-logic.md).
 
-A `Claim` is **closed** if `parameters=[]` and **universal** if quantified `Variables` appear. Universal claims can be instantiated by deduction-style actions over a binding `Note`.
+A `Claim` is **closed** if `parameters=[]` and **universal** if quantified `Variables` appear. Opaque universal prose can record `parameters=[...]`; executable finite-domain quantification should use `claim(formula=Forall(...))` / `claim(formula=Exists(...))`, which the compiler lowers as described in [§5 Formula Claims](#5-formula-claims).
 
 ### 2.2 Note
 
@@ -238,9 +239,11 @@ Reference: [Action Label References Design](../../specs/2026-05-10-action-label-
 - **Quantifiers.** `Forall(var, body)`, `Exists(var, body)`.
 - **Domains.** `Bool`, `Nat`, `Real`, `Probability` (in `gaia.lang.types.primitives`).
 
+For a reader-facing explanation of the predicate-logic model, including the difference between opaque `parameters=[...]` and executable `claim(formula=...)`, see [Predicate Logic In Gaia Lang](predicate-logic.md).
+
 The compiler handles formula claims via `gaia/lang/compiler/lower_formula.py` after the action pass. It (a) emits IR operators for each connective node (`conjunction / disjunction / negation / implication / equivalence`), (b) records variable bindings on the source Claim's `metadata.formula_bindings`, (c) generates intermediate helper Claims for sub-expressions.
 
-Three sugar helpers in `gaia/lang/dsl/scaffold.py` map directly onto `ClaimKind`:
+Three sugar helpers in `gaia/lang/dsl/sugar.py` map directly onto `ClaimKind`:
 
 | Sugar | Produces | `ClaimKind` |
 |---|---|---|

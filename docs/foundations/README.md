@@ -48,6 +48,7 @@ Gaia 的规范参考文档，按架构层级组织。
 - [DSL 参考](gaia-lang/dsl.md) — Python DSL 完整参考（claim/setting/question、operators、strategies）
 - [包模型](gaia-lang/package.md) — pyproject.toml、命名规范、目录布局、priors.py
 - [知识类型与推理语义](gaia-lang/knowledge-and-reasoning.md) — 知识类型语义、算子势函数、策略展开、DSL→IR 映射
+- [谓词逻辑](gaia-lang/predicate-logic.md) — Variable、Domain、Formula AST、forall/exists 与 grounding/lowering 边界
 
 ## BP — 基于 Gaia IR 的计算
 
