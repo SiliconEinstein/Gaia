@@ -54,7 +54,7 @@ class ReviewManifest(BaseModel):
     def latest_status(self, target_id: str) -> ReviewStatus | None: ...
 ```
 
-`Review.round` lets a target accumulate a history; `latest_status(target_id)` returns the highest-round status. The persisted manifest is a JSON file at the package root (`reviews.json`); the auto-generated baseline manifest carries `status = UNREVIEWED` for every target the compiler emitted.
+`Review.round` lets a target accumulate a history; `latest_status(target_id)` returns the highest-round status. The persisted manifest is a JSON file at `.gaia/review_manifest.json`; the auto-generated baseline manifest carries `status = UNREVIEWED` for every target the compiler emitted.
 
 ## 3. Manifest Generation
 
@@ -67,7 +67,7 @@ For each compiled action target, the manifest builder:
 3. Builds a templated audit question via `gaia.lang.review.templates.generate_audit_question(action_type, **labels)`.
 4. Mints a deterministic `review_id` per `(target_kind, target_id)` so re-compiles do not invalidate stored reviews of unchanged targets.
 
-The result is attached to the `CompiledPackage`. `gaia infer` and `gaia inquiry review` later merge it with the package's persisted `reviews.json` (see §5).
+The result is attached to the `CompiledPackage`. `gaia infer` and `gaia inquiry review` later merge it with the package's persisted `.gaia/review_manifest.json` (see §5).
 
 ## 4. CLI: `gaia inquiry review`
 
@@ -85,7 +85,7 @@ Source: `gaia/cli/commands/inquiry.py`, `gaia/inquiry/review.py:run_review`.
 7. analyze_knowledge_breakdown()    — what kinds of nodes exist
 8. analyze inquiry tree, prior holes, belief diagnostics
 9. publish_blockers()               — list NEEDS_INPUTS / REJECTED items
-10. snapshot to .gaia/reviews/<review_id>.json for diffing
+10. snapshot to .gaia/inquiry/reviews/<review_id>.json for diffing
 ```
 
 The output is a `ReviewReport` dataclass that the CLI prints in text or markdown form (`render_text` / `render_markdown`). Public surface:
@@ -97,7 +97,7 @@ from gaia.inquiry.review import (
 )
 ```
 
-Companion sub-commands persist focus / obligation / hypothesis state in `.gaia/inquiry-state.json` so that subsequent reviews stay aligned with where the author last left off:
+Companion sub-commands persist focus / obligation / hypothesis state in `.gaia/inquiry/state.json` and tactics in `.gaia/inquiry/tactics.jsonl` so that subsequent reviews stay aligned with where the author last left off:
 
 | Sub-command | Purpose |
 |---|---|
@@ -120,7 +120,7 @@ def merge_review_manifests(generated: ReviewManifest, stored: ReviewManifest) ->
 def latest_reviews(manifest: ReviewManifest) -> list[Review]
 ```
 
-`load_or_generate_review_manifest()` reads `<pkg>/reviews.json` if it exists, then merges stored entries with the generated baseline by `review_id`. New targets appear as `UNREVIEWED`; targets that disappeared from the IR are dropped on the next compile. `latest_reviews()` returns the highest-round status per target, suitable for downstream gating.
+`load_or_generate_review_manifest()` reads `.gaia/review_manifest.json` if it exists, then merges stored entries with the generated baseline by `review_id`. New targets appear as `UNREVIEWED`; targets that disappeared from the IR are dropped on the next compile. `latest_reviews()` returns the highest-round status per target, suitable for downstream gating.
 
 The merged manifest is what `gaia infer` consults when deciding which warrant claims enter the information set `I` — accepted reviews promote their warrant helper claim to a hard observation; `UNREVIEWED` and `NEEDS_INPUTS` warrants stay at MaxEnt.
 
@@ -156,11 +156,11 @@ The `--mode publish` ranking weighs diagnostics differently: it is meant to gate
          ▼
    gaia inquiry review                gaia trace verify / review / show
          │                                       │
-         │ merges stored reviews.json            │ audits a recorded
+         │ merges stored .gaia/review_manifest.json │ audits a recorded
          │ produces ReviewReport                 │ inference trace
          │ guides next-edit obligations          │
          ▼                                       ▼
-   reviews.json (per package)           trace snapshots in .gaia/trace/
+   .gaia/review_manifest.json (per package)  trace snapshots in .gaia/trace/
 
          ↓ both feed ↓
 
